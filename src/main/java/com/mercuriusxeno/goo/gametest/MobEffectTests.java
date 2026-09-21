@@ -38,6 +38,7 @@ public final class MobEffectTests {
     private static final String ABILITY_LEAF_ENTANGLE = "goo:leaf_entangle";
     private static final String ABILITY_TYPHOON_LEVITATE = "goo:typhoon_levitate";
     private static final String ABILITY_SHROOM_DEBUFF = "goo:shroom_debuff";
+    private static final String ABILITY_NETHER_WITHER = "goo:nether_wither";
     /** The damage metal_javelin.json's damage step names. */
     private static final float JAVELIN_DAMAGE = 8.0f;
 
@@ -219,14 +220,15 @@ public final class MobEffectTests {
     }
 
     /**
-     * Nether wither halves health and applies wither.
+     * Nether wither is a program: a not_boss target selection wrapping a
+     * set_health step at half and a wither potion step.
      *
      * @param helper the gametest helper
      */
     public static void netherWither(GameTestHelper helper) {
         Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
         float before = mob.getHealth();
-        NetherWither.apply(mob);
+        runEntityPrograms(helper, mob, ABILITY_NETHER_WITHER);
         helper.assertTrue(mob.getHealth() < before, SHOULD_TAKE_DAMAGE);
         helper.assertTrue(mob.hasEffect(MobEffects.WITHER), SHOULD_HAVE_WITHER);
         helper.succeed();

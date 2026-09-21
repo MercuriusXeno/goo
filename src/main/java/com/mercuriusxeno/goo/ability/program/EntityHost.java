@@ -114,6 +114,11 @@ public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entit
         return EntityScan.passes(target, filters);
     }
 
+    @Override
+    public void setTargetHealthFraction(float fraction) {
+        target.setHealth(target.getHealth() * fraction);
+    }
+
     /**
      * Maps a damage kind to the level's damage source.
      *
