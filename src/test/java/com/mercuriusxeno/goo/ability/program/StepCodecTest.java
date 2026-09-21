@@ -38,7 +38,8 @@ class StepCodecTest {
             Map.entry("freeze_ticks",
                     new FreezeTicksStep(Expr.parse("140 * 25 / pow(health, 0.2) / 100").getOrThrow())),
             Map.entry("set_ai", new SetAiStep(false)),
-            Map.entry("set_invulnerable", new SetInvulnerableStep(true))
+            Map.entry("set_invulnerable", new SetInvulnerableStep(true)),
+            Map.entry("clone_entity", new CloneEntityStep(Expr.parse("100 / pow(max_health, 0.6)").getOrThrow()))
     );
 
     private static Step roundTrip(Step step) {

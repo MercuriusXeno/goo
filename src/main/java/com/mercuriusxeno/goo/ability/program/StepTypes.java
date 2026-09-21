@@ -43,6 +43,7 @@ public final class StepTypes {
         register(FreezeTicksStep.TYPE);
         register(SetAiStep.TYPE);
         register(SetInvulnerableStep.TYPE);
+        register(CloneEntityStep.TYPE);
     }
 
     private StepTypes() {
