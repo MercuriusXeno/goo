@@ -16,13 +16,11 @@
   },
   "behaviors": [
     {
-      "type": "explosion",
-      "params": {
-        "basePower": "2.5",
-        "powerPerStack": "1.0",
-        "proximityTrigger": "true",
-        "triggerRadius": "3.0"
-      }
+      "type": "program",
+      "steps": [
+        { "type": "await_entity", "shape": "sphere", "radius": 3.0, "where": ["living"] },
+        { "type": "explode", "power": "2.5 + 1.0 * (stacks - 1)" }
+      ]
     }
   ],
   "tags": ["explosive", "trap"]

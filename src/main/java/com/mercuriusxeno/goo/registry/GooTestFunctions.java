@@ -46,6 +46,9 @@ public final class GooTestFunctions {
     private static final String FX_ABILITY_BLAZE = "fx_ability_blaze_tunnel";
     private static final String FX_ABILITY_ROCK = "fx_ability_rock_tunnel";
     private static final String FX_ABILITY_FROST = "fx_ability_frost_sphere";
+    private static final String FX_PROGRAM_INSTANT = "fx_program_instant_detonation";
+    private static final String FX_PROGRAM_TIMED = "fx_program_timed_bomb";
+    private static final String FX_PROGRAM_MINE = "fx_program_proximity_mine";
 
     // --- Crucible ---
     private static final String CR_BLOB_INSERT = "cr_blob_insert";
@@ -162,6 +165,9 @@ public final class GooTestFunctions {
         reg(r, FX_ABILITY_BLAZE, EffectExecutorTests::abilityBlazeTunnel);
         reg(r, FX_ABILITY_ROCK, EffectExecutorTests::abilityRockTunnel);
         reg(r, FX_ABILITY_FROST, EffectExecutorTests::abilityFrostSphere);
+        reg(r, FX_PROGRAM_INSTANT, EffectExecutorTests::programInstantDetonation);
+        reg(r, FX_PROGRAM_TIMED, EffectExecutorTests::programTimedBomb);
+        reg(r, FX_PROGRAM_MINE, EffectExecutorTests::programProximityMine);
     }
 
     private static void registerMachineInteractionTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {

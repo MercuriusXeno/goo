@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition.BehaviorEntry;
+import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.world.CrystalBehavior;
 import com.mercuriusxeno.goo.ability.world.MetalBehavior;
 import com.mercuriusxeno.goo.ability.world.NetherBehavior;
@@ -10,14 +11,16 @@ import java.util.Map;
 /**
  * Registry of behavior building block factories. Each registered type
  * name maps to a factory that creates a {@link ChainBehavior} from
- * the JSON parameters in a {@link BehaviorEntry}.
+ * the JSON parameters in a {@link BehaviorEntry}. The {@code program}
+ * type is the step runtime every other type migrates onto (decision
+ * ability-params-in-datapack).
  */
 public final class BehaviorType {
 
     private static final Map<String, Factory> FACTORIES = new HashMap<>();
 
     static {
-        register("explosion", ParameterizedExplosion::fromEntry);
+        register(ProgramBehavior.TYPE_NAME, ProgramBehavior::fromEntry);
         register("progressive_area", ProgressiveAreaBlock::fromEntry);
         register("block_place", BlockPlaceBehavior::fromEntry);
         register("metal_spikes", (e, d) -> new MetalBehavior());
