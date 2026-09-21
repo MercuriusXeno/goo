@@ -81,4 +81,9 @@ public record MarkerHost(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity
     public void applyPotion(Identifier effect, int duration, int amplifier, boolean visible) {
         throw HostCapability.TARGET.refusedBy(kind());
     }
+
+    @Override
+    public boolean targetPasses(Set<EntityFilter> filters) {
+        throw HostCapability.TARGET.refusedBy(kind());
+    }
 }

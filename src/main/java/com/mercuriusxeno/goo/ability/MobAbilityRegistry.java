@@ -22,7 +22,6 @@ public final class MobAbilityRegistry {
     static {
         register(MobAbilities.CRYSTAL_FLECHETTES, ctx -> MobAbilities.applyNamed(MobAbilities.CRYSTAL_FLECHETTES, ctx));
         register(MobAbilities.VITAL_CLONE, ctx -> MobAbilities.applyNamed(MobAbilities.VITAL_CLONE, ctx));
-        register(MobAbilities.SHROOM_TOXIFY, ctx -> MobAbilities.applyNamed(MobAbilities.SHROOM_TOXIFY, ctx));
         register(MobAbilities.ROCK_PETRIFY, ctx -> MobAbilities.applyNamed(MobAbilities.ROCK_PETRIFY, ctx));
         register(MobAbilities.BLAZE_IGNITE, ctx -> MobAbilities.applyNamed(MobAbilities.BLAZE_IGNITE, ctx));
         register(MobAbilities.FROST_SNAP, ctx -> MobAbilities.applyNamed(MobAbilities.FROST_SNAP, ctx));

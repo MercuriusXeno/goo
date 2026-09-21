@@ -17,10 +17,9 @@ import java.util.function.Consumer;
  */
 public final class MobAbilities {
 
-    // ── Handler name constants; a type migrated to a program (metal, leaf, typhoon) has none ──
+    // ── Handler name constants; a type migrated to a program (metal, leaf, typhoon, shroom) has none ──
     public static final String CRYSTAL_FLECHETTES = "crystal_flechettes";
     public static final String VITAL_CLONE = "vital_clone";
-    public static final String SHROOM_TOXIFY = "shroom_debuff";
     public static final String ROCK_PETRIFY = "rock_petrify";
     public static final String BLAZE_IGNITE = "blaze_ignite";
     public static final String FROST_SNAP = "frost_snap";
@@ -38,7 +37,6 @@ public final class MobAbilities {
             new EnumMap<>(Map.ofEntries(
                     Map.entry(GooType.CRYSTAL, ctx -> CrystalFlechettes.apply(ctx.level(), ctx.target())),
                     Map.entry(GooType.VITAL, ctx -> VitalClone.apply(ctx.level(), ctx.target())),
-                    Map.entry(GooType.SHROOM, ctx -> ShroomToxify.apply(ctx.target())),
                     Map.entry(GooType.ROCK, ctx -> RockPetrify.apply(ctx.level(), ctx.target())),
                     Map.entry(GooType.BLAZE, ctx -> BlazeIgnite.apply(ctx.level(), ctx.target())),
                     Map.entry(GooType.FROST, ctx -> FrostSnap.apply(ctx.target())),
@@ -96,7 +94,6 @@ public final class MobAbilities {
         Map<String, Consumer<EffectContext>> map = new HashMap<>();
         map.put(CRYSTAL_FLECHETTES, ctx -> CrystalFlechettes.apply(ctx.level(), ctx.target()));
         map.put(VITAL_CLONE, ctx -> VitalClone.apply(ctx.level(), ctx.target()));
-        map.put(SHROOM_TOXIFY, ctx -> ShroomToxify.apply(ctx.target()));
         map.put(ROCK_PETRIFY, ctx -> RockPetrify.apply(ctx.level(), ctx.target()));
         map.put(BLAZE_IGNITE, ctx -> BlazeIgnite.apply(ctx.level(), ctx.target()));
         map.put(FROST_SNAP, ctx -> FrostSnap.apply(ctx.target()));

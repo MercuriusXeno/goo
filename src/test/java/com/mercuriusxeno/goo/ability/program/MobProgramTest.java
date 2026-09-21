@@ -13,10 +13,15 @@ import java.io.Reader;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.OptionalDouble;
+import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
@@ -33,7 +38,10 @@ class MobProgramTest {
     private static final String LEVITATION = "minecraft:levitation";
     private static final String SLOWNESS = "minecraft:slowness";
     private static final String POISON = "minecraft:poison";
+    private static final String WEAKNESS = "minecraft:weakness";
+    private static final Set<EntityFilter> NOT_BOSS = Set.of(EntityFilter.NOT_BOSS);
     private static final double COW_HEALTH = 10;
+    private static final int SHROOM_DURATION = 200;
     private static final int LEVITATE_DURATION = 100;
     private static final int LEVITATE_AMPLIFIER = 1;
     private static final int ENTANGLE_SLOW_DURATION = 100;
@@ -80,6 +88,29 @@ class MobProgramTest {
         run("typhoon_levitate", host);
 
         verify(host).applyPotion(Identifier.parse(LEVITATION), LEVITATE_DURATION, LEVITATE_AMPLIFIER, true);
+    }
+
+    @Test
+    void shroomDebuffAppliesSlownessWeaknessAndPoisonToANonBoss() {
+        StepHost host = entityHost();
+        when(host.targetPasses(NOT_BOSS)).thenReturn(true);
+
+        run("shroom_debuff", host);
+
+        InOrder order = inOrder(host);
+        order.verify(host).applyPotion(Identifier.parse(SLOWNESS), SHROOM_DURATION, 1, true);
+        order.verify(host).applyPotion(Identifier.parse(WEAKNESS), SHROOM_DURATION, 1, true);
+        order.verify(host).applyPotion(Identifier.parse(POISON), SHROOM_DURATION, 0, true);
+    }
+
+    @Test
+    void shroomDebuffLeavesABossAlone() {
+        StepHost host = entityHost();
+        when(host.targetPasses(NOT_BOSS)).thenReturn(false);
+
+        run("shroom_debuff", host);
+
+        verify(host, never()).applyPotion(any(), anyInt(), anyInt(), anyBoolean());
     }
 
     @Test

@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.ability.program;
 
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.phys.AABB;
@@ -58,13 +59,14 @@ final class EntityScan {
     }
 
     /**
-     * Tests the entity against every filter.
+     * Tests the entity against every filter; the meaning of a host's
+     * {@link StepHost#targetPasses} as well as the scan's own trim.
      *
      * @param entity  the candidate
      * @param filters the filters to pass
      * @return true when every filter keeps the entity
      */
-    private static boolean passes(Entity entity, Set<EntityFilter> filters) {
+    static boolean passes(Entity entity, Set<EntityFilter> filters) {
         for (EntityFilter filter : filters) {
             if (!keeps(filter, entity)) {
                 return false;
@@ -84,6 +86,19 @@ final class EntityScan {
         return switch (filter) {
             case LIVING -> entity instanceof LivingEntity;
             case NOT_ITEM -> !(entity instanceof ItemEntity);
+            case NOT_BOSS -> !isBoss(entity);
         };
+    }
+
+    /**
+     * Tests whether the entity is a wither or an ender dragon, the two
+     * bosses the mob abilities leave alone.
+     *
+     * @param entity the candidate
+     * @return true for a boss
+     */
+    private static boolean isBoss(Entity entity) {
+        EntityType<?> type = entity.getType();
+        return type == EntityType.WITHER || type == EntityType.ENDER_DRAGON;
     }
 }
