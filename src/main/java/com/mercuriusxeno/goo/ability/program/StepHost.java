@@ -137,4 +137,12 @@ public interface StepHost extends Variables {
      * @param enabled whether the target is invulnerable
      */
     void setTargetInvulnerable(boolean enabled);
+
+    /**
+     * Rolls the chance and, on a hit, spawns a fresh entity of the host's
+     * target's type beside it. Capability {@link HostCapability#TARGET}.
+     *
+     * @param chancePercent the percent chance of a clone
+     */
+    void cloneTarget(float chancePercent);
 }

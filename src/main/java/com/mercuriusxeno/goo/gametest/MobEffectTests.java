@@ -44,6 +44,7 @@ public final class MobEffectTests {
     private static final String ABILITY_AEON_TIME_STOP = "goo:aeon_time_stop";
     private static final String ABILITY_UNSTABLE_EXPLODE = "goo:unstable_explode";
     private static final String ABILITY_HEX_CHARM = "goo:hex_charm";
+    private static final String ABILITY_VITAL_CLONE = "goo:vital_clone";
     /** The damage metal_javelin.json's damage step names. */
     private static final float JAVELIN_DAMAGE = 8.0f;
 
@@ -109,13 +110,15 @@ public final class MobEffectTests {
     }
 
     /**
-     * Vital clone attempts to clone the mob (probabilistic - just verify no crash).
+     * Vital clone is a program: a mob target selection wrapping a
+     * clone_entity step whose roll the host makes, so the run proves the
+     * program loads and ticks on a chicken without asserting the roll.
      *
      * @param helper the gametest helper
      */
     public static void vitalClone(GameTestHelper helper) {
         Mob mob = helper.spawnWithNoFreeWill(EntityType.CHICKEN, SPAWN_POS);
-        VitalClone.apply(helper.getLevel(), mob);
+        runEntityPrograms(helper, mob, ABILITY_VITAL_CLONE);
         helper.succeed();
     }
 

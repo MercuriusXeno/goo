@@ -7,11 +7,13 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageSources;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
@@ -36,6 +38,7 @@ import java.util.Set;
 public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entity thrower) implements StepHost {
 
     private static final String LOG_UNKNOWN_EFFECT = "Potion step names status effect {}, which no registry holds";
+    private static final float PERCENT = 100;
 
     @Override
     public HostKind kind() {
@@ -135,6 +138,27 @@ public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entit
     @Override
     public void setTargetInvulnerable(boolean enabled) {
         target.setInvulnerable(enabled);
+    }
+
+    @Override
+    public void cloneTarget(float chancePercent) {
+        if (level.getRandom().nextFloat() * PERCENT < chancePercent) {
+            spawnClone();
+        }
+    }
+
+    /**
+     * Spawns a fresh entity of the target's type a gaussian step away on
+     * each horizontal axis.
+     */
+    private void spawnClone() {
+        Entity clone = target.getType().create(level, EntitySpawnReason.MOB_SUMMONED);
+        if (clone == null) {
+            return;
+        }
+        RandomSource random = level.getRandom();
+        clone.setPos(target.getX() + random.nextGaussian(), target.getY(), target.getZ() + random.nextGaussian());
+        level.addFreshEntity(clone);
     }
 
     /**

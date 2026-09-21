@@ -58,6 +58,8 @@ class MobProgramTest {
     /** floor(20 * 60 / pow(10, 0.4)), the charm's ticks at the cow's health of ten. */
     private static final int CHARM_TICKS_AT_COW_HEALTH = 477;
     private static final int CHARM_WEAKNESS_AMPLIFIER = 4;
+    /** 100 / pow(10, 0.6), the clone's percent chance at the cow's max health of ten. */
+    private static final float CLONE_CHANCE_AT_COW_HEALTH = (float) (100 / Math.pow(COW_HEALTH, 0.6));
     private static final int LEVITATE_DURATION = 100;
     private static final int LEVITATE_AMPLIFIER = 1;
     private static final int ENTANGLE_SLOW_DURATION = 100;
@@ -199,6 +201,16 @@ class MobProgramTest {
         InOrder order = inOrder(host);
         order.verify(host).applyPotion(Identifier.parse(WEAKNESS), CHARM_TICKS_AT_COW_HEALTH, CHARM_WEAKNESS_AMPLIFIER, true);
         order.verify(host).applyPotion(Identifier.parse(GLOWING), CHARM_TICKS_AT_COW_HEALTH, 0, true);
+    }
+
+    @Test
+    void vitalCloneRollsAMobsCloneAgainstItsMaxHealth() {
+        StepHost host = entityHost();
+        when(host.targetPasses(MOB)).thenReturn(true);
+
+        run("vital_clone", host);
+
+        verify(host).cloneTarget(CLONE_CHANCE_AT_COW_HEALTH);
     }
 
     @Test
