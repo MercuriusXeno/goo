@@ -27,7 +27,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.*;
 import net.neoforged.neoforge.client.extensions.common.IClientFluidTypeExtensions;
 import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsEvent;
-import net.neoforged.neoforge.client.fluid.FluidTintSources;
+import net.neoforged.neoforge.client.fluid.FluidTintSource;
 import net.neoforged.neoforge.client.renderstate.RegisterRenderStateModifiersEvent;
 import net.neoforged.neoforge.fluids.FluidType;
 
@@ -247,7 +247,9 @@ public final class GooClientSetup {
     }
 
     /**
-     * Registers FluidModel for each goo type so fluids render in-world.
+     * Registers FluidModel for each goo type so fluids render in-world. The
+     * tint reads the type's highlight from the registry at render time, since
+     * no level and so no registry exists while models register.
      *
      * @param event the event instance
      */
@@ -257,9 +259,8 @@ public final class GooClientSetup {
             String id = type.getId();
             Material texture = new Material(
                     Identifier.fromNamespaceAndPath(Goo.MODID, FLUID_TEX_PREFIX + id + FLUID_TEX_SUFFIX), true);
-            FluidModel.Unbaked model = new FluidModel.Unbaked(
-                    texture, texture, null,
-                    FluidTintSources.constant(OPAQUE_ALPHA | type.getColor()));
+            FluidTintSource tint = state -> OPAQUE_ALPHA | ClientGooTypes.color(type);
+            FluidModel.Unbaked model = new FluidModel.Unbaked(texture, texture, null, tint);
             event.register(model,
                     GooFluids.SOURCES.get(type),
                     GooFluids.FLOWING.get(type));

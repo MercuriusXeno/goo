@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.GooType;
 import com.mercuriusxeno.goo.ability.world.MetalBehavior;
 import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
+import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.RenderContext;
@@ -192,7 +193,7 @@ public final class FuseOrbVisual {
     private static int computeShellColor(ChainMarkerRenderState state) {
         int baseShellAlpha = state.targeted ? SHELL_ALPHA_TARGETED : SHELL_ALPHA;
         int rgb = state.gooType == GooType.GLOW
-                ? GooRenderUtil.OPAQUE_WHITE : state.gooType.getColor();
+                ? GooRenderUtil.OPAQUE_WHITE : ClientGooTypes.color(state.gooType);
         return ARGB.color(baseShellAlpha, rgb);
     }
 

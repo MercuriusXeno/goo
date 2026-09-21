@@ -19,8 +19,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests that every bundled goo type JSON on the classpath decodes through the
- * registry codec, so the datapack registry accepts what the mod ships, and
- * that the light fields decode to the values the enum used to hold.
+ * registry codec, so the datapack registry accepts what the mod ships, that
+ * the light fields decode to the values the enum used to hold, and that the
+ * color channels decode from hex and read back through GooColors.
  */
 class GooTypeDefinitionTest {
 
@@ -30,6 +31,8 @@ class GooTypeDefinitionTest {
     private static final int PULSE_PEAK = 8;
     private static final float PULSE_SATURATION = 0.6f;
     private static final float UNSTABLE_SATURATION = 0.55f;
+    private static final String ALL_COLORS =
+            ", \"wheel\": \"112233\", \"bright\": \"445566\", \"highlight\": \"778899\", \"edge\": \"AABBCC\"";
 
     static Stream<ResourceKey<GooTypeDefinition>> bundledKeys() {
         return GooTypes.BUNDLED.stream();
@@ -50,9 +53,45 @@ class GooTypeDefinitionTest {
      */
     @Test
     void lightFieldsMatchFormerEnumValues() throws Exception {
-        assertEquals(new GooTypeDefinition(BLAZE_PEAK, BLAZE_SATURATION), decodeBundled(GooTypes.BLAZE));
-        assertEquals(new GooTypeDefinition(PULSE_PEAK, PULSE_SATURATION), decodeBundled(GooTypes.PULSE));
-        assertEquals(new GooTypeDefinition(BLAZE_PEAK, UNSTABLE_SATURATION), decodeBundled(GooTypes.UNSTABLE));
+        assertLight(BLAZE_PEAK, BLAZE_SATURATION, decodeBundled(GooTypes.BLAZE));
+        assertLight(PULSE_PEAK, PULSE_SATURATION, decodeBundled(GooTypes.PULSE));
+        assertLight(BLAZE_PEAK, UNSTABLE_SATURATION, decodeBundled(GooTypes.UNSTABLE));
+    }
+
+    /**
+     * The four channels decode from hex strings and read back through
+     * GooColors, and the bundled blaze carries the colors the retired config held.
+     */
+    @Test
+    void colorChannelsReadBackThroughGooColors() throws Exception {
+        GooTypeDefinition custom = decode(
+                "{\"light_level\": 8, \"saturation_fill\": 0.5, \"wheel\": \"112233\","
+                + " \"bright\": \"445566\", \"highlight\": \"778899\", \"edge\": \"aAbBcC\"}");
+        assertEquals(0x112233, GooColors.wheel(custom));
+        assertEquals(0x445566, GooColors.bright(custom));
+        assertEquals(0x778899, GooColors.highlight(custom));
+        assertEquals(0xAABBCC, GooColors.edge(custom));
+        assertEquals(GooColors.highlight(custom), GooColors.get(custom));
+
+        GooTypeDefinition blaze = decodeBundled(GooTypes.BLAZE);
+        assertEquals(0xFF6600, GooColors.wheel(blaze));
+        assertEquals(0xFF8E28, GooColors.bright(blaze));
+        assertEquals(0xFF750F, GooColors.highlight(blaze));
+        assertEquals(0xFF841E, GooColors.edge(blaze));
+    }
+
+    /**
+     * The hex codec writes six upper-case digits and refuses other spellings.
+     */
+    @Test
+    void hexColorRoundTripsAndRefusesOtherSpellings() {
+        assertEquals("FF6600", GooTypeDefinition.HEX_COLOR.encodeStart(JsonOps.INSTANCE, 0xFF6600)
+                .getOrThrow().getAsString());
+        assertEquals(0xFF6600, GooTypeDefinition.HEX_COLOR.parse(JsonOps.INSTANCE,
+                JsonParser.parseString("\"ff6600\"")).getOrThrow());
+        assertTrue(GooTypeDefinition.HEX_COLOR.parse(JsonOps.INSTANCE, JsonParser.parseString("\"#FF6600\"")).isError());
+        assertTrue(GooTypeDefinition.HEX_COLOR.parse(JsonOps.INSTANCE, JsonParser.parseString("\"FF66\"")).isError());
+        assertTrue(GooTypeDefinition.HEX_COLOR.parse(JsonOps.INSTANCE, JsonParser.parseString("\"GG6600\"")).isError());
     }
 
     /**
@@ -60,8 +99,7 @@ class GooTypeDefinitionTest {
      */
     @Test
     void refusesBodyWithoutLightLevel() {
-        JsonElement json = JsonParser.parseString("{\"saturation_fill\": 0.5}");
-        assertTrue(GooTypeDefinition.CODEC.parse(JsonOps.INSTANCE, json).isError());
+        assertTrue(parse("{\"saturation_fill\": 0.5" + ALL_COLORS + "}").isError());
     }
 
     /**
@@ -69,8 +107,31 @@ class GooTypeDefinitionTest {
      */
     @Test
     void refusesLightPastCeiling() {
-        JsonElement json = JsonParser.parseString("{\"light_level\": 16, \"saturation_fill\": 0.5}");
-        assertTrue(GooTypeDefinition.CODEC.parse(JsonOps.INSTANCE, json).isError());
+        assertTrue(parse("{\"light_level\": 16, \"saturation_fill\": 0.5" + ALL_COLORS + "}").isError());
+    }
+
+    /**
+     * A body missing a color channel is refused, so a datapack type names all four.
+     */
+    @Test
+    void refusesBodyWithoutEdgeColor() {
+        assertTrue(parse("{\"light_level\": 8, \"saturation_fill\": 0.5, \"wheel\": \"112233\","
+                + " \"bright\": \"445566\", \"highlight\": \"778899\"}").isError());
+    }
+
+    private static void assertLight(int peak, float saturation, GooTypeDefinition type) {
+        assertEquals(peak, type.peakLight());
+        assertEquals(saturation, type.saturationFill());
+    }
+
+    private static DataResult<GooTypeDefinition> parse(String json) {
+        return GooTypeDefinition.CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString(json));
+    }
+
+    private static GooTypeDefinition decode(String json) {
+        DataResult<GooTypeDefinition> decoded = parse(json);
+        assertTrue(decoded.isSuccess(), () -> "failed to decode: " + decoded.error());
+        return decoded.getOrThrow();
     }
 
     private static GooTypeDefinition decodeBundled(ResourceKey<GooTypeDefinition> key) throws Exception {

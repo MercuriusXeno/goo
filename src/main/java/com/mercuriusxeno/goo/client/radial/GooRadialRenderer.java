@@ -1,8 +1,8 @@
 package com.mercuriusxeno.goo.client.radial;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.GooColors;
 import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.client.ClientGooTypes;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.RenderPipelines;
@@ -170,7 +170,7 @@ final class GooRadialRenderer {
             int qty = available.getOrDefault(types[i], 0);
             boolean hovered = i == hoveredIndex;
             boolean disabled = qty <= 0;
-            int baseRgb = hovered ? GooColors.bright(types[i]) : GooColors.wheel(types[i]);
+            int baseRgb = hovered ? ClientGooTypes.bright(types[i]) : ClientGooTypes.wheel(types[i]);
             wedgeColors[i] = computeWedgeColor(baseRgb, hovered, disabled);
         }
     }

@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.tooltip;
 
+import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.GooTooltipHandler;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -69,7 +70,7 @@ public class ContainerValueClientTooltipComponent implements ClientTooltipCompon
             String formatted = GooTooltipHandler.formatFluidDisplay(e.amount());
             Component text = Component.literal(formatted + AMOUNT_TYPE_SEP)
                     .append(Component.translatable(e.type().getTranslationKey())
-                            .withStyle(Style.EMPTY.withColor(e.type().getColor())));
+                            .withStyle(Style.EMPTY.withColor(ClientGooTypes.color(e.type()))));
             result.add(new ColumnEntry(icon, text));
         }
         return result;

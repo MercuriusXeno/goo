@@ -1,8 +1,8 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.GooColors;
 import com.mercuriusxeno.goo.GooType;
 import com.mercuriusxeno.goo.ability.ChainFootprint;
+import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.FlatQuadContext;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
@@ -80,7 +80,7 @@ public final class GhostMineVisual {
         List<int[]> offsets = computeFilteredOffsets(state);
         Set<Long> filled = packOffsets(offsets);
 
-        int edgeRgb = GooColors.edge(state.gooType);
+        int edgeRgb = ClientGooTypes.edge(state.gooType);
         int fillColor = ARGB.color(GHOST_FILL_ALPHA, edgeRgb);
         int wireColor = ARGB.color(GHOST_WIRE_ALPHA, edgeRgb);
 

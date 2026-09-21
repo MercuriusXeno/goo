@@ -10,22 +10,22 @@ import org.jspecify.annotations.NonNull;
  * The types of goo that make up everything in the world.
  */
 public enum GooType implements StringRepresentable {
-    AEON("aeon", 0xDAA520),
-    BLAZE("blaze", 0xFF6600),
-    CRYSTAL("crystal", 0x4FC1E9),
-    ENDER("ender", 0x2E8B8B),
-    FROST("frost", 0xADD8E6),
-    GLOW("glow", 0xFFD700),
-    HEX("hex", 0x5B4BA0),
-    LEAF("leaf", 0x7EC850),
-    METAL("metal", 0xC0C0C0),
-    NETHER("nether", 0x8B0000),
-    PULSE("pulse", 0xCC0000),
-    ROCK("rock", 0xC2A868),
-    SHROOM("shroom", 0x8E44AD),
-    TYPHOON("typhoon", 0xD5F5E3),
-    UNSTABLE("unstable", 0x39FF14),
-    VITAL("vital", 0xE74C3C);
+    AEON("aeon"),
+    BLAZE("blaze"),
+    CRYSTAL("crystal"),
+    ENDER("ender"),
+    FROST("frost"),
+    GLOW("glow"),
+    HEX("hex"),
+    LEAF("leaf"),
+    METAL("metal"),
+    NETHER("nether"),
+    PULSE("pulse"),
+    ROCK("rock"),
+    SHROOM("shroom"),
+    TYPHOON("typhoon"),
+    UNSTABLE("unstable"),
+    VITAL("vital");
 
     /**
      * Codec that serializes a GooType as its string id.
@@ -45,11 +45,9 @@ public enum GooType implements StringRepresentable {
      */
     private static final String TRANSLATION_PREFIX = "goo.type.";
     private final String id;
-    private final int color;
 
-    GooType(String id, int color) {
+    GooType(String id) {
         this.id = id;
-        this.color = color;
     }
 
     @org.jspecify.annotations.Nullable
@@ -72,22 +70,14 @@ public enum GooType implements StringRepresentable {
     }
 
     /**
-     * Returns the RGB color used for rendering this goo type.
-     * Reads from the JSON color config, falling back to the hardcoded default.
+     * Returns the RGB color used for rendering this goo type: the highlight
+     * channel of its registry entry.
      *
+     * @param registries the registry access of the level in hand
      * @return the RGB color int
      */
-    public int getColor() {
-        return GooColors.get(this);
-    }
-
-    /**
-     * Returns the hardcoded default RGB color for this goo type.
-     *
-     * @return the default RGB color int
-     */
-    public int getDefaultColor() {
-        return color;
+    public int getColor(HolderLookup.Provider registries) {
+        return GooColors.get(registries, this);
     }
 
     /**
