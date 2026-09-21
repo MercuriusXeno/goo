@@ -41,6 +41,7 @@ public final class StepTypes {
         register(TargetStep.TYPE);
         register(SetHealthStep.TYPE);
         register(FreezeTicksStep.TYPE);
+        register(SetAiStep.TYPE);
     }
 
     private StepTypes() {

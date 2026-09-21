@@ -20,7 +20,11 @@ public enum EntityFilter {
     /**
      * Keeps anything that is not a wither or an ender dragon.
      */
-    NOT_BOSS;
+    NOT_BOSS,
+    /**
+     * Keeps entities with AI.
+     */
+    MOB;
 
     private static final String WHAT = "entity filter";
 

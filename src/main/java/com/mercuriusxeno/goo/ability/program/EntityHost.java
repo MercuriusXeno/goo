@@ -13,6 +13,7 @@ import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
@@ -122,6 +123,13 @@ public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entit
     @Override
     public void addTargetFreezeTicks(int ticks) {
         target.setTicksFrozen(target.getTicksFrozen() + ticks);
+    }
+
+    @Override
+    public void setTargetAi(boolean enabled) {
+        if (target instanceof Mob mob) {
+            mob.setNoAi(!enabled);
+        }
     }
 
     /**

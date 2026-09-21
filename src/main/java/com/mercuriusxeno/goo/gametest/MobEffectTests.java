@@ -40,6 +40,7 @@ public final class MobEffectTests {
     private static final String ABILITY_SHROOM_DEBUFF = "goo:shroom_debuff";
     private static final String ABILITY_NETHER_WITHER = "goo:nether_wither";
     private static final String ABILITY_FROST_SNAP = "goo:frost_snap";
+    private static final String ABILITY_PULSE_SHORT_CIRCUIT = "goo:pulse_short_circuit";
     /** The damage metal_javelin.json's damage step names. */
     private static final float JAVELIN_DAMAGE = 8.0f;
 
@@ -209,13 +210,14 @@ public final class MobEffectTests {
     }
 
     /**
-     * Pulse stun disables AI and applies max slowness.
+     * Pulse short circuit is a program: a mob target selection wrapping a
+     * set_ai step off and a max slowness potion step.
      *
      * @param helper the gametest helper
      */
     public static void pulseStun(GameTestHelper helper) {
         Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
-        PulseShortCircuit.apply(mob);
+        runEntityPrograms(helper, mob, ABILITY_PULSE_SHORT_CIRCUIT);
         helper.assertTrue(mob.isNoAi(), SHOULD_HAVE_NO_AI);
         helper.assertTrue(mob.hasEffect(MobEffects.SLOWNESS), SHOULD_HAVE_SLOWNESS);
         helper.succeed();

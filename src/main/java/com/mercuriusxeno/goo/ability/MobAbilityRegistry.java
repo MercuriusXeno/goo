@@ -26,7 +26,6 @@ public final class MobAbilityRegistry {
         register(MobAbilities.BLAZE_IGNITE, ctx -> MobAbilities.applyNamed(MobAbilities.BLAZE_IGNITE, ctx));
         register(MobAbilities.GLOW_LASER, ctx -> MobAbilities.applyNamed(MobAbilities.GLOW_LASER, ctx));
         register(MobAbilities.HEX_CHARM, ctx -> MobAbilities.applyNamed(MobAbilities.HEX_CHARM, ctx));
-        register(MobAbilities.PULSE_SHORT_CIRCUIT, ctx -> MobAbilities.applyNamed(MobAbilities.PULSE_SHORT_CIRCUIT, ctx));
         register(MobAbilities.ENDER_TELEPORT, ctx -> MobAbilities.applyNamed(MobAbilities.ENDER_TELEPORT, ctx));
         register(MobAbilities.AEON_TIME_STOP, ctx -> MobAbilities.applyNamed(MobAbilities.AEON_TIME_STOP, ctx));
         register(MobAbilities.UNSTABLE_EXPLODE, ctx -> MobAbilities.applyNamed(MobAbilities.UNSTABLE_EXPLODE, ctx));
