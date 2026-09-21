@@ -3,19 +3,17 @@ package com.mercuriusxeno.goo.client.ber;
 import com.mercuriusxeno.goo.GooType;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
+import com.mercuriusxeno.goo.client.GooSubmitter;
+import com.mercuriusxeno.goo.client.RenderContext;
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 import net.minecraft.client.renderer.feature.ModelFeatureRenderer;
-import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.minecraft.resources.Identifier;
 import net.minecraft.util.ARGB;
-import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 
@@ -24,10 +22,6 @@ import org.jspecify.annotations.Nullable;
  */
 public class CrucibleBlockEntityRenderer
         implements BlockEntityRenderer<CrucibleBlockEntity, CrucibleRenderState> {
-
-    /** Block atlas texture path for render types that need the stitched atlas. */
-    private static final Identifier BLOCK_ATLAS_TEXTURE =
-        Identifier.withDefaultNamespace("textures/atlas/blocks.png");
 
     // -- Liquid level constants --
 
@@ -127,6 +121,7 @@ public class CrucibleBlockEntityRenderer
     /**
      * Submits one or two liquid quads depending on whether a crossfade is active.
      * During crossfade, the outgoing type fades out while the incoming type fades in.
+     * The submitter lights the surface fullbright; the basin model uses world light.
      *
      * @param poseStack the pose stack for rendering
      * @param nodeCollector the render node collector
@@ -136,13 +131,10 @@ public class CrucibleBlockEntityRenderer
     private static void submitLiquidQuads(PoseStack poseStack,
             SubmitNodeCollector nodeCollector, CrucibleRenderState state,
             float surfaceY) {
-        // Liquid surface renders fullbright; the basin model uses world light.
-        int light = LightCoordsUtil.FULL_BRIGHT;
         if (state.outgoingType != null) {
-            submitCrossfadeQuads(poseStack, nodeCollector, state, surfaceY, light);
+            submitCrossfadeQuads(poseStack, nodeCollector, state, surfaceY);
         } else {
-            submitLiquidQuad(poseStack, nodeCollector, state.dominantType,
-                surfaceY, light, 1f);
+            submitLiquidQuad(poseStack, nodeCollector, state.dominantType, surfaceY, 1f);
         }
     }
 
@@ -154,43 +146,33 @@ public class CrucibleBlockEntityRenderer
      * @param nodeCollector the render node collector
      * @param state the crucible render state with crossfade fields
      * @param surfaceY the computed liquid surface Y height
-     * @param light the packed light value
      */
     private static void submitCrossfadeQuads(PoseStack poseStack,
             SubmitNodeCollector nodeCollector, CrucibleRenderState state,
-            float surfaceY, int light) {
+            float surfaceY) {
         float outAlpha = 1f - state.crossfadeAlpha;
-        submitLiquidQuad(poseStack, nodeCollector, state.outgoingType,
-            surfaceY, light, outAlpha);
-        submitLiquidQuad(poseStack, nodeCollector, state.dominantType,
-            surfaceY, light, state.crossfadeAlpha);
+        submitLiquidQuad(poseStack, nodeCollector, state.outgoingType, surfaceY, outAlpha);
+        submitLiquidQuad(poseStack, nodeCollector, state.dominantType, surfaceY,
+            state.crossfadeAlpha);
     }
 
     /**
-     * Submits a single liquid surface quad for one goo type at the given alpha.
+     * Submits a single liquid surface quad for one goo type through the
+     * submitter's color-taking fluid submission, so the crossfade alpha
+     * reaches the vertex color.
      *
      * @param poseStack the pose stack for rendering
      * @param nodeCollector the render node collector
      * @param type the goo type
      * @param surfaceY the surface Y height
-     * @param light the packed light value
      * @param alpha the alpha transparency [0, 1]
      */
     private static void submitLiquidQuad(PoseStack poseStack,
             SubmitNodeCollector nodeCollector, GooType type,
-            float surfaceY, int light, float alpha) {
-        // Caller passes FULL_BRIGHT from submitLiquidQuads -- fullbright
-        // lightmap UV per vertex makes the lightmap multiplication a no-op.
-        // Open-pot crucible has no BER body around the fluid, so no
-        // buffer-share concern.
-        TextureAtlasSprite sprite = GooRenderUtil.lookupFluidSprite(type);
-        int color = packArgb(alpha);
-        nodeCollector.submitCustomGeometry(
-            poseStack,
-            RenderTypes.entityTranslucent(BLOCK_ATLAS_TEXTURE),
-            (pose, consumer) -> emitLiquidSurface(
-                pose, consumer, light, color, surfaceY, sprite)
-        );
+            float surfaceY, float alpha) {
+        TextureAtlasSprite sprite = GooSubmitter.fluidSprite(type);
+        GooSubmitter.submitFluid(poseStack, nodeCollector, packArgb(alpha),
+            ctx -> emitLiquidSurface(ctx, surfaceY, sprite));
     }
 
     /**
@@ -205,19 +187,17 @@ public class CrucibleBlockEntityRenderer
     }
 
     /**
-     * Emits a single liquid surface quad using the basin interior bounds.
+     * Emits a single liquid surface quad using the basin interior bounds, at
+     * the context's light and color.
      *
-     * @param pose the pose matrix entry
-     * @param consumer the vertex consumer
-     * @param light the packed light value
-     * @param color the packed ARGB color
+     * @param ctx the render context the submitter built
      * @param surfaceY the liquid surface Y height
      * @param sprite the fluid texture atlas sprite
      */
-    private static void emitLiquidSurface(PoseStack.Pose pose, VertexConsumer consumer,
-            int light, int color, float surfaceY, TextureAtlasSprite sprite) {
+    private static void emitLiquidSurface(RenderContext ctx, float surfaceY,
+            TextureAtlasSprite sprite) {
         GooRenderUtil.liquidSurface(
-            pose, consumer, light, color,
+            ctx.pose(), ctx.c(), ctx.light(), ctx.color(),
             LIQUID_MIN_XZ, LIQUID_MIN_XZ, LIQUID_MAX_XZ, LIQUID_MAX_XZ,
             surfaceY, sprite.getU0(), sprite.getU1(),
             sprite.getV0(), sprite.getV1());
