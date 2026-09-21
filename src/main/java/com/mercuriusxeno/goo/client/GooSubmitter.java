@@ -92,7 +92,20 @@ public final class GooSubmitter {
      */
     public static void submitCanisterBody(PoseStack poseStack, SubmitNodeCollector nodeCollector,
                                           int worldLight) {
-        QuadCollection model = CanisterBodyModels.getModel();
+        submitBakedBody(poseStack, nodeCollector, worldLight, CanisterBodyModels.getModel());
+    }
+
+    /**
+     * Submits a baked body model at the current pose position, every quad
+     * at the caller's world light in opaque white.
+     *
+     * @param poseStack     the pose stack
+     * @param nodeCollector the render node collector
+     * @param worldLight    the packed light the caller extracted
+     * @param model         the baked quad collection
+     */
+    public static void submitBakedBody(PoseStack poseStack, SubmitNodeCollector nodeCollector,
+                                       int worldLight, QuadCollection model) {
         submitBody(poseStack, nodeCollector, worldLight, ctx -> emitBakedQuads(ctx, model));
     }
 
