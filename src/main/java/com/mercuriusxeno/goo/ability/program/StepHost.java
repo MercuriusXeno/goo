@@ -96,4 +96,13 @@ public interface StepHost extends Variables {
      * @param visible   whether the effect shows particles and an icon
      */
     void applyPotion(Identifier effect, int duration, int amplifier, boolean visible);
+
+    /**
+     * Tests the host's target against every filter. Capability
+     * {@link HostCapability#TARGET}.
+     *
+     * @param filters the filters the target must pass
+     * @return true when every filter keeps the target
+     */
+    boolean targetPasses(Set<EntityFilter> filters);
 }

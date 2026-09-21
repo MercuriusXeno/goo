@@ -69,6 +69,17 @@ class ProgramHostLoadTest {
     }
 
     @Test
+    void waitingStepInsideATargetSelectionRefusesNamingTheChild() {
+        List<Step> steps = List.of(new TargetStep(List.of(), List.of(new WaitStep(Expr.literal(2)))));
+
+        ProgramLoadException refusal = assertThrows(ProgramLoadException.class,
+                () -> ProgramBehavior.forHost(steps, HostKind.ENTITY));
+
+        assertTrue(refusal.getMessage().contains("wait"), refusal.getMessage());
+        assertTrue(refusal.getMessage().contains(ENTITY_LABEL), refusal.getMessage());
+    }
+
+    @Test
     void waitingStepOnEntityHostRefusesSinceNothingTicksAnEntity() {
         ProgramLoadException refusal = assertThrows(ProgramLoadException.class,
                 () -> ProgramBehavior.forHost(List.of(new WaitStep(Expr.literal(2))), HostKind.ENTITY));

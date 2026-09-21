@@ -109,6 +109,11 @@ public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entit
         target.addEffect(new MobEffectInstance(holder.get(), duration, amplifier, false, visible));
     }
 
+    @Override
+    public boolean targetPasses(Set<EntityFilter> filters) {
+        return EntityScan.passes(target, filters);
+    }
+
     /**
      * Maps a damage kind to the level's damage source.
      *

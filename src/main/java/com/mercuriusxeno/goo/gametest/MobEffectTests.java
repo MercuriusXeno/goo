@@ -37,6 +37,7 @@ public final class MobEffectTests {
     private static final String ABILITY_METAL_JAVELIN = "goo:metal_javelin";
     private static final String ABILITY_LEAF_ENTANGLE = "goo:leaf_entangle";
     private static final String ABILITY_TYPHOON_LEVITATE = "goo:typhoon_levitate";
+    private static final String ABILITY_SHROOM_DEBUFF = "goo:shroom_debuff";
     /** The damage metal_javelin.json's damage step names. */
     private static final float JAVELIN_DAMAGE = 8.0f;
 
@@ -113,13 +114,14 @@ public final class MobEffectTests {
     }
 
     /**
-     * Shroom debuff applies slowness, weakness, and poison.
+     * Shroom debuff is a program: a not_boss target selection wrapping
+     * slowness, weakness and poison potion steps.
      *
      * @param helper the gametest helper
      */
     public static void shroomDebuff(GameTestHelper helper) {
         Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
-        ShroomToxify.apply(mob);
+        runEntityPrograms(helper, mob, ABILITY_SHROOM_DEBUFF);
         helper.assertTrue(mob.hasEffect(MobEffects.SLOWNESS), SHOULD_HAVE_SLOWNESS);
         helper.assertTrue(mob.hasEffect(MobEffects.WEAKNESS), SHOULD_HAVE_WEAKNESS);
         helper.assertTrue(mob.hasEffect(MobEffects.POISON), SHOULD_HAVE_POISON);

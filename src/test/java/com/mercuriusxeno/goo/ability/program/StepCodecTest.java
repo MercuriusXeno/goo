@@ -30,7 +30,9 @@ class StepCodecTest {
             "explode", new ExplodeStep(Expr.parse("2.5 + 1.0 * (stacks - 1)").getOrThrow(), ExplosionMode.NONE),
             "damage", new DamageStep(Expr.parse("health / 2").getOrThrow(), DamageKind.CACTUS),
             "potion", new PotionStep(Identifier.parse("minecraft:levitation"), Expr.literal(100),
-                    Expr.parse("1 + stacks").getOrThrow(), false)
+                    Expr.parse("1 + stacks").getOrThrow(), false),
+            "target", new TargetStep(List.of(EntityFilter.NOT_BOSS),
+                    List.of(new DamageStep(Expr.literal(4), DamageKind.FREEZE)))
     );
 
     private static Step roundTrip(Step step) {
@@ -94,6 +96,15 @@ class StepCodecTest {
         assertEquals(2, steps.size());
         assertInstanceOf(AwaitEntityStep.class, steps.get(0));
         assertInstanceOf(ExplodeStep.class, steps.get(1));
+    }
+
+    @Test
+    void targetStepDecodesItsChildren() {
+        String json = "{\"type\": \"target\", \"where\": [\"not_boss\"], \"steps\": ["
+                + "{\"type\": \"potion\", \"effect\": \"minecraft:poison\", \"duration\": 200}]}";
+        TargetStep target = assertInstanceOf(TargetStep.class, decode(json).getOrThrow());
+        assertEquals(List.of(EntityFilter.NOT_BOSS), target.where());
+        assertInstanceOf(PotionStep.class, target.steps().get(0));
     }
 
     @Test

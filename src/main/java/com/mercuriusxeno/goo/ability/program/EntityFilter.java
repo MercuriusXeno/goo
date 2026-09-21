@@ -16,7 +16,11 @@ public enum EntityFilter {
     /**
      * Keeps anything that is not a dropped item.
      */
-    NOT_ITEM;
+    NOT_ITEM,
+    /**
+     * Keeps anything that is not a wither or an ender dragon.
+     */
+    NOT_BOSS;
 
     private static final String WHAT = "entity filter";
 
