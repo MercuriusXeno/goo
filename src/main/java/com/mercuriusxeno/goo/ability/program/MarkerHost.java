@@ -101,4 +101,9 @@ public record MarkerHost(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity
     public void setTargetAi(boolean enabled) {
         throw HostCapability.TARGET.refusedBy(kind());
     }
+
+    @Override
+    public void setTargetInvulnerable(boolean enabled) {
+        throw HostCapability.TARGET.refusedBy(kind());
+    }
 }

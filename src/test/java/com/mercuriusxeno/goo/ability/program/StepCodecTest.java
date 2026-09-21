@@ -23,19 +23,22 @@ class StepCodecTest {
      * One sample per registered type, keyed by type name; the registry
      * check below fails when a type is registered without a sample here.
      */
-    private static final Map<String, Step> SAMPLES = Map.of(
-            "wait", new WaitStep(Expr.parse("4 + stacks").getOrThrow()),
-            "await_entity", new AwaitEntityStep(SelectionShape.CUBE, Expr.literal(3),
-                    List.of(EntityFilter.LIVING, EntityFilter.NOT_ITEM)),
-            "explode", new ExplodeStep(Expr.parse("2.5 + 1.0 * (stacks - 1)").getOrThrow(), ExplosionMode.NONE),
-            "damage", new DamageStep(Expr.parse("health / 2").getOrThrow(), DamageKind.CACTUS),
-            "potion", new PotionStep(Identifier.parse("minecraft:levitation"), Expr.literal(100),
-                    Expr.parse("1 + stacks").getOrThrow(), false),
-            "target", new TargetStep(List.of(EntityFilter.NOT_BOSS),
-                    List.of(new DamageStep(Expr.literal(4), DamageKind.FREEZE))),
-            "set_health", new SetHealthStep(Expr.parse("0.5 * health / max_health").getOrThrow()),
-            "freeze_ticks", new FreezeTicksStep(Expr.parse("140 * 25 / pow(health, 0.2) / 100").getOrThrow()),
-            "set_ai", new SetAiStep(false)
+    private static final Map<String, Step> SAMPLES = Map.ofEntries(
+            Map.entry("wait", new WaitStep(Expr.parse("4 + stacks").getOrThrow())),
+            Map.entry("await_entity", new AwaitEntityStep(SelectionShape.CUBE, Expr.literal(3),
+                    List.of(EntityFilter.LIVING, EntityFilter.NOT_ITEM))),
+            Map.entry("explode", new ExplodeStep(Expr.parse("2.5 + 1.0 * (stacks - 1)").getOrThrow(),
+                    ExplosionMode.NONE)),
+            Map.entry("damage", new DamageStep(Expr.parse("health / 2").getOrThrow(), DamageKind.CACTUS)),
+            Map.entry("potion", new PotionStep(Identifier.parse("minecraft:levitation"), Expr.literal(100),
+                    Expr.parse("1 + stacks").getOrThrow(), false)),
+            Map.entry("target", new TargetStep(List.of(EntityFilter.NOT_BOSS),
+                    List.of(new DamageStep(Expr.literal(4), DamageKind.FREEZE)))),
+            Map.entry("set_health", new SetHealthStep(Expr.parse("0.5 * health / max_health").getOrThrow())),
+            Map.entry("freeze_ticks",
+                    new FreezeTicksStep(Expr.parse("140 * 25 / pow(health, 0.2) / 100").getOrThrow())),
+            Map.entry("set_ai", new SetAiStep(false)),
+            Map.entry("set_invulnerable", new SetInvulnerableStep(true))
     );
 
     private static Step roundTrip(Step step) {

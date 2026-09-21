@@ -132,6 +132,11 @@ public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entit
         }
     }
 
+    @Override
+    public void setTargetInvulnerable(boolean enabled) {
+        target.setInvulnerable(enabled);
+    }
+
     /**
      * Maps a damage kind to the level's damage source.
      *
