@@ -55,6 +55,9 @@ class MobProgramTest {
     private static final String GLOWING = "minecraft:glowing";
     private static final int TIME_STOP_GLOW_DURATION = 60;
     private static final float MOB_BLAST_POWER = 2;
+    /** floor(20 * 60 / pow(10, 0.4)), the charm's ticks at the cow's health of ten. */
+    private static final int CHARM_TICKS_AT_COW_HEALTH = 477;
+    private static final int CHARM_WEAKNESS_AMPLIFIER = 4;
     private static final int LEVITATE_DURATION = 100;
     private static final int LEVITATE_AMPLIFIER = 1;
     private static final int ENTANGLE_SLOW_DURATION = 100;
@@ -184,6 +187,18 @@ class MobProgramTest {
 
         verify(host).explode(MOB_BLAST_POWER, ExplosionMode.TNT);
         verifyNoMoreInteractions(host);
+    }
+
+    @Test
+    void hexCharmWeakensAndMarksAMobForLongerTheWeakerItIs() {
+        StepHost host = entityHost();
+        when(host.targetPasses(MOB)).thenReturn(true);
+
+        run("hex_charm", host);
+
+        InOrder order = inOrder(host);
+        order.verify(host).applyPotion(Identifier.parse(WEAKNESS), CHARM_TICKS_AT_COW_HEALTH, CHARM_WEAKNESS_AMPLIFIER, true);
+        order.verify(host).applyPotion(Identifier.parse(GLOWING), CHARM_TICKS_AT_COW_HEALTH, 0, true);
     }
 
     @Test
