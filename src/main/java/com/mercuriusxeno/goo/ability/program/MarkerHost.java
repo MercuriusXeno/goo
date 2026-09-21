@@ -111,4 +111,9 @@ public record MarkerHost(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity
     public void cloneTarget(float chancePercent) {
         throw HostCapability.TARGET.refusedBy(kind());
     }
+
+    @Override
+    public void dropItemAtTarget(Identifier item, int count) {
+        throw HostCapability.TARGET.refusedBy(kind());
+    }
 }

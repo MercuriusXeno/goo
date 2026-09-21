@@ -145,4 +145,13 @@ public interface StepHost extends Variables {
      * @param chancePercent the percent chance of a clone
      */
     void cloneTarget(float chancePercent);
+
+    /**
+     * Spawns an item stack at the host's target. Capability
+     * {@link HostCapability#TARGET}.
+     *
+     * @param item  the item id
+     * @param count the stack size
+     */
+    void dropItemAtTarget(Identifier item, int count);
 }

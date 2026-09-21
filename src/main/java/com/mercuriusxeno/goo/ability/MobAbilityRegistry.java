@@ -21,7 +21,6 @@ public final class MobAbilityRegistry {
 
     static {
         register(MobAbilities.CRYSTAL_FLECHETTES, ctx -> MobAbilities.applyNamed(MobAbilities.CRYSTAL_FLECHETTES, ctx));
-        register(MobAbilities.ROCK_PETRIFY, ctx -> MobAbilities.applyNamed(MobAbilities.ROCK_PETRIFY, ctx));
         register(MobAbilities.BLAZE_IGNITE, ctx -> MobAbilities.applyNamed(MobAbilities.BLAZE_IGNITE, ctx));
         register(MobAbilities.GLOW_LASER, ctx -> MobAbilities.applyNamed(MobAbilities.GLOW_LASER, ctx));
         register(MobAbilities.ENDER_TELEPORT, ctx -> MobAbilities.applyNamed(MobAbilities.ENDER_TELEPORT, ctx));

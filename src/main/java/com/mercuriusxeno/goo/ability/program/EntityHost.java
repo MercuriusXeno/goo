@@ -16,6 +16,8 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
@@ -38,6 +40,7 @@ import java.util.Set;
 public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entity thrower) implements StepHost {
 
     private static final String LOG_UNKNOWN_EFFECT = "Potion step names status effect {}, which no registry holds";
+    private static final String LOG_UNKNOWN_ITEM = "Drop step names item {}, which no registry holds";
     private static final float PERCENT = 100;
 
     @Override
@@ -145,6 +148,16 @@ public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entit
         if (level.getRandom().nextFloat() * PERCENT < chancePercent) {
             spawnClone();
         }
+    }
+
+    @Override
+    public void dropItemAtTarget(Identifier item, int count) {
+        Optional<Holder.Reference<Item>> holder = BuiltInRegistries.ITEM.get(item);
+        if (holder.isEmpty()) {
+            Goo.LOGGER.warn(LOG_UNKNOWN_ITEM, item);
+            return;
+        }
+        target.spawnAtLocation(level, new ItemStack(holder.get(), count));
     }
 
     /**

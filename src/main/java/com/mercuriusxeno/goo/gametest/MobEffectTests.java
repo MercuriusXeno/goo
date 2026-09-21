@@ -45,6 +45,8 @@ public final class MobEffectTests {
     private static final String ABILITY_UNSTABLE_EXPLODE = "goo:unstable_explode";
     private static final String ABILITY_HEX_CHARM = "goo:hex_charm";
     private static final String ABILITY_VITAL_CLONE = "goo:vital_clone";
+    private static final String ABILITY_ROCK_PETRIFY = "goo:rock_petrify";
+    private static final String SHOULD_BE_CRUSHED = "Target should be dead or dying";
     /** The damage metal_javelin.json's damage step names. */
     private static final float JAVELIN_DAMAGE = 8.0f;
 
@@ -138,14 +140,16 @@ public final class MobEffectTests {
     }
 
     /**
-     * Rock petrify applies max slowness.
+     * Rock petrify is a program: max slowness, magic damage of the mob's
+     * max health and a cobblestone drop, so the cow is crushed.
      *
      * @param helper the gametest helper
      */
     public static void rockPetrify(GameTestHelper helper) {
         Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
-        RockPetrify.apply(helper.getLevel(), mob);
+        runEntityPrograms(helper, mob, ABILITY_ROCK_PETRIFY);
         helper.assertTrue(mob.hasEffect(MobEffects.SLOWNESS), SHOULD_HAVE_SLOWNESS);
+        helper.assertTrue(mob.isDeadOrDying(), SHOULD_BE_CRUSHED);
         helper.succeed();
     }
 
