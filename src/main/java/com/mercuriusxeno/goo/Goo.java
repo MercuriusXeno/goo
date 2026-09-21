@@ -94,7 +94,7 @@ public class Goo {
      */
     private static void registerContentRegistries(IEventBus modEventBus) {
         GooDataComponents.DATA_COMPONENTS.register(modEventBus);
-        GooPotions.POTIONS.register(modEventBus);
+        GooPotions.register(modEventBus);
         GooParticles.PARTICLE_TYPES.register(modEventBus);
         GooSounds.SOUND_EVENTS.register(modEventBus);
         GooCreativeTabs.TABS.register(modEventBus);
