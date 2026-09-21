@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.ability.program;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
@@ -73,6 +74,11 @@ public record MarkerHost(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity
 
     @Override
     public void damageTarget(float amount, DamageKind source) {
+        throw HostCapability.TARGET.refusedBy(kind());
+    }
+
+    @Override
+    public void applyPotion(Identifier effect, int duration, int amplifier, boolean visible) {
         throw HostCapability.TARGET.refusedBy(kind());
     }
 }

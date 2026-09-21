@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.ability.program;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.resources.Identifier;
 import java.util.Set;
 
 /**
@@ -84,4 +85,15 @@ public interface StepHost extends Variables {
      * @param source the damage source
      */
     void damageTarget(float amount, DamageKind source);
+
+    /**
+     * Adds a status effect to the host's target. Capability
+     * {@link HostCapability#TARGET}.
+     *
+     * @param effect    the status effect id
+     * @param duration  the duration in ticks
+     * @param amplifier the amplifier
+     * @param visible   whether the effect shows particles and an icon
+     */
+    void applyPotion(Identifier effect, int duration, int amplifier, boolean visible);
 }
