@@ -41,6 +41,8 @@ runs {
         if (project.hasProperty('gameTestSelect')) {
             arguments.addAll '--tests', project.property('gameTestSelect').toString()
         }
+        // Folder datapacks the gametest world loads, such as the seventeenth goo type
+        arguments.addAll '--packs', file('src/test/resources/datapacks').absolutePath
         // JaCoCo agent so gametest coverage merges with unit-test coverage.
         // The jacocoAgent configuration resolves to a wrapper jar; extract jacocoagent.jar from it.
         var wrapperJar = configurations.jacocoAgent.singleFile

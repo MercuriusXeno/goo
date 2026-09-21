@@ -287,6 +287,7 @@ public final class GooCommand {
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal(CMD_GOO)
                 .then(lookupSubcommand())
+                .then(GooTypesCommand.subcommand())
                 .then(opSubcommand(CMD_RELOAD, GooCommand::reload))
                 .then(opSubcommand(CMD_REGEN, GooCommand::regen))
                 .then(opSubcommand(CMD_AUDIT, GooAuditReport::run))
