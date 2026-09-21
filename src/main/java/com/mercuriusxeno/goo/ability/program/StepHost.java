@@ -105,4 +105,12 @@ public interface StepHost extends Variables {
      * @return true when every filter keeps the target
      */
     boolean targetPasses(Set<EntityFilter> filters);
+
+    /**
+     * Sets the host's target to a fraction of its current health without
+     * a damage event. Capability {@link HostCapability#TARGET}.
+     *
+     * @param fraction the fraction of current health to keep
+     */
+    void setTargetHealthFraction(float fraction);
 }

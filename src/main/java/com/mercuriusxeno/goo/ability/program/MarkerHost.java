@@ -86,4 +86,9 @@ public record MarkerHost(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity
     public boolean targetPasses(Set<EntityFilter> filters) {
         throw HostCapability.TARGET.refusedBy(kind());
     }
+
+    @Override
+    public void setTargetHealthFraction(float fraction) {
+        throw HostCapability.TARGET.refusedBy(kind());
+    }
 }

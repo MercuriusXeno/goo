@@ -39,6 +39,7 @@ public final class StepTypes {
         register(DamageStep.TYPE);
         register(PotionStep.TYPE);
         register(TargetStep.TYPE);
+        register(SetHealthStep.TYPE);
     }
 
     private StepTypes() {

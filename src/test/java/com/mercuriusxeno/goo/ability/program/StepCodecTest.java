@@ -32,7 +32,8 @@ class StepCodecTest {
             "potion", new PotionStep(Identifier.parse("minecraft:levitation"), Expr.literal(100),
                     Expr.parse("1 + stacks").getOrThrow(), false),
             "target", new TargetStep(List.of(EntityFilter.NOT_BOSS),
-                    List.of(new DamageStep(Expr.literal(4), DamageKind.FREEZE)))
+                    List.of(new DamageStep(Expr.literal(4), DamageKind.FREEZE))),
+            "set_health", new SetHealthStep(Expr.parse("0.5 * health / max_health").getOrThrow())
     );
 
     private static Step roundTrip(Step step) {

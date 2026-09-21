@@ -42,6 +42,9 @@ class MobProgramTest {
     private static final Set<EntityFilter> NOT_BOSS = Set.of(EntityFilter.NOT_BOSS);
     private static final double COW_HEALTH = 10;
     private static final int SHROOM_DURATION = 200;
+    private static final String WITHER = "minecraft:wither";
+    private static final int WITHER_DURATION = 200;
+    private static final float HALF = 0.5f;
     private static final int LEVITATE_DURATION = 100;
     private static final int LEVITATE_AMPLIFIER = 1;
     private static final int ENTANGLE_SLOW_DURATION = 100;
@@ -111,6 +114,18 @@ class MobProgramTest {
         run("shroom_debuff", host);
 
         verify(host, never()).applyPotion(any(), anyInt(), anyInt(), anyBoolean());
+    }
+
+    @Test
+    void netherWitherHalvesHealthThenWithersANonBoss() {
+        StepHost host = entityHost();
+        when(host.targetPasses(NOT_BOSS)).thenReturn(true);
+
+        run("nether_wither", host);
+
+        InOrder order = inOrder(host);
+        order.verify(host).setTargetHealthFraction(HALF);
+        order.verify(host).applyPotion(Identifier.parse(WITHER), WITHER_DURATION, 1, true);
     }
 
     @Test
