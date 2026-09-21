@@ -48,6 +48,14 @@ public final class GooSubmitter {
     /** Water tint: the plains biome blue. */
     private static final int WATER_TINT = 0xFF3F76E4;
 
+    /** Canister body side sprite on the block atlas. */
+    private static final Identifier CANISTER_SIDE =
+        Identifier.fromNamespaceAndPath(NAMESPACE, "block/canister_side");
+    /** Body side U extent of canister_side.png: 4px of 16. */
+    private static final float BODY_SIDE_U1 = 0.25f;
+    /** Body side V extent of canister_side.png: 10px of 16. */
+    private static final float BODY_SIDE_V1 = 0.625f;
+
     private GooSubmitter() {
     }
 
@@ -86,6 +94,28 @@ public final class GooSubmitter {
                                           int worldLight) {
         QuadCollection model = CanisterBodyModels.getModel();
         submitBody(poseStack, nodeCollector, worldLight, ctx -> emitBakedQuads(ctx, model));
+    }
+
+    /**
+     * Submits the four side faces of each canister body box at the block
+     * entity's world light, on the body sub-rect of the canister_side sprite.
+     * Sides alone, because the gasket caps close each box on their own
+     * texture.
+     *
+     * @param poseStack     the pose stack
+     * @param nodeCollector the render node collector
+     * @param worldLight    the packed light the block entity extracted
+     * @param bodies        the body boxes to emit
+     */
+    public static void submitSidedBodies(PoseStack poseStack, SubmitNodeCollector nodeCollector,
+                                         int worldLight, Iterable<CuboidBounds> bodies) {
+        submitBody(poseStack, nodeCollector, worldLight, ctx -> {
+            GooRenderUtil.UvRect uv = GooRenderUtil.spriteSubRect(
+                blockSprite(CANISTER_SIDE), 0f, 0f, BODY_SIDE_U1, BODY_SIDE_V1);
+            for (CuboidBounds body : bodies) {
+                ctx.emitSides(body, uv);
+            }
+        });
     }
 
     /**
