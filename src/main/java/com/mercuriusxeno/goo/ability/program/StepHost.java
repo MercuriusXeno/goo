@@ -113,4 +113,12 @@ public interface StepHost extends Variables {
      * @param fraction the fraction of current health to keep
      */
     void setTargetHealthFraction(float fraction);
+
+    /**
+     * Adds to the host's target's frozen ticks. Capability
+     * {@link HostCapability#TARGET}.
+     *
+     * @param ticks the ticks to add
+     */
+    void addTargetFreezeTicks(int ticks);
 }

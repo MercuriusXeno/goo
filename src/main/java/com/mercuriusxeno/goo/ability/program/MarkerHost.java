@@ -91,4 +91,9 @@ public record MarkerHost(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity
     public void setTargetHealthFraction(float fraction) {
         throw HostCapability.TARGET.refusedBy(kind());
     }
+
+    @Override
+    public void addTargetFreezeTicks(int ticks) {
+        throw HostCapability.TARGET.refusedBy(kind());
+    }
 }

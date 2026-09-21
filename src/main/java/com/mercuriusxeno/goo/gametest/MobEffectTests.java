@@ -39,6 +39,7 @@ public final class MobEffectTests {
     private static final String ABILITY_TYPHOON_LEVITATE = "goo:typhoon_levitate";
     private static final String ABILITY_SHROOM_DEBUFF = "goo:shroom_debuff";
     private static final String ABILITY_NETHER_WITHER = "goo:nether_wither";
+    private static final String ABILITY_FROST_SNAP = "goo:frost_snap";
     /** The damage metal_javelin.json's damage step names. */
     private static final float JAVELIN_DAMAGE = 8.0f;
 
@@ -154,14 +155,15 @@ public final class MobEffectTests {
     }
 
     /**
-     * Frost snap deals damage and applies slowness.
+     * Frost snap is a program: a not_boss target selection wrapping freeze
+     * damage, a freeze_ticks step and a slowness potion step.
      *
      * @param helper the gametest helper
      */
     public static void frostSnap(GameTestHelper helper) {
         Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
         float before = mob.getHealth();
-        FrostSnap.apply(mob);
+        runEntityPrograms(helper, mob, ABILITY_FROST_SNAP);
         helper.assertTrue(mob.getHealth() < before, SHOULD_TAKE_DAMAGE);
         helper.assertTrue(mob.hasEffect(MobEffects.SLOWNESS), SHOULD_HAVE_SLOWNESS);
         helper.succeed();

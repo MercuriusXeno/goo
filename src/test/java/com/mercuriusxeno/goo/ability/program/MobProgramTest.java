@@ -45,6 +45,10 @@ class MobProgramTest {
     private static final String WITHER = "minecraft:wither";
     private static final int WITHER_DURATION = 200;
     private static final float HALF = 0.5f;
+    private static final float SNAP_DAMAGE = 4;
+    private static final int FULL_FREEZE = 140;
+    private static final int SNAP_SLOW_DURATION = 60;
+    private static final int SNAP_SLOW_AMPLIFIER = 3;
     private static final int LEVITATE_DURATION = 100;
     private static final int LEVITATE_AMPLIFIER = 1;
     private static final int ENTANGLE_SLOW_DURATION = 100;
@@ -126,6 +130,19 @@ class MobProgramTest {
         InOrder order = inOrder(host);
         order.verify(host).setTargetHealthFraction(HALF);
         order.verify(host).applyPotion(Identifier.parse(WITHER), WITHER_DURATION, 1, true);
+    }
+
+    @Test
+    void frostSnapDamagesFreezesAndSlowsANonBoss() {
+        StepHost host = entityHost();
+        when(host.targetPasses(NOT_BOSS)).thenReturn(true);
+
+        run("frost_snap", host);
+
+        InOrder order = inOrder(host);
+        order.verify(host).damageTarget(SNAP_DAMAGE, DamageKind.FREEZE);
+        order.verify(host).addTargetFreezeTicks(FULL_FREEZE);
+        order.verify(host).applyPotion(Identifier.parse(SLOWNESS), SNAP_SLOW_DURATION, SNAP_SLOW_AMPLIFIER, true);
     }
 
     @Test
