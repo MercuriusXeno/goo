@@ -4,14 +4,11 @@ import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
 import com.mercuriusxeno.goo.block.canister.CanisterGeometry;
 import com.mercuriusxeno.goo.block.canister.CanisterSlotLayout;
 import com.mercuriusxeno.goo.client.CuboidBounds;
-import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.RenderContext;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.resources.Identifier;
-import net.minecraft.world.level.material.Fluid;
 
 /**
  * Fluid surface and gasket endcap rendering helpers for {@link CanisterBlockEntityRenderer}.
@@ -182,27 +179,5 @@ public final class CanisterFluidRenderer {
             SubmitNodeCollector nodeCollector, CanisterRenderState state) {
         SlottedFluidContainer.submitFluids(poseStack, nodeCollector,
                 state.slots, FLUID_GEOM, CanisterSlotLayout.SLOT_CENTERS_BLOCK, true);
-    }
-
-    /**
-     * Returns the tint color for a vanilla fluid; the resolution lives in
-     * {@link GooSubmitter#fluidTint(Fluid)}.
-     *
-     * @param fluid the vanilla fluid
-     * @return the ARGB tint color
-     */
-    public static int getVanillaFluidTint(Fluid fluid) {
-        return GooSubmitter.fluidTint(fluid);
-    }
-
-    /**
-     * Looks up the still sprite for a vanilla fluid; the resolution lives in
-     * {@link GooSubmitter#fluidSprite(Fluid)}.
-     *
-     * @param fluid the fluid
-     * @return the still texture sprite
-     */
-    public static TextureAtlasSprite lookupVanillaFluidSprite(Fluid fluid) {
-        return GooSubmitter.fluidSprite(fluid);
     }
 }
