@@ -4,18 +4,14 @@ import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
 import com.mercuriusxeno.goo.block.canister.CanisterGeometry;
 import com.mercuriusxeno.goo.block.canister.CanisterSlotLayout;
 import com.mercuriusxeno.goo.client.CuboidBounds;
-import com.mercuriusxeno.goo.client.GooRenderUtil;
+import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.RenderContext;
 import com.mojang.blaze3d.vertex.PoseStack;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.minecraft.data.AtlasIds;
 import net.minecraft.resources.Identifier;
-import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.world.level.material.Fluid;
-import net.minecraft.world.level.material.Fluids;
 
 /**
  * Fluid surface and gasket endcap rendering helpers for {@link CanisterBlockEntityRenderer}.
@@ -30,15 +26,6 @@ public final class CanisterFluidRenderer {
     /** Choral gasket texture (upgraded canister caps). */
     private static final Identifier CHORAL_GASKET =
         Identifier.fromNamespaceAndPath("goo", "textures/block/choral_gasket.png");
-
-    /** Default water tint color (plains biome blue). */
-    private static final int WATER_TINT = 0xFF3F76E4;
-
-    /** Vanilla water still sprite ID in the block atlas. */
-    private static final Identifier WATER_STILL = Identifier.withDefaultNamespace("block/water_still");
-
-    /** Vanilla lava still sprite ID in the block atlas. */
-    private static final Identifier LAVA_STILL = Identifier.withDefaultNamespace("block/lava_still");
 
     /** Shared fluid geometry constants for canister slots. */
     private static final SlotFluidGeometry.SlotGeometry FLUID_GEOM =
@@ -193,41 +180,29 @@ public final class CanisterFluidRenderer {
      */
     static void submitFluids(PoseStack poseStack,
             SubmitNodeCollector nodeCollector, CanisterRenderState state) {
-        // FULL_BRIGHT lightmap UV + solid pass = fullbright opaque fluid.
-        SlottedFluidContainer.submitFluids(poseStack, nodeCollector, LightCoordsUtil.FULL_BRIGHT,
+        SlottedFluidContainer.submitFluids(poseStack, nodeCollector,
                 state.slots, FLUID_GEOM, CanisterSlotLayout.SLOT_CENTERS_BLOCK, true);
     }
 
     /**
-     * Returns true if the fluid is water or flowing water.
-     *
-     * @param fluid the fluid to check
-     * @return true if water
-     */
-    /**
-     * Returns the tint color for a vanilla fluid. Water uses blue, lava is white.
+     * Returns the tint color for a vanilla fluid; the resolution lives in
+     * {@link GooSubmitter#fluidTint(Fluid)}.
      *
      * @param fluid the vanilla fluid
      * @return the ARGB tint color
      */
     public static int getVanillaFluidTint(Fluid fluid) {
-        return isWater(fluid) ? WATER_TINT : GooRenderUtil.OPAQUE_WHITE;
-    }
-
-    private static boolean isWater(Fluid fluid) {
-        return fluid == Fluids.WATER || fluid == Fluids.FLOWING_WATER;
+        return GooSubmitter.fluidTint(fluid);
     }
 
     /**
-     * Looks up the still texture sprite for a vanilla fluid from the block atlas.
+     * Looks up the still sprite for a vanilla fluid; the resolution lives in
+     * {@link GooSubmitter#fluidSprite(Fluid)}.
      *
      * @param fluid the fluid
      * @return the still texture sprite
      */
     public static TextureAtlasSprite lookupVanillaFluidSprite(Fluid fluid) {
-        Identifier spriteId = fluid == Fluids.WATER || fluid == Fluids.FLOWING_WATER
-                ? WATER_STILL : LAVA_STILL;
-        return Minecraft.getInstance().getAtlasManager()
-                .getAtlasOrThrow(AtlasIds.BLOCKS).getSprite(spriteId);
+        return GooSubmitter.fluidSprite(fluid);
     }
 }

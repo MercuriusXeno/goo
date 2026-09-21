@@ -1,20 +1,19 @@
 package com.mercuriusxeno.goo.client.ber;
 
+import com.mercuriusxeno.goo.GooType;
 import com.mercuriusxeno.goo.client.CuboidBounds;
-import com.mercuriusxeno.goo.client.GooRenderUtil;
+import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.RenderContext;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.SubmitNodeCollector;
-import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
 
 /**
  * Submits the per-slot fluid surface pass shared by Canister and Hub
  * block-entity renderers. The orchestration is identical between them
- * (predicate scan -> single translucent draw call -> per-slot top + side
+ * (predicate scan -> single fluid submission -> per-slot top + side
  * faces); the differences are pure data: slot count, XZ centers,
  * Y-range geometry, and whether vanilla fluids are supported.
  *
@@ -23,49 +22,29 @@ import net.minecraft.world.level.material.Fluids;
  */
 public final class SlottedFluidContainer {
 
-    /** Block atlas texture path for fluid sprite lookups. */
-    private static final Identifier BLOCK_ATLAS =
-            Identifier.withDefaultNamespace("textures/atlas/blocks.png");
-
     private SlottedFluidContainer() {
     }
 
     /**
-     * Submits one translucent draw call covering every filled slot.
+     * Submits one fluid submission covering every filled slot.
      * No-op when no slot has fluid.
      *
      * @param poseStack       the pose stack
      * @param nodeCollector   the render node collector
-     * @param lightCoords     packed light value for the BE
      * @param slots           per-slot snapshots
      * @param geom            shared slot geometry (HW + body Y range + inset)
      * @param centers         per-slot XZ block-coord centers (parallel to {@code slots})
      * @param supportsVanilla true if {@link SlotState#fluid} should be rendered when no goo type is set
      */
     public static void submitFluids(PoseStack poseStack, SubmitNodeCollector nodeCollector,
-                                    int lightCoords, SlotState[] slots,
+                                    SlotState[] slots,
                                     SlotFluidGeometry.SlotGeometry geom, float[][] centers,
                                     boolean supportsVanilla) {
         if (!hasAnyFluid(slots, supportsVanilla)) {
             return;
         }
-        // entityTranslucent on BLOCK_ATLAS: same RenderType key as the
-        // canister body's baked-model submission. Same key = same buffer,
-        // and sortOnUpload handles depth ordering of body+fluid primitives
-        // together. No cross-buffer ordering issues.
-        //
-        // Per-vertex lightmap UV does the fullbright work: caller passes
-        // LightCoordsUtil.FULL_BRIGHT and each fluid vertex carries that
-        // UV2, making the shader's lightMapColor sample white (no dimming).
-        // Body vertices (in the same buffer) keep their own lightCoords,
-        // so body stays world-lit while fluid is fullbright. No shader
-        // define swap, no pipeline change, no buffer split.
-        nodeCollector.submitCustomGeometry(poseStack,
-                RenderTypes.entityTranslucent(BLOCK_ATLAS),
-                (pose, c) -> {
-                    RenderContext ctx = new RenderContext(pose, c, lightCoords);
-                    renderAllFluids(ctx, slots, geom, centers, supportsVanilla);
-                });
+        GooSubmitter.submitFluid(poseStack, nodeCollector,
+                ctx -> renderAllFluids(ctx, slots, geom, centers, supportsVanilla));
     }
 
     private static void renderAllFluids(RenderContext ctx, SlotState[] slots,
@@ -100,10 +79,10 @@ public final class SlottedFluidContainer {
     }
 
     private static void renderGooSurface(RenderContext ctx, float[] center,
-                                         com.mercuriusxeno.goo.GooType type, float fill,
+                                         GooType type, float fill,
                                          SlotFluidGeometry.SlotGeometry geom) {
         CuboidBounds b = SlotFluidGeometry.computeBounds(geom, center[0], center[1], fill);
-        TextureAtlasSprite sprite = GooRenderUtil.lookupFluidSprite(type);
+        TextureAtlasSprite sprite = GooSubmitter.fluidSprite(type);
         SlotFluidGeometry.renderFluidTop(ctx, b, sprite);
         SlotFluidGeometry.renderFluidSides(ctx, b, sprite, fill, geom);
     }
@@ -111,8 +90,8 @@ public final class SlottedFluidContainer {
     private static void renderVanillaSurface(RenderContext ctx, float[] center, Fluid fluid,
                                              float fill, SlotFluidGeometry.SlotGeometry geom) {
         CuboidBounds b = SlotFluidGeometry.computeBounds(geom, center[0], center[1], fill);
-        TextureAtlasSprite sprite = CanisterFluidRenderer.lookupVanillaFluidSprite(fluid);
-        int tint = CanisterFluidRenderer.getVanillaFluidTint(fluid);
+        TextureAtlasSprite sprite = GooSubmitter.fluidSprite(fluid);
+        int tint = GooSubmitter.fluidTint(fluid);
         SlotFluidGeometry.renderFluidTop(ctx, b, sprite, tint);
         SlotFluidGeometry.renderFluidSides(ctx, b, sprite, fill, geom, tint);
     }
