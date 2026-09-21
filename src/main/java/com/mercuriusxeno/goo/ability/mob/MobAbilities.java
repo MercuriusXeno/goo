@@ -17,7 +17,7 @@ import java.util.function.Consumer;
  */
 public final class MobAbilities {
 
-    // ── Handler name constants; a type migrated to a program (metal, leaf, typhoon, shroom, nether, frost, pulse, aeon) has none ──
+    // ── Handler name constants; a type migrated to a program (metal, leaf, typhoon, shroom, nether, frost, pulse, aeon, unstable) has none ──
     public static final String CRYSTAL_FLECHETTES = "crystal_flechettes";
     public static final String VITAL_CLONE = "vital_clone";
     public static final String ROCK_PETRIFY = "rock_petrify";
@@ -25,7 +25,6 @@ public final class MobAbilities {
     public static final String GLOW_LASER = "glow_laser";
     public static final String HEX_CHARM = "hex_charm";
     public static final String ENDER_TELEPORT = "ender_teleport";
-    public static final String UNSTABLE_EXPLODE = "unstable_explode";
     /**
      * Per-type effect handler map.
      */
@@ -37,8 +36,7 @@ public final class MobAbilities {
                     Map.entry(GooType.BLAZE, ctx -> BlazeIgnite.apply(ctx.level(), ctx.target())),
                     Map.entry(GooType.GLOW, ctx -> GlowLaser.apply(ctx.level(), ctx.target())),
                     Map.entry(GooType.HEX, ctx -> HexCharm.apply(ctx.target(), ctx.thrower())),
-                    Map.entry(GooType.ENDER, ctx -> EnderTeleport.apply(ctx.level(), ctx.target())),
-                    Map.entry(GooType.UNSTABLE, ctx -> UnstableExplode.apply(ctx.level(), ctx.target()))));
+                    Map.entry(GooType.ENDER, ctx -> EnderTeleport.apply(ctx.level(), ctx.target()))));
     /**
      * String-keyed handler map for data-driven entity_effect dispatch.
      */
@@ -91,7 +89,6 @@ public final class MobAbilities {
         map.put(GLOW_LASER, ctx -> GlowLaser.apply(ctx.level(), ctx.target()));
         map.put(HEX_CHARM, ctx -> HexCharm.apply(ctx.target(), ctx.thrower()));
         map.put(ENDER_TELEPORT, ctx -> EnderTeleport.apply(ctx.level(), ctx.target()));
-        map.put(UNSTABLE_EXPLODE, ctx -> UnstableExplode.apply(ctx.level(), ctx.target()));
         return Map.copyOf(map);
     }
 

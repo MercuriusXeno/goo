@@ -54,6 +54,7 @@ class MobProgramTest {
     private static final int STUN_AMPLIFIER = 127;
     private static final String GLOWING = "minecraft:glowing";
     private static final int TIME_STOP_GLOW_DURATION = 60;
+    private static final float MOB_BLAST_POWER = 2;
     private static final int LEVITATE_DURATION = 100;
     private static final int LEVITATE_AMPLIFIER = 1;
     private static final int ENTANGLE_SLOW_DURATION = 100;
@@ -173,6 +174,16 @@ class MobProgramTest {
         order.verify(host).setTargetAi(false);
         order.verify(host).setTargetInvulnerable(true);
         order.verify(host).applyPotion(Identifier.parse(GLOWING), TIME_STOP_GLOW_DURATION, 0, true);
+    }
+
+    @Test
+    void unstableExplodeDetonatesTntAtTheTarget() {
+        StepHost host = entityHost();
+
+        run("unstable_explode", host);
+
+        verify(host).explode(MOB_BLAST_POWER, ExplosionMode.TNT);
+        verifyNoMoreInteractions(host);
     }
 
     @Test

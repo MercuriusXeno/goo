@@ -42,6 +42,7 @@ public final class MobEffectTests {
     private static final String ABILITY_FROST_SNAP = "goo:frost_snap";
     private static final String ABILITY_PULSE_SHORT_CIRCUIT = "goo:pulse_short_circuit";
     private static final String ABILITY_AEON_TIME_STOP = "goo:aeon_time_stop";
+    private static final String ABILITY_UNSTABLE_EXPLODE = "goo:unstable_explode";
     /** The damage metal_javelin.json's damage step names. */
     private static final float JAVELIN_DAMAGE = 8.0f;
 
@@ -251,13 +252,16 @@ public final class MobEffectTests {
     }
 
     /**
-     * Unstable explode detonates at the target (just verify no crash).
+     * Unstable explode is a program of one explode step at the target,
+     * whose blast hurts the struck mob.
      *
      * @param helper the gametest helper
      */
     public static void unstableExplode(GameTestHelper helper) {
         Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
-        UnstableExplode.apply(helper.getLevel(), mob);
+        float before = mob.getHealth();
+        runEntityPrograms(helper, mob, ABILITY_UNSTABLE_EXPLODE);
+        helper.assertTrue(mob.getHealth() < before, SHOULD_TAKE_DAMAGE);
         helper.succeed();
     }
 
