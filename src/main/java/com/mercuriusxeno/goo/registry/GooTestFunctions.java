@@ -105,6 +105,10 @@ public final class GooTestFunctions {
     private static final String MOB_AEON = "mob_aeon_time_stop";
     private static final String MOB_DISPATCHER = "mob_dispatcher_routes";
 
+    // --- Lighting ---
+    private static final String LIGHT_CANISTER_SYNC = "light_canister_sync";
+    private static final String LIGHT_CANISTER_LOAD = "light_canister_load";
+
     private GooTestFunctions() {
     }
 
@@ -134,7 +138,13 @@ public final class GooTestFunctions {
             registerMachineInteractionTests(registrar);
             registerMachineTests(registrar);
             registerMobEffectTests(registrar);
+            registerLightingTests(registrar);
         });
+    }
+
+    private static void registerLightingTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
+        reg(r, LIGHT_CANISTER_SYNC, LightingTests::filledCanisterLightsNeighbour);
+        reg(r, LIGHT_CANISTER_LOAD, LightingTests::loadedCanisterLightsNeighbour);
     }
 
     private static void registerGasketTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {

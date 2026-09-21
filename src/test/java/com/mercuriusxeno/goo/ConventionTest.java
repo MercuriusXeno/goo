@@ -10,8 +10,12 @@ import com.tngtech.archunit.lang.ConditionEvents;
 import com.tngtech.archunit.lang.SimpleConditionEvent;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import static com.tngtech.archunit.core.domain.JavaAccess.Predicates.target;
+import static com.tngtech.archunit.core.domain.JavaClass.Predicates.assignableTo;
 import static com.tngtech.archunit.core.domain.JavaClass.Predicates.belongToAnyOf;
 import static com.tngtech.archunit.core.domain.JavaClass.Predicates.simpleName;
+import static com.tngtech.archunit.core.domain.properties.HasName.Predicates.name;
+import static com.tngtech.archunit.core.domain.properties.HasOwner.Predicates.With.owner;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
@@ -23,6 +27,8 @@ class ConventionTest {
     private static final String[] DOMAIN_PACKAGES = {
             "com.mercuriusxeno.goo.block..", "com.mercuriusxeno.goo.item.."
     };
+    private static final String LEVEL_LIGHT_ENGINE = "net.minecraft.world.level.lighting.LevelLightEngine";
+    private static final String RUN_LIGHT_UPDATES = "runLightUpdates";
     private static JavaClasses mainClasses;
     private static JavaClasses testClasses;
 
@@ -105,6 +111,21 @@ class ConventionTest {
                 .should().beAnnotatedWith(annotation)
                 .orShould(haveAnnotatedMembers(annotation))
                 .because("HARD RULE: use dist executors or proxies, never @OnlyIn")
+                .check(mainClasses);
+    }
+
+    /**
+     * No main-source class drains the level light engine by hand: a server
+     * level holds a ThreadedLevelLightEngine whose runLightUpdates throws,
+     * and checkBlock already enqueues the recompute the engine's own tick runs.
+     */
+    @Test
+    void noManualLightEngineDrain() {
+        noClasses()
+                .should().callMethodWhere(target(name(RUN_LIGHT_UPDATES))
+                        .and(target(owner(assignableTo(LEVEL_LIGHT_ENGINE)))))
+                .because("the server light engine drains its own queue on its tick;"
+                        + " a manual drain throws (decision light-kick-never-drains)")
                 .check(mainClasses);
     }
 
