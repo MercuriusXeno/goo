@@ -206,16 +206,22 @@ public class CrucibleBlockEntity extends BlockEntity implements IGasketHolder, I
     /**
      * Sums emissive contributions from each reservoir entry against
      * {@link #LIGHT_REFERENCE_CAPACITY} (the visual fill cap), clamped
-     * to the vanilla 15-light ceiling.
+     * to the vanilla 15-light ceiling. Before placement no registry is
+     * reachable, so the emission reads 0.
      *
      * @return goo-derived block-light emission in [0, 15]
      */
     @Override
     public int gooLightEmission() {
+        Level level = getLevel();
+        if (level == null) {
+            return 0;
+        }
+        HolderLookup.Provider registries = level.registryAccess();
         int total = 0;
         for (var entry : reservoir.toGooContents().contents().entrySet()) {
             int contribution = GooLightContribution.forSlot(
-                    entry.getKey(), entry.getValue(), LIGHT_REFERENCE_CAPACITY);
+                    entry.getKey().holder(registries).value(), entry.getValue(), LIGHT_REFERENCE_CAPACITY);
             total = GooLightContribution.addClamped(total, contribution);
             if (total >= GooLightContribution.MAX_LIGHT) {
                 return GooLightContribution.MAX_LIGHT;

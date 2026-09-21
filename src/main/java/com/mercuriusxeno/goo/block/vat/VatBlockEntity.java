@@ -206,16 +206,22 @@ public class VatBlockEntity extends BlockEntity implements IGasketHolder, IGooLi
      * current capacity, clamped to the vanilla 15-light ceiling. Compression
      * grows capacity, so the same mB amount of glow goo emits less light in
      * a higher-tier vat -- intentional, scales with the visible fill ratio.
+     * Before placement no registry is reachable, so the emission reads 0.
      *
      * @return goo-derived block-light emission in [0, 15]
      */
     @Override
     public int gooLightEmission() {
+        Level level = getLevel();
+        if (level == null) {
+            return 0;
+        }
+        HolderLookup.Provider registries = level.registryAccess();
         int capacity = getCapacity();
         int total = 0;
         for (var entry : fluidHandler.toGooContents().contents().entrySet()) {
             int contribution = GooLightContribution.forSlot(
-                    entry.getKey(), entry.getValue(), capacity);
+                    entry.getKey().holder(registries).value(), entry.getValue(), capacity);
             total = GooLightContribution.addClamped(total, contribution);
             if (total >= GooLightContribution.MAX_LIGHT) {
                 return GooLightContribution.MAX_LIGHT;
