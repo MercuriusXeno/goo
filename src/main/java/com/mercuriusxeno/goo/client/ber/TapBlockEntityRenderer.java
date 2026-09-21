@@ -4,7 +4,7 @@ import com.mercuriusxeno.goo.GooType;
 import com.mercuriusxeno.goo.block.tap.TapBlock;
 import com.mercuriusxeno.goo.block.tap.TapBlockEntity;
 import com.mercuriusxeno.goo.client.CuboidBounds;
-import com.mercuriusxeno.goo.client.GooRenderUtil;
+import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.RenderContext;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
@@ -20,11 +20,11 @@ import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.resources.Identifier;
-import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
+import java.util.List;
 
 /**
  * Renders the canister sitting on a tap's body slot. Follows the same
@@ -33,22 +33,6 @@ import org.jspecify.annotations.Nullable;
  */
 public class TapBlockEntityRenderer
         implements BlockEntityRenderer<TapBlockEntity, TapRenderState> {
-
-    /**
-     * Block atlas texture path for fluid sprite lookups.
-     */
-    private static final Identifier BLOCK_ATLAS_TEXTURE =
-            Identifier.withDefaultNamespace("textures/atlas/blocks.png");
-
-    /**
-     * Canister body side sprite identifier on the BLOCKS atlas.
-     * Used so this BER's body submission shares its RenderType with the
-     * fluid submission (both on entityTranslucent(BLOCK_ATLAS_TEXTURE)),
-     * which puts body and fluid primitives into the same buffer for
-     * sortOnUpload to depth-sort together.
-     */
-    private static final Identifier CANISTER_SIDE_SPRITE =
-            Identifier.fromNamespaceAndPath("goo", "block/canister_side");
 
     /**
      * Copper endcap texture (default canister caps).
@@ -98,18 +82,6 @@ public class TapBlockEntityRenderer
      * Divisor for computing AABB center from min+max.
      */
     private static final double CENTER_DIVISOR = 2.0;
-
-    // -- Body UV region: canister_side.png [0,0]-[4,8] on 16x16 --
-
-    /**
-     * Body side U range: 4px / 16px.
-     */
-    private static final float BODY_U1 = 0.25f;
-
-    /**
-     * Body side V range: 10px / 16px.
-     */
-    private static final float BODY_V1 = 0.625f;
 
     // -- Gasket UV regions: gasket.png, 16x16 --
 
@@ -193,7 +165,8 @@ public class TapBlockEntityRenderer
     }
 
     /**
-     * Renders the 4 side faces of the canister body.
+     * Submits the canister body's four sides through the submitter's
+     * sided-body form at the block entity's world light.
      *
      * @param poseStack     the pose stack for rendering
      * @param nodeCollector the render node collector
@@ -204,19 +177,8 @@ public class TapBlockEntityRenderer
     private static void submitBody(PoseStack poseStack,
                                    SubmitNodeCollector nodeCollector, TapRenderState state,
                                    float cx, float cz) {
-        int light = state.lightCoords;
-        // Body shares entityTranslucent(BLOCK_ATLAS_TEXTURE) with the fluid
-        // submission so both go into the same buffer; sortOnUpload then
-        // sorts body+fluid primitives together by camera distance.
-        TextureAtlasSprite sprite = GooRenderUtil.lookupBlockSprite(CANISTER_SIDE_SPRITE);
-        GooRenderUtil.UvRect uv = GooRenderUtil.spriteSubRect(sprite, 0f, 0f, BODY_U1, BODY_V1);
-        nodeCollector.submitCustomGeometry(poseStack,
-                RenderTypes.entityTranslucent(BLOCK_ATLAS_TEXTURE),
-                (pose, c) -> {
-                    RenderContext ctx = new RenderContext(pose, c, light);
-                    CuboidBounds box = new CuboidBounds(cx - HW, cx + HW, cz - HW, cz + HW, BODY_BOT, BODY_TOP);
-                    ctx.emitSides(box, uv);
-                });
+        GooSubmitter.submitSidedBodies(poseStack, nodeCollector, state.lightCoords,
+                List.of(tapBoundsXZ(cx, cz).withY(BODY_BOT, BODY_TOP)));
     }
 
     /**
@@ -272,14 +234,10 @@ public class TapBlockEntityRenderer
     private static void submitFluid(PoseStack poseStack,
                                     SubmitNodeCollector nodeCollector, TapRenderState state,
                                     float cx, float cz) {
-        // FULL_BRIGHT lightmap UV per fluid vertex makes the lightmap
-        // multiplication a no-op; body shares the same RenderType so
-        // sortOnUpload handles depth ordering of body+fluid together.
         GooType type = state.slot.type;
         float fill = state.slot.fill;
-        nodeCollector.submitCustomGeometry(poseStack,
-                RenderTypes.entityTranslucent(BLOCK_ATLAS_TEXTURE),
-                (pose, c) -> renderFluidGeometry(new RenderContext(pose, c, LightCoordsUtil.FULL_BRIGHT), type, fill, cx, cz));
+        GooSubmitter.submitFluid(poseStack, nodeCollector,
+                ctx -> renderFluidGeometry(ctx, type, fill, cx, cz));
     }
 
     /**
@@ -294,7 +252,7 @@ public class TapBlockEntityRenderer
     private static void renderFluidGeometry(RenderContext ctx, GooType type, float fill,
                                             float cx, float cz) {
         CuboidBounds b = SlotFluidGeometry.computeBounds(FLUID_GEOM, cx, cz, fill);
-        TextureAtlasSprite sprite = GooRenderUtil.lookupFluidSprite(type);
+        TextureAtlasSprite sprite = GooSubmitter.fluidSprite(type);
         SlotFluidGeometry.renderFluidTop(ctx, b, sprite);
         SlotFluidGeometry.renderFluidSides(ctx, b, sprite, fill, FLUID_GEOM);
     }
