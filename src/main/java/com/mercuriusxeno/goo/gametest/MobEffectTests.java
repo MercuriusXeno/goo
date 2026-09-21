@@ -41,6 +41,7 @@ public final class MobEffectTests {
     private static final String ABILITY_NETHER_WITHER = "goo:nether_wither";
     private static final String ABILITY_FROST_SNAP = "goo:frost_snap";
     private static final String ABILITY_PULSE_SHORT_CIRCUIT = "goo:pulse_short_circuit";
+    private static final String ABILITY_AEON_TIME_STOP = "goo:aeon_time_stop";
     /** The damage metal_javelin.json's damage step names. */
     private static final float JAVELIN_DAMAGE = 8.0f;
 
@@ -261,13 +262,14 @@ public final class MobEffectTests {
     }
 
     /**
-     * Aeon time stop disables AI and makes invulnerable.
+     * Aeon time stop is a program: a mob target selection wrapping set_ai
+     * off, set_invulnerable on and a glowing potion step.
      *
      * @param helper the gametest helper
      */
     public static void aeonTimeStop(GameTestHelper helper) {
         Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
-        AeonTimeStop.apply(mob);
+        runEntityPrograms(helper, mob, ABILITY_AEON_TIME_STOP);
         helper.assertTrue(mob.isNoAi(), SHOULD_HAVE_NO_AI);
         helper.assertTrue(mob.isInvulnerable(), SHOULD_BE_INVULNERABLE);
         helper.assertTrue(mob.hasEffect(MobEffects.GLOWING), SHOULD_HAVE_GLOWING);

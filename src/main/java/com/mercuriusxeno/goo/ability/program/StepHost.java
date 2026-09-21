@@ -129,4 +129,12 @@ public interface StepHost extends Variables {
      * @param enabled whether the AI runs
      */
     void setTargetAi(boolean enabled);
+
+    /**
+     * Toggles the host's target's invulnerability. Capability
+     * {@link HostCapability#TARGET}.
+     *
+     * @param enabled whether the target is invulnerable
+     */
+    void setTargetInvulnerable(boolean enabled);
 }

@@ -11,10 +11,18 @@
   },
   "behaviors": [
     {
-      "type": "entity_effect",
-      "params": {
-        "handler": "aeon_time_stop"
-      }
+      "type": "program",
+      "steps": [
+        {
+          "type": "target",
+          "where": ["mob"],
+          "steps": [
+            { "type": "set_ai", "enabled": false },
+            { "type": "set_invulnerable", "enabled": true },
+            { "type": "potion", "effect": "minecraft:glowing", "duration": 60, "amplifier": 0 }
+          ]
+        }
+      ]
     }
   ],
   "tags": ["entity"]

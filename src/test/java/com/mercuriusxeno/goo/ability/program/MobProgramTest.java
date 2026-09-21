@@ -52,6 +52,8 @@ class MobProgramTest {
     private static final Set<EntityFilter> MOB = Set.of(EntityFilter.MOB);
     private static final int STUN_DURATION = 100;
     private static final int STUN_AMPLIFIER = 127;
+    private static final String GLOWING = "minecraft:glowing";
+    private static final int TIME_STOP_GLOW_DURATION = 60;
     private static final int LEVITATE_DURATION = 100;
     private static final int LEVITATE_AMPLIFIER = 1;
     private static final int ENTANGLE_SLOW_DURATION = 100;
@@ -158,6 +160,19 @@ class MobProgramTest {
         InOrder order = inOrder(host);
         order.verify(host).setTargetAi(false);
         order.verify(host).applyPotion(Identifier.parse(SLOWNESS), STUN_DURATION, STUN_AMPLIFIER, true);
+    }
+
+    @Test
+    void aeonTimeStopFreezesAMobInPlaceAndMarksIt() {
+        StepHost host = entityHost();
+        when(host.targetPasses(MOB)).thenReturn(true);
+
+        run("aeon_time_stop", host);
+
+        InOrder order = inOrder(host);
+        order.verify(host).setTargetAi(false);
+        order.verify(host).setTargetInvulnerable(true);
+        order.verify(host).applyPotion(Identifier.parse(GLOWING), TIME_STOP_GLOW_DURATION, 0, true);
     }
 
     @Test
