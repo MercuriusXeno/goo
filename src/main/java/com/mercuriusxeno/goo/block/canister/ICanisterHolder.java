@@ -8,7 +8,9 @@ import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.CanisterMetadata;
 import com.mercuriusxeno.goo.registry.GooFluids;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.material.Fluid;
 import org.jspecify.annotations.Nullable;
 
@@ -22,13 +24,20 @@ import org.jspecify.annotations.Nullable;
  * underlying {@link CanisterSlot}. Per-slot work is on the slot itself; this
  * interface only adds bounds checks and item-stack metadata convenience.</p>
  */
-@SuppressWarnings("PMD.ImplicitFunctionalInterface") // not a lambda target; sole abstract is a composed-state accessor
 public interface ICanisterHolder extends IGooLightSource {
 
     /**
      * @return the behavioral component owning this holder's slot grid
      */
     SlottedCanisterData containerState();
+
+    /**
+     * The level this holder sits in, which every implementing block entity
+     * already answers; null until the block entity is placed in one.
+     *
+     * @return the level, or null before placement
+     */
+    @Nullable Level getLevel();
 
     /**
      * Bounds-checked slot accessor.
@@ -144,23 +153,30 @@ public interface ICanisterHolder extends IGooLightSource {
 
     /**
      * Default impl walks every slot, computes each slot's emission via
-     * {@link GooLightContribution#forSlot}, and returns the sum clamped
-     * to the vanilla 15-light ceiling. Sufficient for canister, hub, tap,
-     * and reactor BEs.
+     * {@link GooLightContribution#forSlot} over the type's registry entry,
+     * and returns the sum clamped to the vanilla 15-light ceiling.
+     * Sufficient for canister, hub, tap, and reactor BEs. Before placement
+     * no registry is reachable, so the emission reads 0.
      *
      * @return total goo-derived block-light emission in [0, 15]
      */
     @Override
     default int gooLightEmission() {
+        Level level = getLevel();
+        if (level == null) {
+            return 0;
+        }
+        HolderLookup.Provider registries = level.registryAccess();
         SlottedCanisterData data = containerState();
         int total = 0;
         for (CanisterSlot slot : data.slots) {
             CanisterFluidContent content = slot.fluidContent();
-            if (content.isEmpty()) {
+            GooType type = content.getGooType();
+            if (content.isEmpty() || type == null) {
                 continue;
             }
             int contribution = GooLightContribution.forSlot(
-                    content.getGooType(), content.amount(), slot.capacity());
+                    type.holder(registries).value(), content.amount(), slot.capacity());
             total = GooLightContribution.addClamped(total, contribution);
             if (total >= GooLightContribution.MAX_LIGHT) {
                 return GooLightContribution.MAX_LIGHT;

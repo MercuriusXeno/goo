@@ -1,21 +1,23 @@
 package com.mercuriusxeno.goo.block;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Computes block-light emission contributions from goo content.
  *
  * <p>Per type the curve is {@code light = round(peak * sqrt(t))} with
- * {@code t = min(1, fill / saturationFill)}. Sqrt makes a small amount
- * of an emissive type produce noticeable light, then plateau as fill
- * approaches the type's saturation point. A floor of 1 applies whenever
- * any emissive fluid is present, so the "even a tiny bit glows" rule
- * holds even when the rounded value would underflow to 0.
+ * {@code t = min(1, fill / saturationFill)}, peak and saturation read from
+ * the type's registry entry (decision type-json-light-fields). Sqrt makes a
+ * small amount of an emissive type produce noticeable light, then plateau
+ * as fill approaches the type's saturation point. A floor applies whenever
+ * any fluid is present, so the "even a tiny bit glows" rule holds even when
+ * the rounded value would underflow to 0.
  */
 public final class GooLightContribution {
 
     /** Vanilla block-light ceiling. */
-    public static final int MAX_LIGHT = 15;
+    public static final int MAX_LIGHT = GooTypeDefinition.MAX_LIGHT;
 
     /** Minimum light any present goo emits, regardless of fill or peak.
      * Every goo type is at least somewhat luminous; the floor ensures
@@ -27,12 +29,12 @@ public final class GooLightContribution {
     /**
      * Light contribution for a single (type, amount, capacity) triple.
      *
-     * @param type     the goo type, may be null
+     * @param type     the goo type's registry entry, may be null
      * @param amount   present amount in microblobs (mB)
      * @param capacity slot capacity in microblobs; non-positive yields 0
      * @return contribution in [{@link #FLOOR_PRESENT}, peakLight] when present, 0 if empty
      */
-    public static int forSlot(GooType type, long amount, long capacity) {
+    public static int forSlot(@Nullable GooTypeDefinition type, long amount, long capacity) {
         if (type == null || amount <= 0L || capacity <= 0L) {
             return 0;
         }
