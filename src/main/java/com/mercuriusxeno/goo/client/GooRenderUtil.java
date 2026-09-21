@@ -18,29 +18,20 @@ import net.minecraft.world.phys.HitResult;
  */
 public final class GooRenderUtil {
 
-    /** Mod namespace for resource locations. */
-    private static final String NAMESPACE = "goo";
-    /** Sprite path prefix for fluid textures. */
-    private static final String FLUID_PREFIX = "fluid/";
-    /** Sprite path suffix for fluid textures. */
-    private static final String FLUID_SUFFIX = "_fluid";
     /** Fully opaque white in ARGB. */
     public static final int OPAQUE_WHITE = 0xFFFFFFFF;
 
     private GooRenderUtil() {}
 
     /**
-     * Looks up the fluid sprite for a goo type from the block texture atlas.
-     * The sprite ID follows the pattern "goo:fluid/{typeId}_fluid".
+     * Looks up the fluid sprite for a goo type; the resolution lives in
+     * {@link GooSubmitter#fluidSprite(GooType)}.
      *
      * @param type the goo type
-     * @return the fluidSprite, or null if not found
+     * @return the fluid sprite
      */
     public static TextureAtlasSprite lookupFluidSprite(GooType type) {
-        Identifier spriteId = Identifier.fromNamespaceAndPath(
-            NAMESPACE, FLUID_PREFIX + type.getId() + FLUID_SUFFIX);
-        return Minecraft.getInstance().getAtlasManager()
-            .getAtlasOrThrow(AtlasIds.BLOCKS).getSprite(spriteId);
+        return GooSubmitter.fluidSprite(type);
     }
 
     /**
