@@ -6,6 +6,10 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.MobAbilityRegistry;
 import com.mercuriusxeno.goo.ability.mob.MobAbilities;
+import com.mercuriusxeno.goo.ability.program.EntityHost;
+import com.mercuriusxeno.goo.ability.program.HostKind;
+import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
+import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
 import com.mercuriusxeno.goo.ability.world.EffectBlockPlacement;
 import com.mercuriusxeno.goo.ability.world.WorldEffects;
 import com.mercuriusxeno.goo.registry.GooSounds;
@@ -79,6 +83,10 @@ final class BlobEffectScheduler {
      * Empty handler fallback.
      */
     private static final String NO_HANDLER = "";
+    /**
+     * Log: a program entry the struck entity host refused at load.
+     */
+    private static final String LOG_PROGRAM_REFUSED = "Ability {} refused on the struck entity: {}";
 
     /**
      * Pending effects waiting for their blob to arrive.
@@ -223,16 +231,59 @@ final class BlobEffectScheduler {
         return AbilityRegistry.getAbility(id);
     }
 
+    /**
+     * Runs each behavior entry against the struck entity: a program entry
+     * on an {@link EntityHost}, an entity_effect entry through the handler
+     * it names (decision host-agnostic-runtime).
+     *
+     * @param pe     the pending effect
+     * @param def    the ability definition
+     * @param living the target entity
+     */
     private static void dispatchEntityHandlers(PendingEffect pe,
                                                AbilityDefinition def, LivingEntity living) {
         for (AbilityDefinition.BehaviorEntry entry : def.behaviors()) {
-            if (ENTITY_EFFECT_TYPE.equals(entry.type())) {
-                String handler = entry.params().getOrDefault(HANDLER_PARAM, NO_HANDLER);
-                var fn = MobAbilityRegistry.get(handler);
-                if (fn != null) {
-                    fn.accept(new MobAbilityRegistry.Context(pe.level, living, pe.thrower));
-                }
+            if (ProgramBehavior.TYPE_NAME.equals(entry.type())) {
+                runEntityProgram(pe, def, entry, living);
+            } else if (ENTITY_EFFECT_TYPE.equals(entry.type())) {
+                runEntityHandler(pe, entry, living);
             }
+        }
+    }
+
+    /**
+     * Loads the entry's program for the struck entity host and runs its
+     * one tick. A program the host cannot serve is refused at load, and
+     * the refusal is logged with the ability, the step and the host.
+     *
+     * @param pe     the pending effect
+     * @param def    the ability definition, for the log
+     * @param entry  the program entry
+     * @param living the target entity
+     */
+    private static void runEntityProgram(PendingEffect pe, AbilityDefinition def,
+                                         AbilityDefinition.BehaviorEntry entry, LivingEntity living) {
+        try {
+            ProgramBehavior program = ProgramBehavior.forHost(entry.steps(), HostKind.ENTITY);
+            program.tick(new EntityHost(pe.level, living, pe.thrower));
+        } catch (ProgramLoadException e) {
+            Goo.LOGGER.error(LOG_PROGRAM_REFUSED, def.id(), e.getMessage());
+        }
+    }
+
+    /**
+     * Runs the handler an entity_effect entry names.
+     *
+     * @param pe     the pending effect
+     * @param entry  the entity_effect entry
+     * @param living the target entity
+     */
+    private static void runEntityHandler(PendingEffect pe, AbilityDefinition.BehaviorEntry entry,
+                                         LivingEntity living) {
+        String handler = entry.params().getOrDefault(HANDLER_PARAM, NO_HANDLER);
+        var fn = MobAbilityRegistry.get(handler);
+        if (fn != null) {
+            fn.accept(new MobAbilityRegistry.Context(pe.level, living, pe.thrower));
         }
     }
 

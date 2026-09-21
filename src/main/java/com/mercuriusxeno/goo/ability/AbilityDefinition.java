@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.ability;
 
 import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.ability.program.StepTypes;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.resources.Identifier;
@@ -118,19 +120,36 @@ public record AbilityDefinition(
     /**
      * A single behavior building block with its parameters.
      * Parameters are stored as string key-value pairs; behavior factories
-     * parse them into typed values (float, boolean, etc.).
+     * parse them into typed values (float, boolean, etc.). A {@code program}
+     * entry carries its step tree in {@code steps} instead, each step typed
+     * by its own codec (decision ability-params-in-datapack).
      *
-     * @param type   the behavior type name (explosion, break_area, etc.)
+     * @param type   the behavior type name (program, progressive_area, etc.)
      * @param params the parameter map for the behavior factory
+     * @param steps  the step tree of a program entry; empty for other types
      */
-    public record BehaviorEntry(String type, Map<String, String> params) {
+    public record BehaviorEntry(String type, Map<String, String> params, List<Step> steps) {
 
         static final Codec<BehaviorEntry> CODEC = RecordCodecBuilder.create(inst -> inst.group(
                 Codec.STRING.fieldOf("type").forGetter(BehaviorEntry::type),
                 Codec.unboundedMap(Codec.STRING, Codec.STRING)
                         .optionalFieldOf("params", Map.of())
-                        .forGetter(BehaviorEntry::params)
+                        .forGetter(BehaviorEntry::params),
+                StepTypes.LIST_CODEC
+                        .optionalFieldOf("steps", List.of())
+                        .forGetter(BehaviorEntry::steps)
         ).apply(inst, BehaviorEntry::new));
+
+        /**
+         * Creates an entry without a step tree, the shape every
+         * non-program type reads.
+         *
+         * @param type   the behavior type name
+         * @param params the parameter map
+         */
+        public BehaviorEntry(String type, Map<String, String> params) {
+            this(type, params, List.of());
+        }
 
         /**
          * Gets a float parameter, returning the default if absent or unparseable.

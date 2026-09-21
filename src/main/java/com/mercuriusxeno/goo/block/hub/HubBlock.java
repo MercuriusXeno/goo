@@ -344,8 +344,8 @@ public class HubBlock extends BaseEntityBlock {
 
     /**
      * Classifies the held item and dispatches to the appropriate hub interaction handler.
-     * Holding a canister without sneaking picks up the targeted slot's canister, matching
-     * {@link com.mercuriusxeno.goo.block.canister.CanisterBlock}. Sneak+canister inserts.
+     * A plain click with a canister in hand reads the targeted slot: a filled slot gives
+     * its canister up, an empty or missed slot takes the held one. Sneak plays no part.
      *
      * @param stack     the item stack
      * @param state     the block state
@@ -360,7 +360,8 @@ public class HubBlock extends BaseEntityBlock {
     protected @NonNull InteractionResult useItemOn(
             @NonNull ItemStack stack, @NonNull BlockState state, Level level, @NonNull BlockPos pos,
             @NonNull Player player, @NonNull InteractionHand hand, @NonNull BlockHitResult hitResult) {
-        if (stack.getItem() instanceof CanisterItem && !player.isSecondaryUseActive()) {
+        // decision hub-plain-click-rule
+        if (stack.getItem() instanceof CanisterItem && targetsFilledSlot(level, pos, hitResult)) {
             return pickupTargetedCanister(level, pos, player, hitResult);
         }
         return GooBlockInteraction.handleItemInteraction(
@@ -368,6 +369,22 @@ public class HubBlock extends BaseEntityBlock {
                 HubBlockEntity.class,
                 t -> t == null,
                 HubBlockHandlers::dispatchHub);
+    }
+
+    /**
+     * Reports whether the hit lands on a hub slot that already holds a canister.
+     *
+     * @param level     the current level
+     * @param pos       the block position
+     * @param hitResult the ray trace hit result
+     * @return true when the targeted slot holds a canister
+     */
+    private static boolean targetsFilledSlot(Level level, BlockPos pos, BlockHitResult hitResult) {
+        if (!(level.getBlockEntity(pos) instanceof HubBlockEntity hub)) {
+            return false;
+        }
+        int slot = hitSlot(hitResult, pos);
+        return slot >= 0 && !hub.getCanister(slot).isEmpty();
     }
 
     /**
@@ -413,7 +430,7 @@ public class HubBlock extends BaseEntityBlock {
             return InteractionResult.PASS;
         }
 
-        if (player.isShiftKeyDown() && state.getValue(HAS_GASKET)) {
+        if (player.isSecondaryUseActive() && state.getValue(HAS_GASKET)) {
             return HubBlockHandlers.removeGasket(level, pos, hub);
         }
         return HubBlockHandlers.removeCanister(hub, hitResult, pos, player, level);

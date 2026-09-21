@@ -1,9 +1,15 @@
 package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.ability.AbilityDefinition;
+import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.mob.*;
+import com.mercuriusxeno.goo.ability.program.EntityHost;
+import com.mercuriusxeno.goo.ability.program.HostKind;
+import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
@@ -26,20 +32,32 @@ public final class MobEffectTests {
     private static final String SHOULD_HAVE_NO_AI = "Target should have AI disabled";
     private static final String SHOULD_BE_INVULNERABLE = "Target should be invulnerable";
     private static final String SHOULD_HAVE_LEVITATION = "Target should have levitation";
+    private static final String SHOULD_TAKE_JAVELIN_DAMAGE = "Target should have taken the javelin's damage";
+    private static final String ABILITIES_REQUIRED = "Ability registry must be loaded";
+    private static final String ABILITY_METAL_JAVELIN = "goo:metal_javelin";
+    /** The damage metal_javelin.json's damage step names. */
+    private static final float JAVELIN_DAMAGE = 8.0f;
 
     private MobEffectTests() {
     }
 
     /**
-     * Metal javelin deals direct magic damage.
+     * Metal javelin is a program: its damage step, loaded for the struck
+     * entity host, deals the javelin's magic damage to the target
+     * (decision host-agnostic-runtime).
      *
      * @param helper the gametest helper
      */
     public static void metalJavelin(GameTestHelper helper) {
         Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
         float before = mob.getHealth();
-        MetalJavelin.apply(mob);
-        helper.assertTrue(mob.getHealth() < before, SHOULD_TAKE_DAMAGE);
+        AbilityDefinition ability = AbilityRegistry.getAbility(Identifier.parse(ABILITY_METAL_JAVELIN));
+        helper.assertTrue(ability != null, ABILITIES_REQUIRED);
+        for (AbilityDefinition.BehaviorEntry entry : ability.behaviors()) {
+            ProgramBehavior program = ProgramBehavior.forHost(entry.steps(), HostKind.ENTITY);
+            program.tick(new EntityHost(helper.getLevel(), mob, null));
+        }
+        helper.assertTrue(mob.getHealth() <= before - JAVELIN_DAMAGE, SHOULD_TAKE_JAVELIN_DAMAGE);
         helper.succeed();
     }
 
