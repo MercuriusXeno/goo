@@ -66,7 +66,20 @@ public final class GooSubmitter {
      * @return entityTranslucent on the block atlas
      */
     public static RenderType renderType() {
-        return RenderTypes.entityTranslucent(BLOCK_ATLAS);
+        return translucentOn(BLOCK_ATLAS);
+    }
+
+    /**
+     * Returns the translucent render type on a standalone texture, for a
+     * draw that is neither a body nor a fluid but must stay translucent:
+     * the reactor wheel, or a batched translucent item texture. The choice
+     * still lives here so no renderer names a render type of its own.
+     *
+     * @param texture the texture the draw samples
+     * @return entityTranslucent on that texture
+     */
+    public static RenderType translucentOn(Identifier texture) {
+        return RenderTypes.entityTranslucent(texture);
     }
 
     /**

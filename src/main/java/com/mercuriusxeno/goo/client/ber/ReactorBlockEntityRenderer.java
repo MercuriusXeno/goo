@@ -438,8 +438,7 @@ public class ReactorBlockEntityRenderer
     private static void emitWheelLayer(
             PoseStack poseStack, SubmitNodeCollector nodeCollector,
             float x, SpriteUv uv, float displayAngle, int color, int light) {
-        nodeCollector.submitCustomGeometry(poseStack,
-                RenderTypes.entityTranslucent(REACTOR_TEXTURE),
+        nodeCollector.submitCustomGeometry(poseStack, GooSubmitter.translucentOn(REACTOR_TEXTURE),
                 (pose, c) -> {
                     RenderContext ctx = new RenderContext(pose, c, light);
                     emitRotatedWheel(ctx, x, displayAngle,
