@@ -153,7 +153,8 @@ public class CanisterSpecialRenderer implements SpecialModelRenderer<CanisterSpe
     }
 
     /**
-     * Submits a single endcap draw call for the given texture and cap flags.
+     * Submits a single endcap draw call for the given texture and cap flags,
+     * solid on the gasket texture as the placed canister's caps are.
      *
      * @param poseStack     the pose stack for rendering
      * @param nodeCollector the render node collector
@@ -166,7 +167,7 @@ public class CanisterSpecialRenderer implements SpecialModelRenderer<CanisterSpe
                                           SubmitNodeCollector nodeCollector, int packedLight,
                                           Identifier texture, boolean top, boolean bottom) {
         nodeCollector.submitCustomGeometry(poseStack,
-                RenderTypes.entityTranslucent(texture),
+                RenderTypes.entitySolid(texture),
                 (pose, c) -> emitEndcapQuads(new RenderContext(pose, c, packedLight), top, bottom));
     }
 
