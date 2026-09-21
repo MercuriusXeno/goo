@@ -10,6 +10,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.block.Blocks;
 
 /**
@@ -39,6 +40,17 @@ public final class EffectExecutorTests {
     private static final String ABILITY_BLAZE_TUNNEL = "goo:blaze_tunnel";
     private static final String ABILITY_ROCK_TUNNEL = "goo:rock_tunnel";
     private static final String ABILITY_FROST_SPHERE = "goo:frost_sphere";
+    private static final String ABILITY_INSTANT_DETONATION = "goo:unstable_instant_detonation";
+    private static final String ABILITY_TIMED_BOMB = "goo:unstable_timed_bomb";
+    private static final String ABILITY_PROXIMITY_MINE = "goo:unstable_proximity_mine";
+    /** Fuse of the timed bomb JSON. */
+    private static final int TIMED_BOMB_FUSE = 60;
+    /** Half the timed bomb fuse, where the marker must still stand. */
+    private static final int TIMED_BOMB_MIDWAY = TIMED_BOMB_FUSE / 2;
+    /** Ticks an armed mine idles before the test spawns a target. */
+    private static final int MINE_IDLE_TICKS = 5;
+    /** Where the mine's target spawns: two blocks from the marker, inside its radius. */
+    private static final BlockPos MINE_TARGET_POS = MARKER_POS.east(2);
 
     private EffectExecutorTests() {}
 
@@ -238,6 +250,69 @@ public final class EffectExecutorTests {
     public static void abilityFrostSphere(GameTestHelper helper) {
         placeMarkerWithAbility(helper, GooType.FROST, ABILITY_FROST_SPHERE);
         helper.runAfterDelay(FUSE_TICKS + MINING_POST_FUSE, () -> {
+            helper.succeed();
+        });
+    }
+
+    // --- Step programs (decision ability-params-in-datapack) ---
+
+    /**
+     * Asserts the marker has detonated: the program ended so the marker
+     * removed itself, and the explosion broke the stone it faced.
+     *
+     * @param helper the gametest helper
+     */
+    private static void assertDetonated(GameTestHelper helper) {
+        helper.assertBlockNotPresent(GooBlocks.CHAIN_MARKER.get(), MARKER_POS);
+        helper.assertBlockNotPresent(Blocks.STONE, MARKER_POS.north());
+    }
+
+    /**
+     * Instant detonation as a program: a one-tick fuse then an explode step
+     * whose power is an expression over the stack count.
+     *
+     * @param helper the gametest helper
+     */
+    public static void programInstantDetonation(GameTestHelper helper) {
+        placeMarkerWithAbility(helper, GooType.UNSTABLE, ABILITY_INSTANT_DETONATION);
+        helper.runAfterDelay(SHORT_POST_FUSE, () -> {
+            assertDetonated(helper);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Timed bomb as a program: the marker stands through half its fuse and
+     * has detonated after the fuse.
+     *
+     * @param helper the gametest helper
+     */
+    public static void programTimedBomb(GameTestHelper helper) {
+        placeMarkerWithAbility(helper, GooType.UNSTABLE, ABILITY_TIMED_BOMB);
+        helper.runAfterDelay(TIMED_BOMB_MIDWAY, () ->
+                helper.assertBlockPresent(GooBlocks.CHAIN_MARKER.get(), MARKER_POS));
+        helper.runAfterDelay(TIMED_BOMB_FUSE + SHORT_POST_FUSE, () -> {
+            assertDetonated(helper);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Proximity mine as a program: armed, the marker idles on its
+     * await_entity step until a living entity enters the radius, then the
+     * explode step fires.
+     *
+     * @param helper the gametest helper
+     */
+    public static void programProximityMine(GameTestHelper helper) {
+        placeMarkerWithAbility(helper, GooType.UNSTABLE, ABILITY_PROXIMITY_MINE);
+        helper.getBlockEntity(MARKER_POS, ChainMarkerBlockEntity.class).instantDetonate();
+        helper.runAfterDelay(MINE_IDLE_TICKS, () -> {
+            helper.assertBlockPresent(GooBlocks.CHAIN_MARKER.get(), MARKER_POS);
+            helper.spawnWithNoFreeWill(EntityType.PIG, MINE_TARGET_POS);
+        });
+        helper.runAfterDelay(MINE_IDLE_TICKS + SHORT_POST_FUSE, () -> {
+            assertDetonated(helper);
             helper.succeed();
         });
     }

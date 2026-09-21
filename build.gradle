@@ -37,6 +37,10 @@ runs {
     gameTestServer {
         // JUnit XML report for sca-digest.py consumption
         arguments.addAll '--report', file("${buildDir.get()}/test-results/gameTest/TEST-gametest.xml").absolutePath
+        // -PgameTestSelect=goo:fx_program_* runs one selector instead of every registered test
+        if (project.hasProperty('gameTestSelect')) {
+            arguments.addAll '--tests', project.property('gameTestSelect').toString()
+        }
         // JaCoCo agent so gametest coverage merges with unit-test coverage.
         // The jacocoAgent configuration resolves to a wrapper jar; extract jacocoagent.jar from it.
         var wrapperJar = configurations.jacocoAgent.singleFile
@@ -104,6 +108,13 @@ tasks.named('test', Test) {
             outputPerTestCase = true
         }
     }
+}
+
+// The name test-ethos.md and the acceptance criteria run; the pure unit suite is the test task.
+tasks.register('gooTest') {
+    description = 'Runs the pure unit tests without bootstrapping a Minecraft server'
+    group = 'verification'
+    dependsOn tasks.named('test')
 }
 
 tasks.register('jacocoGooTestReport', JacocoReport) {
