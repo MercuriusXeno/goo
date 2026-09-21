@@ -18,11 +18,10 @@
   },
   "behaviors": [
     {
-      "type": "explosion",
-      "params": {
-        "basePower": "2.0",
-        "powerPerStack": "1.0"
-      }
+      "type": "program",
+      "steps": [
+        { "type": "explode", "power": "2.0 + 1.0 * (stacks - 1)" }
+      ]
     }
   ],
   "tags": ["explosive", "delayed"]
