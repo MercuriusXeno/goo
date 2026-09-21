@@ -46,6 +46,9 @@ public final class GooTestFunctions {
     private static final String FX_ABILITY_BLAZE = "fx_ability_blaze_tunnel";
     private static final String FX_ABILITY_ROCK = "fx_ability_rock_tunnel";
     private static final String FX_ABILITY_FROST = "fx_ability_frost_sphere";
+    private static final String FX_PROGRAM_INSTANT = "fx_program_instant_detonation";
+    private static final String FX_PROGRAM_TIMED = "fx_program_timed_bomb";
+    private static final String FX_PROGRAM_MINE = "fx_program_proximity_mine";
 
     // --- Crucible ---
     private static final String CR_BLOB_INSERT = "cr_blob_insert";
@@ -69,6 +72,7 @@ public final class GooTestFunctions {
     private static final String IX_TAP_VALVE = "ix_tap_valve_toggle";
     private static final String IX_VAT_GASKET = "ix_vat_gasket_apply";
     private static final String IX_HUB_INSERT = "ix_hub_canister_insert";
+    private static final String IX_HUB_PICKUP = "ix_hub_canister_pickup";
     private static final String IX_PLEXER_TARGET = "ix_plexer_set_target";
     private static final String IX_CRUCIBLE_FUEL = "ix_crucible_fuel_insert";
 
@@ -105,6 +109,10 @@ public final class GooTestFunctions {
     private static final String MOB_AEON = "mob_aeon_time_stop";
     private static final String MOB_DISPATCHER = "mob_dispatcher_routes";
 
+    // --- Lighting ---
+    private static final String LIGHT_CANISTER_SYNC = "light_canister_sync";
+    private static final String LIGHT_CANISTER_LOAD = "light_canister_load";
+
     private GooTestFunctions() {
     }
 
@@ -134,7 +142,13 @@ public final class GooTestFunctions {
             registerMachineInteractionTests(registrar);
             registerMachineTests(registrar);
             registerMobEffectTests(registrar);
+            registerLightingTests(registrar);
         });
+    }
+
+    private static void registerLightingTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
+        reg(r, LIGHT_CANISTER_SYNC, LightingTests::filledCanisterLightsNeighbour);
+        reg(r, LIGHT_CANISTER_LOAD, LightingTests::loadedCanisterLightsNeighbour);
     }
 
     private static void registerGasketTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
@@ -162,12 +176,16 @@ public final class GooTestFunctions {
         reg(r, FX_ABILITY_BLAZE, EffectExecutorTests::abilityBlazeTunnel);
         reg(r, FX_ABILITY_ROCK, EffectExecutorTests::abilityRockTunnel);
         reg(r, FX_ABILITY_FROST, EffectExecutorTests::abilityFrostSphere);
+        reg(r, FX_PROGRAM_INSTANT, EffectExecutorTests::programInstantDetonation);
+        reg(r, FX_PROGRAM_TIMED, EffectExecutorTests::programTimedBomb);
+        reg(r, FX_PROGRAM_MINE, EffectExecutorTests::programProximityMine);
     }
 
     private static void registerMachineInteractionTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
         reg(r, IX_TAP_VALVE, MachineInteractionTests::tapCanisterInsert);
         reg(r, IX_VAT_GASKET, MachineInteractionTests::vatGasketApply);
         reg(r, IX_HUB_INSERT, MachineInteractionTests::hubCanisterInsert);
+        reg(r, IX_HUB_PICKUP, MachineInteractionTests::hubCanisterPickup);
         reg(r, IX_PLEXER_TARGET, MachineInteractionTests::plexerSetTarget);
         reg(r, IX_CRUCIBLE_FUEL, MachineInteractionTests::crucibleFuelInsert);
     }

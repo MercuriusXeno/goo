@@ -17,8 +17,7 @@ import java.util.function.Consumer;
  */
 public final class MobAbilities {
 
-    // ── Handler name constants ──
-    public static final String METAL_JAVELIN = "metal_javelin";
+    // ── Handler name constants; a type migrated to a program (metal) has none ──
     public static final String CRYSTAL_FLECHETTES = "crystal_flechettes";
     public static final String LEAF_ENTANGLE = "leaf_entangle";
     public static final String VITAL_CLONE = "vital_clone";
@@ -39,7 +38,6 @@ public final class MobAbilities {
      */
     private static final Map<GooType, Consumer<EffectContext>> EFFECTS =
             new EnumMap<>(Map.ofEntries(
-                    Map.entry(GooType.METAL, ctx -> MetalJavelin.apply(ctx.target())),
                     Map.entry(GooType.CRYSTAL, ctx -> CrystalFlechettes.apply(ctx.level(), ctx.target())),
                     Map.entry(GooType.LEAF, ctx -> LeafEntangle.apply(ctx.target())),
                     Map.entry(GooType.VITAL, ctx -> VitalClone.apply(ctx.level(), ctx.target())),
@@ -85,7 +83,7 @@ public final class MobAbilities {
      * Applies a named entity effect handler. Used by EntityEffectRegistry
      * for data-driven ability dispatch.
      *
-     * @param name the handler name (e.g., "metal_javelin")
+     * @param name the handler name (e.g., "crystal_flechettes")
      * @param ctx  the entity effect context
      */
     public static void applyNamed(String name, MobAbilityRegistry.Context ctx) {
@@ -100,7 +98,6 @@ public final class MobAbilities {
 
     private static Map<String, Consumer<EffectContext>> buildNamedMap() {
         Map<String, Consumer<EffectContext>> map = new HashMap<>();
-        map.put(METAL_JAVELIN, ctx -> MetalJavelin.apply(ctx.target()));
         map.put(CRYSTAL_FLECHETTES, ctx -> CrystalFlechettes.apply(ctx.level(), ctx.target()));
         map.put(LEAF_ENTANGLE, ctx -> LeafEntangle.apply(ctx.target()));
         map.put(VITAL_CLONE, ctx -> VitalClone.apply(ctx.level(), ctx.target()));

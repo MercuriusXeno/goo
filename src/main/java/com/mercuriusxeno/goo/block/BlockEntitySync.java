@@ -40,17 +40,18 @@ public final class BlockEntitySync {
     }
 
     /**
-     * Reopens the chunk section's light gate and propagates emission for the
-     * given BE position. Server-side only.
+     * Reopens the chunk section's light gate and enqueues an emission
+     * recompute for the given BE position. Server-side only.
      *
      * <p>{@code setLightEnabled} bypasses the section-level "no light sources"
      * gate that's set during initial chunk-load light propagation. BE NBT
      * loads after blockstate placement, so {@code gooLightEmission} reads 0
      * during that scan and the section is marked source-free.
-     * {@code checkBlock} enqueues a recompute. {@code runLightUpdates}
-     * drains the queue this tick so the new emission propagates immediately
-     * - without it the change sits in {@code blockNodesToCheck} until some
-     * other block change forces the chunk's light cycle to run.
+     * {@code checkBlock} enqueues the recompute and the threaded engine
+     * drains its own queue on its tick, which is what propagates the new
+     * emission. A manual drain through {@code runLightUpdates} throws on a
+     * server, since the server engine runs its updates on the chunk thread
+     * (decision light-kick-never-drains).
      *
      * @param be the BE whose chunk section needs lighting reopened
      */
@@ -64,7 +65,6 @@ public final class BlockEntitySync {
             be.getBlockPos().getZ() >> CHUNK_SHIFT);
         level.getLightEngine().setLightEnabled(chunkPos, true);
         level.getLightEngine().checkBlock(be.getBlockPos());
-        level.getLightEngine().runLightUpdates();
     }
 
     /**
@@ -75,8 +75,8 @@ public final class BlockEntitySync {
      *
      * <p>Gated on {@code gooLightEmission() > 0}: an empty BE doesn't need
      * to open its section gate, and an unconditional kick from every goo BE
-     * on every chunk load would needlessly drain the light engine queue
-     * once per BE in the chunk.
+     * on every chunk load would needlessly enqueue a recompute once per BE
+     * in the chunk.
      *
      * @param be the BE whose post-load emission needs propagating
      */
