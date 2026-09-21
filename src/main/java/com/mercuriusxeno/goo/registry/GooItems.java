@@ -2,15 +2,18 @@ package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.item.*;
 import com.mercuriusxeno.goo.item.gasket.ChoralGasketItem;
 import com.mercuriusxeno.goo.item.gasket.ChoralTunerItem;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.BucketItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
+import org.jspecify.annotations.Nullable;
 import java.util.EnumMap;
 import java.util.Map;
 
@@ -55,6 +58,18 @@ public class GooItems {
     // --- Depleted Blaze Rod (crucible fuel intermediate, not in creative tab) ---
     public static final DeferredItem<DepletedBlazeRodItem> DEPLETED_BLAZE_ROD = ITEMS.registerItem(
             "depleted_blaze_rod", props -> new DepletedBlazeRodItem(props.stacksTo(1)));
+
+    /**
+     * The blob item of a bundled type named by its registry key, for key-era
+     * callers while the blobs are registered per enum value.
+     *
+     * @param key a key in the goo type registry
+     * @return the blob, or null for a key no bundled type holds
+     */
+    public static @Nullable DeferredItem<GooBlobItem> blob(ResourceKey<GooTypeDefinition> key) {
+        GooType type = GooType.fromKey(key);
+        return type == null ? null : BLOBS.get(type);
+    }
 
     static {
         for (GooType type : GooType.values()) {

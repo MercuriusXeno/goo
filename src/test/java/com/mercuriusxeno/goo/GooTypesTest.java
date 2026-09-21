@@ -1,11 +1,13 @@
 package com.mercuriusxeno.goo;
 
+import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import org.junit.jupiter.api.Test;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 /**
@@ -56,5 +58,19 @@ class GooTypesTest {
         for (GooType type : GooType.values()) {
             assertSame(GooTypes.bundled(type.getId()), type.key());
         }
+    }
+
+    /**
+     * fromKey inverts key() for bundled keys and answers null for a key
+     * outside the goo namespace or with an id no enum value holds.
+     */
+    @Test
+    void fromKeyInvertsKeyForBundledTypesOnly() {
+        for (GooType type : GooType.values()) {
+            assertSame(type, GooType.fromKey(type.key()));
+        }
+        assertNull(GooType.fromKey(ResourceKey.create(
+                GooTypes.REGISTRY, Identifier.fromNamespaceAndPath("gootest", "blaze"))));
+        assertNull(GooType.fromKey(GooTypes.bundled("seventeenth")));
     }
 }
