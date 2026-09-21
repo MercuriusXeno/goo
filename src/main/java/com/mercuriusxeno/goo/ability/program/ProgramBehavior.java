@@ -9,6 +9,8 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
 
 /**
  * The step runtime as a {@link ChainBehavior}: runs a step list against a
@@ -31,6 +33,8 @@ public final class ProgramBehavior implements ChainBehavior {
     private static final String TAG_STEP = "ProgramStep";
     private static final String TAG_STEP_TICKS = "ProgramStepTicks";
     private static final String TAG_PROGRAM_TICKS = "ProgramTicks";
+    private static final String ERR_CAPABILITY = "Step '%s' needs %s, which the %s host does not provide";
+    private static final String ERR_VARIABLE = "Step '%s' reads '%s', which the %s host does not bind";
 
     private final List<Step> steps;
     private int stepIndex;
@@ -38,7 +42,8 @@ public final class ProgramBehavior implements ChainBehavior {
     private int programTicks;
 
     /**
-     * Creates the runtime over a step list.
+     * Creates the runtime over a step list without checking it against a
+     * host; {@link #forHost} is the checked path.
      *
      * @param steps the program body in order
      */
@@ -47,15 +52,66 @@ public final class ProgramBehavior implements ChainBehavior {
     }
 
     /**
+     * Loads a program for a host kind, refusing before the first tick any
+     * step whose needs the host does not meet.
+     *
+     * @param steps the program body in order
+     * @param kind  the host the program will run on
+     * @return the runtime over the steps
+     * @throws ProgramLoadException naming the step and the host when a
+     *                              step needs a capability or a variable the host lacks
+     */
+    public static ProgramBehavior forHost(List<Step> steps, HostKind kind) {
+        for (Step step : steps) {
+            refuseMissingCapabilities(step, kind);
+            refuseUnboundVariables(step, kind);
+        }
+        return new ProgramBehavior(steps);
+    }
+
+    /**
+     * Refuses a step needing a capability the host kind lacks.
+     *
+     * @param step the step to check
+     * @param kind the host kind
+     */
+    private static void refuseMissingCapabilities(Step step, HostKind kind) {
+        for (HostCapability needed : step.requires()) {
+            if (!kind.capabilities().contains(needed)) {
+                throw new ProgramLoadException(
+                        String.format(ERR_CAPABILITY, step.type().name(), needed.key(), kind.label()));
+            }
+        }
+    }
+
+    /**
+     * Refuses a step reading a variable neither the host kind nor the
+     * runtime binds.
+     *
+     * @param step the step to check
+     * @param kind the host kind
+     */
+    private static void refuseUnboundVariables(Step step, HostKind kind) {
+        Set<String> names = new TreeSet<>();
+        step.expressions().forEach(expr -> names.addAll(expr.variables()));
+        names.remove(StepContext.VAR_TICK);
+        names.removeAll(kind.variables());
+        if (!names.isEmpty()) {
+            throw new ProgramLoadException(
+                    String.format(ERR_VARIABLE, step.type().name(), names.iterator().next(), kind.label()));
+        }
+    }
+
+    /**
      * Factory for {@code BehaviorType} registration: the program body is
-     * the entry's {@code steps} list.
+     * the entry's {@code steps} list, loaded for the marker host.
      *
      * @param entry the behavior entry carrying the steps
      * @param def   the parent ability definition
      * @return the runtime over the entry's steps
      */
     public static ChainBehavior fromEntry(BehaviorEntry entry, AbilityDefinition def) {
-        return new ProgramBehavior(entry.steps());
+        return forHost(entry.steps(), HostKind.MARKER);
     }
 
     /**

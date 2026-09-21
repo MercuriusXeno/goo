@@ -20,7 +20,6 @@ public final class MobAbilityRegistry {
     private static final Map<String, Consumer<Context>> HANDLERS = new HashMap<>();
 
     static {
-        register(MobAbilities.METAL_JAVELIN, ctx -> MobAbilities.applyNamed(MobAbilities.METAL_JAVELIN, ctx));
         register(MobAbilities.CRYSTAL_FLECHETTES, ctx -> MobAbilities.applyNamed(MobAbilities.CRYSTAL_FLECHETTES, ctx));
         register(MobAbilities.LEAF_ENTANGLE, ctx -> MobAbilities.applyNamed(MobAbilities.LEAF_ENTANGLE, ctx));
         register(MobAbilities.VITAL_CLONE, ctx -> MobAbilities.applyNamed(MobAbilities.VITAL_CLONE, ctx));
