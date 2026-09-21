@@ -19,6 +19,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.intThat;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -60,6 +62,10 @@ class MobProgramTest {
     private static final int CHARM_WEAKNESS_AMPLIFIER = 4;
     /** 100 / pow(10, 0.6), the clone's percent chance at the cow's max health of ten. */
     private static final float CLONE_CHANCE_AT_COW_HEALTH = (float) (100 / Math.pow(COW_HEALTH, 0.6));
+    private static final String COBBLESTONE = "minecraft:cobblestone";
+    private static final int PETRIFY_DURATION = 100;
+    private static final int PETRIFY_AMPLIFIER = 127;
+    private static final int CRUSH_DROP_MAX = 3;
     private static final int LEVITATE_DURATION = 100;
     private static final int LEVITATE_AMPLIFIER = 1;
     private static final int ENTANGLE_SLOW_DURATION = 100;
@@ -211,6 +217,19 @@ class MobProgramTest {
         run("vital_clone", host);
 
         verify(host).cloneTarget(CLONE_CHANCE_AT_COW_HEALTH);
+    }
+
+    @Test
+    void rockPetrifyStillsCrushesAndDropsOneToThreeCobblestone() {
+        StepHost host = entityHost();
+
+        run("rock_petrify", host);
+
+        InOrder order = inOrder(host);
+        order.verify(host).applyPotion(Identifier.parse(SLOWNESS), PETRIFY_DURATION, PETRIFY_AMPLIFIER, true);
+        order.verify(host).damageTarget((float) COW_HEALTH, DamageKind.MAGIC);
+        order.verify(host).dropItemAtTarget(eq(Identifier.parse(COBBLESTONE)),
+                intThat(count -> count >= 1 && count <= CRUSH_DROP_MAX));
     }
 
     @Test

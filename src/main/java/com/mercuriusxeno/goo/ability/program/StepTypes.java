@@ -44,6 +44,7 @@ public final class StepTypes {
         register(SetAiStep.TYPE);
         register(SetInvulnerableStep.TYPE);
         register(CloneEntityStep.TYPE);
+        register(DropItemStep.TYPE);
     }
 
     private StepTypes() {

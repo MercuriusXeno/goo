@@ -17,9 +17,8 @@ import java.util.function.Consumer;
  */
 public final class MobAbilities {
 
-    // ── Handler name constants; a type migrated to a program (metal, leaf, typhoon, shroom, nether, frost, pulse, aeon, unstable, hex, vital) has none ──
+    // ── Handler name constants; a type migrated to a program (metal, leaf, typhoon, shroom, nether, frost, pulse, aeon, unstable, hex, vital, rock) has none ──
     public static final String CRYSTAL_FLECHETTES = "crystal_flechettes";
-    public static final String ROCK_PETRIFY = "rock_petrify";
     public static final String BLAZE_IGNITE = "blaze_ignite";
     public static final String GLOW_LASER = "glow_laser";
     public static final String ENDER_TELEPORT = "ender_teleport";
@@ -29,7 +28,6 @@ public final class MobAbilities {
     private static final Map<GooType, Consumer<EffectContext>> EFFECTS =
             new EnumMap<>(Map.ofEntries(
                     Map.entry(GooType.CRYSTAL, ctx -> CrystalFlechettes.apply(ctx.level(), ctx.target())),
-                    Map.entry(GooType.ROCK, ctx -> RockPetrify.apply(ctx.level(), ctx.target())),
                     Map.entry(GooType.BLAZE, ctx -> BlazeIgnite.apply(ctx.level(), ctx.target())),
                     Map.entry(GooType.GLOW, ctx -> GlowLaser.apply(ctx.level(), ctx.target())),
                     Map.entry(GooType.ENDER, ctx -> EnderTeleport.apply(ctx.level(), ctx.target()))));
@@ -79,7 +77,6 @@ public final class MobAbilities {
     private static Map<String, Consumer<EffectContext>> buildNamedMap() {
         Map<String, Consumer<EffectContext>> map = new HashMap<>();
         map.put(CRYSTAL_FLECHETTES, ctx -> CrystalFlechettes.apply(ctx.level(), ctx.target()));
-        map.put(ROCK_PETRIFY, ctx -> RockPetrify.apply(ctx.level(), ctx.target()));
         map.put(BLAZE_IGNITE, ctx -> BlazeIgnite.apply(ctx.level(), ctx.target()));
         map.put(GLOW_LASER, ctx -> GlowLaser.apply(ctx.level(), ctx.target()));
         map.put(ENDER_TELEPORT, ctx -> EnderTeleport.apply(ctx.level(), ctx.target()));
