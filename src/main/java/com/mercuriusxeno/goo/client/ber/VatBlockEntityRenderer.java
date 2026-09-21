@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.ber;
 import com.mercuriusxeno.goo.GooType;
 import com.mercuriusxeno.goo.block.vat.VatBlock;
 import com.mercuriusxeno.goo.block.vat.VatBlockEntity;
+import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.RenderContext;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -11,11 +12,9 @@ import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 import net.minecraft.client.renderer.feature.ModelFeatureRenderer;
-import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
+import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.BlockPos;
-import net.minecraft.resources.Identifier;
-import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -39,11 +38,6 @@ public class VatBlockEntityRenderer
      * Interior ceiling for a top/solo vat (below the top cap, 14/16).
      */
     static final float CAP_CEILING = 14f / 16f;
-    /**
-     * Block atlas texture path for fluid sprite lookups.
-     */
-    private static final Identifier BLOCK_ATLAS_TEXTURE =
-            Identifier.withDefaultNamespace("textures/atlas/blocks.png");
     /**
      * Vat center X/Z for stream rendering.
      */
@@ -250,15 +244,9 @@ public class VatBlockEntityRenderer
      */
     private static void submitFluid(PoseStack poseStack,
                                     SubmitNodeCollector nodeCollector, VatRenderState state) {
-        // FULL_BRIGHT lightmap UV per fluid vertex makes the lightmap
-        // multiplication a no-op (samples white), so the fluid is bright
-        // regardless of world light. The vat block itself is a block model
-        // (not BER body geometry), so there's no buffer-share concern --
-        // fluid lives alone on entityTranslucent(BLOCK_ATLAS).
-        GooType type = state.dominantType;
-        nodeCollector.submitCustomGeometry(poseStack,
-                RenderTypes.entityTranslucent(BLOCK_ATLAS_TEXTURE),
-                (pose, c) -> VatFluidRenderer.renderFluid(new RenderContext(pose, c, LightCoordsUtil.FULL_BRIGHT), type, state));
+        TextureAtlasSprite sprite = GooSubmitter.fluidSprite(state.dominantType);
+        GooSubmitter.submitFluid(poseStack, nodeCollector,
+                ctx -> VatFluidRenderer.renderFluid(ctx, sprite, state));
     }
 
     /**
@@ -296,8 +284,7 @@ public class VatBlockEntityRenderer
     private static void emitStreamGeometry(PoseStack poseStack,
                                            SubmitNodeCollector nodeCollector, int light, float anim,
                                            GooType type, float rate, float yTop, float yBottom) {
-        nodeCollector.submitCustomGeometry(poseStack,
-                RenderTypes.entityTranslucent(BLOCK_ATLAS_TEXTURE),
+        nodeCollector.submitCustomGeometry(poseStack, GooSubmitter.renderType(),
                 (pose, c) -> GooStreamRenderer.renderStream(new RenderContext(pose, c, light),
                         VAT_CENTER_X, VAT_CENTER_Z, yTop, yBottom,
                         type, rate, anim));

@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.ber;
 
+import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.QuadInstance;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -15,7 +16,6 @@ import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.renderer.feature.ModelFeatureRenderer;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.client.renderer.rendertype.RenderType;
-import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.model.geometry.BakedQuad;
@@ -113,7 +113,7 @@ class TranslucentItemCollector implements SubmitNodeCollector {
                            ItemStackRenderState.FoilType foilType) {
         Map<Identifier, List<BakedQuad>> byAtlas = groupByAtlas(quads);
         for (var entry : byAtlas.entrySet()) {
-            RenderType renderType = RenderTypes.entityTranslucent(entry.getKey());
+            RenderType renderType = GooSubmitter.translucentOn(entry.getKey());
             List<BakedQuad> group = entry.getValue();
             delegate.submitCustomGeometry(poseStack, renderType, (pose, buffer) -> {
                 QuadInstance qi = new QuadInstance();
