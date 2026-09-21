@@ -147,16 +147,16 @@ def parse_tests():
             continue
         for xml_file in sorted(results_dir.glob("TEST-*.xml")):
             tree = ET.parse(xml_file)
-            suite = tree.getroot()
-            total_tests += int(suite.get("tests", "0"))
-            total_failures += int(suite.get("failures", "0"))
-            total_errors += int(suite.get("errors", "0"))
-            for tc in suite.findall("testcase"):
+            # digest-walks-nested-suites: testcases are counted at any depth, since the gametest XML nests suites and carries no count attributes.
+            for tc in tree.iter("testcase"):
+                total_tests += 1
                 fail = tc.find("failure")
                 err = tc.find("error")
                 if fail is not None:
+                    total_failures += 1
                     failures.append((tc.get("classname", "?"), tc.get("name", "?"), (fail.get("message") or "").strip()))
                 elif err is not None:
+                    total_errors += 1
                     failures.append((tc.get("classname", "?"), tc.get("name", "?"), (err.get("message") or "").strip()))
     return total_tests, total_failures, total_errors, failures
 
