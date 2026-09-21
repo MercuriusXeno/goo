@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
+import com.mercuriusxeno.goo.block.hub.HubBlock;
 import com.mercuriusxeno.goo.block.hub.HubBlockEntity;
 import com.mercuriusxeno.goo.block.plexer.PlexerBlockEntity;
 import com.mercuriusxeno.goo.block.tap.TapBlockEntity;
@@ -31,6 +32,13 @@ public final class MachineInteractionTests {
     private static final String TAP_SLOT_FILLED = "Tap canister slot should be occupied";
     private static final String VAT_SHOULD_HAVE_CAP = "Vat should have gasket cap after gasket apply";
     private static final String HUB_SHOULD_INSERT = "Hub should have canister after insertion";
+    private static final String HUB_SHOULD_PICKUP = "Hub slot should be empty after plain-click pickup";
+    private static final String HUB_SHOULD_KEEP_HELD = "Player should still hold a canister after pickup";
+    private static final String HUB_SHOULD_HOLD_BOTH = "Player should hold the picked-up canister beside the held one";
+    private static final int HUB_SLOT_NORTH = 0;
+    private static final int HUB_PICKUP_HAND_COUNT = 2;
+    private static final int HUB_PICKUP_DELAY_TICKS = 12;
+    private static final double PIXELS_PER_BLOCK = 16.0;
     private static final String PLEXER_SHOULD_SET = "Plexer should have target item after interaction";
     private static final String CRUCIBLE_SHOULD_FUEL = "Crucible should have fuel after blaze rod insert";
     private static final double BLOCK_CENTER = 0.5;
@@ -111,6 +119,52 @@ public final class MachineInteractionTests {
         }
         helper.assertTrue(anyInserted, HUB_SHOULD_INSERT);
         helper.succeed();
+    }
+
+    /**
+     * Hub: a plain click on a filled slot with a canister in hand picks that canister up
+     * and leaves the held one in hand. The slot is filled through the same plain click
+     * first, so both legs of the rule run through useItemOn (decision hub-plain-click-rule).
+     *
+     * @param helper the gametest helper
+     */
+    public static void hubCanisterPickup(GameTestHelper helper) {
+        helper.setBlock(BE_POS, GooBlocks.HUB.get());
+        HubBlockEntity hub = helper.getBlockEntity(BE_POS, HubBlockEntity.class);
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        player.setItemInHand(InteractionHand.MAIN_HAND,
+                new ItemStack(GooItems.CANISTER.get(), HUB_PICKUP_HAND_COUNT));
+
+        helper.useBlock(BE_POS, player, slotHit(helper, HUB_SLOT_NORTH));
+        helper.assertFalse(hub.getCanister(HUB_SLOT_NORTH).isEmpty(), HUB_SHOULD_INSERT);
+
+        // InteractionCooldown refuses a second click for ten ticks after the insert.
+        helper.runAfterDelay(HUB_PICKUP_DELAY_TICKS, () -> {
+            helper.useBlock(BE_POS, player, slotHit(helper, HUB_SLOT_NORTH));
+
+            helper.assertTrue(hub.getCanister(HUB_SLOT_NORTH).isEmpty(), HUB_SHOULD_PICKUP);
+            helper.assertFalse(player.getMainHandItem().isEmpty(), HUB_SHOULD_KEEP_HELD);
+            helper.assertTrue(
+                    player.getInventory().countItem(GooItems.CANISTER.get()) == HUB_PICKUP_HAND_COUNT,
+                    HUB_SHOULD_HOLD_BOTH);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Creates a BlockHitResult on the top face at the center of the given hub slot.
+     *
+     * @param helper the gametest helper
+     * @param slot   the hub slot index
+     * @return the hit result
+     */
+    private static BlockHitResult slotHit(GameTestHelper helper, int slot) {
+        BlockPos abs = helper.absolutePos(BE_POS);
+        double[] center = HubBlock.SLOT_CENTERS[slot];
+        return new BlockHitResult(
+                new Vec3(abs.getX() + center[0] / PIXELS_PER_BLOCK, abs.getY() + 1.0,
+                        abs.getZ() + center[1] / PIXELS_PER_BLOCK),
+                Direction.UP, abs, false);
     }
 
     /**
