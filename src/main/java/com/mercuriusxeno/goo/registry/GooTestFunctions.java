@@ -20,6 +20,10 @@ public final class GooTestFunctions {
     // --- Smoke ---
     private static final String SMOKE = "smoke";
 
+    // --- Goo type registry ---
+    private static final String TYPES_BUNDLED_RESOLVE = "types_bundled_resolve";
+    private static final String TYPES_DATAPACK_LISTED = "types_datapack_listed";
+
     // --- GasketPusher ---
     private static final String PUSHER_EMPTY_RESERVOIR = "pusher_empty_reservoir";
     private static final String PUSHER_NO_PARTNER = "pusher_no_partner";
@@ -134,6 +138,7 @@ public final class GooTestFunctions {
     private static void onRegister(RegisterEvent event) {
         event.register(Registries.TEST_FUNCTION, registrar -> {
             reg(registrar, SMOKE, GameTestHelper::succeed);
+            registerGooTypeRegistryTests(registrar);
             registerGasketTests(registrar);
             registerEffectExecutorTests(registrar);
             registerCrucibleTests(registrar);
@@ -149,6 +154,11 @@ public final class GooTestFunctions {
     private static void registerLightingTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
         reg(r, LIGHT_CANISTER_SYNC, LightingTests::filledCanisterLightsNeighbour);
         reg(r, LIGHT_CANISTER_LOAD, LightingTests::loadedCanisterLightsNeighbour);
+    }
+
+    private static void registerGooTypeRegistryTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
+        reg(r, TYPES_BUNDLED_RESOLVE, GooTypeRegistryTests::bundledTypesResolve);
+        reg(r, TYPES_DATAPACK_LISTED, GooTypeRegistryTests::datapackTypeListed);
     }
 
     private static void registerGasketTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {

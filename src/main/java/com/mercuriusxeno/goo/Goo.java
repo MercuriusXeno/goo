@@ -49,6 +49,7 @@ public class Goo {
      */
     public Goo(IEventBus modEventBus, ModContainer modContainer) {
         registerDeferredRegistries(modEventBus);
+        GooTypeRegistry.init(modEventBus);
         registerModListeners(modEventBus);
         GooTestFunctions.init(modEventBus);
 

@@ -1,5 +1,8 @@
 package com.mercuriusxeno.goo;
 
+import net.minecraft.core.Holder;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.StringRepresentable;
 import org.jspecify.annotations.NonNull;
 
@@ -107,10 +110,25 @@ public enum GooType implements StringRepresentable {
     }
 
     /**
-     * Looks up a GooType by its string id. Returns null if no match.
+     * Returns the key addressing this type's entry in the goo type registry.
      *
-     * @return the matching GooType, or null if not found
+     * @return the registry key sharing this type's id
      */
+    public ResourceKey<GooTypeDefinition> key() {
+        return GooTypes.bundled(id);
+    }
+
+    /**
+     * Resolves this type's registry entry from a level's registry access, so
+     * enum-era call sites reach the datapack definition while the enum stands.
+     *
+     * @param registries the registry access of the level in hand
+     * @return the loaded entry for this type
+     * @throws IllegalStateException when the datapacks in force hold no JSON for this type
+     */
+    public Holder.Reference<GooTypeDefinition> holder(HolderLookup.Provider registries) {
+        return registries.getOrThrow(key());
+    }
 
     @Override
     public @NonNull String getSerializedName() {
