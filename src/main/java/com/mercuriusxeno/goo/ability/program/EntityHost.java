@@ -1,15 +1,22 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.Goo;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.Holder;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageSources;
+import net.minecraft.world.effect.MobEffect;
+import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
+import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.Set;
 
@@ -26,6 +33,8 @@ import java.util.Set;
  * @param thrower the entity that threw the blob, or null when unknown
  */
 public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entity thrower) implements StepHost {
+
+    private static final String LOG_UNKNOWN_EFFECT = "Potion step names status effect {}, which no registry holds";
 
     @Override
     public HostKind kind() {
@@ -88,6 +97,16 @@ public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entit
     @Override
     public void damageTarget(float amount, DamageKind source) {
         target.hurtServer(level, damageSource(source), amount);
+    }
+
+    @Override
+    public void applyPotion(Identifier effect, int duration, int amplifier, boolean visible) {
+        Optional<Holder.Reference<MobEffect>> holder = BuiltInRegistries.MOB_EFFECT.get(effect);
+        if (holder.isEmpty()) {
+            Goo.LOGGER.warn(LOG_UNKNOWN_EFFECT, effect);
+            return;
+        }
+        target.addEffect(new MobEffectInstance(holder.get(), duration, amplifier, false, visible));
     }
 
     /**

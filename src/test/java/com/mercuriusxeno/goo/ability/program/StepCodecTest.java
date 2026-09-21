@@ -4,6 +4,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.JsonOps;
+import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Map;
@@ -27,7 +28,9 @@ class StepCodecTest {
             "await_entity", new AwaitEntityStep(SelectionShape.CUBE, Expr.literal(3),
                     List.of(EntityFilter.LIVING, EntityFilter.NOT_ITEM)),
             "explode", new ExplodeStep(Expr.parse("2.5 + 1.0 * (stacks - 1)").getOrThrow(), ExplosionMode.NONE),
-            "damage", new DamageStep(Expr.parse("health / 2").getOrThrow(), DamageKind.CACTUS)
+            "damage", new DamageStep(Expr.parse("health / 2").getOrThrow(), DamageKind.CACTUS),
+            "potion", new PotionStep(Identifier.parse("minecraft:levitation"), Expr.literal(100),
+                    Expr.parse("1 + stacks").getOrThrow(), false)
     );
 
     private static Step roundTrip(Step step) {
@@ -69,6 +72,10 @@ class StepCodecTest {
         DamageStep damage = assertInstanceOf(DamageStep.class,
                 decode("{\"type\": \"damage\", \"amount\": 8}").getOrThrow());
         assertEquals(DamageKind.MAGIC, damage.source());
+        PotionStep potion = assertInstanceOf(PotionStep.class,
+                decode("{\"type\": \"potion\", \"effect\": \"minecraft:poison\", \"duration\": 60}").getOrThrow());
+        assertEquals(0, potion.amplifier().evaluate(Variables.NONE));
+        assertTrue(potion.visible());
     }
 
     @Test

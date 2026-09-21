@@ -35,6 +35,8 @@ public final class MobEffectTests {
     private static final String SHOULD_TAKE_JAVELIN_DAMAGE = "Target should have taken the javelin's damage";
     private static final String ABILITIES_REQUIRED = "Ability registry must be loaded";
     private static final String ABILITY_METAL_JAVELIN = "goo:metal_javelin";
+    private static final String ABILITY_LEAF_ENTANGLE = "goo:leaf_entangle";
+    private static final String ABILITY_TYPHOON_LEVITATE = "goo:typhoon_levitate";
     /** The damage metal_javelin.json's damage step names. */
     private static final float JAVELIN_DAMAGE = 8.0f;
 
@@ -42,21 +44,33 @@ public final class MobEffectTests {
     }
 
     /**
-     * Metal javelin is a program: its damage step, loaded for the struck
-     * entity host, deals the javelin's magic damage to the target
+     * Runs every program entry of the named ability on the struck entity
+     * host over the mob, the way BlobEffectScheduler does at impact
      * (decision host-agnostic-runtime).
+     *
+     * @param helper    the gametest helper
+     * @param mob       the struck mob
+     * @param abilityId the ability whose programs run
+     */
+    private static void runEntityPrograms(GameTestHelper helper, Mob mob, String abilityId) {
+        AbilityDefinition ability = AbilityRegistry.getAbility(Identifier.parse(abilityId));
+        helper.assertTrue(ability != null, ABILITIES_REQUIRED);
+        for (AbilityDefinition.BehaviorEntry entry : ability.behaviors()) {
+            ProgramBehavior program = ProgramBehavior.forHost(entry.steps(), HostKind.ENTITY);
+            program.tick(new EntityHost(helper.getLevel(), mob, null));
+        }
+    }
+
+    /**
+     * Metal javelin is a program: its damage step, loaded for the struck
+     * entity host, deals the javelin's magic damage to the target.
      *
      * @param helper the gametest helper
      */
     public static void metalJavelin(GameTestHelper helper) {
         Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
         float before = mob.getHealth();
-        AbilityDefinition ability = AbilityRegistry.getAbility(Identifier.parse(ABILITY_METAL_JAVELIN));
-        helper.assertTrue(ability != null, ABILITIES_REQUIRED);
-        for (AbilityDefinition.BehaviorEntry entry : ability.behaviors()) {
-            ProgramBehavior program = ProgramBehavior.forHost(entry.steps(), HostKind.ENTITY);
-            program.tick(new EntityHost(helper.getLevel(), mob, null));
-        }
+        runEntityPrograms(helper, mob, ABILITY_METAL_JAVELIN);
         helper.assertTrue(mob.getHealth() <= before - JAVELIN_DAMAGE, SHOULD_TAKE_JAVELIN_DAMAGE);
         helper.succeed();
     }
@@ -75,13 +89,13 @@ public final class MobEffectTests {
     }
 
     /**
-     * Leaf entangle applies slowness and poison.
+     * Leaf entangle is a program of two potion steps: slowness and poison.
      *
      * @param helper the gametest helper
      */
     public static void leafEntangle(GameTestHelper helper) {
         Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
-        LeafEntangle.apply(mob);
+        runEntityPrograms(helper, mob, ABILITY_LEAF_ENTANGLE);
         helper.assertTrue(mob.hasEffect(MobEffects.SLOWNESS), SHOULD_HAVE_SLOWNESS);
         helper.assertTrue(mob.hasEffect(MobEffects.POISON), SHOULD_HAVE_POISON);
         helper.succeed();
@@ -151,13 +165,13 @@ public final class MobEffectTests {
     }
 
     /**
-     * Typhoon applies levitation.
+     * Typhoon levitate is a program of one potion step: levitation.
      *
      * @param helper the gametest helper
      */
     public static void typhoonLevitate(GameTestHelper helper) {
         Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
-        TyphoonLevitate.apply(mob);
+        runEntityPrograms(helper, mob, ABILITY_TYPHOON_LEVITATE);
         helper.assertTrue(mob.hasEffect(MobEffects.LEVITATION), SHOULD_HAVE_LEVITATION);
         helper.succeed();
     }
@@ -253,16 +267,15 @@ public final class MobEffectTests {
     }
 
     /**
-     * GooMobEffects.apply() dispatcher routes to the correct per-type handler.
-     * Exercises the dispatch map that was previously the monolith entry point.
+     * MobAbilities.apply() routes a goo type to the handler still standing
+     * for it; blaze is the type checked while its handler awaits migration.
      *
      * @param helper the gametest helper
      */
     public static void dispatcherRoutes(GameTestHelper helper) {
         Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
-        MobAbilities.apply(helper.getLevel(), mob, GooType.LEAF, null);
-        helper.assertTrue(mob.hasEffect(MobEffects.SLOWNESS), SHOULD_HAVE_SLOWNESS);
-        helper.assertTrue(mob.hasEffect(MobEffects.POISON), SHOULD_HAVE_POISON);
+        MobAbilities.apply(helper.getLevel(), mob, GooType.BLAZE, null);
+        helper.assertTrue(mob.isOnFire(), SHOULD_BE_ON_FIRE);
         helper.succeed();
     }
 }

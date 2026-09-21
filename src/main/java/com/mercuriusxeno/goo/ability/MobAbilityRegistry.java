@@ -21,13 +21,11 @@ public final class MobAbilityRegistry {
 
     static {
         register(MobAbilities.CRYSTAL_FLECHETTES, ctx -> MobAbilities.applyNamed(MobAbilities.CRYSTAL_FLECHETTES, ctx));
-        register(MobAbilities.LEAF_ENTANGLE, ctx -> MobAbilities.applyNamed(MobAbilities.LEAF_ENTANGLE, ctx));
         register(MobAbilities.VITAL_CLONE, ctx -> MobAbilities.applyNamed(MobAbilities.VITAL_CLONE, ctx));
         register(MobAbilities.SHROOM_TOXIFY, ctx -> MobAbilities.applyNamed(MobAbilities.SHROOM_TOXIFY, ctx));
         register(MobAbilities.ROCK_PETRIFY, ctx -> MobAbilities.applyNamed(MobAbilities.ROCK_PETRIFY, ctx));
         register(MobAbilities.BLAZE_IGNITE, ctx -> MobAbilities.applyNamed(MobAbilities.BLAZE_IGNITE, ctx));
         register(MobAbilities.FROST_SNAP, ctx -> MobAbilities.applyNamed(MobAbilities.FROST_SNAP, ctx));
-        register(MobAbilities.TYPHOON_LEVITATE, ctx -> MobAbilities.applyNamed(MobAbilities.TYPHOON_LEVITATE, ctx));
         register(MobAbilities.GLOW_LASER, ctx -> MobAbilities.applyNamed(MobAbilities.GLOW_LASER, ctx));
         register(MobAbilities.HEX_CHARM, ctx -> MobAbilities.applyNamed(MobAbilities.HEX_CHARM, ctx));
         register(MobAbilities.PULSE_SHORT_CIRCUIT, ctx -> MobAbilities.applyNamed(MobAbilities.PULSE_SHORT_CIRCUIT, ctx));

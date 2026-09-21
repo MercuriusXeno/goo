@@ -37,6 +37,7 @@ public final class StepTypes {
         register(AwaitEntityStep.TYPE);
         register(ExplodeStep.TYPE);
         register(DamageStep.TYPE);
+        register(PotionStep.TYPE);
     }
 
     private StepTypes() {

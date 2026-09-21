@@ -11,10 +11,11 @@
   },
   "behaviors": [
     {
-      "type": "entity_effect",
-      "params": {
-        "handler": "leaf_entangle"
-      }
+      "type": "program",
+      "steps": [
+        { "type": "potion", "effect": "minecraft:slowness", "duration": 100, "amplifier": 2 },
+        { "type": "potion", "effect": "minecraft:poison", "duration": 60, "amplifier": 0 }
+      ]
     }
   ],
   "tags": ["entity"]
