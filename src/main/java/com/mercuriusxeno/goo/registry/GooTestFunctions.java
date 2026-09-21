@@ -69,6 +69,7 @@ public final class GooTestFunctions {
     private static final String IX_TAP_VALVE = "ix_tap_valve_toggle";
     private static final String IX_VAT_GASKET = "ix_vat_gasket_apply";
     private static final String IX_HUB_INSERT = "ix_hub_canister_insert";
+    private static final String IX_HUB_PICKUP = "ix_hub_canister_pickup";
     private static final String IX_PLEXER_TARGET = "ix_plexer_set_target";
     private static final String IX_CRUCIBLE_FUEL = "ix_crucible_fuel_insert";
 
@@ -178,6 +179,7 @@ public final class GooTestFunctions {
         reg(r, IX_TAP_VALVE, MachineInteractionTests::tapCanisterInsert);
         reg(r, IX_VAT_GASKET, MachineInteractionTests::vatGasketApply);
         reg(r, IX_HUB_INSERT, MachineInteractionTests::hubCanisterInsert);
+        reg(r, IX_HUB_PICKUP, MachineInteractionTests::hubCanisterPickup);
         reg(r, IX_PLEXER_TARGET, MachineInteractionTests::plexerSetTarget);
         reg(r, IX_CRUCIBLE_FUEL, MachineInteractionTests::crucibleFuelInsert);
     }
