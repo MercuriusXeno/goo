@@ -4,6 +4,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -87,6 +88,7 @@ final class EntityScan {
             case LIVING -> entity instanceof LivingEntity;
             case NOT_ITEM -> !(entity instanceof ItemEntity);
             case NOT_BOSS -> !isBoss(entity);
+            case MOB -> entity instanceof Mob;
         };
     }
 

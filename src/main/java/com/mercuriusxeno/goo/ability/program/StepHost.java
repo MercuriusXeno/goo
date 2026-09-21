@@ -121,4 +121,12 @@ public interface StepHost extends Variables {
      * @param ticks the ticks to add
      */
     void addTargetFreezeTicks(int ticks);
+
+    /**
+     * Toggles the host's target's AI; a target that is not a mob is left
+     * alone. Capability {@link HostCapability#TARGET}.
+     *
+     * @param enabled whether the AI runs
+     */
+    void setTargetAi(boolean enabled);
 }

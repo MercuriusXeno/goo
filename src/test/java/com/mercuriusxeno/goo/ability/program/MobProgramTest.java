@@ -49,6 +49,9 @@ class MobProgramTest {
     private static final int FULL_FREEZE = 140;
     private static final int SNAP_SLOW_DURATION = 60;
     private static final int SNAP_SLOW_AMPLIFIER = 3;
+    private static final Set<EntityFilter> MOB = Set.of(EntityFilter.MOB);
+    private static final int STUN_DURATION = 100;
+    private static final int STUN_AMPLIFIER = 127;
     private static final int LEVITATE_DURATION = 100;
     private static final int LEVITATE_AMPLIFIER = 1;
     private static final int ENTANGLE_SLOW_DURATION = 100;
@@ -143,6 +146,18 @@ class MobProgramTest {
         order.verify(host).damageTarget(SNAP_DAMAGE, DamageKind.FREEZE);
         order.verify(host).addTargetFreezeTicks(FULL_FREEZE);
         order.verify(host).applyPotion(Identifier.parse(SLOWNESS), SNAP_SLOW_DURATION, SNAP_SLOW_AMPLIFIER, true);
+    }
+
+    @Test
+    void pulseShortCircuitStopsAMobsAiThenSlowsItToAStandstill() {
+        StepHost host = entityHost();
+        when(host.targetPasses(MOB)).thenReturn(true);
+
+        run("pulse_short_circuit", host);
+
+        InOrder order = inOrder(host);
+        order.verify(host).setTargetAi(false);
+        order.verify(host).applyPotion(Identifier.parse(SLOWNESS), STUN_DURATION, STUN_AMPLIFIER, true);
     }
 
     @Test
