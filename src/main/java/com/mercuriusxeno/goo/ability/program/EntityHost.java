@@ -119,6 +119,11 @@ public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entit
         target.setHealth(target.getHealth() * fraction);
     }
 
+    @Override
+    public void addTargetFreezeTicks(int ticks) {
+        target.setTicksFrozen(target.getTicksFrozen() + ticks);
+    }
+
     /**
      * Maps a damage kind to the level's damage source.
      *

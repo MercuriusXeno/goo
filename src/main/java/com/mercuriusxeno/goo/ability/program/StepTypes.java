@@ -40,6 +40,7 @@ public final class StepTypes {
         register(PotionStep.TYPE);
         register(TargetStep.TYPE);
         register(SetHealthStep.TYPE);
+        register(FreezeTicksStep.TYPE);
     }
 
     private StepTypes() {

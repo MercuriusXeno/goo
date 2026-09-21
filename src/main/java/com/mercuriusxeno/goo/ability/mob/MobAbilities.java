@@ -17,12 +17,11 @@ import java.util.function.Consumer;
  */
 public final class MobAbilities {
 
-    // ── Handler name constants; a type migrated to a program (metal, leaf, typhoon, shroom, nether) has none ──
+    // ── Handler name constants; a type migrated to a program (metal, leaf, typhoon, shroom, nether, frost) has none ──
     public static final String CRYSTAL_FLECHETTES = "crystal_flechettes";
     public static final String VITAL_CLONE = "vital_clone";
     public static final String ROCK_PETRIFY = "rock_petrify";
     public static final String BLAZE_IGNITE = "blaze_ignite";
-    public static final String FROST_SNAP = "frost_snap";
     public static final String GLOW_LASER = "glow_laser";
     public static final String HEX_CHARM = "hex_charm";
     public static final String PULSE_SHORT_CIRCUIT = "pulse_short_circuit";
@@ -38,7 +37,6 @@ public final class MobAbilities {
                     Map.entry(GooType.VITAL, ctx -> VitalClone.apply(ctx.level(), ctx.target())),
                     Map.entry(GooType.ROCK, ctx -> RockPetrify.apply(ctx.level(), ctx.target())),
                     Map.entry(GooType.BLAZE, ctx -> BlazeIgnite.apply(ctx.level(), ctx.target())),
-                    Map.entry(GooType.FROST, ctx -> FrostSnap.apply(ctx.target())),
                     Map.entry(GooType.GLOW, ctx -> GlowLaser.apply(ctx.level(), ctx.target())),
                     Map.entry(GooType.HEX, ctx -> HexCharm.apply(ctx.target(), ctx.thrower())),
                     Map.entry(GooType.PULSE, ctx -> PulseShortCircuit.apply(ctx.target())),
@@ -94,7 +92,6 @@ public final class MobAbilities {
         map.put(VITAL_CLONE, ctx -> VitalClone.apply(ctx.level(), ctx.target()));
         map.put(ROCK_PETRIFY, ctx -> RockPetrify.apply(ctx.level(), ctx.target()));
         map.put(BLAZE_IGNITE, ctx -> BlazeIgnite.apply(ctx.level(), ctx.target()));
-        map.put(FROST_SNAP, ctx -> FrostSnap.apply(ctx.target()));
         map.put(GLOW_LASER, ctx -> GlowLaser.apply(ctx.level(), ctx.target()));
         map.put(HEX_CHARM, ctx -> HexCharm.apply(ctx.target(), ctx.thrower()));
         map.put(PULSE_SHORT_CIRCUIT, ctx -> PulseShortCircuit.apply(ctx.target()));

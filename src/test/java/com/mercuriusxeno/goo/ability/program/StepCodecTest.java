@@ -33,7 +33,8 @@ class StepCodecTest {
                     Expr.parse("1 + stacks").getOrThrow(), false),
             "target", new TargetStep(List.of(EntityFilter.NOT_BOSS),
                     List.of(new DamageStep(Expr.literal(4), DamageKind.FREEZE))),
-            "set_health", new SetHealthStep(Expr.parse("0.5 * health / max_health").getOrThrow())
+            "set_health", new SetHealthStep(Expr.parse("0.5 * health / max_health").getOrThrow()),
+            "freeze_ticks", new FreezeTicksStep(Expr.parse("140 * 25 / pow(health, 0.2) / 100").getOrThrow())
     );
 
     private static Step roundTrip(Step step) {
