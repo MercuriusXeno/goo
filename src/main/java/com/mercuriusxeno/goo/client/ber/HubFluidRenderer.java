@@ -9,7 +9,6 @@ import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.resources.Identifier;
-import net.minecraft.util.LightCoordsUtil;
 
 /**
  * Fluid surface, stream, and body-side rendering helpers for {@link HubBlockEntityRenderer}.
@@ -117,11 +116,7 @@ final class HubFluidRenderer {
      */
     static void submitFluids(PoseStack poseStack,
             SubmitNodeCollector nodeCollector, HubRenderState state) {
-        // FULL_BRIGHT lightmap UV per fluid vertex makes the lightmap
-        // multiplication a no-op. Body submission above shares the same
-        // RenderType (entityTranslucent on BLOCKS atlas), so sortOnUpload
-        // handles depth ordering of body+fluid primitives together.
-        SlottedFluidContainer.submitFluids(poseStack, nodeCollector, LightCoordsUtil.FULL_BRIGHT,
+        SlottedFluidContainer.submitFluids(poseStack, nodeCollector,
                 state.slots, FLUID_GEOM, CENTERS, false);
     }
 

@@ -2,27 +2,20 @@ package com.mercuriusxeno.goo.client.ber;
 
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
 import com.mercuriusxeno.goo.block.canister.CanisterSlotLayout;
+import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.RenderContext;
-import com.mercuriusxeno.goo.client.model.CanisterBodyModels;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.CanisterMetadata;
 import com.mercuriusxeno.goo.item.ContainerCapacity;
 import com.mercuriusxeno.goo.registry.GooEnchantments;
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.QuadInstance;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 import net.minecraft.client.renderer.feature.ModelFeatureRenderer;
-import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
-import net.minecraft.client.renderer.texture.OverlayTexture;
-import net.minecraft.client.resources.model.geometry.BakedQuad;
-import net.minecraft.client.resources.model.geometry.QuadCollection;
-import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.Vec3;
@@ -36,10 +29,6 @@ import org.jspecify.annotations.Nullable;
 public class CanisterBlockEntityRenderer
         implements BlockEntityRenderer<CanisterBlockEntity, CanisterRenderState> {
 
-    /** Block atlas texture path for fluid sprite lookups. */
-    private static final Identifier BLOCK_ATLAS_TEXTURE =
-        Identifier.withDefaultNamespace("textures/atlas/blocks.png");
-
     /** Model center offset: baked models are centered at (8/16, 8/16) in XZ. */
     private static final float MODEL_CENTER = 0.5f;
 
@@ -49,8 +38,6 @@ public class CanisterBlockEntityRenderer
     private static final float STREAM_Y_TOP = 11f / 16f;
     /** Y coordinate of the canister body bottom (1 pixel up). */
     private static final float STREAM_Y_BOT = 1f / 16f;
-    /** Full white color for baked quad rendering. */
-    private static final int OPAQUE_WHITE = 0xFFFFFFFF;
 
     /**
      * Creates a canister BER. Context is unused.
@@ -233,41 +220,8 @@ public class CanisterBlockEntityRenderer
         float cz = CanisterSlotLayout.SLOT_CENTERS[slot][1] / BLOCK_PIXELS;
         poseStack.pushPose();
         poseStack.translate(cx - MODEL_CENTER, 0, cz - MODEL_CENTER);
-        submitBodyModel(poseStack, nodeCollector, light);
+        GooSubmitter.submitCanisterBody(poseStack, nodeCollector, light);
         poseStack.popPose();
-    }
-
-    /**
-     * Emits the baked canister body model at the current pose position.
-     * @param poseStack     the current pose transformation stack
-     * @param nodeCollector the render node collector for geometry submission
-     * @param light         the packed light level for shading
-     */
-    private static void submitBodyModel(PoseStack poseStack,
-            SubmitNodeCollector nodeCollector, int light) {
-        QuadCollection model = CanisterBodyModels.getModel();
-        nodeCollector.submitCustomGeometry(poseStack,
-            RenderTypes.entityTranslucent(BLOCK_ATLAS_TEXTURE),
-            (pose, c) -> renderBakedQuads(pose, c, light, model));
-    }
-
-    /**
-     * Renders all quads from a baked model.
-     *
-     * @param pose the pose matrix entry
-     * @param c the vertex consumer
-     * @param light the packed light value
-     * @param model the baked quad collection
-     */
-    private static void renderBakedQuads(PoseStack.Pose pose, VertexConsumer c,
-            int light, QuadCollection model) {
-        QuadInstance qi = new QuadInstance();
-        qi.setColor(OPAQUE_WHITE);
-        qi.setLightCoords(light);
-        qi.setOverlayCoords(OverlayTexture.NO_OVERLAY);
-        for (BakedQuad quad : model.getAll()) {
-            c.putBakedQuad(pose, quad, qi);
-        }
     }
 
     // -- Stream rendering --
@@ -284,8 +238,7 @@ public class CanisterBlockEntityRenderer
         if (!hasAnyStream(state)) { return; }
         int light = state.lightCoords;
         float anim = state.animationTime;
-        nodeCollector.submitCustomGeometry(poseStack,
-            RenderTypes.entityTranslucent(BLOCK_ATLAS_TEXTURE),
+        nodeCollector.submitCustomGeometry(poseStack, GooSubmitter.renderType(),
             (pose, c) -> renderAllStreams(new RenderContext(pose, c, light), anim, state));
     }
 
