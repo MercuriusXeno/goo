@@ -43,6 +43,7 @@ public final class MobEffectTests {
     private static final String ABILITY_PULSE_SHORT_CIRCUIT = "goo:pulse_short_circuit";
     private static final String ABILITY_AEON_TIME_STOP = "goo:aeon_time_stop";
     private static final String ABILITY_UNSTABLE_EXPLODE = "goo:unstable_explode";
+    private static final String ABILITY_HEX_CHARM = "goo:hex_charm";
     /** The damage metal_javelin.json's damage step names. */
     private static final float JAVELIN_DAMAGE = 8.0f;
 
@@ -199,13 +200,14 @@ public final class MobEffectTests {
     }
 
     /**
-     * Hex charm applies weakness and glowing to mobs.
+     * Hex charm is a program: a mob target selection wrapping weakness and
+     * glowing potion steps whose duration falls with the mob's health.
      *
      * @param helper the gametest helper
      */
     public static void hexCharm(GameTestHelper helper) {
         Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
-        HexCharm.apply(mob, null);
+        runEntityPrograms(helper, mob, ABILITY_HEX_CHARM);
         helper.assertTrue(mob.hasEffect(MobEffects.WEAKNESS), SHOULD_HAVE_WEAKNESS);
         helper.assertTrue(mob.hasEffect(MobEffects.GLOWING), SHOULD_HAVE_GLOWING);
         helper.succeed();
