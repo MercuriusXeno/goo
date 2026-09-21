@@ -95,7 +95,7 @@ final class BlobTrailParticles {
             return;
         }
 
-        int color = type.getColor();
+        int color = type.getColor(mc.level.registryAccess());
         spawnDripParticle(mc, pos, vel, color);
         spawnFogParticles(mc, pos, vel, color);
     }

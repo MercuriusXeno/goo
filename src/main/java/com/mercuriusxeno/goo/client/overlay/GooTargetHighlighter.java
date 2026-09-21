@@ -1,11 +1,11 @@
 package com.mercuriusxeno.goo.client.overlay;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.GooColors;
 import com.mercuriusxeno.goo.GooType;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
+import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.hud.InWorldHud;
 import com.mercuriusxeno.goo.client.hud.PanelRectangle;
@@ -240,7 +240,7 @@ public final class GooTargetHighlighter {
     private static void updateTarget(Player player, GooType selectedType, TargetingHint hint) {
         TargetResult target = resolveTarget(player, 1.0f, hint);
         boolean hasEntity = target instanceof TargetResult.EntityTarget;
-        targetOutlineColor = hasEntity ? ARGB.opaque(GooColors.highlight(selectedType)) : 0;
+        targetOutlineColor = hasEntity ? ARGB.opaque(ClientGooTypes.highlight(selectedType)) : 0;
     }
 
     /**
@@ -793,7 +793,7 @@ public final class GooTargetHighlighter {
         boolean grannyArc = target instanceof TargetResult.BlockTarget bt && bt.grannyArc();
         boolean straightLine = selectedType == GooType.GLOW;
         ArcRenderer.renderTargetArc(poseStack, bufferSource, camera,
-                player, end, GooColors.highlight(selectedType), partialTick,
+                player, end, ClientGooTypes.highlight(selectedType), partialTick,
                 grannyArc, straightLine);
     }
 

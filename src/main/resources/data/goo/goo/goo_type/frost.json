@@ -1,4 +1,8 @@
 {
   "light_level": 8,
-  "saturation_fill": 0.5
+  "saturation_fill": 0.5,
+  "wheel": "ADD8E6",
+  "bright": "D5FFFF",
+  "highlight": "BCE7F5",
+  "edge": "CBF6FF"
 }

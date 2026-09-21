@@ -193,7 +193,7 @@ final class CrucibleMelting {
         }
         float surfaceY = CrucibleParticleHelper.computeSurfaceY(totalGoo);
         CrucibleParticleHelper.spawnGooBubbles(
-                serverLevel, pos, surfaceY, dominant.getColor(), serverLevel.getRandom(),
+                serverLevel, pos, surfaceY, dominant.getColor(serverLevel.registryAccess()), serverLevel.getRandom(),
                 be.bubbleHistory);
     }
 

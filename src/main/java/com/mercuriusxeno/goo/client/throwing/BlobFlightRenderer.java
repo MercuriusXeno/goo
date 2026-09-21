@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.throwing;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.ability.ConeGeometry;
@@ -278,7 +279,7 @@ public final class BlobFlightRenderer {
      */
     private static void renderShell(PoseStack poseStack, MultiBufferSource buffers,
                                     GooType type) {
-        int color = ARGB.color(SHELL_ALPHA, type.getColor());
+        int color = ARGB.color(SHELL_ALPHA, ClientGooTypes.color(type));
         GooRenderUtil.UvRect uv = spriteToUv(type);
         VertexConsumer c = buffers.getBuffer(RenderTypes.entityTranslucent(BLOCK_ATLAS_TEXTURE));
         com.mercuriusxeno.goo.client.RenderContext ctx = new com.mercuriusxeno.goo.client.RenderContext(poseStack.last(), c, FULL_BRIGHT);
@@ -311,7 +312,7 @@ public final class BlobFlightRenderer {
     private static void renderTail(PoseStack poseStack, MultiBufferSource buffers,
                                    GooType type, Vec3 velocity, float gameTime) {
         GooRenderUtil.UvRect uv = spriteToUv(type);
-        int tailColor = ARGB.color(TAIL_ALPHA, type.getColor());
+        int tailColor = ARGB.color(TAIL_ALPHA, ClientGooTypes.color(type));
         VertexConsumer c = buffers.getBuffer(RenderTypes.entityTranslucent(BLOCK_ATLAS_TEXTURE));
         TailAxes axes = buildTailAxes(velocity);
 

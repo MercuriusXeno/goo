@@ -15,6 +15,7 @@ class GooLightContributionTest {
 
     private static final int FLOOR = 4;
     private static final long CAPACITY = 1000L;
+    private static final int ANY_COLOR = 0x123456;
 
     /**
      * Each row: peak, saturation, amount out of 1000, expected light. Expected
@@ -32,7 +33,7 @@ class GooLightContributionTest {
         "4, 0.5, 500, 4",
     })
     void followsSqrtCurveOfDefinition(int peak, float saturation, long amount, int expected) {
-        GooTypeDefinition type = new GooTypeDefinition(peak, saturation);
+        GooTypeDefinition type = lit(peak, saturation);
         assertEquals(expected, GooLightContribution.forSlot(type, amount, CAPACITY));
     }
 
@@ -42,8 +43,8 @@ class GooLightContributionTest {
      */
     @Test
     void presentGooEmitsAtLeastTheFloor() {
-        assertEquals(FLOOR, GooLightContribution.forSlot(new GooTypeDefinition(15, 0.5f), 1L, CAPACITY));
-        assertEquals(FLOOR, GooLightContribution.forSlot(new GooTypeDefinition(0, 0.5f), CAPACITY, CAPACITY));
+        assertEquals(FLOOR, GooLightContribution.forSlot(lit(15, 0.5f), 1L, CAPACITY));
+        assertEquals(FLOOR, GooLightContribution.forSlot(lit(0, 0.5f), CAPACITY, CAPACITY));
     }
 
     /**
@@ -51,10 +52,14 @@ class GooLightContributionTest {
      */
     @Test
     void emptySlotEmitsNothing() {
-        GooTypeDefinition type = new GooTypeDefinition(15, 0.5f);
+        GooTypeDefinition type = lit(15, 0.5f);
         assertEquals(0, GooLightContribution.forSlot(null, CAPACITY, CAPACITY));
         assertEquals(0, GooLightContribution.forSlot(type, 0L, CAPACITY));
         assertEquals(0, GooLightContribution.forSlot(type, CAPACITY, 0L));
+    }
+
+    private static GooTypeDefinition lit(int peak, float saturation) {
+        return new GooTypeDefinition(peak, saturation, ANY_COLOR, ANY_COLOR, ANY_COLOR, ANY_COLOR);
     }
 
     /**

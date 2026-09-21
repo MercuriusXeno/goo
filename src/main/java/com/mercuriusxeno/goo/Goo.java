@@ -60,8 +60,6 @@ public class Goo {
         GOO_VALUES.setEffectiveCachePath(
                 FMLPaths.CONFIGDIR.get().resolve("goo_derived_values.json"));
 
-        GooColors.load(FMLPaths.CONFIGDIR.get());
-
         LOGGER.info("Goo mod initialized");
     }
 

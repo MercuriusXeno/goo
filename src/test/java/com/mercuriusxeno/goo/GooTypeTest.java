@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests for the GooType enum: count, uniqueness, and serialization contract.
+ * Colors and light live on GooTypeDefinition and are tested there.
  */
 class GooTypeTest {
 
@@ -37,16 +38,6 @@ class GooTypeTest {
     void serializedNameMatchesId() {
         for (GooType type : GooType.values()) {
             assertEquals(type.getId(), type.getSerializedName());
-        }
-    }
-
-    /**
-     * Verifies that all color values are non-negative.
-     */
-    @Test
-    void allColorsNonNegative() {
-        for (GooType type : GooType.values()) {
-            assertTrue(type.getColor() >= 0, type.getId() + " has negative color");
         }
     }
 

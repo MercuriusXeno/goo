@@ -17,6 +17,7 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -380,7 +381,7 @@ public final class GooCommand {
         if (value == null || value.isEmpty()) {
             ctx.getSource().sendSuccess(() -> Component.literal(itemName + MSG_NO_GOO_VALUE), false);
         } else {
-            MutableComponent msg = formatGooValue(itemName, value);
+            MutableComponent msg = formatGooValue(ctx.getSource().registryAccess(), itemName, value);
             ctx.getSource().sendSuccess(() -> msg, false);
         }
         return 1;
@@ -389,18 +390,19 @@ public final class GooCommand {
     /**
      * Builds a chat component showing an item's goo value breakdown.
      *
-     * @param itemName the item identifier string
-     * @param value    the item's goo value
+     * @param registries the registry access the type colors resolve through
+     * @param itemName   the item identifier string
+     * @param value      the item's goo value
      * @return the formatted chat component
      */
-    private static MutableComponent formatGooValue(String itemName, GooValue value) {
+    private static MutableComponent formatGooValue(HolderLookup.Provider registries, String itemName, GooValue value) {
         MutableComponent msg = Component.literal(itemName + MSG_COLON_SPACE);
         boolean first = true;
         for (var entry : value.getAll().entrySet()) {
             if (!first) {
                 msg.append(Component.literal(MSG_COMMA));
             }
-            appendTypeEntry(msg, entry.getKey(), entry.getValue());
+            appendTypeEntry(msg, entry.getKey().getColor(registries), entry.getKey(), entry.getValue());
             first = false;
         }
         msg.append(Component.literal(MSG_TOTAL_PREFIX + value.totalBlobs() + MSG_CLOSE_PAREN));
@@ -411,11 +413,12 @@ public final class GooCommand {
      * Appends a colored type name and amount to a chat component.
      *
      * @param msg    the component to append to
+     * @param color  the RGB the type name is styled in
      * @param type   the goo type
      * @param amount the goo amount
      */
-    private static void appendTypeEntry(MutableComponent msg, GooType type, int amount) {
-        msg.append(Component.literal(type.getId()).withStyle(Style.EMPTY.withColor(type.getColor())));
+    private static void appendTypeEntry(MutableComponent msg, int color, GooType type, int amount) {
+        msg.append(Component.literal(type.getId()).withStyle(Style.EMPTY.withColor(color)));
         msg.append(Component.literal(MSG_TIMES + amount));
     }
 

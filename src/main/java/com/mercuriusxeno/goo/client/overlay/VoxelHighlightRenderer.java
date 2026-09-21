@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.client.overlay;
 
-import com.mercuriusxeno.goo.GooColors;
 import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.FlatQuadContext;
 import com.mercuriusxeno.goo.client.LineContext;
@@ -52,8 +52,8 @@ final class VoxelHighlightRenderer {
         VoxelShape shape = mc.level.getBlockState(pos).getShape(mc.level, pos);
         if (shape.isEmpty()) { return; }
         Vec3 offset = cameraOffset(pos, camera);
-        int highlightRgb = GooColors.highlight(type);
-        int edgeRgb = GooColors.edge(type);
+        int highlightRgb = ClientGooTypes.highlight(type);
+        int edgeRgb = ClientGooTypes.edge(type);
         emitFillBoxes(poseStack, bufferSource, shape, offset.x, offset.y, offset.z, highlightRgb);
         emitWireframeEdges(poseStack, bufferSource, mc, shape, offset.x, offset.y, offset.z, edgeRgb);
     }
@@ -76,8 +76,8 @@ final class VoxelHighlightRenderer {
         VoxelShape shape = mc.level.getBlockState(pos).getShape(mc.level, pos);
         if (shape.isEmpty()) { return; }
         Vec3 offset = cameraOffset(pos, camera);
-        int highlightRgb = GooColors.highlight(type);
-        int edgeRgb = GooColors.edge(type);
+        int highlightRgb = ClientGooTypes.highlight(type);
+        int edgeRgb = ClientGooTypes.edge(type);
         emitFillBoxes(poseStack, bufferSource, shape, offset.x, offset.y, offset.z, highlightRgb);
         emitWireframeEdges(poseStack, bufferSource, mc, shape, offset.x, offset.y, offset.z, edgeRgb);
     }
@@ -97,7 +97,7 @@ final class VoxelHighlightRenderer {
             Camera camera, BlockPos pos, GooType type) {
         Minecraft mc = Minecraft.getInstance();
         Vec3 offset = cameraOffset(pos, camera);
-        int rgb = GooColors.highlight(type);
+        int rgb = ClientGooTypes.highlight(type);
         int fillColor = colorWithAlpha(rgb, FACE_ALPHA);
         CuboidBounds box = new CuboidBounds(
                 offsetMin(offset.x, 0), offsetMax(offset.x, 1),
@@ -108,7 +108,7 @@ final class VoxelHighlightRenderer {
         ctx.emitBox(fillColor, box);
         bufferSource.endLastBatch();
 
-        int wireColor = colorWithAlpha(GooColors.edge(type), WIRE_ALPHA);
+        int wireColor = colorWithAlpha(ClientGooTypes.edge(type), WIRE_ALPHA);
         float lineWidth = mc.getWindow().getAppropriateLineWidth();
         LineContext lineCtx = new LineContext(poseStack.last(),
                 bufferSource.getBuffer(RenderTypes.lines()));

@@ -1,10 +1,10 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.GooColors;
 import com.mercuriusxeno.goo.GooType;
 import com.mercuriusxeno.goo.ability.ChainBehaviors;
 import com.mercuriusxeno.goo.ability.world.MetalBehavior;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
+import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.RenderContext;
 import com.mercuriusxeno.goo.client.ber.ChainMarkerRenderState;
@@ -84,7 +84,7 @@ public final class MetalSpikeVisual {
      */
     public static void submit(ChainMarkerRenderState state,
                               PoseStack poseStack, SubmitNodeCollector nodeCollector) {
-        int color = ARGB.color(SPIKE_ALPHA, GooColors.highlight(state.gooType));
+        int color = ARGB.color(SPIKE_ALPHA, ClientGooTypes.highlight(state.gooType));
         GooRenderUtil.UvRect uv = lookupSpriteUv(state.gooType);
         Direction face = state.placedFace;
         float cx = HALF - face.getStepX() * HALF;
