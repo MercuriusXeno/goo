@@ -36,6 +36,7 @@ public final class StepTypes {
         register(WaitStep.TYPE);
         register(AwaitEntityStep.TYPE);
         register(ExplodeStep.TYPE);
+        register(DamageStep.TYPE);
     }
 
     private StepTypes() {

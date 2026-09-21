@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.ability.program;
 
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import java.util.Set;
 import java.util.stream.Stream;
 
 /**
@@ -45,5 +46,10 @@ public record ExplodeStep(Expr power, ExplosionMode mode) implements Step {
     @Override
     public Stream<Expr> expressions() {
         return Stream.of(power);
+    }
+
+    @Override
+    public Set<HostCapability> requires() {
+        return Set.of(HostCapability.EXPLODE);
     }
 }

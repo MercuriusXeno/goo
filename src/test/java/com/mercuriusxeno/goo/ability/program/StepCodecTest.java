@@ -26,7 +26,8 @@ class StepCodecTest {
             "wait", new WaitStep(Expr.parse("4 + stacks").getOrThrow()),
             "await_entity", new AwaitEntityStep(SelectionShape.CUBE, Expr.literal(3),
                     List.of(EntityFilter.LIVING, EntityFilter.NOT_ITEM)),
-            "explode", new ExplodeStep(Expr.parse("2.5 + 1.0 * (stacks - 1)").getOrThrow(), ExplosionMode.NONE)
+            "explode", new ExplodeStep(Expr.parse("2.5 + 1.0 * (stacks - 1)").getOrThrow(), ExplosionMode.NONE),
+            "damage", new DamageStep(Expr.parse("health / 2").getOrThrow(), DamageKind.CACTUS)
     );
 
     private static Step roundTrip(Step step) {
@@ -65,6 +66,17 @@ class StepCodecTest {
         ExplodeStep explode = assertInstanceOf(ExplodeStep.class,
                 decode("{\"type\": \"explode\", \"power\": 2}").getOrThrow());
         assertEquals(ExplosionMode.TNT, explode.mode());
+        DamageStep damage = assertInstanceOf(DamageStep.class,
+                decode("{\"type\": \"damage\", \"amount\": 8}").getOrThrow());
+        assertEquals(DamageKind.MAGIC, damage.source());
+    }
+
+    @Test
+    void javelinStepsDecode() {
+        Step step = decode("{\"type\": \"damage\", \"amount\": 8.0, \"source\": \"magic\"}").getOrThrow();
+        DamageStep damage = assertInstanceOf(DamageStep.class, step);
+        assertEquals(8.0, damage.amount().evaluate(Variables.NONE));
+        assertEquals(DamageKind.MAGIC, damage.source());
     }
 
     @Test

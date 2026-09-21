@@ -50,4 +50,9 @@ public record AwaitEntityStep(SelectionShape shape, Expr radius, List<EntityFilt
     public Stream<Expr> expressions() {
         return Stream.of(radius);
     }
+
+    @Override
+    public Set<HostCapability> requires() {
+        return Set.of(HostCapability.TICKING, HostCapability.ENTITY_SCAN);
+    }
 }

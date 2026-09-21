@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import java.util.Set;
 import java.util.stream.Stream;
 
 /**
@@ -36,4 +37,12 @@ public interface Step {
      * @return the expressions
      */
     Stream<Expr> expressions();
+
+    /**
+     * Names the capabilities the step needs of its host; a host lacking
+     * one refuses the program at load.
+     *
+     * @return the required capabilities
+     */
+    Set<HostCapability> requires();
 }

@@ -12,12 +12,21 @@ import java.util.Set;
  * name and through the typed accessors; world actions are host methods,
  * so a test drives a program against a mock with no level behind it.
  *
- * <p>The surface here is what the standing steps need. Each host
- * implementation states which variables it binds; a step reading a name
- * its host leaves unbound reads zero with a warning until the load-time
- * refusal lands with the entity host.
+ * <p>Each method belongs to a {@link HostCapability}. A host implements
+ * the methods of the capabilities its {@link HostKind} provides and
+ * refuses the rest; {@link ProgramBehavior#forHost} keeps a program from
+ * ever reaching a refused method by checking every step's needs against
+ * the kind at load.
  */
 public interface StepHost extends Variables {
+
+    /**
+     * Returns which kind of host this is, which names its capabilities
+     * and variables.
+     *
+     * @return the host kind
+     */
+    HostKind kind();
 
     /**
      * Returns the block the program acts from: the marker block, or the
@@ -29,26 +38,28 @@ public interface StepHost extends Variables {
 
     /**
      * Returns the face the marker was placed on; the blast direction is
-     * its opposite.
+     * its opposite. Capability {@link HostCapability#PLACED_FACE}.
      *
      * @return the placed face
      */
     Direction placedFace();
 
     /**
-     * Returns the blobs stacked on the host, live.
+     * Returns the blobs stacked on the host, live. Capability
+     * {@link HostCapability#STACKS}.
      *
      * @return the stack count
      */
     int stackCount();
 
     /**
-     * Spends one stacked blob.
+     * Spends one stacked blob. Capability {@link HostCapability#STACKS}.
      */
     void decrementStack();
 
     /**
-     * Detonates at the anchor's center.
+     * Detonates at the anchor's center. Capability
+     * {@link HostCapability#EXPLODE}.
      *
      * @param power the explosion power
      * @param mode  how blocks are treated
@@ -57,6 +68,7 @@ public interface StepHost extends Variables {
 
     /**
      * Scans the volume around the anchor for an entity every filter keeps.
+     * Capability {@link HostCapability#ENTITY_SCAN}.
      *
      * @param shape   the volume shape
      * @param radius  the volume radius in blocks
@@ -64,4 +76,12 @@ public interface StepHost extends Variables {
      * @return true when at least one entity is in the volume
      */
     boolean anyEntityWithin(SelectionShape shape, double radius, Set<EntityFilter> filters);
+
+    /**
+     * Hurts the host's target. Capability {@link HostCapability#TARGET}.
+     *
+     * @param amount the damage
+     * @param source the damage source
+     */
+    void damageTarget(float amount, DamageKind source);
 }
