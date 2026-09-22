@@ -47,6 +47,7 @@ public final class StepTypes {
         register(DropItemStep.TYPE);
         register(IgniteStep.TYPE);
         register(EntitiesStep.TYPE);
+        register(ParticlesStep.TYPE);
     }
 
     private StepTypes() {

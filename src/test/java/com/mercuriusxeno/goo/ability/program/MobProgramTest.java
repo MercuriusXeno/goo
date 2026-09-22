@@ -79,6 +79,15 @@ class MobProgramTest {
     private static final Set<EntityFilter> BURNABLE = Set.of(EntityFilter.LIVING, EntityFilter.NOT_FIRE_IMMUNE);
     /** The body consumer's position among forEachEntityWithin's arguments. */
     private static final int ENTITIES_BODY_ARGUMENT = 3;
+    private static final Set<EntityFilter> UNDEAD = Set.of(EntityFilter.UNDEAD);
+    private static final Set<EntityFilter> ALIVE = Set.of(EntityFilter.ALIVE);
+    private static final float LASER_DAMAGE = 4;
+    private static final String CRIT = "minecraft:crit";
+    private static final int CRIT_COUNT = 10;
+    private static final double CRIT_SPREAD = 0.5;
+    private static final double CRIT_SPEED = 0.1;
+    private static final int LASER_GLOW_DURATION = 200;
+    private static final int LASER_IGNITE_SECONDS = 1;
 
     private static AbilityDefinition ability(String name) {
         String path = ABILITIES_DIR + name + JSON_SUFFIX;
@@ -255,6 +264,38 @@ class MobProgramTest {
         order.verify(host).igniteTarget(IGNITE_SECONDS);
         order.verify(bystander).igniteTarget(SPLASH_IGNITE_SECONDS);
         verify(host, never()).igniteTarget(SPLASH_IGNITE_SECONDS);
+    }
+
+    @Test
+    void glowLaserDamagesShowsCritsAndMarksALivingTarget() {
+        StepHost host = entityHost();
+        when(host.read(HostVariables.UNDEAD)).thenReturn(OptionalDouble.of(0));
+        when(host.targetPasses(UNDEAD)).thenReturn(false);
+        when(host.targetPasses(ALIVE)).thenReturn(true);
+
+        run("glow_laser", host);
+
+        InOrder order = inOrder(host);
+        order.verify(host).damageTarget(LASER_DAMAGE, DamageKind.MAGIC);
+        order.verify(host).spawnParticles(FxAnchor.TARGET, new ParticleBurst(Identifier.parse(CRIT),
+                CRIT_COUNT, CRIT_SPREAD, CRIT_SPREAD, CRIT_SPEED, 0));
+        order.verify(host).applyPotion(Identifier.parse(GLOWING), LASER_GLOW_DURATION, 0, true);
+        verify(host, never()).igniteTarget(anyInt());
+    }
+
+    @Test
+    void glowLaserDoublesDamageAndBurnsAnUndeadTarget() {
+        StepHost host = entityHost();
+        when(host.read(HostVariables.UNDEAD)).thenReturn(OptionalDouble.of(1));
+        when(host.targetPasses(UNDEAD)).thenReturn(true);
+        when(host.targetPasses(ALIVE)).thenReturn(false);
+
+        run("glow_laser", host);
+
+        InOrder order = inOrder(host);
+        order.verify(host).damageTarget(LASER_DAMAGE * 2, DamageKind.MAGIC);
+        order.verify(host).igniteTarget(LASER_IGNITE_SECONDS);
+        verify(host, never()).applyPotion(any(), anyInt(), anyInt(), anyBoolean());
     }
 
     @Test

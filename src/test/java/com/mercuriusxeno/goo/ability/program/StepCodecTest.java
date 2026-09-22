@@ -8,6 +8,7 @@ import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -45,7 +46,10 @@ class StepCodecTest {
             Map.entry("ignite", new IgniteStep(Expr.literal(10))),
             Map.entry("entities", new EntitiesStep(SelectionShape.SPHERE, Expr.literal(2.5),
                     List.of(EntityFilter.LIVING, EntityFilter.NOT_FIRE_IMMUNE),
-                    List.of(new IgniteStep(Expr.literal(5)))))
+                    List.of(new IgniteStep(Expr.literal(5))))),
+            Map.entry("particles", new ParticlesStep(Identifier.parse("minecraft:damage_indicator"), FxAnchor.TARGET,
+                    Expr.literal(15), Expr.literal(0), Optional.of(Expr.literal(0.5)), Optional.of(Expr.literal(1.5)),
+                    Expr.literal(0), Expr.literal(1)))
     );
 
     private static Step roundTrip(Step step) {
@@ -91,6 +95,12 @@ class StepCodecTest {
                 decode("{\"type\": \"potion\", \"effect\": \"minecraft:poison\", \"duration\": 60}").getOrThrow());
         assertEquals(0, potion.amplifier().evaluate(Variables.NONE));
         assertTrue(potion.visible());
+        ParticlesStep particles = assertInstanceOf(ParticlesStep.class,
+                decode("{\"type\": \"particles\", \"id\": \"minecraft:crit\", \"spread\": 0.5}").getOrThrow());
+        assertEquals(FxAnchor.HOST, particles.at());
+        assertEquals(1, particles.count().evaluate(Variables.NONE));
+        assertEquals(Optional.empty(), particles.spreadAlong());
+        assertEquals(0, particles.lift().evaluate(Variables.NONE));
     }
 
     @Test

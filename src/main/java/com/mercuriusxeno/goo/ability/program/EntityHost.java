@@ -43,6 +43,7 @@ public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entit
     private static final String LOG_UNKNOWN_EFFECT = "Potion step names status effect {}, which no registry holds";
     private static final String LOG_UNKNOWN_ITEM = "Drop step names item {}, which no registry holds";
     private static final float PERCENT = 100;
+    private static final double BODY_CENTER = 0.5;
 
     @Override
     public HostKind kind() {
@@ -55,6 +56,7 @@ public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entit
             case HostVariables.HEALTH -> OptionalDouble.of(target.getHealth());
             case HostVariables.MAX_HEALTH -> OptionalDouble.of(target.getMaxHealth());
             case HostVariables.DISTANCE -> OptionalDouble.of(distanceFromThrower());
+            case HostVariables.UNDEAD -> OptionalDouble.of(target.isInvertedHealAndHarm() ? 1 : 0);
             default -> OptionalDouble.empty();
         };
     }
@@ -171,6 +173,13 @@ public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entit
     @Override
     public void igniteTarget(int seconds) {
         target.igniteForSeconds(seconds);
+    }
+
+    @Override
+    public void spawnParticles(FxAnchor at, ParticleBurst burst) {
+        SimpleParticles.resolve(burst.particle()).ifPresent(particle -> level.sendParticles(particle,
+                target.getX(), target.getY(BODY_CENTER) + burst.lift(), target.getZ(),
+                burst.count(), burst.spreadAcross(), burst.spreadAlong(), burst.spreadAcross(), burst.speed()));
     }
 
     /**

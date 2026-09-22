@@ -9,9 +9,12 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 /**
  * The world side of {@link StepHost#anyEntityWithin} and
@@ -22,6 +25,8 @@ import java.util.function.Consumer;
 final class EntityScan {
 
     private static final int DIAMETER_PER_RADIUS = 2;
+    private static final String ERR_UNMEANT_FILTER = "EntityScan gives no meaning to filter ";
+    private static final Map<EntityFilter, Predicate<Entity>> MEANINGS = meanings();
 
     private EntityScan() {
     }
@@ -123,13 +128,31 @@ final class EntityScan {
      * @return true when the filter keeps the entity
      */
     private static boolean keeps(EntityFilter filter, Entity entity) {
-        return switch (filter) {
-            case LIVING -> entity instanceof LivingEntity;
-            case NOT_ITEM -> !(entity instanceof ItemEntity);
-            case NOT_BOSS -> !isBoss(entity);
-            case MOB -> entity instanceof Mob;
-            case NOT_FIRE_IMMUNE -> !entity.fireImmune();
-        };
+        return MEANINGS.get(filter).test(entity);
+    }
+
+    /**
+     * Builds the table of what each filter keeps, refusing at class load
+     * when a filter has no meaning here.
+     *
+     * @return the table, one predicate per filter
+     */
+    private static Map<EntityFilter, Predicate<Entity>> meanings() {
+        Map<EntityFilter, Predicate<Entity>> table = new EnumMap<>(EntityFilter.class);
+        table.put(EntityFilter.LIVING, entity -> entity instanceof LivingEntity);
+        table.put(EntityFilter.NOT_ITEM, entity -> !(entity instanceof ItemEntity));
+        table.put(EntityFilter.NOT_BOSS, entity -> !isBoss(entity));
+        table.put(EntityFilter.MOB, entity -> entity instanceof Mob);
+        table.put(EntityFilter.NOT_FIRE_IMMUNE, entity -> !entity.fireImmune());
+        table.put(EntityFilter.UNDEAD,
+                entity -> entity instanceof LivingEntity living && living.isInvertedHealAndHarm());
+        table.put(EntityFilter.ALIVE, Entity::isAlive);
+        for (EntityFilter filter : EntityFilter.values()) {
+            if (!table.containsKey(filter)) {
+                throw new IllegalStateException(ERR_UNMEANT_FILTER + filter);
+            }
+        }
+        return table;
     }
 
     /**

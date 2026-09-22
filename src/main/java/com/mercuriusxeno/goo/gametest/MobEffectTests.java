@@ -50,6 +50,9 @@ public final class MobEffectTests {
     private static final String ABILITY_VITAL_CLONE = "goo:vital_clone";
     private static final String ABILITY_ROCK_PETRIFY = "goo:rock_petrify";
     private static final String ABILITY_BLAZE_IGNITE = "goo:blaze_ignite";
+    private static final String ABILITY_GLOW_LASER = "goo:glow_laser";
+    private static final String LIVING_SHOULD_NOT_BURN = "A cow is not undead and should not burn";
+    private static final String UNDEAD_SHOULD_BURN = "A zombie is undead and should burn";
     private static final String SHOULD_BE_CRUSHED = "Target should be dead or dying";
     /** The damage metal_javelin.json's damage step names. */
     private static final float JAVELIN_DAMAGE = 8.0f;
@@ -201,16 +204,22 @@ public final class MobEffectTests {
     }
 
     /**
-     * Glow laser deals damage and applies glowing.
+     * Glow laser is a program: magic damage doubled by the undead variable,
+     * crit particles, an ignite step under an undead target selection and
+     * glowing under an alive one, so a zombie burns and a cow does not.
      *
      * @param helper the gametest helper
      */
     public static void glowLaser(GameTestHelper helper) {
         Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
+        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, BYSTANDER_POS);
         float before = mob.getHealth();
-        GlowLaser.apply(helper.getLevel(), mob);
+        runEntityPrograms(helper, mob, ABILITY_GLOW_LASER);
+        runEntityPrograms(helper, zombie, ABILITY_GLOW_LASER);
         helper.assertTrue(mob.getHealth() < before, SHOULD_TAKE_DAMAGE);
         helper.assertTrue(mob.hasEffect(MobEffects.GLOWING), SHOULD_HAVE_GLOWING);
+        helper.assertFalse(mob.isOnFire(), LIVING_SHOULD_NOT_BURN);
+        helper.assertTrue(zombie.isOnFire(), UNDEAD_SHOULD_BURN);
         helper.succeed();
     }
 
@@ -299,14 +308,15 @@ public final class MobEffectTests {
 
     /**
      * MobAbilities.apply() routes a goo type to the handler still standing
-     * for it; glow is the type checked while its handler awaits migration.
+     * for it; crystal is the type checked while its handler awaits migration.
      *
      * @param helper the gametest helper
      */
     public static void dispatcherRoutes(GameTestHelper helper) {
         Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
-        MobAbilities.apply(helper.getLevel(), mob, GooType.GLOW, null);
-        helper.assertTrue(mob.hasEffect(MobEffects.GLOWING), SHOULD_HAVE_GLOWING);
+        float before = mob.getHealth();
+        MobAbilities.apply(helper.getLevel(), mob, GooType.CRYSTAL, null);
+        helper.assertTrue(mob.getHealth() < before, SHOULD_TAKE_DAMAGE);
         helper.succeed();
     }
 }

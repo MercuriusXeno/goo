@@ -1,7 +1,9 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Test;
 import java.util.List;
+import java.util.Optional;
 import java.util.OptionalDouble;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -118,6 +120,21 @@ class ProgramHostLoadTest {
 
         assertTrue(refusal.getMessage().contains("entities"), refusal.getMessage());
         assertTrue(refusal.getMessage().contains(MARKER_LABEL), refusal.getMessage());
+    }
+
+    @Test
+    void particlesAtTheTargetRefuseOnTheMarkerHostWhileParticlesAtTheHostLoad() {
+        ProgramLoadException refusal = assertThrows(ProgramLoadException.class,
+                () -> ProgramBehavior.forHost(List.of(particles(FxAnchor.TARGET)), HostKind.MARKER));
+
+        assertTrue(refusal.getMessage().contains("particles"), refusal.getMessage());
+        assertTrue(refusal.getMessage().contains(MARKER_LABEL), refusal.getMessage());
+        assertDoesNotThrow(() -> ProgramBehavior.forHost(List.of(particles(FxAnchor.HOST)), HostKind.MARKER));
+    }
+
+    private static ParticlesStep particles(FxAnchor at) {
+        return new ParticlesStep(Identifier.parse("minecraft:crit"), at, Expr.literal(1), Expr.literal(0),
+                Optional.empty(), Optional.empty(), Expr.literal(0), Expr.literal(0));
     }
 
     @Test
