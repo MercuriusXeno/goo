@@ -69,10 +69,11 @@ public record CanisterFluidContent(FluidResource resource, int amount) {
     }
 
     /**
-     * Returns the goo type if this holds a bundled goo type, or null for vanilla
-     * fluids and datapack types.
+     * The goo type stamped on the stored resource, bundled or datapack-added
+     * alike, since the stamp is a registry key of any namespace (decision
+     * generic-goo-fluids). A vanilla fluid or an empty canister carries none.
      *
-     * @return the goo type, or null
+     * @return the goo type, or null where the stored fluid carries no stamp
      */
     @Nullable
     public ResourceKey<GooTypeDefinition> getGooType() {

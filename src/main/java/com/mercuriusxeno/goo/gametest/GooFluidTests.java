@@ -143,7 +143,7 @@ public final class GooFluidTests {
      * places the generic fluid block and stamps the type on its block entity.
      *
      * @param helper the gametest helper
-     * @param type   the bundled type whose bucket to empty
+     * @param type   the goo type whose bucket to empty, bundled or datapack-added
      * @param pos    the structure-relative position to place into
      */
     private static void emptyBucket(GameTestHelper helper, ResourceKey<GooTypeDefinition> type, BlockPos pos) {
