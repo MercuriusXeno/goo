@@ -9,5 +9,13 @@
   "viscosity": 2000,
   "temperature": 300,
   "extinguishes": false,
-  "map_color": "metal"
+  "map_color": "metal",
+  "textures": {
+    "blob_tiny": "goo:item/metal_blob_tiny",
+    "blob_small": "goo:item/metal_blob_small",
+    "blob_base": "goo:item/metal_blob_base",
+    "blob_large": "goo:item/metal_blob_large",
+    "fluid_still": "goo:fluid/metal_fluid",
+    "fluid_flowing": "goo:fluid/metal_fluid"
+  }
 }

@@ -4,6 +4,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.JsonOps;
+import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.material.MapColor;
 import org.junit.jupiter.api.Test;
@@ -13,6 +14,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
+import java.util.Optional;
 import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -136,6 +138,38 @@ class GooTypeDefinitionTest {
         assertEquals("nether", MapColors.CODEC.encodeStart(JsonOps.INSTANCE, MapColor.NETHER)
                 .getOrThrow().getAsString());
         assertTrue(MapColors.CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString("\"chartreuse\"")).isError());
+    }
+
+    /**
+     * A body naming textures decodes each named id, a body naming none
+     * decodes to no textures, and bundled blaze names its own blob and fluid art.
+     */
+    @Test
+    void texturesDecodeWhenNamedAndDefaultWhenAbsent() throws Exception {
+        GooTypeDefinition named = decode("{\"light_level\": 8, \"saturation_fill\": 0.5" + ALL_COLORS
+                + WATER_LIKE_FLUID + ", \"textures\": {\"blob_small\": \"pack:item/small\","
+                + " \"fluid_still\": \"pack:fluid/still\"}}");
+        assertEquals(Optional.of(Identifier.parse("pack:item/small")), named.textures().blobSmall());
+        assertEquals(Optional.of(Identifier.parse("pack:fluid/still")), named.textures().fluidStill());
+        assertEquals(Optional.empty(), named.textures().blobLarge());
+        assertEquals(Optional.empty(), named.textures().fluidFlowing());
+
+        GooTypeDefinition unnamed = decode("{\"light_level\": 8, \"saturation_fill\": 0.5" + ALL_COLORS
+                + WATER_LIKE_FLUID + "}");
+        assertEquals(GooTypeTextures.NONE, unnamed.textures());
+
+        GooTypeTextures blaze = decodeBundled(GooTypes.BLAZE).textures();
+        assertEquals(Optional.of(Identifier.parse("goo:item/blaze_blob_tiny")), blaze.blob(BlobModelSize.TINY));
+        assertEquals(Optional.of(Identifier.parse("goo:fluid/blaze_fluid")), blaze.fluidStill());
+    }
+
+    /**
+     * A texture id that is not a valid identifier is refused.
+     */
+    @Test
+    void refusesMalformedTextureId() {
+        assertTrue(parse("{\"light_level\": 8, \"saturation_fill\": 0.5" + ALL_COLORS + WATER_LIKE_FLUID
+                + ", \"textures\": {\"blob_base\": \"Not An Id\"}}").isError());
     }
 
     /**

@@ -9,5 +9,13 @@
   "viscosity": 3000,
   "temperature": 300,
   "extinguishes": false,
-  "map_color": "color_purple"
+  "map_color": "color_purple",
+  "textures": {
+    "blob_tiny": "goo:item/shroom_blob_tiny",
+    "blob_small": "goo:item/shroom_blob_small",
+    "blob_base": "goo:item/shroom_blob_base",
+    "blob_large": "goo:item/shroom_blob_large",
+    "fluid_still": "goo:fluid/shroom_fluid",
+    "fluid_flowing": "goo:fluid/shroom_fluid"
+  }
 }

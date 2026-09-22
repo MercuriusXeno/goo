@@ -652,8 +652,9 @@ public class ReactorBlockEntityRenderer
         GooSubmitter.submitFluid(poseStack, nodeCollector, ctx -> {
             CuboidBounds b = SlotFluidGeometry.computeBounds(FLUID_GEOM, HOLLOW_CX, HOLLOW_CZ, fill);
             TextureAtlasSprite sprite = GooSubmitter.fluidSprite(type);
-            SlotFluidGeometry.renderFluidTop(ctx, b, sprite);
-            SlotFluidGeometry.renderFluidSides(ctx, b, sprite, fill, FLUID_GEOM);
+            int tint = GooSubmitter.fluidTint(type);
+            SlotFluidGeometry.renderFluidTop(ctx, b, sprite, tint);
+            SlotFluidGeometry.renderFluidSides(ctx, b, sprite, fill, FLUID_GEOM, tint);
         });
     }
 

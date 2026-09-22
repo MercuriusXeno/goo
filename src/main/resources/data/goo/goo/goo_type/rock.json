@@ -9,5 +9,13 @@
   "viscosity": 2000,
   "temperature": 300,
   "extinguishes": false,
-  "map_color": "stone"
+  "map_color": "stone",
+  "textures": {
+    "blob_tiny": "goo:item/rock_blob_tiny",
+    "blob_small": "goo:item/rock_blob_small",
+    "blob_base": "goo:item/rock_blob_base",
+    "blob_large": "goo:item/rock_blob_large",
+    "fluid_still": "goo:fluid/rock_fluid",
+    "fluid_flowing": "goo:fluid/rock_fluid"
+  }
 }
