@@ -16,7 +16,6 @@ import com.mercuriusxeno.goo.registry.GooItems;
 import net.minecraft.core.Direction;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.ItemLike;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import net.neoforged.neoforge.transfer.ResourceHandler;
@@ -59,15 +58,14 @@ final class GooCapabilityRegistration {
     }
 
     /**
-     * Registers the stamped-resource handler for every goo bucket, in place
+     * Registers the stamped-resource handler for the goo bucket, in place
      * of NeoForge's bare bucket handler (decision generic-goo-fluids).
      *
      * @param event the capability registration event
      */
     private static void registerGooBucketFluidCapability(RegisterCapabilitiesEvent event) {
         event.registerItem(Capabilities.Fluid.ITEM,
-                (stack, ctx) -> new GooBucketResourceHandler(ctx),
-                GooItems.BUCKETS.values().toArray(ItemLike[]::new));
+                (stack, ctx) -> new GooBucketResourceHandler(ctx), GooItems.GOO_BUCKET.get());
     }
 
     /**

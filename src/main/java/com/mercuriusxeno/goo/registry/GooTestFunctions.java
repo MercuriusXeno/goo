@@ -28,6 +28,10 @@ public final class GooTestFunctions {
     private static final String FLUID_TYPES_SIDE_BY_SIDE = "fluid_types_side_by_side";
     private static final String FLUID_FIELDS_STAMPED = "fluid_fields_stamped";
 
+    // --- Generic goo items ---
+    private static final String ITEM_THROWN_BLOBS_OWN_TYPE = "item_thrown_blobs_own_type";
+    private static final String ITEM_TAB_DATAPACK_TYPE = "item_tab_datapack_type";
+
     // --- GasketPusher ---
     private static final String PUSHER_EMPTY_RESERVOIR = "pusher_empty_reservoir";
     private static final String PUSHER_NO_PARTNER = "pusher_no_partner";
@@ -144,6 +148,7 @@ public final class GooTestFunctions {
             reg(registrar, SMOKE, GameTestHelper::succeed);
             registerGooTypeRegistryTests(registrar);
             registerGooFluidTests(registrar);
+            registerGooItemTests(registrar);
             registerGasketTests(registrar);
             registerEffectExecutorTests(registrar);
             registerCrucibleTests(registrar);
@@ -169,6 +174,11 @@ public final class GooTestFunctions {
     private static void registerGooFluidTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
         reg(r, FLUID_TYPES_SIDE_BY_SIDE, GooFluidTests::placedTypesStaySideBySide);
         reg(r, FLUID_FIELDS_STAMPED, GooFluidTests::fluidFieldsReadStampedType);
+    }
+
+    private static void registerGooItemTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
+        reg(r, ITEM_THROWN_BLOBS_OWN_TYPE, GooItemTests::thrownBlobsLandOwnType);
+        reg(r, ITEM_TAB_DATAPACK_TYPE, GooItemTests::creativeTabOffersDatapackType);
     }
 
     private static void registerGasketTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {

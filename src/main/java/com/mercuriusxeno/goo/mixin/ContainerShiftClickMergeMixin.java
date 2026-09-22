@@ -125,7 +125,7 @@ public abstract class ContainerShiftClickMergeMixin {
      */
     private static boolean isOmniblobOfType(Slot slot, GooType sourceType) {
         ItemStack candidate = slot.getItem();
-        return candidate.getItem() instanceof GooOmniblobItem omni
-            && omni.getGooType() == sourceType;
+        return candidate.getItem() instanceof GooOmniblobItem
+            && BlobStacks.gooTypeOf(candidate) == sourceType;
     }
 }

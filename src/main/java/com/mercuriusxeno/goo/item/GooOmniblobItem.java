@@ -1,9 +1,13 @@
 package com.mercuriusxeno.goo.item;
 
 import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypeNames;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
 import com.mercuriusxeno.goo.registry.GooItems;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.SlotAccess;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
@@ -17,22 +21,19 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 /**
  * Omniblob: a single-type, uncapped-capacity goo container for volumes that
  * do not fit in a regular blob stack (sub-blob remainders or amounts exceeding
- * 64,000 mB). One registration per goo type (15 total).
+ * 64,000 mB). One registration carrying its type in the GOO_TYPE data
+ * component (decision generic-goo-items).
  *
  * <p>Inventory cursor interactions allow inserting and extracting blobs
  * via click mechanics.</p>
  */
 public class GooOmniblobItem extends Item implements IGooItemInteraction {
 
-    /**
-     * Separator between type name and tier in display name.
-     */
-    private static final String NAME_SEPARATOR = " ";
+
     /**
      * Divisor for splitting omniblob volume in half.
      */
@@ -74,17 +75,13 @@ public class GooOmniblobItem extends Item implements IGooItemInteraction {
      */
     private static final double NEGLIGIBLE_SPEED_DELTA = 1e-6;
 
-    private final GooType gooType;
-
     /**
-     * Creates a new omniblob item for the given goo type.
+     * Creates the omniblob item.
      *
-     * @param gooType    the goo type this omniblob carries
      * @param properties item properties (should include stacksTo(1))
      */
-    public GooOmniblobItem(GooType gooType, Properties properties) {
+    public GooOmniblobItem(Properties properties) {
         super(properties);
-        this.gooType = gooType;
     }
 
     /**
@@ -111,14 +108,26 @@ public class GooOmniblobItem extends Item implements IGooItemInteraction {
     /**
      * Creates an omniblob ItemStack with the given goo type and volume.
      *
+     * @param key    the goo type's registry key
+     * @param volume volume in microblobs
+     * @return a new omniblob item stack
+     */
+    public static ItemStack createWithVolume(ResourceKey<GooTypeDefinition> key, int volume) {
+        ItemStack stack = new ItemStack(GooItems.GOO_OMNIBLOB.get());
+        stack.set(GooDataComponents.GOO_TYPE.get(), key);
+        setVolume(stack, volume);
+        return stack;
+    }
+
+    /**
+     * Creates an omniblob ItemStack with the given bundled goo type and volume.
+     *
      * @param type   the goo type
      * @param volume volume in microblobs
      * @return a new omniblob item stack
      */
     public static ItemStack createWithVolume(GooType type, int volume) {
-        ItemStack stack = new ItemStack(GooItems.OMNIBLOBS.get(type).get());
-        setVolume(stack, volume);
-        return stack;
+        return createWithVolume(type.key(), volume);
     }
 
     /**
@@ -323,15 +332,6 @@ public class GooOmniblobItem extends Item implements IGooItemInteraction {
     }
 
     /**
-     * Returns the goo type this omniblob carries.
-     *
-     * @return the goo type
-     */
-    public GooType getGooType() {
-        return gooType;
-    }
-
-    /**
      * Returns the display name as "[Type] [Tier]" based on stored volume.
      *
      * @param stack the item stack
@@ -339,11 +339,7 @@ public class GooOmniblobItem extends Item implements IGooItemInteraction {
      */
     @Override
     public @NonNull Component getName(@NonNull ItemStack stack) {
-        int volume = getVolume(stack);
-        String tierName = BlobTiers.computeTierName(volume);
-        String typeName = gooType.getId().substring(0, 1).toUpperCase(Locale.ROOT)
-                + gooType.getId().substring(1);
-        return Component.literal(typeName + NAME_SEPARATOR + tierName);
+        return GooTypeNames.omniblobName(GooBlobItem.keyOf(stack), BlobTiers.computeTierName(getVolume(stack)));
     }
 
     /**
@@ -429,7 +425,7 @@ public class GooOmniblobItem extends Item implements IGooItemInteraction {
                 ItemEntity.class, box,
                 other -> other != self
                         && other.isAlive()
-                        && isMatchingOmniblob(other.getItem()));
+                        && isMatchingOmniblob(self.getItem(), other.getItem()));
     }
 
     /**
@@ -448,7 +444,7 @@ public class GooOmniblobItem extends Item implements IGooItemInteraction {
     public boolean overrideStackedOnOther(@NonNull ItemStack omniblob, @NonNull Slot slot,
                                           @NonNull ClickAction action, @NonNull Player player) {
         ItemStack target = slot.getItem();
-        if (isMatchingBlob(target)) {
+        if (isMatchingBlob(omniblob, target)) {
             return handleAbsorbFromSlot(omniblob, target, slot, action, player);
         }
         return action == ClickAction.SECONDARY
@@ -470,7 +466,7 @@ public class GooOmniblobItem extends Item implements IGooItemInteraction {
                                          ClickAction action, Player player) {
         if (action == ClickAction.PRIMARY) {
             int total = getVolume(omniblob) + target.getCount() * BlobStacks.MB_PER_BLOB;
-            slot.set(BlobStacks.createForOutput(gooType, total));
+            slot.set(BlobStacks.createForOutput(GooBlobItem.keyOf(omniblob), total));
             player.containerMenu.setCarried(ItemStack.EMPTY);
             return true;
         }
@@ -494,7 +490,7 @@ public class GooOmniblobItem extends Item implements IGooItemInteraction {
         }
 
         int remaining = volume - BlobStacks.MB_PER_BLOB;
-        slot.set(BlobStacks.createBlobStack(gooType, 1));
+        slot.set(BlobStacks.createBlobStack(GooBlobItem.keyOf(omniblob), 1));
         applyCursorRemainder(omniblob, remaining, player);
         return true;
     }
@@ -510,7 +506,7 @@ public class GooOmniblobItem extends Item implements IGooItemInteraction {
         if (remaining <= 0) {
             omniblob.shrink(1);
         } else if (BlobStacks.isCleanBlobStack(remaining)) {
-            player.containerMenu.setCarried(BlobStacks.createBlobStack(gooType, (remaining / BlobStacks.MB_PER_BLOB)));
+            player.containerMenu.setCarried(BlobStacks.createBlobStack(GooBlobItem.keyOf(omniblob), remaining / BlobStacks.MB_PER_BLOB));
         } else {
             setVolume(omniblob, remaining);
         }
@@ -558,30 +554,32 @@ public class GooOmniblobItem extends Item implements IGooItemInteraction {
         if (cursor.isEmpty() && action == ClickAction.SECONDARY) {
             return handleEmptyCursorExtract(omniblob, slot, cursorAccess);
         }
-        if (isMatchingOmniblob(cursor)) {
+        if (isMatchingOmniblob(omniblob, cursor)) {
             return handleOmniblobCombine(omniblob, cursor, cursorAccess);
         }
-        return isMatchingBlob(cursor) && handleBlobAbsorb(omniblob, cursor, action, cursorAccess, player);
+        return isMatchingBlob(omniblob, cursor) && handleBlobAbsorb(omniblob, cursor, action, cursorAccess, player);
     }
 
     /**
-     * Tests whether the stack is a same-type omniblob.
+     * Tests whether the stack is an omniblob of the same type as another.
      *
+     * @param self  the omniblob stack whose type is matched
      * @param stack the item stack to test
-     * @return true if the stack is an omniblob of this goo type
+     * @return true if the stack is an omniblob of that goo type
      */
-    private boolean isMatchingOmniblob(ItemStack stack) {
-        return stack.getItem() instanceof GooOmniblobItem omni && omni.getGooType() == gooType;
+    private static boolean isMatchingOmniblob(ItemStack self, ItemStack stack) {
+        return stack.getItem() instanceof GooOmniblobItem && GooBlobItem.sameType(self, stack);
     }
 
     /**
-     * Tests whether the stack is a same-type blob.
+     * Tests whether the stack is a blob of the same type as an omniblob.
      *
+     * @param self  the omniblob stack whose type is matched
      * @param stack the item stack to test
-     * @return true if the stack is a blob of this goo type
+     * @return true if the stack is a blob of that goo type
      */
-    private boolean isMatchingBlob(ItemStack stack) {
-        return stack.getItem() instanceof GooBlobItem blob && blob.getGooType() == gooType;
+    private static boolean isMatchingBlob(ItemStack self, ItemStack stack) {
+        return stack.getItem() instanceof GooBlobItem && GooBlobItem.sameType(self, stack);
     }
 
     /**
@@ -620,7 +618,7 @@ public class GooOmniblobItem extends Item implements IGooItemInteraction {
         int half = volume / HALF_DIVISOR;
         int other = volume - half;
 
-        cursorAccess.set(BlobStacks.createForOutput(gooType, half));
+        cursorAccess.set(BlobStacks.createForOutput(GooBlobItem.keyOf(omniblob), half));
         applySlotRemainder(omniblob, other, slot);
         return true;
     }
@@ -636,7 +634,7 @@ public class GooOmniblobItem extends Item implements IGooItemInteraction {
         if (remaining <= 0) {
             omniblob.shrink(1);
         } else if (BlobStacks.isCleanBlobStack(remaining)) {
-            slot.set(BlobStacks.createBlobStack(gooType, (remaining / BlobStacks.MB_PER_BLOB)));
+            slot.set(BlobStacks.createBlobStack(GooBlobItem.keyOf(omniblob), remaining / BlobStacks.MB_PER_BLOB));
         } else {
             setVolume(omniblob, remaining);
         }

@@ -1,7 +1,13 @@
 package com.mercuriusxeno.goo.fluid;
 
 import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypeNames;
+import com.mercuriusxeno.goo.registry.GooDataComponents;
+import com.mercuriusxeno.goo.registry.GooItems;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.BucketItem;
 import net.minecraft.world.item.ItemStack;
@@ -12,36 +18,63 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A bucket of one bundled goo type over the generic goo fluid. Emptying it
- * stamps the type onto the fluid block it places (decision
- * generic-goo-fluids); buckets stay one per bundled type until
- * generic-goo-items moves the type onto a component.
+ * The one goo bucket over the generic goo fluid, carrying its type in the
+ * GOO_TYPE data component (decision generic-goo-items). Emptying it stamps
+ * that type onto the fluid block it places (decision generic-goo-fluids).
  */
 public class GooBucketItem extends BucketItem {
 
-    private final GooType type;
-
     /**
-     * @param type       the goo type this bucket holds
      * @param fluid      the generic goo source fluid
      * @param properties the item properties
      */
-    public GooBucketItem(GooType type, Fluid fluid, Properties properties) {
+    public GooBucketItem(Fluid fluid, Properties properties) {
         super(fluid, properties);
-        this.type = type;
     }
 
     /**
-     * @return the goo type this bucket holds
+     * A full bucket of one goo type.
+     *
+     * @param key the goo type's registry key
+     * @return a bucket stack stamped with that type
      */
-    public GooType type() {
-        return type;
+    public static ItemStack of(ResourceKey<GooTypeDefinition> key) {
+        ItemStack stack = new ItemStack(GooItems.GOO_BUCKET.get());
+        stack.set(GooDataComponents.GOO_TYPE.get(), key);
+        return stack;
     }
 
     /**
-     * Stamps the type on the block the vanilla bucket placed into. When the
-     * target cannot hold fluid the vanilla bucket re-enters this method at
-     * the block beside the hit, so the stamp lands there on that pass.
+     * The type key a bucket stack carries.
+     *
+     * @param stack a bucket stack
+     * @return the key in its GOO_TYPE component, or null for a stack carrying none
+     */
+    public static @Nullable ResourceKey<GooTypeDefinition> keyOf(ItemStack stack) {
+        return stack.get(GooDataComponents.GOO_TYPE.get());
+    }
+
+    /**
+     * The bundled type a bucket stack carries.
+     *
+     * @param stack a bucket stack
+     * @return the enum value, or null for a stack carrying no bundled type
+     */
+    public static @Nullable GooType typeOf(ItemStack stack) {
+        ResourceKey<GooTypeDefinition> key = keyOf(stack);
+        return key == null ? null : GooType.fromKey(key);
+    }
+
+    @Override
+    public @NonNull Component getName(@NonNull ItemStack stack) {
+        return GooTypeNames.bucketName(keyOf(stack));
+    }
+
+    /**
+     * Stamps the stack's type on the block the vanilla bucket placed into.
+     * When the target cannot hold fluid the vanilla bucket re-enters this
+     * method at the block beside the hit, so the stamp lands there on that
+     * pass. A call carrying no stack places goo of no type.
      *
      * @param entity the entity emptying the bucket, or null
      * @param level  the level
@@ -54,8 +87,9 @@ public class GooBucketItem extends BucketItem {
     public boolean emptyContents(@Nullable LivingEntity entity, @NonNull Level level, @NonNull BlockPos pos,
                                  @Nullable BlockHitResult hit, @Nullable ItemStack stack) {
         boolean emptied = super.emptyContents(entity, level, pos, hit, stack);
-        if (emptied) {
-            GooFluidBlock.stampType(level, pos, type.key());
+        ResourceKey<GooTypeDefinition> key = stack == null ? null : keyOf(stack);
+        if (emptied && key != null) {
+            GooFluidBlock.stampType(level, pos, key);
         }
         return emptied;
     }

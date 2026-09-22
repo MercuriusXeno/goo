@@ -130,7 +130,8 @@ public class VatBlockItem extends BlockItem {
      * @return true if any goo was transferred
      */
     private static boolean handleBlobInsert(ItemStack vat, ItemStack cursor, SlotAccess cursorAccess) {
-        GooType type = ((GooBlobItem) cursor.getItem()).getGooType();
+        GooType type = BlobStacks.gooTypeOf(cursor);
+        if (type == null) { return false; }
         int volume = BlobStacks.volumeOf(cursor);
         int accepted = addGoo(vat, type, volume);
         if (accepted <= 0) { return false; }
@@ -149,7 +150,8 @@ public class VatBlockItem extends BlockItem {
      * @return true if any goo was transferred
      */
     private static boolean handleOmniblobInsert(ItemStack vat, ItemStack cursor, SlotAccess cursorAccess) {
-        GooType type = ((GooOmniblobItem) cursor.getItem()).getGooType();
+        GooType type = BlobStacks.gooTypeOf(cursor);
+        if (type == null) { return false; }
         int volume = GooOmniblobItem.getVolume(cursor);
         int accepted = addGoo(vat, type, volume);
         if (accepted <= 0) { return false; }

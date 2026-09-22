@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.GooType;
 import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.fluid.GooBucketItem;
 import com.mercuriusxeno.goo.fluid.GooFluidBlockEntity;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooItems;
@@ -146,8 +147,8 @@ public final class GooFluidTests {
      * @param pos    the structure-relative position to place into
      */
     private static void emptyBucket(GameTestHelper helper, GooType type, BlockPos pos) {
-        ItemStack bucket = new ItemStack(GooItems.BUCKETS.get(type).get());
-        GooItems.BUCKETS.get(type).get().emptyContents(null, helper.getLevel(), helper.absolutePos(pos), null, bucket);
+        ItemStack bucket = GooBucketItem.of(type.key());
+        GooItems.GOO_BUCKET.get().emptyContents(null, helper.getLevel(), helper.absolutePos(pos), null, bucket);
         helper.assertBlockPresent(GooBlocks.GOO_FLUID.get(), pos);
     }
 

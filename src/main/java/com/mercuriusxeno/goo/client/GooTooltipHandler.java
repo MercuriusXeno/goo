@@ -147,12 +147,12 @@ public final class GooTooltipHandler {
      * @return true if the stack was a blob type
      */
     private static boolean handleBlobTooltip(List<Either<FormattedText, TooltipComponent>> elements, ItemStack stack) {
-        if (stack.getItem() instanceof GooBlobItem blobItem) {
-            appendBlobComponent(elements, blobItem.getGooType(), BlobStacks.volumeOf(stack));
+        if (stack.getItem() instanceof GooBlobItem) {
+            appendBlobComponent(elements, BlobStacks.gooTypeOf(stack), BlobStacks.volumeOf(stack));
             return true;
         }
-        if (stack.getItem() instanceof GooOmniblobItem omniblob) {
-            appendBlobComponent(elements, omniblob.getGooType(), GooOmniblobItem.getVolume(stack));
+        if (stack.getItem() instanceof GooOmniblobItem) {
+            appendBlobComponent(elements, BlobStacks.gooTypeOf(stack), GooOmniblobItem.getVolume(stack));
             return true;
         }
         return false;
@@ -207,8 +207,8 @@ public final class GooTooltipHandler {
      * @return the goo type, or null
      */
     private static @org.jspecify.annotations.Nullable GooType getGooContentType(ItemStack stack) {
-        if (stack.getItem() instanceof GooBucketItem bucket) {
-            return bucket.type();
+        if (stack.getItem() instanceof GooBucketItem) {
+            return GooBucketItem.typeOf(stack);
         }
         if (stack.getItem() instanceof BucketItem) {
             return null;
@@ -321,8 +321,8 @@ public final class GooTooltipHandler {
      */
     private static void appendBlobComponent(
             List<Either<FormattedText, TooltipComponent>> elements,
-            GooType type, int volume) {
-        if (volume <= 0) {
+            @org.jspecify.annotations.Nullable GooType type, int volume) {
+        if (volume <= 0 || type == null) {
             return;
         }
         elements.add(Either.left(Component.empty()));

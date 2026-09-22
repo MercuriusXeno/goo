@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.throwing;
 
 import com.mercuriusxeno.goo.GooType;
 import com.mercuriusxeno.goo.client.GooTooltipHandler;
+import com.mercuriusxeno.goo.item.BlobStacks;
 import com.mercuriusxeno.goo.item.GooBlobItem;
 import com.mercuriusxeno.goo.item.GooOmniblobItem;
 import net.minecraft.client.gui.Font;
@@ -11,6 +12,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.client.IItemDecorator;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Renders a goo type icon (top-right) on all blob and omniblob item slots.
@@ -41,12 +43,12 @@ public class BlobVolumeDecorator implements IItemDecorator {
 
     @Override
     public boolean render(@NonNull GuiGraphicsExtractor graphics, @NonNull Font font, ItemStack stack, int xOffset, int yOffset) {
-        if (stack.getItem() instanceof GooBlobItem blob) {
-            renderTypeIcon(graphics, blob.getGooType(), xOffset, yOffset);
+        if (stack.getItem() instanceof GooBlobItem) {
+            renderTypeIcon(graphics, BlobStacks.gooTypeOf(stack), xOffset, yOffset);
             return true;
         }
-        return stack.getItem() instanceof GooOmniblobItem omniblob
-                && renderOmniblob(graphics, font, stack, omniblob, xOffset, yOffset);
+        return stack.getItem() instanceof GooOmniblobItem
+                && renderOmniblob(graphics, font, stack, xOffset, yOffset);
     }
 
     /**
@@ -54,28 +56,31 @@ public class BlobVolumeDecorator implements IItemDecorator {
      * @param graphics the GUI graphics context
      * @param font the font renderer
      * @param stack the omniblob item stack
-     * @param omniblob the omniblob item instance
      * @param xOffset the horizontal slot position
      * @param yOffset the vertical slot position
      * @return true if decorations were rendered, false if the omniblob is empty
      */
-    private boolean renderOmniblob(GuiGraphicsExtractor graphics, Font font, ItemStack stack, GooOmniblobItem omniblob, int xOffset, int yOffset) {
+    private boolean renderOmniblob(GuiGraphicsExtractor graphics, Font font, ItemStack stack, int xOffset, int yOffset) {
         int volume = GooOmniblobItem.getVolume(stack);
         if (volume <= 0) { return false; }
-        renderTypeIcon(graphics, omniblob.getGooType(), xOffset, yOffset);
+        renderTypeIcon(graphics, BlobStacks.gooTypeOf(stack), xOffset, yOffset);
         renderVolumeLabel(graphics, font, volume, xOffset, yOffset);
         return true;
     }
 
     /**
-     * Blits the goo type icon in the top-right of the slot.
+     * Blits the goo type icon in the top-right of the slot. A datapack type
+     * has no icon texture yet, so it draws none.
      *
      * @param graphics the GUI graphics context
-     * @param type the goo type
+     * @param type the bundled goo type, or null for a datapack type
      * @param x the X coordinate
      * @param y the Y coordinate
      */
-    private void renderTypeIcon(GuiGraphicsExtractor graphics, GooType type, int x, int y) {
+    private void renderTypeIcon(GuiGraphicsExtractor graphics, @Nullable GooType type, int x, int y) {
+        if (type == null) {
+            return;
+        }
         Identifier texture = Identifier.fromNamespaceAndPath(
                 NAMESPACE_GOO, ICON_PATH_PREFIX + type.getId() + ICON_PATH_SUFFIX);
         graphics.blit(RenderPipelines.GUI_TEXTURED, texture,

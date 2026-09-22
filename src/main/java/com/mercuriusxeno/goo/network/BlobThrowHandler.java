@@ -67,12 +67,14 @@ public final class BlobThrowHandler {
     }
 
     /**
-     * Validates and executes the throw.
+     * Validates and executes the throw: the glove, the type, the range and
+     * the goo in the player's inventory are checked, the goo is depleted,
+     * the flight is broadcast and the effect scheduled for arrival.
      *
      * @param player  the throwing player
      * @param payload the throw payload data
      */
-    private static void execute(ServerPlayer player, BlobThrowPayload payload) {
+    public static void execute(ServerPlayer player, BlobThrowPayload payload) {
         if (!validateGlove(player)) { return; }
         GooType gooType = validateGooType(payload);
         if (gooType == null) { return; }
@@ -203,7 +205,10 @@ public final class BlobThrowHandler {
         Vec3 hand = getThrowHandPosition(player);
         BlobFlightPayload flight = buildFlightPayload(hand, payload, travelTicks);
         PacketDistributor.sendToPlayersTrackingEntity(player, flight);
-        PacketDistributor.sendToPlayer(player, flight);
+        // A listener that never negotiated the mod's channels, a gametest's mock player, gets no flight.
+        if (player.connection.hasChannel(flight)) {
+            PacketDistributor.sendToPlayer(player, flight);
+        }
     }
 
     /** Builds the flight payload from hand position, throw data, and travel time.
