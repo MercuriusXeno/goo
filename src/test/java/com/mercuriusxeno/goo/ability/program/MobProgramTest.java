@@ -14,6 +14,7 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.OptionalDouble;
 import java.util.Set;
+import java.util.function.Consumer;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
@@ -21,6 +22,7 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.intThat;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -71,6 +73,12 @@ class MobProgramTest {
     private static final int ENTANGLE_SLOW_DURATION = 100;
     private static final int ENTANGLE_SLOW_AMPLIFIER = 2;
     private static final int ENTANGLE_POISON_DURATION = 60;
+    private static final int IGNITE_SECONDS = 10;
+    private static final int SPLASH_IGNITE_SECONDS = 5;
+    private static final double IGNITE_RADIUS = 2.5;
+    private static final Set<EntityFilter> BURNABLE = Set.of(EntityFilter.LIVING, EntityFilter.NOT_FIRE_IMMUNE);
+    /** The body consumer's position among forEachEntityWithin's arguments. */
+    private static final int ENTITIES_BODY_ARGUMENT = 3;
 
     private static AbilityDefinition ability(String name) {
         String path = ABILITIES_DIR + name + JSON_SUFFIX;
@@ -230,6 +238,23 @@ class MobProgramTest {
         order.verify(host).damageTarget((float) COW_HEALTH, DamageKind.MAGIC);
         order.verify(host).dropItemAtTarget(eq(Identifier.parse(COBBLESTONE)),
                 intThat(count -> count >= 1 && count <= CRUSH_DROP_MAX));
+    }
+
+    @Test
+    void blazeIgniteBurnsTheTargetThenEveryBurnableLivingEntityAroundIt() {
+        StepHost host = entityHost();
+        StepHost bystander = entityHost();
+        doAnswer(invocation -> {
+            invocation.<Consumer<StepHost>>getArgument(ENTITIES_BODY_ARGUMENT).accept(bystander);
+            return null;
+        }).when(host).forEachEntityWithin(eq(SelectionShape.SPHERE), eq(IGNITE_RADIUS), eq(BURNABLE), any());
+
+        run("blaze_ignite", host);
+
+        InOrder order = inOrder(host, bystander);
+        order.verify(host).igniteTarget(IGNITE_SECONDS);
+        order.verify(bystander).igniteTarget(SPLASH_IGNITE_SECONDS);
+        verify(host, never()).igniteTarget(SPLASH_IGNITE_SECONDS);
     }
 
     @Test

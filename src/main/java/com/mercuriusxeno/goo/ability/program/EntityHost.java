@@ -24,6 +24,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.Set;
+import java.util.function.Consumer;
 
 /**
  * The {@link StepHost} over the living entity a thrown blob struck: the
@@ -102,6 +103,13 @@ public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entit
     }
 
     @Override
+    public void forEachEntityWithin(SelectionShape shape, double radius, Set<EntityFilter> filters,
+                                    Consumer<StepHost> body) {
+        EntityScan.forEachLivingWithin(level, target.position(), shape, radius, filters,
+                living -> body.accept(new EntityHost(level, living, thrower)));
+    }
+
+    @Override
     public void damageTarget(float amount, DamageKind source) {
         target.hurtServer(level, damageSource(source), amount);
     }
@@ -158,6 +166,11 @@ public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entit
             return;
         }
         target.spawnAtLocation(level, new ItemStack(holder.get(), count));
+    }
+
+    @Override
+    public void igniteTarget(int seconds) {
+        target.igniteForSeconds(seconds);
     }
 
     /**

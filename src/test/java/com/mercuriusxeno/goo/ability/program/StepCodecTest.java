@@ -41,7 +41,11 @@ class StepCodecTest {
             Map.entry("set_invulnerable", new SetInvulnerableStep(true)),
             Map.entry("clone_entity", new CloneEntityStep(Expr.parse("100 / pow(max_health, 0.6)").getOrThrow())),
             Map.entry("drop_item", new DropItemStep(Identifier.parse("minecraft:cobblestone"),
-                    Expr.parse("1 + random(3)").getOrThrow()))
+                    Expr.parse("1 + random(3)").getOrThrow())),
+            Map.entry("ignite", new IgniteStep(Expr.literal(10))),
+            Map.entry("entities", new EntitiesStep(SelectionShape.SPHERE, Expr.literal(2.5),
+                    List.of(EntityFilter.LIVING, EntityFilter.NOT_FIRE_IMMUNE),
+                    List.of(new IgniteStep(Expr.literal(5)))))
     );
 
     private static Step roundTrip(Step step) {

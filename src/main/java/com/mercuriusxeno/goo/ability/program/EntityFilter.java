@@ -24,7 +24,11 @@ public enum EntityFilter {
     /**
      * Keeps entities with AI.
      */
-    MOB;
+    MOB,
+    /**
+     * Keeps entities that burn.
+     */
+    NOT_FIRE_IMMUNE;
 
     private static final String WHAT = "entity filter";
 

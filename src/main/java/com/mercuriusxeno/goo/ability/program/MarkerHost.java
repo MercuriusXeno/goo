@@ -9,6 +9,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import java.util.OptionalDouble;
 import java.util.Set;
+import java.util.function.Consumer;
 
 /**
  * The {@link StepHost} over a chain marker block entity: reads stack
@@ -73,6 +74,12 @@ public record MarkerHost(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity
     }
 
     @Override
+    public void forEachEntityWithin(SelectionShape shape, double radius, Set<EntityFilter> filters,
+                                    Consumer<StepHost> body) {
+        throw HostCapability.TARGET.refusedBy(kind());
+    }
+
+    @Override
     public void damageTarget(float amount, DamageKind source) {
         throw HostCapability.TARGET.refusedBy(kind());
     }
@@ -114,6 +121,11 @@ public record MarkerHost(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity
 
     @Override
     public void dropItemAtTarget(Identifier item, int count) {
+        throw HostCapability.TARGET.refusedBy(kind());
+    }
+
+    @Override
+    public void igniteTarget(int seconds) {
         throw HostCapability.TARGET.refusedBy(kind());
     }
 }

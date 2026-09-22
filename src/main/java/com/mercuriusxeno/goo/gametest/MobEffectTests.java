@@ -22,6 +22,9 @@ import net.minecraft.world.entity.Mob;
 public final class MobEffectTests {
 
     private static final BlockPos SPAWN_POS = new BlockPos(1, 1, 1);
+    /** One block beside the spawn, inside blaze ignite's splash radius. */
+    private static final BlockPos BYSTANDER_POS = new BlockPos(2, 1, 1);
+    private static final String BYSTANDER_SHOULD_BE_ON_FIRE = "Bystander should be on fire";
     private static final String SHOULD_HAVE_SLOWNESS = "Target should have slowness";
     private static final String SHOULD_HAVE_POISON = "Target should have poison";
     private static final String SHOULD_HAVE_WEAKNESS = "Target should have weakness";
@@ -46,6 +49,7 @@ public final class MobEffectTests {
     private static final String ABILITY_HEX_CHARM = "goo:hex_charm";
     private static final String ABILITY_VITAL_CLONE = "goo:vital_clone";
     private static final String ABILITY_ROCK_PETRIFY = "goo:rock_petrify";
+    private static final String ABILITY_BLAZE_IGNITE = "goo:blaze_ignite";
     private static final String SHOULD_BE_CRUSHED = "Target should be dead or dying";
     /** The damage metal_javelin.json's damage step names. */
     private static final float JAVELIN_DAMAGE = 8.0f;
@@ -154,14 +158,18 @@ public final class MobEffectTests {
     }
 
     /**
-     * Blaze ignite sets the target on fire.
+     * Blaze ignite is a program: an ignite step on the struck mob and an
+     * entities selection igniting every burnable living entity around it,
+     * so a cow beside the target burns too.
      *
      * @param helper the gametest helper
      */
     public static void blazeIgnite(GameTestHelper helper) {
         Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
-        BlazeIgnite.apply(helper.getLevel(), mob);
+        Mob bystander = helper.spawnWithNoFreeWill(EntityType.COW, BYSTANDER_POS);
+        runEntityPrograms(helper, mob, ABILITY_BLAZE_IGNITE);
         helper.assertTrue(mob.isOnFire(), SHOULD_BE_ON_FIRE);
+        helper.assertTrue(bystander.isOnFire(), BYSTANDER_SHOULD_BE_ON_FIRE);
         helper.succeed();
     }
 
@@ -291,14 +299,14 @@ public final class MobEffectTests {
 
     /**
      * MobAbilities.apply() routes a goo type to the handler still standing
-     * for it; blaze is the type checked while its handler awaits migration.
+     * for it; glow is the type checked while its handler awaits migration.
      *
      * @param helper the gametest helper
      */
     public static void dispatcherRoutes(GameTestHelper helper) {
         Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
-        MobAbilities.apply(helper.getLevel(), mob, GooType.BLAZE, null);
-        helper.assertTrue(mob.isOnFire(), SHOULD_BE_ON_FIRE);
+        MobAbilities.apply(helper.getLevel(), mob, GooType.GLOW, null);
+        helper.assertTrue(mob.hasEffect(MobEffects.GLOWING), SHOULD_HAVE_GLOWING);
         helper.succeed();
     }
 }
