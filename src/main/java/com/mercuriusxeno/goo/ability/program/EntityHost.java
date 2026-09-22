@@ -19,7 +19,6 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 import java.util.OptionalDouble;
@@ -100,14 +99,13 @@ public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entit
 
     @Override
     public boolean anyEntityWithin(SelectionShape shape, double radius, Set<EntityFilter> filters) {
-        Vec3 center = target.position();
-        return EntityScan.anyEntityWithin(level, center, shape, radius, filters);
+        return EntityScan.anyEntityWithin(level, target.position(), shape, radius, filters, target);
     }
 
     @Override
     public void forEachEntityWithin(SelectionShape shape, double radius, Set<EntityFilter> filters,
                                     Consumer<StepHost> body) {
-        EntityScan.forEachLivingWithin(level, target.position(), shape, radius, filters,
+        EntityScan.forEachLivingWithin(level, target.position(), shape, radius, filters, target,
                 living -> body.accept(new EntityHost(level, living, thrower)));
     }
 
@@ -128,7 +126,7 @@ public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entit
 
     @Override
     public boolean targetPasses(Set<EntityFilter> filters) {
-        return EntityScan.passes(target, filters);
+        return EntityScan.passes(target, filters, target);
     }
 
     @Override

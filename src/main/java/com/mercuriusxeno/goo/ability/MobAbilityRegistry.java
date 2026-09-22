@@ -20,7 +20,6 @@ public final class MobAbilityRegistry {
     private static final Map<String, Consumer<Context>> HANDLERS = new HashMap<>();
 
     static {
-        register(MobAbilities.CRYSTAL_FLECHETTES, ctx -> MobAbilities.applyNamed(MobAbilities.CRYSTAL_FLECHETTES, ctx));
         register(MobAbilities.ENDER_TELEPORT, ctx -> MobAbilities.applyNamed(MobAbilities.ENDER_TELEPORT, ctx));
     }
 

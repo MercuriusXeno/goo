@@ -36,7 +36,12 @@ public enum EntityFilter {
     /**
      * Keeps entities still alive, after a prior effect may have killed them.
      */
-    ALIVE;
+    ALIVE,
+    /**
+     * Keeps anything but the entity the selection centers on, the struck
+     * entity on the entity host.
+     */
+    NOT_TARGET;
 
     private static final String WHAT = "entity filter";
 
