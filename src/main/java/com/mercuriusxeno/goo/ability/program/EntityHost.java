@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.ability.program;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageSources;
@@ -10,6 +11,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
+import java.util.Map;
 import java.util.OptionalDouble;
 import java.util.Set;
 
@@ -88,6 +90,11 @@ public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entit
     @Override
     public void damageTarget(float amount, DamageKind source) {
         target.hurtServer(level, damageSource(source), amount);
+    }
+
+    @Override
+    public void placeBlock(Identifier block, Map<String, String> state) {
+        throw HostCapability.PLACE_BLOCK.refusedBy(kind());
     }
 
     /**

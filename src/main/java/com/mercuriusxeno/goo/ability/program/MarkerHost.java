@@ -3,9 +3,15 @@ package com.mercuriusxeno.goo.ability.program;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.phys.Vec3;
+import java.util.List;
+import java.util.Map;
 import java.util.OptionalDouble;
 import java.util.Set;
 
@@ -21,6 +27,8 @@ import java.util.Set;
  * @param be    the marker block entity
  */
 public record MarkerHost(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity be) implements StepHost {
+
+    private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
 
     @Override
     public HostKind kind() {
@@ -74,5 +82,13 @@ public record MarkerHost(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity
     @Override
     public void damageTarget(float amount, DamageKind source) {
         throw HostCapability.TARGET.refusedBy(kind());
+    }
+
+    @Override
+    public void placeBlock(Identifier block, Map<String, String> state) {
+        Block found = BuiltInRegistries.BLOCK.getOptional(block)
+                .orElseThrow(() -> new IllegalArgumentException(ERR_UNKNOWN_BLOCK + block));
+        List<Property.Value<?>> values = StatePropertyWriter.resolve(found.getStateDefinition(), state, block);
+        level.setBlock(pos, StatePropertyWriter.write(found.defaultBlockState(), values), Block.UPDATE_ALL);
     }
 }

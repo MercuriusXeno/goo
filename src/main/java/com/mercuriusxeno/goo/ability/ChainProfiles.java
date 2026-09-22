@@ -1,7 +1,10 @@
 package com.mercuriusxeno.goo.ability;
 
+import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.GooType;
 import com.mercuriusxeno.goo.ability.world.*;
+import net.minecraft.resources.Identifier;
+import org.jspecify.annotations.Nullable;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.function.IntUnaryOperator;
@@ -34,6 +37,7 @@ public final class ChainProfiles {
     private static final int GLOW_MAX_STACKS = 4;
     private static final int DEFAULT_PREVIEW_DELAY = 8;
     private static final String AREA_TUNNEL = "tunnel";
+    private static final Identifier GLOW_CRYSTAL_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "glow_crystal");
 
     private ChainProfiles() {
     }
@@ -142,18 +146,28 @@ public final class ChainProfiles {
 
     /**
      * Registers the glow chain profile. Legacy non-ability path
-     * (no abilityId selected) builds a BlockPlaceBehavior with the
-     * glow-crystal placer, matching the {@code glow_crystal} ability
-     * defaults.
+     * (no abilityId selected) runs the {@code glow_crystal} ability's
+     * own program, so both paths place the same crystal.
      */
     private static void registerGlow() {
         ChainProfile.register(GooType.GLOW, new ChainProfile(
                 GLOW_FUSE_TICKS,
                 GLOW_MAX_STACKS,
                 stacks -> 1,
-                () -> new BlockPlaceBehavior(
-                        BlockPlacerType.byName(BlockPlacerType.GLOW_CRYSTAL))
+                () -> abilityBehavior(GLOW_CRYSTAL_ABILITY)
         ));
+    }
+
+    /**
+     * Composes the behavior an ability's JSON declares, for a legacy
+     * profile whose post-fuse behavior migrated onto a program.
+     *
+     * @param ability the ability's id
+     * @return the ability's behavior, or null while the registry does not hold it
+     */
+    private static @Nullable ChainBehavior abilityBehavior(Identifier ability) {
+        AbilityDefinition definition = AbilityRegistry.getAbility(ability);
+        return definition == null ? null : new DataDrivenChainBehavior(definition);
     }
 
     /**
@@ -178,7 +192,9 @@ public final class ChainProfiles {
      * @param fuseTicks       how long the fuse window lasts
      * @param maxStacks       maximum stack count (additional blobs during fuse)
      * @param rangeFormula    computes range/depth from stack count
-     * @param behaviorFactory factory that creates a fresh {@link ChainBehavior}
+     * @param behaviorFactory factory that creates a fresh {@link ChainBehavior}, or answers
+     *                        null when the behavior it delegates to is not loaded, which
+     *                        removes the marker at fuse expiry
      */
     public record ChainProfile(
             int fuseTicks,

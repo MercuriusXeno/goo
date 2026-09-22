@@ -35,7 +35,6 @@ class HardcodedAbilityTripwireTest {
      */
     private static final Set<String> NOT_YET_MIGRATED = Set.of(
             "progressive_area",
-            "block_place",
             "metal_spikes",
             "crystal_cloud",
             "black_hole",

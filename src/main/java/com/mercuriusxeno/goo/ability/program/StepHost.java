@@ -2,6 +2,8 @@ package com.mercuriusxeno.goo.ability.program;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.resources.Identifier;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -84,4 +86,13 @@ public interface StepHost extends Variables {
      * @param source the damage source
      */
     void damageTarget(float amount, DamageKind source);
+
+    /**
+     * Writes a block at the anchor, replacing what stands there.
+     * Capability {@link HostCapability#PLACE_BLOCK}.
+     *
+     * @param block the block's registry id
+     * @param state each state property to set, by its name, to the value's name
+     */
+    void placeBlock(Identifier block, Map<String, String> state);
 }

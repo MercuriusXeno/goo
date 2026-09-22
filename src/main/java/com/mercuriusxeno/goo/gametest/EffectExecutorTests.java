@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.GooType;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
+import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -12,6 +13,7 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.block.Blocks;
+import java.util.function.BiConsumer;
 
 /**
  * Gametests for the chain marker effect executors. Each test places a chain
@@ -43,6 +45,7 @@ public final class EffectExecutorTests {
     private static final String ABILITY_INSTANT_DETONATION = "goo:unstable_instant_detonation";
     private static final String ABILITY_TIMED_BOMB = "goo:unstable_timed_bomb";
     private static final String ABILITY_PROXIMITY_MINE = "goo:unstable_proximity_mine";
+    private static final String ABILITY_GLOW_CRYSTAL = "goo:glow_crystal";
     /** Fuse of the timed bomb JSON. */
     private static final int TIMED_BOMB_FUSE = 60;
     /** Half the timed bomb fuse, where the marker must still stand. */
@@ -172,16 +175,113 @@ public final class EffectExecutorTests {
         });
     }
 
+    // --- Glow crystal program (task glow-crystal-program) ---
+
     /**
-     * Glow: places marker and verifies the crystal placement behavior runs.
+     * Stands a glow marker at the marker position on a stone support:
+     * against a wall when the placed face is horizontal, on a floor when
+     * it is up. The support sits behind the placed face, where the crystal
+     * will need it.
+     *
+     * @param helper     the gametest helper
+     * @param placedFace the face the marker was placed on
+     * @return the marker's block entity, ready for either init path
+     */
+    private static ChainMarkerBlockEntity standGlowMarker(GameTestHelper helper, Direction placedFace) {
+        helper.setBlock(MARKER_POS.relative(placedFace.getOpposite()), Blocks.STONE);
+        helper.setBlock(MARKER_POS, GooBlocks.CHAIN_MARKER.get());
+        return helper.getBlockEntity(MARKER_POS, ChainMarkerBlockEntity.class);
+    }
+
+    /**
+     * Asserts the glow crystal replaced the marker with facing from the
+     * placed face, shape bump (no flat blob) and size tiny (one stack).
+     *
+     * @param helper the gametest helper
+     * @param facing the placed face the crystal must face
+     */
+    private static void assertGlowCrystal(GameTestHelper helper, Direction facing) {
+        helper.assertBlockPresent(GooBlocks.GLOW_CRYSTAL.get(), MARKER_POS);
+        helper.assertBlockProperty(MARKER_POS, GlowCrystalBlock.FACING, facing);
+        helper.assertBlockProperty(MARKER_POS, GlowCrystalBlock.SHAPE, GlowCrystalBlock.CrystalShape.BUMP);
+        helper.assertBlockProperty(MARKER_POS, GlowCrystalBlock.SIZE, GlowCrystalBlock.CrystalSize.TINY);
+    }
+
+    /**
+     * Runs one glow crystal case: the marker stands with the given placed
+     * face, is initialized by the given path, and after the fuse the
+     * crystal stands in its place.
+     *
+     * @param helper     the gametest helper
+     * @param placedFace the face the marker was placed on
+     * @param init       the init path, legacy or ability
+     */
+    private static void glowCrystalCase(GameTestHelper helper, Direction placedFace,
+                                        BiConsumer<ChainMarkerBlockEntity, Direction> init) {
+        init.accept(standGlowMarker(helper, placedFace), placedFace);
+        helper.runAfterDelay(FUSE_TICKS + SHORT_POST_FUSE, () -> {
+            assertGlowCrystal(helper, placedFace);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Initializes a marker through the no-ability path, whose legacy glow
+     * profile runs the glow_crystal program.
+     *
+     * @param be         the marker
+     * @param placedFace the face the marker was placed on
+     */
+    private static void initGlowLegacy(ChainMarkerBlockEntity be, Direction placedFace) {
+        be.initChain(GooType.GLOW, placedFace);
+    }
+
+    /**
+     * Initializes a marker through the ability path with glow_crystal.
+     *
+     * @param helper the gametest helper, which fails when the registry lacks the ability
+     * @return the init
+     */
+    private static BiConsumer<ChainMarkerBlockEntity, Direction> initGlowAbility(GameTestHelper helper) {
+        AbilityDefinition ability = AbilityRegistry.getAbility(Identifier.parse(ABILITY_GLOW_CRYSTAL));
+        helper.assertTrue(ability != null, ABILITIES_REQUIRED);
+        return (be, placedFace) -> be.initChainFromAbility(GooType.GLOW, placedFace, ability);
+    }
+
+    /**
+     * Glow on a wall through the no-ability path.
      *
      * @param helper the gametest helper
      */
-    public static void glowRuns(GameTestHelper helper) {
-        placeMarkerWithWall(helper, GooType.GLOW);
-        helper.runAfterDelay(FUSE_TICKS + SHORT_POST_FUSE, () -> {
-            helper.succeed();
-        });
+    public static void glowWallLegacy(GameTestHelper helper) {
+        glowCrystalCase(helper, Direction.SOUTH, EffectExecutorTests::initGlowLegacy);
+    }
+
+    /**
+     * Glow on a floor through the no-ability path.
+     *
+     * @param helper the gametest helper
+     */
+    public static void glowFloorLegacy(GameTestHelper helper) {
+        glowCrystalCase(helper, Direction.UP, EffectExecutorTests::initGlowLegacy);
+    }
+
+    /**
+     * Glow on a wall through the ability path.
+     *
+     * @param helper the gametest helper
+     */
+    public static void programGlowWall(GameTestHelper helper) {
+        glowCrystalCase(helper, Direction.SOUTH, initGlowAbility(helper));
+    }
+
+    /**
+     * Glow on a floor through the ability path.
+     *
+     * @param helper the gametest helper
+     */
+    public static void programGlowFloor(GameTestHelper helper) {
+        glowCrystalCase(helper, Direction.UP, initGlowAbility(helper));
     }
 
     // --- Data-driven ability path ---
