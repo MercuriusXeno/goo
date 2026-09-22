@@ -2,21 +2,16 @@ package com.mercuriusxeno.goo.client.model;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.client.CuboidBounds;
-import com.mercuriusxeno.goo.client.RenderContext;
+import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.item.ContainerCapacity;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.VatBlockItem;
 import com.mercuriusxeno.goo.registry.GooEnchantments;
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.QuadInstance;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.client.renderer.SubmitNodeCollector;
-import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.special.SpecialModelRenderer;
-import net.minecraft.client.renderer.texture.OverlayTexture;
-import net.minecraft.client.resources.model.geometry.BakedQuad;
-import net.minecraft.client.resources.model.geometry.QuadCollection;
-import net.minecraft.resources.Identifier;
+import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.ItemStack;
 import org.joml.Vector3f;
@@ -25,17 +20,13 @@ import org.jspecify.annotations.Nullable;
 import java.util.function.Consumer;
 
 /**
- * Special item renderer for vat items. Renders the vat shell model and fluid
- * fill quads inside the vat body. Reads goo contents from item data components
- * (vats retain goo when picked up).
+ * Special item renderer for vat items. Submits the vat shell model and the
+ * fluid fill through {@link GooSubmitter}, which owns the render type, the
+ * lightmap rule and the sprite (decision shared-submission-entry-point).
+ * Reads goo contents from item data components (vats retain goo when
+ * picked up).
  */
 public class VatSpecialRenderer implements SpecialModelRenderer<VatSpecialRenderer.VatData> {
-
-    /**
-     * Block atlas texture path for fluid sprite lookups.
-     */
-    private static final Identifier BLOCK_ATLAS_TEXTURE =
-            Identifier.withDefaultNamespace("textures/atlas/blocks.png");
 
     // -- Vat geometry in block coords --
 
@@ -63,10 +54,6 @@ public class VatSpecialRenderer implements SpecialModelRenderer<VatSpecialRender
      * Vat full top (y=16px).
      */
     private static final float VAT_TOP = 1f;
-    /**
-     * Fully opaque white in ARGB for untinted quad rendering.
-     */
-    private static final int OPAQUE_WHITE = 0xFFFFFFFF;
 
     /**
      * Inset from body walls to avoid z-fighting with fluid surfaces (0.5px).
@@ -85,7 +72,8 @@ public class VatSpecialRenderer implements SpecialModelRenderer<VatSpecialRender
     }
 
     /**
-     * Submits the baked vat shell model (cap + body + base).
+     * Submits the baked vat shell model (cap + body + base) through the
+     * submitter at the item's packed light.
      *
      * @param poseStack     the pose stack for rendering
      * @param nodeCollector the render node collector
@@ -93,38 +81,25 @@ public class VatSpecialRenderer implements SpecialModelRenderer<VatSpecialRender
      */
     private static void submitShell(PoseStack poseStack, SubmitNodeCollector nodeCollector,
                                     int packedLight) {
-        QuadCollection model = VatBodyModels.getModel();
-        nodeCollector.submitCustomGeometry(poseStack,
-                RenderTypes.entityTranslucent(BLOCK_ATLAS_TEXTURE),
-                (pose, c) -> {
-                    QuadInstance qi = new QuadInstance();
-                    qi.setColor(OPAQUE_WHITE);
-                    qi.setLightCoords(packedLight);
-                    qi.setOverlayCoords(OverlayTexture.NO_OVERLAY);
-                    for (BakedQuad quad : model.getAll()) {
-                        c.putBakedQuad(pose, quad, qi);
-                    }
-                });
+        GooSubmitter.submitBakedBody(poseStack, nodeCollector, packedLight, VatBodyModels.getModel());
     }
 
     /**
-     * Submits fluid surface geometry inside the vat body.
-     * Renders top face + 4 side faces from body bottom up to the fill level.
+     * Submits fluid surface geometry inside the vat body through the
+     * submitter: the top face and four side faces from body bottom up to
+     * the fill level, on the sprite the submitter resolves for the type.
      *
      * @param poseStack     the pose stack for rendering
      * @param nodeCollector the render node collector
-     * @param packedLight   the packed light value
      * @param type          the goo type
      * @param fill          the fill fraction in [0, 1]
      */
-    private static void submitFluid(PoseStack poseStack,
-                                    SubmitNodeCollector nodeCollector, int packedLight,
+    private static void submitFluid(PoseStack poseStack, SubmitNodeCollector nodeCollector,
                                     ResourceKey<GooTypeDefinition> type, float fill) {
         CuboidBounds b = computeFluidBounds(fill);
-        nodeCollector.submitCustomGeometry(poseStack,
-                RenderTypes.entityTranslucent(BLOCK_ATLAS_TEXTURE),
-                (pose, c) -> FluidFaceEmitter.emitFluidFaces(
-                        new RenderContext(pose, c, packedLight), b, type));
+        TextureAtlasSprite sprite = GooSubmitter.fluidSprite(type);
+        GooSubmitter.submitFluid(poseStack, nodeCollector,
+                ctx -> FluidFaceEmitter.emitFluidFaces(ctx, b, sprite, ctx.color()));
     }
 
     /**
@@ -162,7 +137,9 @@ public class VatSpecialRenderer implements SpecialModelRenderer<VatSpecialRender
     }
 
     /**
-     * Renders the vat shell and fluid fill for the item.
+     * Renders the vat shell and fluid fill for the item. The shell takes the
+     * item's packed light as its world light; the fluid takes the
+     * submitter's lightmap rule.
      *
      * @param data          the extracted render data
      * @param poseStack     the pose stack for rendering
@@ -181,7 +158,7 @@ public class VatSpecialRenderer implements SpecialModelRenderer<VatSpecialRender
         submitShell(poseStack, nodeCollector, packedLight);
 
         if (data != null && data.gooType() != null && data.fill() > 0f) {
-            submitFluid(poseStack, nodeCollector, packedLight, data.gooType(), data.fill());
+            submitFluid(poseStack, nodeCollector, data.gooType(), data.fill());
         }
 
         poseStack.popPose();

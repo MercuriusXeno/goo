@@ -9,8 +9,8 @@ import com.mercuriusxeno.goo.block.gasket.GasketAttachment;
 import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
 import com.mercuriusxeno.goo.block.gasket.GasketPusher;
 import com.mercuriusxeno.goo.block.gasket.IGasketHolder;
-import com.mercuriusxeno.goo.data.GasketLocation;
-import com.mercuriusxeno.goo.data.GasketRegistry;
+import com.mercuriusxeno.goo.block.gasket.SlotGasketPusher;
+import com.mercuriusxeno.goo.block.gasket.SlotGasketRegistration;
 import com.mercuriusxeno.goo.item.*;
 import com.mercuriusxeno.goo.item.gasket.GasketPartner;
 import com.mercuriusxeno.goo.item.gasket.GasketRegionResolver;
@@ -144,26 +144,6 @@ public class CanisterBlockEntity extends BlockEntity implements ICanisterHolder,
         }
         if (meta != null && meta.hasData()) {
             CanisterItem.setMetadata(stack, meta);
-        }
-    }
-
-    private static boolean slotNeedsPusher(CanisterSlot slot) {
-        if (slot.handler() == null || slot.isEmpty()) {
-            return false;
-        }
-        CanisterMetadata meta = CanisterItem.getMetadata(slot.canister());
-        return meta.bottomGasketId() != null && meta.bottomPartner() != null;
-    }
-
-    private static void registerFace(GasketRegistry registry, @Nullable UUID id, GasketLocation location) {
-        if (id != null) {
-            registry.updateLocation(id, location);
-        }
-    }
-
-    private static void deregisterFace(GasketRegistry registry, @Nullable UUID id) {
-        if (id != null) {
-            registry.updateLocation(id, null);
         }
     }
 
@@ -310,21 +290,7 @@ public class CanisterBlockEntity extends BlockEntity implements ICanisterHolder,
         if (slot == null) {
             return;
         }
-        slot.disposePusher();
-        if (!slotNeedsPusher(slot)) {
-            return;
-        }
-        slot.setPusher(buildPusher(slot));
-    }
-
-    private GasketPusher buildPusher(CanisterSlot slot) {
-        GasketPusher pusher = new GasketPusher(slot.handler(),
-                () -> CanisterItem.getMetadata(slot.canister()).bottomGasketId(),
-                () -> CanisterItem.getMetadata(slot.canister()).bottomPartner(),
-                this::getLevel, this::getBlockPos,
-                slot::syncHandlerToStack, gasket.registryAccess());
-        pusher.rebuildCache();
-        return pusher;
+        SlotGasketPusher.rebuild(slot, this, gasket.registryAccess());
     }
 
     /**
@@ -344,34 +310,12 @@ public class CanisterBlockEntity extends BlockEntity implements ICanisterHolder,
      * @param slotIndex the slot index
      */
     private void registerSlotGaskets(int slotIndex) {
-        if (gasket.registryAccess() == null || !(level instanceof ServerLevel serverLevel)) {
-            return;
-        }
-        CanisterSlot slot = state.slots[slotIndex];
-        if (slot.isEmpty()) {
-            return;
-        }
-        CanisterMetadata meta = CanisterItem.getMetadata(slot.canister());
-        GasketRegistry registry = gasket.registryAccess().get();
-        ResourceKey<Level> dimension = serverLevel.dimension();
-        registerFace(registry, meta.topGasketId(),
-                new GasketLocation(dimension, worldPosition, true, slotIndex));
-        registerFace(registry, meta.bottomGasketId(),
-                new GasketLocation(dimension, worldPosition, false, slotIndex));
+        SlotGasketRegistration.register(gasket.registryAccess(), level, worldPosition,
+                slotIndex, getSlotMetadata(slotIndex));
     }
 
     private void deregisterSlotGaskets(int slotIndex) {
-        if (gasket.registryAccess() == null) {
-            return;
-        }
-        CanisterSlot slot = state.slots[slotIndex];
-        if (slot.isEmpty()) {
-            return;
-        }
-        CanisterMetadata meta = CanisterItem.getMetadata(slot.canister());
-        GasketRegistry registry = gasket.registryAccess().get();
-        deregisterFace(registry, meta.topGasketId());
-        deregisterFace(registry, meta.bottomGasketId());
+        SlotGasketRegistration.deregister(gasket.registryAccess(), getSlotMetadata(slotIndex));
     }
 
     private void deregisterAllGaskets() {

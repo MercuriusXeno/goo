@@ -120,8 +120,20 @@ final class GooCapabilityRegistration {
     static void registerGasketBlockCapabilities(RegisterCapabilitiesEvent event) {
         registerCanisterGasketBlock(event);
         registerHubGasketBlock(event);
+        registerReactorGasketBlock(event);
         registerSimpleGasketBlocks(event);
         registerChoralGasketBlock(event);
+    }
+
+    /**
+     * Registers GASKET_BLOCK for the reactor: scans its output slot for a gasket UUID match.
+     *
+     * @param event the capability registration event
+     */
+    static void registerReactorGasketBlock(RegisterCapabilitiesEvent event) {
+        event.registerBlockEntity(GooCapabilities.GASKET_BLOCK,
+                GooBlockEntities.REACTOR.get(),
+                (be, gasketId) -> findSlotForGasket(be, be.containerState().maxSlots(), gasketId));
     }
 
     /**

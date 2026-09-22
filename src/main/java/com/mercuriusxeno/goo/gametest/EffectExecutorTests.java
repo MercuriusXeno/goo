@@ -4,8 +4,10 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
+import com.mercuriusxeno.goo.ability.AbilityMath;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
+import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -13,7 +15,9 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import java.util.function.BiConsumer;
 
 /**
  * Gametests for the chain marker effect executors. Each test places a chain
@@ -35,6 +39,7 @@ public final class EffectExecutorTests {
     /** Extra ticks for simpler instant/short behaviors. */
     private static final int SHORT_POST_FUSE = 5;
     private static final String VALUES_REQUIRED = "Goo values must be loaded for rock mining to work";
+    private static final int WALL_X_MIN = 0;
     private static final int WALL_X_MAX = 5;
     private static final int WALL_Y_MAX = 3;
     private static final int WALL_Z_MAX = 2;
@@ -45,6 +50,7 @@ public final class EffectExecutorTests {
     private static final String ABILITY_INSTANT_DETONATION = "goo:unstable_instant_detonation";
     private static final String ABILITY_TIMED_BOMB = "goo:unstable_timed_bomb";
     private static final String ABILITY_PROXIMITY_MINE = "goo:unstable_proximity_mine";
+    private static final String ABILITY_GLOW_CRYSTAL = "goo:glow_crystal";
     /** Fuse of the timed bomb JSON. */
     private static final int TIMED_BOMB_FUSE = 60;
     /** Half the timed bomb fuse, where the marker must still stand. */
@@ -64,15 +70,7 @@ public final class EffectExecutorTests {
      * @param type   the goo type for the chain marker
      */
     private static void placeMarkerWithWall(GameTestHelper helper, ResourceKey<GooTypeDefinition> type) {
-        // Fill a 5x3x3 wall of stone north of the marker (z=0..2, x=1..5, y=1..3)
-        for (int x = 1; x <= WALL_X_MAX; x++) {
-            for (int y = 1; y <= WALL_Y_MAX; y++) {
-                for (int z = 0; z <= WALL_Z_MAX; z++) {
-                    helper.setBlock(new BlockPos(x, y, z), Blocks.STONE);
-                }
-            }
-        }
-        // Place marker in air just south of the wall
+        fillWall(helper, Blocks.STONE);
         helper.setBlock(MARKER_POS, GooBlocks.CHAIN_MARKER.get());
         ChainMarkerBlockEntity be = helper.getBlockEntity(MARKER_POS, ChainMarkerBlockEntity.class);
         be.initChain(type, Direction.SOUTH);
@@ -174,37 +172,144 @@ public final class EffectExecutorTests {
         });
     }
 
+    // --- Glow crystal program (task glow-crystal-program) ---
+
     /**
-     * Glow: places marker and verifies the crystal placement behavior runs.
+     * Stands a glow marker at the marker position on a stone support:
+     * against a wall when the placed face is horizontal, on a floor when
+     * it is up. The support sits behind the placed face, where the crystal
+     * will need it.
+     *
+     * @param helper     the gametest helper
+     * @param placedFace the face the marker was placed on
+     * @return the marker's block entity, ready for either init path
+     */
+    private static ChainMarkerBlockEntity standGlowMarker(GameTestHelper helper, Direction placedFace) {
+        helper.setBlock(MARKER_POS.relative(placedFace.getOpposite()), Blocks.STONE);
+        helper.setBlock(MARKER_POS, GooBlocks.CHAIN_MARKER.get());
+        return helper.getBlockEntity(MARKER_POS, ChainMarkerBlockEntity.class);
+    }
+
+    /**
+     * Asserts the glow crystal replaced the marker with facing from the
+     * placed face, shape bump (no flat blob) and size tiny (one stack).
+     *
+     * @param helper the gametest helper
+     * @param facing the placed face the crystal must face
+     */
+    private static void assertGlowCrystal(GameTestHelper helper, Direction facing) {
+        helper.assertBlockPresent(GooBlocks.GLOW_CRYSTAL.get(), MARKER_POS);
+        helper.assertBlockProperty(MARKER_POS, GlowCrystalBlock.FACING, facing);
+        helper.assertBlockProperty(MARKER_POS, GlowCrystalBlock.SHAPE, GlowCrystalBlock.CrystalShape.BUMP);
+        helper.assertBlockProperty(MARKER_POS, GlowCrystalBlock.SIZE, GlowCrystalBlock.CrystalSize.TINY);
+    }
+
+    /**
+     * Runs one glow crystal case: the marker stands with the given placed
+     * face, is initialized by the given path, and after the fuse the
+     * crystal stands in its place.
+     *
+     * @param helper     the gametest helper
+     * @param placedFace the face the marker was placed on
+     * @param init       the init path, legacy or ability
+     */
+    private static void glowCrystalCase(GameTestHelper helper, Direction placedFace,
+                                        BiConsumer<ChainMarkerBlockEntity, Direction> init) {
+        init.accept(standGlowMarker(helper, placedFace), placedFace);
+        helper.runAfterDelay(FUSE_TICKS + SHORT_POST_FUSE, () -> {
+            assertGlowCrystal(helper, placedFace);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Initializes a marker through the no-ability path, whose legacy glow
+     * profile runs the glow_crystal program.
+     *
+     * @param be         the marker
+     * @param placedFace the face the marker was placed on
+     */
+    private static void initGlowLegacy(ChainMarkerBlockEntity be, Direction placedFace) {
+        be.initChain(GooTypes.GLOW, placedFace);
+    }
+
+    /**
+     * Initializes a marker through the ability path with glow_crystal.
+     *
+     * @param helper the gametest helper, which fails when the registry lacks the ability
+     * @return the init
+     */
+    private static BiConsumer<ChainMarkerBlockEntity, Direction> initGlowAbility(GameTestHelper helper) {
+        AbilityDefinition ability = AbilityRegistry.getAbility(Identifier.parse(ABILITY_GLOW_CRYSTAL));
+        helper.assertTrue(ability != null, ABILITIES_REQUIRED);
+        return (be, placedFace) -> be.initChainFromAbility(GooTypes.GLOW, placedFace, ability);
+    }
+
+    /**
+     * Glow on a wall through the no-ability path.
      *
      * @param helper the gametest helper
      */
-    public static void glowRuns(GameTestHelper helper) {
-        placeMarkerWithWall(helper, GooTypes.GLOW);
-        helper.runAfterDelay(FUSE_TICKS + SHORT_POST_FUSE, () -> {
-            helper.succeed();
-        });
+    public static void glowWallLegacy(GameTestHelper helper) {
+        glowCrystalCase(helper, Direction.SOUTH, EffectExecutorTests::initGlowLegacy);
+    }
+
+    /**
+     * Glow on a floor through the no-ability path.
+     *
+     * @param helper the gametest helper
+     */
+    public static void glowFloorLegacy(GameTestHelper helper) {
+        glowCrystalCase(helper, Direction.UP, EffectExecutorTests::initGlowLegacy);
+    }
+
+    /**
+     * Glow on a wall through the ability path.
+     *
+     * @param helper the gametest helper
+     */
+    public static void programGlowWall(GameTestHelper helper) {
+        glowCrystalCase(helper, Direction.SOUTH, initGlowAbility(helper));
+    }
+
+    /**
+     * Glow on a floor through the ability path.
+     *
+     * @param helper the gametest helper
+     */
+    public static void programGlowFloor(GameTestHelper helper) {
+        glowCrystalCase(helper, Direction.UP, initGlowAbility(helper));
     }
 
     // --- Data-driven ability path ---
 
     /**
+     * Fills the wall region north of the marker with one block.
+     *
+     * @param helper the gametest helper
+     * @param block  the block to fill with
+     */
+    private static void fillWall(GameTestHelper helper, Block block) {
+        for (int x = WALL_X_MIN; x <= WALL_X_MAX; x++) {
+            for (int y = 1; y <= WALL_Y_MAX; y++) {
+                for (int z = 0; z <= WALL_Z_MAX; z++) {
+                    helper.setBlock(new BlockPos(x, y, z), block);
+                }
+            }
+        }
+    }
+
+    /**
      * Places a chain marker initialized via the ability path instead of
-     * the legacy ChainProfile path. Covers DataDrivenChainBehavior,
-     * ProgressiveAreaBlock, and the BehaviorType factory.
+     * the legacy ChainProfile path, facing north into whatever fills the
+     * wall region. Covers DataDrivenChainBehavior, the BehaviorType
+     * factory and the program the ability declares.
      *
      * @param helper    the gametest helper
      * @param type      the goo type
      * @param abilityId the ability identifier string
      */
     private static void placeMarkerWithAbility(GameTestHelper helper, ResourceKey<GooTypeDefinition> type, String abilityId) {
-        for (int x = 1; x <= WALL_X_MAX; x++) {
-            for (int y = 1; y <= WALL_Y_MAX; y++) {
-                for (int z = 0; z <= WALL_Z_MAX; z++) {
-                    helper.setBlock(new BlockPos(x, y, z), Blocks.STONE);
-                }
-            }
-        }
         helper.setBlock(MARKER_POS, GooBlocks.CHAIN_MARKER.get());
         ChainMarkerBlockEntity be = helper.getBlockEntity(MARKER_POS, ChainMarkerBlockEntity.class);
         AbilityDefinition ability = AbilityRegistry.getAbility(Identifier.parse(abilityId));
@@ -213,12 +318,13 @@ public final class EffectExecutorTests {
     }
 
     /**
-     * Blaze tunnel via the data-driven ability path. Exercises
-     * DataDrivenChainBehavior -> ProgressiveAreaBlock -> BlazeExecutor.
+     * Blaze tunnel via the data-driven ability path: the progressive_area
+     * program with the fortune-smelt effect mines the struck block.
      *
      * @param helper the gametest helper
      */
     public static void abilityBlazeTunnel(GameTestHelper helper) {
+        fillWall(helper, Blocks.STONE);
         placeMarkerWithAbility(helper, GooTypes.BLAZE, ABILITY_BLAZE_TUNNEL);
         BlockPos target = MARKER_POS.north();
         helper.runAfterDelay(FUSE_TICKS + MINING_POST_FUSE, () -> {
@@ -228,30 +334,48 @@ public final class EffectExecutorTests {
     }
 
     /**
-     * Rock tunnel via the data-driven ability path. Exercises
-     * DataDrivenChainBehavior -> ProgressiveAreaBlock -> RockExecutor.
+     * Rock tunnel via the data-driven ability path: one stack mines the
+     * one-block footprint at layer 0, the struck block itself, and leaves
+     * the block behind it and the blocks beside it standing.
      *
      * @param helper the gametest helper
      */
     public static void abilityRockTunnel(GameTestHelper helper) {
         helper.assertTrue(Goo.GOO_VALUES.size() > 0, VALUES_REQUIRED);
+        fillWall(helper, Blocks.STONE);
         placeMarkerWithAbility(helper, GooTypes.ROCK, ABILITY_ROCK_TUNNEL);
-        BlockPos target = MARKER_POS.north();
+        BlockPos struck = MARKER_POS.north();
         helper.runAfterDelay(FUSE_TICKS + MINING_POST_FUSE, () -> {
-            helper.assertBlockNotPresent(Blocks.STONE, target);
+            helper.assertBlockNotPresent(Blocks.STONE, struck);
+            helper.assertBlockPresent(Blocks.STONE, struck.north());
+            helper.assertBlockPresent(Blocks.STONE, struck.east());
+            helper.assertBlockPresent(Blocks.STONE, struck.west());
+            helper.assertBlockPresent(Blocks.STONE, struck.above());
             helper.succeed();
         });
     }
 
     /**
-     * Frost sphere via the data-driven ability path. Exercises
-     * DataDrivenChainBehavior -> ProgressiveAreaBlock -> FrostBehavior.
+     * Frost sphere via the data-driven ability path, thrown at water: the
+     * shells out to the freeze radius, centered one block into the water,
+     * turn the water to magicked ice, and the water one block past the
+     * radius stays water.
      *
      * @param helper the gametest helper
      */
     public static void abilityFrostSphere(GameTestHelper helper) {
+        fillWall(helper, Blocks.WATER);
         placeMarkerWithAbility(helper, GooTypes.FROST, ABILITY_FROST_SPHERE);
+        BlockPos center = MARKER_POS.north();
+        int reach = AbilityMath.computeFreezeRadius(1) - 1;
         helper.runAfterDelay(FUSE_TICKS + MINING_POST_FUSE, () -> {
+            Block ice = GooBlocks.MAGICKED_ICE.get();
+            helper.assertBlockPresent(ice, center);
+            helper.assertBlockPresent(ice, center.north(reach));
+            helper.assertBlockPresent(ice, center.east(reach));
+            helper.assertBlockPresent(ice, center.west(reach));
+            helper.assertBlockPresent(ice, center.above(reach));
+            helper.assertBlockPresent(Blocks.WATER, center.west(reach + 1));
             helper.succeed();
         });
     }

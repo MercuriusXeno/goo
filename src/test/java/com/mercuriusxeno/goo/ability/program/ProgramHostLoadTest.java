@@ -1,7 +1,9 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Test;
 import java.util.List;
+import java.util.Map;
 import java.util.OptionalDouble;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -104,6 +106,33 @@ class ProgramHostLoadTest {
                 new ExplodeStep(expr("2.5 + 1.0 * (stacks - 1)"), ExplosionMode.TNT));
 
         assertDoesNotThrow(() -> ProgramBehavior.forHost(mine, HostKind.MARKER));
+    }
+
+    @Test
+    void glowCrystalProgramLoadsForTheMarkerHostAndRefusesTheEntityHost() {
+        List<Step> glow = List.of(new PlaceBlockStep(Identifier.parse("goo:glow_crystal"), Map.of(
+                "facing", new StateValue.PlacedFace(),
+                "size", new StateValue.Pick(expr("stacks - 1"), List.of("tiny", "large")))));
+
+        assertDoesNotThrow(() -> ProgramBehavior.forHost(glow, HostKind.MARKER));
+        ProgramLoadException refusal = assertThrows(ProgramLoadException.class,
+                () -> ProgramBehavior.forHost(glow, HostKind.ENTITY));
+
+        assertTrue(refusal.getMessage().contains("place_block"), refusal.getMessage());
+        assertTrue(refusal.getMessage().contains(ENTITY_LABEL), refusal.getMessage());
+    }
+
+    @Test
+    void progressiveAreaProgramLoadsForTheMarkerHostAndRefusesTheEntityHost() {
+        List<Step> rock = List.of(new ProgressiveAreaStep(AreaShape.TUNNEL, "silk_break", "rock_dust",
+                "stone_break", Expr.literal(8)));
+
+        assertDoesNotThrow(() -> ProgramBehavior.forHost(rock, HostKind.MARKER));
+        ProgramLoadException refusal = assertThrows(ProgramLoadException.class,
+                () -> ProgramBehavior.forHost(rock, HostKind.ENTITY));
+
+        assertTrue(refusal.getMessage().contains("progressive_area"), refusal.getMessage());
+        assertTrue(refusal.getMessage().contains(ENTITY_LABEL), refusal.getMessage());
     }
 
     @Test

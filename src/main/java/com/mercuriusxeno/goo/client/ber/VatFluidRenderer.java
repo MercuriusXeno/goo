@@ -1,12 +1,10 @@
 package com.mercuriusxeno.goo.client.ber;
 
-import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.RenderContext;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.Direction;
-import net.minecraft.resources.ResourceKey;
 
 /**
  * Fluid geometry and stack-fill computation helpers for {@link VatBlockEntityRenderer}.
@@ -36,22 +34,21 @@ final class VatFluidRenderer {
     }
 
     /**
-     * Renders this vat's portion of the unified fluid column.
-     * Computes local floor/ceiling from stack position, then determines
-     * how much of this vat's interior is submerged.
+     * Renders this vat's portion of the unified fluid column on the sprite
+     * the submitter resolved. Computes local floor/ceiling from stack
+     * position, then determines how much of this vat's interior is submerged.
      *
-     * @param ctx   the render context
-     * @param type  the goo type
-     * @param state the block state
+     * @param ctx    the render context
+     * @param sprite the fluid sprite of the dominant goo type
+     * @param state  the block state
      */
-    static void renderFluid(RenderContext ctx, ResourceKey<GooTypeDefinition> type, VatRenderState state) {
+    static void renderFluid(RenderContext ctx, TextureAtlasSprite sprite, VatRenderState state) {
         float localFloor = state.vatBelow ? 0f : VatBlockEntityRenderer.BASE_FLOOR;
         float localCeiling = state.vatAbove ? 1.0f : VatBlockEntityRenderer.CAP_CEILING;
         float localFill = computeLocalFill(state, localFloor, localCeiling);
         if (localFill <= 0f) { return; }
 
         CuboidBounds b = computeVatCuboidBounds(state, localFloor, localFill);
-        TextureAtlasSprite sprite = GooRenderUtil.lookupFluidSprite(type);
         renderVatTopFaces(ctx, b, sprite, localCeiling - localFloor, localFill);
         renderVatSideFaces(ctx, b, sprite, localCeiling - localFloor);
     }
