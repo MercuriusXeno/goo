@@ -31,9 +31,9 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 /**
- * Each migrated mob ability JSON is a program that, run on a Mockito
- * struck-entity host, makes the same effect and damage calls its deleted
- * handler made (task mob-effect-programs).
+ * Each mob ability JSON is a program that, run on a Mockito struck-entity
+ * host, makes the same effect, damage and world calls its deleted handler
+ * made (tasks mob-effect-programs and mob-world-programs).
  */
 class MobProgramTest {
 
@@ -96,6 +96,8 @@ class MobProgramTest {
     private static final int INDICATOR_COUNT = 15;
     private static final double INDICATOR_SPREAD_ALONG = 0.5;
     private static final double INDICATOR_SPREAD_ACROSS = 1.5;
+    private static final double TELEPORT_RANGE = 32;
+    private static final String ENDERMAN_TELEPORT = "minecraft:entity.enderman.teleport";
 
     private static AbilityDefinition ability(String name) {
         String path = ABILITIES_DIR + name + JSON_SUFFIX;
@@ -323,6 +325,19 @@ class MobProgramTest {
         order.verify(host).spawnParticles(FxAnchor.TARGET, new ParticleBurst(Identifier.parse(DAMAGE_INDICATOR),
                 INDICATOR_COUNT, INDICATOR_SPREAD_ALONG, INDICATOR_SPREAD_ACROSS, 0, 0));
         verify(host, never()).damageTarget(SPLASH_DAMAGE, DamageKind.MAGIC);
+    }
+
+    @Test
+    void enderTeleportJumpsTheTargetThenPlaysTheEndermanSoundThere() {
+        StepHost host = entityHost();
+
+        run("ender_teleport", host);
+
+        InOrder order = inOrder(host);
+        order.verify(host).teleportTarget(TeleportMode.RANDOM_OFFSET, TELEPORT_RANGE);
+        order.verify(host).playSound(FxAnchor.TARGET,
+                new SoundCue(Identifier.parse(ENDERMAN_TELEPORT), SoundKind.HOSTILE, 1, 1));
+        verifyNoMoreInteractions(host);
     }
 
     @Test

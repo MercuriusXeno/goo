@@ -26,7 +26,6 @@ public final class BehaviorType {
         register("metal_spikes", (e, d) -> new MetalBehavior());
         register("crystal_cloud", (e, d) -> new CrystalBehavior());
         register("black_hole", (e, d) -> new NetherBehavior());
-        register("entity_effect", MobAbilityBehavior::fromEntry);
     }
 
     private BehaviorType() {

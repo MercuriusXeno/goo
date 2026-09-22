@@ -48,6 +48,8 @@ public final class StepTypes {
         register(IgniteStep.TYPE);
         register(EntitiesStep.TYPE);
         register(ParticlesStep.TYPE);
+        register(SoundStep.TYPE);
+        register(TeleportStep.TYPE);
     }
 
     private StepTypes() {

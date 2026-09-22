@@ -1,9 +1,7 @@
 package com.mercuriusxeno.goo.gametest;
 
-import com.mercuriusxeno.goo.GooType;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
-import com.mercuriusxeno.goo.ability.mob.*;
 import com.mercuriusxeno.goo.ability.program.EntityHost;
 import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
@@ -13,11 +11,12 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.phys.Vec3;
 
 /**
- * Gametests for the 16 per-goo-type mob effects. Each test spawns a mob,
- * applies the effect, and asserts the expected outcome (damage, status
- * effect, fire, AI state, etc.).
+ * Gametests for the mob abilities, each a program on the struck entity
+ * host: each test spawns a mob, runs the ability's programs on it and
+ * asserts the outcome (damage, status effect, fire, AI state, a move).
  */
 public final class MobEffectTests {
 
@@ -52,6 +51,14 @@ public final class MobEffectTests {
     private static final String ABILITY_BLAZE_IGNITE = "goo:blaze_ignite";
     private static final String ABILITY_GLOW_LASER = "goo:glow_laser";
     private static final String ABILITY_CRYSTAL_FLECHETTES = "goo:crystal_flechettes";
+    private static final String ABILITY_ENDER_TELEPORT = "goo:ender_teleport";
+    private static final String SHOULD_HAVE_MOVED = "Target should stand somewhere else";
+    private static final String SHOULD_STAY_IN_RANGE = "Target should land within sixteen blocks on each axis";
+    private static final String SHOULD_KEEP_HEIGHT = "Target should keep its height";
+    /** A jump the random offset misses with vanishing odds. */
+    private static final double TELEPORT_MIN_MOVE = 0.01;
+    /** Half of ender_teleport.json's range of 32. */
+    private static final double TELEPORT_MAX_AXIS_MOVE = 16.0;
     private static final String BYSTANDER_SHOULD_TAKE_SPLASH = "Bystander should have taken the splash damage";
     /** The damage crystal_flechettes.json's first damage step names. */
     private static final float FLECHETTE_DAMAGE = 4.0f;
@@ -278,13 +285,21 @@ public final class MobEffectTests {
     }
 
     /**
-     * Ender teleport moves the target (just verify no crash).
+     * Ender teleport is a program: a random_offset teleport of range 32
+     * and the enderman teleport sound, so the cow stands somewhere else
+     * within sixteen blocks on each horizontal axis at the same height.
      *
      * @param helper the gametest helper
      */
     public static void enderTeleport(GameTestHelper helper) {
         Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
-        EnderTeleport.apply(helper.getLevel(), mob);
+        Vec3 before = mob.position();
+        runEntityPrograms(helper, mob, ABILITY_ENDER_TELEPORT);
+        Vec3 after = mob.position();
+        helper.assertTrue(after.distanceTo(before) > TELEPORT_MIN_MOVE, SHOULD_HAVE_MOVED);
+        helper.assertTrue(Math.abs(after.x - before.x) <= TELEPORT_MAX_AXIS_MOVE, SHOULD_STAY_IN_RANGE);
+        helper.assertTrue(Math.abs(after.z - before.z) <= TELEPORT_MAX_AXIS_MOVE, SHOULD_STAY_IN_RANGE);
+        helper.assertTrue(after.y == before.y, SHOULD_KEEP_HEIGHT);
         helper.succeed();
     }
 
@@ -314,19 +329,6 @@ public final class MobEffectTests {
         helper.assertTrue(mob.isNoAi(), SHOULD_HAVE_NO_AI);
         helper.assertTrue(mob.isInvulnerable(), SHOULD_BE_INVULNERABLE);
         helper.assertTrue(mob.hasEffect(MobEffects.GLOWING), SHOULD_HAVE_GLOWING);
-        helper.succeed();
-    }
-
-    /**
-     * MobAbilities.apply() routes a goo type to the handler still standing
-     * for it; ender is the type checked while its handler awaits migration,
-     * and its random offset leaves nothing to assert beyond the run.
-     *
-     * @param helper the gametest helper
-     */
-    public static void dispatcherRoutes(GameTestHelper helper) {
-        Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
-        MobAbilities.apply(helper.getLevel(), mob, GooType.ENDER, null);
         helper.succeed();
     }
 }
