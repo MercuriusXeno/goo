@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.*;
 import com.mercuriusxeno.goo.ability.ChainProfiles.ChainProfile;
+import com.mercuriusxeno.goo.ability.program.ProgressiveAreaStep;
 import com.mercuriusxeno.goo.block.BlockEntitySync;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mercuriusxeno.goo.registry.GooBlocks;
@@ -28,11 +29,9 @@ import org.jspecify.annotations.Nullable;
  * Ticking block entity for chain effects. Owns only the shared state:
  * goo type, stack count, fuse countdown, placed face. The type-specific
  * post-fuse behavior is delegated to a {@link ChainBehavior} instance
- * created from the goo type's profile at fuse expiry.
- *
- * <p>Rock progressive mining is currently still inline here under the
- * legacy {@code layerExecutor} path; it will be extracted into a
- * RockBehavior in a follow-up pass.
+ * created from the goo type's profile at fuse expiry. A layer walk
+ * reports its struck layers here through the marker host, and the ghost
+ * outline reads them back.
  */
 public class ChainMarkerBlockEntity extends BlockEntity {
 
@@ -53,18 +52,11 @@ public class ChainMarkerBlockEntity extends BlockEntity {
     private static final String TAG_AREA_MODE = "AreaMode";
     private static final String TAG_LAST_STACK_TICK = "LastStackTick";
     private static final String TAG_ABILITY_ID = "AbilityId";
+    private static final String TAG_MINED_LAYERS = "MinedLayers";
     /**
      * Default area mode for legacy profiles.
      */
     private static final String DEFAULT_AREA_MODE = "tunnel";
-    /**
-     * Behavior type key for progressive_area (used to extract areaMode).
-     */
-    private static final String PROGRESSIVE_AREA_TYPE = "progressive_area";
-    /**
-     * Param key for area mode in progressive_area behaviors.
-     */
-    private static final String PARAM_AREA_MODE = "areaMode";
     /**
      * Empty ability id sentinel for legacy ChainProfile path.
      */
@@ -97,6 +89,11 @@ public class ChainMarkerBlockEntity extends BlockEntity {
      */
     private long lastStackTick;
     /**
+     * Layers a running layer walk has struck, reported by its program and
+     * read by the ghost outline renderer.
+     */
+    private int minedLayers;
+    /**
      * Active post-fuse behavior; null during FUSE phase. Set at fuse
      * expiry when the profile has a behavior factory, and nulled out
      * implicitly when the BE removes itself.
@@ -119,18 +116,19 @@ public class ChainMarkerBlockEntity extends BlockEntity {
     }
 
     /**
-     * Extracts the areaMode from the first progressive_area behavior entry.
+     * Reads the area mode the ghost outline draws from the first
+     * progressive_area step of the ability's programs.
      *
      * @param ability the ability definition
-     * @return the area mode string, or "tunnel" if none found
+     * @return the step's shape key, or "tunnel" when no program walks an area
      */
     private static String extractAreaMode(AbilityDefinition ability) {
-        for (AbilityDefinition.BehaviorEntry entry : ability.behaviors()) {
-            if (PROGRESSIVE_AREA_TYPE.equals(entry.type())) {
-                return entry.params().getOrDefault(PARAM_AREA_MODE, DEFAULT_AREA_MODE);
-            }
-        }
-        return DEFAULT_AREA_MODE;
+        return ability.behaviors().stream()
+                .flatMap(entry -> entry.steps().stream())
+                .filter(ProgressiveAreaStep.class::isInstance)
+                .map(step -> ((ProgressiveAreaStep) step).shape().key())
+                .findFirst()
+                .orElse(DEFAULT_AREA_MODE);
     }
 
     /**
@@ -323,6 +321,27 @@ public class ChainMarkerBlockEntity extends BlockEntity {
     }
 
     /**
+     * Records how many layers the running layer walk has struck, so the
+     * ghost outline shrinks past them. The active behavior's tick marks
+     * and syncs the entity after the program runs.
+     *
+     * @param layers the struck layer count
+     */
+    public void setMinedLayers(int layers) {
+        this.minedLayers = layers;
+    }
+
+    /**
+     * Returns how many layers the running layer walk has struck; zero
+     * while no walk runs.
+     *
+     * @return the struck layer count
+     */
+    public int getMinedLayers() {
+        return minedLayers;
+    }
+
+    /**
      * FUSE-phase tick: counts the fuse down and detonates on expiry.
      *
      * @param level the server level
@@ -509,6 +528,7 @@ public class ChainMarkerBlockEntity extends BlockEntity {
         areaMode = input.getStringOr(TAG_AREA_MODE, DEFAULT_AREA_MODE);
         lastStackTick = input.getLongOr(TAG_LAST_STACK_TICK, 0);
         abilityId = input.getStringOr(TAG_ABILITY_ID, NO_ABILITY);
+        minedLayers = input.getIntOr(TAG_MINED_LAYERS, 0);
     }
 
     /**
@@ -558,6 +578,7 @@ public class ChainMarkerBlockEntity extends BlockEntity {
         output.putString(TAG_AREA_MODE, areaMode);
         output.putLong(TAG_LAST_STACK_TICK, lastStackTick);
         output.putString(TAG_ABILITY_ID, abilityId);
+        output.putInt(TAG_MINED_LAYERS, minedLayers);
         if (behavior != null) {
             behavior.saveAdditional(output);
         }

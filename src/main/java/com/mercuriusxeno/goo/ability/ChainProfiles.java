@@ -1,9 +1,12 @@
 package com.mercuriusxeno.goo.ability;
 
+import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.world.*;
+import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import org.jspecify.annotations.Nullable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.IntUnaryOperator;
@@ -34,8 +37,10 @@ public final class ChainProfiles {
     private static final int UNSTABLE_MAX_STACKS = 8;
     private static final int GLOW_FUSE_TICKS = 30;
     private static final int GLOW_MAX_STACKS = 4;
-    private static final int DEFAULT_PREVIEW_DELAY = 8;
-    private static final String AREA_TUNNEL = "tunnel";
+    private static final Identifier GLOW_CRYSTAL_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "glow_crystal");
+    private static final Identifier ROCK_TUNNEL_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "rock_tunnel");
+    private static final Identifier BLAZE_TUNNEL_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "blaze_tunnel");
+    private static final Identifier FROST_SPHERE_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "frost_sphere");
 
     private ChainProfiles() {
     }
@@ -56,41 +61,29 @@ public final class ChainProfiles {
 
     /**
      * Registers the blaze chain profile. Legacy non-ability path
-     * (no abilityId selected) builds a tunnel ProgressiveAreaBlock
-     * with fortune-smelt + blaze visuals + generic-explode audio,
-     * matching the {@code blaze_tunnel} ability defaults.
+     * (no abilityId selected) runs the {@code blaze_tunnel} ability's
+     * program.
      */
     private static void registerBlaze() {
         ChainProfile.register(GooTypes.BLAZE, new ChainProfile(
                 BLAZE_FUSE_TICKS,
                 BLAZE_MAX_STACKS,
                 ChainFootprint::tunnelDepth,
-                () -> new ProgressiveAreaBlock(
-                        AREA_TUNNEL,
-                        BlockEffectType.byName(BlockEffectType.FORTUNE_SMELT_BREAK),
-                        LayerVisualsType.byName(LayerVisualsType.BLAZE_FLAME),
-                        LayerAudioType.byName(LayerAudioType.GENERIC_EXPLODE),
-                        DEFAULT_PREVIEW_DELAY)
+                () -> abilityBehavior(BLAZE_TUNNEL_ABILITY)
         ));
     }
 
     /**
      * Registers the rock chain profile. Legacy non-ability path
-     * (no abilityId selected) builds a tunnel ProgressiveAreaBlock
-     * with silk-break + rock visuals + stone-break audio, matching
-     * the {@code rock_tunnel} ability defaults.
+     * (no abilityId selected) runs the {@code rock_tunnel} ability's
+     * program.
      */
     private static void registerRock() {
         ChainProfile.register(GooTypes.ROCK, new ChainProfile(
                 ROCK_FUSE_TICKS,
                 ROCK_MAX_STACKS,
                 ChainFootprint::tunnelDepth,
-                () -> new ProgressiveAreaBlock(
-                        AREA_TUNNEL,
-                        BlockEffectType.byName(BlockEffectType.SILK_BREAK),
-                        LayerVisualsType.byName(LayerVisualsType.ROCK_DUST),
-                        LayerAudioType.byName(LayerAudioType.STONE_BREAK),
-                        DEFAULT_PREVIEW_DELAY)
+                () -> abilityBehavior(ROCK_TUNNEL_ABILITY)
         ));
     }
 
@@ -119,14 +112,16 @@ public final class ChainProfiles {
     }
 
     /**
-     * Registers the frost chain profile.
+     * Registers the frost chain profile. Legacy non-ability path
+     * (no abilityId selected) runs the {@code frost_sphere} ability's
+     * program.
      */
     private static void registerFrost() {
         ChainProfile.register(GooTypes.FROST, new ChainProfile(
                 FROST_FUSE_TICKS,
                 FROST_MAX_STACKS,
                 AbilityMath::computeFreezeRadius,
-                FrostBehavior::new
+                () -> abilityBehavior(FROST_SPHERE_ABILITY)
         ));
     }
 
@@ -144,18 +139,28 @@ public final class ChainProfiles {
 
     /**
      * Registers the glow chain profile. Legacy non-ability path
-     * (no abilityId selected) builds a BlockPlaceBehavior with the
-     * glow-crystal placer, matching the {@code glow_crystal} ability
-     * defaults.
+     * (no abilityId selected) runs the {@code glow_crystal} ability's
+     * own program, so both paths place the same crystal.
      */
     private static void registerGlow() {
         ChainProfile.register(GooTypes.GLOW, new ChainProfile(
                 GLOW_FUSE_TICKS,
                 GLOW_MAX_STACKS,
                 stacks -> 1,
-                () -> new BlockPlaceBehavior(
-                        BlockPlacerType.byName(BlockPlacerType.GLOW_CRYSTAL))
+                () -> abilityBehavior(GLOW_CRYSTAL_ABILITY)
         ));
+    }
+
+    /**
+     * Composes the behavior an ability's JSON declares, for a legacy
+     * profile whose post-fuse behavior migrated onto a program.
+     *
+     * @param ability the ability's id
+     * @return the ability's behavior, or null while the registry does not hold it
+     */
+    private static @Nullable ChainBehavior abilityBehavior(Identifier ability) {
+        AbilityDefinition definition = AbilityRegistry.getAbility(ability);
+        return definition == null ? null : new DataDrivenChainBehavior(definition);
     }
 
     /**
@@ -180,7 +185,9 @@ public final class ChainProfiles {
      * @param fuseTicks       how long the fuse window lasts
      * @param maxStacks       maximum stack count (additional blobs during fuse)
      * @param rangeFormula    computes range/depth from stack count
-     * @param behaviorFactory factory that creates a fresh {@link ChainBehavior}
+     * @param behaviorFactory factory that creates a fresh {@link ChainBehavior}, or answers
+     *                        null when the behavior it delegates to is not loaded, which
+     *                        removes the marker at fuse expiry
      */
     public record ChainProfile(
             int fuseTicks,

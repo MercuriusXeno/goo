@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.model;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
+import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.registry.GooItems;
@@ -10,13 +11,11 @@ import com.mojang.blaze3d.vertex.QuadInstance;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.client.renderer.SubmitNodeCollector;
-import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.special.SpecialModelRenderer;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.client.resources.model.geometry.QuadCollection;
-import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -33,12 +32,6 @@ import java.util.function.Consumer;
  * a goo type is selected. Shared by glove, glove_netherite, and glove_exorite tiers.
  */
 public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRenderer.GloveData> {
-
-    /**
-     * Block atlas texture path for fluid sprite lookups.
-     */
-    private static final Identifier BLOCK_ATLAS_TEXTURE =
-            Identifier.withDefaultNamespace("textures/atlas/blocks.png");
 
     // --- Blob center capture for arc rendering ---
     /**
@@ -153,8 +146,7 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
     private static void submitGloveBody(PoseStack poseStack,
                                         SubmitNodeCollector nodeCollector, int packedLight, Item gloveItem) {
         QuadCollection model = GloveBodyModels.getModel(gloveItem);
-        nodeCollector.submitCustomGeometry(poseStack,
-                RenderTypes.entityTranslucent(BLOCK_ATLAS_TEXTURE),
+        nodeCollector.submitCustomGeometry(poseStack, GooSubmitter.renderType(),
                 (pose, c) -> {
                     QuadInstance qi = new QuadInstance();
                     qi.setColor(COLOR_WHITE);
@@ -184,8 +176,7 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
 
         captureBlobCenter(poseStack, cx, cy, cz);
 
-        nodeCollector.submitCustomGeometry(poseStack,
-                RenderTypes.entityTranslucent(BLOCK_ATLAS_TEXTURE),
+        nodeCollector.submitCustomGeometry(poseStack, GooSubmitter.renderType(),
                 (pose, c) -> emitBlobFaces(pose, c, packedLight, type, cx, cy, cz, hw));
     }
 

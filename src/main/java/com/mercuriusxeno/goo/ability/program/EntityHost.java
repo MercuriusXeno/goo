@@ -1,7 +1,11 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.ability.BlockEffect;
+import com.mercuriusxeno.goo.ability.LayerAudio;
+import com.mercuriusxeno.goo.ability.LayerVisuals;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageSources;
@@ -10,6 +14,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
+import java.util.Map;
 import java.util.OptionalDouble;
 import java.util.Set;
 
@@ -88,6 +93,31 @@ public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entit
     @Override
     public void damageTarget(float amount, DamageKind source) {
         target.hurtServer(level, damageSource(source), amount);
+    }
+
+    @Override
+    public void placeBlock(Identifier block, Map<String, String> state) {
+        throw HostCapability.PLACE_BLOCK.refusedBy(kind());
+    }
+
+    @Override
+    public boolean applyBlockEffect(BlockEffect effect, BlockPos cell) {
+        throw HostCapability.LAYER_WALK.refusedBy(kind());
+    }
+
+    @Override
+    public void previewLayer(LayerVisuals visuals, int layer) {
+        throw HostCapability.LAYER_WALK.refusedBy(kind());
+    }
+
+    @Override
+    public void strikeLayerFx(LayerVisuals visuals, LayerAudio audio, int layer, int destroyed) {
+        throw HostCapability.LAYER_WALK.refusedBy(kind());
+    }
+
+    @Override
+    public void reportMinedLayers(int layers) {
+        throw HostCapability.LAYER_WALK.refusedBy(kind());
     }
 
     /**

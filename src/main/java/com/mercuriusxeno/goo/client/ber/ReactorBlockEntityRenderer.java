@@ -5,9 +5,11 @@ import com.mercuriusxeno.goo.block.reactor.ReactorBlock;
 import com.mercuriusxeno.goo.block.reactor.ReactorBlockEntity;
 import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
+import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.RenderContext;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
+import com.mercuriusxeno.goo.item.CanisterMetadata;
 import com.mercuriusxeno.goo.item.ContainerCapacity;
 import com.mercuriusxeno.goo.registry.GooEnchantments;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -27,11 +29,11 @@ import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
-import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
+import java.util.List;
 
 /**
  * Renders the output canister in the reactor's front hollow and the
@@ -40,24 +42,17 @@ import org.jspecify.annotations.Nullable;
 public class ReactorBlockEntityRenderer
         implements BlockEntityRenderer<ReactorBlockEntity, ReactorRenderState> {
 
-    /** Block atlas texture path for fluid sprite lookups. */
-    private static final Identifier BLOCK_ATLAS_TEXTURE =
-            Identifier.withDefaultNamespace("textures/atlas/blocks.png");
-
     /** Reactor texture for wheel sprite lookup. */
     private static final Identifier REACTOR_TEXTURE =
             Identifier.fromNamespaceAndPath("goo", "textures/block/reactor.png");
 
-    /** Canister body side sprite identifier on the BLOCKS atlas.
-     * Used so the body submission shares its RenderType with the fluid
-     * submission, putting body and fluid in the same buffer for
-     * sortOnUpload to depth-sort together. */
-    private static final Identifier CANISTER_SIDE_SPRITE =
-            Identifier.fromNamespaceAndPath("goo", "block/canister_side");
-
-    /** Copper endcap texture. */
+    /** Copper endcap texture (default canister caps). */
     private static final Identifier COPPER_GASKET =
             Identifier.fromNamespaceAndPath("goo", "textures/block/gasket.png");
+
+    /** Choral gasket texture (upgraded canister caps). */
+    private static final Identifier CHORAL_GASKET =
+            Identifier.fromNamespaceAndPath("goo", "textures/block/choral_gasket.png");
 
     /** Block center for rotation pivot. */
     private static final float BLOCK_CENTER = 0.5f;
@@ -86,17 +81,20 @@ public class ReactorBlockEntityRenderer
     private static final SlotFluidGeometry.SlotGeometry FLUID_GEOM =
             new SlotFluidGeometry.SlotGeometry(HW, BODY_BOT, BODY_TOP, FLUID_INSET);
 
-    /** Body side U range: 4px / 16px. */
-    private static final float BODY_U1 = 0.25f;
-    /** Body side V range: 10px / 16px (matches the 10px body height). */
-    private static final float BODY_V1 = 10f / 16f;
-
     /** Gasket side U start. */
     private static final float GS_U0 = 0.25f;
     /** Gasket side U end. */
     private static final float GS_U1 = 0.5f;
     /** Gasket side V end. */
     private static final float GS_V1 = 0.0625f;
+
+    /** Y ranges describing where gasket boxes land in the reactor hollow. */
+    private static final GasketCapRenderer.GasketYRanges GASKET_Y =
+            new GasketCapRenderer.GasketYRanges(BODY_BOT, BODY_TOP, GASKET_BOT, GASKET_TOP);
+
+    /** Gasket side UV region (uniform across container types). */
+    private static final GasketCapRenderer.GasketUv GASKET_UV =
+            new GasketCapRenderer.GasketUv(GS_U0, GS_U1, GS_V1);
 
     /** Wheel center Y and Z in block space (center of 3-13 range). */
     private static final float WHEEL_CENTER = 8f / 16f;
@@ -239,17 +237,22 @@ public class ReactorBlockEntityRenderer
         } else {
             state.slot.type = null;
             state.slot.fill = 0f;
+            state.slot.topGasketPresent = false;
+            state.slot.bottomGasketPresent = false;
         }
     }
 
     /**
-     * Reads compression level and goo fill from the canister stack.
+     * Reads compression level, gasket caps and goo fill from the canister stack.
      *
      * @param canister the canister item stack
      * @param state    the render state to populate
      */
     private static void extractContents(ItemStack canister, ReactorRenderState state) {
         state.slot.matrices = GooEnchantments.getCompressionLevel(canister);
+        CanisterMetadata meta = CanisterItem.getMetadata(canister);
+        state.slot.topGasketPresent = meta.topGasketId() != null;
+        state.slot.bottomGasketPresent = meta.bottomGasketId() != null;
         CanisterFluidContent content = CanisterItem.getFluidContent(canister);
         if (content.isEmpty()) {
             state.slot.type = null;
@@ -454,8 +457,7 @@ public class ReactorBlockEntityRenderer
     private static void emitWheelLayer(
             PoseStack poseStack, SubmitNodeCollector nodeCollector,
             float x, SpriteUv uv, float displayAngle, int color, int light) {
-        nodeCollector.submitCustomGeometry(poseStack,
-                RenderTypes.entityTranslucent(REACTOR_TEXTURE),
+        nodeCollector.submitCustomGeometry(poseStack, GooSubmitter.translucentOn(REACTOR_TEXTURE),
                 (pose, c) -> {
                     RenderContext ctx = new RenderContext(pose, c, light);
                     emitRotatedWheel(ctx, x, displayAngle,
@@ -584,7 +586,9 @@ public class ReactorBlockEntityRenderer
     }
 
     /**
-     * Renders the 4 side faces of the canister body.
+     * Submits the canister body's four sides through the submitter's
+     * sided-body form at the block entity's world light, translucent so
+     * the goo shows through the wall.
      *
      * @param poseStack     the pose stack
      * @param nodeCollector the node collector
@@ -592,23 +596,15 @@ public class ReactorBlockEntityRenderer
      */
     private static void submitBody(PoseStack poseStack,
             SubmitNodeCollector nodeCollector, ReactorRenderState state) {
-        int light = state.lightCoords;
-        // Body shares entityTranslucent(BLOCK_ATLAS_TEXTURE) with the fluid
-        // submission, so both go into the same buffer; sortOnUpload sorts
-        // body+fluid primitives together by camera distance.
-        TextureAtlasSprite sprite = GooRenderUtil.lookupBlockSprite(CANISTER_SIDE_SPRITE);
-        GooRenderUtil.UvRect uv = GooRenderUtil.spriteSubRect(sprite, 0f, 0f, BODY_U1, BODY_V1);
-        nodeCollector.submitCustomGeometry(poseStack,
-                RenderTypes.entityTranslucent(BLOCK_ATLAS_TEXTURE),
-                (pose, c) -> {
-                    RenderContext ctx = new RenderContext(pose, c, light);
-                    CuboidBounds box = canisterBounds(BODY_BOT, BODY_TOP);
-                    ctx.emitSides(box, uv);
-                });
+        GooSubmitter.submitSidedBodies(poseStack, nodeCollector, state.lightCoords,
+                List.of(canisterBounds(BODY_BOT, BODY_TOP)));
     }
 
     /**
-     * Renders copper endcaps at top and bottom.
+     * Renders the output canister's endcaps: copper on an end without a
+     * choral gasket, the choral gasket texture on an end that carries one,
+     * the way the canister and hub renderers cap their slots
+     * (reactor-gasket-render-fix).
      *
      * @param poseStack     the pose stack
      * @param nodeCollector the node collector
@@ -616,15 +612,30 @@ public class ReactorBlockEntityRenderer
      */
     private static void submitGaskets(PoseStack poseStack,
             SubmitNodeCollector nodeCollector, ReactorRenderState state) {
-        int light = state.lightCoords;
+        boolean top = state.slot.topGasketPresent;
+        boolean bottom = state.slot.bottomGasketPresent;
+        submitEndcaps(poseStack, nodeCollector, state.lightCoords, COPPER_GASKET, !top, !bottom);
+        submitEndcaps(poseStack, nodeCollector, state.lightCoords, CHORAL_GASKET, top, bottom);
+    }
+
+    /**
+     * Submits the endcaps a texture owns in one draw call, none when it owns neither.
+     *
+     * @param poseStack     the pose stack
+     * @param nodeCollector the node collector
+     * @param light         packed light coords for the hollow
+     * @param texture       the endcap texture
+     * @param top           whether this texture caps the top end
+     * @param bottom        whether this texture caps the bottom end
+     */
+    private static void submitEndcaps(PoseStack poseStack, SubmitNodeCollector nodeCollector,
+            int light, Identifier texture, boolean top, boolean bottom) {
+        if (!top && !bottom) { return; }
         CuboidBounds base = canisterBounds(0, 0);
         nodeCollector.submitCustomGeometry(poseStack,
-                RenderTypes.entitySolid(COPPER_GASKET),
-                (pose, c) -> {
-                    RenderContext ctx = new RenderContext(pose, c, light);
-                    ctx.gasketBox(base.withY(BODY_TOP, GASKET_TOP), GS_U0, GS_U1, GS_V1);
-                    ctx.gasketBox(base.withY(GASKET_BOT, BODY_BOT), GS_U0, GS_U1, GS_V1);
-                });
+                RenderTypes.entitySolid(texture),
+                (pose, c) -> GasketCapRenderer.renderEndcaps(
+                        new RenderContext(pose, c, light), base, GASKET_Y, GASKET_UV, top, bottom));
     }
 
     /**
@@ -636,23 +647,14 @@ public class ReactorBlockEntityRenderer
      */
     private static void submitFluid(PoseStack poseStack,
             SubmitNodeCollector nodeCollector, ReactorRenderState state) {
-        // FULL_BRIGHT lightmap UV per fluid vertex makes the lightmap
-        // multiplication a no-op. Body shares entityTranslucent on the
-        // BLOCK atlas (same RenderType key), so sortOnUpload depth-sorts
-        // body+fluid primitives together. No buffer split, no shader
-        // define swap.
         ResourceKey<GooTypeDefinition> type = state.slot.type;
         float fill = state.slot.fill;
-        nodeCollector.submitCustomGeometry(poseStack,
-                RenderTypes.entityTranslucent(BLOCK_ATLAS_TEXTURE),
-                (pose, c) -> {
-                    RenderContext ctx = new RenderContext(pose, c, LightCoordsUtil.FULL_BRIGHT);
-                    CuboidBounds b = SlotFluidGeometry.computeBounds(
-                            FLUID_GEOM, HOLLOW_CX, HOLLOW_CZ, fill);
-                    TextureAtlasSprite sprite = GooRenderUtil.lookupFluidSprite(type);
-                    SlotFluidGeometry.renderFluidTop(ctx, b, sprite);
-                    SlotFluidGeometry.renderFluidSides(ctx, b, sprite, fill, FLUID_GEOM);
-                });
+        GooSubmitter.submitFluid(poseStack, nodeCollector, ctx -> {
+            CuboidBounds b = SlotFluidGeometry.computeBounds(FLUID_GEOM, HOLLOW_CX, HOLLOW_CZ, fill);
+            TextureAtlasSprite sprite = GooSubmitter.fluidSprite(type);
+            SlotFluidGeometry.renderFluidTop(ctx, b, sprite);
+            SlotFluidGeometry.renderFluidSides(ctx, b, sprite, fill, FLUID_GEOM);
+        });
     }
 
     /**

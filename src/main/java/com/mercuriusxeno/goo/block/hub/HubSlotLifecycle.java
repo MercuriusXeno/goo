@@ -2,10 +2,8 @@ package com.mercuriusxeno.goo.block.hub;
 
 import com.mercuriusxeno.goo.block.BlockEntitySync;
 import com.mercuriusxeno.goo.block.canister.CanisterSlot;
-import com.mercuriusxeno.goo.block.canister.CanisterSlotFluidHandler;
-import com.mercuriusxeno.goo.block.gasket.GasketPusher;
+import com.mercuriusxeno.goo.block.gasket.SlotGasketPusher;
 import com.mercuriusxeno.goo.item.CanisterItem;
-import com.mercuriusxeno.goo.item.CanisterMetadata;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -110,46 +108,7 @@ final class HubSlotLifecycle {
      * @param slot the slot index
      */
     static void rebuildSlotPusher(HubBlockEntity be, int slot) {
-        CanisterSlot s = be.containerState().slots[slot];
-        s.disposePusher();
-        if (!hasBottomGasket(s)) {
-            return;
-        }
-        s.setPusher(createSlotPusher(be, s));
-    }
-
-    /**
-     * Returns true if the canister at the given slot has a bottom gasket with a partner.
-     *
-     * @param s the slot
-     * @return true if a bottom gasket and partner are present
-     */
-    private static boolean hasBottomGasket(CanisterSlot s) {
-        if (s.isEmpty() || s.handler() == null) {
-            return false;
-        }
-        CanisterMetadata meta = CanisterItem.getMetadata(s.canister());
-        return meta.bottomGasketId() != null && meta.bottomPartner() != null;
-    }
-
-    /**
-     * Creates and initializes a gasket pusher for the given slot.
-     *
-     * @param be the hub block entity
-     * @param s  the slot
-     * @return the initialized pusher
-     */
-    private static GasketPusher createSlotPusher(HubBlockEntity be, CanisterSlot s) {
-        CanisterSlotFluidHandler handler = s.handler();
-        GasketPusher pusher = new GasketPusher(
-                handler,
-                () -> CanisterItem.getMetadata(s.canister()).bottomGasketId(),
-                () -> CanisterItem.getMetadata(s.canister()).bottomPartner(),
-                be::getLevel, be::getBlockPos,
-                s::syncHandlerToStack,
-                be.gasket().registryAccess());
-        pusher.rebuildCache();
-        return pusher;
+        SlotGasketPusher.rebuild(be.containerState().slots[slot], be, be.gasket().registryAccess());
     }
 
     /**

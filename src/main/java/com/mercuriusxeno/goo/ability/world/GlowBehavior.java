@@ -14,10 +14,9 @@ import org.jspecify.annotations.Nullable;
  * glow crystal one size step (via the {@link #tryAbsorbAtTarget}
  * pre-impact hook so the rule fires on both legacy and ability-driven
  * paths) or places (or stacks) a chain marker via
- * {@link EffectBlockPlacement}. Post-fuse behavior is owned by the
- * data-driven {@link com.mercuriusxeno.goo.ability.BlockPlaceBehavior}
- * pipeline (with the {@code glow_crystal} placer); see the
- * {@code glow_crystal} ability JSON for the wiring.
+ * {@link EffectBlockPlacement}. Post-fuse behavior is the
+ * {@code glow_crystal} ability's program, one {@code place_block} step;
+ * the legacy profile in {@code ChainProfiles} runs that same program.
  */
 public final class GlowBehavior implements WorldEffect {
 
