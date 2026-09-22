@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.client.overlay;
 
-import com.mercuriusxeno.goo.GooColors;
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.FlatQuadContext;
 import com.mercuriusxeno.goo.client.LineContext;
@@ -12,6 +12,7 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -47,13 +48,13 @@ final class VoxelHighlightRenderer {
      */
     static void renderBlockFace(
             PoseStack poseStack, MultiBufferSource.BufferSource bufferSource,
-            Camera camera, BlockPos pos, Direction face, GooType type) {
+            Camera camera, BlockPos pos, Direction face, ResourceKey<GooTypeDefinition> type) {
         Minecraft mc = Minecraft.getInstance();
         VoxelShape shape = mc.level.getBlockState(pos).getShape(mc.level, pos);
         if (shape.isEmpty()) { return; }
         Vec3 offset = cameraOffset(pos, camera);
-        int highlightRgb = GooColors.highlight(type);
-        int edgeRgb = GooColors.edge(type);
+        int highlightRgb = ClientGooTypes.highlight(type);
+        int edgeRgb = ClientGooTypes.edge(type);
         emitFillBoxes(poseStack, bufferSource, shape, offset.x, offset.y, offset.z, highlightRgb);
         emitWireframeEdges(poseStack, bufferSource, mc, shape, offset.x, offset.y, offset.z, edgeRgb);
     }
@@ -71,13 +72,13 @@ final class VoxelHighlightRenderer {
      */
     static void renderBlockShape(
             PoseStack poseStack, MultiBufferSource.BufferSource bufferSource,
-            Camera camera, BlockPos pos, GooType type) {
+            Camera camera, BlockPos pos, ResourceKey<GooTypeDefinition> type) {
         Minecraft mc = Minecraft.getInstance();
         VoxelShape shape = mc.level.getBlockState(pos).getShape(mc.level, pos);
         if (shape.isEmpty()) { return; }
         Vec3 offset = cameraOffset(pos, camera);
-        int highlightRgb = GooColors.highlight(type);
-        int edgeRgb = GooColors.edge(type);
+        int highlightRgb = ClientGooTypes.highlight(type);
+        int edgeRgb = ClientGooTypes.edge(type);
         emitFillBoxes(poseStack, bufferSource, shape, offset.x, offset.y, offset.z, highlightRgb);
         emitWireframeEdges(poseStack, bufferSource, mc, shape, offset.x, offset.y, offset.z, edgeRgb);
     }
@@ -94,10 +95,10 @@ final class VoxelHighlightRenderer {
      */
     static void renderFullCube(
             PoseStack poseStack, MultiBufferSource.BufferSource bufferSource,
-            Camera camera, BlockPos pos, GooType type) {
+            Camera camera, BlockPos pos, ResourceKey<GooTypeDefinition> type) {
         Minecraft mc = Minecraft.getInstance();
         Vec3 offset = cameraOffset(pos, camera);
-        int rgb = GooColors.highlight(type);
+        int rgb = ClientGooTypes.highlight(type);
         int fillColor = colorWithAlpha(rgb, FACE_ALPHA);
         CuboidBounds box = new CuboidBounds(
                 offsetMin(offset.x, 0), offsetMax(offset.x, 1),
@@ -108,7 +109,7 @@ final class VoxelHighlightRenderer {
         ctx.emitBox(fillColor, box);
         bufferSource.endLastBatch();
 
-        int wireColor = colorWithAlpha(GooColors.edge(type), WIRE_ALPHA);
+        int wireColor = colorWithAlpha(ClientGooTypes.edge(type), WIRE_ALPHA);
         float lineWidth = mc.getWindow().getAppropriateLineWidth();
         LineContext lineCtx = new LineContext(poseStack.last(),
                 bufferSource.getBuffer(RenderTypes.lines()));

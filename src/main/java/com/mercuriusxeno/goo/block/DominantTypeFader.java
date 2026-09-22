@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.block;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import net.minecraft.resources.ResourceKey;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -18,15 +19,15 @@ public class DominantTypeFader {
     private static final float CROSSFADE_SPEED = 0.05f;
 
     /** Stabilized dominant type for rendering. */
-    private @Nullable GooType shownType;
+    private @Nullable ResourceKey<GooTypeDefinition> shownType;
     /** Candidate type waiting to replace the shown type. */
-    private @Nullable GooType pendingType;
+    private @Nullable ResourceKey<GooTypeDefinition> pendingType;
     /** Ticks the pending type has been consistently dominant. */
     private int pendingTicks;
     /** Last game tick the debounce was advanced. */
     private long lastTick = -1;
     /** Outgoing type during a crossfade transition. */
-    private @Nullable GooType outgoingType;
+    private @Nullable ResourceKey<GooTypeDefinition> outgoingType;
     /** Crossfade progress [0, 1]: 0 = fully outgoing, 1 = fully shown. */
     private float crossfadeAlpha = 1f;
 
@@ -36,7 +37,7 @@ public class DominantTypeFader {
      * @param actual   the current dominant goo type (null if reservoir is empty)
      * @param gameTick the current game time (deduplicates multiple calls per tick)
      */
-    public void tick(@Nullable GooType actual, long gameTick) {
+    public void tick(@Nullable ResourceKey<GooTypeDefinition> actual, long gameTick) {
         if (gameTick == lastTick) { return; }
         lastTick = gameTick;
         tickCrossfade();
@@ -47,7 +48,7 @@ public class DominantTypeFader {
      *
      * @param actual the current dominant goo type (null if reservoir is empty)
      */
-    private void processActualType(@Nullable GooType actual) {
+    private void processActualType(@Nullable ResourceKey<GooTypeDefinition> actual) {
         if (actual == null) {
             clear();
             return;
@@ -59,7 +60,7 @@ public class DominantTypeFader {
      *
      * @param actual the current dominant goo type (non-null)
      */
-    private void applyNonNullType(GooType actual) {
+    private void applyNonNullType(ResourceKey<GooTypeDefinition> actual) {
         if (shownType == null) {
             shownType = actual;
             return;
@@ -71,7 +72,7 @@ public class DominantTypeFader {
      *
      * @param actual the current dominant goo type
      */
-    private void updateShownType(GooType actual) {
+    private void updateShownType(ResourceKey<GooTypeDefinition> actual) {
         if (actual == shownType) { resetPending(); }
         else { advancePendingOrSwitch(actual); }
     }
@@ -104,7 +105,7 @@ public class DominantTypeFader {
      *
      * @param actual the current dominant goo type
      */
-    private void advancePendingOrSwitch(GooType actual) {
+    private void advancePendingOrSwitch(ResourceKey<GooTypeDefinition> actual) {
         trackPending(actual);
         if (pendingTicks >= DEBOUNCE_TICKS) {
             commitSwitch(actual);
@@ -115,7 +116,7 @@ public class DominantTypeFader {
      *
      * @param actual the candidate goo type
      */
-    private void trackPending(GooType actual) {
+    private void trackPending(ResourceKey<GooTypeDefinition> actual) {
         if (actual == pendingType) {
             pendingTicks++;
         } else {
@@ -128,7 +129,7 @@ public class DominantTypeFader {
      *
      * @param actual the confirmed new dominant goo type
      */
-    private void commitSwitch(GooType actual) {
+    private void commitSwitch(ResourceKey<GooTypeDefinition> actual) {
         outgoingType = shownType;
         shownType = actual;
         crossfadeAlpha = 0f;
@@ -139,7 +140,7 @@ public class DominantTypeFader {
      *
      * @return the shown type
      */
-    public @Nullable GooType getShownType() {
+    public @Nullable ResourceKey<GooTypeDefinition> getShownType() {
         return shownType;
     }
 
@@ -147,7 +148,7 @@ public class DominantTypeFader {
      *
      * @return the outgoing type
      */
-    public @Nullable GooType getOutgoingType() {
+    public @Nullable ResourceKey<GooTypeDefinition> getOutgoingType() {
         return outgoingType;
     }
 

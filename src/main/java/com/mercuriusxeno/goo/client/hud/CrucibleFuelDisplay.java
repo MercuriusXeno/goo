@@ -1,7 +1,8 @@
 package com.mercuriusxeno.goo.client.hud;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.item.DepletedBlazeRodItem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -9,6 +10,7 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
@@ -136,9 +138,9 @@ final class CrucibleFuelDisplay {
      * @param type the goo type
      * @return the icon texture identifier
      */
-    static Identifier iconTexture(GooType type) {
+    static Identifier iconTexture(ResourceKey<GooTypeDefinition> type) {
         return Identifier.fromNamespaceAndPath(Goo.MODID,
-            ICON_PATH_PREFIX + type.getId() + ICON_PATH_SUFFIX);
+            ICON_PATH_PREFIX + GooTypes.id(type) + ICON_PATH_SUFFIX);
     }
 
     /**

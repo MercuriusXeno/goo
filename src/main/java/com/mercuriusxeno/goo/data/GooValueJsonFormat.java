@@ -2,12 +2,13 @@ package com.mercuriusxeno.goo.data;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mojang.logging.LogUtils;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import org.slf4j.Logger;
 import java.util.LinkedHashMap;
-import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -81,7 +82,7 @@ final class GooValueJsonFormat {
     static GooValue parseGooValue(JsonObject json, Map<String, Integer> constants,
                                   Map<Identifier, GooValue> baseValues,
                                   Map<String, GooValue> treeConstants) {
-        Map<GooType, Integer> map = new LinkedHashMap<>();
+        Map<ResourceKey<GooTypeDefinition>, Integer> map = new LinkedHashMap<>();
         for (Map.Entry<String, JsonElement> entry : json.entrySet()) {
             parseTypeEntry(entry, constants, baseValues, treeConstants, map);
         }
@@ -102,9 +103,9 @@ final class GooValueJsonFormat {
                                        Map<String, Integer> constants,
                                        Map<Identifier, GooValue> baseValues,
                                        Map<String, GooValue> treeConstants,
-                                       Map<GooType, Integer> map) {
+                                       Map<ResourceKey<GooTypeDefinition>, Integer> map) {
         try {
-            GooType type = GooType.valueOf(entry.getKey().toUpperCase(Locale.ROOT));
+            ResourceKey<GooTypeDefinition> type = GooTypes.parseKnown(entry.getKey());
             map.put(type, GooIntExpressionEvaluator.resolveValue(
                     entry.getValue(), constants, baseValues, treeConstants));
         } catch (IllegalArgumentException e) {
@@ -123,7 +124,7 @@ final class GooValueJsonFormat {
     static JsonObject toJson(GooValue value) {
         JsonObject json = new JsonObject();
         value.getAll().forEach((type, amount) ->
-                json.addProperty(type.getId(), amount));
+                json.addProperty(GooTypes.id(type), amount));
         return json;
     }
 

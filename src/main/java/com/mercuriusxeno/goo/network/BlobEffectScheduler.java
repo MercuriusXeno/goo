@@ -1,7 +1,8 @@
 package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.program.EntityHost;
@@ -14,6 +15,7 @@ import com.mercuriusxeno.goo.registry.GooSounds;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
@@ -91,7 +93,7 @@ final class BlobEffectScheduler {
      * @param travelTicks the number of ticks until arrival
      */
     static void scheduleEffect(ServerPlayer player, BlobThrowPayload payload,
-                               GooType gooType, int travelTicks) {
+                               ResourceKey<GooTypeDefinition> gooType, int travelTicks) {
         playThrowSound(player, gooType);
         enqueueArrival(player, payload, gooType, travelTicks);
     }
@@ -103,9 +105,9 @@ final class BlobEffectScheduler {
      * @param player  the throwing player
      * @param gooType the goo type being thrown
      */
-    static void playThrowSound(ServerPlayer player, GooType gooType) {
+    static void playThrowSound(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType) {
         ServerLevel level = player.level();
-        SoundEvent sound = gooType == GooType.GLOW
+        SoundEvent sound = gooType == GooTypes.GLOW
                 ? GooSounds.GLOW_THROW.get()
                 : SoundEvents.SNOWBALL_THROW;
         float pitch = THROW_PITCH_BASE / (level.getRandom().nextFloat() * THROW_PITCH_RANGE + THROW_PITCH_OFFSET);
@@ -122,7 +124,7 @@ final class BlobEffectScheduler {
      * @param travelTicks the number of ticks until arrival
      */
     static void enqueueArrival(ServerPlayer player, BlobThrowPayload payload,
-                               GooType gooType, int travelTicks) {
+                               ResourceKey<GooTypeDefinition> gooType, int travelTicks) {
         ServerLevel level = player.level();
         int arrivalTick = level.getServer().getTickCount() + travelTicks;
         Direction face = BlobThrowHandler.directionFromOrdinal(payload.targetFace());
@@ -293,7 +295,7 @@ final class BlobEffectScheduler {
      * A goo effect waiting for its blob to finish travelling.
      */
     record PendingEffect(int arrivalTick, ServerLevel level,
-                         ServerPlayer thrower, GooType gooType,
+                         ServerPlayer thrower, ResourceKey<GooTypeDefinition> gooType,
                          int targetEntityId, BlockPos targetPos,
                          Direction targetFace, String abilityId) {
     }

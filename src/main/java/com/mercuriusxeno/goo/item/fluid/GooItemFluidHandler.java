@@ -1,25 +1,26 @@
 package com.mercuriusxeno.goo.item.fluid;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
 import com.mercuriusxeno.goo.registry.GooFluids;
+import net.minecraft.resources.ResourceKey;
 import net.neoforged.neoforge.transfer.ItemAccessResourceHandler;
 import net.neoforged.neoforge.transfer.access.ItemAccess;
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import net.neoforged.neoforge.transfer.item.ItemResource;
+import java.util.List;
 
 /**
  * Shared base for goo item fluid handlers (canisters, etc.) that
  * expose {@link GooContents} as a 15-tank fluid ResourceHandler. Each tank
- * index maps to a {@link GooType} ordinal with shared capacity across all
+ * index maps to a goo type key ordinal with shared capacity across all
  * tanks.
  *
  * <p>Subclasses differ only in how total capacity is determined.</p>
  */
 public abstract class GooItemFluidHandler extends ItemAccessResourceHandler<FluidResource> {
-
-    private static final int TANK_COUNT = GooType.values().length;
 
     /**
      * Creates a handler wrapping the given item's ItemAccess.
@@ -27,7 +28,7 @@ public abstract class GooItemFluidHandler extends ItemAccessResourceHandler<Flui
      * @param itemAccess the item access for the container stack
      */
     protected GooItemFluidHandler(ItemAccess itemAccess) {
-        super(itemAccess, TANK_COUNT);
+        super(itemAccess, GooTypes.order().size());
     }
 
     /**
@@ -44,17 +45,17 @@ public abstract class GooItemFluidHandler extends ItemAccessResourceHandler<Flui
      * Empty if the container has no goo of that type.
      *
      * @param item  the item resource to read from
-     * @param index the tank index (GooType ordinal)
+     * @param index the tank index (goo type key ordinal)
      * @return the fluid resource, or EMPTY if none
      */
     @Override
     protected FluidResource getResourceFrom(ItemResource item, int index) {
-        GooType type = typeForIndex(index);
+        ResourceKey<GooTypeDefinition> type = typeForIndex(index);
         if (type == null) { return FluidResource.EMPTY; }
         GooContents contents = readContents(item);
         int volume = contents.getVolume(type);
         return volume > 0
-            ? FluidResource.of(GooFluids.SOURCES.get(type).get())
+            ? GooFluids.resource(type)
             : FluidResource.EMPTY;
     }
 
@@ -62,12 +63,12 @@ public abstract class GooItemFluidHandler extends ItemAccessResourceHandler<Flui
      * Returns the volume of the goo type at this tank index, clamped to int.
      *
      * @param item  the item resource to read from
-     * @param index the tank index (GooType ordinal)
+     * @param index the tank index (goo type key ordinal)
      * @return volume clamped to int
      */
     @Override
     protected int getAmountFrom(ItemResource item, int index) {
-        GooType type = typeForIndex(index);
+        ResourceKey<GooTypeDefinition> type = typeForIndex(index);
         if (type == null) { return 0; }
         return readContents(item).getVolume(type);
     }
@@ -85,7 +86,7 @@ public abstract class GooItemFluidHandler extends ItemAccessResourceHandler<Flui
     @Override
     protected ItemResource update(ItemResource item, int oldAmount,
             FluidResource resource, int newAmount) {
-        GooType type = GooFluids.getTypeFromFluid(resource.getFluid());
+        ResourceKey<GooTypeDefinition> type = GooFluids.keyOf(resource);
         if (type == null) { return item; }
         GooContents updated = rebuildContents(readContents(item), type, newAmount);
         return applyContents(item, updated);
@@ -96,7 +97,7 @@ public abstract class GooItemFluidHandler extends ItemAccessResourceHandler<Flui
      * capacity. The slot's effective limit is total capacity minus volume
      * stored in all other tanks.
      *
-     * @param index    the tank index (GooType ordinal)
+     * @param index    the tank index (goo type key ordinal)
      * @param resource the fluid resource being queried
      * @return effective capacity clamped to int
      */
@@ -106,9 +107,9 @@ public abstract class GooItemFluidHandler extends ItemAccessResourceHandler<Flui
         int totalCapacity = getContainerCapacity(item);
         int otherVolume = 0;
         GooContents contents = readContents(item);
-        GooType[] types = GooType.values();
-        for (int i = 0; i < types.length; i++) {
-            if (i != index) { otherVolume += contents.getVolume(types[i]); }
+        List<ResourceKey<GooTypeDefinition>> types = GooTypes.order();
+        for (int i = 0; i < types.size(); i++) {
+            if (i != index) { otherVolume += contents.getVolume(types.get(i)); }
         }
         return totalCapacity - otherVolume;
     }
@@ -116,15 +117,15 @@ public abstract class GooItemFluidHandler extends ItemAccessResourceHandler<Flui
     /**
      * Only goo fluids matching this tank index are valid.
      *
-     * @param index    the tank index (GooType ordinal)
+     * @param index    the tank index (goo type key ordinal)
      * @param resource the fluid resource to validate
      * @return true if the resource matches this tank's goo type
      */
     @Override
     public boolean isValid(int index, FluidResource resource) {
         if (resource.isEmpty()) { return false; }
-        GooType type = GooFluids.getTypeFromFluid(resource.getFluid());
-        return type != null && type.ordinal() == index;
+        ResourceKey<GooTypeDefinition> type = GooFluids.keyOf(resource);
+        return type != null && GooTypes.indexOf(type) == index;
     }
 
     // --- Shared helpers ---
@@ -137,7 +138,7 @@ public abstract class GooItemFluidHandler extends ItemAccessResourceHandler<Flui
      * @param amount   the new volume (0 to remove)
      * @return the updated contents
      */
-    protected static GooContents rebuildContents(GooContents contents, GooType type, int amount) {
+    protected static GooContents rebuildContents(GooContents contents, ResourceKey<GooTypeDefinition> type, int amount) {
         GooContents cleared = contents.withRemoved(type, contents.getVolume(type));
         return amount > 0 ? cleared.withAdded(type, amount) : cleared;
     }
@@ -156,14 +157,14 @@ public abstract class GooItemFluidHandler extends ItemAccessResourceHandler<Flui
     }
 
     /**
-     * Returns the GooType for the given tank index, or null if out of range.
+     * Returns the goo type key for the given tank index, or null if out of range.
      *
      * @param index the tank index
-     * @return the corresponding GooType, or null
+     * @return the corresponding goo type key, or null
      */
-    protected static GooType typeForIndex(int index) {
-        GooType[] types = GooType.values();
-        return index >= 0 && index < types.length ? types[index] : null;
+    protected static ResourceKey<GooTypeDefinition> typeForIndex(int index) {
+        List<ResourceKey<GooTypeDefinition>> types = GooTypes.order();
+        return index >= 0 && index < types.size() ? types.get(index) : null;
     }
 
     /**

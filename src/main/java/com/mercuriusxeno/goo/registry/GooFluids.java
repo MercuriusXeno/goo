@@ -1,20 +1,23 @@
 package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.fluid.GooFluid;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.material.Fluid;
 import net.neoforged.neoforge.fluids.BaseFlowingFluid;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
+import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import org.jspecify.annotations.Nullable;
-import java.util.EnumMap;
-import java.util.Map;
 
 /**
- * Registers source and flowing {@link Fluid} instances for each goo type.
- * Uses non-flowing {@link GooFluid} variants so goo stays where placed.
+ * Registers the one goo source fluid and its flowing variant (decision
+ * generic-goo-fluids). A goo type is not a fluid but a
+ * {@link GooDataComponents#GOO_TYPE} component on a {@link FluidResource}
+ * of that fluid, so containers key goo by resource, and the in-world type
+ * rides on the fluid block's block entity.
  */
 public final class GooFluids {
     /**
@@ -24,77 +27,70 @@ public final class GooFluids {
             DeferredRegister.create(Registries.FLUID, Goo.MODID);
 
     /**
-     * Source fluid per goo type.
+     * Registry path of the source fluid, the fluid type and the liquid block.
      */
-    public static final Map<GooType, DeferredHolder<Fluid, GooFluid.Source>> SOURCES =
-            new EnumMap<>(GooType.class);
+    public static final String GOO_PATH = "goo";
 
     /**
-     * Flowing fluid per goo type.
+     * The goo source fluid.
      */
-    public static final Map<GooType, DeferredHolder<Fluid, GooFluid.Flowing>> FLOWING =
-            new EnumMap<>(GooType.class);
+    public static final DeferredHolder<Fluid, GooFluid.Source> SOURCE =
+            FLUIDS.register(GOO_PATH, () -> new GooFluid.Source(fluidProperties()));
 
-    static {
-        for (GooType type : GooType.values()) {
-            String id = type.getId();
-            SOURCES.put(type, FLUIDS.register(id + "_goo",
-                    () -> new GooFluid.Source(fluidProperties(type))));
-            FLOWING.put(type, FLUIDS.register(id + "_goo_flowing",
-                    () -> new GooFluid.Flowing(fluidProperties(type))));
-        }
-    }
+    /**
+     * The goo flowing fluid.
+     */
+    public static final DeferredHolder<Fluid, GooFluid.Flowing> FLOWING =
+            FLUIDS.register(GOO_PATH + "_flowing", () -> new GooFluid.Flowing(fluidProperties()));
 
     private GooFluids() {
     }
 
     /**
-     * Looks up the GooType for a given fluid instance.
-     * Checks both source and flowing maps.
+     * The resource that is one goo type: the source fluid stamped with the
+     * type's key.
      *
-     * @param fluid the fluid instance to look up
-     * @return the matching GooType, or null if the fluid is not a goo fluid
+     * @param key the goo type's registry key
+     * @return the resource containers store and transfer for that type
      */
-    @Nullable
-    public static GooType getTypeFromFluid(Fluid fluid) {
-        for (Map.Entry<GooType, DeferredHolder<Fluid, GooFluid.Source>> entry : SOURCES.entrySet()) {
-            if (entry.getValue().get() == fluid) {
-                return entry.getKey();
-            }
-        }
-        return getTypeFromFlowing(fluid);
+    public static FluidResource resource(ResourceKey<GooTypeDefinition> key) {
+        return FluidResource.of(SOURCE.get()).with(GooDataComponents.GOO_TYPE, key);
+    }
+
+
+    /**
+     * Whether a fluid is the goo fluid, source or flowing.
+     *
+     * @param fluid the fluid
+     * @return true for either goo fluid
+     */
+    public static boolean isGoo(Fluid fluid) {
+        return fluid == SOURCE.get() || fluid == FLOWING.get();
     }
 
     /**
-     * Checks the flowing fluid map for a match.
+     * The goo type key a resource carries.
      *
-     * @param fluid the fluid instance to look up
-     * @return the matching GooType, or null if not found
+     * @param resource a fluid resource
+     * @return the key, or null for a resource that is not stamped goo
      */
     @Nullable
-    private static GooType getTypeFromFlowing(Fluid fluid) {
-        for (Map.Entry<GooType, DeferredHolder<Fluid, GooFluid.Flowing>> entry : FLOWING.entrySet()) {
-            if (entry.getValue().get() == fluid) {
-                return entry.getKey();
-            }
-        }
-        return null;
+    public static ResourceKey<GooTypeDefinition> keyOf(FluidResource resource) {
+        return resource.isEmpty() || !isGoo(resource.getFluid())
+                ? null
+                : resource.getComponents().get(GooDataComponents.GOO_TYPE.get());
     }
 
+
     /**
-     * Builds the shared fluid properties linking source, flowing, and fluid type.
-     * Block association is omitted here to avoid circular static init with GooBlocks.
-     * The LiquidBlock constructor receives the fluid directly instead.
+     * Builds the shared fluid properties linking source, flowing, fluid type
+     * and block. The bucket is left unset: the fluid type answers the goo
+     * bucket stamped for a stack's type.
      *
-     * @param type the goo type
      * @return the configured fluid properties
      */
-    private static BaseFlowingFluid.Properties fluidProperties(GooType type) {
-        return new BaseFlowingFluid.Properties(
-                GooFluidTypes.TYPES.get(type),
-                SOURCES.get(type),
-                FLOWING.get(type)
-        ).bucket(GooItems.BUCKETS.get(type))
-                .block(GooBlocks.FLUID_BLOCKS.get(type));
+    private static BaseFlowingFluid.Properties fluidProperties() {
+        return new BaseFlowingFluid.Properties(GooFluidTypes.GOO, SOURCE, FLOWING)
+                .block(GooBlocks.GOO_FLUID);
     }
 }

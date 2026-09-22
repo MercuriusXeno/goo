@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.block.tap;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.PlayerUtils;
 import com.mercuriusxeno.goo.block.ShapeHitCheck;
 import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
@@ -10,6 +10,7 @@ import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.registry.GooItems;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
@@ -221,7 +222,7 @@ final class TapInteractionHandler {
      */
     static InteractionResult handleBlobInsert(
             TapBlockEntity tap, ItemStack stack, Player player) {
-        GooType type = BlobStacks.gooTypeOf(stack);
+        ResourceKey<GooTypeDefinition> type = BlobStacks.keyOf(stack);
         if (type == null || !tap.canAcceptGoo()) {
             return InteractionResult.PASS;
         }

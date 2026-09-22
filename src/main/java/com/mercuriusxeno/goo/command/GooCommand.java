@@ -1,7 +1,9 @@
 package com.mercuriusxeno.goo.command;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooColors;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.data.ScaffoldGenerator;
 import com.mercuriusxeno.goo.network.GooValueSync;
@@ -17,11 +19,13 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -287,6 +291,7 @@ public final class GooCommand {
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal(CMD_GOO)
                 .then(lookupSubcommand())
+                .then(GooTypesCommand.subcommand())
                 .then(opSubcommand(CMD_RELOAD, GooCommand::reload))
                 .then(opSubcommand(CMD_REGEN, GooCommand::regen))
                 .then(opSubcommand(CMD_AUDIT, GooAuditReport::run))
@@ -379,7 +384,7 @@ public final class GooCommand {
         if (value == null || value.isEmpty()) {
             ctx.getSource().sendSuccess(() -> Component.literal(itemName + MSG_NO_GOO_VALUE), false);
         } else {
-            MutableComponent msg = formatGooValue(itemName, value);
+            MutableComponent msg = formatGooValue(ctx.getSource().registryAccess(), itemName, value);
             ctx.getSource().sendSuccess(() -> msg, false);
         }
         return 1;
@@ -388,18 +393,19 @@ public final class GooCommand {
     /**
      * Builds a chat component showing an item's goo value breakdown.
      *
-     * @param itemName the item identifier string
-     * @param value    the item's goo value
+     * @param registries the registry access the type colors resolve through
+     * @param itemName   the item identifier string
+     * @param value      the item's goo value
      * @return the formatted chat component
      */
-    private static MutableComponent formatGooValue(String itemName, GooValue value) {
+    private static MutableComponent formatGooValue(HolderLookup.Provider registries, String itemName, GooValue value) {
         MutableComponent msg = Component.literal(itemName + MSG_COLON_SPACE);
         boolean first = true;
         for (var entry : value.getAll().entrySet()) {
             if (!first) {
                 msg.append(Component.literal(MSG_COMMA));
             }
-            appendTypeEntry(msg, entry.getKey(), entry.getValue());
+            appendTypeEntry(msg, GooColors.get(registries, entry.getKey()), entry.getKey(), entry.getValue());
             first = false;
         }
         msg.append(Component.literal(MSG_TOTAL_PREFIX + value.totalBlobs() + MSG_CLOSE_PAREN));
@@ -410,11 +416,12 @@ public final class GooCommand {
      * Appends a colored type name and amount to a chat component.
      *
      * @param msg    the component to append to
+     * @param color  the RGB the type name is styled in
      * @param type   the goo type
      * @param amount the goo amount
      */
-    private static void appendTypeEntry(MutableComponent msg, GooType type, int amount) {
-        msg.append(Component.literal(type.getId()).withStyle(Style.EMPTY.withColor(type.getColor())));
+    private static void appendTypeEntry(MutableComponent msg, int color, ResourceKey<GooTypeDefinition> type, int amount) {
+        msg.append(Component.literal(GooTypes.id(type)).withStyle(Style.EMPTY.withColor(color)));
         msg.append(Component.literal(MSG_TIMES + amount));
     }
 

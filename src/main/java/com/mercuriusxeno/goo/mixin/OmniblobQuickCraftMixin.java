@@ -1,8 +1,9 @@
 package com.mercuriusxeno.goo.mixin;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.item.BlobStacks;
 import com.mercuriusxeno.goo.item.OmniblobQuickCraft;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerInput;
@@ -223,8 +224,8 @@ public abstract class OmniblobQuickCraftMixin {
         if (existing.isEmpty()) {
             return true;
         }
-        GooType carriedType = BlobStacks.gooTypeOf(carried);
-        GooType existingType = BlobStacks.gooTypeOf(existing);
+        ResourceKey<GooTypeDefinition> carriedType = BlobStacks.keyOf(carried);
+        ResourceKey<GooTypeDefinition> existingType = BlobStacks.keyOf(existing);
         return carriedType != null && carriedType == existingType;
     }
 
@@ -241,7 +242,7 @@ public abstract class OmniblobQuickCraftMixin {
         }
 
         ItemStack carried = getCarried();
-        GooType gooType = BlobStacks.gooTypeOf(carried);
+        ResourceKey<GooTypeDefinition> gooType = BlobStacks.keyOf(carried);
         int totalVolume = BlobStacks.volumeOf(carried);
 
         int perSlot = computePerSlotVolume(totalVolume, quickcraftSlots.size());
@@ -275,7 +276,7 @@ public abstract class OmniblobQuickCraftMixin {
      * @param totalVolume the total available volume
      * @return total volume actually distributed
      */
-    private int distributeToSlots(GooType gooType, int perSlot, int totalVolume) {
+    private int distributeToSlots(ResourceKey<GooTypeDefinition> gooType, int perSlot, int totalVolume) {
         int distributed = 0;
         for (Slot slot : quickcraftSlots) {
             if (!canDistributeMore(perSlot, distributed, totalVolume)) {
@@ -310,11 +311,11 @@ public abstract class OmniblobQuickCraftMixin {
      * @param perSlot the volume in microblobs to place in this slot
      * @return the volume actually placed, or INCOMPATIBLE_SLOT if the slot has an incompatible item
      */
-    private int placeIntoSlot(Slot slot, GooType gooType, int perSlot) {
+    private int placeIntoSlot(Slot slot, ResourceKey<GooTypeDefinition> gooType, int perSlot) {
         ItemStack existing = slot.getItem();
         int mergedVolume = perSlot;
         if (!existing.isEmpty()) {
-            GooType existingType = BlobStacks.gooTypeOf(existing);
+            ResourceKey<GooTypeDefinition> existingType = BlobStacks.keyOf(existing);
             if (existingType != gooType) {
                 return INCOMPATIBLE_SLOT;
             }
@@ -331,7 +332,7 @@ public abstract class OmniblobQuickCraftMixin {
      * @param gooType   the goo type being distributed
      * @param remainder the remaining volume after distribution
      */
-    private void setCarriedRemainder(GooType gooType, int remainder) {
+    private void setCarriedRemainder(ResourceKey<GooTypeDefinition> gooType, int remainder) {
         if (remainder <= 0) {
             setCarried(ItemStack.EMPTY);
         } else {

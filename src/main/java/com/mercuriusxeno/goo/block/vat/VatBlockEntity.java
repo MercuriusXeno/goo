@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.block.vat;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.block.BlockEntitySync;
 import com.mercuriusxeno.goo.block.GooLightContribution;
 import com.mercuriusxeno.goo.block.IGooLightSource;
@@ -21,6 +22,7 @@ import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -62,7 +64,7 @@ public class VatBlockEntity extends BlockEntity implements IGasketHolder, IGooLi
 
     // --- Stream state (synced to client for BER rendering) ---
     // Package-private: accessed by VatSerialization for snapshot and save/load.
-    @Nullable GooType vatStreamType;
+    @Nullable ResourceKey<GooTypeDefinition> vatStreamType;
     int vatStreamRate;
     long vatStreamTick;
 
@@ -138,7 +140,7 @@ public class VatBlockEntity extends BlockEntity implements IGasketHolder, IGooLi
      * @param volume volume in microblobs
      * @return the amount actually inserted
      */
-    public int insertGoo(GooType type, int volume) {
+    public int insertGoo(ResourceKey<GooTypeDefinition> type, int volume) {
         return fluidHandler.insertGoo(type, Math.min(volume, Integer.MAX_VALUE), false);
     }
 
@@ -149,7 +151,7 @@ public class VatBlockEntity extends BlockEntity implements IGasketHolder, IGooLi
      * @param amount maximum volume in microblobs
      * @return the amount actually extracted
      */
-    public int extractGoo(GooType type, int amount) {
+    public int extractGoo(ResourceKey<GooTypeDefinition> type, int amount) {
         return fluidHandler.extractGoo(type, Math.min(amount, Integer.MAX_VALUE), false);
     }
 
@@ -188,7 +190,7 @@ public class VatBlockEntity extends BlockEntity implements IGasketHolder, IGooLi
      * @return the dominant type
      */
     @Nullable
-    public GooType getDominantType() {
+    public ResourceKey<GooTypeDefinition> getDominantType() {
         return fluidHandler.largestType();
     }
 
@@ -206,16 +208,22 @@ public class VatBlockEntity extends BlockEntity implements IGasketHolder, IGooLi
      * current capacity, clamped to the vanilla 15-light ceiling. Compression
      * grows capacity, so the same mB amount of glow goo emits less light in
      * a higher-tier vat -- intentional, scales with the visible fill ratio.
+     * Before placement no registry is reachable, so the emission reads 0.
      *
      * @return goo-derived block-light emission in [0, 15]
      */
     @Override
     public int gooLightEmission() {
+        Level level = getLevel();
+        if (level == null) {
+            return 0;
+        }
+        HolderLookup.Provider registries = level.registryAccess();
         int capacity = getCapacity();
         int total = 0;
         for (var entry : fluidHandler.toGooContents().contents().entrySet()) {
             int contribution = GooLightContribution.forSlot(
-                    entry.getKey(), entry.getValue(), capacity);
+                    GooTypes.definition(registries, entry.getKey()), entry.getValue(), capacity);
             total = GooLightContribution.addClamped(total, contribution);
             if (total >= GooLightContribution.MAX_LIGHT) {
                 return GooLightContribution.MAX_LIGHT;
@@ -250,7 +258,7 @@ public class VatBlockEntity extends BlockEntity implements IGasketHolder, IGooLi
      * @param currentTick the current game tick
      * @return the vat stream type
      */
-    public @Nullable GooType getVatStreamType(long currentTick) {
+    public @Nullable ResourceKey<GooTypeDefinition> getVatStreamType(long currentTick) {
         return (currentTick - vatStreamTick <= 1) ? vatStreamType : null;
     }
 

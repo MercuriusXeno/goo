@@ -1,16 +1,20 @@
 package com.mercuriusxeno.goo.client.throwing;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.client.GooTooltipHandler;
+import com.mercuriusxeno.goo.item.BlobStacks;
 import com.mercuriusxeno.goo.item.GooBlobItem;
 import com.mercuriusxeno.goo.item.GooOmniblobItem;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.client.IItemDecorator;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Renders a goo type icon (top-right) on all blob and omniblob item slots.
@@ -41,12 +45,12 @@ public class BlobVolumeDecorator implements IItemDecorator {
 
     @Override
     public boolean render(@NonNull GuiGraphicsExtractor graphics, @NonNull Font font, ItemStack stack, int xOffset, int yOffset) {
-        if (stack.getItem() instanceof GooBlobItem blob) {
-            renderTypeIcon(graphics, blob.getGooType(), xOffset, yOffset);
+        if (stack.getItem() instanceof GooBlobItem) {
+            renderTypeIcon(graphics, BlobStacks.keyOf(stack), xOffset, yOffset);
             return true;
         }
-        return stack.getItem() instanceof GooOmniblobItem omniblob
-                && renderOmniblob(graphics, font, stack, omniblob, xOffset, yOffset);
+        return stack.getItem() instanceof GooOmniblobItem
+                && renderOmniblob(graphics, font, stack, xOffset, yOffset);
     }
 
     /**
@@ -54,30 +58,38 @@ public class BlobVolumeDecorator implements IItemDecorator {
      * @param graphics the GUI graphics context
      * @param font the font renderer
      * @param stack the omniblob item stack
-     * @param omniblob the omniblob item instance
      * @param xOffset the horizontal slot position
      * @param yOffset the vertical slot position
      * @return true if decorations were rendered, false if the omniblob is empty
      */
-    private boolean renderOmniblob(GuiGraphicsExtractor graphics, Font font, ItemStack stack, GooOmniblobItem omniblob, int xOffset, int yOffset) {
+    private boolean renderOmniblob(GuiGraphicsExtractor graphics, Font font, ItemStack stack, int xOffset, int yOffset) {
         int volume = GooOmniblobItem.getVolume(stack);
         if (volume <= 0) { return false; }
-        renderTypeIcon(graphics, omniblob.getGooType(), xOffset, yOffset);
+        renderTypeIcon(graphics, BlobStacks.keyOf(stack), xOffset, yOffset);
         renderVolumeLabel(graphics, font, volume, xOffset, yOffset);
         return true;
     }
 
     /**
-     * Blits the goo type icon in the top-right of the slot.
+     * Blits the goo type icon in the top-right of the slot, at a texture path
+     * built from the type's short id. A bundled type's id is a bare path and
+     * resolves. A datapack type's id carries its namespace, which is not a
+     * legal identifier path, so the construction below throws
+     * {@code IdentifierException}: a datapack type reaching this method
+     * crashes the render rather than drawing nothing. Decision
+     * type-named-textures is where a type names its own textures.
      *
      * @param graphics the GUI graphics context
-     * @param type the goo type
+     * @param type the goo type to draw, of any namespace, or null where the stack carries none
      * @param x the X coordinate
      * @param y the Y coordinate
      */
-    private void renderTypeIcon(GuiGraphicsExtractor graphics, GooType type, int x, int y) {
+    private void renderTypeIcon(GuiGraphicsExtractor graphics, @Nullable ResourceKey<GooTypeDefinition> type, int x, int y) {
+        if (type == null) {
+            return;
+        }
         Identifier texture = Identifier.fromNamespaceAndPath(
-                NAMESPACE_GOO, ICON_PATH_PREFIX + type.getId() + ICON_PATH_SUFFIX);
+                NAMESPACE_GOO, ICON_PATH_PREFIX + GooTypes.id(type) + ICON_PATH_SUFFIX);
         graphics.blit(RenderPipelines.GUI_TEXTURED, texture,
                 x + ICON_X_OFFSET, y, 0.0f, 0.0f,
                 ICON_RENDER_SIZE, ICON_RENDER_SIZE,

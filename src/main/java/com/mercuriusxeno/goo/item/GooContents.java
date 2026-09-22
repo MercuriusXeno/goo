@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.item;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import io.netty.buffer.ByteBuf;
@@ -8,13 +9,13 @@ import net.minecraft.core.component.DataComponentGetter;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.util.StringRepresentable;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.TooltipProvider;
 import org.jspecify.annotations.Nullable;
 import java.util.Collections;
-import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -23,12 +24,12 @@ import java.util.function.Consumer;
  * Unified data component for all goo containers:
  * canisters, vats, crucible reservoirs, and partially melted items.
  *
- * <p>Each entry maps a GooType to a volume in microblobs (mB).
+ * <p>Each entry maps a goo type key to a volume in microblobs (mB).
  * Mutation methods return new instances; this record is never modified in place.</p>
  *
  * @param contents the map of goo types to volumes in microblobs
  */
-public record GooContents(Map<GooType, Integer> contents) implements TooltipProvider {
+public record GooContents(Map<ResourceKey<GooTypeDefinition>, Integer> contents) implements TooltipProvider {
 
     /**
      * Empty container with no goo.
@@ -36,62 +37,29 @@ public record GooContents(Map<GooType, Integer> contents) implements TooltipProv
     public static final GooContents EMPTY = new GooContents(Map.of());
 
     /**
-     * Persistent codec: serializes goo type keys via StringRepresentable.
+     * Persistent codec: goo type ids to volumes, a bundled type by its bare
+     * id and a datapack type by its namespaced id (decision datapack-goo-registry).
      */
     public static final Codec<GooContents> CODEC = RecordCodecBuilder.create(instance ->
             instance.group(
-                    Codec.unboundedMap(
-                            StringRepresentable.fromValues(GooType::values),
-                            Codec.INT
-                    ).fieldOf("contents").forGetter(GooContents::contents)
+                    Codec.unboundedMap(GooTypes.ID_CODEC, Codec.INT)
+                            .fieldOf("contents").forGetter(GooContents::contents)
             ).apply(instance, GooContents::new)
     );
 
     /**
-     * Network codec: writes entry count, then ordinal + volume per entry.
+     * Network codec: each entry as its type key then its volume.
      */
-    public static final StreamCodec<ByteBuf, GooContents> STREAM_CODEC =
-            new StreamCodec<>() {
-                @Override
-                public GooContents decode(ByteBuf buf) {
-                    int count = ByteBufCodecs.VAR_INT.decode(buf);
-                    return new GooContents(readEntries(buf, count));
-                }
-
-                @Override
-                public void encode(ByteBuf buf, GooContents value) {
-                    ByteBufCodecs.VAR_INT.encode(buf, value.contents.size());
-                    for (Map.Entry<GooType, Integer> entry : value.contents.entrySet()) {
-                        ByteBufCodecs.VAR_INT.encode(buf, entry.getKey().ordinal());
-                        ByteBufCodecs.VAR_INT.encode(buf, entry.getValue());
-                    }
-                }
-            };
+    public static final StreamCodec<ByteBuf, GooContents> STREAM_CODEC = ByteBufCodecs
+            .<ByteBuf, ResourceKey<GooTypeDefinition>, Integer, Map<ResourceKey<GooTypeDefinition>, Integer>>map(
+                    HashMap::new, GooTypes.KEY_STREAM_CODEC, ByteBufCodecs.VAR_INT)
+            .map(GooContents::new, GooContents::contents);
 
     /**
-     * Defensive copy constructor: filters non-positive values, wraps in unmodifiable EnumMap.
+     * Defensive copy constructor: filters non-positive values, wraps in an unmodifiable map.
      */
     public GooContents {
         contents = filterPositive(contents);
-    }
-
-    /**
-     * Reads ordinal-volume pairs from a byte buffer into an EnumMap.
-     *
-     * @param buf   the byte buffer
-     * @param count the number of entries to read
-     * @return the decoded map
-     */
-    private static Map<GooType, Integer> readEntries(ByteBuf buf, int count) {
-        Map<GooType, Integer> map = new EnumMap<>(GooType.class);
-        for (int i = 0; i < count; i++) {
-            int ordinal = ByteBufCodecs.VAR_INT.decode(buf);
-            int volume = ByteBufCodecs.VAR_INT.decode(buf);
-            if (ordinal >= 0 && ordinal < GooType.values().length) {
-                map.put(GooType.values()[ordinal], volume);
-            }
-        }
-        return map;
     }
 
     /**
@@ -100,11 +68,11 @@ public record GooContents(Map<GooType, Integer> contents) implements TooltipProv
      * @param input the raw contents map
      * @return filtered, unmodifiable map (or Map.of() if empty)
      */
-    private static Map<GooType, Integer> filterPositive(Map<GooType, Integer> input) {
+    private static Map<ResourceKey<GooTypeDefinition>, Integer> filterPositive(Map<ResourceKey<GooTypeDefinition>, Integer> input) {
         if (input.isEmpty()) {
             return Map.of();
         }
-        Map<GooType, Integer> filtered = new EnumMap<>(GooType.class);
+        Map<ResourceKey<GooTypeDefinition>, Integer> filtered = new HashMap<>();
         input.forEach((type, vol) -> {
             if (vol > 0) {
                 filtered.put(type, vol);
@@ -122,20 +90,22 @@ public record GooContents(Map<GooType, Integer> contents) implements TooltipProv
      * @param leader    the current leader type
      * @return true if the candidate should replace the leader
      */
-    private static boolean beatsCurrentLeader(int vol, GooType candidate,
-                                              int highest, GooType leader) {
+    private static boolean beatsCurrentLeader(int vol, ResourceKey<GooTypeDefinition> candidate,
+                                              int highest, ResourceKey<GooTypeDefinition> leader) {
         return vol > highest || (vol == highest && winsOrdinalTie(candidate, leader));
     }
 
     /**
-     * Returns true if the candidate wins a tie against the current leader by ordinal.
+     * Returns true if the candidate wins a tie against the current leader by
+     * key order, so the dominant type is the same on every read.
      *
      * @param candidate the challenger goo type
      * @param current   the current leader, or null
      * @return true if the candidate should replace the leader
      */
-    private static boolean winsOrdinalTie(GooType candidate, GooType current) {
-        return current == null || candidate.ordinal() < current.ordinal();
+    private static boolean winsOrdinalTie(ResourceKey<GooTypeDefinition> candidate,
+                                          @Nullable ResourceKey<GooTypeDefinition> current) {
+        return current == null || GooTypes.ORDER.compare(candidate, current) < 0;
     }
 
     /**
@@ -184,7 +154,7 @@ public record GooContents(Map<GooType, Integer> contents) implements TooltipProv
      * @return the single goo type, or null
      */
     @Nullable
-    public GooType getSingleType() {
+    public ResourceKey<GooTypeDefinition> getSingleType() {
         if (contents.size() != 1) {
             return null;
         }
@@ -192,13 +162,13 @@ public record GooContents(Map<GooType, Integer> contents) implements TooltipProv
     }
 
     /**
-     * Returns the goo type with the highest volume, or null if empty. Ties break by enum ordinal.
+     * Returns the goo type with the highest volume, or null if empty. Ties break by key order.
      *
      * @return the dominant goo type, or null if empty
      */
     @Nullable
-    public GooType largestType() {
-        GooType largest = null;
+    public ResourceKey<GooTypeDefinition> largestType() {
+        ResourceKey<GooTypeDefinition> largest = null;
         int highest = 0;
         for (var e : contents.entrySet()) {
             if (beatsCurrentLeader(e.getValue(), e.getKey(), highest, largest)) {
@@ -215,7 +185,7 @@ public record GooContents(Map<GooType, Integer> contents) implements TooltipProv
      * @param type the goo type to query
      * @return volume in microblobs
      */
-    public int getVolume(GooType type) {
+    public int getVolume(ResourceKey<GooTypeDefinition> type) {
         return contents.getOrDefault(type, 0);
     }
 
@@ -224,7 +194,7 @@ public record GooContents(Map<GooType, Integer> contents) implements TooltipProv
      *
      * @return map of goo type to volume in microblobs
      */
-    public Map<GooType, Integer> getAll() {
+    public Map<ResourceKey<GooTypeDefinition>, Integer> getAll() {
         return contents;
     }
 
@@ -235,11 +205,11 @@ public record GooContents(Map<GooType, Integer> contents) implements TooltipProv
      * @param amount the volume to add in microblobs
      * @return new contents with the addition applied
      */
-    public GooContents withAdded(GooType type, int amount) {
+    public GooContents withAdded(ResourceKey<GooTypeDefinition> type, int amount) {
         if (amount <= 0) {
             return this;
         }
-        Map<GooType, Integer> newMap = new EnumMap<>(GooType.class);
+        Map<ResourceKey<GooTypeDefinition>, Integer> newMap = new HashMap<>();
         newMap.putAll(contents);
         newMap.merge(type, amount, Integer::sum);
         return new GooContents(newMap);
@@ -260,7 +230,7 @@ public record GooContents(Map<GooType, Integer> contents) implements TooltipProv
             return other;
         }
         GooContents result = this;
-        for (Map.Entry<GooType, Integer> entry : other.contents.entrySet()) {
+        for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> entry : other.contents.entrySet()) {
             result = result.withAdded(entry.getKey(), entry.getValue());
         }
         return result;
@@ -273,7 +243,7 @@ public record GooContents(Map<GooType, Integer> contents) implements TooltipProv
      * @param amount the volume to remove in microblobs
      * @return new contents with the removal applied
      */
-    public GooContents withRemoved(GooType type, int amount) {
+    public GooContents withRemoved(ResourceKey<GooTypeDefinition> type, int amount) {
         if (amount <= 0 || !contents.containsKey(type)) {
             return this;
         }
@@ -287,8 +257,8 @@ public record GooContents(Map<GooType, Integer> contents) implements TooltipProv
      * @param amount the volume to subtract
      * @return the new map (may have the type removed entirely if depleted)
      */
-    private Map<GooType, Integer> removeFromMap(GooType type, int amount) {
-        Map<GooType, Integer> newMap = new EnumMap<>(GooType.class);
+    private Map<ResourceKey<GooTypeDefinition>, Integer> removeFromMap(ResourceKey<GooTypeDefinition> type, int amount) {
+        Map<ResourceKey<GooTypeDefinition>, Integer> newMap = new HashMap<>();
         newMap.putAll(contents);
         int remaining = newMap.getOrDefault(type, 0) - amount;
         if (remaining <= 0) {
@@ -309,7 +279,7 @@ public record GooContents(Map<GooType, Integer> contents) implements TooltipProv
      * @param capacity the total capacity of the container
      * @return new contents with the capped addition
      */
-    public GooContents withCappedAdd(GooType type, int amount, int capacity) {
+    public GooContents withCappedAdd(ResourceKey<GooTypeDefinition> type, int amount, int capacity) {
         if (amount <= 0) {
             return this;
         }

@@ -1,10 +1,10 @@
 {
   "inputs": [
-    {"fluid": "goo:leaf_goo", "amount": 1},
-    {"fluid": "goo:nether_goo", "amount": 1}
+    {"goo": "goo:leaf", "amount": 1},
+    {"goo": "goo:nether", "amount": 1}
   ],
   "outputs": [
-    {"fluid": "goo:nether_goo", "amount": 2}
+    {"goo": "goo:nether", "amount": 2}
   ],
   "rate": 1
 }

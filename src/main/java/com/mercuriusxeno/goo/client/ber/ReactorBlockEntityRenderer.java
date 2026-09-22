@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.client.ber;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.block.reactor.ReactorBlock;
 import com.mercuriusxeno.goo.block.reactor.ReactorBlockEntity;
 import com.mercuriusxeno.goo.client.CuboidBounds;
@@ -27,6 +27,7 @@ import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
@@ -646,7 +647,7 @@ public class ReactorBlockEntityRenderer
      */
     private static void submitFluid(PoseStack poseStack,
             SubmitNodeCollector nodeCollector, ReactorRenderState state) {
-        GooType type = state.slot.type;
+        ResourceKey<GooTypeDefinition> type = state.slot.type;
         float fill = state.slot.fill;
         GooSubmitter.submitFluid(poseStack, nodeCollector, ctx -> {
             CuboidBounds b = SlotFluidGeometry.computeBounds(FLUID_GEOM, HOLLOW_CX, HOLLOW_CZ, fill);

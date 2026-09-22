@@ -1,7 +1,8 @@
 package com.mercuriusxeno.goo.ability;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import org.jspecify.annotations.Nullable;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -14,7 +15,7 @@ import java.util.stream.Collectors;
 public final class AbilityRegistry {
 
     private static Map<Identifier, AbilityDefinition> byId = Map.of();
-    private static Map<GooType, List<AbilityDefinition>> byType = new EnumMap<>(GooType.class);
+    private static Map<ResourceKey<GooTypeDefinition>, List<AbilityDefinition>> byType = new HashMap<>();
 
     private AbilityRegistry() {
     }
@@ -30,7 +31,7 @@ public final class AbilityRegistry {
                 .sorted(Comparator.comparingInt(AbilityDefinition::order))
                 .collect(Collectors.groupingBy(
                         AbilityDefinition::gooType,
-                        () -> new EnumMap<>(GooType.class),
+                        () -> new HashMap<>(),
                         Collectors.collectingAndThen(Collectors.toList(), Collections::unmodifiableList)));
     }
 
@@ -50,7 +51,7 @@ public final class AbilityRegistry {
      * @param type the goo type
      * @return immutable list, empty if none registered
      */
-    public static List<AbilityDefinition> getAbilitiesForType(GooType type) {
+    public static List<AbilityDefinition> getAbilitiesForType(ResourceKey<GooTypeDefinition> type) {
         return byType.getOrDefault(type, List.of());
     }
 
@@ -60,7 +61,7 @@ public final class AbilityRegistry {
      * @param type the goo type
      * @return true if at least one ability is registered
      */
-    public static boolean hasAbilities(GooType type) {
+    public static boolean hasAbilities(ResourceKey<GooTypeDefinition> type) {
         return !getAbilitiesForType(type).isEmpty();
     }
 
@@ -71,7 +72,7 @@ public final class AbilityRegistry {
      * @param abilityId the ability resource id
      * @return true if the ability exists and belongs to the type
      */
-    public static boolean isValidAbility(GooType type, Identifier abilityId) {
+    public static boolean isValidAbility(ResourceKey<GooTypeDefinition> type, Identifier abilityId) {
         AbilityDefinition def = byId.get(abilityId);
         return def != null && def.gooType() == type;
     }

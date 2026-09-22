@@ -1,7 +1,8 @@
 package com.mercuriusxeno.goo.client.hud;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.item.GooContents;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.ItemStack;
 import java.util.Set;
 
@@ -18,7 +19,7 @@ import java.util.Set;
 public record CrucibleSnapshot(
         GooContents reservoir,
         GooContents total,
-        Set<GooType> types,
+        Set<ResourceKey<GooTypeDefinition>> types,
         ItemStack fuelRod,
         boolean hasGoo,
         boolean hasFuel

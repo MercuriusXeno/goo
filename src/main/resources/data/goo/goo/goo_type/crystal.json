@@ -1,0 +1,13 @@
+{
+  "light_level": 8,
+  "saturation_fill": 0.5,
+  "wheel": "4FC1E9",
+  "bright": "77E9FF",
+  "highlight": "5ED0F8",
+  "edge": "6DDFFF",
+  "density": 1200,
+  "viscosity": 1000,
+  "temperature": 300,
+  "extinguishes": false,
+  "map_color": "ice"
+}

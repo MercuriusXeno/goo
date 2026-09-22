@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.hud;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.client.GooTooltipHandler;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -11,6 +12,7 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
@@ -383,7 +385,7 @@ public final class InWorldHud {
      * @param y          the Y coordinate
      */
     public static void renderGooRow(PoseStack poseStack, Font font,
-                                    MultiBufferSource buffers, GooType type, String amountText,
+                                    MultiBufferSource buffers, ResourceKey<GooTypeDefinition> type, String amountText,
                                     float x, float y) {
         float iconY = y + (ROW_HEIGHT - ICON_SIZE) / HALF;
         float textY = y + (ROW_HEIGHT - font.lineHeight) / HALF;
@@ -405,7 +407,7 @@ public final class InWorldHud {
      * @param y          the Y coordinate
      */
     public static void renderGooRowSeeThrough(PoseStack poseStack, Font font,
-                                              MultiBufferSource buffers, GooType type, String amountText,
+                                              MultiBufferSource buffers, ResourceKey<GooTypeDefinition> type, String amountText,
                                               float x, float y) {
         float iconY = y + (ROW_HEIGHT - ICON_SIZE) / HALF;
         float textY = y + (ROW_HEIGHT - font.lineHeight) / HALF;
@@ -431,7 +433,7 @@ public final class InWorldHud {
                                      MultiBufferSource buffers, GooContents contents,
                                      float x, float baseY, int startRow) {
         int row = startRow;
-        for (Map.Entry<GooType, Integer> entry : contents.getAll().entrySet()) {
+        for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> entry : contents.getAll().entrySet()) {
             float rowY = baseY + row * ROW_HEIGHT;
             String amountText = GooTooltipHandler.formatFluidDisplayCompact(entry.getValue());
             renderGooRow(poseStack, font, buffers, entry.getKey(), amountText, x, rowY);
@@ -505,7 +507,7 @@ public final class InWorldHud {
      * @param y         the Y coordinate
      */
     public static void renderIcon(PoseStack poseStack, MultiBufferSource buffers,
-                                  GooType type, float x, float y) {
+                                  ResourceKey<GooTypeDefinition> type, float x, float y) {
         emitIconQuad(poseStack, buffers, type, x, y, false);
     }
 
@@ -519,7 +521,7 @@ public final class InWorldHud {
      * @param y         the Y coordinate
      */
     public static void renderIconSeeThrough(PoseStack poseStack, MultiBufferSource buffers,
-                                            GooType type, float x, float y) {
+                                            ResourceKey<GooTypeDefinition> type, float x, float y) {
         emitIconQuad(poseStack, buffers, type, x, y, true);
     }
 
@@ -534,9 +536,9 @@ public final class InWorldHud {
      * @param seeThrough true to disable depth testing
      */
     private static void emitIconQuad(PoseStack poseStack, MultiBufferSource buffers,
-                                     GooType type, float x, float y, boolean seeThrough) {
+                                     ResourceKey<GooTypeDefinition> type, float x, float y, boolean seeThrough) {
         Identifier tex = Identifier.fromNamespaceAndPath(NAMESPACE_GOO,
-                ICON_PATH_PREFIX + type.getId() + ICON_PATH_SUFFIX);
+                ICON_PATH_PREFIX + GooTypes.id(type) + ICON_PATH_SUFFIX);
         VertexConsumer vc = buffers.getBuffer(
                 seeThrough ? RenderTypes.textSeeThrough(tex) : RenderTypes.text(tex));
         PoseStack.Pose pose = poseStack.last();
@@ -557,7 +559,7 @@ public final class InWorldHud {
      */
     public static float computeMaxRowWidth(Font font, GooContents contents) {
         float max = 0;
-        for (Map.Entry<GooType, Integer> entry : contents.getAll().entrySet()) {
+        for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> entry : contents.getAll().entrySet()) {
             String text = GooTooltipHandler.formatFluidDisplayCompact(entry.getValue());
             float w = ICON_SIZE + ICON_TEXT_GAP + font.width(text);
             if (w > max) {

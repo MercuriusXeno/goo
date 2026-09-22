@@ -1,8 +1,10 @@
 package com.mercuriusxeno.goo.client.ber;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceKey;
 
 /**
  * Render state snapshot for the chain marker BER. Captures goo type,
@@ -13,7 +15,7 @@ import net.minecraft.core.Direction;
 public class ChainMarkerRenderState extends BlockEntityRenderState {
 
     /** The goo type determining color and fluid texture. */
-    public GooType gooType = GooType.ROCK;
+    public ResourceKey<GooTypeDefinition> gooType = GooTypes.ROCK;
 
     /** Current stack count (1-based). */
     public int stackCount = 1;

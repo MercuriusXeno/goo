@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.block.ability;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.ChainBehaviors;
 import com.mercuriusxeno.goo.ability.world.NetherBehavior;
 import com.mercuriusxeno.goo.item.BlobStacks;
@@ -10,6 +11,7 @@ import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.player.Player;
@@ -35,7 +37,7 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
-import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -119,14 +121,14 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
     /**
      * Maps goo types to their particle emitter; types without particles are absent.
      */
-    private static final Map<GooType, ParticleEmitter> PARTICLE_EMITTERS;
+    private static final Map<ResourceKey<GooTypeDefinition>, ParticleEmitter> PARTICLE_EMITTERS;
 
     static {
-        Map<GooType, ParticleEmitter> m = new EnumMap<>(GooType.class);
-        m.put(GooType.BLAZE, ChainMarkerBlock::spawnBlazeParticles);
-        m.put(GooType.ROCK, ChainMarkerBlock::spawnRockParticles);
-        m.put(GooType.NETHER, ChainMarkerBlock::spawnNetherParticles);
-        m.put(GooType.METAL, ChainMarkerBlock::spawnMetalParticles);
+        Map<ResourceKey<GooTypeDefinition>, ParticleEmitter> m = new HashMap<>();
+        m.put(GooTypes.BLAZE, ChainMarkerBlock::spawnBlazeParticles);
+        m.put(GooTypes.ROCK, ChainMarkerBlock::spawnRockParticles);
+        m.put(GooTypes.NETHER, ChainMarkerBlock::spawnNetherParticles);
+        m.put(GooTypes.METAL, ChainMarkerBlock::spawnMetalParticles);
         // Crystal uses shard cloud BER visual instead of ambient particles.
         PARTICLE_EMITTERS = Map.copyOf(m);
     }
@@ -308,7 +310,7 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
      * @param level  the current level
      * @param random the random source
      */
-    private static void spawnAmbientParticles(GooType type, int stacks,
+    private static void spawnAmbientParticles(ResourceKey<GooTypeDefinition> type, int stacks,
                                               BlockPos pos, Level level, RandomSource random) {
         double cx = pos.getX() + BLOCK_CENTER;
         double cy = pos.getY() + BLOCK_CENTER;
@@ -327,7 +329,7 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
      * @param level  the current level
      * @param random the random source for particle offsets
      */
-    private static void dispatchParticles(GooType type, int stacks,
+    private static void dispatchParticles(ResourceKey<GooTypeDefinition> type, int stacks,
                                           double cx, double cy, double cz, Level level, RandomSource random) {
         ParticleEmitter emitter = PARTICLE_EMITTERS.get(type);
         if (emitter == null) {
@@ -529,7 +531,7 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
         if (!(level.getBlockEntity(pos) instanceof ChainMarkerBlockEntity be)) {
             return SELECTION_SHAPE;
         }
-        if (be.getGooType() == GooType.GLOW) {
+        if (be.getGooType() == GooTypes.GLOW) {
             return computeGlowShape(be.getStackCount(), be.getPlacedFace(), be.isFlatBlob());
         }
         return computeOrbShape(be.getStackCount(), be.getPlacedFace(), be.isFlatBlob());
@@ -574,7 +576,7 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
             return super.onDestroyedByPlayer(state, level, pos, player, toolStack, canHarvest, fluidState);
         }
         ChainMarkerBlockEntity be = (ChainMarkerBlockEntity) level.getBlockEntity(pos);
-        if (be.getGooType() == GooType.UNSTABLE && !level.isClientSide()) {
+        if (be.getGooType() == GooTypes.UNSTABLE && !level.isClientSide()) {
             be.instantDetonate();
         }
         return false;

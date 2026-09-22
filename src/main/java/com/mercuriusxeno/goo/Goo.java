@@ -49,6 +49,7 @@ public class Goo {
      */
     public Goo(IEventBus modEventBus, ModContainer modContainer) {
         registerDeferredRegistries(modEventBus);
+        GooTypeRegistry.init(modEventBus);
         registerModListeners(modEventBus);
         GooTestFunctions.init(modEventBus);
 
@@ -58,8 +59,6 @@ public class Goo {
 
         GOO_VALUES.setEffectiveCachePath(
                 FMLPaths.CONFIGDIR.get().resolve("goo_derived_values.json"));
-
-        GooColors.load(FMLPaths.CONFIGDIR.get());
 
         LOGGER.info("Goo mod initialized");
     }
@@ -95,7 +94,7 @@ public class Goo {
      */
     private static void registerContentRegistries(IEventBus modEventBus) {
         GooDataComponents.DATA_COMPONENTS.register(modEventBus);
-        GooPotions.POTIONS.register(modEventBus);
+        GooPotions.register(modEventBus);
         GooParticles.PARTICLE_TYPES.register(modEventBus);
         GooSounds.SOUND_EVENTS.register(modEventBus);
         GooCreativeTabs.TABS.register(modEventBus);
@@ -130,6 +129,8 @@ public class Goo {
      */
     @SubscribeEvent
     public void onAddReloadListeners(AddServerReloadListenersEvent event) {
+        // The type registry is loaded by now and the value and ability loaders below read it by id.
+        GooTypes.capture(event.getRegistryAccess());
         event.addListener(GooReactionLoader.LISTENER_ID, new GooReactionLoader());
         event.addListener(AbilityLoader.LISTENER_ID, new AbilityLoader());
     }
@@ -173,10 +174,13 @@ public class Goo {
     @SubscribeEvent
     public void onDatapackSync(OnDatapackSyncEvent event) {
         AbilitySyncPayload abilityPayload = AbilitySyncPayload.fromRegistry();
-        event.getRelevantPlayers().forEach(player -> {
-            GooValueSync.sendToPlayer(player);
-            PacketDistributor.sendToPlayer(player, abilityPayload);
-        });
+        // A listener that never negotiated the mod's channels, a gametest's mock player, gets no sync.
+        event.getRelevantPlayers()
+                .filter(player -> player.connection.hasChannel(abilityPayload))
+                .forEach(player -> {
+                    GooValueSync.sendToPlayer(player);
+                    PacketDistributor.sendToPlayer(player, abilityPayload);
+                });
     }
 
     /**

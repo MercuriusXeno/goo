@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.item;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.block.canister.CanisterBlock;
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.registry.GooEnchantments;
 import com.mercuriusxeno.goo.registry.GooFluids;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.SlotAccess;
 import net.minecraft.world.entity.player.Player;
@@ -20,7 +21,7 @@ import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.material.Fluid;
+import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -284,11 +285,11 @@ public class CanisterItem extends BlockItem implements IGooItemInteraction {
      * Returns the amount actually added.
      *
      * @param stack  the canister item stack
-     * @param fluid  the fluid to add
+     * @param fluid  the fluid resource to add
      * @param amount the volume in microblobs to add
      * @return the amount actually accepted
      */
-    public static int addFluid(ItemStack stack, Fluid fluid, int amount) {
+    public static int addFluid(ItemStack stack, FluidResource fluid, int amount) {
         int capacity = ContainerCapacity.canisterCapacity(GooEnchantments.getCompressionLevel(stack));
         CanisterFluidContent current = getFluidContent(stack);
         int accepted = current.cappedAddAmount(fluid, amount, capacity);
@@ -299,15 +300,15 @@ public class CanisterItem extends BlockItem implements IGooItemInteraction {
     }
 
     /**
-     * Convenience: add goo by type. Resolves GooType to its source fluid.
+     * Convenience: add goo by type. Resolves goo type key to its stamped resource.
      *
      * @param stack  the canister item stack
      * @param type   the goo type to add
      * @param amount the volume in microblobs to add
      * @return the amount actually accepted
      */
-    public static int addGoo(ItemStack stack, GooType type, int amount) {
-        return addFluid(stack, GooFluids.SOURCES.get(type).get(), amount);
+    public static int addGoo(ItemStack stack, ResourceKey<GooTypeDefinition> type, int amount) {
+        return addFluid(stack, GooFluids.resource(type), amount);
     }
 
     /**
@@ -315,28 +316,28 @@ public class CanisterItem extends BlockItem implements IGooItemInteraction {
      * holds the specified fluid. Returns the amount actually removed.
      *
      * @param stack  the canister item stack
-     * @param fluid  the fluid to remove
+     * @param fluid  the fluid resource to remove
      * @param amount the volume in microblobs to remove
      * @return the amount actually removed
      */
-    public static int removeFluid(ItemStack stack, Fluid fluid, int amount) {
+    public static int removeFluid(ItemStack stack, FluidResource fluid, int amount) {
         CanisterFluidContent current = getFluidContent(stack);
-        if (current.isEmpty() || current.fluid() != fluid) { return 0; }
+        if (current.isEmpty() || !current.resource().equals(fluid)) { return 0; }
         int removed = Math.min(amount, current.amount());
         setFluidContent(stack, current.withRemoved(removed));
         return removed;
     }
 
     /**
-     * Convenience: remove goo by type. Resolves GooType to its source fluid.
+     * Convenience: remove goo by type. Resolves goo type key to its stamped resource.
      *
      * @param stack  the canister item stack
      * @param type   the goo type to remove
      * @param amount the volume in microblobs to remove
      * @return the amount actually removed
      */
-    public static int removeGoo(ItemStack stack, GooType type, int amount) {
-        return removeFluid(stack, GooFluids.SOURCES.get(type).get(), amount);
+    public static int removeGoo(ItemStack stack, ResourceKey<GooTypeDefinition> type, int amount) {
+        return removeFluid(stack, GooFluids.resource(type), amount);
     }
 
     // --- Inventory click interactions ---

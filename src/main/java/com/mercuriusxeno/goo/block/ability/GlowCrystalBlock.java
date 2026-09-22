@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.block.ability;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.item.BlobStacks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -215,7 +215,7 @@ public class GlowCrystalBlock extends Block {
     protected @NonNull List<ItemStack> getDrops(@NonNull BlockState state,
                                                 LootParams.@NonNull Builder builder) {
         int count = state.getValue(SIZE).ordinal() + 1;
-        return List.of(BlobStacks.createBlobStack(GooType.GLOW, count));
+        return List.of(BlobStacks.createBlobStack(GooTypes.GLOW, count));
     }
 
     /**

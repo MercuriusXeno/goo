@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.GooType;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlock;
 import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
 import com.mercuriusxeno.goo.block.ability.MagickedIceBlock;
@@ -13,15 +12,13 @@ import com.mercuriusxeno.goo.block.plexer.PlexerBlock;
 import com.mercuriusxeno.goo.block.reactor.ReactorBlock;
 import com.mercuriusxeno.goo.block.tap.TapBlock;
 import com.mercuriusxeno.goo.block.vat.VatBlock;
+import com.mercuriusxeno.goo.fluid.GooFluidBlock;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.LiquidBlock;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredRegister;
-import java.util.EnumMap;
-import java.util.Map;
 import java.util.function.Supplier;
 
 /**
@@ -29,12 +26,7 @@ import java.util.function.Supplier;
  */
 public class GooBlocks {
     public static final DeferredRegister.Blocks BLOCKS = DeferredRegister.createBlocks(Goo.MODID);
-    /**
-     * LiquidBlock per goo type, used by the fluid system for in-world placement.
-     */
-    public static final Map<GooType, DeferredBlock<LiquidBlock>> FLUID_BLOCKS = new EnumMap<>(GooType.class);
 
-    // --- Fluid blocks (one per goo type) ---
     /**
      * Chain marker: short-lived fuse block for chain world effects.
      */
@@ -123,56 +115,15 @@ public class GooBlocks {
     public static final DeferredBlock<ChoralGasketBlock> CHORAL_GASKET_BLOCK = BLOCKS.registerBlock(
             "choral_gasket", ChoralGasketBlock::new, CHORAL_GASKET_PROPERTY_SUPPLIER);
     /**
-     * Goo type to vanilla map color mapping.
+     * The one goo liquid block; its map color reads the type stamped on its
+     * block entity, and STONE stands where nothing is stamped.
      */
-    private static final Map<GooType, MapColor> GOO_MAP_COLORS = new EnumMap<>(Map.ofEntries(
-            Map.entry(GooType.AEON, MapColor.GOLD),
-            Map.entry(GooType.BLAZE, MapColor.FIRE),
-            Map.entry(GooType.CRYSTAL, MapColor.ICE),
-            Map.entry(GooType.ENDER, MapColor.DIAMOND),
-            Map.entry(GooType.FROST, MapColor.ICE),
-            Map.entry(GooType.GLOW, MapColor.GOLD),
-            Map.entry(GooType.HEX, MapColor.COLOR_BLACK),
-            Map.entry(GooType.LEAF, MapColor.PLANT),
-            Map.entry(GooType.METAL, MapColor.METAL),
-            Map.entry(GooType.NETHER, MapColor.NETHER),
-            Map.entry(GooType.PULSE, MapColor.COLOR_RED),
-            Map.entry(GooType.ROCK, MapColor.STONE),
-            Map.entry(GooType.SHROOM, MapColor.COLOR_PURPLE),
-            Map.entry(GooType.TYPHOON, MapColor.COLOR_LIGHT_GREEN),
-            Map.entry(GooType.VITAL, MapColor.COLOR_RED)));
-
-    static {
-        for (GooType type : GooType.values()) {
-            Supplier<BlockBehaviour.Properties> props = fluidBlockProperties(type);
-            FLUID_BLOCKS.put(type, BLOCKS.registerBlock(type.getId() + "_goo",
-                    p -> new LiquidBlock(GooFluids.SOURCES.get(type).get(), p),
-                    props));
-        }
-    }
-
-    /**
-     * Builds a properties supplier for a goo fluid block with the type's map color.
-     *
-     * @param type the goo type
-     * @return the block properties supplier
-     */
-    private static Supplier<BlockBehaviour.Properties> fluidBlockProperties(GooType type) {
-        return () -> BlockBehaviour.Properties.of()
-                .mapColor(mapColorFromGoo(type))
-                .liquid()
-                .noCollision()
-                .strength(INDESTRUCTIBLE)
-                .noLootTable();
-    }
-
-    /**
-     * Maps a goo type's RGB color to the nearest vanilla MapColor.
-     *
-     * @param type the goo type
-     * @return the corresponding map color
-     */
-    private static MapColor mapColorFromGoo(GooType type) {
-        return GOO_MAP_COLORS.getOrDefault(type, MapColor.STONE);
-    }
+    public static final DeferredBlock<GooFluidBlock> GOO_FLUID = BLOCKS.registerBlock(GooFluids.GOO_PATH,
+            p -> new GooFluidBlock(GooFluids.SOURCE.get(), p),
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.STONE)
+                    .liquid()
+                    .noCollision()
+                    .strength(INDESTRUCTIBLE)
+                    .noLootTable());
 }

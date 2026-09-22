@@ -1,11 +1,12 @@
 package com.mercuriusxeno.goo.data;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypes;
 import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import static com.mercuriusxeno.goo.data.TestRecipeBuilder.goo;
 import static com.mercuriusxeno.goo.data.TestRecipeBuilder.id;
@@ -27,9 +28,9 @@ class GooConversionTest {
         @Test
         void parseBasicFormula() {
             GooConversion.Formula f = GooConversion.parseFormula("metal / 4 -> aeon / 2");
-            assertEquals(GooType.METAL, f.sourceType());
+            assertEquals(GooTypes.METAL, f.sourceType());
             assertEquals(4, f.sourceDivisor());
-            assertEquals(GooType.AEON, f.targetType());
+            assertEquals(GooTypes.AEON, f.targetType());
             assertEquals(2, f.targetDivisor());
         }
 
@@ -39,9 +40,9 @@ class GooConversionTest {
         @Test
         void parseDivisorOfOne() {
             GooConversion.Formula f = GooConversion.parseFormula("vital / 1 -> nether / 2");
-            assertEquals(GooType.VITAL, f.sourceType());
+            assertEquals(GooTypes.VITAL, f.sourceType());
             assertEquals(1, f.sourceDivisor());
-            assertEquals(GooType.NETHER, f.targetType());
+            assertEquals(GooTypes.NETHER, f.targetType());
             assertEquals(2, f.targetDivisor());
         }
 
@@ -66,14 +67,14 @@ class GooConversionTest {
         @Test
         void parseAdditiveFromTreeConstant() {
             Map<String, GooValue> treeConstants = Map.of(
-                    "waxed", goo(GooType.VITAL, 48));
+                    "waxed", goo(GooTypes.VITAL, 48));
             Map<String, String> entries = new LinkedHashMap<>();
             entries.put("waxed", "+$waxed");
             entries.put("#waxed_copper", "#copper @waxed");
 
             GooConversion.ParsedConversions parsed = GooConversion.parseBlock(entries, Map.of(), treeConstants);
             assertNotNull(parsed.additives().get("waxed"));
-            assertEquals(48, parsed.additives().get("waxed").get(GooType.VITAL));
+            assertEquals(48, parsed.additives().get("waxed").get(GooTypes.VITAL));
         }
 
         /**
@@ -81,12 +82,12 @@ class GooConversionTest {
          */
         @Test
         void additiveAppliedToItem() {
-            GooValue copper = goo(GooType.METAL, 160);
-            GooValue waxBonus = goo(GooType.VITAL, 48);
+            GooValue copper = goo(GooTypes.METAL, 160);
+            GooValue waxBonus = goo(GooTypes.VITAL, 48);
 
             GooValue result = copper.add(waxBonus, 1);
-            assertEquals(160, result.get(GooType.METAL));
-            assertEquals(48, result.get(GooType.VITAL));
+            assertEquals(160, result.get(GooTypes.METAL));
+            assertEquals(48, result.get(GooTypes.VITAL));
         }
 
         /**
@@ -94,12 +95,12 @@ class GooConversionTest {
          */
         @Test
         void additiveWithMultiplier() {
-            GooValue copper = goo(GooType.METAL, 160);
-            GooValue waxBonus = goo(GooType.VITAL, 48);
+            GooValue copper = goo(GooTypes.METAL, 160);
+            GooValue waxBonus = goo(GooTypes.VITAL, 48);
 
             GooValue result = copper.add(waxBonus, 2);
-            assertEquals(160, result.get(GooType.METAL));
-            assertEquals(96, result.get(GooType.VITAL));
+            assertEquals(160, result.get(GooTypes.METAL));
+            assertEquals(96, result.get(GooTypes.VITAL));
         }
     }
 
@@ -114,11 +115,11 @@ class GooConversionTest {
         @Test
         void singleApplication() {
             GooConversion.Formula oxidation = GooConversion.parseFormula("metal / 4 -> aeon / 2");
-            GooValue copper = goo(GooType.METAL, 160);
+            GooValue copper = goo(GooTypes.METAL, 160);
 
             GooValue result = GooConversion.apply(copper, oxidation, 1);
-            assertEquals(120, result.get(GooType.METAL)); // 160 - 40
-            assertEquals(20, result.get(GooType.AEON));    // 40 / 2
+            assertEquals(120, result.get(GooTypes.METAL)); // 160 - 40
+            assertEquals(20, result.get(GooTypes.AEON));    // 40 / 2
         }
 
         /**
@@ -127,11 +128,11 @@ class GooConversionTest {
         @Test
         void doubleApplicationSimultaneous() {
             GooConversion.Formula oxidation = GooConversion.parseFormula("metal / 4 -> aeon / 2");
-            GooValue copper = goo(GooType.METAL, 160);
+            GooValue copper = goo(GooTypes.METAL, 160);
 
             GooValue result = GooConversion.apply(copper, oxidation, 2);
-            assertEquals(80, result.get(GooType.METAL));  // 160 - 2*40
-            assertEquals(40, result.get(GooType.AEON));    // 2 * (40/2)
+            assertEquals(80, result.get(GooTypes.METAL));  // 160 - 2*40
+            assertEquals(40, result.get(GooTypes.AEON));    // 2 * (40/2)
         }
 
         /**
@@ -140,11 +141,11 @@ class GooConversionTest {
         @Test
         void tripleApplicationSimultaneous() {
             GooConversion.Formula oxidation = GooConversion.parseFormula("metal / 4 -> aeon / 2");
-            GooValue copper = goo(GooType.METAL, 160);
+            GooValue copper = goo(GooTypes.METAL, 160);
 
             GooValue result = GooConversion.apply(copper, oxidation, 3);
-            assertEquals(40, result.get(GooType.METAL));  // 160 - 3*40
-            assertEquals(60, result.get(GooType.AEON));    // 3 * (40/2)
+            assertEquals(40, result.get(GooTypes.METAL));  // 160 - 3*40
+            assertEquals(60, result.get(GooTypes.AEON));    // 3 * (40/2)
         }
 
         /**
@@ -153,12 +154,12 @@ class GooConversionTest {
         @Test
         void otherTypesPreserved() {
             GooConversion.Formula oxidation = GooConversion.parseFormula("metal / 4 -> aeon / 2");
-            GooValue copper = goo(GooType.METAL, 160, GooType.ROCK, 50);
+            GooValue copper = goo(GooTypes.METAL, 160, GooTypes.ROCK, 50);
 
             GooValue result = GooConversion.apply(copper, oxidation, 1);
-            assertEquals(120, result.get(GooType.METAL));
-            assertEquals(20, result.get(GooType.AEON));
-            assertEquals(50, result.get(GooType.ROCK)); // untouched
+            assertEquals(120, result.get(GooTypes.METAL));
+            assertEquals(20, result.get(GooTypes.AEON));
+            assertEquals(50, result.get(GooTypes.ROCK)); // untouched
         }
 
         /**
@@ -167,12 +168,12 @@ class GooConversionTest {
         @Test
         void missingSourceTypeNoOp() {
             GooConversion.Formula oxidation = GooConversion.parseFormula("metal / 4 -> aeon / 2");
-            GooValue noMetal = goo(GooType.ROCK, 100);
+            GooValue noMetal = goo(GooTypes.ROCK, 100);
 
             GooValue result = GooConversion.apply(noMetal, oxidation, 1);
-            assertEquals(100, result.get(GooType.ROCK));
-            assertEquals(0, result.get(GooType.METAL));
-            assertEquals(0, result.get(GooType.AEON));
+            assertEquals(100, result.get(GooTypes.ROCK));
+            assertEquals(0, result.get(GooTypes.METAL));
+            assertEquals(0, result.get(GooTypes.AEON));
         }
 
         /**
@@ -181,7 +182,7 @@ class GooConversionTest {
         @Test
         void lossySourceDivisionThrows() {
             GooConversion.Formula f = GooConversion.parseFormula("metal / 3 -> aeon / 1");
-            GooValue copper = goo(GooType.METAL, 100); // 100/3 = 33.3
+            GooValue copper = goo(GooTypes.METAL, 100); // 100/3 = 33.3
 
             assertThrows(ArithmeticException.class,
                     () -> GooConversion.apply(copper, f, 1));
@@ -193,7 +194,7 @@ class GooConversionTest {
         @Test
         void lossyTargetDivisionThrows() {
             GooConversion.Formula f = GooConversion.parseFormula("metal / 4 -> aeon / 3");
-            GooValue copper = goo(GooType.METAL, 160); // 40/3 = 13.3
+            GooValue copper = goo(GooTypes.METAL, 160); // 40/3 = 13.3
 
             assertThrows(ArithmeticException.class,
                     () -> GooConversion.apply(copper, f, 1));
@@ -299,8 +300,8 @@ class GooConversionTest {
         @Test
         void chainApplies() {
             Map<Identifier, GooValue> effective = new HashMap<>();
-            effective.put(id("minecraft:weathered_copper"), goo(GooType.METAL, 160, GooType.ROCK, 50));
-            effective.put(id("minecraft:weathered_cut_copper"), goo(GooType.METAL, 160));
+            effective.put(id("minecraft:weathered_copper"), goo(GooTypes.METAL, 160, GooTypes.ROCK, 50));
+            effective.put(id("minecraft:weathered_cut_copper"), goo(GooTypes.METAL, 160));
 
             GooConversion.Formula oxidation = GooConversion.parseFormula("metal / 4 -> aeon / 2");
             GooConversion.Stack weatheredStack = new GooConversion.Stack("oxidation", 2);
@@ -315,9 +316,9 @@ class GooConversionTest {
             GooConversion.applyAssignment(effective, targets, null, assignment, formulas, Map.of());
 
             GooValue copper = effective.get(id("minecraft:weathered_copper"));
-            assertEquals(80, copper.get(GooType.METAL));
-            assertEquals(40, copper.get(GooType.AEON));
-            assertEquals(50, copper.get(GooType.ROCK));
+            assertEquals(80, copper.get(GooTypes.METAL));
+            assertEquals(40, copper.get(GooTypes.AEON));
+            assertEquals(50, copper.get(GooTypes.ROCK));
         }
 
         /**
@@ -326,8 +327,8 @@ class GooConversionTest {
         @Test
         void parallelCopyThenConvert() {
             Map<Identifier, GooValue> effective = new HashMap<>();
-            effective.put(id("minecraft:copper_block"), goo(GooType.METAL, 160));
-            effective.put(id("minecraft:cut_copper"), goo(GooType.METAL, 80));
+            effective.put(id("minecraft:copper_block"), goo(GooTypes.METAL, 160));
+            effective.put(id("minecraft:cut_copper"), goo(GooTypes.METAL, 80));
             // Targets start empty
             effective.put(id("minecraft:exposed_copper"), GooValue.EMPTY);
             effective.put(id("minecraft:exposed_cut_copper"), GooValue.EMPTY);
@@ -347,13 +348,13 @@ class GooConversionTest {
 
             // copper_block (160 metal) copied to exposed_copper, then 1x oxidation
             GooValue exposed = effective.get(id("minecraft:exposed_copper"));
-            assertEquals(120, exposed.get(GooType.METAL)); // 160 - 40
-            assertEquals(20, exposed.get(GooType.AEON));    // 40 / 2
+            assertEquals(120, exposed.get(GooTypes.METAL)); // 160 - 40
+            assertEquals(20, exposed.get(GooTypes.AEON));    // 40 / 2
 
             // cut_copper (80 metal) copied to exposed_cut_copper, then 1x oxidation
             GooValue exposedCut = effective.get(id("minecraft:exposed_cut_copper"));
-            assertEquals(60, exposedCut.get(GooType.METAL)); // 80 - 20
-            assertEquals(10, exposedCut.get(GooType.AEON));   // 20 / 2
+            assertEquals(60, exposedCut.get(GooTypes.METAL)); // 80 - 20
+            assertEquals(10, exposedCut.get(GooTypes.AEON));   // 20 / 2
         }
 
         /**
@@ -362,8 +363,8 @@ class GooConversionTest {
         @Test
         void parallelCopyWithScale() {
             Map<Identifier, GooValue> effective = new HashMap<>();
-            effective.put(id("oak_log"), goo(GooType.LEAF, 120));
-            effective.put(id("birch_log"), goo(GooType.LEAF, 80));
+            effective.put(id("oak_log"), goo(GooTypes.LEAF, 120));
+            effective.put(id("birch_log"), goo(GooTypes.LEAF, 80));
 
             java.util.List<Identifier> sources = java.util.List.of(
                     id("oak_log"), id("birch_log"));
@@ -374,8 +375,8 @@ class GooConversionTest {
                     "#wood", "#logs", 3, 4, java.util.List.of());
             GooConversion.applyAssignment(effective, targets, sources, assignment, Map.of(), Map.of());
 
-            assertEquals(90, effective.get(id("oak_wood")).get(GooType.LEAF));   // 120 * 3 / 4
-            assertEquals(60, effective.get(id("birch_wood")).get(GooType.LEAF)); // 80 * 3 / 4
+            assertEquals(90, effective.get(id("oak_wood")).get(GooTypes.LEAF));   // 120 * 3 / 4
+            assertEquals(60, effective.get(id("birch_wood")).get(GooTypes.LEAF)); // 80 * 3 / 4
         }
 
         /**
@@ -384,7 +385,7 @@ class GooConversionTest {
         @Test
         void parallelCopyScaleLossyThrows() {
             Map<Identifier, GooValue> effective = new HashMap<>();
-            effective.put(id("a"), goo(GooType.METAL, 10));
+            effective.put(id("a"), goo(GooTypes.METAL, 10));
 
             java.util.List<Identifier> sources = java.util.List.of(id("a"));
             java.util.List<Identifier> targets = java.util.List.of(id("b"));
@@ -394,7 +395,7 @@ class GooConversionTest {
             GooConversion.applyAssignment(effective, targets, sources, assignment, Map.of(), Map.of());
 
             // 10 * 3 = 30, 30 / 4 has remainder -- logged as error, value unchanged
-            assertTrue(effective.get(id("b")).isEmpty() || effective.get(id("b")).get(GooType.METAL) == 10);
+            assertTrue(effective.get(id("b")).isEmpty() || effective.get(id("b")).get(GooTypes.METAL) == 10);
         }
 
         /**
@@ -403,7 +404,7 @@ class GooConversionTest {
         @Test
         void parallelSizeMismatchSkips() {
             Map<Identifier, GooValue> effective = new HashMap<>();
-            effective.put(id("a"), goo(GooType.METAL, 100));
+            effective.put(id("a"), goo(GooTypes.METAL, 100));
             effective.put(id("b"), GooValue.EMPTY);
             effective.put(id("c"), GooValue.EMPTY);
 

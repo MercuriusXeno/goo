@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.client;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
@@ -9,6 +9,7 @@ import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.BlockPos;
 import net.minecraft.data.AtlasIds;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 
@@ -25,12 +26,12 @@ public final class GooRenderUtil {
 
     /**
      * Looks up the fluid sprite for a goo type; the resolution lives in
-     * {@link GooSubmitter#fluidSprite(GooType)}.
+     * {@link GooSubmitter#fluidSprite(ResourceKey<GooTypeDefinition>)}.
      *
      * @param type the goo type
      * @return the fluid sprite
      */
-    public static TextureAtlasSprite lookupFluidSprite(GooType type) {
+    public static TextureAtlasSprite lookupFluidSprite(ResourceKey<GooTypeDefinition> type) {
         return GooSubmitter.fluidSprite(type);
     }
 

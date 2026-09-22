@@ -1,11 +1,13 @@
 package com.mercuriusxeno.goo.data;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.data.GooConversion.Assignment;
 import com.mercuriusxeno.goo.data.GooConversion.Formula;
 import com.mercuriusxeno.goo.data.GooConversion.ParsedConversions;
 import com.mercuriusxeno.goo.data.GooConversion.Stack;
 import com.mojang.logging.LogUtils;
+import net.minecraft.resources.ResourceKey;
 import org.slf4j.Logger;
 import java.util.*;
 import java.util.regex.Matcher;
@@ -85,7 +87,7 @@ final class ConversionFormulaParser {
      * @return the parsed Formula
      */
     private static Formula buildFormula(Matcher m) {
-        GooType source = GooType.valueOf(m.group(GROUP_SOURCE_TYPE).toUpperCase(Locale.ROOT));
+        ResourceKey<GooTypeDefinition> source = GooTypes.parseKnown(m.group(GROUP_SOURCE_TYPE));
         int srcDiv = Integer.parseInt(m.group(GROUP_SOURCE_DIVISOR));
         if (m.group(GROUP_TARGET_TYPE) == null) {
             return new Formula(source, srcDiv, source, 1, 0);
@@ -101,8 +103,8 @@ final class ConversionFormulaParser {
      * @param srcDiv the source divisor parsed from the formula
      * @return a Formula with fully resolved source and target parameters
      */
-    private static Formula buildTargetFormula(Matcher m, GooType source, int srcDiv) {
-        GooType target = GooType.valueOf(m.group(GROUP_TARGET_TYPE).toUpperCase(Locale.ROOT));
+    private static Formula buildTargetFormula(Matcher m, ResourceKey<GooTypeDefinition> source, int srcDiv) {
+        ResourceKey<GooTypeDefinition> target = GooTypes.parseKnown(m.group(GROUP_TARGET_TYPE));
         int tgtVal = Integer.parseInt(m.group(GROUP_TARGET_VALUE));
         boolean isMultiplier = ASTERISK.equals(m.group(GROUP_TARGET_OP));
         int tgtDiv = isMultiplier ? 1 : tgtVal;

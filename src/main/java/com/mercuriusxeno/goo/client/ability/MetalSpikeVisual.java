@@ -1,10 +1,10 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.GooColors;
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.ability.ChainBehaviors;
 import com.mercuriusxeno.goo.ability.world.MetalBehavior;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
+import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.RenderContext;
 import com.mercuriusxeno.goo.client.ber.ChainMarkerRenderState;
@@ -14,6 +14,7 @@ import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.LightCoordsUtil;
 import java.util.List;
@@ -84,7 +85,7 @@ public final class MetalSpikeVisual {
      */
     public static void submit(ChainMarkerRenderState state,
                               PoseStack poseStack, SubmitNodeCollector nodeCollector) {
-        int color = ARGB.color(SPIKE_ALPHA, GooColors.highlight(state.gooType));
+        int color = ARGB.color(SPIKE_ALPHA, ClientGooTypes.highlight(state.gooType));
         GooRenderUtil.UvRect uv = lookupSpriteUv(state.gooType);
         Direction face = state.placedFace;
         float cx = HALF - face.getStepX() * HALF;
@@ -108,7 +109,7 @@ public final class MetalSpikeVisual {
      * @param type the goo type to look up
      * @return the UV rectangle for the fluid sprite
      */
-    private static GooRenderUtil.UvRect lookupSpriteUv(GooType type) {
+    private static GooRenderUtil.UvRect lookupSpriteUv(ResourceKey<GooTypeDefinition> type) {
         TextureAtlasSprite sprite = GooRenderUtil.lookupFluidSprite(type);
         return new GooRenderUtil.UvRect(
                 sprite.getU(0f), sprite.getV(0f),

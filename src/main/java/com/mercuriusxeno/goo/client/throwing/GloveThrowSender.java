@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.throwing;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.ChainProfiles.ChainProfile;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
@@ -13,6 +14,7 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
@@ -59,7 +61,7 @@ public final class GloveThrowSender {
      * @param player  the local player
      * @param gooType the selected goo type to throw
      */
-    public static void sendThrow(Player player, GooType gooType) {
+    public static void sendThrow(Player player, ResourceKey<GooTypeDefinition> gooType) {
         if (!canThrow(player)) {
             return;
         }
@@ -160,8 +162,8 @@ public final class GloveThrowSender {
      * @param gooType the goo type being thrown
      * @return true if the throw should be blocked
      */
-    private static boolean wouldExceedMaxStacks(TargetResult target, GooType gooType) {
-        if (target instanceof TargetResult.GlowCrystalTarget gct && gooType == GooType.GLOW) {
+    private static boolean wouldExceedMaxStacks(TargetResult target, ResourceKey<GooTypeDefinition> gooType) {
+        if (target instanceof TargetResult.GlowCrystalTarget gct && gooType == GooTypes.GLOW) {
             return wouldExceedCrystalMax(gct);
         }
         BlockPos pos = resolveTrackingPos(target);
@@ -175,7 +177,7 @@ public final class GloveThrowSender {
      * @param gooType the goo type being thrown
      * @return true if the throw should be blocked
      */
-    private static boolean wouldExceedMarkerMax(BlockPos pos, GooType gooType) {
+    private static boolean wouldExceedMarkerMax(BlockPos pos, ResourceKey<GooTypeDefinition> gooType) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) {
             return false;
@@ -198,7 +200,7 @@ public final class GloveThrowSender {
      * @return a 2-element array [current, max], or empty if the type has no profile
      */
     private static int[] resolveCurrentAndMax(
-            ClientLevel level, BlockPos pos, GooType gooType) {
+            ClientLevel level, BlockPos pos, ResourceKey<GooTypeDefinition> gooType) {
         if (level.getBlockEntity(pos) instanceof ChainMarkerBlockEntity be) {
             return new int[]{be.getStackCount(), be.getMaxStacks()};
         }
@@ -220,7 +222,7 @@ public final class GloveThrowSender {
         if (current <= 0) {
             return false;
         }
-        ChainProfile profile = ChainProfile.forType(GooType.GLOW);
+        ChainProfile profile = ChainProfile.forType(GooTypes.GLOW);
         if (profile == null) {
             return false;
         }
@@ -310,11 +312,11 @@ public final class GloveThrowSender {
      * @return the payload, or null for no target
      */
     private static @Nullable BlobThrowPayload targetToPayload(TargetResult target,
-                                                              GooType gooType, String abilityId) {
+                                                              ResourceKey<GooTypeDefinition> gooType, String abilityId) {
         if (target instanceof TargetResult.None) {
             return null;
         }
-        return buildPayload(target, gooType.getId(), abilityId);
+        return buildPayload(target, GooTypes.id(gooType), abilityId);
     }
 
     /**

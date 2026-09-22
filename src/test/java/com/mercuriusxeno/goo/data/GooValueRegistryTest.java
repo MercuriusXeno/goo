@@ -2,8 +2,10 @@ package com.mercuriusxeno.goo.data;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -106,7 +108,7 @@ class GooValueRegistryTest {
         @Test
         void singleRecipeDerivesValue() {
             setBaseValues(Map.of(
-                    id("minecraft:iron_ingot"), goo(GooType.METAL, 10)
+                    id("minecraft:iron_ingot"), goo(GooTypes.METAL, 10)
             ));
             List<RecipeInput> recipes = List.of(
                     recipe("minecraft:iron_block", 1,
@@ -121,7 +123,7 @@ class GooValueRegistryTest {
             assertEquals(1, derived);
             GooValue val = registry.lookup(id("minecraft:iron_block"));
             assertNotNull(val);
-            assertEquals(90, val.get(GooType.METAL)); // 9 * 10
+            assertEquals(90, val.get(GooTypes.METAL)); // 9 * 10
         }
 
         /**
@@ -130,8 +132,8 @@ class GooValueRegistryTest {
         @Test
         void multipleRecipesCheapestWins() {
             setBaseValues(Map.of(
-                    id("a"), goo(GooType.METAL, 10),
-                    id("b"), goo(GooType.METAL, 3)
+                    id("a"), goo(GooTypes.METAL, 10),
+                    id("b"), goo(GooTypes.METAL, 3)
             ));
             List<RecipeInput> recipes = List.of(
                     recipe("x", 1, slot("a")),          // cost 10
@@ -141,7 +143,7 @@ class GooValueRegistryTest {
             registry.deriveFromRecipeInputs(recipes, false);
             GooValue val = registry.lookup(id("x"));
             assertNotNull(val);
-            assertEquals(6, val.get(GooType.METAL)); // cheaper recipe wins
+            assertEquals(6, val.get(GooTypes.METAL)); // cheaper recipe wins
         }
 
         /**
@@ -150,7 +152,7 @@ class GooValueRegistryTest {
         @Test
         void multiPassDerivation() {
             setBaseValues(Map.of(
-                    id("raw"), goo(GooType.ROCK, 5)
+                    id("raw"), goo(GooTypes.ROCK, 5)
             ));
             List<RecipeInput> recipes = List.of(
                     recipe("intermediate", 1, slot("raw"), slot("raw")),  // pass 1: 10
@@ -159,7 +161,7 @@ class GooValueRegistryTest {
 
             int derived = registry.deriveFromRecipeInputs(recipes, false);
             assertEquals(2, derived);
-            assertEquals(10, registry.lookup(id("final")).get(GooType.ROCK));
+            assertEquals(10, registry.lookup(id("final")).get(GooTypes.ROCK));
         }
 
         /**
@@ -168,15 +170,15 @@ class GooValueRegistryTest {
         @Test
         void ingredientAlternativesCheapestChosen() {
             setBaseValues(Map.of(
-                    id("cheap"), goo(GooType.LEAF, 2),
-                    id("expensive"), goo(GooType.LEAF, 20)
+                    id("cheap"), goo(GooTypes.LEAF, 2),
+                    id("expensive"), goo(GooTypes.LEAF, 20)
             ));
             List<RecipeInput> recipes = List.of(
                     recipe("output", 1, slot("cheap", "expensive"))
             );
 
             registry.deriveFromRecipeInputs(recipes, false);
-            assertEquals(2, registry.lookup(id("output")).get(GooType.LEAF));
+            assertEquals(2, registry.lookup(id("output")).get(GooTypes.LEAF));
         }
 
         /**
@@ -185,14 +187,14 @@ class GooValueRegistryTest {
         @Test
         void resultCountDividesValue() {
             setBaseValues(Map.of(
-                    id("planks"), goo(GooType.LEAF, 10)
+                    id("planks"), goo(GooTypes.LEAF, 10)
             ));
             List<RecipeInput> recipes = List.of(
                     recipe("sticks", 4, slot("planks"), slot("planks")) // 20 / 4 = 5
             );
 
             registry.deriveFromRecipeInputs(recipes, false);
-            assertEquals(5, registry.lookup(id("sticks")).get(GooType.LEAF));
+            assertEquals(5, registry.lookup(id("sticks")).get(GooTypes.LEAF));
         }
 
         /**
@@ -201,7 +203,7 @@ class GooValueRegistryTest {
         @Test
         void missingIngredientSkipsRecipe() {
             setBaseValues(Map.of(
-                    id("known"), goo(GooType.METAL, 5)
+                    id("known"), goo(GooTypes.METAL, 5)
             ));
             List<RecipeInput> recipes = List.of(
                     recipe("output", 1, slot("known"), slot("unknown"))
@@ -232,8 +234,8 @@ class GooValueRegistryTest {
         @Test
         void fewerGooTypesWinsTiebreak() {
             setBaseValues(Map.of(
-                    id("a"), goo(GooType.METAL, 16, GooType.ROCK, 8, GooType.CRYSTAL, 8),
-                    id("b"), goo(GooType.METAL, 16, GooType.ROCK, 16)
+                    id("a"), goo(GooTypes.METAL, 16, GooTypes.ROCK, 8, GooTypes.CRYSTAL, 8),
+                    id("b"), goo(GooTypes.METAL, 16, GooTypes.ROCK, 16)
             ));
             // Both recipes cost 32 total blobs, but b has 2 types vs a's 3
             List<RecipeInput> recipes = List.of(
@@ -245,8 +247,8 @@ class GooValueRegistryTest {
             GooValue val = registry.lookup(id("x"));
             assertNotNull(val);
             assertEquals(2, val.getAll().size(), "Should pick the 2-type recipe: " + val);
-            assertEquals(16, val.get(GooType.METAL));
-            assertEquals(16, val.get(GooType.ROCK));
+            assertEquals(16, val.get(GooTypes.METAL));
+            assertEquals(16, val.get(GooTypes.ROCK));
         }
 
         /**
@@ -255,8 +257,8 @@ class GooValueRegistryTest {
         @Test
         void cheaperStillWinsOverFewerTypes() {
             setBaseValues(Map.of(
-                    id("a"), goo(GooType.METAL, 10, GooType.ROCK, 10, GooType.CRYSTAL, 10),
-                    id("b"), goo(GooType.METAL, 20, GooType.ROCK, 20)
+                    id("a"), goo(GooTypes.METAL, 10, GooTypes.ROCK, 10, GooTypes.CRYSTAL, 10),
+                    id("b"), goo(GooTypes.METAL, 20, GooTypes.ROCK, 20)
             ));
             // a costs 30 (3 types), b costs 40 (2 types) -- a wins on total
             List<RecipeInput> recipes = List.of(
@@ -296,8 +298,8 @@ class GooValueRegistryTest {
         @Test
         void noConflictWhenEqual() {
             setBaseValues(Map.of(
-                    id("a"), goo(GooType.METAL, 10),
-                    id("b"), goo(GooType.METAL, 5)
+                    id("a"), goo(GooTypes.METAL, 10),
+                    id("b"), goo(GooTypes.METAL, 5)
             ));
             List<RecipeInput> recipes = List.of(
                     recipe("a", 1, slot("b"), slot("b")) // cost 10 == base 10
@@ -313,8 +315,8 @@ class GooValueRegistryTest {
         @Test
         void recipeCheaperThanBaseIsConflict() {
             setBaseValues(Map.of(
-                    id("a"), goo(GooType.METAL, 20),
-                    id("b"), goo(GooType.METAL, 3)
+                    id("a"), goo(GooTypes.METAL, 20),
+                    id("b"), goo(GooTypes.METAL, 3)
             ));
             List<RecipeInput> recipes = List.of(
                     recipe("a", 1, slot("b")) // cost 3 < base 20
@@ -331,8 +333,8 @@ class GooValueRegistryTest {
         @Test
         void baseCheaperThanRecipeIsConflict() {
             setBaseValues(Map.of(
-                    id("a"), goo(GooType.METAL, 5),
-                    id("b"), goo(GooType.METAL, 10)
+                    id("a"), goo(GooTypes.METAL, 5),
+                    id("b"), goo(GooTypes.METAL, 10)
             ));
             List<RecipeInput> recipes = List.of(
                     recipe("a", 1, slot("b")) // cost 10 > base 5
@@ -355,7 +357,7 @@ class GooValueRegistryTest {
         @Test
         void derivedOnlyItemUsesDerivation() {
             setBaseValues(Map.of(
-                    id("base_item"), goo(GooType.METAL, 10)
+                    id("base_item"), goo(GooTypes.METAL, 10)
             ));
             List<RecipeInput> recipes = List.of(
                     recipe("derived_only", 1, slot("base_item"))
@@ -364,7 +366,7 @@ class GooValueRegistryTest {
             registry.deriveFromRecipeInputs(recipes, false);
             GooValue eff = registry.lookup(id("derived_only"));
             assertNotNull(eff);
-            assertEquals(10, eff.get(GooType.METAL));
+            assertEquals(10, eff.get(GooTypes.METAL));
         }
 
         /**
@@ -373,13 +375,13 @@ class GooValueRegistryTest {
         @Test
         void baseOnlyItemUsesBase() {
             setBaseValues(Map.of(
-                    id("base_only"), goo(GooType.LEAF, 7)
+                    id("base_only"), goo(GooTypes.LEAF, 7)
             ));
             registry.deriveFromRecipeInputs(List.of(), false);
 
             GooValue eff = registry.lookup(id("base_only"));
             assertNotNull(eff);
-            assertEquals(7, eff.get(GooType.LEAF));
+            assertEquals(7, eff.get(GooTypes.LEAF));
         }
 
         /**
@@ -388,15 +390,15 @@ class GooValueRegistryTest {
         @Test
         void cheaperRecipeWinsWithoutOverride() {
             setBaseValues(Map.of(
-                    id("item"), goo(GooType.METAL, 20),
-                    id("cheap"), goo(GooType.METAL, 3)
+                    id("item"), goo(GooTypes.METAL, 20),
+                    id("cheap"), goo(GooTypes.METAL, 3)
             ));
             List<RecipeInput> recipes = List.of(
                     recipe("item", 1, slot("cheap"))
             );
 
             registry.deriveFromRecipeInputs(recipes, false);
-            assertEquals(3, registry.lookup(id("item")).get(GooType.METAL));
+            assertEquals(3, registry.lookup(id("item")).get(GooTypes.METAL));
         }
 
         /**
@@ -405,15 +407,15 @@ class GooValueRegistryTest {
         @Test
         void baseWinsWithOverride() {
             setBaseValues(Map.of(
-                    id("item"), goo(GooType.METAL, 20),
-                    id("cheap"), goo(GooType.METAL, 3)
+                    id("item"), goo(GooTypes.METAL, 20),
+                    id("cheap"), goo(GooTypes.METAL, 3)
             ));
             List<RecipeInput> recipes = List.of(
                     recipe("item", 1, slot("cheap"))
             );
 
             registry.deriveFromRecipeInputs(recipes, true);
-            assertEquals(20, registry.lookup(id("item")).get(GooType.METAL));
+            assertEquals(20, registry.lookup(id("item")).get(GooTypes.METAL));
         }
     }
 
@@ -425,9 +427,9 @@ class GooValueRegistryTest {
          */
         @Test
         void negativeDerivationExcludedFromEffective() {
-            Map<GooType, Integer> negMap = new EnumMap<>(GooType.class);
-            negMap.put(GooType.METAL, -10);
-            negMap.put(GooType.AEON, 5);
+            Map<ResourceKey<GooTypeDefinition>, Integer> negMap = new HashMap<>();
+            negMap.put(GooTypes.METAL, -10);
+            negMap.put(GooTypes.AEON, 5);
             GooValue negValue = new GooValue(negMap);
 
             Map<Identifier, GooValue> base = Map.of();
@@ -444,8 +446,8 @@ class GooValueRegistryTest {
          */
         @Test
         void negativeBaseExcludedFromEffective() {
-            Map<GooType, Integer> negMap = new EnumMap<>(GooType.class);
-            negMap.put(GooType.METAL, -10);
+            Map<ResourceKey<GooTypeDefinition>, Integer> negMap = new HashMap<>();
+            negMap.put(GooTypes.METAL, -10);
             GooValue negValue = new GooValue(negMap);
 
             Map<Identifier, GooValue> base = Map.of(id("bad_base"), negValue);
@@ -462,10 +464,10 @@ class GooValueRegistryTest {
          */
         @Test
         void validItemSurvivesAlongsideRejected() {
-            Map<GooType, Integer> negMap = new EnumMap<>(GooType.class);
-            negMap.put(GooType.METAL, -10);
+            Map<ResourceKey<GooTypeDefinition>, Integer> negMap = new HashMap<>();
+            negMap.put(GooTypes.METAL, -10);
             GooValue negValue = new GooValue(negMap);
-            GooValue goodValue = goo(GooType.ROCK, 50);
+            GooValue goodValue = goo(GooTypes.ROCK, 50);
 
             Map<Identifier, GooValue> base = Map.of();
             Map<Identifier, GooValue> derived = Map.of(
@@ -475,7 +477,7 @@ class GooValueRegistryTest {
             Map<Identifier, GooValue> effective = GooValueDerivation.buildEffectiveValues(
                     base, derived, false);
             assertNull(effective.get(id("bad_item")));
-            assertEquals(50, effective.get(id("good_item")).get(GooType.ROCK));
+            assertEquals(50, effective.get(id("good_item")).get(GooTypes.ROCK));
         }
     }
 
@@ -490,7 +492,7 @@ class GooValueRegistryTest {
         @Test
         void evenlyDivisibleNoLoss() {
             setBaseValues(Map.of(
-                    id("input"), goo(GooType.ROCK, 12)
+                    id("input"), goo(GooTypes.ROCK, 12)
             ));
             List<RecipeInput> recipes = List.of(
                     recipe("output", 4, slot("input")) // 12 / 4 = 3, no remainder
@@ -506,7 +508,7 @@ class GooValueRegistryTest {
         @Test
         void remainderDetectsLoss() {
             setBaseValues(Map.of(
-                    id("input"), goo(GooType.ROCK, 10)
+                    id("input"), goo(GooTypes.ROCK, 10)
             ));
             List<RecipeInput> recipes = List.of(
                     recipe("output", 3, slot("input")) // 10 / 3 = 3 remainder 1
@@ -527,7 +529,7 @@ class GooValueRegistryTest {
         @Test
         void resultCountOneSkipped() {
             setBaseValues(Map.of(
-                    id("input"), goo(GooType.ROCK, 7)
+                    id("input"), goo(GooTypes.ROCK, 7)
             ));
             List<RecipeInput> recipes = List.of(
                     recipe("output", 1, slot("input"))
@@ -549,7 +551,7 @@ class GooValueRegistryTest {
         @Test
         void deniedItemNeverDerives() {
             setBaseValues(Map.of(
-                    id("raw"), goo(GooType.METAL, 10)
+                    id("raw"), goo(GooTypes.METAL, 10)
             ));
             setDeniedItems(Set.of(id("ore_block")));
             List<RecipeInput> recipes = List.of(
@@ -566,7 +568,7 @@ class GooValueRegistryTest {
         @Test
         void deniedItemWorksAsInput() {
             setBaseValues(Map.of(
-                    id("ore_block"), goo(GooType.METAL, 20)
+                    id("ore_block"), goo(GooTypes.METAL, 20)
             ));
             setDeniedItems(Set.of(id("ore_block")));
             List<RecipeInput> recipes = List.of(
@@ -577,7 +579,7 @@ class GooValueRegistryTest {
             // ore_block is denied as output, but its base value still works as input
             GooValue val = registry.lookup(id("ingot"));
             assertNotNull(val);
-            assertEquals(20, val.get(GooType.METAL));
+            assertEquals(20, val.get(GooTypes.METAL));
         }
 
         /**
@@ -587,7 +589,7 @@ class GooValueRegistryTest {
         void deniedItemBaseValueStillInEffective() {
             // Deny list only blocks derivation output, not base values
             setBaseValues(Map.of(
-                    id("ore"), goo(GooType.METAL, 10)
+                    id("ore"), goo(GooTypes.METAL, 10)
             ));
             setDeniedItems(Set.of(id("ore")));
             registry.deriveFromRecipeInputs(List.of(), false);
@@ -608,8 +610,8 @@ class GooValueRegistryTest {
         @Test
         void bucketReturnedSubtractsContainerValue() {
             setBaseValues(Map.of(
-                    id("minecraft:milk_bucket"), goo(GooType.VITAL, 30),
-                    id("minecraft:bucket"), goo(GooType.METAL, 10)
+                    id("minecraft:milk_bucket"), goo(GooTypes.VITAL, 30),
+                    id("minecraft:bucket"), goo(GooTypes.METAL, 10)
             ));
             List<RecipeInput> recipes = List.of(
                     recipe("output", 1,
@@ -621,8 +623,8 @@ class GooValueRegistryTest {
             GooValue val = registry.lookup(id("output"));
             assertNotNull(val);
             // 30 vital - 0 vital from bucket = 30 vital; 0 metal - 10 metal = no subtraction on missing type
-            assertEquals(30, val.get(GooType.VITAL));
-            assertEquals(0, val.get(GooType.METAL)); // bucket's metal not in milk_bucket
+            assertEquals(30, val.get(GooTypes.VITAL));
+            assertEquals(0, val.get(GooTypes.METAL)); // bucket's metal not in milk_bucket
         }
 
         /**
@@ -631,7 +633,7 @@ class GooValueRegistryTest {
         @Test
         void containerNoValueUsesFullCost() {
             setBaseValues(Map.of(
-                    id("minecraft:milk_bucket"), goo(GooType.VITAL, 30)
+                    id("minecraft:milk_bucket"), goo(GooTypes.VITAL, 30)
                     // no value for bucket
             ));
             List<RecipeInput> recipes = List.of(
@@ -643,7 +645,7 @@ class GooValueRegistryTest {
             registry.deriveFromRecipeInputs(recipes, false);
             GooValue val = registry.lookup(id("output"));
             assertNotNull(val);
-            assertEquals(30, val.get(GooType.VITAL));
+            assertEquals(30, val.get(GooTypes.VITAL));
         }
 
         /**
@@ -652,8 +654,8 @@ class GooValueRegistryTest {
         @Test
         void multipleContainerIngredients() {
             setBaseValues(Map.of(
-                    id("milk_bucket"), goo(GooType.VITAL, 20, GooType.METAL, 10),
-                    id("bucket"), goo(GooType.METAL, 10)
+                    id("milk_bucket"), goo(GooTypes.VITAL, 20, GooTypes.METAL, 10),
+                    id("bucket"), goo(GooTypes.METAL, 10)
             ));
             List<RecipeInput> recipes = List.of(
                     recipe("cake", 1,
@@ -666,8 +668,8 @@ class GooValueRegistryTest {
             assertNotNull(val);
             // Each slot: 20 vital + 10 metal - 10 metal = 20 vital + 0 metal
             // 3 slots: 60 vital
-            assertEquals(60, val.get(GooType.VITAL));
-            assertEquals(0, val.get(GooType.METAL)); // bucket metal cancels ingredient metal
+            assertEquals(60, val.get(GooTypes.VITAL));
+            assertEquals(0, val.get(GooTypes.METAL)); // bucket metal cancels ingredient metal
         }
 
         /**
@@ -676,8 +678,8 @@ class GooValueRegistryTest {
         @Test
         void containerWorthMoreThanIngredientUsesGross() {
             setBaseValues(Map.of(
-                    id("cheap_item"), goo(GooType.LEAF, 5),
-                    id("expensive_container"), goo(GooType.LEAF, 50)
+                    id("cheap_item"), goo(GooTypes.LEAF, 5),
+                    id("expensive_container"), goo(GooTypes.LEAF, 50)
             ));
             List<RecipeInput> recipes = List.of(
                     recipe("output", 1,
@@ -689,7 +691,7 @@ class GooValueRegistryTest {
             GooValue val = registry.lookup(id("output"));
             assertNotNull(val);
             // 5 - 50 = -45 → empty → guard returns gross (5)
-            assertEquals(5, val.get(GooType.LEAF));
+            assertEquals(5, val.get(GooTypes.LEAF));
         }
 
         /**
@@ -698,7 +700,7 @@ class GooValueRegistryTest {
         @Test
         void backwardCompatibleNoContainers() {
             setBaseValues(Map.of(
-                    id("iron"), goo(GooType.METAL, 10)
+                    id("iron"), goo(GooTypes.METAL, 10)
             ));
             // Uses the 3-arg RecipeInput constructor (no container map)
             List<RecipeInput> recipes = List.of(
@@ -707,7 +709,7 @@ class GooValueRegistryTest {
             );
 
             registry.deriveFromRecipeInputs(recipes, false);
-            assertEquals(20, registry.lookup(id("block")).get(GooType.METAL));
+            assertEquals(20, registry.lookup(id("block")).get(GooTypes.METAL));
         }
     }
 
@@ -739,7 +741,7 @@ class GooValueRegistryTest {
         @Test
         void anchoredCycleDetected() {
             setBaseValues(Map.of(
-                    id("a"), goo(GooType.METAL, 10)
+                    id("a"), goo(GooTypes.METAL, 10)
             ));
             List<RecipeInput> recipes = List.of(
                     recipe("a", 1, slot("b")),
@@ -759,7 +761,7 @@ class GooValueRegistryTest {
         @Test
         void noCyclesInLinearChain() {
             setBaseValues(Map.of(
-                    id("raw"), goo(GooType.ROCK, 5)
+                    id("raw"), goo(GooTypes.ROCK, 5)
             ));
             List<RecipeInput> recipes = List.of(
                     recipe("mid", 1, slot("raw")),
@@ -831,10 +833,10 @@ class GooValueRegistryTest {
          */
         @Test
         void baseOnlyReturnsBase() {
-            Map<Identifier, GooValue> base = Map.of(id("item"), goo(GooType.METAL, 10));
+            Map<Identifier, GooValue> base = Map.of(id("item"), goo(GooTypes.METAL, 10));
             GooValue result = GooValueDerivation.lookupForDerivation(id("item"), base, Map.of());
             assertNotNull(result);
-            assertEquals(10, result.get(GooType.METAL));
+            assertEquals(10, result.get(GooTypes.METAL));
         }
 
         /**
@@ -850,11 +852,11 @@ class GooValueRegistryTest {
          */
         @Test
         void cheaperOfBaseAndDerivedWins() {
-            Map<Identifier, GooValue> base = Map.of(id("item"), goo(GooType.METAL, 20));
-            Map<Identifier, GooValue> derived = Map.of(id("item"), goo(GooType.METAL, 3));
+            Map<Identifier, GooValue> base = Map.of(id("item"), goo(GooTypes.METAL, 20));
+            Map<Identifier, GooValue> derived = Map.of(id("item"), goo(GooTypes.METAL, 3));
             GooValue result = GooValueDerivation.lookupForDerivation(id("item"), base, derived);
             assertNotNull(result);
-            assertEquals(3, result.get(GooType.METAL));
+            assertEquals(3, result.get(GooTypes.METAL));
         }
     }
 
@@ -869,8 +871,8 @@ class GooValueRegistryTest {
         @Test
         void multiTypeIngredientsSumCorrectly() {
             setBaseValues(Map.of(
-                    id("a"), goo(GooType.METAL, 5, GooType.CRYSTAL, 3),
-                    id("b"), goo(GooType.METAL, 2, GooType.LEAF, 4)
+                    id("a"), goo(GooTypes.METAL, 5, GooTypes.CRYSTAL, 3),
+                    id("b"), goo(GooTypes.METAL, 2, GooTypes.LEAF, 4)
             ));
             List<RecipeInput> recipes = List.of(
                     recipe("combo", 1, slot("a"), slot("b"))
@@ -879,9 +881,9 @@ class GooValueRegistryTest {
             registry.deriveFromRecipeInputs(recipes, false);
             GooValue val = registry.lookup(id("combo"));
             assertNotNull(val);
-            assertEquals(7, val.get(GooType.METAL));   // 5 + 2
-            assertEquals(3, val.get(GooType.CRYSTAL));  // 3 + 0
-            assertEquals(4, val.get(GooType.LEAF));     // 0 + 4
+            assertEquals(7, val.get(GooTypes.METAL));   // 5 + 2
+            assertEquals(3, val.get(GooTypes.CRYSTAL));  // 3 + 0
+            assertEquals(4, val.get(GooTypes.LEAF));     // 0 + 4
         }
 
         /**
@@ -890,7 +892,7 @@ class GooValueRegistryTest {
         @Test
         void multiTypeDivision() {
             setBaseValues(Map.of(
-                    id("block"), goo(GooType.METAL, 9, GooType.CRYSTAL, 6)
+                    id("block"), goo(GooTypes.METAL, 9, GooTypes.CRYSTAL, 6)
             ));
             List<RecipeInput> recipes = List.of(
                     recipe("nugget", 3, slot("block"))
@@ -899,8 +901,8 @@ class GooValueRegistryTest {
             registry.deriveFromRecipeInputs(recipes, false);
             GooValue val = registry.lookup(id("nugget"));
             assertNotNull(val);
-            assertEquals(3, val.get(GooType.METAL));   // 9 / 3
-            assertEquals(2, val.get(GooType.CRYSTAL)); // 6 / 3
+            assertEquals(3, val.get(GooTypes.METAL));   // 9 / 3
+            assertEquals(2, val.get(GooTypes.CRYSTAL)); // 6 / 3
         }
     }
 
@@ -915,9 +917,9 @@ class GooValueRegistryTest {
         @Test
         void returnsLowestTotalBlobs() {
             Map<Identifier, GooValue> values = Map.of(
-                    id("a"), goo(GooType.METAL, 10),
-                    id("b"), goo(GooType.METAL, 3),
-                    id("c"), goo(GooType.METAL, 7)
+                    id("a"), goo(GooTypes.METAL, 10),
+                    id("b"), goo(GooTypes.METAL, 3),
+                    id("c"), goo(GooTypes.METAL, 7)
             );
             Identifier result = IGooValueLookup.findCheapestAmong(
                     Set.of(id("a"), id("b"), id("c")), values::get);
@@ -930,7 +932,7 @@ class GooValueRegistryTest {
         @Test
         void nullLookupSkipped() {
             Map<Identifier, GooValue> values = Map.of(
-                    id("known"), goo(GooType.METAL, 5)
+                    id("known"), goo(GooTypes.METAL, 5)
             );
             Identifier result = IGooValueLookup.findCheapestAmong(
                     Set.of(id("known"), id("missing")), values::get);
@@ -944,7 +946,7 @@ class GooValueRegistryTest {
         void emptyValueSkipped() {
             Map<Identifier, GooValue> values = Map.of(
                     id("empty"), GooValue.EMPTY,
-                    id("real"), goo(GooType.METAL, 5)
+                    id("real"), goo(GooTypes.METAL, 5)
             );
             Identifier result = IGooValueLookup.findCheapestAmong(
                     Set.of(id("empty"), id("real")), values::get);
@@ -989,9 +991,9 @@ class GooValueRegistryTest {
                         "#logs": { "leaf": 384 }
                     }
                     """);
-            assertEquals(384, registry.lookup(id("minecraft:oak_log")).get(GooType.LEAF));
-            assertEquals(384, registry.lookup(id("minecraft:spruce_log")).get(GooType.LEAF));
-            assertEquals(384, registry.lookup(id("minecraft:birch_log")).get(GooType.LEAF));
+            assertEquals(384, registry.lookup(id("minecraft:oak_log")).get(GooTypes.LEAF));
+            assertEquals(384, registry.lookup(id("minecraft:spruce_log")).get(GooTypes.LEAF));
+            assertEquals(384, registry.lookup(id("minecraft:birch_log")).get(GooTypes.LEAF));
         }
 
         /**
@@ -1025,8 +1027,8 @@ class GooValueRegistryTest {
                         "#logs": { "leaf": "$log" }
                     }
                     """);
-            assertEquals(384, registry.lookup(id("minecraft:oak_log")).get(GooType.LEAF));
-            assertEquals(384, registry.lookup(id("minecraft:spruce_log")).get(GooType.LEAF));
+            assertEquals(384, registry.lookup(id("minecraft:oak_log")).get(GooTypes.LEAF));
+            assertEquals(384, registry.lookup(id("minecraft:spruce_log")).get(GooTypes.LEAF));
         }
 
         /**
@@ -1044,9 +1046,9 @@ class GooValueRegistryTest {
                         "#stones": { "rock": 240 }
                     }
                     """);
-            assertEquals(384, registry.lookup(id("minecraft:oak_log")).get(GooType.LEAF));
-            assertEquals(240, registry.lookup(id("minecraft:stone")).get(GooType.ROCK));
-            assertEquals(240, registry.lookup(id("minecraft:cobblestone")).get(GooType.ROCK));
+            assertEquals(384, registry.lookup(id("minecraft:oak_log")).get(GooTypes.LEAF));
+            assertEquals(240, registry.lookup(id("minecraft:stone")).get(GooTypes.ROCK));
+            assertEquals(240, registry.lookup(id("minecraft:cobblestone")).get(GooTypes.ROCK));
         }
 
         /**
@@ -1063,8 +1065,8 @@ class GooValueRegistryTest {
                         "#logs": { "leaf": 384 }
                     }
                     """);
-            assertEquals(12000, registry.lookup(id("minecraft:diamond")).get(GooType.CRYSTAL));
-            assertEquals(384, registry.lookup(id("minecraft:oak_log")).get(GooType.LEAF));
+            assertEquals(12000, registry.lookup(id("minecraft:diamond")).get(GooTypes.CRYSTAL));
+            assertEquals(384, registry.lookup(id("minecraft:oak_log")).get(GooTypes.LEAF));
         }
 
         /**
@@ -1082,8 +1084,8 @@ class GooValueRegistryTest {
                         "#wood": "#logs * 3 / 4"
                     }
                     """);
-            assertEquals(360, registry.lookup(id("minecraft:oak_wood")).get(GooType.LEAF));
-            assertEquals(360, registry.lookup(id("minecraft:birch_wood")).get(GooType.LEAF));
+            assertEquals(360, registry.lookup(id("minecraft:oak_wood")).get(GooTypes.LEAF));
+            assertEquals(360, registry.lookup(id("minecraft:birch_wood")).get(GooTypes.LEAF));
         }
 
         /**
@@ -1101,8 +1103,8 @@ class GooValueRegistryTest {
                         "#stripped": "#logs"
                     }
                     """);
-            assertEquals(480, registry.lookup(id("minecraft:stripped_oak_log")).get(GooType.LEAF));
-            assertEquals(480, registry.lookup(id("minecraft:stripped_birch_log")).get(GooType.LEAF));
+            assertEquals(480, registry.lookup(id("minecraft:stripped_oak_log")).get(GooTypes.LEAF));
+            assertEquals(480, registry.lookup(id("minecraft:stripped_birch_log")).get(GooTypes.LEAF));
         }
 
         /**
@@ -1121,8 +1123,8 @@ class GooValueRegistryTest {
                     }
                     """);
             GooValue nugget = registry.lookup(id("minecraft:iron_nugget"));
-            assertEquals(192, nugget.get(GooType.METAL));  // 1728 / 9
-            assertEquals(48, nugget.get(GooType.ROCK));     // 432 / 9
+            assertEquals(192, nugget.get(GooTypes.METAL));  // 1728 / 9
+            assertEquals(48, nugget.get(GooTypes.ROCK));     // 432 / 9
         }
 
         /**
@@ -1168,9 +1170,9 @@ class GooValueRegistryTest {
                     """);
             GooValue val = registry.lookup(id("minecraft:copper_ingot"));
             assertNotNull(val);
-            assertEquals(120, val.get(GooType.METAL)); // 160 - 40
-            assertEquals(20, val.get(GooType.AEON));    // 40 / 2
-            assertEquals(40, val.get(GooType.ROCK));    // untouched
+            assertEquals(120, val.get(GooTypes.METAL)); // 160 - 40
+            assertEquals(20, val.get(GooTypes.AEON));    // 40 / 2
+            assertEquals(40, val.get(GooTypes.ROCK));    // untouched
         }
 
         /**
@@ -1190,8 +1192,8 @@ class GooValueRegistryTest {
                     """);
             GooValue val = registry.lookup(id("minecraft:copper_ingot"));
             assertNotNull(val);
-            assertEquals(80, val.get(GooType.METAL));  // 160 - 2*40
-            assertEquals(40, val.get(GooType.AEON));    // 2 * 20
+            assertEquals(80, val.get(GooTypes.METAL));  // 160 - 2*40
+            assertEquals(40, val.get(GooTypes.AEON));    // 2 * 20
         }
 
         /**
@@ -1220,10 +1222,10 @@ class GooValueRegistryTest {
             GooValue cut = registry.lookup(id("minecraft:weathered_cut_copper"));
             assertNotNull(copper);
             assertNotNull(cut);
-            assertEquals(80, copper.get(GooType.METAL));
-            assertEquals(40, copper.get(GooType.AEON));
-            assertEquals(80, cut.get(GooType.METAL));
-            assertEquals(40, cut.get(GooType.AEON));
+            assertEquals(80, copper.get(GooTypes.METAL));
+            assertEquals(40, copper.get(GooTypes.AEON));
+            assertEquals(80, cut.get(GooTypes.METAL));
+            assertEquals(40, cut.get(GooTypes.AEON));
         }
 
         /**
@@ -1243,8 +1245,8 @@ class GooValueRegistryTest {
                     """);
             GooValue val = registry.lookup(id("minecraft:copper_ingot"));
             assertNotNull(val);
-            assertEquals(40, val.get(GooType.METAL));   // 160 - 3*40
-            assertEquals(60, val.get(GooType.AEON));     // 3 * 20
+            assertEquals(40, val.get(GooTypes.METAL));   // 160 - 3*40
+            assertEquals(60, val.get(GooTypes.AEON));     // 3 * 20
         }
 
         /**
@@ -1270,8 +1272,8 @@ class GooValueRegistryTest {
             registry.deriveFromRecipeInputs(recipes, false);
             GooValue slab = registry.lookup(id("minecraft:exposed_copper_slab"));
             assertNotNull(slab);
-            assertEquals(60, slab.get(GooType.METAL));  // 120 / 2
-            assertEquals(10, slab.get(GooType.AEON));    // 20 / 2
+            assertEquals(60, slab.get(GooTypes.METAL));  // 120 / 2
+            assertEquals(10, slab.get(GooTypes.AEON));    // 20 / 2
         }
 
         /**
@@ -1303,12 +1305,12 @@ class GooValueRegistryTest {
             // copper_block derived from unmodified ingot: 9 * 160 = 1440 metal
             GooValue block = registry.lookup(id("minecraft:copper_block"));
             assertNotNull(block);
-            assertEquals(1440, block.get(GooType.METAL));
+            assertEquals(1440, block.get(GooTypes.METAL));
             // But copper_ingot itself got post-converted
             GooValue ingot = registry.lookup(id("minecraft:copper_ingot"));
             assertNotNull(ingot);
-            assertEquals(120, ingot.get(GooType.METAL)); // 160 - 40
-            assertEquals(20, ingot.get(GooType.AEON));    // 40 / 2
+            assertEquals(120, ingot.get(GooTypes.METAL)); // 160 - 40
+            assertEquals(20, ingot.get(GooTypes.AEON));    // 40 / 2
         }
 
         /**
@@ -1334,14 +1336,14 @@ class GooValueRegistryTest {
             // exposed_copper gets copper_block's value (160 metal), then 1x oxidation
             GooValue exposed = registry.lookup(id("minecraft:exposed_copper"));
             assertNotNull(exposed);
-            assertEquals(120, exposed.get(GooType.METAL)); // 160 - 40
-            assertEquals(20, exposed.get(GooType.AEON));    // 40 / 2
+            assertEquals(120, exposed.get(GooTypes.METAL)); // 160 - 40
+            assertEquals(20, exposed.get(GooTypes.AEON));    // 40 / 2
 
             // exposed_cut_copper gets cut_copper's value (80 metal), then 1x oxidation
             GooValue exposedCut = registry.lookup(id("minecraft:exposed_cut_copper"));
             assertNotNull(exposedCut);
-            assertEquals(60, exposedCut.get(GooType.METAL)); // 80 - 20
-            assertEquals(10, exposedCut.get(GooType.AEON));   // 20 / 2
+            assertEquals(60, exposedCut.get(GooTypes.METAL)); // 80 - 20
+            assertEquals(10, exposedCut.get(GooTypes.AEON));   // 20 / 2
         }
 
         /**
@@ -1369,15 +1371,15 @@ class GooValueRegistryTest {
             // exposed_copper: copy 160 metal, 1x oxidation -> 120 metal, 20 aeon
             GooValue exposed = registry.lookup(id("minecraft:exposed_copper"));
             assertNotNull(exposed);
-            assertEquals(120, exposed.get(GooType.METAL));
-            assertEquals(20, exposed.get(GooType.AEON));
+            assertEquals(120, exposed.get(GooTypes.METAL));
+            assertEquals(20, exposed.get(GooTypes.AEON));
 
             // weathered_copper: copy from exposed (120 metal, 20 aeon), 2x oxidation
             // 2 * (120/4) = 60 removed, 2 * (120/4/2) = 30 added
             GooValue weathered = registry.lookup(id("minecraft:weathered_copper"));
             assertNotNull(weathered);
-            assertEquals(60, weathered.get(GooType.METAL));  // 120 - 60
-            assertEquals(50, weathered.get(GooType.AEON));    // 20 + 30
+            assertEquals(60, weathered.get(GooTypes.METAL));  // 120 - 60
+            assertEquals(50, weathered.get(GooTypes.AEON));    // 20 + 30
         }
 
         /**
@@ -1402,13 +1404,13 @@ class GooValueRegistryTest {
                     """);
             GooValue waxedBlock = registry.lookup(id("minecraft:waxed_copper_block"));
             assertNotNull(waxedBlock);
-            assertEquals(160, waxedBlock.get(GooType.METAL)); // copied from copper_block
-            assertEquals(48, waxedBlock.get(GooType.VITAL));   // added by +$waxed
+            assertEquals(160, waxedBlock.get(GooTypes.METAL)); // copied from copper_block
+            assertEquals(48, waxedBlock.get(GooTypes.VITAL));   // added by +$waxed
 
             GooValue waxedCut = registry.lookup(id("minecraft:waxed_cut_copper"));
             assertNotNull(waxedCut);
-            assertEquals(80, waxedCut.get(GooType.METAL));
-            assertEquals(48, waxedCut.get(GooType.VITAL));
+            assertEquals(80, waxedCut.get(GooTypes.METAL));
+            assertEquals(48, waxedCut.get(GooTypes.VITAL));
         }
     }
 
@@ -1443,7 +1445,7 @@ class GooValueRegistryTest {
             assertNotNull(val, "iron_block should have a value");
             // nugget = {metal: 48}, ingot = 9 * {metal: 48} = {metal: 432}
             // block = 9 * {metal: 432} = {metal: 3888}
-            assertEquals(3888, val.get(GooType.METAL));
+            assertEquals(3888, val.get(GooTypes.METAL));
         }
 
         /**
@@ -1459,10 +1461,10 @@ class GooValueRegistryTest {
                     }
                     """);
             GooValue golem = registry.lookup(id("minecraft:copper_golem"));
-            assertEquals(1440, golem.get(GooType.METAL));
-            assertEquals(1440, golem.get(GooType.PULSE));
-            assertEquals(480, golem.get(GooType.LEAF));
-            assertEquals(120, golem.get(GooType.VITAL));
+            assertEquals(1440, golem.get(GooTypes.METAL));
+            assertEquals(1440, golem.get(GooTypes.PULSE));
+            assertEquals(480, golem.get(GooTypes.LEAF));
+            assertEquals(120, golem.get(GooTypes.VITAL));
         }
 
         /**
@@ -1477,7 +1479,7 @@ class GooValueRegistryTest {
                         "minecraft:leftover": "minecraft:iron_block - minecraft:iron_ingot"
                     }
                     """);
-            assertEquals(80, registry.lookup(id("minecraft:leftover")).get(GooType.METAL));
+            assertEquals(80, registry.lookup(id("minecraft:leftover")).get(GooTypes.METAL));
         }
 
         /**
@@ -1491,7 +1493,7 @@ class GooValueRegistryTest {
                         "minecraft:iron_block": "minecraft:iron_ingot * 9"
                     }
                     """);
-            assertEquals(90, registry.lookup(id("minecraft:iron_block")).get(GooType.METAL));
+            assertEquals(90, registry.lookup(id("minecraft:iron_block")).get(GooTypes.METAL));
         }
 
         /**
@@ -1505,7 +1507,7 @@ class GooValueRegistryTest {
                         "minecraft:iron_ingot": "minecraft:iron_block / 9"
                     }
                     """);
-            assertEquals(10, registry.lookup(id("minecraft:iron_ingot")).get(GooType.METAL));
+            assertEquals(10, registry.lookup(id("minecraft:iron_ingot")).get(GooTypes.METAL));
         }
 
         /**
@@ -1519,7 +1521,7 @@ class GooValueRegistryTest {
                         "minecraft:iron_block": "9 * minecraft:iron_ingot"
                     }
                     """);
-            assertEquals(90, registry.lookup(id("minecraft:iron_block")).get(GooType.METAL));
+            assertEquals(90, registry.lookup(id("minecraft:iron_block")).get(GooTypes.METAL));
         }
 
         /**
@@ -1535,9 +1537,9 @@ class GooValueRegistryTest {
                     }
                     """);
             GooValue thing = registry.lookup(id("minecraft:thing"));
-            assertEquals(200, thing.get(GooType.METAL));
-            assertEquals(100, thing.get(GooType.PULSE));
-            assertEquals(400, thing.get(GooType.LEAF));
+            assertEquals(200, thing.get(GooTypes.METAL));
+            assertEquals(100, thing.get(GooTypes.PULSE));
+            assertEquals(400, thing.get(GooTypes.LEAF));
         }
 
         /**
@@ -1552,7 +1554,7 @@ class GooValueRegistryTest {
                         "minecraft:iron_block": "minecraft:iron_ingot * $count"
                     }
                     """);
-            assertEquals(90, registry.lookup(id("minecraft:iron_block")).get(GooType.METAL));
+            assertEquals(90, registry.lookup(id("minecraft:iron_block")).get(GooTypes.METAL));
         }
 
         /**
@@ -1568,8 +1570,8 @@ class GooValueRegistryTest {
                     }
                     """);
             GooValue c = registry.lookup(id("minecraft:c"));
-            assertEquals(10, c.get(GooType.METAL));
-            assertEquals(15, c.get(GooType.ROCK));
+            assertEquals(10, c.get(GooTypes.METAL));
+            assertEquals(15, c.get(GooTypes.ROCK));
         }
 
         /**
@@ -1583,8 +1585,8 @@ class GooValueRegistryTest {
                         "minecraft:thing": { "blaze": "minecraft:coal.blaze" }
                     }
                     """);
-            assertEquals(336, registry.lookup(id("minecraft:thing")).get(GooType.BLAZE));
-            assertEquals(0, registry.lookup(id("minecraft:thing")).get(GooType.ROCK));
+            assertEquals(336, registry.lookup(id("minecraft:thing")).get(GooTypes.BLAZE));
+            assertEquals(0, registry.lookup(id("minecraft:thing")).get(GooTypes.ROCK));
         }
 
         /**
@@ -1598,7 +1600,7 @@ class GooValueRegistryTest {
                         "minecraft:thing": { "blaze": "minecraft:coal.blaze * 2" }
                     }
                     """);
-            assertEquals(672, registry.lookup(id("minecraft:thing")).get(GooType.BLAZE));
+            assertEquals(672, registry.lookup(id("minecraft:thing")).get(GooTypes.BLAZE));
         }
 
         /**
@@ -1614,9 +1616,9 @@ class GooValueRegistryTest {
                     }
                     """);
             GooValue thing = registry.lookup(id("minecraft:thing"));
-            assertEquals(10, thing.get(GooType.METAL));
-            assertEquals(336, thing.get(GooType.BLAZE));
-            assertEquals(0, thing.get(GooType.ROCK));
+            assertEquals(10, thing.get(GooTypes.METAL));
+            assertEquals(336, thing.get(GooTypes.BLAZE));
+            assertEquals(0, thing.get(GooTypes.ROCK));
         }
 
         /**
@@ -1630,7 +1632,7 @@ class GooValueRegistryTest {
                         "minecraft:iron_block": "iron_ingot * 9"
                     }
                     """);
-            assertEquals(90, registry.lookup(id("minecraft:iron_block")).get(GooType.METAL));
+            assertEquals(90, registry.lookup(id("minecraft:iron_block")).get(GooTypes.METAL));
         }
 
         /**
@@ -1646,8 +1648,8 @@ class GooValueRegistryTest {
                     }
                     """);
             GooValue val = registry.lookup(id("minecraft:stripped_dark_oak_log"));
-            assertEquals(384, val.get(GooType.LEAF));
-            assertEquals(50, val.get(GooType.NETHER));
+            assertEquals(384, val.get(GooTypes.LEAF));
+            assertEquals(50, val.get(GooTypes.NETHER));
         }
 
         /**
@@ -1663,9 +1665,9 @@ class GooValueRegistryTest {
                     }
                     """);
             GooValue val = registry.lookup(id("minecraft:fancy_obsidian"));
-            assertEquals(500, val.get(GooType.ROCK));
-            assertEquals(200, val.get(GooType.NETHER));
-            assertEquals(200, val.get(GooType.CRYSTAL));
+            assertEquals(500, val.get(GooTypes.ROCK));
+            assertEquals(200, val.get(GooTypes.NETHER));
+            assertEquals(200, val.get(GooTypes.CRYSTAL));
         }
 
         /**
@@ -1681,8 +1683,8 @@ class GooValueRegistryTest {
                     }
                     """);
             GooValue val = registry.lookup(id("minecraft:thing"));
-            assertEquals(30, val.get(GooType.METAL));
-            assertEquals(30, val.get(GooType.CRYSTAL));
+            assertEquals(30, val.get(GooTypes.METAL));
+            assertEquals(30, val.get(GooTypes.CRYSTAL));
         }
 
         /**
@@ -1696,7 +1698,7 @@ class GooValueRegistryTest {
                         "minecraft:iron_block": "9 iron_ingot"
                     }
                     """);
-            assertEquals(90, registry.lookup(id("minecraft:iron_block")).get(GooType.METAL));
+            assertEquals(90, registry.lookup(id("minecraft:iron_block")).get(GooTypes.METAL));
         }
 
         /**
@@ -1712,8 +1714,8 @@ class GooValueRegistryTest {
                     }
                     """);
             GooValue val = registry.lookup(id("minecraft:thing"));
-            assertEquals(10, val.get(GooType.METAL));
-            assertEquals(100, val.get(GooType.NETHER));
+            assertEquals(10, val.get(GooTypes.METAL));
+            assertEquals(100, val.get(GooTypes.NETHER));
         }
 
         /**
@@ -1729,9 +1731,9 @@ class GooValueRegistryTest {
                     }
                     """);
             GooValue val = registry.lookup(id("minecraft:crying_obsidian"));
-            assertEquals(100, val.get(GooType.ROCK));
-            assertEquals(80, val.get(GooType.CRYSTAL));
-            assertEquals(40, val.get(GooType.AEON));
+            assertEquals(100, val.get(GooTypes.ROCK));
+            assertEquals(80, val.get(GooTypes.CRYSTAL));
+            assertEquals(40, val.get(GooTypes.AEON));
         }
 
         /**
@@ -1768,8 +1770,8 @@ class GooValueRegistryTest {
                     """);
             GooValue val = registry.lookup(id("minecraft:exposed_copper"));
             assertNotNull(val);
-            assertEquals(136, val.get(GooType.METAL)); // 200 - 64
-            assertEquals(30, val.get(GooType.AEON));   // unchanged
+            assertEquals(136, val.get(GooTypes.METAL)); // 200 - 64
+            assertEquals(30, val.get(GooTypes.AEON));   // unchanged
         }
 
         /**
@@ -1786,9 +1788,9 @@ class GooValueRegistryTest {
                     """);
             GooValue val = registry.lookup(id("minecraft:exposed_copper"));
             assertNotNull(val);
-            assertEquals(136, val.get(GooType.METAL)); // 200 - 64
-            assertEquals(32, val.get(GooType.AEON));   // 0 + 32
-            assertEquals(50, val.get(GooType.ROCK));   // unchanged
+            assertEquals(136, val.get(GooTypes.METAL)); // 200 - 64
+            assertEquals(32, val.get(GooTypes.AEON));   // 0 + 32
+            assertEquals(50, val.get(GooTypes.ROCK));   // unchanged
         }
 
         /**
@@ -1804,7 +1806,7 @@ class GooValueRegistryTest {
                     """);
             GooValue val = registry.lookup(id("minecraft:oak_wood"));
             assertNotNull(val);
-            assertEquals(360, val.get(GooType.LEAF)); // 480 * 3 / 4
+            assertEquals(360, val.get(GooTypes.LEAF)); // 480 * 3 / 4
             assertEquals(1, val.typeCount()); // only leaf, not the full tree
         }
 
@@ -1821,7 +1823,7 @@ class GooValueRegistryTest {
                     """);
             GooValue val = registry.lookup(id("minecraft:stem"));
             assertNotNull(val);
-            assertEquals(480, val.get(GooType.LEAF));
+            assertEquals(480, val.get(GooTypes.LEAF));
         }
 
         /**
@@ -1837,7 +1839,7 @@ class GooValueRegistryTest {
                     """);
             GooValue val = registry.lookup(id("minecraft:oak_wood"));
             assertNotNull(val);
-            assertEquals(360, val.get(GooType.LEAF));
+            assertEquals(360, val.get(GooTypes.LEAF));
         }
 
         /**
@@ -1852,7 +1854,7 @@ class GooValueRegistryTest {
                         "minecraft:scrap": "iron_block - 2 iron_ingot"
                     }
                     """);
-            assertEquals(70, registry.lookup(id("minecraft:scrap")).get(GooType.METAL));
+            assertEquals(70, registry.lookup(id("minecraft:scrap")).get(GooTypes.METAL));
         }
     }
 
@@ -1878,7 +1880,7 @@ class GooValueRegistryTest {
 
             GooValue val = registry.lookup(id("minecraft:iron_ingot"));
             assertNotNull(val);
-            assertEquals(10, val.get(GooType.METAL));
+            assertEquals(10, val.get(GooTypes.METAL));
             assertEquals(0, registry.diagnostics().baseSize());
         }
 
@@ -1903,7 +1905,7 @@ class GooValueRegistryTest {
             registry.setEffectiveCachePath(cacheFile);
 
             setBaseValues(Map.of(
-                    id("minecraft:iron_ingot"), goo(GooType.METAL, 10)
+                    id("minecraft:iron_ingot"), goo(GooTypes.METAL, 10)
             ));
             List<RecipeInput> recipes = List.of(
                     recipe("minecraft:iron_block", 1,
@@ -2371,7 +2373,7 @@ class GooValueRegistryTest {
                     """);
             assertTrue(registry.isRestricted(id("minecraft:coal_ore")));
             assertNotNull(registry.lookup(id("minecraft:coal_ore")));
-            assertEquals(100, registry.lookup(id("minecraft:coal_ore")).get(GooType.ROCK));
+            assertEquals(100, registry.lookup(id("minecraft:coal_ore")).get(GooTypes.ROCK));
         }
 
         /**

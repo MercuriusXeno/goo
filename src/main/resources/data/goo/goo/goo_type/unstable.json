@@ -1,0 +1,13 @@
+{
+  "light_level": 15,
+  "saturation_fill": 0.55,
+  "wheel": "39FF14",
+  "bright": "88FF44",
+  "highlight": "55FF22",
+  "edge": "6EFF33",
+  "density": 1500,
+  "viscosity": 500,
+  "temperature": 1300,
+  "extinguishes": false,
+  "map_color": "stone"
+}

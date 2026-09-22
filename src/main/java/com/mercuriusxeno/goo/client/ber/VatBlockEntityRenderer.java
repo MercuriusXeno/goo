@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.client.ber;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.block.vat.VatBlock;
 import com.mercuriusxeno.goo.block.vat.VatBlockEntity;
 import com.mercuriusxeno.goo.client.GooSubmitter;
@@ -15,6 +15,7 @@ import net.minecraft.client.renderer.feature.ModelFeatureRenderer;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.BlockPos;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -228,7 +229,7 @@ public class VatBlockEntityRenderer
      */
     private static void accumulateStream(StackAccumulator acc,
                                          VatBlockEntity vat, long gameTick) {
-        GooType st = vat.getVatStreamType(gameTick);
+        ResourceKey<GooTypeDefinition> st = vat.getVatStreamType(gameTick);
         if (st != null) {
             acc.topStreamType = st;
             acc.topStreamRate = vat.getVatStreamRate(gameTick);
@@ -264,7 +265,7 @@ public class VatBlockEntityRenderer
         }
         int light = state.lightCoords;
         float anim = state.animationTime;
-        GooType type = state.streamType;
+        ResourceKey<GooTypeDefinition> type = state.streamType;
         float rate = state.streamRate;
         emitStreamGeometry(poseStack, nodeCollector, light, anim, type, rate, sb[0], sb[1]);
     }
@@ -283,7 +284,7 @@ public class VatBlockEntityRenderer
      */
     private static void emitStreamGeometry(PoseStack poseStack,
                                            SubmitNodeCollector nodeCollector, int light, float anim,
-                                           GooType type, float rate, float yTop, float yBottom) {
+                                           ResourceKey<GooTypeDefinition> type, float rate, float yTop, float yBottom) {
         nodeCollector.submitCustomGeometry(poseStack, GooSubmitter.renderType(),
                 (pose, c) -> GooStreamRenderer.renderStream(new RenderContext(pose, c, light),
                         VAT_CENTER_X, VAT_CENTER_Z, yTop, yBottom,
@@ -377,7 +378,7 @@ public class VatBlockEntityRenderer
         GooContents merged = GooContents.EMPTY;
         int stackSize;
         int selfIndex = NO_INDEX;
-        @Nullable GooType topStreamType;
+        @Nullable ResourceKey<GooTypeDefinition> topStreamType;
         int topStreamRate;
 
         StackData toResult() {
@@ -390,6 +391,6 @@ public class VatBlockEntityRenderer
      * Aggregated data from walking a vat stack.
      */
     private record StackData(int totalVolume, int totalCapacity, GooContents merged,
-                             int stackSize, int selfIndex, @Nullable GooType topStreamType, int topStreamRate) {
+                             int stackSize, int selfIndex, @Nullable ResourceKey<GooTypeDefinition> topStreamType, int topStreamRate) {
     }
 }

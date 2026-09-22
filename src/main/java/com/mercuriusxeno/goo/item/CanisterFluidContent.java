@@ -1,60 +1,50 @@
 package com.mercuriusxeno.goo.item;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.registry.GooFluids;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import io.netty.buffer.ByteBuf;
-import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.material.Fluid;
-import net.minecraft.world.level.material.Fluids;
+import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import org.jspecify.annotations.Nullable;
 
 /**
  * Immutable single-fluid data component for canister items.
- * Stores one fluid type and its volume in microblobs (mB).
- * Accepts any registered fluid (goo types, water, lava, etc.).
+ * Stores one fluid resource and its volume in microblobs (mB).
+ * Accepts any fluid resource: a goo type is the goo fluid stamped with its
+ * type component (decision generic-goo-fluids), and vanilla fluids are bare.
  *
- * @param fluid  the stored fluid, or {@link Fluids#EMPTY} if none
- * @param amount the volume in microblobs (mB), 0 if empty
+ * @param resource the stored fluid resource, or {@link FluidResource#EMPTY} if none
+ * @param amount   the volume in microblobs (mB), 0 if empty
  */
-public record CanisterFluidContent(Fluid fluid, int amount) {
+public record CanisterFluidContent(FluidResource resource, int amount) {
 
     /** Empty canister with no fluid. */
-    public static final CanisterFluidContent EMPTY = new CanisterFluidContent(Fluids.EMPTY, 0);
+    public static final CanisterFluidContent EMPTY = new CanisterFluidContent(FluidResource.EMPTY, 0);
 
-    /** Persistent codec: fluid as registry name string, amount as int. */
+    /** Persistent codec: the resource with its components, amount as int. */
     public static final Codec<CanisterFluidContent> CODEC = RecordCodecBuilder.create(instance ->
         instance.group(
-            BuiltInRegistries.FLUID.byNameCodec().fieldOf("fluid").forGetter(CanisterFluidContent::fluid),
+            FluidResource.OPTIONAL_CODEC.fieldOf("fluid").forGetter(CanisterFluidContent::resource),
             Codec.INT.fieldOf("amount").forGetter(CanisterFluidContent::amount)
         ).apply(instance, CanisterFluidContent::new)
     );
 
-    /** Network codec: fluid as registry int ID, amount as VAR_INT. */
-    public static final StreamCodec<ByteBuf, CanisterFluidContent> STREAM_CODEC =
-        new StreamCodec<>() {
-            @Override
-            public CanisterFluidContent decode(ByteBuf buf) {
-                int fluidId = ByteBufCodecs.VAR_INT.decode(buf);
-                int vol = ByteBufCodecs.VAR_INT.decode(buf);
-                Fluid f = BuiltInRegistries.FLUID.byId(fluidId);
-                return new CanisterFluidContent(f, vol);
-            }
+    /** Network codec: the resource, then the amount as VAR_INT. */
+    public static final StreamCodec<RegistryFriendlyByteBuf, CanisterFluidContent> STREAM_CODEC =
+        StreamCodec.composite(
+            FluidResource.STREAM_CODEC, CanisterFluidContent::resource,
+            ByteBufCodecs.VAR_INT, CanisterFluidContent::amount,
+            CanisterFluidContent::new);
 
-            @Override
-            public void encode(ByteBuf buf, CanisterFluidContent value) {
-                ByteBufCodecs.VAR_INT.encode(buf, BuiltInRegistries.FLUID.getId(value.fluid));
-                ByteBufCodecs.VAR_INT.encode(buf, value.amount);
-            }
-        };
-
-    /** Normalizes: empty fluid or non-positive amount both produce EMPTY state. */
+    /** Normalizes: empty resource or non-positive amount both produce EMPTY state. */
     public CanisterFluidContent {
-        if (fluid == Fluids.EMPTY || amount <= 0) {
-            fluid = Fluids.EMPTY;
+        if (resource.isEmpty() || amount <= 0) {
+            resource = FluidResource.EMPTY;
             amount = 0;
         }
     }
@@ -65,32 +55,44 @@ public record CanisterFluidContent(Fluid fluid, int amount) {
      * @return true if empty
      */
     public boolean isEmpty() {
-        return fluid == Fluids.EMPTY || amount <= 0;
+        return resource.isEmpty() || amount <= 0;
     }
 
     /**
-     * Returns the goo type if this holds a goo fluid, or null for vanilla fluids.
+     * The stored fluid without its components, for render and tooltip code
+     * that tells vanilla fluids apart.
      *
-     * @return the goo type, or null
+     * @return the fluid, or the empty fluid
+     */
+    public Fluid fluid() {
+        return resource.getFluid();
+    }
+
+    /**
+     * The goo type stamped on the stored resource, bundled or datapack-added
+     * alike, since the stamp is a registry key of any namespace (decision
+     * generic-goo-fluids). A vanilla fluid or an empty canister carries none.
+     *
+     * @return the goo type, or null where the stored fluid carries no stamp
      */
     @Nullable
-    public GooType getGooType() {
-        return GooFluids.getTypeFromFluid(fluid);
+    public ResourceKey<GooTypeDefinition> getGooType() {
+        return GooFluids.keyOf(resource);
     }
 
     /**
-     * Returns a new content with the given volume added. Fluid must match
-     * the current fluid (or current must be empty).
+     * Returns a new content with the given volume added. The resource must
+     * match the current one (or current must be empty).
      *
-     * @param addFluid the fluid to add
-     * @param addAmount the volume to add in microblobs
+     * @param addResource the resource to add
+     * @param addAmount   the volume to add in microblobs
      * @return new content with the addition, or this if incompatible
      */
-    public CanisterFluidContent withAdded(Fluid addFluid, int addAmount) {
+    public CanisterFluidContent withAdded(FluidResource addResource, int addAmount) {
         if (addAmount <= 0) { return this; }
-        if (isEmpty()) { return new CanisterFluidContent(addFluid, addAmount); }
-        if (fluid != addFluid) { return this; }
-        return new CanisterFluidContent(fluid, amount + addAmount);
+        if (isEmpty()) { return new CanisterFluidContent(addResource, addAmount); }
+        if (!resource.equals(addResource)) { return this; }
+        return new CanisterFluidContent(resource, amount + addAmount);
     }
 
     /**
@@ -102,21 +104,21 @@ public record CanisterFluidContent(Fluid fluid, int amount) {
     public CanisterFluidContent withRemoved(int removeAmount) {
         if (removeAmount <= 0 || isEmpty()) { return this; }
         int remaining = amount - removeAmount;
-        return remaining > 0 ? new CanisterFluidContent(fluid, remaining) : EMPTY;
+        return remaining > 0 ? new CanisterFluidContent(resource, remaining) : EMPTY;
     }
 
     /**
      * Returns a new content with the given volume added, capped by capacity.
      *
-     * @param addFluid the fluid to add
-     * @param addAmount the requested volume
-     * @param capacity the total capacity of the container
+     * @param addResource the resource to add
+     * @param addAmount   the requested volume
+     * @param capacity    the total capacity of the container
      * @return new content with the capped addition
      */
-    public CanisterFluidContent withCappedAdd(Fluid addFluid, int addAmount, int capacity) {
-        int accepted = cappedAddAmount(addFluid, addAmount, capacity);
+    public CanisterFluidContent withCappedAdd(FluidResource addResource, int addAmount, int capacity) {
+        int accepted = cappedAddAmount(addResource, addAmount, capacity);
         if (accepted <= 0) { return this; }
-        Fluid target = isEmpty() ? addFluid : fluid;
+        FluidResource target = isEmpty() ? addResource : resource;
         int currentAmount = isEmpty() ? 0 : amount;
         return new CanisterFluidContent(target, currentAmount + accepted);
     }
@@ -124,14 +126,14 @@ public record CanisterFluidContent(Fluid fluid, int amount) {
     /**
      * Returns how much of the requested amount would be accepted by withCappedAdd.
      *
-     * @param addFluid the fluid to add
-     * @param addAmount the requested volume
-     * @param capacity the total capacity of the container
+     * @param addResource the resource to add
+     * @param addAmount   the requested volume
+     * @param capacity    the total capacity of the container
      * @return the amount that would be accepted
      */
-    public int cappedAddAmount(Fluid addFluid, int addAmount, int capacity) {
+    public int cappedAddAmount(FluidResource addResource, int addAmount, int capacity) {
         if (addAmount <= 0) { return 0; }
-        if (!canAccept(addFluid)) { return 0; }
+        if (!canAccept(addResource)) { return 0; }
         int currentAmount = isEmpty() ? 0 : amount;
         int space = capacity - currentAmount;
         if (space <= 0) { return 0; }
@@ -139,12 +141,12 @@ public record CanisterFluidContent(Fluid fluid, int amount) {
     }
 
     /**
-     * Returns true if this content is empty or already holds the given fluid.
+     * Returns true if this content is empty or already holds the given resource.
      *
-     * @param candidate the fluid to test
+     * @param candidate the resource to test
      * @return true if the candidate is compatible
      */
-    private boolean canAccept(Fluid candidate) {
-        return isEmpty() || fluid == candidate;
+    private boolean canAccept(FluidResource candidate) {
+        return isEmpty() || resource.equals(candidate);
     }
 }

@@ -1,7 +1,8 @@
 package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ThrowArc;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
@@ -10,6 +11,7 @@ import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
@@ -67,14 +69,16 @@ public final class BlobThrowHandler {
     }
 
     /**
-     * Validates and executes the throw.
+     * Validates and executes the throw: the glove, the type, the range and
+     * the goo in the player's inventory are checked, the goo is depleted,
+     * the flight is broadcast and the effect scheduled for arrival.
      *
      * @param player  the throwing player
      * @param payload the throw payload data
      */
-    private static void execute(ServerPlayer player, BlobThrowPayload payload) {
+    public static void execute(ServerPlayer player, BlobThrowPayload payload) {
         if (!validateGlove(player)) { return; }
-        GooType gooType = validateGooType(payload);
+        ResourceKey<GooTypeDefinition> gooType = validateGooType(payload);
         if (gooType == null) { return; }
         if (!validateRange(player, payload)) { return; }
         int cost = resolveThrowCost(player, payload, gooType);
@@ -101,8 +105,8 @@ public final class BlobThrowHandler {
      * @param payload the throw payload data
      * @return the resolved goo type, or null if invalid
      */
-    private static GooType validateGooType(BlobThrowPayload payload) {
-        GooType gooType = GooType.fromId(payload.gooTypeId());
+    private static ResourceKey<GooTypeDefinition> validateGooType(BlobThrowPayload payload) {
+        ResourceKey<GooTypeDefinition> gooType = GooTypes.known(payload.gooTypeId());
         if (gooType == null && Goo.LOGGER.isDebugEnabled()) {
             Goo.LOGGER.debug(LOG_BAD_TYPE, payload.gooTypeId());
         }
@@ -129,9 +133,9 @@ public final class BlobThrowHandler {
      * @param cost    the resolved mB cost for this throw
      * @return true if supply is sufficient
      */
-    private static boolean validateSupply(ServerPlayer player, GooType gooType, int cost) {
+    private static boolean validateSupply(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, int cost) {
         if (GooSourceScanner.hasEnough(player, gooType, cost)) { return true; }
-        if (Goo.LOGGER.isDebugEnabled()) { Goo.LOGGER.debug(LOG_NO_GOO, gooType.getId()); }
+        if (Goo.LOGGER.isDebugEnabled()) { Goo.LOGGER.debug(LOG_NO_GOO, GooTypes.id(gooType)); }
         return false;
     }
 
@@ -144,7 +148,7 @@ public final class BlobThrowHandler {
      * @return the cost in mB for this throw
      */
     private static int resolveThrowCost(ServerPlayer player, BlobThrowPayload payload,
-            GooType gooType) {
+            ResourceKey<GooTypeDefinition> gooType) {
         if (payload.abilityId().isEmpty()) { return THROW_COST; }
         net.minecraft.resources.Identifier abilityId =
                 net.minecraft.resources.Identifier.tryParse(payload.abilityId());
@@ -175,21 +179,21 @@ public final class BlobThrowHandler {
      * @param cost    the resolved mB cost for this throw
      */
     private static void depleteAndThrow(ServerPlayer player, BlobThrowPayload payload,
-            GooType gooType, double distSq, int cost) {
+            ResourceKey<GooTypeDefinition> gooType, double distSq, int cost) {
         int depleted = GooSourceScanner.deplete(player, gooType, cost);
         if (depleted < cost && Goo.LOGGER.isWarnEnabled()) {
-            Goo.LOGGER.warn(LOG_PARTIAL_DEPLETE, depleted, cost, gooType.getId());
+            Goo.LOGGER.warn(LOG_PARTIAL_DEPLETE, depleted, cost, GooTypes.id(gooType));
         }
 
         stallChainMarkerFuse(player, payload);
         double distance = Math.sqrt(distSq);
-        int travelTicks = gooType == GooType.GLOW
+        int travelTicks = gooType == GooTypes.GLOW
                 ? Math.max(1, (int) Math.ceil(distance / GLOW_BLOCKS_PER_TICK))
                 : (int) ThrowArc.travelTicks(distance);
         broadcastFlight(player, payload, travelTicks);
         BlobEffectScheduler.scheduleEffect(player, payload, gooType, travelTicks);
 
-        if (Goo.LOGGER.isDebugEnabled()) { Goo.LOGGER.debug(LOG_THROW_OK, gooType.getId(), player.getName().getString(), travelTicks); }
+        if (Goo.LOGGER.isDebugEnabled()) { Goo.LOGGER.debug(LOG_THROW_OK, GooTypes.id(gooType), player.getName().getString(), travelTicks); }
     }
 
     /** Builds and broadcasts the flight payload to tracking players and the thrower.
@@ -203,7 +207,10 @@ public final class BlobThrowHandler {
         Vec3 hand = getThrowHandPosition(player);
         BlobFlightPayload flight = buildFlightPayload(hand, payload, travelTicks);
         PacketDistributor.sendToPlayersTrackingEntity(player, flight);
-        PacketDistributor.sendToPlayer(player, flight);
+        // A listener that never negotiated the mod's channels, a gametest's mock player, gets no flight.
+        if (player.connection.hasChannel(flight)) {
+            PacketDistributor.sendToPlayer(player, flight);
+        }
     }
 
     /** Builds the flight payload from hand position, throw data, and travel time.

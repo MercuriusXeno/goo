@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.gametest;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.block.canister.CanisterBlock;
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
 import com.mercuriusxeno.goo.block.canister.CanisterSlotFluidHandler;
@@ -177,7 +177,7 @@ public final class GasketPusherTests {
         ReactorBlockEntity reactor = helper.getBlockEntity(BE_POS, ReactorBlockEntity.class);
         ItemStack output = new ItemStack(GooItems.CANISTER.get());
         CanisterItem.setFluidContent(output,
-                new CanisterFluidContent(GooFluids.SOURCES.get(GooType.BLAZE).get(), OUTPUT_GOO));
+                new CanisterFluidContent(GooFluids.resource(GooTypes.BLAZE), OUTPUT_GOO));
         CanisterItem.setMetadata(output, CanisterItem.getMetadata(output).withBottomGasketId(outputGasket));
         reactor.insertOutputCanister(output);
 

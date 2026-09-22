@@ -1,7 +1,8 @@
 package com.mercuriusxeno.goo.client.ber;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
+import net.minecraft.resources.ResourceKey;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -13,7 +14,7 @@ import org.jspecify.annotations.Nullable;
 public class VatRenderState extends BlockEntityRenderState {
 
     /** Dominant goo type across the stack, or null if empty. */
-    public @Nullable GooType dominantType;
+    public @Nullable ResourceKey<GooTypeDefinition> dominantType;
 
     /** Stack-wide fill fraction in [0, 1] (total volume / total capacity). */
     public float fillFraction;
@@ -31,7 +32,7 @@ public class VatRenderState extends BlockEntityRenderState {
     public int indexFromBottom;
 
     /** Stream type (non-null when goo is actively flowing in via cap gasket). */
-    public @Nullable GooType streamType;
+    public @Nullable ResourceKey<GooTypeDefinition> streamType;
 
     /** Stream rate in mB/tick (used for stream width calculation). */
     public float streamRate;

@@ -1,0 +1,7 @@
+{
+  "pack": {
+    "description": "Adds a seventeenth goo type without touching mod code",
+    "min_format": 101,
+    "max_format": 101
+  }
+}

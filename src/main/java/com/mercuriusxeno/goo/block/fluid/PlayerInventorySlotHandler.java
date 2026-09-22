@@ -1,24 +1,25 @@
 package com.mercuriusxeno.goo.block.fluid;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.ContainerCapacity;
 import com.mercuriusxeno.goo.registry.GooFluids;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.transfer.ResourceHandler;
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import net.neoforged.neoforge.transfer.transaction.TransactionContext;
+import java.util.List;
 
 /**
  * Fluid handler adapting a canister item in a player's inventory for gasket
  * capability queries. Reads/writes through the player's inventory slot.
- * Presents 15 tanks (one per {@link GooType}).
+ * Presents 15 tanks (one per goo type key).
  */
 public final class PlayerInventorySlotHandler implements ResourceHandler<FluidResource> {
-
-    private static final int TANK_COUNT = GooType.values().length;
 
     private final Player player;
     private final int inventorySlot;
@@ -46,7 +47,7 @@ public final class PlayerInventorySlotHandler implements ResourceHandler<FluidRe
      */
     @Override
     public int size() {
-        return TANK_COUNT;
+        return GooTypes.order().size();
     }
 
     /** Returns the FluidResource for the goo type at this index, or empty if absent.
@@ -56,11 +57,11 @@ public final class PlayerInventorySlotHandler implements ResourceHandler<FluidRe
      */
     @Override
     public FluidResource getResource(int index) {
-        GooType type = typeForIndex(index);
+        ResourceKey<GooTypeDefinition> type = typeForIndex(index);
         if (type == null) { return FluidResource.EMPTY; }
         CanisterFluidContent content = CanisterItem.getFluidContent(getStack());
         return (content.getGooType() == type)
-            ? FluidResource.of(GooFluids.SOURCES.get(type).get())
+            ? GooFluids.resource(type)
             : FluidResource.EMPTY;
     }
 
@@ -71,7 +72,7 @@ public final class PlayerInventorySlotHandler implements ResourceHandler<FluidRe
      */
     @Override
     public long getAmountAsLong(int index) {
-        GooType type = typeForIndex(index);
+        ResourceKey<GooTypeDefinition> type = typeForIndex(index);
         if (type == null) { return 0; }
         CanisterFluidContent content = CanisterItem.getFluidContent(getStack());
         return (content.getGooType() == type) ? content.amount() : 0L;
@@ -98,8 +99,8 @@ public final class PlayerInventorySlotHandler implements ResourceHandler<FluidRe
     @Override
     public boolean isValid(int index, FluidResource resource) {
         if (resource.isEmpty()) { return false; }
-        GooType type = GooFluids.getTypeFromFluid(resource.getFluid());
-        return type != null && type.ordinal() == index;
+        ResourceKey<GooTypeDefinition> type = GooFluids.keyOf(resource);
+        return type != null && GooTypes.indexOf(type) == index;
     }
 
     /** Inserts goo into the canister at the matching type index.
@@ -113,7 +114,7 @@ public final class PlayerInventorySlotHandler implements ResourceHandler<FluidRe
     @Override
     public int insert(int index, FluidResource resource, int amount,
             TransactionContext transaction) {
-        GooType type = validateFluidOp(index, resource, amount);
+        ResourceKey<GooTypeDefinition> type = validateFluidOp(index, resource, amount);
         if (type == null) { return 0; }
         ItemStack stack = getStack();
         if (!(stack.getItem() instanceof CanisterItem)) { return 0; }
@@ -131,7 +132,7 @@ public final class PlayerInventorySlotHandler implements ResourceHandler<FluidRe
     @Override
     public int extract(int index, FluidResource resource, int amount,
             TransactionContext transaction) {
-        GooType type = validateFluidOp(index, resource, amount);
+        ResourceKey<GooTypeDefinition> type = validateFluidOp(index, resource, amount);
         if (type == null) { return 0; }
         ItemStack stack = getStack();
         if (!(stack.getItem() instanceof CanisterItem)) { return 0; }
@@ -143,21 +144,21 @@ public final class PlayerInventorySlotHandler implements ResourceHandler<FluidRe
      * @param index    the tank index
      * @param resource the fluid resource
      * @param amount   the requested volume
-     * @return the matching GooType, or null if invalid
+     * @return the matching goo type key, or null if invalid
      */
-    private GooType validateFluidOp(int index, FluidResource resource, int amount) {
+    private ResourceKey<GooTypeDefinition> validateFluidOp(int index, FluidResource resource, int amount) {
         if (amount <= 0 || resource.isEmpty()) { return null; }
-        GooType type = GooFluids.getTypeFromFluid(resource.getFluid());
-        return type != null && type.ordinal() == index ? type : null;
+        ResourceKey<GooTypeDefinition> type = GooFluids.keyOf(resource);
+        return type != null && GooTypes.indexOf(type) == index ? type : null;
     }
 
-    /** Returns the GooType for the given tank index, or null if out of range.
+    /** Returns the ResourceKey<GooTypeDefinition> for the given tank index, or null if out of range.
      *
      * @param index the tank index
      * @return the goo type, or null
      */
-    private static GooType typeForIndex(int index) {
-        GooType[] types = GooType.values();
-        return index >= 0 && index < types.length ? types[index] : null;
+    private static ResourceKey<GooTypeDefinition> typeForIndex(int index) {
+        List<ResourceKey<GooTypeDefinition>> types = GooTypes.order();
+        return index >= 0 && index < types.size() ? types.get(index) : null;
     }
 }
