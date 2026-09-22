@@ -17,15 +17,13 @@ import java.util.function.Consumer;
  */
 public final class MobAbilities {
 
-    // ── Handler name constants; a type migrated to a program (metal, leaf, typhoon, shroom, nether, frost, pulse, aeon, unstable, hex, vital, rock, blaze, glow) has none ──
-    public static final String CRYSTAL_FLECHETTES = "crystal_flechettes";
+    // ── Handler name constants; a type migrated to a program (metal, leaf, typhoon, shroom, nether, frost, pulse, aeon, unstable, hex, vital, rock, blaze, glow, crystal) has none ──
     public static final String ENDER_TELEPORT = "ender_teleport";
     /**
      * Per-type effect handler map.
      */
     private static final Map<GooType, Consumer<EffectContext>> EFFECTS =
             new EnumMap<>(Map.ofEntries(
-                    Map.entry(GooType.CRYSTAL, ctx -> CrystalFlechettes.apply(ctx.level(), ctx.target())),
                     Map.entry(GooType.ENDER, ctx -> EnderTeleport.apply(ctx.level(), ctx.target()))));
     /**
      * String-keyed handler map for data-driven entity_effect dispatch.
@@ -72,7 +70,6 @@ public final class MobAbilities {
 
     private static Map<String, Consumer<EffectContext>> buildNamedMap() {
         Map<String, Consumer<EffectContext>> map = new HashMap<>();
-        map.put(CRYSTAL_FLECHETTES, ctx -> CrystalFlechettes.apply(ctx.level(), ctx.target()));
         map.put(ENDER_TELEPORT, ctx -> EnderTeleport.apply(ctx.level(), ctx.target()));
         return Map.copyOf(map);
     }

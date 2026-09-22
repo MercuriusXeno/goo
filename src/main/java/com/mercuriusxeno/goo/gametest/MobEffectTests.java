@@ -51,6 +51,12 @@ public final class MobEffectTests {
     private static final String ABILITY_ROCK_PETRIFY = "goo:rock_petrify";
     private static final String ABILITY_BLAZE_IGNITE = "goo:blaze_ignite";
     private static final String ABILITY_GLOW_LASER = "goo:glow_laser";
+    private static final String ABILITY_CRYSTAL_FLECHETTES = "goo:crystal_flechettes";
+    private static final String BYSTANDER_SHOULD_TAKE_SPLASH = "Bystander should have taken the splash damage";
+    /** The damage crystal_flechettes.json's first damage step names. */
+    private static final float FLECHETTE_DAMAGE = 4.0f;
+    /** The damage crystal_flechettes.json's entities selection names. */
+    private static final float SPLASH_DAMAGE = 2.0f;
     private static final String LIVING_SHOULD_NOT_BURN = "A cow is not undead and should not burn";
     private static final String UNDEAD_SHOULD_BURN = "A zombie is undead and should burn";
     private static final String SHOULD_BE_CRUSHED = "Target should be dead or dying";
@@ -93,15 +99,20 @@ public final class MobEffectTests {
     }
 
     /**
-     * Crystal flechettes deal damage to the primary target.
+     * Crystal flechettes is a program: four magic damage to the struck mob,
+     * an entities selection sparing the target that deals two to every
+     * other living entity in three blocks, and damage indicator particles.
      *
      * @param helper the gametest helper
      */
     public static void crystalFlechettes(GameTestHelper helper) {
         Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
+        Mob bystander = helper.spawnWithNoFreeWill(EntityType.COW, BYSTANDER_POS);
         float before = mob.getHealth();
-        CrystalFlechettes.apply(helper.getLevel(), mob);
-        helper.assertTrue(mob.getHealth() < before, SHOULD_TAKE_DAMAGE);
+        float bystanderBefore = bystander.getHealth();
+        runEntityPrograms(helper, mob, ABILITY_CRYSTAL_FLECHETTES);
+        helper.assertTrue(mob.getHealth() <= before - FLECHETTE_DAMAGE, SHOULD_TAKE_DAMAGE);
+        helper.assertTrue(bystander.getHealth() <= bystanderBefore - SPLASH_DAMAGE, BYSTANDER_SHOULD_TAKE_SPLASH);
         helper.succeed();
     }
 
@@ -308,15 +319,14 @@ public final class MobEffectTests {
 
     /**
      * MobAbilities.apply() routes a goo type to the handler still standing
-     * for it; crystal is the type checked while its handler awaits migration.
+     * for it; ender is the type checked while its handler awaits migration,
+     * and its random offset leaves nothing to assert beyond the run.
      *
      * @param helper the gametest helper
      */
     public static void dispatcherRoutes(GameTestHelper helper) {
         Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
-        float before = mob.getHealth();
-        MobAbilities.apply(helper.getLevel(), mob, GooType.CRYSTAL, null);
-        helper.assertTrue(mob.getHealth() < before, SHOULD_TAKE_DAMAGE);
+        MobAbilities.apply(helper.getLevel(), mob, GooType.ENDER, null);
         helper.succeed();
     }
 }

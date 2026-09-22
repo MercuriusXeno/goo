@@ -88,6 +88,14 @@ class MobProgramTest {
     private static final double CRIT_SPEED = 0.1;
     private static final int LASER_GLOW_DURATION = 200;
     private static final int LASER_IGNITE_SECONDS = 1;
+    private static final float FLECHETTE_DAMAGE = 4;
+    private static final float SPLASH_DAMAGE = 2;
+    private static final double FLECHETTE_RADIUS = 3;
+    private static final Set<EntityFilter> OTHER_LIVING = Set.of(EntityFilter.LIVING, EntityFilter.NOT_TARGET);
+    private static final String DAMAGE_INDICATOR = "minecraft:damage_indicator";
+    private static final int INDICATOR_COUNT = 15;
+    private static final double INDICATOR_SPREAD_ALONG = 0.5;
+    private static final double INDICATOR_SPREAD_ACROSS = 1.5;
 
     private static AbilityDefinition ability(String name) {
         String path = ABILITIES_DIR + name + JSON_SUFFIX;
@@ -296,6 +304,25 @@ class MobProgramTest {
         order.verify(host).damageTarget(LASER_DAMAGE * 2, DamageKind.MAGIC);
         order.verify(host).igniteTarget(LASER_IGNITE_SECONDS);
         verify(host, never()).applyPotion(any(), anyInt(), anyInt(), anyBoolean());
+    }
+
+    @Test
+    void crystalFlechettesHurtTheTargetThenSplashEveryOtherLivingEntityThenShowIndicators() {
+        StepHost host = entityHost();
+        StepHost bystander = entityHost();
+        doAnswer(invocation -> {
+            invocation.<Consumer<StepHost>>getArgument(ENTITIES_BODY_ARGUMENT).accept(bystander);
+            return null;
+        }).when(host).forEachEntityWithin(eq(SelectionShape.SPHERE), eq(FLECHETTE_RADIUS), eq(OTHER_LIVING), any());
+
+        run("crystal_flechettes", host);
+
+        InOrder order = inOrder(host, bystander);
+        order.verify(host).damageTarget(FLECHETTE_DAMAGE, DamageKind.MAGIC);
+        order.verify(bystander).damageTarget(SPLASH_DAMAGE, DamageKind.MAGIC);
+        order.verify(host).spawnParticles(FxAnchor.TARGET, new ParticleBurst(Identifier.parse(DAMAGE_INDICATOR),
+                INDICATOR_COUNT, INDICATOR_SPREAD_ALONG, INDICATOR_SPREAD_ACROSS, 0, 0));
+        verify(host, never()).damageTarget(SPLASH_DAMAGE, DamageKind.MAGIC);
     }
 
     @Test

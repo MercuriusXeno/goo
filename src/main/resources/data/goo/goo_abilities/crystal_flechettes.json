@@ -11,10 +11,27 @@
   },
   "behaviors": [
     {
-      "type": "entity_effect",
-      "params": {
-        "handler": "crystal_flechettes"
-      }
+      "type": "program",
+      "steps": [
+        { "type": "damage", "amount": 4, "source": "magic" },
+        {
+          "type": "entities",
+          "shape": "sphere",
+          "radius": 3,
+          "where": ["living", "not_target"],
+          "steps": [
+            { "type": "damage", "amount": 2, "source": "magic" }
+          ]
+        },
+        {
+          "type": "particles",
+          "id": "minecraft:damage_indicator",
+          "at": "target",
+          "count": 15,
+          "spread_across": 1.5,
+          "spread_along": 0.5
+        }
+      ]
     }
   ],
   "tags": ["entity"]
