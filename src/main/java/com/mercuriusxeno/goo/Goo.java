@@ -172,10 +172,13 @@ public class Goo {
     @SubscribeEvent
     public void onDatapackSync(OnDatapackSyncEvent event) {
         AbilitySyncPayload abilityPayload = AbilitySyncPayload.fromRegistry();
-        event.getRelevantPlayers().forEach(player -> {
-            GooValueSync.sendToPlayer(player);
-            PacketDistributor.sendToPlayer(player, abilityPayload);
-        });
+        // A listener that never negotiated the mod's channels, a gametest's mock player, gets no sync.
+        event.getRelevantPlayers()
+                .filter(player -> player.connection.hasChannel(abilityPayload))
+                .forEach(player -> {
+                    GooValueSync.sendToPlayer(player);
+                    PacketDistributor.sendToPlayer(player, abilityPayload);
+                });
     }
 
     /**

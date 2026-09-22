@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.client;
 
 import com.google.common.reflect.TypeToken;
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.GooType;
 import com.mercuriusxeno.goo.ISidedProxy;
 import com.mercuriusxeno.goo.client.ber.*;
 import com.mercuriusxeno.goo.client.machine.FuelRemainingProperty;
@@ -132,17 +131,27 @@ public final class GooClientSetup {
     }
 
     /**
-     * Registers the goo type icon decorator for all blob and omniblob items.
+     * Registers the goo type icon decorator on the blob and omniblob items.
      *
      * @param event the event instance
      */
     @SubscribeEvent
     public static void registerItemDecorations(RegisterItemDecorationsEvent event) {
         BlobVolumeDecorator decorator = new BlobVolumeDecorator();
-        for (GooType type : GooType.values()) {
-            event.register(GooItems.BLOBS.get(type).get(), decorator);
-            event.register(GooItems.OMNIBLOBS.get(type).get(), decorator);
-        }
+        event.register(GooItems.GOO_BLOB.get(), decorator);
+        event.register(GooItems.GOO_OMNIBLOB.get(), decorator);
+    }
+
+    /**
+     * Registers the item tint source the generic goo item models name, which
+     * colors the grey base by the type the stack carries (decision
+     * generic-goo-items).
+     *
+     * @param event the event instance
+     */
+    @SubscribeEvent
+    public static void registerItemTintSources(RegisterColorHandlersEvent.ItemTintSources event) {
+        event.register(Identifier.fromNamespaceAndPath(Goo.MODID, GooTypeItemTint.PATH), GooTypeItemTint.MAP_CODEC);
     }
 
     /**

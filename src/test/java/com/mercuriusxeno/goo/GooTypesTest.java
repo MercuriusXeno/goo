@@ -1,8 +1,13 @@
 package com.mercuriusxeno.goo;
 
+import com.google.gson.JsonElement;
+import com.mojang.serialization.JsonOps;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import org.junit.jupiter.api.Test;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -11,8 +16,9 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 /**
- * Tests that the GooTypes keys address the goo:goo_type registry and line up
- * one-to-one with the enum ids the bridge resolves through.
+ * Tests that the GooTypes keys address the goo:goo_type registry, line up
+ * one-to-one with the enum ids the bridge resolves through, and round-trip
+ * through the codecs the GOO_TYPE component carries.
  */
 class GooTypesTest {
 
@@ -57,6 +63,27 @@ class GooTypesTest {
     void enumKeyIsTheBundledKey() {
         for (GooType type : GooType.values()) {
             assertSame(GooTypes.bundled(type.getId()), type.key());
+        }
+    }
+
+    /**
+     * The GOO_TYPE component's codecs round-trip a key, bundled or from a
+     * datapack, as its id in JSON and as its id on the wire (decision
+     * generic-goo-items).
+     */
+    @Test
+    void keyCodecsRoundTrip() {
+        ResourceKey<GooTypeDefinition> datapack = ResourceKey.create(
+                GooTypes.REGISTRY, Identifier.fromNamespaceAndPath("gootest", "seventeenth"));
+        for (ResourceKey<GooTypeDefinition> key : List.of(GooTypes.BLAZE, datapack)) {
+            JsonElement json = GooTypes.KEY_CODEC.encodeStart(JsonOps.INSTANCE, key).getOrThrow();
+            assertEquals(key.identifier().toString(), json.getAsString());
+            assertEquals(key, GooTypes.KEY_CODEC.parse(JsonOps.INSTANCE, json).getOrThrow());
+
+            ByteBuf buf = Unpooled.buffer();
+            GooTypes.KEY_STREAM_CODEC.encode(buf, key);
+            assertEquals(key, GooTypes.KEY_STREAM_CODEC.decode(buf));
+            assertEquals(0, buf.readableBytes());
         }
     }
 

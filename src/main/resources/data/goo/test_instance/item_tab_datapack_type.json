@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:item_tab_datapack_type",
+  "environment": "minecraft:default",
+  "structure": "minecraft:empty",
+  "max_ticks": 100,
+  "setup_ticks": 0,
+  "required": true
+}

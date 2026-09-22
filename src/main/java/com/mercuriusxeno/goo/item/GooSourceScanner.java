@@ -135,10 +135,11 @@ public final class GooSourceScanner {
             return;
         }
 
-        if (stack.getItem() instanceof GooBlobItem blob) {
-            addToMap(totals, blob.getGooType(), stack.getCount() * BlobStacks.MB_PER_BLOB);
-        } else if (stack.getItem() instanceof GooOmniblobItem omni) {
-            addToMap(totals, omni.getGooType(), GooOmniblobItem.getVolume(stack));
+        if (stack.getItem() instanceof GooBlobItem || stack.getItem() instanceof GooOmniblobItem) {
+            GooType looseType = BlobStacks.gooTypeOf(stack);
+            if (looseType != null) {
+                addToMap(totals, looseType, BlobStacks.volumeOf(stack));
+            }
         } else {
             scanContainerStack(stack, totals);
         }
@@ -197,13 +198,7 @@ public final class GooSourceScanner {
      * @return volume in microblobs, or 0 if not a matching loose goo
      */
     private static int looseGooVolume(ItemStack stack, GooType type) {
-        if (stack.getItem() instanceof GooBlobItem blob && blob.getGooType() == type) {
-            return stack.getCount() * BlobStacks.MB_PER_BLOB;
-        }
-        if (stack.getItem() instanceof GooOmniblobItem omni && omni.getGooType() == type) {
-            return GooOmniblobItem.getVolume(stack);
-        }
-        return 0;
+        return BlobStacks.gooTypeOf(stack) == type ? BlobStacks.volumeOf(stack) : 0;
     }
 
     /**
@@ -279,7 +274,7 @@ public final class GooSourceScanner {
      * @return the remaining amount after depletion
      */
     private static int depleteBlobStack(ItemStack stack, GooType type, int remaining) {
-        if (!(stack.getItem() instanceof GooBlobItem blob) || blob.getGooType() != type) {
+        if (!(stack.getItem() instanceof GooBlobItem) || BlobStacks.gooTypeOf(stack) != type) {
             return remaining;
         }
         int blobsNeeded = Math.min(ceilDiv(remaining, BlobStacks.MB_PER_BLOB), stack.getCount());
@@ -296,7 +291,7 @@ public final class GooSourceScanner {
      * @return the remaining amount after depletion
      */
     private static int depleteOmniblobStack(ItemStack stack, GooType type, int remaining) {
-        if (!(stack.getItem() instanceof GooOmniblobItem omni) || omni.getGooType() != type) {
+        if (!(stack.getItem() instanceof GooOmniblobItem) || BlobStacks.gooTypeOf(stack) != type) {
             return remaining;
         }
         int volume = GooOmniblobItem.getVolume(stack);

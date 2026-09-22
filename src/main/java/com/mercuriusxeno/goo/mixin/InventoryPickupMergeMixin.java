@@ -65,8 +65,8 @@ public abstract class InventoryPickupMergeMixin {
         int size = container.getContainerSize();
         for (int i = 0; i < size; i++) {
             ItemStack candidate = container.getItem(i);
-            if (candidate.getItem() instanceof GooOmniblobItem omni
-                    && omni.getGooType() == sourceType) {
+            if (candidate.getItem() instanceof GooOmniblobItem
+                    && BlobStacks.gooTypeOf(candidate) == sourceType) {
                 return candidate;
             }
         }

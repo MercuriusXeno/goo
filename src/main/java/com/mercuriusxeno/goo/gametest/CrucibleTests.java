@@ -2,8 +2,8 @@ package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.GooType;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
+import com.mercuriusxeno.goo.item.BlobStacks;
 import com.mercuriusxeno.goo.registry.GooBlocks;
-import com.mercuriusxeno.goo.registry.GooItems;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -45,7 +45,7 @@ public final class CrucibleTests {
 
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
         player.setItemInHand(InteractionHand.MAIN_HAND,
-            new ItemStack(GooItems.BLOBS.get(GooType.ROCK).get()));
+            BlobStacks.createBlobStack(GooType.ROCK, 1));
 
         BlockPos abs = helper.absolutePos(BE_POS);
         BlockHitResult hit = new BlockHitResult(

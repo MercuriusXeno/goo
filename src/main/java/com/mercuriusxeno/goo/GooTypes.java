@@ -1,6 +1,9 @@
 package com.mercuriusxeno.goo;
 
+import com.mojang.serialization.Codec;
+import io.netty.buffer.ByteBuf;
 import net.minecraft.core.Registry;
+import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import java.util.List;
@@ -24,6 +27,18 @@ public final class GooTypes {
      */
     public static final ResourceKey<Registry<GooTypeDefinition>> REGISTRY =
             ResourceKey.createRegistryKey(Identifier.fromNamespaceAndPath(Goo.MODID, REGISTRY_PATH));
+
+    /**
+     * A type key as its id, the form the GOO_TYPE data component persists
+     * (decision generic-goo-items).
+     */
+    public static final Codec<ResourceKey<GooTypeDefinition>> KEY_CODEC = ResourceKey.codec(REGISTRY);
+
+    /**
+     * A type key on the wire, the form the GOO_TYPE data component syncs.
+     */
+    public static final StreamCodec<ByteBuf, ResourceKey<GooTypeDefinition>> KEY_STREAM_CODEC =
+            ResourceKey.streamCodec(REGISTRY);
 
     public static final ResourceKey<GooTypeDefinition> AEON = bundled("aeon");
     public static final ResourceKey<GooTypeDefinition> BLAZE = bundled("blaze");

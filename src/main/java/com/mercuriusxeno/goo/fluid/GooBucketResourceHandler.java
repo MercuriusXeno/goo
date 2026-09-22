@@ -1,6 +1,9 @@
 package com.mercuriusxeno.goo.fluid;
 
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.registry.GooDataComponents;
 import com.mercuriusxeno.goo.registry.GooFluids;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.Items;
 import net.neoforged.neoforge.fluids.FluidType;
 import net.neoforged.neoforge.transfer.ItemAccessResourceHandler;
@@ -11,9 +14,10 @@ import net.neoforged.neoforge.transfer.item.ItemResource;
 /**
  * The fluid handler of a goo bucket. NeoForge's bucket handler answers the
  * bucket's bare fluid, which for the generic goo fluid names no type, so
- * this one answers the resource stamped with the bucket's type (decision
- * generic-goo-fluids): a canister drained from the bucket, and the bucket's
- * item tint, both read the type from it.
+ * this one answers the resource stamped with the type the bucket stack
+ * carries (decisions generic-goo-fluids and generic-goo-items): a canister
+ * drained from the bucket, and the bucket's item tint, both read the type
+ * from it.
  */
 public class GooBucketResourceHandler extends ItemAccessResourceHandler<FluidResource> {
 
@@ -26,14 +30,15 @@ public class GooBucketResourceHandler extends ItemAccessResourceHandler<FluidRes
 
     @Override
     protected FluidResource getResourceFrom(ItemResource item, int index) {
-        return item.getItem() instanceof GooBucketItem bucket
-                ? GooFluids.resource(bucket.type())
-                : FluidResource.EMPTY;
+        ResourceKey<GooTypeDefinition> key = item.getItem() instanceof GooBucketItem
+                ? item.getComponents().get(GooDataComponents.GOO_TYPE.get())
+                : null;
+        return key == null ? FluidResource.EMPTY : GooFluids.resource(key);
     }
 
     @Override
     protected int getAmountFrom(ItemResource item, int index) {
-        return item.getItem() instanceof GooBucketItem ? FluidType.BUCKET_VOLUME : 0;
+        return getResourceFrom(item, index).isEmpty() ? 0 : FluidType.BUCKET_VOLUME;
     }
 
     @Override

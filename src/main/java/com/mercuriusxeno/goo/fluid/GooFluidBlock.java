@@ -1,8 +1,6 @@
 package com.mercuriusxeno.goo.fluid;
 
-import com.mercuriusxeno.goo.GooType;
 import com.mercuriusxeno.goo.GooTypeDefinition;
-import com.mercuriusxeno.goo.registry.GooItems;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.LivingEntity;
@@ -65,9 +63,9 @@ public class GooFluidBlock extends LiquidBlock implements EntityBlock {
     }
 
     /**
-     * Picks the block up into the bucket of the type stamped here; a source
-     * block with no bundled type yields nothing, since buckets are still one
-     * per bundled type.
+     * Picks the block up into the goo bucket stamped with the type here
+     * (decision generic-goo-items); a source block with no type yields
+     * nothing.
      *
      * @param entity the entity picking up, or null
      * @param level  the level accessor
@@ -79,11 +77,10 @@ public class GooFluidBlock extends LiquidBlock implements EntityBlock {
     public @NonNull ItemStack pickupBlock(@Nullable LivingEntity entity, @NonNull LevelAccessor level,
                                           @NonNull BlockPos pos, @NonNull BlockState state) {
         ResourceKey<GooTypeDefinition> key = GooFluidBlockEntity.typeAt(level, pos);
-        GooType type = key == null ? null : GooType.fromKey(key);
-        if (type == null || state.getValue(LEVEL) != 0) {
+        if (key == null || state.getValue(LEVEL) != 0) {
             return ItemStack.EMPTY;
         }
         super.pickupBlock(entity, level, pos, state);
-        return new ItemStack(GooItems.BUCKETS.get(type).get());
+        return GooBucketItem.of(key);
     }
 }

@@ -1,9 +1,7 @@
 package com.mercuriusxeno.goo.fluid;
 
-import com.mercuriusxeno.goo.GooType;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
-import com.mercuriusxeno.goo.registry.GooItems;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.Entity;
@@ -70,17 +68,16 @@ public class GooFluidType extends FluidType {
     }
 
     /**
-     * The bucket of the type a goo stack carries, while buckets are one per
-     * bundled type.
+     * The goo bucket stamped with the type a goo stack carries (decision
+     * generic-goo-items).
      *
      * @param stack the goo fluid stack
-     * @return the bucket of the stamped bundled type, or the fluid's own bucket for a stack with none
+     * @return the bucket of the stamped type, or the fluid's own bucket for a stack with none
      */
     @Override
     public @NonNull ItemStack getBucket(@NonNull FluidStack stack) {
         ResourceKey<GooTypeDefinition> key = stack.getComponents().get(GooDataComponents.GOO_TYPE.get());
-        GooType type = key == null ? null : GooType.fromKey(key);
-        return type == null ? super.getBucket(stack) : new ItemStack(GooItems.BUCKETS.get(type).get());
+        return key == null ? super.getBucket(stack) : GooBucketItem.of(key);
     }
 
     private static @Nullable GooTypeDefinition definitionAt(BlockGetter getter, BlockPos pos) {
