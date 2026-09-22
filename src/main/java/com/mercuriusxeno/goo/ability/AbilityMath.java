@@ -1,9 +1,10 @@
 package com.mercuriusxeno.goo.ability;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.data.GooValue;
 import net.minecraft.core.BlockPos;
-import java.util.EnumSet;
+import net.minecraft.resources.ResourceKey;
 import java.util.Set;
 import java.util.function.Consumer;
 
@@ -16,7 +17,7 @@ public final class AbilityMath {
     /**
      * Goo types counted toward rock majority (rock and crystal from quartz ancestry).
      */
-    private static final Set<GooType> ROCK_FAMILY = EnumSet.of(GooType.ROCK, GooType.CRYSTAL);
+    private static final Set<ResourceKey<GooTypeDefinition>> ROCK_FAMILY = Set.of(GooTypes.ROCK, GooTypes.CRYSTAL);
 
     /**
      * Base pulse interval in ticks (16 seconds).
@@ -124,7 +125,7 @@ public final class AbilityMath {
             return false;
         }
         int rockTotal = 0;
-        for (GooType type : ROCK_FAMILY) {
+        for (ResourceKey<GooTypeDefinition> type : ROCK_FAMILY) {
             rockTotal += value.get(type);
         }
         return rockTotal * MAJORITY_MULTIPLIER > value.totalBlobs();

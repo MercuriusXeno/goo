@@ -1,0 +1,13 @@
+{
+  "light_level": 8,
+  "saturation_fill": 0.5,
+  "wheel": "DAA520",
+  "bright": "FFC948",
+  "highlight": "E9B42F",
+  "edge": "F8C33E",
+  "density": 1000,
+  "viscosity": 3000,
+  "temperature": 300,
+  "extinguishes": false,
+  "map_color": "gold"
+}

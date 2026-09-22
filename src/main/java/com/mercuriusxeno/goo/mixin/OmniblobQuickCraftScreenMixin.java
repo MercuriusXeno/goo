@@ -1,10 +1,11 @@
 package com.mercuriusxeno.goo.mixin;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.item.BlobStacks;
 import com.mercuriusxeno.goo.item.OmniblobQuickCraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
@@ -128,8 +129,8 @@ public abstract class OmniblobQuickCraftScreenMixin {
             if (existing.isEmpty()) {
                 return true;
             }
-            GooType carriedType = BlobStacks.gooTypeOf(carried);
-            GooType existingType = BlobStacks.gooTypeOf(existing);
+            ResourceKey<GooTypeDefinition> carriedType = BlobStacks.keyOf(carried);
+            ResourceKey<GooTypeDefinition> existingType = BlobStacks.keyOf(existing);
             return carriedType != null && carriedType == existingType;
         }
         return AbstractContainerMenu.canItemQuickReplace(slot, carried, stackSizeMatters);
@@ -231,11 +232,11 @@ public abstract class OmniblobQuickCraftScreenMixin {
      * @param carried  the omniblob item stack on the cursor
      */
     private void renderOmniblobSlotPreview(GuiGraphicsExtractor graphics, Slot slot, ItemStack carried) {
-        GooType type = BlobStacks.gooTypeOf(carried);
+        ResourceKey<GooTypeDefinition> type = BlobStacks.keyOf(carried);
         int totalVolume = BlobStacks.volumeOf(carried);
         int perSlot = computeClientPerSlot(totalVolume);
         ItemStack existing = slot.getItem();
-        if (!existing.isEmpty() && type == BlobStacks.gooTypeOf(existing)) {
+        if (!existing.isEmpty() && type == BlobStacks.keyOf(existing)) {
             perSlot += BlobStacks.volumeOf(existing);
         }
         ItemStack omniblobPreview = BlobStacks.createForOutput(type, perSlot);

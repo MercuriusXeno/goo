@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.client.ber;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.GooSubmitter;
@@ -13,6 +13,7 @@ import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 import net.minecraft.client.renderer.feature.ModelFeatureRenderer;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
@@ -168,7 +169,7 @@ public class CrucibleBlockEntityRenderer
      * @param alpha the alpha transparency [0, 1]
      */
     private static void submitLiquidQuad(PoseStack poseStack,
-            SubmitNodeCollector nodeCollector, GooType type,
+            SubmitNodeCollector nodeCollector, ResourceKey<GooTypeDefinition> type,
             float surfaceY, float alpha) {
         TextureAtlasSprite sprite = GooSubmitter.fluidSprite(type);
         GooSubmitter.submitFluid(poseStack, nodeCollector, packArgb(alpha),

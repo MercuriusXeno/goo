@@ -1,9 +1,11 @@
 package com.mercuriusxeno.goo.client.throwing;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooColors;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.registry.GooParticles;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.particles.ColorParticleOption;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.phys.Vec3;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -85,7 +87,7 @@ final class BlobTrailParticles {
      * @param type   the goo type
      * @param flight the flight instance for tick tracking
      */
-    static void spawnTrailParticles(Vec3 pos, Vec3 vel, GooType type,
+    static void spawnTrailParticles(Vec3 pos, Vec3 vel, ResourceKey<GooTypeDefinition> type,
                                     BlobFlightManager.BlobFlight flight) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) {
@@ -95,7 +97,7 @@ final class BlobTrailParticles {
             return;
         }
 
-        int color = type.getColor();
+        int color = GooColors.get(mc.level.registryAccess(), type);
         spawnDripParticle(mc, pos, vel, color);
         spawnFogParticles(mc, pos, vel, color);
     }

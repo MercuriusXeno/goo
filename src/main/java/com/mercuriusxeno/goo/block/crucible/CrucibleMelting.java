@@ -1,10 +1,12 @@
 package com.mercuriusxeno.goo.block.crucible;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooColors;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.item.DepletedBlazeRodItem;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.PartiallyMeltedItem;
 import net.minecraft.core.BlockPos;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -187,13 +189,13 @@ final class CrucibleMelting {
         if (totalGoo <= 0) {
             return;
         }
-        GooType dominant = resolveDominantType(be);
+        ResourceKey<GooTypeDefinition> dominant = resolveDominantType(be);
         if (dominant == null) {
             return;
         }
         float surfaceY = CrucibleParticleHelper.computeSurfaceY(totalGoo);
         CrucibleParticleHelper.spawnGooBubbles(
-                serverLevel, pos, surfaceY, dominant.getColor(), serverLevel.getRandom(),
+                serverLevel, pos, surfaceY, GooColors.get(serverLevel.registryAccess(), dominant), serverLevel.getRandom(),
                 be.bubbleHistory);
     }
 
@@ -203,8 +205,8 @@ final class CrucibleMelting {
      * @param be the crucible block entity
      * @return the dominant type, or null if no goo is present
      */
-    private static @Nullable GooType resolveDominantType(CrucibleBlockEntity be) {
-        GooType dominant = be.reservoir.largestType();
+    private static @Nullable ResourceKey<GooTypeDefinition> resolveDominantType(CrucibleBlockEntity be) {
+        ResourceKey<GooTypeDefinition> dominant = be.reservoir.largestType();
         return dominant != null ? dominant : dominantPoolType(be);
     }
 
@@ -214,7 +216,7 @@ final class CrucibleMelting {
      * @param be the crucible block entity
      * @return the goo type, or null
      */
-    private static @Nullable GooType dominantPoolType(CrucibleBlockEntity be) {
+    private static @Nullable ResourceKey<GooTypeDefinition> dominantPoolType(CrucibleBlockEntity be) {
         if (be.meltingItem.isEmpty()) {
             return null;
         }
@@ -247,7 +249,7 @@ final class CrucibleMelting {
         }
 
         int rate = CrucibleMath.extractionRate(totalRemaining, 0);
-        Map<GooType, Integer> shares = CrucibleMath.computeDrainShares(pmiContents, rate);
+        Map<ResourceKey<GooTypeDefinition>, Integer> shares = CrucibleMath.computeDrainShares(pmiContents, rate);
         applyDrainShares(be, shares);
     }
 
@@ -257,8 +259,8 @@ final class CrucibleMelting {
      * @param be     the crucible block entity
      * @param shares the per-type drain amounts
      */
-    private static void applyDrainShares(CrucibleBlockEntity be, Map<GooType, Integer> shares) {
-        for (Map.Entry<GooType, Integer> entry : shares.entrySet()) {
+    private static void applyDrainShares(CrucibleBlockEntity be, Map<ResourceKey<GooTypeDefinition>, Integer> shares) {
+        for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> entry : shares.entrySet()) {
             int drained = PartiallyMeltedItem.drain(
                     be.meltingItem, entry.getKey(), entry.getValue());
             be.reservoir.insertGoo(entry.getKey(), drained, false);

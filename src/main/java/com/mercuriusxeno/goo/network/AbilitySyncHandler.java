@@ -1,8 +1,10 @@
 package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import java.util.*;
 
@@ -15,7 +17,7 @@ public final class AbilitySyncHandler {
 
     private static final String LOG_SYNCED = "Synced {} abilities from server";
 
-    private static Map<GooType, List<ClientAbility>> byType = new EnumMap<>(GooType.class);
+    private static Map<ResourceKey<GooTypeDefinition>, List<ClientAbility>> byType = new HashMap<>();
 
     private AbilitySyncHandler() {
     }
@@ -31,9 +33,9 @@ public final class AbilitySyncHandler {
     }
 
     private static void applySync(AbilitySyncPayload payload) {
-        Map<GooType, List<ClientAbility>> map = new EnumMap<>(GooType.class);
+        Map<ResourceKey<GooTypeDefinition>, List<ClientAbility>> map = new HashMap<>();
         for (AbilitySyncPayload.Entry e : payload.entries()) {
-            GooType type = GooType.fromId(e.gooTypeId());
+            ResourceKey<GooTypeDefinition> type = GooTypes.byId(e.gooTypeId());
             if (type == null) {
                 continue;
             }
@@ -57,7 +59,7 @@ public final class AbilitySyncHandler {
      * @param type the goo type
      * @return immutable list, empty if none synced
      */
-    public static List<ClientAbility> getAbilitiesForType(GooType type) {
+    public static List<ClientAbility> getAbilitiesForType(ResourceKey<GooTypeDefinition> type) {
         List<ClientAbility> list = byType.get(type);
         return list != null ? Collections.unmodifiableList(list) : List.of();
     }
@@ -68,7 +70,7 @@ public final class AbilitySyncHandler {
      * @param type the goo type
      * @return true if at least one ability is available
      */
-    public static boolean hasAbilities(GooType type) {
+    public static boolean hasAbilities(ResourceKey<GooTypeDefinition> type) {
         return !getAbilitiesForType(type).isEmpty();
     }
 

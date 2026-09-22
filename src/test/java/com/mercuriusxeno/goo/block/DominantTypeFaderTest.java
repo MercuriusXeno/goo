@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.block;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypes;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -25,9 +25,9 @@ class DominantTypeFaderTest {
      */
     private static long switchRockToBlaze(DominantTypeFader fader) {
         long tick = 0;
-        fader.tick(GooType.ROCK, tick++);
+        fader.tick(GooTypes.ROCK, tick++);
         for (int i = 0; i < DEBOUNCE_TICKS; i++) {
-            fader.tick(GooType.BLAZE, tick++);
+            fader.tick(GooTypes.BLAZE, tick++);
         }
         return tick;
     }
@@ -42,8 +42,8 @@ class DominantTypeFaderTest {
 
         switchRockToBlaze(fader);
 
-        assertEquals(GooType.BLAZE, fader.getShownType());
-        assertEquals(GooType.ROCK, fader.getOutgoingType());
+        assertEquals(GooTypes.BLAZE, fader.getShownType());
+        assertEquals(GooTypes.ROCK, fader.getOutgoingType());
         assertEquals(0f, fader.getCrossfadeAlpha(), 0.0001f);
     }
 
@@ -57,13 +57,13 @@ class DominantTypeFaderTest {
         long tick = switchRockToBlaze(fader);
 
         for (int i = 0; i < 10; i++) {
-            fader.tick(GooType.BLAZE, tick++);
+            fader.tick(GooTypes.BLAZE, tick++);
         }
 
         float alpha = fader.getCrossfadeAlpha();
         assertTrue(alpha > 0f && alpha < 1f, "mid-fade alpha " + alpha);
         assertEquals(0.5f, alpha, 0.0001f);
-        assertEquals(GooType.ROCK, fader.getOutgoingType());
+        assertEquals(GooTypes.ROCK, fader.getOutgoingType());
     }
 
     /**
@@ -76,7 +76,7 @@ class DominantTypeFaderTest {
         long tick = switchRockToBlaze(fader);
 
         for (int i = 0; i < DEBOUNCE_TICKS; i++) {
-            fader.tick(GooType.BLAZE, tick++);
+            fader.tick(GooTypes.BLAZE, tick++);
         }
 
         assertEquals(1f, fader.getCrossfadeAlpha(), 0.0001f);
@@ -91,9 +91,9 @@ class DominantTypeFaderTest {
         DominantTypeFader fader = new DominantTypeFader();
         long tick = switchRockToBlaze(fader);
 
-        fader.tick(GooType.BLAZE, tick);
+        fader.tick(GooTypes.BLAZE, tick);
         float once = fader.getCrossfadeAlpha();
-        fader.tick(GooType.BLAZE, tick);
+        fader.tick(GooTypes.BLAZE, tick);
 
         assertEquals(once, fader.getCrossfadeAlpha(), 0.0001f);
     }

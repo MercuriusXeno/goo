@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.effect;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.AbilityMath;
 import com.mercuriusxeno.goo.data.GooValue;
 import org.junit.jupiter.api.Nested;
@@ -98,37 +98,37 @@ class EffectMathTest {
 
         @Test
         void rockOnlyIsCompatible() {
-            GooValue value = new GooValue(Map.of(GooType.ROCK, 3));
+            GooValue value = new GooValue(Map.of(GooTypes.ROCK, 3));
             assertTrue(AbilityMath.isRockCompatible(value));
         }
 
         @Test
         void rockAndCrystalIsCompatible() {
-            GooValue value = new GooValue(Map.of(GooType.ROCK, 2, GooType.CRYSTAL, 1));
+            GooValue value = new GooValue(Map.of(GooTypes.ROCK, 2, GooTypes.CRYSTAL, 1));
             assertTrue(AbilityMath.isRockCompatible(value));
         }
 
         @Test
         void crystalOnlyIsCompatible() {
-            GooValue value = new GooValue(Map.of(GooType.CRYSTAL, 2));
+            GooValue value = new GooValue(Map.of(GooTypes.CRYSTAL, 2));
             assertTrue(AbilityMath.isRockCompatible(value));
         }
 
         @Test
         void rockMajorityWithMinorityMetalIsCompatible() {
-            GooValue value = new GooValue(Map.of(GooType.ROCK, 3, GooType.METAL, 1));
+            GooValue value = new GooValue(Map.of(GooTypes.ROCK, 3, GooTypes.METAL, 1));
             assertTrue(AbilityMath.isRockCompatible(value));
         }
 
         @Test
         void rockMinorityIsNotCompatible() {
-            GooValue value = new GooValue(Map.of(GooType.ROCK, 1, GooType.METAL, 3));
+            GooValue value = new GooValue(Map.of(GooTypes.ROCK, 1, GooTypes.METAL, 3));
             assertFalse(AbilityMath.isRockCompatible(value));
         }
 
         @Test
         void exactHalfIsNotCompatible() {
-            GooValue value = new GooValue(Map.of(GooType.ROCK, 2, GooType.METAL, 2));
+            GooValue value = new GooValue(Map.of(GooTypes.ROCK, 2, GooTypes.METAL, 2));
             assertFalse(AbilityMath.isRockCompatible(value));
         }
 

@@ -1,9 +1,11 @@
 package com.mercuriusxeno.goo.block;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.block.crucible.CrucibleMath;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.item.GooContents;
+import net.minecraft.resources.ResourceKey;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -158,9 +160,9 @@ class CrucibleBlockEntityTest {
      */
     @Test
     void singleTypeGooValueConvertsToGooContents() {
-        GooValue value = new GooValue(Map.of(GooType.ROCK, 500));
+        GooValue value = new GooValue(Map.of(GooTypes.ROCK, 500));
         GooContents result = value.toGooContents();
-        assertEquals(500, result.getVolume(GooType.ROCK));
+        assertEquals(500, result.getVolume(GooTypes.ROCK));
         assertEquals(1, result.typeCount());
     }
 
@@ -170,14 +172,14 @@ class CrucibleBlockEntityTest {
     @Test
     void multiTypeGooValuePreservesAllTypes() {
         GooValue value = new GooValue(Map.of(
-                GooType.ROCK, 100,
-                GooType.METAL, 250,
-                GooType.VITAL, 50
+                GooTypes.ROCK, 100,
+                GooTypes.METAL, 250,
+                GooTypes.VITAL, 50
         ));
         GooContents result = value.toGooContents();
-        assertEquals(100, result.getVolume(GooType.ROCK));
-        assertEquals(250, result.getVolume(GooType.METAL));
-        assertEquals(50, result.getVolume(GooType.VITAL));
+        assertEquals(100, result.getVolume(GooTypes.ROCK));
+        assertEquals(250, result.getVolume(GooTypes.METAL));
+        assertEquals(50, result.getVolume(GooTypes.VITAL));
         assertEquals(3, result.typeCount());
     }
 
@@ -196,8 +198,8 @@ class CrucibleBlockEntityTest {
      */
     @Test
     void singleTypeGooContentsReturnsThatType() {
-        GooContents gc = new GooContents(Map.of(GooType.BLAZE, 100));
-        assertEquals(GooType.BLAZE, gc.largestType());
+        GooContents gc = new GooContents(Map.of(GooTypes.BLAZE, 100));
+        assertEquals(GooTypes.BLAZE, gc.largestType());
     }
 
     /**
@@ -206,11 +208,11 @@ class CrucibleBlockEntityTest {
     @Test
     void multiTypeGooContentsReturnsHighestVolume() {
         GooContents gc = new GooContents(Map.of(
-                GooType.ROCK, 100,
-                GooType.METAL, 500,
-                GooType.VITAL, 200
+                GooTypes.ROCK, 100,
+                GooTypes.METAL, 500,
+                GooTypes.VITAL, 200
         ));
-        assertEquals(GooType.METAL, gc.largestType());
+        assertEquals(GooTypes.METAL, gc.largestType());
     }
 
     // -- GooContents.mergeWith -------------------------------------------
@@ -220,9 +222,9 @@ class CrucibleBlockEntityTest {
      */
     @Test
     void mergeEmptyWithNonEmptyReturnsNonEmpty() {
-        GooContents gc = new GooContents(Map.of(GooType.ROCK, 100));
+        GooContents gc = new GooContents(Map.of(GooTypes.ROCK, 100));
         GooContents result = GooContents.EMPTY.mergeWith(gc);
-        assertEquals(100, result.getVolume(GooType.ROCK));
+        assertEquals(100, result.getVolume(GooTypes.ROCK));
     }
 
     /**
@@ -230,12 +232,12 @@ class CrucibleBlockEntityTest {
      */
     @Test
     void mergeWithSumsMatchingTypes() {
-        GooContents a = new GooContents(Map.of(GooType.ROCK, 100, GooType.METAL, 50));
-        GooContents b = new GooContents(Map.of(GooType.ROCK, 200, GooType.VITAL, 75));
+        GooContents a = new GooContents(Map.of(GooTypes.ROCK, 100, GooTypes.METAL, 50));
+        GooContents b = new GooContents(Map.of(GooTypes.ROCK, 200, GooTypes.VITAL, 75));
         GooContents result = a.mergeWith(b);
-        assertEquals(300, result.getVolume(GooType.ROCK));
-        assertEquals(50, result.getVolume(GooType.METAL));
-        assertEquals(75, result.getVolume(GooType.VITAL));
+        assertEquals(300, result.getVolume(GooTypes.ROCK));
+        assertEquals(50, result.getVolume(GooTypes.METAL));
+        assertEquals(75, result.getVolume(GooTypes.VITAL));
     }
 
     // -- computeDrainShares (proportional distribution) -------------------------
@@ -245,9 +247,9 @@ class CrucibleBlockEntityTest {
      */
     @Test
     void singleTypeDrainShareGetsFullRate() {
-        GooContents pool = new GooContents(Map.of(GooType.ROCK, 1000));
-        Map<GooType, Integer> shares = CrucibleMath.computeDrainShares(pool, 10);
-        assertEquals(10, shares.get(GooType.ROCK));
+        GooContents pool = new GooContents(Map.of(GooTypes.ROCK, 1000));
+        Map<ResourceKey<GooTypeDefinition>, Integer> shares = CrucibleMath.computeDrainShares(pool, 10);
+        assertEquals(10, shares.get(GooTypes.ROCK));
     }
 
     /**
@@ -256,10 +258,10 @@ class CrucibleBlockEntityTest {
     @Test
     void equalTypesSplitEvenly() {
         GooContents pool = new GooContents(Map.of(
-                GooType.ROCK, 500, GooType.METAL, 500));
-        Map<GooType, Integer> shares = CrucibleMath.computeDrainShares(pool, 10);
-        assertEquals(5, shares.get(GooType.ROCK));
-        assertEquals(5, shares.get(GooType.METAL));
+                GooTypes.ROCK, 500, GooTypes.METAL, 500));
+        Map<ResourceKey<GooTypeDefinition>, Integer> shares = CrucibleMath.computeDrainShares(pool, 10);
+        assertEquals(5, shares.get(GooTypes.ROCK));
+        assertEquals(5, shares.get(GooTypes.METAL));
     }
 
     /**
@@ -268,12 +270,12 @@ class CrucibleBlockEntityTest {
     @Test
     void unequalTypesSplitProportionally() {
         GooContents pool = new GooContents(Map.of(
-                GooType.ROCK, 750, GooType.METAL, 250));
-        Map<GooType, Integer> shares = CrucibleMath.computeDrainShares(pool, 10);
+                GooTypes.ROCK, 750, GooTypes.METAL, 250));
+        Map<ResourceKey<GooTypeDefinition>, Integer> shares = CrucibleMath.computeDrainShares(pool, 10);
         // ROCK: floor(10 * 750/1000) = 7, METAL: floor(10 * 250/1000) = 2
         // remainder 1 goes to ROCK (largest) -> 8
-        assertEquals(8, shares.get(GooType.ROCK));
-        assertEquals(2, shares.get(GooType.METAL));
+        assertEquals(8, shares.get(GooTypes.ROCK));
+        assertEquals(2, shares.get(GooTypes.METAL));
     }
 
     /**
@@ -282,10 +284,10 @@ class CrucibleBlockEntityTest {
     @Test
     void tinyTypeGetsMinimumOneMb() {
         GooContents pool = new GooContents(Map.of(
-                GooType.ROCK, 9999, GooType.METAL, 1));
-        Map<GooType, Integer> shares = CrucibleMath.computeDrainShares(pool, 5);
+                GooTypes.ROCK, 9999, GooTypes.METAL, 1));
+        Map<ResourceKey<GooTypeDefinition>, Integer> shares = CrucibleMath.computeDrainShares(pool, 5);
         // METAL: floor(5 * 1/10000) = 0, clamped to min(1, available=1) = 1
-        assertEquals(1, shares.get(GooType.METAL));
+        assertEquals(1, shares.get(GooTypes.METAL));
     }
 
     /**
@@ -294,10 +296,10 @@ class CrucibleBlockEntityTest {
     @Test
     void shareNeverExceedsAvailable() {
         GooContents pool = new GooContents(Map.of(
-                GooType.ROCK, 3, GooType.METAL, 3));
-        Map<GooType, Integer> shares = CrucibleMath.computeDrainShares(pool, 100);
-        assertEquals(3, shares.get(GooType.ROCK));
-        assertEquals(3, shares.get(GooType.METAL));
+                GooTypes.ROCK, 3, GooTypes.METAL, 3));
+        Map<ResourceKey<GooTypeDefinition>, Integer> shares = CrucibleMath.computeDrainShares(pool, 100);
+        assertEquals(3, shares.get(GooTypes.ROCK));
+        assertEquals(3, shares.get(GooTypes.METAL));
     }
 
     /**
@@ -306,8 +308,8 @@ class CrucibleBlockEntityTest {
     @Test
     void totalSharesDoNotExceedRate() {
         GooContents pool = new GooContents(Map.of(
-                GooType.ROCK, 600, GooType.METAL, 300, GooType.VITAL, 100));
-        Map<GooType, Integer> shares = CrucibleMath.computeDrainShares(pool, 10);
+                GooTypes.ROCK, 600, GooTypes.METAL, 300, GooTypes.VITAL, 100));
+        Map<ResourceKey<GooTypeDefinition>, Integer> shares = CrucibleMath.computeDrainShares(pool, 10);
         int total = shares.values().stream().mapToInt(Integer::intValue).sum();
         assertTrue(total <= 10, "Total shares " + total + " should not exceed rate 10");
     }

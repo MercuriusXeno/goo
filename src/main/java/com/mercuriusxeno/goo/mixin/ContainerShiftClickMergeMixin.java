@@ -1,9 +1,10 @@
 package com.mercuriusxeno.goo.mixin;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.item.BlobStacks;
 import com.mercuriusxeno.goo.item.GooOmniblobItem;
 import net.minecraft.core.NonNullList;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
@@ -54,7 +55,7 @@ public abstract class ContainerShiftClickMergeMixin {
     private void goo$absorbIntoOmniblobInRange(ItemStack stack, int startIndex, int endIndex,
             boolean reverseDirection, CallbackInfoReturnable<Boolean> cir) {
         if (stack.isEmpty()) { return; }
-        GooType sourceType = BlobStacks.gooTypeOf(stack);
+        ResourceKey<GooTypeDefinition> sourceType = BlobStacks.keyOf(stack);
         if (sourceType == null) { return; }
 
         Slot sink = findOmniblobSlotInRange(sourceType, startIndex, endIndex, reverseDirection);
@@ -76,7 +77,7 @@ public abstract class ContainerShiftClickMergeMixin {
      * @param reverseDirection iterate back-to-front when true
      * @return the first matching slot, or {@code null} if none in range
      */
-    private Slot findOmniblobSlotInRange(GooType sourceType, int startIndex, int endIndex,
+    private Slot findOmniblobSlotInRange(ResourceKey<GooTypeDefinition> sourceType, int startIndex, int endIndex,
             boolean reverseDirection) {
         if (reverseDirection) {
             return scanOmniblobSlotsReverse(sourceType, startIndex, endIndex);
@@ -92,7 +93,7 @@ public abstract class ContainerShiftClickMergeMixin {
      * @param endIndex   exclusive end of the slot range
      * @return the first matching slot, or {@code null} if none in range
      */
-    private Slot scanOmniblobSlotsForward(GooType sourceType, int startIndex, int endIndex) {
+    private Slot scanOmniblobSlotsForward(ResourceKey<GooTypeDefinition> sourceType, int startIndex, int endIndex) {
         for (int i = startIndex; i < endIndex; i++) {
             Slot slot = slots.get(i);
             if (isOmniblobOfType(slot, sourceType)) { return slot; }
@@ -108,7 +109,7 @@ public abstract class ContainerShiftClickMergeMixin {
      * @param endIndex   exclusive end of the slot range (iteration begins at endIndex - 1)
      * @return the first matching slot, or {@code null} if none in range
      */
-    private Slot scanOmniblobSlotsReverse(GooType sourceType, int startIndex, int endIndex) {
+    private Slot scanOmniblobSlotsReverse(ResourceKey<GooTypeDefinition> sourceType, int startIndex, int endIndex) {
         for (int i = endIndex - 1; i >= startIndex; i--) {
             Slot slot = slots.get(i);
             if (isOmniblobOfType(slot, sourceType)) { return slot; }
@@ -123,9 +124,9 @@ public abstract class ContainerShiftClickMergeMixin {
      * @param sourceType the goo type to match
      * @return true on an omniblob item of the matching type
      */
-    private static boolean isOmniblobOfType(Slot slot, GooType sourceType) {
+    private static boolean isOmniblobOfType(Slot slot, ResourceKey<GooTypeDefinition> sourceType) {
         ItemStack candidate = slot.getItem();
-        return candidate.getItem() instanceof GooOmniblobItem omni
-            && omni.getGooType() == sourceType;
+        return candidate.getItem() instanceof GooOmniblobItem
+            && BlobStacks.keyOf(candidate) == sourceType;
     }
 }

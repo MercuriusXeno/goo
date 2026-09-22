@@ -1,12 +1,14 @@
 package com.mercuriusxeno.goo.ability.world;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import org.jspecify.annotations.Nullable;
-import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.Map;
 import static java.util.Map.entry;
 
@@ -19,7 +21,7 @@ public final class WorldEffects {
     /**
      * One effect instance per goo type.
      */
-    private static final Map<GooType, WorldEffect> EFFECTS = buildRegistry();
+    private static final Map<ResourceKey<GooTypeDefinition>, WorldEffect> EFFECTS = buildRegistry();
 
     private WorldEffects() {
     }
@@ -32,7 +34,7 @@ public final class WorldEffects {
      * @param type       the goo type whose effect to apply
      * @param targetFace the face of the block that was hit, or null if unknown
      */
-    public static void apply(Level level, BlockPos pos, GooType type, @Nullable Direction targetFace) {
+    public static void apply(Level level, BlockPos pos, ResourceKey<GooTypeDefinition> type, @Nullable Direction targetFace) {
         WorldEffect effect = EFFECTS.get(type);
         if (effect != null) {
             effect.apply(level, pos, targetFace);
@@ -51,26 +53,26 @@ public final class WorldEffects {
      * @param targetFace the face that was hit, or null
      * @return true if the blob was absorbed and downstream placement should be skipped
      */
-    public static boolean tryAbsorbAtTarget(ServerLevel level, BlockPos pos, GooType type,
+    public static boolean tryAbsorbAtTarget(ServerLevel level, BlockPos pos, ResourceKey<GooTypeDefinition> type,
                                             @Nullable Direction targetFace) {
         WorldEffect effect = EFFECTS.get(type);
         return effect != null && effect.tryAbsorbAtTarget(level, pos, targetFace);
     }
 
     /**
-     * Builds the type-to-effect map. Every GooType should have an entry.
+     * Builds the type-to-effect map. Every goo type key should have an entry.
      *
      * @return immutable type-to-effect map covering all 15 goo types
      */
-    private static Map<GooType, WorldEffect> buildRegistry() {
-        return new EnumMap<>(Map.ofEntries(
-                entry(GooType.ROCK, new RockBehavior()), entry(GooType.BLAZE, new BlazeBehavior()),
-                entry(GooType.FROST, new FrostBehavior()), entry(GooType.METAL, new MetalBehavior()),
-                entry(GooType.CRYSTAL, new CrystalBehavior()), entry(GooType.HEX, new HexEffect()),
-                entry(GooType.LEAF, new LeafEffect()), entry(GooType.VITAL, new VitalEffect()),
-                entry(GooType.SHROOM, new ShroomEffect()), entry(GooType.TYPHOON, new TyphoonEffect()),
-                entry(GooType.GLOW, new GlowBehavior()), entry(GooType.PULSE, new PulseEffect()),
-                entry(GooType.NETHER, new NetherBehavior()), entry(GooType.ENDER, new EnderEffect()),
-                entry(GooType.AEON, new AeonEffect()), entry(GooType.UNSTABLE, new UnstableBehavior())));
+    private static Map<ResourceKey<GooTypeDefinition>, WorldEffect> buildRegistry() {
+        return new HashMap<>(Map.ofEntries(
+                entry(GooTypes.ROCK, new RockBehavior()), entry(GooTypes.BLAZE, new BlazeBehavior()),
+                entry(GooTypes.FROST, new FrostBehavior()), entry(GooTypes.METAL, new MetalBehavior()),
+                entry(GooTypes.CRYSTAL, new CrystalBehavior()), entry(GooTypes.HEX, new HexEffect()),
+                entry(GooTypes.LEAF, new LeafEffect()), entry(GooTypes.VITAL, new VitalEffect()),
+                entry(GooTypes.SHROOM, new ShroomEffect()), entry(GooTypes.TYPHOON, new TyphoonEffect()),
+                entry(GooTypes.GLOW, new GlowBehavior()), entry(GooTypes.PULSE, new PulseEffect()),
+                entry(GooTypes.NETHER, new NetherBehavior()), entry(GooTypes.ENDER, new EnderEffect()),
+                entry(GooTypes.AEON, new AeonEffect()), entry(GooTypes.UNSTABLE, new UnstableBehavior())));
     }
 }

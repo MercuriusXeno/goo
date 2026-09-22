@@ -1,30 +1,36 @@
 package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.fluid.GooBucketItem;
 import com.mercuriusxeno.goo.item.*;
 import com.mercuriusxeno.goo.item.gasket.ChoralGasketItem;
 import com.mercuriusxeno.goo.item.gasket.ChoralTunerItem;
 import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.BucketItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
-import java.util.EnumMap;
-import java.util.Map;
 
 public class GooItems {
     public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(Goo.MODID);
 
-    // --- Blob items (one per goo type, stackable to 64, each = 1,000 mB) ---
-    public static final Map<GooType, DeferredItem<GooBlobItem>> BLOBS = new EnumMap<>(GooType.class);
-
-    // --- Omniblob items (one per goo type, unstackable, uncapped volume) ---
-    public static final Map<GooType, DeferredItem<GooOmniblobItem>> OMNIBLOBS = new EnumMap<>(GooType.class);
-
-    // --- Bucket items (one per goo type, holds 1000 mB) ---
-    public static final Map<GooType, DeferredItem<BucketItem>> BUCKETS = new EnumMap<>(GooType.class);
+    /**
+     * The one blob item, stackable to 64, each 1,000 mB, its type in the
+     * GOO_TYPE component (decision generic-goo-items).
+     */
+    public static final DeferredItem<GooBlobItem> GOO_BLOB = ITEMS.registerItem("goo_blob", GooBlobItem::new);
+    /**
+     * The one omniblob item, unstackable, uncapped volume, its type in the
+     * GOO_TYPE component.
+     */
+    public static final DeferredItem<GooOmniblobItem> GOO_OMNIBLOB = ITEMS.registerItem("goo_omniblob",
+            props -> new GooOmniblobItem(props.stacksTo(1)));
+    /**
+     * The one goo bucket over the generic fluid, 1000 mB, its type in the
+     * GOO_TYPE component.
+     */
+    public static final DeferredItem<GooBucketItem> GOO_BUCKET = ITEMS.registerItem("goo_bucket",
+            props -> new GooBucketItem(GooFluids.SOURCE.get(), props.craftRemainder(Items.BUCKET).stacksTo(1)));
     // --- Block items ---
     public static final DeferredItem<BlockItem> CRUCIBLE = ITEMS.registerSimpleBlockItem("crucible", GooBlocks.CRUCIBLE);
     public static final DeferredItem<BlockItem> HUB = ITEMS.registerSimpleBlockItem("hub", GooBlocks.HUB);
@@ -56,15 +62,4 @@ public class GooItems {
     public static final DeferredItem<DepletedBlazeRodItem> DEPLETED_BLAZE_ROD = ITEMS.registerItem(
             "depleted_blaze_rod", props -> new DepletedBlazeRodItem(props.stacksTo(1)));
 
-    static {
-        for (GooType type : GooType.values()) {
-            BLOBS.put(type, ITEMS.registerItem(type.getId() + "_blob",
-                    props -> new GooBlobItem(type, props)));
-            OMNIBLOBS.put(type, ITEMS.registerItem(type.getId() + "_omniblob",
-                    props -> new GooOmniblobItem(type, props.stacksTo(1))));
-            BUCKETS.put(type, ITEMS.registerItem(type.getId() + "_goo_bucket",
-                    props -> new BucketItem(GooFluids.SOURCES.get(type).get(),
-                            props.craftRemainder(Items.BUCKET).stacksTo(1))));
-        }
-    }
 }

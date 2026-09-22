@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.client.model.CanisterBodyModels;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.QuadInstance;
@@ -14,6 +15,7 @@ import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.client.resources.model.geometry.QuadCollection;
 import net.minecraft.data.AtlasIds;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
@@ -195,9 +197,9 @@ public final class GooSubmitter {
      * @param type the goo type
      * @return the fluid sprite
      */
-    public static TextureAtlasSprite fluidSprite(GooType type) {
+    public static TextureAtlasSprite fluidSprite(ResourceKey<GooTypeDefinition> type) {
         Identifier spriteId = Identifier.fromNamespaceAndPath(
-            NAMESPACE, FLUID_PREFIX + type.getId() + FLUID_SUFFIX);
+            NAMESPACE, FLUID_PREFIX + GooTypes.id(type) + FLUID_SUFFIX);
         return blockSprite(spriteId);
     }
 

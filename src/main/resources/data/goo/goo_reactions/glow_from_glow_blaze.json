@@ -1,10 +1,10 @@
 {
   "inputs": [
-    {"fluid": "goo:glow_goo", "amount": 1},
-    {"fluid": "goo:blaze_goo", "amount": 1}
+    {"goo": "goo:glow", "amount": 1},
+    {"goo": "goo:blaze", "amount": 1}
   ],
   "outputs": [
-    {"fluid": "goo:glow_goo", "amount": 2}
+    {"goo": "goo:glow", "amount": 2}
   ],
   "rate": 1
 }

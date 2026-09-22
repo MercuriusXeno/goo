@@ -1,8 +1,9 @@
 package com.mercuriusxeno.goo.mixin;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.item.BlobStacks;
 import com.mercuriusxeno.goo.item.GooOmniblobItem;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.Container;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
@@ -43,7 +44,7 @@ public abstract class InventoryPickupMergeMixin {
     private void goo$absorbIntoExistingOmniblob(int slot, ItemStack stack,
             CallbackInfoReturnable<Boolean> cir) {
         if (stack.isEmpty()) { return; }
-        GooType sourceType = BlobStacks.gooTypeOf(stack);
+        ResourceKey<GooTypeDefinition> sourceType = BlobStacks.keyOf(stack);
         if (sourceType == null) { return; }
 
         Container self = (Container) this;
@@ -61,12 +62,12 @@ public abstract class InventoryPickupMergeMixin {
      * @param sourceType the goo type to match
      * @return the matching omniblob ItemStack, or {@code null} if none found
      */
-    private static ItemStack findMatchingOmniblob(Container container, GooType sourceType) {
+    private static ItemStack findMatchingOmniblob(Container container, ResourceKey<GooTypeDefinition> sourceType) {
         int size = container.getContainerSize();
         for (int i = 0; i < size; i++) {
             ItemStack candidate = container.getItem(i);
-            if (candidate.getItem() instanceof GooOmniblobItem omni
-                    && omni.getGooType() == sourceType) {
+            if (candidate.getItem() instanceof GooOmniblobItem
+                    && BlobStacks.keyOf(candidate) == sourceType) {
                 return candidate;
             }
         }

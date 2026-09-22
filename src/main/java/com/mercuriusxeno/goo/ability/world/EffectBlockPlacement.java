@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.world;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.ChainPlacementRules;
 import com.mercuriusxeno.goo.ability.ChainPlacementRules.CandidateState;
 import com.mercuriusxeno.goo.ability.ChainPlacementRules.Decision;
@@ -10,6 +11,7 @@ import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
@@ -61,7 +63,7 @@ public final class EffectBlockPlacement {
         if (!(level instanceof ServerLevel)) {
             return;
         }
-        placeChainMarker(level, pos, targetFace, GooType.ROCK);
+        placeChainMarker(level, pos, targetFace, GooTypes.ROCK);
     }
 
     /**
@@ -77,7 +79,7 @@ public final class EffectBlockPlacement {
         if (!(level instanceof ServerLevel)) {
             return;
         }
-        placeChainMarker(level, pos, targetFace, GooType.BLAZE);
+        placeChainMarker(level, pos, targetFace, GooTypes.BLAZE);
     }
 
     /**
@@ -95,7 +97,7 @@ public final class EffectBlockPlacement {
         if (!(level instanceof ServerLevel)) {
             return;
         }
-        placeChainMarker(level, pos, targetFace, GooType.NETHER);
+        placeChainMarker(level, pos, targetFace, GooTypes.NETHER);
     }
 
     /**
@@ -122,7 +124,7 @@ public final class EffectBlockPlacement {
         if (!(level instanceof ServerLevel)) {
             return;
         }
-        placeChainMarker(level, pos, targetFace, GooType.FROST);
+        placeChainMarker(level, pos, targetFace, GooTypes.FROST);
     }
 
     /**
@@ -137,7 +139,7 @@ public final class EffectBlockPlacement {
         if (!(level instanceof ServerLevel)) {
             return;
         }
-        placeChainMarker(level, pos, targetFace, GooType.CRYSTAL);
+        placeChainMarker(level, pos, targetFace, GooTypes.CRYSTAL);
     }
 
     /**
@@ -152,7 +154,7 @@ public final class EffectBlockPlacement {
         if (!(level instanceof ServerLevel)) {
             return;
         }
-        placeChainMarker(level, pos, targetFace, GooType.UNSTABLE);
+        placeChainMarker(level, pos, targetFace, GooTypes.UNSTABLE);
     }
 
     /**
@@ -167,7 +169,7 @@ public final class EffectBlockPlacement {
         if (!(level instanceof ServerLevel)) {
             return;
         }
-        placeChainMarker(level, pos, targetFace, GooType.GLOW);
+        placeChainMarker(level, pos, targetFace, GooTypes.GLOW);
     }
 
     /**
@@ -182,7 +184,7 @@ public final class EffectBlockPlacement {
         if (!(level instanceof ServerLevel)) {
             return;
         }
-        placeChainMarker(level, pos, targetFace, GooType.METAL);
+        placeChainMarker(level, pos, targetFace, GooTypes.METAL);
     }
 
 
@@ -196,7 +198,7 @@ public final class EffectBlockPlacement {
      * @param type     the goo type for the marker
      */
     private static void placeChainMarker(Level level, BlockPos hitBlock,
-                                         @Nullable Direction face, GooType type) {
+                                         @Nullable Direction face, ResourceKey<GooTypeDefinition> type) {
         Direction resolvedFace = face == null ? DEFAULT_FACE : face;
         BlockPos adjacentPos = hitBlock.relative(resolvedFace);
 
@@ -215,7 +217,7 @@ public final class EffectBlockPlacement {
      * @param type  the goo type (for same-marker stack detection)
      * @return the candidate state snapshot
      */
-    private static CandidateState chainCandidateState(Level level, BlockPos pos, GooType type) {
+    private static CandidateState chainCandidateState(Level level, BlockPos pos, ResourceKey<GooTypeDefinition> type) {
         BlockState state = level.getBlockState(pos);
         FluidState fluid = state.getFluidState();
         return new CandidateState(
@@ -237,7 +239,7 @@ public final class EffectBlockPlacement {
      * @param type  the expected goo type
      * @return true if a same-type chain marker is present
      */
-    private static boolean isExistingChainMarker(Level level, BlockPos pos, BlockState state, GooType type) {
+    private static boolean isExistingChainMarker(Level level, BlockPos pos, BlockState state, ResourceKey<GooTypeDefinition> type) {
         return state.is(GooBlocks.CHAIN_MARKER.get())
                 && level.getBlockEntity(pos) instanceof ChainMarkerBlockEntity be
                 && be.getGooType() == type;
@@ -254,7 +256,7 @@ public final class EffectBlockPlacement {
      * @param face     the resolved hit face
      */
     private static void applyChainDecision(Level level, Decision decision,
-                                           BlockPos hitPos, BlockPos adjPos, GooType type, Direction face) {
+                                           BlockPos hitPos, BlockPos adjPos, ResourceKey<GooTypeDefinition> type, Direction face) {
         BlockPos target = pickCandidate(decision, hitPos, adjPos);
         switch (decision.action()) {
             case STACK -> stackChainMarker(level, target);
@@ -286,7 +288,7 @@ public final class EffectBlockPlacement {
      * @param face        the hit face direction
      * @param waterlogged whether the marker should coexist with a water fluid
      */
-    private static void placeFreshChainMarker(Level level, BlockPos pos, GooType type,
+    private static void placeFreshChainMarker(Level level, BlockPos pos, ResourceKey<GooTypeDefinition> type,
                                               Direction face, boolean waterlogged) {
         BlockState markerState = GooBlocks.CHAIN_MARKER.get().defaultBlockState()
                 .setValue(ChainMarkerBlock.WATERLOGGED, waterlogged);
@@ -321,7 +323,7 @@ public final class EffectBlockPlacement {
      * @param ability the ability definition
      */
     public static void placeOrStackAbility(ServerLevel level, BlockPos pos,
-                                           GooType type, Direction face,
+                                           ResourceKey<GooTypeDefinition> type, Direction face,
                                            com.mercuriusxeno.goo.ability.AbilityDefinition ability) {
         if (level.getBlockEntity(pos) instanceof ChainMarkerBlockEntity existing) {
             existing.tryStack();

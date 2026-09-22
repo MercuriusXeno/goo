@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.client.ber;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.RenderContext;
@@ -8,6 +8,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.data.AtlasIds;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
@@ -63,7 +64,7 @@ public final class GooStreamRenderer {
      */
     public static void renderStream(RenderContext ctx,
                                     float cx, float cz, float yTop, float yBottom,
-                                    GooType type, float rate, float animationTime) {
+                                    ResourceKey<GooTypeDefinition> type, float rate, float animationTime) {
         if (yTop <= yBottom) { return; }
 
         float hw = computeHalfWidth(rate, animationTime);
@@ -136,7 +137,7 @@ public final class GooStreamRenderer {
         return new GooRenderUtil.UvRect(su0, sv0, sideU1, sideV1);
     }
 
-    private static GooRenderUtil.UvRect computeStreamUv(GooType type, float hw, float height) {
+    private static GooRenderUtil.UvRect computeStreamUv(ResourceKey<GooTypeDefinition> type, float hw, float height) {
         TextureAtlasSprite sprite = GooRenderUtil.lookupFluidSprite(type);
         float su0 = sprite.getU0();
         float sv0 = sprite.getV0();

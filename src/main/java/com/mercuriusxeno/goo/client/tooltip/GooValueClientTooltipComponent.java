@@ -1,5 +1,8 @@
 package com.mercuriusxeno.goo.client.tooltip;
 
+import com.mercuriusxeno.goo.GooTypeNames;
+import com.mercuriusxeno.goo.GooTypes;
+import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.GooTooltipHandler;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -36,7 +39,7 @@ public class GooValueClientTooltipComponent implements ClientTooltipComponent {
      */
     public GooValueClientTooltipComponent(GooValueTooltipComponent data) {
         this.iconTexture = Identifier.fromNamespaceAndPath(
-                "goo", "textures/goo/type/" + data.type().getId() + ".png");
+                "goo", "textures/goo/type/" + GooTypes.id(data.type()) + ".png");
         this.displayText = buildDisplayText(data);
     }
 
@@ -49,8 +52,8 @@ public class GooValueClientTooltipComponent implements ClientTooltipComponent {
     private static Component buildDisplayText(GooValueTooltipComponent data) {
         String formatted = GooTooltipHandler.formatFluidDisplay(data.amount());
         return Component.literal(formatted + AMOUNT_TYPE_SEPARATOR)
-                .append(Component.translatable(data.type().getTranslationKey())
-                        .withStyle(Style.EMPTY.withColor(data.type().getColor())));
+                .append(Component.translatable(GooTypeNames.translationKey(data.type()))
+                        .withStyle(Style.EMPTY.withColor(ClientGooTypes.color(data.type()))));
     }
 
     /**

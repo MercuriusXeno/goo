@@ -1,11 +1,12 @@
 package com.mercuriusxeno.goo.data;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mojang.logging.LogUtils;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import org.slf4j.Logger;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -338,7 +339,7 @@ final class GooValueExpression {
 
     /**
      * Attempts dot extraction on a tree constant (e.g. "log.leaf" extracts the leaf
-     * component from $log). Returns null if the suffix is not a valid GooType or the
+     * component from $log). Returns null if the suffix is not a valid goo type key or the
      * constant is not found.
      *
      * @param name          the full constant name with dot (e.g. "log.leaf")
@@ -358,16 +359,16 @@ final class GooValueExpression {
     }
 
     /**
-     * Parses a type suffix into a GooType and extracts that single component from
-     * the given GooValue tree. Returns null if the suffix is not a valid GooType.
+     * Parses a type suffix into a goo type key and extracts that single component from
+     * the given GooValue tree. Returns null if the suffix is not a valid goo type key.
      *
      * @param typeSuffix the lowercase type name to parse (e.g. "leaf", "blaze")
      * @param tree       the GooValue to extract from
-     * @return a single-type GooVal, or null if the suffix is not a valid GooType
+     * @return a single-type GooVal, or null if the suffix is not a valid goo type key
      */
     private static ExprVal parseSingleTypeGoo(String typeSuffix, GooValue tree) {
         try {
-            GooType type = GooType.valueOf(typeSuffix.toUpperCase(Locale.ROOT));
+            ResourceKey<GooTypeDefinition> type = GooTypes.parseKnown(typeSuffix);
             return new GooVal(new GooValue(Map.of(type, tree.get(type))));
         } catch (IllegalArgumentException ignored) {
             return null;
@@ -410,12 +411,12 @@ final class GooValueExpression {
 
     /**
      * Attempts to extract a single goo type from a dotted item reference
-     * (e.g. "minecraft:coal.blaze"). Returns null if the suffix is not a valid GooType.
+     * (e.g. "minecraft:coal.blaze"). Returns null if the suffix is not a valid goo type key.
      *
      * @param token      the full dotted token
      * @param dotIdx     index of the extraction dot
      * @param baseValues item value lookup table
-     * @return a single-type GooVal, or null if the suffix is not a valid GooType
+     * @return a single-type GooVal, or null if the suffix is not a valid goo type key
      */
     private static ExprVal extractDotItemRef(String token, int dotIdx,
                                              Map<Identifier, GooValue> baseValues) {

@@ -461,38 +461,10 @@
           "dirt_path"
         ],
         "blobs": [
-            "goo:aeon_blob",
-            "goo:blaze_blob",
-            "goo:crystal_blob",
-            "goo:ender_blob",
-            "goo:frost_blob",
-            "goo:glow_blob",
-            "goo:hex_blob",
-            "goo:leaf_blob",
-            "goo:metal_blob",
-            "goo:nether_blob",
-            "goo:pulse_blob",
-            "goo:rock_blob",
-            "goo:shroom_blob",
-            "goo:typhoon_blob",
-            "goo:vital_blob"
+            "goo:goo_blob"
         ],
         "omniblobs": [
-            "goo:aeon_omniblob",
-            "goo:blaze_omniblob",
-            "goo:crystal_omniblob",
-            "goo:ender_omniblob",
-            "goo:frost_omniblob",
-            "goo:glow_omniblob",
-            "goo:hex_omniblob",
-            "goo:leaf_omniblob",
-            "goo:metal_omniblob",
-            "goo:nether_omniblob",
-            "goo:pulse_omniblob",
-            "goo:rock_omniblob",
-            "goo:shroom_omniblob",
-            "goo:typhoon_omniblob",
-            "goo:vital_omniblob"
+            "goo:goo_omniblob"
         ],
         "goo_special": [
             "goo:goo_gauntlet",

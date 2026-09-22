@@ -1,7 +1,9 @@
 package com.mercuriusxeno.goo.data;
 
-import com.mercuriusxeno.goo.GooType;
-import java.util.EnumMap;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
+import net.minecraft.resources.ResourceKey;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -45,7 +47,7 @@ final class GooValueArithmetic {
      * @return a new GooValue with the combined amounts
      */
     static GooValue add(GooValue self, GooValue other, int multiplier) {
-        Map<GooType, Integer> result = new EnumMap<>(GooType.class);
+        Map<ResourceKey<GooTypeDefinition>, Integer> result = new HashMap<>();
         result.putAll(self.getAll());
         other.getAll().forEach((type, amount) ->
                 result.merge(type, amount * multiplier, Integer::sum));
@@ -61,7 +63,7 @@ final class GooValueArithmetic {
      * @return a new GooValue with the difference
      */
     static GooValue subtract(GooValue self, GooValue other) {
-        Map<GooType, Integer> result = new EnumMap<>(GooType.class);
+        Map<ResourceKey<GooTypeDefinition>, Integer> result = new HashMap<>();
         result.putAll(self.getAll());
         other.getAll().forEach((type, amount) ->
                 result.merge(type, -amount, Integer::sum));
@@ -82,7 +84,7 @@ final class GooValueArithmetic {
         if (factor == 1) {
             return self;
         }
-        Map<GooType, Integer> result = new EnumMap<>(GooType.class);
+        Map<ResourceKey<GooTypeDefinition>, Integer> result = new HashMap<>();
         self.getAll().forEach((type, amount) -> result.put(type, amount * factor));
         return new GooValue(result);
     }
@@ -98,7 +100,7 @@ final class GooValueArithmetic {
         if (divisor <= 1) {
             return self;
         }
-        Map<GooType, Integer> result = new EnumMap<>(GooType.class);
+        Map<ResourceKey<GooTypeDefinition>, Integer> result = new HashMap<>();
         self.getAll().forEach((type, amount) -> {
             int divided = amount / divisor;
             if (divided > 0) {
@@ -120,7 +122,7 @@ final class GooValueArithmetic {
         if (divisor <= 1) {
             return self;
         }
-        Map<GooType, Integer> result = new EnumMap<>(GooType.class);
+        Map<ResourceKey<GooTypeDefinition>, Integer> result = new HashMap<>();
         self.getAll().forEach((type, amount) -> {
             assertDivisible(type, amount, divisor);
             int divided = amount / divisor;
@@ -138,10 +140,10 @@ final class GooValueArithmetic {
      * @param amount  the numerator to check for divisibility
      * @param divisor the denominator to divide by
      */
-    private static void assertDivisible(GooType type, int amount, int divisor) {
+    private static void assertDivisible(ResourceKey<GooTypeDefinition> type, int amount, int divisor) {
         if (amount % divisor != 0) {
             throw new ArithmeticException(
-                    ERR_LOSSY_PREFIX + type.getId() + ERR_EQUALS + amount
+                    ERR_LOSSY_PREFIX + GooTypes.id(type) + ERR_EQUALS + amount
                             + ERR_DIV + divisor + ERR_REMAINDER + amount % divisor + ERR_REMAINDER_CLOSE);
         }
     }
@@ -161,7 +163,7 @@ final class GooValueArithmetic {
         if (fraction >= 1.0) {
             return self;
         }
-        Map<GooType, Integer> result = new EnumMap<>(GooType.class);
+        Map<ResourceKey<GooTypeDefinition>, Integer> result = new HashMap<>();
         self.getAll().forEach((type, amount) -> {
             int scaled = (int) Math.round(amount * fraction);
             if (scaled > 0) {
@@ -184,7 +186,7 @@ final class GooValueArithmetic {
         if (!hasNegative) {
             return self;
         }
-        Map<GooType, Integer> result = new EnumMap<>(GooType.class);
+        Map<ResourceKey<GooTypeDefinition>, Integer> result = new HashMap<>();
         self.getAll().forEach((type, amount) -> {
             if (amount > 0) {
                 result.put(type, amount);

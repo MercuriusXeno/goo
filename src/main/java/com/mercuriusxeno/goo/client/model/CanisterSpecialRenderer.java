@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.client.model;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.block.canister.CanisterGeometry;
 import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.GooSubmitter;
@@ -16,6 +16,7 @@ import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.special.SpecialModelRenderer;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.material.Fluid;
 import org.joml.Vector3f;
@@ -202,7 +203,7 @@ public class CanisterSpecialRenderer implements SpecialModelRenderer<CanisterSpe
      * @param fill          the fill fraction in [0, 1]
      */
     private static void submitFluid(PoseStack poseStack, SubmitNodeCollector nodeCollector,
-                                    GooType type, float fill) {
+                                    ResourceKey<GooTypeDefinition> type, float fill) {
         CuboidBounds b = fluidBounds(fill);
         TextureAtlasSprite sprite = GooSubmitter.fluidSprite(type);
         GooSubmitter.submitFluid(poseStack, nodeCollector,
@@ -259,7 +260,7 @@ public class CanisterSpecialRenderer implements SpecialModelRenderer<CanisterSpe
             return new GooData(null, null, 0f, hasTop, hasBottom);
         }
         float fill = computeFillFraction(stack, content);
-        GooType gooType = content.getGooType();
+        ResourceKey<GooTypeDefinition> gooType = content.getGooType();
         Fluid vanillaFluid =
                 gooType == null ? content.fluid() : null;
         return new GooData(gooType, vanillaFluid, fill, hasTop, hasBottom);
@@ -318,7 +319,7 @@ public class CanisterSpecialRenderer implements SpecialModelRenderer<CanisterSpe
      * @param hasTopGasket    whether a choral gasket is installed on top
      * @param hasBottomGasket whether a choral gasket is installed on bottom
      */
-    public record GooData(@Nullable GooType gooType,
+    public record GooData(@Nullable ResourceKey<GooTypeDefinition> gooType,
                           @Nullable Fluid vanillaFluid,
                           float fill, boolean hasTopGasket, boolean hasBottomGasket) {
     }

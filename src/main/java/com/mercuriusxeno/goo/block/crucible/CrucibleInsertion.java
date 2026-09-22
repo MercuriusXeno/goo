@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.block.crucible;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.block.IContainerEvaluator;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.data.IGooValueLookup;
@@ -9,6 +9,7 @@ import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.PartiallyMeltedItem;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.ItemStack;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
@@ -100,7 +101,7 @@ final class CrucibleInsertion {
      * @param volume volume in microblobs
      * @return the amount actually inserted
      */
-    static int insertGoo(CrucibleBlockEntity be, GooType type, int volume) {
+    static int insertGoo(CrucibleBlockEntity be, ResourceKey<GooTypeDefinition> type, int volume) {
         if (volume <= 0) {
             return 0;
         }

@@ -1,10 +1,11 @@
 package com.mercuriusxeno.goo.item;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
 import com.mercuriusxeno.goo.block.gasket.IGasketHolder;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import net.minecraft.core.BlockPos;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.SlotAccess;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -50,7 +51,8 @@ final class CanisterInventoryHandler {
      * @return true if any goo was transferred
      */
     private static boolean handleBlobInsert(ItemStack canister, ItemStack cursor, SlotAccess cursorAccess) {
-        GooType type = ((GooBlobItem) cursor.getItem()).getGooType();
+        ResourceKey<GooTypeDefinition> type = BlobStacks.keyOf(cursor);
+        if (type == null) { return false; }
         int volume = BlobStacks.volumeOf(cursor);
         int accepted = CanisterItem.addGoo(canister, type, volume);
         if (accepted <= 0) { return false; }
@@ -70,7 +72,8 @@ final class CanisterInventoryHandler {
      * @return true if any goo was transferred
      */
     private static boolean handleOmniblobInsert(ItemStack canister, ItemStack cursor, SlotAccess cursorAccess) {
-        GooType type = ((GooOmniblobItem) cursor.getItem()).getGooType();
+        ResourceKey<GooTypeDefinition> type = BlobStacks.keyOf(cursor);
+        if (type == null) { return false; }
         int volume = GooOmniblobItem.getVolume(cursor);
         int accepted = CanisterItem.addGoo(canister, type, volume);
         if (accepted <= 0) { return false; }
@@ -104,7 +107,7 @@ final class CanisterInventoryHandler {
      * @return true if any goo was extracted
      */
     static boolean handleEmptyCursorDrain(ItemStack canister, SlotAccess cursorAccess) {
-        GooType dominant = dominantType(canister);
+        ResourceKey<GooTypeDefinition> dominant = dominantType(canister);
         if (dominant == null) { return false; }
 
         int extracted = extractCapped(canister, dominant, ContainerCapacity.BLOB_CAP);
@@ -122,7 +125,7 @@ final class CanisterInventoryHandler {
      * @param canister the canister item stack
      * @return the dominant goo type, or null
      */
-    private static @Nullable GooType dominantType(ItemStack canister) {
+    private static @Nullable ResourceKey<GooTypeDefinition> dominantType(ItemStack canister) {
         CanisterFluidContent content = CanisterItem.getFluidContent(canister);
         if (content.isEmpty()) { return null; }
         return content.getGooType();
@@ -136,7 +139,7 @@ final class CanisterInventoryHandler {
      * @param cap      the maximum volume to extract
      * @return the amount actually extracted
      */
-    private static int extractCapped(ItemStack canister, GooType type, int cap) {
+    private static int extractCapped(ItemStack canister, ResourceKey<GooTypeDefinition> type, int cap) {
         CanisterFluidContent content = CanisterItem.getFluidContent(canister);
         int available = (content.getGooType() == type) ? content.amount() : 0;
         return CanisterItem.removeGoo(canister, type, Math.min(available, cap));

@@ -1,10 +1,10 @@
 {
   "inputs": [
-    {"fluid": "goo:shroom_goo", "amount": 1},
-    {"fluid": "goo:leaf_goo", "amount": 1}
+    {"goo": "goo:shroom", "amount": 1},
+    {"goo": "goo:leaf", "amount": 1}
   ],
   "outputs": [
-    {"fluid": "goo:shroom_goo", "amount": 2}
+    {"goo": "goo:shroom", "amount": 2}
   ],
   "rate": 1
 }

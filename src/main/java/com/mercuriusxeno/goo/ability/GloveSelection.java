@@ -1,12 +1,14 @@
 package com.mercuriusxeno.goo.ability;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -44,8 +46,8 @@ public record GloveSelection(String gooTypeId, String abilityId) {
      * @param type the goo type
      * @return a selection with just the type set
      */
-    public static GloveSelection ofType(GooType type) {
-        return new GloveSelection(type.getId(), NONE);
+    public static GloveSelection ofType(ResourceKey<GooTypeDefinition> type) {
+        return new GloveSelection(GooTypes.id(type), NONE);
     }
 
     /**
@@ -55,18 +57,18 @@ public record GloveSelection(String gooTypeId, String abilityId) {
      * @param abilityId the ability resource identifier
      * @return a selection with both type and ability
      */
-    public static GloveSelection ofAbility(GooType type, Identifier abilityId) {
-        return new GloveSelection(type.getId(), abilityId.toString());
+    public static GloveSelection ofAbility(ResourceKey<GooTypeDefinition> type, Identifier abilityId) {
+        return new GloveSelection(GooTypes.id(type), abilityId.toString());
     }
 
     /**
      * Resolves the goo type from the stored id.
      *
-     * @return the GooType, or null if empty or unknown
+     * @return the goo type key, or null if empty or unknown
      */
-    public @Nullable GooType getGooType() {
+    public @Nullable ResourceKey<GooTypeDefinition> getGooType() {
         if (gooTypeId.isEmpty()) { return null; }
-        return GooType.fromId(gooTypeId);
+        return GooTypes.byId(gooTypeId);
     }
 
     /**

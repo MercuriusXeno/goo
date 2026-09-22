@@ -2,7 +2,7 @@ package com.mercuriusxeno.goo.block.plexer;
 
 import com.mercuriusxeno.goo.CutawayInteractionHelper;
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.block.BlockEntitySync;
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
 import com.mercuriusxeno.goo.block.canister.ICanisterAttachable;
@@ -19,6 +19,7 @@ import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -216,7 +217,7 @@ public class PlexerBlockEntity extends BlockEntity implements ICanisterAttachabl
      * @return the available goo
      */
     private boolean hasEnoughGoo(List<SlotRef> slots, GooValue required) {
-        for (Map.Entry<GooType, Integer> entry : required.getAll().entrySet()) {
+        for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> entry : required.getAll().entrySet()) {
             if (getAvailableGoo(slots, entry.getKey()) < entry.getValue()) {
                 return false;
             }
@@ -231,7 +232,7 @@ public class PlexerBlockEntity extends BlockEntity implements ICanisterAttachabl
      * @param required the required goo value
      */
     private void consumeAllRequired(List<SlotRef> slots, GooValue required) {
-        for (Map.Entry<GooType, Integer> entry : required.getAll().entrySet()) {
+        for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> entry : required.getAll().entrySet()) {
             consumeGoo(slots, entry.getKey(), entry.getValue());
         }
     }
@@ -275,7 +276,7 @@ public class PlexerBlockEntity extends BlockEntity implements ICanisterAttachabl
      * @param type  the goo type
      * @return the update packet
      */
-    private int getAvailableGoo(List<SlotRef> slots, GooType type) {
+    private int getAvailableGoo(List<SlotRef> slots, ResourceKey<GooTypeDefinition> type) {
         int total = 0;
         for (SlotRef ref : slots) {
             CanisterFluidContent content = CanisterItem.getFluidContent(ref.entity.getCanister(ref.slot));
@@ -291,7 +292,7 @@ public class PlexerBlockEntity extends BlockEntity implements ICanisterAttachabl
      * @param type   the goo type
      * @param amount volume in microblobs
      */
-    private void consumeGoo(List<SlotRef> slots, GooType type, int amount) {
+    private void consumeGoo(List<SlotRef> slots, ResourceKey<GooTypeDefinition> type, int amount) {
         int remaining = amount;
         for (SlotRef ref : slots) {
             if (remaining <= 0) {

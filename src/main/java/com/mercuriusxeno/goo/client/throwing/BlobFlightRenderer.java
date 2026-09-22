@@ -1,7 +1,9 @@
 package com.mercuriusxeno.goo.client.throwing;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
+import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.ability.ConeGeometry;
@@ -13,6 +15,7 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
@@ -206,13 +209,13 @@ public final class BlobFlightRenderer {
         Vec3 pos = flight.getPosition(ctx.partialTick);
         Vec3 vel = flight.getVelocity(ctx.partialTick);
 
-        if (flight.gooType == GooType.GLOW) {
+        if (flight.gooType == GooTypes.GLOW) {
             renderGlowBeam(ctx, flight);
             return;
         }
 
         translateToFlight(ctx, pos);
-        if (flight.gooType == GooType.METAL && flight.targetEntityId >= 0) {
+        if (flight.gooType == GooTypes.METAL && flight.targetEntityId >= 0) {
             renderMetalSpineLayers(ctx, flight, vel);
         } else {
             renderFlightLayers(ctx, flight.gooType, vel);
@@ -241,7 +244,7 @@ public final class BlobFlightRenderer {
      * @param type the goo type
      * @param vel  the velocity vector
      */
-    private static void renderFlightLayers(RenderContext ctx, GooType type, Vec3 vel) {
+    private static void renderFlightLayers(RenderContext ctx, ResourceKey<GooTypeDefinition> type, Vec3 vel) {
         renderCore(ctx.poseStack, ctx.buffers, type, ctx.gameTime);
         renderShell(ctx.poseStack, ctx.buffers, type);
         renderTail(ctx.poseStack, ctx.buffers, type, vel, ctx.gameTime);
@@ -257,7 +260,7 @@ public final class BlobFlightRenderer {
      * @param gameTime  the level game time in ticks
      */
     private static void renderCore(PoseStack poseStack, MultiBufferSource buffers,
-                                   GooType type, float gameTime) {
+                                   ResourceKey<GooTypeDefinition> type, float gameTime) {
         float pulse = 1.0f + CORE_PULSE_AMP * Mth.sin(gameTime * CORE_PULSE_SPEED);
         float hw = CORE_HW * pulse;
 
@@ -277,8 +280,8 @@ public final class BlobFlightRenderer {
      * @param type      the goo type
      */
     private static void renderShell(PoseStack poseStack, MultiBufferSource buffers,
-                                    GooType type) {
-        int color = ARGB.color(SHELL_ALPHA, type.getColor());
+                                    ResourceKey<GooTypeDefinition> type) {
+        int color = ARGB.color(SHELL_ALPHA, ClientGooTypes.color(type));
         GooRenderUtil.UvRect uv = spriteToUv(type);
         VertexConsumer c = buffers.getBuffer(RenderTypes.entityTranslucent(BLOCK_ATLAS_TEXTURE));
         com.mercuriusxeno.goo.client.RenderContext ctx = new com.mercuriusxeno.goo.client.RenderContext(poseStack.last(), c, FULL_BRIGHT);
@@ -292,7 +295,7 @@ public final class BlobFlightRenderer {
      * @param type the goo type
      * @return the UV rectangle for the fluid sprite
      */
-    private static GooRenderUtil.UvRect spriteToUv(GooType type) {
+    private static GooRenderUtil.UvRect spriteToUv(ResourceKey<GooTypeDefinition> type) {
         TextureAtlasSprite sprite = GooRenderUtil.lookupFluidSprite(type);
         return new GooRenderUtil.UvRect(
                 sprite.getU0(), sprite.getV0(), sprite.getU1(), sprite.getV1());
@@ -309,9 +312,9 @@ public final class BlobFlightRenderer {
      * @param gameTime  the level game time in ticks
      */
     private static void renderTail(PoseStack poseStack, MultiBufferSource buffers,
-                                   GooType type, Vec3 velocity, float gameTime) {
+                                   ResourceKey<GooTypeDefinition> type, Vec3 velocity, float gameTime) {
         GooRenderUtil.UvRect uv = spriteToUv(type);
-        int tailColor = ARGB.color(TAIL_ALPHA, type.getColor());
+        int tailColor = ARGB.color(TAIL_ALPHA, ClientGooTypes.color(type));
         VertexConsumer c = buffers.getBuffer(RenderTypes.entityTranslucent(BLOCK_ATLAS_TEXTURE));
         TailAxes axes = buildTailAxes(velocity);
 
@@ -471,7 +474,7 @@ public final class BlobFlightRenderer {
      */
     private static void renderGlowHead(RenderContext ctx, Vec3 headPos) {
         translateToFlight(ctx, headPos);
-        renderCore(ctx.poseStack, ctx.buffers, GooType.GLOW, ctx.gameTime);
+        renderCore(ctx.poseStack, ctx.buffers, GooTypes.GLOW, ctx.gameTime);
         ctx.poseStack.popPose();
     }
 
@@ -534,7 +537,7 @@ public final class BlobFlightRenderer {
                 tailPos.z - camPos.z);
 
         Vec3 normal = beamVec.cross(lateral).normalize();
-        GooRenderUtil.UvRect uv = spriteToUv(GooType.GLOW);
+        GooRenderUtil.UvRect uv = spriteToUv(GooTypes.GLOW);
         VertexConsumer c = ctx.buffers.getBuffer(
                 RenderTypes.entityTranslucent(BLOCK_ATLAS_TEXTURE));
         PoseStack.Pose pose = ctx.poseStack.last();
@@ -640,7 +643,7 @@ public final class BlobFlightRenderer {
         float morphFrac = dist < SHORT_RANGE_THRESHOLD
                 ? 1f : Math.min(1f, progress * MORPH_RATE);
 
-        GooType type = flight.gooType;
+        ResourceKey<GooTypeDefinition> type = flight.gooType;
 
         if (morphFrac < 1f) {
             float blobScale = 1f - morphFrac;
@@ -670,7 +673,7 @@ public final class BlobFlightRenderer {
      * @param morphFrac morph progress [0, 1]
      */
     private static void emitMetalSpine(PoseStack poseStack, MultiBufferSource buffers,
-                                       GooType type, Vec3 vel, float morphFrac) {
+                                       ResourceKey<GooTypeDefinition> type, Vec3 vel, float morphFrac) {
         GooRenderUtil.UvRect uv = spriteToUv(type);
         VertexConsumer c = buffers.getBuffer(
                 RenderTypes.entityTranslucent(BLOCK_ATLAS_TEXTURE));

@@ -1,8 +1,9 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.GooColors;
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.ChainFootprint;
+import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.FlatQuadContext;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
@@ -13,6 +14,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
@@ -80,7 +82,7 @@ public final class GhostMineVisual {
         List<int[]> offsets = computeFilteredOffsets(state);
         Set<Long> filled = packOffsets(offsets);
 
-        int edgeRgb = GooColors.edge(state.gooType);
+        int edgeRgb = ClientGooTypes.edge(state.gooType);
         int fillColor = ARGB.color(GHOST_FILL_ALPHA, edgeRgb);
         int wireColor = ARGB.color(GHOST_WIRE_ALPHA, edgeRgb);
 
@@ -111,8 +113,8 @@ public final class GhostMineVisual {
      * @param type the goo type to check
      * @return true if the type has a destructive-area ghost
      */
-    private static boolean hasGhostOutline(GooType type) {
-        return type == GooType.ROCK || type == GooType.BLAZE || type == GooType.FROST;
+    private static boolean hasGhostOutline(ResourceKey<GooTypeDefinition> type) {
+        return type == GooTypes.ROCK || type == GooTypes.BLAZE || type == GooTypes.FROST;
     }
 
     /**

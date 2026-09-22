@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.client.ber;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.block.tap.TapBlock;
 import com.mercuriusxeno.goo.block.tap.TapBlockEntity;
 import com.mercuriusxeno.goo.client.CuboidBounds;
@@ -20,6 +20,7 @@ import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -234,7 +235,7 @@ public class TapBlockEntityRenderer
     private static void submitFluid(PoseStack poseStack,
                                     SubmitNodeCollector nodeCollector, TapRenderState state,
                                     float cx, float cz) {
-        GooType type = state.slot.type;
+        ResourceKey<GooTypeDefinition> type = state.slot.type;
         float fill = state.slot.fill;
         GooSubmitter.submitFluid(poseStack, nodeCollector,
                 ctx -> renderFluidGeometry(ctx, type, fill, cx, cz));
@@ -249,7 +250,7 @@ public class TapBlockEntityRenderer
      * @param cx   the center X in block coords
      * @param cz   the center Z in block coords
      */
-    private static void renderFluidGeometry(RenderContext ctx, GooType type, float fill,
+    private static void renderFluidGeometry(RenderContext ctx, ResourceKey<GooTypeDefinition> type, float fill,
                                             float cx, float cz) {
         CuboidBounds b = SlotFluidGeometry.computeBounds(FLUID_GEOM, cx, cz, fill);
         TextureAtlasSprite sprite = GooSubmitter.fluidSprite(type);

@@ -1,0 +1,37 @@
+{
+  "model": {
+    "type": "minecraft:range_dispatch",
+    "property": "goo:blob_size",
+    "fallback": {
+      "type": "minecraft:model",
+      "model": "goo:item/goo_blob_tiny",
+      "tints": [{"type": "goo:goo_type"}]
+    },
+    "entries": [
+      {
+        "threshold": 1.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "goo:item/goo_blob_small",
+          "tints": [{"type": "goo:goo_type"}]
+        }
+      },
+      {
+        "threshold": 2.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "goo:item/goo_blob",
+          "tints": [{"type": "goo:goo_type"}]
+        }
+      },
+      {
+        "threshold": 3.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "goo:item/goo_blob_large",
+          "tints": [{"type": "goo:goo_type"}]
+        }
+      }
+    ]
+  }
+}

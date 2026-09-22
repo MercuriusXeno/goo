@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.client.model;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
@@ -16,6 +16,7 @@ import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.client.resources.model.geometry.QuadCollection;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
@@ -167,7 +168,7 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
      * @param type          the goo type
      */
     private static void submitHeldBlob(PoseStack poseStack,
-                                       SubmitNodeCollector nodeCollector, int packedLight, GooType type) {
+                                       SubmitNodeCollector nodeCollector, int packedLight, ResourceKey<GooTypeDefinition> type) {
         float hw = BLOB_HW_PX / BLOCK_PIXELS;
         float cx = BLOB_CX_PX / BLOCK_PIXELS;
         float cy = BLOB_CY_PX / BLOCK_PIXELS;
@@ -192,7 +193,7 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
      * @param hw          the half-width of the cuboid in block coords
      */
     private static void emitBlobFaces(PoseStack.Pose pose, VertexConsumer c, int packedLight,
-                                      GooType type, float cx, float cy, float cz, float hw) {
+                                      ResourceKey<GooTypeDefinition> type, float cx, float cy, float cz, float hw) {
         GooRenderUtil.UvRect uv = buildBlobUv(type);
 
         GooRenderUtil.faceY(pose, c, packedLight,
@@ -215,7 +216,7 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
      * @param type the goo type to look up the fluid sprite for
      * @return the UV rectangle covering the full fluid sprite
      */
-    private static GooRenderUtil.UvRect buildBlobUv(GooType type) {
+    private static GooRenderUtil.UvRect buildBlobUv(ResourceKey<GooTypeDefinition> type) {
         TextureAtlasSprite sprite = GooRenderUtil.lookupFluidSprite(type);
         return new GooRenderUtil.UvRect(sprite.getU0(), sprite.getV0(), sprite.getU1(), sprite.getV1());
     }
@@ -250,7 +251,7 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
         if (!(stack.getItem() instanceof GooGloveItem)) {
             return null;
         }
-        GooType type = GooGloveItem.getSelectedType(stack);
+        ResourceKey<GooTypeDefinition> type = GooGloveItem.getSelectedType(stack);
         // Suppress the held blob visual when the player has no goo of that type
         if (type != null && !GloveUseTracker.isSelectedTypeAvailable()) {
             type = null;
@@ -303,7 +304,7 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
      * @param item         the glove item instance (determines tier/body model)
      * @param selectedType the selected goo type, or null if none selected
      */
-    public record GloveData(Item item, @Nullable GooType selectedType) {
+    public record GloveData(Item item, @Nullable ResourceKey<GooTypeDefinition> selectedType) {
     }
 
     /**

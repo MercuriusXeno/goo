@@ -1,14 +1,18 @@
 package com.mercuriusxeno.goo.client.radial;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.GooColors;
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypeNames;
+import com.mercuriusxeno.goo.GooTypes;
+import com.mercuriusxeno.goo.client.ClientGooTypes;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -154,23 +158,23 @@ final class GooRadialRenderer {
         if (angle < 0) {
             angle += GooRadialScreen.TWO_PI;
         }
-        return (int) (angle / GooRadialScreen.WEDGE_ARC) % GooRadialScreen.WEDGE_COUNT;
+        return (int) (angle / GooRadialScreen.wedgeArc()) % GooRadialScreen.wedgeCount();
     }
 
     /**
      * Pre-computes ARGB colors for all wedges based on hover/disabled state.
      *
-     * @param wedgeColors  output array of length {@link GooRadialScreen#WEDGE_COUNT}
+     * @param wedgeColors  output array of length {@link GooRadialScreen#wedgeCount()}
      * @param available    map of goo types to available volumes in microblobs
      * @param hoveredIndex the currently hovered wedge index, or -1 for none
      */
-    static void computeWedgeColors(int[] wedgeColors, Map<GooType, Integer> available, int hoveredIndex) {
-        GooType[] types = GooType.values();
-        for (int i = 0; i < GooRadialScreen.WEDGE_COUNT; i++) {
-            int qty = available.getOrDefault(types[i], 0);
+    static void computeWedgeColors(int[] wedgeColors, Map<ResourceKey<GooTypeDefinition>, Integer> available, int hoveredIndex) {
+        List<ResourceKey<GooTypeDefinition>> types = GooTypes.order();
+        for (int i = 0; i < GooRadialScreen.wedgeCount(); i++) {
+            int qty = available.getOrDefault(types.get(i), 0);
             boolean hovered = i == hoveredIndex;
             boolean disabled = qty <= 0;
-            int baseRgb = hovered ? GooColors.bright(types[i]) : GooColors.wheel(types[i]);
+            int baseRgb = hovered ? ClientGooTypes.bright(types.get(i)) : ClientGooTypes.wheel(types.get(i));
             wedgeColors[i] = computeWedgeColor(baseRgb, hovered, disabled);
         }
     }
@@ -238,7 +242,7 @@ final class GooRadialRenderer {
         int x = centerX - GooRadialScreen.OUTER_RADIUS;
         int y = centerY - GooRadialScreen.OUTER_RADIUS;
         int size = GooRadialScreen.OUTER_RADIUS * GooRadialScreen.HALF;
-        for (int i = 0; i < GooRadialScreen.WEDGE_COUNT; i++) {
+        for (int i = 0; i < GooRadialScreen.wedgeCount(); i++) {
             blitWedge(graphics, x, y, size, i, wedgeColors[i]);
         }
     }
@@ -254,7 +258,7 @@ final class GooRadialRenderer {
      * @param color      the ARGB tint color
      */
     private static void blitWedge(GuiGraphicsExtractor graphics, int x, int y, int size, int wedgeIndex, int color) {
-        Identifier tex = RadialTextures.getWedgeTexture(wedgeIndex);
+        Identifier tex = RadialTextures.getWedgeTexture(GooRadialScreen.wedgeCount(), wedgeIndex);
         graphics.blit(RenderPipelines.GUI_TEXTURED, tex,
                 x, y, 0.0f, 0.0f, size, size, RadialTextures.TEX_SIZE, RadialTextures.TEX_SIZE, color);
     }
@@ -323,9 +327,9 @@ final class GooRadialRenderer {
      * @param font         the font for rendering text labels
      */
     static void renderLabels(GuiGraphicsExtractor graphics, int centerX, int centerY,
-                             int hoveredIndex, Map<GooType, Integer> available, Font font) {
+                             int hoveredIndex, Map<ResourceKey<GooTypeDefinition>, Integer> available, Font font) {
         renderWedgeIcons(graphics, centerX, centerY);
-        if (hoveredIndex >= 0 && hoveredIndex < GooRadialScreen.WEDGE_COUNT) {
+        if (hoveredIndex >= 0 && hoveredIndex < GooRadialScreen.wedgeCount()) {
             renderHoveredInfo(graphics, font, centerX, centerY, hoveredIndex, available);
         }
     }
@@ -339,9 +343,9 @@ final class GooRadialRenderer {
      */
     private static void renderWedgeIcons(GuiGraphicsExtractor graphics,
                                          int centerX, int centerY) {
-        GooType[] types = GooType.values();
-        for (int i = 0; i < GooRadialScreen.WEDGE_COUNT; i++) {
-            renderSingleIcon(graphics, types[i], i, centerX, centerY);
+        List<ResourceKey<GooTypeDefinition>> types = GooTypes.order();
+        for (int i = 0; i < GooRadialScreen.wedgeCount(); i++) {
+            renderSingleIcon(graphics, types.get(i), i, centerX, centerY);
         }
     }
 
@@ -355,12 +359,12 @@ final class GooRadialRenderer {
      * @param centerY    the screen center y coordinate
      */
     private static void renderSingleIcon(GuiGraphicsExtractor graphics,
-                                         GooType type, int wedgeIndex, int centerX, int centerY) {
-        double bisector = GooRadialScreen.WEDGE_ARC * wedgeIndex + GooRadialScreen.WEDGE_ARC / GooRadialScreen.HALF;
+                                         ResourceKey<GooTypeDefinition> type, int wedgeIndex, int centerX, int centerY) {
+        double bisector = GooRadialScreen.wedgeArc() * wedgeIndex + GooRadialScreen.wedgeArc() / GooRadialScreen.HALF;
         double r = (GooRadialScreen.INNER_RADIUS + GooRadialScreen.OUTER_RADIUS) / (double) GooRadialScreen.HALF;
         int iconX = centerX + (int) (Math.sin(bisector) * r) - ICON_OFFSET;
         int iconY = centerY - (int) (Math.cos(bisector) * r) - ICON_OFFSET;
-        Identifier tex = Identifier.fromNamespaceAndPath(Goo.MODID, ICON_PATH_PREFIX + type.getId() + ICON_PATH_SUFFIX);
+        Identifier tex = Identifier.fromNamespaceAndPath(Goo.MODID, ICON_PATH_PREFIX + GooTypes.id(type) + ICON_PATH_SUFFIX);
         graphics.blit(RenderPipelines.GUI_TEXTURED, tex, iconX, iconY, 0.0f, 0.0f, ICON_SIZE, ICON_SIZE, ICON_SIZE, ICON_SIZE);
     }
 
@@ -375,11 +379,11 @@ final class GooRadialRenderer {
      * @param available    map of goo types to available volumes in microblobs
      */
     private static void renderHoveredInfo(GuiGraphicsExtractor graphics, Font font,
-                                          int centerX, int centerY, int hoveredIndex, Map<GooType, Integer> available) {
-        GooType hovered = GooType.values()[hoveredIndex];
+                                          int centerX, int centerY, int hoveredIndex, Map<ResourceKey<GooTypeDefinition>, Integer> available) {
+        ResourceKey<GooTypeDefinition> hovered = GooTypes.order().get(hoveredIndex);
         int qty = available.getOrDefault(hovered, 0);
         int textColor = qty <= 0 ? DISABLED_TEXT_COLOR : COLOR_WHITE;
-        Component name = Component.translatable(hovered.getTranslationKey());
+        Component name = Component.translatable(GooTypeNames.translationKey(hovered));
         graphics.centeredText(font, name, centerX, centerY - font.lineHeight - 1, textColor);
         graphics.centeredText(font, Component.literal(formatQuantity(qty)), centerX, centerY + GooRadialScreen.HALF, textColor);
     }

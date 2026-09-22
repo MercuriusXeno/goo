@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterMetadata;
@@ -11,6 +13,7 @@ import com.mojang.serialization.Codec;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
@@ -29,6 +32,20 @@ public class GooDataComponents {
                             .persistent(GooContents.CODEC)
                             .networkSynchronized(GooContents.STREAM_CODEC)
                             .build());
+
+    /**
+     * The goo type a generic goo fluid stack, blob, omniblob or bucket
+     * carries, as its registry key (decisions generic-goo-fluids and
+     * generic-goo-items). A fluid resource or item stack with this component
+     * is one goo type; two types are two resources of the one fluid or two
+     * stacks of the one item.
+     */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<ResourceKey<GooTypeDefinition>>>
+            GOO_TYPE = DATA_COMPONENTS.register("goo_type",
+            () -> DataComponentType.<ResourceKey<GooTypeDefinition>>builder()
+                    .persistent(GooTypes.KEY_CODEC)
+                    .networkSynchronized(GooTypes.KEY_STREAM_CODEC)
+                    .build());
 
     /**
      * Single-fluid storage for canister items. Accepts any registered fluid.

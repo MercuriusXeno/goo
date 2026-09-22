@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.block.vat;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.item.ContainerCapacity;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
@@ -10,6 +11,7 @@ import net.minecraft.core.component.DataComponentGetter;
 import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.ItemEnchantments;
 import net.minecraft.world.level.Level;
@@ -54,7 +56,7 @@ final class VatSerialization {
     /**
      * Sentinel value indicating an invalid NBT ordinal.
      */
-    static final int INVALID_ORDINAL = -1;
+    static final String NO_STREAM_TYPE = "";
 
     private VatSerialization() {
     }
@@ -144,7 +146,7 @@ final class VatSerialization {
         if (be.vatStreamType == null) {
             return;
         }
-        output.putInt(TAG_STREAM_TYPE, be.vatStreamType.ordinal());
+        output.putString(TAG_STREAM_TYPE, GooTypes.id(be.vatStreamType));
         output.putInt(TAG_STREAM_RATE, be.vatStreamRate);
         output.putLong(TAG_STREAM_TICK, be.vatStreamTick);
     }
@@ -192,22 +194,20 @@ final class VatSerialization {
      * @param input the value input
      */
     private static void loadStreamFields(VatBlockEntity be, ValueInput input) {
-        int streamOrdinal = input.getIntOr(TAG_STREAM_TYPE, INVALID_ORDINAL);
-        be.vatStreamType = resolveStreamType(streamOrdinal);
+        be.vatStreamType = resolveStreamType(input.getStringOr(TAG_STREAM_TYPE, NO_STREAM_TYPE));
         be.vatStreamRate = input.getIntOr(TAG_STREAM_RATE, 0);
         be.vatStreamTick = input.getLongOr(TAG_STREAM_TICK, 0);
     }
 
     /**
-     * Resolves stream type from a saved ordinal.
+     * Resolves stream type from a saved id.
      *
-     * @param ordinal the saved ordinal, or INVALID_ORDINAL
-     * @return the goo type, or null if invalid
+     * @param id the saved type id, or empty for none
+     * @return the goo type key, or null for none or an id no identifier accepts
      */
     @Nullable
-    static GooType resolveStreamType(int ordinal) {
-        GooType[] gooTypes = GooType.values();
-        return ordinal >= 0 && ordinal < gooTypes.length ? gooTypes[ordinal] : null;
+    static ResourceKey<GooTypeDefinition> resolveStreamType(String id) {
+        return id.isEmpty() ? null : GooTypes.byId(id);
     }
 
     /**

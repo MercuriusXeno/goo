@@ -1,0 +1,13 @@
+{
+  "light_level": 4,
+  "saturation_fill": 0.5,
+  "wheel": "D5F5E3",
+  "bright": "FDFFFF",
+  "highlight": "E4FFF2",
+  "edge": "F3FFFF",
+  "density": 1000,
+  "viscosity": 500,
+  "temperature": 300,
+  "extinguishes": true,
+  "map_color": "color_light_green"
+}

@@ -2,7 +2,7 @@ package com.mercuriusxeno.goo.client;
 
 import com.google.common.reflect.TypeToken;
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ISidedProxy;
 import com.mercuriusxeno.goo.client.ber.*;
 import com.mercuriusxeno.goo.client.machine.FuelRemainingProperty;
@@ -27,9 +27,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.*;
 import net.neoforged.neoforge.client.extensions.common.IClientFluidTypeExtensions;
 import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsEvent;
-import net.neoforged.neoforge.client.fluid.FluidTintSources;
 import net.neoforged.neoforge.client.renderstate.RegisterRenderStateModifiersEvent;
-import net.neoforged.neoforge.fluids.FluidType;
 
 /**
  * Client-side setup: entity renderers and network event handling.
@@ -57,17 +55,9 @@ public final class GooClientSetup {
      */
     private static final String RENDERER_GLOVE = "glove_goo";
     /**
-     * Fluid texture path prefix.
+     * The grey base texture the one goo fluid model tints by type.
      */
-    private static final String FLUID_TEX_PREFIX = "fluid/";
-    /**
-     * Fluid texture path suffix.
-     */
-    private static final String FLUID_TEX_SUFFIX = "_fluid";
-    /**
-     * Opaque alpha OR-mask for fluid tint color.
-     */
-    private static final int OPAQUE_ALPHA = 0xFF000000;
+    private static final String FLUID_TEXTURE = "fluid/goo_fluid";
     /**
      * SuppressWarnings annotation value for unchecked casts.
      */
@@ -142,17 +132,27 @@ public final class GooClientSetup {
     }
 
     /**
-     * Registers the goo type icon decorator for all blob and omniblob items.
+     * Registers the goo type icon decorator on the blob and omniblob items.
      *
      * @param event the event instance
      */
     @SubscribeEvent
     public static void registerItemDecorations(RegisterItemDecorationsEvent event) {
         BlobVolumeDecorator decorator = new BlobVolumeDecorator();
-        for (GooType type : GooType.values()) {
-            event.register(GooItems.BLOBS.get(type).get(), decorator);
-            event.register(GooItems.OMNIBLOBS.get(type).get(), decorator);
-        }
+        event.register(GooItems.GOO_BLOB.get(), decorator);
+        event.register(GooItems.GOO_OMNIBLOB.get(), decorator);
+    }
+
+    /**
+     * Registers the item tint source the generic goo item models name, which
+     * colors the grey base by the type the stack carries (decision
+     * generic-goo-items).
+     *
+     * @param event the event instance
+     */
+    @SubscribeEvent
+    public static void registerItemTintSources(RegisterColorHandlersEvent.ItemTintSources event) {
+        event.register(Identifier.fromNamespaceAndPath(Goo.MODID, GooTypeItemTint.PATH), GooTypeItemTint.MAP_CODEC);
     }
 
     /**
@@ -247,47 +247,29 @@ public final class GooClientSetup {
     }
 
     /**
-     * Registers FluidModel for each goo type so fluids render in-world.
+     * Registers the FluidModel of the one goo fluid: a grey base texture
+     * tinted by the type stamped at the position, or carried by the stack
+     * (decision generic-goo-fluids).
      *
      * @param event the event instance
      */
     @SubscribeEvent
     public static void registerFluidModels(RegisterFluidModelsEvent event) {
-        for (GooType type : GooType.values()) {
-            String id = type.getId();
-            Material texture = new Material(
-                    Identifier.fromNamespaceAndPath(Goo.MODID, FLUID_TEX_PREFIX + id + FLUID_TEX_SUFFIX), true);
-            FluidModel.Unbaked model = new FluidModel.Unbaked(
-                    texture, texture, null,
-                    FluidTintSources.constant(OPAQUE_ALPHA | type.getColor()));
-            event.register(model,
-                    GooFluids.SOURCES.get(type),
-                    GooFluids.FLOWING.get(type));
-        }
+        Material texture = new Material(Identifier.fromNamespaceAndPath(Goo.MODID, FLUID_TEXTURE), true);
+        FluidModel.Unbaked model = new FluidModel.Unbaked(texture, texture, null, new GooFluidTintSource());
+        event.register(model, GooFluids.SOURCE, GooFluids.FLOWING);
     }
 
     /**
-     * Registers client-side fluid rendering extensions for all goo fluid types.
+     * Registers the client-side rendering extensions of the goo fluid type
+     * (fog/overlay only in 26.1).
      *
      * @param event the event instance
      */
     @SubscribeEvent
     public static void registerClientExtensions(RegisterClientExtensionsEvent event) {
-        for (GooType type : GooType.values()) {
-            FluidType fluidType = GooFluidTypes.TYPES.get(type).get();
-            event.registerFluidType(createFluidExtensions(type), fluidType);
-        }
-    }
-
-    /**
-     * Creates the client fluid extensions for a goo type (fog/overlay only in 26.1).
-     *
-     * @param type the goo type
-     * @return a new IClientFluidTypeExtensions instance
-     */
-    private static IClientFluidTypeExtensions createFluidExtensions(GooType type) {
-        return new IClientFluidTypeExtensions() {
-        };
+        event.registerFluidType(new IClientFluidTypeExtensions() {
+        }, GooFluidTypes.GOO.get());
     }
 
     /**
@@ -311,6 +293,8 @@ public final class GooClientSetup {
     @SubscribeEvent
     public static void onClientLogin(ClientPlayerNetworkEvent.LoggingIn event) {
         TunerAwaitState.clear();
+        // The synced type registry is in hand at login, so the wheel and item handlers read its size.
+        GooTypes.capture(event.getPlayer().registryAccess());
     }
 
 }

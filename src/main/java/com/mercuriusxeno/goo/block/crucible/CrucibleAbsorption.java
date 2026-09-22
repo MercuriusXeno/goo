@@ -1,8 +1,9 @@
 package com.mercuriusxeno.goo.block.crucible;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.item.*;
 import net.minecraft.core.BlockPos;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
@@ -91,7 +92,7 @@ final class CrucibleAbsorption {
      */
     private static void absorbBlob(ItemEntity entity, ItemStack stack,
                                    CrucibleBlockEntity crucible) {
-        GooType type = BlobStacks.gooTypeOf(stack);
+        ResourceKey<GooTypeDefinition> type = BlobStacks.keyOf(stack);
         int volume = BlobStacks.volumeOf(stack);
         if (type == null || volume <= 0) {
             return;

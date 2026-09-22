@@ -10,6 +10,7 @@ import com.mercuriusxeno.goo.block.plexer.PlexerBlockEntity;
 import com.mercuriusxeno.goo.block.reactor.ReactorBlockEntity;
 import com.mercuriusxeno.goo.block.tap.TapBlockEntity;
 import com.mercuriusxeno.goo.block.vat.VatBlockEntity;
+import com.mercuriusxeno.goo.fluid.GooFluidBlockEntity;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.neoforged.neoforge.registries.DeferredHolder;
@@ -18,6 +19,13 @@ import net.neoforged.neoforge.registries.DeferredRegister;
 public class GooBlockEntities {
     public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITIES =
             DeferredRegister.create(Registries.BLOCK_ENTITY_TYPE, Goo.MODID);
+
+    /**
+     * The block entity carrying an in-world goo fluid block's type.
+     */
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<GooFluidBlockEntity>> GOO_FLUID =
+            BLOCK_ENTITIES.register(GooFluids.GOO_PATH,
+                    () -> new BlockEntityType<>(GooFluidBlockEntity::new, GooBlocks.GOO_FLUID.get()));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<CrucibleBlockEntity>> CRUCIBLE =
             BLOCK_ENTITIES.register("crucible",
