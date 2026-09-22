@@ -24,6 +24,10 @@ public final class GooTestFunctions {
     private static final String TYPES_BUNDLED_RESOLVE = "types_bundled_resolve";
     private static final String TYPES_DATAPACK_LISTED = "types_datapack_listed";
 
+    // --- Generic goo fluid ---
+    private static final String FLUID_TYPES_SIDE_BY_SIDE = "fluid_types_side_by_side";
+    private static final String FLUID_FIELDS_STAMPED = "fluid_fields_stamped";
+
     // --- GasketPusher ---
     private static final String PUSHER_EMPTY_RESERVOIR = "pusher_empty_reservoir";
     private static final String PUSHER_NO_PARTNER = "pusher_no_partner";
@@ -139,6 +143,7 @@ public final class GooTestFunctions {
         event.register(Registries.TEST_FUNCTION, registrar -> {
             reg(registrar, SMOKE, GameTestHelper::succeed);
             registerGooTypeRegistryTests(registrar);
+            registerGooFluidTests(registrar);
             registerGasketTests(registrar);
             registerEffectExecutorTests(registrar);
             registerCrucibleTests(registrar);
@@ -159,6 +164,11 @@ public final class GooTestFunctions {
     private static void registerGooTypeRegistryTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
         reg(r, TYPES_BUNDLED_RESOLVE, GooTypeRegistryTests::bundledTypesResolve);
         reg(r, TYPES_DATAPACK_LISTED, GooTypeRegistryTests::datapackTypeListed);
+    }
+
+    private static void registerGooFluidTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
+        reg(r, FLUID_TYPES_SIDE_BY_SIDE, GooFluidTests::placedTypesStaySideBySide);
+        reg(r, FLUID_FIELDS_STAMPED, GooFluidTests::fluidFieldsReadStampedType);
     }
 
     private static void registerGasketTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {

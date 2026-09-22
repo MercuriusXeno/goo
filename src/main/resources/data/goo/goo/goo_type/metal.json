@@ -4,5 +4,10 @@
   "wheel": "C0C0C0",
   "bright": "E8E8E8",
   "highlight": "CFCFCF",
-  "edge": "DEDEDE"
+  "edge": "DEDEDE",
+  "density": 2500,
+  "viscosity": 2000,
+  "temperature": 300,
+  "extinguishes": false,
+  "map_color": "metal"
 }

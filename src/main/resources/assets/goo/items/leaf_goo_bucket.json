@@ -1,7 +1,7 @@
 {
   "model": {
     "type": "neoforge:fluid_container",
-    "fluid": "goo:leaf_goo",
+    "fluid": "goo:goo",
     "textures": {
       "base": "item/bucket",
       "fluid": "neoforge:item/mask/bucket_fluid_drip"

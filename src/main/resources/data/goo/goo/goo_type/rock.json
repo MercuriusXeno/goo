@@ -4,5 +4,10 @@
   "wheel": "C2A868",
   "bright": "EAD090",
   "highlight": "D1B777",
-  "edge": "E0C686"
+  "edge": "E0C686",
+  "density": 2000,
+  "viscosity": 2000,
+  "temperature": 300,
+  "extinguishes": false,
+  "map_color": "stone"
 }

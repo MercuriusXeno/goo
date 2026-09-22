@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.registry.GooFluids;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.phys.shapes.VoxelShape;
+import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import org.jspecify.annotations.Nullable;
 import java.util.function.Function;
 import java.util.function.IntFunction;
@@ -120,11 +121,11 @@ public class SlottedCanisterData {
      * Inserts fluid into the slot's canister.
      *
      * @param index  the slot index
-     * @param fluid  the fluid to insert
+     * @param fluid  the fluid resource to insert
      * @param volume volume in microblobs
      * @return the amount actually inserted
      */
-    public int insertFluid(int index, Fluid fluid, int volume) {
+    public int insertFluid(int index, FluidResource fluid, int volume) {
         return inRange(index) ? slots[index].insertFluid(fluid, volume) : 0;
     }
 
@@ -132,11 +133,11 @@ public class SlottedCanisterData {
      * Extracts fluid from the slot's canister.
      *
      * @param index     the slot index
-     * @param fluid     the fluid to extract
+     * @param fluid     the fluid resource to extract
      * @param requested volume in microblobs
      * @return the amount actually extracted
      */
-    public int extractFluid(int index, Fluid fluid, int requested) {
+    public int extractFluid(int index, FluidResource fluid, int requested) {
         return inRange(index) ? slots[index].extractFluid(fluid, requested) : 0;
     }
 
@@ -218,11 +219,11 @@ public class SlottedCanisterData {
     /**
      * Distributes fluid across slots: matching slots first, then empty slots.
      *
-     * @param fluid  the fluid to route
+     * @param fluid  the fluid resource to route
      * @param amount volume in microblobs
      * @return total volume accepted across all slots
      */
-    public int routeFluid(Fluid fluid, int amount) {
+    public int routeFluid(FluidResource fluid, int amount) {
         int routed = distributeAcrossSlots(fluid, amount);
         if (routed > 0) {
             syncCallback.run();
@@ -238,16 +239,16 @@ public class SlottedCanisterData {
      * @return total volume accepted across all slots
      */
     public int routeGoo(GooType type, int amount) {
-        return routeFluid(GooFluids.SOURCES.get(type).get(), amount);
+        return routeFluid(GooFluids.resource(type), amount);
     }
 
-    private int distributeAcrossSlots(Fluid fluid, int amount) {
+    private int distributeAcrossSlots(FluidResource fluid, int amount) {
         int remaining = distributePass(fluid, amount, true);
         remaining = distributePass(fluid, remaining, false);
         return amount - remaining;
     }
 
-    private int distributePass(Fluid fluid, int remaining, boolean existing) {
+    private int distributePass(FluidResource fluid, int remaining, boolean existing) {
         int left = remaining;
         for (CanisterSlot slot : slots) {
             if (left <= 0) {
@@ -265,10 +266,10 @@ public class SlottedCanisterData {
         return left;
     }
 
-    private static boolean isEligibleFluidHolder(Fluid fluid, boolean existing,
+    private static boolean isEligibleFluidHolder(FluidResource fluid, boolean existing,
             CanisterSlotFluidHandler handler) {
         return handler.isEmpty()
-                || (existing && !handler.isEmpty() && handler.getFluid() == fluid);
+                || (existing && !handler.isEmpty() && handler.getFluidResource().equals(fluid));
     }
 
     // --- Pusher lifecycle (cross-slot) ---

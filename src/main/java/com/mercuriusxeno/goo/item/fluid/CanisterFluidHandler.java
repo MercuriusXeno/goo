@@ -12,9 +12,9 @@ import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import net.neoforged.neoforge.transfer.item.ItemResource;
 
 /**
- * Single-tank item fluid handler for canisters. Accepts any registered fluid
- * (goo types, water, lava, etc.). Only one fluid type at a time - the canister
- * must be emptied before switching fluids.
+ * Single-tank item fluid handler for canisters. Accepts any fluid resource,
+ * a stamped goo type or a vanilla fluid. Only one resource at a time - the
+ * canister must be emptied before switching, so two goo types never share it.
  *
  * <p>Capacity scales with the Compression enchantment.</p>
  */
@@ -38,10 +38,7 @@ public class CanisterFluidHandler extends ItemAccessResourceHandler<FluidResourc
      */
     @Override
     protected FluidResource getResourceFrom(ItemResource item, int index) {
-        CanisterFluidContent content = readContent(item);
-        return content.isEmpty()
-            ? FluidResource.EMPTY
-            : FluidResource.of(content.fluid());
+        return readContent(item).resource();
     }
 
     /**
@@ -69,7 +66,7 @@ public class CanisterFluidHandler extends ItemAccessResourceHandler<FluidResourc
     protected ItemResource update(ItemResource item, int oldAmount,
             FluidResource resource, int newAmount) {
         CanisterFluidContent content = newAmount > 0
-            ? new CanisterFluidContent(resource.getFluid(), newAmount)
+            ? new CanisterFluidContent(resource, newAmount)
             : CanisterFluidContent.EMPTY;
         return content.isEmpty()
             ? item.without(GooDataComponents.CANISTER_FLUID_CONTENT)
@@ -99,7 +96,7 @@ public class CanisterFluidHandler extends ItemAccessResourceHandler<FluidResourc
     public boolean isValid(int index, FluidResource resource) {
         if (resource.isEmpty()) { return false; }
         CanisterFluidContent content = readContent(itemAccess.getResource());
-        return content.isEmpty() || content.fluid() == resource.getFluid();
+        return content.isEmpty() || content.resource().equals(resource);
     }
 
     // --- Helpers ---

@@ -5,9 +5,9 @@ import com.mercuriusxeno.goo.GooType;
 import com.mercuriusxeno.goo.client.tooltip.GooValueTooltipComponent;
 import com.mercuriusxeno.goo.client.tooltip.VanillaFluidTooltipComponent;
 import com.mercuriusxeno.goo.data.GooValue;
+import com.mercuriusxeno.goo.fluid.GooBucketItem;
 import com.mercuriusxeno.goo.item.*;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
-import com.mercuriusxeno.goo.registry.GooFluids;
 import com.mojang.datafixers.util.Either;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -207,8 +207,11 @@ public final class GooTooltipHandler {
      * @return the goo type, or null
      */
     private static @org.jspecify.annotations.Nullable GooType getGooContentType(ItemStack stack) {
-        if (stack.getItem() instanceof BucketItem bucket) {
-            return GooFluids.getTypeFromFluid(bucket.content);
+        if (stack.getItem() instanceof GooBucketItem bucket) {
+            return bucket.type();
+        }
+        if (stack.getItem() instanceof BucketItem) {
+            return null;
         }
         CanisterFluidContent content = stack.get(GooDataComponents.CANISTER_FLUID_CONTENT.get());
         if (isEmptyCanister(content)) {

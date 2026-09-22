@@ -5,7 +5,6 @@ import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.registry.GooFluids;
 import net.minecraft.world.level.material.Fluid;
-import net.minecraft.world.level.material.Fluids;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import net.neoforged.neoforge.transfer.fluid.FluidStacksResourceHandler;
@@ -16,7 +15,8 @@ import java.util.function.LongSupplier;
 
 /**
  * Single-tank block-level fluid handler for canister slots. Accepts any
- * registered fluid (goo or vanilla). Only one fluid type at a time.
+ * fluid resource, a stamped goo type or a vanilla fluid. Only one resource
+ * at a time, so two goo types never share a slot.
  *
  * <p>Used by canister and hub block entities for per-slot fluid storage.
  * Replaces the multi-tank ordinal-indexed GooFluidHandler for canister slots.</p>
@@ -29,9 +29,9 @@ public class CanisterSlotFluidHandler extends FluidStacksResourceHandler {
     // --- Stream tracking (transient, for rendering incoming fluid) ---
 
     /**
-     * Fluid last inserted via transfer, or null if idle.
+     * Resource last inserted via transfer, or null if idle.
      */
-    private @Nullable Fluid streamFluid;
+    private @Nullable FluidResource streamResource;
 
     /**
      * Total mB inserted this tick.
@@ -72,7 +72,7 @@ public class CanisterSlotFluidHandler extends FluidStacksResourceHandler {
     }
 
     /**
-     * Accepts any non-empty fluid if the slot is empty or already holds the same fluid.
+     * Accepts any non-empty resource if the slot is empty or already holds the same resource.
      *
      * @param index    always 0
      * @param resource the fluid resource to validate
@@ -84,7 +84,7 @@ public class CanisterSlotFluidHandler extends FluidStacksResourceHandler {
             return false;
         }
         FluidResource current = getResource(0);
-        return current.isEmpty() || current.getFluid() == resource.getFluid();
+        return current.isEmpty() || current.equals(resource);
     }
 
     /**
@@ -126,20 +126,32 @@ public class CanisterSlotFluidHandler extends FluidStacksResourceHandler {
             streamTick = now;
         }
         FluidResource res = getResource(0);
-        streamFluid = res.isEmpty() ? null : res.getFluid();
+        streamResource = res.isEmpty() ? null : res;
         streamRate += delta;
     }
 
     // --- Stream getters ---
 
     /**
-     * Returns the fluid currently streaming in, or null if no active stream.
+     * Returns the resource currently streaming in, or null if no active stream.
+     *
+     * @param currentTick the current game tick
+     * @return the streaming resource, or null
+     */
+    public @Nullable FluidResource getStreamResource(long currentTick) {
+        return (currentTick - streamTick <= 1) ? streamResource : null;
+    }
+
+    /**
+     * Returns the fluid currently streaming in without its components, for
+     * render code that tells vanilla fluids apart, or null if no active stream.
      *
      * @param currentTick the current game tick
      * @return the streaming fluid, or null
      */
     public @Nullable Fluid getStreamFluid(long currentTick) {
-        return (currentTick - streamTick <= 1) ? streamFluid : null;
+        FluidResource res = getStreamResource(currentTick);
+        return res == null ? null : res.getFluid();
     }
 
     /**
@@ -149,8 +161,8 @@ public class CanisterSlotFluidHandler extends FluidStacksResourceHandler {
      * @return the streaming goo type, or null
      */
     public @Nullable GooType getStreamGooType(long currentTick) {
-        Fluid f = getStreamFluid(currentTick);
-        return f != null ? GooFluids.getTypeFromFluid(f) : null;
+        FluidResource res = getStreamResource(currentTick);
+        return res != null ? GooFluids.typeOf(res) : null;
     }
 
     /**
@@ -188,8 +200,7 @@ public class CanisterSlotFluidHandler extends FluidStacksResourceHandler {
                 set(0, FluidResource.EMPTY, 0);
             } else {
                 var entry = contents.getAll().entrySet().iterator().next();
-                Fluid fluid = GooFluids.SOURCES.get(entry.getKey()).get();
-                set(0, FluidResource.of(fluid),
+                set(0, GooFluids.resource(entry.getKey()),
                         Math.min(entry.getValue(), Integer.MAX_VALUE));
             }
         } finally {
@@ -209,7 +220,7 @@ public class CanisterSlotFluidHandler extends FluidStacksResourceHandler {
         if (res.isEmpty()) {
             return CanisterFluidContent.EMPTY;
         }
-        return new CanisterFluidContent(res.getFluid(), (int) getAmountAsLong(0));
+        return new CanisterFluidContent(res, (int) getAmountAsLong(0));
     }
 
     /**
@@ -223,7 +234,7 @@ public class CanisterSlotFluidHandler extends FluidStacksResourceHandler {
             if (content.isEmpty()) {
                 set(0, FluidResource.EMPTY, 0);
             } else {
-                set(0, FluidResource.of(content.fluid()),
+                set(0, content.resource(),
                         Math.min(content.amount(), Integer.MAX_VALUE));
             }
         } finally {
@@ -232,13 +243,22 @@ public class CanisterSlotFluidHandler extends FluidStacksResourceHandler {
     }
 
     /**
-     * Returns the fluid stored in this slot, or Fluids.EMPTY.
+     * Returns the resource stored in this slot, or FluidResource.EMPTY.
      *
-     * @return the stored fluid
+     * @return the stored resource
+     */
+    public FluidResource getFluidResource() {
+        return getResource(0);
+    }
+
+    /**
+     * Returns the fluid stored in this slot without its components, for
+     * render code that tells vanilla fluids apart.
+     *
+     * @return the stored fluid, or the empty fluid
      */
     public Fluid getFluid() {
-        FluidResource res = getResource(0);
-        return res.isEmpty() ? Fluids.EMPTY : res.getFluid();
+        return getResource(0).getFluid();
     }
 
     /**
@@ -248,8 +268,7 @@ public class CanisterSlotFluidHandler extends FluidStacksResourceHandler {
      */
     @Nullable
     public GooType getGooType() {
-        Fluid f = getFluid();
-        return f == Fluids.EMPTY ? null : GooFluids.getTypeFromFluid(f);
+        return GooFluids.typeOf(getResource(0));
     }
 
     /**
@@ -282,16 +301,15 @@ public class CanisterSlotFluidHandler extends FluidStacksResourceHandler {
     /**
      * Inserts fluid, handling transaction lifecycle internally.
      *
-     * @param fluid    the fluid to insert
+     * @param resource the fluid resource to insert
      * @param amount   volume in mB
      * @param simulate if true, returns how much would be accepted without mutating
      * @return the amount actually inserted
      */
-    public int insertFluid(Fluid fluid, int amount, boolean simulate) {
+    public int insertFluid(FluidResource resource, int amount, boolean simulate) {
         if (amount <= 0) {
             return 0;
         }
-        FluidResource resource = FluidResource.of(fluid);
         try (var tx = Transaction.openRoot()) {
             int inserted = insert(0, resource, amount, tx);
             if (!simulate) {
@@ -310,22 +328,21 @@ public class CanisterSlotFluidHandler extends FluidStacksResourceHandler {
      * @return the amount actually inserted
      */
     public int insertGoo(GooType type, int amount, boolean simulate) {
-        return insertFluid(GooFluids.SOURCES.get(type).get(), amount, simulate);
+        return insertFluid(GooFluids.resource(type), amount, simulate);
     }
 
     /**
      * Extracts fluid, handling transaction lifecycle internally.
      *
-     * @param fluid    the fluid to extract
+     * @param resource the fluid resource to extract
      * @param amount   volume in mB
      * @param simulate if true, dry run
      * @return the amount actually extracted
      */
-    public int extractFluid(Fluid fluid, int amount, boolean simulate) {
+    public int extractFluid(FluidResource resource, int amount, boolean simulate) {
         if (amount <= 0) {
             return 0;
         }
-        FluidResource resource = FluidResource.of(fluid);
         try (var tx = Transaction.openRoot()) {
             int extracted = extract(0, resource, amount, tx);
             if (!simulate) {
@@ -344,7 +361,7 @@ public class CanisterSlotFluidHandler extends FluidStacksResourceHandler {
      * @return the amount actually extracted
      */
     public int extractGoo(GooType type, int amount, boolean simulate) {
-        return extractFluid(GooFluids.SOURCES.get(type).get(), amount, simulate);
+        return extractFluid(GooFluids.resource(type), amount, simulate);
     }
 
     /**

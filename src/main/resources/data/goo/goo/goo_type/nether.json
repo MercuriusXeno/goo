@@ -4,5 +4,10 @@
   "wheel": "8B0000",
   "bright": "B32828",
   "highlight": "9A0F0F",
-  "edge": "A91E1E"
+  "edge": "A91E1E",
+  "density": 1500,
+  "viscosity": 1500,
+  "temperature": 900,
+  "extinguishes": false,
+  "map_color": "nether"
 }

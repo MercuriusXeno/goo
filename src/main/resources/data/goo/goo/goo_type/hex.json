@@ -4,5 +4,10 @@
   "wheel": "5B4BA0",
   "bright": "8373C8",
   "highlight": "6A5AAF",
-  "edge": "7969BE"
+  "edge": "7969BE",
+  "density": 1000,
+  "viscosity": 1500,
+  "temperature": 300,
+  "extinguishes": false,
+  "map_color": "color_black"
 }

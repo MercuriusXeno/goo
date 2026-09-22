@@ -54,7 +54,7 @@ public abstract class GooItemFluidHandler extends ItemAccessResourceHandler<Flui
         GooContents contents = readContents(item);
         int volume = contents.getVolume(type);
         return volume > 0
-            ? FluidResource.of(GooFluids.SOURCES.get(type).get())
+            ? GooFluids.resource(type)
             : FluidResource.EMPTY;
     }
 
@@ -85,7 +85,7 @@ public abstract class GooItemFluidHandler extends ItemAccessResourceHandler<Flui
     @Override
     protected ItemResource update(ItemResource item, int oldAmount,
             FluidResource resource, int newAmount) {
-        GooType type = GooFluids.getTypeFromFluid(resource.getFluid());
+        GooType type = GooFluids.typeOf(resource);
         if (type == null) { return item; }
         GooContents updated = rebuildContents(readContents(item), type, newAmount);
         return applyContents(item, updated);
@@ -123,7 +123,7 @@ public abstract class GooItemFluidHandler extends ItemAccessResourceHandler<Flui
     @Override
     public boolean isValid(int index, FluidResource resource) {
         if (resource.isEmpty()) { return false; }
-        GooType type = GooFluids.getTypeFromFluid(resource.getFluid());
+        GooType type = GooFluids.typeOf(resource);
         return type != null && type.ordinal() == index;
     }
 

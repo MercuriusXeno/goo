@@ -6,7 +6,6 @@ import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.ContainerCapacity;
 import com.mercuriusxeno.goo.registry.GooEnchantments;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.material.Fluid;
 import net.neoforged.neoforge.transfer.ResourceHandler;
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import net.neoforged.neoforge.transfer.transaction.TransactionContext;
@@ -53,7 +52,7 @@ public class HubFluidHandler implements ResourceHandler<FluidResource> {
         CanisterFluidContent content = getSlotContent(index);
         return content.isEmpty()
                 ? FluidResource.EMPTY
-                : FluidResource.of(content.fluid());
+                : content.resource();
     }
 
     /**
@@ -100,7 +99,7 @@ public class HubFluidHandler implements ResourceHandler<FluidResource> {
             return false;
         }
         CanisterFluidContent content = CanisterItem.getFluidContent(stack);
-        return content.isEmpty() || content.fluid() == resource.getFluid();
+        return content.isEmpty() || content.resource().equals(resource);
     }
 
     /**
@@ -118,9 +117,8 @@ public class HubFluidHandler implements ResourceHandler<FluidResource> {
         if (amount <= 0 || resource.isEmpty()) {
             return 0;
         }
-        Fluid fluid = resource.getFluid();
         return Math.min(
-                hub.containerState().routeFluid(fluid, amount),
+                hub.containerState().routeFluid(resource, amount),
                 Integer.MAX_VALUE);
     }
 
@@ -139,18 +137,17 @@ public class HubFluidHandler implements ResourceHandler<FluidResource> {
         if (amount <= 0 || resource.isEmpty()) {
             return 0;
         }
-        Fluid fluid = resource.getFluid();
-        return extractFromCanisters(fluid, amount);
+        return extractFromCanisters(resource, amount);
     }
 
     /**
      * Scans hub canisters and extracts the requested fluid.
      *
-     * @param fluid  the fluid type to extract
+     * @param fluid  the fluid resource to extract
      * @param amount the maximum amount to extract in mB
      * @return the total amount actually extracted
      */
-    private int extractFromCanisters(Fluid fluid, int amount) {
+    private int extractFromCanisters(FluidResource fluid, int amount) {
         int remaining = scanAndExtract(fluid, amount);
         int totalExtracted = amount - remaining;
         if (totalExtracted > 0) {
@@ -162,11 +159,11 @@ public class HubFluidHandler implements ResourceHandler<FluidResource> {
     /**
      * Iterates hub canister slots and removes fluid of the requested type.
      *
-     * @param fluid  the fluid type to remove from canisters
+     * @param fluid  the fluid resource to remove from canisters
      * @param amount the maximum amount to remove in mB
      * @return the remaining amount that could not be extracted
      */
-    private int scanAndExtract(Fluid fluid, int amount) {
+    private int scanAndExtract(FluidResource fluid, int amount) {
         int remaining = amount;
         for (int i = 0; i < HubBlockEntity.MAX_CANISTERS && remaining > 0; i++) {
             ItemStack stack = hub.getCanister(i);

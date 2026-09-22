@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.block.canister.CanisterSlotFluidHandler;
 import com.mercuriusxeno.goo.block.canister.ICanisterHolder;
 import com.mercuriusxeno.goo.block.fluid.PlayerInventorySlotHandler;
 import com.mercuriusxeno.goo.block.hub.HubBlockEntity;
+import com.mercuriusxeno.goo.fluid.GooBucketResourceHandler;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.CanisterMetadata;
 import com.mercuriusxeno.goo.item.fluid.CanisterFluidHandler;
@@ -15,6 +16,7 @@ import com.mercuriusxeno.goo.registry.GooItems;
 import net.minecraft.core.Direction;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.ItemLike;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import net.neoforged.neoforge.transfer.ResourceHandler;
@@ -53,6 +55,19 @@ final class GooCapabilityRegistration {
      */
     static void registerItemFluidCapabilities(RegisterCapabilitiesEvent event) {
         registerCanisterFluidCapability(event);
+        registerGooBucketFluidCapability(event);
+    }
+
+    /**
+     * Registers the stamped-resource handler for every goo bucket, in place
+     * of NeoForge's bare bucket handler (decision generic-goo-fluids).
+     *
+     * @param event the capability registration event
+     */
+    private static void registerGooBucketFluidCapability(RegisterCapabilitiesEvent event) {
+        event.registerItem(Capabilities.Fluid.ITEM,
+                (stack, ctx) -> new GooBucketResourceHandler(ctx),
+                GooItems.BUCKETS.values().toArray(ItemLike[]::new));
     }
 
     /**

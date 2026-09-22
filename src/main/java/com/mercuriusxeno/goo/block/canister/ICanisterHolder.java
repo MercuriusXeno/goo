@@ -11,7 +11,7 @@ import com.mercuriusxeno.goo.registry.GooFluids;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.material.Fluid;
+import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -105,11 +105,11 @@ public interface ICanisterHolder extends IGooLightSource {
      * Inserts fluid into the slot's canister.
      *
      * @param index  the slot index
-     * @param fluid  the fluid to insert
+     * @param fluid  the fluid resource to insert
      * @param volume volume in microblobs
      * @return the amount actually inserted
      */
-    default int insertFluid(int index, Fluid fluid, int volume) {
+    default int insertFluid(int index, FluidResource fluid, int volume) {
         CanisterSlot s = slot(index);
         return s != null ? s.insertFluid(fluid, volume) : 0;
     }
@@ -123,18 +123,18 @@ public interface ICanisterHolder extends IGooLightSource {
      * @return the amount actually inserted
      */
     default int insertGoo(int index, GooType incomingType, int volume) {
-        return insertFluid(index, GooFluids.SOURCES.get(incomingType).get(), volume);
+        return insertFluid(index, GooFluids.resource(incomingType), volume);
     }
 
     /**
      * Extracts fluid from the slot's canister.
      *
      * @param index     the slot index
-     * @param fluid     the fluid to extract
+     * @param fluid     the fluid resource to extract
      * @param requested volume in microblobs
      * @return the amount actually extracted
      */
-    default int extractFluid(int index, Fluid fluid, int requested) {
+    default int extractFluid(int index, FluidResource fluid, int requested) {
         CanisterSlot s = slot(index);
         return s != null ? s.extractFluid(fluid, requested) : 0;
     }
@@ -148,7 +148,7 @@ public interface ICanisterHolder extends IGooLightSource {
      * @return the amount actually extracted
      */
     default int extractGoo(int index, GooType type, int requested) {
-        return extractFluid(index, GooFluids.SOURCES.get(type).get(), requested);
+        return extractFluid(index, GooFluids.resource(type), requested);
     }
 
     /**

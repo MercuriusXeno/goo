@@ -27,9 +27,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.*;
 import net.neoforged.neoforge.client.extensions.common.IClientFluidTypeExtensions;
 import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsEvent;
-import net.neoforged.neoforge.client.fluid.FluidTintSource;
 import net.neoforged.neoforge.client.renderstate.RegisterRenderStateModifiersEvent;
-import net.neoforged.neoforge.fluids.FluidType;
 
 /**
  * Client-side setup: entity renderers and network event handling.
@@ -57,17 +55,9 @@ public final class GooClientSetup {
      */
     private static final String RENDERER_GLOVE = "glove_goo";
     /**
-     * Fluid texture path prefix.
+     * The grey base texture the one goo fluid model tints by type.
      */
-    private static final String FLUID_TEX_PREFIX = "fluid/";
-    /**
-     * Fluid texture path suffix.
-     */
-    private static final String FLUID_TEX_SUFFIX = "_fluid";
-    /**
-     * Opaque alpha OR-mask for fluid tint color.
-     */
-    private static final int OPAQUE_ALPHA = 0xFF000000;
+    private static final String FLUID_TEXTURE = "fluid/goo_fluid";
     /**
      * SuppressWarnings annotation value for unchecked casts.
      */
@@ -247,48 +237,29 @@ public final class GooClientSetup {
     }
 
     /**
-     * Registers FluidModel for each goo type so fluids render in-world. The
-     * tint reads the type's highlight from the registry at render time, since
-     * no level and so no registry exists while models register.
+     * Registers the FluidModel of the one goo fluid: a grey base texture
+     * tinted by the type stamped at the position, or carried by the stack
+     * (decision generic-goo-fluids).
      *
      * @param event the event instance
      */
     @SubscribeEvent
     public static void registerFluidModels(RegisterFluidModelsEvent event) {
-        for (GooType type : GooType.values()) {
-            String id = type.getId();
-            Material texture = new Material(
-                    Identifier.fromNamespaceAndPath(Goo.MODID, FLUID_TEX_PREFIX + id + FLUID_TEX_SUFFIX), true);
-            FluidTintSource tint = state -> OPAQUE_ALPHA | ClientGooTypes.color(type);
-            FluidModel.Unbaked model = new FluidModel.Unbaked(texture, texture, null, tint);
-            event.register(model,
-                    GooFluids.SOURCES.get(type),
-                    GooFluids.FLOWING.get(type));
-        }
+        Material texture = new Material(Identifier.fromNamespaceAndPath(Goo.MODID, FLUID_TEXTURE), true);
+        FluidModel.Unbaked model = new FluidModel.Unbaked(texture, texture, null, new GooFluidTintSource());
+        event.register(model, GooFluids.SOURCE, GooFluids.FLOWING);
     }
 
     /**
-     * Registers client-side fluid rendering extensions for all goo fluid types.
+     * Registers the client-side rendering extensions of the goo fluid type
+     * (fog/overlay only in 26.1).
      *
      * @param event the event instance
      */
     @SubscribeEvent
     public static void registerClientExtensions(RegisterClientExtensionsEvent event) {
-        for (GooType type : GooType.values()) {
-            FluidType fluidType = GooFluidTypes.TYPES.get(type).get();
-            event.registerFluidType(createFluidExtensions(type), fluidType);
-        }
-    }
-
-    /**
-     * Creates the client fluid extensions for a goo type (fog/overlay only in 26.1).
-     *
-     * @param type the goo type
-     * @return a new IClientFluidTypeExtensions instance
-     */
-    private static IClientFluidTypeExtensions createFluidExtensions(GooType type) {
-        return new IClientFluidTypeExtensions() {
-        };
+        event.registerFluidType(new IClientFluidTypeExtensions() {
+        }, GooFluidTypes.GOO.get());
     }
 
     /**
