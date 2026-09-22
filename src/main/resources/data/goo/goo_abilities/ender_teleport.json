@@ -11,10 +11,11 @@
   },
   "behaviors": [
     {
-      "type": "entity_effect",
-      "params": {
-        "handler": "ender_teleport"
-      }
+      "type": "program",
+      "steps": [
+        { "type": "teleport", "mode": "random_offset", "range": 32 },
+        { "type": "sound", "id": "minecraft:entity.enderman.teleport", "at": "target", "source": "hostile", "volume": 1, "pitch": 1 }
+      ]
     }
   ],
   "tags": ["entity"]

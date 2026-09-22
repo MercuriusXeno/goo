@@ -38,8 +38,7 @@ class HardcodedAbilityTripwireTest {
             "block_place",
             "metal_spikes",
             "crystal_cloud",
-            "black_hole",
-            "entity_effect");
+            "black_hole");
 
     private static final String ABILITIES_DIR = "data/goo/goo_abilities";
     private static final String JSON_SUFFIX = ".json";

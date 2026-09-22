@@ -132,6 +132,16 @@ class ProgramHostLoadTest {
         assertDoesNotThrow(() -> ProgramBehavior.forHost(List.of(particles(FxAnchor.HOST)), HostKind.MARKER));
     }
 
+    @Test
+    void teleportOnMarkerHostRefusesSinceItMovesATarget() {
+        ProgramLoadException refusal = assertThrows(ProgramLoadException.class,
+                () -> ProgramBehavior.forHost(
+                        List.of(new TeleportStep(TeleportMode.RANDOM_OFFSET, Expr.literal(32))), HostKind.MARKER));
+
+        assertTrue(refusal.getMessage().contains("teleport"), refusal.getMessage());
+        assertTrue(refusal.getMessage().contains(MARKER_LABEL), refusal.getMessage());
+    }
+
     private static ParticlesStep particles(FxAnchor at) {
         return new ParticlesStep(Identifier.parse("minecraft:crit"), at, Expr.literal(1), Expr.literal(0),
                 Optional.empty(), Optional.empty(), Expr.literal(0), Expr.literal(0));

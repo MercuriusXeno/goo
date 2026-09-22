@@ -19,6 +19,7 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 import java.util.OptionalDouble;
@@ -43,6 +44,7 @@ public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entit
     private static final String LOG_UNKNOWN_ITEM = "Drop step names item {}, which no registry holds";
     private static final float PERCENT = 100;
     private static final double BODY_CENTER = 0.5;
+    private static final double HALF = 0.5;
 
     @Override
     public HostKind kind() {
@@ -178,6 +180,47 @@ public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entit
         SimpleParticles.resolve(burst.particle()).ifPresent(particle -> level.sendParticles(particle,
                 target.getX(), target.getY(BODY_CENTER) + burst.lift(), target.getZ(),
                 burst.count(), burst.spreadAcross(), burst.spreadAlong(), burst.spreadAcross(), burst.speed()));
+    }
+
+    @Override
+    public void playSound(FxAnchor at, SoundCue cue) {
+        SoundPlays.play(level, new Vec3(target.getX(), target.getY(BODY_CENTER), target.getZ()), cue);
+    }
+
+    @Override
+    public void teleportTarget(TeleportMode mode, double range) {
+        Vec3 jump = switch (mode) {
+            case RANDOM_OFFSET -> randomOffset(range);
+            case TOWARD_THROWER -> towardThrower(range);
+            case AWAY_FROM_THROWER -> towardThrower(-range);
+        };
+        target.teleportTo(target.getX() + jump.x(), target.getY(), target.getZ() + jump.z());
+    }
+
+    /**
+     * Rolls a level jump of up to half the range either way on each axis.
+     *
+     * @param range the full width of the roll
+     * @return the jump
+     */
+    private Vec3 randomOffset(double range) {
+        RandomSource random = level.getRandom();
+        return new Vec3((random.nextDouble() - HALF) * range, 0, (random.nextDouble() - HALF) * range);
+    }
+
+    /**
+     * Measures a level jump of the range along the line from the target
+     * to the thrower; a negative range jumps away.
+     *
+     * @param range the jump length, negative to jump away
+     * @return the jump, zero with no thrower or a thrower at the target
+     */
+    private Vec3 towardThrower(double range) {
+        if (thrower == null) {
+            return Vec3.ZERO;
+        }
+        Vec3 line = new Vec3(thrower.getX() - target.getX(), 0, thrower.getZ() - target.getZ());
+        return line.lengthSqr() == 0 ? Vec3.ZERO : line.normalize().scale(range);
     }
 
     /**

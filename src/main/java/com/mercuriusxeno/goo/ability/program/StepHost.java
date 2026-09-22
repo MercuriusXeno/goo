@@ -186,4 +186,21 @@ public interface StepHost extends Variables {
      * @param burst the evaluated burst
      */
     void spawnParticles(FxAnchor at, ParticleBurst burst);
+
+    /**
+     * Plays a sound at the anchor. The {@link FxAnchor#TARGET} anchor
+     * needs capability {@link HostCapability#TARGET}.
+     *
+     * @param at  the anchor the sound plays at
+     * @param cue the evaluated sound
+     */
+    void playSound(FxAnchor at, SoundCue cue);
+
+    /**
+     * Moves the host's target. Capability {@link HostCapability#TARGET}.
+     *
+     * @param mode  how the destination is picked
+     * @param range the mode's range in blocks
+     */
+    void teleportTarget(TeleportMode mode, double range);
 }

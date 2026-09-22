@@ -142,6 +142,19 @@ public record MarkerHost(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity
                 spreadOn(Direction.Axis.Z, along, burst), burst.speed()));
     }
 
+    @Override
+    public void playSound(FxAnchor at, SoundCue cue) {
+        if (at == FxAnchor.TARGET) {
+            throw HostCapability.TARGET.refusedBy(kind());
+        }
+        SoundPlays.play(level, Vec3.atCenterOf(pos), cue);
+    }
+
+    @Override
+    public void teleportTarget(TeleportMode mode, double range) {
+        throw HostCapability.TARGET.refusedBy(kind());
+    }
+
     /**
      * Picks the burst's spread for one axis: along where the axis is the
      * placed face's, across otherwise.

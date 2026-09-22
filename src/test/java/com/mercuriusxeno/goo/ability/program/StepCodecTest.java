@@ -49,7 +49,10 @@ class StepCodecTest {
                     List.of(new IgniteStep(Expr.literal(5))))),
             Map.entry("particles", new ParticlesStep(Identifier.parse("minecraft:damage_indicator"), FxAnchor.TARGET,
                     Expr.literal(15), Expr.literal(0), Optional.of(Expr.literal(0.5)), Optional.of(Expr.literal(1.5)),
-                    Expr.literal(0), Expr.literal(1)))
+                    Expr.literal(0), Expr.literal(1))),
+            Map.entry("sound", new SoundStep(Identifier.parse("minecraft:entity.enderman.teleport"), FxAnchor.TARGET,
+                    SoundKind.HOSTILE, Expr.parse("0.55 + 0.08 * stacks").getOrThrow(), Expr.literal(1))),
+            Map.entry("teleport", new TeleportStep(TeleportMode.RANDOM_OFFSET, Expr.literal(32)))
     );
 
     private static Step roundTrip(Step step) {
@@ -101,6 +104,12 @@ class StepCodecTest {
         assertEquals(1, particles.count().evaluate(Variables.NONE));
         assertEquals(Optional.empty(), particles.spreadAlong());
         assertEquals(0, particles.lift().evaluate(Variables.NONE));
+        SoundStep sound = assertInstanceOf(SoundStep.class,
+                decode("{\"type\": \"sound\", \"id\": \"minecraft:block.glass.break\"}").getOrThrow());
+        assertEquals(FxAnchor.HOST, sound.at());
+        assertEquals(SoundKind.BLOCKS, sound.source());
+        assertEquals(1, sound.volume().evaluate(Variables.NONE));
+        assertEquals(1, sound.pitch().evaluate(Variables.NONE));
     }
 
     @Test
