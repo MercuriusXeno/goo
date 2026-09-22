@@ -6,9 +6,9 @@ import net.minecraft.server.level.ServerLevel;
 /**
  * One of the permutable axes of a block-break ability. A BlockEffect
  * decides what happens to a single block in the AoE: silk-touch break,
- * fortune-smelt break, freeze, replace, ignite, etc. The owning
- * pipeline (e.g. {@link ProgressiveAreaBlock}) walks the footprint and
- * fans out one call per cell.
+ * fortune-smelt break, freeze, replace, ignite, etc. The
+ * {@code progressive_area} step walks the footprint and fans out one
+ * call per cell through the marker host.
  *
  * <p>Implementations must be stateless and singleton-friendly so they
  * can be registered once and shared across all chain markers.</p>

@@ -12,14 +12,17 @@
   },
   "behaviors": [
     {
-      "type": "progressive_area",
-      "params": {
-        "areaMode": "tunnel",
-        "blockEffect": "silk_break",
-        "layerVisuals": "rock_dust",
-        "layerAudio": "stone_break",
-        "previewDelayTicks": "8"
-      }
+      "type": "program",
+      "steps": [
+        {
+          "type": "progressive_area",
+          "shape": "tunnel",
+          "effect": "silk_break",
+          "visuals": "rock_dust",
+          "audio": "stone_break",
+          "preview_delay": 8
+        }
+      ]
     }
   ],
   "tags": ["block_break", "directional"]
