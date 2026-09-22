@@ -177,4 +177,13 @@ public interface StepHost extends Variables {
      * @param seconds the burn time in seconds
      */
     void igniteTarget(int seconds);
+
+    /**
+     * Spawns a burst of particles at the anchor. The {@link FxAnchor#TARGET}
+     * anchor needs capability {@link HostCapability#TARGET}.
+     *
+     * @param at    the anchor the burst centers on
+     * @param burst the evaluated burst
+     */
+    void spawnParticles(FxAnchor at, ParticleBurst burst);
 }

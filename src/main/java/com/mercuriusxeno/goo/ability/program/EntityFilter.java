@@ -28,7 +28,15 @@ public enum EntityFilter {
     /**
      * Keeps entities that burn.
      */
-    NOT_FIRE_IMMUNE;
+    NOT_FIRE_IMMUNE,
+    /**
+     * Keeps living entities that heal from harm and are harmed by healing.
+     */
+    UNDEAD,
+    /**
+     * Keeps entities still alive, after a prior effect may have killed them.
+     */
+    ALIVE;
 
     private static final String WHAT = "entity filter";
 

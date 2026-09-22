@@ -128,4 +128,30 @@ public record MarkerHost(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity
     public void igniteTarget(int seconds) {
         throw HostCapability.TARGET.refusedBy(kind());
     }
+
+    @Override
+    public void spawnParticles(FxAnchor at, ParticleBurst burst) {
+        if (at == FxAnchor.TARGET) {
+            throw HostCapability.TARGET.refusedBy(kind());
+        }
+        Vec3 center = Vec3.atCenterOf(pos);
+        Direction.Axis along = be.getPlacedFace().getAxis();
+        SimpleParticles.resolve(burst.particle()).ifPresent(particle -> level.sendParticles(particle,
+                center.x(), center.y() + burst.lift(), center.z(), burst.count(),
+                spreadOn(Direction.Axis.X, along, burst), spreadOn(Direction.Axis.Y, along, burst),
+                spreadOn(Direction.Axis.Z, along, burst), burst.speed()));
+    }
+
+    /**
+     * Picks the burst's spread for one axis: along where the axis is the
+     * placed face's, across otherwise.
+     *
+     * @param axis  the axis to spread on
+     * @param along the placed face's axis
+     * @param burst the burst
+     * @return the spread on the axis
+     */
+    private static double spreadOn(Direction.Axis axis, Direction.Axis along, ParticleBurst burst) {
+        return axis == along ? burst.spreadAlong() : burst.spreadAcross();
+    }
 }
