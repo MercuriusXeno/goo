@@ -11,6 +11,9 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -20,9 +23,16 @@ import net.minecraft.world.phys.Vec3;
  */
 public final class MobEffectTests {
 
-    private static final BlockPos SPAWN_POS = new BlockPos(1, 1, 1);
+    /**
+     * Clear of the barrier shell the framework wraps the one-block empty
+     * structure in: a mob spawned at (1, 1, 1) stands inside that shell's
+     * corner, where an explosion's rays die on the barrier.
+     */
+    private static final BlockPos SPAWN_POS = new BlockPos(3, 1, 3);
     /** One block beside the spawn, inside blaze ignite's splash radius. */
-    private static final BlockPos BYSTANDER_POS = new BlockPos(2, 1, 1);
+    private static final BlockPos BYSTANDER_POS = SPAWN_POS.east();
+    /** The tick after spawning, once the level's entity index holds the spawned mobs. */
+    private static final int SETTLE_TICKS = 1;
     private static final String BYSTANDER_SHOULD_BE_ON_FIRE = "Bystander should be on fire";
     private static final String SHOULD_HAVE_SLOWNESS = "Target should have slowness";
     private static final String SHOULD_HAVE_POISON = "Target should have poison";
@@ -59,6 +69,15 @@ public final class MobEffectTests {
     private static final double TELEPORT_MIN_MOVE = 0.01;
     /** Half of ender_teleport.json's range of 32. */
     private static final double TELEPORT_MAX_AXIS_MOVE = 16.0;
+    private static final String CHICKEN_HAS_MAX_HEALTH = "A chicken carries a max health attribute";
+    private static final String SHOULD_HAVE_A_CLONE = "A second chicken should stand beside the target";
+    /** A max health of one makes vital_clone.json's chance 100 / pow(1, 0.6), every roll. */
+    private static final double CERTAIN_CLONE_MAX_HEALTH = 1.0;
+    /** Wide enough that a gaussian step from the target cannot leave it. */
+    private static final double CLONE_SEARCH_RADIUS = 8.0;
+    private static final int CHICKENS_AFTER_CLONE = 2;
+    /** Beside the cow, inside unstable_explode.json's blast of power 2. */
+    private static final BlockPos BLAST_DIRT_POS = SPAWN_POS.south();
     private static final String BYSTANDER_SHOULD_TAKE_SPLASH = "Bystander should have taken the splash damage";
     /** The damage crystal_flechettes.json's first damage step names. */
     private static final float FLECHETTE_DAMAGE = 4.0f;
@@ -117,10 +136,12 @@ public final class MobEffectTests {
         Mob bystander = helper.spawnWithNoFreeWill(EntityType.COW, BYSTANDER_POS);
         float before = mob.getHealth();
         float bystanderBefore = bystander.getHealth();
-        runEntityPrograms(helper, mob, ABILITY_CRYSTAL_FLECHETTES);
-        helper.assertTrue(mob.getHealth() <= before - FLECHETTE_DAMAGE, SHOULD_TAKE_DAMAGE);
-        helper.assertTrue(bystander.getHealth() <= bystanderBefore - SPLASH_DAMAGE, BYSTANDER_SHOULD_TAKE_SPLASH);
-        helper.succeed();
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            runEntityPrograms(helper, mob, ABILITY_CRYSTAL_FLECHETTES);
+            helper.assertTrue(mob.getHealth() <= before - FLECHETTE_DAMAGE, SHOULD_TAKE_DAMAGE);
+            helper.assertTrue(bystander.getHealth() <= bystanderBefore - SPLASH_DAMAGE, BYSTANDER_SHOULD_TAKE_SPLASH);
+            helper.succeed();
+        });
     }
 
     /**
@@ -138,15 +159,25 @@ public final class MobEffectTests {
 
     /**
      * Vital clone is a program: a mob target selection wrapping a
-     * clone_entity step whose roll the host makes, so the run proves the
-     * program loads and ticks on a chicken without asserting the roll.
+     * clone_entity step whose chance is 100 / pow(max_health, 0.6), so a
+     * chicken whose max health is one is cloned on every roll and a second
+     * chicken stands beside it.
      *
      * @param helper the gametest helper
      */
     public static void vitalClone(GameTestHelper helper) {
         Mob mob = helper.spawnWithNoFreeWill(EntityType.CHICKEN, SPAWN_POS);
+        AttributeInstance maxHealth = mob.getAttribute(Attributes.MAX_HEALTH);
+        helper.assertTrue(maxHealth != null, CHICKEN_HAS_MAX_HEALTH);
+        maxHealth.setBaseValue(CERTAIN_CLONE_MAX_HEALTH);
         runEntityPrograms(helper, mob, ABILITY_VITAL_CLONE);
-        helper.succeed();
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            long chickens = helper.getLevel()
+                    .getEntitiesOfClass(Mob.class, mob.getBoundingBox().inflate(CLONE_SEARCH_RADIUS))
+                    .stream().filter(found -> found.getType() == EntityType.CHICKEN).count();
+            helper.assertTrue(chickens == CHICKENS_AFTER_CLONE, SHOULD_HAVE_A_CLONE);
+            helper.succeed();
+        });
     }
 
     /**
@@ -188,10 +219,12 @@ public final class MobEffectTests {
     public static void blazeIgnite(GameTestHelper helper) {
         Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
         Mob bystander = helper.spawnWithNoFreeWill(EntityType.COW, BYSTANDER_POS);
-        runEntityPrograms(helper, mob, ABILITY_BLAZE_IGNITE);
-        helper.assertTrue(mob.isOnFire(), SHOULD_BE_ON_FIRE);
-        helper.assertTrue(bystander.isOnFire(), BYSTANDER_SHOULD_BE_ON_FIRE);
-        helper.succeed();
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            runEntityPrograms(helper, mob, ABILITY_BLAZE_IGNITE);
+            helper.assertTrue(mob.isOnFire(), SHOULD_BE_ON_FIRE);
+            helper.assertTrue(bystander.isOnFire(), BYSTANDER_SHOULD_BE_ON_FIRE);
+            helper.succeed();
+        });
     }
 
     /**
@@ -305,16 +338,20 @@ public final class MobEffectTests {
 
     /**
      * Unstable explode is a program of one explode step at the target,
-     * whose blast hurts the struck mob.
+     * whose tnt blast hurts the struck mob and breaks the dirt beside it.
      *
      * @param helper the gametest helper
      */
     public static void unstableExplode(GameTestHelper helper) {
+        helper.setBlock(BLAST_DIRT_POS, Blocks.DIRT);
         Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
         float before = mob.getHealth();
-        runEntityPrograms(helper, mob, ABILITY_UNSTABLE_EXPLODE);
-        helper.assertTrue(mob.getHealth() < before, SHOULD_TAKE_DAMAGE);
-        helper.succeed();
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            runEntityPrograms(helper, mob, ABILITY_UNSTABLE_EXPLODE);
+            helper.assertTrue(mob.getHealth() < before, SHOULD_TAKE_DAMAGE);
+            helper.assertBlockNotPresent(Blocks.DIRT, BLAST_DIRT_POS);
+            helper.succeed();
+        });
     }
 
     /**
