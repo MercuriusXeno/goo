@@ -73,9 +73,11 @@ public class BlobVolumeDecorator implements IItemDecorator {
     /**
      * Blits the goo type icon in the top-right of the slot, at a texture path
      * built from the type's short id. A bundled type's id is a bare path and
-     * resolves; a datapack type's id carries its namespace, which no texture
-     * path accepts, so such a type reaches here and the path refuses it.
-     * Decision type-named-textures is where a type names its own textures.
+     * resolves. A datapack type's id carries its namespace, which is not a
+     * legal identifier path, so the construction below throws
+     * {@code IdentifierException}: a datapack type reaching this method
+     * crashes the render rather than drawing nothing. Decision
+     * type-named-textures is where a type names its own textures.
      *
      * @param graphics the GUI graphics context
      * @param type the goo type to draw, of any namespace, or null where the stack carries none
