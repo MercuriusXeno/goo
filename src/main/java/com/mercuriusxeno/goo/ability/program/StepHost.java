@@ -4,6 +4,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
 import java.util.Set;
+import java.util.function.Consumer;
 
 /**
  * The seam a step program reaches its world through (decision
@@ -77,6 +78,20 @@ public interface StepHost extends Variables {
      * @return true when at least one entity is in the volume
      */
     boolean anyEntityWithin(SelectionShape shape, double radius, Set<EntityFilter> filters);
+
+    /**
+     * Scans the volume around the anchor and hands the body a host bound
+     * to each living entity every filter keeps, so the body's steps act on
+     * that entity as their target. Capabilities
+     * {@link HostCapability#ENTITY_SCAN} and {@link HostCapability#TARGET}.
+     *
+     * @param shape   the volume shape
+     * @param radius  the volume radius in blocks
+     * @param filters the filters an entity must pass
+     * @param body    what to run on the host bound to each entity
+     */
+    void forEachEntityWithin(SelectionShape shape, double radius, Set<EntityFilter> filters,
+                             Consumer<StepHost> body);
 
     /**
      * Hurts the host's target. Capability {@link HostCapability#TARGET}.
@@ -154,4 +169,12 @@ public interface StepHost extends Variables {
      * @param count the stack size
      */
     void dropItemAtTarget(Identifier item, int count);
+
+    /**
+     * Sets the host's target on fire. Capability
+     * {@link HostCapability#TARGET}.
+     *
+     * @param seconds the burn time in seconds
+     */
+    void igniteTarget(int seconds);
 }

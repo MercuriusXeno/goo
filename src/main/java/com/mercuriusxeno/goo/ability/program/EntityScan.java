@@ -8,13 +8,16 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Consumer;
 
 /**
- * The world side of {@link StepHost#anyEntityWithin}: the box scan, the
- * sphere trim and the meaning of each {@link EntityFilter}, shared by
- * every host that scans a level.
+ * The world side of {@link StepHost#anyEntityWithin} and
+ * {@link StepHost#forEachEntityWithin}: the box scan, the sphere trim and
+ * the meaning of each {@link EntityFilter}, shared by every host that
+ * scans a level.
  */
 final class EntityScan {
 
@@ -35,14 +38,50 @@ final class EntityScan {
      */
     static boolean anyEntityWithin(ServerLevel level, Vec3 center, SelectionShape shape,
                                    double radius, Set<EntityFilter> filters) {
-        double diameter = radius * DIAMETER_PER_RADIUS;
-        List<Entity> candidates = level.getEntities(null, AABB.ofSize(center, diameter, diameter, diameter));
-        for (Entity entity : candidates) {
-            if (inShape(entity, shape, center, radius) && passes(entity, filters)) {
-                return true;
+        return !select(level, center, shape, radius, filters).isEmpty();
+    }
+
+    /**
+     * Hands the body each living entity within the volume that every
+     * filter keeps, the world side of {@link StepHost#forEachEntityWithin}.
+     *
+     * @param level   the level to scan
+     * @param center  the volume center
+     * @param shape   the volume shape
+     * @param radius  the volume radius in blocks
+     * @param filters the filters an entity must pass
+     * @param body    what to run on each living entity
+     */
+    static void forEachLivingWithin(ServerLevel level, Vec3 center, SelectionShape shape, double radius,
+                                    Set<EntityFilter> filters, Consumer<LivingEntity> body) {
+        for (Entity entity : select(level, center, shape, radius, filters)) {
+            if (entity instanceof LivingEntity living) {
+                body.accept(living);
             }
         }
-        return false;
+    }
+
+    /**
+     * Collects the entities within the volume that every filter keeps.
+     *
+     * @param level   the level to scan
+     * @param center  the volume center
+     * @param shape   the volume shape
+     * @param radius  the volume radius in blocks
+     * @param filters the filters an entity must pass
+     * @return the entities kept, in scan order
+     */
+    private static List<Entity> select(ServerLevel level, Vec3 center, SelectionShape shape,
+                                       double radius, Set<EntityFilter> filters) {
+        double diameter = radius * DIAMETER_PER_RADIUS;
+        List<Entity> candidates = level.getEntities(null, AABB.ofSize(center, diameter, diameter, diameter));
+        List<Entity> kept = new ArrayList<>();
+        for (Entity entity : candidates) {
+            if (inShape(entity, shape, center, radius) && passes(entity, filters)) {
+                kept.add(entity);
+            }
+        }
+        return kept;
     }
 
     /**
@@ -89,6 +128,7 @@ final class EntityScan {
             case NOT_ITEM -> !(entity instanceof ItemEntity);
             case NOT_BOSS -> !isBoss(entity);
             case MOB -> entity instanceof Mob;
+            case NOT_FIRE_IMMUNE -> !entity.fireImmune();
         };
     }
 

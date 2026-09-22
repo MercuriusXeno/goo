@@ -109,6 +109,18 @@ class ProgramHostLoadTest {
     }
 
     @Test
+    void entitiesSelectionOnMarkerHostRefusesSinceItsChildrenActOnATarget() {
+        List<Step> steps = List.of(new EntitiesStep(SelectionShape.SPHERE, Expr.literal(2.5),
+                List.of(EntityFilter.LIVING), List.of(new IgniteStep(Expr.literal(5)))));
+
+        ProgramLoadException refusal = assertThrows(ProgramLoadException.class,
+                () -> ProgramBehavior.forHost(steps, HostKind.MARKER));
+
+        assertTrue(refusal.getMessage().contains("entities"), refusal.getMessage());
+        assertTrue(refusal.getMessage().contains(MARKER_LABEL), refusal.getMessage());
+    }
+
+    @Test
     void unstableProgramsLoadForTheMarkerHost() {
         List<Step> mine = List.of(
                 new AwaitEntityStep(SelectionShape.SPHERE, Expr.literal(3), List.of(EntityFilter.LIVING)),

@@ -11,10 +11,19 @@
   },
   "behaviors": [
     {
-      "type": "entity_effect",
-      "params": {
-        "handler": "blaze_ignite"
-      }
+      "type": "program",
+      "steps": [
+        { "type": "ignite", "seconds": 10 },
+        {
+          "type": "entities",
+          "shape": "sphere",
+          "radius": 2.5,
+          "where": ["living", "not_fire_immune"],
+          "steps": [
+            { "type": "ignite", "seconds": 5 }
+          ]
+        }
+      ]
     }
   ],
   "tags": ["entity"]
