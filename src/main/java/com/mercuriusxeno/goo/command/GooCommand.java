@@ -1,7 +1,9 @@
 package com.mercuriusxeno.goo.command;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooColors;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.data.ScaffoldGenerator;
 import com.mercuriusxeno.goo.network.GooValueSync;
@@ -23,6 +25,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -402,7 +405,7 @@ public final class GooCommand {
             if (!first) {
                 msg.append(Component.literal(MSG_COMMA));
             }
-            appendTypeEntry(msg, entry.getKey().getColor(registries), entry.getKey(), entry.getValue());
+            appendTypeEntry(msg, GooColors.get(registries, entry.getKey()), entry.getKey(), entry.getValue());
             first = false;
         }
         msg.append(Component.literal(MSG_TOTAL_PREFIX + value.totalBlobs() + MSG_CLOSE_PAREN));
@@ -417,8 +420,8 @@ public final class GooCommand {
      * @param type   the goo type
      * @param amount the goo amount
      */
-    private static void appendTypeEntry(MutableComponent msg, int color, GooType type, int amount) {
-        msg.append(Component.literal(type.getId()).withStyle(Style.EMPTY.withColor(color)));
+    private static void appendTypeEntry(MutableComponent msg, int color, ResourceKey<GooTypeDefinition> type, int amount) {
+        msg.append(Component.literal(GooTypes.id(type)).withStyle(Style.EMPTY.withColor(color)));
         msg.append(Component.literal(MSG_TIMES + amount));
     }
 

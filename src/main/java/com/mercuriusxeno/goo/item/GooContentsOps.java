@@ -1,7 +1,8 @@
 package com.mercuriusxeno.goo.item;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.ItemStack;
 
 /**
@@ -25,7 +26,7 @@ public final class GooContentsOps {
      * @param capacity maximum total volume the stack may hold, in microblobs
      * @return the amount actually accepted (0 if full or non-positive input)
      */
-    public static int addGoo(ItemStack stack, GooType type, int amount, int capacity) {
+    public static int addGoo(ItemStack stack, ResourceKey<GooTypeDefinition> type, int amount, int capacity) {
         if (amount <= 0) { return 0; }
         GooContents contents = getContents(stack);
         int accepted = contents.cappedAddAmount(amount, capacity);
@@ -43,7 +44,7 @@ public final class GooContentsOps {
      * @param amount desired volume to remove, in microblobs
      * @return the amount actually removed
      */
-    public static int removeGoo(ItemStack stack, GooType type, int amount) {
+    public static int removeGoo(ItemStack stack, ResourceKey<GooTypeDefinition> type, int amount) {
         GooContents contents = getContents(stack);
         if (contents.isEmpty()) { return 0; }
         int available = contents.getVolume(type);

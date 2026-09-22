@@ -1,9 +1,11 @@
 package com.mercuriusxeno.goo.data;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.item.GooContents;
+import net.minecraft.resources.ResourceKey;
 import java.util.Collections;
-import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.Map;
 
 // Arithmetic operations live in GooValueArithmetic; instance methods delegate there.
@@ -28,7 +30,7 @@ public class GooValue {
      */
     private static final String KV_SEPARATOR = ": ";
 
-    private final Map<GooType, Integer> values;
+    private final Map<ResourceKey<GooTypeDefinition>, Integer> values;
 
     /**
      * Creates a GooValue from a map of goo types to amounts.
@@ -36,8 +38,8 @@ public class GooValue {
      *
      * @param values goo type amounts (zero entries are excluded)
      */
-    public GooValue(Map<GooType, Integer> values) {
-        this.values = new EnumMap<>(GooType.class);
+    public GooValue(Map<ResourceKey<GooTypeDefinition>, Integer> values) {
+        this.values = new HashMap<>();
         values.forEach((type, amount) -> {
             if (amount != 0) {
                 this.values.put(type, amount);
@@ -51,7 +53,7 @@ public class GooValue {
      * @param type the goo type to query
      * @return amount in blobs, or 0
      */
-    public int get(GooType type) {
+    public int get(ResourceKey<GooTypeDefinition> type) {
         return values.getOrDefault(type, 0);
     }
 
@@ -60,7 +62,7 @@ public class GooValue {
      *
      * @return map of goo types to their amounts (never null, may be empty)
      */
-    public Map<GooType, Integer> getAll() {
+    public Map<ResourceKey<GooTypeDefinition>, Integer> getAll() {
         return Collections.unmodifiableMap(values);
     }
 
@@ -102,14 +104,14 @@ public class GooValue {
 
     /**
      * Returns the goo type with the highest amount, or null if empty.
-     * Ties break by iteration order (enum ordinal for EnumMap).
+     * Ties break by iteration order of the contents map.
      *
      * @return the dominant goo type, or null if empty
      */
-    public GooType largestType() {
-        GooType largest = null;
+    public ResourceKey<GooTypeDefinition> largestType() {
+        ResourceKey<GooTypeDefinition> largest = null;
         int highest = 0;
-        for (Map.Entry<GooType, Integer> entry : values.entrySet()) {
+        for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> entry : values.entrySet()) {
             if (entry.getValue() > highest) {
                 highest = entry.getValue();
                 largest = entry.getKey();
@@ -214,7 +216,7 @@ public class GooValue {
         if (isEmpty() || count <= 0) {
             return GooContents.EMPTY;
         }
-        Map<GooType, Integer> longMap = new EnumMap<>(GooType.class);
+        Map<ResourceKey<GooTypeDefinition>, Integer> longMap = new HashMap<>();
         values.forEach((type, amount) -> longMap.put(type, amount * count));
         return new GooContents(longMap);
     }
@@ -232,7 +234,7 @@ public class GooValue {
             if (sb.length() > 0) {
                 sb.append(TYPE_SEPARATOR);
             }
-            sb.append(type.getId()).append(KV_SEPARATOR).append(amount);
+            sb.append(GooTypes.id(type)).append(KV_SEPARATOR).append(amount);
         });
         return sb.toString();
     }

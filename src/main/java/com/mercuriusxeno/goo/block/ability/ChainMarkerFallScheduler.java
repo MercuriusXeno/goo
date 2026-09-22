@@ -1,10 +1,12 @@
 package com.mercuriusxeno.goo.block.ability;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ThrowArc;
 import com.mercuriusxeno.goo.network.BlobFlightPayload;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
@@ -61,7 +63,7 @@ public final class ChainMarkerFallScheduler {
      * @param areaMode    the delivery area mode
      */
     public static void scheduleFall(ServerLevel level, BlockPos oldPos, BlockPos landingPos,
-                                    Block markerBlock, GooType gooType, int stackCount, int maxStacks, int fuse,
+                                    Block markerBlock, ResourceKey<GooTypeDefinition> gooType, int stackCount, int maxStacks, int fuse,
                                     Direction face, String blobShape, String areaMode) {
         double distance = oldPos.distManhattan(landingPos);
         int travelTicks = (int) ThrowArc.travelTicks(distance);
@@ -114,12 +116,12 @@ public final class ChainMarkerFallScheduler {
      * @param travelTicks the flight duration in ticks
      */
     private static void broadcastFlight(ServerLevel level, BlockPos oldPos,
-                                        BlockPos landingPos, GooType gooType, int travelTicks) {
+                                        BlockPos landingPos, ResourceKey<GooTypeDefinition> gooType, int travelTicks) {
         BlobFlightPayload flight = new BlobFlightPayload(
                 oldPos.getX() + BLOCK_CENTER,
                 oldPos.getY() + BLOCK_CENTER,
                 oldPos.getZ() + BLOCK_CENTER,
-                gooType.getId(),
+                GooTypes.id(gooType),
                 NO_ENTITY,
                 landingPos,
                 Direction.UP.ordinal(),
@@ -152,7 +154,7 @@ public final class ChainMarkerFallScheduler {
      * Snapshot of a chain marker in mid-fall.
      */
     private record PendingFall(int arrivalTick, ServerLevel level, BlockPos landingPos,
-                               Block markerBlock, GooType gooType, int stackCount,
+                               Block markerBlock, ResourceKey<GooTypeDefinition> gooType, int stackCount,
                                int maxStacks, int fuse, Direction face,
                                String blobShape, String areaMode) {
     }

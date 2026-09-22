@@ -1,10 +1,12 @@
 package com.mercuriusxeno.goo.client.ber;
 
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.RenderContext;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceKey;
 
 /**
  * Fluid geometry and stack-fill computation helpers for {@link VatBlockEntityRenderer}.
@@ -42,7 +44,7 @@ final class VatFluidRenderer {
      * @param type  the goo type
      * @param state the block state
      */
-    static void renderFluid(RenderContext ctx, com.mercuriusxeno.goo.GooType type, VatRenderState state) {
+    static void renderFluid(RenderContext ctx, ResourceKey<GooTypeDefinition> type, VatRenderState state) {
         float localFloor = state.vatBelow ? 0f : VatBlockEntityRenderer.BASE_FLOOR;
         float localCeiling = state.vatAbove ? 1.0f : VatBlockEntityRenderer.CAP_CEILING;
         float localFill = computeLocalFill(state, localFloor, localCeiling);

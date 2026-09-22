@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.block.canister;
 
 import com.mercuriusxeno.goo.GooConstants;
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.PlayerUtils;
 import com.mercuriusxeno.goo.block.BlockEntitySync;
 import com.mercuriusxeno.goo.block.GooBlockInteraction;
@@ -566,7 +566,7 @@ public class CanisterBlockEntity extends BlockEntity implements ICanisterHolder,
     }
 
     private InteractionResult handleBlobInsert(BlockHitResult hitResult, ItemStack stack, Player player) {
-        GooType type = BlobStacks.gooTypeOf(stack);
+        ResourceKey<GooTypeDefinition> type = BlobStacks.keyOf(stack);
         if (type == null) {
             return InteractionResult.PASS;
         }
@@ -581,7 +581,7 @@ public class CanisterBlockEntity extends BlockEntity implements ICanisterHolder,
         return InteractionResult.SUCCESS;
     }
 
-    private int tryInsertBlobGoo(int hitSlot, GooType type, int volume) {
+    private int tryInsertBlobGoo(int hitSlot, ResourceKey<GooTypeDefinition> type, int volume) {
         int slot = GooBlockInteraction.findSlot(hitSlot, MAX_SLOTS, this::canAccept);
         if (slot < 0) {
             return 0;

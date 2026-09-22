@@ -1,11 +1,13 @@
 package com.mercuriusxeno.goo.item;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.PlayerUtils;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
 import net.minecraft.core.BlockPos;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
@@ -76,7 +78,7 @@ public class GooGloveItem extends Item {
      */
     private static void recollectBlobs(Level level, BlockPos pos,
             ChainMarkerBlockEntity be, Player player) {
-        GooType type = be.getGooType();
+        ResourceKey<GooTypeDefinition> type = be.getGooType();
         int stacks = be.getStackCount();
         if (stacks > 0) {
             ItemStack blobs = BlobStacks.createBlobStack(type, stacks);
@@ -150,7 +152,7 @@ public class GooGloveItem extends Item {
      * @return true if a throw was initiated, false if no type selected
      */
     private boolean handleQuickThrow(ItemStack stack, Level level, LivingEntity entity) {
-        GooType selected = getSelectedType(stack);
+        ResourceKey<GooTypeDefinition> selected = getSelectedType(stack);
         if (selected == null) { return false; }
         if (level.isClientSide() && entity instanceof Player player) {
             com.mercuriusxeno.goo.client.throwing.GloveThrowSender.sendThrow(player, selected);
@@ -163,14 +165,14 @@ public class GooGloveItem extends Item {
      * Reads the selected goo type from this glove's data component.
      *
      * @param stack the glove stack
-     * @return the selected GooType, or null if none selected
+     * @return the selected goo type key, or null if none selected
      */
-    public static @Nullable GooType getSelectedType(ItemStack stack) {
+    public static @Nullable ResourceKey<GooTypeDefinition> getSelectedType(ItemStack stack) {
         GloveSelection sel = getSelection(stack);
         if (sel != null && sel.hasType()) { return sel.getGooType(); }
         String id = stack.get(GooDataComponents.SELECTED_GOO_TYPE.get());
         if (id == null || id.isEmpty()) { return null; }
-        return GooType.fromId(id);
+        return GooTypes.byId(id);
     }
 
     /**
@@ -180,12 +182,12 @@ public class GooGloveItem extends Item {
      * @param stack the glove stack
      * @param type the goo type to select, or null to clear
      */
-    public static void setSelectedType(ItemStack stack, @Nullable GooType type) {
+    public static void setSelectedType(ItemStack stack, @Nullable ResourceKey<GooTypeDefinition> type) {
         if (type == null) {
             stack.remove(GooDataComponents.SELECTED_GOO_TYPE.get());
             stack.remove(GooDataComponents.SELECTED_ABILITY.get());
         } else {
-            stack.set(GooDataComponents.SELECTED_GOO_TYPE.get(), type.getId());
+            stack.set(GooDataComponents.SELECTED_GOO_TYPE.get(), GooTypes.id(type));
             stack.set(GooDataComponents.SELECTED_ABILITY.get(), GloveSelection.ofType(type));
         }
     }

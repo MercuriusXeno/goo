@@ -1,10 +1,11 @@
 package com.mercuriusxeno.goo.block.vat;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.ContainerCapacity;
 import com.mercuriusxeno.goo.registry.GooEnchantments;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
@@ -69,7 +70,7 @@ final class VatFluidInteraction {
         if (!vat.canAccept()) {
             return InteractionResult.PASS;
         }
-        GooType type = content.getGooType();
+        ResourceKey<GooTypeDefinition> type = content.getGooType();
         if (type == null) {
             return InteractionResult.PASS;
         }
@@ -89,7 +90,7 @@ final class VatFluidInteraction {
      * @return the result
      */
     private static InteractionResult handleCanisterDrain(VatBlockEntity vat, ItemStack stack) {
-        GooType dominant = extractableDominant(vat);
+        ResourceKey<GooTypeDefinition> dominant = extractableDominant(vat);
         if (dominant == null) {
             return InteractionResult.PASS;
         }
@@ -110,7 +111,7 @@ final class VatFluidInteraction {
      * @return the volume actually extracted in microblobs
      */
     private static int drainDominantForCanister(
-            VatBlockEntity vat, ItemStack stack, GooType dominant) {
+            VatBlockEntity vat, ItemStack stack, ResourceKey<GooTypeDefinition> dominant) {
         int space = canisterRemainingSpace(stack);
         if (space <= 0) {
             return 0;
@@ -128,7 +129,7 @@ final class VatFluidInteraction {
      * @return the dominant goo type, or null if the vat is empty
      */
     @Nullable
-    static GooType extractableDominant(VatBlockEntity vat) {
+    static ResourceKey<GooTypeDefinition> extractableDominant(VatBlockEntity vat) {
         if (vat.isEmpty()) {
             return null;
         }

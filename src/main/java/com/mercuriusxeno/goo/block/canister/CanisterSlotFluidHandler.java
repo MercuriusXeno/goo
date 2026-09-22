@@ -1,9 +1,10 @@
 package com.mercuriusxeno.goo.block.canister;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.registry.GooFluids;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.material.Fluid;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
@@ -160,9 +161,9 @@ public class CanisterSlotFluidHandler extends FluidStacksResourceHandler {
      * @param currentTick the current game tick
      * @return the streaming goo type, or null
      */
-    public @Nullable GooType getStreamGooType(long currentTick) {
+    public @Nullable ResourceKey<GooTypeDefinition> getStreamGooType(long currentTick) {
         FluidResource res = getStreamResource(currentTick);
-        return res != null ? GooFluids.typeOf(res) : null;
+        return res != null ? GooFluids.keyOf(res) : null;
     }
 
     /**
@@ -181,7 +182,7 @@ public class CanisterSlotFluidHandler extends FluidStacksResourceHandler {
      * @return goo contents for push operations
      */
     public GooContents toGooContents() {
-        GooType type = getGooType();
+        ResourceKey<GooTypeDefinition> type = getGooType();
         if (type == null) {
             return GooContents.EMPTY;
         }
@@ -267,8 +268,8 @@ public class CanisterSlotFluidHandler extends FluidStacksResourceHandler {
      * @return the goo type, or null
      */
     @Nullable
-    public GooType getGooType() {
-        return GooFluids.typeOf(getResource(0));
+    public ResourceKey<GooTypeDefinition> getGooType() {
+        return GooFluids.keyOf(getResource(0));
     }
 
     /**
@@ -327,7 +328,7 @@ public class CanisterSlotFluidHandler extends FluidStacksResourceHandler {
      * @param simulate if true, dry run
      * @return the amount actually inserted
      */
-    public int insertGoo(GooType type, int amount, boolean simulate) {
+    public int insertGoo(ResourceKey<GooTypeDefinition> type, int amount, boolean simulate) {
         return insertFluid(GooFluids.resource(type), amount, simulate);
     }
 
@@ -360,7 +361,7 @@ public class CanisterSlotFluidHandler extends FluidStacksResourceHandler {
      * @param simulate if true, dry run
      * @return the amount actually extracted
      */
-    public int extractGoo(GooType type, int amount, boolean simulate) {
+    public int extractGoo(ResourceKey<GooTypeDefinition> type, int amount, boolean simulate) {
         return extractFluid(GooFluids.resource(type), amount, simulate);
     }
 

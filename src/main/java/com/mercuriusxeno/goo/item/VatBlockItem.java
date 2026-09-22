@@ -1,8 +1,9 @@
 package com.mercuriusxeno.goo.item;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
 import com.mercuriusxeno.goo.registry.GooEnchantments;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.SlotAccess;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.ClickAction;
@@ -102,7 +103,7 @@ public class VatBlockItem extends BlockItem {
      * @param amount the volume in microblobs to add
      * @return the amount actually accepted
      */
-    public static int addGoo(ItemStack stack, GooType type, int amount) {
+    public static int addGoo(ItemStack stack, ResourceKey<GooTypeDefinition> type, int amount) {
         int capacity = ContainerCapacity.vatCapacity(GooEnchantments.getCompressionLevel(stack));
         return GooContentsOps.addGoo(stack, type, amount, capacity);
     }
@@ -115,7 +116,7 @@ public class VatBlockItem extends BlockItem {
      * @param amount the volume in microblobs to remove
      * @return the amount actually removed
      */
-    public static int removeGoo(ItemStack stack, GooType type, int amount) {
+    public static int removeGoo(ItemStack stack, ResourceKey<GooTypeDefinition> type, int amount) {
         return GooContentsOps.removeGoo(stack, type, amount);
     }
 
@@ -130,7 +131,7 @@ public class VatBlockItem extends BlockItem {
      * @return true if any goo was transferred
      */
     private static boolean handleBlobInsert(ItemStack vat, ItemStack cursor, SlotAccess cursorAccess) {
-        GooType type = BlobStacks.gooTypeOf(cursor);
+        ResourceKey<GooTypeDefinition> type = BlobStacks.keyOf(cursor);
         if (type == null) { return false; }
         int volume = BlobStacks.volumeOf(cursor);
         int accepted = addGoo(vat, type, volume);
@@ -150,7 +151,7 @@ public class VatBlockItem extends BlockItem {
      * @return true if any goo was transferred
      */
     private static boolean handleOmniblobInsert(ItemStack vat, ItemStack cursor, SlotAccess cursorAccess) {
-        GooType type = BlobStacks.gooTypeOf(cursor);
+        ResourceKey<GooTypeDefinition> type = BlobStacks.keyOf(cursor);
         if (type == null) { return false; }
         int volume = GooOmniblobItem.getVolume(cursor);
         int accepted = addGoo(vat, type, volume);
@@ -183,7 +184,7 @@ public class VatBlockItem extends BlockItem {
     private static boolean handleEmptyCursorDrain(ItemStack vat, SlotAccess cursorAccess) {
         GooContents contents = getGooContents(vat);
         if (contents.isEmpty()) { return false; }
-        GooType dominant = contents.largestType();
+        ResourceKey<GooTypeDefinition> dominant = contents.largestType();
         return dominant != null && extractDominantAsBlobs(vat, cursorAccess, contents, dominant);
     }
 
@@ -196,7 +197,7 @@ public class VatBlockItem extends BlockItem {
      * @return true if any goo was extracted
      */
     private static boolean extractDominantAsBlobs(ItemStack vat, SlotAccess cursorAccess,
-            GooContents contents, GooType dominant) {
+            GooContents contents, ResourceKey<GooTypeDefinition> dominant) {
         int toExtract = Math.min(contents.getVolume(dominant), ContainerCapacity.BLOB_CAP);
         int extracted = removeGoo(vat, dominant, toExtract);
         if (extracted <= 0) { return false; }

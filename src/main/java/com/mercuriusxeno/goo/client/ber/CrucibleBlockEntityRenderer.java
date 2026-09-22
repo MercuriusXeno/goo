@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.client.ber;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -14,6 +14,7 @@ import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.world.phys.Vec3;
@@ -177,7 +178,7 @@ public class CrucibleBlockEntityRenderer
      * @param alpha the alpha transparency [0, 1]
      */
     private static void submitLiquidQuad(PoseStack poseStack,
-            SubmitNodeCollector nodeCollector, GooType type,
+            SubmitNodeCollector nodeCollector, ResourceKey<GooTypeDefinition> type,
             float surfaceY, int light, float alpha) {
         // Caller passes FULL_BRIGHT from submitLiquidQuads -- fullbright
         // lightmap UV per vertex makes the lightmap multiplication a no-op.

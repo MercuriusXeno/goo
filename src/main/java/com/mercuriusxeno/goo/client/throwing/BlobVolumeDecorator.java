@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.throwing;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.client.GooTooltipHandler;
 import com.mercuriusxeno.goo.item.BlobStacks;
 import com.mercuriusxeno.goo.item.GooBlobItem;
@@ -9,6 +10,7 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.client.IItemDecorator;
 import org.jspecify.annotations.NonNull;
@@ -44,7 +46,7 @@ public class BlobVolumeDecorator implements IItemDecorator {
     @Override
     public boolean render(@NonNull GuiGraphicsExtractor graphics, @NonNull Font font, ItemStack stack, int xOffset, int yOffset) {
         if (stack.getItem() instanceof GooBlobItem) {
-            renderTypeIcon(graphics, BlobStacks.gooTypeOf(stack), xOffset, yOffset);
+            renderTypeIcon(graphics, BlobStacks.keyOf(stack), xOffset, yOffset);
             return true;
         }
         return stack.getItem() instanceof GooOmniblobItem
@@ -63,7 +65,7 @@ public class BlobVolumeDecorator implements IItemDecorator {
     private boolean renderOmniblob(GuiGraphicsExtractor graphics, Font font, ItemStack stack, int xOffset, int yOffset) {
         int volume = GooOmniblobItem.getVolume(stack);
         if (volume <= 0) { return false; }
-        renderTypeIcon(graphics, BlobStacks.gooTypeOf(stack), xOffset, yOffset);
+        renderTypeIcon(graphics, BlobStacks.keyOf(stack), xOffset, yOffset);
         renderVolumeLabel(graphics, font, volume, xOffset, yOffset);
         return true;
     }
@@ -77,12 +79,12 @@ public class BlobVolumeDecorator implements IItemDecorator {
      * @param x the X coordinate
      * @param y the Y coordinate
      */
-    private void renderTypeIcon(GuiGraphicsExtractor graphics, @Nullable GooType type, int x, int y) {
+    private void renderTypeIcon(GuiGraphicsExtractor graphics, @Nullable ResourceKey<GooTypeDefinition> type, int x, int y) {
         if (type == null) {
             return;
         }
         Identifier texture = Identifier.fromNamespaceAndPath(
-                NAMESPACE_GOO, ICON_PATH_PREFIX + type.getId() + ICON_PATH_SUFFIX);
+                NAMESPACE_GOO, ICON_PATH_PREFIX + GooTypes.id(type) + ICON_PATH_SUFFIX);
         graphics.blit(RenderPipelines.GUI_TEXTURED, texture,
                 x + ICON_X_OFFSET, y, 0.0f, 0.0f,
                 ICON_RENDER_SIZE, ICON_RENDER_SIZE,

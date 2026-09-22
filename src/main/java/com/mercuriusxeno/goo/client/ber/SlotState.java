@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ber;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
 import org.jspecify.annotations.Nullable;
@@ -27,7 +28,7 @@ public final class SlotState {
     /** True when a canister occupies this slot. */
     public boolean present;
     /** Goo type in the slot, or null if empty / vanilla fluid. */
-    public @Nullable GooType type;
+    public @Nullable ResourceKey<GooTypeDefinition> type;
     /** Vanilla fluid for non-goo contents; {@link Fluids#EMPTY} when empty or has goo. */
     public Fluid fluid = Fluids.EMPTY;
     /** Fill fraction in [0, 1]. */
@@ -39,7 +40,7 @@ public final class SlotState {
     /** True if a bottom gasket cap is installed. */
     public boolean bottomGasketPresent;
     /** Active stream goo type, or null if no stream. */
-    public @Nullable GooType streamType;
+    public @Nullable ResourceKey<GooTypeDefinition> streamType;
     /** Active stream vanilla fluid; {@link Fluids#EMPTY} if none or stream is goo. */
     public Fluid streamFluid = Fluids.EMPTY;
     /** Stream rate in mB/tick. */

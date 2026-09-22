@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.client.overlay;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.FlatQuadContext;
@@ -12,6 +12,7 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -47,7 +48,7 @@ final class VoxelHighlightRenderer {
      */
     static void renderBlockFace(
             PoseStack poseStack, MultiBufferSource.BufferSource bufferSource,
-            Camera camera, BlockPos pos, Direction face, GooType type) {
+            Camera camera, BlockPos pos, Direction face, ResourceKey<GooTypeDefinition> type) {
         Minecraft mc = Minecraft.getInstance();
         VoxelShape shape = mc.level.getBlockState(pos).getShape(mc.level, pos);
         if (shape.isEmpty()) { return; }
@@ -71,7 +72,7 @@ final class VoxelHighlightRenderer {
      */
     static void renderBlockShape(
             PoseStack poseStack, MultiBufferSource.BufferSource bufferSource,
-            Camera camera, BlockPos pos, GooType type) {
+            Camera camera, BlockPos pos, ResourceKey<GooTypeDefinition> type) {
         Minecraft mc = Minecraft.getInstance();
         VoxelShape shape = mc.level.getBlockState(pos).getShape(mc.level, pos);
         if (shape.isEmpty()) { return; }
@@ -94,7 +95,7 @@ final class VoxelHighlightRenderer {
      */
     static void renderFullCube(
             PoseStack poseStack, MultiBufferSource.BufferSource bufferSource,
-            Camera camera, BlockPos pos, GooType type) {
+            Camera camera, BlockPos pos, ResourceKey<GooTypeDefinition> type) {
         Minecraft mc = Minecraft.getInstance();
         Vec3 offset = cameraOffset(pos, camera);
         int rgb = ClientGooTypes.highlight(type);

@@ -1,12 +1,13 @@
 package com.mercuriusxeno.goo.item;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.registry.GooFluids;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.material.Fluid;
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import org.jspecify.annotations.Nullable;
@@ -74,8 +75,8 @@ public record CanisterFluidContent(FluidResource resource, int amount) {
      * @return the goo type, or null
      */
     @Nullable
-    public GooType getGooType() {
-        return GooFluids.typeOf(resource);
+    public ResourceKey<GooTypeDefinition> getGooType() {
+        return GooFluids.keyOf(resource);
     }
 
     /**

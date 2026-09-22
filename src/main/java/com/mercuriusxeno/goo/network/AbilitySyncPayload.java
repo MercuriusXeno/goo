@@ -1,13 +1,15 @@
 package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import org.jspecify.annotations.NonNull;
 import java.util.ArrayList;
 import java.util.List;
@@ -41,9 +43,9 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
      */
     public static AbilitySyncPayload fromRegistry() {
         List<Entry> entries = new ArrayList<>();
-        for (GooType type : GooType.values()) {
+        for (ResourceKey<GooTypeDefinition> type : GooTypes.order()) {
             for (AbilityDefinition def : AbilityRegistry.getAbilitiesForType(type)) {
-                entries.add(new Entry(def.id().toString(), type.getId(),
+                entries.add(new Entry(def.id().toString(), GooTypes.id(type),
                         def.displayName(), def.icon(), def.order(), def.tags()));
             }
         }

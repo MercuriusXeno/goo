@@ -1,12 +1,13 @@
 package com.mercuriusxeno.goo.ability.mob;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.MobAbilityRegistry;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.Level;
 import org.jspecify.annotations.Nullable;
-import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -36,23 +37,23 @@ public final class MobAbilities {
     /**
      * Per-type effect handler map.
      */
-    private static final Map<GooType, Consumer<EffectContext>> EFFECTS =
-            new EnumMap<>(Map.ofEntries(
-                    Map.entry(GooType.CRYSTAL, ctx -> CrystalFlechettes.apply(ctx.level(), ctx.target())),
-                    Map.entry(GooType.LEAF, ctx -> LeafEntangle.apply(ctx.target())),
-                    Map.entry(GooType.VITAL, ctx -> VitalClone.apply(ctx.level(), ctx.target())),
-                    Map.entry(GooType.SHROOM, ctx -> ShroomToxify.apply(ctx.target())),
-                    Map.entry(GooType.ROCK, ctx -> RockPetrify.apply(ctx.level(), ctx.target())),
-                    Map.entry(GooType.BLAZE, ctx -> BlazeIgnite.apply(ctx.level(), ctx.target())),
-                    Map.entry(GooType.FROST, ctx -> FrostSnap.apply(ctx.target())),
-                    Map.entry(GooType.TYPHOON, ctx -> TyphoonLevitate.apply(ctx.target())),
-                    Map.entry(GooType.GLOW, ctx -> GlowLaser.apply(ctx.level(), ctx.target())),
-                    Map.entry(GooType.HEX, ctx -> HexCharm.apply(ctx.target(), ctx.thrower())),
-                    Map.entry(GooType.PULSE, ctx -> PulseShortCircuit.apply(ctx.target())),
-                    Map.entry(GooType.NETHER, ctx -> NetherWither.apply(ctx.target())),
-                    Map.entry(GooType.ENDER, ctx -> EnderTeleport.apply(ctx.level(), ctx.target())),
-                    Map.entry(GooType.AEON, ctx -> AeonTimeStop.apply(ctx.target())),
-                    Map.entry(GooType.UNSTABLE, ctx -> UnstableExplode.apply(ctx.level(), ctx.target()))));
+    private static final Map<ResourceKey<GooTypeDefinition>, Consumer<EffectContext>> EFFECTS =
+            new HashMap<>(Map.ofEntries(
+                    Map.entry(GooTypes.CRYSTAL, ctx -> CrystalFlechettes.apply(ctx.level(), ctx.target())),
+                    Map.entry(GooTypes.LEAF, ctx -> LeafEntangle.apply(ctx.target())),
+                    Map.entry(GooTypes.VITAL, ctx -> VitalClone.apply(ctx.level(), ctx.target())),
+                    Map.entry(GooTypes.SHROOM, ctx -> ShroomToxify.apply(ctx.target())),
+                    Map.entry(GooTypes.ROCK, ctx -> RockPetrify.apply(ctx.level(), ctx.target())),
+                    Map.entry(GooTypes.BLAZE, ctx -> BlazeIgnite.apply(ctx.level(), ctx.target())),
+                    Map.entry(GooTypes.FROST, ctx -> FrostSnap.apply(ctx.target())),
+                    Map.entry(GooTypes.TYPHOON, ctx -> TyphoonLevitate.apply(ctx.target())),
+                    Map.entry(GooTypes.GLOW, ctx -> GlowLaser.apply(ctx.level(), ctx.target())),
+                    Map.entry(GooTypes.HEX, ctx -> HexCharm.apply(ctx.target(), ctx.thrower())),
+                    Map.entry(GooTypes.PULSE, ctx -> PulseShortCircuit.apply(ctx.target())),
+                    Map.entry(GooTypes.NETHER, ctx -> NetherWither.apply(ctx.target())),
+                    Map.entry(GooTypes.ENDER, ctx -> EnderTeleport.apply(ctx.level(), ctx.target())),
+                    Map.entry(GooTypes.AEON, ctx -> AeonTimeStop.apply(ctx.target())),
+                    Map.entry(GooTypes.UNSTABLE, ctx -> UnstableExplode.apply(ctx.level(), ctx.target()))));
     /**
      * String-keyed handler map for data-driven entity_effect dispatch.
      */
@@ -69,7 +70,7 @@ public final class MobAbilities {
      * @param type    the goo type whose effect to apply
      * @param thrower the entity that threw the blob, or null if unknown
      */
-    public static void apply(Level level, LivingEntity target, GooType type, @Nullable Entity thrower) {
+    public static void apply(Level level, LivingEntity target, ResourceKey<GooTypeDefinition> type, @Nullable Entity thrower) {
         if (level.isClientSide()) {
             return;
         }

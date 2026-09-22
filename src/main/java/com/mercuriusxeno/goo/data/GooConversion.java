@@ -1,7 +1,8 @@
 package com.mercuriusxeno.goo.data;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import java.util.List;
 import java.util.Map;
 
@@ -104,8 +105,8 @@ public final class GooConversion {
      * @param targetDivisor    divisor applied to the per-application amount
      * @param targetMultiplier multiplier applied to the target amount
      */
-    public record Formula(GooType sourceType, int sourceDivisor,
-                          GooType targetType, int targetDivisor,
+    public record Formula(ResourceKey<GooTypeDefinition> sourceType, int sourceDivisor,
+                          ResourceKey<GooTypeDefinition> targetType, int targetDivisor,
                           int targetMultiplier) {
     }
 

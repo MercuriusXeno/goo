@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.block.canister;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.block.GooLightContribution;
 import com.mercuriusxeno.goo.block.IGooLightSource;
 import com.mercuriusxeno.goo.block.hub.HubBlockEntity;
@@ -9,6 +10,7 @@ import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.CanisterMetadata;
 import com.mercuriusxeno.goo.registry.GooFluids;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
@@ -122,7 +124,7 @@ public interface ICanisterHolder extends IGooLightSource {
      * @param volume       volume in microblobs
      * @return the amount actually inserted
      */
-    default int insertGoo(int index, GooType incomingType, int volume) {
+    default int insertGoo(int index, ResourceKey<GooTypeDefinition> incomingType, int volume) {
         return insertFluid(index, GooFluids.resource(incomingType), volume);
     }
 
@@ -147,7 +149,7 @@ public interface ICanisterHolder extends IGooLightSource {
      * @param requested volume in microblobs
      * @return the amount actually extracted
      */
-    default int extractGoo(int index, GooType type, int requested) {
+    default int extractGoo(int index, ResourceKey<GooTypeDefinition> type, int requested) {
         return extractFluid(index, GooFluids.resource(type), requested);
     }
 
@@ -171,12 +173,12 @@ public interface ICanisterHolder extends IGooLightSource {
         int total = 0;
         for (CanisterSlot slot : data.slots) {
             CanisterFluidContent content = slot.fluidContent();
-            GooType type = content.getGooType();
+            ResourceKey<GooTypeDefinition> type = content.getGooType();
             if (content.isEmpty() || type == null) {
                 continue;
             }
             int contribution = GooLightContribution.forSlot(
-                    type.holder(registries).value(), content.amount(), slot.capacity());
+                    GooTypes.definition(registries, type), content.amount(), slot.capacity());
             total = GooLightContribution.addClamped(total, contribution);
             if (total >= GooLightContribution.MAX_LIGHT) {
                 return GooLightContribution.MAX_LIGHT;

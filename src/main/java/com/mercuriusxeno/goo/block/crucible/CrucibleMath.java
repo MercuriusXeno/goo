@@ -1,8 +1,9 @@
 package com.mercuriusxeno.goo.block.crucible;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.item.GooContents;
-import java.util.EnumMap;
+import net.minecraft.resources.ResourceKey;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -80,8 +81,8 @@ public final class CrucibleMath {
      * @param rate     the extraction rate in mB/tick
      * @return the computed drain shares
      */
-    public static Map<GooType, Integer> computeDrainShares(GooContents contents, int rate) {
-        Map<GooType, Integer> shares = new EnumMap<>(GooType.class);
+    public static Map<ResourceKey<GooTypeDefinition>, Integer> computeDrainShares(GooContents contents, int rate) {
+        Map<ResourceKey<GooTypeDefinition>, Integer> shares = new HashMap<>();
         int totalVolume = contents.totalVolume();
         int allocated = allocateProportional(shares, contents, rate, totalVolume);
         distributeRemainder(shares, contents, rate, allocated);
@@ -97,10 +98,10 @@ public final class CrucibleMath {
      * @param totalVolume the total goo volume
      * @return the sum of all allocated shares
      */
-    private static int allocateProportional(Map<GooType, Integer> shares,
+    private static int allocateProportional(Map<ResourceKey<GooTypeDefinition>, Integer> shares,
                                             GooContents contents, int rate, int totalVolume) {
         int allocated = 0;
-        for (Map.Entry<GooType, Integer> entry : contents.getAll().entrySet()) {
+        for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> entry : contents.getAll().entrySet()) {
             int available = entry.getValue();
             int share = Math.min(Math.max(1, rate * available / totalVolume), available);
             shares.put(entry.getKey(), share);
@@ -118,13 +119,13 @@ public final class CrucibleMath {
      * @param rate      the extraction rate in mB/tick
      * @param allocated the total allocated so far
      */
-    private static void distributeRemainder(Map<GooType, Integer> shares,
+    private static void distributeRemainder(Map<ResourceKey<GooTypeDefinition>, Integer> shares,
                                             GooContents contents, int rate, int allocated) {
         int remainder = rate - allocated;
         if (remainder <= 0) {
             return;
         }
-        GooType largest = contents.largestType();
+        ResourceKey<GooTypeDefinition> largest = contents.largestType();
         if (largest == null) {
             return;
         }

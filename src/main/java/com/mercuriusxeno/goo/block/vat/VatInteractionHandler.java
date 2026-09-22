@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.block.vat;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.PlayerUtils;
 import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
 import com.mercuriusxeno.goo.data.GasketLocation;
@@ -11,6 +11,7 @@ import com.mercuriusxeno.goo.item.GooOmniblobItem;
 import com.mercuriusxeno.goo.item.gasket.ChoralGasketItem;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import net.minecraft.core.BlockPos;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -208,7 +209,7 @@ final class VatInteractionHandler {
      */
     static InteractionResult handleBlobInsert(
             VatBlockEntity vat, ItemStack stack, Player player) {
-        GooType blobType = BlobStacks.gooTypeOf(stack);
+        ResourceKey<GooTypeDefinition> blobType = BlobStacks.keyOf(stack);
         if (blobType == null) {
             return InteractionResult.PASS;
         }
@@ -234,7 +235,7 @@ final class VatInteractionHandler {
      * @return the interaction result
      */
     static InteractionResult handleBlobExtract(VatBlockEntity vat, Player player) {
-        GooType dominant = VatFluidInteraction.extractableDominant(vat);
+        ResourceKey<GooTypeDefinition> dominant = VatFluidInteraction.extractableDominant(vat);
         if (dominant == null) {
             return InteractionResult.PASS;
         }

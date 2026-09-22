@@ -129,6 +129,8 @@ public class Goo {
      */
     @SubscribeEvent
     public void onAddReloadListeners(AddServerReloadListenersEvent event) {
+        // The type registry is loaded by now and the value and ability loaders below read it by id.
+        GooTypes.capture(event.getRegistryAccess());
         event.addListener(GooReactionLoader.LISTENER_ID, new GooReactionLoader());
         event.addListener(AbilityLoader.LISTENER_ID, new AbilityLoader());
     }

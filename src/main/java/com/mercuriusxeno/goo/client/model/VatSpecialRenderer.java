@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.client.model;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.RenderContext;
 import com.mercuriusxeno.goo.item.ContainerCapacity;
@@ -17,6 +17,7 @@ import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.client.resources.model.geometry.QuadCollection;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.ItemStack;
 import org.joml.Vector3f;
 import org.joml.Vector3fc;
@@ -118,7 +119,7 @@ public class VatSpecialRenderer implements SpecialModelRenderer<VatSpecialRender
      */
     private static void submitFluid(PoseStack poseStack,
                                     SubmitNodeCollector nodeCollector, int packedLight,
-                                    GooType type, float fill) {
+                                    ResourceKey<GooTypeDefinition> type, float fill) {
         CuboidBounds b = computeFluidBounds(fill);
         nodeCollector.submitCustomGeometry(poseStack,
                 RenderTypes.entityTranslucent(BLOCK_ATLAS_TEXTURE),
@@ -204,7 +205,7 @@ public class VatSpecialRenderer implements SpecialModelRenderer<VatSpecialRender
      * @param gooType the dominant goo type, or null if empty
      * @param fill    the fill fraction [0, 1]
      */
-    public record VatData(@Nullable GooType gooType, float fill) {
+    public record VatData(@Nullable ResourceKey<GooTypeDefinition> gooType, float fill) {
     }
 
     /**

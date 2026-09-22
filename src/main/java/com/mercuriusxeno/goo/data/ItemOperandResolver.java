@@ -1,10 +1,11 @@
 package com.mercuriusxeno.goo.data;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mojang.logging.LogUtils;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import org.slf4j.Logger;
-import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -121,7 +122,7 @@ final class ItemOperandResolver {
                                        Map<Identifier, GooValue> baseValues) {
         String typeSuffix = token.substring(dotIdx + 1);
         try {
-            GooType type = GooType.valueOf(typeSuffix.toUpperCase(Locale.ROOT));
+            ResourceKey<GooTypeDefinition> type = GooTypes.parseKnown(typeSuffix);
             return lookupItemValue(token.substring(0, dotIdx), type, baseValues);
         } catch (IllegalArgumentException ignored) {
             return Integer.MIN_VALUE;
@@ -137,7 +138,7 @@ final class ItemOperandResolver {
      * @param baseValues item values for lookups
      * @return the item's amount for the given type, or 0 if the item is unknown
      */
-    private static int lookupItemValue(String itemId, GooType type,
+    private static int lookupItemValue(String itemId, ResourceKey<GooTypeDefinition> type,
                                        Map<Identifier, GooValue> baseValues) {
         GooValue value = baseValues.get(Identifier.parse(itemId));
         if (value == null) {

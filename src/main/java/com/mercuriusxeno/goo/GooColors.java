@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo;
 
 import net.minecraft.core.HolderLookup;
+import net.minecraft.resources.ResourceKey;
 
 /**
  * Reads a goo type's four RGB channels from its registry entry: wheel
@@ -57,14 +58,14 @@ public final class GooColors {
     }
 
     /**
-     * Resolves an enum-era type through the registry and answers its
-     * highlight, for callers holding a registry access and no entry.
+     * Resolves a type key through the registry and answers its highlight,
+     * for callers holding a registry access and no entry.
      *
      * @param registries the registry access of the level in hand
      * @param type       the goo type
      * @return the highlight RGB
      */
-    public static int get(HolderLookup.Provider registries, GooType type) {
-        return get(type.holder(registries).value());
+    public static int get(HolderLookup.Provider registries, ResourceKey<GooTypeDefinition> type) {
+        return get(GooTypes.definition(registries, type));
     }
 }

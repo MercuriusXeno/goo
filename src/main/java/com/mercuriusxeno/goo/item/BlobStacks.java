@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.item;
 
-import com.mercuriusxeno.goo.GooType;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.PlayerUtils;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
@@ -66,16 +65,6 @@ public final class BlobStacks {
         return isBlobOrOmniblob(stack) ? GooBlobItem.keyOf(stack) : null;
     }
 
-    /**
-     * Returns the bundled goo type of the given item stack, or null if not a
-     * goo blob/omniblob or one of a datapack type.
-     *
-     * @param stack the item stack to inspect
-     * @return the goo type, or null
-     */
-    public static @Nullable GooType gooTypeOf(ItemStack stack) {
-        return isBlobOrOmniblob(stack) ? GooBlobItem.typeOf(stack) : null;
-    }
 
     private static boolean isBlobOrOmniblob(ItemStack stack) {
         return stack.getItem() instanceof GooBlobItem || stack.getItem() instanceof GooOmniblobItem;
@@ -100,16 +89,6 @@ public final class BlobStacks {
         return GooOmniblobItem.createWithVolume(key, volumeMb);
     }
 
-    /**
-     * Creates an item stack for machine output of a bundled type.
-     *
-     * @param type     the goo type
-     * @param volumeMb volume in microblobs
-     * @return a single ItemStack (blob stack or omniblob)
-     */
-    public static ItemStack createForOutput(GooType type, int volumeMb) {
-        return createForOutput(type.key(), volumeMb);
-    }
 
     /**
      * Returns true if the volume can be represented as a clean blob stack:
@@ -138,16 +117,6 @@ public final class BlobStacks {
         return stack;
     }
 
-    /**
-     * Creates a blob stack of a bundled type.
-     *
-     * @param type  the goo type
-     * @param count number of blobs (1-64)
-     * @return a blob ItemStack
-     */
-    public static ItemStack createBlobStack(GooType type, int count) {
-        return createBlobStack(type.key(), count);
-    }
 
     /**
      * Returns the number of whole blobs in the given volume.
@@ -252,7 +221,7 @@ public final class BlobStacks {
      * @param type     the goo type
      * @param volumeMb volume in microblobs
      */
-    public static void mergeIntoInventory(Player player, GooType type, int volumeMb) {
+    public static void mergeIntoInventory(Player player, ResourceKey<GooTypeDefinition> type, int volumeMb) {
         if (volumeMb <= 0) {
             return;
         }
@@ -271,10 +240,10 @@ public final class BlobStacks {
      * @param volumeMb volume to merge in microblobs
      * @return remaining volume not merged (0 if fully absorbed)
      */
-    private static int mergeIntoExistingOmniblobs(Player player, GooType type, int volumeMb) {
+    private static int mergeIntoExistingOmniblobs(Player player, ResourceKey<GooTypeDefinition> type, int volumeMb) {
         for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
             ItemStack slot = player.getInventory().getItem(i);
-            if (slot.getItem() instanceof GooOmniblobItem && GooBlobItem.typeOf(slot) == type) {
+            if (slot.getItem() instanceof GooOmniblobItem && GooBlobItem.keyOf(slot) == type) {
                 GooOmniblobItem.setVolume(slot, GooOmniblobItem.getVolume(slot) + volumeMb);
                 return 0;
             }
@@ -290,7 +259,7 @@ public final class BlobStacks {
      * @param volumeMb volume to merge in microblobs
      * @return remaining volume not merged
      */
-    private static int mergeIntoExistingBlobStacks(Player player, GooType type, int volumeMb) {
+    private static int mergeIntoExistingBlobStacks(Player player, ResourceKey<GooTypeDefinition> type, int volumeMb) {
         if (volumeMb <= 0) {
             return 0;
         }
@@ -309,8 +278,8 @@ public final class BlobStacks {
      * @param remaining the volume still needing placement in microblobs
      * @return the leftover volume after merging into this slot
      */
-    private static int tryMergeIntoSlot(ItemStack slot, GooType type, int remaining) {
-        if (!(slot.getItem() instanceof GooBlobItem) || GooBlobItem.typeOf(slot) != type) {
+    private static int tryMergeIntoSlot(ItemStack slot, ResourceKey<GooTypeDefinition> type, int remaining) {
+        if (!(slot.getItem() instanceof GooBlobItem) || GooBlobItem.keyOf(slot) != type) {
             return remaining;
         }
         int room = MAX_STACK - slot.getCount();
@@ -334,7 +303,7 @@ public final class BlobStacks {
         if (contents.isEmpty()) {
             return;
         }
-        for (Map.Entry<GooType, Integer> entry : contents.getAll().entrySet()) {
+        for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> entry : contents.getAll().entrySet()) {
             Block.popResource(level, pos, createForOutput(entry.getKey(), entry.getValue()));
         }
     }

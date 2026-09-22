@@ -1,8 +1,10 @@
 package com.mercuriusxeno.goo.ability;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.world.*;
-import java.util.EnumMap;
+import net.minecraft.resources.ResourceKey;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.function.IntUnaryOperator;
 import java.util.function.Supplier;
@@ -59,7 +61,7 @@ public final class ChainProfiles {
      * matching the {@code blaze_tunnel} ability defaults.
      */
     private static void registerBlaze() {
-        ChainProfile.register(GooType.BLAZE, new ChainProfile(
+        ChainProfile.register(GooTypes.BLAZE, new ChainProfile(
                 BLAZE_FUSE_TICKS,
                 BLAZE_MAX_STACKS,
                 ChainFootprint::tunnelDepth,
@@ -79,7 +81,7 @@ public final class ChainProfiles {
      * the {@code rock_tunnel} ability defaults.
      */
     private static void registerRock() {
-        ChainProfile.register(GooType.ROCK, new ChainProfile(
+        ChainProfile.register(GooTypes.ROCK, new ChainProfile(
                 ROCK_FUSE_TICKS,
                 ROCK_MAX_STACKS,
                 ChainFootprint::tunnelDepth,
@@ -96,7 +98,7 @@ public final class ChainProfiles {
      * Registers the crystal chain profile.
      */
     private static void registerCrystal() {
-        ChainProfile.register(GooType.CRYSTAL, new ChainProfile(
+        ChainProfile.register(GooTypes.CRYSTAL, new ChainProfile(
                 CRYSTAL_FUSE_TICKS,
                 CRYSTAL_MAX_STACKS,
                 stacks -> 1,
@@ -108,7 +110,7 @@ public final class ChainProfiles {
      * Registers the unstable chain profile.
      */
     private static void registerUnstable() {
-        ChainProfile.register(GooType.UNSTABLE, new ChainProfile(
+        ChainProfile.register(GooTypes.UNSTABLE, new ChainProfile(
                 UNSTABLE_FUSE_TICKS,
                 UNSTABLE_MAX_STACKS,
                 stacks -> 1,
@@ -120,7 +122,7 @@ public final class ChainProfiles {
      * Registers the frost chain profile.
      */
     private static void registerFrost() {
-        ChainProfile.register(GooType.FROST, new ChainProfile(
+        ChainProfile.register(GooTypes.FROST, new ChainProfile(
                 FROST_FUSE_TICKS,
                 FROST_MAX_STACKS,
                 AbilityMath::computeFreezeRadius,
@@ -132,7 +134,7 @@ public final class ChainProfiles {
      * Registers the metal chain profile.
      */
     private static void registerMetal() {
-        ChainProfile.register(GooType.METAL, new ChainProfile(
+        ChainProfile.register(GooTypes.METAL, new ChainProfile(
                 METAL_FUSE_TICKS,
                 METAL_MAX_STACKS,
                 stacks -> 1,
@@ -147,7 +149,7 @@ public final class ChainProfiles {
      * defaults.
      */
     private static void registerGlow() {
-        ChainProfile.register(GooType.GLOW, new ChainProfile(
+        ChainProfile.register(GooTypes.GLOW, new ChainProfile(
                 GLOW_FUSE_TICKS,
                 GLOW_MAX_STACKS,
                 stacks -> 1,
@@ -160,7 +162,7 @@ public final class ChainProfiles {
      * Registers the nether chain profile.
      */
     private static void registerNether() {
-        ChainProfile.register(GooType.NETHER, new ChainProfile(
+        ChainProfile.register(GooTypes.NETHER, new ChainProfile(
                 NETHER_FUSE_TICKS,
                 NETHER_MAX_STACKS,
                 AbilityMath::computeNetherRadius,
@@ -186,7 +188,7 @@ public final class ChainProfiles {
             IntUnaryOperator rangeFormula,
             Supplier<ChainBehavior> behaviorFactory
     ) {
-        private static final Map<GooType, ChainProfile> PROFILES = new EnumMap<>(GooType.class);
+        private static final Map<ResourceKey<GooTypeDefinition>, ChainProfile> PROFILES = new HashMap<>();
 
         /**
          * Registers a chain profile for a goo type. Called during mod init.
@@ -194,7 +196,7 @@ public final class ChainProfiles {
          * @param type    the goo type
          * @param profile the chain profile definition
          */
-        public static void register(GooType type, ChainProfile profile) {
+        public static void register(ResourceKey<GooTypeDefinition> type, ChainProfile profile) {
             PROFILES.put(type, profile);
         }
 
@@ -204,7 +206,7 @@ public final class ChainProfiles {
          * @param type the goo type
          * @return the chain profile, or null if none registered
          */
-        public static ChainProfile forType(GooType type) {
+        public static ChainProfile forType(ResourceKey<GooTypeDefinition> type) {
             return PROFILES.get(type);
         }
 
@@ -214,7 +216,7 @@ public final class ChainProfiles {
          * @param type the goo type to check
          * @return true if a chain profile exists
          */
-        public static boolean isChainType(GooType type) {
+        public static boolean isChainType(ResourceKey<GooTypeDefinition> type) {
             return PROFILES.containsKey(type);
         }
     }

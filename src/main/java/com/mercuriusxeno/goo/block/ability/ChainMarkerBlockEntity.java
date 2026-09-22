@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.block.ability;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.*;
 import com.mercuriusxeno.goo.ability.ChainProfiles.ChainProfile;
 import com.mercuriusxeno.goo.block.BlockEntitySync;
@@ -13,6 +14,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -34,7 +36,7 @@ import org.jspecify.annotations.Nullable;
  */
 public class ChainMarkerBlockEntity extends BlockEntity {
 
-    private static final String TAG_GOO_TYPE = "GooType";
+    private static final String TAG_GOO_TYPE = "goo_type";
     private static final String TAG_STACK_COUNT = "StackCount";
     private static final String TAG_MAX_STACKS = "MaxStacks";
     private static final String TAG_FUSE_REMAINING = "FuseRemaining";
@@ -77,7 +79,7 @@ public class ChainMarkerBlockEntity extends BlockEntity {
      */
     private static final int IMPLOSION_SYNC_THRESHOLD = 8;
 
-    private GooType gooType = GooType.ROCK;
+    private ResourceKey<GooTypeDefinition> gooType = GooTypes.ROCK;
     private int stackCount = 1;
     private int maxStacks = 1;
     private int fuseRemaining;
@@ -164,7 +166,7 @@ public class ChainMarkerBlockEntity extends BlockEntity {
      * @param type the goo type (determines chain behavior)
      * @param face the face of the block this marker was placed on
      */
-    public void initChain(GooType type, Direction face) {
+    public void initChain(ResourceKey<GooTypeDefinition> type, Direction face) {
         ChainProfile profile = ChainProfile.forType(type);
         this.gooType = type;
         this.placedFace = face;
@@ -183,7 +185,7 @@ public class ChainMarkerBlockEntity extends BlockEntity {
      * @param face    the placed face
      * @param ability the ability definition
      */
-    public void initChainFromAbility(GooType type, Direction face, AbilityDefinition ability) {
+    public void initChainFromAbility(ResourceKey<GooTypeDefinition> type, Direction face, AbilityDefinition ability) {
         AbilityDefinition.ChainConfig chain = ability.chain();
         this.gooType = type;
         this.placedFace = face;
@@ -425,7 +427,7 @@ public class ChainMarkerBlockEntity extends BlockEntity {
      *
      * @return the goo type
      */
-    public GooType getGooType() {
+    public ResourceKey<GooTypeDefinition> getGooType() {
         return gooType;
     }
 
@@ -498,8 +500,8 @@ public class ChainMarkerBlockEntity extends BlockEntity {
      * @param input the value input to read from
      */
     private void loadSharedFields(ValueInput input) {
-        GooType loaded = GooType.fromId(input.getStringOr(TAG_GOO_TYPE, DEFAULT_GOO_TYPE));
-        gooType = loaded != null ? loaded : GooType.ROCK;
+        ResourceKey<GooTypeDefinition> loaded = GooTypes.byId(input.getStringOr(TAG_GOO_TYPE, DEFAULT_GOO_TYPE));
+        gooType = loaded != null ? loaded : GooTypes.ROCK;
         stackCount = input.getIntOr(TAG_STACK_COUNT, 1);
         maxStacks = input.getIntOr(TAG_MAX_STACKS, 1);
         fuseRemaining = input.getIntOr(TAG_FUSE_REMAINING, 0);
@@ -547,7 +549,7 @@ public class ChainMarkerBlockEntity extends BlockEntity {
     @Override
     protected void saveAdditional(@NonNull ValueOutput output) {
         super.saveAdditional(output);
-        output.putString(TAG_GOO_TYPE, gooType.getId());
+        output.putString(TAG_GOO_TYPE, GooTypes.id(gooType));
         output.putInt(TAG_STACK_COUNT, stackCount);
         output.putInt(TAG_MAX_STACKS, maxStacks);
         output.putInt(TAG_FUSE_REMAINING, fuseRemaining);

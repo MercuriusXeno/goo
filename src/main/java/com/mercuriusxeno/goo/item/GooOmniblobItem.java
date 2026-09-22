@@ -1,12 +1,10 @@
 package com.mercuriusxeno.goo.item;
 
-import com.mercuriusxeno.goo.GooType;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypeNames;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
 import com.mercuriusxeno.goo.registry.GooItems;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.SlotAccess;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -119,16 +117,6 @@ public class GooOmniblobItem extends Item implements IGooItemInteraction {
         return stack;
     }
 
-    /**
-     * Creates an omniblob ItemStack with the given bundled goo type and volume.
-     *
-     * @param type   the goo type
-     * @param volume volume in microblobs
-     * @return a new omniblob item stack
-     */
-    public static ItemStack createWithVolume(GooType type, int volume) {
-        return createWithVolume(type.key(), volume);
-    }
 
     /**
      * Accelerates {@code self} toward a distance-capped target velocity in

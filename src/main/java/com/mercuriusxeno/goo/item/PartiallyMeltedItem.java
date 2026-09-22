@@ -1,7 +1,8 @@
 package com.mercuriusxeno.goo.item;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 
@@ -88,7 +89,7 @@ public class PartiallyMeltedItem extends Item {
      * @param amount the requested volume in microblobs
      * @return the volume actually drained
      */
-    public static int drain(ItemStack stack, GooType type, int amount) {
+    public static int drain(ItemStack stack, ResourceKey<GooTypeDefinition> type, int amount) {
         GooContents contents = getContents(stack);
         int available = contents.getVolume(type);
         int drained = Math.min(available, amount);

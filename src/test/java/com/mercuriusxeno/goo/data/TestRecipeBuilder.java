@@ -1,7 +1,8 @@
 package com.mercuriusxeno.goo.data;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import java.util.*;
 
 /**
@@ -106,8 +107,8 @@ public final class TestRecipeBuilder {
     /**
      * Creates a single-type GooValue.
      */
-    public static GooValue goo(GooType type, int amount) {
-        Map<GooType, Integer> map = new EnumMap<>(GooType.class);
+    public static GooValue goo(ResourceKey<GooTypeDefinition> type, int amount) {
+        Map<ResourceKey<GooTypeDefinition>, Integer> map = new HashMap<>();
         map.put(type, amount);
         return new GooValue(map);
     }
@@ -115,8 +116,8 @@ public final class TestRecipeBuilder {
     /**
      * Creates a multi-type GooValue from type-amount pairs.
      */
-    public static GooValue goo(GooType type1, int amount1, GooType type2, int amount2) {
-        Map<GooType, Integer> map = new EnumMap<>(GooType.class);
+    public static GooValue goo(ResourceKey<GooTypeDefinition> type1, int amount1, ResourceKey<GooTypeDefinition> type2, int amount2) {
+        Map<ResourceKey<GooTypeDefinition>, Integer> map = new HashMap<>();
         map.put(type1, amount1);
         map.put(type2, amount2);
         return new GooValue(map);
@@ -125,8 +126,8 @@ public final class TestRecipeBuilder {
     /**
      * Creates a multi-type GooValue from three type-amount pairs.
      */
-    public static GooValue goo(GooType t1, int a1, GooType t2, int a2, GooType t3, int a3) {
-        Map<GooType, Integer> map = new EnumMap<>(GooType.class);
+    public static GooValue goo(ResourceKey<GooTypeDefinition> t1, int a1, ResourceKey<GooTypeDefinition> t2, int a2, ResourceKey<GooTypeDefinition> t3, int a3) {
+        Map<ResourceKey<GooTypeDefinition>, Integer> map = new HashMap<>();
         map.put(t1, a1);
         map.put(t2, a2);
         map.put(t3, a3);

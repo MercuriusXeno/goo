@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.block.hub;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.ISidedProxy;
 import com.mercuriusxeno.goo.PlayerUtils;
 import com.mercuriusxeno.goo.block.GooBlockInteraction;
@@ -10,6 +10,7 @@ import com.mercuriusxeno.goo.item.BlobStacks;
 import com.mercuriusxeno.goo.item.GooInteractionType;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import net.minecraft.core.BlockPos;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
@@ -182,7 +183,7 @@ final class HubBlockHandlers {
     private static InteractionResult handleBlobInsert(
             HubBlockEntity hub, BlockHitResult hitResult,
             ItemStack stack, Player player) {
-        GooType type = BlobStacks.gooTypeOf(stack);
+        ResourceKey<GooTypeDefinition> type = BlobStacks.keyOf(stack);
         if (type == null) { return InteractionResult.PASS; }
         int volume = BlobStacks.volumeOf(stack);
 
@@ -203,7 +204,7 @@ final class HubBlockHandlers {
      * @param volume    the volume of goo in microblobs
      * @return the volume accepted, or 0 if no slot accepted
      */
-    private static int insertBlobGoo(HubBlockEntity hub, BlockHitResult hitResult, GooType type, int volume) {
+    private static int insertBlobGoo(HubBlockEntity hub, BlockHitResult hitResult, ResourceKey<GooTypeDefinition> type, int volume) {
         var pos = hub.getBlockPos();
         int slot = GooBlockInteraction.findSlot(
                 HubBlock.hitSlot(hitResult, pos), HubBlockEntity.MAX_CANISTERS, hub::canAccept);
