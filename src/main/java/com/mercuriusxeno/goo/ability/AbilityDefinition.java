@@ -1,11 +1,13 @@
 package com.mercuriusxeno.goo.ability;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.StepTypes;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import java.util.List;
 import java.util.Map;
 
@@ -26,7 +28,7 @@ import java.util.Map;
  */
 public record AbilityDefinition(
         Identifier id,
-        GooType gooType,
+        ResourceKey<GooTypeDefinition> gooType,
         String displayName,
         String icon,
         int order,
@@ -45,7 +47,7 @@ public record AbilityDefinition(
      * Codec for the ability JSON. The id comes from the filename, not the JSON body.
      */
     public static final Codec<AbilityDefinition> CODEC = RecordCodecBuilder.create(inst -> inst.group(
-            GooType.CODEC.fieldOf("gooType").forGetter(AbilityDefinition::gooType),
+            GooTypes.ID_CODEC.fieldOf("gooType").forGetter(AbilityDefinition::gooType),
             Codec.STRING.fieldOf("displayName").forGetter(AbilityDefinition::displayName),
             Codec.STRING.optionalFieldOf("icon", "").forGetter(AbilityDefinition::icon),
             Codec.INT.optionalFieldOf("order", 0).forGetter(AbilityDefinition::order),

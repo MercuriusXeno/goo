@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.block.crucible;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.block.*;
 import com.mercuriusxeno.goo.block.fluid.GooFluidHandler;
 import com.mercuriusxeno.goo.block.gasket.GasketAttachment;
@@ -18,6 +19,7 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -182,7 +184,7 @@ public class CrucibleBlockEntity extends BlockEntity implements IGasketHolder, I
      * @param volume volume in microblobs
      * @return the amount actually inserted
      */
-    public int insertGoo(GooType type, int volume) {
+    public int insertGoo(ResourceKey<GooTypeDefinition> type, int volume) {
         return reservoir.insertGoo(type, Math.min(volume, Integer.MAX_VALUE), false);
     }
 
@@ -193,7 +195,7 @@ public class CrucibleBlockEntity extends BlockEntity implements IGasketHolder, I
      * @param amount maximum volume in microblobs
      * @return the amount actually extracted
      */
-    public int extractGoo(GooType type, int amount) {
+    public int extractGoo(ResourceKey<GooTypeDefinition> type, int amount) {
         return reservoir.extractGoo(type, Math.min(amount, Integer.MAX_VALUE), false);
     }
 
@@ -221,7 +223,7 @@ public class CrucibleBlockEntity extends BlockEntity implements IGasketHolder, I
         int total = 0;
         for (var entry : reservoir.toGooContents().contents().entrySet()) {
             int contribution = GooLightContribution.forSlot(
-                    entry.getKey().holder(registries).value(), entry.getValue(), LIGHT_REFERENCE_CAPACITY);
+                    GooTypes.definition(registries, entry.getKey()), entry.getValue(), LIGHT_REFERENCE_CAPACITY);
             total = GooLightContribution.addClamped(total, contribution);
             if (total >= GooLightContribution.MAX_LIGHT) {
                 return GooLightContribution.MAX_LIGHT;

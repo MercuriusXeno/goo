@@ -1,12 +1,15 @@
 package com.mercuriusxeno.goo.gametest;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.world.WorldEffects;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.block.Blocks;
+import java.util.List;
 
 /**
  * Gametests for EffectBlockPlacement via the WorldEffects dispatch.
@@ -29,7 +32,7 @@ public final class PlacementTests {
     public static void blazePlacesMarker(GameTestHelper helper) {
         helper.setBlock(WALL_POS, Blocks.STONE);
         WorldEffects.apply(helper.getLevel(), helper.absolutePos(WALL_POS),
-            GooType.BLAZE, Direction.SOUTH);
+            GooTypes.BLAZE, Direction.SOUTH);
         helper.assertBlockPresent(GooBlocks.CHAIN_MARKER.get(), AIR_POS);
         helper.succeed();
     }
@@ -42,7 +45,7 @@ public final class PlacementTests {
     public static void rockPlacesMarker(GameTestHelper helper) {
         helper.setBlock(WALL_POS, Blocks.STONE);
         WorldEffects.apply(helper.getLevel(), helper.absolutePos(WALL_POS),
-            GooType.ROCK, Direction.SOUTH);
+            GooTypes.ROCK, Direction.SOUTH);
         helper.assertBlockPresent(GooBlocks.CHAIN_MARKER.get(), AIR_POS);
         helper.succeed();
     }
@@ -55,7 +58,7 @@ public final class PlacementTests {
     public static void frostPlacesMarker(GameTestHelper helper) {
         helper.setBlock(WALL_POS, Blocks.STONE);
         WorldEffects.apply(helper.getLevel(), helper.absolutePos(WALL_POS),
-            GooType.FROST, Direction.SOUTH);
+            GooTypes.FROST, Direction.SOUTH);
         helper.assertBlockPresent(GooBlocks.CHAIN_MARKER.get(), AIR_POS);
         helper.succeed();
     }
@@ -69,9 +72,9 @@ public final class PlacementTests {
     public static void doubleHitStacks(GameTestHelper helper) {
         helper.setBlock(WALL_POS, Blocks.STONE);
         BlockPos abs = helper.absolutePos(WALL_POS);
-        WorldEffects.apply(helper.getLevel(), abs, GooType.BLAZE, Direction.SOUTH);
+        WorldEffects.apply(helper.getLevel(), abs, GooTypes.BLAZE, Direction.SOUTH);
         helper.assertBlockPresent(GooBlocks.CHAIN_MARKER.get(), AIR_POS);
-        WorldEffects.apply(helper.getLevel(), abs, GooType.BLAZE, Direction.SOUTH);
+        WorldEffects.apply(helper.getLevel(), abs, GooTypes.BLAZE, Direction.SOUTH);
         helper.assertBlockPresent(GooBlocks.CHAIN_MARKER.get(), AIR_POS);
         helper.succeed();
     }
@@ -89,7 +92,7 @@ public final class PlacementTests {
     public static void sidewaysMarkerSurvivesNeighborChange(GameTestHelper helper) {
         helper.setBlock(WALL_POS, Blocks.STONE);
         WorldEffects.apply(helper.getLevel(), helper.absolutePos(WALL_POS),
-            GooType.ROCK, Direction.SOUTH);
+            GooTypes.ROCK, Direction.SOUTH);
         helper.assertBlockPresent(GooBlocks.CHAIN_MARKER.get(), AIR_POS);
         BlockPos neighbor = AIR_POS.south();
         helper.setBlock(neighbor, Blocks.STONE);
@@ -104,11 +107,10 @@ public final class PlacementTests {
      * @param helper the gametest helper
      */
     public static void otherTypesPlaceMarker(GameTestHelper helper) {
-        GooType[] types = {
-            GooType.CRYSTAL, GooType.METAL, GooType.NETHER,
-            GooType.UNSTABLE, GooType.GLOW
-        };
-        for (GooType type : types) {
+        List<ResourceKey<GooTypeDefinition>> types = List.of(
+            GooTypes.CRYSTAL, GooTypes.METAL, GooTypes.NETHER,
+            GooTypes.UNSTABLE, GooTypes.GLOW);
+        for (ResourceKey<GooTypeDefinition> type : types) {
             helper.setBlock(WALL_POS, Blocks.STONE);
             helper.setBlock(AIR_POS, Blocks.AIR);
             WorldEffects.apply(helper.getLevel(), helper.absolutePos(WALL_POS),

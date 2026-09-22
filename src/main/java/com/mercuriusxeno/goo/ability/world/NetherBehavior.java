@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.ability.world;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.ability.AbilityMath;
 import com.mercuriusxeno.goo.ability.ChainBehavior;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
@@ -14,6 +14,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -27,7 +28,7 @@ import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.AABB;
 import org.jspecify.annotations.Nullable;
-import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -287,7 +288,7 @@ public final class NetherBehavior implements WorldEffect, ChainBehavior {
      * @return the accumulated totals, ready to be dropped at POPPING
      */
     public static GooContents walkAndDestroy(ServerLevel level, BlockPos pos, int range) {
-        Map<GooType, Integer> totals = new EnumMap<>(GooType.class);
+        Map<ResourceKey<GooTypeDefinition>, Integer> totals = new HashMap<>();
         AbilityMath.forEachInSphere(pos, range, target -> {
             if (target.equals(pos)) {
                 return;
@@ -307,7 +308,7 @@ public final class NetherBehavior implements WorldEffect, ChainBehavior {
      * @param totals TODO PARAM DESCRIPTION
      */
     private static void accumulateAndRemove(ServerLevel level, BlockPos target,
-                                            Map<GooType, Integer> totals) {
+                                            Map<ResourceKey<GooTypeDefinition>, Integer> totals) {
         BlockState state = level.getBlockState(target);
         if (state.isAir()) {
             return;
@@ -325,7 +326,7 @@ public final class NetherBehavior implements WorldEffect, ChainBehavior {
      * @param totals TODO PARAM DESCRIPTION
      */
     private static void tryAccumulateValuedBlock(ServerLevel level, BlockPos target,
-                                                 BlockState state, Map<GooType, Integer> totals) {
+                                                 BlockState state, Map<ResourceKey<GooTypeDefinition>, Integer> totals) {
         Item item = state.getBlock().asItem();
         if (item == Items.AIR) {
             return;
@@ -347,8 +348,8 @@ public final class NetherBehavior implements WorldEffect, ChainBehavior {
      * @param totals the accumulator to merge into
      * @param value  the goo value to add
      */
-    public static void mergeValue(Map<GooType, Integer> totals, GooValue value) {
-        for (Map.Entry<GooType, Integer> entry : value.getAll().entrySet()) {
+    public static void mergeValue(Map<ResourceKey<GooTypeDefinition>, Integer> totals, GooValue value) {
+        for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> entry : value.getAll().entrySet()) {
             int amount = entry.getValue();
             totals.merge(entry.getKey(), amount, Integer::sum);
         }

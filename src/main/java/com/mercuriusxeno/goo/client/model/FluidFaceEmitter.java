@@ -1,11 +1,12 @@
 package com.mercuriusxeno.goo.client.model;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.RenderContext;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceKey;
 
 /**
  * Shared fluid-face emission for any container whose fluid volume is
@@ -25,13 +26,13 @@ public final class FluidFaceEmitter {
     /**
      * Emits the top fluid surface quad and the four side quads for the
      * given cuboid. The sprite is selected from the goo type via
-     * {@link GooRenderUtil#lookupFluidSprite(GooType)}.
+     * {@link GooRenderUtil#lookupFluidSprite(goo type key)}.
      *
      * @param ctx  the render context
      * @param b    the fluid cuboid - its Y range must already encode the fill height
      * @param type the goo type, used for sprite lookup
      */
-    public static void emitFluidFaces(RenderContext ctx, CuboidBounds b, GooType type) {
+    public static void emitFluidFaces(RenderContext ctx, CuboidBounds b, ResourceKey<GooTypeDefinition> type) {
         TextureAtlasSprite sprite = GooRenderUtil.lookupFluidSprite(type);
         float u0 = sprite.getU0();
         float v0 = sprite.getV0();

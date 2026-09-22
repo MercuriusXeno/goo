@@ -1,13 +1,14 @@
 package com.mercuriusxeno.goo.data;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.data.GooConversion.Assignment;
 import com.mercuriusxeno.goo.data.GooConversion.Formula;
 import com.mercuriusxeno.goo.data.GooConversion.Stack;
 import com.mojang.logging.LogUtils;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import org.slf4j.Logger;
-import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -83,7 +84,7 @@ final class ConversionApplicator {
      */
     private static GooValue applyDelta(GooValue original, Formula formula,
                                        int removed, int added) {
-        Map<GooType, Integer> result = new EnumMap<>(GooType.class);
+        Map<ResourceKey<GooTypeDefinition>, Integer> result = new HashMap<>();
         original.getAll().forEach(result::put);
         result.merge(formula.sourceType(), -removed, Integer::sum);
         result.merge(formula.targetType(), added, Integer::sum);

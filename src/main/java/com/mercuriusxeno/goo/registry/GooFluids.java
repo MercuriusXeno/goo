@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.GooType;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.fluid.GooFluid;
 import net.minecraft.core.registries.Registries;
@@ -58,15 +57,6 @@ public final class GooFluids {
         return FluidResource.of(SOURCE.get()).with(GooDataComponents.GOO_TYPE, key);
     }
 
-    /**
-     * The resource that is one bundled goo type.
-     *
-     * @param type the goo type
-     * @return the resource containers store and transfer for that type
-     */
-    public static FluidResource resource(GooType type) {
-        return resource(type.key());
-    }
 
     /**
      * Whether a fluid is the goo fluid, source or flowing.
@@ -91,22 +81,11 @@ public final class GooFluids {
                 : resource.getComponents().get(GooDataComponents.GOO_TYPE.get());
     }
 
-    /**
-     * The bundled goo type a resource carries.
-     *
-     * @param resource a fluid resource
-     * @return the enum value, or null for a resource that is not stamped with a bundled type
-     */
-    @Nullable
-    public static GooType typeOf(FluidResource resource) {
-        ResourceKey<GooTypeDefinition> key = keyOf(resource);
-        return key == null ? null : GooType.fromKey(key);
-    }
 
     /**
      * Builds the shared fluid properties linking source, flowing, fluid type
-     * and block. The bucket is left unset: buckets are one per bundled type
-     * and the fluid type answers the bucket for a stamped stack.
+     * and block. The bucket is left unset: the fluid type answers the goo
+     * bucket stamped for a stack's type.
      *
      * @return the configured fluid properties
      */

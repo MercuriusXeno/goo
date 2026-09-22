@@ -1,12 +1,13 @@
 package com.mercuriusxeno.goo.data;
 
 import com.google.gson.JsonElement;
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mojang.logging.LogUtils;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import org.slf4j.Logger;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -385,7 +386,7 @@ final class GooIntExpressionEvaluator {
     }
 
     /**
-     * Parses a type suffix string into a {@link GooType} and extracts its value
+     * Parses a type suffix string into a goo type key and extracts its value
      * from the given {@link GooValue}. Returns {@link Integer#MIN_VALUE} if the
      * suffix is not a recognized goo type.
      *
@@ -395,7 +396,7 @@ final class GooIntExpressionEvaluator {
      */
     private static int extractGooType(String typeSuffix, GooValue source) {
         try {
-            GooType type = GooType.valueOf(typeSuffix.toUpperCase(Locale.ROOT));
+            ResourceKey<GooTypeDefinition> type = GooTypes.parseKnown(typeSuffix);
             return source.get(type);
         } catch (IllegalArgumentException ignored) {
             return Integer.MIN_VALUE;

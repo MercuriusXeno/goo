@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.item;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.block.canister.CanisterBlock;
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.registry.GooEnchantments;
 import com.mercuriusxeno.goo.registry.GooFluids;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.SlotAccess;
 import net.minecraft.world.entity.player.Player;
@@ -299,14 +300,14 @@ public class CanisterItem extends BlockItem implements IGooItemInteraction {
     }
 
     /**
-     * Convenience: add goo by type. Resolves GooType to its stamped resource.
+     * Convenience: add goo by type. Resolves goo type key to its stamped resource.
      *
      * @param stack  the canister item stack
      * @param type   the goo type to add
      * @param amount the volume in microblobs to add
      * @return the amount actually accepted
      */
-    public static int addGoo(ItemStack stack, GooType type, int amount) {
+    public static int addGoo(ItemStack stack, ResourceKey<GooTypeDefinition> type, int amount) {
         return addFluid(stack, GooFluids.resource(type), amount);
     }
 
@@ -328,14 +329,14 @@ public class CanisterItem extends BlockItem implements IGooItemInteraction {
     }
 
     /**
-     * Convenience: remove goo by type. Resolves GooType to its stamped resource.
+     * Convenience: remove goo by type. Resolves goo type key to its stamped resource.
      *
      * @param stack  the canister item stack
      * @param type   the goo type to remove
      * @param amount the volume in microblobs to remove
      * @return the amount actually removed
      */
-    public static int removeGoo(ItemStack stack, GooType type, int amount) {
+    public static int removeGoo(ItemStack stack, ResourceKey<GooTypeDefinition> type, int amount) {
         return removeFluid(stack, GooFluids.resource(type), amount);
     }
 

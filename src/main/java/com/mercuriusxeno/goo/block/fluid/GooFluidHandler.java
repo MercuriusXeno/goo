@@ -1,31 +1,32 @@
 package com.mercuriusxeno.goo.block.fluid;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.registry.GooFluids;
+import net.minecraft.resources.ResourceKey;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import net.neoforged.neoforge.transfer.fluid.FluidStacksResourceHandler;
 import net.neoforged.neoforge.transfer.transaction.Transaction;
 import org.jspecify.annotations.Nullable;
-import java.util.EnumMap;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.LongSupplier;
 
 /**
- * Multi-tank fluid handler for goo containers. One tank per {@link GooType}
+ * Multi-tank fluid handler for goo containers. One tank per goo type key
  * ordinal (15 total), with a single shared capacity across all tanks.
  *
  * <p>Pipe mods see 15 typed slots and can insert/extract the correct goo type
  * at the matching index. The shared capacity ensures total volume never exceeds
  * the container's limit regardless of how many types are stored.</p>
  *
- * @see GooType
+ * @see GooTypes
  * @see GooContents
  */
 public class GooFluidHandler extends FluidStacksResourceHandler {
-
-    private static final int TANK_COUNT = GooType.values().length;
 
     private final Runnable onChange;
     private final LongSupplier tickSupplier;
@@ -35,7 +36,7 @@ public class GooFluidHandler extends FluidStacksResourceHandler {
     /**
      * Goo type last inserted via gasket transfer, or null if idle.
      */
-    private @Nullable GooType streamType;
+    private @Nullable ResourceKey<GooTypeDefinition> streamType;
 
     /**
      * Total mB inserted this tick (accumulates across multiple types).
@@ -71,14 +72,14 @@ public class GooFluidHandler extends FluidStacksResourceHandler {
      * @param tickSupplier supplies the current game tick for stream timing
      */
     public GooFluidHandler(int capacity, Runnable onChange, LongSupplier tickSupplier) {
-        super(TANK_COUNT, capacity);
+        super(GooTypes.order().size(), capacity);
         this.onChange = onChange;
         this.tickSupplier = tickSupplier;
     }
 
     /**
      * Only the goo fluid matching this tank index is valid.
-     * Index maps to {@link GooType#ordinal()}.
+     * Index maps to the type's position in GooTypes.order().
      *
      * @param index    tank index (0-14)
      * @param resource the fluid resource to validate
@@ -89,8 +90,8 @@ public class GooFluidHandler extends FluidStacksResourceHandler {
         if (resource.isEmpty()) {
             return false;
         }
-        GooType type = GooFluids.typeOf(resource);
-        return type != null && type.ordinal() == index;
+        ResourceKey<GooTypeDefinition> type = GooFluids.keyOf(resource);
+        return type != null && GooTypes.indexOf(type) == index;
     }
 
     /**
@@ -144,7 +145,7 @@ public class GooFluidHandler extends FluidStacksResourceHandler {
             streamRate = 0;
             streamTick = now;
         }
-        streamType = GooType.values()[index];
+        streamType = GooTypes.order().get(index);
         streamRate += delta;
     }
 
@@ -157,7 +158,7 @@ public class GooFluidHandler extends FluidStacksResourceHandler {
      * @param currentTick the current game tick
      * @return the streaming goo type, or null
      */
-    public @Nullable GooType getStreamType(long currentTick) {
+    public @Nullable ResourceKey<GooTypeDefinition> getStreamType(long currentTick) {
         return (currentTick - streamTick <= 1) ? streamType : null;
     }
 
@@ -180,7 +181,7 @@ public class GooFluidHandler extends FluidStacksResourceHandler {
      * @return immutable GooContents reflecting current volumes
      */
     public GooContents toGooContents() {
-        Map<GooType, Integer> map = collectNonEmptyTanks();
+        Map<ResourceKey<GooTypeDefinition>, Integer> map = collectNonEmptyTanks();
         return map.isEmpty() ? GooContents.EMPTY : new GooContents(map);
     }
 
@@ -189,13 +190,13 @@ public class GooFluidHandler extends FluidStacksResourceHandler {
      *
      * @return the non-empty tank volumes keyed by goo type
      */
-    private Map<GooType, Integer> collectNonEmptyTanks() {
-        GooType[] types = GooType.values();
-        Map<GooType, Integer> map = new EnumMap<>(GooType.class);
-        for (int i = 0; i < types.length; i++) {
+    private Map<ResourceKey<GooTypeDefinition>, Integer> collectNonEmptyTanks() {
+        List<ResourceKey<GooTypeDefinition>> types = GooTypes.order();
+        Map<ResourceKey<GooTypeDefinition>, Integer> map = new HashMap<>();
+        for (int i = 0; i < types.size(); i++) {
             int amount = (int) getAmountAsLong(i);
             if (amount > 0) {
-                map.put(types[i], amount);
+                map.put(types.get(i), amount);
             }
         }
         return map;
@@ -223,9 +224,9 @@ public class GooFluidHandler extends FluidStacksResourceHandler {
      * @param contents the goo contents to load
      */
     private void applyAllTanks(GooContents contents) {
-        GooType[] types = GooType.values();
-        for (int i = 0; i < types.length; i++) {
-            applyTank(i, types[i], contents.getVolume(types[i]));
+        List<ResourceKey<GooTypeDefinition>> types = GooTypes.order();
+        for (int i = 0; i < types.size(); i++) {
+            applyTank(i, types.get(i), contents.getVolume(types.get(i)));
         }
     }
 
@@ -236,7 +237,7 @@ public class GooFluidHandler extends FluidStacksResourceHandler {
      * @param type   the goo type
      * @param volume the volume to set
      */
-    private void applyTank(int index, GooType type, int volume) {
+    private void applyTank(int index, ResourceKey<GooTypeDefinition> type, int volume) {
         if (volume > 0) {
             set(index, GooFluids.resource(type), Math.min(volume, Integer.MAX_VALUE));
         } else {
@@ -285,11 +286,11 @@ public class GooFluidHandler extends FluidStacksResourceHandler {
      * @param simulate if true, returns how much would be accepted without mutating
      * @return the amount actually inserted (or that would be)
      */
-    public int insertGoo(GooType type, int amount, boolean simulate) {
+    public int insertGoo(ResourceKey<GooTypeDefinition> type, int amount, boolean simulate) {
         if (amount <= 0) {
             return 0;
         }
-        int index = type.ordinal();
+        int index = GooTypes.indexOf(type);
         FluidResource resource = GooFluids.resource(type);
         try (var tx = Transaction.openRoot()) {
             int inserted = insert(index, resource, amount, tx);
@@ -308,11 +309,11 @@ public class GooFluidHandler extends FluidStacksResourceHandler {
      * @param simulate if true, returns how much would be extracted without mutating
      * @return the amount actually extracted (or that would be)
      */
-    public int extractGoo(GooType type, int amount, boolean simulate) {
+    public int extractGoo(ResourceKey<GooTypeDefinition> type, int amount, boolean simulate) {
         if (amount <= 0) {
             return 0;
         }
-        int index = type.ordinal();
+        int index = GooTypes.indexOf(type);
         FluidResource resource = GooFluids.resource(type);
         try (var tx = Transaction.openRoot()) {
             int extracted = extract(index, resource, amount, tx);
@@ -329,8 +330,8 @@ public class GooFluidHandler extends FluidStacksResourceHandler {
      * @param type the goo type to query
      * @return volume in mB, or 0 if absent
      */
-    public int getVolume(GooType type) {
-        return (int) getAmountAsLong(type.ordinal());
+    public int getVolume(ResourceKey<GooTypeDefinition> type) {
+        return (int) getAmountAsLong(GooTypes.indexOf(type));
     }
 
     /**
@@ -339,7 +340,7 @@ public class GooFluidHandler extends FluidStacksResourceHandler {
      * @return the dominant goo type, or null
      */
     @Nullable
-    public GooType largestType() {
+    public ResourceKey<GooTypeDefinition> largestType() {
         return toGooContents().largestType();
     }
 }

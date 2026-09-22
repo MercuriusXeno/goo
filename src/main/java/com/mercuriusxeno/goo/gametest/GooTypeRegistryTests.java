@@ -1,14 +1,28 @@
 package com.mercuriusxeno.goo.gametest;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
+import com.mercuriusxeno.goo.ability.GloveSelection;
+import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.command.GooTypesCommand;
+import com.mercuriusxeno.goo.item.GooGloveItem;
+import com.mercuriusxeno.goo.registry.GooBlocks;
+import com.mercuriusxeno.goo.registry.GooItems;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtOps;
+import net.minecraft.nbt.Tag;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.RegistryOps;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.util.ProblemReporter;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.storage.TagValueInput;
 import java.util.List;
 
 /**
@@ -30,7 +44,11 @@ public final class GooTypeRegistryTests {
     private static final ResourceKey<GooTypeDefinition> SEVENTEENTH = ResourceKey.create(
             GooTypes.REGISTRY, Identifier.fromNamespaceAndPath(TEST_PACK_NAMESPACE, SEVENTEENTH_PATH));
     private static final String MISSING_BUNDLED = "Bundled goo type missing from registry: ";
-    private static final String MISSING_BRIDGE = "Enum holder() bridge resolves a different entry than GooTypes for ";
+    private static final String CAPTURE_STALE = "GooTypes.order() should be the registry's keys captured at reload";
+    private static final String CAPTURE_LACKS_SEVENTEENTH = "GooTypes.order() should hold the datapack type";
+    private static final String MARKER_TYPE_LOST = "Chain marker should reload with the type it saved";
+    private static final String SELECTION_TYPE_LOST = "Glove selection should reload with the datapack type it saved";
+    private static final BlockPos MARKER_POS = new BlockPos(1, 1, 1);
     private static final String MISSING_SEVENTEENTH = "Datapack type missing from registry: ";
     private static final String UNLISTED_SEVENTEENTH = "Datapack type missing from /goo types listing: ";
 
@@ -39,7 +57,8 @@ public final class GooTypeRegistryTests {
 
     /**
      * Every GooTypes key resolves from the level's registry access, and the
-     * enum's holder() bridge lands on the same entry.
+     * order the server captured at reload is the registry's, the datapack
+     * type included (decision datapack-goo-registry).
      *
      * @param helper the gametest helper
      */
@@ -48,10 +67,50 @@ public final class GooTypeRegistryTests {
         for (ResourceKey<GooTypeDefinition> key : GooTypes.BUNDLED) {
             helper.assertTrue(registries.get(key).isPresent(), MISSING_BUNDLED + key.identifier());
         }
-        for (GooType type : GooType.values()) {
-            helper.assertTrue(type.holder(registries).key().equals(type.key()),
-                    MISSING_BRIDGE + type.getId());
+        helper.assertTrue(GooTypes.order().equals(GooTypes.all(registries)), CAPTURE_STALE);
+        helper.assertTrue(GooTypes.order().contains(SEVENTEENTH), CAPTURE_LACKS_SEVENTEENTH);
+        helper.succeed();
+    }
+
+    /**
+     * A chain marker saves its type as an id and loads it back by key: the
+     * marker's tag, read into a fresh marker, carries the type it was built
+     * with.
+     *
+     * @param helper the gametest helper
+     */
+    public static void chainMarkerReloadsType(GameTestHelper helper) {
+        helper.setBlock(MARKER_POS, GooBlocks.CHAIN_MARKER.get());
+        ChainMarkerBlockEntity marker = helper.getBlockEntity(MARKER_POS, ChainMarkerBlockEntity.class);
+        marker.initChain(GooTypes.FROST, Direction.UP);
+        CompoundTag saved = marker.getUpdateTag(helper.getLevel().registryAccess());
+
+        helper.destroyBlock(MARKER_POS);
+        helper.setBlock(MARKER_POS, GooBlocks.CHAIN_MARKER.get());
+        ChainMarkerBlockEntity restored = helper.getBlockEntity(MARKER_POS, ChainMarkerBlockEntity.class);
+        try (var reporter = new ProblemReporter.ScopedCollector(restored.problemPath(), Goo.LOGGER)) {
+            restored.loadCustomOnly(TagValueInput.create(reporter, helper.getLevel().registryAccess(), saved));
         }
+        helper.assertTrue(GooTypes.FROST.equals(restored.getGooType()), MARKER_TYPE_LOST);
+        helper.succeed();
+    }
+
+    /**
+     * A glove selection of the datapack type survives the trip through the
+     * item's persistent components: the stack saves to NBT and parses back
+     * with the seventeenth type selected.
+     *
+     * @param helper the gametest helper
+     */
+    public static void gloveSelectionReloadsType(GameTestHelper helper) {
+        RegistryAccess registries = helper.getLevel().registryAccess();
+        ItemStack glove = new ItemStack(GooItems.GOO_GLOVE.get());
+        GooGloveItem.setSelection(glove, GloveSelection.ofType(SEVENTEENTH));
+        RegistryOps<Tag> ops = registries.createSerializationContext(NbtOps.INSTANCE);
+        Tag saved = ItemStack.CODEC.encodeStart(ops, glove).getOrThrow();
+        ItemStack loaded = ItemStack.CODEC.parse(ops, saved).getOrThrow();
+        GloveSelection selection = GooGloveItem.getSelection(loaded);
+        helper.assertTrue(selection != null && SEVENTEENTH.equals(selection.getGooType()), SELECTION_TYPE_LOST);
         helper.succeed();
     }
 

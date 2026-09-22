@@ -1,8 +1,9 @@
 package com.mercuriusxeno.goo.block.crucible;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.PlayerUtils;
 import com.mercuriusxeno.goo.item.*;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -90,7 +91,7 @@ final class CrucibleInteraction {
         if (res.isEmpty()) {
             return false;
         }
-        GooType type = res.largestType();
+        ResourceKey<GooTypeDefinition> type = res.largestType();
         return type != null && transferDominantGoo(stack, crucible, type, res.getVolume(type));
     }
 
@@ -104,7 +105,7 @@ final class CrucibleInteraction {
      * @return true if any goo was transferred
      */
     private static boolean transferDominantGoo(ItemStack canister, CrucibleBlockEntity crucible,
-                                               GooType type, int available) {
+                                               ResourceKey<GooTypeDefinition> type, int available) {
         int added = CanisterItem.addGoo(canister, type, available);
         if (added <= 0) {
             return false;
@@ -122,7 +123,7 @@ final class CrucibleInteraction {
      * @return true if the blob was inserted
      */
     static boolean tryInsertBlob(ItemStack stack, CrucibleBlockEntity crucible, Player player) {
-        GooType type = BlobStacks.gooTypeOf(stack);
+        ResourceKey<GooTypeDefinition> type = BlobStacks.keyOf(stack);
         if (type == null) {
             return false;
         }
@@ -141,7 +142,7 @@ final class CrucibleInteraction {
      * @return always true (insertion always succeeds)
      */
     private static boolean consumeBlobIntoCrucible(ItemStack stack, CrucibleBlockEntity crucible,
-                                                   Player player, GooType type, int volume) {
+                                                   Player player, ResourceKey<GooTypeDefinition> type, int volume) {
         crucible.insertGoo(type, volume);
         if (!player.isCreative()) {
             stack.shrink(1);
@@ -178,7 +179,7 @@ final class CrucibleInteraction {
             return InteractionResult.PASS;
         }
 
-        for (Map.Entry<GooType, Integer> entry : res.getAll().entrySet()) {
+        for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> entry : res.getAll().entrySet()) {
             BlobStacks.mergeIntoInventory(player, entry.getKey(), entry.getValue());
         }
         crucible.drainReservoir();

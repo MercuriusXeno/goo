@@ -1,8 +1,10 @@
 package com.mercuriusxeno.goo.network;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.item.GooGloveItem;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
@@ -48,7 +50,7 @@ public final class GloveSelectHandler {
             GooGloveItem.setSelection(glove, GloveSelection.EMPTY);
             return;
         }
-        GooType type = GooType.fromId(payload.gooTypeId());
+        ResourceKey<GooTypeDefinition> type = GooTypes.known(payload.gooTypeId());
         if (type == null) { return; }
         if (payload.abilityId().isEmpty()) {
             GooGloveItem.setSelection(glove, GloveSelection.ofType(type));

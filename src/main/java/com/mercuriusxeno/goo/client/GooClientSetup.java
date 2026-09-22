@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client;
 
 import com.google.common.reflect.TypeToken;
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ISidedProxy;
 import com.mercuriusxeno.goo.client.ber.*;
 import com.mercuriusxeno.goo.client.machine.FuelRemainingProperty;
@@ -292,6 +293,8 @@ public final class GooClientSetup {
     @SubscribeEvent
     public static void onClientLogin(ClientPlayerNetworkEvent.LoggingIn event) {
         TunerAwaitState.clear();
+        // The synced type registry is in hand at login, so the wheel and item handlers read its size.
+        GooTypes.capture(event.getPlayer().registryAccess());
     }
 
 }

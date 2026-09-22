@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.ber;
 
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.RenderContext;
@@ -8,6 +9,7 @@ import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
 
@@ -100,7 +102,7 @@ public final class SlottedFluidContainer {
     }
 
     private static void renderGooSurface(RenderContext ctx, float[] center,
-                                         com.mercuriusxeno.goo.GooType type, float fill,
+                                         ResourceKey<GooTypeDefinition> type, float fill,
                                          SlotFluidGeometry.SlotGeometry geom) {
         CuboidBounds b = SlotFluidGeometry.computeBounds(geom, center[0], center[1], fill);
         TextureAtlasSprite sprite = GooRenderUtil.lookupFluidSprite(type);

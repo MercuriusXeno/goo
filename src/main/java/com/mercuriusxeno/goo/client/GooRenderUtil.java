@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
@@ -9,6 +10,7 @@ import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.BlockPos;
 import net.minecraft.data.AtlasIds;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 
@@ -36,9 +38,9 @@ public final class GooRenderUtil {
      * @param type the goo type
      * @return the fluidSprite, or null if not found
      */
-    public static TextureAtlasSprite lookupFluidSprite(GooType type) {
+    public static TextureAtlasSprite lookupFluidSprite(ResourceKey<GooTypeDefinition> type) {
         Identifier spriteId = Identifier.fromNamespaceAndPath(
-            NAMESPACE, FLUID_PREFIX + type.getId() + FLUID_SUFFIX);
+            NAMESPACE, FLUID_PREFIX + GooTypes.id(type) + FLUID_SUFFIX);
         return Minecraft.getInstance().getAtlasManager()
             .getAtlasOrThrow(AtlasIds.BLOCKS).getSprite(spriteId);
     }

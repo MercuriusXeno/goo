@@ -1,8 +1,10 @@
 package com.mercuriusxeno.goo.data;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
+import net.minecraft.resources.ResourceKey;
 import org.junit.jupiter.api.Test;
-import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.Map;
 import static com.mercuriusxeno.goo.data.TestRecipeBuilder.goo;
 import static org.junit.jupiter.api.Assertions.*;
@@ -19,15 +21,15 @@ class GooValueTest {
      */
     @Test
     void constructorFiltersZeroButKeepsNegative() {
-        Map<GooType, Integer> map = new EnumMap<>(GooType.class);
-        map.put(GooType.METAL, 0);
-        map.put(GooType.CRYSTAL, -5);
-        map.put(GooType.LEAF, 10);
+        Map<ResourceKey<GooTypeDefinition>, Integer> map = new HashMap<>();
+        map.put(GooTypes.METAL, 0);
+        map.put(GooTypes.CRYSTAL, -5);
+        map.put(GooTypes.LEAF, 10);
 
         GooValue val = new GooValue(map);
-        assertEquals(0, val.get(GooType.METAL));
-        assertEquals(-5, val.get(GooType.CRYSTAL));
-        assertEquals(10, val.get(GooType.LEAF));
+        assertEquals(0, val.get(GooTypes.METAL));
+        assertEquals(-5, val.get(GooTypes.CRYSTAL));
+        assertEquals(10, val.get(GooTypes.LEAF));
     }
 
     /**
@@ -57,7 +59,7 @@ class GooValueTest {
      */
     @Test
     void totalBlobsSumsAllTypes() {
-        GooValue val = goo(GooType.METAL, 5, GooType.CRYSTAL, 3);
+        GooValue val = goo(GooTypes.METAL, 5, GooTypes.CRYSTAL, 3);
         assertEquals(8, val.totalBlobs());
     }
 
@@ -66,7 +68,7 @@ class GooValueTest {
      */
     @Test
     void singleTypeTotalBlobs() {
-        GooValue val = goo(GooType.VITAL, 42);
+        GooValue val = goo(GooTypes.VITAL, 42);
         assertEquals(42, val.totalBlobs());
     }
 
@@ -77,8 +79,8 @@ class GooValueTest {
      */
     @Test
     void largestTypeIsHighestAmount() {
-        GooValue val = goo(GooType.BLAZE, 10, GooType.LEAF, 5);
-        assertEquals(GooType.BLAZE, val.largestType());
+        GooValue val = goo(GooTypes.BLAZE, 10, GooTypes.LEAF, 5);
+        assertEquals(GooTypes.BLAZE, val.largestType());
     }
 
     /**
@@ -86,8 +88,8 @@ class GooValueTest {
      */
     @Test
     void singleTypeLargest() {
-        GooValue val = goo(GooType.ENDER, 1);
-        assertEquals(GooType.ENDER, val.largestType());
+        GooValue val = goo(GooTypes.ENDER, 1);
+        assertEquals(GooTypes.ENDER, val.largestType());
     }
 
     // ── add ─────────────────────────────────────────────────────────────
@@ -97,10 +99,10 @@ class GooValueTest {
      */
     @Test
     void addSumsTypes() {
-        GooValue a = goo(GooType.METAL, 5);
-        GooValue b = goo(GooType.METAL, 3);
+        GooValue a = goo(GooTypes.METAL, 5);
+        GooValue b = goo(GooTypes.METAL, 3);
         GooValue result = a.add(b, 1);
-        assertEquals(8, result.get(GooType.METAL));
+        assertEquals(8, result.get(GooTypes.METAL));
     }
 
     /**
@@ -108,10 +110,10 @@ class GooValueTest {
      */
     @Test
     void addWithMultiplier() {
-        GooValue a = goo(GooType.ROCK, 2);
-        GooValue b = goo(GooType.ROCK, 3);
+        GooValue a = goo(GooTypes.ROCK, 2);
+        GooValue b = goo(GooTypes.ROCK, 3);
         GooValue result = a.add(b, 4);
-        assertEquals(14, result.get(GooType.ROCK)); // 2 + 3*4
+        assertEquals(14, result.get(GooTypes.ROCK)); // 2 + 3*4
     }
 
     /**
@@ -119,11 +121,11 @@ class GooValueTest {
      */
     @Test
     void addIntroducesNewType() {
-        GooValue a = goo(GooType.METAL, 5);
-        GooValue b = goo(GooType.CRYSTAL, 3);
+        GooValue a = goo(GooTypes.METAL, 5);
+        GooValue b = goo(GooTypes.CRYSTAL, 3);
         GooValue result = a.add(b, 1);
-        assertEquals(5, result.get(GooType.METAL));
-        assertEquals(3, result.get(GooType.CRYSTAL));
+        assertEquals(5, result.get(GooTypes.METAL));
+        assertEquals(3, result.get(GooTypes.CRYSTAL));
     }
 
     /**
@@ -131,9 +133,9 @@ class GooValueTest {
      */
     @Test
     void addToEmpty() {
-        GooValue b = goo(GooType.GLOW, 7);
+        GooValue b = goo(GooTypes.GLOW, 7);
         GooValue result = GooValue.EMPTY.add(b, 1);
-        assertEquals(7, result.get(GooType.GLOW));
+        assertEquals(7, result.get(GooTypes.GLOW));
     }
 
     /**
@@ -141,16 +143,16 @@ class GooValueTest {
      */
     @Test
     void addWithNegativeSubtractsType() {
-        GooValue copper = goo(GooType.METAL, 100, GooType.ROCK, 20);
-        Map<GooType, Integer> exposedMap = new EnumMap<>(GooType.class);
-        exposedMap.put(GooType.AEON, 32);
-        exposedMap.put(GooType.METAL, -64);
+        GooValue copper = goo(GooTypes.METAL, 100, GooTypes.ROCK, 20);
+        Map<ResourceKey<GooTypeDefinition>, Integer> exposedMap = new HashMap<>();
+        exposedMap.put(GooTypes.AEON, 32);
+        exposedMap.put(GooTypes.METAL, -64);
         GooValue exposed = new GooValue(exposedMap);
 
         GooValue result = copper.add(exposed, 1);
-        assertEquals(36, result.get(GooType.METAL));  // 100 - 64
-        assertEquals(32, result.get(GooType.AEON));    // 0 + 32
-        assertEquals(20, result.get(GooType.ROCK));    // unchanged
+        assertEquals(36, result.get(GooTypes.METAL));  // 100 - 64
+        assertEquals(32, result.get(GooTypes.AEON));    // 0 + 32
+        assertEquals(20, result.get(GooTypes.ROCK));    // unchanged
     }
 
     /**
@@ -158,13 +160,13 @@ class GooValueTest {
      */
     @Test
     void addWithNegativeCanGoNegative() {
-        GooValue small = goo(GooType.METAL, 10);
-        Map<GooType, Integer> bigDrain = new EnumMap<>(GooType.class);
-        bigDrain.put(GooType.METAL, -50);
+        GooValue small = goo(GooTypes.METAL, 10);
+        Map<ResourceKey<GooTypeDefinition>, Integer> bigDrain = new HashMap<>();
+        bigDrain.put(GooTypes.METAL, -50);
         GooValue drain = new GooValue(bigDrain);
 
         GooValue result = small.add(drain, 1);
-        assertEquals(-40, result.get(GooType.METAL));
+        assertEquals(-40, result.get(GooTypes.METAL));
     }
 
     /**
@@ -172,17 +174,17 @@ class GooValueTest {
      */
     @Test
     void floorZeroClampsNegatives() {
-        Map<GooType, Integer> map = new EnumMap<>(GooType.class);
-        map.put(GooType.METAL, -40);
-        map.put(GooType.AEON, 32);
-        map.put(GooType.ROCK, 0);
+        Map<ResourceKey<GooTypeDefinition>, Integer> map = new HashMap<>();
+        map.put(GooTypes.METAL, -40);
+        map.put(GooTypes.AEON, 32);
+        map.put(GooTypes.ROCK, 0);
         GooValue val = new GooValue(map);
 
         GooValue floored = val.floorZero();
-        assertEquals(0, floored.get(GooType.METAL));
-        assertEquals(32, floored.get(GooType.AEON));
-        assertTrue(floored.getAll().containsKey(GooType.AEON));
-        assertFalse(floored.getAll().containsKey(GooType.METAL));
+        assertEquals(0, floored.get(GooTypes.METAL));
+        assertEquals(32, floored.get(GooTypes.AEON));
+        assertTrue(floored.getAll().containsKey(GooTypes.AEON));
+        assertFalse(floored.getAll().containsKey(GooTypes.METAL));
     }
 
     // ── subtract ────────────────────────────────────────────────────────
@@ -192,11 +194,11 @@ class GooValueTest {
      */
     @Test
     void subtractPerType() {
-        GooValue a = goo(GooType.METAL, 10, GooType.CRYSTAL, 8);
-        GooValue b = goo(GooType.METAL, 3, GooType.CRYSTAL, 2);
+        GooValue a = goo(GooTypes.METAL, 10, GooTypes.CRYSTAL, 8);
+        GooValue b = goo(GooTypes.METAL, 3, GooTypes.CRYSTAL, 2);
         GooValue result = a.subtract(b);
-        assertEquals(7, result.get(GooType.METAL));
-        assertEquals(6, result.get(GooType.CRYSTAL));
+        assertEquals(7, result.get(GooTypes.METAL));
+        assertEquals(6, result.get(GooTypes.CRYSTAL));
     }
 
     /**
@@ -204,10 +206,10 @@ class GooValueTest {
      */
     @Test
     void subtractCanGoNegative() {
-        GooValue a = goo(GooType.METAL, 5);
-        GooValue b = goo(GooType.METAL, 10);
+        GooValue a = goo(GooTypes.METAL, 5);
+        GooValue b = goo(GooTypes.METAL, 10);
         GooValue result = a.subtract(b);
-        assertEquals(-5, result.get(GooType.METAL));
+        assertEquals(-5, result.get(GooTypes.METAL));
     }
 
     /**
@@ -215,9 +217,9 @@ class GooValueTest {
      */
     @Test
     void subtractFromEmptyGoesNegative() {
-        GooValue b = goo(GooType.LEAF, 5);
+        GooValue b = goo(GooTypes.LEAF, 5);
         GooValue result = GooValue.EMPTY.subtract(b);
-        assertEquals(-5, result.get(GooType.LEAF));
+        assertEquals(-5, result.get(GooTypes.LEAF));
     }
 
     /**
@@ -225,11 +227,11 @@ class GooValueTest {
      */
     @Test
     void subtractMissingTypeGoesNegative() {
-        GooValue a = goo(GooType.METAL, 10);
-        GooValue b = goo(GooType.CRYSTAL, 5);
+        GooValue a = goo(GooTypes.METAL, 10);
+        GooValue b = goo(GooTypes.CRYSTAL, 5);
         GooValue result = a.subtract(b);
-        assertEquals(10, result.get(GooType.METAL));
-        assertEquals(-5, result.get(GooType.CRYSTAL));
+        assertEquals(10, result.get(GooTypes.METAL));
+        assertEquals(-5, result.get(GooTypes.CRYSTAL));
     }
 
     // ── multiply ────────────────────────────────────────────────────────
@@ -239,10 +241,10 @@ class GooValueTest {
      */
     @Test
     void multiplyScalesAllTypes() {
-        GooValue val = goo(GooType.METAL, 10, GooType.CRYSTAL, 6);
+        GooValue val = goo(GooTypes.METAL, 10, GooTypes.CRYSTAL, 6);
         GooValue result = val.multiply(3);
-        assertEquals(30, result.get(GooType.METAL));
-        assertEquals(18, result.get(GooType.CRYSTAL));
+        assertEquals(30, result.get(GooTypes.METAL));
+        assertEquals(18, result.get(GooTypes.CRYSTAL));
     }
 
     /**
@@ -250,7 +252,7 @@ class GooValueTest {
      */
     @Test
     void multiplyByOneReturnsSame() {
-        GooValue val = goo(GooType.BLAZE, 15);
+        GooValue val = goo(GooTypes.BLAZE, 15);
         assertSame(val, val.multiply(1));
     }
 
@@ -259,7 +261,7 @@ class GooValueTest {
      */
     @Test
     void multiplyByZeroReturnsEmpty() {
-        GooValue val = goo(GooType.VITAL, 100);
+        GooValue val = goo(GooTypes.VITAL, 100);
         assertTrue(val.multiply(0).isEmpty());
     }
 
@@ -268,7 +270,7 @@ class GooValueTest {
      */
     @Test
     void multiplyByNegativeReturnsEmpty() {
-        GooValue val = goo(GooType.LEAF, 42);
+        GooValue val = goo(GooTypes.LEAF, 42);
         assertTrue(val.multiply(-1).isEmpty());
     }
 
@@ -279,10 +281,10 @@ class GooValueTest {
      */
     @Test
     void divideExactClean() {
-        GooValue val = goo(GooType.METAL, 18, GooType.CRYSTAL, 9);
+        GooValue val = goo(GooTypes.METAL, 18, GooTypes.CRYSTAL, 9);
         GooValue result = val.divideExact(9);
-        assertEquals(2, result.get(GooType.METAL));
-        assertEquals(1, result.get(GooType.CRYSTAL));
+        assertEquals(2, result.get(GooTypes.METAL));
+        assertEquals(1, result.get(GooTypes.CRYSTAL));
     }
 
     /**
@@ -290,7 +292,7 @@ class GooValueTest {
      */
     @Test
     void divideExactLossyThrows() {
-        GooValue val = goo(GooType.METAL, 10);
+        GooValue val = goo(GooTypes.METAL, 10);
         assertThrows(ArithmeticException.class, () -> val.divideExact(3));
     }
 
@@ -299,7 +301,7 @@ class GooValueTest {
      */
     @Test
     void divideExactByOneReturnsSame() {
-        GooValue val = goo(GooType.BLAZE, 15);
+        GooValue val = goo(GooTypes.BLAZE, 15);
         assertSame(val, val.divideExact(1));
     }
 
@@ -310,9 +312,9 @@ class GooValueTest {
      */
     @Test
     void divideEvenly() {
-        GooValue val = goo(GooType.METAL, 10);
+        GooValue val = goo(GooTypes.METAL, 10);
         GooValue result = val.divide(2);
-        assertEquals(5, result.get(GooType.METAL));
+        assertEquals(5, result.get(GooTypes.METAL));
     }
 
     /**
@@ -320,9 +322,9 @@ class GooValueTest {
      */
     @Test
     void divideWithRemainder() {
-        GooValue val = goo(GooType.METAL, 7);
+        GooValue val = goo(GooTypes.METAL, 7);
         GooValue result = val.divide(3);
-        assertEquals(2, result.get(GooType.METAL)); // 7/3 = 2
+        assertEquals(2, result.get(GooTypes.METAL)); // 7/3 = 2
     }
 
     /**
@@ -330,7 +332,7 @@ class GooValueTest {
      */
     @Test
     void divideByOneReturnsSame() {
-        GooValue val = goo(GooType.BLAZE, 15);
+        GooValue val = goo(GooTypes.BLAZE, 15);
         GooValue result = val.divide(1);
         assertSame(val, result);
     }
@@ -340,7 +342,7 @@ class GooValueTest {
      */
     @Test
     void divideCanZeroOutType() {
-        GooValue val = goo(GooType.METAL, 1);
+        GooValue val = goo(GooTypes.METAL, 1);
         GooValue result = val.divide(2);
         assertTrue(result.isEmpty()); // 1/2 = 0 → empty
     }
@@ -350,10 +352,10 @@ class GooValueTest {
      */
     @Test
     void multiTypeDivide() {
-        GooValue val = goo(GooType.METAL, 10, GooType.CRYSTAL, 6);
+        GooValue val = goo(GooTypes.METAL, 10, GooTypes.CRYSTAL, 6);
         GooValue result = val.divide(3);
-        assertEquals(3, result.get(GooType.METAL)); // 10/3
-        assertEquals(2, result.get(GooType.CRYSTAL)); // 6/3
+        assertEquals(3, result.get(GooTypes.METAL)); // 10/3
+        assertEquals(2, result.get(GooTypes.CRYSTAL)); // 6/3
     }
 
     // ── scale ──────────────────────────────────────────────────────────
@@ -363,10 +365,10 @@ class GooValueTest {
      */
     @Test
     void scaleByHalf() {
-        GooValue val = goo(GooType.BLAZE, 100, GooType.METAL, 50);
+        GooValue val = goo(GooTypes.BLAZE, 100, GooTypes.METAL, 50);
         GooValue result = val.scale(0.5);
-        assertEquals(50, result.get(GooType.BLAZE));
-        assertEquals(25, result.get(GooType.METAL));
+        assertEquals(50, result.get(GooTypes.BLAZE));
+        assertEquals(25, result.get(GooTypes.METAL));
     }
 
     /**
@@ -374,9 +376,9 @@ class GooValueTest {
      */
     @Test
     void scaleRoundsToNearest() {
-        GooValue val = goo(GooType.BLAZE, 7);
+        GooValue val = goo(GooTypes.BLAZE, 7);
         GooValue result = val.scale(0.5);
-        assertEquals(4, result.get(GooType.BLAZE)); // round(3.5) = 4
+        assertEquals(4, result.get(GooTypes.BLAZE)); // round(3.5) = 4
     }
 
     /**
@@ -384,7 +386,7 @@ class GooValueTest {
      */
     @Test
     void scaleByZeroReturnsEmpty() {
-        GooValue val = goo(GooType.VITAL, 100);
+        GooValue val = goo(GooTypes.VITAL, 100);
         GooValue result = val.scale(0.0);
         assertTrue(result.isEmpty());
     }
@@ -394,7 +396,7 @@ class GooValueTest {
      */
     @Test
     void scaleByOneReturnsSame() {
-        GooValue val = goo(GooType.LEAF, 42);
+        GooValue val = goo(GooTypes.LEAF, 42);
         GooValue result = val.scale(1.0);
         assertSame(val, result);
     }
@@ -404,7 +406,7 @@ class GooValueTest {
      */
     @Test
     void scaleCanZeroOutSmallType() {
-        GooValue val = goo(GooType.METAL, 1);
+        GooValue val = goo(GooTypes.METAL, 1);
         GooValue result = val.scale(0.3);
         assertTrue(result.isEmpty()); // round(0.3) = 0
     }
@@ -416,7 +418,7 @@ class GooValueTest {
      */
     @Test
     void allPositiveHasNoNegative() {
-        GooValue val = goo(GooType.METAL, 10, GooType.CRYSTAL, 5);
+        GooValue val = goo(GooTypes.METAL, 10, GooTypes.CRYSTAL, 5);
         assertFalse(val.hasNegative());
     }
 
@@ -425,9 +427,9 @@ class GooValueTest {
      */
     @Test
     void negativeTypeDetected() {
-        Map<GooType, Integer> map = new EnumMap<>(GooType.class);
-        map.put(GooType.AEON, 32);
-        map.put(GooType.METAL, -64);
+        Map<ResourceKey<GooTypeDefinition>, Integer> map = new HashMap<>();
+        map.put(GooTypes.AEON, 32);
+        map.put(GooTypes.METAL, -64);
         GooValue val = new GooValue(map);
         assertTrue(val.hasNegative());
     }
@@ -447,7 +449,7 @@ class GooValueTest {
      */
     @Test
     void nonEmptyValue() {
-        GooValue val = goo(GooType.HEX, 1);
+        GooValue val = goo(GooTypes.HEX, 1);
         assertFalse(val.isEmpty());
     }
 
@@ -466,7 +468,7 @@ class GooValueTest {
      */
     @Test
     void toStringContainsTypeAndAmount() {
-        GooValue val = goo(GooType.VITAL, 5);
+        GooValue val = goo(GooTypes.VITAL, 5);
         String s = val.toString();
         assertTrue(s.contains("vital"));
         assertTrue(s.contains("5"));

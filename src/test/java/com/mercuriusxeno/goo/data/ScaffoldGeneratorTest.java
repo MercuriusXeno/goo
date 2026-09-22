@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.data;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypes;
 import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -46,7 +46,7 @@ class ScaffoldGeneratorTest {
                     recipe("minecraft:copper_ingot", 1, slot("minecraft:raw_copper"))
             );
             Map<Identifier, GooValue> baseValues = Map.of(
-                    id("minecraft:raw_copper"), goo(GooType.METAL, 100)
+                    id("minecraft:raw_copper"), goo(GooTypes.METAL, 100)
             );
 
             List<ScaffoldGenerator.Root> roots = ScaffoldGenerator.findRoots(
@@ -92,7 +92,7 @@ class ScaffoldGeneratorTest {
                     recipe("minecraft:copper_block", 1, slot("minecraft:copper_ingot"))
             );
             Map<Identifier, GooValue> baseValues = Map.of(
-                    id("minecraft:copper_ingot"), goo(GooType.METAL, 100)
+                    id("minecraft:copper_ingot"), goo(GooTypes.METAL, 100)
             );
 
             List<ScaffoldGenerator.Root> roots = ScaffoldGenerator.findRoots(
@@ -195,7 +195,7 @@ class ScaffoldGeneratorTest {
                     recipe("minecraft:stick", 4, slot("minecraft:oak_planks"))
             );
             Map<Identifier, GooValue> baseValues = Map.of(
-                    id("minecraft:stick"), goo(GooType.VITAL, 10)
+                    id("minecraft:stick"), goo(GooTypes.VITAL, 10)
             );
 
             List<ScaffoldGenerator.Root> roots = ScaffoldGenerator.findRoots(
@@ -219,7 +219,7 @@ class ScaffoldGeneratorTest {
                     recipe("minecraft:ladder", 3, slot("minecraft:stick"))
             );
             Map<Identifier, GooValue> baseValues = Map.of(
-                    id("minecraft:torch"), goo(GooType.VITAL, 10)
+                    id("minecraft:torch"), goo(GooTypes.VITAL, 10)
             );
 
             List<ScaffoldGenerator.Root> roots = ScaffoldGenerator.findRoots(
@@ -241,8 +241,8 @@ class ScaffoldGeneratorTest {
                     recipe("minecraft:torch", 4, slot("minecraft:stick"), slot("minecraft:coal"))
             );
             Map<Identifier, GooValue> baseValues = Map.of(
-                    id("minecraft:stick"), goo(GooType.VITAL, 10),
-                    id("minecraft:coal"), goo(GooType.ROCK, 20)
+                    id("minecraft:stick"), goo(GooTypes.VITAL, 10),
+                    id("minecraft:coal"), goo(GooTypes.ROCK, 20)
             );
 
             List<ScaffoldGenerator.Root> roots = ScaffoldGenerator.findRoots(
@@ -267,8 +267,8 @@ class ScaffoldGeneratorTest {
                             slot("minecraft:template"))
             );
             Map<Identifier, GooValue> baseValues = Map.of(
-                    id("minecraft:iron_armor"), goo(GooType.METAL, 500),
-                    id("minecraft:template"), goo(GooType.ROCK, 100)
+                    id("minecraft:iron_armor"), goo(GooTypes.METAL, 500),
+                    id("minecraft:template"), goo(GooTypes.ROCK, 100)
             );
 
             List<ScaffoldGenerator.Root> roots = ScaffoldGenerator.findRoots(
@@ -289,7 +289,7 @@ class ScaffoldGeneratorTest {
                     recipe("minecraft:iron_ingot", 1, slot("minecraft:raw_iron"))
             );
             Map<Identifier, GooValue> baseValues = Map.of(
-                    id("minecraft:raw_iron"), goo(GooType.METAL, 100)
+                    id("minecraft:raw_iron"), goo(GooTypes.METAL, 100)
             );
             // dragon_breath is registered but not in any recipe
             Set<Identifier> allItems = Set.of(

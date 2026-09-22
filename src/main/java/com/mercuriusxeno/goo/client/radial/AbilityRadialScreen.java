@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.client.radial;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.network.AbilitySyncHandler;
@@ -12,6 +12,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -30,17 +31,17 @@ public final class AbilityRadialScreen extends Screen {
     private static final int NO_SELECTION = -1;
     private static final int HALF = 2;
 
-    private final GooType gooType;
+    private final ResourceKey<GooTypeDefinition> gooType;
     private final List<ClientAbility> abilities;
     private final int[] wedgeColors;
     /**
      * Goo availability snapshot, passed through for back-navigation.
      */
-    private final Map<GooType, Integer> available;
+    private final Map<ResourceKey<GooTypeDefinition>, Integer> available;
     private int hoveredIndex = NO_SELECTION;
 
-    private AbilityRadialScreen(GooType gooType, List<ClientAbility> abilities,
-                                Map<GooType, Integer> available) {
+    private AbilityRadialScreen(ResourceKey<GooTypeDefinition> gooType, List<ClientAbility> abilities,
+                                Map<ResourceKey<GooTypeDefinition>, Integer> available) {
         super(Component.empty());
         this.gooType = gooType;
         this.abilities = abilities;
@@ -55,7 +56,7 @@ public final class AbilityRadialScreen extends Screen {
      * @param type      the goo type to show abilities for
      * @param available the goo availability snapshot from the type radial
      */
-    public static void open(GooType type, Map<GooType, Integer> available) {
+    public static void open(ResourceKey<GooTypeDefinition> type, Map<ResourceKey<GooTypeDefinition>, Integer> available) {
         List<ClientAbility> abilities = AbilitySyncHandler.getAbilitiesForType(type);
         if (abilities.isEmpty()) {
             return;

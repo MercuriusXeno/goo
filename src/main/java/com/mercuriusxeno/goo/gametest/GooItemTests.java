@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.gametest;
 
-import com.mercuriusxeno.goo.GooType;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
@@ -75,19 +74,19 @@ public final class GooItemTests {
         BlockPos stand = helper.absolutePos(PLAYER_POS);
         player.setPos(stand.getX(), stand.getY(), stand.getZ());
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.GOO_GLOVE.get()));
-        ItemStack blaze = BlobStacks.createBlobStack(GooType.BLAZE, 1);
-        ItemStack rock = BlobStacks.createBlobStack(GooType.ROCK, 1);
+        ItemStack blaze = BlobStacks.createBlobStack(GooTypes.BLAZE, 1);
+        ItemStack rock = BlobStacks.createBlobStack(GooTypes.ROCK, 1);
         player.getInventory().add(blaze);
         player.getInventory().add(rock);
 
-        BlobThrowHandler.execute(player, throwAt(helper, GooType.BLAZE, BLAZE_WALL));
-        BlobThrowHandler.execute(player, throwAt(helper, GooType.ROCK, ROCK_WALL));
-        helper.assertTrue(blaze.isEmpty(), BLOB_NOT_SPENT + GooType.BLAZE.getId());
-        helper.assertTrue(rock.isEmpty(), BLOB_NOT_SPENT + GooType.ROCK.getId());
+        BlobThrowHandler.execute(player, throwAt(helper, GooTypes.BLAZE, BLAZE_WALL));
+        BlobThrowHandler.execute(player, throwAt(helper, GooTypes.ROCK, ROCK_WALL));
+        helper.assertTrue(blaze.isEmpty(), BLOB_NOT_SPENT + GooTypes.id(GooTypes.BLAZE));
+        helper.assertTrue(rock.isEmpty(), BLOB_NOT_SPENT + GooTypes.id(GooTypes.ROCK));
 
         helper.runAfterDelay(ARRIVAL_TICKS, () -> {
-            assertMarker(helper, BLAZE_WALL.relative(THROW_FACE), GooType.BLAZE);
-            assertMarker(helper, ROCK_WALL.relative(THROW_FACE), GooType.ROCK);
+            assertMarker(helper, BLAZE_WALL.relative(THROW_FACE), GooTypes.BLAZE);
+            assertMarker(helper, ROCK_WALL.relative(THROW_FACE), GooTypes.ROCK);
             helper.succeed();
         });
     }
@@ -114,12 +113,12 @@ public final class GooItemTests {
         return stacks.stream().anyMatch(stack -> stack.is(item) && key.equals(stack.get(GooDataComponents.GOO_TYPE.get())));
     }
 
-    private static BlobThrowPayload throwAt(GameTestHelper helper, GooType type, BlockPos wall) {
-        return new BlobThrowPayload(type.getId(), NO_TARGET_ENTITY, helper.absolutePos(wall),
+    private static BlobThrowPayload throwAt(GameTestHelper helper, ResourceKey<GooTypeDefinition> type, BlockPos wall) {
+        return new BlobThrowPayload(GooTypes.id(type), NO_TARGET_ENTITY, helper.absolutePos(wall),
                 THROW_FACE.ordinal(), false, NO_ABILITY);
     }
 
-    private static void assertMarker(GameTestHelper helper, BlockPos pos, GooType type) {
+    private static void assertMarker(GameTestHelper helper, BlockPos pos, ResourceKey<GooTypeDefinition> type) {
         helper.assertTrue(helper.getBlockState(pos).is(GooBlocks.CHAIN_MARKER.get()), NO_MARKER + pos);
         ChainMarkerBlockEntity marker = helper.getBlockEntity(pos, ChainMarkerBlockEntity.class);
         helper.assertTrue(Objects.equals(type, marker.getGooType()), WRONG_MARKER_TYPE + pos);

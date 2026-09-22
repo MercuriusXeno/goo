@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.client;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.client.tooltip.GooValueTooltipComponent;
 import com.mercuriusxeno.goo.client.tooltip.VanillaFluidTooltipComponent;
 import com.mercuriusxeno.goo.data.GooValue;
@@ -15,6 +15,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.FormattedText;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.inventory.tooltip.TooltipComponent;
 import net.minecraft.world.item.BucketItem;
 import net.minecraft.world.item.ItemStack;
@@ -148,11 +149,11 @@ public final class GooTooltipHandler {
      */
     private static boolean handleBlobTooltip(List<Either<FormattedText, TooltipComponent>> elements, ItemStack stack) {
         if (stack.getItem() instanceof GooBlobItem) {
-            appendBlobComponent(elements, BlobStacks.gooTypeOf(stack), BlobStacks.volumeOf(stack));
+            appendBlobComponent(elements, BlobStacks.keyOf(stack), BlobStacks.volumeOf(stack));
             return true;
         }
         if (stack.getItem() instanceof GooOmniblobItem) {
-            appendBlobComponent(elements, BlobStacks.gooTypeOf(stack), GooOmniblobItem.getVolume(stack));
+            appendBlobComponent(elements, BlobStacks.keyOf(stack), GooOmniblobItem.getVolume(stack));
             return true;
         }
         return false;
@@ -169,7 +170,7 @@ public final class GooTooltipHandler {
      */
     private static boolean handleContainerTooltip(
             List<Either<FormattedText, TooltipComponent>> elements, ItemStack stack) {
-        GooType contentType = getGooContentType(stack);
+        ResourceKey<GooTypeDefinition> contentType = getGooContentType(stack);
         int contentAmount = getGooContentAmount(stack);
         if (contentType == null || contentAmount <= 0) {
             return false;
@@ -194,7 +195,7 @@ public final class GooTooltipHandler {
             return;
         }
         elements.add(Either.left(PLUS_SEPARATOR));
-        for (Map.Entry<GooType, Integer> e : containerValue.getAll().entrySet()) {
+        for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> e : containerValue.getAll().entrySet()) {
             elements.add(Either.right(
                     new GooValueTooltipComponent(e.getKey(), e.getValue())));
         }
@@ -206,9 +207,9 @@ public final class GooTooltipHandler {
      * @param stack the item stack
      * @return the goo type, or null
      */
-    private static @org.jspecify.annotations.Nullable GooType getGooContentType(ItemStack stack) {
+    private static @org.jspecify.annotations.Nullable ResourceKey<GooTypeDefinition> getGooContentType(ItemStack stack) {
         if (stack.getItem() instanceof GooBucketItem) {
-            return GooBucketItem.typeOf(stack);
+            return GooBucketItem.keyOf(stack);
         }
         if (stack.getItem() instanceof BucketItem) {
             return null;
@@ -321,7 +322,7 @@ public final class GooTooltipHandler {
      */
     private static void appendBlobComponent(
             List<Either<FormattedText, TooltipComponent>> elements,
-            @org.jspecify.annotations.Nullable GooType type, int volume) {
+            @org.jspecify.annotations.Nullable ResourceKey<GooTypeDefinition> type, int volume) {
         if (volume <= 0 || type == null) {
             return;
         }
@@ -339,7 +340,7 @@ public final class GooTooltipHandler {
     private static void appendGooComponents(
             List<Either<FormattedText, TooltipComponent>> elements, GooValue value) {
         elements.add(Either.left(Component.empty()));
-        for (Map.Entry<GooType, Integer> entry : value.getAll().entrySet()) {
+        for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> entry : value.getAll().entrySet()) {
             elements.add(Either.right(
                     new GooValueTooltipComponent(entry.getKey(), entry.getValue())));
         }
@@ -354,7 +355,7 @@ public final class GooTooltipHandler {
     private static void appendGooContentsComponents(
             List<Either<FormattedText, TooltipComponent>> elements, GooContents contents) {
         elements.add(Either.left(Component.empty()));
-        for (Map.Entry<GooType, Integer> entry : contents.getAll().entrySet()) {
+        for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> entry : contents.getAll().entrySet()) {
             elements.add(Either.right(
                     new GooValueTooltipComponent(entry.getKey(), entry.getValue())));
         }
@@ -369,7 +370,7 @@ public final class GooTooltipHandler {
      */
     private static void appendCanisterFluidComponent(
             List<Either<FormattedText, TooltipComponent>> elements, CanisterFluidContent content) {
-        GooType gooType = content.getGooType();
+        ResourceKey<GooTypeDefinition> gooType = content.getGooType();
         if (gooType != null) {
             elements.add(Either.left(Component.empty()));
             elements.add(Either.right(

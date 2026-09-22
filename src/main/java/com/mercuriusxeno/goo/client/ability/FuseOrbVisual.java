@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.world.MetalBehavior;
 import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
@@ -14,6 +15,7 @@ import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.LightCoordsUtil;
 
@@ -101,7 +103,7 @@ public final class FuseOrbVisual {
      * @return the shell half-size in block units
      */
     private static float computeShellHalf(ChainMarkerRenderState state, float coreHalf) {
-        return state.gooType == GooType.GLOW ? coreHalf : coreHalf + SHELL_MARGIN;
+        return state.gooType == GooTypes.GLOW ? coreHalf : coreHalf + SHELL_MARGIN;
     }
 
     /**
@@ -128,7 +130,7 @@ public final class FuseOrbVisual {
      */
     private static void applyOrbScale(PoseStack poseStack, ChainMarkerRenderState state,
                                       float coreHalf, float modifier) {
-        if (state.gooType == GooType.GLOW) {
+        if (state.gooType == GooTypes.GLOW) {
             applyGlowScale(poseStack, state, coreHalf);
         } else if (SHAPE_FLAT.equals(state.blobShape)) {
             applySplatScale(poseStack, state.placedFace, modifier);
@@ -146,7 +148,7 @@ public final class FuseOrbVisual {
      * @return the core half-size in block units
      */
     private static float computeCoreHalf(ChainMarkerRenderState state) {
-        if (state.gooType == GooType.GLOW) {
+        if (state.gooType == GooTypes.GLOW) {
             return computeGlowCoreHalf(state);
         }
         return CORE_BASE + (state.stackCount - 1) * CORE_GROWTH;
@@ -192,7 +194,7 @@ public final class FuseOrbVisual {
      */
     private static int computeShellColor(ChainMarkerRenderState state) {
         int baseShellAlpha = state.targeted ? SHELL_ALPHA_TARGETED : SHELL_ALPHA;
-        int rgb = state.gooType == GooType.GLOW
+        int rgb = state.gooType == GooTypes.GLOW
                 ? GooRenderUtil.OPAQUE_WHITE : ClientGooTypes.color(state.gooType);
         return ARGB.color(baseShellAlpha, rgb);
     }
@@ -224,7 +226,7 @@ public final class FuseOrbVisual {
      * @param type the goo type to look up
      * @return the UV rectangle for the fluid sprite
      */
-    private static GooRenderUtil.UvRect lookupSpriteUv(GooType type) {
+    private static GooRenderUtil.UvRect lookupSpriteUv(ResourceKey<GooTypeDefinition> type) {
         TextureAtlasSprite sprite = GooRenderUtil.lookupFluidSprite(type);
         return new GooRenderUtil.UvRect(
                 sprite.getU(0f), sprite.getV(0f),

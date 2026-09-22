@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.item;
 
-import com.mercuriusxeno.goo.GooType;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypeNames;
 import com.mercuriusxeno.goo.PlayerUtils;
@@ -54,17 +53,6 @@ public class GooBlobItem extends Item implements IGooItemInteraction {
      */
     public static @Nullable ResourceKey<GooTypeDefinition> keyOf(ItemStack stack) {
         return stack.get(GooDataComponents.GOO_TYPE.get());
-    }
-
-    /**
-     * The bundled type a blob or omniblob stack carries.
-     *
-     * @param stack an item stack
-     * @return the enum value, or null for a stack carrying no bundled type
-     */
-    public static @Nullable GooType typeOf(ItemStack stack) {
-        ResourceKey<GooTypeDefinition> key = keyOf(stack);
-        return key == null ? null : GooType.fromKey(key);
     }
 
     /**

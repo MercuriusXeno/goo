@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.radial;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.network.AbilitySyncHandler;
@@ -11,6 +12,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -28,15 +30,6 @@ import java.util.Map;
  */
 public final class GooRadialScreen extends Screen {
 
-    /**
-     * Number of wedges (one per GooType).
-     */
-    static final int WEDGE_COUNT = GooType.values().length;
-
-    /**
-     * Arc span per wedge in radians.
-     */
-    static final double WEDGE_ARC = 2.0 * Math.PI / WEDGE_COUNT;
 
     /**
      * Inner radius of the wedge ring in GUI-scaled pixels.
@@ -69,14 +62,31 @@ public final class GooRadialScreen extends Screen {
     private static final String DESELECT_ID = "";
 
     /**
+     * Number of wedges: one per type the synced registry holds (decision
+     * datapack-goo-registry).
+     *
+     * @return the wedge count
+     */
+    static int wedgeCount() {
+        return GooTypes.order().size();
+    }
+
+    /**
+     * @return the arc span per wedge in radians
+     */
+    static double wedgeArc() {
+        return TWO_PI / wedgeCount();
+    }
+
+    /**
      * Available mB per goo type, snapshot taken on open.
      */
-    private final Map<GooType, Integer> available;
+    private final Map<ResourceKey<GooTypeDefinition>, Integer> available;
 
     /**
      * Pre-computed ARGB color per wedge, updated each frame.
      */
-    private final int[] wedgeColors = new int[WEDGE_COUNT];
+    private final int[] wedgeColors = new int[wedgeCount()];
 
     /**
      * Currently hovered wedge index, or -1 for cancel zone / out of range.
@@ -88,7 +98,7 @@ public final class GooRadialScreen extends Screen {
      *
      * @param available map of goo types to available volumes in microblobs
      */
-    private GooRadialScreen(Map<GooType, Integer> available) {
+    private GooRadialScreen(Map<ResourceKey<GooTypeDefinition>, Integer> available) {
         super(Component.empty());
         this.available = available;
     }
@@ -104,7 +114,7 @@ public final class GooRadialScreen extends Screen {
             return;
         }
 
-        Map<GooType, Integer> snapshot = GooSourceScanner.aggregateAvailable(player);
+        Map<ResourceKey<GooTypeDefinition>, Integer> snapshot = GooSourceScanner.aggregateAvailable(player);
         mc.setScreen(new GooRadialScreen(snapshot));
     }
 
@@ -114,7 +124,7 @@ public final class GooRadialScreen extends Screen {
      *
      * @param snapshot the goo availability map to reuse
      */
-    public static void openWithSnapshot(Map<GooType, Integer> snapshot) {
+    public static void openWithSnapshot(Map<ResourceKey<GooTypeDefinition>, Integer> snapshot) {
         Minecraft mc = Minecraft.getInstance();
         mc.setScreen(new GooRadialScreen(snapshot));
     }
@@ -232,8 +242,8 @@ public final class GooRadialScreen extends Screen {
      * Processes a left-click: drill into type or deselect from center.
      */
     private void handleLeftClick() {
-        if (hoveredIndex >= 0 && hoveredIndex < WEDGE_COUNT) {
-            tryTransitionToAbilities(GooType.values()[hoveredIndex]);
+        if (hoveredIndex >= 0 && hoveredIndex < wedgeCount()) {
+            tryTransitionToAbilities(GooTypes.order().get(hoveredIndex));
         } else if (hoveredIndex == NO_SELECTION) {
             tryDeselectType();
             onClose();
@@ -245,7 +255,7 @@ public final class GooRadialScreen extends Screen {
      *
      * @param type the goo type to drill into
      */
-    private void tryTransitionToAbilities(GooType type) {
+    private void tryTransitionToAbilities(ResourceKey<GooTypeDefinition> type) {
         if (available.getOrDefault(type, 0) <= 0) {
             return;
         }

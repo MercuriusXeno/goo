@@ -1,12 +1,13 @@
 package com.mercuriusxeno.goo.data;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.data.GooValueExpression.ExprVal;
 import com.mercuriusxeno.goo.data.GooValueExpression.GooVal;
 import com.mercuriusxeno.goo.data.GooValueExpression.ScalarVal;
 import com.mojang.logging.LogUtils;
+import net.minecraft.resources.ResourceKey;
 import org.slf4j.Logger;
-import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -158,7 +159,7 @@ final class ExpressionOperators {
      * @return a new GooValue with scaled amounts
      */
     private static GooValue multiplyGooValue(GooValue value, int scalar) {
-        Map<GooType, Integer> result = new EnumMap<>(GooType.class);
+        Map<ResourceKey<GooTypeDefinition>, Integer> result = new HashMap<>();
         value.getAll().forEach((type, amount) -> result.put(type, amount * scalar));
         return new GooValue(result);
     }

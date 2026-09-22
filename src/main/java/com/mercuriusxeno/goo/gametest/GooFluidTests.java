@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.gametest;
 
-import com.mercuriusxeno.goo.GooType;
 import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.fluid.GooBucketItem;
 import com.mercuriusxeno.goo.fluid.GooFluidBlockEntity;
 import com.mercuriusxeno.goo.registry.GooBlocks;
@@ -63,14 +63,14 @@ public final class GooFluidTests {
      */
     public static void placedTypesStaySideBySide(GameTestHelper helper) {
         placeFloor(helper);
-        emptyBucket(helper, GooType.BLAZE, BLAZE_POS);
-        emptyBucket(helper, GooType.FROST, FROST_POS);
-        assertStamped(helper, BLAZE_POS, GooType.BLAZE);
-        assertStamped(helper, FROST_POS, GooType.FROST);
+        emptyBucket(helper, GooTypes.BLAZE, BLAZE_POS);
+        emptyBucket(helper, GooTypes.FROST, FROST_POS);
+        assertStamped(helper, BLAZE_POS, GooTypes.BLAZE);
+        assertStamped(helper, FROST_POS, GooTypes.FROST);
 
         helper.runAfterDelay(SETTLE_TICKS, () -> {
-            assertStamped(helper, BLAZE_POS, GooType.BLAZE);
-            assertStamped(helper, FROST_POS, GooType.FROST);
+            assertStamped(helper, BLAZE_POS, GooTypes.BLAZE);
+            assertStamped(helper, FROST_POS, GooTypes.FROST);
             helper.assertTrue(helper.getBlockState(BEYOND_POS).isAir(), SPREAD_BEYOND);
             helper.succeed();
         });
@@ -86,9 +86,9 @@ public final class GooFluidTests {
      */
     public static void fluidFieldsReadStampedType(GameTestHelper helper) {
         placeFloor(helper);
-        emptyBucket(helper, GooType.BLAZE, BLAZE_POS);
-        emptyBucket(helper, GooType.FROST, FROST_POS);
-        emptyBucket(helper, GooType.ROCK, ROCK_POS);
+        emptyBucket(helper, GooTypes.BLAZE, BLAZE_POS);
+        emptyBucket(helper, GooTypes.FROST, FROST_POS);
+        emptyBucket(helper, GooTypes.ROCK, ROCK_POS);
         assertPositionalFields(helper);
 
         Mob blazeCow = spawnBurningCow(helper, BLAZE_POS);
@@ -146,15 +146,15 @@ public final class GooFluidTests {
      * @param type   the bundled type whose bucket to empty
      * @param pos    the structure-relative position to place into
      */
-    private static void emptyBucket(GameTestHelper helper, GooType type, BlockPos pos) {
-        ItemStack bucket = GooBucketItem.of(type.key());
+    private static void emptyBucket(GameTestHelper helper, ResourceKey<GooTypeDefinition> type, BlockPos pos) {
+        ItemStack bucket = GooBucketItem.of(type);
         GooItems.GOO_BUCKET.get().emptyContents(null, helper.getLevel(), helper.absolutePos(pos), null, bucket);
         helper.assertBlockPresent(GooBlocks.GOO_FLUID.get(), pos);
     }
 
-    private static void assertStamped(GameTestHelper helper, BlockPos pos, GooType type) {
+    private static void assertStamped(GameTestHelper helper, BlockPos pos, ResourceKey<GooTypeDefinition> type) {
         helper.assertTrue(helper.getBlockState(pos).is(GooBlocks.GOO_FLUID.get()), NOT_GOO_BLOCK + pos);
         ResourceKey<GooTypeDefinition> stamped = GooFluidBlockEntity.typeAt(helper.getLevel(), helper.absolutePos(pos));
-        helper.assertTrue(type.key().equals(stamped), WRONG_TYPE + pos);
+        helper.assertTrue(type.equals(stamped), WRONG_TYPE + pos);
     }
 }

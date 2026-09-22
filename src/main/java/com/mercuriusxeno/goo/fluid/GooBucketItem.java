@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.fluid;
 
-import com.mercuriusxeno.goo.GooType;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypeNames;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
@@ -52,17 +51,6 @@ public class GooBucketItem extends BucketItem {
      */
     public static @Nullable ResourceKey<GooTypeDefinition> keyOf(ItemStack stack) {
         return stack.get(GooDataComponents.GOO_TYPE.get());
-    }
-
-    /**
-     * The bundled type a bucket stack carries.
-     *
-     * @param stack a bucket stack
-     * @return the enum value, or null for a stack carrying no bundled type
-     */
-    public static @Nullable GooType typeOf(ItemStack stack) {
-        ResourceKey<GooTypeDefinition> key = keyOf(stack);
-        return key == null ? null : GooType.fromKey(key);
     }
 
     @Override

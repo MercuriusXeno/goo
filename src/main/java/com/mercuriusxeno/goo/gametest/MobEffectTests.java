@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.gametest;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.mob.*;
@@ -260,7 +260,7 @@ public final class MobEffectTests {
      */
     public static void dispatcherRoutes(GameTestHelper helper) {
         Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
-        MobAbilities.apply(helper.getLevel(), mob, GooType.LEAF, null);
+        MobAbilities.apply(helper.getLevel(), mob, GooTypes.LEAF, null);
         helper.assertTrue(mob.hasEffect(MobEffects.SLOWNESS), SHOULD_HAVE_SLOWNESS);
         helper.assertTrue(mob.hasEffect(MobEffects.POISON), SHOULD_HAVE_POISON);
         helper.succeed();

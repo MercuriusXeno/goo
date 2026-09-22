@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.tooltip;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.inventory.tooltip.TooltipComponent;
 
 /**
@@ -10,5 +11,5 @@ import net.minecraft.world.inventory.tooltip.TooltipComponent;
  * @param type   the goo type for this tooltip line
  * @param amount the volume in microblobs
  */
-public record GooValueTooltipComponent(GooType type, int amount) implements TooltipComponent {
+public record GooValueTooltipComponent(ResourceKey<GooTypeDefinition> type, int amount) implements TooltipComponent {
 }

@@ -1,7 +1,8 @@
 package com.mercuriusxeno.goo.client.overlay;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
@@ -23,6 +24,7 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
@@ -138,7 +140,7 @@ public final class GooTargetHighlighter {
     /**
      * Goo type for the cached arc target.
      */
-    private static @Nullable GooType cachedArcType;
+    private static @Nullable ResourceKey<GooTypeDefinition> cachedArcType;
     /**
      * Partial tick captured at the opaque-stage handler.
      */
@@ -158,7 +160,7 @@ public final class GooTargetHighlighter {
         if (sel == null || !sel.hasAbility()) {
             return TargetingHint.NONE;
         }
-        GooType type = sel.getGooType();
+        ResourceKey<GooTypeDefinition> type = sel.getGooType();
         if (type == null) {
             return TargetingHint.NONE;
         }
@@ -177,7 +179,7 @@ public final class GooTargetHighlighter {
         return null;
     }
 
-    private static TargetingHint hintFromAbility(GooType type, GloveSelection sel) {
+    private static TargetingHint hintFromAbility(ResourceKey<GooTypeDefinition> type, GloveSelection sel) {
         for (ClientAbility ca : AbilitySyncHandler.getAbilitiesForType(type)) {
             if (ca.id() != null && ca.id().toString().equals(sel.abilityId())) {
                 return ca.hasTag(TAG_ENTITY) ? TargetingHint.ENTITY : TargetingHint.BLOCK;
@@ -209,7 +211,7 @@ public final class GooTargetHighlighter {
      * @param mc the Minecraft client instance
      */
     private static void tickGloveTarget(Minecraft mc) {
-        GooType selectedType = findSelectedGooType(mc.player);
+        ResourceKey<GooTypeDefinition> selectedType = findSelectedGooType(mc.player);
         if (selectedType == null) {
             clearTarget();
             return;
@@ -237,7 +239,7 @@ public final class GooTargetHighlighter {
      * @param selectedType the currently selected goo type
      * @param hint         the targeting hint from the selected ability
      */
-    private static void updateTarget(Player player, GooType selectedType, TargetingHint hint) {
+    private static void updateTarget(Player player, ResourceKey<GooTypeDefinition> selectedType, TargetingHint hint) {
         TargetResult target = resolveTarget(player, 1.0f, hint);
         boolean hasEntity = target instanceof TargetResult.EntityTarget;
         targetOutlineColor = hasEntity ? ARGB.opaque(ClientGooTypes.highlight(selectedType)) : 0;
@@ -500,7 +502,7 @@ public final class GooTargetHighlighter {
         if (!mc.options.getCameraType().isFirstPerson()) {
             return;
         }
-        GooType selectedType = findSelectedGooType(mc.player);
+        ResourceKey<GooTypeDefinition> selectedType = findSelectedGooType(mc.player);
         if (selectedType == null) {
             return;
         }
@@ -526,7 +528,7 @@ public final class GooTargetHighlighter {
      * @param selectedType the selected goo type
      */
     private static void renderTargetHighlight(TargetResult target, Minecraft mc,
-                                              PoseStack ps, MultiBufferSource.BufferSource buf, Camera camera, GooType selectedType) {
+                                              PoseStack ps, MultiBufferSource.BufferSource buf, Camera camera, ResourceKey<GooTypeDefinition> selectedType) {
         if (target instanceof TargetResult.BlockTarget bt) {
             renderBlockTargetHighlight(bt, mc, ps, buf, camera, selectedType);
         } else if (target instanceof TargetResult.ChainMarkerTarget cmt) {
@@ -547,7 +549,7 @@ public final class GooTargetHighlighter {
      * @param selectedType the selected goo type
      */
     private static void renderBlockTargetHighlight(TargetResult.BlockTarget bt, Minecraft mc,
-                                                   PoseStack ps, MultiBufferSource.BufferSource buf, Camera camera, GooType selectedType) {
+                                                   PoseStack ps, MultiBufferSource.BufferSource buf, Camera camera, ResourceKey<GooTypeDefinition> selectedType) {
         BlockPos markerPos = findAdjacentMarker(mc.level, bt.pos(), bt.face());
         if (markerPos != null) {
             if (canAcceptMoreBlobs(mc.level, markerPos)) {
@@ -572,11 +574,11 @@ public final class GooTargetHighlighter {
      * @param selectedType the selected goo type
      */
     private static void renderChainMarkerHighlight(TargetResult.ChainMarkerTarget cmt, Minecraft mc,
-                                                   PoseStack ps, MultiBufferSource.BufferSource buf, Camera camera, GooType selectedType) {
+                                                   PoseStack ps, MultiBufferSource.BufferSource buf, Camera camera, ResourceKey<GooTypeDefinition> selectedType) {
         if (canAcceptMoreBlobs(mc.level, cmt.pos())) {
             VoxelHighlightRenderer.renderBlockShape(ps, buf, camera, cmt.pos(), selectedType);
         }
-        GooType blobType = resolveMarkerGooType(mc.level, cmt.pos());
+        ResourceKey<GooTypeDefinition> blobType = resolveMarkerGooType(mc.level, cmt.pos());
         renderChainMarkerBillboard(ps, buf, camera, mc, cmt.pos(),
                 blobType != null ? blobType : selectedType);
     }
@@ -588,7 +590,7 @@ public final class GooTargetHighlighter {
      * @param pos   the block position
      * @return the marker's goo type, or null
      */
-    private static @Nullable GooType resolveMarkerGooType(Level level, BlockPos pos) {
+    private static @Nullable ResourceKey<GooTypeDefinition> resolveMarkerGooType(Level level, BlockPos pos) {
         if (level == null) {
             return null;
         }
@@ -659,7 +661,7 @@ public final class GooTargetHighlighter {
      * @param gooType the goo type for coloring/icon
      */
     private static void renderChainMarkerBillboard(PoseStack ps, MultiBufferSource.BufferSource buf,
-                                                   Camera camera, Minecraft mc, BlockPos pos, GooType gooType) {
+                                                   Camera camera, Minecraft mc, BlockPos pos, ResourceKey<GooTypeDefinition> gooType) {
         if (mc.level == null) {
             return;
         }
@@ -723,7 +725,7 @@ public final class GooTargetHighlighter {
      * @param panelH  the panel height
      */
     private static void renderBillboardContent(PoseStack ps, MultiBufferSource.BufferSource buf,
-                                               Font font, GooType gooType, String text, float panelW, float panelH) {
+                                               Font font, ResourceKey<GooTypeDefinition> gooType, String text, float panelW, float panelH) {
         float halfW = panelW / HALF_DIVISOR;
         float halfH = panelH / HALF_DIVISOR;
         InWorldHud.renderBackgroundSeeThrough(ps, buf,
@@ -742,7 +744,7 @@ public final class GooTargetHighlighter {
     @SubscribeEvent
     public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
         TargetResult target = cachedArcTarget;
-        GooType type = cachedArcType;
+        ResourceKey<GooTypeDefinition> type = cachedArcType;
         float partialTick = cachedArcPartialTick;
         clearCachedArc();
         if (target == null || type == null) {
@@ -758,7 +760,7 @@ public final class GooTargetHighlighter {
         dispatchArcForTarget(ps, buf, camera, mc.player, target, type, partialTick);
     }
 
-    private static void cacheArc(TargetResult target, GooType type, float partialTick) {
+    private static void cacheArc(TargetResult target, ResourceKey<GooTypeDefinition> type, float partialTick) {
         cachedArcTarget = target;
         cachedArcType = type;
         cachedArcPartialTick = partialTick;
@@ -785,13 +787,13 @@ public final class GooTargetHighlighter {
     private static void dispatchArcForTarget(
             PoseStack poseStack, MultiBufferSource.BufferSource bufferSource,
             Camera camera, Player player, TargetResult target,
-            GooType selectedType, float partialTick) {
+            ResourceKey<GooTypeDefinition> selectedType, float partialTick) {
         Vec3 end = target.resolveEndpoint();
         if (end == null) {
             return;
         }
         boolean grannyArc = target instanceof TargetResult.BlockTarget bt && bt.grannyArc();
-        boolean straightLine = selectedType == GooType.GLOW;
+        boolean straightLine = selectedType == GooTypes.GLOW;
         ArcRenderer.renderTargetArc(poseStack, bufferSource, camera,
                 player, end, ClientGooTypes.highlight(selectedType), partialTick,
                 grannyArc, straightLine);
@@ -838,8 +840,8 @@ public final class GooTargetHighlighter {
      * @param player the interacting player
      * @return the matching result, or null if not found
      */
-    private static @Nullable GooType findSelectedGooType(Player player) {
-        GooType type = tryGloveInHand(player.getMainHandItem());
+    private static @Nullable ResourceKey<GooTypeDefinition> findSelectedGooType(Player player) {
+        ResourceKey<GooTypeDefinition> type = tryGloveInHand(player.getMainHandItem());
         if (type != null) {
             return GloveUseTracker.isSelectedTypeAvailable() ? type : null;
         }
@@ -858,7 +860,7 @@ public final class GooTargetHighlighter {
      * @param stack the item stack
      * @return the result
      */
-    private static @Nullable GooType tryGloveInHand(ItemStack stack) {
+    private static @Nullable ResourceKey<GooTypeDefinition> tryGloveInHand(ItemStack stack) {
         if (stack.getItem() instanceof GooGloveItem) {
             return GooGloveItem.getSelectedType(stack);
         }

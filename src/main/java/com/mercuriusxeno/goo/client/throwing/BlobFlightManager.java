@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.throwing;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ThrowArc;
 import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
 import com.mercuriusxeno.goo.client.TargetResult;
@@ -8,6 +9,7 @@ import com.mercuriusxeno.goo.network.BlobFlightPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
@@ -50,7 +52,7 @@ public final class BlobFlightManager {
      * @param payload the network payload
      */
     public static void addFlight(BlobFlightPayload payload) {
-        GooType type = GooType.fromId(payload.gooTypeId());
+        ResourceKey<GooTypeDefinition> type = GooTypes.byId(payload.gooTypeId());
         if (type == null) {
             return;
         }
@@ -75,7 +77,7 @@ public final class BlobFlightManager {
         while (it.hasNext()) {
             BlobFlight flight = it.next().getValue();
             flight.ticksElapsed++;
-            if (flight.gooType == GooType.GLOW) {
+            if (flight.gooType == GooTypes.GLOW) {
                 tickGlowFlight(it, flight);
             } else if (flight.ticksElapsed >= flight.travelTicks) {
                 fireArrival(flight);
@@ -194,13 +196,13 @@ public final class BlobFlightManager {
          * Target block position for in-flight tracking.
          */
         public final BlockPos targetBlockPos;
-        public final GooType gooType;
+        public final ResourceKey<GooTypeDefinition> gooType;
         public final int travelTicks;
         public final boolean grannyArc;
         public int ticksElapsed;
 
         public BlobFlight(Vec3 start, Vec3 blockEnd, int targetEntityId,
-                          BlockPos targetBlockPos, GooType gooType,
+                          BlockPos targetBlockPos, ResourceKey<GooTypeDefinition> gooType,
                           int travelTicks, boolean grannyArc) {
             this.start = start;
             this.blockEnd = blockEnd;
@@ -233,7 +235,7 @@ public final class BlobFlightManager {
          * @return the peak height in blocks above the start-end line
          */
         private double peak() {
-            if (gooType == GooType.GLOW) {
+            if (gooType == GooTypes.GLOW) {
                 return 0;
             }
             return grannyArc

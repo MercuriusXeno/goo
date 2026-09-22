@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.block.tap;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.block.BlockEntitySync;
 import com.mercuriusxeno.goo.block.canister.ICanisterHolder;
 import com.mercuriusxeno.goo.block.canister.SlottedCanisterData;
@@ -14,6 +14,7 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
@@ -158,7 +159,7 @@ public class TapBlockEntity extends net.minecraft.world.level.block.entity.Block
      * @param volume volume in microblobs to insert
      * @return the amount actually accepted (mB)
      */
-    public int insertGoo(GooType type, int volume) {
+    public int insertGoo(ResourceKey<GooTypeDefinition> type, int volume) {
         return insertGoo(SLOT, type, volume);
     }
 
@@ -169,7 +170,7 @@ public class TapBlockEntity extends net.minecraft.world.level.block.entity.Block
      * @param requested the desired volume in microblobs
      * @return the amount actually extracted (mB)
      */
-    public int extractGoo(GooType type, int requested) {
+    public int extractGoo(ResourceKey<GooTypeDefinition> type, int requested) {
         return extractGoo(SLOT, type, requested);
     }
 

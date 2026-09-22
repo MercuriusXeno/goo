@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.client.radial;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.GooType;
 import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.DynamicTexture;
@@ -23,10 +22,6 @@ public final class RadialTextures {
      */
     static final int TEX_SIZE = 200;
 
-    /**
-     * Number of wedges (one per goo type).
-     */
-    private static final int WEDGE_COUNT = GooType.values().length;
 
     /**
      * Sub-samples per axis for anti-aliasing (4x4 = 16 samples per pixel).
@@ -74,15 +69,6 @@ public final class RadialTextures {
      */
     private static final double CANCEL_OUTER_PX = 100.0;
 
-    /**
-     * Texture label prefix for wedge textures.
-     */
-    private static final String WEDGE_LABEL_PREFIX = "goo_radial_wedge_";
-
-    /**
-     * Resource path prefix for wedge textures.
-     */
-    private static final String WEDGE_PATH_PREFIX = "dynamic/radial_wedge_";
 
     /**
      * Texture label for the cancel mask.
@@ -95,11 +81,8 @@ public final class RadialTextures {
     private static final String CANCEL_PATH = "dynamic/radial_cancel";
 
     /**
-     * Registered texture identifiers, one per wedge.
-     */
-    private static final Identifier[] WEDGE_IDS = new Identifier[WEDGE_COUNT];
-    /**
-     * Cache of dynamically generated wedge masks for variable-count radials.
+     * Cache of generated wedge masks by wedge count, for the type radial,
+     * whose count is the synced registry's size, and the ability radial.
      * Key: (wedgeCount << 16) | wedgeIndex.
      */
     private static final Map<Integer, Identifier> DYNAMIC_WEDGES = new HashMap<>();
@@ -132,32 +115,15 @@ public final class RadialTextures {
     }
 
     /**
-     * Lazily generates and registers all mask textures on first use.
+     * Lazily generates and registers the cancel mask on first use; wedge
+     * masks register on first request per wedge count.
      */
     public static void ensureInitialized() {
         if (initialized) {
             return;
         }
         initialized = true;
-        var texManager = Minecraft.getInstance().getTextureManager();
-        registerWedgeTextures(texManager);
-        registerCancelTexture(texManager);
-    }
-
-    /**
-     * Generates and registers one AA mask texture per wedge.
-     *
-     * @param texManager the texture manager for registration
-     */
-    private static void registerWedgeTextures(TextureManager texManager) {
-        for (int i = 0; i < WEDGE_COUNT; i++) {
-            NativeImage image = generateWedgeMask(i);
-            int idx = i;
-            DynamicTexture tex = new DynamicTexture(() -> WEDGE_LABEL_PREFIX + idx, image);
-            Identifier id = Identifier.fromNamespaceAndPath(Goo.MODID, WEDGE_PATH_PREFIX + i);
-            texManager.register(id, tex);
-            WEDGE_IDS[i] = id;
-        }
+        registerCancelTexture(Minecraft.getInstance().getTextureManager());
     }
 
     /**
@@ -172,15 +138,6 @@ public final class RadialTextures {
         texManager.register(cancelId, cancelTex);
     }
 
-    /**
-     * Returns the texture identifier for the given wedge index.
-     *
-     * @param wedgeIndex the zero-based wedge index
-     * @return the registered texture identifier for this wedge
-     */
-    public static Identifier getWedgeTexture(int wedgeIndex) {
-        return WEDGE_IDS[wedgeIndex];
-    }
 
     /**
      * Returns the texture identifier for the cancel circle.
@@ -192,7 +149,7 @@ public final class RadialTextures {
     }
 
     /**
-     * Returns a wedge mask texture for a variable-count radial (e.g., ability radial).
+     * Returns a wedge mask texture for a radial of the given wedge count.
      * Generates and caches on first use per (wedgeCount, wedgeIndex) pair.
      *
      * @param wedgeCount the total number of wedges
@@ -219,21 +176,6 @@ public final class RadialTextures {
         return id;
     }
 
-    /**
-     * Generates a white-on-transparent mask for a single wedge of the annular ring.
-     * Uses 4x4 multi-sampling at each pixel for anti-aliased edges.
-     *
-     * @param wedgeIndex the zero-based wedge index to generate
-     * @return the generated native image mask for this wedge
-     */
-    private static NativeImage generateWedgeMask(int wedgeIndex) {
-        NativeImage image = new NativeImage(TEX_SIZE, TEX_SIZE, true);
-        double half = TEX_SIZE / HALF_DIVISOR;
-        double startAngle = wedgeIndex * (TWO_PI / WEDGE_COUNT);
-        double endAngle = (wedgeIndex + 1) * (TWO_PI / WEDGE_COUNT);
-        rasterizeWedge(image, half, startAngle, endAngle);
-        return image;
-    }
 
     /**
      * Fills pixel samples for one wedge arc into the image.

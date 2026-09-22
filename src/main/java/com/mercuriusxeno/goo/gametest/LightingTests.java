@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.gametest;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.block.BlockEntitySync;
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
@@ -78,7 +78,7 @@ public final class LightingTests {
         helper.setBlock(BE_POS, GooBlocks.CANISTER.get());
         CanisterBlockEntity be = helper.getBlockEntity(BE_POS, CanisterBlockEntity.class);
 
-        FluidResource blazeFluid = GooFluids.resource(GooType.BLAZE);
+        FluidResource blazeFluid = GooFluids.resource(GooTypes.BLAZE);
         ItemStack canister = new ItemStack(GooItems.CANISTER.get());
         CanisterItem.setFluidContent(canister, new CanisterFluidContent(blazeFluid, TEST_VOLUME));
         be.insertCanister(CENTER_SLOT, canister, false);

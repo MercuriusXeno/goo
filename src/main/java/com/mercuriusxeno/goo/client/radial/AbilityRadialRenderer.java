@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.client.radial;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.network.AbilitySyncHandler.ClientAbility;
 import net.minecraft.client.gui.Font;
@@ -9,6 +9,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
 import java.util.List;
 
@@ -127,7 +128,7 @@ final class AbilityRadialRenderer {
      * @param hoveredIndex the currently hovered wedge
      */
     static void computeWedgeColorsFromSync(int[] colors, List<ClientAbility> abilities,
-                                           GooType type, int hoveredIndex) {
+                                           ResourceKey<GooTypeDefinition> type, int hoveredIndex) {
         int baseColor = ClientGooTypes.wheel(type);
         for (int i = 0; i < abilities.size(); i++) {
             int alpha = (i == hoveredIndex) ? HOVER_ALPHA : NORMAL_ALPHA;

@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.data;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypes;
 import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
@@ -111,7 +111,7 @@ class GooValueRegistryGraphTest {
         @Test
         void noCyclesInCleanChain() {
             setBaseValues(Map.of(
-                    id("raw"), goo(GooType.METAL, 5)
+                    id("raw"), goo(GooTypes.METAL, 5)
             ));
             List<RecipeInput> recipes = List.of(
                     recipe("a", 1, slot("raw")),

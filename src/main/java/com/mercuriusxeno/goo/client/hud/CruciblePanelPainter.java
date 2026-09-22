@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.client.hud;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
 import com.mercuriusxeno.goo.client.GooTooltipHandler;
 import com.mercuriusxeno.goo.item.GooContents;
@@ -9,6 +9,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.resources.ResourceKey;
 import org.jspecify.annotations.Nullable;
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -81,7 +82,7 @@ final class CruciblePanelPainter {
             return null;
         }
         GooContents total = hasGoo ? reservoir.mergeWith(pool) : GooContents.EMPTY;
-        Set<GooType> types = hasGoo ? allTypes(reservoir, pool) : Set.of();
+        Set<ResourceKey<GooTypeDefinition>> types = hasGoo ? allTypes(reservoir, pool) : Set.of();
         return new CrucibleSnapshot(
                 reservoir, total, types, be.getFuelRod(), hasGoo, hasFuel);
     }
@@ -219,8 +220,8 @@ final class CruciblePanelPainter {
      * @param pool      the pool goo contents
      * @return the complete set
      */
-    private static Set<GooType> allTypes(GooContents reservoir, GooContents pool) {
-        Set<GooType> types = new LinkedHashSet<>();
+    private static Set<ResourceKey<GooTypeDefinition>> allTypes(GooContents reservoir, GooContents pool) {
+        Set<ResourceKey<GooTypeDefinition>> types = new LinkedHashSet<>();
         types.addAll(reservoir.getAll().keySet());
         types.addAll(pool.getAll().keySet());
         return types;
@@ -236,9 +237,9 @@ final class CruciblePanelPainter {
      * @return the measured width in pixels
      */
     private static float measureMaxRowWidth(Font font, GooContents reservoir,
-                                            GooContents total, Set<GooType> types) {
+                                            GooContents total, Set<ResourceKey<GooTypeDefinition>> types) {
         float maxW = 0;
-        for (GooType type : types) {
+        for (ResourceKey<GooTypeDefinition> type : types) {
             String row = formatRow(volumeOf(reservoir, type), volumeOf(total, type));
             maxW = Math.max(maxW, font.width(row));
         }
@@ -265,7 +266,7 @@ final class CruciblePanelPainter {
      * @param type     the goo type
      * @return the result
      */
-    private static int volumeOf(GooContents contents, GooType type) {
+    private static int volumeOf(GooContents contents, ResourceKey<GooTypeDefinition> type) {
         return contents.getAll().getOrDefault(type, 0);
     }
 
@@ -283,9 +284,9 @@ final class CruciblePanelPainter {
      */
     private static void renderRows(PoseStack poseStack, Font font, MultiBufferSource buffers,
                                    GooContents reservoir, GooContents total,
-                                   Set<GooType> types, float x, float y) {
+                                   Set<ResourceKey<GooTypeDefinition>> types, float x, float y) {
         float rowY = y;
-        for (GooType type : types) {
+        for (ResourceKey<GooTypeDefinition> type : types) {
             renderTypeRow(poseStack, font, buffers, type,
                     volumeOf(reservoir, type), volumeOf(total, type), x, rowY);
             rowY += ROW_HEIGHT;
@@ -305,7 +306,7 @@ final class CruciblePanelPainter {
      * @param y            the Y coordinate
      */
     private static void renderTypeRow(PoseStack poseStack, Font font,
-                                      MultiBufferSource buffers, GooType type,
+                                      MultiBufferSource buffers, ResourceKey<GooTypeDefinition> type,
                                       int reservoirVol, int totalVol, float x, float y) {
         float iconY = y + (ROW_HEIGHT - CrucibleFuelDisplay.ICON_SIZE) / HALF_F;
         float textY = y + (ROW_HEIGHT - font.lineHeight) / HALF_F;

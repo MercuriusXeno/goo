@@ -1,7 +1,8 @@
 package com.mercuriusxeno.goo.block.gasket;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.item.GooContents;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
 import java.util.function.BiFunction;
@@ -70,7 +71,7 @@ public final class GasketPushMath {
      * @return push result with accepted and remaining contents
      */
     public static PushResult computeTaperedPush(GooContents reservoir,
-                                                BiFunction<GooType, Integer, Integer> acceptor) {
+                                                BiFunction<ResourceKey<GooTypeDefinition>, Integer, Integer> acceptor) {
         return computePush(reservoir,
                 (type, vol) -> acceptor.apply(type, Math.min(taperRate(vol), vol)));
     }
@@ -84,7 +85,7 @@ public final class GasketPushMath {
      * @param acceptor  function (type, volume) -> amount accepted
      * @return push result with accepted and remaining contents
      */
-    public static PushResult computePush(GooContents reservoir, BiFunction<GooType, Integer, Integer> acceptor) {
+    public static PushResult computePush(GooContents reservoir, BiFunction<ResourceKey<GooTypeDefinition>, Integer, Integer> acceptor) {
         if (reservoir.isEmpty()) {
             return new PushResult(GooContents.EMPTY, GooContents.EMPTY);
         }
@@ -98,7 +99,7 @@ public final class GasketPushMath {
      * @param acceptor  function (type, volume) -> amount accepted per entry
      * @return push result splitting volume into accepted and remaining
      */
-    private static PushResult distributeEntries(GooContents reservoir, BiFunction<GooType, Integer, Integer> acceptor) {
+    private static PushResult distributeEntries(GooContents reservoir, BiFunction<ResourceKey<GooTypeDefinition>, Integer, Integer> acceptor) {
         GooContents accepted = GooContents.EMPTY;
         GooContents remaining = GooContents.EMPTY;
         for (var entry : reservoir.getAll().entrySet()) {
@@ -117,8 +118,8 @@ public final class GasketPushMath {
      * @param volume   the offered volume
      * @return the clamped accepted amount
      */
-    private static int clampedTake(BiFunction<GooType, Integer, Integer> acceptor,
-                                   GooType type, int volume) {
+    private static int clampedTake(BiFunction<ResourceKey<GooTypeDefinition>, Integer, Integer> acceptor,
+                                   ResourceKey<GooTypeDefinition> type, int volume) {
         return Math.max(0, Math.min(acceptor.apply(type, volume), volume));
     }
 
@@ -130,7 +131,7 @@ public final class GasketPushMath {
      * @param amount   the amount to add
      * @return the updated contents
      */
-    private static GooContents addIfPositive(GooContents contents, GooType type, int amount) {
+    private static GooContents addIfPositive(GooContents contents, ResourceKey<GooTypeDefinition> type, int amount) {
         return amount > 0 ? contents.withAdded(type, amount) : contents;
     }
 

@@ -1,10 +1,11 @@
 package com.mercuriusxeno.goo.block.canister;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.block.gasket.IGasketPusher;
 import com.mercuriusxeno.goo.block.hub.HubBlockEntity;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.registry.GooFluids;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -149,7 +150,7 @@ public class SlottedCanisterData {
      * @param volume volume in microblobs
      * @return the amount actually inserted
      */
-    public int insertGoo(int index, GooType type, int volume) {
+    public int insertGoo(int index, ResourceKey<GooTypeDefinition> type, int volume) {
         return inRange(index) ? slots[index].insertGoo(type, volume) : 0;
     }
 
@@ -161,7 +162,7 @@ public class SlottedCanisterData {
      * @param requested volume in microblobs
      * @return the amount actually extracted
      */
-    public int extractGoo(int index, GooType type, int requested) {
+    public int extractGoo(int index, ResourceKey<GooTypeDefinition> type, int requested) {
         return inRange(index) ? slots[index].extractGoo(type, requested) : 0;
     }
 
@@ -170,7 +171,7 @@ public class SlottedCanisterData {
      * @param currentTick the current game tick
      * @return the slot's snapshot stream goo type if fresh, else null
      */
-    public @Nullable GooType getSlotStreamType(int index, long currentTick) {
+    public @Nullable ResourceKey<GooTypeDefinition> getSlotStreamType(int index, long currentTick) {
         return inRange(index) ? slots[index].getStreamType(currentTick) : null;
     }
 
@@ -238,7 +239,7 @@ public class SlottedCanisterData {
      * @param amount volume in microblobs
      * @return total volume accepted across all slots
      */
-    public int routeGoo(GooType type, int amount) {
+    public int routeGoo(ResourceKey<GooTypeDefinition> type, int amount) {
         return routeFluid(GooFluids.resource(type), amount);
     }
 

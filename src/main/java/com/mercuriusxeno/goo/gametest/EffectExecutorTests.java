@@ -1,7 +1,8 @@
 package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
@@ -10,6 +11,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.block.Blocks;
 
@@ -61,7 +63,7 @@ public final class EffectExecutorTests {
      * @param helper the gametest helper
      * @param type   the goo type for the chain marker
      */
-    private static void placeMarkerWithWall(GameTestHelper helper, GooType type) {
+    private static void placeMarkerWithWall(GameTestHelper helper, ResourceKey<GooTypeDefinition> type) {
         // Fill a 5x3x3 wall of stone north of the marker (z=0..2, x=1..5, y=1..3)
         for (int x = 1; x <= WALL_X_MAX; x++) {
             for (int y = 1; y <= WALL_Y_MAX; y++) {
@@ -83,7 +85,7 @@ public final class EffectExecutorTests {
      * @param helper the gametest helper
      */
     public static void blazeMinesBlock(GameTestHelper helper) {
-        placeMarkerWithWall(helper, GooType.BLAZE);
+        placeMarkerWithWall(helper, GooTypes.BLAZE);
         BlockPos target = MARKER_POS.north();
         helper.runAfterDelay(FUSE_TICKS + MINING_POST_FUSE, () -> {
             helper.assertBlockNotPresent(Blocks.STONE, target);
@@ -99,7 +101,7 @@ public final class EffectExecutorTests {
      */
     public static void rockMinesBlock(GameTestHelper helper) {
         helper.assertTrue(Goo.GOO_VALUES.size() > 0, VALUES_REQUIRED);
-        placeMarkerWithWall(helper, GooType.ROCK);
+        placeMarkerWithWall(helper, GooTypes.ROCK);
         BlockPos target = MARKER_POS.north();
         helper.runAfterDelay(FUSE_TICKS + MINING_POST_FUSE, () -> {
             helper.assertBlockNotPresent(Blocks.STONE, target);
@@ -115,7 +117,7 @@ public final class EffectExecutorTests {
      * @param helper the gametest helper
      */
     public static void frostRuns(GameTestHelper helper) {
-        placeMarkerWithWall(helper, GooType.FROST);
+        placeMarkerWithWall(helper, GooTypes.FROST);
         helper.runAfterDelay(FUSE_TICKS + MINING_POST_FUSE, () -> {
             helper.succeed();
         });
@@ -128,7 +130,7 @@ public final class EffectExecutorTests {
      * @param helper the gametest helper
      */
     public static void metalRuns(GameTestHelper helper) {
-        placeMarkerWithWall(helper, GooType.METAL);
+        placeMarkerWithWall(helper, GooTypes.METAL);
         helper.runAfterDelay(FUSE_TICKS + SHORT_POST_FUSE, () -> {
             helper.succeed();
         });
@@ -140,7 +142,7 @@ public final class EffectExecutorTests {
      * @param helper the gametest helper
      */
     public static void crystalRuns(GameTestHelper helper) {
-        placeMarkerWithWall(helper, GooType.CRYSTAL);
+        placeMarkerWithWall(helper, GooTypes.CRYSTAL);
         helper.runAfterDelay(FUSE_TICKS + SHORT_POST_FUSE, () -> {
             helper.succeed();
         });
@@ -153,7 +155,7 @@ public final class EffectExecutorTests {
      * @param helper the gametest helper
      */
     public static void netherImplodes(GameTestHelper helper) {
-        placeMarkerWithWall(helper, GooType.NETHER);
+        placeMarkerWithWall(helper, GooTypes.NETHER);
         helper.runAfterDelay(FUSE_TICKS + NETHER_POST_FUSE, () -> {
             helper.succeed();
         });
@@ -166,7 +168,7 @@ public final class EffectExecutorTests {
      * @param helper the gametest helper
      */
     public static void unstableExplodes(GameTestHelper helper) {
-        placeMarkerWithWall(helper, GooType.UNSTABLE);
+        placeMarkerWithWall(helper, GooTypes.UNSTABLE);
         helper.runAfterDelay(FUSE_TICKS + SHORT_POST_FUSE, () -> {
             helper.succeed();
         });
@@ -178,7 +180,7 @@ public final class EffectExecutorTests {
      * @param helper the gametest helper
      */
     public static void glowRuns(GameTestHelper helper) {
-        placeMarkerWithWall(helper, GooType.GLOW);
+        placeMarkerWithWall(helper, GooTypes.GLOW);
         helper.runAfterDelay(FUSE_TICKS + SHORT_POST_FUSE, () -> {
             helper.succeed();
         });
@@ -195,7 +197,7 @@ public final class EffectExecutorTests {
      * @param type      the goo type
      * @param abilityId the ability identifier string
      */
-    private static void placeMarkerWithAbility(GameTestHelper helper, GooType type, String abilityId) {
+    private static void placeMarkerWithAbility(GameTestHelper helper, ResourceKey<GooTypeDefinition> type, String abilityId) {
         for (int x = 1; x <= WALL_X_MAX; x++) {
             for (int y = 1; y <= WALL_Y_MAX; y++) {
                 for (int z = 0; z <= WALL_Z_MAX; z++) {
@@ -217,7 +219,7 @@ public final class EffectExecutorTests {
      * @param helper the gametest helper
      */
     public static void abilityBlazeTunnel(GameTestHelper helper) {
-        placeMarkerWithAbility(helper, GooType.BLAZE, ABILITY_BLAZE_TUNNEL);
+        placeMarkerWithAbility(helper, GooTypes.BLAZE, ABILITY_BLAZE_TUNNEL);
         BlockPos target = MARKER_POS.north();
         helper.runAfterDelay(FUSE_TICKS + MINING_POST_FUSE, () -> {
             helper.assertBlockNotPresent(Blocks.STONE, target);
@@ -233,7 +235,7 @@ public final class EffectExecutorTests {
      */
     public static void abilityRockTunnel(GameTestHelper helper) {
         helper.assertTrue(Goo.GOO_VALUES.size() > 0, VALUES_REQUIRED);
-        placeMarkerWithAbility(helper, GooType.ROCK, ABILITY_ROCK_TUNNEL);
+        placeMarkerWithAbility(helper, GooTypes.ROCK, ABILITY_ROCK_TUNNEL);
         BlockPos target = MARKER_POS.north();
         helper.runAfterDelay(FUSE_TICKS + MINING_POST_FUSE, () -> {
             helper.assertBlockNotPresent(Blocks.STONE, target);
@@ -248,7 +250,7 @@ public final class EffectExecutorTests {
      * @param helper the gametest helper
      */
     public static void abilityFrostSphere(GameTestHelper helper) {
-        placeMarkerWithAbility(helper, GooType.FROST, ABILITY_FROST_SPHERE);
+        placeMarkerWithAbility(helper, GooTypes.FROST, ABILITY_FROST_SPHERE);
         helper.runAfterDelay(FUSE_TICKS + MINING_POST_FUSE, () -> {
             helper.succeed();
         });
@@ -274,7 +276,7 @@ public final class EffectExecutorTests {
      * @param helper the gametest helper
      */
     public static void programInstantDetonation(GameTestHelper helper) {
-        placeMarkerWithAbility(helper, GooType.UNSTABLE, ABILITY_INSTANT_DETONATION);
+        placeMarkerWithAbility(helper, GooTypes.UNSTABLE, ABILITY_INSTANT_DETONATION);
         helper.runAfterDelay(SHORT_POST_FUSE, () -> {
             assertDetonated(helper);
             helper.succeed();
@@ -288,7 +290,7 @@ public final class EffectExecutorTests {
      * @param helper the gametest helper
      */
     public static void programTimedBomb(GameTestHelper helper) {
-        placeMarkerWithAbility(helper, GooType.UNSTABLE, ABILITY_TIMED_BOMB);
+        placeMarkerWithAbility(helper, GooTypes.UNSTABLE, ABILITY_TIMED_BOMB);
         helper.runAfterDelay(TIMED_BOMB_MIDWAY, () ->
                 helper.assertBlockPresent(GooBlocks.CHAIN_MARKER.get(), MARKER_POS));
         helper.runAfterDelay(TIMED_BOMB_FUSE + SHORT_POST_FUSE, () -> {
@@ -305,7 +307,7 @@ public final class EffectExecutorTests {
      * @param helper the gametest helper
      */
     public static void programProximityMine(GameTestHelper helper) {
-        placeMarkerWithAbility(helper, GooType.UNSTABLE, ABILITY_PROXIMITY_MINE);
+        placeMarkerWithAbility(helper, GooTypes.UNSTABLE, ABILITY_PROXIMITY_MINE);
         helper.getBlockEntity(MARKER_POS, ChainMarkerBlockEntity.class).instantDetonate();
         helper.runAfterDelay(MINE_IDLE_TICKS, () -> {
             helper.assertBlockPresent(GooBlocks.CHAIN_MARKER.get(), MARKER_POS);

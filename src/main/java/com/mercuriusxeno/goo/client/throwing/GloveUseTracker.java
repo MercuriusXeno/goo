@@ -1,12 +1,13 @@
 package com.mercuriusxeno.goo.client.throwing;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.client.radial.GooRadialScreen;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -123,7 +124,7 @@ public final class GloveUseTracker {
      * @return true if the player has at least 1 mB of the selected goo type
      */
     private static boolean checkSelectedTypeAvailable(LocalPlayer player) {
-        GooType type = readSelectedType(player);
+        ResourceKey<GooTypeDefinition> type = readSelectedType(player);
         return type != null && GooSourceScanner.hasEnough(player, type, 1);
     }
 
@@ -133,7 +134,7 @@ public final class GloveUseTracker {
      * @param player the interacting player
      * @return the selected goo type, or null if no glove is held or no type is selected
      */
-    private static @Nullable GooType readSelectedType(LocalPlayer player) {
+    private static @Nullable ResourceKey<GooTypeDefinition> readSelectedType(LocalPlayer player) {
         ItemStack main = player.getMainHandItem();
         if (main.getItem() instanceof GooGloveItem) {
             return GooGloveItem.getSelectedType(main);

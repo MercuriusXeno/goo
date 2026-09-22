@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.gametest;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
 import com.mercuriusxeno.goo.block.canister.SlottedCanisterData;
 import com.mercuriusxeno.goo.block.plexer.PlexerBlockEntity;
@@ -190,8 +190,8 @@ public final class MachineTests {
 
         helper.setBlock(INPUT_POS, GooBlocks.CANISTER.get());
         CanisterBlockEntity inputBe = helper.getBlockEntity(INPUT_POS, CanisterBlockEntity.class);
-        FluidResource blazeFluid = GooFluids.resource(GooType.BLAZE);
-        FluidResource leafFluid = GooFluids.resource(GooType.LEAF);
+        FluidResource blazeFluid = GooFluids.resource(GooTypes.BLAZE);
+        FluidResource leafFluid = GooFluids.resource(GooTypes.LEAF);
         insertFilledCanister(inputBe, 0, blazeFluid, INPUT_AMOUNT);
         insertFilledCanister(inputBe, CORNER_SLOT_2, leafFluid, INPUT_AMOUNT);
 
@@ -282,8 +282,8 @@ public final class MachineTests {
 
         helper.setBlock(INPUT_POS, GooBlocks.CANISTER.get());
         CanisterBlockEntity inputBe = helper.getBlockEntity(INPUT_POS, CanisterBlockEntity.class);
-        FluidResource blazeFluid = GooFluids.resource(GooType.BLAZE);
-        FluidResource leafFluid = GooFluids.resource(GooType.LEAF);
+        FluidResource blazeFluid = GooFluids.resource(GooTypes.BLAZE);
+        FluidResource leafFluid = GooFluids.resource(GooTypes.LEAF);
         insertFilledCanister(inputBe, 0, blazeFluid, INPUT_AMOUNT);
         insertFilledCanister(inputBe, CORNER_SLOT_2, leafFluid, INPUT_AMOUNT);
 
@@ -316,7 +316,7 @@ public final class MachineTests {
         be.insertCanister(CENTER_SLOT, new ItemStack(GooItems.CANISTER.get()), false);
 
         SlottedCanisterData state = be.containerState();
-        FluidResource blazeFluid = GooFluids.resource(GooType.BLAZE);
+        FluidResource blazeFluid = GooFluids.resource(GooTypes.BLAZE);
 
         int inserted = state.insertFluid(CENTER_SLOT, blazeFluid, TEST_VOLUME);
         helper.assertTrue(inserted == TEST_VOLUME, SHOULD_INSERT_FULL);
@@ -343,7 +343,7 @@ public final class MachineTests {
         helper.setBlock(BE_POS, GooBlocks.CANISTER.get());
         CanisterBlockEntity be = helper.getBlockEntity(BE_POS, CanisterBlockEntity.class);
 
-        FluidResource blazeFluid = GooFluids.resource(GooType.BLAZE);
+        FluidResource blazeFluid = GooFluids.resource(GooTypes.BLAZE);
 
         // Slot 0: already holds some blaze goo
         insertFilledCanister(be, 0, blazeFluid, TEST_VOLUME);
@@ -377,7 +377,7 @@ public final class MachineTests {
         helper.setBlock(BE_POS, GooBlocks.CANISTER.get());
         CanisterBlockEntity be = helper.getBlockEntity(BE_POS, CanisterBlockEntity.class);
 
-        FluidResource blazeFluid = GooFluids.resource(GooType.BLAZE);
+        FluidResource blazeFluid = GooFluids.resource(GooTypes.BLAZE);
         insertFilledCanister(be, CENTER_SLOT, blazeFluid, TEST_VOLUME);
 
         // Snapshot the BE state as NBT

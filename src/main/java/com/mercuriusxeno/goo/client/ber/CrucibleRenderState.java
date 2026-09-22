@@ -1,7 +1,8 @@
 package com.mercuriusxeno.goo.client.ber;
 
-import com.mercuriusxeno.goo.GooType;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
+import net.minecraft.resources.ResourceKey;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -18,11 +19,11 @@ public class CrucibleRenderState extends BlockEntityRenderState {
 
     /** Debounce-stabilized dominant goo type from the block entity. Drives liquid surface texture. */
     @Nullable
-    public GooType dominantType;
+    public ResourceKey<GooTypeDefinition> dominantType;
 
     /** Outgoing type during a crossfade transition. Null when not crossfading. */
     @Nullable
-    public GooType outgoingType;
+    public ResourceKey<GooTypeDefinition> outgoingType;
 
     /** Crossfade alpha [0, 1]: 0 = fully outgoing, 1 = fully incoming. */
     public float crossfadeAlpha = 1f;

@@ -21,11 +21,11 @@ class GooTypeNamesTest {
     private static final String TIER = "Puddle";
 
     /**
-     * A bundled type's translation key is the one the enum spells.
+     * A bundled type's translation key is the one the lang file spells.
      */
     @Test
     void bundledTypeKeepsEnumTranslationKey() {
-        assertEquals(GooType.BLAZE.getTranslationKey(), GooTypeNames.translationKey(GooTypes.BLAZE));
+        assertEquals("goo.type.blaze", GooTypeNames.translationKey(GooTypes.BLAZE));
     }
 
     /**
@@ -45,7 +45,7 @@ class GooTypeNamesTest {
     void blobNameResolvesTypeName() {
         TranslatableContents blob = translatable(GooTypeNames.blobName(GooTypes.BLAZE));
         assertEquals(GooTypeNames.BLOB, blob.getKey());
-        assertEquals(GooType.BLAZE.getTranslationKey(), argumentKey(blob, 0));
+        assertEquals("goo.type.blaze", argumentKey(blob, 0));
 
         TranslatableContents datapack = translatable(GooTypeNames.blobName(SEVENTEENTH));
         assertEquals("goo.type.gootest.seventeenth", argumentKey(datapack, 0));
@@ -59,12 +59,12 @@ class GooTypeNamesTest {
     void omniblobAndBucketNamesResolveTypeName() {
         TranslatableContents omniblob = translatable(GooTypeNames.omniblobName(GooTypes.FROST, TIER));
         assertEquals(GooTypeNames.OMNIBLOB, omniblob.getKey());
-        assertEquals(GooType.FROST.getTranslationKey(), argumentKey(omniblob, 0));
+        assertEquals("goo.type.frost", argumentKey(omniblob, 0));
         assertEquals(TIER, omniblob.getArgs()[1]);
 
         TranslatableContents bucket = translatable(GooTypeNames.bucketName(GooTypes.ROCK));
         assertEquals(GooTypeNames.BUCKET, bucket.getKey());
-        assertEquals(GooType.ROCK.getTranslationKey(), argumentKey(bucket, 0));
+        assertEquals("goo.type.rock", argumentKey(bucket, 0));
     }
 
     /**
