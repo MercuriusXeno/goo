@@ -9,6 +9,7 @@ import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.RenderContext;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
+import com.mercuriusxeno.goo.item.CanisterMetadata;
 import com.mercuriusxeno.goo.item.ContainerCapacity;
 import com.mercuriusxeno.goo.registry.GooEnchantments;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -44,9 +45,13 @@ public class ReactorBlockEntityRenderer
     private static final Identifier REACTOR_TEXTURE =
             Identifier.fromNamespaceAndPath("goo", "textures/block/reactor.png");
 
-    /** Copper endcap texture. */
+    /** Copper endcap texture (default canister caps). */
     private static final Identifier COPPER_GASKET =
             Identifier.fromNamespaceAndPath("goo", "textures/block/gasket.png");
+
+    /** Choral gasket texture (upgraded canister caps). */
+    private static final Identifier CHORAL_GASKET =
+            Identifier.fromNamespaceAndPath("goo", "textures/block/choral_gasket.png");
 
     /** Block center for rotation pivot. */
     private static final float BLOCK_CENTER = 0.5f;
@@ -81,6 +86,14 @@ public class ReactorBlockEntityRenderer
     private static final float GS_U1 = 0.5f;
     /** Gasket side V end. */
     private static final float GS_V1 = 0.0625f;
+
+    /** Y ranges describing where gasket boxes land in the reactor hollow. */
+    private static final GasketCapRenderer.GasketYRanges GASKET_Y =
+            new GasketCapRenderer.GasketYRanges(BODY_BOT, BODY_TOP, GASKET_BOT, GASKET_TOP);
+
+    /** Gasket side UV region (uniform across container types). */
+    private static final GasketCapRenderer.GasketUv GASKET_UV =
+            new GasketCapRenderer.GasketUv(GS_U0, GS_U1, GS_V1);
 
     /** Wheel center Y and Z in block space (center of 3-13 range). */
     private static final float WHEEL_CENTER = 8f / 16f;
@@ -223,17 +236,22 @@ public class ReactorBlockEntityRenderer
         } else {
             state.slot.type = null;
             state.slot.fill = 0f;
+            state.slot.topGasketPresent = false;
+            state.slot.bottomGasketPresent = false;
         }
     }
 
     /**
-     * Reads compression level and goo fill from the canister stack.
+     * Reads compression level, gasket caps and goo fill from the canister stack.
      *
      * @param canister the canister item stack
      * @param state    the render state to populate
      */
     private static void extractContents(ItemStack canister, ReactorRenderState state) {
         state.slot.matrices = GooEnchantments.getCompressionLevel(canister);
+        CanisterMetadata meta = CanisterItem.getMetadata(canister);
+        state.slot.topGasketPresent = meta.topGasketId() != null;
+        state.slot.bottomGasketPresent = meta.bottomGasketId() != null;
         CanisterFluidContent content = CanisterItem.getFluidContent(canister);
         if (content.isEmpty()) {
             state.slot.type = null;
@@ -582,7 +600,10 @@ public class ReactorBlockEntityRenderer
     }
 
     /**
-     * Renders copper endcaps at top and bottom.
+     * Renders the output canister's endcaps: copper on an end without a
+     * choral gasket, the choral gasket texture on an end that carries one,
+     * the way the canister and hub renderers cap their slots
+     * (reactor-gasket-render-fix).
      *
      * @param poseStack     the pose stack
      * @param nodeCollector the node collector
@@ -590,15 +611,30 @@ public class ReactorBlockEntityRenderer
      */
     private static void submitGaskets(PoseStack poseStack,
             SubmitNodeCollector nodeCollector, ReactorRenderState state) {
-        int light = state.lightCoords;
+        boolean top = state.slot.topGasketPresent;
+        boolean bottom = state.slot.bottomGasketPresent;
+        submitEndcaps(poseStack, nodeCollector, state.lightCoords, COPPER_GASKET, !top, !bottom);
+        submitEndcaps(poseStack, nodeCollector, state.lightCoords, CHORAL_GASKET, top, bottom);
+    }
+
+    /**
+     * Submits the endcaps a texture owns in one draw call, none when it owns neither.
+     *
+     * @param poseStack     the pose stack
+     * @param nodeCollector the node collector
+     * @param light         packed light coords for the hollow
+     * @param texture       the endcap texture
+     * @param top           whether this texture caps the top end
+     * @param bottom        whether this texture caps the bottom end
+     */
+    private static void submitEndcaps(PoseStack poseStack, SubmitNodeCollector nodeCollector,
+            int light, Identifier texture, boolean top, boolean bottom) {
+        if (!top && !bottom) { return; }
         CuboidBounds base = canisterBounds(0, 0);
         nodeCollector.submitCustomGeometry(poseStack,
-                RenderTypes.entitySolid(COPPER_GASKET),
-                (pose, c) -> {
-                    RenderContext ctx = new RenderContext(pose, c, light);
-                    ctx.gasketBox(base.withY(BODY_TOP, GASKET_TOP), GS_U0, GS_U1, GS_V1);
-                    ctx.gasketBox(base.withY(GASKET_BOT, BODY_BOT), GS_U0, GS_U1, GS_V1);
-                });
+                RenderTypes.entitySolid(texture),
+                (pose, c) -> GasketCapRenderer.renderEndcaps(
+                        new RenderContext(pose, c, light), base, GASKET_Y, GASKET_UV, top, bottom));
     }
 
     /**

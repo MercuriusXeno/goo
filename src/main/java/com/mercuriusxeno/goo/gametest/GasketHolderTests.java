@@ -11,6 +11,7 @@ import com.mercuriusxeno.goo.block.vat.VatBlockEntity;
 import com.mercuriusxeno.goo.data.GasketLocation;
 import com.mercuriusxeno.goo.data.GasketRegistry;
 import com.mercuriusxeno.goo.item.CanisterItem;
+import com.mercuriusxeno.goo.item.CanisterMetadata;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooCapabilities;
@@ -68,6 +69,10 @@ public final class GasketHolderTests {
     private static final String REACTOR_CANISTER_IN_HAND = "Removed canister should reach the player's inventory";
     private static final String REACTOR_LOCATION_RESTORED =
             "Re-inserting the output canister should register its gasket at the reactor's OUTPUT_SLOT";
+    private static final String REACTOR_SEATED_TOP_GASKET =
+            "Seated canister metadata should answer the top gasket id it was inserted with";
+    private static final String REACTOR_SEATED_BOTTOM_GASKET =
+            "Seated canister metadata should answer the bottom gasket id it was inserted with";
 
     private GasketHolderTests() {
     }
@@ -231,6 +236,31 @@ public final class GasketHolderTests {
         GasketLocation expected = new GasketLocation(helper.getLevel().dimension(),
                 helper.absolutePos(BE_POS), false, ReactorBlockEntity.OUTPUT_SLOT);
         helper.assertTrue(expected.equals(registry.getLocation(gasketId)), REACTOR_LOCATION_RESTORED);
+        helper.succeed();
+    }
+
+    // --- Reactor (reactor-gasket-render-fix) ---
+
+    /**
+     * Reactor: a canister seated with a choral gasket on each end answers both
+     * gasket ids through {@link CanisterItem#getMetadata}, the read the renderer's
+     * extract makes to choose the cap texture.
+     *
+     * @param helper the gametest helper
+     */
+    public static void reactorSeatedCanisterAnswersGasketMetadata(GameTestHelper helper) {
+        helper.setBlock(BE_POS, GooBlocks.REACTOR.get());
+        ReactorBlockEntity reactor = helper.getBlockEntity(BE_POS, ReactorBlockEntity.class);
+        UUID topId = UUID.randomUUID();
+        UUID bottomId = UUID.randomUUID();
+        ItemStack canister = new ItemStack(GooItems.CANISTER.get());
+        CanisterItem.setMetadata(canister,
+                CanisterItem.getMetadata(canister).withTopGasketId(topId).withBottomGasketId(bottomId));
+        reactor.insertOutputCanister(canister);
+
+        CanisterMetadata seated = CanisterItem.getMetadata(reactor.getOutputCanister());
+        helper.assertTrue(topId.equals(seated.topGasketId()), REACTOR_SEATED_TOP_GASKET);
+        helper.assertTrue(bottomId.equals(seated.bottomGasketId()), REACTOR_SEATED_BOTTOM_GASKET);
         helper.succeed();
     }
 
