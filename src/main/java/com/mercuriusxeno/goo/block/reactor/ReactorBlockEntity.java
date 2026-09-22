@@ -3,12 +3,15 @@ package com.mercuriusxeno.goo.block.reactor;
 import com.mercuriusxeno.goo.block.BlockEntitySync;
 import com.mercuriusxeno.goo.block.canister.*;
 import com.mercuriusxeno.goo.block.gasket.GasketAttachment;
+import com.mercuriusxeno.goo.block.gasket.GasketPusher;
 import com.mercuriusxeno.goo.block.gasket.IGasketHolder;
+import com.mercuriusxeno.goo.block.gasket.SlotGasketPusher;
 import com.mercuriusxeno.goo.block.gasket.SlotGasketRegistration;
 import com.mercuriusxeno.goo.data.GooReaction;
 import com.mercuriusxeno.goo.data.GooReactionLoader;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
+import com.mercuriusxeno.goo.item.gasket.GasketPartner;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import net.minecraft.core.BlockPos;
@@ -117,10 +120,23 @@ public class ReactorBlockEntity extends BlockEntity
      */
     public ReactorBlockEntity(BlockPos pos, BlockState state) {
         super(GooBlockEntities.REACTOR.get(), pos, state);
+        gasket.rebuildPushers(() -> {
+            if (level instanceof ServerLevel) {
+                rebuildOutputPusher();
+            }
+        });
+        gasket.afterLoad(() -> {
+            if (level instanceof ServerLevel serverLevel) {
+                GasketPusher.forceTransmitterChunk(getSlotMetadata(OUTPUT_SLOT).topGasketId(),
+                        gasket.registryAccess(), serverLevel, worldPosition);
+            }
+        });
     }
 
     /**
-     * Server tick: if not redstone-halted, resolve a reaction and execute it.
+     * Server tick: the output canister pushes through its bottom gasket as a
+     * canister block slot does, redstone or not; a reaction runs only while
+     * not redstone-halted.
      *
      * @param level the server level
      * @param pos   the block position
@@ -129,6 +145,7 @@ public class ReactorBlockEntity extends BlockEntity
      */
     public static void serverTick(Level level, BlockPos pos,
                                   BlockState state, ReactorBlockEntity be) {
+        be.state.tickPushers();
         if (state.getValue(ReactorBlock.TRIGGERED)) {
             be.clearCrafting(level, pos, state);
             return;
@@ -243,6 +260,7 @@ public class ReactorBlockEntity extends BlockEntity
         state.slots[OUTPUT_SLOT].buildHandler(() -> level != null ? level.getGameTime() : 0L);
         BlockEntitySync.invalidateCapabilities(this);
         registerOutputGaskets();
+        rebuildOutputPusher();
         BlockEntitySync.markDirtyAndSync(this);
         return true;
     }
@@ -261,10 +279,20 @@ public class ReactorBlockEntity extends BlockEntity
         // accurate fluid data, but don't sync yet - we clear and sync once.
         state.slots[OUTPUT_SLOT].syncHandlerToStack();
         deregisterOutputGaskets();
+        state.slots[OUTPUT_SLOT].disposePusher();
         state.slots[OUTPUT_SLOT].clear();
         BlockEntitySync.invalidateCapabilities(this);
         BlockEntitySync.markDirtyAndSync(this);
         return current;
+    }
+
+    /**
+     * Stands or drops the output slot's pusher from the canister's bottom
+     * gasket state, the lifecycle a canister block slot runs
+     * (reactor-output-push-fix).
+     */
+    private void rebuildOutputPusher() {
+        SlotGasketPusher.rebuild(state.slots[OUTPUT_SLOT], this, gasket.registryAccess());
     }
 
     private void registerOutputGaskets() {
@@ -297,6 +325,17 @@ public class ReactorBlockEntity extends BlockEntity
     @Override
     public int resolveSlot(BlockHitResult hit) {
         return ReactorBlock.isHollowClick(getBlockState(), worldPosition, hit) ? OUTPUT_SLOT : SLOT_MISS;
+    }
+
+    /**
+     * A transmitter partner change re-stands the output pusher on the new link.
+     */
+    @Override
+    public void setPartner(GasketRole role, int slot, @Nullable GasketPartner partner) {
+        IGasketHolder.super.setPartner(role, slot, partner);
+        if (role == GasketRole.TRANSMITTER && slot == OUTPUT_SLOT) {
+            rebuildOutputPusher();
+        }
     }
 
     /**
@@ -576,6 +615,7 @@ public class ReactorBlockEntity extends BlockEntity
 
     @Override
     public void setRemoved() {
+        state.disposeAllPushers();
         deregisterOutputGaskets();
         super.setRemoved();
     }

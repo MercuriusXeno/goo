@@ -9,6 +9,7 @@ import com.mercuriusxeno.goo.block.gasket.GasketAttachment;
 import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
 import com.mercuriusxeno.goo.block.gasket.GasketPusher;
 import com.mercuriusxeno.goo.block.gasket.IGasketHolder;
+import com.mercuriusxeno.goo.block.gasket.SlotGasketPusher;
 import com.mercuriusxeno.goo.block.gasket.SlotGasketRegistration;
 import com.mercuriusxeno.goo.item.*;
 import com.mercuriusxeno.goo.item.gasket.GasketPartner;
@@ -143,14 +144,6 @@ public class CanisterBlockEntity extends BlockEntity implements ICanisterHolder,
         if (meta != null && meta.hasData()) {
             CanisterItem.setMetadata(stack, meta);
         }
-    }
-
-    private static boolean slotNeedsPusher(CanisterSlot slot) {
-        if (slot.handler() == null || slot.isEmpty()) {
-            return false;
-        }
-        CanisterMetadata meta = CanisterItem.getMetadata(slot.canister());
-        return meta.bottomGasketId() != null && meta.bottomPartner() != null;
     }
 
     @Override
@@ -296,21 +289,7 @@ public class CanisterBlockEntity extends BlockEntity implements ICanisterHolder,
         if (slot == null) {
             return;
         }
-        slot.disposePusher();
-        if (!slotNeedsPusher(slot)) {
-            return;
-        }
-        slot.setPusher(buildPusher(slot));
-    }
-
-    private GasketPusher buildPusher(CanisterSlot slot) {
-        GasketPusher pusher = new GasketPusher(slot.handler(),
-                () -> CanisterItem.getMetadata(slot.canister()).bottomGasketId(),
-                () -> CanisterItem.getMetadata(slot.canister()).bottomPartner(),
-                this::getLevel, this::getBlockPos,
-                slot::syncHandlerToStack, gasket.registryAccess());
-        pusher.rebuildCache();
-        return pusher;
+        SlotGasketPusher.rebuild(slot, this, gasket.registryAccess());
     }
 
     /**
