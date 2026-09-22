@@ -15,10 +15,18 @@
   },
   "behaviors": [
     {
-      "type": "block_place",
-      "params": {
-        "placer": "glow_crystal"
-      }
+      "type": "program",
+      "steps": [
+        {
+          "type": "place_block",
+          "block": "goo:glow_crystal",
+          "state": {
+            "facing": "face",
+            "shape": { "by": "flat", "values": ["bump", "flat"] },
+            "size": { "by": "stacks - 1", "values": ["tiny", "small", "medium", "large"] }
+          }
+        }
+      ]
     }
   ],
   "tags": ["place_block", "instant"]

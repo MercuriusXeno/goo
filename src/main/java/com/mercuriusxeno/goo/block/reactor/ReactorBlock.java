@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.block.GooBlockInteraction;
 import com.mercuriusxeno.goo.block.IGooLightSource;
 import com.mercuriusxeno.goo.block.ShapeHitCheck;
 import com.mercuriusxeno.goo.item.CanisterItem;
+import com.mercuriusxeno.goo.item.GooInteractionType;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
@@ -336,7 +337,9 @@ public class ReactorBlock extends BaseEntityBlock {
     }
 
     /**
-     * Right-click with item: insert a canister into the output hollow.
+     * Right-click with item: insert a canister into the output hollow. A gasket
+     * or tuner passes so its own use logic reaches the output canister, as on
+     * the canister block; the empty-hand path would pop the canister instead.
      *
      * @param stack     the held item
      * @param state     the block state
@@ -352,6 +355,9 @@ public class ReactorBlock extends BaseEntityBlock {
             @NonNull ItemStack stack, @NonNull BlockState state,
             Level level, @NonNull BlockPos pos, @NonNull Player player,
             @NonNull InteractionHand hand, @NonNull BlockHitResult hitResult) {
+        if (GooInteractionType.classify(stack) == GooInteractionType.TUNER_PASS) {
+            return InteractionResult.PASS;
+        }
         if (!(stack.getItem() instanceof CanisterItem)) {
             return InteractionResult.TRY_WITH_EMPTY_HAND;
         }

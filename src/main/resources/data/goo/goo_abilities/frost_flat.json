@@ -16,14 +16,17 @@
   },
   "behaviors": [
     {
-      "type": "progressive_area",
-      "params": {
-        "areaMode": "flat_circle",
-        "blockEffect": "freeze",
-        "layerVisuals": "none",
-        "layerAudio": "none",
-        "previewDelayTicks": "8"
-      }
+      "type": "program",
+      "steps": [
+        {
+          "type": "progressive_area",
+          "shape": "flat_circle",
+          "effect": "freeze",
+          "visuals": "none",
+          "audio": "none",
+          "preview_delay": 8
+        }
+      ]
     }
   ],
   "tags": ["transmute", "area"]

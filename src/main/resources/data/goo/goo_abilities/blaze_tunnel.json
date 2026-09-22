@@ -12,14 +12,17 @@
   },
   "behaviors": [
     {
-      "type": "progressive_area",
-      "params": {
-        "areaMode": "tunnel",
-        "blockEffect": "fortune_smelt_break",
-        "layerVisuals": "blaze_flame",
-        "layerAudio": "generic_explode",
-        "previewDelayTicks": "8"
-      }
+      "type": "program",
+      "steps": [
+        {
+          "type": "progressive_area",
+          "shape": "tunnel",
+          "effect": "fortune_smelt_break",
+          "visuals": "blaze_flame",
+          "audio": "generic_explode",
+          "preview_delay": 8
+        }
+      ]
     }
   ],
   "tags": ["block_break", "directional"]
