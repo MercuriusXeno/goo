@@ -2,10 +2,14 @@ package com.mercuriusxeno.goo.block.reactor;
 
 import com.mercuriusxeno.goo.block.BlockEntitySync;
 import com.mercuriusxeno.goo.block.canister.*;
+import com.mercuriusxeno.goo.block.gasket.GasketAttachment;
+import com.mercuriusxeno.goo.block.gasket.IGasketHolder;
+import com.mercuriusxeno.goo.block.gasket.SlotGasketRegistration;
 import com.mercuriusxeno.goo.data.GooReaction;
 import com.mercuriusxeno.goo.data.GooReactionLoader;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
+import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
@@ -13,6 +17,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -21,6 +26,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import net.neoforged.neoforge.transfer.transaction.Transaction;
@@ -34,9 +40,13 @@ import java.util.Set;
  * matches a reaction recipe, and pushes output into the front canister.
  * Redstone halts processing. Throughput scales with available batches
  * via power-law: ceil(minBatches ^ 0.35).
+ *
+ * <p>The output canister is a gasket holder over its single slot, the way a
+ * canister block slot is: gasket ids and partners live on the canister item's
+ * metadata, and the registry location follows the canister in and out.</p>
  */
 public class ReactorBlockEntity extends BlockEntity
-        implements ICanisterHolder, ICanisterAttachable {
+        implements ICanisterHolder, ICanisterAttachable, IGasketHolder {
 
     /**
      * Output canister slot index.
@@ -64,13 +74,18 @@ public class ReactorBlockEntity extends BlockEntity
      */
     private static final String TAG_OUTPUT_CANISTER = "OutputCanister";
     /**
+     * Roleless gasket integration: the output canister's metadata holds the
+     * gasket ids, as on a canister block slot (reactor-gasket-click-fix).
+     */
+    private final GasketAttachment gasket = GasketAttachment.none(this);
+    /**
      * Slotted state for the single output canister.
      */
     private final SlottedCanisterData state = new SlottedCanisterData(
             OUTPUT_SLOT_COUNT,
             i -> Shapes.empty(),
             slots -> Shapes.empty(),
-            () -> BlockEntitySync.markDirtyAndSync(this));
+            gasket.syncCallback());
     /**
      * Client-side wheel rotation angle in degrees. Not serialized.
      */
@@ -226,6 +241,8 @@ public class ReactorBlockEntity extends BlockEntity
         }
         state.slots[OUTPUT_SLOT].setCanister(stack.copyWithCount(1));
         state.slots[OUTPUT_SLOT].buildHandler(() -> level != null ? level.getGameTime() : 0L);
+        BlockEntitySync.invalidateCapabilities(this);
+        registerOutputGaskets();
         BlockEntitySync.markDirtyAndSync(this);
         return true;
     }
@@ -243,9 +260,43 @@ public class ReactorBlockEntity extends BlockEntity
         // Write handler state to the item stack so the returned item has
         // accurate fluid data, but don't sync yet - we clear and sync once.
         state.slots[OUTPUT_SLOT].syncHandlerToStack();
+        deregisterOutputGaskets();
         state.slots[OUTPUT_SLOT].clear();
+        BlockEntitySync.invalidateCapabilities(this);
         BlockEntitySync.markDirtyAndSync(this);
         return current;
+    }
+
+    private void registerOutputGaskets() {
+        SlotGasketRegistration.register(gasket.registryAccess(), level, worldPosition,
+                OUTPUT_SLOT, getSlotMetadata(OUTPUT_SLOT));
+    }
+
+    private void deregisterOutputGaskets() {
+        SlotGasketRegistration.deregister(gasket.registryAccess(), getSlotMetadata(OUTPUT_SLOT));
+    }
+
+    // --- IGasketHolder ---
+
+    @Override
+    public GasketAttachment gasket() {
+        return gasket;
+    }
+
+    /**
+     * The output canister carries a gasket on either face, as a canister block slot does.
+     */
+    @Override
+    public boolean supportsRole(GasketRole role) {
+        return true;
+    }
+
+    /**
+     * A hit in the front hollow addresses the output slot; anything else misses.
+     */
+    @Override
+    public int resolveSlot(BlockHitResult hit) {
+        return ReactorBlock.isHollowClick(getBlockState(), worldPosition, hit) ? OUTPUT_SLOT : SLOT_MISS;
     }
 
     /**
@@ -510,7 +561,23 @@ public class ReactorBlockEntity extends BlockEntity
     @Override
     public void onLoad() {
         super.onLoad();
+        gasket.onLoad();
         BlockEntitySync.kickLightingOnLoad(this);
+    }
+
+    @Override
+    public void setLevel(@NonNull Level newLevel) {
+        super.setLevel(newLevel);
+        gasket.onSetLevel(newLevel);
+        if (newLevel instanceof ServerLevel) {
+            registerOutputGaskets();
+        }
+    }
+
+    @Override
+    public void setRemoved() {
+        deregisterOutputGaskets();
+        super.setRemoved();
     }
 
     @Override

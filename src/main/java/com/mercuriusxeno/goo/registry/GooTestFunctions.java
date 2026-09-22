@@ -33,6 +33,9 @@ public final class GooTestFunctions {
     private static final String VAT_SUPPORTS_ROLE = "vat_supports_role";
     private static final String HUB_HAS_INTAKE = "hub_has_intake";
     private static final String DEFAULT_ALLOWS_TUNING = "default_allows_tuning";
+    private static final String REACTOR_GASKET_INSTALL = "reactor_gasket_install";
+    private static final String REACTOR_TUNER_LINK = "reactor_tuner_link";
+    private static final String REACTOR_GASKET_LOCATION = "reactor_gasket_location";
 
     // --- Effect executors ---
     private static final String FX_BLAZE = "fx_blaze_mines";
@@ -162,6 +165,9 @@ public final class GooTestFunctions {
         reg(r, VAT_SUPPORTS_ROLE, GasketHolderTests::vatSupportsRoleMatchesBlockstate);
         reg(r, HUB_HAS_INTAKE, GasketHolderTests::hubHasIntake);
         reg(r, DEFAULT_ALLOWS_TUNING, GasketHolderTests::defaultAllowsTuningIsTrue);
+        reg(r, REACTOR_GASKET_INSTALL, GasketHolderTests::reactorGasketInstallsOnOutputCanister);
+        reg(r, REACTOR_TUNER_LINK, GasketHolderTests::reactorTunerLinksCrucibleToOutputCanister);
+        reg(r, REACTOR_GASKET_LOCATION, GasketHolderTests::reactorOutputGasketLocationFollowsCanister);
     }
 
     private static void registerEffectExecutorTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
