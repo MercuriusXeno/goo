@@ -123,6 +123,19 @@ class ProgramHostLoadTest {
     }
 
     @Test
+    void progressiveAreaProgramLoadsForTheMarkerHostAndRefusesTheEntityHost() {
+        List<Step> rock = List.of(new ProgressiveAreaStep(AreaShape.TUNNEL, "silk_break", "rock_dust",
+                "stone_break", Expr.literal(8)));
+
+        assertDoesNotThrow(() -> ProgramBehavior.forHost(rock, HostKind.MARKER));
+        ProgramLoadException refusal = assertThrows(ProgramLoadException.class,
+                () -> ProgramBehavior.forHost(rock, HostKind.ENTITY));
+
+        assertTrue(refusal.getMessage().contains("progressive_area"), refusal.getMessage());
+        assertTrue(refusal.getMessage().contains(ENTITY_LABEL), refusal.getMessage());
+    }
+
+    @Test
     void tickVariableIsBoundForEveryHost() {
         assertDoesNotThrow(() -> ProgramBehavior.forHost(
                 List.of(new DamageStep(expr("tick + 1"), DamageKind.MAGIC)), HostKind.ENTITY));

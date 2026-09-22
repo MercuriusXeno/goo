@@ -9,11 +9,13 @@ import java.util.Set;
 public enum HostKind {
     /**
      * The chain marker block: stacks, a placed face, a tick driver, the
-     * world around the block, and the block position itself to write.
+     * world around the block, the block position itself to write, and
+     * the blocks around it to strike layer by layer.
      */
     MARKER("marker block",
             Set.of(HostCapability.STACKS, HostCapability.PLACED_FACE, HostCapability.TICKING,
-                    HostCapability.EXPLODE, HostCapability.ENTITY_SCAN, HostCapability.PLACE_BLOCK),
+                    HostCapability.EXPLODE, HostCapability.ENTITY_SCAN, HostCapability.PLACE_BLOCK,
+                    HostCapability.LAYER_WALK),
             Set.of(HostVariables.STACKS, HostVariables.MAX_STACKS, HostVariables.FLAT)),
     /**
      * The struck living entity: a target and its thrower, acted on in the

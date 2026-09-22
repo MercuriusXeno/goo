@@ -1,5 +1,8 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.ability.BlockEffect;
+import com.mercuriusxeno.goo.ability.LayerAudio;
+import com.mercuriusxeno.goo.ability.LayerVisuals;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
@@ -95,4 +98,43 @@ public interface StepHost extends Variables {
      * @param state each state property to set, by its name, to the value's name
      */
     void placeBlock(Identifier block, Map<String, String> state);
+
+    /**
+     * Applies a block effect to one cell of a layer. Capability
+     * {@link HostCapability#LAYER_WALK}.
+     *
+     * @param effect the per-cell effect
+     * @param cell   the block position
+     * @return true when the effect changed the block
+     */
+    boolean applyBlockEffect(BlockEffect effect, BlockPos cell);
+
+    /**
+     * Plays the preview of a layer about to be struck. Capability
+     * {@link HostCapability#LAYER_WALK}.
+     *
+     * @param visuals the layer's particle profile
+     * @param layer   the layer index, from zero
+     */
+    void previewLayer(LayerVisuals visuals, int layer);
+
+    /**
+     * Plays the fx of a layer just struck. Capability
+     * {@link HostCapability#LAYER_WALK}.
+     *
+     * @param visuals   the layer's particle profile
+     * @param audio     the layer's sound profile
+     * @param layer     the layer index, from zero
+     * @param destroyed how many cells the effect changed
+     */
+    void strikeLayerFx(LayerVisuals visuals, LayerAudio audio, int layer, int destroyed);
+
+    /**
+     * Reports how many layers the walk has struck, which the host's
+     * renderer reads to shrink its outline. Capability
+     * {@link HostCapability#LAYER_WALK}.
+     *
+     * @param layers the struck layer count
+     */
+    void reportMinedLayers(int layers);
 }

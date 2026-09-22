@@ -21,7 +21,6 @@ public final class BehaviorType {
 
     static {
         register(ProgramBehavior.TYPE_NAME, ProgramBehavior::fromEntry);
-        register("progressive_area", ProgressiveAreaBlock::fromEntry);
         register("metal_spikes", (e, d) -> new MetalBehavior());
         register("crystal_cloud", (e, d) -> new CrystalBehavior());
         register("black_hole", (e, d) -> new NetherBehavior());
