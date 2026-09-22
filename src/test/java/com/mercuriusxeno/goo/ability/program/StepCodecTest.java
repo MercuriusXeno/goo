@@ -4,9 +4,11 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.JsonOps;
+import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -27,7 +29,11 @@ class StepCodecTest {
             "await_entity", new AwaitEntityStep(SelectionShape.CUBE, Expr.literal(3),
                     List.of(EntityFilter.LIVING, EntityFilter.NOT_ITEM)),
             "explode", new ExplodeStep(Expr.parse("2.5 + 1.0 * (stacks - 1)").getOrThrow(), ExplosionMode.NONE),
-            "damage", new DamageStep(Expr.parse("health / 2").getOrThrow(), DamageKind.CACTUS)
+            "damage", new DamageStep(Expr.parse("health / 2").getOrThrow(), DamageKind.CACTUS),
+            "place_block", new PlaceBlockStep(Identifier.parse("goo:glow_crystal"), Map.of(
+                    "facing", new StateValue.PlacedFace(),
+                    "shape", new StateValue.Named("flat"),
+                    "size", new StateValue.Pick(Expr.parse("stacks - 1").getOrThrow(), List.of("tiny", "large"))))
     );
 
     private static Step roundTrip(Step step) {
@@ -87,6 +93,26 @@ class StepCodecTest {
         assertEquals(2, steps.size());
         assertInstanceOf(AwaitEntityStep.class, steps.get(0));
         assertInstanceOf(ExplodeStep.class, steps.get(1));
+    }
+
+    @Test
+    void glowCrystalStepDecodes() {
+        String json = "{\"type\": \"place_block\", \"block\": \"goo:glow_crystal\", \"state\": {"
+                + "\"facing\": \"face\", \"shape\": {\"by\": \"flat\", \"values\": [\"bump\", \"flat\"]},"
+                + " \"size\": {\"by\": \"stacks - 1\", \"values\": [\"tiny\", \"small\", \"medium\", \"large\"]}}}";
+        PlaceBlockStep step = assertInstanceOf(PlaceBlockStep.class, decode(json).getOrThrow());
+        assertEquals(Identifier.parse("goo:glow_crystal"), step.block());
+        assertEquals(new StateValue.PlacedFace(), step.state().get("facing"));
+        StateValue.Pick shape = assertInstanceOf(StateValue.Pick.class, step.state().get("shape"));
+        assertEquals(List.of("bump", "flat"), shape.values());
+        assertEquals(Set.of("flat", "stacks"),
+                step.expressions().flatMap(expr -> expr.variables().stream()).collect(Collectors.toSet()));
+    }
+
+    @Test
+    void emptyPickRefuses() {
+        assertTrue(decode("{\"type\": \"place_block\", \"block\": \"goo:glow_crystal\","
+                + " \"state\": {\"size\": {\"by\": 1, \"values\": []}}}").isError());
     }
 
     @Test

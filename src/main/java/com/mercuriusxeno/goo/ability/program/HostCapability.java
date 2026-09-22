@@ -32,7 +32,11 @@ public enum HostCapability {
     /**
      * A struck entity the effect steps act on.
      */
-    TARGET;
+    TARGET,
+    /**
+     * A block position the host can write a block state into.
+     */
+    PLACE_BLOCK;
 
     private static final String ERR_REFUSED = "Capability %s is not provided by the %s host";
 

@@ -42,7 +42,10 @@ public final class GooTestFunctions {
     private static final String FX_CRYSTAL = "fx_crystal_runs";
     private static final String FX_NETHER = "fx_nether_implodes";
     private static final String FX_UNSTABLE = "fx_unstable_explodes";
-    private static final String FX_GLOW = "fx_glow_runs";
+    private static final String FX_GLOW_WALL = "fx_glow_wall";
+    private static final String FX_GLOW_FLOOR = "fx_glow_floor";
+    private static final String FX_PROGRAM_GLOW_WALL = "fx_program_glow_wall";
+    private static final String FX_PROGRAM_GLOW_FLOOR = "fx_program_glow_floor";
     private static final String FX_ABILITY_BLAZE = "fx_ability_blaze_tunnel";
     private static final String FX_ABILITY_ROCK = "fx_ability_rock_tunnel";
     private static final String FX_ABILITY_FROST = "fx_ability_frost_sphere";
@@ -172,7 +175,10 @@ public final class GooTestFunctions {
         reg(r, FX_CRYSTAL, EffectExecutorTests::crystalRuns);
         reg(r, FX_NETHER, EffectExecutorTests::netherImplodes);
         reg(r, FX_UNSTABLE, EffectExecutorTests::unstableExplodes);
-        reg(r, FX_GLOW, EffectExecutorTests::glowRuns);
+        reg(r, FX_GLOW_WALL, EffectExecutorTests::glowWallLegacy);
+        reg(r, FX_GLOW_FLOOR, EffectExecutorTests::glowFloorLegacy);
+        reg(r, FX_PROGRAM_GLOW_WALL, EffectExecutorTests::programGlowWall);
+        reg(r, FX_PROGRAM_GLOW_FLOOR, EffectExecutorTests::programGlowFloor);
         reg(r, FX_ABILITY_BLAZE, EffectExecutorTests::abilityBlazeTunnel);
         reg(r, FX_ABILITY_ROCK, EffectExecutorTests::abilityRockTunnel);
         reg(r, FX_ABILITY_FROST, EffectExecutorTests::abilityFrostSphere);
