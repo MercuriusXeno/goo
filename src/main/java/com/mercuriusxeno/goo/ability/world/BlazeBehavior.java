@@ -7,11 +7,11 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Blaze world effect: places (or stacks) a chain marker on impact via
- * {@link EffectBlockPlacement}. Post-fuse behavior is owned by the
- * data-driven {@link com.mercuriusxeno.goo.ability.ProgressiveAreaBlock}
- * pipeline (fortune-smelt + blaze-flame visuals + generic-explode
- * audio); see {@code blaze_tunnel}/{@code blaze_flat} ability JSON for
- * the wiring.
+ * {@link EffectBlockPlacement}. Post-fuse behavior is the blaze ability's
+ * program, a {@code progressive_area} step with fortune-smelt, blaze-flame
+ * visuals and generic-explode audio; see {@code blaze_tunnel} and
+ * {@code blaze_flat}, and the legacy profile in {@code ChainProfiles}
+ * runs {@code blaze_tunnel}.
  */
 public final class BlazeBehavior implements WorldEffect {
 

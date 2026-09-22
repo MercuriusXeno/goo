@@ -25,6 +25,8 @@ public final class GooTestFunctions {
     private static final String PUSHER_NO_PARTNER = "pusher_no_partner";
     private static final String PUSHER_DISPOSE_AND_TICK = "pusher_dispose_and_tick";
     private static final String PUSHER_DOUBLE_DISPOSE = "pusher_double_dispose";
+    private static final String PUSHER_REACTOR_OUTPUT_PUSH = "pusher_reactor_output_push";
+    private static final String PUSHER_REACTOR_OUTPUT_REMOVAL = "pusher_reactor_output_removal";
 
     // --- IGasketHolder ---
     private static final String CRUCIBLE_ROLE_TRANSMITTER = "crucible_role_transmitter";
@@ -33,6 +35,10 @@ public final class GooTestFunctions {
     private static final String VAT_SUPPORTS_ROLE = "vat_supports_role";
     private static final String HUB_HAS_INTAKE = "hub_has_intake";
     private static final String DEFAULT_ALLOWS_TUNING = "default_allows_tuning";
+    private static final String REACTOR_GASKET_INSTALL = "reactor_gasket_install";
+    private static final String REACTOR_TUNER_LINK = "reactor_tuner_link";
+    private static final String REACTOR_GASKET_LOCATION = "reactor_gasket_location";
+    private static final String REACTOR_SEATED_GASKET_METADATA = "reactor_seated_gasket_metadata";
 
     // --- Effect executors ---
     private static final String FX_BLAZE = "fx_blaze_mines";
@@ -42,7 +48,10 @@ public final class GooTestFunctions {
     private static final String FX_CRYSTAL = "fx_crystal_runs";
     private static final String FX_NETHER = "fx_nether_implodes";
     private static final String FX_UNSTABLE = "fx_unstable_explodes";
-    private static final String FX_GLOW = "fx_glow_runs";
+    private static final String FX_GLOW_WALL = "fx_glow_wall";
+    private static final String FX_GLOW_FLOOR = "fx_glow_floor";
+    private static final String FX_PROGRAM_GLOW_WALL = "fx_program_glow_wall";
+    private static final String FX_PROGRAM_GLOW_FLOOR = "fx_program_glow_floor";
     private static final String FX_ABILITY_BLAZE = "fx_ability_blaze_tunnel";
     private static final String FX_ABILITY_ROCK = "fx_ability_rock_tunnel";
     private static final String FX_ABILITY_FROST = "fx_ability_frost_sphere";
@@ -155,12 +164,18 @@ public final class GooTestFunctions {
         reg(r, PUSHER_NO_PARTNER, GasketPusherTests::noPartnerSkipsTick);
         reg(r, PUSHER_DISPOSE_AND_TICK, GasketPusherTests::disposeAndTickIsSafe);
         reg(r, PUSHER_DOUBLE_DISPOSE, GasketPusherTests::doubleDisposeIsSafe);
+        reg(r, PUSHER_REACTOR_OUTPUT_PUSH, GasketPusherTests::reactorOutputPushesToLinkedReceiver);
+        reg(r, PUSHER_REACTOR_OUTPUT_REMOVAL, GasketPusherTests::reactorOutputRemovalStopsPush);
         reg(r, CRUCIBLE_ROLE_TRANSMITTER, GasketHolderTests::crucibleResolveRoleAlwaysTransmitter);
         reg(r, CRUCIBLE_NO_GASKET, GasketHolderTests::crucibleNoGasketUnsupported);
         reg(r, CRUCIBLE_WITH_GASKET, GasketHolderTests::crucibleWithGasketSupported);
         reg(r, VAT_SUPPORTS_ROLE, GasketHolderTests::vatSupportsRoleMatchesBlockstate);
         reg(r, HUB_HAS_INTAKE, GasketHolderTests::hubHasIntake);
         reg(r, DEFAULT_ALLOWS_TUNING, GasketHolderTests::defaultAllowsTuningIsTrue);
+        reg(r, REACTOR_GASKET_INSTALL, GasketHolderTests::reactorGasketInstallsOnOutputCanister);
+        reg(r, REACTOR_TUNER_LINK, GasketHolderTests::reactorTunerLinksCrucibleToOutputCanister);
+        reg(r, REACTOR_GASKET_LOCATION, GasketHolderTests::reactorOutputGasketLocationFollowsCanister);
+        reg(r, REACTOR_SEATED_GASKET_METADATA, GasketHolderTests::reactorSeatedCanisterAnswersGasketMetadata);
     }
 
     private static void registerEffectExecutorTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
@@ -171,7 +186,10 @@ public final class GooTestFunctions {
         reg(r, FX_CRYSTAL, EffectExecutorTests::crystalRuns);
         reg(r, FX_NETHER, EffectExecutorTests::netherImplodes);
         reg(r, FX_UNSTABLE, EffectExecutorTests::unstableExplodes);
-        reg(r, FX_GLOW, EffectExecutorTests::glowRuns);
+        reg(r, FX_GLOW_WALL, EffectExecutorTests::glowWallLegacy);
+        reg(r, FX_GLOW_FLOOR, EffectExecutorTests::glowFloorLegacy);
+        reg(r, FX_PROGRAM_GLOW_WALL, EffectExecutorTests::programGlowWall);
+        reg(r, FX_PROGRAM_GLOW_FLOOR, EffectExecutorTests::programGlowFloor);
         reg(r, FX_ABILITY_BLAZE, EffectExecutorTests::abilityBlazeTunnel);
         reg(r, FX_ABILITY_ROCK, EffectExecutorTests::abilityRockTunnel);
         reg(r, FX_ABILITY_FROST, EffectExecutorTests::abilityFrostSphere);

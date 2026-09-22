@@ -7,14 +7,16 @@ import net.minecraft.core.Direction;
 
 /**
  * Threading context for vertex emission. Created once per render call,
- * carries the pose/consumer/light triple so every downstream method
- * drops 3 parameters.
+ * carries the pose, consumer, light and color so every downstream method
+ * drops those parameters. The uncolored emitters below take the context
+ * color, which GooSubmitter sets for a crossfading fluid.
  *
  * @param pose  the current pose matrix entry
  * @param c     the vertex consumer for geometry emission
  * @param light the packed light level for shading
+ * @param color the ARGB color the uncolored emitters use
  */
-public record RenderContext(PoseStack.Pose pose, VertexConsumer c, int light) {
+public record RenderContext(PoseStack.Pose pose, VertexConsumer c, int light, int color) {
 
     /** Full white opaque color. */
     private static final int OPAQUE_WHITE = 0xFFFFFFFF;
@@ -25,6 +27,16 @@ public record RenderContext(PoseStack.Pose pose, VertexConsumer c, int light) {
     /** Gasket bottom V end: 8px / 16px. */
     private static final float GC_BOTTOM_V = 0.5f;
 
+    /**
+     * Creates a context whose uncolored emitters draw opaque white.
+     *
+     * @param pose  the current pose matrix entry
+     * @param c     the vertex consumer for geometry emission
+     * @param light the packed light level for shading
+     */
+    public RenderContext(PoseStack.Pose pose, VertexConsumer c, int light) {
+        this(pose, c, light, OPAQUE_WHITE);
+    }
 
     /**
      * Emits a single vertex with explicit color.
@@ -50,7 +62,7 @@ public record RenderContext(PoseStack.Pose pose, VertexConsumer c, int light) {
     }
 
     /**
-     * Emits a single white-opaque vertex.
+     * Emits a single vertex in the context color.
      *
      * @param x  the X position
      * @param y  the Y position
@@ -63,37 +75,37 @@ public record RenderContext(PoseStack.Pose pose, VertexConsumer c, int light) {
      */
     public void vertex(float x, float y, float z, float u, float v,
                 float nx, float ny, float nz) {
-        vertexColored(OPAQUE_WHITE, x, y, z, u, v, nx, ny, nz);
+        vertexColored(color, x, y, z, u, v, nx, ny, nz);
     }
 
 
     /**
-     * Emits a white quad face of a cuboid for the given direction.
+     * Emits a quad face of a cuboid for the given direction in the context color.
      *
      * @param box the axis-aligned bounds
      * @param uv  the texture coordinate rectangle
      * @param dir the face direction (normal)
      */
     public void emitFace(CuboidBounds box, GooRenderUtil.UvRect uv, Direction dir) {
-        emitFace(OPAQUE_WHITE, box, uv, dir);
+        emitFace(color, box, uv, dir);
     }
 
-    /** Emits all 4 horizontal white side faces of a cuboid.
+    /** Emits all 4 horizontal side faces of a cuboid in the context color.
      *
      * @param box the axis-aligned bounds
      * @param uv  the texture coordinate rectangle
      */
     public void emitSides(CuboidBounds box, GooRenderUtil.UvRect uv) {
-        emitSides(OPAQUE_WHITE, box, uv);
+        emitSides(color, box, uv);
     }
 
-    /** Emits all 6 white faces of a cuboid.
+    /** Emits all 6 faces of a cuboid in the context color.
      *
      * @param box the axis-aligned bounds
      * @param uv  the texture coordinate rectangle
      */
     public void emitBox(CuboidBounds box, GooRenderUtil.UvRect uv) {
-        emitBox(OPAQUE_WHITE, box, uv);
+        emitBox(color, box, uv);
     }
 
 

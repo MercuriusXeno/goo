@@ -29,6 +29,11 @@ class ConventionTest {
     };
     private static final String LEVEL_LIGHT_ENGINE = "net.minecraft.world.level.lighting.LevelLightEngine";
     private static final String RUN_LIGHT_UPDATES = "runLightUpdates";
+    private static final String[] RENDER_PACKAGES = {
+            "com.mercuriusxeno.goo.client.ber..", "com.mercuriusxeno.goo.client.model.."
+    };
+    private static final String RENDER_TYPES = "net.minecraft.client.renderer.rendertype.RenderTypes";
+    private static final String ENTITY_TRANSLUCENT = "entityTranslucent";
     private static JavaClasses mainClasses;
     private static JavaClasses testClasses;
 
@@ -126,6 +131,24 @@ class ConventionTest {
                         .and(target(owner(assignableTo(LEVEL_LIGHT_ENGINE)))))
                 .because("the server light engine drains its own queue on its tick;"
                         + " a manual drain throws (decision light-kick-never-drains)")
+                .check(mainClasses);
+    }
+
+    /**
+     * No renderer picks the translucent render type itself: every body and
+     * fluid submits through GooSubmitter, and a translucent draw on its own
+     * texture asks the submitter for the type. FULL_BRIGHT is a compile-time
+     * constant javac inlines, so its guard is the checkstyle regexp on the
+     * same packages rather than a bytecode rule.
+     */
+    @Test
+    void renderTypeChoiceStaysInSubmitter() {
+        noClasses()
+                .that().resideInAnyPackage(RENDER_PACKAGES)
+                .should().callMethodWhere(target(name(ENTITY_TRANSLUCENT))
+                        .and(target(owner(name(RENDER_TYPES)))))
+                .because("the render type for bodies and fluids lives in GooSubmitter"
+                        + " (decision shared-submission-entry-point)")
                 .check(mainClasses);
     }
 

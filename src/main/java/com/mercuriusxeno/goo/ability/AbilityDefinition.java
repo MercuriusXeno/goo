@@ -124,7 +124,7 @@ public record AbilityDefinition(
      * entry carries its step tree in {@code steps} instead, each step typed
      * by its own codec (decision ability-params-in-datapack).
      *
-     * @param type   the behavior type name (program, progressive_area, etc.)
+     * @param type   the behavior type name (program, entity_effect, etc.)
      * @param params the parameter map for the behavior factory
      * @param steps  the step tree of a program entry; empty for other types
      */
