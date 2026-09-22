@@ -62,11 +62,21 @@ public final class ProgramBehavior implements ChainBehavior {
      *                              step needs a capability or a variable the host lacks
      */
     public static ProgramBehavior forHost(List<Step> steps, HostKind kind) {
-        for (Step step : steps) {
-            refuseMissingCapabilities(step, kind);
-            refuseUnboundVariables(step, kind);
-        }
+        steps.forEach(step -> refuseUnservedStep(step, kind));
         return new ProgramBehavior(steps);
+    }
+
+    /**
+     * Refuses a step, or any step beneath it, whose needs the host kind
+     * does not meet.
+     *
+     * @param step the step whose tree to check
+     * @param kind the host kind
+     */
+    private static void refuseUnservedStep(Step step, HostKind kind) {
+        refuseMissingCapabilities(step, kind);
+        refuseUnboundVariables(step, kind);
+        step.children().forEach(child -> refuseUnservedStep(child, kind));
     }
 
     /**

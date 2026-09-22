@@ -4,6 +4,7 @@ import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.OptionalDouble;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -71,6 +72,17 @@ class ProgramHostLoadTest {
     }
 
     @Test
+    void waitingStepInsideATargetSelectionRefusesNamingTheChild() {
+        List<Step> steps = List.of(new TargetStep(List.of(), List.of(new WaitStep(Expr.literal(2)))));
+
+        ProgramLoadException refusal = assertThrows(ProgramLoadException.class,
+                () -> ProgramBehavior.forHost(steps, HostKind.ENTITY));
+
+        assertTrue(refusal.getMessage().contains("wait"), refusal.getMessage());
+        assertTrue(refusal.getMessage().contains(ENTITY_LABEL), refusal.getMessage());
+    }
+
+    @Test
     void waitingStepOnEntityHostRefusesSinceNothingTicksAnEntity() {
         ProgramLoadException refusal = assertThrows(ProgramLoadException.class,
                 () -> ProgramBehavior.forHost(List.of(new WaitStep(Expr.literal(2))), HostKind.ENTITY));
@@ -97,6 +109,43 @@ class ProgramHostLoadTest {
 
         assertTrue(refusal.getMessage().contains("damage"), refusal.getMessage());
         assertTrue(refusal.getMessage().contains(MARKER_LABEL), refusal.getMessage());
+    }
+
+    @Test
+    void entitiesSelectionOnMarkerHostRefusesSinceItsChildrenActOnATarget() {
+        List<Step> steps = List.of(new EntitiesStep(SelectionShape.SPHERE, Expr.literal(2.5),
+                List.of(EntityFilter.LIVING), List.of(new IgniteStep(Expr.literal(5)))));
+
+        ProgramLoadException refusal = assertThrows(ProgramLoadException.class,
+                () -> ProgramBehavior.forHost(steps, HostKind.MARKER));
+
+        assertTrue(refusal.getMessage().contains("entities"), refusal.getMessage());
+        assertTrue(refusal.getMessage().contains(MARKER_LABEL), refusal.getMessage());
+    }
+
+    @Test
+    void particlesAtTheTargetRefuseOnTheMarkerHostWhileParticlesAtTheHostLoad() {
+        ProgramLoadException refusal = assertThrows(ProgramLoadException.class,
+                () -> ProgramBehavior.forHost(List.of(particles(FxAnchor.TARGET)), HostKind.MARKER));
+
+        assertTrue(refusal.getMessage().contains("particles"), refusal.getMessage());
+        assertTrue(refusal.getMessage().contains(MARKER_LABEL), refusal.getMessage());
+        assertDoesNotThrow(() -> ProgramBehavior.forHost(List.of(particles(FxAnchor.HOST)), HostKind.MARKER));
+    }
+
+    @Test
+    void teleportOnMarkerHostRefusesSinceItMovesATarget() {
+        ProgramLoadException refusal = assertThrows(ProgramLoadException.class,
+                () -> ProgramBehavior.forHost(
+                        List.of(new TeleportStep(TeleportMode.RANDOM_OFFSET, Expr.literal(32))), HostKind.MARKER));
+
+        assertTrue(refusal.getMessage().contains("teleport"), refusal.getMessage());
+        assertTrue(refusal.getMessage().contains(MARKER_LABEL), refusal.getMessage());
+    }
+
+    private static ParticlesStep particles(FxAnchor at) {
+        return new ParticlesStep(Identifier.parse("minecraft:crit"), at, Expr.literal(1), Expr.literal(0),
+                Optional.empty(), Optional.empty(), Expr.literal(0), Expr.literal(0));
     }
 
     @Test

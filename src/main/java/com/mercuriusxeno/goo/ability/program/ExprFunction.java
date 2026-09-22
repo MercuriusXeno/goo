@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.ability.program;
 
 import org.jspecify.annotations.Nullable;
 import java.util.Locale;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.ToDoubleFunction;
 
 /**
@@ -32,7 +33,12 @@ public enum ExprFunction {
     /**
      * {@code ceil(a)}.
      */
-    CEIL(1, args -> Math.ceil(args[0]));
+    CEIL(1, args -> Math.ceil(args[0])),
+    /**
+     * {@code random(n)}: an integer in {@code [0, n)}, zero when n is
+     * below one; {@code "1 + random(3)"} rolls one to three.
+     */
+    RANDOM(1, args -> args[0] < 1 ? 0 : ThreadLocalRandom.current().nextInt((int) args[0]));
 
     private final int arity;
     private final ToDoubleFunction<double[]> body;

@@ -11,10 +11,17 @@
   },
   "behaviors": [
     {
-      "type": "entity_effect",
-      "params": {
-        "handler": "nether_wither"
-      }
+      "type": "program",
+      "steps": [
+        {
+          "type": "target",
+          "where": ["not_boss"],
+          "steps": [
+            { "type": "set_health", "fraction": 0.5 },
+            { "type": "potion", "effect": "minecraft:wither", "duration": 200, "amplifier": 1 }
+          ]
+        }
+      ]
     }
   ],
   "tags": ["entity"]

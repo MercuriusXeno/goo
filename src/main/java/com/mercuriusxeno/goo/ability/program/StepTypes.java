@@ -37,6 +37,19 @@ public final class StepTypes {
         register(AwaitEntityStep.TYPE);
         register(ExplodeStep.TYPE);
         register(DamageStep.TYPE);
+        register(PotionStep.TYPE);
+        register(TargetStep.TYPE);
+        register(SetHealthStep.TYPE);
+        register(FreezeTicksStep.TYPE);
+        register(SetAiStep.TYPE);
+        register(SetInvulnerableStep.TYPE);
+        register(CloneEntityStep.TYPE);
+        register(DropItemStep.TYPE);
+        register(IgniteStep.TYPE);
+        register(EntitiesStep.TYPE);
+        register(ParticlesStep.TYPE);
+        register(SoundStep.TYPE);
+        register(TeleportStep.TYPE);
         register(PlaceBlockStep.TYPE);
         register(ProgressiveAreaStep.TYPE);
     }

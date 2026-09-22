@@ -11,10 +11,10 @@
   },
   "behaviors": [
     {
-      "type": "entity_effect",
-      "params": {
-        "handler": "typhoon_levitate"
-      }
+      "type": "program",
+      "steps": [
+        { "type": "potion", "effect": "minecraft:levitation", "duration": 100, "amplifier": 1 }
+      ]
     }
   ],
   "tags": ["entity"]
