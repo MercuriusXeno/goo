@@ -1,5 +1,8 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.ability.BlockEffect;
+import com.mercuriusxeno.goo.ability.LayerAudio;
+import com.mercuriusxeno.goo.ability.LayerVisuals;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -90,5 +93,26 @@ public record MarkerHost(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity
                 .orElseThrow(() -> new IllegalArgumentException(ERR_UNKNOWN_BLOCK + block));
         List<Property.Value<?>> values = StatePropertyWriter.resolve(found.getStateDefinition(), state, block);
         level.setBlock(pos, StatePropertyWriter.write(found.defaultBlockState(), values), Block.UPDATE_ALL);
+    }
+
+    @Override
+    public boolean applyBlockEffect(BlockEffect effect, BlockPos cell) {
+        return effect.apply(level, cell);
+    }
+
+    @Override
+    public void previewLayer(LayerVisuals visuals, int layer) {
+        visuals.preview(level, pos, be.getPlacedFace(), layer, be.getStackCount());
+    }
+
+    @Override
+    public void strikeLayerFx(LayerVisuals visuals, LayerAudio audio, int layer, int destroyed) {
+        visuals.onLayerStruck(level, pos, be.getPlacedFace(), layer, destroyed);
+        audio.onLayerStruck(level, pos, be.getPlacedFace(), layer, destroyed, be.getStackCount());
+    }
+
+    @Override
+    public void reportMinedLayers(int layers) {
+        be.setMinedLayers(layers);
     }
 }

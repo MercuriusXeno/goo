@@ -35,9 +35,10 @@ public final class ChainProfiles {
     private static final int UNSTABLE_MAX_STACKS = 8;
     private static final int GLOW_FUSE_TICKS = 30;
     private static final int GLOW_MAX_STACKS = 4;
-    private static final int DEFAULT_PREVIEW_DELAY = 8;
-    private static final String AREA_TUNNEL = "tunnel";
     private static final Identifier GLOW_CRYSTAL_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "glow_crystal");
+    private static final Identifier ROCK_TUNNEL_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "rock_tunnel");
+    private static final Identifier BLAZE_TUNNEL_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "blaze_tunnel");
+    private static final Identifier FROST_SPHERE_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "frost_sphere");
 
     private ChainProfiles() {
     }
@@ -58,41 +59,29 @@ public final class ChainProfiles {
 
     /**
      * Registers the blaze chain profile. Legacy non-ability path
-     * (no abilityId selected) builds a tunnel ProgressiveAreaBlock
-     * with fortune-smelt + blaze visuals + generic-explode audio,
-     * matching the {@code blaze_tunnel} ability defaults.
+     * (no abilityId selected) runs the {@code blaze_tunnel} ability's
+     * program.
      */
     private static void registerBlaze() {
         ChainProfile.register(GooType.BLAZE, new ChainProfile(
                 BLAZE_FUSE_TICKS,
                 BLAZE_MAX_STACKS,
                 ChainFootprint::tunnelDepth,
-                () -> new ProgressiveAreaBlock(
-                        AREA_TUNNEL,
-                        BlockEffectType.byName(BlockEffectType.FORTUNE_SMELT_BREAK),
-                        LayerVisualsType.byName(LayerVisualsType.BLAZE_FLAME),
-                        LayerAudioType.byName(LayerAudioType.GENERIC_EXPLODE),
-                        DEFAULT_PREVIEW_DELAY)
+                () -> abilityBehavior(BLAZE_TUNNEL_ABILITY)
         ));
     }
 
     /**
      * Registers the rock chain profile. Legacy non-ability path
-     * (no abilityId selected) builds a tunnel ProgressiveAreaBlock
-     * with silk-break + rock visuals + stone-break audio, matching
-     * the {@code rock_tunnel} ability defaults.
+     * (no abilityId selected) runs the {@code rock_tunnel} ability's
+     * program.
      */
     private static void registerRock() {
         ChainProfile.register(GooType.ROCK, new ChainProfile(
                 ROCK_FUSE_TICKS,
                 ROCK_MAX_STACKS,
                 ChainFootprint::tunnelDepth,
-                () -> new ProgressiveAreaBlock(
-                        AREA_TUNNEL,
-                        BlockEffectType.byName(BlockEffectType.SILK_BREAK),
-                        LayerVisualsType.byName(LayerVisualsType.ROCK_DUST),
-                        LayerAudioType.byName(LayerAudioType.STONE_BREAK),
-                        DEFAULT_PREVIEW_DELAY)
+                () -> abilityBehavior(ROCK_TUNNEL_ABILITY)
         ));
     }
 
@@ -121,14 +110,16 @@ public final class ChainProfiles {
     }
 
     /**
-     * Registers the frost chain profile.
+     * Registers the frost chain profile. Legacy non-ability path
+     * (no abilityId selected) runs the {@code frost_sphere} ability's
+     * program.
      */
     private static void registerFrost() {
         ChainProfile.register(GooType.FROST, new ChainProfile(
                 FROST_FUSE_TICKS,
                 FROST_MAX_STACKS,
                 AbilityMath::computeFreezeRadius,
-                FrostBehavior::new
+                () -> abilityBehavior(FROST_SPHERE_ABILITY)
         ));
     }
 

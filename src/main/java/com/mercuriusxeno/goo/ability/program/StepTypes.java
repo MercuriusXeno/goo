@@ -38,6 +38,7 @@ public final class StepTypes {
         register(ExplodeStep.TYPE);
         register(DamageStep.TYPE);
         register(PlaceBlockStep.TYPE);
+        register(ProgressiveAreaStep.TYPE);
     }
 
     private StepTypes() {

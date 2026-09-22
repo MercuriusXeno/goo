@@ -15,14 +15,17 @@
   },
   "behaviors": [
     {
-      "type": "progressive_area",
-      "params": {
-        "areaMode": "sphere",
-        "blockEffect": "freeze",
-        "layerVisuals": "none",
-        "layerAudio": "none",
-        "previewDelayTicks": "8"
-      }
+      "type": "program",
+      "steps": [
+        {
+          "type": "progressive_area",
+          "shape": "sphere",
+          "effect": "freeze",
+          "visuals": "none",
+          "audio": "none",
+          "preview_delay": 8
+        }
+      ]
     }
   ],
   "tags": ["transmute", "radial"]

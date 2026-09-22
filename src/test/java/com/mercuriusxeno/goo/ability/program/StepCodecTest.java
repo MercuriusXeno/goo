@@ -33,7 +33,9 @@ class StepCodecTest {
             "place_block", new PlaceBlockStep(Identifier.parse("goo:glow_crystal"), Map.of(
                     "facing", new StateValue.PlacedFace(),
                     "shape", new StateValue.Named("flat"),
-                    "size", new StateValue.Pick(Expr.parse("stacks - 1").getOrThrow(), List.of("tiny", "large"))))
+                    "size", new StateValue.Pick(Expr.parse("stacks - 1").getOrThrow(), List.of("tiny", "large")))),
+            "progressive_area", new ProgressiveAreaStep(AreaShape.FLAT_CIRCLE, "fortune_smelt_break",
+                    "blaze_flame", "generic_explode", Expr.literal(8))
     );
 
     private static Step roundTrip(Step step) {
@@ -107,6 +109,25 @@ class StepCodecTest {
         assertEquals(List.of("bump", "flat"), shape.values());
         assertEquals(Set.of("flat", "stacks"),
                 step.expressions().flatMap(expr -> expr.variables().stream()).collect(Collectors.toSet()));
+    }
+
+    @Test
+    void rockTunnelStepDecodes() {
+        String json = "{\"type\": \"progressive_area\", \"shape\": \"tunnel\", \"effect\": \"silk_break\","
+                + " \"visuals\": \"rock_dust\", \"audio\": \"stone_break\", \"preview_delay\": 8}";
+        ProgressiveAreaStep step = assertInstanceOf(ProgressiveAreaStep.class, decode(json).getOrThrow());
+        assertEquals(new ProgressiveAreaStep(AreaShape.TUNNEL, "silk_break", "rock_dust", "stone_break",
+                Expr.literal(8)), step);
+    }
+
+    @Test
+    void progressiveAreaRefusesADelegateNoRegistryHolds() {
+        String prefix = "{\"type\": \"progressive_area\", \"shape\": \"sphere\", \"preview_delay\": 8,";
+        assertTrue(decode(prefix + " \"effect\": \"melt\", \"visuals\": \"none\", \"audio\": \"none\"}").isError());
+        assertTrue(decode(prefix + " \"effect\": \"freeze\", \"visuals\": \"sparks\", \"audio\": \"none\"}").isError());
+        assertTrue(decode(prefix + " \"effect\": \"freeze\", \"visuals\": \"none\", \"audio\": \"thunder\"}").isError());
+        assertTrue(decode(prefix.replace("sphere", "cone")
+                + " \"effect\": \"freeze\", \"visuals\": \"none\", \"audio\": \"none\"}").isError());
     }
 
     @Test
