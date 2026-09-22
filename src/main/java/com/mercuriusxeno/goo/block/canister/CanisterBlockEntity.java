@@ -9,8 +9,7 @@ import com.mercuriusxeno.goo.block.gasket.GasketAttachment;
 import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
 import com.mercuriusxeno.goo.block.gasket.GasketPusher;
 import com.mercuriusxeno.goo.block.gasket.IGasketHolder;
-import com.mercuriusxeno.goo.data.GasketLocation;
-import com.mercuriusxeno.goo.data.GasketRegistry;
+import com.mercuriusxeno.goo.block.gasket.SlotGasketRegistration;
 import com.mercuriusxeno.goo.item.*;
 import com.mercuriusxeno.goo.item.gasket.GasketPartner;
 import com.mercuriusxeno.goo.item.gasket.GasketRegionResolver;
@@ -24,7 +23,6 @@ import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -153,18 +151,6 @@ public class CanisterBlockEntity extends BlockEntity implements ICanisterHolder,
         }
         CanisterMetadata meta = CanisterItem.getMetadata(slot.canister());
         return meta.bottomGasketId() != null && meta.bottomPartner() != null;
-    }
-
-    private static void registerFace(GasketRegistry registry, @Nullable UUID id, GasketLocation location) {
-        if (id != null) {
-            registry.updateLocation(id, location);
-        }
-    }
-
-    private static void deregisterFace(GasketRegistry registry, @Nullable UUID id) {
-        if (id != null) {
-            registry.updateLocation(id, null);
-        }
     }
 
     @Override
@@ -344,34 +330,12 @@ public class CanisterBlockEntity extends BlockEntity implements ICanisterHolder,
      * @param slotIndex the slot index
      */
     private void registerSlotGaskets(int slotIndex) {
-        if (gasket.registryAccess() == null || !(level instanceof ServerLevel serverLevel)) {
-            return;
-        }
-        CanisterSlot slot = state.slots[slotIndex];
-        if (slot.isEmpty()) {
-            return;
-        }
-        CanisterMetadata meta = CanisterItem.getMetadata(slot.canister());
-        GasketRegistry registry = gasket.registryAccess().get();
-        ResourceKey<Level> dimension = serverLevel.dimension();
-        registerFace(registry, meta.topGasketId(),
-                new GasketLocation(dimension, worldPosition, true, slotIndex));
-        registerFace(registry, meta.bottomGasketId(),
-                new GasketLocation(dimension, worldPosition, false, slotIndex));
+        SlotGasketRegistration.register(gasket.registryAccess(), level, worldPosition,
+                slotIndex, getSlotMetadata(slotIndex));
     }
 
     private void deregisterSlotGaskets(int slotIndex) {
-        if (gasket.registryAccess() == null) {
-            return;
-        }
-        CanisterSlot slot = state.slots[slotIndex];
-        if (slot.isEmpty()) {
-            return;
-        }
-        CanisterMetadata meta = CanisterItem.getMetadata(slot.canister());
-        GasketRegistry registry = gasket.registryAccess().get();
-        deregisterFace(registry, meta.topGasketId());
-        deregisterFace(registry, meta.bottomGasketId());
+        SlotGasketRegistration.deregister(gasket.registryAccess(), getSlotMetadata(slotIndex));
     }
 
     private void deregisterAllGaskets() {
