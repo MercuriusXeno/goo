@@ -9,5 +9,13 @@
   "viscosity": 1500,
   "temperature": 300,
   "extinguishes": false,
-  "map_color": "color_black"
+  "map_color": "color_black",
+  "textures": {
+    "blob_tiny": "goo:item/hex_blob_tiny",
+    "blob_small": "goo:item/hex_blob_small",
+    "blob_base": "goo:item/hex_blob_base",
+    "blob_large": "goo:item/hex_blob_large",
+    "fluid_still": "goo:fluid/hex_fluid",
+    "fluid_flowing": "goo:fluid/hex_fluid"
+  }
 }

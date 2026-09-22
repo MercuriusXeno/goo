@@ -206,7 +206,7 @@ public class CanisterSpecialRenderer implements SpecialModelRenderer<CanisterSpe
                                     ResourceKey<GooTypeDefinition> type, float fill) {
         CuboidBounds b = fluidBounds(fill);
         TextureAtlasSprite sprite = GooSubmitter.fluidSprite(type);
-        GooSubmitter.submitFluid(poseStack, nodeCollector,
+        GooSubmitter.submitFluid(poseStack, nodeCollector, GooSubmitter.fluidTint(type),
                 ctx -> FluidFaceEmitter.emitFluidFaces(ctx, b, sprite, ctx.color()));
     }
 

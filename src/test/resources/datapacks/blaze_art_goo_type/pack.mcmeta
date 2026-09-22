@@ -1,0 +1,7 @@
+{
+  "pack": {
+    "description": "Adds a goo type naming the bundled blaze blob and fluid art",
+    "min_format": 101,
+    "max_format": 101
+  }
+}

@@ -25,9 +25,11 @@ import java.util.Locale;
  * @param temperature    fluid temperature in kelvin, room temperature 300
  * @param extinguishes   whether the fluid puts out a burning entity
  * @param mapColor       the color the fluid block paints on a map
+ * @param textures       the blob and fluid sprites the JSON names, each optional
  */
 public record GooTypeDefinition(int peakLight, float saturationFill, int wheel, int bright, int highlight, int edge,
-                                int density, int viscosity, int temperature, boolean extinguishes, MapColor mapColor) {
+                                int density, int viscosity, int temperature, boolean extinguishes, MapColor mapColor,
+                                GooTypeTextures textures) {
 
     /**
      * JSON key of {@link #peakLight}.
@@ -74,6 +76,10 @@ public record GooTypeDefinition(int peakLight, float saturationFill, int wheel, 
      */
     public static final String MAP_COLOR = "map_color";
     /**
+     * JSON key of {@link #textures}.
+     */
+    public static final String TEXTURES = "textures";
+    /**
      * Vanilla block light ceiling, the highest {@link #peakLight} the codec accepts.
      */
     public static final int MAX_LIGHT = 15;
@@ -95,7 +101,8 @@ public record GooTypeDefinition(int peakLight, float saturationFill, int wheel, 
     /**
      * Codec for a goo type JSON body. Decision type-json-light-fields: the
      * light fields come first; decision generic-goo-fluids: the fluid fields
-     * follow the colors.
+     * follow the colors; decision type-named-textures: the textures object
+     * closes the body and may be left out.
      */
     public static final Codec<GooTypeDefinition> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             Codec.intRange(0, MAX_LIGHT).fieldOf(LIGHT_LEVEL).forGetter(GooTypeDefinition::peakLight),
@@ -108,7 +115,8 @@ public record GooTypeDefinition(int peakLight, float saturationFill, int wheel, 
             Codec.INT.fieldOf(VISCOSITY).forGetter(GooTypeDefinition::viscosity),
             Codec.INT.fieldOf(TEMPERATURE).forGetter(GooTypeDefinition::temperature),
             Codec.BOOL.fieldOf(EXTINGUISHES).forGetter(GooTypeDefinition::extinguishes),
-            MapColors.CODEC.fieldOf(MAP_COLOR).forGetter(GooTypeDefinition::mapColor)
+            MapColors.CODEC.fieldOf(MAP_COLOR).forGetter(GooTypeDefinition::mapColor),
+            GooTypeTextures.CODEC.optionalFieldOf(TEXTURES, GooTypeTextures.NONE).forGetter(GooTypeDefinition::textures)
     ).apply(instance, GooTypeDefinition::new));
 
     /**

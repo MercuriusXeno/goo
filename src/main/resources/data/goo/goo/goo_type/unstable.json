@@ -9,5 +9,13 @@
   "viscosity": 500,
   "temperature": 1300,
   "extinguishes": false,
-  "map_color": "stone"
+  "map_color": "stone",
+  "textures": {
+    "blob_tiny": "goo:item/unstable_blob_tiny",
+    "blob_small": "goo:item/unstable_blob_small",
+    "blob_base": "goo:item/unstable_blob_base",
+    "blob_large": "goo:item/unstable_blob_large",
+    "fluid_still": "goo:fluid/unstable_fluid",
+    "fluid_flowing": "goo:fluid/unstable_fluid"
+  }
 }

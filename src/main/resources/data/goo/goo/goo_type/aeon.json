@@ -9,5 +9,13 @@
   "viscosity": 3000,
   "temperature": 300,
   "extinguishes": false,
-  "map_color": "gold"
+  "map_color": "gold",
+  "textures": {
+    "blob_tiny": "goo:item/aeon_blob_tiny",
+    "blob_small": "goo:item/aeon_blob_small",
+    "blob_base": "goo:item/aeon_blob_base",
+    "blob_large": "goo:item/aeon_blob_large",
+    "fluid_still": "goo:fluid/aeon_fluid",
+    "fluid_flowing": "goo:fluid/aeon_fluid"
+  }
 }

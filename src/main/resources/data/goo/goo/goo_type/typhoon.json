@@ -9,5 +9,13 @@
   "viscosity": 500,
   "temperature": 300,
   "extinguishes": true,
-  "map_color": "color_light_green"
+  "map_color": "color_light_green",
+  "textures": {
+    "blob_tiny": "goo:item/typhoon_blob_tiny",
+    "blob_small": "goo:item/typhoon_blob_small",
+    "blob_base": "goo:item/typhoon_blob_base",
+    "blob_large": "goo:item/typhoon_blob_large",
+    "fluid_still": "goo:fluid/typhoon_fluid",
+    "fluid_flowing": "goo:fluid/typhoon_fluid"
+  }
 }
