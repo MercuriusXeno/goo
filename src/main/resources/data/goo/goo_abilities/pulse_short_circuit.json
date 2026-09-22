@@ -11,10 +11,17 @@
   },
   "behaviors": [
     {
-      "type": "entity_effect",
-      "params": {
-        "handler": "pulse_short_circuit"
-      }
+      "type": "program",
+      "steps": [
+        {
+          "type": "target",
+          "where": ["mob"],
+          "steps": [
+            { "type": "set_ai", "enabled": false },
+            { "type": "potion", "effect": "minecraft:slowness", "duration": 100, "amplifier": 127 }
+          ]
+        }
+      ]
     }
   ],
   "tags": ["entity"]

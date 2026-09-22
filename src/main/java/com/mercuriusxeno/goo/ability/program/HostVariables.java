@@ -30,6 +30,11 @@ public final class HostVariables {
      * The struck entity's distance from the thrower, zero with no thrower.
      */
     public static final String DISTANCE = "distance";
+    /**
+     * One when the struck entity heals from harm and is harmed by healing,
+     * zero otherwise.
+     */
+    public static final String UNDEAD = "undead";
 
     private HostVariables() {
     }

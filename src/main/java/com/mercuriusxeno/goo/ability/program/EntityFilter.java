@@ -16,7 +16,32 @@ public enum EntityFilter {
     /**
      * Keeps anything that is not a dropped item.
      */
-    NOT_ITEM;
+    NOT_ITEM,
+    /**
+     * Keeps anything that is not a wither or an ender dragon.
+     */
+    NOT_BOSS,
+    /**
+     * Keeps entities with AI.
+     */
+    MOB,
+    /**
+     * Keeps entities that burn.
+     */
+    NOT_FIRE_IMMUNE,
+    /**
+     * Keeps living entities that heal from harm and are harmed by healing.
+     */
+    UNDEAD,
+    /**
+     * Keeps entities still alive, after a prior effect may have killed them.
+     */
+    ALIVE,
+    /**
+     * Keeps anything but the entity the selection centers on, the struck
+     * entity on the entity host.
+     */
+    NOT_TARGET;
 
     private static final String WHAT = "entity filter";
 
