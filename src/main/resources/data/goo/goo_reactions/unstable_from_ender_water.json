@@ -1,10 +1,10 @@
 {
   "inputs": [
-    {"fluid": "goo:ender_goo", "amount": 1},
+    {"goo": "goo:ender", "amount": 1},
     {"fluid": "minecraft:water", "amount": 1}
   ],
   "outputs": [
-    {"fluid": "goo:unstable_goo", "amount": 2}
+    {"goo": "goo:unstable", "amount": 2}
   ],
   "rate": 1
 }

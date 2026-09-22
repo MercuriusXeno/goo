@@ -5,6 +5,7 @@ import com.google.gson.JsonParser;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.JsonOps;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.material.MapColor;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -14,14 +15,17 @@ import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests that every bundled goo type JSON on the classpath decodes through the
  * registry codec, so the datapack registry accepts what the mod ships, that
- * the light fields decode to the values the enum used to hold, and that the
- * color channels decode from hex and read back through GooColors.
+ * the light fields decode to the values the enum used to hold, that the
+ * color channels decode from hex and read back through GooColors, and that
+ * the fluid fields decode to the values the fluid type switches used to hold.
  */
 class GooTypeDefinitionTest {
 
@@ -33,6 +37,13 @@ class GooTypeDefinitionTest {
     private static final float UNSTABLE_SATURATION = 0.55f;
     private static final String ALL_COLORS =
             ", \"wheel\": \"112233\", \"bright\": \"445566\", \"highlight\": \"778899\", \"edge\": \"AABBCC\"";
+    private static final String WATER_LIKE_FLUID =
+            ", \"density\": 1000, \"viscosity\": 1000, \"temperature\": 300, \"extinguishes\": false,"
+            + " \"map_color\": \"stone\"";
+    private static final int BLAZE_DENSITY = 1500;
+    private static final int BLAZE_VISCOSITY = 800;
+    private static final int BLAZE_TEMPERATURE = 1300;
+    private static final int FROST_TEMPERATURE = 200;
 
     static Stream<ResourceKey<GooTypeDefinition>> bundledKeys() {
         return GooTypes.BUNDLED.stream();
@@ -66,7 +77,7 @@ class GooTypeDefinitionTest {
     void colorChannelsReadBackThroughGooColors() throws Exception {
         GooTypeDefinition custom = decode(
                 "{\"light_level\": 8, \"saturation_fill\": 0.5, \"wheel\": \"112233\","
-                + " \"bright\": \"445566\", \"highlight\": \"778899\", \"edge\": \"aAbBcC\"}");
+                + " \"bright\": \"445566\", \"highlight\": \"778899\", \"edge\": \"aAbBcC\"" + WATER_LIKE_FLUID + "}");
         assertEquals(0x112233, GooColors.wheel(custom));
         assertEquals(0x445566, GooColors.bright(custom));
         assertEquals(0x778899, GooColors.highlight(custom));
@@ -95,11 +106,55 @@ class GooTypeDefinitionTest {
     }
 
     /**
+     * The fluid fields decode from the bundled JSON: blaze carries the
+     * density, viscosity and temperature the retired fluid type switches
+     * held and the fire map color, frost is cold and extinguishes.
+     */
+    @Test
+    void fluidFieldsDecodeFromBundledJson() throws Exception {
+        GooTypeDefinition blaze = decodeBundled(GooTypes.BLAZE);
+        assertEquals(BLAZE_DENSITY, blaze.density());
+        assertEquals(BLAZE_VISCOSITY, blaze.viscosity());
+        assertEquals(BLAZE_TEMPERATURE, blaze.temperature());
+        assertFalse(blaze.extinguishes());
+        assertSame(MapColor.FIRE, blaze.mapColor());
+
+        GooTypeDefinition frost = decodeBundled(GooTypes.FROST);
+        assertEquals(FROST_TEMPERATURE, frost.temperature());
+        assertTrue(frost.extinguishes());
+        assertSame(MapColor.ICE, frost.mapColor());
+    }
+
+    /**
+     * A map color is spelled by its constant name in any case, writes back
+     * lower-case, and a name no constant holds is refused.
+     */
+    @Test
+    void mapColorCodecSpellsConstantNames() {
+        assertSame(MapColor.COLOR_LIGHT_GREEN, MapColors.CODEC.parse(JsonOps.INSTANCE,
+                JsonParser.parseString("\"Color_Light_Green\"")).getOrThrow());
+        assertEquals("nether", MapColors.CODEC.encodeStart(JsonOps.INSTANCE, MapColor.NETHER)
+                .getOrThrow().getAsString());
+        assertTrue(MapColors.CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString("\"chartreuse\"")).isError());
+    }
+
+    /**
+     * A body missing a fluid field is refused, so a datapack type states how
+     * its fluid behaves.
+     */
+    @Test
+    void refusesBodyWithoutTemperature() {
+        assertTrue(parse("{\"light_level\": 8, \"saturation_fill\": 0.5" + ALL_COLORS
+                + ", \"density\": 1000, \"viscosity\": 1000, \"extinguishes\": false, \"map_color\": \"stone\"}")
+                .isError());
+    }
+
+    /**
      * A body missing light_level is refused, so a datapack type states its light.
      */
     @Test
     void refusesBodyWithoutLightLevel() {
-        assertTrue(parse("{\"saturation_fill\": 0.5" + ALL_COLORS + "}").isError());
+        assertTrue(parse("{\"saturation_fill\": 0.5" + ALL_COLORS + WATER_LIKE_FLUID + "}").isError());
     }
 
     /**
@@ -107,7 +162,7 @@ class GooTypeDefinitionTest {
      */
     @Test
     void refusesLightPastCeiling() {
-        assertTrue(parse("{\"light_level\": 16, \"saturation_fill\": 0.5" + ALL_COLORS + "}").isError());
+        assertTrue(parse("{\"light_level\": 16, \"saturation_fill\": 0.5" + ALL_COLORS + WATER_LIKE_FLUID + "}").isError());
     }
 
     /**
@@ -116,7 +171,7 @@ class GooTypeDefinitionTest {
     @Test
     void refusesBodyWithoutEdgeColor() {
         assertTrue(parse("{\"light_level\": 8, \"saturation_fill\": 0.5, \"wheel\": \"112233\","
-                + " \"bright\": \"445566\", \"highlight\": \"778899\"}").isError());
+                + " \"bright\": \"445566\", \"highlight\": \"778899\"" + WATER_LIKE_FLUID + "}").isError());
     }
 
     private static void assertLight(int peak, float saturation, GooTypeDefinition type) {

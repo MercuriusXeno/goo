@@ -60,7 +60,7 @@ public final class PlayerInventorySlotHandler implements ResourceHandler<FluidRe
         if (type == null) { return FluidResource.EMPTY; }
         CanisterFluidContent content = CanisterItem.getFluidContent(getStack());
         return (content.getGooType() == type)
-            ? FluidResource.of(GooFluids.SOURCES.get(type).get())
+            ? GooFluids.resource(type)
             : FluidResource.EMPTY;
     }
 
@@ -98,7 +98,7 @@ public final class PlayerInventorySlotHandler implements ResourceHandler<FluidRe
     @Override
     public boolean isValid(int index, FluidResource resource) {
         if (resource.isEmpty()) { return false; }
-        GooType type = GooFluids.getTypeFromFluid(resource.getFluid());
+        GooType type = GooFluids.typeOf(resource);
         return type != null && type.ordinal() == index;
     }
 
@@ -147,7 +147,7 @@ public final class PlayerInventorySlotHandler implements ResourceHandler<FluidRe
      */
     private GooType validateFluidOp(int index, FluidResource resource, int amount) {
         if (amount <= 0 || resource.isEmpty()) { return null; }
-        GooType type = GooFluids.getTypeFromFluid(resource.getFluid());
+        GooType type = GooFluids.typeOf(resource);
         return type != null && type.ordinal() == index ? type : null;
     }
 

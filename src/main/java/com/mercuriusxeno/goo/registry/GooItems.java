@@ -3,12 +3,12 @@ package com.mercuriusxeno.goo.registry;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.GooType;
 import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.fluid.GooBucketItem;
 import com.mercuriusxeno.goo.item.*;
 import com.mercuriusxeno.goo.item.gasket.ChoralGasketItem;
 import com.mercuriusxeno.goo.item.gasket.ChoralTunerItem;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.BucketItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 import net.neoforged.neoforge.registries.DeferredItem;
@@ -26,8 +26,8 @@ public class GooItems {
     // --- Omniblob items (one per goo type, unstackable, uncapped volume) ---
     public static final Map<GooType, DeferredItem<GooOmniblobItem>> OMNIBLOBS = new EnumMap<>(GooType.class);
 
-    // --- Bucket items (one per goo type, holds 1000 mB) ---
-    public static final Map<GooType, DeferredItem<BucketItem>> BUCKETS = new EnumMap<>(GooType.class);
+    // --- Bucket items (one per bundled goo type over the generic fluid, holds 1000 mB) ---
+    public static final Map<GooType, DeferredItem<GooBucketItem>> BUCKETS = new EnumMap<>(GooType.class);
     // --- Block items ---
     public static final DeferredItem<BlockItem> CRUCIBLE = ITEMS.registerSimpleBlockItem("crucible", GooBlocks.CRUCIBLE);
     public static final DeferredItem<BlockItem> HUB = ITEMS.registerSimpleBlockItem("hub", GooBlocks.HUB);
@@ -78,7 +78,7 @@ public class GooItems {
             OMNIBLOBS.put(type, ITEMS.registerItem(type.getId() + "_omniblob",
                     props -> new GooOmniblobItem(type, props.stacksTo(1))));
             BUCKETS.put(type, ITEMS.registerItem(type.getId() + "_goo_bucket",
-                    props -> new BucketItem(GooFluids.SOURCES.get(type).get(),
+                    props -> new GooBucketItem(type, GooFluids.SOURCE.get(),
                             props.craftRemainder(Items.BUCKET).stacksTo(1))));
         }
     }

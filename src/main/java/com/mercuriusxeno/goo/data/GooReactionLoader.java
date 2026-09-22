@@ -1,8 +1,11 @@
 package com.mercuriusxeno.goo.data;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mojang.datafixers.util.Either;
 import net.minecraft.resources.FileToIdConverter;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener;
 import net.minecraft.util.profiling.ProfilerFiller;
@@ -90,8 +93,8 @@ public final class GooReactionLoader
      * @param b the second reaction
      */
     private static void checkPair(GooReaction a, GooReaction b) {
-        Set<Fluid> sa = a.inputTypeSet();
-        Set<Fluid> sb = b.inputTypeSet();
+        Set<Either<ResourceKey<GooTypeDefinition>, Fluid>> sa = a.inputTypeSet();
+        Set<Either<ResourceKey<GooTypeDefinition>, Fluid>> sb = b.inputTypeSet();
         if (sa.equals(sb) && Goo.LOGGER.isErrorEnabled()) {
             Goo.LOGGER.error(LOG_CONFLICT_IDENTICAL, a.id(), b.id());
         }
@@ -104,7 +107,8 @@ public final class GooReactionLoader
      * @param b the candidate superset
      * @return true if every element of a is in b and b is larger
      */
-    private static boolean isSubset(Set<Fluid> a, Set<Fluid> b) {
+    private static boolean isSubset(Set<Either<ResourceKey<GooTypeDefinition>, Fluid>> a,
+                                    Set<Either<ResourceKey<GooTypeDefinition>, Fluid>> b) {
         return a.size() < b.size() && b.containsAll(a);
     }
 

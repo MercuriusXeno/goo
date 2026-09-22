@@ -18,7 +18,6 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.shapes.Shapes;
@@ -318,7 +317,7 @@ public class ReactorBlockEntity extends BlockEntity
             return true;
         }
         for (GooReaction.FluidEntry entry : reaction.outputs()) {
-            if (content.fluid() != entry.fluid()) {
+            if (!content.resource().equals(entry.resource())) {
                 return false;
             }
         }
@@ -363,7 +362,7 @@ public class ReactorBlockEntity extends BlockEntity
     private boolean inputsSatisfy(CanisterBlockEntity inputBe,
                                   GooReaction reaction) {
         for (GooReaction.FluidEntry entry : reaction.inputs()) {
-            if (getAvailableFluid(inputBe, entry.fluid()) < entry.amount()) {
+            if (getAvailableFluid(inputBe, entry.resource()) < entry.amount()) {
                 return false;
             }
         }
@@ -374,10 +373,10 @@ public class ReactorBlockEntity extends BlockEntity
      * Sums fluid volume across the 4 corner input slots.
      *
      * @param inputBe the input canister BE
-     * @param fluid   the fluid to sum
+     * @param fluid   the fluid resource to sum
      * @return total mB available
      */
-    private int getAvailableFluid(CanisterBlockEntity inputBe, Fluid fluid) {
+    private int getAvailableFluid(CanisterBlockEntity inputBe, FluidResource fluid) {
         int total = 0;
         for (int slot : INPUT_SLOTS) {
             ItemStack stack = inputBe.getCanister(slot);
@@ -385,7 +384,7 @@ public class ReactorBlockEntity extends BlockEntity
                 continue;
             }
             CanisterFluidContent content = CanisterItem.getFluidContent(stack);
-            if (content.fluid() == fluid) {
+            if (content.resource().equals(fluid)) {
                 total += content.amount();
             }
         }
@@ -403,7 +402,7 @@ public class ReactorBlockEntity extends BlockEntity
                                GooReaction reaction) {
         int minBatches = Integer.MAX_VALUE;
         for (GooReaction.FluidEntry entry : reaction.inputs()) {
-            int available = getAvailableFluid(inputBe, entry.fluid());
+            int available = getAvailableFluid(inputBe, entry.resource());
             int possible = available / entry.amount();
             minBatches = Math.min(minBatches, possible);
         }
@@ -423,7 +422,7 @@ public class ReactorBlockEntity extends BlockEntity
     private void consumeInputs(CanisterBlockEntity inputBe,
                                List<GooReaction.FluidEntry> inputs, int batches) {
         for (GooReaction.FluidEntry entry : inputs) {
-            consumeFluid(inputBe, entry.fluid(), entry.amount() * batches);
+            consumeFluid(inputBe, entry.resource(), entry.amount() * batches);
         }
     }
 
@@ -434,11 +433,11 @@ public class ReactorBlockEntity extends BlockEntity
      * every other extract call site in the canister machinery.
      *
      * @param inputBe the input canister BE
-     * @param fluid   the fluid to drain
+     * @param fluid   the fluid resource to drain
      * @param amount  total mB to drain
      */
     private void consumeFluid(CanisterBlockEntity inputBe,
-                              Fluid fluid, int amount) {
+                              FluidResource fluid, int amount) {
         int remaining = amount;
         for (int slot : INPUT_SLOTS) {
             if (remaining <= 0) {
@@ -470,7 +469,7 @@ public class ReactorBlockEntity extends BlockEntity
         for (GooReaction.FluidEntry entry : outputs) {
             int amount = entry.amount() * batches * rate;
             try (var tx = Transaction.openRoot()) {
-                handler.insert(0, FluidResource.of(entry.fluid()), amount, tx);
+                handler.insert(0, entry.resource(), amount, tx);
                 tx.commit();
             }
         }

@@ -17,8 +17,8 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.storage.TagValueInput;
+import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import org.slf4j.Logger;
 
 /**
@@ -190,8 +190,8 @@ public final class MachineTests {
 
         helper.setBlock(INPUT_POS, GooBlocks.CANISTER.get());
         CanisterBlockEntity inputBe = helper.getBlockEntity(INPUT_POS, CanisterBlockEntity.class);
-        Fluid blazeFluid = GooFluids.SOURCES.get(GooType.BLAZE).get();
-        Fluid leafFluid = GooFluids.SOURCES.get(GooType.LEAF).get();
+        FluidResource blazeFluid = GooFluids.resource(GooType.BLAZE);
+        FluidResource leafFluid = GooFluids.resource(GooType.LEAF);
         insertFilledCanister(inputBe, 0, blazeFluid, INPUT_AMOUNT);
         insertFilledCanister(inputBe, CORNER_SLOT_2, leafFluid, INPUT_AMOUNT);
 
@@ -212,7 +212,7 @@ public final class MachineTests {
      * @param blazeFluid the expected output fluid
      */
     private static void assertReactionConsumed(GameTestHelper helper,
-            ReactorBlockEntity reactor, CanisterBlockEntity inputBe, Fluid blazeFluid) {
+            ReactorBlockEntity reactor, CanisterBlockEntity inputBe, FluidResource blazeFluid) {
         assertOutputHandler(helper, reactor, blazeFluid);
         assertInputsDrained(helper, inputBe);
         assertOutputStackHasFluid(helper, reactor, blazeFluid);
@@ -225,11 +225,11 @@ public final class MachineTests {
      * @param blazeFluid the expected fluid
      */
     private static void assertOutputHandler(GameTestHelper helper,
-            ReactorBlockEntity reactor, Fluid blazeFluid) {
+            ReactorBlockEntity reactor, FluidResource blazeFluid) {
         var handler = reactor.containerState().getSlotFluidHandler(
                 ReactorBlockEntity.OUTPUT_SLOT);
         helper.assertTrue(handler != null, OUTPUT_HANDLER_EXISTS);
-        helper.assertTrue(handler.getFluid() == blazeFluid, OUTPUT_SHOULD_BE_BLAZE);
+        helper.assertTrue(handler.getFluidResource().equals(blazeFluid), OUTPUT_SHOULD_BE_BLAZE);
         helper.assertTrue(handler.getAmount() > 0, OUTPUT_AMOUNT_POSITIVE);
     }
 
@@ -261,10 +261,10 @@ public final class MachineTests {
      * @param blazeFluid the expected fluid in the output stack
      */
     private static void assertOutputStackHasFluid(GameTestHelper helper,
-            ReactorBlockEntity reactor, Fluid blazeFluid) {
+            ReactorBlockEntity reactor, FluidResource blazeFluid) {
         CanisterFluidContent outputStackContent = CanisterItem.getFluidContent(
                 reactor.getOutputCanister());
-        helper.assertTrue(outputStackContent.fluid() == blazeFluid,
+        helper.assertTrue(outputStackContent.resource().equals(blazeFluid),
                 OUTPUT_STACK_FLUID_PRESENT);
         helper.assertTrue(outputStackContent.amount() > 0,
                 OUTPUT_STACK_AMOUNT_POSITIVE);
@@ -282,8 +282,8 @@ public final class MachineTests {
 
         helper.setBlock(INPUT_POS, GooBlocks.CANISTER.get());
         CanisterBlockEntity inputBe = helper.getBlockEntity(INPUT_POS, CanisterBlockEntity.class);
-        Fluid blazeFluid = GooFluids.SOURCES.get(GooType.BLAZE).get();
-        Fluid leafFluid = GooFluids.SOURCES.get(GooType.LEAF).get();
+        FluidResource blazeFluid = GooFluids.resource(GooType.BLAZE);
+        FluidResource leafFluid = GooFluids.resource(GooType.LEAF);
         insertFilledCanister(inputBe, 0, blazeFluid, INPUT_AMOUNT);
         insertFilledCanister(inputBe, CORNER_SLOT_2, leafFluid, INPUT_AMOUNT);
 
@@ -316,14 +316,14 @@ public final class MachineTests {
         be.insertCanister(CENTER_SLOT, new ItemStack(GooItems.CANISTER.get()), false);
 
         SlottedCanisterData state = be.containerState();
-        Fluid blazeFluid = GooFluids.SOURCES.get(GooType.BLAZE).get();
+        FluidResource blazeFluid = GooFluids.resource(GooType.BLAZE);
 
         int inserted = state.insertFluid(CENTER_SLOT, blazeFluid, TEST_VOLUME);
         helper.assertTrue(inserted == TEST_VOLUME, SHOULD_INSERT_FULL);
 
         var handler = state.getSlotFluidHandler(CENTER_SLOT);
         helper.assertTrue(handler != null, HANDLER_EXISTS);
-        helper.assertTrue(handler.getFluid() == blazeFluid, HANDLER_HOLDS_BLAZE);
+        helper.assertTrue(handler.getFluidResource().equals(blazeFluid), HANDLER_HOLDS_BLAZE);
         helper.assertTrue(handler.getAmount() == TEST_VOLUME, HANDLER_AMOUNT_MATCHES);
 
         int extracted = state.extractFluid(CENTER_SLOT, blazeFluid, TEST_VOLUME);
@@ -343,7 +343,7 @@ public final class MachineTests {
         helper.setBlock(BE_POS, GooBlocks.CANISTER.get());
         CanisterBlockEntity be = helper.getBlockEntity(BE_POS, CanisterBlockEntity.class);
 
-        Fluid blazeFluid = GooFluids.SOURCES.get(GooType.BLAZE).get();
+        FluidResource blazeFluid = GooFluids.resource(GooType.BLAZE);
 
         // Slot 0: already holds some blaze goo
         insertFilledCanister(be, 0, blazeFluid, TEST_VOLUME);
@@ -377,7 +377,7 @@ public final class MachineTests {
         helper.setBlock(BE_POS, GooBlocks.CANISTER.get());
         CanisterBlockEntity be = helper.getBlockEntity(BE_POS, CanisterBlockEntity.class);
 
-        Fluid blazeFluid = GooFluids.SOURCES.get(GooType.BLAZE).get();
+        FluidResource blazeFluid = GooFluids.resource(GooType.BLAZE);
         insertFilledCanister(be, CENTER_SLOT, blazeFluid, TEST_VOLUME);
 
         // Snapshot the BE state as NBT
@@ -398,7 +398,7 @@ public final class MachineTests {
         // Verify the fluid survived the round-trip
         var handler = restored.containerState().getSlotFluidHandler(CENTER_SLOT);
         helper.assertTrue(handler != null, HANDLER_REBUILT);
-        helper.assertTrue(handler.getFluid() == blazeFluid, FLUID_SURVIVES);
+        helper.assertTrue(handler.getFluidResource().equals(blazeFluid), FLUID_SURVIVES);
         helper.assertTrue(handler.getAmount() == TEST_VOLUME, AMOUNT_SURVIVES);
         helper.succeed();
     }
@@ -422,11 +422,11 @@ public final class MachineTests {
      *
      * @param be     the canister block entity
      * @param slot   the slot index
-     * @param fluid  the fluid to fill with
+     * @param fluid  the fluid resource to fill with
      * @param amount the amount in mB
      */
     private static void insertFilledCanister(CanisterBlockEntity be,
-                                             int slot, Fluid fluid, int amount) {
+                                             int slot, FluidResource fluid, int amount) {
         ItemStack canister = new ItemStack(GooItems.CANISTER.get());
         CanisterItem.setFluidContent(canister, new CanisterFluidContent(fluid, amount));
         be.insertCanister(slot, canister, false);

@@ -3,7 +3,6 @@ package com.mercuriusxeno.goo.block.fluid;
 import com.mercuriusxeno.goo.GooType;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.registry.GooFluids;
-import net.minecraft.world.level.material.Fluid;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import net.neoforged.neoforge.transfer.fluid.FluidStacksResourceHandler;
@@ -83,14 +82,14 @@ public class GooFluidHandler extends FluidStacksResourceHandler {
      *
      * @param index    tank index (0-14)
      * @param resource the fluid resource to validate
-     * @return true if the resource's fluid matches the tank's goo type
+     * @return true if the resource's stamped goo type matches the tank's
      */
     @Override
     public boolean isValid(int index, FluidResource resource) {
         if (resource.isEmpty()) {
             return false;
         }
-        GooType type = GooFluids.getTypeFromFluid(resource.getFluid());
+        GooType type = GooFluids.typeOf(resource);
         return type != null && type.ordinal() == index;
     }
 
@@ -239,8 +238,7 @@ public class GooFluidHandler extends FluidStacksResourceHandler {
      */
     private void applyTank(int index, GooType type, int volume) {
         if (volume > 0) {
-            Fluid fluid = GooFluids.SOURCES.get(type).get();
-            set(index, FluidResource.of(fluid), Math.min(volume, Integer.MAX_VALUE));
+            set(index, GooFluids.resource(type), Math.min(volume, Integer.MAX_VALUE));
         } else {
             set(index, FluidResource.EMPTY, 0);
         }
@@ -292,7 +290,7 @@ public class GooFluidHandler extends FluidStacksResourceHandler {
             return 0;
         }
         int index = type.ordinal();
-        FluidResource resource = FluidResource.of(GooFluids.SOURCES.get(type).get());
+        FluidResource resource = GooFluids.resource(type);
         try (var tx = Transaction.openRoot()) {
             int inserted = insert(index, resource, amount, tx);
             if (!simulate) {
@@ -315,7 +313,7 @@ public class GooFluidHandler extends FluidStacksResourceHandler {
             return 0;
         }
         int index = type.ordinal();
-        FluidResource resource = FluidResource.of(GooFluids.SOURCES.get(type).get());
+        FluidResource resource = GooFluids.resource(type);
         try (var tx = Transaction.openRoot()) {
             int extracted = extract(index, resource, amount, tx);
             if (!simulate) {

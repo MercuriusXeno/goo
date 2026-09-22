@@ -4,5 +4,10 @@
   "wheel": "FFD700",
   "bright": "FFFF28",
   "highlight": "FFE60F",
-  "edge": "FFF51E"
+  "edge": "FFF51E",
+  "density": 1000,
+  "viscosity": 1000,
+  "temperature": 400,
+  "extinguishes": false,
+  "map_color": "gold"
 }

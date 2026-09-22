@@ -1,10 +1,10 @@
 {
   "inputs": [
-    {"fluid": "goo:unstable_goo", "amount": 1},
-    {"fluid": "goo:frost_goo", "amount": 1}
+    {"goo": "goo:unstable", "amount": 1},
+    {"goo": "goo:frost", "amount": 1}
   ],
   "outputs": [
-    {"fluid": "goo:typhoon_goo", "amount": 2}
+    {"goo": "goo:typhoon", "amount": 2}
   ],
   "rate": 1
 }

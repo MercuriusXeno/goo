@@ -17,6 +17,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.neoforged.neoforge.fluids.FluidStack;
+import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import org.jspecify.annotations.Nullable;
 import java.util.function.LongSupplier;
 
@@ -202,22 +203,22 @@ public final class CanisterSlot {
     /**
      * Inserts fluid into this slot's handler.
      *
-     * @param fluid  the fluid to insert
+     * @param fluid  the fluid resource to insert
      * @param volume volume in microblobs
      * @return the amount actually inserted
      */
-    public int insertFluid(Fluid fluid, int volume) {
+    public int insertFluid(FluidResource fluid, int volume) {
         return handler != null ? handler.insertFluid(fluid, volume, false) : 0;
     }
 
     /**
      * Extracts fluid from this slot's handler.
      *
-     * @param fluid     the fluid to extract
+     * @param fluid     the fluid resource to extract
      * @param requested volume in microblobs
      * @return the amount actually extracted
      */
-    public int extractFluid(Fluid fluid, int requested) {
+    public int extractFluid(FluidResource fluid, int requested) {
         return handler != null ? handler.extractFluid(fluid, requested, false) : 0;
     }
 
@@ -229,7 +230,7 @@ public final class CanisterSlot {
      * @return the amount actually inserted
      */
     public int insertGoo(GooType type, int volume) {
-        return insertFluid(GooFluids.SOURCES.get(type).get(), volume);
+        return insertFluid(GooFluids.resource(type), volume);
     }
 
     /**
@@ -240,7 +241,7 @@ public final class CanisterSlot {
      * @return the amount actually extracted
      */
     public int extractGoo(GooType type, int requested) {
-        return extractFluid(GooFluids.SOURCES.get(type).get(), requested);
+        return extractFluid(GooFluids.resource(type), requested);
     }
 
     /** @return true if the canister can accept more fluid (has remaining capacity) */

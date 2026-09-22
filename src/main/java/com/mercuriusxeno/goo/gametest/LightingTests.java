@@ -12,7 +12,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.LightLayer;
-import net.minecraft.world.level.material.Fluid;
+import net.neoforged.neoforge.transfer.fluid.FluidResource;
 
 /**
  * Gametests for goo light emission held in block entity contents. Proves
@@ -78,7 +78,7 @@ public final class LightingTests {
         helper.setBlock(BE_POS, GooBlocks.CANISTER.get());
         CanisterBlockEntity be = helper.getBlockEntity(BE_POS, CanisterBlockEntity.class);
 
-        Fluid blazeFluid = GooFluids.SOURCES.get(GooType.BLAZE).get();
+        FluidResource blazeFluid = GooFluids.resource(GooType.BLAZE);
         ItemStack canister = new ItemStack(GooItems.CANISTER.get());
         CanisterItem.setFluidContent(canister, new CanisterFluidContent(blazeFluid, TEST_VOLUME));
         be.insertCanister(CENTER_SLOT, canister, false);

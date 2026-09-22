@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.block;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
+import net.minecraft.world.level.material.MapColor;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -16,6 +17,7 @@ class GooLightContributionTest {
     private static final int FLOOR = 4;
     private static final long CAPACITY = 1000L;
     private static final int ANY_COLOR = 0x123456;
+    private static final int WATER_LIKE = 1000;
 
     /**
      * Each row: peak, saturation, amount out of 1000, expected light. Expected
@@ -59,7 +61,8 @@ class GooLightContributionTest {
     }
 
     private static GooTypeDefinition lit(int peak, float saturation) {
-        return new GooTypeDefinition(peak, saturation, ANY_COLOR, ANY_COLOR, ANY_COLOR, ANY_COLOR);
+        return new GooTypeDefinition(peak, saturation, ANY_COLOR, ANY_COLOR, ANY_COLOR, ANY_COLOR,
+                WATER_LIKE, WATER_LIKE, WATER_LIKE, false, MapColor.STONE);
     }
 
     /**

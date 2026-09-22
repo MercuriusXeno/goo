@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.world.level.material.MapColor;
 import java.util.Locale;
 
 /**
@@ -19,8 +20,14 @@ import java.util.Locale;
  * @param bright         RGB of the segment while hovered
  * @param highlight      RGB of the aim arc, ghost fill and fade walls
  * @param edge           RGB of wireframe contours and outlines
+ * @param density        fluid density on the water = 1000 scale
+ * @param viscosity      fluid viscosity on the water = 1000 scale, higher is thicker
+ * @param temperature    fluid temperature in kelvin, room temperature 300
+ * @param extinguishes   whether the fluid puts out a burning entity
+ * @param mapColor       the color the fluid block paints on a map
  */
-public record GooTypeDefinition(int peakLight, float saturationFill, int wheel, int bright, int highlight, int edge) {
+public record GooTypeDefinition(int peakLight, float saturationFill, int wheel, int bright, int highlight, int edge,
+                                int density, int viscosity, int temperature, boolean extinguishes, MapColor mapColor) {
 
     /**
      * JSON key of {@link #peakLight}.
@@ -47,6 +54,26 @@ public record GooTypeDefinition(int peakLight, float saturationFill, int wheel, 
      */
     public static final String EDGE = "edge";
     /**
+     * JSON key of {@link #density}.
+     */
+    public static final String DENSITY = "density";
+    /**
+     * JSON key of {@link #viscosity}.
+     */
+    public static final String VISCOSITY = "viscosity";
+    /**
+     * JSON key of {@link #temperature}.
+     */
+    public static final String TEMPERATURE = "temperature";
+    /**
+     * JSON key of {@link #extinguishes}.
+     */
+    public static final String EXTINGUISHES = "extinguishes";
+    /**
+     * JSON key of {@link #mapColor}.
+     */
+    public static final String MAP_COLOR = "map_color";
+    /**
      * Vanilla block light ceiling, the highest {@link #peakLight} the codec accepts.
      */
     public static final int MAX_LIGHT = 15;
@@ -67,7 +94,8 @@ public record GooTypeDefinition(int peakLight, float saturationFill, int wheel, 
 
     /**
      * Codec for a goo type JSON body. Decision type-json-light-fields: the
-     * light fields come first.
+     * light fields come first; decision generic-goo-fluids: the fluid fields
+     * follow the colors.
      */
     public static final Codec<GooTypeDefinition> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             Codec.intRange(0, MAX_LIGHT).fieldOf(LIGHT_LEVEL).forGetter(GooTypeDefinition::peakLight),
@@ -75,7 +103,12 @@ public record GooTypeDefinition(int peakLight, float saturationFill, int wheel, 
             HEX_COLOR.fieldOf(WHEEL).forGetter(GooTypeDefinition::wheel),
             HEX_COLOR.fieldOf(BRIGHT).forGetter(GooTypeDefinition::bright),
             HEX_COLOR.fieldOf(HIGHLIGHT).forGetter(GooTypeDefinition::highlight),
-            HEX_COLOR.fieldOf(EDGE).forGetter(GooTypeDefinition::edge)
+            HEX_COLOR.fieldOf(EDGE).forGetter(GooTypeDefinition::edge),
+            Codec.INT.fieldOf(DENSITY).forGetter(GooTypeDefinition::density),
+            Codec.INT.fieldOf(VISCOSITY).forGetter(GooTypeDefinition::viscosity),
+            Codec.INT.fieldOf(TEMPERATURE).forGetter(GooTypeDefinition::temperature),
+            Codec.BOOL.fieldOf(EXTINGUISHES).forGetter(GooTypeDefinition::extinguishes),
+            MapColors.CODEC.fieldOf(MAP_COLOR).forGetter(GooTypeDefinition::mapColor)
     ).apply(instance, GooTypeDefinition::new));
 
     /**

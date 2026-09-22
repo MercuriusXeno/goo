@@ -4,5 +4,10 @@
   "wheel": "FF6600",
   "bright": "FF8E28",
   "highlight": "FF750F",
-  "edge": "FF841E"
+  "edge": "FF841E",
+  "density": 1500,
+  "viscosity": 800,
+  "temperature": 1300,
+  "extinguishes": false,
+  "map_color": "fire"
 }
