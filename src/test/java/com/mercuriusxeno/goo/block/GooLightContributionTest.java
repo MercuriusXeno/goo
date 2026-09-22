@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.block;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypeTextures;
 import net.minecraft.world.level.material.MapColor;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -62,7 +63,7 @@ class GooLightContributionTest {
 
     private static GooTypeDefinition lit(int peak, float saturation) {
         return new GooTypeDefinition(peak, saturation, ANY_COLOR, ANY_COLOR, ANY_COLOR, ANY_COLOR,
-                WATER_LIKE, WATER_LIKE, WATER_LIKE, false, MapColor.STONE);
+                WATER_LIKE, WATER_LIKE, WATER_LIKE, false, MapColor.STONE, GooTypeTextures.NONE);
     }
 
     /**

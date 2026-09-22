@@ -86,8 +86,8 @@ final class VatFluidRenderer {
         if (isFullySubmerged) { return; }
         GooRenderUtil.UvRect uv = new GooRenderUtil.UvRect(
             sprite.getU0(), sprite.getV0(), sprite.getU1(), sprite.getV1());
-        ctx.liquidSurface(GooRenderUtil.OPAQUE_WHITE, b, uv);
-        ctx.liquidSurfaceDown(GooRenderUtil.OPAQUE_WHITE, b, uv);
+        ctx.liquidSurface(ctx.color(), b, uv);
+        ctx.liquidSurfaceDown(ctx.color(), b, uv);
     }
 
     /**

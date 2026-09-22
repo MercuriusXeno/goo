@@ -9,5 +9,13 @@
   "viscosity": 1000,
   "temperature": 400,
   "extinguishes": false,
-  "map_color": "gold"
+  "map_color": "gold",
+  "textures": {
+    "blob_tiny": "goo:item/glow_blob_tiny",
+    "blob_small": "goo:item/glow_blob_small",
+    "blob_base": "goo:item/glow_blob_base",
+    "blob_large": "goo:item/glow_blob_large",
+    "fluid_still": "goo:fluid/glow_fluid",
+    "fluid_flowing": "goo:fluid/glow_fluid"
+  }
 }

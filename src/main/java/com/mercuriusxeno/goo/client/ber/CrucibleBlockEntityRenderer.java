@@ -172,19 +172,20 @@ public class CrucibleBlockEntityRenderer
             SubmitNodeCollector nodeCollector, ResourceKey<GooTypeDefinition> type,
             float surfaceY, float alpha) {
         TextureAtlasSprite sprite = GooSubmitter.fluidSprite(type);
-        GooSubmitter.submitFluid(poseStack, nodeCollector, packArgb(alpha),
+        GooSubmitter.submitFluid(poseStack, nodeCollector, packArgb(alpha, GooSubmitter.fluidTint(type)),
             ctx -> emitLiquidSurface(ctx, surfaceY, sprite));
     }
 
     /**
-     * Packs an alpha fraction [0, 1] into a full-white ARGB int (0xAARRGGBB).
+     * Packs an alpha fraction [0, 1] onto the RGB channels of a tint.
      *
      * @param alpha the alpha transparency [0, 1]
-     * @return the packed ARGB color with white RGB channels
+     * @param tint  the ARGB tint whose RGB channels are kept
+     * @return the packed ARGB color
      */
-    private static int packArgb(float alpha) {
+    private static int packArgb(float alpha, int tint) {
         int a = (int) (alpha * MAX_ALPHA) & BYTE_MASK;
-        return ARGB.color(a, GooRenderUtil.OPAQUE_WHITE);
+        return ARGB.color(a, tint);
     }
 
     /**

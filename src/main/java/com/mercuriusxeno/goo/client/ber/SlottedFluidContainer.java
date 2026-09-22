@@ -84,8 +84,9 @@ public final class SlottedFluidContainer {
                                          SlotFluidGeometry.SlotGeometry geom) {
         CuboidBounds b = SlotFluidGeometry.computeBounds(geom, center[0], center[1], fill);
         TextureAtlasSprite sprite = GooSubmitter.fluidSprite(type);
-        SlotFluidGeometry.renderFluidTop(ctx, b, sprite);
-        SlotFluidGeometry.renderFluidSides(ctx, b, sprite, fill, geom);
+        int tint = GooSubmitter.fluidTint(type);
+        SlotFluidGeometry.renderFluidTop(ctx, b, sprite, tint);
+        SlotFluidGeometry.renderFluidSides(ctx, b, sprite, fill, geom, tint);
     }
 
     private static void renderVanillaSurface(RenderContext ctx, float[] center, Fluid fluid,

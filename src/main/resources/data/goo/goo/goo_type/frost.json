@@ -9,5 +9,13 @@
   "viscosity": 800,
   "temperature": 200,
   "extinguishes": true,
-  "map_color": "ice"
+  "map_color": "ice",
+  "textures": {
+    "blob_tiny": "goo:item/frost_blob_tiny",
+    "blob_small": "goo:item/frost_blob_small",
+    "blob_base": "goo:item/frost_blob_base",
+    "blob_large": "goo:item/frost_blob_large",
+    "fluid_still": "goo:fluid/frost_fluid",
+    "fluid_flowing": "goo:fluid/frost_fluid"
+  }
 }

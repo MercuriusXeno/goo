@@ -1,24 +1,29 @@
 package com.mercuriusxeno.goo.client;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
-import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.client.model.CanisterBodyModels;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.QuadInstance;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.block.FluidModel;
+import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.client.resources.model.geometry.QuadCollection;
+import net.minecraft.client.resources.model.sprite.Material;
 import net.minecraft.data.AtlasIds;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.util.ARGB;
 import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
+import net.neoforged.neoforge.client.fluid.FluidTintSource;
 import java.util.function.Consumer;
 
 /**
@@ -36,12 +41,8 @@ public final class GooSubmitter {
     private static final Identifier BLOCK_ATLAS =
         Identifier.withDefaultNamespace("textures/atlas/blocks.png");
 
-    /** Mod namespace for goo fluid sprite identifiers. */
+    /** Mod namespace for goo sprite identifiers. */
     private static final String NAMESPACE = "goo";
-    /** Sprite path prefix for goo fluid textures. */
-    private static final String FLUID_PREFIX = "fluid/";
-    /** Sprite path suffix for goo fluid textures. */
-    private static final String FLUID_SUFFIX = "_fluid";
 
     /** Vanilla water still sprite in the block atlas. */
     private static final Identifier WATER_STILL = Identifier.withDefaultNamespace("block/water_still");
@@ -191,16 +192,63 @@ public final class GooSubmitter {
     }
 
     /**
-     * Resolves the fluid sprite of a goo type from the block atlas.
-     * The sprite id follows the pattern "goo:fluid/{typeId}_fluid".
+     * Resolves the fluid sprite ids of a goo type: the still and flowing
+     * sprites its JSON names, or the grey base (decision type-named-textures).
      *
      * @param type the goo type
-     * @return the fluid sprite
+     * @return the sprite ids and whether the grey base stands in for them
+     */
+    public static GooTypeSprites.FluidSprites fluidSprites(ResourceKey<GooTypeDefinition> type) {
+        GooTypeDefinition definition = ClientGooTypes.definition(type);
+        return GooTypeSprites.fluid(definition == null ? null : definition.textures(),
+            GooSubmitter::isBlockSpriteStitched);
+    }
+
+    /**
+     * Resolves the still fluid sprite of a goo type from the block atlas.
+     *
+     * @param type the goo type
+     * @return the still sprite its JSON names, or the grey base
      */
     public static TextureAtlasSprite fluidSprite(ResourceKey<GooTypeDefinition> type) {
-        Identifier spriteId = Identifier.fromNamespaceAndPath(
-            NAMESPACE, FLUID_PREFIX + GooTypes.id(type) + FLUID_SUFFIX);
-        return blockSprite(spriteId);
+        return blockSprite(fluidSprites(type).still());
+    }
+
+    /**
+     * Resolves the vertex tint a goo type's fluid sprite renders under.
+     *
+     * @param type the goo type
+     * @return opaque white over a named sprite, the opaque highlight color over the grey base
+     */
+    public static int fluidTint(ResourceKey<GooTypeDefinition> type) {
+        return fluidSprites(type).tinted() ? ARGB.opaque(ClientGooTypes.color(type)) : GooRenderUtil.OPAQUE_WHITE;
+    }
+
+    /**
+     * Builds the in-world fluid model of a goo type on the sprites its JSON
+     * names, or on the grey base under the type's tint.
+     *
+     * @param type     the goo type
+     * @param greyTint the tint source the grey base renders under
+     * @return a translucent fluid model on the type's sprites
+     */
+    public static FluidModel fluidModel(ResourceKey<GooTypeDefinition> type, FluidTintSource greyTint) {
+        GooTypeSprites.FluidSprites sprites = fluidSprites(type);
+        return new FluidModel(ChunkSectionLayer.TRANSLUCENT,
+            new Material.Baked(blockSprite(sprites.still()), true),
+            new Material.Baked(blockSprite(sprites.flowing()), true),
+            null, sprites.tinted() ? greyTint : null);
+    }
+
+    /**
+     * Whether a sprite id is stitched into the block atlas.
+     *
+     * @param spriteId the sprite identifier
+     * @return false when the lookup answers the atlas's missing sprite
+     */
+    private static boolean isBlockSpriteStitched(Identifier spriteId) {
+        TextureAtlas atlas = blockAtlas();
+        return atlas.getSprite(spriteId) != atlas.missingSprite();
     }
 
     /**
@@ -242,7 +290,13 @@ public final class GooSubmitter {
      * @return the stitched sprite
      */
     private static TextureAtlasSprite blockSprite(Identifier spriteId) {
-        return Minecraft.getInstance().getAtlasManager()
-            .getAtlasOrThrow(AtlasIds.BLOCKS).getSprite(spriteId);
+        return blockAtlas().getSprite(spriteId);
+    }
+
+    /**
+     * @return the block atlas every body and fluid sprite is stitched into
+     */
+    private static TextureAtlas blockAtlas() {
+        return Minecraft.getInstance().getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS);
     }
 }

@@ -98,7 +98,7 @@ public class VatSpecialRenderer implements SpecialModelRenderer<VatSpecialRender
                                     ResourceKey<GooTypeDefinition> type, float fill) {
         CuboidBounds b = computeFluidBounds(fill);
         TextureAtlasSprite sprite = GooSubmitter.fluidSprite(type);
-        GooSubmitter.submitFluid(poseStack, nodeCollector,
+        GooSubmitter.submitFluid(poseStack, nodeCollector, GooSubmitter.fluidTint(type),
                 ctx -> FluidFaceEmitter.emitFluidFaces(ctx, b, sprite, ctx.color()));
     }
 

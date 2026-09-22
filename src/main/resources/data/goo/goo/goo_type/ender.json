@@ -9,5 +9,13 @@
   "viscosity": 1000,
   "temperature": 300,
   "extinguishes": false,
-  "map_color": "diamond"
+  "map_color": "diamond",
+  "textures": {
+    "blob_tiny": "goo:item/ender_blob_tiny",
+    "blob_small": "goo:item/ender_blob_small",
+    "blob_base": "goo:item/ender_blob_base",
+    "blob_large": "goo:item/ender_blob_large",
+    "fluid_still": "goo:fluid/ender_fluid",
+    "fluid_flowing": "goo:fluid/ender_fluid"
+  }
 }

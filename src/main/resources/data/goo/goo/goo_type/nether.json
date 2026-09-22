@@ -9,5 +9,13 @@
   "viscosity": 1500,
   "temperature": 900,
   "extinguishes": false,
-  "map_color": "nether"
+  "map_color": "nether",
+  "textures": {
+    "blob_tiny": "goo:item/nether_blob_tiny",
+    "blob_small": "goo:item/nether_blob_small",
+    "blob_base": "goo:item/nether_blob_base",
+    "blob_large": "goo:item/nether_blob_large",
+    "fluid_still": "goo:fluid/nether_fluid",
+    "fluid_flowing": "goo:fluid/nether_fluid"
+  }
 }

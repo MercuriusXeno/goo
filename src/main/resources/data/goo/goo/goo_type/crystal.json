@@ -9,5 +9,13 @@
   "viscosity": 1000,
   "temperature": 300,
   "extinguishes": false,
-  "map_color": "ice"
+  "map_color": "ice",
+  "textures": {
+    "blob_tiny": "goo:item/crystal_blob_tiny",
+    "blob_small": "goo:item/crystal_blob_small",
+    "blob_base": "goo:item/crystal_blob_base",
+    "blob_large": "goo:item/crystal_blob_large",
+    "fluid_still": "goo:fluid/crystal_fluid",
+    "fluid_flowing": "goo:fluid/crystal_fluid"
+  }
 }

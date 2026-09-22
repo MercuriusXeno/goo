@@ -254,8 +254,9 @@ public class TapBlockEntityRenderer
                                             float cx, float cz) {
         CuboidBounds b = SlotFluidGeometry.computeBounds(FLUID_GEOM, cx, cz, fill);
         TextureAtlasSprite sprite = GooSubmitter.fluidSprite(type);
-        SlotFluidGeometry.renderFluidTop(ctx, b, sprite);
-        SlotFluidGeometry.renderFluidSides(ctx, b, sprite, fill, FLUID_GEOM);
+        int tint = GooSubmitter.fluidTint(type);
+        SlotFluidGeometry.renderFluidTop(ctx, b, sprite, tint);
+        SlotFluidGeometry.renderFluidSides(ctx, b, sprite, fill, FLUID_GEOM, tint);
     }
 
     @Override
