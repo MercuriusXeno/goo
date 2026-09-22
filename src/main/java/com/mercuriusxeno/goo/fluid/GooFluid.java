@@ -1,15 +1,11 @@
 package com.mercuriusxeno.goo.fluid;
 
-import com.mercuriusxeno.goo.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.InsideBlockEffectApplier;
 import net.minecraft.world.entity.InsideBlockEffectType;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.FluidState;
 import net.neoforged.neoforge.fluids.BaseFlowingFluid;
@@ -17,31 +13,16 @@ import org.jspecify.annotations.NonNull;
 
 /**
  * Non-flowing goo fluid variants. Goo sits in place at the level it was
- * placed and never spreads, decays, or changes state on its own.
- * Overriding tick() is sufficient because spread() is called from tick().
- * Should spread ever run, the goo type stamped on the source block copies
- * to the block spread into, and an entity standing in goo is put out when
- * the type stamped at that block extinguishes (decision generic-goo-fluids).
+ * placed and never spreads, decays, or changes state on its own. Overriding
+ * tick() is sufficient because spread() is called from tick(), so no goo
+ * block ever reaches a block it did not start in. An entity standing in goo
+ * is put out when the type stamped at that block extinguishes (decision
+ * generic-goo-fluids).
  */
 @SuppressWarnings("PMD.MissingStaticMethodInNonInstantiatableClass") // container for Source/Flowing inner classes
 public final class GooFluid {
 
     private GooFluid() {}
-
-    /**
-     * Copies the goo type stamped at the block a spread came from onto the
-     * block it spread into.
-     *
-     * @param level     the level accessor
-     * @param pos       the position spread into
-     * @param direction the direction the fluid moved
-     */
-    static void copyTypeOnSpread(LevelAccessor level, BlockPos pos, Direction direction) {
-        ResourceKey<GooTypeDefinition> key = GooFluidBlockEntity.typeAt(level, pos.relative(direction.getOpposite()));
-        if (key != null) {
-            GooFluidBlock.stampType(level, pos, key);
-        }
-    }
 
     /**
      * Puts out an entity inside the block when the type stamped there
@@ -89,13 +70,6 @@ public final class GooFluid {
         }
 
         @Override
-        protected void spreadTo(@NonNull LevelAccessor level, @NonNull BlockPos pos, @NonNull BlockState state,
-                                @NonNull Direction direction, @NonNull FluidState fluidState) {
-            super.spreadTo(level, pos, state, direction, fluidState);
-            copyTypeOnSpread(level, pos, direction);
-        }
-
-        @Override
         protected void entityInside(@NonNull Level level, @NonNull BlockPos pos, @NonNull Entity entity,
                                     @NonNull InsideBlockEffectApplier effectApplier) {
             extinguishByStampedType(level, pos, level.getFluidState(pos), effectApplier);
@@ -129,13 +103,6 @@ public final class GooFluid {
         public void tick(@NonNull ServerLevel level, @NonNull BlockPos pos,
                          @NonNull BlockState blockState, @NonNull FluidState fluidState) {
             // intentionally empty - goo stays where placed
-        }
-
-        @Override
-        protected void spreadTo(@NonNull LevelAccessor level, @NonNull BlockPos pos, @NonNull BlockState state,
-                                @NonNull Direction direction, @NonNull FluidState fluidState) {
-            super.spreadTo(level, pos, state, direction, fluidState);
-            copyTypeOnSpread(level, pos, direction);
         }
 
         @Override
