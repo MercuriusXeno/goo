@@ -1,6 +1,6 @@
 {
   "type": "minecraft:function",
-  "function": "goo:fx_glow_runs",
+  "function": "goo:fx_glow_wall",
   "environment": "minecraft:default",
   "structure": "minecraft:empty",
   "max_ticks": 40,
