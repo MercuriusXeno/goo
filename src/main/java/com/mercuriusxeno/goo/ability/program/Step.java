@@ -45,4 +45,14 @@ public interface Step {
      * @return the required capabilities
      */
     Set<HostCapability> requires();
+
+    /**
+     * Streams the child steps a container step holds, so the load check
+     * reaches every step of the tree; a leaf step streams nothing.
+     *
+     * @return the child steps
+     */
+    default Stream<Step> children() {
+        return Stream.empty();
+    }
 }

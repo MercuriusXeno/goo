@@ -21,6 +21,8 @@ import static org.mockito.Mockito.when;
 class ExprTest {
 
     private static final double EPSILON = 1e-9;
+    private static final int ROLLS = 50;
+    private static final int RANDOM_BOUND = 3;
 
     private static Expr decode(JsonElement json) {
         return Expr.CODEC.parse(JsonOps.INSTANCE, json).getOrThrow();
@@ -127,6 +129,16 @@ class ExprTest {
             assertEquals(3, parse("sqrt(9)").evaluate(Variables.NONE), EPSILON);
             assertEquals(2, parse("floor(2.9)").evaluate(Variables.NONE), EPSILON);
             assertEquals(3, parse("ceil(2.1)").evaluate(Variables.NONE), EPSILON);
+        }
+
+        @Test
+        void randomRollsBelowItsBoundAndZeroBelowOne() {
+            Expr roll = parse("1 + random(3)");
+            for (int i = 0; i < ROLLS; i++) {
+                int value = roll.evaluateInt(Variables.NONE);
+                assertTrue(value >= 1 && value <= RANDOM_BOUND, String.valueOf(value));
+            }
+            assertEquals(0, parse("random(0)").evaluate(Variables.NONE), EPSILON);
         }
 
         @Test

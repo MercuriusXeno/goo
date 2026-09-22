@@ -1,22 +1,34 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.BlockEffect;
 import com.mercuriusxeno.goo.ability.LayerAudio;
 import com.mercuriusxeno.goo.ability.LayerVisuals;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.Holder;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageSources;
+import net.minecraft.world.effect.MobEffect;
+import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 import java.util.Map;
+import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.Set;
+import java.util.function.Consumer;
 
 /**
  * The {@link StepHost} over the living entity a thrown blob struck: the
@@ -32,6 +44,12 @@ import java.util.Set;
  */
 public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entity thrower) implements StepHost {
 
+    private static final String LOG_UNKNOWN_EFFECT = "Potion step names status effect {}, which no registry holds";
+    private static final String LOG_UNKNOWN_ITEM = "Drop step names item {}, which no registry holds";
+    private static final float PERCENT = 100;
+    private static final double BODY_CENTER = 0.5;
+    private static final double HALF = 0.5;
+
     @Override
     public HostKind kind() {
         return HostKind.ENTITY;
@@ -43,6 +61,7 @@ public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entit
             case HostVariables.HEALTH -> OptionalDouble.of(target.getHealth());
             case HostVariables.MAX_HEALTH -> OptionalDouble.of(target.getMaxHealth());
             case HostVariables.DISTANCE -> OptionalDouble.of(distanceFromThrower());
+            case HostVariables.UNDEAD -> OptionalDouble.of(target.isInvertedHealAndHarm() ? 1 : 0);
             default -> OptionalDouble.empty();
         };
     }
@@ -86,13 +105,140 @@ public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entit
 
     @Override
     public boolean anyEntityWithin(SelectionShape shape, double radius, Set<EntityFilter> filters) {
-        Vec3 center = target.position();
-        return EntityScan.anyEntityWithin(level, center, shape, radius, filters);
+        return EntityScan.anyEntityWithin(level, target.position(), shape, radius, filters, target);
+    }
+
+    @Override
+    public void forEachEntityWithin(SelectionShape shape, double radius, Set<EntityFilter> filters,
+                                    Consumer<StepHost> body) {
+        EntityScan.forEachLivingWithin(level, target.position(), shape, radius, filters, target,
+                living -> body.accept(new EntityHost(level, living, thrower)));
     }
 
     @Override
     public void damageTarget(float amount, DamageKind source) {
         target.hurtServer(level, damageSource(source), amount);
+    }
+
+    @Override
+    public void applyPotion(Identifier effect, int duration, int amplifier, boolean visible) {
+        Optional<Holder.Reference<MobEffect>> holder = BuiltInRegistries.MOB_EFFECT.get(effect);
+        if (holder.isEmpty()) {
+            Goo.LOGGER.warn(LOG_UNKNOWN_EFFECT, effect);
+            return;
+        }
+        target.addEffect(new MobEffectInstance(holder.get(), duration, amplifier, false, visible));
+    }
+
+    @Override
+    public boolean targetPasses(Set<EntityFilter> filters) {
+        return EntityScan.passes(target, filters, target);
+    }
+
+    @Override
+    public void setTargetHealthFraction(float fraction) {
+        target.setHealth(target.getHealth() * fraction);
+    }
+
+    @Override
+    public void addTargetFreezeTicks(int ticks) {
+        target.setTicksFrozen(target.getTicksFrozen() + ticks);
+    }
+
+    @Override
+    public void setTargetAi(boolean enabled) {
+        if (target instanceof Mob mob) {
+            mob.setNoAi(!enabled);
+        }
+    }
+
+    @Override
+    public void setTargetInvulnerable(boolean enabled) {
+        target.setInvulnerable(enabled);
+    }
+
+    @Override
+    public void cloneTarget(float chancePercent) {
+        if (level.getRandom().nextFloat() * PERCENT < chancePercent) {
+            spawnClone();
+        }
+    }
+
+    @Override
+    public void dropItemAtTarget(Identifier item, int count) {
+        Optional<Holder.Reference<Item>> holder = BuiltInRegistries.ITEM.get(item);
+        if (holder.isEmpty()) {
+            Goo.LOGGER.warn(LOG_UNKNOWN_ITEM, item);
+            return;
+        }
+        target.spawnAtLocation(level, new ItemStack(holder.get(), count));
+    }
+
+    @Override
+    public void igniteTarget(int seconds) {
+        target.igniteForSeconds(seconds);
+    }
+
+    @Override
+    public void spawnParticles(FxAnchor at, ParticleBurst burst) {
+        SimpleParticles.resolve(burst.particle()).ifPresent(particle -> level.sendParticles(particle,
+                target.getX(), target.getY(BODY_CENTER) + burst.lift(), target.getZ(),
+                burst.count(), burst.spreadAcross(), burst.spreadAlong(), burst.spreadAcross(), burst.speed()));
+    }
+
+    @Override
+    public void playSound(FxAnchor at, SoundCue cue) {
+        SoundPlays.play(level, new Vec3(target.getX(), target.getY(BODY_CENTER), target.getZ()), cue);
+    }
+
+    @Override
+    public void teleportTarget(TeleportMode mode, double range) {
+        Vec3 jump = switch (mode) {
+            case RANDOM_OFFSET -> randomOffset(range);
+            case TOWARD_THROWER -> towardThrower(range);
+            case AWAY_FROM_THROWER -> towardThrower(-range);
+        };
+        target.teleportTo(target.getX() + jump.x(), target.getY(), target.getZ() + jump.z());
+    }
+
+    /**
+     * Rolls a level jump of up to half the range either way on each axis.
+     *
+     * @param range the full width of the roll
+     * @return the jump
+     */
+    private Vec3 randomOffset(double range) {
+        RandomSource random = level.getRandom();
+        return new Vec3((random.nextDouble() - HALF) * range, 0, (random.nextDouble() - HALF) * range);
+    }
+
+    /**
+     * Measures a level jump of the range along the line from the target
+     * to the thrower; a negative range jumps away.
+     *
+     * @param range the jump length, negative to jump away
+     * @return the jump, zero with no thrower or a thrower at the target
+     */
+    private Vec3 towardThrower(double range) {
+        if (thrower == null) {
+            return Vec3.ZERO;
+        }
+        Vec3 line = new Vec3(thrower.getX() - target.getX(), 0, thrower.getZ() - target.getZ());
+        return line.lengthSqr() == 0 ? Vec3.ZERO : line.normalize().scale(range);
+    }
+
+    /**
+     * Spawns a fresh entity of the target's type a gaussian step away on
+     * each horizontal axis.
+     */
+    private void spawnClone() {
+        Entity clone = target.getType().create(level, EntitySpawnReason.MOB_SUMMONED);
+        if (clone == null) {
+            return;
+        }
+        RandomSource random = level.getRandom();
+        clone.setPos(target.getX() + random.nextGaussian(), target.getY(), target.getZ() + random.nextGaussian());
+        level.addFreshEntity(clone);
     }
 
     @Override

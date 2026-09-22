@@ -11,10 +11,18 @@
   },
   "behaviors": [
     {
-      "type": "entity_effect",
-      "params": {
-        "handler": "shroom_debuff"
-      }
+      "type": "program",
+      "steps": [
+        {
+          "type": "target",
+          "where": ["not_boss"],
+          "steps": [
+            { "type": "potion", "effect": "minecraft:slowness", "duration": 200, "amplifier": 1 },
+            { "type": "potion", "effect": "minecraft:weakness", "duration": 200, "amplifier": 1 },
+            { "type": "potion", "effect": "minecraft:poison", "duration": 200, "amplifier": 0 }
+          ]
+        }
+      ]
     }
   ],
   "tags": ["entity"]

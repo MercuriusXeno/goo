@@ -11,10 +11,10 @@
   },
   "behaviors": [
     {
-      "type": "entity_effect",
-      "params": {
-        "handler": "unstable_explode"
-      }
+      "type": "program",
+      "steps": [
+        { "type": "explode", "power": 2.0, "interaction": "tnt" }
+      ]
     }
   ],
   "tags": ["entity"]

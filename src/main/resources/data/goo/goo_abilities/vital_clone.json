@@ -11,10 +11,16 @@
   },
   "behaviors": [
     {
-      "type": "entity_effect",
-      "params": {
-        "handler": "vital_clone"
-      }
+      "type": "program",
+      "steps": [
+        {
+          "type": "target",
+          "where": ["mob"],
+          "steps": [
+            { "type": "clone_entity", "chance": "100 / pow(max_health, 0.6)" }
+          ]
+        }
+      ]
     }
   ],
   "tags": ["entity"]
