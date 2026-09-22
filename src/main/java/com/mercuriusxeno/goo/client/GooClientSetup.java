@@ -55,9 +55,9 @@ public final class GooClientSetup {
      */
     private static final String RENDERER_GLOVE = "glove_goo";
     /**
-     * The grey base texture the one goo fluid model tints by type.
+     * Property name for the blob texture a stack's type names.
      */
-    private static final String FLUID_TEXTURE = "fluid/goo_fluid";
+    private static final String PROP_BLOB_TEXTURE = "blob_texture";
     /**
      * SuppressWarnings annotation value for unchecked casts.
      */
@@ -173,6 +173,18 @@ public final class GooClientSetup {
     }
 
     /**
+     * Registers the select property keyed by the GOO_TYPE component that
+     * answers the blob texture the stack's type names (decision
+     * type-named-textures).
+     *
+     * @param event the event instance
+     */
+    @SubscribeEvent
+    public static void registerSelectProperties(RegisterSelectItemModelPropertyEvent event) {
+        event.register(Identifier.fromNamespaceAndPath(Goo.MODID, PROP_BLOB_TEXTURE), BlobTextureProperty.TYPE);
+    }
+
+    /**
      * Registers the goo bubble particle provider with its sprite set.
      *
      * @param event the event instance
@@ -248,15 +260,17 @@ public final class GooClientSetup {
 
     /**
      * Registers the FluidModel of the one goo fluid: a grey base texture
-     * tinted by the type stamped at the position, or carried by the stack
-     * (decision generic-goo-fluids).
+     * tinted by the type the stack carries (decision generic-goo-fluids),
+     * and a custom renderer that draws a placed fluid on the sprites its
+     * stamped type names (decision type-named-textures).
      *
      * @param event the event instance
      */
     @SubscribeEvent
     public static void registerFluidModels(RegisterFluidModelsEvent event) {
-        Material texture = new Material(Identifier.fromNamespaceAndPath(Goo.MODID, FLUID_TEXTURE), true);
-        FluidModel.Unbaked model = new FluidModel.Unbaked(texture, texture, null, new GooFluidTintSource());
+        Material texture = new Material(GooTypeSprites.GREY_FLUID, true);
+        GooFluidTintSource tint = new GooFluidTintSource();
+        FluidModel.Unbaked model = new FluidModel.Unbaked(texture, texture, null, tint, new GooTypeFluidRenderer(tint));
         event.register(model, GooFluids.SOURCE, GooFluids.FLOWING);
     }
 
