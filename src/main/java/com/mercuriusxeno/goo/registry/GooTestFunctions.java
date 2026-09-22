@@ -135,6 +135,7 @@ public final class GooTestFunctions {
     // --- Lighting ---
     private static final String LIGHT_CANISTER_SYNC = "light_canister_sync";
     private static final String LIGHT_CANISTER_LOAD = "light_canister_load";
+    private static final String LIGHT_DATAPACK_TYPE = "light_datapack_type";
 
     private GooTestFunctions() {
     }
@@ -175,6 +176,7 @@ public final class GooTestFunctions {
     private static void registerLightingTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
         reg(r, LIGHT_CANISTER_SYNC, LightingTests::filledCanisterLightsNeighbour);
         reg(r, LIGHT_CANISTER_LOAD, LightingTests::loadedCanisterLightsNeighbour);
+        reg(r, LIGHT_DATAPACK_TYPE, LightingTests::datapackLightLevelDrivesCanisterEmission);
     }
 
     private static void registerGooTypeRegistryTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
