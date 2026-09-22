@@ -5,8 +5,6 @@ import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
-import com.mercuriusxeno.goo.ability.MobAbilityRegistry;
-import com.mercuriusxeno.goo.ability.mob.MobAbilities;
 import com.mercuriusxeno.goo.ability.program.EntityHost;
 import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
@@ -73,18 +71,6 @@ final class BlobEffectScheduler {
      * Log: entity no longer exists at blob arrival.
      */
     private static final String LOG_ENTITY_GONE = "Blob arrived but entity {} no longer exists";
-    /**
-     * Behavior type name for entity effects.
-     */
-    private static final String ENTITY_EFFECT_TYPE = "entity_effect";
-    /**
-     * Param key for handler name in entity_effect behaviors.
-     */
-    private static final String HANDLER_PARAM = "handler";
-    /**
-     * Empty handler fallback.
-     */
-    private static final String NO_HANDLER = "";
     /**
      * Log: a program entry the struck entity host refused at load.
      */
@@ -191,9 +177,10 @@ final class BlobEffectScheduler {
     }
 
     /**
-     * Applies the goo effect to a living entity target with impact sound.
-     * Uses the ability-driven EntityEffectRegistry if an abilityId is set,
-     * falling back to legacy GooMobEffects dispatch otherwise.
+     * Applies the goo effect to a living entity target with impact sound:
+     * the programs of the ability the throw names run on the struck
+     * entity, and a throw naming no ability does nothing past the sound
+     * (idea no-type-only-throw).
      *
      * @param pe the pending effect targeting an entity
      */
@@ -204,25 +191,10 @@ final class BlobEffectScheduler {
             return;
         }
         playImpactSound(pe.level, living.getX(), living.getY(), living.getZ());
-        if (pe.abilityId.isEmpty()) {
-            MobAbilities.apply(pe.level, living, pe.gooType, pe.thrower);
-        } else {
-            applyEntityAbilityEffect(pe, living);
-        }
-    }
-
-    /**
-     * Dispatches via the data-driven entity_effect handler.
-     *
-     * @param pe     the pending effect
-     * @param living the target entity
-     */
-    private static void applyEntityAbilityEffect(PendingEffect pe, LivingEntity living) {
         AbilityDefinition def = resolveAbility(pe.abilityId);
-        if (def == null) {
-            return;
+        if (def != null) {
+            runEntityPrograms(pe, def, living);
         }
-        dispatchEntityHandlers(pe, def, living);
     }
 
     private static AbilityDefinition resolveAbility(String abilityId) {
@@ -234,21 +206,17 @@ final class BlobEffectScheduler {
     }
 
     /**
-     * Runs each behavior entry against the struck entity: a program entry
-     * on an {@link EntityHost}, an entity_effect entry through the handler
-     * it names (decision host-agnostic-runtime).
+     * Runs each program entry of the ability against the struck entity on
+     * an {@link EntityHost} (decision host-agnostic-runtime).
      *
      * @param pe     the pending effect
      * @param def    the ability definition
      * @param living the target entity
      */
-    private static void dispatchEntityHandlers(PendingEffect pe,
-                                               AbilityDefinition def, LivingEntity living) {
+    private static void runEntityPrograms(PendingEffect pe, AbilityDefinition def, LivingEntity living) {
         for (AbilityDefinition.BehaviorEntry entry : def.behaviors()) {
             if (ProgramBehavior.TYPE_NAME.equals(entry.type())) {
                 runEntityProgram(pe, def, entry, living);
-            } else if (ENTITY_EFFECT_TYPE.equals(entry.type())) {
-                runEntityHandler(pe, entry, living);
             }
         }
     }
@@ -270,22 +238,6 @@ final class BlobEffectScheduler {
             program.tick(new EntityHost(pe.level, living, pe.thrower));
         } catch (ProgramLoadException e) {
             Goo.LOGGER.error(LOG_PROGRAM_REFUSED, def.id(), e.getMessage());
-        }
-    }
-
-    /**
-     * Runs the handler an entity_effect entry names.
-     *
-     * @param pe     the pending effect
-     * @param entry  the entity_effect entry
-     * @param living the target entity
-     */
-    private static void runEntityHandler(PendingEffect pe, AbilityDefinition.BehaviorEntry entry,
-                                         LivingEntity living) {
-        String handler = entry.params().getOrDefault(HANDLER_PARAM, NO_HANDLER);
-        var fn = MobAbilityRegistry.get(handler);
-        if (fn != null) {
-            fn.accept(new MobAbilityRegistry.Context(pe.level, living, pe.thrower));
         }
     }
 

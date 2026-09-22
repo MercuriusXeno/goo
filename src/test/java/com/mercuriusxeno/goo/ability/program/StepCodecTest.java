@@ -8,6 +8,7 @@ import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -24,18 +25,41 @@ class StepCodecTest {
      * One sample per registered type, keyed by type name; the registry
      * check below fails when a type is registered without a sample here.
      */
-    private static final Map<String, Step> SAMPLES = Map.of(
-            "wait", new WaitStep(Expr.parse("4 + stacks").getOrThrow()),
-            "await_entity", new AwaitEntityStep(SelectionShape.CUBE, Expr.literal(3),
-                    List.of(EntityFilter.LIVING, EntityFilter.NOT_ITEM)),
-            "explode", new ExplodeStep(Expr.parse("2.5 + 1.0 * (stacks - 1)").getOrThrow(), ExplosionMode.NONE),
-            "damage", new DamageStep(Expr.parse("health / 2").getOrThrow(), DamageKind.CACTUS),
-            "place_block", new PlaceBlockStep(Identifier.parse("goo:glow_crystal"), Map.of(
+    private static final Map<String, Step> SAMPLES = Map.ofEntries(
+            Map.entry("wait", new WaitStep(Expr.parse("4 + stacks").getOrThrow())),
+            Map.entry("await_entity", new AwaitEntityStep(SelectionShape.CUBE, Expr.literal(3),
+                    List.of(EntityFilter.LIVING, EntityFilter.NOT_ITEM))),
+            Map.entry("explode", new ExplodeStep(Expr.parse("2.5 + 1.0 * (stacks - 1)").getOrThrow(),
+                    ExplosionMode.NONE)),
+            Map.entry("damage", new DamageStep(Expr.parse("health / 2").getOrThrow(), DamageKind.CACTUS)),
+            Map.entry("potion", new PotionStep(Identifier.parse("minecraft:levitation"), Expr.literal(100),
+                    Expr.parse("1 + stacks").getOrThrow(), false)),
+            Map.entry("target", new TargetStep(List.of(EntityFilter.NOT_BOSS),
+                    List.of(new DamageStep(Expr.literal(4), DamageKind.FREEZE)))),
+            Map.entry("set_health", new SetHealthStep(Expr.parse("0.5 * health / max_health").getOrThrow())),
+            Map.entry("freeze_ticks",
+                    new FreezeTicksStep(Expr.parse("140 * 25 / pow(health, 0.2) / 100").getOrThrow())),
+            Map.entry("set_ai", new SetAiStep(false)),
+            Map.entry("set_invulnerable", new SetInvulnerableStep(true)),
+            Map.entry("clone_entity", new CloneEntityStep(Expr.parse("100 / pow(max_health, 0.6)").getOrThrow())),
+            Map.entry("drop_item", new DropItemStep(Identifier.parse("minecraft:cobblestone"),
+                    Expr.parse("1 + random(3)").getOrThrow())),
+            Map.entry("ignite", new IgniteStep(Expr.literal(10))),
+            Map.entry("entities", new EntitiesStep(SelectionShape.SPHERE, Expr.literal(2.5),
+                    List.of(EntityFilter.LIVING, EntityFilter.NOT_FIRE_IMMUNE),
+                    List.of(new IgniteStep(Expr.literal(5))))),
+            Map.entry("particles", new ParticlesStep(Identifier.parse("minecraft:damage_indicator"), FxAnchor.TARGET,
+                    Expr.literal(15), Expr.literal(0), Optional.of(Expr.literal(0.5)), Optional.of(Expr.literal(1.5)),
+                    Expr.literal(0), Expr.literal(1))),
+            Map.entry("sound", new SoundStep(Identifier.parse("minecraft:entity.enderman.teleport"), FxAnchor.TARGET,
+                    SoundKind.HOSTILE, Expr.parse("0.55 + 0.08 * stacks").getOrThrow(), Expr.literal(1))),
+            Map.entry("teleport", new TeleportStep(TeleportMode.RANDOM_OFFSET, Expr.literal(32))),
+            Map.entry("place_block", new PlaceBlockStep(Identifier.parse("goo:glow_crystal"), Map.of(
                     "facing", new StateValue.PlacedFace(),
                     "shape", new StateValue.Named("flat"),
-                    "size", new StateValue.Pick(Expr.parse("stacks - 1").getOrThrow(), List.of("tiny", "large")))),
-            "progressive_area", new ProgressiveAreaStep(AreaShape.FLAT_CIRCLE, "fortune_smelt_break",
-                    "blaze_flame", "generic_explode", Expr.literal(8))
+                    "size", new StateValue.Pick(Expr.parse("stacks - 1").getOrThrow(), List.of("tiny", "large"))))),
+            Map.entry("progressive_area", new ProgressiveAreaStep(AreaShape.FLAT_CIRCLE, "fortune_smelt_break",
+                    "blaze_flame", "generic_explode", Expr.literal(8)))
     );
 
     private static Step roundTrip(Step step) {
@@ -77,6 +101,22 @@ class StepCodecTest {
         DamageStep damage = assertInstanceOf(DamageStep.class,
                 decode("{\"type\": \"damage\", \"amount\": 8}").getOrThrow());
         assertEquals(DamageKind.MAGIC, damage.source());
+        PotionStep potion = assertInstanceOf(PotionStep.class,
+                decode("{\"type\": \"potion\", \"effect\": \"minecraft:poison\", \"duration\": 60}").getOrThrow());
+        assertEquals(0, potion.amplifier().evaluate(Variables.NONE));
+        assertTrue(potion.visible());
+        ParticlesStep particles = assertInstanceOf(ParticlesStep.class,
+                decode("{\"type\": \"particles\", \"id\": \"minecraft:crit\", \"spread\": 0.5}").getOrThrow());
+        assertEquals(FxAnchor.HOST, particles.at());
+        assertEquals(1, particles.count().evaluate(Variables.NONE));
+        assertEquals(Optional.empty(), particles.spreadAlong());
+        assertEquals(0, particles.lift().evaluate(Variables.NONE));
+        SoundStep sound = assertInstanceOf(SoundStep.class,
+                decode("{\"type\": \"sound\", \"id\": \"minecraft:block.glass.break\"}").getOrThrow());
+        assertEquals(FxAnchor.HOST, sound.at());
+        assertEquals(SoundKind.BLOCKS, sound.source());
+        assertEquals(1, sound.volume().evaluate(Variables.NONE));
+        assertEquals(1, sound.pitch().evaluate(Variables.NONE));
     }
 
     @Test
@@ -95,6 +135,15 @@ class StepCodecTest {
         assertEquals(2, steps.size());
         assertInstanceOf(AwaitEntityStep.class, steps.get(0));
         assertInstanceOf(ExplodeStep.class, steps.get(1));
+    }
+
+    @Test
+    void targetStepDecodesItsChildren() {
+        String json = "{\"type\": \"target\", \"where\": [\"not_boss\"], \"steps\": ["
+                + "{\"type\": \"potion\", \"effect\": \"minecraft:poison\", \"duration\": 200}]}";
+        TargetStep target = assertInstanceOf(TargetStep.class, decode(json).getOrThrow());
+        assertEquals(List.of(EntityFilter.NOT_BOSS), target.where());
+        assertInstanceOf(PotionStep.class, target.steps().get(0));
     }
 
     @Test
