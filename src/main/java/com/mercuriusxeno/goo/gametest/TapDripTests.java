@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.gametest;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
+import com.mercuriusxeno.goo.block.tap.TapBlock;
 import com.mercuriusxeno.goo.block.tap.TapBlockEntity;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooItems;
@@ -30,6 +31,8 @@ public final class TapDripTests {
     private static final int NEIGHBOR_SLOT = 4;
     private static final String TAP_VOLUME = "tap canister volume";
     private static final String NEIGHBOR_VOLUME = "neighbor canister volume";
+    private static final String CLOSED_VOLUME = "tap canister volume behind a closed valve";
+    private static final String OPENED_VOLUME = "tap canister volume one interval after opening";
 
     private TapDripTests() {
     }
@@ -62,8 +65,32 @@ public final class TapDripTests {
         });
     }
 
+    /**
+     * A closed valve drips nothing however long the tap ticks; opening it
+     * drips on the next full interval.
+     *
+     * @param helper the gametest helper
+     */
+    public static void tapValveGatesDrip(GameTestHelper helper) {
+        TapBlockEntity tap = filledTap(helper, false);
+        int closedTicks = DRIPS * TapBlockEntity.DRIP_INTERVAL + SETTLE_TICKS;
+
+        helper.runAfterDelay(closedTicks, () -> {
+            helper.assertValueEqual(tap.getFluidContent().amount(), START_VOLUME, CLOSED_VOLUME);
+            helper.setBlock(TAP_POS, helper.getBlockState(TAP_POS).setValue(TapBlock.OPEN, true));
+        });
+        helper.runAfterDelay(closedTicks + TapBlockEntity.DRIP_INTERVAL + SETTLE_TICKS, () -> {
+            helper.assertValueEqual(tap.getFluidContent().amount(), START_VOLUME - 1, OPENED_VOLUME);
+            helper.succeed();
+        });
+    }
+
     private static TapBlockEntity filledTap(GameTestHelper helper) {
-        helper.setBlock(TAP_POS, GooBlocks.TAP.get());
+        return filledTap(helper, true);
+    }
+
+    private static TapBlockEntity filledTap(GameTestHelper helper, boolean open) {
+        helper.setBlock(TAP_POS, GooBlocks.TAP.get().defaultBlockState().setValue(TapBlock.OPEN, open));
         TapBlockEntity tap = helper.getBlockEntity(TAP_POS, TapBlockEntity.class);
         tap.insertCanister(new ItemStack(GooItems.CANISTER.get()));
         tap.insertGoo(TYPE, START_VOLUME);
