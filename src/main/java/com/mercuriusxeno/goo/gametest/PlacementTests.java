@@ -5,7 +5,6 @@ import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.world.EffectBlockPlacement;
-import com.mercuriusxeno.goo.ability.world.WorldEffects;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlock;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.registry.GooBlocks;
@@ -15,12 +14,11 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.block.Blocks;
-import java.util.List;
+import java.util.Map;
 
 /**
- * Gametests for EffectBlockPlacement via the WorldEffects dispatch.
- * Covers the blob-impact placement path: WorldEffects -> *Effect ->
- * EffectBlockPlacement -> ChainPlacementRules -> chain marker creation.
+ * Gametests for EffectBlockPlacement on the ability path: an ability blob
+ * lands through ChainPlacementRules and stands or stacks its chain marker.
  */
 public final class PlacementTests {
 
@@ -32,6 +30,12 @@ public final class PlacementTests {
     private static final BlockPos GRASS_POS = GRASS_SOIL_POS.above();
     private static final String BLAZE_TUNNEL = "goo:blaze_tunnel";
     private static final String ROCK_TUNNEL = "goo:rock_tunnel";
+    private static final String FROST_SPHERE = "goo:frost_sphere";
+    private static final String CRYSTAL_CLOUD = "goo:crystal_cloud";
+    private static final String METAL_SPIKES = "goo:metal_spikes";
+    private static final String NETHER_BLACK_HOLE = "goo:nether_black_hole";
+    private static final String UNSTABLE_TIMED_BOMB = "goo:unstable_timed_bomb";
+    private static final String GLOW_CRYSTAL = "goo:glow_crystal";
     private static final String ABILITIES_REQUIRED = "Ability registry must be loaded";
     private static final String OTHER_ABILITY_STACKED = "A blob of another ability stacked onto the marker";
     private static final String OTHER_ABILITY_REPLACED = "A blob of another ability replaced the marker";
@@ -42,57 +46,53 @@ public final class PlacementTests {
     private PlacementTests() {}
 
     /**
-     * Hitting a stone block with blaze goo places a chain marker in the
+     * Hitting a stone block with a blaze_tunnel blob places a chain marker in the
      * adjacent air block. Exercises the full placement dispatch path.
      *
      * @param helper the gametest helper
      */
     public static void blazePlacesMarker(GameTestHelper helper) {
         helper.setBlock(WALL_POS, Blocks.STONE);
-        WorldEffects.apply(helper.getLevel(), helper.absolutePos(WALL_POS),
-            GooTypes.BLAZE, Direction.SOUTH);
+        throwAbility(helper, WALL_POS, Direction.SOUTH, GooTypes.BLAZE, BLAZE_TUNNEL);
         helper.assertBlockPresent(GooBlocks.CHAIN_MARKER.get(), AIR_POS);
         helper.succeed();
     }
 
     /**
-     * Hitting a stone block with rock goo places a chain marker.
+     * Hitting a stone block with a rock_tunnel blob places a chain marker.
      *
      * @param helper the gametest helper
      */
     public static void rockPlacesMarker(GameTestHelper helper) {
         helper.setBlock(WALL_POS, Blocks.STONE);
-        WorldEffects.apply(helper.getLevel(), helper.absolutePos(WALL_POS),
-            GooTypes.ROCK, Direction.SOUTH);
+        throwAbility(helper, WALL_POS, Direction.SOUTH, GooTypes.ROCK, ROCK_TUNNEL);
         helper.assertBlockPresent(GooBlocks.CHAIN_MARKER.get(), AIR_POS);
         helper.succeed();
     }
 
     /**
-     * Hitting a stone block with frost goo places a chain marker.
+     * Hitting a stone block with a frost_sphere blob places a chain marker.
      *
      * @param helper the gametest helper
      */
     public static void frostPlacesMarker(GameTestHelper helper) {
         helper.setBlock(WALL_POS, Blocks.STONE);
-        WorldEffects.apply(helper.getLevel(), helper.absolutePos(WALL_POS),
-            GooTypes.FROST, Direction.SOUTH);
+        throwAbility(helper, WALL_POS, Direction.SOUTH, GooTypes.FROST, FROST_SPHERE);
         helper.assertBlockPresent(GooBlocks.CHAIN_MARKER.get(), AIR_POS);
         helper.succeed();
     }
 
     /**
-     * Hitting the same position twice with blaze stacks the existing marker
+     * Hitting the same position twice with blaze_tunnel stacks the existing marker
      * instead of placing a second one. Exercises the STACK decision path.
      *
      * @param helper the gametest helper
      */
     public static void doubleHitStacks(GameTestHelper helper) {
         helper.setBlock(WALL_POS, Blocks.STONE);
-        BlockPos abs = helper.absolutePos(WALL_POS);
-        WorldEffects.apply(helper.getLevel(), abs, GooTypes.BLAZE, Direction.SOUTH);
+        throwAbility(helper, WALL_POS, Direction.SOUTH, GooTypes.BLAZE, BLAZE_TUNNEL);
         helper.assertBlockPresent(GooBlocks.CHAIN_MARKER.get(), AIR_POS);
-        WorldEffects.apply(helper.getLevel(), abs, GooTypes.BLAZE, Direction.SOUTH);
+        throwAbility(helper, WALL_POS, Direction.SOUTH, GooTypes.BLAZE, BLAZE_TUNNEL);
         helper.assertBlockPresent(GooBlocks.CHAIN_MARKER.get(), AIR_POS);
         helper.succeed();
     }
@@ -109,8 +109,7 @@ public final class PlacementTests {
      */
     public static void sidewaysMarkerSurvivesNeighborChange(GameTestHelper helper) {
         helper.setBlock(WALL_POS, Blocks.STONE);
-        WorldEffects.apply(helper.getLevel(), helper.absolutePos(WALL_POS),
-            GooTypes.ROCK, Direction.SOUTH);
+        throwAbility(helper, WALL_POS, Direction.SOUTH, GooTypes.ROCK, ROCK_TUNNEL);
         helper.assertBlockPresent(GooBlocks.CHAIN_MARKER.get(), AIR_POS);
         BlockPos neighbor = AIR_POS.south();
         helper.setBlock(neighbor, Blocks.STONE);
@@ -197,22 +196,22 @@ public final class PlacementTests {
     }
 
     /**
-     * Crystal, metal, nether, unstable, glow all place markers via the
-     * same path. A single combined test verifies they all succeed.
+     * The crystal, metal, nether, unstable and glow abilities all place
+     * their markers through the same path.
      *
      * @param helper the gametest helper
      */
     public static void otherTypesPlaceMarker(GameTestHelper helper) {
-        List<ResourceKey<GooTypeDefinition>> types = List.of(
-            GooTypes.CRYSTAL, GooTypes.METAL, GooTypes.NETHER,
-            GooTypes.UNSTABLE, GooTypes.GLOW);
-        for (ResourceKey<GooTypeDefinition> type : types) {
+        Map<ResourceKey<GooTypeDefinition>, String> abilities = Map.of(
+            GooTypes.CRYSTAL, CRYSTAL_CLOUD, GooTypes.METAL, METAL_SPIKES,
+            GooTypes.NETHER, NETHER_BLACK_HOLE, GooTypes.UNSTABLE, UNSTABLE_TIMED_BOMB,
+            GooTypes.GLOW, GLOW_CRYSTAL);
+        abilities.forEach((type, abilityId) -> {
             helper.setBlock(WALL_POS, Blocks.STONE);
             helper.setBlock(AIR_POS, Blocks.AIR);
-            WorldEffects.apply(helper.getLevel(), helper.absolutePos(WALL_POS),
-                type, Direction.SOUTH);
+            throwAbility(helper, WALL_POS, Direction.SOUTH, type, abilityId);
             helper.assertBlockPresent(GooBlocks.CHAIN_MARKER.get(), AIR_POS);
-        }
+        });
         helper.succeed();
     }
 }
