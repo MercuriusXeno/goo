@@ -16,7 +16,6 @@ import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.SlotAccess;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.ClickAction;
 import net.minecraft.world.inventory.Slot;
@@ -75,7 +74,7 @@ public final class HubItemClickTests {
         helper.assertTrue(GooItems.HUB.get() instanceof HubBlockItem, REGISTERED_OVERRIDE);
         helper.assertTrue(primaryClick(hub, cursor, player), BLOB_HANDLED);
         assertCanister(helper, canistersOf(hub).getFirst(), ROCK, BLOB_COUNT * BlobStacks.MB_PER_BLOB);
-        helper.assertTrue(cursor.stack.isEmpty(), CURSOR_EMPTIED);
+        helper.assertTrue(cursor.get().isEmpty(), CURSOR_EMPTIED);
 
         helper.setBlock(FLOOR_POS, Blocks.STONE);
         player.setItemInHand(InteractionHand.MAIN_HAND, hub);
@@ -101,14 +100,14 @@ public final class HubItemClickTests {
 
         helper.assertTrue(primaryClick(hub, overflow, player), OMNIBLOB_HANDLED);
         assertCanister(helper, canistersOf(hub).getFirst(), ROCK, capacity);
-        helper.assertValueEqual(GooOmniblobItem.getVolume(overflow.stack),
+        helper.assertValueEqual(GooOmniblobItem.getVolume(overflow.get()),
                 OMNIBLOB_OVERFLOW - PARTIAL_ROOM, OMNIBLOB_REMAINDER);
 
         ItemStack roomyHub = hubHolding(new ItemStack(GooItems.CANISTER.get()));
         CursorHolder fits = new CursorHolder(GooOmniblobItem.createWithVolume(ROCK, OMNIBLOB_FITS));
         helper.assertTrue(primaryClick(roomyHub, fits, player), OMNIBLOB_HANDLED);
         assertCanister(helper, canistersOf(roomyHub).getFirst(), ROCK, OMNIBLOB_FITS);
-        helper.assertTrue(fits.stack.isEmpty(), CURSOR_EMPTIED);
+        helper.assertTrue(fits.get().isEmpty(), CURSOR_EMPTIED);
         helper.succeed();
     }
 
@@ -124,7 +123,7 @@ public final class HubItemClickTests {
 
         helper.assertFalse(primaryClick(bare, cursor, player), BARE_REFUSES);
         helper.assertFalse(bare.has(GooDataComponents.HUB_CANISTERS.get()), BARE_STAYS_BARE);
-        helper.assertValueEqual(cursor.stack.getCount(), BLOB_COUNT, CURSOR_COUNT);
+        helper.assertValueEqual(cursor.get().getCount(), BLOB_COUNT, CURSOR_COUNT);
 
         int capacity = ContainerCapacity.canisterCapacity(0);
         ItemStack blocked = hubHolding(canisterWith(ROCK, capacity), canisterWith(NETHER, PARTIAL_ROOM));
@@ -132,8 +131,8 @@ public final class HubItemClickTests {
 
         helper.assertFalse(primaryClick(blocked, cursor, player), BLOCKED_REFUSES);
         helper.assertValueEqual(contentsOf(blocked), before, CONTENTS_UNCHANGED);
-        helper.assertValueEqual(cursor.stack.getCount(), BLOB_COUNT, CURSOR_COUNT);
-        helper.assertFalse(cursor.setCalled, CURSOR_UNTOUCHED);
+        helper.assertValueEqual(cursor.get().getCount(), BLOB_COUNT, CURSOR_COUNT);
+        helper.assertFalse(cursor.wasSet(), CURSOR_UNTOUCHED);
         helper.succeed();
     }
 
@@ -149,18 +148,18 @@ public final class HubItemClickTests {
         List<CanisterFluidContent> before = contentsOf(hub);
         CursorHolder cursor = new CursorHolder(ItemStack.EMPTY);
 
-        boolean handled = hub.getItem().overrideOtherStackedOnMe(hub, cursor.stack,
+        boolean handled = hub.getItem().overrideOtherStackedOnMe(hub, cursor.get(),
                 new Slot(player.getInventory(), 0, 0, 0), ClickAction.SECONDARY, player, cursor);
 
         helper.assertFalse(handled, DRAIN_REFUSED);
         helper.assertValueEqual(contentsOf(hub), before, CONTENTS_UNCHANGED);
-        helper.assertFalse(cursor.setCalled, CURSOR_UNTOUCHED);
-        helper.assertTrue(cursor.stack.isEmpty(), CURSOR_STAYS_EMPTY);
+        helper.assertFalse(cursor.wasSet(), CURSOR_UNTOUCHED);
+        helper.assertTrue(cursor.get().isEmpty(), CURSOR_STAYS_EMPTY);
         helper.succeed();
     }
 
     private static boolean primaryClick(ItemStack hub, CursorHolder cursor, Player player) {
-        return hub.getItem().overrideOtherStackedOnMe(hub, cursor.stack,
+        return hub.getItem().overrideOtherStackedOnMe(hub, cursor.get(),
                 new Slot(player.getInventory(), 0, 0, 0), ClickAction.PRIMARY, player, cursor);
     }
 
@@ -189,29 +188,5 @@ public final class HubItemClickTests {
         CanisterFluidContent content = CanisterItem.getFluidContent(canister);
         helper.assertValueEqual(content.getGooType(), type, CANISTER_TYPE);
         helper.assertValueEqual(content.amount(), amount, CANISTER_AMOUNT);
-    }
-
-    /**
-     * The cursor as a SlotAccess that records whether it was ever set.
-     */
-    private static final class CursorHolder implements SlotAccess {
-        private ItemStack stack;
-        private boolean setCalled;
-
-        CursorHolder(ItemStack stack) {
-            this.stack = stack;
-        }
-
-        @Override
-        public ItemStack get() {
-            return stack;
-        }
-
-        @Override
-        public boolean set(ItemStack replacement) {
-            stack = replacement;
-            setCalled = true;
-            return true;
-        }
     }
 }
