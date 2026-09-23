@@ -72,6 +72,15 @@ public interface ICanisterHolder extends IGooLightSource {
 
     /**
      * @param index the slot index
+     * @return the goo type the slot's canister holds, or null when it holds
+     *         no goo (empty, out of range, or a fluid carrying no goo type)
+     */
+    default @Nullable ResourceKey<GooTypeDefinition> getSlotGooType(int index) {
+        return getSlotFluidContent(index).getGooType();
+    }
+
+    /**
+     * @param index the slot index
      * @return metadata on the canister stack, or {@link CanisterMetadata#EMPTY}
      */
     default CanisterMetadata getSlotMetadata(int index) {

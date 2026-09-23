@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.block.tap;
 
+import com.mercuriusxeno.goo.GooColors;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.block.BlockEntitySync;
 import com.mercuriusxeno.goo.block.canister.ICanisterHolder;
@@ -9,12 +10,14 @@ import com.mercuriusxeno.goo.block.gasket.IGasketHolder;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
+import com.mercuriusxeno.goo.registry.GooParticles;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
@@ -25,9 +28,9 @@ import org.jspecify.annotations.NonNull;
 
 /**
  * Tap block entity: drips goo from a canister placed in its body slot.
- * On a timer, extracts 1 blob (1,000 mB) from the canister and spawns it
- * as a blob item entity below the spigot. Optionally has a choral gasket
- * for remote fluid reception (RECEIVER role).
+ * On a timer, draws 1 mB from that canister alone and sends a drip particle
+ * from the spigot. Optionally has a choral gasket for remote fluid
+ * reception (RECEIVER role).
  */
 public class TapBlockEntity extends net.minecraft.world.level.block.entity.BlockEntity
         implements ICanisterHolder, IGasketHolder {
@@ -39,11 +42,7 @@ public class TapBlockEntity extends net.minecraft.world.level.block.entity.Block
     /**
      * Drip interval in ticks (40 ticks = 2 seconds).
      */
-    static final int DRIP_INTERVAL = 40;
-    /**
-     * Volume extracted per drip (1 blob = 1,000 mB).
-     */
-    static final int DRIP_VOLUME = 1000;
+    public static final int DRIP_INTERVAL = 40;
     /**
      * Face label returned for tuner display.
      */
@@ -63,6 +62,11 @@ public class TapBlockEntity extends net.minecraft.world.level.block.entity.Block
     private final GasketAttachment gasket = GasketAttachment.single(this, GasketRole.RECEIVER, FACE_LABEL);
 
     /**
+     * Ticks left until the next drip.
+     */
+    private int dripCountdown = DRIP_INTERVAL;
+
+    /**
      * Creates a new tap block entity.
      *
      * @param pos    the block position
@@ -77,9 +81,8 @@ public class TapBlockEntity extends net.minecraft.world.level.block.entity.Block
     }
 
     /**
-     * Server tick handler. Currently a no-op: dripping is blocked until entity
-     * blobs exist. The tap's intended function is to drop entity blobs, not
-     * item blobs - that system is WIP/todo.
+     * Server tick handler: every {@link #DRIP_INTERVAL} ticks, draws one drip
+     * from the canister slot and sends its particle from the spigot.
      *
      * @param level the current level
      * @param pos   the block position
@@ -88,7 +91,20 @@ public class TapBlockEntity extends net.minecraft.world.level.block.entity.Block
      */
     public static void serverTick(Level level, BlockPos pos, BlockState state,
                                   TapBlockEntity tap) {
-        // TODO: implement entity-blob dripping once the blob entity type exists
+        if (--tap.dripCountdown > 0) {
+            return;
+        }
+        tap.dripCountdown = DRIP_INTERVAL;
+        if (!(level instanceof ServerLevel server)) {
+            return;
+        }
+        ResourceKey<GooTypeDefinition> type = TapDrip.draw(tap, SLOT);
+        if (type == null) {
+            return;
+        }
+        TapDrip.emit(TapDrip.sinkOf(server), GooParticles.GOO_DRIP.get(),
+                GooColors.get(server.registryAccess(), type),
+                TapSpigot.underside(pos));
     }
 
     // --- Canister slot (single-slot convenience) ---

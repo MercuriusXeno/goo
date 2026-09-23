@@ -96,6 +96,9 @@ public final class GooTestFunctions {
 
     // --- Machine interactions ---
     private static final String IX_TAP_VALVE = "ix_tap_valve_toggle";
+
+    // --- Tap drip ---
+    private static final String TAP_DRIP_DRAWS_ONE_MB = "tap_drip_draws_one_mb";
     private static final String IX_VAT_GASKET = "ix_vat_gasket_apply";
     private static final String IX_HUB_INSERT = "ix_hub_canister_insert";
     private static final String IX_HUB_PICKUP = "ix_hub_canister_pickup";
@@ -176,7 +179,12 @@ public final class GooTestFunctions {
             registerMachineTests(registrar);
             registerMobEffectTests(registrar);
             registerLightingTests(registrar);
+            registerTapDripTests(registrar);
         });
+    }
+
+    private static void registerTapDripTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
+        reg(r, TAP_DRIP_DRAWS_ONE_MB, TapDripTests::tapDripDrawsOneMb);
     }
 
     private static void registerLightingTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
