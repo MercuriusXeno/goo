@@ -153,6 +153,20 @@ class ConventionTest {
     }
 
     /**
+     * No class is named for rune ink or a matrix upgrade (decisions rune-ink-stays-out, no-machine-takes-a-matrix).
+     */
+    @Test
+    void runeInkHasNoClass() {
+        noClasses()
+                .should().haveSimpleNameContaining("RuneInk")
+                .orShould().haveSimpleNameContaining("Matrix")
+                .orShould().haveSimpleNameContaining("Matrices")
+                .because("rune ink and matrix upgrades are removed from the mod"
+                        + " (decisions rune-ink-stays-out, no-machine-takes-a-matrix)")
+                .check(mainClasses);
+    }
+
+    /**
      * Test classes should be package-private.
      */
     @Test
