@@ -53,6 +53,8 @@ public final class HubItemClickTests {
     private static final String BLOCKED_REFUSES = "Full and mismatched canisters refuse";
     private static final String CONTENTS_UNCHANGED = "Canister contents after refusal";
     private static final String CURSOR_UNTOUCHED = "Cursor never set on refusal";
+    private static final String DRAIN_REFUSED = "An empty-cursor secondary click is left to vanilla";
+    private static final String CURSOR_STAYS_EMPTY = "Nothing drained onto the cursor";
     private static final String CANISTER_TYPE = "Canister goo type";
     private static final String CANISTER_AMOUNT = "Canister amount";
 
@@ -132,6 +134,28 @@ public final class HubItemClickTests {
         helper.assertValueEqual(contentsOf(blocked), before, CONTENTS_UNCHANGED);
         helper.assertValueEqual(cursor.stack.getCount(), BLOB_COUNT, CURSOR_COUNT);
         helper.assertFalse(cursor.setCalled, CURSOR_UNTOUCHED);
+        helper.succeed();
+    }
+
+    /**
+     * An empty-cursor secondary click on a hub holding a filled canister drains nothing
+     * and leaves the cursor untouched (decision hub-item-insert-only).
+     *
+     * @param helper the gametest helper
+     */
+    public static void secondaryClickDrainsNothing(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        ItemStack hub = hubHolding(canisterWith(ROCK, PARTIAL_ROOM));
+        List<CanisterFluidContent> before = contentsOf(hub);
+        CursorHolder cursor = new CursorHolder(ItemStack.EMPTY);
+
+        boolean handled = hub.getItem().overrideOtherStackedOnMe(hub, cursor.stack,
+                new Slot(player.getInventory(), 0, 0, 0), ClickAction.SECONDARY, player, cursor);
+
+        helper.assertFalse(handled, DRAIN_REFUSED);
+        helper.assertValueEqual(contentsOf(hub), before, CONTENTS_UNCHANGED);
+        helper.assertFalse(cursor.setCalled, CURSOR_UNTOUCHED);
+        helper.assertTrue(cursor.stack.isEmpty(), CURSOR_STAYS_EMPTY);
         helper.succeed();
     }
 
