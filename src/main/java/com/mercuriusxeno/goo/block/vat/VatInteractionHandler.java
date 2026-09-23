@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.PlayerUtils;
 import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
 import com.mercuriusxeno.goo.data.GasketLocation;
 import com.mercuriusxeno.goo.data.GasketRegistry;
+import com.mercuriusxeno.goo.item.BlobInsert;
 import com.mercuriusxeno.goo.item.BlobStacks;
 import com.mercuriusxeno.goo.item.GooBlobItem;
 import com.mercuriusxeno.goo.item.GooOmniblobItem;
@@ -209,22 +210,9 @@ final class VatInteractionHandler {
      */
     static InteractionResult handleBlobInsert(
             VatBlockEntity vat, ItemStack stack, Player player) {
-        ResourceKey<GooTypeDefinition> blobType = BlobStacks.keyOf(stack);
-        if (blobType == null) {
-            return InteractionResult.PASS;
-        }
-        int volume = BlobStacks.volumeOf(stack);
-        if (volume <= 0 || !vat.canAccept()) {
-            return InteractionResult.PASS;
-        }
-
-        int accepted = vat.insertGoo(blobType, volume);
-        if (accepted <= 0) {
-            return InteractionResult.PASS;
-        }
-
-        BlobStacks.deplete(stack, accepted, player);
-        return InteractionResult.SUCCESS;
+        int accepted = BlobInsert.pour(stack, player,
+                (type, volume) -> volume > 0 && vat.canAccept() ? vat.insertGoo(type, volume) : 0);
+        return accepted > 0 ? InteractionResult.SUCCESS : InteractionResult.PASS;
     }
 
     /**

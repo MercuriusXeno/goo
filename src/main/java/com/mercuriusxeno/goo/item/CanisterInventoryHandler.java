@@ -41,21 +41,6 @@ final class CanisterInventoryHandler {
     // --- Blob/omniblob insert ---
 
     /**
-     * Where a cursor's goo goes: takes a type and a volume and answers the volume it kept.
-     */
-    @FunctionalInterface
-    interface GooSink {
-        /**
-         * Accepts up to the given volume of one goo type.
-         *
-         * @param type   the goo type offered
-         * @param volume the volume offered, in mB
-         * @return the volume accepted
-         */
-        int accept(ResourceKey<GooTypeDefinition> type, int volume);
-    }
-
-    /**
      * Pours a blob or omniblob cursor into a sink and depletes the cursor by what the
      * sink accepted. Any other cursor, or a sink accepting nothing, leaves both untouched.
      *
