@@ -88,6 +88,10 @@ public final class GooTestFunctions {
     private static final String PL_DOUBLE_STACK = "pl_double_hit_stacks";
     private static final String PL_SIDEWAYS_NEIGHBOR = "pl_sideways_neighbor";
     private static final String PL_OTHER_TYPES = "pl_other_types_place";
+    private static final String PL_ABILITY_HIT_BLOCK = "pl_ability_hit_block";
+    private static final String PL_ABILITY_WATERLOG = "pl_ability_waterlog";
+    private static final String PL_ABILITY_LAVA = "pl_ability_lava";
+    private static final String PL_ABILITY_SAME_STACK = "pl_ability_same_stack";
 
     // --- Canister interactions ---
     private static final String IX_CANISTER_SHIFT_INSERT = "ix_canister_shift_insert";
@@ -263,6 +267,10 @@ public final class GooTestFunctions {
         reg(r, PL_DOUBLE_STACK, PlacementTests::doubleHitStacks);
         reg(r, PL_SIDEWAYS_NEIGHBOR, PlacementTests::sidewaysMarkerSurvivesNeighborChange);
         reg(r, PL_OTHER_TYPES, PlacementTests::otherTypesPlaceMarker);
+        reg(r, PL_ABILITY_HIT_BLOCK, PlacementTests::abilityTakesReplaceableHitBlock);
+        reg(r, PL_ABILITY_WATERLOG, PlacementTests::abilityWaterlogsInWater);
+        reg(r, PL_ABILITY_LAVA, PlacementTests::abilityRefusesLava);
+        reg(r, PL_ABILITY_SAME_STACK, PlacementTests::abilityStacksOnlyOntoSameAbility);
     }
 
     private static void registerCanisterInteractionTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
