@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:smithing_transform",
+  "addition": "goo:exorite",
+  "base": "minecraft:netherite_helmet",
+  "result": {
+    "id": "goo:exorite_helmet"
+  },
+  "template": "goo:exorite_upgrade_smithing_template"
+}
