@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
+import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.PlaceBlockStep;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
@@ -19,9 +20,13 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -54,6 +59,11 @@ public final class TapDripTests {
     private static final String BOTTOMLESS_PENDING = "drips queued over a bottomless drop";
 
     private static final Identifier GLASS = Identifier.withDefaultNamespace("glass");
+    private static final double ENTITY_SCAN_RADIUS = 3;
+    private static final String NO_TAP_ABILITY = "a bundled type carries no tap ability at this commit";
+    private static final String NO_ABILITY_PENDING = "drips still in flight after the fall";
+    private static final String NEIGHBOR_STATE = "landing block or neighbor state";
+    private static final String NO_ABILITY_ENTITIES = "entities around the landing";
     private static final BlockPos OPEN_LANDING = new BlockPos(1, 0, 1);
     private static final BlockPos COVERED_LANDING = new BlockPos(3, 0, 1);
 
@@ -181,6 +191,35 @@ public final class TapDripTests {
         helper.assertBlockPresent(Blocks.GLASS, openLanding.above());
         helper.assertBlockPresent(GooBlocks.TAP.get(), coveredLanding.above());
         helper.succeed();
+    }
+
+    /**
+     * A drip of a type carrying no tap ability draws its 1 mB and lands,
+     * and the world around the landing stays as it was, with no entity.
+     *
+     * @param helper the gametest helper
+     */
+    public static void tapDripNoAbility(GameTestHelper helper) {
+        helper.assertTrue(AbilityRegistry.tapAbilityFor(TYPE) == null, NO_TAP_ABILITY);
+        TapBlockEntity tap = filledTap(helper);
+        BlockPos stone = TAP_POS.below();
+        Map<BlockPos, BlockState> before = new HashMap<>();
+        before.put(stone, helper.getBlockState(stone));
+        for (Direction side : Direction.values()) {
+            before.put(stone.relative(side), helper.getBlockState(stone.relative(side)));
+        }
+        BlockPos tapAbs = helper.absolutePos(TAP_POS);
+        AABB around = new AABB(helper.absolutePos(stone)).inflate(ENTITY_SCAN_RADIUS);
+
+        helper.runAfterDelay(TapBlockEntity.DRIP_INTERVAL + SETTLE_TICKS, () -> {
+            helper.assertValueEqual(tap.getFluidContent().amount(), START_VOLUME - 1, TAP_VOLUME);
+            helper.assertValueEqual(TapDripScheduler.pending().stream()
+                    .filter(drip -> drip.tapPos().equals(tapAbs)).count(), 0L, NO_ABILITY_PENDING);
+            before.forEach((pos, state) -> helper.assertValueEqual(helper.getBlockState(pos), state, NEIGHBOR_STATE));
+            helper.assertValueEqual(helper.getLevel().getEntities((Entity) null, around, entity -> true).size(), 0,
+                    NO_ABILITY_ENTITIES);
+            helper.succeed();
+        });
     }
 
     private static TapBlockEntity filledTap(GameTestHelper helper) {
