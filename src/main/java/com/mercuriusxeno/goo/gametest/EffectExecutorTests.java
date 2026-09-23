@@ -15,6 +15,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.animal.pig.Pig;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -100,8 +101,10 @@ public final class EffectExecutorTests {
     /** The barrier floor spans the one-stack sphere's footprint around the marker, three blocks each way. */
     private static final int BARRIER_FLOOR_MIN = 0;
     private static final int BARRIER_FLOOR_MAX = 6;
-    /** Blocks around the marker searched for popped blobs, the one-stack pull reach. */
-    private static final double ITEM_SEARCH_RADIUS = 9;
+    /** Blocks around the marker searched for popped blobs, the reach of the barrier floor. */
+    private static final double ITEM_SEARCH_RADIUS = 4;
+    /** Blocks around the marker cleared of leftovers, the one-stack black hole's pull reach. */
+    private static final double LEFTOVER_CLEAR_RADIUS = 9;
     /** The share of its health a creature inside the black hole keeps. */
     private static final float HALF = 0.5f;
     private static final String HOLE_LEFT_STONE = "The black hole left the stone it faced standing";
@@ -500,6 +503,7 @@ public final class EffectExecutorTests {
      * @param helper the gametest helper
      */
     public static void programCrystalCloud(GameTestHelper helper) {
+        discardLeftoverEntities(helper);
         helper.setBlock(MINE_TARGET_POS.below(), Blocks.STONE);
         helper.setBlock(STANDING_PIG_POS.below(), Blocks.STONE);
         placeMarkerWithAbility(helper, GooTypes.CRYSTAL, ABILITY_CRYSTAL_CLOUD);
@@ -528,6 +532,7 @@ public final class EffectExecutorTests {
      */
     public static void programNetherBlackHole(GameTestHelper helper) {
         helper.assertTrue(Goo.GOO_VALUES.size() > 0, VALUES_REQUIRED);
+        discardLeftoverEntities(helper);
         fillWall(helper, Blocks.STONE);
         layBarrierFloor(helper);
         placeMarkerWithAbility(helper, GooTypes.NETHER, ABILITY_NETHER_BLACK_HOLE);
@@ -547,15 +552,30 @@ public final class EffectExecutorTests {
     }
 
     /**
-     * Collects the item entities within the black hole's pull reach of the
-     * marker, a box the empty test structure's own bounds do not span.
+     * Collects the item entities over the barrier floor around the marker,
+     * a box the empty test structure's own bounds do not span.
      *
      * @param helper the gametest helper
      * @return the item entities
      */
     private static List<ItemEntity> itemsAroundMarker(GameTestHelper helper) {
-        AABB reach = new AABB(helper.absolutePos(MARKER_POS)).inflate(ITEM_SEARCH_RADIUS);
-        return helper.getLevel().getEntitiesOfClass(ItemEntity.class, reach);
+        AABB floor = new AABB(helper.absolutePos(MARKER_POS)).inflate(ITEM_SEARCH_RADIUS);
+        return helper.getLevel().getEntitiesOfClass(ItemEntity.class, floor);
+    }
+
+    /**
+     * Discards every entity but a player within reach of the marker. The
+     * game test server lays tests a few blocks apart and never clears a
+     * finished one, so a pig or an item an earlier test left can stand in
+     * a field effect's radius; a test alone in its environment's batch
+     * runs with nothing else live, so what stands there is a leftover.
+     *
+     * @param helper the gametest helper
+     */
+    private static void discardLeftoverEntities(GameTestHelper helper) {
+        AABB reach = new AABB(helper.absolutePos(MARKER_POS)).inflate(LEFTOVER_CLEAR_RADIUS);
+        helper.getLevel().getEntities((Entity) null, reach, entity -> !(entity instanceof Player))
+                .forEach(Entity::discard);
     }
 
     /**
@@ -596,6 +616,7 @@ public final class EffectExecutorTests {
      * @param helper the gametest helper
      */
     public static void programMetalSpikes(GameTestHelper helper) {
+        discardLeftoverEntities(helper);
         helper.setBlock(MINE_TARGET_POS.below(), Blocks.STONE);
         placeMarkerWithAbility(helper, GooTypes.METAL, ABILITY_METAL_SPIKES);
         ChainMarkerBlockEntity be = helper.getBlockEntity(MARKER_POS, ChainMarkerBlockEntity.class);
