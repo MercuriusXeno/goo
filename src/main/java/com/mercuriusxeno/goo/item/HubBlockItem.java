@@ -18,6 +18,10 @@ import java.util.List;
  * Hub block item: carries its canisters in HUB_CANISTERS. A primary click with a
  * blob or omniblob on the cursor routes the goo into those canisters, type match
  * first then empty (decision hub-item-blob-insert).
+ *
+ * <p>The hub item takes insert and no drain: no click names which of its canisters
+ * to drain, so an empty-cursor secondary click is left to vanilla, which picks the
+ * hub up (decision hub-item-insert-only).</p>
  */
 public class HubBlockItem extends BlockItem {
 
