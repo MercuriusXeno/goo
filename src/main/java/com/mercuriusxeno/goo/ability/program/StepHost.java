@@ -144,6 +144,15 @@ public interface StepHost extends Variables {
     void damageTarget(float amount, DamageKind source, boolean knockback);
 
     /**
+     * Sets the ticks the host's target stays immune to further hits, so a
+     * rapid strike can land again on the next tick. Capability
+     * {@link HostCapability#TARGET}.
+     *
+     * @param ticks the immunity ticks
+     */
+    void setTargetHurtCooldown(int ticks);
+
+    /**
      * Adds a status effect to the host's target. Capability
      * {@link HostCapability#TARGET}.
      *

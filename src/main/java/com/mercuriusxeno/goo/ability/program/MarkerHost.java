@@ -119,6 +119,11 @@ public record MarkerHost(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity
     }
 
     @Override
+    public void setTargetHurtCooldown(int ticks) {
+        throw HostCapability.TARGET.refusedBy(kind());
+    }
+
+    @Override
     public void applyPotion(Identifier effect, int duration, int amplifier, boolean visible) {
         throw HostCapability.TARGET.refusedBy(kind());
     }

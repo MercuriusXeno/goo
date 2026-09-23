@@ -102,14 +102,15 @@ public final class ProgramBehavior implements ChainBehavior {
      * @param kind the host kind
      */
     private static void refuseUnboundVariables(Step step, HostKind kind) {
-        Set<String> names = new TreeSet<>();
-        step.expressions().forEach(expr -> names.addAll(expr.variables()));
-        names.remove(StepContext.VAR_TICK);
-        names.removeAll(kind.variables());
-        if (!names.isEmpty()) {
-            throw new ProgramLoadException(
-                    String.format(ERR_VARIABLE, step.type().name(), names.iterator().next(), kind.label()));
-        }
+        step.hostedExpressions(kind).forEach(hosted -> {
+            Set<String> names = new TreeSet<>(hosted.expr().variables());
+            names.remove(StepContext.VAR_TICK);
+            names.removeAll(hosted.host().variables());
+            if (!names.isEmpty()) {
+                throw new ProgramLoadException(String.format(ERR_VARIABLE, step.type().name(),
+                        names.iterator().next(), hosted.host().label()));
+            }
+        });
     }
 
     /**

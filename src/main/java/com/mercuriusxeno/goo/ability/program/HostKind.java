@@ -25,7 +25,7 @@ public enum HostKind {
     ENTITY("struck entity",
             Set.of(HostCapability.TARGET, HostCapability.EXPLODE, HostCapability.ENTITY_SCAN),
             Set.of(HostVariables.HEALTH, HostVariables.MAX_HEALTH, HostVariables.DISTANCE,
-                    HostVariables.UNDEAD));
+                    HostVariables.UNDEAD, HostVariables.SPRINTING));
 
     private final String label;
     private final Set<HostCapability> capabilities;

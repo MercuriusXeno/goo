@@ -70,6 +70,19 @@ public interface Step {
     }
 
     /**
+     * Streams each expression with the host kind whose variables it reads,
+     * which the load check holds it to. A step evaluating every expression
+     * on its own host keeps this default; one evaluating an expression on
+     * a selected entity names that host's kind.
+     *
+     * @param host the kind of host this step runs on
+     * @return each expression with its host kind
+     */
+    default Stream<HostedExpr> hostedExpressions(HostKind host) {
+        return expressions().map(expr -> new HostedExpr(expr, host));
+    }
+
+    /**
      * Answers whether the marker may take more blobs while this step runs;
      * a field effect tops its budget off this way.
      *
