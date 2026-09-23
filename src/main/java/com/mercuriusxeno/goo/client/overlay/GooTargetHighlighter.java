@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.overlay;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
+import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
@@ -117,10 +118,6 @@ public final class GooTargetHighlighter {
      */
     private static final String STACK_SEPARATOR = " / ";
     /**
-     * Entity tag on ability definitions.
-     */
-    private static final String TAG_ENTITY = "entity";
-    /**
      * The aim hit currently resolved by the glove, or null. Updated each
      * tick. Used as the sticky-retention seed for the next frame and as
      * the source of truth for both the entity outline modifier and the
@@ -182,7 +179,7 @@ public final class GooTargetHighlighter {
     private static TargetingHint hintFromAbility(ResourceKey<GooTypeDefinition> type, GloveSelection sel) {
         for (ClientAbility ca : AbilitySyncHandler.getAbilitiesForType(type)) {
             if (ca.id() != null && ca.id().toString().equals(sel.abilityId())) {
-                return ca.hasTag(TAG_ENTITY) ? TargetingHint.ENTITY : TargetingHint.BLOCK;
+                return ca.hasTag(AbilityTags.ENTITY) ? TargetingHint.ENTITY : TargetingHint.BLOCK;
             }
         }
         return TargetingHint.NONE;

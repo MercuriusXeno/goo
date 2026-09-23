@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.AbilityTags;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
@@ -44,12 +45,26 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
     public static AbilitySyncPayload fromRegistry() {
         List<Entry> entries = new ArrayList<>();
         for (ResourceKey<GooTypeDefinition> type : GooTypes.order()) {
-            for (AbilityDefinition def : AbilityRegistry.getAbilitiesForType(type)) {
-                entries.add(new Entry(def.id().toString(), GooTypes.id(type),
-                        def.displayName(), def.icon(), def.order(), def.tags()));
-            }
+            entries.addAll(gloveEntries(type, AbilityRegistry.getAbilitiesForType(type)));
         }
         return new AbilitySyncPayload(entries);
+    }
+
+    /**
+     * The entries the glove may offer for a type: every definition but the
+     * tap-tagged ones, which only a tap's drip runs
+     * (decision tap-ability-tagged-program).
+     *
+     * @param type        the goo type
+     * @param definitions the type's definitions
+     * @return the entries to sync
+     */
+    static List<Entry> gloveEntries(ResourceKey<GooTypeDefinition> type, List<AbilityDefinition> definitions) {
+        return definitions.stream()
+                .filter(def -> !def.hasTag(AbilityTags.TAP))
+                .map(def -> new Entry(def.id().toString(), GooTypes.id(type),
+                        def.displayName(), def.icon(), def.order(), def.tags()))
+                .toList();
     }
 
     private static void encode(FriendlyByteBuf buf, AbilitySyncPayload payload) {

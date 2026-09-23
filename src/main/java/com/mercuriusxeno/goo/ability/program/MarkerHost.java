@@ -10,7 +10,6 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.properties.Property;
@@ -88,15 +87,12 @@ public record MarkerHost(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity
     @Override
     public void forEachEntityWithin(SelectionShape shape, double radius, Set<EntityFilter> filters,
                                     Consumer<StepHost> body) {
-        EntityScan.forEachLivingWithin(level, Vec3.atCenterOf(pos), shape, radius, filters, null,
-                living -> body.accept(new EntityHost(level, living, null)));
+        BlockAnchoredActions.forEachEntityWithin(level, Vec3.atCenterOf(pos), shape, radius, filters, body);
     }
 
     @Override
     public void forEntity(int entityId, Consumer<StepHost> body) {
-        if (level.getEntity(entityId) instanceof LivingEntity living && living.isAlive()) {
-            body.accept(new EntityHost(level, living, null));
-        }
+        BlockAnchoredActions.forEntity(level, entityId, body);
     }
 
     @Override
@@ -194,12 +190,7 @@ public record MarkerHost(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity
         if (at == FxAnchor.TARGET) {
             throw HostCapability.TARGET.refusedBy(kind());
         }
-        Vec3 center = Vec3.atCenterOf(pos);
-        Direction.Axis along = be.getPlacedFace().getAxis();
-        SimpleParticles.resolve(burst.particle()).ifPresent(particle -> level.sendParticles(particle,
-                center.x(), center.y() + burst.lift(), center.z(), burst.count(),
-                spreadOn(Direction.Axis.X, along, burst), spreadOn(Direction.Axis.Y, along, burst),
-                spreadOn(Direction.Axis.Z, along, burst), burst.speed()));
+        BlockAnchoredActions.sendBurst(level, Vec3.atCenterOf(pos), be.getPlacedFace().getAxis(), burst);
     }
 
     @Override
@@ -215,18 +206,6 @@ public record MarkerHost(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity
         throw HostCapability.TARGET.refusedBy(kind());
     }
 
-    /**
-     * Picks the burst's spread for one axis: along where the axis is the
-     * placed face's, across otherwise.
-     *
-     * @param axis  the axis to spread on
-     * @param along the placed face's axis
-     * @param burst the burst
-     * @return the spread on the axis
-     */
-    private static double spreadOn(Direction.Axis axis, Direction.Axis along, ParticleBurst burst) {
-        return axis == along ? burst.spreadAlong() : burst.spreadAcross();
-    }
 
     @Override
     public void placeBlock(Identifier block, Map<String, String> state) {
