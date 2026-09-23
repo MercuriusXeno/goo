@@ -16,44 +16,23 @@ public final class CrucibleMath {
      * Base exponent for the extraction rate power-law curve.
      */
     static final double BASE_EXPONENT = 0.25;
-    /**
-     * Additional exponent per rune ink matrix.
-     */
-    static final double EXPONENT_PER_MATRIX = 0.05;
-    /**
-     * Maximum number of matrices that affect the exponent.
-     */
-    static final int MAX_MATRICES = 5;
 
     private CrucibleMath() {
     }
 
     /**
-     * Computes extraction rate (mB/tick) from remaining pool volume and matrix count.
-     * Formula: max(1, floor(remaining ^ (BASE_EXPONENT + matrices * EXPONENT_PER_MATRIX))).
+     * Computes extraction rate (mB/tick) from remaining pool volume.
+     * Formula: max(1, floor(remaining ^ BASE_EXPONENT)).
      * Rate decelerates naturally as the pool drains (half-life feel).
      *
      * @param remaining the remaining volume in mB
-     * @param matrices  the matrix upgrade count
-     * @return the long value
+     * @return the extraction rate in mB/tick, at least 1
      */
-    public static int extractionRate(int remaining, int matrices) {
+    public static int extractionRate(int remaining) {
         if (remaining <= 0) {
             return 1;
         }
-        double exponent = computeExponent(matrices);
-        return Math.max(1, (int) Math.floor(Math.pow(remaining, exponent)));
-    }
-
-    /**
-     * Computes the effective exponent from matrix count, clamped to [0, 5].
-     *
-     * @param matrices the matrix upgrade count
-     * @return the computed exponent
-     */
-    public static double computeExponent(int matrices) {
-        int clamped = Math.max(0, Math.min(matrices, MAX_MATRICES));
-        return BASE_EXPONENT + clamped * EXPONENT_PER_MATRIX;
+        return Math.max(1, (int) Math.floor(Math.pow(remaining, BASE_EXPONENT)));
     }
 
     /**
