@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.*;
 import com.mercuriusxeno.goo.ability.ChainProfiles.ChainProfile;
+import com.mercuriusxeno.goo.ability.program.FieldEffectState;
 import com.mercuriusxeno.goo.ability.program.ProgressiveAreaStep;
 import com.mercuriusxeno.goo.block.BlockEntitySync;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
@@ -93,6 +94,11 @@ public class ChainMarkerBlockEntity extends BlockEntity {
      * read by the ghost outline renderer.
      */
     private int minedLayers;
+    /**
+     * State a running field effect keeps through the marker host: strikes
+     * in flight, cooldown and charges spent, read back by the spike visual.
+     */
+    private final FieldEffectState fieldEffect = new FieldEffectState();
     /**
      * Active post-fuse behavior; null during FUSE phase. Set at fuse
      * expiry when the profile has a behavior factory, and nulled out
@@ -342,6 +348,17 @@ public class ChainMarkerBlockEntity extends BlockEntity {
     }
 
     /**
+     * Returns the state a running field effect keeps on this marker; the
+     * field-effect step mutates it through the marker host each tick, and
+     * the active behavior's tick marks and syncs the entity afterwards.
+     *
+     * @return the live field-effect state
+     */
+    public FieldEffectState getFieldEffect() {
+        return fieldEffect;
+    }
+
+    /**
      * FUSE-phase tick: counts the fuse down and detonates on expiry.
      *
      * @param level the server level
@@ -529,6 +546,7 @@ public class ChainMarkerBlockEntity extends BlockEntity {
         lastStackTick = input.getLongOr(TAG_LAST_STACK_TICK, 0);
         abilityId = input.getStringOr(TAG_ABILITY_ID, NO_ABILITY);
         minedLayers = input.getIntOr(TAG_MINED_LAYERS, 0);
+        fieldEffect.load(input);
     }
 
     /**
@@ -579,6 +597,7 @@ public class ChainMarkerBlockEntity extends BlockEntity {
         output.putLong(TAG_LAST_STACK_TICK, lastStackTick);
         output.putString(TAG_ABILITY_ID, abilityId);
         output.putInt(TAG_MINED_LAYERS, minedLayers);
+        fieldEffect.save(output);
         if (behavior != null) {
             behavior.saveAdditional(output);
         }

@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.ability.LayerVisuals;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.phys.Vec3;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -86,8 +87,9 @@ public interface StepHost extends Variables {
     /**
      * Scans the volume around the anchor and hands the body a host bound
      * to each living entity every filter keeps, so the body's steps act on
-     * that entity as their target. Capabilities
-     * {@link HostCapability#ENTITY_SCAN} and {@link HostCapability#TARGET}.
+     * that entity as their target. Capability
+     * {@link HostCapability#ENTITY_SCAN}; the host each body receives
+     * provides {@link HostCapability#TARGET}.
      *
      * @param shape   the volume shape
      * @param radius  the volume radius in blocks
@@ -98,12 +100,48 @@ public interface StepHost extends Variables {
                              Consumer<StepHost> body);
 
     /**
+     * Hands the body a host bound to the living entity with this id, when
+     * one still stands in the host's level; a strike chosen ticks ago lands
+     * on its entity this way. Capability {@link HostCapability#ENTITY_SCAN};
+     * the host the body receives provides {@link HostCapability#TARGET}.
+     *
+     * @param entityId the entity's id in the level
+     * @param body     what to run on the host bound to the entity
+     */
+    void forEntity(int entityId, Consumer<StepHost> body);
+
+    /**
+     * Returns the id of the host's target in its level. Capability
+     * {@link HostCapability#TARGET}.
+     *
+     * @return the target's entity id
+     */
+    int targetId();
+
+    /**
+     * Returns the center of the host's target's body. Capability
+     * {@link HostCapability#TARGET}.
+     *
+     * @return the body center
+     */
+    Vec3 targetCenter();
+
+    /**
+     * Returns the field-effect state the host keeps for a running field
+     * effect. Capability {@link HostCapability#FIELD_EFFECT}.
+     *
+     * @return the live state, mutated in place by the step
+     */
+    FieldEffectState fieldEffect();
+
+    /**
      * Hurts the host's target. Capability {@link HostCapability#TARGET}.
      *
-     * @param amount the damage
-     * @param source the damage source
+     * @param amount    the damage
+     * @param source    the damage source
+     * @param knockback whether the hit may push the target
      */
-    void damageTarget(float amount, DamageKind source);
+    void damageTarget(float amount, DamageKind source, boolean knockback);
 
     /**
      * Adds a status effect to the host's target. Capability

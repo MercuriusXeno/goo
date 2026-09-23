@@ -6,6 +6,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
@@ -144,6 +145,8 @@ final class EntityScan {
                 (entity, self) -> entity instanceof LivingEntity living && living.isInvertedHealAndHarm());
         table.put(EntityFilter.ALIVE, (entity, self) -> entity.isAlive());
         table.put(EntityFilter.NOT_TARGET, (entity, self) -> entity != self);
+        table.put(EntityFilter.NOT_SNEAKING,
+                (entity, self) -> !(entity instanceof Player player && player.isShiftKeyDown()));
         for (EntityFilter filter : EntityFilter.values()) {
             if (!table.containsKey(filter)) {
                 throw new IllegalStateException(ERR_UNMEANT_FILTER + filter);

@@ -57,14 +57,14 @@ public class ChainMarkerRenderState extends BlockEntityRenderState {
     /** Number of depth layers already mined by the active behavior. */
     public int minedLayers;
 
-    /** True when a metal spike trap behavior is active. */
-    public boolean metalActive;
+    /** Metal spikes in flight, read from the marker's field-effect state. */
+    public java.util.List<com.mercuriusxeno.goo.ability.program.FieldStrike> spikeAnims = java.util.List.of();
 
-    /** Per-entity spike animation snapshots: [entityId, animTick] pairs. */
-    public java.util.List<int[]> spikeAnims = java.util.List.of();
+    /** The spike age at which a spike reaches full extension and lands. */
+    public int spikeStrikeTick;
 
-    /** Remaining spike charges for the metal trap. */
-    public int metalCharges;
+    /** How many ticks a spike stays in flight, windup to retracted. */
+    public int spikeLength;
 
     /** True when a crystal shard cloud behavior is active. */
     public boolean crystalActive;

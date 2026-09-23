@@ -13,7 +13,26 @@
   },
   "behaviors": [
     {
-      "type": "metal_spikes"
+      "type": "program",
+      "steps": [
+        {
+          "type": "field_effect",
+          "radius": 3.75,
+          "where": ["living", "not_item", "not_sneaking"],
+          "cooldown": 10,
+          "per_stack": 1,
+          "strike_tick": 6,
+          "strike_ticks": 13,
+          "strike": [
+            { "type": "damage", "amount": 6, "source": "stalagmite", "knockback": false },
+            { "type": "particles", "id": "minecraft:crit", "at": "target", "count": 8, "spread": 0.4, "speed": 0.15 }
+          ],
+          "teardown": [
+            { "type": "particles", "id": "minecraft:poof", "count": 12, "spread": 0.3, "speed": 0.05 },
+            { "type": "sound", "id": "minecraft:block.fire.extinguish", "source": "blocks", "volume": 0.5, "pitch": 1.2 }
+          ]
+        }
+      ]
     }
   ],
   "tags": ["field_effect", "trap"]
