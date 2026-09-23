@@ -8,6 +8,8 @@ import com.mercuriusxeno.goo.item.gasket.ChoralTunerItem;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.Rarity;
+import net.minecraft.world.item.SmithingTemplateItem;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
@@ -48,6 +50,8 @@ public class GooItems {
     public static final DeferredItem<ChoralTunerItem> CHORAL_TUNER = ITEMS.registerItem("choral_tuner",
             ChoralTunerItem::new);
     public static final DeferredItem<Item> EXORITE = ITEMS.registerSimpleItem("exorite");
+    public static final DeferredItem<SmithingTemplateItem> EXORITE_UPGRADE_SMITHING_TEMPLATE = ITEMS.registerItem(
+            "exorite_upgrade_smithing_template", props -> ExoriteUpgradeTemplate.create(props.rarity(Rarity.RARE)));
     // --- Equipment (gloves: right-click throw / radial select) ---
     public static final DeferredItem<GooGloveItem> GOO_GLOVE = ITEMS.registerItem("goo_glove",
             props -> new GooGloveItem(props.stacksTo(1)));
