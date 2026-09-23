@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.ability.BlockEffect;
 import com.mercuriusxeno.goo.ability.LayerAudio;
 import com.mercuriusxeno.goo.ability.LayerVisuals;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
+import com.mercuriusxeno.goo.item.BlobStacks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -111,6 +112,26 @@ public record MarkerHost(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity
     @Override
     public FieldEffectState fieldEffect() {
         return be.getFieldEffect();
+    }
+
+    @Override
+    public PhasedState phased() {
+        return be.getPhased();
+    }
+
+    @Override
+    public void pullEntitiesWithin(double radius, double speed) {
+        EntityPull.pullWithin(level, Vec3.atCenterOf(pos), radius, speed, null);
+    }
+
+    @Override
+    public void consumeValuedBlocks(int radius) {
+        be.addConsumedGoo(ValuedBlocks.consumeSphere(level, pos, radius));
+    }
+
+    @Override
+    public void dropConsumedGoo() {
+        BlobStacks.dropAll(be.takeConsumedGoo(), level, pos);
     }
 
     @Override

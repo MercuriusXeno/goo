@@ -1,9 +1,9 @@
 package com.mercuriusxeno.goo.client.ber.style;
 
-import com.mercuriusxeno.goo.ability.ChainBehaviors;
-import com.mercuriusxeno.goo.ability.world.NetherBehavior;
+import com.mercuriusxeno.goo.ability.program.PhasedState;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.ability.BlackHolePhases;
 import com.mercuriusxeno.goo.client.ability.NetherLensEffect;
 import com.mercuriusxeno.goo.client.ability.NetherSphereVisual;
 import com.mercuriusxeno.goo.client.ber.ChainMarkerRenderState;
@@ -149,12 +149,12 @@ public final class CubeHoleStyle implements NetherHoleStyle {
 
     @Override
     public void extract(ChainMarkerBlockEntity be, ChainMarkerRenderState state) {
-        NetherBehavior nether = ChainBehaviors.findFirst(be.getBehavior(), NetherBehavior.class);
-        if (nether != null) {
+        if (BlackHolePhases.isRunning(be)) {
+            PhasedState phase = be.getPhased();
             state.netherActive = true;
-            state.visibleScale = nether.getVisibleScale();
-            state.diskExpansionScale = nether.getDiskExpansionScale();
-            state.implodeRadius = nether.getCurrentRadius();
+            state.visibleScale = BlackHolePhases.visibleScale(phase);
+            state.diskExpansionScale = BlackHolePhases.diskExpansionScale(phase);
+            state.implodeRadius = phase.radius();
             state.animationTime = computeAnimationTime(be);
             markLensActive(be, state);
             return;

@@ -72,7 +72,7 @@ public final class WorldEffects {
                 entry(GooTypes.LEAF, new LeafEffect()), entry(GooTypes.VITAL, new VitalEffect()),
                 entry(GooTypes.SHROOM, new ShroomEffect()), entry(GooTypes.TYPHOON, new TyphoonEffect()),
                 entry(GooTypes.GLOW, new GlowBehavior()), entry(GooTypes.PULSE, new PulseEffect()),
-                entry(GooTypes.NETHER, new NetherBehavior()), entry(GooTypes.ENDER, new EnderEffect()),
+                entry(GooTypes.NETHER, new NetherEffect()), entry(GooTypes.ENDER, new EnderEffect()),
                 entry(GooTypes.AEON, new AeonEffect()), entry(GooTypes.UNSTABLE, new UnstableBehavior())));
     }
 }
