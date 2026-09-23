@@ -8,11 +8,12 @@ import net.minecraft.resources.Identifier;
 import org.jspecify.annotations.NonNull;
 
 /**
- * Client-to-server payload: syncs the player's goo type selection on their
- * glove so the data component persists on the server (and survives reload).
+ * Client-to-server payload: syncs the player's goo type and ability
+ * selection on their glove so the data component persists on the server
+ * (and survives reload).
  *
  * @param gooTypeId the selected goo type id, or empty string to clear
- * @param abilityId the selected ability id string, or empty for type-only
+ * @param abilityId the selected ability id string
  */
 public record GloveSelectPayload(String gooTypeId, String abilityId) implements CustomPacketPayload {
 
@@ -21,11 +22,6 @@ public record GloveSelectPayload(String gooTypeId, String abilityId) implements 
 
     public static final StreamCodec<FriendlyByteBuf, GloveSelectPayload> STREAM_CODEC =
             StreamCodec.of(GloveSelectPayload::encode, GloveSelectPayload::decode);
-
-    /** Backward-compat constructor for type-only selection. */
-    public GloveSelectPayload(String gooTypeId) {
-        this(gooTypeId, "");
-    }
 
     @Override
     public @NonNull Type<? extends CustomPacketPayload> type() {

@@ -1,0 +1,19 @@
+{
+  "gooType": "gootest:seventeenth",
+  "displayName": "goo.ability.gootest.seventeenth_probe",
+  "cost": {
+    "formula": "quadratic",
+    "baseCost": 1000,
+    "a": 0.0,
+    "b": 1.0,
+    "c": 1.0
+  },
+  "behaviors": [
+    {
+      "type": "program",
+      "steps": [
+        { "type": "wait", "ticks": 1 }
+      ]
+    }
+  ]
+}

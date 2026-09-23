@@ -183,7 +183,7 @@ final class BlobEffectScheduler {
      * Applies the goo effect to a living entity target with impact sound:
      * the programs of the ability the throw names run on the struck
      * entity, and a throw naming no ability does nothing past the sound
-     * (idea no-type-only-throw).
+     * (decision no-throw-without-ability).
      *
      * @param pe the pending effect targeting an entity
      */
