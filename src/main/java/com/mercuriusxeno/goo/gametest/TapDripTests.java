@@ -2,6 +2,11 @@ package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
+import com.mercuriusxeno.goo.ability.program.HostKind;
+import com.mercuriusxeno.goo.ability.program.PlaceBlockStep;
+import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
+import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.ability.program.TapHost;
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
 import com.mercuriusxeno.goo.block.tap.TapBlock;
 import com.mercuriusxeno.goo.block.tap.TapBlockEntity;
@@ -11,12 +16,14 @@ import com.mercuriusxeno.goo.registry.GooItems;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -45,6 +52,10 @@ public final class TapDripTests {
     private static final String LANDING_FACE = "pending drip landing face";
     private static final String BOTTOMLESS_VOLUME = "tap canister volume over a bottomless drop";
     private static final String BOTTOMLESS_PENDING = "drips queued over a bottomless drop";
+
+    private static final Identifier GLASS = Identifier.withDefaultNamespace("glass");
+    private static final BlockPos OPEN_LANDING = new BlockPos(1, 0, 1);
+    private static final BlockPos COVERED_LANDING = new BlockPos(3, 0, 1);
 
     private TapDripTests() {
     }
@@ -144,6 +155,32 @@ public final class TapDripTests {
                     .filter(drip -> drip.tapPos().equals(tapAbs)).count(), 0L, BOTTOMLESS_PENDING);
             helper.succeed();
         });
+    }
+
+    /**
+     * A place-block program on the tap host at a landing writes the block
+     * into the cell above the landing, and leaves a standing block there
+     * untouched.
+     *
+     * @param helper the gametest helper
+     */
+    public static void tapHostPlacesAboveLanding(GameTestHelper helper) {
+        BlockPos openLanding = OPEN_LANDING;
+        BlockPos coveredLanding = COVERED_LANDING;
+        helper.setBlock(openLanding, Blocks.STONE);
+        helper.setBlock(openLanding.above(), Blocks.AIR);
+        helper.setBlock(coveredLanding, Blocks.STONE);
+        helper.setBlock(coveredLanding.above(), GooBlocks.TAP.get());
+        List<Step> placeGlass = List.of(new PlaceBlockStep(GLASS, Map.of()));
+
+        for (BlockPos landing : List.of(openLanding, coveredLanding)) {
+            ProgramBehavior.forHost(placeGlass, HostKind.TAP)
+                    .tick(new TapHost(helper.getLevel(), helper.absolutePos(landing), Direction.UP, TYPE));
+        }
+
+        helper.assertBlockPresent(Blocks.GLASS, openLanding.above());
+        helper.assertBlockPresent(GooBlocks.TAP.get(), coveredLanding.above());
+        helper.succeed();
     }
 
     private static TapBlockEntity filledTap(GameTestHelper helper) {

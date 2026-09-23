@@ -56,6 +56,31 @@ public final class AbilityRegistry {
     }
 
     /**
+     * The ability a tap's drip of this type runs where it lands: the type's
+     * tap-tagged ability lowest by order (decision tap-ability-tagged-program).
+     *
+     * @param type the goo type
+     * @return the tap ability, or null when the type carries none
+     */
+    public static @Nullable AbilityDefinition tapAbilityFor(ResourceKey<GooTypeDefinition> type) {
+        return firstTagged(getAbilitiesForType(type), AbilityTags.TAP);
+    }
+
+    /**
+     * Picks the definition carrying a tag with the lowest order.
+     *
+     * @param definitions the definitions to pick among
+     * @param tag         the tag the pick carries
+     * @return the pick, or null when none carries the tag
+     */
+    static @Nullable AbilityDefinition firstTagged(List<AbilityDefinition> definitions, String tag) {
+        return definitions.stream()
+                .filter(def -> def.hasTag(tag))
+                .min(Comparator.comparingInt(AbilityDefinition::order))
+                .orElse(null);
+    }
+
+    /**
      * Returns true if the goo type has any registered abilities.
      *
      * @param type the goo type

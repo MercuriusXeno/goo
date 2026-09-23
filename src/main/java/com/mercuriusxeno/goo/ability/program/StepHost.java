@@ -21,7 +21,9 @@ import java.util.function.Consumer;
  *
  * <p>Each method belongs to a {@link HostCapability}. A host implements
  * the methods of the capabilities its {@link HostKind} provides and
- * refuses the rest; {@link ProgramBehavior#forHost} keeps a program from
+ * refuses the rest; the target and layer-walk methods refuse by default,
+ * so a host lacking those capabilities leaves them unimplemented.
+ * {@link ProgramBehavior#forHost} keeps a program from
  * ever reaching a refused method by checking every step's needs against
  * the kind at load.
  */
@@ -116,7 +118,9 @@ public interface StepHost extends Variables {
      *
      * @return the target's entity id
      */
-    int targetId();
+    default int targetId() {
+        throw HostCapability.TARGET.refusedBy(kind());
+    }
 
     /**
      * Returns the center of the host's target's body. Capability
@@ -124,7 +128,9 @@ public interface StepHost extends Variables {
      *
      * @return the body center
      */
-    Vec3 targetCenter();
+    default Vec3 targetCenter() {
+        throw HostCapability.TARGET.refusedBy(kind());
+    }
 
     /**
      * Returns the field-effect state the host keeps for a running field
@@ -173,7 +179,9 @@ public interface StepHost extends Variables {
      * @param source    the damage source
      * @param knockback whether the hit may push the target
      */
-    void damageTarget(float amount, DamageKind source, boolean knockback);
+    default void damageTarget(float amount, DamageKind source, boolean knockback) {
+        throw HostCapability.TARGET.refusedBy(kind());
+    }
 
     /**
      * Sets the ticks the host's target stays immune to further hits, so a
@@ -182,7 +190,9 @@ public interface StepHost extends Variables {
      *
      * @param ticks the immunity ticks
      */
-    void setTargetHurtCooldown(int ticks);
+    default void setTargetHurtCooldown(int ticks) {
+        throw HostCapability.TARGET.refusedBy(kind());
+    }
 
     /**
      * Adds a status effect to the host's target. Capability
@@ -193,7 +203,9 @@ public interface StepHost extends Variables {
      * @param amplifier the amplifier
      * @param visible   whether the effect shows particles and an icon
      */
-    void applyPotion(Identifier effect, int duration, int amplifier, boolean visible);
+    default void applyPotion(Identifier effect, int duration, int amplifier, boolean visible) {
+        throw HostCapability.TARGET.refusedBy(kind());
+    }
 
     /**
      * Tests the host's target against every filter. Capability
@@ -202,7 +214,9 @@ public interface StepHost extends Variables {
      * @param filters the filters the target must pass
      * @return true when every filter keeps the target
      */
-    boolean targetPasses(Set<EntityFilter> filters);
+    default boolean targetPasses(Set<EntityFilter> filters) {
+        throw HostCapability.TARGET.refusedBy(kind());
+    }
 
     /**
      * Sets the host's target to a fraction of its current health without
@@ -210,7 +224,9 @@ public interface StepHost extends Variables {
      *
      * @param fraction the fraction of current health to keep
      */
-    void setTargetHealthFraction(float fraction);
+    default void setTargetHealthFraction(float fraction) {
+        throw HostCapability.TARGET.refusedBy(kind());
+    }
 
     /**
      * Adds to the host's target's frozen ticks. Capability
@@ -218,7 +234,9 @@ public interface StepHost extends Variables {
      *
      * @param ticks the ticks to add
      */
-    void addTargetFreezeTicks(int ticks);
+    default void addTargetFreezeTicks(int ticks) {
+        throw HostCapability.TARGET.refusedBy(kind());
+    }
 
     /**
      * Toggles the host's target's AI; a target that is not a mob is left
@@ -226,7 +244,9 @@ public interface StepHost extends Variables {
      *
      * @param enabled whether the AI runs
      */
-    void setTargetAi(boolean enabled);
+    default void setTargetAi(boolean enabled) {
+        throw HostCapability.TARGET.refusedBy(kind());
+    }
 
     /**
      * Toggles the host's target's invulnerability. Capability
@@ -234,7 +254,9 @@ public interface StepHost extends Variables {
      *
      * @param enabled whether the target is invulnerable
      */
-    void setTargetInvulnerable(boolean enabled);
+    default void setTargetInvulnerable(boolean enabled) {
+        throw HostCapability.TARGET.refusedBy(kind());
+    }
 
     /**
      * Rolls the chance and, on a hit, spawns a fresh entity of the host's
@@ -242,7 +264,9 @@ public interface StepHost extends Variables {
      *
      * @param chancePercent the percent chance of a clone
      */
-    void cloneTarget(float chancePercent);
+    default void cloneTarget(float chancePercent) {
+        throw HostCapability.TARGET.refusedBy(kind());
+    }
 
     /**
      * Spawns an item stack at the host's target. Capability
@@ -251,7 +275,9 @@ public interface StepHost extends Variables {
      * @param item  the item id
      * @param count the stack size
      */
-    void dropItemAtTarget(Identifier item, int count);
+    default void dropItemAtTarget(Identifier item, int count) {
+        throw HostCapability.TARGET.refusedBy(kind());
+    }
 
     /**
      * Sets the host's target on fire. Capability
@@ -259,7 +285,9 @@ public interface StepHost extends Variables {
      *
      * @param seconds the burn time in seconds
      */
-    void igniteTarget(int seconds);
+    default void igniteTarget(int seconds) {
+        throw HostCapability.TARGET.refusedBy(kind());
+    }
 
     /**
      * Spawns a burst of particles at the anchor. The {@link FxAnchor#TARGET}
@@ -285,7 +313,9 @@ public interface StepHost extends Variables {
      * @param mode  how the destination is picked
      * @param range the mode's range in blocks
      */
-    void teleportTarget(TeleportMode mode, double range);
+    default void teleportTarget(TeleportMode mode, double range) {
+        throw HostCapability.TARGET.refusedBy(kind());
+    }
 
     /**
      * Writes a block at the anchor, replacing what stands there.
@@ -304,7 +334,9 @@ public interface StepHost extends Variables {
      * @param cell   the block position
      * @return true when the effect changed the block
      */
-    boolean applyBlockEffect(BlockEffect effect, BlockPos cell);
+    default boolean applyBlockEffect(BlockEffect effect, BlockPos cell) {
+        throw HostCapability.LAYER_WALK.refusedBy(kind());
+    }
 
     /**
      * Plays the preview of a layer about to be struck. Capability
@@ -313,7 +345,9 @@ public interface StepHost extends Variables {
      * @param visuals the layer's particle profile
      * @param layer   the layer index, from zero
      */
-    void previewLayer(LayerVisuals visuals, int layer);
+    default void previewLayer(LayerVisuals visuals, int layer) {
+        throw HostCapability.LAYER_WALK.refusedBy(kind());
+    }
 
     /**
      * Plays the fx of a layer just struck. Capability
@@ -324,7 +358,9 @@ public interface StepHost extends Variables {
      * @param layer     the layer index, from zero
      * @param destroyed how many cells the effect changed
      */
-    void strikeLayerFx(LayerVisuals visuals, LayerAudio audio, int layer, int destroyed);
+    default void strikeLayerFx(LayerVisuals visuals, LayerAudio audio, int layer, int destroyed) {
+        throw HostCapability.LAYER_WALK.refusedBy(kind());
+    }
 
     /**
      * Reports how many layers the walk has struck, which the host's
@@ -333,5 +369,7 @@ public interface StepHost extends Variables {
      *
      * @param layers the struck layer count
      */
-    void reportMinedLayers(int layers);
+    default void reportMinedLayers(int layers) {
+        throw HostCapability.LAYER_WALK.refusedBy(kind());
+    }
 }
