@@ -14,6 +14,7 @@ import com.mercuriusxeno.goo.block.tap.TapBlock;
 import com.mercuriusxeno.goo.block.vat.VatBlock;
 import com.mercuriusxeno.goo.fluid.GooFluidBlock;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.IronBarsBlock;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
@@ -27,6 +28,11 @@ import java.util.function.Supplier;
 public class GooBlocks {
     public static final DeferredRegister.Blocks BLOCKS = DeferredRegister.createBlocks(Goo.MODID);
 
+    /** Obsidian's hardness. */
+    private static final float EXORITE_BARS_HARDNESS = 50.0F;
+    /** Obsidian's blast resistance. */
+    private static final float EXORITE_BARS_BLAST_RESISTANCE = 1200.0F;
+
     /**
      * Chain marker: short-lived fuse block for chain world effects.
      */
@@ -38,6 +44,17 @@ public class GooBlocks {
                     .noLootTable()
                     .noOcclusion()
                     .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY));
+
+    /**
+     * Exorite bars: iron bars retextured to exorite and obsidian tier, hardness
+     * 50 and blast resistance 1200, dropping only to a diamond pickaxe or better
+     * (decision exorite-bars-retextured-iron-bars).
+     */
+    public static final DeferredBlock<IronBarsBlock> EXORITE_BARS = BLOCKS.registerBlock(
+            "exorite_bars", IronBarsBlock::new,
+            () -> BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BARS)
+                    .strength(EXORITE_BARS_HARDNESS, EXORITE_BARS_BLAST_RESISTANCE)
+                    .requiresCorrectToolForDrops());
 
     // --- Machine blocks ---
     /**

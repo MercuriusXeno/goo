@@ -52,6 +52,10 @@ public final class GooTestFunctions {
     private static final String EXO_GAUNTLET_KEEPS_BENEFITS = "exo_gauntlet_keeps_benefits";
     private static final String EXORITE_NOT_ENCHANTABLE = "exorite_not_enchantable";
     private static final String EXORITE_ANVIL_REFUSES_BOOK = "exorite_anvil_refuses_book";
+    private static final String EXORITE_BARS_REGISTERED = "exorite_bars_registered";
+    private static final String EXORITE_BARS_CRAFTED = "exorite_bars_crafted";
+    private static final String EXORITE_BARS_STRENGTH = "exorite_bars_strength";
+    private static final String EXORITE_BARS_DROPS = "exorite_bars_drops";
 
     // --- GasketPusher ---
     private static final String PUSHER_EMPTY_RESERVOIR = "pusher_empty_reservoir";
@@ -236,6 +240,10 @@ public final class GooTestFunctions {
         reg(r, EXO_GAUNTLET_KEEPS_BENEFITS, GooItemTests::exoGauntletKeepsBenefits);
         reg(r, EXORITE_NOT_ENCHANTABLE, ExoriteEnchantingTests::notEnchantable);
         reg(r, EXORITE_ANVIL_REFUSES_BOOK, ExoriteEnchantingTests::anvilRefusesBook);
+        reg(r, EXORITE_BARS_REGISTERED, ExoriteBarsTests::registered);
+        reg(r, EXORITE_BARS_CRAFTED, ExoriteBarsTests::crafted);
+        reg(r, EXORITE_BARS_STRENGTH, ExoriteBarsTests::strength);
+        reg(r, EXORITE_BARS_DROPS, ExoriteBarsTests::dropsItself);
     }
 
     private static void registerGasketTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
