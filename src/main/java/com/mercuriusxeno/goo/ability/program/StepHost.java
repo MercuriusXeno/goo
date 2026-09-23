@@ -245,13 +245,20 @@ public interface StepHost extends Variables {
     void cloneTarget(float chancePercent);
 
     /**
-     * Spawns an item stack at the host's target. Capability
-     * {@link HostCapability#TARGET}.
+     * Spawns an item stack at the host's target; the id
+     * {@link DropItemStep#SPAWN_EGG} names the target's own spawn egg.
+     * Capability {@link HostCapability#TARGET}.
      *
      * @param item  the item id
      * @param count the stack size
      */
     void dropItemAtTarget(Identifier item, int count);
+
+    /**
+     * Removes the host's target from the world without a death, drops or
+     * a loot roll. Capability {@link HostCapability#TARGET}.
+     */
+    void discardTarget();
 
     /**
      * Adds to a named counter the host's target keeps between hits; an
