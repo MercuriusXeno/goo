@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.ability.world;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
-import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.ChainPlacementRules;
 import com.mercuriusxeno.goo.ability.ChainPlacementRules.CandidateState;
@@ -23,21 +22,16 @@ import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 
 /**
- * Shared on-hit placement for blob-impact effect blocks. The four per-type
- * {@link WorldEffect} implementations ({@code RockEffect},
- * {@code BlazeEffect}, {@code NetherEffect}, {@code FrostEffect}) forward
- * to the entry points below, which build a {@link ChainPlacementRules}
- * candidate state for the hit and face-adjacent positions, apply the
- * decision, and initialize the resulting chain marker.
+ * On-hit placement of an ability's chain marker. Builds a
+ * {@link ChainPlacementRules} candidate state for the hit and
+ * face-adjacent positions, applies the decision, and initializes the
+ * resulting marker from the ability.
  *
- * <p>All chain effects (rock, blaze, nether, frost) place waterloggable
- * {@code ChainMarkerBlock}s via {@link #placeChainMarker}.</p>
- *
- * <p>Placement rule: stack onto an existing same-type effect block first,
- * then try the hit block, then the face-adjacent block. The hit block is
- * a first-class placement target (fire, tall grass, snow, water, etc.),
- * so non-solid targets do not always push the marker one block off the
- * face.</p>
+ * <p>Placement rule: stack onto an existing marker of the same ability
+ * first, then try the hit block, then the face-adjacent block. The hit
+ * block is a first-class placement target (fire, tall grass, snow, water,
+ * etc.), so non-solid targets do not always push the marker one block
+ * off the face.</p>
  */
 public final class EffectBlockPlacement {
 
@@ -45,164 +39,12 @@ public final class EffectBlockPlacement {
      * Block update flags for setBlock calls.
      */
     private static final int BLOCK_UPDATE_FLAGS = 3;
-    /** Initial frost field stack count on first placement. */
     /**
      * Fallback face used when the hit direction is unknown.
      */
     private static final Direction DEFAULT_FACE = Direction.UP;
 
     private EffectBlockPlacement() {
-    }
-
-    /**
-     * Rock: chain implosion. Places a chain marker on the hit block (if
-     * replaceable or water) or the face-adjacent block.
-     *
-     * @param level      the current level
-     * @param pos        the target block position
-     * @param targetFace the face that was hit, or null
-     */
-    static void rockImplosion(Level level, BlockPos pos, @Nullable Direction targetFace) {
-        if (!(level instanceof ServerLevel)) {
-            return;
-        }
-        placeChainMarker(level, pos, targetFace, GooTypes.ROCK);
-    }
-
-    /**
-     * Blaze: chain explosion. Places a chain marker on the hit block (if
-     * replaceable or water) or the face-adjacent block. Additional blobs
-     * during the fuse window stack up to 4 for 3/5/7/9 radius.
-     *
-     * @param level      the current level
-     * @param pos        the target block position
-     * @param targetFace the face that was hit, or null
-     */
-    static void blazeExplosion(Level level, BlockPos pos, @Nullable Direction targetFace) {
-        if (!(level instanceof ServerLevel)) {
-            return;
-        }
-        placeChainMarker(level, pos, targetFace, GooTypes.BLAZE);
-    }
-
-    /**
-     * Nether: chain conversion. Places a chain marker on the hit face. On
-     * fuse expiry, blocks with a registered goo value in the radius dissolve
-     * into blob items. Blocks without a goo value are left untouched; the
-     * goo value registry is the sole gate, with no hardness check and no
-     * vanilla fallback.
-     *
-     * @param level      the current level
-     * @param pos        the target block position
-     * @param targetFace the face that was hit, or null
-     */
-    static void netherConvert(Level level, BlockPos pos, @Nullable Direction targetFace) {
-        if (!(level instanceof ServerLevel)) {
-            return;
-        }
-        placeChainMarker(level, pos, targetFace, GooTypes.NETHER);
-    }
-
-    /**
-     * Frost: instant freeze + persistent melt-resist field. Stacking at an
-     * existing field happens first (with a fresh radius-bumped freeze);
-     * otherwise the initial freeze runs and the field is placed via the
-     * {@link WaterHandling#FREEZE_AND_RISE} rubric - water candidates get
-     * frozen to a non-melting mod ice block under the field's protection,
-     * swapped to vanilla ice on field expiry, and the field lands on the ice.
-     *
-     * @param level      the current level
-     * @param pos        the target block position
-     * @param targetFace the face that was hit, or null
-     */
-    /**
-     * Frost: chain marker cold snap. Places a chain marker that freezes
-     * a spheroid on fuse expiry. Uses the same placement path as rock/blaze.
-     *
-     * @param level      the current level
-     * @param pos        the target block position
-     * @param targetFace the face that was hit, or null
-     */
-    static void frostColdSnap(Level level, BlockPos pos, @Nullable Direction targetFace) {
-        if (!(level instanceof ServerLevel)) {
-            return;
-        }
-        placeChainMarker(level, pos, targetFace, GooTypes.FROST);
-    }
-
-    /**
-     * Crystal: chain marker shard cloud. Places a chain marker that
-     * becomes a DOT cloud on fuse expiry.
-     *
-     * @param level      the current level
-     * @param pos        the target block position
-     * @param targetFace the face that was hit, or null
-     */
-    static void crystalCloud(Level level, BlockPos pos, @Nullable Direction targetFace) {
-        if (!(level instanceof ServerLevel)) {
-            return;
-        }
-        placeChainMarker(level, pos, targetFace, GooTypes.CRYSTAL);
-    }
-
-    /**
-     * Unstable: chain marker explosion. Places a chain marker that
-     * explodes on fuse expiry.
-     *
-     * @param level      the current level
-     * @param pos        the target block position
-     * @param targetFace the face that was hit, or null
-     */
-    static void unstableExplosion(Level level, BlockPos pos, @Nullable Direction targetFace) {
-        if (!(level instanceof ServerLevel)) {
-            return;
-        }
-        placeChainMarker(level, pos, targetFace, GooTypes.UNSTABLE);
-    }
-
-    /**
-     * Glow: chain marker light crystal. Places a chain marker that
-     * becomes a permanent glow crystal on fuse expiry.
-     *
-     * @param level      the current level
-     * @param pos        the target block position
-     * @param targetFace the face that was hit, or null
-     */
-    static void glowCrystal(Level level, BlockPos pos, @Nullable Direction targetFace) {
-        if (!(level instanceof ServerLevel)) {
-            return;
-        }
-        placeChainMarker(level, pos, targetFace, GooTypes.GLOW);
-    }
-
-    /**
-     * Metal: chain marker spike trap. Places a chain marker that becomes
-     * a spike trap on fuse expiry.
-     *
-     * @param level      the current level
-     * @param pos        the target block position
-     * @param targetFace the face that was hit, or null
-     */
-    static void metalSpikeTrap(Level level, BlockPos pos, @Nullable Direction targetFace) {
-        if (!(level instanceof ServerLevel)) {
-            return;
-        }
-        placeChainMarker(level, pos, targetFace, GooTypes.METAL);
-    }
-
-
-    /**
-     * Computes and applies the placement decision for a per-type chain
-     * marker at the hit block or the face-adjacent block.
-     *
-     * @param level    the current level
-     * @param hitBlock the hit block position
-     * @param face     the face that was hit, or null
-     * @param type     the goo type for the marker
-     */
-    private static void placeChainMarker(Level level, BlockPos hitBlock,
-                                         @Nullable Direction face, ResourceKey<GooTypeDefinition> type) {
-        placeChainMarker(level, hitBlock, face, MarkerKind.ofType(type));
     }
 
     /**
@@ -356,16 +198,6 @@ public final class EffectBlockPlacement {
      */
     private record MarkerKind(Predicate<ChainMarkerBlockEntity> stacksOnto,
                               BiConsumer<ChainMarkerBlockEntity, Direction> init) {
-
-        /**
-         * A per-type marker, stacking onto any marker of the same goo type.
-         *
-         * @param type the goo type
-         * @return the kind
-         */
-        static MarkerKind ofType(ResourceKey<GooTypeDefinition> type) {
-            return new MarkerKind(be -> be.getGooType() == type, (be, face) -> be.initChain(type, face));
-        }
 
         /**
          * An ability marker, stacking onto a marker carrying the same ability id.

@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.gametest.*;
+import com.mercuriusxeno.goo.network.BlockLandingTests;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
@@ -62,11 +63,11 @@ public final class GooTestFunctions {
     private static final String FX_CRYSTAL = "fx_crystal_runs";
     private static final String FX_NETHER = "fx_nether_implodes";
     private static final String FX_UNSTABLE = "fx_unstable_explodes";
-    private static final String FX_GLOW_WALL = "fx_glow_wall";
-    private static final String FX_GLOW_FLOOR = "fx_glow_floor";
     private static final String FX_PROGRAM_GLOW_WALL = "fx_program_glow_wall";
     private static final String FX_PROGRAM_GLOW_FLOOR = "fx_program_glow_floor";
     private static final String FX_FALLEN_MARKER_KEEPS_ABILITY = "fx_fallen_marker_keeps_ability";
+    private static final String FX_NO_ABILITY_LANDS_NOTHING = "fx_no_ability_lands_nothing";
+    private static final String FX_ABILITY_LANDS_MARKER = "fx_ability_lands_marker";
     private static final String FX_CRYSTAL_GROWS = "fx_crystal_grows";
     private static final String FX_CRYSTAL_STAYS_LARGE = "fx_crystal_stays_large";
     private static final String FX_OTHER_ABILITY_MARKS_CRYSTAL = "fx_other_ability_marks_crystal";
@@ -234,8 +235,6 @@ public final class GooTestFunctions {
         reg(r, FX_CRYSTAL, EffectExecutorTests::crystalRuns);
         reg(r, FX_NETHER, EffectExecutorTests::netherImplodes);
         reg(r, FX_UNSTABLE, EffectExecutorTests::unstableExplodes);
-        reg(r, FX_GLOW_WALL, EffectExecutorTests::glowWallLegacy);
-        reg(r, FX_GLOW_FLOOR, EffectExecutorTests::glowFloorLegacy);
         reg(r, FX_PROGRAM_GLOW_WALL, EffectExecutorTests::programGlowWall);
         reg(r, FX_PROGRAM_GLOW_FLOOR, EffectExecutorTests::programGlowFloor);
         reg(r, FX_ABILITY_BLAZE, EffectExecutorTests::abilityBlazeTunnel);
@@ -254,6 +253,8 @@ public final class GooTestFunctions {
         reg(r, FX_CRYSTAL_GROWS, EffectExecutorTests::crystalGrowsUnderItsAbility);
         reg(r, FX_CRYSTAL_STAYS_LARGE, EffectExecutorTests::largestCrystalStaysLarge);
         reg(r, FX_OTHER_ABILITY_MARKS_CRYSTAL, EffectExecutorTests::otherAbilityMarksCrystal);
+        reg(r, FX_NO_ABILITY_LANDS_NOTHING, BlockLandingTests::noAbilityLandsNothing);
+        reg(r, FX_ABILITY_LANDS_MARKER, BlockLandingTests::abilityLandsItsMarker);
     }
 
     private static void registerMachineInteractionTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {

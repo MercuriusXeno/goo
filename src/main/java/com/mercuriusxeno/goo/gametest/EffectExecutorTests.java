@@ -30,11 +30,10 @@ import java.util.List;
 import java.util.function.BiConsumer;
 
 /**
- * Gametests for the chain marker effect executors. Each test places a chain
- * marker against a wall of stone, initializes a goo type, and waits for the
- * fuse + behavior to complete. Covers ChainMarkerBlockEntity tick lifecycle,
- * ChainProfiles, ChainFootprint, EffectBlockPlacement, and the per-type
- * Behavior + Executor classes.
+ * Gametests for chain markers. Each test stands a marker initialized
+ * through an ability and waits for the fuse and the ability's program to
+ * complete. Covers the ChainMarkerBlockEntity tick lifecycle, the programs
+ * the abilities declare, the fall and the blob landing on a block.
  */
 public final class EffectExecutorTests {
 
@@ -130,17 +129,18 @@ public final class EffectExecutorTests {
     private EffectExecutorTests() {}
 
     /**
-     * Places a 3-deep wall of stone north of the marker and initializes the BE.
-     * The marker faces NORTH so the effect mines into the wall.
+     * Places a 3-deep wall of stone north of the marker and initializes the
+     * marker through the ability. The marker faces NORTH so the effect mines
+     * into the wall.
      *
-     * @param helper the gametest helper
-     * @param type   the goo type for the chain marker
+     * @param helper    the gametest helper
+     * @param type      the goo type for the chain marker
+     * @param abilityId the ability the marker runs
      */
-    private static void placeMarkerWithWall(GameTestHelper helper, ResourceKey<GooTypeDefinition> type) {
+    private static void placeMarkerWithWall(GameTestHelper helper, ResourceKey<GooTypeDefinition> type,
+                                            String abilityId) {
         fillWall(helper, Blocks.STONE);
-        helper.setBlock(MARKER_POS, GooBlocks.CHAIN_MARKER.get());
-        ChainMarkerBlockEntity be = helper.getBlockEntity(MARKER_POS, ChainMarkerBlockEntity.class);
-        be.initChain(type, Direction.SOUTH);
+        placeMarkerWithAbility(helper, type, abilityId);
     }
 
     /**
@@ -150,7 +150,7 @@ public final class EffectExecutorTests {
      * @param helper the gametest helper
      */
     public static void blazeMinesBlock(GameTestHelper helper) {
-        placeMarkerWithWall(helper, GooTypes.BLAZE);
+        placeMarkerWithWall(helper, GooTypes.BLAZE, ABILITY_BLAZE_TUNNEL);
         BlockPos target = MARKER_POS.north();
         helper.runAfterDelay(FUSE_TICKS + MINING_POST_FUSE, () -> {
             helper.assertBlockNotPresent(Blocks.STONE, target);
@@ -166,7 +166,7 @@ public final class EffectExecutorTests {
      */
     public static void rockMinesBlock(GameTestHelper helper) {
         helper.assertTrue(Goo.GOO_VALUES.size() > 0, VALUES_REQUIRED);
-        placeMarkerWithWall(helper, GooTypes.ROCK);
+        placeMarkerWithWall(helper, GooTypes.ROCK, ABILITY_ROCK_TUNNEL);
         BlockPos target = MARKER_POS.north();
         helper.runAfterDelay(FUSE_TICKS + MINING_POST_FUSE, () -> {
             helper.assertBlockNotPresent(Blocks.STONE, target);
@@ -182,7 +182,7 @@ public final class EffectExecutorTests {
      * @param helper the gametest helper
      */
     public static void frostRuns(GameTestHelper helper) {
-        placeMarkerWithWall(helper, GooTypes.FROST);
+        placeMarkerWithWall(helper, GooTypes.FROST, ABILITY_FROST_SPHERE);
         helper.runAfterDelay(FUSE_TICKS + MINING_POST_FUSE, () -> {
             helper.succeed();
         });
@@ -195,7 +195,7 @@ public final class EffectExecutorTests {
      * @param helper the gametest helper
      */
     public static void metalRuns(GameTestHelper helper) {
-        placeMarkerWithWall(helper, GooTypes.METAL);
+        placeMarkerWithWall(helper, GooTypes.METAL, ABILITY_METAL_SPIKES);
         helper.runAfterDelay(FUSE_TICKS + SHORT_POST_FUSE, () -> {
             helper.succeed();
         });
@@ -207,7 +207,7 @@ public final class EffectExecutorTests {
      * @param helper the gametest helper
      */
     public static void crystalRuns(GameTestHelper helper) {
-        placeMarkerWithWall(helper, GooTypes.CRYSTAL);
+        placeMarkerWithWall(helper, GooTypes.CRYSTAL, ABILITY_CRYSTAL_CLOUD);
         helper.runAfterDelay(FUSE_TICKS + SHORT_POST_FUSE, () -> {
             helper.succeed();
         });
@@ -220,20 +220,20 @@ public final class EffectExecutorTests {
      * @param helper the gametest helper
      */
     public static void netherImplodes(GameTestHelper helper) {
-        placeMarkerWithWall(helper, GooTypes.NETHER);
+        placeMarkerWithWall(helper, GooTypes.NETHER, ABILITY_NETHER_BLACK_HOLE);
         helper.runAfterDelay(FUSE_TICKS + NETHER_POST_FUSE, () -> {
             helper.succeed();
         });
     }
 
     /**
-     * Unstable: places marker and verifies the instant explosion runs.
-     * Unstable has a shorter fuse (20 ticks) and detonates immediately.
+     * Unstable: places an instant-detonation marker and verifies the
+     * explosion runs.
      *
      * @param helper the gametest helper
      */
     public static void unstableExplodes(GameTestHelper helper) {
-        placeMarkerWithWall(helper, GooTypes.UNSTABLE);
+        placeMarkerWithWall(helper, GooTypes.UNSTABLE, ABILITY_INSTANT_DETONATION);
         helper.runAfterDelay(FUSE_TICKS + SHORT_POST_FUSE, () -> {
             helper.succeed();
         });
@@ -278,7 +278,7 @@ public final class EffectExecutorTests {
      *
      * @param helper     the gametest helper
      * @param placedFace the face the marker was placed on
-     * @param init       the init path, legacy or ability
+     * @param init       the init through the ability
      */
     private static void glowCrystalCase(GameTestHelper helper, Direction placedFace,
                                         BiConsumer<ChainMarkerBlockEntity, Direction> init) {
@@ -287,17 +287,6 @@ public final class EffectExecutorTests {
             assertGlowCrystal(helper, placedFace);
             helper.succeed();
         });
-    }
-
-    /**
-     * Initializes a marker through the no-ability path, whose legacy glow
-     * profile runs the glow_crystal program.
-     *
-     * @param be         the marker
-     * @param placedFace the face the marker was placed on
-     */
-    private static void initGlowLegacy(ChainMarkerBlockEntity be, Direction placedFace) {
-        be.initChain(GooTypes.GLOW, placedFace);
     }
 
     /**
@@ -310,24 +299,6 @@ public final class EffectExecutorTests {
         AbilityDefinition ability = AbilityRegistry.getAbility(Identifier.parse(ABILITY_GLOW_CRYSTAL));
         helper.assertTrue(ability != null, ABILITIES_REQUIRED);
         return (be, placedFace) -> be.initChainFromAbility(GooTypes.GLOW, placedFace, ability);
-    }
-
-    /**
-     * Glow on a wall through the no-ability path.
-     *
-     * @param helper the gametest helper
-     */
-    public static void glowWallLegacy(GameTestHelper helper) {
-        glowCrystalCase(helper, Direction.SOUTH, EffectExecutorTests::initGlowLegacy);
-    }
-
-    /**
-     * Glow on a floor through the no-ability path.
-     *
-     * @param helper the gametest helper
-     */
-    public static void glowFloorLegacy(GameTestHelper helper) {
-        glowCrystalCase(helper, Direction.UP, EffectExecutorTests::initGlowLegacy);
     }
 
     /**
@@ -451,8 +422,8 @@ public final class EffectExecutorTests {
     }
 
     /**
-     * Places a chain marker initialized via the ability path instead of
-     * the legacy ChainProfile path, facing north into whatever fills the
+     * Places a chain marker initialized through an ability, facing north
+     * into whatever fills the
      * wall region. Covers DataDrivenChainBehavior, the BehaviorType
      * factory and the program the ability declares.
      *

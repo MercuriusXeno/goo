@@ -18,6 +18,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
+import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
@@ -32,7 +33,7 @@ import org.jspecify.annotations.Nullable;
  * Ticking block entity for chain effects. Owns only the shared state:
  * goo type, stack count, fuse countdown, placed face. The type-specific
  * post-fuse behavior is delegated to a {@link ChainBehavior} instance
- * created from the goo type's profile at fuse expiry. A layer walk
+ * created from the marker's ability at fuse expiry. A layer walk
  * reports its struck layers here through the marker host, and the ghost
  * outline reads them back.
  */
@@ -58,13 +59,9 @@ public class ChainMarkerBlockEntity extends BlockEntity {
     private static final String TAG_MINED_LAYERS = "MinedLayers";
     private static final String TAG_CONSUMED_GOO = "ConsumedGoo";
     /**
-     * Default area mode for legacy profiles.
+     * Default area mode when an ability walks no area.
      */
     private static final String DEFAULT_AREA_MODE = "tunnel";
-    /**
-     * Empty ability id sentinel for legacy ChainProfile path.
-     */
-    private static final String NO_ABILITY = "";
 
     /**
      * How often to sync fuse to client (every N ticks).
@@ -114,13 +111,14 @@ public class ChainMarkerBlockEntity extends BlockEntity {
     private GooContents consumedGoo = GooContents.EMPTY;
     /**
      * Active post-fuse behavior; null during FUSE phase. Set at fuse
-     * expiry when the profile has a behavior factory, and nulled out
-     * implicitly when the BE removes itself.
+     * expiry from the marker's ability, and nulled out implicitly when
+     * the BE removes itself.
      */
     @Nullable
     private ChainBehavior behavior;
     /**
-     * Ability id for data-driven behaviors; empty for legacy ChainProfile path.
+     * Id of the ability the marker runs at fuse expiry (decision
+     * no-throw-without-ability); a marker loaded without one runs nothing.
      */
     private String abilityId = "";
 
@@ -152,8 +150,7 @@ public class ChainMarkerBlockEntity extends BlockEntity {
 
     /**
      * Server tick: either a post-fuse behavior is active (delegate) or
-     * the fuse is still counting down (or rock progressive mining is
-     * running under the legacy path).
+     * the fuse is still counting down.
      *
      * @param level the current level
      * @param pos   the block position
@@ -174,25 +171,6 @@ public class ChainMarkerBlockEntity extends BlockEntity {
             return;
         }
         be.tickFuse(server, pos);
-    }
-
-    /**
-     * Configures this marker from a chain profile. Call immediately after
-     * placement via {@code level.setBlock()}.
-     *
-     * @param type the goo type (determines chain behavior)
-     * @param face the face of the block this marker was placed on
-     */
-    public void initChain(ResourceKey<GooTypeDefinition> type, Direction face) {
-        ChainProfile profile = ChainProfile.forType(type);
-        this.gooType = type;
-        this.placedFace = face;
-        this.stackCount = 1;
-        this.maxStacks = profile.maxStacks();
-        this.fuseRemaining = profile.fuseTicks();
-        this.abilityId = NO_ABILITY;
-        setChanged();
-        syncToClient();
     }
 
     /**
@@ -440,7 +418,7 @@ public class ChainMarkerBlockEntity extends BlockEntity {
     }
 
     /**
-     * Fires the chain effect for this goo type by creating the profile's
+     * Fires the chain effect by creating the ability's
      * {@link ChainBehavior} and invoking {@code onFuseExpired}. If the
      * behavior finishes immediately (instant one-shot like blaze), the BE
      * is removed on the same tick; otherwise the BE stays and
@@ -469,46 +447,17 @@ public class ChainMarkerBlockEntity extends BlockEntity {
 
 
     /**
-     * Creates the post-fuse behavior: ability-driven if abilityId is set, otherwise ChainProfile.
+     * Creates the post-fuse behavior from the marker's ability.
      *
-     * @return the new behavior, or null if neither path resolves
+     * @return the ability's behavior, or null when the registry holds no such ability
      */
     private @Nullable ChainBehavior createBehavior() {
-        ChainBehavior fromAbility = createFromAbility();
-        if (fromAbility != null) {
-            return fromAbility;
-        }
-        return createFromProfile();
-    }
-
-    /**
-     * Attempts to create a behavior from the ability registry.
-     *
-     * @return the data-driven behavior, or null if no ability is set
-     */
-    private @Nullable ChainBehavior createFromAbility() {
-        if (abilityId.isEmpty()) {
-            return null;
-        }
-        net.minecraft.resources.Identifier id = net.minecraft.resources.Identifier.tryParse(abilityId);
+        Identifier id = Identifier.tryParse(abilityId);
         if (id == null) {
             return null;
         }
         AbilityDefinition def = AbilityRegistry.getAbility(id);
         return def != null ? new DataDrivenChainBehavior(def) : null;
-    }
-
-    /**
-     * Attempts to create a behavior from the legacy ChainProfile.
-     *
-     * @return the legacy behavior, or null if no profile exists
-     */
-    private @Nullable ChainBehavior createFromProfile() {
-        ChainProfile profile = ChainProfile.forType(gooType);
-        if (profile == null || profile.behaviorFactory() == null) {
-            return null;
-        }
-        return profile.behaviorFactory().get();
     }
 
     /**
@@ -606,7 +555,7 @@ public class ChainMarkerBlockEntity extends BlockEntity {
         blobShape = input.getStringOr(TAG_BLOB_SHAPE, AbilityDefinition.ChainConfig.SHAPE_BLOB);
         areaMode = input.getStringOr(TAG_AREA_MODE, DEFAULT_AREA_MODE);
         lastStackTick = input.getLongOr(TAG_LAST_STACK_TICK, 0);
-        abilityId = input.getStringOr(TAG_ABILITY_ID, NO_ABILITY);
+        abilityId = input.getStringOr(TAG_ABILITY_ID, abilityId);
         minedLayers = input.getIntOr(TAG_MINED_LAYERS, 0);
         fieldEffect.load(input);
         phased.load(input);
@@ -615,7 +564,7 @@ public class ChainMarkerBlockEntity extends BlockEntity {
 
     /**
      * If the fuse has already expired, re-creates the behavior instance
-     * via the profile factory and lets it reload its own state from the
+     * from the ability and lets it reload its own state from the
      * same value stream. Called after the shared fields have been loaded.
      *
      * @param input the value input to read from

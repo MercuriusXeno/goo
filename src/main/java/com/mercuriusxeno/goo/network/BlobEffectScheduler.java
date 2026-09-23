@@ -10,7 +10,6 @@ import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
 import com.mercuriusxeno.goo.ability.world.AbilityImpact;
-import com.mercuriusxeno.goo.ability.world.WorldEffects;
 import com.mercuriusxeno.goo.registry.GooSounds;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -75,6 +74,10 @@ final class BlobEffectScheduler {
      * Log: a program entry the struck entity host refused at load.
      */
     private static final String LOG_PROGRAM_REFUSED = "Ability {} refused on the struck entity: {}";
+    /**
+     * Log: a block throw naming no ability, refused.
+     */
+    private static final String LOG_NO_ABILITY = "Block throw of goo type {} names no ability; nothing lands";
 
     /**
      * Pending effects waiting for their blob to arrive.
@@ -242,7 +245,9 @@ final class BlobEffectScheduler {
     }
 
     /**
-     * Applies the goo effect to a block target with impact sound.
+     * Applies the goo effect to a block target with impact sound: the
+     * ability the throw names lands on the block, and a throw naming no
+     * ability does nothing past the sound (decision no-throw-without-ability).
      *
      * @param pe the pending effect targeting a block
      */
@@ -250,10 +255,10 @@ final class BlobEffectScheduler {
         BlockPos pos = pe.targetPos;
         playImpactSound(pe.level, pos.getX() + BLOCK_CENTER, pos.getY() + BLOCK_CENTER, pos.getZ() + BLOCK_CENTER);
         if (pe.abilityId.isEmpty()) {
-            WorldEffects.apply(pe.level, pe.targetPos, pe.gooType, pe.targetFace);
-        } else {
-            applyAbilityBlockEffect(pe);
+            Goo.LOGGER.warn(LOG_NO_ABILITY, GooTypes.id(pe.gooType));
+            return;
         }
+        applyAbilityBlockEffect(pe);
     }
 
     /**
