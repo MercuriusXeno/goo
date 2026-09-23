@@ -40,7 +40,8 @@ public class TapBlockEntity extends net.minecraft.world.level.block.entity.Block
      */
     public static final int SLOT = 0;
     /**
-     * Drip interval in ticks (40 ticks = 2 seconds).
+     * Drip interval in ticks (40 ticks = 2 seconds), the one constant fixing
+     * the drip rate (decision fixed-drip-interval).
      */
     public static final int DRIP_INTERVAL = 40;
     /**
@@ -62,9 +63,9 @@ public class TapBlockEntity extends net.minecraft.world.level.block.entity.Block
     private final GasketAttachment gasket = GasketAttachment.single(this, GasketRole.RECEIVER, FACE_LABEL);
 
     /**
-     * Ticks left until the next drip.
+     * Ticks left until the next drip, held while the valve is closed.
      */
-    private int dripCountdown = DRIP_INTERVAL;
+    private final TapDripCountdown dripCountdown = new TapDripCountdown(DRIP_INTERVAL);
 
     /**
      * Creates a new tap block entity.
@@ -81,8 +82,9 @@ public class TapBlockEntity extends net.minecraft.world.level.block.entity.Block
     }
 
     /**
-     * Server tick handler: every {@link #DRIP_INTERVAL} ticks, draws one drip
-     * from the canister slot and sends its particle from the spigot.
+     * Server tick handler: while the valve is open, every {@link #DRIP_INTERVAL}
+     * ticks, draws one drip from the canister slot and sends its particle from
+     * the spigot. A closed valve holds the countdown where it stands.
      *
      * @param level the current level
      * @param pos   the block position
@@ -91,11 +93,12 @@ public class TapBlockEntity extends net.minecraft.world.level.block.entity.Block
      */
     public static void serverTick(Level level, BlockPos pos, BlockState state,
                                   TapBlockEntity tap) {
-        if (--tap.dripCountdown > 0) {
+        if (!state.getValue(TapBlock.OPEN)) {
             return;
         }
-        tap.dripCountdown = DRIP_INTERVAL;
-        if (!(level instanceof ServerLevel server)) {
+        boolean due = tap.dripCountdown.tick();
+        tap.setChanged();
+        if (!due || !(level instanceof ServerLevel server)) {
             return;
         }
         ResourceKey<GooTypeDefinition> type = TapDrip.draw(tap, SLOT);
@@ -138,6 +141,7 @@ public class TapBlockEntity extends net.minecraft.world.level.block.entity.Block
         }
         state.slots[SLOT].setCanister(stack.copyWithCount(1));
         state.slots[SLOT].buildHandler(() -> level != null ? level.getGameTime() : 0L);
+        dripCountdown.restart();
         markDirtyAndSync();
         return true;
     }
@@ -238,6 +242,7 @@ public class TapBlockEntity extends net.minecraft.world.level.block.entity.Block
         if (!can.isEmpty()) {
             output.store(TAG_CANISTER, ItemStack.CODEC, can);
         }
+        dripCountdown.save(output);
         gasket.saveAdditional(output);
     }
 
@@ -249,6 +254,7 @@ public class TapBlockEntity extends net.minecraft.world.level.block.entity.Block
         if (!loaded.isEmpty()) {
             state.slots[SLOT].buildHandler(() -> level != null ? level.getGameTime() : 0L);
         }
+        dripCountdown.load(input);
         gasket.loadAdditional(input);
     }
 
