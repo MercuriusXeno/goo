@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * Tests for ContainerCapacity constants and formulas.
- * Verifies capacity at each matrix level for canisters and vats.
+ * Verifies capacity at each compression level for canisters and vats.
  */
 class ContainerCapacityTest {
 
@@ -26,35 +26,35 @@ class ContainerCapacityTest {
         assertEquals(64_000, ContainerCapacity.BLOB_CAP);
     }
 
-    // -- canister capacity at each matrix level --
+    // -- canister capacity at each compression level --
 
     @Test
-    void canisterCapacity_0matrices() {
+    void canisterCapacity_0compression() {
         assertEquals(1_048_576, ContainerCapacity.canisterCapacity(0));
     }
 
     @Test
-    void canisterCapacity_1matrix() {
+    void canisterCapacity_1compression() {
         assertEquals(2_097_152, ContainerCapacity.canisterCapacity(1));
     }
 
     @Test
-    void canisterCapacity_2matrices() {
+    void canisterCapacity_2compression() {
         assertEquals(4_194_304, ContainerCapacity.canisterCapacity(2));
     }
 
     @Test
-    void canisterCapacity_3matrices() {
+    void canisterCapacity_3compression() {
         assertEquals(8_388_608, ContainerCapacity.canisterCapacity(3));
     }
 
     @Test
-    void canisterCapacity_4matrices() {
+    void canisterCapacity_4compression() {
         assertEquals(16_777_216, ContainerCapacity.canisterCapacity(4));
     }
 
     @Test
-    void canisterCapacity_5matrices() {
+    void canisterCapacity_5compression() {
         assertEquals(33_554_432, ContainerCapacity.canisterCapacity(5));
     }
 
