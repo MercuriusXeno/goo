@@ -141,6 +141,7 @@ public final class GooTestFunctions {
     private static final String MOB_ENDER = "mob_ender_teleport";
     private static final String MOB_UNSTABLE = "mob_unstable_explode";
     private static final String MOB_AEON = "mob_aeon_time_stop";
+    private static final String MOB_AEON_RITUAL_COUNTS = "mob_aeon_ritual_counts";
 
     // --- Lighting ---
     private static final String LIGHT_CANISTER_SYNC = "light_canister_sync";
@@ -318,6 +319,7 @@ public final class GooTestFunctions {
         reg(r, MOB_ENDER, MobEffectTests::enderTeleport);
         reg(r, MOB_UNSTABLE, MobEffectTests::unstableExplode);
         reg(r, MOB_AEON, MobEffectTests::aeonTimeStop);
+        reg(r, MOB_AEON_RITUAL_COUNTS, MobEffectTests::aeonRitualCounts);
     }
 
     /**

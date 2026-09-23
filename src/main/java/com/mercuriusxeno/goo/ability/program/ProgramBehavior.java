@@ -106,6 +106,9 @@ public final class ProgramBehavior implements ChainBehavior {
             Set<String> names = new TreeSet<>(hosted.expr().variables());
             names.remove(StepContext.VAR_TICK);
             names.removeAll(hosted.host().variables());
+            if (hosted.host().capabilities().contains(HostCapability.TARGET)) {
+                names.removeIf(HostVariables::isCounter);
+            }
             if (!names.isEmpty()) {
                 throw new ProgramLoadException(String.format(ERR_VARIABLE, step.type().name(),
                         names.iterator().next(), hosted.host().label()));
