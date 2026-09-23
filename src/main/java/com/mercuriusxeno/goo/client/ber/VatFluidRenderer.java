@@ -72,7 +72,7 @@ final class VatFluidRenderer {
     }
 
     /**
-     * Renders the top/bottom faces at the air-liquid interface if not fully submerged.
+     * Renders the rippling top/bottom grids at the air-liquid interface if not fully submerged.
      *
      * @param ctx         the render context
      * @param b           the precomputed fluid cuboid bounds
@@ -86,8 +86,8 @@ final class VatFluidRenderer {
         if (isFullySubmerged) { return; }
         GooRenderUtil.UvRect uv = new GooRenderUtil.UvRect(
             sprite.getU0(), sprite.getV0(), sprite.getU1(), sprite.getV1());
-        ctx.liquidSurface(ctx.color(), b, uv);
-        ctx.liquidSurfaceDown(ctx.color(), b, uv);
+        ctx.liquidSurfaceGrid(b, uv, RenderContext.RESTING_RIPPLE_AMPLITUDE);
+        ctx.liquidSurfaceGridDown(b, uv, RenderContext.RESTING_RIPPLE_AMPLITUDE);
     }
 
     /**
