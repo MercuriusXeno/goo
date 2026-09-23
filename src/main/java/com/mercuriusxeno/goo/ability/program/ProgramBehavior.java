@@ -76,7 +76,7 @@ public final class ProgramBehavior implements ChainBehavior {
     private static void refuseUnservedStep(Step step, HostKind kind) {
         refuseMissingCapabilities(step, kind);
         refuseUnboundVariables(step, kind);
-        step.children().forEach(child -> refuseUnservedStep(child, kind));
+        step.hostedChildren(kind).forEach(child -> refuseUnservedStep(child.step(), child.host()));
     }
 
     /**
@@ -102,14 +102,15 @@ public final class ProgramBehavior implements ChainBehavior {
      * @param kind the host kind
      */
     private static void refuseUnboundVariables(Step step, HostKind kind) {
-        Set<String> names = new TreeSet<>();
-        step.expressions().forEach(expr -> names.addAll(expr.variables()));
-        names.remove(StepContext.VAR_TICK);
-        names.removeAll(kind.variables());
-        if (!names.isEmpty()) {
-            throw new ProgramLoadException(
-                    String.format(ERR_VARIABLE, step.type().name(), names.iterator().next(), kind.label()));
-        }
+        step.hostedExpressions(kind).forEach(hosted -> {
+            Set<String> names = new TreeSet<>(hosted.expr().variables());
+            names.remove(StepContext.VAR_TICK);
+            names.removeAll(hosted.host().variables());
+            if (!names.isEmpty()) {
+                throw new ProgramLoadException(String.format(ERR_VARIABLE, step.type().name(),
+                        names.iterator().next(), hosted.host().label()));
+            }
+        });
     }
 
     /**
@@ -168,6 +169,11 @@ public final class ProgramBehavior implements ChainBehavior {
     @Override
     public boolean isActive() {
         return stepIndex < steps.size();
+    }
+
+    @Override
+    public boolean allowsTopOff() {
+        return isActive() && steps.get(stepIndex).allowsTopOff();
     }
 
     @Override

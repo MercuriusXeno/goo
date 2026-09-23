@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:fx_program_metal_spikes",
+  "environment": "goo:field_effect_metal",
+  "structure": "minecraft:empty",
+  "max_ticks": 100,
+  "setup_ticks": 0,
+  "required": true
+}

@@ -52,6 +52,7 @@ public final class StepTypes {
         register(TeleportStep.TYPE);
         register(PlaceBlockStep.TYPE);
         register(ProgressiveAreaStep.TYPE);
+        register(FieldEffectStep.TYPE);
     }
 
     private StepTypes() {

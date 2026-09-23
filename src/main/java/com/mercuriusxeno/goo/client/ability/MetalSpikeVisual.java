@@ -1,8 +1,9 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
-import com.mercuriusxeno.goo.ability.ChainBehaviors;
-import com.mercuriusxeno.goo.ability.world.MetalBehavior;
+import com.mercuriusxeno.goo.GooTypes;
+import com.mercuriusxeno.goo.ability.program.FieldEffectState;
+import com.mercuriusxeno.goo.ability.program.FieldStrike;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
@@ -21,9 +22,10 @@ import java.util.List;
 
 /**
  * Metal spike trap visual: extends goo-textured cone spikes from the
- * chain marker orb out to each tracked entity. Spike snapshots come from
- * {@link MetalBehavior}; each animates independently through windup,
- * extension, and retract phases.
+ * chain marker orb out to each struck entity. The spikes are the strikes
+ * in flight of the metal_spikes field effect, read from the marker's
+ * {@link FieldEffectState}; each animates independently through windup,
+ * extension, and retract phases around the tick it lands.
  */
 public final class MetalSpikeVisual {
 
@@ -46,33 +48,86 @@ public final class MetalSpikeVisual {
     private static final float SPIKE_EPSILON = 1e-4f;
     /** Overshoot past the entity center so the spike pierces through. */
     private static final float SPIKE_OVERSHOOT = 1.0f;
-    /** Array offset for the X target coordinate in spike anim snapshots. */
-    private static final int SNAP_TX = 2;
-    /** Array offset for the Y target coordinate in spike anim snapshots. */
-    private static final int SNAP_TY = 3;
-    /** Array offset for the Z target coordinate in spike anim snapshots. */
-    private static final int SNAP_TZ = 4;
+    /** Ticks before the strike lands that the spike starts to emerge. */
+    private static final int EMERGE_LEAD = 2;
+    /** Ticks the spike holds at full extension after it lands. */
+    private static final int HOLD_TICKS = 3;
+    /** Blob contraction scale during windup (0 = no change, positive = smaller). */
+    private static final float WINDUP_CONTRACT = 0.30f;
 
     private MetalSpikeVisual() {
     }
 
     /**
-     * Populates {@code state} with metal-trap fields from the BE.
+     * Populates {@code state} with the metal trap's spikes in flight, read
+     * from the marker's field-effect state; a marker of another type draws
+     * no spikes.
+     *
      * @param be    the chain marker block entity
      * @param state the render state to populate
      */
     public static void extract(ChainMarkerBlockEntity be, ChainMarkerRenderState state) {
-        MetalBehavior metal = ChainBehaviors.findFirst(be.getBehavior(), MetalBehavior.class);
-        if (metal != null) {
-            state.metalActive = true;
-            state.metalCharges = be.getStackCount();
-            state.spikeAnims = metal.hasActiveSpikes()
-                    ? metal.getSpikeSnapshots() : List.of();
-        } else {
-            state.metalActive = false;
-            state.spikeAnims = List.of();
-            state.metalCharges = 0;
+        FieldEffectState field = be.getFieldEffect();
+        boolean metal = GooTypes.METAL.equals(be.getGooType()) && be.getBehavior() != null;
+        state.spikeAnims = metal ? field.strikes() : List.of();
+        state.spikeStrikeTick = field.strikeTick();
+        state.spikeLength = field.strikeTicks();
+    }
+
+    /**
+     * Computes the spike extension fraction for rendering, phased around
+     * the tick the strike lands: no spike through the windup, extending
+     * over the {@code EMERGE_LEAD} ticks before landing, holding for
+     * {@code HOLD_TICKS} after, then retracting to the end of its length.
+     *
+     * @param age         the spike's age in ticks
+     * @param partialTick the partial tick for smooth interpolation
+     * @param strikeTick  the age at which the spike lands
+     * @param length      how many ticks the spike stays in flight
+     * @return extension fraction in [0, 1]
+     */
+    static float extensionFraction(int age, float partialTick, int strikeTick, int length) {
+        float t = age + partialTick;
+        int emerge = strikeTick - EMERGE_LEAD;
+        int retract = strikeTick + HOLD_TICKS;
+        if (t < emerge) {
+            return 0f;
         }
+        if (t < strikeTick) {
+            return (t - emerge) / EMERGE_LEAD;
+        }
+        if (t < retract) {
+            return 1f;
+        }
+        if (t < length) {
+            return 1f - (t - retract) / (length - retract);
+        }
+        return 0f;
+    }
+
+    /**
+     * Computes the blob contraction scale for one spike: the orb squeezes
+     * through the windup and returns to size as the spike emerges.
+     *
+     * @param age         the spike's age in ticks
+     * @param partialTick the partial tick for smooth interpolation
+     * @param strikeTick  the age at which the spike lands
+     * @return scale multiplier for the orb, in [1 - WINDUP_CONTRACT, 1]
+     */
+    static float blobContraction(int age, float partialTick, int strikeTick) {
+        float t = age + partialTick;
+        int emerge = strikeTick - EMERGE_LEAD;
+        if (t < 0) {
+            return 1f;
+        }
+        if (t < emerge) {
+            float contractCurve = (float) Math.sin(t / emerge * Math.PI);
+            return 1f - WINDUP_CONTRACT * contractCurve;
+        }
+        if (t < strikeTick) {
+            return 1f - WINDUP_CONTRACT * (1f - (t - emerge) / EMERGE_LEAD);
+        }
+        return 1f;
     }
 
     /**
@@ -97,8 +152,8 @@ public final class MetalSpikeVisual {
                 (pose, consumer) -> {
                     RenderContext ctx = new RenderContext(pose, consumer,
                             LightCoordsUtil.FULL_BRIGHT);
-                    for (int[] snap : state.spikeAnims) {
-                        emitSingleSpike(ctx, snap, state, cx, cy, cz, color, uv);
+                    for (FieldStrike spike : state.spikeAnims) {
+                        emitSingleSpike(ctx, spike, state, cx, cy, cz, color, uv);
                     }
                 });
     }
@@ -120,7 +175,7 @@ public final class MetalSpikeVisual {
      * Emits a single spike cone toward a tracked entity position.
      *
      * @param ctx   the render context
-     * @param snap  the spike animation snapshot array
+     * @param spike the spike in flight, aimed at the point it captured
      * @param state the chain marker render state
      * @param cx    orb center X
      * @param cy    orb center Y
@@ -128,20 +183,17 @@ public final class MetalSpikeVisual {
      * @param color packed ARGB spike color
      * @param uv    fluid sprite UV rectangle
      */
-    private static void emitSingleSpike(RenderContext ctx, int[] snap,
+    private static void emitSingleSpike(RenderContext ctx, FieldStrike spike,
                                         ChainMarkerRenderState state, float cx, float cy, float cz,
                                         int color, GooRenderUtil.UvRect uv) {
-        float tx = Float.intBitsToFloat(snap[SNAP_TX]);
-        float ty = Float.intBitsToFloat(snap[SNAP_TY]);
-        float tz = Float.intBitsToFloat(snap[SNAP_TZ]);
-        float dx = tx - state.blockPos.getX() - cx;
-        float dy = ty - state.blockPos.getY() - cy;
-        float dz = tz - state.blockPos.getZ() - cz;
+        float dx = spike.x() - state.blockPos.getX() - cx;
+        float dy = spike.y() - state.blockPos.getY() - cy;
+        float dz = spike.z() - state.blockPos.getZ() - cz;
         float len = (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
         if (len < SPIKE_EPSILON) {
             return;
         }
-        float ext = MetalBehavior.extensionFraction(snap[1], state.partialTick);
+        float ext = extensionFraction(spike.age(), state.partialTick, state.spikeStrikeTick, state.spikeLength);
         float tipDist = (len + SPIKE_OVERSHOOT) * ext;
         emitSpikeCone(ctx, cx, cy, cz, dx / len, dy / len, dz / len, tipDist, color, uv);
     }

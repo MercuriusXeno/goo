@@ -15,8 +15,12 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.animal.pig.Pig;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.phys.Vec3;
 import java.util.function.BiConsumer;
 
 /**
@@ -59,6 +63,30 @@ public final class EffectExecutorTests {
     private static final int MINE_IDLE_TICKS = 5;
     /** Where the mine's target spawns: two blocks from the marker, inside its radius. */
     private static final BlockPos MINE_TARGET_POS = MARKER_POS.east(2);
+    private static final String ABILITY_METAL_SPIKES = "goo:metal_spikes";
+    /**
+     * Ticks from a target entering the trap to the check that it was
+     * impaled: past the strike's six-tick windup and inside the ten-tick
+     * cooldown, so the trap has struck once.
+     */
+    private static final int SPIKE_STRIKE_WINDOW = 8;
+    /** Ticks a sneaking player stands in the trap, past two cooldowns. */
+    private static final int SNEAK_TICKS = 20;
+    private static final String SPIKE_MISSED = "The metal trap left the walking pig unhurt";
+    private static final String SPIKE_HIT_SNEAKER = "The metal trap hurt the sneaking player";
+    private static final String STACK_NOT_SPENT = "The metal trap's impale spent no stack";
+    private static final String STACK_SPENT_ON_SNEAKER = "The metal trap spent a stack on the sneaking player";
+    private static final String ABILITY_CRYSTAL_CLOUD = "goo:crystal_cloud";
+    /** Where the crystal test's standing pig stands: two blocks west, inside the cloud's radius. */
+    private static final BlockPos STANDING_PIG_POS = MARKER_POS.west(2);
+    /** Horizontal speed the moving pig is shuffled at, reversed every tick so it stays put. */
+    private static final double SHUFFLE_SPEED = 0.2;
+    /** Ticks per back-and-forth of the moving pig's shuffle. */
+    private static final int SHUFFLE_PERIOD = 2;
+    /** Ticks after the fuse the cloud shreds for, several of its two-tick periods. */
+    private static final int SHRED_WINDOW = 12;
+    private static final String CLOUD_MISSED_MOVER = "The crystal cloud left the moving pig unhurt";
+    private static final String CLOUD_HIT_STANDING = "The crystal cloud hurt the standing pig";
 
     private EffectExecutorTests() {}
 
@@ -439,6 +467,76 @@ public final class EffectExecutorTests {
         });
         helper.runAfterDelay(MINE_IDLE_TICKS + SHORT_POST_FUSE, () -> {
             assertDetonated(helper);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Crystal cloud as a field-effect program: after the fuse, a pig kept
+     * moving inside the cloud is shredded while a pig standing inside it
+     * is left whole.
+     *
+     * @param helper the gametest helper
+     */
+    public static void programCrystalCloud(GameTestHelper helper) {
+        helper.setBlock(MINE_TARGET_POS.below(), Blocks.STONE);
+        helper.setBlock(STANDING_PIG_POS.below(), Blocks.STONE);
+        placeMarkerWithAbility(helper, GooTypes.CRYSTAL, ABILITY_CRYSTAL_CLOUD);
+        Pig mover = helper.spawnWithNoFreeWill(EntityType.PIG, MINE_TARGET_POS);
+        Pig standing = helper.spawnWithNoFreeWill(EntityType.PIG, STANDING_PIG_POS);
+        helper.onEachTick(() -> mover.setDeltaMovement(
+                helper.getTick() % SHUFFLE_PERIOD == 0 ? SHUFFLE_SPEED : -SHUFFLE_SPEED,
+                mover.getDeltaMovement().y(), 0));
+        helper.runAfterDelay(FUSE_TICKS + SHRED_WINDOW, () -> {
+            helper.assertTrue(mover.getHealth() < mover.getMaxHealth(), CLOUD_MISSED_MOVER);
+            helper.assertTrue(standing.getHealth() == standing.getMaxHealth(), CLOUD_HIT_STANDING);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Stands a sneaking survival player in the level at a position, where
+     * an entity scan finds it.
+     *
+     * @param helper the gametest helper
+     * @param pos    the relative block position to stand on
+     * @return the player
+     */
+    private static Player standSneakingPlayer(GameTestHelper helper, BlockPos pos) {
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        player.setShiftKeyDown(true);
+        player.setPos(helper.absoluteVec(Vec3.atBottomCenterOf(pos)));
+        helper.getLevel().addFreshEntity(player);
+        return player;
+    }
+
+    /**
+     * Metal spikes as a field-effect program: a two-stack trap impales a
+     * pig walking into its radius, spending one stack, then spares a
+     * sneaking player standing in the same spot, spending none.
+     *
+     * @param helper the gametest helper
+     */
+    public static void programMetalSpikes(GameTestHelper helper) {
+        helper.setBlock(MINE_TARGET_POS.below(), Blocks.STONE);
+        placeMarkerWithAbility(helper, GooTypes.METAL, ABILITY_METAL_SPIKES);
+        ChainMarkerBlockEntity be = helper.getBlockEntity(MARKER_POS, ChainMarkerBlockEntity.class);
+        be.tryStack();
+        int armed = FUSE_TICKS + SHORT_POST_FUSE;
+        Pig[] pig = new Pig[1];
+        Player[] sneaker = new Player[1];
+        helper.runAfterDelay(armed, () -> pig[0] = helper.spawnWithNoFreeWill(EntityType.PIG, MINE_TARGET_POS));
+        helper.runAfterDelay(armed + SPIKE_STRIKE_WINDOW, () -> {
+            helper.assertTrue(pig[0].getHealth() < pig[0].getMaxHealth(), SPIKE_MISSED);
+            helper.assertTrue(be.getStackCount() == 1, STACK_NOT_SPENT);
+            pig[0].discard();
+            sneaker[0] = standSneakingPlayer(helper, MINE_TARGET_POS);
+        });
+        helper.runAfterDelay(armed + SPIKE_STRIKE_WINDOW + SNEAK_TICKS, () -> {
+            helper.assertTrue(sneaker[0].getHealth() == sneaker[0].getMaxHealth(), SPIKE_HIT_SNEAKER);
+            helper.assertTrue(be.getStackCount() == 1, STACK_SPENT_ON_SNEAKER);
+            helper.assertBlockPresent(GooBlocks.CHAIN_MARKER.get(), MARKER_POS);
+            sneaker[0].discard();
             helper.succeed();
         });
     }

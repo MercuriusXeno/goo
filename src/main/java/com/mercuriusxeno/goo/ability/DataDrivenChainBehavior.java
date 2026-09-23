@@ -100,7 +100,7 @@ public final class DataDrivenChainBehavior implements ChainBehavior {
     /**
      * Returns the first composed block of the given type, or null.
      * Lets client visuals reach the concrete inner behavior (e.g.
-     * {@code CrystalBehavior}) when the ability path wraps it.
+     * {@code NetherBehavior}) when the ability path wraps it.
      *
      * @param <T>  the requested behavior block type
      * @param type the class to match against

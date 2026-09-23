@@ -2,7 +2,7 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
-import com.mercuriusxeno.goo.ability.world.MetalBehavior;
+import com.mercuriusxeno.goo.ability.program.FieldStrike;
 import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.CuboidBounds;
@@ -211,8 +211,8 @@ public final class FuseOrbVisual {
             return 1f;
         }
         float minScale = 1f;
-        for (int[] snap : state.spikeAnims) {
-            float s = MetalBehavior.blobContraction(snap[1], state.partialTick);
+        for (FieldStrike spike : state.spikeAnims) {
+            float s = MetalSpikeVisual.blobContraction(spike.age(), state.partialTick, state.spikeStrikeTick);
             if (s < minScale) {
                 minScale = s;
             }

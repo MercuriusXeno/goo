@@ -41,7 +41,17 @@ public enum EntityFilter {
      * Keeps anything but the entity the selection centers on, the struck
      * entity on the entity host.
      */
-    NOT_TARGET;
+    NOT_TARGET,
+    /**
+     * Keeps anything that is not a sneaking player; the metal trap spares
+     * a player who sneaks through it.
+     */
+    NOT_SNEAKING,
+    /**
+     * Keeps entities moving horizontally above rest; the crystal cloud
+     * shreds only what moves through it.
+     */
+    MOVING;
 
     private static final String WHAT = "entity filter";
 

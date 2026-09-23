@@ -59,7 +59,14 @@ class StepCodecTest {
                     "shape", new StateValue.Named("flat"),
                     "size", new StateValue.Pick(Expr.parse("stacks - 1").getOrThrow(), List.of("tiny", "large"))))),
             Map.entry("progressive_area", new ProgressiveAreaStep(AreaShape.FLAT_CIRCLE, "fortune_smelt_break",
-                    "blaze_flame", "generic_explode", Expr.literal(8)))
+                    "blaze_flame", "generic_explode", Expr.literal(8))),
+            Map.entry("field_effect", new FieldEffectStep(Expr.literal(3.75),
+                    List.of(EntityFilter.LIVING, EntityFilter.NOT_ITEM, EntityFilter.NOT_SNEAKING),
+                    Expr.literal(10), Expr.parse("2 - sprinting").getOrThrow(), Expr.literal(1),
+                    Expr.literal(6), Expr.literal(13), new FieldTiming(Expr.literal(10), Expr.literal(10)),
+                    List.of(new DamageStep(Expr.literal(1), DamageKind.CACTUS, false, Optional.of(Expr.literal(1)))),
+                    List.of(new SoundStep(Identifier.parse("minecraft:block.fire.extinguish"), FxAnchor.HOST,
+                            SoundKind.BLOCKS, Expr.literal(0.5), Expr.literal(1.2)))))
     );
 
     private static Step roundTrip(Step step) {

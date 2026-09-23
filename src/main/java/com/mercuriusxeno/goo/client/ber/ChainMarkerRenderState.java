@@ -57,14 +57,14 @@ public class ChainMarkerRenderState extends BlockEntityRenderState {
     /** Number of depth layers already mined by the active behavior. */
     public int minedLayers;
 
-    /** True when a metal spike trap behavior is active. */
-    public boolean metalActive;
+    /** Metal spikes in flight, read from the marker's field-effect state. */
+    public java.util.List<com.mercuriusxeno.goo.ability.program.FieldStrike> spikeAnims = java.util.List.of();
 
-    /** Per-entity spike animation snapshots: [entityId, animTick] pairs. */
-    public java.util.List<int[]> spikeAnims = java.util.List.of();
+    /** The spike age at which a spike reaches full extension and lands. */
+    public int spikeStrikeTick;
 
-    /** Remaining spike charges for the metal trap. */
-    public int metalCharges;
+    /** How many ticks a spike stays in flight, windup to retracted. */
+    public int spikeLength;
 
     /** True when a crystal shard cloud behavior is active. */
     public boolean crystalActive;
@@ -77,6 +77,9 @@ public class ChainMarkerRenderState extends BlockEntityRenderState {
 
     /** Cloud radius fraction [0-1] for expand/contract animation. */
     public float crystalRadiusFraction;
+
+    /** Full cloud radius in blocks, read from the field effect. */
+    public float crystalRadius;
 
     /** True when a nether black-hole behavior is active on this marker.
      * The BER uses this flag to branch between the orb visual (false) and

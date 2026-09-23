@@ -10,12 +10,13 @@ public enum HostKind {
     /**
      * The chain marker block: stacks, a placed face, a tick driver, the
      * world around the block, the block position itself to write, and
-     * the blocks around it to strike layer by layer.
+     * the blocks around it to strike layer by layer, and the field-effect
+     * state a trap keeps while its budget lasts.
      */
     MARKER("marker block",
             Set.of(HostCapability.STACKS, HostCapability.PLACED_FACE, HostCapability.TICKING,
                     HostCapability.EXPLODE, HostCapability.ENTITY_SCAN, HostCapability.PLACE_BLOCK,
-                    HostCapability.LAYER_WALK),
+                    HostCapability.LAYER_WALK, HostCapability.FIELD_EFFECT),
             Set.of(HostVariables.STACKS, HostVariables.MAX_STACKS, HostVariables.FLAT)),
     /**
      * The struck living entity: a target and its thrower, acted on in the
@@ -24,7 +25,7 @@ public enum HostKind {
     ENTITY("struck entity",
             Set.of(HostCapability.TARGET, HostCapability.EXPLODE, HostCapability.ENTITY_SCAN),
             Set.of(HostVariables.HEALTH, HostVariables.MAX_HEALTH, HostVariables.DISTANCE,
-                    HostVariables.UNDEAD));
+                    HostVariables.UNDEAD, HostVariables.SPRINTING));
 
     private final String label;
     private final Set<HostCapability> capabilities;
