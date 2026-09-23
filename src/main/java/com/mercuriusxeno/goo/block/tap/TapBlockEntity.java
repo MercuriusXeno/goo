@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.block.tap;
 
+import com.mercuriusxeno.goo.DripFall;
 import com.mercuriusxeno.goo.GooColors;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.block.BlockEntitySync;
@@ -12,6 +13,7 @@ import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mercuriusxeno.goo.registry.GooParticles;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.protocol.Packet;
@@ -23,6 +25,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.Shapes;
 import org.jspecify.annotations.NonNull;
 
@@ -83,8 +86,9 @@ public class TapBlockEntity extends net.minecraft.world.level.block.entity.Block
 
     /**
      * Server tick handler: while the valve is open, every {@link #DRIP_INTERVAL}
-     * ticks, draws one drip from the canister slot and sends its particle from
-     * the spigot. A closed valve holds the countdown where it stands.
+     * ticks, draws one drip from the canister slot, sends its particle from
+     * the spigot and queues its landing on the first surface below. A closed
+     * valve holds the countdown where it stands; a bottomless drop drips nothing.
      *
      * @param level the current level
      * @param pos   the block position
@@ -101,13 +105,20 @@ public class TapBlockEntity extends net.minecraft.world.level.block.entity.Block
         if (!due || !(level instanceof ServerLevel server)) {
             return;
         }
+        TapDripLanding landing = TapDripLanding.below(server, pos);
+        if (landing == null) {
+            return;
+        }
         ResourceKey<GooTypeDefinition> type = TapDrip.draw(tap, SLOT);
         if (type == null) {
             return;
         }
+        Vec3 spigot = TapSpigot.underside(pos);
         TapDrip.emit(TapDrip.sinkOf(server), GooParticles.GOO_DRIP.get(),
-                GooColors.get(server.registryAccess(), type),
-                TapSpigot.underside(pos));
+                GooColors.get(server.registryAccess(), type), spigot);
+        int fallTicks = DripFall.fallTicks(spigot.y - landing.surfaceY(), -TapDrip.DRIP_LEAVE_SPEED);
+        TapDripScheduler.enqueue(new TapDripScheduler.PendingDrip(server, pos, landing.pos(), Direction.UP,
+                type, server.getServer().getTickCount() + fallTicks));
     }
 
     // --- Canister slot (single-slot convenience) ---

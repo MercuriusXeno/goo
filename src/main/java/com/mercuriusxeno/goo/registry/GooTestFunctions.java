@@ -100,6 +100,8 @@ public final class GooTestFunctions {
     // --- Tap drip ---
     private static final String TAP_DRIP_DRAWS_ONE_MB = "tap_drip_draws_one_mb";
     private static final String TAP_VALVE_GATES_DRIP = "tap_valve_gates_drip";
+    private static final String TAP_DRIP_LANDS_BELOW = "tap_drip_lands_below";
+    private static final String TAP_DRIP_BOTTOMLESS = "tap_drip_bottomless";
     private static final String IX_VAT_GASKET = "ix_vat_gasket_apply";
     private static final String IX_HUB_INSERT = "ix_hub_canister_insert";
     private static final String IX_HUB_PICKUP = "ix_hub_canister_pickup";
@@ -187,6 +189,8 @@ public final class GooTestFunctions {
     private static void registerTapDripTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
         reg(r, TAP_DRIP_DRAWS_ONE_MB, TapDripTests::tapDripDrawsOneMb);
         reg(r, TAP_VALVE_GATES_DRIP, TapDripTests::tapValveGatesDrip);
+        reg(r, TAP_DRIP_LANDS_BELOW, TapDripTests::tapDripLandsBelow);
+        reg(r, TAP_DRIP_BOTTOMLESS, TapDripTests::tapDripBottomless);
     }
 
     private static void registerLightingTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
