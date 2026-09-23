@@ -56,6 +56,8 @@ public final class GooTestFunctions {
     private static final String EXORITE_BARS_CRAFTED = "exorite_bars_crafted";
     private static final String EXORITE_BARS_STRENGTH = "exorite_bars_strength";
     private static final String EXORITE_BARS_DROPS = "exorite_bars_drops";
+    private static final String SPAWNER_CRAFTED_FROM_EXORITE_BARS = "spawner_crafted_from_exorite_bars";
+    private static final String EMPTY_SPAWNER_TAKES_EGG = "empty_spawner_takes_egg";
 
     // --- GasketPusher ---
     private static final String PUSHER_EMPTY_RESERVOIR = "pusher_empty_reservoir";
@@ -244,6 +246,8 @@ public final class GooTestFunctions {
         reg(r, EXORITE_BARS_CRAFTED, ExoriteBarsTests::crafted);
         reg(r, EXORITE_BARS_STRENGTH, ExoriteBarsTests::strength);
         reg(r, EXORITE_BARS_DROPS, ExoriteBarsTests::dropsItself);
+        reg(r, SPAWNER_CRAFTED_FROM_EXORITE_BARS, SpawnerRecipeTests::craftedFromExoriteBars);
+        reg(r, EMPTY_SPAWNER_TAKES_EGG, SpawnerRecipeTests::emptySpawnerTakesEgg);
     }
 
     private static void registerGasketTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
