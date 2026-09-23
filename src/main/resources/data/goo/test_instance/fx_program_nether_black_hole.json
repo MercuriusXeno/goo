@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:fx_program_nether_black_hole",
+  "environment": "goo:phased_nether",
+  "structure": "minecraft:empty",
+  "max_ticks": 140,
+  "setup_ticks": 0,
+  "required": true
+}

@@ -160,6 +160,26 @@ public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entit
     }
 
     @Override
+    public PhasedState phased() {
+        throw HostCapability.PHASED.refusedBy(kind());
+    }
+
+    @Override
+    public void pullEntitiesWithin(double radius, double speed) {
+        EntityPull.pullWithin(level, target.position(), radius, speed, target);
+    }
+
+    @Override
+    public void consumeValuedBlocks(int radius) {
+        throw HostCapability.CONSUMED_GOO.refusedBy(kind());
+    }
+
+    @Override
+    public void dropConsumedGoo() {
+        throw HostCapability.CONSUMED_GOO.refusedBy(kind());
+    }
+
+    @Override
     public void damageTarget(float amount, DamageKind source, boolean knockback) {
         target.hurtServer(level, damageSource(source), amount);
         if (!knockback) {

@@ -16,8 +16,10 @@ import java.util.stream.Stream;
  * around the entity the blob hit.
  *
  * <p>The children run to completion in the tick the selection runs, so
- * they are instant steps, and they act on a rebound target, so the step
- * needs a host that provides one.
+ * they are instant steps, and each runs on a host bound to the selected
+ * entity, so the load check holds them to the struck entity host whatever
+ * host the selection runs on. On the marker, the nether black hole blinds
+ * what stands in its sphere this way.
  *
  * @param shape  the volume shape
  * @param radius the volume radius in blocks, evaluated when the step runs
@@ -68,11 +70,16 @@ public record EntitiesStep(SelectionShape shape, Expr radius, List<EntityFilter>
 
     @Override
     public Set<HostCapability> requires() {
-        return Set.of(HostCapability.ENTITY_SCAN, HostCapability.TARGET);
+        return Set.of(HostCapability.ENTITY_SCAN);
     }
 
     @Override
     public Stream<Step> children() {
         return steps.stream();
+    }
+
+    @Override
+    public Stream<HostedStep> hostedChildren(HostKind host) {
+        return steps.stream().map(child -> new HostedStep(child, HostKind.ENTITY));
     }
 }

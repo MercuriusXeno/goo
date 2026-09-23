@@ -2,10 +2,7 @@ package com.mercuriusxeno.goo.block.ability;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
-import com.mercuriusxeno.goo.ability.ChainBehaviors;
-import com.mercuriusxeno.goo.ability.world.NetherBehavior;
 import com.mercuriusxeno.goo.item.BlobStacks;
-import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
@@ -276,9 +273,9 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
     }
 
     /**
-     * Drops the accumulator contents at {@code pos} when a mid-implosion
-     * chain marker is broken. No-op on the client, for non-nether markers,
-     * for empty accumulators, or if the block entity is missing.
+     * Drops the goo a mid-implosion chain marker consumed at {@code pos}
+     * when it is broken. No-op on the client, for a marker that consumed
+     * nothing, or if the block entity is missing.
      *
      * @param level the current level
      * @param pos   the marker position
@@ -290,15 +287,7 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
         if (!(server.getBlockEntity(pos) instanceof ChainMarkerBlockEntity be)) {
             return;
         }
-        NetherBehavior nether = ChainBehaviors.findFirst(be.getBehavior(), NetherBehavior.class);
-        if (nether == null) {
-            return;
-        }
-        GooContents accumulator = nether.getAccumulator();
-        if (accumulator.isEmpty()) {
-            return;
-        }
-        BlobStacks.dropAll(accumulator, server, pos);
+        BlobStacks.dropAll(be.takeConsumedGoo(), server, pos);
     }
 
     /**

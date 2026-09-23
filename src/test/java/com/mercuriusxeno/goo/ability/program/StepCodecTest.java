@@ -66,7 +66,18 @@ class StepCodecTest {
                     Expr.literal(6), Expr.literal(13), new FieldTiming(Expr.literal(10), Expr.literal(10)),
                     List.of(new DamageStep(Expr.literal(1), DamageKind.CACTUS, false, Optional.of(Expr.literal(1)))),
                     List.of(new SoundStep(Identifier.parse("minecraft:block.fire.extinguish"), FxAnchor.HOST,
-                            SoundKind.BLOCKS, Expr.literal(0.5), Expr.literal(1.2)))))
+                            SoundKind.BLOCKS, Expr.literal(0.5), Expr.literal(1.2))))),
+            Map.entry("phased", new PhasedStep(Expr.parse("1 + 2 * stacks").getOrThrow(), List.of(
+                    new StepPhase("expand", Expr.literal(15), List.of(new SoundStep(
+                            Identifier.parse("goo:effects.black_hole"), FxAnchor.HOST, SoundKind.BLOCKS,
+                            Expr.literal(6), Expr.literal(1))),
+                            List.of(new PullStep(Expr.literal(9), Expr.literal(0.15))),
+                            List.of(new ConsumeBlocksStep(Expr.literal(3)))),
+                    new StepPhase("popping", Expr.literal(0), List.of(new DropConsumedStep()), List.of(),
+                            List.of())))),
+            Map.entry("pull", new PullStep(Expr.parse("3 * (1 + 2 * stacks)").getOrThrow(), Expr.literal(0.15))),
+            Map.entry("consume_blocks", new ConsumeBlocksStep(Expr.parse("1 + 2 * stacks").getOrThrow())),
+            Map.entry("drop_consumed", new DropConsumedStep())
     );
 
     private static Step roundTrip(Step step) {
@@ -190,6 +201,16 @@ class StepCodecTest {
     void emptyPickRefuses() {
         assertTrue(decode("{\"type\": \"place_block\", \"block\": \"goo:glow_crystal\","
                 + " \"state\": {\"size\": {\"by\": 1, \"values\": []}}}").isError());
+    }
+
+    @Test
+    void phaseOptionalFieldsDefaultAndAPhasedStepNeedsAPhase() {
+        PhasedStep phased = assertInstanceOf(PhasedStep.class,
+                decode("{\"type\": \"phased\", \"phases\": [{\"name\": \"popping\"}]}").getOrThrow());
+        assertEquals(0, phased.radius().evaluate(Variables.NONE));
+        assertEquals(new StepPhase("popping", Expr.literal(0), List.of(), List.of(), List.of()),
+                phased.phases().get(0));
+        assertTrue(decode("{\"type\": \"phased\", \"phases\": []}").isError());
     }
 
     @Test

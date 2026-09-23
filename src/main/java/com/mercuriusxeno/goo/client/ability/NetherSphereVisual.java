@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.ability.ChainBehaviors;
-import com.mercuriusxeno.goo.ability.world.NetherBehavior;
+import com.mercuriusxeno.goo.ability.program.PhasedState;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.ber.ChainMarkerBlockEntityRenderer;
@@ -37,7 +36,7 @@ import java.util.List;
  *   <li>Additive accretion disk via {@link GooRenderTypes#NETHER_DISK_TYPE}
  *       - flat annulus ring in the XZ plane. Inner radius floats just
  *       past the sphere silhouette, outer radius is driven by a
- *       separate expansion curve on {@link NetherBehavior} so the disk
+ *       separate expansion curve in {@link BlackHolePhases} so the disk
  *       sweeps outward independent of the sphere's growth (not in
  *       lockstep). Brightness is strictly radial in the shader, so the
  *       ring reads identically from any viewing angle.</li>
@@ -180,19 +179,19 @@ public final class NetherSphereVisual {
 
     /**
      * Populates the render state's nether fields by querying the active
-     * {@link NetherBehavior} on the BE, if any. Call from the BER's
+     * phase cursor on the BE, when a nether program runs one. Call from the BER's
      * {@code extractRenderState}.
      *
      * @param be    the chain marker block entity
      * @param state the render state to populate
      */
     public static void extract(ChainMarkerBlockEntity be, ChainMarkerRenderState state) {
-        NetherBehavior nether = ChainBehaviors.findFirst(be.getBehavior(), NetherBehavior.class);
-        if (nether != null) {
+        if (BlackHolePhases.isRunning(be)) {
+            PhasedState phase = be.getPhased();
             state.netherActive = true;
-            state.visibleScale = nether.getVisibleScale();
-            state.diskExpansionScale = nether.getDiskExpansionScale();
-            state.implodeRadius = nether.getCurrentRadius();
+            state.visibleScale = BlackHolePhases.visibleScale(phase);
+            state.diskExpansionScale = BlackHolePhases.diskExpansionScale(phase);
+            state.implodeRadius = phase.radius();
             state.animationTime = computeAnimationTime(be);
             markLensActive(be, state);
             return;

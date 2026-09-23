@@ -2,7 +2,7 @@ package com.mercuriusxeno.goo.effect;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
-import com.mercuriusxeno.goo.ability.world.NetherBehavior;
+import com.mercuriusxeno.goo.ability.program.ValuedBlocks;
 import com.mercuriusxeno.goo.data.GooValue;
 import net.minecraft.resources.ResourceKey;
 import org.junit.jupiter.api.Test;
@@ -12,12 +12,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Pure tests for the nether accumulator helper. The sphere walk itself is
+ * Pure tests for the consumed-goo accumulation. The sphere walk itself is
  * stateful (touches {@code ServerLevel}), but the per-block merge step is
- * extracted as {@link NetherExecutor#mergeValue} so its behavior can be
+ * extracted as {@link ValuedBlocks#mergeValue} so its behavior can be
  * exercised here without spinning up Minecraft's {@code Bootstrap}.
  */
-class NetherExecutorTest {
+class ValuedBlocksTest {
 
     /**
      * Merging into an empty accumulator plants the value verbatim.
@@ -27,7 +27,7 @@ class NetherExecutorTest {
         Map<ResourceKey<GooTypeDefinition>, Integer> totals = new HashMap<>();
         GooValue block = new GooValue(Map.of(GooTypes.ROCK, 1152, GooTypes.NETHER, 500));
 
-        NetherBehavior.mergeValue(totals, block);
+        ValuedBlocks.mergeValue(totals, block);
 
         assertEquals(1152, totals.get(GooTypes.ROCK));
         assertEquals(500, totals.get(GooTypes.NETHER));
@@ -43,8 +43,8 @@ class NetherExecutorTest {
         GooValue grass = new GooValue(Map.of(GooTypes.ROCK, 1152));
         GooValue dirt = new GooValue(Map.of(GooTypes.ROCK, 1000));
 
-        NetherBehavior.mergeValue(totals, grass);
-        NetherBehavior.mergeValue(totals, dirt);
+        ValuedBlocks.mergeValue(totals, grass);
+        ValuedBlocks.mergeValue(totals, dirt);
 
         assertEquals(2152, totals.get(GooTypes.ROCK));
     }
@@ -55,8 +55,8 @@ class NetherExecutorTest {
     @Test
     void mergeValue_differentTypes_independent() {
         Map<ResourceKey<GooTypeDefinition>, Integer> totals = new HashMap<>();
-        NetherBehavior.mergeValue(totals, new GooValue(Map.of(GooTypes.ROCK, 1000)));
-        NetherBehavior.mergeValue(totals, new GooValue(Map.of(GooTypes.FROST, 500)));
+        ValuedBlocks.mergeValue(totals, new GooValue(Map.of(GooTypes.ROCK, 1000)));
+        ValuedBlocks.mergeValue(totals, new GooValue(Map.of(GooTypes.FROST, 500)));
 
         assertEquals(1000, totals.get(GooTypes.ROCK));
         assertEquals(500, totals.get(GooTypes.FROST));
@@ -72,7 +72,7 @@ class NetherExecutorTest {
         int blockCount = 120;
 
         for (int i = 0; i < blockCount; i++) {
-            NetherBehavior.mergeValue(totals, grass);
+            ValuedBlocks.mergeValue(totals, grass);
         }
 
         assertEquals(1152 * blockCount, totals.get(GooTypes.ROCK));
@@ -88,7 +88,7 @@ class NetherExecutorTest {
         Map<ResourceKey<GooTypeDefinition>, Integer> totals = new HashMap<>();
         totals.put(GooTypes.ROCK, 1000);
 
-        NetherBehavior.mergeValue(totals, GooValue.EMPTY);
+        ValuedBlocks.mergeValue(totals, GooValue.EMPTY);
 
         assertEquals(1000, totals.get(GooTypes.ROCK));
         assertEquals(1, totals.size());
@@ -105,7 +105,7 @@ class NetherExecutorTest {
                 GooTypes.BLAZE, 200,
                 GooTypes.NETHER, 100));
 
-        NetherBehavior.mergeValue(totals, complex);
+        ValuedBlocks.mergeValue(totals, complex);
 
         assertEquals(800, totals.get(GooTypes.ROCK));
         assertEquals(200, totals.get(GooTypes.BLAZE));
@@ -119,10 +119,10 @@ class NetherExecutorTest {
     void mergeValue_mixedAccumulation_producesCorrectTotals() {
         Map<ResourceKey<GooTypeDefinition>, Integer> totals = new HashMap<>();
 
-        NetherBehavior.mergeValue(totals, new GooValue(Map.of(GooTypes.ROCK, 1152)));
-        NetherBehavior.mergeValue(totals, new GooValue(Map.of(GooTypes.ROCK, 1000, GooTypes.FROST, 250)));
-        NetherBehavior.mergeValue(totals, new GooValue(Map.of(GooTypes.BLAZE, 500)));
-        NetherBehavior.mergeValue(totals, new GooValue(Map.of(GooTypes.FROST, 750)));
+        ValuedBlocks.mergeValue(totals, new GooValue(Map.of(GooTypes.ROCK, 1152)));
+        ValuedBlocks.mergeValue(totals, new GooValue(Map.of(GooTypes.ROCK, 1000, GooTypes.FROST, 250)));
+        ValuedBlocks.mergeValue(totals, new GooValue(Map.of(GooTypes.BLAZE, 500)));
+        ValuedBlocks.mergeValue(totals, new GooValue(Map.of(GooTypes.FROST, 750)));
 
         assertEquals(2152, totals.get(GooTypes.ROCK));
         assertEquals(1000, totals.get(GooTypes.FROST));
