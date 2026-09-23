@@ -43,7 +43,7 @@ class ProgramHostLoadTest {
 
         program.tick(host);
 
-        verify(host).damageTarget(8f, DamageKind.MAGIC);
+        verify(host).damageTarget(8f, DamageKind.MAGIC, true);
         assertFalse(program.isActive());
     }
 
@@ -55,7 +55,7 @@ class ProgramHostLoadTest {
 
         program.tick(host);
 
-        verify(host).damageTarget(10f, DamageKind.FREEZE);
+        verify(host).damageTarget(10f, DamageKind.FREEZE, true);
     }
 
     @Test

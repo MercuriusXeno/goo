@@ -76,7 +76,7 @@ public final class ProgramBehavior implements ChainBehavior {
     private static void refuseUnservedStep(Step step, HostKind kind) {
         refuseMissingCapabilities(step, kind);
         refuseUnboundVariables(step, kind);
-        step.children().forEach(child -> refuseUnservedStep(child, kind));
+        step.hostedChildren(kind).forEach(child -> refuseUnservedStep(child.step(), child.host()));
     }
 
     /**
@@ -168,6 +168,11 @@ public final class ProgramBehavior implements ChainBehavior {
     @Override
     public boolean isActive() {
         return stepIndex < steps.size();
+    }
+
+    @Override
+    public boolean allowsTopOff() {
+        return isActive() && steps.get(stepIndex).allowsTopOff();
     }
 
     @Override

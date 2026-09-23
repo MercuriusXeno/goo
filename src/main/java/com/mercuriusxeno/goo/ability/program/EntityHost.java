@@ -116,8 +116,33 @@ public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entit
     }
 
     @Override
-    public void damageTarget(float amount, DamageKind source) {
+    public void forEntity(int entityId, Consumer<StepHost> body) {
+        if (level.getEntity(entityId) instanceof LivingEntity living && living.isAlive()) {
+            body.accept(new EntityHost(level, living, thrower));
+        }
+    }
+
+    @Override
+    public int targetId() {
+        return target.getId();
+    }
+
+    @Override
+    public Vec3 targetCenter() {
+        return target.getBoundingBox().getCenter();
+    }
+
+    @Override
+    public FieldEffectState fieldEffect() {
+        throw HostCapability.FIELD_EFFECT.refusedBy(kind());
+    }
+
+    @Override
+    public void damageTarget(float amount, DamageKind source, boolean knockback) {
         target.hurtServer(level, damageSource(source), amount);
+        if (!knockback) {
+            target.hurtMarked = false;
+        }
     }
 
     @Override
