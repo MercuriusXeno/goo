@@ -9,7 +9,7 @@ import com.mercuriusxeno.goo.ability.program.EntityHost;
 import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
-import com.mercuriusxeno.goo.ability.world.EffectBlockPlacement;
+import com.mercuriusxeno.goo.ability.world.AbilityImpact;
 import com.mercuriusxeno.goo.ability.world.WorldEffects;
 import com.mercuriusxeno.goo.registry.GooSounds;
 import net.minecraft.core.BlockPos;
@@ -249,9 +249,6 @@ final class BlobEffectScheduler {
     static void applyBlockEffect(PendingEffect pe) {
         BlockPos pos = pe.targetPos;
         playImpactSound(pe.level, pos.getX() + BLOCK_CENTER, pos.getY() + BLOCK_CENTER, pos.getZ() + BLOCK_CENTER);
-        if (WorldEffects.tryAbsorbAtTarget(pe.level, pe.targetPos, pe.gooType, pe.targetFace)) {
-            return;
-        }
         if (pe.abilityId.isEmpty()) {
             WorldEffects.apply(pe.level, pe.targetPos, pe.gooType, pe.targetFace);
         } else {
@@ -260,7 +257,8 @@ final class BlobEffectScheduler {
     }
 
     /**
-     * Places or stacks a chain marker using a data-driven ability definition.
+     * Lands the blob through the ability it names: growing a block the
+     * ability places, or placing or stacking its chain marker.
      *
      * @param pe the pending effect with ability id set
      */
@@ -273,8 +271,7 @@ final class BlobEffectScheduler {
         if (def == null) {
             return;
         }
-        EffectBlockPlacement.placeOrStackAbility(
-                pe.level, pe.targetPos, pe.gooType, pe.targetFace, def);
+        AbilityImpact.land(pe.level, pe.targetPos, pe.gooType, pe.targetFace, def);
     }
 
     /**
