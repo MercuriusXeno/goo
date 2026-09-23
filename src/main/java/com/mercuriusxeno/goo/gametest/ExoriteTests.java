@@ -217,6 +217,26 @@ public final class ExoriteTests {
         helper.succeed();
     }
 
+    /**
+     * The goo gauntlet, the exorite template and exorite smith the exo
+     * gauntlet; the netherite template with the same base and addition
+     * matches nothing (decision exo-gauntlet-smithed-with-exorite).
+     *
+     * @param helper the gametest helper
+     */
+    public static void exoGauntletSmithing(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        ItemStack gauntlet = new ItemStack(GooItems.GOO_GAUNTLET.get());
+        ItemStack exorite = new ItemStack(GooItems.EXORITE.get());
+        ItemStack upgraded = smith(level, new SmithingRecipeInput(
+                new ItemStack(GooItems.EXORITE_UPGRADE_SMITHING_TEMPLATE.get()), gauntlet, exorite));
+        helper.assertTrue(upgraded.is(GooItems.EXO_GAUNTLET.get()), NOT_SMITHED + GooItems.EXO_GAUNTLET.getId());
+        ItemStack refused = smith(level, new SmithingRecipeInput(
+                new ItemStack(Items.NETHERITE_UPGRADE_SMITHING_TEMPLATE), gauntlet, exorite));
+        helper.assertTrue(refused.isEmpty(), NETHERITE_TEMPLATE_SMITHED + GooItems.EXO_GAUNTLET.getId());
+        helper.succeed();
+    }
+
     private static Item netheriteCounterpart(DeferredItem<? extends Item> piece) {
         String slot = piece.getId().getPath().substring(EXORITE_PREFIX.length());
         return BuiltInRegistries.ITEM.getValue(Identifier.withDefaultNamespace(NETHERITE_PREFIX + slot));

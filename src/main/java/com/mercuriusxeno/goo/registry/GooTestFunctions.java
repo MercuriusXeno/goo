@@ -48,6 +48,8 @@ public final class GooTestFunctions {
     private static final String EXORITE_ANVIL_REPAIR = "exorite_anvil_repair";
     private static final String SOUL_BOUND_TAG_HOLDS_EXORITE = "soul_bound_tag_holds_exorite";
     private static final String SOUL_BOUND_SURVIVES_DEATH = "soul_bound_survives_death";
+    private static final String EXO_GAUNTLET_SMITHING = "exo_gauntlet_smithing";
+    private static final String EXO_GAUNTLET_KEEPS_BENEFITS = "exo_gauntlet_keeps_benefits";
 
     // --- GasketPusher ---
     private static final String PUSHER_EMPTY_RESERVOIR = "pusher_empty_reservoir";
@@ -228,6 +230,8 @@ public final class GooTestFunctions {
         reg(r, EXORITE_ANVIL_REPAIR, ExoriteDurabilityTests::anvilRepair);
         reg(r, SOUL_BOUND_TAG_HOLDS_EXORITE, SoulBoundTests::tagHoldsExorite);
         reg(r, SOUL_BOUND_SURVIVES_DEATH, SoulBoundTests::survivesDeath);
+        reg(r, EXO_GAUNTLET_SMITHING, ExoriteTests::exoGauntletSmithing);
+        reg(r, EXO_GAUNTLET_KEEPS_BENEFITS, GooItemTests::exoGauntletKeepsBenefits);
     }
 
     private static void registerGasketTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {

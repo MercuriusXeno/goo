@@ -12,14 +12,17 @@ import com.mercuriusxeno.goo.registry.GooDataComponents;
 import com.mercuriusxeno.goo.registry.GooItems;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.DamageResistant;
 import net.minecraft.world.level.block.Blocks;
 import java.util.Collection;
 import java.util.Objects;
@@ -52,6 +55,7 @@ public final class GooItemTests {
     private static final String BLOB_NOT_SPENT = "Throwing should spend the blob of the thrown type: ";
     private static final String NO_MARKER = "Thrown blob should land a chain marker beside the wall at ";
     private static final String WRONG_MARKER_TYPE = "Chain marker should carry the thrown blob's type at ";
+    private static final String EXO_NOT_FIRE_RESISTANT = "A fresh exo gauntlet should resist fire damage";
     private static final String TAB_LACKS_BLOB = "Creative tab should offer a blob of the datapack type";
     private static final String TAB_LACKS_OMNIBLOB = "Creative tab should offer an omniblob of the datapack type";
     private static final String TAB_LACKS_BUCKET = "Creative tab should offer a bucket of the datapack type";
@@ -66,14 +70,41 @@ public final class GooItemTests {
      *
      * @param helper the gametest helper
      */
-    @SuppressWarnings(REMOVAL) // vanilla marks the mock server player helper for removal and names no replacement
     public static void thrownBlobsLandOwnType(GameTestHelper helper) {
+        throwBlobsFrom(helper, GooItems.GOO_GLOVE.get());
+    }
+
+    /**
+     * The exo gauntlet keeps the goo gauntlet's benefits (decision
+     * exo-gauntlet-smithed-with-exorite): a fresh one resists fire, and a
+     * player holding it throws blobs that land their own type's chain
+     * markers the way the glove's do.
+     *
+     * @param helper the gametest helper
+     */
+    public static void exoGauntletKeepsBenefits(GameTestHelper helper) {
+        DamageResistant resistant = new ItemStack(GooItems.EXO_GAUNTLET.get()).get(DataComponents.DAMAGE_RESISTANT);
+        helper.assertTrue(resistant != null && resistant.types().unwrapKey().filter(DamageTypeTags.IS_FIRE::equals).isPresent(), EXO_NOT_FIRE_RESISTANT);
+        throwBlobsFrom(helper, GooItems.EXO_GAUNTLET.get());
+    }
+
+    /**
+     * A mock player holding the thrower throws one blaze and one rock blob,
+     * each at its own stone wall, then leaves the level once the markers are
+     * read, so a later thrower's tracking broadcast never reaches its mock
+     * connection, which never negotiated the mod's channels.
+     *
+     * @param helper  the gametest helper
+     * @param thrower the glove or gauntlet the player holds
+     */
+    @SuppressWarnings(REMOVAL) // vanilla marks the mock server player helper for removal and names no replacement
+    private static void throwBlobsFrom(GameTestHelper helper, Item thrower) {
         helper.setBlock(BLAZE_WALL, Blocks.STONE);
         helper.setBlock(ROCK_WALL, Blocks.STONE);
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         BlockPos stand = helper.absolutePos(PLAYER_POS);
         player.setPos(stand.getX(), stand.getY(), stand.getZ());
-        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.GOO_GLOVE.get()));
+        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(thrower));
         ItemStack blaze = BlobStacks.createBlobStack(GooTypes.BLAZE, 1);
         ItemStack rock = BlobStacks.createBlobStack(GooTypes.ROCK, 1);
         player.getInventory().add(blaze);
@@ -87,6 +118,7 @@ public final class GooItemTests {
         helper.runAfterDelay(ARRIVAL_TICKS, () -> {
             assertMarker(helper, BLAZE_WALL.relative(THROW_FACE), GooTypes.BLAZE);
             assertMarker(helper, ROCK_WALL.relative(THROW_FACE), GooTypes.ROCK);
+            helper.getLevel().getServer().getPlayerList().remove(player);
             helper.succeed();
         });
     }
