@@ -33,7 +33,12 @@ public class GooItems {
             props -> new GooBucketItem(GooFluids.SOURCE.get(), props.craftRemainder(Items.BUCKET).stacksTo(1)));
     // --- Block items ---
     public static final DeferredItem<BlockItem> CRUCIBLE = ITEMS.registerSimpleBlockItem("crucible", GooBlocks.CRUCIBLE);
-    public static final DeferredItem<BlockItem> HUB = ITEMS.registerSimpleBlockItem("hub", GooBlocks.HUB);
+    /**
+     * Stacks to 1: HUB_CANISTERS covers the whole stack, so goo routed into a
+     * stack of hubs would copy onto every hub in it (decision hub-item-blob-insert).
+     */
+    public static final DeferredItem<HubBlockItem> HUB = ITEMS.registerItem("hub",
+            props -> new HubBlockItem(GooBlocks.HUB.get(), props.stacksTo(1).useBlockDescriptionPrefix()));
     public static final DeferredItem<BlockItem> PLEXER = ITEMS.registerSimpleBlockItem("plexer", GooBlocks.PLEXER);
     public static final DeferredItem<BlockItem> REACTOR = ITEMS.registerSimpleBlockItem("reactor", GooBlocks.REACTOR);
     public static final DeferredItem<VatBlockItem> VAT = ITEMS.registerItem("vat",
