@@ -101,6 +101,9 @@ public final class GooTestFunctions {
     private static final String IX_HUB_PICKUP = "ix_hub_canister_pickup";
     private static final String IX_PLEXER_TARGET = "ix_plexer_set_target";
     private static final String IX_CRUCIBLE_FUEL = "ix_crucible_fuel_insert";
+    private static final String IX_HUB_ITEM_BLOB_INSERT = "ix_hub_item_blob_insert";
+    private static final String IX_HUB_ITEM_OMNIBLOB_INSERT = "ix_hub_item_omniblob_insert";
+    private static final String IX_HUB_ITEM_INSERT_REFUSED = "ix_hub_item_insert_refused";
 
     // --- Machines ---
     private static final String MACHINE_CANISTER_INSERT = "machine_canister_insert";
@@ -247,6 +250,9 @@ public final class GooTestFunctions {
         reg(r, IX_HUB_PICKUP, MachineInteractionTests::hubCanisterPickup);
         reg(r, IX_PLEXER_TARGET, MachineInteractionTests::plexerSetTarget);
         reg(r, IX_CRUCIBLE_FUEL, MachineInteractionTests::crucibleFuelInsert);
+        reg(r, IX_HUB_ITEM_BLOB_INSERT, HubItemClickTests::blobInsertFillsCanisterAndPlaces);
+        reg(r, IX_HUB_ITEM_OMNIBLOB_INSERT, HubItemClickTests::omniblobInsertKeepsRemainder);
+        reg(r, IX_HUB_ITEM_INSERT_REFUSED, HubItemClickTests::insertRefusedLeavesStacks);
     }
 
     private static void registerCrucibleTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
