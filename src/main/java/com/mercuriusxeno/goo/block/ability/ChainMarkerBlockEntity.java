@@ -261,21 +261,20 @@ public class ChainMarkerBlockEntity extends BlockEntity {
     }
 
     /**
-     * Restores full state after a fall re-placement. Called by
+     * Restores the state a marker carried through a fall. Called by
      * {@link ChainMarkerFallScheduler} after the flight animation completes.
      *
-     * @param stacks the snapshotted stack count
-     * @param max    the snapshotted max stacks
-     * @param fuse   the snapshotted fuse remaining
-     * @param shape  the snapshotted blob shape
-     * @param area   the snapshotted area mode
+     * @param snapshot the state taken when the support broke
      */
-    public void restoreFromFall(int stacks, int max, int fuse, String shape, String area) {
-        this.stackCount = stacks;
-        this.maxStacks = max;
-        this.fuseRemaining = fuse;
-        this.blobShape = shape;
-        this.areaMode = area;
+    public void restoreFromFall(ChainMarkerSnapshot snapshot) {
+        this.gooType = snapshot.gooType();
+        this.abilityId = snapshot.abilityId();
+        this.placedFace = snapshot.face();
+        this.stackCount = snapshot.stackCount();
+        this.maxStacks = snapshot.maxStacks();
+        this.fuseRemaining = snapshot.fuse();
+        this.blobShape = snapshot.blobShape();
+        this.areaMode = snapshot.areaMode();
         setChanged();
         syncToClient();
     }
@@ -519,6 +518,15 @@ public class ChainMarkerBlockEntity extends BlockEntity {
      */
     public ResourceKey<GooTypeDefinition> getGooType() {
         return gooType;
+    }
+
+    /**
+     * Returns the id of the ability this marker runs at fuse expiry.
+     *
+     * @return the ability id
+     */
+    public String getAbilityId() {
+        return abilityId;
     }
 
     /**

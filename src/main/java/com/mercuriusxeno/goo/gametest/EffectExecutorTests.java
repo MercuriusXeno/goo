@@ -112,6 +112,18 @@ public final class EffectExecutorTests {
     private static final String HOLE_DROPPED_EARLY = "The black hole dropped items before it contracted";
     private static final String HOLE_DROPPED_NO_ROCK = "The black hole popped no rock blob for the stone it consumed";
 
+    /** The floor a falling marker lands on. */
+    private static final BlockPos FALL_FLOOR_POS = new BlockPos(3, 1, 3);
+    /** Where the falling marker lands: the air on top of the floor. */
+    private static final BlockPos FALL_LANDING_POS = FALL_FLOOR_POS.above();
+    /** The support the test breaks from under the marker. */
+    private static final BlockPos FALL_SUPPORT_POS = FALL_LANDING_POS.above();
+    /** Where the marker stands before its support breaks. */
+    private static final BlockPos FALL_START_POS = FALL_SUPPORT_POS.above();
+    /** Ticks after the support breaks by which a two-block fall has landed, well inside the fuse. */
+    private static final int FALL_LANDED_TICKS = 10;
+    private static final String FALL_ABILITY_LOST = "The fallen marker lost its ability id";
+
     private EffectExecutorTests() {}
 
     /**
@@ -331,6 +343,31 @@ public final class EffectExecutorTests {
      */
     public static void programGlowFloor(GameTestHelper helper) {
         glowCrystalCase(helper, Direction.UP, initGlowAbility(helper));
+    }
+
+    /**
+     * A glow_crystal marker whose support breaks mid-fuse falls to the
+     * floor below, lands carrying its ability id, and places the glow
+     * crystal there when its fuse runs (decision no-throw-without-ability).
+     *
+     * @param helper the gametest helper
+     */
+    public static void fallenMarkerKeepsAbility(GameTestHelper helper) {
+        helper.setBlock(FALL_FLOOR_POS, Blocks.STONE);
+        helper.setBlock(FALL_SUPPORT_POS, Blocks.STONE);
+        helper.setBlock(FALL_START_POS, GooBlocks.CHAIN_MARKER.get());
+        ChainMarkerBlockEntity marker = helper.getBlockEntity(FALL_START_POS, ChainMarkerBlockEntity.class);
+        initGlowAbility(helper).accept(marker, Direction.UP);
+        helper.setBlock(FALL_SUPPORT_POS, Blocks.AIR);
+        helper.runAfterDelay(FALL_LANDED_TICKS, () -> {
+            ChainMarkerBlockEntity landed = helper.getBlockEntity(FALL_LANDING_POS, ChainMarkerBlockEntity.class);
+            helper.assertTrue(ABILITY_GLOW_CRYSTAL.equals(landed.getAbilityId()), FALL_ABILITY_LOST);
+        });
+        helper.runAfterDelay(FUSE_TICKS + SHORT_POST_FUSE, () -> {
+            helper.assertBlockPresent(GooBlocks.GLOW_CRYSTAL.get(), FALL_LANDING_POS);
+            helper.assertBlockProperty(FALL_LANDING_POS, GlowCrystalBlock.FACING, Direction.UP);
+            helper.succeed();
+        });
     }
 
     // --- Data-driven ability path ---
