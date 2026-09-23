@@ -184,7 +184,7 @@ class MobProgramTest {
         run("frost_snap", host);
 
         InOrder order = inOrder(host);
-        order.verify(host).damageTarget(SNAP_DAMAGE, DamageKind.FREEZE);
+        order.verify(host).damageTarget(SNAP_DAMAGE, DamageKind.FREEZE, true);
         order.verify(host).addTargetFreezeTicks(FULL_FREEZE);
         order.verify(host).applyPotion(Identifier.parse(SLOWNESS), SNAP_SLOW_DURATION, SNAP_SLOW_AMPLIFIER, true);
     }
@@ -254,7 +254,7 @@ class MobProgramTest {
 
         InOrder order = inOrder(host);
         order.verify(host).applyPotion(Identifier.parse(SLOWNESS), PETRIFY_DURATION, PETRIFY_AMPLIFIER, true);
-        order.verify(host).damageTarget((float) COW_HEALTH, DamageKind.MAGIC);
+        order.verify(host).damageTarget((float) COW_HEALTH, DamageKind.MAGIC, true);
         order.verify(host).dropItemAtTarget(eq(Identifier.parse(COBBLESTONE)),
                 intThat(count -> count >= 1 && count <= CRUSH_DROP_MAX));
     }
@@ -286,7 +286,7 @@ class MobProgramTest {
         run("glow_laser", host);
 
         InOrder order = inOrder(host);
-        order.verify(host).damageTarget(LASER_DAMAGE, DamageKind.MAGIC);
+        order.verify(host).damageTarget(LASER_DAMAGE, DamageKind.MAGIC, true);
         order.verify(host).spawnParticles(FxAnchor.TARGET, new ParticleBurst(Identifier.parse(CRIT),
                 CRIT_COUNT, CRIT_SPREAD, CRIT_SPREAD, CRIT_SPEED, 0));
         order.verify(host).applyPotion(Identifier.parse(GLOWING), LASER_GLOW_DURATION, 0, true);
@@ -303,7 +303,7 @@ class MobProgramTest {
         run("glow_laser", host);
 
         InOrder order = inOrder(host);
-        order.verify(host).damageTarget(LASER_DAMAGE * 2, DamageKind.MAGIC);
+        order.verify(host).damageTarget(LASER_DAMAGE * 2, DamageKind.MAGIC, true);
         order.verify(host).igniteTarget(LASER_IGNITE_SECONDS);
         verify(host, never()).applyPotion(any(), anyInt(), anyInt(), anyBoolean());
     }
@@ -320,11 +320,11 @@ class MobProgramTest {
         run("crystal_flechettes", host);
 
         InOrder order = inOrder(host, bystander);
-        order.verify(host).damageTarget(FLECHETTE_DAMAGE, DamageKind.MAGIC);
-        order.verify(bystander).damageTarget(SPLASH_DAMAGE, DamageKind.MAGIC);
+        order.verify(host).damageTarget(FLECHETTE_DAMAGE, DamageKind.MAGIC, true);
+        order.verify(bystander).damageTarget(SPLASH_DAMAGE, DamageKind.MAGIC, true);
         order.verify(host).spawnParticles(FxAnchor.TARGET, new ParticleBurst(Identifier.parse(DAMAGE_INDICATOR),
                 INDICATOR_COUNT, INDICATOR_SPREAD_ALONG, INDICATOR_SPREAD_ACROSS, 0, 0));
-        verify(host, never()).damageTarget(SPLASH_DAMAGE, DamageKind.MAGIC);
+        verify(host, never()).damageTarget(SPLASH_DAMAGE, DamageKind.MAGIC, true);
     }
 
     @Test

@@ -67,8 +67,8 @@ public final class WorldEffects {
     private static Map<ResourceKey<GooTypeDefinition>, WorldEffect> buildRegistry() {
         return new HashMap<>(Map.ofEntries(
                 entry(GooTypes.ROCK, new RockBehavior()), entry(GooTypes.BLAZE, new BlazeBehavior()),
-                entry(GooTypes.FROST, new FrostBehavior()), entry(GooTypes.METAL, new MetalBehavior()),
-                entry(GooTypes.CRYSTAL, new CrystalBehavior()), entry(GooTypes.HEX, new HexEffect()),
+                entry(GooTypes.FROST, new FrostBehavior()), entry(GooTypes.METAL, new MetalEffect()),
+                entry(GooTypes.CRYSTAL, new CrystalEffect()), entry(GooTypes.HEX, new HexEffect()),
                 entry(GooTypes.LEAF, new LeafEffect()), entry(GooTypes.VITAL, new VitalEffect()),
                 entry(GooTypes.SHROOM, new ShroomEffect()), entry(GooTypes.TYPHOON, new TyphoonEffect()),
                 entry(GooTypes.GLOW, new GlowBehavior()), entry(GooTypes.PULSE, new PulseEffect()),

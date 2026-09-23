@@ -55,4 +55,40 @@ public interface Step {
     default Stream<Step> children() {
         return Stream.empty();
     }
+
+    /**
+     * Streams each child step with the host kind it runs on, which the
+     * load check holds it to. A container running its children on its own
+     * host keeps this default; one handing them a host bound to a selected
+     * entity names that host's kind.
+     *
+     * @param host the kind of host this step runs on
+     * @return each child with its host kind
+     */
+    default Stream<HostedStep> hostedChildren(HostKind host) {
+        return children().map(child -> new HostedStep(child, host));
+    }
+
+    /**
+     * Streams each expression with the host kind whose variables it reads,
+     * which the load check holds it to. A step evaluating every expression
+     * on its own host keeps this default; one evaluating an expression on
+     * a selected entity names that host's kind.
+     *
+     * @param host the kind of host this step runs on
+     * @return each expression with its host kind
+     */
+    default Stream<HostedExpr> hostedExpressions(HostKind host) {
+        return expressions().map(expr -> new HostedExpr(expr, host));
+    }
+
+    /**
+     * Answers whether the marker may take more blobs while this step runs;
+     * a field effect tops its budget off this way.
+     *
+     * @return true when stacking after the fuse is allowed
+     */
+    default boolean allowsTopOff() {
+        return false;
+    }
 }

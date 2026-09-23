@@ -9,6 +9,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.properties.Property;
@@ -86,11 +87,39 @@ public record MarkerHost(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity
     @Override
     public void forEachEntityWithin(SelectionShape shape, double radius, Set<EntityFilter> filters,
                                     Consumer<StepHost> body) {
+        EntityScan.forEachLivingWithin(level, Vec3.atCenterOf(pos), shape, radius, filters, null,
+                living -> body.accept(new EntityHost(level, living, null)));
+    }
+
+    @Override
+    public void forEntity(int entityId, Consumer<StepHost> body) {
+        if (level.getEntity(entityId) instanceof LivingEntity living && living.isAlive()) {
+            body.accept(new EntityHost(level, living, null));
+        }
+    }
+
+    @Override
+    public int targetId() {
         throw HostCapability.TARGET.refusedBy(kind());
     }
 
     @Override
-    public void damageTarget(float amount, DamageKind source) {
+    public Vec3 targetCenter() {
+        throw HostCapability.TARGET.refusedBy(kind());
+    }
+
+    @Override
+    public FieldEffectState fieldEffect() {
+        return be.getFieldEffect();
+    }
+
+    @Override
+    public void damageTarget(float amount, DamageKind source, boolean knockback) {
+        throw HostCapability.TARGET.refusedBy(kind());
+    }
+
+    @Override
+    public void setTargetHurtCooldown(int ticks) {
         throw HostCapability.TARGET.refusedBy(kind());
     }
 

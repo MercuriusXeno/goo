@@ -1,7 +1,8 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.ability.ChainBehaviors;
-import com.mercuriusxeno.goo.ability.world.CrystalBehavior;
+import com.mercuriusxeno.goo.GooTypes;
+import com.mercuriusxeno.goo.ability.program.FieldEffectState;
+import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.ber.ChainMarkerRenderState;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -23,11 +24,13 @@ import java.util.Random;
  * Renders the crystal shard cloud as scattered glass splinters floating
  * in air within the cloud volume. Each sliver is a thin elongated quad
  * at a random position and orientation. Some tumble slowly, most are still.
+ * The cloud's radius, its expand and contract fraction and its charge
+ * density come from the crystal_cloud field effect's
+ * {@link FieldEffectState} on the marker.
  */
 public final class CrystalCloudVisual {
 
     private static final float BLOCK_CENTER = 0.5f;
-    private static final float CLOUD_RADIUS = (float) CrystalBehavior.CLOUD_RADIUS;
 
     /**
      * Total slivers at full charge.
@@ -203,19 +206,21 @@ public final class CrystalCloudVisual {
      * @param be    the chain marker block entity
      * @param state the render state to populate
      */
-    public static void extract(com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity be,
-                               ChainMarkerRenderState state) {
-        CrystalBehavior crystal = ChainBehaviors.findFirst(be.getBehavior(), CrystalBehavior.class);
-        if (crystal != null && (crystal.getDensity() > 0f || crystal.isAnimating())) {
+    public static void extract(ChainMarkerBlockEntity be, ChainMarkerRenderState state) {
+        FieldEffectState field = be.getFieldEffect();
+        boolean crystal = GooTypes.CRYSTAL.equals(be.getGooType()) && be.getBehavior() != null;
+        if (crystal && (field.density() > 0f || field.isAnimating())) {
             state.crystalActive = true;
-            state.crystalDensity = crystal.getDensity();
-            state.crystalRadiusFraction = crystal.getRadiusFraction();
+            state.crystalDensity = field.density();
+            state.crystalRadiusFraction = field.radiusFraction();
+            state.crystalRadius = field.radius();
             long gameTime = be.getLevel() != null ? be.getLevel().getGameTime() : 0L;
             state.crystalAnimationTime = gameTime;
         } else {
             state.crystalActive = false;
             state.crystalDensity = 0f;
             state.crystalRadiusFraction = 0f;
+            state.crystalRadius = 0f;
             state.crystalAnimationTime = 0f;
         }
     }
@@ -244,7 +249,7 @@ public final class CrystalCloudVisual {
         int alpha = (int) (BASE_ALPHA * Math.max(density, MIN_DENSITY_FLOOR) * radiusFrac * BYTE_SCALE);
         int visibleCount = Math.max(1, (int) (MAX_SLIVERS * Math.max(density, radiusFrac)));
         float time = state.crystalAnimationTime;
-        float radius = CLOUD_RADIUS * radiusFrac;
+        float radius = state.crystalRadius * radiusFrac;
 
         nodeCollector.submitCustomGeometry(poseStack, GooRenderTypes.CRYSTAL_SHARD_TYPE,
                 (pose, c) -> {

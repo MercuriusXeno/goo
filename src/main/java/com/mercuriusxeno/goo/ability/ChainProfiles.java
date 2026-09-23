@@ -41,6 +41,8 @@ public final class ChainProfiles {
     private static final Identifier ROCK_TUNNEL_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "rock_tunnel");
     private static final Identifier BLAZE_TUNNEL_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "blaze_tunnel");
     private static final Identifier FROST_SPHERE_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "frost_sphere");
+    private static final Identifier METAL_SPIKES_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "metal_spikes");
+    private static final Identifier CRYSTAL_CLOUD_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "crystal_cloud");
 
     private ChainProfiles() {
     }
@@ -88,14 +90,16 @@ public final class ChainProfiles {
     }
 
     /**
-     * Registers the crystal chain profile.
+     * Registers the crystal chain profile. Legacy non-ability path
+     * (no abilityId selected) runs the {@code crystal_cloud} ability's
+     * field-effect program.
      */
     private static void registerCrystal() {
         ChainProfile.register(GooTypes.CRYSTAL, new ChainProfile(
                 CRYSTAL_FUSE_TICKS,
                 CRYSTAL_MAX_STACKS,
                 stacks -> 1,
-                CrystalBehavior::new
+                () -> abilityBehavior(CRYSTAL_CLOUD_ABILITY)
         ));
     }
 
@@ -126,14 +130,16 @@ public final class ChainProfiles {
     }
 
     /**
-     * Registers the metal chain profile.
+     * Registers the metal chain profile. Legacy non-ability path
+     * (no abilityId selected) runs the {@code metal_spikes} ability's
+     * field-effect program.
      */
     private static void registerMetal() {
         ChainProfile.register(GooTypes.METAL, new ChainProfile(
                 METAL_FUSE_TICKS,
                 METAL_MAX_STACKS,
                 stacks -> 1,
-                MetalBehavior::new
+                () -> abilityBehavior(METAL_SPIKES_ABILITY)
         ));
     }
 

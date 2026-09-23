@@ -13,7 +13,21 @@
   },
   "behaviors": [
     {
-      "type": "crystal_cloud"
+      "type": "program",
+      "steps": [
+        {
+          "type": "field_effect",
+          "radius": 4.5,
+          "where": ["living", "not_item", "not_sneaking", "moving"],
+          "interval": "2 - sprinting",
+          "per_stack": 8,
+          "expand_ticks": 10,
+          "contract_ticks": 10,
+          "strike": [
+            { "type": "damage", "amount": 1, "source": "cactus", "invulnerable_ticks": 1 }
+          ]
+        }
+      ]
     }
   ],
   "tags": ["field_effect", "zone"]

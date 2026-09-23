@@ -6,6 +6,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
@@ -27,6 +28,7 @@ import java.util.function.Consumer;
 final class EntityScan {
 
     private static final int DIAMETER_PER_RADIUS = 2;
+    private static final double REST_SPEED_SQUARED = 1e-4;
     private static final String ERR_UNMEANT_FILTER = "EntityScan gives no meaning to filter ";
     private static final Map<EntityFilter, BiPredicate<Entity, @Nullable Entity>> MEANINGS = meanings();
 
@@ -144,12 +146,27 @@ final class EntityScan {
                 (entity, self) -> entity instanceof LivingEntity living && living.isInvertedHealAndHarm());
         table.put(EntityFilter.ALIVE, (entity, self) -> entity.isAlive());
         table.put(EntityFilter.NOT_TARGET, (entity, self) -> entity != self);
+        table.put(EntityFilter.NOT_SNEAKING,
+                (entity, self) -> !(entity instanceof Player player && player.isShiftKeyDown()));
+        table.put(EntityFilter.MOVING, (entity, self) -> isMovingHorizontally(entity));
         for (EntityFilter filter : EntityFilter.values()) {
             if (!table.containsKey(filter)) {
                 throw new IllegalStateException(ERR_UNMEANT_FILTER + filter);
             }
         }
         return table;
+    }
+
+    /**
+     * Tests whether the entity moves horizontally above rest; the vertical
+     * axis is left out since gravity gives a standing entity a vertical delta.
+     *
+     * @param entity the candidate
+     * @return true when the horizontal speed squared passes the rest threshold
+     */
+    private static boolean isMovingHorizontally(Entity entity) {
+        Vec3 delta = entity.getDeltaMovement();
+        return delta.x() * delta.x() + delta.z() * delta.z() > REST_SPEED_SQUARED;
     }
 
     /**

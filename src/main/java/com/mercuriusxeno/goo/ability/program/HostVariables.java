@@ -35,6 +35,10 @@ public final class HostVariables {
      * zero otherwise.
      */
     public static final String UNDEAD = "undead";
+    /**
+     * One when the target is a sprinting player, zero otherwise.
+     */
+    public static final String SPRINTING = "sprinting";
 
     private HostVariables() {
     }

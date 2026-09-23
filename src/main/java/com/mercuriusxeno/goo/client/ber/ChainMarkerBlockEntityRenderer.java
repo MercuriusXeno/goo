@@ -143,7 +143,7 @@ public class ChainMarkerBlockEntityRenderer
             CrystalCloudVisual.submit(state, poseStack, nodeCollector);
         }
         GhostMineVisual.submit(state, poseStack, nodeCollector);
-        if (state.metalActive && !state.spikeAnims.isEmpty()) {
+        if (!state.spikeAnims.isEmpty()) {
             MetalSpikeVisual.submit(state, poseStack, nodeCollector);
         }
     }

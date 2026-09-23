@@ -41,7 +41,13 @@ public enum HostCapability {
      * Blocks around the anchor the host strikes layer by layer, with the
      * layer fx and the mined-layer count its renderer reads.
      */
-    LAYER_WALK;
+    LAYER_WALK,
+    /**
+     * A field-effect state the host keeps across ticks and its renderer
+     * reads: the strikes in flight, the strike cooldown and the charges
+     * spent on the current stack.
+     */
+    FIELD_EFFECT;
 
     private static final String ERR_REFUSED = "Capability %s is not provided by the %s host";
 

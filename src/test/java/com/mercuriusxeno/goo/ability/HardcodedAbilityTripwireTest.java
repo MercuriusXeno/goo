@@ -34,8 +34,6 @@ class HardcodedAbilityTripwireTest {
      * type here in the commit that deletes the Java behind it.
      */
     private static final Set<String> NOT_YET_MIGRATED = Set.of(
-            "metal_spikes",
-            "crystal_cloud",
             "black_hole");
 
     private static final String ABILITIES_DIR = "data/goo/goo_abilities";
