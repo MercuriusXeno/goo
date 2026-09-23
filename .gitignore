@@ -29,3 +29,6 @@ runs/
 logs/
 __pycache__/
 net/
+.fleetview.json
+.gate/
+gate.ps1
