@@ -43,6 +43,8 @@ public final class ChainProfiles {
     private static final Identifier FROST_SPHERE_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "frost_sphere");
     private static final Identifier METAL_SPIKES_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "metal_spikes");
     private static final Identifier CRYSTAL_CLOUD_ABILITY = Identifier.fromNamespaceAndPath(Goo.MODID, "crystal_cloud");
+    private static final Identifier NETHER_BLACK_HOLE_ABILITY =
+            Identifier.fromNamespaceAndPath(Goo.MODID, "nether_black_hole");
 
     private ChainProfiles() {
     }
@@ -170,14 +172,16 @@ public final class ChainProfiles {
     }
 
     /**
-     * Registers the nether chain profile.
+     * Registers the nether chain profile. Legacy non-ability path
+     * (no abilityId selected) runs the {@code nether_black_hole} ability's
+     * phased program.
      */
     private static void registerNether() {
         ChainProfile.register(GooTypes.NETHER, new ChainProfile(
                 NETHER_FUSE_TICKS,
                 NETHER_MAX_STACKS,
                 AbilityMath::computeNetherRadius,
-                NetherBehavior::new
+                () -> abilityBehavior(NETHER_BLACK_HOLE_ABILITY)
         ));
     }
 

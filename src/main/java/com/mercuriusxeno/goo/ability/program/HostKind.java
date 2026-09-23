@@ -10,13 +10,15 @@ public enum HostKind {
     /**
      * The chain marker block: stacks, a placed face, a tick driver, the
      * world around the block, the block position itself to write, and
-     * the blocks around it to strike layer by layer, and the field-effect
-     * state a trap keeps while its budget lasts.
+     * the blocks around it to strike layer by layer, the field-effect
+     * state a trap keeps while its budget lasts, the phase cursor of a
+     * phased step, and the goo a black hole consumes until it pops.
      */
     MARKER("marker block",
             Set.of(HostCapability.STACKS, HostCapability.PLACED_FACE, HostCapability.TICKING,
                     HostCapability.EXPLODE, HostCapability.ENTITY_SCAN, HostCapability.PLACE_BLOCK,
-                    HostCapability.LAYER_WALK, HostCapability.FIELD_EFFECT),
+                    HostCapability.LAYER_WALK, HostCapability.FIELD_EFFECT, HostCapability.PHASED,
+                    HostCapability.CONSUMED_GOO),
             Set.of(HostVariables.STACKS, HostVariables.MAX_STACKS, HostVariables.FLAT)),
     /**
      * The struck living entity: a target and its thrower, acted on in the

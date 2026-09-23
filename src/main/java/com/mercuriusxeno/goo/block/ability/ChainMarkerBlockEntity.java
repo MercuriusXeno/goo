@@ -5,8 +5,10 @@ import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.*;
 import com.mercuriusxeno.goo.ability.ChainProfiles.ChainProfile;
 import com.mercuriusxeno.goo.ability.program.FieldEffectState;
+import com.mercuriusxeno.goo.ability.program.PhasedState;
 import com.mercuriusxeno.goo.ability.program.ProgressiveAreaStep;
 import com.mercuriusxeno.goo.block.BlockEntitySync;
+import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import net.minecraft.core.BlockPos;
@@ -54,6 +56,7 @@ public class ChainMarkerBlockEntity extends BlockEntity {
     private static final String TAG_LAST_STACK_TICK = "LastStackTick";
     private static final String TAG_ABILITY_ID = "AbilityId";
     private static final String TAG_MINED_LAYERS = "MinedLayers";
+    private static final String TAG_CONSUMED_GOO = "ConsumedGoo";
     /**
      * Default area mode for legacy profiles.
      */
@@ -99,6 +102,16 @@ public class ChainMarkerBlockEntity extends BlockEntity {
      * in flight, cooldown and charges spent, read back by the spike visual.
      */
     private final FieldEffectState fieldEffect = new FieldEffectState();
+    /**
+     * Phase cursor a running phased step keeps through the marker host,
+     * read back by the black-hole visual.
+     */
+    private final PhasedState phased = new PhasedState();
+    /**
+     * Goo a running black hole consumed from the blocks around it, dropped
+     * as blobs when it pops or when the marker is broken first.
+     */
+    private GooContents consumedGoo = GooContents.EMPTY;
     /**
      * Active post-fuse behavior; null during FUSE phase. Set at fuse
      * expiry when the profile has a behavior factory, and nulled out
@@ -359,6 +372,47 @@ public class ChainMarkerBlockEntity extends BlockEntity {
     }
 
     /**
+     * Returns the phase cursor a running phased step keeps on this marker;
+     * the phased step mutates it through the marker host each tick, and
+     * the active behavior's tick marks and syncs the entity afterwards.
+     *
+     * @return the live phased state
+     */
+    public PhasedState getPhased() {
+        return phased;
+    }
+
+    /**
+     * Returns the goo consumed from the blocks around this marker and not
+     * yet dropped.
+     *
+     * @return the consumed goo
+     */
+    public GooContents getConsumedGoo() {
+        return consumedGoo;
+    }
+
+    /**
+     * Adds goo consumed from the blocks around this marker to its total.
+     *
+     * @param consumed the goo just consumed
+     */
+    public void addConsumedGoo(GooContents consumed) {
+        consumedGoo = consumedGoo.mergeWith(consumed);
+    }
+
+    /**
+     * Empties the consumed goo total, handing back what it held.
+     *
+     * @return the goo consumed so far
+     */
+    public GooContents takeConsumedGoo() {
+        GooContents taken = consumedGoo;
+        consumedGoo = GooContents.EMPTY;
+        return taken;
+    }
+
+    /**
      * FUSE-phase tick: counts the fuse down and detonates on expiry.
      *
      * @param level the server level
@@ -547,6 +601,8 @@ public class ChainMarkerBlockEntity extends BlockEntity {
         abilityId = input.getStringOr(TAG_ABILITY_ID, NO_ABILITY);
         minedLayers = input.getIntOr(TAG_MINED_LAYERS, 0);
         fieldEffect.load(input);
+        phased.load(input);
+        consumedGoo = input.read(TAG_CONSUMED_GOO, GooContents.CODEC).orElse(GooContents.EMPTY);
     }
 
     /**
@@ -598,6 +654,10 @@ public class ChainMarkerBlockEntity extends BlockEntity {
         output.putString(TAG_ABILITY_ID, abilityId);
         output.putInt(TAG_MINED_LAYERS, minedLayers);
         fieldEffect.save(output);
+        phased.save(output);
+        if (!consumedGoo.isEmpty()) {
+            output.store(TAG_CONSUMED_GOO, GooContents.CODEC, consumedGoo);
+        }
         if (behavior != null) {
             behavior.saveAdditional(output);
         }

@@ -33,8 +33,7 @@ class HardcodedAbilityTripwireTest {
      * members: each migration thread under data-driven-goo deletes its own
      * type here in the commit that deletes the Java behind it.
      */
-    private static final Set<String> NOT_YET_MIGRATED = Set.of(
-            "black_hole");
+    private static final Set<String> NOT_YET_MIGRATED = Set.of();
 
     private static final String ABILITIES_DIR = "data/goo/goo_abilities";
     private static final String JSON_SUFFIX = ".json";
