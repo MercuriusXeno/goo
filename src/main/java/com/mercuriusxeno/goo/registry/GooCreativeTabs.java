@@ -47,6 +47,7 @@ public class GooCreativeTabs {
                 output.accept(GooItems.CHORAL_TUNER.get());
                 output.accept(GooItems.EXORITE.get());
                 output.accept(GooItems.EXORITE_UPGRADE_SMITHING_TEMPLATE.get());
+                output.accept(GooItems.EXORITE_BARS.get());
                 // Equipment
                 output.accept(GooItems.GOO_GLOVE.get());
                 output.accept(GooItems.GOO_GAUNTLET.get());
