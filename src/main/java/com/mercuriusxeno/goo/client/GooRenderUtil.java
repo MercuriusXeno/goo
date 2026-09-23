@@ -135,32 +135,6 @@ public final class GooRenderUtil {
         vertexColored(pose, c, light, OPAQUE_WHITE, x, y, z, u, v, nx, ny, nz);
     }
 
-    /**
-     * Emits a horizontal liquid surface quad with explicit ARGB color and upward normal.
-     *
-     * @param pose the pose matrix entry
-     * @param c the vertex consumer
-     * @param light the packed light value
-     * @param color the ARGB color value
-     * @param x0 the minimum X bound
-     * @param z0 the minimum Z bound
-     * @param x1 the maximum X bound
-     * @param z1 the maximum Z bound
-     * @param y the Y coordinate
-     * @param u0 the minimum U texture coordinate
-     * @param u1 the maximum U texture coordinate
-     * @param v0 the minimum V texture coordinate
-     * @param v1 the maximum V texture coordinate
-     */
-    public static void liquidSurface(PoseStack.Pose pose, VertexConsumer c,
-            int light, int color, float x0, float z0, float x1, float z1,
-            float y, float u0, float u1, float v0, float v1) {
-        vertexColored(pose, c, light, color, x0, y, z0, u0, v0, 0f, 1f, 0f);
-        vertexColored(pose, c, light, color, x0, y, z1, u0, v1, 0f, 1f, 0f);
-        vertexColored(pose, c, light, color, x1, y, z1, u1, v1, 0f, 1f, 0f);
-        vertexColored(pose, c, light, color, x1, y, z0, u1, v0, 0f, 1f, 0f);
-    }
-
     // -- Axis-aligned face helpers --
     // Each emits a quad for one face of a box.
     // Positive normal = outward-facing CCW winding. Negative = reversed.

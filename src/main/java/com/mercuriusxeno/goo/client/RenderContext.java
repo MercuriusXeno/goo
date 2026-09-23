@@ -27,6 +27,13 @@ public record RenderContext(PoseStack.Pose pose, VertexConsumer c, int light, in
     /** Gasket bottom V end: 8px / 16px. */
     private static final float GC_BOTTOM_V = 0.5f;
 
+    /** Cells along each side of a rippling liquid surface grid. */
+    public static final int SURFACE_GRID_CELLS = 8;
+    /** Must match goo_fluid_surface.vsh: overlay-U units per block of amplitude. */
+    public static final int AMPLITUDE_UNITS_PER_BLOCK = 4096;
+    /** The faint ripple a still vat or crucible surface shows, in blocks. */
+    public static final float RESTING_RIPPLE_AMPLITUDE = 0.012f;
+
     /**
      * Creates a context whose uncolored emitters draw opaque white.
      *
@@ -172,18 +179,94 @@ public record RenderContext(PoseStack.Pose pose, VertexConsumer c, int light, in
     }
 
     /**
-     * Emits a downward-facing liquid surface quad with explicit color.
+     * Emits an upward-facing liquid surface as a grid of quads in the
+     * context color (decision undulating-fluid-surface): every rim vertex
+     * carries zero amplitude so the surface keeps meeting the walls, and
+     * every interior vertex carries the given ripple amplitude.
      *
-     * @param color the ARGB color
-     * @param box   the horizontal bounds (uses x0, x1, z0, z1, yTop)
-     * @param uv    the texture coordinate rectangle
+     * @param box       the horizontal bounds (uses x0, x1, z0, z1, yTop)
+     * @param uv        the texture coordinate rectangle
+     * @param amplitude the interior ripple amplitude in blocks
      */
-    public void liquidSurfaceDown(int color, CuboidBounds box, GooRenderUtil.UvRect uv) {
-        float y = box.yTop();
-        vertexColored(color, box.x1(), y, box.z0(), uv.u1(), uv.v0(), 0f, NORMAL_NEG, 0f);
-        vertexColored(color, box.x1(), y, box.z1(), uv.u1(), uv.v1(), 0f, NORMAL_NEG, 0f);
-        vertexColored(color, box.x0(), y, box.z1(), uv.u0(), uv.v1(), 0f, NORMAL_NEG, 0f);
-        vertexColored(color, box.x0(), y, box.z0(), uv.u0(), uv.v0(), 0f, NORMAL_NEG, 0f);
+    public void liquidSurfaceGrid(CuboidBounds box, GooRenderUtil.UvRect uv, float amplitude) {
+        emitSurfaceGrid(box, uv, encodeAmplitude(amplitude), 1f);
+    }
+
+    /**
+     * Emits the downward-facing twin of {@link #liquidSurfaceGrid}, rippling
+     * with it because the shader's lift depends on position alone.
+     *
+     * @param box       the horizontal bounds (uses x0, x1, z0, z1, yTop)
+     * @param uv        the texture coordinate rectangle
+     * @param amplitude the interior ripple amplitude in blocks
+     */
+    public void liquidSurfaceGridDown(CuboidBounds box, GooRenderUtil.UvRect uv, float amplitude) {
+        emitSurfaceGrid(box, uv, encodeAmplitude(amplitude), NORMAL_NEG);
+    }
+
+    /**
+     * Encodes a ripple amplitude into the overlay-U units the surface shader decodes.
+     *
+     * @param amplitude the ripple amplitude in blocks
+     * @return the amplitude in 1/{@value #AMPLITUDE_UNITS_PER_BLOCK} block, clamped to a short
+     */
+    public static int encodeAmplitude(float amplitude) {
+        int units = Math.round(amplitude * AMPLITUDE_UNITS_PER_BLOCK);
+        return Math.clamp(units, 0, Short.MAX_VALUE);
+    }
+
+    /**
+     * Emits the grid, one quad per cell, winding by the normal sign.
+     *
+     * @param box            the horizontal bounds
+     * @param uv             the texture coordinate rectangle
+     * @param interiorUnits  the encoded amplitude interior vertices carry
+     * @param ny             the Y normal, positive for the upward face
+     */
+    private void emitSurfaceGrid(CuboidBounds box, GooRenderUtil.UvRect uv, int interiorUnits, float ny) {
+        for (int i = 0; i < SURFACE_GRID_CELLS; i++) {
+            for (int j = 0; j < SURFACE_GRID_CELLS; j++) {
+                if (ny > 0) {
+                    gridVertex(box, uv, i, j, interiorUnits, ny);
+                    gridVertex(box, uv, i, j + 1, interiorUnits, ny);
+                    gridVertex(box, uv, i + 1, j + 1, interiorUnits, ny);
+                    gridVertex(box, uv, i + 1, j, interiorUnits, ny);
+                } else {
+                    gridVertex(box, uv, i + 1, j, interiorUnits, ny);
+                    gridVertex(box, uv, i + 1, j + 1, interiorUnits, ny);
+                    gridVertex(box, uv, i, j + 1, interiorUnits, ny);
+                    gridVertex(box, uv, i, j, interiorUnits, ny);
+                }
+            }
+        }
+    }
+
+    /**
+     * Emits the grid vertex at column i and row j, zero amplitude on the rim.
+     *
+     * @param box           the horizontal bounds
+     * @param uv            the texture coordinate rectangle
+     * @param i             the column index along X, 0 to the cell count
+     * @param j             the row index along Z, 0 to the cell count
+     * @param interiorUnits the encoded amplitude interior vertices carry
+     * @param ny            the Y normal
+     */
+    private void gridVertex(CuboidBounds box, GooRenderUtil.UvRect uv, int i, int j,
+                            int interiorUnits, float ny) {
+        float tx = (float) i / SURFACE_GRID_CELLS;
+        float tz = (float) j / SURFACE_GRID_CELLS;
+        boolean isRim = i == 0 || j == 0 || i == SURFACE_GRID_CELLS || j == SURFACE_GRID_CELLS;
+        c.addVertex(pose, lerp(box.x0(), box.x1(), tx), box.yTop(), lerp(box.z0(), box.z1(), tz))
+            .setColor(color)
+            .setUv(lerp(uv.u0(), uv.u1(), tx), lerp(uv.v0(), uv.v1(), tz))
+            .setUv1(isRim ? 0 : interiorUnits, 0)
+            .setLight(light)
+            .setNormal(pose, 0f, ny, 0f);
+    }
+
+    /** Linear interpolation that lands exactly on both ends. */
+    private static float lerp(float from, float to, float t) {
+        return from * (1f - t) + to * t;
     }
 
 

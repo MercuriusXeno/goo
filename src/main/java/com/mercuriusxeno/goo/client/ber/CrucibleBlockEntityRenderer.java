@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.ber;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
+import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.RenderContext;
@@ -172,7 +173,7 @@ public class CrucibleBlockEntityRenderer
             SubmitNodeCollector nodeCollector, ResourceKey<GooTypeDefinition> type,
             float surfaceY, float alpha) {
         TextureAtlasSprite sprite = GooSubmitter.fluidSprite(type);
-        GooSubmitter.submitFluid(poseStack, nodeCollector, packArgb(alpha, GooSubmitter.fluidTint(type)),
+        GooSubmitter.submitUndulatingFluid(poseStack, nodeCollector, packArgb(alpha, GooSubmitter.fluidTint(type)),
             ctx -> emitLiquidSurface(ctx, surfaceY, sprite));
     }
 
@@ -183,14 +184,14 @@ public class CrucibleBlockEntityRenderer
      * @param tint  the ARGB tint whose RGB channels are kept
      * @return the packed ARGB color
      */
-    private static int packArgb(float alpha, int tint) {
+    static int packArgb(float alpha, int tint) {
         int a = (int) (alpha * MAX_ALPHA) & BYTE_MASK;
         return ARGB.color(a, tint);
     }
 
     /**
-     * Emits a single liquid surface quad using the basin interior bounds, at
-     * the context's light and color.
+     * Emits the liquid surface grid over the basin interior bounds, at the
+     * context's light and color, its rim held still inside the basin walls.
      *
      * @param ctx the render context the submitter built
      * @param surfaceY the liquid surface Y height
@@ -198,11 +199,21 @@ public class CrucibleBlockEntityRenderer
      */
     private static void emitLiquidSurface(RenderContext ctx, float surfaceY,
             TextureAtlasSprite sprite) {
-        GooRenderUtil.liquidSurface(
-            ctx.pose(), ctx.c(), ctx.light(), ctx.color(),
-            LIQUID_MIN_XZ, LIQUID_MIN_XZ, LIQUID_MAX_XZ, LIQUID_MAX_XZ,
-            surfaceY, sprite.getU0(), sprite.getU1(),
-            sprite.getV0(), sprite.getV1());
+        emitLiquidSurface(ctx, surfaceY, new GooRenderUtil.UvRect(
+            sprite.getU0(), sprite.getV0(), sprite.getU1(), sprite.getV1()));
+    }
+
+    /**
+     * Emits the liquid surface grid over the basin interior bounds on a UV rect.
+     *
+     * @param ctx the render context the submitter built
+     * @param surfaceY the liquid surface Y height
+     * @param uv the sprite's UV rect
+     */
+    static void emitLiquidSurface(RenderContext ctx, float surfaceY, GooRenderUtil.UvRect uv) {
+        CuboidBounds basin = new CuboidBounds(LIQUID_MIN_XZ, LIQUID_MAX_XZ,
+            LIQUID_MIN_XZ, LIQUID_MAX_XZ, surfaceY, surfaceY);
+        ctx.liquidSurfaceGrid(basin, uv, RenderContext.RESTING_RIPPLE_AMPLITUDE);
     }
 
     /**

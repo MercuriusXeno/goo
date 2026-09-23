@@ -246,7 +246,7 @@ public class VatBlockEntityRenderer
     private static void submitFluid(PoseStack poseStack,
                                     SubmitNodeCollector nodeCollector, VatRenderState state) {
         TextureAtlasSprite sprite = GooSubmitter.fluidSprite(state.dominantType);
-        GooSubmitter.submitFluid(poseStack, nodeCollector, GooSubmitter.fluidTint(state.dominantType),
+        GooSubmitter.submitUndulatingFluid(poseStack, nodeCollector, GooSubmitter.fluidTint(state.dominantType),
                 ctx -> VatFluidRenderer.renderFluid(ctx, sprite, state));
     }
 
