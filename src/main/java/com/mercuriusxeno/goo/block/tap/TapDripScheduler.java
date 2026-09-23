@@ -32,6 +32,16 @@ public final class TapDripScheduler {
      */
     private static final String LOG_PROGRAM_REFUSED = "Tap ability {} refused on the tap landing: {}";
 
+    /**
+     * Log: a drip landed, with the running count to check the visual against.
+     */
+    private static final String LOG_LANDED = "Tap drip from {} landed on {} ({} landed)";
+
+    /**
+     * Drips landed since the server started this JVM, for the debug log.
+     */
+    private static long landedCount;
+
     private TapDripScheduler() {
     }
 
@@ -75,26 +85,43 @@ public final class TapDripScheduler {
             arrived.add(drip);
             return true;
         });
-        arrived.forEach(TapDripScheduler::land);
+        for (PendingDrip drip : arrived) {
+            landedCount++;
+            Goo.LOGGER.debug(LOG_LANDED, drip.tapPos(), drip.landingPos(), landedCount);
+            land(drip);
+        }
+    }
+
+    /**
+     * @return drips landed since the JVM started
+     */
+    public static long landedCount() {
+        return landedCount;
     }
 
     /**
      * Runs the type's tap ability on a tap host at the landing: each program
-     * entry once (decision tap-ability-tagged-program).
+     * entry once (decision tap-ability-tagged-program). A type carrying no
+     * tap ability lands its drip and nothing further happens: no program
+     * loads and nothing logs (decision drip-without-ability).
      *
      * @param drip the arrived drip
+     * @return the program entries run
      */
-    static void land(PendingDrip drip) {
+    static int land(PendingDrip drip) {
         AbilityDefinition ability = AbilityRegistry.tapAbilityFor(drip.type());
         if (ability == null) {
-            return;
+            return 0;
         }
+        int run = 0;
         TapHost host = new TapHost(drip.level(), drip.landingPos(), drip.face(), drip.type());
         for (AbilityDefinition.BehaviorEntry entry : ability.behaviors()) {
             if (ProgramBehavior.TYPE_NAME.equals(entry.type())) {
                 runProgram(ability, entry, host);
+                run++;
             }
         }
+        return run;
     }
 
     /**
