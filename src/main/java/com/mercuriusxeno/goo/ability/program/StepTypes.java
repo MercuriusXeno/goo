@@ -58,6 +58,8 @@ public final class StepTypes {
         register(ConsumeBlocksStep.TYPE);
         register(DropConsumedStep.TYPE);
         register(CounterStep.TYPE);
+        register(BranchStep.TYPE);
+        register(DiscardStep.TYPE);
     }
 
     private StepTypes() {

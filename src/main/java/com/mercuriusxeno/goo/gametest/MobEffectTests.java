@@ -13,8 +13,12 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import java.util.List;
 
 /**
  * Gametests for the mob abilities, each a program on the struck entity
@@ -97,6 +101,12 @@ public final class MobEffectTests {
     private static final int RITUAL_THROWS = 2;
     private static final double RITUAL_TOLERANCE = 0.01;
     private static final String SHOULD_COUNT_RITUAL = "Ritual counter should read %.2f after two throws, read %.2f";
+
+    /** The reach within which the ritual's egg drop, or its absence, is read. */
+    private static final double ITEM_SEARCH_RADIUS = 2.0;
+    private static final String SHOULD_DROP_NOTHING = "No item should drop beside a mob short of the ritual";
+    private static final String SHOULD_DROP_ONLY_EGG = "Exactly one spawn egg of the mob, and no loot, should drop; found %s";
+    private static final String SHOULD_VANISH = "The mob should be gone once its ritual completes";
 
     private MobEffectTests() {
     }
@@ -375,7 +385,62 @@ public final class MobEffectTests {
         helper.assertTrue(mob.isNoAi(), SHOULD_HAVE_NO_AI);
         helper.assertTrue(mob.isInvulnerable(), SHOULD_BE_INVULNERABLE);
         helper.assertTrue(mob.hasEffect(MobEffects.GLOWING), SHOULD_HAVE_GLOWING);
-        helper.succeed();
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            helper.assertTrue(itemsNear(helper, mob.position()).isEmpty(), SHOULD_DROP_NOTHING);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Aeon's ritual completes: a chicken whose max health is one takes
+     * 100 / pow(1, 0.6), the full hundred, on its first throw, so it drops
+     * its own spawn egg and vanishes without dying or dropping loot
+     * (decision aeon-mob-ritual-drops-spawn-egg).
+     *
+     * @param helper the gametest helper
+     */
+    public static void aeonRitualEgg(GameTestHelper helper) {
+        Mob mob = helper.spawnWithNoFreeWill(EntityType.CHICKEN, SPAWN_POS);
+        AttributeInstance maxHealth = mob.getAttribute(Attributes.MAX_HEALTH);
+        helper.assertTrue(maxHealth != null, CHICKEN_HAS_MAX_HEALTH);
+        maxHealth.setBaseValue(CERTAIN_CLONE_MAX_HEALTH);
+        Vec3 stood = mob.position();
+        runEntityPrograms(helper, mob, ABILITY_AEON_TIME_STOP);
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            List<ItemEntity> items = itemsNear(helper, stood);
+            helper.assertTrue(items.size() == 1 && items.get(0).getItem().is(Items.CHICKEN_SPAWN_EGG)
+                    && items.get(0).getItem().getCount() == 1,
+                    String.format(SHOULD_DROP_ONLY_EGG, items.stream().map(ItemEntity::getItem).toList()));
+            helper.assertTrue(mob.isRemoved() && mobsNear(helper, stood, EntityType.CHICKEN).isEmpty(),
+                    SHOULD_VANISH);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Collects the mobs of one type within two blocks of a point; a wider
+     * reach catches the mobs of the tests beside this one.
+     *
+     * @param helper the gametest helper
+     * @param center the point
+     * @param type   the mob type
+     * @return the mobs
+     */
+    private static List<Mob> mobsNear(GameTestHelper helper, Vec3 center, EntityType<?> type) {
+        return helper.getLevel().getEntitiesOfClass(Mob.class, new AABB(center, center).inflate(ITEM_SEARCH_RADIUS),
+                found -> found.getType() == type);
+    }
+
+    /**
+     * Collects the item entities within two blocks of a point.
+     *
+     * @param helper the gametest helper
+     * @param center the point
+     * @return the item entities
+     */
+    private static List<ItemEntity> itemsNear(GameTestHelper helper, Vec3 center) {
+        return helper.getLevel().getEntitiesOfClass(ItemEntity.class,
+                new AABB(center, center).inflate(ITEM_SEARCH_RADIUS));
     }
 
     /**

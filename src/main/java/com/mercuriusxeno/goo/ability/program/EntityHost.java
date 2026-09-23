@@ -18,11 +18,13 @@ import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.SpawnEggItem;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
@@ -30,6 +32,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 /**
@@ -48,6 +51,8 @@ public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entit
 
     private static final String LOG_UNKNOWN_EFFECT = "Potion step names status effect {}, which no registry holds";
     private static final String LOG_UNKNOWN_ITEM = "Drop step names item {}, which no registry holds";
+    private static final String LOG_NO_SPAWN_EGG = "Drop step names the spawn egg of {}, which has none";
+    private static final Set<EntityType<?>> TYPES_WARNED_EGGLESS = ConcurrentHashMap.newKeySet();
     private static final float PERCENT = 100;
     private static final double BODY_CENTER = 0.5;
     private static final double HALF = 0.5;
@@ -263,12 +268,39 @@ public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entit
 
     @Override
     public void dropItemAtTarget(Identifier item, int count) {
+        if (DropItemStep.SPAWN_EGG.equals(item)) {
+            dropOwnSpawnEgg(count);
+            return;
+        }
         Optional<Holder.Reference<Item>> holder = BuiltInRegistries.ITEM.get(item);
         if (holder.isEmpty()) {
             Goo.LOGGER.warn(LOG_UNKNOWN_ITEM, item);
             return;
         }
         target.spawnAtLocation(level, new ItemStack(holder.get(), count));
+    }
+
+    /**
+     * Drops the spawn egg of the target's type, warning once per type
+     * that has none.
+     *
+     * @param count the stack size
+     */
+    private void dropOwnSpawnEgg(int count) {
+        EntityType<?> type = target.getType();
+        Optional<Holder<Item>> egg = SpawnEggItem.byId(type);
+        if (egg.isEmpty()) {
+            if (TYPES_WARNED_EGGLESS.add(type)) {
+                Goo.LOGGER.warn(LOG_NO_SPAWN_EGG, EntityType.getKey(type));
+            }
+            return;
+        }
+        target.spawnAtLocation(level, new ItemStack(egg.get(), count));
+    }
+
+    @Override
+    public void discardTarget() {
+        target.discard();
     }
 
     @Override

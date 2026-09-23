@@ -79,7 +79,11 @@ class StepCodecTest {
             Map.entry("consume_blocks", new ConsumeBlocksStep(Expr.parse("1 + 2 * stacks").getOrThrow())),
             Map.entry("drop_consumed", new DropConsumedStep()),
             Map.entry("counter", new CounterStep(Identifier.parse("goo:ritual"),
-                    Expr.parse("100 / pow(max_health, 0.6)").getOrThrow()))
+                    Expr.parse("100 / pow(max_health, 0.6)").getOrThrow())),
+            Map.entry("branch", new BranchStep(Expr.parse("at_least(goo:ritual, 100)").getOrThrow(),
+                    List.of(new DropItemStep(DropItemStep.SPAWN_EGG, Expr.literal(1)), new DiscardStep()),
+                    List.of(new SetAiStep(false)))),
+            Map.entry("discard", new DiscardStep())
     );
 
     private static Step roundTrip(Step step) {
