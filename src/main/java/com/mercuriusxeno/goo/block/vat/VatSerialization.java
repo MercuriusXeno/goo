@@ -30,10 +30,6 @@ final class VatSerialization {
      */
     static final String TAG_COMPRESSION = "Compression";
     /**
-     * Legacy NBT key for compression level.
-     */
-    static final String TAG_MATRICES = "Matrices";
-    /**
      * NBT key for goo contents.
      */
     static final String TAG_CONTENTS = "Contents";
@@ -171,7 +167,7 @@ final class VatSerialization {
      */
     private static void loadCompression(VatBlockEntity be, ValueInput input) {
         be.compressionLevel = Math.max(0, Math.min(
-                input.getIntOr(TAG_COMPRESSION, input.getIntOr(TAG_MATRICES, 0)),
+                input.getIntOr(TAG_COMPRESSION, 0),
                 ContainerCapacity.MAX_COMPRESSION));
         be.syncCapacity();
     }

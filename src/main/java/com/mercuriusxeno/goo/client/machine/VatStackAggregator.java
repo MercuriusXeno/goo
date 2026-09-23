@@ -22,7 +22,7 @@ public final class VatStackAggregator {
 
     /**
      * Aggregates vat stack data centered on the targeted position.
-     * Contents are summed across all vats in the stack. Matrices and
+     * Contents are summed across all vats in the stack. Compression and
      * label come from the targeted vat. Cap gasket from the top-most
      * vat, base gasket from the bottom-most.
      *
