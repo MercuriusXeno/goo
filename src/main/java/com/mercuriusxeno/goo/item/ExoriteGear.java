@@ -2,22 +2,40 @@ package com.mercuriusxeno.goo.item;
 
 import com.mercuriusxeno.goo.Goo;
 import net.minecraft.ChatFormatting;
+import net.minecraft.core.Holder;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.enchantment.Enchantment;
+import net.neoforged.neoforge.common.extensions.IItemExtension;
 import org.jspecify.annotations.Nullable;
 import java.util.function.Consumer;
 
 /**
- * The seam every exorite piece shares (decision zero-durability-stops-working):
- * damage that would break a piece leaves it at 0 durability instead, and a
- * piece at 0 durability works as a bare hand until exorite repairs it.
+ * The seam every exorite piece shares. Damage that would break a piece
+ * leaves it at 0 durability instead, and a piece at 0 durability works as a
+ * bare hand until exorite repairs it (decision zero-durability-stops-working).
+ * No piece takes an enchantment (decision exorite-unenchantable).
  */
-public interface ExoriteGear {
+public interface ExoriteGear extends IItemExtension {
 
     /** A bare hand's mining speed on any block. */
     float BARE_HAND_DESTROY_SPEED = 1.0F;
     String BROKEN_TOOLTIP_KEY = "item." + Goo.MODID + ".exorite.broken";
+
+    /**
+     * Refuses every enchantment, so an anvil refuses an enchanted book on an
+     * exorite piece. This interface extends IItemExtension, so its default
+     * wins over the extension's for every exorite item class.
+     *
+     * @param stack       the exorite stack
+     * @param enchantment the enchantment offered
+     * @return false for every enchantment
+     */
+    @Override
+    default boolean supportsEnchantment(ItemStack stack, Holder<Enchantment> enchantment) {
+        return false;
+    }
 
     /**
      * Whether a piece at this damage has no durability left.
