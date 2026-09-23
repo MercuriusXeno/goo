@@ -12,6 +12,7 @@ import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Vat block item: retains goo contents when picked up (like shulker boxes).
@@ -47,7 +48,7 @@ public class VatBlockItem extends BlockItem {
             @NonNull Slot slot, @NonNull ClickAction action, @NonNull Player player,
             @NonNull SlotAccess cursorAccess) {
         if (cursor.isEmpty() && action == ClickAction.SECONDARY) {
-            return handleEmptyCursorDrain(vat, cursorAccess);
+            return CanisterInventoryHandler.drainToCursor(cursorAccess, new VatGooSource(vat));
         }
         return action == ClickAction.PRIMARY && CanisterInventoryHandler.insertFromCursor(
                 cursor, cursorAccess, (type, volume) -> addGoo(vat, type, volume));
@@ -105,37 +106,20 @@ public class VatBlockItem extends BlockItem {
         return GooContentsOps.removeGoo(stack, type, amount);
     }
 
-    // --- Interaction handlers ---
-
     /**
-     * Drains up to 64,000 mB of the dominant goo type onto the cursor as a blob output.
+     * The vat item as a drain source: its largest goo type, removed up to what it holds.
      *
-     * @param vat         the vat item stack
-     * @param cursorAccess access to set the cursor contents
-     * @return true if any goo was extracted
+     * @param vat the vat item stack
      */
-    private static boolean handleEmptyCursorDrain(ItemStack vat, SlotAccess cursorAccess) {
-        GooContents contents = getGooContents(vat);
-        if (contents.isEmpty()) { return false; }
-        ResourceKey<GooTypeDefinition> dominant = contents.largestType();
-        return dominant != null && extractDominantAsBlobs(vat, cursorAccess, contents, dominant);
-    }
+    private record VatGooSource(ItemStack vat) implements CanisterInventoryHandler.GooSource {
+        @Override
+        public @Nullable ResourceKey<GooTypeDefinition> dominantType() {
+            return getGooContents(vat).largestType();
+        }
 
-    /** Extracts the dominant type from the vat as blob output onto the cursor.
-     *
-     * @param vat          the vat item stack
-     * @param cursorAccess access to set the cursor contents
-     * @param contents     the current vat contents
-     * @param dominant     the dominant goo type
-     * @return true if any goo was extracted
-     */
-    private static boolean extractDominantAsBlobs(ItemStack vat, SlotAccess cursorAccess,
-            GooContents contents, ResourceKey<GooTypeDefinition> dominant) {
-        int toExtract = Math.min(contents.getVolume(dominant), ContainerCapacity.BLOB_CAP);
-        int extracted = removeGoo(vat, dominant, toExtract);
-        if (extracted <= 0) { return false; }
-        cursorAccess.set(BlobStacks.createForOutput(dominant, extracted));
-        return true;
+        @Override
+        public int remove(ResourceKey<GooTypeDefinition> type, int volume) {
+            return removeGoo(vat, type, volume);
+        }
     }
-
 }
