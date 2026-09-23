@@ -23,7 +23,8 @@ class CrucibleSurfaceColorTest {
         int crossfade = CrucibleBlockEntityRenderer.packArgb(0.4f, TINT);
         RecordingVertexConsumer recorder = new RecordingVertexConsumer();
         RenderContext ctx = new RenderContext(new PoseStack().last(), recorder, 0, crossfade);
-        CrucibleBlockEntityRenderer.emitLiquidSurface(ctx, SURFACE_Y, new GooRenderUtil.UvRect(0f, 0f, 1f, 1f));
+        CrucibleBlockEntityRenderer.emitLiquidSurface(ctx, SURFACE_Y, new GooRenderUtil.UvRect(0f, 0f, 1f, 1f),
+            RenderContext.RESTING_RIPPLE_AMPLITUDE);
         List<RecordingVertexConsumer.Vertex> vertices = recorder.vertices();
         assertFalse(vertices.isEmpty());
         for (RecordingVertexConsumer.Vertex vertex : vertices) {

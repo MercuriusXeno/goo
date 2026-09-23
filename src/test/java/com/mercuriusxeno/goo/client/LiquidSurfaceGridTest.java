@@ -100,6 +100,16 @@ class LiquidSurfaceGridTest {
     }
 
     @Test
+    void anAgitatedAmplitudeReachesInteriorVerticesOnly() {
+        float agitated = RenderContext.RESTING_RIPPLE_AMPLITUDE + SurfaceAgitation.AGITATION_CEILING;
+        int encoded = RenderContext.encodeAmplitude(agitated);
+        assertTrue(encoded > RenderContext.encodeAmplitude(RenderContext.RESTING_RIPPLE_AMPLITUDE));
+        for (RecordingVertexConsumer.Vertex vertex : emitUp(agitated)) {
+            assertEquals(isOnRim(vertex) ? 0 : encoded, vertex.uv1U(), "vertex at " + vertex);
+        }
+    }
+
+    @Test
     void amplitudeEncodesInShaderUnits() {
         assertEquals(RenderContext.AMPLITUDE_UNITS_PER_BLOCK / 4, RenderContext.encodeAmplitude(0.25f));
         assertEquals(0, RenderContext.encodeAmplitude(-1f));

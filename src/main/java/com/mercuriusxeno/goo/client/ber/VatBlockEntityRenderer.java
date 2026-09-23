@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.block.vat.VatBlock;
 import com.mercuriusxeno.goo.block.vat.VatBlockEntity;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.RenderContext;
+import com.mercuriusxeno.goo.client.SurfaceAgitation;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.SubmitNodeCollector;
@@ -21,6 +22,8 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
+import java.util.Map;
+import java.util.WeakHashMap;
 
 /**
  * Renders the fluid fill level inside a vat. When vats are vertically
@@ -52,6 +55,9 @@ public class VatBlockEntityRenderer
      * Epsilon threshold for full-submersion check.
      */
     private static final float SUBMERSION_EPSILON = 0.0001f;
+
+    /** Each vat's surface agitation, held client-side and dropped with the vat. */
+    private final Map<VatBlockEntity, SurfaceAgitation> agitations = new WeakHashMap<>();
 
     /**
      * Creates a vat BER. Context is unused.
@@ -343,9 +349,24 @@ public class VatBlockEntityRenderer
 
         if (!state.vatAbove && !state.vatBelow) {
             extractSolo(be, state, gameTick);
-            return;
+        } else {
+            extractStacked(be, state, gameTick);
         }
-        extractStacked(be, state, gameTick);
+        extractRipple(be, state, gameTick);
+    }
+
+    /**
+     * Ticks this vat's surface agitation on the stack-wide fill and the top
+     * vat's stream, which every vat in the column extracted alike, so the
+     * whole column agitates together (decision undulating-fluid-surface).
+     *
+     * @param be       the vat block entity
+     * @param state    the render state, fill and stream already extracted
+     * @param gameTick the current game tick
+     */
+    private void extractRipple(VatBlockEntity be, VatRenderState state, long gameTick) {
+        state.rippleAmplitude = agitations.computeIfAbsent(be, key -> new SurfaceAgitation())
+            .tick(state.fillFraction, state.streamRate, gameTick);
     }
 
     // --- Stream rendering ---

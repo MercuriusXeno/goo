@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ber;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.client.RenderContext;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 import net.minecraft.resources.ResourceKey;
 import org.jspecify.annotations.Nullable;
@@ -36,6 +37,9 @@ public class VatRenderState extends BlockEntityRenderState {
 
     /** Stream rate in mB/tick (used for stream width calculation). */
     public float streamRate;
+
+    /** Ripple amplitude of the surface in blocks, the same for every vat in a stack. */
+    public float rippleAmplitude = RenderContext.RESTING_RIPPLE_AMPLITUDE;
 
     /** Animation time for sin-wave pulsing. */
     public float animationTime;
