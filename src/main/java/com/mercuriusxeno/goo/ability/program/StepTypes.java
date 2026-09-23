@@ -60,6 +60,7 @@ public final class StepTypes {
         register(CounterStep.TYPE);
         register(BranchStep.TYPE);
         register(DiscardStep.TYPE);
+        register(SetBabyStep.TYPE);
     }
 
     private StepTypes() {

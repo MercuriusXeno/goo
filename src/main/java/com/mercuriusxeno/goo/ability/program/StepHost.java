@@ -271,6 +271,23 @@ public interface StepHost extends Variables {
     void addTargetCounter(Identifier id, double amount);
 
     /**
+     * Sets a named counter the host's target keeps between hits.
+     * Capability {@link HostCapability#TARGET}.
+     *
+     * @param id    the counter id
+     * @param value the new value
+     */
+    void setTargetCounter(Identifier id, double value);
+
+    /**
+     * Makes the host's target a baby or an adult; a target with no baby
+     * form is left alone. Capability {@link HostCapability#TARGET}.
+     *
+     * @param enabled whether the target becomes a baby
+     */
+    void setTargetBaby(boolean enabled);
+
+    /**
      * Sets the host's target on fire. Capability
      * {@link HostCapability#TARGET}.
      *

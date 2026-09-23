@@ -195,6 +195,16 @@ public record MarkerHost(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity
     }
 
     @Override
+    public void setTargetCounter(Identifier id, double value) {
+        throw HostCapability.TARGET.refusedBy(kind());
+    }
+
+    @Override
+    public void setTargetBaby(boolean enabled) {
+        throw HostCapability.TARGET.refusedBy(kind());
+    }
+
+    @Override
     public void igniteTarget(int seconds) {
         throw HostCapability.TARGET.refusedBy(kind());
     }

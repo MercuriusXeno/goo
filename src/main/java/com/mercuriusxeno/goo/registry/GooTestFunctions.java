@@ -143,6 +143,10 @@ public final class GooTestFunctions {
     private static final String MOB_AEON = "mob_aeon_time_stop";
     private static final String MOB_AEON_RITUAL_COUNTS = "mob_aeon_ritual_counts";
     private static final String MOB_AEON_RITUAL_EGG = "mob_aeon_ritual_egg";
+    private static final String MOB_AEON_RITUAL_BABY = "mob_aeon_ritual_baby";
+    private static final String MOB_AEON_RITUAL_BABY_EGG = "mob_aeon_ritual_baby_egg";
+    private static final String MOB_AEON_RITUAL_NO_BABY_FORM = "mob_aeon_ritual_no_baby_form";
+    private static final String MOB_AEON_BABY_FORM_FILTER = "mob_aeon_baby_form_filter";
 
     // --- Lighting ---
     private static final String LIGHT_CANISTER_SYNC = "light_canister_sync";
@@ -322,6 +326,10 @@ public final class GooTestFunctions {
         reg(r, MOB_AEON, MobEffectTests::aeonTimeStop);
         reg(r, MOB_AEON_RITUAL_COUNTS, MobEffectTests::aeonRitualCounts);
         reg(r, MOB_AEON_RITUAL_EGG, MobEffectTests::aeonRitualEgg);
+        reg(r, MOB_AEON_RITUAL_BABY, MobEffectTests::aeonRitualBaby);
+        reg(r, MOB_AEON_RITUAL_BABY_EGG, MobEffectTests::aeonRitualBabyEgg);
+        reg(r, MOB_AEON_RITUAL_NO_BABY_FORM, MobEffectTests::aeonRitualNoBabyForm);
+        reg(r, MOB_AEON_BABY_FORM_FILTER, MobEffectTests::aeonBabyFormFilter);
     }
 
     /**
