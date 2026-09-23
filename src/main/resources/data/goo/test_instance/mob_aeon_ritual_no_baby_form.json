@@ -1,6 +1,6 @@
 {
   "type": "minecraft:function",
-  "function": "goo:mob_aeon_ritual_egg",
+  "function": "goo:mob_aeon_ritual_no_baby_form",
   "environment": "minecraft:default",
   "structure": "minecraft:empty",
   "max_ticks": 40,

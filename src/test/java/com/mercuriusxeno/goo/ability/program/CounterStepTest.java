@@ -53,7 +53,7 @@ class CounterStepTest {
 
     @Test
     void counterStepRefusesTheMarkerHostAndLoadsForTheEntityHost() {
-        List<Step> steps = List.of(new CounterStep(RITUAL, Expr.literal(1)));
+        List<Step> steps = List.of(CounterStep.adding(RITUAL, Expr.literal(1)));
 
         ProgramLoadException refusal = assertThrows(ProgramLoadException.class,
                 () -> ProgramBehavior.forHost(steps, HostKind.MARKER));
@@ -69,7 +69,7 @@ class CounterStepTest {
         when(host.kind()).thenReturn(HostKind.ENTITY);
         when(host.read("max_health")).thenReturn(OptionalDouble.of(10));
         ProgramBehavior program = ProgramBehavior.forHost(
-                List.of(new CounterStep(RITUAL, expr("100 / pow(max_health, 0.6)"))), HostKind.ENTITY);
+                List.of(CounterStep.adding(RITUAL, expr("100 / pow(max_health, 0.6)"))), HostKind.ENTITY);
 
         program.tick(host);
 

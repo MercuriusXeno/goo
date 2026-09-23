@@ -309,6 +309,18 @@ public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entit
     }
 
     @Override
+    public void setTargetCounter(Identifier id, double value) {
+        target.setData(GooAttachments.ENTITY_COUNTERS, counters().withValue(id, value));
+    }
+
+    @Override
+    public void setTargetBaby(boolean enabled) {
+        if (target instanceof Mob mob) {
+            mob.setBaby(enabled);
+        }
+    }
+
+    @Override
     public void igniteTarget(int seconds) {
         target.igniteForSeconds(seconds);
     }

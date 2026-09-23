@@ -22,6 +22,20 @@
               "type": "branch",
               "when": "at_least(goo:ritual, 100)",
               "then": [
+                {
+                  "type": "target",
+                  "where": ["has_baby_form", "not_baby"],
+                  "steps": [
+                    { "type": "set_baby", "enabled": true },
+                    { "type": "counter", "id": "goo:ritual", "set": 0 }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "branch",
+              "when": "at_least(goo:ritual, 100)",
+              "then": [
                 { "type": "drop_item", "item": "spawn_egg", "count": 1 },
                 { "type": "discard" }
               ],
