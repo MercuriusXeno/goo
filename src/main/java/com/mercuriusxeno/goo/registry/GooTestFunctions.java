@@ -105,6 +105,8 @@ public final class GooTestFunctions {
     private static final String IX_HUB_ITEM_OMNIBLOB_INSERT = "ix_hub_item_omniblob_insert";
     private static final String IX_HUB_ITEM_INSERT_REFUSED = "ix_hub_item_insert_refused";
     private static final String IX_HUB_ITEM_DRAINS_NOTHING = "ix_hub_item_drains_nothing";
+    private static final String IX_VAT_ITEM_BLOB_INSERT = "ix_vat_item_blob_insert";
+    private static final String IX_VAT_ITEM_OMNIBLOB_INSERT = "ix_vat_item_omniblob_insert";
 
     // --- Machines ---
     private static final String MACHINE_CANISTER_INSERT = "machine_canister_insert";
@@ -255,6 +257,8 @@ public final class GooTestFunctions {
         reg(r, IX_HUB_ITEM_OMNIBLOB_INSERT, HubItemClickTests::omniblobInsertKeepsRemainder);
         reg(r, IX_HUB_ITEM_INSERT_REFUSED, HubItemClickTests::insertRefusedLeavesStacks);
         reg(r, IX_HUB_ITEM_DRAINS_NOTHING, HubItemClickTests::secondaryClickDrainsNothing);
+        reg(r, IX_VAT_ITEM_BLOB_INSERT, VatItemClickTests::blobInsertFillsVatAndFullRefuses);
+        reg(r, IX_VAT_ITEM_OMNIBLOB_INSERT, VatItemClickTests::omniblobInsertKeepsRemainder);
     }
 
     private static void registerCrucibleTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {

@@ -49,23 +49,8 @@ public class VatBlockItem extends BlockItem {
         if (cursor.isEmpty() && action == ClickAction.SECONDARY) {
             return handleEmptyCursorDrain(vat, cursorAccess);
         }
-        return action == ClickAction.PRIMARY && handlePrimaryClick(vat, cursor, cursorAccess);
-    }
-
-    /**
-     * Routes primary click to the appropriate handler based on cursor item type.
-     *
-     * @param vat          the vat item stack
-     * @param cursor       the item stack on the cursor
-     * @param cursorAccess access to set the cursor contents
-     * @return true if the interaction was handled
-     */
-    private static boolean handlePrimaryClick(ItemStack vat, ItemStack cursor, SlotAccess cursorAccess) {
-        if (cursor.getItem() instanceof GooBlobItem) {
-            return handleBlobInsert(vat, cursor, cursorAccess);
-        }
-        return cursor.getItem() instanceof GooOmniblobItem
-                && handleOmniblobInsert(vat, cursor, cursorAccess);
+        return action == ClickAction.PRIMARY && CanisterInventoryHandler.insertFromCursor(
+                cursor, cursorAccess, (type, volume) -> addGoo(vat, type, volume));
     }
 
     // --- Goo contents helpers (vat-specific capacity) ---
@@ -121,58 +106,6 @@ public class VatBlockItem extends BlockItem {
     }
 
     // --- Interaction handlers ---
-
-    /**
-     * Transfers blob goo into the vat, shrinking the blob stack by accepted blobs.
-     *
-     * @param vat         the vat item stack
-     * @param cursor      the blob stack on the cursor
-     * @param cursorAccess access to set the cursor contents
-     * @return true if any goo was transferred
-     */
-    private static boolean handleBlobInsert(ItemStack vat, ItemStack cursor, SlotAccess cursorAccess) {
-        ResourceKey<GooTypeDefinition> type = BlobStacks.keyOf(cursor);
-        if (type == null) { return false; }
-        int volume = BlobStacks.volumeOf(cursor);
-        int accepted = addGoo(vat, type, volume);
-        if (accepted <= 0) { return false; }
-        int blobsUsed = (accepted / BlobStacks.MB_PER_BLOB);
-        cursor.shrink(blobsUsed);
-        if (cursor.isEmpty()) { cursorAccess.set(ItemStack.EMPTY); }
-        return true;
-    }
-
-    /**
-     * Transfers omniblob goo into the vat, reducing or clearing the cursor.
-     *
-     * @param vat         the vat item stack
-     * @param cursor      the omniblob on the cursor
-     * @param cursorAccess access to set the cursor contents
-     * @return true if any goo was transferred
-     */
-    private static boolean handleOmniblobInsert(ItemStack vat, ItemStack cursor, SlotAccess cursorAccess) {
-        ResourceKey<GooTypeDefinition> type = BlobStacks.keyOf(cursor);
-        if (type == null) { return false; }
-        int volume = GooOmniblobItem.getVolume(cursor);
-        int accepted = addGoo(vat, type, volume);
-        if (accepted <= 0) { return false; }
-        updateOmniblobRemainder(cursor, cursorAccess, volume - accepted);
-        return true;
-    }
-
-    /** Clears or shrinks the omniblob cursor after a partial transfer.
-     *
-     * @param cursor       the omniblob on the cursor
-     * @param cursorAccess access to set the cursor contents
-     * @param remaining    the remaining volume after transfer
-     */
-    private static void updateOmniblobRemainder(ItemStack cursor, SlotAccess cursorAccess, int remaining) {
-        if (remaining <= 0) {
-            cursorAccess.set(ItemStack.EMPTY);
-        } else {
-            GooOmniblobItem.setVolume(cursor, remaining);
-        }
-    }
 
     /**
      * Drains up to 64,000 mB of the dominant goo type onto the cursor as a blob output.
