@@ -8,6 +8,11 @@
 
   "item.goo.choral_gasket": "Choral Gasket",
   "item.goo.exorite": "Exorite",
+  "item.goo.exorite_upgrade_smithing_template": "Exorite Upgrade",
+  "item.goo.smithing_template.exorite_upgrade.applies_to": "Netherite Equipment",
+  "item.goo.smithing_template.exorite_upgrade.ingredients": "Exorite",
+  "item.goo.smithing_template.exorite_upgrade.base_slot_description": "Add netherite armor, weapon, or tool",
+  "item.goo.smithing_template.exorite_upgrade.additions_slot_description": "Add Exorite",
   "item.goo.goo_glove": "Goo Glove",
   "item.goo.goo_gauntlet": "Goo Gauntlet",
   "item.goo.exo_gauntlet": "Exo Gauntlet",

@@ -34,6 +34,11 @@ public final class GooTestFunctions {
     private static final String ITEM_THROWN_BLOBS_OWN_TYPE = "item_thrown_blobs_own_type";
     private static final String ITEM_TAB_DATAPACK_TYPE = "item_tab_datapack_type";
 
+    // --- Exorite tier ---
+    private static final String EXORITE_TEMPLATE_REGISTERED = "exorite_template_registered";
+    private static final String EXORITE_TEMPLATE_IN_ANCIENT_CITY_LOOT = "exorite_template_in_ancient_city_loot";
+    private static final String EXORITE_TEMPLATE_DUPLICATES = "exorite_template_duplicates";
+
     // --- GasketPusher ---
     private static final String PUSHER_EMPTY_RESERVOIR = "pusher_empty_reservoir";
     private static final String PUSHER_NO_PARTNER = "pusher_no_partner";
@@ -163,6 +168,7 @@ public final class GooTestFunctions {
             registerGooTypeRegistryTests(registrar);
             registerGooFluidTests(registrar);
             registerGooItemTests(registrar);
+            registerExoriteTests(registrar);
             registerGasketTests(registrar);
             registerEffectExecutorTests(registrar);
             registerCrucibleTests(registrar);
@@ -196,6 +202,12 @@ public final class GooTestFunctions {
     private static void registerGooItemTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
         reg(r, ITEM_THROWN_BLOBS_OWN_TYPE, GooItemTests::thrownBlobsLandOwnType);
         reg(r, ITEM_TAB_DATAPACK_TYPE, GooItemTests::creativeTabOffersDatapackType);
+    }
+
+    private static void registerExoriteTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
+        reg(r, EXORITE_TEMPLATE_REGISTERED, ExoriteTests::templateRegistered);
+        reg(r, EXORITE_TEMPLATE_IN_ANCIENT_CITY_LOOT, ExoriteTests::templateInAncientCityLoot);
+        reg(r, EXORITE_TEMPLATE_DUPLICATES, ExoriteTests::templateDuplicates);
     }
 
     private static void registerGasketTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
