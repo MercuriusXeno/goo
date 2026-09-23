@@ -53,6 +53,9 @@ public final class GooTypeRegistryTests {
     private static final BlockPos MARKER_POS = new BlockPos(1, 1, 1);
     private static final Identifier FROST_SPHERE = Identifier.fromNamespaceAndPath(Goo.MODID, "frost_sphere");
     private static final String ABILITIES_REQUIRED = "Ability registry must be loaded";
+    /** The ability the test datapack gives the seventeenth type. */
+    private static final Identifier SEVENTEENTH_PROBE =
+            Identifier.fromNamespaceAndPath(TEST_PACK_NAMESPACE, "seventeenth_probe");
     private static final String MISSING_SEVENTEENTH = "Datapack type missing from registry: ";
     private static final String UNLISTED_SEVENTEENTH = "Datapack type missing from /goo types listing: ";
 
@@ -102,16 +105,16 @@ public final class GooTypeRegistryTests {
     }
 
     /**
-     * A glove selection of the datapack type survives the trip through the
-     * item's persistent components: the stack saves to NBT and parses back
-     * with the seventeenth type selected.
+     * A glove selection of the datapack type and its test-pack ability
+     * survives the trip through the item's persistent components: the stack
+     * saves to NBT and parses back with the seventeenth type selected.
      *
      * @param helper the gametest helper
      */
     public static void gloveSelectionReloadsType(GameTestHelper helper) {
         RegistryAccess registries = helper.getLevel().registryAccess();
         ItemStack glove = new ItemStack(GooItems.GOO_GLOVE.get());
-        GooGloveItem.setSelection(glove, GloveSelection.ofType(SEVENTEENTH));
+        GooGloveItem.setSelection(glove, GloveSelection.ofAbility(SEVENTEENTH, SEVENTEENTH_PROBE));
         RegistryOps<Tag> ops = registries.createSerializationContext(NbtOps.INSTANCE);
         Tag saved = ItemStack.CODEC.encodeStart(ops, glove).getOrThrow();
         ItemStack loaded = ItemStack.CODEC.parse(ops, saved).getOrThrow();

@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.registry;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.gametest.*;
 import com.mercuriusxeno.goo.network.BlockLandingTests;
+import com.mercuriusxeno.goo.network.GloveSelectTests;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
@@ -26,6 +27,7 @@ public final class GooTestFunctions {
     private static final String TYPES_DATAPACK_LISTED = "types_datapack_listed";
     private static final String TYPES_MARKER_RELOADS = "types_marker_reloads";
     private static final String TYPES_GLOVE_RELOADS = "types_glove_reloads";
+    private static final String GLOVE_TYPE_ONLY_REFUSED = "glove_type_only_refused";
 
     // --- Generic goo fluid ---
     private static final String FLUID_TYPES_SIDE_BY_SIDE = "fluid_types_side_by_side";
@@ -195,6 +197,7 @@ public final class GooTestFunctions {
         reg(r, TYPES_BUNDLED_RESOLVE, GooTypeRegistryTests::bundledTypesResolve);
         reg(r, TYPES_DATAPACK_LISTED, GooTypeRegistryTests::datapackTypeListed);
         reg(r, TYPES_MARKER_RELOADS, GooTypeRegistryTests::chainMarkerReloadsType);
+        reg(r, GLOVE_TYPE_ONLY_REFUSED, GloveSelectTests::typeOnlySelectionRefused);
         reg(r, TYPES_GLOVE_RELOADS, GooTypeRegistryTests::gloveSelectionReloadsType);
     }
 

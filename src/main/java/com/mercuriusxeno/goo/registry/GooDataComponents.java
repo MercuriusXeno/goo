@@ -108,16 +108,6 @@ public class GooDataComponents {
                             .build());
 
     /**
-     * Selected goo type ID persisted on glove items. Empty string means none.
-     */
-    public static final DeferredHolder<DataComponentType<?>, DataComponentType<String>> SELECTED_GOO_TYPE =
-            DATA_COMPONENTS.register("selected_goo_type",
-                    () -> DataComponentType.<String>builder()
-                            .persistent(Codec.STRING)
-                            .networkSynchronized(ByteBufCodecs.STRING_UTF8)
-                            .build());
-
-    /**
      * Selected goo type + ability persisted on glove items.
      */
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<GloveSelection>> SELECTED_ABILITY =

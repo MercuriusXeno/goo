@@ -12,12 +12,12 @@ import net.minecraft.resources.ResourceKey;
 import org.jspecify.annotations.Nullable;
 
 /**
- * The player's current goo type + ability selection on a glove.
- * Replaces the plain string SELECTED_GOO_TYPE with a richer model
- * that tracks both which type and which specific ability is chosen.
+ * The player's goo type and ability selection on a glove. A glove holds
+ * both or neither: every selection names an ability (decision
+ * no-throw-without-ability).
  *
  * @param gooTypeId the selected goo type's string id (empty = none)
- * @param abilityId the selected ability's resource id string (empty = type-only, no specific ability)
+ * @param abilityId the selected ability's resource id string (empty = none)
  */
 public record GloveSelection(String gooTypeId, String abilityId) {
 
@@ -39,16 +39,6 @@ public record GloveSelection(String gooTypeId, String abilityId) {
                     ByteBufCodecs.STRING_UTF8, GloveSelection::gooTypeId,
                     ByteBufCodecs.STRING_UTF8, GloveSelection::abilityId,
                     GloveSelection::new);
-
-    /**
-     * Creates a type-only selection (no specific ability chosen).
-     *
-     * @param type the goo type
-     * @return a selection with just the type set
-     */
-    public static GloveSelection ofType(ResourceKey<GooTypeDefinition> type) {
-        return new GloveSelection(GooTypes.id(type), NONE);
-    }
 
     /**
      * Creates a full selection with type and ability.
