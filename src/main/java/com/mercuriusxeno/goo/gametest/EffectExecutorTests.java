@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityMath;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.world.AbilityImpact;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
 import com.mercuriusxeno.goo.item.BlobStacks;
@@ -123,6 +124,8 @@ public final class EffectExecutorTests {
     /** Ticks after the support breaks by which a two-block fall has landed, well inside the fuse. */
     private static final int FALL_LANDED_TICKS = 10;
     private static final String FALL_ABILITY_LOST = "The fallen marker lost its ability id";
+    /** Where the growth tests stand their glow crystal, on stone below it. */
+    private static final BlockPos CRYSTAL_POS = new BlockPos(3, 2, 3);
 
     private EffectExecutorTests() {}
 
@@ -368,6 +371,65 @@ public final class EffectExecutorTests {
             helper.assertBlockProperty(FALL_LANDING_POS, GlowCrystalBlock.FACING, Direction.UP);
             helper.succeed();
         });
+    }
+
+    /**
+     * Stands a glow crystal of the given size on stone, facing up, and
+     * lands one blob of the named ability on it.
+     *
+     * @param helper    the gametest helper
+     * @param size      the crystal's size before the blob lands
+     * @param type      the goo type thrown
+     * @param abilityId the ability the blob names
+     */
+    private static void landOnCrystal(GameTestHelper helper, GlowCrystalBlock.CrystalSize size,
+                                      ResourceKey<GooTypeDefinition> type, String abilityId) {
+        helper.setBlock(CRYSTAL_POS.below(), Blocks.STONE);
+        helper.setBlock(CRYSTAL_POS, GooBlocks.GLOW_CRYSTAL.get().defaultBlockState()
+                .setValue(GlowCrystalBlock.FACING, Direction.UP)
+                .setValue(GlowCrystalBlock.SIZE, size));
+        AbilityDefinition ability = AbilityRegistry.getAbility(Identifier.parse(abilityId));
+        helper.assertTrue(ability != null, ABILITIES_REQUIRED);
+        AbilityImpact.land(helper.getLevel(), helper.absolutePos(CRYSTAL_POS), type, Direction.UP, ability);
+    }
+
+    /**
+     * A glow_crystal blob landing on a tiny glow crystal grows it to small
+     * and places no marker (decision place-block-ability-grows-block).
+     *
+     * @param helper the gametest helper
+     */
+    public static void crystalGrowsUnderItsAbility(GameTestHelper helper) {
+        landOnCrystal(helper, GlowCrystalBlock.CrystalSize.TINY, GooTypes.GLOW, ABILITY_GLOW_CRYSTAL);
+        helper.assertBlockProperty(CRYSTAL_POS, GlowCrystalBlock.SIZE, GlowCrystalBlock.CrystalSize.SMALL);
+        helper.assertBlockNotPresent(GooBlocks.CHAIN_MARKER.get(), CRYSTAL_POS.above());
+        helper.succeed();
+    }
+
+    /**
+     * A glow_crystal blob landing on a large glow crystal leaves it large
+     * and places no marker.
+     *
+     * @param helper the gametest helper
+     */
+    public static void largestCrystalStaysLarge(GameTestHelper helper) {
+        landOnCrystal(helper, GlowCrystalBlock.CrystalSize.LARGE, GooTypes.GLOW, ABILITY_GLOW_CRYSTAL);
+        helper.assertBlockProperty(CRYSTAL_POS, GlowCrystalBlock.SIZE, GlowCrystalBlock.CrystalSize.LARGE);
+        helper.assertBlockNotPresent(GooBlocks.CHAIN_MARKER.get(), CRYSTAL_POS.above());
+        helper.succeed();
+    }
+
+    /**
+     * A metal_spikes blob landing on a glow crystal grows nothing and
+     * places its own marker on the crystal's face.
+     *
+     * @param helper the gametest helper
+     */
+    public static void otherAbilityMarksCrystal(GameTestHelper helper) {
+        landOnCrystal(helper, GlowCrystalBlock.CrystalSize.TINY, GooTypes.METAL, ABILITY_METAL_SPIKES);
+        helper.assertBlockProperty(CRYSTAL_POS, GlowCrystalBlock.SIZE, GlowCrystalBlock.CrystalSize.TINY);
+        helper.assertBlockPresent(GooBlocks.CHAIN_MARKER.get(), CRYSTAL_POS.above());
+        helper.succeed();
     }
 
     // --- Data-driven ability path ---
