@@ -19,6 +19,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -61,9 +62,30 @@ public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entit
             case HostVariables.HEALTH -> OptionalDouble.of(target.getHealth());
             case HostVariables.MAX_HEALTH -> OptionalDouble.of(target.getMaxHealth());
             case HostVariables.DISTANCE -> OptionalDouble.of(distanceFromThrower());
-            case HostVariables.UNDEAD -> OptionalDouble.of(target.isInvertedHealAndHarm() ? 1 : 0);
+            case HostVariables.UNDEAD -> flag(target.isInvertedHealAndHarm());
+            case HostVariables.SPRINTING -> flag(isSprintingPlayer());
             default -> OptionalDouble.empty();
         };
+    }
+
+    /**
+     * Reads a target predicate as the variable value an expression weighs by.
+     *
+     * @param holds whether the predicate holds
+     * @return one when it holds, zero otherwise
+     */
+    private static OptionalDouble flag(boolean holds) {
+        return OptionalDouble.of(holds ? 1 : 0);
+    }
+
+    /**
+     * Tests whether the target is a player sprinting; only a player's
+     * sprint doubles the crystal cloud's shred rate.
+     *
+     * @return true for a sprinting player
+     */
+    private boolean isSprintingPlayer() {
+        return target instanceof Player player && player.isSprinting();
     }
 
     /**
@@ -143,6 +165,11 @@ public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entit
         if (!knockback) {
             target.hurtMarked = false;
         }
+    }
+
+    @Override
+    public void setTargetHurtCooldown(int ticks) {
+        target.invulnerableTime = ticks;
     }
 
     @Override

@@ -76,6 +76,17 @@ public final class EffectExecutorTests {
     private static final String SPIKE_HIT_SNEAKER = "The metal trap hurt the sneaking player";
     private static final String STACK_NOT_SPENT = "The metal trap's impale spent no stack";
     private static final String STACK_SPENT_ON_SNEAKER = "The metal trap spent a stack on the sneaking player";
+    private static final String ABILITY_CRYSTAL_CLOUD = "goo:crystal_cloud";
+    /** Where the crystal test's standing pig stands: two blocks west, inside the cloud's radius. */
+    private static final BlockPos STANDING_PIG_POS = MARKER_POS.west(2);
+    /** Horizontal speed the moving pig is shuffled at, reversed every tick so it stays put. */
+    private static final double SHUFFLE_SPEED = 0.2;
+    /** Ticks per back-and-forth of the moving pig's shuffle. */
+    private static final int SHUFFLE_PERIOD = 2;
+    /** Ticks after the fuse the cloud shreds for, several of its two-tick periods. */
+    private static final int SHRED_WINDOW = 12;
+    private static final String CLOUD_MISSED_MOVER = "The crystal cloud left the moving pig unhurt";
+    private static final String CLOUD_HIT_STANDING = "The crystal cloud hurt the standing pig";
 
     private EffectExecutorTests() {}
 
@@ -456,6 +467,29 @@ public final class EffectExecutorTests {
         });
         helper.runAfterDelay(MINE_IDLE_TICKS + SHORT_POST_FUSE, () -> {
             assertDetonated(helper);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Crystal cloud as a field-effect program: after the fuse, a pig kept
+     * moving inside the cloud is shredded while a pig standing inside it
+     * is left whole.
+     *
+     * @param helper the gametest helper
+     */
+    public static void programCrystalCloud(GameTestHelper helper) {
+        helper.setBlock(MINE_TARGET_POS.below(), Blocks.STONE);
+        helper.setBlock(STANDING_PIG_POS.below(), Blocks.STONE);
+        placeMarkerWithAbility(helper, GooTypes.CRYSTAL, ABILITY_CRYSTAL_CLOUD);
+        Pig mover = helper.spawnWithNoFreeWill(EntityType.PIG, MINE_TARGET_POS);
+        Pig standing = helper.spawnWithNoFreeWill(EntityType.PIG, STANDING_PIG_POS);
+        helper.onEachTick(() -> mover.setDeltaMovement(
+                helper.getTick() % SHUFFLE_PERIOD == 0 ? SHUFFLE_SPEED : -SHUFFLE_SPEED,
+                mover.getDeltaMovement().y(), 0));
+        helper.runAfterDelay(FUSE_TICKS + SHRED_WINDOW, () -> {
+            helper.assertTrue(mover.getHealth() < mover.getMaxHealth(), CLOUD_MISSED_MOVER);
+            helper.assertTrue(standing.getHealth() == standing.getMaxHealth(), CLOUD_HIT_STANDING);
             helper.succeed();
         });
     }

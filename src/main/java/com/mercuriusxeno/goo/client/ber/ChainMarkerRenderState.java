@@ -78,6 +78,9 @@ public class ChainMarkerRenderState extends BlockEntityRenderState {
     /** Cloud radius fraction [0-1] for expand/contract animation. */
     public float crystalRadiusFraction;
 
+    /** Full cloud radius in blocks, read from the field effect. */
+    public float crystalRadius;
+
     /** True when a nether black-hole behavior is active on this marker.
      * The BER uses this flag to branch between the orb visual (false) and
      * the shader sphere (true). */
