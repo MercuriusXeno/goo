@@ -359,7 +359,7 @@ public class CanisterItem extends BlockItem implements IGooItemInteraction {
             @NonNull Slot slot, @NonNull ClickAction action, @NonNull Player player,
             @NonNull SlotAccess cursorAccess) {
         if (cursor.isEmpty() && action == ClickAction.SECONDARY) {
-            return CanisterInventoryHandler.handleEmptyCursorDrain(canister, cursorAccess);
+            return CanisterInventoryHandler.drainToCursor(cursorAccess, new CanisterGooSource(canister));
         }
         return action == ClickAction.PRIMARY
                 && CanisterInventoryHandler.handlePrimaryClick(canister, cursor, cursorAccess);
@@ -373,5 +373,25 @@ public class CanisterItem extends BlockItem implements IGooItemInteraction {
     @Override
     public GooInteractionType canisterInteraction() {
         return GooInteractionType.CANISTER_INSERT;
+    }
+
+    /**
+     * The canister item as a drain source: its one goo type, removed up to what it holds.
+     *
+     * @param canister the canister item stack
+     */
+    private record CanisterGooSource(ItemStack canister) implements CanisterInventoryHandler.GooSource {
+        @Override
+        public @Nullable ResourceKey<GooTypeDefinition> dominantType() {
+            CanisterFluidContent content = getFluidContent(canister);
+            return content.isEmpty() ? null : content.getGooType();
+        }
+
+        @Override
+        public int remove(ResourceKey<GooTypeDefinition> type, int volume) {
+            CanisterFluidContent content = getFluidContent(canister);
+            int available = (content.getGooType() == type) ? content.amount() : 0;
+            return removeGoo(canister, type, Math.min(available, volume));
+        }
     }
 }

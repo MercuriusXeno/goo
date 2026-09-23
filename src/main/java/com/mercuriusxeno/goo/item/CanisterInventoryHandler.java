@@ -128,49 +128,42 @@ final class CanisterInventoryHandler {
     // --- Drain operations ---
 
     /**
-     * Drains up to 64,000 mB of the dominant goo type onto the cursor as a blob output.
+     * Where a drain's goo comes from: answers its dominant type and gives up goo of a type.
+     */
+    interface GooSource {
+        /**
+         * Answers the goo type the drain takes.
+         *
+         * @return the dominant goo type, or null when empty
+         */
+        @Nullable ResourceKey<GooTypeDefinition> dominantType();
+
+        /**
+         * Removes up to the given volume of one goo type, capped by what the source holds.
+         *
+         * @param type   the goo type to remove
+         * @param volume the most to remove, in mB
+         * @return the volume removed
+         */
+        int remove(ResourceKey<GooTypeDefinition> type, int volume);
+    }
+
+    /**
+     * Drains up to 64,000 mB of the source's dominant goo type onto the cursor as a blob output.
      *
-     * @param canister    the canister item stack
      * @param cursorAccess access to set the cursor contents
+     * @param source       where the goo comes from
      * @return true if any goo was extracted
      */
-    static boolean handleEmptyCursorDrain(ItemStack canister, SlotAccess cursorAccess) {
-        ResourceKey<GooTypeDefinition> dominant = dominantType(canister);
+    static boolean drainToCursor(SlotAccess cursorAccess, GooSource source) {
+        ResourceKey<GooTypeDefinition> dominant = source.dominantType();
         if (dominant == null) { return false; }
 
-        int extracted = extractCapped(canister, dominant, ContainerCapacity.BLOB_CAP);
+        int extracted = source.remove(dominant, ContainerCapacity.BLOB_CAP);
         if (extracted <= 0) { return false; }
 
         cursorAccess.set(BlobStacks.createForOutput(dominant, extracted));
         return true;
-    }
-
-    // --- Shared helpers ---
-
-    /**
-     * Returns the dominant goo type in the canister, or null if empty.
-     *
-     * @param canister the canister item stack
-     * @return the dominant goo type, or null
-     */
-    private static @Nullable ResourceKey<GooTypeDefinition> dominantType(ItemStack canister) {
-        CanisterFluidContent content = CanisterItem.getFluidContent(canister);
-        if (content.isEmpty()) { return null; }
-        return content.getGooType();
-    }
-
-    /**
-     * Extracts up to cap mB of the given type, capped by available volume.
-     *
-     * @param canister the canister item stack
-     * @param type     the goo type to extract
-     * @param cap      the maximum volume to extract
-     * @return the amount actually extracted
-     */
-    private static int extractCapped(ItemStack canister, ResourceKey<GooTypeDefinition> type, int cap) {
-        CanisterFluidContent content = CanisterItem.getFluidContent(canister);
-        int available = (content.getGooType() == type) ? content.amount() : 0;
-        return CanisterItem.removeGoo(canister, type, Math.min(available, cap));
     }
 
     // --- Gasket mutual exclusivity ---
