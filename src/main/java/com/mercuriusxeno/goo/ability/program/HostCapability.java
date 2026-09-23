@@ -47,7 +47,17 @@ public enum HostCapability {
      * reads: the strikes in flight, the strike cooldown and the charges
      * spent on the current stack.
      */
-    FIELD_EFFECT;
+    FIELD_EFFECT,
+    /**
+     * A phased-step cursor the host keeps across ticks and its renderer
+     * reads: the phase running, its progress and the declared reach.
+     */
+    PHASED,
+    /**
+     * A goo total the host fills by consuming the valued blocks around its
+     * anchor and drops as blobs.
+     */
+    CONSUMED_GOO;
 
     private static final String ERR_REFUSED = "Capability %s is not provided by the %s host";
 

@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.ability.AbilityMath;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
+import com.mercuriusxeno.goo.item.BlobStacks;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -16,11 +17,14 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.animal.pig.Pig;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import java.util.List;
 import java.util.function.BiConsumer;
 
 /**
@@ -87,6 +91,23 @@ public final class EffectExecutorTests {
     private static final int SHRED_WINDOW = 12;
     private static final String CLOUD_MISSED_MOVER = "The crystal cloud left the moving pig unhurt";
     private static final String CLOUD_HIT_STANDING = "The crystal cloud hurt the standing pig";
+    private static final String ABILITY_NETHER_BLACK_HOLE = "goo:nether_black_hole";
+    /** Ticks the black hole expands before it consumes its sphere. */
+    private static final int BLACK_HOLE_EXPAND_TICKS = 15;
+    /** Ticks from the fuse to the tick the black hole pops: expand, hold and contract. */
+    private static final int BLACK_HOLE_LIFE_TICKS = 60;
+    private static final float HEALTH_TOLERANCE = 0.01f;
+    /** The barrier floor spans the one-stack sphere's footprint around the marker, three blocks each way. */
+    private static final int BARRIER_FLOOR_MIN = 0;
+    private static final int BARRIER_FLOOR_MAX = 6;
+    /** Blocks around the marker searched for popped blobs, the one-stack pull reach. */
+    private static final double ITEM_SEARCH_RADIUS = 9;
+    /** The share of its health a creature inside the black hole keeps. */
+    private static final float HALF = 0.5f;
+    private static final String HOLE_LEFT_STONE = "The black hole left the stone it faced standing";
+    private static final String HOLE_MISSED_PIG = "The black hole left the pig inside it at other than half health";
+    private static final String HOLE_DROPPED_EARLY = "The black hole dropped items before it contracted";
+    private static final String HOLE_DROPPED_NO_ROCK = "The black hole popped no rock blob for the stone it consumed";
 
     private EffectExecutorTests() {}
 
@@ -492,6 +513,63 @@ public final class EffectExecutorTests {
             helper.assertTrue(standing.getHealth() == standing.getMaxHealth(), CLOUD_HIT_STANDING);
             helper.succeed();
         });
+    }
+
+    /**
+     * Nether black hole as a phased program: one stack, facing a stone
+     * wall with a pig standing inside its sphere on a barrier floor, which
+     * holds no goo so the sphere leaves it and the popped blobs land on
+     * it inside the test's bounds, consumes the
+     * stone as it leaves expand and halves the pig's health, drops nothing
+     * until it has contracted, then pops the consumed goo as a rock blob
+     * and removes its marker.
+     *
+     * @param helper the gametest helper
+     */
+    public static void programNetherBlackHole(GameTestHelper helper) {
+        helper.assertTrue(Goo.GOO_VALUES.size() > 0, VALUES_REQUIRED);
+        fillWall(helper, Blocks.STONE);
+        layBarrierFloor(helper);
+        placeMarkerWithAbility(helper, GooTypes.NETHER, ABILITY_NETHER_BLACK_HOLE);
+        Pig pig = helper.spawnWithNoFreeWill(EntityType.PIG, MINE_TARGET_POS);
+        helper.runAfterDelay(FUSE_TICKS + BLACK_HOLE_EXPAND_TICKS + SHORT_POST_FUSE, () -> {
+            helper.assertTrue(helper.getBlockState(MARKER_POS.north()).isAir(), HOLE_LEFT_STONE);
+            helper.assertTrue(Math.abs(pig.getHealth() - pig.getMaxHealth() * HALF) < HEALTH_TOLERANCE,
+                    HOLE_MISSED_PIG);
+            helper.assertTrue(itemsAroundMarker(helper).isEmpty(), HOLE_DROPPED_EARLY);
+        });
+        helper.runAfterDelay(FUSE_TICKS + BLACK_HOLE_LIFE_TICKS + SHORT_POST_FUSE, () -> {
+            helper.assertBlockNotPresent(GooBlocks.CHAIN_MARKER.get(), MARKER_POS);
+            helper.assertTrue(itemsAroundMarker(helper).stream()
+                    .anyMatch(item -> GooTypes.ROCK.equals(BlobStacks.keyOf(item.getItem()))), HOLE_DROPPED_NO_ROCK);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Collects the item entities within the black hole's pull reach of the
+     * marker, a box the empty test structure's own bounds do not span.
+     *
+     * @param helper the gametest helper
+     * @return the item entities
+     */
+    private static List<ItemEntity> itemsAroundMarker(GameTestHelper helper) {
+        AABB reach = new AABB(helper.absolutePos(MARKER_POS)).inflate(ITEM_SEARCH_RADIUS);
+        return helper.getLevel().getEntitiesOfClass(ItemEntity.class, reach);
+    }
+
+    /**
+     * Lays barrier under the marker's whole sphere, the floor a black hole
+     * cannot consume.
+     *
+     * @param helper the gametest helper
+     */
+    private static void layBarrierFloor(GameTestHelper helper) {
+        for (int x = BARRIER_FLOOR_MIN; x <= BARRIER_FLOOR_MAX; x++) {
+            for (int z = BARRIER_FLOOR_MIN; z <= BARRIER_FLOOR_MAX; z++) {
+                helper.setBlock(new BlockPos(x, 0, z), Blocks.BARRIER);
+            }
+        }
     }
 
     /**

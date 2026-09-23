@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.ability;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition.BehaviorEntry;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
-import com.mercuriusxeno.goo.ability.world.NetherBehavior;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -19,7 +18,6 @@ public final class BehaviorType {
 
     static {
         register(ProgramBehavior.TYPE_NAME, ProgramBehavior::fromEntry);
-        register("black_hole", (e, d) -> new NetherBehavior());
     }
 
     private BehaviorType() {

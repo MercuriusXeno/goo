@@ -135,6 +135,38 @@ public interface StepHost extends Variables {
     FieldEffectState fieldEffect();
 
     /**
+     * Returns the phase cursor the host keeps for a running phased step.
+     * Capability {@link HostCapability#PHASED}.
+     *
+     * @return the live state, mutated in place by the step
+     */
+    PhasedState phased();
+
+    /**
+     * Pulls every living entity within a sphere around the anchor toward
+     * the anchor's center. Capability {@link HostCapability#ENTITY_SCAN}.
+     *
+     * @param radius the sphere radius in blocks
+     * @param speed  the velocity added toward the center, in blocks per tick
+     */
+    void pullEntitiesWithin(double radius, double speed);
+
+    /**
+     * Removes every valued block within a sphere around the anchor, adding
+     * its goo to the total the host keeps. Capability
+     * {@link HostCapability#CONSUMED_GOO}.
+     *
+     * @param radius the sphere radius in whole blocks
+     */
+    void consumeValuedBlocks(int radius);
+
+    /**
+     * Drops the consumed goo total as blob items at the anchor and empties
+     * it. Capability {@link HostCapability#CONSUMED_GOO}.
+     */
+    void dropConsumedGoo();
+
+    /**
      * Hurts the host's target. Capability {@link HostCapability#TARGET}.
      *
      * @param amount    the damage

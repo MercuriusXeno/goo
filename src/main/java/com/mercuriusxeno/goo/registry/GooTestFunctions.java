@@ -74,6 +74,7 @@ public final class GooTestFunctions {
     private static final String FX_PROGRAM_MINE = "fx_program_proximity_mine";
     private static final String FX_PROGRAM_METAL_SPIKES = "fx_program_metal_spikes";
     private static final String FX_PROGRAM_CRYSTAL_CLOUD = "fx_program_crystal_cloud";
+    private static final String FX_PROGRAM_NETHER_BLACK_HOLE = "fx_program_nether_black_hole";
 
     // --- Crucible ---
     private static final String CR_BLOB_INSERT = "cr_blob_insert";
@@ -236,6 +237,7 @@ public final class GooTestFunctions {
         reg(r, FX_PROGRAM_MINE, EffectExecutorTests::programProximityMine);
         reg(r, FX_PROGRAM_METAL_SPIKES, EffectExecutorTests::programMetalSpikes);
         reg(r, FX_PROGRAM_CRYSTAL_CLOUD, EffectExecutorTests::programCrystalCloud);
+        reg(r, FX_PROGRAM_NETHER_BLACK_HOLE, EffectExecutorTests::programNetherBlackHole);
     }
 
     private static void registerMachineInteractionTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
