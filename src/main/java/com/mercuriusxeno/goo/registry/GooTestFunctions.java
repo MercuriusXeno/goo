@@ -42,6 +42,10 @@ public final class GooTestFunctions {
     private static final String EXORITE_SET_SMITHING = "exorite_set_smithing";
     private static final String EXORITE_SET_REPAIRS = "exorite_set_repairs";
     private static final String EXORITE_ARMOR_STATS = "exorite_armor_stats";
+    private static final String EXORITE_SURVIVES_ZERO_DURABILITY = "exorite_survives_zero_durability";
+    private static final String EXORITE_BROKEN_ACTS_AS_HAND = "exorite_broken_acts_as_hand";
+    private static final String EXORITE_BROKEN_TOOLTIP = "exorite_broken_tooltip";
+    private static final String EXORITE_ANVIL_REPAIR = "exorite_anvil_repair";
 
     // --- GasketPusher ---
     private static final String PUSHER_EMPTY_RESERVOIR = "pusher_empty_reservoir";
@@ -216,6 +220,10 @@ public final class GooTestFunctions {
         reg(r, EXORITE_SET_SMITHING, ExoriteTests::setSmithing);
         reg(r, EXORITE_SET_REPAIRS, ExoriteTests::setRepairs);
         reg(r, EXORITE_ARMOR_STATS, ExoriteTests::armorOutranksNetherite);
+        reg(r, EXORITE_SURVIVES_ZERO_DURABILITY, ExoriteDurabilityTests::survivesZeroDurability);
+        reg(r, EXORITE_BROKEN_ACTS_AS_HAND, ExoriteDurabilityTests::brokenActsAsHand);
+        reg(r, EXORITE_BROKEN_TOOLTIP, ExoriteDurabilityTests::brokenTooltip);
+        reg(r, EXORITE_ANVIL_REPAIR, ExoriteDurabilityTests::anvilRepair);
     }
 
     private static void registerGasketTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
