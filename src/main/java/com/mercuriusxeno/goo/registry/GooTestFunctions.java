@@ -66,6 +66,7 @@ public final class GooTestFunctions {
     private static final String FX_GLOW_FLOOR = "fx_glow_floor";
     private static final String FX_PROGRAM_GLOW_WALL = "fx_program_glow_wall";
     private static final String FX_PROGRAM_GLOW_FLOOR = "fx_program_glow_floor";
+    private static final String FX_FALLEN_MARKER_KEEPS_ABILITY = "fx_fallen_marker_keeps_ability";
     private static final String FX_ABILITY_BLAZE = "fx_ability_blaze_tunnel";
     private static final String FX_ABILITY_ROCK = "fx_ability_rock_tunnel";
     private static final String FX_ABILITY_FROST = "fx_ability_frost_sphere";
@@ -229,6 +230,7 @@ public final class GooTestFunctions {
         reg(r, FX_GLOW_FLOOR, EffectExecutorTests::glowFloorLegacy);
         reg(r, FX_PROGRAM_GLOW_WALL, EffectExecutorTests::programGlowWall);
         reg(r, FX_PROGRAM_GLOW_FLOOR, EffectExecutorTests::programGlowFloor);
+        reg(r, FX_FALLEN_MARKER_KEEPS_ABILITY, EffectExecutorTests::fallenMarkerKeepsAbility);
         reg(r, FX_ABILITY_BLAZE, EffectExecutorTests::abilityBlazeTunnel);
         reg(r, FX_ABILITY_ROCK, EffectExecutorTests::abilityRockTunnel);
         reg(r, FX_ABILITY_FROST, EffectExecutorTests::abilityFrostSphere);

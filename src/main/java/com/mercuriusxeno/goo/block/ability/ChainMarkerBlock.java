@@ -231,12 +231,9 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
         if (landing == null) {
             return;
         }
-        ChainMarkerBlockEntity be = (ChainMarkerBlockEntity) level.getBlockEntity(pos);
+        ChainMarkerSnapshot snapshot = ChainMarkerSnapshot.of((ChainMarkerBlockEntity) level.getBlockEntity(pos));
         level.removeBlock(pos, false);
-        ChainMarkerFallScheduler.scheduleFall(level, pos, landing,
-                state.getBlock(), be.getGooType(), be.getStackCount(),
-                be.getMaxStacks(), be.getFuseRemaining(), be.getPlacedFace(),
-                be.getBlobShape(), be.getAreaMode());
+        ChainMarkerFallScheduler.scheduleFall(level, pos, landing, state.getBlock(), snapshot);
     }
 
     /**

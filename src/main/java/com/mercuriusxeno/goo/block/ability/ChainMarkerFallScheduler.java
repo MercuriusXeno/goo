@@ -1,12 +1,10 @@
 package com.mercuriusxeno.goo.block.ability;
 
-import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ThrowArc;
 import com.mercuriusxeno.goo.network.BlobFlightPayload;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
@@ -20,7 +18,8 @@ import java.util.List;
 /**
  * Schedules deferred chain marker re-placements after a support block
  * breaks. The marker is removed immediately; after the flight animation
- * completes, a new marker is placed at the landing position.
+ * completes, a new marker is placed at the landing position carrying the
+ * state the old one held.
  */
 public final class ChainMarkerFallScheduler {
 
@@ -36,10 +35,6 @@ public final class ChainMarkerFallScheduler {
      * Block update flags: notify neighbors + send to clients.
      */
     private static final int BLOCK_UPDATE_FLAGS = 3;
-    /**
-     * Empty ability id for legacy (non-ability) flight payloads.
-     */
-    private static final String LEGACY_ABILITY = "";
 
     private static final List<PendingFall> PENDING_FALLS = new ArrayList<>();
 
@@ -47,33 +42,25 @@ public final class ChainMarkerFallScheduler {
     }
 
     /**
-     * Initiates a chain marker fall: removes the marker, broadcasts a
-     * flight animation, and schedules re-placement at the landing pos.
+     * Initiates a chain marker fall: broadcasts a flight animation and
+     * schedules re-placement at the landing pos. The caller removes the
+     * marker.
      *
      * @param level       the server level
      * @param oldPos      the position being vacated
      * @param landingPos  the position to re-place at
      * @param markerBlock the chain marker block instance
-     * @param gooType     the marker's goo type
-     * @param stackCount  the marker's stack count
-     * @param maxStacks   the marker's max stacks
-     * @param fuse        the remaining fuse ticks
-     * @param face        the placed face direction
-     * @param blobShape   the cosmetic blob shape
-     * @param areaMode    the delivery area mode
+     * @param snapshot    the marker's state, taken before removal
      */
     public static void scheduleFall(ServerLevel level, BlockPos oldPos, BlockPos landingPos,
-                                    Block markerBlock, ResourceKey<GooTypeDefinition> gooType, int stackCount, int maxStacks, int fuse,
-                                    Direction face, String blobShape, String areaMode) {
+                                    Block markerBlock, ChainMarkerSnapshot snapshot) {
         double distance = oldPos.distManhattan(landingPos);
         int travelTicks = (int) ThrowArc.travelTicks(distance);
 
-        broadcastFlight(level, oldPos, landingPos, gooType, travelTicks);
+        broadcastFlight(level, oldPos, landingPos, snapshot, travelTicks);
 
         int arrivalTick = level.getServer().getTickCount() + travelTicks;
-        PENDING_FALLS.add(new PendingFall(
-                arrivalTick, level, landingPos, markerBlock, gooType,
-                stackCount, maxStacks, fuse, face, blobShape, areaMode));
+        PENDING_FALLS.add(new PendingFall(arrivalTick, level, landingPos, markerBlock, snapshot));
     }
 
     /**
@@ -107,34 +94,35 @@ public final class ChainMarkerFallScheduler {
     }
 
     /**
-     * Broadcasts a blob flight payload for the falling animation.
+     * Broadcasts a blob flight payload for the falling animation, naming
+     * the marker's ability so the flight renders as that ability's blob.
      *
      * @param level       the server level
      * @param oldPos      the starting position
      * @param landingPos  the landing position
-     * @param gooType     the goo type
+     * @param snapshot    the falling marker's state
      * @param travelTicks the flight duration in ticks
      */
-    private static void broadcastFlight(ServerLevel level, BlockPos oldPos,
-                                        BlockPos landingPos, ResourceKey<GooTypeDefinition> gooType, int travelTicks) {
+    private static void broadcastFlight(ServerLevel level, BlockPos oldPos, BlockPos landingPos,
+                                        ChainMarkerSnapshot snapshot, int travelTicks) {
         BlobFlightPayload flight = new BlobFlightPayload(
                 oldPos.getX() + BLOCK_CENTER,
                 oldPos.getY() + BLOCK_CENTER,
                 oldPos.getZ() + BLOCK_CENTER,
-                GooTypes.id(gooType),
+                GooTypes.id(snapshot.gooType()),
                 NO_ENTITY,
                 landingPos,
                 Direction.UP.ordinal(),
                 travelTicks,
                 false,
-                LEGACY_ABILITY);
+                snapshot.abilityId());
         PacketDistributor.sendToPlayersTrackingChunk(
                 level, level.getChunkAt(oldPos).getPos(), flight);
     }
 
     /**
-     * Places a chain marker block at the landing position and
-     * initializes it with the snapshotted state.
+     * Places a chain marker block at the landing position and restores
+     * the state the falling marker carried.
      *
      * @param pf the pending fall data
      */
@@ -145,17 +133,14 @@ public final class ChainMarkerFallScheduler {
                 .setValue(BlockStateProperties.WATERLOGGED, waterlogged);
         pf.level.setBlock(pf.landingPos, markerState, BLOCK_UPDATE_FLAGS);
         if (pf.level.getBlockEntity(pf.landingPos) instanceof ChainMarkerBlockEntity be) {
-            be.initChain(pf.gooType, pf.face);
-            be.restoreFromFall(pf.stackCount, pf.maxStacks, pf.fuse, pf.blobShape, pf.areaMode);
+            be.restoreFromFall(pf.snapshot);
         }
     }
 
     /**
-     * Snapshot of a chain marker in mid-fall.
+     * A chain marker in mid-fall.
      */
     private record PendingFall(int arrivalTick, ServerLevel level, BlockPos landingPos,
-                               Block markerBlock, ResourceKey<GooTypeDefinition> gooType, int stackCount,
-                               int maxStacks, int fuse, Direction face,
-                               String blobShape, String areaMode) {
+                               Block markerBlock, ChainMarkerSnapshot snapshot) {
     }
 }
