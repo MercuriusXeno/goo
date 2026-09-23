@@ -17,6 +17,7 @@
           "type": "target",
           "where": ["mob"],
           "steps": [
+            { "type": "counter", "id": "goo:ritual", "add": "100 / pow(max_health, 0.6)" },
             { "type": "set_ai", "enabled": false },
             { "type": "set_invulnerable", "enabled": true },
             { "type": "potion", "effect": "minecraft:glowing", "duration": 60, "amplifier": 0 }

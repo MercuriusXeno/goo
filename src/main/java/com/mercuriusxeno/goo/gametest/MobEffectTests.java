@@ -89,6 +89,15 @@ public final class MobEffectTests {
     /** The damage metal_javelin.json's damage step names. */
     private static final float JAVELIN_DAMAGE = 8.0f;
 
+    /** The counter aeon_time_stop.json's ritual adds to. */
+    private static final Identifier RITUAL_COUNTER = Identifier.parse("goo:ritual");
+    /** The percent numerator and health exponent of aeon_time_stop.json's ritual share. */
+    private static final double RITUAL_PERCENT = 100;
+    private static final double RITUAL_HEALTH_EXPONENT = 0.6;
+    private static final int RITUAL_THROWS = 2;
+    private static final double RITUAL_TOLERANCE = 0.01;
+    private static final String SHOULD_COUNT_RITUAL = "Ritual counter should read %.2f after two throws, read %.2f";
+
     private MobEffectTests() {
     }
 
@@ -366,6 +375,25 @@ public final class MobEffectTests {
         helper.assertTrue(mob.isNoAi(), SHOULD_HAVE_NO_AI);
         helper.assertTrue(mob.isInvulnerable(), SHOULD_BE_INVULNERABLE);
         helper.assertTrue(mob.hasEffect(MobEffects.GLOWING), SHOULD_HAVE_GLOWING);
+        helper.succeed();
+    }
+
+    /**
+     * Aeon's ritual counter persists on the struck mob: each throw adds
+     * 100 / pow(max_health, 0.6) to the cow's goo:ritual counter, so two
+     * throws on a cow of max health ten read twice that (decision
+     * aeon-mob-ritual-drops-spawn-egg).
+     *
+     * @param helper the gametest helper
+     */
+    public static void aeonRitualCounts(GameTestHelper helper) {
+        Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
+        runEntityPrograms(helper, mob, ABILITY_AEON_TIME_STOP);
+        runEntityPrograms(helper, mob, ABILITY_AEON_TIME_STOP);
+        double expected = RITUAL_THROWS * RITUAL_PERCENT / Math.pow(mob.getMaxHealth(), RITUAL_HEALTH_EXPONENT);
+        double ritual = new EntityHost(helper.getLevel(), mob, null).counters().read(RITUAL_COUNTER);
+        helper.assertTrue(Math.abs(ritual - expected) < RITUAL_TOLERANCE,
+                String.format(SHOULD_COUNT_RITUAL, expected, ritual));
         helper.succeed();
     }
 }

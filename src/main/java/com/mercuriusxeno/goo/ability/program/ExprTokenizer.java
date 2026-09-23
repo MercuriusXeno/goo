@@ -116,9 +116,9 @@ final class ExprTokenizer {
      * Tells whether the character may continue a name.
      *
      * @param c the character
-     * @return true for a letter, a digit or an underscore
+     * @return true for a letter, a digit, an underscore or the colon of a counter id
      */
     private static boolean isNameChar(char c) {
-        return Character.isLetterOrDigit(c) || c == '_';
+        return Character.isLetterOrDigit(c) || c == '_' || c == ':';
     }
 }

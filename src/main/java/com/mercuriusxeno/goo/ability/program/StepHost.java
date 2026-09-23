@@ -254,6 +254,16 @@ public interface StepHost extends Variables {
     void dropItemAtTarget(Identifier item, int count);
 
     /**
+     * Adds to a named counter the host's target keeps between hits; an
+     * expression reads it back by its id. Capability
+     * {@link HostCapability#TARGET}.
+     *
+     * @param id     the counter id
+     * @param amount the amount to add
+     */
+    void addTargetCounter(Identifier id, double amount);
+
+    /**
      * Sets the host's target on fire. Capability
      * {@link HostCapability#TARGET}.
      *

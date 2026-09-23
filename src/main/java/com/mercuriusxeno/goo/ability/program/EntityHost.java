@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.BlockEffect;
 import com.mercuriusxeno.goo.ability.LayerAudio;
 import com.mercuriusxeno.goo.ability.LayerVisuals;
+import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
@@ -64,8 +65,32 @@ public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entit
             case HostVariables.DISTANCE -> OptionalDouble.of(distanceFromThrower());
             case HostVariables.UNDEAD -> flag(target.isInvertedHealAndHarm());
             case HostVariables.SPRINTING -> flag(isSprintingPlayer());
-            default -> OptionalDouble.empty();
+            default -> readCounter(name);
         };
+    }
+
+    /**
+     * Reads a counter the target keeps, named in an expression by its id;
+     * a name that is no counter id is unbound.
+     *
+     * @param name the variable name
+     * @return the counter's value, or empty for a name that is no counter id
+     */
+    private OptionalDouble readCounter(String name) {
+        if (!HostVariables.isCounter(name)) {
+            return OptionalDouble.empty();
+        }
+        Identifier id = Identifier.tryParse(name);
+        return id == null ? OptionalDouble.empty() : OptionalDouble.of(counters().read(id));
+    }
+
+    /**
+     * Returns the counters the target keeps, empty for a target never counted.
+     *
+     * @return the counters
+     */
+    public EntityCounters counters() {
+        return target.getData(GooAttachments.ENTITY_COUNTERS);
     }
 
     /**
@@ -244,6 +269,11 @@ public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entit
             return;
         }
         target.spawnAtLocation(level, new ItemStack(holder.get(), count));
+    }
+
+    @Override
+    public void addTargetCounter(Identifier id, double amount) {
+        target.setData(GooAttachments.ENTITY_COUNTERS, counters().withAdded(id, amount));
     }
 
     @Override
