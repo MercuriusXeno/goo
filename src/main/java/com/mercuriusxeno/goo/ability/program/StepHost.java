@@ -6,7 +6,9 @@ import com.mercuriusxeno.goo.ability.LayerVisuals;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import org.jspecify.annotations.Nullable;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -21,7 +23,7 @@ import java.util.function.Consumer;
  *
  * <p>Each method belongs to a {@link HostCapability}. A host implements
  * the methods of the capabilities its {@link HostKind} provides and
- * refuses the rest; the target and layer-walk methods refuse by default,
+ * refuses the rest; the target, thrower and layer-walk methods refuse by default,
  * so a host lacking those capabilities leaves them unimplemented.
  * {@link ProgramBehavior#forHost} keeps a program from
  * ever reaching a refused method by checking every step's needs against
@@ -113,22 +115,24 @@ public interface StepHost extends Variables {
     void forEntity(int entityId, Consumer<StepHost> body);
 
     /**
-     * Returns the id of the host's target in its level. Capability
-     * {@link HostCapability#TARGET}.
+     * Returns the living entity the host's program acts on; each effect
+     * step's tick acts on it directly (decision step-tick-holds-effect).
+     * Capability {@link HostCapability#TARGET}.
      *
-     * @return the target's entity id
+     * @return the target entity
      */
-    default int targetId() {
+    default LivingEntity target() {
         throw HostCapability.TARGET.refusedBy(kind());
     }
 
     /**
-     * Returns the center of the host's target's body. Capability
+     * Returns the entity that set the program on the target, which a
+     * teleport toward or away from it reads. Capability
      * {@link HostCapability#TARGET}.
      *
-     * @return the body center
+     * @return the thrower, or null when unknown
      */
-    default Vec3 targetCenter() {
+    default @Nullable Entity thrower() {
         throw HostCapability.TARGET.refusedBy(kind());
     }
 
@@ -173,157 +177,6 @@ public interface StepHost extends Variables {
     void dropConsumedGoo();
 
     /**
-     * Hurts the host's target. Capability {@link HostCapability#TARGET}.
-     *
-     * @param amount    the damage
-     * @param source    the damage source
-     * @param knockback whether the hit may push the target
-     */
-    default void damageTarget(float amount, DamageKind source, boolean knockback) {
-        throw HostCapability.TARGET.refusedBy(kind());
-    }
-
-    /**
-     * Sets the ticks the host's target stays immune to further hits, so a
-     * rapid strike can land again on the next tick. Capability
-     * {@link HostCapability#TARGET}.
-     *
-     * @param ticks the immunity ticks
-     */
-    default void setTargetHurtCooldown(int ticks) {
-        throw HostCapability.TARGET.refusedBy(kind());
-    }
-
-    /**
-     * Adds a status effect to the host's target. Capability
-     * {@link HostCapability#TARGET}.
-     *
-     * @param effect    the status effect id
-     * @param duration  the duration in ticks
-     * @param amplifier the amplifier
-     * @param visible   whether the effect shows particles and an icon
-     */
-    default void applyPotion(Identifier effect, int duration, int amplifier, boolean visible) {
-        throw HostCapability.TARGET.refusedBy(kind());
-    }
-
-    /**
-     * Tests the host's target against every filter. Capability
-     * {@link HostCapability#TARGET}.
-     *
-     * @param filters the filters the target must pass
-     * @return true when every filter keeps the target
-     */
-    default boolean targetPasses(Set<EntityFilter> filters) {
-        throw HostCapability.TARGET.refusedBy(kind());
-    }
-
-    /**
-     * Sets the host's target to a fraction of its current health without
-     * a damage event. Capability {@link HostCapability#TARGET}.
-     *
-     * @param fraction the fraction of current health to keep
-     */
-    default void setTargetHealthFraction(float fraction) {
-        throw HostCapability.TARGET.refusedBy(kind());
-    }
-
-    /**
-     * Adds to the host's target's frozen ticks. Capability
-     * {@link HostCapability#TARGET}.
-     *
-     * @param ticks the ticks to add
-     */
-    default void addTargetFreezeTicks(int ticks) {
-        throw HostCapability.TARGET.refusedBy(kind());
-    }
-
-    /**
-     * Toggles the host's target's AI; a target that is not a mob is left
-     * alone. Capability {@link HostCapability#TARGET}.
-     *
-     * @param enabled whether the AI runs
-     */
-    default void setTargetAi(boolean enabled) {
-        throw HostCapability.TARGET.refusedBy(kind());
-    }
-
-    /**
-     * Toggles the host's target's invulnerability. Capability
-     * {@link HostCapability#TARGET}.
-     *
-     * @param enabled whether the target is invulnerable
-     */
-    default void setTargetInvulnerable(boolean enabled) {
-        throw HostCapability.TARGET.refusedBy(kind());
-    }
-
-    /**
-     * Rolls the chance and, on a hit, spawns a fresh entity of the host's
-     * target's type beside it. Capability {@link HostCapability#TARGET}.
-     *
-     * @param chancePercent the percent chance of a clone
-     */
-    default void cloneTarget(float chancePercent) {
-        throw HostCapability.TARGET.refusedBy(kind());
-    }
-
-    /**
-     * Spawns an item stack at the host's target; the id
-     * {@link DropItemStep#SPAWN_EGG} names the target's own spawn egg.
-     * Capability {@link HostCapability#TARGET}.
-     *
-     * @param item  the item id
-     * @param count the stack size
-     */
-    default void dropItemAtTarget(Identifier item, int count) {
-        throw HostCapability.TARGET.refusedBy(kind());
-    }
-
-    /**
-     * Removes the host's target from the world without a death, drops or
-     * a loot roll. Capability {@link HostCapability#TARGET}.
-     */
-    void discardTarget();
-
-    /**
-     * Adds to a named counter the host's target keeps between hits; an
-     * expression reads it back by its id. Capability
-     * {@link HostCapability#TARGET}.
-     *
-     * @param id     the counter id
-     * @param amount the amount to add
-     */
-    void addTargetCounter(Identifier id, double amount);
-
-    /**
-     * Sets a named counter the host's target keeps between hits.
-     * Capability {@link HostCapability#TARGET}.
-     *
-     * @param id    the counter id
-     * @param value the new value
-     */
-    void setTargetCounter(Identifier id, double value);
-
-    /**
-     * Makes the host's target a baby or an adult; a target with no baby
-     * form is left alone. Capability {@link HostCapability#TARGET}.
-     *
-     * @param enabled whether the target becomes a baby
-     */
-    void setTargetBaby(boolean enabled);
-
-    /**
-     * Sets the host's target on fire. Capability
-     * {@link HostCapability#TARGET}.
-     *
-     * @param seconds the burn time in seconds
-     */
-    default void igniteTarget(int seconds) {
-        throw HostCapability.TARGET.refusedBy(kind());
-    }
-
-    /**
      * Spawns a burst of particles at the anchor. The {@link FxAnchor#TARGET}
      * anchor needs capability {@link HostCapability#TARGET}.
      *
@@ -340,16 +193,6 @@ public interface StepHost extends Variables {
      * @param cue the evaluated sound
      */
     void playSound(FxAnchor at, SoundCue cue);
-
-    /**
-     * Moves the host's target. Capability {@link HostCapability#TARGET}.
-     *
-     * @param mode  how the destination is picked
-     * @param range the mode's range in blocks
-     */
-    default void teleportTarget(TeleportMode mode, double range) {
-        throw HostCapability.TARGET.refusedBy(kind());
-    }
 
     /**
      * Writes a block at the anchor, replacing what stands there.

@@ -1,9 +1,11 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.entity.LivingEntity;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -85,8 +87,12 @@ public record CounterStep(Identifier id, Optional<Expr> add, Optional<Expr> set)
 
     @Override
     public boolean tick(StepContext context) {
-        add.ifPresent(amount -> context.host().addTargetCounter(id, amount.evaluate(context)));
-        set.ifPresent(value -> context.host().setTargetCounter(id, value.evaluate(context)));
+        LivingEntity target = context.host().target();
+        EntityCounters counters = target.getData(GooAttachments.ENTITY_COUNTERS);
+        add.ifPresent(amount -> target.setData(GooAttachments.ENTITY_COUNTERS,
+                counters.withAdded(id, amount.evaluate(context))));
+        set.ifPresent(value -> target.setData(GooAttachments.ENTITY_COUNTERS,
+                counters.withValue(id, value.evaluate(context))));
         return true;
     }
 

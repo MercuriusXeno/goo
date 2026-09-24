@@ -27,6 +27,7 @@ import static org.mockito.Mockito.when;
 class TapHostTest {
 
     private static final String TAP_LABEL = "tap landing";
+    private static final String TARGET_NEED = "needs " + HostCapability.TARGET.key();
     private static final Identifier SPLASH = Identifier.withDefaultNamespace("splash");
     private static final int BURST = 6;
 
@@ -61,6 +62,17 @@ class TapHostTest {
 
         assertRefusal(assertThrows(ProgramLoadException.class, () -> ProgramBehavior.forHost(steps, HostKind.TAP)),
                 "damage");
+    }
+
+    @Test
+    void setBabyProgramRefusesAtLoadNamingTheTargetCapability() {
+        List<Step> steps = List.of(new SetBabyStep(true));
+
+        ProgramLoadException refusal = assertThrows(ProgramLoadException.class,
+                () -> ProgramBehavior.forHost(steps, HostKind.TAP));
+
+        assertRefusal(refusal, "set_baby");
+        assertTrue(refusal.getMessage().contains(TARGET_NEED), refusal.getMessage());
     }
 
     @Test

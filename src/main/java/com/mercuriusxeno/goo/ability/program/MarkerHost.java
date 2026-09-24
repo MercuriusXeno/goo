@@ -96,16 +96,6 @@ public record MarkerHost(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity
     }
 
     @Override
-    public int targetId() {
-        throw HostCapability.TARGET.refusedBy(kind());
-    }
-
-    @Override
-    public Vec3 targetCenter() {
-        throw HostCapability.TARGET.refusedBy(kind());
-    }
-
-    @Override
     public FieldEffectState fieldEffect() {
         return be.getFieldEffect();
     }
@@ -131,81 +121,6 @@ public record MarkerHost(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity
     }
 
     @Override
-    public void damageTarget(float amount, DamageKind source, boolean knockback) {
-        throw HostCapability.TARGET.refusedBy(kind());
-    }
-
-    @Override
-    public void setTargetHurtCooldown(int ticks) {
-        throw HostCapability.TARGET.refusedBy(kind());
-    }
-
-    @Override
-    public void applyPotion(Identifier effect, int duration, int amplifier, boolean visible) {
-        throw HostCapability.TARGET.refusedBy(kind());
-    }
-
-    @Override
-    public boolean targetPasses(Set<EntityFilter> filters) {
-        throw HostCapability.TARGET.refusedBy(kind());
-    }
-
-    @Override
-    public void setTargetHealthFraction(float fraction) {
-        throw HostCapability.TARGET.refusedBy(kind());
-    }
-
-    @Override
-    public void addTargetFreezeTicks(int ticks) {
-        throw HostCapability.TARGET.refusedBy(kind());
-    }
-
-    @Override
-    public void setTargetAi(boolean enabled) {
-        throw HostCapability.TARGET.refusedBy(kind());
-    }
-
-    @Override
-    public void setTargetInvulnerable(boolean enabled) {
-        throw HostCapability.TARGET.refusedBy(kind());
-    }
-
-    @Override
-    public void cloneTarget(float chancePercent) {
-        throw HostCapability.TARGET.refusedBy(kind());
-    }
-
-    @Override
-    public void dropItemAtTarget(Identifier item, int count) {
-        throw HostCapability.TARGET.refusedBy(kind());
-    }
-
-    @Override
-    public void discardTarget() {
-        throw HostCapability.TARGET.refusedBy(kind());
-    }
-
-    @Override
-    public void addTargetCounter(Identifier id, double amount) {
-        throw HostCapability.TARGET.refusedBy(kind());
-    }
-
-    @Override
-    public void setTargetCounter(Identifier id, double value) {
-        throw HostCapability.TARGET.refusedBy(kind());
-    }
-
-    @Override
-    public void setTargetBaby(boolean enabled) {
-        throw HostCapability.TARGET.refusedBy(kind());
-    }
-
-    @Override
-    public void igniteTarget(int seconds) {
-        throw HostCapability.TARGET.refusedBy(kind());
-    }
-
-    @Override
     public void spawnParticles(FxAnchor at, ParticleBurst burst) {
         if (at == FxAnchor.TARGET) {
             throw HostCapability.TARGET.refusedBy(kind());
@@ -220,12 +135,6 @@ public record MarkerHost(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity
         }
         SoundPlays.play(level, Vec3.atCenterOf(pos), cue);
     }
-
-    @Override
-    public void teleportTarget(TeleportMode mode, double range) {
-        throw HostCapability.TARGET.refusedBy(kind());
-    }
-
 
     @Override
     public void placeBlock(Identifier block, Map<String, String> state) {
