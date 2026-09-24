@@ -31,22 +31,10 @@ public class GooFluidHandler extends FluidStacksResourceHandler {
     private final Runnable onChange;
     private final LongSupplier tickSupplier;
 
-    // --- Stream tracking (transient, for rendering incoming goo) ---
-
     /**
-     * Goo type last inserted via gasket transfer, or null if idle.
+     * Incoming goo, transient, for rendering the pour.
      */
-    private @Nullable ResourceKey<GooTypeDefinition> streamType;
-
-    /**
-     * Total mB inserted this tick (accumulates across multiple types).
-     */
-    private int streamRate;
-
-    /**
-     * Game tick of the last insertion event.
-     */
-    private long streamTick = -1;
+    private final GooStream stream = new GooStream();
 
     /**
      * Suppresses all side-effect callbacks (stream tracking + onChange) during bulk loads.
@@ -128,48 +116,38 @@ public class GooFluidHandler extends FluidStacksResourceHandler {
         }
         int delta = (int) getAmountAsLong(index) - previousContents.getAmount();
         if (delta > 0) {
-            trackInsertion(index, delta);
+            stream.record(GooTypes.order().get(index), delta, tickSupplier.getAsLong());
         }
         onChange.run();
     }
 
     /**
-     * Records an insertion event for stream rendering.
-     *
-     * @param index the tank index that received goo
-     * @param delta the volume inserted in mB
-     */
-    private void trackInsertion(int index, int delta) {
-        long now = tickSupplier.getAsLong();
-        if (now != streamTick) {
-            streamRate = 0;
-            streamTick = now;
-        }
-        streamType = GooTypes.order().get(index);
-        streamRate += delta;
-    }
-
-    // --- Stream getters (queried by BER extractRenderState) ---
-
-    /**
-     * Returns the goo type currently streaming in, or null if no active stream.
-     * A stream is considered active if goo was inserted within the last tick.
+     * Returns the goo type streaming in, or null once the stream's hold has passed.
      *
      * @param currentTick the current game tick
      * @return the streaming goo type, or null
      */
     public @Nullable ResourceKey<GooTypeDefinition> getStreamType(long currentTick) {
-        return (currentTick - streamTick <= 1) ? streamType : null;
+        return stream.typeAt(currentTick);
     }
 
     /**
-     * Returns the transfer rate of the active stream in mB/tick.
+     * Returns the volume the last landing tick carried in mB, or 0 once the stream's hold has passed.
      *
      * @param currentTick the current game tick
-     * @return mB/tick if stream is active, 0 otherwise
+     * @return the stream rate, or 0
      */
     public int getStreamRate(long currentTick) {
-        return (currentTick - streamTick <= 1) ? streamRate : 0;
+        return stream.rateAt(currentTick);
+    }
+
+    /**
+     * Returns the last tick goo landed, or -1 before any has.
+     *
+     * @return the last landing tick
+     */
+    public long getStreamTick() {
+        return stream.lastTick();
     }
 
     // --- Bridge methods ---
