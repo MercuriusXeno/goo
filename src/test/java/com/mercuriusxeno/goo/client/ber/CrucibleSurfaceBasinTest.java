@@ -23,19 +23,19 @@ class CrucibleSurfaceBasinTest {
 
     @Test
     void emptyVolumeSurfaceSitsOnTheFloor() {
-        assertEquals(CrucibleBasin.FLOOR_Y, CrucibleBlockEntityRenderer.surfaceYForVolume(0), EPSILON);
+        assertEquals(CrucibleBasin.FLOOR_Y, CrucibleBasin.surfaceYForVolume(0), EPSILON);
     }
 
     @Test
     void fullVolumeSurfaceReachesTheRim() {
         assertEquals(CrucibleBasin.RIM_Y,
-            CrucibleBlockEntityRenderer.surfaceYForVolume(CrucibleBlockEntityRenderer.LIQUID_LOG_CAP), EPSILON);
+            CrucibleBasin.surfaceYForVolume(CrucibleBasin.RIM_VOLUME), EPSILON);
     }
 
     @ParameterizedTest
-    @ValueSource(ints = {50, 60_000})
+    @ValueSource(ints = {50, 8_000_000})
     void everySurfaceVertexLiesInsideTheBasin(int volume) {
-        float surfaceY = CrucibleBlockEntityRenderer.surfaceYForVolume(volume);
+        float surfaceY = CrucibleBasin.surfaceYForVolume(volume);
         RecordingVertexConsumer recorder = new RecordingVertexConsumer();
         RenderContext ctx = new RenderContext(new PoseStack().last(), recorder, 0, 0xFFFFFFFF);
         CrucibleBlockEntityRenderer.emitLiquidSurface(ctx, surfaceY, new GooRenderUtil.UvRect(0f, 0f, 1f, 1f),

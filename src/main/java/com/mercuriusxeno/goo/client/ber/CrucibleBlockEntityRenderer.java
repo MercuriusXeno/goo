@@ -29,14 +29,6 @@ import java.util.WeakHashMap;
 public class CrucibleBlockEntityRenderer
         implements BlockEntityRenderer<CrucibleBlockEntity, CrucibleRenderState> {
 
-    // -- Liquid level constants --
-
-    /**
-     * Volume at which the logarithmic curve reaches ~1.0 (full basin).
-     * Tunable: higher values make the curve more gradual.
-     */
-    static final int LIQUID_LOG_CAP = 64_000;
-
     // -- Color constants --
 
     /** Maximum alpha channel value (1 byte). */
@@ -79,7 +71,7 @@ public class CrucibleBlockEntityRenderer
      */
     private void extractRipple(CrucibleBlockEntity be, CrucibleRenderState state) {
         long gameTick = be.getLevel() != null ? be.getLevel().getGameTime() : 0L;
-        float fill = computeLogFill(state.poolVolume + state.reservoirVolume, LIQUID_LOG_CAP);
+        float fill = CrucibleBasin.fillFraction(state.poolVolume + state.reservoirVolume);
         state.rippleAmplitude = agitations.computeIfAbsent(be, key -> new SurfaceAgitation())
             .tick(fill, 0f, gameTick);
     }
@@ -131,17 +123,7 @@ public class CrucibleBlockEntityRenderer
         int totalGoo = state.poolVolume + state.reservoirVolume;
         if (totalGoo <= 0 || state.dominantType == null) { return; }
 
-        submitLiquidQuads(poseStack, nodeCollector, state, surfaceYForVolume(totalGoo));
-    }
-
-    /**
-     * Places the surface on the basin's floor-to-rim span for a volume.
-     *
-     * @param totalGoo the pool and reservoir volume together
-     * @return the surface Y in block-relative coords
-     */
-    static float surfaceYForVolume(int totalGoo) {
-        return CrucibleBasin.surfaceY(computeLogFill(totalGoo, LIQUID_LOG_CAP));
+        submitLiquidQuads(poseStack, nodeCollector, state, CrucibleBasin.surfaceYForVolume(totalGoo));
     }
 
     /**
@@ -244,20 +226,6 @@ public class CrucibleBlockEntityRenderer
         CuboidBounds basin = new CuboidBounds(CrucibleBasin.FOOTPRINT_MIN, CrucibleBasin.FOOTPRINT_MAX,
             CrucibleBasin.FOOTPRINT_MIN, CrucibleBasin.FOOTPRINT_MAX, surfaceY, surfaceY);
         ctx.liquidSurfaceGrid(basin, uv, amplitude);
-    }
-
-    /**
-     * Computes a logarithmic fill fraction in [0, 1] from volume and cap.
-     * Front-loaded: small volumes fill quickly, large volumes approach 1 slowly.
-     *
-     * @param volume the volume in microblobs
-     * @param cap the log curve saturation cap
-     * @return the computed logFill
-     */
-    static float computeLogFill(int volume, int cap) {
-        if (volume <= 0) { return 0f; }
-        if (volume >= cap) { return 1f; }
-        return (float) (Math.log(1.0 + volume) / Math.log(1.0 + cap));
     }
 
 }

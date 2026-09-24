@@ -15,8 +15,6 @@ import net.minecraft.util.RandomSource;
  */
 public final class CrucibleParticleHelper {
 
-    /** Volume at which the logarithmic fill curve reaches 1.0 (matches BER). */
-    private static final int LIQUID_LOG_CAP = 64_000;
 
     /** Minimum squared XZ distance between recent bubble spawns (in blocks). */
     private static final double MIN_SPACING_SQ = 0.0156;
@@ -337,17 +335,14 @@ public final class CrucibleParticleHelper {
     }
 
     /**
-     * Computes the liquid surface Y in block-relative coords from total goo volume.
-     * Replicates the BER's logarithmic fill curve (acceptable DRY exception
-     * since BER runs client-side and this runs server-side).
+     * Computes the liquid surface Y in block-relative coords from total goo
+     * volume, on the same fill curve the renderer draws.
      *
      * @param totalGoo the total goo
-     * @return the result
+     * @return the surface Y
      */
     public static float computeSurfaceY(int totalGoo) {
-        if (totalGoo <= 0) { return CrucibleBasin.FLOOR_Y; }
-        float fill = (float) (Math.log(1.0 + totalGoo) / Math.log(1.0 + LIQUID_LOG_CAP));
-        return CrucibleBasin.surfaceY(fill);
+        return CrucibleBasin.surfaceYForVolume(totalGoo);
     }
 
     /**

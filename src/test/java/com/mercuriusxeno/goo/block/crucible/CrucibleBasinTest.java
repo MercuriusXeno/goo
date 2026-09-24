@@ -14,7 +14,7 @@ import static org.mockito.Mockito.when;
 class CrucibleBasinTest {
 
     private static final float EPSILON = 1e-6f;
-    private static final int FULL_VOLUME = 64_000;
+    private static final int FULL_VOLUME = CrucibleBasin.RIM_VOLUME;
 
     @Test
     void basinFloorIsTheCavityBottom() {
