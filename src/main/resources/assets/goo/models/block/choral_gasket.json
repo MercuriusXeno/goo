@@ -1,0 +1,24 @@
+{
+  "parent": "block/block",
+  "format_version": "1.21.11",
+  "render_type": "minecraft:cutout",
+  "ambientocclusion": false,
+  "textures": {
+    "gasket": "goo:block/choral_gasket",
+    "particle": "goo:block/choral_gasket"
+  },
+  "elements": [
+    {
+      "from": [6, 0, 6],
+      "to": [10, 1, 10],
+      "faces": {
+        "up":    { "texture": "#gasket", "uv": [0, 0, 4, 4] },
+        "down":  { "texture": "#gasket", "uv": [0, 0, 4, 4] },
+        "north": { "texture": "#gasket", "uv": [0, 0, 4, 1] },
+        "south": { "texture": "#gasket", "uv": [0, 0, 4, 1] },
+        "west":  { "texture": "#gasket", "uv": [0, 0, 4, 1] },
+        "east":  { "texture": "#gasket", "uv": [0, 0, 4, 1] }
+      }
+    }
+  ]
+}
