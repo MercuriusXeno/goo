@@ -12,7 +12,7 @@ import java.util.List;
  * The layers of an {@link AreaShape} footprint, as the block positions a
  * layer walk strikes, computed from the marker's stack count and placed
  * face alone. Two invariants of the rock design hold for every shape
- * (repo CLAUDE.md, RockExecutor): the footprint lies perpendicular to
+ * (RockExecutor): the footprint lies perpendicular to
  * {@code blastDir = placedFace.getOpposite()}, and layer {@code i} of a
  * tunnel is centered on {@code origin.relative(blastDir, i + 1)}, so
  * layer 0 is the struck block and never the marker's air block.

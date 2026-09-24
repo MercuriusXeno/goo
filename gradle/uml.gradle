@@ -45,7 +45,8 @@ def umlSlices = [
          packages: ['com.mercuriusxeno.goo.client.particle']],
 ]
 
-def umlOutputDir = file("${layout.buildDirectory.get()}/reports/diagrams/class")
+// The slices land beside the other architecture documents (gradle/architecture.gradle).
+def umlOutputDir = new File(architectureOutDir, 'class')
 // Resolve at configuration time; sourceSets is not accessible inside doLast.
 def umlClasspathFiles = (sourceSets.main.output.classesDirs.files +
                          sourceSets.main.compileClasspath.files) as Set
