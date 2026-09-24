@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.client.ber.style.NetherHoleStyles;
 import net.minecraft.client.Minecraft;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -37,6 +38,24 @@ public final class NetherLensClientEvents {
      */
     @SubscribeEvent
     public static void onAfterLevel(RenderLevelStageEvent.AfterLevel event) {
-        NetherLensEffect.applyPerFrame(Minecraft.getInstance());
+        Minecraft mc = Minecraft.getInstance();
+        driveFrame(NetherHoleStyles.lensEnabled(),
+                () -> NetherLensEffect.applyPerFrame(mc),
+                () -> NetherLensEffect.release(mc.gameRenderer));
+    }
+
+    /** Runs the per-frame lens work only while the config turns the lens
+     * on, and otherwise only releases it (decision one-disc-mesh-config-lens).
+     *
+     * @param lensEnabled   whether the client config turns the lens on
+     * @param applyPerFrame the per-frame projection and uniform upload
+     * @param release       the release of a lens left from an earlier frame
+     */
+    static void driveFrame(boolean lensEnabled, Runnable applyPerFrame, Runnable release) {
+        if (lensEnabled) {
+            applyPerFrame.run();
+            return;
+        }
+        release.run();
     }
 }
