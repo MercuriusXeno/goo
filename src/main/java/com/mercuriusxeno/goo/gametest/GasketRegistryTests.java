@@ -1,5 +1,8 @@
 package com.mercuriusxeno.goo.gametest;
 
+import com.mercuriusxeno.goo.block.canister.CanisterBlock;
+import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
+import com.mercuriusxeno.goo.block.hub.HubBlockEntity;
 import com.mercuriusxeno.goo.block.tap.TapBlockEntity;
 import com.mercuriusxeno.goo.data.GasketLocation;
 import com.mercuriusxeno.goo.data.GasketRegistry;
@@ -12,6 +15,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import org.jspecify.annotations.Nullable;
 import java.util.UUID;
 
 /**
@@ -25,6 +29,16 @@ public final class GasketRegistryTests {
     private static final String TAP_RELOADED = "Reloaded tap block entity should stand at the tap position";
     private static final String TAP_REGISTRY_ACCESS = "Reloaded tap's gasket attachment should hold registry access";
     private static final String TAP_LOCATION = "Reloaded tap's canister gasket should resolve to the tap's slot";
+
+    private static final String LOCATION_MISMATCH = "%s: expected %s, got %s";
+
+    private static final BlockPos HUB_POS = new BlockPos(3, 1, 1);
+    private static final int HUB_SLOT = 0;
+    private static final String CANISTER_LOCATION = "Canister gasket should first resolve to the canister block";
+    private static final String HUB_INSERTED = "Hub should accept the canister into its slot";
+    private static final String HUB_LOCATION = "Canister gasket moved into the hub should resolve to the hub's slot";
+    private static final String HUB_REMOVED_CLEARS = "Removing the canister from the hub should clear its gasket location";
+    private static final String HUB_BROKEN_CLEARS = "Breaking a hub holding the canister should clear its gasket location";
 
     private GasketRegistryTests() {
     }
@@ -50,9 +64,49 @@ public final class GasketRegistryTests {
             helper.assertTrue(reloaded.gasket().registryAccess() != null, TAP_REGISTRY_ACCESS);
             GasketLocation expected = new GasketLocation(level.dimension(),
                     helper.absolutePos(BE_POS), true, TapBlockEntity.SLOT);
-            helper.assertValueEqual(GasketRegistry.get(level).getLocation(topId), expected, TAP_LOCATION);
+            assertLocation(helper, GasketRegistry.get(level).getLocation(topId), expected, TAP_LOCATION);
             helper.succeed();
         });
+    }
+
+    /**
+     * Hub: a canister carrying a linked gasket, moved from a canister block into
+     * a hub slot, resolves its registry location at the hub's slot; removing it,
+     * or breaking the hub that holds it, clears that location.
+     *
+     * @param helper the gametest helper
+     */
+    public static void hubSlotGasketRegistered(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        GasketRegistry registry = GasketRegistry.get(level);
+        UUID topId = UUID.randomUUID();
+        registry.link(UUID.randomUUID(), topId);
+        helper.setBlock(BE_POS, GooBlocks.CANISTER.get());
+        CanisterBlockEntity canisterBlock = helper.getBlockEntity(BE_POS, CanisterBlockEntity.class);
+        canisterBlock.insertCanister(CanisterBlock.CENTER_SLOT, canisterWithGaskets(topId, UUID.randomUUID()), false);
+        assertLocation(helper, registry.getLocation(topId), new GasketLocation(level.dimension(),
+                helper.absolutePos(BE_POS), true, CanisterBlock.CENTER_SLOT), CANISTER_LOCATION);
+        ItemStack moved = canisterBlock.removeCanister(CanisterBlock.CENTER_SLOT);
+
+        helper.setBlock(HUB_POS, GooBlocks.HUB.get());
+        HubBlockEntity hub = helper.getBlockEntity(HUB_POS, HubBlockEntity.class);
+        helper.assertTrue(hub.insertCanister(HUB_SLOT, moved), HUB_INSERTED);
+        GasketLocation atHub = new GasketLocation(level.dimension(), helper.absolutePos(HUB_POS), true, HUB_SLOT);
+        assertLocation(helper, registry.getLocation(topId), atHub, HUB_LOCATION);
+
+        ItemStack removed = hub.removeCanister(HUB_SLOT);
+        helper.assertTrue(registry.getLocation(topId) == null, HUB_REMOVED_CLEARS);
+
+        hub.insertCanister(HUB_SLOT, removed);
+        assertLocation(helper, registry.getLocation(topId), atHub, HUB_LOCATION);
+        helper.destroyBlock(HUB_POS);
+        helper.assertTrue(registry.getLocation(topId) == null, HUB_BROKEN_CLEARS);
+        helper.succeed();
+    }
+
+    private static void assertLocation(GameTestHelper helper, @Nullable GasketLocation actual,
+                                       GasketLocation expected, String message) {
+        helper.assertTrue(expected.equals(actual), String.format(LOCATION_MISMATCH, message, expected, actual));
     }
 
     private static ItemStack canisterWithGaskets(UUID topId, UUID bottomId) {
