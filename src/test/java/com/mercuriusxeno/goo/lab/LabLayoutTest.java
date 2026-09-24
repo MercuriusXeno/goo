@@ -65,7 +65,7 @@ class LabLayoutTest {
 
     @Test
     void floorPlateCoversTheWholeFootprint() {
-        LabBox floor = LabLayout.floorBox();
+        LabBox floor = LabLayout.floorBox(plan.range());
         Set<LabOffset> floorCells = new HashSet<>();
         plan.placements().stream().filter(p -> p.offset().y() == 0).forEach(p -> floorCells.add(p.offset()));
         int width = floor.max().x() - floor.min().x() + 1;
@@ -78,7 +78,7 @@ class LabLayoutTest {
     @Test
     void floorMarksPlotGroundAndWalkwayApart() {
         for (LabPlacement placement : plan.placements()) {
-            if (placement.offset().y() != 0) {
+            if (placement.offset().y() != 0 || plan.range().bounds().contains(placement.offset())) {
                 continue;
             }
             boolean underPlot = plan.plots().stream().anyMatch(plot -> plot.bounds().contains(placement.offset()));
@@ -90,6 +90,93 @@ class LabLayoutTest {
     void boundsHoldEveryPlacementAndPlot() {
         plan.placements().forEach(p -> assertTrue(plan.bounds().contains(p.offset()), p.toString()));
         plan.plots().forEach(plot -> assertTrue(plan.bounds().contains(plot.bounds().max())));
+    }
+
+    @Test
+    void pensStandClearOfPlotsAndEachOther() {
+        List<LabBox> zones = new java.util.ArrayList<>();
+        plan.plots().forEach(plot -> zones.add(plot.bounds()));
+        plan.pens().forEach(pen -> zones.add(pen.bounds()));
+        zones.add(plan.range().bounds());
+        for (int i = 0; i < zones.size(); i++) {
+            for (int j = i + 1; j < zones.size(); j++) {
+                assertFalse(zones.get(i).intersects(zones.get(j)), zones.get(i) + " / " + zones.get(j));
+            }
+        }
+    }
+
+    @Test
+    void everyPenRingIsFencedAndRoofed() {
+        for (LabPen pen : plan.pens()) {
+            LabBox bounds = pen.bounds();
+            for (int x = bounds.min().x(); x <= bounds.max().x(); x++) {
+                for (int z = bounds.min().z(); z <= bounds.max().z(); z++) {
+                    boolean ring = LabPens.isRing(x - bounds.min().x(), z - bounds.min().z());
+                    for (int y = bounds.min().y() + 1; y < bounds.max().y(); y++) {
+                        String expected = ring ? LabPens.FENCE_BLOCK : null;
+                        assertEquals(expected, stateAt(new LabOffset(x, y, z)), pen.displayName());
+                    }
+                    assertEquals(LabPens.ROOF_BLOCK, stateAt(new LabOffset(x, bounds.max().y(), z)));
+                }
+            }
+        }
+    }
+
+    @Test
+    void everyPenMobSpawnsInsideItsPen() {
+        int planned = plan.pens().stream().mapToInt(pen -> pen.mobs().size()).sum();
+        assertEquals(planned, plan.spawns().size());
+        for (LabPen pen : plan.pens()) {
+            List<String> inside = plan.spawns().stream()
+                    .filter(spawn -> pen.interior().contains(spawn.offset()))
+                    .map(LabSpawn::entityId).toList();
+            assertEquals(pen.mobs(), inside);
+        }
+        assertEquals(Set.of("Passive", "Hostile", "Undead", "Blaze"),
+                Set.copyOf(plan.pens().stream().map(LabPen::displayName).toList()));
+    }
+
+    @Test
+    void rangeTargetsStandAtThrowingDistanceFromTheFiringLine() {
+        LabRange range = plan.range();
+        int lineZ = range.firingLine().min().z();
+        Set<String> types = new HashSet<>();
+        for (LabPlacement target : range.targets()) {
+            assertEquals(LabTargetRange.THROW_DISTANCE, target.offset().z() - lineZ);
+            assertTrue(target.offset().x() >= range.firingLine().min().x());
+            assertTrue(target.offset().x() <= range.firingLine().max().x());
+            assertEquals(target.blockState(), stateAt(target.offset()));
+            types.add(target.blockState());
+        }
+        Set<String> planned = new HashSet<>(LabTargetRange.SOLID_TARGETS);
+        planned.addAll(LabTargetRange.LIQUID_TARGETS);
+        assertEquals(planned, types);
+        for (int x = range.firingLine().min().x(); x <= range.firingLine().max().x(); x++) {
+            assertEquals(LabTargetRange.FIRING_LINE_BLOCK, stateAt(new LabOffset(x, 0, lineZ)));
+        }
+    }
+
+    @Test
+    void liquidTargetsSitInTheFloorOverABasin() {
+        for (LabPlacement target : plan.range().targets()) {
+            if (LabTargetRange.LIQUID_TARGETS.contains(target.blockState())) {
+                assertEquals(0, target.offset().y());
+                assertEquals(LabTargetRange.BASIN_BLOCK, stateAt(target.offset().shifted(0, -1, 0)));
+            }
+        }
+    }
+
+    @Test
+    void everyBaySetsItsMachineBlock() {
+        for (LabPlot plot : plan.plots()) {
+            String state = stateAt(plot.machineOffset());
+            assertTrue(state != null && state.startsWith("goo:" + plot.machine().blockPath()), plot.machine().name());
+        }
+    }
+
+    private String stateAt(LabOffset offset) {
+        return plan.placements().stream().filter(p -> p.offset().equals(offset))
+                .map(LabPlacement::blockState).findFirst().orElse(null);
     }
 
     @Test
