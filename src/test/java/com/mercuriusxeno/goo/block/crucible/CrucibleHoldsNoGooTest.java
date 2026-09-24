@@ -18,8 +18,9 @@ class CrucibleHoldsNoGooTest {
         "500, 250, false",
         "1000000000, 0, false",
         "0, 1000000000, false",
+        "4000000000, 0, false",
     })
-    void holdsNoGoo(int reservoirVolume, int poolVolume, boolean expected) {
+    void holdsNoGoo(long reservoirVolume, long poolVolume, boolean expected) {
         assertEquals(expected, CrucibleBasin.holdsNoGoo(reservoirVolume, poolVolume));
     }
 }
