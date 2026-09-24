@@ -248,7 +248,7 @@ final class CrucibleMelting {
             return;
         }
 
-        int rate = CrucibleMath.extractionRate(totalRemaining, 0);
+        int rate = CrucibleMath.extractionRate(totalRemaining);
         Map<ResourceKey<GooTypeDefinition>, Integer> shares = CrucibleMath.computeDrainShares(pmiContents, rate);
         applyDrainShares(be, shares);
     }
