@@ -116,6 +116,7 @@ public final class GooTestFunctions {
     private static final String FX_PROGRAM_INSTANT = "fx_program_instant_detonation";
     private static final String FX_PROGRAM_TIMED = "fx_program_timed_bomb";
     private static final String FX_PROGRAM_MINE = "fx_program_proximity_mine";
+    private static final String FUSE_MINE_KEEPS_JSON_FUSE = "fuse_mine_keeps_json_fuse";
     private static final String FX_PROGRAM_METAL_SPIKES = "fx_program_metal_spikes";
     private static final String FX_PROGRAM_CRYSTAL_CLOUD = "fx_program_crystal_cloud";
     private static final String FX_PROGRAM_NETHER_BLACK_HOLE = "fx_program_nether_black_hole";
@@ -364,6 +365,7 @@ public final class GooTestFunctions {
         reg(r, FX_PROGRAM_INSTANT, EffectExecutorTests::programInstantDetonation);
         reg(r, FX_PROGRAM_TIMED, EffectExecutorTests::programTimedBomb);
         reg(r, FX_PROGRAM_MINE, EffectExecutorTests::programProximityMine);
+        reg(r, FUSE_MINE_KEEPS_JSON_FUSE, ChainFuseTests::mineKeepsJsonFuse);
         reg(r, FX_PROGRAM_METAL_SPIKES, EffectExecutorTests::programMetalSpikes);
         reg(r, FX_PROGRAM_CRYSTAL_CLOUD, EffectExecutorTests::programCrystalCloud);
         reg(r, FX_PROGRAM_NETHER_BLACK_HOLE, EffectExecutorTests::programNetherBlackHole);
