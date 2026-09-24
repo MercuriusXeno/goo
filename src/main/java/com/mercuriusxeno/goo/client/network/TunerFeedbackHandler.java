@@ -1,6 +1,7 @@
-package com.mercuriusxeno.goo.network;
+package com.mercuriusxeno.goo.client.network;
 
 import com.mercuriusxeno.goo.client.machine.TunerAwaitState;
+import com.mercuriusxeno.goo.network.TunerFeedbackPayload;
 import net.minecraft.network.chat.Component;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import java.util.List;

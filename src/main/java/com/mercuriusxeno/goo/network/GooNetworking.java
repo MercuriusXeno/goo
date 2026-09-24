@@ -30,20 +30,18 @@ public final class GooNetworking {
         registerServerPayloads(r);
     }
 
-    /** Registers client-bound payloads. Lambdas defer client-only class loading on dedicated servers.
+    /** Registers client-bound payloads by type and codec alone; their handlers register from
+     * client.network.GooClientNetworking on Dist.CLIENT only
+     * (decision diagnose-then-fix-server-link-and-value-race).
      *
      * @param r the payload registrar
      */
     private static void registerClientPayloads(PayloadRegistrar r) {
-        r.playToClient(GooValueSyncPayload.TYPE, GooValueSyncPayload.STREAM_CODEC, GooValueSyncHandler::handle);
-        r.playToClient(OpenNamingScreenPayload.TYPE, OpenNamingScreenPayload.STREAM_CODEC,
-                OpenNamingScreenHandler::handle);
-        r.playToClient(TunerFeedbackPayload.TYPE, TunerFeedbackPayload.STREAM_CODEC,
-                TunerFeedbackHandler::handle);
-        r.playToClient(BlobFlightPayload.TYPE, BlobFlightPayload.STREAM_CODEC,
-                BlobFlightHandler::handle);
-        r.playToClient(AbilitySyncPayload.TYPE, AbilitySyncPayload.STREAM_CODEC,
-                AbilitySyncHandler::handle);
+        r.playToClient(GooValueSyncPayload.TYPE, GooValueSyncPayload.STREAM_CODEC);
+        r.playToClient(OpenNamingScreenPayload.TYPE, OpenNamingScreenPayload.STREAM_CODEC);
+        r.playToClient(TunerFeedbackPayload.TYPE, TunerFeedbackPayload.STREAM_CODEC);
+        r.playToClient(BlobFlightPayload.TYPE, BlobFlightPayload.STREAM_CODEC);
+        r.playToClient(AbilitySyncPayload.TYPE, AbilitySyncPayload.STREAM_CODEC);
     }
 
     /** Registers server-bound payloads.

@@ -34,6 +34,10 @@ class ConventionTest {
     };
     private static final String RENDER_TYPES = "net.minecraft.client.renderer.rendertype.RenderTypes";
     private static final String ENTITY_TRANSLUCENT = "entityTranslucent";
+    private static final String NETWORK_PACKAGE = "com.mercuriusxeno.goo.network..";
+    private static final String[] CLIENT_PACKAGES = {
+            "net.minecraft.client..", "com.mercuriusxeno.goo.client.."
+    };
     private static JavaClasses mainClasses;
     private static JavaClasses testClasses;
 
@@ -163,6 +167,25 @@ class ConventionTest {
                 .orShould().haveSimpleNameContaining("Matrices")
                 .because("rune ink and matrix upgrades are removed from the mod"
                         + " (decisions rune-ink-stays-out, no-machine-takes-a-matrix)")
+                .check(mainClasses);
+    }
+
+    /**
+     * No class under network links client-only code, so a dedicated server that
+     * verifies or scans a network class never reaches a Screen or Minecraft
+     * (decision diagnose-then-fix-server-link-and-value-race). Client-bound
+     * handlers live under client.network and register from a Dist.CLIENT
+     * subscriber. The dev runs load the joined jar, where every client class
+     * resolves, so no run shows this crash; this rule is the proof.
+     */
+    @Test
+    void networkDoesNotLinkClientCode() {
+        noClasses()
+                .that().resideInAPackage(NETWORK_PACKAGE)
+                .should().dependOnClassesThat()
+                .resideInAnyPackage(CLIENT_PACKAGES)
+                .because("a dedicated server has no client classes to link"
+                        + " (decision diagnose-then-fix-server-link-and-value-race)")
                 .check(mainClasses);
     }
 
