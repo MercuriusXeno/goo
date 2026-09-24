@@ -23,8 +23,8 @@ public final class CrucibleParticleHelper {
     /** Maximum attempts to find a non-overlapping spawn position. */
     private static final int MAX_PLACEMENT_TRIES = 8;
 
-    /** Ember chance per tick in a lit, empty crucible: ~10%. */
-    private static final float EMBER_CHANCE_IDLE = 0.10f;
+    /** Ember chance per tick in a lit, empty crucible (decision sparks-fewer-and-lower). */
+    static final float EMBER_CHANCE_IDLE = 0.05f;
 
     /** Block center offset (0.5 blocks). */
     private static final double BLOCK_CENTER = 0.5;
@@ -36,18 +36,18 @@ public final class CrucibleParticleHelper {
     private static final double TWO_PI = Math.PI * 2;
 
     // -- Ignition/ember constants --
-    /** Base number of ignition sparks per tick. */
-    private static final int IGNITION_BASE_COUNT = 2;
-    /** Random additional ignition sparks per tick. */
+    /** Ignition sparks per tick while the ignition spray runs (decision sparks-fewer-and-lower). */
+    static final int IGNITION_SPARK_COUNT = 1;
+    /** Random additional embers per spawn, and bubbles per tick. */
     private static final int IGNITION_RANDOM_COUNT = 2;
     /** Base lateral speed of ignition/ember particles. */
-    private static final double EMBER_BASE_SPEED = 0.05;
+    private static final double EMBER_BASE_SPEED = 0.02;
     /** Random additional lateral speed of ember particles. */
-    private static final double EMBER_RANDOM_SPEED = 0.02;
+    private static final double EMBER_RANDOM_SPEED = 0.01;
     /** Base downward velocity of ember particles. */
-    private static final double EMBER_BASE_FALL = -0.003;
+    private static final double EMBER_BASE_FALL = -0.001;
     /** Random additional downward velocity of ember particles. */
-    private static final double EMBER_RANDOM_FALL = 0.007;
+    private static final double EMBER_RANDOM_FALL = 0.003;
 
     // -- Bubble constants --
     /** Alpha channel mask for fully opaque color. */
@@ -78,26 +78,24 @@ public final class CrucibleParticleHelper {
     private static final float SIZZLE_VOLUME = 0.3f;
 
     /** Ember/ignition velocity profile. */
-    private static final SparkProfile EMBER_PROFILE =
+    static final SparkProfile EMBER_PROFILE =
         new SparkProfile(EMBER_BASE_SPEED, EMBER_RANDOM_SPEED, EMBER_BASE_FALL, EMBER_RANDOM_FALL);
 
     /** Velocity profile for radial spark emission. */
-    private record SparkProfile(double baseSpeed, double randomSpeed,
+    record SparkProfile(double baseSpeed, double randomSpeed,
             double baseFall, double randomFall) {}
 
     private CrucibleParticleHelper() {}
 
     /**
-     * Spawns 3-4 sparks in random directions at the rod-basin contact point.
+     * Spawns one spark in a random direction at the basin center.
      * Used by the ignition spray for a burst over 6-8 ticks.
      *
      * @param level the current level
      * @param pos   the block position
      */
     public static void spawnIgnitionSparks(ServerLevel level, BlockPos pos) {
-        RandomSource random = level.getRandom();
-        int count = IGNITION_BASE_COUNT + random.nextInt(IGNITION_RANDOM_COUNT);
-        emitSparks(level, pos, random, count, EMBER_PROFILE);
+        emitSparks(level, pos, level.getRandom(), IGNITION_SPARK_COUNT, EMBER_PROFILE);
     }
 
     /**
