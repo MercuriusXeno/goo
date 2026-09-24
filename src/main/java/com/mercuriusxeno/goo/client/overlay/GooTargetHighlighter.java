@@ -278,7 +278,8 @@ public final class GooTargetHighlighter {
      * Resolves what the player is aiming at within throw range.
      * Targeting is filtered by the hint derived from the selected ability:
      * ENTITY = entities only, BLOCK = blocks only, NONE = nothing.
-     * Sneak overrides ENTITY to BLOCK as an escape hatch.
+     * Shift leaves the hint as the ability names it (decision
+     * shift-never-changes-target).
      *
      * @param player      the local player
      * @param partialTick interpolation factor for smooth rendering
@@ -302,20 +303,13 @@ public final class GooTargetHighlighter {
         if (hint == TargetingHint.NONE) {
             return TargetResult.NONE;
         }
-        TargetingHint resolvedHint;
-        if (player.isShiftKeyDown()) {
-            ThrowFreezeState.clear();
-            resolvedHint = TargetingHint.BLOCK;
-        } else {
-            TargetResult frozen = ThrowFreezeState.getFrozenTarget();
-            if (frozen != null) {
-                return frozen;
-            }
-            resolvedHint = hint;
+        TargetResult frozen = ThrowFreezeState.getFrozenTarget();
+        if (frozen != null) {
+            return frozen;
         }
         Vec3 eyePos = player.getEyePosition(partialTick);
         Vec3 reach = eyePos.add(player.getViewVector(partialTick).scale(MAX_RANGE));
-        return resolveWithHint(player, eyePos, reach, resolvedHint);
+        return resolveWithHint(player, eyePos, reach, hint);
     }
 
     private static TargetResult resolveWithHint(Player player, Vec3 eyePos,
@@ -329,21 +323,17 @@ public final class GooTargetHighlighter {
     }
 
     /**
-     * Attempts aim-assisted targeting (entities and chain markers) unless
-     * the player is sneaking. Updates the sticky seed {@code lastAimHit}
-     * as a side effect so the next frame can honor retention.
+     * Attempts aim-assisted targeting (entities and chain markers).
+     * Updates the sticky seed {@code lastAimHit} as a side effect so the
+     * next frame can honor retention.
      *
      * @param player the local player
      * @param eyePos the eye position
      * @param reach  the maximum reach endpoint
-     * @return an entity or chain marker target result, or null if none / sneaking
+     * @return an entity or chain marker target result, or null if none
      */
     private static @Nullable TargetResult resolveEntityTarget(
             Player player, Vec3 eyePos, Vec3 reach) {
-        if (player.isShiftKeyDown()) {
-            lastAimHit = null;
-            return null;
-        }
         AimAssistResolver.AimHit hit = AimAssistResolver.findClosestAimHit(
                 player, eyePos, reach, lastAimHit);
         lastAimHit = hit;

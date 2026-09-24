@@ -26,7 +26,7 @@ class TapDripFallTest {
 
     /**
      * Ticks the client drip particle takes to pass a distance, ticked the way
-     * GooDripParticle ticks: gravity, move, drag.
+     * TrailDripParticle ticks: gravity, move, drag.
      */
     private static int particleTicksToPass(double distance, double leaveSpeed) {
         double y = 0;

@@ -68,9 +68,13 @@ class TapDripTest {
         assertNull(TapDrip.draw(holder, SLOT));
     }
 
+    /**
+     * One drip sends one tinted particle from the spigot underside, falling
+     * straight down: zero x and z speed (decision tap-drip-own-square-particles).
+     */
     @Test
     @SuppressWarnings("unchecked")
-    void oneDripSendsOneTintedParticleFromTheSpigot() {
+    void oneDripSendsOneTintedParticleStraightDownFromTheSpigot() {
         TapDrip.ParticleSink sink = mock(TapDrip.ParticleSink.class);
         ParticleType<ColorParticleOption> drip = mock(ParticleType.class);
 
@@ -78,8 +82,8 @@ class TapDripTest {
 
         ArgumentCaptor<ColorParticleOption> option = ArgumentCaptor.forClass(ColorParticleOption.class);
         ArgumentCaptor<Vec3> start = ArgumentCaptor.forClass(Vec3.class);
-        ArgumentCaptor<Double> fall = ArgumentCaptor.forClass(Double.class);
-        verify(sink, times(1)).send(option.capture(), start.capture(), fall.capture());
+        ArgumentCaptor<Vec3> velocity = ArgumentCaptor.forClass(Vec3.class);
+        verify(sink, times(1)).send(option.capture(), start.capture(), velocity.capture());
 
         assertSame(drip, option.getValue().getType());
         assertEquals(0x33 / CHANNEL_MAX, option.getValue().getRed(), COLOR_TOLERANCE);
@@ -89,6 +93,6 @@ class TapDripTest {
         Vec3 at = start.getValue();
         assertTrue(spigot.contains(at), "drip starts inside the spigot box, at " + at);
         assertEquals(spigot.minY, at.y, "drip starts at the spigot underside");
-        assertTrue(fall.getValue() < 0, "drip leaves the spigot moving down");
+        assertEquals(new Vec3(0.0, TapDrip.DRIP_LEAVE_SPEED, 0.0), velocity.getValue());
     }
 }
