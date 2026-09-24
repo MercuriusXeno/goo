@@ -246,4 +246,5 @@ tasks.configureEach {
     }
 }
 
+apply from: 'gradle/architecture.gradle'
 apply from: 'gradle/uml.gradle'
