@@ -120,7 +120,8 @@ final class CrucibleInteraction {
      * @param stack    the item stack
      * @param crucible the crucible block entity
      * @param player   the interacting player
-     * @return true if the blob was inserted
+     * @return true if the stack is a blob, inserted or refused at the cap; a refused
+     *         blob still ends the click so it never falls through to goo extraction
      */
     static boolean tryInsertBlob(ItemStack stack, CrucibleBlockEntity crucible, Player player) {
         ResourceKey<GooTypeDefinition> type = BlobStacks.keyOf(stack);
@@ -128,21 +129,30 @@ final class CrucibleInteraction {
             return false;
         }
         int volume = BlobStacks.volumeOf(stack);
-        return volume > 0 && consumeBlobIntoCrucible(stack, crucible, player, type, volume);
+        if (volume <= 0) {
+            return false;
+        }
+        consumeBlobIntoCrucible(stack, crucible, player, type, volume);
+        return true;
     }
 
     /**
-     * Inserts the blob's goo into the crucible and consumes the item if not creative.
+     * Inserts the blob's goo into the crucible when its whole volume fits the
+     * reservoir, and consumes the item if not creative; a blob that does not
+     * fit stays in hand (decision crucible-refuses-past-two-billion).
      *
      * @param stack    the blob item stack to consume
      * @param crucible the crucible block entity to insert into
      * @param player   the interacting player (creative skips consumption)
      * @param type     the goo type of the blob
      * @param volume   the volume of goo in the blob (mB)
-     * @return always true (insertion always succeeds)
+     * @return true if the blob was inserted, false if refused at the cap
      */
-    private static boolean consumeBlobIntoCrucible(ItemStack stack, CrucibleBlockEntity crucible,
-                                                   Player player, ResourceKey<GooTypeDefinition> type, int volume) {
+    static boolean consumeBlobIntoCrucible(ItemStack stack, CrucibleBlockEntity crucible,
+                                           Player player, ResourceKey<GooTypeDefinition> type, int volume) {
+        if (CrucibleInsertion.reservoirUnitsThatFit(crucible, type, volume, 1) < 1) {
+            return false;
+        }
         crucible.insertGoo(type, volume);
         if (!player.isCreative()) {
             stack.shrink(1);

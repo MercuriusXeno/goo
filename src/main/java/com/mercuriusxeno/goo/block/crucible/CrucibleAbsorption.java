@@ -65,7 +65,7 @@ final class CrucibleAbsorption {
     }
 
     /**
-     * Re-inserts a dropped PMI's remaining goo directly into the melt pool.
+     * Re-inserts a dropped PMI's remaining goo into the melt pool when it fits whole.
      *
      * @param entity   the item entity
      * @param stack    the item stack
@@ -77,14 +77,18 @@ final class CrucibleAbsorption {
         if (contents.isEmpty()) {
             return;
         }
-        CrucibleInsertion.mergeIntoPool(crucible, contents);
+        if (!CrucibleInsertion.mergeIntoPool(crucible, contents)) {
+            return;
+        }
         crucible.syncToClients();
         entity.discard();
         spawnMeltEffects(entity.level(), crucible);
     }
 
     /**
-     * Inserts a blob or omniblob directly into the reservoir, bypassing the melt pipeline.
+     * Inserts the whole blobs, or the whole omniblob, that fit the reservoir,
+     * bypassing the melt pipeline; what does not fit stays on the ground
+     * (decision crucible-refuses-past-two-billion).
      *
      * @param entity   the item entity
      * @param stack    the item stack
@@ -97,13 +101,35 @@ final class CrucibleAbsorption {
         if (type == null || volume <= 0) {
             return;
         }
-        crucible.insertGoo(type, volume);
-        entity.discard();
+        int perUnit = volume / stack.getCount();
+        int fitting = CrucibleInsertion.reservoirUnitsThatFit(crucible, type, perUnit, stack.getCount());
+        if (fitting <= 0) {
+            return;
+        }
+        crucible.insertGoo(type, fitting * perUnit);
+        takeUnits(entity, stack, fitting);
         spawnMeltEffects(entity.level(), crucible);
     }
 
     /**
-     * Inserts all items in the stack into the PMI pool as one pooled merge.
+     * Removes the units the crucible took from the entity's stack, discarding
+     * the entity once none remain.
+     *
+     * @param entity the item entity
+     * @param stack  the entity's stack
+     * @param taken  the units the crucible took
+     */
+    private static void takeUnits(ItemEntity entity, ItemStack stack, int taken) {
+        if (taken >= stack.getCount()) {
+            entity.discard();
+        } else {
+            entity.setItem(stack.copyWithCount(stack.getCount() - taken));
+        }
+    }
+
+    /**
+     * Inserts the whole items whose goo fits the pool as one pooled merge; the
+     * rest stay as the item entity (decision crucible-refuses-past-two-billion).
      *
      * @param entity   the item entity
      * @param stack    the item stack
@@ -111,8 +137,9 @@ final class CrucibleAbsorption {
      */
     private static void absorbMeltable(ItemEntity entity, ItemStack stack,
                                        CrucibleBlockEntity crucible) {
-        if (CrucibleInsertion.insertItem(crucible, stack, stack.getCount())) {
-            entity.discard();
+        int melted = CrucibleInsertion.insertItem(crucible, stack, stack.getCount());
+        if (melted > 0) {
+            takeUnits(entity, stack, melted);
             spawnMeltEffects(entity.level(), crucible);
         }
     }

@@ -47,50 +47,87 @@ final class CrucibleInsertion {
     }
 
     /**
-     * Inserts a stack of items for melting into the shared PMI pool.
+     * Inserts the whole items of a stack whose goo fits the shared PMI pool.
      *
      * @param be    the crucible block entity
      * @param stack the item stack to insert
-     * @param count the number of items to insert
-     * @return true if the item was inserted
+     * @param count the number of items offered
+     * @return the number of items melted in, from zero to {@code count}
      */
-    static boolean insertItem(CrucibleBlockEntity be, ItemStack stack, int count) {
+    static int insertItem(CrucibleBlockEntity be, ItemStack stack, int count) {
         Identifier id = BuiltInRegistries.ITEM.getKey(stack.getItem());
         return insertItem(be, id, count, Goo.GOO_VALUES);
     }
 
     /**
-     * Testable seam: inserts goo by Identifier without registry coupling.
+     * Testable seam: melts in the whole items whose goo fits the pool, by
+     * Identifier without registry coupling (decision crucible-refuses-past-two-billion).
      *
      * @param be     the crucible block entity
      * @param itemId the item registry ID
-     * @param count  the item count
+     * @param count  the number of items offered
      * @param lookup the goo value lookup
-     * @return true if inserted
+     * @return the number of items melted in, from zero to {@code count}
      */
-    static boolean insertItem(CrucibleBlockEntity be, Identifier itemId, int count, IGooValueLookup lookup) {
+    static int insertItem(CrucibleBlockEntity be, Identifier itemId, int count, IGooValueLookup lookup) {
         GooValue value = lookup.lookup(itemId);
         if (value == null || value.isEmpty()) {
+            return 0;
+        }
+        int fitting = CrucibleCapacity.wholeUnitsThatFit(poolContents(be), value.toGooContents(), count);
+        if (fitting > 0 && mergeIntoPool(be, value.toGooContents(fitting))) {
+            be.syncToClients();
+        }
+        return fitting;
+    }
+
+    /**
+     * Merges goo contents into the PMI pool only when every type fits under
+     * the cap, creating a new PMI if needed.
+     *
+     * @param be       the crucible block entity
+     * @param contents the goo contents
+     * @return true if the contents merged, false if refused at the cap
+     */
+    static boolean mergeIntoPool(CrucibleBlockEntity be, GooContents contents) {
+        GooContents merged = CrucibleCapacity.mergedWithinCap(poolContents(be), contents);
+        if (merged == null) {
             return false;
         }
-        GooContents itemContents = value.toGooContents(count);
-        mergeIntoPool(be, itemContents);
-        be.syncToClients();
+        if (be.meltingItem.isEmpty()) {
+            be.meltingItem = PartiallyMeltedItem.createWith(merged);
+        } else {
+            PartiallyMeltedItem.setContents(be.meltingItem, merged);
+        }
         return true;
     }
 
     /**
-     * Merges goo contents into the PMI pool, creating a new PMI if needed.
+     * Returns the PMI pool's contents, or EMPTY when nothing is melting.
      *
-     * @param be       the crucible block entity
-     * @param contents the goo contents
+     * @param be the crucible block entity
+     * @return the pool's contents
      */
-    static void mergeIntoPool(CrucibleBlockEntity be, GooContents contents) {
-        if (be.meltingItem.isEmpty()) {
-            be.meltingItem = PartiallyMeltedItem.createWith(contents);
-        } else {
-            PartiallyMeltedItem.mergeContents(be.meltingItem, contents);
+    static GooContents poolContents(CrucibleBlockEntity be) {
+        return be.meltingItem.isEmpty() ? GooContents.EMPTY : PartiallyMeltedItem.getContents(be.meltingItem);
+    }
+
+    /**
+     * Counts the whole units of one goo type that fit the reservoir under the cap.
+     *
+     * @param be      the crucible block entity
+     * @param type    the goo type
+     * @param perUnit the volume one unit carries, in mB
+     * @param offered the units offered
+     * @return the units that fit, from zero to {@code offered}
+     */
+    static int reservoirUnitsThatFit(CrucibleBlockEntity be, ResourceKey<GooTypeDefinition> type,
+                                     int perUnit, int offered) {
+        if (perUnit <= 0) {
+            return 0;
         }
+        return CrucibleCapacity.wholeUnitsThatFit(be.getReservoir(),
+            GooContents.EMPTY.withAdded(type, perUnit), offered);
     }
 
     /**
@@ -130,7 +167,7 @@ final class CrucibleInsertion {
      * @param containerId the container registry ID
      * @param container   the container item stack
      * @param lookup      the goo value lookup
-     * @return the eject list, or null
+     * @return the eject list, or null when the container had no content or its goo does not fit whole
      */
     @SuppressWarnings("PMD.ReturnEmptyCollectionRatherThanNull") // null = nothing happened; empty = eject nothing
     static @Nullable List<ItemStack> insertContainer(
@@ -139,8 +176,8 @@ final class CrucibleInsertion {
         if (eval.goo().isEmpty() && eval.ejects().isEmpty()) {
             return null;
         }
-        if (!eval.goo().isEmpty()) {
-            mergeIntoPool(be, eval.goo());
+        if (!eval.goo().isEmpty() && !mergeIntoPool(be, eval.goo())) {
+            return null;
         }
         be.syncToClients();
         return eval.ejects();
