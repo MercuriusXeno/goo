@@ -124,6 +124,16 @@ if ($reports) {
     Send-GateRun -RunId $runId -Script 'tools/gate.ps1' -Cwd $repo -Status 'running' -Commit $commit | Out-Null
 }
 
+# A named leg the gate does not hold grades nothing, so the run is red rather than empty.
+$unknownLegs = @(Split-LegNames $Legs | Where-Object { $legOrder -notcontains $_ })
+if ($unknownLegs.Count -gt 0) {
+    Write-Host ('gate: FAILED, no leg is named {0}; the legs are {1}' -f ($unknownLegs -join ', '), ($legOrder -join ', '))
+    if ($reports) {
+        Send-GateRun -RunId $runId -Script 'tools/gate.ps1' -Cwd $repo -Status 'red' -Commit $commit | Out-Null
+    }
+    exit 1
+}
+
 $wantedLegs = Get-WantedLegs
 if ($wantedLegs.Count -eq 0) {
     Write-Host 'gate: no leg ran, because nothing this change touched feeds one'
