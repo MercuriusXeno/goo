@@ -2,12 +2,13 @@ package com.mercuriusxeno.goo.client.throwing;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
-import com.mercuriusxeno.goo.ability.ChainProfiles.ChainProfile;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.overlay.GooTargetHighlighter;
 import com.mercuriusxeno.goo.item.GooGloveItem;
+import com.mercuriusxeno.goo.network.AbilitySyncHandler;
+import com.mercuriusxeno.goo.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.network.BlobThrowPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -42,7 +43,7 @@ public final class GloveThrowSender {
     private static final Map<BlockPos, Integer> IN_FLIGHT = new HashMap<>();
 
     /**
-     * Empty sentinel for unknown goo type (no chain profile).
+     * Empty sentinel for an ability the client holds no synced chain block for.
      */
     private static final int[] UNKNOWN_STACKS = new int[0];
 
@@ -63,7 +64,7 @@ public final class GloveThrowSender {
             return;
         }
         TargetResult target = resolveAimTarget(player);
-        if (wouldExceedMaxStacks(target, gooType)) {
+        if (wouldExceedMaxStacks(target, gooType, selection.abilityId())) {
             ThrowFreezeState.armThrowBlock();
             return;
         }
@@ -151,34 +152,37 @@ public final class GloveThrowSender {
      * Returns true if this throw would push a chain marker past max stacks,
      * counting both current stacks and in-flight blobs. Works even before
      * the marker exists on the client by predicting the placement position
-     * and looking up maxStacks from the ChainProfile.
+     * and reading the stack ceiling from the selected ability's synced
+     * chain block (decision diagnose-then-fix-fuse-and-cost).
      *
-     * @param target  the resolved aim target
-     * @param gooType the goo type being thrown
+     * @param target    the resolved aim target
+     * @param gooType   the goo type being thrown
+     * @param abilityId the selected ability id string
      * @return true if the throw should be blocked
      */
-    private static boolean wouldExceedMaxStacks(TargetResult target, ResourceKey<GooTypeDefinition> gooType) {
+    private static boolean wouldExceedMaxStacks(TargetResult target, ResourceKey<GooTypeDefinition> gooType,
+                                                String abilityId) {
         if (target instanceof TargetResult.GlowCrystalTarget gct && gooType == GooTypes.GLOW) {
-            return wouldExceedCrystalMax(gct);
+            return wouldExceedCrystalMax(gct, abilityId);
         }
         BlockPos pos = resolveTrackingPos(target);
-        return pos != null && wouldExceedMarkerMax(pos, gooType);
+        return pos != null && wouldExceedMarkerMax(pos, abilityId);
     }
 
     /**
      * Checks current + pending stacks against the marker's max, using the BE if present.
      *
-     * @param pos     the canonical marker position
-     * @param gooType the goo type being thrown
+     * @param pos       the canonical marker position
+     * @param abilityId the selected ability id string
      * @return true if the throw should be blocked
      */
-    private static boolean wouldExceedMarkerMax(BlockPos pos, ResourceKey<GooTypeDefinition> gooType) {
+    private static boolean wouldExceedMarkerMax(BlockPos pos, String abilityId) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) {
             return false;
         }
 
-        int[] currentAndMax = resolveCurrentAndMax(mc.level, pos, gooType);
+        int[] currentAndMax = resolveCurrentAndMax(mc.level, pos, abilityId);
         if (currentAndMax.length == 0) {
             return false;
         }
@@ -187,42 +191,43 @@ public final class GloveThrowSender {
     }
 
     /**
-     * Returns [current, max] from the marker BE or chain profile, or empty if unknown.
+     * Returns [current, max] from the marker BE or the selected ability's
+     * synced chain block, or empty if unknown.
      *
-     * @param level   the client level
-     * @param pos     the marker position
-     * @param gooType the goo type being thrown
-     * @return a 2-element array [current, max], or empty if the type has no profile
+     * @param level     the client level
+     * @param pos       the marker position
+     * @param abilityId the selected ability id string
+     * @return a 2-element array [current, max], or empty if no ability is synced under the id
      */
-    private static int[] resolveCurrentAndMax(
-            ClientLevel level, BlockPos pos, ResourceKey<GooTypeDefinition> gooType) {
+    private static int[] resolveCurrentAndMax(ClientLevel level, BlockPos pos, String abilityId) {
         if (level.getBlockEntity(pos) instanceof ChainMarkerBlockEntity be) {
             return new int[]{be.getStackCount(), be.getMaxStacks()};
         }
-        ChainProfile profile = ChainProfile.forType(gooType);
-        if (profile == null) {
+        ClientAbility ability = AbilitySyncHandler.findAbility(abilityId);
+        if (ability == null) {
             return UNKNOWN_STACKS;
         }
-        return new int[]{0, profile.maxStacks()};
+        return new int[]{0, ability.maxStacks()};
     }
 
     /**
      * Returns true if the crystal is at (or will reach) max size with in-flight blobs.
      *
-     * @param gct the glow crystal target
+     * @param gct       the glow crystal target
+     * @param abilityId the selected glow ability id string
      * @return true if the crystal cannot accept another blob
      */
-    private static boolean wouldExceedCrystalMax(TargetResult.GlowCrystalTarget gct) {
+    private static boolean wouldExceedCrystalMax(TargetResult.GlowCrystalTarget gct, String abilityId) {
         int current = gct.currentStacks();
         if (current <= 0) {
             return false;
         }
-        ChainProfile profile = ChainProfile.forType(GooTypes.GLOW);
-        if (profile == null) {
+        ClientAbility ability = AbilitySyncHandler.findAbility(abilityId);
+        if (ability == null) {
             return false;
         }
         int pending = IN_FLIGHT.getOrDefault(gct.pos(), 0);
-        return current + pending >= profile.maxStacks();
+        return current + pending >= ability.maxStacks();
     }
 
     /**
