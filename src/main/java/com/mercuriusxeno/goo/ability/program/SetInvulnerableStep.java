@@ -37,7 +37,7 @@ public record SetInvulnerableStep(boolean enabled) implements Step {
 
     @Override
     public boolean tick(StepContext context) {
-        context.host().setTargetInvulnerable(enabled);
+        context.host().target().setInvulnerable(enabled);
         return true;
     }
 

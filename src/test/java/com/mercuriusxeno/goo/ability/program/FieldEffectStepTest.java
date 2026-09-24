@@ -3,19 +3,25 @@ package com.mercuriusxeno.goo.ability.program;
 import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mojang.serialization.JsonOps;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.resources.Identifier;
 import org.jspecify.annotations.Nullable;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -23,9 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyDouble;
-import static org.mockito.ArgumentMatchers.anyFloat;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anySet;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -33,6 +37,7 @@ import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -40,8 +45,13 @@ import static org.mockito.Mockito.when;
 
 /**
  * The metal_spikes and crystal_cloud programs, decoded from their JSON,
- * compose the field-effect-with-controller sub-chain. On a Mockito marker
- * host whose scan hands over the entities in radius that the filters keep:
+ * compose the field-effect-with-controller sub-chain. Each strike body's
+ * damage acts on the entity itself, which no unit test can build, so the
+ * body here swaps its damage for a probe sound at the target and each
+ * strike's aim is stubbed per host; the damage itself is proven by the
+ * field-effect gametests (decision step-tick-holds-effect). On a Mockito
+ * marker host whose scan hands over the entities in radius that the
+ * filters keep:
  * a metal target costs one stack and is impaled on the strike tick, a
  * sneaking player costs none, and a spent budget tears down once and ends
  * the program; eight crystal shreds spend one stack, a sprinting player is
@@ -58,15 +68,41 @@ class FieldEffectStepTest {
     private static final int STRIKE_TICK = 6;
     private static final int STRIKE_TICKS = 13;
     private static final int COOLDOWN = 10;
-    private static final float IMPALE_DAMAGE = 6f;
     private static final int IDLE_TICKS = 40;
-    private static final float SHRED_DAMAGE = 1f;
     private static final int CHARGES_PER_BLOB = 8;
     /** A walker is shredded every second tick, so a blob's eight charges last sixteen ticks. */
     private static final int WALKING_TICKS_FOR_A_BLOB = 16;
     private static final int SPRINT_WINDOW = 6;
     private static final int CLOUD_ANIMATION_TICKS = 10;
     private static final float FRACTION_TOLERANCE = 1e-5f;
+    private static final Identifier PROBE_SOUND = Identifier.parse("goo:test.strike_landed");
+    /** The sound each strike body plays at its target in place of its damage. */
+    private static final Step PROBE_STEP = new SoundStep(PROBE_SOUND, FxAnchor.TARGET, SoundKind.HOSTILE,
+            Expr.literal(1), Expr.literal(1));
+    private static final SoundCue PROBE_CUE = new SoundCue(PROBE_SOUND, SoundKind.HOSTILE, 1, 1);
+
+    /** The entity id each entity host's strike aims at, by host. */
+    private final Map<StepHost, Integer> idByHost = new HashMap<>();
+    /** The one filter each entity host fails, by host. */
+    private final Map<StepHost, EntityFilter> rejectedByHost = new HashMap<>();
+    private MockedStatic<FieldStrike> aims;
+
+    @BeforeEach
+    void stubTheAimOfEachStrike() {
+        aims = mockStatic(FieldStrike.class);
+        aims.when(() -> FieldStrike.aimedAt(any())).thenAnswer(inv ->
+                new FieldStrike(idByHost.get(inv.<StepHost>getArgument(0)), 1.5f, 1.0f, 0.5f, 0));
+    }
+
+    @AfterEach
+    void releaseTheAimStub() {
+        aims.close();
+    }
+
+    private boolean passes(StepHost entity, Set<EntityFilter> filters) {
+        EntityFilter rejectedBy = rejectedByHost.get(entity);
+        return rejectedBy == null || !filters.contains(rejectedBy);
+    }
 
     private static List<Step> program(String resource) throws IOException {
         try (InputStream in = FieldEffectStepTest.class.getResourceAsStream(resource)) {
@@ -79,11 +115,31 @@ class FieldEffectStepTest {
     }
 
     private static List<Step> metalProgram() throws IOException {
-        return program(METAL_SPIKES);
+        return withProbedStrikes(program(METAL_SPIKES));
     }
 
     private static List<Step> crystalProgram() throws IOException {
-        return program(CRYSTAL_CLOUD);
+        return withProbedStrikes(program(CRYSTAL_CLOUD));
+    }
+
+    /**
+     * Swaps each field effect's strike damage for the probe sound, keeping
+     * the body's other steps and every timing the JSON names.
+     *
+     * @param steps the decoded program
+     * @return the program with probed strike bodies
+     */
+    private static List<Step> withProbedStrikes(List<Step> steps) {
+        return steps.stream().map(step -> step instanceof FieldEffectStep field
+                ? new FieldEffectStep(field.radius(), field.where(), field.cooldown(), field.interval(),
+                        field.perStack(), field.strikeTick(), field.strikeTicks(), field.timing(),
+                        probed(field.strike()), field.teardown())
+                : step).toList();
+    }
+
+    private static List<Step> probed(List<Step> strike) {
+        return Stream.concat(strike.stream().filter(step -> !(step instanceof DamageStep)),
+                Stream.of(PROBE_STEP)).toList();
     }
 
     /**
@@ -93,7 +149,7 @@ class FieldEffectStepTest {
      * @param id its entity id
      * @return the target host
      */
-    private static StepHost walker(int id) {
+    private StepHost walker(int id) {
         return entityInRadius(id, null, false);
     }
 
@@ -105,17 +161,15 @@ class FieldEffectStepTest {
      * @param sprinting  whether it is a sprinting player
      * @return the target host
      */
-    private static StepHost entityInRadius(int id, @Nullable EntityFilter rejectedBy, boolean sprinting) {
+    private StepHost entityInRadius(int id, @Nullable EntityFilter rejectedBy, boolean sprinting) {
         StepHost target = mock(StepHost.class);
         when(target.kind()).thenReturn(HostKind.ENTITY);
-        when(target.targetId()).thenReturn(id);
-        when(target.targetCenter()).thenReturn(new Vec3(1.5, 1.0, 0.5));
         when(target.read(anyString())).thenReturn(OptionalDouble.empty());
         when(target.read(HostVariables.SPRINTING)).thenReturn(OptionalDouble.of(sprinting ? 1 : 0));
-        when(target.targetPasses(anySet())).thenAnswer(inv -> {
-            Set<EntityFilter> filters = inv.getArgument(0);
-            return rejectedBy == null || !filters.contains(rejectedBy);
-        });
+        idByHost.put(target, id);
+        if (rejectedBy != null) {
+            rejectedByHost.put(target, rejectedBy);
+        }
         return target;
     }
 
@@ -128,7 +182,7 @@ class FieldEffectStepTest {
      * @param inRadius the entities within the trap's radius
      * @return the marker host
      */
-    private static StepHost marker(AtomicInteger stacks, List<StepHost> inRadius) {
+    private StepHost marker(AtomicInteger stacks, List<StepHost> inRadius) {
         StepHost host = mock(StepHost.class);
         FieldEffectState state = new FieldEffectState();
         when(host.kind()).thenReturn(HostKind.MARKER);
@@ -139,13 +193,13 @@ class FieldEffectStepTest {
         doAnswer(inv -> {
             Set<EntityFilter> filters = inv.getArgument(2);
             Consumer<StepHost> body = inv.getArgument(3);
-            inRadius.stream().filter(entity -> entity.targetPasses(filters)).forEach(body);
+            inRadius.stream().filter(entity -> passes(entity, filters)).forEach(body);
             return null;
         }).when(host).forEachEntityWithin(any(), anyDouble(), anySet(), any());
         doAnswer(inv -> {
             int id = inv.getArgument(0);
             Consumer<StepHost> body = inv.getArgument(1);
-            inRadius.stream().filter(entity -> entity.targetId() == id).forEach(body);
+            inRadius.stream().filter(entity -> idByHost.get(entity) == id).forEach(body);
             return null;
         }).when(host).forEntity(anyInt(), any());
         return host;
@@ -167,9 +221,9 @@ class FieldEffectStepTest {
         program.tick(host);
 
         assertEquals(1, stacks.get());
-        verify(walker, never()).damageTarget(IMPALE_DAMAGE, DamageKind.STALAGMITE, false);
+        verify(walker, never()).playSound(FxAnchor.TARGET, PROBE_CUE);
         tick(program, host, STRIKE_TICK);
-        verify(walker).damageTarget(IMPALE_DAMAGE, DamageKind.STALAGMITE, false);
+        verify(walker).playSound(FxAnchor.TARGET, PROBE_CUE);
         verify(walker).spawnParticles(eq(FxAnchor.TARGET), argThat(burst -> "crit".equals(burst.particle().getPath())));
         assertEquals(1, stacks.get());
         assertTrue(program.isActive());
@@ -185,7 +239,7 @@ class FieldEffectStepTest {
         tick(program, host, IDLE_TICKS);
 
         assertEquals(2, stacks.get());
-        verify(sneaker, never()).damageTarget(anyFloat(), any(), anyBoolean());
+        verify(sneaker, never()).playSound(FxAnchor.TARGET, PROBE_CUE);
         verify(host, never()).decrementStack();
         assertTrue(program.isActive());
     }
@@ -235,12 +289,11 @@ class FieldEffectStepTest {
 
         tick(program, host, WALKING_TICKS_FOR_A_BLOB - 1);
         assertEquals(2, stacks.get());
-        verify(walker, times(CHARGES_PER_BLOB - 1)).damageTarget(SHRED_DAMAGE, DamageKind.CACTUS, true);
+        verify(walker, times(CHARGES_PER_BLOB - 1)).playSound(FxAnchor.TARGET, PROBE_CUE);
 
         program.tick(host);
 
-        verify(walker, times(CHARGES_PER_BLOB)).damageTarget(SHRED_DAMAGE, DamageKind.CACTUS, true);
-        verify(walker, times(CHARGES_PER_BLOB)).setTargetHurtCooldown(1);
+        verify(walker, times(CHARGES_PER_BLOB)).playSound(FxAnchor.TARGET, PROBE_CUE);
         verify(host, times(1)).decrementStack();
         assertEquals(1, stacks.get());
     }
@@ -254,8 +307,8 @@ class FieldEffectStepTest {
 
         tick(program, host, SPRINT_WINDOW);
 
-        verify(sprinter, times(SPRINT_WINDOW)).damageTarget(SHRED_DAMAGE, DamageKind.CACTUS, true);
-        verify(walker, times(SPRINT_WINDOW / 2)).damageTarget(SHRED_DAMAGE, DamageKind.CACTUS, true);
+        verify(sprinter, times(SPRINT_WINDOW)).playSound(FxAnchor.TARGET, PROBE_CUE);
+        verify(walker, times(SPRINT_WINDOW / 2)).playSound(FxAnchor.TARGET, PROBE_CUE);
     }
 
     @Test
@@ -267,7 +320,7 @@ class FieldEffectStepTest {
 
         tick(program, host, IDLE_TICKS);
 
-        verify(standing, never()).damageTarget(anyFloat(), any(), anyBoolean());
+        verify(standing, never()).playSound(FxAnchor.TARGET, PROBE_CUE);
         assertEquals(1, stacks.get());
         assertTrue(program.isActive());
     }

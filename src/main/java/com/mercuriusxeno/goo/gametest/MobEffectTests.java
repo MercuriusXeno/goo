@@ -94,6 +94,10 @@ public final class MobEffectTests {
     private static final String LIVING_SHOULD_NOT_BURN = "A cow is not undead and should not burn";
     private static final String UNDEAD_SHOULD_BURN = "A zombie is undead and should burn";
     private static final String SHOULD_BE_CRUSHED = "Target should be dead or dying";
+    private static final String SHOULD_DROP_COBBLESTONE = "Cobblestone should lie where the crushed mob stood";
+    private static final String SHOULD_BE_FROZEN = "Target should hold frost_snap.json's full freeze";
+    /** The frozen ticks frost_snap.json's freeze_ticks step adds. */
+    private static final int FULL_FREEZE_TICKS = 140;
     /** The damage metal_javelin.json's damage step names. */
     private static final float JAVELIN_DAMAGE = 8.0f;
 
@@ -227,16 +231,20 @@ public final class MobEffectTests {
 
     /**
      * Rock petrify is a program: max slowness, magic damage of the mob's
-     * max health and a cobblestone drop, so the cow is crushed.
+     * max health and a cobblestone drop, so the cow is crushed and
+     * cobblestone lies where it stood. The read retries each tick, as the
+     * dropped item can reach the level's entity scan a tick after it spawns.
      *
      * @param helper the gametest helper
      */
     public static void rockPetrify(GameTestHelper helper) {
         Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
+        Vec3 stood = mob.position();
         runEntityPrograms(helper, mob, ABILITY_ROCK_PETRIFY);
         helper.assertTrue(mob.hasEffect(MobEffects.SLOWNESS), SHOULD_HAVE_SLOWNESS);
         helper.assertTrue(mob.isDeadOrDying(), SHOULD_BE_CRUSHED);
-        helper.succeed();
+        helper.succeedWhen(() -> helper.assertTrue(itemsNear(helper, stood).stream()
+                .anyMatch(item -> item.getItem().is(Items.COBBLESTONE)), SHOULD_DROP_COBBLESTONE));
     }
 
     /**
@@ -268,6 +276,7 @@ public final class MobEffectTests {
         float before = mob.getHealth();
         runEntityPrograms(helper, mob, ABILITY_FROST_SNAP);
         helper.assertTrue(mob.getHealth() < before, SHOULD_TAKE_DAMAGE);
+        helper.assertTrue(mob.getTicksFrozen() >= FULL_FREEZE_TICKS, SHOULD_BE_FROZEN);
         helper.assertTrue(mob.hasEffect(MobEffects.SLOWNESS), SHOULD_HAVE_SLOWNESS);
         helper.succeed();
     }

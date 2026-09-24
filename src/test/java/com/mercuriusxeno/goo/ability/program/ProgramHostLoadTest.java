@@ -36,26 +36,26 @@ class ProgramHostLoadTest {
     }
 
     @Test
-    void damageProgramOnEntityHostHurtsTheTargetWithTheConfiguredAmount() {
+    void explodeProgramOnEntityHostBlastsWithTheConfiguredPowerAndEnds() {
         StepHost host = entityHost(20);
         ProgramBehavior program = ProgramBehavior.forHost(
-                List.of(new DamageStep(Expr.literal(8), DamageKind.MAGIC)), HostKind.ENTITY);
+                List.of(new ExplodeStep(Expr.literal(8), ExplosionMode.NONE)), HostKind.ENTITY);
 
         program.tick(host);
 
-        verify(host).damageTarget(8f, DamageKind.MAGIC, true);
+        verify(host).explode(8f, ExplosionMode.NONE);
         assertFalse(program.isActive());
     }
 
     @Test
-    void damageAmountMayReadTheTargetsHealth() {
+    void anAmountMayReadTheTargetsHealth() {
         StepHost host = entityHost(20);
         ProgramBehavior program = ProgramBehavior.forHost(
-                List.of(new DamageStep(expr("health / 2"), DamageKind.FREEZE)), HostKind.ENTITY);
+                List.of(new ExplodeStep(expr("health / 2"), ExplosionMode.NONE)), HostKind.ENTITY);
 
         program.tick(host);
 
-        verify(host).damageTarget(10f, DamageKind.FREEZE, true);
+        verify(host).explode(10f, ExplosionMode.NONE);
     }
 
     @Test

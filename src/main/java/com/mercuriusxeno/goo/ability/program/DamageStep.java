@@ -3,6 +3,10 @@ package com.mercuriusxeno.goo.ability.program;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.damagesource.DamageSources;
+import net.minecraft.world.entity.LivingEntity;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -64,9 +68,29 @@ public record DamageStep(Expr amount, DamageKind source, boolean knockback,
 
     @Override
     public boolean tick(StepContext context) {
-        context.host().damageTarget(amount.evaluateFloat(context), source, knockback);
-        invulnerableTicks.ifPresent(ticks -> context.host().setTargetHurtCooldown(ticks.evaluateInt(context)));
+        LivingEntity target = context.host().target();
+        target.hurtServer((ServerLevel) target.level(), damageSource(target), amount.evaluateFloat(context));
+        if (!knockback) {
+            target.hurtMarked = false;
+        }
+        invulnerableTicks.ifPresent(ticks -> target.invulnerableTime = ticks.evaluateInt(context));
         return true;
+    }
+
+    /**
+     * Maps the step's damage kind to the target's damage source.
+     *
+     * @param target the entity being hurt
+     * @return the damage source
+     */
+    private DamageSource damageSource(LivingEntity target) {
+        DamageSources sources = target.damageSources();
+        return switch (source) {
+            case MAGIC -> sources.magic();
+            case FREEZE -> sources.freeze();
+            case STALAGMITE -> sources.stalagmite();
+            case CACTUS -> sources.cactus();
+        };
     }
 
     @Override
