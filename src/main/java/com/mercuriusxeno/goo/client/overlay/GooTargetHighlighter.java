@@ -10,7 +10,9 @@ import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.hud.InWorldHud;
+import com.mercuriusxeno.goo.client.hud.PanelPainter;
 import com.mercuriusxeno.goo.client.hud.PanelRectangle;
+import com.mercuriusxeno.goo.client.hud.PanelRow;
 import com.mercuriusxeno.goo.client.model.GloveSpecialRenderer;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import com.mercuriusxeno.goo.client.throwing.ThrowFreezeState;
@@ -656,13 +658,12 @@ public final class GooTargetHighlighter {
             return;
         }
         String text = be.getStackCount() + STACK_SEPARATOR + be.getMaxStacks();
-        float textWidth = mc.font.width(text);
-        float rowWidth = InWorldHud.ICON_SIZE + InWorldHud.ICON_TEXT_GAP + textWidth;
-        float panelW = rowWidth + BILLBOARD_PADDING * PADDING_BOTH_SIDES;
-        float panelH = InWorldHud.ROW_HEIGHT + BILLBOARD_PADDING * PADDING_BOTH_SIDES;
+        PanelRow row = PanelPainter.gooRow(gooType, text);
+        float panelW = row.width(mc.font::width) + BILLBOARD_PADDING * PADDING_BOTH_SIDES;
+        float panelH = PanelPainter.ROW_HEIGHT + BILLBOARD_PADDING * PADDING_BOTH_SIDES;
 
         positionBillboard(ps, camera, pos, be);
-        renderBillboardContent(ps, buf, mc.font, gooType, text, panelW, panelH);
+        renderBillboardContent(ps, buf, mc.font, row, panelW, panelH);
         ps.popPose();
     }
 
@@ -706,19 +707,17 @@ public final class GooTargetHighlighter {
      * @param ps      the pose stack
      * @param buf     the buffer source
      * @param font    the font renderer
-     * @param gooType the goo type for icon
-     * @param text    the text to display
+     * @param row     the goo row to display
      * @param panelW  the panel width
      * @param panelH  the panel height
      */
     private static void renderBillboardContent(PoseStack ps, MultiBufferSource.BufferSource buf,
-                                               Font font, ResourceKey<GooTypeDefinition> gooType, String text, float panelW, float panelH) {
+                                               Font font, PanelRow row, float panelW, float panelH) {
         float halfW = panelW / HALF_DIVISOR;
         float halfH = panelH / HALF_DIVISOR;
         InWorldHud.renderBackgroundSeeThrough(ps, buf,
                 new PanelRectangle(-halfW, -halfH, panelW, panelH));
-        InWorldHud.renderGooRow(ps, font, buf, gooType, text,
-                -halfW + BILLBOARD_PADDING, -halfH + BILLBOARD_PADDING);
+        PanelPainter.drawRow(ps, font, buf, row, -halfW + BILLBOARD_PADDING, -halfH + BILLBOARD_PADDING);
     }
 
     /**
