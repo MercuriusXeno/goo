@@ -1,7 +1,8 @@
-package com.mercuriusxeno.goo.network;
+package com.mercuriusxeno.goo.client.network;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.client.throwing.BlobFlightManager;
+import com.mercuriusxeno.goo.network.BlobFlightPayload;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 /**
