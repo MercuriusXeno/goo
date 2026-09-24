@@ -776,7 +776,7 @@ public final class BlobFlightRenderer {
      * @param midA  the midpoint angle between the two segment edges
      * @return a 3-element normal vector {nx, ny, nz}
      */
-    private static float[] segmentNormal(float[] basis, float midA) {
+    public static float[] segmentNormal(float[] basis, float midA) {
         float cosM = (float) Math.cos(midA);
         float sinM = (float) Math.sin(midA);
         return new float[]{
