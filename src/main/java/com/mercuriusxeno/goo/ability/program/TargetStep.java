@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.ability.program;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.world.entity.LivingEntity;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -49,7 +50,8 @@ public record TargetStep(List<EntityFilter> where, List<Step> steps) implements 
 
     @Override
     public boolean tick(StepContext context) {
-        if (context.host().targetPasses(Set.copyOf(where))) {
+        LivingEntity target = context.host().target();
+        if (EntityScan.passes(target, Set.copyOf(where), target)) {
             new ProgramBehavior(steps).tick(context.host());
         }
         return true;

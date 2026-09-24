@@ -125,8 +125,8 @@ public final class EntityScan {
     }
 
     /**
-     * Tests the entity against every filter; the meaning of a host's
-     * {@link StepHost#targetPasses} as well as the scan's own trim.
+     * Tests the entity against every filter; the meaning of a
+     * {@link TargetStep}'s filters as well as the scan's own trim.
      *
      * @param entity  the candidate
      * @param filters the filters to pass

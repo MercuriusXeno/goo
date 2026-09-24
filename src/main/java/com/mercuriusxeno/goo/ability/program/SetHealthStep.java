@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.ability.program;
 
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.world.entity.LivingEntity;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -36,7 +37,8 @@ public record SetHealthStep(Expr fraction) implements Step {
 
     @Override
     public boolean tick(StepContext context) {
-        context.host().setTargetHealthFraction(fraction.evaluateFloat(context));
+        LivingEntity target = context.host().target();
+        target.setHealth(target.getHealth() * fraction.evaluateFloat(context));
         return true;
     }
 
