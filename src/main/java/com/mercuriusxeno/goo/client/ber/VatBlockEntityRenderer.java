@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.block.vat.VatBlockEntity;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.RenderContext;
 import com.mercuriusxeno.goo.client.SurfaceAgitation;
+import com.mercuriusxeno.goo.client.TypeBands;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.SubmitNodeCollector;
@@ -14,7 +15,6 @@ import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 import net.minecraft.client.renderer.feature.ModelFeatureRenderer;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
@@ -22,6 +22,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
+import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
 
@@ -97,20 +98,16 @@ public class VatBlockEntityRenderer
     }
 
     /**
-     * Sets dominant type and fill fraction from a solo vat's contents.
+     * Sets type bands and fill fraction from a solo vat's contents.
      *
      * @param be    the vat block entity
      * @param state the render state snapshot to populate
      */
     private static void applySoloFill(VatBlockEntity be, VatRenderState state) {
         GooContents contents = be.getContents();
-        if (contents.isEmpty()) {
-            state.dominantType = null;
-            state.fillFraction = 0f;
-        } else {
-            state.dominantType = contents.largestType();
-            state.fillFraction = Math.min(1f, (float) contents.totalVolume() / be.getCapacity());
-        }
+        state.typeBands = TypeBands.over(contents);
+        state.fillFraction = contents.isEmpty()
+            ? 0f : Math.min(1f, (float) contents.totalVolume() / be.getCapacity());
     }
 
     /**
@@ -134,17 +131,17 @@ public class VatBlockEntityRenderer
     }
 
     /**
-     * Applies dominant type and fill fraction from aggregated stack data.
+     * Applies type bands and fill fraction from aggregated stack data.
      *
      * @param state the render state snapshot to populate
      * @param data  the aggregated stack data
      */
     private static void applyStackFill(VatRenderState state, StackData data) {
         if (data.totalVolume <= 0 || data.totalCapacity <= 0) {
-            state.dominantType = null;
+            state.typeBands = List.of();
             state.fillFraction = 0f;
         } else {
-            state.dominantType = data.merged.largestType();
+            state.typeBands = TypeBands.over(data.merged);
             state.fillFraction = Math.min(1f, (float) data.totalVolume / data.totalCapacity);
         }
     }
@@ -243,7 +240,7 @@ public class VatBlockEntityRenderer
     }
 
     /**
-     * Submits the fluid quad(s) for this vat's slice of the unified column.
+     * Submits this vat's slice of the unified column once per type band.
      *
      * @param poseStack     the pose stack for rendering
      * @param nodeCollector the render node collector
@@ -251,9 +248,7 @@ public class VatBlockEntityRenderer
      */
     private static void submitFluid(PoseStack poseStack,
                                     SubmitNodeCollector nodeCollector, VatRenderState state) {
-        TextureAtlasSprite sprite = GooSubmitter.fluidSprite(state.dominantType);
-        GooSubmitter.submitUndulatingFluid(poseStack, nodeCollector, GooSubmitter.fluidTint(state.dominantType),
-                ctx -> VatFluidRenderer.renderFluid(ctx, sprite, state));
+        VatFluidRenderer.renderMingledFluid(GooSubmitter.bandedSurfaces(poseStack, nodeCollector), state);
     }
 
     /**
@@ -328,9 +323,9 @@ public class VatBlockEntityRenderer
     }
 
     /**
-     * Snapshots dominant type, fill fraction, and stack geometry by walking
-     * the connected vat column. All vats in a stack share the same dominant
-     * type and fill fraction so they render one unified fluid body.
+     * Snapshots type bands, fill fraction, and stack geometry by walking
+     * the connected vat column. All vats in a stack share the same bands
+     * and fill fraction so they render one unified fluid body.
      *
      * @param be            the block entity instance
      * @param state         the block state
@@ -382,7 +377,7 @@ public class VatBlockEntityRenderer
     @Override
     public void submit(VatRenderState state, PoseStack poseStack,
                        SubmitNodeCollector nodeCollector, CameraRenderState cameraState) {
-        if (state.dominantType != null && state.fillFraction > 0f) {
+        if (!state.typeBands.isEmpty() && state.fillFraction > 0f) {
             submitFluid(poseStack, nodeCollector, state);
         }
         if (state.streamType != null) {

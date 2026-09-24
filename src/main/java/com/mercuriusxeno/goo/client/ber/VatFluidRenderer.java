@@ -1,8 +1,10 @@
 package com.mercuriusxeno.goo.client.ber;
 
+import com.mercuriusxeno.goo.client.BandedSurfaceSubmitter;
 import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.RenderContext;
+import com.mercuriusxeno.goo.client.TypeBand;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.Direction;
 
@@ -34,12 +36,26 @@ final class VatFluidRenderer {
     }
 
     /**
+     * Renders this vat's portion of the unified fluid column once per type
+     * band, top, underside and side faces alike, so the column reads mingled
+     * through the glass (decision noise-mingled-type-textures).
+     *
+     * @param submitter submits one band's surface on that band type's sprite
+     * @param state     the block state
+     */
+    static void renderMingledFluid(BandedSurfaceSubmitter submitter, VatRenderState state) {
+        for (TypeBand band : state.typeBands) {
+            submitter.submit(band, (ctx, sprite) -> renderFluid(ctx, sprite, state));
+        }
+    }
+
+    /**
      * Renders this vat's portion of the unified fluid column on the sprite
      * the submitter resolved. Computes local floor/ceiling from stack
      * position, then determines how much of this vat's interior is submerged.
      *
      * @param ctx    the render context
-     * @param sprite the fluid sprite of the dominant goo type
+     * @param sprite the fluid sprite of the band's goo type
      * @param state  the block state
      */
     static void renderFluid(RenderContext ctx, TextureAtlasSprite sprite, VatRenderState state) {

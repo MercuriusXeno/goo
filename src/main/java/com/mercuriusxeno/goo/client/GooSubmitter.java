@@ -193,11 +193,13 @@ public final class GooSubmitter {
     }
 
     /**
-     * Submits vat or crucible fluid geometry fullbright in the given color
-     * on the undulating fluid surface render type (decision
+     * Submits vat or crucible fluid geometry in the given color on the
+     * undulating fluid surface render type (decision
      * undulating-fluid-surface): a vertex's overlay UV carries its ripple
      * amplitude, so the grid surface ripples and flat faces stay put. The
-     * whole vat or crucible fluid goes through here so one buffer sorts it.
+     * surface is emissive, and its lightmap coordinates carry the whole type
+     * band, so every fragment shows. The whole vat or crucible fluid goes
+     * through here so one buffer sorts it.
      *
      * @param poseStack     the pose stack
      * @param nodeCollector the render node collector
@@ -208,7 +210,25 @@ public final class GooSubmitter {
                                              int color, Consumer<RenderContext> emitter) {
         nodeCollector.submitCustomGeometry(poseStack, GooRenderTypes.gooFluidSurface(BLOCK_ATLAS),
             (pose, c) -> emitter.accept(
-                new RenderContext(pose, c, LightCoordsUtil.FULL_BRIGHT, color)));
+                new RenderContext(pose, c, TypeBand.WHOLE_RANGE_PACKED, color)));
+    }
+
+    /**
+     * Answers the submitter that draws one undulating surface per type band
+     * (decision noise-mingled-type-textures), each on its type's fluid
+     * sprite and tint, every vertex carrying the band.
+     *
+     * @param poseStack     the pose stack
+     * @param nodeCollector the render node collector
+     * @return the band-per-surface submitter
+     */
+    public static BandedSurfaceSubmitter bandedSurfaces(PoseStack poseStack, SubmitNodeCollector nodeCollector) {
+        return (band, emitter) -> {
+            TextureAtlasSprite sprite = fluidSprite(band.type());
+            int tint = fluidTint(band.type());
+            nodeCollector.submitCustomGeometry(poseStack, GooRenderTypes.gooFluidSurface(BLOCK_ATLAS),
+                (pose, c) -> emitter.accept(RenderContext.banded(pose, c, tint, band), sprite));
+        };
     }
 
     /**
