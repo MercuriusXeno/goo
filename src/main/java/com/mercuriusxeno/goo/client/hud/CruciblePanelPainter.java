@@ -81,10 +81,9 @@ final class CruciblePanelPainter {
         if (!hasGoo && !hasFuel) {
             return null;
         }
-        GooContents total = hasGoo ? reservoir.mergeWith(pool) : GooContents.EMPTY;
         Set<ResourceKey<GooTypeDefinition>> types = hasGoo ? allTypes(reservoir, pool) : Set.of();
         return new CrucibleSnapshot(
-                reservoir, total, types, be.getFuelRod(), hasGoo, hasFuel);
+                reservoir, pool, types, be.getFuelRod(), hasGoo, hasFuel);
     }
 
     /**
@@ -155,7 +154,7 @@ final class CruciblePanelPainter {
     private static float measureContentWidth(CrucibleSnapshot snap) {
         Font font = Minecraft.getInstance().font;
         float gooWidth = snap.hasGoo()
-                ? measureMaxRowWidth(font, snap.reservoir(), snap.total(), snap.types()) : 0;
+                ? measureMaxRowWidth(font, snap.reservoir(), snap.pool(), snap.types()) : 0;
         float fuelWidth = snap.hasFuel()
                 ? CrucibleFuelDisplay.measureFuelRowWidth(font, snap.fuelRod()) : 0;
         return Math.max(gooWidth, fuelWidth);
@@ -196,7 +195,7 @@ final class CruciblePanelPainter {
         if (!snap.hasGoo()) {
             return 0;
         }
-        renderRows(poseStack, font, buffers, snap.reservoir(), snap.total(), snap.types(), x, y);
+        renderRows(poseStack, font, buffers, snap.reservoir(), snap.pool(), snap.types(), x, y);
         return snap.types().size();
     }
 
@@ -232,15 +231,15 @@ final class CruciblePanelPainter {
      *
      * @param font      the font renderer
      * @param reservoir the reservoir goo contents
-     * @param total     the total merged goo contents
+     * @param pool      the melt pool goo contents
      * @param types     the set of goo types present
      * @return the measured width in pixels
      */
     private static float measureMaxRowWidth(Font font, GooContents reservoir,
-                                            GooContents total, Set<ResourceKey<GooTypeDefinition>> types) {
+                                            GooContents pool, Set<ResourceKey<GooTypeDefinition>> types) {
         float maxW = 0;
         for (ResourceKey<GooTypeDefinition> type : types) {
-            String row = formatRow(volumeOf(reservoir, type), volumeOf(total, type));
+            String row = formatRow(volumeOf(reservoir, type), totalOf(reservoir, pool, type));
             maxW = Math.max(maxW, font.width(row));
         }
         return CrucibleFuelDisplay.ICON_SIZE + CrucibleFuelDisplay.ICON_TEXT_GAP + maxW;
@@ -253,7 +252,7 @@ final class CruciblePanelPainter {
      * @param totalVol     the total volume in mB
      * @return the formatted string
      */
-    private static String formatRow(int reservoirVol, int totalVol) {
+    private static String formatRow(int reservoirVol, long totalVol) {
         return GooTooltipHandler.formatFluidDisplayCompact(reservoirVol)
                 + VOLUME_SEPARATOR
                 + GooTooltipHandler.formatFluidDisplayCompact(totalVol);
@@ -271,24 +270,37 @@ final class CruciblePanelPainter {
     }
 
     /**
+     * Returns one type's reservoir and pool volumes together, a long so two
+     * full stores never wrap (decision diagnose-then-fix-crucible-overflow).
+     *
+     * @param reservoir the reservoir goo contents
+     * @param pool      the melt pool goo contents
+     * @param type      the goo type
+     * @return the type's total volume in mB
+     */
+    static long totalOf(GooContents reservoir, GooContents pool, ResourceKey<GooTypeDefinition> type) {
+        return (long) volumeOf(reservoir, type) + volumeOf(pool, type);
+    }
+
+    /**
      * Renders all type rows vertically.
      *
      * @param poseStack the pose stack for rendering
      * @param font      the font renderer
      * @param buffers   the buffer source for rendering
      * @param reservoir the reservoir goo contents
-     * @param total     the total merged goo contents
+     * @param pool      the melt pool goo contents
      * @param types     the set of goo types present
      * @param x         the X coordinate
      * @param y         the Y coordinate
      */
     private static void renderRows(PoseStack poseStack, Font font, MultiBufferSource buffers,
-                                   GooContents reservoir, GooContents total,
+                                   GooContents reservoir, GooContents pool,
                                    Set<ResourceKey<GooTypeDefinition>> types, float x, float y) {
         float rowY = y;
         for (ResourceKey<GooTypeDefinition> type : types) {
             renderTypeRow(poseStack, font, buffers, type,
-                    volumeOf(reservoir, type), volumeOf(total, type), x, rowY);
+                    volumeOf(reservoir, type), totalOf(reservoir, pool, type), x, rowY);
             rowY += ROW_HEIGHT;
         }
     }
@@ -307,7 +319,7 @@ final class CruciblePanelPainter {
      */
     private static void renderTypeRow(PoseStack poseStack, Font font,
                                       MultiBufferSource buffers, ResourceKey<GooTypeDefinition> type,
-                                      int reservoirVol, int totalVol, float x, float y) {
+                                      int reservoirVol, long totalVol, float x, float y) {
         float iconY = y + (ROW_HEIGHT - CrucibleFuelDisplay.ICON_SIZE) / HALF_F;
         float textY = y + (ROW_HEIGHT - font.lineHeight) / HALF_F;
         CrucibleFuelDisplay.renderTexturedQuad(poseStack, buffers,
@@ -328,7 +340,7 @@ final class CruciblePanelPainter {
      * @param y            the Y coordinate
      */
     private static void renderFractionText(Font font, MultiBufferSource buffers,
-                                           PoseStack poseStack, int reservoirVol, int totalVol,
+                                           PoseStack poseStack, int reservoirVol, long totalVol,
                                            float x, float y) {
         String resText = GooTooltipHandler.formatFluidDisplayCompact(reservoirVol);
         String totText = GooTooltipHandler.formatFluidDisplayCompact(totalVol);

@@ -28,7 +28,7 @@ public final class CrucibleMath {
      * @param remaining the remaining volume in mB
      * @return the extraction rate in mB/tick, at least 1
      */
-    public static int extractionRate(int remaining) {
+    public static int extractionRate(long remaining) {
         if (remaining <= 0) {
             return 1;
         }
@@ -62,7 +62,7 @@ public final class CrucibleMath {
      */
     public static Map<ResourceKey<GooTypeDefinition>, Integer> computeDrainShares(GooContents contents, int rate) {
         Map<ResourceKey<GooTypeDefinition>, Integer> shares = new HashMap<>();
-        int totalVolume = contents.totalVolume();
+        long totalVolume = contents.totalVolume();
         int allocated = allocateProportional(shares, contents, rate, totalVolume);
         distributeRemainder(shares, contents, rate, allocated);
         return shares;
@@ -78,11 +78,11 @@ public final class CrucibleMath {
      * @return the sum of all allocated shares
      */
     private static int allocateProportional(Map<ResourceKey<GooTypeDefinition>, Integer> shares,
-                                            GooContents contents, int rate, int totalVolume) {
+                                            GooContents contents, int rate, long totalVolume) {
         int allocated = 0;
         for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> entry : contents.getAll().entrySet()) {
             int available = entry.getValue();
-            int share = Math.min(Math.max(1, rate * available / totalVolume), available);
+            int share = (int) Math.min(Math.max(1L, (long) rate * available / totalVolume), available);
             shares.put(entry.getKey(), share);
             allocated += share;
         }

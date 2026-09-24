@@ -71,7 +71,8 @@ public class CrucibleBlockEntityRenderer
      */
     private void extractRipple(CrucibleBlockEntity be, CrucibleRenderState state) {
         long gameTick = be.getLevel() != null ? be.getLevel().getGameTime() : 0L;
-        float fill = CrucibleBasin.fillFraction(state.poolVolume + state.reservoirVolume);
+        float fill = CrucibleBasin.fillFraction(
+            CrucibleBasin.heldVolume(state.poolVolume, state.reservoirVolume));
         state.rippleAmplitude = agitations.computeIfAbsent(be, key -> new SurfaceAgitation())
             .tick(fill, 0f, gameTick);
     }
@@ -120,7 +121,7 @@ public class CrucibleBlockEntityRenderer
      */
     private static void submitLiquidLevel(PoseStack poseStack,
             SubmitNodeCollector nodeCollector, CrucibleRenderState state) {
-        int totalGoo = state.poolVolume + state.reservoirVolume;
+        long totalGoo = CrucibleBasin.heldVolume(state.poolVolume, state.reservoirVolume);
         if (totalGoo <= 0 || state.dominantType == null) { return; }
 
         submitLiquidQuads(poseStack, nodeCollector, state, CrucibleBasin.surfaceYForVolume(totalGoo));

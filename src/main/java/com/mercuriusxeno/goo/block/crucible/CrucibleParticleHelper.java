@@ -302,7 +302,7 @@ public final class CrucibleParticleHelper {
      * @param totalGoo the total goo
      * @return the surface Y
      */
-    public static float computeSurfaceY(int totalGoo) {
+    public static float computeSurfaceY(long totalGoo) {
         return CrucibleBasin.surfaceYForVolume(totalGoo);
     }
 
