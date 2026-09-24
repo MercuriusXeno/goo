@@ -35,6 +35,14 @@ public final class RecordingVertexConsumer implements VertexConsumer {
     private int uv1U;
     private float ny;
     private boolean hasPending;
+    private int lightWrites;
+
+    /**
+     * @return how many times an emitter wrote the lightmap element
+     */
+    public int lightWrites() {
+        return lightWrites;
+    }
 
     /**
      * @return every vertex recorded so far, in emission order
@@ -92,6 +100,7 @@ public final class RecordingVertexConsumer implements VertexConsumer {
 
     @Override
     public VertexConsumer setUv2(int lightU, int lightV) {
+        lightWrites++;
         return this;
     }
 

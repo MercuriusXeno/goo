@@ -7,7 +7,6 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.core.Direction;
 import net.minecraft.util.ARGB;
-import net.minecraft.util.LightCoordsUtil;
 import java.util.*;
 import java.util.function.BiFunction;
 
@@ -405,7 +404,7 @@ public final class GlowFadeVisual {
      * @param baseColor        ARGB color at the base of the quad
      * @param transparentColor ARGB color at the top (alpha = 0)
      */
-    private static void emitAuroraQuadPerVertex(PoseStack.Pose pose,
+    static void emitAuroraQuadPerVertex(PoseStack.Pose pose,
                                                 VertexConsumer consumer,
                                                 float ex, float ey, float ez,
                                                 float rx, float ry, float rz,
@@ -423,16 +422,12 @@ public final class GlowFadeVisual {
         float fx = faceDir.getStepX();
         float fy = faceDir.getStepY();
         float fz = faceDir.getStepZ();
-        consumer.addVertex(pose, bx0, by0, bz0).setColor(baseColor)
-                .setLight(LightCoordsUtil.FULL_BRIGHT);
-        consumer.addVertex(pose, bx1, by1, bz1).setColor(baseColor)
-                .setLight(LightCoordsUtil.FULL_BRIGHT);
+        consumer.addVertex(pose, bx0, by0, bz0).setColor(baseColor);
+        consumer.addVertex(pose, bx1, by1, bz1).setColor(baseColor);
         consumer.addVertex(pose, bx1 + fx * height1, by1 + fy * height1, bz1 + fz * height1)
-                .setColor(transparentColor)
-                .setLight(LightCoordsUtil.FULL_BRIGHT);
+                .setColor(transparentColor);
         consumer.addVertex(pose, bx0 + fx * height0, by0 + fy * height0, bz0 + fz * height0)
-                .setColor(transparentColor)
-                .setLight(LightCoordsUtil.FULL_BRIGHT);
+                .setColor(transparentColor);
     }
 
     /**
