@@ -141,13 +141,14 @@ public final class CrucibleBasin {
 
     /**
      * Answers whether the basin holds no goo, the only state that shows sparks
-     * (decision sparks-only-in-an-empty-crucible).
+     * (decision sparks-only-in-an-empty-crucible); a long so a reservoir past the
+     * int range reads whole (decision diagnose-then-fix-holds-no-goo-width).
      *
      * @param reservoirVolume the goo the reservoir holds
      * @param poolVolume      the goo the partially melted item's pool holds
      * @return true when the reservoir and the pool together hold nothing
      */
-    public static boolean holdsNoGoo(int reservoirVolume, int poolVolume) {
+    public static boolean holdsNoGoo(long reservoirVolume, long poolVolume) {
         return reservoirVolume <= 0 && poolVolume <= 0;
     }
 
