@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ber;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.block.crucible.CrucibleBasin;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
 import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
@@ -27,20 +28,6 @@ import java.util.WeakHashMap;
  */
 public class CrucibleBlockEntityRenderer
         implements BlockEntityRenderer<CrucibleBlockEntity, CrucibleRenderState> {
-
-    // -- Liquid level constants --
-
-    /** Basin interior X/Z bounds (inside the 2-pixel walls). */
-    private static final float LIQUID_MIN_XZ = 2f / 16f;
-    private static final float LIQUID_MAX_XZ = 14f / 16f;
-    /** Liquid surface Y range. */
-    private static final float LIQUID_MIN_Y = 13f / 16f;
-    private static final float LIQUID_MAX_Y = 15f / 16f;
-    /**
-     * Volume at which the logarithmic curve reaches ~1.0 (full basin).
-     * Tunable: higher values make the curve more gradual.
-     */
-    static final int LIQUID_LOG_CAP = 64_000;
 
     // -- Color constants --
 
@@ -84,7 +71,7 @@ public class CrucibleBlockEntityRenderer
      */
     private void extractRipple(CrucibleBlockEntity be, CrucibleRenderState state) {
         long gameTick = be.getLevel() != null ? be.getLevel().getGameTime() : 0L;
-        float fill = computeLogFill(state.poolVolume + state.reservoirVolume, LIQUID_LOG_CAP);
+        float fill = CrucibleBasin.fillFraction(state.poolVolume + state.reservoirVolume);
         state.rippleAmplitude = agitations.computeIfAbsent(be, key -> new SurfaceAgitation())
             .tick(fill, 0f, gameTick);
     }
@@ -136,9 +123,7 @@ public class CrucibleBlockEntityRenderer
         int totalGoo = state.poolVolume + state.reservoirVolume;
         if (totalGoo <= 0 || state.dominantType == null) { return; }
 
-        float fillFraction = computeLogFill(totalGoo, LIQUID_LOG_CAP);
-        float surfaceY = LIQUID_MIN_Y + fillFraction * (LIQUID_MAX_Y - LIQUID_MIN_Y);
-        submitLiquidQuads(poseStack, nodeCollector, state, surfaceY);
+        submitLiquidQuads(poseStack, nodeCollector, state, CrucibleBasin.surfaceYForVolume(totalGoo));
     }
 
     /**
@@ -238,23 +223,9 @@ public class CrucibleBlockEntityRenderer
      */
     static void emitLiquidSurface(RenderContext ctx, float surfaceY, GooRenderUtil.UvRect uv,
             float amplitude) {
-        CuboidBounds basin = new CuboidBounds(LIQUID_MIN_XZ, LIQUID_MAX_XZ,
-            LIQUID_MIN_XZ, LIQUID_MAX_XZ, surfaceY, surfaceY);
+        CuboidBounds basin = new CuboidBounds(CrucibleBasin.FOOTPRINT_MIN, CrucibleBasin.FOOTPRINT_MAX,
+            CrucibleBasin.FOOTPRINT_MIN, CrucibleBasin.FOOTPRINT_MAX, surfaceY, surfaceY);
         ctx.liquidSurfaceGrid(basin, uv, amplitude);
-    }
-
-    /**
-     * Computes a logarithmic fill fraction in [0, 1] from volume and cap.
-     * Front-loaded: small volumes fill quickly, large volumes approach 1 slowly.
-     *
-     * @param volume the volume in microblobs
-     * @param cap the log curve saturation cap
-     * @return the computed logFill
-     */
-    static float computeLogFill(int volume, int cap) {
-        if (volume <= 0) { return 0f; }
-        if (volume >= cap) { return 1f; }
-        return (float) (Math.log(1.0 + volume) / Math.log(1.0 + cap));
     }
 
 }
