@@ -65,22 +65,66 @@ class CrucibleBasinTest {
     }
 
     @Test
-    void bubbleSpawnsStayInsideTheFootprintOverASeededRun() {
+    void bubbleWallInsetIsOneAndAHalfPixels() {
+        assertEquals(1.5 / 16.0, CrucibleParticleHelper.BUBBLE_WALL_INSET, EPSILON);
+    }
+
+    @Test
+    void bubbleSpawnsStayInsetFromTheWallsOverASeededRun() {
         RandomSource random = RandomSource.create(42L);
+        double low = CrucibleBasin.FOOTPRINT_MIN + CrucibleParticleHelper.BUBBLE_WALL_INSET;
+        double high = CrucibleBasin.FOOTPRINT_MAX - CrucibleParticleHelper.BUBBLE_WALL_INSET;
         for (int i = 0; i < 10_000; i++) {
             double coordinate = CrucibleParticleHelper.randomInBasin(random);
-            assertTrue(coordinate >= CrucibleBasin.FOOTPRINT_MIN && coordinate <= CrucibleBasin.FOOTPRINT_MAX,
-                "bubble coordinate " + coordinate + " left the footprint");
+            assertTrue(coordinate >= low && coordinate <= high,
+                "bubble coordinate " + coordinate + " came within the wall inset");
         }
     }
 
     @Test
-    void bubbleSpawnsReachBothFootprintEdges() {
+    void bubbleSpawnsReachBothInsetEdges() {
         RandomSource low = mock(RandomSource.class);
         when(low.nextDouble()).thenReturn(0.0);
         RandomSource high = mock(RandomSource.class);
         when(high.nextDouble()).thenReturn(Math.nextDown(1.0));
-        assertEquals(CrucibleBasin.FOOTPRINT_MIN, CrucibleParticleHelper.randomInBasin(low), EPSILON);
-        assertEquals(CrucibleBasin.FOOTPRINT_MAX, CrucibleParticleHelper.randomInBasin(high), EPSILON);
+        assertEquals(5.5 / 16.0, CrucibleParticleHelper.randomInBasin(low), EPSILON);
+        assertEquals(10.5 / 16.0, CrucibleParticleHelper.randomInBasin(high), EPSILON);
+    }
+
+    @Test
+    void insetAppliesToWhateverFootprintIsGiven() {
+        RandomSource low = mock(RandomSource.class);
+        when(low.nextDouble()).thenReturn(0.0);
+        RandomSource high = mock(RandomSource.class);
+        when(high.nextDouble()).thenReturn(Math.nextDown(1.0));
+        double min = 6.0 / 16.0;
+        double max = 10.0 / 16.0;
+        assertEquals(min + CrucibleParticleHelper.BUBBLE_WALL_INSET,
+            CrucibleParticleHelper.randomInsetWithin(low, min, max), EPSILON);
+        assertEquals(max - CrucibleParticleHelper.BUBBLE_WALL_INSET,
+            CrucibleParticleHelper.randomInsetWithin(high, min, max), EPSILON);
+    }
+
+    @Test
+    void oneBubbleSpawnsOnlyOnTheOneTickInTwenty() {
+        assertEquals(20, CrucibleParticleHelper.BUBBLE_ONE_IN_TICKS);
+        RandomSource random = mock(RandomSource.class);
+        for (int roll = 0; roll < CrucibleParticleHelper.BUBBLE_ONE_IN_TICKS; roll++) {
+            when(random.nextInt(CrucibleParticleHelper.BUBBLE_ONE_IN_TICKS)).thenReturn(roll);
+            assertEquals(roll == 0 ? 1 : 0, CrucibleParticleHelper.bubbleCount(random),
+                "bubble count for roll " + roll);
+        }
+    }
+
+    @Test
+    void bubblesAverageOneEveryTwentyTicksOverASeededRun() {
+        RandomSource random = RandomSource.create(42L);
+        int ticks = 200_000;
+        int bubbles = 0;
+        for (int i = 0; i < ticks; i++) {
+            bubbles += CrucibleParticleHelper.bubbleCount(random);
+        }
+        double perTick = (double) bubbles / ticks;
+        assertEquals(0.05, perTick, 0.005, "bubbles per tick over a seeded run");
     }
 }
