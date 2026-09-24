@@ -1,0 +1,10 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:lab_rebuild",
+  "environment": "minecraft:default",
+  "structure": "minecraft:empty",
+  "max_ticks": 20,
+  "setup_ticks": 0,
+  "required": true,
+  "padding": 32
+}
