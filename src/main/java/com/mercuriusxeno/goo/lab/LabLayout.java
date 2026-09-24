@@ -4,13 +4,13 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
 import java.util.stream.Stream;
 
 /**
  * The Goo Lab as a pure list of placements relative to the lab origin
  * (decision lab-built-from-code): a floor plate holding, north to south, the
- * machine row of {@link LabBays}, the mob pens of {@link LabPens} and the
+ * machine row of {@link LabBays}, the supply row of {@link LabSupply}, the
+ * mob pens of {@link LabPens} and the
  * target range of {@link LabTargetRange}. Each zone adds its placements to
  * one plan, so the build, the rebuild and the tests read one source.
  */
@@ -50,9 +50,13 @@ public final class LabLayout {
      */
     private static final LabOffset ROW_CORNER = new LabOffset(FLOOR_MARGIN, 0, FLOOR_MARGIN);
     /**
-     * The pens' north-west corner, a zone gap south of the machine row.
+     * The supply row's north-west corner, a zone gap south of the machine row.
      */
-    private static final LabOffset PEN_CORNER = ROW_CORNER.shifted(0, 0, LabBays.PLOT_SIZE + ZONE_GAP + 1);
+    private static final LabOffset SUPPLY_CORNER = ROW_CORNER.shifted(0, 0, LabBays.PLOT_SIZE + ZONE_GAP);
+    /**
+     * The pens' north-west corner, a zone gap south of the supply row, leaving room for the pens' signs.
+     */
+    private static final LabOffset PEN_CORNER = SUPPLY_CORNER.shifted(0, 0, LabSupply.STATION_DEPTH + ZONE_GAP + 1);
     /**
      * The firing line's west end, a zone gap south of the pens.
      */
@@ -62,35 +66,75 @@ public final class LabLayout {
     }
 
     /**
-     * Answers the whole lab plan.
+     * Answers the lab plan with no supply stations, for the parts that read no registry.
      *
      * @return the placements, zones, spawns and bounds of one build
      */
     public static LabPlan plan() {
+        return plan(List.of());
+    }
+
+    /**
+     * Answers the whole lab plan, with one supply station per goo type id.
+     *
+     * @param gooTypeIds the goo type ids the build read from the registry, in station order
+     * @return the placements, zones, spawns and bounds of one build
+     */
+    public static LabPlan plan(List<String> gooTypeIds) {
         List<LabPlot> plots = LabBays.plots(ROW_CORNER);
+        LabSupply.Row supply = LabSupply.row(SUPPLY_CORNER, gooTypeIds);
         List<LabPen> pens = LabPens.pens(PEN_CORNER);
         LabRange range = LabTargetRange.range(RANGE_CORNER);
         Map<LabOffset, LabPlacement> byOffset = new LinkedHashMap<>();
-        LabBox floor = floorBox(range);
+        LabBox floor = floorAround(zoneBoxes(plots, supply, pens, range));
         floorPlacements(floor, plots).forEach(p -> byOffset.put(p.offset(), p));
         plots.forEach(plot -> put(byOffset, bayAndSign(plot)));
+        put(byOffset, LabSupply.rowBlocks(supply));
         pens.forEach(pen -> put(byOffset, LabPens.penBlocks(pen, SIGN_BLOCK)));
         put(byOffset, LabTargetRange.rangeBlocks(range));
         List<LabSpawn> spawns = pens.stream().flatMap(pen -> LabPens.spawns(pen).stream()).toList();
         List<LabPlacement> placements = new ArrayList<>(byOffset.values());
-        LabBox bounds = enclose(placements, plots, pens);
-        return new LabPlan(placements, plots, pens, range, spawns, bounds);
+        LabBox bounds = enclose(placements, zoneBoxes(plots, supply, pens, range));
+        return new LabPlan(placements, plots, supply, pens, range, spawns, bounds);
     }
 
     /**
-     * Answers the floor plate's extent: every zone plus a margin all round, one block thick.
+     * Answers the floor plate's extent under a plan.
      *
-     * @param range the target range, the southernmost zone
+     * @param plan the plan
      * @return the floor box at y 0
      */
-    static LabBox floorBox(LabRange range) {
-        int maxX = Math.max(ROW_CORNER.x() + LabBays.rowLength(), range.bounds().max().x() + 1) + FLOOR_MARGIN - 1;
-        int maxZ = range.bounds().max().z() + FLOOR_MARGIN;
+    static LabBox floorBox(LabPlan plan) {
+        return floorAround(zoneBoxes(plan.plots(), plan.supply(), plan.pens(), plan.range()));
+    }
+
+    /**
+     * Answers every zone's box.
+     *
+     * @param plots  the machine plots
+     * @param supply the supply row
+     * @param pens   the mob pens
+     * @param range  the target range
+     * @return the boxes
+     */
+    private static List<LabBox> zoneBoxes(List<LabPlot> plots, LabSupply.Row supply, List<LabPen> pens, LabRange range) {
+        List<LabBox> boxes = new ArrayList<>();
+        plots.forEach(plot -> boxes.add(plot.bounds()));
+        boxes.add(supply.bounds());
+        pens.forEach(pen -> boxes.add(pen.bounds()));
+        boxes.add(range.bounds());
+        return boxes;
+    }
+
+    /**
+     * Answers the floor plate's extent: every zone plus a margin all round, one block thick, from the origin.
+     *
+     * @param zones the zones' boxes
+     * @return the floor box at y 0
+     */
+    private static LabBox floorAround(List<LabBox> zones) {
+        int maxX = zones.stream().mapToInt(box -> box.max().x()).max().orElse(0) + FLOOR_MARGIN;
+        int maxZ = zones.stream().mapToInt(box -> box.max().z()).max().orElse(0) + FLOOR_MARGIN;
         return new LabBox(new LabOffset(0, 0, 0), new LabOffset(maxX, 0, maxZ));
     }
 
@@ -147,19 +191,16 @@ public final class LabLayout {
     }
 
     /**
-     * Answers the smallest box holding every placement, plot and pen.
+     * Answers the smallest box holding every placement and zone.
      *
      * @param placements the plan's placements
-     * @param plots      the machine plots
-     * @param pens       the mob pens
+     * @param zones      the zones' boxes
      * @return the plan's bounds
      */
-    private static LabBox enclose(List<LabPlacement> placements, List<LabPlot> plots, List<LabPen> pens) {
-        List<LabOffset> corners = Stream.of(
+    private static LabBox enclose(List<LabPlacement> placements, List<LabBox> zones) {
+        List<LabOffset> corners = Stream.concat(
                 placements.stream().map(LabPlacement::offset),
-                plots.stream().flatMap(plot -> Stream.of(plot.bounds().min(), plot.bounds().max())),
-                pens.stream().flatMap(pen -> Stream.of(pen.bounds().min(), pen.bounds().max())))
-                .flatMap(Function.identity()).toList();
+                zones.stream().flatMap(box -> Stream.of(box.min(), box.max()))).toList();
         LabOffset min = new LabOffset(
                 corners.stream().mapToInt(LabOffset::x).min().orElse(0),
                 corners.stream().mapToInt(LabOffset::y).min().orElse(0),

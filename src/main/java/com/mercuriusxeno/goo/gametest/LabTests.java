@@ -3,7 +3,6 @@ package com.mercuriusxeno.goo.gametest;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.lab.LabBox;
 import com.mercuriusxeno.goo.lab.LabBuilder;
-import com.mercuriusxeno.goo.lab.LabLayout;
 import com.mercuriusxeno.goo.lab.LabMachine;
 import com.mercuriusxeno.goo.lab.LabPlacement;
 import com.mercuriusxeno.goo.lab.LabPlan;
@@ -47,7 +46,7 @@ public final class LabTests {
      * @param helper the gametest helper
      */
     public static void buildShell(GameTestHelper helper) {
-        LabPlan plan = LabLayout.plan();
+        LabPlan plan = LabBuilder.planFor(helper.getLevel());
         BlockPos origin = centredOrigin(helper, plan.bounds());
         helper.assertTrue(buildPlan(helper, origin, plan) == plan.placements().size(), COUNT_MISMATCH);
         for (LabPlacement placement : plan.placements()) {
