@@ -66,7 +66,7 @@ final class VatSerialization {
         long tick = be.getLevel() != null ? be.getLevel().getGameTime() : 0L;
         be.vatStreamType = be.fluidHandler.getStreamType(tick);
         be.vatStreamRate = be.fluidHandler.getStreamRate(tick);
-        be.vatStreamTick = tick;
+        be.vatStreamTick = be.fluidHandler.getStreamTick();
     }
 
     /**
