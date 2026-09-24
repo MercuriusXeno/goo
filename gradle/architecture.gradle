@@ -1,0 +1,38 @@
+// Architecture documents drawn from goo's compiled classes (decision
+// one-command-regenerates-architectural-documentation). Every document lands
+// under one directory, build/reports/architecture unless -ParchitectureOut=<dir>
+// names another. `./gradlew architecture` writes them all: the UML slices
+// (gradle/uml.gradle) under class/, topology.md, dependencies.md and findings.md.
+ext.architectureOutDir = project.hasProperty('architectureOut')
+        ? file(project.property('architectureOut'))
+        : layout.buildDirectory.dir('reports/architecture').get().asFile
+
+def architectureClassesDir = sourceSets.main.java.destinationDirectory.get().asFile
+
+tasks.register('architectureGraphs', JavaExec) {
+    description = 'Writes the package topology graph and the type dependency graph'
+    group = 'documentation'
+    dependsOn tasks.named('compileJava')
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.mercuriusxeno.goo.tools.architecture.ArchitectureGraphs'
+    workingDir = project.projectDir
+    args architectureClassesDir.absolutePath, 'src/main/java', architectureOutDir.absolutePath
+    outputs.upToDateWhen { false }
+}
+
+tasks.register('architectureFindings', JavaExec) {
+    description = 'Writes the shape findings a sweep reads first'
+    group = 'documentation'
+    dependsOn tasks.named('compileJava')
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.mercuriusxeno.goo.tools.architecture.ArchitectureFindings'
+    workingDir = project.projectDir
+    args architectureClassesDir.absolutePath, 'src/main/java', architectureOutDir.absolutePath
+    outputs.upToDateWhen { false }
+}
+
+tasks.register('architecture') {
+    description = 'Regenerates every architecture document: UML slices, topology, dependencies and findings'
+    group = 'documentation'
+    dependsOn 'umlDiagrams', 'architectureGraphs', 'architectureFindings'
+}
