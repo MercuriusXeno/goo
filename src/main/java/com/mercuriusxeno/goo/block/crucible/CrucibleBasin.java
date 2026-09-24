@@ -147,7 +147,7 @@ public final class CrucibleBasin {
      * @param poolVolume      the goo the partially melted item's pool holds
      * @return true when the reservoir and the pool together hold nothing
      */
-    public static boolean holdsNoGoo(int reservoirVolume, int poolVolume) {
+    public static boolean holdsNoGoo(long reservoirVolume, long poolVolume) {
         return reservoirVolume <= 0 && poolVolume <= 0;
     }
 
