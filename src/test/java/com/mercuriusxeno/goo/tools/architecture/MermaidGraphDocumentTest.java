@@ -64,7 +64,7 @@ class MermaidGraphDocumentTest {
 
                 ## Cycles
 
-                Each line walks one set of types that all reach each other.
+                Each line walks one set of types that all reach each other, every arrow an edge the graph holds.
 
                 - VatEntity -> VatHelper -> VatEntity
 

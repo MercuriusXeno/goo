@@ -16,7 +16,7 @@ public final class MermaidGraphDocument {
     private static final String TITLE_LINE = "# %s\n\n%s\n\n";
     private static final String CYCLES_HEADING = "## Cycles\n\n";
     private static final String NO_CYCLE_LINE = "No cycle among these %s.\n\n";
-    private static final String CYCLES_INTRO = "Each line walks one set of %s that all reach each other.\n\n";
+    private static final String CYCLES_INTRO = "Each line walks one set of %s that all reach each other, every arrow an edge the graph holds.\n\n";
     private static final String CYCLE_LINE = "- %s\n";
     private static final String CYCLE_STEP = " -> ";
     private static final String FLOWCHART_OPEN = "\n```mermaid\nflowchart LR\n";

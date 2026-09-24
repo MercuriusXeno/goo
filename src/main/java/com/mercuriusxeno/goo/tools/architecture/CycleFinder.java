@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.function.Predicate;
 
 /**
  * Finds the cycles of a directed graph as its strongly connected components
@@ -95,38 +96,71 @@ public final class CycleFinder {
     }
 
     /**
-     * Orders a component as a walk: from its first node, each step follows an
-     * edge to the first unvisited member it reaches, else jumps to the first
-     * unvisited member. A component that is one simple cycle answers that cycle.
+     * Orders a component as a closed walk along the graph's own edges: from
+     * its first node, the walk takes the shortest path inside the component
+     * to the nearest unvisited member, and once every member is reached, the
+     * shortest path home. Every consecutive pair is an edge, so a member may
+     * repeat; a component that is one simple cycle answers that cycle.
      *
      * @param component the component's members
      * @return the walk, its first node repeated at the end
      */
     private List<String> walkThrough(SortedSet<String> component) {
+        String start = component.first();
         SortedSet<String> unvisited = new TreeSet<>(component);
-        List<String> walk = new ArrayList<>();
-        String current = unvisited.first();
-        while (current != null) {
-            walk.add(current);
-            unvisited.remove(current);
-            current = nextStep(current, unvisited);
+        unvisited.remove(start);
+        List<String> walk = new ArrayList<>(List.of(start));
+        while (!unvisited.isEmpty()) {
+            List<String> path = shortestPath(walk.getLast(), unvisited::contains, component);
+            path.forEach(unvisited::remove);
+            walk.addAll(path);
         }
-        walk.add(walk.getFirst());
+        walk.addAll(shortestPath(walk.getLast(), start::equals, component));
         return walk;
     }
 
     /**
-     * The next node of a walk.
+     * The shortest path inside a component from one node to the nearest node a
+     * test accepts, breadth first with targets taken in name order. Every
+     * member of a strongly connected component reaches every other, so a path exists.
      *
-     * @param current   the node the walk stands on
-     * @param unvisited the members the walk has yet to reach
-     * @return the first unvisited target of the current node, else the first unvisited member, else null
+     * @param from      the node the path leaves
+     * @param isTarget  which nodes end the path
+     * @param component the members the path may pass through
+     * @return the path's nodes after {@code from}, ending at the target
      */
-    private String nextStep(String current, SortedSet<String> unvisited) {
-        return targetsOf(current).stream()
-                .filter(unvisited::contains)
-                .findFirst()
-                .orElse(unvisited.isEmpty() ? null : unvisited.first());
+    private List<String> shortestPath(String from, Predicate<String> isTarget, Set<String> component) {
+        Map<String, String> reachedFrom = new HashMap<>(Map.of(from, from));
+        Deque<String> frontier = new ArrayDeque<>(List.of(from));
+        while (!frontier.isEmpty()) {
+            String node = frontier.poll();
+            for (String target : targetsOf(node)) {
+                if (!component.contains(target) || reachedFrom.containsKey(target)) {
+                    continue;
+                }
+                reachedFrom.put(target, node);
+                if (isTarget.test(target)) {
+                    return pathTo(target, reachedFrom);
+                }
+                frontier.add(target);
+            }
+        }
+        throw new IllegalStateException(from);
+    }
+
+    /**
+     * Reads a breadth-first search's path back from its end.
+     *
+     * @param end         the node the path ends at
+     * @param reachedFrom each reached node mapped to the node it was reached from, the search's start to itself
+     * @return the path's nodes after the start, in walking order
+     */
+    private static List<String> pathTo(String end, Map<String, String> reachedFrom) {
+        List<String> path = new ArrayList<>();
+        for (String node = end; !node.equals(reachedFrom.get(node)); node = reachedFrom.get(node)) {
+            path.addFirst(node);
+        }
+        return path;
     }
 
     /**

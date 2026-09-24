@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.tools.architecture;
 
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -46,6 +47,11 @@ public final class FindingsDocument {
     private static final String TYPE_CYCLES_HEADING = "\n### types\n\n";
     private static final String PACKAGES_NOUN = "packages";
     private static final String TYPES_NOUN = "types";
+    private static final String TYPE_CYCLES_INTRO = "Each line walks one set of types that all reach each other,"
+            + " along references the types hold; its members follow with their source paths.\n\n";
+    private static final String TYPE_CYCLE_LINE = "- %s\n";
+    private static final String CYCLE_STEP = " -> ";
+    private static final String CYCLE_MEMBER_ITEM = "  - `%s` `%s`\n";
     private static final String TYPE_ITEM = "- `%s` `%s` - %d %s\n";
     private static final String SIGNATURE_ITEM = "- `%s.%s` `%s` - %d parameters\n";
     private static final String HUB_ITEM = "- `%s` `%s` - %d in, %d out\n";
@@ -229,15 +235,36 @@ public final class FindingsDocument {
      */
     private static String cyclesSection(List<ScannedType> graded) {
         DirectedGraph packages = DirectedGraph.ofPackages(graded);
-        Map<String, String> typeLabels = graded.stream()
-                .collect(Collectors.toMap(ScannedType::qualifiedName, ScannedType::simpleName));
         return CYCLES_HEADING
                 + PACKAGE_CYCLES_HEADING
                 + MermaidGraphDocument.cycleList(PACKAGES_NOUN, CycleFinder.find(packages),
                         NodeLabels.forPackages(packages.adjacency().keySet()))
                 + TYPE_CYCLES_HEADING
-                + MermaidGraphDocument.cycleList(TYPES_NOUN, CycleFinder.find(DirectedGraph.ofTypes(graded)),
-                        typeLabels);
+                + typeCycleList(graded);
+    }
+
+    /**
+     * The type cycles, each walk followed by its members with their source paths.
+     *
+     * @param graded the graded types
+     * @return the list's markdown, or the line saying there is no cycle
+     */
+    private static String typeCycleList(List<ScannedType> graded) {
+        List<List<String>> cycles = CycleFinder.find(DirectedGraph.ofTypes(graded));
+        if (cycles.isEmpty()) {
+            return MermaidGraphDocument.cycleList(TYPES_NOUN, cycles, Map.of());
+        }
+        Map<String, ScannedType> byName = graded.stream()
+                .collect(Collectors.toMap(ScannedType::qualifiedName, Function.identity()));
+        StringBuilder text = new StringBuilder(TYPE_CYCLES_INTRO);
+        for (List<String> cycle : cycles) {
+            text.append(String.format(TYPE_CYCLE_LINE, cycle.stream()
+                    .map(name -> byName.get(name).simpleName())
+                    .collect(Collectors.joining(CYCLE_STEP))));
+            cycle.stream().distinct().sorted().map(byName::get).forEach(type -> text.append(
+                    String.format(CYCLE_MEMBER_ITEM, type.simpleName(), type.sourcePath())));
+        }
+        return text.toString();
     }
 
     /**
