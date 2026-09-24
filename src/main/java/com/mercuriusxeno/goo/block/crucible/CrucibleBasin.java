@@ -128,6 +128,18 @@ public final class CrucibleBasin {
     }
 
     /**
+     * Answers whether the basin holds no goo, the only state that shows sparks
+     * (decision sparks-only-in-an-empty-crucible).
+     *
+     * @param reservoirVolume the goo the reservoir holds
+     * @param poolVolume      the goo the partially melted item's pool holds
+     * @return true when the reservoir and the pool together hold nothing
+     */
+    public static boolean holdsNoGoo(int reservoirVolume, int poolVolume) {
+        return reservoirVolume <= 0 && poolVolume <= 0;
+    }
+
+    /**
      * @return the footprint's width along X and Z in block-relative coords
      */
     public static float footprintWidth() {
