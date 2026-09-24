@@ -95,6 +95,10 @@ public final class GooTestFunctions {
     private static final String REACTOR_SEATED_GASKET_METADATA = "reactor_seated_gasket_metadata";
     private static final String TAP_ATTACHMENT_LOADS = "tap_attachment_loads";
     private static final String HUB_SLOT_GASKET_REGISTERED = "hub_slot_gasket_registered";
+    private static final String BREAK_POPS_GASKET_CRUCIBLE = "break_pops_gasket_crucible";
+    private static final String BREAK_POPS_GASKET_VAT = "break_pops_gasket_vat";
+    private static final String BREAK_POPS_GASKET_TAP = "break_pops_gasket_tap";
+    private static final String BREAK_POPS_GASKET_HUB = "break_pops_gasket_hub";
 
     // --- Effect executors ---
     private static final String FX_BLAZE = "fx_blaze_mines";
@@ -350,6 +354,10 @@ public final class GooTestFunctions {
         reg(r, REACTOR_SEATED_GASKET_METADATA, GasketHolderTests::reactorSeatedCanisterAnswersGasketMetadata);
         reg(r, TAP_ATTACHMENT_LOADS, GasketRegistryTests::tapAttachmentLoads);
         reg(r, HUB_SLOT_GASKET_REGISTERED, GasketRegistryTests::hubSlotGasketRegistered);
+        reg(r, BREAK_POPS_GASKET_CRUCIBLE, GasketRegistryTests::breakPopsGasketCrucible);
+        reg(r, BREAK_POPS_GASKET_VAT, GasketRegistryTests::breakPopsGasketVat);
+        reg(r, BREAK_POPS_GASKET_TAP, GasketRegistryTests::breakPopsGasketTap);
+        reg(r, BREAK_POPS_GASKET_HUB, GasketRegistryTests::breakPopsGasketHub);
     }
 
     private static void registerEffectExecutorTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {

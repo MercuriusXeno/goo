@@ -6,7 +6,6 @@ import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
 import com.mercuriusxeno.goo.item.BlobInsert;
 import com.mercuriusxeno.goo.item.GooInteractionType;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
-import com.mercuriusxeno.goo.registry.GooItems;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.sounds.SoundEvents;
@@ -21,6 +20,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Stateless dispatch and handler methods for tap block interactions:
@@ -274,9 +274,9 @@ final class TapInteractionHandler {
      * @param state the block state
      */
     static void dropGasketOnBreak(Level level, BlockPos pos, BlockState state) {
-        if (state.getValue(TapBlock.HAS_GASKET)) {
-            Block.popResource(level, pos, new ItemStack(GooItems.CHORAL_GASKET.get()));
-        }
+        UUID gasketId = level.getBlockEntity(pos) instanceof TapBlockEntity tap
+                ? tap.getGasketId(GasketRole.RECEIVER) : null;
+        GasketInstallation.popGasket(level, pos, state.getValue(TapBlock.HAS_GASKET), gasketId);
     }
 
     /**

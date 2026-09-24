@@ -1,20 +1,30 @@
 package com.mercuriusxeno.goo.gametest;
 
+import com.mercuriusxeno.goo.GooConstants;
 import com.mercuriusxeno.goo.block.canister.CanisterBlock;
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
+import com.mercuriusxeno.goo.block.crucible.CrucibleBlock;
+import com.mercuriusxeno.goo.block.gasket.IGasketHolder;
+import com.mercuriusxeno.goo.block.hub.HubBlock;
 import com.mercuriusxeno.goo.block.hub.HubBlockEntity;
+import com.mercuriusxeno.goo.block.tap.TapBlock;
 import com.mercuriusxeno.goo.block.tap.TapBlockEntity;
+import com.mercuriusxeno.goo.block.vat.VatBlock;
 import com.mercuriusxeno.goo.data.GasketLocation;
 import com.mercuriusxeno.goo.data.GasketRegistry;
 import com.mercuriusxeno.goo.item.CanisterItem;
+import com.mercuriusxeno.goo.item.gasket.GasketPartner;
+import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooItems;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
 import org.jspecify.annotations.Nullable;
 import java.util.UUID;
 
@@ -39,6 +49,16 @@ public final class GasketRegistryTests {
     private static final String HUB_LOCATION = "Canister gasket moved into the hub should resolve to the hub's slot";
     private static final String HUB_REMOVED_CLEARS = "Removing the canister from the hub should clear its gasket location";
     private static final String HUB_BROKEN_CLEARS = "Breaking a hub holding the canister should clear its gasket location";
+
+    private static final BlockPos PARTNER_POS = new BlockPos(1, 1, 3);
+    private static final int PARTNER_SLOT = CanisterBlock.CENTER_SLOT;
+    private static final String REMOVAL = "removal";
+    private static final String MACHINE_BROKEN = "Player should have broken the machine";
+    private static final String MACHINE_GASKET_ID = "Machine should hold a gasket id before it breaks";
+    private static final String BREAK_LOCATION = "Broken machine's gasket should resolve no registry location";
+    private static final String BREAK_PAIRING = "Broken machine's gasket should hold no registry pairing";
+    private static final String PARTNER_PAIRING = "Partner's gasket should hold no registry pairing";
+    private static final String PARTNER_REF = "Partner's gasket state should read no partner";
 
     private GasketRegistryTests() {
     }
@@ -102,6 +122,119 @@ public final class GasketRegistryTests {
         helper.destroyBlock(HUB_POS);
         helper.assertTrue(registry.getLocation(topId) == null, HUB_BROKEN_CLEARS);
         helper.succeed();
+    }
+
+    /**
+     * Crucible: breaking a crucible whose gasket is linked to a partner clears
+     * the gasket's location and pairing, and the partner reads unlinked.
+     *
+     * @param helper the gametest helper
+     */
+    public static void breakPopsGasketCrucible(GameTestHelper helper) {
+        breakPopsGasket(helper, GooBlocks.CRUCIBLE.get().defaultBlockState()
+                .setValue(CrucibleBlock.HAS_GASKET, true), GasketRole.TRANSMITTER);
+    }
+
+    /**
+     * Vat: breaking a vat whose base gasket is linked to a partner clears the
+     * gasket's location and pairing, and the partner reads unlinked.
+     *
+     * @param helper the gametest helper
+     */
+    public static void breakPopsGasketVat(GameTestHelper helper) {
+        breakPopsGasket(helper, GooBlocks.VAT.get().defaultBlockState()
+                .setValue(VatBlock.GASKET_BASE, true), GasketRole.TRANSMITTER);
+    }
+
+    /**
+     * Tap: breaking a tap whose gasket is linked to a partner clears the
+     * gasket's location and pairing, and the partner reads unlinked.
+     *
+     * @param helper the gametest helper
+     */
+    public static void breakPopsGasketTap(GameTestHelper helper) {
+        breakPopsGasket(helper, GooBlocks.TAP.get().defaultBlockState()
+                .setValue(TapBlock.HAS_GASKET, true), GasketRole.RECEIVER);
+    }
+
+    /**
+     * Hub: breaking a hub whose intake gasket is linked to a partner clears the
+     * gasket's location and pairing, and the partner reads unlinked.
+     *
+     * @param helper the gametest helper
+     */
+    public static void breakPopsGasketHub(GameTestHelper helper) {
+        breakPopsGasket(helper, GooBlocks.HUB.get().defaultBlockState()
+                .setValue(HubBlock.HAS_GASKET, true), GasketRole.RECEIVER);
+    }
+
+    /**
+     * Links the gasket of a machine placed in the given state to a canister
+     * block's gasket the way the tuner does (registry pairing, locations and
+     * both partner refs), has a player break the machine, and asserts nothing
+     * in the registry or on the partner still names the machine's gasket.
+     *
+     * @param helper       the gametest helper
+     * @param machineState the machine's block state, gasket installed
+     * @param machineRole  the role of the machine's gasket
+     */
+    @SuppressWarnings(REMOVAL) // vanilla marks the mock server player helper for removal and names no replacement
+    private static void breakPopsGasket(GameTestHelper helper, BlockState machineState, GasketRole machineRole) {
+        GasketRegistry registry = GasketRegistry.get(helper.getLevel());
+        helper.setBlock(PARTNER_POS, GooBlocks.CANISTER.get());
+        CanisterBlockEntity partner = helper.getBlockEntity(PARTNER_POS, CanisterBlockEntity.class);
+        partner.insertCanister(PARTNER_SLOT, canisterWithGaskets(UUID.randomUUID(), UUID.randomUUID()), false);
+        GasketRole partnerRole = machineRole == GasketRole.RECEIVER ? GasketRole.TRANSMITTER : GasketRole.RECEIVER;
+        UUID partnerId = partner.getGasketId(partnerRole, PARTNER_SLOT);
+        UUID machineId = linkMachineToPartner(helper, machineState, machineRole, partner, partnerRole);
+
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        player.gameMode.destroyBlock(helper.absolutePos(BE_POS));
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        helper.assertTrue(helper.getBlockState(BE_POS).isAir(), MACHINE_BROKEN);
+
+        helper.assertTrue(registry.getLocation(machineId) == null, BREAK_LOCATION);
+        helper.assertTrue(registry.getTarget(machineId) == null && registry.getSource(machineId) == null,
+                BREAK_PAIRING);
+        helper.assertTrue(registry.getTarget(partnerId) == null && registry.getSource(partnerId) == null,
+                PARTNER_PAIRING);
+        helper.assertTrue(partner.getPartner(partnerRole, PARTNER_SLOT) == null, PARTNER_REF);
+        helper.succeed();
+    }
+
+    /**
+     * Places the machine and links its gasket to the partner canister's gasket
+     * the way the tuner leaves them: registry location and pairing, and each
+     * side's partner reference.
+     *
+     * @param helper       the gametest helper
+     * @param machineState the machine's block state, gasket installed
+     * @param machineRole  the role of the machine's gasket
+     * @param partner      the partner canister block
+     * @param partnerRole  the role of the partner's gasket
+     * @return the machine's gasket id
+     */
+    private static UUID linkMachineToPartner(GameTestHelper helper, BlockState machineState, GasketRole machineRole,
+                                             CanisterBlockEntity partner, GasketRole partnerRole) {
+        ServerLevel level = helper.getLevel();
+        GasketRegistry registry = GasketRegistry.get(level);
+        BlockPos partnerAbs = helper.absolutePos(PARTNER_POS);
+        UUID partnerId = partner.getGasketId(partnerRole, PARTNER_SLOT);
+        helper.setBlock(BE_POS, machineState);
+        BlockPos machineAbs = helper.absolutePos(BE_POS);
+        IGasketHolder machine = (IGasketHolder) helper.getBlockEntity(BE_POS, BlockEntity.class);
+        UUID machineId = machine.ensureGasketId(machineRole);
+        helper.assertTrue(machineId != null, MACHINE_GASKET_ID);
+        registry.updateLocation(machineId, new GasketLocation(level.dimension(), machineAbs,
+                machineRole == GasketRole.RECEIVER, GooConstants.NO_SLOT));
+        if (machineRole == GasketRole.TRANSMITTER) {
+            registry.link(machineId, partnerId);
+        } else {
+            registry.link(partnerId, machineId);
+        }
+        machine.setPartner(machineRole, GooConstants.NO_SLOT, new GasketPartner(partnerAbs, PARTNER_SLOT));
+        partner.setPartner(partnerRole, PARTNER_SLOT, new GasketPartner(machineAbs, GooConstants.NO_SLOT));
+        return machineId;
     }
 
     private static void assertLocation(GameTestHelper helper, @Nullable GasketLocation actual,
