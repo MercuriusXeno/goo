@@ -72,8 +72,8 @@ public class CrucibleBlockEntity extends BlockEntity implements IGasketHolder, I
         GasketAttachment.single(this, GasketRole.TRANSMITTER, TAG_CRUCIBLE);
 
     /** Multi-type goo reservoir backed by the Transfer API. */
-    final GooFluidHandler reservoir = new GooFluidHandler(
-        Integer.MAX_VALUE, gasket.syncCallback());
+    final GooFluidHandler reservoir = GooFluidHandler.withCapacityPerType(
+        CrucibleCapacity.TYPE_CAPACITY, gasket.syncCallback());
 
     /** Game time of the last sizzle sound play (debounce, not serialized). */
     private long lastSizzleTick;
@@ -249,7 +249,7 @@ public class CrucibleBlockEntity extends BlockEntity implements IGasketHolder, I
      *
      * @return the pool volume
      */
-    public int getPoolVolume() {
+    public long getPoolVolume() {
         return meltingItem.isEmpty() ? 0 : PartiallyMeltedItem.getContents(meltingItem).totalVolume();
     }
 

@@ -424,22 +424,22 @@ public final class GooTooltipHandler {
 
 
     /**
-     * Delegates to {@link GooFormat#formatFluidDisplay    (int)}.
+     * Delegates to {@link GooFormat#formatFluidDisplay(long)}.
      *
      * @param microblobs the volume in microblobs
      * @return the formatted string
      */
-    public static String formatFluidDisplay(int microblobs) {
+    public static String formatFluidDisplay(long microblobs) {
         return GooFormat.formatFluidDisplay(microblobs);
     }
 
     /**
-     * Delegates to {@link GooFormat#formatFluidDisplayCompact    (int)}.
+     * Delegates to {@link GooFormat#formatFluidDisplayCompact(long)}.
      *
      * @param microblobs the volume in microblobs
      * @return the formatted string
      */
-    public static String formatFluidDisplayCompact(int microblobs) {
+    public static String formatFluidDisplayCompact(long microblobs) {
         return GooFormat.formatFluidDisplayCompact(microblobs);
     }
 }

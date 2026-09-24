@@ -51,11 +51,23 @@ public final class CrucibleBasin {
      * @param volume the pool and reservoir volume together
      * @return the fill fraction in [0, 1], below one for any volume under the rim volume
      */
-    public static float fillFraction(int volume) {
+    public static float fillFraction(long volume) {
         if (volume <= 0) { return 0f; }
         if (volume >= RIM_VOLUME) { return 1f; }
         float fraction = (float) (Math.log1p(volume / VOLUME_SCALE) / RIM_LOG);
         return Math.min(fraction, Math.nextDown(1f));
+    }
+
+    /**
+     * The pool and reservoir together, the volume the surface stands for; a
+     * long so it never wraps (decision diagnose-then-fix-crucible-overflow).
+     *
+     * @param poolVolume      the melt pool's total volume in mB
+     * @param reservoirVolume the reservoir's total volume in mB
+     * @return the crucible's total volume in mB
+     */
+    public static long heldVolume(long poolVolume, long reservoirVolume) {
+        return poolVolume + reservoirVolume;
     }
 
     /**
@@ -64,7 +76,7 @@ public final class CrucibleBasin {
      * @param volume the pool and reservoir volume together
      * @return the surface Y in block-relative coords
      */
-    public static float surfaceYForVolume(int volume) {
+    public static float surfaceYForVolume(long volume) {
         return surfaceY(fillFraction(volume));
     }
 
