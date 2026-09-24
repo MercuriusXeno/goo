@@ -284,7 +284,9 @@ public interface StepHost extends Variables {
      * Removes the host's target from the world without a death, drops or
      * a loot roll. Capability {@link HostCapability#TARGET}.
      */
-    void discardTarget();
+    default void discardTarget() {
+        throw HostCapability.TARGET.refusedBy(kind());
+    }
 
     /**
      * Adds to a named counter the host's target keeps between hits; an
@@ -294,7 +296,9 @@ public interface StepHost extends Variables {
      * @param id     the counter id
      * @param amount the amount to add
      */
-    void addTargetCounter(Identifier id, double amount);
+    default void addTargetCounter(Identifier id, double amount) {
+        throw HostCapability.TARGET.refusedBy(kind());
+    }
 
     /**
      * Sets a named counter the host's target keeps between hits.
@@ -303,7 +307,9 @@ public interface StepHost extends Variables {
      * @param id    the counter id
      * @param value the new value
      */
-    void setTargetCounter(Identifier id, double value);
+    default void setTargetCounter(Identifier id, double value) {
+        throw HostCapability.TARGET.refusedBy(kind());
+    }
 
     /**
      * Makes the host's target a baby or an adult; a target with no baby
@@ -311,7 +317,9 @@ public interface StepHost extends Variables {
      *
      * @param enabled whether the target becomes a baby
      */
-    void setTargetBaby(boolean enabled);
+    default void setTargetBaby(boolean enabled) {
+        throw HostCapability.TARGET.refusedBy(kind());
+    }
 
     /**
      * Sets the host's target on fire. Capability
