@@ -2,9 +2,11 @@ package com.mercuriusxeno.goo.client.ber;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
+import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.RenderContext;
+import com.mercuriusxeno.goo.client.SurfaceAgitation;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
@@ -17,6 +19,8 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
+import java.util.Map;
+import java.util.WeakHashMap;
 
 /**
  * Renders the crucible's liquid level surface.
@@ -45,6 +49,9 @@ public class CrucibleBlockEntityRenderer
     /** Byte mask for clamping to [0, 255]. */
     private static final int BYTE_MASK = 0xFF;
 
+    /** Each crucible's surface agitation, held client-side and dropped with the crucible. */
+    private final Map<CrucibleBlockEntity, SurfaceAgitation> agitations = new WeakHashMap<>();
+
     /**
      * Creates a crucible BER. Context is unused.
      *
@@ -65,6 +72,21 @@ public class CrucibleBlockEntityRenderer
             ModelFeatureRenderer.@Nullable CrumblingOverlay breakProgress) {
         BlockEntityRenderState.extractBase(be, state, breakProgress);
         extractPoolState(be, state);
+        extractRipple(be, state);
+    }
+
+    /**
+     * Ticks this crucible's surface agitation on its fill, which moves as an
+     * item dissolves into the pool (decision undulating-fluid-surface).
+     *
+     * @param be the crucible block entity
+     * @param state the render state, pool volumes already extracted
+     */
+    private void extractRipple(CrucibleBlockEntity be, CrucibleRenderState state) {
+        long gameTick = be.getLevel() != null ? be.getLevel().getGameTime() : 0L;
+        float fill = computeLogFill(state.poolVolume + state.reservoirVolume, LIQUID_LOG_CAP);
+        state.rippleAmplitude = agitations.computeIfAbsent(be, key -> new SurfaceAgitation())
+            .tick(fill, 0f, gameTick);
     }
 
     /**
@@ -135,7 +157,8 @@ public class CrucibleBlockEntityRenderer
         if (state.outgoingType != null) {
             submitCrossfadeQuads(poseStack, nodeCollector, state, surfaceY);
         } else {
-            submitLiquidQuad(poseStack, nodeCollector, state.dominantType, surfaceY, 1f);
+            submitLiquidQuad(poseStack, nodeCollector, state.dominantType, surfaceY, 1f,
+                state.rippleAmplitude);
         }
     }
 
@@ -152,9 +175,10 @@ public class CrucibleBlockEntityRenderer
             SubmitNodeCollector nodeCollector, CrucibleRenderState state,
             float surfaceY) {
         float outAlpha = 1f - state.crossfadeAlpha;
-        submitLiquidQuad(poseStack, nodeCollector, state.outgoingType, surfaceY, outAlpha);
+        submitLiquidQuad(poseStack, nodeCollector, state.outgoingType, surfaceY, outAlpha,
+            state.rippleAmplitude);
         submitLiquidQuad(poseStack, nodeCollector, state.dominantType, surfaceY,
-            state.crossfadeAlpha);
+            state.crossfadeAlpha, state.rippleAmplitude);
     }
 
     /**
@@ -167,13 +191,14 @@ public class CrucibleBlockEntityRenderer
      * @param type the goo type
      * @param surfaceY the surface Y height
      * @param alpha the alpha transparency [0, 1]
+     * @param amplitude the ripple amplitude the tracker answered
      */
     private static void submitLiquidQuad(PoseStack poseStack,
             SubmitNodeCollector nodeCollector, ResourceKey<GooTypeDefinition> type,
-            float surfaceY, float alpha) {
+            float surfaceY, float alpha, float amplitude) {
         TextureAtlasSprite sprite = GooSubmitter.fluidSprite(type);
-        GooSubmitter.submitFluid(poseStack, nodeCollector, packArgb(alpha, GooSubmitter.fluidTint(type)),
-            ctx -> emitLiquidSurface(ctx, surfaceY, sprite));
+        GooSubmitter.submitUndulatingFluid(poseStack, nodeCollector, packArgb(alpha, GooSubmitter.fluidTint(type)),
+            ctx -> emitLiquidSurface(ctx, surfaceY, sprite, amplitude));
     }
 
     /**
@@ -183,26 +208,39 @@ public class CrucibleBlockEntityRenderer
      * @param tint  the ARGB tint whose RGB channels are kept
      * @return the packed ARGB color
      */
-    private static int packArgb(float alpha, int tint) {
+    static int packArgb(float alpha, int tint) {
         int a = (int) (alpha * MAX_ALPHA) & BYTE_MASK;
         return ARGB.color(a, tint);
     }
 
     /**
-     * Emits a single liquid surface quad using the basin interior bounds, at
-     * the context's light and color.
+     * Emits the liquid surface grid over the basin interior bounds, at the
+     * context's light and color, its rim held still inside the basin walls.
      *
      * @param ctx the render context the submitter built
      * @param surfaceY the liquid surface Y height
      * @param sprite the fluid texture atlas sprite
+     * @param amplitude the ripple amplitude the interior vertices carry
      */
     private static void emitLiquidSurface(RenderContext ctx, float surfaceY,
-            TextureAtlasSprite sprite) {
-        GooRenderUtil.liquidSurface(
-            ctx.pose(), ctx.c(), ctx.light(), ctx.color(),
-            LIQUID_MIN_XZ, LIQUID_MIN_XZ, LIQUID_MAX_XZ, LIQUID_MAX_XZ,
-            surfaceY, sprite.getU0(), sprite.getU1(),
-            sprite.getV0(), sprite.getV1());
+            TextureAtlasSprite sprite, float amplitude) {
+        emitLiquidSurface(ctx, surfaceY, new GooRenderUtil.UvRect(
+            sprite.getU0(), sprite.getV0(), sprite.getU1(), sprite.getV1()), amplitude);
+    }
+
+    /**
+     * Emits the liquid surface grid over the basin interior bounds on a UV rect.
+     *
+     * @param ctx the render context the submitter built
+     * @param surfaceY the liquid surface Y height
+     * @param uv the sprite's UV rect
+     * @param amplitude the ripple amplitude the interior vertices carry
+     */
+    static void emitLiquidSurface(RenderContext ctx, float surfaceY, GooRenderUtil.UvRect uv,
+            float amplitude) {
+        CuboidBounds basin = new CuboidBounds(LIQUID_MIN_XZ, LIQUID_MAX_XZ,
+            LIQUID_MIN_XZ, LIQUID_MAX_XZ, surfaceY, surfaceY);
+        ctx.liquidSurfaceGrid(basin, uv, amplitude);
     }
 
     /**
