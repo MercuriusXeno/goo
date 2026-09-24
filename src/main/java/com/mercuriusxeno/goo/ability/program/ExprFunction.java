@@ -38,7 +38,12 @@ public enum ExprFunction {
      * {@code random(n)}: an integer in {@code [0, n)}, zero when n is
      * below one; {@code "1 + random(3)"} rolls one to three.
      */
-    RANDOM(1, args -> args[0] < 1 ? 0 : ThreadLocalRandom.current().nextInt((int) args[0]));
+    RANDOM(1, args -> args[0] < 1 ? 0 : ThreadLocalRandom.current().nextInt((int) args[0])),
+    /**
+     * {@code at_least(a, b)}: one when a is b or more, zero otherwise, so a
+     * branch tests a threshold (decision aeon-mob-ritual-drops-spawn-egg).
+     */
+    AT_LEAST(2, args -> args[0] >= args[1] ? 1 : 0);
 
     private final int arity;
     private final ToDoubleFunction<double[]> body;

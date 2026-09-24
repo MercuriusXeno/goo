@@ -2,7 +2,9 @@ package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.program.EntityFilter;
 import com.mercuriusxeno.goo.ability.program.EntityHost;
+import com.mercuriusxeno.goo.ability.program.EntityScan;
 import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import net.minecraft.core.BlockPos;
@@ -13,8 +15,14 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import java.util.List;
+import java.util.Set;
 
 /**
  * Gametests for the mob abilities, each a program on the struck entity
@@ -88,6 +96,28 @@ public final class MobEffectTests {
     private static final String SHOULD_BE_CRUSHED = "Target should be dead or dying";
     /** The damage metal_javelin.json's damage step names. */
     private static final float JAVELIN_DAMAGE = 8.0f;
+
+    /** The counter aeon_time_stop.json's ritual adds to. */
+    private static final Identifier RITUAL_COUNTER = Identifier.parse("goo:ritual");
+    /** The percent numerator and health exponent of aeon_time_stop.json's ritual share. */
+    private static final double RITUAL_PERCENT = 100;
+    private static final double RITUAL_HEALTH_EXPONENT = 0.6;
+    private static final int RITUAL_THROWS = 2;
+    private static final double RITUAL_TOLERANCE = 0.01;
+    private static final String SHOULD_COUNT_RITUAL = "Ritual counter should read %.2f after two throws, read %.2f";
+
+    /** The reach within which the ritual's egg drop, or its absence, is read. */
+    private static final double ITEM_SEARCH_RADIUS = 2.0;
+    private static final String SHOULD_DROP_NOTHING = "No item should drop beside a mob short of the ritual";
+    private static final String SHOULD_DROP_ONLY_EGG = "Exactly one spawn egg of the mob, and no loot, should drop; found %s";
+    private static final String SHOULD_VANISH = "The mob should be gone once its ritual completes";
+    private static final String MOB_HAS_MAX_HEALTH = "The mob carries a max health attribute";
+    /** A max health of one makes aeon_time_stop.json's ritual share 100 / pow(1, 0.6), the full hundred. */
+    private static final double ONE_HIT_RITUAL_MAX_HEALTH = 1.0;
+    private static final String SHOULD_BE_BABY = "An adult with a baby form should stand as a baby";
+    private static final String SHOULD_RESTART_RITUAL = "The ritual counter should restart at zero, read %.2f";
+    private static final String SHOULD_HAVE_BABY_FORM = "%s should have a baby form";
+    private static final String SHOULD_LACK_BABY_FORM = "%s should have no baby form";
 
     private MobEffectTests() {
     }
@@ -366,6 +396,169 @@ public final class MobEffectTests {
         helper.assertTrue(mob.isNoAi(), SHOULD_HAVE_NO_AI);
         helper.assertTrue(mob.isInvulnerable(), SHOULD_BE_INVULNERABLE);
         helper.assertTrue(mob.hasEffect(MobEffects.GLOWING), SHOULD_HAVE_GLOWING);
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            helper.assertTrue(itemsNear(helper, mob.position()).isEmpty(), SHOULD_DROP_NOTHING);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Aeon's ritual completes on a baby chicken: one whose max health is one
+     * takes 100 / pow(1, 0.6), the full hundred, on its first throw, so it
+     * drops its own spawn egg and vanishes without dying or dropping loot
+     * (decision aeon-mob-ritual-drops-spawn-egg).
+     *
+     * @param helper the gametest helper
+     */
+    public static void aeonRitualEgg(GameTestHelper helper) {
+        Mob mob = spawnOneHitRitual(helper, EntityType.CHICKEN);
+        mob.setBaby(true);
+        assertRitualLeavesEgg(helper, mob, Items.CHICKEN_SPAWN_EGG);
+    }
+
+    /**
+     * An adult cow with max health one completes the ritual on its first
+     * throw and, having a baby form, becomes a baby that keeps standing
+     * with its ritual restarted and no egg dropped.
+     *
+     * @param helper the gametest helper
+     */
+    public static void aeonRitualBaby(GameTestHelper helper) {
+        Mob mob = spawnOneHitRitual(helper, EntityType.COW);
+        runEntityPrograms(helper, mob, ABILITY_AEON_TIME_STOP);
+        double ritual = new EntityHost(helper.getLevel(), mob, null).counters().read(RITUAL_COUNTER);
+        helper.assertTrue(mob.isAlive() && mob.isBaby(), SHOULD_BE_BABY);
+        helper.assertTrue(ritual == 0, String.format(SHOULD_RESTART_RITUAL, ritual));
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            helper.assertTrue(itemsNear(helper, mob.position()).isEmpty(), SHOULD_DROP_NOTHING);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A baby cow with max health one completes the ritual on its first
+     * throw and drops its own spawn egg.
+     *
+     * @param helper the gametest helper
+     */
+    public static void aeonRitualBabyEgg(GameTestHelper helper) {
+        Mob mob = spawnOneHitRitual(helper, EntityType.COW);
+        mob.setBaby(true);
+        assertRitualLeavesEgg(helper, mob, Items.COW_SPAWN_EGG);
+    }
+
+    /**
+     * A creeper has no baby form, so completing the ritual drops its egg
+     * straight away.
+     *
+     * @param helper the gametest helper
+     */
+    public static void aeonRitualNoBabyForm(GameTestHelper helper) {
+        assertRitualLeavesEgg(helper, spawnOneHitRitual(helper, EntityType.CREEPER), Items.CREEPER_SPAWN_EGG);
+    }
+
+    /**
+     * The has_baby_form filter keeps exactly the mobs the 26.1 tree lets
+     * be a baby.
+     *
+     * @param helper the gametest helper
+     */
+    public static void aeonBabyFormFilter(GameTestHelper helper) {
+        Set<EntityFilter> hasBabyForm = Set.of(EntityFilter.HAS_BABY_FORM);
+        for (EntityType<? extends Mob> type : List.of(EntityType.COW, EntityType.ZOMBIE, EntityType.PIGLIN,
+                EntityType.ZOGLIN)) {
+            Mob mob = helper.spawnWithNoFreeWill(type, SPAWN_POS);
+            helper.assertTrue(EntityScan.passes(mob, hasBabyForm, mob), String.format(SHOULD_HAVE_BABY_FORM, type));
+        }
+        for (EntityType<? extends Mob> type : List.of(EntityType.FROG, EntityType.PARROT, EntityType.CAMEL_HUSK,
+                EntityType.ZOMBIE_NAUTILUS, EntityType.CREEPER, EntityType.SKELETON)) {
+            Mob mob = helper.spawnWithNoFreeWill(type, SPAWN_POS);
+            helper.assertFalse(EntityScan.passes(mob, hasBabyForm, mob), String.format(SHOULD_LACK_BABY_FORM, type));
+        }
+        helper.succeed();
+    }
+
+    /**
+     * Spawns a mob whose max health is one, so one aeon throw adds the full
+     * hundred to its ritual.
+     *
+     * @param helper the gametest helper
+     * @param type   the mob type
+     * @return the mob
+     */
+    private static Mob spawnOneHitRitual(GameTestHelper helper, EntityType<? extends Mob> type) {
+        Mob mob = helper.spawnWithNoFreeWill(type, SPAWN_POS);
+        AttributeInstance maxHealth = mob.getAttribute(Attributes.MAX_HEALTH);
+        helper.assertTrue(maxHealth != null, MOB_HAS_MAX_HEALTH);
+        maxHealth.setBaseValue(ONE_HIT_RITUAL_MAX_HEALTH);
+        return mob;
+    }
+
+    /**
+     * Runs one aeon throw on the mob, then reads one spawn egg of its type
+     * and no other item beside where it stood, and the mob gone. The read
+     * retries each tick: at the far test positions a chunk's entities can
+     * reach the level's entity scan some ticks after they are added.
+     *
+     * @param helper the gametest helper
+     * @param mob    the struck mob
+     * @param egg    the mob's spawn egg
+     */
+    private static void assertRitualLeavesEgg(GameTestHelper helper, Mob mob, Item egg) {
+        Vec3 stood = mob.position();
+        runEntityPrograms(helper, mob, ABILITY_AEON_TIME_STOP);
+        helper.assertTrue(mob.isRemoved(), SHOULD_VANISH);
+        helper.succeedWhen(() -> {
+            List<ItemEntity> items = itemsNear(helper, stood);
+            helper.assertTrue(items.size() == 1 && items.get(0).getItem().is(egg)
+                    && items.get(0).getItem().getCount() == 1,
+                    String.format(SHOULD_DROP_ONLY_EGG, items.stream().map(ItemEntity::getItem).toList()));
+            helper.assertTrue(mobsNear(helper, stood, mob.getType()).isEmpty(), SHOULD_VANISH);
+        });
+    }
+
+    /**
+     * Collects the mobs of one type within two blocks of a point; a wider
+     * reach catches the mobs of the tests beside this one.
+     *
+     * @param helper the gametest helper
+     * @param center the point
+     * @param type   the mob type
+     * @return the mobs
+     */
+    private static List<Mob> mobsNear(GameTestHelper helper, Vec3 center, EntityType<?> type) {
+        return helper.getLevel().getEntitiesOfClass(Mob.class, new AABB(center, center).inflate(ITEM_SEARCH_RADIUS),
+                found -> found.getType() == type);
+    }
+
+    /**
+     * Collects the item entities within two blocks of a point.
+     *
+     * @param helper the gametest helper
+     * @param center the point
+     * @return the item entities
+     */
+    private static List<ItemEntity> itemsNear(GameTestHelper helper, Vec3 center) {
+        return helper.getLevel().getEntitiesOfClass(ItemEntity.class,
+                new AABB(center, center).inflate(ITEM_SEARCH_RADIUS));
+    }
+
+    /**
+     * Aeon's ritual counter persists on the struck mob: each throw adds
+     * 100 / pow(max_health, 0.6) to the cow's goo:ritual counter, so two
+     * throws on a cow of max health ten read twice that (decision
+     * aeon-mob-ritual-drops-spawn-egg).
+     *
+     * @param helper the gametest helper
+     */
+    public static void aeonRitualCounts(GameTestHelper helper) {
+        Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
+        runEntityPrograms(helper, mob, ABILITY_AEON_TIME_STOP);
+        runEntityPrograms(helper, mob, ABILITY_AEON_TIME_STOP);
+        double expected = RITUAL_THROWS * RITUAL_PERCENT / Math.pow(mob.getMaxHealth(), RITUAL_HEALTH_EXPONENT);
+        double ritual = new EntityHost(helper.getLevel(), mob, null).counters().read(RITUAL_COUNTER);
+        helper.assertTrue(Math.abs(ritual - expected) < RITUAL_TOLERANCE,
+                String.format(SHOULD_COUNT_RITUAL, expected, ritual));
         helper.succeed();
     }
 }

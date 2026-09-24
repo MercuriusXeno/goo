@@ -121,11 +121,27 @@ public final class GooTestFunctions {
 
     // --- Machine interactions ---
     private static final String IX_TAP_VALVE = "ix_tap_valve_toggle";
+
+    // --- Tap drip ---
+    private static final String TAP_DRIP_DRAWS_ONE_MB = "tap_drip_draws_one_mb";
+    private static final String TAP_VALVE_GATES_DRIP = "tap_valve_gates_drip";
+    private static final String TAP_DRIP_LANDS_BELOW = "tap_drip_lands_below";
+    private static final String TAP_DRIP_BOTTOMLESS = "tap_drip_bottomless";
+    private static final String TAP_HOST_PLACES_ABOVE_LANDING = "tap_host_places_above_landing";
+    private static final String TAP_DRIP_NO_ABILITY = "tap_drip_no_ability";
     private static final String IX_VAT_GASKET = "ix_vat_gasket_apply";
     private static final String IX_HUB_INSERT = "ix_hub_canister_insert";
     private static final String IX_HUB_PICKUP = "ix_hub_canister_pickup";
     private static final String IX_PLEXER_TARGET = "ix_plexer_set_target";
     private static final String IX_CRUCIBLE_FUEL = "ix_crucible_fuel_insert";
+    private static final String IX_HUB_ITEM_BLOB_INSERT = "ix_hub_item_blob_insert";
+    private static final String IX_HUB_ITEM_OMNIBLOB_INSERT = "ix_hub_item_omniblob_insert";
+    private static final String IX_HUB_ITEM_INSERT_REFUSED = "ix_hub_item_insert_refused";
+    private static final String IX_HUB_ITEM_DRAINS_NOTHING = "ix_hub_item_drains_nothing";
+    private static final String IX_VAT_ITEM_BLOB_INSERT = "ix_vat_item_blob_insert";
+    private static final String IX_VAT_ITEM_OMNIBLOB_INSERT = "ix_vat_item_omniblob_insert";
+    private static final String IX_VAT_ITEM_DRAIN = "ix_vat_item_drain";
+    private static final String IX_BLOB_INSERT_SHARED = "ix_blob_insert_shared";
 
     // --- Machines ---
     private static final String MACHINE_CANISTER_INSERT = "machine_canister_insert";
@@ -158,6 +174,12 @@ public final class GooTestFunctions {
     private static final String MOB_ENDER = "mob_ender_teleport";
     private static final String MOB_UNSTABLE = "mob_unstable_explode";
     private static final String MOB_AEON = "mob_aeon_time_stop";
+    private static final String MOB_AEON_RITUAL_COUNTS = "mob_aeon_ritual_counts";
+    private static final String MOB_AEON_RITUAL_EGG = "mob_aeon_ritual_egg";
+    private static final String MOB_AEON_RITUAL_BABY = "mob_aeon_ritual_baby";
+    private static final String MOB_AEON_RITUAL_BABY_EGG = "mob_aeon_ritual_baby_egg";
+    private static final String MOB_AEON_RITUAL_NO_BABY_FORM = "mob_aeon_ritual_no_baby_form";
+    private static final String MOB_AEON_BABY_FORM_FILTER = "mob_aeon_baby_form_filter";
 
     // --- Lighting ---
     private static final String LIGHT_CANISTER_SYNC = "light_canister_sync";
@@ -198,7 +220,17 @@ public final class GooTestFunctions {
             registerMachineTests(registrar);
             registerMobEffectTests(registrar);
             registerLightingTests(registrar);
+            registerTapDripTests(registrar);
         });
+    }
+
+    private static void registerTapDripTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
+        reg(r, TAP_DRIP_DRAWS_ONE_MB, TapDripTests::tapDripDrawsOneMb);
+        reg(r, TAP_VALVE_GATES_DRIP, TapDripTests::tapValveGatesDrip);
+        reg(r, TAP_DRIP_LANDS_BELOW, TapDripTests::tapDripLandsBelow);
+        reg(r, TAP_DRIP_BOTTOMLESS, TapDripTests::tapDripBottomless);
+        reg(r, TAP_HOST_PLACES_ABOVE_LANDING, TapDripTests::tapHostPlacesAboveLanding);
+        reg(r, TAP_DRIP_NO_ABILITY, TapDripTests::tapDripNoAbility);
     }
 
     private static void registerLightingTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
@@ -299,6 +331,14 @@ public final class GooTestFunctions {
         reg(r, IX_HUB_PICKUP, MachineInteractionTests::hubCanisterPickup);
         reg(r, IX_PLEXER_TARGET, MachineInteractionTests::plexerSetTarget);
         reg(r, IX_CRUCIBLE_FUEL, MachineInteractionTests::crucibleFuelInsert);
+        reg(r, IX_HUB_ITEM_BLOB_INSERT, HubItemClickTests::blobInsertFillsCanisterAndPlaces);
+        reg(r, IX_HUB_ITEM_OMNIBLOB_INSERT, HubItemClickTests::omniblobInsertKeepsRemainder);
+        reg(r, IX_HUB_ITEM_INSERT_REFUSED, HubItemClickTests::insertRefusedLeavesStacks);
+        reg(r, IX_HUB_ITEM_DRAINS_NOTHING, HubItemClickTests::secondaryClickDrainsNothing);
+        reg(r, IX_VAT_ITEM_BLOB_INSERT, VatItemClickTests::blobInsertFillsVatAndFullRefuses);
+        reg(r, IX_VAT_ITEM_OMNIBLOB_INSERT, VatItemClickTests::omniblobInsertKeepsRemainder);
+        reg(r, IX_VAT_ITEM_DRAIN, VatItemClickTests::secondaryClickDrainsLargerType);
+        reg(r, IX_BLOB_INSERT_SHARED, BlobInsertTests::pourDepletesByAccepted);
     }
 
     private static void registerCrucibleTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
@@ -354,6 +394,12 @@ public final class GooTestFunctions {
         reg(r, MOB_ENDER, MobEffectTests::enderTeleport);
         reg(r, MOB_UNSTABLE, MobEffectTests::unstableExplode);
         reg(r, MOB_AEON, MobEffectTests::aeonTimeStop);
+        reg(r, MOB_AEON_RITUAL_COUNTS, MobEffectTests::aeonRitualCounts);
+        reg(r, MOB_AEON_RITUAL_EGG, MobEffectTests::aeonRitualEgg);
+        reg(r, MOB_AEON_RITUAL_BABY, MobEffectTests::aeonRitualBaby);
+        reg(r, MOB_AEON_RITUAL_BABY_EGG, MobEffectTests::aeonRitualBabyEgg);
+        reg(r, MOB_AEON_RITUAL_NO_BABY_FORM, MobEffectTests::aeonRitualNoBabyForm);
+        reg(r, MOB_AEON_BABY_FORM_FILTER, MobEffectTests::aeonBabyFormFilter);
     }
 
     /**
