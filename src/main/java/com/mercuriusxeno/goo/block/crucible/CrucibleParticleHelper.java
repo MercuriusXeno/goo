@@ -17,10 +17,6 @@ public final class CrucibleParticleHelper {
 
     /** Volume at which the logarithmic fill curve reaches 1.0 (matches BER). */
     private static final int LIQUID_LOG_CAP = 64_000;
-    /** Basin floor Y in block-relative coords (goocible rim interior). */
-    private static final float LIQUID_MIN_Y = 13f / 16f;
-    /** Basin rim Y (just below top) in block-relative coords. */
-    private static final float LIQUID_MAX_Y = 15f / 16f;
 
     /** Minimum squared XZ distance between recent bubble spawns (in blocks). */
     private static final double MIN_SPACING_SQ = 0.0156;
@@ -98,12 +94,6 @@ public final class CrucibleParticleHelper {
     private static final float SIZZLE_PITCH_RANGE = 0.4f;
     /** Volume of the sizzle sound. */
     private static final float SIZZLE_VOLUME = 0.3f;
-
-    // -- Basin interior constants --
-    /** Basin wall inset in pixel coords (5 pixels, goocible rim). */
-    private static final double BASIN_INSET = 5.0 / 16.0;
-    /** Basin interior width in block-relative coords (6 pixels). */
-    private static final double BASIN_INTERIOR_WIDTH = 6.0 / 16.0;
 
     /** Spark shower velocity profile. */
     private static final SparkProfile SPARK_PROFILE =
@@ -355,18 +345,18 @@ public final class CrucibleParticleHelper {
      * @return the result
      */
     public static float computeSurfaceY(int totalGoo) {
-        if (totalGoo <= 0) { return LIQUID_MIN_Y; }
+        if (totalGoo <= 0) { return CrucibleBasin.FLOOR_Y; }
         float fill = (float) (Math.log(1.0 + totalGoo) / Math.log(1.0 + LIQUID_LOG_CAP));
-        fill = Math.min(1f, fill);
-        return LIQUID_MIN_Y + fill * (LIQUID_MAX_Y - LIQUID_MIN_Y);
+        return CrucibleBasin.surfaceY(fill);
     }
 
-    /** Returns a random XZ coordinate within the basin interior, inset by 3px from walls.
+    /**
+     * Returns a random X or Z coordinate within the basin footprint the surface is drawn over.
      *
      * @param random the random source
-     * @return the double value
+     * @return the block-relative coordinate
      */
-    private static double randomInBasin(RandomSource random) {
-        return BASIN_INSET + random.nextDouble() * BASIN_INTERIOR_WIDTH;
+    static double randomInBasin(RandomSource random) {
+        return CrucibleBasin.FOOTPRINT_MIN + random.nextDouble() * CrucibleBasin.footprintWidth();
     }
 }
