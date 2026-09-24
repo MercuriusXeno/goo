@@ -16,15 +16,19 @@ import java.util.TreeSet;
 public record DirectedGraph(SortedMap<String, SortedSet<String>> adjacency) {
 
     /**
-     * The type dependency graph: one node per scanned type, one edge per type-to-type reference.
+     * The type dependency graph: one node per scanned type, one edge per
+     * reference to another type in the same list.
      *
-     * @param types the scan
+     * @param types the scan, or a part of it
      * @return the graph keyed by qualified type name
      */
     public static DirectedGraph ofTypes(List<ScannedType> types) {
         SortedMap<String, SortedSet<String>> adjacency = new TreeMap<>();
+        types.forEach(type -> adjacency.put(type.qualifiedName(), new TreeSet<>()));
         for (ScannedType type : types) {
-            adjacency.put(type.qualifiedName(), new TreeSet<>(type.references()));
+            type.references().stream()
+                    .filter(adjacency::containsKey)
+                    .forEach(adjacency.get(type.qualifiedName())::add);
         }
         return new DirectedGraph(adjacency);
     }
@@ -42,7 +46,9 @@ public record DirectedGraph(SortedMap<String, SortedSet<String>> adjacency) {
         SortedMap<String, SortedSet<String>> adjacency = new TreeMap<>();
         for (ScannedType type : types) {
             SortedSet<String> targets = adjacency.computeIfAbsent(type.packageName(), key -> new TreeSet<>());
-            type.references().forEach(reference -> targets.add(packageOfType.get(reference)));
+            type.references().stream()
+                    .filter(packageOfType::containsKey)
+                    .forEach(reference -> targets.add(packageOfType.get(reference)));
             targets.remove(type.packageName());
         }
         return new DirectedGraph(adjacency);

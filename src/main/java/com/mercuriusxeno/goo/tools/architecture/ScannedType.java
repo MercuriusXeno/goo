@@ -11,14 +11,16 @@ import java.util.Set;
  *
  * @param packageName      the dotted package the type sits in, such as {@code com.mercuriusxeno.goo.ability}
  * @param simpleName       the type's name without its package, such as {@code AbilityMath}
+ * @param kind             what sort of type it is
  * @param sourcePath       the source file's path relative to the repository root, forward slashes
  * @param fields           the fields the top-level type declares, compiler-synthesised ones left out
  * @param methods          the methods and constructors the top-level type declares, synthetic ones left out
  * @param references       the qualified names of the other scanned types this one references
  * @param instanceofChecks how many {@code instanceof} instructions the type and its nested classes hold
  */
-public record ScannedType(String packageName, String simpleName, String sourcePath, List<ScannedField> fields,
-                          List<ScannedMethod> methods, Set<String> references, int instanceofChecks) {
+public record ScannedType(String packageName, String simpleName, TypeKind kind, String sourcePath,
+                          List<ScannedField> fields, List<ScannedMethod> methods, Set<String> references,
+                          int instanceofChecks) {
 
     private static final char QUALIFIED_SEPARATOR = '.';
 

@@ -63,7 +63,20 @@ public final class MermaidGraphDocument {
      * @return the section's markdown
      */
     public static String cyclesSection(String nodeNoun, List<List<String>> cycles, Map<String, String> labels) {
-        StringBuilder text = new StringBuilder(CYCLES_HEADING);
+        return CYCLES_HEADING + cycleList(nodeNoun, cycles, labels);
+    }
+
+    /**
+     * Renders the cycles as a list under a sentence saying what each line is,
+     * or the one line saying there is none.
+     *
+     * @param nodeNoun the plural noun for the nodes
+     * @param cycles   each cycle's walk
+     * @param labels   each node mapped to its label
+     * @return the markdown, without a heading
+     */
+    public static String cycleList(String nodeNoun, List<List<String>> cycles, Map<String, String> labels) {
+        StringBuilder text = new StringBuilder();
         if (cycles.isEmpty()) {
             return text.append(String.format(NO_CYCLE_LINE, nodeNoun)).toString();
         }

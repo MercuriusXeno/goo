@@ -38,6 +38,7 @@ public final class ClassScanner {
     private static final String MODULE_INFO = "module-info";
     private static final String JAVA_SUFFIX = ".java";
     private static final String STATIC_INITIALIZER = "<clinit>";
+    private static final String RECORD_SUPERCLASS = "java/lang/Record";
     private static final char NESTED_SEPARATOR = '$';
     private static final char INTERNAL_SEPARATOR = '/';
     private static final char QUALIFIED_SEPARATOR = '.';
@@ -129,9 +130,31 @@ public final class ClassScanner {
         references.remove(topLevel);
         int lastSlash = topLevel.lastIndexOf(INTERNAL_SEPARATOR);
         return new ScannedType(qualified(topLevel.substring(0, Math.max(lastSlash, 0))),
-                topLevel.substring(lastSlash + 1), sourcePathOf(top, topLevel), declaredFields(top),
+                topLevel.substring(lastSlash + 1), kindOf(top), sourcePathOf(top, topLevel), declaredFields(top),
                 declaredMethods(top), references.stream().map(ClassScanner::qualified)
                 .collect(TreeSet::new, Set::add, Set::addAll), instanceofChecks);
+    }
+
+    /**
+     * What sort of type a class is, read from its access flags and superclass.
+     *
+     * @param model the class to read
+     * @return its kind
+     */
+    private static TypeKind kindOf(ClassModel model) {
+        if (model.flags().has(AccessFlag.ANNOTATION)) {
+            return TypeKind.ANNOTATION;
+        }
+        if (model.flags().has(AccessFlag.INTERFACE)) {
+            return TypeKind.INTERFACE;
+        }
+        if (model.flags().has(AccessFlag.ENUM)) {
+            return TypeKind.ENUM;
+        }
+        boolean isRecord = model.superclass()
+                .map(superclass -> RECORD_SUPERCLASS.equals(superclass.asInternalName()))
+                .orElse(false);
+        return isRecord ? TypeKind.RECORD : TypeKind.CLASS;
     }
 
     /**
@@ -203,7 +226,7 @@ public final class ClassScanner {
      */
     private static ScannedField toField(FieldModel field) {
         return new ScannedField(field.fieldName().stringValue(), field.fieldType().stringValue(),
-                field.flags().has(AccessFlag.STATIC));
+                field.flags().has(AccessFlag.STATIC), field.flags().has(AccessFlag.FINAL));
     }
 
     /**
