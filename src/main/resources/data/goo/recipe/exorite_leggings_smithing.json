@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:smithing_transform",
+  "addition": "goo:exorite",
+  "base": "minecraft:netherite_leggings",
+  "result": {
+    "id": "goo:exorite_leggings"
+  },
+  "template": "goo:exorite_upgrade_smithing_template"
+}

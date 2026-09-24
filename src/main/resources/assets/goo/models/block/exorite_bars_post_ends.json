@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/template_bars_post_ends",
+  "textures": {
+    "bars": "goo:block/exorite_bars",
+    "edge": "goo:block/exorite_bars"
+  }
+}

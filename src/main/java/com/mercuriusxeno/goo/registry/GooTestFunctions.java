@@ -37,6 +37,31 @@ public final class GooTestFunctions {
     private static final String ITEM_THROWN_BLOBS_OWN_TYPE = "item_thrown_blobs_own_type";
     private static final String ITEM_TAB_DATAPACK_TYPE = "item_tab_datapack_type";
 
+    // --- Exorite tier ---
+    private static final String EXORITE_TEMPLATE_REGISTERED = "exorite_template_registered";
+    private static final String EXORITE_TEMPLATE_IN_ANCIENT_CITY_LOOT = "exorite_template_in_ancient_city_loot";
+    private static final String EXORITE_TEMPLATE_DUPLICATES = "exorite_template_duplicates";
+    private static final String EXORITE_SET_REGISTERED = "exorite_set_registered";
+    private static final String EXORITE_SET_SMITHING = "exorite_set_smithing";
+    private static final String EXORITE_SET_REPAIRS = "exorite_set_repairs";
+    private static final String EXORITE_ARMOR_STATS = "exorite_armor_stats";
+    private static final String EXORITE_SURVIVES_ZERO_DURABILITY = "exorite_survives_zero_durability";
+    private static final String EXORITE_BROKEN_ACTS_AS_HAND = "exorite_broken_acts_as_hand";
+    private static final String EXORITE_BROKEN_TOOLTIP = "exorite_broken_tooltip";
+    private static final String EXORITE_ANVIL_REPAIR = "exorite_anvil_repair";
+    private static final String SOUL_BOUND_TAG_HOLDS_EXORITE = "soul_bound_tag_holds_exorite";
+    private static final String SOUL_BOUND_SURVIVES_DEATH = "soul_bound_survives_death";
+    private static final String EXO_GAUNTLET_SMITHING = "exo_gauntlet_smithing";
+    private static final String EXO_GAUNTLET_KEEPS_BENEFITS = "exo_gauntlet_keeps_benefits";
+    private static final String EXORITE_NOT_ENCHANTABLE = "exorite_not_enchantable";
+    private static final String EXORITE_ANVIL_REFUSES_BOOK = "exorite_anvil_refuses_book";
+    private static final String EXORITE_BARS_REGISTERED = "exorite_bars_registered";
+    private static final String EXORITE_BARS_CRAFTED = "exorite_bars_crafted";
+    private static final String EXORITE_BARS_STRENGTH = "exorite_bars_strength";
+    private static final String EXORITE_BARS_DROPS = "exorite_bars_drops";
+    private static final String SPAWNER_CRAFTED_FROM_EXORITE_BARS = "spawner_crafted_from_exorite_bars";
+    private static final String EMPTY_SPAWNER_TAKES_EGG = "empty_spawner_takes_egg";
+
     // --- GasketPusher ---
     private static final String PUSHER_EMPTY_RESERVOIR = "pusher_empty_reservoir";
     private static final String PUSHER_NO_PARTNER = "pusher_no_partner";
@@ -196,6 +221,7 @@ public final class GooTestFunctions {
             registerGooTypeRegistryTests(registrar);
             registerGooFluidTests(registrar);
             registerGooItemTests(registrar);
+            registerExoriteTests(registrar);
             registerGasketTests(registrar);
             registerEffectExecutorTests(registrar);
             registerAbilityLandingTests(registrar);
@@ -241,6 +267,32 @@ public final class GooTestFunctions {
     private static void registerGooItemTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
         reg(r, ITEM_THROWN_BLOBS_OWN_TYPE, GooItemTests::thrownBlobsLandOwnType);
         reg(r, ITEM_TAB_DATAPACK_TYPE, GooItemTests::creativeTabOffersDatapackType);
+    }
+
+    private static void registerExoriteTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
+        reg(r, EXORITE_TEMPLATE_REGISTERED, ExoriteTests::templateRegistered);
+        reg(r, EXORITE_TEMPLATE_IN_ANCIENT_CITY_LOOT, ExoriteTests::templateInAncientCityLoot);
+        reg(r, EXORITE_TEMPLATE_DUPLICATES, ExoriteTests::templateDuplicates);
+        reg(r, EXORITE_SET_REGISTERED, ExoriteTests::setRegistered);
+        reg(r, EXORITE_SET_SMITHING, ExoriteTests::setSmithing);
+        reg(r, EXORITE_SET_REPAIRS, ExoriteTests::setRepairs);
+        reg(r, EXORITE_ARMOR_STATS, ExoriteTests::armorOutranksNetherite);
+        reg(r, EXORITE_SURVIVES_ZERO_DURABILITY, ExoriteDurabilityTests::survivesZeroDurability);
+        reg(r, EXORITE_BROKEN_ACTS_AS_HAND, ExoriteDurabilityTests::brokenActsAsHand);
+        reg(r, EXORITE_BROKEN_TOOLTIP, ExoriteDurabilityTests::brokenTooltip);
+        reg(r, EXORITE_ANVIL_REPAIR, ExoriteDurabilityTests::anvilRepair);
+        reg(r, SOUL_BOUND_TAG_HOLDS_EXORITE, SoulBoundTests::tagHoldsExorite);
+        reg(r, SOUL_BOUND_SURVIVES_DEATH, SoulBoundTests::survivesDeath);
+        reg(r, EXO_GAUNTLET_SMITHING, ExoriteTests::exoGauntletSmithing);
+        reg(r, EXO_GAUNTLET_KEEPS_BENEFITS, GooItemTests::exoGauntletKeepsBenefits);
+        reg(r, EXORITE_NOT_ENCHANTABLE, ExoriteEnchantingTests::notEnchantable);
+        reg(r, EXORITE_ANVIL_REFUSES_BOOK, ExoriteEnchantingTests::anvilRefusesBook);
+        reg(r, EXORITE_BARS_REGISTERED, ExoriteBarsTests::registered);
+        reg(r, EXORITE_BARS_CRAFTED, ExoriteBarsTests::crafted);
+        reg(r, EXORITE_BARS_STRENGTH, ExoriteBarsTests::strength);
+        reg(r, EXORITE_BARS_DROPS, ExoriteBarsTests::dropsItself);
+        reg(r, SPAWNER_CRAFTED_FROM_EXORITE_BARS, SpawnerRecipeTests::craftedFromExoriteBars);
+        reg(r, EMPTY_SPAWNER_TAKES_EGG, SpawnerRecipeTests::emptySpawnerTakesEgg);
     }
 
     private static void registerGasketTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
