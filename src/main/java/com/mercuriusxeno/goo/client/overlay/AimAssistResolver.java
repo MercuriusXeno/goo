@@ -25,8 +25,7 @@ import java.util.Optional;
  *
  * <p>Handles both living entities and placed {@link ChainMarkerBlockEntity}
  * blocks in a single unified pass: chain markers behave exactly like
- * entities for the purposes of targeting, including sticky retention and
- * (via caller) sneak bypass.
+ * entities for the purposes of targeting, including sticky retention.
  */
 final class AimAssistResolver {
 

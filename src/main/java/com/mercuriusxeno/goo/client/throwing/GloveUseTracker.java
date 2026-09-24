@@ -84,9 +84,8 @@ public final class GloveUseTracker {
             holdTicks++;
             if (holdTicks >= GooGloveItem.RADIAL_THRESHOLD_TICKS) {
                 ItemStack glove = player.getUseItem();
-                boolean shifting = player.isShiftKeyDown();
                 player.releaseUsingItem();
-                openAppropriateRadial(player, glove, shifting);
+                openAppropriateRadial(player, glove);
                 holdTicks = 0;
             }
         } else {
@@ -98,10 +97,9 @@ public final class GloveUseTracker {
      *
      * @param player   the local player holding the glove
      * @param glove    the glove item stack (captured before release)
-     * @param shifting true if shift was held during the hold (unused)
      */
     private static void openAppropriateRadial(LocalPlayer player,
-            ItemStack glove, boolean shifting) {
+            ItemStack glove) {
         GooRadialScreen.open();
     }
 
