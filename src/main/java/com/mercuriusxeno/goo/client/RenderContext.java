@@ -182,26 +182,41 @@ public record RenderContext(PoseStack.Pose pose, VertexConsumer c, int light, in
      * Emits an upward-facing liquid surface as a grid of quads in the
      * context color (decision undulating-fluid-surface): every rim vertex
      * carries zero amplitude so the surface keeps meeting the walls, and
-     * every interior vertex carries the given ripple amplitude.
+     * every interior vertex carries the given ripple amplitude, capped below
+     * the goo depth so the ripple trough stays above the floor.
      *
-     * @param box       the horizontal bounds (uses x0, x1, z0, z1, yTop)
+     * @param box       the bounds, yBot the reservoir floor and yTop the fill height
      * @param uv        the texture coordinate rectangle
      * @param amplitude the interior ripple amplitude in blocks
      */
     public void liquidSurfaceGrid(CuboidBounds box, GooRenderUtil.UvRect uv, float amplitude) {
-        emitSurfaceGrid(box, uv, encodeAmplitude(amplitude), 1f);
+        emitSurfaceGrid(box, uv, amplitudeUnitsAboveFloor(box, amplitude), 1f);
     }
 
     /**
      * Emits the downward-facing twin of {@link #liquidSurfaceGrid}, rippling
      * with it because the shader's lift depends on position alone.
      *
-     * @param box       the horizontal bounds (uses x0, x1, z0, z1, yTop)
+     * @param box       the bounds, yBot the reservoir floor and yTop the fill height
      * @param uv        the texture coordinate rectangle
      * @param amplitude the interior ripple amplitude in blocks
      */
     public void liquidSurfaceGridDown(CuboidBounds box, GooRenderUtil.UvRect uv, float amplitude) {
-        emitSurfaceGrid(box, uv, encodeAmplitude(amplitude), NORMAL_NEG);
+        emitSurfaceGrid(box, uv, amplitudeUnitsAboveFloor(box, amplitude), NORMAL_NEG);
+    }
+
+    /**
+     * Encodes the amplitude capped strictly below the goo depth, since the
+     * shader's ripple trough sits a full amplitude under the fill height
+     * (decision diagnose-then-fix-undulation-floor).
+     *
+     * @param box       the bounds, yBot the reservoir floor and yTop the fill height
+     * @param amplitude the requested ripple amplitude in blocks
+     * @return the encoded amplitude whose trough stays above yBot
+     */
+    private static int amplitudeUnitsAboveFloor(CuboidBounds box, float amplitude) {
+        int depthUnits = (int) Math.ceil((box.yTop() - box.yBot()) * AMPLITUDE_UNITS_PER_BLOCK) - 1;
+        return Math.min(encodeAmplitude(amplitude), Math.max(depthUnits, 0));
     }
 
     /**
