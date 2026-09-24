@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ber;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.block.crucible.CrucibleBasin;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
 import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
@@ -30,12 +31,6 @@ public class CrucibleBlockEntityRenderer
 
     // -- Liquid level constants --
 
-    /** Basin interior X/Z bounds (inside the 2-pixel walls). */
-    private static final float LIQUID_MIN_XZ = 2f / 16f;
-    private static final float LIQUID_MAX_XZ = 14f / 16f;
-    /** Liquid surface Y range. */
-    private static final float LIQUID_MIN_Y = 13f / 16f;
-    private static final float LIQUID_MAX_Y = 15f / 16f;
     /**
      * Volume at which the logarithmic curve reaches ~1.0 (full basin).
      * Tunable: higher values make the curve more gradual.
@@ -136,9 +131,17 @@ public class CrucibleBlockEntityRenderer
         int totalGoo = state.poolVolume + state.reservoirVolume;
         if (totalGoo <= 0 || state.dominantType == null) { return; }
 
-        float fillFraction = computeLogFill(totalGoo, LIQUID_LOG_CAP);
-        float surfaceY = LIQUID_MIN_Y + fillFraction * (LIQUID_MAX_Y - LIQUID_MIN_Y);
-        submitLiquidQuads(poseStack, nodeCollector, state, surfaceY);
+        submitLiquidQuads(poseStack, nodeCollector, state, surfaceYForVolume(totalGoo));
+    }
+
+    /**
+     * Places the surface on the basin's floor-to-rim span for a volume.
+     *
+     * @param totalGoo the pool and reservoir volume together
+     * @return the surface Y in block-relative coords
+     */
+    static float surfaceYForVolume(int totalGoo) {
+        return CrucibleBasin.surfaceY(computeLogFill(totalGoo, LIQUID_LOG_CAP));
     }
 
     /**
@@ -238,8 +241,8 @@ public class CrucibleBlockEntityRenderer
      */
     static void emitLiquidSurface(RenderContext ctx, float surfaceY, GooRenderUtil.UvRect uv,
             float amplitude) {
-        CuboidBounds basin = new CuboidBounds(LIQUID_MIN_XZ, LIQUID_MAX_XZ,
-            LIQUID_MIN_XZ, LIQUID_MAX_XZ, surfaceY, surfaceY);
+        CuboidBounds basin = new CuboidBounds(CrucibleBasin.FOOTPRINT_MIN, CrucibleBasin.FOOTPRINT_MAX,
+            CrucibleBasin.FOOTPRINT_MIN, CrucibleBasin.FOOTPRINT_MAX, surfaceY, surfaceY);
         ctx.liquidSurfaceGrid(basin, uv, amplitude);
     }
 
