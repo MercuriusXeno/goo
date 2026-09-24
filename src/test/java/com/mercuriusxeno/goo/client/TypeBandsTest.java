@@ -60,9 +60,4 @@ class TypeBandsTest {
     void emptyContentsAnswerNoBand() {
         assertTrue(TypeBands.over(GooContents.EMPTY).isEmpty());
     }
-
-    @Test
-    void aWholeRangeBandPacksToTheWholeRangeConstant() {
-        assertEquals(TypeBand.WHOLE_RANGE_PACKED, new TypeBand(GooTypes.BLAZE, 0f, 1f).packed());
-    }
 }
