@@ -1,18 +1,22 @@
 package com.mercuriusxeno.goo.block.gasket;
 
+import com.mercuriusxeno.goo.data.GasketLocation;
 import com.mercuriusxeno.goo.data.GasketRegistry;
+import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.registry.GooItems;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
+import org.jspecify.annotations.Nullable;
 import java.util.UUID;
 
 /**
  * Utility for gasket lifecycle operations: popping gaskets as item drops
- * and clearing their registry state. Used when copper fittings displace
- * an installed gasket (mutual exclusivity).
+ * and clearing their registry state. Every removal of an installed gasket,
+ * by hand or by breaking its host, goes through here (decision
+ * diagnose-then-fix-gasket-registry-holes).
  */
 public final class GasketInstallation {
 
@@ -20,22 +24,84 @@ public final class GasketInstallation {
     }
 
     /**
-     * Pops a gasket as an item drop at the given position, unlinks it from
-     * any partner, and removes its registry location. No-op if gasketId is null.
+     * Pops a gasket as an item drop at the given position, clears its partner's
+     * reference to it, unlinks it from that partner, and removes its registry
+     * location. No-op if gasketId is null.
      *
      * @param level    the current level
      * @param pos      the block position
      * @param gasketId the gasket UUID
      */
-    public static void popGasket(Level level, BlockPos pos, UUID gasketId) {
-        if (gasketId == null) {
+    public static void popGasket(Level level, BlockPos pos, @Nullable UUID gasketId) {
+        popGasket(level, pos, gasketId != null, gasketId);
+    }
+
+    /**
+     * Pops a gasket a host holds installed, as its blockstate flag says: drops
+     * the item whenever installed is true, and clears the gasket's registry state
+     * when it carries an id.
+     *
+     * @param level     the current level
+     * @param pos       the block position
+     * @param installed whether the host holds a gasket on this face
+     * @param gasketId  the gasket UUID, or null when none was ever assigned
+     */
+    public static void popGasket(Level level, BlockPos pos, boolean installed, @Nullable UUID gasketId) {
+        if (!installed) {
             return;
         }
         Block.popResource(level, pos, new ItemStack(GooItems.CHORAL_GASKET.get()));
-        if (level instanceof ServerLevel serverLevel) {
+        if (gasketId != null && level instanceof ServerLevel serverLevel) {
             GasketRegistry registry = GasketRegistry.get(serverLevel);
+            clearPartnerReference(serverLevel, registry, gasketId);
             registry.unlink(gasketId);
             registry.updateLocation(gasketId, null);
         }
+    }
+
+    /**
+     * Clears the partner reference the gasket's link partner holds, found through
+     * the partner's registry location, so the partner stops showing and pushing
+     * to a gasket that left.
+     *
+     * @param level    the server level
+     * @param registry the gasket registry
+     * @param gasketId the gasket leaving
+     */
+    private static void clearPartnerReference(ServerLevel level, GasketRegistry registry, UUID gasketId) {
+        UUID partnerId = registry.getTarget(gasketId);
+        if (partnerId == null) {
+            partnerId = registry.getSource(gasketId);
+        }
+        GasketLocation location = partnerId == null ? null : registry.getLocation(partnerId);
+        IGasketHolder holder = loadedHolderAt(level, location);
+        if (holder == null) {
+            return;
+        }
+        for (GasketRole role : GasketRole.values()) {
+            if (partnerId.equals(holder.getGasketId(role, location.slot()))) {
+                holder.setPartner(role, location.slot(), null);
+                return;
+            }
+        }
+    }
+
+    /**
+     * Returns the gasket holder standing at a block location in this level
+     * and loaded, or null for an entity target, another dimension or an
+     * unloaded chunk.
+     *
+     * @param level    the server level
+     * @param location the registry location, or null
+     * @return the holder, or null
+     */
+    private static @Nullable IGasketHolder loadedHolderAt(ServerLevel level, @Nullable GasketLocation location) {
+        if (location == null || location.isEntityTarget() || !level.dimension().equals(location.dimension())) {
+            return null;
+        }
+        if (!level.isLoaded(location.pos())) {
+            return null;
+        }
+        return level.getBlockEntity(location.pos()) instanceof IGasketHolder holder ? holder : null;
     }
 }
