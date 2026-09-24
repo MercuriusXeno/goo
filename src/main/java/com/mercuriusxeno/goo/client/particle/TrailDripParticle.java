@@ -20,7 +20,7 @@ import org.jspecify.annotations.Nullable;
  * ground contact. Spawned directly into the fall phase (no hang phase)
  * because these drip off a moving blob, not a stationary block.
  */
-public class GooDripParticle extends SingleQuadParticle {
+public class TrailDripParticle extends SingleQuadParticle {
 
     /** Gravity shared with the server's drip arrival timing. */
     private static final float DRIP_GRAVITY = (float) DripFall.GRAVITY;
@@ -80,7 +80,7 @@ public class GooDripParticle extends SingleQuadParticle {
      * @param blue    the blue color component
      * @param sprites the sprite set for animation frames
      */
-    private GooDripParticle(ClientLevel level, double x, double y, double z,
+    private TrailDripParticle(ClientLevel level, double x, double y, double z,
             float red, float green, float blue, SpriteSet sprites) {
         super(level, x, y, z, sprites.get(0, 1));
         this.setSize(DRIP_SIZE, DRIP_SIZE);
@@ -155,7 +155,7 @@ public class GooDripParticle extends SingleQuadParticle {
      * The main drip - falls under gravity, spawns a land splat on ground contact.
      * This is what the blob flight trail spawns directly.
      */
-    private static class FallParticle extends GooDripParticle {
+    private static class FallParticle extends TrailDripParticle {
 
         FallParticle(ClientLevel level, double x, double y, double z,
                 double vx, double vy, double vz,
@@ -173,7 +173,7 @@ public class GooDripParticle extends SingleQuadParticle {
             if (this.onGround) {
                 this.remove();
                 ColorParticleOption landOption = ColorParticleOption.create(
-                        GooParticles.GOO_DRIP_LAND.get(), packedColor());
+                        GooParticles.TRAIL_DRIP_LAND.get(), packedColor());
                 this.level.addParticle(landOption,
                         this.x, this.y, this.z, 0.0, 0.0, 0.0);
             }
@@ -185,7 +185,7 @@ public class GooDripParticle extends SingleQuadParticle {
      * Overrides the billboard orientation so the quad faces upward,
      * giving the visual impression of a drip flattening on impact.
      */
-    private static class LandParticle extends GooDripParticle {
+    private static class LandParticle extends TrailDripParticle {
 
         /** Quaternion that lays the quad flat on the XZ plane (normal facing +Y). */
         private static final Quaternionf FLAT_ROTATION =
