@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.item;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
-import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.PlayerUtils;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
@@ -162,60 +161,41 @@ public class GooGloveItem extends Item {
     }
 
     /**
-     * Reads the selected goo type from this glove's data component.
+     * Reads the goo type of this glove's selection.
      *
      * @param stack the glove stack
      * @return the selected goo type key, or null if none selected
      */
     public static @Nullable ResourceKey<GooTypeDefinition> getSelectedType(ItemStack stack) {
         GloveSelection sel = getSelection(stack);
-        if (sel != null && sel.hasType()) { return sel.getGooType(); }
-        String id = stack.get(GooDataComponents.SELECTED_GOO_TYPE.get());
-        if (id == null || id.isEmpty()) { return null; }
-        return GooTypes.byId(id);
+        return sel == null ? null : sel.getGooType();
     }
 
     /**
-     * Writes the selected goo type to this glove's data component.
-     * Also updates the legacy SELECTED_GOO_TYPE for backward compat.
-     *
-     * @param stack the glove stack
-     * @param type the goo type to select, or null to clear
-     */
-    public static void setSelectedType(ItemStack stack, @Nullable ResourceKey<GooTypeDefinition> type) {
-        if (type == null) {
-            stack.remove(GooDataComponents.SELECTED_GOO_TYPE.get());
-            stack.remove(GooDataComponents.SELECTED_ABILITY.get());
-        } else {
-            stack.set(GooDataComponents.SELECTED_GOO_TYPE.get(), GooTypes.id(type));
-            stack.set(GooDataComponents.SELECTED_ABILITY.get(), GloveSelection.ofType(type));
-        }
-    }
-
-    /**
-     * Reads the full selection (type + ability) from this glove.
+     * Reads the selection (type and ability) from this glove. A stored
+     * selection naming no ability reads as none (decision
+     * no-throw-without-ability).
      *
      * @param stack the glove stack
      * @return the selection, or null if none
      */
     public static @Nullable GloveSelection getSelection(ItemStack stack) {
-        return stack.get(GooDataComponents.SELECTED_ABILITY.get());
+        GloveSelection sel = stack.get(GooDataComponents.SELECTED_ABILITY.get());
+        return sel != null && sel.hasType() && sel.hasAbility() ? sel : null;
     }
 
     /**
-     * Writes a full selection (type + ability) to this glove.
-     * Also updates the legacy SELECTED_GOO_TYPE for backward compat.
+     * Writes a selection (type and ability) to this glove; a selection
+     * missing either clears the glove.
      *
      * @param stack     the glove stack
      * @param selection the selection to set
      */
     public static void setSelection(ItemStack stack, GloveSelection selection) {
-        if (selection.isEmpty()) {
-            stack.remove(GooDataComponents.SELECTED_ABILITY.get());
-            stack.remove(GooDataComponents.SELECTED_GOO_TYPE.get());
-        } else {
+        if (selection.hasType() && selection.hasAbility()) {
             stack.set(GooDataComponents.SELECTED_ABILITY.get(), selection);
-            stack.set(GooDataComponents.SELECTED_GOO_TYPE.get(), selection.gooTypeId());
+        } else {
+            stack.remove(GooDataComponents.SELECTED_ABILITY.get());
         }
     }
 }

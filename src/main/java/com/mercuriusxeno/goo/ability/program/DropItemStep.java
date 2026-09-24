@@ -10,11 +10,18 @@ import java.util.stream.Stream;
  * Spawns an item stack at the host's target and finishes. The item is
  * named by id and the host resolves it; rock petrify drops
  * {@code drop_item item=minecraft:cobblestone count="1 + random(3)"}.
+ * The id {@code spawn_egg} names the target's own spawn egg, which aeon's
+ * ritual drops (decision aeon-mob-ritual-drops-spawn-egg).
  *
  * @param item  the item id
  * @param count the stack size, evaluated when the step runs
  */
 public record DropItemStep(Identifier item, Expr count) implements Step {
+
+    /**
+     * The item id that names the target's own spawn egg.
+     */
+    public static final Identifier SPAWN_EGG = Identifier.withDefaultNamespace("spawn_egg");
 
     private static final String NAME = "drop_item";
     private static final String FIELD_ITEM = "item";

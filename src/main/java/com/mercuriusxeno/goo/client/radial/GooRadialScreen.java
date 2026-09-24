@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.radial;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
+import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.network.AbilitySyncHandler;
@@ -137,8 +138,8 @@ public final class GooRadialScreen extends Screen {
         if (glove == null) {
             return;
         }
-        GooGloveItem.setSelectedType(glove, null);
-        sendSelectionToServer(DESELECT_ID);
+        GooGloveItem.setSelection(glove, GloveSelection.EMPTY);
+        sendDeselectToServer();
     }
 
     /**
@@ -170,15 +171,15 @@ public final class GooRadialScreen extends Screen {
     // --- Input handling ---
 
     /**
-     * Sends the goo type selection to the server for persistence.
-     *
-     * @param gooTypeId the selected goo type ID, or empty string for deselect
+     * Sends the cleared selection to the server for persistence. A type
+     * click sends nothing: the ability radial sends the selection once an
+     * ability is picked.
      */
-    private static void sendSelectionToServer(String gooTypeId) {
+    private static void sendDeselectToServer() {
         var connection = Minecraft.getInstance().getConnection();
         if (connection != null) {
             connection.send(new ServerboundCustomPayloadPacket(
-                    new GloveSelectPayload(gooTypeId)));
+                    new GloveSelectPayload(DESELECT_ID, DESELECT_ID)));
         }
     }
 

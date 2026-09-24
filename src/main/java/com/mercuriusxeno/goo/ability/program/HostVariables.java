@@ -40,6 +40,24 @@ public final class HostVariables {
      */
     public static final String SPRINTING = "sprinting";
 
+    /**
+     * The separator of a namespaced id, which marks a variable name as a
+     * counter read rather than a host variable.
+     */
+    private static final char COUNTER_SEPARATOR = ':';
+
     private HostVariables() {
+    }
+
+    /**
+     * Tells whether an expression's variable name reads a counter the
+     * target keeps: a counter is named by its namespaced id, such as
+     * {@code goo:ritual} (decision aeon-mob-ritual-drops-spawn-egg).
+     *
+     * @param name the variable name
+     * @return true for a counter id
+     */
+    public static boolean isCounter(String name) {
+        return name.indexOf(COUNTER_SEPARATOR) >= 0;
     }
 }

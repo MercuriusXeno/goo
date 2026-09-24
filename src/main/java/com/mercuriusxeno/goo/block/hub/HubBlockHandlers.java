@@ -6,7 +6,7 @@ import com.mercuriusxeno.goo.PlayerUtils;
 import com.mercuriusxeno.goo.block.GooBlockInteraction;
 import com.mercuriusxeno.goo.block.InteractionCooldown;
 import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
-import com.mercuriusxeno.goo.item.BlobStacks;
+import com.mercuriusxeno.goo.item.BlobInsert;
 import com.mercuriusxeno.goo.item.GooInteractionType;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import net.minecraft.core.BlockPos;
@@ -183,14 +183,10 @@ final class HubBlockHandlers {
     private static InteractionResult handleBlobInsert(
             HubBlockEntity hub, BlockHitResult hitResult,
             ItemStack stack, Player player) {
-        ResourceKey<GooTypeDefinition> type = BlobStacks.keyOf(stack);
-        if (type == null) { return InteractionResult.PASS; }
-        int volume = BlobStacks.volumeOf(stack);
-
-        int accepted = insertBlobGoo(hub, hitResult, type, volume);
+        int accepted = BlobInsert.pour(stack, player,
+                (type, volume) -> insertBlobGoo(hub, hitResult, type, volume));
         if (accepted <= 0) { return InteractionResult.PASS; }
 
-        BlobStacks.deplete(stack, accepted, player);
         hub.getLevel().playSound(null, hub.getBlockPos(), SoundEvents.BOTTLE_EMPTY, SoundSource.BLOCKS, 1.0f, 1.0f);
         return InteractionResult.SUCCESS;
     }

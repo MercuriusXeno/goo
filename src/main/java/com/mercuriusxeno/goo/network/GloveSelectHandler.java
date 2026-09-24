@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.network;
 
+import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.GloveSelection;
@@ -10,11 +11,16 @@ import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 /**
- * Server-side handler for glove goo type selection. Finds the glove in
- * the player's hands and updates its data component so the selection
- * persists across saves.
+ * Server-side handler for glove selection. Finds the glove in the
+ * player's hands and updates its data component so the selection of a
+ * type and one of its abilities persists across saves.
  */
 public final class GloveSelectHandler {
+
+    /**
+     * Log: a selection naming a type and no ability, refused.
+     */
+    private static final String LOG_NO_ABILITY = "Glove selection of goo type {} names no ability; glove left unchanged";
 
     private GloveSelectHandler() {}
 
@@ -40,12 +46,14 @@ public final class GloveSelectHandler {
         resolveAndApply(glove, payload);
     }
 
-    /** Resolves the selection and applies it to the glove.
+    /** Resolves the selection and applies it to the glove: an empty type
+     * clears the glove, and a type naming no ability is refused and logged
+     * (decision no-throw-without-ability).
      *
      * @param glove   the glove item stack
      * @param payload the selection payload
      */
-    private static void resolveAndApply(ItemStack glove, GloveSelectPayload payload) {
+    static void resolveAndApply(ItemStack glove, GloveSelectPayload payload) {
         if (payload.gooTypeId().isEmpty()) {
             GooGloveItem.setSelection(glove, GloveSelection.EMPTY);
             return;
@@ -53,11 +61,10 @@ public final class GloveSelectHandler {
         ResourceKey<GooTypeDefinition> type = GooTypes.known(payload.gooTypeId());
         if (type == null) { return; }
         if (payload.abilityId().isEmpty()) {
-            GooGloveItem.setSelection(glove, GloveSelection.ofType(type));
-        } else {
-            GloveSelection selection = new GloveSelection(payload.gooTypeId(), payload.abilityId());
-            GooGloveItem.setSelection(glove, selection);
+            Goo.LOGGER.warn(LOG_NO_ABILITY, payload.gooTypeId());
+            return;
         }
+        GooGloveItem.setSelection(glove, new GloveSelection(payload.gooTypeId(), payload.abilityId()));
     }
 
     /**
