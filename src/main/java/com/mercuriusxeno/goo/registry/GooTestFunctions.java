@@ -62,6 +62,10 @@ public final class GooTestFunctions {
     private static final String SPAWNER_CRAFTED_FROM_EXORITE_BARS = "spawner_crafted_from_exorite_bars";
     private static final String EMPTY_SPAWNER_TAKES_EGG = "empty_spawner_takes_egg";
 
+    // --- Goo Lab ---
+    private static final String LAB_BUILD_SHELL = "lab_build_shell";
+    private static final String LAB_TEMPLATE_LOADS = "lab_template_loads";
+
     // --- GasketPusher ---
     private static final String PUSHER_EMPTY_RESERVOIR = "pusher_empty_reservoir";
     private static final String PUSHER_NO_PARTNER = "pusher_no_partner";
@@ -237,6 +241,7 @@ public final class GooTestFunctions {
             registerMobEffectTests(registrar);
             registerLightingTests(registrar);
             registerTapDripTests(registrar);
+            registerLabTests(registrar);
         });
     }
 
@@ -432,6 +437,16 @@ public final class GooTestFunctions {
         reg(r, MOB_AEON_RITUAL_BABY_EGG, MobEffectTests::aeonRitualBabyEgg);
         reg(r, MOB_AEON_RITUAL_NO_BABY_FORM, MobEffectTests::aeonRitualNoBabyForm);
         reg(r, MOB_AEON_BABY_FORM_FILTER, MobEffectTests::aeonBabyFormFilter);
+    }
+
+    /**
+     * Registers the Goo Lab build tests.
+     *
+     * @param r the registry registrar
+     */
+    private static void registerLabTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
+        reg(r, LAB_BUILD_SHELL, LabTests::buildShell);
+        reg(r, LAB_TEMPLATE_LOADS, LabTemplateTests::templateLoads);
     }
 
     /**

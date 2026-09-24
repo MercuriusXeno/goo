@@ -42,6 +42,8 @@ runs {
         }
         // Folder datapacks the gametest world loads, such as the seventeenth goo type
         arguments.addAll '--packs', file('src/test/resources/datapacks').absolutePath
+        // The Goo Lab template that goo:lab_template_loads opens through the game's save loader
+        systemProperty 'goo.labTemplate', file('dev/lab').absolutePath
         // JaCoCo agent so gametest coverage merges with unit-test coverage.
         // The jacocoAgent configuration resolves to a wrapper jar; extract jacocoagent.jar from it.
         var wrapperJar = configurations.jacocoAgent.singleFile
@@ -173,6 +175,30 @@ tasks.register('generateTextures', JavaExec) {
     classpath = sourceSets.main.runtimeClasspath
     mainClass = 'com.mercuriusxeno.goo.tools.FluidTextureGenerator'
     workingDir = project.projectDir
+}
+
+// The Goo Lab template tracked at dev/lab/ (decision lab-built-from-code)
+tasks.register('generateLabTemplate', JavaExec) {
+    description = 'Rewrites the Goo Lab level template under dev/lab/'
+    group = 'goo'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.mercuriusxeno.goo.tools.LabTemplateWriter'
+    workingDir = project.projectDir
+    args 'dev/lab'
+}
+
+// Seeds the Goo Lab save from dev/lab/ only when absent, so a worktree's first runClient lists it
+tasks.register('seedLab', Copy) {
+    description = 'Copies dev/lab/ into runs/client/saves/Goo Lab when that save is absent'
+    group = 'goo'
+    var labSave = file('runs/client/saves/Goo Lab')
+    from 'dev/lab'
+    into labSave
+    onlyIf('the Goo Lab save is absent') { !labSave.exists() }
+}
+
+afterEvaluate {
+    tasks.named('runClient').configure { dependsOn 'seedLab' }
 }
 
 tasks.withType(ProcessResources).configureEach {
