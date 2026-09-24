@@ -23,10 +23,8 @@ public final class CrucibleParticleHelper {
     /** Maximum attempts to find a non-overlapping spawn position. */
     private static final int MAX_PLACEMENT_TRIES = 8;
 
-    /** Ember chance when idle (rod contact, no melting): ~10% per tick. */
+    /** Ember chance per tick in a lit, empty crucible: ~10%. */
     private static final float EMBER_CHANCE_IDLE = 0.10f;
-    /** Ember chance when melting: ~30% per tick. */
-    private static final float EMBER_CHANCE_MELTING = 0.30f;
 
     /** Block center offset (0.5 blocks). */
     private static final double BLOCK_CENTER = 0.5;
@@ -36,20 +34,6 @@ public final class CrucibleParticleHelper {
     private static final double SMOKE_Y = 14.0 / 16.0;
     /** Full-circle angle in radians. */
     private static final double TWO_PI = Math.PI * 2;
-
-    // -- Spark shower constants --
-    /** Base number of sparks in a shower burst. */
-    private static final int SPARK_BASE_COUNT = 8;
-    /** Random additional sparks in a shower burst. */
-    private static final int SPARK_RANDOM_COUNT = 5;
-    /** Base lateral speed of spark particles. */
-    private static final double SPARK_BASE_SPEED = 0.06;
-    /** Random additional lateral speed of spark particles. */
-    private static final double SPARK_RANDOM_SPEED = 0.02;
-    /** Base downward velocity of falling sparks. */
-    private static final double SPARK_BASE_FALL = -0.005;
-    /** Random additional downward velocity of falling sparks. */
-    private static final double SPARK_RANDOM_FALL = 0.01;
 
     // -- Ignition/ember constants --
     /** Base number of ignition sparks per tick. */
@@ -93,10 +77,6 @@ public final class CrucibleParticleHelper {
     /** Volume of the sizzle sound. */
     private static final float SIZZLE_VOLUME = 0.3f;
 
-    /** Spark shower velocity profile. */
-    private static final SparkProfile SPARK_PROFILE =
-        new SparkProfile(SPARK_BASE_SPEED, SPARK_RANDOM_SPEED, SPARK_BASE_FALL, SPARK_RANDOM_FALL);
-
     /** Ember/ignition velocity profile. */
     private static final SparkProfile EMBER_PROFILE =
         new SparkProfile(EMBER_BASE_SPEED, EMBER_RANDOM_SPEED, EMBER_BASE_FALL, EMBER_RANDOM_FALL);
@@ -106,19 +86,6 @@ public final class CrucibleParticleHelper {
             double baseFall, double randomFall) {}
 
     private CrucibleParticleHelper() {}
-
-    /**
-     * Spawns 8-12 lava particles at the rod-basin contact point.
-     * Sparks spray laterally outward and fall down.
-     *
-     * @param level the current level
-     * @param pos   the block position
-     */
-    public static void spawnSparkShower(ServerLevel level, BlockPos pos) {
-        RandomSource random = level.getRandom();
-        int count = SPARK_BASE_COUNT + random.nextInt(SPARK_RANDOM_COUNT);
-        emitSparks(level, pos, random, count, SPARK_PROFILE);
-    }
 
     /**
      * Spawns 3-4 sparks in random directions at the rod-basin contact point.
@@ -136,17 +103,13 @@ public final class CrucibleParticleHelper {
     /**
      * Spawns 1-2 spark particles at the rod-basin contact point.
      * Embers spray laterally outward in random directions and fall down.
-     * Frequency depends on whether the crucible is actively melting goo.
      *
-     * @param level   the current level
-     * @param pos     the block position
-     * @param random  the random source
-     * @param melting true if actively melting an item
+     * @param level  the current level
+     * @param pos    the block position
+     * @param random the random source
      */
-    public static void spawnEmbers(ServerLevel level, BlockPos pos,
-            RandomSource random, boolean melting) {
-        float chance = melting ? EMBER_CHANCE_MELTING : EMBER_CHANCE_IDLE;
-        if (random.nextFloat() >= chance) { return; }
+    public static void spawnEmbers(ServerLevel level, BlockPos pos, RandomSource random) {
+        if (random.nextFloat() >= EMBER_CHANCE_IDLE) { return; }
         int count = 1 + random.nextInt(IGNITION_RANDOM_COUNT);
         emitSparks(level, pos, random, count, EMBER_PROFILE);
     }

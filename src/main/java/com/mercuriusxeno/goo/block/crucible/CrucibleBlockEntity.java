@@ -253,6 +253,14 @@ public class CrucibleBlockEntity extends BlockEntity implements IGasketHolder, I
         return meltingItem.isEmpty() ? 0 : PartiallyMeltedItem.getContents(meltingItem).totalVolume();
     }
 
+    /** Returns true when neither the reservoir nor the PMI pool holds goo.
+     *
+     * @return true if the crucible holds no goo
+     */
+    public boolean holdsNoGoo() {
+        return CrucibleBasin.holdsNoGoo(reservoir.totalVolume(), getPoolVolume());
+    }
+
     /** Returns the fuel rod's remaining fraction (0.0 = depleted, 1.0 = fresh).
      *
      * @return the fuel fraction
