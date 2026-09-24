@@ -130,6 +130,8 @@ public final class GooTestFunctions {
     private static final String CR_CAP_CONTAINER = "cr_cap_container";
     private static final String CR_CAP_MELTED_ITEM = "cr_cap_melted_item";
     private static final String CR_CAP_ACCOUNTED = "cr_cap_accounted";
+    private static final String CR_BLOB_STACK_WHOLE = "cr_blob_stack_whole";
+    private static final String CR_BLOB_STACK_TO_CAP = "cr_blob_stack_to_cap";
 
     // --- Placement ---
     private static final String PL_BLAZE = "pl_blaze_places";
@@ -408,6 +410,8 @@ public final class GooTestFunctions {
         reg(r, CR_CAP_CONTAINER, CrucibleTests::containerRefusedWholeAtCap);
         reg(r, CR_CAP_MELTED_ITEM, CrucibleTests::meltedItemRefusedWholeAtCap);
         reg(r, CR_CAP_ACCOUNTED, CrucibleTests::fillPastTheCapAccountsForEveryMb);
+        reg(r, CR_BLOB_STACK_WHOLE, CrucibleTests::blobStackConsumedWhole);
+        reg(r, CR_BLOB_STACK_TO_CAP, CrucibleTests::blobStackFillsToTheCap);
     }
 
     private static void registerPlacementTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {

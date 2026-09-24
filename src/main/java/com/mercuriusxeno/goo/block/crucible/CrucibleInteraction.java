@@ -124,40 +124,29 @@ final class CrucibleInteraction {
      *         blob still ends the click so it never falls through to goo extraction
      */
     static boolean tryInsertBlob(ItemStack stack, CrucibleBlockEntity crucible, Player player) {
-        ResourceKey<GooTypeDefinition> type = BlobStacks.keyOf(stack);
-        if (type == null) {
+        if (BlobStacks.volumeOf(stack) <= 0) {
             return false;
         }
-        int volume = BlobStacks.volumeOf(stack);
-        if (volume <= 0) {
-            return false;
-        }
-        consumeBlobIntoCrucible(stack, crucible, player, type, volume);
+        int perUnit = stack.getItem() instanceof GooBlobItem ? BlobStacks.MB_PER_BLOB : 1;
+        BlobInsert.pour(stack, player, (type, volume) -> acceptWholeUnits(crucible, type, volume, perUnit));
         return true;
     }
 
     /**
-     * Inserts the blob's goo into the crucible when its whole volume fits the
-     * reservoir, and consumes the item if not creative; a blob that does not
-     * fit stays in hand (decision crucible-refuses-past-two-billion).
+     * Inserts the whole units of the offered volume that fit the reservoir under the cap:
+     * a blob stack's unit is one blob, an omniblob's one mB
+     * (decision diagnose-then-fix-crucible-blob-duplication).
      *
-     * @param stack    the blob item stack to consume
      * @param crucible the crucible block entity to insert into
-     * @param player   the interacting player (creative skips consumption)
-     * @param type     the goo type of the blob
-     * @param volume   the volume of goo in the blob (mB)
-     * @return true if the blob was inserted, false if refused at the cap
+     * @param type     the goo type offered
+     * @param volume   the volume offered, in mB
+     * @param perUnit  the mB one unit carries
+     * @return the volume inserted, a whole number of units
      */
-    static boolean consumeBlobIntoCrucible(ItemStack stack, CrucibleBlockEntity crucible,
-                                           Player player, ResourceKey<GooTypeDefinition> type, int volume) {
-        if (CrucibleInsertion.reservoirUnitsThatFit(crucible, type, volume, 1) < 1) {
-            return false;
-        }
-        crucible.insertGoo(type, volume);
-        if (!player.isCreative()) {
-            stack.shrink(1);
-        }
-        return true;
+    private static int acceptWholeUnits(CrucibleBlockEntity crucible, ResourceKey<GooTypeDefinition> type,
+                                        int volume, int perUnit) {
+        int units = CrucibleInsertion.reservoirUnitsThatFit(crucible, type, perUnit, volume / perUnit);
+        return units > 0 ? crucible.insertGoo(type, units * perUnit) : 0;
     }
 
     /**
