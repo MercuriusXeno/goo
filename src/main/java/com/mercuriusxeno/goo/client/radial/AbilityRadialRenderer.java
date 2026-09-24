@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.radial;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.network.AbilitySyncHandler.ClientAbility;
 import net.minecraft.client.gui.Font;
@@ -58,10 +59,6 @@ final class AbilityRadialRenderer {
      * Vertical gap between icon and label text.
      */
     private static final int LABEL_GAP = 1;
-    /**
-     * Tag marking entity-targeted abilities.
-     */
-    private static final String TAG_ENTITY = "entity";
     /**
      * Suffix appended to entity ability labels.
      */
@@ -236,7 +233,7 @@ final class AbilityRadialRenderer {
      */
     private static Component buildLabel(ClientAbility ability) {
         Component base = Component.translatable(ability.displayName());
-        if (ability.hasTag(TAG_ENTITY)) {
+        if (ability.hasTag(AbilityTags.ENTITY)) {
             return base.copy().append(MOB_SUFFIX);
         }
         return base;

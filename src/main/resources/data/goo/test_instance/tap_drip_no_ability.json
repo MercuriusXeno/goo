@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:tap_drip_no_ability",
+  "environment": "minecraft:default",
+  "structure": "minecraft:empty",
+  "max_ticks": 80,
+  "setup_ticks": 0,
+  "required": true
+}
