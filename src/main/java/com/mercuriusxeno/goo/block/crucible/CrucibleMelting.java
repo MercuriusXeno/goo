@@ -235,8 +235,8 @@ final class CrucibleMelting {
     }
 
     /**
-     * Drains extractionRate() mB, ramped on the reservoir's warm goo against the
-     * PMI's cold goo, from the PMI pool, distributed proportionally
+     * Drains extractionRate() mB, a power law of the basin's total goo,
+     * from the PMI pool, distributed proportionally
      * across all goo types present. Each type receives at least 1 mB per tick
      * (or its remaining volume if less).
      *
@@ -249,7 +249,7 @@ final class CrucibleMelting {
             return;
         }
 
-        int rate = CrucibleMath.extractionRate(be.reservoir.totalVolume(), totalRemaining);
+        int rate = CrucibleMath.extractionRate(be.reservoir.totalVolume() + totalRemaining);
         Map<ResourceKey<GooTypeDefinition>, Integer> shares = CrucibleMath.computeDrainShares(pmiContents, rate);
         applyDrainShares(be, shares);
     }

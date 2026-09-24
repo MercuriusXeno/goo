@@ -10,7 +10,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
@@ -23,83 +22,91 @@ import static org.junit.jupiter.api.Assertions.*;
 @ExtendWith(MockitoExtension.class)
 class CrucibleBlockEntityTest {
 
-    // -- extractionRate (ramp on warm goo against cold goo) ------------------
+    // -- extractionRate (power law of the basin's total goo) -----------------
 
     private static final int ONE_BLOCK_MB = 1152;
+    private static final int STACK_OF_BLOCKS_MB = 64 * ONE_BLOCK_MB;
 
     /**
-     * Simulates a whole melt through CrucibleMath alone, each tick's drain fed into the warm volume.
+     * Simulates a whole melt through CrucibleMath alone, each tick's drain moved from the item to the reservoir.
      *
-     * @param warmVolume the reservoir's volume before the first tick
-     * @param coldVolume the item's volume before the first tick
+     * @param reservoirVolume the reservoir's volume before the first tick
+     * @param itemVolume      the melting item's volume before the first tick
      * @return the rate of each tick, in order
      */
-    private static List<Integer> simulateMeltRates(int warmVolume, int coldVolume) {
+    private static List<Integer> simulateMeltRates(int reservoirVolume, int itemVolume) {
         List<Integer> rates = new ArrayList<>();
-        int warm = warmVolume;
-        int cold = coldVolume;
-        while (cold > 0) {
-            int rate = CrucibleMath.extractionRate(warm, cold);
-            int drained = Math.min(rate, cold);
-            warm += drained;
-            cold -= drained;
+        int reservoir = reservoirVolume;
+        int item = itemVolume;
+        while (item > 0) {
+            int rate = CrucibleMath.extractionRate(reservoir + item);
+            int drained = Math.min(rate, item);
+            reservoir += drained;
+            item -= drained;
             rates.add(rate);
         }
         return rates;
     }
 
     /**
-     * A block melting from an empty reservoir never slows, and its last tick is its fastest.
+     * Adding goo to the basin never lowers the rate, across every volume up to a full stack.
      */
     @Test
-    void wholeMeltFromEmptyRampsWithFastestTail() {
-        List<Integer> rates = simulateMeltRates(0, ONE_BLOCK_MB);
-        for (int tick = 1; tick < rates.size(); tick++) {
-            assertTrue(rates.get(tick) >= rates.get(tick - 1),
-                    "rate fell at tick " + tick + ": " + rates.get(tick - 1) + " -> " + rates.get(tick));
+    void addingGooNeverLowersRate() {
+        int previous = CrucibleMath.extractionRate(0);
+        for (int total = 1; total <= STACK_OF_BLOCKS_MB; total++) {
+            int rate = CrucibleMath.extractionRate(total);
+            assertTrue(rate >= previous, "rate fell from " + previous + " to " + rate + " at " + total + " mB");
+            previous = rate;
         }
-        int lastRate = rates.get(rates.size() - 1);
-        assertEquals(Collections.max(rates), lastRate);
-        assertTrue(lastRate > rates.get(0), "last rate " + lastRate + " should exceed first " + rates.get(0));
     }
 
     /**
-     * Goo already standing in the reservoir melts the next block faster from its first tick.
+     * A stack dropped into a basin already holding goo melts at least as fast as it would from empty,
+     * and a stack dropped mid-melt raises the rate rather than pulling it to the floor.
      */
     @Test
-    void warmReservoirMeltsFasterFromFirstTick() {
-        int rateFromEmpty = CrucibleMath.extractionRate(0, ONE_BLOCK_MB);
-        int rateFromWarm = CrucibleMath.extractionRate(10_000, ONE_BLOCK_MB);
-        assertTrue(rateFromWarm > rateFromEmpty,
-                "warm first-tick rate " + rateFromWarm + " should exceed empty " + rateFromEmpty);
+    void gooAlreadyInBasinNeverSlowsNextItem() {
+        int stackFromEmpty = CrucibleMath.extractionRate(STACK_OF_BLOCKS_MB);
+        int stackIntoWarm = CrucibleMath.extractionRate(ONE_BLOCK_MB + STACK_OF_BLOCKS_MB);
+        assertTrue(stackIntoWarm >= stackFromEmpty);
+        assertTrue(simulateMeltRates(ONE_BLOCK_MB, STACK_OF_BLOCKS_MB).size()
+                <= simulateMeltRates(0, STACK_OF_BLOCKS_MB).size());
+
+        int midMelt = CrucibleMath.extractionRate(600 + 552);
+        int midMeltWithStack = CrucibleMath.extractionRate(600 + 552 + STACK_OF_BLOCKS_MB);
+        assertTrue(midMeltWithStack > midMelt,
+                "stack dropped mid-melt moved the rate from " + midMelt + " to " + midMeltWithStack);
     }
 
     /**
-     * An item with no cold goo left answers the floor rather than dividing by zero.
+     * An empty basin answers the floor, and the floor is well above 1 mB a tick.
      */
     @Test
-    void noColdGooYieldsFloorRate() {
-        assertEquals(CrucibleMath.MELT_FLOOR_RATE, CrucibleMath.extractionRate(500, 0));
-    }
-
-    /**
-     * An empty crucible starts a melt at the floor, and the floor is well above 1 mB a tick.
-     */
-    @Test
-    void zeroWarmGooYieldsFloorRate() {
+    void emptyBasinYieldsFloorRate() {
         assertTrue(CrucibleMath.MELT_FLOOR_RATE > 1);
-        assertEquals(CrucibleMath.MELT_FLOOR_RATE, CrucibleMath.extractionRate(0, ONE_BLOCK_MB));
+        assertEquals(CrucibleMath.MELT_FLOOR_RATE, CrucibleMath.extractionRate(0));
+        assertEquals(CrucibleMath.MELT_FLOOR_RATE, CrucibleMath.extractionRate(-100));
     }
 
     /**
-     * One block melts in about 3 s (60 ticks) from an empty reservoir.
-     * Whole-melt ticks from empty at floor 7, exponent 2, simulated by simulateMeltRates:
-     * 1152 mB in 60, 4608 mB in 232, 13824 mB in 690, 124416 mB in 6184.
+     * One block melts in about 3 s (60 ticks) from an empty basin.
+     * Whole-melt ticks from empty at scale 0.28, exponent 0.6, simulated by simulateMeltRates:
+     * 1152 mB (one block) in 61, 18432 mB (16 blocks) in 183, 73728 mB (64 blocks) in 317.
      */
     @Test
     void oneBlockFromEmptyMeltsInAboutThreeSeconds() {
         int ticks = simulateMeltRates(0, ONE_BLOCK_MB).size();
         assertTrue(ticks >= 50 && ticks <= 70, "one block melted in " + ticks + " ticks, expected 50 to 70");
+    }
+
+    /**
+     * A 64-block stack melts in about 16 s (320 ticks) from an empty basin, not 64 times one block.
+     */
+    @Test
+    void stackFromEmptyMeltsInAboutSixteenSeconds() {
+        int ticks = simulateMeltRates(0, STACK_OF_BLOCKS_MB).size();
+        assertTrue(ticks >= 280 && ticks <= 360, "a stack melted in " + ticks + " ticks, expected 280 to 360");
     }
 
     // -- GooValue.toGooContents ------------------------------------------
@@ -258,6 +265,18 @@ class CrucibleBlockEntityTest {
         Map<ResourceKey<GooTypeDefinition>, Integer> shares = CrucibleMath.computeDrainShares(pool, 100);
         assertEquals(3, shares.get(GooTypes.ROCK));
         assertEquals(3, shares.get(GooTypes.METAL));
+    }
+
+    /**
+     * A high rate across large volumes splits proportionally rather than overflowing to 1 mB shares.
+     */
+    @Test
+    void highRateOverLargeVolumesSplitsWithoutOverflow() {
+        GooContents pool = new GooContents(Map.of(
+                GooTypes.ROCK, 1_000_000, GooTypes.METAL, 1_000_000));
+        Map<ResourceKey<GooTypeDefinition>, Integer> shares = CrucibleMath.computeDrainShares(pool, 5000);
+        assertEquals(2500, shares.get(GooTypes.ROCK));
+        assertEquals(2500, shares.get(GooTypes.METAL));
     }
 
     /**

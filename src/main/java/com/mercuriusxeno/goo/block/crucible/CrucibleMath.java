@@ -13,36 +13,38 @@ import java.util.Map;
 public final class CrucibleMath {
 
     /**
-     * The melt rate in mB/tick at zero warm goo, tuned with MELT_RAMP_EXPONENT so one block
-     * melts in about 3 s from an empty crucible (melt-floor-tuned-to-three-seconds).
+     * The least melt rate in mB/tick, for a basin holding little goo.
      */
     public static final int MELT_FLOOR_RATE = 7;
 
     /**
-     * The power the warm-to-cold ratio is raised to in the melt ramp.
+     * The scale of the melt power law, tuned with MELT_RATE_EXPONENT so one block melts in
+     * about 3 s and a 64-block stack in about 16 s (melt-floor-tuned-to-three-seconds).
      */
-    static final double MELT_RAMP_EXPONENT = 2.0;
+    static final double MELT_RATE_SCALE = 0.28;
+
+    /**
+     * The power the basin's total goo is raised to in the melt rate.
+     */
+    static final double MELT_RATE_EXPONENT = 0.6;
 
     private CrucibleMath() {
     }
 
     /**
-     * Computes the melt rate (mB/tick) from the warm goo against the cold goo.
-     * Formula: floor(MELT_FLOOR_RATE * (1 + warm / cold) ^ MELT_RAMP_EXPONENT).
-     * The rate rises as warm grows and cold shrinks, so the tail of a melt is its fastest part
-     * (melt-rate-ramps-on-warm-goo).
+     * Computes the melt rate (mB/tick) as a power law of the total goo in the basin,
+     * the reservoir plus the melting item, so adding goo never lowers the rate.
+     * Formula: max(MELT_FLOOR_RATE, floor(MELT_RATE_SCALE * total ^ MELT_RATE_EXPONENT)).
      *
-     * @param warmVolume the reservoir's total volume in mB
-     * @param coldVolume the melting item's remaining volume in mB
+     * @param basinTotalVolume the reservoir's volume plus the melting item's remaining volume, in mB
      * @return the melt rate in mB/tick, at least MELT_FLOOR_RATE
      */
-    public static int extractionRate(int warmVolume, int coldVolume) {
-        if (coldVolume <= 0) {
+    public static int extractionRate(int basinTotalVolume) {
+        if (basinTotalVolume <= 0) {
             return MELT_FLOOR_RATE;
         }
-        double warmToCold = Math.max(0, warmVolume) / (double) coldVolume;
-        double ramp = MELT_FLOOR_RATE * Math.pow(1 + warmToCold, MELT_RAMP_EXPONENT);
-        return Math.max(MELT_FLOOR_RATE, (int) Math.floor(ramp));
+        double rate = MELT_RATE_SCALE * Math.pow(basinTotalVolume, MELT_RATE_EXPONENT);
+        return Math.max(MELT_FLOOR_RATE, (int) Math.floor(rate));
     }
 
     /**
@@ -92,7 +94,8 @@ public final class CrucibleMath {
         int allocated = 0;
         for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> entry : contents.getAll().entrySet()) {
             int available = entry.getValue();
-            int share = Math.min(Math.max(1, rate * available / totalVolume), available);
+            int proportional = (int) ((long) rate * available / totalVolume);
+            int share = Math.min(Math.max(1, proportional), available);
             shares.put(entry.getKey(), share);
             allocated += share;
         }
