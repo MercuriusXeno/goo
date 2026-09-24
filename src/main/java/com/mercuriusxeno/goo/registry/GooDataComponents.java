@@ -58,7 +58,7 @@ public class GooDataComponents {
                     .build());
 
     /**
-     * Canister-specific metadata: matrices, gasket IDs, label.
+     * Canister-specific metadata: gasket IDs, label and gasket partners.
      */
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<CanisterMetadata>> CANISTER_METADATA =
             DATA_COMPONENTS.register("canister_metadata",

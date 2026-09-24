@@ -1,16 +1,14 @@
 package com.mercuriusxeno.goo.block.tap;
 
-import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.PlayerUtils;
 import com.mercuriusxeno.goo.block.ShapeHitCheck;
 import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
-import com.mercuriusxeno.goo.item.BlobStacks;
+import com.mercuriusxeno.goo.item.BlobInsert;
 import com.mercuriusxeno.goo.item.GooInteractionType;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.registry.GooItems;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
@@ -222,18 +220,12 @@ final class TapInteractionHandler {
      */
     static InteractionResult handleBlobInsert(
             TapBlockEntity tap, ItemStack stack, Player player) {
-        ResourceKey<GooTypeDefinition> type = BlobStacks.keyOf(stack);
-        if (type == null || !tap.canAcceptGoo()) {
-            return InteractionResult.PASS;
-        }
-
-        int volume = BlobStacks.volumeOf(stack);
-        int accepted = tap.insertGoo(type, volume);
+        int accepted = BlobInsert.pour(stack, player,
+                (type, volume) -> tap.canAcceptGoo() ? tap.insertGoo(type, volume) : 0);
         if (accepted <= 0) {
             return InteractionResult.PASS;
         }
 
-        BlobStacks.deplete(stack, accepted, player);
         tap.getLevel().playSound(null, tap.getBlockPos(), SoundEvents.BOTTLE_EMPTY, SoundSource.BLOCKS, 1.0f, 1.0f);
         return InteractionResult.SUCCESS;
     }
