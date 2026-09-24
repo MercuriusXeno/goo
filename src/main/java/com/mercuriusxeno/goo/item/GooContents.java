@@ -118,12 +118,13 @@ public record GooContents(Map<ResourceKey<GooTypeDefinition>, Integer> contents)
     }
 
     /**
-     * Returns the total volume across all goo types.
+     * Returns the total volume across all goo types, a long because each type
+     * alone may hold up to an int's range (decision diagnose-then-fix-crucible-overflow).
      *
      * @return total volume in microblobs
      */
-    public int totalVolume() {
-        int total = 0;
+    public long totalVolume() {
+        long total = 0;
         for (int v : contents.values()) {
             total += v;
         }
@@ -283,11 +284,11 @@ public record GooContents(Map<ResourceKey<GooTypeDefinition>, Integer> contents)
         if (amount <= 0) {
             return this;
         }
-        int space = capacity - totalVolume();
+        long space = capacity - totalVolume();
         if (space <= 0) {
             return this;
         }
-        int accepted = Math.min(amount, space);
+        int accepted = (int) Math.min(amount, space);
         return withAdded(type, accepted);
     }
 
@@ -303,11 +304,11 @@ public record GooContents(Map<ResourceKey<GooTypeDefinition>, Integer> contents)
         if (amount <= 0) {
             return 0;
         }
-        int space = capacity - totalVolume();
+        long space = capacity - totalVolume();
         if (space <= 0) {
             return 0;
         }
-        return Math.min(amount, space);
+        return (int) Math.min(amount, space);
     }
 
     /**

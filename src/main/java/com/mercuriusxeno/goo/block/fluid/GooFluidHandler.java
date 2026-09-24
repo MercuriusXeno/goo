@@ -224,14 +224,15 @@ public class GooFluidHandler extends FluidStacksResourceHandler {
     }
 
     /**
-     * Returns the total volume across all 15 tanks.
+     * Returns the total volume across all tanks, a long because the tanks
+     * together can pass an int's range (decision diagnose-then-fix-crucible-overflow).
      *
-     * @return the long value
+     * @return the total volume in mB
      */
-    public int totalVolume() {
-        int total = 0;
+    public long totalVolume() {
+        long total = 0;
         for (int i = 0; i < size(); i++) {
-            total += (int) getAmountAsLong(i);
+            total += getAmountAsLong(i);
         }
         return total;
     }

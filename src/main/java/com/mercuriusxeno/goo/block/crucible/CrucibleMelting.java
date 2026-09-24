@@ -185,7 +185,7 @@ final class CrucibleMelting {
      * @param pos         the block position
      */
     private static void spawnBubblesIfGooPresent(CrucibleBlockEntity be, ServerLevel serverLevel, BlockPos pos) {
-        int totalGoo = be.reservoir.totalVolume() + be.getPoolVolume();
+        long totalGoo = CrucibleBasin.heldVolume(be.getPoolVolume(), be.reservoir.totalVolume());
         if (totalGoo <= 0) {
             return;
         }
@@ -243,7 +243,7 @@ final class CrucibleMelting {
      */
     private static void drainFromPool(CrucibleBlockEntity be) {
         GooContents pmiContents = PartiallyMeltedItem.getContents(be.meltingItem);
-        int totalRemaining = pmiContents.totalVolume();
+        long totalRemaining = pmiContents.totalVolume();
         if (totalRemaining <= 0) {
             return;
         }

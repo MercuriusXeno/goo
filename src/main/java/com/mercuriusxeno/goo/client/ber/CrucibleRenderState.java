@@ -13,10 +13,10 @@ import org.jspecify.annotations.Nullable;
 public class CrucibleRenderState extends BlockEntityRenderState {
 
     /** Total mB remaining in the PMI pool (drives liquid level). */
-    public int poolVolume;
+    public long poolVolume;
 
     /** Total mB in the reservoir (drives liquid level alongside pool). */
-    public int reservoirVolume;
+    public long reservoirVolume;
 
     /** Debounce-stabilized dominant goo type from the block entity. Drives liquid surface texture. */
     @Nullable

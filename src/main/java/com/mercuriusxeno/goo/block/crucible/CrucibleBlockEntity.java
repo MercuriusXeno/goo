@@ -249,7 +249,7 @@ public class CrucibleBlockEntity extends BlockEntity implements IGasketHolder, I
      *
      * @return the pool volume
      */
-    public int getPoolVolume() {
+    public long getPoolVolume() {
         return meltingItem.isEmpty() ? 0 : PartiallyMeltedItem.getContents(meltingItem).totalVolume();
     }
 
