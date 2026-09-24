@@ -79,7 +79,27 @@ class CrucibleBlockEntityTest {
      */
     @Test
     void noColdGooYieldsFloorRate() {
-        assertEquals(1, CrucibleMath.extractionRate(500, 0));
+        assertEquals(CrucibleMath.MELT_FLOOR_RATE, CrucibleMath.extractionRate(500, 0));
+    }
+
+    /**
+     * An empty crucible starts a melt at the floor, and the floor is well above 1 mB a tick.
+     */
+    @Test
+    void zeroWarmGooYieldsFloorRate() {
+        assertTrue(CrucibleMath.MELT_FLOOR_RATE > 1);
+        assertEquals(CrucibleMath.MELT_FLOOR_RATE, CrucibleMath.extractionRate(0, ONE_BLOCK_MB));
+    }
+
+    /**
+     * One block melts in about 3 s (60 ticks) from an empty reservoir.
+     * Whole-melt ticks from empty at floor 7, exponent 2, simulated by simulateMeltRates:
+     * 1152 mB in 60, 4608 mB in 232, 13824 mB in 690, 124416 mB in 6184.
+     */
+    @Test
+    void oneBlockFromEmptyMeltsInAboutThreeSeconds() {
+        int ticks = simulateMeltRates(0, ONE_BLOCK_MB).size();
+        assertTrue(ticks >= 50 && ticks <= 70, "one block melted in " + ticks + " ticks, expected 50 to 70");
     }
 
     // -- GooValue.toGooContents ------------------------------------------

@@ -13,9 +13,10 @@ import java.util.Map;
 public final class CrucibleMath {
 
     /**
-     * The melt rate in mB/tick at zero warm goo.
+     * The melt rate in mB/tick at zero warm goo, tuned with MELT_RAMP_EXPONENT so one block
+     * melts in about 3 s from an empty crucible (melt-floor-tuned-to-three-seconds).
      */
-    static final int MELT_FLOOR_RATE = 1;
+    public static final int MELT_FLOOR_RATE = 7;
 
     /**
      * The power the warm-to-cold ratio is raised to in the melt ramp.
@@ -27,21 +28,21 @@ public final class CrucibleMath {
 
     /**
      * Computes the melt rate (mB/tick) from the warm goo against the cold goo.
-     * Formula: max(1, floor(MELT_FLOOR_RATE * (1 + warm / cold) ^ MELT_RAMP_EXPONENT)).
+     * Formula: floor(MELT_FLOOR_RATE * (1 + warm / cold) ^ MELT_RAMP_EXPONENT).
      * The rate rises as warm grows and cold shrinks, so the tail of a melt is its fastest part
      * (melt-rate-ramps-on-warm-goo).
      *
      * @param warmVolume the reservoir's total volume in mB
      * @param coldVolume the melting item's remaining volume in mB
-     * @return the melt rate in mB/tick, at least 1
+     * @return the melt rate in mB/tick, at least MELT_FLOOR_RATE
      */
     public static int extractionRate(int warmVolume, int coldVolume) {
         if (coldVolume <= 0) {
-            return Math.max(1, MELT_FLOOR_RATE);
+            return MELT_FLOOR_RATE;
         }
         double warmToCold = Math.max(0, warmVolume) / (double) coldVolume;
         double ramp = MELT_FLOOR_RATE * Math.pow(1 + warmToCold, MELT_RAMP_EXPONENT);
-        return Math.max(1, (int) Math.floor(ramp));
+        return Math.max(MELT_FLOOR_RATE, (int) Math.floor(ramp));
     }
 
     /**
