@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.block.BlockEntitySync;
 import com.mercuriusxeno.goo.block.GooLightContribution;
 import com.mercuriusxeno.goo.block.IGooLightSource;
 import com.mercuriusxeno.goo.block.fluid.GooFluidHandler;
+import com.mercuriusxeno.goo.block.fluid.GooStream;
 import com.mercuriusxeno.goo.block.gasket.GasketAttachment;
 import com.mercuriusxeno.goo.block.gasket.GasketPusher;
 import com.mercuriusxeno.goo.block.gasket.IGasketHolder;
@@ -254,23 +255,23 @@ public class VatBlockEntity extends BlockEntity implements IGasketHolder, IGooLi
     }
 
     /**
-     * Returns the stream goo type, or null if no active stream.
+     * Returns the stream goo type, or null once the stream's hold has passed.
      *
      * @param currentTick the current game tick
      * @return the vat stream type
      */
     public @Nullable ResourceKey<GooTypeDefinition> getVatStreamType(long currentTick) {
-        return (currentTick - vatStreamTick <= 1) ? vatStreamType : null;
+        return GooStream.holds(currentTick, vatStreamTick) ? vatStreamType : null;
     }
 
     /**
-     * Returns the stream rate in mB/tick, or 0.
+     * Returns the volume the stream's last landing tick carried in mB, or 0 once its hold has passed.
      *
      * @param currentTick the current game tick
      * @return the vat stream rate
      */
     public int getVatStreamRate(long currentTick) {
-        return (currentTick - vatStreamTick <= 1) ? vatStreamRate : 0;
+        return GooStream.holds(currentTick, vatStreamTick) ? vatStreamRate : 0;
     }
 
     @Override
