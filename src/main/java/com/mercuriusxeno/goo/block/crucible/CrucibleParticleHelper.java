@@ -72,6 +72,10 @@ public final class CrucibleParticleHelper {
     private static final double BUBBLE_RISE_OFFSET = 1.0 / 32.0;
     /** Ticks before a dedupe entry expires (matches GooBubbleParticle.POP_END). */
     private static final long BUBBLE_TTL_TICKS = 54;
+    /** Inset from each inner wall so a bubble's own radius stays clear of it (bubbles-halved-and-inset). */
+    static final double BUBBLE_WALL_INSET = 1.5 / 16.0;
+    /** One bubble spawns on one server tick in this many (bubbles-halved-and-inset). */
+    static final int BUBBLE_ONE_IN_TICKS = 4;
 
     // -- Smoke burst constants --
     /** Base smoke particle count on item absorption. */
@@ -191,7 +195,7 @@ public final class CrucibleParticleHelper {
     }
 
     /**
-     * Spawns 0-1 color-tinted goo bubble particles at random XZ within the basin.
+     * Spawns a color-tinted goo bubble on one tick in {@link #BUBBLE_ONE_IN_TICKS}, at random XZ within the basin.
      * Rejects positions too close to live (non-expired) bubbles using per-crucible history.
      *
      * @param level    the current level
@@ -205,13 +209,24 @@ public final class CrucibleParticleHelper {
             float surfaceY, int color, RandomSource random,
             BubbleHistory history) {
         history.tick(level.getGameTime());
-        int count = random.nextInt(IGNITION_RANDOM_COUNT);
+        int count = bubbleCount(random);
         ColorParticleOption options = ColorParticleOption.create(
             GooParticles.GOO_BUBBLE.get(), color | ALPHA_OPAQUE);
         double y = pos.getY() + surfaceY + BUBBLE_RISE_OFFSET;
         for (int i = 0; i < count; i++) {
             trySpawnBubble(level, options, pos, y, random, history);
         }
+    }
+
+    /**
+     * Returns how many bubbles one server tick spawns: one on a tick in
+     * {@link #BUBBLE_ONE_IN_TICKS}, otherwise none.
+     *
+     * @param random the random source
+     * @return the bubble count for this tick
+     */
+    static int bubbleCount(RandomSource random) {
+        return random.nextInt(BUBBLE_ONE_IN_TICKS) == 0 ? 1 : 0;
     }
 
     /**
@@ -346,12 +361,28 @@ public final class CrucibleParticleHelper {
     }
 
     /**
-     * Returns a random X or Z coordinate within the basin footprint the surface is drawn over.
+     * Returns a random X or Z coordinate within the basin footprint the surface is drawn over,
+     * inset {@link #BUBBLE_WALL_INSET} from each inner wall.
      *
      * @param random the random source
      * @return the block-relative coordinate
      */
     static double randomInBasin(RandomSource random) {
-        return CrucibleBasin.FOOTPRINT_MIN + random.nextDouble() * CrucibleBasin.footprintWidth();
+        return randomInsetWithin(random, CrucibleBasin.FOOTPRINT_MIN, CrucibleBasin.FOOTPRINT_MAX);
+    }
+
+    /**
+     * Returns a random coordinate between min and max, each bound drawn inward by
+     * {@link #BUBBLE_WALL_INSET}.
+     *
+     * @param random the random source
+     * @param min    the footprint's low wall
+     * @param max    the footprint's high wall
+     * @return the block-relative coordinate
+     */
+    static double randomInsetWithin(RandomSource random, double min, double max) {
+        double low = min + BUBBLE_WALL_INSET;
+        double high = max - BUBBLE_WALL_INSET;
+        return low + random.nextDouble() * (high - low);
     }
 }
