@@ -3,15 +3,13 @@ package com.mercuriusxeno.goo.client.ber;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
+import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.RenderContext;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.minecraft.data.AtlasIds;
-import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.material.Fluid;
-import net.minecraft.world.level.material.Fluids;
 
 /**
  * Renders a pulsing fluid stream cuboid from a gasket entry point
@@ -33,17 +31,11 @@ public final class GooStreamRenderer {
     /** Sin wave amplitude (±10% width variation). */
     private static final float PULSE_AMPLITUDE = 0.1f;
 
+    /** Alpha of the semi-transparent stream. */
+    private static final int STREAM_ALPHA = 0xB0;
+
     /** Semi-transparent ARGB for the stream. */
-    private static final int STREAM_COLOR = 0xB0FFFFFF;
-
-    /** Semi-transparent blue tint for water streams. */
-    private static final int WATER_STREAM_COLOR = 0xB03F76E4;
-
-    /** Vanilla water still sprite ID. */
-    private static final Identifier WATER_STILL = Identifier.withDefaultNamespace("block/water_still");
-
-    /** Vanilla lava still sprite ID. */
-    private static final Identifier LAVA_STILL = Identifier.withDefaultNamespace("block/lava_still");
+    private static final int STREAM_COLOR = ARGB.color(STREAM_ALPHA, GooRenderUtil.OPAQUE_WHITE);
 
     /** Half divisor for stream width calculation. */
     private static final float WIDTH_HALF = 2f;
@@ -112,20 +104,10 @@ public final class GooStreamRenderer {
 
         float hw = computeHalfWidth(rate, animationTime);
         CuboidBounds box = new CuboidBounds(cx - hw, cx + hw, cz - hw, cz + hw, yBottom, yTop);
-        TextureAtlasSprite sprite = lookupVanillaSprite(fluid);
-        int color = isWater(fluid) ? WATER_STREAM_COLOR : STREAM_COLOR;
+        TextureAtlasSprite sprite = GooSubmitter.fluidSprite(fluid);
+        int color = ARGB.color(STREAM_ALPHA, GooSubmitter.fluidTint(fluid));
         GooRenderUtil.UvRect uv = computeSpriteUv(sprite, hw, yTop - yBottom);
         ctx.emitSides(color, box, uv);
-    }
-
-    private static boolean isWater(Fluid fluid) {
-        return fluid == Fluids.WATER || fluid == Fluids.FLOWING_WATER;
-    }
-
-    private static TextureAtlasSprite lookupVanillaSprite(Fluid fluid) {
-        Identifier id = isWater(fluid) ? WATER_STILL : LAVA_STILL;
-        return Minecraft.getInstance().getAtlasManager()
-                .getAtlasOrThrow(AtlasIds.BLOCKS).getSprite(id);
     }
 
     private static GooRenderUtil.UvRect computeSpriteUv(
