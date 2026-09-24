@@ -11,11 +11,14 @@ import com.mercuriusxeno.goo.ability.program.TapHost;
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
 import com.mercuriusxeno.goo.block.tap.TapBlock;
 import com.mercuriusxeno.goo.block.tap.TapBlockEntity;
+import com.mercuriusxeno.goo.block.tap.TapDrip;
 import com.mercuriusxeno.goo.block.tap.TapDripScheduler;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooItems;
+import com.mercuriusxeno.goo.registry.GooParticles;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.particles.ColorParticleOption;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
@@ -26,6 +29,8 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -67,7 +72,25 @@ public final class TapDripTests {
     private static final BlockPos OPEN_LANDING = new BlockPos(1, 0, 1);
     private static final BlockPos COVERED_LANDING = new BlockPos(3, 0, 1);
 
+    private static final int DRIP_RGB = 0x336699;
+    private static final String SENT_COUNT = "particles one tap drip sends";
+    private static final String SENT_TYPE = "particle type one tap drip sends";
+
     private TapDripTests() {
+    }
+
+    /**
+     * One tap drip sends the tap-drip particle, not the trail-drip
+     * (decision tap-drip-own-square-particles).
+     *
+     * @param helper the gametest helper
+     */
+    public static void tapDripSendsTapDrip(GameTestHelper helper) {
+        List<ColorParticleOption> sent = new ArrayList<>();
+        TapDrip.emit((option, at, velocity) -> sent.add(option), DRIP_RGB, Vec3.ZERO);
+        helper.assertValueEqual(sent.size(), 1, SENT_COUNT);
+        helper.assertValueEqual(sent.getFirst().getType(), GooParticles.TAP_DRIP.get(), SENT_TYPE);
+        helper.succeed();
     }
 
     /**
