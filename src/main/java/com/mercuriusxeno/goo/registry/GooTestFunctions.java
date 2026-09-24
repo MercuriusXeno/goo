@@ -28,6 +28,7 @@ public final class GooTestFunctions {
     private static final String TYPES_MARKER_RELOADS = "types_marker_reloads";
     private static final String TYPES_GLOVE_RELOADS = "types_glove_reloads";
     private static final String GLOVE_TYPE_ONLY_REFUSED = "glove_type_only_refused";
+    private static final String GLOVE_SHIFT_RECOLLECTS_MARKER = "glove_shift_recollects_marker";
 
     // --- Generic goo fluid ---
     private static final String FLUID_TYPES_SIDE_BY_SIDE = "fluid_types_side_by_side";
@@ -144,6 +145,7 @@ public final class GooTestFunctions {
     private static final String TAP_DRIP_BOTTOMLESS = "tap_drip_bottomless";
     private static final String TAP_HOST_PLACES_ABOVE_LANDING = "tap_host_places_above_landing";
     private static final String TAP_DRIP_NO_ABILITY = "tap_drip_no_ability";
+    private static final String TAP_DRIP_SENDS_TAP_DRIP = "tap_drip_sends_tap_drip";
     private static final String IX_VAT_GASKET = "ix_vat_gasket_apply";
     private static final String IX_HUB_INSERT = "ix_hub_canister_insert";
     private static final String IX_HUB_PICKUP = "ix_hub_canister_pickup";
@@ -247,6 +249,7 @@ public final class GooTestFunctions {
         reg(r, TAP_DRIP_BOTTOMLESS, TapDripTests::tapDripBottomless);
         reg(r, TAP_HOST_PLACES_ABOVE_LANDING, TapDripTests::tapHostPlacesAboveLanding);
         reg(r, TAP_DRIP_NO_ABILITY, TapDripTests::tapDripNoAbility);
+        reg(r, TAP_DRIP_SENDS_TAP_DRIP, TapDripTests::tapDripSendsTapDrip);
     }
 
     private static void registerLightingTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
@@ -260,6 +263,7 @@ public final class GooTestFunctions {
         reg(r, TYPES_DATAPACK_LISTED, GooTypeRegistryTests::datapackTypeListed);
         reg(r, TYPES_MARKER_RELOADS, GooTypeRegistryTests::chainMarkerReloadsType);
         reg(r, GLOVE_TYPE_ONLY_REFUSED, GloveSelectTests::typeOnlySelectionRefused);
+        reg(r, GLOVE_SHIFT_RECOLLECTS_MARKER, GloveRecollectTests::shiftClickRecollectsMarker);
         reg(r, TYPES_GLOVE_RELOADS, GooTypeRegistryTests::gloveSelectionReloadsType);
     }
 

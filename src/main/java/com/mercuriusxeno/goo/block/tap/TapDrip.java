@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.block.tap;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.block.canister.ICanisterHolder;
+import com.mercuriusxeno.goo.registry.GooParticles;
 import net.minecraft.core.particles.ColorParticleOption;
 import net.minecraft.core.particles.ParticleType;
 import net.minecraft.resources.ResourceKey;
@@ -13,7 +14,7 @@ import org.jspecify.annotations.Nullable;
  * One drip of a tap: the draw from the tap's own canister slot, and the
  * particle an onlooker sees leave the spigot.
  */
-final class TapDrip {
+public final class TapDrip {
 
     /**
      * Volume one drip draws, in mB (decision drip-draws-one-mb-from-canister).
@@ -35,15 +36,15 @@ final class TapDrip {
      * Where a drip's particle goes: the server level in play, a recorder in tests.
      */
     @FunctionalInterface
-    interface ParticleSink {
+    public interface ParticleSink {
         /**
-         * Sends one particle from a point with a vertical speed.
+         * Sends one particle from a point with a velocity.
          *
-         * @param option    the particle
-         * @param at        the starting point
-         * @param fallSpeed the vertical speed, negative downward
+         * @param option   the particle
+         * @param at       the starting point
+         * @param velocity the starting velocity, in blocks per tick
          */
-        void send(ColorParticleOption option, Vec3 at, double fallSpeed);
+        void send(ColorParticleOption option, Vec3 at, Vec3 velocity);
     }
 
     /**
@@ -53,8 +54,8 @@ final class TapDrip {
      * @return the sink
      */
     static ParticleSink sinkOf(ServerLevel level) {
-        return (option, at, fallSpeed) ->
-                level.sendParticles(option, at.x, at.y, at.z, 0, 0.0, fallSpeed, 0.0, 1.0);
+        return (option, at, velocity) -> level.sendParticles(option, at.x, at.y, at.z, 0,
+                velocity.x, velocity.y, velocity.z, 1.0);
     }
 
     /**
@@ -73,7 +74,19 @@ final class TapDrip {
     }
 
     /**
-     * Sends one drip particle of the type's color leaving the spigot downward.
+     * Sends one tap-drip particle of the type's color leaving the spigot
+     * straight down (decision tap-drip-own-square-particles).
+     *
+     * @param sink where the particle goes
+     * @param rgb  the goo type's color
+     * @param at   the spigot underside
+     */
+    public static void emit(ParticleSink sink, int rgb, Vec3 at) {
+        emit(sink, GooParticles.TAP_DRIP.get(), rgb, at);
+    }
+
+    /**
+     * Sends one drip particle of the type's color leaving the spigot straight down.
      *
      * @param sink     where the particle goes
      * @param particle the drip particle type
@@ -81,6 +94,6 @@ final class TapDrip {
      * @param at       the spigot underside
      */
     static void emit(ParticleSink sink, ParticleType<ColorParticleOption> particle, int rgb, Vec3 at) {
-        sink.send(ColorParticleOption.create(particle, rgb | OPAQUE_ALPHA), at, DRIP_LEAVE_SPEED);
+        sink.send(ColorParticleOption.create(particle, rgb | OPAQUE_ALPHA), at, new Vec3(0.0, DRIP_LEAVE_SPEED, 0.0));
     }
 }

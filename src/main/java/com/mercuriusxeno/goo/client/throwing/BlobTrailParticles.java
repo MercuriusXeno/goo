@@ -112,7 +112,7 @@ final class BlobTrailParticles {
      */
     private static void spawnDripParticle(Minecraft mc, Vec3 pos, Vec3 vel, int color) {
         ColorParticleOption dripOption = ColorParticleOption.create(
-                GooParticles.GOO_DRIP.get(), color | OPAQUE_BLACK);
+                GooParticles.TRAIL_DRIP.get(), color | OPAQUE_BLACK);
         mc.level.addParticle(dripOption,
                 pos.x + randomOffset(), pos.y + randomOffset(), pos.z + randomOffset(),
                 vel.x * DRIP_VEL_SCALE, DRIP_DOWN_VEL, vel.z * DRIP_VEL_SCALE);
