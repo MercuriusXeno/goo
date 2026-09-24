@@ -47,48 +47,6 @@ final class TapInteractionHandler {
     // --- Dispatch ---
 
     /**
-     * Routes canister-region interactions - only blob ops, no canister insert.
-     *
-     * @param interaction the classified interaction type
-     * @param tap         the tap block entity
-     * @param stack       the item stack
-     * @param player      the interacting player
-     * @param hand        the hand used
-     * @param hitResult   the ray trace hit result
-     * @param pos         the block position
-     * @param level       the current level
-     * @return the interaction result
-     */
-    static InteractionResult dispatchCanisterRegion(
-            GooInteractionType interaction, TapBlockEntity tap, ItemStack stack,
-            Player player, InteractionHand hand, BlockHitResult hitResult, BlockPos pos, Level level) {
-        if (interaction == GooInteractionType.TUNER_PASS) {
-            throw new IllegalStateException(ERR_TUNER_PASS);
-        }
-        return dispatchCanisterRegionNonTuner(interaction, tap, stack, player, hand);
-    }
-
-    /**
-     * Dispatches a non-tuner canister-region interaction to the matching handler.
-     *
-     * @param interaction the classified interaction type (must not be TUNER_PASS)
-     * @param tap         the tap block entity
-     * @param stack       the held item stack
-     * @param player      the interacting player
-     * @param hand        the hand used
-     * @return the interaction result
-     */
-    private static InteractionResult dispatchCanisterRegionNonTuner(
-            GooInteractionType interaction, TapBlockEntity tap, ItemStack stack,
-            Player player, InteractionHand hand) {
-        return switch (interaction) {
-            case CANISTER_INSERT -> InteractionResult.TRY_WITH_EMPTY_HAND;
-            case BLOB_INSERT -> handleBlobInsert(tap, stack, player);
-            default -> throw new IllegalStateException(ERR_UNHANDLED + interaction);
-        };
-    }
-
-    /**
      * Routes a classified interaction to the appropriate tap handler.
      *
      * @param interaction the classified interaction type

@@ -261,8 +261,7 @@ public class TapBlock extends BaseEntityBlock {
 
     /**
      * Classifies the held item via GooBlockInteraction and dispatches to
-     * tap-specific handlers. Hits on the canister region are routed directly
-     * to canister operations, bypassing tap body/valve logic.
+     * tap-specific handlers.
      *
      * @param stack     the item stack
      * @param state     the block state
@@ -277,14 +276,12 @@ public class TapBlock extends BaseEntityBlock {
     protected @NonNull InteractionResult useItemOn(
             @NonNull ItemStack stack, @NonNull BlockState state, Level level, @NonNull BlockPos pos,
             @NonNull Player player, @NonNull InteractionHand hand, @NonNull BlockHitResult hitResult) {
-        GooBlockInteraction.Dispatcher<TapBlockEntity> handler =
-                TapInteractionHandler.hitCanister(hitResult, pos, state.getValue(FACING), CANISTER_SLOT_SHAPES)
-                        ? TapInteractionHandler::dispatchCanisterRegion : TapInteractionHandler::dispatchTap;
+        // tap-top-click-inserts-canister: an item click inserts from any region, the slot outline's included
         return GooBlockInteraction.handleItemInteraction(
                 stack, level, pos, player, hand, hitResult,
                 TapBlockEntity.class,
                 t -> t == null,
-                handler);
+                TapInteractionHandler::dispatchTap);
     }
 
     /**

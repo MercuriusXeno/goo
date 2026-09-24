@@ -132,6 +132,10 @@ public final class GooTestFunctions {
 
     // --- Machine interactions ---
     private static final String IX_TAP_VALVE = "ix_tap_valve_toggle";
+    private static final String IX_TAP_TOP_CLICK_INSERT = "ix_tap_top_click_insert";
+    private static final String IX_TAP_SLOT_CLICK_INSERT = "ix_tap_slot_click_insert";
+    private static final String IX_TAP_EMPTY_HAND_TAKE = "ix_tap_empty_hand_take";
+    private static final String IX_TAP_BLOB_POUR = "ix_tap_blob_pour";
 
     // --- Tap drip ---
     private static final String TAP_DRIP_DRAWS_ONE_MB = "tap_drip_draws_one_mb";
@@ -346,6 +350,10 @@ public final class GooTestFunctions {
 
     private static void registerMachineInteractionTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
         reg(r, IX_TAP_VALVE, MachineInteractionTests::tapCanisterInsert);
+        reg(r, IX_TAP_TOP_CLICK_INSERT, MachineInteractionTests::tapTopClickInsertsCanister);
+        reg(r, IX_TAP_SLOT_CLICK_INSERT, MachineInteractionTests::tapSlotRegionClickInsertsCanister);
+        reg(r, IX_TAP_EMPTY_HAND_TAKE, MachineInteractionTests::tapEmptyHandClickTakesCanister);
+        reg(r, IX_TAP_BLOB_POUR, MachineInteractionTests::tapBlobClickPoursIntoSlottedCanister);
         reg(r, IX_VAT_GASKET, MachineInteractionTests::vatGasketApply);
         reg(r, IX_HUB_INSERT, MachineInteractionTests::hubCanisterInsert);
         reg(r, IX_HUB_PICKUP, MachineInteractionTests::hubCanisterPickup);
