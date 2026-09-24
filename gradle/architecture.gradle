@@ -18,3 +18,14 @@ tasks.register('architectureGraphs', JavaExec) {
     args architectureClassesDir.absolutePath, 'src/main/java', architectureOutDir.absolutePath
     outputs.upToDateWhen { false }
 }
+
+tasks.register('architectureFindings', JavaExec) {
+    description = 'Writes the shape findings a sweep reads first'
+    group = 'documentation'
+    dependsOn tasks.named('compileJava')
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.mercuriusxeno.goo.tools.architecture.ArchitectureFindings'
+    workingDir = project.projectDir
+    args architectureClassesDir.absolutePath, 'src/main/java', architectureOutDir.absolutePath
+    outputs.upToDateWhen { false }
+}

@@ -16,8 +16,10 @@ public final class NodeLabels {
 
     /** The package every goo type sits under. */
     public static final String ROOT_PACKAGE = "com.mercuriusxeno.goo";
+    /** The separator between the parts of a dotted package name. */
+    public static final String PACKAGE_SEPARATOR = ".";
     private static final String ROOT_LABEL = "goo";
-    private static final String ROOT_PREFIX = ROOT_PACKAGE + ".";
+    private static final String ROOT_PREFIX = ROOT_PACKAGE + PACKAGE_SEPARATOR;
     private static final String COLLIDING_TYPE_LABEL = "%s (%s)";
 
     /**

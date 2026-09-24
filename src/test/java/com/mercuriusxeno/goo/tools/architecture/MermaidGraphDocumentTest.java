@@ -20,7 +20,7 @@ class MermaidGraphDocumentTest {
     private static ScannedType type(String qualifiedName, String... references) {
         int lastDot = qualifiedName.lastIndexOf('.');
         return new ScannedType(qualifiedName.substring(0, lastDot), qualifiedName.substring(lastDot + 1),
-                "src/main/java/" + qualifiedName.replace('.', '/') + ".java",
+                TypeKind.CLASS, "src/main/java/" + qualifiedName.replace('.', '/') + ".java",
                 List.of(), List.of(), Set.of(references), 0);
     }
 
