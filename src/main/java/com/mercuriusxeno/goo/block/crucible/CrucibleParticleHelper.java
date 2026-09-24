@@ -75,7 +75,7 @@ public final class CrucibleParticleHelper {
     /** Inset from each inner wall so a bubble's own radius stays clear of it (bubbles-halved-and-inset). */
     static final double BUBBLE_WALL_INSET = 1.5 / 16.0;
     /** One bubble spawns on one server tick in this many (bubbles-halved-and-inset). */
-    static final int BUBBLE_ONE_IN_TICKS = 4;
+    static final int BUBBLE_ONE_IN_TICKS = 20;
 
     // -- Smoke burst constants --
     /** Base smoke particle count on item absorption. */

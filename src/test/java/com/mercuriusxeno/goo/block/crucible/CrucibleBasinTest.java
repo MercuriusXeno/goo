@@ -106,7 +106,8 @@ class CrucibleBasinTest {
     }
 
     @Test
-    void oneBubbleSpawnsOnlyOnTheOneTickInFour() {
+    void oneBubbleSpawnsOnlyOnTheOneTickInTwenty() {
+        assertEquals(20, CrucibleParticleHelper.BUBBLE_ONE_IN_TICKS);
         RandomSource random = mock(RandomSource.class);
         for (int roll = 0; roll < CrucibleParticleHelper.BUBBLE_ONE_IN_TICKS; roll++) {
             when(random.nextInt(CrucibleParticleHelper.BUBBLE_ONE_IN_TICKS)).thenReturn(roll);
@@ -116,14 +117,14 @@ class CrucibleBasinTest {
     }
 
     @Test
-    void bubblesAverageOneEveryFourTicksOverASeededRun() {
+    void bubblesAverageOneEveryTwentyTicksOverASeededRun() {
         RandomSource random = RandomSource.create(42L);
-        int ticks = 40_000;
+        int ticks = 200_000;
         int bubbles = 0;
         for (int i = 0; i < ticks; i++) {
             bubbles += CrucibleParticleHelper.bubbleCount(random);
         }
         double perTick = (double) bubbles / ticks;
-        assertEquals(0.25, perTick, 0.01, "bubbles per tick over a seeded run");
+        assertEquals(0.05, perTick, 0.005, "bubbles per tick over a seeded run");
     }
 }
