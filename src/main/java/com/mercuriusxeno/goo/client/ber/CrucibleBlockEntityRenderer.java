@@ -225,7 +225,7 @@ public class CrucibleBlockEntityRenderer
     static void emitLiquidSurface(RenderContext ctx, float surfaceY, GooRenderUtil.UvRect uv,
             float amplitude) {
         CuboidBounds basin = new CuboidBounds(CrucibleBasin.FOOTPRINT_MIN, CrucibleBasin.FOOTPRINT_MAX,
-            CrucibleBasin.FOOTPRINT_MIN, CrucibleBasin.FOOTPRINT_MAX, surfaceY, surfaceY);
+            CrucibleBasin.FOOTPRINT_MIN, CrucibleBasin.FOOTPRINT_MAX, CrucibleBasin.FLOOR_Y, surfaceY);
         ctx.liquidSurfaceGrid(basin, uv, amplitude);
     }
 
