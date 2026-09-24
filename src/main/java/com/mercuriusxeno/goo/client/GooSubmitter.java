@@ -34,6 +34,7 @@ import java.util.function.Consumer;
  * buffer holds both and sortOnUpload orders them; body vertices carry the
  * block entity's world light while fluid vertices carry fullbright, which
  * makes the lightmap multiply a no-op without a shader or pipeline change.
+ * The vat and crucible fluid alone submit on the undulating surface type.
  */
 public final class GooSubmitter {
 
@@ -187,6 +188,25 @@ public final class GooSubmitter {
     public static void submitFluid(PoseStack poseStack, SubmitNodeCollector nodeCollector,
                                    int color, Consumer<RenderContext> emitter) {
         nodeCollector.submitCustomGeometry(poseStack, renderType(),
+            (pose, c) -> emitter.accept(
+                new RenderContext(pose, c, LightCoordsUtil.FULL_BRIGHT, color)));
+    }
+
+    /**
+     * Submits vat or crucible fluid geometry fullbright in the given color
+     * on the undulating fluid surface render type (decision
+     * undulating-fluid-surface): a vertex's overlay UV carries its ripple
+     * amplitude, so the grid surface ripples and flat faces stay put. The
+     * whole vat or crucible fluid goes through here so one buffer sorts it.
+     *
+     * @param poseStack     the pose stack
+     * @param nodeCollector the render node collector
+     * @param color         the ARGB color the context's uncolored emitters use
+     * @param emitter       emits the fluid vertices through the context
+     */
+    public static void submitUndulatingFluid(PoseStack poseStack, SubmitNodeCollector nodeCollector,
+                                             int color, Consumer<RenderContext> emitter) {
+        nodeCollector.submitCustomGeometry(poseStack, GooRenderTypes.gooFluidSurface(BLOCK_ATLAS),
             (pose, c) -> emitter.accept(
                 new RenderContext(pose, c, LightCoordsUtil.FULL_BRIGHT, color)));
     }

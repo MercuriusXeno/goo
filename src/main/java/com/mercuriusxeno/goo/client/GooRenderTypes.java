@@ -281,6 +281,46 @@ public final class GooRenderTypes {
     }
 
     /**
+     * Goo fluid surface pipeline (decision undulating-fluid-surface): the
+     * goo fluid look, translucent, fullbright and without cardinal
+     * lighting, whose vertex shader lifts each vertex by the ripple
+     * amplitude its overlay UV carries times a wave of world position and
+     * GameTime. Cull is off as on entityTranslucent, which the vat and
+     * crucible fluid drew on before.
+     */
+    public static final RenderPipeline GOO_FLUID_SURFACE = RenderPipeline.builder(
+                    RenderPipelines.ENTITY_EMISSIVE_SNIPPET,
+                    RenderPipelines.GLOBALS_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, "pipeline/goo_fluid_surface"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, "core/goo_fluid_surface"))
+            .withShaderDefine("ALPHA_CUTOUT", 0.1F)
+            .withShaderDefine("NO_OVERLAY")
+            .withShaderDefine("NO_CARDINAL_LIGHTING")
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withCull(false)
+            .build();
+
+    /** Per-texture memoized render types on the goo fluid surface pipeline. */
+    private static final java.util.function.Function<Identifier, RenderType> GOO_FLUID_SURFACE_FACTORY =
+            net.minecraft.util.Util.memoize(texture -> RenderType.create(
+                    "goo_fluid_surface",
+                    RenderSetup.builder(GOO_FLUID_SURFACE)
+                            .withTexture("Sampler0", texture)
+                            .sortOnUpload()
+                            .createRenderSetup()
+            ));
+
+    /**
+     * Returns the undulating goo fluid surface render type for a texture atlas.
+     *
+     * @param texture the texture atlas identifier (typically blocks atlas)
+     * @return memoized RenderType
+     */
+    public static RenderType gooFluidSurface(Identifier texture) {
+        return GOO_FLUID_SURFACE_FACTORY.apply(texture);
+    }
+
+    /**
      * Crystal shard pipeline: translucent glass splinter quads scattered
      * in a cloud volume. Depth test on, depth write off, cull off.
      */
@@ -324,5 +364,6 @@ public final class GooRenderTypes {
         event.registerPipeline(VORONOI_FISSURE);
         event.registerPipeline(CRYSTAL_SHARD);
         event.registerPipeline(GOO_FLUID);
+        event.registerPipeline(GOO_FLUID_SURFACE);
     }
 }

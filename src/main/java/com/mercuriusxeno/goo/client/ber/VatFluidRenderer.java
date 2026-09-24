@@ -49,7 +49,7 @@ final class VatFluidRenderer {
         if (localFill <= 0f) { return; }
 
         CuboidBounds b = computeVatCuboidBounds(state, localFloor, localFill);
-        renderVatTopFaces(ctx, b, sprite, localCeiling - localFloor, localFill);
+        renderVatTopFaces(ctx, b, sprite, localCeiling - localFloor, localFill, state.rippleAmplitude);
         renderVatSideFaces(ctx, b, sprite, localCeiling - localFloor);
     }
 
@@ -72,22 +72,24 @@ final class VatFluidRenderer {
     }
 
     /**
-     * Renders the top/bottom faces at the air-liquid interface if not fully submerged.
+     * Renders the rippling top/bottom grids at the air-liquid interface if not fully submerged.
      *
      * @param ctx         the render context
      * @param b           the precomputed fluid cuboid bounds
      * @param sprite      the fluid texture atlas sprite
      * @param localHeight the total vat height in block units
      * @param localFill   the fill height in block units
+     * @param amplitude   the ripple amplitude the interior vertices carry
      */
     private static void renderVatTopFaces(RenderContext ctx, CuboidBounds b,
-                                          TextureAtlasSprite sprite, float localHeight, float localFill) {
+                                          TextureAtlasSprite sprite, float localHeight, float localFill,
+                                          float amplitude) {
         boolean isFullySubmerged = localFill >= localHeight - SUBMERSION_EPSILON;
         if (isFullySubmerged) { return; }
         GooRenderUtil.UvRect uv = new GooRenderUtil.UvRect(
             sprite.getU0(), sprite.getV0(), sprite.getU1(), sprite.getV1());
-        ctx.liquidSurface(ctx.color(), b, uv);
-        ctx.liquidSurfaceDown(ctx.color(), b, uv);
+        ctx.liquidSurfaceGrid(b, uv, amplitude);
+        ctx.liquidSurfaceGridDown(b, uv, amplitude);
     }
 
     /**
