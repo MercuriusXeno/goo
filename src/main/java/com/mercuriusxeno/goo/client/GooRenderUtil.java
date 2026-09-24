@@ -7,7 +7,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.BlockPos;
-import net.minecraft.data.AtlasIds;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.phys.BlockHitResult;
@@ -45,8 +44,7 @@ public final class GooRenderUtil {
      * @return the sprite from the BLOCKS atlas
      */
     public static TextureAtlasSprite lookupBlockSprite(Identifier spriteId) {
-        return Minecraft.getInstance().getAtlasManager()
-            .getAtlasOrThrow(AtlasIds.BLOCKS).getSprite(spriteId);
+        return GooSubmitter.blockSprite(spriteId);
     }
 
     /**
