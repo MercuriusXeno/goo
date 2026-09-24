@@ -32,6 +32,12 @@ public class GooFluidHandler extends FluidStacksResourceHandler {
     private final LongSupplier tickSupplier;
 
     /**
+     * True when each tank holds the full capacity on its own rather than
+     * sharing it with the other tanks (decision crucible-refuses-past-two-billion).
+     */
+    private final boolean capacityPerType;
+
+    /**
      * Incoming goo, transient, for rendering the pour.
      */
     private final GooStream stream = new GooStream();
@@ -60,9 +66,34 @@ public class GooFluidHandler extends FluidStacksResourceHandler {
      * @param tickSupplier supplies the current game tick for stream timing
      */
     public GooFluidHandler(int capacity, Runnable onChange, LongSupplier tickSupplier) {
+        this(capacity, onChange, tickSupplier, false);
+    }
+
+    /**
+     * Creates a handler whose capacity is shared across tanks or held by each.
+     *
+     * @param capacity        the capacity in microblobs (mB)
+     * @param onChange        called when contents change
+     * @param tickSupplier    supplies the current game tick for stream timing
+     * @param capacityPerType true when each tank holds the whole capacity
+     */
+    private GooFluidHandler(int capacity, Runnable onChange, LongSupplier tickSupplier, boolean capacityPerType) {
         super(GooTypes.order().size(), capacity);
         this.onChange = onChange;
         this.tickSupplier = tickSupplier;
+        this.capacityPerType = capacityPerType;
+    }
+
+    /**
+     * Creates a handler where each goo type holds up to the capacity on its
+     * own, the crucible's reservoir (decision crucible-refuses-past-two-billion).
+     *
+     * @param capacityPerType the most each goo type holds, in mB
+     * @param onChange        called when contents change
+     * @return the handler
+     */
+    public static GooFluidHandler withCapacityPerType(int capacityPerType, Runnable onChange) {
+        return new GooFluidHandler(capacityPerType, onChange, () -> 0, true);
     }
 
     /**
@@ -83,7 +114,8 @@ public class GooFluidHandler extends FluidStacksResourceHandler {
     }
 
     /**
-     * Returns the effective capacity for a slot, accounting for shared capacity.
+     * Returns the effective capacity for a slot: the whole capacity when it is
+     * held per type, otherwise the shared capacity less the other slots.
      * Each slot's effective capacity is the total capacity minus volume in all
      * other slots. The default insert() clamps at {@code getCapacity - currentAmount},
      * yielding the correct shared remaining space.
@@ -94,6 +126,9 @@ public class GooFluidHandler extends FluidStacksResourceHandler {
      */
     @Override
     protected int getCapacity(int index, FluidResource resource) {
+        if (capacityPerType) {
+            return capacity;
+        }
         int otherVolume = 0;
         for (int i = 0; i < size(); i++) {
             if (i != index) {

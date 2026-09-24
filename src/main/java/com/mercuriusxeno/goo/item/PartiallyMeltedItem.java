@@ -1,8 +1,6 @@
 package com.mercuriusxeno.goo.item;
 
-import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 
@@ -59,18 +57,6 @@ public class PartiallyMeltedItem extends Item {
     }
 
     /**
-     * Merges additional goo contents into an existing PMI stack.
-     * Used by the crucible's shared pool when a new item is inserted.
-     *
-     * @param stack      the partially melted item stack
-     * @param additional the goo contents to merge in
-     */
-    public static void mergeContents(ItemStack stack, GooContents additional) {
-        GooContents current = getContents(stack);
-        setContents(stack, current.mergeWith(additional));
-    }
-
-    /**
      * Returns true if all goo has been fully drained from this item.
      *
      * @param stack the item stack
@@ -78,24 +64,5 @@ public class PartiallyMeltedItem extends Item {
      */
     public static boolean isFullyMelted(ItemStack stack) {
         return getContents(stack).isEmpty();
-    }
-
-    /**
-     * Drains a specific amount of one goo type from the stack.
-     * Returns the amount actually drained (may be less if insufficient).
-     *
-     * @param stack  the item stack
-     * @param type   the goo type to drain
-     * @param amount the requested volume in microblobs
-     * @return the volume actually drained
-     */
-    public static int drain(ItemStack stack, ResourceKey<GooTypeDefinition> type, int amount) {
-        GooContents contents = getContents(stack);
-        int available = contents.getVolume(type);
-        int drained = Math.min(available, amount);
-        if (drained > 0) {
-            setContents(stack, contents.withRemoved(type, drained));
-        }
-        return drained;
     }
 }

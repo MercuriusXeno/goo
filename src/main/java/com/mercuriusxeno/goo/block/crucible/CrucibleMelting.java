@@ -254,17 +254,18 @@ final class CrucibleMelting {
     }
 
     /**
-     * Drains each goo type's share from the PMI and inserts it into the reservoir.
+     * Drains each goo type's share from the PMI into the reservoir, taking from
+     * the PMI only what the reservoir accepted, so a full type stays in the pool
+     * (decision crucible-refuses-past-two-billion).
      *
      * @param be     the crucible block entity
      * @param shares the per-type drain amounts
      */
     private static void applyDrainShares(CrucibleBlockEntity be, Map<ResourceKey<GooTypeDefinition>, Integer> shares) {
-        for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> entry : shares.entrySet()) {
-            int drained = PartiallyMeltedItem.drain(
-                    be.meltingItem, entry.getKey(), entry.getValue());
-            be.reservoir.insertGoo(entry.getKey(), drained, false);
-        }
+        GooContents drained = CrucibleCapacity.drainAccepted(
+                PartiallyMeltedItem.getContents(be.meltingItem), shares,
+                (type, amount) -> be.reservoir.insertGoo(type, amount, false));
+        PartiallyMeltedItem.setContents(be.meltingItem, drained);
     }
 
     /**

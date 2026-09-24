@@ -123,6 +123,13 @@ public final class GooTestFunctions {
     // --- Crucible ---
     private static final String CR_BLOB_INSERT = "cr_blob_insert";
     private static final String CR_ITEM_ABSORB = "cr_item_absorb";
+    private static final String CR_CAP_EACH_TYPE = "cr_cap_each_type";
+    private static final String CR_CAP_BLOB_IN_HAND = "cr_cap_blob_in_hand";
+    private static final String CR_CAP_BLOB_ENTITY = "cr_cap_blob_entity";
+    private static final String CR_CAP_ITEMS_THAT_FIT = "cr_cap_items_that_fit";
+    private static final String CR_CAP_CONTAINER = "cr_cap_container";
+    private static final String CR_CAP_MELTED_ITEM = "cr_cap_melted_item";
+    private static final String CR_CAP_ACCOUNTED = "cr_cap_accounted";
 
     // --- Placement ---
     private static final String PL_BLAZE = "pl_blaze_places";
@@ -394,6 +401,13 @@ public final class GooTestFunctions {
     private static void registerCrucibleTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
         reg(r, CR_BLOB_INSERT, CrucibleTests::blobInsertViaInteraction);
         reg(r, CR_ITEM_ABSORB, CrucibleTests::itemEntityAbsorption);
+        reg(r, CR_CAP_EACH_TYPE, CrucibleTests::reservoirCapsEachType);
+        reg(r, CR_CAP_BLOB_IN_HAND, CrucibleTests::blobInHandRefusedAtCap);
+        reg(r, CR_CAP_BLOB_ENTITY, CrucibleTests::blobEntityRefusedAtCap);
+        reg(r, CR_CAP_ITEMS_THAT_FIT, CrucibleTests::itemStackMeltsWholeItemsThatFit);
+        reg(r, CR_CAP_CONTAINER, CrucibleTests::containerRefusedWholeAtCap);
+        reg(r, CR_CAP_MELTED_ITEM, CrucibleTests::meltedItemRefusedWholeAtCap);
+        reg(r, CR_CAP_ACCOUNTED, CrucibleTests::fillPastTheCapAccountsForEveryMb);
     }
 
     private static void registerPlacementTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
