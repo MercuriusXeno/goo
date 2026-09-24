@@ -36,6 +36,14 @@ public class GooParticles {
     public static final DeferredHolder<ParticleType<?>, ParticleType<ColorParticleOption>> TRAIL_DRIP_LAND =
         PARTICLE_TYPES.register("trail_drip_land", GooParticles::colorParticleType);
 
+    /** The tap-drip: square drop falling straight down from a tap's spigot. */
+    public static final DeferredHolder<ParticleType<?>, ParticleType<ColorParticleOption>> TAP_DRIP =
+        PARTICLE_TYPES.register("tap_drip", GooParticles::colorParticleType);
+
+    /** Square splat when a tap-drip hits the ground. */
+    public static final DeferredHolder<ParticleType<?>, ParticleType<ColorParticleOption>> TAP_DRIP_LAND =
+        PARTICLE_TYPES.register("tap_drip_land", GooParticles::colorParticleType);
+
     /** Sonic-boom-style particle oriented along the blast axis. */
     public static final DeferredHolder<ParticleType<?>, ParticleType<OrientedBoomParticleOptions>> ORIENTED_BOOM =
         PARTICLE_TYPES.register("oriented_boom", () -> new ParticleType<>(false) {
