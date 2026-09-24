@@ -86,7 +86,7 @@ public class CrucibleBlockEntity extends BlockEntity implements IGasketHolder, I
         new CrucibleParticleHelper.BubbleHistory();
 
     /** Evaluates container items (shulker boxes, bundles) for goo content. */
-    final IContainerEvaluator containerEvaluator = new ContainerEvaluator();
+    final ContainerEvaluator containerEvaluator = new ContainerEvaluator();
 
     /** Number of remaining ticks to spray ignition sparks. */
     int ignitionSprayTicks;
