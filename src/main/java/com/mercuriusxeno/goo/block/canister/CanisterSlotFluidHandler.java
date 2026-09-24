@@ -366,7 +366,7 @@ public class CanisterSlotFluidHandler extends FluidStacksResourceHandler {
     }
 
     /**
-     * Updates the capacity. Used when matrix upgrades change.
+     * Updates the capacity. Used when the compression level changes.
      *
      * @param newCapacity new total capacity in mB
      */

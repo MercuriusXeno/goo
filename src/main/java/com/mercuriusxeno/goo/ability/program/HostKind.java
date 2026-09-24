@@ -27,7 +27,16 @@ public enum HostKind {
     ENTITY("struck entity",
             Set.of(HostCapability.TARGET, HostCapability.EXPLODE, HostCapability.ENTITY_SCAN),
             Set.of(HostVariables.HEALTH, HostVariables.MAX_HEALTH, HostVariables.DISTANCE,
-                    HostVariables.UNDEAD, HostVariables.SPRINTING));
+                    HostVariables.UNDEAD, HostVariables.SPRINTING)),
+    /**
+     * The block a tap's drip lands on: the world around its top face and the
+     * block above it to write, acted on in the tick the drip lands, with no
+     * target, no stacks and no driver for later ticks
+     * (decision tap-ability-tagged-program).
+     */
+    TAP("tap landing",
+            Set.of(HostCapability.EXPLODE, HostCapability.ENTITY_SCAN, HostCapability.PLACE_BLOCK),
+            Set.of());
 
     private final String label;
     private final Set<HostCapability> capabilities;

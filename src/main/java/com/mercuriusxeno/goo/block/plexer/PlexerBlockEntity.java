@@ -34,7 +34,7 @@ import java.util.Map;
 /**
  * Plexer: reconstitutes items from goo in externally-attached canisters.
  * All 9 copper fittings on the top face are always available (no slot
- * constraints or matrix upgrades).
+ * constraints).
  */
 public class PlexerBlockEntity extends BlockEntity implements ICanisterAttachable {
 

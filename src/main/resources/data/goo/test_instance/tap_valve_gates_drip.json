@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:tap_valve_gates_drip",
+  "environment": "minecraft:default",
+  "structure": "minecraft:empty",
+  "max_ticks": 200,
+  "setup_ticks": 0,
+  "required": true
+}
