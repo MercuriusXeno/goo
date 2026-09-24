@@ -41,7 +41,14 @@ public final class BlockEntitySync {
 
     /**
      * Reopens the chunk section's light gate and enqueues an emission
-     * recompute for the given BE position. Server-side only.
+     * recompute for the given BE position, on whichever side the level runs.
+     *
+     * <p>The client needs its own recompute: the server sends light update
+     * packets only to players on the view-distance edge
+     * ({@code ChunkMap.getPlayers(pos, true)} in
+     * {@code ChunkHolder.broadcastChanges}), so a client near the BE lights
+     * it with its own engine, which {@code LevelRenderer} drains each frame
+     * (decision diagnose-then-fix-vat-stale-light).
      *
      * <p>{@code setLightEnabled} bypasses the section-level "no light sources"
      * gate that's set during initial chunk-load light propagation. BE NBT
@@ -57,7 +64,7 @@ public final class BlockEntitySync {
      */
     public static void kickLighting(BlockEntity be) {
         Level level = be.getLevel();
-        if (level == null || level.isClientSide()) {
+        if (level == null) {
             return;
         }
         ChunkPos chunkPos = new ChunkPos(
@@ -82,6 +89,21 @@ public final class BlockEntitySync {
      */
     public static void kickLightingOnLoad(BlockEntity be) {
         if (be instanceof IGooLightSource src && src.gooLightEmission() > 0) {
+            kickLighting(be);
+        }
+    }
+
+    /**
+     * Call from {@code BlockEntity.onDataPacket} on {@link IGooLightSource}
+     * BEs, after the packet's contents are loaded. The data packet is the
+     * only word a nearby client gets of new goo contents, and loading them
+     * rechecks no light, so the client's own engine keeps the old emission
+     * until this recompute (decision diagnose-then-fix-vat-stale-light).
+     *
+     * @param be the BE whose contents just arrived
+     */
+    public static void relightOnContentsArrived(BlockEntity be) {
+        if (be instanceof IGooLightSource) {
             kickLighting(be);
         }
     }
