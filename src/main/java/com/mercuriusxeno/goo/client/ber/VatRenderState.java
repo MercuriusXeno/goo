@@ -2,20 +2,22 @@ package com.mercuriusxeno.goo.client.ber;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.client.RenderContext;
+import com.mercuriusxeno.goo.client.TypeBand;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 import net.minecraft.resources.ResourceKey;
 import org.jspecify.annotations.Nullable;
+import java.util.List;
 
 /**
- * Render state snapshot for the vat BER. Captures the dominant goo type,
- * fill fraction, and stack geometry for the render thread. When vats are
- * vertically stacked, fill and dominant type are computed from the merged
- * stack contents so all vats in the column render one contiguous fluid body.
+ * Render state snapshot for the vat BER. Captures the type bands, fill
+ * fraction, and stack geometry for the render thread. When vats are
+ * vertically stacked, fill and bands are computed from the merged stack
+ * contents so all vats in the column render one contiguous fluid body.
  */
 public class VatRenderState extends BlockEntityRenderState {
 
-    /** Dominant goo type across the stack, or null if empty. */
-    public @Nullable ResourceKey<GooTypeDefinition> dominantType;
+    /** One band per goo type across the stack, largest first; empty if the stack is empty. */
+    public List<TypeBand> typeBands = List.of();
 
     /** Stack-wide fill fraction in [0, 1] (total volume / total capacity). */
     public float fillFraction;

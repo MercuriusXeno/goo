@@ -20,10 +20,15 @@ out float sphericalVertexDistance;
 out float cylindricalVertexDistance;
 out vec4 vertexColor;
 out vec2 texCoord0;
+out vec2 worldXZ;
+flat out vec2 band;
 
 // Must match RenderContext.AMPLITUDE_UNITS_PER_BLOCK: UV1.x carries the
 // vertex's ripple amplitude in 1/4096 block, zero on every flat vertex.
 const float AMPLITUDE_UNITS_PER_BLOCK = 4096.0;
+// Must match TypeBand.BAND_UNITS: the surface is emissive, so UV2 carries
+// the type band [lo, hi) of decision noise-mingled-type-textures instead of light.
+const float BAND_UNITS = 16384.0;
 
 const float TAU = 6.2831853;
 // GameTime is the fraction of a 24000-tick day, so whole cycles per day
@@ -55,4 +60,6 @@ void main() {
     cylindricalVertexDistance = fog_cylindrical_distance(lifted);
     vertexColor = Color;
     texCoord0 = UV0;
+    worldXZ = worldPos.xz;
+    band = vec2(UV2) / BAND_UNITS;
 }

@@ -46,6 +46,21 @@ public record RenderContext(PoseStack.Pose pose, VertexConsumer c, int light, in
     }
 
     /**
+     * Creates a context for a mingled fluid surface, whose lightmap
+     * coordinates carry the type band on every vertex it emits (decision
+     * noise-mingled-type-textures).
+     *
+     * @param pose  the current pose matrix entry
+     * @param c     the vertex consumer for geometry emission
+     * @param color the ARGB color the uncolored emitters use
+     * @param band  the type band the surface shows
+     * @return the band-carrying context
+     */
+    public static RenderContext banded(PoseStack.Pose pose, VertexConsumer c, int color, TypeBand band) {
+        return new RenderContext(pose, c, band.packed(), color);
+    }
+
+    /**
      * Emits a single vertex with explicit color.
      *
      * @param color the ARGB color
