@@ -74,6 +74,13 @@ public final class CrucibleTests {
     private static final String HOLDS_PAST = "crucible holds past 2.2B: ";
     private static final String EVERY_MB_ACCOUNTED = "every mB offered is held or refused";
     private static final String FILL_ABOVE_ZERO = "surface fill above zero";
+    private static final int FULL_STACK = 64;
+    /** Whole blobs of room left under the cap in the fill-to-the-cap test. */
+    private static final int BLOBS_ROOM = 3;
+    private static final String RESERVOIR_TOOK_STACK = "reservoir took the stack's goo";
+    private static final String STACK_SPENT = "stack spent";
+    private static final String RESERVOIR_AT_CAP = "reservoir filled to the cap";
+    private static final String UNFIT_BLOBS_STAY = "blobs that did not fit stay in hand";
 
     private CrucibleTests() {}
 
@@ -154,6 +161,51 @@ public final class CrucibleTests {
         }
         helper.assertValueEqual(CAP, crucible.getReservoir().getVolume(GooTypes.ROCK), RESERVOIR_UNCHANGED);
         helper.succeed();
+    }
+
+    /**
+     * A full blob stack right-clicked on an empty crucible puts in exactly the goo of
+     * the blobs it took (decision diagnose-then-fix-crucible-blob-duplication).
+     *
+     * @param helper the gametest helper
+     */
+    public static void blobStackConsumedWhole(GameTestHelper helper) {
+        CrucibleBlockEntity crucible = placeCrucible(helper);
+        Player player = clickWithBlobs(helper, FULL_STACK);
+        helper.assertValueEqual(FULL_STACK * BlobStacks.MB_PER_BLOB,
+            crucible.getReservoir().getVolume(GooTypes.ROCK), RESERVOIR_TOOK_STACK);
+        helper.assertTrue(player.getMainHandItem().isEmpty(), STACK_SPENT);
+        helper.succeed();
+    }
+
+    /**
+     * A blob stack offered to a type a few blobs short of the cap fills it to the cap
+     * and leaves the blobs that did not fit in hand.
+     *
+     * @param helper the gametest helper
+     */
+    public static void blobStackFillsToTheCap(GameTestHelper helper) {
+        CrucibleBlockEntity crucible = placeCrucible(helper);
+        crucible.insertGoo(GooTypes.ROCK, CAP - BLOBS_ROOM * BlobStacks.MB_PER_BLOB);
+        Player player = clickWithBlobs(helper, FULL_STACK);
+        helper.assertValueEqual(CAP, crucible.getReservoir().getVolume(GooTypes.ROCK), RESERVOIR_AT_CAP);
+        helper.assertValueEqual(FULL_STACK - BLOBS_ROOM, player.getMainHandItem().getCount(), UNFIT_BLOBS_STAY);
+        helper.succeed();
+    }
+
+    /**
+     * Right-clicks the crucible with a survival player holding rock blobs.
+     *
+     * @param helper the gametest helper
+     * @param count  the blobs held
+     * @return the player, holding what the click left
+     */
+    private static Player clickWithBlobs(GameTestHelper helper, int count) {
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        player.setItemInHand(InteractionHand.MAIN_HAND, BlobStacks.createBlobStack(GooTypes.ROCK, count));
+        BlockPos abs = helper.absolutePos(BE_POS);
+        helper.useBlock(BE_POS, player, new BlockHitResult(Vec3.atCenterOf(abs), Direction.UP, abs, false));
+        return player;
     }
 
     /**
