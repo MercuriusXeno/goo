@@ -7,13 +7,17 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.Container;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.SignBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
 
 /**
  * Executes a {@link LabPlan} against a server level: every placement set at
@@ -27,6 +31,11 @@ public final class LabBuilder {
      * Block update flags: notify neighbours and send the change to clients.
      */
     private static final int UPDATE_FLAGS = Block.UPDATE_ALL;
+    /**
+     * Clear flags: tell clients, drop nothing, skip the side effects that spill a block entity's contents.
+     */
+    private static final int CLEAR_FLAGS =
+            Block.UPDATE_CLIENTS | Block.UPDATE_SUPPRESS_DROPS | Block.UPDATE_SKIP_BLOCK_ENTITY_SIDEEFFECTS;
     /**
      * The sign line that carries the name.
      */
@@ -80,6 +89,43 @@ public final class LabBuilder {
         plan.spawns().stream().filter(spawn -> region.contains(spawn.offset()))
                 .forEach(spawn -> spawn(level, origin, spawn));
         return placed;
+    }
+
+    /**
+     * Clears the plan's bounds and builds the plan again in place, so an
+     * altered lab returns to the plan without a restart (decision lab-save-is-disposable).
+     *
+     * @param level  the level to rebuild in
+     * @param origin the world position of the plan's zero offset
+     * @param plan   the plan to rebuild
+     * @return the number of placements set
+     * @throws CommandSyntaxException when a placement's block state does not parse
+     */
+    public static int rebuild(ServerLevel level, BlockPos origin, LabPlan plan) throws CommandSyntaxException {
+        clear(level, origin, plan.bounds());
+        return build(level, origin, plan);
+    }
+
+    /**
+     * Clears a region: every container emptied and every block set to air
+     * with drops and block entity side effects suppressed, then every
+     * non-player entity inside removed, the items a removal let fall included.
+     *
+     * @param level  the level to clear in
+     * @param origin the world position of the plan's zero offset
+     * @param region the region, in plan offsets
+     */
+    public static void clear(ServerLevel level, BlockPos origin, LabBox region) {
+        BlockPos low = worldPos(origin, region.min());
+        BlockPos high = worldPos(origin, region.max());
+        for (BlockPos pos : BlockPos.betweenClosed(low, high)) {
+            if (level.getBlockEntity(pos) instanceof Container container) {
+                container.clearContent();
+            }
+            level.setBlock(pos, Blocks.AIR.defaultBlockState(), CLEAR_FLAGS);
+        }
+        AABB inside = new AABB(low.getX(), low.getY(), low.getZ(), high.getX() + 1, high.getY() + 1, high.getZ() + 1);
+        level.getEntities((Entity) null, inside, entity -> !(entity instanceof Player)).forEach(Entity::discard);
     }
 
     /**
