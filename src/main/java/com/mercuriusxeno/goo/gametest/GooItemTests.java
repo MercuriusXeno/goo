@@ -37,7 +37,8 @@ public final class GooItemTests {
     private static final BlockPos PLAYER_POS = new BlockPos(2, 1, 5);
     private static final Direction THROW_FACE = Direction.SOUTH;
     private static final int NO_TARGET_ENTITY = -1;
-    private static final String NO_ABILITY = "";
+    private static final String BLAZE_TUNNEL = "goo:blaze_tunnel";
+    private static final String ROCK_TUNNEL = "goo:rock_tunnel";
     private static final String REMOVAL = "removal";
     /**
      * Ticks past the arc from the player to either wall, four blocks at one
@@ -79,8 +80,8 @@ public final class GooItemTests {
         player.getInventory().add(blaze);
         player.getInventory().add(rock);
 
-        BlobThrowHandler.execute(player, throwAt(helper, GooTypes.BLAZE, BLAZE_WALL));
-        BlobThrowHandler.execute(player, throwAt(helper, GooTypes.ROCK, ROCK_WALL));
+        BlobThrowHandler.execute(player, throwAt(helper, GooTypes.BLAZE, BLAZE_TUNNEL, BLAZE_WALL));
+        BlobThrowHandler.execute(player, throwAt(helper, GooTypes.ROCK, ROCK_TUNNEL, ROCK_WALL));
         helper.assertTrue(blaze.isEmpty(), BLOB_NOT_SPENT + GooTypes.id(GooTypes.BLAZE));
         helper.assertTrue(rock.isEmpty(), BLOB_NOT_SPENT + GooTypes.id(GooTypes.ROCK));
 
@@ -113,9 +114,10 @@ public final class GooItemTests {
         return stacks.stream().anyMatch(stack -> stack.is(item) && key.equals(stack.get(GooDataComponents.GOO_TYPE.get())));
     }
 
-    private static BlobThrowPayload throwAt(GameTestHelper helper, ResourceKey<GooTypeDefinition> type, BlockPos wall) {
+    private static BlobThrowPayload throwAt(GameTestHelper helper, ResourceKey<GooTypeDefinition> type,
+                                            String abilityId, BlockPos wall) {
         return new BlobThrowPayload(GooTypes.id(type), NO_TARGET_ENTITY, helper.absolutePos(wall),
-                THROW_FACE.ordinal(), false, NO_ABILITY);
+                THROW_FACE.ordinal(), false, abilityId);
     }
 
     private static void assertMarker(GameTestHelper helper, BlockPos pos, ResourceKey<GooTypeDefinition> type) {
