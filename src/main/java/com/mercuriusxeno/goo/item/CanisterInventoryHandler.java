@@ -14,7 +14,8 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Static helpers for canister inventory click handling: blob/omniblob insert,
- * empty-cursor drain, and gasket cleanup on placement.
+ * empty-cursor drain, and gasket cleanup on placement. The hub item shares the
+ * cursor insert through {@link #insertFromCursor}.
  * Extracted from CanisterItem to reduce method count.
  */
 final class CanisterInventoryHandler {
@@ -33,49 +34,61 @@ final class CanisterInventoryHandler {
      */
     static boolean handlePrimaryClick(
             ItemStack canister, ItemStack cursor, SlotAccess cursorAccess) {
-        if (cursor.getItem() instanceof GooBlobItem) {
-            return handleBlobInsert(canister, cursor, cursorAccess);
-        }
-        return cursor.getItem() instanceof GooOmniblobItem
-                && handleOmniblobInsert(canister, cursor, cursorAccess);
+        return insertFromCursor(cursor, cursorAccess,
+                (type, volume) -> CanisterItem.addGoo(canister, type, volume));
     }
 
     // --- Blob/omniblob insert ---
 
     /**
-     * Transfers blob goo into the canister, shrinking the blob stack by accepted blobs.
+     * Pours a blob or omniblob cursor into a sink and depletes the cursor by what the
+     * sink accepted. Any other cursor, or a sink accepting nothing, leaves both untouched.
      *
-     * @param canister    the canister item stack
-     * @param cursor      the blob stack on the cursor
+     * @param cursor       the item stack on the cursor
      * @param cursorAccess access to set the cursor contents
+     * @param sink         where the goo goes
      * @return true if any goo was transferred
      */
-    private static boolean handleBlobInsert(ItemStack canister, ItemStack cursor, SlotAccess cursorAccess) {
+    static boolean insertFromCursor(ItemStack cursor, SlotAccess cursorAccess, GooSink sink) {
+        if (cursor.getItem() instanceof GooBlobItem) {
+            return handleBlobInsert(cursor, cursorAccess, sink);
+        }
+        return cursor.getItem() instanceof GooOmniblobItem
+                && handleOmniblobInsert(cursor, cursorAccess, sink);
+    }
+
+    /**
+     * Transfers blob goo into the sink, shrinking the blob stack by accepted blobs.
+     *
+     * @param cursor       the blob stack on the cursor
+     * @param cursorAccess access to set the cursor contents
+     * @param sink         where the goo goes
+     * @return true if any goo was transferred
+     */
+    private static boolean handleBlobInsert(ItemStack cursor, SlotAccess cursorAccess, GooSink sink) {
         ResourceKey<GooTypeDefinition> type = BlobStacks.keyOf(cursor);
         if (type == null) { return false; }
-        int volume = BlobStacks.volumeOf(cursor);
-        int accepted = CanisterItem.addGoo(canister, type, volume);
+        int accepted = sink.accept(type, BlobStacks.volumeOf(cursor));
         if (accepted <= 0) { return false; }
 
-        int blobsUsed = (accepted / BlobStacks.MB_PER_BLOB);
-        cursor.shrink(blobsUsed);
+        cursor.shrink(accepted / BlobStacks.MB_PER_BLOB);
         if (cursor.isEmpty()) { cursorAccess.set(ItemStack.EMPTY); }
         return true;
     }
 
     /**
-     * Transfers omniblob goo into the canister, reducing or clearing the cursor.
+     * Transfers omniblob goo into the sink, reducing or clearing the cursor.
      *
-     * @param canister    the canister item stack
-     * @param cursor      the omniblob on the cursor
+     * @param cursor       the omniblob on the cursor
      * @param cursorAccess access to set the cursor contents
+     * @param sink         where the goo goes
      * @return true if any goo was transferred
      */
-    private static boolean handleOmniblobInsert(ItemStack canister, ItemStack cursor, SlotAccess cursorAccess) {
+    private static boolean handleOmniblobInsert(ItemStack cursor, SlotAccess cursorAccess, GooSink sink) {
         ResourceKey<GooTypeDefinition> type = BlobStacks.keyOf(cursor);
         if (type == null) { return false; }
         int volume = GooOmniblobItem.getVolume(cursor);
-        int accepted = CanisterItem.addGoo(canister, type, volume);
+        int accepted = sink.accept(type, volume);
         if (accepted <= 0) { return false; }
 
         applyOmniblobRemainder(cursor, cursorAccess, volume - accepted);
@@ -100,49 +113,42 @@ final class CanisterInventoryHandler {
     // --- Drain operations ---
 
     /**
-     * Drains up to 64,000 mB of the dominant goo type onto the cursor as a blob output.
+     * Where a drain's goo comes from: answers its dominant type and gives up goo of a type.
+     */
+    interface GooSource {
+        /**
+         * Answers the goo type the drain takes.
+         *
+         * @return the dominant goo type, or null when empty
+         */
+        @Nullable ResourceKey<GooTypeDefinition> dominantType();
+
+        /**
+         * Removes up to the given volume of one goo type, capped by what the source holds.
+         *
+         * @param type   the goo type to remove
+         * @param volume the most to remove, in mB
+         * @return the volume removed
+         */
+        int remove(ResourceKey<GooTypeDefinition> type, int volume);
+    }
+
+    /**
+     * Drains up to 64,000 mB of the source's dominant goo type onto the cursor as a blob output.
      *
-     * @param canister    the canister item stack
      * @param cursorAccess access to set the cursor contents
+     * @param source       where the goo comes from
      * @return true if any goo was extracted
      */
-    static boolean handleEmptyCursorDrain(ItemStack canister, SlotAccess cursorAccess) {
-        ResourceKey<GooTypeDefinition> dominant = dominantType(canister);
+    static boolean drainToCursor(SlotAccess cursorAccess, GooSource source) {
+        ResourceKey<GooTypeDefinition> dominant = source.dominantType();
         if (dominant == null) { return false; }
 
-        int extracted = extractCapped(canister, dominant, ContainerCapacity.BLOB_CAP);
+        int extracted = source.remove(dominant, ContainerCapacity.BLOB_CAP);
         if (extracted <= 0) { return false; }
 
         cursorAccess.set(BlobStacks.createForOutput(dominant, extracted));
         return true;
-    }
-
-    // --- Shared helpers ---
-
-    /**
-     * Returns the dominant goo type in the canister, or null if empty.
-     *
-     * @param canister the canister item stack
-     * @return the dominant goo type, or null
-     */
-    private static @Nullable ResourceKey<GooTypeDefinition> dominantType(ItemStack canister) {
-        CanisterFluidContent content = CanisterItem.getFluidContent(canister);
-        if (content.isEmpty()) { return null; }
-        return content.getGooType();
-    }
-
-    /**
-     * Extracts up to cap mB of the given type, capped by available volume.
-     *
-     * @param canister the canister item stack
-     * @param type     the goo type to extract
-     * @param cap      the maximum volume to extract
-     * @return the amount actually extracted
-     */
-    private static int extractCapped(ItemStack canister, ResourceKey<GooTypeDefinition> type, int cap) {
-        CanisterFluidContent content = CanisterItem.getFluidContent(canister);
-        int available = (content.getGooType() == type) ? content.amount() : 0;
-        return CanisterItem.removeGoo(canister, type, Math.min(available, cap));
     }
 
     // --- Gasket mutual exclusivity ---

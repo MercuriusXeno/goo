@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.particle;
 
+import com.mercuriusxeno.goo.DripFall;
 import com.mercuriusxeno.goo.registry.GooParticles;
 import net.minecraft.client.Camera;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -21,14 +22,14 @@ import org.jspecify.annotations.Nullable;
  */
 public class GooDripParticle extends SingleQuadParticle {
 
-    /** Gravity matching vanilla DripParticle base. */
-    private static final float DRIP_GRAVITY = 0.06f;
+    /** Gravity shared with the server's drip arrival timing. */
+    private static final float DRIP_GRAVITY = (float) DripFall.GRAVITY;
 
     /** Initial particle size for drip collision box. */
     private static final float DRIP_SIZE = 0.01f;
 
-    /** Drag coefficient per tick for velocity damping. */
-    private static final float DRAG = 0.98f;
+    /** Drag per tick shared with the server's drip arrival timing. */
+    private static final float DRAG = (float) DripFall.DRAG;
 
     /** Maximum channel value for color packing. */
     private static final int MAX_CHANNEL = 255;

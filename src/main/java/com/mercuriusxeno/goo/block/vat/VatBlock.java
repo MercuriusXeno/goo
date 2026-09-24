@@ -28,8 +28,8 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Stationary bulk goo storage block. Multi-type, large capacity with matrix upgrades.
- * Right-click with blob to insert, empty hand to extract, rune ink to upgrade.
+ * Stationary bulk goo storage block. Multi-type, large capacity scaled by the Compression enchantment.
+ * Right-click with blob to insert, empty hand to extract.
  */
 public class VatBlock extends BaseEntityBlock {
 
