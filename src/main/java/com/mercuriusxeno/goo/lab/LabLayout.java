@@ -1,13 +1,18 @@
 package com.mercuriusxeno.goo.lab;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Stream;
 
 /**
- * The Goo Lab as a pure list of placements: a floor plate and one signed plot
- * per machine in a row along +x, all relative to the lab origin
- * (decision lab-built-from-code). Later lab tasks add their placements to the
- * same plan, so the build, the rebuild and the tests read one source.
+ * The Goo Lab as a pure list of placements relative to the lab origin
+ * (decision lab-built-from-code): a floor plate holding, north to south, the
+ * machine row of {@link LabBays}, the mob pens of {@link LabPens} and the
+ * target range of {@link LabTargetRange}. Each zone adds its placements to
+ * one plan, so the build, the rebuild and the tests read one source.
  */
 public final class LabLayout {
 
@@ -17,21 +22,17 @@ public final class LabLayout {
      */
     public static final LabOffset WORLD_ORIGIN = new LabOffset(0, -61, 0);
     /**
-     * Width and depth of one machine plot.
-     */
-    static final int PLOT_SIZE = 5;
-    /**
-     * Blocks of walkway between neighbouring plots.
-     */
-    static final int PLOT_GAP = 2;
-    /**
-     * Blocks of floor between the outermost plots and the plate's edge.
+     * Blocks of floor between the outermost zone and the plate's edge.
      */
     static final int FLOOR_MARGIN = 2;
     /**
-     * Headroom above the floor that a plot claims for its bay.
+     * Blocks of walkway between one zone and the next, north to south.
      */
-    static final int PLOT_HEADROOM = 4;
+    static final int ZONE_GAP = 3;
+    /**
+     * Headroom above the floor that the machine plots claim for their bays.
+     */
+    static final int PLOT_HEADROOM = LabBays.PLOT_HEADROOM;
     /**
      * The block the floor plate is made of.
      */
@@ -45,9 +46,17 @@ public final class LabLayout {
      */
     static final String SIGN_BLOCK = "minecraft:oak_sign[rotation=8]";
     /**
-     * Plot origin to sign: centred on the plot's north edge, one block above the floor.
+     * The machine row's north-west corner.
      */
-    private static final int SIGN_INSET = PLOT_SIZE / 2;
+    private static final LabOffset ROW_CORNER = new LabOffset(FLOOR_MARGIN, 0, FLOOR_MARGIN);
+    /**
+     * The pens' north-west corner, a zone gap south of the machine row.
+     */
+    private static final LabOffset PEN_CORNER = ROW_CORNER.shifted(0, 0, LabBays.PLOT_SIZE + ZONE_GAP + 1);
+    /**
+     * The firing line's west end, a zone gap south of the pens.
+     */
+    private static final LabOffset RANGE_CORNER = PEN_CORNER.shifted(0, 0, LabPens.OUTER_SIZE + ZONE_GAP + 1);
 
     private LabLayout() {
     }
@@ -55,46 +64,56 @@ public final class LabLayout {
     /**
      * Answers the whole lab plan.
      *
-     * @return the placements, plots and bounds of one build
+     * @return the placements, zones, spawns and bounds of one build
      */
     public static LabPlan plan() {
-        List<LabPlot> plots = machinePlots();
-        LabBox floor = floorBox();
-        List<LabPlacement> placements = new ArrayList<>(floorPlacements(floor, plots));
-        plots.forEach(plot -> placements.add(signPlacement(plot)));
-        LabBox bounds = new LabBox(floor.min(), floor.max().shifted(0, PLOT_HEADROOM, 0));
-        return new LabPlan(placements, plots, bounds);
+        List<LabPlot> plots = LabBays.plots(ROW_CORNER);
+        List<LabPen> pens = LabPens.pens(PEN_CORNER);
+        LabRange range = LabTargetRange.range(RANGE_CORNER);
+        Map<LabOffset, LabPlacement> byOffset = new LinkedHashMap<>();
+        LabBox floor = floorBox(range);
+        floorPlacements(floor, plots).forEach(p -> byOffset.put(p.offset(), p));
+        plots.forEach(plot -> put(byOffset, bayAndSign(plot)));
+        pens.forEach(pen -> put(byOffset, LabPens.penBlocks(pen, SIGN_BLOCK)));
+        put(byOffset, LabTargetRange.rangeBlocks(range));
+        List<LabSpawn> spawns = pens.stream().flatMap(pen -> LabPens.spawns(pen).stream()).toList();
+        List<LabPlacement> placements = new ArrayList<>(byOffset.values());
+        LabBox bounds = enclose(placements, plots, pens);
+        return new LabPlan(placements, plots, pens, range, spawns, bounds);
     }
 
     /**
-     * Lays one plot per machine in a row along +x, walkway between them.
+     * Answers the floor plate's extent: every zone plus a margin all round, one block thick.
      *
-     * @return the plots in machine order
-     */
-    static List<LabPlot> machinePlots() {
-        List<LabPlot> plots = new ArrayList<>();
-        LabMachine[] machines = LabMachine.values();
-        for (int index = 0; index < machines.length; index++) {
-            int minX = FLOOR_MARGIN + index * (PLOT_SIZE + PLOT_GAP);
-            LabOffset min = new LabOffset(minX, 0, FLOOR_MARGIN);
-            LabOffset max = min.shifted(PLOT_SIZE - 1, PLOT_HEADROOM, PLOT_SIZE - 1);
-            LabOffset sign = min.shifted(SIGN_INSET, 1, 0);
-            plots.add(new LabPlot(machines[index], new LabBox(min, max), sign));
-        }
-        return plots;
-    }
-
-    /**
-     * Answers the floor plate's extent: the plot row plus a margin all round, one block thick.
-     *
+     * @param range the target range, the southernmost zone
      * @return the floor box at y 0
      */
-    static LabBox floorBox() {
-        int machineCount = LabMachine.values().length;
-        int rowLength = machineCount * PLOT_SIZE + (machineCount - 1) * PLOT_GAP;
-        int maxX = rowLength + FLOOR_MARGIN + FLOOR_MARGIN - 1;
-        int maxZ = PLOT_SIZE + FLOOR_MARGIN + FLOOR_MARGIN - 1;
+    static LabBox floorBox(LabRange range) {
+        int maxX = Math.max(ROW_CORNER.x() + LabBays.rowLength(), range.bounds().max().x() + 1) + FLOOR_MARGIN - 1;
+        int maxZ = range.bounds().max().z() + FLOOR_MARGIN;
         return new LabBox(new LabOffset(0, 0, 0), new LabOffset(maxX, 0, maxZ));
+    }
+
+    /**
+     * Adds placements, each replacing whatever an earlier zone set at its offset.
+     *
+     * @param byOffset   the plan so far, keyed by offset
+     * @param placements the placements to add
+     */
+    private static void put(Map<LabOffset, LabPlacement> byOffset, List<LabPlacement> placements) {
+        placements.forEach(p -> byOffset.put(p.offset(), p));
+    }
+
+    /**
+     * Answers a plot's bay blocks and the sign naming its machine.
+     *
+     * @param plot the plot
+     * @return the plot's placements above the floor
+     */
+    private static List<LabPlacement> bayAndSign(LabPlot plot) {
+        List<LabPlacement> placements = new ArrayList<>(LabBays.bayBlocks(plot));
+        placements.add(new LabPlacement(plot.signOffset(), SIGN_BLOCK, plot.machine().displayName()));
+        return placements;
     }
 
     /**
@@ -128,12 +147,27 @@ public final class LabLayout {
     }
 
     /**
-     * Answers the sign naming a plot's machine.
+     * Answers the smallest box holding every placement, plot and pen.
      *
-     * @param plot the plot the sign stands in
-     * @return the sign placement
+     * @param placements the plan's placements
+     * @param plots      the machine plots
+     * @param pens       the mob pens
+     * @return the plan's bounds
      */
-    private static LabPlacement signPlacement(LabPlot plot) {
-        return new LabPlacement(plot.signOffset(), SIGN_BLOCK, plot.machine().displayName());
+    private static LabBox enclose(List<LabPlacement> placements, List<LabPlot> plots, List<LabPen> pens) {
+        List<LabOffset> corners = Stream.of(
+                placements.stream().map(LabPlacement::offset),
+                plots.stream().flatMap(plot -> Stream.of(plot.bounds().min(), plot.bounds().max())),
+                pens.stream().flatMap(pen -> Stream.of(pen.bounds().min(), pen.bounds().max())))
+                .flatMap(Function.identity()).toList();
+        LabOffset min = new LabOffset(
+                corners.stream().mapToInt(LabOffset::x).min().orElse(0),
+                corners.stream().mapToInt(LabOffset::y).min().orElse(0),
+                corners.stream().mapToInt(LabOffset::z).min().orElse(0));
+        LabOffset max = new LabOffset(
+                corners.stream().mapToInt(LabOffset::x).max().orElse(0),
+                corners.stream().mapToInt(LabOffset::y).max().orElse(0),
+                corners.stream().mapToInt(LabOffset::z).max().orElse(0));
+        return new LabBox(min, max);
     }
 }

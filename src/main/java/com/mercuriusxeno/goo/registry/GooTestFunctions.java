@@ -65,6 +65,10 @@ public final class GooTestFunctions {
     // --- Goo Lab ---
     private static final String LAB_BUILD_SHELL = "lab_build_shell";
     private static final String LAB_TEMPLATE_LOADS = "lab_template_loads";
+    private static final String LAB_BAY_TAP = "lab_bay_tap";
+    private static final String LAB_BAY_HUB = "lab_bay_hub";
+    private static final String LAB_BAY_GASKET = "lab_bay_gasket";
+    private static final String LAB_PENS_AND_RANGE = "lab_pens_and_range";
 
     // --- GasketPusher ---
     private static final String PUSHER_EMPTY_RESERVOIR = "pusher_empty_reservoir";
@@ -447,6 +451,10 @@ public final class GooTestFunctions {
     private static void registerLabTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
         reg(r, LAB_BUILD_SHELL, LabTests::buildShell);
         reg(r, LAB_TEMPLATE_LOADS, LabTemplateTests::templateLoads);
+        reg(r, LAB_BAY_TAP, LabBayTests::tapBay);
+        reg(r, LAB_BAY_HUB, LabBayTests::hubBay);
+        reg(r, LAB_BAY_GASKET, LabBayTests::gasketBay);
+        reg(r, LAB_PENS_AND_RANGE, LabBayTests::pensAndRange);
     }
 
     /**

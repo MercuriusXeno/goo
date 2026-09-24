@@ -7,14 +7,18 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.SignBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
 /**
  * Executes a {@link LabPlan} against a server level: every placement set at
- * the origin plus its offset, and every sign given its text
- * (decision lab-built-from-code).
+ * the origin plus its offset, every sign given its text, every bay filled by
+ * {@link LabRigs} and every pen's mobs spawned (decision lab-built-from-code).
  */
 public final class LabBuilder {
 
@@ -23,15 +27,19 @@ public final class LabBuilder {
      */
     private static final int UPDATE_FLAGS = Block.UPDATE_ALL;
     /**
-     * The sign line that carries the machine's name.
+     * The sign line that carries the name.
      */
     private static final int NAME_LINE = 1;
+    /**
+     * Offset from a block corner to its centre, where a mob spawns.
+     */
+    private static final double BLOCK_CENTRE = 0.5;
 
     private LabBuilder() {
     }
 
     /**
-     * Builds the plan with its origin at the given position.
+     * Builds the whole plan with its origin at the given position.
      *
      * @param level  the level to build in
      * @param origin the world position of the plan's zero offset
@@ -40,11 +48,35 @@ public final class LabBuilder {
      * @throws CommandSyntaxException when a placement's block state does not parse
      */
     public static int build(ServerLevel level, BlockPos origin, LabPlan plan) throws CommandSyntaxException {
+        return buildWithin(level, origin, plan, plan.bounds());
+    }
+
+    /**
+     * Builds the part of the plan inside a region: its placements, the rigs of
+     * the plots it holds whole and the spawns it holds. A test builds one bay or zone this way.
+     *
+     * @param level  the level to build in
+     * @param origin the world position of the plan's zero offset
+     * @param plan   the plan to build from
+     * @param region the part of the plan to build, in plan offsets
+     * @return the number of placements set
+     * @throws CommandSyntaxException when a placement's block state does not parse
+     */
+    public static int buildWithin(ServerLevel level, BlockPos origin, LabPlan plan, LabBox region)
+            throws CommandSyntaxException {
         HolderLookup<Block> blocks = level.registryAccess().lookupOrThrow(Registries.BLOCK);
+        int placed = 0;
         for (LabPlacement placement : plan.placements()) {
-            place(level, origin, blocks, placement);
+            if (region.contains(placement.offset())) {
+                place(level, origin, blocks, placement);
+                placed++;
+            }
         }
-        return plan.placements().size();
+        plan.plots().stream().filter(plot -> holdsWhole(region, plot.bounds()))
+                .forEach(plot -> LabRigs.rig(level, origin, plot));
+        plan.spawns().stream().filter(spawn -> region.contains(spawn.offset()))
+                .forEach(spawn -> spawn(level, origin, spawn));
+        return placed;
     }
 
     /**
@@ -69,6 +101,17 @@ public final class LabBuilder {
     }
 
     /**
+     * Answers whether a region holds a box whole.
+     *
+     * @param region the region
+     * @param box    the box
+     * @return true when both corners of the box lie in the region
+     */
+    private static boolean holdsWhole(LabBox region, LabBox box) {
+        return region.contains(box.min()) && region.contains(box.max());
+    }
+
+    /**
      * Sets one placement's block and, for a sign, its text.
      *
      * @param level     the level to build in
@@ -84,6 +127,27 @@ public final class LabBuilder {
         if (placement.isSign() && level.getBlockEntity(pos) instanceof SignBlockEntity sign) {
             sign.updateText(text -> text.setMessage(NAME_LINE, Component.literal(placement.signText())), true);
         }
+    }
+
+    /**
+     * Spawns one planned mob at its block's centre and keeps it from despawning.
+     *
+     * @param level  the level to spawn in
+     * @param origin the world position of the plan's zero offset
+     * @param spawn  the planned spawn
+     */
+    private static void spawn(ServerLevel level, BlockPos origin, LabSpawn spawn) {
+        Entity entity = EntityType.byString(spawn.entityId())
+                .map(type -> type.create(level, EntitySpawnReason.COMMAND)).orElse(null);
+        if (entity == null) {
+            return;
+        }
+        BlockPos pos = worldPos(origin, spawn.offset());
+        entity.snapTo(pos.getX() + BLOCK_CENTRE, pos.getY(), pos.getZ() + BLOCK_CENTRE);
+        if (entity instanceof Mob mob) {
+            mob.setPersistenceRequired();
+        }
+        level.addFreshEntity(entity);
     }
 
     /**

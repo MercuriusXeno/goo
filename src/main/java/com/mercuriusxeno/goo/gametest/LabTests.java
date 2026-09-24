@@ -69,8 +69,21 @@ public final class LabTests {
      * @return the number of placements set
      */
     static int buildPlan(GameTestHelper helper, BlockPos origin, LabPlan plan) {
+        return buildRegion(helper, origin, plan, plan.bounds());
+    }
+
+    /**
+     * Builds the part of a plan inside a region, failing the test when a state does not parse.
+     *
+     * @param helper the gametest helper
+     * @param origin the world position of the plan's zero offset
+     * @param plan   the plan to build from
+     * @param region the part to build, in plan offsets
+     * @return the number of placements set
+     */
+    static int buildRegion(GameTestHelper helper, BlockPos origin, LabPlan plan, LabBox region) {
         try {
-            return LabBuilder.build(helper.getLevel(), origin, plan);
+            return LabBuilder.buildWithin(helper.getLevel(), origin, plan, region);
         } catch (CommandSyntaxException e) {
             helper.fail(BUILD_FAILED + e.getMessage());
             return 0;
@@ -100,13 +113,22 @@ public final class LabTests {
     private static void assertPlaced(GameTestHelper helper, BlockPos origin, LabPlacement placement) {
         BlockPos pos = LabBuilder.worldPos(origin, placement.offset());
         BlockState state = helper.getLevel().getBlockState(pos);
-        Block planned = BuiltInRegistries.BLOCK.getValue(Identifier.parse(blockId(placement.blockState())));
-        helper.assertTrue(state.is(planned), WRONG_BLOCK + placement.offset());
+        helper.assertTrue(state.is(plannedBlock(placement)), WRONG_BLOCK + placement.offset());
         if (placement.isSign()) {
             SignBlockEntity sign = (SignBlockEntity) helper.getLevel().getBlockEntity(pos);
             String written = sign == null ? null : sign.getFrontText().getMessage(NAME_LINE, false).getString();
             helper.assertTrue(placement.signText().equals(written), WRONG_SIGN_TEXT + placement.offset());
         }
+    }
+
+    /**
+     * Answers the block a placement plans.
+     *
+     * @param placement the placement
+     * @return the planned block
+     */
+    static Block plannedBlock(LabPlacement placement) {
+        return BuiltInRegistries.BLOCK.getValue(Identifier.parse(blockId(placement.blockState())));
     }
 
     /**
