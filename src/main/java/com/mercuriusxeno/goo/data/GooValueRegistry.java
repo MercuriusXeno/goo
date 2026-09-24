@@ -77,10 +77,6 @@ public class GooValueRegistry implements IGooValueLookup {
      */
     final Map<String, Set<Identifier>> pseudoTags = new HashMap<>();
     /**
-     * Pre-derivation conversions from _conversions block.
-     */
-    GooConversion.ParsedConversions preConversions;
-    /**
      * Post-derivation conversions from _post_conversions block.
      */
     GooConversion.ParsedConversions postConversions;
@@ -127,21 +123,6 @@ public class GooValueRegistry implements IGooValueLookup {
     }
 
     /**
-     * Loads base values from the embedded JSON resource.
-     */
-    public void loadBaseValues() {
-        baseValues.clear();
-        deniedItems.clear();
-        restrictedItems.clear();
-        effectiveValues.clear();
-        treeConstants.clear();
-        GooValueLoader.loadBaseValuesFromClasspath(new GooValueLoader.ParseState(
-                baseValues, effectiveValues, deniedItems, restrictedItems,
-                constants, treeConstants, pseudoTags));
-        effectiveValues.putAll(baseValues);
-    }
-
-    /**
      * Loads base values by merging all datapack layers via the server's ResourceManager.
      *
      * @param server the running server whose resource manager provides the pack stack
@@ -177,7 +158,6 @@ public class GooValueRegistry implements IGooValueLookup {
     private void applyPackLayers(List<Resource> stack, GooValueLoader.ParseState state) {
         var layers = GooValueLoader.parseResourceLayers(stack);
         GooValueLoader.applyMergedLayers(layers, state);
-        preConversions = state.preConversions;
         postConversions = state.postConversions;
         lastMergedBaseValues = state.lastMergedBaseValues;
     }
