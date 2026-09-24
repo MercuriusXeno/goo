@@ -269,8 +269,9 @@ public interface StepHost extends Variables {
     }
 
     /**
-     * Spawns an item stack at the host's target. Capability
-     * {@link HostCapability#TARGET}.
+     * Spawns an item stack at the host's target; the id
+     * {@link DropItemStep#SPAWN_EGG} names the target's own spawn egg.
+     * Capability {@link HostCapability#TARGET}.
      *
      * @param item  the item id
      * @param count the stack size
@@ -278,6 +279,39 @@ public interface StepHost extends Variables {
     default void dropItemAtTarget(Identifier item, int count) {
         throw HostCapability.TARGET.refusedBy(kind());
     }
+
+    /**
+     * Removes the host's target from the world without a death, drops or
+     * a loot roll. Capability {@link HostCapability#TARGET}.
+     */
+    void discardTarget();
+
+    /**
+     * Adds to a named counter the host's target keeps between hits; an
+     * expression reads it back by its id. Capability
+     * {@link HostCapability#TARGET}.
+     *
+     * @param id     the counter id
+     * @param amount the amount to add
+     */
+    void addTargetCounter(Identifier id, double amount);
+
+    /**
+     * Sets a named counter the host's target keeps between hits.
+     * Capability {@link HostCapability#TARGET}.
+     *
+     * @param id    the counter id
+     * @param value the new value
+     */
+    void setTargetCounter(Identifier id, double value);
+
+    /**
+     * Makes the host's target a baby or an adult; a target with no baby
+     * form is left alone. Capability {@link HostCapability#TARGET}.
+     *
+     * @param enabled whether the target becomes a baby
+     */
+    void setTargetBaby(boolean enabled);
 
     /**
      * Sets the host's target on fire. Capability

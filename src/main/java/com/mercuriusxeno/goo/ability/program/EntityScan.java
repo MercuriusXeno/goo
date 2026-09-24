@@ -1,11 +1,19 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.AgeableMob;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.animal.camel.CamelHusk;
+import net.minecraft.world.entity.animal.frog.Frog;
+import net.minecraft.world.entity.animal.nautilus.ZombieNautilus;
+import net.minecraft.world.entity.animal.parrot.Parrot;
 import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.monster.Zoglin;
+import net.minecraft.world.entity.monster.piglin.Piglin;
+import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -25,11 +33,17 @@ import java.util.function.Consumer;
  * scans a level. A scan carries the entity it centers on as self, null
  * on a block, so {@code not_target} can spare it.
  */
-final class EntityScan {
+public final class EntityScan {
 
     private static final int DIAMETER_PER_RADIUS = 2;
     private static final double REST_SPEED_SQUARED = 1e-4;
     private static final String ERR_UNMEANT_FILTER = "EntityScan gives no meaning to filter ";
+    /** The ageable mobs the 26.1 tree pins to adult by overriding isBaby to false. */
+    private static final List<Class<? extends Entity>> AGEABLE_WITHOUT_BABY =
+            List.of(Frog.class, Parrot.class, CamelHusk.class, ZombieNautilus.class);
+    /** The mobs outside AgeableMob that keep their own baby flag in the 26.1 tree. */
+    private static final List<Class<? extends Entity>> UNAGEABLE_WITH_BABY =
+            List.of(Zombie.class, Piglin.class, Zoglin.class);
     private static final Map<EntityFilter, BiPredicate<Entity, @Nullable Entity>> MEANINGS = meanings();
 
     private EntityScan() {
@@ -119,7 +133,7 @@ final class EntityScan {
      * @param self    the entity the selection centers on, null on a block
      * @return true when every filter keeps the entity
      */
-    static boolean passes(Entity entity, Set<EntityFilter> filters, @Nullable Entity self) {
+    public static boolean passes(Entity entity, Set<EntityFilter> filters, @Nullable Entity self) {
         for (EntityFilter filter : filters) {
             if (!MEANINGS.get(filter).test(entity, self)) {
                 return false;
@@ -149,6 +163,9 @@ final class EntityScan {
         table.put(EntityFilter.NOT_SNEAKING,
                 (entity, self) -> !(entity instanceof Player player && player.isShiftKeyDown()));
         table.put(EntityFilter.MOVING, (entity, self) -> isMovingHorizontally(entity));
+        table.put(EntityFilter.HAS_BABY_FORM, (entity, self) -> hasBabyForm(entity));
+        table.put(EntityFilter.NOT_BABY,
+                (entity, self) -> !(entity instanceof LivingEntity living && living.isBaby()));
         for (EntityFilter filter : EntityFilter.values()) {
             if (!table.containsKey(filter)) {
                 throw new IllegalStateException(ERR_UNMEANT_FILTER + filter);
@@ -167,6 +184,33 @@ final class EntityScan {
     private static boolean isMovingHorizontally(Entity entity) {
         Vec3 delta = entity.getDeltaMovement();
         return delta.x() * delta.x() + delta.z() * delta.z() > REST_SPEED_SQUARED;
+    }
+
+    /**
+     * Tests whether the entity can be a baby. In the 26.1 tree that is
+     * every ageable mob but the four that pin isBaby to false, plus the
+     * zombies, piglins and zoglins that keep their own baby flag; any other
+     * mob inherits a setBaby that does nothing.
+     *
+     * @param entity the candidate
+     * @return true when the entity has a baby form
+     */
+    private static boolean hasBabyForm(Entity entity) {
+        if (entity instanceof AgeableMob) {
+            return !isAnyOf(entity, AGEABLE_WITHOUT_BABY);
+        }
+        return isAnyOf(entity, UNAGEABLE_WITH_BABY);
+    }
+
+    /**
+     * Tests whether the entity is an instance of any of the classes.
+     *
+     * @param entity  the candidate
+     * @param classes the classes
+     * @return true when one of the classes holds the entity
+     */
+    private static boolean isAnyOf(Entity entity, List<Class<? extends Entity>> classes) {
+        return classes.stream().anyMatch(type -> type.isInstance(entity));
     }
 
     /**

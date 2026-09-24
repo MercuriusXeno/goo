@@ -51,7 +51,16 @@ public enum EntityFilter {
      * Keeps entities moving horizontally above rest; the crystal cloud
      * shreds only what moves through it.
      */
-    MOVING;
+    MOVING,
+    /**
+     * Keeps mobs that can be a baby; aeon's ritual regresses such an adult
+     * to a baby before its egg (decision aeon-mob-ritual-drops-spawn-egg).
+     */
+    HAS_BABY_FORM,
+    /**
+     * Keeps anything that is not a baby.
+     */
+    NOT_BABY;
 
     private static final String WHAT = "entity filter";
 
