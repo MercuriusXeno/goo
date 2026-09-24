@@ -81,14 +81,14 @@ final class CrucibleMelting {
     private static void processMeltCycle(CrucibleBlockEntity be, Level level, BlockPos pos) {
         convertFreshRodToDepleted(be);
         drainFromPool(be);
-        spawnActiveEffects(be, level, pos, true);
+        spawnActiveEffects(be, level, pos);
         consumeFuelTick(be);
         clearFinishedMeltingItem(be);
         be.syncToClients();
     }
 
     /**
-     * Spawns boiling bubbles and embers whenever the rod is heated and goo is present,
+     * Spawns boiling bubbles, or embers in an empty basin, whenever the rod is heated,
      * regardless of whether there is an item being melted. This lets players enable
      * boiling at will by inserting a fuel rod into goo-filled basins.
      *
@@ -106,7 +106,7 @@ final class CrucibleMelting {
         if (hasMeltableItem(be)) {
             return;
         }
-        spawnActiveEffects(be, level, pos, false);
+        spawnActiveEffects(be, level, pos);
     }
 
     /**
@@ -155,25 +155,25 @@ final class CrucibleMelting {
         }
         be.ignitionSprayTicks = ticks - 1;
         Level level = be.getLevel();
-        if (level instanceof ServerLevel serverLevel) {
+        if (level instanceof ServerLevel serverLevel && be.holdsNoGoo()) {
             CrucibleParticleHelper.spawnIgnitionSparks(serverLevel, be.getBlockPos());
         }
     }
 
     /**
-     * Spawns embers and goo bubbles while the crucible is actively processing.
-     * Ember frequency scales with whether an item is being melted.
+     * Spawns embers while the crucible holds no goo, and goo bubbles once it does.
      *
-     * @param be      the crucible block entity
-     * @param level   the current level
-     * @param pos     the block position
-     * @param melting true if actively melting an item
+     * @param be    the crucible block entity
+     * @param level the current level
+     * @param pos   the block position
      */
-    private static void spawnActiveEffects(CrucibleBlockEntity be, Level level, BlockPos pos, boolean melting) {
+    private static void spawnActiveEffects(CrucibleBlockEntity be, Level level, BlockPos pos) {
         if (!(level instanceof ServerLevel serverLevel)) {
             return;
         }
-        CrucibleParticleHelper.spawnEmbers(serverLevel, pos, level.getRandom(), melting);
+        if (be.holdsNoGoo()) {
+            CrucibleParticleHelper.spawnEmbers(serverLevel, pos, level.getRandom());
+        }
         spawnBubblesIfGooPresent(be, serverLevel, pos);
     }
 
