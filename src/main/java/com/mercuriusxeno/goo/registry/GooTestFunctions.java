@@ -96,6 +96,14 @@ public final class GooTestFunctions {
 
     // --- Machine interactions ---
     private static final String IX_TAP_VALVE = "ix_tap_valve_toggle";
+
+    // --- Tap drip ---
+    private static final String TAP_DRIP_DRAWS_ONE_MB = "tap_drip_draws_one_mb";
+    private static final String TAP_VALVE_GATES_DRIP = "tap_valve_gates_drip";
+    private static final String TAP_DRIP_LANDS_BELOW = "tap_drip_lands_below";
+    private static final String TAP_DRIP_BOTTOMLESS = "tap_drip_bottomless";
+    private static final String TAP_HOST_PLACES_ABOVE_LANDING = "tap_host_places_above_landing";
+    private static final String TAP_DRIP_NO_ABILITY = "tap_drip_no_ability";
     private static final String IX_VAT_GASKET = "ix_vat_gasket_apply";
     private static final String IX_HUB_INSERT = "ix_hub_canister_insert";
     private static final String IX_HUB_PICKUP = "ix_hub_canister_pickup";
@@ -180,7 +188,17 @@ public final class GooTestFunctions {
             registerMachineTests(registrar);
             registerMobEffectTests(registrar);
             registerLightingTests(registrar);
+            registerTapDripTests(registrar);
         });
+    }
+
+    private static void registerTapDripTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
+        reg(r, TAP_DRIP_DRAWS_ONE_MB, TapDripTests::tapDripDrawsOneMb);
+        reg(r, TAP_VALVE_GATES_DRIP, TapDripTests::tapValveGatesDrip);
+        reg(r, TAP_DRIP_LANDS_BELOW, TapDripTests::tapDripLandsBelow);
+        reg(r, TAP_DRIP_BOTTOMLESS, TapDripTests::tapDripBottomless);
+        reg(r, TAP_HOST_PLACES_ABOVE_LANDING, TapDripTests::tapHostPlacesAboveLanding);
+        reg(r, TAP_DRIP_NO_ABILITY, TapDripTests::tapDripNoAbility);
     }
 
     private static void registerLightingTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {

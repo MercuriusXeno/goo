@@ -32,7 +32,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.Map;
 
 /**
- * Tap block: a faucet with a canister slot that auto-drips goo blobs on a timer.
+ * Tap block: a faucet with a canister slot that drips goo on a timer.
  * FACING indicates the direction the spigot points. Right-clicking the valve
  * toggles dripping; right-clicking the body inserts/removes the canister.
  */
@@ -66,7 +66,8 @@ public class TapBlock extends BaseEntityBlock {
     /**
      * South-facing spigot nozzle shape.
      */
-    private static final VoxelShape SOUTH_SPIGOT = box(6, 2, 6, 10, 4, 10);
+    private static final VoxelShape SOUTH_SPIGOT = box(TapSpigot.MIN_XZ_PX, TapSpigot.BOTTOM_PX, TapSpigot.MIN_XZ_PX,
+            TapSpigot.MAX_XZ_PX, TapSpigot.TOP_PX, TapSpigot.MAX_XZ_PX);
 
     /**
      * Per-facing body shapes for hit detection.
