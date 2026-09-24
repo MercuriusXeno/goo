@@ -2,7 +2,7 @@
   "type": "minecraft:smithing_transform",
   "addition": "goo:exorite",
   "base": "goo:goo_gauntlet",
-  "template": "minecraft:netherite_upgrade_smithing_template",
+  "template": "goo:exorite_upgrade_smithing_template",
   "result": {
     "count": 1,
     "id": "goo:exo_gauntlet"

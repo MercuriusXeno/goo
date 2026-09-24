@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.client.particle;
 
 import com.mercuriusxeno.goo.DripFall;
-import com.mercuriusxeno.goo.registry.GooParticles;
 import net.minecraft.client.Camera;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.Particle;
@@ -10,17 +9,20 @@ import net.minecraft.client.particle.SingleQuadParticle;
 import net.minecraft.client.particle.SpriteSet;
 import net.minecraft.client.renderer.state.level.QuadParticleRenderState;
 import net.minecraft.core.particles.ColorParticleOption;
+import net.minecraft.core.particles.ParticleType;
 import net.minecraft.util.RandomSource;
 import org.joml.Quaternionf;
 import org.jspecify.annotations.Nullable;
+import java.util.function.Supplier;
 
 /**
- * Blocky slime drip particle for thrown goo blob trails. Modeled after
- * vanilla's lava/water drip particles - falls under gravity, splats on
- * ground contact. Spawned directly into the fall phase (no hang phase)
- * because these drip off a moving blob, not a stationary block.
+ * Blocky slime drip particle shared by the trail-drip and the tap-drip.
+ * Modeled after vanilla's lava/water drip particles - falls under gravity,
+ * splats on ground contact. Spawned directly into the fall phase (no hang
+ * phase). Each drip names the splat type its fall spawns and draws its own
+ * sprites (decision tap-drip-own-square-particles).
  */
-public class GooDripParticle extends SingleQuadParticle {
+public abstract class DripParticle extends SingleQuadParticle {
 
     /** Gravity shared with the server's drip arrival timing. */
     private static final float DRIP_GRAVITY = (float) DripFall.GRAVITY;
@@ -80,7 +82,7 @@ public class GooDripParticle extends SingleQuadParticle {
      * @param blue    the blue color component
      * @param sprites the sprite set for animation frames
      */
-    private GooDripParticle(ClientLevel level, double x, double y, double z,
+    private DripParticle(ClientLevel level, double x, double y, double z,
             float red, float green, float blue, SpriteSet sprites) {
         super(level, x, y, z, sprites.get(0, 1));
         this.setSize(DRIP_SIZE, DRIP_SIZE);
@@ -135,9 +137,8 @@ public class GooDripParticle extends SingleQuadParticle {
         }
     }
 
-    /** Hook for ground-contact behavior; subclasses override. */
-    protected void postMoveUpdate() {
-    }
+    /** Ground-contact behavior after each move. */
+    protected abstract void postMoveUpdate();
 
     /**
      * Packs stored RGB into ARGB for spawning child particles.
@@ -152,15 +153,18 @@ public class GooDripParticle extends SingleQuadParticle {
     }
 
     /**
-     * The main drip - falls under gravity, spawns a land splat on ground contact.
-     * This is what the blob flight trail spawns directly.
+     * The falling drip - falls under gravity, spawns its land splat on ground contact.
      */
-    private static class FallParticle extends GooDripParticle {
+    private static final class FallParticle extends DripParticle {
+
+        private final Supplier<? extends ParticleType<ColorParticleOption>> landType;
 
         FallParticle(ClientLevel level, double x, double y, double z,
                 double vx, double vy, double vz,
-                float red, float green, float blue, SpriteSet sprites) {
+                float red, float green, float blue, SpriteSet sprites,
+                Supplier<? extends ParticleType<ColorParticleOption>> landType) {
             super(level, x, y, z, red, green, blue, sprites);
+            this.landType = landType;
             this.xd = vx;
             this.yd = vy;
             this.zd = vz;
@@ -173,7 +177,7 @@ public class GooDripParticle extends SingleQuadParticle {
             if (this.onGround) {
                 this.remove();
                 ColorParticleOption landOption = ColorParticleOption.create(
-                        GooParticles.GOO_DRIP_LAND.get(), packedColor());
+                        landType.get(), packedColor());
                 this.level.addParticle(landOption,
                         this.x, this.y, this.z, 0.0, 0.0, 0.0);
             }
@@ -185,7 +189,7 @@ public class GooDripParticle extends SingleQuadParticle {
      * Overrides the billboard orientation so the quad faces upward,
      * giving the visual impression of a drip flattening on impact.
      */
-    private static class LandParticle extends GooDripParticle {
+    private static final class LandParticle extends DripParticle {
 
         /** Quaternion that lays the quad flat on the XZ plane (normal facing +Y). */
         private static final Quaternionf FLAT_ROTATION =
@@ -203,6 +207,12 @@ public class GooDripParticle extends SingleQuadParticle {
             this.lifetime = (int) (LAND_LIFETIME_DIVISOR / (level.getRandom().nextFloat() * LIFETIME_RANGE + LIFETIME_MIN_FACTOR));
             this.maxLifetime = this.lifetime;
             this.gravity = 0.0f;
+        }
+
+        /** A splat already lies on the ground, so contact changes nothing. */
+        @Override
+        protected void postMoveUpdate() {
+            // Contact is the splat's resting state.
         }
 
         /**
@@ -239,19 +249,21 @@ public class GooDripParticle extends SingleQuadParticle {
         }
     }
 
-
-    /** Provider for the falling drip - used by BlobFlightRenderer trail. */
-    public static class Provider implements ParticleProvider<ColorParticleOption> {
+    /** Provider for a falling drip that splats as the land type it names. */
+    public static class FallProvider implements ParticleProvider<ColorParticleOption> {
 
         private final SpriteSet sprites;
+        private final Supplier<? extends ParticleType<ColorParticleOption>> landType;
 
         /**
          * Creates a provider with the given sprite set from the particle definition.
          *
-         * @param sprites the sprite set for drip animation frames
+         * @param sprites  the sprite set for drip animation frames
+         * @param landType the splat type the drip spawns on ground contact
          */
-        public Provider(SpriteSet sprites) {
+        public FallProvider(SpriteSet sprites, Supplier<? extends ParticleType<ColorParticleOption>> landType) {
             this.sprites = sprites;
+            this.landType = landType;
         }
 
         /**
@@ -276,11 +288,11 @@ public class GooDripParticle extends SingleQuadParticle {
                 RandomSource random) {
             return new FallParticle(level, x, y, z,
                     xSpeed, ySpeed, zSpeed,
-                    options.getRed(), options.getGreen(), options.getBlue(), sprites);
+                    options.getRed(), options.getGreen(), options.getBlue(), sprites, landType);
         }
     }
 
-    /** Provider for the ground splat - spawned by FallParticle on impact. */
+    /** Provider for the ground splat - spawned by a falling drip on impact. */
     public static class LandProvider implements ParticleProvider<ColorParticleOption> {
 
         private final SpriteSet sprites;

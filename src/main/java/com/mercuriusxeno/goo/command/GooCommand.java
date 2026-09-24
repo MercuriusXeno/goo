@@ -296,6 +296,7 @@ public final class GooCommand {
                 .then(opSubcommand(CMD_REGEN, GooCommand::regen))
                 .then(opSubcommand(CMD_AUDIT, GooAuditReport::run))
                 .then(scaffoldSubcommand())
+                .then(LabCommand.children(Commands.literal(LabCommand.CMD_LAB).requires(GooCommand::requiresOp)))
                 .then(opSubcommand(CMD_INIT, GooCommand::init))
                 .then(Commands.literal(CMD_ORPHANS).requires(GooCommand::requiresOp)
                         .executes(ctx -> scanOrphans(ctx, false))

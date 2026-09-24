@@ -11,7 +11,6 @@ import com.mercuriusxeno.goo.block.gasket.IGasketHolder;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
-import com.mercuriusxeno.goo.registry.GooParticles;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
@@ -114,7 +113,7 @@ public class TapBlockEntity extends net.minecraft.world.level.block.entity.Block
             return;
         }
         Vec3 spigot = TapSpigot.underside(pos);
-        TapDrip.emit(TapDrip.sinkOf(server), GooParticles.GOO_DRIP.get(),
+        TapDrip.emit(TapDrip.sinkOf(server),
                 GooColors.get(server.registryAccess(), type), spigot);
         int fallTicks = DripFall.fallTicks(spigot.y - landing.surfaceY(), -TapDrip.DRIP_LEAVE_SPEED);
         TapDripScheduler.enqueue(new TapDripScheduler.PendingDrip(server, pos, landing.pos(), Direction.UP,
