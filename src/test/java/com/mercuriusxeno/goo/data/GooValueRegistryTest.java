@@ -44,8 +44,7 @@ class GooValueRegistryTest {
     private void setBaseValues(Map<Identifier, GooValue> values) {
         registry.baseValues.clear();
         registry.baseValues.putAll(values);
-        registry.effectiveValues.clear();
-        registry.effectiveValues.putAll(values);
+        registry.publishEffectiveValues(values);
     }
 
     /**
@@ -82,9 +81,11 @@ class GooValueRegistryTest {
      * Copies base values to effective, applying post-conversions.
      */
     private void copyBaseToEffective() {
-        registry.effectiveValues.putAll(registry.baseValues);
+        Map<Identifier, GooValue> effective = new HashMap<>(registry.effectiveValues);
+        effective.putAll(registry.baseValues);
         GooConversionLoader.applyConversions(registry.postConversions,
-                registry.effectiveValues, registry.pseudoTags);
+                effective, registry.pseudoTags);
+        registry.publishEffectiveValues(effective);
     }
 
     /**
