@@ -9,73 +9,77 @@ import net.minecraft.resources.ResourceKey;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Tests for crucible pure logic: exponent-based extraction rate,
+ * Tests for crucible pure logic: the melt rate ramp,
  * proportional drain shares, GooValue-to-GooContents bridge,
  * GooContents operations, and platform movement math.
  */
 @ExtendWith(MockitoExtension.class)
 class CrucibleBlockEntityTest {
 
-    // -- extractionRate (quarter-power curve) --------------------------------
+    // -- extractionRate (ramp on warm goo against cold goo) ------------------
+
+    private static final int ONE_BLOCK_MB = 1152;
 
     /**
-     * Zero remaining always yields minimum rate of 1 mB/t.
+     * Simulates a whole melt through CrucibleMath alone, each tick's drain fed into the warm volume.
+     *
+     * @param warmVolume the reservoir's volume before the first tick
+     * @param coldVolume the item's volume before the first tick
+     * @return the rate of each tick, in order
      */
-    @Test
-    void zeroRemainingYieldsMinimumRate() {
-        assertEquals(1, CrucibleMath.extractionRate(0));
+    private static List<Integer> simulateMeltRates(int warmVolume, int coldVolume) {
+        List<Integer> rates = new ArrayList<>();
+        int warm = warmVolume;
+        int cold = coldVolume;
+        while (cold > 0) {
+            int rate = CrucibleMath.extractionRate(warm, cold);
+            int drained = Math.min(rate, cold);
+            warm += drained;
+            cold -= drained;
+            rates.add(rate);
+        }
+        return rates;
     }
 
     /**
-     * 1 mB remaining: floor(1^0.25) = 1.
+     * A block melting from an empty reservoir never slows, and its last tick is its fastest.
      */
     @Test
-    void oneRemainingYieldsOne() {
-        assertEquals(1, CrucibleMath.extractionRate(1));
+    void wholeMeltFromEmptyRampsWithFastestTail() {
+        List<Integer> rates = simulateMeltRates(0, ONE_BLOCK_MB);
+        for (int tick = 1; tick < rates.size(); tick++) {
+            assertTrue(rates.get(tick) >= rates.get(tick - 1),
+                    "rate fell at tick " + tick + ": " + rates.get(tick - 1) + " -> " + rates.get(tick));
+        }
+        int lastRate = rates.get(rates.size() - 1);
+        assertEquals(Collections.max(rates), lastRate);
+        assertTrue(lastRate > rates.get(0), "last rate " + lastRate + " should exceed first " + rates.get(0));
     }
 
     /**
-     * 100 mB remaining: floor(100^0.25) = floor(3.16) = 3.
+     * Goo already standing in the reservoir melts the next block faster from its first tick.
      */
     @Test
-    void hundredRemainingYieldsThree() {
-        assertEquals(3, CrucibleMath.extractionRate(100));
+    void warmReservoirMeltsFasterFromFirstTick() {
+        int rateFromEmpty = CrucibleMath.extractionRate(0, ONE_BLOCK_MB);
+        int rateFromWarm = CrucibleMath.extractionRate(10_000, ONE_BLOCK_MB);
+        assertTrue(rateFromWarm > rateFromEmpty,
+                "warm first-tick rate " + rateFromWarm + " should exceed empty " + rateFromEmpty);
     }
 
     /**
-     * 1000 mB remaining: floor(1000^0.25) = floor(5.62) = 5.
+     * An item with no cold goo left answers the floor rather than dividing by zero.
      */
     @Test
-    void thousandRemainingYieldsFive() {
-        assertEquals(5, CrucibleMath.extractionRate(1000));
-    }
-
-    /**
-     * 10,000 mB remaining: floor(10000^0.25) = 10.
-     */
-    @Test
-    void tenThousandRemainingYieldsTen() {
-        assertEquals(10, CrucibleMath.extractionRate(10_000));
-    }
-
-    /**
-     * 1,000,000 mB remaining: floor(1e6^0.25) = floor(31.6) = 31.
-     */
-    @Test
-    void millionRemainingYieldsThirtyOne() {
-        assertEquals(31, CrucibleMath.extractionRate(1_000_000));
-    }
-
-    /**
-     * Negative remaining clamps to minimum rate of 1.
-     */
-    @Test
-    void negativeRemainingYieldsMinimumRate() {
-        assertEquals(1, CrucibleMath.extractionRate(-100));
+    void noColdGooYieldsFloorRate() {
+        assertEquals(1, CrucibleMath.extractionRate(500, 0));
     }
 
     // -- GooValue.toGooContents ------------------------------------------

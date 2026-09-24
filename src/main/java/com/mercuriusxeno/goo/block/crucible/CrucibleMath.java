@@ -13,26 +13,35 @@ import java.util.Map;
 public final class CrucibleMath {
 
     /**
-     * Base exponent for the extraction rate power-law curve.
+     * The melt rate in mB/tick at zero warm goo.
      */
-    static final double BASE_EXPONENT = 0.25;
+    static final int MELT_FLOOR_RATE = 1;
+
+    /**
+     * The power the warm-to-cold ratio is raised to in the melt ramp.
+     */
+    static final double MELT_RAMP_EXPONENT = 2.0;
 
     private CrucibleMath() {
     }
 
     /**
-     * Computes extraction rate (mB/tick) from remaining pool volume.
-     * Formula: max(1, floor(remaining ^ BASE_EXPONENT)).
-     * Rate decelerates naturally as the pool drains (half-life feel).
+     * Computes the melt rate (mB/tick) from the warm goo against the cold goo.
+     * Formula: max(1, floor(MELT_FLOOR_RATE * (1 + warm / cold) ^ MELT_RAMP_EXPONENT)).
+     * The rate rises as warm grows and cold shrinks, so the tail of a melt is its fastest part
+     * (melt-rate-ramps-on-warm-goo).
      *
-     * @param remaining the remaining volume in mB
-     * @return the extraction rate in mB/tick, at least 1
+     * @param warmVolume the reservoir's total volume in mB
+     * @param coldVolume the melting item's remaining volume in mB
+     * @return the melt rate in mB/tick, at least 1
      */
-    public static int extractionRate(int remaining) {
-        if (remaining <= 0) {
-            return 1;
+    public static int extractionRate(int warmVolume, int coldVolume) {
+        if (coldVolume <= 0) {
+            return Math.max(1, MELT_FLOOR_RATE);
         }
-        return Math.max(1, (int) Math.floor(Math.pow(remaining, BASE_EXPONENT)));
+        double warmToCold = Math.max(0, warmVolume) / (double) coldVolume;
+        double ramp = MELT_FLOOR_RATE * Math.pow(1 + warmToCold, MELT_RAMP_EXPONENT);
+        return Math.max(1, (int) Math.floor(ramp));
     }
 
     /**
