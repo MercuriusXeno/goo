@@ -30,6 +30,12 @@ public final class MachineInteractionTests {
     private static final BlockPos BE_POS = new BlockPos(1, 1, 1);
     private static final String TAP_SHOULD_INSERT = "Tap should accept canister insertion";
     private static final String TAP_SLOT_FILLED = "Tap canister slot should be occupied";
+    private static final String TAP_HAND_SHRANK = "Held canister stack should shrink by one";
+    private static final int TAP_HAND_COUNT = 2;
+    /** South-facing tap: a point on the body's top face, which is the slot region's bottom face. */
+    private static final Vec3 TAP_BODY_TOP_HIT_PX = new Vec3(8, 4, 3);
+    /** South-facing tap: a point inside the slot region, above the body. */
+    private static final Vec3 TAP_SLOT_REGION_HIT_PX = new Vec3(8, 10, 3);
     private static final String VAT_SHOULD_HAVE_CAP = "Vat should have gasket cap after gasket apply";
     private static final String HUB_SHOULD_INSERT = "Hub should have canister after insertion";
     private static final String HUB_SHOULD_PICKUP = "Hub slot should be empty after plain-click pickup";
@@ -71,6 +77,52 @@ public final class MachineInteractionTests {
         helper.assertTrue(tap.insertCanister(new ItemStack(GooItems.CANISTER.get())),
                 TAP_SHOULD_INSERT);
         helper.assertFalse(tap.getCanister().isEmpty(), TAP_SLOT_FILLED);
+        helper.succeed();
+    }
+
+    /**
+     * Tap: a plain canister click on the top face of the body puts the canister in the slot
+     * (decision tap-top-click-inserts-canister).
+     *
+     * @param helper the gametest helper
+     */
+    public static void tapTopClickInsertsCanister(GameTestHelper helper) {
+        clickEmptyTapWithCanister(helper, TAP_BODY_TOP_HIT_PX, Direction.UP);
+    }
+
+    /**
+     * Tap: a plain canister click anywhere in the slot region the outline draws puts the
+     * canister in the slot (decision tap-top-click-inserts-canister).
+     *
+     * @param helper the gametest helper
+     */
+    public static void tapSlotRegionClickInsertsCanister(GameTestHelper helper) {
+        clickEmptyTapWithCanister(helper, TAP_SLOT_REGION_HIT_PX, Direction.NORTH);
+    }
+
+    /**
+     * Places a south-facing empty tap, right-clicks it through the block's use path with a
+     * two-canister stack in a non-sneaking player's hand, and asserts one canister moved into the slot.
+     *
+     * @param helper  the gametest helper
+     * @param localPx the hit point inside the tap's block, in pixels
+     * @param face    the face the hit lands on
+     */
+    private static void clickEmptyTapWithCanister(GameTestHelper helper, Vec3 localPx, Direction face) {
+        helper.setBlock(BE_POS, GooBlocks.TAP.get());
+        TapBlockEntity tap = helper.getBlockEntity(BE_POS, TapBlockEntity.class);
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        player.setShiftKeyDown(false);
+        player.setItemInHand(InteractionHand.MAIN_HAND,
+                new ItemStack(GooItems.CANISTER.get(), TAP_HAND_COUNT));
+
+        BlockPos abs = helper.absolutePos(BE_POS);
+        BlockHitResult tapHit = new BlockHitResult(
+                Vec3.atLowerCornerOf(abs).add(localPx.scale(1.0 / PIXELS_PER_BLOCK)), face, abs, false);
+        helper.useBlock(BE_POS, player, tapHit);
+
+        helper.assertFalse(tap.getCanister().isEmpty(), TAP_SLOT_FILLED);
+        helper.assertTrue(player.getMainHandItem().getCount() == TAP_HAND_COUNT - 1, TAP_HAND_SHRANK);
         helper.succeed();
     }
 
