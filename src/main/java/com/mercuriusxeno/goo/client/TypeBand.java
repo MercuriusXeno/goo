@@ -21,9 +21,6 @@ public record TypeBand(ResourceKey<GooTypeDefinition> type, float lo, float hi) 
     /** Bit offset of the upper edge in the packed band. */
     private static final int HI_SHIFT = 16;
 
-    /** The packed band spanning the whole range, which a single-type surface draws. */
-    public static final int WHOLE_RANGE_PACKED = BAND_UNITS << HI_SHIFT;
-
     /**
      * Packs the band into the lightmap coordinates the surface shader reads
      * as UV2, lower edge in the low short and upper edge in the high short;

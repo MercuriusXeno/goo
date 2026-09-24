@@ -177,8 +177,7 @@ public final class GooSubmitter {
     }
 
     /**
-     * Submits fluid geometry fullbright in the given color, so a crossfade
-     * can carry its alpha into the vertex color.
+     * Submits fluid geometry fullbright in the given color.
      *
      * @param poseStack     the pose stack
      * @param nodeCollector the render node collector
@@ -193,30 +192,11 @@ public final class GooSubmitter {
     }
 
     /**
-     * Submits vat or crucible fluid geometry in the given color on the
-     * undulating fluid surface render type (decision
-     * undulating-fluid-surface): a vertex's overlay UV carries its ripple
-     * amplitude, so the grid surface ripples and flat faces stay put. The
-     * surface is emissive, and its lightmap coordinates carry the whole type
-     * band, so every fragment shows. The whole vat or crucible fluid goes
-     * through here so one buffer sorts it.
-     *
-     * @param poseStack     the pose stack
-     * @param nodeCollector the render node collector
-     * @param color         the ARGB color the context's uncolored emitters use
-     * @param emitter       emits the fluid vertices through the context
-     */
-    public static void submitUndulatingFluid(PoseStack poseStack, SubmitNodeCollector nodeCollector,
-                                             int color, Consumer<RenderContext> emitter) {
-        nodeCollector.submitCustomGeometry(poseStack, GooRenderTypes.gooFluidSurface(BLOCK_ATLAS),
-            (pose, c) -> emitter.accept(
-                new RenderContext(pose, c, TypeBand.WHOLE_RANGE_PACKED, color)));
-    }
-
-    /**
-     * Answers the submitter that draws one undulating surface per type band
-     * (decision noise-mingled-type-textures), each on its type's fluid
-     * sprite and tint, every vertex carrying the band.
+     * Answers the submitter that draws vat and crucible fluid as one
+     * undulating surface per type band (decisions undulating-fluid-surface
+     * and noise-mingled-type-textures): a vertex's overlay UV carries its
+     * ripple amplitude and its lightmap coordinates the band, each surface
+     * on its type's fluid sprite and tint.
      *
      * @param poseStack     the pose stack
      * @param nodeCollector the render node collector
