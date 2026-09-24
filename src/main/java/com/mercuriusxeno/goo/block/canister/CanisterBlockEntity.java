@@ -510,16 +510,12 @@ public class CanisterBlockEntity extends BlockEntity implements ICanisterHolder,
     }
 
     private InteractionResult handleBlobInsert(BlockHitResult hitResult, ItemStack stack, Player player) {
-        ResourceKey<GooTypeDefinition> type = BlobStacks.keyOf(stack);
-        if (type == null) {
-            return InteractionResult.PASS;
-        }
         int hitSlot = CanisterBlock.hitSlot(hitResult, worldPosition);
-        int accepted = tryInsertBlobGoo(hitSlot, type, BlobStacks.volumeOf(stack));
+        int accepted = BlobInsert.pour(stack, player,
+                (type, volume) -> tryInsertBlobGoo(hitSlot, type, volume));
         if (accepted <= 0) {
             return InteractionResult.PASS;
         }
-        BlobStacks.deplete(stack, accepted, player);
         level.playSound(null, worldPosition, SoundEvents.BOTTLE_EMPTY,
                 SoundSource.BLOCKS, 1.0f, 1.0f);
         return InteractionResult.SUCCESS;

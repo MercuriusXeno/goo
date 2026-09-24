@@ -12,6 +12,7 @@ import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Vat block item: retains goo contents when picked up (like shulker boxes).
@@ -47,25 +48,10 @@ public class VatBlockItem extends BlockItem {
             @NonNull Slot slot, @NonNull ClickAction action, @NonNull Player player,
             @NonNull SlotAccess cursorAccess) {
         if (cursor.isEmpty() && action == ClickAction.SECONDARY) {
-            return handleEmptyCursorDrain(vat, cursorAccess);
+            return CanisterInventoryHandler.drainToCursor(cursorAccess, new VatGooSource(vat));
         }
-        return action == ClickAction.PRIMARY && handlePrimaryClick(vat, cursor, cursorAccess);
-    }
-
-    /**
-     * Routes primary click to the appropriate handler based on cursor item type.
-     *
-     * @param vat          the vat item stack
-     * @param cursor       the item stack on the cursor
-     * @param cursorAccess access to set the cursor contents
-     * @return true if the interaction was handled
-     */
-    private static boolean handlePrimaryClick(ItemStack vat, ItemStack cursor, SlotAccess cursorAccess) {
-        if (cursor.getItem() instanceof GooBlobItem) {
-            return handleBlobInsert(vat, cursor, cursorAccess);
-        }
-        return cursor.getItem() instanceof GooOmniblobItem
-                && handleOmniblobInsert(vat, cursor, cursorAccess);
+        return action == ClickAction.PRIMARY && CanisterInventoryHandler.insertFromCursor(
+                cursor, cursorAccess, (type, volume) -> addGoo(vat, type, volume));
     }
 
     // --- Goo contents helpers (vat-specific capacity) ---
@@ -120,89 +106,20 @@ public class VatBlockItem extends BlockItem {
         return GooContentsOps.removeGoo(stack, type, amount);
     }
 
-    // --- Interaction handlers ---
-
     /**
-     * Transfers blob goo into the vat, shrinking the blob stack by accepted blobs.
+     * The vat item as a drain source: its largest goo type, removed up to what it holds.
      *
-     * @param vat         the vat item stack
-     * @param cursor      the blob stack on the cursor
-     * @param cursorAccess access to set the cursor contents
-     * @return true if any goo was transferred
+     * @param vat the vat item stack
      */
-    private static boolean handleBlobInsert(ItemStack vat, ItemStack cursor, SlotAccess cursorAccess) {
-        ResourceKey<GooTypeDefinition> type = BlobStacks.keyOf(cursor);
-        if (type == null) { return false; }
-        int volume = BlobStacks.volumeOf(cursor);
-        int accepted = addGoo(vat, type, volume);
-        if (accepted <= 0) { return false; }
-        int blobsUsed = (accepted / BlobStacks.MB_PER_BLOB);
-        cursor.shrink(blobsUsed);
-        if (cursor.isEmpty()) { cursorAccess.set(ItemStack.EMPTY); }
-        return true;
-    }
+    private record VatGooSource(ItemStack vat) implements CanisterInventoryHandler.GooSource {
+        @Override
+        public @Nullable ResourceKey<GooTypeDefinition> dominantType() {
+            return getGooContents(vat).largestType();
+        }
 
-    /**
-     * Transfers omniblob goo into the vat, reducing or clearing the cursor.
-     *
-     * @param vat         the vat item stack
-     * @param cursor      the omniblob on the cursor
-     * @param cursorAccess access to set the cursor contents
-     * @return true if any goo was transferred
-     */
-    private static boolean handleOmniblobInsert(ItemStack vat, ItemStack cursor, SlotAccess cursorAccess) {
-        ResourceKey<GooTypeDefinition> type = BlobStacks.keyOf(cursor);
-        if (type == null) { return false; }
-        int volume = GooOmniblobItem.getVolume(cursor);
-        int accepted = addGoo(vat, type, volume);
-        if (accepted <= 0) { return false; }
-        updateOmniblobRemainder(cursor, cursorAccess, volume - accepted);
-        return true;
-    }
-
-    /** Clears or shrinks the omniblob cursor after a partial transfer.
-     *
-     * @param cursor       the omniblob on the cursor
-     * @param cursorAccess access to set the cursor contents
-     * @param remaining    the remaining volume after transfer
-     */
-    private static void updateOmniblobRemainder(ItemStack cursor, SlotAccess cursorAccess, int remaining) {
-        if (remaining <= 0) {
-            cursorAccess.set(ItemStack.EMPTY);
-        } else {
-            GooOmniblobItem.setVolume(cursor, remaining);
+        @Override
+        public int remove(ResourceKey<GooTypeDefinition> type, int volume) {
+            return removeGoo(vat, type, volume);
         }
     }
-
-    /**
-     * Drains up to 64,000 mB of the dominant goo type onto the cursor as a blob output.
-     *
-     * @param vat         the vat item stack
-     * @param cursorAccess access to set the cursor contents
-     * @return true if any goo was extracted
-     */
-    private static boolean handleEmptyCursorDrain(ItemStack vat, SlotAccess cursorAccess) {
-        GooContents contents = getGooContents(vat);
-        if (contents.isEmpty()) { return false; }
-        ResourceKey<GooTypeDefinition> dominant = contents.largestType();
-        return dominant != null && extractDominantAsBlobs(vat, cursorAccess, contents, dominant);
-    }
-
-    /** Extracts the dominant type from the vat as blob output onto the cursor.
-     *
-     * @param vat          the vat item stack
-     * @param cursorAccess access to set the cursor contents
-     * @param contents     the current vat contents
-     * @param dominant     the dominant goo type
-     * @return true if any goo was extracted
-     */
-    private static boolean extractDominantAsBlobs(ItemStack vat, SlotAccess cursorAccess,
-            GooContents contents, ResourceKey<GooTypeDefinition> dominant) {
-        int toExtract = Math.min(contents.getVolume(dominant), ContainerCapacity.BLOB_CAP);
-        int extracted = removeGoo(vat, dominant, toExtract);
-        if (extracted <= 0) { return false; }
-        cursorAccess.set(BlobStacks.createForOutput(dominant, extracted));
-        return true;
-    }
-
 }

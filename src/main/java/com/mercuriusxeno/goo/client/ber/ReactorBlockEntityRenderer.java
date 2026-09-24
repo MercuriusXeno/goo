@@ -249,7 +249,7 @@ public class ReactorBlockEntityRenderer
      * @param state    the render state to populate
      */
     private static void extractContents(ItemStack canister, ReactorRenderState state) {
-        state.slot.matrices = GooEnchantments.getCompressionLevel(canister);
+        state.slot.compression = GooEnchantments.getCompressionLevel(canister);
         CanisterMetadata meta = CanisterItem.getMetadata(canister);
         state.slot.topGasketPresent = meta.topGasketId() != null;
         state.slot.bottomGasketPresent = meta.bottomGasketId() != null;
@@ -258,7 +258,7 @@ public class ReactorBlockEntityRenderer
             state.slot.type = null;
             state.slot.fill = 0f;
         } else {
-            int cap = ContainerCapacity.canisterCapacity(state.slot.matrices);
+            int cap = ContainerCapacity.canisterCapacity(state.slot.compression);
             state.slot.type = content.getGooType();
             state.slot.fill = Math.min(1f, (float) content.amount() / cap);
         }
