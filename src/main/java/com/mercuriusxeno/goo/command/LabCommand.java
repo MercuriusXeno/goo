@@ -15,8 +15,9 @@ import net.minecraft.server.level.ServerPlayer;
 /**
  * Provides {@code /goo lab}: {@code build} builds the Goo Lab from
  * {@link LabLayout} at the lab origin and hands its invoker the kit
- * (decision lab-built-from-code); {@code kit} hands the kit alone (decision
- * lab-holds-bays-supply-pens-kit). {@link GooCommand} gates the tree to operators.
+ * (decision lab-built-from-code); {@code rebuild} clears the lab footprint and
+ * builds it again in place (decision lab-save-is-disposable); {@code kit} hands
+ * the kit alone (decision lab-holds-bays-supply-pens-kit). {@link GooCommand} gates the tree to operators.
  */
 public final class LabCommand {
 
@@ -32,6 +33,10 @@ public final class LabCommand {
      * Subcommand name for the kit.
      */
     private static final String CMD_KIT = "kit";
+    /**
+     * Subcommand name for the rebuild.
+     */
+    private static final String CMD_REBUILD = "rebuild";
     /**
      * Prefix of the build report, followed by the placement count.
      */
@@ -60,6 +65,7 @@ public final class LabCommand {
      */
     static ArgumentBuilder<CommandSourceStack, ?> children(ArgumentBuilder<CommandSourceStack, ?> lab) {
         return lab.then(Commands.literal(CMD_BUILD).executes(LabCommand::build))
+                .then(Commands.literal(CMD_REBUILD).executes(LabCommand::rebuild))
                 .then(Commands.literal(CMD_KIT).executes(LabCommand::kit));
     }
 
@@ -92,6 +98,19 @@ public final class LabCommand {
             source.sendSuccess(() -> Component.literal(MSG_KIT + stacks + MSG_STACKS), false);
         }
         return placed;
+    }
+
+    /**
+     * Clears the lab footprint and builds the lab again in place for the command's source.
+     *
+     * @param ctx the command context
+     * @return the number of placements set
+     * @throws CommandSyntaxException when a planned block state does not parse
+     */
+    private static int rebuild(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        CommandSourceStack source = ctx.getSource();
+        LabBuilder.clear(source.getLevel(), LabBuilder.worldOrigin(), LabBuilder.planFor(source.getLevel()).bounds());
+        return buildAt(source, LabBuilder.worldOrigin());
     }
 
     /**

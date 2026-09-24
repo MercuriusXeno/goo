@@ -71,6 +71,7 @@ public final class GooTestFunctions {
     private static final String LAB_PENS_AND_RANGE = "lab_pens_and_range";
     private static final String LAB_SUPPLY_ROW = "lab_supply_row";
     private static final String LAB_KIT = "lab_kit";
+    private static final String LAB_REBUILD = "lab_rebuild";
 
     // --- GasketPusher ---
     private static final String PUSHER_EMPTY_RESERVOIR = "pusher_empty_reservoir";
@@ -459,6 +460,7 @@ public final class GooTestFunctions {
         reg(r, LAB_PENS_AND_RANGE, LabBayTests::pensAndRange);
         reg(r, LAB_SUPPLY_ROW, LabSupplyTests::supplyRow);
         reg(r, LAB_KIT, LabSupplyTests::kit);
+        reg(r, LAB_REBUILD, LabRebuildTests::rebuild);
     }
 
     /**

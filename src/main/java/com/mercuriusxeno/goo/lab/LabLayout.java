@@ -38,6 +38,14 @@ public final class LabLayout {
      */
     static final String FLOOR_BLOCK = "minecraft:smooth_stone";
     /**
+     * The block the foundation under the floor plate is made of.
+     */
+    static final String FOUNDATION_BLOCK = "minecraft:stone";
+    /**
+     * The foundation's height, one block under the floor plate.
+     */
+    static final int FOUNDATION_Y = -1;
+    /**
      * The block that marks a plot's ground inside the floor plate.
      */
     static final String PLOT_BLOCK = "minecraft:polished_andesite";
@@ -87,7 +95,8 @@ public final class LabLayout {
         LabRange range = LabTargetRange.range(RANGE_CORNER);
         Map<LabOffset, LabPlacement> byOffset = new LinkedHashMap<>();
         LabBox floor = floorAround(zoneBoxes(plots, supply, pens, range));
-        floorPlacements(floor, plots).forEach(p -> byOffset.put(p.offset(), p));
+        put(byOffset, foundationPlacements(floor));
+        put(byOffset, floorPlacements(floor, plots));
         plots.forEach(plot -> put(byOffset, bayAndSign(plot)));
         put(byOffset, LabSupply.rowBlocks(supply));
         pens.forEach(pen -> put(byOffset, LabPens.penBlocks(pen, SIGN_BLOCK)));
@@ -157,6 +166,24 @@ public final class LabLayout {
     private static List<LabPlacement> bayAndSign(LabPlot plot) {
         List<LabPlacement> placements = new ArrayList<>(LabBays.bayBlocks(plot));
         placements.add(new LabPlacement(plot.signOffset(), SIGN_BLOCK, plot.machine().displayName()));
+        return placements;
+    }
+
+    /**
+     * Lays the foundation one block under the floor plate, so the lab's
+     * bounds hold no block the plan leaves unnamed and a rebuild's clear
+     * leaves no air under the floor (decision lab-save-is-disposable).
+     *
+     * @param floor the floor box
+     * @return one placement per foundation block
+     */
+    private static List<LabPlacement> foundationPlacements(LabBox floor) {
+        List<LabPlacement> placements = new ArrayList<>();
+        for (int x = floor.min().x(); x <= floor.max().x(); x++) {
+            for (int z = floor.min().z(); z <= floor.max().z(); z++) {
+                placements.add(LabPlacement.block(new LabOffset(x, FOUNDATION_Y, z), FOUNDATION_BLOCK));
+            }
+        }
         return placements;
     }
 

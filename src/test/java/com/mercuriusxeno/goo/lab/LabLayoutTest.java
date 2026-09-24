@@ -175,6 +175,17 @@ class LabLayoutTest {
     }
 
     @Test
+    void foundationNamesEveryBlockUnderTheFloor() {
+        LabBox floor = LabLayout.floorBox(plan);
+        for (int x = floor.min().x(); x <= floor.max().x(); x++) {
+            for (int z = floor.min().z(); z <= floor.max().z(); z++) {
+                assertEquals(LabLayout.FOUNDATION_BLOCK, stateAt(new LabOffset(x, LabLayout.FOUNDATION_Y, z)));
+            }
+        }
+        assertEquals(LabLayout.FOUNDATION_Y, plan.bounds().min().y());
+    }
+
+    @Test
     void supplyRowTakesOneStationPerTypeIdItIsGiven() {
         List<String> ids = List.of("goo:rock", "goo:blaze", "gootest:seventeenth");
         LabPlan supplied = LabLayout.plan(ids);

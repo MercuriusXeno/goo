@@ -201,6 +201,13 @@ afterEvaluate {
     tasks.named('runClient').configure { dependsOn 'seedLab' }
 }
 
+// The save is scratch: freshLab deletes it so the next runClient reseeds it (decision lab-save-is-disposable)
+tasks.register('freshLab', Delete) {
+    description = 'Deletes runs/client/saves/Goo Lab so the next runClient reseeds it from dev/lab/'
+    group = 'goo'
+    delete 'runs/client/saves/Goo Lab'
+}
+
 tasks.withType(ProcessResources).configureEach {
     var replaceProperties = [
         minecraft_version      : minecraft_version,
