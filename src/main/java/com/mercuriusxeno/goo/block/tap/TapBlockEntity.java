@@ -114,7 +114,7 @@ public class TapBlockEntity extends net.minecraft.world.level.block.entity.Block
             return;
         }
         Vec3 spigot = TapSpigot.underside(pos);
-        TapDrip.emit(TapDrip.sinkOf(server), GooParticles.GOO_DRIP.get(),
+        TapDrip.emit(TapDrip.sinkOf(server), GooParticles.TRAIL_DRIP.get(),
                 GooColors.get(server.registryAccess(), type), spigot);
         int fallTicks = DripFall.fallTicks(spigot.y - landing.surfaceY(), -TapDrip.DRIP_LEAVE_SPEED);
         TapDripScheduler.enqueue(new TapDripScheduler.PendingDrip(server, pos, landing.pos(), Direction.UP,

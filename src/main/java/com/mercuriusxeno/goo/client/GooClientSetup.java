@@ -193,8 +193,8 @@ public final class GooClientSetup {
     public static void registerParticleProviders(RegisterParticleProvidersEvent event) {
         event.registerSpriteSet(GooParticles.GOO_BUBBLE.get(), GooBubbleParticle.Provider::new);
         event.registerSpriteSet(GooParticles.GOO_SPARK.get(), GooSparkParticle.Provider::new);
-        event.registerSpriteSet(GooParticles.GOO_DRIP.get(), GooDripParticle.Provider::new);
-        event.registerSpriteSet(GooParticles.GOO_DRIP_LAND.get(), GooDripParticle.LandProvider::new);
+        event.registerSpriteSet(GooParticles.TRAIL_DRIP.get(), TrailDripParticle.Provider::new);
+        event.registerSpriteSet(GooParticles.TRAIL_DRIP_LAND.get(), TrailDripParticle.LandProvider::new);
         event.registerSpriteSet(GooParticles.GOO_FOG.get(), GooFogParticle.Provider::new);
         event.registerSpriteSet(GooParticles.ORIENTED_BOOM.get(), OrientedBoomParticle.Provider::new);
     }

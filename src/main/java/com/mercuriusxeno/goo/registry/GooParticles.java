@@ -28,13 +28,13 @@ public class GooParticles {
     public static final DeferredHolder<ParticleType<?>, ParticleType<ColorParticleOption>> GOO_BUBBLE =
         PARTICLE_TYPES.register("goo_bubble", GooParticles::colorParticleType);
 
-    /** Blocky slime drip shed by thrown goo blobs mid-flight. */
-    public static final DeferredHolder<ParticleType<?>, ParticleType<ColorParticleOption>> GOO_DRIP =
-        PARTICLE_TYPES.register("goo_drip", GooParticles::colorParticleType);
+    /** The trail-drip: 2x3 slime drip shed by thrown goo blobs mid-flight. */
+    public static final DeferredHolder<ParticleType<?>, ParticleType<ColorParticleOption>> TRAIL_DRIP =
+        PARTICLE_TYPES.register("trail_drip", GooParticles::colorParticleType);
 
-    /** Brief splat when a goo drip hits the ground. */
-    public static final DeferredHolder<ParticleType<?>, ParticleType<ColorParticleOption>> GOO_DRIP_LAND =
-        PARTICLE_TYPES.register("goo_drip_land", GooParticles::colorParticleType);
+    /** Brief splat when a trail-drip hits the ground. */
+    public static final DeferredHolder<ParticleType<?>, ParticleType<ColorParticleOption>> TRAIL_DRIP_LAND =
+        PARTICLE_TYPES.register("trail_drip_land", GooParticles::colorParticleType);
 
     /** Sonic-boom-style particle oriented along the blast axis. */
     public static final DeferredHolder<ParticleType<?>, ParticleType<OrientedBoomParticleOptions>> ORIENTED_BOOM =
