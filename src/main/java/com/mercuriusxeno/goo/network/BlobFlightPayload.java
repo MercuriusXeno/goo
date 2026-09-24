@@ -21,7 +21,7 @@ import org.jspecify.annotations.NonNull;
  * @param targetFace     the target face ordinal
  * @param travelTicks    the number of ticks for the flight arc
  * @param grannyArc      whether to use the boosted arc trajectory
- * @param abilityId      the selected ability id string, or empty for legacy
+ * @param abilityId      the ability id string the blob carries
  */
 public record BlobFlightPayload(double startX, double startY, double startZ,
                                 String gooTypeId, int targetEntityId,

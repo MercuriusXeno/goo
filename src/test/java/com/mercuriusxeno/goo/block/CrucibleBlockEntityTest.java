@@ -20,78 +20,54 @@ import static org.junit.jupiter.api.Assertions.*;
 @ExtendWith(MockitoExtension.class)
 class CrucibleBlockEntityTest {
 
-    // -- extractionRate (exponent-based) ------------------------------------
+    // -- extractionRate (quarter-power curve) --------------------------------
 
     /**
      * Zero remaining always yields minimum rate of 1 mB/t.
      */
     @Test
     void zeroRemainingYieldsMinimumRate() {
-        assertEquals(1, CrucibleMath.extractionRate(0, 0));
+        assertEquals(1, CrucibleMath.extractionRate(0));
     }
 
     /**
-     * 1 mB remaining with no matrices: floor(1^0.25) = 1.
+     * 1 mB remaining: floor(1^0.25) = 1.
      */
     @Test
-    void oneRemainingNoMatricesYieldsOne() {
-        assertEquals(1, CrucibleMath.extractionRate(1, 0));
+    void oneRemainingYieldsOne() {
+        assertEquals(1, CrucibleMath.extractionRate(1));
     }
 
     /**
-     * 100 mB remaining, no matrices: floor(100^0.25) = floor(3.16) = 3.
+     * 100 mB remaining: floor(100^0.25) = floor(3.16) = 3.
      */
     @Test
-    void hundredRemainingNoMatricesYieldsThree() {
-        assertEquals(3, CrucibleMath.extractionRate(100, 0));
+    void hundredRemainingYieldsThree() {
+        assertEquals(3, CrucibleMath.extractionRate(100));
     }
 
     /**
-     * 1000 mB remaining, no matrices: floor(1000^0.25) = floor(5.62) = 5.
+     * 1000 mB remaining: floor(1000^0.25) = floor(5.62) = 5.
      */
     @Test
-    void thousandRemainingNoMatricesYieldsFive() {
-        assertEquals(5, CrucibleMath.extractionRate(1000, 0));
+    void thousandRemainingYieldsFive() {
+        assertEquals(5, CrucibleMath.extractionRate(1000));
     }
 
     /**
-     * 10,000 mB remaining, no matrices: floor(10000^0.25) = 10.
+     * 10,000 mB remaining: floor(10000^0.25) = 10.
      */
     @Test
-    void tenThousandRemainingNoMatricesYieldsTen() {
-        assertEquals(10, CrucibleMath.extractionRate(10_000, 0));
+    void tenThousandRemainingYieldsTen() {
+        assertEquals(10, CrucibleMath.extractionRate(10_000));
     }
 
     /**
-     * 1,000,000 mB remaining, no matrices: floor(1e6^0.25) = floor(31.6) = 31.
+     * 1,000,000 mB remaining: floor(1e6^0.25) = floor(31.6) = 31.
      */
     @Test
-    void millionRemainingNoMatricesYieldsThirtyOne() {
-        assertEquals(31, CrucibleMath.extractionRate(1_000_000, 0));
-    }
-
-    /**
-     * 100 mB remaining, 5 matrices (exponent 0.50): floor(100^0.5) = 10.
-     */
-    @Test
-    void hundredRemainingFiveMatricesYieldsTen() {
-        assertEquals(10, CrucibleMath.extractionRate(100, 5));
-    }
-
-    /**
-     * 1000 mB remaining, 5 matrices: floor(1000^0.5) = floor(31.6) = 31.
-     */
-    @Test
-    void thousandRemainingFiveMatricesYieldsThirtyOne() {
-        assertEquals(31, CrucibleMath.extractionRate(1000, 5));
-    }
-
-    /**
-     * 1,000,000 mB remaining, 5 matrices: floor(1e6^0.5) = 1000.
-     */
-    @Test
-    void millionRemainingFiveMatricesYieldsThousand() {
-        assertEquals(1000, CrucibleMath.extractionRate(1_000_000, 5));
+    void millionRemainingYieldsThirtyOne() {
+        assertEquals(31, CrucibleMath.extractionRate(1_000_000));
     }
 
     /**
@@ -99,49 +75,7 @@ class CrucibleBlockEntityTest {
      */
     @Test
     void negativeRemainingYieldsMinimumRate() {
-        assertEquals(1, CrucibleMath.extractionRate(-100, 0));
-    }
-
-    /**
-     * Negative matrix count clamps to zero matrices.
-     */
-    @Test
-    void negativeMatricesClampToZero() {
-        assertEquals(3, CrucibleMath.extractionRate(100, -1));
-    }
-
-    /**
-     * Matrix count above 5 clamps to 5.
-     */
-    @Test
-    void excessMatricesClampToFive() {
-        assertEquals(10, CrucibleMath.extractionRate(100, 10));
-    }
-
-    // -- computeExponent ----------------------------------------------------
-
-    /**
-     * Base exponent with no matrices.
-     */
-    @Test
-    void baseExponentNoMatrices() {
-        assertEquals(0.25, CrucibleMath.computeExponent(0), 0.001);
-    }
-
-    /**
-     * Exponent with 5 matrices.
-     */
-    @Test
-    void exponentWithFiveMatrices() {
-        assertEquals(0.50, CrucibleMath.computeExponent(5), 0.001);
-    }
-
-    /**
-     * Exponent with 3 matrices.
-     */
-    @Test
-    void exponentWithThreeMatrices() {
-        assertEquals(0.40, CrucibleMath.computeExponent(3), 0.001);
+        assertEquals(1, CrucibleMath.extractionRate(-100));
     }
 
     // -- GooValue.toGooContents ------------------------------------------

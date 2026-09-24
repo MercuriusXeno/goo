@@ -58,7 +58,7 @@ public class GooDataComponents {
                     .build());
 
     /**
-     * Canister-specific metadata: matrices, gasket IDs, label.
+     * Canister-specific metadata: gasket IDs, label and gasket partners.
      */
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<CanisterMetadata>> CANISTER_METADATA =
             DATA_COMPONENTS.register("canister_metadata",
@@ -105,16 +105,6 @@ public class GooDataComponents {
                     () -> DataComponentType.<List<ItemStack>>builder()
                             .persistent(ItemStack.CODEC.listOf())
                             .networkSynchronized(ItemStack.STREAM_CODEC.apply(ByteBufCodecs.list()))
-                            .build());
-
-    /**
-     * Selected goo type ID persisted on glove items. Empty string means none.
-     */
-    public static final DeferredHolder<DataComponentType<?>, DataComponentType<String>> SELECTED_GOO_TYPE =
-            DATA_COMPONENTS.register("selected_goo_type",
-                    () -> DataComponentType.<String>builder()
-                            .persistent(Codec.STRING)
-                            .networkSynchronized(ByteBufCodecs.STRING_UTF8)
                             .build());
 
     /**

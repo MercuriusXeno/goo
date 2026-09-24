@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo;
 import com.mercuriusxeno.goo.ability.AbilityLoader;
 import com.mercuriusxeno.goo.ability.ChainProfiles;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerFallScheduler;
+import com.mercuriusxeno.goo.block.tap.TapDripScheduler;
 import com.mercuriusxeno.goo.command.GooCommand;
 import com.mercuriusxeno.goo.data.GooReactionLoader;
 import com.mercuriusxeno.goo.data.GooValueRegistry;
@@ -94,6 +95,7 @@ public class Goo {
      */
     private static void registerContentRegistries(IEventBus modEventBus) {
         GooDataComponents.DATA_COMPONENTS.register(modEventBus);
+        GooAttachments.ATTACHMENT_TYPES.register(modEventBus);
         GooPotions.register(modEventBus);
         GooParticles.PARTICLE_TYPES.register(modEventBus);
         GooSounds.SOUND_EVENTS.register(modEventBus);
@@ -184,7 +186,7 @@ public class Goo {
     }
 
     /**
-     * Ticks pending blob effects so they apply on arrival.
+     * Ticks pending blob effects and tap drips so they apply on arrival.
      *
      * @param event the post-tick event instance
      */
@@ -195,5 +197,6 @@ public class Goo {
             ChainMarkerFallScheduler
                     .drainArrivedFalls(event.getServer().getTickCount());
         }
+        TapDripScheduler.drainArrived(event.getServer());
     }
 }

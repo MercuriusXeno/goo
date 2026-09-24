@@ -45,10 +45,6 @@ public final class GloveThrowSender {
      * Empty sentinel for unknown goo type (no chain profile).
      */
     private static final int[] UNKNOWN_STACKS = new int[0];
-    /**
-     * Empty ability id for legacy throws.
-     */
-    private static final String LEGACY_ABILITY = "";
 
     private GloveThrowSender() {
     }
@@ -62,7 +58,8 @@ public final class GloveThrowSender {
      * @param gooType the selected goo type to throw
      */
     public static void sendThrow(Player player, ResourceKey<GooTypeDefinition> gooType) {
-        if (!canThrow(player)) {
+        GloveSelection selection = heldSelection(player);
+        if (selection == null || !canThrow()) {
             return;
         }
         TargetResult target = resolveAimTarget(player);
@@ -70,8 +67,7 @@ public final class GloveThrowSender {
             ThrowFreezeState.armThrowBlock();
             return;
         }
-        String abilityId = resolveAbilityId(player);
-        BlobThrowPayload payload = targetToPayload(target, gooType, abilityId);
+        BlobThrowPayload payload = targetToPayload(target, gooType, selection.abilityId());
         if (payload != null) {
             ThrowFreezeState.arm(target);
             trackInFlight(target);
@@ -80,15 +76,14 @@ public final class GloveThrowSender {
     }
 
     /**
-     * Pre-throw validation: goo available, not throw-blocked, ability selected.
+     * Pre-throw validation once the glove holds a selection: goo
+     * available and not throw-blocked.
      *
-     * @param player the local player
      * @return true if throwing is allowed
      */
-    private static boolean canThrow(Player player) {
+    private static boolean canThrow() {
         return GloveUseTracker.isSelectedTypeAvailable()
-                && !ThrowFreezeState.isThrowBlocked()
-                && hasAbilitySelected(player);
+                && !ThrowFreezeState.isThrowBlocked();
     }
 
     /**
@@ -320,37 +315,19 @@ public final class GloveThrowSender {
     }
 
     /**
-     * Returns true if the player's glove has an ability selected.
-     * Throws are suppressed when no ability is chosen.
+     * Reads the selection of the glove the player holds, main hand first.
+     * Every selection names an ability (decision no-throw-without-ability),
+     * so a glove with none selected throws nothing.
      *
      * @param player the local player
-     * @return true if an ability is selected
+     * @return the selection, or null when the glove holds none
      */
-    private static boolean hasAbilitySelected(Player player) {
+    private static @Nullable GloveSelection heldSelection(Player player) {
         ItemStack glove = player.getMainHandItem();
         if (!(glove.getItem() instanceof GooGloveItem)) {
             glove = player.getOffhandItem();
         }
-        GloveSelection sel = GooGloveItem.getSelection(glove);
-        return sel != null && sel.hasAbility();
-    }
-
-    /**
-     * Reads the ability ID from the player's glove, or empty for legacy.
-     *
-     * @param player the local player
-     * @return the ability id, or empty for legacy
-     */
-    private static String resolveAbilityId(Player player) {
-        ItemStack glove = player.getMainHandItem();
-        if (!(glove.getItem() instanceof GooGloveItem)) {
-            glove = player.getOffhandItem();
-        }
-        GloveSelection sel = GooGloveItem.getSelection(glove);
-        if (sel != null && sel.hasAbility()) {
-            return sel.abilityId();
-        }
-        return LEGACY_ABILITY;
+        return GooGloveItem.getSelection(glove);
     }
 
     /**

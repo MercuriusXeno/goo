@@ -16,7 +16,7 @@ import org.jspecify.annotations.Nullable;
  * <ul>
  *   <li>{@code fluid} - vanilla fluids in canister slots; Hub leaves
  *       this {@link Fluids#EMPTY}.</li>
- *   <li>{@code matrices} - canister compression level; consumed by
+ *   <li>{@code compression} - canister Compression enchantment level; consumed by
  *       Tap/Reactor renderers, ignored by Hub/Canister.</li>
  *   <li>{@code topGasketPresent} / {@code bottomGasketPresent} - choral
  *       gasket caps; populated by Hub and Canister.</li>
@@ -34,7 +34,7 @@ public final class SlotState {
     /** Fill fraction in [0, 1]. */
     public float fill;
     /** Compression level of the inserted canister (Tap / Reactor only). */
-    public int matrices;
+    public int compression;
     /** True if a top gasket cap is installed. */
     public boolean topGasketPresent;
     /** True if a bottom gasket cap is installed. */

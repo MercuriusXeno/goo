@@ -17,7 +17,7 @@ import org.jspecify.annotations.NonNull;
  * @param targetPos      the target block position
  * @param targetFace     the target face ordinal
  * @param grannyArc      whether to use the boosted arc trajectory
- * @param abilityId      the selected ability id string, or empty for legacy
+ * @param abilityId      the selected ability id string
  */
 public record BlobThrowPayload(String gooTypeId, int targetEntityId,
                                BlockPos targetPos, int targetFace,

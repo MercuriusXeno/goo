@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.ability;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
+import com.mercuriusxeno.goo.ability.program.PlaceBlockStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.StepTypes;
 import com.mojang.serialization.Codec;
@@ -10,6 +11,9 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * A single ability within a goo type's repertoire. Loaded from datapack
@@ -78,6 +82,31 @@ public record AbilityDefinition(
      */
     public boolean hasTag(String tag) {
         return tags.contains(tag);
+    }
+
+    /**
+     * Returns the ids of the blocks this ability's programs place through a
+     * place_block step, at any depth of the step tree.
+     *
+     * @return the placed block ids
+     */
+    public Set<Identifier> placedBlocks() {
+        return behaviors.stream()
+                .flatMap(entry -> entry.steps().stream())
+                .flatMap(AbilityDefinition::withDescendants)
+                .filter(PlaceBlockStep.class::isInstance)
+                .map(step -> ((PlaceBlockStep) step).block())
+                .collect(Collectors.toUnmodifiableSet());
+    }
+
+    /**
+     * Streams a step and every step beneath it.
+     *
+     * @param step the root step
+     * @return the step and its descendants
+     */
+    private static Stream<Step> withDescendants(Step step) {
+        return Stream.concat(Stream.of(step), step.children().flatMap(AbilityDefinition::withDescendants));
     }
 
     /**
