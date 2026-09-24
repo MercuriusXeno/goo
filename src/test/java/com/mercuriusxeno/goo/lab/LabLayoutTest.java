@@ -65,7 +65,7 @@ class LabLayoutTest {
 
     @Test
     void floorPlateCoversTheWholeFootprint() {
-        LabBox floor = LabLayout.floorBox(plan.range());
+        LabBox floor = LabLayout.floorBox(plan);
         Set<LabOffset> floorCells = new HashSet<>();
         plan.placements().stream().filter(p -> p.offset().y() == 0).forEach(p -> floorCells.add(p.offset()));
         int width = floor.max().x() - floor.min().x() + 1;
@@ -172,6 +172,38 @@ class LabLayoutTest {
             String state = stateAt(plot.machineOffset());
             assertTrue(state != null && state.startsWith("goo:" + plot.machine().blockPath()), plot.machine().name());
         }
+    }
+
+    @Test
+    void supplyRowTakesOneStationPerTypeIdItIsGiven() {
+        List<String> ids = List.of("goo:rock", "goo:blaze", "gootest:seventeenth");
+        LabPlan supplied = LabLayout.plan(ids);
+        assertEquals(ids, supplied.supply().stations().stream().map(LabSupply.Station::gooTypeId).toList());
+        for (LabSupply.Station station : supplied.supply().stations()) {
+            assertEquals(LabSupply.CANISTER_BLOCK, stateIn(supplied, station.canisterOffset()));
+            assertEquals(LabSupply.CHEST_BLOCK, stateIn(supplied, station.chestOffset()));
+            LabPlacement sign = supplied.placements().stream()
+                    .filter(p -> p.offset().equals(station.signOffset())).findFirst().orElseThrow();
+            assertEquals(station.gooTypeId(), sign.signText());
+            assertTrue(supplied.supply().bounds().contains(station.chestOffset()));
+        }
+        assertTrue(plan.supply().stations().isEmpty());
+    }
+
+    @Test
+    void supplyRowStandsClearOfTheOtherZones() {
+        List<String> ids = java.util.stream.IntStream.range(0, 24).mapToObj(i -> "goo:type" + i).toList();
+        LabPlan supplied = LabLayout.plan(ids);
+        LabBox row = supplied.supply().bounds();
+        supplied.plots().forEach(plot -> assertFalse(row.intersects(plot.bounds())));
+        supplied.pens().forEach(pen -> assertFalse(row.intersects(pen.bounds())));
+        assertFalse(row.intersects(supplied.range().bounds()));
+        assertTrue(LabLayout.floorBox(supplied).contains(row.max().shifted(0, -1, 0)));
+    }
+
+    private static String stateIn(LabPlan target, LabOffset offset) {
+        return target.placements().stream().filter(p -> p.offset().equals(offset))
+                .map(LabPlacement::blockState).findFirst().orElse(null);
     }
 
     private String stateAt(LabOffset offset) {

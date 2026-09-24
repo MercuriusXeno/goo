@@ -18,7 +18,8 @@ import net.minecraft.world.level.block.state.BlockState;
 /**
  * Executes a {@link LabPlan} against a server level: every placement set at
  * the origin plus its offset, every sign given its text, every bay filled by
- * {@link LabRigs} and every pen's mobs spawned (decision lab-built-from-code).
+ * {@link LabRigs}, every supply station stocked by {@link LabStock} and every
+ * pen's mobs spawned (decision lab-built-from-code).
  */
 public final class LabBuilder {
 
@@ -74,9 +75,21 @@ public final class LabBuilder {
         }
         plan.plots().stream().filter(plot -> holdsWhole(region, plot.bounds()))
                 .forEach(plot -> LabRigs.rig(level, origin, plot));
+        plan.supply().stations().stream().filter(station -> region.contains(station.chestOffset()))
+                .forEach(station -> LabStock.stock(level, origin, station));
         plan.spawns().stream().filter(spawn -> region.contains(spawn.offset()))
                 .forEach(spawn -> spawn(level, origin, spawn));
         return placed;
+    }
+
+    /**
+     * Answers the lab plan laid for a level: one supply station per goo type its registry holds.
+     *
+     * @param level the level whose registries to read
+     * @return the plan
+     */
+    public static LabPlan planFor(ServerLevel level) {
+        return LabLayout.plan(LabStock.gooTypeIds(level));
     }
 
     /**
