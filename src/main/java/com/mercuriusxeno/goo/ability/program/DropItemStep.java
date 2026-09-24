@@ -1,14 +1,25 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.Goo;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.core.Holder;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.SpawnEggItem;
+import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
 /**
  * Spawns an item stack at the host's target and finishes. The item is
- * named by id and the host resolves it; rock petrify drops
+ * named by id and resolved when the step runs; rock petrify drops
  * {@code drop_item item=minecraft:cobblestone count="1 + random(3)"}.
  * The id {@code spawn_egg} names the target's own spawn egg, which aeon's
  * ritual drops (decision aeon-mob-ritual-drops-spawn-egg).
@@ -26,6 +37,9 @@ public record DropItemStep(Identifier item, Expr count) implements Step {
     private static final String NAME = "drop_item";
     private static final String FIELD_ITEM = "item";
     private static final String FIELD_COUNT = "count";
+    private static final String LOG_UNKNOWN_ITEM = "Drop step names item {}, which no registry holds";
+    private static final String LOG_NO_SPAWN_EGG = "Drop step names the spawn egg of {}, which has none";
+    private static final Set<EntityType<?>> TYPES_WARNED_EGGLESS = ConcurrentHashMap.newKeySet();
 
     /**
      * Codec for the step's params.
@@ -47,8 +61,38 @@ public record DropItemStep(Identifier item, Expr count) implements Step {
 
     @Override
     public boolean tick(StepContext context) {
-        context.host().dropItemAtTarget(item, count.evaluateInt(context));
+        LivingEntity target = context.host().target();
+        int stackSize = count.evaluateInt(context);
+        if (SPAWN_EGG.equals(item)) {
+            dropOwnSpawnEgg(target, stackSize);
+            return true;
+        }
+        Optional<Holder.Reference<Item>> holder = BuiltInRegistries.ITEM.get(item);
+        if (holder.isEmpty()) {
+            Goo.LOGGER.warn(LOG_UNKNOWN_ITEM, item);
+            return true;
+        }
+        target.spawnAtLocation((ServerLevel) target.level(), new ItemStack(holder.get(), stackSize));
         return true;
+    }
+
+    /**
+     * Drops the spawn egg of the target's type, warning once per type
+     * that has none.
+     *
+     * @param target    the entity whose egg drops
+     * @param stackSize the stack size
+     */
+    private static void dropOwnSpawnEgg(LivingEntity target, int stackSize) {
+        EntityType<?> type = target.getType();
+        Optional<Holder<Item>> egg = SpawnEggItem.byId(type);
+        if (egg.isEmpty()) {
+            if (TYPES_WARNED_EGGLESS.add(type)) {
+                Goo.LOGGER.warn(LOG_NO_SPAWN_EGG, EntityType.getKey(type));
+            }
+            return;
+        }
+        target.spawnAtLocation((ServerLevel) target.level(), new ItemStack(egg.get(), stackSize));
     }
 
     @Override

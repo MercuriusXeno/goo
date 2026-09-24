@@ -30,7 +30,7 @@ public record DiscardStep() implements Step {
 
     @Override
     public boolean tick(StepContext context) {
-        context.host().discardTarget();
+        context.host().target().discard();
         return true;
     }
 

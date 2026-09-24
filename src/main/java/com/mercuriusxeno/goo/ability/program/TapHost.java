@@ -133,26 +133,6 @@ public record TapHost(ServerLevel level, BlockPos landing, Direction face,
     }
 
     @Override
-    public void discardTarget() {
-        throw HostCapability.TARGET.refusedBy(kind());
-    }
-
-    @Override
-    public void addTargetCounter(Identifier id, double amount) {
-        throw HostCapability.TARGET.refusedBy(kind());
-    }
-
-    @Override
-    public void setTargetCounter(Identifier id, double value) {
-        throw HostCapability.TARGET.refusedBy(kind());
-    }
-
-    @Override
-    public void setTargetBaby(boolean enabled) {
-        throw HostCapability.TARGET.refusedBy(kind());
-    }
-
-    @Override
     public void spawnParticles(FxAnchor at, ParticleBurst burst) {
         if (at == FxAnchor.TARGET) {
             throw HostCapability.TARGET.refusedBy(kind());

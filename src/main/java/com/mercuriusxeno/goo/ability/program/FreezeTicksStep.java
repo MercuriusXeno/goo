@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.ability.program;
 
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.world.entity.LivingEntity;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -35,7 +36,8 @@ public record FreezeTicksStep(Expr add) implements Step {
 
     @Override
     public boolean tick(StepContext context) {
-        context.host().addTargetFreezeTicks(add.evaluateInt(context));
+        LivingEntity target = context.host().target();
+        target.setTicksFrozen(target.getTicksFrozen() + add.evaluateInt(context));
         return true;
     }
 
