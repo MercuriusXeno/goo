@@ -3,6 +3,8 @@ package com.mercuriusxeno.goo.gametest;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
+import com.mercuriusxeno.goo.ability.AbilityDefinition;
+import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.command.GooTypesCommand;
@@ -49,6 +51,11 @@ public final class GooTypeRegistryTests {
     private static final String MARKER_TYPE_LOST = "Chain marker should reload with the type it saved";
     private static final String SELECTION_TYPE_LOST = "Glove selection should reload with the datapack type it saved";
     private static final BlockPos MARKER_POS = new BlockPos(1, 1, 1);
+    private static final Identifier FROST_SPHERE = Identifier.fromNamespaceAndPath(Goo.MODID, "frost_sphere");
+    private static final String ABILITIES_REQUIRED = "Ability registry must be loaded";
+    /** The ability the test datapack gives the seventeenth type. */
+    private static final Identifier SEVENTEENTH_PROBE =
+            Identifier.fromNamespaceAndPath(TEST_PACK_NAMESPACE, "seventeenth_probe");
     private static final String MISSING_SEVENTEENTH = "Datapack type missing from registry: ";
     private static final String UNLISTED_SEVENTEENTH = "Datapack type missing from /goo types listing: ";
 
@@ -82,7 +89,9 @@ public final class GooTypeRegistryTests {
     public static void chainMarkerReloadsType(GameTestHelper helper) {
         helper.setBlock(MARKER_POS, GooBlocks.CHAIN_MARKER.get());
         ChainMarkerBlockEntity marker = helper.getBlockEntity(MARKER_POS, ChainMarkerBlockEntity.class);
-        marker.initChain(GooTypes.FROST, Direction.UP);
+        AbilityDefinition frostSphere = AbilityRegistry.getAbility(FROST_SPHERE);
+        helper.assertTrue(frostSphere != null, ABILITIES_REQUIRED);
+        marker.initChainFromAbility(GooTypes.FROST, Direction.UP, frostSphere);
         CompoundTag saved = marker.getUpdateTag(helper.getLevel().registryAccess());
 
         helper.destroyBlock(MARKER_POS);
@@ -96,16 +105,16 @@ public final class GooTypeRegistryTests {
     }
 
     /**
-     * A glove selection of the datapack type survives the trip through the
-     * item's persistent components: the stack saves to NBT and parses back
-     * with the seventeenth type selected.
+     * A glove selection of the datapack type and its test-pack ability
+     * survives the trip through the item's persistent components: the stack
+     * saves to NBT and parses back with the seventeenth type selected.
      *
      * @param helper the gametest helper
      */
     public static void gloveSelectionReloadsType(GameTestHelper helper) {
         RegistryAccess registries = helper.getLevel().registryAccess();
         ItemStack glove = new ItemStack(GooItems.GOO_GLOVE.get());
-        GooGloveItem.setSelection(glove, GloveSelection.ofType(SEVENTEENTH));
+        GooGloveItem.setSelection(glove, GloveSelection.ofAbility(SEVENTEENTH, SEVENTEENTH_PROBE));
         RegistryOps<Tag> ops = registries.createSerializationContext(NbtOps.INSTANCE);
         Tag saved = ItemStack.CODEC.encodeStart(ops, glove).getOrThrow();
         ItemStack loaded = ItemStack.CODEC.parse(ops, saved).getOrThrow();
