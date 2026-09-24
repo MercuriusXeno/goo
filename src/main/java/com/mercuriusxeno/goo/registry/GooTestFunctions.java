@@ -94,6 +94,7 @@ public final class GooTestFunctions {
     private static final String REACTOR_GASKET_LOCATION = "reactor_gasket_location";
     private static final String REACTOR_SEATED_GASKET_METADATA = "reactor_seated_gasket_metadata";
     private static final String TAP_ATTACHMENT_LOADS = "tap_attachment_loads";
+    private static final String HUB_SLOT_GASKET_REGISTERED = "hub_slot_gasket_registered";
 
     // --- Effect executors ---
     private static final String FX_BLAZE = "fx_blaze_mines";
@@ -348,6 +349,7 @@ public final class GooTestFunctions {
         reg(r, REACTOR_GASKET_LOCATION, GasketHolderTests::reactorOutputGasketLocationFollowsCanister);
         reg(r, REACTOR_SEATED_GASKET_METADATA, GasketHolderTests::reactorSeatedCanisterAnswersGasketMetadata);
         reg(r, TAP_ATTACHMENT_LOADS, GasketRegistryTests::tapAttachmentLoads);
+        reg(r, HUB_SLOT_GASKET_REGISTERED, GasketRegistryTests::hubSlotGasketRegistered);
     }
 
     private static void registerEffectExecutorTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
