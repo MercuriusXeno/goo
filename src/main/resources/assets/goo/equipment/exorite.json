@@ -1,0 +1,19 @@
+{
+  "layers": {
+    "humanoid": [
+      {
+        "texture": "goo:exorite"
+      }
+    ],
+    "humanoid_baby": [
+      {
+        "texture": "goo:exorite"
+      }
+    ],
+    "humanoid_leggings": [
+      {
+        "texture": "goo:exorite"
+      }
+    ]
+  }
+}

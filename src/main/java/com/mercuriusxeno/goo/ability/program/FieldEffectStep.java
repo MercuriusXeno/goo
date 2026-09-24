@@ -3,7 +3,6 @@ package com.mercuriusxeno.goo.ability.program;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -148,7 +147,8 @@ public record FieldEffectStep(Expr radius, List<EntityFilter> where, Expr cooldo
      * @param target  the host bound to the selected entity
      */
     private void tryStrike(StepContext context, FieldEffectState state, StepHost target) {
-        if (state.cooldown() > 0 || state.isStriking(target.targetId()) || context.host().stackCount() <= 0) {
+        FieldStrike aimed = FieldStrike.aimedAt(target);
+        if (state.cooldown() > 0 || state.isStriking(aimed.entityId()) || context.host().stackCount() <= 0) {
             return;
         }
         int period = Math.max(1, interval.evaluateInt(new StepContext(target, context.stepTicks(),
@@ -157,9 +157,7 @@ public record FieldEffectStep(Expr radius, List<EntityFilter> where, Expr cooldo
             return;
         }
         spendCharge(context, state);
-        Vec3 center = target.targetCenter();
-        state.addStrike(new FieldStrike(target.targetId(),
-                (float) center.x(), (float) center.y(), (float) center.z(), 0));
+        state.addStrike(aimed);
         state.setCooldown(cooldown.evaluateInt(context));
         if (state.strikeTick() == 0) {
             land(target);

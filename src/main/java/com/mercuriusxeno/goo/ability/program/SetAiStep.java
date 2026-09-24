@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.ability.program;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.world.entity.Mob;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -37,7 +38,9 @@ public record SetAiStep(boolean enabled) implements Step {
 
     @Override
     public boolean tick(StepContext context) {
-        context.host().setTargetAi(enabled);
+        if (context.host().target() instanceof Mob mob) {
+            mob.setNoAi(!enabled);
+        }
         return true;
     }
 

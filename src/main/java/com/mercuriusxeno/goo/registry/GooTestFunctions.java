@@ -28,6 +28,7 @@ public final class GooTestFunctions {
     private static final String TYPES_MARKER_RELOADS = "types_marker_reloads";
     private static final String TYPES_GLOVE_RELOADS = "types_glove_reloads";
     private static final String GLOVE_TYPE_ONLY_REFUSED = "glove_type_only_refused";
+    private static final String GLOVE_SHIFT_RECOLLECTS_MARKER = "glove_shift_recollects_marker";
 
     // --- Generic goo fluid ---
     private static final String FLUID_TYPES_SIDE_BY_SIDE = "fluid_types_side_by_side";
@@ -36,6 +37,42 @@ public final class GooTestFunctions {
     // --- Generic goo items ---
     private static final String ITEM_THROWN_BLOBS_OWN_TYPE = "item_thrown_blobs_own_type";
     private static final String ITEM_TAB_DATAPACK_TYPE = "item_tab_datapack_type";
+
+    // --- Exorite tier ---
+    private static final String EXORITE_TEMPLATE_REGISTERED = "exorite_template_registered";
+    private static final String EXORITE_TEMPLATE_IN_ANCIENT_CITY_LOOT = "exorite_template_in_ancient_city_loot";
+    private static final String EXORITE_TEMPLATE_DUPLICATES = "exorite_template_duplicates";
+    private static final String EXORITE_SET_REGISTERED = "exorite_set_registered";
+    private static final String EXORITE_SET_SMITHING = "exorite_set_smithing";
+    private static final String EXORITE_SET_REPAIRS = "exorite_set_repairs";
+    private static final String EXORITE_ARMOR_STATS = "exorite_armor_stats";
+    private static final String EXORITE_SURVIVES_ZERO_DURABILITY = "exorite_survives_zero_durability";
+    private static final String EXORITE_BROKEN_ACTS_AS_HAND = "exorite_broken_acts_as_hand";
+    private static final String EXORITE_BROKEN_TOOLTIP = "exorite_broken_tooltip";
+    private static final String EXORITE_ANVIL_REPAIR = "exorite_anvil_repair";
+    private static final String SOUL_BOUND_TAG_HOLDS_EXORITE = "soul_bound_tag_holds_exorite";
+    private static final String SOUL_BOUND_SURVIVES_DEATH = "soul_bound_survives_death";
+    private static final String EXO_GAUNTLET_SMITHING = "exo_gauntlet_smithing";
+    private static final String EXO_GAUNTLET_KEEPS_BENEFITS = "exo_gauntlet_keeps_benefits";
+    private static final String EXORITE_NOT_ENCHANTABLE = "exorite_not_enchantable";
+    private static final String EXORITE_ANVIL_REFUSES_BOOK = "exorite_anvil_refuses_book";
+    private static final String EXORITE_BARS_REGISTERED = "exorite_bars_registered";
+    private static final String EXORITE_BARS_CRAFTED = "exorite_bars_crafted";
+    private static final String EXORITE_BARS_STRENGTH = "exorite_bars_strength";
+    private static final String EXORITE_BARS_DROPS = "exorite_bars_drops";
+    private static final String SPAWNER_CRAFTED_FROM_EXORITE_BARS = "spawner_crafted_from_exorite_bars";
+    private static final String EMPTY_SPAWNER_TAKES_EGG = "empty_spawner_takes_egg";
+
+    // --- Goo Lab ---
+    private static final String LAB_BUILD_SHELL = "lab_build_shell";
+    private static final String LAB_TEMPLATE_LOADS = "lab_template_loads";
+    private static final String LAB_BAY_TAP = "lab_bay_tap";
+    private static final String LAB_BAY_HUB = "lab_bay_hub";
+    private static final String LAB_BAY_GASKET = "lab_bay_gasket";
+    private static final String LAB_PENS_AND_RANGE = "lab_pens_and_range";
+    private static final String LAB_SUPPLY_ROW = "lab_supply_row";
+    private static final String LAB_KIT = "lab_kit";
+    private static final String LAB_REBUILD = "lab_rebuild";
 
     // --- GasketPusher ---
     private static final String PUSHER_EMPTY_RESERVOIR = "pusher_empty_reservoir";
@@ -107,6 +144,10 @@ public final class GooTestFunctions {
 
     // --- Machine interactions ---
     private static final String IX_TAP_VALVE = "ix_tap_valve_toggle";
+    private static final String IX_TAP_TOP_CLICK_INSERT = "ix_tap_top_click_insert";
+    private static final String IX_TAP_SLOT_CLICK_INSERT = "ix_tap_slot_click_insert";
+    private static final String IX_TAP_EMPTY_HAND_TAKE = "ix_tap_empty_hand_take";
+    private static final String IX_TAP_BLOB_POUR = "ix_tap_blob_pour";
 
     // --- Tap drip ---
     private static final String TAP_DRIP_DRAWS_ONE_MB = "tap_drip_draws_one_mb";
@@ -115,6 +156,7 @@ public final class GooTestFunctions {
     private static final String TAP_DRIP_BOTTOMLESS = "tap_drip_bottomless";
     private static final String TAP_HOST_PLACES_ABOVE_LANDING = "tap_host_places_above_landing";
     private static final String TAP_DRIP_NO_ABILITY = "tap_drip_no_ability";
+    private static final String TAP_DRIP_SENDS_TAP_DRIP = "tap_drip_sends_tap_drip";
     private static final String IX_VAT_GASKET = "ix_vat_gasket_apply";
     private static final String IX_HUB_INSERT = "ix_hub_canister_insert";
     private static final String IX_HUB_PICKUP = "ix_hub_canister_pickup";
@@ -196,6 +238,7 @@ public final class GooTestFunctions {
             registerGooTypeRegistryTests(registrar);
             registerGooFluidTests(registrar);
             registerGooItemTests(registrar);
+            registerExoriteTests(registrar);
             registerGasketTests(registrar);
             registerEffectExecutorTests(registrar);
             registerAbilityLandingTests(registrar);
@@ -207,6 +250,7 @@ public final class GooTestFunctions {
             registerMobEffectTests(registrar);
             registerLightingTests(registrar);
             registerTapDripTests(registrar);
+            registerLabTests(registrar);
         });
     }
 
@@ -217,6 +261,7 @@ public final class GooTestFunctions {
         reg(r, TAP_DRIP_BOTTOMLESS, TapDripTests::tapDripBottomless);
         reg(r, TAP_HOST_PLACES_ABOVE_LANDING, TapDripTests::tapHostPlacesAboveLanding);
         reg(r, TAP_DRIP_NO_ABILITY, TapDripTests::tapDripNoAbility);
+        reg(r, TAP_DRIP_SENDS_TAP_DRIP, TapDripTests::tapDripSendsTapDrip);
     }
 
     private static void registerLightingTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
@@ -230,6 +275,7 @@ public final class GooTestFunctions {
         reg(r, TYPES_DATAPACK_LISTED, GooTypeRegistryTests::datapackTypeListed);
         reg(r, TYPES_MARKER_RELOADS, GooTypeRegistryTests::chainMarkerReloadsType);
         reg(r, GLOVE_TYPE_ONLY_REFUSED, GloveSelectTests::typeOnlySelectionRefused);
+        reg(r, GLOVE_SHIFT_RECOLLECTS_MARKER, GloveRecollectTests::shiftClickRecollectsMarker);
         reg(r, TYPES_GLOVE_RELOADS, GooTypeRegistryTests::gloveSelectionReloadsType);
     }
 
@@ -241,6 +287,32 @@ public final class GooTestFunctions {
     private static void registerGooItemTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
         reg(r, ITEM_THROWN_BLOBS_OWN_TYPE, GooItemTests::thrownBlobsLandOwnType);
         reg(r, ITEM_TAB_DATAPACK_TYPE, GooItemTests::creativeTabOffersDatapackType);
+    }
+
+    private static void registerExoriteTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
+        reg(r, EXORITE_TEMPLATE_REGISTERED, ExoriteTests::templateRegistered);
+        reg(r, EXORITE_TEMPLATE_IN_ANCIENT_CITY_LOOT, ExoriteTests::templateInAncientCityLoot);
+        reg(r, EXORITE_TEMPLATE_DUPLICATES, ExoriteTests::templateDuplicates);
+        reg(r, EXORITE_SET_REGISTERED, ExoriteTests::setRegistered);
+        reg(r, EXORITE_SET_SMITHING, ExoriteTests::setSmithing);
+        reg(r, EXORITE_SET_REPAIRS, ExoriteTests::setRepairs);
+        reg(r, EXORITE_ARMOR_STATS, ExoriteTests::armorOutranksNetherite);
+        reg(r, EXORITE_SURVIVES_ZERO_DURABILITY, ExoriteDurabilityTests::survivesZeroDurability);
+        reg(r, EXORITE_BROKEN_ACTS_AS_HAND, ExoriteDurabilityTests::brokenActsAsHand);
+        reg(r, EXORITE_BROKEN_TOOLTIP, ExoriteDurabilityTests::brokenTooltip);
+        reg(r, EXORITE_ANVIL_REPAIR, ExoriteDurabilityTests::anvilRepair);
+        reg(r, SOUL_BOUND_TAG_HOLDS_EXORITE, SoulBoundTests::tagHoldsExorite);
+        reg(r, SOUL_BOUND_SURVIVES_DEATH, SoulBoundTests::survivesDeath);
+        reg(r, EXO_GAUNTLET_SMITHING, ExoriteTests::exoGauntletSmithing);
+        reg(r, EXO_GAUNTLET_KEEPS_BENEFITS, GooItemTests::exoGauntletKeepsBenefits);
+        reg(r, EXORITE_NOT_ENCHANTABLE, ExoriteEnchantingTests::notEnchantable);
+        reg(r, EXORITE_ANVIL_REFUSES_BOOK, ExoriteEnchantingTests::anvilRefusesBook);
+        reg(r, EXORITE_BARS_REGISTERED, ExoriteBarsTests::registered);
+        reg(r, EXORITE_BARS_CRAFTED, ExoriteBarsTests::crafted);
+        reg(r, EXORITE_BARS_STRENGTH, ExoriteBarsTests::strength);
+        reg(r, EXORITE_BARS_DROPS, ExoriteBarsTests::dropsItself);
+        reg(r, SPAWNER_CRAFTED_FROM_EXORITE_BARS, SpawnerRecipeTests::craftedFromExoriteBars);
+        reg(r, EMPTY_SPAWNER_TAKES_EGG, SpawnerRecipeTests::emptySpawnerTakesEgg);
     }
 
     private static void registerGasketTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
@@ -294,6 +366,10 @@ public final class GooTestFunctions {
 
     private static void registerMachineInteractionTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
         reg(r, IX_TAP_VALVE, MachineInteractionTests::tapCanisterInsert);
+        reg(r, IX_TAP_TOP_CLICK_INSERT, MachineInteractionTests::tapTopClickInsertsCanister);
+        reg(r, IX_TAP_SLOT_CLICK_INSERT, MachineInteractionTests::tapSlotRegionClickInsertsCanister);
+        reg(r, IX_TAP_EMPTY_HAND_TAKE, MachineInteractionTests::tapEmptyHandClickTakesCanister);
+        reg(r, IX_TAP_BLOB_POUR, MachineInteractionTests::tapBlobClickPoursIntoSlottedCanister);
         reg(r, IX_VAT_GASKET, MachineInteractionTests::vatGasketApply);
         reg(r, IX_HUB_INSERT, MachineInteractionTests::hubCanisterInsert);
         reg(r, IX_HUB_PICKUP, MachineInteractionTests::hubCanisterPickup);
@@ -372,6 +448,23 @@ public final class GooTestFunctions {
         reg(r, MOB_AEON_RITUAL_BABY_EGG, MobEffectTests::aeonRitualBabyEgg);
         reg(r, MOB_AEON_RITUAL_NO_BABY_FORM, MobEffectTests::aeonRitualNoBabyForm);
         reg(r, MOB_AEON_BABY_FORM_FILTER, MobEffectTests::aeonBabyFormFilter);
+    }
+
+    /**
+     * Registers the Goo Lab build tests.
+     *
+     * @param r the registry registrar
+     */
+    private static void registerLabTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
+        reg(r, LAB_BUILD_SHELL, LabTests::buildShell);
+        reg(r, LAB_TEMPLATE_LOADS, LabTemplateTests::templateLoads);
+        reg(r, LAB_BAY_TAP, LabBayTests::tapBay);
+        reg(r, LAB_BAY_HUB, LabBayTests::hubBay);
+        reg(r, LAB_BAY_GASKET, LabBayTests::gasketBay);
+        reg(r, LAB_PENS_AND_RANGE, LabBayTests::pensAndRange);
+        reg(r, LAB_SUPPLY_ROW, LabSupplyTests::supplyRow);
+        reg(r, LAB_KIT, LabSupplyTests::kit);
+        reg(r, LAB_REBUILD, LabRebuildTests::rebuild);
     }
 
     /**

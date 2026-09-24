@@ -115,7 +115,7 @@ public sealed interface TargetResult {
     /**
      * The player is aiming at a placed chain marker block, which in the
      * aim-assist system behaves exactly like a living entity (cone scan,
-     * sticky retention, sneak bypass). The throw payload still encodes as
+     * sticky retention). The throw payload still encodes as
      * a block target, but the render path draws an entity-style arc rather
      * than a block-face voxel overlay.
      *

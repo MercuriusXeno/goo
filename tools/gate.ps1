@@ -4,8 +4,7 @@
 # exit code: 0 green, 1 red.
 #
 # Two legs. "python tests" runs the unittest suites under tools/, and "gradle check"
-# runs the Gradle check lifecycle, whose finalizer writes build/reports/digest.txt.
-# A changed scope runs the legs the changed paths feed: a tools/*.py edit feeds the
+# runs the Gradle check lifecycle, whose finalizer writes build/reports/digest.txt.# A changed scope runs the legs the changed paths feed: a tools/*.py edit feeds the
 # python leg, a Java, resource, config or Gradle edit feeds the gradle leg. Everything,
 # the scope a merge fires, runs both. Neither leg narrows, so every leg runs whole.
 #
@@ -71,7 +70,8 @@ function Invoke-PythonTests {
 
 function Invoke-GradleCheck {
     $gradlew = Join-Path $repo $(if ($IsWindows) { 'gradlew.bat' } else { 'gradlew' })
-    $said = @(& $gradlew check --console=plain 2>&1 | ForEach-Object { [string]$_ })
+    # A shared daemon outlives the run and stands outside its process tree (diagnose-then-fix-gate-collisions).
+    $said = @(& $gradlew check --no-daemon --console=plain 2>&1 | ForEach-Object { [string]$_ })
     [pscustomobject]@{ Green = $LASTEXITCODE -eq 0; Output = $said }
 }
 
@@ -122,6 +122,16 @@ $commit = (& git -C $repo rev-parse --short HEAD 2>$null)
 if (-not $commit) { $commit = 'unknown' }
 if ($reports) {
     Send-GateRun -RunId $runId -Script 'tools/gate.ps1' -Cwd $repo -Status 'running' -Commit $commit | Out-Null
+}
+
+# A named leg the gate does not hold grades nothing, so the run is red rather than empty.
+$unknownLegs = @(Split-LegNames $Legs | Where-Object { $legOrder -notcontains $_ })
+if ($unknownLegs.Count -gt 0) {
+    Write-Host ('gate: FAILED, no leg is named {0}; the legs are {1}' -f ($unknownLegs -join ', '), ($legOrder -join ', '))
+    if ($reports) {
+        Send-GateRun -RunId $runId -Script 'tools/gate.ps1' -Cwd $repo -Status 'red' -Commit $commit | Out-Null
+    }
+    exit 1
 }
 
 $wantedLegs = Get-WantedLegs

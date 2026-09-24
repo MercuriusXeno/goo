@@ -107,6 +107,21 @@ public class HubBlockEntity extends BlockEntity implements ICanisterHolder, IGas
         return state;
     }
 
+    /**
+     * Inserts a canister into a slot through the same path a player's click takes.
+     *
+     * @param slot          the slot index (0-7)
+     * @param canisterStack the canister item stack; one is taken from it
+     * @return true if inserted
+     */
+    public boolean insertCanister(int slot, ItemStack canisterStack) {
+        boolean inserted = HubSlotLifecycle.insertCanister(this, slot, canisterStack.copy());
+        if (inserted) {
+            BlockEntitySync.markDirtyAndSync(this);
+        }
+        return inserted;
+    }
+
     // --- ICanisterAttachable ---
 
     /**

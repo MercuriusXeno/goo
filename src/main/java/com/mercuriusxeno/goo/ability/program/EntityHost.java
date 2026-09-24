@@ -1,43 +1,28 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.BlockEffect;
 import com.mercuriusxeno.goo.ability.LayerAudio;
 import com.mercuriusxeno.goo.ability.LayerVisuals;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.Holder;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.util.RandomSource;
-import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.damagesource.DamageSources;
-import net.minecraft.world.effect.MobEffect;
-import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntitySpawnReason;
-import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.SpawnEggItem;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 import java.util.Map;
-import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 /**
- * The {@link StepHost} over the living entity a thrown blob struck: the
- * effect steps act on the target, reads answer its health and its distance
+ * The {@link StepHost} over the living entity a thrown blob struck: it
+ * hands the target to the effect steps, which act on it (decision
+ * step-tick-holds-effect); reads answer its health and its distance
  * from the thrower, and world actions anchor at the target. A blob lands
  * in one tick and nothing ticks an entity afterwards, so this host has no
  * {@link HostCapability#TICKING} and a program with a waiting step refuses
@@ -49,17 +34,21 @@ import java.util.function.Consumer;
  */
 public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entity thrower) implements StepHost {
 
-    private static final String LOG_UNKNOWN_EFFECT = "Potion step names status effect {}, which no registry holds";
-    private static final String LOG_UNKNOWN_ITEM = "Drop step names item {}, which no registry holds";
-    private static final String LOG_NO_SPAWN_EGG = "Drop step names the spawn egg of {}, which has none";
-    private static final Set<EntityType<?>> TYPES_WARNED_EGGLESS = ConcurrentHashMap.newKeySet();
-    private static final float PERCENT = 100;
     private static final double BODY_CENTER = 0.5;
-    private static final double HALF = 0.5;
 
     @Override
     public HostKind kind() {
         return HostKind.ENTITY;
+    }
+
+    @Override
+    public LivingEntity target() {
+        return target;
+    }
+
+    @Override
+    public @Nullable Entity thrower() {
+        return thrower;
     }
 
     @Override
@@ -175,16 +164,6 @@ public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entit
     }
 
     @Override
-    public int targetId() {
-        return target.getId();
-    }
-
-    @Override
-    public Vec3 targetCenter() {
-        return target.getBoundingBox().getCenter();
-    }
-
-    @Override
     public FieldEffectState fieldEffect() {
         throw HostCapability.FIELD_EFFECT.refusedBy(kind());
     }
@@ -210,122 +189,6 @@ public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entit
     }
 
     @Override
-    public void damageTarget(float amount, DamageKind source, boolean knockback) {
-        target.hurtServer(level, damageSource(source), amount);
-        if (!knockback) {
-            target.hurtMarked = false;
-        }
-    }
-
-    @Override
-    public void setTargetHurtCooldown(int ticks) {
-        target.invulnerableTime = ticks;
-    }
-
-    @Override
-    public void applyPotion(Identifier effect, int duration, int amplifier, boolean visible) {
-        Optional<Holder.Reference<MobEffect>> holder = BuiltInRegistries.MOB_EFFECT.get(effect);
-        if (holder.isEmpty()) {
-            Goo.LOGGER.warn(LOG_UNKNOWN_EFFECT, effect);
-            return;
-        }
-        target.addEffect(new MobEffectInstance(holder.get(), duration, amplifier, false, visible));
-    }
-
-    @Override
-    public boolean targetPasses(Set<EntityFilter> filters) {
-        return EntityScan.passes(target, filters, target);
-    }
-
-    @Override
-    public void setTargetHealthFraction(float fraction) {
-        target.setHealth(target.getHealth() * fraction);
-    }
-
-    @Override
-    public void addTargetFreezeTicks(int ticks) {
-        target.setTicksFrozen(target.getTicksFrozen() + ticks);
-    }
-
-    @Override
-    public void setTargetAi(boolean enabled) {
-        if (target instanceof Mob mob) {
-            mob.setNoAi(!enabled);
-        }
-    }
-
-    @Override
-    public void setTargetInvulnerable(boolean enabled) {
-        target.setInvulnerable(enabled);
-    }
-
-    @Override
-    public void cloneTarget(float chancePercent) {
-        if (level.getRandom().nextFloat() * PERCENT < chancePercent) {
-            spawnClone();
-        }
-    }
-
-    @Override
-    public void dropItemAtTarget(Identifier item, int count) {
-        if (DropItemStep.SPAWN_EGG.equals(item)) {
-            dropOwnSpawnEgg(count);
-            return;
-        }
-        Optional<Holder.Reference<Item>> holder = BuiltInRegistries.ITEM.get(item);
-        if (holder.isEmpty()) {
-            Goo.LOGGER.warn(LOG_UNKNOWN_ITEM, item);
-            return;
-        }
-        target.spawnAtLocation(level, new ItemStack(holder.get(), count));
-    }
-
-    /**
-     * Drops the spawn egg of the target's type, warning once per type
-     * that has none.
-     *
-     * @param count the stack size
-     */
-    private void dropOwnSpawnEgg(int count) {
-        EntityType<?> type = target.getType();
-        Optional<Holder<Item>> egg = SpawnEggItem.byId(type);
-        if (egg.isEmpty()) {
-            if (TYPES_WARNED_EGGLESS.add(type)) {
-                Goo.LOGGER.warn(LOG_NO_SPAWN_EGG, EntityType.getKey(type));
-            }
-            return;
-        }
-        target.spawnAtLocation(level, new ItemStack(egg.get(), count));
-    }
-
-    @Override
-    public void discardTarget() {
-        target.discard();
-    }
-
-    @Override
-    public void addTargetCounter(Identifier id, double amount) {
-        target.setData(GooAttachments.ENTITY_COUNTERS, counters().withAdded(id, amount));
-    }
-
-    @Override
-    public void setTargetCounter(Identifier id, double value) {
-        target.setData(GooAttachments.ENTITY_COUNTERS, counters().withValue(id, value));
-    }
-
-    @Override
-    public void setTargetBaby(boolean enabled) {
-        if (target instanceof Mob mob) {
-            mob.setBaby(enabled);
-        }
-    }
-
-    @Override
-    public void igniteTarget(int seconds) {
-        target.igniteForSeconds(seconds);
-    }
-
-    @Override
     public void spawnParticles(FxAnchor at, ParticleBurst burst) {
         SimpleParticles.resolve(burst.particle()).ifPresent(particle -> level.sendParticles(particle,
                 target.getX(), target.getY(BODY_CENTER) + burst.lift(), target.getZ(),
@@ -335,56 +198,6 @@ public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entit
     @Override
     public void playSound(FxAnchor at, SoundCue cue) {
         SoundPlays.play(level, new Vec3(target.getX(), target.getY(BODY_CENTER), target.getZ()), cue);
-    }
-
-    @Override
-    public void teleportTarget(TeleportMode mode, double range) {
-        Vec3 jump = switch (mode) {
-            case RANDOM_OFFSET -> randomOffset(range);
-            case TOWARD_THROWER -> towardThrower(range);
-            case AWAY_FROM_THROWER -> towardThrower(-range);
-        };
-        target.teleportTo(target.getX() + jump.x(), target.getY(), target.getZ() + jump.z());
-    }
-
-    /**
-     * Rolls a level jump of up to half the range either way on each axis.
-     *
-     * @param range the full width of the roll
-     * @return the jump
-     */
-    private Vec3 randomOffset(double range) {
-        RandomSource random = level.getRandom();
-        return new Vec3((random.nextDouble() - HALF) * range, 0, (random.nextDouble() - HALF) * range);
-    }
-
-    /**
-     * Measures a level jump of the range along the line from the target
-     * to the thrower; a negative range jumps away.
-     *
-     * @param range the jump length, negative to jump away
-     * @return the jump, zero with no thrower or a thrower at the target
-     */
-    private Vec3 towardThrower(double range) {
-        if (thrower == null) {
-            return Vec3.ZERO;
-        }
-        Vec3 line = new Vec3(thrower.getX() - target.getX(), 0, thrower.getZ() - target.getZ());
-        return line.lengthSqr() == 0 ? Vec3.ZERO : line.normalize().scale(range);
-    }
-
-    /**
-     * Spawns a fresh entity of the target's type a gaussian step away on
-     * each horizontal axis.
-     */
-    private void spawnClone() {
-        Entity clone = target.getType().create(level, EntitySpawnReason.MOB_SUMMONED);
-        if (clone == null) {
-            return;
-        }
-        RandomSource random = level.getRandom();
-        clone.setPos(target.getX() + random.nextGaussian(), target.getY(), target.getZ() + random.nextGaussian());
-        level.addFreshEntity(clone);
     }
 
     @Override
@@ -412,19 +225,4 @@ public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entit
         throw HostCapability.LAYER_WALK.refusedBy(kind());
     }
 
-    /**
-     * Maps a damage kind to the level's damage source.
-     *
-     * @param kind the kind the step named
-     * @return the damage source
-     */
-    private DamageSource damageSource(DamageKind kind) {
-        DamageSources sources = target.damageSources();
-        return switch (kind) {
-            case MAGIC -> sources.magic();
-            case FREEZE -> sources.freeze();
-            case STALAGMITE -> sources.stalagmite();
-            case CACTUS -> sources.cactus();
-        };
-    }
 }
