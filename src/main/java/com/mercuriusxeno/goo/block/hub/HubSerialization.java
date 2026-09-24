@@ -3,12 +3,12 @@ package com.mercuriusxeno.goo.block.hub;
 import com.mercuriusxeno.goo.block.canister.CanisterSlot;
 import com.mercuriusxeno.goo.block.gasket.GasketPusher;
 import com.mercuriusxeno.goo.data.GasketRegistry;
-import com.mercuriusxeno.goo.data.IGasketRegistryAccess;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.CanisterMetadata;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import java.util.function.Supplier;
 
 /**
  * Static helpers for hub-specific gasket bookkeeping.
@@ -28,7 +28,7 @@ final class HubSerialization {
      * @param pos         the block position
      */
     static void forceAllTransmitterChunks(HubBlockEntity be, ServerLevel serverLevel, BlockPos pos) {
-        IGasketRegistryAccess access = () -> GasketRegistry.get(serverLevel);
+        Supplier<GasketRegistry> access = () -> GasketRegistry.get(serverLevel);
         GasketPusher.forceTransmitterChunk(
                 be.gasketState().getId(GasketRole.RECEIVER), access, serverLevel, pos);
         for (CanisterSlot slot : be.containerState().slots) {

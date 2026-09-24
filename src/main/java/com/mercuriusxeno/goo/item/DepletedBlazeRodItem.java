@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.item;
 
 import com.mercuriusxeno.goo.data.GooValue;
-import com.mercuriusxeno.goo.data.IComponentValueProvider;
 import com.mercuriusxeno.goo.data.IGooValueLookup;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
 import net.minecraft.resources.Identifier;
@@ -15,7 +14,7 @@ import org.jspecify.annotations.Nullable;
  * decrements the counter by one. Unstackable, not in creative tab.
  * Retains proportional goo value based on remaining fuel.
  */
-public class DepletedBlazeRodItem extends Item implements IComponentValueProvider {
+public class DepletedBlazeRodItem extends Item {
 
     /** Identifier for the vanilla blaze rod, used to look up base goo value. */
     private static final Identifier BLAZE_ROD_ID = Identifier.withDefaultNamespace("blaze_rod");
@@ -100,9 +99,7 @@ public class DepletedBlazeRodItem extends Item implements IComponentValueProvide
      * @param registry the goo value lookup
      * @return the scaled goo value, or null if base value unavailable
      */
-    @Override
-    @Nullable
-    public GooValue computeComponentValue(ItemStack stack, IGooValueLookup registry) {
+    public static @Nullable GooValue computeFuelScaledValue(ItemStack stack, IGooValueLookup registry) {
         int remaining = getTicksRemaining(stack);
         if (remaining <= 0) { return GooValue.EMPTY; }
         GooValue blazeRodValue = registry.lookup(BLAZE_ROD_ID);

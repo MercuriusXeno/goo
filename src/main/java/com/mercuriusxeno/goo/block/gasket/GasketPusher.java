@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.block.gasket;
 
 import com.mercuriusxeno.goo.data.GasketLocation;
 import com.mercuriusxeno.goo.data.GasketRegistry;
-import com.mercuriusxeno.goo.data.IGasketRegistryAccess;
 import com.mercuriusxeno.goo.item.gasket.GasketPartner;
 import com.mercuriusxeno.goo.registry.GooCapabilities;
 import com.mercuriusxeno.goo.registry.GooTickets;
@@ -36,7 +35,7 @@ public class GasketPusher implements IGasketPusher {
     private final Supplier<@Nullable Level> level;
     private final Supplier<BlockPos> ownerPos;
     private final Runnable sync;
-    private final IGasketRegistryAccess registryAccess;
+    private final Supplier<GasketRegistry> registryAccess;
 
     private int idleTicks;
     private @Nullable BlockCapabilityCache<ResourceHandler<FluidResource>, UUID> endpointCache;
@@ -59,7 +58,7 @@ public class GasketPusher implements IGasketPusher {
                         Supplier<@Nullable Level> level,
                         Supplier<BlockPos> ownerPos,
                         Runnable sync,
-                        IGasketRegistryAccess registryAccess) {
+                        Supplier<GasketRegistry> registryAccess) {
         this.source = source;
         this.gasketId = gasketId;
         this.partner = partner;
@@ -82,7 +81,7 @@ public class GasketPusher implements IGasketPusher {
      */
     public static void forceTransmitterChunk(
             @Nullable UUID receiverGasketId,
-            IGasketRegistryAccess registryAccess,
+            Supplier<GasketRegistry> registryAccess,
             ServerLevel serverLevel,
             BlockPos ownerPos) {
         GasketLocation loc = resolveTransmitterLocation(receiverGasketId, registryAccess);
@@ -102,7 +101,7 @@ public class GasketPusher implements IGasketPusher {
      * @return the transmitter location, or null
      */
     private static @Nullable GasketLocation resolveTransmitterLocation(
-            @Nullable UUID receiverGasketId, IGasketRegistryAccess registryAccess) {
+            @Nullable UUID receiverGasketId, Supplier<GasketRegistry> registryAccess) {
         if (receiverGasketId == null) {
             return null;
         }
