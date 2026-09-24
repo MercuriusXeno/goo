@@ -17,6 +17,35 @@ public final class TestRecipeBuilder {
     }
 
     /**
+     * Creates a RecipeInput with no container items and no tag-based slots.
+     *
+     * @param output                 the output item ID
+     * @param resultCount            number of items produced
+     * @param ingredientAlternatives ingredient slots, each a set of alternative item IDs
+     * @return the five-field record with empty containers and tags
+     */
+    public static RecipeInput recipeInput(Identifier output, int resultCount,
+                                          List<Set<Identifier>> ingredientAlternatives) {
+        return recipeInput(output, resultCount, ingredientAlternatives, Map.of());
+    }
+
+    /**
+     * Creates a RecipeInput with container items and no tag-based slots.
+     *
+     * @param output                 the output item ID
+     * @param resultCount            number of items produced
+     * @param ingredientAlternatives ingredient slots, each a set of alternative item IDs
+     * @param containerItems         map of ingredient item ID to returned container item ID
+     * @return the five-field record with empty tags
+     */
+    public static RecipeInput recipeInput(Identifier output, int resultCount,
+                                          List<Set<Identifier>> ingredientAlternatives,
+                                          Map<Identifier, Identifier> containerItems) {
+        return new RecipeInput(output, resultCount, ingredientAlternatives, containerItems,
+                Collections.nCopies(ingredientAlternatives.size(), Optional.empty()));
+    }
+
+    /**
      * Creates a RecipeInput with the given output, result count, and ingredient slots.
      * Each ingredient slot is an array of item ID strings (alternatives).
      *
@@ -45,7 +74,7 @@ public final class TestRecipeBuilder {
         Identifier outputId = Identifier.parse(output);
         List<Set<Identifier>> slots = buildSlots(ingredients);
         Map<Identifier, Identifier> containerMap = buildContainerMap(containers);
-        return new RecipeInput(outputId, count, slots, containerMap);
+        return recipeInput(outputId, count, slots, containerMap);
     }
 
     /**

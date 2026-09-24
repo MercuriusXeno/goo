@@ -13,6 +13,29 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class ScaffoldGeneratorTest {
 
+    /**
+     * Finds the recipe-graph roots alone, with the registry-item phase off.
+     */
+    private static List<ScaffoldGenerator.Root> findRecipeRoots(
+            List<RecipeInput> recipes, Map<Identifier, GooValue> baseValues, Set<Identifier> denied) {
+        return ScaffoldGenerator.findRoots(recipes, baseValues, denied, Set.of());
+    }
+
+    /**
+     * Generates the full scaffold with no tag grouping.
+     */
+    private static ScaffoldGenerator.ScaffoldResult scaffoldOf(List<ScaffoldGenerator.Root> roots) {
+        return scaffoldOf(roots, List.of());
+    }
+
+    /**
+     * Generates the full scaffold, grouping roots by the recipes' tags.
+     */
+    private static ScaffoldGenerator.ScaffoldResult scaffoldOf(
+            List<ScaffoldGenerator.Root> roots, List<RecipeInput> recipes) {
+        return ScaffoldGenerator.generateScaffold(roots, recipes, false);
+    }
+
     // ── Root finding ─────────────────────────────────────────────────────
 
     @Nested
@@ -29,7 +52,7 @@ class ScaffoldGeneratorTest {
             );
             Map<Identifier, GooValue> baseValues = Map.of();
 
-            List<ScaffoldGenerator.Root> roots = ScaffoldGenerator.findRoots(
+            List<ScaffoldGenerator.Root> roots = findRecipeRoots(
                     recipes, baseValues, Set.of());
 
             assertTrue(roots.stream().anyMatch(r ->
@@ -49,7 +72,7 @@ class ScaffoldGeneratorTest {
                     id("minecraft:raw_copper"), goo(GooTypes.METAL, 100)
             );
 
-            List<ScaffoldGenerator.Root> roots = ScaffoldGenerator.findRoots(
+            List<ScaffoldGenerator.Root> roots = findRecipeRoots(
                     recipes, baseValues, Set.of());
 
             assertTrue(roots.stream().noneMatch(r ->
@@ -71,7 +94,7 @@ class ScaffoldGeneratorTest {
                     recipe("minecraft:gold_ingot", 1, slot("minecraft:raw_gold"))
             );
 
-            List<ScaffoldGenerator.Root> roots = ScaffoldGenerator.findRoots(
+            List<ScaffoldGenerator.Root> roots = findRecipeRoots(
                     recipes, Map.of(), Set.of());
 
             // raw_iron should come first (more downstream)
@@ -95,7 +118,7 @@ class ScaffoldGeneratorTest {
                     id("minecraft:copper_ingot"), goo(GooTypes.METAL, 100)
             );
 
-            List<ScaffoldGenerator.Root> roots = ScaffoldGenerator.findRoots(
+            List<ScaffoldGenerator.Root> roots = findRecipeRoots(
                     recipes, baseValues, Set.of());
 
             assertTrue(roots.stream().anyMatch(r ->
@@ -119,7 +142,7 @@ class ScaffoldGeneratorTest {
                     recipe("minecraft:oak_fence", 1, slot("minecraft:stick"), slot("minecraft:oak_planks"))
             );
 
-            List<ScaffoldGenerator.Root> roots = ScaffoldGenerator.findRoots(
+            List<ScaffoldGenerator.Root> roots = findRecipeRoots(
                     recipes, Map.of(), Set.of());
 
             // True roots: raw_copper, raw_iron, oak_log (no recipe produces them).
@@ -149,7 +172,7 @@ class ScaffoldGeneratorTest {
                     recipe("minecraft:oak_sign", 1, slot("minecraft:stick"), slot("minecraft:oak_planks"))
             );
 
-            List<ScaffoldGenerator.Root> roots = ScaffoldGenerator.findRoots(
+            List<ScaffoldGenerator.Root> roots = findRecipeRoots(
                     recipes, Map.of(), Set.of());
 
             assertEquals(1, roots.size(), "Only one root expected (oak_log): " + roots);
@@ -174,7 +197,7 @@ class ScaffoldGeneratorTest {
                     recipe("minecraft:ladder", 3, slot("minecraft:stick"))
             );
 
-            List<ScaffoldGenerator.Root> roots = ScaffoldGenerator.findRoots(
+            List<ScaffoldGenerator.Root> roots = findRecipeRoots(
                     recipes, Map.of(), Set.of());
 
             // Each wood type is a separate cluster; stick is a separate cluster
@@ -198,7 +221,7 @@ class ScaffoldGeneratorTest {
                     id("minecraft:stick"), goo(GooTypes.VITAL, 10)
             );
 
-            List<ScaffoldGenerator.Root> roots = ScaffoldGenerator.findRoots(
+            List<ScaffoldGenerator.Root> roots = findRecipeRoots(
                     recipes, baseValues, Set.of());
 
             assertTrue(roots.stream().anyMatch(r ->
@@ -222,7 +245,7 @@ class ScaffoldGeneratorTest {
                     id("minecraft:torch"), goo(GooTypes.VITAL, 10)
             );
 
-            List<ScaffoldGenerator.Root> roots = ScaffoldGenerator.findRoots(
+            List<ScaffoldGenerator.Root> roots = findRecipeRoots(
                     recipes, baseValues, Set.of());
 
             // stick should still be a root -- torch's mixed recipe can't reverse-derive it
@@ -245,7 +268,7 @@ class ScaffoldGeneratorTest {
                     id("minecraft:coal"), goo(GooTypes.ROCK, 20)
             );
 
-            List<ScaffoldGenerator.Root> roots = ScaffoldGenerator.findRoots(
+            List<ScaffoldGenerator.Root> roots = findRecipeRoots(
                     recipes, baseValues, Set.of());
 
             assertTrue(roots.isEmpty(),
@@ -271,7 +294,7 @@ class ScaffoldGeneratorTest {
                     id("minecraft:template"), goo(GooTypes.ROCK, 100)
             );
 
-            List<ScaffoldGenerator.Root> roots = ScaffoldGenerator.findRoots(
+            List<ScaffoldGenerator.Root> roots = findRecipeRoots(
                     recipes, baseValues, Set.of());
 
             assertTrue(roots.stream().anyMatch(r ->
@@ -316,7 +339,7 @@ class ScaffoldGeneratorTest {
                     recipe("minecraft:copper_block", 9, slot("minecraft:copper_ingot"))
             );
 
-            List<ScaffoldGenerator.Root> roots = ScaffoldGenerator.findRoots(
+            List<ScaffoldGenerator.Root> roots = findRecipeRoots(
                     recipes, Map.of(), Set.of(id("minecraft:raw_copper")));
 
             // raw_copper is denied. copper_ingot and copper_block are cycle items
@@ -338,7 +361,7 @@ class ScaffoldGeneratorTest {
          */
         @Test
         void emptyRootsMessage() {
-            ScaffoldGenerator.ScaffoldResult result = ScaffoldGenerator.generateScaffold(List.of());
+            ScaffoldGenerator.ScaffoldResult result = scaffoldOf(List.of());
             assertEquals(0, result.rootCount());
             assertTrue(result.lines().stream().anyMatch(l -> l.contains("No unvalued roots")));
         }
@@ -351,9 +374,9 @@ class ScaffoldGeneratorTest {
             List<RecipeInput> recipes = List.of(
                     recipe("minecraft:copper_ingot", 1, slot("minecraft:raw_copper"))
             );
-            List<ScaffoldGenerator.Root> roots = ScaffoldGenerator.findRoots(
+            List<ScaffoldGenerator.Root> roots = findRecipeRoots(
                     recipes, Map.of(), Set.of());
-            ScaffoldGenerator.ScaffoldResult result = ScaffoldGenerator.generateScaffold(roots);
+            ScaffoldGenerator.ScaffoldResult result = scaffoldOf(roots);
 
             assertEquals(1, result.rootCount());
             assertTrue(result.lines().stream().anyMatch(l ->
@@ -384,10 +407,10 @@ class ScaffoldGeneratorTest {
             RecipeInput ladderRecipe = recipe("minecraft:ladder", 3, slot("minecraft:stick"));
 
             List<RecipeInput> recipes = List.of(stickRecipe, ladderRecipe);
-            List<ScaffoldGenerator.Root> roots = ScaffoldGenerator.findRoots(
+            List<ScaffoldGenerator.Root> roots = findRecipeRoots(
                     recipes, Map.of(), Set.of());
 
-            ScaffoldGenerator.ScaffoldResult result = ScaffoldGenerator.generateScaffold(roots, recipes);
+            ScaffoldGenerator.ScaffoldResult result = scaffoldOf(roots, recipes);
 
             String joined = String.join("\n", result.lines());
             assertTrue(joined.contains("\"#planks\""),
@@ -422,9 +445,9 @@ class ScaffoldGeneratorTest {
                     slot("minecraft:stick"), slot("minecraft:oak_planks"));
 
             List<RecipeInput> recipes = List.of(redPane, oakPlanks, stick, ladder, fence, sign);
-            List<ScaffoldGenerator.Root> roots = ScaffoldGenerator.findRoots(
+            List<ScaffoldGenerator.Root> roots = findRecipeRoots(
                     recipes, Map.of(), Set.of());
-            ScaffoldGenerator.ScaffoldResult result = ScaffoldGenerator.generateScaffold(roots, recipes);
+            ScaffoldGenerator.ScaffoldResult result = scaffoldOf(roots, recipes);
 
             String joined = String.join("\n", result.lines());
             // The tag group (#logs) unblocks more items than glass_pane,
@@ -447,9 +470,9 @@ class ScaffoldGeneratorTest {
                     recipe("minecraft:iron_ingot", 1, slot("minecraft:raw_iron"))
             );
 
-            List<ScaffoldGenerator.Root> roots = ScaffoldGenerator.findRoots(
+            List<ScaffoldGenerator.Root> roots = findRecipeRoots(
                     recipes, Map.of(), Set.of());
-            ScaffoldGenerator.ScaffoldResult result = ScaffoldGenerator.generateScaffold(roots, recipes);
+            ScaffoldGenerator.ScaffoldResult result = scaffoldOf(roots, recipes);
 
             String joined = String.join("\n", result.lines());
             assertTrue(joined.contains("\"raw_copper\""),
@@ -477,9 +500,9 @@ class ScaffoldGeneratorTest {
             RecipeInput ingotRecipe = recipe("minecraft:copper_ingot", 1, slot("minecraft:raw_copper"));
 
             List<RecipeInput> recipes = List.of(stickRecipe, ladderRecipe, ingotRecipe);
-            List<ScaffoldGenerator.Root> roots = ScaffoldGenerator.findRoots(
+            List<ScaffoldGenerator.Root> roots = findRecipeRoots(
                     recipes, Map.of(), Set.of());
-            ScaffoldGenerator.ScaffoldResult result = ScaffoldGenerator.generateScaffold(roots, recipes);
+            ScaffoldGenerator.ScaffoldResult result = scaffoldOf(roots, recipes);
 
             String joined = String.join("\n", result.lines());
             assertTrue(joined.contains("\"#planks\""),
@@ -527,7 +550,7 @@ class ScaffoldGeneratorTest {
          */
         @Test
         void fourArgConstructorDefaultsTagIds() {
-            RecipeInput input = new RecipeInput(
+            RecipeInput input = recipeInput(
                     id("minecraft:stick"), 4,
                     List.of(Set.of(id("minecraft:oak_planks"))),
                     Map.of());

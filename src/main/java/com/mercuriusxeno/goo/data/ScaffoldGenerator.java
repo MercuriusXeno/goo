@@ -24,21 +24,6 @@ public final class ScaffoldGenerator {
     }
 
     /**
-     * Backward-compatible overload without registry items (used by tests).
-     * Only finds recipe-graph roots; does not include flat registry items.
-     *
-     * @param recipes    all known recipes
-     * @param baseValues currently valued items
-     * @param denied     denied items (excluded from analysis)
-     * @return roots sorted by downstream impact (highest first)
-     */
-    public static List<Root> findRoots(List<RecipeInput> recipes,
-                                       Map<Identifier, GooValue> baseValues,
-                                       Set<Identifier> denied) {
-        return findRoots(recipes, baseValues, denied, Set.of());
-    }
-
-    /**
      * Finds all items that need manual valuation.
      * <p>Three phases:
      * <ol>
@@ -74,28 +59,6 @@ public final class ScaffoldGenerator {
         ScaffoldRootFinder.collectRemainingRoots(graphData, valued, trueRootIds, recipes, denied, allKnownItems, roots);
         ScaffoldRootFinder.sortRootsByImpact(roots);
         return roots;
-    }
-
-    /**
-     * Generates scaffold without tag grouping (backward-compatible overload).
-     *
-     * @param roots the roots to generate scaffold for
-     * @return lines suitable for writing to a file, plus root count
-     */
-    public static ScaffoldResult generateScaffold(List<Root> roots) {
-        return generateScaffold(roots, List.of());
-    }
-
-    /**
-     * Generates scaffold file lines, grouping roots that share a recipe tag
-     * into a single {@code "#tag": { }} entry.
-     *
-     * @param roots   the roots to generate scaffold for
-     * @param recipes recipes providing tag metadata for grouping
-     * @return lines suitable for writing to a file, plus root count
-     */
-    public static ScaffoldResult generateScaffold(List<Root> roots, List<RecipeInput> recipes) {
-        return generateScaffold(roots, recipes, false);
     }
 
     /**
