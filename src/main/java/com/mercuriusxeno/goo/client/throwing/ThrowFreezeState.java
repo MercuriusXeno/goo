@@ -12,9 +12,6 @@ import org.jspecify.annotations.Nullable;
  * returns the frozen target instead of re-resolving, so rapid chain throws
  * land on the exact same spot even while the first blob is mid-flight.
  *
- * <p>Sneaking cancels the freeze immediately, matching the existing
- * "sneak bypasses aim assist" rule.
- *
  * <p>Pure state - no Minecraft hot-path imports - so it is unit-testable
  * in a plain JUnit context.
  */
