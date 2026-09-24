@@ -17,6 +17,7 @@ import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
@@ -601,6 +602,20 @@ public class ReactorBlockEntity extends BlockEntity
         super.onLoad();
         gasket.onLoad();
         BlockEntitySync.kickLightingOnLoad(this);
+    }
+
+    /**
+     * Loads the packet's contents, then rechecks light at this position:
+     * the client's engine sees new goo only this way (decision
+     * diagnose-then-fix-vat-stale-light).
+     *
+     * @param net   the connection the packet came from
+     * @param input the packet data
+     */
+    @Override
+    public void onDataPacket(Connection net, ValueInput input) {
+        super.onDataPacket(net, input);
+        BlockEntitySync.relightOnContentsArrived(this);
     }
 
     @Override
