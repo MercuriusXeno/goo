@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.client.hud;
 
-import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
@@ -49,22 +48,17 @@ final class CrucibleRimMath {
     private CrucibleRimMath() {}
 
     /**
-     * Translates the pose stack to the farthest rim point, lifted above the basin,
-     * relative to camera position. The point is selected from 8 candidates
-     * (4 corners + 4 side midpoints) with look-alignment bias.
+     * Returns the world anchor of the best rim point, lifted above the basin.
+     * The point is selected from 8 candidates (4 corners + 4 side midpoints)
+     * with look-alignment bias.
      *
-     * @param poseStack the pose stack for rendering
-     * @param pos the block position
-     * @param cam the camera world position
+     * @param pos    the block position
      * @param camera the render camera
+     * @return the rim anchor in world coordinates
      */
-    static void translateToRimPoint(PoseStack poseStack, BlockPos pos,
-            Vec3 cam, Camera camera) {
+    static Vec3 rimAnchor(BlockPos pos, Camera camera) {
         RimPoint rp = selectBestRimPoint(pos, camera);
-        double rx = pos.getX() + rp.x() - cam.x;
-        double ry = pos.getY() + BASIN_TOP_Y + HUD_LIFT - cam.y;
-        double rz = pos.getZ() + rp.z() - cam.z;
-        poseStack.translate(rx, ry, rz);
+        return new Vec3(pos.getX() + rp.x(), pos.getY() + BASIN_TOP_Y + HUD_LIFT, pos.getZ() + rp.z());
     }
 
     /**

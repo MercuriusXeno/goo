@@ -11,11 +11,13 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.jspecify.annotations.Nullable;
+import java.util.List;
 
 /**
  * Renders a compact in-world HUD panel when the player's crosshair targets
@@ -28,9 +30,6 @@ public final class CrucibleHudRenderer {
 
     /** Y threshold in block-local coords: below this is the fuel rod area, not the basin. */
     private static final double BASIN_MIN_Y = 10.0 / 16.0;
-
-    /** Z-nudge for panel to prevent z-fighting on the basin rim. */
-    private static final double RIM_Z_NUDGE = -0.01;
 
     private static final HudAnimator<BlockPos> ANIMATOR = new HudAnimator<>(BlockPos::equals);
 
@@ -112,33 +111,19 @@ public final class CrucibleHudRenderer {
     }
 
     /**
-     * Renders the HUD panel on the basin rim at the farthest point from the camera.
-     * Billboards to face the player with smoothed emerge animation.
+     * Paints the crucible panel on the basin rim point chosen for the camera,
+     * billboarded with the smoothed emerge pitch.
      *
      * @param poseStack the pose stack for rendering
-     * @param be the block entity instance
-     * @param camera the render camera
+     * @param be        the crucible block entity
+     * @param camera    the render camera
      */
-    private static void renderRimPanel(PoseStack poseStack, CrucibleBlockEntity be,
-            Camera camera) {
-        poseStack.pushPose();
-        positionOnRim(poseStack, be.getBlockPos(), camera);
-        CruciblePanelPainter.renderPanel(poseStack, be);
-        poseStack.popPose();
-    }
-
-    /**
-     * Transforms the pose stack to the best rim anchor: translates, billboards,
-     * z-nudges, and scales to pixel units.
-     *
-     * @param poseStack the pose stack for rendering
-     * @param pos the block position of the crucible
-     * @param camera the render camera
-     */
-    private static void positionOnRim(PoseStack poseStack, BlockPos pos, Camera camera) {
-        CrucibleRimMath.translateToRimPoint(poseStack, pos, camera.position(), camera);
-        InWorldHud.applyBillboardRotation(poseStack, camera, ANIMATOR.pitch());
-        poseStack.translate(0, 0, RIM_Z_NUDGE);
-        poseStack.scale(InWorldHud.PIXEL_SCALE, -InWorldHud.PIXEL_SCALE, InWorldHud.PIXEL_SCALE);
+    private static void renderRimPanel(PoseStack poseStack, CrucibleBlockEntity be, Camera camera) {
+        List<PanelRow> rows = CruciblePanelRows.rows(be);
+        if (rows.isEmpty()) {
+            return;
+        }
+        Vec3 anchor = CrucibleRimMath.rimAnchor(be.getBlockPos(), camera);
+        PanelPainter.paint(poseStack, camera, PanelPlacement.onRim(anchor, ANIMATOR.pitch()), rows);
     }
 }

@@ -11,9 +11,8 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Aggregates data across a connected vat stack for HUD display.
- * Walks up/down from the targeted vat while VAT_ABOVE/VAT_BELOW
- * blockstate properties are true. Pure utility, no side effects.
+ * Aggregates data across a connected vat stack for HUD display, reading the
+ * column VatStack walks for the vat renderer too.
  */
 public final class VatStackAggregator {
 
@@ -32,18 +31,12 @@ public final class VatStackAggregator {
      */
     public static @Nullable VatStackData aggregate(Level level, BlockPos targetPos) {
         BlockEntity be = level.getBlockEntity(targetPos);
-        if (!(be instanceof VatBlockEntity targetVat)) {
+        VatStack stack = VatStack.at(level, targetPos);
+        if (!(be instanceof VatBlockEntity targetVat) || stack == null) {
             return null;
         }
-
-        BlockPos topPos = findStackTop(level, targetPos);
-        BlockPos bottomPos = findStackBottom(level, targetPos);
-
-        int stackSize = topPos.getY() - bottomPos.getY() + 1;
-        GooContents mergedContents = sumContents(level, topPos, bottomPos);
-        StackGaskets gaskets = resolveGaskets(level, topPos, bottomPos);
-
-        return buildStackData(targetVat, mergedContents, gaskets, stackSize);
+        StackGaskets gaskets = resolveGaskets(level, stack.top(), stack.bottom());
+        return buildStackData(targetVat, stack.contents(), gaskets, stack.column().size());
     }
 
     /**
@@ -67,56 +60,6 @@ public final class VatStackAggregator {
                 gaskets.basePartner(),
                 stackSize
         );
-    }
-
-    /**
-     * Walks upward while VAT_ABOVE is true. Returns the top-most vat position.
-     *
-     * @param level the current level
-     * @param start the start block position
-     * @return the matching result, or null if not found
-     */
-    private static BlockPos findStackTop(Level level, BlockPos start) {
-        BlockPos pos = start;
-        while (level.getBlockState(pos).getValue(VatBlock.VAT_ABOVE)) {
-            pos = pos.above();
-        }
-        return pos;
-    }
-
-    /**
-     * Walks downward while VAT_BELOW is true. Returns the bottom-most vat position.
-     *
-     * @param level the current level
-     * @param start the start block position
-     * @return the matching result, or null if not found
-     */
-    private static BlockPos findStackBottom(Level level, BlockPos start) {
-        BlockPos pos = start;
-        while (level.getBlockState(pos).getValue(VatBlock.VAT_BELOW)) {
-            pos = pos.below();
-        }
-        return pos;
-    }
-
-    /**
-     * Sums GooContents across all vats from top to bottom inclusive.
-     *
-     * @param level  the current level
-     * @param top    whether to render the top cap
-     * @param bottom whether to render the bottom cap
-     * @return the result
-     */
-    private static GooContents sumContents(Level level, BlockPos top, BlockPos bottom) {
-        GooContents result = GooContents.EMPTY;
-        for (int y = top.getY(); y >= bottom.getY(); y--) {
-            BlockPos pos = new BlockPos(top.getX(), y, top.getZ());
-            BlockEntity be = level.getBlockEntity(pos);
-            if (be instanceof VatBlockEntity vat) {
-                result = result.mergeWith(vat.getContents());
-            }
-        }
-        return result;
     }
 
     /**

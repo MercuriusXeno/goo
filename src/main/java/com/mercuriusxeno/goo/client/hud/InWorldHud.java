@@ -1,9 +1,5 @@
 package com.mercuriusxeno.goo.client.hud;
 
-import com.mercuriusxeno.goo.GooTypeDefinition;
-import com.mercuriusxeno.goo.GooTypes;
-import com.mercuriusxeno.goo.client.GooTooltipHandler;
-import com.mercuriusxeno.goo.item.GooContents;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Camera;
@@ -12,13 +8,9 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.LightCoordsUtil;
-import net.minecraft.world.level.material.Fluid;
-import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Quaternionf;
-import java.util.Map;
 
 /**
  * Shared utilities for in-world HUD billboards rendered via nine-slice backgrounds.
@@ -48,22 +40,6 @@ public final class InWorldHud {
     public static final Identifier BG_TEXTURE = Identifier.withDefaultNamespace(
             "textures/gui/sprites/hud/effect_background.png");
     /**
-     * Height of one HUD row (icon + text).
-     */
-    public static final float ROW_HEIGHT = 11f;
-    /**
-     * Icon render size in scaled pixels.
-     */
-    public static final float ICON_SIZE = 10f;
-    /**
-     * Gap between icon and text in a goo row.
-     */
-    public static final float ICON_TEXT_GAP = 2f;
-    /**
-     * Default text color (white).
-     */
-    public static final int TEXT_COLOR = 0xFFFFFFFF;
-    /**
      * Full white color for quad rendering.
      */
     private static final int OPAQUE_WHITE = 0xFFFFFFFF;
@@ -87,30 +63,7 @@ public final class InWorldHud {
      * Maximum delta-time clamp to handle lag spikes.
      */
     private static final float MAX_DT = 0.1f;
-    /**
-     * Texture path prefix for goo type icons.
-     */
-    private static final String ICON_PATH_PREFIX = "textures/goo/type/";
 
-    // --- Shared goo row rendering constants and methods ---
-    /**
-     * Water bucket item texture for HUD icon.
-     */
-    private static final Identifier WATER_BUCKET_ICON =
-            Identifier.withDefaultNamespace("textures/item/water_bucket.png");
-    /**
-     * Lava bucket item texture for HUD icon.
-     */
-    private static final Identifier LAVA_BUCKET_ICON =
-            Identifier.withDefaultNamespace("textures/item/lava_bucket.png");
-    /**
-     * Texture path suffix for goo type icons.
-     */
-    private static final String ICON_PATH_SUFFIX = ".png";
-    /**
-     * Goo mod namespace for resource identifiers.
-     */
-    private static final String NAMESPACE_GOO = "goo";
 
     private InWorldHud() {
     }
@@ -370,203 +323,6 @@ public final class InWorldHud {
     public static float smoothToward(float current, float target, float dt, float tau) {
         float factor = 1f - (float) Math.exp(-dt / tau);
         return current + (target - current) * factor;
-    }
-
-    /**
-     * Renders a goo type icon + amount text row, vertically centered within
-     * {@link #ROW_HEIGHT}. Used by canister and vat HUD renderers.
-     *
-     * @param poseStack  the pose stack for rendering
-     * @param font       the font renderer
-     * @param buffers    the buffer source for rendering
-     * @param type       the goo type
-     * @param amountText the formatted volume text
-     * @param x          the X coordinate
-     * @param y          the Y coordinate
-     */
-    public static void renderGooRow(PoseStack poseStack, Font font,
-                                    MultiBufferSource buffers, ResourceKey<GooTypeDefinition> type, String amountText,
-                                    float x, float y) {
-        float iconY = y + (ROW_HEIGHT - ICON_SIZE) / HALF;
-        float textY = y + (ROW_HEIGHT - font.lineHeight) / HALF;
-        renderIcon(poseStack, buffers, type, x, iconY);
-        drawText(font, buffers, poseStack, amountText,
-                x + ICON_SIZE + ICON_TEXT_GAP, textY, TEXT_COLOR);
-    }
-
-    /**
-     * See-through variant of {@link #renderGooRow} that renders on top
-     * of world geometry. Used for chain marker billboards.
-     *
-     * @param poseStack  the pose stack for rendering
-     * @param font       the font renderer
-     * @param buffers    the buffer source for rendering
-     * @param type       the goo type
-     * @param amountText the formatted volume text
-     * @param x          the X coordinate
-     * @param y          the Y coordinate
-     */
-    public static void renderGooRowSeeThrough(PoseStack poseStack, Font font,
-                                              MultiBufferSource buffers, ResourceKey<GooTypeDefinition> type, String amountText,
-                                              float x, float y) {
-        float iconY = y + (ROW_HEIGHT - ICON_SIZE) / HALF;
-        float textY = y + (ROW_HEIGHT - font.lineHeight) / HALF;
-        renderIconSeeThrough(poseStack, buffers, type, x, iconY);
-        drawTextSeeThrough(font, buffers, poseStack, amountText,
-                x + ICON_SIZE + ICON_TEXT_GAP, textY, TEXT_COLOR);
-    }
-
-    /**
-     * Renders every goo type in {@code contents} as a stack of rows starting
-     * at {@code baseY + startRow * ROW_HEIGHT}. Centralizes the panel-painter
-     * loop so canister and vat HUDs share one iteration path.
-     *
-     * @param poseStack the pose stack for rendering
-     * @param font      the font renderer
-     * @param buffers   the buffer source
-     * @param contents  the goo contents to render
-     * @param x         the left X coordinate for each row
-     * @param baseY     the panel content top Y
-     * @param startRow  the first row index for goo rows
-     */
-    public static void renderGooRows(PoseStack poseStack, Font font,
-                                     MultiBufferSource buffers, GooContents contents,
-                                     float x, float baseY, int startRow) {
-        int row = startRow;
-        for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> entry : contents.getAll().entrySet()) {
-            float rowY = baseY + row * ROW_HEIGHT;
-            String amountText = GooTooltipHandler.formatFluidDisplayCompact(entry.getValue());
-            renderGooRow(poseStack, font, buffers, entry.getKey(), amountText, x, rowY);
-            row++;
-        }
-    }
-
-    /**
-     * Renders a vanilla fluid row: tinted fluid icon + formatted mB amount.
-     *
-     * @param poseStack the pose stack
-     * @param font      the font renderer
-     * @param buffers   the buffer source
-     * @param fluid     the vanilla fluid
-     * @param amount    the volume in mB
-     * @param x         the left X coordinate
-     * @param y         the Y coordinate for this row
-     */
-    public static void renderFluidRow(PoseStack poseStack, Font font,
-                                      MultiBufferSource buffers, Fluid fluid, int amount,
-                                      float x, float y) {
-        float iconY = y + (ROW_HEIGHT - ICON_SIZE) / HALF;
-        float textY = y + (ROW_HEIGHT - font.lineHeight) / HALF;
-        renderFluidIconSeeThrough(poseStack, buffers, fluid, x, iconY);
-        String amountText = GooTooltipHandler.formatFluidDisplayCompact(amount);
-        drawTextSeeThrough(font, buffers, poseStack, amountText,
-                x + ICON_SIZE + ICON_TEXT_GAP, textY, TEXT_COLOR);
-    }
-
-    /**
-     * Computes the row width for a vanilla fluid entry.
-     *
-     * @param font   the font renderer
-     * @param amount the volume in mB
-     * @return the row width in scaled pixels
-     */
-    public static float computeFluidRowWidth(Font font, int amount) {
-        String text = GooTooltipHandler.formatFluidDisplayCompact(amount);
-        return ICON_SIZE + ICON_TEXT_GAP + font.width(text);
-    }
-
-    /**
-     * Renders a vanilla fluid bucket icon without depth testing.
-     *
-     * @param poseStack the pose stack
-     * @param buffers   the buffer source
-     * @param fluid     the vanilla fluid
-     * @param x         the X coordinate
-     * @param y         the Y coordinate
-     */
-    private static void renderFluidIconSeeThrough(PoseStack poseStack,
-                                                  MultiBufferSource buffers, Fluid fluid, float x, float y) {
-        Identifier tex = fluid.isSame(Fluids.WATER) ? WATER_BUCKET_ICON : LAVA_BUCKET_ICON;
-        VertexConsumer vc = buffers.getBuffer(RenderTypes.textSeeThrough(tex));
-        PoseStack.Pose pose = poseStack.last();
-        float x2 = x + ICON_SIZE;
-        float y2 = y + ICON_SIZE;
-        iconVertex(vc, pose, x, y, CONTENT_Z, 0f, 0f);
-        iconVertex(vc, pose, x, y2, CONTENT_Z, 0f, 1f);
-        iconVertex(vc, pose, x2, y2, CONTENT_Z, 1f, 1f);
-        iconVertex(vc, pose, x2, y, CONTENT_Z, 1f, 0f);
-    }
-
-    /**
-     * Renders a goo type icon quad at the content Z depth.
-     *
-     * @param poseStack the pose stack for rendering
-     * @param buffers   the buffer source for rendering
-     * @param type      the goo type
-     * @param x         the X coordinate
-     * @param y         the Y coordinate
-     */
-    public static void renderIcon(PoseStack poseStack, MultiBufferSource buffers,
-                                  ResourceKey<GooTypeDefinition> type, float x, float y) {
-        emitIconQuad(poseStack, buffers, type, x, y, false);
-    }
-
-    /**
-     * Renders a goo type icon without depth testing (see-through).
-     *
-     * @param poseStack the pose stack for rendering
-     * @param buffers   the buffer source for rendering
-     * @param type      the goo type
-     * @param x         the X coordinate
-     * @param y         the Y coordinate
-     */
-    public static void renderIconSeeThrough(PoseStack poseStack, MultiBufferSource buffers,
-                                            ResourceKey<GooTypeDefinition> type, float x, float y) {
-        emitIconQuad(poseStack, buffers, type, x, y, true);
-    }
-
-    /**
-     * Internal icon quad emitter with configurable depth test.
-     *
-     * @param poseStack  the pose stack
-     * @param buffers    the buffer source
-     * @param type       the goo type
-     * @param x          the X coordinate
-     * @param y          the Y coordinate
-     * @param seeThrough true to disable depth testing
-     */
-    private static void emitIconQuad(PoseStack poseStack, MultiBufferSource buffers,
-                                     ResourceKey<GooTypeDefinition> type, float x, float y, boolean seeThrough) {
-        Identifier tex = Identifier.fromNamespaceAndPath(NAMESPACE_GOO,
-                ICON_PATH_PREFIX + GooTypes.id(type) + ICON_PATH_SUFFIX);
-        VertexConsumer vc = buffers.getBuffer(
-                seeThrough ? RenderTypes.textSeeThrough(tex) : RenderTypes.text(tex));
-        PoseStack.Pose pose = poseStack.last();
-        float x2 = x + ICON_SIZE;
-        float y2 = y + ICON_SIZE;
-        iconVertex(vc, pose, x, y, CONTENT_Z, 0f, 0f);
-        iconVertex(vc, pose, x, y2, CONTENT_Z, 0f, 1f);
-        iconVertex(vc, pose, x2, y2, CONTENT_Z, 1f, 1f);
-        iconVertex(vc, pose, x2, y, CONTENT_Z, 1f, 0f);
-    }
-
-    /**
-     * Computes the widest goo row width for panel sizing.
-     *
-     * @param font     the font renderer
-     * @param contents the goo contents to measure
-     * @return the width of the widest row (icon + gap + text) in scaled pixels
-     */
-    public static float computeMaxRowWidth(Font font, GooContents contents) {
-        float max = 0;
-        for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> entry : contents.getAll().entrySet()) {
-            String text = GooTooltipHandler.formatFluidDisplayCompact(entry.getValue());
-            float w = ICON_SIZE + ICON_TEXT_GAP + font.width(text);
-            if (w > max) {
-                max = w;
-            }
-        }
-        return max;
     }
 
     /**
