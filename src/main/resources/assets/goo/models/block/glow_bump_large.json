@@ -1,0 +1,23 @@
+{
+	"format_version": "1.21.11",
+	"ambientocclusion": false,
+	"textures": {
+		"0": "goo:block/glow_bump_large",
+		"particle": "goo:block/glow_bump_large"
+	},
+	"elements": [
+		{
+			"from": [2, 0, 2],
+			"to": [14, 2, 14],
+			"rotation": {"angle": 0, "axis": "y", "origin": [7, 0, 7]},
+			"faces": {
+				"north": {"uv": [2, 14, 14, 16], "texture": "#0"},
+				"east": {"uv": [2, 14, 14, 16], "texture": "#0"},
+				"south": {"uv": [2, 14, 14, 16], "texture": "#0"},
+				"west": {"uv": [2, 14, 14, 16], "texture": "#0"},
+				"up": {"uv": [2, 2, 14, 14], "texture": "#0"},
+				"down": {"uv": [2, 2, 14, 14], "texture": "#0"}
+			}
+		}
+	]
+}
