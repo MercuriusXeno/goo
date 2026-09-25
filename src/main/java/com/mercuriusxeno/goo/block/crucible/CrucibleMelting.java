@@ -111,7 +111,7 @@ final class CrucibleMelting {
      *
      * @param be the crucible block entity
      */
-    private static void beginIgnitionSpray(CrucibleBlockEntity be) {
+    static void beginIgnitionSpray(CrucibleBlockEntity be) {
         Level level = be.getLevel();
         be.ignitionSprayTicks = CrucibleBlockEntity.IGNITION_BASE_TICKS
                 + (level != null ? level.getRandom().nextInt(CrucibleBlockEntity.IGNITION_RANDOM_TICKS) : 0);

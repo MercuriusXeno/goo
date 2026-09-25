@@ -191,6 +191,8 @@ public final class GooTestFunctions {
     private static final String IX_CRUCIBLE_BLAZE_ROD_COLD = "ix_crucible_blaze_rod_click_leaves_cold";
     private static final String IX_CRUCIBLE_COLD_ABSORBS_NOTHING = "ix_crucible_cold_absorbs_nothing";
     private static final String IX_CRUCIBLE_BLAZE_ABSORBS = "ix_crucible_blaze_absorbs_item";
+    private static final String IX_CRUCIBLE_FLINT_SPARKS = "ix_crucible_flint_and_steel_sparks";
+    private static final String IX_CRUCIBLE_SPARK_MELTS_COAL = "ix_crucible_spark_melts_coal";
     private static final String IX_HUB_ITEM_BLOB_INSERT = "ix_hub_item_blob_insert";
     private static final String IX_HUB_ITEM_OMNIBLOB_INSERT = "ix_hub_item_omniblob_insert";
     private static final String IX_HUB_ITEM_INSERT_REFUSED = "ix_hub_item_insert_refused";
@@ -427,6 +429,8 @@ public final class GooTestFunctions {
         reg(r, IX_CRUCIBLE_BLAZE_ROD_COLD, MachineInteractionTests::crucibleBlazeRodClickLeavesItCold);
         reg(r, IX_CRUCIBLE_COLD_ABSORBS_NOTHING, MachineInteractionTests::coldCrucibleAbsorbsNothing);
         reg(r, IX_CRUCIBLE_BLAZE_ABSORBS, MachineInteractionTests::blazeCrucibleAbsorbsItem);
+        reg(r, IX_CRUCIBLE_FLINT_SPARKS, MachineInteractionTests::flintAndSteelSparksColdCrucible);
+        reg(r, IX_CRUCIBLE_SPARK_MELTS_COAL, MachineInteractionTests::sparkedCrucibleMeltsCoalOnItsBlaze);
         reg(r, IX_HUB_ITEM_BLOB_INSERT, HubItemClickTests::blobInsertFillsCanisterAndPlaces);
         reg(r, IX_HUB_ITEM_OMNIBLOB_INSERT, HubItemClickTests::omniblobInsertKeepsRemainder);
         reg(r, IX_HUB_ITEM_INSERT_REFUSED, HubItemClickTests::insertRefusedLeavesStacks);
