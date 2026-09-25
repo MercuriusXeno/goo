@@ -193,6 +193,14 @@ public class HubBlockEntity extends BlockEntity implements ICanisterHolder, IGas
     }
 
     /**
+     * The intake gasket is the hub's one block-level gasket, flagged in its blockstate.
+     */
+    @Override
+    public boolean holdsBlockGasket(GasketRole role) {
+        return role == GasketRole.RECEIVER && getBlockState().getValue(HubBlock.HAS_GASKET);
+    }
+
+    /**
      * {@inheritDoc} Clears intake-only state. Does not rebuild slot pushers since the
      * intake gasket is independent of slot topology. Also flips the HAS_GASKET blockstate.
      */

@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.block.crucible;
 
 import com.mercuriusxeno.goo.block.IGooLightSource;
 import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
-import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
@@ -61,9 +60,6 @@ public class CrucibleBlock extends BaseEntityBlock {
     private static final int CRUCIBLE_LIT_LIGHT = 13;
     /** Whether a gasket is attached to this crucible. */
     public static final BooleanProperty HAS_GASKET = BooleanProperty.create("has_gasket");
-
-    /** Block update flags: notify neighbors + send to clients. */
-    private static final int BLOCK_UPDATE_FLAGS = 3;
 
     /** Goocible body: full-width solid base, 13px tall. */
     private static final VoxelShape BODY = box(0, 0, 0, 16, 13, 16);
@@ -280,7 +276,7 @@ public class CrucibleBlock extends BaseEntityBlock {
         return CrucibleInteraction.tryInsertFuel(stack, crucible, player);
     }
 
-    /** Handles empty-hand interactions: shift = gasket/fuel removal, bare = goo extraction.
+    /** Handles empty-hand interactions: sneak pops the gasket, else the fuel rod; plain = goo extraction.
      *
      * @param state     the block state
      * @param level     the current level
@@ -297,31 +293,13 @@ public class CrucibleBlock extends BaseEntityBlock {
         BlockEntity be = level.getBlockEntity(pos);
         if (!(be instanceof CrucibleBlockEntity crucible)) { return InteractionResult.PASS; }
 
-        if (player.isShiftKeyDown()) {
-            return shiftClickEmptyHand(state, level, pos, crucible, player);
-        }
-        return CrucibleInteraction.tryExtractGoo(crucible, player);
-    }
-
-    /** Handles shift-click with empty hand: gasket pop or fuel rod removal.
-     *
-     * @param state    the block state
-     * @param level    the current level
-     * @param pos      the block position
-     * @param crucible the crucible block entity
-     * @param player   the interacting player
-     * @return the interaction result
-     */
-    private static InteractionResult shiftClickEmptyHand(
-            BlockState state, Level level, BlockPos pos,
-            CrucibleBlockEntity crucible, Player player) {
-        if (state.getValue(HAS_GASKET)) {
-            GasketInstallation.popGasket(level, pos, crucible.getGasketId(GasketRole.TRANSMITTER));
-            crucible.clearGasket(GasketRole.TRANSMITTER);
-            level.setBlock(pos, state.setValue(HAS_GASKET, false), BLOCK_UPDATE_FLAGS);
+        if (GasketInstallation.removeAddressedGasket(level, pos, player, hitResult)) {
             return InteractionResult.SUCCESS;
         }
-        return CrucibleInteraction.tryRemoveFuelRod(crucible, player);
+        if (player.isSecondaryUseActive()) {
+            return CrucibleInteraction.tryRemoveFuelRod(crucible, player);
+        }
+        return CrucibleInteraction.tryExtractGoo(crucible, player);
     }
 
     // -- Item entity absorption --

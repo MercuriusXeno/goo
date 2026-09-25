@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.block.vat;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.PlayerUtils;
-import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
 import com.mercuriusxeno.goo.data.GasketLocation;
 import com.mercuriusxeno.goo.data.GasketRegistry;
 import com.mercuriusxeno.goo.item.BlobInsert;
@@ -159,43 +158,6 @@ final class VatInteractionHandler {
                     new GasketLocation(serverLevel.dimension(), pos,
                             role == GasketRole.RECEIVER, NO_SLOT));
         }
-    }
-
-    /**
-     * Removes the gasket on the targeted face if one is installed.
-     * Flips the blockstate, drops the gasket item, and clears the gasket UUID.
-     *
-     * @param vat       the vat block entity
-     * @param hitResult the ray trace hit result
-     * @return the interaction result
-     */
-    static InteractionResult handleGasketRemove(
-            VatBlockEntity vat, BlockHitResult hitResult) {
-        var state = vat.getBlockState();
-        BooleanProperty target = VatGasketOps.resolveGasketFace(hitResult, vat.getBlockPos());
-        if (!state.getValue(target)) {
-            return InteractionResult.PASS;
-        }
-        removeGasketFromFace(vat, state, target);
-        return InteractionResult.SUCCESS;
-    }
-
-    /**
-     * Pops the gasket item, clears the UUID, and flips the blockstate flag.
-     *
-     * @param vat    the vat block entity
-     * @param state  the current block state
-     * @param target the gasket property to clear
-     */
-    private static void removeGasketFromFace(
-            VatBlockEntity vat, net.minecraft.world.level.block.state.BlockState state,
-            BooleanProperty target) {
-        var level = vat.getLevel();
-        var pos = vat.getBlockPos();
-        GasketRole role = target == VatBlock.GASKET_CAP ? GasketRole.RECEIVER : GasketRole.TRANSMITTER;
-        GasketInstallation.popGasket(level, pos, vat.getGasketId(role));
-        vat.clearGasket(role);
-        level.setBlock(pos, state.setValue(target, false), BLOCK_UPDATE_FLAGS);
     }
 
     // --- Blob handlers ---
