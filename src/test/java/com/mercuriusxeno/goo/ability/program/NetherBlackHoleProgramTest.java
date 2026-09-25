@@ -1,16 +1,10 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import com.google.gson.JsonParser;
-import com.mercuriusxeno.goo.ability.AbilityDefinition;
-import com.mojang.serialization.JsonOps;
+import com.mercuriusxeno.goo.ability.AbilityJson;
 import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.Reader;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -19,7 +13,6 @@ import java.util.OptionalDouble;
 import java.util.stream.IntStream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
@@ -45,7 +38,6 @@ import static org.mockito.Mockito.when;
  */
 class NetherBlackHoleProgramTest {
 
-    private static final String NETHER_BLACK_HOLE = "/data/goo/goo_abilities/nether_black_hole.json";
     private static final int STACKS = 1;
     /** One stack's blast radius, {@code 1 + 2 * stacks}. */
     private static final int RADIUS = 3;
@@ -68,14 +60,8 @@ class NetherBlackHoleProgramTest {
     private ProgramBehavior runner;
     private StepHost host;
 
-    private static List<Step> program() throws IOException {
-        try (InputStream in = NetherBlackHoleProgramTest.class.getResourceAsStream(NETHER_BLACK_HOLE)) {
-            assertNotNull(in, "Classpath holds no " + NETHER_BLACK_HOLE);
-            Reader reader = new InputStreamReader(in, StandardCharsets.UTF_8);
-            AbilityDefinition def = AbilityDefinition.CODEC.parse(JsonOps.INSTANCE, JsonParser.parseReader(reader))
-                    .getOrThrow(IllegalStateException::new);
-            return def.behaviors().get(0).steps();
-        }
+    private static List<Step> program() {
+        return AbilityJson.decode("nether_black_hole").behaviors().get(0).steps();
     }
 
     private void record(String act) {

@@ -3,11 +3,12 @@ package com.mercuriusxeno.goo.data;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mojang.datafixers.util.Either;
+import com.mojang.serialization.JsonOps;
 import net.minecraft.resources.FileToIdConverter;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.packs.resources.ResourceManager;
-import net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener;
+import net.minecraft.server.packs.resources.SimplePreparableReloadListener;
 import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.world.level.material.Fluid;
 import java.util.*;
@@ -19,7 +20,7 @@ import java.util.*;
  * superset-first matching.
  */
 public final class GooReactionLoader
-        extends SimpleJsonResourceReloadListener<GooReaction> {
+        extends SimplePreparableReloadListener<Map<Identifier, GooReaction>> {
 
     /**
      * Datapack directory: data/<ns>/goo_reactions/
@@ -40,13 +41,7 @@ public final class GooReactionLoader
      */
     private static List<GooReaction> reactions = List.of();
 
-    /**
-     * Creates the loader with the reaction codec.
-     */
-    public GooReactionLoader() {
-        super(GooReaction.CODEC,
-                FileToIdConverter.json(DIRECTORY));
-    }
+    private static final FileToIdConverter LISTER = FileToIdConverter.json(DIRECTORY);
 
     /**
      * Returns all loaded reactions, sorted by input count descending.
@@ -55,21 +50,6 @@ public final class GooReactionLoader
      */
     public static List<GooReaction> getReactions() {
         return reactions;
-    }
-
-    /**
-     * Copies the prepared map into a list with resource ids assigned.
-     *
-     * @param prepared the parsed map from the JSON scanner
-     * @return mutable list of reactions with ids
-     */
-    private static List<GooReaction> assignIds(
-            Map<Identifier, GooReaction> prepared) {
-        List<GooReaction> list = new ArrayList<>(prepared.size());
-        for (Map.Entry<Identifier, GooReaction> entry : prepared.entrySet()) {
-            list.add(entry.getValue().withId(entry.getKey()));
-        }
-        return list;
     }
 
     /**
@@ -113,9 +93,15 @@ public final class GooReactionLoader
     }
 
     @Override
+    protected Map<Identifier, GooReaction> prepare(ResourceManager manager, ProfilerFiller profiler) {
+        return IdentifiedJsonScan.scan(manager, LISTER, makeConditionalOps(JsonOps.INSTANCE),
+                GooReaction::codecFor);
+    }
+
+    @Override
     protected void apply(Map<Identifier, GooReaction> prepared,
                          ResourceManager manager, ProfilerFiller profiler) {
-        List<GooReaction> loaded = assignIds(prepared);
+        List<GooReaction> loaded = new ArrayList<>(prepared.values());
         validateConflicts(loaded);
         loaded.sort(Comparator.comparingInt(
                 (GooReaction r) -> r.inputs().size()).reversed());
