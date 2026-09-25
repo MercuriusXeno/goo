@@ -208,7 +208,7 @@ public final class TapDripTests {
 
         for (BlockPos landing : List.of(openLanding, coveredLanding)) {
             ProgramBehavior.forHost(placeGlass, HostKind.TAP)
-                    .tick(new TapHost(helper.getLevel(), helper.absolutePos(landing), Direction.UP, TYPE));
+                    .tick(new TapHost(helper.getLevel(), helper.absolutePos(landing), Direction.UP));
         }
 
         helper.assertBlockPresent(Blocks.GLASS, openLanding.above());

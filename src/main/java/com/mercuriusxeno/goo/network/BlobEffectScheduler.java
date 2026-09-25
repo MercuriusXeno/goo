@@ -196,7 +196,7 @@ final class BlobEffectScheduler {
         playImpactSound(pe.level, living.getX(), living.getY(), living.getZ());
         AbilityDefinition def = resolveAbility(pe.abilityId);
         if (def != null) {
-            runEntityPrograms(pe, def, living);
+            runEntityProgram(pe, def, living);
         }
     }
 
@@ -209,35 +209,17 @@ final class BlobEffectScheduler {
     }
 
     /**
-     * Runs each program entry of the ability against the struck entity on
-     * an {@link EntityHost} (decision host-agnostic-runtime).
+     * Loads the ability's program for the struck entity host and runs its
+     * one tick on an {@link EntityHost} (decision host-agnostic-runtime). A program the host cannot serve is refused at load, and
+     * the refusal is logged with the ability, the step and the host.
      *
      * @param pe     the pending effect
      * @param def    the ability definition
      * @param living the target entity
      */
-    private static void runEntityPrograms(PendingEffect pe, AbilityDefinition def, LivingEntity living) {
-        for (AbilityDefinition.BehaviorEntry entry : def.behaviors()) {
-            if (ProgramBehavior.TYPE_NAME.equals(entry.type())) {
-                runEntityProgram(pe, def, entry, living);
-            }
-        }
-    }
-
-    /**
-     * Loads the entry's program for the struck entity host and runs its
-     * one tick. A program the host cannot serve is refused at load, and
-     * the refusal is logged with the ability, the step and the host.
-     *
-     * @param pe     the pending effect
-     * @param def    the ability definition, for the log
-     * @param entry  the program entry
-     * @param living the target entity
-     */
-    private static void runEntityProgram(PendingEffect pe, AbilityDefinition def,
-                                         AbilityDefinition.BehaviorEntry entry, LivingEntity living) {
+    private static void runEntityProgram(PendingEffect pe, AbilityDefinition def, LivingEntity living) {
         try {
-            ProgramBehavior program = ProgramBehavior.forHost(entry.steps(), HostKind.ENTITY);
+            ProgramBehavior program = ProgramBehavior.forHost(def.behaviors(), HostKind.ENTITY);
             program.tick(new EntityHost(pe.level, living, pe.thrower));
         } catch (ProgramLoadException e) {
             Goo.LOGGER.error(LOG_PROGRAM_REFUSED, def.id(), e.getMessage());

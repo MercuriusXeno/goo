@@ -38,9 +38,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Short-lived fuse block placed by chain world effects (Blaze, Frost,
- * Nether, Rock). No collision, no selection shape - purely visual.
- * The block entity ticks the fuse and fires the executor on expiry.
+ * Short-lived fuse block placed by a world ability. No collision, no
+ * selection shape, purely visual. The block entity ticks the fuse and
+ * runs the ability's program on expiry.
  *
  * <p>Implements {@link SimpleWaterloggedBlock} so chain markers can occupy
  * water blocks without displacing them. This is required for effects that
@@ -430,28 +430,6 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
             double oy = (random.nextDouble() - BLOCK_CENTER) * spread * SPREAD_DIAMETER;
             double oz = (random.nextDouble() - BLOCK_CENTER) * spread * SPREAD_DIAMETER;
             level.addParticle(ParticleTypes.CRIT, cx + ox, cy + oy, cz + oz, 0, 0, 0);
-        }
-    }
-
-    /**
-     * Emits enchantment sparkle particles for crystal chain markers.
-     *
-     * @param stacks the current stack count
-     * @param cx     block center X coordinate
-     * @param cy     block center Y coordinate
-     * @param cz     block center Z coordinate
-     * @param spread the particle offset radius
-     * @param level  the current level
-     * @param random the random source for particle offsets
-     */
-    private static void spawnCrystalParticles(int stacks, double cx, double cy, double cz,
-                                              double spread, Level level, RandomSource random) {
-        for (int i = 0; i < 1 + stacks; i++) {
-            double ox = (random.nextDouble() - BLOCK_CENTER) * spread * SPREAD_DIAMETER;
-            double oy = (random.nextDouble() - BLOCK_CENTER) * spread * SPREAD_DIAMETER;
-            double oz = (random.nextDouble() - BLOCK_CENTER) * spread * SPREAD_DIAMETER;
-            level.addParticle(ParticleTypes.ENCHANT, cx + ox, cy + oy, cz + oz,
-                    0, FLAME_RISE_SPEED, 0);
         }
     }
 

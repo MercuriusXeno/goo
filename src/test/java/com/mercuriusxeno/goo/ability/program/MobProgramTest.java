@@ -6,7 +6,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -34,10 +33,7 @@ class MobProgramTest {
         "rock_petrify", "blaze_ignite", "frost_snap", "typhoon_levitate", "glow_laser", "hex_charm",
         "pulse_short_circuit", "nether_wither", "ender_teleport", "unstable_explode", "aeon_time_stop"})
     void everyMobAbilityIsAProgramThatLoadsForTheStruckEntityHost(String name) {
-        for (AbilityDefinition.BehaviorEntry entry : ability(name).behaviors()) {
-            assertEquals(ProgramBehavior.TYPE_NAME, entry.type(), name);
-            assertDoesNotThrow(() -> ProgramBehavior.forHost(entry.steps(), HostKind.ENTITY), name);
-        }
+        assertDoesNotThrow(() -> ProgramBehavior.forHost(ability(name).behaviors(), HostKind.ENTITY), name);
     }
 
     @Test
@@ -45,11 +41,9 @@ class MobProgramTest {
         StepHost host = mock(StepHost.class);
         when(host.kind()).thenReturn(HostKind.ENTITY);
 
-        for (AbilityDefinition.BehaviorEntry entry : ability("unstable_explode").behaviors()) {
-            ProgramBehavior program = ProgramBehavior.forHost(entry.steps(), HostKind.ENTITY);
-            program.tick(host);
-            assertFalse(program.isActive());
-        }
+        ProgramBehavior program = ProgramBehavior.forHost(ability("unstable_explode").behaviors(), HostKind.ENTITY);
+        program.tick(host);
+        assertFalse(program.isActive());
 
         verify(host).explode(MOB_BLAST_POWER, ExplosionMode.TNT);
         verifyNoMoreInteractions(host);

@@ -7,42 +7,31 @@ import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 
 /**
- * Per-goo-type behavior for a chain marker block entity after its fuse
- * expires. The chain marker BE owns the shared state (goo type, stack
- * count, fuse countdown, placed face) and delegates all type-specific
- * post-detonation work to an implementation of this interface.
+ * The post-fuse work of a chain marker block entity. The marker owns the
+ * shared state (goo type, stack count, fuse countdown, placed face) and hands
+ * the rest to its ability's program, {@code ProgramBehavior}, the one
+ * implementation (decision delete-dead-fold-mirrors).
  *
  * <p>Lifecycle on the server:
  * <ol>
- *   <li>The BE ticks its fuse down in {@code tickFuse}.</li>
- *   <li>When the fuse hits zero, the BE instantiates a fresh behavior
- *       from the goo type's registered factory and calls
- *       {@link #onFuseExpired}. Instant behaviors (blaze/frost) do all
- *       their work here and finish by leaving {@link #isActive()} false.</li>
- *   <li>While {@link #isActive()} is true, the BE calls
- *       {@link #serverTick} once per server tick for multi-tick effects
- *       (nether black-hole phase machine, rock progressive mining).</li>
- *   <li>The first tick {@link #isActive()} returns false, the BE removes
+ *   <li>The marker ticks its fuse down in {@code tickFuse}.</li>
+ *   <li>When the fuse hits zero, the marker loads its ability's program and
+ *       calls {@link #onFuseExpired}, the program's first tick.</li>
+ *   <li>While {@link #isActive()} is true, the marker calls
+ *       {@link #serverTick} once per server tick.</li>
+ *   <li>The first tick {@link #isActive()} returns false, the marker removes
  *       itself from the world.</li>
  * </ol>
  *
- * <p>Persistence is owned by the behavior: the BE calls
+ * <p>Persistence is owned by the behavior: the marker calls
  * {@link #saveAdditional} and {@link #loadAdditional} during its own
- * save/load. Each behavior reads and writes its own tag keys directly
- * on the shared value stream; the BE only handles tags for the shared
- * fields (goo type, stack count, fuse, face). On load, the BE re-creates
- * the behavior instance via the profile factory before delegating
- * {@link #loadAdditional} to it.
+ * save/load, and the behavior writes only its own tag keys. On load, the
+ * marker reloads the program before delegating {@link #loadAdditional} to it.
  */
 public interface ChainBehavior {
 
     /**
-     * Called the tick the fuse hits zero. The behavior should snapshot
-     * anything it needs from the BE (stack count, placed face, etc.) and
-     * start its effect. Instant behaviors finish in this call and leave
-     * {@link #isActive()} false; multi-tick behaviors seed their internal
-     * phase state and leave {@link #isActive()} true so {@link #serverTick}
-     * is called on subsequent ticks.
+     * Called the tick the fuse hits zero: the program's first tick.
      *
      * @param level the server level
      * @param pos   the chain marker position
@@ -52,8 +41,6 @@ public interface ChainBehavior {
 
     /**
      * Called once per server tick while {@link #isActive()} is true.
-     * Instant behaviors will never receive this call because they set
-     * {@link #isActive()} to false during {@link #onFuseExpired}.
      *
      * @param level the server level
      * @param pos   the chain marker position
@@ -70,24 +57,12 @@ public interface ChainBehavior {
     boolean isActive();
 
     /**
-     * Returns true if this behavior accepts additional blobs after
-     * the fuse has expired. Metal and crystal support top-off to
-     * replenish charges; tunnelers do not.
+     * Returns true if the marker accepts more blobs after its fuse expires.
      *
      * @return true if post-fuse stacking is allowed
      */
     default boolean allowsTopOff() {
         return false;
-    }
-
-    /**
-     * Called after a successful top-off stack increment. Behaviors
-     * that maintain internal charge counts (crystal) use this to
-     * sync charges from the updated stack count.
-     *
-     * @param be the owning block entity with the updated stack count
-     */
-    default void onTopOff(ChainMarkerBlockEntity be) {
     }
 
     /**
@@ -101,8 +76,8 @@ public interface ChainBehavior {
 
     /**
      * Restores this behavior's state from the BE's shared value stream.
-     * Called by the BE after it re-creates the behavior instance via the
-     * profile factory during {@code loadAdditional}.
+     * Called by the BE after it reloads the program during
+     * {@code loadAdditional}.
      *
      * @param input the value input to read from
      */
