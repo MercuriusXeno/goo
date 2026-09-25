@@ -4,10 +4,10 @@ import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.block.*;
 import com.mercuriusxeno.goo.block.fluid.GooFluidHandler;
+import com.mercuriusxeno.goo.block.gasket.AddressedGasket;
 import com.mercuriusxeno.goo.block.gasket.GasketAttachment;
 import com.mercuriusxeno.goo.block.gasket.GasketPusher;
 import com.mercuriusxeno.goo.block.gasket.IGasketHolder;
-import com.mercuriusxeno.goo.block.gasket.IGasketPusher;
 import com.mercuriusxeno.goo.item.DepletedBlazeRodItem;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.PartiallyMeltedItem;
@@ -25,6 +25,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.ValueInput;
@@ -86,13 +87,13 @@ public class CrucibleBlockEntity extends BlockEntity implements IGasketHolder, I
         new CrucibleParticleHelper.BubbleHistory();
 
     /** Evaluates container items (shulker boxes, bundles) for goo content. */
-    final IContainerEvaluator containerEvaluator = new ContainerEvaluator();
+    final ContainerEvaluator containerEvaluator = new ContainerEvaluator();
 
     /** Number of remaining ticks to spray ignition sparks. */
     int ignitionSprayTicks;
 
     /** Pushes reservoir goo to gasket partners on a timed interval. Final, assigned in constructor. */
-    final IGasketPusher gasketPusher;
+    final GasketPusher gasketPusher;
 
     /**
      * Creates a crucible block entity at the given position.
@@ -306,6 +307,17 @@ public class CrucibleBlockEntity extends BlockEntity implements IGasketHolder, I
     /** {@inheritDoc} Checks blockstate rather than static role. */
     @Override
     public boolean supportsRole(GasketRole role) { return getBlockState().getValue(CrucibleBlock.HAS_GASKET); }
+
+    @Override
+    public boolean holdsBlockGasket(GasketRole role) {
+        return role == GasketRole.TRANSMITTER && supportsRole(role);
+    }
+
+    @Override
+    public void uninstallGasket(AddressedGasket gasket) {
+        clearGasket(gasket.role());
+        level.setBlock(worldPosition, getBlockState().setValue(CrucibleBlock.HAS_GASKET, false), Block.UPDATE_ALL);
+    }
 
     @Override
     protected void saveAdditional(ValueOutput output) {

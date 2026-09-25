@@ -12,17 +12,10 @@
   },
   "chain": {
     "fuseTicks": 60,
-    "maxStacks": 8,
-    "rangeFormula": "constant",
-    "rangeValue": 1
+    "maxStacks": 8
   },
   "behaviors": [
-    {
-      "type": "program",
-      "steps": [
-        { "type": "explode", "power": "2.0 + 1.0 * (stacks - 1)" }
-      ]
-    }
+    { "type": "explode", "power": "2.0 + 1.0 * (stacks - 1)" }
   ],
   "tags": ["explosive", "delayed"]
 }

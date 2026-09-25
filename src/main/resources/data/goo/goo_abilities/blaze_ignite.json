@@ -10,19 +10,14 @@
     "c": 1.0
   },
   "behaviors": [
+    { "type": "ignite", "seconds": 10 },
     {
-      "type": "program",
+      "type": "entities",
+      "shape": "sphere",
+      "radius": 2.5,
+      "where": ["living", "not_fire_immune"],
       "steps": [
-        { "type": "ignite", "seconds": 10 },
-        {
-          "type": "entities",
-          "shape": "sphere",
-          "radius": 2.5,
-          "where": ["living", "not_fire_immune"],
-          "steps": [
-            { "type": "ignite", "seconds": 5 }
-          ]
-        }
+        { "type": "ignite", "seconds": 5 }
       ]
     }
   ],

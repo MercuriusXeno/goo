@@ -156,7 +156,7 @@ public final class BlobThrowHandler {
         AbilityDefinition def = AbilityRegistry.getAbility(abilityId);
         if (def == null || def.gooType() != gooType) { return THROW_COST; }
         int stackPos = countExistingStacks(player.level(), payload.targetPos());
-        return def.cost().costForStack(stackPos);
+        return def.throwCost(stackPos);
     }
 
     /** Counts the current stack count at a target position (landed blobs).

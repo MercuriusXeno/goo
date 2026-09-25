@@ -93,6 +93,23 @@ public final class GooTestFunctions {
     private static final String REACTOR_TUNER_LINK = "reactor_tuner_link";
     private static final String REACTOR_GASKET_LOCATION = "reactor_gasket_location";
     private static final String REACTOR_SEATED_GASKET_METADATA = "reactor_seated_gasket_metadata";
+    private static final String TAP_ROLE_RECEIVER = "tap_role_receiver";
+    private static final String TAP_TUNER_LINK = "tap_tuner_link";
+    private static final String TAP_REFUSES_TRANSMITTER = "tap_refuses_transmitter";
+    private static final String TAP_ATTACHMENT_LOADS = "tap_attachment_loads";
+    private static final String HUB_SLOT_GASKET_REGISTERED = "hub_slot_gasket_registered";
+    private static final String BREAK_POPS_GASKET_CRUCIBLE = "break_pops_gasket_crucible";
+    private static final String BREAK_POPS_GASKET_VAT = "break_pops_gasket_vat";
+    private static final String BREAK_POPS_GASKET_TAP = "break_pops_gasket_tap";
+    private static final String BREAK_POPS_GASKET_HUB = "break_pops_gasket_hub";
+
+    // --- Sneak empty-hand gasket removal ---
+    private static final String SNEAK_POPS_CANISTER_SLOT_GASKET = "sneak_pops_canister_slot_gasket";
+    private static final String SNEAK_POPS_HUB_GASKET = "sneak_pops_hub_gasket";
+    private static final String SNEAK_POPS_TAP_GASKET = "sneak_pops_tap_gasket";
+    private static final String SNEAK_POPS_VAT_GASKET = "sneak_pops_vat_gasket";
+    private static final String SNEAK_POPS_REACTOR_GASKET = "sneak_pops_reactor_gasket";
+    private static final String SNEAK_POPS_CRUCIBLE_GASKET = "sneak_pops_crucible_gasket";
 
     // --- Effect executors ---
     private static final String FX_BLAZE = "fx_blaze_mines";
@@ -116,6 +133,7 @@ public final class GooTestFunctions {
     private static final String FX_PROGRAM_INSTANT = "fx_program_instant_detonation";
     private static final String FX_PROGRAM_TIMED = "fx_program_timed_bomb";
     private static final String FX_PROGRAM_MINE = "fx_program_proximity_mine";
+    private static final String FUSE_MINE_KEEPS_JSON_FUSE = "fuse_mine_keeps_json_fuse";
     private static final String FX_PROGRAM_METAL_SPIKES = "fx_program_metal_spikes";
     private static final String FX_PROGRAM_CRYSTAL_CLOUD = "fx_program_crystal_cloud";
     private static final String FX_PROGRAM_NETHER_BLACK_HOLE = "fx_program_nether_black_hole";
@@ -175,6 +193,7 @@ public final class GooTestFunctions {
     private static final String IX_HUB_ITEM_OMNIBLOB_INSERT = "ix_hub_item_omniblob_insert";
     private static final String IX_HUB_ITEM_INSERT_REFUSED = "ix_hub_item_insert_refused";
     private static final String IX_HUB_ITEM_DRAINS_NOTHING = "ix_hub_item_drains_nothing";
+    private static final String IX_HUB_ITEM_IS_GOO_SOURCE = "ix_hub_item_is_goo_source";
     private static final String IX_VAT_ITEM_BLOB_INSERT = "ix_vat_item_blob_insert";
     private static final String IX_VAT_ITEM_OMNIBLOB_INSERT = "ix_vat_item_omniblob_insert";
     private static final String IX_VAT_ITEM_DRAIN = "ix_vat_item_drain";
@@ -252,11 +271,13 @@ public final class GooTestFunctions {
             registerGooItemTests(registrar);
             registerExoriteTests(registrar);
             registerGasketTests(registrar);
+            registerGasketRegistryTests(registrar);
             registerEffectExecutorTests(registrar);
             registerAbilityLandingTests(registrar);
             registerCrucibleTests(registrar);
             registerPlacementTests(registrar);
             registerCanisterInteractionTests(registrar);
+            registerGasketRemovalTests(registrar);
             registerMachineInteractionTests(registrar);
             registerMachineTests(registrar);
             registerMobEffectTests(registrar);
@@ -346,6 +367,18 @@ public final class GooTestFunctions {
         reg(r, REACTOR_TUNER_LINK, GasketHolderTests::reactorTunerLinksCrucibleToOutputCanister);
         reg(r, REACTOR_GASKET_LOCATION, GasketHolderTests::reactorOutputGasketLocationFollowsCanister);
         reg(r, REACTOR_SEATED_GASKET_METADATA, GasketHolderTests::reactorSeatedCanisterAnswersGasketMetadata);
+        reg(r, TAP_ROLE_RECEIVER, GasketHolderTests::tapResolveRoleAlwaysReceiver);
+        reg(r, TAP_TUNER_LINK, GasketHolderTests::tapTunerLinksCanisterTransmitter);
+        reg(r, TAP_REFUSES_TRANSMITTER, GasketHolderTests::tapRefusesTransmitterRole);
+    }
+
+    private static void registerGasketRegistryTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
+        reg(r, TAP_ATTACHMENT_LOADS, GasketRegistryTests::tapAttachmentLoads);
+        reg(r, HUB_SLOT_GASKET_REGISTERED, GasketRegistryTests::hubSlotGasketRegistered);
+        reg(r, BREAK_POPS_GASKET_CRUCIBLE, GasketRegistryTests::breakPopsGasketCrucible);
+        reg(r, BREAK_POPS_GASKET_VAT, GasketRegistryTests::breakPopsGasketVat);
+        reg(r, BREAK_POPS_GASKET_TAP, GasketRegistryTests::breakPopsGasketTap);
+        reg(r, BREAK_POPS_GASKET_HUB, GasketRegistryTests::breakPopsGasketHub);
     }
 
     private static void registerEffectExecutorTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
@@ -364,6 +397,7 @@ public final class GooTestFunctions {
         reg(r, FX_PROGRAM_INSTANT, EffectExecutorTests::programInstantDetonation);
         reg(r, FX_PROGRAM_TIMED, EffectExecutorTests::programTimedBomb);
         reg(r, FX_PROGRAM_MINE, EffectExecutorTests::programProximityMine);
+        reg(r, FUSE_MINE_KEEPS_JSON_FUSE, ChainFuseTests::mineKeepsJsonFuse);
         reg(r, FX_PROGRAM_METAL_SPIKES, EffectExecutorTests::programMetalSpikes);
         reg(r, FX_PROGRAM_CRYSTAL_CLOUD, EffectExecutorTests::programCrystalCloud);
         reg(r, FX_PROGRAM_NETHER_BLACK_HOLE, EffectExecutorTests::programNetherBlackHole);
@@ -393,6 +427,7 @@ public final class GooTestFunctions {
         reg(r, IX_HUB_ITEM_OMNIBLOB_INSERT, HubItemClickTests::omniblobInsertKeepsRemainder);
         reg(r, IX_HUB_ITEM_INSERT_REFUSED, HubItemClickTests::insertRefusedLeavesStacks);
         reg(r, IX_HUB_ITEM_DRAINS_NOTHING, HubItemClickTests::secondaryClickDrainsNothing);
+        reg(r, IX_HUB_ITEM_IS_GOO_SOURCE, GooSourceScannerTests::hubItemIsAGooSource);
         reg(r, IX_VAT_ITEM_BLOB_INSERT, VatItemClickTests::blobInsertFillsVatAndFullRefuses);
         reg(r, IX_VAT_ITEM_OMNIBLOB_INSERT, VatItemClickTests::omniblobInsertKeepsRemainder);
         reg(r, IX_VAT_ITEM_DRAIN, VatItemClickTests::secondaryClickDrainsLargerType);
@@ -425,6 +460,15 @@ public final class GooTestFunctions {
         reg(r, PL_ABILITY_WATERLOG, PlacementTests::abilityWaterlogsInWater);
         reg(r, PL_ABILITY_LAVA, PlacementTests::abilityRefusesLava);
         reg(r, PL_ABILITY_SAME_STACK, PlacementTests::abilityStacksOnlyOntoSameAbility);
+    }
+
+    private static void registerGasketRemovalTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
+        reg(r, SNEAK_POPS_CANISTER_SLOT_GASKET, GasketRemovalTests::canisterSlotGasketPopsCanisterStays);
+        reg(r, SNEAK_POPS_HUB_GASKET, GasketRemovalTests::hubPopsHitGasketThenHandsBackCanister);
+        reg(r, SNEAK_POPS_TAP_GASKET, GasketRemovalTests::tapPopsGasketThenHandsBackCanister);
+        reg(r, SNEAK_POPS_VAT_GASKET, GasketRemovalTests::vatPopsHitFaceThenLeavesStateUnchanged);
+        reg(r, SNEAK_POPS_REACTOR_GASKET, GasketRemovalTests::reactorPopsHitFaceThenLeavesStateUnchanged);
+        reg(r, SNEAK_POPS_CRUCIBLE_GASKET, GasketRemovalTests::cruciblePopsGasketThenRemovesFuelRod);
     }
 
     private static void registerCanisterInteractionTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {

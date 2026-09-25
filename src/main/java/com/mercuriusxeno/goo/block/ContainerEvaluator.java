@@ -16,7 +16,16 @@ import java.util.List;
  * Evaluates container items by recursively summing goo values
  * and collecting valueless items for ejection.
  */
-public class ContainerEvaluator implements IContainerEvaluator {
+public class ContainerEvaluator {
+
+    /**
+     * Result of recursively evaluating a container item's contents.
+     *
+     * @param goo    the summed goo of every valued item, nested containers included
+     * @param ejects the items with no goo value, to spawn as entities
+     */
+    public record ContainerEvaluation(GooContents goo, List<ItemStack> ejects) {
+    }
 
     /**
      * Checks whether the stack has container or bundle data components.
@@ -24,7 +33,6 @@ public class ContainerEvaluator implements IContainerEvaluator {
      * @param stack the item stack to test
      * @return true if the stack is a recognized container type
      */
-    @Override
     public boolean isContainer(ItemStack stack) {
         return stack.has(DataComponents.CONTAINER)
                 || stack.has(DataComponents.BUNDLE_CONTENTS);
@@ -39,7 +47,6 @@ public class ContainerEvaluator implements IContainerEvaluator {
      * @param lookup      goo value lookup for resolving item values
      * @return evaluation result containing aggregated goo and ejected items
      */
-    @Override
     public ContainerEvaluation evaluate(Identifier containerId, ItemStack container, IGooValueLookup lookup) {
         List<ItemStack> contents = collectContainerContents(container);
         GooContents goo = GooContents.EMPTY;

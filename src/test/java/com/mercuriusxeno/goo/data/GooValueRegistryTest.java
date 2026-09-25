@@ -73,7 +73,6 @@ class GooValueRegistryTest {
                 registry.constants, registry.treeConstants,
                 registry.pseudoTags);
         GooValueLoader.parseBaseValuesFromStream(is, state);
-        registry.preConversions = state.preConversions;
         registry.postConversions = state.postConversions;
     }
 
@@ -280,7 +279,7 @@ class GooValueRegistryTest {
         @Test
         void noIngredientsProducesNothing() {
             List<RecipeInput> recipes = List.of(
-                    new RecipeInput(id("output"), 1, List.of())
+                    recipeInput(id("output"), 1, List.of())
             );
 
             registry.deriveFromRecipeInputs(recipes, false);
@@ -705,7 +704,7 @@ class GooValueRegistryTest {
             ));
             // Uses the 3-arg RecipeInput constructor (no container map)
             List<RecipeInput> recipes = List.of(
-                    new RecipeInput(id("block"), 1,
+                    recipeInput(id("block"), 1,
                             List.of(Set.of(id("iron")), Set.of(id("iron"))))
             );
 

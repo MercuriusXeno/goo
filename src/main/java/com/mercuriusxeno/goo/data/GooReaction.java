@@ -32,19 +32,25 @@ public record GooReaction(
         int rate
 ) {
 
-    /**
-     * Placeholder id used during codec parsing; replaced by filename in the loader.
-     */
-    private static final Identifier PLACEHOLDER_ID = Identifier.withDefaultNamespace("unknown");
+    private static final String FIELD_INPUTS = "inputs";
+    private static final String FIELD_OUTPUTS = "outputs";
+    private static final String FIELD_RATE = "rate";
 
     /**
-     * Codec for the reaction JSON. The id is not in the JSON; it comes from the filename.
+     * Builds the codec for one reaction file. The id is not in the JSON; it comes from
+     * the filename, so the loader builds a codec per file and every reaction carries its
+     * id from construction (decision delete-dead-fold-mirrors).
+     *
+     * @param id the reaction's id, from its filename
+     * @return the codec decoding that file into a reaction with that id
      */
-    public static final Codec<GooReaction> CODEC = RecordCodecBuilder.create(inst -> inst.group(
-            FluidEntry.CODEC.listOf().fieldOf("inputs").forGetter(GooReaction::inputs),
-            FluidEntry.CODEC.listOf().fieldOf("outputs").forGetter(GooReaction::outputs),
-            Codec.INT.fieldOf("rate").forGetter(GooReaction::rate)
-    ).apply(inst, (inputs, outputs, rate) -> new GooReaction(PLACEHOLDER_ID, inputs, outputs, rate)));
+    public static Codec<GooReaction> codecFor(Identifier id) {
+        return RecordCodecBuilder.create(inst -> inst.group(
+                FluidEntry.CODEC.listOf().fieldOf(FIELD_INPUTS).forGetter(GooReaction::inputs),
+                FluidEntry.CODEC.listOf().fieldOf(FIELD_OUTPUTS).forGetter(GooReaction::outputs),
+                Codec.INT.fieldOf(FIELD_RATE).forGetter(GooReaction::rate)
+        ).apply(inst, (inputs, outputs, rate) -> new GooReaction(id, inputs, outputs, rate)));
+    }
 
     /**
      * Returns the set of input fluid spellings (ignoring amounts).
@@ -53,16 +59,6 @@ public record GooReaction(
      */
     public Set<Either<ResourceKey<GooTypeDefinition>, Fluid>> inputTypeSet() {
         return inputs.stream().map(FluidEntry::fluid).collect(Collectors.toSet());
-    }
-
-    /**
-     * Returns a copy with the datapack resource id set.
-     *
-     * @param recipeId the resource identifier
-     * @return the reaction with id applied
-     */
-    public GooReaction withId(Identifier recipeId) {
-        return new GooReaction(recipeId, inputs, outputs, rate);
     }
 
     /**

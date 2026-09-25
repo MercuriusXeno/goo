@@ -13,17 +13,12 @@
   },
   "behaviors": [
     {
-      "type": "program",
-      "steps": [
-        {
-          "type": "progressive_area",
-          "shape": "flat_circle",
-          "effect": "fortune_smelt_break",
-          "visuals": "blaze_flame",
-          "audio": "generic_explode",
-          "preview_delay": 8
-        }
-      ]
+      "type": "progressive_area",
+      "shape": "flat_circle",
+      "effect": "fortune_smelt_break",
+      "visuals": "blaze_flame",
+      "audio": "generic_explode",
+      "preview_delay": 8
     }
   ],
   "tags": ["block_break", "area"]

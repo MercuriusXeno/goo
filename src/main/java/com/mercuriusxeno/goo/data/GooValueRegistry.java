@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.data;
 import com.google.gson.JsonObject;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.GooConfig;
+import com.mercuriusxeno.goo.item.DepletedBlazeRodItem;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
@@ -79,10 +80,6 @@ public class GooValueRegistry implements IGooValueLookup {
      */
     final Map<String, Set<Identifier>> pseudoTags = new HashMap<>();
     /**
-     * Pre-derivation conversions from _conversions block.
-     */
-    GooConversion.ParsedConversions preConversions;
-    /**
      * Post-derivation conversions from _post_conversions block.
      */
     GooConversion.ParsedConversions postConversions;
@@ -126,18 +123,6 @@ public class GooValueRegistry implements IGooValueLookup {
      */
     public void setEffectiveCachePath(Path path) {
         this.effectiveCachePath = path;
-    }
-
-    /**
-     * Loads base values from the embedded JSON resource.
-     */
-    public void loadBaseValues() {
-        baseValues.clear();
-        deniedItems.clear();
-        restrictedItems.clear();
-        treeConstants.clear();
-        GooValueLoader.loadBaseValuesFromClasspath(createParseState(new HashMap<>()));
-        publishEffectiveValues(baseValues);
     }
 
     /**
@@ -191,7 +176,6 @@ public class GooValueRegistry implements IGooValueLookup {
     private void applyPackLayers(List<Resource> stack, GooValueLoader.ParseState state) {
         var layers = GooValueLoader.parseResourceLayers(stack);
         GooValueLoader.applyMergedLayers(layers, state);
-        preConversions = state.preConversions;
         postConversions = state.postConversions;
         lastMergedBaseValues = state.lastMergedBaseValues;
     }
@@ -310,7 +294,7 @@ public class GooValueRegistry implements IGooValueLookup {
 
     /**
      * Looks up the goo value for an item stack. Falls back to component-based
-     * value computation if the item implements {@link IComponentValueProvider}.
+     * the fuel-scaled value of a {@link DepletedBlazeRodItem}.
      *
      * @param stack the item stack to look up
      * @return effective GooValue, or null if none
@@ -323,8 +307,8 @@ public class GooValueRegistry implements IGooValueLookup {
         if (base != null) {
             return base;
         }
-        if (stack.getItem() instanceof IComponentValueProvider provider) {
-            return provider.computeComponentValue(stack, this);
+        if (stack.getItem() instanceof DepletedBlazeRodItem) {
+            return DepletedBlazeRodItem.computeFuelScaledValue(stack, this);
         }
         return null;
     }
