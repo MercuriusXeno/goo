@@ -96,21 +96,6 @@ public sealed interface AbilityCost {
     String formulaName();
 
     /**
-     * Returns the codec for a given formula name.
-     *
-     * @param name the formula name
-     * @return the matching map codec
-     */
-    static MapCodec<? extends AbilityCost> codecForFormula(String name) {
-        return switch (name) {
-            case FORMULA_QUADRATIC -> Quadratic.MAP_CODEC;
-            case FORMULA_BLOCK_COUNT -> BlockCount.MAP_CODEC;
-            case FORMULA_POWER_LAW -> PowerLaw.MAP_CODEC;
-            default -> throw new IllegalArgumentException(name);
-        };
-    }
-
-    /**
      * Quadratic: {@code baseCost * (a * N^2 + b * N + c)}.
      * Covers constant (a=0, b=0, c=1), linear (a=0, b=1, c=1),
      * and quadratic scaling.

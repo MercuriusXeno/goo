@@ -2,7 +2,7 @@ package com.mercuriusxeno.goo.block.crucible;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.GooTypeDefinition;
-import com.mercuriusxeno.goo.block.IContainerEvaluator;
+import com.mercuriusxeno.goo.block.ContainerEvaluator;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.data.IGooValueLookup;
 import com.mercuriusxeno.goo.item.GooContents;
@@ -172,7 +172,7 @@ final class CrucibleInsertion {
     @SuppressWarnings("PMD.ReturnEmptyCollectionRatherThanNull") // null = nothing happened; empty = eject nothing
     static @Nullable List<ItemStack> insertContainer(
             CrucibleBlockEntity be, Identifier containerId, ItemStack container, IGooValueLookup lookup) {
-        IContainerEvaluator.ContainerEvaluation eval = be.containerEvaluator.evaluate(containerId, container, lookup);
+        ContainerEvaluator.ContainerEvaluation eval = be.containerEvaluator.evaluate(containerId, container, lookup);
         if (eval.goo().isEmpty() && eval.ejects().isEmpty()) {
             return null;
         }

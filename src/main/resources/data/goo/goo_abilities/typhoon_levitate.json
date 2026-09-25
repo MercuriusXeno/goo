@@ -10,12 +10,7 @@
     "c": 1.0
   },
   "behaviors": [
-    {
-      "type": "program",
-      "steps": [
-        { "type": "potion", "effect": "minecraft:levitation", "duration": 100, "amplifier": 1 }
-      ]
-    }
+    { "type": "potion", "effect": "minecraft:levitation", "duration": 100, "amplifier": 1 }
   ],
   "tags": ["entity"]
 }

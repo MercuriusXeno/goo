@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.block.gasket;
 
 import com.mercuriusxeno.goo.data.GasketLocation;
 import com.mercuriusxeno.goo.data.GasketRegistry;
-import com.mercuriusxeno.goo.data.IGasketRegistryAccess;
 import com.mercuriusxeno.goo.item.CanisterMetadata;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
@@ -10,6 +9,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import org.jspecify.annotations.Nullable;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 /**
  * Registry membership for the gaskets a slotted canister carries. Every block
@@ -33,7 +33,7 @@ public final class SlotGasketRegistration {
      * @param slotIndex the slot the canister sits in
      * @param meta      the canister's metadata
      */
-    public static void register(@Nullable IGasketRegistryAccess access, @Nullable Level level,
+    public static void register(@Nullable Supplier<GasketRegistry> access, @Nullable Level level,
                                 BlockPos pos, int slotIndex, CanisterMetadata meta) {
         if (access == null || !(level instanceof ServerLevel serverLevel)) {
             return;
@@ -51,7 +51,7 @@ public final class SlotGasketRegistration {
      * @param access the holder's registry access, or null on the client
      * @param meta   the canister's metadata
      */
-    public static void deregister(@Nullable IGasketRegistryAccess access, CanisterMetadata meta) {
+    public static void deregister(@Nullable Supplier<GasketRegistry> access, CanisterMetadata meta) {
         if (access == null) {
             return;
         }

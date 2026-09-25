@@ -30,7 +30,7 @@ class ChainMarkerFuseTest {
         try (InputStream in = ChainMarkerFuseTest.class.getClassLoader().getResourceAsStream(resource)) {
             assertNotNull(in, "Classpath holds no " + resource);
             JsonElement json = JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8));
-            return AbilityDefinition.CODEC.parse(JsonOps.INSTANCE, json).getOrThrow(message -> new IllegalStateException(resource + ": " + message)).chain();
+            return AbilityDefinition.codecFor(AbilityJson.idOfResource(resource)).parse(JsonOps.INSTANCE, json).getOrThrow(message -> new IllegalStateException(resource + ": " + message)).chain();
         }
     }
 

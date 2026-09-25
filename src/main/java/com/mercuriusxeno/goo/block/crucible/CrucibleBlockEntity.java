@@ -7,7 +7,6 @@ import com.mercuriusxeno.goo.block.fluid.GooFluidHandler;
 import com.mercuriusxeno.goo.block.gasket.GasketAttachment;
 import com.mercuriusxeno.goo.block.gasket.GasketPusher;
 import com.mercuriusxeno.goo.block.gasket.IGasketHolder;
-import com.mercuriusxeno.goo.block.gasket.IGasketPusher;
 import com.mercuriusxeno.goo.item.DepletedBlazeRodItem;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.PartiallyMeltedItem;
@@ -86,13 +85,13 @@ public class CrucibleBlockEntity extends BlockEntity implements IGasketHolder, I
         new CrucibleParticleHelper.BubbleHistory();
 
     /** Evaluates container items (shulker boxes, bundles) for goo content. */
-    final IContainerEvaluator containerEvaluator = new ContainerEvaluator();
+    final ContainerEvaluator containerEvaluator = new ContainerEvaluator();
 
     /** Number of remaining ticks to spray ignition sparks. */
     int ignitionSprayTicks;
 
     /** Pushes reservoir goo to gasket partners on a timed interval. Final, assigned in constructor. */
-    final IGasketPusher gasketPusher;
+    final GasketPusher gasketPusher;
 
     /**
      * Creates a crucible block entity at the given position.
