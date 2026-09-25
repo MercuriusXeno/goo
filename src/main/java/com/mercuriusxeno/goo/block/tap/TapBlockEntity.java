@@ -26,6 +26,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.Shapes;
 import org.jspecify.annotations.NonNull;
@@ -225,6 +226,15 @@ public class TapBlockEntity extends net.minecraft.world.level.block.entity.Block
     }
 
     // --- Tick and drip logic ---
+
+    /**
+     * {@inheritDoc} A tap only receives, so every hit resolves RECEIVER
+     * (decision diagnose-then-fix-tap-gasket-role).
+     */
+    @Override
+    public GasketRole resolveRole(BlockHitResult hit) {
+        return GasketRole.RECEIVER;
+    }
 
     /**
      * {@inheritDoc} Checks blockstate in addition to role.
