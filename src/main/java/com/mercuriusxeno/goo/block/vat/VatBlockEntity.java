@@ -55,7 +55,7 @@ public class VatBlockEntity extends BlockEntity implements IGasketHolder, IGooLi
     private final GasketAttachment gasket = GasketAttachment.dual(this, "cap", "base");
 
     // Package-private fields accessed by VatSerialization, VatStackRedistributor.
-    final GooFluidHandler fluidHandler = new GooFluidHandler(
+    final GooFluidHandler fluidHandler = GooFluidHandler.withWaterTank(
             ContainerCapacity.vatCapacity(0), this::onFluidChanged,
             () -> level != null ? level.getGameTime() : 0);
     int compressionLevel;
@@ -71,6 +71,8 @@ public class VatBlockEntity extends BlockEntity implements IGasketHolder, IGooLi
     @Nullable ResourceKey<GooTypeDefinition> vatStreamType;
     int vatStreamRate;
     long vatStreamTick;
+    /** True when the stream's last landing was water (decision diagnose-then-fix-waterlogged-gasket-link). */
+    boolean vatStreamWater;
 
     /**
      * Pushes reservoir goo to the base gasket partner on a timed interval.
@@ -274,6 +276,25 @@ public class VatBlockEntity extends BlockEntity implements IGasketHolder, IGooLi
      */
     public int getVatStreamRate(long currentTick) {
         return GooStream.holds(currentTick, vatStreamTick) ? vatStreamRate : 0;
+    }
+
+    /**
+     * Returns true while water is pouring in, until the stream's hold has passed.
+     *
+     * @param currentTick the current game tick
+     * @return true when the vat's stream is water
+     */
+    public boolean isVatStreamWater(long currentTick) {
+        return vatStreamWater && GooStream.holds(currentTick, vatStreamTick);
+    }
+
+    /**
+     * Returns the water the vat holds beside its goo.
+     *
+     * @return the water volume in mB
+     */
+    public int getWaterVolume() {
+        return fluidHandler.waterVolume();
     }
 
     @Override
