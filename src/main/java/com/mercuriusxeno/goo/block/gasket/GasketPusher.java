@@ -1,8 +1,9 @@
 package com.mercuriusxeno.goo.block.gasket;
 
+import com.mercuriusxeno.goo.block.canister.CanisterSlot;
 import com.mercuriusxeno.goo.data.GasketLocation;
 import com.mercuriusxeno.goo.data.GasketRegistry;
-import com.mercuriusxeno.goo.data.IGasketRegistryAccess;
+import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.gasket.GasketPartner;
 import com.mercuriusxeno.goo.registry.GooCapabilities;
 import com.mercuriusxeno.goo.registry.GooTickets;
@@ -23,7 +24,7 @@ import java.util.function.Supplier;
  * Pushes goo from a reservoir to a gasket partner on a fixed interval.
  * Owns the push timer and endpoint cache lifecycle.
  */
-public class GasketPusher implements IGasketPusher {
+public class GasketPusher {
 
     /**
      * Release the forced chunk ticket after this many ticks with no transfer.
@@ -36,7 +37,7 @@ public class GasketPusher implements IGasketPusher {
     private final Supplier<@Nullable Level> level;
     private final Supplier<BlockPos> ownerPos;
     private final Runnable sync;
-    private final IGasketRegistryAccess registryAccess;
+    private final Supplier<GasketRegistry> registryAccess;
 
     private int idleTicks;
     private @Nullable BlockCapabilityCache<ResourceHandler<FluidResource>, UUID> endpointCache;
@@ -59,7 +60,7 @@ public class GasketPusher implements IGasketPusher {
                         Supplier<@Nullable Level> level,
                         Supplier<BlockPos> ownerPos,
                         Runnable sync,
-                        IGasketRegistryAccess registryAccess) {
+                        Supplier<GasketRegistry> registryAccess) {
         this.source = source;
         this.gasketId = gasketId;
         this.partner = partner;
@@ -82,7 +83,7 @@ public class GasketPusher implements IGasketPusher {
      */
     public static void forceTransmitterChunk(
             @Nullable UUID receiverGasketId,
-            IGasketRegistryAccess registryAccess,
+            Supplier<GasketRegistry> registryAccess,
             ServerLevel serverLevel,
             BlockPos ownerPos) {
         GasketLocation loc = resolveTransmitterLocation(receiverGasketId, registryAccess);
@@ -95,6 +96,28 @@ public class GasketPusher implements IGasketPusher {
     }
 
     /**
+     * Forces the chunk of the transmitter partner of each occupied slot's top
+     * (receiver) gasket, the walk every slotted holder runs after load.
+     *
+     * @param slots          the holder's canister slots
+     * @param registryAccess decoupled access to the gasket registry
+     * @param serverLevel    the server level (for dimension + chunk forcing)
+     * @param ownerPos       the holder's position (ticket owner)
+     */
+    public static void forceSlotTransmitterChunks(
+            CanisterSlot[] slots,
+            Supplier<GasketRegistry> registryAccess,
+            ServerLevel serverLevel,
+            BlockPos ownerPos) {
+        for (CanisterSlot slot : slots) {
+            if (!slot.isEmpty()) {
+                forceTransmitterChunk(CanisterItem.getMetadata(slot.canister()).topGasketId(),
+                        registryAccess, serverLevel, ownerPos);
+            }
+        }
+    }
+
+    /**
      * Resolves the transmitter's location from a receiver gasket UUID, or null if unlinked.
      *
      * @param receiverGasketId the receiver gasket UUID
@@ -102,7 +125,7 @@ public class GasketPusher implements IGasketPusher {
      * @return the transmitter location, or null
      */
     private static @Nullable GasketLocation resolveTransmitterLocation(
-            @Nullable UUID receiverGasketId, IGasketRegistryAccess registryAccess) {
+            @Nullable UUID receiverGasketId, Supplier<GasketRegistry> registryAccess) {
         if (receiverGasketId == null) {
             return null;
         }
@@ -121,7 +144,6 @@ public class GasketPusher implements IGasketPusher {
     /**
      * Pushes goo to the partner if a target exists, otherwise tracks idle time.
      */
-    @Override
     public void tick() {
         if (!hasPushableTarget()) {
             trackIdle();
@@ -134,7 +156,6 @@ public class GasketPusher implements IGasketPusher {
     /**
      * Releases the forced chunk ticket and clears the endpoint cache.
      */
-    @Override
     public void dispose() {
         unforceChunk();
         endpointCache = null;
@@ -143,7 +164,6 @@ public class GasketPusher implements IGasketPusher {
     /**
      * Rebuilds the BlockCapabilityCache for the current partner, forcing the target chunk.
      */
-    @Override
     public void rebuildCache() {
         unforceChunk();
         endpointCache = null;

@@ -15,6 +15,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -53,10 +54,11 @@ public final class CanisterHudRenderer {
             return;
         }
         Camera camera = Minecraft.getInstance().gameRenderer.getMainCamera();
-        PanelAnchor anchor = new PanelAnchor(target.cx, target.lift, target.cz,
-                target.hitFace, target.hasBlockAbove, ANIMATOR.pitch());
-        CanisterPanelPainter.renderPanel(event.getPoseStack(), camera, data,
-                target.pos, target.slot, anchor);
+        Vec3 anchor = new Vec3(target.pos.getX() + target.cx, target.pos.getY() + target.lift,
+                target.pos.getZ() + target.cz);
+        PanelPlacement placement = PanelPlacement.onFace(anchor, target.hitFace,
+                target.hasBlockAbove, ANIMATOR.pitch());
+        PanelPainter.paint(event.getPoseStack(), camera, placement, CanisterPanelRows.rows(data));
     }
 
     /**

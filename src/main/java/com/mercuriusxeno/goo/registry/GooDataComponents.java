@@ -78,16 +78,6 @@ public class GooDataComponents {
                             .build());
 
     /**
-     * Remaining fuel ticks on a depleted blaze rod.
-     */
-    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> FUEL_REMAINING =
-            DATA_COMPONENTS.register("fuel_remaining",
-                    () -> DataComponentType.<Integer>builder()
-                            .persistent(Codec.INT)
-                            .networkSynchronized(ByteBufCodecs.VAR_INT)
-                            .build());
-
-    /**
      * Volume of goo in a blob item, measured in microblobs (mB).
      */
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> BLOB_VOLUME =

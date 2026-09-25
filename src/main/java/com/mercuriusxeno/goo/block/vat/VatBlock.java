@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.block.vat;
 
 import com.mercuriusxeno.goo.block.IGooLightSource;
+import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
 import com.mercuriusxeno.goo.item.gasket.ChoralTunerItem;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mojang.serialization.MapCodec;
@@ -258,7 +259,7 @@ public class VatBlock extends BaseEntityBlock {
     }
 
     /**
-     * Empty-hand: sneak removes gasket, otherwise extracts dominant goo type as blobs.
+     * Empty-hand: sneak pops the gasket on the hit face and nothing else, otherwise extracts dominant goo type as blobs.
      *
      * @param state     the block state
      * @param level     the current level
@@ -281,8 +282,11 @@ public class VatBlock extends BaseEntityBlock {
             return InteractionResult.PASS;
         }
 
-        if (player.isShiftKeyDown()) {
-            return VatInteractionHandler.handleGasketRemove(vat, hitResult);
+        if (GasketInstallation.removeAddressedGasket(level, pos, player, hitResult)) {
+            return InteractionResult.SUCCESS;
+        }
+        if (player.isSecondaryUseActive()) {
+            return InteractionResult.PASS;
         }
 
         return VatInteractionHandler.handleBlobExtract(vat, player);

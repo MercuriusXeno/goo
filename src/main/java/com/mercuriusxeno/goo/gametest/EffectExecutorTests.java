@@ -424,8 +424,8 @@ public final class EffectExecutorTests {
     /**
      * Places a chain marker initialized through an ability, facing north
      * into whatever fills the
-     * wall region. Covers DataDrivenChainBehavior, the BehaviorType
-     * factory and the program the ability declares.
+     * wall region. Covers the marker loading the program the ability
+     * declares.
      *
      * @param helper    the gametest helper
      * @param type      the goo type

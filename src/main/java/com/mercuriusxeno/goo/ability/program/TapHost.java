@@ -1,11 +1,9 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import com.mercuriusxeno.goo.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -29,10 +27,8 @@ import java.util.function.Consumer;
  * @param level   the server level
  * @param landing the block the drip landed on
  * @param face    the landing block's face the drip struck
- * @param type    the goo type the drip carried
  */
-public record TapHost(ServerLevel level, BlockPos landing, Direction face,
-                      ResourceKey<GooTypeDefinition> type) implements StepHost {
+public record TapHost(ServerLevel level, BlockPos landing, Direction face) implements StepHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "Place step names block which no registry holds: ";
     private static final double HALF = 0.5;

@@ -38,6 +38,8 @@ public final class CrucibleTests {
 
     private static final BlockPos BE_POS = new BlockPos(1, 1, 1);
     private static final int ABSORB_DELAY = 5;
+    /** Heat granted to a test crucible: an hour of melting, so no test runs it cold. */
+    private static final int TEST_HEAT_TICKS = 72_000;
     /** X/Z center of the crucible basin in test-relative coords. */
     private static final float BASIN_CENTER_XZ = 1.5f;
     /** Y position just above the crucible body surface (13/16 + block y=1). */
@@ -117,7 +119,7 @@ public final class CrucibleTests {
     public static void itemEntityAbsorption(GameTestHelper helper) {
         helper.setBlock(BE_POS, GooBlocks.CRUCIBLE.get());
         CrucibleBlockEntity crucible = helper.getBlockEntity(BE_POS, CrucibleBlockEntity.class);
-        crucible.addFuel(new ItemStack(Items.BLAZE_ROD));
+        crucible.addHeat(TEST_HEAT_TICKS);
 
         // Spawn inside the basin (center of block, just above the body surface)
         helper.spawnItem(Items.COBBLESTONE, BASIN_CENTER_XZ, BASIN_SURFACE_Y, BASIN_CENTER_XZ);
@@ -332,7 +334,7 @@ public final class CrucibleTests {
 
     private static CrucibleBlockEntity placeFueledCrucible(GameTestHelper helper) {
         CrucibleBlockEntity crucible = placeCrucible(helper);
-        crucible.addFuel(new ItemStack(Items.BLAZE_ROD));
+        crucible.addHeat(TEST_HEAT_TICKS);
         return crucible;
     }
 

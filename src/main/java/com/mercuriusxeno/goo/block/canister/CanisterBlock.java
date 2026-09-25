@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.block.canister;
 import com.mercuriusxeno.goo.block.GooBlockInteraction;
 import com.mercuriusxeno.goo.block.IGooLightSource;
 import com.mercuriusxeno.goo.block.ShapeHitCheck;
+import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.GooInteractionType;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
@@ -348,11 +349,14 @@ public class CanisterBlock extends BaseEntityBlock {
                 .orElse(InteractionResult.PASS);
     }
 
-    /** Empty-hand right-click picks up the targeted canister. */
+    /** Empty-hand right-click picks up the targeted canister; sneak pops the gasket it hits first. */
     @Override
     protected @NonNull InteractionResult useWithoutItem(
             @NonNull BlockState state, Level level, @NonNull BlockPos pos,
             @NonNull Player player, @NonNull BlockHitResult hitResult) {
+        if (GasketInstallation.removeAddressedGasket(level, pos, player, hitResult)) {
+            return InteractionResult.SUCCESS;
+        }
         return canisterBE(level, pos)
                 .map(be -> be.handleCanisterPickup(player, hitResult))
                 .orElse(InteractionResult.PASS);

@@ -10,18 +10,11 @@
   },
   "chain": {
     "fuseTicks": -1,
-    "maxStacks": 6,
-    "rangeFormula": "constant",
-    "rangeValue": 1
+    "maxStacks": 6
   },
   "behaviors": [
-    {
-      "type": "program",
-      "steps": [
-        { "type": "await_entity", "shape": "sphere", "radius": 3.0, "where": ["living"] },
-        { "type": "explode", "power": "2.5 + 1.0 * (stacks - 1)" }
-      ]
-    }
+    { "type": "await_entity", "shape": "sphere", "radius": 3.0, "where": ["living"] },
+    { "type": "explode", "power": "2.5 + 1.0 * (stacks - 1)" }
   ],
   "tags": ["explosive", "trap"]
 }

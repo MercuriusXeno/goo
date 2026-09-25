@@ -11,16 +11,11 @@
   },
   "behaviors": [
     {
-      "type": "program",
+      "type": "target",
+      "where": ["not_boss"],
       "steps": [
-        {
-          "type": "target",
-          "where": ["not_boss"],
-          "steps": [
-            { "type": "set_health", "fraction": 0.5 },
-            { "type": "potion", "effect": "minecraft:wither", "duration": 200, "amplifier": 1 }
-          ]
-        }
+        { "type": "set_health", "fraction": 0.5 },
+        { "type": "potion", "effect": "minecraft:wither", "duration": 200, "amplifier": 1 }
       ]
     }
   ],

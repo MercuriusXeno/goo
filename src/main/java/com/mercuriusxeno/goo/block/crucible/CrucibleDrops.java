@@ -1,16 +1,18 @@
 package com.mercuriusxeno.goo.block.crucible;
 
+import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
 import com.mercuriusxeno.goo.item.BlobStacks;
-import com.mercuriusxeno.goo.registry.GooItems;
+import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import java.util.UUID;
 
 /**
- * Static helpers for dropping crucible internals (PMI, fuel rod,
+ * Static helpers for dropping crucible internals (PMI,
  * reservoir blobs, gasket) when the block is broken.
  */
 final class CrucibleDrops {
@@ -24,9 +26,9 @@ final class CrucibleDrops {
      * @param pos   the block position
      */
     static void dropGasket(BlockState state, Level level, BlockPos pos) {
-        if (state.getValue(CrucibleBlock.HAS_GASKET)) {
-            Block.popResource(level, pos, new ItemStack(GooItems.CHORAL_GASKET.get()));
-        }
+        UUID gasketId = level.getBlockEntity(pos) instanceof CrucibleBlockEntity crucible
+                ? crucible.getGasketId(GasketRole.TRANSMITTER) : null;
+        GasketInstallation.popGasket(level, pos, state.getValue(CrucibleBlock.HAS_GASKET), gasketId);
     }
 
     /** Drops all crucible internal state as items when the block is broken.
@@ -39,7 +41,6 @@ final class CrucibleDrops {
         if (!(be instanceof CrucibleBlockEntity crucible)) { return; }
 
         dropMeltingItem(crucible, level, pos);
-        dropFuelRod(crucible, level, pos);
         dropReservoirAsBlobs(crucible, level, pos);
     }
 
@@ -53,19 +54,6 @@ final class CrucibleDrops {
         ItemStack pmi = crucible.getMeltingItem();
         if (!pmi.isEmpty()) {
             Block.popResource(level, pos, pmi);
-        }
-    }
-
-    /** Drops the depleted fuel rod if present.
-     *
-     * @param crucible the crucible block entity
-     * @param level    the current level
-     * @param pos      the block position
-     */
-    private static void dropFuelRod(CrucibleBlockEntity crucible, Level level, BlockPos pos) {
-        ItemStack rod = crucible.getFuelRod();
-        if (!rod.isEmpty()) {
-            Block.popResource(level, pos, rod);
         }
     }
 
