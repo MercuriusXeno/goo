@@ -232,6 +232,15 @@ public class TapBlockEntity extends net.minecraft.world.level.block.entity.Block
     // --- Tick and drip logic ---
 
     /**
+     * {@inheritDoc} A tap only receives, so every hit resolves RECEIVER
+     * (decision diagnose-then-fix-tap-gasket-role).
+     */
+    @Override
+    public GasketRole resolveRole(BlockHitResult hit) {
+        return GasketRole.RECEIVER;
+    }
+
+    /**
      * {@inheritDoc} Checks blockstate in addition to role.
      */
     @Override
