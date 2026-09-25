@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.block.canister;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
-import com.mercuriusxeno.goo.block.gasket.IGasketPusher;
+import com.mercuriusxeno.goo.block.gasket.GasketPusher;
 import com.mercuriusxeno.goo.block.hub.HubBlockEntity;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.registry.GooFluids;
@@ -278,7 +278,7 @@ public class SlottedCanisterData {
     /** Ticks all active slot pushers. */
     public void tickPushers() {
         for (CanisterSlot slot : slots) {
-            IGasketPusher pusher = slot.pusher();
+            GasketPusher pusher = slot.pusher();
             if (pusher != null) {
                 pusher.tick();
             }

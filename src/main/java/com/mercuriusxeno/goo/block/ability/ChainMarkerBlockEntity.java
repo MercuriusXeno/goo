@@ -34,7 +34,7 @@ import org.jspecify.annotations.Nullable;
 /**
  * Ticking block entity for chain effects. Owns only the shared state:
  * goo type, stack count, fuse countdown, placed face. The post-fuse
- * work is the marker's ability program, a {@link ChainBehavior} loaded for
+ * work is the marker's ability program, a {@link ProgramBehavior} loaded for
  * the marker host at fuse expiry. A layer walk
  * reports its struck layers here through the marker host, and the ghost
  * outline reads them back.
@@ -117,7 +117,7 @@ public class ChainMarkerBlockEntity extends BlockEntity {
      * the BE removes itself.
      */
     @Nullable
-    private ChainBehavior behavior;
+    private ProgramBehavior behavior;
     /**
      * Id of the ability the marker runs at fuse expiry (decision
      * no-throw-without-ability); a marker loaded without one runs nothing.
@@ -421,7 +421,7 @@ public class ChainMarkerBlockEntity extends BlockEntity {
      * Fires the chain effect by loading the ability's program and invoking
      * {@code onFuseExpired}, its first tick. A program that finishes that
      * tick removes the BE; otherwise the BE stays and {@link #serverTick}
-     * delegates to {@link ChainBehavior#serverTick} on later ticks.
+     * delegates to {@link ProgramBehavior#serverTick} on later ticks.
      *
      * @param level the current level
      * @param pos   the block position
@@ -449,7 +449,7 @@ public class ChainMarkerBlockEntity extends BlockEntity {
      *
      * @return the ability's program, or null when the registry holds no such ability
      */
-    private @Nullable ChainBehavior createBehavior() {
+    private @Nullable ProgramBehavior createBehavior() {
         Identifier id = Identifier.tryParse(abilityId);
         if (id == null) {
             return null;
@@ -518,7 +518,7 @@ public class ChainMarkerBlockEntity extends BlockEntity {
      * @return the active chain behavior, or null
      */
     @Nullable
-    public ChainBehavior getBehavior() {
+    public ProgramBehavior getBehavior() {
         return behavior;
     }
 
