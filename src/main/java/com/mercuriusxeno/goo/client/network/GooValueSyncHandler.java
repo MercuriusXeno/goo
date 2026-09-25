@@ -1,6 +1,7 @@
-package com.mercuriusxeno.goo.network;
+package com.mercuriusxeno.goo.client.network;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.network.GooValueSyncPayload;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 /**

@@ -33,8 +33,7 @@ class GooValueRegistryGraphTest {
     private void setBaseValues(Map<Identifier, GooValue> values) {
         registry.baseValues.clear();
         registry.baseValues.putAll(values);
-        registry.effectiveValues.clear();
-        registry.effectiveValues.putAll(values);
+        registry.publishEffectiveValues(values);
     }
 
     // ── SCC Classification ──────────────────────────────────────────────

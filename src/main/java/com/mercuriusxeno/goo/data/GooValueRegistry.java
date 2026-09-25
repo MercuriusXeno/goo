@@ -53,9 +53,12 @@ public class GooValueRegistry implements IGooValueLookup {
 
     final Map<Identifier, GooValue> baseValues = new HashMap<>();
     /**
-     * Effective values after LCD comparison between base and derived.
+     * Effective values after LCD comparison between base and derived: an
+     * unmodifiable map replaced whole, never mutated, so a reader on another
+     * thread holds one consistent snapshot
+     * (decision diagnose-then-fix-server-link-and-value-race).
      */
-    final Map<Identifier, GooValue> effectiveValues = new HashMap<>();
+    volatile Map<Identifier, GooValue> effectiveValues = Map.of();
     /**
      * Items explicitly denied a value (e.g. ore blocks - fortune makes them unvaluable).
      */
@@ -128,25 +131,40 @@ public class GooValueRegistry implements IGooValueLookup {
      * @param server the running server whose resource manager provides the pack stack
      */
     public void loadBaseValuesFromPacks(MinecraftServer server) {
-        var state = createParseState();
+        Map<Identifier, GooValue> loadedEffective = new HashMap<>();
+        var state = createParseState(loadedEffective);
         GooValueLoader.clearRegistryState(state);
         List<Resource> stack = loadResourceStack(server);
         if (stack.isEmpty()) {
             Goo.LOGGER.error(ERROR_NO_DATAPACK);
+            publishEffectiveValues(loadedEffective);
             return;
         }
         applyPackLayers(stack, state);
+        publishEffectiveValues(loadedEffective);
     }
 
     /**
-     * Creates a fresh ParseState backed by this registry's maps.
+     * Creates a fresh ParseState backed by this registry's maps and a scratch
+     * effective map the caller publishes once the load completes.
      *
+     * @param loadedEffective the scratch map the load fills with effective values
      * @return a new ParseState wired to this registry's mutable maps
      */
-    private GooValueLoader.ParseState createParseState() {
+    private GooValueLoader.ParseState createParseState(Map<Identifier, GooValue> loadedEffective) {
         return new GooValueLoader.ParseState(
-                baseValues, effectiveValues, deniedItems, restrictedItems,
+                baseValues, loadedEffective, deniedItems, restrictedItems,
                 constants, treeConstants, pseudoTags);
+    }
+
+    /**
+     * Replaces the effective values with an unmodifiable copy of the given map
+     * in one write, so no reader sees a half-built map.
+     *
+     * @param built the complete effective values
+     */
+    void publishEffectiveValues(Map<Identifier, GooValue> built) {
+        effectiveValues = Collections.unmodifiableMap(new HashMap<>(built));
     }
 
     /**
@@ -183,7 +201,9 @@ public class GooValueRegistry implements IGooValueLookup {
      * Also serves as the reload entry point.
      */
     public void loadEffectiveCache() {
-        GooValueCache.loadEffectiveCache(effectiveCachePath, effectiveValues);
+        Map<Identifier, GooValue> loaded = new HashMap<>(effectiveValues);
+        GooValueCache.loadEffectiveCache(effectiveCachePath, loaded);
+        publishEffectiveValues(loaded);
     }
 
     /**
@@ -214,8 +234,7 @@ public class GooValueRegistry implements IGooValueLookup {
      * @param values the server-synced effective values
      */
     public void receiveClientValues(Map<Identifier, GooValue> values) {
-        effectiveValues.clear();
-        effectiveValues.putAll(values);
+        publishEffectiveValues(values);
         if (Goo.LOGGER.isDebugEnabled()) {
             Goo.LOGGER.debug(LOG_CLIENT_RECEIVED, values.size());
         }
@@ -226,7 +245,7 @@ public class GooValueRegistry implements IGooValueLookup {
      */
     public void clearAll() {
         baseValues.clear();
-        effectiveValues.clear();
+        effectiveValues = Map.of();
         deniedItems.clear();
         restrictedItems.clear();
         constants.clear();
@@ -331,7 +350,7 @@ public class GooValueRegistry implements IGooValueLookup {
      */
     @Override
     public Map<Identifier, GooValue> getEffectiveValues() {
-        return Collections.unmodifiableMap(effectiveValues);
+        return effectiveValues;
     }
 
     /**
@@ -379,9 +398,9 @@ public class GooValueRegistry implements IGooValueLookup {
      */
     int deriveFromRecipeInputs(List<RecipeInput> recipes, boolean baseOverride) {
         lastDerivation = GooValueDerivation.derive(recipes, baseValues, deniedItems, baseOverride);
-        effectiveValues.clear();
-        effectiveValues.putAll(lastDerivation.effectiveValues());
-        GooConversionLoader.applyConversions(postConversions, effectiveValues, pseudoTags);
+        Map<Identifier, GooValue> derivedEffective = new HashMap<>(lastDerivation.effectiveValues());
+        GooConversionLoader.applyConversions(postConversions, derivedEffective, pseudoTags);
+        publishEffectiveValues(derivedEffective);
         return lastDerivation.derivedValues().size();
     }
 
