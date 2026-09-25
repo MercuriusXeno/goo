@@ -22,7 +22,7 @@ import java.util.function.Supplier;
  * Pushes goo from a reservoir to a gasket partner on a fixed interval.
  * Owns the push timer and endpoint cache lifecycle.
  */
-public class GasketPusher implements IGasketPusher {
+public class GasketPusher {
 
     /**
      * Release the forced chunk ticket after this many ticks with no transfer.
@@ -120,7 +120,6 @@ public class GasketPusher implements IGasketPusher {
     /**
      * Pushes goo to the partner if a target exists, otherwise tracks idle time.
      */
-    @Override
     public void tick() {
         if (!hasPushableTarget()) {
             trackIdle();
@@ -133,7 +132,6 @@ public class GasketPusher implements IGasketPusher {
     /**
      * Releases the forced chunk ticket and clears the endpoint cache.
      */
-    @Override
     public void dispose() {
         unforceChunk();
         endpointCache = null;
@@ -142,7 +140,6 @@ public class GasketPusher implements IGasketPusher {
     /**
      * Rebuilds the BlockCapabilityCache for the current partner, forcing the target chunk.
      */
-    @Override
     public void rebuildCache() {
         unforceChunk();
         endpointCache = null;
