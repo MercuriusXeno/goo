@@ -1,11 +1,10 @@
 package com.mercuriusxeno.goo.block.vat;
 
-import com.mercuriusxeno.goo.registry.GooItems;
+import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
+import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.phys.BlockHitResult;
@@ -101,12 +100,10 @@ final class VatGasketOps {
      */
     static void popOccludedGaskets(
             BlockState oldState, BlockState newState, Level level, BlockPos pos) {
-        if (oldState.getValue(VatBlock.GASKET_CAP) && !newState.getValue(VatBlock.GASKET_CAP)) {
-            Block.popResource(level, pos, gasketStack());
-        }
-        if (oldState.getValue(VatBlock.GASKET_BASE) && !newState.getValue(VatBlock.GASKET_BASE)) {
-            Block.popResource(level, pos, gasketStack());
-        }
+        popFaceGasket(level, pos, GasketRole.RECEIVER,
+                oldState.getValue(VatBlock.GASKET_CAP) && !newState.getValue(VatBlock.GASKET_CAP));
+        popFaceGasket(level, pos, GasketRole.TRANSMITTER,
+                oldState.getValue(VatBlock.GASKET_BASE) && !newState.getValue(VatBlock.GASKET_BASE));
     }
 
     /**
@@ -134,20 +131,27 @@ final class VatGasketOps {
      * @param pos   the block position
      */
     static void dropGaskets(BlockState state, Level level, BlockPos pos) {
-        if (state.getValue(VatBlock.GASKET_CAP)) {
-            Block.popResource(level, pos, gasketStack());
-        }
-        if (state.getValue(VatBlock.GASKET_BASE)) {
-            Block.popResource(level, pos, gasketStack());
-        }
+        popFaceGasket(level, pos, GasketRole.RECEIVER, state.getValue(VatBlock.GASKET_CAP));
+        popFaceGasket(level, pos, GasketRole.TRANSMITTER, state.getValue(VatBlock.GASKET_BASE));
     }
 
     /**
-     * Creates a single choral gasket item stack.
+     * Pops the gasket on one vat face through {@link GasketInstallation#popGasket},
+     * clearing the vat's own record of it when the vat stays standing.
      *
-     * @return the item stack
+     * @param level     the current level
+     * @param pos       the block position
+     * @param role      the face's role (cap RECEIVER, base TRANSMITTER)
+     * @param installed whether that face holds a gasket being popped
      */
-    private static ItemStack gasketStack() {
-        return new ItemStack(GooItems.CHORAL_GASKET.get());
+    private static void popFaceGasket(Level level, BlockPos pos, GasketRole role, boolean installed) {
+        if (!installed) {
+            return;
+        }
+        VatBlockEntity vat = level.getBlockEntity(pos) instanceof VatBlockEntity be ? be : null;
+        GasketInstallation.popGasket(level, pos, true, vat == null ? null : vat.getGasketId(role));
+        if (vat != null) {
+            vat.clearGasket(role);
+        }
     }
 }
