@@ -94,9 +94,6 @@ public class CrucibleBlockEntity extends BlockEntity implements IGasketHolder, I
     /** Game time of the last sizzle sound play (debounce, not serialized). */
     private long lastSizzleTick;
 
-    /** Client-side debounce + crossfade for the dominant goo type display. Public for BER access. */
-    public final DominantTypeFader dominantTypeFader = new DominantTypeFader();
-
     /** Per-instance bubble spawn history for proximity rejection. */
     final CrucibleParticleHelper.BubbleHistory bubbleHistory =
         new CrucibleParticleHelper.BubbleHistory();
