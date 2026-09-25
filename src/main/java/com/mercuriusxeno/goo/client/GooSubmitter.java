@@ -24,6 +24,7 @@ import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
 import net.neoforged.neoforge.client.fluid.FluidTintSource;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /**
@@ -209,6 +210,24 @@ public final class GooSubmitter {
             nodeCollector.submitCustomGeometry(poseStack, GooRenderTypes.gooFluidSurface(BLOCK_ATLAS),
                 (pose, c) -> emitter.accept(RenderContext.banded(pose, c, tint, band), sprite));
         };
+    }
+
+    /**
+     * Submits vat fluid as one whole undulating surface on the vanilla water
+     * sprite and tint, for a column where water outweighs every goo type
+     * (decision diagnose-then-fix-waterlogged-gasket-link): its vertices
+     * carry layer 0, which the surface shader draws whole.
+     *
+     * @param poseStack     the pose stack
+     * @param nodeCollector the render node collector
+     * @param emitter       emits the surface through the context on the water sprite
+     */
+    public static void submitUndulatingWater(PoseStack poseStack, SubmitNodeCollector nodeCollector,
+                                             BiConsumer<RenderContext, TextureAtlasSprite> emitter) {
+        TextureAtlasSprite sprite = fluidSprite(Fluids.WATER);
+        int tint = fluidTint(Fluids.WATER);
+        nodeCollector.submitCustomGeometry(poseStack, GooRenderTypes.gooFluidSurface(BLOCK_ATLAS),
+            (pose, c) -> emitter.accept(new RenderContext(pose, c, TypeBand.BASE_LAYER_PACKED, tint), sprite));
     }
 
     /**

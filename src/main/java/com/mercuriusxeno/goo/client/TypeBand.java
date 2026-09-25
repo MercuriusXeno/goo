@@ -29,6 +29,9 @@ public record TypeBand(ResourceKey<GooTypeDefinition> type, float lo, float hi, 
     /** Bit offset of the layer index in the packed band. */
     private static final int LAYER_SHIFT = 16;
 
+    /** The packed band of a lone whole surface: layer 0, share 1. */
+    public static final int BASE_LAYER_PACKED = SHARE_UNITS;
+
     /**
      * The layer's conditional share: this type's volume over the volume of
      * itself and every larger type, 1 for layer 0. Over-blending the layers

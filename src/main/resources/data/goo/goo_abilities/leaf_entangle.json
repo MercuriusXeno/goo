@@ -10,13 +10,8 @@
     "c": 1.0
   },
   "behaviors": [
-    {
-      "type": "program",
-      "steps": [
-        { "type": "potion", "effect": "minecraft:slowness", "duration": 100, "amplifier": 2 },
-        { "type": "potion", "effect": "minecraft:poison", "duration": 60, "amplifier": 0 }
-      ]
-    }
+    { "type": "potion", "effect": "minecraft:slowness", "duration": 100, "amplifier": 2 },
+    { "type": "potion", "effect": "minecraft:poison", "duration": 60, "amplifier": 0 }
   ],
   "tags": ["entity"]
 }

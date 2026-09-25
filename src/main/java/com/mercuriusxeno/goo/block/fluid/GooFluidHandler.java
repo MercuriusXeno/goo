@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.registry.GooFluids;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.material.Fluids;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import net.neoforged.neoforge.transfer.fluid.FluidStacksResourceHandler;
@@ -38,6 +39,17 @@ public class GooFluidHandler extends FluidStacksResourceHandler {
     private final boolean capacityPerType;
 
     /**
+     * The tank index that holds vanilla water, or {@link #NO_WATER_TANK}
+     * (decision diagnose-then-fix-waterlogged-gasket-link).
+     */
+    private final int waterIndex;
+
+    /** The water index of a handler that holds goo alone. */
+    private static final int NO_WATER_TANK = -1;
+
+    private static final FluidResource WATER = FluidResource.of(Fluids.WATER);
+
+    /**
      * Incoming goo, transient, for rendering the pour.
      */
     private final GooStream stream = new GooStream();
@@ -66,7 +78,7 @@ public class GooFluidHandler extends FluidStacksResourceHandler {
      * @param tickSupplier supplies the current game tick for stream timing
      */
     public GooFluidHandler(int capacity, Runnable onChange, LongSupplier tickSupplier) {
-        this(capacity, onChange, tickSupplier, false);
+        this(capacity, onChange, tickSupplier, false, false);
     }
 
     /**
@@ -76,12 +88,29 @@ public class GooFluidHandler extends FluidStacksResourceHandler {
      * @param onChange        called when contents change
      * @param tickSupplier    supplies the current game tick for stream timing
      * @param capacityPerType true when each tank holds the whole capacity
+     * @param holdsWater      true when one tank past the goo tanks holds vanilla water
      */
-    private GooFluidHandler(int capacity, Runnable onChange, LongSupplier tickSupplier, boolean capacityPerType) {
-        super(GooTypes.order().size(), capacity);
+    private GooFluidHandler(int capacity, Runnable onChange, LongSupplier tickSupplier,
+                            boolean capacityPerType, boolean holdsWater) {
+        super(GooTypes.order().size() + (holdsWater ? 1 : 0), capacity);
         this.onChange = onChange;
         this.tickSupplier = tickSupplier;
         this.capacityPerType = capacityPerType;
+        this.waterIndex = holdsWater ? GooTypes.order().size() : NO_WATER_TANK;
+    }
+
+    /**
+     * Creates a shared-capacity handler with a water tank past the goo tanks,
+     * the vat's reservoir, which a waterlogged choral gasket fills
+     * (decision diagnose-then-fix-waterlogged-gasket-link).
+     *
+     * @param capacity     total shared capacity in mB
+     * @param onChange     called when contents change
+     * @param tickSupplier supplies the current game tick for stream timing
+     * @return the handler
+     */
+    public static GooFluidHandler withWaterTank(int capacity, Runnable onChange, LongSupplier tickSupplier) {
+        return new GooFluidHandler(capacity, onChange, tickSupplier, false, true);
     }
 
     /**
@@ -93,21 +122,25 @@ public class GooFluidHandler extends FluidStacksResourceHandler {
      * @return the handler
      */
     public static GooFluidHandler withCapacityPerType(int capacityPerType, Runnable onChange) {
-        return new GooFluidHandler(capacityPerType, onChange, () -> 0, true);
+        return new GooFluidHandler(capacityPerType, onChange, () -> 0, true, false);
     }
 
     /**
-     * Only the goo fluid matching this tank index is valid.
+     * Only the goo fluid matching this tank index is valid, and plain water
+     * in the water tank where the handler holds one.
      * Index maps to the type's position in GooTypes.order().
      *
-     * @param index    tank index (0-14)
+     * @param index    tank index
      * @param resource the fluid resource to validate
-     * @return true if the resource's stamped goo type matches the tank's
+     * @return true if the resource's stamped goo type matches the tank's, or it is water at the water tank
      */
     @Override
     public boolean isValid(int index, FluidResource resource) {
         if (resource.isEmpty()) {
             return false;
+        }
+        if (index == waterIndex) {
+            return WATER.equals(resource);
         }
         ResourceKey<GooTypeDefinition> type = GooFluids.keyOf(resource);
         return type != null && GooTypes.indexOf(type) == index;
@@ -150,10 +183,49 @@ public class GooFluidHandler extends FluidStacksResourceHandler {
             return;
         }
         int delta = (int) getAmountAsLong(index) - previousContents.getAmount();
-        if (delta > 0) {
+        if (delta > 0 && index == waterIndex) {
+            stream.recordWater(delta, tickSupplier.getAsLong());
+        } else if (delta > 0) {
             stream.record(GooTypes.order().get(index), delta, tickSupplier.getAsLong());
         }
         onChange.run();
+    }
+
+    /**
+     * Returns true while water is pouring in, until the stream's hold has passed.
+     *
+     * @param currentTick the current game tick
+     * @return true when the stream's last landing was water
+     */
+    public boolean isStreamWater(long currentTick) {
+        return stream.waterAt(currentTick);
+    }
+
+    /**
+     * Returns the water tank's volume, 0 where the handler holds no water tank.
+     *
+     * @return the water volume in mB
+     */
+    public int waterVolume() {
+        return waterIndex == NO_WATER_TANK ? 0 : getAmountAsInt(waterIndex);
+    }
+
+    /**
+     * Sets the water tank's volume without stream tracking or change callbacks,
+     * the load path beside {@link #loadFrom}. A handler without a water tank ignores it.
+     *
+     * @param volume the water volume in mB
+     */
+    public void loadWater(int volume) {
+        if (waterIndex == NO_WATER_TANK) {
+            return;
+        }
+        suppressCallbacks = true;
+        try {
+            set(waterIndex, volume > 0 ? WATER : FluidResource.EMPTY, Math.max(volume, 0));
+        } finally {
+            suppressCallbacks = false;
+        }
     }
 
     /**
@@ -189,7 +261,7 @@ public class GooFluidHandler extends FluidStacksResourceHandler {
 
     /**
      * Creates a {@link GooContents} snapshot from the current tank state.
-     * Used for rendering, serialization, and backward-compatible APIs.
+     * Used by rendering, serialization and the GooContents-based APIs.
      *
      * @return immutable GooContents reflecting current volumes
      */

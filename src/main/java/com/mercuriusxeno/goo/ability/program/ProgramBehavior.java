@@ -1,8 +1,5 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import com.mercuriusxeno.goo.ability.AbilityDefinition;
-import com.mercuriusxeno.goo.ability.AbilityDefinition.BehaviorEntry;
-import com.mercuriusxeno.goo.ability.ChainBehavior;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -13,7 +10,7 @@ import java.util.Set;
 import java.util.TreeSet;
 
 /**
- * The step runtime as a {@link ChainBehavior}: runs a step list against a
+ * The step runtime: runs a step list against a
  * {@link StepHost}, one step at a time, starting the next step the same
  * tick the prior finishes. The marker's fuse runs before the program body,
  * so {@link #onFuseExpired} is the body's first tick. Only the cursor and
@@ -23,12 +20,7 @@ import java.util.TreeSet;
  * test drives it against a mock with no level behind it (decision
  * host-agnostic-runtime).
  */
-public final class ProgramBehavior implements ChainBehavior {
-
-    /**
-     * The behavior type name registered in {@code BehaviorType}.
-     */
-    public static final String TYPE_NAME = "program";
+public final class ProgramBehavior {
 
     private static final String TAG_STEP = "ProgramStep";
     private static final String TAG_STEP_TICKS = "ProgramStepTicks";
@@ -117,18 +109,6 @@ public final class ProgramBehavior implements ChainBehavior {
     }
 
     /**
-     * Factory for {@code BehaviorType} registration: the program body is
-     * the entry's {@code steps} list, loaded for the marker host.
-     *
-     * @param entry the behavior entry carrying the steps
-     * @param def   the parent ability definition
-     * @return the runtime over the entry's steps
-     */
-    public static ChainBehavior fromEntry(BehaviorEntry entry, AbilityDefinition def) {
-        return forHost(entry.steps(), HostKind.MARKER);
-    }
-
-    /**
      * Runs one tick: the current step ticks, and each step that finishes
      * hands the same tick to the next until a step stays running or the
      * body ends.
@@ -159,34 +139,64 @@ public final class ProgramBehavior implements ChainBehavior {
         return stepIndex;
     }
 
-    @Override
+    /**
+     * The marker's fuse hit zero: the program's first tick.
+     *
+     * @param level the server level
+     * @param pos   the chain marker position
+     * @param be    the owning marker
+     */
     public void onFuseExpired(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity be) {
         tick(new MarkerHost(level, pos, be));
     }
 
-    @Override
+    /**
+     * One marker tick while {@link #isActive()} is true.
+     *
+     * @param level the server level
+     * @param pos   the chain marker position
+     * @param be    the owning marker
+     */
     public void serverTick(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity be) {
         tick(new MarkerHost(level, pos, be));
     }
 
-    @Override
+    /**
+     * Returns true while the program has steps left; the marker removes
+     * itself the tick this first returns false.
+     *
+     * @return true if the program should keep ticking
+     */
     public boolean isActive() {
         return stepIndex < steps.size();
     }
 
-    @Override
+    /**
+     * Returns true if the marker accepts more blobs after its fuse expires,
+     * which the running step decides.
+     *
+     * @return true if post-fuse stacking is allowed
+     */
     public boolean allowsTopOff() {
         return isActive() && steps.get(stepIndex).allowsTopOff();
     }
 
-    @Override
+    /**
+     * Writes the cursor and tick counters onto the marker's value stream.
+     *
+     * @param output the value output to write to
+     */
     public void saveAdditional(ValueOutput output) {
         output.putInt(TAG_STEP, stepIndex);
         output.putInt(TAG_STEP_TICKS, stepTicks);
         output.putInt(TAG_PROGRAM_TICKS, programTicks);
     }
 
-    @Override
+    /**
+     * Restores the cursor and tick counters after the marker reloads the program.
+     *
+     * @param input the value input to read from
+     */
     public void loadAdditional(ValueInput input) {
         stepIndex = input.getIntOr(TAG_STEP, 0);
         stepTicks = input.getIntOr(TAG_STEP_TICKS, 0);

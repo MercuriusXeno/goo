@@ -20,20 +20,6 @@ public final class AbilityMath {
     private static final Set<ResourceKey<GooTypeDefinition>> ROCK_FAMILY = Set.of(GooTypes.ROCK, GooTypes.CRYSTAL);
 
     /**
-     * Base pulse interval in ticks (16 seconds).
-     */
-    private static final int BASE_PULSE_INTERVAL = 320;
-    /**
-     * Maximum stacks that affect pulse interval.
-     */
-    private static final int MAX_PULSE_STACKS = 4;
-
-    /**
-     * Ticks per second, used by duration formulas.
-     */
-    private static final int TICKS_PER_SECOND = 20;
-
-    /**
      * Majority threshold multiplier: rockTotal * 2 > total means >50%.
      */
     private static final int MAJORITY_MULTIPLIER = 2;
@@ -41,10 +27,6 @@ public final class AbilityMath {
      * Base freeze radius before stacking.
      */
     private static final int FREEZE_BASE_RADIUS = 2;
-    /**
-     * Duration multiplier per unit of radius for frost fields.
-     */
-    private static final int FROST_DURATION_PER_RADIUS = 4;
     /**
      * Nether conversion base radius.
      */
@@ -99,19 +81,6 @@ public final class AbilityMath {
     }
 
     /**
-     * Computes the pulse interval in ticks for a given stack count.
-     * Formula: 320 / 2^(min(stackCount, 4) - 1).
-     *
-     * @param stackCount current stack level (1-based)
-     * @return interval in ticks
-     */
-    public static int computePulseInterval(int stackCount) {
-        int clamped = Math.min(stackCount, MAX_PULSE_STACKS);
-        return BASE_PULSE_INTERVAL >> (clamped - 1);
-    }
-
-
-    /**
      * Returns true if rock + crystal make up strictly more than half of
      * the block's total goo blobs. This lets mixed-composition blocks
      * like bricks or polished stone qualify while keeping metal-heavy
@@ -140,16 +109,6 @@ public final class AbilityMath {
      */
     public static int computeFreezeRadius(int stackCount) {
         return FREEZE_BASE_RADIUS + stackCount;
-    }
-
-    /**
-     * Frost field duration in ticks. Formula: 4 * radius * 20.
-     *
-     * @param radius the freeze radius (from computeFreezeRadius)
-     * @return duration in ticks (240, 320, 400, 480)
-     */
-    public static int computeFrostDuration(int radius) {
-        return FROST_DURATION_PER_RADIUS * radius * TICKS_PER_SECOND;
     }
 
     /**

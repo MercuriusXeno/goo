@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.block.hub;
 import com.mercuriusxeno.goo.block.BlockEntitySync;
 import com.mercuriusxeno.goo.block.canister.*;
 import com.mercuriusxeno.goo.block.gasket.GasketAttachment;
+import com.mercuriusxeno.goo.block.gasket.GasketPusher;
 import com.mercuriusxeno.goo.block.gasket.IGasketHolder;
 import com.mercuriusxeno.goo.item.gasket.GasketPartner;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
@@ -33,8 +34,7 @@ import java.util.List;
  * Central input on top auto-routes goo to canisters with remaining capacity.
  *
  * <p>Slot state delegated to {@link SlottedCanisterData}. Internal logic
- * delegated to: {@link HubSlotLifecycle} (handler/pusher/shape),
- * {@link HubSerialization} (stream state + chunk forcing).
+ * delegated to {@link HubSlotLifecycle} (handler/pusher/shape/gasket registration).
  * Intake gasket field storage owned by {@link GasketState#single}.</p>
  */
 public class HubBlockEntity extends BlockEntity implements ICanisterHolder, IGasketHolder, ICanisterAttachable {
@@ -83,7 +83,10 @@ public class HubBlockEntity extends BlockEntity implements ICanisterHolder, IGas
         });
         gasket.afterLoad(() -> {
             if (level instanceof ServerLevel serverLevel) {
-                HubSerialization.forceAllTransmitterChunks(this, serverLevel, worldPosition);
+                GasketPusher.forceTransmitterChunk(gasket.state().getId(GasketRole.RECEIVER),
+                        gasket.registryAccess(), serverLevel, worldPosition);
+                GasketPusher.forceSlotTransmitterChunks(this.state.slots, gasket.registryAccess(),
+                        serverLevel, worldPosition);
             }
         });
     }
@@ -121,6 +124,20 @@ public class HubBlockEntity extends BlockEntity implements ICanisterHolder, IGas
             BlockEntitySync.markDirtyAndSync(this);
         }
         return inserted;
+    }
+
+    /**
+     * Removes the canister from a slot through the same path a player's click takes.
+     *
+     * @param slot the slot index (0-7)
+     * @return the removed canister, or EMPTY
+     */
+    public ItemStack removeCanister(int slot) {
+        ItemStack removed = HubSlotLifecycle.removeCanister(this, slot);
+        if (!removed.isEmpty()) {
+            BlockEntitySync.markDirtyAndSync(this);
+        }
+        return removed;
     }
 
     // --- ICanisterAttachable ---
@@ -176,6 +193,14 @@ public class HubBlockEntity extends BlockEntity implements ICanisterHolder, IGas
     }
 
     /**
+     * The intake gasket is the hub's one block-level gasket, flagged in its blockstate.
+     */
+    @Override
+    public boolean holdsBlockGasket(GasketRole role) {
+        return role == GasketRole.RECEIVER && getBlockState().getValue(HubBlock.HAS_GASKET);
+    }
+
+    /**
      * {@inheritDoc} Clears intake-only state. Does not rebuild slot pushers since the
      * intake gasket is independent of slot topology. Also flips the HAS_GASKET blockstate.
      */
@@ -212,6 +237,16 @@ public class HubBlockEntity extends BlockEntity implements ICanisterHolder, IGas
     public void setLevel(@NonNull Level level) {
         super.setLevel(level);
         gasket.onSetLevel(level);
+        if (level instanceof ServerLevel) {
+            HubSlotLifecycle.registerAllSlotGaskets(this);
+        }
+    }
+
+    @Override
+    public void setRemoved() {
+        state.disposeAllPushers();
+        HubSlotLifecycle.deregisterAllSlotGaskets(this);
+        super.setRemoved();
     }
 
     @Override

@@ -138,10 +138,8 @@ public final class MobEffectTests {
     private static void runEntityPrograms(GameTestHelper helper, Mob mob, String abilityId) {
         AbilityDefinition ability = AbilityRegistry.getAbility(Identifier.parse(abilityId));
         helper.assertTrue(ability != null, ABILITIES_REQUIRED);
-        for (AbilityDefinition.BehaviorEntry entry : ability.behaviors()) {
-            ProgramBehavior program = ProgramBehavior.forHost(entry.steps(), HostKind.ENTITY);
-            program.tick(new EntityHost(helper.getLevel(), mob, null));
-        }
+        ProgramBehavior program = ProgramBehavior.forHost(ability.behaviors(), HostKind.ENTITY);
+        program.tick(new EntityHost(helper.getLevel(), mob, null));
     }
 
     /**

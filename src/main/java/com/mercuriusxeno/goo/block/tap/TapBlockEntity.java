@@ -2,12 +2,15 @@ package com.mercuriusxeno.goo.block.tap;
 
 import com.mercuriusxeno.goo.DripFall;
 import com.mercuriusxeno.goo.GooColors;
+import com.mercuriusxeno.goo.GooConstants;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.block.BlockEntitySync;
 import com.mercuriusxeno.goo.block.canister.ICanisterHolder;
 import com.mercuriusxeno.goo.block.canister.SlottedCanisterData;
+import com.mercuriusxeno.goo.block.gasket.AddressedGasket;
 import com.mercuriusxeno.goo.block.gasket.GasketAttachment;
 import com.mercuriusxeno.goo.block.gasket.IGasketHolder;
+import com.mercuriusxeno.goo.block.gasket.SlotGasketRegistration;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
@@ -22,12 +25,15 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.Shapes;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Tap block entity: drips goo from a canister placed in its body slot.
@@ -81,7 +87,7 @@ public class TapBlockEntity extends net.minecraft.world.level.block.entity.Block
         this.state = new SlottedCanisterData(1,
                 i -> Shapes.empty(),
                 slots -> Shapes.empty(),
-                () -> BlockEntitySync.markDirtyAndSync(this));
+                gasket.syncCallback());
     }
 
     /**
@@ -153,6 +159,7 @@ public class TapBlockEntity extends net.minecraft.world.level.block.entity.Block
         state.slots[SLOT].setCanister(stack.copyWithCount(1));
         state.slots[SLOT].buildHandler(() -> level != null ? level.getGameTime() : 0L);
         dripCountdown.restart();
+        registerSlotGaskets();
         markDirtyAndSync();
         return true;
     }
@@ -169,6 +176,7 @@ public class TapBlockEntity extends net.minecraft.world.level.block.entity.Block
         if (current.isEmpty()) {
             return ItemStack.EMPTY;
         }
+        deregisterSlotGaskets();
         state.slots[SLOT].clear();
         markDirtyAndSync();
         return current;
@@ -224,6 +232,15 @@ public class TapBlockEntity extends net.minecraft.world.level.block.entity.Block
     // --- Tick and drip logic ---
 
     /**
+     * {@inheritDoc} A tap only receives, so every hit resolves RECEIVER
+     * (decision diagnose-then-fix-tap-gasket-role).
+     */
+    @Override
+    public GasketRole resolveRole(BlockHitResult hit) {
+        return GasketRole.RECEIVER;
+    }
+
+    /**
      * {@inheritDoc} Checks blockstate in addition to role.
      */
     @Override
@@ -231,8 +248,56 @@ public class TapBlockEntity extends net.minecraft.world.level.block.entity.Block
         return role == GasketRole.RECEIVER && getBlockState().getValue(TapBlock.HAS_GASKET);
     }
 
+    /**
+     * The tap carries one gasket, so any hit on the tap addresses it.
+     */
+    @Override
+    public @Nullable AddressedGasket addressedGasket(BlockHitResult hit) {
+        return holdsBlockGasket(GasketRole.RECEIVER)
+                ? new AddressedGasket(GasketRole.RECEIVER, GooConstants.NO_SLOT) : null;
+    }
+
+    @Override
+    public boolean holdsBlockGasket(GasketRole role) {
+        return supportsRole(role);
+    }
+
+    @Override
+    public void uninstallGasket(AddressedGasket gasket) {
+        clearGasket(gasket.role());
+        level.setBlock(worldPosition, getBlockState().setValue(TapBlock.HAS_GASKET, false), Block.UPDATE_ALL);
+    }
+
     private void markDirtyAndSync() {
         BlockEntitySync.markDirtyAndSync(this);
+    }
+
+    private void registerSlotGaskets() {
+        if (!getCanister().isEmpty()) {
+            SlotGasketRegistration.register(gasket.registryAccess(), level, worldPosition,
+                    SLOT, getSlotMetadata(SLOT));
+        }
+    }
+
+    private void deregisterSlotGaskets() {
+        if (!getCanister().isEmpty()) {
+            SlotGasketRegistration.deregister(gasket.registryAccess(), getSlotMetadata(SLOT));
+        }
+    }
+
+    @Override
+    public void setLevel(@NonNull Level newLevel) {
+        super.setLevel(newLevel);
+        gasket.onSetLevel(newLevel);
+        if (newLevel instanceof ServerLevel) {
+            registerSlotGaskets();
+        }
+    }
+
+    @Override
+    public void setRemoved() {
+        deregisterSlotGaskets();
+        super.setRemoved();
     }
 
     /** Re-propagates goo emission after NBT load; the chunk-load light scan
@@ -241,6 +306,7 @@ public class TapBlockEntity extends net.minecraft.world.level.block.entity.Block
     @Override
     public void onLoad() {
         super.onLoad();
+        gasket.onLoad();
         BlockEntitySync.kickLightingOnLoad(this);
     }
 

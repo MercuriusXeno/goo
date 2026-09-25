@@ -3,25 +3,20 @@ package com.mercuriusxeno.goo.block;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.mercuriusxeno.goo.block.crucible.CrucibleBlock;
 import org.junit.jupiter.api.Test;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * The crucible's client resources resolve (decision diagnose-then-fix-crucible-texture):
@@ -30,15 +25,6 @@ import static org.junit.jupiter.api.Assertions.fail;
  * matches a multipart case. A model file absent from the jar draws the missing-texture checker.
  */
 class CrucibleResourcesTest {
-
-    /** CrucibleBlock's source: its properties cannot be read in a unit test, since touching them needs the FML loader. */
-    private static final Path CRUCIBLE_BLOCK_SOURCE =
-            Path.of("src/main/java/com/mercuriusxeno/goo/block/crucible/CrucibleBlock.java");
-    private static final Pattern STATE_DEFINITION = Pattern.compile("builder\\.add\\(([^)]*)\\)");
-    private static final String BOOLEAN_DECLARATION = "BooleanProperty %s = BooleanProperty.create(\"";
-    private static final String HORIZONTAL_FACING_DECLARATION = "%s = HorizontalDirectionalBlock.FACING;";
-    private static final List<String> HORIZONTAL_FACINGS = List.of("north", "south", "west", "east");
-    private static final List<String> BOOLEANS = List.of("true", "false");
 
     private static final String BLOCKSTATE = "/assets/goo/blockstates/crucible.json";
     private static final String ITEM_DEFINITION = "/assets/goo/items/crucible.json";
@@ -80,7 +66,7 @@ class CrucibleResourcesTest {
         }
         List<Map<String, String>> states = new ArrayList<>();
         states.add(new HashMap<>());
-        for (Map.Entry<String, List<String>> property : stateDefinition().entrySet()) {
+        for (Map.Entry<String, List<String>> property : CompiledStateDefinition.of(CrucibleBlock.class).entrySet()) {
             List<Map<String, String>> next = new ArrayList<>();
             for (Map<String, String> state : states) {
                 for (String value : property.getValue()) {
@@ -95,28 +81,6 @@ class CrucibleResourcesTest {
             assertTrue(conditions.stream().anyMatch(when -> matches(when, state)),
                     "no multipart case applies to crucible state " + state);
         }
-    }
-
-    /** Each property createBlockStateDefinition adds, by its serialized name, with its value names. */
-    private static Map<String, List<String>> stateDefinition() throws Exception {
-        String source = Files.readString(CRUCIBLE_BLOCK_SOURCE);
-        Matcher added = STATE_DEFINITION.matcher(source);
-        assertTrue(added.find(), "CrucibleBlock should add its properties through builder.add");
-        Map<String, List<String>> properties = new LinkedHashMap<>();
-        for (String field : added.group(1).split(",")) {
-            String name = field.trim();
-            String booleanDeclaration = BOOLEAN_DECLARATION.formatted(name);
-            int booleanAt = source.indexOf(booleanDeclaration);
-            if (booleanAt >= 0) {
-                int nameStart = booleanAt + booleanDeclaration.length();
-                properties.put(source.substring(nameStart, source.indexOf('"', nameStart)), BOOLEANS);
-            } else if (source.contains(HORIZONTAL_FACING_DECLARATION.formatted(name))) {
-                properties.put("facing", HORIZONTAL_FACINGS);
-            } else {
-                fail("CrucibleBlock property " + name + " has a declaration this test does not enumerate");
-            }
-        }
-        return properties;
     }
 
     private static boolean matches(JsonObject when, Map<String, String> state) {

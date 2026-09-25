@@ -11,7 +11,7 @@ import java.util.Map;
 /**
  * Scans a player's inventory for all goo sources and aggregates
  * available volume per goo type. Handles depletion in priority order:
- * loose blobs → omniblobs → canisters → vats, bottom-up slot index.
+ * loose blobs → omniblobs → canisters (a hub item's included) → vats, bottom-up slot index.
  *
  * <p>Slot coverage: main inventory (0-35) plus offhand (40). Armor slots
  * are excluded - you can't throw goo from your chestplate.</p>
@@ -147,20 +147,15 @@ public final class GooSourceScanner {
     }
 
     /**
-     * Scans canister or vat block items for all contained goo types.
+     * Scans a goo carrier (canister, hub or vat item) for all contained goo types.
      *
      * @param stack  the item stack to scan
      * @param totals the running totals map
      */
     private static void scanContainerStack(ItemStack stack, Map<ResourceKey<GooTypeDefinition>, Integer> totals) {
-        if (stack.getItem() instanceof CanisterItem) {
-            CanisterFluidContent content = CanisterItem.getFluidContent(stack);
-            ResourceKey<GooTypeDefinition> type = content.getGooType();
-            if (type != null && content.amount() > 0) {
-                addToMap(totals, type, content.amount());
-            }
-        } else if (stack.getItem() instanceof VatBlockItem) {
-            addAllEntries(totals, VatBlockItem.getGooContents(stack).getAll());
+        GooCarrier carrier = GooCarrier.of(stack);
+        if (carrier != null) {
+            addAllEntries(totals, carrier.contents());
         }
     }
 
@@ -203,21 +198,15 @@ public final class GooSourceScanner {
     }
 
     /**
-     * Returns volume of a specific type from canister or vat block items.
+     * Returns volume of a specific type from a goo carrier (canister, hub or vat item).
      *
      * @param stack the item stack to inspect
      * @param type  the goo type to look for
-     * @return volume in microblobs, or 0 if not a container
+     * @return volume in microblobs, or 0 if not a carrier
      */
     private static int containerVolumeOfType(ItemStack stack, ResourceKey<GooTypeDefinition> type) {
-        if (stack.getItem() instanceof CanisterItem) {
-            CanisterFluidContent content = CanisterItem.getFluidContent(stack);
-            return (content.getGooType() == type) ? content.amount() : 0;
-        }
-        if (stack.getItem() instanceof VatBlockItem) {
-            return VatBlockItem.getGooContents(stack).getVolume(type);
-        }
-        return 0;
+        GooCarrier carrier = GooCarrier.of(stack);
+        return carrier != null ? carrier.volumeOf(type) : 0;
     }
 
     // --- Depletion dispatch ---
@@ -316,22 +305,20 @@ public final class GooSourceScanner {
     }
 
     /**
-     * Depletes from canister or vat block items via their removeGoo API.
+     * Depletes from a goo carrier whose depletion pass is the one running.
      *
      * @param stack       the item stack to deplete from
      * @param type        the goo type to deplete
      * @param remaining   the amount still to deplete
-     * @param sourceClass the item class to match
+     * @param sourceClass the item class of the running pass
      * @return the remaining amount after depletion
      */
     private static int depleteContainerStack(ItemStack stack, ResourceKey<GooTypeDefinition> type, int remaining, Class<?> sourceClass) {
-        if (sourceClass == CanisterItem.class && stack.getItem() instanceof CanisterItem) {
-            return remaining - CanisterItem.removeGoo(stack, type, remaining);
+        GooCarrier carrier = GooCarrier.of(stack);
+        if (carrier == null || carrier.depletionPass() != sourceClass) {
+            return remaining;
         }
-        if (sourceClass == VatBlockItem.class && stack.getItem() instanceof VatBlockItem) {
-            return remaining - VatBlockItem.removeGoo(stack, type, remaining);
-        }
-        return remaining;
+        return remaining - carrier.remove(type, remaining);
     }
 
     // --- Util ---

@@ -10,12 +10,7 @@
     "c": 1.0
   },
   "behaviors": [
-    {
-      "type": "program",
-      "steps": [
-        { "type": "damage", "amount": 8.0, "source": "magic" }
-      ]
-    }
+    { "type": "damage", "amount": 8.0, "source": "magic" }
   ],
   "tags": ["entity"]
 }

@@ -10,14 +10,9 @@
     "c": 1.0
   },
   "behaviors": [
-    {
-      "type": "program",
-      "steps": [
-        { "type": "potion", "effect": "minecraft:slowness", "duration": 100, "amplifier": 127 },
-        { "type": "damage", "amount": "max_health", "source": "magic" },
-        { "type": "drop_item", "item": "minecraft:cobblestone", "count": "1 + random(3)" }
-      ]
-    }
+    { "type": "potion", "effect": "minecraft:slowness", "duration": 100, "amplifier": 127 },
+    { "type": "damage", "amount": "max_health", "source": "magic" },
+    { "type": "drop_item", "item": "minecraft:cobblestone", "count": "1 + random(3)" }
   ],
   "tags": ["entity"]
 }

@@ -2,9 +2,9 @@ package com.mercuriusxeno.goo.client.radial;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.ability.GloveSelection;
+import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
+import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.item.GooGloveItem;
-import com.mercuriusxeno.goo.network.AbilitySyncHandler;
-import com.mercuriusxeno.goo.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.network.GloveSelectPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;

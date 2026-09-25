@@ -5,10 +5,8 @@ import com.mercuriusxeno.goo.ISidedProxy;
 import com.mercuriusxeno.goo.PlayerUtils;
 import com.mercuriusxeno.goo.block.GooBlockInteraction;
 import com.mercuriusxeno.goo.block.InteractionCooldown;
-import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
 import com.mercuriusxeno.goo.item.BlobInsert;
 import com.mercuriusxeno.goo.item.GooInteractionType;
-import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.sounds.SoundEvents;
@@ -92,20 +90,6 @@ final class HubBlockHandlers {
             case BLOB_INSERT      -> handleBlobInsert(hub, hitResult, stack, player);
             default -> throw new IllegalStateException(ERR_UNHANDLED + interaction);
         };
-    }
-
-    /**
-     * Removes the intake gasket from the hub and drops it.
-     *
-     * @param level the current level
-     * @param pos   the block position
-     * @param hub   the hub block entity
-     * @return SUCCESS after removing the gasket
-     */
-    static InteractionResult removeGasket(Level level, BlockPos pos, HubBlockEntity hub) {
-        GasketInstallation.popGasket(level, pos, hub.getGasketId(GasketRole.RECEIVER));
-        hub.clearGasket(GasketRole.RECEIVER);
-        return InteractionResult.SUCCESS;
     }
 
     /**

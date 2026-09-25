@@ -11,11 +11,7 @@ import net.minecraft.client.renderer.SubmitNodeCollector;
  * existing {@link NetherSphereVisual} static methods. This class adds
  * no behavior; its only job is to fit the canonical implementation into
  * the {@link NetherHoleStyle} seam so the BER can dispatch through
- * {@link NetherHoleStyles#ACTIVE} uniformly.
- *
- * <p>NetherBlackHoleRender itself is intentionally untouched on this
- * experiment branch - flipping back to sphere should land at pixel
- * parity with the shipped build.
+ * {@link NetherHoleStyles#active()} uniformly.
  */
 final class SphereHoleStyle implements NetherHoleStyle {
 

@@ -5,11 +5,8 @@ import net.minecraft.core.Direction;
 
 /**
  * Shared geometry for the progressive area pipeline: layer-center
- * resolution and footprint perpendicular offsetting. The legacy
- * {@code RockBehavior} and {@code BlazeBehavior} each carried private
- * copies of these helpers; consolidating here lets the per-axis
- * delegates ({@link LayerVisuals}, {@link LayerAudio}) compute their
- * coordinates without pulling in the legacy classes.
+ * resolution and footprint perpendicular offsetting, shared by the
+ * per-axis delegates ({@link LayerVisuals}, {@link LayerAudio}).
  */
 public final class LayerGeometry {
 

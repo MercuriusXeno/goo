@@ -8,9 +8,7 @@ import java.util.List;
 
 /**
  * Blaze visuals: per-block flame burst preview, then flame + lava +
- * ember on struck. Migrated from the legacy {@code BlazeBehavior}
- * static helpers so the per-step pipeline can dispatch by name rather
- * than via {@code switch (particleStyle)}.
+ * ember on struck, selected by name for the progressive area step.
  */
 final class BlazeFlameVisuals implements LayerVisuals {
 
