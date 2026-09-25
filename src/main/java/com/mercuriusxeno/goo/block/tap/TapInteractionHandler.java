@@ -6,7 +6,6 @@ import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
 import com.mercuriusxeno.goo.item.BlobInsert;
 import com.mercuriusxeno.goo.item.GooInteractionType;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
-import com.mercuriusxeno.goo.registry.GooItems;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.sounds.SoundEvents;
@@ -21,6 +20,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Stateless dispatch and handler methods for tap block interactions:
@@ -89,7 +89,7 @@ final class TapInteractionHandler {
     }
 
     /**
-     * Dispatches empty-hand interactions by sub-region: canister, valve, body, gasket.
+     * Dispatches plain empty-hand interactions by sub-region: the valve toggles, any other region hands back the canister.
      *
      * @param state              the block state
      * @param level              the current level
@@ -112,7 +112,7 @@ final class TapInteractionHandler {
         if (hitValve(hitResult, pos, facing, valveShapes)) {
             return toggleValve(state, level, pos);
         }
-        return tryCanisterOrGasket(state, level, pos, player, tap);
+        return tap.getCanister().isEmpty() ? InteractionResult.PASS : removeCanister(tap, level, pos, player);
     }
 
     // --- Sub-region hit detection ---
@@ -191,24 +191,6 @@ final class TapInteractionHandler {
     // --- Empty-hand helpers ---
 
     /**
-     * Removes the canister if present, otherwise tries to remove the gasket.
-     *
-     * @param state  the block state
-     * @param level  the current level
-     * @param pos    the block position
-     * @param player the interacting player
-     * @param tap    the tap block entity
-     * @return the interaction result
-     */
-    private static InteractionResult tryCanisterOrGasket(
-            BlockState state, Level level, BlockPos pos, Player player, TapBlockEntity tap) {
-        if (!tap.getCanister().isEmpty()) {
-            return removeCanister(tap, level, pos, player);
-        }
-        return tryRemoveGasket(state, level, pos, player, tap);
-    }
-
-    /**
      * Removes the canister from the tap and gives it to the player.
      *
      * @param tap    the tap block entity
@@ -243,27 +225,6 @@ final class TapInteractionHandler {
         return InteractionResult.SUCCESS;
     }
 
-    /**
-     * Removes the gasket if the player is sneaking and one is installed.
-     *
-     * @param state  the block state
-     * @param level  the current level
-     * @param pos    the block position
-     * @param player the interacting player
-     * @param tap    the tap block entity
-     * @return SUCCESS if removed, PASS otherwise
-     */
-    private static InteractionResult tryRemoveGasket(
-            BlockState state, Level level, BlockPos pos, Player player, TapBlockEntity tap) {
-        if (player.isShiftKeyDown() && state.getValue(TapBlock.HAS_GASKET)) {
-            GasketInstallation.popGasket(level, pos, tap.getGasketId(GasketRole.RECEIVER));
-            tap.clearGasket(GasketRole.RECEIVER);
-            level.setBlock(pos, state.setValue(TapBlock.HAS_GASKET, false), BLOCK_UPDATE_FLAGS);
-            return InteractionResult.SUCCESS;
-        }
-        return InteractionResult.PASS;
-    }
-
     // --- Block break drops ---
 
     /**
@@ -274,9 +235,9 @@ final class TapInteractionHandler {
      * @param state the block state
      */
     static void dropGasketOnBreak(Level level, BlockPos pos, BlockState state) {
-        if (state.getValue(TapBlock.HAS_GASKET)) {
-            Block.popResource(level, pos, new ItemStack(GooItems.CHORAL_GASKET.get()));
-        }
+        UUID gasketId = level.getBlockEntity(pos) instanceof TapBlockEntity tap
+                ? tap.getGasketId(GasketRole.RECEIVER) : null;
+        GasketInstallation.popGasket(level, pos, state.getValue(TapBlock.HAS_GASKET), gasketId);
     }
 
     /**

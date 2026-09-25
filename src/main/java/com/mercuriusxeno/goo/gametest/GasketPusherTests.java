@@ -6,7 +6,12 @@ import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
 import com.mercuriusxeno.goo.block.canister.CanisterSlotFluidHandler;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlock;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
+import com.mercuriusxeno.goo.block.fluid.GooFluidHandler;
+import com.mercuriusxeno.goo.block.gasket.ChoralGasketBlock;
+import com.mercuriusxeno.goo.block.gasket.ChoralGasketBlockEntity;
 import com.mercuriusxeno.goo.block.reactor.ReactorBlockEntity;
+import com.mercuriusxeno.goo.block.vat.VatBlock;
+import com.mercuriusxeno.goo.block.vat.VatBlockEntity;
 import com.mercuriusxeno.goo.data.GasketRegistry;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
@@ -16,8 +21,16 @@ import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooFluids;
 import com.mercuriusxeno.goo.registry.GooItems;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.material.Fluids;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.Vec3;
 import java.util.UUID;
 
 /**
@@ -45,6 +58,19 @@ public final class GasketPusherTests {
             "Goo the reactor output lost should equal goo the receiver gained";
     private static final String RECEIVER_UNCHANGED_AFTER_REMOVAL =
             "Receiver goo should not change after the output canister is removed";
+
+    // --- Waterlogged choral gasket fixtures (diagnose-then-fix-waterlogged-gasket-link) ---
+
+    /** Above the sturdy block at BE_POS, which the gasket block needs to survive. */
+    private static final BlockPos GASKET_POS = new BlockPos(1, 2, 1);
+    /** Inside the gasket block's one-pixel-tall shape, in its lower half: the transmitter. */
+    private static final double GASKET_HIT_Y = 0.5 / 16.0;
+    private static final double HALF = 0.5;
+    private static final String VAT_WATER_ROSE = "Vat should hold water after the waterlogged gasket pushed";
+    private static final String VAT_WATER_KEEPS_RISING = "Vat water should keep rising while the gasket pushes";
+    private static final String GASKET_STAYS_WATERLOGGED = "Gasket block should stay waterlogged while it pushes";
+    private static final String READ = ", read ";
+    private static final String THEN = " then ";
 
     private GasketPusherTests() {}
 
@@ -157,6 +183,71 @@ public final class GasketPusherTests {
                 helper.succeed();
             });
         });
+    }
+
+    // --- Waterlogged choral gasket (diagnose-then-fix-waterlogged-gasket-link) ---
+
+    /**
+     * A waterlogged choral gasket block whose transmitter is linked on the choral
+     * tuner to a vat's receiver cap pushes water into the vat, and keeps pushing:
+     * the vat's water rises between two reads and the gasket stays waterlogged.
+     *
+     * @param helper the gametest helper
+     */
+    public static void waterloggedGasketPushesIntoVat(GameTestHelper helper) {
+        VatBlockEntity vat = placeTunerLinkedGasketAndVat(helper);
+        helper.runAfterDelay(PUSH_TICKS, () -> {
+            long earlier = vatWater(vat);
+            helper.assertTrue(earlier > 0, VAT_WATER_ROSE + READ + earlier);
+            helper.runAfterDelay(PUSH_TICKS, () -> {
+                long later = vatWater(vat);
+                helper.assertTrue(later > earlier, VAT_WATER_KEEPS_RISING + READ + earlier + THEN + later);
+                helper.assertTrue(helper.getBlockState(GASKET_POS).getValue(ChoralGasketBlock.WATERLOGGED),
+                        GASKET_STAYS_WATERLOGGED);
+                helper.succeed();
+            });
+        });
+    }
+
+    /**
+     * Sets a sturdy block, a waterlogged choral gasket block on it and a capped
+     * vat beside it, then links the gasket's transmitter to the vat's cap on the
+     * choral tuner: gasket block first, vat cap second.
+     *
+     * @param helper the gametest helper
+     * @return the vat block entity
+     */
+    private static VatBlockEntity placeTunerLinkedGasketAndVat(GameTestHelper helper) {
+        helper.setBlock(BE_POS, Blocks.STONE);
+        helper.setBlock(GASKET_POS, GooBlocks.CHORAL_GASKET_BLOCK.get().defaultBlockState()
+                .setValue(ChoralGasketBlock.WATERLOGGED, true));
+        helper.getBlockEntity(GASKET_POS, ChoralGasketBlockEntity.class).ensureGasketId(GasketRole.TRANSMITTER);
+        helper.setBlock(RECEIVER_POS, GooBlocks.VAT.get().defaultBlockState().setValue(VatBlock.GASKET_CAP, true));
+        VatBlockEntity vat = helper.getBlockEntity(RECEIVER_POS, VatBlockEntity.class);
+        vat.ensureGasketId(GasketRole.RECEIVER);
+
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.CHORAL_TUNER.get()));
+        BlockPos gasketAbs = helper.absolutePos(GASKET_POS);
+        helper.useBlock(GASKET_POS, player, new BlockHitResult(
+                new Vec3(gasketAbs.getX() + HALF, gasketAbs.getY() + GASKET_HIT_Y, gasketAbs.getZ() + HALF),
+                Direction.UP, gasketAbs, false));
+        BlockPos vatAbs = helper.absolutePos(RECEIVER_POS);
+        helper.useBlock(RECEIVER_POS, player, new BlockHitResult(
+                new Vec3(vatAbs.getX() + HALF, vatAbs.getY() + 1.0, vatAbs.getZ() + HALF),
+                Direction.UP, vatAbs, false));
+        return vat;
+    }
+
+    private static long vatWater(VatBlockEntity vat) {
+        GooFluidHandler handler = vat.getFluidHandler();
+        long water = 0;
+        for (int i = 0; i < handler.size(); i++) {
+            if (handler.getResource(i).getFluid().isSame(Fluids.WATER)) {
+                water += handler.getAmountAsLong(i);
+            }
+        }
+        return water;
     }
 
     // --- Reactor helpers ---

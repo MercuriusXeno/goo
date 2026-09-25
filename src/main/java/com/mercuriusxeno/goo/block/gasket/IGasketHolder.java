@@ -275,4 +275,56 @@ public interface IGasketHolder {
     default boolean hasIntake() {
         return false;
     }
+
+    // --- Addressed gasket (decision sneak-empty-hand-pops-hit-gasket) ---
+
+    /**
+     * Answers which installed gasket a click lands on: a slot gasket on the
+     * canister half the hit resolves, the hub intake on a hit off every slot,
+     * or a block-level gasket on the face the hit resolves. Every sneak
+     * empty-hand removal reads it, and the tuner's role question can.
+     *
+     * @param hit the ray trace hit result
+     * @return the addressed gasket, or null when the hit lands on none
+     */
+    default @Nullable AddressedGasket addressedGasket(BlockHitResult hit) {
+        int slot = resolveSlot(hit);
+        if (slot == SLOT_MISS) {
+            return hasIntake() && holdsBlockGasket(GasketRole.RECEIVER)
+                    ? new AddressedGasket(GasketRole.RECEIVER, NO_SLOT) : null;
+        }
+        GasketRole role = resolveRole(hit);
+        boolean held = slot >= 0 ? getGasketId(role, slot) != null : holdsBlockGasket(role);
+        return held ? new AddressedGasket(role, slot) : null;
+    }
+
+    /**
+     * Returns true if a gasket is installed on the block itself for the role,
+     * as the machine's blockstate flag records it. Default: none.
+     *
+     * @param role the gasket role
+     * @return true if a block-level gasket is installed
+     */
+    default boolean holdsBlockGasket(GasketRole role) {
+        return false;
+    }
+
+    /**
+     * Clears an installed gasket from this holder once its item has left:
+     * a slot gasket leaves the canister's metadata and re-stands the slot's
+     * pusher, a block-level gasket clears its id and partner. Machines that
+     * flag a block-level gasket in their blockstate override to clear the flag.
+     *
+     * @param gasket the gasket being removed
+     */
+    default void uninstallGasket(AddressedGasket gasket) {
+        if (gasket.slot() >= 0 && this instanceof ICanisterHolder container) {
+            CanisterMetadata meta = container.getSlotMetadata(gasket.slot());
+            container.setSlotMetadata(gasket.slot(), gasket.role() == GasketRole.RECEIVER
+                    ? meta.withoutTopGasket() : meta.withoutBottomGasket());
+            setPartner(gasket.role(), gasket.slot(), null);
+            return;
+        }
+        clearGasket(gasket.role());
+    }
 }

@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:ix_crucible_cold_absorbs_nothing",
+  "environment": "minecraft:default",
+  "structure": "minecraft:empty",
+  "max_ticks": 10,
+  "setup_ticks": 0,
+  "required": true
+}

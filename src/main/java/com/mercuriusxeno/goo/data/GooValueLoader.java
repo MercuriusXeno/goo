@@ -15,14 +15,13 @@ import java.util.Set;
 
 /**
  * Parses base_values.json into registry state: constants, groups (pseudo-tags),
- * item values, conversions, and restrictions. Handles classpath and datapack loading,
+ * item values, conversions, and restrictions. Handles datapack loading,
  * pseudo-tag expansion, and parallel copy.
  * Pure-static utility with no instance state.
  */
 final class GooValueLoader {
 
     static final String PREFIX_TAG = "#";
-    private static final String BASE_VALUES_PATH = "/data/goo/goo_values/base_values.json";
     private static final String PREFIX_INTERNAL = "_";
     private static final String VALUE_DENIED = "denied";
     private static final String MOD_NAMESPACE = "goo";
@@ -30,34 +29,11 @@ final class GooValueLoader {
 
     // --- Log messages ---
 
-    private static final String LOG_NO_BASE_FILE = "Could not find base_values.json";
-    private static final String LOG_LOAD_FAIL = "Failed to load base goo values";
-    private static final String LOG_LOADED_BASE = "Loaded {} base goo values";
     private static final String LOG_LOADED_PACKS = "Loaded {} base goo values from {} pack(s)";
     private static final String LOG_READ_PACK_FAIL = "Failed to read base_values.json from pack {}: {}";
     private static final String LOG_NEGATIVE_BASE = "Negative goo in base value for {}: {} -- skipped";
 
     private GooValueLoader() {
-    }
-
-    /**
-     * Reads and parses the embedded base_values.json classpath resource.
-     *
-     * @param state mutable parsing state to populate
-     */
-    static void loadBaseValuesFromClasspath(ParseState state) {
-        try (InputStream is = GooValueRegistry.class.getResourceAsStream(BASE_VALUES_PATH)) {
-            if (is == null) {
-                Goo.LOGGER.error(LOG_NO_BASE_FILE);
-                return;
-            }
-            parseBaseValuesFromStream(is, state);
-        } catch (IOException e) {
-            Goo.LOGGER.error(LOG_LOAD_FAIL, e);
-        }
-        if (Goo.LOGGER.isInfoEnabled()) {
-            Goo.LOGGER.info(LOG_LOADED_BASE, state.baseValues.size());
-        }
     }
 
     /**

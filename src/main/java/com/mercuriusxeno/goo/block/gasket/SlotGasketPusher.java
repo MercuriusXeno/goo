@@ -2,11 +2,12 @@ package com.mercuriusxeno.goo.block.gasket;
 
 import com.mercuriusxeno.goo.block.canister.CanisterSlot;
 import com.mercuriusxeno.goo.block.canister.CanisterSlotFluidHandler;
-import com.mercuriusxeno.goo.data.IGasketRegistryAccess;
+import com.mercuriusxeno.goo.data.GasketRegistry;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.CanisterMetadata;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import org.jspecify.annotations.Nullable;
+import java.util.function.Supplier;
 
 /**
  * The gasket pusher a slotted canister drives. Every block entity that holds
@@ -28,7 +29,7 @@ public final class SlotGasketPusher {
      * @param owner  the block entity holding the slot, whose level and position own the push
      * @param access the holder's registry access, or null on the client
      */
-    public static void rebuild(CanisterSlot slot, BlockEntity owner, @Nullable IGasketRegistryAccess access) {
+    public static void rebuild(CanisterSlot slot, BlockEntity owner, @Nullable Supplier<GasketRegistry> access) {
         slot.disposePusher();
         if (access == null || !needsPusher(slot)) {
             return;
@@ -44,7 +45,7 @@ public final class SlotGasketPusher {
         return meta.bottomGasketId() != null && meta.bottomPartner() != null;
     }
 
-    private static GasketPusher build(CanisterSlot slot, BlockEntity owner, IGasketRegistryAccess access) {
+    private static GasketPusher build(CanisterSlot slot, BlockEntity owner, Supplier<GasketRegistry> access) {
         CanisterSlotFluidHandler handler = slot.handler();
         GasketPusher pusher = new GasketPusher(handler,
                 () -> CanisterItem.getMetadata(slot.canister()).bottomGasketId(),

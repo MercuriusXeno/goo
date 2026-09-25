@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.block.crucible;
 
 import com.mercuriusxeno.goo.block.IGooLightSource;
 import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
-import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
@@ -61,9 +60,6 @@ public class CrucibleBlock extends BaseEntityBlock {
     private static final int CRUCIBLE_LIT_LIGHT = 13;
     /** Whether a gasket is attached to this crucible. */
     public static final BooleanProperty HAS_GASKET = BooleanProperty.create("has_gasket");
-
-    /** Block update flags: notify neighbors + send to clients. */
-    private static final int BLOCK_UPDATE_FLAGS = 3;
 
     /** Goocible body: full-width solid base, 13px tall. */
     private static final VoxelShape BODY = box(0, 0, 0, 16, 13, 16);
@@ -215,7 +211,7 @@ public class CrucibleBlock extends BaseEntityBlock {
         return createTickerHelper(type, GooBlockEntities.CRUCIBLE.get(), CrucibleBlockEntity::serverTick);
     }
 
-    /** Dispatches held-item interactions: fuel, canister, or blob insertion.
+    /** Dispatches held-item interactions: the flint-and-steel spark, canister or blob insertion.
      *
      * @param stack     the item stack
      * @param state     the block state
@@ -237,7 +233,9 @@ public class CrucibleBlock extends BaseEntityBlock {
         if (level.isClientSide()) {
             return clientItemResult(stack);
         }
-        return serverItemInteraction(stack, crucible, player, hand);
+        InteractionResult spark = CrucibleInteraction.trySpark(stack, crucible, player, hand);
+        if (spark != null) { return spark; }
+        return serverItemInteraction(stack, crucible, player);
     }
 
     /** Returns the client-side result based on whether the item is handled.
@@ -255,32 +253,16 @@ public class CrucibleBlock extends BaseEntityBlock {
      * @param stack    the item stack
      * @param crucible the crucible block entity
      * @param player   the interacting player
-     * @param hand     the hand used
      * @return SUCCESS if any interaction matched, TRY_WITH_EMPTY_HAND otherwise
      */
     private static InteractionResult serverItemInteraction(
-            ItemStack stack, CrucibleBlockEntity crucible, Player player, InteractionHand hand) {
-        if (tryAnyFluidInteraction(stack, crucible, player, hand)) { return InteractionResult.SUCCESS; }
+            ItemStack stack, CrucibleBlockEntity crucible, Player player) {
         if (CrucibleInteraction.tryCollectWithCanister(stack, crucible)) { return InteractionResult.SUCCESS; }
         if (CrucibleInteraction.tryInsertBlob(stack, crucible, player)) { return InteractionResult.SUCCESS; }
         return InteractionResult.TRY_WITH_EMPTY_HAND;
     }
 
-    /**
-     * Tries fuel insertion in priority order.
-     *
-     * @param stack    the held item stack
-     * @param crucible the crucible block entity
-     * @param player   the interacting player
-     * @param hand     the hand used
-     * @return true if any fluid interaction succeeded
-     */
-    private static boolean tryAnyFluidInteraction(
-            ItemStack stack, CrucibleBlockEntity crucible, Player player, InteractionHand hand) {
-        return CrucibleInteraction.tryInsertFuel(stack, crucible, player);
-    }
-
-    /** Handles empty-hand interactions: shift = gasket/fuel removal, bare = goo extraction.
+    /** Handles empty-hand interactions: sneak pops the gasket, else passes; plain = goo extraction.
      *
      * @param state     the block state
      * @param level     the current level
@@ -297,38 +279,20 @@ public class CrucibleBlock extends BaseEntityBlock {
         BlockEntity be = level.getBlockEntity(pos);
         if (!(be instanceof CrucibleBlockEntity crucible)) { return InteractionResult.PASS; }
 
-        if (player.isShiftKeyDown()) {
-            return shiftClickEmptyHand(state, level, pos, crucible, player);
-        }
-        return CrucibleInteraction.tryExtractGoo(crucible, player);
-    }
-
-    /** Handles shift-click with empty hand: gasket pop or fuel rod removal.
-     *
-     * @param state    the block state
-     * @param level    the current level
-     * @param pos      the block position
-     * @param crucible the crucible block entity
-     * @param player   the interacting player
-     * @return the interaction result
-     */
-    private static InteractionResult shiftClickEmptyHand(
-            BlockState state, Level level, BlockPos pos,
-            CrucibleBlockEntity crucible, Player player) {
-        if (state.getValue(HAS_GASKET)) {
-            GasketInstallation.popGasket(level, pos, crucible.getGasketId(GasketRole.TRANSMITTER));
-            crucible.clearGasket(GasketRole.TRANSMITTER);
-            level.setBlock(pos, state.setValue(HAS_GASKET, false), BLOCK_UPDATE_FLAGS);
+        if (GasketInstallation.removeAddressedGasket(level, pos, player, hitResult)) {
             return InteractionResult.SUCCESS;
         }
-        return CrucibleInteraction.tryRemoveFuelRod(crucible, player);
+        if (player.isSecondaryUseActive()) {
+            return InteractionResult.PASS;
+        }
+        return CrucibleInteraction.tryExtractGoo(crucible, player);
     }
 
     // -- Item entity absorption --
 
     /**
      * Absorbs item entities that land in the basin, feeding them into the melting pipeline.
-     * Only absorbs when the crucible is enabled (no redstone) and has fuel.
+     * Only absorbs when the crucible is enabled (no redstone) and holds heat or fuel goo.
      *
      * @param state         the block state
      * @param level         the current level
@@ -346,7 +310,7 @@ public class CrucibleBlock extends BaseEntityBlock {
         tryAbsorbItemEntity(level, pos, itemEntity);
     }
 
-    /** Attempts absorption if the crucible is enabled and fueled.
+    /** Attempts absorption if the crucible is enabled and can heat.
      *
      * @param level      the current level
      * @param pos        the block position
@@ -356,7 +320,7 @@ public class CrucibleBlock extends BaseEntityBlock {
         BlockEntity be = level.getBlockEntity(pos);
         if (!(be instanceof CrucibleBlockEntity crucible)) { return; }
         if (!crucible.isEnabled()) { return; }
-        if (!crucible.hasFuel()) { return; }
+        if (!crucible.canHeat()) { return; }
         CrucibleAbsorption.tryAbsorbItem(itemEntity, crucible);
     }
 
@@ -384,7 +348,7 @@ public class CrucibleBlock extends BaseEntityBlock {
 
     // -- Block break drops --
 
-    /** Drops all crucible internals (PMI, fuel rod, reservoir, gasket) before the block breaks.
+    /** Drops all crucible internals (PMI, reservoir, gasket) before the block breaks.
      *
      * @param level  the current level
      * @param pos    the block position

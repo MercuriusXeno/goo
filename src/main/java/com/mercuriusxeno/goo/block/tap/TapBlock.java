@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.block.tap;
 
 import com.mercuriusxeno.goo.block.GooBlockInteraction;
 import com.mercuriusxeno.goo.block.IGooLightSource;
+import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
@@ -285,8 +286,8 @@ public class TapBlock extends BaseEntityBlock {
     }
 
     /**
-     * Empty-hand interactions dispatched by sub-region: canister hit -> remove
-     * canister; valve hit -> toggle open/closed; body hit -> remove gasket.
+     * Empty-hand interactions: sneak pops the tap's gasket from any region;
+     * otherwise a valve hit toggles open/closed and any other hit removes the canister.
      *
      * @param state     the block state
      * @param level     the current level
@@ -306,6 +307,9 @@ public class TapBlock extends BaseEntityBlock {
 
         if (!(level.getBlockEntity(pos) instanceof TapBlockEntity tap)) {
             return InteractionResult.PASS;
+        }
+        if (GasketInstallation.removeAddressedGasket(level, pos, player, hitResult)) {
+            return InteractionResult.SUCCESS;
         }
 
         Direction facing = state.getValue(FACING);

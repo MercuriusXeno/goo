@@ -1,12 +1,13 @@
 package com.mercuriusxeno.goo.ability;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.data.IdentifiedJsonScan;
+import com.mojang.serialization.JsonOps;
 import net.minecraft.resources.FileToIdConverter;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.ResourceManager;
-import net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener;
+import net.minecraft.server.packs.resources.SimplePreparableReloadListener;
 import net.minecraft.util.profiling.ProfilerFiller;
-import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -15,7 +16,7 @@ import java.util.Map;
  * {@link AbilityRegistry} on each reload.
  */
 public final class AbilityLoader
-        extends SimpleJsonResourceReloadListener<AbilityDefinition> {
+        extends SimplePreparableReloadListener<Map<Identifier, AbilityDefinition>> {
 
     /**
      * Datapack directory: data/<ns>/goo_abilities/
@@ -30,36 +31,20 @@ public final class AbilityLoader
 
     private static final String LOG_LOADED = "Loaded {} goo abilities";
 
-    /**
-     * Creates the loader with the ability definition codec.
-     */
-    public AbilityLoader() {
-        super(AbilityDefinition.CODEC,
-                FileToIdConverter.json(DIRECTORY));
-    }
+    private static final FileToIdConverter LISTER = FileToIdConverter.json(DIRECTORY);
 
-    /**
-     * Copies the prepared map with resource ids assigned from filenames.
-     *
-     * @param prepared the parsed map from the JSON scanner
-     * @return new map with ids applied to each definition
-     */
-    private static Map<Identifier, AbilityDefinition> assignIds(
-            Map<Identifier, AbilityDefinition> prepared) {
-        Map<Identifier, AbilityDefinition> result = HashMap.newHashMap(prepared.size());
-        for (Map.Entry<Identifier, AbilityDefinition> entry : prepared.entrySet()) {
-            result.put(entry.getKey(), entry.getValue().withId(entry.getKey()));
-        }
-        return result;
+    @Override
+    protected Map<Identifier, AbilityDefinition> prepare(ResourceManager manager, ProfilerFiller profiler) {
+        return IdentifiedJsonScan.scan(manager, LISTER, makeConditionalOps(JsonOps.INSTANCE),
+                AbilityDefinition::codecFor);
     }
 
     @Override
     protected void apply(Map<Identifier, AbilityDefinition> prepared,
                          ResourceManager manager, ProfilerFiller profiler) {
-        Map<Identifier, AbilityDefinition> withIds = assignIds(prepared);
-        AbilityRegistry.reload(withIds);
+        AbilityRegistry.reload(prepared);
         if (Goo.LOGGER.isInfoEnabled()) {
-            Goo.LOGGER.info(LOG_LOADED, withIds.size());
+            Goo.LOGGER.info(LOG_LOADED, prepared.size());
         }
     }
 }

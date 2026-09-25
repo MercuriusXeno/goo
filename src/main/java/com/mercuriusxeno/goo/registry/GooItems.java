@@ -101,9 +101,6 @@ public class GooItems {
     // --- Partially Melted Item (crucible intermediate, not in creative tab) ---
     public static final DeferredItem<PartiallyMeltedItem> PARTIALLY_MELTED_ITEM = ITEMS.registerItem(
             "partially_melted_item", props -> new PartiallyMeltedItem(props.stacksTo(1)));
-    // --- Depleted Blaze Rod (crucible fuel intermediate, not in creative tab) ---
-    public static final DeferredItem<DepletedBlazeRodItem> DEPLETED_BLAZE_ROD = ITEMS.registerItem(
-            "depleted_blaze_rod", props -> new DepletedBlazeRodItem(props.stacksTo(1)));
 
     /** The nine exorite tools and armor pieces, tools first, in creative tab order. */
     public static final List<DeferredItem<? extends Item>> EXORITE_SET = List.of(

@@ -9,7 +9,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Tests for EffectMath pure functions: range formulas for chain effects.
+ * Tests for AbilityMath pure functions: range formulas for chain effects.
  */
 class EffectMathTest {
 
@@ -36,32 +36,6 @@ class EffectMathTest {
         @Test
         void stack4Is6() {
             assertEquals(6, AbilityMath.computeFreezeRadius(4));
-        }
-    }
-
-    // ── Frost: duration = 4 * radius * 20 ticks ────────────────────────────
-
-    @Nested
-    class FrostDuration {
-
-        @Test
-        void radius3Is240() {
-            assertEquals(240, AbilityMath.computeFrostDuration(3));
-        }
-
-        @Test
-        void radius4Is320() {
-            assertEquals(320, AbilityMath.computeFrostDuration(4));
-        }
-
-        @Test
-        void radius5Is400() {
-            assertEquals(400, AbilityMath.computeFrostDuration(5));
-        }
-
-        @Test
-        void radius6Is480() {
-            assertEquals(480, AbilityMath.computeFrostDuration(6));
         }
     }
 

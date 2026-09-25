@@ -11,15 +11,10 @@
   },
   "behaviors": [
     {
-      "type": "program",
+      "type": "target",
+      "where": ["mob"],
       "steps": [
-        {
-          "type": "target",
-          "where": ["mob"],
-          "steps": [
-            { "type": "clone_entity", "chance": "100 / pow(max_health, 0.6)" }
-          ]
-        }
+        { "type": "clone_entity", "chance": "100 / pow(max_health, 0.6)" }
       ]
     }
   ],
