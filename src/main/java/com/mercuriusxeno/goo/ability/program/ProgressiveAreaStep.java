@@ -74,6 +74,16 @@ public record ProgressiveAreaStep(AreaShape shape, String effect, String visuals
         });
     }
 
+    /**
+     * Counts the blocks this step's footprint covers at a stack count.
+     *
+     * @param stacks the marker's stack count
+     * @return the block count
+     */
+    public int footprintBlocks(int stacks) {
+        return AreaLayers.blockCount(shape, stacks);
+    }
+
     @Override
     public StepType<ProgressiveAreaStep> type() {
         return TYPE;

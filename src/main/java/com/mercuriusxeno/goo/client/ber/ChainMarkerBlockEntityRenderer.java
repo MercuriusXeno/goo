@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.client.ber;
 
-import com.mercuriusxeno.goo.ability.ChainProfiles.ChainProfile;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.ability.CrystalCloudVisual;
@@ -73,15 +72,13 @@ public class ChainMarkerBlockEntityRenderer
     }
 
     /**
-     * Resolves fuse duration from the chain profile and detects aim targeting.
+     * Detects aim targeting and copies the placed face and behavior state.
      *
      * @param be    the block entity
      * @param state the render state to populate
      */
-    private static void extractFuseAndTarget(ChainMarkerBlockEntity be,
+    private static void extractTargetAndFace(ChainMarkerBlockEntity be,
                                              ChainMarkerRenderState state) {
-        ChainProfile profile = ChainProfile.forType(be.getGooType());
-        state.fuseTicks = profile != null ? profile.fuseTicks() : 1;
         // Highlight when ANY source of aim is on this marker: vanilla
         // crosshair (no-glove case), the goo cone-based aim assist
         // (glove held), or the post-throw freeze window (aim locked from
@@ -125,7 +122,7 @@ public class ChainMarkerBlockEntityRenderer
                                    ModelFeatureRenderer.@Nullable CrumblingOverlay breakProgress) {
         BlockEntityRenderState.extractBase(be, state, breakProgress);
         extractCoreFields(be, state, partialTick);
-        extractFuseAndTarget(be, state);
+        extractTargetAndFace(be, state);
         MetalSpikeVisual.extract(be, state);
         CrystalCloudVisual.extract(be, state);
         NetherHoleStyles.ACTIVE.extract(be, state);
