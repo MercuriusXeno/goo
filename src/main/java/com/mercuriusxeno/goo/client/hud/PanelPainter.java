@@ -1,0 +1,286 @@
+package com.mercuriusxeno.goo.client.hud;
+
+import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
+import com.mercuriusxeno.goo.client.GooTooltipHandler;
+import com.mercuriusxeno.goo.item.GooContents;
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.Camera;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.rendertype.RenderTypes;
+import net.minecraft.core.Direction;
+import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.material.Fluid;
+import net.minecraft.world.level.material.Fluids;
+import net.minecraft.world.phys.Vec3;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.function.ToIntFunction;
+
+/**
+ * Measures, places, backs and paints every machine's in-world HUD panel from
+ * the rows the machine supplies (decision one-panel-painter-takes-rows).
+ */
+public final class PanelPainter {
+    /** Height of one panel row (icon + text line). */
+    public static final float ROW_HEIGHT = 11f;
+    /** Icon render size in scaled pixels (matches the 10x10 tooltip icons). */
+    public static final float ICON_SIZE = 10f;
+    /** Gap between a row's icon and its text. */
+    public static final float ICON_TEXT_GAP = 2f;
+    /** Amount text color (white). */
+    public static final int TEXT_COLOR = 0xFFFFFFFF;
+    /** Label header color (vanilla gold). */
+    public static final int LABEL_COLOR = 0xFFFFAA00;
+    /** Upgrade level header color (aqua). */
+    public static final int UPGRADE_COLOR = 0xFF55FFFF;
+
+    /** Upgrade level display prefix. */
+    private static final String UPGRADE_PREFIX = "Lv ";
+    /** Texture path prefix for goo type icons. */
+    private static final String ICON_PATH_PREFIX = "textures/goo/type/";
+    /** Texture path suffix for goo type icons. */
+    private static final String ICON_PATH_SUFFIX = ".png";
+    /** Water bucket item texture for a vanilla fluid row. */
+    private static final Identifier WATER_BUCKET_ICON =
+            Identifier.withDefaultNamespace("textures/item/water_bucket.png");
+    /** Lava bucket item texture for a vanilla fluid row. */
+    private static final Identifier LAVA_BUCKET_ICON =
+            Identifier.withDefaultNamespace("textures/item/lava_bucket.png");
+    /** Divisor for centering. */
+    private static final float HALF = 2f;
+    /** Border count across a panel, one on each side. */
+    private static final int BORDERS_ACROSS = 2;
+
+    private PanelPainter() {
+    }
+
+    /**
+     * Places the panel in the world and paints its rows on a nine-slice background.
+     *
+     * @param poseStack the pose stack for rendering
+     * @param camera    the render camera
+     * @param placement where and how the panel stands
+     * @param rows      the rows top to bottom
+     */
+    public static void paint(PoseStack poseStack, Camera camera, PanelPlacement placement, List<PanelRow> rows) {
+        poseStack.pushPose();
+        orient(poseStack, camera, placement);
+        Font font = Minecraft.getInstance().font;
+        PanelSize size = measure(rows, font::width);
+        if (placement.face() == Direction.DOWN) {
+            poseStack.translate(0, size.height(), 0);
+        }
+        paintBody(poseStack, font, size, rows);
+        poseStack.popPose();
+    }
+
+    /**
+     * Measures the panel: the widest row and the row stack, inside a border on each side.
+     *
+     * @param rows      the rows top to bottom
+     * @param textWidth the width in pixels the font gives a string
+     * @return the panel size in scaled pixels
+     */
+    public static PanelSize measure(List<PanelRow> rows, ToIntFunction<String> textWidth) {
+        float contentWidth = 0;
+        for (PanelRow row : rows) {
+            contentWidth = Math.max(contentWidth, row.width(textWidth));
+        }
+        return new PanelSize(
+                contentWidth + InWorldHud.BORDER * BORDERS_ACROSS,
+                InWorldHud.BORDER * BORDERS_ACROSS + rows.size() * ROW_HEIGHT);
+    }
+
+    /**
+     * Appends one amount row per goo type to the header rows.
+     *
+     * @param headers the header rows, top first
+     * @param goo     the goo contents, one row per type
+     * @return the header rows followed by the goo rows
+     */
+    public static List<PanelRow> rows(List<PanelRow> headers, GooContents goo) {
+        List<PanelRow> rows = new ArrayList<>(headers);
+        for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> entry : goo.getAll().entrySet()) {
+            rows.add(gooRow(entry.getKey(), GooTooltipHandler.formatFluidDisplayCompact(entry.getValue())));
+        }
+        return rows;
+    }
+
+    /**
+     * Builds the gold label header row.
+     *
+     * @param label the label text
+     * @return the header row
+     */
+    public static PanelRow labelRow(String label) {
+        return PanelRow.header(label, LABEL_COLOR);
+    }
+
+    /**
+     * Builds the aqua upgrade level header row.
+     *
+     * @param compression the compression level
+     * @return the header row
+     */
+    public static PanelRow upgradeRow(int compression) {
+        return PanelRow.header(UPGRADE_PREFIX + compression, UPGRADE_COLOR);
+    }
+
+    /**
+     * Builds a goo type icon row with white text.
+     *
+     * @param type the goo type
+     * @param text the text after the icon
+     * @return the row
+     */
+    public static PanelRow gooRow(ResourceKey<GooTypeDefinition> type, String text) {
+        return PanelRow.iconText(gooIcon(type), text, TEXT_COLOR);
+    }
+
+    /**
+     * Builds a vanilla fluid row: bucket icon and amount, drawn over world geometry.
+     *
+     * @param fluid  the vanilla fluid
+     * @param amount the volume in mB
+     * @return the row
+     */
+    public static PanelRow fluidRow(Fluid fluid, int amount) {
+        Identifier icon = fluid.isSame(Fluids.WATER) ? WATER_BUCKET_ICON : LAVA_BUCKET_ICON;
+        String text = GooTooltipHandler.formatFluidDisplayCompact(amount);
+        return new PanelRow(icon, List.of(new PanelRow.TextSegment(text, TEXT_COLOR)), true);
+    }
+
+    /**
+     * Returns the icon texture of a goo type.
+     *
+     * @param type the goo type
+     * @return the icon texture identifier
+     */
+    public static Identifier gooIcon(ResourceKey<GooTypeDefinition> type) {
+        return Identifier.fromNamespaceAndPath(Goo.MODID, ICON_PATH_PREFIX + GooTypes.id(type) + ICON_PATH_SUFFIX);
+    }
+
+    /**
+     * Draws one row with its icon and text vertically centered in the row.
+     *
+     * @param poseStack the pose stack for rendering
+     * @param font      the font renderer
+     * @param buffers   the buffer source
+     * @param row       the row
+     * @param x         the row's left X
+     * @param y         the row's top Y
+     */
+    public static void drawRow(PoseStack poseStack, Font font, MultiBufferSource buffers,
+                               PanelRow row, float x, float y) {
+        float textX = x;
+        if (row.icon() != null) {
+            drawIcon(poseStack, buffers, row, x, y + (ROW_HEIGHT - ICON_SIZE) / HALF);
+            textX += ICON_SIZE + ICON_TEXT_GAP;
+        }
+        float textY = y + (ROW_HEIGHT - font.lineHeight) / HALF;
+        for (PanelRow.TextSegment segment : row.segments()) {
+            drawSegment(poseStack, font, buffers, row.seeThrough(), segment, textX, textY);
+            textX += font.width(segment.text());
+        }
+    }
+
+    /**
+     * Translates to the anchor, turns toward the camera, nudges off the surface and scales to pixels.
+     *
+     * @param poseStack the pose stack for rendering
+     * @param camera    the render camera
+     * @param placement where and how the panel stands
+     */
+    private static void orient(PoseStack poseStack, Camera camera, PanelPlacement placement) {
+        Vec3 cam = camera.position();
+        Vec3 anchor = placement.anchor();
+        poseStack.translate(anchor.x - cam.x, anchor.y - cam.y, anchor.z - cam.z);
+        switch (placement.facing()) {
+            case SIDE_FACE -> InWorldHud.applyFaceRotation(poseStack, placement.face());
+            case FLAT -> InWorldHud.applyFlatRotation(poseStack, camera);
+            case BILLBOARD, RIM -> InWorldHud.applyBillboardRotation(poseStack, camera, placement.pitch());
+        }
+        poseStack.translate(0, 0, placement.facing().zNudge());
+        poseStack.scale(InWorldHud.PIXEL_SCALE, -InWorldHud.PIXEL_SCALE, InWorldHud.PIXEL_SCALE);
+    }
+
+    /**
+     * Draws the background centered on the anchor with the rows stacked above it, then flushes.
+     *
+     * @param poseStack the pose stack for rendering
+     * @param font      the font renderer
+     * @param size      the measured panel size
+     * @param rows      the rows top to bottom
+     */
+    private static void paintBody(PoseStack poseStack, Font font, PanelSize size, List<PanelRow> rows) {
+        MultiBufferSource.BufferSource buffers = Minecraft.getInstance().renderBuffers().bufferSource();
+        float halfW = size.width() / HALF;
+        InWorldHud.renderBackground(poseStack, buffers,
+                new PanelRectangle(-halfW, -size.height(), size.width(), size.height()));
+        float x = -halfW + InWorldHud.BORDER;
+        float y = -size.height() + InWorldHud.BORDER;
+        for (PanelRow row : rows) {
+            drawRow(poseStack, font, buffers, row, x, y);
+            y += ROW_HEIGHT;
+        }
+        buffers.endBatch();
+    }
+
+    /**
+     * Draws one text segment at the content depth.
+     *
+     * @param poseStack  the pose stack for rendering
+     * @param font       the font renderer
+     * @param buffers    the buffer source
+     * @param seeThrough whether the text draws over world geometry
+     * @param segment    the text segment
+     * @param x          the left X
+     * @param y          the top Y
+     */
+    private static void drawSegment(PoseStack poseStack, Font font, MultiBufferSource buffers,
+                                    boolean seeThrough, PanelRow.TextSegment segment, float x, float y) {
+        if (seeThrough) {
+            InWorldHud.drawTextSeeThrough(font, buffers, poseStack, segment.text(), x, y, segment.color());
+        } else {
+            InWorldHud.drawText(font, buffers, poseStack, segment.text(), x, y, segment.color());
+        }
+    }
+
+    /**
+     * Draws a row's icon quad at the content depth.
+     *
+     * @param poseStack the pose stack for rendering
+     * @param buffers   the buffer source
+     * @param row       the row whose icon to draw
+     * @param x         the icon's left X
+     * @param y         the icon's top Y
+     */
+    private static void drawIcon(PoseStack poseStack, MultiBufferSource buffers, PanelRow row, float x, float y) {
+        Identifier icon = row.icon();
+        VertexConsumer vc = buffers.getBuffer(
+                row.seeThrough() ? RenderTypes.textSeeThrough(icon) : RenderTypes.text(icon));
+        PoseStack.Pose pose = poseStack.last();
+        float x2 = x + ICON_SIZE;
+        float y2 = y + ICON_SIZE;
+        InWorldHud.iconVertex(vc, pose, x, y, InWorldHud.CONTENT_Z, 0f, 0f);
+        InWorldHud.iconVertex(vc, pose, x, y2, InWorldHud.CONTENT_Z, 0f, 1f);
+        InWorldHud.iconVertex(vc, pose, x2, y2, InWorldHud.CONTENT_Z, 1f, 1f);
+        InWorldHud.iconVertex(vc, pose, x2, y, InWorldHud.CONTENT_Z, 1f, 0f);
+    }
+
+    /**
+     * A measured panel size in scaled pixels.
+     *
+     * @param width  the panel width including borders
+     * @param height the panel height including borders
+     */
+    public record PanelSize(float width, float height) {
+    }
+}
