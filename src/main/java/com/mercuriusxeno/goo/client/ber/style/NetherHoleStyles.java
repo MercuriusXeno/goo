@@ -1,49 +1,50 @@
 package com.mercuriusxeno.goo.client.ber.style;
 
-import com.mercuriusxeno.goo.client.ability.NetherSphereVisual;
+import com.mercuriusxeno.goo.GooClientConfig;
+import com.mercuriusxeno.goo.GooClientConfig.NetherHoleShape;
 
 /**
- * Registry of available {@link NetherHoleStyle} implementations and the
- * one-field swap point for selecting which is currently active on the
- * client. Flip {@link #ACTIVE} to the instance you want and rerun; both
- * implementations live side by side, neither is deleted, and the BER
- * dispatch reads from here so no other code has to change.
- *
- * <p>This is a dev-side experimentation seam - there is no config, no
- * keybind, no runtime UI. If a style is worth promoting out of the
- * experiment branch, wire it behind a proper config entry then.
+ * The {@link NetherHoleStyle} implementations and the client config that
+ * picks between them and switches the lens (decision one-disc-mesh-config-lens).
  */
 public final class NetherHoleStyles {
 
-    /** Canonical sphere implementation - the shipped black-hole visual
-     * with a UV sphere occluder, ray-sphere fresnel corona, and a flat
-     * accretion disc. Delegates entirely to the existing
-     * {@link NetherSphereVisual}. */
+    /** A UV sphere occluder, a ray-sphere fresnel corona and the flat accretion disc. */
     public static final NetherHoleStyle SPHERE = new SphereHoleStyle();
 
-    /** Cube experiment - a cube occluder with a cube-edge glow shader
-     * standing in for the corona, reusing the existing flat accretion
-     * disc. See {@link CubeHoleStyle} for the geometry and shader. */
+    /** A cube occluder with a cube-edge glow in place of the corona, and the flat accretion disc. */
     public static final NetherHoleStyle CUBE = new CubeHoleStyle();
 
-    /** The style currently in use. Flip this field and rerun the client
-     * to switch implementations. Defaults to {@link #CUBE} on this
-     * experiment branch so "just run the client" shows the cube; flip
-     * to {@link #SPHERE} for an A/B comparison. */
-    public static final NetherHoleStyle ACTIVE = CUBE;
-
-    /** Kill switch for the screen-space {@code NetherLensEffect}
-     * post-process. When {@code false}, {@code applyPerFrame}
-     * short-circuits and deactivates the post effect; both styles
-     * continue to call {@code markHoleActive} (cheap static-field
-     * writes) but nothing drains the state into a uniform upload, so
-     * the lens never runs. Flip to {@code false} to kill the lens
-     * for debugging without touching the markers. The extract and
-     * apply methods in
-     * {@link com.mercuriusxeno.goo.client.ability.NetherLensEffect} are
-     * intentionally left in place so toggling this flag is a clean
-     * on/off. */
-    public static final boolean LENS_ENABLED = false;
-
     private NetherHoleStyles() {}
+
+    /**
+     * Answers the style the client config names.
+     *
+     * @return the active style
+     */
+    public static NetherHoleStyle active() {
+        return forShape(GooClientConfig.NETHER_HOLE_SHAPE.get());
+    }
+
+    /**
+     * Answers the style that draws {@code shape}.
+     *
+     * @param shape the configured hole shape
+     * @return the style for that shape
+     */
+    public static NetherHoleStyle forShape(NetherHoleShape shape) {
+        return switch (shape) {
+            case SPHERE -> SPHERE;
+            case CUBE -> CUBE;
+        };
+    }
+
+    /**
+     * Answers whether the client config turns the screen-space lens on.
+     *
+     * @return true when the lens runs
+     */
+    public static boolean lensEnabled() {
+        return GooClientConfig.SHOW_NETHER_LENS.get();
+    }
 }
