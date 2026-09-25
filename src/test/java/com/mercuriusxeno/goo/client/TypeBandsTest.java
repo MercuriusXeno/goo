@@ -16,11 +16,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests that the type bands partition [0, 1] over a vat's goo, one band per
- * type, largest first, each as wide as its type's volume ratio.
+ * type, largest first, each as wide as its type's volume ratio, and that
+ * their layers over-blend to each type's volume ratio.
  */
 class TypeBandsTest {
 
     private static final float RATIO_TOLERANCE = 1e-6f;
+    private static final float COVERAGE_TOLERANCE = 1e-5f;
 
     static Stream<Arguments> contentsAndLargestFirstOrder() {
         return Stream.of(
@@ -54,6 +56,36 @@ class TypeBandsTest {
             float ratio = (float) contents.getVolume(band.type()) / contents.totalVolume();
             assertEquals(ratio, band.hi() - band.lo(), RATIO_TOLERANCE);
         }
+    }
+
+    @ParameterizedTest
+    @MethodSource("contentsAndLargestFirstOrder")
+    void layersOverBlendToEachTypesVolumeRatio(
+            Map<ResourceKey<GooTypeDefinition>, Integer> volumes,
+            List<ResourceKey<GooTypeDefinition>> largestFirst) {
+        GooContents contents = new GooContents(volumes);
+
+        List<TypeBand> bands = TypeBands.over(contents);
+
+        assertEquals(1f, bands.getFirst().share());
+        for (int k = 0; k < bands.size(); k++) {
+            TypeBand band = bands.get(k);
+            assertEquals(k, band.layer());
+            assertEquals(k * TypeBand.LAYER_LIFT, band.lift());
+            float coverage = band.share();
+            for (TypeBand later : bands.subList(k + 1, bands.size())) {
+                coverage *= 1f - later.share();
+            }
+            float ratio = (float) contents.getVolume(band.type()) / contents.totalVolume();
+            assertEquals(ratio, coverage, COVERAGE_TOLERANCE);
+        }
+    }
+
+    @Test
+    void packingCarriesTheShareLowAndTheLayerHigh() {
+        TypeBand band = new TypeBand(GooTypes.BLAZE, 0.75f, 1f, 2);
+
+        assertEquals(TypeBand.SHARE_UNITS / 4 | 2 << 16, band.packed());
     }
 
     @Test

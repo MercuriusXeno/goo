@@ -111,10 +111,10 @@ public class CrucibleBlockEntityRenderer
     // -- Liquid level --
 
     /**
-     * Submits the liquid surface once per type band, so the types mingle by
-     * noise in place of a dominant-type crossfade (decision
-     * mingling-on-vat-and-crucible). The submitter lights the surface
-     * fullbright; the basin model uses world light.
+     * Submits the liquid surface once per type layer, each lifted above the
+     * one below, so the types mingle by noise in place of a dominant-type
+     * crossfade (decision mingling-on-vat-and-crucible). The submitter
+     * lights the surface fullbright; the basin model uses world light.
      *
      * @param submitter submits one band's surface on that band type's sprite
      * @param state the crucible render state
@@ -123,7 +123,8 @@ public class CrucibleBlockEntityRenderer
     static void renderMingledSurface(BandedSurfaceSubmitter submitter, CrucibleRenderState state,
             float surfaceY) {
         for (TypeBand band : state.typeBands) {
-            submitter.submit(band, (ctx, sprite) -> emitLiquidSurface(ctx, surfaceY, sprite, state.rippleAmplitude));
+            submitter.submit(band, (ctx, sprite) -> emitLiquidSurface(ctx, surfaceY + band.lift(), sprite,
+                state.rippleAmplitude));
         }
     }
 

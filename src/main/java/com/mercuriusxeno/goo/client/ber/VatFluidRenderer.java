@@ -37,15 +37,16 @@ final class VatFluidRenderer {
 
     /**
      * Renders this vat's portion of the unified fluid column once per type
-     * band, top, underside and side faces alike, so the column reads mingled
-     * through the glass (decision noise-mingled-type-textures).
+     * layer, top, underside and side faces alike, each layer lifted outward
+     * of the one below, so the column reads mingled through the glass
+     * (decision noise-mingled-type-textures).
      *
      * @param submitter submits one band's surface on that band type's sprite
      * @param state     the block state
      */
     static void renderMingledFluid(BandedSurfaceSubmitter submitter, VatRenderState state) {
         for (TypeBand band : state.typeBands) {
-            submitter.submit(band, (ctx, sprite) -> renderFluid(ctx, sprite, state));
+            submitter.submit(band, (ctx, sprite) -> renderFluid(ctx, sprite, state, band.lift()));
         }
     }
 
@@ -57,16 +58,29 @@ final class VatFluidRenderer {
      * @param ctx    the render context
      * @param sprite the fluid sprite of the band's goo type
      * @param state  the block state
+     * @param lift   the distance the geometry sits outward of layer 0
      */
-    static void renderFluid(RenderContext ctx, TextureAtlasSprite sprite, VatRenderState state) {
+    static void renderFluid(RenderContext ctx, TextureAtlasSprite sprite, VatRenderState state, float lift) {
         float localFloor = state.vatBelow ? 0f : VatBlockEntityRenderer.BASE_FLOOR;
         float localCeiling = state.vatAbove ? 1.0f : VatBlockEntityRenderer.CAP_CEILING;
         float localFill = computeLocalFill(state, localFloor, localCeiling);
         if (localFill <= 0f) { return; }
 
         CuboidBounds b = computeVatCuboidBounds(state, localFloor, localFill);
-        renderVatTopFaces(ctx, b, sprite, localCeiling - localFloor, localFill, state.rippleAmplitude);
-        renderVatSideFaces(ctx, b, sprite, localCeiling - localFloor);
+        renderVatTopFaces(ctx, b, sprite, localCeiling - localFloor, localFill, state.rippleAmplitude, lift);
+        renderVatSideFaces(ctx, b, sprite, localCeiling - localFloor, lift);
+    }
+
+    /**
+     * Grows the bounds outward by the lift on every side and the top.
+     *
+     * @param b    the fluid cuboid bounds
+     * @param lift the distance outward
+     * @return the grown bounds
+     */
+    private static CuboidBounds liftOutward(CuboidBounds b, float lift) {
+        return new CuboidBounds(b.x0() - lift, b.x1() + lift, b.z0() - lift, b.z1() + lift,
+            b.yBot(), b.yTop() + lift);
     }
 
     /**
@@ -96,16 +110,18 @@ final class VatFluidRenderer {
      * @param localHeight the total vat height in block units
      * @param localFill   the fill height in block units
      * @param amplitude   the ripple amplitude the interior vertices carry
+     * @param lift        the distance the top sits above, and the underside below, layer 0's
      */
     private static void renderVatTopFaces(RenderContext ctx, CuboidBounds b,
                                           TextureAtlasSprite sprite, float localHeight, float localFill,
-                                          float amplitude) {
+                                          float amplitude, float lift) {
         boolean isFullySubmerged = localFill >= localHeight - SUBMERSION_EPSILON;
         if (isFullySubmerged) { return; }
         GooRenderUtil.UvRect uv = new GooRenderUtil.UvRect(
             sprite.getU0(), sprite.getV0(), sprite.getU1(), sprite.getV1());
-        ctx.liquidSurfaceGrid(b, uv, amplitude);
-        ctx.liquidSurfaceGridDown(b, uv, amplitude);
+        CuboidBounds lifted = liftOutward(b, lift);
+        ctx.liquidSurfaceGrid(lifted, uv, amplitude);
+        ctx.liquidSurfaceGridDown(lifted.withY(b.yBot(), b.yTop() - lift), uv, amplitude);
     }
 
     /**
@@ -115,14 +131,16 @@ final class VatFluidRenderer {
      * @param b           the precomputed fluid cuboid bounds
      * @param sprite      the fluid texture atlas sprite
      * @param localHeight the total vat height in block units
+     * @param lift        the distance the faces sit outward of layer 0's
      */
     private static void renderVatSideFaces(RenderContext ctx, CuboidBounds b,
-                                           TextureAtlasSprite sprite, float localHeight) {
+                                           TextureAtlasSprite sprite, float localHeight, float lift) {
         GooRenderUtil.UvRect uv = computeSideUv(sprite, b, localHeight);
-        ctx.emitFace(b, uv, Direction.NORTH);
-        ctx.emitFace(b, uv, Direction.SOUTH);
-        ctx.emitFace(b, uv, Direction.WEST);
-        ctx.emitFace(b, uv, Direction.EAST);
+        CuboidBounds lifted = liftOutward(b, lift);
+        ctx.emitFace(lifted, uv, Direction.NORTH);
+        ctx.emitFace(lifted, uv, Direction.SOUTH);
+        ctx.emitFace(lifted, uv, Direction.WEST);
+        ctx.emitFace(lifted, uv, Direction.EAST);
     }
 
     /**
