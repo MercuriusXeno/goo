@@ -1,0 +1,7 @@
+{
+	"parent": "goo:block/goocible",
+	"textures": {
+		"0": "goo:block/goocible",
+		"particle": "goo:block/goocible"
+	}
+}

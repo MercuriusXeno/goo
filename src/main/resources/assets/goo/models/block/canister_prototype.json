@@ -1,0 +1,115 @@
+{
+	"credit": "Canister prototype for artist iteration. 4 gasket states: copper or choral on top/bottom. Edit geometry here, convey changes back to BER constants.",
+	"parent": "minecraft:block/block",
+	"render_type": "minecraft:cutout",
+	"texture_size": [16, 16],
+	"textures": {
+		"body": "goo:block/canister_side",
+		"gasket_top_copper": "goo:block/gasket",
+		"gasket_top_choral": "goo:block/choral_gasket",
+		"gasket_bottom_copper": "goo:block/gasket",
+		"gasket_bottom_choral": "goo:block/choral_gasket",
+		"particle": "goo:block/canister_side"
+	},
+	"elements": [
+		{
+			"name": "canister_body",
+			"comment": "4x10x4 glass tube. BER: CanisterBodyModels -> canister_body_m0.json",
+			"from": [6, 1, 6],
+			"to": [10, 11, 10],
+			"faces": {
+				"north": {"uv": [0, 0, 4, 10], "texture": "#body"},
+				"east":  {"uv": [4, 0, 0, 10], "texture": "#body"},
+				"south": {"uv": [0, 0, 4, 10], "texture": "#body"},
+				"west":  {"uv": [4, 0, 0, 10], "texture": "#body"}
+			}
+		},
+		{
+			"name": "gasket_upper_copper",
+			"comment": "Top endcap, copper variant. BER: GasketCapRenderer, texture COPPER_GASKET",
+			"from": [6, 11, 6],
+			"to": [10, 12, 10],
+			"faces": {
+				"north": {"uv": [4, 2, 8, 3], "texture": "#gasket_top_copper"},
+				"east":  {"uv": [4, 1, 8, 2], "texture": "#gasket_top_copper"},
+				"south": {"uv": [4, 0, 8, 1], "texture": "#gasket_top_copper"},
+				"west":  {"uv": [4, 3, 8, 4], "texture": "#gasket_top_copper"},
+				"up":    {"uv": [4, 4, 0, 0], "texture": "#gasket_top_copper"},
+				"down":  {"uv": [4, 4, 0, 8], "texture": "#gasket_top_copper"}
+			}
+		},
+		{
+			"name": "gasket_upper_choral",
+			"comment": "Top endcap, choral variant. Swap visibility with gasket_upper_copper to preview. BER: GasketCapRenderer, texture CHORAL_GASKET",
+			"from": [6, 11, 6],
+			"to": [10, 12, 10],
+			"faces": {
+				"north": {"uv": [4, 2, 8, 3], "texture": "#gasket_top_choral"},
+				"east":  {"uv": [4, 1, 8, 2], "texture": "#gasket_top_choral"},
+				"south": {"uv": [4, 0, 8, 1], "texture": "#gasket_top_choral"},
+				"west":  {"uv": [4, 3, 8, 4], "texture": "#gasket_top_choral"},
+				"up":    {"uv": [4, 4, 0, 0], "texture": "#gasket_top_choral"},
+				"down":  {"uv": [4, 4, 0, 8], "texture": "#gasket_top_choral"}
+			}
+		},
+		{
+			"name": "gasket_lower_copper",
+			"comment": "Bottom endcap, copper variant. BER: GasketCapRenderer, texture COPPER_GASKET",
+			"from": [6, 0, 6],
+			"to": [10, 1, 10],
+			"faces": {
+				"north": {"uv": [4, 2, 8, 3], "texture": "#gasket_bottom_copper"},
+				"east":  {"uv": [4, 1, 8, 2], "texture": "#gasket_bottom_copper"},
+				"south": {"uv": [4, 0, 8, 1], "texture": "#gasket_bottom_copper"},
+				"west":  {"uv": [4, 3, 8, 4], "texture": "#gasket_bottom_copper"},
+				"up":    {"uv": [4, 4, 0, 0], "texture": "#gasket_bottom_copper"},
+				"down":  {"uv": [4, 4, 0, 8], "texture": "#gasket_bottom_copper"}
+			}
+		},
+		{
+			"name": "gasket_lower_choral",
+			"comment": "Bottom endcap, choral variant. Swap visibility with gasket_lower_copper to preview. BER: GasketCapRenderer, texture CHORAL_GASKET",
+			"from": [6, 0, 6],
+			"to": [10, 1, 10],
+			"faces": {
+				"north": {"uv": [4, 2, 8, 3], "texture": "#gasket_bottom_choral"},
+				"east":  {"uv": [4, 1, 8, 2], "texture": "#gasket_bottom_choral"},
+				"south": {"uv": [4, 0, 8, 1], "texture": "#gasket_bottom_choral"},
+				"west":  {"uv": [4, 3, 8, 4], "texture": "#gasket_bottom_choral"},
+				"up":    {"uv": [4, 4, 0, 0], "texture": "#gasket_bottom_choral"},
+				"down":  {"uv": [4, 4, 0, 8], "texture": "#gasket_bottom_choral"}
+			}
+		}
+	],
+	"display": {
+		"thirdperson_righthand": {
+			"rotation": [75, 45, 0],
+			"translation": [0, 2.5, 0],
+			"scale": [1.0, 1.0, 1.0]
+		},
+		"thirdperson_lefthand": {
+			"rotation": [75, 45, 0],
+			"translation": [0, 2.5, 0],
+			"scale": [1.0, 1.0, 1.0]
+		},
+		"firstperson_righthand": {
+			"rotation": [0, 45, 0],
+			"scale": [1.0, 1.0, 1.0]
+		},
+		"firstperson_lefthand": {
+			"rotation": [0, -135, 0],
+			"scale": [1.0, 1.0, 1.0]
+		},
+		"ground": {
+			"scale": [1.0, 1.0, 1.0]
+		},
+		"gui": {
+			"rotation": [30, -135, 0],
+			"translation": [0, 2, 0],
+			"scale": [1.1, 1.1, 1.1]
+		},
+		"fixed": {
+			"scale": [1.0, 1.0, 1.0]
+		}
+	}
+}
