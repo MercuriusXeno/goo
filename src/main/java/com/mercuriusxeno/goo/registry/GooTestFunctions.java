@@ -81,6 +81,7 @@ public final class GooTestFunctions {
     private static final String PUSHER_DOUBLE_DISPOSE = "pusher_double_dispose";
     private static final String PUSHER_REACTOR_OUTPUT_PUSH = "pusher_reactor_output_push";
     private static final String PUSHER_REACTOR_OUTPUT_REMOVAL = "pusher_reactor_output_removal";
+    private static final String PUSHER_WATERLOGGED_GASKET_VAT = "pusher_waterlogged_gasket_vat";
 
     // --- IGasketHolder ---
     private static final String CRUCIBLE_ROLE_TRANSMITTER = "crucible_role_transmitter";
@@ -357,6 +358,7 @@ public final class GooTestFunctions {
         reg(r, PUSHER_DOUBLE_DISPOSE, GasketPusherTests::doubleDisposeIsSafe);
         reg(r, PUSHER_REACTOR_OUTPUT_PUSH, GasketPusherTests::reactorOutputPushesToLinkedReceiver);
         reg(r, PUSHER_REACTOR_OUTPUT_REMOVAL, GasketPusherTests::reactorOutputRemovalStopsPush);
+        reg(r, PUSHER_WATERLOGGED_GASKET_VAT, GasketPusherTests::waterloggedGasketPushesIntoVat);
         reg(r, CRUCIBLE_ROLE_TRANSMITTER, GasketHolderTests::crucibleResolveRoleAlwaysTransmitter);
         reg(r, CRUCIBLE_NO_GASKET, GasketHolderTests::crucibleNoGasketUnsupported);
         reg(r, CRUCIBLE_WITH_GASKET, GasketHolderTests::crucibleWithGasketSupported);

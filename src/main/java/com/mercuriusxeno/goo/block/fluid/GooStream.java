@@ -17,6 +17,7 @@ public final class GooStream {
     public static final long HOLD_TICKS = 10L;
 
     private @Nullable ResourceKey<GooTypeDefinition> type;
+    private boolean water;
     private int rate;
     private long tick = -1;
 
@@ -29,12 +30,40 @@ public final class GooStream {
      * @param now        the tick it landed
      */
     public void record(ResourceKey<GooTypeDefinition> landedType, int volume, long now) {
+        addLanding(volume, now);
+        type = landedType;
+        water = false;
+    }
+
+    /**
+     * Records water landing at a tick, the pour a waterlogged choral gasket
+     * feeds a vat (decision diagnose-then-fix-waterlogged-gasket-link).
+     *
+     * @param volume the volume that landed in mB
+     * @param now    the tick it landed
+     */
+    public void recordWater(int volume, long now) {
+        addLanding(volume, now);
+        type = null;
+        water = true;
+    }
+
+    private void addLanding(int volume, long now) {
         if (now != tick) {
             rate = 0;
             tick = now;
         }
-        type = landedType;
         rate += volume;
+    }
+
+    /**
+     * Returns true while the hold lasts on a stream whose last landing was water.
+     *
+     * @param currentTick the current game tick
+     * @return true when water is pouring
+     */
+    public boolean waterAt(long currentTick) {
+        return water && holds(currentTick, tick);
     }
 
     /**
