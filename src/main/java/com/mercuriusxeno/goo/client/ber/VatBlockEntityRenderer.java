@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.block.vat.VatBlockEntity;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.RenderContext;
 import com.mercuriusxeno.goo.client.SurfaceAgitation;
+import com.mercuriusxeno.goo.client.TypeBands;
 import com.mercuriusxeno.goo.client.machine.VatStack;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -14,7 +15,6 @@ import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 import net.minecraft.client.renderer.feature.ModelFeatureRenderer;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.material.Fluids;
@@ -104,8 +104,10 @@ public class VatBlockEntityRenderer
     }
 
     /**
-     * Sets the dominant fluid and fill fraction from a column's contents, water and
-     * capacity; water fills the column beside goo (decision diagnose-then-fix-waterlogged-gasket-link).
+     * Sets the type bands, the water flag and the fill fraction from a column's
+     * contents, water and capacity; water fills the column beside goo (decision
+     * diagnose-then-fix-waterlogged-gasket-link) and the goo types mingle as
+     * layers (decision noise-mingled-type-textures).
      *
      * @param state    the render state snapshot to populate
      * @param contents the column's summed contents
@@ -114,9 +116,9 @@ public class VatBlockEntityRenderer
      */
     private static void applyFill(VatRenderState state, GooContents contents, int capacity, long water) {
         long total = contents.totalVolume() + water;
-        state.dominantType = contents.isEmpty() ? null : contents.largestType();
+        state.typeBands = TypeBands.over(contents);
         state.waterDominant = water > 0
-                && (state.dominantType == null || water > contents.getVolume(state.dominantType));
+                && (contents.isEmpty() || water > contents.getVolume(contents.largestType()));
         state.fillFraction = total <= 0 || capacity <= 0 ? 0f : Math.min(1f, (float) total / capacity);
     }
 
@@ -147,7 +149,8 @@ public class VatBlockEntityRenderer
     }
 
     /**
-     * Submits the fluid quad(s) for this vat's slice of the unified column.
+     * Submits this vat's slice of the unified column: one whole water surface
+     * where water outweighs every goo type, else one layer per goo type.
      *
      * @param poseStack     the pose stack for rendering
      * @param nodeCollector the render node collector
@@ -155,12 +158,12 @@ public class VatBlockEntityRenderer
      */
     private static void submitFluid(PoseStack poseStack,
                                     SubmitNodeCollector nodeCollector, VatRenderState state) {
-        boolean water = state.waterDominant || state.dominantType == null;
-        TextureAtlasSprite sprite = water
-                ? GooSubmitter.fluidSprite(Fluids.WATER) : GooSubmitter.fluidSprite(state.dominantType);
-        int tint = water ? GooSubmitter.fluidTint(Fluids.WATER) : GooSubmitter.fluidTint(state.dominantType);
-        GooSubmitter.submitUndulatingFluid(poseStack, nodeCollector, tint,
-                ctx -> VatFluidRenderer.renderFluid(ctx, sprite, state));
+        if (state.waterDominant || state.typeBands.isEmpty()) {
+            GooSubmitter.submitUndulatingWater(poseStack, nodeCollector,
+                    (ctx, sprite) -> VatFluidRenderer.renderFluid(ctx, sprite, state, 0f));
+        } else {
+            VatFluidRenderer.renderMingledFluid(GooSubmitter.bandedSurfaces(poseStack, nodeCollector), state);
+        }
     }
 
     /**
@@ -238,9 +241,9 @@ public class VatBlockEntityRenderer
     }
 
     /**
-     * Snapshots dominant type, fill fraction, and stack geometry by walking
-     * the connected vat column. All vats in a stack share the same dominant
-     * type and fill fraction so they render one unified fluid body.
+     * Snapshots type bands, fill fraction, and stack geometry by walking
+     * the connected vat column. All vats in a stack share the same bands
+     * and fill fraction so they render one unified fluid body.
      *
      * @param be            the block entity instance
      * @param state         the block state
