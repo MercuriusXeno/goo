@@ -17,12 +17,22 @@ import java.util.List;
 public record FuelGrade(ResourceKey<GooTypeDefinition> fuel, int ticksPerMb, int meltRate) {
 
     /**
-     * Returns the configured fuel grades in burn order: the first grade the reservoir holds burns first.
+     * Returns the configured fuel grades in burn order: the first grade the reservoir holds burns first,
+     * so unstable burns before blaze (decision unstable-goo-is-super-fuel).
      *
      * @return the grades, read from GooConfig
      */
     public static List<FuelGrade> configured() {
-        return List.of(configuredBlaze());
+        return List.of(configuredUnstable(), configuredBlaze());
+    }
+
+    /**
+     * Returns unstable's configured grade.
+     *
+     * @return the unstable grade
+     */
+    public static FuelGrade configuredUnstable() {
+        return new FuelGrade(GooTypes.UNSTABLE, GooConfig.UNSTABLE_TICKS_PER_MB.get(), GooConfig.UNSTABLE_MELT_RATE.get());
     }
 
     /**
