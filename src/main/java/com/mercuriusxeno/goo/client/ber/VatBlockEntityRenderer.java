@@ -17,6 +17,7 @@ import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
@@ -82,7 +83,7 @@ public class VatBlockEntityRenderer
         state.indexFromBottom = index;
         state.vatBelow = index > 0;
         state.vatAbove = index < state.stackSize - 1;
-        applyFill(state, stack.contents(), stack.capacity());
+        applyFill(state, stack.contents(), stack.capacity(), stack.water());
         applyTopStream(state, stack.members(), gameTick);
     }
 
@@ -98,25 +99,25 @@ public class VatBlockEntityRenderer
         state.indexFromBottom = 0;
         state.vatBelow = false;
         state.vatAbove = false;
-        applyFill(state, be.getContents(), be.getCapacity());
+        applyFill(state, be.getContents(), be.getCapacity(), be.getWaterVolume());
         applyTopStream(state, List.of(be), gameTick);
     }
 
     /**
-     * Sets the dominant type and fill fraction from a column's contents and capacity.
+     * Sets the dominant fluid and fill fraction from a column's contents, water and
+     * capacity; water fills the column beside goo (decision diagnose-then-fix-waterlogged-gasket-link).
      *
      * @param state    the render state snapshot to populate
      * @param contents the column's summed contents
      * @param capacity the column's summed capacity
+     * @param water    the column's summed water
      */
-    private static void applyFill(VatRenderState state, GooContents contents, int capacity) {
-        if (contents.isEmpty() || capacity <= 0) {
-            state.dominantType = null;
-            state.fillFraction = 0f;
-        } else {
-            state.dominantType = contents.largestType();
-            state.fillFraction = Math.min(1f, (float) contents.totalVolume() / capacity);
-        }
+    private static void applyFill(VatRenderState state, GooContents contents, int capacity, long water) {
+        long total = contents.totalVolume() + water;
+        state.dominantType = contents.isEmpty() ? null : contents.largestType();
+        state.waterDominant = water > 0
+                && (state.dominantType == null || water > contents.getVolume(state.dominantType));
+        state.fillFraction = total <= 0 || capacity <= 0 ? 0f : Math.min(1f, (float) total / capacity);
     }
 
     /**
@@ -129,11 +130,17 @@ public class VatBlockEntityRenderer
     private static void applyTopStream(VatRenderState state, List<@Nullable VatBlockEntity> members,
                                        long gameTick) {
         state.streamType = null;
+        state.streamWater = false;
         state.streamRate = 0;
         for (VatBlockEntity vat : members) {
-            ResourceKey<GooTypeDefinition> type = vat == null ? null : vat.getVatStreamType(gameTick);
-            if (type != null) {
+            if (vat == null) {
+                continue;
+            }
+            ResourceKey<GooTypeDefinition> type = vat.getVatStreamType(gameTick);
+            boolean water = vat.isVatStreamWater(gameTick);
+            if (type != null || water) {
                 state.streamType = type;
+                state.streamWater = water;
                 state.streamRate = vat.getVatStreamRate(gameTick);
             }
         }
@@ -148,8 +155,11 @@ public class VatBlockEntityRenderer
      */
     private static void submitFluid(PoseStack poseStack,
                                     SubmitNodeCollector nodeCollector, VatRenderState state) {
-        TextureAtlasSprite sprite = GooSubmitter.fluidSprite(state.dominantType);
-        GooSubmitter.submitUndulatingFluid(poseStack, nodeCollector, GooSubmitter.fluidTint(state.dominantType),
+        boolean water = state.waterDominant || state.dominantType == null;
+        TextureAtlasSprite sprite = water
+                ? GooSubmitter.fluidSprite(Fluids.WATER) : GooSubmitter.fluidSprite(state.dominantType);
+        int tint = water ? GooSubmitter.fluidTint(Fluids.WATER) : GooSubmitter.fluidTint(state.dominantType);
+        GooSubmitter.submitUndulatingFluid(poseStack, nodeCollector, tint,
                 ctx -> VatFluidRenderer.renderFluid(ctx, sprite, state));
     }
 
@@ -166,32 +176,35 @@ public class VatBlockEntityRenderer
         if (sb.length == 0) {
             return;
         }
-        int light = state.lightCoords;
-        float anim = state.animationTime;
-        ResourceKey<GooTypeDefinition> type = state.streamType;
-        float rate = state.streamRate;
-        emitStreamGeometry(poseStack, nodeCollector, light, anim, type, rate, sb[0], sb[1]);
+        emitStreamGeometry(poseStack, nodeCollector, state, sb[0], sb[1]);
     }
 
     /**
-     * Submits the stream geometry draw call for the given Y range.
+     * Submits the stream geometry draw call for the given Y range, on the vanilla
+     * water overload when water pours (decision diagnose-then-fix-waterlogged-gasket-link).
      *
      * @param poseStack     the current pose transformation stack
      * @param nodeCollector the render node collector for geometry submission
-     * @param light         the packed light level for shading
-     * @param anim          the animation tick fraction
-     * @param type          the goo type for color lookup
-     * @param rate          the stream flow rate for animation speed
+     * @param state         the render state carrying light, animation, stream fluid and rate
      * @param yTop          the stream top Y coordinate
      * @param yBottom       the stream bottom Y coordinate
      */
-    private static void emitStreamGeometry(PoseStack poseStack,
-                                           SubmitNodeCollector nodeCollector, int light, float anim,
-                                           ResourceKey<GooTypeDefinition> type, float rate, float yTop, float yBottom) {
-        nodeCollector.submitCustomGeometry(poseStack, GooSubmitter.renderType(),
-                (pose, c) -> GooStreamRenderer.renderStream(new RenderContext(pose, c, light),
-                        VAT_CENTER_X, VAT_CENTER_Z, yTop, yBottom,
-                        type, rate, anim));
+    private static void emitStreamGeometry(PoseStack poseStack, SubmitNodeCollector nodeCollector,
+                                           VatRenderState state, float yTop, float yBottom) {
+        int light = state.lightCoords;
+        float anim = state.animationTime;
+        float rate = state.streamRate;
+        ResourceKey<GooTypeDefinition> type = state.streamType;
+        nodeCollector.submitCustomGeometry(poseStack, GooSubmitter.renderType(), (pose, c) -> {
+            RenderContext ctx = new RenderContext(pose, c, light);
+            if (type == null) {
+                GooStreamRenderer.renderStream(ctx, VAT_CENTER_X, VAT_CENTER_Z, yTop, yBottom,
+                        Fluids.WATER, rate, anim);
+            } else {
+                GooStreamRenderer.renderStream(ctx, VAT_CENTER_X, VAT_CENTER_Z, yTop, yBottom,
+                        type, rate, anim);
+            }
+        });
     }
 
     /**
@@ -273,10 +286,10 @@ public class VatBlockEntityRenderer
     @Override
     public void submit(VatRenderState state, PoseStack poseStack,
                        SubmitNodeCollector nodeCollector, CameraRenderState cameraState) {
-        if (state.dominantType != null && state.fillFraction > 0f) {
+        if (state.fillFraction > 0f) {
             submitFluid(poseStack, nodeCollector, state);
         }
-        if (state.streamType != null) {
+        if (state.streamType != null || state.streamWater) {
             submitStream(poseStack, nodeCollector, state);
         }
     }

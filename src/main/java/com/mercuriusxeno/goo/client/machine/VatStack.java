@@ -24,9 +24,10 @@ import java.util.Map;
  * @param members  each member's block entity bottom to top, null where it has none yet
  * @param contents every member's contents summed
  * @param capacity every member's capacity summed
+ * @param water    every member's water summed (decision diagnose-then-fix-waterlogged-gasket-link)
  */
 public record VatStack(BlockPos bottom, VatColumn column, List<@Nullable VatBlockEntity> members,
-                       GooContents contents, int capacity) {
+                       GooContents contents, int capacity, long water) {
 
     /** Every member position's column for the tick the cache was filled in. */
     private static final Map<BlockPos, VatStack> STACKS_THIS_TICK = new HashMap<>();
@@ -83,15 +84,17 @@ public record VatStack(BlockPos bottom, VatColumn column, List<@Nullable VatBloc
                 y -> level.getBlockState(pos.atY(y)).getValue(VatBlock.VAT_BELOW));
         List<@Nullable VatBlockEntity> members = new ArrayList<>();
         int capacity = 0;
+        long water = 0;
         for (int y = column.bottomY(); y <= column.topY(); y++) {
             BlockEntity be = level.getBlockEntity(pos.atY(y));
             VatBlockEntity vat = be instanceof VatBlockEntity v ? v : null;
             members.add(vat);
             capacity += vat == null ? 0 : vat.getCapacity();
+            water += vat == null ? 0 : vat.getWaterVolume();
         }
         GooContents contents = column.sum(y -> contentsOf(members.get(column.indexFromBottom(y))));
         return new VatStack(pos.atY(column.bottomY()), column, Collections.unmodifiableList(members),
-                contents, capacity);
+                contents, capacity, water);
     }
 
     /**
