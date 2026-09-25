@@ -211,7 +211,7 @@ public class CrucibleBlock extends BaseEntityBlock {
         return createTickerHelper(type, GooBlockEntities.CRUCIBLE.get(), CrucibleBlockEntity::serverTick);
     }
 
-    /** Dispatches held-item interactions: canister or blob insertion.
+    /** Dispatches held-item interactions: the flint-and-steel spark, canister or blob insertion.
      *
      * @param stack     the item stack
      * @param state     the block state
@@ -233,6 +233,8 @@ public class CrucibleBlock extends BaseEntityBlock {
         if (level.isClientSide()) {
             return clientItemResult(stack);
         }
+        InteractionResult spark = CrucibleInteraction.trySpark(stack, crucible, player, hand);
+        if (spark != null) { return spark; }
         return serverItemInteraction(stack, crucible, player);
     }
 
