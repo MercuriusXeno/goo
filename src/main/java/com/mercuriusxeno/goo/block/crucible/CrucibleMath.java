@@ -12,27 +12,22 @@ import java.util.Map;
  */
 public final class CrucibleMath {
 
-    /**
-     * Base exponent for the extraction rate power-law curve.
-     */
-    static final double BASE_EXPONENT = 0.25;
-
     private CrucibleMath() {
     }
 
     /**
-     * Computes extraction rate (mB/tick) from remaining pool volume.
-     * Formula: max(1, floor(remaining ^ BASE_EXPONENT)).
-     * Rate decelerates naturally as the pool drains (half-life feel).
+     * The mB drained from the melting item this tick: the burning fuel's flat melt rate
+     * whatever the pool holds, and nothing once the pool is empty (decision melt-rate-is-flat).
      *
-     * @param remaining the remaining volume in mB
-     * @return the extraction rate in mB/tick, at least 1
+     * @param remaining the pool's remaining volume in mB
+     * @param meltRate  the burning fuel's melt rate in mB/tick
+     * @return the extraction rate in mB/tick
      */
-    public static int extractionRate(long remaining) {
+    public static int extractionRate(long remaining, int meltRate) {
         if (remaining <= 0) {
-            return 1;
+            return 0;
         }
-        return Math.max(1, (int) Math.floor(Math.pow(remaining, BASE_EXPONENT)));
+        return Math.max(1, meltRate);
     }
 
     /**

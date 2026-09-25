@@ -14,7 +14,8 @@ import java.util.Set;
 
 /**
  * Supplies the crucible HUD panel's rows: one "reservoir / total" row per goo
- * type, then the fuel row when a rod is loaded (decision one-panel-painter-takes-rows).
+ * type, then the heat row while the crucible holds heat or fuel goo
+ * (decisions one-panel-painter-takes-rows, fuel-goo-heats-per-mb).
  */
 final class CruciblePanelRows {
 
@@ -32,14 +33,13 @@ final class CruciblePanelRows {
     }
 
     /**
-     * Returns the rows for a crucible, empty when it holds neither goo nor fuel.
+     * Returns the rows for a crucible, empty when it holds neither goo nor heat.
      *
      * @param be the crucible block entity
      * @return the rows top to bottom
      */
     static List<PanelRow> rows(CrucibleBlockEntity be) {
-        PanelRow fuelRow = be.getFuelRod().isEmpty() ? null : CrucibleFuelDisplay.fuelRow(be.getFuelRod());
-        return rows(be.getReservoir(), poolContents(be), fuelRow);
+        return rows(be.getReservoir(), poolContents(be), CrucibleFuelDisplay.heatRow(be.heatTicks(), be.fuelGooVolume()));
     }
 
     /**
@@ -47,7 +47,7 @@ final class CruciblePanelRows {
      *
      * @param reservoir the reservoir goo contents
      * @param pool      the melt pool goo contents
-     * @param fuelRow   the fuel row, or null when no rod is loaded
+     * @param fuelRow   the heat row, or null when the crucible holds neither heat nor fuel goo
      * @return the rows top to bottom
      */
     static List<PanelRow> rows(GooContents reservoir, GooContents pool, @Nullable PanelRow fuelRow) {

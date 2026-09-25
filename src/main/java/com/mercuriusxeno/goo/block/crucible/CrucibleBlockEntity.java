@@ -8,7 +8,6 @@ import com.mercuriusxeno.goo.block.gasket.AddressedGasket;
 import com.mercuriusxeno.goo.block.gasket.GasketAttachment;
 import com.mercuriusxeno.goo.block.gasket.GasketPusher;
 import com.mercuriusxeno.goo.block.gasket.IGasketHolder;
-import com.mercuriusxeno.goo.item.DepletedBlazeRodItem;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.PartiallyMeltedItem;
 import com.mercuriusxeno.goo.item.gasket.GasketRegionResolver;
@@ -23,7 +22,6 @@ import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -60,13 +58,17 @@ public class CrucibleBlockEntity extends BlockEntity implements IGasketHolder, I
     static final String TAG_RESERVOIR = "Reservoir";
     /** NBT key for the melting item stack. */
     static final String TAG_MELTING_ITEM = "MeltingItem";
-    /** NBT key for the fuel rod stack. */
-    static final String TAG_FUEL_ROD = "FuelRod";
+    /** NBT key for the heat ticks left. */
+    static final String TAG_HEAT_TICKS = "HeatTicks";
+    /** NBT key for the fuel goo type that bought the heat. */
+    static final String TAG_HEAT_FUEL = "HeatFuel";
     /** NBT key for face label. */
     private static final String TAG_CRUCIBLE = "crucible";
 
     ItemStack meltingItem = ItemStack.EMPTY;
-    ItemStack fuelRod = ItemStack.EMPTY;
+
+    /** Heat bought from fuel goo, spent one tick per melt tick (decision fuel-goo-heats-per-mb). */
+    final CrucibleHeat heat = new CrucibleHeat();
 
     /** Composed gasket integration: TRANSMITTER-only with a BE-level pusher. */
     private final GasketAttachment gasket =
@@ -75,6 +77,19 @@ public class CrucibleBlockEntity extends BlockEntity implements IGasketHolder, I
     /** Multi-type goo reservoir backed by the Transfer API. */
     final GooFluidHandler reservoir = GooFluidHandler.withCapacityPerType(
         CrucibleCapacity.TYPE_CAPACITY, gasket.syncCallback());
+
+    /** The reservoir as the stock the heat buys fuel from. */
+    final CrucibleHeat.FuelStock fuelStock = new CrucibleHeat.FuelStock() {
+        @Override
+        public int volume(ResourceKey<GooTypeDefinition> type) {
+            return reservoir.getVolume(type);
+        }
+
+        @Override
+        public int extract(ResourceKey<GooTypeDefinition> type, int amount) {
+            return reservoir.extractGoo(type, amount, false);
+        }
+    };
 
     /** Game time of the last sizzle sound play (debounce, not serialized). */
     private long lastSizzleTick;
@@ -124,39 +139,37 @@ public class CrucibleBlockEntity extends BlockEntity implements IGasketHolder, I
         }
     }
 
-    // --- Fuel ---
+    // --- Heat ---
 
-    /** Inserts a fuel rod. Returns ejected rod, or EMPTY if none.
+    /** Adds heat ticks at blaze's grade, as a grant outside the fuel goo.
      *
-     * @param incoming the incoming item stack
-     * @return the ejected rod
+     * @param ticks the heat ticks to add
      */
-    public ItemStack addFuel(ItemStack incoming) {
-        ItemStack ejected = fuelRod.isEmpty() ? ItemStack.EMPTY : fuelRod.copy();
-        fuelRod = incoming.copyWithCount(1);
+    public void addHeat(int ticks) {
+        heat.set(heat.heatTicks() + ticks, FuelGrade.configuredBlaze());
         syncToClients();
-        return ejected;
     }
 
-    /** Removes and returns the current fuel rod.
+    /** Returns the heat ticks left.
      *
-     * @return the removed fuel rod, or EMPTY
+     * @return the heat ticks
      */
-    public ItemStack removeFuelRod() {
-        if (fuelRod.isEmpty()) { return ItemStack.EMPTY; }
-        ItemStack removed = fuelRod.copy();
-        fuelRod = ItemStack.EMPTY;
-        syncToClients();
-        return removed;
+    public int heatTicks() { return heat.heatTicks(); }
+
+    /** Returns true when the crucible holds heat or fuel goo to buy it with.
+     *
+     * @return true if the crucible can melt
+     */
+    public boolean canHeat() {
+        return heat.canHeat(FuelGrade.configured(), fuelStock);
     }
 
-    /** Returns true if fuel rod has ticks remaining or is a fresh blaze rod.
+    /** Returns the mB of fuel goo in the reservoir.
      *
-     * @return true if fuel present
+     * @return the fuel goo volume
      */
-    public boolean hasFuel() {
-        return !fuelRod.isEmpty()
-                && (fuelRod.is(Items.BLAZE_ROD) || !DepletedBlazeRodItem.isEmpty(fuelRod));
+    public long fuelGooVolume() {
+        return CrucibleHeat.fuelVolume(FuelGrade.configured(), fuelStock);
     }
 
     /** Returns true if the crucible is enabled (no redstone signal).
@@ -234,12 +247,6 @@ public class CrucibleBlockEntity extends BlockEntity implements IGasketHolder, I
         return total;
     }
 
-    /** Returns the fuel rod stack (may be empty).
-     *
-     * @return the fuel rod
-     */
-    public ItemStack getFuelRod() { return fuelRod; }
-
     /** Returns the melting item stack (may be empty).
      *
      * @return the melting item
@@ -260,16 +267,6 @@ public class CrucibleBlockEntity extends BlockEntity implements IGasketHolder, I
      */
     public boolean holdsNoGoo() {
         return CrucibleBasin.holdsNoGoo(reservoir.totalVolume(), getPoolVolume());
-    }
-
-    /** Returns the fuel rod's remaining fraction (0.0 = depleted, 1.0 = fresh).
-     *
-     * @return the fuel fraction
-     */
-    public float fuelFraction() {
-        if (fuelRod.isEmpty()) { return 0f; }
-        if (fuelRod.is(Items.BLAZE_ROD)) { return 1f; }
-        return (float) DepletedBlazeRodItem.getTicksRemaining(fuelRod) / DepletedBlazeRodItem.FULL_FUEL_TICKS;
     }
 
     /** Returns true if enough time has passed since the last sizzle sound.
