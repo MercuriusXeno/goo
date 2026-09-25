@@ -38,10 +38,6 @@ public final class VatHudRenderer {
     private static final double FACE_OFFSET = 0.5;
     /** Block center offset for centering calculations. */
     private static final double BLOCK_CENTER = 0.5;
-    /** Z-nudge for panels on upward/downward faces to prevent z-fighting. */
-    private static final float Z_NUDGE_POS = 0.01f;
-    /** Z-nudge for panels on side faces. */
-    private static final float Z_NUDGE_NEG = -0.01f;
 
     private static final HudAnimator<VatTarget> ANIMATOR =
             new HudAnimator<>((a, b) -> a.pos.equals(b.pos));
@@ -141,42 +137,19 @@ public final class VatHudRenderer {
     }
 
     /**
-     * Renders the HUD panel on the tracked face of the vat block.
+     * Paints the vat panel on the tracked face of the vat block.
      *
      * @param poseStack the pose stack for rendering
      * @param camera    the render camera
-     * @param data      the extracted render data
+     * @param data      the aggregated stack data
      * @param target    the resolved vat target with anchor offsets
      */
     private static void renderPanel(PoseStack poseStack, Camera camera, VatStackData data,
                                     VatTarget target) {
-        Vec3 cam = camera.position();
-        poseStack.pushPose();
-        poseStack.translate(target.pos.getX() + target.cx - cam.x,
-                target.pos.getY() + target.lift - cam.y,
-                target.pos.getZ() + target.cz - cam.z);
-        applyRotation(poseStack, camera, target.face);
-        VatHudPanelPainter.renderContent(poseStack, data, target.face);
-        poseStack.popPose();
-    }
-
-    /**
-     * Applies face-aware rotation, z-fighting nudge, and pixel scale.
-     * Side faces lie flat against the block surface; UP/DOWN billboard toward the camera.
-     *
-     * @param poseStack the pose stack for rendering
-     * @param camera    the render camera
-     * @param face      the tracked target face
-     */
-    private static void applyRotation(PoseStack poseStack, Camera camera, Direction face) {
-        boolean vertical = face == Direction.UP || face == Direction.DOWN;
-        if (vertical) {
-            InWorldHud.applyBillboardRotation(poseStack, camera, ANIMATOR.pitch());
-        } else {
-            InWorldHud.applyFaceRotation(poseStack, face);
-        }
-        poseStack.translate(0, 0, vertical ? Z_NUDGE_POS : Z_NUDGE_NEG);
-        poseStack.scale(InWorldHud.PIXEL_SCALE, -InWorldHud.PIXEL_SCALE, InWorldHud.PIXEL_SCALE);
+        Vec3 anchor = new Vec3(target.pos.getX() + target.cx, target.pos.getY() + target.lift,
+                target.pos.getZ() + target.cz);
+        PanelPlacement placement = PanelPlacement.onFace(anchor, target.face, false, ANIMATOR.pitch());
+        PanelPainter.paint(poseStack, camera, placement, VatPanelRows.rows(data));
     }
 
     /**

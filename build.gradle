@@ -104,7 +104,7 @@ tasks.named('test', Test) {
     }
 }
 
-// The name test-ethos.md and the acceptance criteria run; the pure unit suite is the test task.
+// The name test-conventions.md and the acceptance criteria run; the pure unit suite is the test task.
 tasks.register('gooTest') {
     description = 'Runs the pure unit tests without bootstrapping a Minecraft server'
     group = 'verification'

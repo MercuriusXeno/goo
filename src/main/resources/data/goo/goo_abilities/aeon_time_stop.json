@@ -11,40 +11,35 @@
   },
   "behaviors": [
     {
-      "type": "program",
+      "type": "target",
+      "where": ["mob"],
       "steps": [
+        { "type": "counter", "id": "goo:ritual", "add": "100 / pow(max_health, 0.6)" },
         {
-          "type": "target",
-          "where": ["mob"],
-          "steps": [
-            { "type": "counter", "id": "goo:ritual", "add": "100 / pow(max_health, 0.6)" },
+          "type": "branch",
+          "when": "at_least(goo:ritual, 100)",
+          "then": [
             {
-              "type": "branch",
-              "when": "at_least(goo:ritual, 100)",
-              "then": [
-                {
-                  "type": "target",
-                  "where": ["has_baby_form", "not_baby"],
-                  "steps": [
-                    { "type": "set_baby", "enabled": true },
-                    { "type": "counter", "id": "goo:ritual", "set": 0 }
-                  ]
-                }
-              ]
-            },
-            {
-              "type": "branch",
-              "when": "at_least(goo:ritual, 100)",
-              "then": [
-                { "type": "drop_item", "item": "spawn_egg", "count": 1 },
-                { "type": "discard" }
-              ],
-              "otherwise": [
-                { "type": "set_ai", "enabled": false },
-                { "type": "set_invulnerable", "enabled": true },
-                { "type": "potion", "effect": "minecraft:glowing", "duration": 60, "amplifier": 0 }
+              "type": "target",
+              "where": ["has_baby_form", "not_baby"],
+              "steps": [
+                { "type": "set_baby", "enabled": true },
+                { "type": "counter", "id": "goo:ritual", "set": 0 }
               ]
             }
+          ]
+        },
+        {
+          "type": "branch",
+          "when": "at_least(goo:ritual, 100)",
+          "then": [
+            { "type": "drop_item", "item": "spawn_egg", "count": 1 },
+            { "type": "discard" }
+          ],
+          "otherwise": [
+            { "type": "set_ai", "enabled": false },
+            { "type": "set_invulnerable", "enabled": true },
+            { "type": "potion", "effect": "minecraft:glowing", "duration": 60, "amplifier": 0 }
           ]
         }
       ]

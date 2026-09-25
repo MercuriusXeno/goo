@@ -6,10 +6,16 @@ import com.mercuriusxeno.goo.block.crucible.CrucibleBlock;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
 import com.mercuriusxeno.goo.block.hub.HubBlock;
 import com.mercuriusxeno.goo.block.hub.HubBlockEntity;
+import com.mercuriusxeno.goo.block.reactor.ReactorBlock;
+import com.mercuriusxeno.goo.block.reactor.ReactorBlockEntity;
+import com.mercuriusxeno.goo.block.tap.TapBlock;
+import com.mercuriusxeno.goo.block.tap.TapBlockEntity;
 import com.mercuriusxeno.goo.block.vat.VatBlock;
 import com.mercuriusxeno.goo.block.vat.VatBlockEntity;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
+import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import org.jspecify.annotations.Nullable;
 
@@ -49,19 +55,81 @@ final class GasketBoundsResolver {
      * @return the gasket bounds in block-local coordinates (0-1), or null if invalid
      */
     static @Nullable AABB resolveGasketBounds(BlockEntity be, GasketRole role, int slot) {
+        AABB slotBounds = resolveSlottedBounds(be, role, slot);
+        return slotBounds != null ? slotBounds : resolveBlockGasketBounds(be, role);
+    }
+
+    /**
+     * Machines whose gaskets ride a canister slot: the canister block, the hub and the reactor output.
+     *
+     * @param be   the block entity instance
+     * @param role the gasket role
+     * @param slot the slot index
+     * @return the slot's gasket bounds, or null for another machine or an invalid slot
+     */
+    private static @Nullable AABB resolveSlottedBounds(BlockEntity be, GasketRole role, int slot) {
         if (be instanceof CanisterBlockEntity cbe) {
             return resolveCanisterBounds(cbe, role, slot);
         }
         if (be instanceof HubBlockEntity hbe) {
             return resolveHubBounds(hbe, role, slot);
         }
+        if (be instanceof ReactorBlockEntity rbe) {
+            return resolveReactorBounds(rbe, role, slot);
+        }
+        return null;
+    }
+
+    /**
+     * Machines whose gasket is a blockstate flag on the block itself: the vat, the crucible and the tap.
+     *
+     * @param be   the block entity instance
+     * @param role the gasket role
+     * @return the gasket bounds, or null for another machine or an absent gasket
+     */
+    private static @Nullable AABB resolveBlockGasketBounds(BlockEntity be, GasketRole role) {
         if (be instanceof VatBlockEntity) {
             return resolveVatBounds(be, role);
         }
         if (be instanceof CrucibleBlockEntity) {
             return resolveCrucibleBounds(be);
         }
+        if (be instanceof TapBlockEntity) {
+            return resolveTapBounds(be, role);
+        }
         return null;
+    }
+
+    /**
+     * Reactor: the output canister's hollow split at its vertical midpoint, as a
+     * canister slot is (decision diagnose-then-fix-overlay-and-scan).
+     *
+     * @param rbe  the reactor block entity
+     * @param role the gasket role
+     * @param slot the slot index
+     * @return the upper or lower half of the output slot, or null if the slot is missed or empty
+     */
+    private static @Nullable AABB resolveReactorBounds(ReactorBlockEntity rbe, GasketRole role, int slot) {
+        if (slot != ReactorBlockEntity.OUTPUT_SLOT || rbe.getCanister(slot).isEmpty()) {
+            return null;
+        }
+        Direction facing = rbe.getBlockState().getValue(ReactorBlock.FACING);
+        return splitBoundsAtMidY(ReactorBlock.outputSlotShape(facing).bounds(), role);
+    }
+
+    /**
+     * Tap: the canister slot the receiver fills, while a gasket is installed.
+     *
+     * @param be   the block entity instance
+     * @param role the gasket role
+     * @return the canister slot bounds, or null for a transmitter or an ungasketed tap
+     */
+    private static @Nullable AABB resolveTapBounds(BlockEntity be, GasketRole role) {
+        BlockState state = be.getBlockState();
+        if (role != GasketRole.RECEIVER || !state.getValue(TapBlock.HAS_GASKET)) {
+            return null;
+        }
+        return TapBlock.canisterSlotShape(state.getValue(TapBlock.FACING)).bounds();
     }
 
     /**

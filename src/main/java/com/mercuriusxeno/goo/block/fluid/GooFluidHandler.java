@@ -189,7 +189,7 @@ public class GooFluidHandler extends FluidStacksResourceHandler {
 
     /**
      * Creates a {@link GooContents} snapshot from the current tank state.
-     * Used for rendering, serialization, and backward-compatible APIs.
+     * Used by rendering, serialization and the GooContents-based APIs.
      *
      * @return immutable GooContents reflecting current volumes
      */

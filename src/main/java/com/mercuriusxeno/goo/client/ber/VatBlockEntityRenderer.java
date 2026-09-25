@@ -1,11 +1,11 @@
 package com.mercuriusxeno.goo.client.ber;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
-import com.mercuriusxeno.goo.block.vat.VatBlock;
 import com.mercuriusxeno.goo.block.vat.VatBlockEntity;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.RenderContext;
 import com.mercuriusxeno.goo.client.SurfaceAgitation;
+import com.mercuriusxeno.goo.client.machine.VatStack;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.SubmitNodeCollector;
@@ -15,13 +15,11 @@ import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 import net.minecraft.client.renderer.feature.ModelFeatureRenderer;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
+import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
 
@@ -48,10 +46,6 @@ public class VatBlockEntityRenderer
     private static final float VAT_CENTER_X = 0.5f;
     private static final float VAT_CENTER_Z = 0.5f;
     /**
-     * Sentinel index meaning no self-position found in stack.
-     */
-    private static final int NO_INDEX = -1;
-    /**
      * Epsilon threshold for full-submersion check.
      */
     private static final float SUBMERSION_EPSILON = 0.0001f;
@@ -68,177 +62,80 @@ public class VatBlockEntityRenderer
     }
 
     /**
-     * Reads vatAbove/vatBelow from the block state into the render snapshot.
+     * Reads this vat's place in its column, the column's unified fill and the
+     * top-most stream from the column VatStack walks once per tick for the HUD
+     * and this renderer alike (decision one-panel-painter-takes-rows).
      *
-     * @param be    the vat block entity
-     * @param state the render state snapshot to populate
-     */
-    private static void extractVatProperties(VatBlockEntity be, VatRenderState state) {
-        BlockState bs = be.getBlockState();
-        state.vatAbove = bs.getValue(VatBlock.VAT_ABOVE);
-        state.vatBelow = bs.getValue(VatBlock.VAT_BELOW);
-    }
-
-    // --- Render state extraction (walks the stack on the game thread) ---
-
-    /**
-     * Fast path for solo (unstacked) vats.
-     *
-     * @param be       the block entity instance
-     * @param state    the block state
+     * @param be       the vat block entity
+     * @param state    the render state snapshot to populate
      * @param gameTick the current game tick
      */
-    private static void extractSolo(VatBlockEntity be, VatRenderState state, long gameTick) {
-        state.stackSize = 1;
-        state.indexFromBottom = 0;
-        applySoloFill(be, state);
-        state.streamType = be.getVatStreamType(gameTick);
-        state.streamRate = be.getVatStreamRate(gameTick);
+    private static void extractColumn(VatBlockEntity be, VatRenderState state, long gameTick) {
+        Level level = be.getLevel();
+        VatStack stack = level == null ? null : VatStack.at(level, be.getBlockPos());
+        if (stack == null) {
+            applyLoneVat(be, state, gameTick);
+            return;
+        }
+        int index = stack.column().indexFromBottom(be.getBlockPos().getY());
+        state.stackSize = stack.column().size();
+        state.indexFromBottom = index;
+        state.vatBelow = index > 0;
+        state.vatAbove = index < state.stackSize - 1;
+        applyFill(state, stack.contents(), stack.capacity());
+        applyTopStream(state, stack.members(), gameTick);
     }
 
     /**
-     * Sets dominant type and fill fraction from a solo vat's contents.
+     * Reads a vat outside any walked column as a column of one.
      *
-     * @param be    the vat block entity
-     * @param state the render state snapshot to populate
+     * @param be       the vat block entity
+     * @param state    the render state snapshot to populate
+     * @param gameTick the current game tick
      */
-    private static void applySoloFill(VatBlockEntity be, VatRenderState state) {
-        GooContents contents = be.getContents();
-        if (contents.isEmpty()) {
+    private static void applyLoneVat(VatBlockEntity be, VatRenderState state, long gameTick) {
+        state.stackSize = 1;
+        state.indexFromBottom = 0;
+        state.vatBelow = false;
+        state.vatAbove = false;
+        applyFill(state, be.getContents(), be.getCapacity());
+        applyTopStream(state, List.of(be), gameTick);
+    }
+
+    /**
+     * Sets the dominant type and fill fraction from a column's contents and capacity.
+     *
+     * @param state    the render state snapshot to populate
+     * @param contents the column's summed contents
+     * @param capacity the column's summed capacity
+     */
+    private static void applyFill(VatRenderState state, GooContents contents, int capacity) {
+        if (contents.isEmpty() || capacity <= 0) {
             state.dominantType = null;
             state.fillFraction = 0f;
         } else {
             state.dominantType = contents.largestType();
-            state.fillFraction = Math.min(1f, (float) contents.totalVolume() / be.getCapacity());
+            state.fillFraction = Math.min(1f, (float) contents.totalVolume() / capacity);
         }
     }
 
     /**
-     * Walks the vertical stack to compute unified fill and per-vat position.
+     * Sets the stream from the highest member receiving one.
      *
-     * @param be       the block entity instance
-     * @param state    the block state
+     * @param state    the render state snapshot to populate
+     * @param members  the column's block entities bottom to top, null where one is missing
      * @param gameTick the current game tick
      */
-    private static void extractStacked(VatBlockEntity be, VatRenderState state, long gameTick) {
-        Level level = be.getLevel();
-        BlockPos pos = be.getBlockPos();
-        BlockPos bottomPos = findStackBottom(level, pos);
-        StackData data = collectStackData(level, bottomPos, pos, gameTick);
-
-        state.stackSize = data.stackSize;
-        state.indexFromBottom = data.selfIndex >= 0 ? data.selfIndex : 0;
-        applyStackFill(state, data);
-        state.streamType = data.topStreamType;
-        state.streamRate = data.topStreamRate;
-    }
-
-    /**
-     * Applies dominant type and fill fraction from aggregated stack data.
-     *
-     * @param state the render state snapshot to populate
-     * @param data  the aggregated stack data
-     */
-    private static void applyStackFill(VatRenderState state, StackData data) {
-        if (data.totalVolume <= 0 || data.totalCapacity <= 0) {
-            state.dominantType = null;
-            state.fillFraction = 0f;
-        } else {
-            state.dominantType = data.merged.largestType();
-            state.fillFraction = Math.min(1f, (float) data.totalVolume / data.totalCapacity);
-        }
-    }
-
-    /**
-     * Walks downward from the given position to find the bottom of the vat stack.
-     *
-     * @param level the current level
-     * @param pos   the starting position
-     * @return the bottom-most vat position in the stack
-     */
-    private static BlockPos findStackBottom(Level level, BlockPos pos) {
-        BlockPos cursor = pos;
-        while (level.getBlockState(cursor.below()).getBlock() instanceof VatBlock) {
-            cursor = cursor.below();
-        }
-        return cursor;
-    }
-
-    /**
-     * Walks upward from the stack bottom, accumulating volume, capacity, and stream state.
-     *
-     * @param level     the current level
-     * @param bottomPos the bottom-most vat position
-     * @param selfPos   the position of the vat being rendered
-     * @param gameTick  the current game tick
-     * @return aggregated stack data
-     */
-    private static StackData collectStackData(Level level, BlockPos bottomPos,
-                                              BlockPos selfPos, long gameTick) {
-        StackAccumulator acc = new StackAccumulator();
-        walkStackUpward(level, bottomPos, selfPos, gameTick, acc);
-        return acc.toResult();
-    }
-
-    /**
-     * Walks the vat stack upward from the bottom, accumulating each vat's contribution.
-     *
-     * @param level    the current level
-     * @param start    the bottom-most vat position in the stack
-     * @param selfPos  the position of the vat being rendered
-     * @param gameTick the current game tick
-     * @param acc      the mutable accumulator collecting stack data
-     */
-    private static void walkStackUpward(Level level, BlockPos start,
-                                        BlockPos selfPos, long gameTick, StackAccumulator acc) {
-        BlockPos cursor = start;
-        while (true) {
-            BlockEntity curBe = level.getBlockEntity(cursor);
-            if (curBe instanceof VatBlockEntity vat) {
-                accumulateVat(acc, vat, cursor, selfPos, gameTick);
+    private static void applyTopStream(VatRenderState state, List<@Nullable VatBlockEntity> members,
+                                       long gameTick) {
+        state.streamType = null;
+        state.streamRate = 0;
+        for (VatBlockEntity vat : members) {
+            ResourceKey<GooTypeDefinition> type = vat == null ? null : vat.getVatStreamType(gameTick);
+            if (type != null) {
+                state.streamType = type;
+                state.streamRate = vat.getVatStreamRate(gameTick);
             }
-            if (!(level.getBlockState(cursor.above()).getBlock() instanceof VatBlock)) {
-                break;
-            }
-            cursor = cursor.above();
-        }
-    }
-
-    /**
-     * Accumulates volume, capacity, and stream data from a single vat into the accumulator.
-     *
-     * @param acc      the stack accumulator being built
-     * @param vat      the vat block entity contributing data
-     * @param cursor   the block position of the vat being accumulated
-     * @param selfPos  the position of the rendering vat (base of stack walk)
-     * @param gameTick the current game tick for animation timing
-     */
-    private static void accumulateVat(StackAccumulator acc, VatBlockEntity vat,
-                                      BlockPos cursor, BlockPos selfPos, long gameTick) {
-        GooContents vc = vat.getContents();
-        acc.totalVolume += vc.totalVolume();
-        acc.totalCapacity += vat.getCapacity();
-        acc.merged = acc.merged.mergeWith(vc);
-        if (cursor.equals(selfPos)) {
-            acc.selfIndex = acc.stackSize;
-        }
-        accumulateStream(acc, vat, gameTick);
-        acc.stackSize++;
-    }
-
-    /**
-     * Updates the accumulator's stream state if this vat has an active stream.
-     *
-     * @param acc      the stack accumulator being built
-     * @param vat      the vat block entity
-     * @param gameTick the current game tick for animation timing
-     */
-    private static void accumulateStream(StackAccumulator acc,
-                                         VatBlockEntity vat, long gameTick) {
-        ResourceKey<GooTypeDefinition> st = vat.getVatStreamType(gameTick);
-        if (st != null) {
-            acc.topStreamType = st;
-            acc.topStreamRate = vat.getVatStreamRate(gameTick);
         }
     }
 
@@ -345,13 +242,7 @@ public class VatBlockEntityRenderer
         BlockEntityRenderState.extractBase(be, state, breakProgress);
         long gameTick = be.getLevel() != null ? be.getLevel().getGameTime() : 0L;
         state.animationTime = gameTick + partialTick;
-        extractVatProperties(be, state);
-
-        if (!state.vatAbove && !state.vatBelow) {
-            extractSolo(be, state, gameTick);
-        } else {
-            extractStacked(be, state, gameTick);
-        }
+        extractColumn(be, state, gameTick);
         extractRipple(be, state, gameTick);
     }
 
@@ -388,30 +279,5 @@ public class VatBlockEntityRenderer
         if (state.streamType != null) {
             submitStream(poseStack, nodeCollector, state);
         }
-    }
-
-    /**
-     * Mutable accumulator for stack walk data, converted to StackData when complete.
-     */
-    private static final class StackAccumulator {
-        long totalVolume;
-        int totalCapacity;
-        GooContents merged = GooContents.EMPTY;
-        int stackSize;
-        int selfIndex = NO_INDEX;
-        @Nullable ResourceKey<GooTypeDefinition> topStreamType;
-        int topStreamRate;
-
-        StackData toResult() {
-            return new StackData(totalVolume, totalCapacity, merged,
-                    stackSize, selfIndex, topStreamType, topStreamRate);
-        }
-    }
-
-    /**
-     * Aggregated data from walking a vat stack.
-     */
-    private record StackData(long totalVolume, int totalCapacity, GooContents merged,
-                             int stackSize, int selfIndex, @Nullable ResourceKey<GooTypeDefinition> topStreamType, int topStreamRate) {
     }
 }

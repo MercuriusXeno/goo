@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.block.CutawayShapeHelper;
 import com.mercuriusxeno.goo.block.GooBlockInteraction;
 import com.mercuriusxeno.goo.block.IGooLightSource;
 import com.mercuriusxeno.goo.block.ShapeHitCheck;
+import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.GooInteractionType;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
@@ -374,7 +375,8 @@ public class ReactorBlock extends BaseEntityBlock {
     }
 
     /**
-     * Empty-hand right-click: remove the canister from the output hollow.
+     * Empty-hand right-click: sneak pops the output canister's gasket the hit
+     * addresses; otherwise remove the canister from the output hollow.
      *
      * @param state     the block state
      * @param level     the level
@@ -390,6 +392,9 @@ public class ReactorBlock extends BaseEntityBlock {
         InteractionResult earlyOut = GooBlockInteraction.validateEmptyHand(level, pos, player);
         if (earlyOut != null) {
             return earlyOut;
+        }
+        if (GasketInstallation.removeAddressedGasket(level, pos, player, hitResult)) {
+            return InteractionResult.SUCCESS;
         }
         if (!hitOutputSlot(state, pos, hitResult)) {
             return InteractionResult.PASS;

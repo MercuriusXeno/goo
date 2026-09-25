@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.block.hub;
 import com.mercuriusxeno.goo.block.BlockEntitySync;
 import com.mercuriusxeno.goo.block.canister.CanisterSlot;
 import com.mercuriusxeno.goo.block.gasket.SlotGasketPusher;
+import com.mercuriusxeno.goo.block.gasket.SlotGasketRegistration;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.shapes.Shapes;
@@ -64,6 +65,7 @@ final class HubSlotLifecycle {
         s.buildHandler(() -> be.getLevel() != null ? be.getLevel().getGameTime() : 0L);
         rebuildSlotPusher(be, slot);
         BlockEntitySync.invalidateCapabilities(be);
+        registerSlotGaskets(be, slot);
         return true;
     }
 
@@ -85,9 +87,45 @@ final class HubSlotLifecycle {
         s.disposePusher();
         s.syncHandlerToStack();
         ItemStack removed = s.canister().copy();
+        deregisterSlotGaskets(be, slot);
         s.clear();
         BlockEntitySync.invalidateCapabilities(be);
         return removed;
+    }
+
+    /**
+     * Registers the gaskets of every occupied slot's canister at the hub.
+     *
+     * @param be the hub block entity
+     */
+    static void registerAllSlotGaskets(HubBlockEntity be) {
+        for (int i = 0; i < HubBlockEntity.MAX_CANISTERS; i++) {
+            if (!be.containerState().slots[i].isEmpty()) {
+                registerSlotGaskets(be, i);
+            }
+        }
+    }
+
+    /**
+     * Clears the registry location of every occupied slot's canister gaskets.
+     *
+     * @param be the hub block entity
+     */
+    static void deregisterAllSlotGaskets(HubBlockEntity be) {
+        for (int i = 0; i < HubBlockEntity.MAX_CANISTERS; i++) {
+            if (!be.containerState().slots[i].isEmpty()) {
+                deregisterSlotGaskets(be, i);
+            }
+        }
+    }
+
+    private static void registerSlotGaskets(HubBlockEntity be, int slot) {
+        SlotGasketRegistration.register(be.gasket().registryAccess(), be.getLevel(), be.getBlockPos(),
+                slot, be.getSlotMetadata(slot));
+    }
+
+    private static void deregisterSlotGaskets(HubBlockEntity be, int slot) {
+        SlotGasketRegistration.deregister(be.gasket().registryAccess(), be.getSlotMetadata(slot));
     }
 
     /**

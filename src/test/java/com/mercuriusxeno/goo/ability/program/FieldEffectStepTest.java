@@ -1,8 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import com.google.gson.JsonParser;
-import com.mercuriusxeno.goo.ability.AbilityDefinition;
-import com.mojang.serialization.JsonOps;
+import com.mercuriusxeno.goo.ability.AbilityJson;
 import net.minecraft.resources.Identifier;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
@@ -10,10 +8,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.Reader;
-import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,7 +19,6 @@ import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -104,14 +97,10 @@ class FieldEffectStepTest {
         return rejectedBy == null || !filters.contains(rejectedBy);
     }
 
-    private static List<Step> program(String resource) throws IOException {
-        try (InputStream in = FieldEffectStepTest.class.getResourceAsStream(resource)) {
-            assertNotNull(in, "Classpath holds no " + resource);
-            Reader reader = new InputStreamReader(in, StandardCharsets.UTF_8);
-            AbilityDefinition def = AbilityDefinition.CODEC.parse(JsonOps.INSTANCE, JsonParser.parseReader(reader))
-                    .getOrThrow(IllegalStateException::new);
-            return def.behaviors().get(0).steps();
-        }
+    private static List<Step> program(String resource) {
+        String fileName = resource.substring(resource.lastIndexOf('/') + 1);
+        return AbilityJson.decode(fileName.substring(0, fileName.length() - ".json".length()))
+                .behaviors();
     }
 
     private static List<Step> metalProgram() throws IOException {

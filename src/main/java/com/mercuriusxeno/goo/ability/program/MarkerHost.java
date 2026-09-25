@@ -24,7 +24,7 @@ import java.util.function.Consumer;
  * The {@link StepHost} over a chain marker block entity: reads stack
  * count, placed face and blob shape from the block entity, and acts on
  * the server level at the marker position. Built fresh each tick from
- * what the {@link com.mercuriusxeno.goo.ability.ChainBehavior} callbacks
+ * what the {@link ProgramBehavior} marker callbacks
  * hand over, so it holds no state of its own.
  *
  * @param level the server level

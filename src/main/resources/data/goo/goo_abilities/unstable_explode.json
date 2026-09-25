@@ -10,12 +10,7 @@
     "c": 1.0
   },
   "behaviors": [
-    {
-      "type": "program",
-      "steps": [
-        { "type": "explode", "power": 2.0, "interaction": "tnt" }
-      ]
-    }
+    { "type": "explode", "power": 2.0, "interaction": "tnt" }
   ],
   "tags": ["entity"]
 }
