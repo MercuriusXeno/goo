@@ -20,9 +20,12 @@ public final class RecordingVertexConsumer implements VertexConsumer {
      * @param u     the texture U
      * @param v     the texture V
      * @param uv1U  the overlay U, which the fluid surface reads as ripple amplitude
+     * @param uv2U  the lightmap U, which the fluid surface reads as the band's lower edge
+     * @param uv2V  the lightmap V, which the fluid surface reads as the band's upper edge
      * @param ny    the Y normal
      */
-    public record Vertex(float x, float y, float z, int color, float u, float v, int uv1U, float ny) {
+    public record Vertex(float x, float y, float z, int color, float u, float v, int uv1U,
+                         int uv2U, int uv2V, float ny) {
     }
 
     private final List<Vertex> vertices = new ArrayList<>();
@@ -33,6 +36,8 @@ public final class RecordingVertexConsumer implements VertexConsumer {
     private float u;
     private float v;
     private int uv1U;
+    private int uv2U;
+    private int uv2V;
     private float ny;
     private boolean hasPending;
     private int lightWrites;
@@ -54,7 +59,7 @@ public final class RecordingVertexConsumer implements VertexConsumer {
 
     private void flush() {
         if (hasPending) {
-            vertices.add(new Vertex(x, y, z, color, u, v, uv1U, ny));
+            vertices.add(new Vertex(x, y, z, color, u, v, uv1U, uv2U, uv2V, ny));
             hasPending = false;
         }
     }
@@ -69,6 +74,8 @@ public final class RecordingVertexConsumer implements VertexConsumer {
         u = 0f;
         v = 0f;
         uv1U = 0;
+        uv2U = 0;
+        uv2V = 0;
         ny = 0f;
         hasPending = true;
         return this;
@@ -101,6 +108,8 @@ public final class RecordingVertexConsumer implements VertexConsumer {
     @Override
     public VertexConsumer setUv2(int lightU, int lightV) {
         lightWrites++;
+        uv2U = lightU;
+        uv2V = lightV;
         return this;
     }
 
