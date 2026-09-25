@@ -100,7 +100,8 @@ public class CanisterBlockEntity extends BlockEntity implements ICanisterHolder,
         });
         gasket.afterLoad(() -> {
             if (level instanceof ServerLevel serverLevel) {
-                forceAllTransmitterChunks(serverLevel);
+                GasketPusher.forceSlotTransmitterChunks(this.state.slots, gasket.registryAccess(),
+                        serverLevel, worldPosition);
             }
         });
     }
@@ -324,17 +325,6 @@ public class CanisterBlockEntity extends BlockEntity implements ICanisterHolder,
             if (!state.slots[i].isEmpty()) {
                 deregisterSlotGaskets(i);
             }
-        }
-    }
-
-    private void forceAllTransmitterChunks(ServerLevel serverLevel) {
-        for (CanisterSlot slot : state.slots) {
-            if (slot.isEmpty()) {
-                continue;
-            }
-            CanisterMetadata meta = CanisterItem.getMetadata(slot.canister());
-            GasketPusher.forceTransmitterChunk(meta.topGasketId(), gasket.registryAccess(),
-                    serverLevel, worldPosition);
         }
     }
 
