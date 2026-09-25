@@ -1,14 +1,17 @@
 package com.mercuriusxeno.goo.block.gasket;
 
+import com.mercuriusxeno.goo.PlayerUtils;
 import com.mercuriusxeno.goo.data.GasketLocation;
 import com.mercuriusxeno.goo.data.GasketRegistry;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.registry.GooItems;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.phys.BlockHitResult;
 import org.jspecify.annotations.Nullable;
 import java.util.UUID;
 
@@ -51,6 +54,49 @@ public final class GasketInstallation {
             return;
         }
         Block.popResource(level, pos, new ItemStack(GooItems.CHORAL_GASKET.get()));
+        releaseFromRegistry(level, gasketId);
+    }
+
+    /**
+     * The one sneak empty-hand removal every machine routes through (decision
+     * sneak-empty-hand-pops-hit-gasket): when the player sneaks with an empty
+     * main hand and the hit addresses an installed gasket, hands the gasket
+     * item to the player, releases it from the registry and clears it from its
+     * holder. Anything else leaves the world unchanged, so the machine runs its
+     * standing empty-hand behavior.
+     *
+     * @param level  the current level
+     * @param pos    the block position
+     * @param player the interacting player
+     * @param hit    the ray trace hit result
+     * @return true if a gasket was removed
+     */
+    public static boolean removeAddressedGasket(Level level, BlockPos pos, Player player, BlockHitResult hit) {
+        if (level.isClientSide() || !player.isSecondaryUseActive() || !player.getMainHandItem().isEmpty()) {
+            return false;
+        }
+        if (!(level.getBlockEntity(pos) instanceof IGasketHolder holder)) {
+            return false;
+        }
+        AddressedGasket gasket = holder.addressedGasket(hit);
+        if (gasket == null) {
+            return false;
+        }
+        UUID gasketId = holder.getGasketId(gasket.role(), gasket.slot());
+        PlayerUtils.addOrDrop(player, new ItemStack(GooItems.CHORAL_GASKET.get()));
+        releaseFromRegistry(level, gasketId);
+        holder.uninstallGasket(gasket);
+        return true;
+    }
+
+    /**
+     * Clears the partner's reference to a leaving gasket, unlinks it and removes
+     * its registry location. No-op for a null id or a client level.
+     *
+     * @param level    the current level
+     * @param gasketId the gasket leaving, or null when none was ever assigned
+     */
+    private static void releaseFromRegistry(Level level, @Nullable UUID gasketId) {
         if (gasketId != null && level instanceof ServerLevel serverLevel) {
             GasketRegistry registry = GasketRegistry.get(serverLevel);
             clearPartnerReference(serverLevel, registry, gasketId);

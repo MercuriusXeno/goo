@@ -6,14 +6,12 @@ import com.mercuriusxeno.goo.PlayerUtils;
 import com.mercuriusxeno.goo.block.BlockEntitySync;
 import com.mercuriusxeno.goo.block.GooBlockInteraction;
 import com.mercuriusxeno.goo.block.gasket.GasketAttachment;
-import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
 import com.mercuriusxeno.goo.block.gasket.GasketPusher;
 import com.mercuriusxeno.goo.block.gasket.IGasketHolder;
 import com.mercuriusxeno.goo.block.gasket.SlotGasketPusher;
 import com.mercuriusxeno.goo.block.gasket.SlotGasketRegistration;
 import com.mercuriusxeno.goo.item.*;
 import com.mercuriusxeno.goo.item.gasket.GasketPartner;
-import com.mercuriusxeno.goo.item.gasket.GasketRegionResolver;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mercuriusxeno.goo.registry.GooItems;
@@ -456,32 +454,6 @@ public class CanisterBlockEntity extends BlockEntity implements ICanisterHolder,
             case BLOB_INSERT -> handleBlobInsert(hitResult, stack, player);
             default -> throw new IllegalStateException(ERR_UNHANDLED + interaction);
         };
-    }
-
-    /**
-     * Removes the gasket on the targeted face of a canister slot, if installed.
-     *
-     * @param slotIndex the targeted slot index
-     * @param hitResult the ray trace hit result
-     * @return SUCCESS if a gasket was removed, PASS otherwise
-     */
-    public InteractionResult handleSlotGasketRemove(int slotIndex, BlockHitResult hitResult) {
-        GasketRole role = resolveSlotGasketRole(hitResult);
-        CanisterMetadata meta = getSlotMetadata(slotIndex);
-        UUID gasketId = role == GasketRole.RECEIVER ? meta.topGasketId() : meta.bottomGasketId();
-        if (gasketId == null) {
-            return InteractionResult.PASS;
-        }
-        GasketInstallation.popGasket(level, worldPosition, gasketId);
-        CanisterMetadata cleared = role == GasketRole.RECEIVER
-                ? meta.withoutTopGasket() : meta.withoutBottomGasket();
-        setSlotMetadata(slotIndex, cleared);
-        return InteractionResult.SUCCESS;
-    }
-
-    private GasketRole resolveSlotGasketRole(BlockHitResult hitResult) {
-        double localY = hitResult.getLocation().y - worldPosition.getY();
-        return GasketRegionResolver.resolveCanisterSlotRole(localY, 0.0, 1.0);
     }
 
     private InteractionResult handleCanisterInsert(BlockHitResult hitResult, ItemStack stack, Player player) {

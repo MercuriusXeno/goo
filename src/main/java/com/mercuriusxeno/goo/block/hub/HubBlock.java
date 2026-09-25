@@ -410,7 +410,7 @@ public class HubBlock extends BaseEntityBlock {
     }
 
     /**
-     * Empty-hand interaction: sneak removes gasket, otherwise removes targeted canister.
+     * Empty-hand interaction: sneak pops the gasket the hit addresses, otherwise removes targeted canister.
      *
      * @param state     the block state
      * @param level     the current level
@@ -431,8 +431,8 @@ public class HubBlock extends BaseEntityBlock {
             return InteractionResult.PASS;
         }
 
-        if (player.isSecondaryUseActive() && state.getValue(HAS_GASKET)) {
-            return HubBlockHandlers.removeGasket(level, pos, hub);
+        if (GasketInstallation.removeAddressedGasket(level, pos, player, hitResult)) {
+            return InteractionResult.SUCCESS;
         }
         return HubBlockHandlers.removeCanister(hub, hitResult, pos, player, level);
     }

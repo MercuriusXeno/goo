@@ -100,6 +100,14 @@ public final class GooTestFunctions {
     private static final String BREAK_POPS_GASKET_TAP = "break_pops_gasket_tap";
     private static final String BREAK_POPS_GASKET_HUB = "break_pops_gasket_hub";
 
+    // --- Sneak empty-hand gasket removal ---
+    private static final String SNEAK_POPS_CANISTER_SLOT_GASKET = "sneak_pops_canister_slot_gasket";
+    private static final String SNEAK_POPS_HUB_GASKET = "sneak_pops_hub_gasket";
+    private static final String SNEAK_POPS_TAP_GASKET = "sneak_pops_tap_gasket";
+    private static final String SNEAK_POPS_VAT_GASKET = "sneak_pops_vat_gasket";
+    private static final String SNEAK_POPS_REACTOR_GASKET = "sneak_pops_reactor_gasket";
+    private static final String SNEAK_POPS_CRUCIBLE_GASKET = "sneak_pops_crucible_gasket";
+
     // --- Effect executors ---
     private static final String FX_BLAZE = "fx_blaze_mines";
     private static final String FX_ROCK = "fx_rock_mines";
@@ -265,6 +273,7 @@ public final class GooTestFunctions {
             registerCrucibleTests(registrar);
             registerPlacementTests(registrar);
             registerCanisterInteractionTests(registrar);
+            registerGasketRemovalTests(registrar);
             registerMachineInteractionTests(registrar);
             registerMachineTests(registrar);
             registerMobEffectTests(registrar);
@@ -441,6 +450,15 @@ public final class GooTestFunctions {
         reg(r, PL_ABILITY_WATERLOG, PlacementTests::abilityWaterlogsInWater);
         reg(r, PL_ABILITY_LAVA, PlacementTests::abilityRefusesLava);
         reg(r, PL_ABILITY_SAME_STACK, PlacementTests::abilityStacksOnlyOntoSameAbility);
+    }
+
+    private static void registerGasketRemovalTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
+        reg(r, SNEAK_POPS_CANISTER_SLOT_GASKET, GasketRemovalTests::canisterSlotGasketPopsCanisterStays);
+        reg(r, SNEAK_POPS_HUB_GASKET, GasketRemovalTests::hubPopsHitGasketThenHandsBackCanister);
+        reg(r, SNEAK_POPS_TAP_GASKET, GasketRemovalTests::tapPopsGasketThenHandsBackCanister);
+        reg(r, SNEAK_POPS_VAT_GASKET, GasketRemovalTests::vatPopsHitFaceThenLeavesStateUnchanged);
+        reg(r, SNEAK_POPS_REACTOR_GASKET, GasketRemovalTests::reactorPopsHitFaceThenLeavesStateUnchanged);
+        reg(r, SNEAK_POPS_CRUCIBLE_GASKET, GasketRemovalTests::cruciblePopsGasketThenRemovesFuelRod);
     }
 
     private static void registerCanisterInteractionTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
