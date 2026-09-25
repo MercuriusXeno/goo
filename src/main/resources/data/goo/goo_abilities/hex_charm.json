@@ -11,16 +11,11 @@
   },
   "behaviors": [
     {
-      "type": "program",
+      "type": "target",
+      "where": ["mob"],
       "steps": [
-        {
-          "type": "target",
-          "where": ["mob"],
-          "steps": [
-            { "type": "potion", "effect": "minecraft:weakness", "duration": "20 * 60 / pow(health, 0.4)", "amplifier": 4 },
-            { "type": "potion", "effect": "minecraft:glowing", "duration": "20 * 60 / pow(health, 0.4)", "amplifier": 0 }
-          ]
-        }
+        { "type": "potion", "effect": "minecraft:weakness", "duration": "20 * 60 / pow(health, 0.4)", "amplifier": 4 },
+        { "type": "potion", "effect": "minecraft:glowing", "duration": "20 * 60 / pow(health, 0.4)", "amplifier": 0 }
       ]
     }
   ],

@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.block.gasket;
 
 import com.mercuriusxeno.goo.block.BlockEntitySync;
 import com.mercuriusxeno.goo.data.GasketRegistry;
-import com.mercuriusxeno.goo.data.IGasketRegistryAccess;
 import com.mercuriusxeno.goo.item.gasket.GasketPartner;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import net.minecraft.core.HolderLookup;
@@ -16,6 +15,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import org.jspecify.annotations.Nullable;
+import java.util.function.Supplier;
 
 /**
  * Stateful gasket integration packaged as a component a block entity owns at construction.
@@ -33,7 +33,7 @@ public final class GasketAttachment {
 
     private final BlockEntity owner;
     private final GasketState state;
-    @Nullable private IGasketRegistryAccess registryAccess;
+    @Nullable private Supplier<GasketRegistry> registryAccess;
     private Runnable rebuildPushers = () -> { };
     private Runnable afterLoad = () -> { };
 
@@ -106,7 +106,7 @@ public final class GasketAttachment {
     /**
      * @return the captured registry access, or null on the client
      */
-    public @Nullable IGasketRegistryAccess registryAccess() {
+    public @Nullable Supplier<GasketRegistry> registryAccess() {
         return registryAccess;
     }
 

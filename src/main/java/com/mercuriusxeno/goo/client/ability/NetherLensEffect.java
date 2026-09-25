@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.client.ber.style.NetherHoleStyles;
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.Std140Builder;
 import com.mojang.blaze3d.systems.CommandEncoder;
@@ -272,16 +271,6 @@ public final class NetherLensEffect {
     public static void applyPerFrame(Minecraft mc) {
         markFrameStamp++;
         GameRenderer gameRenderer = mc.gameRenderer;
-        // Dev kill switch: when the lens is globally disabled via the
-        // NetherHoleStyles flag, clear any currently-active post
-        // effect and drop the tracked hole. Markers keep calling
-        // markHoleActive (it's a cheap static write) but nothing
-        // drains the state, so the lens never runs.
-        if (!NetherHoleStyles.LENS_ENABLED) {
-            deactivateIfActive(gameRenderer);
-            activeHoleCenter = null;
-            return;
-        }
         boolean fresh = (markFrameStamp - lastMarkFrame) <= 1 && activeHoleCenter != null;
         if (!fresh) {
             deactivateIfActive(gameRenderer);
@@ -289,6 +278,18 @@ public final class NetherLensEffect {
             return;
         }
         applyActiveHole(mc, gameRenderer);
+    }
+
+    /**
+     * Drops the lens while the client config turns it off: clears the post
+     * effect if the lens holds the slot and forgets the tracked hole, with
+     * no projection.
+     *
+     * @param gameRenderer the active game renderer
+     */
+    public static void release(GameRenderer gameRenderer) {
+        deactivateIfActive(gameRenderer);
+        activeHoleCenter = null;
     }
 
     /**

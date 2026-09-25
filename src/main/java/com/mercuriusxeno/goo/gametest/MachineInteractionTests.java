@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.gametest;
 
+import com.mercuriusxeno.goo.GooConfig;
 import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
 import com.mercuriusxeno.goo.block.hub.HubBlock;
@@ -14,7 +15,10 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
@@ -53,7 +57,25 @@ public final class MachineInteractionTests {
     private static final int HUB_PICKUP_DELAY_TICKS = 12;
     private static final double PIXELS_PER_BLOCK = 16.0;
     private static final String PLEXER_SHOULD_SET = "Plexer should have target item after interaction";
-    private static final String CRUCIBLE_SHOULD_FUEL = "Crucible should have fuel after blaze rod insert";
+    private static final String BLAZE_ROD_STAYS_WHOLE = "A blaze rod click should leave the held stack whole";
+    private static final String BLAZE_ROD_LEAVES_COLD = "A blaze rod click should leave the crucible cold";
+    private static final String COLD_CRUCIBLE_REFUSES = "A cold crucible with no fuel goo should leave the item entity standing";
+    private static final String BLAZE_CRUCIBLE_ABSORBS = "A crucible holding blaze goo should absorb the item entity";
+    private static final int CRUCIBLE_BLAZE_FUEL = 100;
+    private static final String SPARK_SUCCEEDS = "A flint-and-steel click on a cold crucible should answer SUCCESS";
+    private static final String SPARK_HEATS = "A spark should leave the crucible holding the spark's heat";
+    private static final String SPARK_COSTS_ONE = "A spark should cost the flint and steel one durability";
+    private static final String HOT_SPARK_PASSES = "A flint-and-steel click on a heated crucible should answer PASS";
+    private static final String HOT_SPARK_FREE = "A pass should leave the flint and steel undamaged";
+    private static final String COAL_MELTED = "The sparked crucible should melt the coal to the end";
+    private static final String COAL_LEFT_BLAZE = "The coal's blaze should stand in the reservoir";
+    private static final String COAL_LEFT_ROCK = "The coal's rock should stand in the reservoir";
+    private static final String COAL_ENDS_HOT = "The crucible should end able to heat";
+    private static final int ABSORB_DELAY = 5;
+    /** X/Z center of the crucible basin in test-relative coords. */
+    private static final double BASIN_CENTER_XZ = 1.5;
+    /** Y just above the crucible body surface (13/16 + block y=1). */
+    private static final double BASIN_SURFACE_Y = 1.85;
     private static final double BLOCK_CENTER = 0.5;
     private static final double UPPER_HIT_Y = 0.9;
 
@@ -301,11 +323,12 @@ public final class MachineInteractionTests {
     }
 
     /**
-     * Crucible: right-click with blaze rod inserts fuel.
+     * Crucible: a blaze rod click inserts no fuel, leaving the stack whole and the
+     * crucible cold (decision fuel-goo-heats-per-mb).
      *
      * @param helper the gametest helper
      */
-    public static void crucibleFuelInsert(GameTestHelper helper) {
+    public static void crucibleBlazeRodClickLeavesItCold(GameTestHelper helper) {
         helper.setBlock(BE_POS, GooBlocks.CRUCIBLE.get());
         CrucibleBlockEntity crucible = helper.getBlockEntity(BE_POS, CrucibleBlockEntity.class);
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
@@ -313,7 +336,122 @@ public final class MachineInteractionTests {
 
         helper.useBlock(BE_POS, player, hit(helper, Direction.UP));
 
-        helper.assertTrue(crucible.hasFuel(), CRUCIBLE_SHOULD_FUEL);
+        helper.assertValueEqual(player.getItemInHand(InteractionHand.MAIN_HAND).getCount(), 1, BLAZE_ROD_STAYS_WHOLE);
+        helper.assertFalse(crucible.canHeat(), BLAZE_ROD_LEAVES_COLD);
         helper.succeed();
+    }
+
+    /**
+     * Crucible: a cold crucible with no fuel goo leaves an item dropped into it standing.
+     *
+     * @param helper the gametest helper
+     */
+    public static void coldCrucibleAbsorbsNothing(GameTestHelper helper) {
+        helper.setBlock(BE_POS, GooBlocks.CRUCIBLE.get());
+        ItemEntity dropped = spawnInBasin(helper);
+
+        helper.runAfterDelay(ABSORB_DELAY, () -> {
+            helper.assertFalse(dropped.isRemoved(), COLD_CRUCIBLE_REFUSES);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Crucible: the same crucible holding blaze goo in its reservoir absorbs the item.
+     *
+     * @param helper the gametest helper
+     */
+    public static void blazeCrucibleAbsorbsItem(GameTestHelper helper) {
+        helper.setBlock(BE_POS, GooBlocks.CRUCIBLE.get());
+        helper.getBlockEntity(BE_POS, CrucibleBlockEntity.class).insertGoo(GooTypes.BLAZE, CRUCIBLE_BLAZE_FUEL);
+        ItemEntity dropped = spawnInBasin(helper);
+
+        helper.runAfterDelay(ABSORB_DELAY, () -> {
+            helper.assertTrue(dropped.isRemoved(), BLAZE_CRUCIBLE_ABSORBS);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Crucible: a flint-and-steel click sparks a cold crucible for the spark's heat at one
+     * durability; the same click on the heated crucible passes and costs nothing
+     * (decision flint-and-steel-sparks-the-crucible).
+     *
+     * @param helper the gametest helper
+     */
+    public static void flintAndSteelSparksColdCrucible(GameTestHelper helper) {
+        helper.setBlock(BE_POS, GooBlocks.CRUCIBLE.get());
+        CrucibleBlockEntity crucible = helper.getBlockEntity(BE_POS, CrucibleBlockEntity.class);
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        ItemStack flint = new ItemStack(Items.FLINT_AND_STEEL);
+        player.setItemInHand(InteractionHand.MAIN_HAND, flint);
+
+        helper.assertValueEqual(sparkClick(helper, player), InteractionResult.SUCCESS, SPARK_SUCCEEDS);
+        helper.assertValueEqual(crucible.heatTicks(), GooConfig.SPARK_HEAT_TICKS.get(), SPARK_HEATS);
+        helper.assertValueEqual(flint.getDamageValue(), 1, SPARK_COSTS_ONE);
+
+        helper.assertValueEqual(sparkClick(helper, player), InteractionResult.PASS, HOT_SPARK_PASSES);
+        helper.assertValueEqual(flint.getDamageValue(), 1, HOT_SPARK_FREE);
+        helper.succeed();
+    }
+
+    /**
+     * Crucible: a sparked empty crucible absorbs a coal and melts it to the end on the
+     * blaze goo the coal yields.
+     *
+     * @param helper the gametest helper
+     */
+    public static void sparkedCrucibleMeltsCoalOnItsBlaze(GameTestHelper helper) {
+        helper.setBlock(BE_POS, GooBlocks.CRUCIBLE.get());
+        CrucibleBlockEntity crucible = helper.getBlockEntity(BE_POS, CrucibleBlockEntity.class);
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.FLINT_AND_STEEL));
+        sparkClick(helper, player);
+        ItemEntity coal = spawnInBasin(helper, Items.COAL);
+
+        helper.succeedWhen(() -> {
+            helper.assertTrue(coal.isRemoved(), COAL_MELTED);
+            helper.assertTrue(crucible.getMeltingItem().isEmpty(), COAL_MELTED);
+            helper.assertTrue(crucible.getReservoir().getVolume(GooTypes.BLAZE) > 0, COAL_LEFT_BLAZE);
+            helper.assertTrue(crucible.getReservoir().getVolume(GooTypes.ROCK) > 0, COAL_LEFT_ROCK);
+            helper.assertTrue(crucible.canHeat(), COAL_ENDS_HOT);
+        });
+    }
+
+    /**
+     * Right-clicks the crucible's top with the player's main-hand stack.
+     *
+     * @param helper the gametest helper
+     * @param player the clicking player
+     * @return the crucible's answer
+     */
+    private static InteractionResult sparkClick(GameTestHelper helper, Player player) {
+        return helper.getBlockState(BE_POS).useItemOn(player.getItemInHand(InteractionHand.MAIN_HAND),
+                helper.getLevel(), player, InteractionHand.MAIN_HAND, hit(helper, Direction.UP));
+    }
+
+    /**
+     * Spawns a still cobblestone item entity inside the crucible basin.
+     *
+     * @param helper the gametest helper
+     * @return the spawned entity
+     */
+    private static ItemEntity spawnInBasin(GameTestHelper helper) {
+        return spawnInBasin(helper, Items.COBBLESTONE);
+    }
+
+    /**
+     * Spawns a still item entity of one item inside the crucible basin.
+     *
+     * @param helper the gametest helper
+     * @param item   the item the entity carries
+     * @return the spawned entity
+     */
+    private static ItemEntity spawnInBasin(GameTestHelper helper, Item item) {
+        Vec3 at = helper.absoluteVec(new Vec3(BASIN_CENTER_XZ, BASIN_SURFACE_Y, BASIN_CENTER_XZ));
+        ItemEntity entity = new ItemEntity(helper.getLevel(), at.x, at.y, at.z, new ItemStack(item));
+        entity.setDeltaMovement(Vec3.ZERO);
+        helper.getLevel().addFreshEntity(entity);
+        return entity;
     }
 }

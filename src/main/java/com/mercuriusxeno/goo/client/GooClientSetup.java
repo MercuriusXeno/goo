@@ -5,7 +5,6 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ISidedProxy;
 import com.mercuriusxeno.goo.client.ber.*;
-import com.mercuriusxeno.goo.client.machine.FuelRemainingProperty;
 import com.mercuriusxeno.goo.client.machine.TunerAwaitState;
 import com.mercuriusxeno.goo.client.model.*;
 import com.mercuriusxeno.goo.client.overlay.GooTargetHighlighter;
@@ -38,10 +37,6 @@ public final class GooClientSetup {
      * Property name for blob size range select.
      */
     private static final String PROP_BLOB_SIZE = "blob_size";
-    /**
-     * Property name for fuel remaining range select.
-     */
-    private static final String PROP_FUEL_REMAINING = "fuel_remaining";
     /**
      * Special renderer key for canister goo.
      */
@@ -165,10 +160,6 @@ public final class GooClientSetup {
         event.register(
                 Identifier.fromNamespaceAndPath(Goo.MODID, PROP_BLOB_SIZE),
                 BlobSizeProperty.MAP_CODEC
-        );
-        event.register(
-                Identifier.fromNamespaceAndPath(Goo.MODID, PROP_FUEL_REMAINING),
-                FuelRemainingProperty.MAP_CODEC
         );
     }
 

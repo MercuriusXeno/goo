@@ -9,11 +9,6 @@
     "c": 1.0
   },
   "behaviors": [
-    {
-      "type": "program",
-      "steps": [
-        { "type": "wait", "ticks": 1 }
-      ]
-    }
+    { "type": "wait", "ticks": 1 }
   ]
 }

@@ -1,19 +1,16 @@
 package com.mercuriusxeno.goo.client.ber.style;
 
-import com.mercuriusxeno.goo.ability.program.PhasedState;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.ability.BlackHolePhases;
+import com.mercuriusxeno.goo.client.ability.NetherDiscMesh;
 import com.mercuriusxeno.goo.client.ability.NetherLensEffect;
 import com.mercuriusxeno.goo.client.ability.NetherSphereVisual;
 import com.mercuriusxeno.goo.client.ber.ChainMarkerRenderState;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.renderer.SubmitNodeCollector;
-import net.minecraft.core.BlockPos;
 import net.minecraft.util.ARGB;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.Vec3;
 
 /**
  * Cube-shaped nether black-hole experiment. Mirrors the three-pass
@@ -30,9 +27,7 @@ import net.minecraft.world.phys.Vec3;
  *       per-vertex intra-face UVs packed into {@code Color.rg} so the
  *       fragment shader can compute distance to the nearest face edge.</li>
  *   <li>Flat accretion disc via {@link GooRenderTypes#NETHER_DISK_TYPE}
- *       - same annulus geometry as the sphere style, duplicated here
- *       (mesh data + emit) so {@code NetherBlackHoleRender} itself does
- *       not need to expose any helpers on this experiment branch.</li>
+ *       - the one {@link NetherDiscMesh} the sphere style also submits.</li>
  * </ol>
  *
  * <p>Cube "radius" is interpreted as a half-extent: an occluder of
@@ -46,12 +41,6 @@ public final class CubeHoleStyle implements NetherHoleStyle {
 
     /** Offset to get block center from integer position. */
     private static final float BLOCK_CENTER = 0.5f;
-    /** Minimum visible half-extent for the cube so it never collapses
-     * to a single pixel. */
-    private static final float CUBE_MIN_HALF_EXTENT = 0.25f;
-    /** World-space margin added to the effective implosion radius so
-     * the cube fully covers the blast zone. */
-    private static final float OCCLUSION_MARGIN = 0.75f;
 
     /** Scale of the edge-glow cube relative to the occluder. 1.04
      * pushes the glow cube just past the occluder surface so its
@@ -63,39 +52,11 @@ public final class CubeHoleStyle implements NetherHoleStyle {
      * 1.414 at an edge, 1.732 at a corner) so the disc clears the
      * cube face silhouette but hugs it at the corners. */
     private static final float DISK_INNER_CUBE_MULT = 1.12f;
-    /** Disc outer edge at full expansion as a multiple of the full
-     * pre-scaled blast radius. Same value as the sphere style so the
-     * overall silhouette of the effect is consistent when flipping. */
-    private static final float DISK_OUTER_FULL_MULT = 2.8f;
-    /** Minimum outer edge overshoot past the inner edge, as a multiple
-     * of the current cube half-extent. Prevents the ring from
-     * collapsing to zero width at the very start of the effect. */
-    private static final float DISK_MIN_RING_WIDTH = 0.25f;
-
-    /** Angular segments around the accretion disc. Matches the sphere
-     * style's tessellation for visual parity. */
-    private static final int DISK_ANGULAR_SEGMENTS = 64;
-    /** Floats per entry in {@link #DISK_ANGULAR_SAMPLES}: cos, sin,
-     * angularT. */
-    private static final int DISK_SAMPLE_STRIDE = 3;
-    private static final int DISK_SAMPLE_COS_OFFSET = 0;
-    private static final int DISK_SAMPLE_SIN_OFFSET = 1;
-    private static final int DISK_SAMPLE_ANG_OFFSET = 2;
-    /** Full circle in radians. */
-    private static final double TWO_PI = 2.0 * Math.PI;
-
-    /** Radial T packed into Color.r for disc inner-edge vertices. */
-    private static final float RADIAL_T_INNER = 0f;
-    /** Radial T packed into Color.r for disc outer-edge vertices. */
-    private static final float RADIAL_T_OUTER = 1f;
 
     /** 0xFF opaque alpha for vertex color packing. */
     private static final int OPAQUE_ALPHA = 0xFF;
     /** Maximum byte value for a 0..1 to byte mapping. */
     private static final int PROGRESS_BYTE_MAX = 255;
-
-    /** Animation cycle length in ticks. Matches sphere style. */
-    private static final int ANIMATION_CYCLE_TICKS = 64;
 
     /** Number of faces on a cube. */
     private static final int CUBE_FACES = 6;
@@ -117,7 +78,6 @@ public final class CubeHoleStyle implements NetherHoleStyle {
      * tables contain no raw {@code -1f} literals (0f and 1f are fine;
      * -1f is flagged). */
     private static final float UNIT = 1f;
-
 
     /** Unit cube vertex positions for all six faces in QUADS order,
      * CCW winding when viewed from outside the cube. Each face spans
@@ -142,67 +102,25 @@ public final class CubeHoleStyle implements NetherHoleStyle {
     /** Total vertex count for one full cube emit. */
     private static final int CUBE_VERTEX_COUNT = CUBE_FACES * CUBE_VERTICES_PER_FACE;
 
-
-    private static final float[] DISK_ANGULAR_SAMPLES = buildDiskAngularSamples();
-
     CubeHoleStyle() {}
 
     @Override
     public void extract(ChainMarkerBlockEntity be, ChainMarkerRenderState state) {
-        if (BlackHolePhases.isRunning(be)) {
-            PhasedState phase = be.getPhased();
-            state.netherActive = true;
-            state.visibleScale = BlackHolePhases.visibleScale(phase);
-            state.diskExpansionScale = BlackHolePhases.diskExpansionScale(phase);
-            state.implodeRadius = phase.radius();
-            state.animationTime = computeAnimationTime(be);
-            markLensActive(be, state);
-            return;
+        if (BlackHolePhases.populateRenderState(be, state)) {
+            NetherLensEffect.markHoleActive(BlackHolePhases.holeCenter(be),
+                    BlackHolePhases.visibleRadius(state), NetherLensEffect.LensShape.HEX);
         }
-        state.netherActive = false;
-    }
-
-    /** Reports this hole to the screen-space lens post-effect with
-     * {@link NetherLensEffect.LensShape#HEX}, passing the cube's
-     * current half-extent as the world radius. The lens projects
-     * the eight cube corners each frame and builds the screen-space
-     * convex hull, so the event horizon and photon ring trace the
-     * actual cube silhouette (rectangle face-on, hexagon from a
-     * corner) instead of a circular approximation.
-     *
-     * @param be    the chain marker block entity
-     * @param state the populated render state for this frame
-     */
-    private static void markLensActive(ChainMarkerBlockEntity be, ChainMarkerRenderState state) {
-        if (state.visibleScale <= 0f) { return; }
-        BlockPos pos = be.getBlockPos();
-        Vec3 center = new Vec3(
-                pos.getX() + BLOCK_CENTER,
-                pos.getY() + BLOCK_CENTER,
-                pos.getZ() + BLOCK_CENTER);
-        float fullRadius = state.implodeRadius + OCCLUSION_MARGIN;
-        float visibleHalfExtent = Math.max(CUBE_MIN_HALF_EXTENT, fullRadius * state.visibleScale);
-        NetherLensEffect.markHoleActive(center, visibleHalfExtent, NetherLensEffect.LensShape.HEX);
     }
 
     @Override
     public void submit(ChainMarkerRenderState state, PoseStack poseStack,
             SubmitNodeCollector nodeCollector) {
-        float fullRadius = state.implodeRadius + OCCLUSION_MARGIN;
-        float visibleHalfExtent = Math.max(CUBE_MIN_HALF_EXTENT, fullRadius * state.visibleScale);
-        float edgeHalfExtent = visibleHalfExtent * EDGE_SCALE;
-
-        float diskInnerRadius = visibleHalfExtent * DISK_INNER_CUBE_MULT;
-        float diskOuterRadiusRaw = fullRadius * DISK_OUTER_FULL_MULT * state.diskExpansionScale;
-        float diskOuterRadius = Math.max(
-                diskInnerRadius + visibleHalfExtent * DISK_MIN_RING_WIDTH,
-                diskOuterRadiusRaw);
-
-        final float occluderHalf = visibleHalfExtent;
-        final float edgeHalf = edgeHalfExtent;
-        final float innerR = diskInnerRadius;
-        final float outerR = diskOuterRadius;
-        final float animPhase = state.animationTime;
+        float occluderHalf = BlackHolePhases.visibleRadius(state);
+        float edgeHalf = occluderHalf * EDGE_SCALE;
+        float innerR = occluderHalf * DISK_INNER_CUBE_MULT;
+        float outerR = NetherDiscMesh.outerRadius(innerR, occluderHalf,
+                BlackHolePhases.fullRadius(state), state.diskExpansionScale);
+        float animPhase = state.animationTime;
 
         // Pass 1: cube occluder. Reuses the sphere occluder pipeline -
         // its shader only reads Position so cube vertices produce a
@@ -214,13 +132,9 @@ public final class CubeHoleStyle implements NetherHoleStyle {
         // brightens toward each face edge.
         nodeCollector.submitCustomGeometry(poseStack, GooRenderTypes.NETHER_CUBE_EDGE_TYPE,
             (pose, c) -> emitCubeMesh(pose, c, edgeHalf, true));
-        // Pass 3: flat accretion disc - identical geometry to the
-        // sphere style, duplicated here so NetherBlackHoleRender stays
-        // untouched on this experiment branch.
         nodeCollector.submitCustomGeometry(poseStack, GooRenderTypes.NETHER_DISK_TYPE,
-            (pose, c) -> emitDiskMesh(pose, c, innerR, outerR, animPhase));
+            (pose, c) -> NetherDiscMesh.emitDisc(pose, c, innerR, outerR, animPhase));
     }
-
 
     /**
      * Emits the pre-generated unit cube mesh with each vertex scaled to
@@ -303,7 +217,6 @@ public final class CubeHoleStyle implements NetherHoleStyle {
         return ARGB.color(OPAQUE_ALPHA, PROGRESS_BYTE_MAX, PROGRESS_BYTE_MAX, PROGRESS_BYTE_MAX);
     }
 
-
     /** Builds the unit cube vertex position table as stride-3 floats.
      * Six faces, 4 CCW vertices each when viewed from outside, all
      * spanning {@code [-1, +1]} on their in-plane axes.
@@ -380,120 +293,5 @@ public final class CubeHoleStyle implements NetherHoleStyle {
             out[off + CUBE_Y] = normal[CUBE_Y];
             out[off + CUBE_Z] = normal[CUBE_Z];
         }
-    }
-
-
-    /**
-     * Emits the flat accretion-disc annulus. Byte-for-byte duplicate
-     * of the sphere style's emit so both paths feed identical geometry
-     * into the shared {@code NETHER_DISK_TYPE} pipeline. Duplicated
-     * rather than extracted to keep NetherBlackHoleRender untouched on
-     * this experiment branch.
-     *
-     * @param pose      the current pose entry
-     * @param c         the vertex consumer
-     * @param innerR    disc inner edge radius in world blocks
-     * @param outerR    disc outer edge radius in world blocks
-     * @param animPhase global animation phase in [0, 1]
-     */
-    private static void emitDiskMesh(PoseStack.Pose pose, VertexConsumer c,
-            float innerR, float outerR, float animPhase) {
-        int animByte = Math.round(clamp01(animPhase) * PROGRESS_BYTE_MAX);
-        for (int i = 0; i < DISK_ANGULAR_SEGMENTS; i++) {
-            int i0 = i * DISK_SAMPLE_STRIDE;
-            int i1 = (i + 1) * DISK_SAMPLE_STRIDE;
-            float cos0 = DISK_ANGULAR_SAMPLES[i0 + DISK_SAMPLE_COS_OFFSET];
-            float sin0 = DISK_ANGULAR_SAMPLES[i0 + DISK_SAMPLE_SIN_OFFSET];
-            float ang0 = DISK_ANGULAR_SAMPLES[i0 + DISK_SAMPLE_ANG_OFFSET];
-            float cos1 = DISK_ANGULAR_SAMPLES[i1 + DISK_SAMPLE_COS_OFFSET];
-            float sin1 = DISK_ANGULAR_SAMPLES[i1 + DISK_SAMPLE_SIN_OFFSET];
-            float ang1 = DISK_ANGULAR_SAMPLES[i1 + DISK_SAMPLE_ANG_OFFSET];
-            emitDiskVertex(pose, c, cos0, sin0, innerR, ang0, RADIAL_T_INNER, animByte);
-            emitDiskVertex(pose, c, cos1, sin1, innerR, ang1, RADIAL_T_INNER, animByte);
-            emitDiskVertex(pose, c, cos1, sin1, outerR, ang1, RADIAL_T_OUTER, animByte);
-            emitDiskVertex(pose, c, cos0, sin0, outerR, ang0, RADIAL_T_OUTER, animByte);
-        }
-    }
-
-    /** Writes a single disc vertex. See sphere-style counterpart for
-     * the vertex color packing contract with the disc shader.
-     *
-     * @param pose     current pose entry
-     * @param c        vertex consumer
-     * @param cosT     cos of the angular coordinate
-     * @param sinT     sin of the angular coordinate
-     * @param radius   world-space radius for this vertex (inner or outer)
-     * @param angularT angular coordinate in [0, 1]
-     * @param radialT  radial coordinate (0 inner, 1 outer)
-     * @param animByte pre-computed animation phase byte
-     */
-    private static void emitDiskVertex(PoseStack.Pose pose, VertexConsumer c,
-            float cosT, float sinT, float radius,
-            float angularT, float radialT, int animByte) {
-        int radialByte = Math.round(clamp01(radialT) * PROGRESS_BYTE_MAX);
-        int angularByte = Math.round(clamp01(angularT) * PROGRESS_BYTE_MAX);
-        int color = packDiskColor(radialByte, angularByte, animByte);
-        c.addVertex(pose,
-                BLOCK_CENTER + cosT * radius,
-                BLOCK_CENTER,
-                BLOCK_CENTER + sinT * radius)
-            .setColor(color)
-            .setNormal(pose, 0f, 1f, 0f);
-    }
-
-    /** Packs the disc vertex color identically to the sphere style:
-     * R = radialT, G = angularT, B = animPhase, A = fixed opaque.
-     *
-     * @param radialByte  radialT already encoded to a byte
-     * @param angularByte angularT already encoded to a byte
-     * @param animByte    animation phase already encoded to a byte
-     * @return the packed ARGB color
-     */
-    private static int packDiskColor(int radialByte, int angularByte, int animByte) {
-        return ARGB.color(OPAQUE_ALPHA, radialByte, angularByte, animByte);
-    }
-
-    /** Builds the disc's pre-computed angular sample table as stride-3
-     * triples of (cos, sin, angularT). Trailing sample wraps back to
-     * 0 with angularT = 1 to close the ring on a continuous UV.
-     *
-     * @return the stride-3 angular sample table
-     */
-    private static float[] buildDiskAngularSamples() {
-        int sampleCount = DISK_ANGULAR_SEGMENTS + 1;
-        float[] out = new float[sampleCount * DISK_SAMPLE_STRIDE];
-        for (int i = 0; i < sampleCount; i++) {
-            double theta = TWO_PI * i / DISK_ANGULAR_SEGMENTS;
-            int base = i * DISK_SAMPLE_STRIDE;
-            out[base + DISK_SAMPLE_COS_OFFSET] = (float) Math.cos(theta);
-            out[base + DISK_SAMPLE_SIN_OFFSET] = (float) Math.sin(theta);
-            out[base + DISK_SAMPLE_ANG_OFFSET] = (float) i / DISK_ANGULAR_SEGMENTS;
-        }
-        return out;
-    }
-
-
-    /** Derives a deterministic [0, 1) animation phase from the BE's
-     * level game time, cycling every {@link #ANIMATION_CYCLE_TICKS}
-     * ticks. Matches the sphere-style computation byte-for-byte so
-     * flipping between styles keeps the swirl pattern in phase.
-     *
-     * @param be the chain marker block entity
-     * @return the animation phase for the shader
-     */
-    private static float computeAnimationTime(ChainMarkerBlockEntity be) {
-        Level level = be.getLevel();
-        if (level == null) { return 0f; }
-        long tick = level.getGameTime() % ANIMATION_CYCLE_TICKS;
-        return (float) tick / ANIMATION_CYCLE_TICKS;
-    }
-
-    /** Clamps {@code v} to {@code [0, 1]}.
-     *
-     * @param v the value to clamp
-     * @return the clamped value
-     */
-    private static float clamp01(float v) {
-        return Math.min(1f, Math.max(0f, v));
     }
 }

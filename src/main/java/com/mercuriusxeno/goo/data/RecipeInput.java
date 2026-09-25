@@ -27,34 +27,6 @@ public record RecipeInput(
 ) {
 
     /**
-     * Backward-compatible constructor for recipes with no container items or tag info.
-     *
-     * @param output                 the output item ID
-     * @param resultCount            number of items produced
-     * @param ingredientAlternatives ingredient slots, each a set of alternative item IDs
-     */
-    public RecipeInput(Identifier output, int resultCount,
-                       List<Set<Identifier>> ingredientAlternatives) {
-        this(output, resultCount, ingredientAlternatives, Collections.emptyMap(),
-                Collections.nCopies(ingredientAlternatives.size(), Optional.empty()));
-    }
-
-    /**
-     * Backward-compatible constructor for recipes with container items but no tag info.
-     *
-     * @param output                 the output item ID
-     * @param resultCount            number of items produced
-     * @param ingredientAlternatives ingredient slots, each a set of alternative item IDs
-     * @param containerItems         map of ingredient item ID to returned container item ID
-     */
-    public RecipeInput(Identifier output, int resultCount,
-                       List<Set<Identifier>> ingredientAlternatives,
-                       Map<Identifier, Identifier> containerItems) {
-        this(output, resultCount, ingredientAlternatives, containerItems,
-                Collections.nCopies(ingredientAlternatives.size(), Optional.empty()));
-    }
-
-    /**
      * Returns true if this recipe has no ingredient slots.
      *
      * @return true if ingredientAlternatives is empty

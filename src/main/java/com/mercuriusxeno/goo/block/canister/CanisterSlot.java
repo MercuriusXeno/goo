@@ -2,7 +2,7 @@ package com.mercuriusxeno.goo.block.canister;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
-import com.mercuriusxeno.goo.block.gasket.IGasketPusher;
+import com.mercuriusxeno.goo.block.gasket.GasketPusher;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.CanisterMetadata;
@@ -56,7 +56,7 @@ public final class CanisterSlot {
 
     private ItemStack canister = ItemStack.EMPTY;
     private @Nullable CanisterSlotFluidHandler handler;
-    private @Nullable IGasketPusher pusher;
+    private @Nullable GasketPusher pusher;
     private @Nullable VoxelShape shape;
     private @Nullable ResourceKey<GooTypeDefinition> streamType;
     private @Nullable Fluid streamFluid;
@@ -91,7 +91,7 @@ public final class CanisterSlot {
     public @Nullable CanisterSlotFluidHandler handler() { return handler; }
 
     /** @return the active gasket pusher, or null if none */
-    public @Nullable IGasketPusher pusher() { return pusher; }
+    public @Nullable GasketPusher pusher() { return pusher; }
 
     /** @return this slot's voxel shape, or null if empty */
     public @Nullable VoxelShape shape() { return shape; }
@@ -162,7 +162,7 @@ public final class CanisterSlot {
      *
      * @param newPusher the pusher, or null to clear
      */
-    public void setPusher(@Nullable IGasketPusher newPusher) {
+    public void setPusher(@Nullable GasketPusher newPusher) {
         disposePusher();
         this.pusher = newPusher;
     }

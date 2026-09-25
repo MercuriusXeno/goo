@@ -7,10 +7,10 @@ import com.mercuriusxeno.goo.block.GooLightContribution;
 import com.mercuriusxeno.goo.block.IGooLightSource;
 import com.mercuriusxeno.goo.block.fluid.GooFluidHandler;
 import com.mercuriusxeno.goo.block.fluid.GooStream;
+import com.mercuriusxeno.goo.block.gasket.AddressedGasket;
 import com.mercuriusxeno.goo.block.gasket.GasketAttachment;
 import com.mercuriusxeno.goo.block.gasket.GasketPusher;
 import com.mercuriusxeno.goo.block.gasket.IGasketHolder;
-import com.mercuriusxeno.goo.block.gasket.IGasketPusher;
 import com.mercuriusxeno.goo.item.ContainerCapacity;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.gasket.GasketRegionResolver;
@@ -27,8 +27,10 @@ import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.BlockHitResult;
@@ -53,7 +55,7 @@ public class VatBlockEntity extends BlockEntity implements IGasketHolder, IGooLi
     private final GasketAttachment gasket = GasketAttachment.dual(this, "cap", "base");
 
     // Package-private fields accessed by VatSerialization, VatStackRedistributor.
-    final GooFluidHandler fluidHandler = new GooFluidHandler(
+    final GooFluidHandler fluidHandler = GooFluidHandler.withWaterTank(
             ContainerCapacity.vatCapacity(0), this::onFluidChanged,
             () -> level != null ? level.getGameTime() : 0);
     int compressionLevel;
@@ -69,12 +71,14 @@ public class VatBlockEntity extends BlockEntity implements IGasketHolder, IGooLi
     @Nullable ResourceKey<GooTypeDefinition> vatStreamType;
     int vatStreamRate;
     long vatStreamTick;
+    /** True when the stream's last landing was water (decision diagnose-then-fix-waterlogged-gasket-link). */
+    boolean vatStreamWater;
 
     /**
      * Pushes reservoir goo to the base gasket partner on a timed interval.
      * Final, assigned in constructor.
      */
-    final IGasketPusher gasketPusher;
+    final GasketPusher gasketPusher;
 
     /**
      * Creates a new vat block entity at the given position.
@@ -274,6 +278,25 @@ public class VatBlockEntity extends BlockEntity implements IGasketHolder, IGooLi
         return GooStream.holds(currentTick, vatStreamTick) ? vatStreamRate : 0;
     }
 
+    /**
+     * Returns true while water is pouring in, until the stream's hold has passed.
+     *
+     * @param currentTick the current game tick
+     * @return true when the vat's stream is water
+     */
+    public boolean isVatStreamWater(long currentTick) {
+        return vatStreamWater && GooStream.holds(currentTick, vatStreamTick);
+    }
+
+    /**
+     * Returns the water the vat holds beside its goo.
+     *
+     * @return the water volume in mB
+     */
+    public int getWaterVolume() {
+        return fluidHandler.waterVolume();
+    }
+
     @Override
     public GasketAttachment gasket() {
         return gasket;
@@ -296,6 +319,18 @@ public class VatBlockEntity extends BlockEntity implements IGasketHolder, IGooLi
         return role == GasketRole.RECEIVER
                 ? state.getValue(VatBlock.GASKET_CAP)
                 : state.getValue(VatBlock.GASKET_BASE);
+    }
+
+    @Override
+    public boolean holdsBlockGasket(GasketRole role) {
+        return supportsRole(role);
+    }
+
+    @Override
+    public void uninstallGasket(AddressedGasket gasket) {
+        clearGasket(gasket.role());
+        BooleanProperty face = gasket.role() == GasketRole.RECEIVER ? VatBlock.GASKET_CAP : VatBlock.GASKET_BASE;
+        level.setBlock(worldPosition, getBlockState().setValue(face, false), Block.UPDATE_ALL);
     }
 
     @Override

@@ -9,7 +9,7 @@ import net.minecraft.resources.ResourceKey;
 /**
  * Render state snapshot for the chain marker BER. Captures goo type,
  * stack count, and fuse progress for the slime-like orb visual, plus
- * a flag + sphere fields populated when a nether {@code ChainBehavior}
+ * a flag + sphere fields populated when a nether {@code ProgramBehavior}
  * is active so the BER can submit the black-hole shader sphere.
  */
 public class ChainMarkerRenderState extends BlockEntityRenderState {
@@ -20,11 +20,8 @@ public class ChainMarkerRenderState extends BlockEntityRenderState {
     /** Current stack count (1-based). */
     public int stackCount = 1;
 
-    /** Maximum stack count from the profile. */
+    /** Stack ceiling the marker's ability sets. */
     public int maxStacks = 1;
-
-    /** Total fuse duration from the profile. */
-    public int fuseTicks = 1;
 
     /** Fuse remaining in ticks (for pulsing/implosion animation). */
     public int fuseRemaining;

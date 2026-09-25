@@ -53,6 +53,14 @@ final class VatSerialization {
      * Sentinel value indicating an invalid NBT ordinal.
      */
     static final String NO_STREAM_TYPE = "";
+    /**
+     * NBT key for the water tank's volume.
+     */
+    static final String TAG_WATER = "Water";
+    /**
+     * NBT key for whether the stream pours water.
+     */
+    static final String TAG_STREAM_WATER = "StreamWater";
 
     private VatSerialization() {
     }
@@ -67,6 +75,7 @@ final class VatSerialization {
         be.vatStreamType = be.fluidHandler.getStreamType(tick);
         be.vatStreamRate = be.fluidHandler.getStreamRate(tick);
         be.vatStreamTick = be.fluidHandler.getStreamTick();
+        be.vatStreamWater = be.fluidHandler.isStreamWater(tick);
     }
 
     /**
@@ -127,6 +136,10 @@ final class VatSerialization {
         if (!contents.isEmpty()) {
             output.store(TAG_CONTENTS, GooContents.CODEC, contents);
         }
+        int water = be.fluidHandler.waterVolume();
+        if (water > 0) {
+            output.putInt(TAG_WATER, water);
+        }
         if (be.label != null) {
             output.putString(TAG_LABEL, be.label);
         }
@@ -139,10 +152,13 @@ final class VatSerialization {
      * @param output the value output
      */
     private static void saveStreamFields(VatBlockEntity be, ValueOutput output) {
-        if (be.vatStreamType == null) {
+        if (be.vatStreamType == null && !be.vatStreamWater) {
             return;
         }
-        output.putString(TAG_STREAM_TYPE, GooTypes.id(be.vatStreamType));
+        if (be.vatStreamType != null) {
+            output.putString(TAG_STREAM_TYPE, GooTypes.id(be.vatStreamType));
+        }
+        output.putBoolean(TAG_STREAM_WATER, be.vatStreamWater);
         output.putInt(TAG_STREAM_RATE, be.vatStreamRate);
         output.putLong(TAG_STREAM_TICK, be.vatStreamTick);
     }
@@ -180,6 +196,7 @@ final class VatSerialization {
      */
     private static void loadContentsAndLabel(VatBlockEntity be, ValueInput input) {
         be.fluidHandler.loadFrom(input.read(TAG_CONTENTS, GooContents.CODEC).orElse(GooContents.EMPTY));
+        be.fluidHandler.loadWater(input.getIntOr(TAG_WATER, 0));
         be.label = input.getString(TAG_LABEL).orElse(null);
     }
 
@@ -191,6 +208,7 @@ final class VatSerialization {
      */
     private static void loadStreamFields(VatBlockEntity be, ValueInput input) {
         be.vatStreamType = resolveStreamType(input.getStringOr(TAG_STREAM_TYPE, NO_STREAM_TYPE));
+        be.vatStreamWater = input.getBooleanOr(TAG_STREAM_WATER, false);
         be.vatStreamRate = input.getIntOr(TAG_STREAM_RATE, 0);
         be.vatStreamTick = input.getLongOr(TAG_STREAM_TICK, 0);
     }

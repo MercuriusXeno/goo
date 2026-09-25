@@ -56,6 +56,8 @@ public final class LabRigs {
      * The canister block's corner slots, the ones a reactor reads.
      */
     private static final int[] CORNER_SLOTS = {0, 2, 6, 8};
+    /** Blaze goo poured into the lab crucible as fuel: a bucket's worth, 4000 heat ticks at the default grade. */
+    private static final int LAB_BLAZE_FUEL = 1_000;
     /**
      * Hub slots the bay fills: every other radial slot, so the empty ones show where more go.
      */
@@ -129,14 +131,14 @@ public final class LabRigs {
     }
 
     /**
-     * Loads the crucible with a blaze rod, so an item dropped in melts.
+     * Pours blaze goo into the crucible's reservoir as fuel, so an item dropped in melts.
      *
      * @param level the level
      * @param at    the crucible's position
      */
     private static void rigCrucible(ServerLevel level, BlockPos at) {
         if (level.getBlockEntity(at) instanceof CrucibleBlockEntity crucible) {
-            crucible.addFuel(new ItemStack(Items.BLAZE_ROD));
+            crucible.insertGoo(GooTypes.BLAZE, LAB_BLAZE_FUEL);
         }
     }
 

@@ -35,6 +35,15 @@ public class VatRenderState extends BlockEntityRenderState {
     /** Stream type (non-null when goo is actively flowing in via cap gasket). */
     public @Nullable ResourceKey<GooTypeDefinition> streamType;
 
+    /**
+     * True when water outweighs every goo type, so the column draws on the water
+     * sprite (decision diagnose-then-fix-waterlogged-gasket-link).
+     */
+    public boolean waterDominant;
+
+    /** True when the stream pouring in is water. */
+    public boolean streamWater;
+
     /** Stream rate in mB/tick (used for stream width calculation). */
     public float streamRate;
 

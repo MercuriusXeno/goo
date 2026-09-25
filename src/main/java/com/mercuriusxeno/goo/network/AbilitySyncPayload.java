@@ -17,8 +17,9 @@ import java.util.List;
 
 /**
  * Server-to-client payload: syncs the loaded ability definitions so the
- * client radial menu knows what abilities exist per goo type. Sends only
- * the metadata needed for display (id, type, name, order), not the full
+ * client radial menu knows what abilities exist per goo type. Sends the
+ * metadata needed for display (id, type, name, order) and the chain
+ * block's fuse and stack ceiling the client predicts from, not the full
  * behavior configuration.
  *
  * @param entries the list of ability descriptors
@@ -63,7 +64,8 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
         return definitions.stream()
                 .filter(def -> !def.hasTag(AbilityTags.TAP))
                 .map(def -> new Entry(def.id().toString(), GooTypes.id(type),
-                        def.displayName(), def.icon(), def.order(), def.tags()))
+                        def.displayName(), def.icon(), def.order(), def.tags(),
+                        def.chain().fuseTicks(), def.chain().maxStacks()))
                 .toList();
     }
 
@@ -76,6 +78,8 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
             buf.writeUtf(e.icon);
             buf.writeVarInt(e.order);
             encodeTags(buf, e.tags);
+            buf.writeVarInt(e.fuseTicks);
+            buf.writeVarInt(e.maxStacks);
         }
     }
 
@@ -91,7 +95,7 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
         List<Entry> entries = new ArrayList<>(count);
         for (int i = 0; i < count; i++) {
             entries.add(new Entry(buf.readUtf(), buf.readUtf(), buf.readUtf(),
-                    buf.readUtf(), buf.readVarInt(), decodeTags(buf)));
+                    buf.readUtf(), buf.readVarInt(), decodeTags(buf), buf.readVarInt(), buf.readVarInt()));
         }
         return new AbilitySyncPayload(entries);
     }
@@ -119,8 +123,10 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
      * @param icon        the icon texture path override (empty for convention path)
      * @param order       the sort order within the type
      * @param tags        categorical tags for targeting and display
+     * @param fuseTicks   the chain block's full fuse
+     * @param maxStacks   the chain block's stack ceiling
      */
     public record Entry(String abilityId, String gooTypeId, String displayName,
-                        String icon, int order, List<String> tags) {
+                        String icon, int order, List<String> tags, int fuseTicks, int maxStacks) {
     }
 }

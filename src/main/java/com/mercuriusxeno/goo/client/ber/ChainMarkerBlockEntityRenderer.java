@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.client.ber;
 
-import com.mercuriusxeno.goo.ability.ChainProfiles.ChainProfile;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.ability.CrystalCloudVisual;
@@ -36,7 +35,7 @@ import org.jspecify.annotations.Nullable;
  *   <li>{@link MetalSpikeVisual} - cone spikes from the marker to tracked entities</li>
  *   <li>{@link CrystalCloudVisual} - shard-cloud cloud after a crystal detonation</li>
  *   <li>{@link GhostMineVisual} - destruction-footprint outline (rock/blaze/frost)</li>
- *   <li>{@link NetherHoleStyles#ACTIVE} - the swappable nether black-hole style</li>
+ *   <li>{@link NetherHoleStyles#active()} - the swappable nether black-hole style</li>
  * </ul>
  */
 public class ChainMarkerBlockEntityRenderer
@@ -73,15 +72,13 @@ public class ChainMarkerBlockEntityRenderer
     }
 
     /**
-     * Resolves fuse duration from the chain profile and detects aim targeting.
+     * Detects aim targeting and copies the placed face and behavior state.
      *
      * @param be    the block entity
      * @param state the render state to populate
      */
-    private static void extractFuseAndTarget(ChainMarkerBlockEntity be,
+    private static void extractTargetAndFace(ChainMarkerBlockEntity be,
                                              ChainMarkerRenderState state) {
-        ChainProfile profile = ChainProfile.forType(be.getGooType());
-        state.fuseTicks = profile != null ? profile.fuseTicks() : 1;
         // Highlight when ANY source of aim is on this marker: vanilla
         // crosshair (no-glove case), the goo cone-based aim assist
         // (glove held), or the post-throw freeze window (aim locked from
@@ -125,17 +122,17 @@ public class ChainMarkerBlockEntityRenderer
                                    ModelFeatureRenderer.@Nullable CrumblingOverlay breakProgress) {
         BlockEntityRenderState.extractBase(be, state, breakProgress);
         extractCoreFields(be, state, partialTick);
-        extractFuseAndTarget(be, state);
+        extractTargetAndFace(be, state);
         MetalSpikeVisual.extract(be, state);
         CrystalCloudVisual.extract(be, state);
-        NetherHoleStyles.ACTIVE.extract(be, state);
+        NetherHoleStyles.active().extract(be, state);
     }
 
     @Override
     public void submit(ChainMarkerRenderState state, PoseStack poseStack,
                        SubmitNodeCollector nodeCollector, CameraRenderState cameraState) {
         if (state.netherActive) {
-            NetherHoleStyles.ACTIVE.submit(state, poseStack, nodeCollector);
+            NetherHoleStyles.active().submit(state, poseStack, nodeCollector);
             return;
         }
         FuseOrbVisual.submit(state, poseStack, nodeCollector);

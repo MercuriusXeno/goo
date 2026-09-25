@@ -11,17 +11,12 @@
   },
   "behaviors": [
     {
-      "type": "program",
+      "type": "target",
+      "where": ["not_boss"],
       "steps": [
-        {
-          "type": "target",
-          "where": ["not_boss"],
-          "steps": [
-            { "type": "damage", "amount": 4.0, "source": "freeze" },
-            { "type": "freeze_ticks", "add": 140 },
-            { "type": "potion", "effect": "minecraft:slowness", "duration": 60, "amplifier": 3 }
-          ]
-        }
+        { "type": "damage", "amount": 4.0, "source": "freeze" },
+        { "type": "freeze_ticks", "add": 140 },
+        { "type": "potion", "effect": "minecraft:slowness", "duration": 60, "amplifier": 3 }
       ]
     }
   ],
