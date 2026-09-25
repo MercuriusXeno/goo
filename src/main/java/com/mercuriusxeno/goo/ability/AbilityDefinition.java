@@ -42,36 +42,37 @@ public record AbilityDefinition(
         List<String> tags
 ) {
 
-    /**
-     * Placeholder id used during codec parsing; replaced by filename in the loader.
-     */
-    private static final Identifier PLACEHOLDER_ID = Identifier.withDefaultNamespace("unknown");
+    private static final String FIELD_GOO_TYPE = "gooType";
+    private static final String FIELD_DISPLAY_NAME = "displayName";
+    private static final String FIELD_ICON = "icon";
+    private static final String NO_ICON = "";
+    private static final String FIELD_ORDER = "order";
+    private static final String FIELD_COST = "cost";
+    private static final String FIELD_CHAIN = "chain";
+    private static final String FIELD_BEHAVIORS = "behaviors";
+    private static final String FIELD_TAGS = "tags";
 
     /**
-     * Codec for the ability JSON. The id comes from the filename, not the JSON body.
-     */
-    public static final Codec<AbilityDefinition> CODEC = RecordCodecBuilder.create(inst -> inst.group(
-            GooTypes.ID_CODEC.fieldOf("gooType").forGetter(AbilityDefinition::gooType),
-            Codec.STRING.fieldOf("displayName").forGetter(AbilityDefinition::displayName),
-            Codec.STRING.optionalFieldOf("icon", "").forGetter(AbilityDefinition::icon),
-            Codec.INT.optionalFieldOf("order", 0).forGetter(AbilityDefinition::order),
-            AbilityCost.CODEC.fieldOf("cost").forGetter(AbilityDefinition::cost),
-            ChainConfig.CODEC.optionalFieldOf("chain", ChainConfig.DEFAULT).forGetter(AbilityDefinition::chain),
-            BehaviorEntry.CODEC.listOf().fieldOf("behaviors").forGetter(AbilityDefinition::behaviors),
-            Codec.STRING.listOf().optionalFieldOf("tags", List.of()).forGetter(AbilityDefinition::tags)
-    ).apply(inst, (gooType, displayName, icon, order, cost, chain, behaviors, tags) ->
-            new AbilityDefinition(PLACEHOLDER_ID, gooType, displayName, icon, order,
-                    cost, chain, behaviors, tags)));
-
-    /**
-     * Returns a copy with the datapack resource id set.
+     * Builds the codec for one ability file. The id comes from the filename, not the
+     * JSON body, so the loader builds a codec per file and every definition carries
+     * its id from construction (decision delete-dead-fold-mirrors).
      *
-     * @param resourceId the resource identifier from the filename
-     * @return the definition with id applied
+     * @param id the ability's id, from its filename
+     * @return the codec decoding that file into a definition with that id
      */
-    public AbilityDefinition withId(Identifier resourceId) {
-        return new AbilityDefinition(resourceId, gooType, displayName, icon, order,
-                cost, chain, behaviors, tags);
+    public static Codec<AbilityDefinition> codecFor(Identifier id) {
+        return RecordCodecBuilder.create(inst -> inst.group(
+                GooTypes.ID_CODEC.fieldOf(FIELD_GOO_TYPE).forGetter(AbilityDefinition::gooType),
+                Codec.STRING.fieldOf(FIELD_DISPLAY_NAME).forGetter(AbilityDefinition::displayName),
+                Codec.STRING.optionalFieldOf(FIELD_ICON, NO_ICON).forGetter(AbilityDefinition::icon),
+                Codec.INT.optionalFieldOf(FIELD_ORDER, 0).forGetter(AbilityDefinition::order),
+                AbilityCost.CODEC.fieldOf(FIELD_COST).forGetter(AbilityDefinition::cost),
+                ChainConfig.CODEC.optionalFieldOf(FIELD_CHAIN, ChainConfig.DEFAULT).forGetter(AbilityDefinition::chain),
+                BehaviorEntry.CODEC.listOf().fieldOf(FIELD_BEHAVIORS).forGetter(AbilityDefinition::behaviors),
+                Codec.STRING.listOf().optionalFieldOf(FIELD_TAGS, List.of()).forGetter(AbilityDefinition::tags)
+        ).apply(inst, (gooType, displayName, icon, order, cost, chain, behaviors, tags) ->
+                new AbilityDefinition(id, gooType, displayName, icon, order,
+                        cost, chain, behaviors, tags)));
     }
 
     /**
