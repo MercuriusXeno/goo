@@ -36,7 +36,7 @@ class VatSurfaceRippleTest {
         state.rippleAmplitude = RenderContext.RESTING_RIPPLE_AMPLITUDE + SurfaceAgitation.AGITATION_CEILING;
         RecordingVertexConsumer recorder = new RecordingVertexConsumer();
 
-        VatFluidRenderer.renderFluid(new RenderContext(new PoseStack().last(), recorder, 0), sprite(), state);
+        VatFluidRenderer.renderFluid(new RenderContext(new PoseStack().last(), recorder, 0), sprite(), state, 0f);
 
         int encoded = RenderContext.encodeAmplitude(state.rippleAmplitude);
         int cells = RenderContext.SURFACE_GRID_CELLS;

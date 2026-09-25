@@ -12,7 +12,8 @@ import java.util.Map;
 /**
  * Builds the type bands a mingled fluid surface draws (decision
  * noise-mingled-type-textures): the bands partition [0, 1], one per goo
- * type, largest volume first, each as wide as its type's volume ratio.
+ * type, largest volume first, each as wide as its type's volume ratio and
+ * numbered by the layer it draws on.
  */
 public final class TypeBands {
 
@@ -44,7 +45,7 @@ public final class TypeBands {
         for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> entry : ordered) {
             below += entry.getValue();
             float hi = (float) ((double) below / total);
-            bands.add(new TypeBand(entry.getKey(), lo, hi));
+            bands.add(new TypeBand(entry.getKey(), lo, hi, bands.size()));
             lo = hi;
         }
         return bands;

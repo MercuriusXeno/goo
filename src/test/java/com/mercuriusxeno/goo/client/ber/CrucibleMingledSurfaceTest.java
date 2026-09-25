@@ -24,9 +24,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Tests that a crucible submits one surface per goo type it shows, the
- * bands complementary across the surfaces, and a single type one surface
- * spanning the whole band.
+ * Tests that a crucible submits one surface per goo type it shows, each
+ * carrying its share and layer and lifted one layer above the one below,
+ * and a single type one whole surface.
  */
 class CrucibleMingledSurfaceTest {
 
@@ -39,19 +39,17 @@ class CrucibleMingledSurfaceTest {
         return sprite;
     }
 
-    static Stream<Arguments> contentsAndSurfaceBandEdges() {
+    static Stream<Arguments> contentsAndShareUnitsPerLayer() {
         return Stream.of(
-            Arguments.of(Map.of(GooTypes.BLAZE, 700),
-                List.of(List.of(0, TypeBand.BAND_UNITS))),
+            Arguments.of(Map.of(GooTypes.BLAZE, 700), List.of(TypeBand.SHARE_UNITS)),
             Arguments.of(Map.of(GooTypes.BLAZE, 250, GooTypes.FROST, 750),
-                List.of(List.of(0, TypeBand.BAND_UNITS * 3 / 4),
-                    List.of(TypeBand.BAND_UNITS * 3 / 4, TypeBand.BAND_UNITS))));
+                List.of(TypeBand.SHARE_UNITS, TypeBand.SHARE_UNITS / 4)));
     }
 
     @ParameterizedTest
-    @MethodSource("contentsAndSurfaceBandEdges")
+    @MethodSource("contentsAndShareUnitsPerLayer")
     void renderMingledSurface(Map<ResourceKey<GooTypeDefinition>, Integer> volumes,
-                              List<List<Integer>> bandEdgesPerSurface) {
+                              List<Integer> shareUnitsPerLayer) {
         // BlockEntityRenderState's constructor bootstraps Blocks, so the state is built without it.
         CrucibleRenderState state = mock(CrucibleRenderState.class);
         state.typeBands = TypeBands.over(new GooContents(volumes));
@@ -65,13 +63,13 @@ class CrucibleMingledSurfaceTest {
             surfaces.add(recorder.vertices());
         }, state, SURFACE_Y);
 
-        assertEquals(bandEdgesPerSurface.size(), surfaces.size());
-        for (int i = 0; i < surfaces.size(); i++) {
-            List<RecordingVertexConsumer.Vertex> vertices = surfaces.get(i);
+        assertEquals(shareUnitsPerLayer.size(), surfaces.size());
+        for (int layer = 0; layer < surfaces.size(); layer++) {
+            List<RecordingVertexConsumer.Vertex> vertices = surfaces.get(layer);
             assertFalse(vertices.isEmpty());
             for (RecordingVertexConsumer.Vertex vertex : vertices) {
-                assertEquals(bandEdgesPerSurface.get(i), List.of(vertex.uv2U(), vertex.uv2V()));
-                assertEquals(SURFACE_Y, vertex.y(), 1e-6f);
+                assertEquals(List.of(shareUnitsPerLayer.get(layer), layer), List.of(vertex.uv2U(), vertex.uv2V()));
+                assertEquals(SURFACE_Y + layer * TypeBand.LAYER_LIFT, vertex.y(), 1e-6f);
             }
         }
     }
