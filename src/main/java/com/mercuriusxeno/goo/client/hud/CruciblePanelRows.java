@@ -22,6 +22,11 @@ final class CruciblePanelRows {
     private static final int SEPARATOR_COLOR = 0xFF888888;
     /** Separator between reservoir and total volumes. */
     private static final String VOLUME_SEPARATOR = " / ";
+    /**
+     * The widest type row text under 10 blobs, which every type row measures at
+     * least (decision crucible-panel-floors-width-under-ten-blobs).
+     */
+    static final String SUB_TEN_BLOB_FLOOR_TEXT = "9.99" + VOLUME_SEPARATOR + "9.99";
 
     private CruciblePanelRows() {
     }
@@ -70,7 +75,8 @@ final class CruciblePanelRows {
     }
 
     /**
-     * Builds one type row: icon, reservoir volume, a dim separator, total volume.
+     * Builds one type row: icon, reservoir volume, a dim separator, total volume,
+     * floored at the widest sub-10-blob text so the panel holds still while draining.
      *
      * @param type         the goo type
      * @param reservoirVol the reservoir volume in mB
@@ -83,7 +89,7 @@ final class CruciblePanelRows {
                         PanelPainter.TEXT_COLOR),
                 new PanelRow.TextSegment(VOLUME_SEPARATOR, SEPARATOR_COLOR),
                 new PanelRow.TextSegment(GooTooltipHandler.formatFluidDisplayCompact(totalVol),
-                        PanelPainter.TEXT_COLOR)), false);
+                        PanelPainter.TEXT_COLOR)), false, SUB_TEN_BLOB_FLOOR_TEXT);
     }
 
     /**
