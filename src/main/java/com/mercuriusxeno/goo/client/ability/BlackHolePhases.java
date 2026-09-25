@@ -3,6 +3,8 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.program.PhasedState;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
+import com.mercuriusxeno.goo.client.ber.ChainMarkerRenderState;
+import net.minecraft.world.phys.Vec3;
 
 /**
  * Reads the nether black hole's size off the phase cursor its program
@@ -21,6 +23,15 @@ public final class BlackHolePhases {
      * The disk's expansion at the expand to hold transition.
      */
     private static final float DISK_EXPAND_PEAK = 0.25f;
+    /**
+     * Minimum visible radius so the hole never collapses to a single pixel.
+     */
+    private static final float HOLE_MIN_RADIUS = 0.25f;
+    /**
+     * World-space margin added to the implosion radius so the hole's body
+     * covers the blast zone.
+     */
+    private static final float OCCLUSION_MARGIN = 0.75f;
 
     private BlackHolePhases() {
     }
@@ -64,6 +75,62 @@ public final class BlackHolePhases {
             case CONTRACT -> 1f - phase.progress();
             default -> 0f;
         };
+    }
+
+    /**
+     * Fills the render state's nether fields from the marker's phase cursor,
+     * the one extraction every hole style shares (decision
+     * one-disc-mesh-config-lens), or clears {@code netherActive} when no
+     * black hole runs.
+     *
+     * @param be    the chain marker block entity
+     * @param state the render state to populate
+     * @return true when a black hole with a visible body should mark the lens
+     */
+    public static boolean populateRenderState(ChainMarkerBlockEntity be, ChainMarkerRenderState state) {
+        if (!isRunning(be)) {
+            state.netherActive = false;
+            return false;
+        }
+        PhasedState phase = be.getPhased();
+        state.netherActive = true;
+        state.visibleScale = visibleScale(phase);
+        state.diskExpansionScale = diskExpansionScale(phase);
+        state.implodeRadius = phase.radius();
+        state.animationTime = NetherDiscMesh.animationTime(be);
+        return state.visibleScale > 0f;
+    }
+
+    /**
+     * Answers the hole's full radius: the implosion radius plus the margin
+     * that makes the body cover the whole blast zone.
+     *
+     * @param state the populated render state
+     * @return the full radius in world blocks
+     */
+    public static float fullRadius(ChainMarkerRenderState state) {
+        return state.implodeRadius + OCCLUSION_MARGIN;
+    }
+
+    /**
+     * Answers the hole body's current radius (a sphere's radius, a cube's
+     * half-extent), never collapsing below a minimum.
+     *
+     * @param state the populated render state
+     * @return the visible radius in world blocks
+     */
+    public static float visibleRadius(ChainMarkerRenderState state) {
+        return Math.max(HOLE_MIN_RADIUS, fullRadius(state) * state.visibleScale);
+    }
+
+    /**
+     * Answers the world-space center of the marker's block.
+     *
+     * @param be the chain marker block entity
+     * @return the block center
+     */
+    public static Vec3 holeCenter(ChainMarkerBlockEntity be) {
+        return Vec3.atCenterOf(be.getBlockPos());
     }
 
     /**

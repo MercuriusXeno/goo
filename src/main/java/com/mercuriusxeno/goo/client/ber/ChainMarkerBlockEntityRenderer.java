@@ -35,7 +35,7 @@ import org.jspecify.annotations.Nullable;
  *   <li>{@link MetalSpikeVisual} - cone spikes from the marker to tracked entities</li>
  *   <li>{@link CrystalCloudVisual} - shard-cloud cloud after a crystal detonation</li>
  *   <li>{@link GhostMineVisual} - destruction-footprint outline (rock/blaze/frost)</li>
- *   <li>{@link NetherHoleStyles#ACTIVE} - the swappable nether black-hole style</li>
+ *   <li>{@link NetherHoleStyles#active()} - the swappable nether black-hole style</li>
  * </ul>
  */
 public class ChainMarkerBlockEntityRenderer
@@ -125,14 +125,14 @@ public class ChainMarkerBlockEntityRenderer
         extractTargetAndFace(be, state);
         MetalSpikeVisual.extract(be, state);
         CrystalCloudVisual.extract(be, state);
-        NetherHoleStyles.ACTIVE.extract(be, state);
+        NetherHoleStyles.active().extract(be, state);
     }
 
     @Override
     public void submit(ChainMarkerRenderState state, PoseStack poseStack,
                        SubmitNodeCollector nodeCollector, CameraRenderState cameraState) {
         if (state.netherActive) {
-            NetherHoleStyles.ACTIVE.submit(state, poseStack, nodeCollector);
+            NetherHoleStyles.active().submit(state, poseStack, nodeCollector);
             return;
         }
         FuseOrbVisual.submit(state, poseStack, nodeCollector);
