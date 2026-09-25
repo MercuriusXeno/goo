@@ -41,6 +41,12 @@ public final class PanelPainter {
     /** Upgrade level header color (aqua). */
     public static final int UPGRADE_COLOR = 0xFF55FFFF;
 
+    /**
+     * Pixel rows the vanilla font draws a digit's ink in, from the top of the
+     * text line: the ascii.png provider's ascent (decision diagnose-then-fix-goo-count-alignment).
+     */
+    public static final float DIGIT_GLYPH_HEIGHT = 7f;
+
     /** Upgrade level display prefix. */
     private static final String UPGRADE_PREFIX = "Lv ";
     /** Texture path prefix for goo type icons. */
@@ -168,7 +174,8 @@ public final class PanelPainter {
     }
 
     /**
-     * Draws one row with its icon and text vertically centered in the row.
+     * Draws one row: the icon centered in the row, the text's glyph block
+     * centered on the icon, or on the row when no icon leads it.
      *
      * @param poseStack the pose stack for rendering
      * @param font      the font renderer
@@ -179,16 +186,32 @@ public final class PanelPainter {
      */
     public static void drawRow(PoseStack poseStack, Font font, MultiBufferSource buffers,
                                PanelRow row, float x, float y) {
+        RowGeometry geometry = rowGeometry(y, row.icon() != null, DIGIT_GLYPH_HEIGHT);
         float textX = x;
         if (row.icon() != null) {
-            drawIcon(poseStack, buffers, row, x, y + (ROW_HEIGHT - ICON_SIZE) / HALF);
+            drawIcon(poseStack, buffers, row, x, geometry.iconTop());
             textX += ICON_SIZE + ICON_TEXT_GAP;
         }
-        float textY = y + (ROW_HEIGHT - font.lineHeight) / HALF;
         for (PanelRow.TextSegment segment : row.segments()) {
-            drawSegment(poseStack, font, buffers, row.seeThrough(), segment, textX, textY);
+            drawSegment(poseStack, font, buffers, row.seeThrough(), segment, textX, geometry.textTop());
             textX += font.width(segment.text());
         }
+    }
+
+    /**
+     * Places a row's icon and text vertically: the icon centers in the row, and
+     * the text's glyph block, not its line box, centers on the icon's center,
+     * or on the row's center for a header row (decision diagnose-then-fix-goo-count-alignment).
+     *
+     * @param rowTop      the row's top Y
+     * @param hasIcon     whether an icon leads the row
+     * @param glyphHeight the pixel rows the font draws the glyphs' ink in, from the text top
+     * @return the icon top and the text top
+     */
+    public static RowGeometry rowGeometry(float rowTop, boolean hasIcon, float glyphHeight) {
+        float iconTop = rowTop + (ROW_HEIGHT - ICON_SIZE) / HALF;
+        float center = hasIcon ? iconTop + ICON_SIZE / HALF : rowTop + ROW_HEIGHT / HALF;
+        return new RowGeometry(iconTop, center - glyphHeight / HALF);
     }
 
     /**
@@ -282,5 +305,14 @@ public final class PanelPainter {
      * @param height the panel height including borders
      */
     public record PanelSize(float width, float height) {
+    }
+
+    /**
+     * Where a row's icon and text stand vertically, in scaled pixels.
+     *
+     * @param iconTop the icon's top Y
+     * @param textTop the text's top Y
+     */
+    public record RowGeometry(float iconTop, float textTop) {
     }
 }
