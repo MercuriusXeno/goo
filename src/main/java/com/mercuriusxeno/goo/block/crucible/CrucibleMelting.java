@@ -2,23 +2,20 @@ package com.mercuriusxeno.goo.block.crucible;
 
 import com.mercuriusxeno.goo.GooColors;
 import com.mercuriusxeno.goo.GooTypeDefinition;
-import com.mercuriusxeno.goo.item.DepletedBlazeRodItem;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.PartiallyMeltedItem;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import org.jspecify.annotations.Nullable;
 import java.util.Map;
 
 /**
- * Static helpers for the crucible melting pipeline: per-tick drain,
- * fuel conversion/consumption, ignition spray, boiling effects, and
- * LIT blockstate management. Keeps framework overrides in CrucibleBlockEntity.
+ * Static helpers for the crucible melting pipeline: per-tick heat and drain,
+ * ignition spray, boiling effects, and LIT blockstate management. Keeps framework overrides in CrucibleBlockEntity.
  */
 final class CrucibleMelting {
 
@@ -44,15 +41,18 @@ final class CrucibleMelting {
         handleBoilingEffects(be, level, pos);
         be.gasketPusher.tick();
 
-        boolean lit = be.isEnabled() && be.hasFuel();
+        boolean lit = be.isEnabled() && be.canHeat();
         if (lit != state.getValue(CrucibleBlock.LIT)) {
+            if (lit) {
+                beginIgnitionSpray(be);
+            }
             level.setBlock(pos, state.setValue(CrucibleBlock.LIT, lit), BLOCK_UPDATE_FLAGS);
         }
     }
 
     /**
-     * Per-tick melting: drains goo from the PMI pool into the reservoir.
-     * Skips if disabled, no fuel, or no meltable item.
+     * Per-tick melting: burns one heat tick and drains the pool at the heat's melt rate.
+     * Skips if disabled, and burns nothing without a meltable item or heat to buy.
      *
      * @param be    the crucible block entity
      * @param level the current level
@@ -62,35 +62,32 @@ final class CrucibleMelting {
         if (!be.isEnabled()) {
             return;
         }
-        if (!hasMeltableItem(be)) {
+        int meltRate = be.heat.burnMeltTick(hasMeltableItem(be), FuelGrade.configured(), be.fuelStock);
+        if (meltRate <= 0) {
             return;
         }
-        if (!be.hasFuel()) {
-            return;
-        }
-        processMeltCycle(be, level, pos);
+        processMeltCycle(be, level, pos, meltRate);
     }
 
     /**
-     * Runs one melt cycle: fuel conversion, drain, effects, fuel consumption, and cleanup.
+     * Runs one melt cycle: drain, effects, and cleanup.
      *
-     * @param be    the crucible block entity
-     * @param level the current level
-     * @param pos   the block position
+     * @param be       the crucible block entity
+     * @param level    the current level
+     * @param pos      the block position
+     * @param meltRate the mB to melt this tick
      */
-    private static void processMeltCycle(CrucibleBlockEntity be, Level level, BlockPos pos) {
-        convertFreshRodToDepleted(be);
-        drainFromPool(be);
+    private static void processMeltCycle(CrucibleBlockEntity be, Level level, BlockPos pos, int meltRate) {
+        drainFromPool(be, meltRate);
         spawnActiveEffects(be, level, pos);
-        consumeFuelTick(be);
         clearFinishedMeltingItem(be);
         be.syncToClients();
     }
 
     /**
-     * Spawns boiling bubbles, or embers in an empty basin, whenever the rod is heated,
+     * Spawns boiling bubbles, or embers in an empty basin, whenever the crucible can heat,
      * regardless of whether there is an item being melted. This lets players enable
-     * boiling at will by inserting a fuel rod into goo-filled basins.
+     * boiling at will by pouring fuel goo into goo-filled basins.
      *
      * @param be    the crucible block entity
      * @param level the current level
@@ -100,7 +97,7 @@ final class CrucibleMelting {
         if (!be.isEnabled()) {
             return;
         }
-        if (!be.hasFuel()) {
+        if (!be.canHeat()) {
             return;
         }
         if (hasMeltableItem(be)) {
@@ -110,34 +107,11 @@ final class CrucibleMelting {
     }
 
     /**
-     * Converts a vanilla blaze rod to a depleted blaze rod on its first burn tick.
+     * Begins a sustained single-spark spray when the crucible lights.
      *
      * @param be the crucible block entity
      */
-    private static void convertFreshRodToDepleted(CrucibleBlockEntity be) {
-        if (be.fuelRod.is(Items.BLAZE_ROD)) {
-            be.fuelRod = DepletedBlazeRodItem.createFresh();
-            beginIgnitionSpray(be);
-        }
-    }
-
-    /**
-     * Consumes one fuel tick, destroying the rod when fully exhausted.
-     *
-     * @param be the crucible block entity
-     */
-    private static void consumeFuelTick(CrucibleBlockEntity be) {
-        if (!DepletedBlazeRodItem.consumeTick(be.fuelRod)) {
-            be.fuelRod = ItemStack.EMPTY;
-        }
-    }
-
-    /**
-     * Begins a sustained single-spark spray when the blaze rod first contacts the basin.
-     *
-     * @param be the crucible block entity
-     */
-    private static void beginIgnitionSpray(CrucibleBlockEntity be) {
+    static void beginIgnitionSpray(CrucibleBlockEntity be) {
         Level level = be.getLevel();
         be.ignitionSprayTicks = CrucibleBlockEntity.IGNITION_BASE_TICKS
                 + (level != null ? level.getRandom().nextInt(CrucibleBlockEntity.IGNITION_RANDOM_TICKS) : 0);
@@ -235,20 +209,21 @@ final class CrucibleMelting {
     }
 
     /**
-     * Drains extractionRate() mB from the PMI pool, distributed proportionally
+     * Drains the melt rate in mB from the PMI pool, distributed proportionally
      * across all goo types present. Each type receives at least 1 mB per tick
      * (or its remaining volume if less).
      *
-     * @param be the crucible block entity
+     * @param be       the crucible block entity
+     * @param meltRate the burning fuel's melt rate in mB/tick
      */
-    private static void drainFromPool(CrucibleBlockEntity be) {
+    private static void drainFromPool(CrucibleBlockEntity be, int meltRate) {
         GooContents pmiContents = PartiallyMeltedItem.getContents(be.meltingItem);
         long totalRemaining = pmiContents.totalVolume();
         if (totalRemaining <= 0) {
             return;
         }
 
-        int rate = CrucibleMath.extractionRate(totalRemaining);
+        int rate = CrucibleMath.extractionRate(totalRemaining, meltRate);
         Map<ResourceKey<GooTypeDefinition>, Integer> shares = CrucibleMath.computeDrainShares(pmiContents, rate);
         applyDrainShares(be, shares);
     }

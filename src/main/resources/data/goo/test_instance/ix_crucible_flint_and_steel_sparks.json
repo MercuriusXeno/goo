@@ -1,6 +1,6 @@
 {
   "type": "minecraft:function",
-  "function": "goo:ix_crucible_fuel_insert",
+  "function": "goo:ix_crucible_flint_and_steel_sparks",
   "environment": "minecraft:default",
   "structure": "minecraft:empty",
   "max_ticks": 5,

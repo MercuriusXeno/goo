@@ -12,7 +12,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import java.util.UUID;
 
 /**
- * Static helpers for dropping crucible internals (PMI, fuel rod,
+ * Static helpers for dropping crucible internals (PMI,
  * reservoir blobs, gasket) when the block is broken.
  */
 final class CrucibleDrops {
@@ -41,7 +41,6 @@ final class CrucibleDrops {
         if (!(be instanceof CrucibleBlockEntity crucible)) { return; }
 
         dropMeltingItem(crucible, level, pos);
-        dropFuelRod(crucible, level, pos);
         dropReservoirAsBlobs(crucible, level, pos);
     }
 
@@ -55,19 +54,6 @@ final class CrucibleDrops {
         ItemStack pmi = crucible.getMeltingItem();
         if (!pmi.isEmpty()) {
             Block.popResource(level, pos, pmi);
-        }
-    }
-
-    /** Drops the depleted fuel rod if present.
-     *
-     * @param crucible the crucible block entity
-     * @param level    the current level
-     * @param pos      the block position
-     */
-    private static void dropFuelRod(CrucibleBlockEntity crucible, Level level, BlockPos pos) {
-        ItemStack rod = crucible.getFuelRod();
-        if (!rod.isEmpty()) {
-            Block.popResource(level, pos, rod);
         }
     }
 
