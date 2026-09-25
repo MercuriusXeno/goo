@@ -3,7 +3,7 @@ package com.mercuriusxeno.goo.block.ability;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.*;
-import com.mercuriusxeno.goo.ability.ChainProfiles.ChainProfile;
+import com.mercuriusxeno.goo.ability.AbilityDefinition.ChainConfig;
 import com.mercuriusxeno.goo.ability.program.FieldEffectState;
 import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.PhasedState;
@@ -75,9 +75,7 @@ public class ChainMarkerBlockEntity extends BlockEntity {
     private static final int IMPLOSION_SYNC_THRESHOLD = 8;
 
     private ResourceKey<GooTypeDefinition> gooType = GooTypes.ROCK;
-    private int stackCount = 1;
-    private int maxStacks = 1;
-    private int fuseRemaining;
+    private final ChainMarkerFuse fuse = new ChainMarkerFuse();
     private Direction placedFace = Direction.UP;
     /**
      * Cosmetic blob shape: "blob" or "flat". Affects BER mesh only.
@@ -182,12 +180,10 @@ public class ChainMarkerBlockEntity extends BlockEntity {
      * @param ability the ability definition
      */
     public void initChainFromAbility(ResourceKey<GooTypeDefinition> type, Direction face, AbilityDefinition ability) {
-        AbilityDefinition.ChainConfig chain = ability.chain();
+        ChainConfig chain = ability.chain();
         this.gooType = type;
         this.placedFace = face;
-        this.stackCount = 1;
-        this.maxStacks = chain.maxStacks();
-        this.fuseRemaining = chain.fuseTicks();
+        fuse.arm(chain);
         this.abilityId = ability.id().toString();
         this.blobShape = chain.blobShape();
         this.areaMode = extractAreaMode(ability);
@@ -196,34 +192,34 @@ public class ChainMarkerBlockEntity extends BlockEntity {
     }
 
     /**
-     * Attempts to increment the stack count. Returns true if successful.
-     * Resets the fuse timer on each successful stack.
+     * Attempts to increment the stack count under the ability's stack
+     * ceiling. Before the marker fires a stack resets the fuse to the
+     * ability's full fuse; after, the running program reads the new count
+     * through {@code stacks}.
      *
      * @return true if the stack count was incremented
      */
     public boolean tryStack() {
-        if (behavior != null && !behavior.allowsTopOff()) {
+        ChainConfig chain = abilityChain();
+        if (refusesTopOff() || chain == null || !fuse.addStack(chain)) {
             return false;
         }
-        if (!AbilityMath.canStack(stackCount, maxStacks)) {
-            return false;
-        }
-        stackCount++;
         lastStackTick = level != null ? level.getGameTime() : 0;
-        applyStackEffect();
+        if (behavior == null) {
+            fuse.resetFuse(chain);
+        }
         setChanged();
         syncToClient();
         return true;
     }
 
     /**
-     * Restarts the fuse from the profile while the marker is still fusing; a
-     * running program ignores the added stack until it reads {@code stacks}.
+     * Returns true when a standing behavior takes no more blobs.
+     *
+     * @return true if a behavior stands and refuses a top-off
      */
-    private void applyStackEffect() {
-        if (behavior == null) {
-            fuseRemaining = ChainProfile.forType(gooType).fuseTicks();
-        }
+    private boolean refusesTopOff() {
+        return behavior != null && !behavior.allowsTopOff();
     }
 
     /**
@@ -231,8 +227,8 @@ public class ChainMarkerBlockEntity extends BlockEntity {
      * stacks as charges. Syncs to client.
      */
     public void decrementStack() {
-        if (stackCount > 0) {
-            stackCount--;
+        if (fuse.stackCount() > 0) {
+            fuse.spendStack();
             setChanged();
             syncToClient();
         }
@@ -248,9 +244,7 @@ public class ChainMarkerBlockEntity extends BlockEntity {
         this.gooType = snapshot.gooType();
         this.abilityId = snapshot.abilityId();
         this.placedFace = snapshot.face();
-        this.stackCount = snapshot.stackCount();
-        this.maxStacks = snapshot.maxStacks();
-        this.fuseRemaining = snapshot.fuse();
+        fuse.restore(snapshot.stackCount(), snapshot.maxStacks(), snapshot.fuse());
         this.blobShape = snapshot.blobShape();
         this.areaMode = snapshot.areaMode();
         setChanged();
@@ -258,16 +252,36 @@ public class ChainMarkerBlockEntity extends BlockEntity {
     }
 
     /**
-     * Resets the fuse timer to the profile's full duration. Called by the
-     * server when a throw is declared toward this marker, keeping the
-     * fuse alive while blobs are in flight.
+     * Resets the fuse to the ability's full fuse. Called by the server
+     * when a throw is declared toward this marker, keeping the fuse alive
+     * while blobs are in flight.
      */
     public void stallFuse() {
-        ChainProfile profile = ChainProfile.forType(gooType);
-        if (profile != null) {
-            fuseRemaining = profile.fuseTicks();
+        ChainConfig chain = abilityChain();
+        if (chain != null) {
+            fuse.resetFuse(chain);
             setChanged();
         }
+    }
+
+    /**
+     * Reads the chain block of the ability this marker runs.
+     *
+     * @return the chain block, or null when the registry holds no such ability
+     */
+    private @Nullable ChainConfig abilityChain() {
+        AbilityDefinition def = ability();
+        return def != null ? def.chain() : null;
+    }
+
+    /**
+     * Resolves the ability this marker runs through the registry.
+     *
+     * @return the ability, or null when the id names none the registry holds
+     */
+    private @Nullable AbilityDefinition ability() {
+        Identifier id = Identifier.tryParse(abilityId);
+        return id != null ? AbilityRegistry.getAbility(id) : null;
     }
 
     /**
@@ -275,7 +289,7 @@ public class ChainMarkerBlockEntity extends BlockEntity {
      * will fire the behavior. Used by unstable goo on punch.
      */
     public void instantDetonate() {
-        fuseRemaining = 0;
+        fuse.burnOut();
         setChanged();
         syncToClient();
     }
@@ -396,11 +410,10 @@ public class ChainMarkerBlockEntity extends BlockEntity {
      * @param pos   the block position
      */
     private void tickFuse(ServerLevel level, BlockPos pos) {
-        if (fuseRemaining < 0) {
+        if (fuse.fuseRemaining() < 0) {
             return;
         }
-        fuseRemaining--;
-        if (!AbilityMath.isFuseLive(fuseRemaining)) {
+        if (fuse.countDown()) {
             detonate(level, pos);
             return;
         }
@@ -411,8 +424,9 @@ public class ChainMarkerBlockEntity extends BlockEntity {
      * Sends a client sync packet when entering implosion zone or at regular intervals.
      */
     private void syncIfNeeded() {
-        boolean implosionZone = fuseRemaining <= IMPLOSION_SYNC_THRESHOLD;
-        if (implosionZone || fuseRemaining % SYNC_INTERVAL == 0) {
+        int remaining = fuse.fuseRemaining();
+        boolean implosionZone = remaining <= IMPLOSION_SYNC_THRESHOLD;
+        if (implosionZone || remaining % SYNC_INTERVAL == 0) {
             syncToClient();
         }
     }
@@ -450,11 +464,7 @@ public class ChainMarkerBlockEntity extends BlockEntity {
      * @return the ability's program, or null when the registry holds no such ability
      */
     private @Nullable ProgramBehavior createBehavior() {
-        Identifier id = Identifier.tryParse(abilityId);
-        if (id == null) {
-            return null;
-        }
-        AbilityDefinition def = AbilityRegistry.getAbility(id);
+        AbilityDefinition def = ability();
         return def != null ? ProgramBehavior.forHost(def.behaviors(), HostKind.MARKER) : null;
     }
 
@@ -482,16 +492,16 @@ public class ChainMarkerBlockEntity extends BlockEntity {
      * @return the stack count
      */
     public int getStackCount() {
-        return stackCount;
+        return fuse.stackCount();
     }
 
     /**
-     * Returns the maximum stacks allowed by the chain profile.
+     * Returns the stack ceiling the ability's chain block sets.
      *
      * @return the max stacks
      */
     public int getMaxStacks() {
-        return maxStacks;
+        return fuse.maxStacks();
     }
 
     /**
@@ -500,7 +510,7 @@ public class ChainMarkerBlockEntity extends BlockEntity {
      * @return the fuse remaining
      */
     public int getFuseRemaining() {
-        return fuseRemaining;
+        return fuse.fuseRemaining();
     }
 
     /**
@@ -545,9 +555,8 @@ public class ChainMarkerBlockEntity extends BlockEntity {
     private void loadSharedFields(ValueInput input) {
         ResourceKey<GooTypeDefinition> loaded = GooTypes.byId(input.getStringOr(TAG_GOO_TYPE, DEFAULT_GOO_TYPE));
         gooType = loaded != null ? loaded : GooTypes.ROCK;
-        stackCount = input.getIntOr(TAG_STACK_COUNT, 1);
-        maxStacks = input.getIntOr(TAG_MAX_STACKS, 1);
-        fuseRemaining = input.getIntOr(TAG_FUSE_REMAINING, 0);
+        fuse.restore(input.getIntOr(TAG_STACK_COUNT, 1), input.getIntOr(TAG_MAX_STACKS, 1),
+                input.getIntOr(TAG_FUSE_REMAINING, 0));
         blobShape = input.getStringOr(TAG_BLOB_SHAPE, AbilityDefinition.ChainConfig.SHAPE_BLOB);
         areaMode = input.getStringOr(TAG_AREA_MODE, DEFAULT_AREA_MODE);
         lastStackTick = input.getLongOr(TAG_LAST_STACK_TICK, 0);
@@ -566,7 +575,7 @@ public class ChainMarkerBlockEntity extends BlockEntity {
      * @param input the value input to read from
      */
     private void reconstituteBehaviorIfNeeded(ValueInput input) {
-        if (fuseRemaining > 0) {
+        if (fuse.fuseRemaining() > 0) {
             return;
         }
         behavior = createBehavior();
@@ -597,9 +606,9 @@ public class ChainMarkerBlockEntity extends BlockEntity {
     protected void saveAdditional(@NonNull ValueOutput output) {
         super.saveAdditional(output);
         output.putString(TAG_GOO_TYPE, GooTypes.id(gooType));
-        output.putInt(TAG_STACK_COUNT, stackCount);
-        output.putInt(TAG_MAX_STACKS, maxStacks);
-        output.putInt(TAG_FUSE_REMAINING, fuseRemaining);
+        output.putInt(TAG_STACK_COUNT, fuse.stackCount());
+        output.putInt(TAG_MAX_STACKS, fuse.maxStacks());
+        output.putInt(TAG_FUSE_REMAINING, fuse.fuseRemaining());
         output.putString(TAG_PLACED_FACE, placedFace.getName());
         output.putString(TAG_BLOB_SHAPE, blobShape);
         output.putString(TAG_AREA_MODE, areaMode);
