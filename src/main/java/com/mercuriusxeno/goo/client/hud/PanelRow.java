@@ -13,8 +13,21 @@ import java.util.function.ToIntFunction;
  * @param icon       the icon texture, or null for a text-only header row
  * @param segments   the text segments drawn left to right after the icon
  * @param seeThrough whether the row draws over world geometry
+ * @param floorText  the text whose width the row's text never measures under, or null for no floor
  */
-public record PanelRow(@Nullable Identifier icon, List<TextSegment> segments, boolean seeThrough) {
+public record PanelRow(@Nullable Identifier icon, List<TextSegment> segments, boolean seeThrough,
+                       @Nullable String floorText) {
+
+    /**
+     * Builds a row with no width floor.
+     *
+     * @param icon       the icon texture, or null for a text-only header row
+     * @param segments   the text segments drawn left to right after the icon
+     * @param seeThrough whether the row draws over world geometry
+     */
+    public PanelRow(@Nullable Identifier icon, List<TextSegment> segments, boolean seeThrough) {
+        this(icon, segments, seeThrough, null);
+    }
 
     /**
      * Builds a text-only header row in one color.
@@ -40,17 +53,20 @@ public record PanelRow(@Nullable Identifier icon, List<TextSegment> segments, bo
     }
 
     /**
-     * Measures the row's width: the icon and its gap when present, then every segment.
+     * Measures the row's width: the icon and its gap when present, then the
+     * wider of every segment together and the floor text.
      *
      * @param textWidth the width in pixels the font gives a string
      * @return the row width in scaled pixels
      */
     public float width(ToIntFunction<String> textWidth) {
-        float width = icon == null ? 0 : PanelPainter.ICON_SIZE + PanelPainter.ICON_TEXT_GAP;
+        float iconWidth = icon == null ? 0 : PanelPainter.ICON_SIZE + PanelPainter.ICON_TEXT_GAP;
+        float segmentsWidth = 0;
         for (TextSegment segment : segments) {
-            width += textWidth.applyAsInt(segment.text());
+            segmentsWidth += textWidth.applyAsInt(segment.text());
         }
-        return width;
+        float floorWidth = floorText == null ? 0 : textWidth.applyAsInt(floorText);
+        return iconWidth + Math.max(segmentsWidth, floorWidth);
     }
 
     /**
