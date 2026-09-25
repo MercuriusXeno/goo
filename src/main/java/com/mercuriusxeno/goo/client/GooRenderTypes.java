@@ -285,14 +285,19 @@ public final class GooRenderTypes {
      * goo fluid look, translucent, fullbright and without cardinal
      * lighting, whose vertex shader lifts each vertex by the ripple
      * amplitude its overlay UV carries times a wave of world position and
-     * GameTime. Cull is off as on entityTranslucent, which the vat and
-     * crucible fluid drew on before.
+     * GameTime. Its fragment shader draws layer 0 whole and every later
+     * layer at the mingle opacity of its own noise field of world position
+     * and GameTime, from the share and layer the vertex's lightmap
+     * coordinates carry (decision noise-mingled-type-textures). Cull is off
+     * as on entityTranslucent, which the vat and crucible fluid drew on
+     * before.
      */
     public static final RenderPipeline GOO_FLUID_SURFACE = RenderPipeline.builder(
                     RenderPipelines.ENTITY_EMISSIVE_SNIPPET,
                     RenderPipelines.GLOBALS_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, "pipeline/goo_fluid_surface"))
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, "core/goo_fluid_surface"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, "core/goo_fluid_surface"))
             .withShaderDefine("ALPHA_CUTOUT", 0.1F)
             .withShaderDefine("NO_OVERLAY")
             .withShaderDefine("NO_CARDINAL_LIGHTING")

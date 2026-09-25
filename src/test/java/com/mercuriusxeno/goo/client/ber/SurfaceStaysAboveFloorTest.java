@@ -40,7 +40,7 @@ class SurfaceStaysAboveFloorTest {
         state.rippleAmplitude = amplitude(agitated);
         RecordingVertexConsumer recorder = new RecordingVertexConsumer();
 
-        VatFluidRenderer.renderFluid(new RenderContext(new PoseStack().last(), recorder, 0), sprite(), state);
+        VatFluidRenderer.renderFluid(new RenderContext(new PoseStack().last(), recorder, 0), sprite(), state, 0f);
 
         assertEveryLowestHeightAbove(surfaceGridVertices(recorder.vertices()), VatBlockEntityRenderer.BASE_FLOOR);
     }
