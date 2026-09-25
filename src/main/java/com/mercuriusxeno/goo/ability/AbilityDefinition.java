@@ -10,15 +10,14 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
  * A single ability within a goo type's repertoire. Loaded from datapack
- * JSON under {@code data/<ns>/goo_abilities/}. Defines the behavior
- * composition, cost formula, chain parameters, and display metadata.
+ * JSON under {@code data/<ns>/goo_abilities/}. Defines the step program,
+ * cost formula, chain parameters, and display metadata.
  *
  * @param id          the datapack resource identifier (from filename)
  * @param gooType     the goo type this ability belongs to
@@ -27,7 +26,7 @@ import java.util.stream.Stream;
  * @param order       sort order within the type's ability list
  * @param cost        the cost formula for this ability
  * @param chain       chain marker parameters (nullable for non-chain abilities)
- * @param behaviors   the composed behavior building blocks
+ * @param behaviors   the step trees the ability runs, in order
  * @param tags        categorical tags (explosive, instant, trap, field-effect, etc.)
  */
 public record AbilityDefinition(
@@ -38,7 +37,7 @@ public record AbilityDefinition(
         int order,
         AbilityCost cost,
         ChainConfig chain,
-        List<BehaviorEntry> behaviors,
+        List<Step> behaviors,
         List<String> tags
 ) {
 
@@ -68,7 +67,7 @@ public record AbilityDefinition(
                 Codec.INT.optionalFieldOf(FIELD_ORDER, 0).forGetter(AbilityDefinition::order),
                 AbilityCost.CODEC.fieldOf(FIELD_COST).forGetter(AbilityDefinition::cost),
                 ChainConfig.CODEC.optionalFieldOf(FIELD_CHAIN, ChainConfig.DEFAULT).forGetter(AbilityDefinition::chain),
-                BehaviorEntry.CODEC.listOf().fieldOf(FIELD_BEHAVIORS).forGetter(AbilityDefinition::behaviors),
+                StepTypes.LIST_CODEC.fieldOf(FIELD_BEHAVIORS).forGetter(AbilityDefinition::behaviors),
                 Codec.STRING.listOf().optionalFieldOf(FIELD_TAGS, List.of()).forGetter(AbilityDefinition::tags)
         ).apply(inst, (gooType, displayName, icon, order, cost, chain, behaviors, tags) ->
                 new AbilityDefinition(id, gooType, displayName, icon, order,
@@ -93,7 +92,6 @@ public record AbilityDefinition(
      */
     public Set<Identifier> placedBlocks() {
         return behaviors.stream()
-                .flatMap(entry -> entry.steps().stream())
                 .flatMap(AbilityDefinition::withDescendants)
                 .filter(PlaceBlockStep.class::isInstance)
                 .map(step -> ((PlaceBlockStep) step).block())
@@ -116,15 +114,11 @@ public record AbilityDefinition(
      * @param fuseTicks    fuse countdown (-1 for trigger-based)
      * @param maxStacks    maximum blob stacks
      * @param blobShape    cosmetic blob shape: "blob" (default) or "flat" (squished)
-     * @param rangeFormula range formula name (constant, tunnel_depth, freeze_radius, etc.)
-     * @param rangeValue   base value for constant range formulas
      */
     public record ChainConfig(
             int fuseTicks,
             int maxStacks,
-            String blobShape,
-            String rangeFormula,
-            int rangeValue
+            String blobShape
     ) {
         /**
          * Default blob shape.
@@ -138,80 +132,12 @@ public record AbilityDefinition(
         /**
          * Default chain config for abilities that don't specify one.
          */
-        static final ChainConfig DEFAULT = new ChainConfig(30, 1, SHAPE_BLOB, "constant", 1);
+        static final ChainConfig DEFAULT = new ChainConfig(30, 1, SHAPE_BLOB);
 
         static final Codec<ChainConfig> CODEC = RecordCodecBuilder.create(inst -> inst.group(
                 Codec.INT.optionalFieldOf("fuseTicks", 30).forGetter(ChainConfig::fuseTicks),
                 Codec.INT.optionalFieldOf("maxStacks", 1).forGetter(ChainConfig::maxStacks),
-                Codec.STRING.optionalFieldOf("blobShape", SHAPE_BLOB).forGetter(ChainConfig::blobShape),
-                Codec.STRING.optionalFieldOf("rangeFormula", "constant").forGetter(ChainConfig::rangeFormula),
-                Codec.INT.optionalFieldOf("rangeValue", 1).forGetter(ChainConfig::rangeValue)
+                Codec.STRING.optionalFieldOf("blobShape", SHAPE_BLOB).forGetter(ChainConfig::blobShape)
         ).apply(inst, ChainConfig::new));
-    }
-
-    /**
-     * A single behavior building block with its parameters.
-     * Parameters are stored as string key-value pairs; behavior factories
-     * parse them into typed values (float, boolean, etc.). A {@code program}
-     * entry carries its step tree in {@code steps} instead, each step typed
-     * by its own codec (decision ability-params-in-datapack).
-     *
-     * @param type   the behavior type name (program, entity_effect, etc.)
-     * @param params the parameter map for the behavior factory
-     * @param steps  the step tree of a program entry; empty for other types
-     */
-    public record BehaviorEntry(String type, Map<String, String> params, List<Step> steps) {
-
-        static final Codec<BehaviorEntry> CODEC = RecordCodecBuilder.create(inst -> inst.group(
-                Codec.STRING.fieldOf("type").forGetter(BehaviorEntry::type),
-                Codec.unboundedMap(Codec.STRING, Codec.STRING)
-                        .optionalFieldOf("params", Map.of())
-                        .forGetter(BehaviorEntry::params),
-                StepTypes.LIST_CODEC
-                        .optionalFieldOf("steps", List.of())
-                        .forGetter(BehaviorEntry::steps)
-        ).apply(inst, BehaviorEntry::new));
-
-        /**
-         * Creates an entry without a step tree, the shape every
-         * non-program type reads.
-         *
-         * @param type   the behavior type name
-         * @param params the parameter map
-         */
-        public BehaviorEntry(String type, Map<String, String> params) {
-            this(type, params, List.of());
-        }
-
-        /**
-         * Gets a float parameter, returning the default if absent or unparseable.
-         *
-         * @param key          the parameter name
-         * @param defaultValue the fallback value
-         * @return the parsed float
-         */
-        public float getFloat(String key, float defaultValue) {
-            String v = params.get(key);
-            if (v == null) {
-                return defaultValue;
-            }
-            try {
-                return Float.parseFloat(v);
-            } catch (NumberFormatException e) {
-                return defaultValue;
-            }
-        }
-
-        /**
-         * Gets a boolean parameter, returning the default if absent.
-         *
-         * @param key          the parameter name
-         * @param defaultValue the fallback value
-         * @return the parsed boolean
-         */
-        public boolean getBool(String key, boolean defaultValue) {
-            String v = params.get(key);
-            return v != null ? Boolean.parseBoolean(v) : defaultValue;
-        }
     }
 }

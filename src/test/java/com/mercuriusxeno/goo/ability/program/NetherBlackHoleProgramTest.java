@@ -61,7 +61,7 @@ class NetherBlackHoleProgramTest {
     private StepHost host;
 
     private static List<Step> program() {
-        return AbilityJson.decode("nether_black_hole").behaviors().get(0).steps();
+        return AbilityJson.decode("nether_black_hole").behaviors();
     }
 
     private void record(String act) {

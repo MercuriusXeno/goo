@@ -11,16 +11,11 @@
   },
   "behaviors": [
     {
-      "type": "program",
+      "type": "target",
+      "where": ["mob"],
       "steps": [
-        {
-          "type": "target",
-          "where": ["mob"],
-          "steps": [
-            { "type": "set_ai", "enabled": false },
-            { "type": "potion", "effect": "minecraft:slowness", "duration": 100, "amplifier": 127 }
-          ]
-        }
+        { "type": "set_ai", "enabled": false },
+        { "type": "potion", "effect": "minecraft:slowness", "duration": 100, "amplifier": 127 }
       ]
     }
   ],

@@ -8,9 +8,8 @@ import net.minecraft.sounds.SoundSource;
 
 /**
  * Generic-explode audio profile: brighter pitch dipping per step,
- * paired with the blaze tunnel's fortune-smelt break. Migrated from
- * the legacy {@code BlazeBehavior.playLayerSound} so the per-step
- * pipeline can dispatch by name.
+ * paired with the blaze tunnel's fortune-smelt break, selected by name
+ * for the progressive area step.
  */
 final class GenericExplodeAudio implements LayerAudio {
 

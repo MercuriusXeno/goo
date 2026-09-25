@@ -8,9 +8,8 @@ import net.minecraft.sounds.SoundSource;
 
 /**
  * Stone-break audio profile: low pitch dipping per step, paired with
- * the rock implosion's silk-touch break. Migrated from the legacy
- * {@code RockBehavior.playLayerSound} so the per-step pipeline can
- * dispatch by name.
+ * the rock implosion's silk-touch break, selected by name for the
+ * progressive area step.
  */
 final class StoneBreakAudio implements LayerAudio {
 

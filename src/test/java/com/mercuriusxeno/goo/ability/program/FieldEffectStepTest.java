@@ -100,7 +100,7 @@ class FieldEffectStepTest {
     private static List<Step> program(String resource) {
         String fileName = resource.substring(resource.lastIndexOf('/') + 1);
         return AbilityJson.decode(fileName.substring(0, fileName.length() - ".json".length()))
-                .behaviors().get(0).steps();
+                .behaviors();
     }
 
     private static List<Step> metalProgram() throws IOException {

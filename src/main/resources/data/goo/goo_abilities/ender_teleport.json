@@ -10,13 +10,8 @@
     "c": 1.0
   },
   "behaviors": [
-    {
-      "type": "program",
-      "steps": [
-        { "type": "teleport", "mode": "random_offset", "range": 32 },
-        { "type": "sound", "id": "minecraft:entity.enderman.teleport", "at": "target", "source": "hostile", "volume": 1, "pitch": 1 }
-      ]
-    }
+    { "type": "teleport", "mode": "random_offset", "range": 32 },
+    { "type": "sound", "id": "minecraft:entity.enderman.teleport", "at": "target", "source": "hostile", "volume": 1, "pitch": 1 }
   ],
   "tags": ["entity"]
 }

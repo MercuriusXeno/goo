@@ -8,9 +8,8 @@ import net.minecraft.server.level.ServerLevel;
 
 /**
  * Rock visuals: warden-style sonic-boom preview oriented along the
- * blast direction, then a dust-plume on struck. Migrated from the
- * legacy {@code RockBehavior} static helpers so the per-step pipeline
- * can dispatch by name rather than via {@code switch (particleStyle)}.
+ * blast direction, then a dust-plume on struck, selected by name for
+ * the progressive area step.
  */
 final class RockDustVisuals implements LayerVisuals {
 

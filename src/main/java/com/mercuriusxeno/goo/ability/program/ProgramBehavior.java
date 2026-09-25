@@ -1,7 +1,5 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import com.mercuriusxeno.goo.ability.AbilityDefinition;
-import com.mercuriusxeno.goo.ability.AbilityDefinition.BehaviorEntry;
 import com.mercuriusxeno.goo.ability.ChainBehavior;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import net.minecraft.core.BlockPos;
@@ -24,11 +22,6 @@ import java.util.TreeSet;
  * host-agnostic-runtime).
  */
 public final class ProgramBehavior implements ChainBehavior {
-
-    /**
-     * The behavior type name registered in {@code BehaviorType}.
-     */
-    public static final String TYPE_NAME = "program";
 
     private static final String TAG_STEP = "ProgramStep";
     private static final String TAG_STEP_TICKS = "ProgramStepTicks";
@@ -114,18 +107,6 @@ public final class ProgramBehavior implements ChainBehavior {
                         names.iterator().next(), hosted.host().label()));
             }
         });
-    }
-
-    /**
-     * Factory for {@code BehaviorType} registration: the program body is
-     * the entry's {@code steps} list, loaded for the marker host.
-     *
-     * @param entry the behavior entry carrying the steps
-     * @param def   the parent ability definition
-     * @return the runtime over the entry's steps
-     */
-    public static ChainBehavior fromEntry(BehaviorEntry entry, AbilityDefinition def) {
-        return forHost(entry.steps(), HostKind.MARKER);
     }
 
     /**
