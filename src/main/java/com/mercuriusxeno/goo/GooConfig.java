@@ -6,6 +6,8 @@ public class GooConfig {
 
     public static final ModConfigSpec SPEC;
     public static final ModConfigSpec.BooleanValue BASE_VALUES_OVERRIDE_RECIPES;
+    public static final int DEFAULT_BLAZE_TICKS_PER_MB = 4;
+    public static final ModConfigSpec.IntValue BLAZE_TICKS_PER_MB;
     public static final int DEFAULT_BLAZE_MELT_RATE = 20;
     public static final ModConfigSpec.IntValue BLAZE_MELT_RATE;
 
@@ -26,6 +28,10 @@ public class GooConfig {
 
         builder.comment("Crucible Settings");
         builder.push("crucible");
+
+        BLAZE_TICKS_PER_MB = builder
+            .comment("Ticks of heat one mB of blaze goo buys; heat is spent only on ticks that melt an item.")
+            .defineInRange("blazeTicksPerMb", DEFAULT_BLAZE_TICKS_PER_MB, 1, Integer.MAX_VALUE);
 
         BLAZE_MELT_RATE = builder
             .comment("mB drained from the melting item per tick while the crucible burns blaze goo.")

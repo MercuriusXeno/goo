@@ -77,7 +77,6 @@ class ConventionTest {
                 .or(simpleName("GooCauldronInteractions"))
                 .or(simpleName("BlobStacks"))
                 .or(simpleName("GooOmniblobItem"))
-                .or(simpleName("DepletedBlazeRodItem"))
                 .or(simpleName("PartiallyMeltedItem"))
                 .or(simpleName("GooFluidHandler"))
                 .or(simpleName("HubFluidHandler"))

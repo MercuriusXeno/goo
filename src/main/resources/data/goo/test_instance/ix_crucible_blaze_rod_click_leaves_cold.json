@@ -1,6 +1,6 @@
 {
   "type": "minecraft:function",
-  "function": "goo:ix_crucible_fuel_insert",
+  "function": "goo:ix_crucible_blaze_rod_click_leaves_cold",
   "environment": "minecraft:default",
   "structure": "minecraft:empty",
   "max_ticks": 5,

@@ -1,19 +1,16 @@
 package com.mercuriusxeno.goo.block.crucible;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
-import com.mercuriusxeno.goo.PlayerUtils;
 import com.mercuriusxeno.goo.item.*;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import java.util.Map;
 
 /**
- * Static helpers for crucible right-click interactions: fuel insertion,
- * canister collection, blob insertion, fuel removal,
- * and goo extraction. Keeps framework overrides in CrucibleBlock.
+ * Static helpers for crucible right-click interactions: canister collection,
+ * blob insertion, and goo extraction. Keeps framework overrides in CrucibleBlock.
  */
 final class CrucibleInteraction {
 
@@ -27,8 +24,7 @@ final class CrucibleInteraction {
      * @return true if the condition is met
      */
     static boolean wouldHandleItem(ItemStack stack) {
-        return isFuelItem(stack)
-                || isGooCarrier(stack);
+        return isGooCarrier(stack);
     }
 
     /**
@@ -41,39 +37,6 @@ final class CrucibleInteraction {
         return stack.getItem() instanceof CanisterItem
                 || stack.getItem() instanceof GooBlobItem
                 || stack.getItem() instanceof GooOmniblobItem;
-    }
-
-    /**
-     * Returns true if the item can be inserted as crucible fuel.
-     *
-     * @param stack the item stack
-     * @return true if the stack is a fuel item
-     */
-    static boolean isFuelItem(ItemStack stack) {
-        return stack.is(Items.BLAZE_ROD) || stack.getItem() instanceof DepletedBlazeRodItem;
-    }
-
-    /**
-     * Inserts a fuel rod only if the platform is empty.
-     *
-     * @param stack    the item stack
-     * @param crucible the crucible block entity
-     * @param player   the interacting player
-     * @return true if fuel was inserted
-     */
-    static boolean tryInsertFuel(ItemStack stack, CrucibleBlockEntity crucible,
-                                 Player player) {
-        if (!isFuelItem(stack)) {
-            return false;
-        }
-        if (crucible.hasFuel()) {
-            return false;
-        }
-        crucible.addFuel(stack);
-        if (!player.isCreative()) {
-            stack.shrink(1);
-        }
-        return true;
     }
 
     /**
@@ -147,22 +110,6 @@ final class CrucibleInteraction {
                                         int volume, int perUnit) {
         int units = CrucibleInsertion.reservoirUnitsThatFit(crucible, type, perUnit, volume / perUnit);
         return units > 0 ? crucible.insertGoo(type, units * perUnit) : 0;
-    }
-
-    /**
-     * Removes the fuel rod from the crucible and gives it to the player.
-     *
-     * @param crucible the crucible block entity
-     * @param player   the interacting player
-     * @return the result
-     */
-    static InteractionResult tryRemoveFuelRod(CrucibleBlockEntity crucible, Player player) {
-        ItemStack rod = crucible.removeFuelRod();
-        if (rod.isEmpty()) {
-            return InteractionResult.PASS;
-        }
-        PlayerUtils.addOrDrop(player, rod);
-        return InteractionResult.SUCCESS;
     }
 
     /**

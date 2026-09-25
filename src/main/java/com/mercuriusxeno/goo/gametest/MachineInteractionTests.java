@@ -14,6 +14,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -53,7 +54,16 @@ public final class MachineInteractionTests {
     private static final int HUB_PICKUP_DELAY_TICKS = 12;
     private static final double PIXELS_PER_BLOCK = 16.0;
     private static final String PLEXER_SHOULD_SET = "Plexer should have target item after interaction";
-    private static final String CRUCIBLE_SHOULD_FUEL = "Crucible should have fuel after blaze rod insert";
+    private static final String BLAZE_ROD_STAYS_WHOLE = "A blaze rod click should leave the held stack whole";
+    private static final String BLAZE_ROD_LEAVES_COLD = "A blaze rod click should leave the crucible cold";
+    private static final String COLD_CRUCIBLE_REFUSES = "A cold crucible with no fuel goo should leave the item entity standing";
+    private static final String BLAZE_CRUCIBLE_ABSORBS = "A crucible holding blaze goo should absorb the item entity";
+    private static final int CRUCIBLE_BLAZE_FUEL = 100;
+    private static final int ABSORB_DELAY = 5;
+    /** X/Z center of the crucible basin in test-relative coords. */
+    private static final double BASIN_CENTER_XZ = 1.5;
+    /** Y just above the crucible body surface (13/16 + block y=1). */
+    private static final double BASIN_SURFACE_Y = 1.85;
     private static final double BLOCK_CENTER = 0.5;
     private static final double UPPER_HIT_Y = 0.9;
 
@@ -301,11 +311,12 @@ public final class MachineInteractionTests {
     }
 
     /**
-     * Crucible: right-click with blaze rod inserts fuel.
+     * Crucible: a blaze rod click inserts no fuel, leaving the stack whole and the
+     * crucible cold (decision fuel-goo-heats-per-mb).
      *
      * @param helper the gametest helper
      */
-    public static void crucibleFuelInsert(GameTestHelper helper) {
+    public static void crucibleBlazeRodClickLeavesItCold(GameTestHelper helper) {
         helper.setBlock(BE_POS, GooBlocks.CRUCIBLE.get());
         CrucibleBlockEntity crucible = helper.getBlockEntity(BE_POS, CrucibleBlockEntity.class);
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
@@ -313,7 +324,53 @@ public final class MachineInteractionTests {
 
         helper.useBlock(BE_POS, player, hit(helper, Direction.UP));
 
-        helper.assertTrue(crucible.hasFuel(), CRUCIBLE_SHOULD_FUEL);
+        helper.assertValueEqual(player.getItemInHand(InteractionHand.MAIN_HAND).getCount(), 1, BLAZE_ROD_STAYS_WHOLE);
+        helper.assertFalse(crucible.canHeat(), BLAZE_ROD_LEAVES_COLD);
         helper.succeed();
+    }
+
+    /**
+     * Crucible: a cold crucible with no fuel goo leaves an item dropped into it standing.
+     *
+     * @param helper the gametest helper
+     */
+    public static void coldCrucibleAbsorbsNothing(GameTestHelper helper) {
+        helper.setBlock(BE_POS, GooBlocks.CRUCIBLE.get());
+        ItemEntity dropped = spawnInBasin(helper);
+
+        helper.runAfterDelay(ABSORB_DELAY, () -> {
+            helper.assertFalse(dropped.isRemoved(), COLD_CRUCIBLE_REFUSES);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Crucible: the same crucible holding blaze goo in its reservoir absorbs the item.
+     *
+     * @param helper the gametest helper
+     */
+    public static void blazeCrucibleAbsorbsItem(GameTestHelper helper) {
+        helper.setBlock(BE_POS, GooBlocks.CRUCIBLE.get());
+        helper.getBlockEntity(BE_POS, CrucibleBlockEntity.class).insertGoo(GooTypes.BLAZE, CRUCIBLE_BLAZE_FUEL);
+        ItemEntity dropped = spawnInBasin(helper);
+
+        helper.runAfterDelay(ABSORB_DELAY, () -> {
+            helper.assertTrue(dropped.isRemoved(), BLAZE_CRUCIBLE_ABSORBS);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Spawns a still cobblestone item entity inside the crucible basin.
+     *
+     * @param helper the gametest helper
+     * @return the spawned entity
+     */
+    private static ItemEntity spawnInBasin(GameTestHelper helper) {
+        Vec3 at = helper.absoluteVec(new Vec3(BASIN_CENTER_XZ, BASIN_SURFACE_Y, BASIN_CENTER_XZ));
+        ItemEntity entity = new ItemEntity(helper.getLevel(), at.x, at.y, at.z, new ItemStack(Items.COBBLESTONE));
+        entity.setDeltaMovement(Vec3.ZERO);
+        helper.getLevel().addFreshEntity(entity);
+        return entity;
     }
 }
