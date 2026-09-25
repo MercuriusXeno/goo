@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.block;
 
+import com.mercuriusxeno.goo.GooConfig;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.block.crucible.CrucibleMath;
@@ -13,69 +14,59 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Tests for crucible pure logic: exponent-based extraction rate,
+ * Tests for crucible pure logic: flat extraction rate,
  * proportional drain shares, GooValue-to-GooContents bridge,
  * GooContents operations, and platform movement math.
  */
 @ExtendWith(MockitoExtension.class)
 class CrucibleBlockEntityTest {
 
-    // -- extractionRate (quarter-power curve) --------------------------------
+    // -- extractionRate (flat rate, decision melt-rate-is-flat) ------------
 
     /**
-     * Zero remaining always yields minimum rate of 1 mB/t.
+     * The default blaze melt rate answers the same 20 mB/t for a nearly empty pool,
+     * a block's worth and a basin near its 2 billion mB cap.
      */
     @Test
-    void zeroRemainingYieldsMinimumRate() {
-        assertEquals(1, CrucibleMath.extractionRate(0));
+    void flatRateIsTheSameAtEveryPoolVolume() {
+        int rate = GooConfig.DEFAULT_BLAZE_MELT_RATE;
+        assertEquals(20, rate);
+        assertEquals(rate, CrucibleMath.extractionRate(1, rate));
+        assertEquals(rate, CrucibleMath.extractionRate(1152, rate));
+        assertEquals(rate, CrucibleMath.extractionRate(2_000_000_000L, rate));
     }
 
     /**
-     * 1 mB remaining: floor(1^0.25) = 1.
+     * An empty or negative pool drains nothing.
      */
     @Test
-    void oneRemainingYieldsOne() {
-        assertEquals(1, CrucibleMath.extractionRate(1));
+    void emptyPoolDrainsNothing() {
+        assertEquals(0, CrucibleMath.extractionRate(0, 20));
+        assertEquals(0, CrucibleMath.extractionRate(-100, 20));
     }
 
     /**
-     * 100 mB remaining: floor(100^0.25) = floor(3.16) = 3.
+     * A rate below 1 still drains 1 mB/t from a non-empty pool.
      */
     @Test
-    void hundredRemainingYieldsThree() {
-        assertEquals(3, CrucibleMath.extractionRate(100));
+    void nonPositiveRateDrainsOneMb() {
+        assertEquals(1, CrucibleMath.extractionRate(500, 0));
     }
 
     /**
-     * 1000 mB remaining: floor(1000^0.25) = floor(5.62) = 5.
+     * A 1152 mB item drains in 58 ticks at 20 mB/t: 57 full ticks and a 12 mB tail.
      */
     @Test
-    void thousandRemainingYieldsFive() {
-        assertEquals(5, CrucibleMath.extractionRate(1000));
-    }
-
-    /**
-     * 10,000 mB remaining: floor(10000^0.25) = 10.
-     */
-    @Test
-    void tenThousandRemainingYieldsTen() {
-        assertEquals(10, CrucibleMath.extractionRate(10_000));
-    }
-
-    /**
-     * 1,000,000 mB remaining: floor(1e6^0.25) = floor(31.6) = 31.
-     */
-    @Test
-    void millionRemainingYieldsThirtyOne() {
-        assertEquals(31, CrucibleMath.extractionRate(1_000_000));
-    }
-
-    /**
-     * Negative remaining clamps to minimum rate of 1.
-     */
-    @Test
-    void negativeRemainingYieldsMinimumRate() {
-        assertEquals(1, CrucibleMath.extractionRate(-100));
+    void blockOfGooDrainsInFiftyEightTicks() {
+        int volume = 1152;
+        int ticks = 0;
+        while (volume > 0) {
+            GooContents pool = new GooContents(Map.of(GooTypes.ROCK, volume));
+            int rate = CrucibleMath.extractionRate(volume, GooConfig.DEFAULT_BLAZE_MELT_RATE);
+            volume -= CrucibleMath.computeDrainShares(pool, rate).get(GooTypes.ROCK);
+            ticks++;
+        }
+        assertEquals(58, ticks);
     }
 
     // -- GooValue.toGooContents ------------------------------------------
@@ -246,6 +237,21 @@ class CrucibleBlockEntityTest {
         Map<ResourceKey<GooTypeDefinition>, Integer> shares = CrucibleMath.computeDrainShares(pool, 10);
         int total = shares.values().stream().mapToInt(Integer::intValue).sum();
         assertTrue(total <= 10, "Total shares " + total + " should not exceed rate 10");
+    }
+
+    /**
+     * A 200 mB/t rate against a pool near 2 billion mB split across two types
+     * multiplies in long, so the shares stay non-negative and sum to the rate.
+     */
+    @Test
+    void sharesAtTwoBillionPoolSumToRateWithoutOverflow() {
+        GooContents pool = new GooContents(Map.of(
+                GooTypes.ROCK, 1_500_000_000, GooTypes.METAL, 500_000_000));
+        Map<ResourceKey<GooTypeDefinition>, Integer> shares = CrucibleMath.computeDrainShares(pool, 200);
+        assertTrue(shares.get(GooTypes.ROCK) >= 0);
+        assertTrue(shares.get(GooTypes.METAL) >= 0);
+        assertEquals(150, shares.get(GooTypes.ROCK));
+        assertEquals(50, shares.get(GooTypes.METAL));
     }
 
 }
