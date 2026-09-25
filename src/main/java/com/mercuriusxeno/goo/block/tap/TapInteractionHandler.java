@@ -89,7 +89,7 @@ final class TapInteractionHandler {
     }
 
     /**
-     * Dispatches empty-hand interactions by sub-region: canister, valve, body, gasket.
+     * Dispatches plain empty-hand interactions by sub-region: the valve toggles, any other region hands back the canister.
      *
      * @param state              the block state
      * @param level              the current level
@@ -112,7 +112,7 @@ final class TapInteractionHandler {
         if (hitValve(hitResult, pos, facing, valveShapes)) {
             return toggleValve(state, level, pos);
         }
-        return tryCanisterOrGasket(state, level, pos, player, tap);
+        return tap.getCanister().isEmpty() ? InteractionResult.PASS : removeCanister(tap, level, pos, player);
     }
 
     // --- Sub-region hit detection ---
@@ -191,24 +191,6 @@ final class TapInteractionHandler {
     // --- Empty-hand helpers ---
 
     /**
-     * Removes the canister if present, otherwise tries to remove the gasket.
-     *
-     * @param state  the block state
-     * @param level  the current level
-     * @param pos    the block position
-     * @param player the interacting player
-     * @param tap    the tap block entity
-     * @return the interaction result
-     */
-    private static InteractionResult tryCanisterOrGasket(
-            BlockState state, Level level, BlockPos pos, Player player, TapBlockEntity tap) {
-        if (!tap.getCanister().isEmpty()) {
-            return removeCanister(tap, level, pos, player);
-        }
-        return tryRemoveGasket(state, level, pos, player, tap);
-    }
-
-    /**
      * Removes the canister from the tap and gives it to the player.
      *
      * @param tap    the tap block entity
@@ -241,27 +223,6 @@ final class TapInteractionHandler {
                 nowOpen ? SoundEvents.COPPER_TRAPDOOR_OPEN : SoundEvents.COPPER_TRAPDOOR_CLOSE,
                 SoundSource.BLOCKS, 1.0f, 1.0f);
         return InteractionResult.SUCCESS;
-    }
-
-    /**
-     * Removes the gasket if the player is sneaking and one is installed.
-     *
-     * @param state  the block state
-     * @param level  the current level
-     * @param pos    the block position
-     * @param player the interacting player
-     * @param tap    the tap block entity
-     * @return SUCCESS if removed, PASS otherwise
-     */
-    private static InteractionResult tryRemoveGasket(
-            BlockState state, Level level, BlockPos pos, Player player, TapBlockEntity tap) {
-        if (player.isShiftKeyDown() && state.getValue(TapBlock.HAS_GASKET)) {
-            GasketInstallation.popGasket(level, pos, tap.getGasketId(GasketRole.RECEIVER));
-            tap.clearGasket(GasketRole.RECEIVER);
-            level.setBlock(pos, state.setValue(TapBlock.HAS_GASKET, false), BLOCK_UPDATE_FLAGS);
-            return InteractionResult.SUCCESS;
-        }
-        return InteractionResult.PASS;
     }
 
     // --- Block break drops ---

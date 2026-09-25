@@ -2,10 +2,12 @@ package com.mercuriusxeno.goo.block.tap;
 
 import com.mercuriusxeno.goo.DripFall;
 import com.mercuriusxeno.goo.GooColors;
+import com.mercuriusxeno.goo.GooConstants;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.block.BlockEntitySync;
 import com.mercuriusxeno.goo.block.canister.ICanisterHolder;
 import com.mercuriusxeno.goo.block.canister.SlottedCanisterData;
+import com.mercuriusxeno.goo.block.gasket.AddressedGasket;
 import com.mercuriusxeno.goo.block.gasket.GasketAttachment;
 import com.mercuriusxeno.goo.block.gasket.IGasketHolder;
 import com.mercuriusxeno.goo.block.gasket.SlotGasketRegistration;
@@ -23,12 +25,15 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.Shapes;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Tap block entity: drips goo from a canister placed in its body slot.
@@ -232,6 +237,26 @@ public class TapBlockEntity extends net.minecraft.world.level.block.entity.Block
     @Override
     public boolean supportsRole(GasketRole role) {
         return role == GasketRole.RECEIVER && getBlockState().getValue(TapBlock.HAS_GASKET);
+    }
+
+    /**
+     * The tap carries one gasket, so any hit on the tap addresses it.
+     */
+    @Override
+    public @Nullable AddressedGasket addressedGasket(BlockHitResult hit) {
+        return holdsBlockGasket(GasketRole.RECEIVER)
+                ? new AddressedGasket(GasketRole.RECEIVER, GooConstants.NO_SLOT) : null;
+    }
+
+    @Override
+    public boolean holdsBlockGasket(GasketRole role) {
+        return supportsRole(role);
+    }
+
+    @Override
+    public void uninstallGasket(AddressedGasket gasket) {
+        clearGasket(gasket.role());
+        level.setBlock(worldPosition, getBlockState().setValue(TapBlock.HAS_GASKET, false), Block.UPDATE_ALL);
     }
 
     private void markDirtyAndSync() {
