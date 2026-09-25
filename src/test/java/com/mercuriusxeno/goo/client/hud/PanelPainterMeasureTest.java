@@ -6,15 +6,18 @@ import com.mercuriusxeno.goo.client.machine.VatStackAggregator.VatStackData;
 import com.mercuriusxeno.goo.item.GooContents;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.ToIntFunction;
 import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests that PanelPainter measures the canister, vat and crucible panels to the
@@ -80,6 +83,39 @@ class PanelPainterMeasureTest {
         PanelPainter.PanelSize size = PanelPainter.measure(rows, SIX_PIXELS_A_CHARACTER);
         assertEquals(oldWidth, size.width(), panel + " width");
         assertEquals(oldHeight, size.height(), panel + " height");
+    }
+
+    /**
+     * "9.99 / 9.99" is 66 after the 12 of icon and gap, plus 6 of borders: the
+     * crucible floor (decision crucible-panel-floors-width-under-ten-blobs).
+     */
+    private static final float CRUCIBLE_FLOOR_WIDTH = 84f;
+
+    /**
+     * A draining crucible below 10 blobs measures the floor's width whatever
+     * the compact format's length at that volume.
+     *
+     * @param reservoirVolume the reservoir volume in mB, with an empty pool
+     */
+    @ParameterizedTest(name = "{0} mB")
+    @ValueSource(ints = {500, 9_000, 9_900, 9_990})
+    void crucibleBelowTenBlobsMeasuresTheFloor(int reservoirVolume) {
+        List<PanelRow> rows = CruciblePanelRows.rows(
+                contents(Map.of(GooTypes.ROCK, reservoirVolume)), GooContents.EMPTY, null);
+        assertEquals(CRUCIBLE_FLOOR_WIDTH, PanelPainter.measure(rows, SIX_PIXELS_A_CHARACTER).width());
+    }
+
+    /**
+     * Past 10 blobs a crucible row whose text outgrows the floor measures wider:
+     * "1.23K / 1.23K" is 78 after the icon and gap, plus borders.
+     */
+    @Test
+    void crucibleTextWiderThanTheFloorMeasuresWider() {
+        List<PanelRow> rows = CruciblePanelRows.rows(
+                contents(Map.of(GooTypes.ROCK, 1_234_567)), GooContents.EMPTY, null);
+        float width = PanelPainter.measure(rows, SIX_PIXELS_A_CHARACTER).width();
+        assertEquals(96f, width);
+        assertTrue(width > CRUCIBLE_FLOOR_WIDTH);
     }
 
     /**
