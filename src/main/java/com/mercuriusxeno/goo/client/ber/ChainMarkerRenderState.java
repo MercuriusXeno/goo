@@ -20,11 +20,8 @@ public class ChainMarkerRenderState extends BlockEntityRenderState {
     /** Current stack count (1-based). */
     public int stackCount = 1;
 
-    /** Maximum stack count from the profile. */
+    /** Stack ceiling the marker's ability sets. */
     public int maxStacks = 1;
-
-    /** Total fuse duration from the profile. */
-    public int fuseTicks = 1;
 
     /** Fuse remaining in ticks (for pulsing/implosion animation). */
     public int fuseRemaining;
