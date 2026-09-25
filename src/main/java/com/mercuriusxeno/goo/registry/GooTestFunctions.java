@@ -93,6 +93,9 @@ public final class GooTestFunctions {
     private static final String REACTOR_TUNER_LINK = "reactor_tuner_link";
     private static final String REACTOR_GASKET_LOCATION = "reactor_gasket_location";
     private static final String REACTOR_SEATED_GASKET_METADATA = "reactor_seated_gasket_metadata";
+    private static final String TAP_ROLE_RECEIVER = "tap_role_receiver";
+    private static final String TAP_TUNER_LINK = "tap_tuner_link";
+    private static final String TAP_REFUSES_TRANSMITTER = "tap_refuses_transmitter";
     private static final String TAP_ATTACHMENT_LOADS = "tap_attachment_loads";
     private static final String HUB_SLOT_GASKET_REGISTERED = "hub_slot_gasket_registered";
     private static final String BREAK_POPS_GASKET_CRUCIBLE = "break_pops_gasket_crucible";
@@ -260,6 +263,7 @@ public final class GooTestFunctions {
             registerGooItemTests(registrar);
             registerExoriteTests(registrar);
             registerGasketTests(registrar);
+            registerGasketRegistryTests(registrar);
             registerEffectExecutorTests(registrar);
             registerAbilityLandingTests(registrar);
             registerCrucibleTests(registrar);
@@ -354,6 +358,12 @@ public final class GooTestFunctions {
         reg(r, REACTOR_TUNER_LINK, GasketHolderTests::reactorTunerLinksCrucibleToOutputCanister);
         reg(r, REACTOR_GASKET_LOCATION, GasketHolderTests::reactorOutputGasketLocationFollowsCanister);
         reg(r, REACTOR_SEATED_GASKET_METADATA, GasketHolderTests::reactorSeatedCanisterAnswersGasketMetadata);
+        reg(r, TAP_ROLE_RECEIVER, GasketHolderTests::tapResolveRoleAlwaysReceiver);
+        reg(r, TAP_TUNER_LINK, GasketHolderTests::tapTunerLinksCanisterTransmitter);
+        reg(r, TAP_REFUSES_TRANSMITTER, GasketHolderTests::tapRefusesTransmitterRole);
+    }
+
+    private static void registerGasketRegistryTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
         reg(r, TAP_ATTACHMENT_LOADS, GasketRegistryTests::tapAttachmentLoads);
         reg(r, HUB_SLOT_GASKET_REGISTERED, GasketRegistryTests::hubSlotGasketRegistered);
         reg(r, BREAK_POPS_GASKET_CRUCIBLE, GasketRegistryTests::breakPopsGasketCrucible);
