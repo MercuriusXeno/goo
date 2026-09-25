@@ -283,11 +283,10 @@ public final class MetalSpikeVisual {
         float sin0 = (float) Math.sin(a0) * SPIKE_BASE_RADIUS;
         float cos1 = (float) Math.cos(a1) * SPIKE_BASE_RADIUS;
         float sin1 = (float) Math.sin(a1) * SPIKE_BASE_RADIUS;
-        float midCos = (float) Math.cos(a0 + a1) * HALF;
-        float midSin = (float) Math.sin(a0 + a1) * HALF;
-        float nx = basis[ConeGeometry.PERP_X] * midCos + basis[ConeGeometry.CROSS_X] * midSin;
-        float ny = basis[ConeGeometry.PERP_Y] * midCos + basis[ConeGeometry.CROSS_Y] * midSin;
-        float nz = basis[ConeGeometry.PERP_Z] * midCos + basis[ConeGeometry.CROSS_Z] * midSin;
+        float[] normal = coneSegmentNormal(basis, i);
+        float nx = normal[ConeGeometry.PERP_X];
+        float ny = normal[ConeGeometry.PERP_Y];
+        float nz = normal[ConeGeometry.PERP_Z];
         ctx.vertexColored(color,
                 bx + basis[ConeGeometry.PERP_X] * cos0 + basis[ConeGeometry.CROSS_X] * sin0,
                 by + basis[ConeGeometry.PERP_Y] * cos0 + basis[ConeGeometry.CROSS_Y] * sin0,
@@ -300,5 +299,26 @@ public final class MetalSpikeVisual {
                 uv.u1(), uv.v0(), nx, ny, nz);
         ctx.vertexColored(color, tipX, tipY, tipZ, uMid, uv.v1(), dirX, dirY, dirZ);
         ctx.vertexColored(color, tipX, tipY, tipZ, uMid, uv.v1(), dirX, dirY, dirZ);
+    }
+
+    /**
+     * Computes the face normal of one cone segment: the basis direction at
+     * the angle midway between the segment's two base edges.
+     *
+     * @param basis   orthonormal basis vectors
+     * @param segment segment index around the cone
+     * @return a 3-element normal vector {nx, ny, nz}
+     */
+    static float[] coneSegmentNormal(float[] basis, int segment) {
+        float a0 = TWO_PI * segment / SPIKE_SIDES;
+        float a1 = TWO_PI * (segment + 1) / SPIKE_SIDES;
+        float midAngle = (a0 + a1) * HALF;
+        float midCos = (float) Math.cos(midAngle);
+        float midSin = (float) Math.sin(midAngle);
+        return new float[]{
+                basis[ConeGeometry.PERP_X] * midCos + basis[ConeGeometry.CROSS_X] * midSin,
+                basis[ConeGeometry.PERP_Y] * midCos + basis[ConeGeometry.CROSS_Y] * midSin,
+                basis[ConeGeometry.PERP_Z] * midCos + basis[ConeGeometry.CROSS_Z] * midSin,
+        };
     }
 }

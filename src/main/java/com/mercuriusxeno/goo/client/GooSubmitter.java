@@ -328,7 +328,7 @@ public final class GooSubmitter {
      * @param spriteId the sprite identifier
      * @return the stitched sprite
      */
-    private static TextureAtlasSprite blockSprite(Identifier spriteId) {
+    public static TextureAtlasSprite blockSprite(Identifier spriteId) {
         return blockAtlas().getSprite(spriteId);
     }
 
