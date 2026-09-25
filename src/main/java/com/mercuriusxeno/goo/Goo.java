@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo;
 
 import com.mercuriusxeno.goo.ability.AbilityLoader;
-import com.mercuriusxeno.goo.ability.ChainProfiles;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerFallScheduler;
 import com.mercuriusxeno.goo.block.tap.TapDripScheduler;
 import com.mercuriusxeno.goo.command.GooCommand;
@@ -119,7 +118,6 @@ public class Goo {
      * @param event the common setup event
      */
     private static void commonSetup(FMLCommonSetupEvent event) {
-        ChainProfiles.registerAll();
         com.mercuriusxeno.goo.item.gasket.ChoralGasketItem.setGasketBlockSupplier(
                 GooBlocks.CHORAL_GASKET_BLOCK::get);
     }

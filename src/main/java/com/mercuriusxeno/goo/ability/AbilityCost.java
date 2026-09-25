@@ -1,8 +1,11 @@
 package com.mercuriusxeno.goo.ability;
 
 import com.mojang.serialization.Codec;
+import com.mojang.serialization.DataResult;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import java.util.Set;
+import java.util.function.IntUnaryOperator;
 
 /**
  * Sealed hierarchy for ability cost formulas. Each variant computes
@@ -15,10 +18,17 @@ public sealed interface AbilityCost {
     String FORMULA_BLOCK_COUNT = "block_count";
     String FORMULA_POWER_LAW = "power_law";
 
+    /** The formula names a cost JSON may carry; any other refuses at load. */
+    Set<String> FORMULAS = Set.of(FORMULA_QUADRATIC, FORMULA_BLOCK_COUNT, FORMULA_POWER_LAW);
+
+    /** The load refusal for a formula name outside {@link #FORMULAS}. */
+    String UNKNOWN_FORMULA = "Unknown cost formula '%s'; expected one of %s";
+
     /** Codec that reads "formula" and all flat fields, constructing the right type. */
     Codec<AbilityCost> CODEC = RecordCodecBuilder.<AbilityCost>create(
             inst -> inst.group(
-                    Codec.STRING.fieldOf("formula").forGetter(AbilityCost::formulaName),
+                    Codec.STRING.validate(AbilityCost::knownFormula).fieldOf("formula")
+                            .forGetter(AbilityCost::formulaName),
                     Codec.INT.optionalFieldOf("baseCost", 0).forGetter(c -> switch (c) {
                         case Quadratic q -> q.baseCost();
                         case PowerLaw p -> p.baseCost();
@@ -39,10 +49,23 @@ public sealed interface AbilityCost {
     /**
      * Computes the cost in mB for throwing blob number {@code n} in the sequence.
      *
-     * @param n the 0-based sequence position (0 = first throw)
+     * @param n               the 0-based sequence position (0 = first throw)
+     * @param footprintBlocks the blocks the ability's footprint covers at a stack count
      * @return the cost in microblobs
      */
-    int costForStack(int n);
+    int costForStack(int n, IntUnaryOperator footprintBlocks);
+
+    /**
+     * Accepts a formula name the cost variants hold and refuses any other.
+     *
+     * @param formula the formula name
+     * @return the name, or an error naming it
+     */
+    private static DataResult<String> knownFormula(String formula) {
+        return FORMULAS.contains(formula)
+                ? DataResult.success(formula)
+                : DataResult.error(() -> UNKNOWN_FORMULA.formatted(formula, FORMULAS));
+    }
 
     /** Constructs the correct AbilityCost variant from flat codec fields.
      *
@@ -61,7 +84,7 @@ public sealed interface AbilityCost {
             case FORMULA_QUADRATIC -> new Quadratic(baseCost, a, b, c);
             case FORMULA_BLOCK_COUNT -> new BlockCount(costPerBlock);
             case FORMULA_POWER_LAW -> new PowerLaw(baseCost, mult);
-            default -> new Quadratic(baseCost, 0f, 0f, 1f);
+            default -> throw new IllegalArgumentException(formula);
         };
     }
 
@@ -92,7 +115,7 @@ public sealed interface AbilityCost {
         ).apply(inst, Quadratic::new));
 
         @Override
-        public int costForStack(int n) {
+        public int costForStack(int n, IntUnaryOperator footprintBlocks) {
             return (int) (baseCost * (a * n * n + b * n + c));
         }
 
@@ -101,9 +124,8 @@ public sealed interface AbilityCost {
     }
 
     /**
-     * Block-count: {@code costPerBlock * marginalBlocks(N)}.
-     * The caller must supply the marginal block count externally since
-     * it depends on the effect's footprint geometry.
+     * Block-count: {@code costPerBlock * marginalBlocks(N)}, the blocks
+     * stack {@code N + 1} adds to the ability's footprint over stack {@code N}.
      *
      * @param costPerBlock mB cost per additional block in the footprint
      */
@@ -114,19 +136,8 @@ public sealed interface AbilityCost {
         ).apply(inst, BlockCount::new));
 
         @Override
-        public int costForStack(int n) {
-            // Caller must use costForBlocks() instead for accurate results.
-            // This fallback returns costPerBlock as a minimum.
-            return costPerBlock;
-        }
-
-        /**
-         * Computes cost based on the actual marginal block count.
-         *
-         * @param marginalBlocks the number of new blocks the next stack adds
-         * @return the cost in microblobs
-         */
-        public int costForBlocks(int marginalBlocks) {
+        public int costForStack(int n, IntUnaryOperator footprintBlocks) {
+            int marginalBlocks = footprintBlocks.applyAsInt(n + 1) - footprintBlocks.applyAsInt(n);
             return costPerBlock * marginalBlocks;
         }
 
@@ -149,7 +160,7 @@ public sealed interface AbilityCost {
         ).apply(inst, PowerLaw::new));
 
         @Override
-        public int costForStack(int n) {
+        public int costForStack(int n, IntUnaryOperator footprintBlocks) {
             return (int) (baseCost * Math.pow(mult, n));
         }
 

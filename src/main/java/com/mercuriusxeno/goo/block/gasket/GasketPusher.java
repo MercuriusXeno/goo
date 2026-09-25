@@ -1,7 +1,9 @@
 package com.mercuriusxeno.goo.block.gasket;
 
+import com.mercuriusxeno.goo.block.canister.CanisterSlot;
 import com.mercuriusxeno.goo.data.GasketLocation;
 import com.mercuriusxeno.goo.data.GasketRegistry;
+import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.gasket.GasketPartner;
 import com.mercuriusxeno.goo.registry.GooCapabilities;
 import com.mercuriusxeno.goo.registry.GooTickets;
@@ -91,6 +93,28 @@ public class GasketPusher {
         ChunkPos cp = ChunkPos.containing(loc.pos());
         GooTickets.gasketChunks.forceChunk(
                 serverLevel, ownerPos, cp.x(), cp.z(), true, false);
+    }
+
+    /**
+     * Forces the chunk of the transmitter partner of each occupied slot's top
+     * (receiver) gasket, the walk every slotted holder runs after load.
+     *
+     * @param slots          the holder's canister slots
+     * @param registryAccess decoupled access to the gasket registry
+     * @param serverLevel    the server level (for dimension + chunk forcing)
+     * @param ownerPos       the holder's position (ticket owner)
+     */
+    public static void forceSlotTransmitterChunks(
+            CanisterSlot[] slots,
+            Supplier<GasketRegistry> registryAccess,
+            ServerLevel serverLevel,
+            BlockPos ownerPos) {
+        for (CanisterSlot slot : slots) {
+            if (!slot.isEmpty()) {
+                forceTransmitterChunk(CanisterItem.getMetadata(slot.canister()).topGasketId(),
+                        registryAccess, serverLevel, ownerPos);
+            }
+        }
     }
 
     /**

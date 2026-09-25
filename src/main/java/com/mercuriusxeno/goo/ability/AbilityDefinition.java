@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.ability;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.program.PlaceBlockStep;
+import com.mercuriusxeno.goo.ability.program.ProgressiveAreaStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.StepTypes;
 import com.mojang.serialization.Codec;
@@ -96,6 +97,36 @@ public record AbilityDefinition(
                 .filter(PlaceBlockStep.class::isInstance)
                 .map(step -> ((PlaceBlockStep) step).block())
                 .collect(Collectors.toUnmodifiableSet());
+    }
+
+    /**
+     * Prices the next throw at a target already holding some stacks, with
+     * a block_count cost charging the blocks that stack adds to this
+     * ability's footprint (decision diagnose-then-fix-fuse-and-cost).
+     *
+     * @param existingStacks the stacks the target already holds; zero for a first throw
+     * @return the cost in mB
+     */
+    public int throwCost(int existingStacks) {
+        return cost.costForStack(existingStacks, this::footprintBlocks);
+    }
+
+    /**
+     * Counts the blocks this ability's footprint covers at a stack count:
+     * its first progressive_area step's footprint, or one block per stack
+     * for an ability walking no area.
+     *
+     * @param stacks the stack count
+     * @return the block count
+     */
+    int footprintBlocks(int stacks) {
+        return behaviors.stream()
+                .flatMap(AbilityDefinition::withDescendants)
+                .filter(ProgressiveAreaStep.class::isInstance)
+                .map(ProgressiveAreaStep.class::cast)
+                .findFirst()
+                .map(area -> area.footprintBlocks(stacks))
+                .orElse(Math.max(stacks, 0));
     }
 
     /**

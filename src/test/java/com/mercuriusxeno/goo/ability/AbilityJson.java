@@ -42,6 +42,20 @@ public final class AbilityJson {
     }
 
     /**
+     * The id an ability loads under from its classpath path, such as
+     * {@code data/goo/goo_abilities/rock_tunnel.json} for {@code goo:rock_tunnel}.
+     *
+     * @param resource the classpath path, ending {@code data/<ns>/goo_abilities/<name>.json}
+     * @return the ability id
+     */
+    public static Identifier idOfResource(String resource) {
+        String[] parts = resource.split("/");
+        String name = parts[parts.length - 1];
+        return Identifier.fromNamespaceAndPath(parts[parts.length - 3],
+                name.substring(0, name.length() - JSON_SUFFIX.length()));
+    }
+
+    /**
      * Every shipped ability file, sorted by name.
      *
      * @return the ability file paths

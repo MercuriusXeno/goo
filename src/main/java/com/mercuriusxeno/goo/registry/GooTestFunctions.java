@@ -93,6 +93,12 @@ public final class GooTestFunctions {
     private static final String REACTOR_TUNER_LINK = "reactor_tuner_link";
     private static final String REACTOR_GASKET_LOCATION = "reactor_gasket_location";
     private static final String REACTOR_SEATED_GASKET_METADATA = "reactor_seated_gasket_metadata";
+    private static final String TAP_ATTACHMENT_LOADS = "tap_attachment_loads";
+    private static final String HUB_SLOT_GASKET_REGISTERED = "hub_slot_gasket_registered";
+    private static final String BREAK_POPS_GASKET_CRUCIBLE = "break_pops_gasket_crucible";
+    private static final String BREAK_POPS_GASKET_VAT = "break_pops_gasket_vat";
+    private static final String BREAK_POPS_GASKET_TAP = "break_pops_gasket_tap";
+    private static final String BREAK_POPS_GASKET_HUB = "break_pops_gasket_hub";
 
     // --- Effect executors ---
     private static final String FX_BLAZE = "fx_blaze_mines";
@@ -116,6 +122,7 @@ public final class GooTestFunctions {
     private static final String FX_PROGRAM_INSTANT = "fx_program_instant_detonation";
     private static final String FX_PROGRAM_TIMED = "fx_program_timed_bomb";
     private static final String FX_PROGRAM_MINE = "fx_program_proximity_mine";
+    private static final String FUSE_MINE_KEEPS_JSON_FUSE = "fuse_mine_keeps_json_fuse";
     private static final String FX_PROGRAM_METAL_SPIKES = "fx_program_metal_spikes";
     private static final String FX_PROGRAM_CRYSTAL_CLOUD = "fx_program_crystal_cloud";
     private static final String FX_PROGRAM_NETHER_BLACK_HOLE = "fx_program_nether_black_hole";
@@ -346,6 +353,12 @@ public final class GooTestFunctions {
         reg(r, REACTOR_TUNER_LINK, GasketHolderTests::reactorTunerLinksCrucibleToOutputCanister);
         reg(r, REACTOR_GASKET_LOCATION, GasketHolderTests::reactorOutputGasketLocationFollowsCanister);
         reg(r, REACTOR_SEATED_GASKET_METADATA, GasketHolderTests::reactorSeatedCanisterAnswersGasketMetadata);
+        reg(r, TAP_ATTACHMENT_LOADS, GasketRegistryTests::tapAttachmentLoads);
+        reg(r, HUB_SLOT_GASKET_REGISTERED, GasketRegistryTests::hubSlotGasketRegistered);
+        reg(r, BREAK_POPS_GASKET_CRUCIBLE, GasketRegistryTests::breakPopsGasketCrucible);
+        reg(r, BREAK_POPS_GASKET_VAT, GasketRegistryTests::breakPopsGasketVat);
+        reg(r, BREAK_POPS_GASKET_TAP, GasketRegistryTests::breakPopsGasketTap);
+        reg(r, BREAK_POPS_GASKET_HUB, GasketRegistryTests::breakPopsGasketHub);
     }
 
     private static void registerEffectExecutorTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
@@ -364,6 +377,7 @@ public final class GooTestFunctions {
         reg(r, FX_PROGRAM_INSTANT, EffectExecutorTests::programInstantDetonation);
         reg(r, FX_PROGRAM_TIMED, EffectExecutorTests::programTimedBomb);
         reg(r, FX_PROGRAM_MINE, EffectExecutorTests::programProximityMine);
+        reg(r, FUSE_MINE_KEEPS_JSON_FUSE, ChainFuseTests::mineKeepsJsonFuse);
         reg(r, FX_PROGRAM_METAL_SPIKES, EffectExecutorTests::programMetalSpikes);
         reg(r, FX_PROGRAM_CRYSTAL_CLOUD, EffectExecutorTests::programCrystalCloud);
         reg(r, FX_PROGRAM_NETHER_BLACK_HOLE, EffectExecutorTests::programNetherBlackHole);

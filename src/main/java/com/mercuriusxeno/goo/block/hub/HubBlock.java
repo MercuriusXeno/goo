@@ -3,9 +3,10 @@ package com.mercuriusxeno.goo.block.hub;
 import com.mercuriusxeno.goo.block.GooBlockInteraction;
 import com.mercuriusxeno.goo.block.IGooLightSource;
 import com.mercuriusxeno.goo.block.ShapeHitCheck;
+import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
 import com.mercuriusxeno.goo.item.CanisterItem;
+import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
-import com.mercuriusxeno.goo.registry.GooItems;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionHand;
@@ -449,8 +450,9 @@ public class HubBlock extends BaseEntityBlock {
     public @NonNull BlockState playerWillDestroy(
             @NonNull Level level, @NonNull BlockPos pos,
             @NonNull BlockState state, @NonNull Player player) {
-        if (!level.isClientSide() && state.getValue(HAS_GASKET)) {
-            popResource(level, pos, new ItemStack(GooItems.CHORAL_GASKET.get()));
+        if (!level.isClientSide() && level.getBlockEntity(pos) instanceof HubBlockEntity hub) {
+            GasketInstallation.popGasket(level, pos, state.getValue(HAS_GASKET),
+                    hub.getGasketId(GasketRole.RECEIVER));
         }
         return super.playerWillDestroy(level, pos, state, player);
     }
