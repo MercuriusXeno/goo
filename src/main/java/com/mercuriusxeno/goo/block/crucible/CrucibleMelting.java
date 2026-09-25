@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.block.crucible;
 
 import com.mercuriusxeno.goo.GooColors;
+import com.mercuriusxeno.goo.GooConfig;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.item.DepletedBlazeRodItem;
 import com.mercuriusxeno.goo.item.GooContents;
@@ -235,7 +236,7 @@ final class CrucibleMelting {
     }
 
     /**
-     * Drains extractionRate() mB from the PMI pool, distributed proportionally
+     * Drains the crucible's melt rate in mB from the PMI pool, distributed proportionally
      * across all goo types present. Each type receives at least 1 mB per tick
      * (or its remaining volume if less).
      *
@@ -248,7 +249,7 @@ final class CrucibleMelting {
             return;
         }
 
-        int rate = CrucibleMath.extractionRate(totalRemaining);
+        int rate = CrucibleMath.extractionRate(totalRemaining, GooConfig.BLAZE_MELT_RATE.get());
         Map<ResourceKey<GooTypeDefinition>, Integer> shares = CrucibleMath.computeDrainShares(pmiContents, rate);
         applyDrainShares(be, shares);
     }
