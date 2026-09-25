@@ -24,7 +24,6 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
@@ -65,8 +64,10 @@ public final class GasketRemovalTests {
     private static final String GASKET_INSTALLED = "The gasket item's click should install a gasket";
     private static final String CANISTER_KEPT = "Popping a gasket should leave the canister in place";
     private static final String CANISTER_HANDED_BACK = "A sneak click on a bare region should hand back the canister";
-    private static final String FUEL_ROD_KEPT = "Popping the crucible gasket should leave the fuel rod in place";
-    private static final String FUEL_ROD_REMOVED = "A sneak click on a gasketless crucible should remove the fuel rod";
+    private static final String HEAT_KEPT = "Popping the crucible gasket should leave the heat in place";
+    private static final String GASKETLESS_SNEAK_PASSES =
+        "A sneak click on a gasketless crucible should pass, leaving its heat";
+    private static final int CRUCIBLE_HEAT_TICKS = 20;
     private static final String NO_EXTRA_GASKET = "A bare-region click should pop no gasket";
     private static final String STATE_UNCHANGED = "A bare-region click should leave the machine's state unchanged";
 
@@ -233,15 +234,15 @@ public final class GasketRemovalTests {
     // --- Crucible ---
 
     /**
-     * Crucible: sneak empty-hand pops the crucible's gasket and keeps its fuel
-     * rod; the same click once the crucible is bare removes the fuel rod.
+     * Crucible: sneak empty-hand pops the crucible's gasket and keeps its heat;
+     * the same click once the crucible is bare passes (decision fuel-goo-heats-per-mb).
      *
      * @param helper the gametest helper
      */
-    public static void cruciblePopsGasketThenRemovesFuelRod(GameTestHelper helper) {
+    public static void cruciblePopsGasketThenPasses(GameTestHelper helper) {
         helper.setBlock(BE_POS, GooBlocks.CRUCIBLE.get());
         CrucibleBlockEntity crucible = helper.getBlockEntity(BE_POS, CrucibleBlockEntity.class);
-        crucible.addFuel(new ItemStack(Items.BLAZE_ROD));
+        crucible.addHeat(CRUCIBLE_HEAT_TICKS);
         Player player = playerOnLastHotbarSlot(helper);
         BlockHitResult top = hitAt(helper, HALF, 1.0, HALF, Direction.UP);
         UUID gasketId = installGasket(helper, player, top, crucible, GasketRole.TRANSMITTER, NO_SLOT);
@@ -250,11 +251,10 @@ public final class GasketRemovalTests {
         helper.useBlock(BE_POS, player, top);
         assertPopped(helper, player, crucible, GasketRole.TRANSMITTER, NO_SLOT, gasketId);
         helper.assertFalse(helper.getBlockState(BE_POS).getValue(CrucibleBlock.HAS_GASKET), GASKET_ID_CLEARED);
-        helper.assertFalse(crucible.getFuelRod().isEmpty(), FUEL_ROD_KEPT);
+        helper.assertValueEqual(crucible.heatTicks(), CRUCIBLE_HEAT_TICKS, HEAT_KEPT);
 
         helper.useBlock(BE_POS, player, top);
-        helper.assertTrue(crucible.getFuelRod().isEmpty(), FUEL_ROD_REMOVED);
-        helper.assertTrue(player.getInventory().countItem(Items.BLAZE_ROD) == 1, FUEL_ROD_REMOVED);
+        helper.assertValueEqual(crucible.heatTicks(), CRUCIBLE_HEAT_TICKS, GASKETLESS_SNEAK_PASSES);
         helper.assertTrue(gasketsHeld(player) == 1, NO_EXTRA_GASKET);
         helper.succeed();
     }

@@ -1,11 +1,14 @@
 package com.mercuriusxeno.goo.block.crucible;
 
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 
 /**
- * Static helpers for crucible NBT serialization: melting state (PMI + fuel rod).
+ * Static helpers for crucible NBT serialization: melting state (PMI + heat).
  * Gasket fields are now handled by GasketState. Keeps framework save/load
  * overrides in CrucibleBlockEntity.
  */
@@ -13,7 +16,7 @@ final class CrucibleSerialization {
 
     private CrucibleSerialization() { }
 
-    /** Saves melting item and fuel rod stacks.
+    /** Saves the melting item stack, the heat ticks and the fuel that bought them.
      *
      * @param be     the crucible block entity
      * @param output the value output to write to
@@ -22,12 +25,14 @@ final class CrucibleSerialization {
         if (!be.meltingItem.isEmpty()) {
             output.store(CrucibleBlockEntity.TAG_MELTING_ITEM, ItemStack.CODEC, be.meltingItem);
         }
-        if (!be.fuelRod.isEmpty()) {
-            output.store(CrucibleBlockEntity.TAG_FUEL_ROD, ItemStack.CODEC, be.fuelRod);
+        FuelGrade grade = be.heat.grade();
+        if (be.heat.heatTicks() > 0 && grade != null) {
+            output.putInt(CrucibleBlockEntity.TAG_HEAT_TICKS, be.heat.heatTicks());
+            output.store(CrucibleBlockEntity.TAG_HEAT_FUEL, GooTypes.KEY_CODEC, grade.fuel());
         }
     }
 
-    /** Loads melting item and fuel rod stacks.
+    /** Loads the melting item stack and the heat, at the configured grade of the fuel that bought it.
      *
      * @param be    the crucible block entity
      * @param input the value input to read from
@@ -35,8 +40,23 @@ final class CrucibleSerialization {
     static void loadMeltingState(CrucibleBlockEntity be, ValueInput input) {
         be.meltingItem = input.read(CrucibleBlockEntity.TAG_MELTING_ITEM, ItemStack.CODEC)
             .orElse(ItemStack.EMPTY);
-        be.fuelRod = input.read(CrucibleBlockEntity.TAG_FUEL_ROD, ItemStack.CODEC)
-            .orElse(ItemStack.EMPTY);
+        int ticks = input.getIntOr(CrucibleBlockEntity.TAG_HEAT_TICKS, 0);
+        ResourceKey<GooTypeDefinition> fuel = input.read(CrucibleBlockEntity.TAG_HEAT_FUEL, GooTypes.KEY_CODEC)
+            .orElse(GooTypes.BLAZE);
+        be.heat.set(ticks, gradeOf(fuel));
     }
 
+    /** Returns the configured grade burning the given fuel, blaze's when none does.
+     *
+     * @param fuel the fuel goo type
+     * @return the grade
+     */
+    private static FuelGrade gradeOf(ResourceKey<GooTypeDefinition> fuel) {
+        for (FuelGrade grade : FuelGrade.configured()) {
+            if (grade.fuel().equals(fuel)) {
+                return grade;
+            }
+        }
+        return FuelGrade.configuredBlaze();
+    }
 }
