@@ -374,8 +374,6 @@ public record TunerState(
                 faceLabel, ConfirmAction.NONE, null, NO_SLOT);
     }
 
-    // --- Coordinate formatting (kept for backward compatibility) ---
-
     /**
      * Returns a new state with a pending confirmation action.
      *

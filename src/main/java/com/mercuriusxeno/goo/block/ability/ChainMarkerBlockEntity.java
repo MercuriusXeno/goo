@@ -5,7 +5,9 @@ import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.*;
 import com.mercuriusxeno.goo.ability.AbilityDefinition.ChainConfig;
 import com.mercuriusxeno.goo.ability.program.FieldEffectState;
+import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.PhasedState;
+import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.ProgressiveAreaStep;
 import com.mercuriusxeno.goo.block.BlockEntitySync;
 import com.mercuriusxeno.goo.item.GooContents;
@@ -31,9 +33,9 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Ticking block entity for chain effects. Owns only the shared state:
- * goo type, stack count, fuse countdown, placed face. The type-specific
- * post-fuse behavior is delegated to a {@link ChainBehavior} instance
- * created from the marker's ability at fuse expiry. A layer walk
+ * goo type, stack count, fuse countdown, placed face. The post-fuse
+ * work is the marker's ability program, a {@link ProgramBehavior} loaded for
+ * the marker host at fuse expiry. A layer walk
  * reports its struck layers here through the marker host, and the ghost
  * outline reads them back.
  */
@@ -113,7 +115,7 @@ public class ChainMarkerBlockEntity extends BlockEntity {
      * the BE removes itself.
      */
     @Nullable
-    private ChainBehavior behavior;
+    private ProgramBehavior behavior;
     /**
      * Id of the ability the marker runs at fuse expiry (decision
      * no-throw-without-ability); a marker loaded without one runs nothing.
@@ -139,7 +141,6 @@ public class ChainMarkerBlockEntity extends BlockEntity {
      */
     private static String extractAreaMode(AbilityDefinition ability) {
         return ability.behaviors().stream()
-                .flatMap(entry -> entry.steps().stream())
                 .filter(ProgressiveAreaStep.class::isInstance)
                 .map(step -> ((ProgressiveAreaStep) step).shape().key())
                 .findFirst()
@@ -193,7 +194,8 @@ public class ChainMarkerBlockEntity extends BlockEntity {
     /**
      * Attempts to increment the stack count under the ability's stack
      * ceiling. Before the marker fires a stack resets the fuse to the
-     * ability's full fuse; after, the standing behavior takes the top-off.
+     * ability's full fuse; after, the running program reads the new count
+     * through {@code stacks}.
      *
      * @return true if the stack count was incremented
      */
@@ -203,9 +205,7 @@ public class ChainMarkerBlockEntity extends BlockEntity {
             return false;
         }
         lastStackTick = level != null ? level.getGameTime() : 0;
-        if (behavior != null) {
-            behavior.onTopOff(this);
-        } else {
+        if (behavior == null) {
             fuse.resetFuse(chain);
         }
         setChanged();
@@ -223,8 +223,8 @@ public class ChainMarkerBlockEntity extends BlockEntity {
     }
 
     /**
-     * Decrements the stack count by one. Used by behaviors that consume
-     * stacks as charges (metal, crystal). Syncs to client.
+     * Decrements the stack count by one, for a program step that spends
+     * stacks as charges. Syncs to client.
      */
     public void decrementStack() {
         if (fuse.stackCount() > 0) {
@@ -432,12 +432,10 @@ public class ChainMarkerBlockEntity extends BlockEntity {
     }
 
     /**
-     * Fires the chain effect by creating the ability's
-     * {@link ChainBehavior} and invoking {@code onFuseExpired}. If the
-     * behavior finishes immediately (instant one-shot like blaze), the BE
-     * is removed on the same tick; otherwise the BE stays and
-     * {@link #serverTick} will delegate to {@link ChainBehavior#serverTick}
-     * on subsequent ticks.
+     * Fires the chain effect by loading the ability's program and invoking
+     * {@code onFuseExpired}, its first tick. A program that finishes that
+     * tick removes the BE; otherwise the BE stays and {@link #serverTick}
+     * delegates to {@link ProgramBehavior#serverTick} on later ticks.
      *
      * @param level the current level
      * @param pos   the block position
@@ -461,13 +459,13 @@ public class ChainMarkerBlockEntity extends BlockEntity {
 
 
     /**
-     * Creates the post-fuse behavior from the marker's ability.
+     * Loads the marker's ability program for the marker host.
      *
-     * @return the ability's behavior, or null when the registry holds no such ability
+     * @return the ability's program, or null when the registry holds no such ability
      */
-    private @Nullable ChainBehavior createBehavior() {
+    private @Nullable ProgramBehavior createBehavior() {
         AbilityDefinition def = ability();
-        return def != null ? new DataDrivenChainBehavior(def) : null;
+        return def != null ? ProgramBehavior.forHost(def.behaviors(), HostKind.MARKER) : null;
     }
 
     /**
@@ -525,14 +523,12 @@ public class ChainMarkerBlockEntity extends BlockEntity {
     }
 
     /**
-     * Returns the active post-fuse behavior, or null if still in FUSE.
-     * The BER calls this to {@code instanceof}-check for type-specific
-     * render paths (e.g. nether black-hole sphere).
+     * Returns the running ability program, or null while the fuse burns.
      *
      * @return the active chain behavior, or null
      */
     @Nullable
-    public ChainBehavior getBehavior() {
+    public ProgramBehavior getBehavior() {
         return behavior;
     }
 

@@ -42,7 +42,7 @@ public class ChoralGasketBlockEntity extends BlockEntity implements IGasketHolde
      * Pushes water to gasket partners. Constructed in the BE constructor so it can
      * see the attachment's stable callbacks; assigned final via constructor.
      */
-    private final IGasketPusher gasketPusher;
+    private final GasketPusher gasketPusher;
 
     /**
      * Creates a choral gasket block entity.

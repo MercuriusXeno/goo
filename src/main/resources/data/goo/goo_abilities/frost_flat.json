@@ -16,17 +16,12 @@
   },
   "behaviors": [
     {
-      "type": "program",
-      "steps": [
-        {
-          "type": "progressive_area",
-          "shape": "flat_circle",
-          "effect": "freeze",
-          "visuals": "none",
-          "audio": "none",
-          "preview_delay": 8
-        }
-      ]
+      "type": "progressive_area",
+      "shape": "flat_circle",
+      "effect": "freeze",
+      "visuals": "none",
+      "audio": "none",
+      "preview_delay": 8
     }
   ],
   "tags": ["transmute", "area"]

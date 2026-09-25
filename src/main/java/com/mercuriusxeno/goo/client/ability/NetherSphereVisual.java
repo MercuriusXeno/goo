@@ -19,7 +19,7 @@ import java.util.List;
 /**
  * Nether black-hole render path: the three-pass sphere/corona/disk
  * submission triggered from {@link ChainMarkerBlockEntityRenderer} when a nether
- * {@code ChainBehavior} is active on the chain marker BE. All nether-
+ * {@code ProgramBehavior} is active on the chain marker BE. All nether-
  * specific geometry, mesh caches, color packing, and render-state
  * extraction for the black-hole visual lives here so the generic BER
  * only has to know about the orb visual and the thin dispatch check.

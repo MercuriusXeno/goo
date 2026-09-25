@@ -34,7 +34,7 @@ class ThrowCostTest {
     }
 
     private static AbilityDefinition decode(String resource) throws IOException {
-        return AbilityDefinition.CODEC.parse(JsonOps.INSTANCE, read(resource))
+        return AbilityDefinition.codecFor(AbilityJson.idOfResource(resource)).parse(JsonOps.INSTANCE, read(resource))
                 .getOrThrow(message -> new IllegalStateException(resource + ": " + message));
     }
 
@@ -66,7 +66,8 @@ class ThrowCostTest {
         JsonElement json = read(ABILITIES + "rock_tunnel.json");
         json.getAsJsonObject().getAsJsonObject("cost").addProperty("formula", "bogus");
 
-        DataResult<AbilityDefinition> parsed = AbilityDefinition.CODEC.parse(JsonOps.INSTANCE, json);
+        DataResult<AbilityDefinition> parsed = AbilityDefinition.codecFor(AbilityJson.idOfResource(ABILITIES + "rock_tunnel.json"))
+                .parse(JsonOps.INSTANCE, json);
 
         assertTrue(parsed.error().isPresent(), "an ability with cost formula \"bogus\" loaded");
         assertTrue(parsed.error().get().message().contains("bogus"), parsed.error().get().message());

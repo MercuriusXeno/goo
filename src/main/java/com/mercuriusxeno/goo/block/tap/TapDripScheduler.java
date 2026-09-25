@@ -100,41 +100,33 @@ public final class TapDripScheduler {
     }
 
     /**
-     * Runs the type's tap ability on a tap host at the landing: each program
-     * entry once (decision tap-ability-tagged-program). A type carrying no
+     * Runs the type's tap ability program once on a tap host at the landing
+     * (decision tap-ability-tagged-program). A type carrying no
      * tap ability lands its drip and nothing further happens: no program
      * loads and nothing logs (decision drip-without-ability).
      *
      * @param drip the arrived drip
-     * @return the program entries run
+     * @return the programs run: one when the type carries a tap ability, else zero
      */
     static int land(PendingDrip drip) {
         AbilityDefinition ability = AbilityRegistry.tapAbilityFor(drip.type());
         if (ability == null) {
             return 0;
         }
-        int run = 0;
-        TapHost host = new TapHost(drip.level(), drip.landingPos(), drip.face(), drip.type());
-        for (AbilityDefinition.BehaviorEntry entry : ability.behaviors()) {
-            if (ProgramBehavior.TYPE_NAME.equals(entry.type())) {
-                runProgram(ability, entry, host);
-                run++;
-            }
-        }
-        return run;
+        runProgram(ability, new TapHost(drip.level(), drip.landingPos(), drip.face()));
+        return 1;
     }
 
     /**
-     * Loads one program entry for the tap host and runs its one tick; a
+     * Loads the ability's program for the tap host and runs its one tick; a
      * program the host cannot serve is refused at load and logged.
      *
-     * @param ability the tap ability, for the log
-     * @param entry   the program entry
+     * @param ability the tap ability
      * @param host    the tap host at the landing
      */
-    private static void runProgram(AbilityDefinition ability, AbilityDefinition.BehaviorEntry entry, TapHost host) {
+    private static void runProgram(AbilityDefinition ability, TapHost host) {
         try {
-            ProgramBehavior.forHost(entry.steps(), HostKind.TAP).tick(host);
+            ProgramBehavior.forHost(ability.behaviors(), HostKind.TAP).tick(host);
         } catch (ProgramLoadException e) {
             Goo.LOGGER.error(LOG_PROGRAM_REFUSED, ability.id(), e.getMessage());
         }

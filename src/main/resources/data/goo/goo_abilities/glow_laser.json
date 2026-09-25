@@ -10,25 +10,20 @@
     "c": 1.0
   },
   "behaviors": [
+    { "type": "damage", "amount": "4 + 4 * undead", "source": "magic" },
+    { "type": "particles", "id": "minecraft:crit", "at": "target", "count": 10, "spread": 0.5, "speed": 0.1 },
     {
-      "type": "program",
+      "type": "target",
+      "where": ["undead"],
       "steps": [
-        { "type": "damage", "amount": "4 + 4 * undead", "source": "magic" },
-        { "type": "particles", "id": "minecraft:crit", "at": "target", "count": 10, "spread": 0.5, "speed": 0.1 },
-        {
-          "type": "target",
-          "where": ["undead"],
-          "steps": [
-            { "type": "ignite", "seconds": 1 }
-          ]
-        },
-        {
-          "type": "target",
-          "where": ["alive"],
-          "steps": [
-            { "type": "potion", "effect": "minecraft:glowing", "duration": 200, "amplifier": 0 }
-          ]
-        }
+        { "type": "ignite", "seconds": 1 }
+      ]
+    },
+    {
+      "type": "target",
+      "where": ["alive"],
+      "steps": [
+        { "type": "potion", "effect": "minecraft:glowing", "duration": 200, "amplifier": 0 }
       ]
     }
   ],
