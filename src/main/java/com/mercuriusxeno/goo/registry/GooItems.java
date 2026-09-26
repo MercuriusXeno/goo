@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.fluid.GooBucketItem;
 import com.mercuriusxeno.goo.item.*;
 import com.mercuriusxeno.goo.item.gasket.ChoralGasketItem;
 import com.mercuriusxeno.goo.item.gasket.ChoralTunerItem;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
@@ -32,16 +33,17 @@ public class GooItems {
     private static final float SWORD_SPEED = -2.4F;
 
     /**
-     * The one blob item, stackable to 64, each 1,000 mB, its type in the
-     * GOO_TYPE component (decision generic-goo-items).
-     */
-    public static final DeferredItem<GooBlobItem> GOO_BLOB = ITEMS.registerItem("goo_blob", GooBlobItem::new);
-    /**
-     * The one omniblob item, unstackable, uncapped volume, its type in the
-     * GOO_TYPE component.
+     * The omniblob, the one goo item at every volume (decision blobs-become-omniblobs):
+     * unstackable, uncapped volume, its type in the GOO_TYPE component.
      */
     public static final DeferredItem<GooOmniblobItem> GOO_OMNIBLOB = ITEMS.registerItem("goo_omniblob",
             props -> new GooOmniblobItem(props.stacksTo(1)));
+
+    static {
+        // blobs-become-omniblobs: a saved world's goo:goo_blob stacks load as omniblobs.
+        ITEMS.addAlias(Identifier.fromNamespaceAndPath(Goo.MODID, "goo_blob"), GOO_OMNIBLOB.getId());
+    }
+
     /**
      * The one goo bucket over the generic fluid, 1000 mB, its type in the
      * GOO_TYPE component.

@@ -2,7 +2,7 @@ package com.mercuriusxeno.goo.item;
 
 /**
  * Pure tier naming and volume constants for goo blobs, extracted
- * from GooBlobItem so unit tests can run without Minecraft class init.
+ * from GooOmniblobItem so unit tests can run without Minecraft class init.
  */
 public final class BlobTiers {
 

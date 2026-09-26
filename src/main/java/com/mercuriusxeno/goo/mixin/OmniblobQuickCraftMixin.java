@@ -231,7 +231,7 @@ public abstract class OmniblobQuickCraftMixin {
 
     /**
      * Phase 2: distribute volume across collected slots, then reset.
-     * Left-click: divide total volume evenly. Right-click: 1 blob per slot.
+     * Left-click: divide total volume evenly. Right-click: one greedy unit per slot.
      *
      * @param player the interacting player
      */
@@ -254,7 +254,8 @@ public abstract class OmniblobQuickCraftMixin {
 
     /**
      * Computes the per-slot volume based on drag type.
-     * Charitable (left-click): even division. Greedy (right-click): 1 blob each.
+     * Charitable (left-click): even division. Greedy (right-click): the unit
+     * OmniblobQuickCraft.greedyPerSlot reads from the carried volume.
      *
      * @param totalVolume the total volume available
      * @param slotCount   the number of collected slots
@@ -262,7 +263,7 @@ public abstract class OmniblobQuickCraftMixin {
      */
     private int computePerSlotVolume(int totalVolume, int slotCount) {
         if (quickcraftType == AbstractContainerMenu.QUICKCRAFT_TYPE_GREEDY) {
-            return OmniblobQuickCraft.greedyPerSlot();
+            return OmniblobQuickCraft.greedyPerSlot(totalVolume);
         }
         return OmniblobQuickCraft.charitablePerSlot(totalVolume, slotCount);
     }

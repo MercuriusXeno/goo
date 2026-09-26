@@ -30,8 +30,9 @@ import java.util.Objects;
 /**
  * Gametests for the generic goo items (decision generic-goo-items): a blob
  * created for a type throws as that type and lands that type's ability, and
- * the creative tab offers a blob, omniblobs and a bucket for every type the
- * registry holds, a datapack's included.
+ * the creative tab offers omniblobs, a one-blob one among them, and a bucket
+ * for every type the registry holds, a datapack's included
+ * (decision blobs-become-omniblobs).
  */
 public final class GooItemTests {
 
@@ -57,7 +58,7 @@ public final class GooItemTests {
     private static final String NO_MARKER = "Thrown blob should land a chain marker beside the wall at ";
     private static final String WRONG_MARKER_TYPE = "Chain marker should carry the thrown blob's type at ";
     private static final String EXO_NOT_FIRE_RESISTANT = "A fresh exo gauntlet should resist fire damage";
-    private static final String TAB_LACKS_BLOB = "Creative tab should offer a blob of the datapack type";
+    private static final String TAB_LACKS_BLOB = "Creative tab should offer a one-blob omniblob of the datapack type";
     private static final String TAB_LACKS_OMNIBLOB = "Creative tab should offer an omniblob of the datapack type";
     private static final String TAB_LACKS_BUCKET = "Creative tab should offer a bucket of the datapack type";
 
@@ -106,8 +107,8 @@ public final class GooItemTests {
         BlockPos stand = helper.absolutePos(PLAYER_POS);
         player.setPos(stand.getX(), stand.getY(), stand.getZ());
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(thrower));
-        ItemStack blaze = BlobStacks.createBlobStack(GooTypes.BLAZE, 1);
-        ItemStack rock = BlobStacks.createBlobStack(GooTypes.ROCK, 1);
+        ItemStack blaze = BlobStacks.createForOutput(GooTypes.BLAZE, BlobStacks.MB_PER_BLOB);
+        ItemStack rock = BlobStacks.createForOutput(GooTypes.ROCK, BlobStacks.MB_PER_BLOB);
         player.getInventory().add(blaze);
         player.getInventory().add(rock);
 
@@ -126,7 +127,7 @@ public final class GooItemTests {
 
     /**
      * The goo creative tab, built against the level's registries, holds a
-     * blob, an omniblob and a bucket whose GOO_TYPE component names the
+     * one-blob omniblob, an omniblob and a bucket whose GOO_TYPE component names the
      * seventeenth type the test datapack adds.
      *
      * @param helper the gametest helper
@@ -136,7 +137,9 @@ public final class GooItemTests {
         tab.buildContents(new CreativeModeTab.ItemDisplayParameters(
                 helper.getLevel().enabledFeatures(), false, helper.getLevel().registryAccess()));
         Collection<ItemStack> shown = tab.getDisplayItems();
-        helper.assertTrue(holdsTyped(shown, GooItems.GOO_BLOB.get(), SEVENTEENTH), TAB_LACKS_BLOB);
+        helper.assertTrue(shown.stream().anyMatch(stack -> stack.is(GooItems.GOO_OMNIBLOB.get())
+                && SEVENTEENTH.equals(BlobStacks.keyOf(stack))
+                && BlobStacks.volumeOf(stack) == BlobStacks.MB_PER_BLOB), TAB_LACKS_BLOB);
         helper.assertTrue(holdsTyped(shown, GooItems.GOO_OMNIBLOB.get(), SEVENTEENTH), TAB_LACKS_OMNIBLOB);
         helper.assertTrue(holdsTyped(shown, GooItems.GOO_BUCKET.get(), SEVENTEENTH), TAB_LACKS_BUCKET);
         helper.succeed();

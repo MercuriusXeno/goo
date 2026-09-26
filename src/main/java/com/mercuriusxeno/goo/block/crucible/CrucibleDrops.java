@@ -41,7 +41,7 @@ final class CrucibleDrops {
         }
     }
 
-    /** Drops reservoir contents as one item per goo type (blob stack or omniblob).
+    /** Drops reservoir contents as one omniblob per goo type.
      *
      * @param crucible the crucible block entity
      * @param level    the current level

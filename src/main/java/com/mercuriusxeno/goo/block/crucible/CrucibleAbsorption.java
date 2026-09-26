@@ -54,14 +54,13 @@ final class CrucibleAbsorption {
     }
 
     /**
-     * Returns true if the stack is any goo blob variant.
+     * Returns true if the stack is an omniblob, the one goo item.
      *
      * @param stack the item stack to test
-     * @return true if the stack is a blob or omniblob
+     * @return true if the stack is an omniblob
      */
     private static boolean isGooBlob(ItemStack stack) {
-        return stack.getItem() instanceof GooBlobItem
-                || stack.getItem() instanceof GooOmniblobItem;
+        return stack.getItem() instanceof GooOmniblobItem;
     }
 
     /**
@@ -86,7 +85,7 @@ final class CrucibleAbsorption {
     }
 
     /**
-     * Inserts the whole blobs, or the whole omniblob, that fit the reservoir,
+     * Inserts the whole omniblob when it fits the reservoir,
      * bypassing the melt pipeline; what does not fit stays on the ground
      * (decision crucible-refuses-past-two-billion).
      *
