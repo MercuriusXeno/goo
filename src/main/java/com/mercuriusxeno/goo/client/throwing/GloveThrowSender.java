@@ -8,7 +8,7 @@ import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
-import com.mercuriusxeno.goo.client.overlay.GooTargetHighlighter;
+import com.mercuriusxeno.goo.client.overlay.AimTracker;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.network.BlobThrowHandler;
@@ -69,7 +69,7 @@ public final class GloveThrowSender {
         if (gooType == null || ThrowFreezeState.isThrowBlocked()) {
             return false;
         }
-        TargetResult target = resolveAimTarget(player);
+        TargetResult target = AimTracker.currentTarget();
         BlobThrowPayload payload = affordablePayload(player, target, gooType, selection.abilityId());
         if (payload == null) {
             return false;
@@ -143,7 +143,7 @@ public final class GloveThrowSender {
         if (gooType == null) {
             return OptionalInt.empty();
         }
-        BlobThrowPayload payload = targetToPayload(resolveAimTarget(player), gooType, selection.abilityId());
+        BlobThrowPayload payload = targetToPayload(AimTracker.currentTarget(), gooType, selection.abilityId());
         int stacks = payload == null ? 0 : keyedStacksAt(payload);
         return OptionalInt.of(priceThrow(AbilitySyncHandler.findAbility(selection.abilityId()), stacks));
     }
@@ -385,18 +385,6 @@ public final class GloveThrowSender {
     private static boolean isKeyedMarker(ClientLevel level, BlockPos pos, String abilityId) {
         return level.getBlockEntity(pos) instanceof ChainMarkerBlockEntity be
                 && StackKey.matches(be.getAbilityId(), abilityId);
-    }
-
-    /**
-     * Resolves the player's current aim target at the current partial tick.
-     *
-     * @param player the local player
-     * @return the resolved target result
-     */
-    private static TargetResult resolveAimTarget(Player player) {
-        float partialTick = Minecraft.getInstance()
-                .getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        return GooTargetHighlighter.resolveTarget(player, partialTick);
     }
 
     /**

@@ -238,9 +238,10 @@ public final class BlobFlightManager {
             if (gooType == GooTypes.GLOW) {
                 return 0;
             }
+            double distance = start.distanceTo(blockEnd);
             return grannyArc
-                    ? ThrowArc.grannyPeak(travelTicks)
-                    : ThrowArc.basePeak(travelTicks);
+                    ? ThrowArc.grannyPeak(distance)
+                    : ThrowArc.basePeak(distance);
         }
 
         /**
