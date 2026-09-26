@@ -127,14 +127,13 @@ public final class GooClientSetup {
     }
 
     /**
-     * Registers the goo type icon decorator on the blob and omniblob items.
+     * Registers the goo type icon decorator on the omniblob item.
      *
      * @param event the event instance
      */
     @SubscribeEvent
     public static void registerItemDecorations(RegisterItemDecorationsEvent event) {
         BlobVolumeDecorator decorator = new BlobVolumeDecorator();
-        event.register(GooItems.GOO_BLOB.get(), decorator);
         event.register(GooItems.GOO_OMNIBLOB.get(), decorator);
     }
 

@@ -12,8 +12,10 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.level.material.Fluid;
 
 /**
- * Renders a pulsing fluid stream cuboid from a gasket entry point
- * down to the current fluid surface. Shared by canister, hub, and vat BERs.
+ * Renders fluid stream columns: the vat's pulsing fill stream and the tap's
+ * pour. Every stream tiles its fluid sprite down the column at the sprite's
+ * native scale, flowing downward, through {@link #emitTiledColumn}
+ * (decision diagnose-then-fix-stream-tiling).
  */
 public final class GooStreamRenderer {
     /** Minimum stream half-width at 1 mB/tick (tiny trickle). */
@@ -37,13 +39,19 @@ public final class GooStreamRenderer {
     /** Semi-transparent ARGB for the stream. */
     private static final int STREAM_COLOR = ARGB.color(STREAM_ALPHA, GooRenderUtil.OPAQUE_WHITE);
 
-    /** Half divisor for stream width calculation. */
-    private static final float WIDTH_HALF = 2f;
+    /** Columns are measured against one sprite per block of height and width. */
+    private static final float SPRITE_BLOCKS = 1f;
+
+    /** Width of a column is twice its half-width. */
+    private static final float WIDTH_PER_HALF_WIDTH = 2f;
+
+    /** How fast a stream's texture runs down its column, in blocks per tick (2 blocks a second). */
+    private static final float FLOW_BLOCKS_PER_TICK = 0.1f;
 
     private GooStreamRenderer() {}
 
     /**
-     * Renders a pulsing fluid stream from yTop down to yBottom.
+     * Renders a pulsing goo stream from yTop down to yBottom.
      *
      * @param ctx           the render context
      * @param cx            stream center X in block coords
@@ -57,12 +65,97 @@ public final class GooStreamRenderer {
     public static void renderStream(RenderContext ctx,
                                     float cx, float cz, float yTop, float yBottom,
                                     ResourceKey<GooTypeDefinition> type, float rate, float animationTime) {
-        if (yTop <= yBottom) { return; }
+        renderStream(ctx, new StreamColumn(cx, cz, yTop, yBottom), GooRenderUtil.lookupFluidSprite(type),
+                STREAM_COLOR, rate, animationTime);
+    }
 
-        float hw = computeHalfWidth(rate, animationTime);
-        CuboidBounds box = new CuboidBounds(cx - hw, cx + hw, cz - hw, cz + hw, yBottom, yTop);
-        GooRenderUtil.UvRect uv = computeStreamUv(type, hw, yTop - yBottom);
-        ctx.emitSides(STREAM_COLOR, box, uv);
+    /**
+     * Renders a pulsing vanilla fluid stream from yTop down to yBottom.
+     *
+     * @param ctx           the render context
+     * @param cx            stream center X in block coords
+     * @param cz            stream center Z in block coords
+     * @param yTop          top of stream
+     * @param yBottom       bottom of stream
+     * @param fluid         the vanilla fluid
+     * @param rate          transfer rate in mB/tick
+     * @param animationTime game time + partial tick for sin wave
+     */
+    public static void renderStream(RenderContext ctx,
+            float cx, float cz, float yTop, float yBottom,
+            Fluid fluid, float rate, float animationTime) {
+        renderStream(ctx, new StreamColumn(cx, cz, yTop, yBottom), GooSubmitter.fluidSprite(fluid),
+                ARGB.color(STREAM_ALPHA, GooSubmitter.fluidTint(fluid)), rate, animationTime);
+    }
+
+    /**
+     * Renders a pulsing stream of a resolved sprite and color, its width set
+     * by the transfer rate, tiled down the column.
+     *
+     * @param ctx           the render context
+     * @param column        where the stream runs
+     * @param sprite        the fluid sprite
+     * @param color         the ARGB color
+     * @param rate          transfer rate in mB/tick
+     * @param animationTime game time + partial tick for sin wave
+     */
+    static void renderStream(RenderContext ctx, StreamColumn column, TextureAtlasSprite sprite, int color,
+                             float rate, float animationTime) {
+        emitTiledColumn(ctx, column, computeHalfWidth(rate, animationTime), sprite, color, flowPhase(animationTime));
+    }
+
+    /**
+     * How far a stream's texture has run down its column, in blocks, for the
+     * flow to loop downward over time.
+     *
+     * @param animationTime game time plus partial tick
+     * @return the flow phase in blocks
+     */
+    public static float flowPhase(float animationTime) {
+        return animationTime * FLOW_BLOCKS_PER_TICK;
+    }
+
+    /**
+     * Emits a column's four sides with the sprite tiled at its native scale,
+     * scrolled down the column by the flow phase so the goo reads as flowing:
+     * the texture at a distance below the top reads the sprite at that
+     * distance less the phase, wrapped, so the column splits wherever the
+     * sprite wraps into segments no taller than a block, each mapped to its
+     * own V span; U covers the column's width as a fraction of the sprite. No
+     * emitted UV leaves the sprite's atlas bounds (decision diagnose-then-fix-stream-tiling).
+     *
+     * @param ctx       the render context
+     * @param column    where the column runs
+     * @param halfWidth the column's half-width in blocks
+     * @param sprite    the fluid sprite
+     * @param color     the ARGB color
+     * @param flowPhase how far the texture has run down the column, in blocks
+     */
+    public static void emitTiledColumn(RenderContext ctx, StreamColumn column, float halfWidth,
+                                       TextureAtlasSprite sprite, int color, float flowPhase) {
+        if (column.yTop() <= column.yBottom()) {
+            return;
+        }
+        float widthFraction = Math.min(SPRITE_BLOCKS, halfWidth * WIDTH_PER_HALF_WIDTH);
+        float vStart = wrap(-flowPhase);
+        float segmentTop = column.yTop();
+        while (segmentTop > column.yBottom()) {
+            float segmentBottom = Math.max(column.yBottom(), segmentTop - (SPRITE_BLOCKS - vStart));
+            float vEnd = vStart + (segmentTop - segmentBottom);
+            CuboidBounds segment = new CuboidBounds(column.cx() - halfWidth, column.cx() + halfWidth,
+                    column.cz() - halfWidth, column.cz() + halfWidth, segmentBottom, segmentTop);
+            ctx.emitSides(color, segment, GooSubmitter.spriteSubRect(sprite, 0f, vStart, widthFraction, vEnd));
+            segmentTop = segmentBottom;
+            vStart = 0f;
+        }
+    }
+
+    /**
+     * @param blocks a length in blocks
+     * @return its fraction of one sprite, in [0, 1)
+     */
+    private static float wrap(float blocks) {
+        return blocks - (float) Math.floor(blocks);
     }
 
     /**
@@ -79,43 +172,13 @@ public final class GooStreamRenderer {
     }
 
     /**
-     * Computes the UV rect for stream side faces from the fluid sprite.
-     * @param type the goo type for sprite lookup
-     * @param hw the stream half-width in block coords
-     * @param height the stream height in block coords
-     * @return a UV rect scaled to the stream dimensions
-     */
-    /**
-     * Renders a pulsing vanilla fluid stream from yTop down to yBottom.
+     * Where a stream column runs, in block-local coordinates.
      *
-     * @param ctx           the render context
-     * @param cx            stream center X in block coords
-     * @param cz            stream center Z in block coords
-     * @param yTop          top of stream
-     * @param yBottom       bottom of stream
-     * @param fluid         the vanilla fluid
-     * @param rate          transfer rate in mB/tick
-     * @param animationTime game time + partial tick for sin wave
+     * @param cx      center X
+     * @param cz      center Z
+     * @param yTop    top of the column
+     * @param yBottom bottom of the column
      */
-    public static void renderStream(RenderContext ctx,
-            float cx, float cz, float yTop, float yBottom,
-            Fluid fluid, float rate, float animationTime) {
-        if (yTop <= yBottom) { return; }
-
-        float hw = computeHalfWidth(rate, animationTime);
-        CuboidBounds box = new CuboidBounds(cx - hw, cx + hw, cz - hw, cz + hw, yBottom, yTop);
-        TextureAtlasSprite sprite = GooSubmitter.fluidSprite(fluid);
-        int color = ARGB.color(STREAM_ALPHA, GooSubmitter.fluidTint(fluid));
-        GooRenderUtil.UvRect uv = computeSpriteUv(sprite, hw, yTop - yBottom);
-        ctx.emitSides(color, box, uv);
-    }
-
-    private static GooRenderUtil.UvRect computeSpriteUv(
-            TextureAtlasSprite sprite, float hw, float height) {
-        return GooSubmitter.spriteSubRect(sprite, 0f, 0f, hw * WIDTH_HALF, height);
-    }
-
-    private static GooRenderUtil.UvRect computeStreamUv(ResourceKey<GooTypeDefinition> type, float hw, float height) {
-        return computeSpriteUv(GooRenderUtil.lookupFluidSprite(type), hw, height);
+    public record StreamColumn(float cx, float cz, float yTop, float yBottom) {
     }
 }

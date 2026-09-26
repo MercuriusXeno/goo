@@ -181,7 +181,7 @@ class HolderBoundsTest {
                 default -> new double[] {8.0 / 16.0, 3.0 / 16.0};
             };
             HudAnchor anchor = ((ICanisterHolder) tap(true, false, facing))
-                    .hudAnchor(hitAt(0.5, 0.5, 0.5, Direction.UP), VIEWER);
+                    .hudAnchor(hitAt(expected[0], 10.0 / 16.0, expected[1], Direction.UP), VIEWER);
             assertNotNull(anchor);
             assertAll(() -> assertEquals(expected[0], anchor.x(), 1e-9),
                     () -> assertEquals(expected[1], anchor.z(), 1e-9),

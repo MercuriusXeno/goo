@@ -154,7 +154,7 @@ public final class MachineInteractionTests {
     public static void tapBlobClickPoursIntoSlottedCanister(GameTestHelper helper) {
         TapBlockEntity tap = placeFilledTap(helper);
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
-        player.setItemInHand(InteractionHand.MAIN_HAND, BlobStacks.createBlobStack(GooTypes.ROCK, TAP_BLOB_COUNT));
+        player.setItemInHand(InteractionHand.MAIN_HAND, BlobStacks.createForOutput(GooTypes.ROCK, TAP_BLOB_COUNT * BlobStacks.MB_PER_BLOB));
 
         helper.useBlock(BE_POS, player, tapHit(helper, TAP_SLOT_REGION_HIT_PX, Direction.NORTH));
 

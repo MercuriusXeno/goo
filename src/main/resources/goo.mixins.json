@@ -5,6 +5,7 @@
   "mixins": [
     "ContainerShiftClickMergeMixin",
     "InventoryPickupMergeMixin",
+    "ItemStackLegacyBlobMixin",
     "OmniblobQuickCraftMixin"
   ],
   "client": [

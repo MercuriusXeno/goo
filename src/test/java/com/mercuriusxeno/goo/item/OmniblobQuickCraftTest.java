@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.item;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
@@ -59,21 +61,38 @@ class OmniblobQuickCraftTest {
         assertEquals(25_000, OmniblobQuickCraft.charitablePerSlot(100_000, 4));
     }
 
-    // -- greedyPerSlot --
+    // -- greedyPerSlot (decision right-drag-over-one-blob-places-blobs) --
 
     /**
-     * Greedy always returns one blob (1,000 mB).
+     * Holding more than one blob, a right-drag places one blob per slot:
+     * 5,000 mB and 1,001 mB both answer 1,000 mB.
+     *
+     * @param carriedVolume the volume on the cursor
      */
-    @Test
-    void greedy_returnsOneBlob() {
-        assertEquals(1000, OmniblobQuickCraft.greedyPerSlot());
+    @ParameterizedTest
+    @ValueSource(ints = {5_000, 1_001})
+    void greedyPlacesOneBlobAboveOneBlob(int carriedVolume) {
+        assertEquals(BlobStacks.MB_PER_BLOB, OmniblobQuickCraft.greedyPerSlot(carriedVolume));
     }
 
     /**
-     * Greedy matches BlobStacks constant.
+     * Holding one blob or less, a right-drag places one microblob per slot:
+     * 1,000 mB, 500 mB and 1 mB answer 1 mB.
+     *
+     * @param carriedVolume the volume on the cursor
+     */
+    @ParameterizedTest
+    @ValueSource(ints = {1_000, 500, 1})
+    void greedyPlacesOneMicroblobAtOneBlobOrLess(int carriedVolume) {
+        assertEquals(1, OmniblobQuickCraft.greedyPerSlot(carriedVolume));
+    }
+
+    /**
+     * The boundary sits above one blob: 1,001 mB answers 1,000 mB, 1,000 mB answers 1 mB.
      */
     @Test
-    void greedy_matchesMbPerBlob() {
-        assertEquals(BlobStacks.MB_PER_BLOB, OmniblobQuickCraft.greedyPerSlot());
+    void greedyBoundarySitsAboveOneBlob() {
+        assertEquals(1_000, OmniblobQuickCraft.greedyPerSlot(1_001));
+        assertEquals(1, OmniblobQuickCraft.greedyPerSlot(1_000));
     }
 }

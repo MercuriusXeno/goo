@@ -32,7 +32,7 @@ import static org.mockito.Mockito.withSettings;
 
 /**
  * GooSourceScanner reads every goo-carrying item through GooCarrierItem: each of the
- * five carriers is aggregated, measured, named as a source and drawn from, and the
+ * four carriers is aggregated, measured, named as a source and drawn from, and the
  * passes run in DepletionPass order (decision hosts-answer-bounds-through-interfaces).
  * Each carrier item is a real-method mock whose goo contents and draw are stubbed.
  */
@@ -48,7 +48,7 @@ class GooSourceScannerTest {
     }
 
     @ParameterizedTest
-    @ValueSource(classes = {GooBlobItem.class, GooOmniblobItem.class, CanisterItem.class,
+    @ValueSource(classes = {GooOmniblobItem.class, CanisterItem.class,
             VatBlockItem.class, HubBlockItem.class})
     void everyCarrierIsScanned(Class<? extends Item> type) {
         ItemStack stack = carrierStack(type);
@@ -64,9 +64,9 @@ class GooSourceScannerTest {
     }
 
     @Test
-    void looseBlobsDrainBeforeAVatInAnEarlierSlot() {
+    void omniblobsDrainBeforeAVatInAnEarlierSlot() {
         ItemStack vat = carrierStack(VatBlockItem.class);
-        ItemStack blob = carrierStack(GooBlobItem.class);
+        ItemStack blob = carrierStack(GooOmniblobItem.class);
         Player player = playerHolding(vat, blob);
         GooCarrierItem vatItem = (GooCarrierItem) vat.getItem();
 

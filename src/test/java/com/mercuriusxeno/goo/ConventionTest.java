@@ -199,7 +199,7 @@ class ConventionTest {
     }
 
     private static DescribedPredicate<JavaClass> carrierItemClass() {
-        return assignableTo(ITEM_PACKAGE + "GooBlobItem").or(assignableTo(ITEM_PACKAGE + "GooOmniblobItem"))
+        return assignableTo(ITEM_PACKAGE + "GooOmniblobItem")
                 .or(assignableTo(ITEM_PACKAGE + "CanisterItem")).or(assignableTo(ITEM_PACKAGE + "VatBlockItem"))
                 .or(assignableTo(ITEM_PACKAGE + "HubBlockItem"))
                 .as("a goo carrier item class");

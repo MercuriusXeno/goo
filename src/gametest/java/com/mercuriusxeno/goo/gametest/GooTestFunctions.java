@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.gametest;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.network.BlockLandingTests;
 import com.mercuriusxeno.goo.network.GloveSelectTests;
+import com.mercuriusxeno.goo.network.MobEffectTests;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
@@ -82,8 +83,8 @@ public final class GooTestFunctions {
     // --- GasketPusher ---
     private static final String PUSHER_EMPTY_RESERVOIR = "pusher_empty_reservoir";
     private static final String PUSHER_NO_PARTNER = "pusher_no_partner";
-    private static final String PUSHER_DISPOSE_AND_TICK = "pusher_dispose_and_tick";
-    private static final String PUSHER_DOUBLE_DISPOSE = "pusher_double_dispose";
+    private static final String PUSHER_DISPOSE_DROPS_GASKET = "pusher_dispose_drops_gasket_once";
+    private static final String PUSHER_DOUBLE_DISPOSE_DROPS_GASKETS = "pusher_double_dispose_drops_gasket_each_time";
     private static final String PUSHER_REACTOR_OUTPUT_PUSH = "pusher_reactor_output_push";
     private static final String PUSHER_REACTOR_OUTPUT_REMOVAL = "pusher_reactor_output_removal";
     private static final String PUSHER_WATERLOGGED_GASKET_VAT = "pusher_waterlogged_gasket_vat";
@@ -198,6 +199,12 @@ public final class GooTestFunctions {
     private static final String TAP_HOST_PLACES_ABOVE_LANDING = "tap_host_places_above_landing";
     private static final String TAP_DRIP_NO_ABILITY = "tap_drip_no_ability";
     private static final String TAP_DRIP_SENDS_TAP_DRIP = "tap_drip_sends_tap_drip";
+    private static final String TAP_VALVE_STEPS_FIVE_GRADES = "tap_valve_steps_five_grades";
+    private static final String TAP_SNEAK_CLICK_STEPS_VALVE_BACK = "tap_sneak_click_steps_valve_back";
+    private static final String TAP_DRIP_FILLS_CRUCIBLE_BELOW = "tap_drip_fills_crucible_below";
+    private static final String TAP_DRIP_ONE_TO_FOUR_FILLS_CRUCIBLE = "tap_drip_one_to_four_fills_crucible";
+    private static final String TAP_DRIP_INTO_CRUCIBLE_RUNS_NO_PROGRAM = "tap_drip_into_crucible_runs_no_program";
+    private static final String TAP_DRIP_ON_REFUSING_BLOCK_RUNS_PROGRAM = "tap_drip_on_refusing_block_runs_program";
     private static final String IX_VAT_GASKET = "ix_vat_gasket_apply";
     private static final String IX_HUB_INSERT = "ix_hub_canister_insert";
     private static final String IX_HUB_PICKUP = "ix_hub_canister_pickup";
@@ -216,21 +223,22 @@ public final class GooTestFunctions {
     private static final String IX_VAT_ITEM_OMNIBLOB_INSERT = "ix_vat_item_omniblob_insert";
     private static final String IX_VAT_ITEM_DRAIN = "ix_vat_item_drain";
     private static final String IX_BLOB_INSERT_SHARED = "ix_blob_insert_shared";
+    private static final String IX_LEGACY_BLOB_STACK = "ix_legacy_blob_stack";
     private static final String IX_VAT_STREAM_HOLDS = "ix_vat_stream_holds";
 
     // --- Machines ---
     private static final String MACHINE_CANISTER_INSERT = "machine_canister_insert";
     private static final String MACHINE_CANISTER_REMOVE = "machine_canister_remove";
     private static final String MACHINE_CANISTER_TICK = "machine_canister_tick";
-    private static final String MACHINE_CANISTER_BREAK = "machine_canister_break";
+    private static final String MACHINE_CANISTER_BREAK_RELEASES_GASKET = "machine_canister_break_releases_gasket";
     private static final String MACHINE_CANISTER_FLUID = "machine_canister_fluid";
     private static final String MACHINE_CANISTER_ROUTING = "machine_canister_routing";
     private static final String MACHINE_CANISTER_ROUNDTRIP = "machine_canister_roundtrip";
-    private static final String MACHINE_REACTOR_IDLE = "machine_reactor_idle";
-    private static final String MACHINE_REACTOR_BREAK = "machine_reactor_break";
+    private static final String MACHINE_REACTOR_WITHOUT_INPUTS = "machine_reactor_without_inputs";
+    private static final String MACHINE_REACTOR_BREAK_RELEASES_GASKET = "machine_reactor_break_releases_gasket";
     private static final String MACHINE_REACTOR_REACTION = "machine_reactor_reaction";
     private static final String MACHINE_REACTOR_REDSTONE = "machine_reactor_redstone";
-    private static final String MACHINE_PLEXER_IDLE = "machine_plexer_idle";
+    private static final String MACHINE_PLEXER_WITHOUT_GOO = "machine_plexer_without_goo";
 
     // --- MobEffects ---
     private static final String MOB_METAL = "mob_metal_javelin";
@@ -304,6 +312,12 @@ public final class GooTestFunctions {
         reg(r, TAP_HOST_PLACES_ABOVE_LANDING, TapDripTests::tapHostPlacesAboveLanding);
         reg(r, TAP_DRIP_NO_ABILITY, TapDripTests::tapDripNoAbility);
         reg(r, TAP_DRIP_SENDS_TAP_DRIP, TapDripTests::tapDripSendsTapDrip);
+        reg(r, TAP_VALVE_STEPS_FIVE_GRADES, TapDripTests::tapValveStepsFiveGrades);
+        reg(r, TAP_SNEAK_CLICK_STEPS_VALVE_BACK, TapDripTests::tapSneakClickStepsValveBack);
+        reg(r, TAP_DRIP_FILLS_CRUCIBLE_BELOW, TapDripTests::tapDripFillsCrucibleBelow);
+        reg(r, TAP_DRIP_ONE_TO_FOUR_FILLS_CRUCIBLE, TapDripTests::tapDripOneToFourFillsCrucible);
+        reg(r, TAP_DRIP_INTO_CRUCIBLE_RUNS_NO_PROGRAM, TapDripTests::tapDripIntoCrucibleRunsNoProgram);
+        reg(r, TAP_DRIP_ON_REFUSING_BLOCK_RUNS_PROGRAM, TapDripTests::tapDripOnRefusingBlockRunsProgram);
     }
 
     private static void registerLightingTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
@@ -364,8 +378,8 @@ public final class GooTestFunctions {
     private static void registerGasketTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
         reg(r, PUSHER_EMPTY_RESERVOIR, GasketPusherTests::emptyReservoirSkipsTick);
         reg(r, PUSHER_NO_PARTNER, GasketPusherTests::noPartnerSkipsTick);
-        reg(r, PUSHER_DISPOSE_AND_TICK, GasketPusherTests::disposeAndTickIsSafe);
-        reg(r, PUSHER_DOUBLE_DISPOSE, GasketPusherTests::doubleDisposeIsSafe);
+        reg(r, PUSHER_DISPOSE_DROPS_GASKET, GasketPusherTests::disposeDropsGasketOnce);
+        reg(r, PUSHER_DOUBLE_DISPOSE_DROPS_GASKETS, GasketPusherTests::doubleDisposeDropsGasketEachTime);
         reg(r, PUSHER_REACTOR_OUTPUT_PUSH, GasketPusherTests::reactorOutputPushesToLinkedReceiver);
         reg(r, PUSHER_REACTOR_OUTPUT_REMOVAL, GasketPusherTests::reactorOutputRemovalStopsPush);
         reg(r, PUSHER_WATERLOGGED_GASKET_VAT, GasketPusherTests::waterloggedGasketPushesIntoVat);
@@ -454,6 +468,7 @@ public final class GooTestFunctions {
         reg(r, IX_VAT_ITEM_OMNIBLOB_INSERT, VatItemClickTests::omniblobInsertKeepsRemainder);
         reg(r, IX_VAT_ITEM_DRAIN, VatItemClickTests::secondaryClickDrainsLargerType);
         reg(r, IX_BLOB_INSERT_SHARED, BlobInsertTests::pourDepletesByAccepted);
+        reg(r, IX_LEGACY_BLOB_STACK, LegacyBlobStackTests::legacyStackHalvesAndDepletesWithoutDuplication);
         reg(r, IX_VAT_STREAM_HOLDS, VatStreamTests::blobClickHoldsStream);
     }
 
@@ -506,15 +521,15 @@ public final class GooTestFunctions {
         reg(r, MACHINE_CANISTER_INSERT, MachineTests::canisterInsertCreatesHandler);
         reg(r, MACHINE_CANISTER_REMOVE, MachineTests::canisterRemoveClearsHandler);
         reg(r, MACHINE_CANISTER_TICK, MachineTests::canisterTicksWithSlot);
-        reg(r, MACHINE_CANISTER_BREAK, MachineTests::canisterBreakWithSlotIsSafe);
+        reg(r, MACHINE_CANISTER_BREAK_RELEASES_GASKET, MachineTests::canisterBreakReleasesSlotGasket);
         reg(r, MACHINE_CANISTER_FLUID, MachineTests::canisterFluidInsertExtract);
         reg(r, MACHINE_CANISTER_ROUTING, MachineTests::canisterFluidRouting);
         reg(r, MACHINE_CANISTER_ROUNDTRIP, MachineTests::canisterSurvivesRoundTrip);
-        reg(r, MACHINE_REACTOR_IDLE, MachineTests::reactorIdleTick);
-        reg(r, MACHINE_REACTOR_BREAK, MachineTests::reactorBreakIsSafe);
+        reg(r, MACHINE_REACTOR_WITHOUT_INPUTS, MachineTests::reactorWithoutInputsMakesNothing);
+        reg(r, MACHINE_REACTOR_BREAK_RELEASES_GASKET, MachineTests::reactorBreakReleasesOutputGasket);
         reg(r, MACHINE_REACTOR_REACTION, MachineTests::reactorProcessesReaction);
         reg(r, MACHINE_REACTOR_REDSTONE, MachineTests::reactorRedstoneHalts);
-        reg(r, MACHINE_PLEXER_IDLE, MachineTests::plexerIdleTick);
+        reg(r, MACHINE_PLEXER_WITHOUT_GOO, MachineTests::plexerWithoutGooMakesNothing);
     }
 
     private static void registerMobEffectTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {

@@ -27,7 +27,7 @@ public final class BlobInsertTests {
     private static final String ACCEPTED = "Volume the insert answers";
     private static final String OFFERED_TYPE = "Type offered to the sink";
     private static final String OFFERED_VOLUME = "Volume offered to the sink";
-    private static final String BLOBS_LEFT = "Blob count left in the stack";
+    private static final String BLOBS_LEFT = "Volume left in the five-blob omniblob";
     private static final String OMNIBLOB_LEFT = "Omniblob remainder";
     private static final String REFUSED_WHOLE = "A refused stack stays whole";
     private static final String NON_GOO_WHOLE = "A non-goo stack stays whole";
@@ -37,7 +37,7 @@ public final class BlobInsertTests {
     }
 
     /**
-     * A sink taking part of a blob stack or omniblob depletes it by what it took;
+     * A sink taking part of an omniblob depletes it by what it took;
      * a refusing sink and a non-goo stack answer 0 and leave the stack whole.
      *
      * @param helper the gametest helper
@@ -45,22 +45,22 @@ public final class BlobInsertTests {
     public static void pourDepletesByAccepted(GameTestHelper helper) {
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
 
-        ItemStack blobs = BlobStacks.createBlobStack(ROCK, BLOB_COUNT);
+        ItemStack blobs = BlobStacks.createForOutput(ROCK, BLOB_COUNT * BlobStacks.MB_PER_BLOB);
         RecordingSink partial = new RecordingSink(BLOBS_TAKEN * BlobStacks.MB_PER_BLOB);
         helper.assertValueEqual(BlobInsert.pour(blobs, player, partial),
                 BLOBS_TAKEN * BlobStacks.MB_PER_BLOB, ACCEPTED);
         helper.assertValueEqual(partial.offeredType(), ROCK, OFFERED_TYPE);
         helper.assertValueEqual(partial.offeredVolume(), BLOB_COUNT * BlobStacks.MB_PER_BLOB, OFFERED_VOLUME);
-        helper.assertValueEqual(blobs.getCount(), BLOB_COUNT - BLOBS_TAKEN, BLOBS_LEFT);
+        helper.assertValueEqual(BlobStacks.volumeOf(blobs), (BLOB_COUNT - BLOBS_TAKEN) * BlobStacks.MB_PER_BLOB, BLOBS_LEFT);
 
         ItemStack omniblob = GooOmniblobItem.createWithVolume(ROCK, OMNIBLOB_VOLUME);
         helper.assertValueEqual(BlobInsert.pour(omniblob, player, new RecordingSink(OMNIBLOB_TAKEN)),
                 OMNIBLOB_TAKEN, ACCEPTED);
         helper.assertValueEqual(GooOmniblobItem.getVolume(omniblob), OMNIBLOB_VOLUME - OMNIBLOB_TAKEN, OMNIBLOB_LEFT);
 
-        ItemStack refused = BlobStacks.createBlobStack(ROCK, BLOB_COUNT);
+        ItemStack refused = BlobStacks.createForOutput(ROCK, BLOB_COUNT * BlobStacks.MB_PER_BLOB);
         helper.assertValueEqual(BlobInsert.pour(refused, player, new RecordingSink(0)), 0, ACCEPTED);
-        helper.assertValueEqual(refused.getCount(), BLOB_COUNT, REFUSED_WHOLE);
+        helper.assertValueEqual(BlobStacks.volumeOf(refused), BLOB_COUNT * BlobStacks.MB_PER_BLOB, REFUSED_WHOLE);
 
         ItemStack stone = new ItemStack(Items.STONE, BLOB_COUNT);
         RecordingSink unoffered = new RecordingSink(BLOB_COUNT * BlobStacks.MB_PER_BLOB);
