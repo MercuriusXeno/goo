@@ -33,39 +33,47 @@ class CrucibleSurfaceBasinTest {
     }
 
     @ParameterizedTest
-    @ValueSource(ints = {50, 8_000_000})
-    void everySurfaceVertexLiesInsideTheBasin(int volume) {
-        float surfaceY = CrucibleBasin.surfaceYForVolume(volume);
-        RecordingVertexConsumer recorder = new RecordingVertexConsumer();
-        RenderContext ctx = new RenderContext(new PoseStack().last(), recorder, 0, 0xFFFFFFFF);
-        CrucibleBlockEntityRenderer.emitLiquidSurface(ctx, surfaceY, new GooRenderUtil.UvRect(0f, 0f, 1f, 1f),
-            RenderContext.RESTING_RIPPLE_AMPLITUDE);
-        List<RecordingVertexConsumer.Vertex> vertices = recorder.vertices();
+    @ValueSource(ints = {50, 500, 8_000_000})
+    void everySurfaceVertexLiesInsideTheGoosFootprint(int volume) {
+        CrucibleBasin.PuddleFootprint footprint = CrucibleBasin.footprintForVolume(volume);
+        List<RecordingVertexConsumer.Vertex> vertices = emitAt(volume, RenderContext.RESTING_RIPPLE_AMPLITUDE);
         assertFalse(vertices.isEmpty());
         for (RecordingVertexConsumer.Vertex vertex : vertices) {
-            assertInsideFootprint(vertex.x());
-            assertInsideFootprint(vertex.z());
-            assertTrue(vertex.y() >= CrucibleBasin.FLOOR_Y && vertex.y() <= CrucibleBasin.RIM_Y,
+            assertInside(footprint, vertex.x());
+            assertInside(footprint, vertex.z());
+            assertTrue(vertex.y() > CrucibleBasin.FLOOR_Y && vertex.y() <= CrucibleBasin.RIM_Y,
                 "vertex y " + vertex.y() + " left the floor-to-rim span");
         }
     }
 
     @Test
-    void surfaceGridCoversTheWholeFootprint() {
-        RecordingVertexConsumer recorder = new RecordingVertexConsumer();
-        RenderContext ctx = new RenderContext(new PoseStack().last(), recorder, 0, 0xFFFFFFFF);
-        CrucibleBlockEntityRenderer.emitLiquidSurface(ctx, CrucibleBasin.FLOOR_Y,
-            new GooRenderUtil.UvRect(0f, 0f, 1f, 1f), 0f);
-        List<RecordingVertexConsumer.Vertex> vertices = recorder.vertices();
+    void puddleAtHalfTheSpreadDrawsStrictlyInsideTheWalls() {
+        List<RecordingVertexConsumer.Vertex> vertices = emitAt(CrucibleBasin.SPREAD_VOLUME / 2, 0f);
+        assertTrue(vertices.stream().allMatch(vertex -> vertex.x() > CrucibleBasin.FOOTPRINT_MIN
+                && vertex.x() < CrucibleBasin.FOOTPRINT_MAX
+                && vertex.z() > CrucibleBasin.FOOTPRINT_MIN && vertex.z() < CrucibleBasin.FOOTPRINT_MAX),
+            "a vertex of the 500 mB puddle reached the walls");
+    }
+
+    @Test
+    void surfaceGridCoversTheWholeFootprintOnceSpread() {
+        List<RecordingVertexConsumer.Vertex> vertices = emitAt(CrucibleBasin.SPREAD_VOLUME, 0f);
         assertEquals(CrucibleBasin.FOOTPRINT_MIN,
             (float) vertices.stream().mapToDouble(RecordingVertexConsumer.Vertex::x).min().orElseThrow(), EPSILON);
         assertEquals(CrucibleBasin.FOOTPRINT_MAX,
             (float) vertices.stream().mapToDouble(RecordingVertexConsumer.Vertex::x).max().orElseThrow(), EPSILON);
     }
 
-    private static void assertInsideFootprint(float coordinate) {
-        assertTrue(coordinate >= CrucibleBasin.FOOTPRINT_MIN - EPSILON
-                && coordinate <= CrucibleBasin.FOOTPRINT_MAX + EPSILON,
-            "vertex coordinate " + coordinate + " left the footprint");
+    private static List<RecordingVertexConsumer.Vertex> emitAt(int volume, float amplitude) {
+        RecordingVertexConsumer recorder = new RecordingVertexConsumer();
+        RenderContext ctx = new RenderContext(new PoseStack().last(), recorder, 0, 0xFFFFFFFF);
+        CrucibleBlockEntityRenderer.emitLiquidSurface(ctx, CrucibleBasin.footprintForVolume(volume),
+            CrucibleBasin.surfaceYForVolume(volume), new GooRenderUtil.UvRect(0f, 0f, 1f, 1f), amplitude);
+        return recorder.vertices();
+    }
+
+    private static void assertInside(CrucibleBasin.PuddleFootprint footprint, float coordinate) {
+        assertTrue(coordinate >= footprint.min() - EPSILON && coordinate <= footprint.max() + EPSILON,
+            "vertex coordinate " + coordinate + " left the footprint " + footprint);
     }
 }

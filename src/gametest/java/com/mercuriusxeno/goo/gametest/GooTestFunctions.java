@@ -162,6 +162,7 @@ public final class GooTestFunctions {
     private static final String CR_CAP_ACCOUNTED = "cr_cap_accounted";
     private static final String CR_BLOB_STACK_WHOLE = "cr_blob_stack_whole";
     private static final String CR_BLOB_STACK_TO_CAP = "cr_blob_stack_to_cap";
+    private static final String CR_FIRST_MELT_PUDDLE = "cr_first_melt_puddle";
 
     // --- Placement ---
     private static final String PL_BLAZE = "pl_blaze_places";
@@ -468,6 +469,7 @@ public final class GooTestFunctions {
         reg(r, CR_CAP_ACCOUNTED, CrucibleTests::fillPastTheCapAccountsForEveryMb);
         reg(r, CR_BLOB_STACK_WHOLE, CrucibleTests::blobStackConsumedWhole);
         reg(r, CR_BLOB_STACK_TO_CAP, CrucibleTests::blobStackFillsToTheCap);
+        reg(r, CR_FIRST_MELT_PUDDLE, CrucibleTests::firstMeltTicksDrawAPuddle);
     }
 
     private static void registerPlacementTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
