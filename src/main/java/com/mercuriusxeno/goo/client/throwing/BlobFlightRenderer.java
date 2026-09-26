@@ -127,10 +127,6 @@ public final class BlobFlightRenderer {
      */
     private static final int DART_SIDES = 3;
     /**
-     * Two pi for dart angle computation.
-     */
-    private static final float TWO_PI = (float) (2 * Math.PI);
-    /**
      * Morph rate: spine is fully formed at 40% of flight time.
      */
     private static final float MORPH_RATE = 2.5f;
@@ -139,9 +135,9 @@ public final class BlobFlightRenderer {
      */
     private static final double LENGTH_EPSILON = 1e-6;
     /**
-     * UV midpoint factor for cone face texture coordinates.
+     * Fraction along the beam where its midpoint sits.
      */
-    private static final float UV_MIDPOINT = 0.5f;
+    private static final float BEAM_MIDPOINT = 0.5f;
 
     private BlobFlightRenderer() {
     }
@@ -544,7 +540,7 @@ public final class BlobFlightRenderer {
      */
     private static @Nullable Vec3 computeGlowLateral(Vec3 tailPos,
                                                      Vec3 beamVec, Vec3 camPos) {
-        Vec3 beamMid = tailPos.add(beamVec.scale(UV_MIDPOINT));
+        Vec3 beamMid = tailPos.add(beamVec.scale(BEAM_MIDPOINT));
         Vec3 toCamera = camPos.subtract(beamMid);
         Vec3 lateral = beamVec.cross(toCamera);
         double latLen = lateral.length();
@@ -685,8 +681,8 @@ public final class BlobFlightRenderer {
     }
 
     /**
-     * Emits a 3-sided cone from the origin along a direction, textured
-     * with the goo fluid sprite.
+     * Emits a dart cone from the origin along a direction, fullbright and
+     * textured with the goo fluid sprite.
      *
      * @param pose       the pose matrix
      * @param c          the vertex consumer
@@ -702,78 +698,9 @@ public final class BlobFlightRenderer {
                                      float dirX, float dirY, float dirZ,
                                      float length, float baseRadius,
                                      float[] basis, GooRenderUtil.UvRect uv) {
-        float tipX = dirX * length;
-        float tipY = dirY * length;
-        float tipZ = dirZ * length;
-        float uMid = (uv.u0() + uv.u1()) * UV_MIDPOINT;
-
-        for (int i = 0; i < DART_SIDES; i++) {
-            emitDartSegment(pose, c, basis, uv, baseRadius, uMid,
-                    tipX, tipY, tipZ, dirX, dirY, dirZ, i);
-        }
-    }
-
-    /**
-     * Emits one triangular segment of the dart cone.
-     *
-     * @param pose       the pose matrix entry
-     * @param c          the vertex consumer
-     * @param basis      the orthonormal basis vectors
-     * @param uv         the fluid sprite UV rectangle
-     * @param baseRadius the cone base radius
-     * @param uMid       the U-axis midpoint for the tip vertex
-     * @param tipX       the cone tip X position
-     * @param tipY       the cone tip Y position
-     * @param tipZ       the cone tip Z position
-     * @param dirX       the cone direction X for tip normal
-     * @param dirY       the cone direction Y for tip normal
-     * @param dirZ       the cone direction Z for tip normal
-     * @param i          the segment index around the cone
-     */
-    private static void emitDartSegment(PoseStack.Pose pose, VertexConsumer c,
-                                        float[] basis, GooRenderUtil.UvRect uv, float baseRadius, float uMid,
-                                        float tipX, float tipY, float tipZ, float dirX, float dirY, float dirZ, int i) {
         RenderContext dart = new RenderContext(pose, c, GooSubmitter.fullbrightLight());
-        float a0 = TWO_PI * i / DART_SIDES;
-        float a1 = TWO_PI * (i + 1) / DART_SIDES;
-        float cos0 = (float) Math.cos(a0) * baseRadius;
-        float sin0 = (float) Math.sin(a0) * baseRadius;
-        float cos1 = (float) Math.cos(a1) * baseRadius;
-        float sin1 = (float) Math.sin(a1) * baseRadius;
-
-        float[] n = segmentNormal(basis, (a0 + a1) * UV_MIDPOINT);
-
-        dart.vertex(
-                basis[ConeGeometry.PERP_X] * cos0 + basis[ConeGeometry.CROSS_X] * sin0,
-                basis[ConeGeometry.PERP_Y] * cos0 + basis[ConeGeometry.CROSS_Y] * sin0,
-                basis[ConeGeometry.PERP_Z] * cos0 + basis[ConeGeometry.CROSS_Z] * sin0,
-                uv.u0(), uv.v0(), n[ConeGeometry.PERP_X], n[ConeGeometry.PERP_Y], n[ConeGeometry.PERP_Z]);
-        dart.vertex(
-                basis[ConeGeometry.PERP_X] * cos1 + basis[ConeGeometry.CROSS_X] * sin1,
-                basis[ConeGeometry.PERP_Y] * cos1 + basis[ConeGeometry.CROSS_Y] * sin1,
-                basis[ConeGeometry.PERP_Z] * cos1 + basis[ConeGeometry.CROSS_Z] * sin1,
-                uv.u1(), uv.v0(), n[ConeGeometry.PERP_X], n[ConeGeometry.PERP_Y], n[ConeGeometry.PERP_Z]);
-        dart.vertex(
-                tipX, tipY, tipZ, uMid, uv.v1(), dirX, dirY, dirZ);
-        dart.vertex(
-                tipX, tipY, tipZ, uMid, uv.v1(), dirX, dirY, dirZ);
-    }
-
-    /**
-     * Computes the interpolated face normal for a cone segment at the given mid-angle.
-     *
-     * @param basis the orthonormal basis array
-     * @param midA  the midpoint angle between the two segment edges
-     * @return a 3-element normal vector {nx, ny, nz}
-     */
-    public static float[] segmentNormal(float[] basis, float midA) {
-        float cosM = (float) Math.cos(midA);
-        float sinM = (float) Math.sin(midA);
-        return new float[]{
-                basis[ConeGeometry.PERP_X] * cosM + basis[ConeGeometry.CROSS_X] * sinM,
-                basis[ConeGeometry.PERP_Y] * cosM + basis[ConeGeometry.CROSS_Y] * sinM,
-                basis[ConeGeometry.PERP_Z] * cosM + basis[ConeGeometry.CROSS_Z] * sinM,
-        };
+        ConeGeometry.Cone cone = new ConeGeometry.Cone(0f, 0f, 0f, dirX, dirY, dirZ, length, baseRadius);
+        ConeGeometry.emitCone(dart, cone, basis, DART_SIDES, GooRenderUtil.OPAQUE_WHITE, uv);
     }
 
     /**
