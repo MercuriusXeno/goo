@@ -13,7 +13,6 @@ import com.mercuriusxeno.goo.item.ContainerCapacity;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.client.renderer.SubmitNodeCollector;
-import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.special.SpecialModelRenderer;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.resources.Identifier;
@@ -169,7 +168,7 @@ public class CanisterSpecialRenderer implements SpecialModelRenderer<CanisterSpe
                                           SubmitNodeCollector nodeCollector, int packedLight,
                                           Identifier texture, boolean top, boolean bottom) {
         nodeCollector.submitCustomGeometry(poseStack,
-                RenderTypes.entitySolid(texture),
+                GooSubmitter.solidOn(texture),
                 (pose, c) -> emitEndcapQuads(new RenderContext(pose, c, packedLight), top, bottom));
     }
 
