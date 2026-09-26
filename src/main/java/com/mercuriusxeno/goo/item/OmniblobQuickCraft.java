@@ -35,12 +35,14 @@ public final class OmniblobQuickCraft {
     }
 
     /**
-     * Returns the per-slot volume for right-click (greedy) drag distribution:
-     * one blob (1,000 mB) per slot.
+     * The unit one right-drag slot or one cursor right-click on an empty slot
+     * places, read from the carried volume: one blob (1,000 mB) while the
+     * cursor holds more than one blob (decision right-drag-over-one-blob-places-blobs).
      *
-     * @return 1,000 mB
+     * @param carriedVolume the volume on the cursor, in microblobs
+     * @return the volume one slot receives, in microblobs
      */
-    public static int greedyPerSlot() {
+    public static int greedyPerSlot(int carriedVolume) {
         return BlobStacks.MB_PER_BLOB;
     }
 }
