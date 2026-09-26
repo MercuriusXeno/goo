@@ -9,7 +9,6 @@ import com.mercuriusxeno.goo.client.FlatQuadContext;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.ber.ChainMarkerRenderState;
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.core.BlockPos;
@@ -22,6 +21,8 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Vector3f;
 import org.jspecify.annotations.Nullable;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 
 /**
@@ -130,13 +131,13 @@ public final class CrystalCloudVisual {
      */
     private static final float MAX_DEPTH_RATIO = 0.25f;
     /**
-     * Long arm multiplier for asymmetric diamonds.
-     */
-    private static final float ASYM_LONG_FACTOR = 1.0f;
-    /**
      * Short arm multiplier for asymmetric diamonds - very short to create sliver shapes.
      */
     private static final float ASYM_SHORT_FACTOR = 0.1f;
+    /**
+     * An arm reaching its shard's full half-length or half-width.
+     */
+    private static final float REACH_FULL = 1f;
     /**
      * Maps [-1,1] random floats into [-radius, radius] range.
      */
@@ -199,7 +200,31 @@ public final class CrystalCloudVisual {
      */
     private static final double REFLECT_COEFF = 2.0;
 
+    /**
+     * Client ticks a cloud may go undrawn before its sampler is dropped.
+     */
+    private static final long SAMPLER_IDLE_TICKS = 20L;
+
     private static final float[] SLIVER_DATA = buildSliverData();
+
+    /** Each drawn cloud's reflection sampler, keyed by its marker. */
+    private static final Map<BlockPos, ReflectionSampler> SAMPLERS = new HashMap<>();
+
+    /**
+     * What one frame of one cloud draws.
+     *
+     * @param visibleCount how many slivers show
+     * @param alpha        the vertex alpha [0-255]
+     * @param time         the game time the spin reads
+     * @param radius       the current cloud radius
+     * @param origin       the marker block's world corner
+     * @param camPos       the camera eye position
+     * @param tick         the client tick being drawn
+     * @param probe        casts the reflection rays
+     */
+    record CloudDraw(int visibleCount, int alpha, float time, float radius,
+                     Vec3 origin, Vec3 camPos, long tick, ReflectionSampler.BlockColorProbe probe) {
+    }
 
     private CrystalCloudVisual() {
     }
@@ -278,56 +303,100 @@ public final class CrystalCloudVisual {
         if (mc.level == null || mc.player == null) {
             return;
         }
-        Level level = mc.level;
-        Vec3 camPos = mc.player.getEyePosition(state.partialTick);
-        BlockPos bePos = state.blockPos;
-        float density = state.crystalDensity;
-        int alpha = (int) (BASE_ALPHA * Math.max(density, MIN_DENSITY_FLOOR) * radiusFrac * BYTE_SCALE);
-        int visibleCount = Math.max(1, (int) (MAX_SLIVERS * Math.max(density, radiusFrac)));
-        float time = state.crystalAnimationTime;
-        float radius = state.crystalRadius * radiusFrac;
-
+        BlockPos bePos = state.blockPos.immutable();
+        CloudDraw draw = drawOf(state, mc.level, mc.player.getEyePosition(state.partialTick));
+        ReflectionSampler sampler = samplerFor(bePos, draw.tick());
         nodeCollector.submitCustomGeometry(poseStack, GooRenderTypes.CRYSTAL_SHARD_TYPE,
-                (pose, c) -> {
-                    for (int i = 0; i < visibleCount; i++) {
-                        emitSliver(pose, c, i, alpha, time, radius, level, camPos, bePos);
-                    }
-                });
+                (pose, c) -> emitCloud(new FlatQuadContext(pose, c), draw, sampler));
     }
 
     /**
-     * Emits one sliver quad, applying spin rotation if the shard has one.
+     * What this frame of the marker's cloud draws.
      *
-     * @param pose   the current pose entry
-     * @param c      the vertex consumer
-     * @param index  the sliver index
-     * @param time   the game time in ticks for spin animation
-     * @param radius the current cloud radius (animated)
-     * @param alpha  pre-computed vertex alpha [0-255]
-     * @param level  the client level for raycasting
+     * @param state  the chain marker render state
+     * @param level  the client level the rays are cast in
      * @param camPos the camera eye position
-     * @param bePos  the block entity position
+     * @return the frame's draw
      */
-    private static void emitSliver(PoseStack.Pose pose, VertexConsumer c,
-                                   int index, int alpha, float time, float radius,
-                                   Level level, Vec3 camPos, BlockPos bePos) {
+    private static CloudDraw drawOf(ChainMarkerRenderState state, Level level, Vec3 camPos) {
+        float radiusFrac = state.crystalRadiusFraction;
+        float density = state.crystalDensity;
+        return new CloudDraw(
+                Math.max(1, (int) (MAX_SLIVERS * Math.max(density, radiusFrac))),
+                (int) (BASE_ALPHA * Math.max(density, MIN_DENSITY_FLOOR) * radiusFrac * BYTE_SCALE),
+                state.crystalAnimationTime,
+                state.crystalRadius * radiusFrac,
+                Vec3.atLowerCornerOf(state.blockPos),
+                camPos,
+                level.getGameTime(),
+                (origin, direction) -> raycastBlockColor(level, origin, direction));
+    }
+
+    /**
+     * The sampler holding a marker's reflections, dropping those of clouds
+     * that went undrawn.
+     *
+     * @param pos  the marker position
+     * @param tick the client tick being drawn
+     * @return the marker's sampler
+     */
+    private static ReflectionSampler samplerFor(BlockPos pos, long tick) {
+        SAMPLERS.values().removeIf(sampler -> sampler.idleSince(tick, SAMPLER_IDLE_TICKS));
+        return SAMPLERS.computeIfAbsent(pos, p -> new ReflectionSampler(MAX_SLIVERS));
+    }
+
+    /**
+     * Emits every visible sliver of one cloud.
+     *
+     * @param face    the context the shard faces emit through
+     * @param draw    what this frame draws
+     * @param sampler the cloud's reflection sampler
+     */
+    static void emitCloud(FlatQuadContext face, CloudDraw draw, ReflectionSampler sampler) {
+        for (int i = 0; i < draw.visibleCount(); i++) {
+            emitSliver(face, i, draw, sampler);
+        }
+    }
+
+    /**
+     * Emits one sliver as a pyramid over its shape's base ring, colored by
+     * the reflection its sampler holds for this tick.
+     *
+     * @param face    the context the shard faces emit through
+     * @param index   the sliver index
+     * @param draw    what this frame draws
+     * @param sampler the cloud's reflection sampler
+     */
+    private static void emitSliver(FlatQuadContext face, int index, CloudDraw draw, ReflectionSampler sampler) {
         int off = index * SLIVER_STRIDE;
-        float cx = BLOCK_CENTER + SLIVER_DATA[off] * radius;
-        float cy = BLOCK_CENTER + SLIVER_DATA[off + OFF_CY] * radius;
-        float cz = BLOCK_CENTER + SLIVER_DATA[off + OFF_CZ] * radius;
+        ShardFrame frame = frameOf(off, draw);
+        Vec3 worldCenter = draw.origin().add(frame.center().x(), frame.center().y(), frame.center().z());
+        int rgb = sampler.colorFor(index, draw.tick(),
+                () -> reflectedColor(draw, worldCenter, frame.normal()));
+        int color = ARGB.color(Math.max(1, draw.alpha()), rgb);
+        Vector3f apex = frame.apex(SLIVER_DATA[off + OFF_DEPTH] * frame.halfLength());
+        emitPyramid(face, baseRing(SLIVER_DATA[off + OFF_SHAPE], frame), apex, color);
+    }
+
+    /**
+     * The sliver's frame this frame: its center scaled by the cloud radius,
+     * its axes turned by its spin.
+     *
+     * @param off  the sliver data offset
+     * @param draw what this frame draws
+     * @return the sliver's frame
+     */
+    private static ShardFrame frameOf(int off, CloudDraw draw) {
         float halfLen = SLIVER_DATA[off + OFF_HALF_LEN];
-        float shape = SLIVER_DATA[off + OFF_SHAPE];
-        float widthRatio = SLIVER_DATA[off + OFF_WIDTH_RATIO];
-        float depth = SLIVER_DATA[off + OFF_DEPTH] * halfLen;
-        float[] axes = resolveAxes(off, time);
-        float hw = halfLen * widthRatio;
-        // World position of the shard center for raycasting
-        Vec3 worldCenter = new Vec3(
-                bePos.getX() + cx, bePos.getY() + cy, bePos.getZ() + cz);
-        emitShape(pose, c, cx, cy, cz,
-                axes[0], axes[1], axes[VEC_Z],
-                axes[AXES_PX], axes[AXES_PY], axes[AXES_PZ],
-                halfLen, hw, depth, shape, alpha, level, camPos, worldCenter);
+        float[] axes = resolveAxes(off, draw.time());
+        Vector3f center = new Vector3f(
+                BLOCK_CENTER + SLIVER_DATA[off] * draw.radius(),
+                BLOCK_CENTER + SLIVER_DATA[off + OFF_CY] * draw.radius(),
+                BLOCK_CENTER + SLIVER_DATA[off + OFF_CZ] * draw.radius());
+        return new ShardFrame(center,
+                new Vector3f(axes[0], axes[1], axes[VEC_Z]),
+                new Vector3f(axes[AXES_PX], axes[AXES_PY], axes[AXES_PZ]),
+                halfLen, halfLen * SLIVER_DATA[off + OFF_WIDTH_RATIO]);
     }
 
     /**
@@ -358,297 +427,70 @@ public final class CrystalCloudVisual {
     }
 
     /**
-     * Emits a shard shape: single spike, diamond, or asymmetric diamond.
-     * All shapes are emitted as quads (degenerate for triangles).
+     * The base ring a shard shape stands on, in winding order: a single
+     * spike's tip and two back corners, or a diamond's four arm ends, the
+     * asymmetric diamond's back arm cut short.
      *
-     * @param pose        the pose entry
-     * @param c           the vertex consumer
-     * @param cx          center X
-     * @param cy          center Y
-     * @param cz          center Z
-     * @param ax          long axis X
-     * @param ay          long axis Y
-     * @param az          long axis Z
-     * @param px          perp axis X
-     * @param py          perp axis Y
-     * @param pz          perp axis Z
-     * @param hl          half-length along the long axis
-     * @param hw          half-width along the perp axis
-     * @param shape       the shape type (0=spike, 1=diamond, 2=asymmetric)
-     * @param depth       pyramid height along the normal
-     * @param alpha       pre-computed vertex alpha [0-255]
-     * @param level       the client level for raycasting
-     * @param camPos      the camera eye position
-     * @param worldCenter the shard world position
+     * @param shape the shape type (0=spike, 1=diamond, 2=asymmetric)
+     * @param frame the shard's frame
+     * @return the base corners
      */
-    private static void emitShape(PoseStack.Pose pose, VertexConsumer c,
-                                  float cx, float cy, float cz,
-                                  float ax, float ay, float az,
-                                  float px, float py, float pz,
-                                  float hl, float hw, float depth, float shape, int alpha,
-                                  Level level, Vec3 camPos, Vec3 worldCenter) {
-        // Normal = cross(axis, perp) - used for pyramid apex direction
-        float nx = ay * pz - az * py;
-        float ny = az * px - ax * pz;
-        float nz = ax * py - ay * px;
-        float apexX = cx + nx * depth;
-        float apexY = cy + ny * depth;
-        float apexZ = cz + nz * depth;
-
+    private static Vector3f[] baseRing(float shape, ShardFrame frame) {
         if (shape < SHAPE_DIAMOND) {
-            emitSpikePyramid(pose, c, cx, cy, cz, ax, ay, az, px, py, pz,
-                    hl, hw, apexX, apexY, apexZ, alpha, level, camPos, worldCenter);
-        } else if (shape < SHAPE_ASYMMETRIC) {
-            emitDiamondPyramid(pose, c, cx, cy, cz, ax, ay, az, px, py, pz,
-                    hl, hw, apexX, apexY, apexZ, alpha, level, camPos, worldCenter);
-        } else {
-            emitAsymPyramid(pose, c, cx, cy, cz, ax, ay, az, px, py, pz,
-                    hl, hw, apexX, apexY, apexZ, alpha, level, camPos, worldCenter);
+            return new Vector3f[]{frame.at(REACH_FULL, 0f),
+                frame.at(-REACH_FULL, -REACH_FULL), frame.at(-REACH_FULL, REACH_FULL)};
+        }
+        float backArm = shape < SHAPE_ASYMMETRIC ? REACH_FULL : ASYM_SHORT_FACTOR;
+        return new Vector3f[]{frame.at(REACH_FULL, 0f), frame.at(0f, REACH_FULL),
+            frame.at(-backArm, 0f), frame.at(0f, -REACH_FULL)};
+    }
+
+    /**
+     * Emits a pyramid: one triangle from each edge of the base ring up to
+     * the apex, each lit by its own face normal.
+     *
+     * @param face  the context the faces emit through
+     * @param ring  the base corners in winding order
+     * @param apex  the apex
+     * @param color the ARGB color every face takes
+     */
+    private static void emitPyramid(FlatQuadContext face, Vector3f[] ring, Vector3f apex, int color) {
+        for (int i = 0; i < ring.length; i++) {
+            Vector3f start = ring[i];
+            Vector3f end = ring[(i + 1) % ring.length];
+            Vector3f normal = new Vector3f(end).sub(start).cross(new Vector3f(apex).sub(start));
+            ConeGeometry.emitTriangle(corner -> {
+                Vector3f at = switch (corner) {
+                    case ConeGeometry.BASE_START -> start;
+                    case ConeGeometry.BASE_END -> end;
+                    default -> apex;
+                };
+                face.vertex(at.x, at.y, at.z, color, normal.x, normal.y, normal.z);
+            });
         }
     }
 
     /**
-     * Spike pyramid: 3 base verts (tip, base-left, base-right) + apex. 3 faces.
+     * Samples the color the shard reflects: the camera's view of it bounced
+     * off its face normal and cast into the world.
      *
-     * @param pose        the pose matrix entry
-     * @param c           the vertex consumer
-     * @param cx          center X
-     * @param cy          center Y
-     * @param cz          center Z
-     * @param ax          long axis X
-     * @param ay          long axis Y
-     * @param az          long axis Z
-     * @param px          perp axis X
-     * @param py          perp axis Y
-     * @param pz          perp axis Z
-     * @param hl          half-length along long axis
-     * @param hw          half-width along perp axis
-     * @param apX         apex X
-     * @param apY         apex Y
-     * @param apZ         apex Z
-     * @param alpha       pre-computed vertex alpha [0-255]
-     * @param level       the client level for raycasting
-     * @param camPos      the camera eye position
-     * @param worldCenter the shard world position
-     */
-    private static void emitSpikePyramid(PoseStack.Pose pose, VertexConsumer c,
-                                         float cx, float cy, float cz,
-                                         float ax, float ay, float az, float px, float py, float pz,
-                                         float hl, float hw,
-                                         float apX, float apY, float apZ, int alpha,
-                                         Level level, Vec3 camPos, Vec3 worldCenter) {
-        float tipX = cx + ax * hl;
-        float tipY = cy + ay * hl;
-        float tipZ = cz + az * hl;
-        float blX = cx - ax * hl - px * hw;
-        float blY = cy - ay * hl - py * hw;
-        float blZ = cz - az * hl - pz * hw;
-        float brX = cx - ax * hl + px * hw;
-        float brY = cy - ay * hl + py * hw;
-        float brZ = cz - az * hl + pz * hw;
-        emitPyramidFace(pose, c, tipX, tipY, tipZ, blX, blY, blZ, apX, apY, apZ,
-                alpha, level, camPos, worldCenter);
-        emitPyramidFace(pose, c, blX, blY, blZ, brX, brY, brZ, apX, apY, apZ,
-                alpha, level, camPos, worldCenter);
-        emitPyramidFace(pose, c, brX, brY, brZ, tipX, tipY, tipZ, apX, apY, apZ,
-                alpha, level, camPos, worldCenter);
-    }
-
-    /**
-     * Diamond pyramid: 4 base verts (+axis, +perp, -axis, -perp) + apex. 4 faces.
-     *
-     * @param pose        the pose matrix entry
-     * @param c           the vertex consumer
-     * @param cx          center X
-     * @param cy          center Y
-     * @param cz          center Z
-     * @param ax          long axis X
-     * @param ay          long axis Y
-     * @param az          long axis Z
-     * @param px          perp axis X
-     * @param py          perp axis Y
-     * @param pz          perp axis Z
-     * @param hl          half-length along long axis
-     * @param hw          half-width along perp axis
-     * @param apX         apex X
-     * @param apY         apex Y
-     * @param apZ         apex Z
-     * @param alpha       pre-computed vertex alpha [0-255]
-     * @param level       the client level for raycasting
-     * @param camPos      the camera eye position
-     * @param worldCenter the shard world position
-     */
-    private static void emitDiamondPyramid(PoseStack.Pose pose, VertexConsumer c,
-                                           float cx, float cy, float cz,
-                                           float ax, float ay, float az, float px, float py, float pz,
-                                           float hl, float hw,
-                                           float apX, float apY, float apZ, int alpha,
-                                           Level level, Vec3 camPos, Vec3 worldCenter) {
-        float tX = cx + ax * hl;
-        float tY = cy + ay * hl;
-        float tZ = cz + az * hl;
-        float rX = cx + px * hw;
-        float rY = cy + py * hw;
-        float rZ = cz + pz * hw;
-        float bX = cx - ax * hl;
-        float bY = cy - ay * hl;
-        float bZ = cz - az * hl;
-        float lX = cx - px * hw;
-        float lY = cy - py * hw;
-        float lZ = cz - pz * hw;
-        emitPyramidFace(pose, c, tX, tY, tZ, rX, rY, rZ, apX, apY, apZ,
-                alpha, level, camPos, worldCenter);
-        emitPyramidFace(pose, c, rX, rY, rZ, bX, bY, bZ, apX, apY, apZ,
-                alpha, level, camPos, worldCenter);
-        emitPyramidFace(pose, c, bX, bY, bZ, lX, lY, lZ, apX, apY, apZ,
-                alpha, level, camPos, worldCenter);
-        emitPyramidFace(pose, c, lX, lY, lZ, tX, tY, tZ, apX, apY, apZ,
-                alpha, level, camPos, worldCenter);
-    }
-
-    /**
-     * Asymmetric diamond pyramid: uneven arm lengths + apex. 4 faces.
-     *
-     * @param pose        the pose matrix entry
-     * @param c           the vertex consumer
-     * @param cx          center X
-     * @param cy          center Y
-     * @param cz          center Z
-     * @param ax          long axis X
-     * @param ay          long axis Y
-     * @param az          long axis Z
-     * @param px          perp axis X
-     * @param py          perp axis Y
-     * @param pz          perp axis Z
-     * @param hl          half-length along long axis
-     * @param hw          half-width along perp axis
-     * @param apX         apex X
-     * @param apY         apex Y
-     * @param apZ         apex Z
-     * @param alpha       pre-computed vertex alpha [0-255]
-     * @param level       the client level for raycasting
-     * @param camPos      the camera eye position
-     * @param worldCenter the shard world position
-     */
-    private static void emitAsymPyramid(PoseStack.Pose pose, VertexConsumer c,
-                                        float cx, float cy, float cz,
-                                        float ax, float ay, float az, float px, float py, float pz,
-                                        float hl, float hw,
-                                        float apX, float apY, float apZ, int alpha,
-                                        Level level, Vec3 camPos, Vec3 worldCenter) {
-        float la = hl * ASYM_LONG_FACTOR;
-        float sa = hl * ASYM_SHORT_FACTOR;
-        float tX = cx + ax * la;
-        float tY = cy + ay * la;
-        float tZ = cz + az * la;
-        float rX = cx + px * hw;
-        float rY = cy + py * hw;
-        float rZ = cz + pz * hw;
-        float bX = cx - ax * sa;
-        float bY = cy - ay * sa;
-        float bZ = cz - az * sa;
-        float lX = cx - px * hw;
-        float lY = cy - py * hw;
-        float lZ = cz - pz * hw;
-        emitPyramidFace(pose, c, tX, tY, tZ, rX, rY, rZ, apX, apY, apZ,
-                alpha, level, camPos, worldCenter);
-        emitPyramidFace(pose, c, rX, rY, rZ, bX, bY, bZ, apX, apY, apZ,
-                alpha, level, camPos, worldCenter);
-        emitPyramidFace(pose, c, bX, bY, bZ, lX, lY, lZ, apX, apY, apZ,
-                alpha, level, camPos, worldCenter);
-        emitPyramidFace(pose, c, lX, lY, lZ, tX, tY, tZ, apX, apY, apZ,
-                alpha, level, camPos, worldCenter);
-    }
-
-    /**
-     * Emits one triangular pyramid face as a degenerate quad (v0, v1, apex, apex).
-     *
-     * @param pose        the pose entry
-     * @param c           the vertex consumer
-     * @param v0x         first base vertex X
-     * @param v0y         first base vertex Y
-     * @param v0z         first base vertex Z
-     * @param v1x         second base vertex X
-     * @param v1y         second base vertex Y
-     * @param v1z         second base vertex Z
-     * @param apX         apex X
-     * @param apY         apex Y
-     * @param apZ         apex Z
-     * @param alpha       pre-computed vertex alpha [0-255]
-     * @param level       the client level for raycasting
-     * @param camPos      the camera eye position
-     * @param worldCenter the shard world position
-     */
-    private static void emitPyramidFace(PoseStack.Pose pose, VertexConsumer c,
-                                        float v0x, float v0y, float v0z,
-                                        float v1x, float v1y, float v1z,
-                                        float apX, float apY, float apZ, int alpha,
-                                        Level level, Vec3 camPos, Vec3 worldCenter) {
-        float e0x = v1x - v0x;
-        float e0y = v1y - v0y;
-        float e0z = v1z - v0z;
-        float e1x = apX - v0x;
-        float e1y = apY - v0y;
-        float e1z = apZ - v0z;
-        float nx = e0y * e1z - e0z * e1y;
-        float ny = e0z * e1x - e0x * e1z;
-        float nz = e0x * e1y - e0y * e1x;
-        int color = reflectColor(level, camPos, worldCenter, nx, ny, nz, alpha);
-        FlatQuadContext face = new FlatQuadContext(pose, c);
-        ConeGeometry.emitTriangle(corner -> {
-            switch (corner) {
-                case ConeGeometry.BASE_START -> face.vertex(v0x, v0y, v0z, color, nx, ny, nz);
-                case ConeGeometry.BASE_END -> face.vertex(v1x, v1y, v1z, color, nx, ny, nz);
-                default -> face.vertex(apX, apY, apZ, color, nx, ny, nz);
-            }
-        });
-    }
-
-    /**
-     * Raycasts along the reflected camera direction to find a block color.
-     *
-     * @param level       the client level
-     * @param camPos      the camera eye position
+     * @param draw        what this frame draws, carrying the camera and the probe
      * @param worldCenter the shard's world position
-     * @param nx          face normal X (unnormalized)
-     * @param ny          face normal Y
-     * @param nz          face normal Z
-     * @param alpha       pre-computed alpha [0-255]
-     * @return packed ARGB with reflected block color and the given alpha
+     * @param normal      the shard's unit face normal
+     * @return the brightened RGB color the ray finds
      */
-    private static int reflectColor(Level level, Vec3 camPos, Vec3 worldCenter,
-                                    float nx, float ny, float nz, int alpha) {
-        float len = (float) Math.sqrt(nx * nx + ny * ny + nz * nz);
-        if (len < NORMALIZE_EPSILON) {
-            return ARGB.color(alpha, SKY_COLOR);
-        }
-        float invLen = 1f / len;
-        Vec3 reflDir = computeReflection(camPos, worldCenter, nx * invLen, ny * invLen, nz * invLen);
-        int rgb = raycastBlockColor(level, worldCenter, reflDir);
-        int r = Math.min((int) (ARGB.red(rgb) * REFLECT_BRIGHTNESS), FULL_ALPHA);
-        int g = Math.min((int) (ARGB.green(rgb) * REFLECT_BRIGHTNESS), FULL_ALPHA);
-        int b = Math.min((int) (ARGB.blue(rgb) * REFLECT_BRIGHTNESS), FULL_ALPHA);
-        return ARGB.color(Math.max(1, alpha), r, g, b);
-    }
-
-    /**
-     * Reflects the camera-to-shard direction off the given unit normal.
-     *
-     * @param camPos      the camera eye position
-     * @param worldCenter the shard world position
-     * @param fnx         unit face normal X
-     * @param fny         unit face normal Y
-     * @param fnz         unit face normal Z
-     * @return the reflected direction vector
-     */
-    private static Vec3 computeReflection(Vec3 camPos, Vec3 worldCenter,
-                                          float fnx, float fny, float fnz) {
-        Vec3 toShard = worldCenter.subtract(camPos).normalize();
-        double dot = toShard.x * fnx + toShard.y * fny + toShard.z * fnz;
-        return new Vec3(
-                toShard.x - REFLECT_COEFF * dot * fnx,
-                toShard.y - REFLECT_COEFF * dot * fny,
-                toShard.z - REFLECT_COEFF * dot * fnz);
+    private static int reflectedColor(CloudDraw draw, Vec3 worldCenter, Vector3f normal) {
+        Vec3 toShard = worldCenter.subtract(draw.camPos()).normalize();
+        double dot = toShard.x * normal.x + toShard.y * normal.y + toShard.z * normal.z;
+        Vec3 reflected = new Vec3(
+                toShard.x - REFLECT_COEFF * dot * normal.x,
+                toShard.y - REFLECT_COEFF * dot * normal.y,
+                toShard.z - REFLECT_COEFF * dot * normal.z);
+        int rgb = draw.probe().colorAlong(worldCenter, reflected);
+        return ARGB.color(0,
+                Math.min((int) (ARGB.red(rgb) * REFLECT_BRIGHTNESS), FULL_ALPHA),
+                Math.min((int) (ARGB.green(rgb) * REFLECT_BRIGHTNESS), FULL_ALPHA),
+                Math.min((int) (ARGB.blue(rgb) * REFLECT_BRIGHTNESS), FULL_ALPHA));
     }
 
     /**
