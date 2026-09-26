@@ -19,6 +19,7 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Omniblob: a single-type, uncapped-capacity goo container for volumes that
@@ -29,7 +30,7 @@ import java.util.List;
  * <p>Inventory cursor interactions allow inserting and extracting blobs
  * via click mechanics.</p>
  */
-public class GooOmniblobItem extends Item implements IGooItemInteraction {
+public class GooOmniblobItem extends Item implements IGooItemInteraction, GooCarrierItem {
 
 
     /**
@@ -101,6 +102,37 @@ public class GooOmniblobItem extends Item implements IGooItemInteraction {
      */
     public static void setVolume(ItemStack stack, int volume) {
         stack.set(GooDataComponents.BLOB_VOLUME.get(), volume);
+    }
+
+    // --- GooCarrierItem (decision hosts-answer-bounds-through-interfaces) ---
+
+    @Override
+    public DepletionPass depletionPass() {
+        return DepletionPass.OMNIBLOB;
+    }
+
+    @Override
+    public Map<ResourceKey<GooTypeDefinition>, Integer> gooContents(ItemStack stack) {
+        ResourceKey<GooTypeDefinition> key = BlobStacks.keyOf(stack);
+        return key != null ? Map.of(key, BlobStacks.volumeOf(stack)) : Map.of();
+    }
+
+    /**
+     * Takes part of the volume; an omniblob drawn dry leaves the inventory.
+     */
+    @Override
+    public int drawGoo(ItemStack stack, ResourceKey<GooTypeDefinition> type, int amount) {
+        if (BlobStacks.keyOf(stack) != type) {
+            return 0;
+        }
+        int volume = getVolume(stack);
+        int take = Math.min(amount, volume);
+        if (volume - take <= 0) {
+            stack.setCount(0);
+        } else {
+            setVolume(stack, volume - take);
+        }
+        return take;
     }
 
     /**
