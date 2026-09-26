@@ -83,6 +83,7 @@ public final class CrucibleTests {
     private static final String STACK_SPENT = "stack spent";
     private static final String RESERVOIR_AT_CAP = "reservoir filled to the cap";
     private static final String UNFIT_BLOBS_STAY = "blobs that did not fit stay in hand";
+    private static final String PUDDLE_SHORT_OF_WALLS = "drawn %s for %d mB melted, %d mB unmelted";
 
     private CrucibleTests() {}
 
@@ -325,6 +326,24 @@ public final class CrucibleTests {
             helper.assertTrue(held > FILL_PAST, HOLDS_PAST + held);
             helper.assertValueEqual(offered, held + refused, EVERY_MB_ACCOUNTED);
             helper.assertTrue(CrucibleBasin.fillFraction(held) > 0f, FILL_ABOVE_ZERO);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * One cobblestone melting into an empty crucible draws a puddle short of the
+     * walls a few ticks in, not the whole floor (decision puddle-touches-walls-at-a-thousand).
+     *
+     * @param helper the gametest helper
+     */
+    public static void firstMeltTicksDrawAPuddle(GameTestHelper helper) {
+        CrucibleBlockEntity crucible = placeFueledCrucible(helper);
+        spawnInBasin(helper, new ItemStack(Items.COBBLESTONE));
+        helper.runAfterDelay(ABSORB_DELAY, () -> {
+            long melted = crucible.getSurfaceVolume();
+            CrucibleBasin.PuddleFootprint drawn = CrucibleBasin.footprintForVolume(melted);
+            helper.assertTrue(melted > 0 && drawn.max() < CrucibleBasin.FOOTPRINT_MAX,
+                String.format(PUDDLE_SHORT_OF_WALLS, drawn, melted, crucible.getPoolVolume()));
             helper.succeed();
         });
     }

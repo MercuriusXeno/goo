@@ -7,7 +7,7 @@ import com.mercuriusxeno.goo.client.ability.FuseOrbVisual;
 import com.mercuriusxeno.goo.client.ability.GhostMineVisual;
 import com.mercuriusxeno.goo.client.ability.MetalSpikeVisual;
 import com.mercuriusxeno.goo.client.ber.style.NetherHoleStyles;
-import com.mercuriusxeno.goo.client.overlay.GooTargetHighlighter;
+import com.mercuriusxeno.goo.client.overlay.AimTracker;
 import com.mercuriusxeno.goo.client.throwing.ThrowFreezeState;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.SubmitNodeCollector;
@@ -85,7 +85,7 @@ public class ChainMarkerBlockEntityRenderer
         // the previous throw and the marker was just placed on the spot).
         BlockPos pos = be.getBlockPos();
         state.targeted = GooRenderUtil.isBlockTargeted(pos)
-                || GooTargetHighlighter.isChainMarkerTargeted(pos)
+                || AimTracker.isChainMarkerTargeted(pos)
                 || ThrowFreezeState.isFrozenOnChainMarker(pos);
         state.placedFace = be.getPlacedFace();
         state.behaviorActive = be.getBehavior() != null;
