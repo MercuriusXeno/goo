@@ -10,6 +10,8 @@ import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.overlay.GooTargetHighlighter;
 import com.mercuriusxeno.goo.item.GooGloveItem;
+import com.mercuriusxeno.goo.item.GooSourceScanner;
+import com.mercuriusxeno.goo.network.BlobThrowHandler;
 import com.mercuriusxeno.goo.network.BlobThrowPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -24,6 +26,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.function.IntPredicate;
 
 /**
  * Client-only helper that resolves the player's aim target and sends
@@ -61,20 +64,17 @@ public final class GloveThrowSender {
      */
     public static boolean sendThrow(Player player) {
         GloveSelection selection = heldSelection(player);
-        if (selection == null || !canThrow()) {
-            return false;
-        }
-        ResourceKey<GooTypeDefinition> gooType = selection.getGooType();
-        if (gooType == null) {
+        ResourceKey<GooTypeDefinition> gooType = selection == null ? null : selection.getGooType();
+        if (gooType == null || ThrowFreezeState.isThrowBlocked()) {
             return false;
         }
         TargetResult target = resolveAimTarget(player);
-        if (wouldExceedMaxStacks(target, gooType, selection.abilityId())) {
-            ThrowFreezeState.armThrowBlock();
+        BlobThrowPayload payload = affordablePayload(player, target, gooType, selection.abilityId());
+        if (payload == null) {
             return false;
         }
-        BlobThrowPayload payload = targetToPayload(target, gooType, selection.abilityId());
-        if (payload == null) {
+        if (wouldExceedMaxStacks(target, gooType, selection.abilityId())) {
+            ThrowFreezeState.armThrowBlock();
             return false;
         }
         ThrowFreezeState.arm(target);
@@ -84,14 +84,53 @@ public final class GloveThrowSender {
     }
 
     /**
-     * Pre-throw validation once the glove holds a selection: goo
-     * available and not throw-blocked.
+     * Builds the throw payload for the aimed target when the player can afford it.
      *
-     * @return true if throwing is allowed
+     * @param player    the local player
+     * @param target    the resolved aim target
+     * @param gooType   the selected goo type
+     * @param abilityId the selected ability id string
+     * @return the payload, or null for no target or an unaffordable throw
      */
-    private static boolean canThrow() {
-        return GloveUseTracker.isSelectedTypeAvailable()
-                && !ThrowFreezeState.isThrowBlocked();
+    private static @Nullable BlobThrowPayload affordablePayload(Player player, TargetResult target,
+            ResourceKey<GooTypeDefinition> gooType, String abilityId) {
+        BlobThrowPayload payload = targetToPayload(target, gooType, abilityId);
+        if (payload == null || !affordsThrow(AbilitySyncHandler.findAbility(abilityId), keyedStacksAt(payload),
+                amount -> GooSourceScanner.hasEnough(player, gooType, amount))) {
+            return null;
+        }
+        return payload;
+    }
+
+    /**
+     * Whether the player can afford a throw priced the way the server
+     * prices it, checked before any swing, packet or sound
+     * (decision unaffordable-click-does-nothing).
+     *
+     * @param ability        the selected ability's synced copy, or null when none synced
+     * @param existingStacks the stacks the payload's target marker already holds
+     * @param holdsAtLeast   whether the player holds at least an mB amount of the type
+     * @return true when the holdings cover the cost
+     */
+    static boolean affordsThrow(@Nullable ClientAbility ability, int existingStacks, IntPredicate holdsAtLeast) {
+        int cost = ability == null ? BlobThrowHandler.THROW_COST : ability.throwCost(existingStacks);
+        return holdsAtLeast.test(cost);
+    }
+
+    /**
+     * Counts the stacks of the payload's target marker the way the server
+     * prices a throw: the marker at the target position, keyed to the thrown ability.
+     *
+     * @param payload the throw payload
+     * @return the marker's stack count, or 0 when no marker of the ability stands there
+     */
+    private static int keyedStacksAt(BlobThrowPayload payload) {
+        ClientLevel level = Minecraft.getInstance().level;
+        if (level != null && level.getBlockEntity(payload.targetPos()) instanceof ChainMarkerBlockEntity be
+                && StackKey.matches(be.getAbilityId(), payload.abilityId())) {
+            return be.getStackCount();
+        }
+        return 0;
     }
 
     /**
