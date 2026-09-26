@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.block.crucible;
 
 import com.mercuriusxeno.goo.GooColors;
+import com.mercuriusxeno.goo.GooConfig;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.PartiallyMeltedItem;
@@ -62,7 +63,8 @@ final class CrucibleMelting {
         if (!be.isEnabled()) {
             return;
         }
-        int meltRate = be.heat.burnMeltTick(hasMeltableItem(be), FuelGrade.configured(), be.fuelStock);
+        int meltRate = be.heat.burnMeltTick(hasMeltableItem(be), FuelGrade.configured(),
+                GooConfig.COMBO_DRAIN_PER_TICK.get(), be.fuelStock);
         if (meltRate <= 0) {
             return;
         }

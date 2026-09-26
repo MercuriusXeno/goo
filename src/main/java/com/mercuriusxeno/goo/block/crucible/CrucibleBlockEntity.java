@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.block.crucible;
 
+import com.mercuriusxeno.goo.GooConfig;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.block.*;
@@ -29,6 +30,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.BlockHitResult;
+import java.util.List;
 
 /**
  * Core crucible logic: melts items into goo via a per-tick drain pipeline.
@@ -161,12 +163,12 @@ public class CrucibleBlockEntity extends BlockEntity implements IGasketHolder, I
         return heat.canHeat(FuelGrade.configured(), fuelStock);
     }
 
-    /** Returns the mB of fuel goo in the reservoir.
+    /** Returns the burns the heat and fuel goo hold, combo first.
      *
-     * @return the fuel goo volume
+     * @return the burns
      */
-    public long fuelGooVolume() {
-        return CrucibleHeat.fuelVolume(FuelGrade.configured(), fuelStock);
+    public List<CrucibleHeat.FuelBurn> burnForecast() {
+        return heat.forecast(FuelGrade.configured(), GooConfig.COMBO_DRAIN_PER_TICK.get(), fuelStock::volume);
     }
 
     /** Returns true if the crucible is enabled (no redstone signal).

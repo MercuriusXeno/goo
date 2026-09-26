@@ -39,8 +39,8 @@ class PlaceBlockStepTest {
         return Expr.parse(source).getOrThrow();
     }
 
-    private static StepHost host(Direction placedFace, int stacks, boolean flat) {
-        StepHost host = mock(StepHost.class);
+    private static MarkerHost host(Direction placedFace, int stacks, boolean flat) {
+        MarkerHost host = mock(MarkerHost.class);
         when(host.placedFace()).thenReturn(placedFace);
         when(host.read(HostVariables.STACKS)).thenReturn(OptionalDouble.of(stacks));
         when(host.read(HostVariables.FLAT)).thenReturn(OptionalDouble.of(flat ? 1 : 0));
@@ -55,7 +55,7 @@ class PlaceBlockStepTest {
             "DOWN, 9, true, flat, large",
             "WEST, 0, false, bump, tiny"})
     void stateResolvesFromTheHost(Direction face, int stacks, boolean flat, String shape, String size) {
-        StepHost host = host(face, stacks, flat);
+        MarkerHost host = host(face, stacks, flat);
         ProgramBehavior program = new ProgramBehavior(List.of(glowCrystal()));
 
         program.tick(host);
@@ -66,7 +66,7 @@ class PlaceBlockStepTest {
 
     @Test
     void namedValuePassesThrough() {
-        StepHost host = host(Direction.SOUTH, 1, false);
+        MarkerHost host = host(Direction.SOUTH, 1, false);
         PlaceBlockStep step = new PlaceBlockStep(GLOW_CRYSTAL, Map.of(SHAPE, new StateValue.Named("flat")));
 
         new ProgramBehavior(List.of(step)).tick(host);

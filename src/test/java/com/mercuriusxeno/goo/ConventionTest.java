@@ -29,14 +29,19 @@ class ConventionTest {
     };
     private static final String LEVEL_LIGHT_ENGINE = "net.minecraft.world.level.lighting.LevelLightEngine";
     private static final String RUN_LIGHT_UPDATES = "runLightUpdates";
-    private static final String[] RENDER_PACKAGES = {
-            "com.mercuriusxeno.goo.client.ber..", "com.mercuriusxeno.goo.client.model.."
-    };
+    private static final String CLIENT_PACKAGE = "com.mercuriusxeno.goo.client..";
+    private static final String GOO_SUBMITTER = "com.mercuriusxeno.goo.client.GooSubmitter";
     private static final String RENDER_TYPES = "net.minecraft.client.renderer.rendertype.RenderTypes";
     private static final String ENTITY_TRANSLUCENT = "entityTranslucent";
-    private static final String NETWORK_PACKAGE = "com.mercuriusxeno.goo.network..";
+    private static final String ENTITY_SOLID = "entitySolid";
+    private static final String[] SHARED_PACKAGES = {
+            "com.mercuriusxeno.goo", "com.mercuriusxeno.goo.block..", "com.mercuriusxeno.goo.item..",
+            "com.mercuriusxeno.goo.ability..", "com.mercuriusxeno.goo.data..", "com.mercuriusxeno.goo.network..",
+            "com.mercuriusxeno.goo.registry..", "com.mercuriusxeno.goo.command..", "com.mercuriusxeno.goo.lab..",
+            "com.mercuriusxeno.goo.fluid.."
+    };
     private static final String[] CLIENT_PACKAGES = {
-            "net.minecraft.client..", "com.mercuriusxeno.goo.client.."
+            "net.minecraft.client..", "com.mercuriusxeno.goo.client..", "com.mojang.blaze3d.."
     };
     private static JavaClasses mainClasses;
     private static JavaClasses testClasses;
@@ -136,20 +141,21 @@ class ConventionTest {
     }
 
     /**
-     * No renderer picks the translucent render type itself: every body and
-     * fluid submits through GooSubmitter, and a translucent draw on its own
-     * texture asks the submitter for the type. FULL_BRIGHT is a compile-time
-     * constant javac inlines, so its guard is the checkstyle regexp on the
-     * same packages rather than a bytecode rule.
+     * No class under client but GooSubmitter picks an entity render type
+     * itself: every goo draw, a body, a fluid, a gasket cap, a thrown blob or
+     * an ability visual, asks the submitter for it. FULL_BRIGHT is a
+     * compile-time constant javac inlines, so its guard is the checkstyle
+     * regexp over the same packages rather than a bytecode rule.
      */
     @Test
     void renderTypeChoiceStaysInSubmitter() {
         noClasses()
-                .that().resideInAnyPackage(RENDER_PACKAGES)
-                .should().callMethodWhere(target(name(ENTITY_TRANSLUCENT))
+                .that().resideInAPackage(CLIENT_PACKAGE)
+                .and().doNotHaveFullyQualifiedName(GOO_SUBMITTER)
+                .should().callMethodWhere(target(name(ENTITY_TRANSLUCENT).or(name(ENTITY_SOLID)))
                         .and(target(owner(name(RENDER_TYPES)))))
-                .because("the render type for bodies and fluids lives in GooSubmitter"
-                        + " (decision shared-submission-entry-point)")
+                .because("every goo render type lives in GooSubmitter"
+                        + " (decision submitter-owns-every-render-choice)")
                 .check(mainClasses);
     }
 
@@ -168,21 +174,23 @@ class ConventionTest {
     }
 
     /**
-     * No class under network links client-only code, so a dedicated server that
-     * verifies or scans a network class never reaches a Screen or Minecraft
-     * (decision diagnose-then-fix-server-link-and-value-race). Client-bound
-     * handlers live under client.network and register from a Dist.CLIENT
-     * subscriber. The dev runs load the joined jar, where every client class
-     * resolves, so no run shows this crash; this rule is the proof.
+     * No class in a shared package links client-only code, so a dedicated
+     * server that verifies or scans a shared class never reaches a Screen,
+     * Minecraft or a render type (decision client-handlers-under-client-network).
+     * Client-bound handlers live under client.network, the glove reaches the
+     * client through ISidedProxy, and the client mixin sits in mixin, outside
+     * the shared set. Javadoc links never reach bytecode, so ISidedProxy's link
+     * to GooClientSetup passes. The dev runs load the joined jar, where every
+     * client class resolves, so no run shows this crash; this rule is the proof.
      */
     @Test
-    void networkDoesNotLinkClientCode() {
+    void sharedPackagesDoNotLinkClientCode() {
         noClasses()
-                .that().resideInAPackage(NETWORK_PACKAGE)
+                .that().resideInAnyPackage(SHARED_PACKAGES)
                 .should().dependOnClassesThat()
                 .resideInAnyPackage(CLIENT_PACKAGES)
                 .because("a dedicated server has no client classes to link"
-                        + " (decision diagnose-then-fix-server-link-and-value-race)")
+                        + " (decision client-handlers-under-client-network)")
                 .check(mainClasses);
     }
 

@@ -7,17 +7,13 @@ import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
-import com.mercuriusxeno.goo.client.RenderContext;
+import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.ber.ChainMarkerRenderState;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.SubmitNodeCollector;
-import net.minecraft.client.renderer.rendertype.RenderTypes;
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.Direction;
-import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
-import net.minecraft.util.LightCoordsUtil;
 
 /**
  * Slime-like glowing orb shown during the chain marker's FUSE phase.
@@ -29,10 +25,6 @@ import net.minecraft.util.LightCoordsUtil;
  * face with axis-asymmetric scaling.
  */
 public final class FuseOrbVisual {
-
-    /** Block atlas path for fluid sprite lookups. */
-    private static final Identifier BLOCK_ATLAS =
-            Identifier.withDefaultNamespace("textures/atlas/blocks.png");
 
     /** Blob shape constant for flat visual. */
     private static final String SHAPE_FLAT = "flat";
@@ -227,10 +219,7 @@ public final class FuseOrbVisual {
      * @return the UV rectangle for the fluid sprite
      */
     private static GooRenderUtil.UvRect lookupSpriteUv(ResourceKey<GooTypeDefinition> type) {
-        TextureAtlasSprite sprite = GooRenderUtil.lookupFluidSprite(type);
-        return new GooRenderUtil.UvRect(
-                sprite.getU(0f), sprite.getV(0f),
-                sprite.getU(1f), sprite.getV(1f));
+        return GooSubmitter.spriteUv(GooRenderUtil.lookupFluidSprite(type));
     }
 
     /**
@@ -296,11 +285,8 @@ public final class FuseOrbVisual {
     private static void submitCubeLayer(PoseStack poseStack,
                                         SubmitNodeCollector nodeCollector, int color, float half,
                                         GooRenderUtil.UvRect uv) {
-        int light = LightCoordsUtil.FULL_BRIGHT;
         CuboidBounds box = new CuboidBounds(-half, half, -half, half, -half, half);
-        nodeCollector.submitCustomGeometry(poseStack,
-                RenderTypes.entityTranslucent(BLOCK_ATLAS),
-                (pose, c) -> new RenderContext(pose, c, light).emitBox(color, box, uv));
+        GooSubmitter.submitFluid(poseStack, nodeCollector, ctx -> ctx.emitBox(color, box, uv));
     }
 
     /**
