@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.hud;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.ability.GloveSelection;
+import com.mercuriusxeno.goo.client.GooTooltipHandler;
 import com.mercuriusxeno.goo.client.throwing.GloveThrowSender;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import net.minecraft.client.DeltaTracker;
@@ -24,7 +25,7 @@ import java.util.OptionalInt;
 /**
  * A nine-slice panel to the right of the crosshair while a glove with a
  * selection is held: the icon of the stack the throw deducts from first,
- * the goo type and the mB it holds, and "- N mB", the throw's cost at the
+ * the goo type and the blobs it holds, and "- N", the throw's cost at the
  * aimed target (decision crosshair-panel-shows-source-and-cost).
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
@@ -33,7 +34,6 @@ public final class CrosshairFuelPanel {
     private static final Identifier LAYER_ID = Identifier.fromNamespaceAndPath(Goo.MODID, "crosshair_fuel");
     /** The vanilla effect background sprite, a nine-slice the in-world panels back with too. */
     private static final Identifier BACKGROUND_SPRITE = Identifier.withDefaultNamespace("hud/effect_background");
-    private static final String MB_SUFFIX = " mB";
     private static final String COST_PREFIX = "- ";
     private static final String GAP = " ";
     private static final int COST_COLOR = 0xFFFF5555;
@@ -53,7 +53,7 @@ public final class CrosshairFuelPanel {
      *
      * @param source   the stack the throw deducts from first, or empty when the player holds none
      * @param type     the selected goo type
-     * @param heldText the mB the source holds of the type
+     * @param heldText the source's volume of the type, in blobs
      * @param costText the throw's cost at the aimed target
      */
     public record FuelRow(ItemStack source, ResourceKey<GooTypeDefinition> type, String heldText, String costText) {
@@ -64,12 +64,14 @@ public final class CrosshairFuelPanel {
      *
      * @param source the stack the throw deducts from first, or empty
      * @param type   the selected goo type
-     * @param held   the mB the source holds of the type
-     * @param cost   the throw's cost at the aimed target in mB
+     * @param held   the microblobs the source holds of the type
+     * @param cost   the throw's cost at the aimed target in microblobs
      * @return the row
      */
     public static FuelRow fuelRow(ItemStack source, ResourceKey<GooTypeDefinition> type, int held, int cost) {
-        return new FuelRow(source, type, held + MB_SUFFIX, COST_PREFIX + cost + MB_SUFFIX);
+        // hud-amounts-read-through-goo-format: the machine panels' blob convention
+        return new FuelRow(source, type, GooTooltipHandler.formatFluidDisplayCompact(held),
+                COST_PREFIX + GooTooltipHandler.formatFluidDisplayCompact(cost));
     }
 
     /**
