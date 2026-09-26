@@ -73,8 +73,7 @@ public final class VatHudRenderer {
      * @return true if there is nothing to render
      */
     private static boolean isEmptyVat(@Nullable VatStackData data) {
-        return data == null || (data.contents().isEmpty()
-                && data.compression() <= 0 && !data.hasLabel());
+        return data == null || data.hasNothingToShow();
     }
 
     /**
