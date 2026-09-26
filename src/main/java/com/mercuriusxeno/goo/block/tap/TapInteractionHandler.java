@@ -90,30 +90,16 @@ final class TapInteractionHandler {
     }
 
     /**
-     * Dispatches plain empty-hand interactions by sub-region: the valve steps its drip grade, any other region hands
-     * back the canister.
+     * Dispatches an empty-hand click off the valve: any region hands back the
+     * canister, or passes when the slot is empty.
      *
-     * @param state              the block state
-     * @param level              the current level
-     * @param pos                the block position
-     * @param player             the interacting player
-     * @param hitResult          the ray trace hit result
-     * @param tap                the tap block entity
-     * @param facing             the tap facing direction
-     * @param valveShapes        per-facing valve shapes for hit detection
-     * @param canisterSlotShapes per-facing canister slot shapes for hit detection
+     * @param level  the current level
+     * @param pos    the block position
+     * @param player the interacting player
+     * @param tap    the tap block entity
      * @return the interaction result
      */
-    static InteractionResult dispatchEmptyHand(
-            BlockState state, Level level, BlockPos pos,
-            Player player, BlockHitResult hitResult, TapBlockEntity tap, Direction facing,
-            Map<Direction, VoxelShape> valveShapes, Map<Direction, VoxelShape> canisterSlotShapes) {
-        if (hitCanister(hitResult, pos, facing, canisterSlotShapes) && !tap.getCanister().isEmpty()) {
-            return removeCanister(tap, level, pos, player);
-        }
-        if (hitValve(hitResult, pos, facing, valveShapes)) {
-            return stepValve(state, level, pos, tap);
-        }
+    static InteractionResult dispatchEmptyHand(Level level, BlockPos pos, Player player, TapBlockEntity tap) {
         return tap.getCanister().isEmpty() ? InteractionResult.PASS : removeCanister(tap, level, pos, player);
     }
 
@@ -132,21 +118,6 @@ final class TapInteractionHandler {
                             Map<Direction, VoxelShape> valveShapes) {
         VoxelShape valve = valveShapes.getOrDefault(facing, valveShapes.get(Direction.SOUTH));
         return ShapeHitCheck.hitInsideShape(hit, pos, valve);
-    }
-
-    /**
-     * Returns true if the hit point is within the canister slot sub-region.
-     *
-     * @param hit                the ray trace hit result
-     * @param pos                the block position
-     * @param facing             the facing direction
-     * @param canisterSlotShapes per-facing canister slot shapes
-     * @return true if the condition is met
-     */
-    static boolean hitCanister(BlockHitResult hit, BlockPos pos, Direction facing,
-                               Map<Direction, VoxelShape> canisterSlotShapes) {
-        VoxelShape slot = canisterSlotShapes.getOrDefault(facing, canisterSlotShapes.get(Direction.SOUTH));
-        return ShapeHitCheck.hitInsideShape(hit, pos, slot);
     }
 
     // --- Handlers ---
@@ -211,20 +182,28 @@ final class TapInteractionHandler {
     }
 
     /**
-     * Steps the valve one grade: off to 256:1, then each faster grade to 1:1,
-     * then off again (decision five-rates-in-fourfold-steps). OPEN reads true
-     * whenever the tap holds a grade.
+     * Steps the valve one grade: forward from off to 64:1, then each faster
+     * grade to 1:4, then off (decision five-rates-in-fourfold-steps); a
+     * sneaking click steps back one grade, the slowest to off, and off stays
+     * off (decision shift-click-steps-valve-back). OPEN reads true whenever
+     * the tap holds a grade, and a step that changes the grade plays the valve sound.
      *
      * @param state the block state
      * @param level the current level
      * @param pos   the block position
      * @param tap   the tap block entity
+     * @param back  whether the click steps back, as a sneaking click does
      * @return SUCCESS
      */
-    private static InteractionResult stepValve(BlockState state, Level level, BlockPos pos, TapBlockEntity tap) {
+    static InteractionResult stepValve(BlockState state, Level level, BlockPos pos, TapBlockEntity tap,
+                                       boolean back) {
         boolean wasOpen = state.getValue(TapBlock.OPEN);
-        Optional<TapDripGrade> next = TapDripGrade.afterValveClick(
-                wasOpen ? Optional.of(tap.dripGrade()) : Optional.empty());
+        Optional<TapDripGrade> current = wasOpen ? Optional.of(tap.dripGrade()) : Optional.empty();
+        Optional<TapDripGrade> next = back
+                ? TapDripGrade.afterSneakValveClick(current) : TapDripGrade.afterValveClick(current);
+        if (next.equals(current)) {
+            return InteractionResult.SUCCESS;
+        }
         next.ifPresent(tap::setDripGrade);
         boolean nowOpen = next.isPresent();
         if (nowOpen != wasOpen) {

@@ -15,6 +15,7 @@ import com.mercuriusxeno.goo.block.tap.TapBlockEntity;
 import com.mercuriusxeno.goo.block.tap.TapDrip;
 import com.mercuriusxeno.goo.block.tap.TapDripGrade;
 import com.mercuriusxeno.goo.block.tap.TapDripScheduler;
+import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.registry.GooParticles;
@@ -25,7 +26,9 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameType;
@@ -86,6 +89,11 @@ public final class TapDripTests {
     /** South-facing tap: a point inside the valve, in pixels. */
     private static final Vec3 VALVE_HIT_PX = new Vec3(8, 5, 8);
     private static final double PIXELS_PER_BLOCK = 16.0;
+    /** South-facing tap: a point on the body, off the valve and the slot, in pixels. */
+    private static final Vec3 BODY_HIT_PX = new Vec3(8, 2, 3);
+    private static final String GASKET_INSTALLED = "the gasket item's click installs the tap's gasket";
+    private static final String GASKET_KEPT = "gasket still installed after sneak valve click ";
+    private static final String GASKET_POPPED = "a sneaking body click pops the tap's gasket";
     private static final int VALVE_CLICKS = 6;
     private static final String VALVE_OPEN = "valve open after click ";
     private static final String VALVE_GRADE = "drip grade after click ";
@@ -284,10 +292,7 @@ public final class TapDripTests {
         helper.setBlock(TAP_POS, GooBlocks.TAP.get().defaultBlockState().setValue(TapBlock.OPEN, false));
         TapBlockEntity tap = helper.getBlockEntity(TAP_POS, TapBlockEntity.class);
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
-        BlockPos tapAbs = helper.absolutePos(TAP_POS);
-        BlockHitResult valveHit = new BlockHitResult(
-                Vec3.atLowerCornerOf(tapAbs).add(VALVE_HIT_PX.scale(1.0 / PIXELS_PER_BLOCK)), Direction.UP, tapAbs,
-                false);
+        BlockHitResult valveHit = tapHit(helper, VALVE_HIT_PX);
         List<TapDripGrade> expected = List.of(TapDripGrade.ONE_PER_64_TICKS, TapDripGrade.ONE_PER_16_TICKS,
                 TapDripGrade.ONE_PER_4_TICKS, TapDripGrade.ONE_PER_TICK, TapDripGrade.FOUR_PER_TICK);
 
@@ -394,6 +399,72 @@ public final class TapDripTests {
                 landingAbs.above(), landingAbs, Direction.UP, type, 1, 0);
         return TapDripScheduler.land(drip, TapDripScheduler.receptacleAt(helper.getLevel(), landingAbs),
                 arrived -> abilityRuns.incrementAndGet());
+    }
+
+    /**
+     * A sneaking empty-hand click on the valve of a gasketed tap steps the
+     * grade back one, from 1:4 down through 64:1 to off, and off stays off,
+     * the gasket installed after every click; a sneaking click on the body
+     * still pops the gasket (decision shift-click-steps-valve-back).
+     *
+     * @param helper the gametest helper
+     */
+    public static void tapSneakClickStepsValveBack(GameTestHelper helper) {
+        helper.setBlock(TAP_POS, GooBlocks.TAP.get().defaultBlockState().setValue(TapBlock.OPEN, true));
+        TapBlockEntity tap = helper.getBlockEntity(TAP_POS, TapBlockEntity.class);
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        BlockHitResult bodyHit = tapHit(helper, BODY_HIT_PX);
+        installGasketThenSneak(helper, tap, player, bodyHit);
+        tap.setDripGrade(TapDripGrade.FOUR_PER_TICK);
+        List<TapDripGrade> expected = List.of(TapDripGrade.ONE_PER_TICK, TapDripGrade.ONE_PER_4_TICKS,
+                TapDripGrade.ONE_PER_16_TICKS, TapDripGrade.ONE_PER_64_TICKS);
+
+        for (int click = 1; click <= VALVE_CLICKS; click++) {
+            helper.useBlock(TAP_POS, player, tapHit(helper, VALVE_HIT_PX));
+            boolean expectOpen = click <= expected.size();
+            helper.assertValueEqual(helper.getBlockState(TAP_POS).getValue(TapBlock.OPEN), expectOpen,
+                    VALVE_OPEN + click);
+            if (expectOpen) {
+                helper.assertValueEqual(tap.dripGrade(), expected.get(click - 1), VALVE_GRADE + click);
+            }
+            helper.assertTrue(tap.getGasketId(GasketRole.RECEIVER) != null, GASKET_KEPT + click);
+        }
+
+        helper.useBlock(TAP_POS, player, bodyHit);
+        helper.assertTrue(tap.getGasketId(GasketRole.RECEIVER) == null, GASKET_POPPED);
+        helper.succeed();
+    }
+
+    /**
+     * Slots a canister, installs the tap's gasket with a body click, then
+     * leaves the player sneaking empty-handed on the last hotbar slot, so a
+     * popped gasket lands in the inventory and the hand stays empty.
+     *
+     * @param helper  the gametest helper
+     * @param tap     the tap
+     * @param player  the clicking player
+     * @param bodyHit a hit on the tap's body
+     */
+    private static void installGasketThenSneak(GameTestHelper helper, TapBlockEntity tap, Player player,
+                                               BlockHitResult bodyHit) {
+        tap.insertCanister(new ItemStack(GooItems.CANISTER.get()));
+        player.getInventory().setSelectedSlot(Inventory.getSelectionSize() - 1);
+        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.CHORAL_GASKET.get()));
+        helper.useBlock(TAP_POS, player, bodyHit);
+        helper.assertTrue(tap.getGasketId(GasketRole.RECEIVER) != null, GASKET_INSTALLED);
+        player.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
+        player.setShiftKeyDown(true);
+    }
+
+    /**
+     * @param helper  the gametest helper
+     * @param localPx the hit point inside the tap's block, in pixels
+     * @return a hit on the tap's top face at that point
+     */
+    private static BlockHitResult tapHit(GameTestHelper helper, Vec3 localPx) {
+        BlockPos tapAbs = helper.absolutePos(TAP_POS);
+        return new BlockHitResult(Vec3.atLowerCornerOf(tapAbs).add(localPx.scale(1.0 / PIXELS_PER_BLOCK)),
+                Direction.UP, tapAbs, false);
     }
 
     private static TapBlockEntity filledTap(GameTestHelper helper) {
