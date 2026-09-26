@@ -1,13 +1,13 @@
-package com.mercuriusxeno.goo.gametest;
+package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.program.EntityFilter;
 import com.mercuriusxeno.goo.ability.program.EntityHost;
 import com.mercuriusxeno.goo.ability.program.EntityScan;
-import com.mercuriusxeno.goo.ability.program.HostKind;
-import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
+import com.mercuriusxeno.goo.network.BlobEffectScheduler.PendingEffect;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.effect.MobEffects;
@@ -25,9 +25,12 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Gametests for the mob abilities, each a program on the struck entity
- * host: each test spawns a mob, runs the ability's programs on it and
- * asserts the outcome (damage, status effect, fire, AI state, a move).
+ * Gametests for the mob abilities: each test spawns a mob, lands a blob of
+ * the ability on it through {@link BlobEffectScheduler#applyEffect} and
+ * asserts the live entity's reaction (damage, status effect, fire, AI
+ * state, a move). What a program asks of its host without an entity is
+ * graded in MobProgramTest. They sit in the scheduler's package because
+ * the scheduler is package-private.
  */
 public final class MobEffectTests {
 
@@ -37,11 +40,10 @@ public final class MobEffectTests {
      * corner, where an explosion's rays die on the barrier.
      */
     private static final BlockPos SPAWN_POS = new BlockPos(3, 1, 3);
-    /** One block beside the spawn, inside blaze ignite's splash radius. */
+    /** One block beside the spawn, where the glow laser test stands its zombie. */
     private static final BlockPos BYSTANDER_POS = SPAWN_POS.east();
     /** The tick after spawning, once the level's entity index holds the spawned mobs. */
     private static final int SETTLE_TICKS = 1;
-    private static final String BYSTANDER_SHOULD_BE_ON_FIRE = "Bystander should be on fire";
     private static final String SHOULD_HAVE_SLOWNESS = "Target should have slowness";
     private static final String SHOULD_HAVE_POISON = "Target should have poison";
     private static final String SHOULD_HAVE_WEAKNESS = "Target should have weakness";
@@ -86,11 +88,8 @@ public final class MobEffectTests {
     private static final int CHICKENS_AFTER_CLONE = 2;
     /** Beside the cow, inside unstable_explode.json's blast of power 2. */
     private static final BlockPos BLAST_DIRT_POS = SPAWN_POS.south();
-    private static final String BYSTANDER_SHOULD_TAKE_SPLASH = "Bystander should have taken the splash damage";
     /** The damage crystal_flechettes.json's first damage step names. */
     private static final float FLECHETTE_DAMAGE = 4.0f;
-    /** The damage crystal_flechettes.json's entities selection names. */
-    private static final float SPLASH_DAMAGE = 2.0f;
     private static final String LIVING_SHOULD_NOT_BURN = "A cow is not undead and should not burn";
     private static final String UNDEAD_SHOULD_BURN = "A zombie is undead and should burn";
     private static final String SHOULD_BE_CRUSHED = "Target should be dead or dying";
@@ -127,19 +126,20 @@ public final class MobEffectTests {
     }
 
     /**
-     * Runs every program entry of the named ability on the struck entity
-     * host over the mob, the way BlobEffectScheduler does at impact
-     * (decision host-agnostic-runtime).
+     * Lands one blob of the named ability on the mob through the
+     * scheduler's impact, the path an arrived throw takes, so the ability
+     * resolves from the registry and its program runs on the struck
+     * entity host (decision world-tests-assert-one-observation).
      *
      * @param helper    the gametest helper
      * @param mob       the struck mob
-     * @param abilityId the ability whose programs run
+     * @param abilityId the ability the throw names
      */
-    private static void runEntityPrograms(GameTestHelper helper, Mob mob, String abilityId) {
+    private static void strike(GameTestHelper helper, Mob mob, String abilityId) {
         AbilityDefinition ability = AbilityRegistry.getAbility(Identifier.parse(abilityId));
         helper.assertTrue(ability != null, ABILITIES_REQUIRED);
-        ProgramBehavior program = ProgramBehavior.forHost(ability.behaviors(), HostKind.ENTITY);
-        program.tick(new EntityHost(helper.getLevel(), mob, null));
+        BlobEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), null, ability.gooType(),
+                mob.getId(), mob.blockPosition(), Direction.UP, abilityId));
     }
 
     /**
@@ -151,27 +151,25 @@ public final class MobEffectTests {
     public static void metalJavelin(GameTestHelper helper) {
         Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
         float before = mob.getHealth();
-        runEntityPrograms(helper, mob, ABILITY_METAL_JAVELIN);
-        helper.assertTrue(mob.getHealth() <= before - JAVELIN_DAMAGE, SHOULD_TAKE_JAVELIN_DAMAGE);
-        helper.succeed();
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            strike(helper, mob, ABILITY_METAL_JAVELIN);
+            helper.assertTrue(mob.getHealth() <= before - JAVELIN_DAMAGE, SHOULD_TAKE_JAVELIN_DAMAGE);
+            helper.succeed();
+        });
     }
 
     /**
-     * Crystal flechettes is a program: four magic damage to the struck mob,
-     * an entities selection sparing the target that deals two to every
-     * other living entity in three blocks, and damage indicator particles.
+     * Crystal flechettes deals four magic damage to the struck mob; the
+     * splash selection it asks of the host is graded in MobProgramTest.
      *
      * @param helper the gametest helper
      */
     public static void crystalFlechettes(GameTestHelper helper) {
         Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
-        Mob bystander = helper.spawnWithNoFreeWill(EntityType.COW, BYSTANDER_POS);
         float before = mob.getHealth();
-        float bystanderBefore = bystander.getHealth();
         helper.runAfterDelay(SETTLE_TICKS, () -> {
-            runEntityPrograms(helper, mob, ABILITY_CRYSTAL_FLECHETTES);
+            strike(helper, mob, ABILITY_CRYSTAL_FLECHETTES);
             helper.assertTrue(mob.getHealth() <= before - FLECHETTE_DAMAGE, SHOULD_TAKE_DAMAGE);
-            helper.assertTrue(bystander.getHealth() <= bystanderBefore - SPLASH_DAMAGE, BYSTANDER_SHOULD_TAKE_SPLASH);
             helper.succeed();
         });
     }
@@ -183,10 +181,12 @@ public final class MobEffectTests {
      */
     public static void leafEntangle(GameTestHelper helper) {
         Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
-        runEntityPrograms(helper, mob, ABILITY_LEAF_ENTANGLE);
-        helper.assertTrue(mob.hasEffect(MobEffects.SLOWNESS), SHOULD_HAVE_SLOWNESS);
-        helper.assertTrue(mob.hasEffect(MobEffects.POISON), SHOULD_HAVE_POISON);
-        helper.succeed();
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            strike(helper, mob, ABILITY_LEAF_ENTANGLE);
+            helper.assertTrue(mob.hasEffect(MobEffects.SLOWNESS), SHOULD_HAVE_SLOWNESS);
+            helper.assertTrue(mob.hasEffect(MobEffects.POISON), SHOULD_HAVE_POISON);
+            helper.succeed();
+        });
     }
 
     /**
@@ -202,13 +202,15 @@ public final class MobEffectTests {
         AttributeInstance maxHealth = mob.getAttribute(Attributes.MAX_HEALTH);
         helper.assertTrue(maxHealth != null, CHICKEN_HAS_MAX_HEALTH);
         maxHealth.setBaseValue(CERTAIN_CLONE_MAX_HEALTH);
-        runEntityPrograms(helper, mob, ABILITY_VITAL_CLONE);
         helper.runAfterDelay(SETTLE_TICKS, () -> {
-            long chickens = helper.getLevel()
-                    .getEntitiesOfClass(Mob.class, mob.getBoundingBox().inflate(CLONE_SEARCH_RADIUS))
-                    .stream().filter(found -> found.getType() == EntityType.CHICKEN).count();
-            helper.assertTrue(chickens == CHICKENS_AFTER_CLONE, SHOULD_HAVE_A_CLONE);
-            helper.succeed();
+            strike(helper, mob, ABILITY_VITAL_CLONE);
+            helper.runAfterDelay(SETTLE_TICKS, () -> {
+                long chickens = helper.getLevel()
+                        .getEntitiesOfClass(Mob.class, mob.getBoundingBox().inflate(CLONE_SEARCH_RADIUS))
+                        .stream().filter(found -> found.getType() == EntityType.CHICKEN).count();
+                helper.assertTrue(chickens == CHICKENS_AFTER_CLONE, SHOULD_HAVE_A_CLONE);
+                helper.succeed();
+            });
         });
     }
 
@@ -220,11 +222,13 @@ public final class MobEffectTests {
      */
     public static void shroomDebuff(GameTestHelper helper) {
         Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
-        runEntityPrograms(helper, mob, ABILITY_SHROOM_DEBUFF);
-        helper.assertTrue(mob.hasEffect(MobEffects.SLOWNESS), SHOULD_HAVE_SLOWNESS);
-        helper.assertTrue(mob.hasEffect(MobEffects.WEAKNESS), SHOULD_HAVE_WEAKNESS);
-        helper.assertTrue(mob.hasEffect(MobEffects.POISON), SHOULD_HAVE_POISON);
-        helper.succeed();
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            strike(helper, mob, ABILITY_SHROOM_DEBUFF);
+            helper.assertTrue(mob.hasEffect(MobEffects.SLOWNESS), SHOULD_HAVE_SLOWNESS);
+            helper.assertTrue(mob.hasEffect(MobEffects.WEAKNESS), SHOULD_HAVE_WEAKNESS);
+            helper.assertTrue(mob.hasEffect(MobEffects.POISON), SHOULD_HAVE_POISON);
+            helper.succeed();
+        });
     }
 
     /**
@@ -238,27 +242,26 @@ public final class MobEffectTests {
     public static void rockPetrify(GameTestHelper helper) {
         Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
         Vec3 stood = mob.position();
-        runEntityPrograms(helper, mob, ABILITY_ROCK_PETRIFY);
-        helper.assertTrue(mob.hasEffect(MobEffects.SLOWNESS), SHOULD_HAVE_SLOWNESS);
-        helper.assertTrue(mob.isDeadOrDying(), SHOULD_BE_CRUSHED);
-        helper.succeedWhen(() -> helper.assertTrue(itemsNear(helper, stood).stream()
-                .anyMatch(item -> item.getItem().is(Items.COBBLESTONE)), SHOULD_DROP_COBBLESTONE));
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            strike(helper, mob, ABILITY_ROCK_PETRIFY);
+            helper.assertTrue(mob.hasEffect(MobEffects.SLOWNESS), SHOULD_HAVE_SLOWNESS);
+            helper.assertTrue(mob.isDeadOrDying(), SHOULD_BE_CRUSHED);
+            helper.succeedWhen(() -> helper.assertTrue(itemsNear(helper, stood).stream()
+                    .anyMatch(item -> item.getItem().is(Items.COBBLESTONE)), SHOULD_DROP_COBBLESTONE));
+        });
     }
 
     /**
-     * Blaze ignite is a program: an ignite step on the struck mob and an
-     * entities selection igniting every burnable living entity around it,
-     * so a cow beside the target burns too.
+     * Blaze ignite sets the struck mob on fire; the splash selection it
+     * asks of the host is graded in MobProgramTest.
      *
      * @param helper the gametest helper
      */
     public static void blazeIgnite(GameTestHelper helper) {
         Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
-        Mob bystander = helper.spawnWithNoFreeWill(EntityType.COW, BYSTANDER_POS);
         helper.runAfterDelay(SETTLE_TICKS, () -> {
-            runEntityPrograms(helper, mob, ABILITY_BLAZE_IGNITE);
+            strike(helper, mob, ABILITY_BLAZE_IGNITE);
             helper.assertTrue(mob.isOnFire(), SHOULD_BE_ON_FIRE);
-            helper.assertTrue(bystander.isOnFire(), BYSTANDER_SHOULD_BE_ON_FIRE);
             helper.succeed();
         });
     }
@@ -272,11 +275,13 @@ public final class MobEffectTests {
     public static void frostSnap(GameTestHelper helper) {
         Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
         float before = mob.getHealth();
-        runEntityPrograms(helper, mob, ABILITY_FROST_SNAP);
-        helper.assertTrue(mob.getHealth() < before, SHOULD_TAKE_DAMAGE);
-        helper.assertTrue(mob.getTicksFrozen() >= FULL_FREEZE_TICKS, SHOULD_BE_FROZEN);
-        helper.assertTrue(mob.hasEffect(MobEffects.SLOWNESS), SHOULD_HAVE_SLOWNESS);
-        helper.succeed();
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            strike(helper, mob, ABILITY_FROST_SNAP);
+            helper.assertTrue(mob.getHealth() < before, SHOULD_TAKE_DAMAGE);
+            helper.assertTrue(mob.getTicksFrozen() >= FULL_FREEZE_TICKS, SHOULD_BE_FROZEN);
+            helper.assertTrue(mob.hasEffect(MobEffects.SLOWNESS), SHOULD_HAVE_SLOWNESS);
+            helper.succeed();
+        });
     }
 
     /**
@@ -286,9 +291,11 @@ public final class MobEffectTests {
      */
     public static void typhoonLevitate(GameTestHelper helper) {
         Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
-        runEntityPrograms(helper, mob, ABILITY_TYPHOON_LEVITATE);
-        helper.assertTrue(mob.hasEffect(MobEffects.LEVITATION), SHOULD_HAVE_LEVITATION);
-        helper.succeed();
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            strike(helper, mob, ABILITY_TYPHOON_LEVITATE);
+            helper.assertTrue(mob.hasEffect(MobEffects.LEVITATION), SHOULD_HAVE_LEVITATION);
+            helper.succeed();
+        });
     }
 
     /**
@@ -302,13 +309,15 @@ public final class MobEffectTests {
         Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
         Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, BYSTANDER_POS);
         float before = mob.getHealth();
-        runEntityPrograms(helper, mob, ABILITY_GLOW_LASER);
-        runEntityPrograms(helper, zombie, ABILITY_GLOW_LASER);
-        helper.assertTrue(mob.getHealth() < before, SHOULD_TAKE_DAMAGE);
-        helper.assertTrue(mob.hasEffect(MobEffects.GLOWING), SHOULD_HAVE_GLOWING);
-        helper.assertFalse(mob.isOnFire(), LIVING_SHOULD_NOT_BURN);
-        helper.assertTrue(zombie.isOnFire(), UNDEAD_SHOULD_BURN);
-        helper.succeed();
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            strike(helper, mob, ABILITY_GLOW_LASER);
+            strike(helper, zombie, ABILITY_GLOW_LASER);
+            helper.assertTrue(mob.getHealth() < before, SHOULD_TAKE_DAMAGE);
+            helper.assertTrue(mob.hasEffect(MobEffects.GLOWING), SHOULD_HAVE_GLOWING);
+            helper.assertFalse(mob.isOnFire(), LIVING_SHOULD_NOT_BURN);
+            helper.assertTrue(zombie.isOnFire(), UNDEAD_SHOULD_BURN);
+            helper.succeed();
+        });
     }
 
     /**
@@ -319,10 +328,12 @@ public final class MobEffectTests {
      */
     public static void hexCharm(GameTestHelper helper) {
         Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
-        runEntityPrograms(helper, mob, ABILITY_HEX_CHARM);
-        helper.assertTrue(mob.hasEffect(MobEffects.WEAKNESS), SHOULD_HAVE_WEAKNESS);
-        helper.assertTrue(mob.hasEffect(MobEffects.GLOWING), SHOULD_HAVE_GLOWING);
-        helper.succeed();
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            strike(helper, mob, ABILITY_HEX_CHARM);
+            helper.assertTrue(mob.hasEffect(MobEffects.WEAKNESS), SHOULD_HAVE_WEAKNESS);
+            helper.assertTrue(mob.hasEffect(MobEffects.GLOWING), SHOULD_HAVE_GLOWING);
+            helper.succeed();
+        });
     }
 
     /**
@@ -333,10 +344,12 @@ public final class MobEffectTests {
      */
     public static void pulseStun(GameTestHelper helper) {
         Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
-        runEntityPrograms(helper, mob, ABILITY_PULSE_SHORT_CIRCUIT);
-        helper.assertTrue(mob.isNoAi(), SHOULD_HAVE_NO_AI);
-        helper.assertTrue(mob.hasEffect(MobEffects.SLOWNESS), SHOULD_HAVE_SLOWNESS);
-        helper.succeed();
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            strike(helper, mob, ABILITY_PULSE_SHORT_CIRCUIT);
+            helper.assertTrue(mob.isNoAi(), SHOULD_HAVE_NO_AI);
+            helper.assertTrue(mob.hasEffect(MobEffects.SLOWNESS), SHOULD_HAVE_SLOWNESS);
+            helper.succeed();
+        });
     }
 
     /**
@@ -348,10 +361,12 @@ public final class MobEffectTests {
     public static void netherWither(GameTestHelper helper) {
         Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
         float before = mob.getHealth();
-        runEntityPrograms(helper, mob, ABILITY_NETHER_WITHER);
-        helper.assertTrue(mob.getHealth() < before, SHOULD_TAKE_DAMAGE);
-        helper.assertTrue(mob.hasEffect(MobEffects.WITHER), SHOULD_HAVE_WITHER);
-        helper.succeed();
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            strike(helper, mob, ABILITY_NETHER_WITHER);
+            helper.assertTrue(mob.getHealth() < before, SHOULD_TAKE_DAMAGE);
+            helper.assertTrue(mob.hasEffect(MobEffects.WITHER), SHOULD_HAVE_WITHER);
+            helper.succeed();
+        });
     }
 
     /**
@@ -364,13 +379,15 @@ public final class MobEffectTests {
     public static void enderTeleport(GameTestHelper helper) {
         Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
         Vec3 before = mob.position();
-        runEntityPrograms(helper, mob, ABILITY_ENDER_TELEPORT);
-        Vec3 after = mob.position();
-        helper.assertTrue(after.distanceTo(before) > TELEPORT_MIN_MOVE, SHOULD_HAVE_MOVED);
-        helper.assertTrue(Math.abs(after.x - before.x) <= TELEPORT_MAX_AXIS_MOVE, SHOULD_STAY_IN_RANGE);
-        helper.assertTrue(Math.abs(after.z - before.z) <= TELEPORT_MAX_AXIS_MOVE, SHOULD_STAY_IN_RANGE);
-        helper.assertTrue(after.y == before.y, SHOULD_KEEP_HEIGHT);
-        helper.succeed();
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            strike(helper, mob, ABILITY_ENDER_TELEPORT);
+            Vec3 after = mob.position();
+            helper.assertTrue(after.distanceTo(before) > TELEPORT_MIN_MOVE, SHOULD_HAVE_MOVED);
+            helper.assertTrue(Math.abs(after.x - before.x) <= TELEPORT_MAX_AXIS_MOVE, SHOULD_STAY_IN_RANGE);
+            helper.assertTrue(Math.abs(after.z - before.z) <= TELEPORT_MAX_AXIS_MOVE, SHOULD_STAY_IN_RANGE);
+            helper.assertTrue(after.y == before.y, SHOULD_KEEP_HEIGHT);
+            helper.succeed();
+        });
     }
 
     /**
@@ -384,7 +401,7 @@ public final class MobEffectTests {
         Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
         float before = mob.getHealth();
         helper.runAfterDelay(SETTLE_TICKS, () -> {
-            runEntityPrograms(helper, mob, ABILITY_UNSTABLE_EXPLODE);
+            strike(helper, mob, ABILITY_UNSTABLE_EXPLODE);
             helper.assertTrue(mob.getHealth() < before, SHOULD_TAKE_DAMAGE);
             helper.assertBlockNotPresent(Blocks.DIRT, BLAST_DIRT_POS);
             helper.succeed();
@@ -399,13 +416,15 @@ public final class MobEffectTests {
      */
     public static void aeonTimeStop(GameTestHelper helper) {
         Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
-        runEntityPrograms(helper, mob, ABILITY_AEON_TIME_STOP);
-        helper.assertTrue(mob.isNoAi(), SHOULD_HAVE_NO_AI);
-        helper.assertTrue(mob.isInvulnerable(), SHOULD_BE_INVULNERABLE);
-        helper.assertTrue(mob.hasEffect(MobEffects.GLOWING), SHOULD_HAVE_GLOWING);
         helper.runAfterDelay(SETTLE_TICKS, () -> {
-            helper.assertTrue(itemsNear(helper, mob.position()).isEmpty(), SHOULD_DROP_NOTHING);
-            helper.succeed();
+            strike(helper, mob, ABILITY_AEON_TIME_STOP);
+            helper.assertTrue(mob.isNoAi(), SHOULD_HAVE_NO_AI);
+            helper.assertTrue(mob.isInvulnerable(), SHOULD_BE_INVULNERABLE);
+            helper.assertTrue(mob.hasEffect(MobEffects.GLOWING), SHOULD_HAVE_GLOWING);
+            helper.runAfterDelay(SETTLE_TICKS, () -> {
+                helper.assertTrue(itemsNear(helper, mob.position()).isEmpty(), SHOULD_DROP_NOTHING);
+                helper.succeed();
+            });
         });
     }
 
@@ -432,13 +451,15 @@ public final class MobEffectTests {
      */
     public static void aeonRitualBaby(GameTestHelper helper) {
         Mob mob = spawnOneHitRitual(helper, EntityType.COW);
-        runEntityPrograms(helper, mob, ABILITY_AEON_TIME_STOP);
-        double ritual = new EntityHost(helper.getLevel(), mob, null).counters().read(RITUAL_COUNTER);
-        helper.assertTrue(mob.isAlive() && mob.isBaby(), SHOULD_BE_BABY);
-        helper.assertTrue(ritual == 0, String.format(SHOULD_RESTART_RITUAL, ritual));
         helper.runAfterDelay(SETTLE_TICKS, () -> {
-            helper.assertTrue(itemsNear(helper, mob.position()).isEmpty(), SHOULD_DROP_NOTHING);
-            helper.succeed();
+            strike(helper, mob, ABILITY_AEON_TIME_STOP);
+            double ritual = new EntityHost(helper.getLevel(), mob, null).counters().read(RITUAL_COUNTER);
+            helper.assertTrue(mob.isAlive() && mob.isBaby(), SHOULD_BE_BABY);
+            helper.assertTrue(ritual == 0, String.format(SHOULD_RESTART_RITUAL, ritual));
+            helper.runAfterDelay(SETTLE_TICKS, () -> {
+                helper.assertTrue(itemsNear(helper, mob.position()).isEmpty(), SHOULD_DROP_NOTHING);
+                helper.succeed();
+            });
         });
     }
 
@@ -513,14 +534,16 @@ public final class MobEffectTests {
      */
     private static void assertRitualLeavesEgg(GameTestHelper helper, Mob mob, Item egg) {
         Vec3 stood = mob.position();
-        runEntityPrograms(helper, mob, ABILITY_AEON_TIME_STOP);
-        helper.assertTrue(mob.isRemoved(), SHOULD_VANISH);
-        helper.succeedWhen(() -> {
-            List<ItemEntity> items = itemsNear(helper, stood);
-            helper.assertTrue(items.size() == 1 && items.get(0).getItem().is(egg)
-                    && items.get(0).getItem().getCount() == 1,
-                    String.format(SHOULD_DROP_ONLY_EGG, items.stream().map(ItemEntity::getItem).toList()));
-            helper.assertTrue(mobsNear(helper, stood, mob.getType()).isEmpty(), SHOULD_VANISH);
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            strike(helper, mob, ABILITY_AEON_TIME_STOP);
+            helper.assertTrue(mob.isRemoved(), SHOULD_VANISH);
+            helper.succeedWhen(() -> {
+                List<ItemEntity> items = itemsNear(helper, stood);
+                helper.assertTrue(items.size() == 1 && items.get(0).getItem().is(egg)
+                        && items.get(0).getItem().getCount() == 1,
+                        String.format(SHOULD_DROP_ONLY_EGG, items.stream().map(ItemEntity::getItem).toList()));
+                helper.assertTrue(mobsNear(helper, stood, mob.getType()).isEmpty(), SHOULD_VANISH);
+            });
         });
     }
 
@@ -560,12 +583,14 @@ public final class MobEffectTests {
      */
     public static void aeonRitualCounts(GameTestHelper helper) {
         Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
-        runEntityPrograms(helper, mob, ABILITY_AEON_TIME_STOP);
-        runEntityPrograms(helper, mob, ABILITY_AEON_TIME_STOP);
-        double expected = RITUAL_THROWS * RITUAL_PERCENT / Math.pow(mob.getMaxHealth(), RITUAL_HEALTH_EXPONENT);
-        double ritual = new EntityHost(helper.getLevel(), mob, null).counters().read(RITUAL_COUNTER);
-        helper.assertTrue(Math.abs(ritual - expected) < RITUAL_TOLERANCE,
-                String.format(SHOULD_COUNT_RITUAL, expected, ritual));
-        helper.succeed();
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            strike(helper, mob, ABILITY_AEON_TIME_STOP);
+            strike(helper, mob, ABILITY_AEON_TIME_STOP);
+            double expected = RITUAL_THROWS * RITUAL_PERCENT / Math.pow(mob.getMaxHealth(), RITUAL_HEALTH_EXPONENT);
+            double ritual = new EntityHost(helper.getLevel(), mob, null).counters().read(RITUAL_COUNTER);
+            helper.assertTrue(Math.abs(ritual - expected) < RITUAL_TOLERANCE,
+                    String.format(SHOULD_COUNT_RITUAL, expected, ritual));
+            helper.succeed();
+        });
     }
 }

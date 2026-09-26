@@ -1,6 +1,6 @@
 {
   "type": "minecraft:function",
-  "function": "goo:machine_plexer_idle",
+  "function": "goo:pusher_double_dispose_drops_gasket_each_time",
   "environment": "minecraft:default",
   "structure": "minecraft:empty",
   "max_ticks": 10,
