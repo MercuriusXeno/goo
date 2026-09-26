@@ -37,10 +37,10 @@ final class CanisterInventoryHandler {
                 (type, volume) -> CanisterItem.addGoo(canister, type, volume));
     }
 
-    // --- Blob/omniblob insert ---
+    // --- Omniblob insert ---
 
     /**
-     * Pours a blob or omniblob cursor into a sink and depletes the cursor by what the
+     * Pours an omniblob cursor into a sink and depletes the cursor by what the
      * sink accepted. Any other cursor, or a sink accepting nothing, leaves both untouched.
      *
      * @param cursor       the item stack on the cursor
@@ -49,30 +49,8 @@ final class CanisterInventoryHandler {
      * @return true if any goo was transferred
      */
     static boolean insertFromCursor(ItemStack cursor, SlotAccess cursorAccess, GooSink sink) {
-        if (cursor.getItem() instanceof GooBlobItem) {
-            return handleBlobInsert(cursor, cursorAccess, sink);
-        }
         return cursor.getItem() instanceof GooOmniblobItem
                 && handleOmniblobInsert(cursor, cursorAccess, sink);
-    }
-
-    /**
-     * Transfers blob goo into the sink, shrinking the blob stack by accepted blobs.
-     *
-     * @param cursor       the blob stack on the cursor
-     * @param cursorAccess access to set the cursor contents
-     * @param sink         where the goo goes
-     * @return true if any goo was transferred
-     */
-    private static boolean handleBlobInsert(ItemStack cursor, SlotAccess cursorAccess, GooSink sink) {
-        ResourceKey<GooTypeDefinition> type = BlobStacks.keyOf(cursor);
-        if (type == null) { return false; }
-        int accepted = sink.accept(type, BlobStacks.volumeOf(cursor));
-        if (accepted <= 0) { return false; }
-
-        cursor.shrink(accepted / BlobStacks.MB_PER_BLOB);
-        if (cursor.isEmpty()) { cursorAccess.set(ItemStack.EMPTY); }
-        return true;
     }
 
     /**
