@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.radial;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.AbilityCost;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
@@ -14,11 +15,14 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Covers RadialWheelRenderer.resolveAbilityIcon over every shipped ability, as the
- * ability sync hands each one to the client (decision diagnose-then-fix-radial-icon-id).
+ * ability sync hands each one to the client (decision diagnose-then-fix-radial-icon-id),
+ * and the fan's cost and holdings labels.
  */
 class RadialWheelRendererTest {
 
@@ -62,6 +66,48 @@ class RadialWheelRendererTest {
                 assertNotNull(RadialWheelRendererTest.class.getClassLoader().getResource(resource),
                         ability.id() + " resolves " + icon + " but no " + resource + " is on the classpath");
             }));
+        }
+    }
+
+    /** The fan reads each ability's first-throw cost and the type's holdings (decision radial-shows-first-throw-cost-and-holdings). */
+    @Nested
+    class CostAndHoldings {
+
+        private static final int HOLDINGS = 1500;
+        private static final int AFFORDABLE = 1000;
+        private static final int UNAFFORDABLE = 2000;
+
+        private static ClientAbility costing(int firstThrow) {
+            return new ClientAbility(Identifier.fromNamespaceAndPath(Goo.MODID, "cost_" + firstThrow),
+                    "ability.goo.cost", "", 0, List.of(), 0, 1, List.of(),
+                    new AbilityCost.Quadratic(firstThrow, 0f, 1f, 1f));
+        }
+
+        @Test
+        void wedgeReadsItsFirstThrowCost() {
+            ClientAbility cheap = costing(AFFORDABLE);
+            ClientAbility dear = costing(UNAFFORDABLE);
+
+            assertEquals(RadialWheelRenderer.formatQuantity(cheap.throwCost(0)),
+                    RadialWheelRenderer.fanSlot(cheap, HOLDINGS).costLabel());
+            assertEquals("1.0k", RadialWheelRenderer.fanSlot(cheap, HOLDINGS).costLabel());
+            assertEquals("2.0k", RadialWheelRenderer.fanSlot(dear, HOLDINGS).costLabel());
+        }
+
+        @Test
+        void centerReadsTheTypesHoldings() {
+            assertEquals("1.5k", RadialWheelRenderer.holdingsLabel(HOLDINGS));
+        }
+
+        @Test
+        void wedgeCostingMoreThanTheHoldingsReadsDimmed() {
+            assertFalse(RadialWheelRenderer.fanSlot(costing(AFFORDABLE), HOLDINGS).dimmed());
+            assertTrue(RadialWheelRenderer.fanSlot(costing(UNAFFORDABLE), HOLDINGS).dimmed());
+        }
+
+        @Test
+        void wedgeCostingExactlyTheHoldingsReadsBright() {
+            assertFalse(RadialWheelRenderer.fanSlot(costing(HOLDINGS), HOLDINGS).dimmed());
         }
     }
 

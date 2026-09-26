@@ -113,17 +113,55 @@ final class RadialWheelRenderer {
         int base = ClientGooTypes.wheel(frame.types().get(type));
         double arc = wheel.fanArc(type);
         double slotRadius = (RadialWheel.RING_FRACTION + 1.0) * MID * frame.radius();
+        int holdings = frame.available().getOrDefault(frame.types().get(type), 0);
         for (int ability = 0; ability < fan.size(); ability++) {
             boolean hovered = ability == wheel.hoveredAbility();
-            int color = ARGB.color(hovered ? HOVER_ALPHA : NORMAL_ALPHA, base);
+            FanSlot slotLabels = fanSlot(fan.get(ability), holdings);
+            int color = slotLabels.dimmed() ? computeWedgeColor(base, false, true)
+                    : ARGB.color(hovered ? HOVER_ALPHA : NORMAL_ALPHA, base);
             double start = wheel.fanStart(type) + ability * arc;
             blitMask(graphics, frame, RadialTextures.getArcTexture(start, arc, RadialWheel.RING_FRACTION, 1.0), color);
             double middle = start + arc * MID;
             blitIcon(graphics, resolveAbilityIcon(fan.get(ability)), frame, middle, slotRadius, color);
             int[] slot = pointAt(frame, middle, slotRadius);
-            graphics.centeredText(font, buildLabel(fan.get(ability)), slot[0], slot[1] + ICON_OFFSET + LABEL_GAP,
-                    hovered ? HOVER_TEXT_COLOR : COLOR_WHITE);
+            int textColor = slotLabels.dimmed() ? DISABLED_TEXT_COLOR : hovered ? HOVER_TEXT_COLOR : COLOR_WHITE;
+            int labelY = slot[1] + ICON_OFFSET + LABEL_GAP;
+            graphics.centeredText(font, buildLabel(fan.get(ability)), slot[0], labelY, textColor);
+            graphics.centeredText(font, Component.literal(slotLabels.costLabel()), slot[0],
+                    labelY + font.lineHeight, textColor);
         }
+    }
+
+    /**
+     * What an ability wedge of the fan reads: its first-throw cost, dimmed
+     * when it exceeds the type's holdings (decision radial-shows-first-throw-cost-and-holdings).
+     *
+     * @param costLabel the first-throw cost, formatted
+     * @param dimmed    true when the first throw costs more than the holdings
+     */
+    record FanSlot(String costLabel, boolean dimmed) {
+    }
+
+    /**
+     * Reads an ability wedge's first-throw cost against the type's holdings.
+     *
+     * @param ability  the synced ability
+     * @param holdings the mB the player holds of its type
+     * @return the wedge's labels
+     */
+    static FanSlot fanSlot(ClientAbility ability, int holdings) {
+        int firstThrow = ability.throwCost(0);
+        return new FanSlot(formatQuantity(firstThrow), firstThrow > holdings);
+    }
+
+    /**
+     * The center's holdings line for the selected type.
+     *
+     * @param holdings the mB the player holds of the type
+     * @return the holdings, formatted
+     */
+    static String holdingsLabel(int holdings) {
+        return formatQuantity(holdings);
     }
 
     private static void renderCenterLabel(GuiGraphicsExtractor graphics, Font font, Frame frame) {
@@ -132,9 +170,12 @@ final class RadialWheelRenderer {
             return;
         }
         ResourceKey<GooTypeDefinition> type = frame.types().get(wheel.selectedType());
-        boolean empty = frame.available().getOrDefault(type, 0) <= 0;
+        int holdings = frame.available().getOrDefault(type, 0);
+        int textColor = holdings <= 0 ? DISABLED_TEXT_COLOR : COLOR_WHITE;
         graphics.centeredText(font, Component.translatable(GooTypeNames.translationKey(type)),
-                frame.centerX(), frame.centerY() - font.lineHeight / HALF, empty ? DISABLED_TEXT_COLOR : COLOR_WHITE);
+                frame.centerX(), frame.centerY() - font.lineHeight, textColor);
+        graphics.centeredText(font, Component.literal(holdingsLabel(holdings)),
+                frame.centerX(), frame.centerY() + LABEL_GAP, textColor);
     }
 
     private static void blitMask(GuiGraphicsExtractor graphics, Frame frame, Identifier mask, int color) {
