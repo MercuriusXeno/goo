@@ -18,7 +18,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * The tap's drip grade steps through five rates and off on each valve click,
+ * The tap's drip grade steps forward through five rates and off on each
+ * valve click and back on each sneaking click,
  * drips no slower than one per 64 ticks, and survives a save and load,
  * including a save made before 1:4 existed.
  */
@@ -47,6 +48,20 @@ class TapDripGradeTest {
         assertEquals(List.of(Optional.of(TapDripGrade.ONE_PER_64_TICKS), Optional.of(TapDripGrade.ONE_PER_16_TICKS),
                 Optional.of(TapDripGrade.ONE_PER_4_TICKS), Optional.of(TapDripGrade.ONE_PER_TICK),
                 Optional.of(TapDripGrade.FOUR_PER_TICK), Optional.<TapDripGrade>empty()), seen);
+    }
+
+    @Test
+    void sneakClicksFromOneToFourStepBackThroughEachGradeToOffAndStayOff() {
+        List<Optional<TapDripGrade>> seen = new ArrayList<>();
+        Optional<TapDripGrade> grade = Optional.of(TapDripGrade.FOUR_PER_TICK);
+        for (int click = 0; click < VALVE_CLICKS; click++) {
+            grade = TapDripGrade.afterSneakValveClick(grade);
+            seen.add(grade);
+        }
+
+        assertEquals(List.of(Optional.of(TapDripGrade.ONE_PER_TICK), Optional.of(TapDripGrade.ONE_PER_4_TICKS),
+                Optional.of(TapDripGrade.ONE_PER_16_TICKS), Optional.of(TapDripGrade.ONE_PER_64_TICKS),
+                Optional.<TapDripGrade>empty(), Optional.<TapDripGrade>empty()), seen);
     }
 
     @Test

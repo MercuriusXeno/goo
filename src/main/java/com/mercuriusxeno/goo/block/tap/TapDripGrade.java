@@ -76,6 +76,21 @@ public enum TapDripGrade {
     }
 
     /**
+     * The grade one sneaking valve click leaves: each grade steps to the next
+     * slower one, the slowest closes the valve, and a closed valve stays
+     * closed (decision shift-click-steps-valve-back).
+     *
+     * @param current the grade the valve runs at, or empty when closed
+     * @return the grade after the click, or empty when the valve ends closed
+     */
+    public static Optional<TapDripGrade> afterSneakValveClick(Optional<TapDripGrade> current) {
+        if (current.isEmpty() || current.get().ordinal() == 0) {
+            return Optional.empty();
+        }
+        return Optional.of(values()[current.get().ordinal() - 1]);
+    }
+
+    /**
      * @param intervalTicks ticks between drips, as a tap saved before 1:4 held it
      * @return the 1 mB grade dripping at that interval, or the slowest when none does
      */

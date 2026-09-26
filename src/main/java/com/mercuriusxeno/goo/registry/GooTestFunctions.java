@@ -186,6 +186,7 @@ public final class GooTestFunctions {
     private static final String TAP_DRIP_NO_ABILITY = "tap_drip_no_ability";
     private static final String TAP_DRIP_SENDS_TAP_DRIP = "tap_drip_sends_tap_drip";
     private static final String TAP_VALVE_STEPS_FIVE_GRADES = "tap_valve_steps_five_grades";
+    private static final String TAP_SNEAK_CLICK_STEPS_VALVE_BACK = "tap_sneak_click_steps_valve_back";
     private static final String TAP_DRIP_FILLS_CRUCIBLE_BELOW = "tap_drip_fills_crucible_below";
     private static final String TAP_DRIP_INTO_CRUCIBLE_RUNS_NO_PROGRAM = "tap_drip_into_crucible_runs_no_program";
     private static final String TAP_DRIP_ON_REFUSING_BLOCK_RUNS_PROGRAM = "tap_drip_on_refusing_block_runs_program";
@@ -305,6 +306,7 @@ public final class GooTestFunctions {
         reg(r, TAP_DRIP_NO_ABILITY, TapDripTests::tapDripNoAbility);
         reg(r, TAP_DRIP_SENDS_TAP_DRIP, TapDripTests::tapDripSendsTapDrip);
         reg(r, TAP_VALVE_STEPS_FIVE_GRADES, TapDripTests::tapValveStepsFiveGrades);
+        reg(r, TAP_SNEAK_CLICK_STEPS_VALVE_BACK, TapDripTests::tapSneakClickStepsValveBack);
         reg(r, TAP_DRIP_FILLS_CRUCIBLE_BELOW, TapDripTests::tapDripFillsCrucibleBelow);
         reg(r, TAP_DRIP_INTO_CRUCIBLE_RUNS_NO_PROGRAM, TapDripTests::tapDripIntoCrucibleRunsNoProgram);
         reg(r, TAP_DRIP_ON_REFUSING_BLOCK_RUNS_PROGRAM, TapDripTests::tapDripOnRefusingBlockRunsProgram);

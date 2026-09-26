@@ -35,7 +35,8 @@ import java.util.Map;
 /**
  * Tap block: a faucet with a canister slot that drips goo on a timer.
  * FACING indicates the direction the spigot points. Right-clicking the valve
- * steps its drip grade through five rates and off; right-clicking the body
+ * steps its drip grade through five rates and off, and a sneaking click steps
+ * it back; right-clicking the body
  * inserts/removes the canister.
  */
 public class TapBlock extends BaseEntityBlock {
@@ -287,8 +288,9 @@ public class TapBlock extends BaseEntityBlock {
     }
 
     /**
-     * Empty-hand interactions: sneak pops the tap's gasket from any region;
-     * otherwise a valve hit steps the drip grade and any other hit removes the canister.
+     * Empty-hand interactions: a valve hit steps the drip grade, back when
+     * sneaking; off the valve, sneak pops the tap's gasket and any other hit
+     * removes the canister.
      *
      * @param state     the block state
      * @param level     the current level
@@ -309,12 +311,13 @@ public class TapBlock extends BaseEntityBlock {
         if (!(level.getBlockEntity(pos) instanceof TapBlockEntity tap)) {
             return InteractionResult.PASS;
         }
+        // shift-click-steps-valve-back: the valve bears no gasket, so its hit resolves before gasket removal
+        if (TapInteractionHandler.hitValve(hitResult, pos, state.getValue(FACING), VALVE_SHAPES)) {
+            return TapInteractionHandler.stepValve(state, level, pos, tap, player.isSecondaryUseActive());
+        }
         if (GasketInstallation.removeAddressedGasket(level, pos, player, hitResult)) {
             return InteractionResult.SUCCESS;
         }
-
-        Direction facing = state.getValue(FACING);
-        return TapInteractionHandler.dispatchEmptyHand(
-                state, level, pos, player, hitResult, tap, facing, VALVE_SHAPES, CANISTER_SLOT_SHAPES);
+        return TapInteractionHandler.dispatchEmptyHand(level, pos, player, tap);
     }
 }
