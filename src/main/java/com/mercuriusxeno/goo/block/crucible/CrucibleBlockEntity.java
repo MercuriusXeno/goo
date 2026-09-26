@@ -233,13 +233,21 @@ public class CrucibleBlockEntity extends GooGlowingMachineBlockEntity {
 
     /**
      * Returns the goo the drawn surface stands for: what has melted into the
-     * reservoir, never the unmelted item's pool, so a first melt tick draws a
-     * puddle (decision puddle-touches-walls-at-a-thousand).
+     * reservoir, never the unmelted item's pool (decision reservoir-volume-drives-fill).
      *
      * @return the surface volume in mB
      */
     public long getSurfaceVolume() {
         return reservoir.totalVolume();
+    }
+
+    /**
+     * Returns the goo the crucible holds in its reservoir and its pool.
+     *
+     * @return the two volumes
+     */
+    public CrucibleBasin.Volumes basinVolumes() {
+        return new CrucibleBasin.Volumes(reservoir.totalVolume(), getPoolVolume());
     }
 
     /** Returns true when neither the reservoir nor the PMI pool holds goo.
