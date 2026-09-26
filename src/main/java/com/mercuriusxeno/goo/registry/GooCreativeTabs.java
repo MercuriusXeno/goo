@@ -19,7 +19,7 @@ import java.util.Comparator;
 /**
  * Creative mode tab registration. Shows machines, intermediates, and for
  * every type the goo type registry holds, a datapack's included, one blob,
- * two sample omniblobs and a bucket (decision generic-goo-items).
+ * two sample omniblobs, a bucket and the three chrysm tiers (decision generic-goo-items).
  */
 public class GooCreativeTabs {
     public static final DeferredRegister<CreativeModeTab> TABS =
@@ -62,7 +62,7 @@ public class GooCreativeTabs {
         );
 
     /**
-     * Offers one type's 1-blob, 1K-blob and 1M-blob omniblobs, and a bucket.
+     * Offers one type's 1-blob, 1K-blob and 1M-blob omniblobs, a bucket and one of each chrysm tier.
      *
      * @param output the tab's item sink
      * @param key    the goo type's registry key
@@ -72,5 +72,6 @@ public class GooCreativeTabs {
         output.accept(GooOmniblobItem.createWithVolume(key, SAMPLE_OMNIBLOB_VOLUME));
         output.accept(GooOmniblobItem.createWithVolume(key, LARGE_OMNIBLOB_VOLUME));
         output.accept(GooBucketItem.of(key));
+        GooItems.CHRYSM_TIERS.forEach(tier -> output.accept(tier.get().createOf(key)));
     }
 }

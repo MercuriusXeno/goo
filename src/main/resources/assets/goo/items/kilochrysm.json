@@ -1,0 +1,7 @@
+{
+  "model": {
+    "type": "minecraft:model",
+    "model": "goo:item/kilochrysm",
+    "tints": [{"type": "goo:goo_type"}]
+  }
+}

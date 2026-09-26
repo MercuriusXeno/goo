@@ -50,6 +50,12 @@ public class GooItems {
      */
     public static final DeferredItem<GooBucketItem> GOO_BUCKET = ITEMS.registerItem("goo_bucket",
             props -> new GooBucketItem(GooFluids.SOURCE.get(), props.craftRemainder(Items.BUCKET).stacksTo(1)));
+    // chrysm-tiers-fixed-and-stackable: each tier stacks to the default 64.
+    public static final DeferredItem<ChrysmItem> CHRYSM = registerChrysm(ChrysmTier.CHRYSM);
+    public static final DeferredItem<ChrysmItem> KILOCHRYSM = registerChrysm(ChrysmTier.KILOCHRYSM);
+    public static final DeferredItem<ChrysmItem> MEGACHRYSM = registerChrysm(ChrysmTier.MEGACHRYSM);
+    /** The three chrysm tiers, smallest first. */
+    public static final List<DeferredItem<ChrysmItem>> CHRYSM_TIERS = List.of(CHRYSM, KILOCHRYSM, MEGACHRYSM);
     // --- Block items ---
     public static final DeferredItem<BlockItem> CRUCIBLE = ITEMS.registerSimpleBlockItem("crucible", GooBlocks.CRUCIBLE);
     /**
@@ -108,6 +114,10 @@ public class GooItems {
     public static final List<DeferredItem<? extends Item>> EXORITE_SET = List.of(
             EXORITE_PICKAXE, EXORITE_AXE, EXORITE_SHOVEL, EXORITE_HOE, EXORITE_SWORD,
             EXORITE_HELMET, EXORITE_CHESTPLATE, EXORITE_LEGGINGS, EXORITE_BOOTS);
+
+    private static DeferredItem<ChrysmItem> registerChrysm(ChrysmTier tier) {
+        return ITEMS.registerItem(tier.registryPath(), props -> new ChrysmItem(props, tier));
+    }
 
     private static DeferredItem<ExoriteGearItem> registerExoriteArmor(String name, ArmorType type) {
         return ITEMS.registerItem(name, props -> new ExoriteGearItem(props.humanoidArmor(ExoriteArmorMaterial.MATERIAL, type).fireResistant()));
