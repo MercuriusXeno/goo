@@ -51,7 +51,6 @@ public class Goo {
         registerDeferredRegistries(modEventBus);
         GooTypeRegistry.init(modEventBus);
         registerModListeners(modEventBus);
-        GooTestFunctions.init(modEventBus);
 
         modContainer.registerConfig(ModConfig.Type.COMMON, GooConfig.SPEC);
         modContainer.registerConfig(ModConfig.Type.CLIENT, GooClientConfig.SPEC);
