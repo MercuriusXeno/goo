@@ -3,7 +3,9 @@ package com.mercuriusxeno.goo.block.crucible;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import net.minecraft.resources.ResourceKey;
 import org.jspecify.annotations.Nullable;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.function.ToIntFunction;
 
 /**
  * The crucible's stored heat: ticks bought from fuel goo in the reservoir, and
@@ -135,17 +137,41 @@ public final class CrucibleHeat {
     }
 
     /**
-     * Returns the mB of fuel goo the stock holds across every grade.
+     * The melt ticks one fuel grade holds: its bought heat plus its stock at its ticks per mB.
      *
-     * @param grades the fuel grades
-     * @param stock  the reservoir
-     * @return the fuel goo volume in mB
+     * @param grade the fuel grade
+     * @param ticks the melt ticks it lasts
      */
-    public static long fuelVolume(List<FuelGrade> grades, FuelStock stock) {
-        long total = 0;
+    public record FuelBurn(FuelGrade grade, long ticks) {
+    }
+
+    /**
+     * Returns the melt ticks each grade holds, in burn order, leaving out a grade holding none
+     * (decision heat-row-reads-seconds).
+     *
+     * @param grades   the fuel grades in burn order
+     * @param volumeOf the mB of a fuel type the reservoir holds
+     * @return one burn per grade holding heat or stock
+     */
+    public List<FuelBurn> forecast(List<FuelGrade> grades, ToIntFunction<ResourceKey<GooTypeDefinition>> volumeOf) {
+        List<FuelBurn> burns = new ArrayList<>();
         for (FuelGrade candidate : grades) {
-            total += stock.volume(candidate.fuel());
+            long ticks = (long) volumeOf.applyAsInt(candidate.fuel()) * candidate.ticksPerMb()
+                    + boughtTicksOf(candidate);
+            if (ticks > 0) {
+                burns.add(new FuelBurn(candidate, ticks));
+            }
         }
-        return total;
+        return burns;
+    }
+
+    /**
+     * Returns the bought heat ticks when the given grade's fuel bought them, else 0.
+     *
+     * @param candidate the fuel grade
+     * @return the bought heat ticks of that fuel
+     */
+    private int boughtTicksOf(FuelGrade candidate) {
+        return grade != null && grade.fuel().equals(candidate.fuel()) ? heatTicks : 0;
     }
 }

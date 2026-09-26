@@ -6,7 +6,6 @@ import com.mercuriusxeno.goo.client.GooTooltipHandler;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.PartiallyMeltedItem;
 import net.minecraft.resources.ResourceKey;
-import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -14,8 +13,8 @@ import java.util.Set;
 
 /**
  * Supplies the crucible HUD panel's rows: one "reservoir / total" row per goo
- * type, then the heat row while the crucible holds heat or fuel goo
- * (decisions one-panel-painter-takes-rows, fuel-goo-heats-per-mb).
+ * type, then a heat row per fuel holding heat or stock
+ * (decisions one-panel-painter-takes-rows, heat-row-reads-seconds).
  */
 final class CruciblePanelRows {
 
@@ -39,25 +38,23 @@ final class CruciblePanelRows {
      * @return the rows top to bottom
      */
     static List<PanelRow> rows(CrucibleBlockEntity be) {
-        return rows(be.getReservoir(), poolContents(be), CrucibleFuelDisplay.heatRow(be.heatTicks(), be.fuelGooVolume()));
+        return rows(be.getReservoir(), poolContents(be), CrucibleFuelDisplay.heatRows(be.burnForecast()));
     }
 
     /**
-     * Returns one row per type in the reservoir or the pool, then the fuel row.
+     * Returns one row per type in the reservoir or the pool, then the heat rows.
      *
      * @param reservoir the reservoir goo contents
      * @param pool      the melt pool goo contents
-     * @param fuelRow   the heat row, or null when the crucible holds neither heat nor fuel goo
+     * @param heatRows  the heat rows, empty when the crucible holds neither heat nor fuel goo
      * @return the rows top to bottom
      */
-    static List<PanelRow> rows(GooContents reservoir, GooContents pool, @Nullable PanelRow fuelRow) {
+    static List<PanelRow> rows(GooContents reservoir, GooContents pool, List<PanelRow> heatRows) {
         List<PanelRow> rows = new ArrayList<>();
         for (ResourceKey<GooTypeDefinition> type : allTypes(reservoir, pool)) {
             rows.add(typeRow(type, volumeOf(reservoir, type), totalOf(reservoir, pool, type)));
         }
-        if (fuelRow != null) {
-            rows.add(fuelRow);
-        }
+        rows.addAll(heatRows);
         return rows;
     }
 

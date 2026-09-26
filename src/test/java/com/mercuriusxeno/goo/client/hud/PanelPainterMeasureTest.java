@@ -60,13 +60,14 @@ class PanelPainterMeasureTest {
                         VatPanelRows.rows(vat(rock500, 0, null, 1)), 42f, 17f),
                 // ".500 / .750" 66 after icon and gap: 78+6 by 6+11
                 Arguments.of("crucible reservoir and pool",
-                        CruciblePanelRows.rows(rock500, rock250, null), 84f, 17f),
+                        CruciblePanelRows.rows(rock500, rock250, List.of()), 84f, 17f),
                 // ".500 / .500" row 78 beats the "60s" fuel row 30
                 Arguments.of("crucible goo and fuel",
-                        CruciblePanelRows.rows(rock500, GooContents.EMPTY, fuelSixtySeconds), 84f, 28f),
+                        CruciblePanelRows.rows(rock500, GooContents.EMPTY, List.of(fuelSixtySeconds)), 84f, 28f),
                 // fuel row alone: 12+18=30, plus borders
                 Arguments.of("crucible fuel only",
-                        CruciblePanelRows.rows(GooContents.EMPTY, GooContents.EMPTY, fuelSixtySeconds), 36f, 17f));
+                        CruciblePanelRows.rows(GooContents.EMPTY, GooContents.EMPTY, List.of(fuelSixtySeconds)),
+                        36f, 17f));
     }
 
     /**
@@ -101,7 +102,7 @@ class PanelPainterMeasureTest {
     @ValueSource(ints = {500, 9_000, 9_900, 9_990})
     void crucibleBelowTenBlobsMeasuresTheFloor(int reservoirVolume) {
         List<PanelRow> rows = CruciblePanelRows.rows(
-                contents(Map.of(GooTypes.ROCK, reservoirVolume)), GooContents.EMPTY, null);
+                contents(Map.of(GooTypes.ROCK, reservoirVolume)), GooContents.EMPTY, List.of());
         assertEquals(CRUCIBLE_FLOOR_WIDTH, PanelPainter.measure(rows, SIX_PIXELS_A_CHARACTER).width());
     }
 
@@ -112,7 +113,7 @@ class PanelPainterMeasureTest {
     @Test
     void crucibleTextWiderThanTheFloorMeasuresWider() {
         List<PanelRow> rows = CruciblePanelRows.rows(
-                contents(Map.of(GooTypes.ROCK, 1_234_567)), GooContents.EMPTY, null);
+                contents(Map.of(GooTypes.ROCK, 1_234_567)), GooContents.EMPTY, List.of());
         float width = PanelPainter.measure(rows, SIX_PIXELS_A_CHARACTER).width();
         assertEquals(96f, width);
         assertTrue(width > CRUCIBLE_FLOOR_WIDTH);
