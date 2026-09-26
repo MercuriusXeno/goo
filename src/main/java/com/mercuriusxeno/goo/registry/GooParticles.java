@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.client.particle.OrientedBoomParticleOptions;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.particles.ColorParticleOption;
 import net.minecraft.core.particles.ParticleType;

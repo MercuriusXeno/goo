@@ -17,8 +17,8 @@ import java.util.List;
 public record FuelGrade(ResourceKey<GooTypeDefinition> fuel, int ticksPerMb, int meltRate) {
 
     /**
-     * Returns the configured fuel grades in burn order: the first grade the reservoir holds burns first,
-     * so unstable burns before blaze (decision unstable-goo-is-super-fuel).
+     * Returns the configured fuel grades: both burn together as the combo when both stand,
+     * and a lone grade burns at its own rate (decision blaze-unstable-combo-burn).
      *
      * @return the grades, read from GooConfig
      */
