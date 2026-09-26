@@ -1,13 +1,15 @@
 package com.mercuriusxeno.goo.client.hud;
 
 import com.mercuriusxeno.goo.block.crucible.CrucibleHeat;
+import net.minecraft.resources.Identifier;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
 /**
- * Supplies the crucible HUD panel's heat rows: per fuel grade, its goo icon and
- * the seconds its heat and stock last (decision heat-row-reads-seconds).
+ * Supplies the crucible HUD panel's heat rows: the combo row, then per fuel grade its goo
+ * icon and the seconds its heat and stock last (decisions heat-row-reads-seconds,
+ * combo-row-above-remainder).
  */
 final class CrucibleFuelDisplay {
     /** Heat text color (orange, the blaze color). */
@@ -20,17 +22,33 @@ final class CrucibleFuelDisplay {
     private CrucibleFuelDisplay() {}
 
     /**
-     * Builds one heat row per burn: the fuel's goo icon, then the seconds it lasts.
+     * Builds one heat row per burn in the order they run: the combo row with both fuels' icons
+     * above each remainder row with its fuel's icon, each reading the seconds it lasts.
      *
-     * @param burns the melt ticks each fuel grade holds, in burn order
+     * @param burns the burns, combo first
      * @return the rows, empty when the crucible holds neither heat nor fuel goo
      */
     static List<PanelRow> heatRows(List<CrucibleHeat.FuelBurn> burns) {
         List<PanelRow> rows = new ArrayList<>();
         for (CrucibleHeat.FuelBurn burn : burns) {
-            rows.add(PanelRow.iconText(PanelPainter.gooIcon(burn.grade().fuel()), seconds(burn.ticks()), HEAT_COLOR));
+            rows.add(heatRow(burn));
         }
         return rows;
+    }
+
+    /**
+     * Builds one burn's heat row: its fuels' icons, then its seconds.
+     *
+     * @param burn the burn
+     * @return the row
+     */
+    private static PanelRow heatRow(CrucibleHeat.FuelBurn burn) {
+        String text = seconds(burn.ticks());
+        Identifier first = PanelPainter.gooIcon(burn.grades().getFirst().fuel());
+        if (burn.isCombo()) {
+            return PanelRow.iconPairText(first, PanelPainter.gooIcon(burn.grades().get(1).fuel()), text, HEAT_COLOR);
+        }
+        return PanelRow.iconText(first, text, HEAT_COLOR);
     }
 
     /**

@@ -194,32 +194,69 @@ public final class CrucibleHeat {
     }
 
     /**
-     * The melt ticks one fuel grade holds: its bought heat plus its stock at its ticks per mB.
+     * The melt ticks a burn lasts: the combo of every grade, or one grade's bought heat
+     * plus its stock at its ticks per mB.
      *
-     * @param grade the fuel grade
-     * @param ticks the melt ticks it lasts
+     * @param grades the grades burning together, one for a lone fuel
+     * @param ticks  the melt ticks it lasts
      */
-    public record FuelBurn(FuelGrade grade, long ticks) {
+    public record FuelBurn(List<FuelGrade> grades, long ticks) {
+
+        /**
+         * Returns true when more than one grade burns together.
+         *
+         * @return true for the combo
+         */
+        public boolean isCombo() {
+            return grades.size() > 1;
+        }
     }
 
     /**
-     * Returns the melt ticks each grade holds, in burn order, leaving out a grade holding none
-     * (decision heat-row-reads-seconds).
+     * Returns the burns in the order they run: the combo first while every grade's fuel stands,
+     * then each grade's heat and the stock the combo leaves it, which waits until the combo ends
+     * (decisions heat-row-reads-seconds, combo-row-above-remainder).
      *
-     * @param grades   the fuel grades in burn order
-     * @param volumeOf the mB of a fuel type the reservoir holds
-     * @return one burn per grade holding heat or stock
+     * @param grades     the fuel grades in burn order
+     * @param comboDrain the mB of each fuel a combo tick burns
+     * @param volumeOf   the mB of a fuel type the reservoir holds
+     * @return the burns, leaving out any holding no ticks
      */
-    public List<FuelBurn> forecast(List<FuelGrade> grades, ToIntFunction<ResourceKey<GooTypeDefinition>> volumeOf) {
+    public List<FuelBurn> forecast(List<FuelGrade> grades, int comboDrain,
+                                   ToIntFunction<ResourceKey<GooTypeDefinition>> volumeOf) {
         List<FuelBurn> burns = new ArrayList<>();
+        long comboTicks = comboTicks(grades, comboDrain, volumeOf);
+        if (comboTicks > 0) {
+            burns.add(new FuelBurn(grades, comboTicks));
+        }
         for (FuelGrade candidate : grades) {
-            long ticks = (long) volumeOf.applyAsInt(candidate.fuel()) * candidate.ticksPerMb()
-                    + boughtTicksOf(candidate);
+            long leftover = Math.max(0, volumeOf.applyAsInt(candidate.fuel()) - comboTicks * comboDrain);
+            long ticks = leftover * candidate.ticksPerMb() + boughtTicksOf(candidate);
             if (ticks > 0) {
-                burns.add(new FuelBurn(candidate, ticks));
+                burns.add(new FuelBurn(List.of(candidate), ticks));
             }
         }
         return burns;
+    }
+
+    /**
+     * Returns the combo ticks the stock holds: the scarcest fuel over the drain, a short last tick counted whole.
+     *
+     * @param grades     the fuel grades
+     * @param comboDrain the mB of each fuel a combo tick burns
+     * @param volumeOf   the mB of a fuel type the reservoir holds
+     * @return the combo ticks, 0 when the combo does not stand
+     */
+    private static long comboTicks(List<FuelGrade> grades, int comboDrain,
+                                   ToIntFunction<ResourceKey<GooTypeDefinition>> volumeOf) {
+        if (grades.size() < COMBO_GRADES) {
+            return 0;
+        }
+        long scarcest = Long.MAX_VALUE;
+        for (FuelGrade candidate : grades) {
+            scarcest = Math.min(scarcest, volumeOf.applyAsInt(candidate.fuel()));
+        }
+        return scarcest <= 0 ? 0 : (scarcest + comboDrain - 1) / comboDrain;
     }
 
     /**

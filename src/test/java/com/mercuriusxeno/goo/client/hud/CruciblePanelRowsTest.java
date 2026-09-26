@@ -8,10 +8,12 @@ import com.mercuriusxeno.goo.block.crucible.FuelGrade;
 import com.mercuriusxeno.goo.item.GooContents;
 import net.minecraft.resources.ResourceKey;
 import org.junit.jupiter.api.Test;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -27,6 +29,7 @@ class CruciblePanelRowsTest {
     private static final FuelGrade UNSTABLE = new FuelGrade(
             GooTypes.UNSTABLE, GooConfig.DEFAULT_UNSTABLE_TICKS_PER_MB, GooConfig.DEFAULT_UNSTABLE_MELT_RATE);
     private static final List<FuelGrade> BURN_ORDER = List.of(UNSTABLE, BLAZE);
+    private static final int DRAIN = GooConfig.DEFAULT_COMBO_DRAIN_PER_TICK;
 
     /**
      * Builds the rows the HUD paints for a crucible holding the given heat and reservoir.
@@ -36,8 +39,57 @@ class CruciblePanelRowsTest {
      * @return the rows top to bottom
      */
     private static List<PanelRow> rowsFor(CrucibleHeat heat, GooContents reservoir) {
-        List<CrucibleHeat.FuelBurn> burns = heat.forecast(BURN_ORDER, type -> volumeOf(reservoir, type));
+        List<CrucibleHeat.FuelBurn> burns = heat.forecast(BURN_ORDER, DRAIN, type -> volumeOf(reservoir, type));
         return CruciblePanelRows.rows(reservoir, GooContents.EMPTY, CrucibleFuelDisplay.heatRows(burns));
+    }
+
+    /**
+     * Returns the heat rows alone, the last rows the panel paints.
+     *
+     * @param heat      the crucible's heat
+     * @param reservoir the reservoir goo contents
+     * @return the heat rows top to bottom
+     */
+    private static List<PanelRow> heatRowsFor(CrucibleHeat heat, GooContents reservoir) {
+        List<PanelRow> rows = rowsFor(heat, reservoir);
+        return rows.subList(reservoir.getAll().size(), rows.size());
+    }
+
+    /** A map-backed reservoir the heat burns from. */
+    private static final class MapStock implements CrucibleHeat.FuelStock {
+        private final Map<ResourceKey<GooTypeDefinition>, Integer> held = new HashMap<>();
+
+        MapStock(Map<ResourceKey<GooTypeDefinition>, Integer> volumes) {
+            held.putAll(volumes);
+        }
+
+        @Override
+        public int volume(ResourceKey<GooTypeDefinition> type) {
+            return held.getOrDefault(type, 0);
+        }
+
+        @Override
+        public int extract(ResourceKey<GooTypeDefinition> type, int amount) {
+            int taken = Math.min(amount, volume(type));
+            held.put(type, volume(type) - taken);
+            return taken;
+        }
+
+        GooContents contents() {
+            return new GooContents(held);
+        }
+    }
+
+    private static void assertCombo(PanelRow row, String seconds) {
+        assertEquals(PanelPainter.gooIcon(GooTypes.UNSTABLE), row.icon());
+        assertEquals(PanelPainter.gooIcon(GooTypes.BLAZE), row.secondIcon());
+        assertEquals(seconds, textOf(row));
+    }
+
+    private static void assertLone(PanelRow row, ResourceKey<GooTypeDefinition> fuel, String seconds) {
+        assertEquals(PanelPainter.gooIcon(fuel), row.icon());
+        assertNull(row.secondIcon());
+        assertEquals(seconds, textOf(row));
     }
 
     private static int volumeOf(GooContents contents, ResourceKey<GooTypeDefinition> type) {
@@ -81,6 +133,53 @@ class CruciblePanelRowsTest {
     /** A crucible holding neither heat nor fuel goo paints no heat row. */
     @Test
     void noHeatNoFuelPaintsNoHeatRow() {
-        assertTrue(CrucibleFuelDisplay.heatRows(new CrucibleHeat().forecast(BURN_ORDER, type -> 0)).isEmpty());
+        assertTrue(CrucibleFuelDisplay.heatRows(new CrucibleHeat().forecast(BURN_ORDER, DRAIN, type -> 0)).isEmpty());
+    }
+
+    /** 100 mB blaze and 200 mB unstable paint the combo row "2.5s" above unstable's "5.0s". */
+    @Test
+    void comboRowSitsAboveTheUnstableRemainder() {
+        List<PanelRow> heatRows = heatRowsFor(new CrucibleHeat(),
+                new GooContents(Map.of(GooTypes.BLAZE, 100, GooTypes.UNSTABLE, 200)));
+
+        assertEquals(2, heatRows.size());
+        assertCombo(heatRows.getFirst(), "2.5s");
+        assertLone(heatRows.getLast(), GooTypes.UNSTABLE, "5.0s");
+    }
+
+    /** 400 mB blaze and 40 mB unstable paint the combo row "1.0s" above blaze's "72.0s". */
+    @Test
+    void comboRowSitsAboveTheBlazeRemainder() {
+        List<PanelRow> heatRows = heatRowsFor(new CrucibleHeat(),
+                new GooContents(Map.of(GooTypes.BLAZE, 400, GooTypes.UNSTABLE, 40)));
+
+        assertEquals(2, heatRows.size());
+        assertCombo(heatRows.getFirst(), "1.0s");
+        assertLone(heatRows.getLast(), GooTypes.BLAZE, "72.0s");
+    }
+
+    /** The combo row measures two icons with their gaps before its text. */
+    @Test
+    void comboRowMeasuresBothIcons() {
+        PanelRow combo = heatRowsFor(new CrucibleHeat(),
+                new GooContents(Map.of(GooTypes.BLAZE, 2, GooTypes.UNSTABLE, 2))).getFirst();
+        float oneIcon = PanelPainter.ICON_SIZE + PanelPainter.ICON_TEXT_GAP;
+
+        assertEquals(oneIcon + oneIcon + 4 * 6, combo.width(text -> text.length() * 6));
+    }
+
+    /** 10 melt ticks on 400 mB blaze and 40 mB unstable halve the combo row while blaze's row holds still. */
+    @Test
+    void remainderHoldsStillWhileTheComboBurns() {
+        CrucibleHeat heat = new CrucibleHeat();
+        MapStock stock = new MapStock(Map.of(GooTypes.BLAZE, 400, GooTypes.UNSTABLE, 40));
+        for (int tick = 0; tick < 10; tick++) {
+            heat.burnMeltTick(true, BURN_ORDER, DRAIN, stock);
+        }
+        List<PanelRow> heatRows = heatRowsFor(heat, stock.contents());
+
+        assertEquals(2, heatRows.size());
+        assertCombo(heatRows.getFirst(), "0.5s");
+        assertLone(heatRows.getLast(), GooTypes.BLAZE, "72.0s");
     }
 }

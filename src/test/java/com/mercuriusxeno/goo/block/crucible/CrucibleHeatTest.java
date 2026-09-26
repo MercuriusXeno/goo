@@ -173,7 +173,8 @@ class CrucibleHeatTest {
             CrucibleHeat heat = new CrucibleHeat();
             heat.set(12, BLAZE);
             MapStock stock = new MapStock().with(GooTypes.BLAZE, 50).with(GooTypes.ROCK, 100);
-            assertEquals(List.of(new CrucibleHeat.FuelBurn(BLAZE, 212)), heat.forecast(BURN_ORDER, stock::volume));
+            assertEquals(List.of(new CrucibleHeat.FuelBurn(List.of(BLAZE), 212)),
+                    heat.forecast(BURN_ORDER, DRAIN, stock::volume));
         }
 
         /** Heat bought with blaze never counts toward unstable's burn. */
@@ -182,8 +183,38 @@ class CrucibleHeatTest {
             CrucibleHeat heat = new CrucibleHeat();
             heat.set(3, BLAZE);
             MapStock stock = new MapStock().with(GooTypes.UNSTABLE, 10);
-            assertEquals(List.of(new CrucibleHeat.FuelBurn(UNSTABLE, 10), new CrucibleHeat.FuelBurn(BLAZE, 3)),
-                    heat.forecast(BURN_ORDER, stock::volume));
+            assertEquals(List.of(new CrucibleHeat.FuelBurn(List.of(UNSTABLE), 10),
+                            new CrucibleHeat.FuelBurn(List.of(BLAZE), 3)),
+                    heat.forecast(BURN_ORDER, DRAIN, stock::volume));
+        }
+
+        /** Both fuels forecast the combo first, then the stock the combo leaves the other fuel. */
+        @Test
+        void comboBurnsFirstThenTheRemainder() {
+            MapStock stock = new MapStock().with(GooTypes.BLAZE, 400).with(GooTypes.UNSTABLE, 40);
+            assertEquals(List.of(new CrucibleHeat.FuelBurn(BURN_ORDER, 20),
+                            new CrucibleHeat.FuelBurn(List.of(BLAZE), 1440)),
+                    new CrucibleHeat().forecast(BURN_ORDER, DRAIN, stock::volume));
+        }
+
+        /** A short last combo tick counts as a combo tick and leaves the short fuel nothing. */
+        @Test
+        void shortLastComboTickCountsWhole() {
+            MapStock stock = new MapStock().with(GooTypes.BLAZE, 3).with(GooTypes.UNSTABLE, 50);
+            assertEquals(List.of(new CrucibleHeat.FuelBurn(BURN_ORDER, 2),
+                            new CrucibleHeat.FuelBurn(List.of(UNSTABLE), 46)),
+                    new CrucibleHeat().forecast(BURN_ORDER, DRAIN, stock::volume));
+        }
+
+        /** Heat bought with blaze alone joins blaze's remainder after the combo. */
+        @Test
+        void boughtHeatJoinsTheRemainderAfterTheCombo() {
+            CrucibleHeat heat = new CrucibleHeat();
+            heat.set(3, BLAZE);
+            MapStock stock = new MapStock().with(GooTypes.BLAZE, 4).with(GooTypes.UNSTABLE, 2);
+            assertEquals(List.of(new CrucibleHeat.FuelBurn(BURN_ORDER, 1),
+                            new CrucibleHeat.FuelBurn(List.of(BLAZE), 11)),
+                    heat.forecast(BURN_ORDER, DRAIN, stock::volume));
         }
     }
 
