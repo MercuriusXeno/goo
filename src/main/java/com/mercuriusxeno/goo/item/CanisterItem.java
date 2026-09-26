@@ -24,6 +24,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
+import java.util.Map;
 
 /**
  * Canister item: single-type fluid storage accepting any registered fluid.
@@ -34,7 +35,7 @@ import org.jspecify.annotations.Nullable;
  * placing a new block. Slot targeting uses the vanilla BlockHitResult
  * location directly.</p>
  */
-public class CanisterItem extends BlockItem implements IGooItemInteraction {
+public class CanisterItem extends BlockItem implements IGooItemInteraction, GooCarrierItem {
 
     /**
      * Creates a new canister block item.
@@ -224,6 +225,35 @@ public class CanisterItem extends BlockItem implements IGooItemInteraction {
         be.assignFromItemStack(slot, context.getItemInHand(), creative);
         CanisterPlacementValidator.stampOwner(be, context.getPlayer());
         CanisterInventoryHandler.popConflictingGaskets(level, pos);
+    }
+
+    // --- GooCarrierItem (decision hosts-answer-bounds-through-interfaces) ---
+
+    @Override
+    public DepletionPass depletionPass() {
+        return DepletionPass.CANISTER;
+    }
+
+    @Override
+    public Map<ResourceKey<GooTypeDefinition>, Integer> gooContents(ItemStack stack) {
+        return gooContentsOf(stack);
+    }
+
+    @Override
+    public int drawGoo(ItemStack stack, ResourceKey<GooTypeDefinition> type, int amount) {
+        return removeGoo(stack, type, amount);
+    }
+
+    /**
+     * The goo a canister stack holds, which a hub item's carried canisters also read.
+     *
+     * @param stack a canister stack
+     * @return its goo type with the volume, or an empty map when it holds no goo
+     */
+    static Map<ResourceKey<GooTypeDefinition>, Integer> gooContentsOf(ItemStack stack) {
+        CanisterFluidContent content = getFluidContent(stack);
+        ResourceKey<GooTypeDefinition> type = content.getGooType();
+        return type != null && content.amount() > 0 ? Map.of(type, content.amount()) : Map.of();
     }
 
     // --- Static contents helpers ---

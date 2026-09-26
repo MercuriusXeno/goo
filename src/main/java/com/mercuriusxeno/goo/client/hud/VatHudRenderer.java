@@ -1,16 +1,15 @@
 package com.mercuriusxeno.goo.client.hud;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.block.vat.VatBlockEntity;
 import com.mercuriusxeno.goo.client.machine.VatStackAggregator;
 import com.mercuriusxeno.goo.client.machine.VatStackAggregator.VatStackData;
+import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
@@ -91,8 +90,7 @@ public final class VatHudRenderer {
         }
         BlockHitResult hit = (BlockHitResult) mc.hitResult;
         BlockPos pos = hit.getBlockPos();
-        BlockEntity be = mc.level.getBlockEntity(pos);
-        if (!(be instanceof VatBlockEntity)) {
+        if (mc.level.getBlockEntity(pos, GooBlockEntities.VAT.get()).isEmpty()) {
             return null;
         }
         return resolveVatFace(mc, pos, hit.getDirection());

@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.block.reactor;
 
 import com.mercuriusxeno.goo.block.GooGlowingMachineBlockEntity;
+import com.mercuriusxeno.goo.block.ICutawayMachine;
 import com.mercuriusxeno.goo.block.canister.*;
 import com.mercuriusxeno.goo.block.gasket.GasketAttachment;
 import com.mercuriusxeno.goo.block.gasket.GasketPusher;
@@ -12,6 +13,7 @@ import com.mercuriusxeno.goo.item.gasket.GasketPartner;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -20,8 +22,10 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import net.neoforged.neoforge.transfer.transaction.Transaction;
 import org.jspecify.annotations.NonNull;
@@ -40,7 +44,7 @@ import java.util.Set;
  * metadata, and the registry location follows the canister in and out.</p>
  */
 public class ReactorBlockEntity extends GooGlowingMachineBlockEntity
-        implements ICanisterHolder, ICanisterAttachable {
+        implements ICanisterHolder, ICanisterAttachable, ICutawayMachine {
 
     /**
      * Output canister slot index.
@@ -62,6 +66,18 @@ public class ReactorBlockEntity extends GooGlowingMachineBlockEntity
      * Power-law exponent for throughput scaling.
      */
     private static final double THROUGHPUT_EXPONENT = 0.35;
+    /**
+     * Block-local centre the HUD anchor is pushed out from.
+     */
+    private static final double HUD_CENTER = 0.5;
+    /**
+     * How far the HUD anchor sits out from the centre: half a block to the face plus one pixel.
+     */
+    private static final double HUD_FORWARD = 0.5 + 1.0 / 16.0;
+    /**
+     * HUD anchor Y: the hollow's mid-height, between pixels 1 and 13.
+     */
+    private static final double HUD_LIFT = 7.0 / 16.0;
 
     /**
      * NBT key for the output canister.
@@ -261,6 +277,67 @@ public class ReactorBlockEntity extends GooGlowingMachineBlockEntity
     @Override
     public int resolveSlot(BlockHitResult hit) {
         return ReactorBlock.isHollowClick(getBlockState(), worldPosition, hit) ? OUTPUT_SLOT : SLOT_MISS;
+    }
+
+    // --- Client-read geometry (decision hosts-answer-bounds-through-interfaces) ---
+
+    private Direction facing() {
+        return getBlockState().getValue(ReactorBlock.FACING);
+    }
+
+    /**
+     * The front hollow is the reactor's cutaway.
+     */
+    @Override
+    public boolean isCutawayHit(BlockHitResult hit) {
+        return ReactorBlock.isHollowClick(getBlockState(), getBlockPos(), hit);
+    }
+
+    @Override
+    public @Nullable AABB slotBounds(int index) {
+        return index == OUTPUT_SLOT ? ReactorBlock.outputSlotShape(facing()).bounds() : null;
+    }
+
+    @Override
+    public VoxelShape outlineShape(BlockHitResult hit) {
+        return getBlockState().getShape(getLevel(), getBlockPos());
+    }
+
+    /**
+     * The output canister, while the hit lands on its voxel, as the reactor's
+     * empty-hand use checks.
+     */
+    @Override
+    public @Nullable AABB pickupBounds(BlockHitResult hit) {
+        boolean onCanister = ReactorBlock.hitOutputSlot(getBlockState(), getBlockPos(), hit);
+        return onCanister && isSlotFilled(OUTPUT_SLOT) ? slotBounds(OUTPUT_SLOT) : null;
+    }
+
+    @Override
+    public @Nullable AABB previewBounds(BlockHitResult hit, boolean sneaking) {
+        return isCutawayHit(hit) && !isSlotFilled(OUTPUT_SLOT) ? slotBounds(OUTPUT_SLOT) : null;
+    }
+
+    /**
+     * On the hollow's side, opposite {@link ReactorBlock#FACING}, pushed a pixel
+     * proud of the frame so the billboard never dips into it.
+     */
+    @Override
+    public @Nullable HudAnchor hudAnchor(BlockHitResult hit, HudViewer viewer) {
+        if (!isSlotFilled(OUTPUT_SLOT) || !isCutawayHit(hit)) {
+            return null;
+        }
+        Direction front = facing().getOpposite();
+        return new HudAnchor(OUTPUT_SLOT, HUD_CENTER + front.getStepX() * HUD_FORWARD,
+                HUD_CENTER + front.getStepZ() * HUD_FORWARD, HUD_LIFT, front);
+    }
+
+    /**
+     * A standing click in the hollow reaches the output slot; a sneak places beside the reactor.
+     */
+    @Override
+    public boolean takesCanisterAt(BlockHitResult hit, boolean sneaking) {
+        return !sneaking && isCutawayHit(hit);
     }
 
     /**
