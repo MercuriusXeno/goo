@@ -138,6 +138,6 @@ class PanelPainterMeasureTest {
      * @return the stack data
      */
     private static VatStackData vat(GooContents contents, int compression, String label, int stackSize) {
-        return new VatStackData(contents, compression, false, false, label, null, null, stackSize);
+        return new VatStackData(contents, 0, compression, false, false, label, null, null, stackSize);
     }
 }
