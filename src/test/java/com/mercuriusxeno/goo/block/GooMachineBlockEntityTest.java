@@ -26,8 +26,6 @@ import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -88,7 +86,7 @@ class GooMachineBlockEntityTest {
             be.setLevel(level);
 
             verify(attachment, times(1)).onSetLevel(level);
-            verify(slots, never()).registerSlotGaskets(any(), any(), any());
+            verify(slots, never()).registerSlotGaskets();
         }
 
         @ParameterizedTest
@@ -103,7 +101,7 @@ class GooMachineBlockEntityTest {
             be.setLevel(level);
 
             verify(attachment, times(1)).onSetLevel(level);
-            verify(slots, times(1)).registerSlotGaskets(any(), eq(level), any());
+            verify(slots, times(1)).registerSlotGaskets();
         }
     }
 
@@ -134,7 +132,7 @@ class GooMachineBlockEntityTest {
 
             be.setRemoved();
 
-            verify(slots, times(1)).releaseSlotGaskets(any());
+            verify(slots, times(1)).releaseSlotGaskets();
         }
     }
 

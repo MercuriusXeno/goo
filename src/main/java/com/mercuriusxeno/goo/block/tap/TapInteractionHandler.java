@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.block.tap;
 
-import com.mercuriusxeno.goo.PlayerUtils;
 import com.mercuriusxeno.goo.block.ShapeHitCheck;
+import com.mercuriusxeno.goo.block.canister.SlottedCanisterData;
 import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
 import com.mercuriusxeno.goo.item.BlobInsert;
 import com.mercuriusxeno.goo.item.GooInteractionType;
@@ -197,15 +197,11 @@ final class TapInteractionHandler {
      * @param level  the current level
      * @param pos    the block position
      * @param player the interacting player
-     * @return SUCCESS
+     * @return SUCCESS, or PASS when the tap holds no canister
      */
     private static InteractionResult removeCanister(
             TapBlockEntity tap, Level level, BlockPos pos, Player player) {
-        ItemStack removed = tap.removeCanister();
-        PlayerUtils.addOrDrop(player, removed);
-        level.playSound(null, pos, SoundEvents.DECORATED_POT_HIT,
-                SoundSource.BLOCKS, 1.0f, 1.0f);
-        return InteractionResult.SUCCESS;
+        return SlottedCanisterData.handToPlayer(tap.removeCanister(), player, level, pos);
     }
 
     /**

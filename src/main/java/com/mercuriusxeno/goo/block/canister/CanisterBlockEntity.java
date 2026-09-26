@@ -2,14 +2,11 @@ package com.mercuriusxeno.goo.block.canister;
 
 import com.mercuriusxeno.goo.GooConstants;
 import com.mercuriusxeno.goo.GooTypeDefinition;
-import com.mercuriusxeno.goo.PlayerUtils;
 import com.mercuriusxeno.goo.block.BlockEntitySync;
 import com.mercuriusxeno.goo.block.GooBlockInteraction;
 import com.mercuriusxeno.goo.block.GooGlowingMachineBlockEntity;
 import com.mercuriusxeno.goo.block.gasket.GasketAttachment;
 import com.mercuriusxeno.goo.block.gasket.GasketPusher;
-import com.mercuriusxeno.goo.block.gasket.SlotGasketPusher;
-import com.mercuriusxeno.goo.block.gasket.SlotGasketRegistration;
 import com.mercuriusxeno.goo.item.*;
 import com.mercuriusxeno.goo.item.gasket.GasketPartner;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
@@ -18,7 +15,6 @@ import com.mercuriusxeno.goo.registry.GooItems;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.core.component.DataComponentMap;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
@@ -77,15 +73,11 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
     public CanisterBlockEntity(BlockPos pos, BlockState state) {
         super(GooBlockEntities.CANISTER.get(), pos, state, GasketAttachment::none);
         GasketAttachment gasket = gasket();
-        this.state = new SlottedCanisterData(MAX_SLOTS,
+        this.state = new SlottedCanisterData(this, MAX_SLOTS,
                 CanisterBlock::slotShape,
                 CanisterBlockEntity::buildCompositeShape,
-                gasket.syncCallback());
-        gasket.rebuildPushers(() -> {
-            if (level instanceof ServerLevel) {
-                rebuildAllSlotPushers();
-            }
-        });
+                slot -> level == null || CanisterPlacementValidator.isSlotAllowed(level, worldPosition, slot));
+        gasket.rebuildPushers(this.state::rebuildAllPushers);
         gasket.afterLoad(() -> {
             if (level instanceof ServerLevel serverLevel) {
                 GasketPusher.forceSlotTransmitterChunks(this.state.slots, gasket.registryAccess(),
@@ -161,9 +153,7 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
     }
 
     /**
-     * Inserts a canister into the slot, optionally stripping gasket UUIDs.
-     * Validates placement, builds the slot's handler and pusher, registers
-     * gaskets, invalidates capabilities, and syncs.
+     * Inserts a canister into the slot through the shared slot lifecycle.
      *
      * @param slotIndex     the slot index
      * @param canisterStack the canister item stack to insert
@@ -171,63 +161,17 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
      * @return true if inserted
      */
     public boolean insertCanister(int slotIndex, ItemStack canisterStack, boolean stripGaskets) {
-        CanisterSlot slot = resolveInsertableSlot(slotIndex, canisterStack);
-        if (slot == null) {
-            return false;
-        }
-        slot.setCanister(canisterStack.copyWithCount(1));
-        if (stripGaskets) {
-            slot.stripGaskets();
-        }
-        slot.buildHandler(this::gameTime);
-        rebuildSlotPusher(slotIndex);
-        BlockEntitySync.invalidateCapabilities(this);
-        registerSlotGaskets(slotIndex);
-        return true;
+        return state.insert(slotIndex, canisterStack, stripGaskets);
     }
 
     /**
-     * Returns the slot at {@code slotIndex} if it is a valid insertion target
-     * for {@code canisterStack}, otherwise null. Combines the placement-rule,
-     * empty-slot, and item-class checks into one resolver.
-     *
-     * @param slotIndex     the slot index
-     * @param canisterStack the candidate canister stack
-     * @return the slot ready to receive the canister, or null
-     */
-    private @Nullable CanisterSlot resolveInsertableSlot(int slotIndex, ItemStack canisterStack) {
-        if (level != null && !CanisterPlacementValidator.isSlotAllowed(level, worldPosition, slotIndex)) {
-            return null;
-        }
-        if (!(canisterStack.getItem() instanceof CanisterItem)) {
-            return null;
-        }
-        CanisterSlot slot = slot(slotIndex);
-        if (slot == null || !slot.isEmpty()) {
-            return null;
-        }
-        return slot;
-    }
-
-    /**
-     * Removes the canister from the slot, disposing handler/pusher and
-     * deregistering gaskets.
+     * Removes the canister from the slot through the shared slot lifecycle.
      *
      * @param slotIndex the slot index
      * @return the removed canister stack, or EMPTY
      */
     public ItemStack removeCanister(int slotIndex) {
-        CanisterSlot slot = slot(slotIndex);
-        if (slot == null || slot.isEmpty()) {
-            return ItemStack.EMPTY;
-        }
-        slot.disposePusher();
-        slot.syncHandlerToStack();
-        ItemStack removed = slot.canister().copy();
-        deregisterSlotGaskets(slotIndex);
-        slot.clear();
-        BlockEntitySync.invalidateCapabilities(this);
-        return removed;
+        return state.remove(slotIndex);
     }
 
     /**
@@ -241,60 +185,7 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
         int target = state.inRange(targetSlot) ? targetSlot : CENTER_SLOT;
         ItemStack built = new ItemStack(GooItems.CANISTER.get());
         applyFluidAndMetadata(built, CanisterItem.getFluidContent(source), CanisterItem.getMetadata(source));
-        CanisterSlot slot = state.slots[target];
-        slot.setCanister(built);
-        if (stripGaskets) {
-            slot.stripGaskets();
-        }
-        slot.buildHandler(this::gameTime);
-        BlockEntitySync.invalidateCapabilities(this);
-    }
-
-    /**
-     * Rebuilds slot fluid handlers for all occupied slots (after deserialization).
-     */
-    private void rebuildAllSlotHandlers() {
-        for (CanisterSlot slot : state.slots) {
-            slot.buildHandler(this::gameTime);
-        }
-    }
-
-    /**
-     * Rebuilds gasket pushers for all occupied slots.
-     */
-    private void rebuildAllSlotPushers() {
-        for (int i = 0; i < MAX_SLOTS; i++) {
-            rebuildSlotPusher(i);
-        }
-    }
-
-    // --- Gasket ops ---
-
-    /**
-     * Rebuilds the gasket pusher for a slot based on its bottom gasket state.
-     *
-     * @param slotIndex the slot index
-     */
-    private void rebuildSlotPusher(int slotIndex) {
-        CanisterSlot slot = slot(slotIndex);
-        if (slot == null) {
-            return;
-        }
-        SlotGasketPusher.rebuild(slot, this, gasket().registryAccess());
-    }
-
-    /**
-     * Registers gasket locations for a slot's canister in the gasket registry.
-     *
-     * @param slotIndex the slot index
-     */
-    private void registerSlotGaskets(int slotIndex) {
-        SlotGasketRegistration.register(gasket().registryAccess(), level, worldPosition,
-                slotIndex, getSlotMetadata(slotIndex));
-    }
-
-    private void deregisterSlotGaskets(int slotIndex) {
-        SlotGasketRegistration.deregister(gasket().registryAccess(), getSlotMetadata(slotIndex));
+        state.insert(target, built, stripGaskets);
     }
 
     // --- IGasketHolder ---
@@ -321,8 +212,8 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
     @Override
     public void setPartner(GasketRole role, int slot, @Nullable GasketPartner partner) {
         super.setPartner(role, slot, partner);
-        if (role == GasketRole.TRANSMITTER && state.inRange(slot)) {
-            rebuildSlotPusher(slot);
+        if (role == GasketRole.TRANSMITTER) {
+            state.rebuildPusher(slot);
         }
     }
 
@@ -352,24 +243,16 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
     }
 
     private InteractionResult pickupFromSlot(Player player, int slotIndex) {
-        boolean lastCanister = countOccupied() == 1;
-        if (lastCanister) {
-            // Take the stack directly and remove the block in one step to
-            // avoid an out-of-order BE-data packet vs. block-state-change-to-air.
-            ItemStack taken = state.slots[slotIndex].canister().copy();
-            PlayerUtils.addOrDrop(player, taken);
-            level.playSound(null, worldPosition, SoundEvents.DECORATED_POT_HIT,
-                    SoundSource.BLOCKS, 1.0F, 1.0F);
-            level.removeBlock(worldPosition, false);
-        } else {
-            ItemStack removed = removeCanister(slotIndex);
-            PlayerUtils.addOrDrop(player, removed);
-            level.playSound(null, worldPosition, SoundEvents.DECORATED_POT_HIT,
-                    SoundSource.BLOCKS, 1.0F, 1.0F);
+        if (countOccupied() > 1) {
+            return SlottedCanisterData.handToPlayer(removeCanister(slotIndex), player, level, worldPosition);
         }
-        return InteractionResult.SUCCESS;
+        // Take the stack directly and remove the block in one step to
+        // avoid an out-of-order BE-data packet vs. block-state-change-to-air.
+        ItemStack taken = state.slots[slotIndex].canister().copy();
+        InteractionResult handed = SlottedCanisterData.handToPlayer(taken, player, level, worldPosition);
+        level.removeBlock(worldPosition, false);
+        return handed;
     }
-
     private int countOccupied() {
         int count = 0;
         for (CanisterSlot slot : state.slots) {
@@ -471,34 +354,14 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
         if (ownerUuid != null) {
             output.store(TAG_OWNER_UUID, UUIDUtil.STRING_CODEC, ownerUuid);
         }
-        CompoundTag root = new CompoundTag();
-        for (CanisterSlot slot : state.slots) {
-            CompoundTag slotTag = new CompoundTag();
-            slot.save(slotTag);
-            if (!slotTag.isEmpty()) {
-                root.put(String.valueOf(slot.index()), slotTag);
-            }
-        }
-        if (!root.isEmpty()) {
-            output.store(TAG_SLOTS, CompoundTag.CODEC, root);
-        }
+        state.save(output, TAG_SLOTS);
     }
 
     @Override
     protected void loadAdditional(@NonNull ValueInput input) {
         super.loadAdditional(input);
         input.read(TAG_OWNER_UUID, UUIDUtil.STRING_CODEC).ifPresent(u -> ownerUuid = u);
-        input.read(TAG_SLOTS, CompoundTag.CODEC).ifPresent(root -> {
-            for (CanisterSlot slot : state.slots) {
-                String key = String.valueOf(slot.index());
-                CompoundTag slotTag = root.contains(key) ? root.getCompoundOrEmpty(key) : new CompoundTag();
-                slot.load(slotTag);
-            }
-            // slot.load() skips structure-changed callbacks; rebuild now so
-            // raycasting + outline rendering see the loaded slot occupancy.
-            state.rebuildCompositeShape();
-        });
-        rebuildAllSlotHandlers();
+        state.load(input, TAG_SLOTS);
     }
 
     @Override
@@ -521,12 +384,5 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
             }
         }
         return found;
-    }
-
-    /**
-     * @return the level's current game tick, or 0 if no level
-     */
-    private long gameTime() {
-        return level != null ? level.getGameTime() : 0L;
     }
 }
