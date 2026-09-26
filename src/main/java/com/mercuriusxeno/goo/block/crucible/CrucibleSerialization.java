@@ -6,6 +6,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
+import java.util.List;
 
 /**
  * Static helpers for crucible NBT serialization: melting state (PMI + heat).
@@ -16,7 +17,7 @@ final class CrucibleSerialization {
 
     private CrucibleSerialization() { }
 
-    /** Saves the melting item stack, the heat ticks and the fuel that bought them.
+    /** Saves the melting item stack, its melt queue, the heat ticks and the fuel that bought them.
      *
      * @param be     the crucible block entity
      * @param output the value output to write to
@@ -25,6 +26,9 @@ final class CrucibleSerialization {
         if (!be.meltingItem.isEmpty()) {
             output.store(CrucibleBlockEntity.TAG_MELTING_ITEM, ItemStack.CODEC, be.meltingItem);
         }
+        if (!be.meltQueue.isEmpty()) {
+            output.store(CrucibleBlockEntity.TAG_MELT_QUEUE, CrucibleMeltQueue.CODEC, be.meltQueue.entries());
+        }
         FuelGrade grade = be.heat.grade();
         if (be.heat.heatTicks() > 0 && grade != null) {
             output.putInt(CrucibleBlockEntity.TAG_HEAT_TICKS, be.heat.heatTicks());
@@ -32,7 +36,7 @@ final class CrucibleSerialization {
         }
     }
 
-    /** Loads the melting item stack and the heat, at the configured grade of the fuel that bought it.
+    /** Loads the melting item stack, its melt queue and the heat, at the configured grade of the fuel that bought it.
      *
      * @param be    the crucible block entity
      * @param input the value input to read from
@@ -40,6 +44,8 @@ final class CrucibleSerialization {
     static void loadMeltingState(CrucibleBlockEntity be, ValueInput input) {
         be.meltingItem = input.read(CrucibleBlockEntity.TAG_MELTING_ITEM, ItemStack.CODEC)
             .orElse(ItemStack.EMPTY);
+        be.meltQueue.loadFrom(input.read(CrucibleBlockEntity.TAG_MELT_QUEUE, CrucibleMeltQueue.CODEC)
+            .orElse(List.of()));
         int ticks = input.getIntOr(CrucibleBlockEntity.TAG_HEAT_TICKS, 0);
         ResourceKey<GooTypeDefinition> fuel = input.read(CrucibleBlockEntity.TAG_HEAT_FUEL, GooTypes.KEY_CODEC)
             .orElse(GooTypes.BLAZE);

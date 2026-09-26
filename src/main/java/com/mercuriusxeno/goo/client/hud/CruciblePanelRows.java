@@ -2,19 +2,24 @@ package com.mercuriusxeno.goo.client.hud;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
+import com.mercuriusxeno.goo.block.crucible.CrucibleMeltQueue;
+import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.GooTooltipHandler;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.PartiallyMeltedItem;
+import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Function;
 
 /**
- * Supplies the crucible HUD panel's rows: one "reservoir / total" row per goo
- * type, then a heat row per fuel holding heat or stock
- * (decisions one-panel-painter-takes-rows, heat-row-reads-seconds).
+ * Supplies the crucible HUD panel's rows: the melting item's row, one "reservoir / total"
+ * row per goo type, then a heat row per fuel holding heat or stock
+ * (decisions one-panel-painter-takes-rows, heat-row-reads-seconds, pool-keeps-stacks-in-order).
  */
 final class CruciblePanelRows {
 
@@ -27,6 +32,12 @@ final class CruciblePanelRows {
      * least (decision crucible-panel-floors-width-under-ten-blobs).
      */
     static final String SUB_TEN_BLOB_FLOOR_TEXT = "9.99" + VOLUME_SEPARATOR + "9.99";
+    /** Percent in a whole fraction. */
+    private static final int PERCENT = 100;
+    /** Suffix after the dissolved percent. */
+    private static final String PERCENT_SIGN = "%";
+    /** Prefix before the count of stacks waiting. */
+    private static final String WAITING_PREFIX = " +";
 
     private CruciblePanelRows() {
     }
@@ -38,7 +49,49 @@ final class CruciblePanelRows {
      * @return the rows top to bottom
      */
     static List<PanelRow> rows(CrucibleBlockEntity be) {
-        return rows(be.getReservoir(), poolContents(be), CrucibleFuelDisplay.heatRows(be.burnForecast()));
+        List<PanelRow> rows = new ArrayList<>();
+        PanelRow melting = meltRow(be.meltHead(), be.meltWaiting().size(), ItemParticleIcons::of);
+        if (melting != null) {
+            rows.add(melting);
+        }
+        rows.addAll(rows(be.getReservoir(), poolContents(be), CrucibleFuelDisplay.heatRows(be.burnForecast())));
+        return rows;
+    }
+
+    /**
+     * Builds the melting item's row: its icon, how far it has dissolved in percent,
+     * then a dim count of the stacks waiting behind it.
+     *
+     * @param head    the stack dissolving, or null when nothing melts
+     * @param waiting the number of stacks waiting behind the head
+     * @param iconOf  resolves an item id to its icon, or null when it has none
+     * @return the row, or null when nothing melts
+     */
+    static @Nullable PanelRow meltRow(CrucibleMeltQueue.@Nullable Entry head, int waiting,
+                                      Function<Identifier, @Nullable ItemIcon> iconOf) {
+        if (head == null) {
+            return null;
+        }
+        List<PanelRow.TextSegment> segments = new ArrayList<>();
+        segments.add(new PanelRow.TextSegment((int) (head.dissolveFraction() * PERCENT) + PERCENT_SIGN,
+                PanelPainter.TEXT_COLOR));
+        if (waiting > 0) {
+            segments.add(new PanelRow.TextSegment(WAITING_PREFIX + waiting, SEPARATOR_COLOR));
+        }
+        ItemIcon icon = iconOf.apply(head.item());
+        if (icon == null) {
+            return new PanelRow(null, segments, false);
+        }
+        return new PanelRow(icon.texture(), segments, false, null, null, icon.uv());
+    }
+
+    /**
+     * An item's icon: the atlas holding its sprite and the sprite's region of it.
+     *
+     * @param texture the atlas texture
+     * @param uv      the sprite's region of the atlas
+     */
+    record ItemIcon(Identifier texture, GooRenderUtil.UvRect uv) {
     }
 
     /**
