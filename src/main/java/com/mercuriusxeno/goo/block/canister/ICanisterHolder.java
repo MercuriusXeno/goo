@@ -97,6 +97,18 @@ public interface ICanisterHolder extends IGooLightSource {
     }
 
     /**
+     * Inserts a canister into an empty slot through the shared slot lifecycle.
+     *
+     * @param index        the slot index
+     * @param stack        the canister item stack
+     * @param stripGaskets true to strip the canister's gasket ids on the way in
+     * @return true if the canister went in
+     */
+    default boolean insertCanister(int index, ItemStack stack, boolean stripGaskets) {
+        return containerState().insert(index, stack, stripGaskets);
+    }
+
+    /**
      * @param index the slot index
      * @return true if the slot has a canister with remaining capacity
      */

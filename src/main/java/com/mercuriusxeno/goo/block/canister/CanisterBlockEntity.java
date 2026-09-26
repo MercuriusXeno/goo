@@ -156,18 +156,6 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
     }
 
     /**
-     * Inserts a canister into the slot through the shared slot lifecycle.
-     *
-     * @param slotIndex     the slot index
-     * @param canisterStack the canister item stack to insert
-     * @param stripGaskets  true to clear gasket UUIDs (creative duplication)
-     * @return true if inserted
-     */
-    public boolean insertCanister(int slotIndex, ItemStack canisterStack, boolean stripGaskets) {
-        return state.insert(slotIndex, canisterStack, stripGaskets);
-    }
-
-    /**
      * Removes the canister from the slot through the shared slot lifecycle.
      *
      * @param slotIndex the slot index
