@@ -2,7 +2,7 @@ package com.mercuriusxeno.goo.client.throwing;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.GooTypeDefinition;
-import com.mercuriusxeno.goo.client.radial.GooRadialScreen;
+import com.mercuriusxeno.goo.client.radial.GloveRadialScreen;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import net.minecraft.client.Minecraft;
@@ -132,7 +132,7 @@ public final class GloveUseTracker {
 
             @Override
             public void openRadial() {
-                GooRadialScreen.open();
+                GloveRadialScreen.open();
             }
         });
     }

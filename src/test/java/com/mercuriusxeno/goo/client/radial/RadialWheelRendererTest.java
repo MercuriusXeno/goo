@@ -17,10 +17,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
- * Covers AbilityRadialRenderer.resolveAbilityIcon over every shipped ability, as the
+ * Covers RadialWheelRenderer.resolveAbilityIcon over every shipped ability, as the
  * ability sync hands each one to the client (decision diagnose-then-fix-radial-icon-id).
  */
-class AbilityRadialRendererTest {
+class RadialWheelRendererTest {
 
     private static final String ASSETS_ROOT = "assets/";
     private static final String TEXTURE_PATH = "textures/goo/ability/unstable_timed_bomb.png";
@@ -49,17 +49,17 @@ class AbilityRadialRendererTest {
         @Test
         void everyShippedAbilityResolvesWithoutThrowing() {
             assertAll(shippedAbilities().stream().map(ability ->
-                    (Executable) () -> assertDoesNotThrow(() -> AbilityRadialRenderer.resolveAbilityIcon(ability),
+                    (Executable) () -> assertDoesNotThrow(() -> RadialWheelRenderer.resolveAbilityIcon(ability),
                             ability.id().toString())));
         }
 
         @Test
         void everyShippedAbilityIconExistsUnderGooAssets() {
             assertAll(shippedAbilities().stream().map(ability -> (Executable) () -> {
-                Identifier icon = AbilityRadialRenderer.resolveAbilityIcon(ability);
+                Identifier icon = RadialWheelRenderer.resolveAbilityIcon(ability);
                 assertEquals(Goo.MODID, icon.getNamespace(), ability.id().toString());
                 String resource = ASSETS_ROOT + icon.getNamespace() + "/" + icon.getPath();
-                assertNotNull(AbilityRadialRendererTest.class.getClassLoader().getResource(resource),
+                assertNotNull(RadialWheelRendererTest.class.getClassLoader().getResource(resource),
                         ability.id() + " resolves " + icon + " but no " + resource + " is on the classpath");
             }));
         }
@@ -71,19 +71,19 @@ class AbilityRadialRendererTest {
         @Test
         void namespacedIconKeepsItsOwnNamespace() {
             assertEquals(Identifier.fromNamespaceAndPath(Goo.MODID, TEXTURE_PATH),
-                    AbilityRadialRenderer.resolveAbilityIcon(abilityWithIcon(Goo.MODID + ":" + TEXTURE_PATH)));
+                    RadialWheelRenderer.resolveAbilityIcon(abilityWithIcon(Goo.MODID + ":" + TEXTURE_PATH)));
         }
 
         @Test
         void bareIconTakesTheGooNamespace() {
             assertEquals(Identifier.fromNamespaceAndPath(Goo.MODID, TEXTURE_PATH),
-                    AbilityRadialRenderer.resolveAbilityIcon(abilityWithIcon(TEXTURE_PATH)));
+                    RadialWheelRenderer.resolveAbilityIcon(abilityWithIcon(TEXTURE_PATH)));
         }
 
         @Test
         void emptyIconFallsBackToTheConventionPath() {
             assertEquals(Identifier.fromNamespaceAndPath(Goo.MODID, TEXTURE_PATH),
-                    AbilityRadialRenderer.resolveAbilityIcon(abilityWithIcon("")));
+                    RadialWheelRenderer.resolveAbilityIcon(abilityWithIcon("")));
         }
     }
 }
