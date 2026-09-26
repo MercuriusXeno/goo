@@ -13,11 +13,12 @@ import com.mercuriusxeno.goo.block.tap.TapDripGrade;
 import com.mercuriusxeno.goo.block.tap.TapDripScheduler;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.registry.GooBlocks;
+import com.mercuriusxeno.goo.registry.GooDripParticleOptions;
 import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.registry.GooParticles;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.particles.ColorParticleOption;
+import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
@@ -107,24 +108,27 @@ public final class TapDripTests {
     private static final String REFUSED_ABILITY_RUNS = "tap ability runs for a drip onto a refusing block";
     private static final String REFUSED_CANISTER_TYPE = "type a canister of another type holds after the drip";
 
-    private static final int DRIP_RGB = 0x336699;
     private static final String SENT_COUNT = "particles one tap drip sends";
     private static final String SENT_TYPE = "particle type one tap drip sends";
+    private static final String SENT_GOO_TYPE = "goo type one tap drip's particle carries";
 
     private TapDripTests() {
     }
 
     /**
-     * One tap drip sends the tap-drip particle, not the trail-drip
-     * (decision tap-drip-own-square-particles).
+     * One tap drip sends the tap-drip particle, not the trail-drip, naming the
+     * goo type drawn so the client draws that type's fluid sprite
+     * (decisions tap-drip-own-square-particles, particles-render-muted-goo-texture).
      *
      * @param helper the gametest helper
      */
     public static void tapDripSendsTapDrip(GameTestHelper helper) {
-        List<ColorParticleOption> sent = new ArrayList<>();
-        TapDrip.emit((option, at, velocity) -> sent.add(option), DRIP_RGB, Vec3.ZERO);
+        List<ParticleOptions> sent = new ArrayList<>();
+        TapDrip.emit((option, at, velocity) -> sent.add(option), TYPE, Vec3.ZERO);
         helper.assertValueEqual(sent.size(), 1, SENT_COUNT);
         helper.assertValueEqual(sent.getFirst().getType(), GooParticles.TAP_DRIP.get(), SENT_TYPE);
+        helper.assertTrue(sent.getFirst() instanceof GooDripParticleOptions drip && drip.gooType() == TYPE,
+                SENT_GOO_TYPE);
         helper.succeed();
     }
 

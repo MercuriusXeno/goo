@@ -3,8 +3,9 @@ package com.mercuriusxeno.goo.block.tap;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.block.canister.ICanisterHolder;
+import com.mercuriusxeno.goo.registry.GooDripParticleOptions;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.particles.ColorParticleOption;
+import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleType;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.phys.AABB;
@@ -32,9 +33,6 @@ class TapDripTest {
 
     private static final int SLOT = 0;
     private static final BlockPos TAP_POS = new BlockPos(10, 64, -3);
-    private static final int RGB = 0x336699;
-    private static final float CHANNEL_MAX = 255f;
-    private static final float COLOR_TOLERANCE = 1e-6f;
     private static final int FOUR_MB = 4;
 
     private static ICanisterHolder holderHolding(ResourceKey<GooTypeDefinition> type, int amount) {
@@ -77,26 +75,25 @@ class TapDripTest {
     }
 
     /**
-     * One drip sends one tinted particle from the spigot underside, falling
-     * straight down: zero x and z speed (decision tap-drip-own-square-particles).
+     * One drip sends one particle naming the drawn goo type from the spigot
+     * underside, falling straight down: zero x and z speed
+     * (decisions tap-drip-own-square-particles, particles-render-muted-goo-texture).
      */
     @Test
     @SuppressWarnings("unchecked")
-    void oneDripSendsOneTintedParticleStraightDownFromTheSpigot() {
+    void oneDripSendsOneTypedParticleStraightDownFromTheSpigot() {
         TapDrip.ParticleSink sink = mock(TapDrip.ParticleSink.class);
-        ParticleType<ColorParticleOption> drip = mock(ParticleType.class);
+        ParticleType<GooDripParticleOptions> drip = mock(ParticleType.class);
 
-        TapDrip.emit(sink, drip, RGB, TapSpigot.underside(TAP_POS));
+        TapDrip.emit(sink, drip, GooTypes.ROCK, TapSpigot.underside(TAP_POS));
 
-        ArgumentCaptor<ColorParticleOption> option = ArgumentCaptor.forClass(ColorParticleOption.class);
+        ArgumentCaptor<ParticleOptions> option = ArgumentCaptor.forClass(ParticleOptions.class);
         ArgumentCaptor<Vec3> start = ArgumentCaptor.forClass(Vec3.class);
         ArgumentCaptor<Vec3> velocity = ArgumentCaptor.forClass(Vec3.class);
         verify(sink, times(1)).send(option.capture(), start.capture(), velocity.capture());
 
         assertSame(drip, option.getValue().getType());
-        assertEquals(0x33 / CHANNEL_MAX, option.getValue().getRed(), COLOR_TOLERANCE);
-        assertEquals(0x66 / CHANNEL_MAX, option.getValue().getGreen(), COLOR_TOLERANCE);
-        assertEquals(0x99 / CHANNEL_MAX, option.getValue().getBlue(), COLOR_TOLERANCE);
+        assertEquals(GooTypes.ROCK, ((GooDripParticleOptions) option.getValue()).gooType());
         AABB spigot = TapSpigot.box(TAP_POS);
         Vec3 at = start.getValue();
         assertTrue(spigot.contains(at), "drip starts inside the spigot box, at " + at);

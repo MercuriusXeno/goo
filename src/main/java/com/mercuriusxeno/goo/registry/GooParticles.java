@@ -36,12 +36,12 @@ public class GooParticles {
         PARTICLE_TYPES.register("trail_drip_land", GooParticles::colorParticleType);
 
     /** The tap-drip: square drop falling straight down from a tap's spigot. */
-    public static final DeferredHolder<ParticleType<?>, ParticleType<ColorParticleOption>> TAP_DRIP =
-        PARTICLE_TYPES.register("tap_drip", GooParticles::colorParticleType);
+    public static final DeferredHolder<ParticleType<?>, ParticleType<GooDripParticleOptions>> TAP_DRIP =
+        PARTICLE_TYPES.register("tap_drip", GooParticles::gooDripParticleType);
 
     /** Square splat when a tap-drip hits the ground. */
-    public static final DeferredHolder<ParticleType<?>, ParticleType<ColorParticleOption>> TAP_DRIP_LAND =
-        PARTICLE_TYPES.register("tap_drip_land", GooParticles::colorParticleType);
+    public static final DeferredHolder<ParticleType<?>, ParticleType<GooDripParticleOptions>> TAP_DRIP_LAND =
+        PARTICLE_TYPES.register("tap_drip_land", GooParticles::gooDripParticleType);
 
     /** Sonic-boom-style particle oriented along the blast axis. */
     public static final DeferredHolder<ParticleType<?>, ParticleType<OrientedBoomParticleOptions>> ORIENTED_BOOM =
@@ -76,6 +76,25 @@ public class GooParticles {
             @Override
             public StreamCodec<? super RegistryFriendlyByteBuf, ColorParticleOption> streamCodec() {
                 return ColorParticleOption.streamCodec(this);
+            }
+        };
+    }
+
+    /**
+     * Creates a non-syncing ParticleType that carries a goo type.
+     *
+     * @return the configured goo drip particle type
+     */
+    private static ParticleType<GooDripParticleOptions> gooDripParticleType() {
+        return new ParticleType<>(false) {
+            @Override
+            public MapCodec<GooDripParticleOptions> codec() {
+                return GooDripParticleOptions.codec(this);
+            }
+
+            @Override
+            public StreamCodec<? super RegistryFriendlyByteBuf, GooDripParticleOptions> streamCodec() {
+                return GooDripParticleOptions.streamCodec(this);
             }
         };
     }

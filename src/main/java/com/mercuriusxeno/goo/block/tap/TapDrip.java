@@ -2,8 +2,9 @@ package com.mercuriusxeno.goo.block.tap;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.block.canister.ICanisterHolder;
+import com.mercuriusxeno.goo.registry.GooDripParticleOptions;
 import com.mercuriusxeno.goo.registry.GooParticles;
-import net.minecraft.core.particles.ColorParticleOption;
+import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleType;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
@@ -20,10 +21,6 @@ public final class TapDrip {
      * Downward speed the drip particle leaves the spigot with, in blocks per tick.
      */
     static final double DRIP_LEAVE_SPEED = -0.05;
-    /**
-     * Opaque alpha channel for the particle color.
-     */
-    private static final int OPAQUE_ALPHA = 0xFF000000;
 
     private TapDrip() {
     }
@@ -40,7 +37,7 @@ public final class TapDrip {
          * @param at       the starting point
          * @param velocity the starting velocity, in blocks per tick
          */
-        void send(ColorParticleOption option, Vec3 at, Vec3 velocity);
+        void send(ParticleOptions option, Vec3 at, Vec3 velocity);
     }
 
     /**
@@ -82,36 +79,38 @@ public final class TapDrip {
     }
 
     /**
-     * Sends one tap-drip particle of the type's color leaving the spigot
-     * straight down (decision tap-drip-own-square-particles).
+     * Sends one tap-drip particle of the goo type leaving the spigot
+     * straight down (decision particles-render-muted-goo-texture).
      *
-     * @param sink where the particle goes
-     * @param rgb  the goo type's color
-     * @param at   the spigot underside
+     * @param sink    where the particle goes
+     * @param gooType the goo type drawn
+     * @param at      the spigot underside
      */
-    public static void emit(ParticleSink sink, int rgb, Vec3 at) {
-        emit(sink, GooParticles.TAP_DRIP.get(), rgb, at);
+    public static void emit(ParticleSink sink, ResourceKey<GooTypeDefinition> gooType, Vec3 at) {
+        emit(sink, GooParticles.TAP_DRIP.get(), gooType, at);
     }
 
     /**
-     * Sends one drip particle of the type's color leaving the spigot straight down.
+     * Sends one drip particle of the goo type leaving the spigot straight down.
      *
      * @param sink     where the particle goes
      * @param particle the drip particle type
-     * @param rgb      the goo type's color
+     * @param gooType  the goo type drawn
      * @param at       the spigot underside
      */
-    static void emit(ParticleSink sink, ParticleType<ColorParticleOption> particle, int rgb, Vec3 at) {
-        send(sink, dripParticle(particle, rgb), at);
+    static void emit(ParticleSink sink, ParticleType<GooDripParticleOptions> particle,
+                     ResourceKey<GooTypeDefinition> gooType, Vec3 at) {
+        send(sink, dripParticle(particle, gooType), at);
     }
 
     /**
      * @param particle the drip particle type
-     * @param rgb      the goo type's color
-     * @return the opaque drip particle of that color
+     * @param gooType  the goo type drawn
+     * @return the drip particle naming that goo type, so the client draws its fluid sprite
      */
-    static ColorParticleOption dripParticle(ParticleType<ColorParticleOption> particle, int rgb) {
-        return ColorParticleOption.create(particle, rgb | OPAQUE_ALPHA);
+    static GooDripParticleOptions dripParticle(ParticleType<GooDripParticleOptions> particle,
+                                               ResourceKey<GooTypeDefinition> gooType) {
+        return new GooDripParticleOptions(particle, gooType);
     }
 
     /**
@@ -121,7 +120,7 @@ public final class TapDrip {
      * @param particle the drip particle
      * @param at       the spigot underside
      */
-    private static void send(ParticleSink sink, ColorParticleOption particle, Vec3 at) {
+    private static void send(ParticleSink sink, ParticleOptions particle, Vec3 at) {
         sink.send(particle, at, new Vec3(0.0, DRIP_LEAVE_SPEED, 0.0));
     }
 
@@ -138,7 +137,7 @@ public final class TapDrip {
      * @return the stream the tap pours, or null when the drip falls as a particle
      */
     static @Nullable TapStream release(TapDripGrade grade, TapStream pour, ParticleSink sink,
-                                       ColorParticleOption particle, Vec3 spigot) {
+                                       ParticleOptions particle, Vec3 spigot) {
         if (grade.pours()) {
             return pour;
         }
