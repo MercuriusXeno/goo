@@ -8,13 +8,16 @@ import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
 import com.mercuriusxeno.goo.ability.program.TapHost;
+import com.mercuriusxeno.goo.block.IGooReceptacle;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.ToIntFunction;
 
 /**
  * Holds tap drips in flight until the server tick they land on, drained from
@@ -65,7 +68,7 @@ public final class TapDripScheduler {
      * Lands every drip whose arrival tick has come. A drip whose level
      * belongs to a server no longer running is dropped. The client drip
      * particle draws its own splat on reaching the surface, so a landing
-     * sends none; it runs the type's tap ability.
+     * sends none; it pours into the block below or runs the type's tap ability.
      *
      * @param server the ticking server
      */
@@ -100,6 +103,43 @@ public final class TapDripScheduler {
     }
 
     /**
+     * Lands a drip on the block entity below it, if any, else on nothing.
+     *
+     * @param drip the arrived drip
+     * @return the programs run
+     */
+    static int land(PendingDrip drip) {
+        return land(drip, receptacleAt(drip.level(), drip.landingPos()), TapDripScheduler::runTapAbility);
+    }
+
+    /**
+     * Lands a drip: a receptacle keeping any of its goo swallows it and no
+     * program runs; a landing keeping none runs the type's tap ability
+     * (decision landing-goo-enters-any-holder).
+     *
+     * @param drip       the arrived drip
+     * @param receptacle the block entity the drip landed on, or null when it holds no goo
+     * @param tapAbility runs the type's tap ability at the landing, answering the programs run
+     * @return the programs run: zero when the receptacle kept the drip
+     */
+    public static int land(PendingDrip drip, @Nullable IGooReceptacle receptacle,
+                           ToIntFunction<PendingDrip> tapAbility) {
+        if (receptacle != null && receptacle.insertGoo(drip.type(), TapDrip.DRIP_VOLUME) > 0) {
+            return 0;
+        }
+        return tapAbility.applyAsInt(drip);
+    }
+
+    /**
+     * @param level the level the drip landed in, or null when none is loaded
+     * @param pos   the block the drip landed on
+     * @return the receptacle standing there, or null when the block holds no goo
+     */
+    public static @Nullable IGooReceptacle receptacleAt(@Nullable ServerLevel level, BlockPos pos) {
+        return level != null && level.getBlockEntity(pos) instanceof IGooReceptacle receptacle ? receptacle : null;
+    }
+
+    /**
      * Runs the type's tap ability program once on a tap host at the landing
      * (decision tap-ability-tagged-program). A type carrying no
      * tap ability lands its drip and nothing further happens: no program
@@ -108,7 +148,7 @@ public final class TapDripScheduler {
      * @param drip the arrived drip
      * @return the programs run: one when the type carries a tap ability, else zero
      */
-    static int land(PendingDrip drip) {
+    public static int runTapAbility(PendingDrip drip) {
         AbilityDefinition ability = AbilityRegistry.tapAbilityFor(drip.type());
         if (ability == null) {
             return 0;

@@ -9,6 +9,7 @@ import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.TapHost;
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
+import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
 import com.mercuriusxeno.goo.block.tap.TapBlock;
 import com.mercuriusxeno.goo.block.tap.TapBlockEntity;
 import com.mercuriusxeno.goo.block.tap.TapDrip;
@@ -39,6 +40,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Gametests for the tap's drip: what it draws, from where, and where it lands.
@@ -87,6 +89,16 @@ public final class TapDripTests {
     private static final int VALVE_CLICKS = 6;
     private static final String VALVE_OPEN = "valve open after click ";
     private static final String VALVE_GRADE = "drip grade after click ";
+
+    private static final BlockPos OTHER_TYPE_CANISTER_POS = new BlockPos(3, 0, 1);
+    private static final String CRUCIBLE_DRIPS_DRAWN = "tap canister drew its drips into the crucible";
+    private static final String CRUCIBLE_PENDING = "drips still in flight to the crucible";
+    private static final String CRUCIBLE_RESERVOIR = "crucible reservoir blaze volume";
+    private static final String RECEPTACLE_PROGRAMS = "programs a drip into a crucible runs";
+    private static final String RECEPTACLE_ABILITY_RUNS = "tap ability runs for a drip into a crucible";
+    private static final String REFUSED_PROGRAMS = "programs a drip onto a refusing block runs";
+    private static final String REFUSED_ABILITY_RUNS = "tap ability runs for a drip onto a refusing block";
+    private static final String REFUSED_CANISTER_TYPE = "type a canister of another type holds after the drip";
 
     private static final int DRIP_RGB = 0x336699;
     private static final String SENT_COUNT = "particles one tap drip sends";
@@ -289,6 +301,99 @@ public final class TapDripTests {
             }
         }
         helper.succeed();
+    }
+
+    /**
+     * A tap holding a blaze canister over a crucible moves its drips into the
+     * crucible's reservoir: the reservoir rises by the mB the canister lost
+     * (decision landing-goo-enters-any-holder).
+     *
+     * @param helper the gametest helper
+     */
+    public static void tapDripFillsCrucibleBelow(GameTestHelper helper) {
+        BlockPos cruciblePos = TAP_POS.below();
+        helper.setBlock(cruciblePos, GooBlocks.CRUCIBLE.get());
+        CrucibleBlockEntity crucible = helper.getBlockEntity(cruciblePos, CrucibleBlockEntity.class);
+        helper.setBlock(TAP_POS, GooBlocks.TAP.get().defaultBlockState().setValue(TapBlock.OPEN, true));
+        TapBlockEntity tap = helper.getBlockEntity(TAP_POS, TapBlockEntity.class);
+        tap.insertCanister(new ItemStack(GooItems.CANISTER.get()));
+        tap.insertGoo(GooTypes.BLAZE, START_VOLUME);
+        tap.setDripGrade(TEST_GRADE);
+        BlockPos tapAbs = helper.absolutePos(TAP_POS);
+
+        helper.succeedWhen(() -> {
+            int lost = START_VOLUME - tap.getFluidContent().amount();
+            helper.assertTrue(lost >= DRIPS, CRUCIBLE_DRIPS_DRAWN);
+            helper.assertValueEqual(TapDripScheduler.pending().stream()
+                    .filter(drip -> drip.tapPos().equals(tapAbs)).count(), 0L, CRUCIBLE_PENDING);
+            helper.assertValueEqual(crucible.getReservoir().getVolume(GooTypes.BLAZE), lost, CRUCIBLE_RESERVOIR);
+        });
+    }
+
+    /**
+     * A drip landing on a crucible pours into its reservoir and runs no tap
+     * program (decision landing-goo-enters-any-holder).
+     *
+     * @param helper the gametest helper
+     */
+    public static void tapDripIntoCrucibleRunsNoProgram(GameTestHelper helper) {
+        BlockPos cruciblePos = TAP_POS.below();
+        helper.setBlock(cruciblePos, GooBlocks.CRUCIBLE.get());
+        CrucibleBlockEntity crucible = helper.getBlockEntity(cruciblePos, CrucibleBlockEntity.class);
+        AtomicInteger abilityRuns = new AtomicInteger();
+
+        int programs = landAt(helper, cruciblePos, GooTypes.BLAZE, abilityRuns);
+
+        helper.assertValueEqual(programs, 0, RECEPTACLE_PROGRAMS);
+        helper.assertValueEqual(abilityRuns.get(), 0, RECEPTACLE_ABILITY_RUNS);
+        helper.assertValueEqual(crucible.getReservoir().getVolume(GooTypes.BLAZE), 1, CRUCIBLE_RESERVOIR);
+        helper.succeed();
+    }
+
+    /**
+     * A drip landing on a block that keeps none of it, stone or a canister
+     * holding another type, runs the type's tap program and inserts nothing
+     * (decision landing-goo-enters-any-holder).
+     *
+     * @param helper the gametest helper
+     */
+    public static void tapDripOnRefusingBlockRunsProgram(GameTestHelper helper) {
+        BlockPos stonePos = TAP_POS.below();
+        helper.setBlock(stonePos, Blocks.STONE);
+        BlockPos canisterPos = OTHER_TYPE_CANISTER_POS;
+        helper.setBlock(canisterPos, GooBlocks.CANISTER.get());
+        CanisterBlockEntity canister = helper.getBlockEntity(canisterPos, CanisterBlockEntity.class);
+        canister.insertCanister(NEIGHBOR_SLOT, new ItemStack(GooItems.CANISTER.get()), false);
+        canister.insertGoo(NEIGHBOR_SLOT, TYPE, START_VOLUME);
+
+        for (BlockPos landing : List.of(stonePos, canisterPos)) {
+            AtomicInteger abilityRuns = new AtomicInteger();
+            int programs = landAt(helper, landing, GooTypes.BLAZE, abilityRuns);
+            helper.assertValueEqual(programs, 1, REFUSED_PROGRAMS);
+            helper.assertValueEqual(abilityRuns.get(), 1, REFUSED_ABILITY_RUNS);
+        }
+        helper.assertValueEqual(canister.getSlotFluidContent(NEIGHBOR_SLOT).amount(), START_VOLUME, NEIGHBOR_VOLUME);
+        helper.assertValueEqual(canister.getSlotGooType(NEIGHBOR_SLOT), TYPE, REFUSED_CANISTER_TYPE);
+        helper.succeed();
+    }
+
+    /**
+     * Lands one drip on a block through the scheduler's landing, with a tap
+     * ability that counts its runs and answers one program.
+     *
+     * @param helper      the gametest helper
+     * @param landing     the block the drip lands on, relative
+     * @param type        the goo type the drip carries
+     * @param abilityRuns counts the tap ability's runs
+     * @return the programs the landing answered
+     */
+    private static int landAt(GameTestHelper helper, BlockPos landing, ResourceKey<GooTypeDefinition> type,
+                              AtomicInteger abilityRuns) {
+        BlockPos landingAbs = helper.absolutePos(landing);
+        TapDripScheduler.PendingDrip drip = new TapDripScheduler.PendingDrip(helper.getLevel(),
+                landingAbs.above(), landingAbs, Direction.UP, type, 0);
+        return TapDripScheduler.land(drip, TapDripScheduler.receptacleAt(helper.getLevel(), landingAbs),
+                arrived -> abilityRuns.incrementAndGet());
     }
 
     private static TapBlockEntity filledTap(GameTestHelper helper) {
