@@ -11,6 +11,7 @@ import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.ArgumentBuilder;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
@@ -32,6 +33,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.storage.LevelResource;
+import net.neoforged.fml.loading.FMLEnvironment;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -284,23 +286,48 @@ public final class GooCommand {
     }
 
     /**
-     * Registers all /goo subcommands with the dispatcher.
+     * Registers all /goo subcommands with the dispatcher; the dev gate is open
+     * outside a production launch.
      *
      * @param dispatcher the server command dispatcher
      */
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
-        dispatcher.register(Commands.literal(CMD_GOO)
+        dispatcher.register(commandTree(!FMLEnvironment.isProduction()));
+    }
+
+    /**
+     * Builds the /goo command tree. The world-editing dev subcommands, lab and
+     * orphans, join it only when the dev gate is open (decision gametest-and-tools-source-sets).
+     *
+     * @param devGateOpen whether the dev subcommands register
+     * @return the root literal builder
+     */
+    static LiteralArgumentBuilder<CommandSourceStack> commandTree(boolean devGateOpen) {
+        LiteralArgumentBuilder<CommandSourceStack> root = Commands.literal(CMD_GOO)
                 .then(lookupSubcommand())
                 .then(GooTypesCommand.subcommand())
                 .then(opSubcommand(CMD_RELOAD, GooCommand::reload))
                 .then(opSubcommand(CMD_REGEN, GooCommand::regen))
                 .then(opSubcommand(CMD_AUDIT, GooAuditReport::run))
                 .then(scaffoldSubcommand())
-                .then(LabCommand.children(Commands.literal(LabCommand.CMD_LAB).requires(GooCommand::requiresOp)))
-                .then(opSubcommand(CMD_INIT, GooCommand::init))
-                .then(Commands.literal(CMD_ORPHANS).requires(GooCommand::requiresOp)
-                        .executes(ctx -> scanOrphans(ctx, false))
-                        .then(Commands.literal(CMD_FIX).executes(ctx -> scanOrphans(ctx, true)))));
+                .then(opSubcommand(CMD_INIT, GooCommand::init));
+        if (devGateOpen) {
+            root.then(LabCommand.children(Commands.literal(LabCommand.CMD_LAB).requires(GooCommand::requiresOp)))
+                    .then(orphansSubcommand());
+        }
+        return root;
+    }
+
+    /**
+     * Builds the /goo orphans subcommand, which scans and optionally removes
+     * orphaned block entities.
+     *
+     * @return the orphans argument builder
+     */
+    private static ArgumentBuilder<CommandSourceStack, ?> orphansSubcommand() {
+        return Commands.literal(CMD_ORPHANS).requires(GooCommand::requiresOp)
+                .executes(ctx -> scanOrphans(ctx, false))
+                .then(Commands.literal(CMD_FIX).executes(ctx -> scanOrphans(ctx, true)));
     }
 
     /**
