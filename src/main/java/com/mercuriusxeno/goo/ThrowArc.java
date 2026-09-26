@@ -12,11 +12,8 @@ import net.minecraft.world.phys.Vec3;
  */
 public final class ThrowArc {
 
-    /** Peak height of a throw at one block or closer, in blocks. */
-    public static final double BASE_PEAK_FLOOR = 1.0;
-
-    /** Blocks of peak height added per doubling of throw distance. */
-    public static final double PEAK_PER_DOUBLING = 0.25;
+    /** Power of throw distance the base peak grows by, 0.5 being the square root. */
+    public static final double PEAK_EXPONENT = 0.5;
 
     /** Flat boost the granny arc adds to the base peak, in blocks. */
     public static final double ARC_FLAT_BOOST = 1.0;
@@ -39,8 +36,6 @@ public final class ThrowArc {
 
     /** Parabolic factor for "2 - s" envelope in the skewed arc rise phase. */
     private static final double ARC_RISE_FACTOR = 2.0;
-    /** Natural log of two, the divisor turning a natural log into log base two. */
-    private static final double LN_2 = Math.log(2.0);
     /** Left-arm side indicator (negative direction). */
     private static final float LEFT_ARM_SIDE = -1f;
 
@@ -61,14 +56,14 @@ public final class ThrowArc {
     }
 
     /**
-     * Computes the base peak height from throw distance, growing by a
-     * quarter block per doubling so short and long throws both read as arcs.
+     * Computes the base peak height from throw distance as a power law, so
+     * the arc grows visibly with range without reaching the linear arc's height.
      *
-     * @param distance world-space distance in blocks, floored at one
+     * @param distance world-space distance in blocks
      * @return peak height in blocks
      */
     public static double basePeak(double distance) {
-        return BASE_PEAK_FLOOR + PEAK_PER_DOUBLING * log2(Math.max(1.0, distance));
+        return Math.pow(Math.max(0.0, distance), PEAK_EXPONENT);
     }
 
     /**
@@ -79,10 +74,6 @@ public final class ThrowArc {
      */
     public static double grannyPeak(double distance) {
         return basePeak(distance) * GRANNY_PEAK_SCALE + ARC_FLAT_BOOST;
-    }
-
-    private static double log2(double value) {
-        return Math.log(value) / LN_2;
     }
 
     /**
