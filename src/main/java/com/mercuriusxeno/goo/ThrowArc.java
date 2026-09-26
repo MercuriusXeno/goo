@@ -12,8 +12,11 @@ import net.minecraft.world.phys.Vec3;
  */
 public final class ThrowArc {
 
-    /** Power of throw distance the base peak grows by, 0.5 being the square root. */
-    public static final double PEAK_EXPONENT = 0.5;
+    /** Blocks of base peak per unit of distance raised to {@link #PEAK_EXPONENT}. */
+    public static final double PEAK_SCALE = 0.2;
+
+    /** Power of throw distance the base peak grows by. */
+    public static final double PEAK_EXPONENT = 0.75;
 
     /** Flat boost the granny arc adds to the base peak, in blocks. */
     public static final double ARC_FLAT_BOOST = 1.0;
@@ -57,13 +60,14 @@ public final class ThrowArc {
 
     /**
      * Computes the base peak height from throw distance as a power law, so
-     * the arc grows visibly with range without reaching the linear arc's height.
+     * short throws barely lift and long throws arc without reaching the
+     * linear arc's height.
      *
      * @param distance world-space distance in blocks
      * @return peak height in blocks
      */
     public static double basePeak(double distance) {
-        return Math.pow(Math.max(0.0, distance), PEAK_EXPONENT);
+        return PEAK_SCALE * Math.pow(Math.max(0.0, distance), PEAK_EXPONENT);
     }
 
     /**
