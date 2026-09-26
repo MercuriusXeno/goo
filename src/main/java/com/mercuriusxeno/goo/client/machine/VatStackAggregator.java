@@ -36,7 +36,7 @@ public final class VatStackAggregator {
             return null;
         }
         StackGaskets gaskets = resolveGaskets(level, stack.top(), stack.bottom());
-        return buildStackData(targetVat, stack.contents(), gaskets, stack.column().size());
+        return buildStackData(targetVat, stack.contents(), stack.water(), gaskets, stack.column().size());
     }
 
     /**
@@ -44,14 +44,17 @@ public final class VatStackAggregator {
      *
      * @param targetVat the targeted vat block entity
      * @param contents  the summed goo contents
+     * @param water     the summed water volume
      * @param gaskets   the resolved gasket state
      * @param stackSize the number of vats in the stack
      * @return the assembled stack data
      */
     private static VatStackData buildStackData(VatBlockEntity targetVat,
-                                               GooContents contents, StackGaskets gaskets, int stackSize) {
+                                               GooContents contents, long water,
+                                               StackGaskets gaskets, int stackSize) {
         return new VatStackData(
                 contents,
+                water,
                 targetVat.getCompressionLevel(),
                 gaskets.capGasket(),
                 gaskets.baseGasket(),
@@ -102,6 +105,7 @@ public final class VatStackAggregator {
      * and label are from the targeted vat, gaskets are from stack endpoints.
      *
      * @param contents    the summed goo contents of the stack
+     * @param water       the summed water volume of the stack (decision diagnose-then-fix-vat-hud-water-row)
      * @param compression the compression level of the targeted vat
      * @param gasketCap   whether the top vat has a cap gasket
      * @param gasketBase  whether the bottom vat has a base gasket
@@ -111,7 +115,7 @@ public final class VatStackAggregator {
      * @param stackSize   the number of vats in the stack
      */
     public record VatStackData(
-            GooContents contents, int compression,
+            GooContents contents, long water, int compression,
             boolean gasketCap, boolean gasketBase,
             @Nullable String label,
             @Nullable GasketPartner capPartner, @Nullable GasketPartner basePartner,
@@ -133,6 +137,17 @@ public final class VatStackAggregator {
          */
         public boolean hasLabel() {
             return label != null && !label.isEmpty();
+        }
+
+        /**
+         * Returns true when the stack holds no goo and no water and carries
+         * no upgrade and no label, so its panel would show nothing.
+         *
+         * @return true if the panel has nothing to show
+         */
+        public boolean hasNothingToShow() {
+            // A stack holding water alone still shows (decision diagnose-then-fix-vat-hud-water-row).
+            return contents.isEmpty() && water <= 0 && compression <= 0 && !hasLabel();
         }
     }
 }

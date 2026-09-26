@@ -6,7 +6,7 @@ import java.util.List;
 
 /**
  * Supplies the vat HUD panel's rows: label, stack size, upgrade level, then
- * the stack's goo rows (decision one-panel-painter-takes-rows).
+ * the stack's goo rows (decision one-panel-painter-takes-rows), then its water row.
  */
 final class VatPanelRows {
 
@@ -35,6 +35,11 @@ final class VatPanelRows {
         if (data.compression() > 0) {
             headers.add(PanelPainter.upgradeRow(data.compression()));
         }
-        return PanelPainter.rows(headers, data.contents());
+        List<PanelRow> rows = PanelPainter.rows(headers, data.contents());
+        // A vat holds water beside its goo (decision diagnose-then-fix-vat-hud-water-row).
+        if (data.water() > 0) {
+            rows.add(PanelPainter.waterRow(data.water()));
+        }
+        return rows;
     }
 }
