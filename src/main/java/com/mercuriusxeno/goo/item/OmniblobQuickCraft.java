@@ -8,6 +8,8 @@ import net.minecraft.world.item.ItemStack;
  */
 public final class OmniblobQuickCraft {
 
+    private static final int ONE_MICROBLOB = 1;
+
     private OmniblobQuickCraft() {}
 
     /**
@@ -37,12 +39,14 @@ public final class OmniblobQuickCraft {
     /**
      * The unit one right-drag slot or one cursor right-click on an empty slot
      * places, read from the carried volume: one blob (1,000 mB) while the
-     * cursor holds more than one blob (decision right-drag-over-one-blob-places-blobs).
+     * cursor holds more than one blob (decision right-drag-over-one-blob-places-blobs),
+     * and one microblob (1 mB) at one blob or less
+     * (decision right-drag-one-blob-places-microblobs).
      *
      * @param carriedVolume the volume on the cursor, in microblobs
      * @return the volume one slot receives, in microblobs
      */
     public static int greedyPerSlot(int carriedVolume) {
-        return BlobStacks.MB_PER_BLOB;
+        return carriedVolume > BlobStacks.MB_PER_BLOB ? BlobStacks.MB_PER_BLOB : ONE_MICROBLOB;
     }
 }
