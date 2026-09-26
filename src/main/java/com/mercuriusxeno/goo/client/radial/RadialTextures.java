@@ -11,8 +11,9 @@ import java.util.Map;
 
 /**
  * Generates and caches anti-aliased mask textures for the radial wheel:
- * one white-on-transparent DynamicTexture per annular arc (a type wedge in
- * either ring, or an ability wedge of a fan) and per hub circle. Edges are
+ * one white-on-transparent DynamicTexture per wedge (a type wedge in either
+ * ring, or an ability wedge of a fan), shaped as a {@link PetalMask}, and
+ * per hub circle. Edges are
  * smoothed via 4x4 sub-pixel multi-sampling. A mask spans the wheel's full
  * diameter, so every mask blits over the same square.
  */
@@ -50,7 +51,7 @@ public final class RadialTextures {
     }
 
     /**
-     * Returns the mask of an annular arc, generating it on first use.
+     * Returns the mask of a wedge's petal, generating it on first use.
      *
      * @param startAngle the arc's start, clockwise from the top, in radians
      * @param arc        the arc's span in radians
@@ -63,7 +64,7 @@ public final class RadialTextures {
         String key = keyOf(start) + KEY_SEPARATOR + keyOf(arc) + KEY_SEPARATOR
                 + keyOf(innerNorm) + KEY_SEPARATOR + keyOf(outerNorm);
         return MASKS.computeIfAbsent(ARC_PATH + key, path -> register(path, ARC_LABEL + key,
-                (x, y) -> isInsideArc(x, y, start, arc, innerNorm, outerNorm)));
+                (x, y) -> PetalMask.isInsidePetal(x, y, start, arc, innerNorm, outerNorm)));
     }
 
     /**
@@ -93,26 +94,6 @@ public final class RadialTextures {
         Identifier id = Identifier.fromNamespaceAndPath(Goo.MODID, path);
         Minecraft.getInstance().getTextureManager().register(id, new DynamicTexture(() -> label, image));
         return id;
-    }
-
-    /**
-     * Tests whether a normalized coordinate lies inside the annular arc.
-     *
-     * @param x          normalized x (-1..1, center = 0)
-     * @param y          normalized y (-1..1, center = 0, down positive)
-     * @param startAngle the arc's start in [0, 2 pi)
-     * @param arc        the arc's span
-     * @param innerNorm  the band's inner radius
-     * @param outerNorm  the band's outer radius
-     * @return true if the point is within the band and the arc
-     */
-    private static boolean isInsideArc(double x, double y, double startAngle, double arc,
-                                       double innerNorm, double outerNorm) {
-        double dist = Math.sqrt(x * x + y * y);
-        if (dist < innerNorm || dist > outerNorm) {
-            return false;
-        }
-        return wrap(RadialWheel.angleOf(x, y) - startAngle) < arc;
     }
 
     private static void rasterize(NativeImage image, MaskShape shape) {
