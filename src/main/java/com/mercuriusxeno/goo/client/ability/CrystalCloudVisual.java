@@ -11,7 +11,6 @@ import com.mercuriusxeno.goo.client.ber.ChainMarkerRenderState;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.SubmitNodeCollector;
-import net.minecraft.core.BlockPos;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
@@ -21,8 +20,6 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Vector3f;
 import org.jspecify.annotations.Nullable;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Random;
 
 /**
@@ -200,15 +197,7 @@ public final class CrystalCloudVisual {
      */
     private static final double REFLECT_COEFF = 2.0;
 
-    /**
-     * Client ticks a cloud may go undrawn before its sampler is dropped.
-     */
-    private static final long SAMPLER_IDLE_TICKS = 20L;
-
     private static final float[] SLIVER_DATA = buildSliverData();
-
-    /** Each drawn cloud's reflection sampler, keyed by its marker. */
-    private static final Map<BlockPos, ReflectionSampler> SAMPLERS = new HashMap<>();
 
     /**
      * What one frame of one cloud draws.
@@ -219,11 +208,25 @@ public final class CrystalCloudVisual {
      * @param radius       the current cloud radius
      * @param origin       the marker block's world corner
      * @param camPos       the camera eye position
-     * @param tick         the client tick being drawn
      * @param probe        casts the reflection rays
      */
     record CloudDraw(int visibleCount, int alpha, float time, float radius,
-                     Vec3 origin, Vec3 camPos, long tick, ReflectionSampler.BlockColorProbe probe) {
+                     Vec3 origin, Vec3 camPos, BlockColorProbe probe) {
+    }
+
+    /**
+     * The color a ray finds in the world.
+     */
+    @FunctionalInterface
+    interface BlockColorProbe {
+        /**
+         * Casts a ray and answers the RGB color of what it hits.
+         *
+         * @param origin    the ray start
+         * @param direction the ray direction
+         * @return the RGB color of the block hit, or the sky's on a miss
+         */
+        int colorAlong(Vec3 origin, Vec3 direction);
     }
 
     private CrystalCloudVisual() {
@@ -303,11 +306,9 @@ public final class CrystalCloudVisual {
         if (mc.level == null || mc.player == null) {
             return;
         }
-        BlockPos bePos = state.blockPos.immutable();
         CloudDraw draw = drawOf(state, mc.level, mc.player.getEyePosition(state.partialTick));
-        ReflectionSampler sampler = samplerFor(bePos, draw.tick());
         nodeCollector.submitCustomGeometry(poseStack, GooRenderTypes.CRYSTAL_SHARD_TYPE,
-                (pose, c) -> emitCloud(new FlatQuadContext(pose, c), draw, sampler));
+                (pose, c) -> emitCloud(new FlatQuadContext(pose, c), draw));
     }
 
     /**
@@ -328,54 +329,34 @@ public final class CrystalCloudVisual {
                 state.crystalRadius * radiusFrac,
                 Vec3.atLowerCornerOf(state.blockPos),
                 camPos,
-                level.getGameTime(),
                 (origin, direction) -> raycastBlockColor(level, origin, direction));
-    }
-
-    /**
-     * The sampler holding a marker's reflections, dropping those of clouds
-     * that went undrawn.
-     *
-     * @param pos  the marker position
-     * @param tick the client tick being drawn
-     * @return the marker's sampler
-     */
-    private static ReflectionSampler samplerFor(BlockPos pos, long tick) {
-        SAMPLERS.values().removeIf(sampler -> sampler.idleSince(tick, SAMPLER_IDLE_TICKS));
-        return SAMPLERS.computeIfAbsent(pos, p -> new ReflectionSampler(MAX_SLIVERS));
     }
 
     /**
      * Emits every visible sliver of one cloud.
      *
-     * @param face    the context the shard faces emit through
-     * @param draw    what this frame draws
-     * @param sampler the cloud's reflection sampler
+     * @param face the context the shard faces emit through
+     * @param draw what this frame draws
      */
-    static void emitCloud(FlatQuadContext face, CloudDraw draw, ReflectionSampler sampler) {
+    static void emitCloud(FlatQuadContext face, CloudDraw draw) {
         for (int i = 0; i < draw.visibleCount(); i++) {
-            emitSliver(face, i, draw, sampler);
+            emitSliver(face, i, draw);
         }
     }
 
     /**
-     * Emits one sliver as a pyramid over its shape's base ring, colored by
-     * the reflection its sampler holds for this tick.
+     * Emits one sliver as a pyramid over its shape's base ring.
      *
-     * @param face    the context the shard faces emit through
-     * @param index   the sliver index
-     * @param draw    what this frame draws
-     * @param sampler the cloud's reflection sampler
+     * @param face  the context the shard faces emit through
+     * @param index the sliver index
+     * @param draw  what this frame draws
      */
-    private static void emitSliver(FlatQuadContext face, int index, CloudDraw draw, ReflectionSampler sampler) {
+    private static void emitSliver(FlatQuadContext face, int index, CloudDraw draw) {
         int off = index * SLIVER_STRIDE;
         ShardFrame frame = frameOf(off, draw);
         Vec3 worldCenter = draw.origin().add(frame.center().x(), frame.center().y(), frame.center().z());
-        int rgb = sampler.colorFor(index, draw.tick(),
-                () -> reflectedColor(draw, worldCenter, frame.normal()));
-        int color = ARGB.color(Math.max(1, draw.alpha()), rgb);
         Vector3f apex = frame.apex(SLIVER_DATA[off + OFF_DEPTH] * frame.halfLength());
-        emitPyramid(face, baseRing(SLIVER_DATA[off + OFF_SHAPE], frame), apex, color);
+        emitPyramid(face, baseRing(SLIVER_DATA[off + OFF_SHAPE], frame), apex, draw, worldCenter);
     }
 
     /**
@@ -447,18 +428,22 @@ public final class CrystalCloudVisual {
 
     /**
      * Emits a pyramid: one triangle from each edge of the base ring up to
-     * the apex, each lit by its own face normal.
+     * the apex, each lit by its own face normal and colored by what that
+     * face reflects this frame.
      *
-     * @param face  the context the faces emit through
-     * @param ring  the base corners in winding order
-     * @param apex  the apex
-     * @param color the ARGB color every face takes
+     * @param face        the context the faces emit through
+     * @param ring        the base corners in winding order
+     * @param apex        the apex
+     * @param draw        what this frame draws
+     * @param worldCenter the shard's world position
      */
-    private static void emitPyramid(FlatQuadContext face, Vector3f[] ring, Vector3f apex, int color) {
+    private static void emitPyramid(FlatQuadContext face, Vector3f[] ring, Vector3f apex,
+                                    CloudDraw draw, Vec3 worldCenter) {
         for (int i = 0; i < ring.length; i++) {
             Vector3f start = ring[i];
             Vector3f end = ring[(i + 1) % ring.length];
             Vector3f normal = new Vector3f(end).sub(start).cross(new Vector3f(apex).sub(start));
+            int color = reflectColor(draw, worldCenter, normal);
             ConeGeometry.emitTriangle(corner -> {
                 Vector3f at = switch (corner) {
                     case ConeGeometry.BASE_START -> start;
@@ -471,26 +456,34 @@ public final class CrystalCloudVisual {
     }
 
     /**
-     * Samples the color the shard reflects: the camera's view of it bounced
-     * off its face normal and cast into the world.
+     * The color a face reflects: the camera's view of the shard bounced off
+     * the face's normal and cast into the world, brightened, at the draw's alpha.
      *
      * @param draw        what this frame draws, carrying the camera and the probe
      * @param worldCenter the shard's world position
-     * @param normal      the shard's unit face normal
-     * @return the brightened RGB color the ray finds
+     * @param normal      the face normal (unnormalized)
+     * @return packed ARGB with the reflected block color and the draw's alpha
      */
-    private static int reflectedColor(CloudDraw draw, Vec3 worldCenter, Vector3f normal) {
+    private static int reflectColor(CloudDraw draw, Vec3 worldCenter, Vector3f normal) {
+        float len = normal.length();
+        if (len < NORMALIZE_EPSILON) {
+            return ARGB.color(draw.alpha(), SKY_COLOR);
+        }
+        float invLen = 1f / len;
+        float fnx = normal.x * invLen;
+        float fny = normal.y * invLen;
+        float fnz = normal.z * invLen;
         Vec3 toShard = worldCenter.subtract(draw.camPos()).normalize();
-        double dot = toShard.x * normal.x + toShard.y * normal.y + toShard.z * normal.z;
+        double dot = toShard.x * fnx + toShard.y * fny + toShard.z * fnz;
         Vec3 reflected = new Vec3(
-                toShard.x - REFLECT_COEFF * dot * normal.x,
-                toShard.y - REFLECT_COEFF * dot * normal.y,
-                toShard.z - REFLECT_COEFF * dot * normal.z);
+                toShard.x - REFLECT_COEFF * dot * fnx,
+                toShard.y - REFLECT_COEFF * dot * fny,
+                toShard.z - REFLECT_COEFF * dot * fnz);
         int rgb = draw.probe().colorAlong(worldCenter, reflected);
-        return ARGB.color(0,
-                Math.min((int) (ARGB.red(rgb) * REFLECT_BRIGHTNESS), FULL_ALPHA),
-                Math.min((int) (ARGB.green(rgb) * REFLECT_BRIGHTNESS), FULL_ALPHA),
-                Math.min((int) (ARGB.blue(rgb) * REFLECT_BRIGHTNESS), FULL_ALPHA));
+        int r = Math.min((int) (ARGB.red(rgb) * REFLECT_BRIGHTNESS), FULL_ALPHA);
+        int g = Math.min((int) (ARGB.green(rgb) * REFLECT_BRIGHTNESS), FULL_ALPHA);
+        int b = Math.min((int) (ARGB.blue(rgb) * REFLECT_BRIGHTNESS), FULL_ALPHA);
+        return ARGB.color(Math.max(1, draw.alpha()), r, g, b);
     }
 
     /**
