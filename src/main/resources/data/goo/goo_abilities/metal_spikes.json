@@ -18,6 +18,7 @@
       "where": ["living", "alive", "not_item", "not_sneaking"],
       "cooldown": 10,
       "per_stack": 1,
+      "spend_chance": 0.5,
       "strike_tick": 6,
       "strike_ticks": 13,
       "strike": [

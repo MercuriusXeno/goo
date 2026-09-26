@@ -15,8 +15,8 @@ import java.util.stream.Stream;
  * on its entity at {@code strike_tick}; then, off cooldown, it selects the
  * living entities in the radius that every filter keeps and starts a strike
  * on each one not already struck whose {@code interval} divides the field's
- * tick count, spending one charge each, with {@code per_stack} charges to a
- * stack. When no stack remains and no strike is in flight it runs the
+ * tick count, spending one charge each by {@code spend_chance}, with
+ * {@code per_stack} charges to a stack. When no stack remains and no strike is in flight it runs the
  * teardown once and finishes after {@code contract_ticks}. Stacking after
  * the fuse tops the budget off.
  *
@@ -36,6 +36,7 @@ import java.util.stream.Stream;
  * @param cooldown    ticks after a strike starts before the next may start
  * @param interval    the tick period on which a selected entity may be struck, read on the entity
  * @param perStack    charges each stacked blob holds
+ * @param spendChance the chance in [0, 1] that a strike spends its charge
  * @param strikeTick  the strike age at which the strike body lands, zero to land at once
  * @param strikeTicks how many ticks a strike stays in flight
  * @param timing      how long the field takes to expand and to contract
@@ -43,8 +44,8 @@ import java.util.stream.Stream;
  * @param teardown    the steps run on the marker once the budget is spent
  */
 public record FieldEffectStep(Expr radius, List<EntityFilter> where, Expr cooldown, Expr interval,
-                              Expr perStack, Expr strikeTick, Expr strikeTicks, FieldTiming timing,
-                              List<Step> strike, List<Step> teardown) implements Step {
+                              Expr perStack, Expr spendChance, Expr strikeTick, Expr strikeTicks,
+                              FieldTiming timing, List<Step> strike, List<Step> teardown) implements Step {
 
     private static final String NAME = "field_effect";
     private static final String FIELD_RADIUS = "radius";
@@ -52,6 +53,7 @@ public record FieldEffectStep(Expr radius, List<EntityFilter> where, Expr cooldo
     private static final String FIELD_COOLDOWN = "cooldown";
     private static final String FIELD_INTERVAL = "interval";
     private static final String FIELD_PER_STACK = "per_stack";
+    private static final String FIELD_SPEND_CHANCE = "spend_chance";
     private static final String FIELD_STRIKE_TICK = "strike_tick";
     private static final String FIELD_STRIKE_TICKS = "strike_ticks";
     private static final String FIELD_STRIKE = "strike";
@@ -67,6 +69,7 @@ public record FieldEffectStep(Expr radius, List<EntityFilter> where, Expr cooldo
             Expr.CODEC.optionalFieldOf(FIELD_COOLDOWN, Expr.literal(0)).forGetter(FieldEffectStep::cooldown),
             Expr.CODEC.optionalFieldOf(FIELD_INTERVAL, Expr.literal(1)).forGetter(FieldEffectStep::interval),
             Expr.CODEC.optionalFieldOf(FIELD_PER_STACK, Expr.literal(1)).forGetter(FieldEffectStep::perStack),
+            Expr.CODEC.optionalFieldOf(FIELD_SPEND_CHANCE, Expr.literal(1)).forGetter(FieldEffectStep::spendChance),
             Expr.CODEC.optionalFieldOf(FIELD_STRIKE_TICK, Expr.literal(0)).forGetter(FieldEffectStep::strikeTick),
             Expr.CODEC.optionalFieldOf(FIELD_STRIKE_TICKS, Expr.literal(1)).forGetter(FieldEffectStep::strikeTicks),
             FieldTiming.CODEC.forGetter(FieldEffectStep::timing),
@@ -140,7 +143,9 @@ public record FieldEffectStep(Expr radius, List<EntityFilter> where, Expr cooldo
     /**
      * Starts a strike on the selected entity unless the field is cooling
      * down, the entity is already struck, the entity's interval skips this
-     * tick or the budget is spent.
+     * tick or the budget is spent. A strike whose roll misses the spend
+     * chance still starts and lands but spares the charge (decision
+     * metal-spends-charge-by-chance).
      *
      * @param context the marker's tick context
      * @param state   the field-effect state
@@ -156,7 +161,7 @@ public record FieldEffectStep(Expr radius, List<EntityFilter> where, Expr cooldo
         if (state.fieldTicks() % period != 0) {
             return;
         }
-        spendCharge(context, state);
+        spendChargeByChance(context, state);
         state.addStrike(aimed);
         state.setCooldown(cooldown.evaluateInt(context));
         if (state.strikeTick() == 0) {
@@ -165,13 +170,17 @@ public record FieldEffectStep(Expr radius, List<EntityFilter> where, Expr cooldo
     }
 
     /**
-     * Spends one charge, decrementing the marker's stack count each time a
-     * stack's worth of charges is spent.
+     * Spends one charge when the host's roll falls below the spend chance,
+     * decrementing the marker's stack count each time a stack's worth of
+     * charges is spent.
      *
      * @param context the marker's tick context
      * @param state   the field-effect state
      */
-    private void spendCharge(StepContext context, FieldEffectState state) {
+    private void spendChargeByChance(StepContext context, FieldEffectState state) {
+        if (context.host().rollFraction() >= spendChance.evaluate(context)) {
+            return;
+        }
         int spent = state.chargesSpent() + 1;
         if (spent >= perStack.evaluateInt(context)) {
             context.host().decrementStack();
@@ -222,7 +231,7 @@ public record FieldEffectStep(Expr radius, List<EntityFilter> where, Expr cooldo
      * @return the marker-side expressions
      */
     private Stream<Expr> markerExpressions() {
-        return Stream.of(radius, cooldown, perStack, strikeTick, strikeTicks,
+        return Stream.of(radius, cooldown, perStack, spendChance, strikeTick, strikeTicks,
                 timing.expandTicks(), timing.contractTicks());
     }
 

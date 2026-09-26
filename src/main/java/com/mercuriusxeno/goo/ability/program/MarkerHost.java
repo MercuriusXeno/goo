@@ -101,6 +101,11 @@ public record MarkerHost(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity
     }
 
     @Override
+    public double rollFraction() {
+        return level.getRandom().nextDouble();
+    }
+
+    @Override
     public PhasedState phased() {
         return be.getPhased();
     }
