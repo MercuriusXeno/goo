@@ -4,25 +4,21 @@ import com.mercuriusxeno.goo.block.BlockEntitySync;
 import com.mercuriusxeno.goo.data.GasketRegistry;
 import com.mercuriusxeno.goo.item.gasket.GasketPartner;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
-import net.minecraft.core.HolderLookup;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.protocol.Packet;
-import net.minecraft.network.protocol.game.ClientGamePacketListener;
-import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
+import net.neoforged.neoforge.transfer.ResourceHandler;
+import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import org.jspecify.annotations.Nullable;
 import java.util.function.Supplier;
 
 /**
  * Stateful gasket integration packaged as a component a block entity owns at construction.
  * Encapsulates the gasket-protocol concern: registry access capture, partner/clear closures
- * with sync, NBT serialization slot, and the synced-BE packet machinery shared by every
- * gasket-capable BE. The owner BE forwards Minecraft lifecycle hooks (setLevel/onLoad/save/
- * load/getUpdatePacket/getUpdateTag) into here.
+ * with sync, and the NBT serialization slot. {@link com.mercuriusxeno.goo.block.GooMachineBlockEntity}
+ * forwards the Minecraft lifecycle hooks (setLevel/onLoad/save/load) into here.
  *
  * <p>Pushers vary per BE (one BE-level pusher, or many slot-level pushers, or none). The
  * attachment exposes two callback hooks the BE wires at construction:
@@ -94,6 +90,34 @@ public final class GasketAttachment {
      */
     public void afterLoad(Runnable hook) {
         this.afterLoad = hook;
+    }
+
+    /**
+     * Stands the one pusher a machine with a single transmitting source drives,
+     * pushing from the source through the attachment's TRANSMITTER link, and
+     * wires its rebuild and the post-load chunk force (decision
+     * machine-base-owns-the-lifecycle).
+     *
+     * @param source the fluid the machine pushes from
+     * @return the pusher, which the machine ticks
+     */
+    public GasketPusher singlePusher(ResourceHandler<FluidResource> source) {
+        GasketPusher pusher = new GasketPusher(source,
+                () -> state.getId(GasketRole.TRANSMITTER),
+                () -> state.getPartner(GasketRole.TRANSMITTER),
+                owner::getLevel, owner::getBlockPos,
+                this::syncToClients,
+                () -> registryAccess != null ? registryAccess.get() : null);
+        rebuildPushers(pusher::rebuildCache);
+        afterLoad(this::forceTransmitterChunkOnLoad);
+        return pusher;
+    }
+
+    private void forceTransmitterChunkOnLoad() {
+        if (owner.getLevel() instanceof ServerLevel serverLevel) {
+            GasketPusher.forceTransmitterChunk(state.getId(GasketRole.TRANSMITTER), registryAccess,
+                    serverLevel, owner.getBlockPos());
+        }
     }
 
     /**
@@ -190,24 +214,5 @@ public final class GasketAttachment {
      */
     public void loadAdditional(ValueInput input) {
         state.load(input);
-    }
-
-    /**
-     * Forwarded from the BE's {@code getUpdateTag}. Standard full-metadata snapshot.
-     *
-     * @param registries the holder lookup provider
-     * @return the update tag
-     */
-    public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
-        return owner.saveWithFullMetadata(registries);
-    }
-
-    /**
-     * Forwarded from the BE's {@code getUpdatePacket}. Standard BE data packet.
-     *
-     * @return the update packet
-     */
-    public Packet<ClientGamePacketListener> getUpdatePacket() {
-        return ClientboundBlockEntityDataPacket.create(owner);
     }
 }

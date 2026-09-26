@@ -14,19 +14,60 @@ import java.util.function.ToIntFunction;
  * @param segments   the text segments drawn left to right after the icon
  * @param seeThrough whether the row draws over world geometry
  * @param floorText  the text whose width the row's text never measures under, or null for no floor
+ * @param secondIcon the icon texture drawn after the first, or null for one icon
  */
 public record PanelRow(@Nullable Identifier icon, List<TextSegment> segments, boolean seeThrough,
-                       @Nullable String floorText) {
+                       @Nullable String floorText, @Nullable Identifier secondIcon) {
 
     /**
-     * Builds a row with no width floor.
+     * Builds a row with at most one icon.
+     *
+     * @param icon       the icon texture, or null for a text-only header row
+     * @param segments   the text segments drawn left to right after the icon
+     * @param seeThrough whether the row draws over world geometry
+     * @param floorText  the text whose width the row's text never measures under, or null for no floor
+     */
+    public PanelRow(@Nullable Identifier icon, List<TextSegment> segments, boolean seeThrough,
+                    @Nullable String floorText) {
+        this(icon, segments, seeThrough, floorText, null);
+    }
+
+    /**
+     * Builds a row with at most one icon and no width floor.
      *
      * @param icon       the icon texture, or null for a text-only header row
      * @param segments   the text segments drawn left to right after the icon
      * @param seeThrough whether the row draws over world geometry
      */
     public PanelRow(@Nullable Identifier icon, List<TextSegment> segments, boolean seeThrough) {
-        this(icon, segments, seeThrough, null);
+        this(icon, segments, seeThrough, null, null);
+    }
+
+    /**
+     * Builds a row led by two icons whose text is one segment in one color,
+     * as the crucible's combo row (decision combo-row-above-remainder).
+     *
+     * @param icon       the first icon texture
+     * @param secondIcon the icon texture after the first
+     * @param text       the text after the icons
+     * @param color      the ARGB text color
+     * @return the icon pair row
+     */
+    public static PanelRow iconPairText(Identifier icon, Identifier secondIcon, String text, int color) {
+        return new PanelRow(icon, List.of(new TextSegment(text, color)), false, null, secondIcon);
+    }
+
+    /**
+     * Returns the width the row's icons and their gaps take before the text.
+     *
+     * @return the icons' width in scaled pixels, 0 for a text-only row
+     */
+    public float iconsWidth() {
+        float oneIcon = PanelPainter.ICON_SIZE + PanelPainter.ICON_TEXT_GAP;
+        if (icon == null) {
+            return 0;
+        }
+        return secondIcon == null ? oneIcon : oneIcon + oneIcon;
     }
 
     /**
@@ -60,7 +101,7 @@ public record PanelRow(@Nullable Identifier icon, List<TextSegment> segments, bo
      * @return the row width in scaled pixels
      */
     public float width(ToIntFunction<String> textWidth) {
-        float iconWidth = icon == null ? 0 : PanelPainter.ICON_SIZE + PanelPainter.ICON_TEXT_GAP;
+        float iconWidth = iconsWidth();
         float segmentsWidth = 0;
         for (TextSegment segment : segments) {
             segmentsWidth += textWidth.applyAsInt(segment.text());

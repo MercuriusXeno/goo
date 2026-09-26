@@ -426,6 +426,18 @@ public final class CanisterSlot {
         streamTick = tag.getLongOr(TAG_STREAM_TICK, 0L);
     }
 
+    /**
+     * Restores a lone canister stack, the format a single-slot machine saves,
+     * with no stream snapshot. Fires no callbacks, as {@link #load(CompoundTag)}.
+     *
+     * @param stack the saved canister, or EMPTY
+     */
+    public void load(ItemStack stack) {
+        canister = stack;
+        shape = canister.isEmpty() ? null : filledShape;
+        clearStreamSilently();
+    }
+
     private static ItemStack readCanister(CompoundTag tag) {
         Tag inner = tag.get(TAG_CANISTER);
         if (inner == null) {

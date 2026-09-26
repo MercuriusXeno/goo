@@ -2,27 +2,21 @@ package com.mercuriusxeno.goo.block.vat;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.PlayerUtils;
-import com.mercuriusxeno.goo.data.GasketLocation;
-import com.mercuriusxeno.goo.data.GasketRegistry;
 import com.mercuriusxeno.goo.item.BlobInsert;
 import com.mercuriusxeno.goo.item.BlobStacks;
 import com.mercuriusxeno.goo.item.GooBlobItem;
 import com.mercuriusxeno.goo.item.GooOmniblobItem;
 import com.mercuriusxeno.goo.item.gasket.ChoralGasketItem;
+import com.mercuriusxeno.goo.item.gasket.GasketInstallHelper;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
-import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.phys.BlockHitResult;
 import org.jspecify.annotations.Nullable;
-import java.util.UUID;
-import static com.mercuriusxeno.goo.GooConstants.NO_SLOT;
 
 /**
  * Stateless dispatch and handler methods for vat block interactions:
@@ -102,15 +96,14 @@ final class VatInteractionHandler {
     static InteractionResult handleGasketApply(
             VatBlockEntity vat, ItemStack stack,
             Player player, BlockHitResult hitResult) {
-        var state = vat.getBlockState();
         BooleanProperty target = VatGasketOps.resolveGasketFace(hitResult, vat.getBlockPos());
-        if (state.getValue(target)) {
+        if (VatGasketOps.isFaceOccluded(vat.getBlockState(), target)) {
             return InteractionResult.PASS;
         }
-        if (VatGasketOps.isFaceOccluded(state, target)) {
+        GasketRole role = target == VatBlock.GASKET_CAP ? GasketRole.RECEIVER : GasketRole.TRANSMITTER;
+        if (!GasketInstallHelper.installBlockGasket(vat.getLevel(), vat.getBlockPos(), vat, role)) {
             return InteractionResult.PASS;
         }
-        applyGasketToFace(vat, target);
         consumeIfSurvival(stack, player);
         return InteractionResult.SUCCESS;
     }
@@ -124,39 +117,6 @@ final class VatInteractionHandler {
     private static void consumeIfSurvival(ItemStack stack, Player player) {
         if (!player.isCreative()) {
             stack.shrink(1);
-        }
-    }
-
-    /**
-     * Sets the gasket blockstate and registers the gasket in the registry.
-     *
-     * @param vat    the vat block entity
-     * @param target the gasket property to set
-     */
-    private static void applyGasketToFace(VatBlockEntity vat, BooleanProperty target) {
-        var level = vat.getLevel();
-        var pos = vat.getBlockPos();
-        level.setBlock(pos, vat.getBlockState().setValue(target, true), BLOCK_UPDATE_FLAGS);
-        GasketRole role = target == VatBlock.GASKET_CAP ? GasketRole.RECEIVER : GasketRole.TRANSMITTER;
-        registerNewGasket(vat, role, level, pos);
-    }
-
-    /**
-     * Ensures a gasket UUID and publishes its location to the registry.
-     *
-     * @param vat   the vat block entity
-     * @param role  the gasket role
-     * @param level the current level
-     * @param pos   the block position
-     */
-    private static void registerNewGasket(
-            VatBlockEntity vat, GasketRole role, Level level, BlockPos pos) {
-        UUID newId = vat.ensureGasketId(role);
-        if (newId != null && level instanceof ServerLevel serverLevel) {
-            GasketRegistry registry = GasketRegistry.get(serverLevel);
-            registry.updateLocation(newId,
-                    new GasketLocation(serverLevel.dimension(), pos,
-                            role == GasketRole.RECEIVER, NO_SLOT));
         }
     }
 
