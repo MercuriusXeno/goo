@@ -19,6 +19,20 @@ java.toolchain.languageVersion = JavaLanguageVersion.of(25)
 
 def buildDir = layout.buildDirectory
 
+// Gametests and their registration live apart from main so the shipped jar
+// carries the mod alone; only the gameTestServer run loads them (decision gametest-and-tools-source-sets).
+sourceSets {
+    gametest {
+        compileClasspath += sourceSets.main.output
+        runtimeClasspath += sourceSets.main.output
+    }
+}
+
+configurations {
+    gametestImplementation.extendsFrom implementation
+    gametestRuntimeOnly.extendsFrom runtimeOnly
+}
+
 // Apply access transformers at compile time so AT-widened members are visible to javac
 minecraft.accessTransformers.file rootProject.file('src/main/resources/META-INF/accesstransformer.cfg')
 
@@ -34,6 +48,7 @@ runs {
         jvmArguments.addAll '-Xmx4G', '-Xms4G', '-XX:+UseZGC', '-XX:+AlwaysPreTouch'
     }
     gameTestServer {
+        modSource project.sourceSets.gametest
         // JUnit XML report for sca-digest.py consumption
         arguments.addAll '--report', file("${buildDir.get()}/test-results/gameTest/TEST-gametest.xml").absolutePath
         // -PgameTestSelect=goo:fx_program_* runs one selector instead of every registered test
@@ -147,6 +162,7 @@ spotbugs {
 }
 
 tasks.named('spotbugsTest') { enabled = false }
+tasks.named('spotbugsGametest') { enabled = false }
 
 tasks.withType(com.github.spotbugs.snom.SpotBugsTask).configureEach {
     showProgress = false
@@ -233,7 +249,7 @@ tasks.withType(ProcessResources).configureEach {
 // own deprecated internals.
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
-    if (name in ['compileJava', 'compileTestJava']) {
+    if (name in ['compileJava', 'compileTestJava', 'compileGametestJava']) {
         options.compilerArgs += ['-Xlint:deprecation', '-Werror']
     }
 }
