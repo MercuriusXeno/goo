@@ -13,6 +13,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -55,8 +56,8 @@ public final class TapValveHudRenderer {
         Optional<TapDripGrade> grade = state.getValue(TapBlock.OPEN) ? Optional.of(tap.dripGrade()) : Optional.empty();
         Direction facing = state.getValue(TapBlock.FACING);
         Camera camera = mc.gameRenderer.getMainCamera();
-        PanelPlacement placement = PanelPlacement.onFace(TapValve.panelAnchor(pos, facing), Direction.UP, false,
-                ANIMATOR.pitch());
+        Vec3 anchor = TapValve.panelAnchor(pos, facing, camera.position(), !tap.getCanister().isEmpty());
+        PanelPlacement placement = PanelPlacement.onFace(anchor, Direction.UP, false, ANIMATOR.pitch());
         PanelPainter.paint(event.getPoseStack(), camera, placement, TapPanelRows.rows(grade));
     }
 
