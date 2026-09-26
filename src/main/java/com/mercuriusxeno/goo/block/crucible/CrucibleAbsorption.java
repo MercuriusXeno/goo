@@ -77,7 +77,7 @@ final class CrucibleAbsorption {
         if (contents.isEmpty()) {
             return;
         }
-        if (!CrucibleInsertion.mergeIntoPool(crucible, contents)) {
+        if (!CrucibleInsertion.mergeStackIntoPool(crucible, stack, contents)) {
             return;
         }
         crucible.syncToClients();

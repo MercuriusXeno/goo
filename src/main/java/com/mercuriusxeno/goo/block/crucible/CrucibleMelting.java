@@ -238,10 +238,11 @@ final class CrucibleMelting {
      * @param shares the per-type drain amounts
      */
     private static void applyDrainShares(CrucibleBlockEntity be, Map<ResourceKey<GooTypeDefinition>, Integer> shares) {
-        GooContents drained = CrucibleCapacity.drainAccepted(
-                PartiallyMeltedItem.getContents(be.meltingItem), shares,
+        GooContents before = PartiallyMeltedItem.getContents(be.meltingItem);
+        GooContents drained = CrucibleCapacity.drainAccepted(before, shares,
                 (type, amount) -> be.reservoir.insertGoo(type, amount, false));
         PartiallyMeltedItem.setContents(be.meltingItem, drained);
+        be.meltQueue.charge(before.totalVolume() - drained.totalVolume());
     }
 
     /**
@@ -255,6 +256,7 @@ final class CrucibleMelting {
         }
         if (PartiallyMeltedItem.isFullyMelted(be.meltingItem)) {
             be.meltingItem = ItemStack.EMPTY;
+            be.meltQueue.clear();
         }
     }
 }
