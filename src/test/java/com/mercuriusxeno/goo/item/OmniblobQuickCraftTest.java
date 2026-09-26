@@ -74,4 +74,25 @@ class OmniblobQuickCraftTest {
     void greedyPlacesOneBlobAboveOneBlob(int carriedVolume) {
         assertEquals(BlobStacks.MB_PER_BLOB, OmniblobQuickCraft.greedyPerSlot(carriedVolume));
     }
+
+    /**
+     * Holding one blob or less, a right-drag places one microblob per slot:
+     * 1,000 mB, 500 mB and 1 mB answer 1 mB.
+     *
+     * @param carriedVolume the volume on the cursor
+     */
+    @ParameterizedTest
+    @ValueSource(ints = {1_000, 500, 1})
+    void greedyPlacesOneMicroblobAtOneBlobOrLess(int carriedVolume) {
+        assertEquals(1, OmniblobQuickCraft.greedyPerSlot(carriedVolume));
+    }
+
+    /**
+     * The boundary sits above one blob: 1,001 mB answers 1,000 mB, 1,000 mB answers 1 mB.
+     */
+    @Test
+    void greedyBoundarySitsAboveOneBlob() {
+        assertEquals(1_000, OmniblobQuickCraft.greedyPerSlot(1_001));
+        assertEquals(1, OmniblobQuickCraft.greedyPerSlot(1_000));
+    }
 }
