@@ -130,6 +130,58 @@ class PetalMaskTest {
         }
     }
 
+    /** A petal's boundary carries a solid edge around its fluid fill (decision wedges-take-a-solid-edge). */
+    @Nested
+    class SolidEdge {
+
+        private static final int SIZE = 256;
+        private static final int EDGE_COLOR = 0xFF123456;
+        private static final int FILL_COLOR = 0xFFABCDEF;
+        private static final double HALF_EDGE = PetalMask.Edge.WEDGE_THICKNESS / 2;
+        private static final double MID_RADIUS = (INNER + OUTER) / 2;
+
+        private final int[] pixels = PetalMask.fill(SIZE, new PetalMask.Petal(START, ARC, INNER, OUTER),
+                PetalMask.PixelSource.solid(FILL_COLOR), 0xFFFFFFFF,
+                new PetalMask.Edge(EDGE_COLOR, PetalMask.Edge.WEDGE_THICKNESS));
+
+        private int pixelAt(double angle, double distance) {
+            double half = SIZE / 2.0;
+            int px = (int) Math.floor(Math.sin(angle) * distance * half + half);
+            int py = (int) Math.floor(-Math.cos(angle) * distance * half + half);
+            return pixels[py * SIZE + px];
+        }
+
+        /** The angle off a radial edge that puts a point half an edge's width inside it at a radius. */
+        private static double halfEdgeOff(double radius) {
+            return Math.asin(HALF_EDGE / radius);
+        }
+
+        @Test
+        void innerArcIsTheEdgeColor() {
+            assertEquals(EDGE_COLOR, pixelAt(START + ARC / 2, INNER + HALF_EDGE));
+        }
+
+        @Test
+        void startEdgeIsTheEdgeColor() {
+            assertEquals(EDGE_COLOR, pixelAt(START + halfEdgeOff(MID_RADIUS), MID_RADIUS));
+        }
+
+        @Test
+        void endEdgeIsTheEdgeColor() {
+            assertEquals(EDGE_COLOR, pixelAt(START + ARC - halfEdgeOff(MID_RADIUS), MID_RADIUS));
+        }
+
+        @Test
+        void roundedCapIsTheEdgeColor() {
+            assertEquals(EDGE_COLOR, pixelAt(START + ARC / 2, OUTER - HALF_EDGE));
+        }
+
+        @Test
+        void interiorCarriesTheFill() {
+            assertEquals(FILL_COLOR, pixelAt(START + ARC / 2, MID_RADIUS));
+        }
+    }
+
     @Nested
     class HalfTurnWedge {
 

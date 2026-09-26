@@ -157,7 +157,8 @@ final class RadialWheelRenderer {
     private static void blitWedge(GuiGraphicsExtractor graphics, Frame frame, ResourceKey<GooTypeDefinition> key,
                                   WedgeBounds bounds, int overlay) {
         blitMask(graphics, frame, RadialTextures.getArcTexture(bounds.start(), bounds.arc(), bounds.inner(),
-                bounds.outer(), GooSubmitter.fluidSprites(key).still(), GooSubmitter.fluidTint(key)), overlay);
+                bounds.outer(), GooSubmitter.fluidSprites(key).still(), GooSubmitter.fluidTint(key),
+                ARGB.opaque(ClientGooTypes.edge(key))), overlay);
     }
 
     /**
