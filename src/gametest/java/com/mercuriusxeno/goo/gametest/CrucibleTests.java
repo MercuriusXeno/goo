@@ -99,7 +99,7 @@ public final class CrucibleTests {
 
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
         player.setItemInHand(InteractionHand.MAIN_HAND,
-            BlobStacks.createBlobStack(GooTypes.ROCK, 1));
+            BlobStacks.createForOutput(GooTypes.ROCK, BlobStacks.MB_PER_BLOB));
 
         BlockPos abs = helper.absolutePos(BE_POS);
         BlockHitResult hit = new BlockHitResult(
@@ -157,18 +157,18 @@ public final class CrucibleTests {
         crucible.insertGoo(GooTypes.ROCK, CAP);
         for (GameType mode : new GameType[] {GameType.SURVIVAL, GameType.CREATIVE}) {
             Player player = helper.makeMockPlayer(mode);
-            player.setItemInHand(InteractionHand.MAIN_HAND, BlobStacks.createBlobStack(GooTypes.ROCK, 1));
+            player.setItemInHand(InteractionHand.MAIN_HAND, BlobStacks.createForOutput(GooTypes.ROCK, BlobStacks.MB_PER_BLOB));
             BlockPos abs = helper.absolutePos(BE_POS);
             helper.useBlock(BE_POS, player, new BlockHitResult(Vec3.atCenterOf(abs), Direction.UP, abs, false));
-            helper.assertValueEqual(1, player.getMainHandItem().getCount(), BLOB_KEPT_IN + mode);
+            helper.assertValueEqual(BlobStacks.MB_PER_BLOB, BlobStacks.volumeOf(player.getMainHandItem()), BLOB_KEPT_IN + mode);
         }
         helper.assertValueEqual(CAP, crucible.getReservoir().getVolume(GooTypes.ROCK), RESERVOIR_UNCHANGED);
         helper.succeed();
     }
 
     /**
-     * A full blob stack right-clicked on an empty crucible puts in exactly the goo of
-     * the blobs it took (decision diagnose-then-fix-crucible-blob-duplication).
+     * A 64-blob omniblob right-clicked on an empty crucible puts in exactly the goo
+     * it took (decision diagnose-then-fix-crucible-blob-duplication).
      *
      * @param helper the gametest helper
      */
@@ -182,8 +182,8 @@ public final class CrucibleTests {
     }
 
     /**
-     * A blob stack offered to a type a few blobs short of the cap fills it to the cap
-     * and leaves the blobs that did not fit in hand.
+     * A 64-blob omniblob offered to a type a few blobs short of the cap fills it to the
+     * cap and leaves the volume that did not fit in hand.
      *
      * @param helper the gametest helper
      */
@@ -192,7 +192,8 @@ public final class CrucibleTests {
         crucible.insertGoo(GooTypes.ROCK, CAP - BLOBS_ROOM * BlobStacks.MB_PER_BLOB);
         Player player = clickWithBlobs(helper, FULL_STACK);
         helper.assertValueEqual(CAP, crucible.getReservoir().getVolume(GooTypes.ROCK), RESERVOIR_AT_CAP);
-        helper.assertValueEqual(FULL_STACK - BLOBS_ROOM, player.getMainHandItem().getCount(), UNFIT_BLOBS_STAY);
+        helper.assertValueEqual((FULL_STACK - BLOBS_ROOM) * BlobStacks.MB_PER_BLOB,
+            BlobStacks.volumeOf(player.getMainHandItem()), UNFIT_BLOBS_STAY);
         helper.succeed();
     }
 
@@ -205,7 +206,7 @@ public final class CrucibleTests {
      */
     private static Player clickWithBlobs(GameTestHelper helper, int count) {
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
-        player.setItemInHand(InteractionHand.MAIN_HAND, BlobStacks.createBlobStack(GooTypes.ROCK, count));
+        player.setItemInHand(InteractionHand.MAIN_HAND, BlobStacks.createForOutput(GooTypes.ROCK, count * BlobStacks.MB_PER_BLOB));
         BlockPos abs = helper.absolutePos(BE_POS);
         helper.useBlock(BE_POS, player, new BlockHitResult(Vec3.atCenterOf(abs), Direction.UP, abs, false));
         return player;
@@ -219,10 +220,11 @@ public final class CrucibleTests {
     public static void blobEntityRefusedAtCap(GameTestHelper helper) {
         CrucibleBlockEntity crucible = placeFueledCrucible(helper);
         crucible.insertGoo(GooTypes.ROCK, CAP);
-        ItemEntity blob = spawnInBasin(helper, BlobStacks.createBlobStack(GooTypes.ROCK, BLOBS_OFFERED));
+        ItemEntity blob = spawnInBasin(helper, BlobStacks.createForOutput(GooTypes.ROCK, BLOBS_OFFERED * BlobStacks.MB_PER_BLOB));
         helper.runAfterDelay(ABSORB_DELAY, () -> {
             helper.assertFalse(blob.isRemoved(), BLOB_STAYS);
-            helper.assertValueEqual(BLOBS_OFFERED, blob.getItem().getCount(), BLOB_COUNT_UNCHANGED);
+            helper.assertValueEqual(BLOBS_OFFERED * BlobStacks.MB_PER_BLOB, BlobStacks.volumeOf(blob.getItem()),
+                BLOB_COUNT_UNCHANGED);
             helper.assertValueEqual(CAP, crucible.getReservoir().getVolume(GooTypes.ROCK), RESERVOIR_UNCHANGED);
             helper.succeed();
         });

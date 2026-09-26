@@ -9,6 +9,8 @@
   "viscosity": 3000,
   "temperature": 300,
   "extinguishes": false,
+  "levity": 1.0,
+  "base_flight_time": 3,
   "map_color": "color_purple",
   "textures": {
     "blob_tiny": "goo:item/shroom_blob_tiny",

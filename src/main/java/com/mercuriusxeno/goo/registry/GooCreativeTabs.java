@@ -32,7 +32,7 @@ public class GooCreativeTabs {
         TABS.register("goo_tab", () -> CreativeModeTab.builder()
             .title(Component.translatable("itemGroup.goo"))
             .withTabsBefore(CreativeModeTabs.COMBAT)
-            .icon(() -> BlobStacks.createBlobStack(GooTypes.ENDER, 1))
+            .icon(() -> BlobStacks.createForOutput(GooTypes.ENDER, BlobStacks.MB_PER_BLOB))
             .displayItems((params, output) -> {
                 // Machines
                 output.accept(GooItems.CRUCIBLE.get());
@@ -62,13 +62,13 @@ public class GooCreativeTabs {
         );
 
     /**
-     * Offers one type's blob, a 1K-blob and a 1M-blob omniblob, and a bucket.
+     * Offers one type's 1-blob, 1K-blob and 1M-blob omniblobs, and a bucket.
      *
      * @param output the tab's item sink
      * @param key    the goo type's registry key
      */
     private static void acceptType(CreativeModeTab.Output output, ResourceKey<GooTypeDefinition> key) {
-        output.accept(BlobStacks.createBlobStack(key, 1));
+        output.accept(BlobStacks.createForOutput(key, BlobStacks.MB_PER_BLOB));
         output.accept(GooOmniblobItem.createWithVolume(key, SAMPLE_OMNIBLOB_VOLUME));
         output.accept(GooOmniblobItem.createWithVolume(key, LARGE_OMNIBLOB_VOLUME));
         output.accept(GooBucketItem.of(key));

@@ -31,7 +31,7 @@ import java.util.List;
  * {@link CrucibleInsertion} (item/goo insertion),
  * {@link CrucibleSerialization} (NBT).</p>
  */
-public class CrucibleBlockEntity extends GooGlowingMachineBlockEntity {
+public class CrucibleBlockEntity extends GooGlowingMachineBlockEntity implements IGooReceptacle {
 
     /** Reference saturation cap (mB) for crucible reservoir light scaling.
      * Mirrors the BER's visual fill cap so the light response tracks the
@@ -168,6 +168,7 @@ public class CrucibleBlockEntity extends GooGlowingMachineBlockEntity {
      * @param volume volume in microblobs
      * @return the amount actually inserted
      */
+    @Override
     public int insertGoo(ResourceKey<GooTypeDefinition> type, int volume) {
         return reservoir.insertGoo(type, Math.min(volume, Integer.MAX_VALUE), false);
     }

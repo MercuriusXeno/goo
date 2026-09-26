@@ -25,7 +25,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * One tap drip draws 1 mB of the held type from the tap's slot alone, and
+ * One tap drip draws its grade's mB of the held type from the tap's slot alone, and
  * sends one particle tinted with the type's color from the spigot underside.
  */
 class TapDripTest {
@@ -35,6 +35,7 @@ class TapDripTest {
     private static final int RGB = 0x336699;
     private static final float CHANNEL_MAX = 255f;
     private static final float COLOR_TOLERANCE = 1e-6f;
+    private static final int FOUR_MB = 4;
 
     private static ICanisterHolder holderHolding(ResourceKey<GooTypeDefinition> type, int amount) {
         ICanisterHolder holder = mock(ICanisterHolder.class);
@@ -48,24 +49,31 @@ class TapDripTest {
     void emptySlotDrawsNothingAndReportsNoType() {
         ICanisterHolder holder = holderHolding(null, 0);
 
-        assertNull(TapDrip.draw(holder, SLOT));
+        assertNull(TapDrip.draw(holder, SLOT, 1));
         verify(holder, never()).extractGoo(anyInt(), any(), anyInt());
     }
 
     @Test
-    void drawExtractsOneMbOfTheHeldTypeOnly() {
+    void drawExtractsTheGradesVolumeOfTheHeldTypeOnly() {
         ICanisterHolder holder = holderHolding(GooTypes.ROCK, 1000);
 
-        assertSame(GooTypes.ROCK, TapDrip.draw(holder, SLOT));
-        verify(holder, times(1)).extractGoo(SLOT, GooTypes.ROCK, 1);
+        assertEquals(new TapDrip.Drawn(GooTypes.ROCK, FOUR_MB), TapDrip.draw(holder, SLOT, FOUR_MB));
+        verify(holder, times(1)).extractGoo(SLOT, GooTypes.ROCK, FOUR_MB);
         verify(holder, times(1)).extractGoo(anyInt(), any(), anyInt());
+    }
+
+    @Test
+    void drawFromALowCanisterCarriesWhatWasLeft() {
+        ICanisterHolder holder = holderHolding(GooTypes.ROCK, 2);
+
+        assertEquals(new TapDrip.Drawn(GooTypes.ROCK, 2), TapDrip.draw(holder, SLOT, FOUR_MB));
     }
 
     @Test
     void drawThatExtractsNothingReportsNoType() {
         ICanisterHolder holder = holderHolding(GooTypes.ROCK, 0);
 
-        assertNull(TapDrip.draw(holder, SLOT));
+        assertNull(TapDrip.draw(holder, SLOT, 1));
     }
 
     /**

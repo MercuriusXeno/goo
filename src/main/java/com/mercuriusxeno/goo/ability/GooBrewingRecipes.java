@@ -52,7 +52,7 @@ public final class GooBrewingRecipes {
     }
 
     /**
-     * Adds awkward + blob of the type = the potion, for every container.
+     * Adds awkward + omniblob of the type = the potion, for every container.
      *
      * @param builder the brewing builder
      * @param key     the goo type whose blob brews the potion
@@ -60,7 +60,7 @@ public final class GooBrewingRecipes {
      */
     private static void addMix(PotionBrewing.Builder builder, ResourceKey<GooTypeDefinition> key,
                                Holder<Potion> potion) {
-        Ingredient blob = DataComponentIngredient.of(false, GooDataComponents.GOO_TYPE, key, GooItems.GOO_BLOB);
+        Ingredient blob = DataComponentIngredient.of(false, GooDataComponents.GOO_TYPE, key, GooItems.GOO_OMNIBLOB);
         for (Item container : CONTAINERS) {
             Ingredient awkward = DataComponentIngredient.of(false, DataComponents.POTION_CONTENTS,
                     new PotionContents(Potions.AWKWARD), container);

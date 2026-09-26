@@ -4,7 +4,6 @@ import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.PlayerUtils;
 import com.mercuriusxeno.goo.item.BlobInsert;
 import com.mercuriusxeno.goo.item.BlobStacks;
-import com.mercuriusxeno.goo.item.GooBlobItem;
 import com.mercuriusxeno.goo.item.GooOmniblobItem;
 import com.mercuriusxeno.goo.item.gasket.ChoralGasketItem;
 import com.mercuriusxeno.goo.item.gasket.GasketInstallHelper;
@@ -28,6 +27,8 @@ final class VatInteractionHandler {
      * Block update flags: notify neighbors + send to clients.
      */
     private static final int BLOCK_UPDATE_FLAGS = 3;
+    /** The volume one empty-hand extract takes: 64 blobs. */
+    private static final int EXTRACT_VOLUME = 64 * BlobStacks.MB_PER_BLOB;
 
     private VatInteractionHandler() {
     }
@@ -74,7 +75,7 @@ final class VatInteractionHandler {
         if (stack.getItem() instanceof ChoralGasketItem) {
             return handleGasketApply(vat, stack, player, hitResult);
         }
-        if (stack.getItem() instanceof GooBlobItem || stack.getItem() instanceof GooOmniblobItem) {
+        if (stack.getItem() instanceof GooOmniblobItem) {
             return handleBlobInsert(vat, stack, player);
         }
         return null;
@@ -138,7 +139,7 @@ final class VatInteractionHandler {
     }
 
     /**
-     * Extracts a full stack (64,000 mB) of the dominant type from the vat into the player's inventory.
+     * Extracts 64,000 mB of the dominant type from the vat into the player's inventory.
      *
      * @param vat    the vat block entity
      * @param player the interacting player
@@ -149,7 +150,7 @@ final class VatInteractionHandler {
         if (dominant == null) {
             return InteractionResult.PASS;
         }
-        int extractAmount = Math.min(vat.getContents().getVolume(dominant), BlobStacks.MAX_BLOB_STACK_VOLUME);
+        int extractAmount = Math.min(vat.getContents().getVolume(dominant), EXTRACT_VOLUME);
         int extracted = vat.extractGoo(dominant, extractAmount);
         if (extracted <= 0) {
             return InteractionResult.PASS;
