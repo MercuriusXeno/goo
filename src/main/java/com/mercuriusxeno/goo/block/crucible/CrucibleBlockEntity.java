@@ -51,6 +51,8 @@ public class CrucibleBlockEntity extends GooGlowingMachineBlockEntity implements
     static final String TAG_RESERVOIR = "Reservoir";
     /** NBT key for the melting item stack. */
     static final String TAG_MELTING_ITEM = "MeltingItem";
+    /** NBT key for the melt queue, the inserted stacks in arrival order. */
+    static final String TAG_MELT_QUEUE = "MeltQueue";
     /** NBT key for the heat ticks left. */
     static final String TAG_HEAT_TICKS = "HeatTicks";
     /** NBT key for the fuel goo type that bought the heat. */
@@ -59,6 +61,9 @@ public class CrucibleBlockEntity extends GooGlowingMachineBlockEntity implements
     private static final String TAG_CRUCIBLE = "crucible";
 
     ItemStack meltingItem = ItemStack.EMPTY;
+
+    /** The stacks the pool holds, oldest dissolving first (decision pool-keeps-stacks-in-order). */
+    final CrucibleMeltQueue meltQueue = new CrucibleMeltQueue();
 
     /** Heat bought from fuel goo, spent one tick per melt tick (decision fuel-goo-heats-per-mb). */
     final CrucibleHeat heat = new CrucibleHeat();
@@ -207,6 +212,18 @@ public class CrucibleBlockEntity extends GooGlowingMachineBlockEntity implements
      */
     public ItemStack getMeltingItem() { return meltingItem; }
 
+    /** Returns the stack dissolving now, the oldest in the pool.
+     *
+     * @return the head entry, or null when nothing is melting
+     */
+    public CrucibleMeltQueue.@Nullable Entry meltHead() { return meltQueue.head(); }
+
+    /** Returns the stacks waiting behind the one dissolving, oldest first.
+     *
+     * @return the waiting entries
+     */
+    public List<CrucibleMeltQueue.Entry> meltWaiting() { return meltQueue.waiting(); }
+
     /** Returns the total mB remaining in the PMI pool.
      *
      * @return the pool volume
@@ -217,13 +234,21 @@ public class CrucibleBlockEntity extends GooGlowingMachineBlockEntity implements
 
     /**
      * Returns the goo the drawn surface stands for: what has melted into the
-     * reservoir, never the unmelted item's pool, so a first melt tick draws a
-     * puddle (decision puddle-touches-walls-at-a-thousand).
+     * reservoir, never the unmelted item's pool (decision reservoir-volume-drives-fill).
      *
      * @return the surface volume in mB
      */
     public long getSurfaceVolume() {
         return reservoir.totalVolume();
+    }
+
+    /**
+     * Returns the goo the crucible holds in its reservoir and its pool.
+     *
+     * @return the two volumes
+     */
+    public CrucibleBasin.Volumes basinVolumes() {
+        return new CrucibleBasin.Volumes(reservoir.totalVolume(), getPoolVolume());
     }
 
     /** Returns true when neither the reservoir nor the PMI pool holds goo.

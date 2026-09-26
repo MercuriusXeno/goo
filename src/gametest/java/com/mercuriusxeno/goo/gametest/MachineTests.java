@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
 import com.mercuriusxeno.goo.block.canister.SlottedCanisterData;
 import com.mercuriusxeno.goo.block.plexer.PlexerBlockEntity;
 import com.mercuriusxeno.goo.block.reactor.ReactorBlockEntity;
+import com.mercuriusxeno.goo.data.GasketRegistry;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.registry.GooBlocks;
@@ -16,10 +17,12 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.storage.TagValueInput;
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import org.slf4j.Logger;
+import java.util.UUID;
 
 /**
  * Gametests for machine block entities. Exercises placement, slot lifecycle,
@@ -47,6 +50,11 @@ public final class MachineTests {
     private static final String HANDLER_SHOULD_CLEAR = "Fluid handler should be null after removal";
     private static final String SHOULD_REMOVE = "removeCanister should return the canister stack";
     private static final String SHOULD_TICK = "Block entity should survive ticking";
+    private static final String GASKET_REGISTERED = "The slotted canister's gasket should be registered before the break";
+    private static final String GASKET_RELEASED = "Breaking the block should clear its canister's gasket location";
+    private static final String IDLE_OUTPUT_EMPTY = "A reactor without inputs should leave its output empty";
+    private static final String STONE_HAS_VALUE = "Stone should hold a goo value, so the plexer's refusal is the missing goo";
+    private static final String PLEXER_MADE_FROM_NOTHING = "A plexer without a canister above should reconstitute nothing";
     private static final String OUTPUT_HANDLER_EXISTS = "Output handler should exist";
     private static final String OUTPUT_SHOULD_BE_BLAZE = "Output should be blaze goo";
     private static final String OUTPUT_AMOUNT_POSITIVE = "Output amount should be positive";
@@ -136,45 +144,71 @@ public final class MachineTests {
     }
 
     /**
-     * Breaking a canister block with occupied slots should not crash
-     * (exercises setRemoved, dispose, deregister lifecycle).
+     * Breaking a canister block clears the registry location of the gasket
+     * its slotted canister carries (decision machine-base-owns-the-lifecycle).
      *
      * @param helper the gametest helper
      */
-    public static void canisterBreakWithSlotIsSafe(GameTestHelper helper) {
+    public static void canisterBreakReleasesSlotGasket(GameTestHelper helper) {
+        UUID gasketId = UUID.randomUUID();
         helper.setBlock(BE_POS, GooBlocks.CANISTER.get());
         CanisterBlockEntity be = helper.getBlockEntity(BE_POS, CanisterBlockEntity.class);
-        be.insertCanister(CENTER_SLOT, new ItemStack(GooItems.CANISTER.get()), false);
-        helper.runAfterDelay(1, () -> {
-            helper.destroyBlock(BE_POS);
-            helper.runAfterDelay(SETTLE_TICKS, helper::succeed);
-        });
+        ItemStack canister = new ItemStack(GooItems.CANISTER.get());
+        CanisterItem.setMetadata(canister, CanisterItem.getMetadata(canister).withTopGasketId(gasketId));
+        be.insertCanister(CENTER_SLOT, canister, false);
+        assertBreakClearsGasketLocation(helper, gasketId);
     }
 
     // --- Reactor ---
 
     /**
-     * Placing a reactor and ticking it should not crash. The reactor has
-     * complex tick logic with no items needed to exercise the idle path.
+     * A reactor with an empty output canister and no input canister above it
+     * leaves the output empty.
      *
      * @param helper the gametest helper
      */
-    public static void reactorIdleTick(GameTestHelper helper) {
+    public static void reactorWithoutInputsMakesNothing(GameTestHelper helper) {
         helper.setBlock(BE_POS, GooBlocks.REACTOR.get());
-        helper.getBlockEntity(BE_POS, ReactorBlockEntity.class);
-        helper.runAfterDelay(SETTLE_TICKS, helper::succeed);
+        ReactorBlockEntity reactor = helper.getBlockEntity(BE_POS, ReactorBlockEntity.class);
+        reactor.insertOutputCanister(new ItemStack(GooItems.CANISTER.get()));
+        helper.runAfterDelay(REACTION_TICKS, () -> {
+            assertOutputEmpty(helper, reactor, IDLE_OUTPUT_EMPTY);
+            helper.succeed();
+        });
     }
 
     /**
-     * Breaking an idle reactor should not crash.
+     * Breaking a reactor clears the registry location of the gasket its
+     * output canister carries (decision machine-base-owns-the-lifecycle).
      *
      * @param helper the gametest helper
      */
-    public static void reactorBreakIsSafe(GameTestHelper helper) {
+    public static void reactorBreakReleasesOutputGasket(GameTestHelper helper) {
+        UUID gasketId = UUID.randomUUID();
         helper.setBlock(BE_POS, GooBlocks.REACTOR.get());
+        ReactorBlockEntity reactor = helper.getBlockEntity(BE_POS, ReactorBlockEntity.class);
+        ItemStack output = new ItemStack(GooItems.CANISTER.get());
+        CanisterItem.setMetadata(output, CanisterItem.getMetadata(output).withBottomGasketId(gasketId));
+        reactor.insertOutputCanister(output);
+        assertBreakClearsGasketLocation(helper, gasketId);
+    }
+
+    /**
+     * Asserts the gasket is registered, breaks the block at the test's
+     * position, and asserts the gasket's registry location is cleared.
+     *
+     * @param helper   the gametest helper
+     * @param gasketId the gasket the broken block's canister carries
+     */
+    private static void assertBreakClearsGasketLocation(GameTestHelper helper, UUID gasketId) {
+        GasketRegistry registry = GasketRegistry.get(helper.getLevel());
+        helper.assertTrue(registry.getLocation(gasketId) != null, GASKET_REGISTERED);
         helper.runAfterDelay(1, () -> {
             helper.destroyBlock(BE_POS);
-            helper.runAfterDelay(SETTLE_TICKS, helper::succeed);
+            helper.runAfterDelay(SETTLE_TICKS, () -> {
+                helper.assertTrue(registry.getLocation(gasketId) == null, GASKET_RELEASED);
+                helper.succeed();
+            });
         });
     }
 
@@ -185,20 +219,27 @@ public final class MachineTests {
      * @param helper the gametest helper
      */
     public static void reactorProcessesReaction(GameTestHelper helper) {
+        ReactorBlockEntity reactor = placeFedReactor(helper);
+        helper.runAfterDelay(REACTION_TICKS, () -> assertReactionConsumed(helper, reactor,
+                helper.getBlockEntity(INPUT_POS, CanisterBlockEntity.class), GooFluids.resource(GooTypes.BLAZE)));
+    }
+
+    /**
+     * Places a reactor with an empty output canister under a canister block
+     * holding the blaze and leaf inputs of the blaze_from_blaze_leaf reaction.
+     *
+     * @param helper the gametest helper
+     * @return the reactor block entity
+     */
+    private static ReactorBlockEntity placeFedReactor(GameTestHelper helper) {
         helper.setBlock(BE_POS, GooBlocks.REACTOR.get());
         ReactorBlockEntity reactor = helper.getBlockEntity(BE_POS, ReactorBlockEntity.class);
-
         helper.setBlock(INPUT_POS, GooBlocks.CANISTER.get());
         CanisterBlockEntity inputBe = helper.getBlockEntity(INPUT_POS, CanisterBlockEntity.class);
-        FluidResource blazeFluid = GooFluids.resource(GooTypes.BLAZE);
-        FluidResource leafFluid = GooFluids.resource(GooTypes.LEAF);
-        insertFilledCanister(inputBe, 0, blazeFluid, INPUT_AMOUNT);
-        insertFilledCanister(inputBe, CORNER_SLOT_2, leafFluid, INPUT_AMOUNT);
-
+        insertFilledCanister(inputBe, 0, GooFluids.resource(GooTypes.BLAZE), INPUT_AMOUNT);
+        insertFilledCanister(inputBe, CORNER_SLOT_2, GooFluids.resource(GooTypes.LEAF), INPUT_AMOUNT);
         reactor.insertOutputCanister(new ItemStack(GooItems.CANISTER.get()));
-
-        helper.runAfterDelay(REACTION_TICKS,
-                () -> assertReactionConsumed(helper, reactor, inputBe, blazeFluid));
+        return reactor;
     }
 
     /**
@@ -277,28 +318,25 @@ public final class MachineTests {
      * @param helper the gametest helper
      */
     public static void reactorRedstoneHalts(GameTestHelper helper) {
-        helper.setBlock(BE_POS, GooBlocks.REACTOR.get());
-        ReactorBlockEntity reactor = helper.getBlockEntity(BE_POS, ReactorBlockEntity.class);
-
-        helper.setBlock(INPUT_POS, GooBlocks.CANISTER.get());
-        CanisterBlockEntity inputBe = helper.getBlockEntity(INPUT_POS, CanisterBlockEntity.class);
-        FluidResource blazeFluid = GooFluids.resource(GooTypes.BLAZE);
-        FluidResource leafFluid = GooFluids.resource(GooTypes.LEAF);
-        insertFilledCanister(inputBe, 0, blazeFluid, INPUT_AMOUNT);
-        insertFilledCanister(inputBe, CORNER_SLOT_2, leafFluid, INPUT_AMOUNT);
-
-        reactor.insertOutputCanister(new ItemStack(GooItems.CANISTER.get()));
-
-        // Place redstone block adjacent to power the reactor via neighborChanged
+        ReactorBlockEntity reactor = placeFedReactor(helper);
         helper.setBlock(BE_POS.east(), Blocks.REDSTONE_BLOCK);
-
         helper.runAfterDelay(REACTION_TICKS, () -> {
-            var handler = reactor.containerState().getSlotFluidHandler(
-                    ReactorBlockEntity.OUTPUT_SLOT);
-            helper.assertTrue(handler != null, OUTPUT_HANDLER_EXISTS);
-            helper.assertTrue(handler.getAmount() == 0, REDSTONE_HALTS_OUTPUT);
+            assertOutputEmpty(helper, reactor, REDSTONE_HALTS_OUTPUT);
             helper.succeed();
         });
+    }
+
+    /**
+     * Asserts the reactor's output canister holds no goo.
+     *
+     * @param helper  the gametest helper
+     * @param reactor the reactor block entity
+     * @param message the failure message
+     */
+    private static void assertOutputEmpty(GameTestHelper helper, ReactorBlockEntity reactor, String message) {
+        var handler = reactor.containerState().getSlotFluidHandler(ReactorBlockEntity.OUTPUT_SLOT);
+        helper.assertTrue(handler != null, OUTPUT_HANDLER_EXISTS);
+        helper.assertTrue(handler.getAmount() == 0, message);
     }
 
     // --- Canister fluid operations ---
@@ -406,14 +444,19 @@ public final class MachineTests {
     // --- Plexer ---
 
     /**
-     * Placing a plexer and ticking it should not crash.
+     * A plexer targeting stone with no canister above it reconstitutes
+     * nothing, though stone holds a goo value.
      *
      * @param helper the gametest helper
      */
-    public static void plexerIdleTick(GameTestHelper helper) {
+    public static void plexerWithoutGooMakesNothing(GameTestHelper helper) {
         helper.setBlock(BE_POS, GooBlocks.PLEXER.get());
-        helper.getBlockEntity(BE_POS, PlexerBlockEntity.class);
-        helper.runAfterDelay(SETTLE_TICKS, helper::succeed);
+        PlexerBlockEntity plexer = helper.getBlockEntity(BE_POS, PlexerBlockEntity.class);
+        ItemStack stone = new ItemStack(Items.STONE);
+        helper.assertTrue(plexer.isValidTarget(stone), STONE_HAS_VALUE);
+        plexer.setTargetItem(stone);
+        helper.assertTrue(plexer.tryReconstitute().isEmpty(), PLEXER_MADE_FROM_NOTHING);
+        helper.succeed();
     }
 
     /**

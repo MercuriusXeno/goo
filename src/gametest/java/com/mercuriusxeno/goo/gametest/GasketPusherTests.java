@@ -43,6 +43,9 @@ public final class GasketPusherTests {
     private static final BlockPos BE_POS = new BlockPos(1, 1, 1);
     private static final int IDLE_TICKS = 25;
     private static final int SETTLE_TICKS = 2;
+    /** Blocks around the broken crucible searched for its dropped gasket. */
+    private static final double DROP_RANGE = 1.5;
+    private static final String RECEIVER_NEVER_ROSE = "Receiver should hold goo before the output canister is removed";
     private static final String EMPTY_AFTER_IDLE = "Crucible reservoir should still be empty after idle ticks";
     private static final String NO_CRASH_NO_PARTNER = "Crucible should not crash or produce goo without a partner";
 
@@ -108,27 +111,30 @@ public final class GasketPusherTests {
     }
 
     /**
-     * Breaking a crucible that has a gasket and then ticking the world should
-     * not throw. Exercises the real-world dispose path (setRemoved lifecycle).
+     * Breaking a gasketed crucible drops its gasket once through the
+     * setRemoved lifecycle, and the ticks after the break leave that one drop.
      *
      * @param helper the gametest helper
      */
-    public static void disposeAndTickIsSafe(GameTestHelper helper) {
+    public static void disposeDropsGasketOnce(GameTestHelper helper) {
         helper.setBlock(BE_POS, GooBlocks.CRUCIBLE.get().defaultBlockState()
             .setValue(CrucibleBlock.HAS_GASKET, true));
         helper.runAfterDelay(1, () -> {
             helper.destroyBlock(BE_POS);
-            helper.runAfterDelay(SETTLE_TICKS, helper::succeed);
+            helper.runAfterDelay(SETTLE_TICKS, () -> {
+                helper.assertItemEntityCountIs(GooItems.CHORAL_GASKET.get(), BE_POS, DROP_RANGE, 1);
+                helper.succeed();
+            });
         });
     }
 
     /**
-     * Breaking a crucible, re-placing it, and breaking it again should not throw.
-     * Double-lifecycle on the same position.
+     * Breaking a gasketed crucible, re-placing it and breaking it again drops
+     * one gasket per lifecycle on the same position.
      *
      * @param helper the gametest helper
      */
-    public static void doubleDisposeIsSafe(GameTestHelper helper) {
+    public static void doubleDisposeDropsGasketEachTime(GameTestHelper helper) {
         helper.setBlock(BE_POS, GooBlocks.CRUCIBLE.get().defaultBlockState()
             .setValue(CrucibleBlock.HAS_GASKET, true));
         helper.runAfterDelay(1, () -> {
@@ -138,7 +144,10 @@ public final class GasketPusherTests {
                     .setValue(CrucibleBlock.HAS_GASKET, true));
                 helper.runAfterDelay(1, () -> {
                     helper.destroyBlock(BE_POS);
-                    helper.runAfterDelay(SETTLE_TICKS, helper::succeed);
+                    helper.runAfterDelay(SETTLE_TICKS, () -> {
+                        helper.assertItemEntityCountIs(GooItems.CHORAL_GASKET.get(), BE_POS, DROP_RANGE, 2);
+                        helper.succeed();
+                    });
                 });
             });
         });
@@ -177,6 +186,7 @@ public final class GasketPusherTests {
         helper.runAfterDelay(PUSH_TICKS, () -> {
             reactor.removeOutputCanister();
             int receivedAtRemoval = receiverAmount(receiver);
+            helper.assertTrue(receivedAtRemoval > 0, RECEIVER_NEVER_ROSE);
             helper.runAfterDelay(PUSH_TICKS, () -> {
                 helper.assertTrue(receiverAmount(receiver) == receivedAtRemoval,
                         RECEIVER_UNCHANGED_AFTER_REMOVAL);

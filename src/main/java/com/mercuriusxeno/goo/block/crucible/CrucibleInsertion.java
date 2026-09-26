@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.block.crucible;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.block.ContainerEvaluator;
+import com.mercuriusxeno.goo.block.ValuedStack;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.data.IGooValueLookup;
 import com.mercuriusxeno.goo.item.GooContents;
@@ -75,7 +76,9 @@ final class CrucibleInsertion {
             return 0;
         }
         int fitting = CrucibleCapacity.wholeUnitsThatFit(poolContents(be), value.toGooContents(), count);
-        if (fitting > 0 && mergeIntoPool(be, value.toGooContents(fitting))) {
+        GooContents arriving = value.toGooContents(fitting);
+        if (fitting > 0 && mergeIntoPool(be, arriving,
+                List.of(new ValuedStack(itemId, fitting, arriving.totalVolume())))) {
             be.syncToClients();
         }
         return fitting;
@@ -83,13 +86,15 @@ final class CrucibleInsertion {
 
     /**
      * Merges goo contents into the PMI pool only when every type fits under
-     * the cap, creating a new PMI if needed.
+     * the cap, creating a new PMI if needed, and queues the stacks that carried
+     * it behind those already melting (decision pool-keeps-stacks-in-order).
      *
      * @param be       the crucible block entity
      * @param contents the goo contents
+     * @param arrivals the stacks carrying the contents, in arrival order
      * @return true if the contents merged, false if refused at the cap
      */
-    static boolean mergeIntoPool(CrucibleBlockEntity be, GooContents contents) {
+    static boolean mergeIntoPool(CrucibleBlockEntity be, GooContents contents, List<ValuedStack> arrivals) {
         GooContents merged = CrucibleCapacity.mergedWithinCap(poolContents(be), contents);
         if (merged == null) {
             return false;
@@ -99,7 +104,21 @@ final class CrucibleInsertion {
         } else {
             PartiallyMeltedItem.setContents(be.meltingItem, merged);
         }
+        be.meltQueue.appendAll(arrivals);
         return true;
+    }
+
+    /**
+     * Merges a whole stack's goo into the pool, queued as one entry under the stack's item.
+     *
+     * @param be       the crucible block entity
+     * @param stack    the stack carrying the goo
+     * @param contents the goo the stack carries
+     * @return true if the contents merged, false if refused at the cap
+     */
+    static boolean mergeStackIntoPool(CrucibleBlockEntity be, ItemStack stack, GooContents contents) {
+        Identifier id = BuiltInRegistries.ITEM.getKey(stack.getItem());
+        return mergeIntoPool(be, contents, List.of(new ValuedStack(id, 1, contents.totalVolume())));
     }
 
     /**
@@ -176,7 +195,7 @@ final class CrucibleInsertion {
         if (eval.goo().isEmpty() && eval.ejects().isEmpty()) {
             return null;
         }
-        if (!eval.goo().isEmpty() && !mergeIntoPool(be, eval.goo())) {
+        if (!eval.goo().isEmpty() && !mergeIntoPool(be, eval.goo(), eval.valued())) {
             return null;
         }
         be.syncToClients();

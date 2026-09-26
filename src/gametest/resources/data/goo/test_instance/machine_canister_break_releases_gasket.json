@@ -1,6 +1,6 @@
 {
   "type": "minecraft:function",
-  "function": "goo:machine_reactor_idle",
+  "function": "goo:machine_canister_break_releases_gasket",
   "environment": "minecraft:default",
   "structure": "minecraft:empty",
   "max_ticks": 10,
