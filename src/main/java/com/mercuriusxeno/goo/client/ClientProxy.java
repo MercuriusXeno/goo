@@ -1,11 +1,9 @@
 package com.mercuriusxeno.goo.client;
 
-import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.ISidedProxy;
-import com.mercuriusxeno.goo.client.throwing.GloveThrowSender;
+import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import net.minecraft.client.Minecraft;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.phys.HitResult;
 import org.jspecify.annotations.Nullable;
 
@@ -21,7 +19,7 @@ public final class ClientProxy implements ISidedProxy {
     }
 
     @Override
-    public void sendGloveThrow(Player player, ResourceKey<GooTypeDefinition> gooType) {
-        GloveThrowSender.sendThrow(player, gooType);
+    public void pressGlove(InteractionHand hand) {
+        GloveUseTracker.pressGlove(hand);
     }
 }
