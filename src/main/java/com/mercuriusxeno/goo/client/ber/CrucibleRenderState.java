@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.ber;
 
+import com.mercuriusxeno.goo.block.crucible.CrucibleBasin;
 import com.mercuriusxeno.goo.client.RenderContext;
 import com.mercuriusxeno.goo.client.TypeBand;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
@@ -11,8 +12,8 @@ import java.util.List;
  */
 public class CrucibleRenderState extends BlockEntityRenderState {
 
-    /** The melted goo the surface stands for, in mB; drives the puddle and the level. */
-    public long surfaceVolume;
+    /** The reservoir and pool volumes; the reservoir alone drives the puddle and the level. */
+    public CrucibleBasin.Volumes volumes = CrucibleBasin.Volumes.EMPTY;
 
     /** One band per goo type the surface shows, largest first; empty when the crucible shows none. */
     public List<TypeBand> typeBands = List.of();

@@ -10,8 +10,6 @@ import com.mercuriusxeno.goo.client.RenderContext;
 import com.mercuriusxeno.goo.client.SurfaceAgitation;
 import com.mercuriusxeno.goo.client.TypeBand;
 import com.mercuriusxeno.goo.client.TypeBands;
-import com.mercuriusxeno.goo.item.GooContents;
-import com.mercuriusxeno.goo.item.PartiallyMeltedItem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
@@ -66,44 +64,40 @@ public class CrucibleBlockEntityRenderer
      */
     private void extractRipple(CrucibleBlockEntity be, CrucibleRenderState state) {
         long gameTick = be.getLevel() != null ? be.getLevel().getGameTime() : 0L;
-        float fill = CrucibleBasin.heightFraction(state.surfaceVolume);
+        float fill = CrucibleBasin.heightFraction(state.volumes.reservoir());
         state.rippleAmplitude = agitations.computeIfAbsent(be, key -> new SurfaceAgitation())
             .tick(fill, 0f, gameTick);
     }
 
     /**
-     * Copies pool volumes and the type bands the surface draws from the block entity.
+     * Copies the volumes and the reservoir's type bands from the block entity.
      *
      * @param be the crucible block entity
      * @param state the render state to populate
      */
     private static void extractPoolState(CrucibleBlockEntity be, CrucibleRenderState state) {
-        state.surfaceVolume = be.getSurfaceVolume();
-        state.typeBands = TypeBands.over(surfaceContents(be));
-    }
-
-    /**
-     * Answers the goo the surface shows: the reservoir, or the melting item's
-     * goo while the reservoir holds none, as the bubble color reads it.
-     *
-     * @param be the crucible block entity
-     * @return the contents the type bands partition
-     */
-    private static GooContents surfaceContents(CrucibleBlockEntity be) {
-        GooContents reservoir = be.getReservoir();
-        if (!reservoir.isEmpty() || be.getMeltingItem().isEmpty()) {
-            return reservoir;
-        }
-        return PartiallyMeltedItem.getContents(be.getMeltingItem());
+        state.volumes = be.basinVolumes();
+        state.typeBands = TypeBands.over(be.getReservoir());
     }
 
     @Override
     public void submit(CrucibleRenderState state, PoseStack poseStack,
             SubmitNodeCollector nodeCollector, CameraRenderState cameraState) {
-        long melted = state.surfaceVolume;
-        if (melted <= 0) { return; }
+        CrucibleBasin.DrawnSurface surface = surfaceOf(state);
+        if (surface == null) { return; }
         renderMingledSurface(GooSubmitter.bandedSurfaces(poseStack, nodeCollector), state,
-            CrucibleBasin.footprintForVolume(melted), CrucibleBasin.surfaceYForVolume(melted));
+            surface.footprint(), surface.surfaceY());
+    }
+
+    /**
+     * Answers the surface the crucible draws, from its reservoir alone, so the basin
+     * floor shows under an item until its first goo melts (decision reservoir-volume-drives-fill).
+     *
+     * @param state the crucible render state
+     * @return the surface, or null while the reservoir is empty
+     */
+    static CrucibleBasin.@Nullable DrawnSurface surfaceOf(CrucibleRenderState state) {
+        return CrucibleBasin.drawnSurface(state.volumes);
     }
 
     // -- Liquid level --

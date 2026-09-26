@@ -8,8 +8,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Tests the pool-plus-reservoir total the crucible renderer draws its surface
- * for, past the int range (decision diagnose-then-fix-crucible-overflow).
+ * Tests the pool-plus-reservoir total, every mB the crucible holds, read whole
+ * past the int range (decision diagnose-then-fix-crucible-overflow).
  * Before the fix the renderer summed the two as int: this fill read sum
  * -2094967296 and fill 0.0, and the surface was never drawn.
  */
