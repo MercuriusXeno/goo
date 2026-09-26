@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
@@ -11,7 +10,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
-import java.util.Map;
 import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -29,7 +27,8 @@ import java.util.function.Consumer;
  * @param target  the struck entity
  * @param thrower the entity that threw the blob, or null when unknown
  */
-public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entity thrower) implements StepHost {
+public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entity thrower)
+        implements TargetHost, ExplodeHost, EntityScanHost {
 
     private static final double BODY_CENTER = 0.5;
 
@@ -118,20 +117,6 @@ public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entit
         return target.blockPosition();
     }
 
-    @Override
-    public Direction placedFace() {
-        throw HostCapability.PLACED_FACE.refusedBy(kind());
-    }
-
-    @Override
-    public int stackCount() {
-        throw HostCapability.STACKS.refusedBy(kind());
-    }
-
-    @Override
-    public void decrementStack() {
-        throw HostCapability.STACKS.refusedBy(kind());
-    }
 
     @Override
     public void explode(float power, ExplosionMode mode) {
@@ -148,58 +133,36 @@ public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entit
 
     @Override
     public void forEachEntityWithin(SelectionShape shape, double radius, Set<EntityFilter> filters,
-                                    Consumer<StepHost> body) {
+                                    Consumer<TargetHost> body) {
         EntityScan.forEachLivingWithin(level, target.position(), shape, radius, filters, target,
                 living -> body.accept(new EntityHost(level, living, thrower)));
     }
 
     @Override
-    public void forEntity(int entityId, Consumer<StepHost> body) {
+    public void forEntity(int entityId, Consumer<TargetHost> body) {
         if (level.getEntity(entityId) instanceof LivingEntity living && living.isAlive()) {
             body.accept(new EntityHost(level, living, thrower));
         }
     }
 
-    @Override
-    public FieldEffectState fieldEffect() {
-        throw HostCapability.FIELD_EFFECT.refusedBy(kind());
-    }
-
-    @Override
-    public PhasedState phased() {
-        throw HostCapability.PHASED.refusedBy(kind());
-    }
 
     @Override
     public void pullEntitiesWithin(double radius, double speed) {
         EntityPull.pullWithin(level, target.position(), radius, speed, target);
     }
 
-    @Override
-    public void consumeValuedBlocks(int radius) {
-        throw HostCapability.CONSUMED_GOO.refusedBy(kind());
-    }
 
     @Override
-    public void dropConsumedGoo() {
-        throw HostCapability.CONSUMED_GOO.refusedBy(kind());
-    }
-
-    @Override
-    public void spawnParticles(FxAnchor at, ParticleBurst burst) {
+    public void spawnParticles(ParticleBurst burst) {
         SimpleParticles.resolve(burst.particle()).ifPresent(particle -> level.sendParticles(particle,
                 target.getX(), target.getY(BODY_CENTER) + burst.lift(), target.getZ(),
                 burst.count(), burst.spreadAcross(), burst.spreadAlong(), burst.spreadAcross(), burst.speed()));
     }
 
     @Override
-    public void playSound(FxAnchor at, SoundCue cue) {
+    public void playSound(SoundCue cue) {
         SoundPlays.play(level, new Vec3(target.getX(), target.getY(BODY_CENTER), target.getZ()), cue);
     }
 
-    @Override
-    public void placeBlock(Identifier block, Map<String, String> state) {
-        throw HostCapability.PLACE_BLOCK.refusedBy(kind());
-    }
 
 }

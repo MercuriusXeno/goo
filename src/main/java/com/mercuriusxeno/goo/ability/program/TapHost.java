@@ -19,16 +19,16 @@ import java.util.function.Consumer;
  * The {@link StepHost} over the block a tap's drip lands on: world actions
  * anchor at the struck face's center, and a placed block goes into the
  * block beyond that face. A tap has no will and no target, and a drip lands
- * in one tick with nothing ticking it afterwards, so this host provides
- * neither {@link HostCapability#TARGET}, {@link HostCapability#STACKS} nor
- * {@link HostCapability#TICKING}; the target and layer-walk methods refuse
- * through the {@link StepHost} defaults (decision tap-ability-tagged-program).
+ * in one tick with nothing ticking it afterwards, so this host implements
+ * neither {@link TargetHost}, {@link StacksHost} nor {@link TickingHost}
+ * (decision tap-ability-tagged-program).
  *
  * @param level   the server level
  * @param landing the block the drip landed on
  * @param face    the landing block's face the drip struck
  */
-public record TapHost(ServerLevel level, BlockPos landing, Direction face) implements StepHost {
+public record TapHost(ServerLevel level, BlockPos landing, Direction face)
+        implements ExplodeHost, EntityScanHost, PlaceBlockHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "Place step names block which no registry holds: ";
     private static final double HALF = 0.5;
@@ -63,20 +63,6 @@ public record TapHost(ServerLevel level, BlockPos landing, Direction face) imple
         return landing;
     }
 
-    @Override
-    public Direction placedFace() {
-        throw HostCapability.PLACED_FACE.refusedBy(kind());
-    }
-
-    @Override
-    public int stackCount() {
-        throw HostCapability.STACKS.refusedBy(kind());
-    }
-
-    @Override
-    public void decrementStack() {
-        throw HostCapability.STACKS.refusedBy(kind());
-    }
 
     @Override
     public void explode(float power, ExplosionMode mode) {
@@ -94,53 +80,31 @@ public record TapHost(ServerLevel level, BlockPos landing, Direction face) imple
 
     @Override
     public void forEachEntityWithin(SelectionShape shape, double radius, Set<EntityFilter> filters,
-                                    Consumer<StepHost> body) {
+                                    Consumer<TargetHost> body) {
         BlockAnchoredActions.forEachEntityWithin(level, anchor(), shape, radius, filters, body);
     }
 
     @Override
-    public void forEntity(int entityId, Consumer<StepHost> body) {
+    public void forEntity(int entityId, Consumer<TargetHost> body) {
         BlockAnchoredActions.forEntity(level, entityId, body);
     }
 
-    @Override
-    public FieldEffectState fieldEffect() {
-        throw HostCapability.FIELD_EFFECT.refusedBy(kind());
-    }
-
-    @Override
-    public PhasedState phased() {
-        throw HostCapability.PHASED.refusedBy(kind());
-    }
 
     @Override
     public void pullEntitiesWithin(double radius, double speed) {
         EntityPull.pullWithin(level, anchor(), radius, speed, null);
     }
 
-    @Override
-    public void consumeValuedBlocks(int radius) {
-        throw HostCapability.CONSUMED_GOO.refusedBy(kind());
-    }
 
     @Override
-    public void dropConsumedGoo() {
-        throw HostCapability.CONSUMED_GOO.refusedBy(kind());
-    }
+    public void spawnParticles(ParticleBurst burst) {
 
-    @Override
-    public void spawnParticles(FxAnchor at, ParticleBurst burst) {
-        if (at == FxAnchor.TARGET) {
-            throw HostCapability.TARGET.refusedBy(kind());
-        }
         BlockAnchoredActions.sendBurst(level, anchor(), face.getAxis(), burst);
     }
 
     @Override
-    public void playSound(FxAnchor at, SoundCue cue) {
-        if (at == FxAnchor.TARGET) {
-            throw HostCapability.TARGET.refusedBy(kind());
-        }
+    public void playSound(SoundCue cue) {
+
         SoundPlays.play(level, anchor(), cue);
     }
 

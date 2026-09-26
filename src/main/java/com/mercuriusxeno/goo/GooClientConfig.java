@@ -27,8 +27,8 @@ public final class GooClientConfig {
         builder.push("netherHole");
 
         NETHER_HOLE_SHAPE = builder
-            .comment("The shape the nether black hole draws with: SPHERE or CUBE.")
-            .defineEnum("shape", NetherHoleShape.CUBE);
+            .comment("The shape the nether black hole draws with: SPHERE (default) or CUBE (opt-in).")
+            .defineEnum("shape", NetherHoleShape.SPHERE);
 
         SHOW_NETHER_LENS = builder
             .comment(

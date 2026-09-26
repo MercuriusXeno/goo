@@ -119,15 +119,13 @@ public final class GooStreamRenderer {
             return;
         }
         float widthFraction = Math.min(SPRITE_BLOCKS, halfWidth * WIDTH_PER_HALF_WIDTH);
-        float u1 = sprite.getU0() + (sprite.getU1() - sprite.getU0()) * widthFraction;
         float segmentTop = column.yTop();
         while (segmentTop > column.yBottom()) {
             float segmentBottom = Math.max(column.yBottom(), segmentTop - SPRITE_BLOCKS);
             float heightFraction = segmentTop - segmentBottom;
-            float v1 = sprite.getV0() + (sprite.getV1() - sprite.getV0()) * heightFraction;
             CuboidBounds segment = new CuboidBounds(column.cx() - halfWidth, column.cx() + halfWidth,
                     column.cz() - halfWidth, column.cz() + halfWidth, segmentBottom, segmentTop);
-            ctx.emitSides(color, segment, new GooRenderUtil.UvRect(sprite.getU0(), sprite.getV0(), u1, v1));
+            ctx.emitSides(color, segment, GooSubmitter.spriteSubRect(sprite, 0f, 0f, widthFraction, heightFraction));
             segmentTop = segmentBottom;
         }
     }

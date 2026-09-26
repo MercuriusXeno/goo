@@ -62,7 +62,7 @@ public record PotionStep(Identifier effect, Expr duration, Expr amplifier, boole
             Goo.LOGGER.warn(LOG_UNKNOWN_EFFECT, effect);
             return true;
         }
-        context.host().target().addEffect(new MobEffectInstance(holder.get(), ticks, level, false, visible));
+        context.hostAs(TargetHost.class).target().addEffect(new MobEffectInstance(holder.get(), ticks, level, false, visible));
         return true;
     }
 
