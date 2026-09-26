@@ -196,13 +196,13 @@ class NetherBlackHoleProgramTest {
     }
 
     @Test
-    void theCursorExposesPhaseProgressAndRadiusToTheRenderer() {
+    void theCursorExposesPhaseProgressAndTheStepItsRadiusToTheRenderer() {
         IntStream.range(0, EXPAND_TICKS / 3).forEach(i -> tickOnce());
 
         assertTrue(state.isRunning());
         assertEquals("expand", state.name());
         assertEquals(1f / 3, state.progress(), PROGRESS_TOLERANCE);
-        assertEquals(RADIUS, state.radius());
+        assertEquals(RADIUS, ((PhasedStep) program().getFirst()).radius().evaluateFloat(host));
         IntStream.range(EXPAND_TICKS / 3, EXPAND_TICKS).forEach(i -> tickOnce());
         assertEquals("hold", state.name());
         assertEquals(0f, state.progress());
