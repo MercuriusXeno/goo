@@ -12,7 +12,9 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import org.jspecify.annotations.NonNull;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Hub block item: carries its canisters in HUB_CANISTERS. A primary click with a
@@ -23,7 +25,7 @@ import java.util.List;
  * to drain, so an empty-cursor secondary click is left to vanilla, which picks the
  * hub up (decision hub-item-insert-only).</p>
  */
-public class HubBlockItem extends BlockItem {
+public class HubBlockItem extends BlockItem implements GooCarrierItem {
 
     /**
      * Creates a hub block item for the given block.
@@ -33,6 +35,47 @@ public class HubBlockItem extends BlockItem {
      */
     public HubBlockItem(Block block, Properties properties) {
         super(block, properties);
+    }
+
+    // --- GooCarrierItem (decision hosts-answer-bounds-through-interfaces) ---
+
+    /**
+     * The hub's carried canisters drain in the canister pass.
+     */
+    @Override
+    public DepletionPass depletionPass() {
+        return DepletionPass.CANISTER;
+    }
+
+    @Override
+    public Map<ResourceKey<GooTypeDefinition>, Integer> gooContents(ItemStack stack) {
+        Map<ResourceKey<GooTypeDefinition>, Integer> totals = new HashMap<>();
+        for (ItemStack canister : carried(stack)) {
+            CanisterItem.gooContentsOf(canister).forEach((type, volume) -> totals.merge(type, volume, Integer::sum));
+        }
+        return totals;
+    }
+
+    /**
+     * Drains copies of the hub's canisters in order and writes them back once any gave goo.
+     */
+    @Override
+    public int drawGoo(ItemStack stack, ResourceKey<GooTypeDefinition> type, int amount) {
+        List<ItemStack> copies = new ArrayList<>();
+        int removed = 0;
+        for (ItemStack canister : carried(stack)) {
+            ItemStack copy = canister.copy();
+            removed += CanisterItem.removeGoo(copy, type, amount - removed);
+            copies.add(copy);
+        }
+        if (removed > 0) {
+            stack.set(GooDataComponents.HUB_CANISTERS.get(), copies);
+        }
+        return removed;
+    }
+
+    private static List<ItemStack> carried(ItemStack hub) {
+        return hub.getOrDefault(GooDataComponents.HUB_CANISTERS.get(), List.of());
     }
 
     /**

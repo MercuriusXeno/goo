@@ -17,6 +17,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -29,7 +30,7 @@ import java.util.Objects;
  * <p>Migration: old volumetric blobs with a BLOB_VOLUME component are converted
  * on inventory tick to the new stackable format.</p>
  */
-public class GooBlobItem extends Item implements IGooItemInteraction {
+public class GooBlobItem extends Item implements IGooItemInteraction, GooCarrierItem {
 
     /**
      * Volume of one blob in microblobs.
@@ -65,6 +66,32 @@ public class GooBlobItem extends Item implements IGooItemInteraction {
     public static boolean sameType(ItemStack a, ItemStack b) {
         ResourceKey<GooTypeDefinition> key = keyOf(a);
         return key != null && Objects.equals(key, keyOf(b));
+    }
+
+    // --- GooCarrierItem (decision hosts-answer-bounds-through-interfaces) ---
+
+    @Override
+    public DepletionPass depletionPass() {
+        return DepletionPass.LOOSE_BLOB;
+    }
+
+    @Override
+    public Map<ResourceKey<GooTypeDefinition>, Integer> gooContents(ItemStack stack) {
+        ResourceKey<GooTypeDefinition> key = BlobStacks.keyOf(stack);
+        return key != null ? Map.of(key, BlobStacks.volumeOf(stack)) : Map.of();
+    }
+
+    /**
+     * Whole blobs leave the stack, enough to cover the amount while the stack lasts.
+     */
+    @Override
+    public int drawGoo(ItemStack stack, ResourceKey<GooTypeDefinition> type, int amount) {
+        if (BlobStacks.keyOf(stack) != type) {
+            return 0;
+        }
+        int blobs = Math.min(Math.ceilDiv(amount, VOLUME_PER_BLOB), stack.getCount());
+        stack.shrink(blobs);
+        return blobs * VOLUME_PER_BLOB;
     }
 
     /**

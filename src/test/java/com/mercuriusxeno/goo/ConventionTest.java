@@ -35,6 +35,8 @@ class ConventionTest {
     private static final String MACHINE_BLOCK = "com.mercuriusxeno.goo.block.GooMachineBlock";
     private static final String MACHINE_BLOCK_ENTITY = "com.mercuriusxeno.goo.block.GooMachineBlockEntity";
     private static final String PLEXER_BLOCK_ENTITY = "com.mercuriusxeno.goo.block.plexer.PlexerBlockEntity";
+    private static final String ITEM_PACKAGE = "com.mercuriusxeno.goo.item.";
+    private static final String GOO_SOURCE_SCANNER = ITEM_PACKAGE + "GooSourceScanner";
     private static final String GOO_SUBMITTER = "com.mercuriusxeno.goo.client.GooSubmitter";
     private static final String RENDER_TYPES = "net.minecraft.client.renderer.rendertype.RenderTypes";
     private static final String ENTITY_TRANSLUCENT = "entityTranslucent";
@@ -179,6 +181,28 @@ class ConventionTest {
                 .because("client readers dispatch on the host interfaces"
                         + " (decision hosts-answer-bounds-through-interfaces)")
                 .check(mainClasses);
+    }
+
+    /**
+     * GooSourceScanner reads every goo-carrying item through GooCarrierItem and
+     * checks no carrier item class itself, so a new carrier joins the scan by
+     * implementing the interface (decision hosts-answer-bounds-through-interfaces).
+     */
+    @Test
+    void sourceScannerDispatchesOnTheCarrierInterface() {
+        classes()
+                .that().haveFullyQualifiedName(GOO_SOURCE_SCANNER)
+                .should(checkNoInstanceofOn(carrierItemClass()))
+                .because("the scan reads carriers through GooCarrierItem"
+                        + " (decision hosts-answer-bounds-through-interfaces)")
+                .check(mainClasses);
+    }
+
+    private static DescribedPredicate<JavaClass> carrierItemClass() {
+        return assignableTo(ITEM_PACKAGE + "GooBlobItem").or(assignableTo(ITEM_PACKAGE + "GooOmniblobItem"))
+                .or(assignableTo(ITEM_PACKAGE + "CanisterItem")).or(assignableTo(ITEM_PACKAGE + "VatBlockItem"))
+                .or(assignableTo(ITEM_PACKAGE + "HubBlockItem"))
+                .as("a goo carrier item class");
     }
 
     private static DescribedPredicate<JavaClass> machineType() {
