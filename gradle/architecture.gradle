@@ -13,7 +13,7 @@ tasks.register('architectureGraphs', JavaExec) {
     description = 'Writes the package topology graph and the type dependency graph'
     group = 'documentation'
     dependsOn tasks.named('compileJava')
-    classpath = sourceSets.main.runtimeClasspath
+    classpath = sourceSets.tools.runtimeClasspath
     mainClass = 'com.mercuriusxeno.goo.tools.architecture.ArchitectureGraphs'
     workingDir = project.projectDir
     args architectureClassesDir.absolutePath, 'src/main/java', architectureOutDir.absolutePath
@@ -24,7 +24,7 @@ tasks.register('architectureFindings', JavaExec) {
     description = 'Writes the shape findings a sweep reads first'
     group = 'documentation'
     dependsOn tasks.named('compileJava')
-    classpath = sourceSets.main.runtimeClasspath
+    classpath = sourceSets.tools.runtimeClasspath
     mainClass = 'com.mercuriusxeno.goo.tools.architecture.ArchitectureFindings'
     workingDir = project.projectDir
     args architectureClassesDir.absolutePath, 'src/main/java', architectureOutDir.absolutePath
