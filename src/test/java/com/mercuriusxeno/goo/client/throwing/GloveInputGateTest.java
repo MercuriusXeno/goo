@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.throwing;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import java.util.function.BooleanSupplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -14,19 +15,23 @@ class GloveInputGateTest {
 
     /** Records what a press resolved to, sending a payload or not as told. */
     private static final class RecordingActions implements GloveInputGate.PressActions {
-        private final boolean payloadSent;
+        private final BooleanSupplier payloadSent;
         private int throwsSent;
         private int swings;
         private int radials;
 
         RecordingActions(boolean payloadSent) {
+            this(() -> payloadSent);
+        }
+
+        RecordingActions(BooleanSupplier payloadSent) {
             this.payloadSent = payloadSent;
         }
 
         @Override
         public boolean sendThrow() {
             throwsSent++;
-            return payloadSent;
+            return payloadSent.getAsBoolean();
         }
 
         @Override
@@ -82,6 +87,54 @@ class GloveInputGateTest {
 
             assertEquals(0, actions.throwsSent);
             assertEquals(0, actions.swings);
+        }
+    }
+
+    /** The hold opens the radial irrespective of affordability or selection (decision hold-opens-radial-regardless-of-cost). */
+    @Nested
+    class HoldWhenBroke {
+
+        private static final int NO_HOLDINGS = 0;
+
+        /** Throws only what zero holdings afford, as GloveThrowSender prices it. */
+        private static RecordingActions brokeActions() {
+            return new RecordingActions(() -> GloveThrowSender.affordsThrow(null, 0, amount -> NO_HOLDINGS >= amount));
+        }
+
+        @Test
+        void heldPressWithZeroHoldingsOpensRadialAndSendsNoThrow() {
+            GloveInputGate gate = new GloveInputGate();
+            RecordingActions actions = brokeActions();
+
+            gate.arm();
+            holdFor(gate, GooGloveItem.RADIAL_THRESHOLD_TICKS, actions);
+
+            assertEquals(1, actions.radials);
+            assertEquals(0, actions.throwsSent);
+        }
+
+        @Test
+        void heldPressWithNoSelectionOpensRadialAndSendsNoThrow() {
+            GloveInputGate gate = new GloveInputGate();
+            RecordingActions noSelection = new RecordingActions(false);
+
+            gate.arm();
+            holdFor(gate, GooGloveItem.RADIAL_THRESHOLD_TICKS, noSelection);
+
+            assertEquals(1, noSelection.radials);
+            assertEquals(0, noSelection.throwsSent);
+        }
+
+        @Test
+        void shortPressWithZeroHoldingsSwingsNothing() {
+            GloveInputGate gate = new GloveInputGate();
+            RecordingActions actions = brokeActions();
+
+            gate.arm();
+            gate.tick(false, actions);
+
+            assertEquals(0, actions.swings);
+            assertEquals(0, actions.radials);
         }
     }
 
