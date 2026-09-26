@@ -166,6 +166,18 @@ public final class GooTargetHighlighter {
         return hintFromAbility(type, sel);
     }
 
+    /**
+     * Reads the ability id of the glove the player holds, the key a standing
+     * marker must share to be a target (decision diagnose-then-fix-stack-key-match).
+     *
+     * @param player the local player
+     * @return the selected ability id, or null when the glove holds none
+     */
+    public static @Nullable String selectedAbilityId(Player player) {
+        GloveSelection sel = readGloveSelection(player);
+        return sel == null ? null : sel.abilityId();
+    }
+
     private static @Nullable GloveSelection readGloveSelection(Player player) {
         ItemStack main = player.getMainHandItem();
         if (main.getItem() instanceof GooGloveItem) {
@@ -311,17 +323,17 @@ public final class GooTargetHighlighter {
         }
         Vec3 eyePos = player.getEyePosition(partialTick);
         Vec3 reach = eyePos.add(player.getViewVector(partialTick).scale(MAX_RANGE));
-        return resolveWithHint(player, eyePos, reach, hint);
+        return resolveWithHint(player, eyePos, reach, hint, selectedAbilityId(player));
     }
 
     private static TargetResult resolveWithHint(Player player, Vec3 eyePos,
-                                                Vec3 reach, TargetingHint hint) {
+                                                Vec3 reach, TargetingHint hint, @Nullable String abilityId) {
         if (hint == TargetingHint.ENTITY) {
-            TargetResult entityResult = resolveEntityTarget(player, eyePos, reach);
+            TargetResult entityResult = resolveEntityTarget(player, eyePos, reach, abilityId);
             return entityResult != null ? entityResult : TargetResult.NONE;
         }
         lastAimHit = null;
-        return resolveBlockTarget(player, eyePos, reach);
+        return resolveBlockTarget(player, eyePos, reach, abilityId);
     }
 
     /**
@@ -332,12 +344,13 @@ public final class GooTargetHighlighter {
      * @param player the local player
      * @param eyePos the eye position
      * @param reach  the maximum reach endpoint
+     * @param abilityId the glove's selected ability id
      * @return an entity or chain marker target result, or null if none
      */
     private static @Nullable TargetResult resolveEntityTarget(
-            Player player, Vec3 eyePos, Vec3 reach) {
+            Player player, Vec3 eyePos, Vec3 reach, @Nullable String abilityId) {
         AimAssistResolver.AimHit hit = AimAssistResolver.findClosestAimHit(
-                player, eyePos, reach, lastAimHit);
+                player, eyePos, reach, lastAimHit, abilityId);
         lastAimHit = hit;
         if (hit instanceof AimAssistResolver.AimHit.EntityHit eh) {
             return TargetResult.entity(eh.entity());
@@ -356,15 +369,17 @@ public final class GooTargetHighlighter {
      * @param player the local player
      * @param eyePos the eye position
      * @param reach  the maximum reach endpoint
+     * @param abilityId the glove's selected ability id
      * @return the resolved block target, or max-range projection on miss
      */
-    private static TargetResult resolveBlockTarget(Player player, Vec3 eyePos, Vec3 reach) {
+    private static TargetResult resolveBlockTarget(Player player, Vec3 eyePos, Vec3 reach,
+                                                   @Nullable String abilityId) {
         BlockHitResult hit = player.level().clip(new ClipContext(
                 eyePos, reach, ClipContext.Block.OUTLINE, ClipContext.Fluid.SOURCE_ONLY, player));
         if (hit.getType() != HitResult.Type.BLOCK) {
             return projectToGround(player.level(), reach);
         }
-        return classifyBlockHit(player.level(), hit);
+        return classifyBlockHit(player.level(), hit, abilityId);
     }
 
     /**
@@ -397,12 +412,13 @@ public final class GooTargetHighlighter {
      *
      * @param level the current level
      * @param hit   the confirmed block hit
+     * @param abilityId the glove's selected ability id; a marker of another reads as a solid block
      * @return granny-arc or block-face target result
      */
-    private static TargetResult classifyBlockHit(Level level, BlockHitResult hit) {
+    private static TargetResult classifyBlockHit(Level level, BlockHitResult hit, @Nullable String abilityId) {
         BlockPos pos = hit.getBlockPos();
         Direction face = hit.getDirection();
-        if (level.getBlockEntity(pos) instanceof ChainMarkerBlockEntity) {
+        if (isKeyedMarker(level, pos, abilityId)) {
             return TargetResult.chainMarker(pos);
         }
         if (level.getBlockState(pos).getBlock() instanceof GlowCrystalBlock) {
@@ -539,7 +555,7 @@ public final class GooTargetHighlighter {
      */
     private static void renderBlockTargetHighlight(TargetResult.BlockTarget bt, Minecraft mc,
                                                    PoseStack ps, MultiBufferSource.BufferSource buf, Camera camera, ResourceKey<GooTypeDefinition> selectedType) {
-        BlockPos markerPos = findAdjacentMarker(mc.level, bt.pos(), bt.face());
+        BlockPos markerPos = findAdjacentMarker(mc.level, bt.pos(), bt.face(), selectedAbilityId(mc.player));
         if (markerPos != null) {
             if (canAcceptMoreBlobs(mc.level, markerPos)) {
                 VoxelHighlightRenderer.renderBlockShape(ps, buf, camera, markerPos, selectedType);
@@ -609,18 +625,32 @@ public final class GooTargetHighlighter {
      * @param level the client level
      * @param pos   the hit block position
      * @param face  the hit face
+     * @param abilityId the glove's selected ability id
      * @return the chain marker position, or null
      */
     private static @Nullable BlockPos findAdjacentMarker(Level level, BlockPos pos,
-                                                         Direction face) {
-        if (level.getBlockEntity(pos) instanceof ChainMarkerBlockEntity) {
+                                                         Direction face, @Nullable String abilityId) {
+        if (isKeyedMarker(level, pos, abilityId)) {
             return pos;
         }
         BlockPos adj = pos.relative(face);
-        if (level.getBlockEntity(adj) instanceof ChainMarkerBlockEntity) {
+        if (isKeyedMarker(level, adj, abilityId)) {
             return adj;
         }
         return null;
+    }
+
+    /**
+     * Whether a chain marker of the selected ability stands at the position.
+     *
+     * @param level     the client level
+     * @param pos       the block position
+     * @param abilityId the glove's selected ability id
+     * @return true for a marker the selection keys onto
+     */
+    private static boolean isKeyedMarker(Level level, BlockPos pos, @Nullable String abilityId) {
+        return level.getBlockEntity(pos) instanceof ChainMarkerBlockEntity be
+                && AimAssistResolver.locksMarker(be.getAbilityId(), abilityId);
     }
 
     /**

@@ -108,18 +108,33 @@ public record AbilityDefinition(
      * @return the cost in mB
      */
     public int throwCost(int existingStacks) {
-        return cost.costForStack(existingStacks, this::footprintBlocks);
+        return priceThrow(cost, behaviors, existingStacks);
     }
 
     /**
-     * Counts the blocks this ability's footprint covers at a stack count:
+     * Prices a throw from a cost formula and the step program its footprint
+     * reads, the one pricing the server and the client's synced copy share
+     * (decision unaffordable-click-does-nothing).
+     *
+     * @param cost           the cost formula
+     * @param behaviors      the ability's step program
+     * @param existingStacks the stacks the target already holds; zero for a first throw
+     * @return the cost in mB
+     */
+    public static int priceThrow(AbilityCost cost, List<Step> behaviors, int existingStacks) {
+        return cost.costForStack(existingStacks, stacks -> footprintBlocks(behaviors, stacks));
+    }
+
+    /**
+     * Counts the blocks a step program's footprint covers at a stack count:
      * its first progressive_area step's footprint, or one block per stack
      * for an ability walking no area.
      *
-     * @param stacks the stack count
+     * @param behaviors the ability's step program
+     * @param stacks    the stack count
      * @return the block count
      */
-    int footprintBlocks(int stacks) {
+    private static int footprintBlocks(List<Step> behaviors, int stacks) {
         return behaviors.stream()
                 .flatMap(AbilityDefinition::withDescendants)
                 .filter(ProgressiveAreaStep.class::isInstance)
