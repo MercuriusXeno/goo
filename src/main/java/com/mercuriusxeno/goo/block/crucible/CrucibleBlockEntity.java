@@ -1,34 +1,27 @@
 package com.mercuriusxeno.goo.block.crucible;
 
+import com.mercuriusxeno.goo.GooConfig;
 import com.mercuriusxeno.goo.GooTypeDefinition;
-import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.block.*;
 import com.mercuriusxeno.goo.block.fluid.GooFluidHandler;
-import com.mercuriusxeno.goo.block.gasket.AddressedGasket;
 import com.mercuriusxeno.goo.block.gasket.GasketAttachment;
 import com.mercuriusxeno.goo.block.gasket.GasketPusher;
-import com.mercuriusxeno.goo.block.gasket.IGasketHolder;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.PartiallyMeltedItem;
 import com.mercuriusxeno.goo.item.gasket.GasketRegionResolver;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.HolderLookup;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.Connection;
-import net.minecraft.network.protocol.Packet;
-import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.BlockHitResult;
+import org.jspecify.annotations.Nullable;
+import java.util.List;
 
 /**
  * Core crucible logic: melts items into goo via a per-tick drain pipeline.
@@ -38,7 +31,7 @@ import net.minecraft.world.phys.BlockHitResult;
  * {@link CrucibleInsertion} (item/goo insertion),
  * {@link CrucibleSerialization} (NBT).</p>
  */
-public class CrucibleBlockEntity extends BlockEntity implements IGasketHolder, IGooLightSource {
+public class CrucibleBlockEntity extends GooGlowingMachineBlockEntity {
 
     /** Reference saturation cap (mB) for crucible reservoir light scaling.
      * Mirrors the BER's visual fill cap so the light response tracks the
@@ -70,13 +63,9 @@ public class CrucibleBlockEntity extends BlockEntity implements IGasketHolder, I
     /** Heat bought from fuel goo, spent one tick per melt tick (decision fuel-goo-heats-per-mb). */
     final CrucibleHeat heat = new CrucibleHeat();
 
-    /** Composed gasket integration: TRANSMITTER-only with a BE-level pusher. */
-    private final GasketAttachment gasket =
-        GasketAttachment.single(this, GasketRole.TRANSMITTER, TAG_CRUCIBLE);
-
     /** Multi-type goo reservoir backed by the Transfer API. */
     final GooFluidHandler reservoir = GooFluidHandler.withCapacityPerType(
-        CrucibleCapacity.TYPE_CAPACITY, gasket.syncCallback());
+        CrucibleCapacity.TYPE_CAPACITY, gasket().syncCallback());
 
     /** The reservoir as the stock the heat buys fuel from. */
     final CrucibleHeat.FuelStock fuelStock = new CrucibleHeat.FuelStock() {
@@ -114,26 +103,9 @@ public class CrucibleBlockEntity extends BlockEntity implements IGasketHolder, I
      * @param state the block state
      */
     public CrucibleBlockEntity(BlockPos pos, BlockState state) {
-        super(GooBlockEntities.CRUCIBLE.get(), pos, state);
-        this.gasketPusher = new GasketPusher(
-            reservoir,
-            () -> gasket.state().getId(GasketRole.TRANSMITTER),
-            () -> gasket.state().getPartner(GasketRole.TRANSMITTER),
-            this::getLevel, this::getBlockPos,
-            gasket.syncCallback(),
-            () -> gasket.registryAccess() != null ? gasket.registryAccess().get() : null);
-        gasket.rebuildPushers(gasketPusher::rebuildCache);
-        gasket.afterLoad(this::forceTransmitterChunkOnLoad);
-    }
-
-    private void forceTransmitterChunkOnLoad() {
-        if (level instanceof ServerLevel serverLevel) {
-            GasketPusher.forceTransmitterChunk(
-                gasket.state().getId(GasketRole.TRANSMITTER),
-                gasket.registryAccess(),
-                serverLevel,
-                worldPosition);
-        }
+        super(GooBlockEntities.CRUCIBLE.get(), pos, state,
+            be -> GasketAttachment.single(be, GasketRole.TRANSMITTER, TAG_CRUCIBLE));
+        this.gasketPusher = gasket().singlePusher(reservoir);
     }
 
     // --- Heat ---
@@ -161,12 +133,12 @@ public class CrucibleBlockEntity extends BlockEntity implements IGasketHolder, I
         return heat.canHeat(FuelGrade.configured(), fuelStock);
     }
 
-    /** Returns the mB of fuel goo in the reservoir.
+    /** Returns the burns the heat and fuel goo hold, combo first.
      *
-     * @return the fuel goo volume
+     * @return the burns
      */
-    public long fuelGooVolume() {
-        return CrucibleHeat.fuelVolume(FuelGrade.configured(), fuelStock);
+    public List<CrucibleHeat.FuelBurn> burnForecast() {
+        return heat.forecast(FuelGrade.configured(), GooConfig.COMBO_DRAIN_PER_TICK.get(), fuelStock::volume);
     }
 
     /** Returns true if the crucible is enabled (no redstone signal).
@@ -218,30 +190,14 @@ public class CrucibleBlockEntity extends BlockEntity implements IGasketHolder, I
     }
 
     /**
-     * Sums emissive contributions from each reservoir entry against
-     * {@link #LIGHT_REFERENCE_CAPACITY} (the visual fill cap), clamped
-     * to the vanilla 15-light ceiling. Before placement no registry is
-     * reachable, so the emission reads 0.
+     * Each reservoir entry glows against {@link #LIGHT_REFERENCE_CAPACITY},
+     * the visual fill cap.
      *
-     * @return goo-derived block-light emission in [0, 15]
+     * @return one light entry per reservoir type
      */
     @Override
-    public int gooLightEmission() {
-        Level level = getLevel();
-        if (level == null) {
-            return 0;
-        }
-        HolderLookup.Provider registries = level.registryAccess();
-        int total = 0;
-        for (var entry : reservoir.toGooContents().contents().entrySet()) {
-            int contribution = GooLightContribution.forSlot(
-                    GooTypes.definition(registries, entry.getKey()), entry.getValue(), LIGHT_REFERENCE_CAPACITY);
-            total = GooLightContribution.addClamped(total, contribution);
-            if (total >= GooLightContribution.MAX_LIGHT) {
-                return GooLightContribution.MAX_LIGHT;
-            }
-        }
-        return total;
+    protected List<GooLightEntry> lightEntries() {
+        return GooLightEntry.ofContents(reservoir.toGooContents(), LIGHT_REFERENCE_CAPACITY);
     }
 
     /** Returns the melting item stack (may be empty).
@@ -293,9 +249,6 @@ public class CrucibleBlockEntity extends BlockEntity implements IGasketHolder, I
     // --- IGasketHolder ---
 
     @Override
-    public GasketAttachment gasket() { return gasket; }
-
-    @Override
     public GasketRole resolveRole(BlockHitResult hit) { return GasketRegionResolver.resolveCrucibleRole(); }
 
     /** {@inheritDoc} Checks blockstate rather than static role. */
@@ -303,14 +256,8 @@ public class CrucibleBlockEntity extends BlockEntity implements IGasketHolder, I
     public boolean supportsRole(GasketRole role) { return getBlockState().getValue(CrucibleBlock.HAS_GASKET); }
 
     @Override
-    public boolean holdsBlockGasket(GasketRole role) {
-        return role == GasketRole.TRANSMITTER && supportsRole(role);
-    }
-
-    @Override
-    public void uninstallGasket(AddressedGasket gasket) {
-        clearGasket(gasket.role());
-        level.setBlock(worldPosition, getBlockState().setValue(CrucibleBlock.HAS_GASKET, false), Block.UPDATE_ALL);
+    public @Nullable BooleanProperty gasketFlag(GasketRole role) {
+        return role == GasketRole.TRANSMITTER ? CrucibleBlock.HAS_GASKET : null;
     }
 
     @Override
@@ -321,7 +268,6 @@ public class CrucibleBlockEntity extends BlockEntity implements IGasketHolder, I
         if (!reservoirContents.isEmpty()) {
             output.store(TAG_RESERVOIR, GooContents.CODEC, reservoirContents);
         }
-        gasket.saveAdditional(output);
     }
 
     @Override
@@ -329,46 +275,8 @@ public class CrucibleBlockEntity extends BlockEntity implements IGasketHolder, I
         super.loadAdditional(input);
         CrucibleSerialization.loadMeltingState(this, input);
         reservoir.loadFrom(input.read(TAG_RESERVOIR, GooContents.CODEC).orElse(GooContents.EMPTY));
-        gasket.loadAdditional(input);
-    }
-
-    @Override
-    public void setLevel(Level level) {
-        super.setLevel(level);
-        gasket.onSetLevel(level);
-    }
-
-    @Override
-    public void onLoad() {
-        super.onLoad();
-        gasket.onLoad();
-        BlockEntitySync.kickLightingOnLoad(this);
-    }
-
-    /**
-     * Loads the packet's contents, then rechecks light at this position:
-     * the client's engine sees new goo only this way (decision
-     * diagnose-then-fix-vat-stale-light).
-     *
-     * @param net   the connection the packet came from
-     * @param input the packet data
-     */
-    @Override
-    public void onDataPacket(Connection net, ValueInput input) {
-        super.onDataPacket(net, input);
-        BlockEntitySync.relightOnContentsArrived(this);
     }
 
     /** Marks dirty and syncs to tracking clients. Delegates to the gasket attachment. */
-    void syncToClients() { gasket.syncToClients(); }
-
-    @Override
-    public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
-        return gasket.getUpdateTag(registries);
-    }
-
-    @Override
-    public Packet<ClientGamePacketListener> getUpdatePacket() {
-        return gasket.getUpdatePacket();
-    }
+    void syncToClients() { gasket().syncToClients(); }
 }

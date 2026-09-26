@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.block.vat;
 
-import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -124,20 +123,8 @@ final class VatGasketOps {
     }
 
     /**
-     * Drops gasket items for any installed gaskets.
-     *
-     * @param state the block state
-     * @param level the current level
-     * @param pos   the block position
-     */
-    static void dropGaskets(BlockState state, Level level, BlockPos pos) {
-        popFaceGasket(level, pos, GasketRole.RECEIVER, state.getValue(VatBlock.GASKET_CAP));
-        popFaceGasket(level, pos, GasketRole.TRANSMITTER, state.getValue(VatBlock.GASKET_BASE));
-    }
-
-    /**
-     * Pops the gasket on one vat face through {@link GasketInstallation#popGasket},
-     * clearing the vat's own record of it when the vat stays standing.
+     * Pops the gasket an occluding neighbor displaced from one vat face, whose flag
+     * the stacking update already lowered.
      *
      * @param level     the current level
      * @param pos       the block position
@@ -145,13 +132,8 @@ final class VatGasketOps {
      * @param installed whether that face holds a gasket being popped
      */
     private static void popFaceGasket(Level level, BlockPos pos, GasketRole role, boolean installed) {
-        if (!installed) {
-            return;
-        }
-        VatBlockEntity vat = level.getBlockEntity(pos) instanceof VatBlockEntity be ? be : null;
-        GasketInstallation.popGasket(level, pos, true, vat == null ? null : vat.getGasketId(role));
-        if (vat != null) {
-            vat.clearGasket(role);
+        if (installed && level.getBlockEntity(pos) instanceof VatBlockEntity vat) {
+            vat.releaseBlockGasket(role);
         }
     }
 }

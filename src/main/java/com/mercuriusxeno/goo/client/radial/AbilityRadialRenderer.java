@@ -56,6 +56,10 @@ final class AbilityRadialRenderer {
      */
     private static final String ABILITY_ICON_SUFFIX = ".png";
     /**
+     * Separator between an explicit icon's namespace and path.
+     */
+    private static final char NAMESPACE_SEPARATOR = ':';
+    /**
      * Vertical gap between icon and label text.
      */
     private static final int LABEL_GAP = 1;
@@ -265,7 +269,10 @@ final class AbilityRadialRenderer {
      */
     static Identifier resolveAbilityIcon(ClientAbility ability) {
         if (!ability.icon().isEmpty()) {
-            return Identifier.fromNamespaceAndPath(Goo.MODID, ability.icon());
+            // diagnose-then-fix-radial-icon-id: a namespaced icon keeps its namespace rather than taking a second goo:
+            return ability.icon().indexOf(NAMESPACE_SEPARATOR) >= 0
+                    ? Identifier.parse(ability.icon())
+                    : Identifier.fromNamespaceAndPath(Goo.MODID, ability.icon());
         }
         String path = ability.id().getPath();
         return Identifier.fromNamespaceAndPath(Goo.MODID,

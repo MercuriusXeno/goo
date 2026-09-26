@@ -9,7 +9,8 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 
 /**
  * Tests that the nether hole style follows the configured shape, and that
- * the client config defaults to the cube with the lens off.
+ * the client config defaults to the sphere with the lens off, the cube
+ * being the shape a player opts into.
  */
 class NetherHoleStylesTest {
 
@@ -24,8 +25,14 @@ class NetherHoleStylesTest {
     }
 
     @Test
-    void theConfigDefaultsToTheCube() {
-        assertEquals(NetherHoleShape.CUBE, GooClientConfig.NETHER_HOLE_SHAPE.getDefault());
+    void theConfigDefaultsToTheSphere() {
+        assertEquals(NetherHoleShape.SPHERE, GooClientConfig.NETHER_HOLE_SHAPE.getDefault());
+    }
+
+    @Test
+    void theDefaultShapeAnswersTheSphereStyle() {
+        assertSame(NetherHoleStyles.SPHERE,
+            NetherHoleStyles.forShape(GooClientConfig.NETHER_HOLE_SHAPE.getDefault()));
     }
 
     @Test

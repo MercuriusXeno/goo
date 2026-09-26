@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.item;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.ISidedProxy;
 import com.mercuriusxeno.goo.PlayerUtils;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
@@ -154,7 +155,7 @@ public class GooGloveItem extends Item {
         ResourceKey<GooTypeDefinition> selected = getSelectedType(stack);
         if (selected == null) { return false; }
         if (level.isClientSide() && entity instanceof Player player) {
-            com.mercuriusxeno.goo.client.throwing.GloveThrowSender.sendThrow(player, selected);
+            ISidedProxy.get().sendGloveThrow(player, selected);
         }
         entity.swing(entity.getUsedItemHand());
         return true;

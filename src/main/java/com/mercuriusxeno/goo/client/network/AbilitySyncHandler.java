@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.network;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
+import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
@@ -44,7 +45,7 @@ public final class AbilitySyncHandler {
                 continue;
             }
             ClientAbility ability = new ClientAbility(Identifier.tryParse(e.abilityId()),
-                    e.displayName(), e.icon(), e.order(), e.tags(), e.fuseTicks(), e.maxStacks());
+                    e.displayName(), e.icon(), e.order(), e.tags(), e.fuseTicks(), e.maxStacks(), e.behaviors());
             map.computeIfAbsent(type, t -> new ArrayList<>()).add(ability);
             ids.put(e.abilityId(), ability);
         }
@@ -99,9 +100,11 @@ public final class AbilitySyncHandler {
      * @param tags        categorical tags for targeting and display
      * @param fuseTicks   the chain block's full fuse
      * @param maxStacks   the chain block's stack ceiling
+     * @param behaviors   the ability's step program, whose params the marker's renderers read
      */
     public record ClientAbility(Identifier id, String displayName, String icon,
-                                int order, List<String> tags, int fuseTicks, int maxStacks) {
+                                int order, List<String> tags, int fuseTicks, int maxStacks,
+                                List<Step> behaviors) {
 
         /**
          * Returns true if this ability has the given tag.

@@ -13,7 +13,6 @@ import com.mojang.serialization.MapCodec;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.special.SpecialModelRenderer;
 import net.minecraft.client.renderer.texture.OverlayTexture;
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.client.resources.model.geometry.QuadCollection;
 import net.minecraft.resources.ResourceKey;
@@ -217,8 +216,7 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
      * @return the UV rectangle covering the full fluid sprite
      */
     private static GooRenderUtil.UvRect buildBlobUv(ResourceKey<GooTypeDefinition> type) {
-        TextureAtlasSprite sprite = GooRenderUtil.lookupFluidSprite(type);
-        return new GooRenderUtil.UvRect(sprite.getU0(), sprite.getV0(), sprite.getU1(), sprite.getV1());
+        return GooSubmitter.spriteUv(GooRenderUtil.lookupFluidSprite(type));
     }
 
     /**

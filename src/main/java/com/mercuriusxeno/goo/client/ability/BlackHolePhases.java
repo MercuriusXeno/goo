@@ -1,7 +1,9 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.GooTypes;
+import com.mercuriusxeno.goo.ability.program.MarkerVariables;
 import com.mercuriusxeno.goo.ability.program.PhasedState;
+import com.mercuriusxeno.goo.ability.program.PhasedStep;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.client.ber.ChainMarkerRenderState;
 import net.minecraft.world.phys.Vec3;
@@ -96,7 +98,8 @@ public final class BlackHolePhases {
         state.netherActive = true;
         state.visibleScale = visibleScale(phase);
         state.diskExpansionScale = diskExpansionScale(phase);
-        state.implodeRadius = phase.radius();
+        state.implodeRadius = SyncedSteps.first(be, PhasedStep.class)
+                .map(step -> step.radius().evaluateFloat(new MarkerVariables(be))).orElse(0f);
         state.animationTime = NetherDiscMesh.animationTime(be);
         return state.visibleScale > 0f;
     }

@@ -5,12 +5,12 @@ import net.minecraft.world.level.storage.ValueOutput;
 
 /**
  * What a {@link PhasedStep} carries across ticks: which phase runs, how
- * many ticks it has run, how long it lasts and the reach the step
- * declares. A step is an immutable definition, so the host keeps this
- * state for it (capability {@link HostCapability#PHASED}); the marker
- * keeps it on its block entity, which saves it and syncs it to the
- * client, where the nether black hole reads the phase, its progress and
- * the radius to size its sphere.
+ * many ticks it has run and how long it lasts. A step is an immutable
+ * definition, so the host keeps this run state for it (capability
+ * {@link HostCapability#PHASED}); the marker keeps it on its block entity,
+ * which saves it and syncs it to the client, where the nether black hole
+ * reads the phase and its progress, and reads the radius off the step in
+ * the synced ability definition (decision capability-interfaces-derive-host-kind).
  */
 public final class PhasedState {
 
@@ -18,14 +18,12 @@ public final class PhasedState {
     private static final String TAG_INDEX = "PhaseIndex";
     private static final String TAG_TICKS = "PhaseTicks";
     private static final String TAG_DURATION = "PhaseDuration";
-    private static final String TAG_RADIUS = "PhaseRadius";
     private static final String NOT_RUNNING = "";
 
     private String name = NOT_RUNNING;
     private int index;
     private int ticks;
     private int duration;
-    private float radius;
 
     /**
      * Returns the name of the phase now running, empty while no phased
@@ -74,23 +72,6 @@ public final class PhasedState {
         return duration;
     }
 
-    /**
-     * Returns the reach the running step declares, in blocks.
-     *
-     * @return the radius
-     */
-    public float radius() {
-        return radius;
-    }
-
-    /**
-     * Records the reach the running step declares.
-     *
-     * @param reach the radius in blocks
-     */
-    public void setRadius(float reach) {
-        this.radius = reach;
-    }
 
     /**
      * Returns how far through its duration the phase now running is.
@@ -152,7 +133,6 @@ public final class PhasedState {
         output.putInt(TAG_INDEX, index);
         output.putInt(TAG_TICKS, ticks);
         output.putInt(TAG_DURATION, duration);
-        output.putFloat(TAG_RADIUS, radius);
     }
 
     /**
@@ -165,6 +145,5 @@ public final class PhasedState {
         index = input.getIntOr(TAG_INDEX, 0);
         ticks = input.getIntOr(TAG_TICKS, 0);
         duration = input.getIntOr(TAG_DURATION, 0);
-        radius = input.getFloatOr(TAG_RADIUS, 0f);
     }
 }
