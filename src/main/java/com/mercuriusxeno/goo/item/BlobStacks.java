@@ -64,20 +64,14 @@ public final class BlobStacks {
     }
 
     /**
-     * The volume a stack saved before blobs-become-omniblobs reads as: a goo:goo_blob
-     * stack of count n carried no BLOB_VOLUME and held n x 1,000 mB. A stack of
-     * count above 1 or with no stored volume reads count x 1,000 mB; any other
-     * stack reads its stored volume.
+     * The volume a goo:goo_blob stack saved before blobs-become-omniblobs holds:
+     * each of its count blobs carried 1,000 mB.
      *
-     * @param count        the stack's item count
-     * @param storedVolume the BLOB_VOLUME component, or null when absent
+     * @param count the saved stack's item count
      * @return the volume in microblobs
      */
-    public static int legacyAwareVolume(int count, @Nullable Integer storedVolume) {
-        if (storedVolume == null || count > 1) {
-            return count * MB_PER_BLOB;
-        }
-        return storedVolume;
+    public static int legacyBlobVolume(int count) {
+        return count * MB_PER_BLOB;
     }
 
     /**
