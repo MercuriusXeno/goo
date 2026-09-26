@@ -96,16 +96,6 @@ public final class BlobStacks {
     }
 
     /**
-     * Returns the number of whole blobs in the given volume.
-     *
-     * @param volumeMb volume in microblobs
-     * @return number of whole blobs
-     */
-    public static int wholeBlobs(int volumeMb) {
-        return volumeMb / MB_PER_BLOB;
-    }
-
-    /**
      * Depletes an omniblob by the accepted volume, consuming the stack if empty.
      *
      * @param stack    the omniblob item stack to deplete

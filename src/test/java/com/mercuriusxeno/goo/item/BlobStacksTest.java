@@ -26,48 +26,6 @@ class BlobStacksTest {
         assertEquals(1000, BlobStacks.MB_PER_BLOB);
     }
 
-    // -- wholeBlobs --
-
-    /**
-     * Zero volume yields zero blobs.
-     */
-    @Test
-    void wholeBlobs_zero() {
-        assertEquals(0, BlobStacks.wholeBlobs(0));
-    }
-
-    /**
-     * Sub-blob volume yields zero blobs.
-     */
-    @Test
-    void wholeBlobs_subBlob() {
-        assertEquals(0, BlobStacks.wholeBlobs(999));
-    }
-
-    /**
-     * Exactly 1000 mB yields 1 blob.
-     */
-    @Test
-    void wholeBlobs_exactlyOne() {
-        assertEquals(1, BlobStacks.wholeBlobs(1000));
-    }
-
-    /**
-     * 64,000 mB yields 64 blobs.
-     */
-    @Test
-    void wholeBlobs_fullStack() {
-        assertEquals(64, BlobStacks.wholeBlobs(64_000));
-    }
-
-    /**
-     * 64,001 mB still yields 64 whole blobs.
-     */
-    @Test
-    void wholeBlobs_overStack() {
-        assertEquals(64, BlobStacks.wholeBlobs(64_001));
-    }
-
     // -- absorbedVolume (sink-into-omniblob math) --
 
     /**
