@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.client.FlatQuadContext;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.VertexColors;
 import com.mercuriusxeno.goo.client.ability.GhostMineVisual.FaceEdge;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -377,7 +379,7 @@ public final class GlowFadeVisual {
             emitAuroraQuadPerVertex(pose, consumer,
                     edgeX, edgeY, edgeZ, rx, ry, rz, faceDir,
                     t0, t1, prevHeight, nextHeight,
-                    scaleColorAlpha(baseColor, bandAlpha),
+                    VertexColors.scaleAlpha(baseColor, bandAlpha),
                     transparentColor);
             prevHeight = nextHeight;
             prevBand = nextBand;
@@ -422,12 +424,11 @@ public final class GlowFadeVisual {
         float fx = faceDir.getStepX();
         float fy = faceDir.getStepY();
         float fz = faceDir.getStepZ();
-        consumer.addVertex(pose, bx0, by0, bz0).setColor(baseColor);
-        consumer.addVertex(pose, bx1, by1, bz1).setColor(baseColor);
-        consumer.addVertex(pose, bx1 + fx * height1, by1 + fy * height1, bz1 + fz * height1)
-                .setColor(transparentColor);
-        consumer.addVertex(pose, bx0 + fx * height0, by0 + fy * height0, bz0 + fz * height0)
-                .setColor(transparentColor);
+        FlatQuadContext quad = new FlatQuadContext(pose, consumer);
+        quad.vertex(bx0, by0, bz0, baseColor);
+        quad.vertex(bx1, by1, bz1, baseColor);
+        quad.vertex(bx1 + fx * height1, by1 + fy * height1, bz1 + fz * height1, transparentColor);
+        quad.vertex(bx0 + fx * height0, by0 + fy * height0, bz0 + fz * height0, transparentColor);
     }
 
     /**
@@ -557,19 +558,6 @@ public final class GlowFadeVisual {
         float raw = HALF + HALF * spatial * timeModulate;
         return BROAD_BAND_MIN + (1f - BROAD_BAND_MIN)
                 * (float) Math.pow(raw, BROAD_BAND_SHARPNESS);
-    }
-
-    /**
-     * Scales the alpha channel of an ARGB color by a 0-1 factor,
-     * preserving the RGB channels.
-     *
-     * @param argb   the source ARGB color
-     * @param factor the alpha scale factor in [0, 1]
-     * @return the color with scaled alpha
-     */
-    private static int scaleColorAlpha(int argb, float factor) {
-        int a = (int) (ARGB.alpha(argb) * factor);
-        return ARGB.color(a, argb);
     }
 
     /**

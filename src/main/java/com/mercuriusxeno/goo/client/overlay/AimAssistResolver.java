@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.overlay;
 
+import com.mercuriusxeno.goo.ability.StackKey;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
@@ -32,7 +33,7 @@ final class AimAssistResolver {
     /**
      * Maximum range for blob throwing in blocks.
      */
-    private static final double MAX_RANGE = GooTargetHighlighter.MAX_RANGE;
+    private static final double MAX_RANGE = AimState.MAX_RANGE;
 
     /**
      * Aim-assist forgiveness half-angle in degrees. Targets within this cone
@@ -114,24 +115,25 @@ final class AimAssistResolver {
      * @param from     the ray start (eye position)
      * @param to       the ray end (eye + look * range)
      * @param previous the previous frame's hit, or null
+     * @param abilityId the glove's selected ability id, the only marker key it locks
      * @return the best hit, or null if none in range/cone
      */
     static @Nullable AimHit findClosestAimHit(Player player, Vec3 from, Vec3 to,
-                                              @Nullable AimHit previous) {
+                                              @Nullable AimHit previous, @Nullable String abilityId) {
         Vec3 lookDir = to.subtract(from).normalize();
         Level level = player.level();
         List<Entity> entities = gatherCandidates(player, from, to);
-        List<BlockPos> markers = gatherChainMarkers(level, from, to);
+        List<BlockPos> markers = gatherChainMarkers(level, from, to, abilityId);
 
-        AimHit exact = findExactHit(entities, markers, level, player, from, to);
+        List<AimHit> candidates = asHits(entities, markers);
+        AimHit exact = findExactHit(candidates, player, from, to);
         if (exact != null) {
             return exact;
         }
 
-        AimHit bestCone = findBestConeHit(entities, markers, level, player, from, lookDir);
+        AimHit bestCone = findBestConeHit(candidates, player, from, lookDir);
 
-        AimHit sticky = retainSticky(entities, markers, level, player, from,
-                lookDir, bestCone, previous);
+        AimHit sticky = retainSticky(candidates, player, from, lookDir, bestCone, previous);
         return (sticky != null) ? sticky : bestCone;
     }
 
@@ -157,9 +159,10 @@ final class AimAssistResolver {
      * @param level the current level
      * @param from  ray start (eye position)
      * @param to    ray end (eye + look * range)
+     * @param abilityId the glove's selected ability id
      * @return list of chain marker block positions inside the search box
      */
-    private static List<BlockPos> gatherChainMarkers(Level level, Vec3 from, Vec3 to) {
+    private static List<BlockPos> gatherChainMarkers(Level level, Vec3 from, Vec3 to, @Nullable String abilityId) {
         // Reuse the same AABB as entity gathering so the cone shape is consistent.
         double coneRadius = MAX_RANGE * Math.tan(Math.toRadians(AIM_ASSIST_DEGREES));
         AABB box = new AABB(from, to).inflate(coneRadius + 1.0);
@@ -170,30 +173,42 @@ final class AimAssistResolver {
         List<BlockPos> markers = new ArrayList<>();
         for (int cx = minCX; cx <= maxCX; cx++) {
             for (int cz = minCZ; cz <= maxCZ; cz++) {
-                collectMarkersInChunk(level, cx, cz, box, markers);
+                collectMarkersInChunk(level, cx, cz, box, abilityId, markers);
             }
         }
         return markers;
     }
 
     /**
-     * Pulls chain marker block entities out of a single chunk if it is
-     * currently loaded client-side.
+     * Whether the aim assist locks a standing marker for the glove's selection.
      *
-     * @param level the current level
-     * @param cx    chunk X coordinate
-     * @param cz    chunk Z coordinate
-     * @param box   the search bounding box in world space
-     * @param out   list to append matching positions to
+     * @param markerAbilityId   the marker's ability id
+     * @param selectedAbilityId the glove's selected ability id, or null
+     * @return true only when the marker runs the selected ability
+     */
+    static boolean locksMarker(@Nullable String markerAbilityId, @Nullable String selectedAbilityId) {
+        return StackKey.matches(markerAbilityId, selectedAbilityId);
+    }
+
+    /**
+     * Pulls the selected ability's chain marker block entities out of a
+     * single chunk if it is currently loaded client-side.
+     *
+     * @param level     the current level
+     * @param cx        chunk X coordinate
+     * @param cz        chunk Z coordinate
+     * @param box       the search bounding box in world space
+     * @param abilityId the glove's selected ability id
+     * @param out       list to append matching positions to
      */
     private static void collectMarkersInChunk(Level level, int cx, int cz,
-                                              AABB box, List<BlockPos> out) {
+                                              AABB box, @Nullable String abilityId, List<BlockPos> out) {
         LevelChunk chunk = level.getChunkSource().getChunkNow(cx, cz);
         if (chunk == null) {
             return;
         }
         for (BlockEntity be : chunk.getBlockEntities().values()) {
-            if (!(be instanceof ChainMarkerBlockEntity)) {
+            if (!(be instanceof ChainMarkerBlockEntity marker && locksMarker(marker.getAbilityId(), abilityId))) {
                 continue;
             }
             BlockPos pos = be.getBlockPos();
@@ -220,335 +235,126 @@ final class AimAssistResolver {
     }
 
     /**
-     * Finds the nearest exact-AABB raytrace hit across both entities and
-     * chain markers. Entities win ties at equal distance (matches the
-     * existing behavior that entity targeting took priority).
+     * Every candidate as an aim hit, entities first so an entity wins a tie
+     * against a marker.
      *
      * @param entities entity candidates
      * @param markers  chain marker candidates
-     * @param level    current level
-     * @param player   aiming player
-     * @param from     ray start
-     * @param to       ray end
-     * @return the closest exact hit as an AimHit, or null
+     * @return the candidates in tie-break order
      */
-    private static @Nullable AimHit findExactHit(List<Entity> entities, List<BlockPos> markers,
-                                                 Level level, Player player, Vec3 from, Vec3 to) {
+    private static List<AimHit> asHits(List<Entity> entities, List<BlockPos> markers) {
+        List<AimHit> hits = new ArrayList<>(entities.size() + markers.size());
+        for (Entity entity : entities) {
+            hits.add(new AimHit.EntityHit(entity));
+        }
+        for (BlockPos pos : markers) {
+            hits.add(new AimHit.ChainMarkerHit(pos));
+        }
+        return hits;
+    }
+
+    /**
+     * Finds the nearest candidate the reticle's ray clips, in sight.
+     *
+     * @param candidates the candidates in tie-break order
+     * @param player     the aiming player
+     * @param from       ray start
+     * @param to         ray end
+     * @return the closest exact hit, or null
+     */
+    private static @Nullable AimHit findExactHit(List<AimHit> candidates, Player player, Vec3 from, Vec3 to) {
         double bestDist = Double.MAX_VALUE;
         AimHit best = null;
-        for (Entity e : entities) {
-            double d = exactHitDistance(e, level, player, from, to);
-            if (d < bestDist) {
-                bestDist = d;
-                best = new AimHit.EntityHit(e);
+        for (AimHit candidate : candidates) {
+            Optional<Vec3> clip = candidate.pickBox().clip(from, to);
+            if (clip.isEmpty()) {
+                continue;
             }
-        }
-        for (BlockPos pos : markers) {
-            double d = exactMarkerHitDistance(pos, level, player, from, to);
-            if (d < bestDist) {
-                bestDist = d;
-                best = new AimHit.ChainMarkerHit(pos);
+            double dist = from.distanceToSqr(clip.get());
+            if (dist < bestDist && isInSight(candidate, player, from)) {
+                bestDist = dist;
+                best = candidate;
             }
         }
         return best;
     }
 
     /**
-     * Returns the squared distance of an exact raytrace hit on an entity,
-     * or MAX_VALUE if the ray misses or line-of-sight is blocked.
+     * Finds the candidate closest to the reticle inside the aim-assist cone.
      *
-     * @param entity the candidate entity
-     * @param level  the current level
-     * @param player the aiming player
-     * @param from   ray start
-     * @param to     ray end
-     * @return squared hit distance, or Double.MAX_VALUE if no hit
+     * @param candidates the candidates in tie-break order
+     * @param player     the aiming player
+     * @param from       ray start
+     * @param lookDir    normalized look direction
+     * @return the cone-pass winner, or null if nothing clears the cone
      */
-    private static double exactHitDistance(Entity entity, Level level, Player player,
-                                           Vec3 from, Vec3 to) {
-        AABB box = entity.getBoundingBox().inflate(entity.getPickRadius());
-        Optional<Vec3> clip = box.clip(from, to);
-        if (clip.isPresent() && hasLineOfSight(level, player, from, entity)) {
-            return from.distanceToSqr(clip.get());
-        }
-        return Double.MAX_VALUE;
-    }
-
-    /**
-     * Returns the squared distance of an exact raytrace hit on a chain
-     * marker's full block AABB, or MAX_VALUE if the ray misses or LOS is
-     * blocked. The marker's own block is exempt from LOS occlusion.
-     *
-     * @param pos    the marker block position
-     * @param level  the current level
-     * @param player the aiming player
-     * @param from   ray start
-     * @param to     ray end
-     * @return squared hit distance, or Double.MAX_VALUE if no hit
-     */
-    private static double exactMarkerHitDistance(BlockPos pos, Level level, Player player,
-                                                 Vec3 from, Vec3 to) {
-        AABB box = new AABB(pos);
-        Optional<Vec3> clip = box.clip(from, to);
-        if (clip.isPresent() && hasLineOfSightToBox(level, player, from, box, pos)) {
-            return from.distanceToSqr(clip.get());
-        }
-        return Double.MAX_VALUE;
-    }
-
-    /**
-     * Scans both entity and chain marker candidates and returns whichever
-     * is closest to the reticle (highest cosine), with entities and markers
-     * competing in a single pool.
-     *
-     * @param entities entity candidates
-     * @param markers  chain marker candidates
-     * @param level    current level
-     * @param player   aiming player
-     * @param from     ray start
-     * @param lookDir  normalized look direction
-     * @return the cone-pass winner, or null if nothing clears the aim-assist cone
-     */
-    private static @Nullable AimHit findBestConeHit(List<Entity> entities, List<BlockPos> markers,
-                                                    Level level, Player player, Vec3 from, Vec3 lookDir) {
+    private static @Nullable AimHit findBestConeHit(List<AimHit> candidates, Player player,
+                                                    Vec3 from, Vec3 lookDir) {
         double bestCos = AIM_ASSIST_COS;
         AimHit best = null;
-        for (Entity entity : entities) {
-            double cos = coneAngleEntity(entity, from, lookDir, level, player);
+        for (AimHit candidate : candidates) {
+            double cos = coneCosine(candidate, player, from, lookDir, AIM_ASSIST_COS);
             if (cos > bestCos) {
                 bestCos = cos;
-                best = new AimHit.EntityHit(entity);
-            }
-        }
-        for (BlockPos pos : markers) {
-            double cos = coneAngleMarker(pos, from, lookDir, level, player);
-            if (cos > bestCos) {
-                bestCos = cos;
-                best = new AimHit.ChainMarkerHit(pos);
+                best = candidate;
             }
         }
         return best;
     }
 
     /**
-     * Returns the cosine of the angle between the look direction and an
-     * entity's AABB center, or NO_CONE_ANGLE if out of range or occluded.
+     * Keeps the previous hit while it is still a live candidate inside the
+     * wider sticky cone, to prevent flicker at the cone's edge.
      *
-     * @param entity  the candidate entity
-     * @param from    ray start
-     * @param lookDir normalized look direction
-     * @param level   the current level
-     * @param player  the aiming player
-     * @return cosine of the angle, or NO_CONE_ANGLE if invalid
+     * @param candidates the candidates this frame
+     * @param player     the aiming player
+     * @param from       ray start
+     * @param lookDir    normalized look direction
+     * @param bestCone   the cone-pass winner this frame
+     * @param previous   the previous hit, or null
+     * @return the previous hit if it is retained, or null
      */
-    private static double coneAngleEntity(Entity entity, Vec3 from, Vec3 lookDir,
-                                          Level level, Player player) {
-        Vec3 toTarget = entity.getBoundingBox().getCenter().subtract(from);
+    private static @Nullable AimHit retainSticky(List<AimHit> candidates, Player player, Vec3 from,
+                                                 Vec3 lookDir, @Nullable AimHit bestCone,
+                                                 @Nullable AimHit previous) {
+        if (previous == null || previous.equals(bestCone)
+                || !previous.isAlive() || !candidates.contains(previous)) {
+            return null;
+        }
+        return coneCosine(previous, player, from, lookDir, STICKY_COS) > STICKY_COS ? previous : null;
+    }
+
+    /**
+     * The cosine between the look direction and the candidate's center when
+     * the candidate is in range, inside the given cone and in sight.
+     *
+     * @param candidate the candidate
+     * @param player    the aiming player
+     * @param from      ray start
+     * @param lookDir   normalized look direction
+     * @param coneCos   the cosine of the cone's half-angle
+     * @return the cosine, or NO_CONE_ANGLE when out of range, outside the cone or occluded
+     */
+    private static double coneCosine(AimHit candidate, Player player, Vec3 from, Vec3 lookDir, double coneCos) {
+        Vec3 toTarget = candidate.box().getCenter().subtract(from);
         double dist = toTarget.length();
-        if (dist < CENTER_HALF || dist > MAX_RANGE) {
+        if (dist <= CENTER_HALF || dist > MAX_RANGE) {
             return NO_CONE_ANGLE;
         }
         double cos = lookDir.dot(toTarget.normalize());
-        if (cos > AIM_ASSIST_COS && hasLineOfSight(level, player, from, entity)) {
-            return cos;
-        }
-        return NO_CONE_ANGLE;
+        return cos > coneCos && isInSight(candidate, player, from) ? cos : NO_CONE_ANGLE;
     }
 
     /**
-     * Returns the cosine of the angle between the look direction and a
-     * chain marker block's center, or NO_CONE_ANGLE if out of range or
-     * occluded. The marker's own block is exempt from LOS occlusion.
+     * Whether the player sees the candidate, its own block exempt from occluding it.
      *
-     * @param pos     the chain marker block position
-     * @param from    ray start
-     * @param lookDir normalized look direction
-     * @param level   the current level
-     * @param player  the aiming player
-     * @return cosine of the angle, or NO_CONE_ANGLE if invalid
+     * @param candidate the candidate
+     * @param player    the aiming player
+     * @param from      the eye position
+     * @return true if any sample ray reaches it
      */
-    private static double coneAngleMarker(BlockPos pos, Vec3 from, Vec3 lookDir,
-                                          Level level, Player player) {
-        Vec3 center = Vec3.atCenterOf(pos);
-        Vec3 toTarget = center.subtract(from);
-        double dist = toTarget.length();
-        if (dist < CENTER_HALF || dist > MAX_RANGE) {
-            return NO_CONE_ANGLE;
-        }
-        double cos = lookDir.dot(toTarget.normalize());
-        if (cos > AIM_ASSIST_COS
-                && hasLineOfSightToBox(level, player, from, new AABB(pos), pos)) {
-            return cos;
-        }
-        return NO_CONE_ANGLE;
-    }
-
-    /**
-     * Sticky retention across both hit kinds. If the previous frame's hit
-     * is still alive/loaded, in range, inside the wider sticky cone, and
-     * visible, keep it to prevent flicker.
-     *
-     * @param entities entity candidates this frame
-     * @param markers  chain marker candidates this frame
-     * @param level    current level
-     * @param player   aiming player
-     * @param from     ray start
-     * @param lookDir  normalized look direction
-     * @param bestCone the cone-pass winner this frame (skipped if equal to previous)
-     * @param previous the previous frame's hit, or null
-     * @return the previous hit if it should be retained, or null
-     */
-    private static @Nullable AimHit retainSticky(List<Entity> entities, List<BlockPos> markers,
-                                                 Level level, Player player, Vec3 from, Vec3 lookDir,
-                                                 @Nullable AimHit bestCone, @Nullable AimHit previous) {
-        if (previous == null || hitsEqual(previous, bestCone)) {
-            return null;
-        }
-        if (previous instanceof AimHit.EntityHit eh) {
-            return retainStickyEntity(eh, entities, level, player, from, lookDir);
-        }
-        if (previous instanceof AimHit.ChainMarkerHit cmh) {
-            return retainStickyMarker(cmh, markers, level, player, from, lookDir);
-        }
-        return null;
-    }
-
-    /**
-     * Checks whether a previous entity hit should be retained this frame.
-     *
-     * @param eh       the previous entity hit
-     * @param entities live entity candidates this frame
-     * @param level    current level
-     * @param player   aiming player
-     * @param from     ray start
-     * @param lookDir  normalized look direction
-     * @return the same hit if retained, otherwise null
-     */
-    private static @Nullable AimHit retainStickyEntity(AimHit.EntityHit eh,
-                                                       List<Entity> entities, Level level, Player player, Vec3 from, Vec3 lookDir) {
-        Entity e = eh.entity();
-        if (!e.isAlive() || !entities.contains(e)) {
-            return null;
-        }
-        return isEntityInStickyCone(level, player, from, lookDir, e) ? eh : null;
-    }
-
-    /**
-     * Checks whether a previous chain marker hit should be retained this frame.
-     *
-     * @param cmh     the previous chain marker hit
-     * @param markers live marker candidates this frame
-     * @param level   current level
-     * @param player  aiming player
-     * @param from    ray start
-     * @param lookDir normalized look direction
-     * @return the same hit if retained, otherwise null
-     */
-    private static @Nullable AimHit retainStickyMarker(AimHit.ChainMarkerHit cmh,
-                                                       List<BlockPos> markers, Level level, Player player, Vec3 from, Vec3 lookDir) {
-        BlockPos pos = cmh.pos();
-        if (!markers.contains(pos)) {
-            return null;
-        }
-        return isMarkerInStickyCone(level, player, from, lookDir, pos) ? cmh : null;
-    }
-
-    /**
-     * Returns true if two hits refer to the same underlying entity or marker.
-     *
-     * @param a first hit (may be null)
-     * @param b second hit (may be null)
-     * @return true if both hits point at the same target
-     */
-    private static boolean hitsEqual(@Nullable AimHit a, @Nullable AimHit b) {
-        if (a == null || b == null) {
-            return false;
-        }
-        if (a instanceof AimHit.EntityHit ae) {
-            return matchesEntity(ae, b);
-        }
-        return a instanceof AimHit.ChainMarkerHit am && matchesMarker(am, b);
-    }
-
-    /**
-     * Returns true if the other hit is an entity hit on the same entity.
-     *
-     * @param a the left-hand entity hit
-     * @param b the other hit (may be a marker or an entity)
-     * @return true if both hits point at the same entity
-     */
-    private static boolean matchesEntity(AimHit.EntityHit a, AimHit b) {
-        return b instanceof AimHit.EntityHit be && a.entity() == be.entity();
-    }
-
-    /**
-     * Returns true if the other hit is a chain marker hit at the same pos.
-     *
-     * @param a the left-hand chain marker hit
-     * @param b the other hit (may be a marker or an entity)
-     * @return true if both hits point at the same marker position
-     */
-    private static boolean matchesMarker(AimHit.ChainMarkerHit a, AimHit b) {
-        return b instanceof AimHit.ChainMarkerHit bm && a.pos().equals(bm.pos());
-    }
-
-    /**
-     * Returns true if an entity is within range, inside the sticky cone, and visible.
-     *
-     * @param level   the current level
-     * @param player  the aiming player
-     * @param from    ray start
-     * @param lookDir normalized look direction
-     * @param target  the entity to check
-     * @return true if the entity should be retained
-     */
-    private static boolean isEntityInStickyCone(Level level, Player player, Vec3 from,
-                                                Vec3 lookDir, Entity target) {
-        Vec3 to = target.getBoundingBox().getCenter().subtract(from);
-        double dist = to.length();
-        if (dist <= CENTER_HALF || dist > MAX_RANGE) {
-            return false;
-        }
-        double cos = lookDir.dot(to.normalize());
-        return cos > STICKY_COS && hasLineOfSight(level, player, from, target);
-    }
-
-    /**
-     * Returns true if a chain marker is within range, inside the sticky cone, and visible.
-     *
-     * @param level   the current level
-     * @param player  the aiming player
-     * @param from    ray start
-     * @param lookDir normalized look direction
-     * @param pos     the marker block position
-     * @return true if the marker should be retained
-     */
-    private static boolean isMarkerInStickyCone(Level level, Player player, Vec3 from,
-                                                Vec3 lookDir, BlockPos pos) {
-        Vec3 center = Vec3.atCenterOf(pos);
-        Vec3 to = center.subtract(from);
-        double dist = to.length();
-        if (dist <= CENTER_HALF || dist > MAX_RANGE) {
-            return false;
-        }
-        double cos = lookDir.dot(to.normalize());
-        return cos > STICKY_COS
-                && hasLineOfSightToBox(level, player, from, new AABB(pos), pos);
-    }
-
-    /**
-     * Checks whether the player has line-of-sight to an entity by casting rays
-     * to multiple sample points on the entity's AABB. Returns true if ANY ray
-     * reaches without hitting a block.
-     *
-     * @param level  the current level
-     * @param player the interacting player
-     * @param eyePos the eye position
-     * @param target the current aim target
-     * @return true if lineOfSight is present
-     */
-    static boolean hasLineOfSight(Level level, Player player, Vec3 eyePos, Entity target) {
-        return hasLineOfSightToBox(level, player, eyePos, target.getBoundingBox(), null);
+    private static boolean isInSight(AimHit candidate, Player player, Vec3 from) {
+        return hasLineOfSightToBox(player.level(), player, from, candidate.box(), candidate.selfBlock());
     }
 
     /**
@@ -632,15 +438,76 @@ final class AimAssistResolver {
      */
     sealed interface AimHit {
         /**
+         * The box the cone and line-of-sight tests aim at.
+         *
+         * @return the target's bounds
+         */
+        AABB box();
+
+        /**
+         * The box the reticle's exact ray must clip.
+         *
+         * @return the pickable bounds, the target's bounds unless it widens them
+         */
+        default AABB pickBox() {
+            return box();
+        }
+
+        /**
+         * The block whose own voxel may not occlude the target.
+         *
+         * @return the target's own block, or null
+         */
+        default @Nullable BlockPos selfBlock() {
+            return null;
+        }
+
+        /**
+         * Whether the target still exists to be retained.
+         *
+         * @return true while the target lives
+         */
+        default boolean isAlive() {
+            return true;
+        }
+
+        /**
          * An entity hit (living, pickable, within cone + LOS).
+         *
+         * @param entity the entity aimed at
          */
         record EntityHit(Entity entity) implements AimHit {
+            @Override
+            public AABB box() {
+                return entity.getBoundingBox();
+            }
+
+            @Override
+            public AABB pickBox() {
+                return entity.getBoundingBox().inflate(entity.getPickRadius());
+            }
+
+            @Override
+            public boolean isAlive() {
+                return entity.isAlive();
+            }
         }
 
         /**
          * A chain marker block hit, behaving like an entity for targeting.
+         *
+         * @param pos the marker's block
          */
         record ChainMarkerHit(BlockPos pos) implements AimHit {
+            @Override
+            public AABB box() {
+                return new AABB(pos);
+            }
+
+            @Override
+            public BlockPos selfBlock() {
+                return pos;
+            }
         }
     }
 }
