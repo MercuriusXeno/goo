@@ -28,6 +28,7 @@ class CrucibleHeatTest {
             GooTypes.UNSTABLE, GooConfig.DEFAULT_UNSTABLE_TICKS_PER_MB, GooConfig.DEFAULT_UNSTABLE_MELT_RATE);
     private static final List<FuelGrade> GRADES = List.of(BLAZE);
     private static final List<FuelGrade> BURN_ORDER = List.of(UNSTABLE, BLAZE);
+    private static final int DRAIN = GooConfig.DEFAULT_COMBO_DRAIN_PER_TICK;
 
     /** A map-backed reservoir. */
     private static final class MapStock implements CrucibleHeat.FuelStock {
@@ -67,7 +68,7 @@ class CrucibleHeatTest {
     private static void meltTick(CrucibleHeat heat, List<FuelGrade> grades,
                                  Map<ResourceKey<GooTypeDefinition>, Integer> pool, MapStock stock) {
         GooContents contents = new GooContents(pool);
-        int rate = heat.burnMeltTick(contents.totalVolume() > 0, grades, stock);
+        int rate = heat.burnMeltTick(contents.totalVolume() > 0, grades, DRAIN, stock);
         if (rate <= 0) {
             return;
         }
@@ -106,7 +107,7 @@ class CrucibleHeatTest {
             CrucibleHeat heat = new CrucibleHeat();
             MapStock stock = new MapStock().with(GooTypes.BLAZE, 1);
 
-            assertEquals(20, heat.burnMeltTick(true, GRADES, stock));
+            assertEquals(20, heat.burnMeltTick(true, GRADES, DRAIN, stock));
             assertEquals(3, heat.heatTicks());
             assertEquals(0, stock.volume(GooTypes.BLAZE));
         }
@@ -115,7 +116,7 @@ class CrucibleHeatTest {
         @Test
         void coldWithoutFuelMeltsNothing() {
             CrucibleHeat heat = new CrucibleHeat();
-            assertEquals(0, heat.burnMeltTick(true, GRADES, new MapStock()));
+            assertEquals(0, heat.burnMeltTick(true, GRADES, DRAIN, new MapStock()));
         }
     }
 
@@ -130,7 +131,7 @@ class CrucibleHeatTest {
             MapStock stock = new MapStock().with(GooTypes.BLAZE, 50);
 
             for (int tick = 0; tick < 100; tick++) {
-                heat.burnMeltTick(false, GRADES, stock);
+                heat.burnMeltTick(false, GRADES, DRAIN, stock);
             }
 
             assertEquals(12, heat.heatTicks());
@@ -161,52 +162,158 @@ class CrucibleHeatTest {
             assertTrue(heat.canHeat(GRADES, new MapStock()));
         }
 
-        /** The fuel goo volume sums every grade's fuel. */
+    }
+
+    @Nested
+    class Forecast {
+
+        /** Blaze bought heat and blaze stock sum into one burn; rock and an empty grade add none. */
         @Test
-        void fuelVolumeCountsFuelGooOnly() {
+        void boughtHeatJoinsItsOwnFuelsStock() {
+            CrucibleHeat heat = new CrucibleHeat();
+            heat.set(12, BLAZE);
             MapStock stock = new MapStock().with(GooTypes.BLAZE, 50).with(GooTypes.ROCK, 100);
-            assertEquals(50, CrucibleHeat.fuelVolume(GRADES, stock));
+            assertEquals(List.of(new CrucibleHeat.FuelBurn(List.of(BLAZE), 212)),
+                    heat.forecast(BURN_ORDER, DRAIN, stock::volume));
+        }
+
+        /** Heat bought with blaze never counts toward unstable's burn. */
+        @Test
+        void boughtHeatStaysWithItsFuel() {
+            CrucibleHeat heat = new CrucibleHeat();
+            heat.set(3, BLAZE);
+            MapStock stock = new MapStock().with(GooTypes.UNSTABLE, 10);
+            assertEquals(List.of(new CrucibleHeat.FuelBurn(List.of(UNSTABLE), 10),
+                            new CrucibleHeat.FuelBurn(List.of(BLAZE), 3)),
+                    heat.forecast(BURN_ORDER, DRAIN, stock::volume));
+        }
+
+        /** Both fuels forecast the combo first, then the stock the combo leaves the other fuel. */
+        @Test
+        void comboBurnsFirstThenTheRemainder() {
+            MapStock stock = new MapStock().with(GooTypes.BLAZE, 400).with(GooTypes.UNSTABLE, 40);
+            assertEquals(List.of(new CrucibleHeat.FuelBurn(BURN_ORDER, 20),
+                            new CrucibleHeat.FuelBurn(List.of(BLAZE), 1440)),
+                    new CrucibleHeat().forecast(BURN_ORDER, DRAIN, stock::volume));
+        }
+
+        /** A short last combo tick counts as a combo tick and leaves the short fuel nothing. */
+        @Test
+        void shortLastComboTickCountsWhole() {
+            MapStock stock = new MapStock().with(GooTypes.BLAZE, 3).with(GooTypes.UNSTABLE, 50);
+            assertEquals(List.of(new CrucibleHeat.FuelBurn(BURN_ORDER, 2),
+                            new CrucibleHeat.FuelBurn(List.of(UNSTABLE), 46)),
+                    new CrucibleHeat().forecast(BURN_ORDER, DRAIN, stock::volume));
+        }
+
+        /** Heat bought with blaze alone joins blaze's remainder after the combo. */
+        @Test
+        void boughtHeatJoinsTheRemainderAfterTheCombo() {
+            CrucibleHeat heat = new CrucibleHeat();
+            heat.set(3, BLAZE);
+            MapStock stock = new MapStock().with(GooTypes.BLAZE, 4).with(GooTypes.UNSTABLE, 2);
+            assertEquals(List.of(new CrucibleHeat.FuelBurn(BURN_ORDER, 1),
+                            new CrucibleHeat.FuelBurn(List.of(BLAZE), 11)),
+                    heat.forecast(BURN_ORDER, DRAIN, stock::volume));
         }
     }
 
     @Nested
-    class SuperFuel {
+    class LoneFuel {
 
-        /**
-         * With 10 mB unstable and 100 mB blaze, the crucible melts 200 mB per tick for 10 ticks
-         * on unstable alone, then falls to blaze's 20 mB per tick at 1 mB per 4 ticks.
-         */
+        /** Blaze alone melts 20 mB per tick and burns 1 mB over 4 melt ticks. */
         @Test
-        void unstableBurnsFirstThenBlaze() {
+        void blazeAloneBurnsAtItsStandingRate() {
             CrucibleHeat heat = new CrucibleHeat();
-            MapStock stock = new MapStock().with(GooTypes.UNSTABLE, 10).with(GooTypes.BLAZE, 100);
-            Map<ResourceKey<GooTypeDefinition>, Integer> pool = new HashMap<>(Map.of(GooTypes.ROCK, 100_000));
-
-            for (int tick = 0; tick < 10; tick++) {
-                meltTick(heat, BURN_ORDER, pool, stock);
+            MapStock stock = new MapStock().with(GooTypes.BLAZE, 100);
+            for (int tick = 0; tick < 4; tick++) {
+                assertEquals(20, heat.burnMeltTick(true, BURN_ORDER, DRAIN, stock));
             }
-            assertEquals(2000, stock.volume(GooTypes.ROCK));
-            assertEquals(0, stock.volume(GooTypes.UNSTABLE));
-            assertEquals(100, stock.volume(GooTypes.BLAZE));
-
-            for (int tick = 10; tick < 14; tick++) {
-                meltTick(heat, BURN_ORDER, pool, stock);
-            }
-            assertEquals(2080, stock.volume(GooTypes.ROCK));
             assertEquals(99, stock.volume(GooTypes.BLAZE));
         }
 
-        /** Heat bought from blaze burns at blaze's rate to its end even once unstable arrives. */
+        /** Unstable alone melts 200 mB per tick and burns 4 mB over 4 melt ticks. */
+        @Test
+        void unstableAloneBurnsAtItsStandingRate() {
+            CrucibleHeat heat = new CrucibleHeat();
+            MapStock stock = new MapStock().with(GooTypes.UNSTABLE, 100);
+            for (int tick = 0; tick < 4; tick++) {
+                assertEquals(200, heat.burnMeltTick(true, BURN_ORDER, DRAIN, stock));
+            }
+            assertEquals(96, stock.volume(GooTypes.UNSTABLE));
+        }
+
+        /** Heat bought from blaze burns at blaze's rate to its end when unstable arrives with no blaze left. */
         @Test
         void rateSwitchesOnlyAtTheMbBoundary() {
             CrucibleHeat heat = new CrucibleHeat();
             MapStock stock = new MapStock().with(GooTypes.BLAZE, 1);
-            assertEquals(20, heat.burnMeltTick(true, BURN_ORDER, stock));
+            assertEquals(20, heat.burnMeltTick(true, BURN_ORDER, DRAIN, stock));
             stock.insert(GooTypes.UNSTABLE, 1);
             for (int tick = 0; tick < 3; tick++) {
-                assertEquals(20, heat.burnMeltTick(true, BURN_ORDER, stock));
+                assertEquals(20, heat.burnMeltTick(true, BURN_ORDER, DRAIN, stock));
             }
-            assertEquals(200, heat.burnMeltTick(true, BURN_ORDER, stock));
+            assertEquals(200, heat.burnMeltTick(true, BURN_ORDER, DRAIN, stock));
+        }
+    }
+
+    @Nested
+    class Combo {
+
+        /** Both fuels standing burn 2 mB of each per melt tick and melt 20 x 200 = 4000 mB. */
+        @Test
+        void bothFuelsBurnTwoOfEachAndMeltTheProduct() {
+            CrucibleHeat heat = new CrucibleHeat();
+            MapStock stock = new MapStock().with(GooTypes.BLAZE, 100).with(GooTypes.UNSTABLE, 200);
+            assertEquals(4000, heat.burnMeltTick(true, BURN_ORDER, DRAIN, stock));
+            assertEquals(98, stock.volume(GooTypes.BLAZE));
+            assertEquals(198, stock.volume(GooTypes.UNSTABLE));
+        }
+
+        /** A drain of 3 burns 3 mB of each per melt tick. */
+        @Test
+        void comboBurnsTheConfiguredDrain() {
+            CrucibleHeat heat = new CrucibleHeat();
+            MapStock stock = new MapStock().with(GooTypes.BLAZE, 100).with(GooTypes.UNSTABLE, 200);
+            assertEquals(4000, heat.burnMeltTick(true, BURN_ORDER, 3, stock));
+            assertEquals(97, stock.volume(GooTypes.BLAZE));
+            assertEquals(197, stock.volume(GooTypes.UNSTABLE));
+        }
+
+        /** A last tick with half the blaze drain and the whole unstable drain melts half of 4000. */
+        @Test
+        void shortLastTickMeltsInProportion() {
+            CrucibleHeat heat = new CrucibleHeat();
+            MapStock stock = new MapStock().with(GooTypes.BLAZE, 1).with(GooTypes.UNSTABLE, 50);
+            assertEquals(2000, heat.burnMeltTick(true, BURN_ORDER, DRAIN, stock));
+            assertEquals(0, stock.volume(GooTypes.BLAZE));
+            assertEquals(48, stock.volume(GooTypes.UNSTABLE));
+        }
+
+        /** Both fuels short by half melt a quarter of 4000. */
+        @Test
+        void bothFuelsShortMultiplyTheirShares() {
+            CrucibleHeat heat = new CrucibleHeat();
+            MapStock stock = new MapStock().with(GooTypes.BLAZE, 1).with(GooTypes.UNSTABLE, 1);
+            assertEquals(1000, heat.burnMeltTick(true, BURN_ORDER, DRAIN, stock));
+        }
+
+        /** Heat bought with blaze alone waits while the combo burns. */
+        @Test
+        void boughtHeatWaitsForTheCombo() {
+            CrucibleHeat heat = new CrucibleHeat();
+            heat.set(3, BLAZE);
+            MapStock stock = new MapStock().with(GooTypes.BLAZE, 10).with(GooTypes.UNSTABLE, 10);
+            assertEquals(4000, heat.burnMeltTick(true, BURN_ORDER, DRAIN, stock));
+            assertEquals(3, heat.heatTicks());
+        }
+
+        /** A tick with nothing to melt burns no combo fuel. */
+        @Test
+        void idleTickBurnsNoCombo() {
+            MapStock stock = new MapStock().with(GooTypes.BLAZE, 10).with(GooTypes.UNSTABLE, 10);
+            assertEquals(0, new CrucibleHeat().burnMeltTick(false, BURN_ORDER, DRAIN, stock));
+            assertEquals(10, stock.volume(GooTypes.BLAZE));
         }
     }
 
@@ -221,6 +328,7 @@ class CrucibleHeatTest {
             assertEquals(20, GooConfig.BLAZE_MELT_RATE.getDefault());
             assertEquals(1, GooConfig.UNSTABLE_TICKS_PER_MB.getDefault());
             assertEquals(200, GooConfig.UNSTABLE_MELT_RATE.getDefault());
+            assertEquals(2, GooConfig.COMBO_DRAIN_PER_TICK.getDefault());
         }
     }
 }

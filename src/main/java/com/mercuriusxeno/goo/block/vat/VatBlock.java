@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.block.vat;
 
-import com.mercuriusxeno.goo.block.IGooLightSource;
+import com.mercuriusxeno.goo.block.BlockEntityTicks;
+import com.mercuriusxeno.goo.block.GooMachineBlock;
 import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
 import com.mercuriusxeno.goo.item.gasket.ChoralTunerItem;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
@@ -16,8 +17,6 @@ import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntityTicker;
-import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
@@ -32,7 +31,7 @@ import org.jspecify.annotations.Nullable;
  * Stationary bulk goo storage block. Multi-type, large capacity scaled by the Compression enchantment.
  * Right-click with blob to insert, empty hand to extract.
  */
-public class VatBlock extends BaseEntityBlock {
+public class VatBlock extends GooMachineBlock {
 
     /**
      * Whether a gasket is attached to the cap (top face).
@@ -137,34 +136,9 @@ public class VatBlock extends BaseEntityBlock {
         return new VatBlockEntity(pos, state);
     }
 
-    /** Routes goo-driven block-light emission through the BE. */
     @Override
-    public int getLightEmission(BlockState state, BlockGetter level, BlockPos pos) {
-        return IGooLightSource.blockEmissionFor(level, pos);
-    }
-
-    /** BE-driven emission: see ReactorBlock.hasDynamicLightEmission. */
-    @Override
-    public boolean hasDynamicLightEmission(BlockState state) {
-        return true;
-    }
-
-    /**
-     * Registers the server-side tick dispatcher for gasket push.
-     *
-     * @param level the current level
-     * @param state the block state
-     * @param type  the goo type
-     * @return the ticker
-     */
-    @Nullable
-    @Override
-    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(
-            @NonNull Level level, @NonNull BlockState state, @NonNull BlockEntityType<T> type) {
-        if (level.isClientSide()) {
-            return null;
-        }
-        return createTickerHelper(type, GooBlockEntities.VAT.get(), VatBlockEntity::serverTick);
+    protected BlockEntityTicks<VatBlockEntity> ticks() {
+        return BlockEntityTicks.onServer(GooBlockEntities.VAT, VatBlockEntity::serverTick);
     }
 
     // -- Neighbor updates (vat stacking) --
@@ -295,7 +269,7 @@ public class VatBlock extends BaseEntityBlock {
     // -- Block break drops --
 
     /**
-     * Drops gaskets on break and notifies vertical neighbors.
+     * Notifies vertical neighbors on break; the base drops the gaskets.
      * Goo contents are retained in the item via data components.
      *
      * @param level  the current level
@@ -309,7 +283,6 @@ public class VatBlock extends BaseEntityBlock {
             @NonNull Level level, @NonNull BlockPos pos,
             @NonNull BlockState state, @NonNull Player player) {
         if (!level.isClientSide()) {
-            VatGasketOps.dropGaskets(state, level, pos);
             VatGasketOps.notifyVerticalNeighbors(level, pos);
         }
         return super.playerWillDestroy(level, pos, state, player);

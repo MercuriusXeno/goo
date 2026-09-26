@@ -1,11 +1,9 @@
 package com.mercuriusxeno.goo.block.tap;
 
-import com.mercuriusxeno.goo.PlayerUtils;
 import com.mercuriusxeno.goo.block.ShapeHitCheck;
-import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
+import com.mercuriusxeno.goo.block.canister.SlottedCanisterData;
 import com.mercuriusxeno.goo.item.BlobInsert;
 import com.mercuriusxeno.goo.item.GooInteractionType;
-import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.sounds.SoundEvents;
@@ -21,7 +19,6 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 
 /**
  * Stateless dispatch and handler methods for tap block interactions:
@@ -170,15 +167,11 @@ final class TapInteractionHandler {
      * @param level  the current level
      * @param pos    the block position
      * @param player the interacting player
-     * @return SUCCESS
+     * @return SUCCESS, or PASS when the tap holds no canister
      */
     private static InteractionResult removeCanister(
             TapBlockEntity tap, Level level, BlockPos pos, Player player) {
-        ItemStack removed = tap.removeCanister();
-        PlayerUtils.addOrDrop(player, removed);
-        level.playSound(null, pos, SoundEvents.DECORATED_POT_HIT,
-                SoundSource.BLOCKS, 1.0f, 1.0f);
-        return InteractionResult.SUCCESS;
+        return SlottedCanisterData.handToPlayer(tap.removeCanister(), player, level, pos);
     }
 
     /**
@@ -216,19 +209,6 @@ final class TapInteractionHandler {
     }
 
     // --- Block break drops ---
-
-    /**
-     * Drops the gasket item if one is installed.
-     *
-     * @param level the current level
-     * @param pos   the block position
-     * @param state the block state
-     */
-    static void dropGasketOnBreak(Level level, BlockPos pos, BlockState state) {
-        UUID gasketId = level.getBlockEntity(pos) instanceof TapBlockEntity tap
-                ? tap.getGasketId(GasketRole.RECEIVER) : null;
-        GasketInstallation.popGasket(level, pos, state.getValue(TapBlock.HAS_GASKET), gasketId);
-    }
 
     /**
      * Drops the canister item if one is inserted.

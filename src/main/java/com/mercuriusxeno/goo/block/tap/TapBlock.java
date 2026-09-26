@@ -1,7 +1,8 @@
 package com.mercuriusxeno.goo.block.tap;
 
+import com.mercuriusxeno.goo.block.BlockEntityTicks;
 import com.mercuriusxeno.goo.block.GooBlockInteraction;
-import com.mercuriusxeno.goo.block.IGooLightSource;
+import com.mercuriusxeno.goo.block.GooMachineBlock;
 import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mojang.serialization.MapCodec;
@@ -19,8 +20,6 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.HorizontalDirectionalBlock;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntityTicker;
-import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
@@ -39,7 +38,7 @@ import java.util.Map;
  * it back; right-clicking the body
  * inserts/removes the canister.
  */
-public class TapBlock extends BaseEntityBlock {
+public class TapBlock extends GooMachineBlock {
 
     public static final EnumProperty<Direction> FACING = HorizontalDirectionalBlock.FACING;
     /**
@@ -200,40 +199,15 @@ public class TapBlock extends BaseEntityBlock {
         return new TapBlockEntity(pos, state);
     }
 
-    /** Routes goo-driven block-light emission through the BE. */
-    @Override
-    public int getLightEmission(BlockState state, BlockGetter level, BlockPos pos) {
-        return IGooLightSource.blockEmissionFor(level, pos);
-    }
-
-    /** BE-driven emission: see ReactorBlock.hasDynamicLightEmission. */
-    @Override
-    public boolean hasDynamicLightEmission(BlockState state) {
-        return true;
-    }
-
     // --- Interactions ---
 
-    /**
-     * Registers the server-side drip tick dispatcher.
-     *
-     * @param level the current level
-     * @param state the block state
-     * @param type  the goo type
-     * @return the ticker
-     */
-    @Nullable
     @Override
-    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(
-            @NonNull Level level, @NonNull BlockState state, @NonNull BlockEntityType<T> type) {
-        if (level.isClientSide()) {
-            return null;
-        }
-        return createTickerHelper(type, GooBlockEntities.TAP.get(), TapBlockEntity::serverTick);
+    protected BlockEntityTicks<TapBlockEntity> ticks() {
+        return BlockEntityTicks.onServer(GooBlockEntities.TAP, TapBlockEntity::serverTick);
     }
 
     /**
-     * Drops gasket and canister items on break.
+     * Drops the canister item on break; the base drops the gasket.
      *
      * @param level  the current level
      * @param pos    the block position
@@ -246,7 +220,6 @@ public class TapBlock extends BaseEntityBlock {
             @NonNull Level level, @NonNull BlockPos pos,
             @NonNull BlockState state, @NonNull Player player) {
         if (!level.isClientSide()) {
-            TapInteractionHandler.dropGasketOnBreak(level, pos, state);
             TapInteractionHandler.dropCanisterOnBreak(level, pos);
         }
         return super.playerWillDestroy(level, pos, state, player);
