@@ -60,18 +60,19 @@ public final class RadialTextures {
      * @param outerNorm  the band's outer radius as a fraction of the wheel's
      * @param sprite     the still fluid sprite id on the block atlas
      * @param tint       the ARGB tint the sprite renders under
+     * @param edgeColor  the opaque ARGB color of the wedge's solid edge
      * @return the registered texture identifier
      */
     public static Identifier getArcTexture(double startAngle, double arc, double innerNorm, double outerNorm,
-                                           Identifier sprite, int tint) {
+                                           Identifier sprite, int tint, int edgeColor) {
         double start = wrap(startAngle);
         String key = keyOf(start) + KEY_SEPARATOR + keyOf(arc) + KEY_SEPARATOR
                 + keyOf(innerNorm) + KEY_SEPARATOR + keyOf(outerNorm) + KEY_SEPARATOR
                 + sprite.getNamespace() + KEY_SEPARATOR + sprite.getPath().replace('/', '_')
-                + KEY_SEPARATOR + Integer.toHexString(tint);
+                + KEY_SEPARATOR + Integer.toHexString(tint) + KEY_SEPARATOR + Integer.toHexString(edgeColor);
         return MASKS.computeIfAbsent(ARC_PATH + key, path -> register(path, ARC_LABEL + key,
-                PetalMask.fill(TEX_SIZE, (x, y) -> PetalMask.isInsidePetal(x, y, start, arc, innerNorm, outerNorm),
-                        spritePixels(sprite), tint)));
+                PetalMask.fill(TEX_SIZE, new PetalMask.Petal(start, arc, innerNorm, outerNorm),
+                        spritePixels(sprite), tint, new PetalMask.Edge(edgeColor, PetalMask.Edge.WEDGE_THICKNESS))));
     }
 
     /**
