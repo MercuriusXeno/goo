@@ -46,7 +46,7 @@ import static org.mockito.Mockito.when;
  * marker host whose scan hands over the entities in radius that the
  * filters keep:
  * a metal target costs one stack and is impaled on the strike tick, a
- * sneaking player costs none, and a spent budget tears down once and ends
+ * sneaking player and a dying mob cost none, and a spent budget tears down once and ends
  * the program; eight crystal shreds spend one stack, a sprinting player is
  * shredded twice as often, a standing entity not at all, and the cloud
  * expands, then contracts once its last blob is spent.
@@ -231,6 +231,20 @@ class FieldEffectStepTest {
         verify(sneaker, never()).playSound(FxAnchor.TARGET, PROBE_CUE);
         verify(host, never()).decrementStack();
         assertTrue(program.isActive());
+    }
+
+    @Test
+    void aDyingMobInRadiusIsNotStruckAndCostsNoStack() throws IOException {
+        AtomicInteger stacks = new AtomicInteger(2);
+        StepHost dying = entityInRadius(WALKER_ID, EntityFilter.ALIVE, false);
+        StepHost host = marker(stacks, List.of(dying));
+        ProgramBehavior program = ProgramBehavior.forHost(metalProgram(), HostKind.MARKER);
+
+        tick(program, host, STRIKE_TICKS);
+
+        verify(dying, never()).playSound(FxAnchor.TARGET, PROBE_CUE);
+        verify(host, never()).decrementStack();
+        assertEquals(2, stacks.get());
     }
 
     @Test
