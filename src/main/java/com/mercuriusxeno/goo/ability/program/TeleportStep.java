@@ -45,12 +45,12 @@ public record TeleportStep(TeleportMode mode, Expr range) implements Step {
 
     @Override
     public boolean tick(StepContext context) {
-        LivingEntity target = context.host().target();
+        LivingEntity target = context.hostAs(TargetHost.class).target();
         double reach = range.evaluate(context);
         Vec3 jump = switch (mode) {
             case RANDOM_OFFSET -> randomOffset(target, reach);
-            case TOWARD_THROWER -> towardThrower(target, context.host().thrower(), reach);
-            case AWAY_FROM_THROWER -> towardThrower(target, context.host().thrower(), -reach);
+            case TOWARD_THROWER -> towardThrower(target, context.hostAs(TargetHost.class).thrower(), reach);
+            case AWAY_FROM_THROWER -> towardThrower(target, context.hostAs(TargetHost.class).thrower(), -reach);
         };
         target.teleportTo(target.getX() + jump.x(), target.getY(), target.getZ() + jump.z());
         return true;

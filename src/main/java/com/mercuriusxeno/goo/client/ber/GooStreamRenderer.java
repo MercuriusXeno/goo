@@ -112,19 +112,10 @@ public final class GooStreamRenderer {
 
     private static GooRenderUtil.UvRect computeSpriteUv(
             TextureAtlasSprite sprite, float hw, float height) {
-        float su0 = sprite.getU0();
-        float sv0 = sprite.getV0();
-        float sideU1 = su0 + (sprite.getU1() - su0) * (hw * WIDTH_HALF);
-        float sideV1 = sv0 + (sprite.getV1() - sv0) * height;
-        return new GooRenderUtil.UvRect(su0, sv0, sideU1, sideV1);
+        return GooSubmitter.spriteSubRect(sprite, 0f, 0f, hw * WIDTH_HALF, height);
     }
 
     private static GooRenderUtil.UvRect computeStreamUv(ResourceKey<GooTypeDefinition> type, float hw, float height) {
-        TextureAtlasSprite sprite = GooRenderUtil.lookupFluidSprite(type);
-        float su0 = sprite.getU0();
-        float sv0 = sprite.getV0();
-        float sideU1 = su0 + (sprite.getU1() - su0) * (hw * WIDTH_HALF);
-        float sideV1 = sv0 + (sprite.getV1() - sv0) * height;
-        return new GooRenderUtil.UvRect(su0, sv0, sideU1, sideV1);
+        return computeSpriteUv(GooRenderUtil.lookupFluidSprite(type), hw, height);
     }
 }

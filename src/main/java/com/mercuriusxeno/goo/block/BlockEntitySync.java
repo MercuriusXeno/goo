@@ -109,18 +109,6 @@ public final class BlockEntitySync {
     }
 
     /**
-     * Invalidates cached capabilities so listeners re-query. Server-side only.
-     *
-     * @param be the block entity whose capabilities to invalidate
-     */
-    public static void invalidateCapabilities(BlockEntity be) {
-        Level level = be.getLevel();
-        if (level != null && !level.isClientSide()) {
-            level.invalidateCapabilities(be.getBlockPos());
-        }
-    }
-
-    /**
      * Pushes an integer value into a blockstate property. Server-side only.
      *
      * @param be       the block entity owning the blockstate

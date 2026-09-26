@@ -1,6 +1,5 @@
-package com.mercuriusxeno.goo.client.machine;
+package com.mercuriusxeno.goo.item.gasket;
 
-import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import net.minecraft.core.BlockPos;
 import org.jspecify.annotations.Nullable;
 import static com.mercuriusxeno.goo.GooConstants.NO_SLOT;

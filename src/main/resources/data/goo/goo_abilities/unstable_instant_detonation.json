@@ -1,7 +1,6 @@
 {
   "gooType": "unstable",
   "displayName": "goo.ability.unstable.instant_detonation",
-  "icon": "goo:textures/ability/instant_detonation.png",
   "order": 1,
   "cost": {
     "formula": "quadratic",

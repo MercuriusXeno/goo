@@ -1,44 +1,48 @@
 package com.mercuriusxeno.goo.block.canister;
 
 /**
- * Pixel-space geometry constants for canister body and gasket caps.
- * Shared between the in-world block-entity renderer (multi-slot grid)
- * and the special item-form renderer (single canister at block center).
+ * Where a canister stands on the Y axis in a host: its body between two one-pixel
+ * gasket caps. Every host places the same canister, so a host names only its body
+ * bounds and the caps follow (decision machine-base-owns-the-lifecycle). The XZ
+ * center varies with the host and lives at the call site.
  *
- * <p>Y-axis ranges (BODY_BOT, BODY_TOP, GASKET_BOT, GASKET_TOP) and the
- * gasket-side UV layout are universal across all canister forms. The
- * XZ slot center varies with form (3x3 grid in the BER vs. block center
- * in the special renderer) and lives at the call site.
+ * @param gasketBottom the lower cap's bottom edge, in block units
+ * @param bodyBottom   the body's bottom edge, where the lower cap ends
+ * @param bodyTop      the body's top edge, where the upper cap starts
+ * @param gasketTop    the upper cap's top edge
  */
-public final class CanisterGeometry {
+public record CanisterGeometry(float gasketBottom, float bodyBottom, float bodyTop, float gasketTop) {
 
     /** Canister half-width: 2 px. */
-    public static final float HW = 2f / 16f;
-
-    /** Bottom of lower gasket (y=0). */
-    public static final float GASKET_BOT = 0f;
-
-    /** Top of lower gasket / bottom of body (y=1px). */
-    public static final float BODY_BOT = 1f / 16f;
-
-    /** Top of body / bottom of upper gasket (y=11px). */
-    public static final float BODY_TOP = 11f / 16f;
-
-    /** Top of upper gasket (y=12px). */
-    public static final float GASKET_TOP = 12f / 16f;
+    public static final float HALF_WIDTH = 2f / 16f;
 
     /** Inset from body walls to avoid z-fighting with fluid surfaces (0.5px). */
     public static final float FLUID_INSET = 0.5f / 16f;
 
-    /** Gasket side U start: column 4/16. */
-    public static final float GS_U0 = 0.25f;
+    /** Each gasket cap is one pixel thick. */
+    private static final float CAP_THICKNESS = 1f / 16f;
 
-    /** Gasket side U end: column 8/16. */
-    public static final float GS_U1 = 0.5f;
+    /** A canister standing on the block floor: the canister block's grid and the item form. */
+    public static final CanisterGeometry STANDING = at(1f / 16f, 11f / 16f);
 
-    /** Gasket side V end: row 1/16. */
-    public static final float GS_V1 = 0.0625f;
+    /**
+     * A canister whose body spans the given bounds, capped one pixel below and above.
+     *
+     * @param bodyBottom the body's bottom edge, in block units
+     * @param bodyTop    the body's top edge, in block units
+     * @return the geometry
+     */
+    public static CanisterGeometry at(float bodyBottom, float bodyTop) {
+        return new CanisterGeometry(bodyBottom - CAP_THICKNESS, bodyBottom, bodyTop, bodyTop + CAP_THICKNESS);
+    }
 
-    private CanisterGeometry() {
+    /**
+     * The fluid surface's height at a fill fraction.
+     *
+     * @param fill the fill fraction in [0, 1]
+     * @return the surface Y, in block units
+     */
+    public float fluidSurface(float fill) {
+        return bodyBottom + fill * (bodyTop - bodyBottom);
     }
 }

@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.ber;
 
+import com.mercuriusxeno.goo.block.canister.CanisterGeometry;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 import net.minecraft.core.Direction;
 
@@ -9,6 +10,9 @@ import net.minecraft.core.Direction;
  * block-level fields (facing, crafting, wheel animation).
  */
 public class ReactorRenderState extends BlockEntityRenderState {
+
+    /** The output canister stands on the hollow floor (cap bottom at 1px). */
+    private static final CanisterGeometry CANISTER = CanisterGeometry.at(2f / 16f, 12f / 16f);
 
     /** Block facing direction; determines hollow orientation. */
     public Direction facing = Direction.SOUTH;
@@ -29,4 +33,11 @@ public class ReactorRenderState extends BlockEntityRenderState {
     /** Packed light coords sampled at the lateral neighbor on the
      * model-east wheel side (= world {@code facing.getCounterClockWise()}). */
     public int eastWheelLight;
+
+    /**
+     * @return where the output canister stands
+     */
+    public CanisterGeometry canisterGeometry() {
+        return CANISTER;
+    }
 }
