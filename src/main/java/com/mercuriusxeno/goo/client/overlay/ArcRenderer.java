@@ -4,13 +4,13 @@ import com.mercuriusxeno.goo.ThrowArc;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.LineContext;
 import com.mercuriusxeno.goo.client.VertexColors;
+import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -62,7 +62,6 @@ final class ArcRenderer {
      * @param poseStack    the current pose stack
      * @param bufferSource the buffer source for render output
      * @param camera       the active camera
-     * @param player       the local player
      * @param end          the target endpoint position
      * @param rgb          the RGB color for tinting
      * @param partialTick  the partial tick for animation
@@ -71,9 +70,9 @@ final class ArcRenderer {
      */
     static void renderTargetArc(
             PoseStack poseStack, MultiBufferSource.BufferSource bufferSource,
-            Camera camera, Player player, Vec3 end,
+            Camera camera, Vec3 end,
             int rgb, float partialTick, boolean grannyArc, boolean straightLine) {
-        Vec3 start = GooTargetHighlighter.getGloveHandPosition(player, camera);
+        Vec3 start = GloveAim.handPosition(camera);
         Vec3[] points = sampleArcPoints(start, end, grannyArc, straightLine);
         float dashOffset = computeDashOffset(partialTick);
         Minecraft mc = Minecraft.getInstance();
