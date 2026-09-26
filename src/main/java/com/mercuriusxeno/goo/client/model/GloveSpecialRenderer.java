@@ -1,8 +1,10 @@
 package com.mercuriusxeno.goo.client.model;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.GooSubmitter;
+import com.mercuriusxeno.goo.client.RenderContext;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.registry.GooItems;
@@ -61,10 +63,6 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
      * Center Z of the blob in model pixels.
      */
     private static final float BLOB_CZ_PX = 6f;
-    /**
-     * Normal direction for negative-facing surfaces.
-     */
-    private static final float NORMAL_NEG = -1f;
     /**
      * Minimum extent X in model pixels.
      */
@@ -195,18 +193,8 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
                                       ResourceKey<GooTypeDefinition> type, float cx, float cy, float cz, float hw) {
         GooRenderUtil.UvRect uv = buildBlobUv(type);
 
-        GooRenderUtil.faceY(pose, c, packedLight,
-                cx - hw, cx + hw, cy + hw, cz - hw, cz + hw, uv, 1f);
-        GooRenderUtil.faceY(pose, c, packedLight,
-                cx - hw, cx + hw, cy - hw, cz - hw, cz + hw, uv, NORMAL_NEG);
-        GooRenderUtil.faceX(pose, c, packedLight,
-                cx + hw, cy - hw, cy + hw, cz - hw, cz + hw, uv, 1f);
-        GooRenderUtil.faceX(pose, c, packedLight,
-                cx - hw, cy - hw, cy + hw, cz - hw, cz + hw, uv, NORMAL_NEG);
-        GooRenderUtil.faceZ(pose, c, packedLight,
-                cx - hw, cx + hw, cy - hw, cy + hw, cz + hw, uv, 1f);
-        GooRenderUtil.faceZ(pose, c, packedLight,
-                cx - hw, cx + hw, cy - hw, cy + hw, cz - hw, uv, NORMAL_NEG);
+        CuboidBounds blob = new CuboidBounds(cx - hw, cx + hw, cz - hw, cz + hw, cy - hw, cy + hw);
+        new RenderContext(pose, c, packedLight).emitBox(blob, uv);
     }
 
     /**

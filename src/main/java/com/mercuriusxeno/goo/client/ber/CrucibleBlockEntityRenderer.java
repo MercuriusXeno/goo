@@ -17,7 +17,6 @@ import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 import net.minecraft.client.renderer.feature.ModelFeatureRenderer;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 import java.util.Map;
@@ -122,24 +121,9 @@ public class CrucibleBlockEntityRenderer
     static void renderMingledSurface(BandedSurfaceSubmitter submitter, CrucibleRenderState state,
             CrucibleBasin.PuddleFootprint footprint, float surfaceY) {
         for (TypeBand band : state.typeBands) {
-            submitter.submit(band, (ctx, sprite) -> emitLiquidSurface(ctx, footprint, surfaceY + band.lift(),
-                sprite, state.rippleAmplitude));
+            submitter.submit(band, (ctx, sprite) -> emitLiquidSurface(ctx, footprint, surfaceY, band.lift(),
+                GooSubmitter.spriteUv(sprite), state.rippleAmplitude));
         }
-    }
-
-    /**
-     * Emits the liquid surface grid over the goo's footprint, at the
-     * context's light and color, its rim held still at the footprint's edge.
-     *
-     * @param ctx the render context the submitter built
-     * @param footprint the square the goo covers
-     * @param surfaceY the liquid surface Y height
-     * @param sprite the fluid texture atlas sprite
-     * @param amplitude the ripple amplitude the interior vertices carry
-     */
-    private static void emitLiquidSurface(RenderContext ctx, CrucibleBasin.PuddleFootprint footprint,
-            float surfaceY, TextureAtlasSprite sprite, float amplitude) {
-        emitLiquidSurface(ctx, footprint, surfaceY, GooSubmitter.spriteUv(sprite), amplitude);
     }
 
     /**
@@ -154,9 +138,26 @@ public class CrucibleBlockEntityRenderer
      */
     static void emitLiquidSurface(RenderContext ctx, CrucibleBasin.PuddleFootprint footprint, float surfaceY,
             GooRenderUtil.UvRect uv, float amplitude) {
+        emitLiquidSurface(ctx, footprint, surfaceY, 0f, uv, amplitude);
+    }
+
+    /**
+     * Emits one mingled layer's surface grid at its lift above layer 0's,
+     * rippling with layer 0's amplitude so it never dips under the layer
+     * below (decision diagnose-then-fix-undulation-blend-exposure).
+     *
+     * @param ctx the render context the submitter built
+     * @param footprint the square the goo covers
+     * @param surfaceY layer 0's liquid surface Y height
+     * @param lift the distance the layer sits above layer 0
+     * @param uv the sprite's UV rect
+     * @param amplitude the ripple amplitude the interior vertices carry
+     */
+    static void emitLiquidSurface(RenderContext ctx, CrucibleBasin.PuddleFootprint footprint, float surfaceY,
+            float lift, GooRenderUtil.UvRect uv, float amplitude) {
         CuboidBounds goo = new CuboidBounds(footprint.min(), footprint.max(),
             footprint.min(), footprint.max(), CrucibleBasin.FLOOR_Y, surfaceY);
-        ctx.liquidSurfaceGrid(goo, uv, amplitude);
+        ctx.liquidSurfaceLayer(goo, uv, amplitude, lift, 0f);
     }
 
 }

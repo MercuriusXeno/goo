@@ -9,6 +9,8 @@
   "viscosity": 1500,
   "temperature": 900,
   "extinguishes": false,
+  "levity": 1.0,
+  "base_flight_time": 3,
   "map_color": "nether",
   "textures": {
     "blob_tiny": "goo:item/nether_blob_tiny",

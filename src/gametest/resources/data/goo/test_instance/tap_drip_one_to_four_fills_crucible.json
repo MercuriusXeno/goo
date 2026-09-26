@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:tap_drip_one_to_four_fills_crucible",
+  "environment": "minecraft:default",
+  "structure": "minecraft:empty",
+  "max_ticks": 200,
+  "setup_ticks": 0,
+  "required": true
+}

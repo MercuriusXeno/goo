@@ -9,6 +9,8 @@
   "viscosity": 500,
   "temperature": 300,
   "extinguishes": true,
+  "levity": 1.5,
+  "base_flight_time": 3,
   "map_color": "color_light_green",
   "textures": {
     "blob_tiny": "goo:item/typhoon_blob_tiny",

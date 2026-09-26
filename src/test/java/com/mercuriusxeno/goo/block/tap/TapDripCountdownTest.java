@@ -3,7 +3,10 @@ package com.mercuriusxeno.goo.block.tap;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.ArgumentCaptor;
+import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -14,13 +17,22 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * The tap's drip countdown falls due once per interval, restarts on demand,
- * and survives a save and load at the tick it stood on.
+ * The tap's drip countdown falls due once per interval of the tap's grade,
+ * restarts on demand, retimes into a new grade, and survives a save and load
+ * at the tick it stood on.
  */
 class TapDripCountdownTest {
 
     private static final int INTERVAL = 40;
     private static final int TICKS_RUN = 13;
+    private static final int SLOWEST_INTERVAL_TICKS = 64;
+    private static final int TICKS_MEASURED = 256;
+    private static final Map<TapDripGrade, Integer> EXPECTED_LOSS_OVER_256_TICKS = Map.of(
+            TapDripGrade.ONE_PER_64_TICKS, 4,
+            TapDripGrade.ONE_PER_16_TICKS, 16,
+            TapDripGrade.ONE_PER_4_TICKS, 64,
+            TapDripGrade.ONE_PER_TICK, 256,
+            TapDripGrade.FOUR_PER_TICK, 1024);
 
     private static TapDripCountdown runFor(int ticks) {
         TapDripCountdown countdown = new TapDripCountdown(INTERVAL);
@@ -41,6 +53,42 @@ class TapDripCountdownTest {
             }
         }
         assertEquals(3, due);
+    }
+
+    @ParameterizedTest
+    @EnumSource(TapDripGrade.class)
+    void eachGradeLosesItsRateOver256Ticks(TapDripGrade grade) {
+        TapDripCountdown countdown = new TapDripCountdown(grade.intervalTicks());
+        int lostMb = 0;
+        for (int i = 0; i < TICKS_MEASURED; i++) {
+            if (countdown.tick()) {
+                lostMb += grade.dripVolume();
+            }
+        }
+        assertEquals(EXPECTED_LOSS_OVER_256_TICKS.get(grade), lostMb);
+    }
+
+    @Test
+    void retimeToAFasterGradeClampsTheTicksLeft() {
+        TapDripCountdown countdown = new TapDripCountdown(SLOWEST_INTERVAL_TICKS);
+        countdown.retime(TapDripGrade.ONE_PER_4_TICKS.intervalTicks());
+
+        assertEquals(TapDripGrade.ONE_PER_4_TICKS.intervalTicks(), countdown.ticksLeft());
+        int due = 0;
+        for (int i = 0; i < TapDripGrade.ONE_PER_4_TICKS.intervalTicks() * 2; i++) {
+            if (countdown.tick()) {
+                due++;
+            }
+        }
+        assertEquals(2, due);
+    }
+
+    @Test
+    void retimeToASlowerGradeKeepsTheTicksLeft() {
+        TapDripCountdown countdown = runFor(TICKS_RUN);
+        countdown.retime(SLOWEST_INTERVAL_TICKS);
+
+        assertEquals(INTERVAL - TICKS_RUN, countdown.ticksLeft());
     }
 
     @Test

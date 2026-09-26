@@ -6,7 +6,7 @@ import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ISidedProxy;
 import com.mercuriusxeno.goo.client.ber.*;
 import com.mercuriusxeno.goo.client.model.*;
-import com.mercuriusxeno.goo.client.overlay.GooTargetHighlighter;
+import com.mercuriusxeno.goo.client.overlay.AimTracker;
 import com.mercuriusxeno.goo.client.particle.*;
 import com.mercuriusxeno.goo.client.throwing.BlobFlightManager;
 import com.mercuriusxeno.goo.client.throwing.BlobSizeProperty;
@@ -205,7 +205,7 @@ public final class GooClientSetup {
         event.registerEntityModifier(
                 new TypeToken<EntityRenderer<Entity, EntityRenderState>>() {
                 },
-                GooTargetHighlighter::modifyEntityRenderState);
+                AimTracker::modifyEntityRenderState);
     }
 
     /**

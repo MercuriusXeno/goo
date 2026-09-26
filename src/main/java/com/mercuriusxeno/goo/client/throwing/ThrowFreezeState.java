@@ -8,7 +8,7 @@ import org.jspecify.annotations.Nullable;
  * Client-only static holder for the post-throw aim-freeze window.
  *
  * <p>When the player throws a blob, the resolved aim target is captured here
- * for a short window of ticks. While frozen, {@code GooTargetHighlighter}
+ * for a short window of ticks. While frozen, {@code AimTracker}
  * returns the frozen target instead of re-resolving, so rapid chain throws
  * land on the exact same spot even while the first blob is mid-flight.
  *

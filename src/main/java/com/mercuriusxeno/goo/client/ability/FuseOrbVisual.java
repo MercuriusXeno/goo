@@ -88,6 +88,18 @@ public final class FuseOrbVisual {
     }
 
     /**
+     * The largest half-size a non-glow orb's shell reaches at the given
+     * stack count, its stack-add pulse at peak, for what sits beside the
+     * orb to clear it.
+     *
+     * @param stackCount the marker's stack count
+     * @return the shell half-size in block units at peak pulse
+     */
+    public static float peakShellHalf(int stackCount) {
+        return (CORE_BASE + (stackCount - 1) * CORE_GROWTH + SHELL_MARGIN) * (1f + PULSE_AMPLITUDE);
+    }
+
+    /**
      * Glow orbs have no shell margin; all others add one.
      *
      * @param state    the chain marker render state
