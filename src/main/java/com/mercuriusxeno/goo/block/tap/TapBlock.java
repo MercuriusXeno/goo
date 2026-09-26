@@ -57,10 +57,6 @@ public class TapBlock extends BaseEntityBlock {
      * South-facing body shape (attachment region).
      */
     private static final VoxelShape SOUTH_BODY = box(5, 0, 0, 11, 4, 6);
-    /**
-     * South-facing valve shape (toggle region).
-     */
-    private static final VoxelShape SOUTH_VALVE = box(6.5, 4, 6.5, 9.5, 6.5, 9.5);
 
     /**
      * South-facing canister slot shape (wireframe preview + BER position).
@@ -77,10 +73,6 @@ public class TapBlock extends BaseEntityBlock {
      */
     private static final Map<Direction, VoxelShape> BODY_SHAPES = TapShapeBuilder.buildSubShapes(SOUTH_BODY);
     /**
-     * Per-facing valve shapes for hit detection.
-     */
-    private static final Map<Direction, VoxelShape> VALVE_SHAPES = TapShapeBuilder.buildSubShapes(SOUTH_VALVE);
-    /**
      * Per-facing canister slot shapes for wireframe preview.
      */
     private static final Map<Direction, VoxelShape> CANISTER_SLOT_SHAPES = TapShapeBuilder.buildSubShapes(SOUTH_CANISTER_SLOT);
@@ -88,12 +80,12 @@ public class TapBlock extends BaseEntityBlock {
      * Per-facing composite collision shapes (no canister).
      */
     private static final Map<Direction, VoxelShape> SHAPES =
-            TapShapeBuilder.buildShapes(SOUTH_BODY, SOUTH_SPIGOT, SOUTH_VALVE);
+            TapShapeBuilder.buildShapes(SOUTH_BODY, SOUTH_SPIGOT, TapValve.SOUTH);
     /**
      * Per-facing composite shapes with canister slot included.
      */
     private static final Map<Direction, VoxelShape> SHAPES_WITH_CANISTER =
-            TapShapeBuilder.buildShapesWithCanister(SOUTH_BODY, SOUTH_SPIGOT, SOUTH_VALVE, SOUTH_CANISTER_SLOT);
+            TapShapeBuilder.buildShapesWithCanister(SOUTH_BODY, SOUTH_SPIGOT, TapValve.SOUTH, SOUTH_CANISTER_SLOT);
 
     /**
      * Constructs a new tap block with default south-facing state.
@@ -312,7 +304,7 @@ public class TapBlock extends BaseEntityBlock {
             return InteractionResult.PASS;
         }
         // shift-click-steps-valve-back: the valve bears no gasket, so its hit resolves before gasket removal
-        if (TapInteractionHandler.hitValve(hitResult, pos, state.getValue(FACING), VALVE_SHAPES)) {
+        if (TapInteractionHandler.hitValve(hitResult, pos, state.getValue(FACING), TapValve.SHAPES)) {
             return TapInteractionHandler.stepValve(state, level, pos, tap, player.isSecondaryUseActive());
         }
         if (GasketInstallation.removeAddressedGasket(level, pos, player, hitResult)) {

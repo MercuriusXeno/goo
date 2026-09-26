@@ -2,6 +2,8 @@ package com.mercuriusxeno.goo.block.tap;
 
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Optional;
 
 /**
@@ -21,6 +23,10 @@ public enum TapDripGrade {
      */
     public static final TapDripGrade SLOWEST = ONE_PER_64_TICKS;
     /**
+     * The rate panel's label for a closed valve (decision valve-panel-reads-rate).
+     */
+    public static final String CLOSED_LABEL = "off";
+    /**
      * Save key for the grade, stored as its name.
      */
     static final String TAG_DRIP_RATE = "DripRate";
@@ -28,6 +34,17 @@ public enum TapDripGrade {
      * Save key a tap saved before 1:4 existed holds, its grade's interval in ticks.
      */
     static final String TAG_LEGACY_DRIP_GRADE = "DripGrade";
+
+    /** Server ticks per second, for the rate panel's label. */
+    private static final int TICKS_PER_SECOND = 20;
+    /** Label text before the seconds one mB takes, below 1 mB/s. */
+    private static final String SECONDS_PER_MB_PREFIX = "1 mB/";
+    /** Label text after the seconds one mB takes. */
+    private static final String SECONDS_PER_MB_SUFFIX = " s";
+    /** Label text after mB per second. */
+    private static final String MB_PER_SECOND_SUFFIX = " mB/s";
+    /** Decimal places a label computes to before trailing zeros drop. */
+    private static final int LABEL_SCALE = 4;
 
     private final int intervalTicks;
     private final int dripVolume;
@@ -49,6 +66,29 @@ public enum TapDripGrade {
      */
     public int dripVolume() {
         return dripVolume;
+    }
+
+    /**
+     * The rate panel's label, computed from the grade's interval and volume
+     * so the text cannot drift from the rate: mB per second, or seconds per
+     * mB below 1 mB/s, where a truncated decimal would mislead
+     * (decision valve-panel-reads-rate).
+     *
+     * @return the label, such as "1 mB/3.2 s" or "20 mB/s"
+     */
+    public String rateLabel() {
+        BigDecimal mbPerSecond = BigDecimal.valueOf((long) TICKS_PER_SECOND * dripVolume)
+                .divide(BigDecimal.valueOf(intervalTicks), LABEL_SCALE, RoundingMode.HALF_UP);
+        if (mbPerSecond.compareTo(BigDecimal.ONE) < 0) {
+            BigDecimal secondsPerMb = BigDecimal.valueOf(intervalTicks)
+                    .divide(BigDecimal.valueOf((long) TICKS_PER_SECOND * dripVolume), LABEL_SCALE, RoundingMode.HALF_UP);
+            return SECONDS_PER_MB_PREFIX + plain(secondsPerMb) + SECONDS_PER_MB_SUFFIX;
+        }
+        return plain(mbPerSecond) + MB_PER_SECOND_SUFFIX;
+    }
+
+    private static String plain(BigDecimal value) {
+        return value.stripTrailingZeros().toPlainString();
     }
 
     /**
