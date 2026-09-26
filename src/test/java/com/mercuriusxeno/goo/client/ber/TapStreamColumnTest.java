@@ -111,6 +111,15 @@ class TapStreamColumnTest {
     }
 
     @Test
+    void oneToOneIsAThinTrickleAndOneToFourIsTwiceAsWideBothWays() {
+        float trickle = TapBlockEntityRenderer.streamHalfWidth(1);
+        float fourPerTick = TapBlockEntityRenderer.streamHalfWidth(4);
+
+        assertTrue(trickle * 2 <= 0.5f / 16f, "1:1 is at most half a pixel wide, was " + trickle * 2 * 16 + " px");
+        assertEquals(2f * trickle, fourPerTick, SPAN_TOLERANCE);
+    }
+
+    @Test
     void aDrippingTapEmitsNoColumn() {
         TapRenderState state = mock(TapRenderState.class);
         state.streamType = null;

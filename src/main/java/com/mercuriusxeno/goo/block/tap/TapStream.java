@@ -11,17 +11,19 @@ import net.minecraft.resources.ResourceKey;
  * The stream a tap pours at 1:1, synced for its renderer to draw from the
  * spigot down to the landing (decision one-to-one-draws-a-stream).
  *
- * @param type     the goo type pouring
- * @param surfaceY the world Y of the surface the stream lands on
+ * @param type      the goo type pouring
+ * @param surfaceY  the world Y of the surface the stream lands on
+ * @param mbPerTick the mB the tap pours a tick, which sets the stream's width
  */
-public record TapStream(ResourceKey<GooTypeDefinition> type, double surfaceY) {
+public record TapStream(ResourceKey<GooTypeDefinition> type, double surfaceY, int mbPerTick) {
 
     /**
      * Save and sync codec.
      */
     public static final Codec<TapStream> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             GooTypes.KEY_CODEC.fieldOf("type").forGetter(TapStream::type),
-            Codec.DOUBLE.fieldOf("surface_y").forGetter(TapStream::surfaceY)
+            Codec.DOUBLE.fieldOf("surface_y").forGetter(TapStream::surfaceY),
+            Codec.INT.optionalFieldOf("mb_per_tick", 1).forGetter(TapStream::mbPerTick)
     ).apply(instance, TapStream::new));
 
     /**
