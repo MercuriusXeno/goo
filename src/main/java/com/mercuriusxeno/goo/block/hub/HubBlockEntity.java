@@ -1,30 +1,27 @@
 package com.mercuriusxeno.goo.block.hub;
 
 import com.mercuriusxeno.goo.block.BlockEntitySync;
+import com.mercuriusxeno.goo.block.GooGlowingMachineBlockEntity;
 import com.mercuriusxeno.goo.block.canister.*;
 import com.mercuriusxeno.goo.block.gasket.GasketAttachment;
 import com.mercuriusxeno.goo.block.gasket.GasketPusher;
-import com.mercuriusxeno.goo.block.gasket.IGasketHolder;
 import com.mercuriusxeno.goo.item.gasket.GasketPartner;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.core.component.DataComponentGetter;
 import net.minecraft.core.component.DataComponentMap;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.Connection;
-import net.minecraft.network.protocol.Packet;
-import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
@@ -33,11 +30,10 @@ import java.util.List;
  * Hub: holds up to 8 canisters in radial slots (N, NE, E, SE, S, SW, W, NW).
  * Central input on top auto-routes goo to canisters with remaining capacity.
  *
- * <p>Slot state delegated to {@link SlottedCanisterData}. Internal logic
- * delegated to {@link HubSlotLifecycle} (handler/pusher/shape/gasket registration).
+ * <p>Slot state and the slot lifecycle are owned by {@link SlottedCanisterData}.
  * Intake gasket field storage owned by {@link GasketState#single}.</p>
  */
-public class HubBlockEntity extends BlockEntity implements ICanisterHolder, IGasketHolder, ICanisterAttachable {
+public class HubBlockEntity extends GooGlowingMachineBlockEntity implements ICanisterHolder, ICanisterAttachable {
 
     public static final int MAX_CANISTERS = 8;
 
@@ -54,11 +50,6 @@ public class HubBlockEntity extends BlockEntity implements ICanisterHolder, IGas
      */
     private static final int BLOCK_UPDATE_FLAGS = 3;
     /**
-     * Composed gasket integration: RECEIVER intake, slot-level pushers managed by HubSlotLifecycle.
-     */
-    private final GasketAttachment gasket = GasketAttachment.single(this, GasketRole.RECEIVER, FACE_LABEL);
-
-    /**
      * Behavioral component owning slot arrays, handlers, and stream state.
      */
     private final SlottedCanisterData state;
@@ -70,17 +61,13 @@ public class HubBlockEntity extends BlockEntity implements ICanisterHolder, IGas
      * @param state the block state
      */
     public HubBlockEntity(BlockPos pos, BlockState state) {
-        super(GooBlockEntities.HUB.get(), pos, state);
-        this.state = new SlottedCanisterData(
-                MAX_CANISTERS,
+        super(GooBlockEntities.HUB.get(), pos, state,
+                be -> GasketAttachment.single(be, GasketRole.RECEIVER, FACE_LABEL));
+        GasketAttachment gasket = gasket();
+        this.state = new SlottedCanisterData(this, MAX_CANISTERS,
                 HubBlock::slotShape,
-                HubSlotLifecycle::computeShape,
-                gasket.syncCallback());
-        gasket.rebuildPushers(() -> {
-            if (level instanceof ServerLevel) {
-                HubSlotLifecycle.rebuildAllSlotPushers(this);
-            }
-        });
+                HubBlockEntity::computeShape);
+        gasket.rebuildPushers(this.state::rebuildAllPushers);
         gasket.afterLoad(() -> {
             if (level instanceof ServerLevel serverLevel) {
                 GasketPusher.forceTransmitterChunk(gasket.state().getId(GasketRole.RECEIVER),
@@ -112,32 +99,56 @@ public class HubBlockEntity extends BlockEntity implements ICanisterHolder, IGas
     }
 
     /**
-     * Inserts a canister into a slot through the same path a player's click takes.
+     * Inserts a canister into a slot through the shared slot lifecycle.
      *
      * @param slot          the slot index (0-7)
      * @param canisterStack the canister item stack; one is taken from it
      * @return true if inserted
      */
     public boolean insertCanister(int slot, ItemStack canisterStack) {
-        boolean inserted = HubSlotLifecycle.insertCanister(this, slot, canisterStack.copy());
-        if (inserted) {
-            BlockEntitySync.markDirtyAndSync(this);
-        }
-        return inserted;
+        return state.insert(slot, canisterStack, false);
     }
 
     /**
-     * Removes the canister from a slot through the same path a player's click takes.
+     * Inserts a canister into the first empty slot.
+     *
+     * @param canisterStack the canister item stack; one is taken from it
+     * @return true if inserted
+     */
+    public boolean insertCanisterAnywhere(ItemStack canisterStack) {
+        for (int i = 0; i < MAX_CANISTERS; i++) {
+            if (state.insert(i, canisterStack, false)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Removes the canister from a slot through the shared slot lifecycle.
      *
      * @param slot the slot index (0-7)
      * @return the removed canister, or EMPTY
      */
     public ItemStack removeCanister(int slot) {
-        ItemStack removed = HubSlotLifecycle.removeCanister(this, slot);
-        if (!removed.isEmpty()) {
-            BlockEntitySync.markDirtyAndSync(this);
+        return state.remove(slot);
+    }
+
+    /**
+     * Computes the union of the frame and all occupied slot shapes.
+     *
+     * @param slots the slot array
+     * @return the computed shape
+     */
+    static VoxelShape computeShape(CanisterSlot[] slots) {
+        VoxelShape result = HubBlock.frameShape();
+        for (CanisterSlot s : slots) {
+            VoxelShape shape = s.shape();
+            if (shape != null) {
+                result = Shapes.or(result, shape);
+            }
         }
-        return removed;
+        return result;
     }
 
     // --- ICanisterAttachable ---
@@ -177,11 +188,6 @@ public class HubBlockEntity extends BlockEntity implements ICanisterHolder, IGas
     // --- IGasketHolder ---
 
     @Override
-    public GasketAttachment gasket() {
-        return gasket;
-    }
-
-    @Override
     public int resolveSlot(BlockHitResult hit) {
         int slot = HubBlock.hitSlot(hit, getBlockPos());
         return slot < 0 ? SLOT_MISS : slot;
@@ -205,122 +211,44 @@ public class HubBlockEntity extends BlockEntity implements ICanisterHolder, IGas
      * The intake gasket is the hub's one block-level gasket, flagged in its blockstate.
      */
     @Override
-    public boolean holdsBlockGasket(GasketRole role) {
-        return role == GasketRole.RECEIVER && getBlockState().getValue(HubBlock.HAS_GASKET);
+    public @Nullable BooleanProperty gasketFlag(GasketRole role) {
+        return role == GasketRole.RECEIVER ? HubBlock.HAS_GASKET : null;
     }
 
     /**
      * {@inheritDoc} Clears intake-only state. Does not rebuild slot pushers since the
-     * intake gasket is independent of slot topology. Also flips the HAS_GASKET blockstate.
+     * intake gasket is independent of slot topology.
      */
     @Override
     public void clearGasket(GasketRole role) {
-        gasket.state().clear(role, this::onGasketCleared);
-    }
-
-    /**
-     * Clears the HAS_GASKET blockstate flag and syncs to client.
-     */
-    private void onGasketCleared() {
-        if (getLevel() != null) {
-            BlockState bs = getLevel().getBlockState(getBlockPos());
-            if (bs.getValue(HubBlock.HAS_GASKET)) {
-                getLevel().setBlock(getBlockPos(),
-                        bs.setValue(HubBlock.HAS_GASKET, false), BLOCK_UPDATE_FLAGS);
-            }
-        }
-        BlockEntitySync.markDirtyAndSync(this);
+        gasket().state().clear(role, () -> BlockEntitySync.markDirtyAndSync(this));
     }
 
     @Override
     public void setPartner(GasketRole role, int slot, @Nullable GasketPartner partner) {
-        IGasketHolder.super.setPartner(role, slot, partner);
-        if (role == GasketRole.TRANSMITTER && slot >= 0 && slot < MAX_CANISTERS) {
-            HubSlotLifecycle.rebuildSlotPusher(this, slot);
+        super.setPartner(role, slot, partner);
+        if (role == GasketRole.TRANSMITTER) {
+            state.rebuildPusher(slot);
         }
     }
 
     // --- Framework lifecycle ---
 
     @Override
-    public void setLevel(@NonNull Level level) {
-        super.setLevel(level);
-        gasket.onSetLevel(level);
-        if (level instanceof ServerLevel) {
-            HubSlotLifecycle.registerAllSlotGaskets(this);
-        }
-    }
-
-    @Override
-    public void setRemoved() {
-        state.disposeAllPushers();
-        HubSlotLifecycle.deregisterAllSlotGaskets(this);
-        super.setRemoved();
-    }
-
-    @Override
-    public void onLoad() {
-        super.onLoad();
-        gasket.onLoad();
-        BlockEntitySync.kickLightingOnLoad(this);
-    }
-
-    /**
-     * Loads the packet's contents, then rechecks light at this position:
-     * the client's engine sees new goo only this way (decision
-     * diagnose-then-fix-vat-stale-light).
-     *
-     * @param net   the connection the packet came from
-     * @param input the packet data
-     */
-    @Override
-    public void onDataPacket(Connection net, ValueInput input) {
-        super.onDataPacket(net, input);
-        BlockEntitySync.relightOnContentsArrived(this);
+    protected SlottedCanisterData heldSlots() {
+        return state;
     }
 
     @Override
     protected void saveAdditional(@NonNull ValueOutput output) {
         super.saveAdditional(output);
-        CompoundTag root = new CompoundTag();
-        for (CanisterSlot slot : state.slots) {
-            CompoundTag slotTag = new CompoundTag();
-            slot.save(slotTag);
-            if (!slotTag.isEmpty()) {
-                root.put(String.valueOf(slot.index()), slotTag);
-            }
-        }
-        if (!root.isEmpty()) {
-            output.store(TAG_SLOTS, CompoundTag.CODEC, root);
-        }
-        gasket.saveAdditional(output);
+        state.save(output, TAG_SLOTS);
     }
 
     @Override
     protected void loadAdditional(@NonNull ValueInput input) {
         super.loadAdditional(input);
-        input.read(TAG_SLOTS, CompoundTag.CODEC).ifPresent(root -> {
-            for (CanisterSlot slot : state.slots) {
-                String key = String.valueOf(slot.index());
-                CompoundTag slotTag = root.contains(key) ? root.getCompoundOrEmpty(key) : new CompoundTag();
-                slot.load(slotTag);
-            }
-            // slot.load() skips structure-changed callbacks; rebuild now so
-            // raycasting + outline rendering see the loaded slot occupancy.
-            state.rebuildCompositeShape();
-        });
-        gasket.loadAdditional(input);
-        HubSlotLifecycle.rebuildAllSlotHandlers(this);
-    }
-
-    @Override
-    public @NonNull CompoundTag getUpdateTag(HolderLookup.@NonNull Provider registries) {
-        return gasket.getUpdateTag(registries);
-    }
-
-    @Override
-    public Packet<ClientGamePacketListener> getUpdatePacket() {
-        return gasket.getUpdatePacket();
+        state.load(input, TAG_SLOTS);
     }
 
     /**
@@ -348,9 +276,7 @@ public class HubBlockEntity extends BlockEntity implements ICanisterHolder, IGas
         super.applyImplicitComponents(getter);
         List<ItemStack> fromItem = getter.get(GooDataComponents.HUB_CANISTERS.get());
         if (fromItem != null) {
-            for (int i = 0; i < MAX_CANISTERS; i++) {
-                state.slots[i].setCanister(i < fromItem.size() ? fromItem.get(i) : ItemStack.EMPTY);
-            }
+            state.restore(fromItem);
         }
     }
 }
