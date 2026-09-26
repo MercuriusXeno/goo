@@ -78,7 +78,8 @@ public final class StackKeyTests {
                                             ChainMarkerBlockEntity marker, AbilityDefinition tunnel) {
         int fuse = marker.getFuseRemaining();
         BlobThrowHandler.execute(player, new BlobThrowPayload(GooTypes.id(GooTypes.FROST), NO_TARGET_ENTITY,
-                helper.absolutePos(MARKER_POS), Direction.DOWN.ordinal(), false, FROST_TUNNEL.toString()));
+                helper.absolutePos(MARKER_POS), Direction.DOWN.ordinal(), false, FROST_TUNNEL.toString(),
+                player.getEyePosition()));
         int spent = FROST_BLOBS * MB_PER_BLOB
                 - GooSourceScanner.aggregateAvailable(player).getOrDefault(GooTypes.FROST, 0);
         int fuseAfter = marker.getFuseRemaining();
