@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.throwing;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.GloveSelection;
+import com.mercuriusxeno.goo.ability.StackKey;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
@@ -77,7 +78,7 @@ public final class GloveThrowSender {
             return false;
         }
         ThrowFreezeState.arm(target);
-        trackInFlight(target);
+        trackInFlight(target, selection.abilityId());
         sendPayload(payload);
         return true;
     }
@@ -171,7 +172,7 @@ public final class GloveThrowSender {
         if (target instanceof TargetResult.GlowCrystalTarget gct && gooType == GooTypes.GLOW) {
             return wouldExceedCrystalMax(gct, abilityId);
         }
-        BlockPos pos = resolveTrackingPos(target);
+        BlockPos pos = resolveTrackingPos(target, abilityId);
         return pos != null && wouldExceedMarkerMax(pos, abilityId);
     }
 
@@ -197,7 +198,7 @@ public final class GloveThrowSender {
     }
 
     /**
-     * Returns [current, max] from the marker BE or the selected ability's
+     * Returns [current, max] from the selected ability's marker BE or its
      * synced chain block, or empty if unknown.
      *
      * @param level     the client level
@@ -206,7 +207,8 @@ public final class GloveThrowSender {
      * @return a 2-element array [current, max], or empty if no ability is synced under the id
      */
     private static int[] resolveCurrentAndMax(ClientLevel level, BlockPos pos, String abilityId) {
-        if (level.getBlockEntity(pos) instanceof ChainMarkerBlockEntity be) {
+        if (level.getBlockEntity(pos) instanceof ChainMarkerBlockEntity be
+                && StackKey.matches(be.getAbilityId(), abilityId)) {
             return new int[]{be.getStackCount(), be.getMaxStacks()};
         }
         ClientAbility ability = AbilitySyncHandler.findAbility(abilityId);
@@ -241,10 +243,11 @@ public final class GloveThrowSender {
      * stack on a chain marker. Tracks even before the marker exists so
      * rapid throws during flight time are counted.
      *
-     * @param target the resolved aim target
+     * @param target    the resolved aim target
+     * @param abilityId the selected ability id string
      */
-    private static void trackInFlight(TargetResult target) {
-        BlockPos pos = resolveTrackingPos(target);
+    private static void trackInFlight(TargetResult target, String abilityId) {
+        BlockPos pos = resolveTrackingPos(target, abilityId);
         if (pos != null) {
             IN_FLIGHT.merge(pos, 1, Integer::sum);
         }
@@ -256,10 +259,11 @@ public final class GloveThrowSender {
      * Works before the marker exists so the first burst of throws can
      * be counted against maxStacks during the flight window.
      *
-     * @param target the resolved aim target
+     * @param target    the resolved aim target
+     * @param abilityId the selected ability id string
      * @return the canonical marker position, or null for entity/none targets
      */
-    private static @Nullable BlockPos resolveTrackingPos(TargetResult target) {
+    private static @Nullable BlockPos resolveTrackingPos(TargetResult target, String abilityId) {
         if (target instanceof TargetResult.ChainMarkerTarget cmt) {
             return cmt.pos();
         }
@@ -267,34 +271,50 @@ public final class GloveThrowSender {
             return gct.pos();
         }
         if (target instanceof TargetResult.BlockTarget bt) {
-            return resolveBlockTrackingPos(bt);
+            return resolveBlockTrackingPos(bt, abilityId);
         }
         return null;
     }
 
     /**
-     * Resolves the tracking position for a block target. If a marker
-     * already exists at the hit pos or adjacent, returns its position.
-     * Otherwise predicts placement: replaceable blocks are displaced
-     * in-place, solid blocks place the marker on the adjacent face.
+     * Resolves the tracking position for a block target. If a marker of
+     * the selected ability already exists at the hit pos or adjacent,
+     * returns its position. Otherwise predicts placement: replaceable
+     * blocks are displaced in-place, solid blocks place the marker on the
+     * adjacent face.
      *
-     * @param bt the block target to resolve
+     * @param bt        the block target to resolve
+     * @param abilityId the selected ability id string
      * @return the canonical marker position, or null if level unavailable
      */
-    private static @Nullable BlockPos resolveBlockTrackingPos(TargetResult.BlockTarget bt) {
+    private static @Nullable BlockPos resolveBlockTrackingPos(TargetResult.BlockTarget bt, String abilityId) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) {
             return null;
         }
-        if (mc.level.getBlockEntity(bt.pos()) instanceof ChainMarkerBlockEntity) {
+        if (isKeyedMarker(mc.level, bt.pos(), abilityId)) {
             return bt.pos();
         }
         BlockPos adjacent = bt.pos().relative(bt.face());
-        if (mc.level.getBlockEntity(adjacent) instanceof ChainMarkerBlockEntity) {
+        if (isKeyedMarker(mc.level, adjacent, abilityId)) {
             return adjacent;
         }
         BlockState state = mc.level.getBlockState(bt.pos());
         return state.canBeReplaced() ? bt.pos() : adjacent;
+    }
+
+    /**
+     * Whether a chain marker of the selected ability stands at the position
+     * (decision diagnose-then-fix-stack-key-match).
+     *
+     * @param level     the client level
+     * @param pos       the block position
+     * @param abilityId the selected ability id string
+     * @return true for a marker the throw keys onto
+     */
+    private static boolean isKeyedMarker(ClientLevel level, BlockPos pos, String abilityId) {
+        return level.getBlockEntity(pos) instanceof ChainMarkerBlockEntity be
+                && StackKey.matches(be.getAbilityId(), abilityId);
     }
 
     /**
