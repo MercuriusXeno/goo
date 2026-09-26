@@ -33,19 +33,19 @@ public final class StepTypes {
     public static final Codec<List<Step>> LIST_CODEC = CODEC.listOf();
 
     static {
-        register(WaitStep.TYPE);
+        register(LeafSteps.WAIT.type());
         register(AwaitEntityStep.TYPE);
         register(ExplodeStep.TYPE);
         register(DamageStep.TYPE);
         register(PotionStep.TYPE);
         register(TargetStep.TYPE);
-        register(SetHealthStep.TYPE);
-        register(FreezeTicksStep.TYPE);
-        register(SetAiStep.TYPE);
-        register(SetInvulnerableStep.TYPE);
+        register(LeafSteps.SET_HEALTH.type());
+        register(LeafSteps.FREEZE_TICKS.type());
+        register(LeafSteps.SET_AI.type());
+        register(LeafSteps.SET_INVULNERABLE.type());
         register(CloneEntityStep.TYPE);
         register(DropItemStep.TYPE);
-        register(IgniteStep.TYPE);
+        register(LeafSteps.IGNITE.type());
         register(EntitiesStep.TYPE);
         register(ParticlesStep.TYPE);
         register(SoundStep.TYPE);
@@ -55,12 +55,12 @@ public final class StepTypes {
         register(FieldEffectStep.TYPE);
         register(PhasedStep.TYPE);
         register(PullStep.TYPE);
-        register(ConsumeBlocksStep.TYPE);
-        register(DropConsumedStep.TYPE);
+        register(LeafSteps.CONSUME_BLOCKS.type());
+        register(LeafSteps.DROP_CONSUMED.type());
         register(CounterStep.TYPE);
         register(BranchStep.TYPE);
-        register(DiscardStep.TYPE);
-        register(SetBabyStep.TYPE);
+        register(LeafSteps.DISCARD.type());
+        register(LeafSteps.SET_BABY.type());
     }
 
     private StepTypes() {

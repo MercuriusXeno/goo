@@ -139,8 +139,7 @@ public class CrucibleBlockEntityRenderer
      */
     private static void emitLiquidSurface(RenderContext ctx, float surfaceY,
             TextureAtlasSprite sprite, float amplitude) {
-        emitLiquidSurface(ctx, surfaceY, new GooRenderUtil.UvRect(
-            sprite.getU0(), sprite.getV0(), sprite.getU1(), sprite.getV1()), amplitude);
+        emitLiquidSurface(ctx, surfaceY, GooSubmitter.spriteUv(sprite), amplitude);
     }
 
     /**

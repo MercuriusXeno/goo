@@ -6,7 +6,11 @@ import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.AbilityTags;
+import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.ability.program.StepTypes;
+import io.netty.buffer.ByteBuf;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
@@ -18,9 +22,10 @@ import java.util.List;
 /**
  * Server-to-client payload: syncs the loaded ability definitions so the
  * client radial menu knows what abilities exist per goo type. Sends the
- * metadata needed for display (id, type, name, order) and the chain
- * block's fuse and stack ceiling the client predicts from, not the full
- * behavior configuration.
+ * metadata needed for display (id, type, name, order), the chain block's
+ * fuse and stack ceiling the client predicts from, and the step program,
+ * whose params the marker's renderers read by the marker's ability id
+ * (decision capability-interfaces-derive-host-kind).
  *
  * @param entries the list of ability descriptors
  */
@@ -37,6 +42,8 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
      */
     public static final StreamCodec<FriendlyByteBuf, AbilitySyncPayload> STREAM_CODEC =
             StreamCodec.of(AbilitySyncPayload::encode, AbilitySyncPayload::decode);
+
+    private static final StreamCodec<ByteBuf, List<Step>> STEPS_CODEC = ByteBufCodecs.fromCodec(StepTypes.LIST_CODEC);
 
     /**
      * Builds the sync payload from the current server ability registry.
@@ -65,7 +72,7 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
                 .filter(def -> !def.hasTag(AbilityTags.TAP))
                 .map(def -> new Entry(def.id().toString(), GooTypes.id(type),
                         def.displayName(), def.icon(), def.order(), def.tags(),
-                        def.chain().fuseTicks(), def.chain().maxStacks()))
+                        def.chain().fuseTicks(), def.chain().maxStacks(), def.behaviors()))
                 .toList();
     }
 
@@ -80,6 +87,7 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
             encodeTags(buf, e.tags);
             buf.writeVarInt(e.fuseTicks);
             buf.writeVarInt(e.maxStacks);
+            STEPS_CODEC.encode(buf, e.behaviors);
         }
     }
 
@@ -95,7 +103,8 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
         List<Entry> entries = new ArrayList<>(count);
         for (int i = 0; i < count; i++) {
             entries.add(new Entry(buf.readUtf(), buf.readUtf(), buf.readUtf(),
-                    buf.readUtf(), buf.readVarInt(), decodeTags(buf), buf.readVarInt(), buf.readVarInt()));
+                    buf.readUtf(), buf.readVarInt(), decodeTags(buf), buf.readVarInt(), buf.readVarInt(),
+                    STEPS_CODEC.decode(buf)));
         }
         return new AbilitySyncPayload(entries);
     }
@@ -125,8 +134,10 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
      * @param tags        categorical tags for targeting and display
      * @param fuseTicks   the chain block's full fuse
      * @param maxStacks   the chain block's stack ceiling
+     * @param behaviors   the ability's step program
      */
     public record Entry(String abilityId, String gooTypeId, String displayName,
-                        String icon, int order, List<String> tags, int fuseTicks, int maxStacks) {
+                        String icon, int order, List<String> tags, int fuseTicks, int maxStacks,
+                        List<Step> behaviors) {
     }
 }

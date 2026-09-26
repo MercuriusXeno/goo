@@ -6,15 +6,13 @@ import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
+import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.ability.ConeGeometry;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.rendertype.RenderTypes;
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
@@ -37,12 +35,6 @@ import java.util.Collection;
 public final class BlobFlightRenderer {
 
     /**
-     * Block atlas texture path - same convention as the BERs.
-     */
-    private static final Identifier BLOCK_ATLAS_TEXTURE =
-            Identifier.withDefaultNamespace("textures/atlas/blocks.png");
-
-    /**
      * Half-width of the core cuboid (~2.5 pixels).
      */
     private static final float CORE_HW = 0.08f;
@@ -63,11 +55,6 @@ public final class BlobFlightRenderer {
      * Tail quad half-width.
      */
     private static final float TAIL_HW = 0.06f;
-
-    /**
-     * Full-bright packed light for entity rendering.
-     */
-    private static final int FULL_BRIGHT = 0xF000F0;
 
     /**
      * Pulse amplitude for core breathing animation.
@@ -252,7 +239,7 @@ public final class BlobFlightRenderer {
 
     /**
      * Core: opaque fluid cuboid with sin-pulsing width.
-     * Uses entitySolid for fully opaque rendering.
+     * Draws solid on the block atlas for fully opaque rendering.
      *
      * @param poseStack the pose stack for rendering
      * @param buffers   the buffer source for rendering
@@ -265,8 +252,8 @@ public final class BlobFlightRenderer {
         float hw = CORE_HW * pulse;
 
         GooRenderUtil.UvRect uv = spriteToUv(type);
-        VertexConsumer c = buffers.getBuffer(RenderTypes.entitySolid(BLOCK_ATLAS_TEXTURE));
-        com.mercuriusxeno.goo.client.RenderContext ctx = new com.mercuriusxeno.goo.client.RenderContext(poseStack.last(), c, FULL_BRIGHT);
+        VertexConsumer c = buffers.getBuffer(GooSubmitter.solidOnBlockAtlas());
+        com.mercuriusxeno.goo.client.RenderContext ctx = new com.mercuriusxeno.goo.client.RenderContext(poseStack.last(), c, GooSubmitter.fullbrightLight());
         CuboidBounds box = new CuboidBounds(-hw, hw, -hw, hw, -hw, hw);
         ctx.emitBox(box, uv);
     }
@@ -283,8 +270,8 @@ public final class BlobFlightRenderer {
                                     ResourceKey<GooTypeDefinition> type) {
         int color = ARGB.color(SHELL_ALPHA, ClientGooTypes.color(type));
         GooRenderUtil.UvRect uv = spriteToUv(type);
-        VertexConsumer c = buffers.getBuffer(RenderTypes.entityTranslucent(BLOCK_ATLAS_TEXTURE));
-        com.mercuriusxeno.goo.client.RenderContext ctx = new com.mercuriusxeno.goo.client.RenderContext(poseStack.last(), c, FULL_BRIGHT);
+        VertexConsumer c = buffers.getBuffer(GooSubmitter.renderType());
+        com.mercuriusxeno.goo.client.RenderContext ctx = new com.mercuriusxeno.goo.client.RenderContext(poseStack.last(), c, GooSubmitter.fullbrightLight());
         CuboidBounds box = new CuboidBounds(-SHELL_HW, SHELL_HW, -SHELL_HW, SHELL_HW, -SHELL_HW, SHELL_HW);
         ctx.emitBox(color, box, uv);
     }
@@ -296,9 +283,7 @@ public final class BlobFlightRenderer {
      * @return the UV rectangle for the fluid sprite
      */
     private static GooRenderUtil.UvRect spriteToUv(ResourceKey<GooTypeDefinition> type) {
-        TextureAtlasSprite sprite = GooRenderUtil.lookupFluidSprite(type);
-        return new GooRenderUtil.UvRect(
-                sprite.getU0(), sprite.getV0(), sprite.getU1(), sprite.getV1());
+        return GooSubmitter.spriteUv(GooRenderUtil.lookupFluidSprite(type));
     }
 
     /**
@@ -315,7 +300,7 @@ public final class BlobFlightRenderer {
                                    ResourceKey<GooTypeDefinition> type, Vec3 velocity, float gameTime) {
         GooRenderUtil.UvRect uv = spriteToUv(type);
         int tailColor = ARGB.color(TAIL_ALPHA, ClientGooTypes.color(type));
-        VertexConsumer c = buffers.getBuffer(RenderTypes.entityTranslucent(BLOCK_ATLAS_TEXTURE));
+        VertexConsumer c = buffers.getBuffer(GooSubmitter.renderType());
         TailAxes axes = buildTailAxes(velocity);
 
         emitCrossingTailQuads(poseStack, c, tailColor, axes, uv);
@@ -334,8 +319,8 @@ public final class BlobFlightRenderer {
                                               int tailColor, TailAxes axes, GooRenderUtil.UvRect uv) {
         poseStack.pushPose();
         PoseStack.Pose pose = poseStack.last();
-        emitTailQuad(pose, c, FULL_BRIGHT, tailColor, axes.tailEnd, axes.right, TAIL_HW, uv);
-        emitTailQuad(pose, c, FULL_BRIGHT, tailColor, axes.tailEnd, axes.up, TAIL_HW, uv);
+        emitTailQuad(pose, c, GooSubmitter.fullbrightLight(), tailColor, axes.tailEnd, axes.right, TAIL_HW, uv);
+        emitTailQuad(pose, c, GooSubmitter.fullbrightLight(), tailColor, axes.tailEnd, axes.up, TAIL_HW, uv);
         poseStack.popPose();
     }
 
@@ -539,7 +524,7 @@ public final class BlobFlightRenderer {
         Vec3 normal = beamVec.cross(lateral).normalize();
         GooRenderUtil.UvRect uv = spriteToUv(GooTypes.GLOW);
         VertexConsumer c = ctx.buffers.getBuffer(
-                RenderTypes.entityTranslucent(BLOCK_ATLAS_TEXTURE));
+                GooSubmitter.renderType());
         PoseStack.Pose pose = ctx.poseStack.last();
         emitGlowHalves(pose, c, lateral, beamVec, normal, uv);
         ctx.poseStack.popPose();
@@ -616,13 +601,13 @@ public final class BlobFlightRenderer {
                                      GooRenderUtil.UvRect uv) {
         // tail-edge (transparent), tail-center (transparent),
         // head-center (white-hot), head-edge (yellow)
-        GooRenderUtil.vertexColored(pose, c, FULL_BRIGHT, BEAM_TAIL_COLOR,
+        GooRenderUtil.vertexColored(pose, c, GooSubmitter.fullbrightLight(), BEAM_TAIL_COLOR,
                 lx, ly, lz, uv.u0(), uv.v0(), nx, ny, nz);
-        GooRenderUtil.vertexColored(pose, c, FULL_BRIGHT, BEAM_TAIL_COLOR,
+        GooRenderUtil.vertexColored(pose, c, GooSubmitter.fullbrightLight(), BEAM_TAIL_COLOR,
                 0, 0, 0, uv.u1(), uv.v0(), nx, ny, nz);
-        GooRenderUtil.vertexColored(pose, c, FULL_BRIGHT, BEAM_CENTER_COLOR,
+        GooRenderUtil.vertexColored(pose, c, GooSubmitter.fullbrightLight(), BEAM_CENTER_COLOR,
                 fx, fy, fz, uv.u1(), uv.v1(), nx, ny, nz);
-        GooRenderUtil.vertexColored(pose, c, FULL_BRIGHT, BEAM_EDGE_COLOR,
+        GooRenderUtil.vertexColored(pose, c, GooSubmitter.fullbrightLight(), BEAM_EDGE_COLOR,
                 fx + lx, fy + ly, fz + lz, uv.u0(), uv.v1(), nx, ny, nz);
     }
 
@@ -676,7 +661,7 @@ public final class BlobFlightRenderer {
                                        ResourceKey<GooTypeDefinition> type, Vec3 vel, float morphFrac) {
         GooRenderUtil.UvRect uv = spriteToUv(type);
         VertexConsumer c = buffers.getBuffer(
-                RenderTypes.entityTranslucent(BLOCK_ATLAS_TEXTURE));
+                GooSubmitter.renderType());
         PoseStack.Pose pose = poseStack.last();
 
         Vec3 dir = vel.normalize();
@@ -753,19 +738,19 @@ public final class BlobFlightRenderer {
 
         float[] n = segmentNormal(basis, (a0 + a1) * UV_MIDPOINT);
 
-        GooRenderUtil.vertexColored(pose, c, FULL_BRIGHT, GooRenderUtil.OPAQUE_WHITE,
+        GooRenderUtil.vertexColored(pose, c, GooSubmitter.fullbrightLight(), GooRenderUtil.OPAQUE_WHITE,
                 basis[ConeGeometry.PERP_X] * cos0 + basis[ConeGeometry.CROSS_X] * sin0,
                 basis[ConeGeometry.PERP_Y] * cos0 + basis[ConeGeometry.CROSS_Y] * sin0,
                 basis[ConeGeometry.PERP_Z] * cos0 + basis[ConeGeometry.CROSS_Z] * sin0,
                 uv.u0(), uv.v0(), n[ConeGeometry.PERP_X], n[ConeGeometry.PERP_Y], n[ConeGeometry.PERP_Z]);
-        GooRenderUtil.vertexColored(pose, c, FULL_BRIGHT, GooRenderUtil.OPAQUE_WHITE,
+        GooRenderUtil.vertexColored(pose, c, GooSubmitter.fullbrightLight(), GooRenderUtil.OPAQUE_WHITE,
                 basis[ConeGeometry.PERP_X] * cos1 + basis[ConeGeometry.CROSS_X] * sin1,
                 basis[ConeGeometry.PERP_Y] * cos1 + basis[ConeGeometry.CROSS_Y] * sin1,
                 basis[ConeGeometry.PERP_Z] * cos1 + basis[ConeGeometry.CROSS_Z] * sin1,
                 uv.u1(), uv.v0(), n[ConeGeometry.PERP_X], n[ConeGeometry.PERP_Y], n[ConeGeometry.PERP_Z]);
-        GooRenderUtil.vertexColored(pose, c, FULL_BRIGHT, GooRenderUtil.OPAQUE_WHITE,
+        GooRenderUtil.vertexColored(pose, c, GooSubmitter.fullbrightLight(), GooRenderUtil.OPAQUE_WHITE,
                 tipX, tipY, tipZ, uMid, uv.v1(), dirX, dirY, dirZ);
-        GooRenderUtil.vertexColored(pose, c, FULL_BRIGHT, GooRenderUtil.OPAQUE_WHITE,
+        GooRenderUtil.vertexColored(pose, c, GooSubmitter.fullbrightLight(), GooRenderUtil.OPAQUE_WHITE,
                 tipX, tipY, tipZ, uMid, uv.v1(), dirX, dirY, dirZ);
     }
 

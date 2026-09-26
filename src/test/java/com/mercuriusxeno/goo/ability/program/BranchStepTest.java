@@ -25,15 +25,15 @@ class BranchStepTest {
                 List.of(new ExplodeStep(Expr.literal(OTHERWISE_POWER), ExplosionMode.NONE)));
     }
 
-    private static StepHost entityHost() {
-        StepHost host = mock(StepHost.class);
+    private static EntityHost entityHost() {
+        EntityHost host = mock(EntityHost.class);
         when(host.kind()).thenReturn(HostKind.ENTITY);
         return host;
     }
 
     @Test
     void nonzeroConditionRunsOnlyTheThenList() {
-        StepHost host = entityHost();
+        EntityHost host = entityHost();
 
         ProgramBehavior.forHost(List.of(blastByCondition(1)), HostKind.ENTITY).tick(host);
 
@@ -43,7 +43,7 @@ class BranchStepTest {
 
     @Test
     void zeroConditionRunsOnlyTheOtherwiseList() {
-        StepHost host = entityHost();
+        EntityHost host = entityHost();
 
         ProgramBehavior.forHost(List.of(blastByCondition(0)), HostKind.ENTITY).tick(host);
 

@@ -16,7 +16,7 @@ import java.util.stream.Stream;
  * phase leaves.
  *
  * <p>The cursor lives in the host's {@link PhasedState}, which the host's
- * renderer reads with the declared {@code radius}: the nether black hole
+ * renderer reads with the {@code radius} it evaluates off this step: the nether black hole
  * grows its sphere through {@code expand}, holds it, and shrinks it
  * through {@code contract}.
  *
@@ -50,8 +50,7 @@ public record PhasedStep(Expr radius, List<StepPhase> phases) implements Step {
     @Override
     public boolean tick(StepContext context) {
         StepHost host = context.host();
-        PhasedState state = host.phased();
-        state.setRadius(radius.evaluateFloat(context));
+        PhasedState state = context.hostAs(PhasedHost.class).phased();
         StepPhase phase = phases.get(state.index());
         if (state.ticks() == 0) {
             state.enter(phase.name(), phase.ticks().evaluateInt(context));
