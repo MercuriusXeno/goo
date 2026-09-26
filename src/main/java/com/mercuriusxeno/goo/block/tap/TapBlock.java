@@ -34,7 +34,9 @@ import java.util.Map;
 /**
  * Tap block: a faucet with a canister slot that drips goo on a timer.
  * FACING indicates the direction the spigot points. Right-clicking the valve
- * toggles dripping; right-clicking the body inserts/removes the canister.
+ * steps its drip grade through five rates and off, and a sneaking click steps
+ * it back; right-clicking the body
+ * inserts/removes the canister.
  */
 public class TapBlock extends GooMachineBlock {
 
@@ -44,7 +46,7 @@ public class TapBlock extends GooMachineBlock {
      */
     public static final BooleanProperty HAS_GASKET = BooleanProperty.create("has_gasket");
     /**
-     * Whether the tap valve is open (dripping).
+     * Whether the tap valve is open (dripping at the tap's {@link TapDripGrade}).
      */
     public static final BooleanProperty OPEN = BooleanProperty.create("open");
     public static final MapCodec<TapBlock> CODEC = simpleCodec(TapBlock::new);
@@ -54,15 +56,11 @@ public class TapBlock extends GooMachineBlock {
      * South-facing body shape (attachment region).
      */
     private static final VoxelShape SOUTH_BODY = box(5, 0, 0, 11, 4, 6);
-    /**
-     * South-facing valve shape (toggle region).
-     */
-    private static final VoxelShape SOUTH_VALVE = box(6.5, 4, 6.5, 9.5, 6.5, 9.5);
 
     /**
      * South-facing canister slot shape (wireframe preview + BER position).
      */
-    private static final VoxelShape SOUTH_CANISTER_SLOT = box(6, 4, 1, 10, 16, 5);
+    private static final VoxelShape SOUTH_CANISTER_SLOT = TapHitRegion.SOUTH_CANISTER_SLOT;
     /**
      * South-facing spigot nozzle shape.
      */
@@ -74,23 +72,19 @@ public class TapBlock extends GooMachineBlock {
      */
     private static final Map<Direction, VoxelShape> BODY_SHAPES = TapShapeBuilder.buildSubShapes(SOUTH_BODY);
     /**
-     * Per-facing valve shapes for hit detection.
-     */
-    private static final Map<Direction, VoxelShape> VALVE_SHAPES = TapShapeBuilder.buildSubShapes(SOUTH_VALVE);
-    /**
      * Per-facing canister slot shapes for wireframe preview.
      */
-    private static final Map<Direction, VoxelShape> CANISTER_SLOT_SHAPES = TapShapeBuilder.buildSubShapes(SOUTH_CANISTER_SLOT);
+    private static final Map<Direction, VoxelShape> CANISTER_SLOT_SHAPES = TapHitRegion.CANISTER_SLOT_SHAPES;
     /**
      * Per-facing composite collision shapes (no canister).
      */
     private static final Map<Direction, VoxelShape> SHAPES =
-            TapShapeBuilder.buildShapes(SOUTH_BODY, SOUTH_SPIGOT, SOUTH_VALVE);
+            TapShapeBuilder.buildShapes(SOUTH_BODY, SOUTH_SPIGOT, TapValve.SOUTH);
     /**
      * Per-facing composite shapes with canister slot included.
      */
     private static final Map<Direction, VoxelShape> SHAPES_WITH_CANISTER =
-            TapShapeBuilder.buildShapesWithCanister(SOUTH_BODY, SOUTH_SPIGOT, SOUTH_VALVE, SOUTH_CANISTER_SLOT);
+            TapShapeBuilder.buildShapesWithCanister(SOUTH_BODY, SOUTH_SPIGOT, TapValve.SOUTH, SOUTH_CANISTER_SLOT);
 
     /**
      * Constructs a new tap block with default south-facing state.
@@ -259,8 +253,9 @@ public class TapBlock extends GooMachineBlock {
     }
 
     /**
-     * Empty-hand interactions: sneak pops the tap's gasket from any region;
-     * otherwise a valve hit toggles open/closed and any other hit removes the canister.
+     * Empty-hand interactions: a valve hit steps the drip grade, back when
+     * sneaking; off the valve, sneak pops the tap's gasket and any other hit
+     * removes the canister.
      *
      * @param state     the block state
      * @param level     the current level
@@ -281,12 +276,13 @@ public class TapBlock extends GooMachineBlock {
         if (!(level.getBlockEntity(pos) instanceof TapBlockEntity tap)) {
             return InteractionResult.PASS;
         }
+        // shift-click-steps-valve-back: the valve bears no gasket, so its hit resolves before gasket removal
+        if (TapInteractionHandler.hitValve(hitResult, pos, state.getValue(FACING), TapValve.SHAPES)) {
+            return TapInteractionHandler.stepValve(state, level, pos, tap, player.isSecondaryUseActive());
+        }
         if (GasketInstallation.removeAddressedGasket(level, pos, player, hitResult)) {
             return InteractionResult.SUCCESS;
         }
-
-        Direction facing = state.getValue(FACING);
-        return TapInteractionHandler.dispatchEmptyHand(
-                state, level, pos, player, hitResult, tap, facing, VALVE_SHAPES, CANISTER_SLOT_SHAPES);
+        return TapInteractionHandler.dispatchEmptyHand(level, pos, player, tap);
     }
 }

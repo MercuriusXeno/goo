@@ -1,8 +1,12 @@
 package com.mercuriusxeno.goo.client.ber;
 
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.block.canister.CanisterGeometry;
 import com.mercuriusxeno.goo.block.tap.TapBlock;
 import com.mercuriusxeno.goo.block.tap.TapBlockEntity;
+import com.mercuriusxeno.goo.block.tap.TapStream;
+import com.mercuriusxeno.goo.client.GooSubmitter;
+import com.mercuriusxeno.goo.client.RenderContext;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.ContainerCapacity;
@@ -14,6 +18,8 @@ import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 import net.minecraft.client.renderer.feature.ModelFeatureRenderer;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
+import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -21,7 +27,8 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Renders the canister sitting on a tap's body slot through the shared
- * {@link CanisterSlotRenderer}, positioned at the per-facing canister slot center.
+ * {@link CanisterSlotRenderer}, positioned at the per-facing canister slot
+ * center, and the stream the tap pours at 1:1 and 1:4.
  */
 public class TapBlockEntityRenderer
         implements BlockEntityRenderer<TapBlockEntity, TapRenderState> {
@@ -30,6 +37,25 @@ public class TapBlockEntityRenderer
      * Divisor for computing AABB center from min+max.
      */
     private static final double CENTER_DIVISOR = 2.0;
+
+    // -- Stream geometry (block coords) --
+
+    /**
+     * Stream half-width at 1:1: a trickle half a pixel wide. The half-width
+     * grows with the square root of the mB poured a tick, so 1:4 is twice as
+     * wide both ways (decision one-to-one-draws-a-stream).
+     */
+    private static final float TRICKLE_HW = 0.25f / 16f;
+
+    /**
+     * Stream center X and Z: the spigot sits on the block's vertical axis.
+     */
+    private static final float STREAM_CENTER = 0.5f;
+
+    /**
+     * Top of the stream: the spigot's underside.
+     */
+    private static final float STREAM_TOP = (float) TapStream.SPIGOT_UNDERSIDE_LOCAL_Y;
 
     /**
      * Creates a tap BER.
@@ -77,6 +103,54 @@ public class TapBlockEntityRenderer
         state.slot.fill = 0f;
     }
 
+    /**
+     * Emits the four sides of the thin goo column the tap pours at 1:1 and
+     * 1:4, from the spigot underside down to the landing surface, its sprite
+     * tiled at native scale and flowing downward (decision
+     * diagnose-then-fix-stream-tiling); a tap pouring no stream emits nothing
+     * (decision one-to-one-draws-a-stream).
+     *
+     * @param ctx    the render context
+     * @param state  the tap render state
+     * @param sprite the goo type's fluid sprite
+     * @param tint   the goo type's fluid tint
+     */
+    static void emitStream(RenderContext ctx, TapRenderState state, TextureAtlasSprite sprite, int tint) {
+        if (state.streamType == null) {
+            return;
+        }
+        GooStreamRenderer.emitTiledColumn(ctx,
+                new GooStreamRenderer.StreamColumn(STREAM_CENTER, STREAM_CENTER, STREAM_TOP, state.streamBottomY),
+                streamHalfWidth(state.streamMbPerTick), sprite, tint,
+                GooStreamRenderer.flowPhase(state.animationTime));
+    }
+
+    /**
+     * @param mbPerTick the mB the tap pours a tick
+     * @return the stream's half-width, a trickle at 1 mB and twice as wide at 4
+     */
+    static float streamHalfWidth(int mbPerTick) {
+        return TRICKLE_HW * (float) Math.sqrt(Math.max(1, mbPerTick));
+    }
+
+    /**
+     * Submits the stream through the shared submitter, fullbright like every
+     * goo fluid (decision submitter-owns-render-choices).
+     *
+     * @param poseStack     the pose stack for rendering
+     * @param nodeCollector the render node collector
+     * @param state         the tap render state
+     */
+    private static void submitStream(PoseStack poseStack, SubmitNodeCollector nodeCollector, TapRenderState state) {
+        ResourceKey<GooTypeDefinition> type = state.streamType;
+        if (type == null) {
+            return;
+        }
+        TextureAtlasSprite sprite = GooSubmitter.fluidSprite(type);
+        int tint = GooSubmitter.fluidTint(type);
+        GooSubmitter.submitFluid(poseStack, nodeCollector, ctx -> emitStream(ctx, state, sprite, tint));
+    }
+
     @Override
     public TapRenderState createRenderState() {
         return new TapRenderState();
@@ -107,6 +181,26 @@ public class TapBlockEntityRenderer
         } else {
             clearContents(state);
         }
+        TapStream stream = be.pourStream();
+        state.streamType = stream == null ? null : stream.type();
+        state.streamBottomY = stream == null ? 0f : (float) (stream.surfaceY() - be.getBlockPos().getY());
+        state.streamMbPerTick = stream == null ? 0 : stream.mbPerTick();
+        state.animationTime = be.getLevel() == null ? 0f : be.getLevel().getGameTime() + partialTick;
+    }
+
+    /**
+     * Stretches the tap's culling box down to its stream's landing, so the
+     * stream stays drawn while the tap itself is out of view.
+     *
+     * @param be the tap block entity
+     * @return the box the tap and its stream fill
+     */
+    @Override
+    public AABB getRenderBoundingBox(TapBlockEntity be) {
+        AABB block = new AABB(be.getBlockPos());
+        TapStream stream = be.pourStream();
+        return stream == null ? block : block.minmax(new AABB(block.minX, stream.surfaceY(), block.minZ,
+                block.maxX, block.minY, block.maxZ));
     }
 
     /**
@@ -120,6 +214,7 @@ public class TapBlockEntityRenderer
     @Override
     public void submit(TapRenderState state, PoseStack poseStack,
                        SubmitNodeCollector nodeCollector, CameraRenderState cameraState) {
+        submitStream(poseStack, nodeCollector, state);
         if (!state.slot.present) {
             return;
         }
