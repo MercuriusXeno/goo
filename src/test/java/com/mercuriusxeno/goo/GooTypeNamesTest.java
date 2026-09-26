@@ -38,20 +38,6 @@ class GooTypeNamesTest {
     }
 
     /**
-     * The blob name is the blob key applied to the type's name, so the
-     * item shows "[Type] Blob" for any registered type.
-     */
-    @Test
-    void blobNameResolvesTypeName() {
-        TranslatableContents blob = translatable(GooTypeNames.blobName(GooTypes.BLAZE));
-        assertEquals(GooTypeNames.BLOB, blob.getKey());
-        assertEquals("goo.type.blaze", argumentKey(blob, 0));
-
-        TranslatableContents datapack = translatable(GooTypeNames.blobName(SEVENTEENTH));
-        assertEquals("goo.type.gootest.seventeenth", argumentKey(datapack, 0));
-    }
-
-    /**
      * The omniblob name takes the type name then the tier, and the bucket
      * name takes the type name.
      */
@@ -61,6 +47,9 @@ class GooTypeNamesTest {
         assertEquals(GooTypeNames.OMNIBLOB, omniblob.getKey());
         assertEquals("goo.type.frost", argumentKey(omniblob, 0));
         assertEquals(TIER, omniblob.getArgs()[1]);
+
+        TranslatableContents datapack = translatable(GooTypeNames.omniblobName(SEVENTEENTH, TIER));
+        assertEquals("goo.type.gootest.seventeenth", argumentKey(datapack, 0));
 
         TranslatableContents bucket = translatable(GooTypeNames.bucketName(GooTypes.ROCK));
         assertEquals(GooTypeNames.BUCKET, bucket.getKey());
@@ -72,7 +61,7 @@ class GooTypeNamesTest {
      */
     @Test
     void untypedItemNamesItselfUntyped() {
-        assertEquals(GooTypeNames.UNTYPED, argumentKey(translatable(GooTypeNames.blobName(null)), 0));
+        assertEquals(GooTypeNames.UNTYPED, argumentKey(translatable(GooTypeNames.omniblobName(null, TIER)), 0));
     }
 
     private static TranslatableContents translatable(Component component) {

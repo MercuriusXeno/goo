@@ -51,7 +51,7 @@ public final class VatItemClickTests {
     }
 
     /**
-     * A blob stack onto an empty vat item fills it and empties the cursor;
+     * A five-blob omniblob onto an empty vat item fills it and empties the cursor;
      * the same stack onto a full vat item is refused and neither stack changes.
      *
      * @param helper the gametest helper
@@ -59,7 +59,7 @@ public final class VatItemClickTests {
     public static void blobInsertFillsVatAndFullRefuses(GameTestHelper helper) {
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
         ItemStack vat = new ItemStack(GooItems.VAT.get());
-        CursorHolder cursor = new CursorHolder(BlobStacks.createBlobStack(ROCK, BLOB_COUNT));
+        CursorHolder cursor = new CursorHolder(BlobStacks.createForOutput(ROCK, BLOB_COUNT * BlobStacks.MB_PER_BLOB));
 
         helper.assertTrue(GooItems.VAT.get() instanceof VatBlockItem, REGISTERED_OVERRIDE);
         helper.assertTrue(primaryClick(vat, cursor, player), BLOB_HANDLED);
@@ -69,11 +69,11 @@ public final class VatItemClickTests {
 
         ItemStack full = vatWith(ROCK, ContainerCapacity.vatCapacity(0));
         GooContents before = VatBlockItem.getGooContents(full);
-        CursorHolder refused = new CursorHolder(BlobStacks.createBlobStack(ROCK, BLOB_COUNT));
+        CursorHolder refused = new CursorHolder(BlobStacks.createForOutput(ROCK, BLOB_COUNT * BlobStacks.MB_PER_BLOB));
 
         helper.assertFalse(primaryClick(full, refused, player), FULL_REFUSES);
         helper.assertValueEqual(VatBlockItem.getGooContents(full), before, CONTENTS_UNCHANGED);
-        helper.assertValueEqual(refused.get().getCount(), BLOB_COUNT, CURSOR_COUNT);
+        helper.assertValueEqual(BlobStacks.volumeOf(refused.get()), BLOB_COUNT * BlobStacks.MB_PER_BLOB, CURSOR_COUNT);
         helper.assertFalse(refused.wasSet(), CURSOR_UNTOUCHED);
         helper.succeed();
     }
