@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.hud;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
+import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.GooTooltipHandler;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -59,6 +60,8 @@ public final class PanelPainter {
     /** Lava bucket item texture for a vanilla fluid row. */
     private static final Identifier LAVA_BUCKET_ICON =
             Identifier.withDefaultNamespace("textures/item/lava_bucket.png");
+    /** The whole of an icon texture, as a goo type icon draws. */
+    private static final GooRenderUtil.UvRect WHOLE_TEXTURE = new GooRenderUtil.UvRect(0f, 0f, 1f, 1f);
     /** Divisor for centering. */
     private static final float HALF = 2f;
     /** Border count across a panel, one on each side. */
@@ -221,11 +224,12 @@ public final class PanelPainter {
         Identifier icon = row.icon();
         Identifier secondIcon = row.secondIcon();
         if (icon != null) {
-            drawIcon(poseStack, buffers, row.seeThrough(), icon, x, geometry.iconTop());
+            GooRenderUtil.UvRect uv = row.iconUv() == null ? WHOLE_TEXTURE : row.iconUv();
+            drawIcon(poseStack, buffers, row.seeThrough(), new IconQuad(icon, uv), x, geometry.iconTop());
         }
         if (icon != null && secondIcon != null) {
-            drawIcon(poseStack, buffers, row.seeThrough(), secondIcon, x + ICON_SIZE + ICON_TEXT_GAP,
-                    geometry.iconTop());
+            drawIcon(poseStack, buffers, row.seeThrough(), new IconQuad(secondIcon, WHOLE_TEXTURE),
+                    x + ICON_SIZE + ICON_TEXT_GAP, geometry.iconTop());
         }
         float textX = x + row.iconsWidth();
         for (PanelRow.TextSegment segment : row.segments()) {
@@ -318,21 +322,31 @@ public final class PanelPainter {
      * @param poseStack  the pose stack for rendering
      * @param buffers    the buffer source
      * @param seeThrough whether the icon draws over world geometry
-     * @param icon       the icon texture
+     * @param icon       the icon texture and the region of it drawn
      * @param x          the icon's left X
      * @param y          the icon's top Y
      */
     private static void drawIcon(PoseStack poseStack, MultiBufferSource buffers, boolean seeThrough,
-                                 Identifier icon, float x, float y) {
+                                 IconQuad icon, float x, float y) {
         VertexConsumer vc = buffers.getBuffer(
-                seeThrough ? RenderTypes.textSeeThrough(icon) : RenderTypes.text(icon));
+                seeThrough ? RenderTypes.textSeeThrough(icon.texture()) : RenderTypes.text(icon.texture()));
         PoseStack.Pose pose = poseStack.last();
+        GooRenderUtil.UvRect uv = icon.uv();
         float x2 = x + ICON_SIZE;
         float y2 = y + ICON_SIZE;
-        InWorldHud.iconVertex(vc, pose, x, y, InWorldHud.CONTENT_Z, 0f, 0f);
-        InWorldHud.iconVertex(vc, pose, x, y2, InWorldHud.CONTENT_Z, 0f, 1f);
-        InWorldHud.iconVertex(vc, pose, x2, y2, InWorldHud.CONTENT_Z, 1f, 1f);
-        InWorldHud.iconVertex(vc, pose, x2, y, InWorldHud.CONTENT_Z, 1f, 0f);
+        InWorldHud.iconVertex(vc, pose, x, y, InWorldHud.CONTENT_Z, uv.u0(), uv.v0());
+        InWorldHud.iconVertex(vc, pose, x, y2, InWorldHud.CONTENT_Z, uv.u0(), uv.v1());
+        InWorldHud.iconVertex(vc, pose, x2, y2, InWorldHud.CONTENT_Z, uv.u1(), uv.v1());
+        InWorldHud.iconVertex(vc, pose, x2, y, InWorldHud.CONTENT_Z, uv.u1(), uv.v0());
+    }
+
+    /**
+     * An icon texture and the region of it one icon quad draws.
+     *
+     * @param texture the texture
+     * @param uv      the region drawn
+     */
+    private record IconQuad(Identifier texture, GooRenderUtil.UvRect uv) {
     }
 
     /**

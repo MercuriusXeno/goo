@@ -11,7 +11,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
-import org.jspecify.annotations.Nullable;
 import java.util.Map;
 
 /**
@@ -154,48 +153,22 @@ final class CrucibleMelting {
     }
 
     /**
-     * Spawns goo-colored bubbles if there is goo in the reservoir or pool.
+     * Spawns bubbles in the reservoir's largest type from the surface the renderer
+     * draws, none while the reservoir is empty (decision reservoir-volume-drives-fill).
      *
      * @param be          the crucible block entity
      * @param serverLevel the server level
      * @param pos         the block position
      */
     private static void spawnBubblesIfGooPresent(CrucibleBlockEntity be, ServerLevel serverLevel, BlockPos pos) {
-        long melted = be.getSurfaceVolume();
-        if (melted <= 0) {
-            return;
-        }
-        ResourceKey<GooTypeDefinition> dominant = resolveDominantType(be);
-        if (dominant == null) {
+        CrucibleBasin.DrawnSurface surface = CrucibleBasin.drawnSurface(be.basinVolumes());
+        ResourceKey<GooTypeDefinition> dominant = be.reservoir.largestType();
+        if (surface == null || dominant == null) {
             return;
         }
         CrucibleParticleHelper.spawnGooBubbles(
-                serverLevel, pos, melted, GooColors.get(serverLevel.registryAccess(), dominant), serverLevel.getRandom(),
-                be.bubbleHistory);
-    }
-
-    /**
-     * Returns the dominant goo type from the reservoir, falling back to the PMI pool.
-     *
-     * @param be the crucible block entity
-     * @return the dominant type, or null if no goo is present
-     */
-    private static @Nullable ResourceKey<GooTypeDefinition> resolveDominantType(CrucibleBlockEntity be) {
-        ResourceKey<GooTypeDefinition> dominant = be.reservoir.largestType();
-        return dominant != null ? dominant : dominantPoolType(be);
-    }
-
-    /**
-     * Returns the largest goo type in the PMI pool, or null if empty.
-     *
-     * @param be the crucible block entity
-     * @return the goo type, or null
-     */
-    private static @Nullable ResourceKey<GooTypeDefinition> dominantPoolType(CrucibleBlockEntity be) {
-        if (be.meltingItem.isEmpty()) {
-            return null;
-        }
-        return PartiallyMeltedItem.getContents(be.meltingItem).largestType();
+                serverLevel, pos, surface, GooColors.get(serverLevel.registryAccess(), dominant),
+                serverLevel.getRandom(), be.bubbleHistory);
     }
 
     /**
@@ -238,10 +211,11 @@ final class CrucibleMelting {
      * @param shares the per-type drain amounts
      */
     private static void applyDrainShares(CrucibleBlockEntity be, Map<ResourceKey<GooTypeDefinition>, Integer> shares) {
-        GooContents drained = CrucibleCapacity.drainAccepted(
-                PartiallyMeltedItem.getContents(be.meltingItem), shares,
+        GooContents before = PartiallyMeltedItem.getContents(be.meltingItem);
+        GooContents drained = CrucibleCapacity.drainAccepted(before, shares,
                 (type, amount) -> be.reservoir.insertGoo(type, amount, false));
         PartiallyMeltedItem.setContents(be.meltingItem, drained);
+        be.meltQueue.charge(before.totalVolume() - drained.totalVolume());
     }
 
     /**
@@ -255,6 +229,7 @@ final class CrucibleMelting {
         }
         if (PartiallyMeltedItem.isFullyMelted(be.meltingItem)) {
             be.meltingItem = ItemStack.EMPTY;
+            be.meltQueue.clear();
         }
     }
 }
