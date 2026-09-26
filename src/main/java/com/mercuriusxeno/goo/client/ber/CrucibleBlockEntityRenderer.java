@@ -66,8 +66,7 @@ public class CrucibleBlockEntityRenderer
      */
     private void extractRipple(CrucibleBlockEntity be, CrucibleRenderState state) {
         long gameTick = be.getLevel() != null ? be.getLevel().getGameTime() : 0L;
-        float fill = CrucibleBasin.heightFraction(
-            CrucibleBasin.heldVolume(state.poolVolume, state.reservoirVolume));
+        float fill = CrucibleBasin.heightFraction(state.surfaceVolume);
         state.rippleAmplitude = agitations.computeIfAbsent(be, key -> new SurfaceAgitation())
             .tick(fill, 0f, gameTick);
     }
@@ -79,8 +78,7 @@ public class CrucibleBlockEntityRenderer
      * @param state the render state to populate
      */
     private static void extractPoolState(CrucibleBlockEntity be, CrucibleRenderState state) {
-        state.poolVolume = be.getPoolVolume();
-        state.reservoirVolume = be.getReservoir().totalVolume();
+        state.surfaceVolume = be.getSurfaceVolume();
         state.typeBands = TypeBands.over(surfaceContents(be));
     }
 
@@ -102,10 +100,10 @@ public class CrucibleBlockEntityRenderer
     @Override
     public void submit(CrucibleRenderState state, PoseStack poseStack,
             SubmitNodeCollector nodeCollector, CameraRenderState cameraState) {
-        long totalGoo = CrucibleBasin.heldVolume(state.poolVolume, state.reservoirVolume);
-        if (totalGoo <= 0) { return; }
+        long melted = state.surfaceVolume;
+        if (melted <= 0) { return; }
         renderMingledSurface(GooSubmitter.bandedSurfaces(poseStack, nodeCollector), state,
-            CrucibleBasin.footprintForVolume(totalGoo), CrucibleBasin.surfaceYForVolume(totalGoo));
+            CrucibleBasin.footprintForVolume(melted), CrucibleBasin.surfaceYForVolume(melted));
     }
 
     // -- Liquid level --
