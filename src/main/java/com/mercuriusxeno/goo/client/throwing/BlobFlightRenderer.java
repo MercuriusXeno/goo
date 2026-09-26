@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.GooSubmitter;
+import com.mercuriusxeno.goo.client.RenderContext;
 import com.mercuriusxeno.goo.client.ability.ConeGeometry;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -126,10 +127,6 @@ public final class BlobFlightRenderer {
      */
     private static final int DART_SIDES = 3;
     /**
-     * Two pi for dart angle computation.
-     */
-    private static final float TWO_PI = (float) (2 * Math.PI);
-    /**
      * Morph rate: spine is fully formed at 40% of flight time.
      */
     private static final float MORPH_RATE = 2.5f;
@@ -138,9 +135,9 @@ public final class BlobFlightRenderer {
      */
     private static final double LENGTH_EPSILON = 1e-6;
     /**
-     * UV midpoint factor for cone face texture coordinates.
+     * Fraction along the beam where its midpoint sits.
      */
-    private static final float UV_MIDPOINT = 0.5f;
+    private static final float BEAM_MIDPOINT = 0.5f;
 
     private BlobFlightRenderer() {
     }
@@ -162,7 +159,7 @@ public final class BlobFlightRenderer {
             return;
         }
 
-        RenderContext ctx = buildRenderContext(mc, event.getPoseStack());
+        FlightFrame ctx = buildFlightFrame(mc, event.getPoseStack());
         for (BlobFlightManager.BlobFlight flight : flights) {
             renderFlight(ctx, flight);
         }
@@ -175,12 +172,12 @@ public final class BlobFlightRenderer {
      * @param poseStack the pose stack for rendering
      * @return the render context for this frame
      */
-    private static RenderContext buildRenderContext(Minecraft mc, PoseStack poseStack) {
+    private static FlightFrame buildFlightFrame(Minecraft mc, PoseStack poseStack) {
         Camera camera = mc.gameRenderer.getMainCamera();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         float gameTime = mc.level.getGameTime() + partialTick;
-        return new RenderContext(poseStack, buffers, camera, gameTime, partialTick);
+        return new FlightFrame(poseStack, buffers, camera, gameTime, partialTick);
     }
 
     /**
@@ -192,7 +189,7 @@ public final class BlobFlightRenderer {
      * @param ctx    the per-frame render context
      * @param flight the flight to render
      */
-    private static void renderFlight(RenderContext ctx, BlobFlightManager.BlobFlight flight) {
+    private static void renderFlight(FlightFrame ctx, BlobFlightManager.BlobFlight flight) {
         Vec3 pos = flight.getPosition(ctx.partialTick);
         Vec3 vel = flight.getVelocity(ctx.partialTick);
 
@@ -218,7 +215,7 @@ public final class BlobFlightRenderer {
      * @param ctx the per-frame render context
      * @param pos the flight's world position
      */
-    private static void translateToFlight(RenderContext ctx, Vec3 pos) {
+    private static void translateToFlight(FlightFrame ctx, Vec3 pos) {
         Vec3 camPos = ctx.camera.position();
         ctx.poseStack.pushPose();
         ctx.poseStack.translate(pos.x - camPos.x, pos.y - camPos.y, pos.z - camPos.z);
@@ -231,7 +228,7 @@ public final class BlobFlightRenderer {
      * @param type the goo type
      * @param vel  the velocity vector
      */
-    private static void renderFlightLayers(RenderContext ctx, ResourceKey<GooTypeDefinition> type, Vec3 vel) {
+    private static void renderFlightLayers(FlightFrame ctx, ResourceKey<GooTypeDefinition> type, Vec3 vel) {
         renderCore(ctx.poseStack, ctx.buffers, type, ctx.gameTime);
         renderShell(ctx.poseStack, ctx.buffers, type);
         renderTail(ctx.poseStack, ctx.buffers, type, vel, ctx.gameTime);
@@ -253,7 +250,7 @@ public final class BlobFlightRenderer {
 
         GooRenderUtil.UvRect uv = spriteToUv(type);
         VertexConsumer c = buffers.getBuffer(GooSubmitter.solidOnBlockAtlas());
-        com.mercuriusxeno.goo.client.RenderContext ctx = new com.mercuriusxeno.goo.client.RenderContext(poseStack.last(), c, GooSubmitter.fullbrightLight());
+        RenderContext ctx = new RenderContext(poseStack.last(), c, GooSubmitter.fullbrightLight());
         CuboidBounds box = new CuboidBounds(-hw, hw, -hw, hw, -hw, hw);
         ctx.emitBox(box, uv);
     }
@@ -271,7 +268,7 @@ public final class BlobFlightRenderer {
         int color = ARGB.color(SHELL_ALPHA, ClientGooTypes.color(type));
         GooRenderUtil.UvRect uv = spriteToUv(type);
         VertexConsumer c = buffers.getBuffer(GooSubmitter.renderType());
-        com.mercuriusxeno.goo.client.RenderContext ctx = new com.mercuriusxeno.goo.client.RenderContext(poseStack.last(), c, GooSubmitter.fullbrightLight());
+        RenderContext ctx = new RenderContext(poseStack.last(), c, GooSubmitter.fullbrightLight());
         CuboidBounds box = new CuboidBounds(-SHELL_HW, SHELL_HW, -SHELL_HW, SHELL_HW, -SHELL_HW, SHELL_HW);
         ctx.emitBox(color, box, uv);
     }
@@ -387,13 +384,14 @@ public final class BlobFlightRenderer {
      */
     private static void emitTailFrontFace(PoseStack.Pose pose, VertexConsumer c, int light, int color,
                                           TailCorners tc, GooRenderUtil.UvRect uv, Vec3 normal) {
+        RenderContext tail = new RenderContext(pose, c, light);
         float nx = (float) normal.x;
         float ny = (float) normal.y;
         float nz = (float) normal.z;
-        GooRenderUtil.vertexColored(pose, c, light, color, tc.ax, tc.ay, tc.az, uv.u0(), uv.v0(), nx, ny, nz);
-        GooRenderUtil.vertexColored(pose, c, light, color, -tc.ax, -tc.ay, -tc.az, uv.u1(), uv.v0(), nx, ny, nz);
-        GooRenderUtil.vertexColored(pose, c, light, color, tc.ex - tc.ax, tc.ey - tc.ay, tc.ez - tc.az, uv.u1(), uv.v1(), nx, ny, nz);
-        GooRenderUtil.vertexColored(pose, c, light, color, tc.ex + tc.ax, tc.ey + tc.ay, tc.ez + tc.az, uv.u0(), uv.v1(), nx, ny, nz);
+        tail.vertexColored(color, tc.ax, tc.ay, tc.az, uv.u0(), uv.v0(), nx, ny, nz);
+        tail.vertexColored(color, -tc.ax, -tc.ay, -tc.az, uv.u1(), uv.v0(), nx, ny, nz);
+        tail.vertexColored(color, tc.ex - tc.ax, tc.ey - tc.ay, tc.ez - tc.az, uv.u1(), uv.v1(), nx, ny, nz);
+        tail.vertexColored(color, tc.ex + tc.ax, tc.ey + tc.ay, tc.ez + tc.az, uv.u0(), uv.v1(), nx, ny, nz);
     }
 
     /**
@@ -409,13 +407,14 @@ public final class BlobFlightRenderer {
      */
     private static void emitTailBackFace(PoseStack.Pose pose, VertexConsumer c, int light, int color,
                                          TailCorners tc, GooRenderUtil.UvRect uv, Vec3 normal) {
+        RenderContext tail = new RenderContext(pose, c, light);
         float nx = (float) -normal.x;
         float ny = (float) -normal.y;
         float nz = (float) -normal.z;
-        GooRenderUtil.vertexColored(pose, c, light, color, tc.ex + tc.ax, tc.ey + tc.ay, tc.ez + tc.az, uv.u0(), uv.v1(), nx, ny, nz);
-        GooRenderUtil.vertexColored(pose, c, light, color, tc.ex - tc.ax, tc.ey - tc.ay, tc.ez - tc.az, uv.u1(), uv.v1(), nx, ny, nz);
-        GooRenderUtil.vertexColored(pose, c, light, color, -tc.ax, -tc.ay, -tc.az, uv.u1(), uv.v0(), nx, ny, nz);
-        GooRenderUtil.vertexColored(pose, c, light, color, tc.ax, tc.ay, tc.az, uv.u0(), uv.v0(), nx, ny, nz);
+        tail.vertexColored(color, tc.ex + tc.ax, tc.ey + tc.ay, tc.ez + tc.az, uv.u0(), uv.v1(), nx, ny, nz);
+        tail.vertexColored(color, tc.ex - tc.ax, tc.ey - tc.ay, tc.ez - tc.az, uv.u1(), uv.v1(), nx, ny, nz);
+        tail.vertexColored(color, -tc.ax, -tc.ay, -tc.az, uv.u1(), uv.v0(), nx, ny, nz);
+        tail.vertexColored(color, tc.ax, tc.ay, tc.az, uv.u0(), uv.v0(), nx, ny, nz);
     }
 
     /**
@@ -427,7 +426,7 @@ public final class BlobFlightRenderer {
      * @param ctx    the per-frame render context
      * @param flight the glow flight
      */
-    private static void renderGlowBeam(RenderContext ctx,
+    private static void renderGlowBeam(FlightFrame ctx,
                                        BlobFlightManager.BlobFlight flight) {
         Vec3 start = flight.start;
         Vec3 end = flight.getEnd();
@@ -457,7 +456,7 @@ public final class BlobFlightRenderer {
      * @param ctx     the render context
      * @param headPos world-space head position
      */
-    private static void renderGlowHead(RenderContext ctx, Vec3 headPos) {
+    private static void renderGlowHead(FlightFrame ctx, Vec3 headPos) {
         translateToFlight(ctx, headPos);
         renderCore(ctx.poseStack, ctx.buffers, GooTypes.GLOW, ctx.gameTime);
         ctx.poseStack.popPose();
@@ -507,7 +506,7 @@ public final class BlobFlightRenderer {
      * @param tailPos world-space tail
      * @param beamVec head minus tail
      */
-    private static void emitGlowBillboard(RenderContext ctx, Vec3 tailPos,
+    private static void emitGlowBillboard(FlightFrame ctx, Vec3 tailPos,
                                           Vec3 beamVec) {
         Vec3 camPos = ctx.camera.position();
         Vec3 lateral = computeGlowLateral(tailPos, beamVec, camPos);
@@ -541,7 +540,7 @@ public final class BlobFlightRenderer {
      */
     private static @Nullable Vec3 computeGlowLateral(Vec3 tailPos,
                                                      Vec3 beamVec, Vec3 camPos) {
-        Vec3 beamMid = tailPos.add(beamVec.scale(UV_MIDPOINT));
+        Vec3 beamMid = tailPos.add(beamVec.scale(BEAM_MIDPOINT));
         Vec3 toCamera = camPos.subtract(beamMid);
         Vec3 lateral = beamVec.cross(toCamera);
         double latLen = lateral.length();
@@ -599,15 +598,16 @@ public final class BlobFlightRenderer {
                                      float fx, float fy, float fz,
                                      float nx, float ny, float nz,
                                      GooRenderUtil.UvRect uv) {
+        RenderContext beam = new RenderContext(pose, c, GooSubmitter.fullbrightLight());
         // tail-edge (transparent), tail-center (transparent),
         // head-center (white-hot), head-edge (yellow)
-        GooRenderUtil.vertexColored(pose, c, GooSubmitter.fullbrightLight(), BEAM_TAIL_COLOR,
+        beam.vertexColored(BEAM_TAIL_COLOR,
                 lx, ly, lz, uv.u0(), uv.v0(), nx, ny, nz);
-        GooRenderUtil.vertexColored(pose, c, GooSubmitter.fullbrightLight(), BEAM_TAIL_COLOR,
+        beam.vertexColored(BEAM_TAIL_COLOR,
                 0, 0, 0, uv.u1(), uv.v0(), nx, ny, nz);
-        GooRenderUtil.vertexColored(pose, c, GooSubmitter.fullbrightLight(), BEAM_CENTER_COLOR,
+        beam.vertexColored(BEAM_CENTER_COLOR,
                 fx, fy, fz, uv.u1(), uv.v1(), nx, ny, nz);
-        GooRenderUtil.vertexColored(pose, c, GooSubmitter.fullbrightLight(), BEAM_EDGE_COLOR,
+        beam.vertexColored(BEAM_EDGE_COLOR,
                 fx + lx, fy + ly, fz + lz, uv.u0(), uv.v1(), nx, ny, nz);
     }
 
@@ -620,7 +620,7 @@ public final class BlobFlightRenderer {
      * @param flight the metal flight
      * @param vel    the velocity vector
      */
-    private static void renderMetalSpineLayers(RenderContext ctx,
+    private static void renderMetalSpineLayers(FlightFrame ctx,
                                                BlobFlightManager.BlobFlight flight, Vec3 vel) {
         float progress = Math.min(1f,
                 (flight.ticksElapsed + ctx.partialTick) / flight.travelTicks);
@@ -681,8 +681,8 @@ public final class BlobFlightRenderer {
     }
 
     /**
-     * Emits a 3-sided cone from the origin along a direction, textured
-     * with the goo fluid sprite.
+     * Emits a dart cone from the origin along a direction, fullbright and
+     * textured with the goo fluid sprite.
      *
      * @param pose       the pose matrix
      * @param c          the vertex consumer
@@ -698,77 +698,9 @@ public final class BlobFlightRenderer {
                                      float dirX, float dirY, float dirZ,
                                      float length, float baseRadius,
                                      float[] basis, GooRenderUtil.UvRect uv) {
-        float tipX = dirX * length;
-        float tipY = dirY * length;
-        float tipZ = dirZ * length;
-        float uMid = (uv.u0() + uv.u1()) * UV_MIDPOINT;
-
-        for (int i = 0; i < DART_SIDES; i++) {
-            emitDartSegment(pose, c, basis, uv, baseRadius, uMid,
-                    tipX, tipY, tipZ, dirX, dirY, dirZ, i);
-        }
-    }
-
-    /**
-     * Emits one triangular segment of the dart cone.
-     *
-     * @param pose       the pose matrix entry
-     * @param c          the vertex consumer
-     * @param basis      the orthonormal basis vectors
-     * @param uv         the fluid sprite UV rectangle
-     * @param baseRadius the cone base radius
-     * @param uMid       the U-axis midpoint for the tip vertex
-     * @param tipX       the cone tip X position
-     * @param tipY       the cone tip Y position
-     * @param tipZ       the cone tip Z position
-     * @param dirX       the cone direction X for tip normal
-     * @param dirY       the cone direction Y for tip normal
-     * @param dirZ       the cone direction Z for tip normal
-     * @param i          the segment index around the cone
-     */
-    private static void emitDartSegment(PoseStack.Pose pose, VertexConsumer c,
-                                        float[] basis, GooRenderUtil.UvRect uv, float baseRadius, float uMid,
-                                        float tipX, float tipY, float tipZ, float dirX, float dirY, float dirZ, int i) {
-        float a0 = TWO_PI * i / DART_SIDES;
-        float a1 = TWO_PI * (i + 1) / DART_SIDES;
-        float cos0 = (float) Math.cos(a0) * baseRadius;
-        float sin0 = (float) Math.sin(a0) * baseRadius;
-        float cos1 = (float) Math.cos(a1) * baseRadius;
-        float sin1 = (float) Math.sin(a1) * baseRadius;
-
-        float[] n = segmentNormal(basis, (a0 + a1) * UV_MIDPOINT);
-
-        GooRenderUtil.vertexColored(pose, c, GooSubmitter.fullbrightLight(), GooRenderUtil.OPAQUE_WHITE,
-                basis[ConeGeometry.PERP_X] * cos0 + basis[ConeGeometry.CROSS_X] * sin0,
-                basis[ConeGeometry.PERP_Y] * cos0 + basis[ConeGeometry.CROSS_Y] * sin0,
-                basis[ConeGeometry.PERP_Z] * cos0 + basis[ConeGeometry.CROSS_Z] * sin0,
-                uv.u0(), uv.v0(), n[ConeGeometry.PERP_X], n[ConeGeometry.PERP_Y], n[ConeGeometry.PERP_Z]);
-        GooRenderUtil.vertexColored(pose, c, GooSubmitter.fullbrightLight(), GooRenderUtil.OPAQUE_WHITE,
-                basis[ConeGeometry.PERP_X] * cos1 + basis[ConeGeometry.CROSS_X] * sin1,
-                basis[ConeGeometry.PERP_Y] * cos1 + basis[ConeGeometry.CROSS_Y] * sin1,
-                basis[ConeGeometry.PERP_Z] * cos1 + basis[ConeGeometry.CROSS_Z] * sin1,
-                uv.u1(), uv.v0(), n[ConeGeometry.PERP_X], n[ConeGeometry.PERP_Y], n[ConeGeometry.PERP_Z]);
-        GooRenderUtil.vertexColored(pose, c, GooSubmitter.fullbrightLight(), GooRenderUtil.OPAQUE_WHITE,
-                tipX, tipY, tipZ, uMid, uv.v1(), dirX, dirY, dirZ);
-        GooRenderUtil.vertexColored(pose, c, GooSubmitter.fullbrightLight(), GooRenderUtil.OPAQUE_WHITE,
-                tipX, tipY, tipZ, uMid, uv.v1(), dirX, dirY, dirZ);
-    }
-
-    /**
-     * Computes the interpolated face normal for a cone segment at the given mid-angle.
-     *
-     * @param basis the orthonormal basis array
-     * @param midA  the midpoint angle between the two segment edges
-     * @return a 3-element normal vector {nx, ny, nz}
-     */
-    public static float[] segmentNormal(float[] basis, float midA) {
-        float cosM = (float) Math.cos(midA);
-        float sinM = (float) Math.sin(midA);
-        return new float[]{
-                basis[ConeGeometry.PERP_X] * cosM + basis[ConeGeometry.CROSS_X] * sinM,
-                basis[ConeGeometry.PERP_Y] * cosM + basis[ConeGeometry.CROSS_Y] * sinM,
-                basis[ConeGeometry.PERP_Z] * cosM + basis[ConeGeometry.CROSS_Z] * sinM,
-        };
+        RenderContext dart = new RenderContext(pose, c, GooSubmitter.fullbrightLight());
+        ConeGeometry.Cone cone = new ConeGeometry.Cone(0f, 0f, 0f, dirX, dirY, dirZ, length, baseRadius);
+        ConeGeometry.emitCone(dart, cone, basis, DART_SIDES, GooRenderUtil.OPAQUE_WHITE, uv);
     }
 
     /**
@@ -780,7 +712,7 @@ public final class BlobFlightRenderer {
      * @param gameTime    the level game time including partial tick
      * @param partialTick the sub-tick interpolation factor for this frame
      */
-    private record RenderContext(
+    private record FlightFrame(
             PoseStack poseStack,
             MultiBufferSource.BufferSource buffers,
             Camera camera,

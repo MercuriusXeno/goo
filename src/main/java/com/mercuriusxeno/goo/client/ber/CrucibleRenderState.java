@@ -11,11 +11,8 @@ import java.util.List;
  */
 public class CrucibleRenderState extends BlockEntityRenderState {
 
-    /** Total mB remaining in the PMI pool (drives liquid level). */
-    public long poolVolume;
-
-    /** Total mB in the reservoir (drives liquid level alongside pool). */
-    public long reservoirVolume;
+    /** The melted goo the surface stands for, in mB; drives the puddle and the level. */
+    public long surfaceVolume;
 
     /** One band per goo type the surface shows, largest first; empty when the crucible shows none. */
     public List<TypeBand> typeBands = List.of();

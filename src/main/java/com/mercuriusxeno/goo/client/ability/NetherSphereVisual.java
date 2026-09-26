@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
+import com.mercuriusxeno.goo.client.FlatQuadContext;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.ber.ChainMarkerBlockEntityRenderer;
 import com.mercuriusxeno.goo.client.ber.ChainMarkerRenderState;
@@ -153,13 +154,13 @@ public final class NetherSphereVisual {
      */
     private static void emitSphereMesh(PoseStack.Pose pose, VertexConsumer c,
                                        float radius, int color) {
+        FlatQuadContext sphere = new FlatQuadContext(pose, c);
         for (Vector3f v : SPHERE_MESH) {
-            c.addVertex(pose,
-                            BLOCK_CENTER + v.x() * radius,
-                            BLOCK_CENTER + v.y() * radius,
-                            BLOCK_CENTER + v.z() * radius)
-                    .setColor(color)
-                    .setNormal(pose, v.x(), v.y(), v.z());
+            sphere.vertex(
+                    BLOCK_CENTER + v.x() * radius,
+                    BLOCK_CENTER + v.y() * radius,
+                    BLOCK_CENTER + v.z() * radius,
+                    color, v.x(), v.y(), v.z());
         }
     }
 

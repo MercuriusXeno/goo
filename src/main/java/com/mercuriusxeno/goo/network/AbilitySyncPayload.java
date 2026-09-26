@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
+import com.mercuriusxeno.goo.ability.AbilityCost;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.AbilityTags;
@@ -23,9 +24,10 @@ import java.util.List;
  * Server-to-client payload: syncs the loaded ability definitions so the
  * client radial menu knows what abilities exist per goo type. Sends the
  * metadata needed for display (id, type, name, order), the chain block's
- * fuse and stack ceiling the client predicts from, and the step program,
+ * fuse and stack ceiling the client predicts from, the step program,
  * whose params the marker's renderers read by the marker's ability id
- * (decision capability-interfaces-derive-host-kind).
+ * (decision capability-interfaces-derive-host-kind), and the cost formula
+ * the client prices a throw with (decision unaffordable-click-does-nothing).
  *
  * @param entries the list of ability descriptors
  */
@@ -44,6 +46,7 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
             StreamCodec.of(AbilitySyncPayload::encode, AbilitySyncPayload::decode);
 
     private static final StreamCodec<ByteBuf, List<Step>> STEPS_CODEC = ByteBufCodecs.fromCodec(StepTypes.LIST_CODEC);
+    private static final StreamCodec<ByteBuf, AbilityCost> COST_CODEC = ByteBufCodecs.fromCodec(AbilityCost.CODEC);
 
     /**
      * Builds the sync payload from the current server ability registry.
@@ -67,12 +70,12 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
      * @param definitions the type's definitions
      * @return the entries to sync
      */
-    static List<Entry> gloveEntries(ResourceKey<GooTypeDefinition> type, List<AbilityDefinition> definitions) {
+    public static List<Entry> gloveEntries(ResourceKey<GooTypeDefinition> type, List<AbilityDefinition> definitions) {
         return definitions.stream()
                 .filter(def -> !def.hasTag(AbilityTags.TAP))
                 .map(def -> new Entry(def.id().toString(), GooTypes.id(type),
                         def.displayName(), def.icon(), def.order(), def.tags(),
-                        def.chain().fuseTicks(), def.chain().maxStacks(), def.behaviors()))
+                        def.chain().fuseTicks(), def.chain().maxStacks(), def.behaviors(), def.cost()))
                 .toList();
     }
 
@@ -88,6 +91,7 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
             buf.writeVarInt(e.fuseTicks);
             buf.writeVarInt(e.maxStacks);
             STEPS_CODEC.encode(buf, e.behaviors);
+            COST_CODEC.encode(buf, e.cost);
         }
     }
 
@@ -104,7 +108,7 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
         for (int i = 0; i < count; i++) {
             entries.add(new Entry(buf.readUtf(), buf.readUtf(), buf.readUtf(),
                     buf.readUtf(), buf.readVarInt(), decodeTags(buf), buf.readVarInt(), buf.readVarInt(),
-                    STEPS_CODEC.decode(buf)));
+                    STEPS_CODEC.decode(buf), COST_CODEC.decode(buf)));
         }
         return new AbilitySyncPayload(entries);
     }
@@ -135,9 +139,10 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
      * @param fuseTicks   the chain block's full fuse
      * @param maxStacks   the chain block's stack ceiling
      * @param behaviors   the ability's step program
+     * @param cost        the cost formula the client prices a throw with
      */
     public record Entry(String abilityId, String gooTypeId, String displayName,
                         String icon, int order, List<String> tags, int fuseTicks, int maxStacks,
-                        List<Step> behaviors) {
+                        List<Step> behaviors, AbilityCost cost) {
     }
 }
