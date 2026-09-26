@@ -9,6 +9,8 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
+import net.neoforged.neoforge.transfer.ResourceHandler;
+import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import org.jspecify.annotations.Nullable;
 import java.util.function.Supplier;
 
@@ -88,6 +90,34 @@ public final class GasketAttachment {
      */
     public void afterLoad(Runnable hook) {
         this.afterLoad = hook;
+    }
+
+    /**
+     * Stands the one pusher a machine with a single transmitting source drives,
+     * pushing from the source through the attachment's TRANSMITTER link, and
+     * wires its rebuild and the post-load chunk force (decision
+     * machine-base-owns-the-lifecycle).
+     *
+     * @param source the fluid the machine pushes from
+     * @return the pusher, which the machine ticks
+     */
+    public GasketPusher singlePusher(ResourceHandler<FluidResource> source) {
+        GasketPusher pusher = new GasketPusher(source,
+                () -> state.getId(GasketRole.TRANSMITTER),
+                () -> state.getPartner(GasketRole.TRANSMITTER),
+                owner::getLevel, owner::getBlockPos,
+                this::syncToClients,
+                () -> registryAccess != null ? registryAccess.get() : null);
+        rebuildPushers(pusher::rebuildCache);
+        afterLoad(this::forceTransmitterChunkOnLoad);
+        return pusher;
+    }
+
+    private void forceTransmitterChunkOnLoad() {
+        if (owner.getLevel() instanceof ServerLevel serverLevel) {
+            GasketPusher.forceTransmitterChunk(state.getId(GasketRole.TRANSMITTER), registryAccess,
+                    serverLevel, owner.getBlockPos());
+        }
     }
 
     /**
