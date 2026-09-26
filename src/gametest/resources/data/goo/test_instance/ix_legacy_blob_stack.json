@@ -1,9 +1,9 @@
 {
   "type": "minecraft:function",
-  "function": "goo:fx_crystal_runs",
+  "function": "goo:ix_legacy_blob_stack",
   "environment": "minecraft:default",
   "structure": "minecraft:empty",
-  "max_ticks": 60,
+  "max_ticks": 20,
   "setup_ticks": 0,
   "required": true
 }

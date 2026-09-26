@@ -52,7 +52,7 @@ public final class FirstSourceTests {
     }
 
     private static Supplier<ItemStack> blob(ResourceKey<GooTypeDefinition> type) {
-        return () -> BlobStacks.createBlobStack(type, BLOB_COUNT);
+        return () -> BlobStacks.createForOutput(type, BLOB_COUNT * BlobStacks.MB_PER_BLOB);
     }
 
     private static Supplier<ItemStack> omniblob(ResourceKey<GooTypeDefinition> type) {

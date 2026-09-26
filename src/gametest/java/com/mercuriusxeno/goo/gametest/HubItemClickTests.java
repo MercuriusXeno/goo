@@ -61,7 +61,7 @@ public final class HubItemClickTests {
     }
 
     /**
-     * A blob stack onto a hub holding an empty canister fills it, empties the cursor,
+     * A five-blob omniblob onto a hub holding an empty canister fills it, empties the cursor,
      * and a hub placed from that stack holds the goo in slot 0.
      *
      * @param helper the gametest helper
@@ -69,7 +69,7 @@ public final class HubItemClickTests {
     public static void blobInsertFillsCanisterAndPlaces(GameTestHelper helper) {
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
         ItemStack hub = hubHolding(new ItemStack(GooItems.CANISTER.get()));
-        CursorHolder cursor = new CursorHolder(BlobStacks.createBlobStack(ROCK, BLOB_COUNT));
+        CursorHolder cursor = new CursorHolder(BlobStacks.createForOutput(ROCK, BLOB_COUNT * BlobStacks.MB_PER_BLOB));
 
         helper.assertTrue(GooItems.HUB.get() instanceof HubBlockItem, REGISTERED_OVERRIDE);
         helper.assertTrue(primaryClick(hub, cursor, player), BLOB_HANDLED);
@@ -119,11 +119,11 @@ public final class HubItemClickTests {
     public static void insertRefusedLeavesStacks(GameTestHelper helper) {
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
         ItemStack bare = new ItemStack(GooItems.HUB.get());
-        CursorHolder cursor = new CursorHolder(BlobStacks.createBlobStack(ROCK, BLOB_COUNT));
+        CursorHolder cursor = new CursorHolder(BlobStacks.createForOutput(ROCK, BLOB_COUNT * BlobStacks.MB_PER_BLOB));
 
         helper.assertFalse(primaryClick(bare, cursor, player), BARE_REFUSES);
         helper.assertFalse(bare.has(GooDataComponents.HUB_CANISTERS.get()), BARE_STAYS_BARE);
-        helper.assertValueEqual(cursor.get().getCount(), BLOB_COUNT, CURSOR_COUNT);
+        helper.assertValueEqual(BlobStacks.volumeOf(cursor.get()), BLOB_COUNT * BlobStacks.MB_PER_BLOB, CURSOR_COUNT);
 
         int capacity = ContainerCapacity.canisterCapacity(0);
         ItemStack blocked = hubHolding(canisterWith(ROCK, capacity), canisterWith(NETHER, PARTIAL_ROOM));
@@ -131,7 +131,7 @@ public final class HubItemClickTests {
 
         helper.assertFalse(primaryClick(blocked, cursor, player), BLOCKED_REFUSES);
         helper.assertValueEqual(contentsOf(blocked), before, CONTENTS_UNCHANGED);
-        helper.assertValueEqual(cursor.get().getCount(), BLOB_COUNT, CURSOR_COUNT);
+        helper.assertValueEqual(BlobStacks.volumeOf(cursor.get()), BLOB_COUNT * BlobStacks.MB_PER_BLOB, CURSOR_COUNT);
         helper.assertFalse(cursor.wasSet(), CURSOR_UNTOUCHED);
         helper.succeed();
     }
