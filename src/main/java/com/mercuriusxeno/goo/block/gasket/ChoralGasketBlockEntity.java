@@ -1,19 +1,11 @@
 package com.mercuriusxeno.goo.block.gasket;
 
+import com.mercuriusxeno.goo.block.GooMachineBlockEntity;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.HolderLookup;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.protocol.Packet;
-import net.minecraft.network.protocol.game.ClientGamePacketListener;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.storage.ValueInput;
-import net.minecraft.world.level.storage.ValueOutput;
-import org.jspecify.annotations.NonNull;
 
 /**
  * Block entity for the world-placed choral gasket. When waterlogged,
@@ -21,7 +13,7 @@ import org.jspecify.annotations.NonNull;
  * the gasket network. No internal storage - the water source is the
  * water block itself.
  */
-public class ChoralGasketBlockEntity extends BlockEntity implements IGasketHolder {
+public class ChoralGasketBlockEntity extends GooMachineBlockEntity {
 
     /**
      * NBT face label for the gasket attachment.
@@ -32,11 +24,6 @@ public class ChoralGasketBlockEntity extends BlockEntity implements IGasketHolde
      * Infinite water source - always reports 1000 mB, never depletes.
      */
     private final InfiniteWaterSource waterSource = new InfiniteWaterSource();
-
-    /**
-     * Composed gasket integration: TRANSMITTER-only.
-     */
-    private final GasketAttachment gasket = GasketAttachment.single(this, GasketRole.TRANSMITTER, TAG_GASKET);
 
     /**
      * Pushes water to gasket partners. Constructed in the BE constructor so it can
@@ -51,16 +38,9 @@ public class ChoralGasketBlockEntity extends BlockEntity implements IGasketHolde
      * @param state the block state
      */
     public ChoralGasketBlockEntity(BlockPos pos, BlockState state) {
-        super(GooBlockEntities.CHORAL_GASKET.get(), pos, state);
-        this.gasketPusher = new GasketPusher(
-                waterSource,
-                () -> gasket.state().getId(GasketRole.TRANSMITTER),
-                () -> gasket.state().getPartner(GasketRole.TRANSMITTER),
-                this::getLevel, this::getBlockPos,
-                gasket.syncCallback(),
-                () -> gasket.registryAccess() != null ? gasket.registryAccess().get() : null);
-        gasket.rebuildPushers(gasketPusher::rebuildCache);
-        gasket.afterLoad(this::forceTransmitterChunkOnLoad);
+        super(GooBlockEntities.CHORAL_GASKET.get(), pos, state,
+                be -> GasketAttachment.single(be, GasketRole.TRANSMITTER, TAG_GASKET));
+        this.gasketPusher = gasket().singlePusher(waterSource);
     }
 
     /**
@@ -79,64 +59,23 @@ public class ChoralGasketBlockEntity extends BlockEntity implements IGasketHolde
     }
 
     /**
+     * A standing choral gasket is itself the gasket, and its loot table drops
+     * the item, so leaving the level releases its registry location and link
+     * and pops nothing more (decision machine-base-owns-the-lifecycle).
+     */
+    @Override
+    public void dropGaskets() {
+        if (level != null) {
+            GasketInstallation.releaseFromRegistry(level, getGasketId(GasketRole.TRANSMITTER));
+        }
+    }
+
+    /**
      * Returns the water source handler for capability exposure.
      *
      * @return the water source handler
      */
     public InfiniteWaterSource getWaterSource() {
         return waterSource;
-    }
-
-    @Override
-    public GasketAttachment gasket() {
-        return gasket;
-    }
-
-    @Override
-    public void setLevel(@NonNull Level level) {
-        super.setLevel(level);
-        gasket.onSetLevel(level);
-    }
-
-    @Override
-    public void onLoad() {
-        super.onLoad();
-        gasket.onLoad();
-    }
-
-    @Override
-    protected void saveAdditional(@NonNull ValueOutput output) {
-        super.saveAdditional(output);
-        gasket.saveAdditional(output);
-    }
-
-    @Override
-    protected void loadAdditional(@NonNull ValueInput input) {
-        super.loadAdditional(input);
-        gasket.loadAdditional(input);
-    }
-
-    @Override
-    public @NonNull CompoundTag getUpdateTag(HolderLookup.@NonNull Provider registries) {
-        return gasket.getUpdateTag(registries);
-    }
-
-    @Override
-    public Packet<ClientGamePacketListener> getUpdatePacket() {
-        return gasket.getUpdatePacket();
-    }
-
-    /**
-     * BE-side post-load action: force-load the transmitter's destination chunk so the
-     * pusher can resolve partners on first tick.
-     */
-    private void forceTransmitterChunkOnLoad() {
-        if (level instanceof ServerLevel serverLevel) {
-            GasketPusher.forceTransmitterChunk(
-                    gasket.state().getId(GasketRole.TRANSMITTER),
-                    gasket.registryAccess(),
-                    serverLevel,
-                    worldPosition);
-        }
     }
 }

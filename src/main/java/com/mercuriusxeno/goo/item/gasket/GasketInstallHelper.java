@@ -2,8 +2,6 @@ package com.mercuriusxeno.goo.item.gasket;
 
 import com.mercuriusxeno.goo.block.canister.ICanisterAttachable;
 import com.mercuriusxeno.goo.block.gasket.IGasketHolder;
-import com.mercuriusxeno.goo.block.hub.HubBlock;
-import com.mercuriusxeno.goo.block.hub.HubBlockEntity;
 import com.mercuriusxeno.goo.data.GasketLocation;
 import com.mercuriusxeno.goo.data.GasketRegistry;
 import net.minecraft.core.BlockPos;
@@ -13,7 +11,6 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.phys.BlockHitResult;
@@ -25,7 +22,7 @@ import static com.mercuriusxeno.goo.GooConstants.NO_SLOT;
  * player feedback, and intake availability checks. Extracted from
  * {@link ChoralGasketItem} to keep per-class method counts manageable.
  */
-final class GasketInstallHelper {
+public final class GasketInstallHelper {
 
     /**
      * Block update flags: notify clients + update neighbors.
@@ -34,7 +31,7 @@ final class GasketInstallHelper {
     /**
      * Feedback: gasket installed successfully.
      */
-    private static final String MSG_GASKET_INSTALLED = "Gasket installed";
+    static final String MSG_GASKET_INSTALLED = "Gasket installed";
 
     private GasketInstallHelper() {
     }
@@ -52,45 +49,47 @@ final class GasketInstallHelper {
     }
 
     /**
-     * Flips HAS_GASKET blockstate on a hub for intake visual. No-op for non-hub entities.
+     * The one block-level gasket install every machine takes (decision
+     * machine-base-owns-the-lifecycle): raises the face's blockstate flag,
+     * ensures the gasket's id and publishes its location.
      *
-     * @param level the level
-     * @param pos   the block position
+     * @param level  the level
+     * @param pos    the machine's position
+     * @param holder the machine
+     * @param role   the face's role
+     * @return false when the face takes no block-level gasket or already holds one
      */
-    static void flipHubIntakeBlockstate(Level level, BlockPos pos) {
-        if (level.getBlockEntity(pos) instanceof HubBlockEntity) {
-            flipBlockstate(level, pos, level.getBlockState(pos), HubBlock.HAS_GASKET);
+    public static boolean installBlockGasket(Level level, BlockPos pos, IGasketHolder holder, GasketRole role) {
+        BooleanProperty flag = holder.gasketFlag(role);
+        BlockState state = level.getBlockState(pos);
+        if (flag == null || state.getValue(flag)) {
+            return false;
         }
+        level.setBlock(pos, state.setValue(flag, true), BLOCK_UPDATE_FLAGS);
+        UUID newId = holder.ensureGasketId(role);
+        if (newId != null) {
+            registerGasketLocation(level, pos, newId, role == GasketRole.RECEIVER, NO_SLOT);
+        }
+        return true;
     }
 
     /**
-     * Sets a boolean blockstate property to true and sends block updates.
+     * Installs a block-level gasket from a player's click, rejecting with the
+     * message when the face already holds one.
      *
-     * @param level    the level
-     * @param pos      the block position
-     * @param state    the current blockstate
-     * @param property the boolean property to flip
+     * @param context  the use-on context
+     * @param holder   the machine
+     * @param role     the face's role
+     * @param rejected the feedback when the face already holds a gasket
+     * @param done     the feedback once installed
+     * @return SUCCESS once installed, PASS when rejected
      */
-    static void flipBlockstate(Level level, BlockPos pos, BlockState state, BooleanProperty property) {
-        level.setBlock(pos, state.setValue(property, true), BLOCK_UPDATE_FLAGS);
-    }
-
-    /**
-     * Ensures a gasket UUID on a blockstate-based machine and registers it.
-     *
-     * @param level the level
-     * @param pos   the block position
-     * @param role  the gasket role to assign
-     * @param isTop whether this is a top-face gasket
-     */
-    static void registerBlockstateGasket(Level level, BlockPos pos, GasketRole role, boolean isTop) {
-        BlockEntity be = level.getBlockEntity(pos);
-        if (be instanceof IGasketHolder holder) {
-            UUID newId = holder.ensureGasketId(role);
-            if (newId != null) {
-                registerGasketLocation(level, pos, newId, isTop, NO_SLOT);
-            }
+    static InteractionResult installBlockGasket(UseOnContext context, IGasketHolder holder, GasketRole role,
+                                                String rejected, String done) {
+        if (!installBlockGasket(context.getLevel(), context.getClickedPos(), holder, role)) {
+            return rejectWith(context, rejected);
         }
+        return finishInstall(context, done);
     }
 
     /**
@@ -143,16 +142,6 @@ final class GasketInstallHelper {
     static InteractionResult rejectWith(UseOnContext context, String message) {
         sendOverlay(context, message);
         return InteractionResult.PASS;
-    }
-
-    /**
-     * Consumes the gasket item (unless creative), sends default feedback, and returns SUCCESS.
-     *
-     * @param context the use-on context
-     * @return SUCCESS
-     */
-    static InteractionResult finishInstall(UseOnContext context) {
-        return finishInstall(context, MSG_GASKET_INSTALLED);
     }
 
     /**

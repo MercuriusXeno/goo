@@ -1,35 +1,19 @@
 package com.mercuriusxeno.goo.block.crucible;
 
-import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
 import com.mercuriusxeno.goo.item.BlobStacks;
-import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
-import java.util.UUID;
 
 /**
  * Static helpers for dropping crucible internals (PMI,
- * reservoir blobs, gasket) when the block is broken.
+ * reservoir blobs) when the block is broken.
  */
 final class CrucibleDrops {
 
     private CrucibleDrops() { }
-
-    /** Drops a gasket item if one is installed on the crucible.
-     *
-     * @param state the block state
-     * @param level the current level
-     * @param pos   the block position
-     */
-    static void dropGasket(BlockState state, Level level, BlockPos pos) {
-        UUID gasketId = level.getBlockEntity(pos) instanceof CrucibleBlockEntity crucible
-                ? crucible.getGasketId(GasketRole.TRANSMITTER) : null;
-        GasketInstallation.popGasket(level, pos, state.getValue(CrucibleBlock.HAS_GASKET), gasketId);
-    }
 
     /** Drops all crucible internal state as items when the block is broken.
      *

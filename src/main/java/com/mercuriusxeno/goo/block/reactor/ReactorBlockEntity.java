@@ -1,12 +1,9 @@
 package com.mercuriusxeno.goo.block.reactor;
 
-import com.mercuriusxeno.goo.block.BlockEntitySync;
+import com.mercuriusxeno.goo.block.GooGlowingMachineBlockEntity;
 import com.mercuriusxeno.goo.block.canister.*;
 import com.mercuriusxeno.goo.block.gasket.GasketAttachment;
 import com.mercuriusxeno.goo.block.gasket.GasketPusher;
-import com.mercuriusxeno.goo.block.gasket.IGasketHolder;
-import com.mercuriusxeno.goo.block.gasket.SlotGasketPusher;
-import com.mercuriusxeno.goo.block.gasket.SlotGasketRegistration;
 import com.mercuriusxeno.goo.data.GooReaction;
 import com.mercuriusxeno.goo.data.GooReactionLoader;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
@@ -15,12 +12,6 @@ import com.mercuriusxeno.goo.item.gasket.GasketPartner;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.HolderLookup;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.Connection;
-import net.minecraft.network.protocol.Packet;
-import net.minecraft.network.protocol.game.ClientGamePacketListener;
-import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -48,8 +39,8 @@ import java.util.Set;
  * canister block slot is: gasket ids and partners live on the canister item's
  * metadata, and the registry location follows the canister in and out.</p>
  */
-public class ReactorBlockEntity extends BlockEntity
-        implements ICanisterHolder, ICanisterAttachable, IGasketHolder {
+public class ReactorBlockEntity extends GooGlowingMachineBlockEntity
+        implements ICanisterHolder, ICanisterAttachable {
 
     /**
      * Output canister slot index.
@@ -77,18 +68,12 @@ public class ReactorBlockEntity extends BlockEntity
      */
     private static final String TAG_OUTPUT_CANISTER = "OutputCanister";
     /**
-     * Roleless gasket integration: the output canister's metadata holds the
-     * gasket ids, as on a canister block slot (reactor-gasket-click-fix).
-     */
-    private final GasketAttachment gasket = GasketAttachment.none(this);
-    /**
      * Slotted state for the single output canister.
      */
-    private final SlottedCanisterData state = new SlottedCanisterData(
+    private final SlottedCanisterData state = new SlottedCanisterData(this,
             OUTPUT_SLOT_COUNT,
             i -> Shapes.empty(),
-            slots -> Shapes.empty(),
-            gasket.syncCallback());
+            slots -> Shapes.empty());
     /**
      * Client-side wheel rotation angle in degrees. Not serialized.
      */
@@ -119,12 +104,11 @@ public class ReactorBlockEntity extends BlockEntity
      * @param state the block state
      */
     public ReactorBlockEntity(BlockPos pos, BlockState state) {
-        super(GooBlockEntities.REACTOR.get(), pos, state);
-        gasket.rebuildPushers(() -> {
-            if (level instanceof ServerLevel) {
-                rebuildOutputPusher();
-            }
-        });
+        // Roleless: the output canister's metadata holds the gasket ids,
+        // as on a canister block slot (reactor-gasket-click-fix).
+        super(GooBlockEntities.REACTOR.get(), pos, state, GasketAttachment::none);
+        GasketAttachment gasket = gasket();
+        gasket.rebuildPushers(this.state::rebuildAllPushers);
         gasket.afterLoad(() -> {
             if (level instanceof ServerLevel serverLevel) {
                 GasketPusher.forceTransmitterChunk(getSlotMetadata(OUTPUT_SLOT).topGasketId(),
@@ -243,73 +227,25 @@ public class ReactorBlockEntity extends BlockEntity
     }
 
     /**
-     * Inserts a canister into the output slot. Two sync passes by design:
-     * {@code setCanister} fires the slot's structure-changed callback (which
-     * calls {@link BlockEntitySync#markDirtyAndSync}) before {@code buildHandler}
-     * runs, so emission reads 0 then. The explicit second pass runs once the
-     * handler is in place and propagates the correct emission.
+     * Inserts a canister into the output slot through the shared slot lifecycle.
      *
      * @param stack the canister to insert
      * @return true if inserted
      */
     public boolean insertOutputCanister(ItemStack stack) {
-        if (!getOutputCanister().isEmpty()) {
-            return false;
-        }
-        state.slots[OUTPUT_SLOT].setCanister(stack.copyWithCount(1));
-        state.slots[OUTPUT_SLOT].buildHandler(() -> level != null ? level.getGameTime() : 0L);
-        BlockEntitySync.invalidateCapabilities(this);
-        registerOutputGaskets();
-        rebuildOutputPusher();
-        BlockEntitySync.markDirtyAndSync(this);
-        return true;
+        return state.insert(OUTPUT_SLOT, stack, false);
     }
 
     /**
-     * Removes and returns the output canister.
+     * Removes and returns the output canister through the shared slot lifecycle.
      *
      * @return the removed canister, or EMPTY
      */
     public @NonNull ItemStack removeOutputCanister() {
-        ItemStack current = getOutputCanister();
-        if (current.isEmpty()) {
-            return ItemStack.EMPTY;
-        }
-        // Write handler state to the item stack so the returned item has
-        // accurate fluid data, but don't sync yet - we clear and sync once.
-        state.slots[OUTPUT_SLOT].syncHandlerToStack();
-        deregisterOutputGaskets();
-        state.slots[OUTPUT_SLOT].disposePusher();
-        state.slots[OUTPUT_SLOT].clear();
-        BlockEntitySync.invalidateCapabilities(this);
-        BlockEntitySync.markDirtyAndSync(this);
-        return current;
-    }
-
-    /**
-     * Stands or drops the output slot's pusher from the canister's bottom
-     * gasket state, the lifecycle a canister block slot runs
-     * (reactor-output-push-fix).
-     */
-    private void rebuildOutputPusher() {
-        SlotGasketPusher.rebuild(state.slots[OUTPUT_SLOT], this, gasket.registryAccess());
-    }
-
-    private void registerOutputGaskets() {
-        SlotGasketRegistration.register(gasket.registryAccess(), level, worldPosition,
-                OUTPUT_SLOT, getSlotMetadata(OUTPUT_SLOT));
-    }
-
-    private void deregisterOutputGaskets() {
-        SlotGasketRegistration.deregister(gasket.registryAccess(), getSlotMetadata(OUTPUT_SLOT));
+        return state.remove(OUTPUT_SLOT);
     }
 
     // --- IGasketHolder ---
-
-    @Override
-    public GasketAttachment gasket() {
-        return gasket;
-    }
 
     /**
      * The output canister carries a gasket on either face, as a canister block slot does.
@@ -332,9 +268,9 @@ public class ReactorBlockEntity extends BlockEntity
      */
     @Override
     public void setPartner(GasketRole role, int slot, @Nullable GasketPartner partner) {
-        IGasketHolder.super.setPartner(role, slot, partner);
-        if (role == GasketRole.TRANSMITTER && slot == OUTPUT_SLOT) {
-            rebuildOutputPusher();
+        super.setPartner(role, slot, partner);
+        if (role == GasketRole.TRANSMITTER) {
+            state.rebuildPusher(slot);
         }
     }
 
@@ -594,76 +530,20 @@ public class ReactorBlockEntity extends BlockEntity
         }
     }
 
-    /** Re-propagates goo emission after NBT load; the chunk-load light scan
-     * ran before {@code loadAdditional}, so any loaded goo content would
-     * otherwise stay dark. */
     @Override
-    public void onLoad() {
-        super.onLoad();
-        gasket.onLoad();
-        BlockEntitySync.kickLightingOnLoad(this);
-    }
-
-    /**
-     * Loads the packet's contents, then rechecks light at this position:
-     * the client's engine sees new goo only this way (decision
-     * diagnose-then-fix-vat-stale-light).
-     *
-     * @param net   the connection the packet came from
-     * @param input the packet data
-     */
-    @Override
-    public void onDataPacket(Connection net, ValueInput input) {
-        super.onDataPacket(net, input);
-        BlockEntitySync.relightOnContentsArrived(this);
-    }
-
-    @Override
-    public void setLevel(@NonNull Level newLevel) {
-        super.setLevel(newLevel);
-        gasket.onSetLevel(newLevel);
-        if (newLevel instanceof ServerLevel) {
-            registerOutputGaskets();
-        }
-    }
-
-    @Override
-    public void setRemoved() {
-        state.disposeAllPushers();
-        deregisterOutputGaskets();
-        super.setRemoved();
+    protected SlottedCanisterData heldSlots() {
+        return state;
     }
 
     @Override
     protected void saveAdditional(@NonNull ValueOutput output) {
         super.saveAdditional(output);
-        // Write handler state to item stack without triggering a sync
-        // (we're already inside serialization).
-        state.slots[OUTPUT_SLOT].syncHandlerToStack();
-        if (!getOutputCanister().isEmpty()) {
-            output.store(TAG_OUTPUT_CANISTER, ItemStack.CODEC, getOutputCanister());
-        }
+        state.save(output, TAG_OUTPUT_CANISTER);
     }
 
     @Override
     protected void loadAdditional(@NonNull ValueInput input) {
         super.loadAdditional(input);
-        ItemStack loaded = input.read(TAG_OUTPUT_CANISTER, ItemStack.CODEC).orElse(ItemStack.EMPTY);
-        state.slots[OUTPUT_SLOT].setCanister(loaded);
-        if (!loaded.isEmpty()) {
-            state.slots[OUTPUT_SLOT].buildHandler(() -> level != null ? level.getGameTime() : 0L);
-        }
-    }
-
-    @Override
-    public @NonNull CompoundTag getUpdateTag(
-            HolderLookup.@NonNull Provider registries) {
-        return saveWithFullMetadata(registries);
-    }
-
-    @Nullable
-    @Override
-    public Packet<ClientGamePacketListener> getUpdatePacket() {
-        return ClientboundBlockEntityDataPacket.create(this);
+        state.load(input, TAG_OUTPUT_CANISTER);
     }
 }

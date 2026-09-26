@@ -218,11 +218,16 @@ public final class PanelPainter {
     public static void drawRow(PoseStack poseStack, Font font, MultiBufferSource buffers,
                                PanelRow row, float x, float y) {
         RowGeometry geometry = rowGeometry(y, row.icon() != null, DIGIT_GLYPH_HEIGHT);
-        float textX = x;
-        if (row.icon() != null) {
-            drawIcon(poseStack, buffers, row, x, geometry.iconTop());
-            textX += ICON_SIZE + ICON_TEXT_GAP;
+        Identifier icon = row.icon();
+        Identifier secondIcon = row.secondIcon();
+        if (icon != null) {
+            drawIcon(poseStack, buffers, row.seeThrough(), icon, x, geometry.iconTop());
         }
+        if (icon != null && secondIcon != null) {
+            drawIcon(poseStack, buffers, row.seeThrough(), secondIcon, x + ICON_SIZE + ICON_TEXT_GAP,
+                    geometry.iconTop());
+        }
+        float textX = x + row.iconsWidth();
         for (PanelRow.TextSegment segment : row.segments()) {
             drawSegment(poseStack, font, buffers, row.seeThrough(), segment, textX, geometry.textTop());
             textX += font.width(segment.text());
@@ -308,18 +313,19 @@ public final class PanelPainter {
     }
 
     /**
-     * Draws a row's icon quad at the content depth.
+     * Draws one icon quad at the content depth.
      *
-     * @param poseStack the pose stack for rendering
-     * @param buffers   the buffer source
-     * @param row       the row whose icon to draw
-     * @param x         the icon's left X
-     * @param y         the icon's top Y
+     * @param poseStack  the pose stack for rendering
+     * @param buffers    the buffer source
+     * @param seeThrough whether the icon draws over world geometry
+     * @param icon       the icon texture
+     * @param x          the icon's left X
+     * @param y          the icon's top Y
      */
-    private static void drawIcon(PoseStack poseStack, MultiBufferSource buffers, PanelRow row, float x, float y) {
-        Identifier icon = row.icon();
+    private static void drawIcon(PoseStack poseStack, MultiBufferSource buffers, boolean seeThrough,
+                                 Identifier icon, float x, float y) {
         VertexConsumer vc = buffers.getBuffer(
-                row.seeThrough() ? RenderTypes.textSeeThrough(icon) : RenderTypes.text(icon));
+                seeThrough ? RenderTypes.textSeeThrough(icon) : RenderTypes.text(icon));
         PoseStack.Pose pose = poseStack.last();
         float x2 = x + ICON_SIZE;
         float y2 = y + ICON_SIZE;

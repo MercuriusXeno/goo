@@ -1,7 +1,8 @@
 package com.mercuriusxeno.goo.block.canister;
 
+import com.mercuriusxeno.goo.block.BlockEntityTicks;
 import com.mercuriusxeno.goo.block.GooBlockInteraction;
-import com.mercuriusxeno.goo.block.IGooLightSource;
+import com.mercuriusxeno.goo.block.GooMachineBlock;
 import com.mercuriusxeno.goo.block.ShapeHitCheck;
 import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
 import com.mercuriusxeno.goo.item.CanisterItem;
@@ -18,8 +19,6 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntityTicker;
-import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.phys.BlockHitResult;
@@ -33,7 +32,7 @@ import org.jspecify.annotations.Nullable;
  * one block space. Click-targeted interactions let the player insert,
  * extract, and remove individual canisters by aiming at specific cells.
  */
-public class CanisterBlock extends BaseEntityBlock {
+public class CanisterBlock extends GooMachineBlock {
 
     /** Codec for serialization. */
     public static final MapCodec<CanisterBlock> CODEC = simpleCodec(CanisterBlock::new);
@@ -214,33 +213,9 @@ public class CanisterBlock extends BaseEntityBlock {
         return new CanisterBlockEntity(pos, state);
     }
 
-    /** Routes goo-driven block-light emission through the BE. */
     @Override
-    public int getLightEmission(BlockState state, BlockGetter level, BlockPos pos) {
-        return IGooLightSource.blockEmissionFor(level, pos);
-    }
-
-    /** BE-driven emission: see ReactorBlock.hasDynamicLightEmission. */
-    @Override
-    public boolean hasDynamicLightEmission(BlockState state) {
-        return true;
-    }
-
-    /**
-     * Registers the server-side tick dispatcher for per-slot gasket push.
-     *
-     * @param <T>   the block entity type parameter
-     * @param level the current level
-     * @param state the block state
-     * @param type  the block entity type
-     * @return the ticker, or null on the client
-     */
-    @Nullable
-    @Override
-    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(
-            @NonNull Level level, @NonNull BlockState state, @NonNull BlockEntityType<T> type) {
-        if (level.isClientSide()) { return null; }
-        return createTickerHelper(type, GooBlockEntities.CANISTER.get(), CanisterBlockEntity::serverTick);
+    protected BlockEntityTicks<CanisterBlockEntity> ticks() {
+        return BlockEntityTicks.onServer(GooBlockEntities.CANISTER, CanisterBlockEntity::serverTick);
     }
 
     // --- Hit detection ---
