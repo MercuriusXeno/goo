@@ -10,21 +10,16 @@ import com.mercuriusxeno.goo.ability.program.PhasedState;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.ProgressiveAreaStep;
 import com.mercuriusxeno.goo.block.BlockEntitySync;
+import com.mercuriusxeno.goo.block.GooSyncedBlockEntity;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.HolderLookup;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.protocol.Packet;
-import net.minecraft.network.protocol.game.ClientGamePacketListener;
-import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
@@ -39,7 +34,7 @@ import org.jspecify.annotations.Nullable;
  * reports its struck layers here through the marker host, and the ghost
  * outline reads them back.
  */
-public class ChainMarkerBlockEntity extends BlockEntity {
+public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
 
     private static final String TAG_GOO_TYPE = "goo_type";
     private static final String TAG_STACK_COUNT = "StackCount";
@@ -166,7 +161,7 @@ public class ChainMarkerBlockEntity extends BlockEntity {
                 return;
             }
             be.setChanged();
-            be.syncToClient();
+            BlockEntitySync.markDirtyAndSync(be);
             return;
         }
         be.tickFuse(server, pos);
@@ -188,7 +183,7 @@ public class ChainMarkerBlockEntity extends BlockEntity {
         this.blobShape = chain.blobShape();
         this.areaMode = extractAreaMode(ability);
         setChanged();
-        syncToClient();
+        BlockEntitySync.markDirtyAndSync(this);
     }
 
     /**
@@ -209,7 +204,7 @@ public class ChainMarkerBlockEntity extends BlockEntity {
             fuse.resetFuse(chain);
         }
         setChanged();
-        syncToClient();
+        BlockEntitySync.markDirtyAndSync(this);
         return true;
     }
 
@@ -230,7 +225,7 @@ public class ChainMarkerBlockEntity extends BlockEntity {
         if (fuse.stackCount() > 0) {
             fuse.spendStack();
             setChanged();
-            syncToClient();
+            BlockEntitySync.markDirtyAndSync(this);
         }
     }
 
@@ -248,7 +243,7 @@ public class ChainMarkerBlockEntity extends BlockEntity {
         this.blobShape = snapshot.blobShape();
         this.areaMode = snapshot.areaMode();
         setChanged();
-        syncToClient();
+        BlockEntitySync.markDirtyAndSync(this);
     }
 
     /**
@@ -291,7 +286,7 @@ public class ChainMarkerBlockEntity extends BlockEntity {
     public void instantDetonate() {
         fuse.burnOut();
         setChanged();
-        syncToClient();
+        BlockEntitySync.markDirtyAndSync(this);
     }
 
     /**
@@ -427,7 +422,7 @@ public class ChainMarkerBlockEntity extends BlockEntity {
         int remaining = fuse.fuseRemaining();
         boolean implosionZone = remaining <= IMPLOSION_SYNC_THRESHOLD;
         if (implosionZone || remaining % SYNC_INTERVAL == 0) {
-            syncToClient();
+            BlockEntitySync.markDirtyAndSync(this);
         }
     }
 
@@ -454,7 +449,7 @@ public class ChainMarkerBlockEntity extends BlockEntity {
             return;
         }
         setChanged();
-        syncToClient();
+        BlockEntitySync.markDirtyAndSync(this);
     }
 
 
@@ -622,38 +617,6 @@ public class ChainMarkerBlockEntity extends BlockEntity {
         }
         if (behavior != null) {
             behavior.saveAdditional(output);
-        }
-    }
-
-
-    /**
-     * Returns the sync packet sent when block entity data changes.
-     *
-     * @return the update packet
-     */
-    @Override
-    public @Nullable Packet<ClientGamePacketListener> getUpdatePacket() {
-        return ClientboundBlockEntityDataPacket.create(this);
-    }
-
-    /**
-     * Returns the full NBT for initial chunk sync to clients.
-     *
-     * @param registries the registry provider
-     * @return the update tag
-     */
-    @Override
-    public @NonNull CompoundTag getUpdateTag(HolderLookup.@NonNull Provider registries) {
-        return saveCustomOnly(registries);
-    }
-
-    /**
-     * Sends a block update to tracking clients so the BER can render.
-     */
-    private void syncToClient() {
-        if (level != null && !level.isClientSide()) {
-            level.sendBlockUpdated(getBlockPos(), getBlockState(), getBlockState(),
-                    BlockEntitySync.BLOCK_UPDATE_FLAGS);
         }
     }
 }

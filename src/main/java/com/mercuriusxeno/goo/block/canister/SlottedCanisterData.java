@@ -1,18 +1,27 @@
 package com.mercuriusxeno.goo.block.canister;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.block.GooLightEntry;
 import com.mercuriusxeno.goo.block.gasket.GasketPusher;
+import com.mercuriusxeno.goo.block.gasket.SlotGasketRegistration;
 import com.mercuriusxeno.goo.block.hub.HubBlockEntity;
+import com.mercuriusxeno.goo.data.GasketRegistry;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
+import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.registry.GooFluids;
+import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import org.jspecify.annotations.Nullable;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Function;
 import java.util.function.IntFunction;
+import java.util.function.Supplier;
 
 /**
  * Behavioral component that owns the slot grid for {@link CanisterBlockEntity}
@@ -290,5 +299,56 @@ public class SlottedCanisterData {
         for (CanisterSlot slot : slots) {
             slot.disposePusher();
         }
+    }
+
+    // --- Slot gasket registration (cross-slot, decision machine-base-owns-the-lifecycle) ---
+
+    /**
+     * Registers the gaskets of every occupied slot's canister at the host.
+     *
+     * @param access the gasket registry access, or null on the client
+     * @param level  the host's level
+     * @param pos    the host's position
+     */
+    public void registerSlotGaskets(@Nullable Supplier<GasketRegistry> access, @Nullable Level level,
+                                    BlockPos pos) {
+        for (CanisterSlot slot : slots) {
+            if (!slot.isEmpty()) {
+                SlotGasketRegistration.register(access, level, pos, slot.index(),
+                        CanisterItem.getMetadata(slot.canister()));
+            }
+        }
+    }
+
+    /**
+     * Disposes every slot pusher and clears the registry location of every
+     * occupied slot's canister gaskets, as the host leaves the level.
+     *
+     * @param access the gasket registry access, or null on the client
+     */
+    public void releaseSlotGaskets(@Nullable Supplier<GasketRegistry> access) {
+        disposeAllPushers();
+        for (CanisterSlot slot : slots) {
+            if (!slot.isEmpty()) {
+                SlotGasketRegistration.deregister(access, CanisterItem.getMetadata(slot.canister()));
+            }
+        }
+    }
+
+    // --- Light ---
+
+    /**
+     * @return one light entry per slot holding goo, measured against the slot's capacity
+     */
+    public List<GooLightEntry> lightEntries() {
+        List<GooLightEntry> entries = new ArrayList<>(maxSlots);
+        for (CanisterSlot slot : slots) {
+            CanisterFluidContent content = slot.fluidContent();
+            ResourceKey<GooTypeDefinition> type = content.getGooType();
+            if (!content.isEmpty() && type != null) {
+                entries.add(new GooLightEntry(type, content.amount(), slot.capacity()));
+            }
+        }
+        return entries;
     }
 }
