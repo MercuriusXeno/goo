@@ -66,7 +66,7 @@ public record ParticlesStep(Identifier particle, FxAnchor at, Expr count, Expr s
                 spreadAlong.map(expr -> expr.evaluate(context)).orElse(everyAxis),
                 spreadAcross.map(expr -> expr.evaluate(context)).orElse(everyAxis),
                 speed.evaluate(context), lift.evaluate(context));
-        context.host().spawnParticles(at, burst);
+        context.host().spawnParticles(burst);
         return true;
     }
 

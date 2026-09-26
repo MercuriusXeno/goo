@@ -48,8 +48,7 @@ public record SoundStep(Identifier sound, FxAnchor at, SoundKind source, Expr vo
 
     @Override
     public boolean tick(StepContext context) {
-        context.host().playSound(at,
-                new SoundCue(sound, source, volume.evaluateFloat(context), pitch.evaluateFloat(context)));
+        context.host().playSound(new SoundCue(sound, source, volume.evaluateFloat(context), pitch.evaluateFloat(context)));
         return true;
     }
 
