@@ -9,6 +9,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.BundleContents;
 import net.minecraft.world.item.component.ItemContainerContents;
+import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -23,8 +24,9 @@ public class ContainerEvaluator {
      *
      * @param goo    the summed goo of every valued item, nested containers included
      * @param ejects the items with no goo value, to spawn as entities
+     * @param valued every valued stack in the order the walk summed it, the shell last
      */
-    public record ContainerEvaluation(GooContents goo, List<ItemStack> ejects) {
+    public record ContainerEvaluation(GooContents goo, List<ItemStack> ejects, List<ValuedStack> valued) {
     }
 
     /**
@@ -49,13 +51,59 @@ public class ContainerEvaluator {
      */
     public ContainerEvaluation evaluate(Identifier containerId, ItemStack container, IGooValueLookup lookup) {
         List<ItemStack> contents = collectContainerContents(container);
-        GooContents goo = GooContents.EMPTY;
         List<ItemStack> ejects = new ArrayList<>();
+        List<ValuedStack> valued = new ArrayList<>();
         for (ItemStack item : contents) {
-            goo = accumulateItem(item, lookup, goo, ejects);
+            accumulateItem(item, lookup, valued, ejects);
         }
-        goo = addShellValue(containerId, lookup, goo);
-        return new ContainerEvaluation(goo, ejects);
+        addValued(valuedStack(containerId, 1, lookup), valued);
+        return new ContainerEvaluation(sumOf(valued, lookup), ejects, valued);
+    }
+
+    /**
+     * Values a stack by its item id, the walk's seam free of the item registry.
+     *
+     * @param itemId the item's registry id
+     * @param count  the number of items
+     * @param lookup the goo value lookup
+     * @return the valued stack, or null when the item has no goo value
+     */
+    public static @Nullable ValuedStack valuedStack(Identifier itemId, int count, IGooValueLookup lookup) {
+        GooValue value = lookup.lookup(itemId);
+        if (value == null || value.isEmpty()) {
+            return null;
+        }
+        return new ValuedStack(itemId, count, value.toGooContents(count).totalVolume());
+    }
+
+    /**
+     * Sums the goo the valued stacks carry, typed by each item's goo value.
+     *
+     * @param valued the valued stacks
+     * @param lookup the goo value lookup
+     * @return the summed goo
+     */
+    private static GooContents sumOf(List<ValuedStack> valued, IGooValueLookup lookup) {
+        GooContents goo = GooContents.EMPTY;
+        for (ValuedStack stack : valued) {
+            GooValue value = lookup.lookup(stack.item());
+            if (value != null) {
+                goo = goo.mergeWith(value.toGooContents(stack.count()));
+            }
+        }
+        return goo;
+    }
+
+    /**
+     * Adds a valued stack to the walk's list when it carries goo.
+     *
+     * @param stack  the valued stack, or null
+     * @param valued the walk's valued stacks
+     */
+    private static void addValued(@Nullable ValuedStack stack, List<ValuedStack> valued) {
+        if (stack != null) {
+            valued.add(stack);
+        }
     }
 
     /**
@@ -63,19 +111,19 @@ public class ContainerEvaluator {
      *
      * @param item   the item stack
      * @param lookup goo value lookup
-     * @param goo    running goo total
+     * @param valued accumulator for valued stacks, in walk order
      * @param ejects accumulator for ejected items
-     * @return the updated goo total
      */
-    private GooContents accumulateItem(ItemStack item, IGooValueLookup lookup,
-                                       GooContents goo, List<ItemStack> ejects) {
+    private void accumulateItem(ItemStack item, IGooValueLookup lookup,
+                                List<ValuedStack> valued, List<ItemStack> ejects) {
         if (isContainer(item)) {
             Identifier nestedId = BuiltInRegistries.ITEM.getKey(item.getItem());
             ContainerEvaluation nested = evaluate(nestedId, item, lookup);
             ejects.addAll(nested.ejects());
-            return goo.mergeWith(nested.goo());
+            valued.addAll(nested.valued());
+            return;
         }
-        return evaluateItemOrEject(item, lookup, goo, ejects);
+        evaluateItemOrEject(item, lookup, valued, ejects);
     }
 
     /**
@@ -119,39 +167,21 @@ public class ContainerEvaluator {
     }
 
     /**
-     * Resolves ID from the item stack, then delegates to the lookup.
+     * Resolves ID from the item stack, then values it or ejects it.
      *
      * @param item   the item stack to evaluate
      * @param lookup the goo value lookup
-     * @param goo    the aggregated goo contents
+     * @param valued accumulator for valued stacks, in walk order
      * @param ejects the list of items to eject
-     * @return the goo contents
      */
-    private GooContents evaluateItemOrEject(ItemStack item, IGooValueLookup lookup,
-                                            GooContents goo, List<ItemStack> ejects) {
+    private void evaluateItemOrEject(ItemStack item, IGooValueLookup lookup,
+                                     List<ValuedStack> valued, List<ItemStack> ejects) {
         Identifier itemId = BuiltInRegistries.ITEM.getKey(item.getItem());
-        GooValue value = lookup.lookup(itemId);
-        if (value != null && !value.isEmpty()) {
-            return goo.mergeWith(value.toGooContents(item.getCount()));
+        ValuedStack stack = valuedStack(itemId, item.getCount(), lookup);
+        if (stack == null) {
+            ejects.add(item.copy());
+        } else {
+            valued.add(stack);
         }
-        ejects.add(item.copy());
-        return goo;
-    }
-
-    /**
-     * Adds the container shell's own goo value using the pre-resolved ID.
-     *
-     * @param containerId the container registry ID
-     * @param lookup      the goo value lookup
-     * @param goo         the aggregated goo contents
-     * @return the goo contents
-     */
-    private GooContents addShellValue(Identifier containerId, IGooValueLookup lookup,
-                                      GooContents goo) {
-        GooValue shellValue = lookup.lookup(containerId);
-        if (shellValue != null && !shellValue.isEmpty()) {
-            return goo.mergeWith(shellValue.toGooContents(1));
-        }
-        return goo;
     }
 }
