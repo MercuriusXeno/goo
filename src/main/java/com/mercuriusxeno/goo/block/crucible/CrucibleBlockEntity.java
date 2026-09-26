@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.block.crucible;
 
+import com.mercuriusxeno.goo.GooConfig;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.block.*;
@@ -162,12 +163,12 @@ public class CrucibleBlockEntity extends BlockEntity implements IGasketHolder, I
         return heat.canHeat(FuelGrade.configured(), fuelStock);
     }
 
-    /** Returns the melt ticks each fuel grade holds, in burn order.
+    /** Returns the burns the heat and fuel goo hold, combo first.
      *
      * @return the burns
      */
     public List<CrucibleHeat.FuelBurn> burnForecast() {
-        return heat.forecast(FuelGrade.configured(), fuelStock::volume);
+        return heat.forecast(FuelGrade.configured(), GooConfig.COMBO_DRAIN_PER_TICK.get(), fuelStock::volume);
     }
 
     /** Returns true if the crucible is enabled (no redstone signal).
