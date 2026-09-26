@@ -1,14 +1,10 @@
 package com.mercuriusxeno.goo.client.overlay;
 
-import com.mercuriusxeno.goo.CutawayInteractionHelper;
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.block.ICutawayMachine;
 import com.mercuriusxeno.goo.block.canister.CanisterBlock;
-import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
 import com.mercuriusxeno.goo.block.canister.CanisterSlotLayout;
-import com.mercuriusxeno.goo.block.hub.HubBlock;
-import com.mercuriusxeno.goo.block.plexer.PlexerBlock;
-import com.mercuriusxeno.goo.block.reactor.ReactorBlock;
-import com.mercuriusxeno.goo.block.tap.TapBlock;
+import com.mercuriusxeno.goo.block.canister.ICanisterHolder;
 import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.LineContext;
 import com.mercuriusxeno.goo.item.CanisterItem;
@@ -23,8 +19,7 @@ import net.minecraft.client.renderer.state.level.LevelRenderState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.ARGB;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
@@ -97,11 +92,7 @@ public final class CanisterPlacementOverlay {
         if (bhr == null) {
             return null;
         }
-        BlockState hitState = mc.level.getBlockState(bhr.getBlockPos());
-        if (isGooMachineBlock(hitState.getBlock())) {
-            return null;
-        }
-        if (isMachineInteraction(mc, hitState, bhr)) {
+        if (machineTakesTheUse(mc.level.getBlockEntity(bhr.getBlockPos()), bhr, isSneaking(mc))) {
             return null;
         }
 
@@ -110,23 +101,24 @@ public final class CanisterPlacementOverlay {
     }
 
     /**
-     * Returns true if a non-sneaking player clicked a machine's interactive region.
+     * Returns true when the aimed machine takes a canister use at the hit rather
+     * than a new canister block placing beside it: a canister holder that says so,
+     * or a standing click in a machine's cutaway.
      *
-     * @param mc       the Minecraft client instance
-     * @param hitState the block state at the hit position
+     * @param be       the block entity at the hit, or null
      * @param bhr      the block hit result
-     * @return true if the hit targets a machine hollow
+     * @param sneaking true when the player is sneaking
+     * @return true if the machine takes the use
      */
-    private static boolean isMachineInteraction(Minecraft mc, BlockState hitState, BlockHitResult bhr) {
-        if (mc.player != null && mc.player.isSecondaryUseActive()) {
-            return false;
+    private static boolean machineTakesTheUse(@Nullable BlockEntity be, BlockHitResult bhr, boolean sneaking) {
+        if (be instanceof ICanisterHolder holder && holder.takesCanisterAt(bhr, sneaking)) {
+            return true;
         }
-        return isMachineHollowInteraction(hitState, bhr, hitState.getBlock(), bhr.getBlockPos());
+        return !sneaking && be instanceof ICutawayMachine machine && machine.isCutawayHit(bhr);
     }
 
-    private static boolean isMachineHollowInteraction(BlockState hitState, BlockHitResult bhr, Block block, BlockPos pos) {
-        return (block instanceof PlexerBlock && CutawayInteractionHelper.isCutawayClick(hitState, pos, bhr))
-                || (block instanceof ReactorBlock && ReactorBlock.isHollowClick(hitState, pos, bhr));
+    private static boolean isSneaking(Minecraft mc) {
+        return mc.player != null && mc.player.isSecondaryUseActive();
     }
 
     /**
@@ -158,19 +150,8 @@ public final class CanisterPlacementOverlay {
     }
 
     /**
-     * Returns true if the block is a canister, hub, or tap (not valid placement targets).
-     *
-     * @param block the block to check
-     * @return true if the block is a canister, hub, or tap
-     */
-    private static boolean isGooMachineBlock(Block block) {
-        return block instanceof CanisterBlock
-                || block instanceof HubBlock
-                || block instanceof TapBlock;
-    }
-
-    /**
-     * Resolves the placement target at placePos, handling insertion and new-block cases.
+     * Resolves the placement target at placePos: an insertion into a holder standing
+     * there, or a new canister block where the space is replaceable.
      *
      * @param mc       the Minecraft client instance
      * @param bhr      the block hit result from the aimed surface
@@ -179,8 +160,9 @@ public final class CanisterPlacementOverlay {
      */
     private static @Nullable PlacementTarget resolveTarget(
             Minecraft mc, BlockHitResult bhr, BlockPos placePos) {
-        if (mc.level.getBlockState(placePos).getBlock() instanceof CanisterBlock) {
-            return computeInsertionTarget(mc, bhr, placePos);
+        if (mc.level.getBlockEntity(placePos) instanceof ICanisterHolder holder) {
+            int slot = holder.insertionSlotFrom(bhr.getLocation());
+            return slot >= 0 ? new PlacementTarget(placePos, slot) : null;
         }
         if (!mc.level.getBlockState(placePos).canBeReplaced()) {
             return null;
@@ -190,33 +172,6 @@ public final class CanisterPlacementOverlay {
             return null;
         }
         return new PlacementTarget(placePos, slot);
-    }
-
-    /**
-     * Computes which empty slot to preview when the placement position
-     * already has a canister block. Uses nearest-slot from hit coordinates.
-     *
-     * @param mc          the Minecraft client instance
-     * @param bhr         the block hit result
-     * @param canisterPos the canister block position
-     * @return the insertion target for the nearest empty slot, or null if none available
-     */
-    private static @Nullable PlacementTarget computeInsertionTarget(
-            Minecraft mc, BlockHitResult bhr, BlockPos canisterPos) {
-        if (!(mc.level.getBlockEntity(canisterPos) instanceof CanisterBlockEntity be)) {
-            return null;
-        }
-        Vec3 loc = bhr.getLocation();
-        float px = (float) ((loc.x - canisterPos.getX()) * PIXELS_PER_BLOCK);
-        float pz = (float) ((loc.z - canisterPos.getZ()) * PIXELS_PER_BLOCK);
-        int slot = CanisterSlotLayout.nearestSlot(px, pz);
-        if (slot < 0 || !be.getCanister(slot).isEmpty()) {
-            return null;
-        }
-        if (!CanisterPlacementValidator.isSlotAllowed(mc.level, canisterPos, slot)) {
-            return null;
-        }
-        return new PlacementTarget(canisterPos, slot);
     }
 
     /**
@@ -244,9 +199,8 @@ public final class CanisterPlacementOverlay {
      */
     @SubscribeEvent
     public static void onExtractOutline(ExtractBlockOutlineRenderStateEvent event) {
-        Block block = event.getBlockState().getBlock();
-        if (block instanceof CanisterBlock || block instanceof HubBlock
-                || block instanceof TapBlock) {
+        BlockEntity be = event.getLevel().getBlockEntity(event.getBlockPos());
+        if (machineTakesTheUse(be, event.getHitResult(), isSneaking(Minecraft.getInstance()))) {
             return;
         }
 

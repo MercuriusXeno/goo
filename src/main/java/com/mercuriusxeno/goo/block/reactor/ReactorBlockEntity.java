@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.block.reactor;
 
 import com.mercuriusxeno.goo.block.GooGlowingMachineBlockEntity;
+import com.mercuriusxeno.goo.block.ICutawayMachine;
 import com.mercuriusxeno.goo.block.canister.*;
 import com.mercuriusxeno.goo.block.gasket.GasketAttachment;
 import com.mercuriusxeno.goo.block.gasket.GasketPusher;
@@ -43,7 +44,7 @@ import java.util.Set;
  * metadata, and the registry location follows the canister in and out.</p>
  */
 public class ReactorBlockEntity extends GooGlowingMachineBlockEntity
-        implements ICanisterHolder, ICanisterAttachable {
+        implements ICanisterHolder, ICanisterAttachable, ICutawayMachine {
 
     /**
      * Output canister slot index.
@@ -284,7 +285,11 @@ public class ReactorBlockEntity extends GooGlowingMachineBlockEntity
         return getBlockState().getValue(ReactorBlock.FACING);
     }
 
-    private boolean inHollow(BlockHitResult hit) {
+    /**
+     * The front hollow is the reactor's cutaway.
+     */
+    @Override
+    public boolean isCutawayHit(BlockHitResult hit) {
         return ReactorBlock.isHollowClick(getBlockState(), getBlockPos(), hit);
     }
 
@@ -310,7 +315,7 @@ public class ReactorBlockEntity extends GooGlowingMachineBlockEntity
 
     @Override
     public @Nullable AABB previewBounds(BlockHitResult hit, boolean sneaking) {
-        return inHollow(hit) && !isSlotFilled(OUTPUT_SLOT) ? slotBounds(OUTPUT_SLOT) : null;
+        return isCutawayHit(hit) && !isSlotFilled(OUTPUT_SLOT) ? slotBounds(OUTPUT_SLOT) : null;
     }
 
     /**
@@ -319,7 +324,7 @@ public class ReactorBlockEntity extends GooGlowingMachineBlockEntity
      */
     @Override
     public @Nullable HudAnchor hudAnchor(BlockHitResult hit, HudViewer viewer) {
-        if (!isSlotFilled(OUTPUT_SLOT) || !inHollow(hit)) {
+        if (!isSlotFilled(OUTPUT_SLOT) || !isCutawayHit(hit)) {
             return null;
         }
         Direction front = facing().getOpposite();
@@ -332,7 +337,7 @@ public class ReactorBlockEntity extends GooGlowingMachineBlockEntity
      */
     @Override
     public boolean takesCanisterAt(BlockHitResult hit, boolean sneaking) {
-        return !sneaking && inHollow(hit);
+        return !sneaking && isCutawayHit(hit);
     }
 
     /**

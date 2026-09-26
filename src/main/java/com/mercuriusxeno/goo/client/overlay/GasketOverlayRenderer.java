@@ -14,7 +14,6 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.ARGB;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
@@ -69,10 +68,9 @@ public final class GasketOverlayRenderer {
 
         BlockHitResult hit = (BlockHitResult) mc.hitResult;
         BlockPos pos = hit.getBlockPos();
-        BlockEntity be = mc.level.getBlockEntity(pos);
-        if (!(be instanceof IGasketHolder holder)) { return; }
+        if (!(mc.level.getBlockEntity(pos) instanceof IGasketHolder holder)) { return; }
 
-        renderGasketOverlay(mc, event, hit, pos, be, holder);
+        renderGasketOverlay(mc, event, hit, pos, holder);
     }
 
     /**
@@ -82,13 +80,12 @@ public final class GasketOverlayRenderer {
      * @param event the render event
      * @param hit the block hit result
      * @param pos the block position
-     * @param be the block entity
      * @param holder the gasket holder
      */
     private static void renderGasketOverlay(
             Minecraft mc, RenderLevelStageEvent.AfterOpaqueFeatures event,
-            BlockHitResult hit, BlockPos pos, BlockEntity be, IGasketHolder holder) {
-        AABB bounds = resolveOverlayBounds(be, holder, hit);
+            BlockHitResult hit, BlockPos pos, IGasketHolder holder) {
+        AABB bounds = resolveOverlayBounds(holder, hit);
         if (bounds == null) { return; }
 
         GasketRole role = holder.resolveRole(hit);
@@ -117,18 +114,17 @@ public final class GasketOverlayRenderer {
      * Resolves the inflated overlay bounds for the targeted gasket region,
      * or null if the target is invalid (unsupported role, empty slot, etc.).
      *
-     * @param be the block entity at the hit position
      * @param holder the gasket holder interface
      * @param hit the block hit result
      * @return the inflated bounds, or null if invalid
      */
-    private static AABB resolveOverlayBounds(BlockEntity be, IGasketHolder holder,
+    private static AABB resolveOverlayBounds(IGasketHolder holder,
             BlockHitResult hit) {
         GasketRole role = holder.resolveRole(hit);
         int slot = holder.resolveSlot(hit);
         if (!holder.supportsRole(role)) { return null; }
 
-        AABB bounds = GasketBoundsResolver.resolveGasketBounds(be, role, slot);
+        AABB bounds = holder.slotBoundsFor(slot, role);
         if (bounds == null) { return null; }
         return bounds.inflate(OVERLAY_EPSILON);
     }

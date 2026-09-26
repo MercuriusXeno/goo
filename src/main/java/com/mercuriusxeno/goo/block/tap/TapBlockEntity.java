@@ -193,7 +193,15 @@ public class TapBlockEntity extends GooGlowingMachineBlockEntity implements ICan
      * @return true if the canister was inserted, false if slot was occupied
      */
     public boolean insertCanister(ItemStack stack) {
-        if (!state.insert(SLOT, stack, false)) {
+        return insertCanister(SLOT, stack, false);
+    }
+
+    /**
+     * A canister going in restarts the drip countdown.
+     */
+    @Override
+    public boolean insertCanister(int index, ItemStack stack, boolean stripGaskets) {
+        if (!state.insert(index, stack, stripGaskets)) {
             return false;
         }
         dripCountdown.restart();

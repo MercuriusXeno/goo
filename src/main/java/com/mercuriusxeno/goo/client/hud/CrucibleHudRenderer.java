@@ -1,14 +1,13 @@
 package com.mercuriusxeno.goo.client.hud;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.block.crucible.CrucibleBlock;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
+import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
@@ -68,7 +67,7 @@ public final class CrucibleHudRenderer {
         BlockHitResult hit = getBlockHitResult(mc);
         if (hit == null) { return null; }
         BlockPos pos = hit.getBlockPos();
-        if (!(mc.level.getBlockState(pos).getBlock() instanceof CrucibleBlock)) { return null; }
+        if (mc.level.getBlockEntity(pos, GooBlockEntities.CRUCIBLE.get()).isEmpty()) { return null; }
         if (hitsBelowBasin(hit, pos)) { return null; }
         return pos;
     }
@@ -106,8 +105,7 @@ public final class CrucibleHudRenderer {
     private static @Nullable CrucibleBlockEntity lookupCrucible(BlockPos pos) {
         Level level = Minecraft.getInstance().level;
         if (level == null) { return null; }
-        BlockEntity be = level.getBlockEntity(pos);
-        return be instanceof CrucibleBlockEntity cbe ? cbe : null;
+        return level.getBlockEntity(pos, GooBlockEntities.CRUCIBLE.get()).orElse(null);
     }
 
     /**
