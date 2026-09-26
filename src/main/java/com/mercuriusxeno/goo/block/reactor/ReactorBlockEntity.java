@@ -1,12 +1,9 @@
 package com.mercuriusxeno.goo.block.reactor;
 
-import com.mercuriusxeno.goo.block.BlockEntitySync;
 import com.mercuriusxeno.goo.block.GooGlowingMachineBlockEntity;
 import com.mercuriusxeno.goo.block.canister.*;
 import com.mercuriusxeno.goo.block.gasket.GasketAttachment;
 import com.mercuriusxeno.goo.block.gasket.GasketPusher;
-import com.mercuriusxeno.goo.block.gasket.SlotGasketPusher;
-import com.mercuriusxeno.goo.block.gasket.SlotGasketRegistration;
 import com.mercuriusxeno.goo.data.GooReaction;
 import com.mercuriusxeno.goo.data.GooReactionLoader;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
@@ -73,11 +70,10 @@ public class ReactorBlockEntity extends GooGlowingMachineBlockEntity
     /**
      * Slotted state for the single output canister.
      */
-    private final SlottedCanisterData state = new SlottedCanisterData(
+    private final SlottedCanisterData state = new SlottedCanisterData(this,
             OUTPUT_SLOT_COUNT,
             i -> Shapes.empty(),
-            slots -> Shapes.empty(),
-            gasket().syncCallback());
+            slots -> Shapes.empty());
     /**
      * Client-side wheel rotation angle in degrees. Not serialized.
      */
@@ -112,11 +108,7 @@ public class ReactorBlockEntity extends GooGlowingMachineBlockEntity
         // as on a canister block slot (reactor-gasket-click-fix).
         super(GooBlockEntities.REACTOR.get(), pos, state, GasketAttachment::none);
         GasketAttachment gasket = gasket();
-        gasket.rebuildPushers(() -> {
-            if (level instanceof ServerLevel) {
-                rebuildOutputPusher();
-            }
-        });
+        gasket.rebuildPushers(this.state::rebuildAllPushers);
         gasket.afterLoad(() -> {
             if (level instanceof ServerLevel serverLevel) {
                 GasketPusher.forceTransmitterChunk(getSlotMetadata(OUTPUT_SLOT).topGasketId(),
@@ -235,65 +227,22 @@ public class ReactorBlockEntity extends GooGlowingMachineBlockEntity
     }
 
     /**
-     * Inserts a canister into the output slot. Two sync passes by design:
-     * {@code setCanister} fires the slot's structure-changed callback (which
-     * calls {@link BlockEntitySync#markDirtyAndSync}) before {@code buildHandler}
-     * runs, so emission reads 0 then. The explicit second pass runs once the
-     * handler is in place and propagates the correct emission.
+     * Inserts a canister into the output slot through the shared slot lifecycle.
      *
      * @param stack the canister to insert
      * @return true if inserted
      */
     public boolean insertOutputCanister(ItemStack stack) {
-        if (!getOutputCanister().isEmpty()) {
-            return false;
-        }
-        state.slots[OUTPUT_SLOT].setCanister(stack.copyWithCount(1));
-        state.slots[OUTPUT_SLOT].buildHandler(() -> level != null ? level.getGameTime() : 0L);
-        BlockEntitySync.invalidateCapabilities(this);
-        registerOutputGaskets();
-        rebuildOutputPusher();
-        BlockEntitySync.markDirtyAndSync(this);
-        return true;
+        return state.insert(OUTPUT_SLOT, stack, false);
     }
 
     /**
-     * Removes and returns the output canister.
+     * Removes and returns the output canister through the shared slot lifecycle.
      *
      * @return the removed canister, or EMPTY
      */
     public @NonNull ItemStack removeOutputCanister() {
-        ItemStack current = getOutputCanister();
-        if (current.isEmpty()) {
-            return ItemStack.EMPTY;
-        }
-        // Write handler state to the item stack so the returned item has
-        // accurate fluid data, but don't sync yet - we clear and sync once.
-        state.slots[OUTPUT_SLOT].syncHandlerToStack();
-        deregisterOutputGaskets();
-        state.slots[OUTPUT_SLOT].disposePusher();
-        state.slots[OUTPUT_SLOT].clear();
-        BlockEntitySync.invalidateCapabilities(this);
-        BlockEntitySync.markDirtyAndSync(this);
-        return current;
-    }
-
-    /**
-     * Stands or drops the output slot's pusher from the canister's bottom
-     * gasket state, the lifecycle a canister block slot runs
-     * (reactor-output-push-fix).
-     */
-    private void rebuildOutputPusher() {
-        SlotGasketPusher.rebuild(state.slots[OUTPUT_SLOT], this, gasket().registryAccess());
-    }
-
-    private void registerOutputGaskets() {
-        SlotGasketRegistration.register(gasket().registryAccess(), level, worldPosition,
-                OUTPUT_SLOT, getSlotMetadata(OUTPUT_SLOT));
-    }
-
-    private void deregisterOutputGaskets() {
-        SlotGasketRegistration.deregister(gasket().registryAccess(), getSlotMetadata(OUTPUT_SLOT));
+        return state.remove(OUTPUT_SLOT);
     }
 
     // --- IGasketHolder ---
@@ -320,8 +269,8 @@ public class ReactorBlockEntity extends GooGlowingMachineBlockEntity
     @Override
     public void setPartner(GasketRole role, int slot, @Nullable GasketPartner partner) {
         super.setPartner(role, slot, partner);
-        if (role == GasketRole.TRANSMITTER && slot == OUTPUT_SLOT) {
-            rebuildOutputPusher();
+        if (role == GasketRole.TRANSMITTER) {
+            state.rebuildPusher(slot);
         }
     }
 
@@ -589,21 +538,12 @@ public class ReactorBlockEntity extends GooGlowingMachineBlockEntity
     @Override
     protected void saveAdditional(@NonNull ValueOutput output) {
         super.saveAdditional(output);
-        // Write handler state to item stack without triggering a sync
-        // (we're already inside serialization).
-        state.slots[OUTPUT_SLOT].syncHandlerToStack();
-        if (!getOutputCanister().isEmpty()) {
-            output.store(TAG_OUTPUT_CANISTER, ItemStack.CODEC, getOutputCanister());
-        }
+        state.save(output, TAG_OUTPUT_CANISTER);
     }
 
     @Override
     protected void loadAdditional(@NonNull ValueInput input) {
         super.loadAdditional(input);
-        ItemStack loaded = input.read(TAG_OUTPUT_CANISTER, ItemStack.CODEC).orElse(ItemStack.EMPTY);
-        state.slots[OUTPUT_SLOT].setCanister(loaded);
-        if (!loaded.isEmpty()) {
-            state.slots[OUTPUT_SLOT].buildHandler(() -> level != null ? level.getGameTime() : 0L);
-        }
+        state.load(input, TAG_OUTPUT_CANISTER);
     }
 }

@@ -1,12 +1,12 @@
 package com.mercuriusxeno.goo.block.reactor;
 
 import com.mercuriusxeno.goo.CutawayInteractionHelper;
-import com.mercuriusxeno.goo.PlayerUtils;
 import com.mercuriusxeno.goo.block.BlockEntityTicks;
 import com.mercuriusxeno.goo.block.CutawayShapeHelper;
 import com.mercuriusxeno.goo.block.FacingRedstoneMachineBlock;
 import com.mercuriusxeno.goo.block.GooBlockInteraction;
 import com.mercuriusxeno.goo.block.ShapeHitCheck;
+import com.mercuriusxeno.goo.block.canister.SlottedCanisterData;
 import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.GooInteractionType;
@@ -159,14 +159,7 @@ public class ReactorBlock extends FacingRedstoneMachineBlock {
      */
     private static InteractionResult removeReactorCanister(
             ReactorBlockEntity reactor, Player player, Level level, BlockPos pos) {
-        ItemStack removed = reactor.removeOutputCanister();
-        if (removed.isEmpty()) {
-            return InteractionResult.PASS;
-        }
-        PlayerUtils.addOrDrop(player, removed);
-        level.playSound(null, pos, SoundEvents.DECORATED_POT_HIT,
-                SoundSource.BLOCKS, 1.0f, 1.0f);
-        return InteractionResult.SUCCESS;
+        return SlottedCanisterData.handToPlayer(reactor.removeOutputCanister(), player, level, pos);
     }
 
     /**

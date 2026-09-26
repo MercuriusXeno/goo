@@ -4,13 +4,11 @@ import com.mercuriusxeno.goo.DripFall;
 import com.mercuriusxeno.goo.GooColors;
 import com.mercuriusxeno.goo.GooConstants;
 import com.mercuriusxeno.goo.GooTypeDefinition;
-import com.mercuriusxeno.goo.block.BlockEntitySync;
 import com.mercuriusxeno.goo.block.GooGlowingMachineBlockEntity;
 import com.mercuriusxeno.goo.block.canister.ICanisterHolder;
 import com.mercuriusxeno.goo.block.canister.SlottedCanisterData;
 import com.mercuriusxeno.goo.block.gasket.AddressedGasket;
 import com.mercuriusxeno.goo.block.gasket.GasketAttachment;
-import com.mercuriusxeno.goo.block.gasket.SlotGasketRegistration;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
@@ -74,10 +72,9 @@ public class TapBlockEntity extends GooGlowingMachineBlockEntity implements ICan
     public TapBlockEntity(BlockPos pos, BlockState bstate) {
         super(GooBlockEntities.TAP.get(), pos, bstate,
                 be -> GasketAttachment.single(be, GasketRole.RECEIVER, FACE_LABEL));
-        this.state = new SlottedCanisterData(1,
+        this.state = new SlottedCanisterData(this, 1,
                 i -> Shapes.empty(),
-                slots -> Shapes.empty(),
-                gasket().syncCallback());
+                slots -> Shapes.empty());
     }
 
     /**
@@ -137,39 +134,27 @@ public class TapBlockEntity extends GooGlowingMachineBlockEntity implements ICan
     }
 
     /**
-     * Inserts a canister into the tap's slot. Returns false if the slot is occupied.
+     * Inserts a canister into the tap's slot through the shared slot lifecycle,
+     * restarting the drip countdown. Returns false if the slot is occupied.
      *
      * @param stack the canister item stack to insert
      * @return true if the canister was inserted, false if slot was occupied
      */
     public boolean insertCanister(ItemStack stack) {
-        if (!getCanister().isEmpty()) {
+        if (!state.insert(SLOT, stack, false)) {
             return false;
         }
-        state.slots[SLOT].setCanister(stack.copyWithCount(1));
-        state.slots[SLOT].buildHandler(() -> level != null ? level.getGameTime() : 0L);
         dripCountdown.restart();
-        registerSlotGaskets();
-        BlockEntitySync.markDirtyAndSync(this);
         return true;
     }
 
-    // --- Goo pass-through (delegates to ICanisterHolder slot 0) ---
-
     /**
-     * Removes and returns the canister from the tap's slot.
+     * Removes and returns the canister from the tap's slot through the shared slot lifecycle.
      *
      * @return the removed canister item stack, or EMPTY if slot was empty
      */
     public @NonNull ItemStack removeCanister() {
-        ItemStack current = getCanister();
-        if (current.isEmpty()) {
-            return ItemStack.EMPTY;
-        }
-        deregisterSlotGaskets();
-        state.slots[SLOT].clear();
-        BlockEntitySync.markDirtyAndSync(this);
-        return current;
+        return state.remove(SLOT);
     }
 
     /**
@@ -253,19 +238,6 @@ public class TapBlockEntity extends GooGlowingMachineBlockEntity implements ICan
         level.setBlock(worldPosition, getBlockState().setValue(TapBlock.HAS_GASKET, false), Block.UPDATE_ALL);
     }
 
-    private void registerSlotGaskets() {
-        if (!getCanister().isEmpty()) {
-            SlotGasketRegistration.register(gasket().registryAccess(), level, worldPosition,
-                    SLOT, getSlotMetadata(SLOT));
-        }
-    }
-
-    private void deregisterSlotGaskets() {
-        if (!getCanister().isEmpty()) {
-            SlotGasketRegistration.deregister(gasket().registryAccess(), getSlotMetadata(SLOT));
-        }
-    }
-
     // --- Framework lifecycle ---
 
     @Override
@@ -278,21 +250,14 @@ public class TapBlockEntity extends GooGlowingMachineBlockEntity implements ICan
     @Override
     protected void saveAdditional(@NonNull ValueOutput output) {
         super.saveAdditional(output);
-        ItemStack can = getCanister();
-        if (!can.isEmpty()) {
-            output.store(TAG_CANISTER, ItemStack.CODEC, can);
-        }
+        state.save(output, TAG_CANISTER);
         dripCountdown.save(output);
     }
 
     @Override
     protected void loadAdditional(@NonNull ValueInput input) {
         super.loadAdditional(input);
-        ItemStack loaded = input.read(TAG_CANISTER, ItemStack.CODEC).orElse(ItemStack.EMPTY);
-        state.slots[SLOT].setCanister(loaded);
-        if (!loaded.isEmpty()) {
-            state.slots[SLOT].buildHandler(() -> level != null ? level.getGameTime() : 0L);
-        }
+        state.load(input, TAG_CANISTER);
         dripCountdown.load(input);
     }
 }

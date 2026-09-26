@@ -62,7 +62,7 @@ public abstract class GooMachineBlockEntity extends GooSyncedBlockEntity impleme
         gasket().onSetLevel(level);
         SlottedCanisterData slots = heldSlots();
         if (slots != null && level instanceof ServerLevel) {
-            slots.registerSlotGaskets(gasket().registryAccess(), level, worldPosition);
+            slots.registerSlotGaskets();
         }
     }
 
@@ -95,7 +95,7 @@ public abstract class GooMachineBlockEntity extends GooSyncedBlockEntity impleme
     public final void setRemoved() {
         SlottedCanisterData slots = heldSlots();
         if (slots != null) {
-            slots.releaseSlotGaskets(gasket().registryAccess());
+            slots.releaseSlotGaskets();
         }
         super.setRemoved();
     }

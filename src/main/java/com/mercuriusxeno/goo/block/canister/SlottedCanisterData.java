@@ -1,19 +1,28 @@
 package com.mercuriusxeno.goo.block.canister;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.PlayerUtils;
 import com.mercuriusxeno.goo.block.GooLightEntry;
+import com.mercuriusxeno.goo.block.GooMachineBlockEntity;
 import com.mercuriusxeno.goo.block.gasket.GasketPusher;
+import com.mercuriusxeno.goo.block.gasket.SlotGasketPusher;
 import com.mercuriusxeno.goo.block.gasket.SlotGasketRegistration;
-import com.mercuriusxeno.goo.block.hub.HubBlockEntity;
 import com.mercuriusxeno.goo.data.GasketRegistry;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.registry.GooFluids;
 import net.minecraft.core.BlockPos;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.material.Fluid;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import org.jspecify.annotations.Nullable;
@@ -21,44 +30,66 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 import java.util.function.IntFunction;
+import java.util.function.IntPredicate;
 import java.util.function.Supplier;
 
 /**
- * Behavioral component that owns the slot grid for {@link CanisterBlockEntity}
- * and {@link HubBlockEntity}. Each BE holds one instance and exposes its slots
- * via {@link #slots}. Per-slot operations live on {@link CanisterSlot} as
- * instance methods. This class only handles cross-slot work: composite shape
- * (re-ORed on slot mutation, not access), fluid routing across slots, and
- * lifecycle for all pushers.
+ * Behavioral component that owns the slot grid of every machine holding
+ * canisters in slots: the canister block, the hub, the reactor's output hollow
+ * and the tap. Each machine holds one instance bound to itself and exposes its
+ * slots via {@link #slots}. Per-slot operations live on {@link CanisterSlot};
+ * this class owns the cross-slot work: composite shape (re-ORed on slot
+ * mutation, not access), fluid routing, pushers, and the whole lifecycle of a
+ * canister entering and leaving a slot, together with its save and load
+ * (decision machine-base-owns-the-lifecycle).
  */
 public class SlottedCanisterData {
 
     /** Per-slot state. Index range is {@code [0, maxSlots)}. */
     public final CanisterSlot[] slots;
 
+    private final GooMachineBlockEntity owner;
     private final int maxSlots;
     private final Runnable syncCallback;
     private final Function<CanisterSlot[], VoxelShape> shapeBuilder;
+    private final IntPredicate slotAllowed;
     private VoxelShape compositeShape;
 
     /**
-     * Creates the slot grid.
+     * Creates the slot grid for a machine that takes a canister in any slot.
      *
+     * @param owner        the machine holding the slots
      * @param maxSlots     number of slots
      * @param slotShapeFor function from slot index to its filled voxel shape
      * @param shapeBuilder builds the composite voxel shape from the slot array;
-     *                     called on each structural change. The BE supplies
+     *                     called on each structural change. The machine supplies
      *                     this so it can include block-level geometry (e.g.,
      *                     hub frame) and pick a fallback when no slot is occupied.
-     * @param syncCallback called when contents change (typically markDirtyAndSync)
      */
-    public SlottedCanisterData(int maxSlots,
+    public SlottedCanisterData(GooMachineBlockEntity owner, int maxSlots,
+            IntFunction<VoxelShape> slotShapeFor,
+            Function<CanisterSlot[], VoxelShape> shapeBuilder) {
+        this(owner, maxSlots, slotShapeFor, shapeBuilder, index -> true);
+    }
+
+    /**
+     * Creates the slot grid for a machine whose placement rules close some slots.
+     *
+     * @param owner        the machine holding the slots
+     * @param maxSlots     number of slots
+     * @param slotShapeFor function from slot index to its filled voxel shape
+     * @param shapeBuilder builds the composite voxel shape from the slot array
+     * @param slotAllowed  answers whether a slot takes a canister where the machine stands
+     */
+    public SlottedCanisterData(GooMachineBlockEntity owner, int maxSlots,
             IntFunction<VoxelShape> slotShapeFor,
             Function<CanisterSlot[], VoxelShape> shapeBuilder,
-            Runnable syncCallback) {
+            IntPredicate slotAllowed) {
+        this.owner = owner;
         this.maxSlots = maxSlots;
-        this.syncCallback = syncCallback;
+        this.syncCallback = owner.gasketSyncCallback();
         this.shapeBuilder = shapeBuilder;
+        this.slotAllowed = slotAllowed;
         this.slots = new CanisterSlot[maxSlots];
         for (int i = 0; i < maxSlots; i++) {
             slots[i] = new CanisterSlot(i, slotShapeFor.apply(i),
@@ -66,7 +97,6 @@ public class SlottedCanisterData {
         }
         this.compositeShape = shapeBuilder.apply(this.slots);
     }
-
     /** @return the configured slot count */
     public int maxSlots() {
         return maxSlots;
@@ -301,37 +331,197 @@ public class SlottedCanisterData {
         }
     }
 
-    // --- Slot gasket registration (cross-slot, decision machine-base-owns-the-lifecycle) ---
+    // --- Slot lifecycle (decision machine-base-owns-the-lifecycle) ---
 
     /**
-     * Registers the gaskets of every occupied slot's canister at the host.
+     * Puts a canister in a slot and runs every step a slotted canister needs:
+     * the placement check, the creative-duplicate gasket strip, the fluid
+     * handler, the pusher, the capability refresh, the gasket registration, and
+     * one sync once the handler stands, so the synced emission reads the canister.
      *
-     * @param access the gasket registry access, or null on the client
-     * @param level  the host's level
-     * @param pos    the host's position
+     * @param index        the slot index
+     * @param stack        the canister stack; one is copied from it
+     * @param stripGaskets true to clear gasket ids (creative duplication)
+     * @return true if the canister went in
      */
-    public void registerSlotGaskets(@Nullable Supplier<GasketRegistry> access, @Nullable Level level,
-                                    BlockPos pos) {
+    public boolean insert(int index, ItemStack stack, boolean stripGaskets) {
+        if (!inRange(index) || !(stack.getItem() instanceof CanisterItem)
+                || !slots[index].isEmpty() || !slotAllowed.test(index)) {
+            return false;
+        }
+        CanisterSlot slot = slots[index];
+        slot.setCanister(stack.copyWithCount(1));
+        if (stripGaskets) {
+            slot.stripGaskets();
+        }
+        slot.buildHandler(this::gameTime);
+        rebuildPusher(index);
+        invalidateCapabilities();
+        SlotGasketRegistration.register(registryAccess(), owner.getLevel(), owner.getBlockPos(),
+                index, CanisterItem.getMetadata(slot.canister()));
+        syncCallback.run();
+        return true;
+    }
+
+    /**
+     * Takes the canister out of a slot: stops its pusher, writes its fluid onto
+     * the stack, clears its gasket registration, vacates the slot (which syncs)
+     * and refreshes capabilities.
+     *
+     * @param index the slot index
+     * @return the removed canister, or EMPTY when the slot holds none
+     */
+    public ItemStack remove(int index) {
+        if (!inRange(index) || slots[index].isEmpty()) {
+            return ItemStack.EMPTY;
+        }
+        CanisterSlot slot = slots[index];
+        slot.disposePusher();
+        slot.syncHandlerToStack();
+        ItemStack removed = slot.canister().copy();
+        SlotGasketRegistration.deregister(registryAccess(), CanisterItem.getMetadata(removed));
+        slot.clear();
+        invalidateCapabilities();
+        return removed;
+    }
+
+    /**
+     * Stands or drops a slot's pusher from its canister's bottom gasket state.
+     *
+     * @param index the slot index
+     */
+    public void rebuildPusher(int index) {
+        if (inRange(index)) {
+            SlotGasketPusher.rebuild(slots[index], owner, registryAccess());
+        }
+    }
+
+    /** Stands or drops every slot's pusher. */
+    public void rebuildAllPushers() {
+        for (int i = 0; i < maxSlots; i++) {
+            rebuildPusher(i);
+        }
+    }
+
+    /** Registers the gaskets of every occupied slot's canister, once the owner stands in its level. */
+    public void registerSlotGaskets() {
         for (CanisterSlot slot : slots) {
             if (!slot.isEmpty()) {
-                SlotGasketRegistration.register(access, level, pos, slot.index(),
-                        CanisterItem.getMetadata(slot.canister()));
+                SlotGasketRegistration.register(registryAccess(), owner.getLevel(), owner.getBlockPos(),
+                        slot.index(), CanisterItem.getMetadata(slot.canister()));
             }
         }
     }
 
     /**
      * Disposes every slot pusher and clears the registry location of every
-     * occupied slot's canister gaskets, as the host leaves the level.
-     *
-     * @param access the gasket registry access, or null on the client
+     * occupied slot's canister gaskets, as the owner leaves the level.
      */
-    public void releaseSlotGaskets(@Nullable Supplier<GasketRegistry> access) {
+    public void releaseSlotGaskets() {
         disposeAllPushers();
         for (CanisterSlot slot : slots) {
             if (!slot.isEmpty()) {
-                SlotGasketRegistration.deregister(access, CanisterItem.getMetadata(slot.canister()));
+                SlotGasketRegistration.deregister(registryAccess(), CanisterItem.getMetadata(slot.canister()));
             }
+        }
+    }
+
+    /**
+     * Hands a canister taken from a slot to the player, with the pot-hit sound.
+     *
+     * @param removed the canister taken out
+     * @param player  the player receiving it
+     * @param level   the level
+     * @param pos     the machine's position
+     * @return SUCCESS when a canister was handed over, PASS when none was
+     */
+    public static InteractionResult handToPlayer(ItemStack removed, Player player, Level level, BlockPos pos) {
+        if (removed.isEmpty()) {
+            return InteractionResult.PASS;
+        }
+        PlayerUtils.addOrDrop(player, removed);
+        level.playSound(null, pos, SoundEvents.DECORATED_POT_HIT, SoundSource.BLOCKS, 1.0F, 1.0F);
+        return InteractionResult.SUCCESS;
+    }
+
+    private @Nullable Supplier<GasketRegistry> registryAccess() {
+        return owner.gasket().registryAccess();
+    }
+
+    private long gameTime() {
+        Level level = owner.getLevel();
+        return level != null ? level.getGameTime() : 0L;
+    }
+
+    private void invalidateCapabilities() {
+        Level level = owner.getLevel();
+        if (level != null && !level.isClientSide()) {
+            level.invalidateCapabilities(owner.getBlockPos());
+        }
+    }
+
+    // --- Save and load ---
+
+    /**
+     * Writes the slots under one key. A grid of slots writes a compound keyed
+     * by slot index; a single slot writes its canister stack alone, the format
+     * the reactor and the tap have always saved. Each handler's fluid is
+     * written onto its stack first.
+     *
+     * @param output the value output
+     * @param key    the tag key the slots live under
+     */
+    public void save(ValueOutput output, String key) {
+        for (CanisterSlot slot : slots) {
+            slot.syncHandlerToStack();
+        }
+        if (maxSlots == 1) {
+            saveLoneCanister(output, key);
+        } else {
+            saveGrid(output, key);
+        }
+    }
+
+    private void saveLoneCanister(ValueOutput output, String key) {
+        ItemStack canister = slots[0].canister();
+        if (!canister.isEmpty()) {
+            output.store(key, ItemStack.CODEC, canister);
+        }
+    }
+
+    private void saveGrid(ValueOutput output, String key) {
+        CompoundTag root = new CompoundTag();
+        for (CanisterSlot slot : slots) {
+            CompoundTag slotTag = new CompoundTag();
+            slot.save(slotTag);
+            if (!slotTag.isEmpty()) {
+                root.put(String.valueOf(slot.index()), slotTag);
+            }
+        }
+        if (!root.isEmpty()) {
+            output.store(key, CompoundTag.CODEC, root);
+        }
+    }
+
+    /**
+     * Reads the slots {@link #save} wrote, then rebuilds each fluid handler and
+     * the composite shape. Loading fires no structure callback, so no sync runs.
+     *
+     * @param input the value input
+     * @param key   the tag key the slots live under
+     */
+    public void load(ValueInput input, String key) {
+        if (maxSlots == 1) {
+            slots[0].load(input.read(key, ItemStack.CODEC).orElse(ItemStack.EMPTY));
+        } else {
+            CompoundTag root = input.read(key, CompoundTag.CODEC).orElseGet(CompoundTag::new);
+            for (CanisterSlot slot : slots) {
+                slot.load(root.getCompoundOrEmpty(String.valueOf(slot.index())));
+            }
+        }
+        rebuildCompositeShape();
+        for (CanisterSlot slot : slots) {
+            slot.buildHandler(this::gameTime);
         }
     }
 
