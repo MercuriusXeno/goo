@@ -82,8 +82,8 @@ public final class GooTestFunctions {
     // --- GasketPusher ---
     private static final String PUSHER_EMPTY_RESERVOIR = "pusher_empty_reservoir";
     private static final String PUSHER_NO_PARTNER = "pusher_no_partner";
-    private static final String PUSHER_DISPOSE_AND_TICK = "pusher_dispose_and_tick";
-    private static final String PUSHER_DOUBLE_DISPOSE = "pusher_double_dispose";
+    private static final String PUSHER_DISPOSE_DROPS_GASKET = "pusher_dispose_drops_gasket_once";
+    private static final String PUSHER_DOUBLE_DISPOSE_DROPS_GASKETS = "pusher_double_dispose_drops_gasket_each_time";
     private static final String PUSHER_REACTOR_OUTPUT_PUSH = "pusher_reactor_output_push";
     private static final String PUSHER_REACTOR_OUTPUT_REMOVAL = "pusher_reactor_output_removal";
     private static final String PUSHER_WATERLOGGED_GASKET_VAT = "pusher_waterlogged_gasket_vat";
@@ -222,15 +222,15 @@ public final class GooTestFunctions {
     private static final String MACHINE_CANISTER_INSERT = "machine_canister_insert";
     private static final String MACHINE_CANISTER_REMOVE = "machine_canister_remove";
     private static final String MACHINE_CANISTER_TICK = "machine_canister_tick";
-    private static final String MACHINE_CANISTER_BREAK = "machine_canister_break";
+    private static final String MACHINE_CANISTER_BREAK_RELEASES_GASKET = "machine_canister_break_releases_gasket";
     private static final String MACHINE_CANISTER_FLUID = "machine_canister_fluid";
     private static final String MACHINE_CANISTER_ROUTING = "machine_canister_routing";
     private static final String MACHINE_CANISTER_ROUNDTRIP = "machine_canister_roundtrip";
-    private static final String MACHINE_REACTOR_IDLE = "machine_reactor_idle";
-    private static final String MACHINE_REACTOR_BREAK = "machine_reactor_break";
+    private static final String MACHINE_REACTOR_WITHOUT_INPUTS = "machine_reactor_without_inputs";
+    private static final String MACHINE_REACTOR_BREAK_RELEASES_GASKET = "machine_reactor_break_releases_gasket";
     private static final String MACHINE_REACTOR_REACTION = "machine_reactor_reaction";
     private static final String MACHINE_REACTOR_REDSTONE = "machine_reactor_redstone";
-    private static final String MACHINE_PLEXER_IDLE = "machine_plexer_idle";
+    private static final String MACHINE_PLEXER_WITHOUT_GOO = "machine_plexer_without_goo";
 
     // --- MobEffects ---
     private static final String MOB_METAL = "mob_metal_javelin";
@@ -364,8 +364,8 @@ public final class GooTestFunctions {
     private static void registerGasketTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
         reg(r, PUSHER_EMPTY_RESERVOIR, GasketPusherTests::emptyReservoirSkipsTick);
         reg(r, PUSHER_NO_PARTNER, GasketPusherTests::noPartnerSkipsTick);
-        reg(r, PUSHER_DISPOSE_AND_TICK, GasketPusherTests::disposeAndTickIsSafe);
-        reg(r, PUSHER_DOUBLE_DISPOSE, GasketPusherTests::doubleDisposeIsSafe);
+        reg(r, PUSHER_DISPOSE_DROPS_GASKET, GasketPusherTests::disposeDropsGasketOnce);
+        reg(r, PUSHER_DOUBLE_DISPOSE_DROPS_GASKETS, GasketPusherTests::doubleDisposeDropsGasketEachTime);
         reg(r, PUSHER_REACTOR_OUTPUT_PUSH, GasketPusherTests::reactorOutputPushesToLinkedReceiver);
         reg(r, PUSHER_REACTOR_OUTPUT_REMOVAL, GasketPusherTests::reactorOutputRemovalStopsPush);
         reg(r, PUSHER_WATERLOGGED_GASKET_VAT, GasketPusherTests::waterloggedGasketPushesIntoVat);
@@ -506,15 +506,15 @@ public final class GooTestFunctions {
         reg(r, MACHINE_CANISTER_INSERT, MachineTests::canisterInsertCreatesHandler);
         reg(r, MACHINE_CANISTER_REMOVE, MachineTests::canisterRemoveClearsHandler);
         reg(r, MACHINE_CANISTER_TICK, MachineTests::canisterTicksWithSlot);
-        reg(r, MACHINE_CANISTER_BREAK, MachineTests::canisterBreakWithSlotIsSafe);
+        reg(r, MACHINE_CANISTER_BREAK_RELEASES_GASKET, MachineTests::canisterBreakReleasesSlotGasket);
         reg(r, MACHINE_CANISTER_FLUID, MachineTests::canisterFluidInsertExtract);
         reg(r, MACHINE_CANISTER_ROUTING, MachineTests::canisterFluidRouting);
         reg(r, MACHINE_CANISTER_ROUNDTRIP, MachineTests::canisterSurvivesRoundTrip);
-        reg(r, MACHINE_REACTOR_IDLE, MachineTests::reactorIdleTick);
-        reg(r, MACHINE_REACTOR_BREAK, MachineTests::reactorBreakIsSafe);
+        reg(r, MACHINE_REACTOR_WITHOUT_INPUTS, MachineTests::reactorWithoutInputsMakesNothing);
+        reg(r, MACHINE_REACTOR_BREAK_RELEASES_GASKET, MachineTests::reactorBreakReleasesOutputGasket);
         reg(r, MACHINE_REACTOR_REACTION, MachineTests::reactorProcessesReaction);
         reg(r, MACHINE_REACTOR_REDSTONE, MachineTests::reactorRedstoneHalts);
-        reg(r, MACHINE_PLEXER_IDLE, MachineTests::plexerIdleTick);
+        reg(r, MACHINE_PLEXER_WITHOUT_GOO, MachineTests::plexerWithoutGooMakesNothing);
     }
 
     private static void registerMobEffectTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
