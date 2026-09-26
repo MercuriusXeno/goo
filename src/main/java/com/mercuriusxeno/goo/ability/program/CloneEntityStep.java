@@ -42,7 +42,7 @@ public record CloneEntityStep(Expr chance) implements Step {
     @Override
     public boolean tick(StepContext context) {
         float chancePercent = chance.evaluateFloat(context);
-        LivingEntity target = context.host().target();
+        LivingEntity target = context.hostAs(TargetHost.class).target();
         ServerLevel level = (ServerLevel) target.level();
         if (level.getRandom().nextFloat() * PERCENT < chancePercent) {
             spawnClone(target, level);
