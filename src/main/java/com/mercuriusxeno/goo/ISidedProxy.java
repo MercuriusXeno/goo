@@ -1,5 +1,7 @@
 package com.mercuriusxeno.goo;
 
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.HitResult;
 import org.jspecify.annotations.Nullable;
 
@@ -34,5 +36,16 @@ public interface ISidedProxy {
      */
     default @Nullable HitResult getCrosshairHit() {
         return null;
+    }
+
+    /**
+     * Resolves the local player's aim and sends a glove throw to the server.
+     * Server: does nothing, since only the client aims
+     * (decision client-handlers-under-client-network).
+     *
+     * @param player  the local player
+     * @param gooType the goo type the glove has selected
+     */
+    default void sendGloveThrow(Player player, ResourceKey<GooTypeDefinition> gooType) {
     }
 }

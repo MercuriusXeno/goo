@@ -1,6 +1,5 @@
-package com.mercuriusxeno.goo.client.particle;
+package com.mercuriusxeno.goo.registry;
 
-import com.mercuriusxeno.goo.registry.GooParticles;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.Direction;
