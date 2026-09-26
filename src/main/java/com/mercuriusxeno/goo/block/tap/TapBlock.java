@@ -60,7 +60,7 @@ public class TapBlock extends GooMachineBlock {
     /**
      * South-facing canister slot shape (wireframe preview + BER position).
      */
-    private static final VoxelShape SOUTH_CANISTER_SLOT = box(6, 4, 1, 10, 16, 5);
+    private static final VoxelShape SOUTH_CANISTER_SLOT = TapHitRegion.SOUTH_CANISTER_SLOT;
     /**
      * South-facing spigot nozzle shape.
      */
@@ -74,7 +74,7 @@ public class TapBlock extends GooMachineBlock {
     /**
      * Per-facing canister slot shapes for wireframe preview.
      */
-    private static final Map<Direction, VoxelShape> CANISTER_SLOT_SHAPES = TapShapeBuilder.buildSubShapes(SOUTH_CANISTER_SLOT);
+    private static final Map<Direction, VoxelShape> CANISTER_SLOT_SHAPES = TapHitRegion.CANISTER_SLOT_SHAPES;
     /**
      * Per-facing composite collision shapes (no canister).
      */
