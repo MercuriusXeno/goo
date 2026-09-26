@@ -19,6 +19,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
@@ -44,6 +45,8 @@ public class CrucibleBlockEntity extends GooGlowingMachineBlockEntity {
     static final int IGNITION_RANDOM_TICKS = 2;
     /** Minimum ticks between sizzle sounds (debounce). */
     private static final int SIZZLE_DEBOUNCE_TICKS = 20;
+    /** The gasket's overlay region: the basin, from 9/16 up to the block top. */
+    private static final AABB BASIN_GASKET_BOUNDS = new AABB(0, 9.0 / 16.0, 0, 1, 1, 1);
 
     // Package-private fields accessed by CrucibleMelting, CrucibleInsertion, CrucibleSerialization.
 
@@ -269,6 +272,15 @@ public class CrucibleBlockEntity extends GooGlowingMachineBlockEntity {
     @Override
     public @Nullable BooleanProperty gasketFlag(GasketRole role) {
         return role == GasketRole.TRANSMITTER ? CrucibleBlock.HAS_GASKET : null;
+    }
+
+    /**
+     * The one gasket fills the basin, whichever role the tuner names
+     * (decision hosts-answer-bounds-through-interfaces).
+     */
+    @Override
+    public @Nullable AABB slotBoundsFor(int slot, GasketRole role) {
+        return getBlockState().getValue(CrucibleBlock.HAS_GASKET) ? BASIN_GASKET_BOUNDS : null;
     }
 
     @Override
