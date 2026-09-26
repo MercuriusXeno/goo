@@ -364,6 +364,20 @@ public class SlottedCanisterData {
     }
 
     /**
+     * Puts back the canisters a machine's item carried, in slot order, each
+     * through {@link #insert}, so a machine placed from an item gets the same
+     * handler, pusher, capability refresh and gasket registration a click gives.
+     * A slot already holding a canister keeps it.
+     *
+     * @param stacks the carried canisters, first to slot 0
+     */
+    public void restore(List<ItemStack> stacks) {
+        for (int i = 0; i < Math.min(maxSlots, stacks.size()); i++) {
+            insert(i, stacks.get(i), false);
+        }
+    }
+
+    /**
      * Takes the canister out of a slot: stops its pusher, writes its fluid onto
      * the stack, clears its gasket registration, vacates the slot (which syncs)
      * and refreshes capabilities.

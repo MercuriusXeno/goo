@@ -267,9 +267,7 @@ public class HubBlockEntity extends GooGlowingMachineBlockEntity implements ICan
         super.applyImplicitComponents(getter);
         List<ItemStack> fromItem = getter.get(GooDataComponents.HUB_CANISTERS.get());
         if (fromItem != null) {
-            for (int i = 0; i < MAX_CANISTERS; i++) {
-                state.slots[i].setCanister(i < fromItem.size() ? fromItem.get(i) : ItemStack.EMPTY);
-            }
+            state.restore(fromItem);
         }
     }
 }
