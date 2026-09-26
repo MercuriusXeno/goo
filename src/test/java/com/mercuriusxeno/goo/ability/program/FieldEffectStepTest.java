@@ -383,7 +383,7 @@ class FieldEffectStepTest {
         List<Step> steps = List.of(new FieldEffectStep(Expr.literal(3), List.of(), Expr.literal(0),
                 Expr.literal(1), Expr.literal(1), Expr.literal(0), Expr.literal(1), FieldTiming.INSTANT,
                 List.of(new ExplodeStep(Expr.literal(2), ExplosionMode.NONE),
-                        new WaitStep(Expr.literal(2))),
+                        LeafSteps.WAIT.step(Expr.literal(2))),
                 List.of()));
 
         ProgramLoadException refusal = assertThrows(ProgramLoadException.class,

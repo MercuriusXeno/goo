@@ -54,7 +54,7 @@ class ProgramBehaviorTest {
     @Test
     void waitHoldsTheCursorForItsTicks() {
         MarkerHost host = hostWithStacks(1);
-        ProgramBehavior program = new ProgramBehavior(List.of(new WaitStep(Expr.literal(2)), explode("1")));
+        ProgramBehavior program = new ProgramBehavior(List.of(LeafSteps.WAIT.step(Expr.literal(2)), explode("1")));
 
         program.tick(host);
         program.tick(host);
@@ -87,7 +87,7 @@ class ProgramBehaviorTest {
     @Test
     void instantStepsChainWithinOneTick() {
         MarkerHost host = hostWithStacks(1);
-        ProgramBehavior program = new ProgramBehavior(List.of(new WaitStep(Expr.literal(0)), explode("1"), explode("2")));
+        ProgramBehavior program = new ProgramBehavior(List.of(LeafSteps.WAIT.step(Expr.literal(0)), explode("1"), explode("2")));
 
         program.tick(host);
 

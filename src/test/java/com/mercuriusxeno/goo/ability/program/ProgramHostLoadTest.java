@@ -79,7 +79,7 @@ class ProgramHostLoadTest {
 
     @Test
     void waitingStepInsideATargetSelectionRefusesNamingTheChild() {
-        List<Step> steps = List.of(new TargetStep(List.of(), List.of(new WaitStep(Expr.literal(2)))));
+        List<Step> steps = List.of(new TargetStep(List.of(), List.of(LeafSteps.WAIT.step(Expr.literal(2)))));
 
         ProgramLoadException refusal = assertThrows(ProgramLoadException.class,
                 () -> ProgramBehavior.forHost(steps, HostKind.ENTITY));
@@ -91,7 +91,7 @@ class ProgramHostLoadTest {
     @Test
     void waitingStepOnEntityHostRefusesSinceNothingTicksAnEntity() {
         ProgramLoadException refusal = assertThrows(ProgramLoadException.class,
-                () -> ProgramBehavior.forHost(List.of(new WaitStep(Expr.literal(2))), HostKind.ENTITY));
+                () -> ProgramBehavior.forHost(List.of(LeafSteps.WAIT.step(Expr.literal(2))), HostKind.ENTITY));
 
         assertTrue(refusal.getMessage().contains("wait"), refusal.getMessage());
         assertTrue(refusal.getMessage().contains("ticking"), refusal.getMessage());
@@ -124,7 +124,7 @@ class ProgramHostLoadTest {
                 List.of(new DamageStep(expr("health * 0.5"), DamageKind.MAGIC)))), HostKind.MARKER));
 
         List<Step> markerChild = List.of(new EntitiesStep(SelectionShape.SPHERE, Expr.literal(2.5),
-                List.of(EntityFilter.LIVING), List.of(new WaitStep(Expr.literal(5)))));
+                List.of(EntityFilter.LIVING), List.of(LeafSteps.WAIT.step(Expr.literal(5)))));
         ProgramLoadException refusal = assertThrows(ProgramLoadException.class,
                 () -> ProgramBehavior.forHost(markerChild, HostKind.MARKER));
 
@@ -212,7 +212,7 @@ class ProgramHostLoadTest {
     private static Step needing(HostCapability needed) {
         Step step = mock(Step.class);
         when(step.requires()).thenReturn(Set.of(needed));
-        doReturn(WaitStep.TYPE).when(step).type();
+        doReturn(LeafSteps.WAIT.type()).when(step).type();
         return step;
     }
 
