@@ -1,11 +1,15 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.client.GooRenderUtil;
+import com.mercuriusxeno.goo.client.RenderContext;
+import org.joml.Vector3f;
+
 /**
- * Orthonormal basis math for ability-effect cone visuals: the per-marker
- * metal spike trap and the in-flight metal dart trail. Both extend a
- * 3-sided cone from a base point along a direction vector and need a
- * stable perpendicular + cross basis to place vertices around the cone's
- * circular base.
+ * The one cone emitter and its basis math, serving the per-marker metal
+ * spike trap and the in-flight metal dart (decision
+ * render-context-is-the-one-emitter). Both extend a many-sided cone from a
+ * base point along a direction and need a stable perpendicular + cross
+ * basis to place vertices around the cone's circular base.
  *
  * <p>The basis is an array of six floats laid out as
  * {@code [perpX, perpY, perpZ, crossX, crossY, crossZ]}. Consumers index
@@ -33,6 +37,50 @@ public final class ConeGeometry {
      * to avoid a degenerate cross product.
      */
     private static final float DIRECTION_THRESHOLD = 0.9f;
+
+    /** The triangle corner that opens its base edge. */
+    public static final int BASE_START = 0;
+    /** The triangle corner that closes its base edge. */
+    public static final int BASE_END = 1;
+    /** The triangle corner at its apex, emitted twice. */
+    public static final int APEX = 2;
+
+    /** Two pi for angle computation. */
+    private static final float TWO_PI = (float) (2 * Math.PI);
+
+    /** Half, for the midpoint angle and the tip's U. */
+    private static final float HALF = 0.5f;
+
+    /**
+     * A cone to emit: its base center, the unit direction to its tip, and
+     * its size.
+     *
+     * @param baseX  base center X
+     * @param baseY  base center Y
+     * @param baseZ  base center Z
+     * @param dirX   unit direction X, base to tip
+     * @param dirY   unit direction Y, base to tip
+     * @param dirZ   unit direction Z, base to tip
+     * @param length the distance from base to tip
+     * @param radius the base radius
+     */
+    public record Cone(float baseX, float baseY, float baseZ,
+                       float dirX, float dirY, float dirZ,
+                       float length, float radius) {
+    }
+
+    /**
+     * Emits one corner of a triangle.
+     */
+    @FunctionalInterface
+    public interface TriangleCorner {
+        /**
+         * Emits the corner at the given index.
+         *
+         * @param corner {@link #BASE_START}, {@link #BASE_END} or {@link #APEX}
+         */
+        void emit(int corner);
+    }
 
     private ConeGeometry() {
     }
@@ -92,5 +140,90 @@ public final class ConeGeometry {
         perp[PERP_X] /= len;
         perp[PERP_Y] /= len;
         perp[PERP_Z] /= len;
+    }
+
+    /**
+     * Emits a triangle as the quad the quad formats draw: both base
+     * corners, then the apex twice.
+     *
+     * @param corner emits the corner at each index
+     */
+    public static void emitTriangle(TriangleCorner corner) {
+        corner.emit(BASE_START);
+        corner.emit(BASE_END);
+        corner.emit(APEX);
+        corner.emit(APEX);
+    }
+
+    /**
+     * Emits a cone as one textured triangle per side, each shaded by the
+     * basis direction midway between its base corners, the tip by the
+     * cone's direction.
+     *
+     * @param ctx   the render context
+     * @param cone  the cone to emit
+     * @param basis the orthonormal basis placing the base corners
+     * @param sides the number of triangular sides
+     * @param color the ARGB color
+     * @param uv    the sprite UV rectangle
+     */
+    public static void emitCone(RenderContext ctx, Cone cone, float[] basis,
+                                int sides, int color, GooRenderUtil.UvRect uv) {
+        float tipX = cone.baseX() + cone.dirX() * cone.length();
+        float tipY = cone.baseY() + cone.dirY() * cone.length();
+        float tipZ = cone.baseZ() + cone.dirZ() * cone.length();
+        float uMid = (uv.u0() + uv.u1()) * HALF;
+        for (int side = 0; side < sides; side++) {
+            float a0 = TWO_PI * side / sides;
+            float a1 = TWO_PI * (side + 1) / sides;
+            float[] normal = segmentNormal(basis, (a0 + a1) * HALF);
+            Vector3f edge0 = baseCorner(cone, basis, a0);
+            Vector3f edge1 = baseCorner(cone, basis, a1);
+            emitTriangle(corner -> {
+                switch (corner) {
+                    case BASE_START -> ctx.vertexColored(color, edge0.x, edge0.y, edge0.z,
+                            uv.u0(), uv.v0(), normal[PERP_X], normal[PERP_Y], normal[PERP_Z]);
+                    case BASE_END -> ctx.vertexColored(color, edge1.x, edge1.y, edge1.z,
+                            uv.u1(), uv.v0(), normal[PERP_X], normal[PERP_Y], normal[PERP_Z]);
+                    default -> ctx.vertexColored(color, tipX, tipY, tipZ,
+                            uMid, uv.v1(), cone.dirX(), cone.dirY(), cone.dirZ());
+                }
+            });
+        }
+    }
+
+    /**
+     * The point on the cone's base circle at the given angle.
+     *
+     * @param cone  the cone
+     * @param basis the orthonormal basis
+     * @param angle the angle around the base, from perp toward cross
+     * @return the corner
+     */
+    private static Vector3f baseCorner(Cone cone, float[] basis, float angle) {
+        float cos = (float) Math.cos(angle) * cone.radius();
+        float sin = (float) Math.sin(angle) * cone.radius();
+        return new Vector3f(
+                cone.baseX() + basis[PERP_X] * cos + basis[CROSS_X] * sin,
+                cone.baseY() + basis[PERP_Y] * cos + basis[CROSS_Y] * sin,
+                cone.baseZ() + basis[PERP_Z] * cos + basis[CROSS_Z] * sin);
+    }
+
+    /**
+     * The face normal of a cone side: the basis direction at the side's
+     * mid angle.
+     *
+     * @param basis the orthonormal basis
+     * @param midA  the angle midway between the side's base corners
+     * @return the normal {nx, ny, nz}
+     */
+    public static float[] segmentNormal(float[] basis, float midA) {
+        float cosM = (float) Math.cos(midA);
+        float sinM = (float) Math.sin(midA);
+        return new float[]{
+                basis[PERP_X] * cosM + basis[CROSS_X] * sinM,
+                basis[PERP_Y] * cosM + basis[CROSS_Y] * sinM,
+                basis[PERP_Z] * cosM + basis[CROSS_Z] * sinM,
+        };
     }
 }

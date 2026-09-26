@@ -1,10 +1,7 @@
 package com.mercuriusxeno.goo.client;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
@@ -12,8 +9,9 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 
 /**
- * Shared rendering utilities for block entity renderers (BERs).
- * Extracted from canister, crucible, and vat BERs to eliminate duplication.
+ * Rendering helpers that emit no vertex: the UV rectangle, the fluid sprite
+ * lookup and the crosshair test; {@link RenderContext} is the one vertex
+ * emitter (decision render-context-is-the-one-emitter).
  */
 public final class GooRenderUtil {
 
@@ -48,58 +46,6 @@ public final class GooRenderUtil {
     }
 
     /**
-     * Emits a vertex with an explicit ARGB color.
-     *
-     * @param pose the pose matrix entry
-     * @param c the vertex consumer
-     * @param light the packed light value
-     * @param color the ARGB color value
-     * @param x the X coordinate
-     * @param y the Y coordinate
-     * @param z the Z coordinate
-     * @param u the U texture coordinate
-     * @param v the V texture coordinate
-     * @param nx the X normal component
-     * @param ny the Y normal component
-     * @param nz the Z normal component
-     */
-    public static void vertexColored(PoseStack.Pose pose, VertexConsumer c,
-            int light, int color, float x, float y, float z, float u, float v,
-            float nx, float ny, float nz) {
-        c.addVertex(pose, x, y, z)
-            .setColor(color)
-            .setUv(u, v)
-            .setOverlay(OverlayTexture.NO_OVERLAY)
-            .setLight(light)
-            .setNormal(pose, nx, ny, nz);
-    }
-
-    /**
-     * Emits a vertex with full-white opaque color.
-     *
-     * @param pose the pose matrix entry
-     * @param c the vertex consumer
-     * @param light the packed light value
-     * @param x the X coordinate
-     * @param y the Y coordinate
-     * @param z the Z coordinate
-     * @param u the U texture coordinate
-     * @param v the V texture coordinate
-     * @param nx the X normal component
-     * @param ny the Y normal component
-     * @param nz the Z normal component
-     */
-    public static void vertex(PoseStack.Pose pose, VertexConsumer c,
-            int light, float x, float y, float z, float u, float v,
-            float nx, float ny, float nz) {
-        vertexColored(pose, c, light, OPAQUE_WHITE, x, y, z, u, v, nx, ny, nz);
-    }
-
-    // -- Axis-aligned face helpers --
-    // Each emits a quad for one face of a box.
-    // Positive normal = outward-facing CCW winding. Negative = reversed.
-
-    /**
      * UV rectangle: texture coordinate bounds for a quad face.
      *
      * @param u0 the minimum U coordinate
@@ -108,208 +54,4 @@ public final class GooRenderUtil {
      * @param v1 the maximum V coordinate
      */
     public record UvRect(float u0, float v0, float u1, float v1) {}
-
-    /**
-     * Y-axis face (top when ny > 0, bottom when ny < 0).
-     *
-     * @param pose the pose matrix entry
-     * @param c the vertex consumer
-     * @param light the packed light value
-     * @param x0 the minimum X bound
-     * @param x1 the maximum X bound
-     * @param y the Y coordinate
-     * @param z0 the minimum Z bound
-     * @param z1 the maximum Z bound
-     * @param uv the UV texture rectangle
-     * @param ny the Y normal component
-     */
-    public static void faceY(PoseStack.Pose pose, VertexConsumer c,
-            int light, float x0, float x1, float y,
-            float z0, float z1, UvRect uv, float ny) {
-        if (ny > 0) {
-            faceYUp(pose, c, light, x0, x1, y, z0, z1, uv, ny);
-        } else {
-            faceYDown(pose, c, light, x0, x1, y, z0, z1, uv, ny);
-        }
-    }
-
-    /**
-     * Emits a top-facing Y quad with CCW winding.
-     * @param pose the pose matrix entry
-     * @param c the vertex consumer
-     * @param light the packed light value
-     * @param x0 the minimum X bound
-     * @param x1 the maximum X bound
-     * @param y the Y coordinate
-     * @param z0 the minimum Z bound
-     * @param z1 the maximum Z bound
-     * @param uv the UV texture rectangle
-     * @param ny the Y normal component
-     */
-    private static void faceYUp(PoseStack.Pose pose, VertexConsumer c,
-            int light, float x0, float x1, float y,
-            float z0, float z1, UvRect uv, float ny) {
-        vertex(pose, c, light, x0, y, z0, uv.u0, uv.v0, 0f, ny, 0f);
-        vertex(pose, c, light, x0, y, z1, uv.u0, uv.v1, 0f, ny, 0f);
-        vertex(pose, c, light, x1, y, z1, uv.u1, uv.v1, 0f, ny, 0f);
-        vertex(pose, c, light, x1, y, z0, uv.u1, uv.v0, 0f, ny, 0f);
-    }
-
-    /**
-     * Emits a bottom-facing Y quad with reversed winding.
-     * @param pose the pose matrix entry
-     * @param c the vertex consumer
-     * @param light the packed light value
-     * @param x0 the minimum X bound
-     * @param x1 the maximum X bound
-     * @param y the Y coordinate
-     * @param z0 the minimum Z bound
-     * @param z1 the maximum Z bound
-     * @param uv the UV texture rectangle
-     * @param ny the Y normal component
-     */
-    private static void faceYDown(PoseStack.Pose pose, VertexConsumer c,
-            int light, float x0, float x1, float y,
-            float z0, float z1, UvRect uv, float ny) {
-        vertex(pose, c, light, x1, y, z0, uv.u1, uv.v0, 0f, ny, 0f);
-        vertex(pose, c, light, x1, y, z1, uv.u1, uv.v1, 0f, ny, 0f);
-        vertex(pose, c, light, x0, y, z1, uv.u0, uv.v1, 0f, ny, 0f);
-        vertex(pose, c, light, x0, y, z0, uv.u0, uv.v0, 0f, ny, 0f);
-    }
-
-    /**
-     * X-axis face (east when nx > 0, west when nx < 0).
-     *
-     * @param pose the pose matrix entry
-     * @param c the vertex consumer
-     * @param light the packed light value
-     * @param x the X coordinate
-     * @param y0 the minimum Y bound
-     * @param y1 the maximum Y bound
-     * @param z0 the minimum Z bound
-     * @param z1 the maximum Z bound
-     * @param uv the UV texture rectangle
-     * @param nx the X normal component
-     */
-    public static void faceX(PoseStack.Pose pose, VertexConsumer c,
-            int light, float x, float y0, float y1,
-            float z0, float z1, UvRect uv, float nx) {
-        if (nx > 0) {
-            faceXEast(pose, c, light, x, y0, y1, z0, z1, uv, nx);
-        } else {
-            faceXWest(pose, c, light, x, y0, y1, z0, z1, uv, nx);
-        }
-    }
-
-    /**
-     * Emits an east-facing X quad with CCW winding.
-     * @param pose the pose matrix entry
-     * @param c the vertex consumer
-     * @param light the packed light value
-     * @param x the X coordinate
-     * @param y0 the minimum Y bound
-     * @param y1 the maximum Y bound
-     * @param z0 the minimum Z bound
-     * @param z1 the maximum Z bound
-     * @param uv the UV texture rectangle
-     * @param nx the X normal component
-     */
-    private static void faceXEast(PoseStack.Pose pose, VertexConsumer c,
-            int light, float x, float y0, float y1,
-            float z0, float z1, UvRect uv, float nx) {
-        vertex(pose, c, light, x, y1, z1, uv.u1, uv.v0, nx, 0f, 0f);
-        vertex(pose, c, light, x, y0, z1, uv.u1, uv.v1, nx, 0f, 0f);
-        vertex(pose, c, light, x, y0, z0, uv.u0, uv.v1, nx, 0f, 0f);
-        vertex(pose, c, light, x, y1, z0, uv.u0, uv.v0, nx, 0f, 0f);
-    }
-
-    /**
-     * Emits a west-facing X quad with reversed winding.
-     * @param pose the pose matrix entry
-     * @param c the vertex consumer
-     * @param light the packed light value
-     * @param x the X coordinate
-     * @param y0 the minimum Y bound
-     * @param y1 the maximum Y bound
-     * @param z0 the minimum Z bound
-     * @param z1 the maximum Z bound
-     * @param uv the UV texture rectangle
-     * @param nx the X normal component
-     */
-    private static void faceXWest(PoseStack.Pose pose, VertexConsumer c,
-            int light, float x, float y0, float y1,
-            float z0, float z1, UvRect uv, float nx) {
-        vertex(pose, c, light, x, y1, z0, uv.u1, uv.v0, nx, 0f, 0f);
-        vertex(pose, c, light, x, y0, z0, uv.u1, uv.v1, nx, 0f, 0f);
-        vertex(pose, c, light, x, y0, z1, uv.u0, uv.v1, nx, 0f, 0f);
-        vertex(pose, c, light, x, y1, z1, uv.u0, uv.v0, nx, 0f, 0f);
-    }
-
-    /**
-     * Z-axis face (south when nz > 0, north when nz < 0).
-     *
-     * @param pose the pose matrix entry
-     * @param c the vertex consumer
-     * @param light the packed light value
-     * @param x0 the minimum X bound
-     * @param x1 the maximum X bound
-     * @param y0 the minimum Y bound
-     * @param y1 the maximum Y bound
-     * @param z the Z coordinate
-     * @param uv the UV texture rectangle
-     * @param nz the Z normal component
-     */
-    public static void faceZ(PoseStack.Pose pose, VertexConsumer c,
-            int light, float x0, float x1, float y0,
-            float y1, float z, UvRect uv, float nz) {
-        if (nz > 0) {
-            faceZSouth(pose, c, light, x0, x1, y0, y1, z, uv, nz);
-        } else {
-            faceZNorth(pose, c, light, x0, x1, y0, y1, z, uv, nz);
-        }
-    }
-
-    /**
-     * Emits a south-facing Z quad with CCW winding.
-     * @param pose the pose matrix entry
-     * @param c the vertex consumer
-     * @param light the packed light value
-     * @param x0 the minimum X bound
-     * @param x1 the maximum X bound
-     * @param y0 the minimum Y bound
-     * @param y1 the maximum Y bound
-     * @param z the Z coordinate
-     * @param uv the UV texture rectangle
-     * @param nz the Z normal component
-     */
-    private static void faceZSouth(PoseStack.Pose pose, VertexConsumer c,
-            int light, float x0, float x1, float y0,
-            float y1, float z, UvRect uv, float nz) {
-        vertex(pose, c, light, x0, y1, z, uv.u1, uv.v0, 0f, 0f, nz);
-        vertex(pose, c, light, x0, y0, z, uv.u1, uv.v1, 0f, 0f, nz);
-        vertex(pose, c, light, x1, y0, z, uv.u0, uv.v1, 0f, 0f, nz);
-        vertex(pose, c, light, x1, y1, z, uv.u0, uv.v0, 0f, 0f, nz);
-    }
-
-    /**
-     * Emits a north-facing Z quad with reversed winding.
-     * @param pose the pose matrix entry
-     * @param c the vertex consumer
-     * @param light the packed light value
-     * @param x0 the minimum X bound
-     * @param x1 the maximum X bound
-     * @param y0 the minimum Y bound
-     * @param y1 the maximum Y bound
-     * @param z the Z coordinate
-     * @param uv the UV texture rectangle
-     * @param nz the Z normal component
-     */
-    private static void faceZNorth(PoseStack.Pose pose, VertexConsumer c,
-            int light, float x0, float x1, float y0,
-            float y1, float z, UvRect uv, float nz) {
-        vertex(pose, c, light, x1, y1, z, uv.u0, uv.v0, 0f, 0f, nz);
-        vertex(pose, c, light, x1, y0, z, uv.u0, uv.v1, 0f, 0f, nz);
-        vertex(pose, c, light, x0, y0, z, uv.u1, uv.v1, 0f, 0f, nz);
-        vertex(pose, c, light, x0, y1, z, uv.u1, uv.v0, 0f, 0f, nz);
-    }
 }
