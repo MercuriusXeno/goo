@@ -60,6 +60,8 @@ public final class GooTestFunctions {
     private static final String SOUL_BOUND_SURVIVES_DEATH = "soul_bound_survives_death";
     private static final String EXO_GAUNTLET_SMITHING = "exo_gauntlet_smithing";
     private static final String EXO_GAUNTLET_KEEPS_BENEFITS = "exo_gauntlet_keeps_benefits";
+    // --- Brewing ---
+    private static final String BREWING_OMNIBLOB_NEVER_BREWS = "brewing_omniblob_never_brews";
     private static final String EXORITE_NOT_ENCHANTABLE = "exorite_not_enchantable";
     private static final String EXORITE_ANVIL_REFUSES_BOOK = "exorite_anvil_refuses_book";
     private static final String EXORITE_BARS_REGISTERED = "exorite_bars_registered";
@@ -301,7 +303,12 @@ public final class GooTestFunctions {
             registerLightingTests(registrar);
             registerTapDripTests(registrar);
             registerLabTests(registrar);
+            registerBrewingTests(registrar);
         });
+    }
+
+    private static void registerBrewingTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
+        reg(r, BREWING_OMNIBLOB_NEVER_BREWS, BrewingTests::omniblobNeverBrews);
     }
 
     private static void registerTapDripTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
