@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.block.canister.CanisterGeometry;
 import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.RenderContext;
+import com.mercuriusxeno.goo.client.ber.CanisterSlotRenderer;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.CanisterMetadata;
@@ -51,10 +52,10 @@ public class CanisterSpecialRenderer implements SpecialModelRenderer<CanisterSpe
     private static final float CENTER = 8f / 16f;
 
     /** Min X/Z boundary of the canister body. */
-    private static final float BODY_MIN_XZ = CENTER - CanisterGeometry.HW;
+    private static final float BODY_MIN_XZ = CENTER - CanisterGeometry.HALF_WIDTH;
 
     /** Max X/Z boundary of the canister body. */
-    private static final float BODY_MAX_XZ = CENTER + CanisterGeometry.HW;
+    private static final float BODY_MAX_XZ = CENTER + CanisterGeometry.HALF_WIDTH;
 
     /**
      * Creates a canister special renderer.
@@ -182,13 +183,13 @@ public class CanisterSpecialRenderer implements SpecialModelRenderer<CanisterSpe
     private static void emitEndcapQuads(RenderContext ctx, boolean top, boolean bottom) {
         if (top) {
             ctx.gasketBox(new CuboidBounds(BODY_MIN_XZ, BODY_MAX_XZ, BODY_MIN_XZ, BODY_MAX_XZ,
-                    CanisterGeometry.BODY_TOP, CanisterGeometry.GASKET_TOP),
-                    CanisterGeometry.GS_U0, CanisterGeometry.GS_U1, CanisterGeometry.GS_V1);
+                    CanisterGeometry.STANDING.bodyTop(), CanisterGeometry.STANDING.gasketTop()),
+                    CanisterSlotRenderer.CAP_SIDE_U_START, CanisterSlotRenderer.CAP_SIDE_U_END, CanisterSlotRenderer.CAP_SIDE_V_END);
         }
         if (bottom) {
             ctx.gasketBox(new CuboidBounds(BODY_MIN_XZ, BODY_MAX_XZ, BODY_MIN_XZ, BODY_MAX_XZ,
-                    CanisterGeometry.GASKET_BOT, CanisterGeometry.BODY_BOT),
-                    CanisterGeometry.GS_U0, CanisterGeometry.GS_U1, CanisterGeometry.GS_V1);
+                    CanisterGeometry.STANDING.gasketBottom(), CanisterGeometry.STANDING.bodyBottom()),
+                    CanisterSlotRenderer.CAP_SIDE_U_START, CanisterSlotRenderer.CAP_SIDE_U_END, CanisterSlotRenderer.CAP_SIDE_V_END);
         }
     }
 
@@ -237,11 +238,11 @@ public class CanisterSpecialRenderer implements SpecialModelRenderer<CanisterSpe
      * @return the fluid cuboid whose Y span encodes the fill
      */
     private static CuboidBounds fluidBounds(float fill) {
-        float min = CENTER - CanisterGeometry.HW + CanisterGeometry.FLUID_INSET;
-        float max = CENTER + CanisterGeometry.HW - CanisterGeometry.FLUID_INSET;
+        float min = CENTER - CanisterGeometry.HALF_WIDTH + CanisterGeometry.FLUID_INSET;
+        float max = CENTER + CanisterGeometry.HALF_WIDTH - CanisterGeometry.FLUID_INSET;
         return new CuboidBounds(min, max, min, max,
-                CanisterGeometry.BODY_BOT,
-                CanisterGeometry.BODY_BOT + fill * (CanisterGeometry.BODY_TOP - CanisterGeometry.BODY_BOT));
+                CanisterGeometry.STANDING.bodyBottom(),
+                CanisterGeometry.STANDING.bodyBottom() + fill * (CanisterGeometry.STANDING.bodyTop() - CanisterGeometry.STANDING.bodyBottom()));
     }
 
     /**
@@ -301,12 +302,12 @@ public class CanisterSpecialRenderer implements SpecialModelRenderer<CanisterSpe
      */
     @Override
     public void getExtents(Consumer<Vector3fc> output) {
-        float x0 = CENTER - CanisterGeometry.HW;
-        float x1 = CENTER + CanisterGeometry.HW;
-        float z0 = CENTER - CanisterGeometry.HW;
-        float z1 = CENTER + CanisterGeometry.HW;
-        output.accept(new Vector3f(x0, CanisterGeometry.GASKET_BOT, z0));
-        output.accept(new Vector3f(x1, CanisterGeometry.GASKET_TOP, z1));
+        float x0 = CENTER - CanisterGeometry.HALF_WIDTH;
+        float x1 = CENTER + CanisterGeometry.HALF_WIDTH;
+        float z0 = CENTER - CanisterGeometry.HALF_WIDTH;
+        float z1 = CENTER + CanisterGeometry.HALF_WIDTH;
+        output.accept(new Vector3f(x0, CanisterGeometry.STANDING.gasketBottom(), z0));
+        output.accept(new Vector3f(x1, CanisterGeometry.STANDING.gasketTop(), z1));
     }
 
     /**

@@ -17,7 +17,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponentGetter;
 import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
@@ -75,26 +74,7 @@ public class VatBlockEntity extends GooGlowingMachineBlockEntity {
      */
     public VatBlockEntity(BlockPos pos, BlockState state) {
         super(GooBlockEntities.VAT.get(), pos, state, be -> GasketAttachment.dual(be, "cap", "base"));
-        GasketAttachment gasket = gasket();
-        this.gasketPusher = new GasketPusher(
-                fluidHandler,
-                () -> gasket.state().getId(GasketRole.TRANSMITTER),
-                () -> gasket.state().getPartner(GasketRole.TRANSMITTER),
-                this::getLevel, this::getBlockPos,
-                gasket.syncCallback(),
-                () -> gasket.registryAccess() != null ? gasket.registryAccess().get() : null);
-        gasket.rebuildPushers(gasketPusher::rebuildCache);
-        gasket.afterLoad(this::forceTransmitterChunkOnLoad);
-    }
-
-    private void forceTransmitterChunkOnLoad() {
-        if (level instanceof ServerLevel serverLevel) {
-            GasketPusher.forceTransmitterChunk(
-                    gasket().state().getId(GasketRole.TRANSMITTER),
-                    gasket().registryAccess(),
-                    serverLevel,
-                    worldPosition);
-        }
+        this.gasketPusher = gasket().singlePusher(fluidHandler);
     }
 
     /**

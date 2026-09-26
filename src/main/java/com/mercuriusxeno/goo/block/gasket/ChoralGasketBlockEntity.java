@@ -4,7 +4,6 @@ import com.mercuriusxeno.goo.block.GooMachineBlockEntity;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import net.minecraft.core.BlockPos;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -41,16 +40,7 @@ public class ChoralGasketBlockEntity extends GooMachineBlockEntity {
     public ChoralGasketBlockEntity(BlockPos pos, BlockState state) {
         super(GooBlockEntities.CHORAL_GASKET.get(), pos, state,
                 be -> GasketAttachment.single(be, GasketRole.TRANSMITTER, TAG_GASKET));
-        GasketAttachment gasket = gasket();
-        this.gasketPusher = new GasketPusher(
-                waterSource,
-                () -> gasket.state().getId(GasketRole.TRANSMITTER),
-                () -> gasket.state().getPartner(GasketRole.TRANSMITTER),
-                this::getLevel, this::getBlockPos,
-                gasket.syncCallback(),
-                () -> gasket.registryAccess() != null ? gasket.registryAccess().get() : null);
-        gasket.rebuildPushers(gasketPusher::rebuildCache);
-        gasket.afterLoad(this::forceTransmitterChunkOnLoad);
+        this.gasketPusher = gasket().singlePusher(waterSource);
     }
 
     /**
@@ -75,19 +65,5 @@ public class ChoralGasketBlockEntity extends GooMachineBlockEntity {
      */
     public InfiniteWaterSource getWaterSource() {
         return waterSource;
-    }
-
-    /**
-     * BE-side post-load action: force-load the transmitter's destination chunk so the
-     * pusher can resolve partners on first tick.
-     */
-    private void forceTransmitterChunkOnLoad() {
-        if (level instanceof ServerLevel serverLevel) {
-            GasketPusher.forceTransmitterChunk(
-                    gasket().state().getId(GasketRole.TRANSMITTER),
-                    gasket().registryAccess(),
-                    serverLevel,
-                    worldPosition);
-        }
     }
 }
