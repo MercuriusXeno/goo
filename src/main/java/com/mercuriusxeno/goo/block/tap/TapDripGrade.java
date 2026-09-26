@@ -38,6 +38,14 @@ public enum TapDripGrade {
     }
 
     /**
+     * @return true at 1:1, the one grade drawn as a pouring stream rather
+     *         than drips (decision one-to-one-draws-a-stream)
+     */
+    public boolean pours() {
+        return this == ONE_PER_TICK;
+    }
+
+    /**
      * The grade one valve click leaves: off opens to the slowest grade, each
      * grade steps to the next faster one, and the fastest closes the valve.
      *
