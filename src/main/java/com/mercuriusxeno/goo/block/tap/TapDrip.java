@@ -17,10 +17,6 @@ import org.jspecify.annotations.Nullable;
 public final class TapDrip {
 
     /**
-     * Volume one drip draws, in mB (decision drip-draws-one-mb-from-canister).
-     */
-    static final int DRIP_VOLUME = 1;
-    /**
      * Downward speed the drip particle leaves the spigot with, in blocks per tick.
      */
     static final double DRIP_LEAVE_SPEED = -0.05;
@@ -63,14 +59,26 @@ public final class TapDrip {
      *
      * @param holder the tap's canister holder
      * @param slot   the slot the tap drips from
-     * @return the goo type drawn, or null when the slot held no goo to draw
+     * @param volume the mB one drip draws at the tap's grade
+     * @return the goo drawn, or null when the slot held no goo to draw
      */
-    static @Nullable ResourceKey<GooTypeDefinition> draw(ICanisterHolder holder, int slot) {
+    static @Nullable Drawn draw(ICanisterHolder holder, int slot, int volume) {
         ResourceKey<GooTypeDefinition> type = holder.getSlotGooType(slot);
         if (type == null) {
             return null;
         }
-        return holder.extractGoo(slot, type, DRIP_VOLUME) > 0 ? type : null;
+        int drawn = holder.extractGoo(slot, type, volume);
+        return drawn > 0 ? new Drawn(type, drawn) : null;
+    }
+
+    /**
+     * The goo one drip carries: less than the grade's volume when the
+     * canister ran low.
+     *
+     * @param type   the goo type drawn
+     * @param volume the mB drawn
+     */
+    record Drawn(ResourceKey<GooTypeDefinition> type, int volume) {
     }
 
     /**

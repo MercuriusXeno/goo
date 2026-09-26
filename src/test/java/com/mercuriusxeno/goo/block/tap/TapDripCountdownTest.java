@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.ArgumentCaptor;
+import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -24,7 +25,14 @@ class TapDripCountdownTest {
 
     private static final int INTERVAL = 40;
     private static final int TICKS_RUN = 13;
-    private static final int SLOWEST_INTERVAL_TICKS = 256;
+    private static final int SLOWEST_INTERVAL_TICKS = 64;
+    private static final int TICKS_MEASURED = 256;
+    private static final Map<TapDripGrade, Integer> EXPECTED_LOSS_OVER_256_TICKS = Map.of(
+            TapDripGrade.ONE_PER_64_TICKS, 4,
+            TapDripGrade.ONE_PER_16_TICKS, 16,
+            TapDripGrade.ONE_PER_4_TICKS, 64,
+            TapDripGrade.ONE_PER_TICK, 256,
+            TapDripGrade.FOUR_PER_TICK, 1024);
 
     private static TapDripCountdown runFor(int ticks) {
         TapDripCountdown countdown = new TapDripCountdown(INTERVAL);
@@ -49,15 +57,15 @@ class TapDripCountdownTest {
 
     @ParameterizedTest
     @EnumSource(TapDripGrade.class)
-    void eachGradeDripsOnceMbPerIntervalOver256Ticks(TapDripGrade grade) {
+    void eachGradeLosesItsRateOver256Ticks(TapDripGrade grade) {
         TapDripCountdown countdown = new TapDripCountdown(grade.intervalTicks());
-        int drippedMb = 0;
-        for (int i = 0; i < SLOWEST_INTERVAL_TICKS; i++) {
+        int lostMb = 0;
+        for (int i = 0; i < TICKS_MEASURED; i++) {
             if (countdown.tick()) {
-                drippedMb++;
+                lostMb += grade.dripVolume();
             }
         }
-        assertEquals(SLOWEST_INTERVAL_TICKS / grade.intervalTicks(), drippedMb);
+        assertEquals(EXPECTED_LOSS_OVER_256_TICKS.get(grade), lostMb);
     }
 
     @Test

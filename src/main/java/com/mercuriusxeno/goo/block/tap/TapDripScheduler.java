@@ -124,7 +124,7 @@ public final class TapDripScheduler {
      */
     public static int land(PendingDrip drip, @Nullable IGooReceptacle receptacle,
                            ToIntFunction<PendingDrip> tapAbility) {
-        if (receptacle != null && receptacle.insertGoo(drip.type(), TapDrip.DRIP_VOLUME) > 0) {
+        if (receptacle != null && receptacle.insertGoo(drip.type(), drip.volume()) > 0) {
             return 0;
         }
         return tapAbility.applyAsInt(drip);
@@ -180,9 +180,10 @@ public final class TapDripScheduler {
      * @param landingPos  the block it lands on
      * @param face        the landing block's face it strikes
      * @param type        the goo type it carries
+     * @param volume      the mB it carries
      * @param arrivalTick the server tick it lands on
      */
     public record PendingDrip(ServerLevel level, BlockPos tapPos, BlockPos landingPos,
-                              Direction face, ResourceKey<GooTypeDefinition> type, int arrivalTick) {
+                              Direction face, ResourceKey<GooTypeDefinition> type, int volume, int arrivalTick) {
     }
 }

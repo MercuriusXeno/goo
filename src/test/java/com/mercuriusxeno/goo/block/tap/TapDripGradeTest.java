@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -18,11 +19,21 @@ import static org.mockito.Mockito.when;
 
 /**
  * The tap's drip grade steps through five rates and off on each valve click,
- * and survives a save and load.
+ * drips no slower than one per 64 ticks, and survives a save and load,
+ * including a save made before 1:4 existed.
  */
 class TapDripGradeTest {
 
     private static final int VALVE_CLICKS = 6;
+    private static final int DROPPED_SLOWEST_INTERVAL = 256;
+    private static final int SLOWEST_INTERVAL = 64;
+
+    private static ValueInput legacySave(int intervalTicks) {
+        ValueInput input = mock(ValueInput.class);
+        when(input.getString(TapDripGrade.TAG_DRIP_RATE)).thenReturn(Optional.empty());
+        when(input.getIntOr(eq(TapDripGrade.TAG_LEGACY_DRIP_GRADE), anyInt())).thenReturn(intervalTicks);
+        return input;
+    }
 
     @Test
     void sixClicksFromOffStepThroughFiveGradesAndBackToOff() {
@@ -33,15 +44,22 @@ class TapDripGradeTest {
             seen.add(grade);
         }
 
-        assertEquals(List.of(Optional.of(TapDripGrade.ONE_PER_256_TICKS), Optional.of(TapDripGrade.ONE_PER_64_TICKS),
-                Optional.of(TapDripGrade.ONE_PER_16_TICKS), Optional.of(TapDripGrade.ONE_PER_4_TICKS),
-                Optional.of(TapDripGrade.ONE_PER_TICK), Optional.<TapDripGrade>empty()), seen);
+        assertEquals(List.of(Optional.of(TapDripGrade.ONE_PER_64_TICKS), Optional.of(TapDripGrade.ONE_PER_16_TICKS),
+                Optional.of(TapDripGrade.ONE_PER_4_TICKS), Optional.of(TapDripGrade.ONE_PER_TICK),
+                Optional.of(TapDripGrade.FOUR_PER_TICK), Optional.<TapDripGrade>empty()), seen);
     }
 
     @Test
-    void gradesStepInFourfoldIntervals() {
-        assertEquals(List.of(256, 64, 16, 4, 1),
-                List.of(TapDripGrade.values()).stream().map(TapDripGrade::intervalTicks).toList());
+    void gradesStepInFourfoldRates() {
+        assertEquals(List.of(4, 16, 64, 256, 1024), List.of(TapDripGrade.values()).stream()
+                .map(grade -> DROPPED_SLOWEST_INTERVAL / grade.intervalTicks() * grade.dripVolume()).toList());
+    }
+
+    @Test
+    void noGradeDripsSlowerThanOnePerSixtyFourTicks() {
+        assertTrue(List.of(TapDripGrade.values()).stream()
+                .allMatch(grade -> grade.intervalTicks() <= SLOWEST_INTERVAL));
+        assertEquals(TapDripGrade.ONE_PER_64_TICKS, TapDripGrade.SLOWEST);
     }
 
     @ParameterizedTest
@@ -49,27 +67,39 @@ class TapDripGradeTest {
     void saveAndLoadKeepTheGrade(TapDripGrade grade) {
         ValueOutput output = mock(ValueOutput.class);
         grade.save(output);
-        ArgumentCaptor<Integer> written = ArgumentCaptor.forClass(Integer.class);
-        verify(output).putInt(eq(TapDripGrade.TAG_DRIP_GRADE), written.capture());
+        ArgumentCaptor<String> written = ArgumentCaptor.forClass(String.class);
+        verify(output).putString(eq(TapDripGrade.TAG_DRIP_RATE), written.capture());
 
         ValueInput input = mock(ValueInput.class);
-        when(input.getIntOr(eq(TapDripGrade.TAG_DRIP_GRADE), anyInt())).thenReturn(written.getValue());
+        when(input.getString(TapDripGrade.TAG_DRIP_RATE)).thenReturn(Optional.of(written.getValue()));
 
         assertEquals(grade, TapDripGrade.load(input));
     }
 
     @Test
+    void aTapSavedAtTheDroppedTwoFiftySixLoadsAtSixtyFour() {
+        assertEquals(TapDripGrade.ONE_PER_64_TICKS, TapDripGrade.load(legacySave(DROPPED_SLOWEST_INTERVAL)));
+    }
+
+    @Test
+    void aTapSavedAtOneToOneBeforeOneToFourExistedLoadsAtOneToOne() {
+        assertEquals(TapDripGrade.ONE_PER_TICK, TapDripGrade.load(legacySave(1)));
+    }
+
+    @Test
     void loadWithNoSavedGradeReadsTheSlowest() {
         ValueInput input = mock(ValueInput.class);
-        when(input.getIntOr(eq(TapDripGrade.TAG_DRIP_GRADE), anyInt())).thenAnswer(call -> call.getArgument(1));
+        when(input.getString(TapDripGrade.TAG_DRIP_RATE)).thenReturn(Optional.empty());
+        when(input.getIntOr(eq(TapDripGrade.TAG_LEGACY_DRIP_GRADE), anyInt()))
+                .thenAnswer(call -> call.getArgument(1));
 
         assertEquals(TapDripGrade.SLOWEST, TapDripGrade.load(input));
     }
 
     @Test
-    void loadOfAnUnknownIntervalReadsTheSlowest() {
+    void loadOfAnUnknownNameReadsTheSlowest() {
         ValueInput input = mock(ValueInput.class);
-        when(input.getIntOr(eq(TapDripGrade.TAG_DRIP_GRADE), anyInt())).thenReturn(40);
+        when(input.getString(TapDripGrade.TAG_DRIP_RATE)).thenReturn(Optional.of("ONE_PER_256_TICKS"));
 
         assertEquals(TapDripGrade.SLOWEST, TapDripGrade.load(input));
     }

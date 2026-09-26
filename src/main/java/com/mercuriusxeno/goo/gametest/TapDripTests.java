@@ -274,8 +274,8 @@ public final class TapDripTests {
     }
 
     /**
-     * Six empty-hand clicks on a closed tap's valve step it through 256:1,
-     * 64:1, 16:1, 4:1 and 1:1 and back to off
+     * Six empty-hand clicks on a closed tap's valve step it through 64:1,
+     * 16:1, 4:1, 1:1 and 1:4 and back to off
      * (decision five-rates-in-fourfold-steps).
      *
      * @param helper the gametest helper
@@ -288,8 +288,8 @@ public final class TapDripTests {
         BlockHitResult valveHit = new BlockHitResult(
                 Vec3.atLowerCornerOf(tapAbs).add(VALVE_HIT_PX.scale(1.0 / PIXELS_PER_BLOCK)), Direction.UP, tapAbs,
                 false);
-        List<TapDripGrade> expected = List.of(TapDripGrade.ONE_PER_256_TICKS, TapDripGrade.ONE_PER_64_TICKS,
-                TapDripGrade.ONE_PER_16_TICKS, TapDripGrade.ONE_PER_4_TICKS, TapDripGrade.ONE_PER_TICK);
+        List<TapDripGrade> expected = List.of(TapDripGrade.ONE_PER_64_TICKS, TapDripGrade.ONE_PER_16_TICKS,
+                TapDripGrade.ONE_PER_4_TICKS, TapDripGrade.ONE_PER_TICK, TapDripGrade.FOUR_PER_TICK);
 
         for (int click = 1; click <= VALVE_CLICKS; click++) {
             helper.useBlock(TAP_POS, player, valveHit);
@@ -391,7 +391,7 @@ public final class TapDripTests {
                               AtomicInteger abilityRuns) {
         BlockPos landingAbs = helper.absolutePos(landing);
         TapDripScheduler.PendingDrip drip = new TapDripScheduler.PendingDrip(helper.getLevel(),
-                landingAbs.above(), landingAbs, Direction.UP, type, 0);
+                landingAbs.above(), landingAbs, Direction.UP, type, 1, 0);
         return TapDripScheduler.land(drip, TapDripScheduler.receptacleAt(helper.getLevel(), landingAbs),
                 arrived -> abilityRuns.incrementAndGet());
     }
