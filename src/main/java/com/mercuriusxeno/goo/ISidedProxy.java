@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo;
 
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.phys.HitResult;
 import org.jspecify.annotations.Nullable;
 
@@ -39,13 +38,12 @@ public interface ISidedProxy {
     }
 
     /**
-     * Resolves the local player's aim and sends a glove throw to the server.
-     * Server: does nothing, since only the client aims
-     * (decision client-handlers-under-client-network).
+     * Starts a glove press on the client's input gate, which throws on a
+     * short release and opens the radial on a hold. Server: does nothing,
+     * since only the client aims (decision client-handlers-under-client-network).
      *
-     * @param player  the local player
-     * @param gooType the goo type the glove has selected
+     * @param hand the hand holding the glove
      */
-    default void sendGloveThrow(Player player, ResourceKey<GooTypeDefinition> gooType) {
+    default void pressGlove(InteractionHand hand) {
     }
 }

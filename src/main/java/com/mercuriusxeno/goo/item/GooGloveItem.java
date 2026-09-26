@@ -12,27 +12,24 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.ItemUseAnimation;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Goo glove held in main/offhand. Right-click is overloaded:
- * short press (<6 ticks) throws the selected goo type,
- * long press (>=6 ticks) opens the radial menu to change selection.
+ * Goo glove held in main/offhand. Right-click is overloaded, counted on
+ * the client off the held use key: a short press throws the selected goo
+ * type, a hold to {@link #RADIAL_THRESHOLD_TICKS} opens the radial menu to
+ * change selection.
  */
 public class GooGloveItem extends Item {
 
     /** Ticks of hold before radial menu opens instead of throwing. */
     public static final int RADIAL_THRESHOLD_TICKS = 6;
-    /** Maximum use duration in ticks (same as bow: 1 hour at 20 tps). */
-    private static final int MAX_USE_DURATION = 72_000;
     /** Recollect pickup sound volume. */
     private static final float PICKUP_VOLUME = 0.5f;
     /** Recollect pickup sound pitch. */
@@ -90,75 +87,23 @@ public class GooGloveItem extends Item {
     }
 
     /**
-     * Starts using the glove. The hold duration determines throw vs. radial menu.
+     * Hands the press to the client's input gate and answers PASS: the
+     * glove never enters the using state, and vanilla re-equips the held
+     * item on any Success, so either would animate a click that throws
+     * nothing (decision use-animation-only-when-goo-throws).
      *
      * @param level the world
      * @param player the player using the item
      * @param hand the hand holding the glove
-     * @return CONSUME to begin the use-duration countdown
+     * @return PASS
      */
     @Override
     public @NonNull InteractionResult use(@NonNull Level level, @NonNull Player player,
             @NonNull InteractionHand hand) {
-        player.startUsingItem(hand);
-        return InteractionResult.CONSUME;
-    }
-
-    /**
-     * Returns the maximum hold duration (same as bow).
-     *
-     * @param stack the glove stack
-     * @param entity the entity holding the item
-     * @return 72000 ticks
-     */
-    @Override
-    public int getUseDuration(@NonNull ItemStack stack, @NonNull LivingEntity entity) {
-        return MAX_USE_DURATION;
-    }
-
-    /**
-     * No animation while holding the glove.
-     *
-     * @param stack the item stack
-     * @return NONE (no animation)
-     */
-    @Override
-    public @NonNull ItemUseAnimation getUseAnimation(@NonNull ItemStack stack) {
-        return ItemUseAnimation.NONE;
-    }
-
-    /**
-     * Called when the player releases the use button. Short hold throws,
-     * long hold is already handled by the client-side radial tracker.
-     *
-     * @param stack the glove stack
-     * @param level the world
-     * @param entity the entity that released
-     * @param timeLeft remaining ticks from the use duration
-     * @return true if the release was handled
-     */
-    @Override
-    public boolean releaseUsing(@NonNull ItemStack stack, @NonNull Level level,
-            @NonNull LivingEntity entity, int timeLeft) {
-        int ticksUsed = getUseDuration(stack, entity) - timeLeft;
-        return ticksUsed < RADIAL_THRESHOLD_TICKS && handleQuickThrow(stack, level, entity);
-    }
-
-    /** Sends a throw packet (client) and plays the arm swing (both sides).
-     *
-     * @param stack  the glove stack
-     * @param level  the world
-     * @param entity the entity throwing
-     * @return true if a throw was initiated, false if no type selected
-     */
-    private boolean handleQuickThrow(ItemStack stack, Level level, LivingEntity entity) {
-        ResourceKey<GooTypeDefinition> selected = getSelectedType(stack);
-        if (selected == null) { return false; }
-        if (level.isClientSide() && entity instanceof Player player) {
-            ISidedProxy.get().sendGloveThrow(player, selected);
+        if (level.isClientSide()) {
+            ISidedProxy.get().pressGlove(hand);
         }
-        entity.swing(entity.getUsedItemHand());
-        return true;
+        return InteractionResult.PASS;
     }
 
     /**

@@ -51,29 +51,35 @@ public final class GloveThrowSender {
     }
 
     /**
-     * Resolves the current aim target and sends the throw packet.
-     * Blocks the throw if in-flight blobs would exceed the marker's
-     * max stacks, and arms a throw-block freeze when maxed.
+     * Resolves the current aim target and sends the throw packet for the
+     * held glove's selection. Blocks the throw if in-flight blobs would
+     * exceed the marker's max stacks, and arms a throw-block freeze when maxed.
      *
-     * @param player  the local player
-     * @param gooType the selected goo type to throw
+     * @param player the local player
+     * @return true when a payload was sent, the one press the arm swings for
      */
-    public static void sendThrow(Player player, ResourceKey<GooTypeDefinition> gooType) {
+    public static boolean sendThrow(Player player) {
         GloveSelection selection = heldSelection(player);
         if (selection == null || !canThrow()) {
-            return;
+            return false;
+        }
+        ResourceKey<GooTypeDefinition> gooType = selection.getGooType();
+        if (gooType == null) {
+            return false;
         }
         TargetResult target = resolveAimTarget(player);
         if (wouldExceedMaxStacks(target, gooType, selection.abilityId())) {
             ThrowFreezeState.armThrowBlock();
-            return;
+            return false;
         }
         BlobThrowPayload payload = targetToPayload(target, gooType, selection.abilityId());
-        if (payload != null) {
-            ThrowFreezeState.arm(target);
-            trackInFlight(target);
-            sendPayload(payload);
+        if (payload == null) {
+            return false;
         }
+        ThrowFreezeState.arm(target);
+        trackInFlight(target);
+        sendPayload(payload);
+        return true;
     }
 
     /**
