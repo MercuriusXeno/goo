@@ -37,6 +37,9 @@ public final class CrucibleHeat {
         int extract(ResourceKey<GooTypeDefinition> type, int amount);
     }
 
+    /** The fewest grades a combo burns together. */
+    private static final int COMBO_GRADES = 2;
+
     private int heatTicks;
     private @Nullable FuelGrade grade;
 
@@ -81,18 +84,34 @@ public final class CrucibleHeat {
     }
 
     /**
-     * Burns one tick's heat for a melt tick, buying 1 mB of fuel first when cold.
+     * Burns one melt tick. When every grade's fuel stands the combo burns first and bought
+     * heat waits; otherwise one tick of bought heat burns, buying 1 mB of fuel first when cold.
      * A tick with nothing to melt spends nothing, so heat is spent only while melting.
      *
      * @param meltsAnItem whether the crucible holds an item to melt this tick
      * @param grades      the fuel grades in burn order
+     * @param comboDrain  the mB of each fuel a combo tick burns
      * @param stock       the reservoir
      * @return the mB to melt this tick, 0 when nothing melts or no heat could be bought
      */
-    public int burnMeltTick(boolean meltsAnItem, List<FuelGrade> grades, FuelStock stock) {
+    public int burnMeltTick(boolean meltsAnItem, List<FuelGrade> grades, int comboDrain, FuelStock stock) {
         if (!meltsAnItem) {
             return 0;
         }
+        if (comboStands(grades, stock)) {
+            return burnComboTick(grades, comboDrain, stock);
+        }
+        return burnBoughtHeat(grades, stock);
+    }
+
+    /**
+     * Burns one tick of bought heat, buying 1 mB of the first stocked fuel first when cold.
+     *
+     * @param grades the fuel grades in burn order
+     * @param stock  the reservoir
+     * @return the melt rate of the heat burned, 0 when no heat could be bought
+     */
+    private int burnBoughtHeat(List<FuelGrade> grades, FuelStock stock) {
         if (heatTicks <= 0 && !buyHeat(grades, stock)) {
             return 0;
         }
@@ -102,6 +121,44 @@ public final class CrucibleHeat {
             grade = null;
         }
         return burning == null ? 0 : burning.meltRate();
+    }
+
+    /**
+     * Returns true when there are two or more grades and the stock holds every one's fuel.
+     *
+     * @param grades the fuel grades
+     * @param stock  the reservoir
+     * @return true if the combo burns
+     */
+    static boolean comboStands(List<FuelGrade> grades, FuelStock stock) {
+        if (grades.size() < COMBO_GRADES) {
+            return false;
+        }
+        for (FuelGrade candidate : grades) {
+            if (stock.volume(candidate.fuel()) <= 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Burns one combo tick: extracts up to the drain from each fuel and melts the product
+     * of the grades' melt rates, each scaled by the share of the drain its fuel supplied,
+     * so a short last tick melts in proportion rather than at full (decision blaze-unstable-combo-burn).
+     *
+     * @param grades     the fuel grades, every one stocked
+     * @param comboDrain the mB of each fuel a full combo tick burns
+     * @param stock      the reservoir
+     * @return the mB to melt this tick
+     */
+    private static int burnComboTick(List<FuelGrade> grades, int comboDrain, FuelStock stock) {
+        double melt = 1;
+        for (FuelGrade candidate : grades) {
+            int taken = stock.extract(candidate.fuel(), comboDrain);
+            melt *= (double) candidate.meltRate() * taken / comboDrain;
+        }
+        return (int) Math.min(Integer.MAX_VALUE, Math.floor(melt));
     }
 
     /**
