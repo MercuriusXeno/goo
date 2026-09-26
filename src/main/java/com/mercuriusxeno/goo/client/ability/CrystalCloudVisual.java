@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.program.FieldEffectState;
 import com.mercuriusxeno.goo.ability.program.FieldEffectStep;
 import com.mercuriusxeno.goo.ability.program.MarkerVariables;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
+import com.mercuriusxeno.goo.client.FlatQuadContext;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.ber.ChainMarkerRenderState;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -593,10 +594,11 @@ public final class CrystalCloudVisual {
         float ny = e0z * e1x - e0x * e1z;
         float nz = e0x * e1y - e0y * e1x;
         int color = reflectColor(level, camPos, worldCenter, nx, ny, nz, alpha);
-        c.addVertex(pose, v0x, v0y, v0z).setColor(color).setNormal(pose, nx, ny, nz);
-        c.addVertex(pose, v1x, v1y, v1z).setColor(color).setNormal(pose, nx, ny, nz);
-        c.addVertex(pose, apX, apY, apZ).setColor(color).setNormal(pose, nx, ny, nz);
-        c.addVertex(pose, apX, apY, apZ).setColor(color).setNormal(pose, nx, ny, nz);
+        FlatQuadContext face = new FlatQuadContext(pose, c);
+        face.vertex(v0x, v0y, v0z, color, nx, ny, nz);
+        face.vertex(v1x, v1y, v1z, color, nx, ny, nz);
+        face.vertex(apX, apY, apZ, color, nx, ny, nz);
+        face.vertex(apX, apY, apZ, color, nx, ny, nz);
     }
 
     /**

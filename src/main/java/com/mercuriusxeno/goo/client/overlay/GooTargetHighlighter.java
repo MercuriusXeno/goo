@@ -548,7 +548,7 @@ public final class GooTargetHighlighter {
         } else if (isWaterSource(mc.level, bt.pos())) {
             VoxelHighlightRenderer.renderFullCube(ps, buf, camera, bt.pos(), selectedType);
         } else {
-            VoxelHighlightRenderer.renderBlockFace(ps, buf, camera, bt.pos(), bt.face(), selectedType);
+            VoxelHighlightRenderer.renderBlockShape(ps, buf, camera, bt.pos(), selectedType);
         }
     }
 
