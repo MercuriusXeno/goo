@@ -26,6 +26,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.OptionalInt;
 import java.util.function.IntPredicate;
 
 /**
@@ -113,8 +114,38 @@ public final class GloveThrowSender {
      * @return true when the holdings cover the cost
      */
     static boolean affordsThrow(@Nullable ClientAbility ability, int existingStacks, IntPredicate holdsAtLeast) {
-        int cost = ability == null ? BlobThrowHandler.THROW_COST : ability.throwCost(existingStacks);
-        return holdsAtLeast.test(cost);
+        return holdsAtLeast.test(priceThrow(ability, existingStacks));
+    }
+
+    /**
+     * Prices a throw the way the server does, falling back to its flat cost
+     * for an ability the client holds no synced copy of.
+     *
+     * @param ability        the selected ability's synced copy, or null when none synced
+     * @param existingStacks the stacks the target marker already holds
+     * @return the cost in mB
+     */
+    static int priceThrow(@Nullable ClientAbility ability, int existingStacks) {
+        return ability == null ? BlobThrowHandler.THROW_COST : ability.throwCost(existingStacks);
+    }
+
+    /**
+     * The cost of the held glove's throw at the aimed target, priced as
+     * {@link #sendThrow} prices it: the first throw when nothing is aimed at
+     * (decision crosshair-panel-shows-source-and-cost).
+     *
+     * @param player the local player
+     * @return the cost in mB, or empty when the glove holds no selection
+     */
+    public static OptionalInt aimedThrowCost(Player player) {
+        GloveSelection selection = heldSelection(player);
+        ResourceKey<GooTypeDefinition> gooType = selection == null ? null : selection.getGooType();
+        if (gooType == null) {
+            return OptionalInt.empty();
+        }
+        BlobThrowPayload payload = targetToPayload(resolveAimTarget(player), gooType, selection.abilityId());
+        int stacks = payload == null ? 0 : keyedStacksAt(payload);
+        return OptionalInt.of(priceThrow(AbilitySyncHandler.findAbility(selection.abilityId()), stacks));
     }
 
     /**
@@ -392,7 +423,7 @@ public final class GloveThrowSender {
      * @param player the local player
      * @return the selection, or null when the glove holds none
      */
-    private static @Nullable GloveSelection heldSelection(Player player) {
+    public static @Nullable GloveSelection heldSelection(Player player) {
         ItemStack glove = player.getMainHandItem();
         if (!(glove.getItem() instanceof GooGloveItem)) {
             glove = player.getOffhandItem();
