@@ -5,13 +5,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Tests the crucible's shared fill curve: the first ticks of a melt stay
- * under the first pixel, each pixel takes more volume than the one below it,
- * and the level keeps moving until the rim volume.
+ * Tests the crucible's shared rise curve: the level holds at the puddle depth
+ * until the spread volume, then rises, each pixel taking more volume than the
+ * one below it, and keeps moving until the rim volume.
  */
 class CrucibleFillCurveTest {
 
     private static final float ONE_PIXEL = 1f / CrucibleBasin.PIXEL_COUNT;
+    private static final float PIXEL_HEIGHT = 1f / 16f;
     /** A full stack of storage blocks of the densest goo value melted: 64 x 9 x 13824 mB. */
     private static final int DENSE_STACK_VOLUME = 64 * 9 * 13_824;
     /** A volume far past that stack, twelve stacks over. */
@@ -21,54 +22,62 @@ class CrucibleFillCurveTest {
     void emptyCrucibleHasNoFill() {
         assertEquals(0f, CrucibleBasin.fillFraction(0));
         assertEquals(0f, CrucibleBasin.fillFraction(-100));
+        assertEquals(0f, CrucibleBasin.heightFraction(0));
     }
 
     @Test
-    void firstTicksOfAMeltStayUnderTheFirstPixel() {
-        for (int volume = 50; volume <= 200; volume += 50) {
-            float fraction = CrucibleBasin.fillFraction(volume);
-            assertTrue(fraction > 0f && fraction < ONE_PIXEL,
-                volume + " mB answered " + fraction + ", not inside the first pixel");
+    void levelHoldsUntilThePuddleTouchesTheWalls() {
+        assertEquals(1_000, CrucibleBasin.SPREAD_VOLUME);
+        for (int volume = 50; volume <= CrucibleBasin.SPREAD_VOLUME; volume += 50) {
+            assertEquals(0f, CrucibleBasin.fillFraction(volume), volume + " mB rose before the walls");
         }
+        assertTrue(CrucibleBasin.fillFraction(CrucibleBasin.SPREAD_VOLUME + 1) > 0f);
     }
 
     @Test
-    void firstPixelVolumeRaisesTheSurfaceOnePixel() {
-        assertEquals(ONE_PIXEL, CrucibleBasin.fillFraction(CrucibleBasin.FIRST_PIXEL_VOLUME), 1e-4f);
+    void moderateVolumeStandsOneToTwoPixelsUp() {
+        float pixelsUp = (CrucibleBasin.surfaceYForVolume(16_000) - CrucibleBasin.FLOOR_Y) / PIXEL_HEIGHT;
+        assertTrue(pixelsUp >= 1f && pixelsUp <= 2f, "16000 mB stands " + pixelsUp + " pixels up");
     }
 
     @Test
     void eachPixelTakesMoreVolumeThanTheOneBelow() {
         double previousGap = 0;
+        double previousCrossing = CrucibleBasin.SPREAD_VOLUME;
         for (int pixel = 1; pixel <= CrucibleBasin.PIXEL_COUNT; pixel++) {
-            double gap = CrucibleBasin.pixelCrossingVolume(pixel) - CrucibleBasin.pixelCrossingVolume(pixel - 1);
+            double crossing = CrucibleBasin.pixelCrossingVolume(pixel);
+            double gap = crossing - previousCrossing;
             assertTrue(gap > previousGap, "pixel " + pixel + " took " + gap + " mB, not more than " + previousGap);
             previousGap = gap;
+            previousCrossing = crossing;
         }
     }
 
     @Test
     void pixelCrossingsLandOnThePixelLines() {
         for (int pixel = 1; pixel < CrucibleBasin.PIXEL_COUNT; pixel++) {
-            int volume = (int) Math.round(CrucibleBasin.pixelCrossingVolume(pixel));
-            assertEquals(pixel * ONE_PIXEL, CrucibleBasin.fillFraction(volume), 1e-4f, "pixel " + pixel);
+            long volume = Math.round(CrucibleBasin.pixelCrossingVolume(pixel));
+            assertEquals(pixel * ONE_PIXEL, CrucibleBasin.heightFraction(volume), 1e-4f, "pixel " + pixel);
         }
     }
 
     @Test
-    void pixelCrossingsSpanFloorToRimVolume() {
-        assertEquals(0.0, CrucibleBasin.pixelCrossingVolume(0), 1e-9);
-        assertEquals(CrucibleBasin.FIRST_PIXEL_VOLUME, CrucibleBasin.pixelCrossingVolume(1), 1e-3);
+    void lastPixelCrossingIsTheRimVolume() {
         assertEquals(CrucibleBasin.RIM_VOLUME, CrucibleBasin.pixelCrossingVolume(CrucibleBasin.PIXEL_COUNT), 1.0);
     }
 
     @Test
-    void fillRisesStrictlyOverAGeometricSweep() {
-        float previous = 0f;
-        for (long volume = 1; volume < CrucibleBasin.RIM_VOLUME; volume = volume * 3 / 2 + 1) {
-            float fraction = CrucibleBasin.fillFraction((int) volume);
-            assertTrue(fraction > previous, "fill held at " + fraction + " by " + volume + " mB");
-            previous = fraction;
+    void levelRisesStrictlyOverAGeometricSweepPastTheSpread() {
+        float previousFill = 0f;
+        float previousY = CrucibleBasin.surfaceYForVolume(CrucibleBasin.SPREAD_VOLUME);
+        for (long volume = CrucibleBasin.SPREAD_VOLUME + 1; volume < CrucibleBasin.RIM_VOLUME;
+                volume = volume * 3 / 2 + 1) {
+            float fill = CrucibleBasin.fillFraction(volume);
+            float surfaceY = CrucibleBasin.surfaceYForVolume(volume);
+            assertTrue(fill > previousFill, "fill held at " + fill + " by " + volume + " mB");
+            assertTrue(surfaceY > previousY, "surface held at " + surfaceY + " by " + volume + " mB");
+            previousFill = fill;
+            previousY = surfaceY;
         }
     }
 
@@ -82,8 +91,12 @@ class CrucibleFillCurveTest {
 
     @Test
     void onlyTheRimVolumeFillsTheBasin() {
+        assertEquals(1_000_000_000, CrucibleBasin.RIM_VOLUME);
         assertTrue(CrucibleBasin.fillFraction(CrucibleBasin.RIM_VOLUME - 1) < 1f);
+        assertTrue(CrucibleBasin.heightFraction(CrucibleBasin.RIM_VOLUME - 1) < 1f);
+        assertEquals(1f, CrucibleBasin.heightFraction(CrucibleBasin.RIM_VOLUME));
         assertEquals(1f, CrucibleBasin.fillFraction(CrucibleBasin.RIM_VOLUME));
+        assertEquals(CrucibleBasin.RIM_Y, CrucibleBasin.surfaceYForVolume(CrucibleBasin.RIM_VOLUME));
         assertEquals(1f, CrucibleBasin.fillFraction(Integer.MAX_VALUE));
     }
 }

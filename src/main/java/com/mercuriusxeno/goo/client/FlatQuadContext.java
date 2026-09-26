@@ -5,8 +5,10 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.core.Direction;
 
 /**
- * Vertex context for flat-colored quads (no UV, light, overlay, or normal).
- * Used by debug/overlay render types where vertices carry only position + color.
+ * Vertex context for untextured geometry: position and color, and a normal
+ * for the shader-driven types whose format carries one (no UV, light or
+ * overlay). Every untextured quad routes through it (decision
+ * render-context-is-the-one-emitter).
  *
  * @param pose the current pose matrix entry
  * @param c    the vertex consumer for geometry emission
@@ -45,6 +47,21 @@ public record FlatQuadContext(PoseStack.Pose pose, VertexConsumer c) {
      */
     public void vertex(float x, float y, float z, int color) {
         c.addVertex(pose, x, y, z).setColor(color);
+    }
+
+    /**
+     * Emits a single colored vertex whose normal goes through the pose.
+     *
+     * @param x     the X position
+     * @param y     the Y position
+     * @param z     the Z position
+     * @param color the ARGB color
+     * @param nx    the X normal
+     * @param ny    the Y normal
+     * @param nz    the Z normal
+     */
+    public void vertex(float x, float y, float z, int color, float nx, float ny, float nz) {
+        c.addVertex(pose, x, y, z).setColor(color).setNormal(pose, nx, ny, nz);
     }
 
     /**
