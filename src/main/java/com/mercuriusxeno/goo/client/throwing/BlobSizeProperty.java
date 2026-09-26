@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.client.throwing;
 
-import com.mercuriusxeno.goo.item.GooBlobItem;
 import com.mercuriusxeno.goo.item.GooOmniblobItem;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -11,8 +10,7 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Item model property for blob/omniblob size tiers.
- * Regular blobs always return 1.0 (standard blob model).
+ * Item model property for omniblob size tiers.
  * Omniblobs use volume-based tiers: 0.0 (micro), 1.0 (blob), 2.0 (kilo), 3.0 (mega+).
  */
 public class BlobSizeProperty implements RangeSelectItemModelProperty {
@@ -41,7 +39,6 @@ public class BlobSizeProperty implements RangeSelectItemModelProperty {
     @Override
     public float get(ItemStack stack, @Nullable ClientLevel level,
             @Nullable ItemOwner owner, int seed) {
-        if (stack.getItem() instanceof GooBlobItem) { return 1.0f; }
         if (stack.getItem() instanceof GooOmniblobItem) {
             return omniblobSize(GooOmniblobItem.getVolume(stack));
         }

@@ -5,7 +5,8 @@ import net.minecraft.world.level.storage.ValueOutput;
 
 /**
  * Ticks left until a tap's next drip, saved with the tap so a reload
- * neither skips nor doubles a drip (decision fixed-drip-interval).
+ * neither skips nor doubles a drip; its interval follows the tap's
+ * {@link TapDripGrade} (decision five-rates-in-fourfold-steps).
  */
 final class TapDripCountdown {
 
@@ -14,7 +15,7 @@ final class TapDripCountdown {
      */
     static final String TAG_DRIP_COUNTDOWN = "DripCountdown";
 
-    private final int interval;
+    private int interval;
     private int ticksLeft;
 
     /**
@@ -52,6 +53,17 @@ final class TapDripCountdown {
      */
     void restart() {
         ticksLeft = interval;
+    }
+
+    /**
+     * Takes a new interval, clamping the ticks left into it, so a step to a
+     * faster grade drips within the new interval rather than the old one.
+     *
+     * @param newInterval ticks between drips from now on
+     */
+    void retime(int newInterval) {
+        interval = newInterval;
+        ticksLeft = Math.clamp(ticksLeft, 1, interval);
     }
 
     /**

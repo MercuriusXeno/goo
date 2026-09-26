@@ -73,8 +73,7 @@ public final class GooSourceScanner {
     /**
      * Depletes the specified amount of goo from the player's inventory, pass by
      * pass in {@link DepletionPass} order. Returns the amount actually depleted,
-     * less than requested when the inventory runs short, and more when a
-     * whole-blob draw rounds up.
+     * less than requested when the inventory runs short.
      *
      * @param player the player whose inventory to deplete from
      * @param type   the goo type to deplete

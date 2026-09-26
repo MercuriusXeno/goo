@@ -70,14 +70,13 @@ final class CrucibleInteraction {
     }
 
     /**
-     * Returns true if the stack holds a goo carrier item (canister, blob, or omniblob).
+     * Returns true if the stack holds a goo carrier item (canister or omniblob).
      *
      * @param stack the item stack to test
      * @return true if the item is a goo carrier
      */
     static boolean isGooCarrier(ItemStack stack) {
         return stack.getItem() instanceof CanisterItem
-                || stack.getItem() instanceof GooBlobItem
                 || stack.getItem() instanceof GooOmniblobItem;
     }
 
@@ -120,42 +119,39 @@ final class CrucibleInteraction {
     }
 
     /**
-     * Inserts a goo blob or omniblob directly into the reservoir (bypass, no fuel needed).
+     * Inserts an omniblob directly into the reservoir (bypass, no fuel needed).
      *
      * @param stack    the item stack
      * @param crucible the crucible block entity
      * @param player   the interacting player
-     * @return true if the stack is a blob, inserted or refused at the cap; a refused
-     *         blob still ends the click so it never falls through to goo extraction
+     * @return true if the stack is an omniblob, inserted or refused at the cap; a refused
+     *         omniblob still ends the click so it never falls through to goo extraction
      */
     static boolean tryInsertBlob(ItemStack stack, CrucibleBlockEntity crucible, Player player) {
         if (BlobStacks.volumeOf(stack) <= 0) {
             return false;
         }
-        int perUnit = stack.getItem() instanceof GooBlobItem ? BlobStacks.MB_PER_BLOB : 1;
-        BlobInsert.pour(stack, player, (type, volume) -> acceptWholeUnits(crucible, type, volume, perUnit));
+        BlobInsert.pour(stack, player, (type, volume) -> acceptWholeUnits(crucible, type, volume));
         return true;
     }
 
     /**
-     * Inserts the whole units of the offered volume that fit the reservoir under the cap:
-     * a blob stack's unit is one blob, an omniblob's one mB
+     * Inserts the mB of the offered volume that fit the reservoir under the cap
      * (decision diagnose-then-fix-crucible-blob-duplication).
      *
      * @param crucible the crucible block entity to insert into
      * @param type     the goo type offered
      * @param volume   the volume offered, in mB
-     * @param perUnit  the mB one unit carries
-     * @return the volume inserted, a whole number of units
+     * @return the volume inserted
      */
     private static int acceptWholeUnits(CrucibleBlockEntity crucible, ResourceKey<GooTypeDefinition> type,
-                                        int volume, int perUnit) {
-        int units = CrucibleInsertion.reservoirUnitsThatFit(crucible, type, perUnit, volume / perUnit);
-        return units > 0 ? crucible.insertGoo(type, units * perUnit) : 0;
+                                        int volume) {
+        int units = CrucibleInsertion.reservoirUnitsThatFit(crucible, type, 1, volume);
+        return units > 0 ? crucible.insertGoo(type, units) : 0;
     }
 
     /**
-     * Extracts the entire reservoir as one item per goo type (blob stack or omniblob).
+     * Extracts the entire reservoir as one omniblob per goo type.
      *
      * @param crucible the crucible block entity
      * @param player   the interacting player

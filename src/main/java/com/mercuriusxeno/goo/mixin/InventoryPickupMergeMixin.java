@@ -13,7 +13,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * Pickup-side stacking fix: when a player picks up a goo blob or omniblob, if
+ * Pickup-side stacking fix: when a player picks up an omniblob, if
  * a same-type omniblob already exists somewhere in their inventory, route the
  * entire source volume into that omniblob instead of spawning a fresh slot.
  *
@@ -21,10 +21,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * {@code Inventory.add} merge pass short-circuits via {@code ItemStack.isStackable()}
  * and goes straight to empty-slot placement.</p>
  *
- * <p>This mixin only *adds* a pre-pass for the "omniblob-as-sink" case. It never
- * splits an omniblob across multiple blob stacks. When there is no matching
- * omniblob sink, the mixin is a no-op and vanilla runs normally (which correctly
- * tops up same-type blob stacks because they have {@code maxStackSize=64}).</p>
+ * <p>This mixin only *adds* a pre-pass for the "omniblob-as-sink" case. When
+ * there is no matching omniblob sink, the mixin is a no-op and vanilla runs
+ * normally.</p>
  */
 @Mixin(Inventory.class)
 public abstract class InventoryPickupMergeMixin {

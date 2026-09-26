@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.block.vat;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.block.GooGlowingMachineBlockEntity;
 import com.mercuriusxeno.goo.block.GooLightEntry;
+import com.mercuriusxeno.goo.block.IGooReceptacle;
 import com.mercuriusxeno.goo.block.fluid.GooFluidHandler;
 import com.mercuriusxeno.goo.block.fluid.GooStream;
 import com.mercuriusxeno.goo.block.gasket.GasketAttachment;
@@ -37,7 +38,7 @@ import java.util.List;
  * {@link VatGasketOps} (gasket face resolution, stacking, drops).
  * Gasket field storage owned by {@link GasketState#dual}.</p>
  */
-public class VatBlockEntity extends GooGlowingMachineBlockEntity {
+public class VatBlockEntity extends GooGlowingMachineBlockEntity implements IGooReceptacle {
 
     /**
      * The cap gasket's overlay region: the block's upper half.
@@ -122,6 +123,7 @@ public class VatBlockEntity extends GooGlowingMachineBlockEntity {
      * @param volume volume in microblobs
      * @return the amount actually inserted
      */
+    @Override
     public int insertGoo(ResourceKey<GooTypeDefinition> type, int volume) {
         return fluidHandler.insertGoo(type, Math.min(volume, Integer.MAX_VALUE), false);
     }

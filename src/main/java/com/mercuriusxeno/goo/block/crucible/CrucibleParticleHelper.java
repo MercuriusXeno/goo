@@ -162,22 +162,22 @@ public final class CrucibleParticleHelper {
      * goo's footprint, so bubbles rise from goo that is drawn (decision puddle-touches-walls-at-a-thousand).
      * Rejects positions too close to live (non-expired) bubbles using per-crucible history.
      *
-     * @param level    the current level
-     * @param pos      the block position
-     * @param totalGoo the pool and reservoir volume together
-     * @param color    the ARGB color value
-     * @param random   the random source
-     * @param history  per-crucible bubble spawn history
+     * @param level   the current level
+     * @param pos     the block position
+     * @param surface the surface the renderer draws
+     * @param color   the ARGB color value
+     * @param random  the random source
+     * @param history per-crucible bubble spawn history
      */
     public static void spawnGooBubbles(ServerLevel level, BlockPos pos,
-            long totalGoo, int color, RandomSource random,
+            CrucibleBasin.DrawnSurface surface, int color, RandomSource random,
             BubbleHistory history) {
         history.tick(level.getGameTime());
         int count = bubbleCount(random);
         ColorParticleOption options = ColorParticleOption.create(
             GooParticles.GOO_BUBBLE.get(), color | ALPHA_OPAQUE);
-        double y = pos.getY() + computeSurfaceY(totalGoo) + BUBBLE_RISE_OFFSET;
-        CrucibleBasin.PuddleFootprint footprint = CrucibleBasin.footprintForVolume(totalGoo);
+        double y = pos.getY() + surface.surfaceY() + BUBBLE_RISE_OFFSET;
+        CrucibleBasin.PuddleFootprint footprint = surface.footprint();
         for (int i = 0; i < count; i++) {
             trySpawnBubble(level, options, new BubbleSpawn(pos, y, footprint), random, history);
         }
@@ -323,14 +323,14 @@ public final class CrucibleParticleHelper {
     }
 
     /**
-     * Computes the liquid surface Y in block-relative coords from total goo
-     * volume, on the same fill curve the renderer draws.
+     * Computes the liquid surface Y in block-relative coords from the reservoir's
+     * volume, on the same fill curve the renderer draws (decision reservoir-volume-drives-fill).
      *
-     * @param totalGoo the total goo
+     * @param reservoirVolume the goo the reservoir holds, in mB
      * @return the surface Y
      */
-    public static float computeSurfaceY(long totalGoo) {
-        return CrucibleBasin.surfaceYForVolume(totalGoo);
+    public static float computeSurfaceY(long reservoirVolume) {
+        return CrucibleBasin.surfaceYForVolume(reservoirVolume);
     }
 
     /**

@@ -1,5 +1,7 @@
 package com.mercuriusxeno.goo.block.crucible;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * The crucible basin's geometry, read by the client surface renderer and the
  * server particle helper alike so the drawn surface and the bubbles agree
@@ -85,7 +87,7 @@ public final class CrucibleBasin {
      * area grows with volume, at and past it the whole floor (decision
      * puddle-touches-walls-at-a-thousand).
      *
-     * @param volume the pool and reservoir volume together
+     * @param volume the reservoir volume
      * @return the footprint, strictly inside the walls below the spread volume
      */
     public static PuddleFootprint footprintForVolume(long volume) {
@@ -102,7 +104,7 @@ public final class CrucibleBasin {
      * volume than the one below it, and only the rim volume fills the basin
      * (decisions each-pixel-harder-to-fill, puddle-touches-walls-at-a-thousand).
      *
-     * @param volume the pool and reservoir volume together
+     * @param volume the reservoir volume
      * @return the rise fraction in [0, 1], zero up to the spread volume and below one under the rim volume
      */
     public static float fillFraction(long volume) {
@@ -116,7 +118,7 @@ public final class CrucibleBasin {
      * The surface height as a share of the floor-to-rim span: the puddle depth
      * while the goo spreads, then the rise curve on the span above it.
      *
-     * @param volume the pool and reservoir volume together
+     * @param volume the reservoir volume
      * @return the height fraction in [0, 1], zero only for an empty basin
      */
     public static float heightFraction(long volume) {
@@ -127,7 +129,42 @@ public final class CrucibleBasin {
     }
 
     /**
-     * The pool and reservoir together, the volume the surface stands for; a
+     * The surface drawn for the crucible's volumes, from the reservoir alone, so an
+     * unmelted item's pool never raises goo that has not melted (decision reservoir-volume-drives-fill).
+     *
+     * @param volumes the reservoir and pool volumes
+     * @return the surface's footprint and height, or null while the reservoir is empty
+     */
+    public static @Nullable DrawnSurface drawnSurface(Volumes volumes) {
+        long reservoir = volumes.reservoir();
+        if (reservoir <= 0) {
+            return null;
+        }
+        return new DrawnSurface(footprintForVolume(reservoir), surfaceYForVolume(reservoir));
+    }
+
+    /**
+     * The goo a crucible holds, in its two stores.
+     *
+     * @param reservoir the melted goo the reservoir holds, in mB
+     * @param pool      the unmelted goo the partially melted item's pool holds, in mB
+     */
+    public record Volumes(long reservoir, long pool) {
+        /** A crucible holding no goo. */
+        public static final Volumes EMPTY = new Volumes(0, 0);
+    }
+
+    /**
+     * The fluid surface a crucible draws.
+     *
+     * @param footprint the square the goo covers
+     * @param surfaceY  the surface Y in block-relative coords
+     */
+    public record DrawnSurface(PuddleFootprint footprint, float surfaceY) {
+    }
+
+    /**
+     * The pool and reservoir together, every mB the crucible holds; a
      * long so it never wraps (decision diagnose-then-fix-crucible-overflow).
      *
      * @param poolVolume      the melt pool's total volume in mB
@@ -141,7 +178,7 @@ public final class CrucibleBasin {
     /**
      * Places the surface on the floor-to-rim span for a volume.
      *
-     * @param volume the pool and reservoir volume together
+     * @param volume the reservoir volume
      * @return the surface Y in block-relative coords
      */
     public static float surfaceYForVolume(long volume) {
