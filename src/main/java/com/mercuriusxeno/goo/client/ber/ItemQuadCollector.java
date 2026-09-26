@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.ber;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.QuadInstance;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.model.Model;
 import net.minecraft.client.model.geom.ModelPart;
@@ -61,8 +62,20 @@ abstract class ItemQuadCollector implements SubmitNodeCollector {
     }
 
     /**
-     * Re-emits quads grouped by their sprite's atlas, so block-atlas and item-atlas
-     * sprites each bind the right texture.
+     * Emits one atlas's quads into the buffer its render type opened.
+     */
+    @FunctionalInterface
+    interface GroupEmitter {
+        /**
+         * @param pose   the pose the geometry was submitted at
+         * @param buffer the buffer to emit into
+         * @param group  the quads on one atlas
+         */
+        void emit(PoseStack.Pose pose, VertexConsumer buffer, List<BakedQuad> group);
+    }
+
+    /**
+     * Re-emits quads through putBakedQuad, grouped by their sprite's atlas.
      *
      * @param poseStack    the pose stack
      * @param quads        the baked quads
@@ -72,16 +85,42 @@ abstract class ItemQuadCollector implements SubmitNodeCollector {
      */
     protected void resubmitByAtlas(PoseStack poseStack, List<BakedQuad> quads, int[] tintLayers,
                                    Function<Identifier, RenderType> renderTypeOf, QuadStyle style) {
+        resubmitByAtlas(poseStack, quads, renderTypeOf, (pose, buffer, group) -> {
+            QuadInstance instance = new QuadInstance();
+            for (BakedQuad quad : group) {
+                style.apply(instance, tintOf(quad, tintLayers));
+                buffer.putBakedQuad(pose, quad, instance);
+            }
+        });
+    }
+
+    /**
+     * Re-emits quads grouped by their sprite's atlas, so block-atlas and item-atlas
+     * sprites each bind the right texture, one submission per atlas.
+     *
+     * @param poseStack    the pose stack
+     * @param quads        the baked quads
+     * @param renderTypeOf the render type each atlas draws on
+     * @param emitter      emits one atlas's quads
+     */
+    protected void resubmitByAtlas(PoseStack poseStack, List<BakedQuad> quads,
+                                   Function<Identifier, RenderType> renderTypeOf, GroupEmitter emitter) {
         for (Map.Entry<Identifier, List<BakedQuad>> entry : groupByAtlas(quads).entrySet()) {
             List<BakedQuad> group = entry.getValue();
-            delegate.submitCustomGeometry(poseStack, renderTypeOf.apply(entry.getKey()), (pose, buffer) -> {
-                QuadInstance instance = new QuadInstance();
-                for (BakedQuad quad : group) {
-                    style.apply(instance, resolveTint(quad.materialInfo().tintIndex(), tintLayers));
-                    buffer.putBakedQuad(pose, quad, instance);
-                }
-            });
+            delegate.submitCustomGeometry(poseStack, renderTypeOf.apply(entry.getKey()),
+                    (pose, buffer) -> emitter.emit(pose, buffer, group));
         }
+    }
+
+    /**
+     * Returns a quad's tint color.
+     *
+     * @param quad       the baked quad
+     * @param tintLayers per-tint-index colors from the item color handler
+     * @return the tint color, or {@link #NO_TINT}
+     */
+    static int tintOf(BakedQuad quad, int[] tintLayers) {
+        return resolveTint(quad.materialInfo().tintIndex(), tintLayers);
     }
 
     /**

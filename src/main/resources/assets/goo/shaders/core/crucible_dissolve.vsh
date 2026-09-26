@@ -7,8 +7,10 @@
 #moj_import <minecraft:projection.glsl>
 
 // The vanilla entity vertex shader, lit by the lightmap, plus the dissolve of
-// decision dissolve-shader-on-item: the overlay coordinates carry the dissolve
-// fraction and the glow color instead of the hurt overlay.
+// decisions dissolve-shader-on-item and glow-color-from-mingling: the overlay
+// coordinates carry the dissolve fraction and the layer's glow color instead of
+// the hurt overlay, and the lightmap coordinates' high bytes carry the layer's
+// share and index beside the light in their low bytes.
 
 in vec3 Position;
 in vec4 Color;
@@ -27,9 +29,13 @@ out vec2 texCoord0;
 out vec3 dissolveWorldPos;
 flat out float dissolveFraction;
 flat out vec3 glowColor;
+flat out float glowShare;
+flat out float glowLayer;
 
 // Must match DissolveGlow.FRACTION_UNITS: UV1.x carries the fraction dissolved.
 const float FRACTION_UNITS = 4096.0;
+// Must match DissolveGlow.SHARE_UNITS: UV2.x's high byte carries the layer's share.
+const float SHARE_UNITS = 127.0;
 
 // UV1.y carries the glow color as RGB565, read back unsigned from the short.
 vec3 unpackRgb565(int packed) {
@@ -45,11 +51,13 @@ void main() {
     sphericalVertexDistance = fog_spherical_distance(Position);
     cylindricalVertexDistance = fog_cylindrical_distance(Position);
     vertexColor = minecraft_mix_light(Light0_Direction, Light1_Direction, Normal, Color);
-    lightMapColor = texelFetch(Sampler2, UV2 / 16, 0);
+    lightMapColor = texelFetch(Sampler2, (UV2 & 0xFF) / 16, 0);
     texCoord0 = UV0;
 
     // Position is camera-relative; the camera globals recover the world position.
     dissolveWorldPos = Position + vec3(CameraBlockPos) - CameraOffset;
     dissolveFraction = float(UV1.x) / FRACTION_UNITS;
     glowColor = unpackRgb565(UV1.y);
+    glowShare = float(UV2.x >> 8) / SHARE_UNITS;
+    glowLayer = float(UV2.y >> 8);
 }

@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.client.ber;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBasin;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
 import com.mercuriusxeno.goo.block.crucible.CrucibleMeltQueue;
@@ -15,7 +14,6 @@ import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.AABB;
@@ -55,7 +53,7 @@ final class CrucibleMeltingItems {
         CrucibleMeltQueue.Entry head = be.meltHead();
         state.hasHead = head != null && resolve(state.headItem, head.item());
         if (head != null) {
-            state.headGlow = new DissolveGlow(head.dissolveFraction(), glowColorOf(head.item()));
+            state.headGlow = glowOf(head);
         }
         List<CrucibleMeltQueue.Entry> waiting = be.meltWaiting();
         int shown = 0;
@@ -137,18 +135,17 @@ final class CrucibleMeltingItems {
     }
 
     /**
-     * Returns the color of the goo type the item yields most of, the glow this
-     * commit paints before the mingled glow replaces it.
+     * Returns the dissolving item's glow: one layer per goo type it yields, each in its
+     * type's color, or white when the client holds no goo value for it.
      *
-     * @param itemId the item's registry id
-     * @return the glow color as 0xRRGGBB
+     * @param head the stack dissolving
+     * @return the glow
      */
-    private static int glowColorOf(Identifier itemId) {
-        GooValue value = Goo.GOO_VALUES.lookup(itemId);
+    private static DissolveGlow glowOf(CrucibleMeltQueue.Entry head) {
+        GooValue value = Goo.GOO_VALUES.lookup(head.item());
         if (value == null || value.isEmpty()) {
-            return WHITE_GLOW;
+            return DissolveGlow.single(head.dissolveFraction(), WHITE_GLOW);
         }
-        ResourceKey<GooTypeDefinition> largest = value.largestType();
-        return largest == null ? WHITE_GLOW : ClientGooTypes.color(largest);
+        return DissolveGlow.of(head.dissolveFraction(), value, ClientGooTypes::color);
     }
 }

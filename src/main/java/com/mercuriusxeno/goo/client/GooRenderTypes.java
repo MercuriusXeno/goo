@@ -351,11 +351,13 @@ public final class GooRenderTypes {
     );
 
     /**
-     * Crucible dissolve pipeline (decision dissolve-shader-on-item): the entity look,
-     * lit by the lightmap, on shaders that discard where the mingle noise over world
-     * position falls below the dissolve fraction the overlay coordinates carry and
-     * paint a glow band above it. Premultiplied blending lets the glow add light
-     * while the item body draws translucent.
+     * Crucible dissolve pipeline (decisions dissolve-shader-on-item, glow-color-from-mingling):
+     * the entity look, lit by the lightmap, on shaders that discard where the mingle noise
+     * over world position falls below the dissolve fraction the overlay coordinates carry
+     * and paint a glow band above it. The item draws once per goo type layer; each later
+     * layer paints its glow opaque where its own mingle field picks it, so the render type
+     * keeps emission order rather than sorting. Premultiplied blending lets the band
+     * draw opaque over the body while a translucent item body keeps its alpha.
      */
     public static final RenderPipeline CRUCIBLE_DISSOLVE = RenderPipeline.builder(
                     RenderPipelines.ENTITY_SNIPPET,
@@ -375,7 +377,6 @@ public final class GooRenderTypes {
                     RenderSetup.builder(CRUCIBLE_DISSOLVE)
                             .withTexture("Sampler0", texture)
                             .useLightmap()
-                            .sortOnUpload()
                             .createRenderSetup()
             ));
 
