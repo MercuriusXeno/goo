@@ -25,11 +25,15 @@ import java.util.Locale;
  * @param temperature    fluid temperature in kelvin, room temperature 300
  * @param extinguishes   whether the fluid puts out a burning entity
  * @param mapColor       the color the fluid block paints on a map
+ * @param levity         multiplier on the square root of throw distance in
+ *                       the blob's flight time, lower flies faster
+ * @param baseFlightTime ticks every throw of the type spends in flight
+ *                       before distance adds any
  * @param textures       the blob and fluid sprites the JSON names, each optional
  */
 public record GooTypeDefinition(int peakLight, float saturationFill, int wheel, int bright, int highlight, int edge,
                                 int density, int viscosity, int temperature, boolean extinguishes, MapColor mapColor,
-                                GooTypeTextures textures) {
+                                float levity, int baseFlightTime, GooTypeTextures textures) {
 
     /**
      * JSON key of {@link #peakLight}.
@@ -76,6 +80,14 @@ public record GooTypeDefinition(int peakLight, float saturationFill, int wheel, 
      */
     public static final String MAP_COLOR = "map_color";
     /**
+     * JSON key of {@link #levity}.
+     */
+    public static final String LEVITY = "levity";
+    /**
+     * JSON key of {@link #baseFlightTime}.
+     */
+    public static final String BASE_FLIGHT_TIME = "base_flight_time";
+    /**
      * JSON key of {@link #textures}.
      */
     public static final String TEXTURES = "textures";
@@ -101,7 +113,8 @@ public record GooTypeDefinition(int peakLight, float saturationFill, int wheel, 
     /**
      * Codec for a goo type JSON body. Decision type-json-light-fields: the
      * light fields come first; decision generic-goo-fluids: the fluid fields
-     * follow the colors; decision type-named-textures: the textures object
+     * follow the colors; decision levity-and-base-in-goo-type-json: the
+     * flight fields follow the fluid; decision type-named-textures: the textures object
      * closes the body and may be left out.
      */
     public static final Codec<GooTypeDefinition> CODEC = RecordCodecBuilder.create(instance -> instance.group(
@@ -116,6 +129,8 @@ public record GooTypeDefinition(int peakLight, float saturationFill, int wheel, 
             Codec.INT.fieldOf(TEMPERATURE).forGetter(GooTypeDefinition::temperature),
             Codec.BOOL.fieldOf(EXTINGUISHES).forGetter(GooTypeDefinition::extinguishes),
             MapColors.CODEC.fieldOf(MAP_COLOR).forGetter(GooTypeDefinition::mapColor),
+            Codec.floatRange(0f, Float.MAX_VALUE).fieldOf(LEVITY).forGetter(GooTypeDefinition::levity),
+            Codec.intRange(0, Integer.MAX_VALUE).fieldOf(BASE_FLIGHT_TIME).forGetter(GooTypeDefinition::baseFlightTime),
             GooTypeTextures.CODEC.optionalFieldOf(TEXTURES, GooTypeTextures.NONE).forGetter(GooTypeDefinition::textures)
     ).apply(instance, GooTypeDefinition::new));
 
