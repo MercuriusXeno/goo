@@ -58,7 +58,7 @@ class NetherBlackHoleProgramTest {
     private final PhasedState state = new PhasedState();
     private int tick;
     private ProgramBehavior runner;
-    private StepHost host;
+    private MarkerHost host;
 
     private static List<Step> program() {
         return AbilityJson.decode("nether_black_hole").behaviors();
@@ -82,8 +82,8 @@ class NetherBlackHoleProgramTest {
      *
      * @return the marker host
      */
-    private StepHost marker() {
-        StepHost host = mock(StepHost.class);
+    private MarkerHost marker() {
+        MarkerHost host = mock(MarkerHost.class);
         when(host.kind()).thenReturn(HostKind.MARKER);
         when(host.phased()).thenReturn(state);
         when(host.read(anyString())).thenReturn(OptionalDouble.empty());
@@ -105,15 +105,15 @@ class NetherBlackHoleProgramTest {
             return null;
         }).when(host).dropConsumedGoo();
         doAnswer(inv -> {
-            SoundCue cue = inv.getArgument(1);
+            SoundCue cue = inv.getArgument(0);
             record("sound " + cue.sound() + " at volume " + cue.volume());
             return null;
-        }).when(host).playSound(any(), any());
+        }).when(host).playSound(any());
         doAnswer(inv -> {
-            ParticleBurst burst = inv.getArgument(1);
+            ParticleBurst burst = inv.getArgument(0);
             record("particles " + burst.particle() + " x" + burst.count() + " spread " + burst.spreadAlong());
             return null;
-        }).when(host).spawnParticles(any(), any());
+        }).when(host).spawnParticles(any());
         return host;
     }
 

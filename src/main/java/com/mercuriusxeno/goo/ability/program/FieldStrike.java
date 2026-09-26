@@ -23,7 +23,7 @@ public record FieldStrike(int entityId, float x, float y, float z, int age) {
      * @param target the host bound to the selected entity
      * @return the new strike, zero ticks old
      */
-    static FieldStrike aimedAt(StepHost target) {
+    static FieldStrike aimedAt(TargetHost target) {
         LivingEntity entity = target.target();
         Vec3 center = entity.getBoundingBox().getCenter();
         return new FieldStrike(entity.getId(), (float) center.x(), (float) center.y(), (float) center.z(), 0);

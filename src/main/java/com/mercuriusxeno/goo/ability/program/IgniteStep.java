@@ -36,7 +36,7 @@ public record IgniteStep(Expr seconds) implements Step {
 
     @Override
     public boolean tick(StepContext context) {
-        context.host().target().igniteForSeconds(seconds.evaluateInt(context));
+        context.hostAs(TargetHost.class).target().igniteForSeconds(seconds.evaluateInt(context));
         return true;
     }
 

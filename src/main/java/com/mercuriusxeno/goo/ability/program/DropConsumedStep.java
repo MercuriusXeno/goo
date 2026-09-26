@@ -30,7 +30,7 @@ public record DropConsumedStep() implements Step {
 
     @Override
     public boolean tick(StepContext context) {
-        context.host().dropConsumedGoo();
+        context.hostAs(ConsumedGooHost.class).dropConsumedGoo();
         return true;
     }
 

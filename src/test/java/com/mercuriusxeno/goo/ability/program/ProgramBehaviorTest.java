@@ -17,7 +17,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * ProgramBehavior drives a step list against a StepHost with no level
+ * ProgramBehavior drives a step list against a MarkerHost with no level
  * behind it: instant steps chain within a tick, waiting steps hold the
  * cursor, and the behavior reads inactive once the body ends.
  */
@@ -30,8 +30,8 @@ class ProgramBehaviorTest {
         return Expr.parse(source).getOrThrow();
     }
 
-    private static StepHost hostWithStacks(int stacks) {
-        StepHost host = mock(StepHost.class);
+    private static MarkerHost hostWithStacks(int stacks) {
+        MarkerHost host = mock(MarkerHost.class);
         when(host.read(STACKS)).thenReturn(OptionalDouble.of(stacks));
         return host;
     }
@@ -42,7 +42,7 @@ class ProgramBehaviorTest {
 
     @Test
     void explodePowerIsAnExpressionOverTheHostStackCount() {
-        StepHost host = hostWithStacks(3);
+        MarkerHost host = hostWithStacks(3);
         ProgramBehavior program = new ProgramBehavior(List.of(explode("2 + 1 * (stacks - 1)")));
 
         program.tick(host);
@@ -53,7 +53,7 @@ class ProgramBehaviorTest {
 
     @Test
     void waitHoldsTheCursorForItsTicks() {
-        StepHost host = hostWithStacks(1);
+        MarkerHost host = hostWithStacks(1);
         ProgramBehavior program = new ProgramBehavior(List.of(new WaitStep(Expr.literal(2)), explode("1")));
 
         program.tick(host);
@@ -68,7 +68,7 @@ class ProgramBehaviorTest {
 
     @Test
     void awaitEntityHoldsUntilTheHostSeesOne() {
-        StepHost host = hostWithStacks(2);
+        MarkerHost host = hostWithStacks(2);
         when(host.anyEntityWithin(SelectionShape.SPHERE, 3.0, LIVING)).thenReturn(false, false, true);
         ProgramBehavior program = new ProgramBehavior(List.of(
                 new AwaitEntityStep(SelectionShape.SPHERE, Expr.literal(3), List.of(EntityFilter.LIVING)),
@@ -86,7 +86,7 @@ class ProgramBehaviorTest {
 
     @Test
     void instantStepsChainWithinOneTick() {
-        StepHost host = hostWithStacks(1);
+        MarkerHost host = hostWithStacks(1);
         ProgramBehavior program = new ProgramBehavior(List.of(new WaitStep(Expr.literal(0)), explode("1"), explode("2")));
 
         program.tick(host);
@@ -98,7 +98,7 @@ class ProgramBehaviorTest {
 
     @Test
     void finishedProgramTicksNothing() {
-        StepHost host = hostWithStacks(1);
+        MarkerHost host = hostWithStacks(1);
         ProgramBehavior program = new ProgramBehavior(List.of(explode("1")));
 
         program.tick(host);

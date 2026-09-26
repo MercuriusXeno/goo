@@ -39,7 +39,7 @@ public record SetBabyStep(boolean enabled) implements Step {
 
     @Override
     public boolean tick(StepContext context) {
-        if (context.host().target() instanceof Mob mob) {
+        if (context.hostAs(TargetHost.class).target() instanceof Mob mob) {
             mob.setBaby(enabled);
         }
         return true;

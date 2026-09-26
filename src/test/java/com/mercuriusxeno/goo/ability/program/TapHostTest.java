@@ -43,14 +43,14 @@ class TapHostTest {
 
     @Test
     void particlesProgramRunsOnceAtTheHostAnchor() {
-        StepHost host = mock(StepHost.class);
+        TapHost host = mock(TapHost.class);
         when(host.kind()).thenReturn(HostKind.TAP);
         ProgramBehavior program = ProgramBehavior.forHost(List.of(splash(FxAnchor.HOST)), HostKind.TAP);
 
         program.tick(host);
 
         ArgumentCaptor<ParticleBurst> burst = ArgumentCaptor.forClass(ParticleBurst.class);
-        verify(host, times(1)).spawnParticles(eq(FxAnchor.HOST), burst.capture());
+        verify(host, times(1)).spawnParticles(burst.capture());
         assertEquals(SPLASH, burst.getValue().particle());
         assertEquals(BURST, burst.getValue().count());
         assertFalse(program.isActive());

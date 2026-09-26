@@ -3,8 +3,9 @@ package com.mercuriusxeno.goo.ability.program;
 import java.util.Set;
 
 /**
- * The hosts a program can run on, each with the capabilities it provides
- * and the variables it binds. The label is what a load refusal names.
+ * The hosts a program can run on, each with the host type whose
+ * capability interfaces name what it provides, and the variables it
+ * binds. The label is what a load refusal names.
  */
 public enum HostKind {
     /**
@@ -14,18 +15,13 @@ public enum HostKind {
      * state a trap keeps while its budget lasts, the phase cursor of a
      * phased step, and the goo a black hole consumes until it pops.
      */
-    MARKER("marker block",
-            Set.of(HostCapability.STACKS, HostCapability.PLACED_FACE, HostCapability.TICKING,
-                    HostCapability.EXPLODE, HostCapability.ENTITY_SCAN, HostCapability.PLACE_BLOCK,
-                    HostCapability.LAYER_WALK, HostCapability.FIELD_EFFECT, HostCapability.PHASED,
-                    HostCapability.CONSUMED_GOO),
+    MARKER("marker block", MarkerHost.class,
             Set.of(HostVariables.STACKS, HostVariables.MAX_STACKS, HostVariables.FLAT)),
     /**
      * The struck living entity: a target and its thrower, acted on in the
      * tick the blob lands, with no driver for later ticks.
      */
-    ENTITY("struck entity",
-            Set.of(HostCapability.TARGET, HostCapability.EXPLODE, HostCapability.ENTITY_SCAN),
+    ENTITY("struck entity", EntityHost.class,
             Set.of(HostVariables.HEALTH, HostVariables.MAX_HEALTH, HostVariables.DISTANCE,
                     HostVariables.UNDEAD, HostVariables.SPRINTING)),
     /**
@@ -34,17 +30,15 @@ public enum HostKind {
      * target, no stacks and no driver for later ticks
      * (decision tap-ability-tagged-program).
      */
-    TAP("tap landing",
-            Set.of(HostCapability.EXPLODE, HostCapability.ENTITY_SCAN, HostCapability.PLACE_BLOCK),
-            Set.of());
+    TAP("tap landing", TapHost.class, Set.of());
 
     private final String label;
     private final Set<HostCapability> capabilities;
     private final Set<String> variables;
 
-    HostKind(String label, Set<HostCapability> capabilities, Set<String> variables) {
+    HostKind(String label, Class<? extends StepHost> hostType, Set<String> variables) {
         this.label = label;
-        this.capabilities = capabilities;
+        this.capabilities = HostCapability.providedBy(hostType);
         this.variables = variables;
     }
 
@@ -58,7 +52,9 @@ public enum HostKind {
     }
 
     /**
-     * Returns the capabilities this host provides.
+     * Returns the capabilities this host provides, read off the capability
+     * interfaces its host type implements (decision
+     * capability-interfaces-derive-host-kind).
      *
      * @return the capability set
      */

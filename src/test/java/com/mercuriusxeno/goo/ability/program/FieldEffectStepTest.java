@@ -138,7 +138,7 @@ class FieldEffectStepTest {
      * @param id its entity id
      * @return the target host
      */
-    private StepHost walker(int id) {
+    private EntityHost walker(int id) {
         return entityInRadius(id, null, false);
     }
 
@@ -150,8 +150,8 @@ class FieldEffectStepTest {
      * @param sprinting  whether it is a sprinting player
      * @return the target host
      */
-    private StepHost entityInRadius(int id, @Nullable EntityFilter rejectedBy, boolean sprinting) {
-        StepHost target = mock(StepHost.class);
+    private EntityHost entityInRadius(int id, @Nullable EntityFilter rejectedBy, boolean sprinting) {
+        EntityHost target = mock(EntityHost.class);
         when(target.kind()).thenReturn(HostKind.ENTITY);
         when(target.read(anyString())).thenReturn(OptionalDouble.empty());
         when(target.read(HostVariables.SPRINTING)).thenReturn(OptionalDouble.of(sprinting ? 1 : 0));
@@ -171,8 +171,8 @@ class FieldEffectStepTest {
      * @param inRadius the entities within the trap's radius
      * @return the marker host
      */
-    private StepHost marker(AtomicInteger stacks, List<StepHost> inRadius) {
-        StepHost host = mock(StepHost.class);
+    private MarkerHost marker(AtomicInteger stacks, List<EntityHost> inRadius) {
+        MarkerHost host = mock(MarkerHost.class);
         FieldEffectState state = new FieldEffectState();
         when(host.kind()).thenReturn(HostKind.MARKER);
         when(host.fieldEffect()).thenReturn(state);
@@ -181,20 +181,20 @@ class FieldEffectStepTest {
         doAnswer(inv -> stacks.decrementAndGet()).when(host).decrementStack();
         doAnswer(inv -> {
             Set<EntityFilter> filters = inv.getArgument(2);
-            Consumer<StepHost> body = inv.getArgument(3);
+            Consumer<TargetHost> body = inv.getArgument(3);
             inRadius.stream().filter(entity -> passes(entity, filters)).forEach(body);
             return null;
         }).when(host).forEachEntityWithin(any(), anyDouble(), anySet(), any());
         doAnswer(inv -> {
             int id = inv.getArgument(0);
-            Consumer<StepHost> body = inv.getArgument(1);
+            Consumer<TargetHost> body = inv.getArgument(1);
             inRadius.stream().filter(entity -> idByHost.get(entity) == id).forEach(body);
             return null;
         }).when(host).forEntity(anyInt(), any());
         return host;
     }
 
-    private static void tick(ProgramBehavior program, StepHost host, int ticks) {
+    private static void tick(ProgramBehavior program, MarkerHost host, int ticks) {
         for (int i = 0; i < ticks; i++) {
             program.tick(host);
         }
@@ -203,17 +203,17 @@ class FieldEffectStepTest {
     @Test
     void aTargetInRadiusCostsOneStackAndIsImpaledOnTheStrikeTick() throws IOException {
         AtomicInteger stacks = new AtomicInteger(2);
-        StepHost walker = walker(WALKER_ID);
-        StepHost host = marker(stacks, List.of(walker));
+        EntityHost walker = walker(WALKER_ID);
+        MarkerHost host = marker(stacks, List.of(walker));
         ProgramBehavior program = ProgramBehavior.forHost(metalProgram(), HostKind.MARKER);
 
         program.tick(host);
 
         assertEquals(1, stacks.get());
-        verify(walker, never()).playSound(FxAnchor.TARGET, PROBE_CUE);
+        verify(walker, never()).playSound(PROBE_CUE);
         tick(program, host, STRIKE_TICK);
-        verify(walker).playSound(FxAnchor.TARGET, PROBE_CUE);
-        verify(walker).spawnParticles(eq(FxAnchor.TARGET), argThat(burst -> "crit".equals(burst.particle().getPath())));
+        verify(walker).playSound(PROBE_CUE);
+        verify(walker).spawnParticles(argThat(burst -> "crit".equals(burst.particle().getPath())));
         assertEquals(1, stacks.get());
         assertTrue(program.isActive());
     }
@@ -221,14 +221,14 @@ class FieldEffectStepTest {
     @Test
     void aSneakingPlayerCostsNoStackAndTakesNoHit() throws IOException {
         AtomicInteger stacks = new AtomicInteger(2);
-        StepHost sneaker = entityInRadius(SNEAKER_ID, EntityFilter.NOT_SNEAKING, false);
-        StepHost host = marker(stacks, List.of(sneaker));
+        EntityHost sneaker = entityInRadius(SNEAKER_ID, EntityFilter.NOT_SNEAKING, false);
+        MarkerHost host = marker(stacks, List.of(sneaker));
         ProgramBehavior program = ProgramBehavior.forHost(metalProgram(), HostKind.MARKER);
 
         tick(program, host, IDLE_TICKS);
 
         assertEquals(2, stacks.get());
-        verify(sneaker, never()).playSound(FxAnchor.TARGET, PROBE_CUE);
+        verify(sneaker, never()).playSound(PROBE_CUE);
         verify(host, never()).decrementStack();
         assertTrue(program.isActive());
     }
@@ -236,9 +236,9 @@ class FieldEffectStepTest {
     @Test
     void theCooldownHoldsTheNextStrikeTenTicks() throws IOException {
         AtomicInteger stacks = new AtomicInteger(3);
-        StepHost first = walker(WALKER_ID);
-        StepHost second = walker(OTHER_WALKER_ID);
-        StepHost host = marker(stacks, List.of(first, second));
+        EntityHost first = walker(WALKER_ID);
+        EntityHost second = walker(OTHER_WALKER_ID);
+        MarkerHost host = marker(stacks, List.of(first, second));
         ProgramBehavior program = ProgramBehavior.forHost(metalProgram(), HostKind.MARKER);
 
         tick(program, host, COOLDOWN);
@@ -251,65 +251,63 @@ class FieldEffectStepTest {
     @Test
     void aSpentBudgetTearsDownOnceWhenTheLastStrikeRetractsAndEndsTheProgram() throws IOException {
         AtomicInteger stacks = new AtomicInteger(1);
-        StepHost walker = walker(WALKER_ID);
-        StepHost host = marker(stacks, List.of(walker));
+        EntityHost walker = walker(WALKER_ID);
+        MarkerHost host = marker(stacks, List.of(walker));
         ProgramBehavior program = ProgramBehavior.forHost(metalProgram(), HostKind.MARKER);
 
         tick(program, host, STRIKE_TICKS - 1);
         assertEquals(0, stacks.get());
         assertTrue(program.isActive());
-        verify(host, never()).playSound(any(), any());
+        verify(host, never()).playSound(any());
 
         tick(program, host, IDLE_TICKS);
 
         assertFalse(program.isActive());
-        verify(host, times(1)).spawnParticles(eq(FxAnchor.HOST),
-                argThat(burst -> "poof".equals(burst.particle().getPath())));
-        verify(host, times(1)).playSound(eq(FxAnchor.HOST),
-                argThat(cue -> "block.fire.extinguish".equals(cue.sound().getPath())));
+        verify(host, times(1)).spawnParticles(argThat(burst -> "poof".equals(burst.particle().getPath())));
+        verify(host, times(1)).playSound(argThat(cue -> "block.fire.extinguish".equals(cue.sound().getPath())));
     }
 
     @Test
     void eightShredsOnAMovingEntityDecrementTheStackOnce() throws IOException {
         AtomicInteger stacks = new AtomicInteger(2);
-        StepHost walker = walker(WALKER_ID);
-        StepHost host = marker(stacks, List.of(walker));
+        EntityHost walker = walker(WALKER_ID);
+        MarkerHost host = marker(stacks, List.of(walker));
         ProgramBehavior program = ProgramBehavior.forHost(crystalProgram(), HostKind.MARKER);
 
         tick(program, host, WALKING_TICKS_FOR_A_BLOB - 1);
         assertEquals(2, stacks.get());
-        verify(walker, times(CHARGES_PER_BLOB - 1)).playSound(FxAnchor.TARGET, PROBE_CUE);
+        verify(walker, times(CHARGES_PER_BLOB - 1)).playSound(PROBE_CUE);
 
         program.tick(host);
 
-        verify(walker, times(CHARGES_PER_BLOB)).playSound(FxAnchor.TARGET, PROBE_CUE);
+        verify(walker, times(CHARGES_PER_BLOB)).playSound(PROBE_CUE);
         verify(host, times(1)).decrementStack();
         assertEquals(1, stacks.get());
     }
 
     @Test
     void aSprintingPlayerIsShreddedEveryTickTwiceAsOftenAsAWalker() throws IOException {
-        StepHost walker = walker(WALKER_ID);
-        StepHost sprinter = entityInRadius(OTHER_WALKER_ID, null, true);
-        StepHost host = marker(new AtomicInteger(2), List.of(walker, sprinter));
+        EntityHost walker = walker(WALKER_ID);
+        EntityHost sprinter = entityInRadius(OTHER_WALKER_ID, null, true);
+        MarkerHost host = marker(new AtomicInteger(2), List.of(walker, sprinter));
         ProgramBehavior program = ProgramBehavior.forHost(crystalProgram(), HostKind.MARKER);
 
         tick(program, host, SPRINT_WINDOW);
 
-        verify(sprinter, times(SPRINT_WINDOW)).playSound(FxAnchor.TARGET, PROBE_CUE);
-        verify(walker, times(SPRINT_WINDOW / 2)).playSound(FxAnchor.TARGET, PROBE_CUE);
+        verify(sprinter, times(SPRINT_WINDOW)).playSound(PROBE_CUE);
+        verify(walker, times(SPRINT_WINDOW / 2)).playSound(PROBE_CUE);
     }
 
     @Test
     void aStandingEntityIsNotShredded() throws IOException {
         AtomicInteger stacks = new AtomicInteger(1);
-        StepHost standing = entityInRadius(WALKER_ID, EntityFilter.MOVING, false);
-        StepHost host = marker(stacks, List.of(standing));
+        EntityHost standing = entityInRadius(WALKER_ID, EntityFilter.MOVING, false);
+        MarkerHost host = marker(stacks, List.of(standing));
         ProgramBehavior program = ProgramBehavior.forHost(crystalProgram(), HostKind.MARKER);
 
         tick(program, host, IDLE_TICKS);
 
-        verify(standing, never()).playSound(FxAnchor.TARGET, PROBE_CUE);
+        verify(standing, never()).playSound(PROBE_CUE);
         assertEquals(1, stacks.get());
         assertTrue(program.isActive());
     }
@@ -317,7 +315,7 @@ class FieldEffectStepTest {
     @Test
     void theCloudExpandsThenContractsOnceItsLastBlobIsSpent() throws IOException {
         AtomicInteger stacks = new AtomicInteger(1);
-        StepHost host = marker(stacks, List.of(walker(WALKER_ID)));
+        MarkerHost host = marker(stacks, List.of(walker(WALKER_ID)));
         FieldEffectState state = host.fieldEffect();
         ProgramBehavior program = ProgramBehavior.forHost(crystalProgram(), HostKind.MARKER);
 
@@ -341,7 +339,7 @@ class FieldEffectStepTest {
     @Test
     void theRunningFieldEffectAllowsTopOff() throws IOException {
         AtomicInteger stacks = new AtomicInteger(1);
-        StepHost host = marker(stacks, List.of());
+        MarkerHost host = marker(stacks, List.of());
         ProgramBehavior program = ProgramBehavior.forHost(metalProgram(), HostKind.MARKER);
 
         program.tick(host);
