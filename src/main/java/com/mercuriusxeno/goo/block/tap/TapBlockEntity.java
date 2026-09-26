@@ -130,12 +130,12 @@ public class TapBlockEntity extends net.minecraft.world.level.block.entity.Block
             tap.setStream(null);
             return;
         }
-        ResourceKey<GooTypeDefinition> type = TapDrip.draw(tap, SLOT);
-        if (type == null) {
+        TapDrip.Drawn drawn = TapDrip.draw(tap, SLOT, tap.dripGrade.dripVolume());
+        if (drawn == null) {
             tap.setStream(null);
             return;
         }
-        tap.release(server, pos, landing, type);
+        tap.release(server, pos, landing, drawn);
     }
 
     /**
@@ -145,16 +145,16 @@ public class TapBlockEntity extends net.minecraft.world.level.block.entity.Block
      * @param server  the server level
      * @param pos     the tap's position
      * @param landing where the drip lands
-     * @param type    the goo type drawn
+     * @param drawn   the goo drawn
      */
-    private void release(ServerLevel server, BlockPos pos, TapDripLanding landing,
-                         ResourceKey<GooTypeDefinition> type) {
+    private void release(ServerLevel server, BlockPos pos, TapDripLanding landing, TapDrip.Drawn drawn) {
+        ResourceKey<GooTypeDefinition> type = drawn.type();
         Vec3 spigot = TapSpigot.underside(pos);
         setStream(TapDrip.release(dripGrade, new TapStream(type, landing.surfaceY()), TapDrip.sinkOf(server),
                 TapDrip.dripParticle(GooParticles.TAP_DRIP.get(), GooColors.get(server.registryAccess(), type)), spigot));
         int fallTicks = DripFall.fallTicks(spigot.y - landing.surfaceY(), -TapDrip.DRIP_LEAVE_SPEED);
         TapDripScheduler.enqueue(new TapDripScheduler.PendingDrip(server, pos, landing.pos(), Direction.UP,
-                type, server.getServer().getTickCount() + fallTicks));
+                type, drawn.volume(), server.getServer().getTickCount() + fallTicks));
     }
 
     // --- Drip grade ---

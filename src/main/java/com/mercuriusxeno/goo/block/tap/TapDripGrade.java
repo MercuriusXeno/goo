@@ -5,29 +5,36 @@ import net.minecraft.world.level.storage.ValueOutput;
 import java.util.Optional;
 
 /**
- * The rate an open tap drips at: one drip of 1 mB per 256, 64, 16, 4 or 1
- * ticks, in 4x steps (decision five-rates-in-fourfold-steps).
+ * The rate an open tap drips at: one drip of 1 mB per 64, 16, 4 or 1 ticks,
+ * in 4x steps, and one step past 1:1 to 4 mB per tick
+ * (decision five-rates-in-fourfold-steps).
  */
 public enum TapDripGrade {
-    ONE_PER_256_TICKS(256),
-    ONE_PER_64_TICKS(64),
-    ONE_PER_16_TICKS(16),
-    ONE_PER_4_TICKS(4),
-    ONE_PER_TICK(1);
+    ONE_PER_64_TICKS(64, 1),
+    ONE_PER_16_TICKS(16, 1),
+    ONE_PER_4_TICKS(4, 1),
+    ONE_PER_TICK(1, 1),
+    FOUR_PER_TICK(1, 4);
 
     /**
      * The grade a closed valve opens to.
      */
-    public static final TapDripGrade SLOWEST = ONE_PER_256_TICKS;
+    public static final TapDripGrade SLOWEST = ONE_PER_64_TICKS;
     /**
-     * Save key for the grade, stored as its interval in ticks.
+     * Save key for the grade, stored as its name.
      */
-    static final String TAG_DRIP_GRADE = "DripGrade";
+    static final String TAG_DRIP_RATE = "DripRate";
+    /**
+     * Save key a tap saved before 1:4 existed holds, its grade's interval in ticks.
+     */
+    static final String TAG_LEGACY_DRIP_GRADE = "DripGrade";
 
     private final int intervalTicks;
+    private final int dripVolume;
 
-    TapDripGrade(int intervalTicks) {
+    TapDripGrade(int intervalTicks, int dripVolume) {
         this.intervalTicks = intervalTicks;
+        this.dripVolume = dripVolume;
     }
 
     /**
@@ -38,11 +45,18 @@ public enum TapDripGrade {
     }
 
     /**
-     * @return true at 1:1, the one grade drawn as a pouring stream rather
-     *         than drips (decision one-to-one-draws-a-stream)
+     * @return mB one drip draws at this grade
+     */
+    public int dripVolume() {
+        return dripVolume;
+    }
+
+    /**
+     * @return true at 1:1 and 1:4, the grades drawn as a pouring stream
+     *         rather than drips (decision one-to-one-draws-a-stream)
      */
     public boolean pours() {
-        return this == ONE_PER_TICK;
+        return intervalTicks == 1;
     }
 
     /**
@@ -62,12 +76,12 @@ public enum TapDripGrade {
     }
 
     /**
-     * @param intervalTicks ticks between drips
-     * @return the grade dripping at that interval, or the slowest when none does
+     * @param intervalTicks ticks between drips, as a tap saved before 1:4 held it
+     * @return the 1 mB grade dripping at that interval, or the slowest when none does
      */
-    static TapDripGrade ofInterval(int intervalTicks) {
+    static TapDripGrade ofLegacyInterval(int intervalTicks) {
         for (TapDripGrade grade : values()) {
-            if (grade.intervalTicks == intervalTicks) {
+            if (grade.intervalTicks == intervalTicks && grade.dripVolume == 1) {
                 return grade;
             }
         }
@@ -78,17 +92,27 @@ public enum TapDripGrade {
      * @param output the tap's save output
      */
     void save(ValueOutput output) {
-        output.putInt(TAG_DRIP_GRADE, intervalTicks);
+        output.putString(TAG_DRIP_RATE, name());
     }
 
     /**
-     * Reads a saved grade; a save holding none, as a tap saved before grades
-     * existed, reads the slowest.
+     * Reads a saved grade. A tap saved before 1:4 existed holds its interval
+     * instead, and an interval no grade drips at, such as the dropped 256,
+     * reads the slowest; a save holding neither reads the slowest.
      *
      * @param input the tap's save input
      * @return the saved grade
      */
     static TapDripGrade load(ValueInput input) {
-        return ofInterval(input.getIntOr(TAG_DRIP_GRADE, SLOWEST.intervalTicks));
+        Optional<String> name = input.getString(TAG_DRIP_RATE);
+        if (name.isPresent()) {
+            for (TapDripGrade grade : values()) {
+                if (grade.name().equals(name.get())) {
+                    return grade;
+                }
+            }
+            return SLOWEST;
+        }
+        return ofLegacyInterval(input.getIntOr(TAG_LEGACY_DRIP_GRADE, SLOWEST.intervalTicks));
     }
 }
