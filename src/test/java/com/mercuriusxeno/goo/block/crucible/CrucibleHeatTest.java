@@ -161,11 +161,28 @@ class CrucibleHeatTest {
             assertTrue(heat.canHeat(GRADES, new MapStock()));
         }
 
-        /** The fuel goo volume sums every grade's fuel. */
+    }
+
+    @Nested
+    class Forecast {
+
+        /** Blaze bought heat and blaze stock sum into one burn; rock and an empty grade add none. */
         @Test
-        void fuelVolumeCountsFuelGooOnly() {
+        void boughtHeatJoinsItsOwnFuelsStock() {
+            CrucibleHeat heat = new CrucibleHeat();
+            heat.set(12, BLAZE);
             MapStock stock = new MapStock().with(GooTypes.BLAZE, 50).with(GooTypes.ROCK, 100);
-            assertEquals(50, CrucibleHeat.fuelVolume(GRADES, stock));
+            assertEquals(List.of(new CrucibleHeat.FuelBurn(BLAZE, 212)), heat.forecast(BURN_ORDER, stock::volume));
+        }
+
+        /** Heat bought with blaze never counts toward unstable's burn. */
+        @Test
+        void boughtHeatStaysWithItsFuel() {
+            CrucibleHeat heat = new CrucibleHeat();
+            heat.set(3, BLAZE);
+            MapStock stock = new MapStock().with(GooTypes.UNSTABLE, 10);
+            assertEquals(List.of(new CrucibleHeat.FuelBurn(UNSTABLE, 10), new CrucibleHeat.FuelBurn(BLAZE, 3)),
+                    heat.forecast(BURN_ORDER, stock::volume));
         }
     }
 

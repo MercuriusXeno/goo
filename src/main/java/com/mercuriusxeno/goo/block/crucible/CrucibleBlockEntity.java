@@ -29,6 +29,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.BlockHitResult;
+import java.util.List;
 
 /**
  * Core crucible logic: melts items into goo via a per-tick drain pipeline.
@@ -161,12 +162,12 @@ public class CrucibleBlockEntity extends BlockEntity implements IGasketHolder, I
         return heat.canHeat(FuelGrade.configured(), fuelStock);
     }
 
-    /** Returns the mB of fuel goo in the reservoir.
+    /** Returns the melt ticks each fuel grade holds, in burn order.
      *
-     * @return the fuel goo volume
+     * @return the burns
      */
-    public long fuelGooVolume() {
-        return CrucibleHeat.fuelVolume(FuelGrade.configured(), fuelStock);
+    public List<CrucibleHeat.FuelBurn> burnForecast() {
+        return heat.forecast(FuelGrade.configured(), fuelStock::volume);
     }
 
     /** Returns true if the crucible is enabled (no redstone signal).
