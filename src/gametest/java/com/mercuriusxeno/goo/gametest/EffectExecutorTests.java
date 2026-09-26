@@ -123,6 +123,8 @@ public final class EffectExecutorTests {
     /** Ticks after the support breaks by which a two-block fall has landed, well inside the fuse. */
     private static final int FALL_LANDED_TICKS = 10;
     private static final String FALL_ABILITY_LOST = "The fallen marker lost its ability id";
+    /** Blocks above the struck block where the frost test's poppy stands, inside the one-stack sphere. */
+    private static final int FROST_POCKET_HEIGHT = 2;
     /** Where the growth tests stand their glow crystal, on stone below it. */
     private static final BlockPos CRYSTAL_POS = new BlockPos(3, 2, 3);
 
@@ -175,66 +177,82 @@ public final class EffectExecutorTests {
     }
 
     /**
-     * Frost: places marker and verifies the behavior runs without crashing.
-     * Frost converts water/blocks to ice in a sphere; with no water nearby,
-     * it completes quickly.
+     * Frost: a sphere thrown into a stone wall leaves the stone and clears
+     * the poppy standing in a pocket of the wall inside its radius, since
+     * frost turns plants to air.
      *
      * @param helper the gametest helper
      */
     public static void frostRuns(GameTestHelper helper) {
+        BlockPos poppy = MARKER_POS.north().above(FROST_POCKET_HEIGHT);
         placeMarkerWithWall(helper, GooTypes.FROST, ABILITY_FROST_SPHERE);
+        helper.setBlock(poppy, Blocks.POPPY);
         helper.runAfterDelay(FUSE_TICKS + MINING_POST_FUSE, () -> {
+            helper.assertBlockNotPresent(Blocks.POPPY, poppy);
+            helper.assertBlockPresent(Blocks.STONE, MARKER_POS.north());
             helper.succeed();
         });
     }
 
     /**
-     * Metal: places marker and verifies the spike trap behavior runs.
-     * Metal is a short-lived effect that damages entities in range.
+     * Metal: a one-stack trap impales a pig walking into its radius.
      *
      * @param helper the gametest helper
      */
     public static void metalRuns(GameTestHelper helper) {
+        discardLeftoverEntities(helper);
+        helper.setBlock(MINE_TARGET_POS.below(), Blocks.STONE);
         placeMarkerWithWall(helper, GooTypes.METAL, ABILITY_METAL_SPIKES);
-        helper.runAfterDelay(FUSE_TICKS + SHORT_POST_FUSE, () -> {
+        int armed = FUSE_TICKS + SHORT_POST_FUSE;
+        Pig[] pig = new Pig[1];
+        helper.runAfterDelay(armed, () -> pig[0] = helper.spawnWithNoFreeWill(EntityType.PIG, MINE_TARGET_POS));
+        helper.runAfterDelay(armed + SPIKE_STRIKE_WINDOW, () -> {
+            helper.assertTrue(pig[0].getHealth() < pig[0].getMaxHealth(), SPIKE_MISSED);
             helper.succeed();
         });
     }
 
     /**
-     * Crystal: places marker and verifies the DOT cloud behavior runs.
+     * Crystal: the cloud shreds a pig kept moving inside its radius.
      *
      * @param helper the gametest helper
      */
     public static void crystalRuns(GameTestHelper helper) {
+        discardLeftoverEntities(helper);
         placeMarkerWithWall(helper, GooTypes.CRYSTAL, ABILITY_CRYSTAL_CLOUD);
-        helper.runAfterDelay(FUSE_TICKS + SHORT_POST_FUSE, () -> {
+        Pig mover = spawnShufflingPig(helper, MINE_TARGET_POS);
+        helper.runAfterDelay(FUSE_TICKS + SHRED_WINDOW, () -> {
+            helper.assertTrue(mover.getHealth() < mover.getMaxHealth(), CLOUD_MISSED_MOVER);
             helper.succeed();
         });
     }
 
     /**
-     * Nether: places marker and verifies the multi-phase implosion completes.
-     * Nether has EXPAND, HOLD, CONTRACT, POPPING phases totaling ~60 ticks.
+     * Nether: the black hole consumes the stone it faced and removes its
+     * marker once its phases end.
      *
      * @param helper the gametest helper
      */
     public static void netherImplodes(GameTestHelper helper) {
+        helper.assertTrue(Goo.GOO_VALUES.size() > 0, VALUES_REQUIRED);
         placeMarkerWithWall(helper, GooTypes.NETHER, ABILITY_NETHER_BLACK_HOLE);
         helper.runAfterDelay(FUSE_TICKS + NETHER_POST_FUSE, () -> {
+            helper.assertTrue(helper.getBlockState(MARKER_POS.north()).isAir(), HOLE_LEFT_STONE);
+            helper.assertBlockNotPresent(GooBlocks.CHAIN_MARKER.get(), MARKER_POS);
             helper.succeed();
         });
     }
 
     /**
-     * Unstable: places an instant-detonation marker and verifies the
-     * explosion runs.
+     * Unstable: an instant detonation facing a stone wall breaks the stone
+     * and removes its marker.
      *
      * @param helper the gametest helper
      */
     public static void unstableExplodes(GameTestHelper helper) {
         placeMarkerWithWall(helper, GooTypes.UNSTABLE, ABILITY_INSTANT_DETONATION);
         helper.runAfterDelay(FUSE_TICKS + SHORT_POST_FUSE, () -> {
+            assertDetonated(helper);
             helper.succeed();
         });
     }
@@ -574,19 +592,32 @@ public final class EffectExecutorTests {
      */
     public static void programCrystalCloud(GameTestHelper helper) {
         discardLeftoverEntities(helper);
-        helper.setBlock(MINE_TARGET_POS.below(), Blocks.STONE);
         helper.setBlock(STANDING_PIG_POS.below(), Blocks.STONE);
         placeMarkerWithAbility(helper, GooTypes.CRYSTAL, ABILITY_CRYSTAL_CLOUD);
-        Pig mover = helper.spawnWithNoFreeWill(EntityType.PIG, MINE_TARGET_POS);
+        Pig mover = spawnShufflingPig(helper, MINE_TARGET_POS);
         Pig standing = helper.spawnWithNoFreeWill(EntityType.PIG, STANDING_PIG_POS);
-        helper.onEachTick(() -> mover.setDeltaMovement(
-                helper.getTick() % SHUFFLE_PERIOD == 0 ? SHUFFLE_SPEED : -SHUFFLE_SPEED,
-                mover.getDeltaMovement().y(), 0));
         helper.runAfterDelay(FUSE_TICKS + SHRED_WINDOW, () -> {
             helper.assertTrue(mover.getHealth() < mover.getMaxHealth(), CLOUD_MISSED_MOVER);
             helper.assertTrue(standing.getHealth() == standing.getMaxHealth(), CLOUD_HIT_STANDING);
             helper.succeed();
         });
+    }
+
+    /**
+     * Spawns a pig on stone and shuffles it back and forth every tick, so
+     * it counts as moving while it stays in place.
+     *
+     * @param helper the gametest helper
+     * @param pos    where the pig stands
+     * @return the pig
+     */
+    private static Pig spawnShufflingPig(GameTestHelper helper, BlockPos pos) {
+        helper.setBlock(pos.below(), Blocks.STONE);
+        Pig pig = helper.spawnWithNoFreeWill(EntityType.PIG, pos);
+        helper.onEachTick(() -> pig.setDeltaMovement(
+                helper.getTick() % SHUFFLE_PERIOD == 0 ? SHUFFLE_SPEED : -SHUFFLE_SPEED,
+                pig.getDeltaMovement().y(), 0));
+        return pig;
     }
 
     /**

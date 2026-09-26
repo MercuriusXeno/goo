@@ -102,7 +102,7 @@ public final class StackKeyTests {
         BlockPos stand = helper.absolutePos(PLAYER_POS);
         player.setPos(stand.getX(), stand.getY(), stand.getZ());
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.GOO_GLOVE.get()));
-        player.getInventory().add(BlobStacks.createBlobStack(GooTypes.FROST, FROST_BLOBS));
+        player.getInventory().add(BlobStacks.createForOutput(GooTypes.FROST, FROST_BLOBS * BlobStacks.MB_PER_BLOB));
         return player;
     }
 }

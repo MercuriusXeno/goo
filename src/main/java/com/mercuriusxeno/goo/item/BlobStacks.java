@@ -3,7 +3,6 @@ package com.mercuriusxeno.goo.item;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.PlayerUtils;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
-import com.mercuriusxeno.goo.registry.GooItems;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.player.Player;
@@ -12,9 +11,10 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import org.jspecify.annotations.Nullable;
 import java.util.Map;
+import java.util.Objects;
 
 /**
- * Pure utility for blob/omniblob stack math. Centralizes volume calculations
+ * Pure utility for omniblob stack math. Centralizes volume calculations
  * and the machine output rule so all producers and consumers share one code path.
  */
 public final class BlobStacks {
@@ -24,31 +24,17 @@ public final class BlobStacks {
      */
     public static final int MB_PER_BLOB = 1000;
 
-    /**
-     * Maximum blobs in one stack (vanilla stack limit).
-     */
-    public static final int MAX_STACK = 64;
-
-    /**
-     * Maximum volume representable as a blob stack (64 blobs = 64,000 mB).
-     */
-    public static final int MAX_BLOB_STACK_VOLUME = MB_PER_BLOB * MAX_STACK;
-
     private BlobStacks() {
     }
 
     /**
-     * Returns the volume of the given item stack in microblobs.
-     * For blob stacks: count * 1000. For omniblobs: reads the BLOB_VOLUME component.
-     * Returns 0 for non-goo items.
+     * Returns the volume of the given item stack in microblobs: the omniblob's
+     * BLOB_VOLUME, or 0 for any other item.
      *
      * @param stack the item stack to measure
      * @return volume in microblobs
      */
     public static int volumeOf(ItemStack stack) {
-        if (stack.getItem() instanceof GooBlobItem) {
-            return stack.getCount() * MB_PER_BLOB;
-        }
         if (stack.getItem() instanceof GooOmniblobItem) {
             return GooOmniblobItem.getVolume(stack);
         }
@@ -56,114 +42,64 @@ public final class BlobStacks {
     }
 
     /**
-     * Returns the goo type key of the given item stack, or null if not a goo blob/omniblob.
+     * Returns the goo type key of the given item stack, or null if not an omniblob.
      *
      * @param stack the item stack to inspect
      * @return the goo type key, or null
      */
     public static @Nullable ResourceKey<GooTypeDefinition> keyOf(ItemStack stack) {
-        return isBlobOrOmniblob(stack) ? GooBlobItem.keyOf(stack) : null;
-    }
-
-
-    private static boolean isBlobOrOmniblob(ItemStack stack) {
-        return stack.getItem() instanceof GooBlobItem || stack.getItem() instanceof GooOmniblobItem;
+        return stack.getItem() instanceof GooOmniblobItem ? stack.get(GooDataComponents.GOO_TYPE.get()) : null;
     }
 
     /**
-     * Creates an item stack for machine output following the output rule:
-     * if volume is a clean multiple of 1000 and fits in one stack (<=64,000 mB),
-     * returns a blob stack. Otherwise returns an omniblob with that volume.
+     * Whether two stacks are omniblobs of the same goo type.
+     *
+     * @param a one stack
+     * @param b another stack
+     * @return true when both carry one type
+     */
+    public static boolean sameType(ItemStack a, ItemStack b) {
+        ResourceKey<GooTypeDefinition> key = keyOf(a);
+        return key != null && Objects.equals(key, keyOf(b));
+    }
+
+    /**
+     * The volume a goo:goo_blob stack saved before blobs-become-omniblobs holds:
+     * each of its count blobs carried 1,000 mB.
+     *
+     * @param count the saved stack's item count
+     * @return the volume in microblobs
+     */
+    public static int legacyBlobVolume(int count) {
+        return count * MB_PER_BLOB;
+    }
+
+    /**
+     * Creates the omniblob carrying the given volume, the one goo item at every
+     * volume (decision blobs-become-omniblobs).
      *
      * @param key      the goo type's registry key
      * @param volumeMb volume in microblobs
-     * @return a single ItemStack (blob stack or omniblob)
+     * @return the omniblob, or EMPTY for a volume of zero or less
      */
     public static ItemStack createForOutput(ResourceKey<GooTypeDefinition> key, int volumeMb) {
         if (volumeMb <= 0) {
             return ItemStack.EMPTY;
         }
-        if (isCleanBlobStack(volumeMb)) {
-            return createBlobStack(key, volumeMb / MB_PER_BLOB);
-        }
         return GooOmniblobItem.createWithVolume(key, volumeMb);
     }
 
-
     /**
-     * Returns true if the volume can be represented as a clean blob stack:
-     * evenly divisible by 1000 and at most 64,000 mB.
+     * Depletes an omniblob by the accepted volume, consuming the stack if empty.
      *
-     * @param volumeMb volume in microblobs
-     * @return true if a blob stack is appropriate
-     */
-    public static boolean isCleanBlobStack(int volumeMb) {
-        return volumeMb > 0
-                && volumeMb % MB_PER_BLOB == 0
-                && volumeMb <= MAX_BLOB_STACK_VOLUME;
-    }
-
-    /**
-     * Creates a blob stack of the given count, stamped with the type
-     * (decision generic-goo-items).
-     *
-     * @param key   the goo type's registry key
-     * @param count number of blobs (1-64)
-     * @return a blob ItemStack
-     */
-    public static ItemStack createBlobStack(ResourceKey<GooTypeDefinition> key, int count) {
-        ItemStack stack = new ItemStack(GooItems.GOO_BLOB.get(), count);
-        stack.set(GooDataComponents.GOO_TYPE.get(), key);
-        return stack;
-    }
-
-
-    /**
-     * Returns the number of whole blobs in the given volume.
-     *
-     * @param volumeMb volume in microblobs
-     * @return number of whole blobs
-     */
-    public static int wholeBlobs(int volumeMb) {
-        return volumeMb / MB_PER_BLOB;
-    }
-
-    /**
-     * Returns the sub-blob remainder of the given volume.
-     *
-     * @param volumeMb volume in microblobs
-     * @return remainder in microblobs (0-999)
-     */
-    public static int remainder(int volumeMb) {
-        return volumeMb % MB_PER_BLOB;
-    }
-
-    /**
-     * Depletes a blob or omniblob stack by the accepted volume.
-     * For blob stacks: shrinks count by accepted/1000 (whole blobs only).
-     * For omniblobs: deducts volume, consuming the stack if empty.
-     *
-     * @param stack    the blob or omniblob item stack to deplete
+     * @param stack    the omniblob item stack to deplete
      * @param accepted the volume in microblobs that was accepted
      * @param player   the player holding the stack (for consume callback)
      */
     public static void deplete(ItemStack stack, int accepted, Player player) {
-        if (stack.getItem() instanceof GooBlobItem) {
-            depleteBlob(stack, accepted);
-        } else if (stack.getItem() instanceof GooOmniblobItem) {
+        if (stack.getItem() instanceof GooOmniblobItem) {
             depleteOmniblob(stack, accepted, player);
         }
-    }
-
-    /**
-     * Shrinks a blob stack by the number of whole blobs consumed.
-     *
-     * @param stack    the blob stack
-     * @param accepted the accepted volume in microblobs
-     */
-    private static void depleteBlob(ItemStack stack, int accepted) {
-        int blobsUsed = (accepted / MB_PER_BLOB);
-        stack.shrink(blobsUsed);
     }
 
     /**
@@ -195,7 +131,7 @@ public final class BlobStacks {
     }
 
     /**
-     * Dumps the entire volume of {@code source} (blob stack or omniblob of any goo type)
+     * Dumps the entire volume of {@code source} (an omniblob of any goo type)
      * into the omniblob sitting in {@code omniblobStack}. Clears {@code source} by setting
      * its count to 0. Caller is responsible for {@code slot.setChanged()} if the sink
      * lives in a container slot.
@@ -214,8 +150,7 @@ public final class BlobStacks {
 
     /**
      * Merges goo volume into a player's inventory, stacking with existing items.
-     * Tries to add to existing omniblobs first, then tops up blob stacks, then
-     * creates new items for the remainder.
+     * Adds to the first matching omniblob, or creates one for the volume.
      *
      * @param player   the player to receive the goo
      * @param type     the goo type
@@ -226,7 +161,6 @@ public final class BlobStacks {
             return;
         }
         int remaining = mergeIntoExistingOmniblobs(player, type, volumeMb);
-        remaining = mergeIntoExistingBlobStacks(player, type, remaining);
         if (remaining > 0) {
             PlayerUtils.addOrDrop(player, createForOutput(type, remaining));
         }
@@ -243,7 +177,7 @@ public final class BlobStacks {
     private static int mergeIntoExistingOmniblobs(Player player, ResourceKey<GooTypeDefinition> type, int volumeMb) {
         for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
             ItemStack slot = player.getInventory().getItem(i);
-            if (slot.getItem() instanceof GooOmniblobItem && GooBlobItem.keyOf(slot) == type) {
+            if (slot.getItem() instanceof GooOmniblobItem && keyOf(slot) == type) {
                 GooOmniblobItem.setVolume(slot, GooOmniblobItem.getVolume(slot) + volumeMb);
                 return 0;
             }
@@ -252,48 +186,7 @@ public final class BlobStacks {
     }
 
     /**
-     * Tops up existing blob stacks of the matching type, returning leftover volume.
-     *
-     * @param player   the player whose inventory to scan
-     * @param type     the goo type to match
-     * @param volumeMb volume to merge in microblobs
-     * @return remaining volume not merged
-     */
-    private static int mergeIntoExistingBlobStacks(Player player, ResourceKey<GooTypeDefinition> type, int volumeMb) {
-        if (volumeMb <= 0) {
-            return 0;
-        }
-        int remaining = volumeMb;
-        for (int i = 0; i < player.getInventory().getContainerSize() && remaining >= MB_PER_BLOB; i++) {
-            remaining = tryMergeIntoSlot(player.getInventory().getItem(i), type, remaining);
-        }
-        return remaining;
-    }
-
-    /**
-     * Tops up a single blob stack slot if it matches the type, returning leftover volume.
-     *
-     * @param slot      the inventory slot to try merging into
-     * @param type      the goo type to match against
-     * @param remaining the volume still needing placement in microblobs
-     * @return the leftover volume after merging into this slot
-     */
-    private static int tryMergeIntoSlot(ItemStack slot, ResourceKey<GooTypeDefinition> type, int remaining) {
-        if (!(slot.getItem() instanceof GooBlobItem) || GooBlobItem.keyOf(slot) != type) {
-            return remaining;
-        }
-        int room = MAX_STACK - slot.getCount();
-        if (room <= 0) {
-            return remaining;
-        }
-        int add = Math.min(room, remaining / MB_PER_BLOB);
-        slot.grow(add);
-        return remaining - add * MB_PER_BLOB;
-    }
-
-    /**
-     * Drops all goo in a {@link GooContents} as blob items at the given position.
-     * Each goo type becomes one item (blob stack or omniblob per the output rule).
+     * Drops all goo in a {@link GooContents} as omniblobs at the given position, one per goo type.
      *
      * @param contents the goo contents to drop
      * @param level    the world
@@ -306,23 +199,5 @@ public final class BlobStacks {
         for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> entry : contents.getAll().entrySet()) {
             Block.popResource(level, pos, createForOutput(entry.getKey(), entry.getValue()));
         }
-    }
-
-    /**
-     * Computes how many blobs to extract from an omniblob based on volume and shift state.
-     *
-     * @param volume    current volume in microblobs
-     * @param shiftHeld whether shift is held
-     * @return number of blobs to extract (0-64)
-     */
-    public static int computeExtractCount(int volume, boolean shiftHeld) {
-        int whole = wholeBlobs(volume);
-        if (whole <= 0) {
-            return 0;
-        }
-        if (shiftHeld) {
-            return Math.min(whole, MAX_STACK);
-        }
-        return 1;
     }
 }

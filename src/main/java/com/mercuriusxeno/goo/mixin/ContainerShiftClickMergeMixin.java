@@ -16,8 +16,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * Shift-click-side stacking fix: when the player shift-clicks a goo blob or
- * omniblob between regions (hotbar <-> main inventory, GUI slot -> inventory,
+ * Shift-click-side stacking fix: when the player shift-clicks an omniblob
+ * between regions (hotbar <-> main inventory, GUI slot -> inventory,
  * etc.), if a same-type omniblob already exists in the target region the whole
  * source is absorbed into it.
  *
@@ -26,10 +26,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * {@code ItemStack.isStackable()} and fall through to empty-slot placement.</p>
  *
  * <p>The mixin is strictly additive: it only handles the "merge into an existing
- * omniblob" case and leaves every other path (blob->blob merge, omniblob into an
- * empty slot) to vanilla. In particular, an omniblob with no omniblob sink in
- * the target region is left intact to land in an empty slot - it is never split
- * across partial blob stacks.</p>
+ * omniblob" case and leaves every other path (omniblob into an empty slot) to
+ * vanilla: an omniblob with no omniblob sink in the target region is left
+ * intact to land in an empty slot.</p>
  */
 @Mixin(AbstractContainerMenu.class)
 public abstract class ContainerShiftClickMergeMixin {

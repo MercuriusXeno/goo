@@ -4,7 +4,6 @@ import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.client.GooTooltipHandler;
 import com.mercuriusxeno.goo.item.BlobStacks;
-import com.mercuriusxeno.goo.item.GooBlobItem;
 import com.mercuriusxeno.goo.item.GooOmniblobItem;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -17,9 +16,8 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Renders a goo type icon (top-right) on all blob and omniblob item slots.
- * Additionally renders a compact volume label (bottom-right) on omniblobs only,
- * since regular blobs use vanilla stack count display.
+ * Renders a goo type icon (top-right) and a compact volume label
+ * (bottom-right) on omniblob item slots.
  */
 public class BlobVolumeDecorator implements IItemDecorator {
 
@@ -45,10 +43,6 @@ public class BlobVolumeDecorator implements IItemDecorator {
 
     @Override
     public boolean render(@NonNull GuiGraphicsExtractor graphics, @NonNull Font font, ItemStack stack, int xOffset, int yOffset) {
-        if (stack.getItem() instanceof GooBlobItem) {
-            renderTypeIcon(graphics, BlobStacks.keyOf(stack), xOffset, yOffset);
-            return true;
-        }
         return stack.getItem() instanceof GooOmniblobItem
                 && renderOmniblob(graphics, font, stack, xOffset, yOffset);
     }
