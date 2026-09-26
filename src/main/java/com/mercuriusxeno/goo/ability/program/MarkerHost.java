@@ -44,12 +44,7 @@ public record MarkerHost(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity
 
     @Override
     public OptionalDouble read(String name) {
-        return switch (name) {
-            case HostVariables.STACKS -> OptionalDouble.of(be.getStackCount());
-            case HostVariables.MAX_STACKS -> OptionalDouble.of(be.getMaxStacks());
-            case HostVariables.FLAT -> OptionalDouble.of(be.isFlatBlob() ? 1 : 0);
-            default -> OptionalDouble.empty();
-        };
+        return new MarkerVariables(be).read(name);
     }
 
     @Override

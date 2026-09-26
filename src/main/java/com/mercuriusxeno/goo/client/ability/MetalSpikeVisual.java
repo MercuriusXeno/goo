@@ -3,7 +3,9 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.program.FieldEffectState;
+import com.mercuriusxeno.goo.ability.program.FieldEffectStep;
 import com.mercuriusxeno.goo.ability.program.FieldStrike;
+import com.mercuriusxeno.goo.ability.program.MarkerVariables;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
@@ -19,6 +21,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.LightCoordsUtil;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Metal spike trap visual: extends goo-textured cone spikes from the
@@ -60,18 +63,21 @@ public final class MetalSpikeVisual {
 
     /**
      * Populates {@code state} with the metal trap's spikes in flight, read
-     * from the marker's field-effect state; a marker of another type draws
-     * no spikes.
+     * from the marker's field-effect state, and their timing, read off the
+     * field-effect step of the marker's synced ability; a marker of another
+     * type draws no spikes.
      *
      * @param be    the chain marker block entity
      * @param state the render state to populate
      */
     public static void extract(ChainMarkerBlockEntity be, ChainMarkerRenderState state) {
         FieldEffectState field = be.getFieldEffect();
-        boolean metal = GooTypes.METAL.equals(be.getGooType()) && be.getBehavior() != null;
+        Optional<FieldEffectStep> step = SyncedSteps.first(be, FieldEffectStep.class);
+        boolean metal = GooTypes.METAL.equals(be.getGooType()) && be.getBehavior() != null && step.isPresent();
+        MarkerVariables variables = new MarkerVariables(be);
         state.spikeAnims = metal ? field.strikes() : List.of();
-        state.spikeStrikeTick = field.strikeTick();
-        state.spikeLength = field.strikeTicks();
+        state.spikeStrikeTick = step.map(trap -> trap.strikeTick().evaluateInt(variables)).orElse(0);
+        state.spikeLength = step.map(trap -> trap.strikeTicks().evaluateInt(variables)).orElse(0);
     }
 
     /**

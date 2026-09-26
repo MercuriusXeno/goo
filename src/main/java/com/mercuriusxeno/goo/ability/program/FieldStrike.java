@@ -17,14 +17,12 @@ import net.minecraft.world.phys.Vec3;
 public record FieldStrike(int entityId, float x, float y, float z, int age) {
 
     /**
-     * Starts a strike on the entity the host hands over, aimed at its body
-     * center (decision step-tick-holds-effect).
+     * Starts a strike on the selected entity, aimed at its body center.
      *
-     * @param target the host bound to the selected entity
+     * @param entity the selected entity
      * @return the new strike, zero ticks old
      */
-    static FieldStrike aimedAt(TargetHost target) {
-        LivingEntity entity = target.target();
+    static FieldStrike aimedAt(LivingEntity entity) {
         Vec3 center = entity.getBoundingBox().getCenter();
         return new FieldStrike(entity.getId(), (float) center.x(), (float) center.y(), (float) center.z(), 0);
     }

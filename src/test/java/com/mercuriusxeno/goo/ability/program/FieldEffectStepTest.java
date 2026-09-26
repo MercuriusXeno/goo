@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.level.storage.ValueOutput;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -15,6 +16,7 @@ import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -29,6 +31,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mockingDetails;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
@@ -76,6 +79,8 @@ class FieldEffectStepTest {
 
     /** The entity id each entity host's strike aims at, by host. */
     private final Map<StepHost, Integer> idByHost = new HashMap<>();
+    /** The entity host the marker's scan is handing to the strike check, whose entity a new strike aims at. */
+    private @Nullable StepHost scanned;
     /** The one filter each entity host fails, by host. */
     private final Map<StepHost, EntityFilter> rejectedByHost = new HashMap<>();
     private MockedStatic<FieldStrike> aims;
@@ -84,7 +89,7 @@ class FieldEffectStepTest {
     void stubTheAimOfEachStrike() {
         aims = mockStatic(FieldStrike.class);
         aims.when(() -> FieldStrike.aimedAt(any())).thenAnswer(inv ->
-                new FieldStrike(idByHost.get(inv.<StepHost>getArgument(0)), 1.5f, 1.0f, 0.5f, 0));
+                new FieldStrike(idByHost.get(scanned), 1.5f, 1.0f, 0.5f, 0));
     }
 
     @AfterEach
@@ -182,7 +187,10 @@ class FieldEffectStepTest {
         doAnswer(inv -> {
             Set<EntityFilter> filters = inv.getArgument(2);
             Consumer<TargetHost> body = inv.getArgument(3);
-            inRadius.stream().filter(entity -> passes(entity, filters)).forEach(body);
+            inRadius.stream().filter(entity -> passes(entity, filters)).forEach(entity -> {
+                scanned = entity;
+                body.accept(entity);
+            });
             return null;
         }).when(host).forEachEntityWithin(any(), anyDouble(), anySet(), any());
         doAnswer(inv -> {
@@ -320,18 +328,18 @@ class FieldEffectStepTest {
         ProgramBehavior program = ProgramBehavior.forHost(crystalProgram(), HostKind.MARKER);
 
         tick(program, host, CLOUD_ANIMATION_TICKS / 2);
-        assertEquals(0.5f, state.radiusFraction(), FRACTION_TOLERANCE);
+        assertEquals(0.5f, state.radiusFraction(CLOUD_ANIMATION_TICKS, CLOUD_ANIMATION_TICKS), FRACTION_TOLERANCE);
         tick(program, host, WALKING_TICKS_FOR_A_BLOB - CLOUD_ANIMATION_TICKS / 2);
         assertEquals(0, stacks.get());
-        assertEquals(1f, state.radiusFraction(), FRACTION_TOLERANCE);
+        assertEquals(1f, state.radiusFraction(CLOUD_ANIMATION_TICKS, CLOUD_ANIMATION_TICKS), FRACTION_TOLERANCE);
         assertEquals(0f, state.density(), FRACTION_TOLERANCE);
 
         program.tick(host);
-        assertEquals(1f - 1f / CLOUD_ANIMATION_TICKS, state.radiusFraction(), FRACTION_TOLERANCE);
+        assertEquals(1f - 1f / CLOUD_ANIMATION_TICKS, state.radiusFraction(CLOUD_ANIMATION_TICKS, CLOUD_ANIMATION_TICKS), FRACTION_TOLERANCE);
 
         tick(program, host, CLOUD_ANIMATION_TICKS - 1);
         assertTrue(program.isActive());
-        assertEquals(0f, state.radiusFraction(), FRACTION_TOLERANCE);
+        assertEquals(0f, state.radiusFraction(CLOUD_ANIMATION_TICKS, CLOUD_ANIMATION_TICKS), FRACTION_TOLERANCE);
         program.tick(host);
         assertFalse(program.isActive());
     }
@@ -383,5 +391,21 @@ class FieldEffectStepTest {
 
         assertTrue(refusal.getMessage().contains("wait"), refusal.getMessage());
         assertTrue(refusal.getMessage().contains("struck entity"), refusal.getMessage());
+    }
+
+    @Test
+    void theSavedStateHoldsTheSevenRunStateFieldsAndNoStepParam() throws IOException {
+        MarkerHost host = marker(new AtomicInteger(2), List.of(walker(WALKER_ID)));
+        ProgramBehavior program = ProgramBehavior.forHost(metalProgram(), HostKind.MARKER);
+        tick(program, host, STRIKE_TICK);
+        ValueOutput output = mock(ValueOutput.class);
+
+        host.fieldEffect().save(output);
+
+        Set<String> savedTags = mockingDetails(output).getInvocations().stream()
+                .map(invocation -> invocation.<String>getArgument(0))
+                .collect(Collectors.toSet());
+        assertEquals(Set.of("FieldStrikes", "FieldCooldown", "FieldChargesSpent", "FieldTicks",
+                "FieldTeardownTicks", "FieldChargesLeft", "FieldMaxCharges"), savedTags);
     }
 }
