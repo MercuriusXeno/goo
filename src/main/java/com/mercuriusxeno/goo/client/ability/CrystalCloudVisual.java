@@ -2,6 +2,8 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.program.FieldEffectState;
+import com.mercuriusxeno.goo.ability.program.FieldEffectStep;
+import com.mercuriusxeno.goo.ability.program.MarkerVariables;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.ber.ChainMarkerRenderState;
@@ -18,6 +20,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Vector3f;
+import org.jspecify.annotations.Nullable;
 import java.util.Random;
 
 /**
@@ -201,28 +204,60 @@ public final class CrystalCloudVisual {
     }
 
     /**
-     * Populates {@code state} with crystal-cloud fields from the BE.
+     * Populates {@code state} with crystal-cloud fields: the density and
+     * the expand and contract progress from the marker's field-effect state,
+     * the radius and animation lengths off the field-effect step of the
+     * marker's synced ability.
      *
      * @param be    the chain marker block entity
      * @param state the render state to populate
      */
     public static void extract(ChainMarkerBlockEntity be, ChainMarkerRenderState state) {
-        FieldEffectState field = be.getFieldEffect();
-        boolean crystal = GooTypes.CRYSTAL.equals(be.getGooType()) && be.getBehavior() != null;
-        if (crystal && (field.density() > 0f || field.isAnimating())) {
-            state.crystalActive = true;
-            state.crystalDensity = field.density();
-            state.crystalRadiusFraction = field.radiusFraction();
-            state.crystalRadius = field.radius();
-            long gameTime = be.getLevel() != null ? be.getLevel().getGameTime() : 0L;
-            state.crystalAnimationTime = gameTime;
-        } else {
-            state.crystalActive = false;
-            state.crystalDensity = 0f;
-            state.crystalRadiusFraction = 0f;
-            state.crystalRadius = 0f;
-            state.crystalAnimationTime = 0f;
+        FieldEffectStep cloud = runningCloud(be);
+        if (cloud == null) {
+            clear(state);
+            return;
         }
+        MarkerVariables variables = new MarkerVariables(be);
+        int expandTicks = cloud.timing().expandTicks().evaluateInt(variables);
+        int contractTicks = cloud.timing().contractTicks().evaluateInt(variables);
+        FieldEffectState field = be.getFieldEffect();
+        if (field.density() <= 0f && !field.isAnimating(expandTicks, contractTicks)) {
+            clear(state);
+            return;
+        }
+        state.crystalActive = true;
+        state.crystalDensity = field.density();
+        state.crystalRadiusFraction = field.radiusFraction(expandTicks, contractTicks);
+        state.crystalRadius = cloud.radius().evaluateFloat(variables);
+        state.crystalAnimationTime = be.getLevel() != null ? be.getLevel().getGameTime() : 0L;
+    }
+
+    /**
+     * Finds the field-effect step a crystal marker runs, read off its
+     * synced ability.
+     *
+     * @param be the chain marker block entity
+     * @return the step, or null when the marker is no running crystal field
+     */
+    private static @Nullable FieldEffectStep runningCloud(ChainMarkerBlockEntity be) {
+        if (!GooTypes.CRYSTAL.equals(be.getGooType()) || be.getBehavior() == null) {
+            return null;
+        }
+        return SyncedSteps.first(be, FieldEffectStep.class).orElse(null);
+    }
+
+    /**
+     * Clears the crystal-cloud fields of a marker drawing no cloud.
+     *
+     * @param state the render state to clear
+     */
+    private static void clear(ChainMarkerRenderState state) {
+        state.crystalActive = false;
+        state.crystalDensity = 0f;
+        state.crystalRadiusFraction = 0f;
+        state.crystalRadius = 0f;
+        state.crystalAnimationTime = 0f;
     }
 
     /**

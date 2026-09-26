@@ -38,7 +38,7 @@ class MobProgramTest {
 
     @Test
     void unstableExplodeDetonatesTntAtTheTarget() {
-        StepHost host = mock(StepHost.class);
+        EntityHost host = mock(EntityHost.class);
         when(host.kind()).thenReturn(HostKind.ENTITY);
 
         ProgramBehavior program = ProgramBehavior.forHost(ability("unstable_explode").behaviors(), HostKind.ENTITY);
