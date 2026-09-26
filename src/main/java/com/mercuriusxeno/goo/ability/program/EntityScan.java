@@ -27,8 +27,8 @@ import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 
 /**
- * The world side of {@link StepHost#anyEntityWithin} and
- * {@link StepHost#forEachEntityWithin}: the box scan, the sphere trim and
+ * The world side of {@link EntityScanHost#anyEntityWithin} and
+ * {@link EntityScanHost#forEachEntityWithin}: the box scan, the sphere trim and
  * the meaning of each {@link EntityFilter}, shared by every host that
  * scans a level. A scan carries the entity it centers on as self, null
  * on a block, so {@code not_target} can spare it.
@@ -67,7 +67,7 @@ public final class EntityScan {
 
     /**
      * Hands the body each living entity within the volume that every
-     * filter keeps, the world side of {@link StepHost#forEachEntityWithin}.
+     * filter keeps, the world side of {@link EntityScanHost#forEachEntityWithin}.
      *
      * @param level   the level to scan
      * @param center  the volume center
