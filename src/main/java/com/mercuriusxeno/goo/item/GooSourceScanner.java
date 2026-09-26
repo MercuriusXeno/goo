@@ -6,7 +6,9 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.IntStream;
 
 /**
  * Scans a player's inventory for all goo sources and aggregates
@@ -27,6 +29,16 @@ public final class GooSourceScanner {
      * Offhand slot index in Inventory.
      */
     private static final int OFFHAND_SLOT = Inventory.SLOT_OFFHAND;
+    /**
+     * The passes a deplete runs, in order: loose blobs, omniblobs, canisters (a hub item's included), vats.
+     */
+    private static final List<Class<?>> DEPLETION_PASSES =
+            List.of(GooBlobItem.class, GooOmniblobItem.class, CanisterItem.class, VatBlockItem.class);
+    /**
+     * The slots each pass walks, in order: main inventory bottom-up, then offhand.
+     */
+    private static final int[] DEPLETION_SLOTS = IntStream.concat(
+            IntStream.range(MAIN_START, MAIN_END), IntStream.of(OFFHAND_SLOT)).toArray();
 
     private GooSourceScanner() {
     }
@@ -78,17 +90,78 @@ public final class GooSourceScanner {
      * @return the amount remaining after all passes
      */
     private static int depleteAllPasses(Inventory inv, ResourceKey<GooTypeDefinition> type, int remaining) {
-        int left = depletePass(inv, type, remaining, GooBlobItem.class);
-        if (left > 0) {
-            left = depletePass(inv, type, left, GooOmniblobItem.class);
-        }
-        if (left > 0) {
-            left = depletePass(inv, type, left, CanisterItem.class);
-        }
-        if (left > 0) {
-            left = depletePass(inv, type, left, VatBlockItem.class);
+        int left = remaining;
+        for (Class<?> pass : DEPLETION_PASSES) {
+            if (left <= 0) {
+                break;
+            }
+            left = depletePass(inv, type, left, pass);
         }
         return left;
+    }
+
+    /**
+     * Names the stack the next deplete of a goo type draws from first,
+     * walking the passes and slots deplete walks (decision
+     * crosshair-panel-shows-source-and-cost).
+     *
+     * @param player the player whose inventory to scan
+     * @param type   the goo type
+     * @return the stack, or {@link ItemStack#EMPTY} when the player holds none of the type
+     */
+    public static ItemStack firstSource(Player player, ResourceKey<GooTypeDefinition> type) {
+        Inventory inv = player.getInventory();
+        for (Class<?> pass : DEPLETION_PASSES) {
+            for (int slot : DEPLETION_SLOTS) {
+                ItemStack stack = inv.getItem(slot);
+                if (drawsFrom(stack, type, pass)) {
+                    return stack;
+                }
+            }
+        }
+        return ItemStack.EMPTY;
+    }
+
+    /**
+     * The volume of a goo type a single stack holds, loose or in a carrier.
+     *
+     * @param stack the item stack
+     * @param type  the goo type
+     * @return the volume in mB
+     */
+    public static int volumeIn(ItemStack stack, ResourceKey<GooTypeDefinition> type) {
+        return volumeOfType(stack, type);
+    }
+
+    /**
+     * Whether a depletion pass draws any of a type from a stack.
+     *
+     * @param stack the item stack
+     * @param type  the goo type
+     * @param pass  the item class of the pass
+     * @return true when the pass would shrink the stack
+     */
+    private static boolean drawsFrom(ItemStack stack, ResourceKey<GooTypeDefinition> type, Class<?> pass) {
+        if (stack.isEmpty()) {
+            return false;
+        }
+        boolean loosePass = pass == GooBlobItem.class || pass == GooOmniblobItem.class;
+        return loosePass
+                ? pass.isInstance(stack.getItem()) && looseGooVolume(stack, type) > 0
+                : carrierDrawsFrom(stack, type, pass);
+    }
+
+    /**
+     * Whether a carrier pass draws any of a type from a carrier stack.
+     *
+     * @param stack the item stack
+     * @param type  the goo type
+     * @param pass  the item class of the pass
+     * @return true when the stack is a carrier of that pass holding the type
+     */
+    private static boolean carrierDrawsFrom(ItemStack stack, ResourceKey<GooTypeDefinition> type, Class<?> pass) {
+        GooCarrier carrier = GooCarrier.of(stack);
+        return carrier != null && carrier.depletionPass() == pass && carrier.volumeOf(type) > 0;
     }
 
     /**
@@ -223,11 +296,11 @@ public final class GooSourceScanner {
      */
     private static int depletePass(Inventory inv, ResourceKey<GooTypeDefinition> type, int remaining, Class<?> sourceClass) {
         int left = remaining;
-        for (int i = MAIN_START; i < MAIN_END && left > 0; i++) {
-            left = depleteStack(inv.getItem(i), type, left, sourceClass);
-        }
-        if (left > 0) {
-            left = depleteStack(inv.getItem(OFFHAND_SLOT), type, left, sourceClass);
+        for (int slot : DEPLETION_SLOTS) {
+            if (left <= 0) {
+                break;
+            }
+            left = depleteStack(inv.getItem(slot), type, left, sourceClass);
         }
         return left;
     }
