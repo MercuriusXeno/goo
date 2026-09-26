@@ -20,6 +20,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -89,7 +90,8 @@ final class TapInteractionHandler {
     }
 
     /**
-     * Dispatches plain empty-hand interactions by sub-region: the valve toggles, any other region hands back the canister.
+     * Dispatches plain empty-hand interactions by sub-region: the valve steps its drip grade, any other region hands
+     * back the canister.
      *
      * @param state              the block state
      * @param level              the current level
@@ -110,7 +112,7 @@ final class TapInteractionHandler {
             return removeCanister(tap, level, pos, player);
         }
         if (hitValve(hitResult, pos, facing, valveShapes)) {
-            return toggleValve(state, level, pos);
+            return stepValve(state, level, pos, tap);
         }
         return tap.getCanister().isEmpty() ? InteractionResult.PASS : removeCanister(tap, level, pos, player);
     }
@@ -209,16 +211,25 @@ final class TapInteractionHandler {
     }
 
     /**
-     * Toggles the valve open/closed and plays the appropriate sound.
+     * Steps the valve one grade: off to 256:1, then each faster grade to 1:1,
+     * then off again (decision five-rates-in-fourfold-steps). OPEN reads true
+     * whenever the tap holds a grade.
      *
      * @param state the block state
      * @param level the current level
      * @param pos   the block position
+     * @param tap   the tap block entity
      * @return SUCCESS
      */
-    private static InteractionResult toggleValve(BlockState state, Level level, BlockPos pos) {
-        boolean nowOpen = !state.getValue(TapBlock.OPEN);
-        level.setBlock(pos, state.setValue(TapBlock.OPEN, nowOpen), BLOCK_UPDATE_FLAGS);
+    private static InteractionResult stepValve(BlockState state, Level level, BlockPos pos, TapBlockEntity tap) {
+        boolean wasOpen = state.getValue(TapBlock.OPEN);
+        Optional<TapDripGrade> next = TapDripGrade.afterValveClick(
+                wasOpen ? Optional.of(tap.dripGrade()) : Optional.empty());
+        next.ifPresent(tap::setDripGrade);
+        boolean nowOpen = next.isPresent();
+        if (nowOpen != wasOpen) {
+            level.setBlock(pos, state.setValue(TapBlock.OPEN, nowOpen), BLOCK_UPDATE_FLAGS);
+        }
         level.playSound(null, pos,
                 nowOpen ? SoundEvents.COPPER_TRAPDOOR_OPEN : SoundEvents.COPPER_TRAPDOOR_CLOSE,
                 SoundSource.BLOCKS, 1.0f, 1.0f);

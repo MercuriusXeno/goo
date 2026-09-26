@@ -35,7 +35,8 @@ import java.util.Map;
 /**
  * Tap block: a faucet with a canister slot that drips goo on a timer.
  * FACING indicates the direction the spigot points. Right-clicking the valve
- * toggles dripping; right-clicking the body inserts/removes the canister.
+ * steps its drip grade through five rates and off; right-clicking the body
+ * inserts/removes the canister.
  */
 public class TapBlock extends BaseEntityBlock {
 
@@ -45,7 +46,7 @@ public class TapBlock extends BaseEntityBlock {
      */
     public static final BooleanProperty HAS_GASKET = BooleanProperty.create("has_gasket");
     /**
-     * Whether the tap valve is open (dripping).
+     * Whether the tap valve is open (dripping at the tap's {@link TapDripGrade}).
      */
     public static final BooleanProperty OPEN = BooleanProperty.create("open");
     public static final MapCodec<TapBlock> CODEC = simpleCodec(TapBlock::new);
@@ -287,7 +288,7 @@ public class TapBlock extends BaseEntityBlock {
 
     /**
      * Empty-hand interactions: sneak pops the tap's gasket from any region;
-     * otherwise a valve hit toggles open/closed and any other hit removes the canister.
+     * otherwise a valve hit steps the drip grade and any other hit removes the canister.
      *
      * @param state     the block state
      * @param level     the current level

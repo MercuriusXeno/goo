@@ -12,6 +12,7 @@ import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
 import com.mercuriusxeno.goo.block.tap.TapBlock;
 import com.mercuriusxeno.goo.block.tap.TapBlockEntity;
 import com.mercuriusxeno.goo.block.tap.TapDrip;
+import com.mercuriusxeno.goo.block.tap.TapDripGrade;
 import com.mercuriusxeno.goo.block.tap.TapDripScheduler;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooItems;
@@ -24,11 +25,14 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -45,6 +49,11 @@ public final class TapDripTests {
     private static final ResourceKey<GooTypeDefinition> TYPE = GooTypes.ROCK;
     private static final int START_VOLUME = 1000;
     private static final int DRIPS = 3;
+    /**
+     * The grade the drip tests run at, fast enough to keep them short.
+     */
+    private static final TapDripGrade TEST_GRADE = TapDripGrade.ONE_PER_16_TICKS;
+    private static final int DRIP_INTERVAL = TEST_GRADE.intervalTicks();
     /**
      * Ticks past the last counted drip, fewer than an interval, so timing
      * slack in the test's first tick cannot add or drop a drip.
@@ -71,6 +80,13 @@ public final class TapDripTests {
     private static final String NO_ABILITY_ENTITIES = "entities around the landing";
     private static final BlockPos OPEN_LANDING = new BlockPos(1, 0, 1);
     private static final BlockPos COVERED_LANDING = new BlockPos(3, 0, 1);
+
+    /** South-facing tap: a point inside the valve, in pixels. */
+    private static final Vec3 VALVE_HIT_PX = new Vec3(8, 5, 8);
+    private static final double PIXELS_PER_BLOCK = 16.0;
+    private static final int VALVE_CLICKS = 6;
+    private static final String VALVE_OPEN = "valve open after click ";
+    private static final String VALVE_GRADE = "drip grade after click ";
 
     private static final int DRIP_RGB = 0x336699;
     private static final String SENT_COUNT = "particles one tap drip sends";
@@ -110,7 +126,7 @@ public final class TapDripTests {
         }
         TapBlockEntity tap = filledTap(helper);
 
-        helper.runAfterDelay(DRIPS * TapBlockEntity.DRIP_INTERVAL + SETTLE_TICKS, () -> {
+        helper.runAfterDelay(DRIPS * DRIP_INTERVAL + SETTLE_TICKS, () -> {
             helper.assertValueEqual(tap.getFluidContent().amount(), START_VOLUME - DRIPS, TAP_VOLUME);
             for (BlockPos neighbor : neighbors) {
                 CanisterBlockEntity canister = helper.getBlockEntity(neighbor, CanisterBlockEntity.class);
@@ -129,13 +145,13 @@ public final class TapDripTests {
      */
     public static void tapValveGatesDrip(GameTestHelper helper) {
         TapBlockEntity tap = filledTap(helper, false);
-        int closedTicks = DRIPS * TapBlockEntity.DRIP_INTERVAL + SETTLE_TICKS;
+        int closedTicks = DRIPS * DRIP_INTERVAL + SETTLE_TICKS;
 
         helper.runAfterDelay(closedTicks, () -> {
             helper.assertValueEqual(tap.getFluidContent().amount(), START_VOLUME, CLOSED_VOLUME);
             helper.setBlock(TAP_POS, helper.getBlockState(TAP_POS).setValue(TapBlock.OPEN, true));
         });
-        helper.runAfterDelay(closedTicks + TapBlockEntity.DRIP_INTERVAL + SETTLE_TICKS, () -> {
+        helper.runAfterDelay(closedTicks + DRIP_INTERVAL + SETTLE_TICKS, () -> {
             helper.assertValueEqual(tap.getFluidContent().amount(), START_VOLUME - 1, OPENED_VOLUME);
             helper.succeed();
         });
@@ -182,7 +198,7 @@ public final class TapDripTests {
             level.setBlock(cursor, Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS);
         }
 
-        helper.runAfterDelay(DRIPS * TapBlockEntity.DRIP_INTERVAL + SETTLE_TICKS, () -> {
+        helper.runAfterDelay(DRIPS * DRIP_INTERVAL + SETTLE_TICKS, () -> {
             helper.assertValueEqual(tap.getFluidContent().amount(), START_VOLUME, BOTTOMLESS_VOLUME);
             helper.assertValueEqual(TapDripScheduler.pending().stream()
                     .filter(drip -> drip.tapPos().equals(tapAbs)).count(), 0L, BOTTOMLESS_PENDING);
@@ -234,7 +250,7 @@ public final class TapDripTests {
         BlockPos tapAbs = helper.absolutePos(TAP_POS);
         AABB around = new AABB(helper.absolutePos(stone)).inflate(ENTITY_SCAN_RADIUS);
 
-        helper.runAfterDelay(TapBlockEntity.DRIP_INTERVAL + SETTLE_TICKS, () -> {
+        helper.runAfterDelay(DRIP_INTERVAL + SETTLE_TICKS, () -> {
             helper.assertValueEqual(tap.getFluidContent().amount(), START_VOLUME - 1, TAP_VOLUME);
             helper.assertValueEqual(TapDripScheduler.pending().stream()
                     .filter(drip -> drip.tapPos().equals(tapAbs)).count(), 0L, NO_ABILITY_PENDING);
@@ -243,6 +259,36 @@ public final class TapDripTests {
                     NO_ABILITY_ENTITIES);
             helper.succeed();
         });
+    }
+
+    /**
+     * Six empty-hand clicks on a closed tap's valve step it through 256:1,
+     * 64:1, 16:1, 4:1 and 1:1 and back to off
+     * (decision five-rates-in-fourfold-steps).
+     *
+     * @param helper the gametest helper
+     */
+    public static void tapValveStepsFiveGrades(GameTestHelper helper) {
+        helper.setBlock(TAP_POS, GooBlocks.TAP.get().defaultBlockState().setValue(TapBlock.OPEN, false));
+        TapBlockEntity tap = helper.getBlockEntity(TAP_POS, TapBlockEntity.class);
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        BlockPos tapAbs = helper.absolutePos(TAP_POS);
+        BlockHitResult valveHit = new BlockHitResult(
+                Vec3.atLowerCornerOf(tapAbs).add(VALVE_HIT_PX.scale(1.0 / PIXELS_PER_BLOCK)), Direction.UP, tapAbs,
+                false);
+        List<TapDripGrade> expected = List.of(TapDripGrade.ONE_PER_256_TICKS, TapDripGrade.ONE_PER_64_TICKS,
+                TapDripGrade.ONE_PER_16_TICKS, TapDripGrade.ONE_PER_4_TICKS, TapDripGrade.ONE_PER_TICK);
+
+        for (int click = 1; click <= VALVE_CLICKS; click++) {
+            helper.useBlock(TAP_POS, player, valveHit);
+            boolean open = helper.getBlockState(TAP_POS).getValue(TapBlock.OPEN);
+            boolean expectOpen = click <= expected.size();
+            helper.assertValueEqual(open, expectOpen, VALVE_OPEN + click);
+            if (expectOpen) {
+                helper.assertValueEqual(tap.dripGrade(), expected.get(click - 1), VALVE_GRADE + click);
+            }
+        }
+        helper.succeed();
     }
 
     private static TapBlockEntity filledTap(GameTestHelper helper) {
@@ -271,6 +317,7 @@ public final class TapDripTests {
         TapBlockEntity tap = helper.getBlockEntity(tapPos, TapBlockEntity.class);
         tap.insertCanister(new ItemStack(GooItems.CANISTER.get()));
         tap.insertGoo(TYPE, START_VOLUME);
+        tap.setDripGrade(TEST_GRADE);
         return tap;
     }
 }
