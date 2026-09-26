@@ -32,10 +32,6 @@ public class GooOmniblobItem extends Item implements IGooItemInteraction {
 
 
     /**
-     * Divisor for splitting omniblob volume in half.
-     */
-    private static final int HALF_DIVISOR = 2;
-    /**
      * Same-type neighbors within this radius gravitate toward each other.
      */
     private static final double GRAVITATE_RADIUS = 3.0;
@@ -534,9 +530,9 @@ public class GooOmniblobItem extends Item implements IGooItemInteraction {
     }
 
     /**
-     * Splits the omniblob in half. One half goes to the cursor, the other stays
-     * in the slot.
-     * Sub-blob remainder case (volume < 1000) gives the whole omniblob to the cursor.
+     * Halves the omniblob at every volume (decision right-click-halves-the-stack):
+     * the cursor takes the floored half, the slot keeps the larger half, and a
+     * volume too small to halve goes to the cursor whole.
      *
      * @param omniblob     the omniblob in the slot
      * @param cursorAccess access to set the cursor contents
@@ -547,28 +543,9 @@ public class GooOmniblobItem extends Item implements IGooItemInteraction {
         if (volume <= 0) {
             return false;
         }
-        if (BlobStacks.wholeBlobs(volume) <= 0) {
-            cursorAccess.set(omniblob.copy());
-            omniblob.shrink(1);
-            return true;
-        }
-        return splitVolumeInHalf(omniblob, volume, cursorAccess);
-    }
-
-    /**
-     * Splits omniblob volume in half: one half to cursor, the other stays in slot.
-     *
-     * @param omniblob     the omniblob in the slot
-     * @param volume       the current volume to split
-     * @param cursorAccess access to set the cursor contents
-     * @return true always (split performed)
-     */
-    private boolean splitVolumeInHalf(ItemStack omniblob, int volume, SlotAccess cursorAccess) {
-        int half = volume / HALF_DIVISOR;
-        int other = volume - half;
-
-        cursorAccess.set(BlobStacks.createForOutput(BlobStacks.keyOf(omniblob), half));
-        applySlotRemainder(omniblob, other);
+        OmniblobSplit.Halves halves = OmniblobSplit.halve(volume);
+        cursorAccess.set(BlobStacks.createForOutput(BlobStacks.keyOf(omniblob), halves.cursorVolume()));
+        applySlotRemainder(omniblob, halves.slotVolume());
         return true;
     }
 
