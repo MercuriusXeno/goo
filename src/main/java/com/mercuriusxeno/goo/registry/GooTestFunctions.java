@@ -97,6 +97,9 @@ public final class GooTestFunctions {
     private static final String TAP_ROLE_RECEIVER = "tap_role_receiver";
     private static final String TAP_TUNER_LINK = "tap_tuner_link";
     private static final String TAP_REFUSES_TRANSMITTER = "tap_refuses_transmitter";
+    private static final String HUB_SLOT_TRANSMITS = "hub_slot_transmits";
+    private static final String HUB_SUPPORTS_BOTH_ROLES = "hub_supports_both_roles";
+    private static final String HUB_SLOT_MISS_INTAKE = "hub_slot_miss_intake";
     private static final String TAP_ATTACHMENT_LOADS = "tap_attachment_loads";
     private static final String HUB_SLOT_GASKET_REGISTERED = "hub_slot_gasket_registered";
     private static final String BREAK_POPS_GASKET_CRUCIBLE = "break_pops_gasket_crucible";
@@ -379,6 +382,9 @@ public final class GooTestFunctions {
         reg(r, TAP_ROLE_RECEIVER, GasketHolderTests::tapResolveRoleAlwaysReceiver);
         reg(r, TAP_TUNER_LINK, GasketHolderTests::tapTunerLinksCanisterTransmitter);
         reg(r, TAP_REFUSES_TRANSMITTER, GasketHolderTests::tapRefusesTransmitterRole);
+        reg(r, HUB_SLOT_TRANSMITS, GasketHolderTests::hubSlotLinksAsTransmitter);
+        reg(r, HUB_SUPPORTS_BOTH_ROLES, GasketHolderTests::hubSupportsBothRolesIntakeReceives);
+        reg(r, HUB_SLOT_MISS_INTAKE, GasketHolderTests::hubSlotMissKeepsIntakePath);
     }
 
     private static void registerGasketRegistryTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {

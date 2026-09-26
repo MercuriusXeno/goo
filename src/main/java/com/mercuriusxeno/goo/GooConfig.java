@@ -16,6 +16,8 @@ public class GooConfig {
     public static final ModConfigSpec.IntValue UNSTABLE_TICKS_PER_MB;
     public static final int DEFAULT_UNSTABLE_MELT_RATE = 200;
     public static final ModConfigSpec.IntValue UNSTABLE_MELT_RATE;
+    public static final int DEFAULT_COMBO_DRAIN_PER_TICK = 2;
+    public static final ModConfigSpec.IntValue COMBO_DRAIN_PER_TICK;
 
     static {
         ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
@@ -48,12 +50,17 @@ public class GooConfig {
             .defineInRange("blazeMeltRate", DEFAULT_BLAZE_MELT_RATE, 1, Integer.MAX_VALUE);
 
         UNSTABLE_TICKS_PER_MB = builder
-            .comment("Ticks of heat one mB of unstable goo buys; unstable burns before blaze when both stand.")
+            .comment("Ticks of heat one mB of unstable goo buys.")
             .defineInRange("unstableTicksPerMb", DEFAULT_UNSTABLE_TICKS_PER_MB, 1, Integer.MAX_VALUE);
 
         UNSTABLE_MELT_RATE = builder
             .comment("mB drained from the melting item per tick while the crucible burns unstable goo.")
             .defineInRange("unstableMeltRate", DEFAULT_UNSTABLE_MELT_RATE, 1, Integer.MAX_VALUE);
+
+        COMBO_DRAIN_PER_TICK = builder
+            .comment("mB of each fuel goo the crucible burns per melt tick while blaze and unstable both stand,",
+                "melting blazeMeltRate x unstableMeltRate per tick; a short last tick melts in proportion.")
+            .defineInRange("comboDrainPerTick", DEFAULT_COMBO_DRAIN_PER_TICK, 1, Integer.MAX_VALUE);
 
         builder.pop();
 

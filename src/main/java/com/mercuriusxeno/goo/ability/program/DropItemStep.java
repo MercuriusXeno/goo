@@ -61,7 +61,7 @@ public record DropItemStep(Identifier item, Expr count) implements Step {
 
     @Override
     public boolean tick(StepContext context) {
-        LivingEntity target = context.host().target();
+        LivingEntity target = context.hostAs(TargetHost.class).target();
         int stackSize = count.evaluateInt(context);
         if (SPAWN_EGG.equals(item)) {
             dropOwnSpawnEgg(target, stackSize);

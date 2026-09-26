@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.block.crucible;
 
+import com.mercuriusxeno.goo.GooConfig;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.block.*;
 import com.mercuriusxeno.goo.block.fluid.GooFluidHandler;
@@ -132,12 +133,12 @@ public class CrucibleBlockEntity extends GooGlowingMachineBlockEntity {
         return heat.canHeat(FuelGrade.configured(), fuelStock);
     }
 
-    /** Returns the mB of fuel goo in the reservoir.
+    /** Returns the burns the heat and fuel goo hold, combo first.
      *
-     * @return the fuel goo volume
+     * @return the burns
      */
-    public long fuelGooVolume() {
-        return CrucibleHeat.fuelVolume(FuelGrade.configured(), fuelStock);
+    public List<CrucibleHeat.FuelBurn> burnForecast() {
+        return heat.forecast(FuelGrade.configured(), GooConfig.COMBO_DRAIN_PER_TICK.get(), fuelStock::volume);
     }
 
     /** Returns true if the crucible is enabled (no redstone signal).

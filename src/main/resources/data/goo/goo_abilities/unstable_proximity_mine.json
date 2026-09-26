@@ -1,7 +1,6 @@
 {
   "gooType": "unstable",
   "displayName": "goo.ability.unstable.proximity_mine",
-  "icon": "goo:textures/ability/proximity_mine.png",
   "order": 2,
   "cost": {
     "formula": "power_law",

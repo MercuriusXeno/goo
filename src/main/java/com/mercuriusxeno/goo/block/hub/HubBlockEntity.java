@@ -193,6 +193,15 @@ public class HubBlockEntity extends GooGlowingMachineBlockEntity implements ICan
         return slot < 0 ? SLOT_MISS : slot;
     }
 
+    /**
+     * Slot canisters carry both faces, so the hub supports both roles; the intake
+     * stays receiver-only through {@link #holdsBlockGasket} (diagnose-then-fix-hub-canister-transmitter).
+     */
+    @Override
+    public boolean supportsRole(GasketRole role) {
+        return true;
+    }
+
     @Override
     public boolean hasIntake() {
         return true;

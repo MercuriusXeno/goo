@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import com.mercuriusxeno.goo.ability.BlockEffect;
 import com.mercuriusxeno.goo.ability.BlockEffectType;
 import com.mercuriusxeno.goo.ability.LayerAudioType;
 import com.mercuriusxeno.goo.ability.LayerVisualsType;
@@ -91,16 +90,16 @@ public record ProgressiveAreaStep(AreaShape shape, String effect, String visuals
 
     @Override
     public boolean tick(StepContext context) {
-        StepHost host = context.host();
-        int layers = AreaLayers.layerCount(shape, host.stackCount());
+        LayerWalkHost host = context.hostAs(LayerWalkHost.class);
+        int layers = AreaLayers.layerCount(shape, context.hostAs(StacksHost.class).stackCount());
         int delay = previewDelay.evaluateInt(context);
         int tick = context.stepTicks();
         if (tick < layers) {
-            host.previewLayer(LayerVisualsType.byName(visuals), tick);
+            host.previewLayer(visuals, tick);
         }
         int struck = tick - delay;
         if (struck >= 0 && struck < layers) {
-            strike(host, struck);
+            strike(context, struck);
             host.reportMinedLayers(struck + 1);
         }
         return tick + 1 >= layers + delay;
@@ -110,19 +109,19 @@ public record ProgressiveAreaStep(AreaShape shape, String effect, String visuals
      * Applies the effect to every cell of one layer, then plays the
      * layer's fx scaled by the cells the effect changed.
      *
-     * @param host  the host
-     * @param layer the layer index
+     * @param context the tick context, whose host walks the layers
+     * @param layer   the layer index
      */
-    private void strike(StepHost host, int layer) {
-        BlockEffect blockEffect = BlockEffectType.byName(effect);
+    private void strike(StepContext context, int layer) {
+        LayerWalkHost host = context.hostAs(LayerWalkHost.class);
         int destroyed = 0;
-        for (BlockPos cell : AreaLayers.layerCells(shape, host.stackCount(), host.position(),
-                host.placedFace(), layer)) {
-            if (host.applyBlockEffect(blockEffect, cell)) {
+        for (BlockPos cell : AreaLayers.layerCells(shape, context.hostAs(StacksHost.class).stackCount(),
+                host.position(), context.hostAs(PlacedFaceHost.class).placedFace(), layer)) {
+            if (host.applyBlockEffect(effect, cell)) {
                 destroyed++;
             }
         }
-        host.strikeLayerFx(LayerVisualsType.byName(visuals), LayerAudioType.byName(audio), layer, destroyed);
+        host.strikeLayerFx(visuals, audio, layer, destroyed);
     }
 
     @Override
