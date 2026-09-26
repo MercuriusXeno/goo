@@ -28,8 +28,8 @@ public class CrucibleRenderState extends BlockEntityRenderState {
     /** True when an item is dissolving and its model resolved. */
     public boolean hasHead;
 
-    /** How far the head has dissolved and the color its edge glows. */
-    public DissolveGlow headGlow = new DissolveGlow(0f, 0);
+    /** How far the head has dissolved and the goo type layers its edge glows in. */
+    public DissolveGlow headGlow = new DissolveGlow(0f, List.of());
 
     /** The waiting items' models, the first {@link #waitingShown} meaningful. */
     public final ItemStackRenderState[] waitingItems = newWaitingItems();
