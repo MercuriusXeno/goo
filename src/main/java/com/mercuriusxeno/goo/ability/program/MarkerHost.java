@@ -1,8 +1,8 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import com.mercuriusxeno.goo.ability.BlockEffect;
-import com.mercuriusxeno.goo.ability.LayerAudio;
-import com.mercuriusxeno.goo.ability.LayerVisuals;
+import com.mercuriusxeno.goo.ability.BlockEffectType;
+import com.mercuriusxeno.goo.ability.LayerAudioType;
+import com.mercuriusxeno.goo.ability.LayerVisualsType;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.item.BlobStacks;
 import net.minecraft.core.BlockPos;
@@ -31,7 +31,9 @@ import java.util.function.Consumer;
  * @param pos   the marker position
  * @param be    the marker block entity
  */
-public record MarkerHost(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity be) implements StepHost {
+public record MarkerHost(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity be)
+        implements StacksHost, PlacedFaceHost, TickingHost, ExplodeHost, EntityScanHost, PlaceBlockHost,
+        LayerWalkHost, FieldEffectHost, PhasedHost, ConsumedGooHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
 
@@ -42,12 +44,7 @@ public record MarkerHost(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity
 
     @Override
     public OptionalDouble read(String name) {
-        return switch (name) {
-            case HostVariables.STACKS -> OptionalDouble.of(be.getStackCount());
-            case HostVariables.MAX_STACKS -> OptionalDouble.of(be.getMaxStacks());
-            case HostVariables.FLAT -> OptionalDouble.of(be.isFlatBlob() ? 1 : 0);
-            default -> OptionalDouble.empty();
-        };
+        return new MarkerVariables(be).read(name);
     }
 
     @Override
@@ -86,12 +83,12 @@ public record MarkerHost(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity
 
     @Override
     public void forEachEntityWithin(SelectionShape shape, double radius, Set<EntityFilter> filters,
-                                    Consumer<StepHost> body) {
+                                    Consumer<TargetHost> body) {
         BlockAnchoredActions.forEachEntityWithin(level, Vec3.atCenterOf(pos), shape, radius, filters, body);
     }
 
     @Override
-    public void forEntity(int entityId, Consumer<StepHost> body) {
+    public void forEntity(int entityId, Consumer<TargetHost> body) {
         BlockAnchoredActions.forEntity(level, entityId, body);
     }
 
@@ -121,18 +118,12 @@ public record MarkerHost(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity
     }
 
     @Override
-    public void spawnParticles(FxAnchor at, ParticleBurst burst) {
-        if (at == FxAnchor.TARGET) {
-            throw HostCapability.TARGET.refusedBy(kind());
-        }
+    public void spawnParticles(ParticleBurst burst) {
         BlockAnchoredActions.sendBurst(level, Vec3.atCenterOf(pos), be.getPlacedFace().getAxis(), burst);
     }
 
     @Override
-    public void playSound(FxAnchor at, SoundCue cue) {
-        if (at == FxAnchor.TARGET) {
-            throw HostCapability.TARGET.refusedBy(kind());
-        }
+    public void playSound(SoundCue cue) {
         SoundPlays.play(level, Vec3.atCenterOf(pos), cue);
     }
 
@@ -145,19 +136,20 @@ public record MarkerHost(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity
     }
 
     @Override
-    public boolean applyBlockEffect(BlockEffect effect, BlockPos cell) {
-        return effect.apply(level, cell);
+    public boolean applyBlockEffect(String effect, BlockPos cell) {
+        return BlockEffectType.byName(effect).apply(level, cell);
     }
 
     @Override
-    public void previewLayer(LayerVisuals visuals, int layer) {
-        visuals.preview(level, pos, be.getPlacedFace(), layer, be.getStackCount());
+    public void previewLayer(String visuals, int layer) {
+        LayerVisualsType.byName(visuals).preview(level, pos, be.getPlacedFace(), layer, be.getStackCount());
     }
 
     @Override
-    public void strikeLayerFx(LayerVisuals visuals, LayerAudio audio, int layer, int destroyed) {
-        visuals.onLayerStruck(level, pos, be.getPlacedFace(), layer, destroyed);
-        audio.onLayerStruck(level, pos, be.getPlacedFace(), layer, destroyed, be.getStackCount());
+    public void strikeLayerFx(String visuals, String audio, int layer, int destroyed) {
+        LayerVisualsType.byName(visuals).onLayerStruck(level, pos, be.getPlacedFace(), layer, destroyed);
+        LayerAudioType.byName(audio).onLayerStruck(level, pos, be.getPlacedFace(), layer, destroyed,
+                be.getStackCount());
     }
 
     @Override

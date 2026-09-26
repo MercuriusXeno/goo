@@ -43,14 +43,14 @@ class TapHostTest {
 
     @Test
     void particlesProgramRunsOnceAtTheHostAnchor() {
-        StepHost host = mock(StepHost.class);
+        TapHost host = mock(TapHost.class);
         when(host.kind()).thenReturn(HostKind.TAP);
         ProgramBehavior program = ProgramBehavior.forHost(List.of(splash(FxAnchor.HOST)), HostKind.TAP);
 
         program.tick(host);
 
         ArgumentCaptor<ParticleBurst> burst = ArgumentCaptor.forClass(ParticleBurst.class);
-        verify(host, times(1)).spawnParticles(eq(FxAnchor.HOST), burst.capture());
+        verify(host, times(1)).spawnParticles(burst.capture());
         assertEquals(SPLASH, burst.getValue().particle());
         assertEquals(BURST, burst.getValue().count());
         assertFalse(program.isActive());
@@ -66,7 +66,7 @@ class TapHostTest {
 
     @Test
     void setBabyProgramRefusesAtLoadNamingTheTargetCapability() {
-        List<Step> steps = List.of(new SetBabyStep(true));
+        List<Step> steps = List.of(LeafSteps.SET_BABY.step(true));
 
         ProgramLoadException refusal = assertThrows(ProgramLoadException.class,
                 () -> ProgramBehavior.forHost(steps, HostKind.TAP));
@@ -85,7 +85,7 @@ class TapHostTest {
 
     @Test
     void waitingStepRefusesAtLoad() {
-        List<Step> steps = List.of(new WaitStep(Expr.literal(2)));
+        List<Step> steps = List.of(LeafSteps.WAIT.step(Expr.literal(2)));
 
         assertRefusal(assertThrows(ProgramLoadException.class, () -> ProgramBehavior.forHost(steps, HostKind.TAP)),
                 "wait");

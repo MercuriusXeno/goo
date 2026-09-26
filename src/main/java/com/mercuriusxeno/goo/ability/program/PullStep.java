@@ -41,7 +41,7 @@ public record PullStep(Expr radius, Expr speed) implements Step {
 
     @Override
     public boolean tick(StepContext context) {
-        context.host().pullEntitiesWithin(radius.evaluate(context), speed.evaluate(context));
+        context.hostAs(EntityScanHost.class).pullEntitiesWithin(radius.evaluate(context), speed.evaluate(context));
         return true;
     }
 

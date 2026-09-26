@@ -112,7 +112,7 @@ public sealed interface StateValue permits StateValue.Named, StateValue.PlacedFa
     record PlacedFace() implements StateValue {
         @Override
         public String resolve(StepContext context) {
-            return context.host().placedFace().getName();
+            return context.hostAs(PlacedFaceHost.class).placedFace().getName();
         }
 
         @Override
