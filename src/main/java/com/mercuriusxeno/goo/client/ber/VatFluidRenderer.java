@@ -119,9 +119,8 @@ final class VatFluidRenderer {
         boolean isFullySubmerged = localFill >= localHeight - SUBMERSION_EPSILON;
         if (isFullySubmerged) { return; }
         GooRenderUtil.UvRect uv = GooSubmitter.spriteUv(sprite);
-        CuboidBounds lifted = liftOutward(b, lift);
-        ctx.liquidSurfaceGrid(lifted, uv, amplitude);
-        ctx.liquidSurfaceGridDown(lifted.withY(b.yBot(), b.yTop() - lift), uv, amplitude);
+        ctx.liquidSurfaceLayer(b, uv, amplitude, lift, lift);
+        ctx.liquidSurfaceLayerDown(b, uv, amplitude, lift, lift);
     }
 
     /**
