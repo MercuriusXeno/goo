@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.client.ber;
 
 import com.mercuriusxeno.goo.block.crucible.CrucibleBasin;
+import com.mercuriusxeno.goo.client.RenderContext;
+import com.mercuriusxeno.goo.client.SurfaceAgitation;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -9,12 +11,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Where the crucible lays its melting items: the head flat on the fill's top inside
- * the basin, the waiting items in its corners (decision dissolve-shader-on-item).
+ * the basin, above every ripple crest, the waiting items in its corners (decision
+ * dissolve-shader-on-item).
  */
 class CrucibleItemLayoutTest {
 
     private static final float EPSILON = 1e-6f;
     private static final long MELTED = 16_000;
+    private static final float RESTING = RenderContext.RESTING_RIPPLE_AMPLITUDE;
+    private static final float FULLY_AGITATED = RESTING + SurfaceAgitation.AGITATION_CEILING;
 
     private static void assertInsideBasin(CrucibleItemLayout.ItemPlacement placement) {
         float half = placement.size() / 2f;
@@ -24,29 +29,41 @@ class CrucibleItemLayoutTest {
         assertTrue(placement.z() + half <= CrucibleBasin.FOOTPRINT_MAX, placement + " leaves the basin at high Z");
     }
 
-    /** The head lies at the fill's height, just above it, centered and inside the footprint. */
+    /** The head lies on the resting ripple's crest over the fill, centered and inside the footprint. */
     @Test
     void headLiesOnTheFillInsideTheFootprint() {
         CrucibleBasin.DrawnSurface surface = CrucibleBasin.drawnSurface(new CrucibleBasin.Volumes(MELTED, 0));
-        CrucibleItemLayout.ItemPlacement head = CrucibleItemLayout.head(surface);
+        CrucibleItemLayout.ItemPlacement head = CrucibleItemLayout.head(surface, RESTING);
 
-        assertEquals(surface.surfaceY() + CrucibleItemLayout.FLOAT_LIFT, head.y(), EPSILON);
+        assertEquals(surface.surfaceY() + RESTING + CrucibleItemLayout.FLOAT_LIFT, head.y(), EPSILON);
         assertEquals(CrucibleItemLayout.HEAD_SIZE, head.size(), EPSILON);
         assertInsideBasin(head);
+    }
+
+    /** Every item rests above the highest crest a fully agitated ripple lifts the surface to. */
+    @Test
+    void itemsRestAboveTheHighestRippleCrest() {
+        CrucibleBasin.DrawnSurface surface = CrucibleBasin.drawnSurface(new CrucibleBasin.Volumes(MELTED, 0));
+        float crest = surface.surfaceY() + FULLY_AGITATED;
+
+        assertTrue(CrucibleItemLayout.head(surface, FULLY_AGITATED).y() > crest);
+        for (CrucibleItemLayout.ItemPlacement placement : CrucibleItemLayout.waiting(surface, FULLY_AGITATED, 3)) {
+            assertTrue(placement.y() > crest);
+        }
     }
 
     /** With nothing melted the head rests on the basin floor. */
     @Test
     void headRestsOnTheFloorBeforeAnythingMelts() {
         assertEquals(CrucibleBasin.FLOOR_Y + CrucibleItemLayout.FLOAT_LIFT,
-                CrucibleItemLayout.head(null).y(), EPSILON);
+                CrucibleItemLayout.head(null, RESTING).y(), EPSILON);
     }
 
     /** Three waiting stacks lie in three distinct corners inside the basin, above the fill. */
     @Test
     void threeWaitingItemsLieInsideTheBasin() {
         CrucibleBasin.DrawnSurface surface = CrucibleBasin.drawnSurface(new CrucibleBasin.Volumes(MELTED, 0));
-        List<CrucibleItemLayout.ItemPlacement> waiting = CrucibleItemLayout.waiting(surface, 3);
+        List<CrucibleItemLayout.ItemPlacement> waiting = CrucibleItemLayout.waiting(surface, RESTING, 3);
 
         assertEquals(3, waiting.size());
         for (CrucibleItemLayout.ItemPlacement placement : waiting) {
@@ -61,6 +78,6 @@ class CrucibleItemLayoutTest {
     /** More stacks waiting than the basin has corners show one per corner. */
     @Test
     void waitingItemsCapAtTheCorners() {
-        assertEquals(CrucibleItemLayout.WAITING_SLOTS, CrucibleItemLayout.waiting(null, 9).size());
+        assertEquals(CrucibleItemLayout.WAITING_SLOTS, CrucibleItemLayout.waiting(null, RESTING, 9).size());
     }
 }
