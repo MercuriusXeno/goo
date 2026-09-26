@@ -28,6 +28,12 @@ public class TapRenderState extends BlockEntityRenderState {
     /** The block-local Y the stream lands on, below the tap's block when it falls past it. */
     public float streamBottomY;
 
+    /** The mB the tap pours a tick, which sets the stream's width. */
+    public int streamMbPerTick;
+
+    /** Game time plus partial tick, for the stream's flow. */
+    public float animationTime;
+
     /**
      * @return where the tap's canister stands
      */

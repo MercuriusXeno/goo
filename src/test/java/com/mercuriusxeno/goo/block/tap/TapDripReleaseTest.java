@@ -21,7 +21,7 @@ class TapDripReleaseTest {
 
     private static final double SURFACE_Y = 61.0;
     private static final Vec3 SPIGOT = new Vec3(0.5, 64.125, 0.5);
-    private static final TapStream POUR = new TapStream(GooTypes.BLAZE, SURFACE_Y);
+    private static final TapStream POUR = new TapStream(GooTypes.BLAZE, SURFACE_Y, 1);
 
     private final List<ColorParticleOption> sent = new ArrayList<>();
     private final TapDrip.ParticleSink sink = (option, at, velocity) -> sent.add(option);

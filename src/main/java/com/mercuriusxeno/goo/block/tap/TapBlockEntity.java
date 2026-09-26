@@ -139,7 +139,7 @@ public class TapBlockEntity extends GooGlowingMachineBlockEntity implements ICan
     private void release(ServerLevel server, BlockPos pos, TapDripLanding landing, TapDrip.Drawn drawn) {
         ResourceKey<GooTypeDefinition> type = drawn.type();
         Vec3 spigot = TapSpigot.underside(pos);
-        setStream(TapDrip.release(dripGrade, new TapStream(type, landing.surfaceY()), TapDrip.sinkOf(server),
+        setStream(TapDrip.release(dripGrade, new TapStream(type, landing.surfaceY(), dripGrade.dripVolume()), TapDrip.sinkOf(server),
                 TapDrip.dripParticle(GooParticles.TAP_DRIP.get(), GooColors.get(server.registryAccess(), type)), spigot));
         int fallTicks = DripFall.fallTicks(spigot.y - landing.surfaceY(), -TapDrip.DRIP_LEAVE_SPEED);
         TapDripScheduler.enqueue(new TapDripScheduler.PendingDrip(server, pos, landing.pos(), Direction.UP,

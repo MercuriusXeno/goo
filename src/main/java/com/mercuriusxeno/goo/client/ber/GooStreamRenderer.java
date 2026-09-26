@@ -14,7 +14,8 @@ import net.minecraft.world.level.material.Fluid;
 /**
  * Renders fluid stream columns: the vat's pulsing fill stream and the tap's
  * pour. Every stream tiles its fluid sprite down the column at the sprite's
- * native scale through {@link #emitTiledColumn} (decision diagnose-then-fix-stream-tiling).
+ * native scale, flowing downward, through {@link #emitTiledColumn}
+ * (decision diagnose-then-fix-stream-tiling).
  */
 public final class GooStreamRenderer {
     /** Minimum stream half-width at 1 mB/tick (tiny trickle). */
@@ -43,6 +44,9 @@ public final class GooStreamRenderer {
 
     /** Width of a column is twice its half-width. */
     private static final float WIDTH_PER_HALF_WIDTH = 2f;
+
+    /** How fast a stream's texture runs down its column, in blocks per tick (2 blocks a second). */
+    private static final float FLOW_BLOCKS_PER_TICK = 0.1f;
 
     private GooStreamRenderer() {}
 
@@ -97,37 +101,61 @@ public final class GooStreamRenderer {
      */
     static void renderStream(RenderContext ctx, StreamColumn column, TextureAtlasSprite sprite, int color,
                              float rate, float animationTime) {
-        emitTiledColumn(ctx, column, computeHalfWidth(rate, animationTime), sprite, color);
+        emitTiledColumn(ctx, column, computeHalfWidth(rate, animationTime), sprite, color, flowPhase(animationTime));
     }
 
     /**
-     * Emits a column's four sides with the sprite tiled at its native scale:
-     * from the top down, one segment per whole block of height, each mapped
-     * to the sprite's full V range, then a remainder segment mapped to its
-     * fraction; U covers the column's width as a fraction of the sprite. No
-     * emitted UV leaves the sprite's atlas bounds.
+     * How far a stream's texture has run down its column, in blocks, for the
+     * flow to loop downward over time.
+     *
+     * @param animationTime game time plus partial tick
+     * @return the flow phase in blocks
+     */
+    public static float flowPhase(float animationTime) {
+        return animationTime * FLOW_BLOCKS_PER_TICK;
+    }
+
+    /**
+     * Emits a column's four sides with the sprite tiled at its native scale,
+     * scrolled down the column by the flow phase so the goo reads as flowing:
+     * the texture at a distance below the top reads the sprite at that
+     * distance less the phase, wrapped, so the column splits wherever the
+     * sprite wraps into segments no taller than a block, each mapped to its
+     * own V span; U covers the column's width as a fraction of the sprite. No
+     * emitted UV leaves the sprite's atlas bounds (decision diagnose-then-fix-stream-tiling).
      *
      * @param ctx       the render context
      * @param column    where the column runs
      * @param halfWidth the column's half-width in blocks
      * @param sprite    the fluid sprite
      * @param color     the ARGB color
+     * @param flowPhase how far the texture has run down the column, in blocks
      */
     public static void emitTiledColumn(RenderContext ctx, StreamColumn column, float halfWidth,
-                                       TextureAtlasSprite sprite, int color) {
+                                       TextureAtlasSprite sprite, int color, float flowPhase) {
         if (column.yTop() <= column.yBottom()) {
             return;
         }
         float widthFraction = Math.min(SPRITE_BLOCKS, halfWidth * WIDTH_PER_HALF_WIDTH);
+        float vStart = wrap(-flowPhase);
         float segmentTop = column.yTop();
         while (segmentTop > column.yBottom()) {
-            float segmentBottom = Math.max(column.yBottom(), segmentTop - SPRITE_BLOCKS);
-            float heightFraction = segmentTop - segmentBottom;
+            float segmentBottom = Math.max(column.yBottom(), segmentTop - (SPRITE_BLOCKS - vStart));
+            float vEnd = vStart + (segmentTop - segmentBottom);
             CuboidBounds segment = new CuboidBounds(column.cx() - halfWidth, column.cx() + halfWidth,
                     column.cz() - halfWidth, column.cz() + halfWidth, segmentBottom, segmentTop);
-            ctx.emitSides(color, segment, GooSubmitter.spriteSubRect(sprite, 0f, 0f, widthFraction, heightFraction));
+            ctx.emitSides(color, segment, GooSubmitter.spriteSubRect(sprite, 0f, vStart, widthFraction, vEnd));
             segmentTop = segmentBottom;
+            vStart = 0f;
         }
+    }
+
+    /**
+     * @param blocks a length in blocks
+     * @return its fraction of one sprite, in [0, 1)
+     */
+    private static float wrap(float blocks) {
+        return blocks - (float) Math.floor(blocks);
     }
 
     /**

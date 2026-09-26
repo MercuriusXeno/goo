@@ -41,9 +41,11 @@ public class TapBlockEntityRenderer
     // -- Stream geometry (block coords) --
 
     /**
-     * Stream half-width: a column 1px wide.
+     * Stream half-width at 1:1: a trickle half a pixel wide. The half-width
+     * grows with the square root of the mB poured a tick, so 1:4 is twice as
+     * wide both ways (decision one-to-one-draws-a-stream).
      */
-    private static final float STREAM_HW = 0.5f / 16f;
+    private static final float TRICKLE_HW = 0.25f / 16f;
 
     /**
      * Stream center X and Z: the spigot sits on the block's vertical axis.
@@ -102,10 +104,11 @@ public class TapBlockEntityRenderer
     }
 
     /**
-     * Emits the four sides of the thin goo column the tap pours at 1:1, from
-     * the spigot underside down to the landing surface, its sprite tiled one
-     * per block (decision diagnose-then-fix-stream-tiling); a tap pouring no
-     * stream emits nothing (decision one-to-one-draws-a-stream).
+     * Emits the four sides of the thin goo column the tap pours at 1:1 and
+     * 1:4, from the spigot underside down to the landing surface, its sprite
+     * tiled at native scale and flowing downward (decision
+     * diagnose-then-fix-stream-tiling); a tap pouring no stream emits nothing
+     * (decision one-to-one-draws-a-stream).
      *
      * @param ctx    the render context
      * @param state  the tap render state
@@ -118,7 +121,16 @@ public class TapBlockEntityRenderer
         }
         GooStreamRenderer.emitTiledColumn(ctx,
                 new GooStreamRenderer.StreamColumn(STREAM_CENTER, STREAM_CENTER, STREAM_TOP, state.streamBottomY),
-                STREAM_HW, sprite, tint);
+                streamHalfWidth(state.streamMbPerTick), sprite, tint,
+                GooStreamRenderer.flowPhase(state.animationTime));
+    }
+
+    /**
+     * @param mbPerTick the mB the tap pours a tick
+     * @return the stream's half-width, a trickle at 1 mB and twice as wide at 4
+     */
+    static float streamHalfWidth(int mbPerTick) {
+        return TRICKLE_HW * (float) Math.sqrt(Math.max(1, mbPerTick));
     }
 
     /**
@@ -172,6 +184,8 @@ public class TapBlockEntityRenderer
         TapStream stream = be.pourStream();
         state.streamType = stream == null ? null : stream.type();
         state.streamBottomY = stream == null ? 0f : (float) (stream.surfaceY() - be.getBlockPos().getY());
+        state.streamMbPerTick = stream == null ? 0 : stream.mbPerTick();
+        state.animationTime = be.getLevel() == null ? 0f : be.getLevel().getGameTime() + partialTick;
     }
 
     /**
