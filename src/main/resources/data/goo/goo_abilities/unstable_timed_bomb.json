@@ -1,7 +1,6 @@
 {
   "gooType": "unstable",
   "displayName": "goo.ability.unstable.timed_bomb",
-  "icon": "goo:textures/ability/timed_bomb.png",
   "order": 0,
   "cost": {
     "formula": "quadratic",
