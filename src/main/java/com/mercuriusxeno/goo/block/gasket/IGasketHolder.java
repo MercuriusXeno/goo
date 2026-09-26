@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import org.jspecify.annotations.Nullable;
 import java.util.UUID;
@@ -256,6 +257,39 @@ public interface IGasketHolder {
             return container.getSlotMetadata(slot).label();
         }
         return null;
+    }
+
+    /**
+     * The block-local bounds the tuner overlay draws for the gasket a role and
+     * slot address (decision hosts-answer-bounds-through-interfaces). Default: a
+     * filled canister slot's upper half for the receiver and lower half for the
+     * transmitter; a machine with a block-level gasket overrides.
+     *
+     * @param slot the slot index, or {@code NO_SLOT} for a block-level gasket
+     * @param role the gasket role
+     * @return the gasket's bounds, or null when the role and slot address no gasket region
+     */
+    default @Nullable AABB slotBoundsFor(int slot, GasketRole role) {
+        if (slot < 0 || !(this instanceof ICanisterHolder holder) || !holder.isSlotFilled(slot)) {
+            return null;
+        }
+        AABB bounds = holder.slotBounds(slot);
+        return bounds != null ? splitAtMidY(bounds, role) : null;
+    }
+
+    /**
+     * Splits bounds at their vertical midpoint: the receiver takes the upper
+     * half, the transmitter the lower.
+     *
+     * @param bounds the full bounds
+     * @param role   the gasket role choosing the half
+     * @return the role's half
+     */
+    private static AABB splitAtMidY(AABB bounds, GasketRole role) {
+        double midY = (bounds.minY + bounds.maxY) / 2.0;
+        return role == GasketRole.RECEIVER
+                ? new AABB(bounds.minX, midY, bounds.minZ, bounds.maxX, bounds.maxY, bounds.maxZ)
+                : new AABB(bounds.minX, bounds.minY, bounds.minZ, bounds.maxX, midY, bounds.maxZ);
     }
 
     /**
