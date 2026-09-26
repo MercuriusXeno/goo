@@ -42,6 +42,14 @@ class GooTypeDefinitionTest {
     private static final String WATER_LIKE_FLUID =
             ", \"density\": 1000, \"viscosity\": 1000, \"temperature\": 300, \"extinguishes\": false,"
             + " \"map_color\": \"stone\"";
+    private static final String FLIGHT = ", \"levity\": 1.0, \"base_flight_time\": 3";
+    private static final String BODY_BEFORE_FLIGHT = "{\"light_level\": 8, \"saturation_fill\": 0.5" + ALL_COLORS
+            + WATER_LIKE_FLUID;
+    private static final float GLOW_LEVITY = 0.4f;
+    private static final float TYPHOON_LEVITY = 1.5f;
+    private static final float METAL_LEVITY = 0.7f;
+    private static final float COMMON_LEVITY = 1.0f;
+    private static final int COMMON_BASE_FLIGHT_TIME = 3;
     private static final int BLAZE_DENSITY = 1500;
     private static final int BLAZE_VISCOSITY = 800;
     private static final int BLAZE_TEMPERATURE = 1300;
@@ -79,7 +87,7 @@ class GooTypeDefinitionTest {
     void colorChannelsReadBackThroughGooColors() throws Exception {
         GooTypeDefinition custom = decode(
                 "{\"light_level\": 8, \"saturation_fill\": 0.5, \"wheel\": \"112233\","
-                + " \"bright\": \"445566\", \"highlight\": \"778899\", \"edge\": \"aAbBcC\"" + WATER_LIKE_FLUID + "}");
+                + " \"bright\": \"445566\", \"highlight\": \"778899\", \"edge\": \"aAbBcC\"" + WATER_LIKE_FLUID + FLIGHT + "}");
         assertEquals(0x112233, GooColors.wheel(custom));
         assertEquals(0x445566, GooColors.bright(custom));
         assertEquals(0x778899, GooColors.highlight(custom));
@@ -147,7 +155,7 @@ class GooTypeDefinitionTest {
     @Test
     void texturesDecodeWhenNamedAndDefaultWhenAbsent() throws Exception {
         GooTypeDefinition named = decode("{\"light_level\": 8, \"saturation_fill\": 0.5" + ALL_COLORS
-                + WATER_LIKE_FLUID + ", \"textures\": {\"blob_small\": \"pack:item/small\","
+                + WATER_LIKE_FLUID + FLIGHT + ", \"textures\": {\"blob_small\": \"pack:item/small\","
                 + " \"fluid_still\": \"pack:fluid/still\"}}");
         assertEquals(Optional.of(Identifier.parse("pack:item/small")), named.textures().blobSmall());
         assertEquals(Optional.of(Identifier.parse("pack:fluid/still")), named.textures().fluidStill());
@@ -155,7 +163,7 @@ class GooTypeDefinitionTest {
         assertEquals(Optional.empty(), named.textures().fluidFlowing());
 
         GooTypeDefinition unnamed = decode("{\"light_level\": 8, \"saturation_fill\": 0.5" + ALL_COLORS
-                + WATER_LIKE_FLUID + "}");
+                + WATER_LIKE_FLUID + FLIGHT + "}");
         assertEquals(GooTypeTextures.NONE, unnamed.textures());
 
         GooTypeTextures blaze = decodeBundled(GooTypes.BLAZE).textures();
@@ -168,7 +176,7 @@ class GooTypeDefinitionTest {
      */
     @Test
     void refusesMalformedTextureId() {
-        assertTrue(parse("{\"light_level\": 8, \"saturation_fill\": 0.5" + ALL_COLORS + WATER_LIKE_FLUID
+        assertTrue(parse("{\"light_level\": 8, \"saturation_fill\": 0.5" + ALL_COLORS + WATER_LIKE_FLUID + FLIGHT
                 + ", \"textures\": {\"blob_base\": \"Not An Id\"}}").isError());
     }
 
@@ -179,7 +187,7 @@ class GooTypeDefinitionTest {
     @Test
     void refusesBodyWithoutTemperature() {
         assertTrue(parse("{\"light_level\": 8, \"saturation_fill\": 0.5" + ALL_COLORS
-                + ", \"density\": 1000, \"viscosity\": 1000, \"extinguishes\": false, \"map_color\": \"stone\"}")
+                + ", \"density\": 1000, \"viscosity\": 1000, \"extinguishes\": false, \"map_color\": \"stone\"" + FLIGHT + "}")
                 .isError());
     }
 
@@ -188,7 +196,7 @@ class GooTypeDefinitionTest {
      */
     @Test
     void refusesBodyWithoutLightLevel() {
-        assertTrue(parse("{\"saturation_fill\": 0.5" + ALL_COLORS + WATER_LIKE_FLUID + "}").isError());
+        assertTrue(parse("{\"saturation_fill\": 0.5" + ALL_COLORS + WATER_LIKE_FLUID + FLIGHT + "}").isError());
     }
 
     /**
@@ -196,7 +204,7 @@ class GooTypeDefinitionTest {
      */
     @Test
     void refusesLightPastCeiling() {
-        assertTrue(parse("{\"light_level\": 16, \"saturation_fill\": 0.5" + ALL_COLORS + WATER_LIKE_FLUID + "}").isError());
+        assertTrue(parse("{\"light_level\": 16, \"saturation_fill\": 0.5" + ALL_COLORS + WATER_LIKE_FLUID + FLIGHT + "}").isError());
     }
 
     /**
@@ -205,7 +213,59 @@ class GooTypeDefinitionTest {
     @Test
     void refusesBodyWithoutEdgeColor() {
         assertTrue(parse("{\"light_level\": 8, \"saturation_fill\": 0.5, \"wheel\": \"112233\","
-                + " \"bright\": \"445566\", \"highlight\": \"778899\"" + WATER_LIKE_FLUID + "}").isError());
+                + " \"bright\": \"445566\", \"highlight\": \"778899\"" + WATER_LIKE_FLUID + FLIGHT + "}").isError());
+    }
+
+    /**
+     * The flight fields decode into levity and baseFlightTime, per decision
+     * levity-and-base-in-goo-type-json.
+     */
+    @Test
+    void flightFieldsDecodeIntoAccessors() {
+        GooTypeDefinition type = decode(BODY_BEFORE_FLIGHT + ", \"levity\": 0.4, \"base_flight_time\": 3}");
+        assertEquals(GLOW_LEVITY, type.levity());
+        assertEquals(COMMON_BASE_FLIGHT_TIME, type.baseFlightTime());
+    }
+
+    /**
+     * A body missing levity is refused, so a datapack type states how fast it flies.
+     */
+    @Test
+    void refusesBodyWithoutLevity() {
+        assertTrue(parse(BODY_BEFORE_FLIGHT + ", \"base_flight_time\": 3}").isError());
+    }
+
+    /**
+     * A body missing base_flight_time is refused, so a datapack type states its base flight time.
+     */
+    @Test
+    void refusesBodyWithoutBaseFlightTime() {
+        assertTrue(parse(BODY_BEFORE_FLIGHT + ", \"levity\": 1.0}").isError());
+    }
+
+    /**
+     * Every bundled type flies with base 3; glow, typhoon and metal carry
+     * their own levity and the rest carry 1.0.
+     */
+    @ParameterizedTest
+    @MethodSource("bundledKeys")
+    void bundledFlightFieldsMatchDecision(ResourceKey<GooTypeDefinition> key) throws Exception {
+        GooTypeDefinition type = decodeBundled(key);
+        assertEquals(expectedLevity(key), type.levity(), key::toString);
+        assertEquals(COMMON_BASE_FLIGHT_TIME, type.baseFlightTime(), key::toString);
+    }
+
+    private static float expectedLevity(ResourceKey<GooTypeDefinition> key) {
+        if (key == GooTypes.GLOW) {
+            return GLOW_LEVITY;
+        }
+        if (key == GooTypes.TYPHOON) {
+            return TYPHOON_LEVITY;
+        }
+        if (key == GooTypes.METAL) {
+            return METAL_LEVITY;
+        }
+        return COMMON_LEVITY;
     }
 
     private static void assertLight(int peak, float saturation, GooTypeDefinition type) {

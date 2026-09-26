@@ -9,6 +9,8 @@
   "viscosity": 800,
   "temperature": 200,
   "extinguishes": true,
+  "levity": 1.0,
+  "base_flight_time": 3,
   "map_color": "ice",
   "textures": {
     "blob_tiny": "goo:item/frost_blob_tiny",

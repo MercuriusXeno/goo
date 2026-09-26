@@ -9,6 +9,8 @@
   "viscosity": 1000,
   "temperature": 400,
   "extinguishes": false,
+  "levity": 0.4,
+  "base_flight_time": 3,
   "map_color": "gold",
   "textures": {
     "blob_tiny": "goo:item/glow_blob_tiny",
