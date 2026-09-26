@@ -62,6 +62,10 @@ public final class GooTestFunctions {
     private static final String EXO_GAUNTLET_KEEPS_BENEFITS = "exo_gauntlet_keeps_benefits";
     // --- Brewing ---
     private static final String BREWING_OMNIBLOB_NEVER_BREWS = "brewing_omniblob_never_brews";
+    private static final String BREWING_CHRYSM_BREWS_POTION = "brewing_chrysm_brews_potion";
+    private static final String BREWING_CHRYSM_BREWS_SPLASH = "brewing_chrysm_brews_splash";
+    private static final String BREWING_CHRYSM_BREWS_LINGERING = "brewing_chrysm_brews_lingering";
+    private static final String BREWING_HIGHER_TIERS_NEVER_BREW = "brewing_higher_tiers_never_brew";
     private static final String EXORITE_NOT_ENCHANTABLE = "exorite_not_enchantable";
     private static final String EXORITE_ANVIL_REFUSES_BOOK = "exorite_anvil_refuses_book";
     private static final String EXORITE_BARS_REGISTERED = "exorite_bars_registered";
@@ -309,6 +313,10 @@ public final class GooTestFunctions {
 
     private static void registerBrewingTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
         reg(r, BREWING_OMNIBLOB_NEVER_BREWS, BrewingTests::omniblobNeverBrews);
+        reg(r, BREWING_CHRYSM_BREWS_POTION, BrewingTests::chrysmBrewsTypePotion);
+        reg(r, BREWING_CHRYSM_BREWS_SPLASH, BrewingTests::chrysmBrewsTypeSplashPotion);
+        reg(r, BREWING_CHRYSM_BREWS_LINGERING, BrewingTests::chrysmBrewsTypeLingeringPotion);
+        reg(r, BREWING_HIGHER_TIERS_NEVER_BREW, BrewingTests::higherTiersNeverBrew);
     }
 
     private static void registerTapDripTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
