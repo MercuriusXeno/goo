@@ -1,16 +1,16 @@
 package com.mercuriusxeno.goo.block.reactor;
 
 import com.mercuriusxeno.goo.CutawayInteractionHelper;
-import com.mercuriusxeno.goo.PlayerUtils;
+import com.mercuriusxeno.goo.block.BlockEntityTicks;
 import com.mercuriusxeno.goo.block.CutawayShapeHelper;
+import com.mercuriusxeno.goo.block.FacingRedstoneMachineBlock;
 import com.mercuriusxeno.goo.block.GooBlockInteraction;
-import com.mercuriusxeno.goo.block.IGooLightSource;
 import com.mercuriusxeno.goo.block.ShapeHitCheck;
+import com.mercuriusxeno.goo.block.canister.SlottedCanisterData;
 import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.GooInteractionType;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.sounds.SoundEvents;
@@ -19,21 +19,11 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.HorizontalDirectionalBlock;
-import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntityTicker;
-import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.StateDefinition;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-import net.minecraft.world.level.block.state.properties.BooleanProperty;
-import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.level.redstone.Orientation;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
@@ -49,22 +39,10 @@ import java.util.Map;
  * produces output into a canister in the front hollow. Redstone
  * halts processing. Faces the player on placement.
  */
-public class ReactorBlock extends BaseEntityBlock {
+public class ReactorBlock extends FacingRedstoneMachineBlock {
 
     /**
-     * Horizontal facing - orients the front hollow.
-     */
-    public static final EnumProperty<Direction> FACING = HorizontalDirectionalBlock.FACING;
-    /**
-     * Whether the reactor is receiving a redstone signal.
-     */
-    public static final BooleanProperty TRIGGERED = BlockStateProperties.TRIGGERED;
-    /**
-     * Whether the reactor is actively processing a reaction.
-     */
-    public static final BooleanProperty CRAFTING = BlockStateProperties.CRAFTING;
-    public static final MapCodec<ReactorBlock> CODEC = simpleCodec(ReactorBlock::new);
-    /**
+
      * Hollow volume in model space (south-facing): x in [5,11], y in [1,15], z in [0,6].
      */
     private static final double HOLLOW_MIN_X = 5.0 / 16.0;
@@ -113,11 +91,7 @@ public class ReactorBlock extends BaseEntityBlock {
      * @param properties the block properties
      */
     public ReactorBlock(Properties properties) {
-        super(properties);
-        registerDefaultState(stateDefinition.any()
-                .setValue(FACING, Direction.NORTH)
-                .setValue(TRIGGERED, false)
-                .setValue(CRAFTING, false));
+        super(properties, ReactorBlock::new);
     }
 
     /**
@@ -185,14 +159,7 @@ public class ReactorBlock extends BaseEntityBlock {
      */
     private static InteractionResult removeReactorCanister(
             ReactorBlockEntity reactor, Player player, Level level, BlockPos pos) {
-        ItemStack removed = reactor.removeOutputCanister();
-        if (removed.isEmpty()) {
-            return InteractionResult.PASS;
-        }
-        PlayerUtils.addOrDrop(player, removed);
-        level.playSound(null, pos, SoundEvents.DECORATED_POT_HIT,
-                SoundSource.BLOCKS, 1.0f, 1.0f);
-        return InteractionResult.SUCCESS;
+        return SlottedCanisterData.handToPlayer(reactor.removeOutputCanister(), player, level, pos);
     }
 
     /**
@@ -262,79 +229,16 @@ public class ReactorBlock extends BaseEntityBlock {
         return map.getOrDefault(facing, map.get(Direction.SOUTH));
     }
 
-    @Override
-    protected void createBlockStateDefinition(
-            StateDefinition.@NonNull Builder<Block, BlockState> builder) {
-        builder.add(FACING, TRIGGERED, CRAFTING);
-    }
-
-    @Override
-    public BlockState getStateForPlacement(@NonNull BlockPlaceContext context) {
-        BlockPos pos = context.getClickedPos();
-        return defaultBlockState()
-                .setValue(FACING, context.getHorizontalDirection())
-                .setValue(TRIGGERED, context.getLevel().hasNeighborSignal(pos));
-    }
-
-    /**
-     * Reactors respond to redstone power on any side, so dust visually
-     * connects from any direction.
-     *
-     * @param state     the block state
-     * @param level     the level
-     * @param pos       the block position
-     * @param direction the side the dust is approaching from, or null
-     * @return true: dust connects on every side
-     */
-    @Override
-    public boolean canConnectRedstone(@NonNull BlockState state, @NonNull BlockGetter level,
-                                      @NonNull BlockPos pos, @Nullable Direction direction) {
-        return true;
-    }
-
-    @Override
-    protected @NonNull MapCodec<? extends BaseEntityBlock> codec() {
-        return CODEC;
-    }
-
-    @Override
-    protected @NonNull RenderShape getRenderShape(@NonNull BlockState state) {
-        return RenderShape.MODEL;
-    }
-
     @Nullable
     @Override
     public BlockEntity newBlockEntity(@NonNull BlockPos pos, @NonNull BlockState state) {
         return new ReactorBlockEntity(pos, state);
     }
 
-    /** Routes goo-driven block-light emission through the BE. */
     @Override
-    public int getLightEmission(BlockState state, BlockGetter level, BlockPos pos) {
-        return IGooLightSource.blockEmissionFor(level, pos);
-    }
-
-    /** BE-driven emission: tell NeoForge the value depends on position so
-     * the engine queries with a real BlockGetter instead of probing with
-     * EmptyBlockGetter (which would return 0 and skip the chunk). */
-    @Override
-    public boolean hasDynamicLightEmission(BlockState state) {
-        return true;
-    }
-
-    @Nullable
-    @Override
-    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(
-            @NonNull Level level, @NonNull BlockState state,
-            @NonNull BlockEntityType<T> type) {
-        if (level.isClientSide()) {
-            return createTickerHelper(type,
-                    GooBlockEntities.REACTOR.get(),
-                    ReactorBlockEntity::clientTick);
-        }
-        return createTickerHelper(type,
-                GooBlockEntities.REACTOR.get(),
-                ReactorBlockEntity::serverTick);
+    protected BlockEntityTicks<ReactorBlockEntity> ticks() {
+        return BlockEntityTicks.bothSides(GooBlockEntities.REACTOR,
+                ReactorBlockEntity::serverTick, ReactorBlockEntity::clientTick);
     }
 
     /**
@@ -402,14 +306,7 @@ public class ReactorBlock extends BaseEntityBlock {
         if (!(level.getBlockEntity(pos) instanceof ReactorBlockEntity reactor)) {
             return InteractionResult.PASS;
         }
-        ItemStack removed = reactor.removeOutputCanister();
-        if (removed.isEmpty()) {
-            return InteractionResult.PASS;
-        }
-        PlayerUtils.addOrDrop(player, removed);
-        level.playSound(null, pos, SoundEvents.DECORATED_POT_HIT,
-                SoundSource.BLOCKS, 1.0f, 1.0f);
-        return InteractionResult.SUCCESS;
+        return removeReactorCanister(reactor, player, level, pos);
     }
 
     /**

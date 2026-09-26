@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.item;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
-import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
 import com.mercuriusxeno.goo.block.gasket.IGasketHolder;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import net.minecraft.core.BlockPos;
@@ -176,10 +175,6 @@ final class CanisterInventoryHandler {
      * @param holder the gasket holder
      */
     private static void popReceiverGasket(Level level, BlockPos pos, IGasketHolder holder) {
-        java.util.UUID gasketId = holder.getGasketId(GasketRole.RECEIVER);
-        if (gasketId != null) {
-            GasketInstallation.popGasket(level, pos, gasketId);
-            holder.clearGasket(GasketRole.RECEIVER);
-        }
+        holder.popBlockGasket(GasketRole.RECEIVER);
     }
 }

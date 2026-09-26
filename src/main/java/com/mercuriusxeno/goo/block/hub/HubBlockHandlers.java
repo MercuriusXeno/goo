@@ -2,9 +2,9 @@ package com.mercuriusxeno.goo.block.hub;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.ISidedProxy;
-import com.mercuriusxeno.goo.PlayerUtils;
 import com.mercuriusxeno.goo.block.GooBlockInteraction;
 import com.mercuriusxeno.goo.block.InteractionCooldown;
+import com.mercuriusxeno.goo.block.canister.SlottedCanisterData;
 import com.mercuriusxeno.goo.item.BlobInsert;
 import com.mercuriusxeno.goo.item.GooInteractionType;
 import net.minecraft.core.BlockPos;
@@ -107,13 +107,11 @@ final class HubBlockHandlers {
         int slot = HubBlock.hitSlot(hitResult, pos);
         if (slot < 0) { return InteractionResult.PASS; }
 
-        ItemStack removed = HubSlotLifecycle.removeCanister(hub, slot);
-        if (removed.isEmpty()) { return InteractionResult.PASS; }
-
-        PlayerUtils.addOrDrop(player, removed);
-        level.playSound(null, pos, SoundEvents.DECORATED_POT_HIT, SoundSource.BLOCKS, 1.0F, 1.0F);
-        InteractionCooldown.markInteraction(player.getUUID(), level.getGameTime());
-        return InteractionResult.SUCCESS;
+        InteractionResult handed = SlottedCanisterData.handToPlayer(hub.removeCanister(slot), player, level, pos);
+        if (handed == InteractionResult.SUCCESS) {
+            InteractionCooldown.markInteraction(player.getUUID(), level.getGameTime());
+        }
+        return handed;
     }
 
     // --- Item insertion handlers ---
@@ -151,8 +149,8 @@ final class HubBlockHandlers {
     private static boolean tryInsertCanister(
             HubBlockEntity hub, BlockHitResult hitResult, ItemStack stack) {
         int slot = HubBlock.hitSlot(hitResult, hub.getBlockPos());
-        return (slot >= 0 && HubSlotLifecycle.insertCanister(hub, slot, stack.copy()))
-                || HubSlotLifecycle.insertCanister(hub, stack.copy());
+        return (slot >= 0 && hub.insertCanister(slot, stack))
+                || hub.insertCanisterAnywhere(stack);
     }
 
     /**
