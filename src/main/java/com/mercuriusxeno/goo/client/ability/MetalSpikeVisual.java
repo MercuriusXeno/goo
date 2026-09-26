@@ -3,22 +3,22 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.program.FieldEffectState;
+import com.mercuriusxeno.goo.ability.program.FieldEffectStep;
 import com.mercuriusxeno.goo.ability.program.FieldStrike;
+import com.mercuriusxeno.goo.ability.program.MarkerVariables;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
+import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.RenderContext;
 import com.mercuriusxeno.goo.client.ber.ChainMarkerRenderState;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.SubmitNodeCollector;
-import net.minecraft.client.renderer.rendertype.RenderTypes;
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.Direction;
-import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
-import net.minecraft.util.LightCoordsUtil;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Metal spike trap visual: extends goo-textured cone spikes from the
@@ -28,10 +28,6 @@ import java.util.List;
  * extension, and retract phases around the tick it lands.
  */
 public final class MetalSpikeVisual {
-
-    /** Block atlas path for fluid sprite lookups. */
-    private static final Identifier BLOCK_ATLAS =
-            Identifier.withDefaultNamespace("textures/atlas/blocks.png");
 
     /** Half-block offset for face and edge positioning. */
     private static final float HALF = 0.5f;
@@ -60,18 +56,21 @@ public final class MetalSpikeVisual {
 
     /**
      * Populates {@code state} with the metal trap's spikes in flight, read
-     * from the marker's field-effect state; a marker of another type draws
-     * no spikes.
+     * from the marker's field-effect state, and their timing, read off the
+     * field-effect step of the marker's synced ability; a marker of another
+     * type draws no spikes.
      *
      * @param be    the chain marker block entity
      * @param state the render state to populate
      */
     public static void extract(ChainMarkerBlockEntity be, ChainMarkerRenderState state) {
         FieldEffectState field = be.getFieldEffect();
-        boolean metal = GooTypes.METAL.equals(be.getGooType()) && be.getBehavior() != null;
+        Optional<FieldEffectStep> step = SyncedSteps.first(be, FieldEffectStep.class);
+        boolean metal = GooTypes.METAL.equals(be.getGooType()) && be.getBehavior() != null && step.isPresent();
+        MarkerVariables variables = new MarkerVariables(be);
         state.spikeAnims = metal ? field.strikes() : List.of();
-        state.spikeStrikeTick = field.strikeTick();
-        state.spikeLength = field.strikeTicks();
+        state.spikeStrikeTick = step.map(trap -> trap.strikeTick().evaluateInt(variables)).orElse(0);
+        state.spikeLength = step.map(trap -> trap.strikeTicks().evaluateInt(variables)).orElse(0);
     }
 
     /**
@@ -147,15 +146,11 @@ public final class MetalSpikeVisual {
         float cy = HALF - face.getStepY() * HALF;
         float cz = HALF - face.getStepZ() * HALF;
 
-        nodeCollector.submitCustomGeometry(poseStack,
-                RenderTypes.entityTranslucent(BLOCK_ATLAS),
-                (pose, consumer) -> {
-                    RenderContext ctx = new RenderContext(pose, consumer,
-                            LightCoordsUtil.FULL_BRIGHT);
-                    for (FieldStrike spike : state.spikeAnims) {
-                        emitSingleSpike(ctx, spike, state, cx, cy, cz, color, uv);
-                    }
-                });
+        GooSubmitter.submitFluid(poseStack, nodeCollector, ctx -> {
+            for (FieldStrike spike : state.spikeAnims) {
+                emitSingleSpike(ctx, spike, state, cx, cy, cz, color, uv);
+            }
+        });
     }
 
     /**
@@ -165,10 +160,7 @@ public final class MetalSpikeVisual {
      * @return the UV rectangle for the fluid sprite
      */
     private static GooRenderUtil.UvRect lookupSpriteUv(ResourceKey<GooTypeDefinition> type) {
-        TextureAtlasSprite sprite = GooRenderUtil.lookupFluidSprite(type);
-        return new GooRenderUtil.UvRect(
-                sprite.getU(0f), sprite.getV(0f),
-                sprite.getU(1f), sprite.getV(1f));
+        return GooSubmitter.spriteUv(GooRenderUtil.lookupFluidSprite(type));
     }
 
     /**

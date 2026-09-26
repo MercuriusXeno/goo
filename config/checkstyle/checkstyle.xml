@@ -116,18 +116,18 @@
 
     </module>
 
-    <!-- The fluid lightmap rule lives in GooSubmitter (decision
-         shared-submission-entry-point). javac inlines the constant, so the
-         guard is source-level; the filter below scopes it to the renderer
-         packages. -->
+    <!-- The lightmap rule lives in GooSubmitter (decision
+         submitter-owns-every-render-choice). javac inlines the constant, so
+         the guard is source-level; the filter below scopes it to every file
+         under client but GooSubmitter itself. -->
     <module name="RegexpSingleline">
         <property name="id" value="fullbrightInSubmitter"/>
         <property name="severity" value="error"/>
-        <property name="format" value="\bFULL_BRIGHT\b"/>
-        <property name="message" value="FULL_BRIGHT belongs to GooSubmitter: submit fluids through it"/>
+        <property name="format" value="\bFULL_BRIGHT\b|0xF000F0"/>
+        <property name="message" value="Fullbright belongs to GooSubmitter: take it through GooSubmitter.fullbrightLight()"/>
     </module>
     <module name="SuppressionSingleFilter">
         <property name="id" value="fullbrightInSubmitter"/>
-        <property name="files" value="^(?!.*[\\/]client[\\/](ber|model)[\\/]).*$"/>
+        <property name="files" value="^(?!.*[\\/]client[\\/]).*$|[\\/]client[\\/]GooSubmitter\.java$"/>
     </module>
 </module>

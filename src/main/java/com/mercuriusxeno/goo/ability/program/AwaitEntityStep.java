@@ -43,7 +43,7 @@ public record AwaitEntityStep(SelectionShape shape, Expr radius, List<EntityFilt
 
     @Override
     public boolean tick(StepContext context) {
-        return context.host().anyEntityWithin(shape, radius.evaluate(context), Set.copyOf(where));
+        return context.hostAs(EntityScanHost.class).anyEntityWithin(shape, radius.evaluate(context), Set.copyOf(where));
     }
 
     @Override

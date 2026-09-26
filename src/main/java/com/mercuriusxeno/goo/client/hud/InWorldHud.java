@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.hud;
 
+import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Camera;
@@ -8,7 +9,6 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
-import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Quaternionf;
 
@@ -204,7 +204,7 @@ public final class InWorldHud {
         vc.addVertex(pose, x, y, z)
                 .setColor(OPAQUE_WHITE)
                 .setUv(u, v)
-                .setLight(LightCoordsUtil.FULL_BRIGHT);
+                .setLight(GooSubmitter.fullbrightLight());
     }
 
     /**
@@ -258,7 +258,7 @@ public final class InWorldHud {
         poseStack.translate(0, 0, CONTENT_Z);
         font.drawInBatch(text, x, y, color, false,
                 poseStack.last().pose(), buffers,
-                displayMode, 0, LightCoordsUtil.FULL_BRIGHT);
+                displayMode, 0, GooSubmitter.fullbrightLight());
         poseStack.popPose();
     }
 

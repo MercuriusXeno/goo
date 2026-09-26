@@ -4,10 +4,10 @@ import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
 import com.mercuriusxeno.goo.block.canister.CanisterGeometry;
 import com.mercuriusxeno.goo.block.canister.CanisterSlotLayout;
 import com.mercuriusxeno.goo.client.CuboidBounds;
+import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.RenderContext;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.SubmitNodeCollector;
-import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.resources.Identifier;
 
 /**
@@ -77,7 +77,7 @@ public final class CanisterFluidRenderer {
     private static void submitCopperCaps(PoseStack poseStack,
             SubmitNodeCollector nodeCollector, int light, CanisterRenderState state) {
         nodeCollector.submitCustomGeometry(poseStack,
-            RenderTypes.entitySolid(COPPER_GASKET),
+            GooSubmitter.solidOn(COPPER_GASKET),
             (pose, c) -> renderCopperEndcaps(new RenderContext(pose, c, light), state));
     }
 
@@ -91,7 +91,7 @@ public final class CanisterFluidRenderer {
     private static void submitChoralCaps(PoseStack poseStack,
             SubmitNodeCollector nodeCollector, int light, CanisterRenderState state) {
         nodeCollector.submitCustomGeometry(poseStack,
-            RenderTypes.entitySolid(CHORAL_GASKET),
+            GooSubmitter.solidOn(CHORAL_GASKET),
             (pose, c) -> renderChoralEndcaps(new RenderContext(pose, c, light), state));
     }
 
