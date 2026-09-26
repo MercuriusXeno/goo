@@ -66,7 +66,7 @@ public class CrucibleBlockEntityRenderer
      */
     private void extractRipple(CrucibleBlockEntity be, CrucibleRenderState state) {
         long gameTick = be.getLevel() != null ? be.getLevel().getGameTime() : 0L;
-        float fill = CrucibleBasin.fillFraction(
+        float fill = CrucibleBasin.heightFraction(
             CrucibleBasin.heldVolume(state.poolVolume, state.reservoirVolume));
         state.rippleAmplitude = agitations.computeIfAbsent(be, key -> new SurfaceAgitation())
             .tick(fill, 0f, gameTick);
@@ -105,7 +105,7 @@ public class CrucibleBlockEntityRenderer
         long totalGoo = CrucibleBasin.heldVolume(state.poolVolume, state.reservoirVolume);
         if (totalGoo <= 0) { return; }
         renderMingledSurface(GooSubmitter.bandedSurfaces(poseStack, nodeCollector), state,
-            CrucibleBasin.surfaceYForVolume(totalGoo));
+            CrucibleBasin.footprintForVolume(totalGoo), CrucibleBasin.surfaceYForVolume(totalGoo));
     }
 
     // -- Liquid level --
@@ -118,44 +118,48 @@ public class CrucibleBlockEntityRenderer
      *
      * @param submitter submits one band's surface on that band type's sprite
      * @param state the crucible render state
+     * @param footprint the square the goo covers
      * @param surfaceY the computed liquid surface Y height
      */
     static void renderMingledSurface(BandedSurfaceSubmitter submitter, CrucibleRenderState state,
-            float surfaceY) {
+            CrucibleBasin.PuddleFootprint footprint, float surfaceY) {
         for (TypeBand band : state.typeBands) {
-            submitter.submit(band, (ctx, sprite) -> emitLiquidSurface(ctx, surfaceY + band.lift(), sprite,
-                state.rippleAmplitude));
+            submitter.submit(band, (ctx, sprite) -> emitLiquidSurface(ctx, footprint, surfaceY + band.lift(),
+                sprite, state.rippleAmplitude));
         }
     }
 
     /**
-     * Emits the liquid surface grid over the basin interior bounds, at the
-     * context's light and color, its rim held still inside the basin walls.
+     * Emits the liquid surface grid over the goo's footprint, at the
+     * context's light and color, its rim held still at the footprint's edge.
      *
      * @param ctx the render context the submitter built
+     * @param footprint the square the goo covers
      * @param surfaceY the liquid surface Y height
      * @param sprite the fluid texture atlas sprite
      * @param amplitude the ripple amplitude the interior vertices carry
      */
-    private static void emitLiquidSurface(RenderContext ctx, float surfaceY,
-            TextureAtlasSprite sprite, float amplitude) {
-        emitLiquidSurface(ctx, surfaceY, new GooRenderUtil.UvRect(
+    private static void emitLiquidSurface(RenderContext ctx, CrucibleBasin.PuddleFootprint footprint,
+            float surfaceY, TextureAtlasSprite sprite, float amplitude) {
+        emitLiquidSurface(ctx, footprint, surfaceY, new GooRenderUtil.UvRect(
             sprite.getU0(), sprite.getV0(), sprite.getU1(), sprite.getV1()), amplitude);
     }
 
     /**
-     * Emits the liquid surface grid over the basin interior bounds on a UV rect.
+     * Emits the liquid surface grid over the goo's footprint on a UV rect
+     * (decision puddle-touches-walls-at-a-thousand).
      *
      * @param ctx the render context the submitter built
+     * @param footprint the square the goo covers
      * @param surfaceY the liquid surface Y height
      * @param uv the sprite's UV rect
      * @param amplitude the ripple amplitude the interior vertices carry
      */
-    static void emitLiquidSurface(RenderContext ctx, float surfaceY, GooRenderUtil.UvRect uv,
-            float amplitude) {
-        CuboidBounds basin = new CuboidBounds(CrucibleBasin.FOOTPRINT_MIN, CrucibleBasin.FOOTPRINT_MAX,
-            CrucibleBasin.FOOTPRINT_MIN, CrucibleBasin.FOOTPRINT_MAX, CrucibleBasin.FLOOR_Y, surfaceY);
-        ctx.liquidSurfaceGrid(basin, uv, amplitude);
+    static void emitLiquidSurface(RenderContext ctx, CrucibleBasin.PuddleFootprint footprint, float surfaceY,
+            GooRenderUtil.UvRect uv, float amplitude) {
+        CuboidBounds goo = new CuboidBounds(footprint.min(), footprint.max(),
+            footprint.min(), footprint.max(), CrucibleBasin.FLOOR_Y, surfaceY);
+        ctx.liquidSurfaceGrid(goo, uv, amplitude);
     }
 
 }
