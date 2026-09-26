@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.model;
 
 import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
+import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.RenderContext;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.Direction;
@@ -33,35 +34,12 @@ public final class FluidFaceEmitter {
      */
     public static void emitFluidFaces(RenderContext ctx, CuboidBounds b,
             TextureAtlasSprite sprite, int tint) {
-        float u0 = sprite.getU0();
-        float v0 = sprite.getV0();
-        float su1 = u0 + (sprite.getU1() - u0) * (b.x1() - b.x0());
-        float sv1 = v0 + (sprite.getV1() - v0) * (b.z1() - b.z0());
-        ctx.liquidSurface(tint, b,
-            new GooRenderUtil.UvRect(u0, v0, su1, sv1));
-        emitFluidSides(ctx, b, sprite, u0, v0, su1, tint);
-    }
-
-    /**
-     * Emits the four side quads with UVs scaled to the cuboid's face extents
-     * and an explicit tint color.
-     *
-     * @param ctx    the render context
-     * @param b      the fluid cuboid
-     * @param sprite the fluid atlas sprite
-     * @param u0     sprite's left U edge
-     * @param v0     sprite's top V edge
-     * @param su1    scaled right U edge
-     * @param tint   the ARGB tint color
-     */
-    private static void emitFluidSides(RenderContext ctx, CuboidBounds b,
-                                       TextureAtlasSprite sprite, float u0, float v0,
-                                       float su1, int tint) {
-        float sideVSpan = (sprite.getV1() - v0) * (b.yTop() - b.yBot());
-        GooRenderUtil.UvRect xUv = new GooRenderUtil.UvRect(u0, v0,
-            su1, v0 + sideVSpan);
-        GooRenderUtil.UvRect zUv = new GooRenderUtil.UvRect(u0, v0,
-            u0 + (sprite.getU1() - u0) * (b.z1() - b.z0()), v0 + sideVSpan);
+        float spanX = b.x1() - b.x0();
+        float spanY = b.yTop() - b.yBot();
+        float spanZ = b.z1() - b.z0();
+        ctx.liquidSurface(tint, b, GooSubmitter.spriteSubRect(sprite, 0f, 0f, spanX, spanZ));
+        GooRenderUtil.UvRect xUv = GooSubmitter.spriteSubRect(sprite, 0f, 0f, spanX, spanY);
+        GooRenderUtil.UvRect zUv = GooSubmitter.spriteSubRect(sprite, 0f, 0f, spanZ, spanY);
         emitAllSideFaces(ctx, b, xUv, zUv, tint);
     }
 
