@@ -10,7 +10,9 @@ import net.minecraft.client.particle.SpriteSet;
 import net.minecraft.client.renderer.state.level.QuadParticleRenderState;
 import net.minecraft.core.particles.ColorParticleOption;
 import net.minecraft.core.particles.ParticleType;
+import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.phys.Vec3;
 import org.joml.Quaternionf;
 import org.jspecify.annotations.Nullable;
 import java.util.function.Supplier;
@@ -56,9 +58,6 @@ public abstract class DripParticle extends SingleQuadParticle {
 
     /** Lifetime random range. */
     private static final double LIFETIME_RANGE = 0.8;
-
-    /** Ground nudge to prevent z-fighting for land splats. */
-    private static final double LAND_SURFACE_NUDGE = 0.02;
 
     /** Scale factor for land splat quad size. */
     private static final float LAND_QUAD_SCALE = 1.2f;
@@ -171,6 +170,28 @@ public abstract class DripParticle extends SingleQuadParticle {
             this.lifetime = (int) (LIFETIME_DIVISOR / (level.getRandom().nextFloat() * LIFETIME_RANGE + LIFETIME_MIN_FACTOR));
         }
 
+        /**
+         * Draws the camera-facing quad lifted clear of the surface its
+         * collision box lands on (decision diagnose-then-fix-drip-z-fighting).
+         *
+         * @param reusedState the reusable render state for quad particles
+         * @param camera      the active camera for view transform
+         * @param rotation    the camera-facing rotation
+         * @param partialTick the partial tick for interpolation
+         */
+        @Override
+        protected void extractRotatedQuad(QuadParticleRenderState reusedState, Camera camera,
+                Quaternionf rotation, float partialTick) {
+            Vec3 cameraPos = camera.position();
+            double particleY = Mth.lerp(partialTick, this.yo, this.y);
+            double quadY = DripQuadPlacement.fallQuadCenterY(particleY, this.getQuadSize(partialTick));
+            this.extractRotatedQuad(reusedState, rotation,
+                    (float) (Mth.lerp(partialTick, this.xo, this.x) - cameraPos.x()),
+                    (float) (quadY - cameraPos.y()),
+                    (float) (Mth.lerp(partialTick, this.zo, this.z) - cameraPos.z()),
+                    partialTick);
+        }
+
         /** Spawns a landing splat on ground contact. */
         @Override
         protected void postMoveUpdate() {
@@ -200,8 +221,7 @@ public abstract class DripParticle extends SingleQuadParticle {
         LandParticle(ClientLevel level, double x, double y, double z,
                 float red, float green, float blue, SpriteSet sprites) {
             super(level, x, y, z, red, green, blue, sprites);
-            // Nudge above the block surface so the flat quad doesn't z-fight.
-            this.y += LAND_SURFACE_NUDGE;
+            this.y = DripQuadPlacement.landQuadY(this.y);
             this.yo = this.y;
             this.quadSize *= LAND_QUAD_SCALE;
             this.lifetime = (int) (LAND_LIFETIME_DIVISOR / (level.getRandom().nextFloat() * LIFETIME_RANGE + LIFETIME_MIN_FACTOR));
