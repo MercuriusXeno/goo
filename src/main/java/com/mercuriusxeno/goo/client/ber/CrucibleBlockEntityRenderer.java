@@ -32,13 +32,16 @@ public class CrucibleBlockEntityRenderer
     /** Each crucible's surface agitation, held client-side and dropped with the crucible. */
     private final Map<CrucibleBlockEntity, SurfaceAgitation> agitations = new WeakHashMap<>();
 
+    /** Draws the items melting on the fill. */
+    private final CrucibleMeltingItems meltingItems;
+
     /**
-     * Creates a crucible BER. Context is unused.
+     * Creates a crucible BER.
      *
-     * @param context the renderer provider context
+     * @param context the renderer provider context, whose item model resolver the melting items draw with
      */
     public CrucibleBlockEntityRenderer(BlockEntityRendererProvider.Context context) {
-        // No resources needed from context
+        this.meltingItems = new CrucibleMeltingItems(context.itemModelResolver());
     }
 
     @Override
@@ -53,6 +56,7 @@ public class CrucibleBlockEntityRenderer
         BlockEntityRenderState.extractBase(be, state, breakProgress);
         extractPoolState(be, state);
         extractRipple(be, state);
+        meltingItems.extract(be, state);
     }
 
     /**
@@ -84,9 +88,11 @@ public class CrucibleBlockEntityRenderer
     public void submit(CrucibleRenderState state, PoseStack poseStack,
             SubmitNodeCollector nodeCollector, CameraRenderState cameraState) {
         CrucibleBasin.DrawnSurface surface = surfaceOf(state);
-        if (surface == null) { return; }
-        renderMingledSurface(GooSubmitter.bandedSurfaces(poseStack, nodeCollector), state,
-            surface.footprint(), surface.surfaceY());
+        if (surface != null) {
+            renderMingledSurface(GooSubmitter.bandedSurfaces(poseStack, nodeCollector), state,
+                surface.footprint(), surface.surfaceY());
+        }
+        meltingItems.submit(state, surface, poseStack, nodeCollector);
     }
 
     /**

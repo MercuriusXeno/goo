@@ -350,6 +350,45 @@ public final class GooRenderTypes {
                     .createRenderSetup()
     );
 
+    /**
+     * Crucible dissolve pipeline (decision dissolve-shader-on-item): the entity look,
+     * lit by the lightmap, on shaders that discard where the mingle noise over world
+     * position falls below the dissolve fraction the overlay coordinates carry and
+     * paint a glow band above it. Premultiplied blending lets the glow add light
+     * while the item body draws translucent.
+     */
+    public static final RenderPipeline CRUCIBLE_DISSOLVE = RenderPipeline.builder(
+                    RenderPipelines.ENTITY_SNIPPET,
+                    RenderPipelines.GLOBALS_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, "pipeline/crucible_dissolve"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, "core/crucible_dissolve"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, "core/crucible_dissolve"))
+            .withShaderDefine("ALPHA_CUTOUT", 0.1F)
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT_PREMULTIPLIED_ALPHA))
+            .withCull(false)
+            .build();
+
+    /** Per-texture memoized render types on the crucible dissolve pipeline. */
+    private static final java.util.function.Function<Identifier, RenderType> CRUCIBLE_DISSOLVE_FACTORY =
+            net.minecraft.util.Util.memoize(texture -> RenderType.create(
+                    "goo_crucible_dissolve",
+                    RenderSetup.builder(CRUCIBLE_DISSOLVE)
+                            .withTexture("Sampler0", texture)
+                            .useLightmap()
+                            .sortOnUpload()
+                            .createRenderSetup()
+            ));
+
+    /**
+     * Returns the crucible dissolve render type for a texture atlas.
+     *
+     * @param texture the texture atlas identifier the item's sprites sit on
+     * @return memoized RenderType
+     */
+    public static RenderType crucibleDissolve(Identifier texture) {
+        return CRUCIBLE_DISSOLVE_FACTORY.apply(texture);
+    }
+
     private GooRenderTypes() {}
 
     /**
@@ -370,5 +409,6 @@ public final class GooRenderTypes {
         event.registerPipeline(CRYSTAL_SHARD);
         event.registerPipeline(GOO_FLUID);
         event.registerPipeline(GOO_FLUID_SURFACE);
+        event.registerPipeline(CRUCIBLE_DISSOLVE);
     }
 }

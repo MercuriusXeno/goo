@@ -23,9 +23,10 @@ public final class RecordingVertexConsumer implements VertexConsumer {
      * @param uv2U  the lightmap U, which the fluid surface reads as the band's lower edge
      * @param uv2V  the lightmap V, which the fluid surface reads as the band's upper edge
      * @param ny    the Y normal
+     * @param uv1V  the overlay V, which the dissolve shader reads as the glow color
      */
     public record Vertex(float x, float y, float z, int color, float u, float v, int uv1U,
-                         int uv2U, int uv2V, float ny) {
+                         int uv2U, int uv2V, float ny, int uv1V) {
     }
 
     private final List<Vertex> vertices = new ArrayList<>();
@@ -36,6 +37,7 @@ public final class RecordingVertexConsumer implements VertexConsumer {
     private float u;
     private float v;
     private int uv1U;
+    private int uv1V;
     private int uv2U;
     private int uv2V;
     private float ny;
@@ -59,7 +61,7 @@ public final class RecordingVertexConsumer implements VertexConsumer {
 
     private void flush() {
         if (hasPending) {
-            vertices.add(new Vertex(x, y, z, color, u, v, uv1U, uv2U, uv2V, ny));
+            vertices.add(new Vertex(x, y, z, color, u, v, uv1U, uv2U, uv2V, ny, uv1V));
             hasPending = false;
         }
     }
@@ -74,6 +76,7 @@ public final class RecordingVertexConsumer implements VertexConsumer {
         u = 0f;
         v = 0f;
         uv1U = 0;
+        uv1V = 0;
         uv2U = 0;
         uv2V = 0;
         ny = 0f;
@@ -102,6 +105,7 @@ public final class RecordingVertexConsumer implements VertexConsumer {
     @Override
     public VertexConsumer setUv1(int overlayU, int overlayV) {
         uv1U = overlayU;
+        uv1V = overlayV;
         return this;
     }
 
