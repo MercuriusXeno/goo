@@ -269,7 +269,7 @@ public class VatBlock extends GooMachineBlock {
     // -- Block break drops --
 
     /**
-     * Drops gaskets on break and notifies vertical neighbors.
+     * Notifies vertical neighbors on break; the base drops the gaskets.
      * Goo contents are retained in the item via data components.
      *
      * @param level  the current level
@@ -283,7 +283,6 @@ public class VatBlock extends GooMachineBlock {
             @NonNull Level level, @NonNull BlockPos pos,
             @NonNull BlockState state, @NonNull Player player) {
         if (!level.isClientSide()) {
-            VatGasketOps.dropGaskets(state, level, pos);
             VatGasketOps.notifyVerticalNeighbors(level, pos);
         }
         return super.playerWillDestroy(level, pos, state, player);

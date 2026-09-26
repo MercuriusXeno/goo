@@ -324,7 +324,7 @@ public class CrucibleBlock extends GooMachineBlock {
 
     // -- Block break drops --
 
-    /** Drops all crucible internals (PMI, reservoir, gasket) before the block breaks.
+    /** Drops the crucible's PMI and reservoir before the block breaks; the base drops its gasket.
      *
      * @param level  the current level
      * @param pos    the block position
@@ -336,7 +336,6 @@ public class CrucibleBlock extends GooMachineBlock {
     public BlockState playerWillDestroy(Level level, BlockPos pos,
             BlockState state, Player player) {
         CrucibleDrops.dropCrucibleContents(level, pos);
-        CrucibleDrops.dropGasket(state, level, pos);
         return super.playerWillDestroy(level, pos, state, player);
     }
 

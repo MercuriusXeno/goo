@@ -103,6 +103,7 @@ public final class GooTestFunctions {
     private static final String BREAK_POPS_GASKET_VAT = "break_pops_gasket_vat";
     private static final String BREAK_POPS_GASKET_TAP = "break_pops_gasket_tap";
     private static final String BREAK_POPS_GASKET_HUB = "break_pops_gasket_hub";
+    private static final String REMOVAL_POPS_GASKET_EVERY_MACHINE = "removal_pops_gasket_every_machine";
 
     // --- Sneak empty-hand gasket removal ---
     private static final String SNEAK_POPS_CANISTER_SLOT_GASKET = "sneak_pops_canister_slot_gasket";
@@ -385,6 +386,7 @@ public final class GooTestFunctions {
         reg(r, BREAK_POPS_GASKET_VAT, GasketRegistryTests::breakPopsGasketVat);
         reg(r, BREAK_POPS_GASKET_TAP, GasketRegistryTests::breakPopsGasketTap);
         reg(r, BREAK_POPS_GASKET_HUB, GasketRegistryTests::breakPopsGasketHub);
+        reg(r, REMOVAL_POPS_GASKET_EVERY_MACHINE, GasketRegistryTests::removalPopsGasketEveryMachine);
     }
 
     private static void registerEffectExecutorTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {

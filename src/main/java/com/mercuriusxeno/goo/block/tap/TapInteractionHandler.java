@@ -2,10 +2,8 @@ package com.mercuriusxeno.goo.block.tap;
 
 import com.mercuriusxeno.goo.block.ShapeHitCheck;
 import com.mercuriusxeno.goo.block.canister.SlottedCanisterData;
-import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
 import com.mercuriusxeno.goo.item.BlobInsert;
 import com.mercuriusxeno.goo.item.GooInteractionType;
-import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.sounds.SoundEvents;
@@ -20,7 +18,6 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import java.util.Map;
-import java.util.UUID;
 
 /**
  * Stateless dispatch and handler methods for tap block interactions:
@@ -222,19 +219,6 @@ final class TapInteractionHandler {
     }
 
     // --- Block break drops ---
-
-    /**
-     * Drops the gasket item if one is installed.
-     *
-     * @param level the current level
-     * @param pos   the block position
-     * @param state the block state
-     */
-    static void dropGasketOnBreak(Level level, BlockPos pos, BlockState state) {
-        UUID gasketId = level.getBlockEntity(pos) instanceof TapBlockEntity tap
-                ? tap.getGasketId(GasketRole.RECEIVER) : null;
-        GasketInstallation.popGasket(level, pos, state.getValue(TapBlock.HAS_GASKET), gasketId);
-    }
 
     /**
      * Drops the canister item if one is inserted.

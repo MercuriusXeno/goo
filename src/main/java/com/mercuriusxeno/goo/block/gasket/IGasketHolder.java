@@ -5,7 +5,9 @@ import com.mercuriusxeno.goo.item.CanisterMetadata;
 import com.mercuriusxeno.goo.item.gasket.GasketPartner;
 import com.mercuriusxeno.goo.item.gasket.GasketRegionResolver;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.phys.BlockHitResult;
 import org.jspecify.annotations.Nullable;
 import java.util.UUID;
@@ -299,21 +301,34 @@ public interface IGasketHolder {
     }
 
     /**
+     * The blockstate flag that records a gasket installed on the block itself
+     * for the role's face. Default: none.
+     *
+     * @param role the gasket role
+     * @return the flag, or null when the machine takes no block-level gasket on that face
+     */
+    default @Nullable BooleanProperty gasketFlag(GasketRole role) {
+        return null;
+    }
+
+    /**
      * Returns true if a gasket is installed on the block itself for the role,
-     * as the machine's blockstate flag records it. Default: none.
+     * as the machine's blockstate flag records it.
      *
      * @param role the gasket role
      * @return true if a block-level gasket is installed
      */
     default boolean holdsBlockGasket(GasketRole role) {
-        return false;
+        BooleanProperty flag = gasketFlag(role);
+        return flag != null && this instanceof BlockEntity be && be.getBlockState().getValue(flag);
     }
 
     /**
      * Clears an installed gasket from this holder once its item has left:
      * a slot gasket leaves the canister's metadata and re-stands the slot's
-     * pusher, a block-level gasket clears its id and partner. Machines that
-     * flag a block-level gasket in their blockstate override to clear the flag.
+     * pusher, a block-level gasket clears its id and partner and lowers its
+     * blockstate flag. This is the one place a gasket flag goes false
+     * (decision machine-base-owns-the-lifecycle).
      *
      * @param gasket the gasket being removed
      */
@@ -326,5 +341,55 @@ public interface IGasketHolder {
             return;
         }
         clearGasket(gasket.role());
+        lowerGasketFlag(gasket.role());
+    }
+
+    private void lowerGasketFlag(GasketRole role) {
+        BooleanProperty flag = gasketFlag(role);
+        if (flag != null && holdsBlockGasket(role) && this instanceof BlockEntity be && be.getLevel() != null) {
+            be.getLevel().setBlock(be.getBlockPos(), be.getBlockState().setValue(flag, false), Block.UPDATE_ALL);
+        }
+    }
+
+    /**
+     * Pops the block-level gasket on a face as an item drop and releases it
+     * from the registry, then uninstalls it, lowering its flag. No-op when
+     * the face holds none.
+     *
+     * @param role the face's role
+     */
+    default void popBlockGasket(GasketRole role) {
+        if (holdsBlockGasket(role) && this instanceof BlockEntity be && be.getLevel() != null) {
+            GasketInstallation.popGasket(be.getLevel(), be.getBlockPos(), true, getGasketId(role));
+            uninstallGasket(new AddressedGasket(role, NO_SLOT));
+        }
+    }
+
+    /**
+     * Pops the gasket a face held as an item drop and releases it from the
+     * registry, leaving the blockstate alone: the caller has already lowered
+     * the flag, or the block is leaving the level.
+     *
+     * @param role the face's role
+     */
+    default void releaseBlockGasket(GasketRole role) {
+        if (this instanceof BlockEntity be && be.getLevel() != null) {
+            GasketInstallation.popGasket(be.getLevel(), be.getBlockPos(), true, getGasketId(role));
+            clearGasket(role);
+        }
+    }
+
+    /**
+     * Drops every block-level gasket this machine holds as it leaves the level,
+     * each unlinked and cleared from the registry. A slot gasket leaves with its
+     * canister, which carries it in its metadata, so only its registry location
+     * is released, by the slot grid (decision machine-base-owns-the-lifecycle).
+     */
+    default void dropGaskets() {
+        for (GasketRole role : GasketRole.values()) {
+            if (holdsBlockGasket(role)) {
+                releaseBlockGasket(role);
+            }
+        }
     }
 }

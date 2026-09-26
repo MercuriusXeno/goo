@@ -6,7 +6,6 @@ import com.mercuriusxeno.goo.block.GooMachineBlock;
 import com.mercuriusxeno.goo.block.ShapeHitCheck;
 import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
 import com.mercuriusxeno.goo.item.CanisterItem;
-import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
@@ -409,25 +408,5 @@ public class HubBlock extends GooMachineBlock {
             return InteractionResult.SUCCESS;
         }
         return HubBlockHandlers.removeCanister(hub, hitResult, pos, player, level);
-    }
-
-    /**
-     * Drops the intake gasket item on break if one is installed.
-     *
-     * @param level  the current level
-     * @param pos    the block position
-     * @param state  the block state
-     * @param player the interacting player
-     * @return the block state
-     */
-    @Override
-    public @NonNull BlockState playerWillDestroy(
-            @NonNull Level level, @NonNull BlockPos pos,
-            @NonNull BlockState state, @NonNull Player player) {
-        if (!level.isClientSide() && level.getBlockEntity(pos) instanceof HubBlockEntity hub) {
-            GasketInstallation.popGasket(level, pos, state.getValue(HAS_GASKET),
-                    hub.getGasketId(GasketRole.RECEIVER));
-        }
-        return super.playerWillDestroy(level, pos, state, player);
     }
 }

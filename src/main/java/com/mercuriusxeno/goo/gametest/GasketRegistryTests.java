@@ -22,11 +22,15 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import org.jspecify.annotations.Nullable;
+import java.util.List;
 import java.util.UUID;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * Gametests for the gasket registry following a gasket through every host
@@ -53,11 +57,21 @@ public final class GasketRegistryTests {
     private static final BlockPos PARTNER_POS = new BlockPos(1, 1, 3);
     private static final int PARTNER_SLOT = CanisterBlock.CENTER_SLOT;
     private static final String REMOVAL = "removal";
-    private static final String MACHINE_BROKEN = "Player should have broken the machine";
+    private static final String MACHINE_BROKEN = "The machine should have left the level";
     private static final String MACHINE_GASKET_ID = "Machine should hold a gasket id before it breaks";
     private static final String BREAK_LOCATION = "Broken machine's gasket should resolve no registry location";
     private static final String BREAK_PAIRING = "Broken machine's gasket should hold no registry pairing";
     private static final String PARTNER_PAIRING = "Partner's gasket should hold no registry pairing";
+    /** The gasket item lands within a block of the broken machine. */
+    private static final double DROP_RANGE = 1.5;
+    private static final Supplier<BlockState> CRUCIBLE_GASKETED = () ->
+            GooBlocks.CRUCIBLE.get().defaultBlockState().setValue(CrucibleBlock.HAS_GASKET, true);
+    private static final Supplier<BlockState> VAT_GASKETED = () ->
+            GooBlocks.VAT.get().defaultBlockState().setValue(VatBlock.GASKET_BASE, true);
+    private static final Supplier<BlockState> TAP_GASKETED = () ->
+            GooBlocks.TAP.get().defaultBlockState().setValue(TapBlock.HAS_GASKET, true);
+    private static final Supplier<BlockState> HUB_GASKETED = () ->
+            GooBlocks.HUB.get().defaultBlockState().setValue(HubBlock.HAS_GASKET, true);
     private static final String PARTNER_REF = "Partner's gasket state should read no partner";
 
     private GasketRegistryTests() {
@@ -125,61 +139,97 @@ public final class GasketRegistryTests {
     }
 
     /**
-     * Crucible: breaking a crucible whose gasket is linked to a partner clears
-     * the gasket's location and pairing, and the partner reads unlinked.
+     * Crucible: breaking a crucible whose gasket is linked to a partner drops the
+     * gasket once, clears the gasket's location and pairing, and the partner reads unlinked.
      *
      * @param helper the gametest helper
      */
     public static void breakPopsGasketCrucible(GameTestHelper helper) {
-        breakPopsGasket(helper, GooBlocks.CRUCIBLE.get().defaultBlockState()
-                .setValue(CrucibleBlock.HAS_GASKET, true), GasketRole.TRANSMITTER);
+        breakPopsGasket(helper, CRUCIBLE_GASKETED.get(), GasketRole.TRANSMITTER, GasketRegistryTests::playerBreaks);
     }
 
     /**
-     * Vat: breaking a vat whose base gasket is linked to a partner clears the
-     * gasket's location and pairing, and the partner reads unlinked.
+     * Vat: breaking a vat whose base gasket is linked to a partner drops the
+     * gasket once, clears the gasket's location and pairing, and the partner reads unlinked.
      *
      * @param helper the gametest helper
      */
     public static void breakPopsGasketVat(GameTestHelper helper) {
-        breakPopsGasket(helper, GooBlocks.VAT.get().defaultBlockState()
-                .setValue(VatBlock.GASKET_BASE, true), GasketRole.TRANSMITTER);
+        breakPopsGasket(helper, VAT_GASKETED.get(), GasketRole.TRANSMITTER, GasketRegistryTests::playerBreaks);
     }
 
     /**
-     * Tap: breaking a tap whose gasket is linked to a partner clears the
-     * gasket's location and pairing, and the partner reads unlinked.
+     * Tap: breaking a tap whose gasket is linked to a partner drops the gasket
+     * once, clears the gasket's location and pairing, and the partner reads unlinked.
      *
      * @param helper the gametest helper
      */
     public static void breakPopsGasketTap(GameTestHelper helper) {
-        breakPopsGasket(helper, GooBlocks.TAP.get().defaultBlockState()
-                .setValue(TapBlock.HAS_GASKET, true), GasketRole.RECEIVER);
+        breakPopsGasket(helper, TAP_GASKETED.get(), GasketRole.RECEIVER, GasketRegistryTests::playerBreaks);
     }
 
     /**
-     * Hub: breaking a hub whose intake gasket is linked to a partner clears the
-     * gasket's location and pairing, and the partner reads unlinked.
+     * Hub: breaking a hub whose intake gasket is linked to a partner drops the
+     * gasket once, clears the gasket's location and pairing, and the partner reads unlinked.
      *
      * @param helper the gametest helper
      */
     public static void breakPopsGasketHub(GameTestHelper helper) {
-        breakPopsGasket(helper, GooBlocks.HUB.get().defaultBlockState()
-                .setValue(HubBlock.HAS_GASKET, true), GasketRole.RECEIVER);
+        breakPopsGasket(helper, HUB_GASKETED.get(), GasketRole.RECEIVER, GasketRegistryTests::playerBreaks);
+    }
+
+    /**
+     * Every gasketed machine removed without a player, as an explosion or a
+     * command removes it, drops its gasket once and leaves the registry clean
+     * (decision machine-base-owns-the-lifecycle): the block entity's removal
+     * drops what no player break reached.
+     *
+     * @param helper the gametest helper
+     */
+    public static void removalPopsGasketEveryMachine(GameTestHelper helper) {
+        List<Supplier<BlockState>> machines = List.of(CRUCIBLE_GASKETED, VAT_GASKETED, TAP_GASKETED, HUB_GASKETED);
+        List<GasketRole> roles = List.of(GasketRole.TRANSMITTER, GasketRole.TRANSMITTER,
+                GasketRole.RECEIVER, GasketRole.RECEIVER);
+        for (int i = 0; i < machines.size(); i++) {
+            assertBreakPops(helper, machines.get(i).get(), roles.get(i), h -> h.destroyBlock(BE_POS));
+            helper.killAllEntitiesOfClass(ItemEntity.class);
+        }
+        helper.succeed();
+    }
+
+    /**
+     * Has a mock server player break the machine, which runs the block's
+     * {@code playerWillDestroy} before the block entity's removal.
+     *
+     * @param helper the gametest helper
+     */
+    @SuppressWarnings(REMOVAL) // vanilla marks the mock server player helper for removal and names no replacement
+    private static void playerBreaks(GameTestHelper helper) {
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        player.gameMode.destroyBlock(helper.absolutePos(BE_POS));
+        helper.getLevel().getServer().getPlayerList().remove(player);
+    }
+
+    private static void breakPopsGasket(GameTestHelper helper, BlockState machineState, GasketRole machineRole,
+                                        Consumer<GameTestHelper> breaker) {
+        assertBreakPops(helper, machineState, machineRole, breaker);
+        helper.succeed();
     }
 
     /**
      * Links the gasket of a machine placed in the given state to a canister
      * block's gasket the way the tuner does (registry pairing, locations and
-     * both partner refs), has a player break the machine, and asserts nothing
-     * in the registry or on the partner still names the machine's gasket.
+     * both partner refs), breaks the machine, and asserts one gasket item
+     * dropped and nothing in the registry or on the partner still names the
+     * machine's gasket.
      *
      * @param helper       the gametest helper
      * @param machineState the machine's block state, gasket installed
      * @param machineRole  the role of the machine's gasket
+     * @param breaker      how the machine leaves the level
      */
-    @SuppressWarnings(REMOVAL) // vanilla marks the mock server player helper for removal and names no replacement
-    private static void breakPopsGasket(GameTestHelper helper, BlockState machineState, GasketRole machineRole) {
+    private static void assertBreakPops(GameTestHelper helper, BlockState machineState, GasketRole machineRole,
+                                        Consumer<GameTestHelper> breaker) {
         GasketRegistry registry = GasketRegistry.get(helper.getLevel());
         helper.setBlock(PARTNER_POS, GooBlocks.CANISTER.get());
         CanisterBlockEntity partner = helper.getBlockEntity(PARTNER_POS, CanisterBlockEntity.class);
@@ -188,18 +238,16 @@ public final class GasketRegistryTests {
         UUID partnerId = partner.getGasketId(partnerRole, PARTNER_SLOT);
         UUID machineId = linkMachineToPartner(helper, machineState, machineRole, partner, partnerRole);
 
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
-        player.gameMode.destroyBlock(helper.absolutePos(BE_POS));
-        helper.getLevel().getServer().getPlayerList().remove(player);
+        breaker.accept(helper);
         helper.assertTrue(helper.getBlockState(BE_POS).isAir(), MACHINE_BROKEN);
 
+        helper.assertItemEntityCountIs(GooItems.CHORAL_GASKET.get(), BE_POS, DROP_RANGE, 1);
         helper.assertTrue(registry.getLocation(machineId) == null, BREAK_LOCATION);
         helper.assertTrue(registry.getTarget(machineId) == null && registry.getSource(machineId) == null,
                 BREAK_PAIRING);
         helper.assertTrue(registry.getTarget(partnerId) == null && registry.getSource(partnerId) == null,
                 PARTNER_PAIRING);
         helper.assertTrue(partner.getPartner(partnerRole, PARTNER_SLOT) == null, PARTNER_REF);
-        helper.succeed();
     }
 
     /**

@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.block.gasket;
 
 import com.mercuriusxeno.goo.block.BlockEntityTicks;
 import com.mercuriusxeno.goo.block.GooMachineBlock;
-import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
@@ -144,26 +143,5 @@ public class ChoralGasketBlock extends GooMachineBlock implements SimpleWaterlog
             Level level, @NonNull BlockPos pos, @NonNull Player player,
             @NonNull InteractionHand hand, @NonNull BlockHitResult hitResult) {
         return InteractionResult.TRY_WITH_EMPTY_HAND;
-    }
-
-    /**
-     * Unregisters the gasket from the network when the block is broken.
-     *
-     * @param level  the level
-     * @param pos    the block position
-     * @param state  the block state
-     * @param player the player
-     * @return the block state
-     */
-    @Override
-    public @NonNull BlockState playerWillDestroy(
-            @NonNull Level level, @NonNull BlockPos pos,
-            @NonNull BlockState state, @NonNull Player player) {
-        if (!level.isClientSide()
-                && level.getBlockEntity(pos) instanceof ChoralGasketBlockEntity gasket) {
-            GasketInstallation.popGasket(level, pos,
-                    gasket.gasketState().getId(GasketRole.TRANSMITTER));
-        }
-        return super.playerWillDestroy(level, pos, state, player);
     }
 }
