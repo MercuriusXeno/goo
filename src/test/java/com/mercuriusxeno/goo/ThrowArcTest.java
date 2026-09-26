@@ -7,8 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Tests that blob flight time grows with the square root of distance scaled
  * by the type's levity plus its base flight time, per decision
- * flight-time-root-times-levity-plus-base, and that the arc peak grows as the
- * square root of distance.
+ * flight-time-root-times-levity-plus-base, and that the arc peak grows as
+ * 0.2 times distance to the power 0.75.
  */
 class ThrowArcTest {
 
@@ -18,9 +18,9 @@ class ThrowArcTest {
     private static final double LONG_THROW = 60;
     private static final double NEAR = 10;
     private static final double FAR = 40;
-    private static final double FOUR_BLOCKS = 4;
+    private static final double ONE_BLOCK = 1;
     private static final double SIXTEEN_BLOCKS = 16;
-    private static final double SIXTY_FOUR_BLOCKS = 64;
+    private static final double EIGHTY_ONE_BLOCKS = 81;
     private static final double PEAK_TOLERANCE = 1e-9;
 
     /**
@@ -59,14 +59,14 @@ class ThrowArcTest {
     }
 
     /**
-     * The base peak reads the square root of distance.
+     * The base peak reads 0.2 times distance to the power 0.75.
      */
     @Test
-    void basePeakIsSquareRootOfDistance() {
+    void basePeakIsScaledPowerOfDistance() {
         assertEquals(0.0, ThrowArc.basePeak(0), PEAK_TOLERANCE);
-        assertEquals(2.0, ThrowArc.basePeak(FOUR_BLOCKS), PEAK_TOLERANCE);
-        assertEquals(4.0, ThrowArc.basePeak(SIXTEEN_BLOCKS), PEAK_TOLERANCE);
-        assertEquals(8.0, ThrowArc.basePeak(SIXTY_FOUR_BLOCKS), PEAK_TOLERANCE);
+        assertEquals(0.2, ThrowArc.basePeak(ONE_BLOCK), PEAK_TOLERANCE);
+        assertEquals(1.6, ThrowArc.basePeak(SIXTEEN_BLOCKS), PEAK_TOLERANCE);
+        assertEquals(5.4, ThrowArc.basePeak(EIGHTY_ONE_BLOCKS), PEAK_TOLERANCE);
     }
 
     /**
@@ -74,6 +74,6 @@ class ThrowArcTest {
      */
     @Test
     void grannyPeakScalesAndBoostsTheBase() {
-        assertEquals(4.0 * 1.15 + 1.0, ThrowArc.grannyPeak(SIXTEEN_BLOCKS), PEAK_TOLERANCE);
+        assertEquals(1.6 * 1.15 + 1.0, ThrowArc.grannyPeak(SIXTEEN_BLOCKS), PEAK_TOLERANCE);
     }
 }
