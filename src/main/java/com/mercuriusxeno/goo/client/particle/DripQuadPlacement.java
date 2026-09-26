@@ -5,10 +5,10 @@ package com.mercuriusxeno.goo.client.particle;
  * so neither the falling drop nor its splat shares the block top's plane
  * (decision diagnose-then-fix-drip-z-fighting).
  */
-final class DripQuadPlacement {
+public final class DripQuadPlacement {
 
     /** Height every drip quad keeps above the surface its collision box rests on. */
-    static final double SURFACE_MARGIN = 0.02;
+    public static final double SURFACE_MARGIN = 0.02;
 
     private DripQuadPlacement() {
     }

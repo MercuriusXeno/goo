@@ -16,7 +16,7 @@ import java.util.function.ToIntFunction;
  * goo texture less noisily than the in-world fluid
  * (decision particles-render-muted-goo-texture).
  */
-final class TapDripLook {
+public final class TapDripLook {
 
     /** How far the fluid tint blends toward the type's flat color: 0 keeps the tint, 1 is flat. */
     static final float MUTE = 0.5f;
@@ -71,7 +71,7 @@ final class TapDripLook {
      * @param flatColor the type's flat color
      * @return the opaque tint blended {@link #MUTE} of the way toward the flat color
      */
-    static int mute(int fluidTint, int flatColor) {
+    public static int mute(int fluidTint, int flatColor) {
         return ARGB.opaque(ARGB.srgbLerp(MUTE, fluidTint, flatColor));
     }
 }
