@@ -50,7 +50,7 @@ public record PhasedStep(Expr radius, List<StepPhase> phases) implements Step {
     @Override
     public boolean tick(StepContext context) {
         StepHost host = context.host();
-        PhasedState state = host.phased();
+        PhasedState state = context.hostAs(PhasedHost.class).phased();
         state.setRadius(radius.evaluateFloat(context));
         StepPhase phase = phases.get(state.index());
         if (state.ticks() == 0) {

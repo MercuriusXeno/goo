@@ -16,7 +16,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * The world side of {@link StepHost#consumeValuedBlocks}: walks a sphere
+ * The world side of {@link ConsumedGooHost#consumeValuedBlocks}: walks a sphere
  * of blocks, and each block whose item has a goo value adds its whole
  * value to the total and is removed; every other block stands.
  */

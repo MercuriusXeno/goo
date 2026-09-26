@@ -36,7 +36,7 @@ public record FreezeTicksStep(Expr add) implements Step {
 
     @Override
     public boolean tick(StepContext context) {
-        LivingEntity target = context.host().target();
+        LivingEntity target = context.hostAs(TargetHost.class).target();
         target.setTicksFrozen(target.getTicksFrozen() + add.evaluateInt(context));
         return true;
     }

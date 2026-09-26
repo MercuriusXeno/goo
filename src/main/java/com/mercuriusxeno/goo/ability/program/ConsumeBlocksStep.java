@@ -38,7 +38,7 @@ public record ConsumeBlocksStep(Expr radius) implements Step {
 
     @Override
     public boolean tick(StepContext context) {
-        context.host().consumeValuedBlocks(radius.evaluateInt(context));
+        context.hostAs(ConsumedGooHost.class).consumeValuedBlocks(radius.evaluateInt(context));
         return true;
     }
 

@@ -37,7 +37,7 @@ public record SetHealthStep(Expr fraction) implements Step {
 
     @Override
     public boolean tick(StepContext context) {
-        LivingEntity target = context.host().target();
+        LivingEntity target = context.hostAs(TargetHost.class).target();
         target.setHealth(target.getHealth() * fraction.evaluateFloat(context));
         return true;
     }
