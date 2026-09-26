@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.ber;
 import com.mercuriusxeno.goo.client.BandedSurfaceSubmitter;
 import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
+import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.RenderContext;
 import com.mercuriusxeno.goo.client.TypeBand;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
@@ -117,8 +118,7 @@ final class VatFluidRenderer {
                                           float amplitude, float lift) {
         boolean isFullySubmerged = localFill >= localHeight - SUBMERSION_EPSILON;
         if (isFullySubmerged) { return; }
-        GooRenderUtil.UvRect uv = new GooRenderUtil.UvRect(
-            sprite.getU0(), sprite.getV0(), sprite.getU1(), sprite.getV1());
+        GooRenderUtil.UvRect uv = GooSubmitter.spriteUv(sprite);
         CuboidBounds lifted = liftOutward(b, lift);
         ctx.liquidSurfaceGrid(lifted, uv, amplitude);
         ctx.liquidSurfaceGridDown(lifted.withY(b.yBot(), b.yTop() - lift), uv, amplitude);
@@ -152,11 +152,8 @@ final class VatFluidRenderer {
      */
     private static GooRenderUtil.UvRect computeSideUv(TextureAtlasSprite sprite,
             CuboidBounds b, float localHeight) {
-        float v0 = sprite.getV0();
-        float v1 = sprite.getV1();
         float fillRatio = (b.yTop() - b.yBot()) / localHeight;
-        float sideV0 = v1 - fillRatio * (v1 - v0);
-        return new GooRenderUtil.UvRect(sprite.getU0(), sideV0, sprite.getU1(), v1);
+        return GooSubmitter.spriteSubRect(sprite, 0f, 1f - fillRatio, 1f, 1f);
     }
 
     /**

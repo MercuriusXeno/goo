@@ -36,6 +36,9 @@ import java.util.function.Consumer;
  * block entity's world light while fluid vertices carry fullbright, which
  * makes the lightmap multiply a no-op without a shader or pipeline change.
  * The vat and crucible fluid alone submit on the undulating surface type.
+ * Every other goo draw under client, the gasket caps, the thrown blob, the
+ * fuse orb and the metal spikes, takes its render type, light and sprite
+ * UVs here too (decision submitter-owns-every-render-choice).
  */
 public final class GooSubmitter {
 
@@ -85,6 +88,71 @@ public final class GooSubmitter {
      */
     public static RenderType translucentOn(Identifier texture) {
         return RenderTypes.entityTranslucent(texture);
+    }
+
+    /**
+     * Returns the solid render type on a standalone texture: the gasket
+     * caps, drawn opaque on their own texture (decision
+     * submitter-owns-every-render-choice).
+     *
+     * @param texture the texture the draw samples
+     * @return entitySolid on that texture
+     */
+    public static RenderType solidOn(Identifier texture) {
+        return RenderTypes.entitySolid(texture);
+    }
+
+    /**
+     * Returns the solid render type on the block atlas, for an opaque draw
+     * of a goo sprite such as the thrown blob's core.
+     *
+     * @return entitySolid on the block atlas
+     */
+    public static RenderType solidOnBlockAtlas() {
+        return solidOn(BLOCK_ATLAS);
+    }
+
+    /**
+     * Returns the packed light an emissive draw carries, so the lightmap
+     * multiply leaves it unshaded.
+     *
+     * @return the fullbright packed light
+     */
+    public static int fullbrightLight() {
+        return LightCoordsUtil.FULL_BRIGHT;
+    }
+
+    /**
+     * Converts a sprite to the UV rect covering its whole atlas region: the
+     * one place a renderer reads a sprite's UV bounds.
+     *
+     * @param sprite the atlas sprite
+     * @return the sprite's atlas UV rect
+     */
+    public static GooRenderUtil.UvRect spriteUv(TextureAtlasSprite sprite) {
+        return new GooRenderUtil.UvRect(sprite.getU0(), sprite.getV0(), sprite.getU1(), sprite.getV1());
+    }
+
+    /**
+     * Maps a sub-region in sprite-local space onto the sprite's atlas UVs:
+     * 0..1 spans the sprite once, so a face of a given block width takes
+     * that width as its local extent.
+     *
+     * @param sprite the atlas sprite
+     * @param u0     local U start
+     * @param v0     local V start
+     * @param u1     local U end
+     * @param v1     local V end
+     * @return the atlas UV rect of the sub-region
+     */
+    public static GooRenderUtil.UvRect spriteSubRect(TextureAtlasSprite sprite,
+                                                      float u0, float v0, float u1, float v1) {
+        GooRenderUtil.UvRect whole = spriteUv(sprite);
+        float spanU = whole.u1() - whole.u0();
+        float spanV = whole.v1() - whole.v0();
+        return new GooRenderUtil.UvRect(
+            whole.u0() + u0 * spanU, whole.v0() + v0 * spanV,
+            whole.u0() + u1 * spanU, whole.v0() + v1 * spanV);
     }
 
     /**
@@ -141,7 +209,7 @@ public final class GooSubmitter {
     public static void submitSidedBodies(PoseStack poseStack, SubmitNodeCollector nodeCollector,
                                          int worldLight, Iterable<CuboidBounds> bodies) {
         submitBody(poseStack, nodeCollector, worldLight, ctx -> {
-            GooRenderUtil.UvRect uv = GooRenderUtil.spriteSubRect(
+            GooRenderUtil.UvRect uv = spriteSubRect(
                 blockSprite(CANISTER_SIDE), 0f, 0f, BODY_SIDE_U1, BODY_SIDE_V1);
             for (CuboidBounds body : bodies) {
                 ctx.emitSides(body, uv);
@@ -189,7 +257,7 @@ public final class GooSubmitter {
                                    int color, Consumer<RenderContext> emitter) {
         nodeCollector.submitCustomGeometry(poseStack, renderType(),
             (pose, c) -> emitter.accept(
-                new RenderContext(pose, c, LightCoordsUtil.FULL_BRIGHT, color)));
+                new RenderContext(pose, c, fullbrightLight(), color)));
     }
 
     /**
