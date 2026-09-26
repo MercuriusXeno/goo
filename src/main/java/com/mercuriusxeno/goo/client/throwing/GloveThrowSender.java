@@ -7,7 +7,7 @@ import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
-import com.mercuriusxeno.goo.client.overlay.GooTargetHighlighter;
+import com.mercuriusxeno.goo.client.overlay.AimTracker;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.network.BlobThrowPayload;
 import net.minecraft.client.Minecraft;
@@ -63,7 +63,7 @@ public final class GloveThrowSender {
         if (selection == null || !canThrow()) {
             return;
         }
-        TargetResult target = resolveAimTarget(player);
+        TargetResult target = AimTracker.currentTarget();
         if (wouldExceedMaxStacks(target, gooType, selection.abilityId())) {
             ThrowFreezeState.armThrowBlock();
             return;
@@ -289,18 +289,6 @@ public final class GloveThrowSender {
         }
         BlockState state = mc.level.getBlockState(bt.pos());
         return state.canBeReplaced() ? bt.pos() : adjacent;
-    }
-
-    /**
-     * Resolves the player's current aim target at the current partial tick.
-     *
-     * @param player the local player
-     * @return the resolved target result
-     */
-    private static TargetResult resolveAimTarget(Player player) {
-        float partialTick = Minecraft.getInstance()
-                .getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        return GooTargetHighlighter.resolveTarget(player, partialTick);
     }
 
     /**
