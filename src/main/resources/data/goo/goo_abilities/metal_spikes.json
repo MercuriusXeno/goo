@@ -15,7 +15,7 @@
     {
       "type": "field_effect",
       "radius": 3.75,
-      "where": ["living", "not_item", "not_sneaking"],
+      "where": ["living", "alive", "not_item", "not_sneaking"],
       "cooldown": 10,
       "per_stack": 1,
       "strike_tick": 6,
