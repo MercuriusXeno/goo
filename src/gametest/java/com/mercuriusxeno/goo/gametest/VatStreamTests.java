@@ -41,7 +41,7 @@ public final class VatStreamTests {
         helper.setBlock(VAT_POS, GooBlocks.VAT.get());
         VatBlockEntity vat = helper.getBlockEntity(VAT_POS, VatBlockEntity.class);
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
-        player.setItemInHand(InteractionHand.MAIN_HAND, BlobStacks.createBlobStack(ROCK, BLOB_COUNT));
+        player.setItemInHand(InteractionHand.MAIN_HAND, BlobStacks.createForOutput(ROCK, BLOB_COUNT * BlobStacks.MB_PER_BLOB));
 
         BlockPos abs = helper.absolutePos(VAT_POS);
         helper.useBlock(VAT_POS, player, new BlockHitResult(Vec3.atCenterOf(abs), Direction.UP, abs, false));

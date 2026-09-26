@@ -78,7 +78,7 @@ public class GooGloveItem extends Item {
         ResourceKey<GooTypeDefinition> type = be.getGooType();
         int stacks = be.getStackCount();
         if (stacks > 0) {
-            ItemStack blobs = BlobStacks.createBlobStack(type, stacks);
+            ItemStack blobs = BlobStacks.createForOutput(type, stacks * BlobStacks.MB_PER_BLOB);
             PlayerUtils.addOrDrop(player, blobs);
         }
         level.removeBlock(pos, false);

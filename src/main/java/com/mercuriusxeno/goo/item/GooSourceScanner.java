@@ -30,10 +30,10 @@ public final class GooSourceScanner {
      */
     private static final int OFFHAND_SLOT = Inventory.SLOT_OFFHAND;
     /**
-     * The passes a deplete runs, in order: loose blobs, omniblobs, canisters (a hub item's included), vats.
+     * The passes a deplete runs, in order: omniblobs, canisters (a hub item's included), vats.
      */
     private static final List<Class<?>> DEPLETION_PASSES =
-            List.of(GooBlobItem.class, GooOmniblobItem.class, CanisterItem.class, VatBlockItem.class);
+            List.of(GooOmniblobItem.class, CanisterItem.class, VatBlockItem.class);
     /**
      * The slots each pass walks, in order: main inventory bottom-up, then offhand.
      */
@@ -145,7 +145,7 @@ public final class GooSourceScanner {
         if (stack.isEmpty()) {
             return false;
         }
-        boolean loosePass = pass == GooBlobItem.class || pass == GooOmniblobItem.class;
+        boolean loosePass = pass == GooOmniblobItem.class;
         return loosePass
                 ? pass.isInstance(stack.getItem()) && looseGooVolume(stack, type) > 0
                 : carrierDrawsFrom(stack, type, pass);
@@ -209,7 +209,7 @@ public final class GooSourceScanner {
             return;
         }
 
-        if (stack.getItem() instanceof GooBlobItem || stack.getItem() instanceof GooOmniblobItem) {
+        if (stack.getItem() instanceof GooOmniblobItem) {
             ResourceKey<GooTypeDefinition> looseType = BlobStacks.keyOf(stack);
             if (looseType != null) {
                 addToMap(totals, looseType, BlobStacks.volumeOf(stack));
@@ -319,30 +319,10 @@ public final class GooSourceScanner {
             return remaining;
         }
 
-        if (sourceClass == GooBlobItem.class) {
-            return depleteBlobStack(stack, type, remaining);
-        }
         if (sourceClass == GooOmniblobItem.class) {
             return depleteOmniblobStack(stack, type, remaining);
         }
         return depleteContainerStack(stack, type, remaining, sourceClass);
-    }
-
-    /**
-     * Depletes whole blobs from a matching blob stack.
-     *
-     * @param stack     the item stack to deplete from
-     * @param type      the goo type to match
-     * @param remaining the amount still to deplete
-     * @return the remaining amount after depletion
-     */
-    private static int depleteBlobStack(ItemStack stack, ResourceKey<GooTypeDefinition> type, int remaining) {
-        if (!(stack.getItem() instanceof GooBlobItem) || BlobStacks.keyOf(stack) != type) {
-            return remaining;
-        }
-        int blobsNeeded = Math.min(ceilDiv(remaining, BlobStacks.MB_PER_BLOB), stack.getCount());
-        stack.shrink(blobsNeeded);
-        return remaining - blobsNeeded * BlobStacks.MB_PER_BLOB;
     }
 
     /**
@@ -405,16 +385,5 @@ public final class GooSourceScanner {
      */
     private static void addToMap(Map<ResourceKey<GooTypeDefinition>, Integer> map, ResourceKey<GooTypeDefinition> type, int amount) {
         map.merge(type, amount, Integer::sum);
-    }
-
-    /**
-     * Ceiling division for positive values.
-     *
-     * @param a the dividend
-     * @param b the divisor
-     * @return the ceiling of a/b
-     */
-    private static int ceilDiv(int a, int b) {
-        return (a + b - 1) / b;
     }
 }

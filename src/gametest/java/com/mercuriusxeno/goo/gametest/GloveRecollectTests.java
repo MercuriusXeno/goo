@@ -55,7 +55,7 @@ public final class GloveRecollectTests {
         marker.tryStack();
         int stacks = marker.getStackCount();
         helper.assertTrue(stacks > 1, NOT_STACKED);
-        ItemStack expected = BlobStacks.createBlobStack(GooTypes.FROST, stacks);
+        ItemStack expected = BlobStacks.createForOutput(GooTypes.FROST, stacks * BlobStacks.MB_PER_BLOB);
 
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         ItemStack glove = new ItemStack(GooItems.GOO_GLOVE.get());
