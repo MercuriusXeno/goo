@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.CutawayInteractionHelper;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.block.BlockEntitySync;
+import com.mercuriusxeno.goo.block.GooSyncedBlockEntity;
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
 import com.mercuriusxeno.goo.block.canister.ICanisterAttachable;
 import com.mercuriusxeno.goo.data.GooValue;
@@ -12,16 +13,10 @@ import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.protocol.Packet;
-import net.minecraft.network.protocol.game.ClientGamePacketListener;
-import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
@@ -36,7 +31,7 @@ import java.util.Map;
  * All 9 copper fittings on the top face are always available (no slot
  * constraints).
  */
-public class PlexerBlockEntity extends BlockEntity implements ICanisterAttachable {
+public class PlexerBlockEntity extends GooSyncedBlockEntity implements ICanisterAttachable {
 
     /**
      * Total canister positions on the 3x3 grid.
@@ -334,28 +329,6 @@ public class PlexerBlockEntity extends BlockEntity implements ICanisterAttachabl
     protected void loadAdditional(@NonNull ValueInput input) {
         super.loadAdditional(input);
         targetItem = input.read(TAG_TARGET_ITEM, ItemStack.CODEC).orElse(ItemStack.EMPTY);
-    }
-
-    /**
-     * Returns full NBT for initial chunk sync to clients.
-     *
-     * @param registries the registry provider
-     * @return the result
-     */
-    @Override
-    public @NonNull CompoundTag getUpdateTag(HolderLookup.@NonNull Provider registries) {
-        return saveWithFullMetadata(registries);
-    }
-
-    /**
-     * Returns the sync packet sent when block entity data changes.
-     *
-     * @return the result
-     */
-    @Nullable
-    @Override
-    public Packet<ClientGamePacketListener> getUpdatePacket() {
-        return ClientboundBlockEntityDataPacket.create(this);
     }
 
     /**

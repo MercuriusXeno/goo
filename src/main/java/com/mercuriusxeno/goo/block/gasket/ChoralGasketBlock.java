@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.block.gasket;
 
-import com.mercuriusxeno.goo.item.gasket.GasketRole;
+import com.mercuriusxeno.goo.block.BlockEntityTicks;
+import com.mercuriusxeno.goo.block.GooMachineBlock;
+import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -16,8 +18,6 @@ import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.ScheduledTickAccess;
 import net.minecraft.world.level.block.*;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntityTicker;
-import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
@@ -35,7 +35,7 @@ import org.jspecify.annotations.Nullable;
  * holds fluid (goo or vanilla), and transmits it through the gasket
  * network. When waterlogged, continuously self-fills with water.
  */
-public class ChoralGasketBlock extends BaseEntityBlock implements SimpleWaterloggedBlock {
+public class ChoralGasketBlock extends GooMachineBlock implements SimpleWaterloggedBlock {
 
     /**
      * Whether the block is waterlogged.
@@ -120,16 +120,9 @@ public class ChoralGasketBlock extends BaseEntityBlock implements SimpleWaterlog
         return new ChoralGasketBlockEntity(pos, state);
     }
 
-    @Nullable
     @Override
-    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(
-            @NonNull Level level, @NonNull BlockState state, @NonNull BlockEntityType<T> type) {
-        if (level.isClientSide()) {
-            return null;
-        }
-        return createTickerHelper(type,
-                com.mercuriusxeno.goo.registry.GooBlockEntities.CHORAL_GASKET.get(),
-                ChoralGasketBlockEntity::serverTick);
+    protected BlockEntityTicks<ChoralGasketBlockEntity> ticks() {
+        return BlockEntityTicks.onServer(GooBlockEntities.CHORAL_GASKET, ChoralGasketBlockEntity::serverTick);
     }
 
     /**
@@ -150,26 +143,5 @@ public class ChoralGasketBlock extends BaseEntityBlock implements SimpleWaterlog
             Level level, @NonNull BlockPos pos, @NonNull Player player,
             @NonNull InteractionHand hand, @NonNull BlockHitResult hitResult) {
         return InteractionResult.TRY_WITH_EMPTY_HAND;
-    }
-
-    /**
-     * Unregisters the gasket from the network when the block is broken.
-     *
-     * @param level  the level
-     * @param pos    the block position
-     * @param state  the block state
-     * @param player the player
-     * @return the block state
-     */
-    @Override
-    public @NonNull BlockState playerWillDestroy(
-            @NonNull Level level, @NonNull BlockPos pos,
-            @NonNull BlockState state, @NonNull Player player) {
-        if (!level.isClientSide()
-                && level.getBlockEntity(pos) instanceof ChoralGasketBlockEntity gasket) {
-            GasketInstallation.popGasket(level, pos,
-                    gasket.gasketState().getId(GasketRole.TRANSMITTER));
-        }
-        return super.playerWillDestroy(level, pos, state, player);
     }
 }
