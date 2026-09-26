@@ -213,7 +213,7 @@ public class TapBlock extends GooMachineBlock {
     }
 
     /**
-     * Drops gasket and canister items on break.
+     * Drops the canister item on break; the base drops the gasket.
      *
      * @param level  the current level
      * @param pos    the block position
@@ -226,7 +226,6 @@ public class TapBlock extends GooMachineBlock {
             @NonNull Level level, @NonNull BlockPos pos,
             @NonNull BlockState state, @NonNull Player player) {
         if (!level.isClientSide()) {
-            TapInteractionHandler.dropGasketOnBreak(level, pos, state);
             TapInteractionHandler.dropCanisterOnBreak(level, pos);
         }
         return super.playerWillDestroy(level, pos, state, player);

@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.block;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BaseEntityBlock;
@@ -87,6 +88,25 @@ public abstract class GooMachineBlock extends BaseEntityBlock {
     @Override
     public final boolean hasDynamicLightEmission(@NonNull BlockState state) {
         return true;
+    }
+
+    /**
+     * Drops the machine's gaskets before a player breaks it, while its block
+     * entity still stands (decision machine-base-owns-the-lifecycle).
+     *
+     * @param level  the level
+     * @param pos    the block position
+     * @param state  the block state
+     * @param player the breaking player
+     * @return the state the break proceeds with
+     */
+    @Override
+    public @NonNull BlockState playerWillDestroy(@NonNull Level level, @NonNull BlockPos pos,
+                                                @NonNull BlockState state, @NonNull Player player) {
+        if (!level.isClientSide() && level.getBlockEntity(pos) instanceof GooMachineBlockEntity machine) {
+            machine.dropGasketsOnce();
+        }
+        return super.playerWillDestroy(level, pos, state, player);
     }
 
     @Override

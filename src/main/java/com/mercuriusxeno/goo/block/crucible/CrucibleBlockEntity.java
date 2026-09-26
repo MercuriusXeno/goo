@@ -3,7 +3,6 @@ package com.mercuriusxeno.goo.block.crucible;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.block.*;
 import com.mercuriusxeno.goo.block.fluid.GooFluidHandler;
-import com.mercuriusxeno.goo.block.gasket.AddressedGasket;
 import com.mercuriusxeno.goo.block.gasket.GasketAttachment;
 import com.mercuriusxeno.goo.block.gasket.GasketPusher;
 import com.mercuriusxeno.goo.item.GooContents;
@@ -15,11 +14,12 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.BlockHitResult;
+import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
@@ -255,14 +255,8 @@ public class CrucibleBlockEntity extends GooGlowingMachineBlockEntity {
     public boolean supportsRole(GasketRole role) { return getBlockState().getValue(CrucibleBlock.HAS_GASKET); }
 
     @Override
-    public boolean holdsBlockGasket(GasketRole role) {
-        return role == GasketRole.TRANSMITTER && supportsRole(role);
-    }
-
-    @Override
-    public void uninstallGasket(AddressedGasket gasket) {
-        clearGasket(gasket.role());
-        level.setBlock(worldPosition, getBlockState().setValue(CrucibleBlock.HAS_GASKET, false), Block.UPDATE_ALL);
+    public @Nullable BooleanProperty gasketFlag(GasketRole role) {
+        return role == GasketRole.TRANSMITTER ? CrucibleBlock.HAS_GASKET : null;
     }
 
     @Override

@@ -16,6 +16,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.BlockHitResult;
@@ -201,31 +202,17 @@ public class HubBlockEntity extends GooGlowingMachineBlockEntity implements ICan
      * The intake gasket is the hub's one block-level gasket, flagged in its blockstate.
      */
     @Override
-    public boolean holdsBlockGasket(GasketRole role) {
-        return role == GasketRole.RECEIVER && getBlockState().getValue(HubBlock.HAS_GASKET);
+    public @Nullable BooleanProperty gasketFlag(GasketRole role) {
+        return role == GasketRole.RECEIVER ? HubBlock.HAS_GASKET : null;
     }
 
     /**
      * {@inheritDoc} Clears intake-only state. Does not rebuild slot pushers since the
-     * intake gasket is independent of slot topology. Also flips the HAS_GASKET blockstate.
+     * intake gasket is independent of slot topology.
      */
     @Override
     public void clearGasket(GasketRole role) {
-        gasket().state().clear(role, this::onGasketCleared);
-    }
-
-    /**
-     * Clears the HAS_GASKET blockstate flag and syncs to client.
-     */
-    private void onGasketCleared() {
-        if (getLevel() != null) {
-            BlockState bs = getLevel().getBlockState(getBlockPos());
-            if (bs.getValue(HubBlock.HAS_GASKET)) {
-                getLevel().setBlock(getBlockPos(),
-                        bs.setValue(HubBlock.HAS_GASKET, false), BLOCK_UPDATE_FLAGS);
-            }
-        }
-        BlockEntitySync.markDirtyAndSync(this);
+        gasket().state().clear(role, () -> BlockEntitySync.markDirtyAndSync(this));
     }
 
     @Override

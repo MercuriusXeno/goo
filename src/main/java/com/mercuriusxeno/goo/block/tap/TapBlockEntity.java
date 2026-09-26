@@ -18,8 +18,8 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.BlockHitResult;
@@ -228,14 +228,8 @@ public class TapBlockEntity extends GooGlowingMachineBlockEntity implements ICan
     }
 
     @Override
-    public boolean holdsBlockGasket(GasketRole role) {
-        return supportsRole(role);
-    }
-
-    @Override
-    public void uninstallGasket(AddressedGasket gasket) {
-        clearGasket(gasket.role());
-        level.setBlock(worldPosition, getBlockState().setValue(TapBlock.HAS_GASKET, false), Block.UPDATE_ALL);
+    public @Nullable BooleanProperty gasketFlag(GasketRole role) {
+        return role == GasketRole.RECEIVER ? TapBlock.HAS_GASKET : null;
     }
 
     // --- Framework lifecycle ---

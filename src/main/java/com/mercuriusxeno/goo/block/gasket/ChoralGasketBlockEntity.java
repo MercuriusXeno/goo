@@ -59,6 +59,18 @@ public class ChoralGasketBlockEntity extends GooMachineBlockEntity {
     }
 
     /**
+     * A standing choral gasket holds its gasket once tuning gave it an id; breaking
+     * it pops that gasket and unlinks it (decision machine-base-owns-the-lifecycle).
+     *
+     * @param role the gasket role
+     * @return true for the transmitter once it carries an id
+     */
+    @Override
+    public boolean holdsBlockGasket(GasketRole role) {
+        return role == GasketRole.TRANSMITTER && getGasketId(role) != null;
+    }
+
+    /**
      * Returns the water source handler for capability exposure.
      *
      * @return the water source handler

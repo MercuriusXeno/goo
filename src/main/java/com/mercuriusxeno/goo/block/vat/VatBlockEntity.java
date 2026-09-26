@@ -5,7 +5,6 @@ import com.mercuriusxeno.goo.block.GooGlowingMachineBlockEntity;
 import com.mercuriusxeno.goo.block.GooLightEntry;
 import com.mercuriusxeno.goo.block.fluid.GooFluidHandler;
 import com.mercuriusxeno.goo.block.fluid.GooStream;
-import com.mercuriusxeno.goo.block.gasket.AddressedGasket;
 import com.mercuriusxeno.goo.block.gasket.GasketAttachment;
 import com.mercuriusxeno.goo.block.gasket.GasketPusher;
 import com.mercuriusxeno.goo.item.ContainerCapacity;
@@ -18,7 +17,6 @@ import net.minecraft.core.component.DataComponentGetter;
 import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.storage.ValueInput;
@@ -261,22 +259,12 @@ public class VatBlockEntity extends GooGlowingMachineBlockEntity {
      */
     @Override
     public boolean supportsRole(GasketRole role) {
-        BlockState state = getBlockState();
-        return role == GasketRole.RECEIVER
-                ? state.getValue(VatBlock.GASKET_CAP)
-                : state.getValue(VatBlock.GASKET_BASE);
+        return holdsBlockGasket(role);
     }
 
     @Override
-    public boolean holdsBlockGasket(GasketRole role) {
-        return supportsRole(role);
-    }
-
-    @Override
-    public void uninstallGasket(AddressedGasket gasket) {
-        clearGasket(gasket.role());
-        BooleanProperty face = gasket.role() == GasketRole.RECEIVER ? VatBlock.GASKET_CAP : VatBlock.GASKET_BASE;
-        level.setBlock(worldPosition, getBlockState().setValue(face, false), Block.UPDATE_ALL);
+    public BooleanProperty gasketFlag(GasketRole role) {
+        return role == GasketRole.RECEIVER ? VatBlock.GASKET_CAP : VatBlock.GASKET_BASE;
     }
 
     @Override

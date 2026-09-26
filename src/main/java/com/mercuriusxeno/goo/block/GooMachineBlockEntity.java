@@ -26,6 +26,12 @@ public abstract class GooMachineBlockEntity extends GooSyncedBlockEntity impleme
 
     private final GasketAttachment gasket;
 
+    /** True once the chunk holding this machine began unloading: its removal then drops nothing. */
+    private boolean unloading;
+
+    /** True once the machine dropped its gaskets, so a later removal hook drops none twice. */
+    private boolean gasketsDropped;
+
     /**
      * Creates a machine block entity and composes its gasket attachment.
      *
@@ -91,11 +97,40 @@ public abstract class GooMachineBlockEntity extends GooSyncedBlockEntity impleme
         BlockEntitySync.relightOnContentsArrived(this);
     }
 
+    /**
+     * Drops the machine's gaskets once, on the server, as it leaves the level:
+     * the block's {@code playerWillDestroy} calls it for a player break, and
+     * {@link #setRemoved} for every other removal.
+     */
+    public final void dropGasketsOnce() {
+        if (!gasketsDropped && level != null && !level.isClientSide()) {
+            gasketsDropped = true;
+            dropGaskets();
+        }
+    }
+
+    /**
+     * NeoForge calls this on every block entity of an unloading chunk before
+     * {@link #setRemoved}, so the machine can tell unloading from leaving.
+     */
+    @Override
+    public final void onChunkUnloaded() {
+        unloading = true;
+        super.onChunkUnloaded();
+    }
+
+    /**
+     * Releases the slot gaskets' registry locations, and drops the block-level
+     * gaskets unless the chunk is only unloading.
+     */
     @Override
     public final void setRemoved() {
         SlottedCanisterData slots = heldSlots();
         if (slots != null) {
             slots.releaseSlotGaskets();
+        }
+        if (!unloading) {
+            dropGasketsOnce();
         }
         super.setRemoved();
     }

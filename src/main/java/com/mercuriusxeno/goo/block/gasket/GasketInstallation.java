@@ -27,19 +27,6 @@ public final class GasketInstallation {
     }
 
     /**
-     * Pops a gasket as an item drop at the given position, clears its partner's
-     * reference to it, unlinks it from that partner, and removes its registry
-     * location. No-op if gasketId is null.
-     *
-     * @param level    the current level
-     * @param pos      the block position
-     * @param gasketId the gasket UUID
-     */
-    public static void popGasket(Level level, BlockPos pos, @Nullable UUID gasketId) {
-        popGasket(level, pos, gasketId != null, gasketId);
-    }
-
-    /**
      * Pops a gasket a host holds installed, as its blockstate flag says: drops
      * the item whenever installed is true, and clears the gasket's registry state
      * when it carries an id.
