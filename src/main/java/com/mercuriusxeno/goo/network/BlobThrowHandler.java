@@ -15,7 +15,6 @@ import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.Vec3;
@@ -203,7 +202,8 @@ public final class BlobThrowHandler {
      */
     private static void broadcastFlight(ServerPlayer player, BlobThrowPayload payload,
             int travelTicks) {
-        Vec3 hand = getThrowHandPosition(player);
+        Vec3 hand = ThrowArc.clampToReach(player.getEyePosition(), payload.origin(),
+                ThrowArc.HAND_REACH * player.getScale());
         BlobFlightPayload flight = buildFlightPayload(hand, payload, travelTicks);
         PacketDistributor.sendToPlayersTrackingEntity(player, flight);
         // A listener that never negotiated the mod's channels, a gametest's mock player, gets no flight.
@@ -212,9 +212,9 @@ public final class BlobThrowHandler {
         }
     }
 
-    /** Builds the flight payload from hand position, throw data, and travel time.
+    /** Builds the flight payload from the throw origin, throw data, and travel time.
      *
-     * @param hand        the world-space hand position
+     * @param hand        the world-space throw origin, clamped within reach
      * @param payload     the throw payload data
      * @param travelTicks the number of ticks until arrival
      * @return the constructed flight payload
@@ -328,24 +328,5 @@ public final class BlobThrowHandler {
             return dirs[ordinal];
         }
         return null;
-    }
-
-    /**
-     * Computes the world-space glove hand position on the server using
-     * yaw-derived basis vectors. Delegates pure offset to {@link ThrowArc}.
-     *
-     * @param player the throwing player
-     * @return world-space hand position
-     */
-    private static Vec3 getThrowHandPosition(ServerPlayer player) {
-        float side = ThrowArc.gloveSide(player.getMainHandItem(), player.getMainArm());
-        float yaw = player.getYRot() * Mth.DEG_TO_RAD;
-        double sin = Mth.sin(yaw);
-        double cos = Mth.cos(yaw);
-        // right = (-cos, 0, -sin), up = (0, 1, 0) - yaw-only, no pitch on server
-        Vec3 offset = ThrowArc.handOffset(
-                new Vec3(-cos, 0, -sin), new Vec3(0, 1, 0),
-                side, player.getScale());
-        return player.getEyePosition().add(offset);
     }
 }

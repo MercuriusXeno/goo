@@ -4,16 +4,14 @@ import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.block.canister.CanisterBlock;
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
-import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
-import com.mercuriusxeno.goo.block.hub.HubBlockEntity;
-import com.mercuriusxeno.goo.block.plexer.PlexerBlockEntity;
+import com.mercuriusxeno.goo.block.canister.ICanisterHolder;
 import com.mercuriusxeno.goo.block.reactor.ReactorBlockEntity;
 import com.mercuriusxeno.goo.block.tap.TapBlockEntity;
-import com.mercuriusxeno.goo.block.vat.VatBlockEntity;
 import com.mercuriusxeno.goo.data.GasketRegistry;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.gasket.GasketPartner;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
+import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mercuriusxeno.goo.registry.GooItems;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
@@ -25,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 /**
  * Fills each machine bay after {@link LabBuilder} sets its blocks, so the
@@ -112,10 +111,10 @@ public final class LabRigs {
      * @param at    the tap's position
      */
     private static void rigTap(ServerLevel level, BlockPos at) {
-        if (level.getBlockEntity(at) instanceof TapBlockEntity tap) {
-            tap.insertCanister(new ItemStack(GooItems.CANISTER.get()));
-            tap.insertGoo(BAY_TYPE, CANISTER_FILL);
-        }
+        withHolder(level, at, tap -> {
+            tap.insertCanister(TapBlockEntity.SLOT, new ItemStack(GooItems.CANISTER.get()), false);
+            tap.insertGoo(TapBlockEntity.SLOT, BAY_TYPE, CANISTER_FILL);
+        });
     }
 
     /**
@@ -125,9 +124,7 @@ public final class LabRigs {
      * @param at    the vat's position
      */
     private static void rigVat(ServerLevel level, BlockPos at) {
-        if (level.getBlockEntity(at) instanceof VatBlockEntity vat) {
-            vat.insertGoo(BAY_TYPE, VAT_FILL);
-        }
+        level.getBlockEntity(at, GooBlockEntities.VAT.get()).ifPresent(vat -> vat.insertGoo(BAY_TYPE, VAT_FILL));
     }
 
     /**
@@ -137,9 +134,8 @@ public final class LabRigs {
      * @param at    the crucible's position
      */
     private static void rigCrucible(ServerLevel level, BlockPos at) {
-        if (level.getBlockEntity(at) instanceof CrucibleBlockEntity crucible) {
-            crucible.insertGoo(GooTypes.BLAZE, LAB_BLAZE_FUEL);
-        }
+        level.getBlockEntity(at, GooBlockEntities.CRUCIBLE.get())
+                .ifPresent(crucible -> crucible.insertGoo(GooTypes.BLAZE, LAB_BLAZE_FUEL));
     }
 
     /**
@@ -149,11 +145,11 @@ public final class LabRigs {
      * @param at    the hub's position
      */
     private static void rigHub(ServerLevel level, BlockPos at) {
-        if (level.getBlockEntity(at) instanceof HubBlockEntity hub) {
+        withHolder(level, at, hub -> {
             for (int slot : HUB_SLOTS) {
-                hub.insertCanister(slot, filledCanister(BAY_TYPE));
+                hub.insertCanister(slot, filledCanister(BAY_TYPE), false);
             }
-        }
+        });
     }
 
     /**
@@ -163,12 +159,10 @@ public final class LabRigs {
      * @param at    the plexer's position
      */
     private static void rigPlexer(ServerLevel level, BlockPos at) {
-        if (level.getBlockEntity(at.above()) instanceof CanisterBlockEntity supply) {
-            supply.insertCanister(CanisterBlock.CENTER_SLOT, filledCanister(BAY_TYPE), false);
-        }
-        if (level.getBlockEntity(at) instanceof PlexerBlockEntity plexer) {
-            plexer.setTargetItem(new ItemStack(Items.COBBLESTONE));
-        }
+        withHolder(level, at.above(),
+                supply -> supply.insertCanister(CanisterBlock.CENTER_SLOT, filledCanister(BAY_TYPE), false));
+        level.getBlockEntity(at, GooBlockEntities.PLEXER.get())
+                .ifPresent(plexer -> plexer.setTargetItem(new ItemStack(Items.COBBLESTONE)));
     }
 
     /**
@@ -178,15 +172,14 @@ public final class LabRigs {
      * @param at    the reactor's position
      */
     private static void rigReactor(ServerLevel level, BlockPos at) {
-        if (level.getBlockEntity(at.above()) instanceof CanisterBlockEntity inputs) {
+        withHolder(level, at.above(), inputs -> {
             for (int index = 0; index < CORNER_SLOTS.length; index++) {
                 ResourceKey<GooTypeDefinition> type = REACTOR_INPUTS.get(index % REACTOR_INPUTS.size());
                 inputs.insertCanister(CORNER_SLOTS[index], filledCanister(type), false);
             }
-        }
-        if (level.getBlockEntity(at) instanceof ReactorBlockEntity reactor) {
-            reactor.insertOutputCanister(new ItemStack(GooItems.CANISTER.get()));
-        }
+        });
+        withHolder(level, at, reactor -> reactor.insertCanister(ReactorBlockEntity.OUTPUT_SLOT,
+                new ItemStack(GooItems.CANISTER.get()), false));
     }
 
     /**
@@ -198,8 +191,9 @@ public final class LabRigs {
      * @param receiver the receiving canister block's position
      */
     private static void rigGasketRun(ServerLevel level, BlockPos source, BlockPos receiver) {
-        if (!(level.getBlockEntity(source) instanceof CanisterBlockEntity from)
-                || !(level.getBlockEntity(receiver) instanceof CanisterBlockEntity to)) {
+        CanisterBlockEntity from = level.getBlockEntity(source, GooBlockEntities.CANISTER.get()).orElse(null);
+        CanisterBlockEntity to = level.getBlockEntity(receiver, GooBlockEntities.CANISTER.get()).orElse(null);
+        if (from == null || to == null) {
             return;
         }
         UUID transmitter = UUID.randomUUID();
@@ -214,6 +208,19 @@ public final class LabRigs {
         to.setPartner(GasketRole.RECEIVER, CanisterBlock.CENTER_SLOT, new GasketPartner(source, CanisterBlock.CENTER_SLOT));
         from.setPartner(GasketRole.TRANSMITTER, CanisterBlock.CENTER_SLOT,
                 new GasketPartner(receiver, CanisterBlock.CENTER_SLOT));
+    }
+
+    /**
+     * Runs a rig on the canister holder at a position, when one stands there.
+     *
+     * @param level the level
+     * @param at    the holder's position
+     * @param rig   what to do with the holder
+     */
+    private static void withHolder(ServerLevel level, BlockPos at, Consumer<ICanisterHolder> rig) {
+        if (level.getBlockEntity(at) instanceof ICanisterHolder holder) {
+            rig.accept(holder);
+        }
     }
 
     /**
