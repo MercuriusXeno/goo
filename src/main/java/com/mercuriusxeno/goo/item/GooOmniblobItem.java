@@ -444,7 +444,7 @@ public class GooOmniblobItem extends Item implements IGooItemInteraction {
 
     /**
      * Omniblob in cursor, clicking onto a slot target.
-     * Right-click on empty slot: place one blob (1,000 mB) as an omniblob.
+     * Right-click on empty slot: place the unit a right-drag places there.
      *
      * @param omniblob the omniblob on the cursor
      * @param slot     the target inventory slot
@@ -463,20 +463,23 @@ public class GooOmniblobItem extends Item implements IGooItemInteraction {
     // -- Cursor interactions --
 
     /**
-     * Places one blob from the omniblob into an empty slot, updating cursor remainder.
+     * Places the unit OmniblobQuickCraft.greedyPerSlot reads from the carried
+     * volume into an empty slot, the unit a right-drag places, and updates the
+     * cursor remainder.
      *
      * @param omniblob the omniblob on the cursor
      * @param slot     the empty target slot
-     * @return true if a blob was placed, false if insufficient volume
+     * @return true if a unit was placed, false if insufficient volume
      */
     private boolean placeSingleBlobInSlot(ItemStack omniblob, Slot slot) {
         int volume = getVolume(omniblob);
-        if (volume < BlobStacks.MB_PER_BLOB) {
+        int unit = OmniblobQuickCraft.greedyPerSlot(volume);
+        if (volume < unit) {
             return false;
         }
 
-        int remaining = volume - BlobStacks.MB_PER_BLOB;
-        slot.set(BlobStacks.createForOutput(BlobStacks.keyOf(omniblob), BlobStacks.MB_PER_BLOB));
+        int remaining = volume - unit;
+        slot.set(BlobStacks.createForOutput(BlobStacks.keyOf(omniblob), unit));
         applyCursorRemainder(omniblob, remaining);
         return true;
     }
