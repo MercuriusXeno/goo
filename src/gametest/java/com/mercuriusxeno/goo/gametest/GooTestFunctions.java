@@ -216,6 +216,7 @@ public final class GooTestFunctions {
     private static final String IX_VAT_ITEM_OMNIBLOB_INSERT = "ix_vat_item_omniblob_insert";
     private static final String IX_VAT_ITEM_DRAIN = "ix_vat_item_drain";
     private static final String IX_BLOB_INSERT_SHARED = "ix_blob_insert_shared";
+    private static final String IX_LEGACY_BLOB_STACK = "ix_legacy_blob_stack";
     private static final String IX_VAT_STREAM_HOLDS = "ix_vat_stream_holds";
 
     // --- Machines ---
@@ -454,6 +455,7 @@ public final class GooTestFunctions {
         reg(r, IX_VAT_ITEM_OMNIBLOB_INSERT, VatItemClickTests::omniblobInsertKeepsRemainder);
         reg(r, IX_VAT_ITEM_DRAIN, VatItemClickTests::secondaryClickDrainsLargerType);
         reg(r, IX_BLOB_INSERT_SHARED, BlobInsertTests::pourDepletesByAccepted);
+        reg(r, IX_LEGACY_BLOB_STACK, LegacyBlobStackTests::legacyStackHalvesAndDepletesWithoutDuplication);
         reg(r, IX_VAT_STREAM_HOLDS, VatStreamTests::blobClickHoldsStream);
     }
 

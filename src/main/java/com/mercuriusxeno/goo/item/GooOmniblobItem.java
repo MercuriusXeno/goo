@@ -6,9 +6,6 @@ import com.mercuriusxeno.goo.registry.GooDataComponents;
 import com.mercuriusxeno.goo.registry.GooItems;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.SlotAccess;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
@@ -84,39 +81,26 @@ public class GooOmniblobItem extends Item implements IGooItemInteraction {
      * @return volume in microblobs, or 0 if unset
      */
     public static int getVolume(ItemStack stack) {
-        return BlobStacks.legacyAwareVolume(stack.getCount(), stack.get(GooDataComponents.BLOB_VOLUME.get()));
+        Integer vol = stack.get(GooDataComponents.BLOB_VOLUME.get());
+        return vol != null ? vol : 0;
     }
 
     /**
      * Rewrites a stack saved as goo:goo_blob, which the registry alias loads as an
      * omniblob of count n with no BLOB_VOLUME, into one omniblob of n x 1,000 mB
-     * (decision blobs-become-omniblobs).
+     * (decision blobs-become-omniblobs). ItemStackLegacyBlobMixin calls it as each
+     * stack loads; any other stack is left alone.
      *
-     * @param stack the omniblob stack to normalize in place
+     * @param stack the stack to normalize in place
      */
     public static void normalizeLegacyStack(ItemStack stack) {
-        if (stack.isEmpty()) {
+        if (stack.isEmpty() || !(stack.getItem() instanceof GooOmniblobItem)
+                || stack.has(GooDataComponents.BLOB_VOLUME.get())) {
             return;
         }
-        if (stack.getCount() > 1 || !stack.has(GooDataComponents.BLOB_VOLUME.get())) {
-            int volume = getVolume(stack);
-            stack.setCount(1);
-            setVolume(stack, volume);
-        }
-    }
-
-    /**
-     * Normalizes a legacy blob stack in any entity's inventory as it ticks.
-     *
-     * @param stack  the item stack
-     * @param level  the server level
-     * @param entity the entity holding this item
-     * @param slot   the equipment slot
-     */
-    @Override
-    public void inventoryTick(@NonNull ItemStack stack, @NonNull ServerLevel level, @NonNull Entity entity,
-                              @Nullable EquipmentSlot slot) {
-        normalizeLegacyStack(stack);
+        int volume = BlobStacks.legacyBlobVolume(stack.getCount());
+        stack.setCount(1);
+        setVolume(stack, volume);
     }
 
     /**

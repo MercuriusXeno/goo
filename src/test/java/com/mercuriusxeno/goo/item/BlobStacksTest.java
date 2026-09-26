@@ -79,29 +79,13 @@ class BlobStacksTest {
         }
     }
 
-    // -- legacyAwareVolume (a saved goo:goo_blob stack) --
+    // -- legacyBlobVolume (a saved goo:goo_blob stack) --
 
     /**
-     * A saved stack of 3 blobs, loaded as an omniblob with no BLOB_VOLUME, reads 3,000 mB.
+     * A saved stack of 3 blobs reads 3,000 mB once loaded as an omniblob.
      */
     @Test
     void legacyBlobStackReadsCountTimesOneBlob() {
-        assertEquals(3_000, BlobStacks.legacyAwareVolume(3, null));
-    }
-
-    /**
-     * A stack arriving with count above 1 reads count x 1,000 mB whatever volume it carries.
-     */
-    @Test
-    void legacyStackAboveOneReadsCountTimesOneBlob() {
-        assertEquals(3_000, BlobStacks.legacyAwareVolume(3, 7));
-    }
-
-    /**
-     * An omniblob of count 1 reads the volume it carries.
-     */
-    @Test
-    void omniblobReadsStoredVolume() {
-        assertEquals(1_500, BlobStacks.legacyAwareVolume(1, 1_500));
+        assertEquals(3_000, BlobStacks.legacyBlobVolume(3));
     }
 }
