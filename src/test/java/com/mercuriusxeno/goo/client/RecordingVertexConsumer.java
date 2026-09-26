@@ -22,11 +22,13 @@ public final class RecordingVertexConsumer implements VertexConsumer {
      * @param uv1U  the overlay U, which the fluid surface reads as ripple amplitude
      * @param uv2U  the lightmap U, which the fluid surface reads as the band's lower edge
      * @param uv2V  the lightmap V, which the fluid surface reads as the band's upper edge
+     * @param nx    the X normal
      * @param ny    the Y normal
+     * @param nz    the Z normal
      * @param uv1V  the overlay V, which the dissolve shader reads as the glow color
      */
     public record Vertex(float x, float y, float z, int color, float u, float v, int uv1U,
-                         int uv2U, int uv2V, float ny, int uv1V) {
+                         int uv2U, int uv2V, float nx, float ny, float nz, int uv1V) {
     }
 
     private final List<Vertex> vertices = new ArrayList<>();
@@ -40,7 +42,9 @@ public final class RecordingVertexConsumer implements VertexConsumer {
     private int uv1V;
     private int uv2U;
     private int uv2V;
+    private float nx;
     private float ny;
+    private float nz;
     private boolean hasPending;
     private int lightWrites;
 
@@ -61,7 +65,7 @@ public final class RecordingVertexConsumer implements VertexConsumer {
 
     private void flush() {
         if (hasPending) {
-            vertices.add(new Vertex(x, y, z, color, u, v, uv1U, uv2U, uv2V, ny, uv1V));
+            vertices.add(new Vertex(x, y, z, color, u, v, uv1U, uv2U, uv2V, nx, ny, nz, uv1V));
             hasPending = false;
         }
     }
@@ -79,7 +83,9 @@ public final class RecordingVertexConsumer implements VertexConsumer {
         uv1V = 0;
         uv2U = 0;
         uv2V = 0;
+        nx = 0f;
         ny = 0f;
+        nz = 0f;
         hasPending = true;
         return this;
     }
@@ -118,8 +124,10 @@ public final class RecordingVertexConsumer implements VertexConsumer {
     }
 
     @Override
-    public VertexConsumer setNormal(float nx, float normalY, float nz) {
+    public VertexConsumer setNormal(float normalX, float normalY, float normalZ) {
+        nx = normalX;
         ny = normalY;
+        nz = normalZ;
         return this;
     }
 

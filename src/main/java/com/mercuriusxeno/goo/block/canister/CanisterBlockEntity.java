@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.block.BlockEntitySync;
 import com.mercuriusxeno.goo.block.GooBlockInteraction;
 import com.mercuriusxeno.goo.block.GooGlowingMachineBlockEntity;
+import com.mercuriusxeno.goo.block.IGooReceptacle;
 import com.mercuriusxeno.goo.block.gasket.GasketAttachment;
 import com.mercuriusxeno.goo.block.gasket.GasketPusher;
 import com.mercuriusxeno.goo.item.*;
@@ -44,7 +45,8 @@ import java.util.UUID;
  * coordinated work: handler/pusher creation, gasket registry membership,
  * NBT save/load, framework lifecycle, and player interaction dispatch.</p>
  */
-public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements ICanisterHolder {
+public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements ICanisterHolder,
+        IGooReceptacle {
 
     /**
      * Maximum number of canister slots in the 3x3 grid.
@@ -186,6 +188,27 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
         ItemStack built = new ItemStack(GooItems.CANISTER.get());
         applyFluidAndMetadata(built, CanisterItem.getFluidContent(source), CanisterItem.getMetadata(source));
         state.insert(target, built, stripGaskets);
+    }
+
+    // --- Receptacle ---
+
+    /**
+     * Pours goo into the first slot whose canister keeps any of it
+     * (decision landing-goo-enters-any-holder).
+     *
+     * @param type   the goo type offered
+     * @param volume the volume offered, in mB
+     * @return the volume the first accepting slot kept, 0 when none keeps any
+     */
+    @Override
+    public int insertGoo(ResourceKey<GooTypeDefinition> type, int volume) {
+        for (int slot = 0; slot < CanisterBlock.SLOT_COUNT; slot++) {
+            int kept = insertGoo(slot, type, volume);
+            if (kept > 0) {
+                return kept;
+            }
+        }
+        return 0;
     }
 
     // --- IGasketHolder ---

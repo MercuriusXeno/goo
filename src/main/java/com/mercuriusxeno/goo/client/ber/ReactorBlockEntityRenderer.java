@@ -20,7 +20,6 @@ import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 import net.minecraft.client.renderer.feature.ModelFeatureRenderer;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
-import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
@@ -517,10 +516,7 @@ public class ReactorBlockEntityRenderer
      */
     private static void emitWheelVertex(RenderContext ctx, float x,
             float y, float z, float u, float v, float nx, int color) {
-        ctx.c().addVertex(ctx.pose(), x, y, z)
-                .setColor(color)
-                .setUv(u, v).setOverlay(OverlayTexture.NO_OVERLAY).setLight(ctx.light())
-                .setNormal(nx, 0f, 0f);
+        ctx.vertexColored(color, x, y, z, u, v, nx, 0f, 0f);
     }
 
     /**

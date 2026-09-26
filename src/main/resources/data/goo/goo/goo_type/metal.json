@@ -9,6 +9,8 @@
   "viscosity": 2000,
   "temperature": 300,
   "extinguishes": false,
+  "levity": 0.7,
+  "base_flight_time": 3,
   "map_color": "metal",
   "textures": {
     "blob_tiny": "goo:item/metal_blob_tiny",
