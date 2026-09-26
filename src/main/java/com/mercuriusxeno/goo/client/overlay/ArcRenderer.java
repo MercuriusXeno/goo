@@ -93,8 +93,7 @@ final class ArcRenderer {
     private static Vec3[] sampleArcPoints(Vec3 start, Vec3 end,
             boolean grannyArc, boolean straightLine) {
         double distance = start.distanceTo(end);
-        double travelTicks = ThrowArc.travelTicks(distance);
-        double peak = straightLine ? 0 : computeArcPeak(travelTicks, grannyArc);
+        double peak = straightLine ? 0 : computeArcPeak(distance, grannyArc);
         int segments = Mth.clamp(
                 (int) (distance / SAMPLE_SPACING),
                 MIN_ARC_SEGMENTS, MAX_ARC_SEGMENTS);
@@ -104,14 +103,14 @@ final class ArcRenderer {
     /**
      * Selects the arc peak height based on whether this is a granny arc.
      *
-     * @param travelTicks estimated travel time in ticks
-     * @param grannyArc   true for boosted granny-arc peak
+     * @param distance  throw distance in blocks
+     * @param grannyArc true for boosted granny-arc peak
      * @return the arc peak height
      */
-    private static double computeArcPeak(double travelTicks, boolean grannyArc) {
+    private static double computeArcPeak(double distance, boolean grannyArc) {
         return grannyArc
-                ? ThrowArc.grannyPeak(travelTicks)
-                : ThrowArc.basePeak(travelTicks);
+                ? ThrowArc.grannyPeak(distance)
+                : ThrowArc.basePeak(distance);
     }
 
     /**
