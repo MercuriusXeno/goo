@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.GooTypeNames;
 import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
+import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -29,6 +30,9 @@ final class RadialWheelRenderer {
     private static final int HOVER_ALPHA = 0xDD;
     private static final int DISABLED_ALPHA = 0x55;
     private static final float DISABLED_DIM = 0.4f;
+    /** Shade a resting wedge's fluid fill blits under, below the hovered wedge's full white. */
+    private static final int REST_SHADE = 0xCC;
+    private static final int DISABLED_SHADE = (int) (0xFF * DISABLED_DIM);
     private static final int HUB_COLOR = 0x44FFFFFF;
     private static final int COLOR_WHITE = 0xFFFFFFFF;
     private static final int HOVER_TEXT_COLOR = 0xFFFFFF00;
@@ -98,10 +102,9 @@ final class RadialWheelRenderer {
         ResourceKey<GooTypeDefinition> key = frame.types().get(type);
         double outer = wheel.isFanned() ? RadialWheel.RING_FRACTION : 1.0;
         boolean selected = type == wheel.selectedType();
-        int base = selected ? ClientGooTypes.bright(key) : ClientGooTypes.wheel(key);
-        int color = computeWedgeColor(base, selected, frame.available().getOrDefault(key, 0) <= 0);
-        blitMask(graphics, frame, RadialTextures.getArcTexture(type * wheel.typeArc(), wheel.typeArc(),
-                RadialWheel.HUB_FRACTION, outer), color);
+        blitWedge(graphics, frame, key, new WedgeBounds(type * wheel.typeArc(), wheel.typeArc(),
+                RadialWheel.HUB_FRACTION, outer),
+                computeOverlayTint(selected, frame.available().getOrDefault(key, 0) <= 0));
         double iconRadius = (RadialWheel.HUB_FRACTION + outer) * MID * frame.radius();
         blitIcon(graphics, typeIcon(key), frame, wheel.typeCenter(type), iconRadius, COLOR_WHITE);
     }
@@ -110,26 +113,52 @@ final class RadialWheelRenderer {
         RadialWheel wheel = frame.wheel();
         int type = wheel.selectedType();
         List<ClientAbility> fan = frame.abilities().get(type);
-        int base = ClientGooTypes.wheel(frame.types().get(type));
+        ResourceKey<GooTypeDefinition> key = frame.types().get(type);
+        int base = ClientGooTypes.wheel(key);
         double arc = wheel.fanArc(type);
         double slotRadius = (RadialWheel.RING_FRACTION + 1.0) * MID * frame.radius();
-        int holdings = frame.available().getOrDefault(frame.types().get(type), 0);
+        int holdings = frame.available().getOrDefault(key, 0);
         for (int ability = 0; ability < fan.size(); ability++) {
             boolean hovered = ability == wheel.hoveredAbility();
             FanSlot slotLabels = fanSlot(fan.get(ability), holdings);
             int color = slotLabels.dimmed() ? computeWedgeColor(base, false, true)
                     : ARGB.color(hovered ? HOVER_ALPHA : NORMAL_ALPHA, base);
             double start = wheel.fanStart(type) + ability * arc;
-            blitMask(graphics, frame, RadialTextures.getArcTexture(start, arc, RadialWheel.RING_FRACTION, 1.0), color);
+            blitWedge(graphics, frame, key, new WedgeBounds(start, arc, RadialWheel.RING_FRACTION, 1.0),
+                    computeOverlayTint(hovered, slotLabels.dimmed()));
             double middle = start + arc * MID;
             blitIcon(graphics, resolveAbilityIcon(fan.get(ability)), frame, middle, slotRadius, color);
-            int[] slot = pointAt(frame, middle, slotRadius);
             int textColor = slotLabels.dimmed() ? DISABLED_TEXT_COLOR : hovered ? HOVER_TEXT_COLOR : COLOR_WHITE;
-            int labelY = slot[1] + ICON_OFFSET + LABEL_GAP;
-            graphics.centeredText(font, buildLabel(fan.get(ability)), slot[0], labelY, textColor);
-            graphics.centeredText(font, Component.literal(slotLabels.costLabel()), slot[0],
-                    labelY + font.lineHeight, textColor);
+            drawSlotLabels(graphics, font, pointAt(frame, middle, slotRadius),
+                    List.of(buildLabel(fan.get(ability)), Component.literal(slotLabels.costLabel())), textColor);
         }
+    }
+
+    private static void drawSlotLabels(GuiGraphicsExtractor graphics, Font font, int[] slot,
+                                       List<Component> lines, int textColor) {
+        int labelY = slot[1] + ICON_OFFSET + LABEL_GAP;
+        for (Component line : lines) {
+            graphics.centeredText(font, line, slot[0], labelY, textColor);
+            labelY += font.lineHeight;
+        }
+    }
+
+    /**
+     * A wedge's place on the wheel.
+     *
+     * @param start the wedge's start angle, clockwise from the top
+     * @param arc   the wedge's span
+     * @param inner the wedge's inner radius as a fraction of the wheel's
+     * @param outer the wedge's outer radius as a fraction of the wheel's
+     */
+    private record WedgeBounds(double start, double arc, double inner, double outer) {
+    }
+
+    private static void blitWedge(GuiGraphicsExtractor graphics, Frame frame, ResourceKey<GooTypeDefinition> key,
+                                  WedgeBounds bounds, int overlay) {
+        blitMask(graphics, frame, RadialTextures.getArcTexture(bounds.start(), bounds.arc(), bounds.inner(),
+                bounds.outer(), GooSubmitter.fluidSprites(key).still(), GooSubmitter.fluidTint(key),
+                ARGB.opaque(ClientGooTypes.edge(key))), overlay);
     }
 
     /**
@@ -220,6 +249,23 @@ final class RadialWheelRenderer {
                     (int) (b * DISABLED_DIM));
         }
         return ARGB.color(hovered ? HOVER_ALPHA : NORMAL_ALPHA, r, g, b);
+    }
+
+    /**
+     * Computes the tint a wedge's textured mask blits under, so the fluid
+     * fill still reads hovered and disabled (decision wedges-render-fluid-texture):
+     * a hovered wedge is brighter and more opaque than a resting one, a
+     * disabled one darker and dimmer.
+     *
+     * @param hovered  true for the hovered or selected wedge
+     * @param disabled true when the player holds none of it, or cannot afford it
+     * @return the packed ARGB tint
+     */
+    static int computeOverlayTint(boolean hovered, boolean disabled) {
+        if (disabled) {
+            return ARGB.color(DISABLED_ALPHA, DISABLED_SHADE, DISABLED_SHADE, DISABLED_SHADE);
+        }
+        return hovered ? ARGB.color(HOVER_ALPHA, COLOR_WHITE) : ARGB.color(NORMAL_ALPHA, REST_SHADE, REST_SHADE, REST_SHADE);
     }
 
     private static Component buildLabel(ClientAbility ability) {
