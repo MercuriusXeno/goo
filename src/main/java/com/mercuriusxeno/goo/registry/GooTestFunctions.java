@@ -188,6 +188,7 @@ public final class GooTestFunctions {
     private static final String TAP_VALVE_STEPS_FIVE_GRADES = "tap_valve_steps_five_grades";
     private static final String TAP_SNEAK_CLICK_STEPS_VALVE_BACK = "tap_sneak_click_steps_valve_back";
     private static final String TAP_DRIP_FILLS_CRUCIBLE_BELOW = "tap_drip_fills_crucible_below";
+    private static final String TAP_DRIP_ONE_TO_FOUR_FILLS_CRUCIBLE = "tap_drip_one_to_four_fills_crucible";
     private static final String TAP_DRIP_INTO_CRUCIBLE_RUNS_NO_PROGRAM = "tap_drip_into_crucible_runs_no_program";
     private static final String TAP_DRIP_ON_REFUSING_BLOCK_RUNS_PROGRAM = "tap_drip_on_refusing_block_runs_program";
     private static final String IX_VAT_GASKET = "ix_vat_gasket_apply";
@@ -308,6 +309,7 @@ public final class GooTestFunctions {
         reg(r, TAP_VALVE_STEPS_FIVE_GRADES, TapDripTests::tapValveStepsFiveGrades);
         reg(r, TAP_SNEAK_CLICK_STEPS_VALVE_BACK, TapDripTests::tapSneakClickStepsValveBack);
         reg(r, TAP_DRIP_FILLS_CRUCIBLE_BELOW, TapDripTests::tapDripFillsCrucibleBelow);
+        reg(r, TAP_DRIP_ONE_TO_FOUR_FILLS_CRUCIBLE, TapDripTests::tapDripOneToFourFillsCrucible);
         reg(r, TAP_DRIP_INTO_CRUCIBLE_RUNS_NO_PROGRAM, TapDripTests::tapDripIntoCrucibleRunsNoProgram);
         reg(r, TAP_DRIP_ON_REFUSING_BLOCK_RUNS_PROGRAM, TapDripTests::tapDripOnRefusingBlockRunsProgram);
     }
