@@ -595,10 +595,13 @@ public final class CrystalCloudVisual {
         float nz = e0x * e1y - e0y * e1x;
         int color = reflectColor(level, camPos, worldCenter, nx, ny, nz, alpha);
         FlatQuadContext face = new FlatQuadContext(pose, c);
-        face.vertex(v0x, v0y, v0z, color, nx, ny, nz);
-        face.vertex(v1x, v1y, v1z, color, nx, ny, nz);
-        face.vertex(apX, apY, apZ, color, nx, ny, nz);
-        face.vertex(apX, apY, apZ, color, nx, ny, nz);
+        ConeGeometry.emitTriangle(corner -> {
+            switch (corner) {
+                case ConeGeometry.BASE_START -> face.vertex(v0x, v0y, v0z, color, nx, ny, nz);
+                case ConeGeometry.BASE_END -> face.vertex(v1x, v1y, v1z, color, nx, ny, nz);
+                default -> face.vertex(apX, apY, apZ, color, nx, ny, nz);
+            }
+        });
     }
 
     /**
