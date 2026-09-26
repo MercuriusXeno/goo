@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.client.particle;
 
-import com.mercuriusxeno.goo.block.crucible.CrucibleBasin;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
 import com.mercuriusxeno.goo.block.crucible.CrucibleParticleHelper;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -200,10 +199,9 @@ public final class GooBubbleParticle extends SingleQuadParticle {
         if (age >= DANCE_END) { return false; }
         BlockEntity be = this.level.getBlockEntity(sourcePos);
         if (!(be instanceof CrucibleBlockEntity crucible)) { return true; }
-        long total = CrucibleBasin.heldVolume(
-                crucible.getPoolVolume(), crucible.getReservoir().totalVolume());
-        if (total <= 0) { return true; }
-        float surfaceY = CrucibleParticleHelper.computeSurfaceY(total);
+        long melted = crucible.getSurfaceVolume();
+        if (melted <= 0) { return true; }
+        float surfaceY = CrucibleParticleHelper.computeSurfaceY(melted);
         this.y = sourcePos.getY() + surfaceY + SURFACE_Y_OFFSET;
         return false;
     }

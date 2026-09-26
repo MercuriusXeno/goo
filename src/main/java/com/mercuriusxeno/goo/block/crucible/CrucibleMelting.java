@@ -159,8 +159,8 @@ final class CrucibleMelting {
      * @param pos         the block position
      */
     private static void spawnBubblesIfGooPresent(CrucibleBlockEntity be, ServerLevel serverLevel, BlockPos pos) {
-        long totalGoo = CrucibleBasin.heldVolume(be.getPoolVolume(), be.reservoir.totalVolume());
-        if (totalGoo <= 0) {
+        long melted = be.getSurfaceVolume();
+        if (melted <= 0) {
             return;
         }
         ResourceKey<GooTypeDefinition> dominant = resolveDominantType(be);
@@ -168,7 +168,7 @@ final class CrucibleMelting {
             return;
         }
         CrucibleParticleHelper.spawnGooBubbles(
-                serverLevel, pos, totalGoo, GooColors.get(serverLevel.registryAccess(), dominant), serverLevel.getRandom(),
+                serverLevel, pos, melted, GooColors.get(serverLevel.registryAccess(), dominant), serverLevel.getRandom(),
                 be.bubbleHistory);
     }
 

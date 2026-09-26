@@ -258,6 +258,17 @@ public class CrucibleBlockEntity extends BlockEntity implements IGasketHolder, I
         return meltingItem.isEmpty() ? 0 : PartiallyMeltedItem.getContents(meltingItem).totalVolume();
     }
 
+    /**
+     * Returns the goo the drawn surface stands for: what has melted into the
+     * reservoir, never the unmelted item's pool, so a first melt tick draws a
+     * puddle (decision puddle-touches-walls-at-a-thousand).
+     *
+     * @return the surface volume in mB
+     */
+    public long getSurfaceVolume() {
+        return reservoir.totalVolume();
+    }
+
     /** Returns true when neither the reservoir nor the PMI pool holds goo.
      *
      * @return true if the crucible holds no goo
