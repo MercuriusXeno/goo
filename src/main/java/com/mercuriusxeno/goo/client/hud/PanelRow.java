@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.hud;
 
+import com.mercuriusxeno.goo.client.GooRenderUtil;
 import net.minecraft.resources.Identifier;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
@@ -15,9 +16,25 @@ import java.util.function.ToIntFunction;
  * @param seeThrough whether the row draws over world geometry
  * @param floorText  the text whose width the row's text never measures under, or null for no floor
  * @param secondIcon the icon texture drawn after the first, or null for one icon
+ * @param iconUv     the region of the first icon's texture drawn, or null for the whole texture
  */
 public record PanelRow(@Nullable Identifier icon, List<TextSegment> segments, boolean seeThrough,
-                       @Nullable String floorText, @Nullable Identifier secondIcon) {
+                       @Nullable String floorText, @Nullable Identifier secondIcon,
+                       GooRenderUtil.@Nullable UvRect iconUv) {
+
+    /**
+     * Builds a row whose icons each draw their whole texture.
+     *
+     * @param icon       the icon texture, or null for a text-only header row
+     * @param segments   the text segments drawn left to right after the icon
+     * @param seeThrough whether the row draws over world geometry
+     * @param floorText  the text whose width the row's text never measures under, or null for no floor
+     * @param secondIcon the icon texture drawn after the first, or null for one icon
+     */
+    public PanelRow(@Nullable Identifier icon, List<TextSegment> segments, boolean seeThrough,
+                    @Nullable String floorText, @Nullable Identifier secondIcon) {
+        this(icon, segments, seeThrough, floorText, secondIcon, null);
+    }
 
     /**
      * Builds a row with at most one icon.

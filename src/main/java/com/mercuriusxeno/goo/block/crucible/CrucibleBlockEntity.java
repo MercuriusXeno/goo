@@ -51,6 +51,8 @@ public class CrucibleBlockEntity extends GooGlowingMachineBlockEntity {
     static final String TAG_RESERVOIR = "Reservoir";
     /** NBT key for the melting item stack. */
     static final String TAG_MELTING_ITEM = "MeltingItem";
+    /** NBT key for the melt queue, the inserted stacks in arrival order. */
+    static final String TAG_MELT_QUEUE = "MeltQueue";
     /** NBT key for the heat ticks left. */
     static final String TAG_HEAT_TICKS = "HeatTicks";
     /** NBT key for the fuel goo type that bought the heat. */
@@ -59,6 +61,9 @@ public class CrucibleBlockEntity extends GooGlowingMachineBlockEntity {
     private static final String TAG_CRUCIBLE = "crucible";
 
     ItemStack meltingItem = ItemStack.EMPTY;
+
+    /** The stacks the pool holds, oldest dissolving first (decision pool-keeps-stacks-in-order). */
+    final CrucibleMeltQueue meltQueue = new CrucibleMeltQueue();
 
     /** Heat bought from fuel goo, spent one tick per melt tick (decision fuel-goo-heats-per-mb). */
     final CrucibleHeat heat = new CrucibleHeat();
@@ -205,6 +210,18 @@ public class CrucibleBlockEntity extends GooGlowingMachineBlockEntity {
      * @return the melting item
      */
     public ItemStack getMeltingItem() { return meltingItem; }
+
+    /** Returns the stack dissolving now, the oldest in the pool.
+     *
+     * @return the head entry, or null when nothing is melting
+     */
+    public CrucibleMeltQueue.@Nullable Entry meltHead() { return meltQueue.head(); }
+
+    /** Returns the stacks waiting behind the one dissolving, oldest first.
+     *
+     * @return the waiting entries
+     */
+    public List<CrucibleMeltQueue.Entry> meltWaiting() { return meltQueue.waiting(); }
 
     /** Returns the total mB remaining in the PMI pool.
      *
