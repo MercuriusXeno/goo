@@ -18,6 +18,20 @@ public record StepContext(StepHost host, int stepTicks, int programTicks) implem
      */
     public static final String VAR_TICK = "tick";
 
+    /**
+     * Returns the host as the capability interface a step needs. The step
+     * names that capability in {@link Step#requires()}, and the load check
+     * refuses a host type not implementing it, so the cast holds
+     * (decision capability-interfaces-derive-host-kind).
+     *
+     * @param capability the capability interface
+     * @param <H>        the capability interface type
+     * @return the host as that interface
+     */
+    public <H extends StepHost> H hostAs(Class<H> capability) {
+        return capability.cast(host);
+    }
+
     @Override
     public OptionalDouble read(String name) {
         if (VAR_TICK.equals(name)) {

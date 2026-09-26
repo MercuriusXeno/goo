@@ -48,7 +48,7 @@ public record PlaceBlockStep(Identifier block, Map<String, StateValue> state) im
     public boolean tick(StepContext context) {
         Map<String, String> resolved = new LinkedHashMap<>();
         state.forEach((property, value) -> resolved.put(property, value.resolve(context)));
-        context.host().placeBlock(block, resolved);
+        context.hostAs(PlaceBlockHost.class).placeBlock(block, resolved);
         return true;
     }
 
