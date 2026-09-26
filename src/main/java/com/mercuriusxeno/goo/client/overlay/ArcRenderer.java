@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.client.overlay;
 
-import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.ThrowArc;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.LineContext;
@@ -64,7 +63,6 @@ final class ArcRenderer {
      * @param camera       the active camera
      * @param player       the local player
      * @param end          the target endpoint position
-     * @param definition   the thrown goo type, whose levity and base flight time set the arc's height
      * @param rgb          the RGB color for tinting
      * @param partialTick  the partial tick for animation
      * @param grannyArc    if true, uses the boosted granny-arc peak height
@@ -72,10 +70,10 @@ final class ArcRenderer {
      */
     static void renderTargetArc(
             PoseStack poseStack, MultiBufferSource.BufferSource bufferSource,
-            Camera camera, Player player, Vec3 end, GooTypeDefinition definition,
+            Camera camera, Player player, Vec3 end,
             int rgb, float partialTick, boolean grannyArc, boolean straightLine) {
         Vec3 start = GooTargetHighlighter.getGloveHandPosition(player, camera);
-        Vec3[] points = sampleArcPoints(start, end, definition, grannyArc, straightLine);
+        Vec3[] points = sampleArcPoints(start, end, grannyArc, straightLine);
         float dashOffset = computeDashOffset(partialTick);
         Minecraft mc = Minecraft.getInstance();
         emitDashedGlow(poseStack, bufferSource, camera, points,
@@ -88,16 +86,14 @@ final class ArcRenderer {
      *
      * @param start     arc origin (hand position)
      * @param end       arc destination (target center)
-     * @param definition   the thrown goo type
      * @param grannyArc    true for boosted granny-arc peak height
      * @param straightLine true for zero peak (straight line)
      * @return sampled polyline points
      */
-    private static Vec3[] sampleArcPoints(Vec3 start, Vec3 end, GooTypeDefinition definition,
+    private static Vec3[] sampleArcPoints(Vec3 start, Vec3 end,
             boolean grannyArc, boolean straightLine) {
         double distance = start.distanceTo(end);
-        double travelTicks = ThrowArc.travelTicks(distance, definition.levity(), definition.baseFlightTime());
-        double peak = straightLine ? 0 : computeArcPeak(travelTicks, grannyArc);
+        double peak = straightLine ? 0 : computeArcPeak(distance, grannyArc);
         int segments = Mth.clamp(
                 (int) (distance / SAMPLE_SPACING),
                 MIN_ARC_SEGMENTS, MAX_ARC_SEGMENTS);
@@ -107,14 +103,14 @@ final class ArcRenderer {
     /**
      * Selects the arc peak height based on whether this is a granny arc.
      *
-     * @param travelTicks estimated travel time in ticks
-     * @param grannyArc   true for boosted granny-arc peak
+     * @param distance  throw distance in blocks
+     * @param grannyArc true for boosted granny-arc peak
      * @return the arc peak height
      */
-    private static double computeArcPeak(double travelTicks, boolean grannyArc) {
+    private static double computeArcPeak(double distance, boolean grannyArc) {
         return grannyArc
-                ? ThrowArc.grannyPeak(travelTicks)
-                : ThrowArc.basePeak(travelTicks);
+                ? ThrowArc.grannyPeak(distance)
+                : ThrowArc.basePeak(distance);
     }
 
     /**

@@ -12,14 +12,17 @@ import net.minecraft.world.phys.Vec3;
  */
 public final class ThrowArc {
 
-    /** Gravity factor for arc peak calculation in blocks/tick². */
-    public static final double GRAVITY = 0.06;
+    /** Peak height of a throw at one block or closer, in blocks. */
+    public static final double BASE_PEAK_FLOOR = 1.0;
 
-    /** Flat boost added to arc peak height, in blocks. */
+    /** Blocks of peak height added per doubling of throw distance. */
+    public static final double PEAK_PER_DOUBLING = 0.25;
+
+    /** Flat boost the granny arc adds to the base peak, in blocks. */
     public static final double ARC_FLAT_BOOST = 1.0;
 
-    /** Multiplier on the gravity-based arc component (1.15 = +15%). */
-    public static final double ARC_GRAVITY_SCALE = 1.15;
+    /** Multiplier the granny arc applies to the base peak (1.15 = +15%). */
+    public static final double GRANNY_PEAK_SCALE = 1.15;
 
     /** Lateral offset from eye to the glove arm, in blocks at scale 1. */
     public static final double ARM_SIDE = 0.35;
@@ -34,10 +37,10 @@ public final class ThrowArc {
      */
     public static final double ARC_PEAK_T = 0.5;
 
-    /** Divisor for the base-peak parabolic formula (quarter-flight squared). */
-    private static final double BASE_PEAK_DIVISOR = 8.0;
     /** Parabolic factor for "2 - s" envelope in the skewed arc rise phase. */
     private static final double ARC_RISE_FACTOR = 2.0;
+    /** Natural log of two, the divisor turning a natural log into log base two. */
+    private static final double LN_2 = Math.log(2.0);
     /** Left-arm side indicator (negative direction). */
     private static final float LEFT_ARM_SIDE = -1f;
 
@@ -58,23 +61,28 @@ public final class ThrowArc {
     }
 
     /**
-     * Computes the base gravity peak height for a given travel time.
+     * Computes the base peak height from throw distance, growing by a
+     * quarter block per doubling so short and long throws both read as arcs.
      *
-     * @param travelTicks total flight time in ticks
+     * @param distance world-space distance in blocks, floored at one
      * @return peak height in blocks
      */
-    public static double basePeak(double travelTicks) {
-        return GRAVITY * travelTicks * travelTicks / BASE_PEAK_DIVISOR;
+    public static double basePeak(double distance) {
+        return BASE_PEAK_FLOOR + PEAK_PER_DOUBLING * log2(Math.max(1.0, distance));
     }
 
     /**
-     * Computes the granny-arc boosted peak: 115% of gravity peak + 1 block.
+     * Computes the granny-arc boosted peak: 115% of the base peak + 1 block.
      *
-     * @param travelTicks total flight time in ticks
+     * @param distance world-space distance in blocks
      * @return boosted peak height in blocks
      */
-    public static double grannyPeak(double travelTicks) {
-        return basePeak(travelTicks) * ARC_GRAVITY_SCALE + ARC_FLAT_BOOST;
+    public static double grannyPeak(double distance) {
+        return basePeak(distance) * GRANNY_PEAK_SCALE + ARC_FLAT_BOOST;
+    }
+
+    private static double log2(double value) {
+        return Math.log(value) / LN_2;
     }
 
     /**
