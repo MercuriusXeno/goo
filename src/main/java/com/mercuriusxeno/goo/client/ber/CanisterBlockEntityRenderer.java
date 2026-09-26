@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ber;
 
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
+import com.mercuriusxeno.goo.block.canister.CanisterGeometry;
 import com.mercuriusxeno.goo.block.canister.CanisterSlotLayout;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.RenderContext;
@@ -34,10 +35,6 @@ public class CanisterBlockEntityRenderer
 
     /** Pixels per block for coordinate conversion. */
     private static final float BLOCK_PIXELS = 16f;
-    /** Y coordinate of the canister body top (11 pixels up). */
-    private static final float STREAM_Y_TOP = 11f / 16f;
-    /** Y coordinate of the canister body bottom (1 pixel up). */
-    private static final float STREAM_Y_BOT = 1f / 16f;
 
     /**
      * Creates a canister BER. Context is unused.
@@ -172,8 +169,10 @@ public class CanisterBlockEntityRenderer
             SubmitNodeCollector nodeCollector, CameraRenderState cameraState) {
         if (!hasAnyCanister(state)) { return; }
         submitBodies(poseStack, nodeCollector, state);
-        CanisterFluidRenderer.submitGaskets(poseStack, nodeCollector, state);
-        CanisterFluidRenderer.submitFluids(poseStack, nodeCollector, state);
+        CanisterSlotRenderer.submitCaps(poseStack, nodeCollector, state.lightCoords,
+                state.canisterGeometry(), state.slots, CanisterSlotLayout.SLOT_CENTERS_BLOCK);
+        CanisterSlotRenderer.submitFluids(poseStack, nodeCollector,
+                state.canisterGeometry(), state.slots, CanisterSlotLayout.SLOT_CENTERS_BLOCK, true);
         submitStreams(poseStack, nodeCollector, state);
     }
 
@@ -270,18 +269,12 @@ public class CanisterBlockEntityRenderer
     private static void renderSlotStream(RenderContext ctx, float anim, CanisterRenderState state, int slot) {
         float cx = CanisterSlotLayout.SLOT_CENTERS[slot][0] / BLOCK_PIXELS;
         float cz = CanisterSlotLayout.SLOT_CENTERS[slot][1] / BLOCK_PIXELS;
-        float yBottom = STREAM_Y_BOT + state.slots[slot].fill * (STREAM_Y_TOP - STREAM_Y_BOT);
+        CanisterGeometry geometry = state.canisterGeometry();
         GooStreamRenderer.renderStream(ctx,
-            cx, cz, STREAM_Y_TOP, yBottom,
+            cx, cz, geometry.bodyTop(), geometry.fluidSurface(state.slots[slot].fill),
             state.slots[slot].streamType, state.slots[slot].streamRate, anim);
     }
 
-    /**
-     * Returns true if any slot has an active stream.
-     *
-     * @param state the block state
-     * @return true if anyStream is present
-     */
     /**
      * Renders a vanilla (non-goo) fluid stream for a slot.
      *
@@ -294,12 +287,18 @@ public class CanisterBlockEntityRenderer
             RenderContext ctx, float anim, CanisterRenderState state, int slot) {
         float cx = CanisterSlotLayout.SLOT_CENTERS[slot][0] / BLOCK_PIXELS;
         float cz = CanisterSlotLayout.SLOT_CENTERS[slot][1] / BLOCK_PIXELS;
-        float yBottom = STREAM_Y_BOT + state.slots[slot].fill * (STREAM_Y_TOP - STREAM_Y_BOT);
+        CanisterGeometry geometry = state.canisterGeometry();
         GooStreamRenderer.renderStream(ctx,
-                cx, cz, STREAM_Y_TOP, yBottom,
+                cx, cz, geometry.bodyTop(), geometry.fluidSurface(state.slots[slot].fill),
                 state.slots[slot].streamFluid, state.slots[slot].streamRate, anim);
     }
 
+    /**
+     * Returns true if any slot has an active stream.
+     *
+     * @param state the block state
+     * @return true if anyStream is present
+     */
     private static boolean hasAnyStream(CanisterRenderState state) {
         for (int i = 0; i < CanisterBlockEntity.MAX_SLOTS; i++) {
             if (state.slots[i].streamType != null) { return true; }

@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ber;
 
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
+import com.mercuriusxeno.goo.block.canister.CanisterGeometry;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 
 /**
@@ -14,6 +15,13 @@ public class CanisterRenderState extends BlockEntityRenderState {
 
     /** Animation time (game ticks + partial tick) for sin-wave pulsing. */
     public float animationTime;
+
+    /**
+     * @return where a canister in the grid stands: on the block floor
+     */
+    public CanisterGeometry canisterGeometry() {
+        return CanisterGeometry.STANDING;
+    }
 
     public CanisterRenderState() {
         for (int i = 0; i < slots.length; i++) {

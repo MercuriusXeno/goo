@@ -38,7 +38,7 @@ public class VatSpecialRenderer implements SpecialModelRenderer<VatSpecialRender
     /**
      * Vat body bottom (top of base cap, y=2px).
      */
-    private static final float BODY_BOT = 2f / 16f;
+    private static final float INTERIOR_FLOOR = 2f / 16f;
 
     /**
      * Vat body top (bottom of top cap, y=14px).
@@ -113,7 +113,7 @@ public class VatSpecialRenderer implements SpecialModelRenderer<VatSpecialRender
         float x1 = 1f - WALL - FLUID_INSET;
         float z0 = WALL + FLUID_INSET;
         float z1 = 1f - WALL - FLUID_INSET;
-        float yBot = BODY_BOT + Y_EPSILON;
+        float yBot = INTERIOR_FLOOR + Y_EPSILON;
         float y = yBot + fill * (BODY_TOP - yBot);
         return new CuboidBounds(x0, x1, z0, z1, yBot, y);
     }
