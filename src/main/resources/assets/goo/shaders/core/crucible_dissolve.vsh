@@ -38,8 +38,8 @@ const float FRACTION_UNITS = 4096.0;
 const float SHARE_UNITS = 127.0;
 
 // UV1.y carries the glow color as RGB565, read back unsigned from the short.
-vec3 unpackRgb565(int packed) {
-    uint bits = uint(packed) & 0xFFFFu;
+vec3 unpackRgb565(int rgb565) {
+    uint bits = uint(rgb565) & 0xFFFFu;
     return vec3(float((bits >> 11u) & 31u) / 31.0,
                 float((bits >> 5u) & 63u) / 63.0,
                 float(bits & 31u) / 31.0);
