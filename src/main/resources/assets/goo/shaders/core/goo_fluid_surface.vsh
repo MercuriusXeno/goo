@@ -60,6 +60,8 @@ void main() {
     cylindricalVertexDistance = fog_cylindrical_distance(lifted);
     vertexColor = Color;
     texCoord0 = UV0;
-    mingleWorldPos = worldPos + (lifted - Position);
+    // The mingle reads the unrippled position, so a patch keeps its type at
+    // every lift (decision diagnose-then-fix-undulation-blend-exposure).
+    mingleWorldPos = worldPos;
     layerShare = vec2(float(UV2.x) / SHARE_UNITS, float(UV2.y));
 }
