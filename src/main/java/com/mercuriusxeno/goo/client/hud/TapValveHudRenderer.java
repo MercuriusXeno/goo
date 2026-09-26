@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.block.tap.TapBlock;
 import com.mercuriusxeno.goo.block.tap.TapBlockEntity;
 import com.mercuriusxeno.goo.block.tap.TapDripGrade;
+import com.mercuriusxeno.goo.block.tap.TapHitRegion;
 import com.mercuriusxeno.goo.block.tap.TapValve;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
@@ -21,7 +22,7 @@ import java.util.Optional;
 
 /**
  * Renders a one-row panel above a tap's valve while the crosshair targets
- * the tap, reading the rate its valve runs at, or off
+ * the valve, reading the rate its valve runs at, or off
  * (decision valve-panel-reads-rate). The canister panel above the tap's
  * canister draws on its own.
  */
@@ -61,13 +62,18 @@ public final class TapValveHudRenderer {
 
     /**
      * @param mc the Minecraft client
-     * @return the position of the tap the crosshair targets, or null
+     * @return the position of the tap whose valve the crosshair targets, or null
      */
     private static @Nullable BlockPos targetedTap(Minecraft mc) {
         if (mc.level == null || mc.hitResult == null || mc.hitResult.getType() != HitResult.Type.BLOCK) {
             return null;
         }
-        BlockPos pos = ((BlockHitResult) mc.hitResult).getBlockPos();
-        return mc.level.getBlockState(pos).getBlock() instanceof TapBlock ? pos : null;
+        BlockHitResult hit = (BlockHitResult) mc.hitResult;
+        BlockPos pos = hit.getBlockPos();
+        BlockState state = mc.level.getBlockState(pos);
+        if (!(state.getBlock() instanceof TapBlock)) {
+            return null;
+        }
+        return TapHitRegion.of(hit, pos, state.getValue(TapBlock.FACING), false) == TapHitRegion.VALVE ? pos : null;
     }
 }

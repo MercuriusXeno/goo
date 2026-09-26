@@ -9,6 +9,7 @@ import com.mercuriusxeno.goo.block.reactor.ReactorBlock;
 import com.mercuriusxeno.goo.block.reactor.ReactorBlockEntity;
 import com.mercuriusxeno.goo.block.tap.TapBlock;
 import com.mercuriusxeno.goo.block.tap.TapBlockEntity;
+import com.mercuriusxeno.goo.block.tap.TapHitRegion;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -149,7 +150,7 @@ final class CanisterTargetResolver {
             return getHubTarget(mc, hit, pos);
         }
         if (be instanceof TapBlockEntity tap) {
-            return getTapTarget(mc, pos, tap);
+            return getTapTarget(mc, hit, pos, tap);
         }
         if (be instanceof ReactorBlockEntity reactor) {
             return getReactorTarget(mc, hit, pos, reactor);
@@ -199,16 +200,18 @@ final class CanisterTargetResolver {
      * Resolves a tap block hit into a canister target if the tap holds a canister.
      *
      * @param mc  the Minecraft instance
+     * @param hit the crosshair's hit on the tap
      * @param pos the block position
      * @param tap the tap block entity
-     * @return the target, or null if the tap has no canister
+     * @return the target, or null unless the hit lands on a slotted canister
+     *         (decision valve-panel-reads-rate)
      */
-    private static CanisterHudRenderer.@Nullable Target getTapTarget(Minecraft mc,
+    private static CanisterHudRenderer.@Nullable Target getTapTarget(Minecraft mc, BlockHitResult hit,
                                                                      BlockPos pos, TapBlockEntity tap) {
-        if (tap.getCanister().isEmpty()) {
+        Direction facing = mc.level.getBlockState(pos).getValue(TapBlock.FACING);
+        if (TapHitRegion.of(hit, pos, facing, !tap.getCanister().isEmpty()) != TapHitRegion.CANISTER) {
             return null;
         }
-        Direction facing = mc.level.getBlockState(pos).getValue(TapBlock.FACING);
         return tapTarget(pos, facing);
     }
 
