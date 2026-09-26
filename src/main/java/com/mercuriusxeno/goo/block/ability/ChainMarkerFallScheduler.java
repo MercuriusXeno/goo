@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.block.ability;
 
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ThrowArc;
 import com.mercuriusxeno.goo.network.BlobFlightPayload;
@@ -55,7 +56,8 @@ public final class ChainMarkerFallScheduler {
     public static void scheduleFall(ServerLevel level, BlockPos oldPos, BlockPos landingPos,
                                     Block markerBlock, ChainMarkerSnapshot snapshot) {
         double distance = oldPos.distManhattan(landingPos);
-        int travelTicks = (int) ThrowArc.travelTicks(distance);
+        GooTypeDefinition definition = GooTypes.definition(level.registryAccess(), snapshot.gooType());
+        int travelTicks = (int) ThrowArc.travelTicks(distance, definition.levity(), definition.baseFlightTime());
 
         broadcastFlight(level, oldPos, landingPos, snapshot, travelTicks);
 

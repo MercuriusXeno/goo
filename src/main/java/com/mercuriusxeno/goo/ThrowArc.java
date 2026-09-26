@@ -21,9 +21,6 @@ public final class ThrowArc {
     /** Multiplier on the gravity-based arc component (1.15 = +15%). */
     public static final double ARC_GRAVITY_SCALE = 1.15;
 
-    /** Blob travel speed in blocks per tick. */
-    public static final double BLOCKS_PER_TICK = 1.5;
-
     /** Lateral offset from eye to the glove arm, in blocks at scale 1. */
     public static final double ARM_SIDE = 0.35;
 
@@ -47,13 +44,17 @@ public final class ThrowArc {
     private ThrowArc() {}
 
     /**
-     * Computes travel time in ticks for a given distance.
+     * Computes travel time in ticks for a given distance, growing with the
+     * square root of distance so long throws stay flat (decision
+     * flight-time-root-times-levity-plus-base).
      *
-     * @param distance world-space distance in blocks
+     * @param distance       world-space distance in blocks
+     * @param levity         the thrown type's multiplier on the root of distance
+     * @param baseFlightTime the thrown type's ticks of flight before distance adds any
      * @return travel ticks, always >= 1
      */
-    public static double travelTicks(double distance) {
-        return Math.max(1, Math.ceil(distance / BLOCKS_PER_TICK));
+    public static double travelTicks(double distance, float levity, int baseFlightTime) {
+        return Math.max(1, Math.ceil(Math.sqrt(distance) * levity + baseFlightTime));
     }
 
     /**
