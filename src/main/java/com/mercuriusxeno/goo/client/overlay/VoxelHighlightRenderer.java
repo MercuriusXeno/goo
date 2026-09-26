@@ -11,7 +11,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.phys.AABB;
@@ -37,32 +36,8 @@ final class VoxelHighlightRenderer {
 
     /**
      * Renders goo-colored translucent fill and wireframe edges tracing the
-     * block's voxel outline shape.
-     *
-     * @param poseStack the pose stack for rendering
-     * @param bufferSource the buffer source for rendering
-     * @param camera the render camera
-     * @param pos the block position
-     * @param face the block face direction
-     * @param type the goo type
-     */
-    static void renderBlockFace(
-            PoseStack poseStack, MultiBufferSource.BufferSource bufferSource,
-            Camera camera, BlockPos pos, Direction face, ResourceKey<GooTypeDefinition> type) {
-        Minecraft mc = Minecraft.getInstance();
-        VoxelShape shape = mc.level.getBlockState(pos).getShape(mc.level, pos);
-        if (shape.isEmpty()) { return; }
-        Vec3 offset = cameraOffset(pos, camera);
-        int highlightRgb = ClientGooTypes.highlight(type);
-        int edgeRgb = ClientGooTypes.edge(type);
-        emitFillBoxes(poseStack, bufferSource, shape, offset.x, offset.y, offset.z, highlightRgb);
-        emitWireframeEdges(poseStack, bufferSource, mc, shape, offset.x, offset.y, offset.z, edgeRgb);
-    }
-
-    /**
-     * Renders goo-colored translucent fill and wireframe edges tracing the
-     * block's full voxel shape. Used for chain marker highlighting where
-     * no specific face is targeted.
+     * block's full voxel shape, so stairs, slabs and fences highlight their
+     * actual geometry.
      *
      * @param poseStack    the pose stack for rendering
      * @param bufferSource the buffer source for rendering
@@ -99,7 +74,7 @@ final class VoxelHighlightRenderer {
         Minecraft mc = Minecraft.getInstance();
         Vec3 offset = cameraOffset(pos, camera);
         int rgb = ClientGooTypes.highlight(type);
-        int fillColor = colorWithAlpha(rgb, FACE_ALPHA);
+        int fillColor = ARGB.color(FACE_ALPHA, rgb);
         CuboidBounds box = new CuboidBounds(
                 offsetMin(offset.x, 0), offsetMax(offset.x, 1),
                 offsetMin(offset.z, 0), offsetMax(offset.z, 1),
@@ -109,46 +84,25 @@ final class VoxelHighlightRenderer {
         ctx.emitBox(fillColor, box);
         bufferSource.endLastBatch();
 
-        int wireColor = colorWithAlpha(ClientGooTypes.edge(type), WIRE_ALPHA);
+        int wireColor = ARGB.color(WIRE_ALPHA, ClientGooTypes.edge(type));
         float lineWidth = mc.getWindow().getAppropriateLineWidth();
         LineContext lineCtx = new LineContext(poseStack.last(),
                 bufferSource.getBuffer(RenderTypes.lines()));
-        emitCubeEdges(lineCtx, offset.x, offset.y, offset.z, wireColor, lineWidth);
+        lineCtx.emitWireframe(unitCubeAt(offset), wireColor, lineWidth);
         bufferSource.endLastBatch();
     }
 
-    /** Emits the 12 edges of a unit cube at the given camera-relative offset.
+    /**
+     * The unit cube at a camera-relative offset.
      *
-     * @param ctx       the line rendering context
-     * @param ox        camera-relative X offset
-     * @param oy        camera-relative Y offset
-     * @param oz        camera-relative Z offset
-     * @param color     the ARGB color
-     * @param lineWidth the line width
+     * @param offset the camera-relative offset of the block's minimum corner
+     * @return the cube's bounds
      */
-    private static void emitCubeEdges(LineContext ctx, double ox, double oy, double oz,
-                                       int color, float lineWidth) {
-        float x0 = (float) ox;
-        float y0 = (float) oy;
-        float z0 = (float) oz;
-        float x1 = (float) (ox + 1);
-        float y1 = (float) (oy + 1);
-        float z1 = (float) (oz + 1);
-        // Bottom face edges
-        ctx.emitEdge(x0, y0, z0, x1, y0, z0, color, lineWidth);
-        ctx.emitEdge(x1, y0, z0, x1, y0, z1, color, lineWidth);
-        ctx.emitEdge(x1, y0, z1, x0, y0, z1, color, lineWidth);
-        ctx.emitEdge(x0, y0, z1, x0, y0, z0, color, lineWidth);
-        // Top face edges
-        ctx.emitEdge(x0, y1, z0, x1, y1, z0, color, lineWidth);
-        ctx.emitEdge(x1, y1, z0, x1, y1, z1, color, lineWidth);
-        ctx.emitEdge(x1, y1, z1, x0, y1, z1, color, lineWidth);
-        ctx.emitEdge(x0, y1, z1, x0, y1, z0, color, lineWidth);
-        // Vertical edges
-        ctx.emitEdge(x0, y0, z0, x0, y1, z0, color, lineWidth);
-        ctx.emitEdge(x1, y0, z0, x1, y1, z0, color, lineWidth);
-        ctx.emitEdge(x1, y0, z1, x1, y1, z1, color, lineWidth);
-        ctx.emitEdge(x0, y0, z1, x0, y1, z1, color, lineWidth);
+    private static CuboidBounds unitCubeAt(Vec3 offset) {
+        return new CuboidBounds(
+                (float) offset.x, (float) (offset.x + 1),
+                (float) offset.z, (float) (offset.z + 1),
+                (float) offset.y, (float) (offset.y + 1));
     }
 
     /**
@@ -184,7 +138,7 @@ final class VoxelHighlightRenderer {
     private static void emitFillBoxes(
             PoseStack poseStack, MultiBufferSource.BufferSource bufferSource,
             VoxelShape shape, double ox, double oy, double oz, int rgb) {
-        int fillColor = colorWithAlpha(rgb, FACE_ALPHA);
+        int fillColor = ARGB.color(FACE_ALPHA, rgb);
         FlatQuadContext ctx = new FlatQuadContext(poseStack.last(),
             bufferSource.getBuffer(RenderTypes.debugQuads()));
         AABB bounds = shape.bounds();
@@ -193,17 +147,6 @@ final class VoxelHighlightRenderer {
             offsetMin(oz, bounds.minZ), offsetMax(oz, bounds.maxZ),
             offsetMin(oy, bounds.minY), offsetMax(oy, bounds.maxY)));
         bufferSource.endLastBatch();
-    }
-
-    /**
-     * Creates an ARGB color from an RGB value and alpha channel.
-     *
-     * @param rgb   the RGB color
-     * @param alpha the alpha value (0-255)
-     * @return the ARGB color
-     */
-    private static int colorWithAlpha(int rgb, int alpha) {
-        return ARGB.color(alpha, ARGB.red(rgb), ARGB.green(rgb), ARGB.blue(rgb));
     }
 
     /**
@@ -244,7 +187,7 @@ final class VoxelHighlightRenderer {
             PoseStack poseStack, MultiBufferSource.BufferSource bufferSource,
             Minecraft mc, VoxelShape shape,
             double ox, double oy, double oz, int rgb) {
-        int wireColor = colorWithAlpha(rgb, WIRE_ALPHA);
+        int wireColor = ARGB.color(WIRE_ALPHA, rgb);
         float lineWidth = mc.getWindow().getAppropriateLineWidth();
         LineContext ctx = new LineContext(poseStack.last(), bufferSource.getBuffer(RenderTypes.lines()));
         shape.forAllEdges((x0, y0, z0, x1, y1, z1) ->
