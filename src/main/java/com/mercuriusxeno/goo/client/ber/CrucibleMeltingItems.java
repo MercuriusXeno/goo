@@ -76,10 +76,11 @@ final class CrucibleMeltingItems {
     void submit(CrucibleRenderState state, CrucibleBasin.@Nullable DrawnSurface surface,
                 PoseStack poseStack, SubmitNodeCollector nodeCollector) {
         if (state.hasHead) {
-            submitLyingFlat(state.headItem, CrucibleItemLayout.head(surface), poseStack,
+            submitLyingFlat(state.headItem, CrucibleItemLayout.head(surface, state.rippleAmplitude), poseStack,
                     new DissolvingItemCollector(nodeCollector, state.headGlow), state.lightCoords);
         }
-        List<CrucibleItemLayout.ItemPlacement> placements = CrucibleItemLayout.waiting(surface, state.waitingShown);
+        List<CrucibleItemLayout.ItemPlacement> placements = CrucibleItemLayout.waiting(surface, state.rippleAmplitude,
+                state.waitingShown);
         for (int i = 0; i < placements.size(); i++) {
             submitLyingFlat(state.waitingItems[i], placements.get(i), poseStack, nodeCollector, state.lightCoords);
         }
