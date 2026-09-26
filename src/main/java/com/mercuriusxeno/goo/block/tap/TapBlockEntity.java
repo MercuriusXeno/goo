@@ -5,6 +5,9 @@ import com.mercuriusxeno.goo.GooColors;
 import com.mercuriusxeno.goo.GooConstants;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.block.GooGlowingMachineBlockEntity;
+import com.mercuriusxeno.goo.block.ShapeHitCheck;
+import com.mercuriusxeno.goo.block.canister.HudAnchor;
+import com.mercuriusxeno.goo.block.canister.HudViewer;
 import com.mercuriusxeno.goo.block.canister.ICanisterHolder;
 import com.mercuriusxeno.goo.block.canister.SlottedCanisterData;
 import com.mercuriusxeno.goo.block.gasket.AddressedGasket;
@@ -22,9 +25,11 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -133,6 +138,53 @@ public class TapBlockEntity extends GooGlowingMachineBlockEntity implements ICan
         return state.getCanister(SLOT);
     }
 
+    // --- Client-read geometry (decision hosts-answer-bounds-through-interfaces) ---
+
+    private Direction facing() {
+        return getBlockState().getValue(TapBlock.FACING);
+    }
+
+    @Override
+    public @Nullable AABB slotBounds(int index) {
+        return index == SLOT ? TapBlock.canisterSlotShape(facing()).bounds() : null;
+    }
+
+    @Override
+    public VoxelShape outlineShape(BlockHitResult hit) {
+        return getBlockState().getShape(getLevel(), getBlockPos());
+    }
+
+    /**
+     * The held canister, while the hit lands on its voxel.
+     */
+    @Override
+    public @Nullable AABB pickupBounds(BlockHitResult hit) {
+        boolean onCanister = ShapeHitCheck.hitInsideShape(hit, getBlockPos(), TapBlock.canisterSlotShape(facing()));
+        return onCanister && isSlotFilled(SLOT) ? slotBounds(SLOT) : null;
+    }
+
+    @Override
+    public @Nullable AABB previewBounds(BlockHitResult hit, boolean sneaking) {
+        return isSlotFilled(SLOT) ? null : slotBounds(SLOT);
+    }
+
+    /**
+     * Over the held canister's top, wherever on the tap the hit lands.
+     */
+    @Override
+    public @Nullable HudAnchor hudAnchor(BlockHitResult hit, HudViewer viewer) {
+        if (!isSlotFilled(SLOT)) {
+            return null;
+        }
+        AABB slot = TapBlock.canisterSlotShape(facing()).bounds();
+        return new HudAnchor(SLOT, slot.getCenter().x, slot.getCenter().z, slot.maxY, Direction.UP);
+    }
+
+    @Override
+    public boolean takesCanisterAt(BlockHitResult hit, boolean sneaking) {
+        return true;
+    }
+
     /**
      * Inserts a canister into the tap's slot through the shared slot lifecycle,
      * restarting the drip countdown. Returns false if the slot is occupied.
@@ -230,6 +282,14 @@ public class TapBlockEntity extends GooGlowingMachineBlockEntity implements ICan
     @Override
     public @Nullable BooleanProperty gasketFlag(GasketRole role) {
         return role == GasketRole.RECEIVER ? TapBlock.HAS_GASKET : null;
+    }
+
+    /**
+     * The receiver gasket fills the canister slot, whatever slot the tuner names.
+     */
+    @Override
+    public @Nullable AABB slotBoundsFor(int slot, GasketRole role) {
+        return holdsBlockGasket(role) ? slotBounds(SLOT) : null;
     }
 
     // --- Framework lifecycle ---
