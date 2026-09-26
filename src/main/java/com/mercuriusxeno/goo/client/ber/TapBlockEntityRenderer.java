@@ -5,7 +5,6 @@ import com.mercuriusxeno.goo.block.tap.TapBlock;
 import com.mercuriusxeno.goo.block.tap.TapBlockEntity;
 import com.mercuriusxeno.goo.block.tap.TapStream;
 import com.mercuriusxeno.goo.client.CuboidBounds;
-import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.RenderContext;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
@@ -280,7 +279,8 @@ public class TapBlockEntityRenderer
 
     /**
      * Emits the four sides of the thin goo column the tap pours at 1:1, from
-     * the spigot underside down to the landing surface; a tap pouring no
+     * the spigot underside down to the landing surface, its sprite tiled one
+     * per block (decision diagnose-then-fix-stream-tiling); a tap pouring no
      * stream emits nothing (decision one-to-one-draws-a-stream).
      *
      * @param ctx    the render context
@@ -289,13 +289,12 @@ public class TapBlockEntityRenderer
      * @param tint   the goo type's fluid tint
      */
     static void emitStream(RenderContext ctx, TapRenderState state, TextureAtlasSprite sprite, int tint) {
-        if (state.streamType == null || state.streamBottomY >= STREAM_TOP) {
+        if (state.streamType == null) {
             return;
         }
-        CuboidBounds column = new CuboidBounds(STREAM_CENTER - STREAM_HW, STREAM_CENTER + STREAM_HW,
-                STREAM_CENTER - STREAM_HW, STREAM_CENTER + STREAM_HW, state.streamBottomY, STREAM_TOP);
-        ctx.emitSides(tint, column, new GooRenderUtil.UvRect(sprite.getU0(), sprite.getV0(), sprite.getU1(),
-                sprite.getV1()));
+        GooStreamRenderer.emitTiledColumn(ctx,
+                new GooStreamRenderer.StreamColumn(STREAM_CENTER, STREAM_CENTER, STREAM_TOP, state.streamBottomY),
+                STREAM_HW, sprite, tint);
     }
 
     /**

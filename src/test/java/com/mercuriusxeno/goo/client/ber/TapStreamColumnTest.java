@@ -27,6 +27,8 @@ class TapStreamColumnTest {
     private static final int VERTICES_PER_QUAD = 4;
     private static final float HALF_BLOCK = 0.5f;
     private static final float THIN = 1f / 16f;
+    private static final int THREE_BLOCKS = 3;
+    private static final float SPAN_TOLERANCE = 1e-4f;
 
     private static TextureAtlasSprite sprite() {
         TextureAtlasSprite sprite = mock(TextureAtlasSprite.class);
@@ -45,7 +47,7 @@ class TapStreamColumnTest {
     }
 
     @Test
-    void aPouringTapEmitsOneThinColumnFromSpigotToSurface() {
+    void aPouringTapEmitsAThinColumnFromSpigotToSurface() {
         // BlockEntityRenderState's constructor bootstraps Blocks, so the state is built without it.
         TapRenderState state = mock(TapRenderState.class);
         state.streamType = GooTypes.BLAZE;
@@ -53,7 +55,8 @@ class TapStreamColumnTest {
 
         List<RecordingVertexConsumer.Vertex> vertices = emit(state);
 
-        assertEquals(SIDES * VERTICES_PER_QUAD, vertices.size());
+        int segments = (int) Math.ceil(TapStream.SPIGOT_UNDERSIDE_LOCAL_Y - LANDING_LOCAL_Y);
+        assertEquals(segments * SIDES * VERTICES_PER_QUAD, vertices.size());
         assertTrue(vertices.stream().allMatch(vertex -> vertex.color() == TINT));
         assertEquals(LANDING_LOCAL_Y, vertices.stream().map(RecordingVertexConsumer.Vertex::y)
                 .min(Float::compare).orElseThrow());
@@ -61,6 +64,38 @@ class TapStreamColumnTest {
                 .map(RecordingVertexConsumer.Vertex::y).max(Float::compare).orElseThrow());
         assertTrue(vertices.stream().allMatch(vertex -> Math.abs(vertex.x() - HALF_BLOCK) < THIN
                 && Math.abs(vertex.z() - HALF_BLOCK) < THIN));
+    }
+
+    @Test
+    void aThreeBlockColumnTilesOneSpritePerBlock() {
+        TapRenderState state = mock(TapRenderState.class);
+        state.streamType = GooTypes.BLAZE;
+        state.streamBottomY = (float) TapStream.SPIGOT_UNDERSIDE_LOCAL_Y - THREE_BLOCKS;
+
+        List<RecordingVertexConsumer.Vertex> vertices = emit(state);
+
+        int quads = vertices.size() / VERTICES_PER_QUAD;
+        StringBuilder spans = new StringBuilder();
+        for (int quad = 0; quad < quads; quad++) {
+            List<RecordingVertexConsumer.Vertex> corners =
+                    vertices.subList(quad * VERTICES_PER_QUAD, (quad + 1) * VERTICES_PER_QUAD);
+            spans.append(String.format(" [y %.3f v %.3f]", span(corners, RecordingVertexConsumer.Vertex::y),
+                    span(corners, RecordingVertexConsumer.Vertex::v)));
+        }
+        assertEquals(THREE_BLOCKS * SIDES, quads, "quads, with y and v span each:" + spans);
+        for (int quad = 0; quad < quads; quad++) {
+            List<RecordingVertexConsumer.Vertex> corners =
+                    vertices.subList(quad * VERTICES_PER_QUAD, (quad + 1) * VERTICES_PER_QUAD);
+            assertEquals(1f, span(corners, RecordingVertexConsumer.Vertex::y), SPAN_TOLERANCE, spans.toString());
+            assertEquals(1f, span(corners, RecordingVertexConsumer.Vertex::v), SPAN_TOLERANCE, spans.toString());
+        }
+    }
+
+    private static float span(List<RecordingVertexConsumer.Vertex> corners,
+                              java.util.function.ToDoubleFunction<RecordingVertexConsumer.Vertex> axis) {
+        double min = corners.stream().mapToDouble(axis).min().orElseThrow();
+        double max = corners.stream().mapToDouble(axis).max().orElseThrow();
+        return (float) (max - min);
     }
 
     @Test
