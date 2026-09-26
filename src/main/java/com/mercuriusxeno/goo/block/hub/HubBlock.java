@@ -1,7 +1,8 @@
 package com.mercuriusxeno.goo.block.hub;
 
+import com.mercuriusxeno.goo.block.BlockEntityTicks;
 import com.mercuriusxeno.goo.block.GooBlockInteraction;
-import com.mercuriusxeno.goo.block.IGooLightSource;
+import com.mercuriusxeno.goo.block.GooMachineBlock;
 import com.mercuriusxeno.goo.block.ShapeHitCheck;
 import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
 import com.mercuriusxeno.goo.item.CanisterItem;
@@ -20,8 +21,6 @@ import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntityTicker;
-import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
@@ -38,7 +37,7 @@ import static com.mercuriusxeno.goo.GooConstants.NO_SLOT;
  * Canisters are inserted/removed via right-click on a specific slot.
  * Radially symmetrical: N, NE, E, SE, S, SW, W, NW.
  */
-public class HubBlock extends BaseEntityBlock {
+public class HubBlock extends GooMachineBlock {
 
     /**
      * Whether a choral gasket is installed on the hub's intake.
@@ -313,34 +312,9 @@ public class HubBlock extends BaseEntityBlock {
         return new HubBlockEntity(pos, state);
     }
 
-    /** Routes goo-driven block-light emission through the BE. */
     @Override
-    public int getLightEmission(BlockState state, BlockGetter level, BlockPos pos) {
-        return IGooLightSource.blockEmissionFor(level, pos);
-    }
-
-    /** BE-driven emission: see ReactorBlock.hasDynamicLightEmission. */
-    @Override
-    public boolean hasDynamicLightEmission(BlockState state) {
-        return true;
-    }
-
-    /**
-     * Registers the server-side tick dispatcher for per-slot gasket push.
-     *
-     * @param level the current level
-     * @param state the block state
-     * @param type  the goo type
-     * @return the ticker
-     */
-    @Nullable
-    @Override
-    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(
-            @NonNull Level level, @NonNull BlockState state, @NonNull BlockEntityType<T> type) {
-        if (level.isClientSide()) {
-            return null;
-        }
-        return createTickerHelper(type, GooBlockEntities.HUB.get(), HubBlockEntity::serverTick);
+    protected BlockEntityTicks<HubBlockEntity> ticks() {
+        return BlockEntityTicks.onServer(GooBlockEntities.HUB, HubBlockEntity::serverTick);
     }
 
     /**
