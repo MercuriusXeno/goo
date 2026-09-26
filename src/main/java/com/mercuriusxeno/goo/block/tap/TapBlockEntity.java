@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.GooColors;
 import com.mercuriusxeno.goo.GooConstants;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.block.BlockEntitySync;
+import com.mercuriusxeno.goo.block.IGooReceptacle;
 import com.mercuriusxeno.goo.block.canister.ICanisterHolder;
 import com.mercuriusxeno.goo.block.canister.SlottedCanisterData;
 import com.mercuriusxeno.goo.block.gasket.AddressedGasket;
@@ -42,7 +43,7 @@ import org.jspecify.annotations.Nullable;
  * reception (RECEIVER role).
  */
 public class TapBlockEntity extends net.minecraft.world.level.block.entity.BlockEntity
-        implements ICanisterHolder, IGasketHolder {
+        implements ICanisterHolder, IGasketHolder, IGooReceptacle {
 
     /**
      * The tap has exactly one canister slot.
@@ -218,6 +219,7 @@ public class TapBlockEntity extends net.minecraft.world.level.block.entity.Block
      * @param volume volume in microblobs to insert
      * @return the amount actually accepted (mB)
      */
+    @Override
     public int insertGoo(ResourceKey<GooTypeDefinition> type, int volume) {
         return insertGoo(SLOT, type, volume);
     }

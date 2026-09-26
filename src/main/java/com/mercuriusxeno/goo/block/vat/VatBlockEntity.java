@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.block.BlockEntitySync;
 import com.mercuriusxeno.goo.block.GooLightContribution;
 import com.mercuriusxeno.goo.block.IGooLightSource;
+import com.mercuriusxeno.goo.block.IGooReceptacle;
 import com.mercuriusxeno.goo.block.fluid.GooFluidHandler;
 import com.mercuriusxeno.goo.block.fluid.GooStream;
 import com.mercuriusxeno.goo.block.gasket.AddressedGasket;
@@ -47,7 +48,7 @@ import org.jspecify.annotations.Nullable;
  * {@link VatGasketOps} (gasket face resolution, stacking, drops).
  * Gasket field storage owned by {@link GasketState#dual}.</p>
  */
-public class VatBlockEntity extends BlockEntity implements IGasketHolder, IGooLightSource {
+public class VatBlockEntity extends BlockEntity implements IGasketHolder, IGooLightSource, IGooReceptacle {
 
     /**
      * Composed gasket integration: dual-role (RECEIVER cap, TRANSMITTER base) with a BE-level pusher.
@@ -146,6 +147,7 @@ public class VatBlockEntity extends BlockEntity implements IGasketHolder, IGooLi
      * @param volume volume in microblobs
      * @return the amount actually inserted
      */
+    @Override
     public int insertGoo(ResourceKey<GooTypeDefinition> type, int volume) {
         return fluidHandler.insertGoo(type, Math.min(volume, Integer.MAX_VALUE), false);
     }
