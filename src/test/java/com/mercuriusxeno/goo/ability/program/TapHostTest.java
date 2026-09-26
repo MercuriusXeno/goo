@@ -66,7 +66,7 @@ class TapHostTest {
 
     @Test
     void setBabyProgramRefusesAtLoadNamingTheTargetCapability() {
-        List<Step> steps = List.of(new SetBabyStep(true));
+        List<Step> steps = List.of(LeafSteps.SET_BABY.step(true));
 
         ProgramLoadException refusal = assertThrows(ProgramLoadException.class,
                 () -> ProgramBehavior.forHost(steps, HostKind.TAP));
@@ -85,7 +85,7 @@ class TapHostTest {
 
     @Test
     void waitingStepRefusesAtLoad() {
-        List<Step> steps = List.of(new WaitStep(Expr.literal(2)));
+        List<Step> steps = List.of(LeafSteps.WAIT.step(Expr.literal(2)));
 
         assertRefusal(assertThrows(ProgramLoadException.class, () -> ProgramBehavior.forHost(steps, HostKind.TAP)),
                 "wait");
