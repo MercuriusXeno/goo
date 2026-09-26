@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.client.overlay;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.GooColors;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.AbilityTags;
@@ -779,14 +778,10 @@ public final class GooTargetHighlighter {
         if (end == null) {
             return;
         }
-        GooTypeDefinition definition = ClientGooTypes.definition(selectedType);
-        if (definition == null) {
-            return;
-        }
         boolean grannyArc = target instanceof TargetResult.BlockTarget bt && bt.grannyArc();
         boolean straightLine = selectedType == GooTypes.GLOW;
         ArcRenderer.renderTargetArc(poseStack, bufferSource, camera,
-                player, end, definition, GooColors.highlight(definition), partialTick,
+                player, end, ClientGooTypes.highlight(selectedType), partialTick,
                 grannyArc, straightLine);
     }
 
