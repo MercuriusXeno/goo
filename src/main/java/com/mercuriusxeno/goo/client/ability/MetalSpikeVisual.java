@@ -36,8 +36,6 @@ public final class MetalSpikeVisual {
     private static final float SPIKE_BASE_RADIUS = 0.104f;
     /** Number of triangular faces on the spike cone. */
     private static final int SPIKE_SIDES = 3;
-    /** Two pi for angle computation. */
-    private static final float TWO_PI = (float) (2 * Math.PI);
     /** Alpha for spike cone color. */
     private static final int SPIKE_ALPHA = 0xCC;
     /** Epsilon for near-zero spike length checks. */
@@ -208,109 +206,7 @@ public final class MetalSpikeVisual {
                                       float bx, float by, float bz,
                                       float dirX, float dirY, float dirZ,
                                       float length, int color, GooRenderUtil.UvRect uv) {
-        float tipX = bx + dirX * length;
-        float tipY = by + dirY * length;
-        float tipZ = bz + dirZ * length;
-
-        float[] basis = ConeGeometry.computeBasis(dirX, dirY, dirZ);
-        emitConeFaces(ctx, bx, by, bz, tipX, tipY, tipZ, dirX, dirY, dirZ,
-                basis, color, uv);
-    }
-
-    /**
-     * Emits textured triangular fan faces around the cone from base to tip.
-     *
-     * @param ctx   the render context
-     * @param bx    cone base X
-     * @param by    cone base Y
-     * @param bz    cone base Z
-     * @param tipX  cone tip X
-     * @param tipY  cone tip Y
-     * @param tipZ  cone tip Z
-     * @param dirX  cone direction X
-     * @param dirY  cone direction Y
-     * @param dirZ  cone direction Z
-     * @param basis orthonormal basis from {@link #computeConeBasis}
-     * @param color packed ARGB color
-     * @param uv    goo fluid sprite UV rectangle
-     */
-    private static void emitConeFaces(RenderContext ctx,
-                                      float bx, float by, float bz,
-                                      float tipX, float tipY, float tipZ,
-                                      float dirX, float dirY, float dirZ,
-                                      float[] basis, int color, GooRenderUtil.UvRect uv) {
-        float uMid = (uv.u0() + uv.u1()) * HALF;
-        for (int i = 0; i < SPIKE_SIDES; i++) {
-            emitConeSegment(ctx, basis, color, uv, uMid,
-                    bx, by, bz, tipX, tipY, tipZ, dirX, dirY, dirZ, i);
-        }
-    }
-
-    /**
-     * Emits one triangular segment of a spike cone.
-     *
-     * @param ctx   the render context
-     * @param basis orthonormal basis vectors
-     * @param color packed ARGB cone color
-     * @param uv    fluid sprite UV rectangle
-     * @param uMid  U-axis midpoint for the tip vertex
-     * @param bx    cone base center X
-     * @param by    cone base center Y
-     * @param bz    cone base center Z
-     * @param tipX  cone tip X
-     * @param tipY  cone tip Y
-     * @param tipZ  cone tip Z
-     * @param dirX  cone direction X for tip normal
-     * @param dirY  cone direction Y for tip normal
-     * @param dirZ  cone direction Z for tip normal
-     * @param i     segment index around the cone
-     */
-    private static void emitConeSegment(RenderContext ctx, float[] basis,
-                                        int color, GooRenderUtil.UvRect uv, float uMid,
-                                        float bx, float by, float bz, float tipX, float tipY, float tipZ,
-                                        float dirX, float dirY, float dirZ, int i) {
-        float a0 = TWO_PI * i / SPIKE_SIDES;
-        float a1 = TWO_PI * (i + 1) / SPIKE_SIDES;
-        float cos0 = (float) Math.cos(a0) * SPIKE_BASE_RADIUS;
-        float sin0 = (float) Math.sin(a0) * SPIKE_BASE_RADIUS;
-        float cos1 = (float) Math.cos(a1) * SPIKE_BASE_RADIUS;
-        float sin1 = (float) Math.sin(a1) * SPIKE_BASE_RADIUS;
-        float[] normal = coneSegmentNormal(basis, i);
-        float nx = normal[ConeGeometry.PERP_X];
-        float ny = normal[ConeGeometry.PERP_Y];
-        float nz = normal[ConeGeometry.PERP_Z];
-        ctx.vertexColored(color,
-                bx + basis[ConeGeometry.PERP_X] * cos0 + basis[ConeGeometry.CROSS_X] * sin0,
-                by + basis[ConeGeometry.PERP_Y] * cos0 + basis[ConeGeometry.CROSS_Y] * sin0,
-                bz + basis[ConeGeometry.PERP_Z] * cos0 + basis[ConeGeometry.CROSS_Z] * sin0,
-                uv.u0(), uv.v0(), nx, ny, nz);
-        ctx.vertexColored(color,
-                bx + basis[ConeGeometry.PERP_X] * cos1 + basis[ConeGeometry.CROSS_X] * sin1,
-                by + basis[ConeGeometry.PERP_Y] * cos1 + basis[ConeGeometry.CROSS_Y] * sin1,
-                bz + basis[ConeGeometry.PERP_Z] * cos1 + basis[ConeGeometry.CROSS_Z] * sin1,
-                uv.u1(), uv.v0(), nx, ny, nz);
-        ctx.vertexColored(color, tipX, tipY, tipZ, uMid, uv.v1(), dirX, dirY, dirZ);
-        ctx.vertexColored(color, tipX, tipY, tipZ, uMid, uv.v1(), dirX, dirY, dirZ);
-    }
-
-    /**
-     * Computes the face normal of one cone segment: the basis direction at
-     * the angle midway between the segment's two base edges.
-     *
-     * @param basis   orthonormal basis vectors
-     * @param segment segment index around the cone
-     * @return a 3-element normal vector {nx, ny, nz}
-     */
-    static float[] coneSegmentNormal(float[] basis, int segment) {
-        float a0 = TWO_PI * segment / SPIKE_SIDES;
-        float a1 = TWO_PI * (segment + 1) / SPIKE_SIDES;
-        float midAngle = (a0 + a1) * HALF;
-        float midCos = (float) Math.cos(midAngle);
-        float midSin = (float) Math.sin(midAngle);
-        return new float[]{
-                basis[ConeGeometry.PERP_X] * midCos + basis[ConeGeometry.CROSS_X] * midSin,
-                basis[ConeGeometry.PERP_Y] * midCos + basis[ConeGeometry.CROSS_Y] * midSin,
-                basis[ConeGeometry.PERP_Z] * midCos + basis[ConeGeometry.CROSS_Z] * midSin,
-        };
+        ConeGeometry.Cone cone = new ConeGeometry.Cone(bx, by, bz, dirX, dirY, dirZ, length, SPIKE_BASE_RADIUS);
+        ConeGeometry.emitCone(ctx, cone, ConeGeometry.computeBasis(dirX, dirY, dirZ), SPIKE_SIDES, color, uv);
     }
 }
