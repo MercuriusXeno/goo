@@ -49,11 +49,6 @@ public class TapBlockEntity extends net.minecraft.world.level.block.entity.Block
      */
     public static final int SLOT = 0;
     /**
-     * Drip interval in ticks (40 ticks = 2 seconds), the one constant fixing
-     * the drip rate (decision fixed-drip-interval).
-     */
-    public static final int DRIP_INTERVAL = 40;
-    /**
      * Face label returned for tuner display.
      */
     private static final String FACE_LABEL = "tap";
@@ -72,9 +67,14 @@ public class TapBlockEntity extends net.minecraft.world.level.block.entity.Block
     private final GasketAttachment gasket = GasketAttachment.single(this, GasketRole.RECEIVER, FACE_LABEL);
 
     /**
+     * The rate the tap drips at while its valve is open.
+     */
+    private TapDripGrade dripGrade = TapDripGrade.SLOWEST;
+
+    /**
      * Ticks left until the next drip, held while the valve is closed.
      */
-    private final TapDripCountdown dripCountdown = new TapDripCountdown(DRIP_INTERVAL);
+    private final TapDripCountdown dripCountdown = new TapDripCountdown(dripGrade.intervalTicks());
 
     /**
      * Creates a new tap block entity.
@@ -91,8 +91,8 @@ public class TapBlockEntity extends net.minecraft.world.level.block.entity.Block
     }
 
     /**
-     * Server tick handler: while the valve is open, every {@link #DRIP_INTERVAL}
-     * ticks, draws one drip from the canister slot, sends its particle from
+     * Server tick handler: while the valve is open, once per interval of the
+     * tap's {@link TapDripGrade}, draws one drip from the canister slot, sends its particle from
      * the spigot and queues its landing on the first surface below. A closed
      * valve holds the countdown where it stands; a bottomless drop drips nothing.
      *
@@ -125,6 +125,26 @@ public class TapBlockEntity extends net.minecraft.world.level.block.entity.Block
         int fallTicks = DripFall.fallTicks(spigot.y - landing.surfaceY(), -TapDrip.DRIP_LEAVE_SPEED);
         TapDripScheduler.enqueue(new TapDripScheduler.PendingDrip(server, pos, landing.pos(), Direction.UP,
                 type, server.getServer().getTickCount() + fallTicks));
+    }
+
+    // --- Drip grade ---
+
+    /**
+     * @return the rate the tap drips at while its valve is open
+     */
+    public TapDripGrade dripGrade() {
+        return dripGrade;
+    }
+
+    /**
+     * Sets the rate the tap drips at, retiming the countdown to it.
+     *
+     * @param grade the new drip rate
+     */
+    public void setDripGrade(TapDripGrade grade) {
+        dripGrade = grade;
+        dripCountdown.retime(grade.intervalTicks());
+        markDirtyAndSync();
     }
 
     // --- Canister slot (single-slot convenience) ---
@@ -333,6 +353,7 @@ public class TapBlockEntity extends net.minecraft.world.level.block.entity.Block
         if (!can.isEmpty()) {
             output.store(TAG_CANISTER, ItemStack.CODEC, can);
         }
+        dripGrade.save(output);
         dripCountdown.save(output);
         gasket.saveAdditional(output);
     }
@@ -345,6 +366,8 @@ public class TapBlockEntity extends net.minecraft.world.level.block.entity.Block
         if (!loaded.isEmpty()) {
             state.slots[SLOT].buildHandler(() -> level != null ? level.getGameTime() : 0L);
         }
+        dripGrade = TapDripGrade.load(input);
+        dripCountdown.retime(dripGrade.intervalTicks());
         dripCountdown.load(input);
         gasket.loadAdditional(input);
     }
