@@ -65,15 +65,15 @@ final class ArcRenderer {
      * @param end          the target endpoint position
      * @param rgb          the RGB color for tinting
      * @param partialTick  the partial tick for animation
-     * @param grannyArc    if true, uses the boosted granny-arc peak height
+     * @param grannyWeight blend of the peak rules: 0 the plain peak, 1 the granny peak
      * @param straightLine if true, peak is zero (straight line, no arc)
      */
     static void renderTargetArc(
             PoseStack poseStack, MultiBufferSource.BufferSource bufferSource,
             Camera camera, Vec3 end,
-            int rgb, float partialTick, boolean grannyArc, boolean straightLine) {
+            int rgb, float partialTick, double grannyWeight, boolean straightLine) {
         Vec3 start = GloveAim.handPosition(camera);
-        Vec3[] points = sampleArcPoints(start, end, grannyArc, straightLine);
+        Vec3[] points = sampleArcPoints(start, end, grannyWeight, straightLine);
         float dashOffset = computeDashOffset(partialTick);
         Minecraft mc = Minecraft.getInstance();
         emitDashedGlow(poseStack, bufferSource, camera, points,
@@ -86,14 +86,14 @@ final class ArcRenderer {
      *
      * @param start     arc origin (hand position)
      * @param end       arc destination (target center)
-     * @param grannyArc    true for boosted granny-arc peak height
+     * @param grannyWeight blend of the peak rules: 0 the plain peak, 1 the granny peak
      * @param straightLine true for zero peak (straight line)
      * @return sampled polyline points
      */
     private static Vec3[] sampleArcPoints(Vec3 start, Vec3 end,
-            boolean grannyArc, boolean straightLine) {
+            double grannyWeight, boolean straightLine) {
         double distance = start.distanceTo(end);
-        double peak = straightLine ? 0 : computeArcPeak(distance, grannyArc);
+        double peak = straightLine ? 0 : computeArcPeak(distance, grannyWeight);
         int segments = Mth.clamp(
                 (int) (distance / SAMPLE_SPACING),
                 MIN_ARC_SEGMENTS, MAX_ARC_SEGMENTS);
@@ -101,16 +101,16 @@ final class ArcRenderer {
     }
 
     /**
-     * Selects the arc peak height based on whether this is a granny arc.
+     * Blends the plain and granny peak heights by weight, so the height
+     * eases with the endpoint between the two kinds of target (decision
+     * aim-line-lerps-toward-target).
      *
-     * @param distance  throw distance in blocks
-     * @param grannyArc true for boosted granny-arc peak
+     * @param distance     throw distance in blocks
+     * @param grannyWeight 0 for the plain peak, 1 for the granny peak
      * @return the arc peak height
      */
-    private static double computeArcPeak(double distance, boolean grannyArc) {
-        return grannyArc
-                ? ThrowArc.grannyPeak(distance)
-                : ThrowArc.basePeak(distance);
+    private static double computeArcPeak(double distance, double grannyWeight) {
+        return Mth.lerp(grannyWeight, ThrowArc.basePeak(distance), ThrowArc.grannyPeak(distance));
     }
 
     /**
@@ -120,9 +120,18 @@ final class ArcRenderer {
      * @return dash offset in world units
      */
     private static float computeDashOffset(float partialTick) {
+        return (float) frameSeconds(partialTick) * SCROLL_SPEED;
+    }
+
+    /**
+     * The frame clock: game time plus partial tick, in seconds.
+     *
+     * @param partialTick the partial tick for the frame
+     * @return seconds of game time at this frame
+     */
+    static double frameSeconds(float partialTick) {
         Minecraft mc = Minecraft.getInstance();
-        return (mc.level.getGameTime() + partialTick)
-                / TICKS_PER_SECOND * SCROLL_SPEED;
+        return (mc.level.getGameTime() + partialTick) / TICKS_PER_SECOND;
     }
 
     /**

@@ -44,6 +44,18 @@ public final class GooTargetHighlighter {
      * Partial tick captured at the opaque stage.
      */
     private static float cachedArcPartialTick;
+    /** The target the drawn arc eases toward, or null when no arc is drawn. */
+    private static @Nullable TargetResult easedTarget;
+    /** The endpoint drawn when the target last changed, or null when none was drawn. */
+    private static @Nullable Vec3 easeFromEndpoint;
+    /** The granny weight drawn when the target last changed. */
+    private static double easeFromGrannyWeight;
+    /** Frame clock seconds when the target last changed. */
+    private static double easeStartSeconds;
+    /** The endpoint drawn last frame, or null when none was drawn. */
+    private static @Nullable Vec3 drawnEndpoint;
+    /** The granny weight drawn last frame. */
+    private static double drawnGrannyWeight;
 
     private GooTargetHighlighter() {
     }
@@ -182,16 +194,58 @@ public final class GooTargetHighlighter {
         clearCachedArc();
         Minecraft mc = Minecraft.getInstance();
         if (target == null || type == null) {
+            clearEasedArc();
             return;
         }
         Vec3 end = target.resolveEndpoint();
         if (end == null) {
+            clearEasedArc();
             return;
         }
-        boolean grannyArc = target instanceof TargetResult.BlockTarget bt && bt.grannyArc();
+        double grannyWeight = target instanceof TargetResult.BlockTarget bt && bt.grannyArc() ? 1 : 0;
+        Vec3 drawn = easeArcToward(target, end, grannyWeight, ArcRenderer.frameSeconds(partialTick));
         ArcRenderer.renderTargetArc(event.getPoseStack(), mc.renderBuffers().bufferSource(),
-                mc.gameRenderer.getMainCamera(), end, ClientGooTypes.highlight(type),
-                partialTick, grannyArc, type == GooTypes.GLOW);
+                mc.gameRenderer.getMainCamera(), drawn, ClientGooTypes.highlight(type),
+                partialTick, drawnGrannyWeight, type == GooTypes.GLOW);
+    }
+
+    /**
+     * Advances the drawn arc toward the target, restarting the ease from what
+     * was drawn last frame whenever the target changes (decision
+     * aim-line-lerps-toward-target).
+     *
+     * @param target       the target this frame aims at
+     * @param end          the target's endpoint
+     * @param grannyWeight the target's peak weight, 1 for a granny arc
+     * @param nowSeconds   the frame clock
+     * @return the endpoint to draw this frame
+     */
+    private static Vec3 easeArcToward(TargetResult target, Vec3 end, double grannyWeight, double nowSeconds) {
+        if (!target.equals(easedTarget)) {
+            easedTarget = target;
+            easeFromEndpoint = drawnEndpoint;
+            easeFromGrannyWeight = drawnEndpoint == null ? grannyWeight : drawnGrannyWeight;
+            easeStartSeconds = nowSeconds;
+        }
+        double elapsed = nowSeconds - easeStartSeconds;
+        Vec3 drawn = ArcEndpointEase.easeEndpoint(easeFromEndpoint, end, elapsed, ArcEndpointEase.EASE_SECONDS);
+        drawnEndpoint = drawn;
+        drawnGrannyWeight = ArcEndpointEase.easeGrannyWeight(easeFromGrannyWeight, grannyWeight, elapsed,
+                ArcEndpointEase.EASE_SECONDS);
+        return drawn;
+    }
+
+    /**
+     * Forgets the drawn arc, so the next target draws at its own endpoint
+     * rather than sliding in from a stale one.
+     */
+    private static void clearEasedArc() {
+        easedTarget = null;
+        easeFromEndpoint = null;
+        easeFromGrannyWeight = 0;
+        easeStartSeconds = 0;
+        drawnEndpoint = null;
+        drawnGrannyWeight = 0;
     }
 
     /**
