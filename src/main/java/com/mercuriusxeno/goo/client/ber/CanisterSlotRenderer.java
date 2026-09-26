@@ -6,7 +6,6 @@ import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.RenderContext;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.SubmitNodeCollector;
-import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.resources.Identifier;
 import java.util.ArrayList;
 import java.util.List;
@@ -138,7 +137,7 @@ public final class CanisterSlotRenderer {
             return;
         }
         nodeCollector.submitCustomGeometry(poseStack,
-                RenderTypes.entitySolid(choral ? CHORAL_GASKET : COPPER_GASKET),
+                GooSubmitter.solidOn(choral ? CHORAL_GASKET : COPPER_GASKET),
                 (pose, c) -> renderCaps(new RenderContext(pose, c, light), geometry, slots, centers, choral));
     }
 
