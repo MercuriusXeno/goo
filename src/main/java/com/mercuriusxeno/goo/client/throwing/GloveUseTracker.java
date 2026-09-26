@@ -2,26 +2,30 @@ package com.mercuriusxeno.goo.client.throwing;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.GooTypeDefinition;
-import com.mercuriusxeno.goo.client.radial.GooRadialScreen;
+import com.mercuriusxeno.goo.client.radial.GloveRadialScreen;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.neoforge.client.event.InputEvent;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Client-side tracker for glove hold duration. Opens radial menu
- * when hold exceeds threshold. Auto-registered via EventBusSubscriber.
+ * Client-side tracker for the glove press: counts the held use key
+ * through {@link GloveInputGate}, throwing on a short release and opening
+ * the radial at the threshold. Auto-registered via EventBusSubscriber.
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class GloveUseTracker {
-    private static int holdTicks;
+    private static final GloveInputGate PRESS = new GloveInputGate();
+    private static InteractionHand pressHand = InteractionHand.MAIN_HAND;
 
     /** How often (in ticks) to re-check whether the selected goo type is in inventory. */
     private static final int AVAILABILITY_CHECK_INTERVAL = 10;
@@ -61,7 +65,7 @@ public final class GloveUseTracker {
             return;
         }
 
-        trackGloveHold(player);
+        trackGloveHold(mc, player);
         tickAvailabilityCheck(player);
         BlobFlightManager.tick();
         GloveThrowSender.tick();
@@ -70,37 +74,67 @@ public final class GloveUseTracker {
 
     /** Clears hold and availability state when no player is present. */
     private static void resetState() {
-        holdTicks = 0;
+        PRESS.cancel();
         selectedTypeAvailable = false;
         ThrowFreezeState.clear();
     }
 
     /**
-     * Tracks glove use-item hold and opens radial menu on threshold.
-     * @param player the local player to check for glove use-item input
+     * Starts a glove press: the glove's use reached the client with no
+     * block or entity interaction taking the click.
+     *
+     * @param hand the hand holding the glove
      */
-    private static void trackGloveHold(LocalPlayer player) {
-        if (player.isUsingItem() && player.getUseItem().getItem() instanceof GooGloveItem) {
-            holdTicks++;
-            if (holdTicks >= GooGloveItem.RADIAL_THRESHOLD_TICKS) {
-                ItemStack glove = player.getUseItem();
-                player.releaseUsingItem();
-                openAppropriateRadial(player, glove);
-                holdTicks = 0;
-            }
-        } else {
-            holdTicks = 0;
+    public static void pressGlove(InteractionHand hand) {
+        if (!PRESS.isArmed()) {
+            pressHand = hand;
+        }
+        PRESS.arm();
+    }
+
+    /**
+     * Cancels the offhand's turn at a right click while a main-hand glove
+     * press is live, which the glove's PASS would otherwise hand it.
+     *
+     * @param event the use-key interaction for one hand
+     */
+    @SubscribeEvent
+    public static void onUseKeyInteraction(InputEvent.InteractionKeyMappingTriggered event) {
+        if (event.isUseItem() && event.getHand() == InteractionHand.OFF_HAND
+                && PRESS.isArmed() && pressHand == InteractionHand.MAIN_HAND) {
+            event.setSwingHand(false);
+            event.setCanceled(true);
         }
     }
 
-    /** Opens the unified radial menu (type selection first, then abilities).
+    /**
+     * Advances the glove press off the held use key; a screen or a hand
+     * that no longer holds the glove drops it.
      *
-     * @param player   the local player holding the glove
-     * @param glove    the glove item stack (captured before release)
+     * @param mc     the client
+     * @param player the local player
      */
-    private static void openAppropriateRadial(LocalPlayer player,
-            ItemStack glove) {
-        GooRadialScreen.open();
+    private static void trackGloveHold(Minecraft mc, LocalPlayer player) {
+        if (mc.screen != null || !(player.getItemInHand(pressHand).getItem() instanceof GooGloveItem)) {
+            PRESS.cancel();
+            return;
+        }
+        PRESS.tick(mc.options.keyUse.isDown(), new GloveInputGate.PressActions() {
+            @Override
+            public boolean sendThrow() {
+                return GloveThrowSender.sendThrow(player);
+            }
+
+            @Override
+            public void swing() {
+                player.swing(pressHand);
+            }
+
+            @Override
+            public void openRadial() {
+                GloveRadialScreen.open();
+            }
+        });
     }
 
     /**

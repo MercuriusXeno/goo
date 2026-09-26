@@ -10,8 +10,8 @@ import net.minecraft.world.level.material.Fluids;
 import org.jspecify.annotations.Nullable;
 
 /**
- * What the highlight reads off the aimed-at block: the chain marker there
- * or beside it, whether it takes another blob, its goo type, and whether
+ * What the aim reads off the aimed-at block: the chain marker of the
+ * selected ability there or beside it, whether it takes another blob, its goo type, and whether
  * the block is a water source (decision render-context-is-the-one-emitter).
  */
 final class TargetBlockReads {
@@ -46,23 +46,39 @@ final class TargetBlockReads {
     }
 
     /**
-     * The chain marker at the hit block or on the hit face beside it,
-     * where a thrown blob would place one.
+     * The chain marker of the selected ability at the hit block or on the
+     * hit face beside it, where a thrown blob would place one.
      *
-     * @param level the client level
-     * @param pos   the hit block position
-     * @param face  the hit face
+     * @param level     the client level
+     * @param pos       the hit block position
+     * @param face      the hit face
+     * @param abilityId the glove's selected ability id
      * @return the chain marker position, or null
      */
-    static @Nullable BlockPos adjacentMarker(Level level, BlockPos pos, Direction face) {
-        if (level.getBlockEntity(pos) instanceof ChainMarkerBlockEntity) {
+    static @Nullable BlockPos adjacentMarker(Level level, BlockPos pos, Direction face,
+                                             @Nullable String abilityId) {
+        if (isKeyedMarker(level, pos, abilityId)) {
             return pos;
         }
         BlockPos adj = pos.relative(face);
-        if (level.getBlockEntity(adj) instanceof ChainMarkerBlockEntity) {
+        if (isKeyedMarker(level, adj, abilityId)) {
             return adj;
         }
         return null;
+    }
+
+    /**
+     * Whether a chain marker of the selected ability stands at the position
+     * (decision diagnose-then-fix-stack-key-match).
+     *
+     * @param level     the client level
+     * @param pos       the block position
+     * @param abilityId the glove's selected ability id
+     * @return true for a marker the selection keys onto
+     */
+    static boolean isKeyedMarker(Level level, BlockPos pos, @Nullable String abilityId) {
+        return level.getBlockEntity(pos) instanceof ChainMarkerBlockEntity be
+                && AimAssistResolver.locksMarker(be.getAbilityId(), abilityId);
     }
 
     /**

@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ThrowArc;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.StackKey;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
@@ -155,18 +156,19 @@ public final class BlobThrowHandler {
         if (abilityId == null) { return THROW_COST; }
         AbilityDefinition def = AbilityRegistry.getAbility(abilityId);
         if (def == null || def.gooType() != gooType) { return THROW_COST; }
-        int stackPos = countExistingStacks(player.level(), payload.targetPos());
+        int stackPos = countExistingStacks(player.level(), payload.targetPos(), payload.abilityId());
         return def.throwCost(stackPos);
     }
 
-    /** Counts the current stack count at a target position (landed blobs).
+    /** Counts the current stack count of the thrown ability's marker at a target position.
      *
-     * @param level the server level
-     * @param pos   the target block position
-     * @return the current stack count, or 0 if no marker exists
+     * @param level     the server level
+     * @param pos       the target block position
+     * @param abilityId the thrown ability id
+     * @return the current stack count, or 0 if no marker of that ability stands there
      */
-    private static int countExistingStacks(ServerLevel level, BlockPos pos) {
-        ChainMarkerBlockEntity be = findChainMarker(level, pos, null);
+    private static int countExistingStacks(ServerLevel level, BlockPos pos, String abilityId) {
+        ChainMarkerBlockEntity be = findChainMarker(level, pos, null, abilityId);
         return be != null ? be.getStackCount() : 0;
     }
 
@@ -247,10 +249,10 @@ public final class BlobThrowHandler {
     }
 
     /**
-     * If the throw targets a chain marker (directly or at the adjacent
-     * position), resets its fuse so it doesn't detonate while blobs are
-     * in flight. The user's throw declaration is treated as intent to
-     * stack, keeping the fuse alive.
+     * If the throw targets a chain marker of its own ability (directly or
+     * at the adjacent position), resets its fuse so it doesn't detonate
+     * while blobs are in flight. The user's throw declaration is treated
+     * as intent to stack, keeping the fuse alive.
      *
      * @param player  the throwing player
      * @param payload the throw payload data
@@ -260,40 +262,43 @@ public final class BlobThrowHandler {
         BlockPos pos = payload.targetPos();
         Direction face = directionFromOrdinal(payload.targetFace());
         ServerLevel level = player.level();
-        ChainMarkerBlockEntity be = findChainMarker(level, pos, face);
+        ChainMarkerBlockEntity be = findChainMarker(level, pos, face, payload.abilityId());
         if (be != null && be.getBehavior() == null) {
             be.stallFuse();
         }
     }
 
     /**
-     * Finds a chain marker BE at the given pos or the adjacent block.
+     * Finds the thrown ability's chain marker at the given pos or the adjacent block.
      *
-     * @param level the server level
-     * @param pos   the hit block position
-     * @param face  the hit face, or null
+     * @param level     the server level
+     * @param pos       the hit block position
+     * @param face      the hit face, or null
+     * @param abilityId the thrown ability id
      * @return the chain marker BE, or null
      */
     private static @Nullable ChainMarkerBlockEntity findChainMarker(
-            ServerLevel level, BlockPos pos, @Nullable Direction face) {
-        ChainMarkerBlockEntity primary = asChainMarker(level.getBlockEntity(pos));
+            ServerLevel level, BlockPos pos, @Nullable Direction face, String abilityId) {
+        ChainMarkerBlockEntity primary = asKeyedMarker(level.getBlockEntity(pos), abilityId);
         if (primary != null) {
             return primary;
         }
         if (face == null) {
             return null;
         }
-        return asChainMarker(level.getBlockEntity(pos.relative(face)));
+        return asKeyedMarker(level.getBlockEntity(pos.relative(face)), abilityId);
     }
 
     /**
-     * Casts the given BE to {@link ChainMarkerBlockEntity}, or returns null.
+     * Casts the given BE to a {@link ChainMarkerBlockEntity} running the thrown ability, or returns null.
      *
-     * @param entity the block entity to test (may be null)
+     * @param entity    the block entity to test (may be null)
+     * @param abilityId the thrown ability id
      * @return the marker BE, or null
      */
-    private static @Nullable ChainMarkerBlockEntity asChainMarker(@Nullable BlockEntity entity) {
-        return entity instanceof ChainMarkerBlockEntity be ? be : null;
+    private static @Nullable ChainMarkerBlockEntity asKeyedMarker(@Nullable BlockEntity entity, String abilityId) {
+        return entity instanceof ChainMarkerBlockEntity be && StackKey.matches(be.getAbilityId(), abilityId)
+                ? be : null;
     }
 
     /**

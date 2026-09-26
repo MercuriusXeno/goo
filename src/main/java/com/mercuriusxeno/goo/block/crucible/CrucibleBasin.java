@@ -23,39 +23,107 @@ public final class CrucibleBasin {
     /** The basin's depth in model pixels, the steps the fill curve climbs. */
     public static final int PIXEL_COUNT = Math.round((RIM_Y - FLOOR_Y) * 16f);
 
-    /** The volume that raises the surface one pixel off the floor. */
-    public static final int FIRST_PIXEL_VOLUME = 1_000;
+    /** The volume at which the puddle touches the walls and the level starts to rise. */
+    public static final int SPREAD_VOLUME = 1_000;
     /** The volume at which the surface reaches the rim, and no smaller one does. */
     public static final int RIM_VOLUME = 1_000_000_000;
+    /** The puddle's fixed depth above the floor while it spreads, a quarter pixel. */
+    public static final float PUDDLE_DEPTH = 1f / 64f;
+    /** The smallest puddle's half-width, so the first drop draws as a small square. */
+    public static final float PUDDLE_MIN_HALF_WIDTH = 1f / 32f;
+    /** The volume the rise curve is tuned on, a moderate amount of goo. */
+    static final int MODERATE_VOLUME = 16_000;
+    /** The height in pixels above the floor the moderate volume stands at. */
+    static final double MODERATE_HEIGHT_PIXELS = 1.5;
 
-    /** Bisection rounds solving the pixel growth ratio, far past double precision. */
+    /** The footprint's center in block-relative X and Z. */
+    private static final float FOOTPRINT_CENTER = (FOOTPRINT_MIN + FOOTPRINT_MAX) / 2f;
+    /** The full basin's half-width, the puddle's at the spread volume. */
+    private static final float FULL_HALF_WIDTH = (FOOTPRINT_MAX - FOOTPRINT_MIN) / 2f;
+    /** The puddle's depth as a share of the floor-to-rim span. */
+    private static final double PUDDLE_SHARE = PUDDLE_DEPTH / (RIM_Y - FLOOR_Y);
+
+    /** Bisection rounds solving the volume scale, far past double precision. */
     private static final int SOLVER_ROUNDS = 200;
     /** The share of a bracket each bisection round keeps. */
     private static final double HALF = 0.5;
+    /** The lowest volume scale the solver brackets. */
+    private static final double SCALE_LOW = 1e-6;
+    /** The highest volume scale the solver brackets. */
+    private static final double SCALE_HIGH = 1e12;
 
+    /** The volume the rise curve spans, from the spread volume to the rim. */
+    private static final double RISE_SPAN = (double) RIM_VOLUME - SPREAD_VOLUME;
     /**
-     * The volume scale under the log, chosen so the first pixel takes
-     * {@link #FIRST_PIXEL_VOLUME} and the eighth ends at {@link #RIM_VOLUME}.
+     * The volume scale under the log, chosen so {@link #MODERATE_VOLUME}
+     * stands {@link #MODERATE_HEIGHT_PIXELS} above the floor.
      */
     private static final double VOLUME_SCALE = solveVolumeScale();
-    /** The log of the rim volume on that scale, the curve's denominator. */
-    private static final double RIM_LOG = Math.log1p(RIM_VOLUME / VOLUME_SCALE);
+    /** The log of the rise span on that scale, the curve's denominator. */
+    private static final double RIM_LOG = Math.log1p(RISE_SPAN / VOLUME_SCALE);
+
+    /**
+     * The square the goo covers, centered on the basin floor.
+     *
+     * @param min the low X and Z edge in block-relative coords
+     * @param max the high X and Z edge in block-relative coords
+     */
+    public record PuddleFootprint(float min, float max) {
+
+        /**
+         * @return the footprint's half-width in block-relative coords
+         */
+        public float halfWidth() {
+            return (float) ((max - min) * HALF);
+        }
+    }
 
     private CrucibleBasin() {}
 
     /**
-     * The fill curve every reader of the crucible surface shares: each pixel
-     * of height takes more volume than the one below it, and only the rim
-     * volume fills the basin (decision each-pixel-harder-to-fill).
+     * The square the goo covers: below {@link #SPREAD_VOLUME} a puddle whose
+     * area grows with volume, at and past it the whole floor (decision
+     * puddle-touches-walls-at-a-thousand).
      *
      * @param volume the pool and reservoir volume together
-     * @return the fill fraction in [0, 1], below one for any volume under the rim volume
+     * @return the footprint, strictly inside the walls below the spread volume
+     */
+    public static PuddleFootprint footprintForVolume(long volume) {
+        if (volume >= SPREAD_VOLUME) {
+            return new PuddleFootprint(FOOTPRINT_MIN, FOOTPRINT_MAX);
+        }
+        double spread = Math.sqrt(Math.max(volume, 0L) / (double) SPREAD_VOLUME);
+        float halfWidth = Math.max(PUDDLE_MIN_HALF_WIDTH, (float) (FULL_HALF_WIDTH * spread));
+        return new PuddleFootprint(FOOTPRINT_CENTER - halfWidth, FOOTPRINT_CENTER + halfWidth);
+    }
+
+    /**
+     * The rise curve past the spread volume: each pixel of height takes more
+     * volume than the one below it, and only the rim volume fills the basin
+     * (decisions each-pixel-harder-to-fill, puddle-touches-walls-at-a-thousand).
+     *
+     * @param volume the pool and reservoir volume together
+     * @return the rise fraction in [0, 1], zero up to the spread volume and below one under the rim volume
      */
     public static float fillFraction(long volume) {
+        if (volume <= SPREAD_VOLUME) { return 0f; }
+        if (volume >= RIM_VOLUME) { return 1f; }
+        float fraction = (float) (Math.log1p((volume - SPREAD_VOLUME) / VOLUME_SCALE) / RIM_LOG);
+        return Math.min(fraction, Math.nextDown(1f));
+    }
+
+    /**
+     * The surface height as a share of the floor-to-rim span: the puddle depth
+     * while the goo spreads, then the rise curve on the span above it.
+     *
+     * @param volume the pool and reservoir volume together
+     * @return the height fraction in [0, 1], zero only for an empty basin
+     */
+    public static float heightFraction(long volume) {
         if (volume <= 0) { return 0f; }
         if (volume >= RIM_VOLUME) { return 1f; }
-        float fraction = (float) (Math.log1p(volume / VOLUME_SCALE) / RIM_LOG);
-        return Math.min(fraction, Math.nextDown(1f));
+        float height = (float) (PUDDLE_SHARE + fillFraction(volume) * (1.0 - PUDDLE_SHARE));
+        return Math.min(height, Math.nextDown(1f));
     }
 
     /**
@@ -77,46 +145,42 @@ public final class CrucibleBasin {
      * @return the surface Y in block-relative coords
      */
     public static float surfaceYForVolume(long volume) {
-        return surfaceY(fillFraction(volume));
+        return surfaceY(heightFraction(volume));
     }
 
     /**
-     * The volume at which the surface crosses a pixel line.
+     * The volume at which the rising surface crosses a pixel line above the puddle.
      *
-     * @param pixel the pixel line, zero at the floor and {@link #PIXEL_COUNT} at the rim
+     * @param pixel the pixel line, one above the floor up to {@link #PIXEL_COUNT} at the rim
      * @return the volume that raises the surface to that line
      */
     static double pixelCrossingVolume(int pixel) {
-        return VOLUME_SCALE * Math.expm1(RIM_LOG * pixel / PIXEL_COUNT);
+        double rise = ((double) pixel / PIXEL_COUNT - PUDDLE_SHARE) / (1.0 - PUDDLE_SHARE);
+        return SPREAD_VOLUME + VOLUME_SCALE * Math.expm1(RIM_LOG * rise);
     }
 
     /**
-     * Solves the ratio each pixel's volume grows by over the one below it, so
-     * the pixel volumes, a geometric series from the first pixel's, sum to the
-     * rim volume; the scale under the log follows from it.
+     * Solves the scale under the log so the moderate volume stands at its
+     * pixel height; the rise fraction falls as the scale grows, so bisection
+     * on the log of the scale finds it.
      *
      * @return the volume scale under the log
      */
     private static double solveVolumeScale() {
-        double low = 1.0;
-        double high = (double) RIM_VOLUME / FIRST_PIXEL_VOLUME;
+        double targetRise = (MODERATE_HEIGHT_PIXELS / PIXEL_COUNT - PUDDLE_SHARE) / (1.0 - PUDDLE_SHARE);
+        double moderateRise = (double) MODERATE_VOLUME - SPREAD_VOLUME;
+        double low = Math.log(SCALE_LOW);
+        double high = Math.log(SCALE_HIGH);
         for (int i = 0; i < SOLVER_ROUNDS; i++) {
-            double ratio = midpoint(low, high);
-            if (rimVolumeAtRatio(ratio) < RIM_VOLUME) {
-                low = ratio;
+            double logScale = midpoint(low, high);
+            double scale = Math.exp(logScale);
+            if (Math.log1p(moderateRise / scale) / Math.log1p(RISE_SPAN / scale) > targetRise) {
+                low = logScale;
             } else {
-                high = ratio;
+                high = logScale;
             }
         }
-        return FIRST_PIXEL_VOLUME / (midpoint(low, high) - 1);
-    }
-
-    /**
-     * @param ratio the growth ratio of each pixel's volume over the one below it
-     * @return the volume the pixels sum to, the first taking {@link #FIRST_PIXEL_VOLUME}
-     */
-    private static double rimVolumeAtRatio(double ratio) {
-        return FIRST_PIXEL_VOLUME * (Math.pow(ratio, PIXEL_COUNT) - 1) / (ratio - 1);
+        return Math.exp(midpoint(low, high));
     }
 
     /**

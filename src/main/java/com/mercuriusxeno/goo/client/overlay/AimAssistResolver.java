@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.overlay;
 
+import com.mercuriusxeno.goo.ability.StackKey;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
@@ -114,14 +115,15 @@ final class AimAssistResolver {
      * @param from     the ray start (eye position)
      * @param to       the ray end (eye + look * range)
      * @param previous the previous frame's hit, or null
+     * @param abilityId the glove's selected ability id, the only marker key it locks
      * @return the best hit, or null if none in range/cone
      */
     static @Nullable AimHit findClosestAimHit(Player player, Vec3 from, Vec3 to,
-                                              @Nullable AimHit previous) {
+                                              @Nullable AimHit previous, @Nullable String abilityId) {
         Vec3 lookDir = to.subtract(from).normalize();
         Level level = player.level();
         List<Entity> entities = gatherCandidates(player, from, to);
-        List<BlockPos> markers = gatherChainMarkers(level, from, to);
+        List<BlockPos> markers = gatherChainMarkers(level, from, to, abilityId);
 
         List<AimHit> candidates = asHits(entities, markers);
         AimHit exact = findExactHit(candidates, player, from, to);
@@ -157,9 +159,10 @@ final class AimAssistResolver {
      * @param level the current level
      * @param from  ray start (eye position)
      * @param to    ray end (eye + look * range)
+     * @param abilityId the glove's selected ability id
      * @return list of chain marker block positions inside the search box
      */
-    private static List<BlockPos> gatherChainMarkers(Level level, Vec3 from, Vec3 to) {
+    private static List<BlockPos> gatherChainMarkers(Level level, Vec3 from, Vec3 to, @Nullable String abilityId) {
         // Reuse the same AABB as entity gathering so the cone shape is consistent.
         double coneRadius = MAX_RANGE * Math.tan(Math.toRadians(AIM_ASSIST_DEGREES));
         AABB box = new AABB(from, to).inflate(coneRadius + 1.0);
@@ -170,30 +173,42 @@ final class AimAssistResolver {
         List<BlockPos> markers = new ArrayList<>();
         for (int cx = minCX; cx <= maxCX; cx++) {
             for (int cz = minCZ; cz <= maxCZ; cz++) {
-                collectMarkersInChunk(level, cx, cz, box, markers);
+                collectMarkersInChunk(level, cx, cz, box, abilityId, markers);
             }
         }
         return markers;
     }
 
     /**
-     * Pulls chain marker block entities out of a single chunk if it is
-     * currently loaded client-side.
+     * Whether the aim assist locks a standing marker for the glove's selection.
      *
-     * @param level the current level
-     * @param cx    chunk X coordinate
-     * @param cz    chunk Z coordinate
-     * @param box   the search bounding box in world space
-     * @param out   list to append matching positions to
+     * @param markerAbilityId   the marker's ability id
+     * @param selectedAbilityId the glove's selected ability id, or null
+     * @return true only when the marker runs the selected ability
+     */
+    static boolean locksMarker(@Nullable String markerAbilityId, @Nullable String selectedAbilityId) {
+        return StackKey.matches(markerAbilityId, selectedAbilityId);
+    }
+
+    /**
+     * Pulls the selected ability's chain marker block entities out of a
+     * single chunk if it is currently loaded client-side.
+     *
+     * @param level     the current level
+     * @param cx        chunk X coordinate
+     * @param cz        chunk Z coordinate
+     * @param box       the search bounding box in world space
+     * @param abilityId the glove's selected ability id
+     * @param out       list to append matching positions to
      */
     private static void collectMarkersInChunk(Level level, int cx, int cz,
-                                              AABB box, List<BlockPos> out) {
+                                              AABB box, @Nullable String abilityId, List<BlockPos> out) {
         LevelChunk chunk = level.getChunkSource().getChunkNow(cx, cz);
         if (chunk == null) {
             return;
         }
         for (BlockEntity be : chunk.getBlockEntities().values()) {
-            if (!(be instanceof ChainMarkerBlockEntity)) {
+            if (!(be instanceof ChainMarkerBlockEntity marker && locksMarker(marker.getAbilityId(), abilityId))) {
                 continue;
             }
             BlockPos pos = be.getBlockPos();

@@ -1,8 +1,8 @@
 package com.mercuriusxeno.goo.client.overlay;
 
-import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
 import com.mercuriusxeno.goo.client.TargetResult;
+import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.client.throwing.TargetingHint;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -52,11 +52,12 @@ final class AimTargets {
         }
         Vec3 eyePos = player.getEyePosition(1.0f);
         Vec3 reach = eyePos.add(player.getViewVector(1.0f).scale(AimState.MAX_RANGE));
+        String abilityId = GloveAim.selectedAbilityId(player);
         if (hint == TargetingHint.ENTITY) {
-            AimAssistResolver.AimHit hit = AimAssistResolver.findClosestAimHit(player, eyePos, reach, seed);
+            AimAssistResolver.AimHit hit = AimAssistResolver.findClosestAimHit(player, eyePos, reach, seed, abilityId);
             return new AimState.Resolution(targetOf(hit), hit);
         }
-        return new AimState.Resolution(resolveBlockTarget(player, eyePos, reach), null);
+        return new AimState.Resolution(resolveBlockTarget(player, eyePos, reach, abilityId), null);
     }
 
     /**
@@ -83,15 +84,17 @@ final class AimTargets {
      * @param player the local player
      * @param eyePos the eye position
      * @param reach  the maximum reach endpoint
+     * @param abilityId the glove's selected ability id
      * @return the resolved block target, or max-range projection on miss
      */
-    private static TargetResult resolveBlockTarget(Player player, Vec3 eyePos, Vec3 reach) {
+    private static TargetResult resolveBlockTarget(Player player, Vec3 eyePos, Vec3 reach,
+                                                   @Nullable String abilityId) {
         BlockHitResult hit = player.level().clip(new ClipContext(
                 eyePos, reach, ClipContext.Block.OUTLINE, ClipContext.Fluid.SOURCE_ONLY, player));
         if (hit.getType() != HitResult.Type.BLOCK) {
             return projectToGround(player.level(), reach);
         }
-        return classifyBlockHit(player.level(), hit);
+        return classifyBlockHit(player.level(), hit, abilityId);
     }
 
     /**
@@ -124,12 +127,13 @@ final class AimTargets {
      *
      * @param level the current level
      * @param hit   the confirmed block hit
+     * @param abilityId the glove's selected ability id; a marker of another reads as a solid block
      * @return granny-arc or block-face target result
      */
-    private static TargetResult classifyBlockHit(Level level, BlockHitResult hit) {
+    private static TargetResult classifyBlockHit(Level level, BlockHitResult hit, @Nullable String abilityId) {
         BlockPos pos = hit.getBlockPos();
         Direction face = hit.getDirection();
-        if (level.getBlockEntity(pos) instanceof ChainMarkerBlockEntity) {
+        if (TargetBlockReads.isKeyedMarker(level, pos, abilityId)) {
             return TargetResult.chainMarker(pos);
         }
         if (level.getBlockState(pos).getBlock() instanceof GlowCrystalBlock) {

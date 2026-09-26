@@ -58,6 +58,8 @@ public final class CrucibleParticleHelper {
     private static final long BUBBLE_TTL_TICKS = 54;
     /** Inset from each inner wall so a bubble's own radius stays clear of it (bubbles-halved-and-inset). */
     static final double BUBBLE_WALL_INSET = 1.5 / 16.0;
+    /** The share of a span from its edge to its center, the most a bubble's inset takes. */
+    private static final double HALF_SPAN = 0.5;
     /** One bubble spawns on one server tick in this many (bubbles-halved-and-inset). */
     static final int BUBBLE_ONE_IN_TICKS = 20;
 
@@ -156,28 +158,39 @@ public final class CrucibleParticleHelper {
     }
 
     /**
-     * Spawns a color-tinted goo bubble on one tick in {@link #BUBBLE_ONE_IN_TICKS}, at random XZ within the basin.
+     * Spawns a color-tinted goo bubble on one tick in {@link #BUBBLE_ONE_IN_TICKS}, at random XZ within the
+     * goo's footprint, so bubbles rise from goo that is drawn (decision puddle-touches-walls-at-a-thousand).
      * Rejects positions too close to live (non-expired) bubbles using per-crucible history.
      *
      * @param level    the current level
      * @param pos      the block position
-     * @param surfaceY the liquid surface Y in block coords
+     * @param totalGoo the pool and reservoir volume together
      * @param color    the ARGB color value
      * @param random   the random source
      * @param history  per-crucible bubble spawn history
      */
     public static void spawnGooBubbles(ServerLevel level, BlockPos pos,
-            float surfaceY, int color, RandomSource random,
+            long totalGoo, int color, RandomSource random,
             BubbleHistory history) {
         history.tick(level.getGameTime());
         int count = bubbleCount(random);
         ColorParticleOption options = ColorParticleOption.create(
             GooParticles.GOO_BUBBLE.get(), color | ALPHA_OPAQUE);
-        double y = pos.getY() + surfaceY + BUBBLE_RISE_OFFSET;
+        double y = pos.getY() + computeSurfaceY(totalGoo) + BUBBLE_RISE_OFFSET;
+        CrucibleBasin.PuddleFootprint footprint = CrucibleBasin.footprintForVolume(totalGoo);
         for (int i = 0; i < count; i++) {
-            trySpawnBubble(level, options, pos, y, random, history);
+            trySpawnBubble(level, options, new BubbleSpawn(pos, y, footprint), random, history);
         }
     }
+
+    /**
+     * Where one tick's bubbles spawn: the crucible, the height and the goo's footprint.
+     *
+     * @param pos       the block position
+     * @param y         the spawn Y coordinate
+     * @param footprint the square the goo covers
+     */
+    private record BubbleSpawn(BlockPos pos, double y, CrucibleBasin.PuddleFootprint footprint) {}
 
     /**
      * Returns how many bubbles one server tick spawns: one on a tick in
@@ -195,20 +208,19 @@ public final class CrucibleParticleHelper {
      *
      * @param level   the server level
      * @param options the particle color options
-     * @param pos     the block position
-     * @param y       the spawn Y coordinate
+     * @param spawn   the crucible, height and footprint the bubble spawns over
      * @param random  the random source
      * @param history per-crucible bubble spawn history
      */
     @SuppressWarnings("PMD.AvoidBranchingStatementAsLastInLoop") // return exits on first successful spawn
     private static void trySpawnBubble(ServerLevel level, ColorParticleOption options,
-            BlockPos pos, double y, RandomSource random, BubbleHistory history) {
+            BubbleSpawn spawn, RandomSource random, BubbleHistory history) {
         for (int attempt = 0; attempt < MAX_PLACEMENT_TRIES; attempt++) {
-            double x = pos.getX() + randomInBasin(random);
-            double z = pos.getZ() + randomInBasin(random);
+            double x = spawn.pos().getX() + randomInFootprint(random, spawn.footprint());
+            double z = spawn.pos().getZ() + randomInFootprint(random, spawn.footprint());
             if (history.tooClose(x, z, MIN_SPACING_SQ)) { continue; }
             history.record(x, z);
-            level.sendParticles(options, x, y, z, 1, 0, 0, 0, 0);
+            level.sendParticles(options, x, spawn.y(), z, 1, 0, 0, 0, 0);
             return;
         }
     }
@@ -322,19 +334,21 @@ public final class CrucibleParticleHelper {
     }
 
     /**
-     * Returns a random X or Z coordinate within the basin footprint the surface is drawn over,
-     * inset {@link #BUBBLE_WALL_INSET} from each inner wall.
+     * Returns a random X or Z coordinate within the footprint the surface is drawn over,
+     * inset from each edge as {@link #randomInsetWithin} draws it.
      *
-     * @param random the random source
+     * @param random    the random source
+     * @param footprint the square the goo covers
      * @return the block-relative coordinate
      */
-    static double randomInBasin(RandomSource random) {
-        return randomInsetWithin(random, CrucibleBasin.FOOTPRINT_MIN, CrucibleBasin.FOOTPRINT_MAX);
+    static double randomInFootprint(RandomSource random, CrucibleBasin.PuddleFootprint footprint) {
+        return randomInsetWithin(random, footprint.min(), footprint.max());
     }
 
     /**
      * Returns a random coordinate between min and max, each bound drawn inward by
-     * {@link #BUBBLE_WALL_INSET}.
+     * {@link #BUBBLE_WALL_INSET}, or to the center when the span is narrower than
+     * two insets, so a small puddle's bubbles still spawn on it.
      *
      * @param random the random source
      * @param min    the footprint's low wall
@@ -342,8 +356,9 @@ public final class CrucibleParticleHelper {
      * @return the block-relative coordinate
      */
     static double randomInsetWithin(RandomSource random, double min, double max) {
-        double low = min + BUBBLE_WALL_INSET;
-        double high = max - BUBBLE_WALL_INSET;
+        double inset = Math.min(BUBBLE_WALL_INSET, (max - min) * HALF_SPAN);
+        double low = min + inset;
+        double high = max - inset;
         return low + random.nextDouble() * (high - low);
     }
 }

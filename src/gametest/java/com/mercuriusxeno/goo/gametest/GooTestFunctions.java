@@ -1,13 +1,13 @@
-package com.mercuriusxeno.goo.registry;
+package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.gametest.*;
 import com.mercuriusxeno.goo.network.BlockLandingTests;
 import com.mercuriusxeno.goo.network.GloveSelectTests;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
-import net.neoforged.bus.api.IEventBus;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
 
@@ -15,8 +15,11 @@ import java.util.function.Consumer;
  * Registers goo gametest functions via NeoForge's RegisterEvent.
  * TestFunctionLoader.runLoaders() fires during Bootstrap.bootStrap(),
  * before mod loading, so we use RegisterEvent instead to register
- * into the TEST_FUNCTION registry at the correct time.
+ * into the TEST_FUNCTION registry at the correct time. The class lives in
+ * the gametest source set, which only the gameTestServer run loads, so a
+ * shipped jar registers nothing (decision gametest-and-tools-source-sets).
  */
+@EventBusSubscriber(modid = Goo.MODID)
 public final class GooTestFunctions {
 
     // --- Smoke ---
@@ -29,6 +32,8 @@ public final class GooTestFunctions {
     private static final String TYPES_GLOVE_RELOADS = "types_glove_reloads";
     private static final String GLOVE_TYPE_ONLY_REFUSED = "glove_type_only_refused";
     private static final String GLOVE_SHIFT_RECOLLECTS_MARKER = "glove_shift_recollects_marker";
+    private static final String GLOVE_CLICK_NO_USING_STATE = "glove_click_no_using_state";
+    private static final String GLOVE_FIRST_SOURCE_DEPLETES_FIRST = "glove_first_source_depletes_first";
 
     // --- Generic goo fluid ---
     private static final String FLUID_TYPES_SIDE_BY_SIDE = "fluid_types_side_by_side";
@@ -97,12 +102,18 @@ public final class GooTestFunctions {
     private static final String TAP_ROLE_RECEIVER = "tap_role_receiver";
     private static final String TAP_TUNER_LINK = "tap_tuner_link";
     private static final String TAP_REFUSES_TRANSMITTER = "tap_refuses_transmitter";
+    private static final String HUB_SLOT_TRANSMITS = "hub_slot_transmits";
+    private static final String HUB_SUPPORTS_BOTH_ROLES = "hub_supports_both_roles";
+    private static final String HUB_SLOT_MISS_INTAKE = "hub_slot_miss_intake";
     private static final String TAP_ATTACHMENT_LOADS = "tap_attachment_loads";
     private static final String HUB_SLOT_GASKET_REGISTERED = "hub_slot_gasket_registered";
     private static final String BREAK_POPS_GASKET_CRUCIBLE = "break_pops_gasket_crucible";
     private static final String BREAK_POPS_GASKET_VAT = "break_pops_gasket_vat";
     private static final String BREAK_POPS_GASKET_TAP = "break_pops_gasket_tap";
     private static final String BREAK_POPS_GASKET_HUB = "break_pops_gasket_hub";
+    private static final String REMOVAL_POPS_GASKET_EVERY_MACHINE = "removal_pops_gasket_every_machine";
+    private static final String BREAK_RELEASES_STANDING_GASKET = "break_releases_standing_gasket";
+    private static final String PLACED_HUB_REGISTERS_CANISTER = "placed_hub_registers_canister";
 
     // --- Sneak empty-hand gasket removal ---
     private static final String SNEAK_POPS_CANISTER_SLOT_GASKET = "sneak_pops_canister_slot_gasket";
@@ -151,6 +162,7 @@ public final class GooTestFunctions {
     private static final String CR_CAP_ACCOUNTED = "cr_cap_accounted";
     private static final String CR_BLOB_STACK_WHOLE = "cr_blob_stack_whole";
     private static final String CR_BLOB_STACK_TO_CAP = "cr_blob_stack_to_cap";
+    private static final String CR_FIRST_MELT_PUDDLE = "cr_first_melt_puddle";
 
     // --- Placement ---
     private static final String PL_BLAZE = "pl_blaze_places";
@@ -163,6 +175,7 @@ public final class GooTestFunctions {
     private static final String PL_ABILITY_WATERLOG = "pl_ability_waterlog";
     private static final String PL_ABILITY_LAVA = "pl_ability_lava";
     private static final String PL_ABILITY_SAME_STACK = "pl_ability_same_stack";
+    private static final String PL_OTHER_ABILITY_THROW_LEAVES_MARKER = "pl_other_ability_throw_leaves_marker";
 
     // --- Canister interactions ---
     private static final String IX_CANISTER_SHIFT_INSERT = "ix_canister_shift_insert";
@@ -254,21 +267,12 @@ public final class GooTestFunctions {
     }
 
     /**
-     * Subscribes the registration listener to the mod event bus.
-     * Call once during mod construction.
-     *
-     * @param modEventBus the mod event bus
-     */
-    public static void init(IEventBus modEventBus) {
-        modEventBus.addListener(GooTestFunctions::onRegister);
-    }
-
-    /**
      * Registers all gametest functions into the TEST_FUNCTION registry.
      *
      * @param event the register event
      */
-    private static void onRegister(RegisterEvent event) {
+    @SubscribeEvent
+    public static void onRegister(RegisterEvent event) {
         event.register(Registries.TEST_FUNCTION, registrar -> {
             reg(registrar, SMOKE, GameTestHelper::succeed);
             registerGooTypeRegistryTests(registrar);
@@ -316,6 +320,8 @@ public final class GooTestFunctions {
         reg(r, TYPES_MARKER_RELOADS, GooTypeRegistryTests::chainMarkerReloadsType);
         reg(r, GLOVE_TYPE_ONLY_REFUSED, GloveSelectTests::typeOnlySelectionRefused);
         reg(r, GLOVE_SHIFT_RECOLLECTS_MARKER, GloveRecollectTests::shiftClickRecollectsMarker);
+        reg(r, GLOVE_CLICK_NO_USING_STATE, GloveUseTests::rightClickEntersNoUsingState);
+        reg(r, GLOVE_FIRST_SOURCE_DEPLETES_FIRST, FirstSourceTests::firstSourceIsTheStackDepleteShrinks);
         reg(r, TYPES_GLOVE_RELOADS, GooTypeRegistryTests::gloveSelectionReloadsType);
     }
 
@@ -376,6 +382,9 @@ public final class GooTestFunctions {
         reg(r, TAP_ROLE_RECEIVER, GasketHolderTests::tapResolveRoleAlwaysReceiver);
         reg(r, TAP_TUNER_LINK, GasketHolderTests::tapTunerLinksCanisterTransmitter);
         reg(r, TAP_REFUSES_TRANSMITTER, GasketHolderTests::tapRefusesTransmitterRole);
+        reg(r, HUB_SLOT_TRANSMITS, GasketHolderTests::hubSlotLinksAsTransmitter);
+        reg(r, HUB_SUPPORTS_BOTH_ROLES, GasketHolderTests::hubSupportsBothRolesIntakeReceives);
+        reg(r, HUB_SLOT_MISS_INTAKE, GasketHolderTests::hubSlotMissKeepsIntakePath);
     }
 
     private static void registerGasketRegistryTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
@@ -385,6 +394,9 @@ public final class GooTestFunctions {
         reg(r, BREAK_POPS_GASKET_VAT, GasketRegistryTests::breakPopsGasketVat);
         reg(r, BREAK_POPS_GASKET_TAP, GasketRegistryTests::breakPopsGasketTap);
         reg(r, BREAK_POPS_GASKET_HUB, GasketRegistryTests::breakPopsGasketHub);
+        reg(r, REMOVAL_POPS_GASKET_EVERY_MACHINE, GasketRegistryTests::removalPopsGasketEveryMachine);
+        reg(r, BREAK_RELEASES_STANDING_GASKET, GasketRegistryTests::breakReleasesStandingGasket);
+        reg(r, PLACED_HUB_REGISTERS_CANISTER, GasketRegistryTests::placedHubRegistersCarriedCanister);
     }
 
     private static void registerEffectExecutorTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
@@ -457,6 +469,7 @@ public final class GooTestFunctions {
         reg(r, CR_CAP_ACCOUNTED, CrucibleTests::fillPastTheCapAccountsForEveryMb);
         reg(r, CR_BLOB_STACK_WHOLE, CrucibleTests::blobStackConsumedWhole);
         reg(r, CR_BLOB_STACK_TO_CAP, CrucibleTests::blobStackFillsToTheCap);
+        reg(r, CR_FIRST_MELT_PUDDLE, CrucibleTests::firstMeltTicksDrawAPuddle);
     }
 
     private static void registerPlacementTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
@@ -470,6 +483,7 @@ public final class GooTestFunctions {
         reg(r, PL_ABILITY_WATERLOG, PlacementTests::abilityWaterlogsInWater);
         reg(r, PL_ABILITY_LAVA, PlacementTests::abilityRefusesLava);
         reg(r, PL_ABILITY_SAME_STACK, PlacementTests::abilityStacksOnlyOntoSameAbility);
+        reg(r, PL_OTHER_ABILITY_THROW_LEAVES_MARKER, StackKeyTests::otherAbilityThrowLeavesMarker);
     }
 
     private static void registerGasketRemovalTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
