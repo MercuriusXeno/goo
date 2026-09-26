@@ -3,13 +3,14 @@ package com.mercuriusxeno.goo.client.overlay;
 import com.mercuriusxeno.goo.ThrowArc;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.LineContext;
+import com.mercuriusxeno.goo.client.VertexColors;
+import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -61,7 +62,6 @@ final class ArcRenderer {
      * @param poseStack    the current pose stack
      * @param bufferSource the buffer source for render output
      * @param camera       the active camera
-     * @param player       the local player
      * @param end          the target endpoint position
      * @param rgb          the RGB color for tinting
      * @param partialTick  the partial tick for animation
@@ -70,9 +70,9 @@ final class ArcRenderer {
      */
     static void renderTargetArc(
             PoseStack poseStack, MultiBufferSource.BufferSource bufferSource,
-            Camera camera, Player player, Vec3 end,
+            Camera camera, Vec3 end,
             int rgb, float partialTick, boolean grannyArc, boolean straightLine) {
-        Vec3 start = GooTargetHighlighter.getGloveHandPosition(player, camera);
+        Vec3 start = GloveAim.handPosition(camera);
         Vec3[] points = sampleArcPoints(start, end, grannyArc, straightLine);
         float dashOffset = computeDashOffset(partialTick);
         Minecraft mc = Minecraft.getInstance();
@@ -237,25 +237,13 @@ final class ArcRenderer {
         float perspScale = 1f + camDist * PERSPECTIVE_FACTOR;
         float alpha = dashAlpha(arcLen + segLen * DASH_MID, dashOffset, perspScale);
         if (alpha > 0f) {
-            int fadedColor = scaleAlpha(color, alpha);
+            int fadedColor = VertexColors.scaleAlpha(color, alpha);
             ctx.emitEdge(
                 (float) (a.x - cam.x), (float) (a.y - cam.y), (float) (a.z - cam.z),
                 (float) (b.x - cam.x), (float) (b.y - cam.y), (float) (b.z - cam.z),
                 fadedColor, width);
         }
         return arcLen + segLen;
-    }
-
-    /**
-     * Scales the alpha channel of an ARGB color by a [0..1] factor.
-     *
-     * @param argb   the source ARGB color
-     * @param factor the alpha scale factor [0..1]
-     * @return the color with scaled alpha
-     */
-    private static int scaleAlpha(int argb, float factor) {
-        int a = Mth.clamp((int) (ARGB.alpha(argb) * factor), 0, MAX_ALPHA);
-        return ARGB.color(a, ARGB.red(argb), ARGB.green(argb), ARGB.blue(argb));
     }
 
     /**

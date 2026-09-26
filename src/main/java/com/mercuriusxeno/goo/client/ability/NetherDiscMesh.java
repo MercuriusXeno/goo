@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
+import com.mercuriusxeno.goo.client.FlatQuadContext;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.util.ARGB;
@@ -106,12 +107,12 @@ public final class NetherDiscMesh {
         float cosT = DISK_ANGULAR_SAMPLES[sample + DISK_SAMPLE_COS_OFFSET];
         float sinT = DISK_ANGULAR_SAMPLES[sample + DISK_SAMPLE_SIN_OFFSET];
         float angularT = DISK_ANGULAR_SAMPLES[sample + DISK_SAMPLE_ANG_OFFSET];
-        c.addVertex(pose,
-                        BLOCK_CENTER + cosT * radius,
-                        BLOCK_CENTER,
-                        BLOCK_CENTER + sinT * radius)
-                .setColor(packDiskColor(toByte(radialT), toByte(angularT), animByte))
-                .setNormal(pose, 0f, 1f, 0f);
+        new FlatQuadContext(pose, c).vertex(
+                BLOCK_CENTER + cosT * radius,
+                BLOCK_CENTER,
+                BLOCK_CENTER + sinT * radius,
+                packDiskColor(toByte(radialT), toByte(angularT), animByte),
+                0f, 1f, 0f);
     }
 
     /**
