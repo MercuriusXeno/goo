@@ -1,7 +1,9 @@
 package com.mercuriusxeno.goo.block.hub;
 
+import com.mercuriusxeno.goo.GooConstants;
 import com.mercuriusxeno.goo.block.BlockEntitySync;
 import com.mercuriusxeno.goo.block.GooGlowingMachineBlockEntity;
+import com.mercuriusxeno.goo.block.ShapeHitCheck;
 import com.mercuriusxeno.goo.block.canister.*;
 import com.mercuriusxeno.goo.block.gasket.GasketAttachment;
 import com.mercuriusxeno.goo.block.gasket.GasketPusher;
@@ -10,6 +12,7 @@ import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.component.DataComponentGetter;
 import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.server.level.ServerLevel;
@@ -19,6 +22,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -49,6 +53,22 @@ public class HubBlockEntity extends GooGlowingMachineBlockEntity implements ICan
      * Block update flags: notify neighbours + send to clients.
      */
     private static final int BLOCK_UPDATE_FLAGS = 3;
+    /**
+     * HUD anchor Y over a slot canister's top (15/16).
+     */
+    private static final double CANISTER_TOP = 15.0 / 16.0;
+    /**
+     * HUD anchor Y at a slot canister's side mid-height (8/16).
+     */
+    private static final double CANISTER_MID = 8.0 / 16.0;
+    /**
+     * Block-local centre, where the frame's HUD anchor sits.
+     */
+    private static final double BLOCK_CENTER = 0.5;
+    /**
+     * Offset pushing a side panel out to the face surface (half a block).
+     */
+    private static final double FACE_OFFSET = 0.5;
     /**
      * Behavioral component owning slot arrays, handlers, and stream state.
      */
@@ -191,6 +211,66 @@ public class HubBlockEntity extends GooGlowingMachineBlockEntity implements ICan
     public int resolveSlot(BlockHitResult hit) {
         int slot = HubBlock.hitSlot(hit, getBlockPos());
         return slot < 0 ? SLOT_MISS : slot;
+    }
+
+    // --- Client-read geometry (decision hosts-answer-bounds-through-interfaces) ---
+
+    @Override
+    public @Nullable AABB slotBounds(int index) {
+        return containerState().inRange(index) ? HubBlock.slotShape(index).bounds() : null;
+    }
+
+    /**
+     * The frame, joined by the aimed slot while it holds a canister.
+     */
+    @Override
+    public VoxelShape outlineShape(BlockHitResult hit) {
+        int slot = HubBlock.hitSlot(hit, getBlockPos());
+        return slot >= 0 && isSlotFilled(slot)
+                ? Shapes.or(HubBlock.frameShape(), HubBlock.slotShape(slot)) : HubBlock.frameShape();
+    }
+
+    @Override
+    public @Nullable AABB pickupBounds(BlockHitResult hit) {
+        int slot = HubBlock.hitSlot(hit, getBlockPos());
+        return slot >= 0 && isSlotFilled(slot) ? slotBounds(slot) : null;
+    }
+
+    /**
+     * The empty slot nearest the hit's contact point; a sneak changes nothing.
+     */
+    @Override
+    public @Nullable AABB previewBounds(BlockHitResult hit, boolean sneaking) {
+        BlockPos pos = getBlockPos();
+        double px = (hit.getLocation().x - pos.getX()) * ShapeHitCheck.PIXELS_PER_BLOCK;
+        double pz = (hit.getLocation().z - pos.getZ()) * ShapeHitCheck.PIXELS_PER_BLOCK;
+        int slot = HubBlock.nearestSlot(px, pz);
+        return slot >= 0 && !isSlotFilled(slot) ? slotBounds(slot) : null;
+    }
+
+    /**
+     * A slot's panel sits on the side facing the viewer, or over the canister top
+     * for a vertical hit; a hit off every slot reads the frame, centred over the intake.
+     */
+    @Override
+    public HudAnchor hudAnchor(BlockHitResult hit, HudViewer viewer) {
+        int slot = HubBlock.hitSlot(hit, getBlockPos());
+        if (slot < 0) {
+            return new HudAnchor(GooConstants.NO_SLOT, BLOCK_CENTER, BLOCK_CENTER, CANISTER_TOP, Direction.UP);
+        }
+        double cx = HubBlock.SLOT_CENTERS[slot][0] / ShapeHitCheck.PIXELS_PER_BLOCK;
+        double cz = HubBlock.SLOT_CENTERS[slot][1] / ShapeHitCheck.PIXELS_PER_BLOCK;
+        if (hit.getDirection().getAxis() == Direction.Axis.Y) {
+            return new HudAnchor(slot, cx, cz, CANISTER_TOP, Direction.UP);
+        }
+        Direction side = viewer.lookFace();
+        return new HudAnchor(slot, cx + side.getStepX() * FACE_OFFSET, cz + side.getStepZ() * FACE_OFFSET,
+                CANISTER_MID, side);
+    }
+
+    @Override
+    public boolean takesCanisterAt(BlockHitResult hit, boolean sneaking) {
+        return true;
     }
 
     /**

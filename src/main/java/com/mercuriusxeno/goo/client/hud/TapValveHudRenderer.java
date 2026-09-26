@@ -6,10 +6,12 @@ import com.mercuriusxeno.goo.block.tap.TapBlockEntity;
 import com.mercuriusxeno.goo.block.tap.TapDripGrade;
 import com.mercuriusxeno.goo.block.tap.TapHitRegion;
 import com.mercuriusxeno.goo.block.tap.TapValve;
+import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
@@ -49,7 +51,8 @@ public final class TapValveHudRenderer {
             return;
         }
         BlockState state = mc.level.getBlockState(pos);
-        if (!(mc.level.getBlockEntity(pos) instanceof TapBlockEntity tap) || !state.hasProperty(TapBlock.OPEN)) {
+        TapBlockEntity tap = mc.level.getBlockEntity(pos, GooBlockEntities.TAP.get()).orElse(null);
+        if (tap == null || !state.hasProperty(TapBlock.OPEN)) {
             ANIMATOR.clear();
             return;
         }
@@ -72,9 +75,19 @@ public final class TapValveHudRenderer {
         BlockHitResult hit = (BlockHitResult) mc.hitResult;
         BlockPos pos = hit.getBlockPos();
         BlockState state = mc.level.getBlockState(pos);
-        if (!(state.getBlock() instanceof TapBlock)) {
+        if (!isTap(mc.level, pos, state)) {
             return null;
         }
         return TapHitRegion.of(hit, pos, state.getValue(TapBlock.FACING), false) == TapHitRegion.VALVE ? pos : null;
+    }
+
+    /**
+     * @param level the client level
+     * @param pos   the aimed position
+     * @param state the block state there
+     * @return true when a tap stands there
+     */
+    private static boolean isTap(Level level, BlockPos pos, BlockState state) {
+        return level.getBlockEntity(pos, GooBlockEntities.TAP.get()).isPresent() && state.hasProperty(TapBlock.FACING);
     }
 }
