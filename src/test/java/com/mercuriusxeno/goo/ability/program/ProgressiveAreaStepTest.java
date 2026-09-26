@@ -1,9 +1,5 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import com.mercuriusxeno.goo.ability.BlockEffect;
-import com.mercuriusxeno.goo.ability.BlockEffectType;
-import com.mercuriusxeno.goo.ability.LayerAudioType;
-import com.mercuriusxeno.goo.ability.LayerVisualsType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import org.junit.jupiter.api.Test;
@@ -41,7 +37,6 @@ class ProgressiveAreaStepTest {
     private static final String SILK_BREAK = "silk_break";
     private static final String ROCK_DUST = "rock_dust";
     private static final String STONE_BREAK = "stone_break";
-    private static final BlockEffect SILK = BlockEffectType.byName(SILK_BREAK);
     /** Stacks giving a tunnel three layers deep with a 3x3 footprint. */
     private static final int DEEP_STACKS = 5;
     private static final int DEEP_LAYERS = 3;
@@ -53,8 +48,8 @@ class ProgressiveAreaStepTest {
         return new ProgressiveAreaStep(shape, SILK_BREAK, ROCK_DUST, STONE_BREAK, Expr.literal(DELAY));
     }
 
-    private static StepHost host(Direction placedFace, int stacks) {
-        StepHost host = mock(StepHost.class);
+    private static MarkerHost host(Direction placedFace, int stacks) {
+        MarkerHost host = mock(MarkerHost.class);
         when(host.position()).thenReturn(ORIGIN);
         when(host.placedFace()).thenReturn(placedFace);
         when(host.stackCount()).thenReturn(stacks);
@@ -62,7 +57,7 @@ class ProgressiveAreaStepTest {
         return host;
     }
 
-    private static ProgramBehavior run(StepHost host, AreaShape shape, int ticks) {
+    private static ProgramBehavior run(MarkerHost host, AreaShape shape, int ticks) {
         ProgramBehavior program = new ProgramBehavior(List.of(step(shape)));
         for (int i = 0; i < ticks; i++) {
             program.tick(host);
@@ -70,9 +65,9 @@ class ProgressiveAreaStepTest {
         return program;
     }
 
-    private static List<BlockPos> struckCells(StepHost host) {
+    private static List<BlockPos> struckCells(MarkerHost host) {
         ArgumentCaptor<BlockPos> cells = ArgumentCaptor.forClass(BlockPos.class);
-        verify(host, atLeast(0)).applyBlockEffect(eq(SILK), cells.capture());
+        verify(host, atLeast(0)).applyBlockEffect(eq(SILK_BREAK), cells.capture());
         return cells.getAllValues();
     }
 
@@ -83,7 +78,7 @@ class ProgressiveAreaStepTest {
     @ParameterizedTest
     @EnumSource(Direction.class)
     void tunnelLayerIsCenteredOneStepPastTheLayerIndexAlongTheBlastDirection(Direction placedFace) {
-        StepHost host = host(placedFace, DEEP_STACKS);
+        MarkerHost host = host(placedFace, DEEP_STACKS);
         Direction blastDir = placedFace.getOpposite();
 
         run(host, AreaShape.TUNNEL, DELAY + DEEP_LAYERS);
@@ -104,7 +99,7 @@ class ProgressiveAreaStepTest {
 
     @Test
     void layerZeroIsTheStruckBlockAndNeverTheMarker() {
-        StepHost host = host(Direction.SOUTH, ONE_STACK);
+        MarkerHost host = host(Direction.SOUTH, ONE_STACK);
 
         run(host, AreaShape.TUNNEL, DELAY + 1);
 
@@ -113,20 +108,20 @@ class ProgressiveAreaStepTest {
 
     @Test
     void previewLeadsTheStrikeByTheDelayAndTheWalkEndsWithTheLastLayer() {
-        StepHost host = host(Direction.SOUTH, DEEP_STACKS);
+        MarkerHost host = host(Direction.SOUTH, DEEP_STACKS);
         ProgramBehavior program = new ProgramBehavior(List.of(step(AreaShape.TUNNEL)));
 
         for (int tick = 0; tick < DELAY; tick++) {
             program.tick(host);
         }
-        verify(host).previewLayer(LayerVisualsType.byName(ROCK_DUST), 0);
-        verify(host).previewLayer(LayerVisualsType.byName(ROCK_DUST), DEEP_LAYERS - 1);
+        verify(host).previewLayer(ROCK_DUST, 0);
+        verify(host).previewLayer(ROCK_DUST, DEEP_LAYERS - 1);
         verify(host, never()).applyBlockEffect(any(), any());
         verify(host, never()).reportMinedLayers(anyInt());
 
         program.tick(host);
-        verify(host, times(FOOTPRINT_3X3)).applyBlockEffect(eq(SILK), any());
-        verify(host).strikeLayerFx(LayerVisualsType.byName(ROCK_DUST), LayerAudioType.byName(STONE_BREAK), 0,
+        verify(host, times(FOOTPRINT_3X3)).applyBlockEffect(eq(SILK_BREAK), any());
+        verify(host).strikeLayerFx(ROCK_DUST, STONE_BREAK, 0,
                 FOOTPRINT_3X3);
         verify(host).reportMinedLayers(1);
         assertTrue(program.isActive());
@@ -141,8 +136,8 @@ class ProgressiveAreaStepTest {
 
     @Test
     void struckCountScalesTheFxByTheCellsTheEffectChanged() {
-        StepHost host = host(Direction.SOUTH, DEEP_STACKS);
-        when(host.applyBlockEffect(eq(SILK), any())).thenReturn(true, false, false, true, true, false, false,
+        MarkerHost host = host(Direction.SOUTH, DEEP_STACKS);
+        when(host.applyBlockEffect(eq(SILK_BREAK), any())).thenReturn(true, false, false, true, true, false, false,
                 false, false);
 
         run(host, AreaShape.TUNNEL, DELAY + 1);
@@ -152,7 +147,7 @@ class ProgressiveAreaStepTest {
 
     @Test
     void flatCircleWalksRingsOneBlockIntoTheWall() {
-        StepHost host = host(Direction.UP, 2);
+        MarkerHost host = host(Direction.UP, 2);
 
         run(host, AreaShape.FLAT_CIRCLE, DELAY + 1);
 
@@ -163,7 +158,7 @@ class ProgressiveAreaStepTest {
 
     @Test
     void sphereWalksShellsAroundTheBlockPastTheMarker() {
-        StepHost host = host(Direction.SOUTH, ONE_STACK);
+        MarkerHost host = host(Direction.SOUTH, ONE_STACK);
         int shells = AreaLayers.layerCount(AreaShape.SPHERE, ONE_STACK);
 
         run(host, AreaShape.SPHERE, DELAY + shells);

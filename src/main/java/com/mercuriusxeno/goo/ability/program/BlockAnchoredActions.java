@@ -30,7 +30,7 @@ final class BlockAnchoredActions {
      * @param body    what to run on each entity's host
      */
     static void forEachEntityWithin(ServerLevel level, Vec3 center, SelectionShape shape, double radius,
-                                    Set<EntityFilter> filters, Consumer<StepHost> body) {
+                                    Set<EntityFilter> filters, Consumer<TargetHost> body) {
         EntityScan.forEachLivingWithin(level, center, shape, radius, filters, null,
                 living -> body.accept(new EntityHost(level, living, null)));
     }
@@ -43,7 +43,7 @@ final class BlockAnchoredActions {
      * @param entityId the entity's id
      * @param body     what to run on the entity's host
      */
-    static void forEntity(ServerLevel level, int entityId, Consumer<StepHost> body) {
+    static void forEntity(ServerLevel level, int entityId, Consumer<TargetHost> body) {
         if (level.getEntity(entityId) instanceof LivingEntity living && living.isAlive()) {
             body.accept(new EntityHost(level, living, null));
         }
