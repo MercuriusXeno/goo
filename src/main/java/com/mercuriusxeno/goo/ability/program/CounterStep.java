@@ -87,7 +87,7 @@ public record CounterStep(Identifier id, Optional<Expr> add, Optional<Expr> set)
 
     @Override
     public boolean tick(StepContext context) {
-        LivingEntity target = context.host().target();
+        LivingEntity target = context.hostAs(TargetHost.class).target();
         EntityCounters counters = target.getData(GooAttachments.ENTITY_COUNTERS);
         add.ifPresent(amount -> target.setData(GooAttachments.ENTITY_COUNTERS,
                 counters.withAdded(id, amount.evaluate(context))));

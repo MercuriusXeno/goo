@@ -39,7 +39,7 @@ public record ExplodeStep(Expr power, ExplosionMode mode) implements Step {
 
     @Override
     public boolean tick(StepContext context) {
-        context.host().explode(power.evaluateFloat(context), mode);
+        context.hostAs(ExplodeHost.class).explode(power.evaluateFloat(context), mode);
         return true;
     }
 

@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.ber;
 
 import com.mercuriusxeno.goo.block.hub.HubBlockEntity;
 import com.mercuriusxeno.goo.client.CuboidBounds;
+import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.RenderContext;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
@@ -14,7 +15,6 @@ import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 import net.minecraft.client.renderer.feature.ModelFeatureRenderer;
-import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
@@ -269,7 +269,7 @@ public class HubBlockEntityRenderer
     private static void submitCopperCaps(PoseStack poseStack,
             SubmitNodeCollector nodeCollector, int light, HubRenderState state) {
         nodeCollector.submitCustomGeometry(poseStack,
-            RenderTypes.entitySolid(COPPER_GASKET),
+            GooSubmitter.solidOn(COPPER_GASKET),
             (pose, c) -> renderCopperEndcaps(new RenderContext(pose, c, light), state));
     }
 
@@ -283,7 +283,7 @@ public class HubBlockEntityRenderer
     private static void submitChoralCaps(PoseStack poseStack,
             SubmitNodeCollector nodeCollector, int light, HubRenderState state) {
         nodeCollector.submitCustomGeometry(poseStack,
-            RenderTypes.entitySolid(CHORAL_GASKET),
+            GooSubmitter.solidOn(CHORAL_GASKET),
             (pose, c) -> renderChoralEndcaps(new RenderContext(pose, c, light), state));
     }
 

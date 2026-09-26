@@ -68,7 +68,7 @@ public record DamageStep(Expr amount, DamageKind source, boolean knockback,
 
     @Override
     public boolean tick(StepContext context) {
-        LivingEntity target = context.host().target();
+        LivingEntity target = context.hostAs(TargetHost.class).target();
         target.hurtServer((ServerLevel) target.level(), damageSource(target), amount.evaluateFloat(context));
         if (!knockback) {
             target.hurtMarked = false;

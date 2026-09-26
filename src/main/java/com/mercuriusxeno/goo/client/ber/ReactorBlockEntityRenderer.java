@@ -20,7 +20,6 @@ import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 import net.minecraft.client.renderer.feature.ModelFeatureRenderer;
-import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
@@ -633,7 +632,7 @@ public class ReactorBlockEntityRenderer
         if (!top && !bottom) { return; }
         CuboidBounds base = canisterBounds(0, 0);
         nodeCollector.submitCustomGeometry(poseStack,
-                RenderTypes.entitySolid(texture),
+                GooSubmitter.solidOn(texture),
                 (pose, c) -> GasketCapRenderer.renderEndcaps(
                         new RenderContext(pose, c, light), base, GASKET_Y, GASKET_UV, top, bottom));
     }

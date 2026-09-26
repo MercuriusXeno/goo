@@ -8,7 +8,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.Set;
 
 /**
- * The world side of {@link StepHost#pullEntitiesWithin}, shared by every
+ * The world side of {@link EntityScanHost#pullEntitiesWithin}, shared by every
  * host that pulls: each living entity in the sphere is pushed toward the
  * center at a fixed speed, so its knockback resistance still applies,
  * and one already at the center is left still.

@@ -2,14 +2,20 @@ package com.mercuriusxeno.goo.ability.program;
 
 import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalDouble;
+import java.util.Set;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -28,8 +34,8 @@ class ProgramHostLoadTest {
         return Expr.parse(source).getOrThrow();
     }
 
-    private static StepHost entityHost(double health) {
-        StepHost host = mock(StepHost.class);
+    private static EntityHost entityHost(double health) {
+        EntityHost host = mock(EntityHost.class);
         when(host.kind()).thenReturn(HostKind.ENTITY);
         when(host.read("health")).thenReturn(OptionalDouble.of(health));
         return host;
@@ -37,7 +43,7 @@ class ProgramHostLoadTest {
 
     @Test
     void explodeProgramOnEntityHostBlastsWithTheConfiguredPowerAndEnds() {
-        StepHost host = entityHost(20);
+        EntityHost host = entityHost(20);
         ProgramBehavior program = ProgramBehavior.forHost(
                 List.of(new ExplodeStep(Expr.literal(8), ExplosionMode.NONE)), HostKind.ENTITY);
 
@@ -49,7 +55,7 @@ class ProgramHostLoadTest {
 
     @Test
     void anAmountMayReadTheTargetsHealth() {
-        StepHost host = entityHost(20);
+        EntityHost host = entityHost(20);
         ProgramBehavior program = ProgramBehavior.forHost(
                 List.of(new ExplodeStep(expr("health / 2"), ExplosionMode.NONE)), HostKind.ENTITY);
 
@@ -73,7 +79,7 @@ class ProgramHostLoadTest {
 
     @Test
     void waitingStepInsideATargetSelectionRefusesNamingTheChild() {
-        List<Step> steps = List.of(new TargetStep(List.of(), List.of(new WaitStep(Expr.literal(2)))));
+        List<Step> steps = List.of(new TargetStep(List.of(), List.of(LeafSteps.WAIT.step(Expr.literal(2)))));
 
         ProgramLoadException refusal = assertThrows(ProgramLoadException.class,
                 () -> ProgramBehavior.forHost(steps, HostKind.ENTITY));
@@ -85,7 +91,7 @@ class ProgramHostLoadTest {
     @Test
     void waitingStepOnEntityHostRefusesSinceNothingTicksAnEntity() {
         ProgramLoadException refusal = assertThrows(ProgramLoadException.class,
-                () -> ProgramBehavior.forHost(List.of(new WaitStep(Expr.literal(2))), HostKind.ENTITY));
+                () -> ProgramBehavior.forHost(List.of(LeafSteps.WAIT.step(Expr.literal(2))), HostKind.ENTITY));
 
         assertTrue(refusal.getMessage().contains("wait"), refusal.getMessage());
         assertTrue(refusal.getMessage().contains("ticking"), refusal.getMessage());
@@ -118,7 +124,7 @@ class ProgramHostLoadTest {
                 List.of(new DamageStep(expr("health * 0.5"), DamageKind.MAGIC)))), HostKind.MARKER));
 
         List<Step> markerChild = List.of(new EntitiesStep(SelectionShape.SPHERE, Expr.literal(2.5),
-                List.of(EntityFilter.LIVING), List.of(new WaitStep(Expr.literal(5)))));
+                List.of(EntityFilter.LIVING), List.of(LeafSteps.WAIT.step(Expr.literal(5)))));
         ProgramLoadException refusal = assertThrows(ProgramLoadException.class,
                 () -> ProgramBehavior.forHost(markerChild, HostKind.MARKER));
 
@@ -191,5 +197,57 @@ class ProgramHostLoadTest {
     void tickVariableIsBoundForEveryHost() {
         assertDoesNotThrow(() -> ProgramBehavior.forHost(
                 List.of(new DamageStep(expr("tick + 1"), DamageKind.MAGIC)), HostKind.ENTITY));
+    }
+
+    private static final Map<HostKind, Class<? extends StepHost>> HOST_TYPES = Map.of(
+            HostKind.MARKER, MarkerHost.class, HostKind.ENTITY, EntityHost.class, HostKind.TAP, TapHost.class);
+
+    /**
+     * A step needing exactly one capability, standing in for whichever
+     * real step needs it.
+     *
+     * @param needed the capability
+     * @return the step
+     */
+    private static Step needing(HostCapability needed) {
+        Step step = mock(Step.class);
+        when(step.requires()).thenReturn(Set.of(needed));
+        doReturn(LeafSteps.WAIT.type()).when(step).type();
+        return step;
+    }
+
+    @Test
+    void eachKindProvidesTheCapabilityInterfacesItsHostImplements() {
+        assertEquals(EnumSet.complementOf(EnumSet.of(HostCapability.TARGET)), HostKind.MARKER.capabilities());
+        assertEquals(Set.of(HostCapability.TARGET, HostCapability.EXPLODE, HostCapability.ENTITY_SCAN),
+                HostKind.ENTITY.capabilities());
+        assertEquals(Set.of(HostCapability.EXPLODE, HostCapability.ENTITY_SCAN, HostCapability.PLACE_BLOCK),
+                HostKind.TAP.capabilities());
+    }
+
+    @ParameterizedTest
+    @EnumSource(HostCapability.class)
+    void aStepLoadsExactlyWhereTheHostImplementsTheInterfaceItNeeds(HostCapability needed) {
+        for (HostKind kind : HostKind.values()) {
+            List<Step> steps = List.of(needing(needed));
+            if (needed.hostType().isAssignableFrom(HOST_TYPES.get(kind))) {
+                assertDoesNotThrow(() -> ProgramBehavior.forHost(steps, kind), kind + " " + needed);
+            } else {
+                ProgramLoadException refusal = assertThrows(ProgramLoadException.class,
+                        () -> ProgramBehavior.forHost(steps, kind), kind + " " + needed);
+                assertTrue(refusal.getMessage().contains(needed.key()), refusal.getMessage());
+                assertTrue(refusal.getMessage().contains(kind.label()), refusal.getMessage());
+            }
+        }
+    }
+
+    @Test
+    void aHostTypeProvidesTheCapabilitiesOfTheInterfacesItExtends() {
+        interface ScanAndTargetHost extends EntityScanHost, TargetHost {
+        }
+
+        assertEquals(Set.of(HostCapability.ENTITY_SCAN, HostCapability.TARGET),
+                HostCapability.providedBy(ScanAndTargetHost.class));
+        assertEquals(Set.of(), HostCapability.providedBy(StepHost.class));
     }
 }
