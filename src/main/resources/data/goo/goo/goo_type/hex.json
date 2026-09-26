@@ -9,6 +9,8 @@
   "viscosity": 1500,
   "temperature": 300,
   "extinguishes": false,
+  "levity": 1.0,
+  "base_flight_time": 3,
   "map_color": "color_black",
   "textures": {
     "blob_tiny": "goo:item/hex_blob_tiny",

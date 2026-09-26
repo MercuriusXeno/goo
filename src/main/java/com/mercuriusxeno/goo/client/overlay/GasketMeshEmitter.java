@@ -335,9 +335,9 @@ final class GasketMeshEmitter {
      */
     private static void emitQuadVertices(FlatQuadContext ctx, int color,
                                          Vector3f v0, Vector3f v1, Vector3f v2, Vector3f v3) {
-        ctx.c().addVertex(ctx.pose(), v0.x, v0.y, v0.z).setColor(color);
-        ctx.c().addVertex(ctx.pose(), v1.x, v1.y, v1.z).setColor(color);
-        ctx.c().addVertex(ctx.pose(), v2.x, v2.y, v2.z).setColor(color);
-        ctx.c().addVertex(ctx.pose(), v3.x, v3.y, v3.z).setColor(color);
+        ctx.vertex(v0.x, v0.y, v0.z, color);
+        ctx.vertex(v1.x, v1.y, v1.z, color);
+        ctx.vertex(v2.x, v2.y, v2.z, color);
+        ctx.vertex(v3.x, v3.y, v3.z, color);
     }
 }
