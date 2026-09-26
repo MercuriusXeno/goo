@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:brewing_chrysm_brews_potion",
+  "environment": "minecraft:default",
+  "structure": "minecraft:empty",
+  "max_ticks": 500,
+  "setup_ticks": 0,
+  "required": true
+}
