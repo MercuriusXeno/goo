@@ -27,19 +27,6 @@ public final class GasketInstallation {
     }
 
     /**
-     * Pops a gasket as an item drop at the given position, clears its partner's
-     * reference to it, unlinks it from that partner, and removes its registry
-     * location. No-op if gasketId is null.
-     *
-     * @param level    the current level
-     * @param pos      the block position
-     * @param gasketId the gasket UUID
-     */
-    public static void popGasket(Level level, BlockPos pos, @Nullable UUID gasketId) {
-        popGasket(level, pos, gasketId != null, gasketId);
-    }
-
-    /**
      * Pops a gasket a host holds installed, as its blockstate flag says: drops
      * the item whenever installed is true, and clears the gasket's registry state
      * when it carries an id.
@@ -91,12 +78,12 @@ public final class GasketInstallation {
 
     /**
      * Clears the partner's reference to a leaving gasket, unlinks it and removes
-     * its registry location. No-op for a null id or a client level.
+     * its registry location, dropping no item. No-op for a null id or a client level.
      *
      * @param level    the current level
      * @param gasketId the gasket leaving, or null when none was ever assigned
      */
-    private static void releaseFromRegistry(Level level, @Nullable UUID gasketId) {
+    public static void releaseFromRegistry(Level level, @Nullable UUID gasketId) {
         if (gasketId != null && level instanceof ServerLevel serverLevel) {
             GasketRegistry registry = GasketRegistry.get(serverLevel);
             clearPartnerReference(serverLevel, registry, gasketId);

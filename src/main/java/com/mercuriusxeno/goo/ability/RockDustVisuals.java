@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.ability;
 
-import com.mercuriusxeno.goo.client.particle.OrientedBoomParticleOptions;
+import com.mercuriusxeno.goo.registry.OrientedBoomParticleOptions;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;

@@ -34,9 +34,14 @@ class ConventionTest {
     private static final String RENDER_TYPES = "net.minecraft.client.renderer.rendertype.RenderTypes";
     private static final String ENTITY_TRANSLUCENT = "entityTranslucent";
     private static final String ENTITY_SOLID = "entitySolid";
-    private static final String NETWORK_PACKAGE = "com.mercuriusxeno.goo.network..";
+    private static final String[] SHARED_PACKAGES = {
+            "com.mercuriusxeno.goo", "com.mercuriusxeno.goo.block..", "com.mercuriusxeno.goo.item..",
+            "com.mercuriusxeno.goo.ability..", "com.mercuriusxeno.goo.data..", "com.mercuriusxeno.goo.network..",
+            "com.mercuriusxeno.goo.registry..", "com.mercuriusxeno.goo.command..", "com.mercuriusxeno.goo.lab..",
+            "com.mercuriusxeno.goo.fluid.."
+    };
     private static final String[] CLIENT_PACKAGES = {
-            "net.minecraft.client..", "com.mercuriusxeno.goo.client.."
+            "net.minecraft.client..", "com.mercuriusxeno.goo.client..", "com.mojang.blaze3d.."
     };
     private static JavaClasses mainClasses;
     private static JavaClasses testClasses;
@@ -169,21 +174,23 @@ class ConventionTest {
     }
 
     /**
-     * No class under network links client-only code, so a dedicated server that
-     * verifies or scans a network class never reaches a Screen or Minecraft
-     * (decision diagnose-then-fix-server-link-and-value-race). Client-bound
-     * handlers live under client.network and register from a Dist.CLIENT
-     * subscriber. The dev runs load the joined jar, where every client class
-     * resolves, so no run shows this crash; this rule is the proof.
+     * No class in a shared package links client-only code, so a dedicated
+     * server that verifies or scans a shared class never reaches a Screen,
+     * Minecraft or a render type (decision client-handlers-under-client-network).
+     * Client-bound handlers live under client.network, the glove reaches the
+     * client through ISidedProxy, and the client mixin sits in mixin, outside
+     * the shared set. Javadoc links never reach bytecode, so ISidedProxy's link
+     * to GooClientSetup passes. The dev runs load the joined jar, where every
+     * client class resolves, so no run shows this crash; this rule is the proof.
      */
     @Test
-    void networkDoesNotLinkClientCode() {
+    void sharedPackagesDoNotLinkClientCode() {
         noClasses()
-                .that().resideInAPackage(NETWORK_PACKAGE)
+                .that().resideInAnyPackage(SHARED_PACKAGES)
                 .should().dependOnClassesThat()
                 .resideInAnyPackage(CLIENT_PACKAGES)
                 .because("a dedicated server has no client classes to link"
-                        + " (decision diagnose-then-fix-server-link-and-value-race)")
+                        + " (decision client-handlers-under-client-network)")
                 .check(mainClasses);
     }
 

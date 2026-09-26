@@ -2,28 +2,20 @@ package com.mercuriusxeno.goo.block.canister;
 
 import com.mercuriusxeno.goo.GooConstants;
 import com.mercuriusxeno.goo.GooTypeDefinition;
-import com.mercuriusxeno.goo.PlayerUtils;
 import com.mercuriusxeno.goo.block.BlockEntitySync;
 import com.mercuriusxeno.goo.block.GooBlockInteraction;
+import com.mercuriusxeno.goo.block.GooGlowingMachineBlockEntity;
 import com.mercuriusxeno.goo.block.IGooReceptacle;
 import com.mercuriusxeno.goo.block.gasket.GasketAttachment;
 import com.mercuriusxeno.goo.block.gasket.GasketPusher;
-import com.mercuriusxeno.goo.block.gasket.IGasketHolder;
-import com.mercuriusxeno.goo.block.gasket.SlotGasketPusher;
-import com.mercuriusxeno.goo.block.gasket.SlotGasketRegistration;
 import com.mercuriusxeno.goo.item.*;
 import com.mercuriusxeno.goo.item.gasket.GasketPartner;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mercuriusxeno.goo.registry.GooItems;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.core.component.DataComponentMap;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.Connection;
-import net.minecraft.network.protocol.Packet;
-import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
@@ -33,7 +25,6 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
@@ -54,7 +45,8 @@ import java.util.UUID;
  * coordinated work: handler/pusher creation, gasket registry membership,
  * NBT save/load, framework lifecycle, and player interaction dispatch.</p>
  */
-public class CanisterBlockEntity extends BlockEntity implements ICanisterHolder, IGasketHolder, IGooReceptacle {
+public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements ICanisterHolder,
+        IGooReceptacle {
 
     /**
      * Maximum number of canister slots in the 3x3 grid.
@@ -70,12 +62,6 @@ public class CanisterBlockEntity extends BlockEntity implements ICanisterHolder,
     private static final String ERR_TUNER_PASS = "TUNER_PASS handled in validate";
     private static final String ERR_UNHANDLED = "Unhandled interaction: ";
 
-    /**
-     * Composed gasket integration: roleless (per-slot canister metadata holds gasket UUIDs).
-     * Provides the registry access and sync surface; slot pushers are managed locally.
-     */
-    private final GasketAttachment gasket = GasketAttachment.none(this);
-
     private final SlottedCanisterData state;
 
     private @Nullable UUID ownerUuid;
@@ -87,16 +73,13 @@ public class CanisterBlockEntity extends BlockEntity implements ICanisterHolder,
      * @param state the block state
      */
     public CanisterBlockEntity(BlockPos pos, BlockState state) {
-        super(GooBlockEntities.CANISTER.get(), pos, state);
-        this.state = new SlottedCanisterData(MAX_SLOTS,
+        super(GooBlockEntities.CANISTER.get(), pos, state, GasketAttachment::none);
+        GasketAttachment gasket = gasket();
+        this.state = new SlottedCanisterData(this, MAX_SLOTS,
                 CanisterBlock::slotShape,
                 CanisterBlockEntity::buildCompositeShape,
-                gasket.syncCallback());
-        gasket.rebuildPushers(() -> {
-            if (level instanceof ServerLevel) {
-                rebuildAllSlotPushers();
-            }
-        });
+                slot -> level == null || CanisterPlacementValidator.isSlotAllowed(level, worldPosition, slot));
+        gasket.rebuildPushers(this.state::rebuildAllPushers);
         gasket.afterLoad(() -> {
             if (level instanceof ServerLevel serverLevel) {
                 GasketPusher.forceSlotTransmitterChunks(this.state.slots, gasket.registryAccess(),
@@ -172,9 +155,7 @@ public class CanisterBlockEntity extends BlockEntity implements ICanisterHolder,
     }
 
     /**
-     * Inserts a canister into the slot, optionally stripping gasket UUIDs.
-     * Validates placement, builds the slot's handler and pusher, registers
-     * gaskets, invalidates capabilities, and syncs.
+     * Inserts a canister into the slot through the shared slot lifecycle.
      *
      * @param slotIndex     the slot index
      * @param canisterStack the canister item stack to insert
@@ -182,63 +163,17 @@ public class CanisterBlockEntity extends BlockEntity implements ICanisterHolder,
      * @return true if inserted
      */
     public boolean insertCanister(int slotIndex, ItemStack canisterStack, boolean stripGaskets) {
-        CanisterSlot slot = resolveInsertableSlot(slotIndex, canisterStack);
-        if (slot == null) {
-            return false;
-        }
-        slot.setCanister(canisterStack.copyWithCount(1));
-        if (stripGaskets) {
-            slot.stripGaskets();
-        }
-        slot.buildHandler(this::gameTime);
-        rebuildSlotPusher(slotIndex);
-        BlockEntitySync.invalidateCapabilities(this);
-        registerSlotGaskets(slotIndex);
-        return true;
+        return state.insert(slotIndex, canisterStack, stripGaskets);
     }
 
     /**
-     * Returns the slot at {@code slotIndex} if it is a valid insertion target
-     * for {@code canisterStack}, otherwise null. Combines the placement-rule,
-     * empty-slot, and item-class checks into one resolver.
-     *
-     * @param slotIndex     the slot index
-     * @param canisterStack the candidate canister stack
-     * @return the slot ready to receive the canister, or null
-     */
-    private @Nullable CanisterSlot resolveInsertableSlot(int slotIndex, ItemStack canisterStack) {
-        if (level != null && !CanisterPlacementValidator.isSlotAllowed(level, worldPosition, slotIndex)) {
-            return null;
-        }
-        if (!(canisterStack.getItem() instanceof CanisterItem)) {
-            return null;
-        }
-        CanisterSlot slot = slot(slotIndex);
-        if (slot == null || !slot.isEmpty()) {
-            return null;
-        }
-        return slot;
-    }
-
-    /**
-     * Removes the canister from the slot, disposing handler/pusher and
-     * deregistering gaskets.
+     * Removes the canister from the slot through the shared slot lifecycle.
      *
      * @param slotIndex the slot index
      * @return the removed canister stack, or EMPTY
      */
     public ItemStack removeCanister(int slotIndex) {
-        CanisterSlot slot = slot(slotIndex);
-        if (slot == null || slot.isEmpty()) {
-            return ItemStack.EMPTY;
-        }
-        slot.disposePusher();
-        slot.syncHandlerToStack();
-        ItemStack removed = slot.canister().copy();
-        deregisterSlotGaskets(slotIndex);
-        slot.clear();
-        BlockEntitySync.invalidateCapabilities(this);
-        return removed;
+        return state.remove(slotIndex);
     }
 
     /**
@@ -252,31 +187,7 @@ public class CanisterBlockEntity extends BlockEntity implements ICanisterHolder,
         int target = state.inRange(targetSlot) ? targetSlot : CENTER_SLOT;
         ItemStack built = new ItemStack(GooItems.CANISTER.get());
         applyFluidAndMetadata(built, CanisterItem.getFluidContent(source), CanisterItem.getMetadata(source));
-        CanisterSlot slot = state.slots[target];
-        slot.setCanister(built);
-        if (stripGaskets) {
-            slot.stripGaskets();
-        }
-        slot.buildHandler(this::gameTime);
-        BlockEntitySync.invalidateCapabilities(this);
-    }
-
-    /**
-     * Rebuilds slot fluid handlers for all occupied slots (after deserialization).
-     */
-    private void rebuildAllSlotHandlers() {
-        for (CanisterSlot slot : state.slots) {
-            slot.buildHandler(this::gameTime);
-        }
-    }
-
-    /**
-     * Rebuilds gasket pushers for all occupied slots.
-     */
-    private void rebuildAllSlotPushers() {
-        for (int i = 0; i < MAX_SLOTS; i++) {
-            rebuildSlotPusher(i);
-        }
+        state.insert(target, built, stripGaskets);
     }
 
     // --- Receptacle ---
@@ -300,60 +211,7 @@ public class CanisterBlockEntity extends BlockEntity implements ICanisterHolder,
         return 0;
     }
 
-    // --- Gasket ops ---
-
-    /**
-     * Rebuilds the gasket pusher for a slot based on its bottom gasket state.
-     *
-     * @param slotIndex the slot index
-     */
-    private void rebuildSlotPusher(int slotIndex) {
-        CanisterSlot slot = slot(slotIndex);
-        if (slot == null) {
-            return;
-        }
-        SlotGasketPusher.rebuild(slot, this, gasket.registryAccess());
-    }
-
-    /**
-     * Registers gasket locations for all occupied slots.
-     */
-    private void registerAllGaskets() {
-        for (int i = 0; i < MAX_SLOTS; i++) {
-            if (!state.slots[i].isEmpty()) {
-                registerSlotGaskets(i);
-            }
-        }
-    }
-
-    /**
-     * Registers gasket locations for a slot's canister in the gasket registry.
-     *
-     * @param slotIndex the slot index
-     */
-    private void registerSlotGaskets(int slotIndex) {
-        SlotGasketRegistration.register(gasket.registryAccess(), level, worldPosition,
-                slotIndex, getSlotMetadata(slotIndex));
-    }
-
-    private void deregisterSlotGaskets(int slotIndex) {
-        SlotGasketRegistration.deregister(gasket.registryAccess(), getSlotMetadata(slotIndex));
-    }
-
-    private void deregisterAllGaskets() {
-        for (int i = 0; i < MAX_SLOTS; i++) {
-            if (!state.slots[i].isEmpty()) {
-                deregisterSlotGaskets(i);
-            }
-        }
-    }
-
     // --- IGasketHolder ---
-
-    @Override
-    public GasketAttachment gasket() {
-        return gasket;
-    }
 
     /**
      * Slot-level gaskets always support both transmitter and receiver roles.
@@ -376,9 +234,9 @@ public class CanisterBlockEntity extends BlockEntity implements ICanisterHolder,
 
     @Override
     public void setPartner(GasketRole role, int slot, @Nullable GasketPartner partner) {
-        IGasketHolder.super.setPartner(role, slot, partner);
-        if (role == GasketRole.TRANSMITTER && state.inRange(slot)) {
-            rebuildSlotPusher(slot);
+        super.setPartner(role, slot, partner);
+        if (role == GasketRole.TRANSMITTER) {
+            state.rebuildPusher(slot);
         }
     }
 
@@ -408,24 +266,16 @@ public class CanisterBlockEntity extends BlockEntity implements ICanisterHolder,
     }
 
     private InteractionResult pickupFromSlot(Player player, int slotIndex) {
-        boolean lastCanister = countOccupied() == 1;
-        if (lastCanister) {
-            // Take the stack directly and remove the block in one step to
-            // avoid an out-of-order BE-data packet vs. block-state-change-to-air.
-            ItemStack taken = state.slots[slotIndex].canister().copy();
-            PlayerUtils.addOrDrop(player, taken);
-            level.playSound(null, worldPosition, SoundEvents.DECORATED_POT_HIT,
-                    SoundSource.BLOCKS, 1.0F, 1.0F);
-            level.removeBlock(worldPosition, false);
-        } else {
-            ItemStack removed = removeCanister(slotIndex);
-            PlayerUtils.addOrDrop(player, removed);
-            level.playSound(null, worldPosition, SoundEvents.DECORATED_POT_HIT,
-                    SoundSource.BLOCKS, 1.0F, 1.0F);
+        if (countOccupied() > 1) {
+            return SlottedCanisterData.handToPlayer(removeCanister(slotIndex), player, level, worldPosition);
         }
-        return InteractionResult.SUCCESS;
+        // Take the stack directly and remove the block in one step to
+        // avoid an out-of-order BE-data packet vs. block-state-change-to-air.
+        ItemStack taken = state.slots[slotIndex].canister().copy();
+        InteractionResult handed = SlottedCanisterData.handToPlayer(taken, player, level, worldPosition);
+        level.removeBlock(worldPosition, false);
+        return handed;
     }
-
     private int countOccupied() {
         int count = 0;
         for (CanisterSlot slot : state.slots) {
@@ -517,10 +367,8 @@ public class CanisterBlockEntity extends BlockEntity implements ICanisterHolder,
     // --- Framework lifecycle ---
 
     @Override
-    public void setRemoved() {
-        state.disposeAllPushers();
-        deregisterAllGaskets();
-        super.setRemoved();
+    protected SlottedCanisterData heldSlots() {
+        return state;
     }
 
     @Override
@@ -529,76 +377,14 @@ public class CanisterBlockEntity extends BlockEntity implements ICanisterHolder,
         if (ownerUuid != null) {
             output.store(TAG_OWNER_UUID, UUIDUtil.STRING_CODEC, ownerUuid);
         }
-        CompoundTag root = new CompoundTag();
-        for (CanisterSlot slot : state.slots) {
-            CompoundTag slotTag = new CompoundTag();
-            slot.save(slotTag);
-            if (!slotTag.isEmpty()) {
-                root.put(String.valueOf(slot.index()), slotTag);
-            }
-        }
-        if (!root.isEmpty()) {
-            output.store(TAG_SLOTS, CompoundTag.CODEC, root);
-        }
-        gasket.saveAdditional(output);
+        state.save(output, TAG_SLOTS);
     }
 
     @Override
     protected void loadAdditional(@NonNull ValueInput input) {
         super.loadAdditional(input);
         input.read(TAG_OWNER_UUID, UUIDUtil.STRING_CODEC).ifPresent(u -> ownerUuid = u);
-        input.read(TAG_SLOTS, CompoundTag.CODEC).ifPresent(root -> {
-            for (CanisterSlot slot : state.slots) {
-                String key = String.valueOf(slot.index());
-                CompoundTag slotTag = root.contains(key) ? root.getCompoundOrEmpty(key) : new CompoundTag();
-                slot.load(slotTag);
-            }
-            // slot.load() skips structure-changed callbacks; rebuild now so
-            // raycasting + outline rendering see the loaded slot occupancy.
-            state.rebuildCompositeShape();
-        });
-        gasket.loadAdditional(input);
-        rebuildAllSlotHandlers();
-    }
-
-    @Override
-    public void setLevel(@NonNull Level newLevel) {
-        super.setLevel(newLevel);
-        gasket.onSetLevel(newLevel);
-        if (newLevel instanceof ServerLevel) {
-            registerAllGaskets();
-        }
-    }
-
-    @Override
-    public void onLoad() {
-        super.onLoad();
-        gasket.onLoad();
-        BlockEntitySync.kickLightingOnLoad(this);
-    }
-
-    /**
-     * Loads the packet's contents, then rechecks light at this position:
-     * the client's engine sees new goo only this way (decision
-     * diagnose-then-fix-vat-stale-light).
-     *
-     * @param net   the connection the packet came from
-     * @param input the packet data
-     */
-    @Override
-    public void onDataPacket(Connection net, ValueInput input) {
-        super.onDataPacket(net, input);
-        BlockEntitySync.relightOnContentsArrived(this);
-    }
-
-    @Override
-    public @NonNull CompoundTag getUpdateTag(HolderLookup.@NonNull Provider registries) {
-        return gasket.getUpdateTag(registries);
-    }
-
-    @Override
-    public Packet<ClientGamePacketListener> getUpdatePacket() {
-        return gasket.getUpdatePacket();
+        state.load(input, TAG_SLOTS);
     }
 
     @Override
@@ -621,12 +407,5 @@ public class CanisterBlockEntity extends BlockEntity implements ICanisterHolder,
             }
         }
         return found;
-    }
-
-    /**
-     * @return the level's current game tick, or 0 if no level
-     */
-    private long gameTime() {
-        return level != null ? level.getGameTime() : 0L;
     }
 }

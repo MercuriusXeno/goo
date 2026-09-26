@@ -1,10 +1,10 @@
 package com.mercuriusxeno.goo.client.ber;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.block.canister.CanisterGeometry;
 import com.mercuriusxeno.goo.block.tap.TapBlock;
 import com.mercuriusxeno.goo.block.tap.TapBlockEntity;
 import com.mercuriusxeno.goo.block.tap.TapStream;
-import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.RenderContext;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
@@ -19,87 +19,24 @@ import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 import net.minecraft.client.renderer.feature.ModelFeatureRenderer;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
-import java.util.List;
 
 /**
- * Renders the canister sitting on a tap's body slot, and the stream the tap
- * pours at 1:1. Follows the same body + gasket + fluid pattern as
- * HubBlockEntityRenderer, positioned at the per-facing canister slot center.
+ * Renders the canister sitting on a tap's body slot through the shared
+ * {@link CanisterSlotRenderer}, positioned at the per-facing canister slot
+ * center, and the stream the tap pours at 1:1 and 1:4.
  */
 public class TapBlockEntityRenderer
         implements BlockEntityRenderer<TapBlockEntity, TapRenderState> {
 
     /**
-     * Copper endcap texture (default canister caps).
-     */
-    private static final Identifier COPPER_GASKET =
-            Identifier.fromNamespaceAndPath("goo", "textures/block/gasket.png");
-
-    // -- Canister geometry (block coords) --
-
-    /**
-     * Canister half-width: 2px.
-     */
-    private static final float HW = 2f / 16f;
-
-    /**
-     * Bottom of lower gasket: sits on top of tap body (Y=4px).
-     */
-    private static final float GASKET_BOT = 4f / 16f;
-
-    /**
-     * Top of lower gasket / bottom of body (Y=5px).
-     */
-    private static final float BODY_BOT = 5f / 16f;
-
-    /**
-     * Top of body / bottom of upper gasket (Y=15px).
-     */
-    private static final float BODY_TOP = 15f / 16f;
-
-    /**
-     * Top of upper gasket (Y=16px).
-     */
-    private static final float GASKET_TOP = 16f / 16f;
-
-    /**
-     * Inset from body walls to avoid z-fighting with fluid surfaces (0.5px).
-     */
-    private static final float FLUID_INSET = 0.5f / 16f;
-
-    /**
-     * Shared fluid geometry constants for tap canister slot.
-     */
-    private static final SlotFluidGeometry.SlotGeometry FLUID_GEOM =
-            new SlotFluidGeometry.SlotGeometry(HW, BODY_BOT, BODY_TOP, FLUID_INSET);
-
-    /**
      * Divisor for computing AABB center from min+max.
      */
     private static final double CENTER_DIVISOR = 2.0;
-
-    // -- Gasket UV regions: gasket.png, 16x16 --
-
-    /**
-     * Gasket side U start: column 4/16.
-     */
-    private static final float GS_U0 = 0.25f;
-
-    /**
-     * Gasket side U end: column 8/16.
-     */
-    private static final float GS_U1 = 0.5f;
-
-    /**
-     * Gasket side V end: row 1/16.
-     */
-    private static final float GS_V1 = 0.0625f;
 
     // -- Stream geometry (block coords) --
 
@@ -165,118 +102,6 @@ public class TapBlockEntityRenderer
     }
 
     /**
-     * Submits body, gaskets, and optional fluid geometry for the canister.
-     *
-     * @param poseStack     the pose stack for rendering
-     * @param nodeCollector the render node collector
-     * @param state         the tap render state
-     * @param cx            the center X in block coords
-     * @param cz            the center Z in block coords
-     */
-    private static void submitAllParts(PoseStack poseStack, SubmitNodeCollector nodeCollector,
-                                       TapRenderState state, float cx, float cz) {
-        submitBody(poseStack, nodeCollector, state, cx, cz);
-        submitGaskets(poseStack, nodeCollector, state, cx, cz);
-        if (state.slot.type != null && state.slot.fill > 0f) {
-            submitFluid(poseStack, nodeCollector, state, cx, cz);
-        }
-    }
-
-    /**
-     * Submits the canister body's four sides through the submitter's
-     * sided-body form at the block entity's world light.
-     *
-     * @param poseStack     the pose stack for rendering
-     * @param nodeCollector the render node collector
-     * @param state         the block state
-     * @param cx            the center X in block coords
-     * @param cz            the center Z in block coords
-     */
-    private static void submitBody(PoseStack poseStack,
-                                   SubmitNodeCollector nodeCollector, TapRenderState state,
-                                   float cx, float cz) {
-        GooSubmitter.submitSidedBodies(poseStack, nodeCollector, state.lightCoords,
-                List.of(tapBoundsXZ(cx, cz).withY(BODY_BOT, BODY_TOP)));
-    }
-
-    /**
-     * Renders copper endcaps at top and bottom of the canister.
-     *
-     * @param poseStack     the pose stack for rendering
-     * @param nodeCollector the render node collector
-     * @param state         the block state
-     * @param cx            the center X in block coords
-     * @param cz            the center Z in block coords
-     */
-    private static void submitGaskets(PoseStack poseStack,
-                                      SubmitNodeCollector nodeCollector, TapRenderState state,
-                                      float cx, float cz) {
-        int light = state.lightCoords;
-        CuboidBounds base = tapBoundsXZ(cx, cz);
-        nodeCollector.submitCustomGeometry(poseStack,
-                GooSubmitter.solidOn(COPPER_GASKET),
-                (pose, c) -> renderGasketPair(new RenderContext(pose, c, light), base));
-    }
-
-    /**
-     * Renders the top and bottom gasket endcaps for the tap.
-     *
-     * @param ctx  the render context
-     * @param base the XZ cuboid bounds for the canister slot
-     */
-    private static void renderGasketPair(RenderContext ctx, CuboidBounds base) {
-        ctx.gasketBox(base.withY(BODY_TOP, GASKET_TOP), GS_U0, GS_U1, GS_V1);
-        ctx.gasketBox(base.withY(GASKET_BOT, BODY_BOT), GS_U0, GS_U1, GS_V1);
-    }
-
-    /**
-     * Computes the XZ cuboid bounds for the tap at the given center.
-     *
-     * @param cx the center X in block coords
-     * @param cz the center Z in block coords
-     * @return XZ cuboid bounds centered on the canister with Y zeroed
-     */
-    private static CuboidBounds tapBoundsXZ(float cx, float cz) {
-        return new CuboidBounds(cx - HW, cx + HW, cz - HW, cz + HW, 0, 0);
-    }
-
-    /**
-     * Renders the fluid surface inside the canister.
-     *
-     * @param poseStack     the pose stack for rendering
-     * @param nodeCollector the render node collector
-     * @param state         the block state
-     * @param cx            the center X in block coords
-     * @param cz            the center Z in block coords
-     */
-    private static void submitFluid(PoseStack poseStack,
-                                    SubmitNodeCollector nodeCollector, TapRenderState state,
-                                    float cx, float cz) {
-        ResourceKey<GooTypeDefinition> type = state.slot.type;
-        float fill = state.slot.fill;
-        GooSubmitter.submitFluid(poseStack, nodeCollector,
-                ctx -> renderFluidGeometry(ctx, type, fill, cx, cz));
-    }
-
-    /**
-     * Emits top surface and four side faces for the fluid fill level.
-     *
-     * @param ctx  the render context
-     * @param type the goo type for texture lookup
-     * @param fill the fill ratio [0, 1]
-     * @param cx   the center X in block coords
-     * @param cz   the center Z in block coords
-     */
-    private static void renderFluidGeometry(RenderContext ctx, ResourceKey<GooTypeDefinition> type, float fill,
-                                            float cx, float cz) {
-        CuboidBounds b = SlotFluidGeometry.computeBounds(FLUID_GEOM, cx, cz, fill);
-        TextureAtlasSprite sprite = GooSubmitter.fluidSprite(type);
-        int tint = GooSubmitter.fluidTint(type);
-        SlotFluidGeometry.renderFluidTop(ctx, b, sprite, tint);
-        SlotFluidGeometry.renderFluidSides(ctx, b, sprite, fill, FLUID_GEOM, tint);
-    }
-
-    /**
      * Emits the four sides of the thin goo column the tap pours at 1:1, from
      * the spigot underside down to the landing surface, its sprite tiled one
      * per block (decision diagnose-then-fix-stream-tiling); a tap pouring no
@@ -320,7 +145,10 @@ public class TapBlockEntityRenderer
     }
 
     /**
-     * Snapshots canister presence and fluid data from the block entity.
+     * Snapshots canister presence and fluid data from the block entity. The
+     * tap draws its canister with copper caps on both ends whatever gaskets the
+     * canister carries: the tap's own gasket is the block-level one, so the
+     * slot never reports a cap gasket.
      *
      * @param be            the block entity instance
      * @param state         the block state
@@ -334,6 +162,8 @@ public class TapBlockEntityRenderer
         BlockEntityRenderState.extractBase(be, state, breakProgress);
         state.facing = be.getBlockState().getValue(TapBlock.FACING);
         state.slot.present = !be.getCanister().isEmpty();
+        state.slot.topGasketPresent = false;
+        state.slot.bottomGasketPresent = false;
         if (state.slot.present) {
             extractCanisterContents(be.getCanister(), state);
         } else {
@@ -360,7 +190,7 @@ public class TapBlockEntityRenderer
     }
 
     /**
-     * Submits canister geometry if a canister is present.
+     * Submits the canister's body, caps and fluid if a canister is present.
      *
      * @param state         the block state
      * @param poseStack     the pose stack for rendering
@@ -375,9 +205,13 @@ public class TapBlockEntityRenderer
             return;
         }
         AABB sb = TapBlock.canisterSlotShape(state.facing).bounds();
-        float cx = (float) ((sb.minX + sb.maxX) / CENTER_DIVISOR);
-        float cz = (float) ((sb.minZ + sb.maxZ) / CENTER_DIVISOR);
-        submitAllParts(poseStack, nodeCollector, state, cx, cz);
+        float[][] center = {{
+            (float) ((sb.minX + sb.maxX) / CENTER_DIVISOR),
+            (float) ((sb.minZ + sb.maxZ) / CENTER_DIVISOR)}};
+        SlotState[] slots = {state.slot};
+        CanisterGeometry geometry = state.canisterGeometry();
+        CanisterSlotRenderer.submitBodies(poseStack, nodeCollector, state.lightCoords, geometry, slots, center);
+        CanisterSlotRenderer.submitCaps(poseStack, nodeCollector, state.lightCoords, geometry, slots, center);
+        CanisterSlotRenderer.submitFluids(poseStack, nodeCollector, geometry, slots, center, false);
     }
-
 }

@@ -1,9 +1,7 @@
 package com.mercuriusxeno.goo.client.ber;
 
+import com.mercuriusxeno.goo.block.canister.CanisterGeometry;
 import com.mercuriusxeno.goo.block.hub.HubBlockEntity;
-import com.mercuriusxeno.goo.client.CuboidBounds;
-import com.mercuriusxeno.goo.client.GooSubmitter;
-import com.mercuriusxeno.goo.client.RenderContext;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.CanisterMetadata;
@@ -16,7 +14,6 @@ import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 import net.minecraft.client.renderer.feature.ModelFeatureRenderer;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
-import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
@@ -53,62 +50,6 @@ import org.jspecify.annotations.Nullable;
  */
 public class HubBlockEntityRenderer
         implements BlockEntityRenderer<HubBlockEntity, HubRenderState> {
-
-    /** Copper endcap texture (default canister caps). */
-    private static final Identifier COPPER_GASKET =
-        Identifier.fromNamespaceAndPath("goo", "textures/block/gasket.png");
-
-    /** Choral gasket texture (upgraded canister caps). */
-    private static final Identifier CHORAL_GASKET =
-        Identifier.fromNamespaceAndPath("goo", "textures/block/choral_gasket.png");
-
-    // -- Canister geometry (block coords) --
-
-    /** Canister half-width: 2px. */
-    private static final float HW = 2f / 16f;
-
-    /** Bottom of lower gasket: rests on hub base (y=2px). */
-    private static final float GASKET_BOT = 2f / 16f;
-
-    /** Top of lower gasket / bottom of body (y=3px). */
-    private static final float BODY_BOT = 3f / 16f;
-
-    /** Top of body / bottom of upper gasket (y=13px). */
-    private static final float BODY_TOP = 13f / 16f;
-
-    /** Top of upper gasket: meets pipe bottom (y=14px). */
-    private static final float GASKET_TOP = 14f / 16f;
-
-    // -- Gasket UV regions: choral_gasket.png, 16x16 --
-
-    /** Gasket side U start: column 4/16. */
-    private static final float GS_U0 = 0.25f;
-
-    /** Gasket side U end: column 8/16. */
-    private static final float GS_U1 = 0.5f;
-
-    /** Gasket side V end: row 1/16. */
-    private static final float GS_V1 = 0.0625f;
-
-    /** Canister center positions in block coords (XZ), indexed by slot. */
-    private static final float[][] CENTERS = {
-        { 8f / 16f,  2f / 16f},   // slot 0 (N)
-        {13f / 16f,  3f / 16f},   // slot 1 (NE)
-        {14f / 16f,  8f / 16f},   // slot 2 (E)
-        {13f / 16f, 13f / 16f},   // slot 3 (SE)
-        { 8f / 16f, 14f / 16f},   // slot 4 (S)
-        { 3f / 16f, 13f / 16f},   // slot 5 (SW)
-        { 2f / 16f,  8f / 16f},   // slot 6 (W)
-        { 3f / 16f,  3f / 16f},   // slot 7 (NW)
-    };
-
-    /** Y ranges describing where gasket boxes land in a hub slot. */
-    private static final GasketCapRenderer.GasketYRanges GASKET_Y =
-        new GasketCapRenderer.GasketYRanges(BODY_BOT, BODY_TOP, GASKET_BOT, GASKET_TOP);
-
-    /** Gasket side UV region (uniform across container types). */
-    private static final GasketCapRenderer.GasketUv GASKET_UV =
-        new GasketCapRenderer.GasketUv(GS_U0, GS_U1, GS_V1);
 
     /**
      * Creates a hub BER. Context is unused.
@@ -220,10 +161,12 @@ public class HubBlockEntityRenderer
     public void submit(HubRenderState state, PoseStack poseStack,
             SubmitNodeCollector nodeCollector, CameraRenderState cameraState) {
         if (!hasAnyCanister(state)) { return; }
-        HubFluidRenderer.submitBodies(poseStack, nodeCollector, state);
-        submitGaskets(poseStack, nodeCollector, state);
-        HubFluidRenderer.submitFluids(poseStack, nodeCollector, state);
-        HubFluidRenderer.submitStreams(poseStack, nodeCollector, state);
+        CanisterGeometry geometry = state.canisterGeometry();
+        float[][] centers = HubRenderState.SLOT_CENTERS;
+        CanisterSlotRenderer.submitBodies(poseStack, nodeCollector, state.lightCoords, geometry, state.slots, centers);
+        CanisterSlotRenderer.submitCaps(poseStack, nodeCollector, state.lightCoords, geometry, state.slots, centers);
+        CanisterSlotRenderer.submitFluids(poseStack, nodeCollector, geometry, state.slots, centers, false);
+        HubStreamRenderer.submitStreams(poseStack, nodeCollector, state);
     }
 
     /**
@@ -237,120 +180,5 @@ public class HubBlockEntityRenderer
             if (slot.present) { return true; }
         }
         return false;
-    }
-
-    /**
-     * Submits endcap geometry for all occupied slots. Every canister always gets
-     * top and bottom caps - copper by default, choral when upgraded. Two draw
-     * calls batch each texture separately.
-     *
-     * @param poseStack the pose stack for rendering
-     * @param nodeCollector the render node collector
-     * @param state the block state
-     */
-    private static void submitGaskets(PoseStack poseStack,
-            SubmitNodeCollector nodeCollector, HubRenderState state) {
-        int light = state.lightCoords;
-        if (hasAnyCopperCap(state)) {
-            submitCopperCaps(poseStack, nodeCollector, light, state);
-        }
-        if (GasketCapRenderer.hasAnyCap(state.slots)) {
-            submitChoralCaps(poseStack, nodeCollector, light, state);
-        }
-    }
-
-    /**
-     * Submits copper (non-choral) endcap geometry in a single draw call.
-     * @param poseStack the current pose transformation stack
-     * @param nodeCollector the render node collector for geometry submission
-     * @param light the packed light level for shading
-     * @param state the render state snapshot
-     */
-    private static void submitCopperCaps(PoseStack poseStack,
-            SubmitNodeCollector nodeCollector, int light, HubRenderState state) {
-        nodeCollector.submitCustomGeometry(poseStack,
-            GooSubmitter.solidOn(COPPER_GASKET),
-            (pose, c) -> renderCopperEndcaps(new RenderContext(pose, c, light), state));
-    }
-
-    /**
-     * Submits choral gasket endcap geometry in a single draw call.
-     * @param poseStack the current pose transformation stack
-     * @param nodeCollector the render node collector for geometry submission
-     * @param light the packed light level for shading
-     * @param state the render state snapshot
-     */
-    private static void submitChoralCaps(PoseStack poseStack,
-            SubmitNodeCollector nodeCollector, int light, HubRenderState state) {
-        nodeCollector.submitCustomGeometry(poseStack,
-            GooSubmitter.solidOn(CHORAL_GASKET),
-            (pose, c) -> renderChoralEndcaps(new RenderContext(pose, c, light), state));
-    }
-
-    /** Renders copper (non-choral) endcaps for all occupied hub slots.
-     *
-     * @param ctx   the render context
-     * @param state the hub render state snapshot
-     */
-    private static void renderCopperEndcaps(RenderContext ctx, HubRenderState state) {
-        for (int i = 0; i < HubBlockEntity.MAX_CANISTERS; i++) {
-            if (!state.slots[i].present) { continue; }
-            renderEndcaps(ctx, i,
-                !state.slots[i].topGasketPresent, !state.slots[i].bottomGasketPresent);
-        }
-    }
-
-    /** Renders choral endcaps for all occupied hub slots.
-     *
-     * @param ctx   the render context
-     * @param state the hub render state snapshot
-     */
-    private static void renderChoralEndcaps(RenderContext ctx, HubRenderState state) {
-        for (int i = 0; i < HubBlockEntity.MAX_CANISTERS; i++) {
-            if (!state.slots[i].present) { continue; }
-            renderEndcaps(ctx, i,
-                state.slots[i].topGasketPresent, state.slots[i].bottomGasketPresent);
-        }
-    }
-
-    /**
-     * Returns true if any occupied slot has a non-choral (copper) cap on either end.
-     *
-     * @param state the block state
-     * @return true if anyCopperCap is present
-     */
-    private static boolean hasAnyCopperCap(HubRenderState state) {
-        for (int i = 0; i < HubBlockEntity.MAX_CANISTERS; i++) {
-            if (state.slots[i].present
-                    && (!state.slots[i].topGasketPresent || !state.slots[i].bottomGasketPresent)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Delegates to {@link GasketCapRenderer#renderEndcaps} with this container's
-     * Y ranges and UV constants.
-     *
-     * @param ctx    the render context
-     * @param slot   the slot index
-     * @param top    whether to render the top cap
-     * @param bottom whether to render the bottom cap
-     */
-    private static void renderEndcaps(RenderContext ctx, int slot, boolean top, boolean bottom) {
-        GasketCapRenderer.renderEndcaps(ctx, slotBoundsXZ(slot), GASKET_Y, GASKET_UV, top, bottom);
-    }
-
-    /**
-     * Computes the XZ cuboid bounds for a hub slot at index. Hub centers are
-     * already in block-local space, so they are passed to
-     * {@link GasketCapRenderer#slotBoundsXZ} unchanged.
-     *
-     * @param slot the slot index in the hub ring
-     * @return XZ cuboid bounds centered on the slot with Y zeroed
-     */
-    private static CuboidBounds slotBoundsXZ(int slot) {
-        return GasketCapRenderer.slotBoundsXZ(CENTERS[slot][0], CENTERS[slot][1], HW);
     }
 }
