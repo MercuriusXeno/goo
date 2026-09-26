@@ -9,6 +9,8 @@
   "viscosity": 800,
   "temperature": 1300,
   "extinguishes": false,
+  "levity": 1.0,
+  "base_flight_time": 3,
   "map_color": "fire",
   "textures": {
     "blob_tiny": "goo:item/blaze_blob_tiny",

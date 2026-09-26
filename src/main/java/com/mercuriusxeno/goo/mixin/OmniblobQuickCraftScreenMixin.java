@@ -269,14 +269,15 @@ public abstract class OmniblobQuickCraftScreenMixin {
 
     /**
      * Computes per-slot volume on the client side for remainder preview.
-     * Mirrors the server-side logic: charitable divides evenly, greedy gives 1 blob.
+     * Mirrors the server-side logic: charitable divides evenly, greedy gives the
+     * unit OmniblobQuickCraft.greedyPerSlot reads from the carried volume.
      *
      * @param totalVolume the total volume being distributed
      * @return the volume per slot
      */
     private int computeClientPerSlot(int totalVolume) {
         if (quickCraftingType == AbstractContainerMenu.QUICKCRAFT_TYPE_GREEDY) {
-            return OmniblobQuickCraft.greedyPerSlot();
+            return OmniblobQuickCraft.greedyPerSlot(totalVolume);
         }
         int slotCount = quickCraftSlots.size();
         if (slotCount <= 0) {

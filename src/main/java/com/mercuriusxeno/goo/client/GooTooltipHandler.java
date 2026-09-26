@@ -104,9 +104,6 @@ public final class GooTooltipHandler {
      * @return true if goo tooltip would be non-empty
      */
     private static boolean hasGooData(ItemStack stack) {
-        if (stack.getItem() instanceof GooBlobItem) {
-            return true;
-        }
         if (stack.getItem() instanceof GooOmniblobItem) {
             return true;
         }
@@ -141,17 +138,13 @@ public final class GooTooltipHandler {
     }
 
     /**
-     * Handles blob and omniblob items, returning true if a blob tooltip was appended.
+     * Handles omniblob items, returning true if a blob tooltip was appended.
      *
      * @param elements the tooltip element list
      * @param stack    the item stack
-     * @return true if the stack was a blob type
+     * @return true if the stack was an omniblob
      */
     private static boolean handleBlobTooltip(List<Either<FormattedText, TooltipComponent>> elements, ItemStack stack) {
-        if (stack.getItem() instanceof GooBlobItem) {
-            appendBlobComponent(elements, BlobStacks.keyOf(stack), BlobStacks.volumeOf(stack));
-            return true;
-        }
         if (stack.getItem() instanceof GooOmniblobItem) {
             appendBlobComponent(elements, BlobStacks.keyOf(stack), GooOmniblobItem.getVolume(stack));
             return true;
