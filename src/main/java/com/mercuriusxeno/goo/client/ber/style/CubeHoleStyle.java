@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ber.style;
 
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
+import com.mercuriusxeno.goo.client.FlatQuadContext;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.ability.BlackHolePhases;
 import com.mercuriusxeno.goo.client.ability.NetherDiscMesh;
@@ -176,12 +177,11 @@ public final class CubeHoleStyle implements NetherHoleStyle {
         float nx = CUBE_FACE_NORMALS[p];
         float ny = CUBE_FACE_NORMALS[p + 1];
         float nz = CUBE_FACE_NORMALS[p + CUBE_Z];
-        c.addVertex(pose,
+        new FlatQuadContext(pose, c).vertex(
                 BLOCK_CENTER + px * halfExtent,
                 BLOCK_CENTER + py * halfExtent,
-                BLOCK_CENTER + pz * halfExtent)
-            .setColor(color)
-            .setNormal(pose, nx, ny, nz);
+                BLOCK_CENTER + pz * halfExtent,
+                color, nx, ny, nz);
     }
 
     /** Packs the edge-glow vertex color for cube vertex {@code i}

@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.overlay;
 import com.mercuriusxeno.goo.ThrowArc;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.LineContext;
+import com.mercuriusxeno.goo.client.VertexColors;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
@@ -237,25 +238,13 @@ final class ArcRenderer {
         float perspScale = 1f + camDist * PERSPECTIVE_FACTOR;
         float alpha = dashAlpha(arcLen + segLen * DASH_MID, dashOffset, perspScale);
         if (alpha > 0f) {
-            int fadedColor = scaleAlpha(color, alpha);
+            int fadedColor = VertexColors.scaleAlpha(color, alpha);
             ctx.emitEdge(
                 (float) (a.x - cam.x), (float) (a.y - cam.y), (float) (a.z - cam.z),
                 (float) (b.x - cam.x), (float) (b.y - cam.y), (float) (b.z - cam.z),
                 fadedColor, width);
         }
         return arcLen + segLen;
-    }
-
-    /**
-     * Scales the alpha channel of an ARGB color by a [0..1] factor.
-     *
-     * @param argb   the source ARGB color
-     * @param factor the alpha scale factor [0..1]
-     * @return the color with scaled alpha
-     */
-    private static int scaleAlpha(int argb, float factor) {
-        int a = Mth.clamp((int) (ARGB.alpha(argb) * factor), 0, MAX_ALPHA);
-        return ARGB.color(a, ARGB.red(argb), ARGB.green(argb), ARGB.blue(argb));
     }
 
     /**
