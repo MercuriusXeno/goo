@@ -24,7 +24,8 @@ import java.util.stream.Stream;
  * selected entity, so the body holds entity effect steps and the interval
  * reads entity variables; the teardown runs on the marker. The strikes in
  * flight, the budget and the expand and contract progress live in the
- * host's {@link FieldEffectState}, which the marker's renderer reads.
+ * host's {@link FieldEffectState}, which the marker's renderer reads
+ * beside this step's params from the synced ability definition.
  *
  * <p>The metal trap strikes one entity per ten-tick cooldown, landing a
  * stalagmite impale six ticks after choosing it; the crystal cloud shreds
@@ -87,50 +88,41 @@ public record FieldEffectStep(Expr radius, List<EntityFilter> where, Expr cooldo
 
     @Override
     public boolean tick(StepContext context) {
-        StepHost host = context.host();
-        FieldEffectState state = host.fieldEffect();
-        record(context, state);
-        advanceStrikes(host, state);
+        FieldEffectState state = context.hostAs(FieldEffectHost.class).fieldEffect();
+        StacksHost stacks = context.hostAs(StacksHost.class);
+        EntityScanHost scan = context.hostAs(EntityScanHost.class);
+        state.countTick();
+        advanceStrikes(context, scan, state);
         if (state.cooldown() > 0) {
             state.setCooldown(state.cooldown() - 1);
         }
-        if (host.stackCount() > 0) {
-            host.forEachEntityWithin(SelectionShape.SPHERE, radius.evaluate(context), Set.copyOf(where),
+        if (stacks.stackCount() > 0) {
+            scan.forEachEntityWithin(SelectionShape.SPHERE, radius.evaluate(context), Set.copyOf(where),
                     target -> tryStrike(context, state, target));
         }
-        state.recordCharges(host.stackCount() * perStack.evaluateInt(context) - state.chargesSpent());
-        return tearDownWhenSpent(host, state);
+        state.recordCharges(stacks.stackCount() * perStack.evaluateInt(context) - state.chargesSpent());
+        return tearDownWhenSpent(context, stacks, state);
     }
 
-    /**
-     * Counts the tick and records what the renderer reads: the strike
-     * timing and the field's reach and animation lengths.
-     *
-     * @param context the marker's tick context
-     * @param state   the field-effect state
-     */
-    private void record(StepContext context, FieldEffectState state) {
-        state.countTick();
-        state.time(strikeTick.evaluateInt(context), strikeTicks.evaluateInt(context));
-        state.shape(radius.evaluateFloat(context), timing.expandTicks().evaluateInt(context),
-                timing.contractTicks().evaluateInt(context));
-    }
 
     /**
      * Ages every strike in flight by one tick, lands each that reaches the
      * landing tick on its entity, and drops each that has run its length.
      *
-     * @param host  the marker host
-     * @param state the field-effect state
+     * @param context the marker's tick context
+     * @param scan    the marker host scanning for each strike's entity
+     * @param state   the field-effect state
      */
-    private void advanceStrikes(StepHost host, FieldEffectState state) {
+    private void advanceStrikes(StepContext context, EntityScanHost scan, FieldEffectState state) {
+        int landingAge = strikeTick.evaluateInt(context);
+        int length = strikeTicks.evaluateInt(context);
         List<FieldStrike> kept = new ArrayList<>(state.strikes().size());
         for (FieldStrike strikeInFlight : state.strikes()) {
             FieldStrike aged = strikeInFlight.aged();
-            if (aged.age() == state.strikeTick()) {
-                host.forEntity(aged.entityId(), this::land);
+            if (aged.age() == landingAge) {
+                scan.forEntity(aged.entityId(), this::land);
             }
-            if (aged.age() < state.strikeTicks()) {
+            if (aged.age() < length) {
                 kept.add(aged);
             }
         }
@@ -146,9 +138,9 @@ public record FieldEffectStep(Expr radius, List<EntityFilter> where, Expr cooldo
      * @param state   the field-effect state
      * @param target  the host bound to the selected entity
      */
-    private void tryStrike(StepContext context, FieldEffectState state, StepHost target) {
-        FieldStrike aimed = FieldStrike.aimedAt(target);
-        if (state.cooldown() > 0 || state.isStriking(aimed.entityId()) || context.host().stackCount() <= 0) {
+    private void tryStrike(StepContext context, FieldEffectState state, TargetHost target) {
+        FieldStrike aimed = FieldStrike.aimedAt(target.target());
+        if (state.cooldown() > 0 || state.isStriking(aimed.entityId()) || context.hostAs(StacksHost.class).stackCount() <= 0) {
             return;
         }
         int period = Math.max(1, interval.evaluateInt(new StepContext(target, context.stepTicks(),
@@ -159,7 +151,7 @@ public record FieldEffectStep(Expr radius, List<EntityFilter> where, Expr cooldo
         spendCharge(context, state);
         state.addStrike(aimed);
         state.setCooldown(cooldown.evaluateInt(context));
-        if (state.strikeTick() == 0) {
+        if (strikeTick.evaluateInt(context) == 0) {
             land(target);
         }
     }
@@ -174,7 +166,7 @@ public record FieldEffectStep(Expr radius, List<EntityFilter> where, Expr cooldo
     private void spendCharge(StepContext context, FieldEffectState state) {
         int spent = state.chargesSpent() + 1;
         if (spent >= perStack.evaluateInt(context)) {
-            context.host().decrementStack();
+            context.hostAs(StacksHost.class).decrementStack();
             spent = 0;
         }
         state.setChargesSpent(spent);
@@ -185,11 +177,12 @@ public record FieldEffectStep(Expr radius, List<EntityFilter> where, Expr cooldo
      * flight, and finishes once the field has contracted; a top-off during
      * the contraction restarts the field.
      *
-     * @param host  the marker host
-     * @param state the field-effect state
+     * @param context the marker's tick context
+     * @param host    the marker host
+     * @param state   the field-effect state
      * @return true when the field has finished
      */
-    private boolean tearDownWhenSpent(StepHost host, FieldEffectState state) {
+    private boolean tearDownWhenSpent(StepContext context, StacksHost host, FieldEffectState state) {
         if (host.stackCount() > 0 || !state.strikes().isEmpty()) {
             state.setTeardownTicks(0);
             return false;
@@ -198,7 +191,7 @@ public record FieldEffectStep(Expr radius, List<EntityFilter> where, Expr cooldo
             new ProgramBehavior(teardown).tick(host);
         }
         state.setTeardownTicks(state.teardownTicks() + 1);
-        return state.teardownTicks() > state.contractTicks();
+        return state.teardownTicks() > timing.contractTicks().evaluateInt(context);
     }
 
     /**
@@ -206,7 +199,7 @@ public record FieldEffectStep(Expr radius, List<EntityFilter> where, Expr cooldo
      *
      * @param target the host bound to the struck entity
      */
-    private void land(StepHost target) {
+    private void land(TargetHost target) {
         new ProgramBehavior(strike).tick(target);
     }
 
