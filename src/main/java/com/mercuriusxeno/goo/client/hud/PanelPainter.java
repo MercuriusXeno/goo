@@ -157,8 +157,39 @@ public final class PanelPainter {
      * @param amount the volume in mB
      * @return the row
      */
-    public static PanelRow fluidRow(Fluid fluid, int amount) {
-        Identifier icon = fluid.isSame(Fluids.WATER) ? WATER_BUCKET_ICON : LAVA_BUCKET_ICON;
+    public static PanelRow fluidRow(Fluid fluid, long amount) {
+        return bucketRow(fluid.isSame(Fluids.WATER) ? WATER_BUCKET_ICON : LAVA_BUCKET_ICON, amount);
+    }
+
+    /**
+     * Builds the water row: water bucket icon and amount, drawn over world geometry.
+     * It names no Fluid, so it builds without a bootstrapped registry
+     * (decision diagnose-then-fix-vat-hud-water-row).
+     *
+     * @param amount the volume in mB
+     * @return the row
+     */
+    public static PanelRow waterRow(long amount) {
+        return bucketRow(WATER_BUCKET_ICON, amount);
+    }
+
+    /**
+     * Returns the icon texture of the water row.
+     *
+     * @return the water bucket icon identifier
+     */
+    public static Identifier waterIcon() {
+        return WATER_BUCKET_ICON;
+    }
+
+    /**
+     * Builds a bucket icon row with the compact amount, drawn over world geometry.
+     *
+     * @param icon   the bucket icon texture
+     * @param amount the volume in mB
+     * @return the row
+     */
+    private static PanelRow bucketRow(Identifier icon, long amount) {
         String text = GooTooltipHandler.formatFluidDisplayCompact(amount);
         return new PanelRow(icon, List.of(new PanelRow.TextSegment(text, TEXT_COLOR)), true);
     }
