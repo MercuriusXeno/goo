@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.radial;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -60,6 +61,72 @@ class PetalMaskTest {
         @Test
         void angleOutsideTheWedgeIsOutside() {
             assertFalse(insideAt(START - JUST_INSIDE, (INNER + OUTER) / 2));
+        }
+    }
+
+    /** The fill carries the fluid sprite's pixel at each wheel position (decision wedges-render-fluid-texture). */
+    @Nested
+    class Fill {
+
+        private static final int SIZE = 64;
+        private static final int SPRITE_SIDE = 4;
+        private static final int WHITE = 0xFFFFFFFF;
+        /** A right half-plane: every sub-sample of a pixel right of center is inside. */
+        private static final PetalMask.Shape RIGHT_HALF = (x, y) -> x > 0;
+
+        /** A synthetic sprite whose every pixel is distinct and opaque. */
+        private final PetalMask.PixelSource sprite = new PetalMask.PixelSource() {
+            @Override
+            public int width() {
+                return SPRITE_SIDE;
+            }
+
+            @Override
+            public int height() {
+                return SPRITE_SIDE;
+            }
+
+            @Override
+            public int pixel(int x, int y) {
+                return 0xFF000000 | (x * 0x40) << 16 | (y * 0x40) << 8 | 0x11;
+            }
+        };
+
+        private final int[] pixels = PetalMask.fill(SIZE, RIGHT_HALF, sprite, WHITE);
+
+        @Test
+        void insidePixelsCarryTheSpriteAtTheTiledCoordinate() {
+            for (int py = 0; py < SIZE; py += 3) {
+                for (int px = SIZE / 2; px < SIZE; px += 5) {
+                    int tiledX = (px / PetalMask.TEXEL_SCALE) % SPRITE_SIDE;
+                    int tiledY = (py / PetalMask.TEXEL_SCALE) % SPRITE_SIDE;
+                    assertEquals(sprite.pixel(tiledX, tiledY), pixels[py * SIZE + px],
+                            "pixel " + px + "," + py);
+                }
+            }
+        }
+
+        @Test
+        void spriteRepeatsAcrossTheWheel() {
+            int period = PetalMask.TEXEL_SCALE * SPRITE_SIDE;
+            int px = SIZE / 2 + 1;
+            assertEquals(pixels[px], pixels[px + period]);
+        }
+
+        @Test
+        void outsidePixelsStayTransparent() {
+            for (int py = 0; py < SIZE; py += 3) {
+                for (int px = 0; px < SIZE / 2; px += 5) {
+                    assertEquals(0, pixels[py * SIZE + px], "pixel " + px + "," + py);
+                }
+            }
+        }
+
+        @Test
+        void tintMultipliesTheSprite() {
+            int halfGrey = 0xFF808080;
+            int[] tinted = PetalMask.fill(SIZE, RIGHT_HALF, PetalMask.PixelSource.solid(WHITE), halfGrey);
+            assertEquals(0xFF808080, tinted[SIZE - 1]);
         }
     }
 
