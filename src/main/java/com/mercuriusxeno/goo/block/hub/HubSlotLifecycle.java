@@ -93,32 +93,6 @@ final class HubSlotLifecycle {
         return removed;
     }
 
-    /**
-     * Registers the gaskets of every occupied slot's canister at the hub.
-     *
-     * @param be the hub block entity
-     */
-    static void registerAllSlotGaskets(HubBlockEntity be) {
-        for (int i = 0; i < HubBlockEntity.MAX_CANISTERS; i++) {
-            if (!be.containerState().slots[i].isEmpty()) {
-                registerSlotGaskets(be, i);
-            }
-        }
-    }
-
-    /**
-     * Clears the registry location of every occupied slot's canister gaskets.
-     *
-     * @param be the hub block entity
-     */
-    static void deregisterAllSlotGaskets(HubBlockEntity be) {
-        for (int i = 0; i < HubBlockEntity.MAX_CANISTERS; i++) {
-            if (!be.containerState().slots[i].isEmpty()) {
-                deregisterSlotGaskets(be, i);
-            }
-        }
-    }
-
     private static void registerSlotGaskets(HubBlockEntity be, int slot) {
         SlotGasketRegistration.register(be.gasket().registryAccess(), be.getLevel(), be.getBlockPos(),
                 slot, be.getSlotMetadata(slot));

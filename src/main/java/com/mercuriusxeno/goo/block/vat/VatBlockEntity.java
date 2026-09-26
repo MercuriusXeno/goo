@@ -1,34 +1,25 @@
 package com.mercuriusxeno.goo.block.vat;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
-import com.mercuriusxeno.goo.GooTypes;
-import com.mercuriusxeno.goo.block.BlockEntitySync;
-import com.mercuriusxeno.goo.block.GooLightContribution;
-import com.mercuriusxeno.goo.block.IGooLightSource;
+import com.mercuriusxeno.goo.block.GooGlowingMachineBlockEntity;
+import com.mercuriusxeno.goo.block.GooLightEntry;
 import com.mercuriusxeno.goo.block.fluid.GooFluidHandler;
 import com.mercuriusxeno.goo.block.fluid.GooStream;
 import com.mercuriusxeno.goo.block.gasket.AddressedGasket;
 import com.mercuriusxeno.goo.block.gasket.GasketAttachment;
 import com.mercuriusxeno.goo.block.gasket.GasketPusher;
-import com.mercuriusxeno.goo.block.gasket.IGasketHolder;
 import com.mercuriusxeno.goo.item.ContainerCapacity;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.gasket.GasketRegionResolver;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.core.component.DataComponentGetter;
 import net.minecraft.core.component.DataComponentMap;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.Connection;
-import net.minecraft.network.protocol.Packet;
-import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.storage.ValueInput;
@@ -36,6 +27,7 @@ import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.BlockHitResult;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
+import java.util.List;
 
 /**
  * Block entity for the Vat. Multi-type bulk goo storage with compression
@@ -47,12 +39,7 @@ import org.jspecify.annotations.Nullable;
  * {@link VatGasketOps} (gasket face resolution, stacking, drops).
  * Gasket field storage owned by {@link GasketState#dual}.</p>
  */
-public class VatBlockEntity extends BlockEntity implements IGasketHolder, IGooLightSource {
-
-    /**
-     * Composed gasket integration: dual-role (RECEIVER cap, TRANSMITTER base) with a BE-level pusher.
-     */
-    private final GasketAttachment gasket = GasketAttachment.dual(this, "cap", "base");
+public class VatBlockEntity extends GooGlowingMachineBlockEntity {
 
     // Package-private fields accessed by VatSerialization, VatStackRedistributor.
     final GooFluidHandler fluidHandler = GooFluidHandler.withWaterTank(
@@ -87,7 +74,8 @@ public class VatBlockEntity extends BlockEntity implements IGasketHolder, IGooLi
      * @param state the block state
      */
     public VatBlockEntity(BlockPos pos, BlockState state) {
-        super(GooBlockEntities.VAT.get(), pos, state);
+        super(GooBlockEntities.VAT.get(), pos, state, be -> GasketAttachment.dual(be, "cap", "base"));
+        GasketAttachment gasket = gasket();
         this.gasketPusher = new GasketPusher(
                 fluidHandler,
                 () -> gasket.state().getId(GasketRole.TRANSMITTER),
@@ -102,8 +90,8 @@ public class VatBlockEntity extends BlockEntity implements IGasketHolder, IGooLi
     private void forceTransmitterChunkOnLoad() {
         if (level instanceof ServerLevel serverLevel) {
             GasketPusher.forceTransmitterChunk(
-                    gasket.state().getId(GasketRole.TRANSMITTER),
-                    gasket.registryAccess(),
+                    gasket().state().getId(GasketRole.TRANSMITTER),
+                    gasket().registryAccess(),
                     serverLevel,
                     worldPosition);
         }
@@ -210,32 +198,15 @@ public class VatBlockEntity extends BlockEntity implements IGasketHolder, IGooLi
     }
 
     /**
-     * Sums emissive contributions from each fluid entry against the vat's
-     * current capacity, clamped to the vanilla 15-light ceiling. Compression
+     * Each fluid entry glows against the vat's current capacity. Compression
      * grows capacity, so the same mB amount of glow goo emits less light in
      * a higher-tier vat -- intentional, scales with the visible fill ratio.
-     * Before placement no registry is reachable, so the emission reads 0.
      *
-     * @return goo-derived block-light emission in [0, 15]
+     * @return one light entry per goo type held
      */
     @Override
-    public int gooLightEmission() {
-        Level level = getLevel();
-        if (level == null) {
-            return 0;
-        }
-        HolderLookup.Provider registries = level.registryAccess();
-        int capacity = getCapacity();
-        int total = 0;
-        for (var entry : fluidHandler.toGooContents().contents().entrySet()) {
-            int contribution = GooLightContribution.forSlot(
-                    GooTypes.definition(registries, entry.getKey()), entry.getValue(), capacity);
-            total = GooLightContribution.addClamped(total, contribution);
-            if (total >= GooLightContribution.MAX_LIGHT) {
-                return GooLightContribution.MAX_LIGHT;
-            }
-        }
-        return total;
+    protected List<GooLightEntry> lightEntries() {
+        return GooLightEntry.ofContents(fluidHandler.toGooContents(), getCapacity());
     }
 
     /**
@@ -298,11 +269,6 @@ public class VatBlockEntity extends BlockEntity implements IGasketHolder, IGooLi
     }
 
     @Override
-    public GasketAttachment gasket() {
-        return gasket;
-    }
-
-    @Override
     public GasketRole resolveRole(BlockHitResult hit) {
         double localY = hit.getLocation().y - getBlockPos().getY();
         return GasketRegionResolver.resolveVatRole(hit.getDirection(), localY);
@@ -349,7 +315,7 @@ public class VatBlockEntity extends BlockEntity implements IGasketHolder, IGooLi
 
     /** Marks dirty and syncs to clients. Delegates to the gasket attachment. */
     void markDirtyAndSync() {
-        gasket.syncToClients();
+        gasket().syncToClients();
     }
 
     // --- Internal ---
@@ -372,43 +338,12 @@ public class VatBlockEntity extends BlockEntity implements IGasketHolder, IGooLi
     protected void saveAdditional(@NonNull ValueOutput output) {
         super.saveAdditional(output);
         VatSerialization.saveFields(this, output);
-        gasket.saveAdditional(output);
     }
 
     @Override
     protected void loadAdditional(@NonNull ValueInput input) {
         super.loadAdditional(input);
         VatSerialization.loadFields(this, input);
-        gasket.loadAdditional(input);
-    }
-
-    // --- Framework lifecycle ---
-
-    @Override
-    public void setLevel(Level level) {
-        super.setLevel(level);
-        gasket.onSetLevel(level);
-    }
-
-    @Override
-    public void onLoad() {
-        super.onLoad();
-        gasket.onLoad();
-        BlockEntitySync.kickLightingOnLoad(this);
-    }
-
-    /**
-     * Loads the packet's contents, then rechecks light at this position:
-     * the client's engine sees new goo only this way (decision
-     * diagnose-then-fix-vat-stale-light).
-     *
-     * @param net   the connection the packet came from
-     * @param input the packet data
-     */
-    @Override
-    public void onDataPacket(Connection net, ValueInput input) {
-        super.onDataPacket(net, input);
-        BlockEntitySync.relightOnContentsArrived(this);
     }
 
     /**
@@ -436,15 +371,5 @@ public class VatBlockEntity extends BlockEntity implements IGasketHolder, IGooLi
         if (!contents.isEmpty()) {
             fluidHandler.loadFrom(contents);
         }
-    }
-
-    @Override
-    public @NonNull CompoundTag getUpdateTag(HolderLookup.@NonNull Provider registries) {
-        return gasket.getUpdateTag(registries);
-    }
-
-    @Override
-    public Packet<ClientGamePacketListener> getUpdatePacket() {
-        return gasket.getUpdatePacket();
     }
 }

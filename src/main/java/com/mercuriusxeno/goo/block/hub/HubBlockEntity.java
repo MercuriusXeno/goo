@@ -1,26 +1,21 @@
 package com.mercuriusxeno.goo.block.hub;
 
 import com.mercuriusxeno.goo.block.BlockEntitySync;
+import com.mercuriusxeno.goo.block.GooGlowingMachineBlockEntity;
 import com.mercuriusxeno.goo.block.canister.*;
 import com.mercuriusxeno.goo.block.gasket.GasketAttachment;
 import com.mercuriusxeno.goo.block.gasket.GasketPusher;
-import com.mercuriusxeno.goo.block.gasket.IGasketHolder;
 import com.mercuriusxeno.goo.item.gasket.GasketPartner;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.core.component.DataComponentGetter;
 import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.Connection;
-import net.minecraft.network.protocol.Packet;
-import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
@@ -37,7 +32,7 @@ import java.util.List;
  * delegated to {@link HubSlotLifecycle} (handler/pusher/shape/gasket registration).
  * Intake gasket field storage owned by {@link GasketState#single}.</p>
  */
-public class HubBlockEntity extends BlockEntity implements ICanisterHolder, IGasketHolder, ICanisterAttachable {
+public class HubBlockEntity extends GooGlowingMachineBlockEntity implements ICanisterHolder, ICanisterAttachable {
 
     public static final int MAX_CANISTERS = 8;
 
@@ -54,11 +49,6 @@ public class HubBlockEntity extends BlockEntity implements ICanisterHolder, IGas
      */
     private static final int BLOCK_UPDATE_FLAGS = 3;
     /**
-     * Composed gasket integration: RECEIVER intake, slot-level pushers managed by HubSlotLifecycle.
-     */
-    private final GasketAttachment gasket = GasketAttachment.single(this, GasketRole.RECEIVER, FACE_LABEL);
-
-    /**
      * Behavioral component owning slot arrays, handlers, and stream state.
      */
     private final SlottedCanisterData state;
@@ -70,7 +60,9 @@ public class HubBlockEntity extends BlockEntity implements ICanisterHolder, IGas
      * @param state the block state
      */
     public HubBlockEntity(BlockPos pos, BlockState state) {
-        super(GooBlockEntities.HUB.get(), pos, state);
+        super(GooBlockEntities.HUB.get(), pos, state,
+                be -> GasketAttachment.single(be, GasketRole.RECEIVER, FACE_LABEL));
+        GasketAttachment gasket = gasket();
         this.state = new SlottedCanisterData(
                 MAX_CANISTERS,
                 HubBlock::slotShape,
@@ -177,11 +169,6 @@ public class HubBlockEntity extends BlockEntity implements ICanisterHolder, IGas
     // --- IGasketHolder ---
 
     @Override
-    public GasketAttachment gasket() {
-        return gasket;
-    }
-
-    @Override
     public int resolveSlot(BlockHitResult hit) {
         int slot = HubBlock.hitSlot(hit, getBlockPos());
         return slot < 0 ? SLOT_MISS : slot;
@@ -206,7 +193,7 @@ public class HubBlockEntity extends BlockEntity implements ICanisterHolder, IGas
      */
     @Override
     public void clearGasket(GasketRole role) {
-        gasket.state().clear(role, this::onGasketCleared);
+        gasket().state().clear(role, this::onGasketCleared);
     }
 
     /**
@@ -225,7 +212,7 @@ public class HubBlockEntity extends BlockEntity implements ICanisterHolder, IGas
 
     @Override
     public void setPartner(GasketRole role, int slot, @Nullable GasketPartner partner) {
-        IGasketHolder.super.setPartner(role, slot, partner);
+        super.setPartner(role, slot, partner);
         if (role == GasketRole.TRANSMITTER && slot >= 0 && slot < MAX_CANISTERS) {
             HubSlotLifecycle.rebuildSlotPusher(this, slot);
         }
@@ -234,40 +221,8 @@ public class HubBlockEntity extends BlockEntity implements ICanisterHolder, IGas
     // --- Framework lifecycle ---
 
     @Override
-    public void setLevel(@NonNull Level level) {
-        super.setLevel(level);
-        gasket.onSetLevel(level);
-        if (level instanceof ServerLevel) {
-            HubSlotLifecycle.registerAllSlotGaskets(this);
-        }
-    }
-
-    @Override
-    public void setRemoved() {
-        state.disposeAllPushers();
-        HubSlotLifecycle.deregisterAllSlotGaskets(this);
-        super.setRemoved();
-    }
-
-    @Override
-    public void onLoad() {
-        super.onLoad();
-        gasket.onLoad();
-        BlockEntitySync.kickLightingOnLoad(this);
-    }
-
-    /**
-     * Loads the packet's contents, then rechecks light at this position:
-     * the client's engine sees new goo only this way (decision
-     * diagnose-then-fix-vat-stale-light).
-     *
-     * @param net   the connection the packet came from
-     * @param input the packet data
-     */
-    @Override
-    public void onDataPacket(Connection net, ValueInput input) {
-        super.onDataPacket(net, input);
-        BlockEntitySync.relightOnContentsArrived(this);
+    protected SlottedCanisterData heldSlots() {
+        return state;
     }
 
     @Override
@@ -284,7 +239,6 @@ public class HubBlockEntity extends BlockEntity implements ICanisterHolder, IGas
         if (!root.isEmpty()) {
             output.store(TAG_SLOTS, CompoundTag.CODEC, root);
         }
-        gasket.saveAdditional(output);
     }
 
     @Override
@@ -300,18 +254,7 @@ public class HubBlockEntity extends BlockEntity implements ICanisterHolder, IGas
             // raycasting + outline rendering see the loaded slot occupancy.
             state.rebuildCompositeShape();
         });
-        gasket.loadAdditional(input);
         HubSlotLifecycle.rebuildAllSlotHandlers(this);
-    }
-
-    @Override
-    public @NonNull CompoundTag getUpdateTag(HolderLookup.@NonNull Provider registries) {
-        return gasket.getUpdateTag(registries);
-    }
-
-    @Override
-    public Packet<ClientGamePacketListener> getUpdatePacket() {
-        return gasket.getUpdatePacket();
     }
 
     /**
