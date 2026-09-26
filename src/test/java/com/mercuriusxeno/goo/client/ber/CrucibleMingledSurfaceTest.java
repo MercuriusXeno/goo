@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.ber;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
+import com.mercuriusxeno.goo.block.crucible.CrucibleBasin;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.RecordingVertexConsumer;
 import com.mercuriusxeno.goo.client.RenderContext;
@@ -61,7 +62,7 @@ class CrucibleMingledSurfaceTest {
             emitter.accept(RenderContext.banded(new PoseStack().last(), recorder,
                 GooRenderUtil.OPAQUE_WHITE, band), sprite());
             surfaces.add(recorder.vertices());
-        }, state, SURFACE_Y);
+        }, state, CrucibleBasin.footprintForVolume(CrucibleBasin.RIM_VOLUME), SURFACE_Y);
 
         assertEquals(shareUnitsPerLayer.size(), surfaces.size());
         for (int layer = 0; layer < surfaces.size(); layer++) {
