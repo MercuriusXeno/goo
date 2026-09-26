@@ -3,10 +3,6 @@ package com.mercuriusxeno.goo.gametest;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
-import com.mercuriusxeno.goo.ability.program.HostKind;
-import com.mercuriusxeno.goo.ability.program.PlaceBlockStep;
-import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
-import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.TapHost;
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
@@ -230,7 +226,7 @@ public final class TapDripTests {
     }
 
     /**
-     * A place-block program on the tap host at a landing writes the block
+     * The tap host placing a block at a landing writes the block
      * into the cell above the landing, and leaves a standing block there
      * untouched.
      *
@@ -243,11 +239,8 @@ public final class TapDripTests {
         helper.setBlock(openLanding.above(), Blocks.AIR);
         helper.setBlock(coveredLanding, Blocks.STONE);
         helper.setBlock(coveredLanding.above(), GooBlocks.TAP.get());
-        List<Step> placeGlass = List.of(new PlaceBlockStep(GLASS, Map.of()));
-
         for (BlockPos landing : List.of(openLanding, coveredLanding)) {
-            ProgramBehavior.forHost(placeGlass, HostKind.TAP)
-                    .tick(new TapHost(helper.getLevel(), helper.absolutePos(landing), Direction.UP));
+            new TapHost(helper.getLevel(), helper.absolutePos(landing), Direction.UP).placeBlock(GLASS, Map.of());
         }
 
         helper.assertBlockPresent(Blocks.GLASS, openLanding.above());
