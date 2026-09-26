@@ -75,12 +75,6 @@
         <Package name="~com\.mercuriusxeno\.goo\.mixin.*"/>
     </Match>
 
-    <!-- Array initialized via pixel manipulation loops; SpotBugs can't see the writes -->
-    <Match>
-        <Bug pattern="SUA_SUSPICIOUS_UNINITIALIZED_ARRAY"/>
-        <Class name="com.mercuriusxeno.goo.tools.FluidTextureGenerator"/>
-    </Match>
-
     <!-- BlockEntityTicker.tick contract takes (Level, BlockPos, BlockState, T)
          abstractly; the cast to ServerLevel is server-side-only by convention. -->
     <Match>

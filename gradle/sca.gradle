@@ -13,6 +13,7 @@ checkstyle {
 
 tasks.named('checkstyleTest') { enabled = false }
 tasks.named('checkstyleGametest') { enabled = false }
+tasks.named('checkstyleTools') { enabled = false }
 
 pmd {
     // Upgraded from 7.9.0 for ASM 9.9 (JDK 25 / class file version 69)
@@ -26,6 +27,7 @@ pmd {
 
 tasks.named('pmdTest') { enabled = false }
 tasks.named('pmdGametest') { enabled = false }
+tasks.named('pmdTools') { enabled = false }
 
 // CPD: copy-paste detection across main sources
 configurations { cpd }
