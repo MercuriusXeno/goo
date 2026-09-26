@@ -45,7 +45,8 @@ import static org.mockito.Mockito.when;
  * field-effect gametests (decision step-tick-holds-effect). On a Mockito
  * marker host whose scan hands over the entities in radius that the
  * filters keep:
- * a metal target costs one stack and is impaled on the strike tick, a
+ * a metal target whose roll falls below the spend chance costs one stack,
+ * one whose roll falls at or above it costs none, and each is impaled on the strike tick, a
  * sneaking player and a dying mob cost none, and a spent budget tears down once and ends
  * the program; eight crystal shreds spend one stack, a sprinting player is
  * shredded twice as often, a standing entity not at all, and the cloud
@@ -68,6 +69,9 @@ class FieldEffectStepTest {
     private static final int SPRINT_WINDOW = 6;
     private static final int CLOUD_ANIMATION_TICKS = 10;
     private static final float FRACTION_TOLERANCE = 1e-5f;
+    private static final double METAL_SPEND_CHANCE = 0.5;
+    private static final double ROLL_BELOW_METAL_CHANCE = 0.49;
+    private static final double ROLL_AT_METAL_CHANCE = 0.5;
     private static final Identifier PROBE_SOUND = Identifier.parse("goo:test.strike_landed");
     /** The sound each strike body plays at its target in place of its damage. */
     private static final Step PROBE_STEP = new SoundStep(PROBE_SOUND, FxAnchor.TARGET, SoundKind.HOSTILE,
@@ -79,6 +83,8 @@ class FieldEffectStepTest {
     /** The one filter each entity host fails, by host. */
     private final Map<StepHost, EntityFilter> rejectedByHost = new HashMap<>();
     private MockedStatic<FieldStrike> aims;
+    /** The fraction every marker host's roll answers; zero spends every charge. */
+    private double rolledFraction;
 
     @BeforeEach
     void stubTheAimOfEachStrike() {
@@ -121,7 +127,7 @@ class FieldEffectStepTest {
     private static List<Step> withProbedStrikes(List<Step> steps) {
         return steps.stream().map(step -> step instanceof FieldEffectStep field
                 ? new FieldEffectStep(field.radius(), field.where(), field.cooldown(), field.interval(),
-                        field.perStack(), field.strikeTick(), field.strikeTicks(), field.timing(),
+                        field.perStack(), field.spendChance(), field.strikeTick(), field.strikeTicks(), field.timing(),
                         probed(field.strike()), field.teardown())
                 : step).toList();
     }
@@ -178,6 +184,7 @@ class FieldEffectStepTest {
         when(host.fieldEffect()).thenReturn(state);
         when(host.read(anyString())).thenReturn(OptionalDouble.empty());
         when(host.stackCount()).thenAnswer(inv -> stacks.get());
+        when(host.rollFraction()).thenAnswer(inv -> rolledFraction);
         doAnswer(inv -> stacks.decrementAndGet()).when(host).decrementStack();
         doAnswer(inv -> {
             Set<EntityFilter> filters = inv.getArgument(2);
@@ -216,6 +223,58 @@ class FieldEffectStepTest {
         verify(walker).spawnParticles(eq(FxAnchor.TARGET), argThat(burst -> "crit".equals(burst.particle().getPath())));
         assertEquals(1, stacks.get());
         assertTrue(program.isActive());
+    }
+
+    @Test
+    void aMetalStrikeRolledBelowTheSpendChanceSpendsOneStack() throws IOException {
+        rolledFraction = ROLL_BELOW_METAL_CHANCE;
+        AtomicInteger stacks = new AtomicInteger(2);
+        StepHost walker = walker(WALKER_ID);
+        StepHost host = marker(stacks, List.of(walker));
+        ProgramBehavior program = ProgramBehavior.forHost(metalProgram(), HostKind.MARKER);
+
+        tick(program, host, STRIKE_TICK + 1);
+
+        verify(walker).playSound(FxAnchor.TARGET, PROBE_CUE);
+        verify(host, times(1)).decrementStack();
+        assertEquals(1, stacks.get());
+    }
+
+    @Test
+    void aMetalStrikeRolledAtTheSpendChanceLandsAndCoolsDownButSparesTheStack() throws IOException {
+        rolledFraction = ROLL_AT_METAL_CHANCE;
+        AtomicInteger stacks = new AtomicInteger(2);
+        StepHost walker = walker(WALKER_ID);
+        StepHost host = marker(stacks, List.of(walker));
+        FieldEffectState state = host.fieldEffect();
+        ProgramBehavior program = ProgramBehavior.forHost(metalProgram(), HostKind.MARKER);
+
+        program.tick(host);
+        assertEquals(COOLDOWN, state.cooldown());
+        tick(program, host, STRIKE_TICK);
+
+        verify(walker).playSound(FxAnchor.TARGET, PROBE_CUE);
+        verify(host, never()).decrementStack();
+        assertEquals(2, stacks.get());
+    }
+
+    @Test
+    void theMetalProgramSpendsAChargeHalfTheTime() {
+        FieldEffectStep field = fieldEffectOf(program(METAL_SPIKES));
+
+        assertEquals(METAL_SPEND_CHANCE, field.spendChance().evaluate(Variables.NONE));
+    }
+
+    @Test
+    void theCrystalProgramNamesNoSpendChanceSoEveryShredSpends() {
+        FieldEffectStep field = fieldEffectOf(program(CRYSTAL_CLOUD));
+
+        assertEquals(1, field.spendChance().evaluate(Variables.NONE));
+    }
+
+    private static FieldEffectStep fieldEffectOf(List<Step> steps) {
+        return steps.stream().filter(FieldEffectStep.class::isInstance).map(FieldEffectStep.class::cast)
+                .findFirst().orElseThrow();
     }
 
     @Test
@@ -376,7 +435,7 @@ class FieldEffectStepTest {
     @Test
     void theIntervalIsReadOnTheSelectedEntitySoAMarkerVariableThereRefusesAtLoad() {
         List<Step> steps = List.of(new FieldEffectStep(Expr.literal(3), List.of(), Expr.literal(0),
-                Expr.parse("stacks").getOrThrow(), Expr.literal(1), Expr.literal(0), Expr.literal(1),
+                Expr.parse("stacks").getOrThrow(), Expr.literal(1), Expr.literal(1), Expr.literal(0), Expr.literal(1),
                 FieldTiming.INSTANT, List.of(new DamageStep(Expr.literal(1), DamageKind.CACTUS)), List.of()));
 
         ProgramLoadException refusal = assertThrows(ProgramLoadException.class,
@@ -389,7 +448,7 @@ class FieldEffectStepTest {
     @Test
     void aMarkerOnlyStepInTheStrikeBodyRefusesAtLoadSinceItRunsOnTheStruckEntity() {
         List<Step> steps = List.of(new FieldEffectStep(Expr.literal(3), List.of(), Expr.literal(0),
-                Expr.literal(1), Expr.literal(1), Expr.literal(0), Expr.literal(1), FieldTiming.INSTANT,
+                Expr.literal(1), Expr.literal(1), Expr.literal(1), Expr.literal(0), Expr.literal(1), FieldTiming.INSTANT,
                 List.of(new ExplodeStep(Expr.literal(2), ExplosionMode.NONE),
                         new WaitStep(Expr.literal(2))),
                 List.of()));

@@ -145,6 +145,18 @@ public interface StepHost extends Variables {
     FieldEffectState fieldEffect();
 
     /**
+     * Rolls a fraction the field effect weighs against its spend chance,
+     * drawn from the host's world so a test can fix it (decision
+     * metal-spends-charge-by-chance). Capability
+     * {@link HostCapability#FIELD_EFFECT}.
+     *
+     * @return a fraction in [0, 1)
+     */
+    default double rollFraction() {
+        throw HostCapability.FIELD_EFFECT.refusedBy(kind());
+    }
+
+    /**
      * Returns the phase cursor the host keeps for a running phased step.
      * Capability {@link HostCapability#PHASED}.
      *
