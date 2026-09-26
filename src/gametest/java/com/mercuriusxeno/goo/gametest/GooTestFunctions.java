@@ -1,13 +1,13 @@
-package com.mercuriusxeno.goo.registry;
+package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.gametest.*;
 import com.mercuriusxeno.goo.network.BlockLandingTests;
 import com.mercuriusxeno.goo.network.GloveSelectTests;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
-import net.neoforged.bus.api.IEventBus;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
 
@@ -15,8 +15,11 @@ import java.util.function.Consumer;
  * Registers goo gametest functions via NeoForge's RegisterEvent.
  * TestFunctionLoader.runLoaders() fires during Bootstrap.bootStrap(),
  * before mod loading, so we use RegisterEvent instead to register
- * into the TEST_FUNCTION registry at the correct time.
+ * into the TEST_FUNCTION registry at the correct time. The class lives in
+ * the gametest source set, which only the gameTestServer run loads, so a
+ * shipped jar registers nothing (decision gametest-and-tools-source-sets).
  */
+@EventBusSubscriber(modid = Goo.MODID)
 public final class GooTestFunctions {
 
     // --- Smoke ---
@@ -263,21 +266,12 @@ public final class GooTestFunctions {
     }
 
     /**
-     * Subscribes the registration listener to the mod event bus.
-     * Call once during mod construction.
-     *
-     * @param modEventBus the mod event bus
-     */
-    public static void init(IEventBus modEventBus) {
-        modEventBus.addListener(GooTestFunctions::onRegister);
-    }
-
-    /**
      * Registers all gametest functions into the TEST_FUNCTION registry.
      *
      * @param event the register event
      */
-    private static void onRegister(RegisterEvent event) {
+    @SubscribeEvent
+    public static void onRegister(RegisterEvent event) {
         event.register(Registries.TEST_FUNCTION, registrar -> {
             reg(registrar, SMOKE, GameTestHelper::succeed);
             registerGooTypeRegistryTests(registrar);
