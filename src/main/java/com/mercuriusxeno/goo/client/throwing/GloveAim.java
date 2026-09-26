@@ -43,6 +43,18 @@ public final class GloveAim {
     }
 
     /**
+     * Reads the ability id of the glove the player holds, the key a standing
+     * marker must share to be a target (decision diagnose-then-fix-stack-key-match).
+     *
+     * @param player the local player
+     * @return the selected ability id, or null when the glove holds none
+     */
+    public static @Nullable String selectedAbilityId(Player player) {
+        GloveSelection sel = readGloveSelection(player);
+        return sel == null ? null : sel.abilityId();
+    }
+
+    /**
      * Reads the selection off the glove in either hand, main hand first.
      *
      * @param player the local player

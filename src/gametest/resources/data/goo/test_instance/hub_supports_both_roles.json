@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:hub_supports_both_roles",
+  "environment": "minecraft:default",
+  "structure": "minecraft:empty",
+  "max_ticks": 5,
+  "setup_ticks": 0,
+  "required": true
+}

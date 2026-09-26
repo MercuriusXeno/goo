@@ -26,7 +26,7 @@
 		},
 		{
 			"name": "gasket_upper_copper",
-			"comment": "Top endcap, copper variant. BER: GasketCapRenderer, texture COPPER_GASKET",
+			"comment": "Top endcap, copper variant. BER: CanisterSlotRenderer, texture COPPER_GASKET",
 			"from": [6, 11, 6],
 			"to": [10, 12, 10],
 			"faces": {
@@ -40,7 +40,7 @@
 		},
 		{
 			"name": "gasket_upper_choral",
-			"comment": "Top endcap, choral variant. Swap visibility with gasket_upper_copper to preview. BER: GasketCapRenderer, texture CHORAL_GASKET",
+			"comment": "Top endcap, choral variant. Swap visibility with gasket_upper_copper to preview. BER: CanisterSlotRenderer, texture CHORAL_GASKET",
 			"from": [6, 11, 6],
 			"to": [10, 12, 10],
 			"faces": {
@@ -54,7 +54,7 @@
 		},
 		{
 			"name": "gasket_lower_copper",
-			"comment": "Bottom endcap, copper variant. BER: GasketCapRenderer, texture COPPER_GASKET",
+			"comment": "Bottom endcap, copper variant. BER: CanisterSlotRenderer, texture COPPER_GASKET",
 			"from": [6, 0, 6],
 			"to": [10, 1, 10],
 			"faces": {
@@ -68,7 +68,7 @@
 		},
 		{
 			"name": "gasket_lower_choral",
-			"comment": "Bottom endcap, choral variant. Swap visibility with gasket_lower_copper to preview. BER: GasketCapRenderer, texture CHORAL_GASKET",
+			"comment": "Bottom endcap, choral variant. Swap visibility with gasket_lower_copper to preview. BER: CanisterSlotRenderer, texture CHORAL_GASKET",
 			"from": [6, 0, 6],
 			"to": [10, 1, 10],
 			"faces": {

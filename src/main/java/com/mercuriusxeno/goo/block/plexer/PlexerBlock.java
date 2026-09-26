@@ -2,7 +2,7 @@ package com.mercuriusxeno.goo.block.plexer;
 
 import com.mercuriusxeno.goo.CutawayInteractionHelper;
 import com.mercuriusxeno.goo.block.CutawayShapeHelper;
-import com.mojang.serialization.MapCodec;
+import com.mercuriusxeno.goo.block.FacingRedstoneMachineBlock;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
@@ -11,19 +11,11 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.HorizontalDirectionalBlock;
-import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.StateDefinition;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-import net.minecraft.world.level.block.state.properties.BooleanProperty;
-import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.level.redstone.Orientation;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
@@ -38,21 +30,8 @@ import java.util.Map;
  * Faces the player on placement. All 9 copper fittings are always
  * available on the top face (no slot constraints).
  */
-public class PlexerBlock extends BaseEntityBlock {
+public class PlexerBlock extends FacingRedstoneMachineBlock {
 
-    /**
-     * Horizontal facing direction - orients the face opening.
-     */
-    public static final EnumProperty<Direction> FACING = HorizontalDirectionalBlock.FACING;
-    /**
-     * Whether the plexer is currently receiving a redstone signal.
-     */
-    public static final BooleanProperty TRIGGERED = BlockStateProperties.TRIGGERED;
-    /**
-     * Whether the plexer is actively showing its crafting animation.
-     */
-    public static final BooleanProperty CRAFTING = BlockStateProperties.CRAFTING;
-    public static final MapCodec<PlexerBlock> CODEC = simpleCodec(PlexerBlock::new);
     /**
      * Ticks between redstone rising edge and craft attempt, matching vanilla Crafter.
      */
@@ -101,11 +80,7 @@ public class PlexerBlock extends BaseEntityBlock {
      * @param properties the block properties
      */
     public PlexerBlock(Properties properties) {
-        super(properties);
-        registerDefaultState(stateDefinition.any()
-                .setValue(FACING, Direction.NORTH)
-                .setValue(TRIGGERED, false)
-                .setValue(CRAFTING, false));
+        super(properties, PlexerBlock::new);
     }
 
     /**
@@ -122,67 +97,6 @@ public class PlexerBlock extends BaseEntityBlock {
             @NonNull BlockState state, @NonNull BlockGetter level,
             @NonNull BlockPos pos, @NonNull CollisionContext context) {
         return SHAPES.getOrDefault(state.getValue(FACING), SHAPES.get(Direction.SOUTH));
-    }
-
-    /**
-     * Registers all plexer blockstate properties.
-     *
-     * @param builder the state definition builder
-     */
-    @Override
-    protected void createBlockStateDefinition(StateDefinition.@NonNull Builder<Block, BlockState> builder) {
-        builder.add(FACING, TRIGGERED, CRAFTING);
-    }
-
-    /**
-     * Places the plexer facing the player, with initial redstone state.
-     *
-     * @param context the collision context
-     * @return the state for placement
-     */
-    @Override
-    public BlockState getStateForPlacement(@NonNull BlockPlaceContext context) {
-        BlockPos pos = context.getClickedPos();
-        return defaultBlockState()
-                .setValue(FACING, context.getHorizontalDirection())
-                .setValue(TRIGGERED, context.getLevel().hasNeighborSignal(pos));
-    }
-
-    /**
-     * Plexers respond to redstone power on any side, so dust visually
-     * connects from any direction.
-     *
-     * @param state     the block state
-     * @param level     the level
-     * @param pos       the block position
-     * @param direction the side the dust is approaching from, or null
-     * @return true: dust connects on every side
-     */
-    @Override
-    public boolean canConnectRedstone(@NonNull BlockState state, @NonNull BlockGetter level,
-                                      @NonNull BlockPos pos, @Nullable Direction direction) {
-        return true;
-    }
-
-    /**
-     * Returns the codec for serialization.
-     *
-     * @return the codec
-     */
-    @Override
-    protected @NonNull MapCodec<? extends BaseEntityBlock> codec() {
-        return CODEC;
-    }
-
-    /**
-     * Returns MODEL render shape since the plexer uses a block model.
-     *
-     * @param state the block state
-     * @return the render shape
-     */
-    @Override
-    protected @NonNull RenderShape getRenderShape(@NonNull BlockState state) {
-        return RenderShape.MODEL;
     }
 
     /**

@@ -3,6 +3,8 @@ package com.mercuriusxeno.goo.client.network;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
+import com.mercuriusxeno.goo.ability.AbilityCost;
+import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import net.minecraft.resources.Identifier;
@@ -44,8 +46,7 @@ public final class AbilitySyncHandler {
             if (type == null) {
                 continue;
             }
-            ClientAbility ability = new ClientAbility(Identifier.tryParse(e.abilityId()),
-                    e.displayName(), e.icon(), e.order(), e.tags(), e.fuseTicks(), e.maxStacks(), e.behaviors());
+            ClientAbility ability = ClientAbility.fromEntry(e);
             map.computeIfAbsent(type, t -> new ArrayList<>()).add(ability);
             ids.put(e.abilityId(), ability);
         }
@@ -101,10 +102,34 @@ public final class AbilitySyncHandler {
      * @param fuseTicks   the chain block's full fuse
      * @param maxStacks   the chain block's stack ceiling
      * @param behaviors   the ability's step program, whose params the marker's renderers read
+     * @param cost        the cost formula a throw is priced with
      */
     public record ClientAbility(Identifier id, String displayName, String icon,
                                 int order, List<String> tags, int fuseTicks, int maxStacks,
-                                List<Step> behaviors) {
+                                List<Step> behaviors, AbilityCost cost) {
+
+        /**
+         * Builds the client descriptor from a synced entry.
+         *
+         * @param entry the synced entry
+         * @return the client ability
+         */
+        public static ClientAbility fromEntry(AbilitySyncPayload.Entry entry) {
+            return new ClientAbility(Identifier.tryParse(entry.abilityId()), entry.displayName(), entry.icon(),
+                    entry.order(), entry.tags(), entry.fuseTicks(), entry.maxStacks(), entry.behaviors(),
+                    entry.cost());
+        }
+
+        /**
+         * Prices a throw the way the server does, from the synced cost and
+         * step program (decision unaffordable-click-does-nothing).
+         *
+         * @param existingStacks the stacks the target marker already holds
+         * @return the cost in mB
+         */
+        public int throwCost(int existingStacks) {
+            return AbilityDefinition.priceThrow(cost, behaviors, existingStacks);
+        }
 
         /**
          * Returns true if this ability has the given tag.

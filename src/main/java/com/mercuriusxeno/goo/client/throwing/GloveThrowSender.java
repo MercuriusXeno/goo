@@ -3,12 +3,15 @@ package com.mercuriusxeno.goo.client.throwing;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.GloveSelection;
+import com.mercuriusxeno.goo.ability.StackKey;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.overlay.AimTracker;
 import com.mercuriusxeno.goo.item.GooGloveItem;
+import com.mercuriusxeno.goo.item.GooSourceScanner;
+import com.mercuriusxeno.goo.network.BlobThrowHandler;
 import com.mercuriusxeno.goo.network.BlobThrowPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -23,6 +26,8 @@ import org.jspecify.annotations.Nullable;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.OptionalInt;
+import java.util.function.IntPredicate;
 
 /**
  * Client-only helper that resolves the player's aim target and sends
@@ -51,40 +56,112 @@ public final class GloveThrowSender {
     }
 
     /**
-     * Resolves the current aim target and sends the throw packet.
-     * Blocks the throw if in-flight blobs would exceed the marker's
-     * max stacks, and arms a throw-block freeze when maxed.
+     * Resolves the current aim target and sends the throw packet for the
+     * held glove's selection. Blocks the throw if in-flight blobs would
+     * exceed the marker's max stacks, and arms a throw-block freeze when maxed.
      *
-     * @param player  the local player
-     * @param gooType the selected goo type to throw
+     * @param player the local player
+     * @return true when a payload was sent, the one press the arm swings for
      */
-    public static void sendThrow(Player player, ResourceKey<GooTypeDefinition> gooType) {
+    public static boolean sendThrow(Player player) {
         GloveSelection selection = heldSelection(player);
-        if (selection == null || !canThrow()) {
-            return;
+        ResourceKey<GooTypeDefinition> gooType = selection == null ? null : selection.getGooType();
+        if (gooType == null || ThrowFreezeState.isThrowBlocked()) {
+            return false;
         }
         TargetResult target = AimTracker.currentTarget();
+        BlobThrowPayload payload = affordablePayload(player, target, gooType, selection.abilityId());
+        if (payload == null) {
+            return false;
+        }
         if (wouldExceedMaxStacks(target, gooType, selection.abilityId())) {
             ThrowFreezeState.armThrowBlock();
-            return;
+            return false;
         }
-        BlobThrowPayload payload = targetToPayload(target, gooType, selection.abilityId());
-        if (payload != null) {
-            ThrowFreezeState.arm(target);
-            trackInFlight(target);
-            sendPayload(payload);
-        }
+        ThrowFreezeState.arm(target);
+        trackInFlight(target, selection.abilityId());
+        sendPayload(payload);
+        return true;
     }
 
     /**
-     * Pre-throw validation once the glove holds a selection: goo
-     * available and not throw-blocked.
+     * Builds the throw payload for the aimed target when the player can afford it.
      *
-     * @return true if throwing is allowed
+     * @param player    the local player
+     * @param target    the resolved aim target
+     * @param gooType   the selected goo type
+     * @param abilityId the selected ability id string
+     * @return the payload, or null for no target or an unaffordable throw
      */
-    private static boolean canThrow() {
-        return GloveUseTracker.isSelectedTypeAvailable()
-                && !ThrowFreezeState.isThrowBlocked();
+    private static @Nullable BlobThrowPayload affordablePayload(Player player, TargetResult target,
+            ResourceKey<GooTypeDefinition> gooType, String abilityId) {
+        BlobThrowPayload payload = targetToPayload(target, gooType, abilityId);
+        if (payload == null || !affordsThrow(AbilitySyncHandler.findAbility(abilityId), keyedStacksAt(payload),
+                amount -> GooSourceScanner.hasEnough(player, gooType, amount))) {
+            return null;
+        }
+        return payload;
+    }
+
+    /**
+     * Whether the player can afford a throw priced the way the server
+     * prices it, checked before any swing, packet or sound
+     * (decision unaffordable-click-does-nothing).
+     *
+     * @param ability        the selected ability's synced copy, or null when none synced
+     * @param existingStacks the stacks the payload's target marker already holds
+     * @param holdsAtLeast   whether the player holds at least an mB amount of the type
+     * @return true when the holdings cover the cost
+     */
+    static boolean affordsThrow(@Nullable ClientAbility ability, int existingStacks, IntPredicate holdsAtLeast) {
+        return holdsAtLeast.test(priceThrow(ability, existingStacks));
+    }
+
+    /**
+     * Prices a throw the way the server does, falling back to its flat cost
+     * for an ability the client holds no synced copy of.
+     *
+     * @param ability        the selected ability's synced copy, or null when none synced
+     * @param existingStacks the stacks the target marker already holds
+     * @return the cost in mB
+     */
+    static int priceThrow(@Nullable ClientAbility ability, int existingStacks) {
+        return ability == null ? BlobThrowHandler.THROW_COST : ability.throwCost(existingStacks);
+    }
+
+    /**
+     * The cost of the held glove's throw at the aimed target, priced as
+     * {@link #sendThrow} prices it: the first throw when nothing is aimed at
+     * (decision crosshair-panel-shows-source-and-cost).
+     *
+     * @param player the local player
+     * @return the cost in mB, or empty when the glove holds no selection
+     */
+    public static OptionalInt aimedThrowCost(Player player) {
+        GloveSelection selection = heldSelection(player);
+        ResourceKey<GooTypeDefinition> gooType = selection == null ? null : selection.getGooType();
+        if (gooType == null) {
+            return OptionalInt.empty();
+        }
+        BlobThrowPayload payload = targetToPayload(AimTracker.currentTarget(), gooType, selection.abilityId());
+        int stacks = payload == null ? 0 : keyedStacksAt(payload);
+        return OptionalInt.of(priceThrow(AbilitySyncHandler.findAbility(selection.abilityId()), stacks));
+    }
+
+    /**
+     * Counts the stacks of the payload's target marker the way the server
+     * prices a throw: the marker at the target position, keyed to the thrown ability.
+     *
+     * @param payload the throw payload
+     * @return the marker's stack count, or 0 when no marker of the ability stands there
+     */
+    private static int keyedStacksAt(BlobThrowPayload payload) {
+        ClientLevel level = Minecraft.getInstance().level;
+        if (level != null && level.getBlockEntity(payload.targetPos()) instanceof ChainMarkerBlockEntity be
+                && StackKey.matches(be.getAbilityId(), payload.abilityId())) {
+            return be.getStackCount();
+        }
+        return 0;
     }
 
     /**
@@ -165,7 +242,7 @@ public final class GloveThrowSender {
         if (target instanceof TargetResult.GlowCrystalTarget gct && gooType == GooTypes.GLOW) {
             return wouldExceedCrystalMax(gct, abilityId);
         }
-        BlockPos pos = resolveTrackingPos(target);
+        BlockPos pos = resolveTrackingPos(target, abilityId);
         return pos != null && wouldExceedMarkerMax(pos, abilityId);
     }
 
@@ -191,7 +268,7 @@ public final class GloveThrowSender {
     }
 
     /**
-     * Returns [current, max] from the marker BE or the selected ability's
+     * Returns [current, max] from the selected ability's marker BE or its
      * synced chain block, or empty if unknown.
      *
      * @param level     the client level
@@ -200,7 +277,8 @@ public final class GloveThrowSender {
      * @return a 2-element array [current, max], or empty if no ability is synced under the id
      */
     private static int[] resolveCurrentAndMax(ClientLevel level, BlockPos pos, String abilityId) {
-        if (level.getBlockEntity(pos) instanceof ChainMarkerBlockEntity be) {
+        if (level.getBlockEntity(pos) instanceof ChainMarkerBlockEntity be
+                && StackKey.matches(be.getAbilityId(), abilityId)) {
             return new int[]{be.getStackCount(), be.getMaxStacks()};
         }
         ClientAbility ability = AbilitySyncHandler.findAbility(abilityId);
@@ -235,10 +313,11 @@ public final class GloveThrowSender {
      * stack on a chain marker. Tracks even before the marker exists so
      * rapid throws during flight time are counted.
      *
-     * @param target the resolved aim target
+     * @param target    the resolved aim target
+     * @param abilityId the selected ability id string
      */
-    private static void trackInFlight(TargetResult target) {
-        BlockPos pos = resolveTrackingPos(target);
+    private static void trackInFlight(TargetResult target, String abilityId) {
+        BlockPos pos = resolveTrackingPos(target, abilityId);
         if (pos != null) {
             IN_FLIGHT.merge(pos, 1, Integer::sum);
         }
@@ -250,10 +329,11 @@ public final class GloveThrowSender {
      * Works before the marker exists so the first burst of throws can
      * be counted against maxStacks during the flight window.
      *
-     * @param target the resolved aim target
+     * @param target    the resolved aim target
+     * @param abilityId the selected ability id string
      * @return the canonical marker position, or null for entity/none targets
      */
-    private static @Nullable BlockPos resolveTrackingPos(TargetResult target) {
+    private static @Nullable BlockPos resolveTrackingPos(TargetResult target, String abilityId) {
         if (target instanceof TargetResult.ChainMarkerTarget cmt) {
             return cmt.pos();
         }
@@ -261,34 +341,50 @@ public final class GloveThrowSender {
             return gct.pos();
         }
         if (target instanceof TargetResult.BlockTarget bt) {
-            return resolveBlockTrackingPos(bt);
+            return resolveBlockTrackingPos(bt, abilityId);
         }
         return null;
     }
 
     /**
-     * Resolves the tracking position for a block target. If a marker
-     * already exists at the hit pos or adjacent, returns its position.
-     * Otherwise predicts placement: replaceable blocks are displaced
-     * in-place, solid blocks place the marker on the adjacent face.
+     * Resolves the tracking position for a block target. If a marker of
+     * the selected ability already exists at the hit pos or adjacent,
+     * returns its position. Otherwise predicts placement: replaceable
+     * blocks are displaced in-place, solid blocks place the marker on the
+     * adjacent face.
      *
-     * @param bt the block target to resolve
+     * @param bt        the block target to resolve
+     * @param abilityId the selected ability id string
      * @return the canonical marker position, or null if level unavailable
      */
-    private static @Nullable BlockPos resolveBlockTrackingPos(TargetResult.BlockTarget bt) {
+    private static @Nullable BlockPos resolveBlockTrackingPos(TargetResult.BlockTarget bt, String abilityId) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) {
             return null;
         }
-        if (mc.level.getBlockEntity(bt.pos()) instanceof ChainMarkerBlockEntity) {
+        if (isKeyedMarker(mc.level, bt.pos(), abilityId)) {
             return bt.pos();
         }
         BlockPos adjacent = bt.pos().relative(bt.face());
-        if (mc.level.getBlockEntity(adjacent) instanceof ChainMarkerBlockEntity) {
+        if (isKeyedMarker(mc.level, adjacent, abilityId)) {
             return adjacent;
         }
         BlockState state = mc.level.getBlockState(bt.pos());
         return state.canBeReplaced() ? bt.pos() : adjacent;
+    }
+
+    /**
+     * Whether a chain marker of the selected ability stands at the position
+     * (decision diagnose-then-fix-stack-key-match).
+     *
+     * @param level     the client level
+     * @param pos       the block position
+     * @param abilityId the selected ability id string
+     * @return true for a marker the throw keys onto
+     */
+    private static boolean isKeyedMarker(ClientLevel level, BlockPos pos, String abilityId) {
+        return level.getBlockEntity(pos) instanceof ChainMarkerBlockEntity be
+                && StackKey.matches(be.getAbilityId(), abilityId);
     }
 
     /**
@@ -315,7 +411,7 @@ public final class GloveThrowSender {
      * @param player the local player
      * @return the selection, or null when the glove holds none
      */
-    private static @Nullable GloveSelection heldSelection(Player player) {
+    public static @Nullable GloveSelection heldSelection(Player player) {
         ItemStack glove = player.getMainHandItem();
         if (!(glove.getItem() instanceof GooGloveItem)) {
             glove = player.getOffhandItem();

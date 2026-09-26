@@ -1,11 +1,11 @@
 package com.mercuriusxeno.goo.block.hub;
 
+import com.mercuriusxeno.goo.block.BlockEntityTicks;
 import com.mercuriusxeno.goo.block.GooBlockInteraction;
-import com.mercuriusxeno.goo.block.IGooLightSource;
+import com.mercuriusxeno.goo.block.GooMachineBlock;
 import com.mercuriusxeno.goo.block.ShapeHitCheck;
 import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
 import com.mercuriusxeno.goo.item.CanisterItem;
-import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
@@ -20,8 +20,6 @@ import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntityTicker;
-import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
@@ -38,7 +36,7 @@ import static com.mercuriusxeno.goo.GooConstants.NO_SLOT;
  * Canisters are inserted/removed via right-click on a specific slot.
  * Radially symmetrical: N, NE, E, SE, S, SW, W, NW.
  */
-public class HubBlock extends BaseEntityBlock {
+public class HubBlock extends GooMachineBlock {
 
     /**
      * Whether a choral gasket is installed on the hub's intake.
@@ -313,34 +311,9 @@ public class HubBlock extends BaseEntityBlock {
         return new HubBlockEntity(pos, state);
     }
 
-    /** Routes goo-driven block-light emission through the BE. */
     @Override
-    public int getLightEmission(BlockState state, BlockGetter level, BlockPos pos) {
-        return IGooLightSource.blockEmissionFor(level, pos);
-    }
-
-    /** BE-driven emission: see ReactorBlock.hasDynamicLightEmission. */
-    @Override
-    public boolean hasDynamicLightEmission(BlockState state) {
-        return true;
-    }
-
-    /**
-     * Registers the server-side tick dispatcher for per-slot gasket push.
-     *
-     * @param level the current level
-     * @param state the block state
-     * @param type  the goo type
-     * @return the ticker
-     */
-    @Nullable
-    @Override
-    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(
-            @NonNull Level level, @NonNull BlockState state, @NonNull BlockEntityType<T> type) {
-        if (level.isClientSide()) {
-            return null;
-        }
-        return createTickerHelper(type, GooBlockEntities.HUB.get(), HubBlockEntity::serverTick);
+    protected BlockEntityTicks<HubBlockEntity> ticks() {
+        return BlockEntityTicks.onServer(GooBlockEntities.HUB, HubBlockEntity::serverTick);
     }
 
     /**
@@ -435,25 +408,5 @@ public class HubBlock extends BaseEntityBlock {
             return InteractionResult.SUCCESS;
         }
         return HubBlockHandlers.removeCanister(hub, hitResult, pos, player, level);
-    }
-
-    /**
-     * Drops the intake gasket item on break if one is installed.
-     *
-     * @param level  the current level
-     * @param pos    the block position
-     * @param state  the block state
-     * @param player the interacting player
-     * @return the block state
-     */
-    @Override
-    public @NonNull BlockState playerWillDestroy(
-            @NonNull Level level, @NonNull BlockPos pos,
-            @NonNull BlockState state, @NonNull Player player) {
-        if (!level.isClientSide() && level.getBlockEntity(pos) instanceof HubBlockEntity hub) {
-            GasketInstallation.popGasket(level, pos, state.getValue(HAS_GASKET),
-                    hub.getGasketId(GasketRole.RECEIVER));
-        }
-        return super.playerWillDestroy(level, pos, state, player);
     }
 }

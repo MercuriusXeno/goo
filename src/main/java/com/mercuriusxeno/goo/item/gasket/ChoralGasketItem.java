@@ -1,11 +1,9 @@
 package com.mercuriusxeno.goo.item.gasket;
 
 import com.mercuriusxeno.goo.block.canister.ICanisterHolder;
-import com.mercuriusxeno.goo.block.crucible.CrucibleBlock;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
 import com.mercuriusxeno.goo.block.gasket.ChoralGasketBlock;
 import com.mercuriusxeno.goo.block.gasket.IGasketHolder;
-import com.mercuriusxeno.goo.block.tap.TapBlock;
 import com.mercuriusxeno.goo.block.tap.TapBlockEntity;
 import com.mercuriusxeno.goo.item.CanisterMetadata;
 import com.mercuriusxeno.goo.item.GooInteractionType;
@@ -25,7 +23,6 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import java.util.UUID;
 import java.util.function.Supplier;
-import static com.mercuriusxeno.goo.GooConstants.NO_SLOT;
 
 /**
  * Choral Gasket: attaches to machine faces to enable remote goo transfer.
@@ -172,11 +169,13 @@ public class ChoralGasketItem extends Item implements IGooItemInteraction {
      * @return the interaction result
      */
     private InteractionResult dispatchByEntityType(BlockEntity be, UseOnContext context) {
-        if (be instanceof CrucibleBlockEntity) {
-            return installOnCrucible(context);
+        if (be instanceof CrucibleBlockEntity crucible) {
+            return GasketInstallHelper.installBlockGasket(context, crucible, GasketRole.TRANSMITTER,
+                    MSG_CRUCIBLE_HAS_GASKET, GasketInstallHelper.MSG_GASKET_INSTALLED);
         }
-        if (be instanceof TapBlockEntity) {
-            return installViaBlockstate(context, TapBlock.HAS_GASKET, MACHINE_TAP);
+        if (be instanceof TapBlockEntity tap) {
+            return GasketInstallHelper.installBlockGasket(context, tap, GasketRole.RECEIVER,
+                    MSG_THIS_PREFIX + MACHINE_TAP + MSG_ALREADY_SUFFIX, MSG_INSTALLED_ON + MACHINE_TAP);
         }
         return dispatchSlottedIfApplicable(be, context);
     }
@@ -258,44 +257,6 @@ public class ChoralGasketItem extends Item implements IGooItemInteraction {
     }
 
     /**
-     * Installs a gasket on a crucible via blockstate property.
-     *
-     * @param context the use-on context
-     * @return the interaction result
-     */
-    private InteractionResult installOnCrucible(UseOnContext context) {
-        BlockState state = context.getLevel().getBlockState(context.getClickedPos());
-        if (state.getValue(CrucibleBlock.HAS_GASKET)) {
-            return GasketInstallHelper.rejectWith(context, MSG_CRUCIBLE_HAS_GASKET);
-        }
-
-        GasketInstallHelper.flipBlockstate(context.getLevel(), context.getClickedPos(), state, CrucibleBlock.HAS_GASKET);
-        GasketInstallHelper.registerBlockstateGasket(context.getLevel(), context.getClickedPos(), GasketRole.TRANSMITTER, false);
-        return GasketInstallHelper.finishInstall(context);
-    }
-
-    /**
-     * Generic blockstate-based gasket installation for tap.
-     * Same pattern as crucible: flips a HAS_GASKET boolean property.
-     *
-     * @param context        the use-on context
-     * @param gasketProperty the blockstate boolean property to flip
-     * @param machineName    display name for feedback messages
-     * @return the interaction result
-     */
-    private InteractionResult installViaBlockstate(UseOnContext context,
-                                                   net.minecraft.world.level.block.state.properties.BooleanProperty gasketProperty, String machineName) {
-        BlockState state = context.getLevel().getBlockState(context.getClickedPos());
-        if (state.getValue(gasketProperty)) {
-            return GasketInstallHelper.rejectWith(context, MSG_THIS_PREFIX + machineName + MSG_ALREADY_SUFFIX);
-        }
-
-        GasketInstallHelper.flipBlockstate(context.getLevel(), context.getClickedPos(), state, gasketProperty);
-        GasketInstallHelper.registerBlockstateGasket(context.getLevel(), context.getClickedPos(), GasketRole.RECEIVER, true);
-        return GasketInstallHelper.finishInstall(context, MSG_INSTALLED_ON + machineName);
-    }
-
-    /**
      * Installs a gasket on a hub's central intake. Refuses if a canister
      * is copper-fitted above (mutual exclusivity).
      *
@@ -308,7 +269,8 @@ public class ChoralGasketItem extends Item implements IGooItemInteraction {
         if (guard != null) {
             return guard;
         }
-        return commitIntakeGasket(context, holder);
+        return GasketInstallHelper.installBlockGasket(context, holder, GasketRole.RECEIVER,
+                MSG_INTAKE_HAS_GASKET, MSG_INTAKE_INSTALLED);
     }
 
     /**
@@ -326,24 +288,6 @@ public class ChoralGasketItem extends Item implements IGooItemInteraction {
             return GasketInstallHelper.rejectWith(context, MSG_INTAKE_HAS_GASKET);
         }
         return null;
-    }
-
-    /**
-     * Completes the intake gasket install after preconditions pass.
-     *
-     * @param context the use-on context
-     * @param holder  the gasket holder
-     * @return the interaction result
-     */
-    private InteractionResult commitIntakeGasket(UseOnContext context, IGasketHolder holder) {
-        UUID newId = holder.ensureGasketId(GasketRole.RECEIVER);
-        if (newId == null) {
-            return InteractionResult.PASS;
-        }
-
-        GasketInstallHelper.flipHubIntakeBlockstate(context.getLevel(), context.getClickedPos());
-        GasketInstallHelper.registerGasketLocation(context.getLevel(), context.getClickedPos(), newId, true, NO_SLOT);
-        return GasketInstallHelper.finishInstall(context, MSG_INTAKE_INSTALLED);
     }
 
     /**

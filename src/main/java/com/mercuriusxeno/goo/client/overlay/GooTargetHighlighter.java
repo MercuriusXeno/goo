@@ -137,7 +137,8 @@ public final class GooTargetHighlighter {
      * @param frame what the frame draws with
      */
     private static void renderBlockTargetHighlight(TargetResult.BlockTarget bt, HighlightFrame frame) {
-        BlockPos markerPos = TargetBlockReads.adjacentMarker(frame.level(), bt.pos(), bt.face());
+        BlockPos markerPos = TargetBlockReads.adjacentMarker(frame.level(), bt.pos(), bt.face(),
+                GloveAim.selectedAbilityId(frame.mc().player));
         if (markerPos != null) {
             if (TargetBlockReads.canAcceptMoreBlobs(frame.level(), markerPos)) {
                 frame.outlineShape(markerPos);
