@@ -99,6 +99,9 @@ public final class TapDripTests {
     private static final String VALVE_GRADE = "drip grade after click ";
 
     private static final BlockPos OTHER_TYPE_CANISTER_POS = new BlockPos(3, 0, 1);
+    private static final int ONE_TO_FOUR_TICKS = 10;
+    private static final int ONE_TO_FOUR_MOVED = 40;
+    private static final String ONE_TO_FOUR_CANISTER = "canister volume after 10 ticks at 1:4";
     private static final String CRUCIBLE_DRIPS_DRAWN = "tap canister drew its drips into the crucible";
     private static final String CRUCIBLE_PENDING = "drips still in flight to the crucible";
     private static final String CRUCIBLE_RESERVOIR = "crucible reservoir blaze volume";
@@ -316,14 +319,8 @@ public final class TapDripTests {
      * @param helper the gametest helper
      */
     public static void tapDripFillsCrucibleBelow(GameTestHelper helper) {
-        BlockPos cruciblePos = TAP_POS.below();
-        helper.setBlock(cruciblePos, GooBlocks.CRUCIBLE.get());
-        CrucibleBlockEntity crucible = helper.getBlockEntity(cruciblePos, CrucibleBlockEntity.class);
-        helper.setBlock(TAP_POS, GooBlocks.TAP.get().defaultBlockState().setValue(TapBlock.OPEN, true));
-        TapBlockEntity tap = helper.getBlockEntity(TAP_POS, TapBlockEntity.class);
-        tap.insertCanister(new ItemStack(GooItems.CANISTER.get()));
-        tap.insertGoo(GooTypes.BLAZE, START_VOLUME);
-        tap.setDripGrade(TEST_GRADE);
+        CrucibleBlockEntity crucible = crucibleBelowTap(helper);
+        TapBlockEntity tap = blazeTap(helper, START_VOLUME, TEST_GRADE);
         BlockPos tapAbs = helper.absolutePos(TAP_POS);
 
         helper.succeedWhen(() -> {
@@ -332,6 +329,25 @@ public final class TapDripTests {
             helper.assertValueEqual(TapDripScheduler.pending().stream()
                     .filter(drip -> drip.tapPos().equals(tapAbs)).count(), 0L, CRUCIBLE_PENDING);
             helper.assertValueEqual(crucible.getReservoir().getVolume(GooTypes.BLAZE), lost, CRUCIBLE_RESERVOIR);
+        });
+    }
+
+    /**
+     * A tap at 1:4 over a crucible moves 4 mB a tick: a canister of 40 mB
+     * empties into the reservoir in 10 ticks, where 1:1 would have moved 10
+     * (decision five-rates-in-fourfold-steps).
+     *
+     * @param helper the gametest helper
+     */
+    public static void tapDripOneToFourFillsCrucible(GameTestHelper helper) {
+        CrucibleBlockEntity crucible = crucibleBelowTap(helper);
+        TapBlockEntity tap = blazeTap(helper, ONE_TO_FOUR_MOVED, TapDripGrade.FOUR_PER_TICK);
+
+        helper.runAfterDelay(ONE_TO_FOUR_TICKS + SETTLE_TICKS, () -> {
+            helper.assertValueEqual(tap.getFluidContent().amount(), 0, ONE_TO_FOUR_CANISTER);
+            helper.assertValueEqual(crucible.getReservoir().getVolume(GooTypes.BLAZE), ONE_TO_FOUR_MOVED,
+                    CRUCIBLE_RESERVOIR);
+            helper.succeed();
         });
     }
 
@@ -465,6 +481,32 @@ public final class TapDripTests {
         BlockPos tapAbs = helper.absolutePos(TAP_POS);
         return new BlockHitResult(Vec3.atLowerCornerOf(tapAbs).add(localPx.scale(1.0 / PIXELS_PER_BLOCK)),
                 Direction.UP, tapAbs, false);
+    }
+
+    /**
+     * @param helper the gametest helper
+     * @return a crucible placed straight under the tap's position
+     */
+    private static CrucibleBlockEntity crucibleBelowTap(GameTestHelper helper) {
+        helper.setBlock(TAP_POS.below(), GooBlocks.CRUCIBLE.get());
+        return helper.getBlockEntity(TAP_POS.below(), CrucibleBlockEntity.class);
+    }
+
+    /**
+     * Places an open tap whose canister holds blaze, dripping at a grade.
+     *
+     * @param helper the gametest helper
+     * @param volume the blaze the canister holds, in mB
+     * @param grade  the grade the tap drips at
+     * @return the tap
+     */
+    private static TapBlockEntity blazeTap(GameTestHelper helper, int volume, TapDripGrade grade) {
+        helper.setBlock(TAP_POS, GooBlocks.TAP.get().defaultBlockState().setValue(TapBlock.OPEN, true));
+        TapBlockEntity tap = helper.getBlockEntity(TAP_POS, TapBlockEntity.class);
+        tap.insertCanister(new ItemStack(GooItems.CANISTER.get()));
+        tap.insertGoo(GooTypes.BLAZE, volume);
+        tap.setDripGrade(grade);
+        return tap;
     }
 
     private static TapBlockEntity filledTap(GameTestHelper helper) {

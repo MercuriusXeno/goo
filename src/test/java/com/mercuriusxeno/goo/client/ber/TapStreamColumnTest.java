@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ber;
 
 import com.mercuriusxeno.goo.GooTypes;
+import com.mercuriusxeno.goo.block.tap.TapDripGrade;
 import com.mercuriusxeno.goo.block.tap.TapStream;
 import com.mercuriusxeno.goo.client.RecordingVertexConsumer;
 import com.mercuriusxeno.goo.client.RenderContext;
@@ -96,6 +97,17 @@ class TapStreamColumnTest {
         double min = corners.stream().mapToDouble(axis).min().orElseThrow();
         double max = corners.stream().mapToDouble(axis).max().orElseThrow();
         return (float) (max - min);
+    }
+
+    @Test
+    void aOneToFourTapPoursTheStreamColumnAsOneToOneDoes() {
+        for (TapDripGrade grade : List.of(TapDripGrade.ONE_PER_TICK, TapDripGrade.FOUR_PER_TICK)) {
+            TapRenderState state = mock(TapRenderState.class);
+            state.streamType = grade.pours() ? GooTypes.BLAZE : null;
+            state.streamBottomY = LANDING_LOCAL_Y;
+
+            assertTrue(!emit(state).isEmpty(), grade.name() + " pours a stream column");
+        }
     }
 
     @Test
