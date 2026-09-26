@@ -28,7 +28,7 @@ class AbilityRadialRendererTest {
     private static ClientAbility clientAbilityOf(AbilityDefinition definition) {
         return new ClientAbility(definition.id(), definition.displayName(), definition.icon(),
                 definition.order(), definition.tags(),
-                definition.chain().fuseTicks(), definition.chain().maxStacks());
+                definition.chain().fuseTicks(), definition.chain().maxStacks(), definition.behaviors());
     }
 
     private static List<ClientAbility> shippedAbilities() {
@@ -39,7 +39,7 @@ class AbilityRadialRendererTest {
 
     private static ClientAbility abilityWithIcon(String icon) {
         return new ClientAbility(Identifier.fromNamespaceAndPath(Goo.MODID, "unstable_timed_bomb"),
-                "ability.goo.unstable_timed_bomb", icon, 0, List.of(), 0, 0);
+                "ability.goo.unstable_timed_bomb", icon, 0, List.of(), 0, 0, List.of());
     }
 
     @Nested
