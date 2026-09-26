@@ -16,6 +16,7 @@ import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.gasket.GasketPartner;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.registry.GooBlocks;
+import com.mercuriusxeno.goo.registry.GooDataComponents;
 import com.mercuriusxeno.goo.registry.GooItems;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -23,7 +24,10 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import org.jspecify.annotations.Nullable;
@@ -72,6 +76,8 @@ public final class GasketRegistryTests {
             GooBlocks.TAP.get().defaultBlockState().setValue(TapBlock.HAS_GASKET, true);
     private static final Supplier<BlockState> HUB_GASKETED = () ->
             GooBlocks.HUB.get().defaultBlockState().setValue(HubBlock.HAS_GASKET, true);
+    private static final String PLACED_HUB_HANDLER = "A hub placed from an item should stand a fluid handler on its carried canister";
+    private static final String PLACED_HUB_LOCATION = "A hub placed from an item should locate its carried canister's gasket at its slot";
     private static final String PARTNER_REF = "Partner's gasket state should read no partner";
 
     private GasketRegistryTests() {
@@ -195,6 +201,75 @@ public final class GasketRegistryTests {
             helper.killAllEntitiesOfClass(ItemEntity.class);
         }
         helper.succeed();
+    }
+
+    /**
+     * A tuned standing choral gasket, broken by a player and then removed
+     * without one, drops its one gasket item each time and leaves no registry
+     * location or link behind (decision machine-base-owns-the-lifecycle).
+     *
+     * @param helper the gametest helper
+     */
+    public static void breakReleasesStandingGasket(GameTestHelper helper) {
+        List<Consumer<GameTestHelper>> breakers =
+                List.of(GasketRegistryTests::survivalPlayerBreaks, GasketRegistryTests::removedWithLoot);
+        for (Consumer<GameTestHelper> breaker : breakers) {
+            helper.setBlock(BE_POS.below(), Blocks.STONE);
+            assertBreakPops(helper, GooBlocks.CHORAL_GASKET_BLOCK.get().defaultBlockState(),
+                    GasketRole.TRANSMITTER, breaker);
+            helper.killAllEntitiesOfClass(ItemEntity.class);
+        }
+        helper.succeed();
+    }
+
+    /**
+     * A hub placed from an item carrying a canister stands that canister as a
+     * click would: a live fluid handler and the canister's gasket located at
+     * the hub's slot (decision machine-base-owns-the-lifecycle).
+     *
+     * @param helper the gametest helper
+     */
+    public static void placedHubRegistersCarriedCanister(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        GasketRegistry registry = GasketRegistry.get(level);
+        UUID topId = UUID.randomUUID();
+        registry.link(UUID.randomUUID(), topId);
+        helper.setBlock(HUB_POS, GooBlocks.HUB.get());
+        HubBlockEntity hub = helper.getBlockEntity(HUB_POS, HubBlockEntity.class);
+        ItemStack item = new ItemStack(GooItems.HUB.get());
+        item.set(GooDataComponents.HUB_CANISTERS.get(), List.of(canisterWithGaskets(topId, UUID.randomUUID())));
+
+        hub.applyComponentsFromItemStack(item);
+
+        helper.assertTrue(hub.containerState().getSlotFluidHandler(HUB_SLOT) != null, PLACED_HUB_HANDLER);
+        assertLocation(helper, registry.getLocation(topId), new GasketLocation(level.dimension(),
+                helper.absolutePos(HUB_POS), true, HUB_SLOT), PLACED_HUB_LOCATION);
+        helper.succeed();
+    }
+
+    /**
+     * Removes the block without a player and drops its loot, as an explosion
+     * or a piston does.
+     *
+     * @param helper the gametest helper
+     */
+    private static void removedWithLoot(GameTestHelper helper) {
+        helper.getLevel().destroyBlock(helper.absolutePos(BE_POS), true);
+    }
+
+    /**
+     * Breaks the block the way a survival player's break runs: the block's
+     * {@code playerWillDestroy}, then the removal that drops its loot. The mock
+     * server player always reads creative, which drops no loot.
+     *
+     * @param helper the gametest helper
+     */
+    private static void survivalPlayerBreaks(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        BlockPos pos = helper.absolutePos(BE_POS);
+        BlockState state = helper.getLevel().getBlockState(pos);
+        state.getBlock().playerWillDestroy(helper.getLevel(), pos, state, player);
+        helper.getLevel().destroyBlock(pos, true, player);
     }
 
     /**

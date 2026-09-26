@@ -78,12 +78,12 @@ public final class GasketInstallation {
 
     /**
      * Clears the partner's reference to a leaving gasket, unlinks it and removes
-     * its registry location. No-op for a null id or a client level.
+     * its registry location, dropping no item. No-op for a null id or a client level.
      *
      * @param level    the current level
      * @param gasketId the gasket leaving, or null when none was ever assigned
      */
-    private static void releaseFromRegistry(Level level, @Nullable UUID gasketId) {
+    public static void releaseFromRegistry(Level level, @Nullable UUID gasketId) {
         if (gasketId != null && level instanceof ServerLevel serverLevel) {
             GasketRegistry registry = GasketRegistry.get(serverLevel);
             clearPartnerReference(serverLevel, registry, gasketId);

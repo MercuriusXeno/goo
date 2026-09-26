@@ -59,15 +59,15 @@ public class ChoralGasketBlockEntity extends GooMachineBlockEntity {
     }
 
     /**
-     * A standing choral gasket holds its gasket once tuning gave it an id; breaking
-     * it pops that gasket and unlinks it (decision machine-base-owns-the-lifecycle).
-     *
-     * @param role the gasket role
-     * @return true for the transmitter once it carries an id
+     * A standing choral gasket is itself the gasket, and its loot table drops
+     * the item, so leaving the level releases its registry location and link
+     * and pops nothing more (decision machine-base-owns-the-lifecycle).
      */
     @Override
-    public boolean holdsBlockGasket(GasketRole role) {
-        return role == GasketRole.TRANSMITTER && getGasketId(role) != null;
+    public void dropGaskets() {
+        if (level != null) {
+            GasketInstallation.releaseFromRegistry(level, getGasketId(GasketRole.TRANSMITTER));
+        }
     }
 
     /**
