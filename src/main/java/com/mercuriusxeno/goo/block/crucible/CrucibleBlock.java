@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.block.crucible;
 
-import com.mercuriusxeno.goo.block.IGooLightSource;
+import com.mercuriusxeno.goo.block.BlockEntityTicks;
+import com.mercuriusxeno.goo.block.GooMachineBlock;
 import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mojang.serialization.MapCodec;
@@ -21,8 +22,6 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.HorizontalDirectionalBlock;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntityTicker;
-import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
@@ -45,7 +44,7 @@ import org.jspecify.annotations.Nullable;
  * HAS_GASKET (bottom gasket).
  * The goocible model switches between on (LIT=true) and off (LIT=false) states.
  */
-public class CrucibleBlock extends BaseEntityBlock {
+public class CrucibleBlock extends GooMachineBlock {
 
     public static final MapCodec<CrucibleBlock> CODEC = simpleCodec(CrucibleBlock::new);
 
@@ -124,29 +123,15 @@ public class CrucibleBlock extends BaseEntityBlock {
         return RenderShape.MODEL;
     }
 
-    /** Block-light emission combines the LIT firebox glow (the existing
-     * 13-light burn) with the BE's emissive-goo contribution; max wins.
-     * The LIT path stays state-driven (cheap, no BE lookup); goo emission
-     * needs the BE so it routes through {@link IGooLightSource}.
+    /** The LIT firebox glow, the 13-light burn; the base takes the brighter
+     * of it and the reservoir's goo glow.
      *
      * @param state the block state
-     * @param level the block-getter
-     * @param pos   the block position
-     * @return combined light level in [0, 15]
+     * @return the burn light
      */
     @Override
-    public int getLightEmission(BlockState state, BlockGetter level, BlockPos pos) {
-        int burn = state.getValue(LIT) ? CRUCIBLE_LIT_LIGHT : 0;
-        int goo = IGooLightSource.blockEmissionFor(level, pos);
-        return Math.max(burn, goo);
-    }
-
-    /** BE-driven emission: emission depends on the reservoir contents, so
-     * NeoForge needs to query with a real BlockGetter+BlockPos rather than
-     * probing once with EmptyBlockGetter. */
-    @Override
-    public boolean hasDynamicLightEmission(BlockState state) {
-        return true;
+    protected int stateLightEmission(BlockState state) {
+        return state.getValue(LIT) ? CRUCIBLE_LIT_LIGHT : 0;
     }
 
     /** Returns the goocible pot collision/outline shape.
@@ -197,18 +182,9 @@ public class CrucibleBlock extends BaseEntityBlock {
         return new CrucibleBlockEntity(pos, state);
     }
 
-    /** Registers the server-side melt tick dispatcher.
-     *
-     * @param level the current level
-     * @param state the block state
-     * @param type  the goo type
-     * @return the ticker
-     */
-    @Nullable
     @Override
-    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
-        if (level.isClientSide()) { return null; }
-        return createTickerHelper(type, GooBlockEntities.CRUCIBLE.get(), CrucibleBlockEntity::serverTick);
+    protected BlockEntityTicks<CrucibleBlockEntity> ticks() {
+        return BlockEntityTicks.onServer(GooBlockEntities.CRUCIBLE, CrucibleBlockEntity::serverTick);
     }
 
     /** Dispatches held-item interactions: the flint-and-steel spark, canister or blob insertion.
