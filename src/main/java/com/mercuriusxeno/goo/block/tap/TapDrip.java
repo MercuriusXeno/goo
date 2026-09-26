@@ -94,6 +94,47 @@ public final class TapDrip {
      * @param at       the spigot underside
      */
     static void emit(ParticleSink sink, ParticleType<ColorParticleOption> particle, int rgb, Vec3 at) {
-        sink.send(ColorParticleOption.create(particle, rgb | OPAQUE_ALPHA), at, new Vec3(0.0, DRIP_LEAVE_SPEED, 0.0));
+        send(sink, dripParticle(particle, rgb), at);
+    }
+
+    /**
+     * @param particle the drip particle type
+     * @param rgb      the goo type's color
+     * @return the opaque drip particle of that color
+     */
+    static ColorParticleOption dripParticle(ParticleType<ColorParticleOption> particle, int rgb) {
+        return ColorParticleOption.create(particle, rgb | OPAQUE_ALPHA);
+    }
+
+    /**
+     * Sends one drip particle leaving the spigot straight down.
+     *
+     * @param sink     where the particle goes
+     * @param particle the drip particle
+     * @param at       the spigot underside
+     */
+    private static void send(ParticleSink sink, ColorParticleOption particle, Vec3 at) {
+        sink.send(particle, at, new Vec3(0.0, DRIP_LEAVE_SPEED, 0.0));
+    }
+
+    /**
+     * Shows one due drip: at 1:1 it joins the pouring stream and sends no
+     * particle; every slower grade sends its drip particle and pours no
+     * stream (decision one-to-one-draws-a-stream).
+     *
+     * @param grade    the tap's drip grade
+     * @param pour     the stream this drip would join
+     * @param sink     where a drip particle goes
+     * @param particle the drip particle
+     * @param spigot   the spigot underside
+     * @return the stream the tap pours, or null when the drip falls as a particle
+     */
+    static @Nullable TapStream release(TapDripGrade grade, TapStream pour, ParticleSink sink,
+                                       ColorParticleOption particle, Vec3 spigot) {
+        if (grade.pours()) {
+            return pour;
+        }
+        send(sink, particle, spigot);
+        return null;
     }
 }

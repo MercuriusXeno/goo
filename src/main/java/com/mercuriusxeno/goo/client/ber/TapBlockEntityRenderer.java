@@ -3,7 +3,9 @@ package com.mercuriusxeno.goo.client.ber;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.block.tap.TapBlock;
 import com.mercuriusxeno.goo.block.tap.TapBlockEntity;
+import com.mercuriusxeno.goo.block.tap.TapStream;
 import com.mercuriusxeno.goo.client.CuboidBounds;
+import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.RenderContext;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
@@ -28,9 +30,9 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
- * Renders the canister sitting on a tap's body slot. Follows the same
- * body + gasket + fluid pattern as HubBlockEntityRenderer, positioned
- * at the per-facing canister slot center.
+ * Renders the canister sitting on a tap's body slot, and the stream the tap
+ * pours at 1:1. Follows the same body + gasket + fluid pattern as
+ * HubBlockEntityRenderer, positioned at the per-facing canister slot center.
  */
 public class TapBlockEntityRenderer
         implements BlockEntityRenderer<TapBlockEntity, TapRenderState> {
@@ -100,6 +102,23 @@ public class TapBlockEntityRenderer
      * Gasket side V end: row 1/16.
      */
     private static final float GS_V1 = 0.0625f;
+
+    // -- Stream geometry (block coords) --
+
+    /**
+     * Stream half-width: a column 1px wide.
+     */
+    private static final float STREAM_HW = 0.5f / 16f;
+
+    /**
+     * Stream center X and Z: the spigot sits on the block's vertical axis.
+     */
+    private static final float STREAM_CENTER = 0.5f;
+
+    /**
+     * Top of the stream: the spigot's underside.
+     */
+    private static final float STREAM_TOP = (float) TapStream.SPIGOT_UNDERSIDE_LOCAL_Y;
 
     /**
      * Creates a tap BER.
@@ -259,6 +278,44 @@ public class TapBlockEntityRenderer
         SlotFluidGeometry.renderFluidSides(ctx, b, sprite, fill, FLUID_GEOM, tint);
     }
 
+    /**
+     * Emits the four sides of the thin goo column the tap pours at 1:1, from
+     * the spigot underside down to the landing surface; a tap pouring no
+     * stream emits nothing (decision one-to-one-draws-a-stream).
+     *
+     * @param ctx    the render context
+     * @param state  the tap render state
+     * @param sprite the goo type's fluid sprite
+     * @param tint   the goo type's fluid tint
+     */
+    static void emitStream(RenderContext ctx, TapRenderState state, TextureAtlasSprite sprite, int tint) {
+        if (state.streamType == null || state.streamBottomY >= STREAM_TOP) {
+            return;
+        }
+        CuboidBounds column = new CuboidBounds(STREAM_CENTER - STREAM_HW, STREAM_CENTER + STREAM_HW,
+                STREAM_CENTER - STREAM_HW, STREAM_CENTER + STREAM_HW, state.streamBottomY, STREAM_TOP);
+        ctx.emitSides(tint, column, new GooRenderUtil.UvRect(sprite.getU0(), sprite.getV0(), sprite.getU1(),
+                sprite.getV1()));
+    }
+
+    /**
+     * Submits the stream through the shared submitter, fullbright like every
+     * goo fluid (decision submitter-owns-render-choices).
+     *
+     * @param poseStack     the pose stack for rendering
+     * @param nodeCollector the render node collector
+     * @param state         the tap render state
+     */
+    private static void submitStream(PoseStack poseStack, SubmitNodeCollector nodeCollector, TapRenderState state) {
+        ResourceKey<GooTypeDefinition> type = state.streamType;
+        if (type == null) {
+            return;
+        }
+        TextureAtlasSprite sprite = GooSubmitter.fluidSprite(type);
+        int tint = GooSubmitter.fluidTint(type);
+        GooSubmitter.submitFluid(poseStack, nodeCollector, ctx -> emitStream(ctx, state, sprite, tint));
+    }
+
     @Override
     public TapRenderState createRenderState() {
         return new TapRenderState();
@@ -284,6 +341,24 @@ public class TapBlockEntityRenderer
         } else {
             clearContents(state);
         }
+        TapStream stream = be.pourStream();
+        state.streamType = stream == null ? null : stream.type();
+        state.streamBottomY = stream == null ? 0f : (float) (stream.surfaceY() - be.getBlockPos().getY());
+    }
+
+    /**
+     * Stretches the tap's culling box down to its stream's landing, so the
+     * stream stays drawn while the tap itself is out of view.
+     *
+     * @param be the tap block entity
+     * @return the box the tap and its stream fill
+     */
+    @Override
+    public AABB getRenderBoundingBox(TapBlockEntity be) {
+        AABB block = new AABB(be.getBlockPos());
+        TapStream stream = be.pourStream();
+        return stream == null ? block : block.minmax(new AABB(block.minX, stream.surfaceY(), block.minZ,
+                block.maxX, block.minY, block.maxZ));
     }
 
     /**
@@ -297,6 +372,7 @@ public class TapBlockEntityRenderer
     @Override
     public void submit(TapRenderState state, PoseStack poseStack,
                        SubmitNodeCollector nodeCollector, CameraRenderState cameraState) {
+        submitStream(poseStack, nodeCollector, state);
         if (!state.slot.present) {
             return;
         }

@@ -15,6 +15,7 @@ import com.mercuriusxeno.goo.block.gasket.SlotGasketRegistration;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
+import com.mercuriusxeno.goo.registry.GooParticles;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
@@ -35,6 +36,7 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.Shapes;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
+import java.util.Objects;
 
 /**
  * Tap block entity: drips goo from a canister placed in its body slot.
@@ -58,6 +60,10 @@ public class TapBlockEntity extends net.minecraft.world.level.block.entity.Block
      */
     private static final String TAG_CANISTER = "Canister";
     /**
+     * NBT key for the stream the tap pours at 1:1.
+     */
+    private static final String TAG_STREAM = "Stream";
+    /**
      * Slot state holding the single canister.
      */
     private final SlottedCanisterData state;
@@ -78,6 +84,11 @@ public class TapBlockEntity extends net.minecraft.world.level.block.entity.Block
     private final TapDripCountdown dripCountdown = new TapDripCountdown(dripGrade.intervalTicks());
 
     /**
+     * The stream the tap pours at 1:1, or null while it drips or stands idle.
+     */
+    private @Nullable TapStream stream;
+
+    /**
      * Creates a new tap block entity.
      *
      * @param pos    the block position
@@ -94,7 +105,8 @@ public class TapBlockEntity extends net.minecraft.world.level.block.entity.Block
     /**
      * Server tick handler: while the valve is open, once per interval of the
      * tap's {@link TapDripGrade}, draws one drip from the canister slot, sends its particle from
-     * the spigot and queues its landing on the first surface below. A closed
+     * the spigot, or at 1:1 pours it as the synced stream, and queues its landing on the first
+     * surface below. A closed
      * valve holds the countdown where it stands; a bottomless drop drips nothing.
      *
      * @param level the current level
@@ -105,6 +117,7 @@ public class TapBlockEntity extends net.minecraft.world.level.block.entity.Block
     public static void serverTick(Level level, BlockPos pos, BlockState state,
                                   TapBlockEntity tap) {
         if (!state.getValue(TapBlock.OPEN)) {
+            tap.setStream(null);
             return;
         }
         boolean due = tap.dripCountdown.tick();
@@ -114,15 +127,31 @@ public class TapBlockEntity extends net.minecraft.world.level.block.entity.Block
         }
         TapDripLanding landing = TapDripLanding.below(server, pos);
         if (landing == null) {
+            tap.setStream(null);
             return;
         }
         ResourceKey<GooTypeDefinition> type = TapDrip.draw(tap, SLOT);
         if (type == null) {
+            tap.setStream(null);
             return;
         }
+        tap.release(server, pos, landing, type);
+    }
+
+    /**
+     * Shows a drawn drip leaving the spigot, as a particle or at 1:1 as the
+     * stream, and queues its landing after its fall.
+     *
+     * @param server  the server level
+     * @param pos     the tap's position
+     * @param landing where the drip lands
+     * @param type    the goo type drawn
+     */
+    private void release(ServerLevel server, BlockPos pos, TapDripLanding landing,
+                         ResourceKey<GooTypeDefinition> type) {
         Vec3 spigot = TapSpigot.underside(pos);
-        TapDrip.emit(TapDrip.sinkOf(server),
-                GooColors.get(server.registryAccess(), type), spigot);
+        setStream(TapDrip.release(dripGrade, new TapStream(type, landing.surfaceY()), TapDrip.sinkOf(server),
+                TapDrip.dripParticle(GooParticles.TAP_DRIP.get(), GooColors.get(server.registryAccess(), type)), spigot));
         int fallTicks = DripFall.fallTicks(spigot.y - landing.surfaceY(), -TapDrip.DRIP_LEAVE_SPEED);
         TapDripScheduler.enqueue(new TapDripScheduler.PendingDrip(server, pos, landing.pos(), Direction.UP,
                 type, server.getServer().getTickCount() + fallTicks));
@@ -145,7 +174,30 @@ public class TapBlockEntity extends net.minecraft.world.level.block.entity.Block
     public void setDripGrade(TapDripGrade grade) {
         dripGrade = grade;
         dripCountdown.retime(grade.intervalTicks());
+        if (!grade.pours()) {
+            stream = null;
+        }
         markDirtyAndSync();
+    }
+
+    /**
+     * @return the stream the tap pours at 1:1, or null while it drips or stands idle
+     */
+    public @Nullable TapStream pourStream() {
+        return stream;
+    }
+
+    /**
+     * Holds the stream the tap pours, syncing only when it changes so a
+     * steady pour sends no packet per tick.
+     *
+     * @param poured the stream now pouring, or null
+     */
+    private void setStream(@Nullable TapStream poured) {
+        if (!Objects.equals(stream, poured)) {
+            stream = poured;
+            markDirtyAndSync();
+        }
     }
 
     // --- Canister slot (single-slot convenience) ---
@@ -357,6 +409,7 @@ public class TapBlockEntity extends net.minecraft.world.level.block.entity.Block
         }
         dripGrade.save(output);
         dripCountdown.save(output);
+        output.storeNullable(TAG_STREAM, TapStream.CODEC, stream);
         gasket.saveAdditional(output);
     }
 
@@ -371,6 +424,7 @@ public class TapBlockEntity extends net.minecraft.world.level.block.entity.Block
         dripGrade = TapDripGrade.load(input);
         dripCountdown.retime(dripGrade.intervalTicks());
         dripCountdown.load(input);
+        stream = input.read(TAG_STREAM, TapStream.CODEC).orElse(null);
         gasket.loadAdditional(input);
     }
 
