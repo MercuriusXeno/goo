@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mojang.datafixers.util.Unit;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import com.mojang.serialization.DataResult;
@@ -26,7 +27,7 @@ class StepCodecTest {
      * check below fails when a type is registered without a sample here.
      */
     private static final Map<String, Step> SAMPLES = Map.ofEntries(
-            Map.entry("wait", new WaitStep(Expr.parse("4 + stacks").getOrThrow())),
+            Map.entry("wait", LeafSteps.WAIT.step(Expr.parse("4 + stacks").getOrThrow())),
             Map.entry("await_entity", new AwaitEntityStep(SelectionShape.CUBE, Expr.literal(3),
                     List.of(EntityFilter.LIVING, EntityFilter.NOT_ITEM))),
             Map.entry("explode", new ExplodeStep(Expr.parse("2.5 + 1.0 * (stacks - 1)").getOrThrow(),
@@ -36,18 +37,18 @@ class StepCodecTest {
                     Expr.parse("1 + stacks").getOrThrow(), false)),
             Map.entry("target", new TargetStep(List.of(EntityFilter.NOT_BOSS),
                     List.of(new DamageStep(Expr.literal(4), DamageKind.FREEZE)))),
-            Map.entry("set_health", new SetHealthStep(Expr.parse("0.5 * health / max_health").getOrThrow())),
+            Map.entry("set_health", LeafSteps.SET_HEALTH.step(Expr.parse("0.5 * health / max_health").getOrThrow())),
             Map.entry("freeze_ticks",
-                    new FreezeTicksStep(Expr.parse("140 * 25 / pow(health, 0.2) / 100").getOrThrow())),
-            Map.entry("set_ai", new SetAiStep(false)),
-            Map.entry("set_invulnerable", new SetInvulnerableStep(true)),
+                    LeafSteps.FREEZE_TICKS.step(Expr.parse("140 * 25 / pow(health, 0.2) / 100").getOrThrow())),
+            Map.entry("set_ai", LeafSteps.SET_AI.step(false)),
+            Map.entry("set_invulnerable", LeafSteps.SET_INVULNERABLE.step(true)),
             Map.entry("clone_entity", new CloneEntityStep(Expr.parse("100 / pow(max_health, 0.6)").getOrThrow())),
             Map.entry("drop_item", new DropItemStep(Identifier.parse("minecraft:cobblestone"),
                     Expr.parse("1 + random(3)").getOrThrow())),
-            Map.entry("ignite", new IgniteStep(Expr.literal(10))),
+            Map.entry("ignite", LeafSteps.IGNITE.step(Expr.literal(10))),
             Map.entry("entities", new EntitiesStep(SelectionShape.SPHERE, Expr.literal(2.5),
                     List.of(EntityFilter.LIVING, EntityFilter.NOT_FIRE_IMMUNE),
-                    List.of(new IgniteStep(Expr.literal(5))))),
+                    List.of(LeafSteps.IGNITE.step(Expr.literal(5))))),
             Map.entry("particles", new ParticlesStep(Identifier.parse("minecraft:damage_indicator"), FxAnchor.TARGET,
                     Expr.literal(15), Expr.literal(0), Optional.of(Expr.literal(0.5)), Optional.of(Expr.literal(1.5)),
                     Expr.literal(0), Expr.literal(1))),
@@ -63,7 +64,7 @@ class StepCodecTest {
             Map.entry("field_effect", new FieldEffectStep(Expr.literal(3.75),
                     List.of(EntityFilter.LIVING, EntityFilter.NOT_ITEM, EntityFilter.NOT_SNEAKING),
                     Expr.literal(10), Expr.parse("2 - sprinting").getOrThrow(), Expr.literal(1),
-                    Expr.literal(6), Expr.literal(13), new FieldTiming(Expr.literal(10), Expr.literal(10)),
+                    Expr.literal(0.5), Expr.literal(6), Expr.literal(13), new FieldTiming(Expr.literal(10), Expr.literal(10)),
                     List.of(new DamageStep(Expr.literal(1), DamageKind.CACTUS, false, Optional.of(Expr.literal(1)))),
                     List.of(new SoundStep(Identifier.parse("minecraft:block.fire.extinguish"), FxAnchor.HOST,
                             SoundKind.BLOCKS, Expr.literal(0.5), Expr.literal(1.2))))),
@@ -72,19 +73,19 @@ class StepCodecTest {
                             Identifier.parse("goo:effects.black_hole"), FxAnchor.HOST, SoundKind.BLOCKS,
                             Expr.literal(6), Expr.literal(1))),
                             List.of(new PullStep(Expr.literal(9), Expr.literal(0.15))),
-                            List.of(new ConsumeBlocksStep(Expr.literal(3)))),
-                    new StepPhase("popping", Expr.literal(0), List.of(new DropConsumedStep()), List.of(),
+                            List.of(LeafSteps.CONSUME_BLOCKS.step(Expr.literal(3)))),
+                    new StepPhase("popping", Expr.literal(0), List.of(LeafSteps.DROP_CONSUMED.step(Unit.INSTANCE)), List.of(),
                             List.of())))),
             Map.entry("pull", new PullStep(Expr.parse("3 * (1 + 2 * stacks)").getOrThrow(), Expr.literal(0.15))),
-            Map.entry("consume_blocks", new ConsumeBlocksStep(Expr.parse("1 + 2 * stacks").getOrThrow())),
-            Map.entry("drop_consumed", new DropConsumedStep()),
+            Map.entry("consume_blocks", LeafSteps.CONSUME_BLOCKS.step(Expr.parse("1 + 2 * stacks").getOrThrow())),
+            Map.entry("drop_consumed", LeafSteps.DROP_CONSUMED.step(Unit.INSTANCE)),
             Map.entry("counter", CounterStep.adding(Identifier.parse("goo:ritual"),
                     Expr.parse("100 / pow(max_health, 0.6)").getOrThrow())),
             Map.entry("branch", new BranchStep(Expr.parse("at_least(goo:ritual, 100)").getOrThrow(),
-                    List.of(new DropItemStep(DropItemStep.SPAWN_EGG, Expr.literal(1)), new DiscardStep()),
-                    List.of(new SetAiStep(false)))),
-            Map.entry("discard", new DiscardStep()),
-            Map.entry("set_baby", new SetBabyStep(true))
+                    List.of(new DropItemStep(DropItemStep.SPAWN_EGG, Expr.literal(1)), LeafSteps.DISCARD.step(Unit.INSTANCE)),
+                    List.of(LeafSteps.SET_AI.step(false)))),
+            Map.entry("discard", LeafSteps.DISCARD.step(Unit.INSTANCE)),
+            Map.entry("set_baby", LeafSteps.SET_BABY.step(true))
     );
 
     private static Step roundTrip(Step step) {

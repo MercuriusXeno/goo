@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.ber;
 
 import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
+import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.RenderContext;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.Direction;
@@ -66,11 +67,8 @@ final class SlotFluidGeometry {
      */
     static void renderFluidTop(RenderContext ctx, CuboidBounds b,
             TextureAtlasSprite sprite, int color) {
-        float u0 = sprite.getU0();
-        float v0 = sprite.getV0();
-        float su1 = u0 + (sprite.getU1() - u0) * (b.x1() - b.x0());
-        float sv1 = v0 + (sprite.getV1() - v0) * (b.z1() - b.z0());
-        ctx.liquidSurface(color, b, new GooRenderUtil.UvRect(u0, v0, su1, sv1));
+        ctx.liquidSurface(color, b,
+            GooSubmitter.spriteSubRect(sprite, 0f, 0f, b.x1() - b.x0(), b.z1() - b.z0()));
     }
 
     /**
@@ -99,39 +97,12 @@ final class SlotFluidGeometry {
      */
     static void renderFluidSides(RenderContext ctx, CuboidBounds b,
             TextureAtlasSprite sprite, float fill, SlotGeometry g, int color) {
-        float sideVSpan = computeSideVSpan(sprite, fill, g);
-        GooRenderUtil.UvRect xUv = sideUvRect(sprite, b.x1() - b.x0(), sideVSpan);
-        GooRenderUtil.UvRect zUv = sideUvRect(sprite, b.z1() - b.z0(), sideVSpan);
+        float fillHeight = fill * (g.bodyTop() - g.bodyBot());
+        GooRenderUtil.UvRect xUv = GooSubmitter.spriteSubRect(sprite, 0f, 0f, b.x1() - b.x0(), fillHeight);
+        GooRenderUtil.UvRect zUv = GooSubmitter.spriteSubRect(sprite, 0f, 0f, b.z1() - b.z0(), fillHeight);
         ctx.emitFace(color, b, xUv, Direction.NORTH);
         ctx.emitFace(color, b, xUv, Direction.SOUTH);
         ctx.emitFace(color, b, zUv, Direction.WEST);
         ctx.emitFace(color, b, zUv, Direction.EAST);
-    }
-
-    /**
-     * Computes the V-axis texture span scaled by fluid fill height.
-     *
-     * @param sprite the fluid texture atlas sprite
-     * @param fill   the fluid fill fraction (0.0 to 1.0)
-     * @param g      the slot geometry constants
-     * @return the V-axis texture span proportional to fill height
-     */
-    static float computeSideVSpan(TextureAtlasSprite sprite, float fill, SlotGeometry g) {
-        float fillHeight = fill * (g.bodyTop() - g.bodyBot());
-        return (sprite.getV1() - sprite.getV0()) * fillHeight;
-    }
-
-    /**
-     * Builds a UV rect for a side face scaled to the given width and V span.
-     *
-     * @param sprite the fluid texture atlas sprite
-     * @param width  the face width in block coords for U scaling
-     * @param vSpan  the pre-computed V-axis span
-     * @return a UV rect scaled to the face dimensions
-     */
-    static GooRenderUtil.UvRect sideUvRect(TextureAtlasSprite sprite, float width, float vSpan) {
-        float u0 = sprite.getU0();
-        float v0 = sprite.getV0();
-        return new GooRenderUtil.UvRect(u0, v0, u0 + (sprite.getU1() - u0) * width, v0 + vSpan);
     }
 }
