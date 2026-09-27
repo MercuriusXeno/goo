@@ -73,7 +73,7 @@ class CrucibleCapacityTest {
     @Test
     void drainAccepted_fullTypeStaysInThePool() {
         GooContents pool = new GooContents(Map.of(GooTypes.ROCK, UNIT, GooTypes.METAL, UNIT));
-        Map<ResourceKey<GooTypeDefinition>, Integer> shares = CrucibleMath.computeDrainShares(pool, 10);
+        Map<ResourceKey<GooTypeDefinition>, Integer> shares = Map.of(GooTypes.ROCK, 5, GooTypes.METAL, 5);
 
         GooContents drained = CrucibleCapacity.drainAccepted(pool, shares,
             (type, amount) -> type.equals(GooTypes.ROCK) ? 0 : amount);

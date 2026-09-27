@@ -11,7 +11,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
-import java.util.Map;
 
 /**
  * Static helpers for the crucible melting pipeline: per-tick heat and drain,
@@ -51,8 +50,9 @@ final class CrucibleMelting {
     }
 
     /**
-     * Per-tick melting: burns one heat tick and drains the pool at the heat's melt rate.
-     * Skips if disabled, and burns nothing without a meltable item or heat to buy.
+     * Per-tick melting: burns one heat tick and advances an item's melt clock on the
+     * burning grade's exponent (decision melt-time-is-mb-to-a-power). Skips if disabled,
+     * and burns nothing without a meltable item or heat to buy.
      *
      * @param be    the crucible block entity
      * @param level the current level
@@ -62,24 +62,25 @@ final class CrucibleMelting {
         if (!be.isEnabled()) {
             return;
         }
-        int meltRate = be.heat.burnMeltTick(hasMeltableItem(be), FuelGrade.configured(),
+        CrucibleHeat.MeltHeat burning = be.heat.burnMeltTick(hasMeltableItem(be), FuelGrade.configured(),
                 GooConfig.COMBO_DRAIN_PER_TICK.get(), be.fuelStock);
-        if (meltRate <= 0) {
+        if (burning == null) {
             return;
         }
-        processMeltCycle(be, level, pos, meltRate);
+        processMeltCycle(be, level, pos, burning);
     }
 
     /**
-     * Runs one melt cycle: drain, effects, and cleanup.
+     * Runs one melt cycle: advance the clock, effects, and cleanup.
      *
-     * @param be       the crucible block entity
-     * @param level    the current level
-     * @param pos      the block position
-     * @param meltRate the mB to melt this tick
+     * @param be      the crucible block entity
+     * @param level   the current level
+     * @param pos     the block position
+     * @param burning the heat that burned this tick
      */
-    private static void processMeltCycle(CrucibleBlockEntity be, Level level, BlockPos pos, int meltRate) {
-        drainFromPool(be, meltRate);
+    private static void processMeltCycle(CrucibleBlockEntity be, Level level, BlockPos pos,
+                                         CrucibleHeat.MeltHeat burning) {
+        advanceMeltClock(be, burning);
         spawnActiveEffects(be, level, pos);
         clearFinishedMeltingItem(be);
         be.syncToClients();
@@ -183,39 +184,21 @@ final class CrucibleMelting {
     }
 
     /**
-     * Drains the melt rate in mB from the PMI pool, distributed proportionally
-     * across all goo types present. Each type receives at least 1 mB per tick
-     * (or its remaining volume if less).
+     * Advances the melt clocks one tick, moving each advanced item's share of the tick from
+     * the PMI pool into the reservoir: every item under the combo, the next item round robin
+     * under a lone fuel (decisions combo-advances-every-item, lone-fuel-advances-one-item).
      *
-     * @param be       the crucible block entity
-     * @param meltRate the burning fuel's melt rate in mB/tick
+     * @param be      the crucible block entity
+     * @param burning the heat that burned this tick
      */
-    private static void drainFromPool(CrucibleBlockEntity be, int meltRate) {
-        GooContents pmiContents = PartiallyMeltedItem.getContents(be.meltingItem);
-        long totalRemaining = pmiContents.totalVolume();
-        if (totalRemaining <= 0) {
-            return;
-        }
-
-        int rate = CrucibleMath.extractionRate(totalRemaining, meltRate);
-        Map<ResourceKey<GooTypeDefinition>, Integer> shares = CrucibleMath.computeDrainShares(pmiContents, rate);
-        applyDrainShares(be, shares);
-    }
-
-    /**
-     * Drains each goo type's share from the PMI into the reservoir, taking from
-     * the PMI only what the reservoir accepted, so a full type stays in the pool
-     * (decision crucible-refuses-past-two-billion).
-     *
-     * @param be     the crucible block entity
-     * @param shares the per-type drain amounts
-     */
-    private static void applyDrainShares(CrucibleBlockEntity be, Map<ResourceKey<GooTypeDefinition>, Integer> shares) {
-        GooContents before = PartiallyMeltedItem.getContents(be.meltingItem);
-        GooContents drained = CrucibleCapacity.drainAccepted(before, shares,
-                (type, amount) -> be.reservoir.insertGoo(type, amount, false));
-        PartiallyMeltedItem.setContents(be.meltingItem, drained);
-        be.meltQueue.charge(before.totalVolume() - drained.totalVolume());
+    private static void advanceMeltClock(CrucibleBlockEntity be, CrucibleHeat.MeltHeat burning) {
+        CrucibleInsertion.queueUnaccountedPool(be);
+        GooContents pool = PartiallyMeltedItem.getContents(be.meltingItem);
+        double exponent = burning.grade().meltExponent();
+        GooContents after = burning.combo()
+                ? be.meltQueue.advanceEvery(exponent, pool, be.reservoir::insertGoo)
+                : be.meltQueue.advanceNext(exponent, pool, be.reservoir::insertGoo);
+        PartiallyMeltedItem.setContents(be.meltingItem, after);
     }
 
     /**
