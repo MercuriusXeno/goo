@@ -36,8 +36,8 @@ public class CrucibleRenderState extends BlockEntityRenderState {
     /** True while the head eases in from its item entity's pose, drawn whole until it lies at rest. */
     public boolean headEasing;
 
-    /** The dissolving item's face and the shards it breaks into, or null while none dissolves. */
-    public @Nullable ShardFace headFace;
+    /** The dissolving item's shards, or null while none dissolves. */
+    public @Nullable HeadShards headShards;
 
     /** True when an item is dissolving and its model resolved. */
     public boolean hasHead;

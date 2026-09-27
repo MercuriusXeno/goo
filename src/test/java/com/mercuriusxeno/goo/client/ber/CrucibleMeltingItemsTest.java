@@ -31,9 +31,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * The dissolving head's tile path: the item submits once per tile of its image on the
- * dissolve render type, each tile carrying the dissolve fraction, and the tiles together
- * draw the whole item at the basin's center (decision tiles-of-the-items-image).
+ * The dissolving head's shard path: the item submits once per shard on the dissolve render
+ * type, each shard carrying the dissolve fraction, and the shards together draw the whole
+ * item at the basin's center, a flat item face up and a block upright (decision
+ * tiles-of-the-items-image).
  */
 class CrucibleMeltingItemsTest {
 
@@ -87,7 +88,21 @@ class CrucibleMeltingItemsTest {
 
     /** What one head submission drew: the render type of each submission and every vertex. */
     private record Submitted(List<RenderType> renderTypes, List<RecordingVertexConsumer.Vertex> vertices,
-                             ShardFace face) {
+                             HeadShards head) {
+    }
+
+    /** An item model that submits a unit cube's six faces with no layer transform. */
+    private static ItemStackRenderState cubeItem() {
+        ItemStackRenderState item = mock(ItemStackRenderState.class);
+        when(item.getModelBoundingBox()).thenReturn(ShardModels.CUBE_BOX);
+        List<BakedQuad> faces = ShardModels.cube();
+        doAnswer(call -> {
+            SubmitNodeCollector collector = call.getArgument(1);
+            collector.submitItem(call.getArgument(0), ItemDisplayContext.FIXED, call.getArgument(2), 0, 0,
+                    new int[0], faces, ItemStackRenderState.FoilType.NONE);
+            return null;
+        }).when(item).submit(any(PoseStack.class), any(SubmitNodeCollector.class), anyInt(), anyInt(), anyInt());
+        return item;
     }
 
     /** Submits the head's shards at home and records every vertex they emit in the block's space. */
@@ -102,12 +117,12 @@ class CrucibleMeltingItemsTest {
             renderer.render(submittedAt.last(), recorder);
             return null;
         }).when(delegate).submitCustomGeometry(any(PoseStack.class), any(RenderType.class), any());
-        ShardFace face = ItemFaceProbe.probe(item, SEED);
-        CrucibleMeltingItems.submitShards(item, face,
-                CrucibleItemLayout.shardHomes(null, RenderContext.RESTING_RIPPLE_AMPLITUDE,
-                        new SurfaceRipple.Field(0, 0, 0f), CrucibleMeltingItems.homeOffsets(face)),
+        HeadShards head = HeadShards.of(ItemModelProbe.probe(item, SEED), SEED);
+        CrucibleMeltingItems.submitShards(item, head,
+                CrucibleItemLayout.headShards(null, RenderContext.RESTING_RIPPLE_AMPLITUDE, 0f,
+                        new SurfaceRipple.Field(0, 0, 0f), head.pieces(), head.frame(), head.shifts()),
                 DissolveGlow.single(FRACTION, 0xFFFFFF), new PoseStack(), delegate, LIGHT);
-        return new Submitted(renderTypes, recorder.vertices(), face);
+        return new Submitted(renderTypes, recorder.vertices(), head);
     }
 
     /**
@@ -161,8 +176,8 @@ class CrucibleMeltingItemsTest {
     void headSubmitsOncePerShardOnTheDissolveType() {
         Submitted submitted = submitAndRecord(oneQuadItem());
 
-        assertEquals(submitted.face().map().count(), submitted.renderTypes().size());
-        assertTrue(submitted.face().map().count() >= ItemShardCutter.MIN_SHARDS);
+        assertEquals(submitted.head().model().count(), submitted.renderTypes().size());
+        assertTrue(submitted.head().model().count() >= ItemShardCutter.MIN_SHARDS);
         for (RenderType renderType : submitted.renderTypes()) {
             assertEquals(GooRenderTypes.crucibleDissolve(ITEM_ATLAS), renderType);
         }
@@ -170,5 +185,33 @@ class CrucibleMeltingItemsTest {
             assertEquals((int) (DissolveGlow.FRACTION_UNITS * FRACTION), vertex.uv1U());
         }
         assertWholeAndFlat(submitted.vertices());
+    }
+
+    /**
+     * A block's shards at home stand the cube upright at the basin center, as wide and deep
+     * as a block head and as tall, its bottom on the floor, every face broken over the shards.
+     */
+    @Test
+    void blockStandsUprightAtHome() {
+        Submitted submitted = submitAndRecord(cubeItem());
+
+        assertTrue(submitted.head().model().count() >= ItemShardCutter.MIN_SHARDS);
+        float center = (CrucibleBasin.FOOTPRINT_MIN + CrucibleBasin.FOOTPRINT_MAX) / 2f;
+        float half = CrucibleItemLayout.BLOCK_HEAD_SIZE / 2f;
+        float[] low = {Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE};
+        float[] high = {-Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE};
+        for (RecordingVertexConsumer.Vertex vertex : submitted.vertices()) {
+            float[] at = {vertex.x(), vertex.y(), vertex.z()};
+            for (int axis = 0; axis < at.length; axis++) {
+                low[axis] = Math.min(low[axis], at[axis]);
+                high[axis] = Math.max(high[axis], at[axis]);
+            }
+        }
+        assertEquals(center - half, low[0], EPSILON);
+        assertEquals(center + half, high[0], EPSILON);
+        assertEquals(center - half, low[2], EPSILON);
+        assertEquals(center + half, high[2], EPSILON);
+        assertEquals(CrucibleBasin.FLOOR_Y + CrucibleItemLayout.FLOAT_LIFT, low[1], EPSILON);
+        assertEquals(CrucibleItemLayout.BLOCK_HEAD_SIZE, high[1] - low[1], EPSILON);
     }
 }

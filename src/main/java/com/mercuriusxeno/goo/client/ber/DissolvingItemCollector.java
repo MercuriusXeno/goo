@@ -12,6 +12,7 @@ import net.minecraft.world.item.ItemDisplayContext;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.joml.Vector3f;
+import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -20,20 +21,15 @@ import java.util.List;
  * render type once per glow layer, largest type first, each vertex carrying the
  * dissolve fraction, the layer's color, share and index (decisions dissolve-shader-on-item,
  * glow-color-from-mingling). The layers emit in order within one submission, so a later
- * layer's glow draws over an earlier one's and each fragment ends in one type. A quad
- * across the face cuts to the shard's texel runs; a quad along its edge draws whole with the
- * shard owning the texel it borders (decision tiles-of-the-items-image).
+ * layer's glow draws over an earlier one's and each fragment ends in one type. Each quad cuts
+ * to the runs of texel cells the shard owns in it, on every face of the model (decision
+ * tiles-of-the-items-image); with no sharded model the item draws whole.
  */
 class DissolvingItemCollector extends ItemQuadCollector {
 
-    /** The extent over which a quad counts as spanning an axis, a fraction of a texel. */
-    private static final float SPANS_TEXELS = 0.5f;
-    private static final float HALF = 0.5f;
-
     private final DissolveGlow glow;
-    private final ShardFace face;
+    private final @Nullable ShardedModel model;
     private final int shard;
-    private final List<QuadRectClipper.Rect> runRects;
     private final Matrix4fc shardPose;
 
     /**
@@ -41,19 +37,17 @@ class DissolvingItemCollector extends ItemQuadCollector {
      *
      * @param delegate  the real collector to emit the dissolving geometry into
      * @param glow      how far the item has dissolved and the layers its edge glows in
-     * @param face      the item's face and shard map, in the space the item's model
-     *                  bounding box measures
+     * @param model     the item's model broken into shards, or null to draw the item whole
      * @param shard     the shard this proxy emits
      * @param shardPose the pose the item is submitted at, before its layers apply their
      *                  own transforms
      */
-    DissolvingItemCollector(SubmitNodeCollector delegate, DissolveGlow glow, ShardFace face, int shard,
-                            Matrix4fc shardPose) {
+    DissolvingItemCollector(SubmitNodeCollector delegate, DissolveGlow glow, @Nullable ShardedModel model,
+                            int shard, Matrix4fc shardPose) {
         super(delegate);
         this.glow = glow;
-        this.face = face;
+        this.model = model;
         this.shard = shard;
-        this.runRects = face.runRects(shard);
         this.shardPose = new Matrix4f(shardPose);
     }
 
@@ -139,7 +133,7 @@ class DissolvingItemCollector extends ItemQuadCollector {
         Vector3f normal = pose.transformNormal(quad.direction().getUnitVec3f(), new Vector3f());
         List<QuadRectClipper.ClipVertex> inGrid = QuadRectClipper.verticesOf(quad).stream()
                 .map(vertex -> vertex.moved(space.toGrid())).toList();
-        for (List<QuadRectClipper.ClipVertex> piece : piecesOf(quad, inGrid, space)) {
+        for (List<QuadRectClipper.ClipVertex> piece : piecesOf(quad, inGrid)) {
             for (QuadRectClipper.ClipVertex gridVertex : piece) {
                 QuadRectClipper.ClipVertex vertex = gridVertex.moved(space.fromGrid());
                 Vector3f position = pose.pose().transformPosition(vertex.x(), vertex.y(), vertex.z(), new Vector3f());
@@ -151,31 +145,25 @@ class DissolvingItemCollector extends ItemQuadCollector {
     }
 
     /**
-     * Returns the pieces of one quad in the face's space this shard draws: a quad spanning
-     * the face's X and Y cut to each of the shard's texel runs, any other quad whole when
-     * the shard owns the texel it borders, found a half texel in from it against its normal.
+     * Returns the pieces of one quad this shard draws: the quad cut to each run of cells the
+     * shard owns in it, or the whole quad when the item draws whole.
      *
      * @param quad   the baked quad
-     * @param inGrid its vertices in the face's space
-     * @param space  the map between the quad's positions and the face's space
+     * @param inGrid its vertices in the space the bounding box measures
      * @return the pieces, four vertices each
      */
-    private List<List<QuadRectClipper.ClipVertex>> piecesOf(BakedQuad quad,
-                                                            List<QuadRectClipper.ClipVertex> inGrid,
-                                                            GridSpace space) {
-        QuadRectClipper.Rect extent = QuadRectClipper.extentOf(inGrid);
-        boolean spansX = extent.maxX() - extent.minX() > face.texelWidth() * SPANS_TEXELS;
-        boolean spansY = extent.maxY() - extent.minY() > face.texelHeight() * SPANS_TEXELS;
-        if (spansX && spansY) {
-            List<List<QuadRectClipper.ClipVertex>> pieces = new ArrayList<>();
-            for (QuadRectClipper.Rect rect : runRects) {
-                pieces.addAll(QuadRectClipper.clip(inGrid, rect));
-            }
-            return pieces;
+    private List<List<QuadRectClipper.ClipVertex>> piecesOf(BakedQuad quad, List<QuadRectClipper.ClipVertex> inGrid) {
+        if (model == null) {
+            return List.of(inGrid);
         }
-        Vector3f outward = space.toGrid().transformDirection(quad.direction().getUnitVec3f(), new Vector3f());
-        float x = (extent.minX() + extent.maxX()) * HALF - Math.signum(outward.x()) * face.texelWidth() * HALF;
-        float y = (extent.minY() + extent.maxY()) * HALF - Math.signum(outward.y()) * face.texelHeight() * HALF;
-        return face.ownerAt(x, y) == shard ? List.of(inGrid) : List.of();
+        ShardedModel.QuadCut cut = model.cutOf(quad);
+        if (cut == null) {
+            return List.of();
+        }
+        List<List<QuadRectClipper.ClipVertex>> pieces = new ArrayList<>();
+        for (QuadRectClipper.Rect run : cut.runs(shard)) {
+            pieces.addAll(QuadRectClipper.clip(inGrid, run, cut.axisA(), cut.axisB()));
+        }
+        return pieces;
     }
 }

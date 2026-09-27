@@ -25,7 +25,6 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4fc;
 import org.jspecify.annotations.Nullable;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -45,20 +44,18 @@ final class CrucibleMeltingItems {
     private static final double MIN_EXTENT = 1e-3;
     /** The basin center in block-relative X and Z. */
     private static final double BASIN_CENTER = (CrucibleBasin.FOOTPRINT_MIN + CrucibleBasin.FOOTPRINT_MAX) / 2.0;
-    /** The cut faces kept, enough for every item melting in the crucibles in view. */
-    private static final int KEPT_FACES = 32;
+    /** The items' shards kept, enough for every item melting in the crucibles in view. */
+    private static final int KEPT_ITEMS = 32;
     private static final float LOAD_FACTOR = 0.75f;
-    /** A unit face, for a head drawn whole before its face is probed. */
-    private static final QuadRectClipper.Rect WHOLE_FACE = new QuadRectClipper.Rect(0f, 0f, 1f, 1f);
 
     private final ItemModelResolver itemModelResolver;
     /** Each crucible's entity-to-head handoff, held client-side and dropped with the crucible. */
     private final Map<CrucibleBlockEntity, CrucibleHeadHandoff> handoffs = new WeakHashMap<>();
-    /** Each melting item's cut face, the last {@link #KEPT_FACES} items kept. */
-    private final Map<Identifier, ShardFace> faces = new LinkedHashMap<>(KEPT_FACES, LOAD_FACTOR, true) {
+    /** Each melting item's shards, the last {@link #KEPT_ITEMS} items kept. */
+    private final Map<Identifier, HeadShards> shards = new LinkedHashMap<>(KEPT_ITEMS, LOAD_FACTOR, true) {
         @Override
-        protected boolean removeEldestEntry(Map.Entry<Identifier, ShardFace> eldest) {
-            return size() > KEPT_FACES;
+        protected boolean removeEldestEntry(Map.Entry<Identifier, HeadShards> eldest) {
+            return size() > KEPT_ITEMS;
         }
     };
 
@@ -96,15 +93,23 @@ final class CrucibleMeltingItems {
     }
 
     /**
-     * Returns the head's face and shard map, cut once per item and kept while it melts,
-     * since the item's seed fixes the cut (decision tiles-of-the-items-image).
+     * Returns the head's shards, worked out once per item and kept while it melts, since the
+     * item's seed fixes the cut and the rest shifts, and cut again when a resource reload has
+     * baked the item's model anew (decision tiles-of-the-items-image).
      *
      * @param item   the resolved head model
      * @param itemId the head's item id
-     * @return the face and its shard map
+     * @return the head's shards
      */
-    private ShardFace faceOf(ItemStackRenderState item, Identifier itemId) {
-        return faces.computeIfAbsent(itemId, id -> ItemFaceProbe.probe(item, ItemShardCutter.seedOf(id.toString())));
+    private HeadShards shardsOf(ItemStackRenderState item, Identifier itemId) {
+        HeadShards kept = shards.get(itemId);
+        if (kept != null && ItemModelProbe.covers(kept.model(), item)) {
+            return kept;
+        }
+        long seed = ItemShardCutter.seedOf(itemId.toString());
+        HeadShards cut = HeadShards.of(ItemModelProbe.probe(item, seed), seed);
+        shards.put(itemId, cut);
+        return cut;
     }
 
     /**
@@ -124,13 +129,45 @@ final class CrucibleMeltingItems {
         double now = level.getGameTime() + (double) partialTick;
         CrucibleHeadHandoff handoff = handoffs.computeIfAbsent(be, key -> new CrucibleHeadHandoff());
         seeBasinEntity(handoff, level, be.getBlockPos(), partialTick, now);
-        AABB box = state.headItem.getModelBoundingBox();
-        CrucibleItemLayout.ItemPlacement placement = CrucibleItemLayout.head(
-            CrucibleBasin.drawnSurface(state.volumes), state.rippleAmplitude);
-        CrucibleHeadHandoff.ItemPose rest = CrucibleHeadHandoff.restingPose(placement, box, MIN_EXTENT);
-        state.headPose = handoff.headPose(state.hasHead && head != null ? head.item() : null, box, rest, now);
+        Identifier dissolving = state.hasHead && head != null ? head.item() : null;
+        state.headShards = dissolving != null ? shardsOf(state.headItem, dissolving) : null;
+        CrucibleHeadHandoff.ItemPose rest = restPoseOf(state);
+        state.headPose = handoff.headPose(dissolving, state.headItem.getModelBoundingBox(), rest, now);
         state.headEasing = state.headPose != rest;
-        state.headFace = state.hasHead && head != null ? faceOf(state.headItem, head.item()) : null;
+    }
+
+    /**
+     * Returns the pose the head eases into from its item entity: where its shards stand at
+     * home once it has them, or lying flat at the basin center.
+     *
+     * @param state the render state, head and its shards resolved
+     * @return the head's resting pose
+     */
+    private static CrucibleHeadHandoff.ItemPose restPoseOf(CrucibleRenderState state) {
+        CrucibleBasin.DrawnSurface surface = CrucibleBasin.drawnSurface(state.volumes);
+        CrucibleItemLayout.ItemPlacement placement = CrucibleItemLayout.head(surface, state.rippleAmplitude);
+        if (state.headShards == null) {
+            return CrucibleHeadHandoff.restingPose(placement, state.headItem.getModelBoundingBox(), MIN_EXTENT);
+        }
+        return wholeAtHome(state.headShards, placement, CrucibleItemLayout.tileY(surface, state.rippleAmplitude,
+            new SurfaceRipple.Field(state.blockPos.getX(), state.blockPos.getZ(), state.dayFraction),
+            placement.x(), placement.z()));
+    }
+
+    /**
+     * Returns the pose the whole head takes where its shards stand at home, so the ease from
+     * the item entity lands exactly where the shards take over: a flat item face up, a block
+     * upright, at the shards' scale, its bottom on the surface (decision tiles-of-the-items-image).
+     *
+     * @param head      the head's shards
+     * @param placement the head's center on the basin floor plan
+     * @param surfaceY  the surface height the shards stand on at the head's center
+     * @return the head's resting pose
+     */
+    private static CrucibleHeadHandoff.ItemPose wholeAtHome(HeadShards head, CrucibleItemLayout.ItemPlacement placement,
+                                                            float surfaceY) {
+        return new CrucibleHeadHandoff.ItemPose(placement.x(), surfaceY - head.frame().bottomY(), placement.z(), 0f,
+            head.model().flat() ? CrucibleHeadHandoff.FLAT_TILT_DEGREES : 0f, head.scale());
     }
 
     /**
@@ -195,64 +232,46 @@ final class CrucibleMeltingItems {
      */
     private static void submitHead(CrucibleRenderState state, CrucibleBasin.@Nullable DrawnSurface surface,
                                    PoseStack poseStack, SubmitNodeCollector nodeCollector) {
-        ShardFace face = state.headFace;
-        if (state.headEasing || face == null) {
-            ShardFace whole = new ShardFace(face != null ? face.bounds() : WHOLE_FACE,
-                    ItemShardCutter.ShardMap.whole(1, 1));
+        HeadShards head = state.headShards;
+        if (state.headEasing || head == null) {
             submitPosed(state.headItem, state.headPose, poseStack,
-                    pose -> new DissolvingItemCollector(nodeCollector, state.headGlow, whole, 0, pose),
+                    pose -> new DissolvingItemCollector(nodeCollector, state.headGlow, null, 0, pose),
                     state.lightCoords);
             return;
         }
-        submitShards(state.headItem, face, CrucibleItemLayout.shardHomes(surface, state.rippleAmplitude,
+        submitShards(state.headItem, head, CrucibleItemLayout.headShards(surface, state.rippleAmplitude,
+                        state.headGlow.fraction(),
                         new SurfaceRipple.Field(state.blockPos.getX(), state.blockPos.getZ(), state.dayFraction),
-                        homeOffsets(face)),
+                        head.pieces(), head.frame(), head.shifts()),
                 state.headGlow, poseStack, nodeCollector, state.lightCoords);
     }
 
     /**
-     * Returns each shard's centroid as an offset from the face's center, in widths of the
-     * face's larger side, rows running along the model's Y.
-     *
-     * @param face the item's face and shard map
-     * @return one X and Y offset per shard
-     */
-    static List<float[]> homeOffsets(ShardFace face) {
-        List<float[]> offsets = new ArrayList<>(face.map().count());
-        for (int shard = 0; shard < face.map().count(); shard++) {
-            float[] centroid = face.centroid(shard);
-            offsets.add(new float[] {(centroid[0] - face.centerX()) / face.span(),
-                (centroid[1] - face.centerY()) / face.span()});
-        }
-        return offsets;
-    }
-
-    /**
-     * Submits the dissolving item once per shard of its image, each shard lying face up on
-     * its own placement and dissolving on its own (decision tiles-of-the-items-image).
+     * Submits the dissolving item once per shard of its model, each shard at its own
+     * placement, lying as the item lies, and dissolving on its own (decision tiles-of-the-items-image).
      *
      * @param item          the resolved item model
-     * @param face          the item's face and shard map
-     * @param shards        where each shard's centroid lies, in shard order
+     * @param head          the item's shards
+     * @param placements    where each shard's centroid lies, in shard order
      * @param glow          how far the item has dissolved and the layers its edge glows in
      * @param poseStack     the pose stack at the block's origin
      * @param nodeCollector the render node collector
      * @param light         the packed light coordinates
      */
-    static void submitShards(ItemStackRenderState item, ShardFace face, List<CrucibleItemLayout.ItemPlacement> shards,
-                             DissolveGlow glow, PoseStack poseStack, SubmitNodeCollector nodeCollector, int light) {
-        double centerZ = item.getModelBoundingBox().getCenter().z;
-        for (int shard = 0; shard < shards.size(); shard++) {
-            CrucibleItemLayout.ItemPlacement placement = shards.get(shard);
-            float scale = (float) (placement.size() / Math.max(face.span(), MIN_EXTENT));
-            float[] centroid = face.centroid(shard);
+    static void submitShards(ItemStackRenderState item, HeadShards head,
+                             List<CrucibleItemLayout.ItemPlacement> placements, DissolveGlow glow,
+                             PoseStack poseStack, SubmitNodeCollector nodeCollector, int light) {
+        for (int shard = 0; shard < placements.size(); shard++) {
+            CrucibleItemLayout.ItemPlacement placement = placements.get(shard);
+            float[] centroid = head.centroids().get(shard);
             poseStack.pushPose();
             poseStack.translate(placement.x(), placement.y(), placement.z());
-            poseStack.mulPose(Axis.XP.rotationDegrees(CrucibleHeadHandoff.FLAT_TILT_DEGREES));
-            poseStack.scale(scale, scale, scale);
-            poseStack.translate(-centroid[0], -centroid[1], -centerZ);
+            poseStack.mulPose(head.lying());
+            poseStack.scale(head.scale(), head.scale(), head.scale());
+            poseStack.translate(-centroid[QuadRectClipper.X], -centroid[QuadRectClipper.Y],
+                    -centroid[QuadRectClipper.Z]);
             DissolvingItemCollector shardCollector =
-                    new DissolvingItemCollector(nodeCollector, glow, face, shard, poseStack.last().pose());
+                    new DissolvingItemCollector(nodeCollector, glow, head.model(), shard, poseStack.last().pose());
             item.submit(poseStack, shardCollector, light, OverlayTexture.NO_OVERLAY, 0);
             poseStack.popPose();
         }
