@@ -237,7 +237,7 @@ public class TapBlockEntity extends GooGlowingMachineBlockEntity implements ICan
     }
 
     @Override
-    public @Nullable AABB previewBounds(BlockHitResult hit, boolean sneaking) {
+    public @Nullable AABB previewBounds(BlockHitResult hit) {
         return isSlotFilled(SLOT) ? null : slotBounds(SLOT);
     }
 

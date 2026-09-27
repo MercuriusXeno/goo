@@ -239,16 +239,12 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
     }
 
     /**
-     * An aimed filled slot previews only under a sneak, which resolves to an adjacent empty slot.
+     * None: a standing click on a canister block picks up, and a sneak's insert is the
+     * placement resolver's preview (decision preview-runs-the-placement-validator).
      */
     @Override
-    public @Nullable AABB previewBounds(BlockHitResult hit, boolean sneaking) {
-        int aimed = CanisterBlock.hitSlot(hit, getBlockPos());
-        if (!sneaking && aimed >= 0 && isSlotFilled(aimed)) {
-            return null;
-        }
-        int slot = CanisterSlotResolver.resolveAndConstrain(hit.getLocation(), getBlockPos(), hit.getDirection(), this);
-        return slot >= 0 ? slotBounds(slot) : null;
+    public @Nullable AABB previewBounds(BlockHitResult hit) {
+        return null;
     }
 
     @Override

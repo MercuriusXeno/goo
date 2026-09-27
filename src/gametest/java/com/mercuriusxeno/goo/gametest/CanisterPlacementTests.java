@@ -28,6 +28,8 @@ public final class CanisterPlacementTests {
     private static final BlockPos CANISTER_POS = SUPPORT_POS.above();
     private static final int AIMED_SLOT = 0;
     private static final double PIXELS_PER_BLOCK = 16.0;
+    private static final double HALF_BLOCK = 0.5;
+    private static final int CENTRE_SLOT = 4;
 
     private CanisterPlacementTests() {}
 
@@ -63,6 +65,25 @@ public final class CanisterPlacementTests {
             aimedSlotTopHit(helper));
         helper.getLevel().getServer().getPlayerList().remove(player);
         assertCanisterInAimedSlot(helper);
+        helper.succeed();
+    }
+
+    /**
+     * A standing canister click on the hub's intake top, its attach spot, places a canister
+     * block above the hub in the centre slot rather than filling a hub slot.
+     *
+     * @param helper the gametest helper
+     */
+    public static void hubAttachSpotTakesCanisterAbove(GameTestHelper helper) {
+        helper.setBlock(SUPPORT_POS, GooBlocks.HUB.get());
+        BlockPos abs = helper.absolutePos(SUPPORT_POS);
+        BlockHitResult intakeTop = new BlockHitResult(
+            new Vec3(abs.getX() + HALF_BLOCK, abs.getY() + 1.0, abs.getZ() + HALF_BLOCK), Direction.UP, abs, false);
+        helper.useBlock(SUPPORT_POS, playerHoldingCanister(helper), intakeTop);
+        helper.assertBlockPresent(GooBlocks.CANISTER.get(), CANISTER_POS);
+        CanisterBlockEntity canister = helper.getBlockEntity(CANISTER_POS, CanisterBlockEntity.class);
+        helper.assertFalse(canister.containerState().getCanister(CENTRE_SLOT).isEmpty(),
+            "The canister above the hub should fill the centre slot");
         helper.succeed();
     }
 
