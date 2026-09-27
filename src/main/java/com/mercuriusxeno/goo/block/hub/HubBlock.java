@@ -9,6 +9,7 @@ import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
@@ -159,6 +160,20 @@ public class HubBlock extends GooMachineBlock {
      */
     public static VoxelShape frameShape() {
         return FRAME;
+    }
+
+    /**
+     * Whether the hit lands on the intake's top, the spot a canister attaches above the hub
+     * in the centre slot, as the reactor's hollow is its output slot.
+     *
+     * @param hit the block hit result from the interaction
+     * @param pos the block position
+     * @return true when the hit addresses the attach spot
+     */
+    public static boolean isAttachSpotHit(BlockHitResult hit, BlockPos pos) {
+        double localY = hit.getLocation().y - pos.getY();
+        return hit.getDirection() == Direction.UP && localY >= INTAKE.min(Direction.Axis.Y)
+                && hitSlot(hit, pos) == NO_SLOT;
     }
 
     /**

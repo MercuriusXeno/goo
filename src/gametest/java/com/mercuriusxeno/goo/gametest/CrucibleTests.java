@@ -226,7 +226,7 @@ public final class CrucibleTests {
     /**
      * Dropping an item into a fueled crucible absorbs it via entityInside.
      * Exercises CrucibleAbsorption.tryAbsorbItem -> CrucibleInsertion.insertItem.
-     * Requires fuel and the crucible must not be redstone-powered.
+     * Requires fuel.
      *
      * @param helper the gametest helper
      */

@@ -7,9 +7,13 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.BooleanOp;
+import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.Nullable;
 import java.util.Set;
 
@@ -23,20 +27,40 @@ public final class CanisterPlacementValidator {
     }
 
     /**
-     * Returns true if the block below can support a canister. A canister needs
-     * either a solid rendering surface or an ICanisterAttachable with capacity.
+     * The central 12x12 pixels of a block's top face, which a canister's slots stand on.
+     */
+    private static final VoxelShape CANISTER_FOOTPRINT = Block.column(12.0, 0.0, 16.0);
+
+    /**
+     * Returns true if the block below can support a canister: the top face of its
+     * support shape covers the central 12x12 pixels, or it is an ICanisterAttachable
+     * machine with capacity on top.
      *
      * @param level    the current level
      * @param belowPos the block position below the canister
      * @return true if the position can support a canister
      */
     static boolean isSupportedBelow(Level level, BlockPos belowPos) {
-        BlockState belowState = level.getBlockState(belowPos);
-        if (belowState.isSolidRender()) {
+        if (coversCanisterFootprint(level.getBlockState(belowPos), level, belowPos)) {
             return true;
         }
         BlockEntity be = level.getBlockEntity(belowPos);
         return be instanceof ICanisterAttachable att && att.canAttachOnTop();
+    }
+
+    /**
+     * Returns true if the top face of the state's support shape covers the central
+     * 12x12 pixels. Vanilla's RIGID test checks the outer ring instead and refuses
+     * the vat, inset one pixel on each edge (decision canister-support-is-rigid-top-face).
+     *
+     * @param state the block state below the canister
+     * @param level the current level
+     * @param pos   the position of that block
+     * @return true if the top face covers the canister footprint
+     */
+    static boolean coversCanisterFootprint(BlockState state, Level level, BlockPos pos) {
+        VoxelShape topFace = state.getBlockSupportShape(level, pos).getFaceShape(Direction.UP);
+        return !Shapes.joinIsNotEmpty(topFace, CANISTER_FOOTPRINT, BooleanOp.ONLY_SECOND);
     }
 
     /**
