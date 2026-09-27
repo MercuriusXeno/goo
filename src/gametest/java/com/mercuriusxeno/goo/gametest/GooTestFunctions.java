@@ -66,6 +66,8 @@ public final class GooTestFunctions {
     private static final String CRYSTALLIZER_ADVANCES_TO_KILOCHRYSM = "crystallizer_advances_to_kilochrysm";
     private static final String CRYSTALLIZER_SMALL_DIAL_HOLDS = "crystallizer_small_dial_holds";
     private static final String CRYSTALLIZER_DIAL_WRAPS = "crystallizer_dial_wraps";
+    private static final String CRYSTALLIZER_PAUSES_WITHOUT_CRYSTAL = "crystallizer_pauses_without_crystal";
+    private static final String CRYSTALLIZER_TAKING_KEEPS_REMAINDER = "crystallizer_taking_keeps_remainder";
     // --- Brewing ---
     private static final String BREWING_OMNIBLOB_NEVER_BREWS = "brewing_omniblob_never_brews";
     private static final String BREWING_CHRYSM_BREWS_POTION = "brewing_chrysm_brews_potion";
@@ -325,6 +327,8 @@ public final class GooTestFunctions {
         reg(r, CRYSTALLIZER_ADVANCES_TO_KILOCHRYSM, CrystallizerTests::advancesToKilochrysm);
         reg(r, CRYSTALLIZER_SMALL_DIAL_HOLDS, CrystallizerTests::smallDialHoldsAtChrysm);
         reg(r, CRYSTALLIZER_DIAL_WRAPS, CrystallizerTests::dialClickWrapsFromLargeToSmall);
+        reg(r, CRYSTALLIZER_PAUSES_WITHOUT_CRYSTAL, CrystallizerTests::pausesWithoutCrystal);
+        reg(r, CRYSTALLIZER_TAKING_KEEPS_REMAINDER, CrystallizerTests::takingKeepsTheRemainder);
     }
 
     private static void registerBrewingTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
