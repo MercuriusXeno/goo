@@ -24,6 +24,9 @@ class TapDripFallTest {
     private static final int MIN_Y = -64;
     private static final double HALF = 0.5;
 
+    /** How far below the spigot the client's hanging drop starts: a 2-pixel drop and its 0.02 surface margin. */
+    private static final double CLIENT_HANGING_DROP = 2.0 / 16.0 + 0.02;
+
     /**
      * Ticks the client drip particle takes to pass a distance, ticked the way
      * TrailDripParticle ticks: gravity, move, drag.
@@ -38,6 +41,30 @@ class TapDripFallTest {
             yd *= DripFall.DRAG;
             ticks++;
         }
+        return ticks;
+    }
+
+    /**
+     * Ticks the client tap-drip takes from leaving the spigot to meeting a
+     * surface a distance below it, modeled on the particle the tree spawns:
+     * where the 2-pixel drop and its 0.02 margin fit under the spigot, its
+     * collision box starts that far down, holds still for the hang ticks,
+     * then falls in particle order until a move meets the surface; where they
+     * do not fit, the drop splats as its hang ends.
+     */
+    private static int particleTicksToArrive(double spigotToSurface, double leaveSpeed) {
+        if (spigotToSurface < CLIENT_HANGING_DROP) {
+            return DripFall.HANG_TICKS;
+        }
+        double y = -CLIENT_HANGING_DROP;
+        double yd = -leaveSpeed;
+        int ticks = DripFall.HANG_TICKS;
+        do {
+            yd -= DripFall.GRAVITY;
+            y = Math.max(-spigotToSurface, y + yd);
+            yd *= DripFall.DRAG;
+            ticks++;
+        } while (y > -spigotToSurface);
         return ticks;
     }
 
@@ -57,6 +84,37 @@ class TapDripFallTest {
         assertEquals(particleTicksToPass(distance, 0), DripFall.fallTicks(distance, 0));
         assertEquals(particleTicksToPass(distance, -TapDrip.DRIP_LEAVE_SPEED),
                 DripFall.fallTicks(distance, -TapDrip.DRIP_LEAVE_SPEED));
+    }
+
+    @Test
+    void theHangLastsTheFastestParticleGradesInterval() {
+        assertEquals(TapDripGrade.ONE_PER_4_TICKS.intervalTicks(), DripFall.HANG_TICKS);
+    }
+
+    /**
+     * From a tap on a full block (0.125 below the spigot, no room to fall) up
+     * through the drop's exact fit and on to long falls.
+     */
+    @ParameterizedTest
+    @ValueSource(doubles = {0.0, 0.1, 0.125, 0.144, 0.145, 0.2, 0.875, 1.125, 1.875, 2.875, 5.0, 10.0, 64.0, 300.0})
+    void releaseQueuesTheLandingOnTheTickTheClientDropMeetsTheSurface(double spigotToSurface) {
+        int releaseTick = 1200;
+        double spigotY = 64.125;
+
+        assertEquals(releaseTick + particleTicksToArrive(spigotToSurface, -TapDrip.DRIP_LEAVE_SPEED),
+                TapDrip.landingTick(releaseTick, spigotY, spigotY - spigotToSurface),
+                "spigot to surface " + spigotToSurface);
+    }
+
+    @Test
+    void theLandingMeetsTheClientDropAtEverySpigotHeightInASweep() {
+        double spigotY = 64.125;
+        for (int step = 0; step <= 1000; step++) {
+            double spigotToSurface = step * 0.01;
+            assertEquals(particleTicksToArrive(spigotToSurface, -TapDrip.DRIP_LEAVE_SPEED),
+                    TapDrip.landingTick(0, spigotY, spigotY - spigotToSurface),
+                    "spigot to surface " + spigotToSurface);
+        }
     }
 
     @Test

@@ -41,6 +41,15 @@ public final class GooSourceScanner {
     }
 
     /**
+     * The slots a carried-goo walk reads, in walk order: main inventory bottom-up, then offhand.
+     *
+     * @return a copy of the slot indices
+     */
+    static int[] carriedSlots() {
+        return SCAN_SLOTS.clone();
+    }
+
+    /**
      * The carrier a stack's item is, the one dispatch every scan path shares.
      *
      * @param stack the item stack

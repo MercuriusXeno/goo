@@ -311,7 +311,8 @@ public class CanisterItem extends BlockItem implements IGooItemInteraction, GooC
             @NonNull Slot slot, @NonNull ClickAction action, @NonNull Player player,
             @NonNull SlotAccess cursorAccess) {
         if (cursor.isEmpty() && action == ClickAction.SECONDARY) {
-            return CanisterInventoryHandler.drainToCursor(cursorAccess, new CanisterGooSource(canister));
+            return CanisterInventoryHandler.drainIntoInventory(new CanisterGooSource(canister),
+                    GooDeposit.intoInventory(player, canister));
         }
         return action == ClickAction.PRIMARY
                 && CanisterInventoryHandler.handlePrimaryClick(canister, cursor, cursorAccess);
@@ -328,22 +329,21 @@ public class CanisterItem extends BlockItem implements IGooItemInteraction, GooC
     }
 
     /**
-     * The canister item as a drain source: its one goo type, removed up to what it holds.
+     * The canister item as a drain source: its one goo type, whole.
      *
      * @param canister the canister item stack
      */
     private record CanisterGooSource(ItemStack canister) implements CanisterInventoryHandler.GooSource {
         @Override
-        public @Nullable ResourceKey<GooTypeDefinition> dominantType() {
+        public Map<ResourceKey<GooTypeDefinition>, Integer> drainable() {
             CanisterFluidContent content = getFluidContent(canister);
-            return content.isEmpty() ? null : content.getGooType();
+            ResourceKey<GooTypeDefinition> type = content.getGooType();
+            return content.isEmpty() || type == null ? Map.of() : Map.of(type, content.amount());
         }
 
         @Override
         public int remove(ResourceKey<GooTypeDefinition> type, int volume) {
-            CanisterFluidContent content = getFluidContent(canister);
-            int available = (content.getGooType() == type) ? content.amount() : 0;
-            return removeGoo(canister, type, Math.min(available, volume));
+            return removeGoo(canister, type, volume);
         }
     }
 }

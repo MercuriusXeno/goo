@@ -21,13 +21,13 @@ out float cylindricalVertexDistance;
 out vec4 vertexColor;
 out vec2 texCoord0;
 out vec3 mingleWorldPos;
-flat out vec2 layerShare;
+flat out vec2 shareSeed;
 
 // Must match RenderContext.AMPLITUDE_UNITS_PER_BLOCK: UV1.x carries the
 // vertex's ripple amplitude in 1/4096 block, zero on every flat vertex.
 const float AMPLITUDE_UNITS_PER_BLOCK = 4096.0;
 // Must match TypeBand.SHARE_UNITS: the surface is emissive, so UV2 carries
-// the layer's share and index of decision noise-mingled-type-textures instead of light.
+// the layer's share and its type's noise seed (decision mingle-noise-keyed-by-type) instead of light.
 const float SHARE_UNITS = 16384.0;
 
 const float TAU = 6.2831853;
@@ -63,5 +63,5 @@ void main() {
     // The mingle reads the unrippled position, so a patch keeps its type at
     // every lift (decision diagnose-then-fix-undulation-blend-exposure).
     mingleWorldPos = worldPos;
-    layerShare = vec2(float(UV2.x) / SHARE_UNITS, float(UV2.y));
+    shareSeed = vec2(float(UV2.x) / SHARE_UNITS, float(UV2.y));
 }
