@@ -25,10 +25,17 @@ import org.joml.Vector3f;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -160,6 +167,65 @@ class DissolvingItemCollectorTest {
             assertEquals(DissolveGlow.FRACTION_UNITS | 0xFFFF << 16,
                     DissolveGlow.single(1.5f, 0xFFFFFF).overlayCoords(white));
             assertEquals(0, DissolveGlow.single(-1f, 0).overlayCoords(new DissolveGlow.Layer(0, 1f, 0)));
+        }
+    }
+
+    @Nested
+    class SeedSlot {
+
+        private static final String VERTEX_SHADER = "/assets/goo/shaders/core/crucible_dissolve.vsh";
+        private static final String FRAGMENT_SHADER = "/assets/goo/shaders/core/crucible_dissolve.fsh";
+
+        private static String shaderSource(String path) throws IOException {
+            try (InputStream stream = DissolvingItemCollectorTest.class.getResourceAsStream(path)) {
+                assertNotNull(stream, path);
+                return new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+            }
+        }
+
+        private static String firstGroup(String source, String regex) {
+            Matcher matcher = Pattern.compile(regex).matcher(source);
+            assertTrue(matcher.find(), regex + " missing");
+            return matcher.group(1);
+        }
+
+        /** The fragment shader samples the dissolve field at world position offset by the melt's seed. */
+        @Test
+        void fieldSampleTakesTheSeedOffset() throws IOException {
+            String argument = firstGroup(shaderSource(FRAGMENT_SHADER), "float field = mingleField\\((.*)\\);");
+
+            assertTrue(argument.contains("dissolveWorldPos"), argument);
+            assertTrue(argument.contains("dissolveSeed"), "the dissolve field takes no seed: mingleField(" + argument + ")");
+        }
+
+        /** The vertex shader unpacks the seed from the light bytes' low nibbles at DissolveGlow's packing. */
+        @Test
+        void vertexShaderUnpacksTheSeedAtTheGlowsPacking() throws IOException {
+            String source = shaderSource(VERTEX_SHADER);
+
+            assertEquals(DissolveGlow.SEED_NIBBLE_BITS,
+                    Integer.parseInt(firstGroup(source, "const int SEED_NIBBLE_BITS = (\\d+);")));
+            assertEquals(DissolveGlow.SEED_NIBBLE_MASK,
+                    Integer.parseInt(firstGroup(source, "const int SEED_NIBBLE_MASK = (\\d+);")));
+            assertEquals("float((UV2.x & SEED_NIBBLE_MASK) | (UV2.y & SEED_NIBBLE_MASK) << SEED_NIBBLE_BITS)",
+                    firstGroup(source, "dissolveSeed = (.*);"));
+        }
+
+        /** Every vertex of every layer carries the seed in the light bytes' low nibbles, the light level kept above it. */
+        @Test
+        void everyVertexCarriesTheSeedBesideItsLight() {
+            int seed = 0xA7;
+            List<RecordingVertexConsumer.Vertex> vertices = submitThrough(
+                    DissolveGlow.of(0.25f, THREE_TYPES, COLORS::get).withSeed(seed), new RenderType[1]);
+
+            assertEquals(12, vertices.size());
+            for (RecordingVertexConsumer.Vertex vertex : vertices) {
+                int unpacked = (vertex.uv2U() & DissolveGlow.SEED_NIBBLE_MASK)
+                        | (vertex.uv2V() & DissolveGlow.SEED_NIBBLE_MASK) << DissolveGlow.SEED_NIBBLE_BITS;
+                assertEquals(seed, unpacked);
+                assertEquals(0xF0, vertex.uv2U() & 0xF0);
+                assertEquals(0xF0, vertex.uv2V() & 0xF0);
+            }
         }
     }
 
