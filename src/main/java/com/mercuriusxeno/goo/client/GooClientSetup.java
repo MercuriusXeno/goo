@@ -4,8 +4,12 @@ import com.google.common.reflect.TypeToken;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ISidedProxy;
+import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.client.ber.*;
 import com.mercuriusxeno.goo.client.model.*;
+import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
+import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.overlay.AimTracker;
 import com.mercuriusxeno.goo.client.particle.*;
 import com.mercuriusxeno.goo.client.throwing.BlobFlightManager;
@@ -27,6 +31,8 @@ import net.neoforged.neoforge.client.event.*;
 import net.neoforged.neoforge.client.extensions.common.IClientFluidTypeExtensions;
 import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsEvent;
 import net.neoforged.neoforge.client.renderstate.RegisterRenderStateModifiersEvent;
+import org.jspecify.annotations.Nullable;
+import java.util.List;
 
 /**
  * Client-side setup: entity renderers and network event handling.
@@ -60,6 +66,19 @@ public final class GooClientSetup {
 
     static {
         ISidedProxy.INSTANCE[0] = new ClientProxy();
+        ChainMarkerBlockEntity.installClientSteps(GooClientSetup::syncedSteps);
+    }
+
+    /**
+     * Answers a marker's steps from the abilities the server synced
+     * (decision diagnose-then-fix-marker-server-gate).
+     *
+     * @param abilityId the ability resource id string
+     * @return the synced ability's steps, or null when none synced under that id
+     */
+    private static @Nullable List<Step> syncedSteps(String abilityId) {
+        ClientAbility ability = AbilitySyncHandler.findAbility(abilityId);
+        return ability != null ? ability.behaviors() : null;
     }
 
     private GooClientSetup() {
