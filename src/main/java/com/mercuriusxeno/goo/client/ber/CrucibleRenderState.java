@@ -25,6 +25,10 @@ public class CrucibleRenderState extends BlockEntityRenderState {
     /** The dissolving item's model, meaningful while {@link #hasHead}. */
     public final ItemStackRenderState headItem = new ItemStackRenderState();
 
+    /** The pose the dissolving item is drawn at: flat at rest, or easing from its item entity's pose. */
+    public CrucibleHeadHandoff.ItemPose headPose = new CrucibleHeadHandoff.ItemPose(0f, 0f, 0f, 0f,
+        CrucibleHeadHandoff.FLAT_TILT_DEGREES, 1f);
+
     /** True when an item is dissolving and its model resolved. */
     public boolean hasHead;
 
