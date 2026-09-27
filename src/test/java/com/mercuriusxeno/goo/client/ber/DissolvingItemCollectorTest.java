@@ -20,6 +20,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.neoforged.neoforge.client.event.RegisterRenderPipelinesEvent;
+import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -73,7 +74,7 @@ class DissolvingItemCollectorTest {
     private static List<RecordingVertexConsumer.Vertex> submitThrough(DissolveGlow glow,
                                                                       RenderType[] renderType) {
         SubmitNodeCollector delegate = mock(SubmitNodeCollector.class);
-        new DissolvingItemCollector(delegate, glow, WHOLE_ITEM).submitItem(new PoseStack(), ItemDisplayContext.FIXED,
+        new DissolvingItemCollector(delegate, glow, WHOLE_ITEM, new Matrix4f()).submitItem(new PoseStack(), ItemDisplayContext.FIXED,
                 LIGHT, 0, 0, new int[0], List.of(quadOnItemAtlas()), ItemStackRenderState.FoilType.NONE);
 
         ArgumentCaptor<RenderType> type = ArgumentCaptor.forClass(RenderType.class);

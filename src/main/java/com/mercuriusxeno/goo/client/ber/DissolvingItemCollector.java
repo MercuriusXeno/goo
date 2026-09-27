@@ -9,6 +9,8 @@ import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.item.ItemDisplayContext;
+import org.joml.Matrix4f;
+import org.joml.Matrix4fc;
 import org.joml.Vector3f;
 import java.util.List;
 
@@ -23,18 +25,24 @@ class DissolvingItemCollector extends ItemQuadCollector {
 
     private final DissolveGlow glow;
     private final ItemTileClipper.Tile tile;
+    private final Matrix4fc tilePose;
 
     /**
      * Creates a proxy that dissolves the one tile of the item it is handed.
      *
      * @param delegate the real collector to emit the dissolving geometry into
      * @param glow     how far the item has dissolved and the layers its edge glows in
-     * @param tile     the tile of the item's image this proxy emits
+     * @param tile     the tile of the item's image this proxy emits, in the space the
+     *                 item's model bounding box measures
+     * @param tilePose the pose the item is submitted at, before its layers apply their
+     *                 own transforms
      */
-    DissolvingItemCollector(SubmitNodeCollector delegate, DissolveGlow glow, ItemTileClipper.Tile tile) {
+    DissolvingItemCollector(SubmitNodeCollector delegate, DissolveGlow glow, ItemTileClipper.Tile tile,
+                            Matrix4fc tilePose) {
         super(delegate);
         this.glow = glow;
         this.tile = tile;
+        this.tilePose = new Matrix4f(tilePose);
     }
 
     /**
@@ -54,15 +62,33 @@ class DissolvingItemCollector extends ItemQuadCollector {
                            int lightCoords, int overlayCoords, int outlineColor,
                            int[] tintLayers, List<BakedQuad> quads,
                            ItemStackRenderState.FoilType foilType) {
+        GridSpace space = GridSpace.between(tilePose, poseStack.last().pose());
         resubmitByAtlas(poseStack, quads, GooRenderTypes::crucibleDissolve, (pose, buffer, group) -> {
             for (DissolveGlow.Layer layer : glow.layers()) {
                 int overlay = glow.overlayCoords(layer);
                 int light = DissolveGlow.lightCoords(lightCoords, layer);
                 for (BakedQuad quad : group) {
-                    emitTilePieces(pose, buffer, quad, new QuadCoords(tintOf(quad, tintLayers), overlay, light));
+                    emitTilePieces(pose, buffer, quad, space,
+                            new QuadCoords(tintOf(quad, tintLayers), overlay, light));
                 }
             }
         });
+    }
+
+    /**
+     * The map between a layer's raw quad positions and the space the model's bounding box
+     * measures, which the tile grid is laid in: the layer's own transforms, found as the
+     * submitted pose with the tile's pose undone.
+     *
+     * @param toGrid   maps a raw quad position into the grid's space
+     * @param fromGrid maps a grid-space position back to the raw quad's space
+     */
+    private record GridSpace(Matrix4fc toGrid, Matrix4fc fromGrid) {
+
+        static GridSpace between(Matrix4fc tilePose, Matrix4fc layerPose) {
+            Matrix4f toGrid = new Matrix4f(tilePose).invert().mul(layerPose);
+            return new GridSpace(toGrid, new Matrix4f(toGrid).invert());
+        }
     }
 
     /**
@@ -92,12 +118,17 @@ class DissolvingItemCollector extends ItemQuadCollector {
      * @param pose   the pose the geometry was submitted at
      * @param buffer the buffer to emit into
      * @param quad   the baked quad
+     * @param space  the map between the quad's positions and the tile grid's space
      * @param coords the tint, overlay and lightmap coordinates
      */
-    private void emitTilePieces(PoseStack.Pose pose, VertexConsumer buffer, BakedQuad quad, QuadCoords coords) {
+    private void emitTilePieces(PoseStack.Pose pose, VertexConsumer buffer, BakedQuad quad, GridSpace space,
+                                QuadCoords coords) {
         Vector3f normal = pose.transformNormal(quad.direction().getUnitVec3f(), new Vector3f());
-        for (List<ItemTileClipper.ClipVertex> piece : ItemTileClipper.clip(ItemTileClipper.verticesOf(quad), tile)) {
-            for (ItemTileClipper.ClipVertex vertex : piece) {
+        List<ItemTileClipper.ClipVertex> inGrid = ItemTileClipper.verticesOf(quad).stream()
+                .map(vertex -> vertex.moved(space.toGrid())).toList();
+        for (List<ItemTileClipper.ClipVertex> piece : ItemTileClipper.clip(inGrid, tile)) {
+            for (ItemTileClipper.ClipVertex gridVertex : piece) {
+                ItemTileClipper.ClipVertex vertex = gridVertex.moved(space.fromGrid());
                 Vector3f position = pose.pose().transformPosition(vertex.x(), vertex.y(), vertex.z(), new Vector3f());
                 buffer.addVertex(position.x(), position.y(), position.z(),
                         ARGB.multiply(coords.tint(), vertex.color()), vertex.u(), vertex.v(),

@@ -113,8 +113,9 @@ final class CrucibleMeltingItems {
             poseStack.mulPose(Axis.XP.rotationDegrees(FACE_UP_DEGREES));
             poseStack.scale(scale, scale, scale);
             poseStack.translate(-tile.centerX(), -tile.centerY(), -centerZ);
-            item.submit(poseStack, new DissolvingItemCollector(nodeCollector, glow, tile), light,
-                    OverlayTexture.NO_OVERLAY, 0);
+            DissolvingItemCollector tileCollector =
+                    new DissolvingItemCollector(nodeCollector, glow, tile, poseStack.last().pose());
+            item.submit(poseStack, tileCollector, light, OverlayTexture.NO_OVERLAY, 0);
             poseStack.popPose();
         }
     }
