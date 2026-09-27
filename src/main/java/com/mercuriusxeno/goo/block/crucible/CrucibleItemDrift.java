@@ -65,19 +65,26 @@ public final class CrucibleItemDrift {
         AABB reach = new AABB(pos).inflate(AIM_RANGE);
         float killTopY = CrucibleBasin.killBoxTopY(crucible.basinVolumes());
         for (ItemEntity item : level.getEntitiesOfClass(ItemEntity.class, reach)) {
-            double x = item.getX() - pos.getX();
-            double y = item.getY() - pos.getY();
-            double z = item.getZ() - pos.getZ();
-            if (CrucibleBasin.inKillBox(x, y, z, killTopY)) {
-                if (crucible.isEnabled() && crucible.canHeat()) {
-                    CrucibleAbsorption.tryAbsorbItem(item, crucible);
-                }
-                continue;
+            Vec3 at = item.position().subtract(Vec3.atLowerCornerOf(pos));
+            if (!CrucibleBasin.inKillBox(at.x, at.y, at.z, killTopY)) {
+                applyMotion(item, steeredDelta(item, at));
+            } else if (crucible.isEnabled() && crucible.canHeat()) {
+                CrucibleAbsorption.tryAbsorbItem(item, crucible);
             }
-            Vec3 aimed = item.onGround() ? null
-                : CrucibleAimAssist.aimedDelta(new Vec3(x, y, z), item.getDeltaMovement());
-            applyMotion(item, aimed != null ? aimed : fieldDelta(item.getDeltaMovement(), x, y, z));
         }
+    }
+
+    /**
+     * An item's motion outside the kill box: the aim assist's steer for an airborne
+     * item thrown roughly at the mouth, else the pull field and the lift.
+     *
+     * @param item the item entity
+     * @param at   the item's feet relative to the block
+     * @return the item's motion
+     */
+    private static Vec3 steeredDelta(ItemEntity item, Vec3 at) {
+        Vec3 aimed = item.onGround() ? null : CrucibleAimAssist.aimedDelta(at, item.getDeltaMovement());
+        return aimed != null ? aimed : fieldDelta(item.getDeltaMovement(), at.x, at.y, at.z);
     }
 
     /**
