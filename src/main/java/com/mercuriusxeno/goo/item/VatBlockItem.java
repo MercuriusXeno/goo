@@ -13,13 +13,14 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
+import java.util.Map;
 
 /**
  * Vat block item: retains goo contents when picked up (like shulker boxes).
  * Supports inventory click interactions matching CanisterItem behavior:
  * blob insert, blob drain.
  */
-public class VatBlockItem extends BlockItem {
+public class VatBlockItem extends BlockItem implements GooCarrierItem {
 
     /**
      * Creates a vat block item for the given block.
@@ -104,6 +105,28 @@ public class VatBlockItem extends BlockItem {
      */
     public static int removeGoo(ItemStack stack, ResourceKey<GooTypeDefinition> type, int amount) {
         return GooContentsOps.removeGoo(stack, type, amount);
+    }
+
+    // --- GooCarrierItem (decision hosts-answer-bounds-through-interfaces) ---
+
+    @Override
+    public DepletionPass depletionPass() {
+        return DepletionPass.VAT;
+    }
+
+    @Override
+    public Map<ResourceKey<GooTypeDefinition>, Integer> gooContents(ItemStack stack) {
+        return getGooContents(stack).getAll();
+    }
+
+    @Override
+    public int gooVolume(ItemStack stack, ResourceKey<GooTypeDefinition> type) {
+        return getGooContents(stack).getVolume(type);
+    }
+
+    @Override
+    public int drawGoo(ItemStack stack, ResourceKey<GooTypeDefinition> type, int amount) {
+        return removeGoo(stack, type, amount);
     }
 
     /**
