@@ -14,8 +14,8 @@ import net.minecraft.util.RandomSource;
 import org.jspecify.annotations.Nullable;
 
 /**
- * The tap-drip: a square drop falling straight down from a tap's spigot, and
- * its square splat, each drawing a muted patch of its goo type's fluid
+ * The tap-drip: a cuboid drop falling straight down from a tap's spigot, and
+ * its flat square splat, each drawing a muted patch of its goo type's fluid
  * sprite on the block atlas (decision particles-render-muted-goo-texture).
  * The definitions' own sprite sets stand registered but go undrawn.
  */
@@ -80,6 +80,11 @@ public final class TapDripParticle {
         @Override
         protected int hangTicks() {
             return DripFall.HANG_TICKS;
+        }
+
+        @Override
+        protected boolean drawsCuboid() {
+            return true;
         }
 
         /**
