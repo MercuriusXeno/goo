@@ -190,6 +190,10 @@ public final class GooTestFunctions {
     private static final String IX_CANISTER_CLICK_PICKUP = "ix_canister_click_pickup";
     private static final String IX_CANISTER_LAST_PICKUP = "ix_canister_last_pickup";
     private static final String IX_CANISTER_EMPTY_HAND = "ix_canister_empty_hand";
+    private static final String IX_CANISTER_VAT_TOP_PLACES = "ix_canister_vat_top_places";
+    private static final String IX_CANISTER_STONE_TOP_PLACES = "ix_canister_stone_top_places";
+    private static final String IX_CANISTER_CRUCIBLE_TOP_REFUSES = "ix_canister_crucible_top_refuses";
+    private static final String IX_CANISTER_SIGN_TOP_REFUSES = "ix_canister_sign_top_refuses";
 
     // --- Machine interactions ---
     private static final String IX_TAP_VALVE = "ix_tap_valve_toggle";
@@ -529,6 +533,10 @@ public final class GooTestFunctions {
         reg(r, IX_CANISTER_CLICK_PICKUP, CanisterInteractionTests::clickPicksUp);
         reg(r, IX_CANISTER_LAST_PICKUP, CanisterInteractionTests::lastPickupRemovesBlock);
         reg(r, IX_CANISTER_EMPTY_HAND, CanisterInteractionTests::emptyHandPicksUp);
+        reg(r, IX_CANISTER_VAT_TOP_PLACES, CanisterPlacementTests::vatTopTakesCanister);
+        reg(r, IX_CANISTER_STONE_TOP_PLACES, CanisterPlacementTests::stoneTopTakesCanister);
+        reg(r, IX_CANISTER_CRUCIBLE_TOP_REFUSES, CanisterPlacementTests::crucibleTopRefusesCanister);
+        reg(r, IX_CANISTER_SIGN_TOP_REFUSES, CanisterPlacementTests::signTopRefusesCanister);
     }
 
     private static void registerMachineTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {

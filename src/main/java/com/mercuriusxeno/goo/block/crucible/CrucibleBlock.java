@@ -26,7 +26,6 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
-import net.minecraft.world.level.redstone.Orientation;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
@@ -40,7 +39,7 @@ import org.jspecify.annotations.Nullable;
  * and empty-hand goo extraction.
  * Drops internal state (PMI, fuel rod, reservoir blobs) when broken.
  *
- * Blockstate properties: POWERED (redstone gating), LIT (active/melting visual),
+ * Blockstate properties: LIT (active/melting visual),
  * HAS_GASKET (bottom gasket).
  * The goocible model switches between on (LIT=true) and off (LIT=false) states.
  */
@@ -50,8 +49,6 @@ public class CrucibleBlock extends GooMachineBlock {
 
     /** Horizontal facing direction - orients the crucible's front (fire-glow) face toward the player. */
     public static final EnumProperty<Direction> FACING = HorizontalDirectionalBlock.FACING;
-    /** Redstone signal present: crucible is disabled when true. */
-    public static final BooleanProperty POWERED = BooleanProperty.create("powered");
     /** Whether the crucible is actively melting (drives on/off model state). */
     public static final BooleanProperty LIT = BooleanProperty.create("lit");
     /** Light level emitted by the firebox while LIT (matches the prior
@@ -79,7 +76,6 @@ public class CrucibleBlock extends GooMachineBlock {
         super(properties);
         this.registerDefaultState(this.stateDefinition.any()
             .setValue(FACING, Direction.NORTH)
-            .setValue(POWERED, false)
             .setValue(LIT, false)
             .setValue(HAS_GASKET, false));
     }
@@ -110,7 +106,7 @@ public class CrucibleBlock extends GooMachineBlock {
      */
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(FACING, POWERED, LIT, HAS_GASKET);
+        builder.add(FACING, LIT, HAS_GASKET);
     }
 
     /** Returns MODEL render shape since the crucible uses a block model.
@@ -156,18 +152,6 @@ public class CrucibleBlock extends GooMachineBlock {
     @Override
     protected boolean useShapeForLightOcclusion(BlockState state) {
         return true;
-    }
-
-    /** Returns full block shape so levers can attach to any face via isFaceSturdy.
-     *
-     * @param state the block state
-     * @param level the current level
-     * @param pos   the block position
-     * @return the block support shape
-     */
-    @Override
-    protected VoxelShape getBlockSupportShape(BlockState state, BlockGetter level, BlockPos pos) {
-        return Shapes.block();
     }
 
     /** Creates the crucible block entity for this position.
@@ -268,7 +252,7 @@ public class CrucibleBlock extends GooMachineBlock {
 
     /**
      * Absorbs item entities that land in the basin, feeding them into the melting pipeline.
-     * Only absorbs when the crucible is enabled (no redstone) and holds heat or fuel goo.
+     * Only absorbs when the crucible holds heat or fuel goo.
      *
      * @param state         the block state
      * @param level         the current level
@@ -286,7 +270,7 @@ public class CrucibleBlock extends GooMachineBlock {
         tryAbsorbItemEntity(level, pos, itemEntity);
     }
 
-    /** Attempts absorption if the crucible is enabled and can heat.
+    /** Attempts absorption if the crucible can heat.
      *
      * @param level      the current level
      * @param pos        the block position
@@ -295,31 +279,8 @@ public class CrucibleBlock extends GooMachineBlock {
     private static void tryAbsorbItemEntity(Level level, BlockPos pos, ItemEntity itemEntity) {
         BlockEntity be = level.getBlockEntity(pos);
         if (!(be instanceof CrucibleBlockEntity crucible)) { return; }
-        if (!crucible.isEnabled()) { return; }
         if (!crucible.canHeat()) { return; }
         CrucibleAbsorption.tryAbsorbItem(itemEntity, crucible);
-    }
-
-    // -- Neighbor updates (redstone) --
-
-    /** Updates powered state when neighbors change.
-     *
-     * @param state         the block state
-     * @param level         the current level
-     * @param pos           the block position
-     * @param neighborBlock the neighbor block that changed
-     * @param orientation   the redstone orientation, or null
-     * @param movedByPiston true if moved by a piston
-     */
-    @Override
-    protected void neighborChanged(BlockState state, Level level, BlockPos pos,
-            Block neighborBlock, @Nullable Orientation orientation, boolean movedByPiston) {
-        if (level.isClientSide()) { return; }
-
-        boolean powered = level.hasNeighborSignal(pos);
-        if (powered != state.getValue(POWERED)) {
-            level.setBlock(pos, state.setValue(POWERED, powered), UPDATE_NEIGHBORS | UPDATE_CLIENTS);
-        }
     }
 
     // -- Block break drops --
