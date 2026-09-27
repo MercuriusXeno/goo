@@ -45,6 +45,7 @@ public final class CrystallizerTests {
     private static final int PUSH_TICKS = 20;
     private static final int CRYSTALLIZE_TICKS = 2;
     private static final double HALF = 0.5;
+    private static final double KNOB_PROUD = 0.1;
 
     private CrystallizerTests() {
     }
@@ -179,38 +180,45 @@ public final class CrystallizerTests {
 
     private static CrystallizerBlockEntity placeAtMedium(GameTestHelper helper) {
         helper.setBlock(CRYSTALLIZER_POS, GooBlocks.CRYSTALLIZER.get().defaultBlockState()
-                .setValue(CrystallizerBlock.DIAL, ChrysmTier.KILOCHRYSM.ordinal() + 1));
+                .setValue(CrystallizerBlock.KNOB, ChrysmTier.KILOCHRYSM.ordinal() + 1));
         return helper.getBlockEntity(CRYSTALLIZER_POS, CrystallizerBlockEntity.class);
     }
 
     /**
-     * A right click on the dial steps it small, medium, large and wraps back to small.
+     * A right click on the knob, on the face toward the player, steps it small,
+     * medium, large and wraps back to small; a click on the top face leaves it.
      *
      * @param helper the gametest helper
      */
     public static void dialClickWrapsFromLargeToSmall(GameTestHelper helper) {
-        helper.setBlock(CRYSTALLIZER_POS, GooBlocks.CRYSTALLIZER.get());
+        helper.setBlock(CRYSTALLIZER_POS, GooBlocks.CRYSTALLIZER.get().defaultBlockState()
+                .setValue(CrystallizerBlock.FACING, Direction.NORTH));
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
         BlockPos abs = helper.absolutePos(CRYSTALLIZER_POS);
-        BlockHitResult dialHit = new BlockHitResult(
+        BlockHitResult knobHit = new BlockHitResult(
+                new Vec3(abs.getX() + HALF, abs.getY() + HALF, abs.getZ() - KNOB_PROUD), Direction.NORTH, abs, false);
+        BlockHitResult topHit = new BlockHitResult(
                 new Vec3(abs.getX() + HALF, abs.getY() + 1.0, abs.getZ() + HALF), Direction.UP, abs, false);
+        helper.useBlock(CRYSTALLIZER_POS, player, topHit);
+        helper.assertValueEqual(1, helper.getBlockState(CRYSTALLIZER_POS).getValue(CrystallizerBlock.KNOB),
+                "knob after a top-face click");
         for (int expected : new int[] {2, 3, 1}) {
-            helper.useBlock(CRYSTALLIZER_POS, player, dialHit);
-            helper.assertValueEqual(expected, helper.getBlockState(CRYSTALLIZER_POS).getValue(CrystallizerBlock.DIAL),
-                    "dial after a click");
+            helper.useBlock(CRYSTALLIZER_POS, player, knobHit);
+            helper.assertValueEqual(expected, helper.getBlockState(CRYSTALLIZER_POS).getValue(CrystallizerBlock.KNOB),
+                    "knob after a click");
         }
         helper.succeed();
     }
 
     /**
-     * Clicks the crystallizer side empty-handed and asserts one ender chrysm of
+     * Clicks the crystallizer back face empty-handed and asserts one ender chrysm of
      * the tier lands in the player hand.
      */
     private static void assertClickHands(GameTestHelper helper, CrystallizerBlockEntity crystallizer, Item tier) {
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
         BlockPos abs = helper.absolutePos(CRYSTALLIZER_POS);
         helper.useBlock(CRYSTALLIZER_POS, player, new BlockHitResult(
-                new Vec3(abs.getX() + HALF, abs.getY() + HALF, abs.getZ()), Direction.NORTH, abs, false));
+                new Vec3(abs.getX() + HALF, abs.getY() + HALF, abs.getZ() + 1.0), Direction.SOUTH, abs, false));
         ItemStack hand = player.getItemInHand(InteractionHand.MAIN_HAND);
         helper.assertTrue(hand.is(tier) && hand.getCount() == 1
                         && GooTypes.ENDER.equals(hand.get(GooDataComponents.GOO_TYPE.get())),
