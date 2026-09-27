@@ -9,8 +9,8 @@ import java.util.function.ToIntFunction;
 
 /**
  * The crucible's stored heat: ticks bought from fuel goo in the reservoir, and
- * the grade that bought them, which sets the melt rate while they last
- * (decision fuel-goo-heats-per-mb).
+ * the grade that bought them, whose melt clock runs while they last
+ * (decisions fuel-goo-heats-per-mb, melt-time-is-mb-to-a-power).
  */
 public final class CrucibleHeat {
 
@@ -92,16 +92,28 @@ public final class CrucibleHeat {
      * @param grades      the fuel grades in burn order
      * @param comboDrain  the mB of each fuel a combo tick burns
      * @param stock       the reservoir
-     * @return the mB to melt this tick, 0 when nothing melts or no heat could be bought
+     * @return the heat that burned this tick, null when nothing melts or no heat could be bought
      */
-    public int burnMeltTick(boolean meltsAnItem, List<FuelGrade> grades, int comboDrain, FuelStock stock) {
+    public @Nullable MeltHeat burnMeltTick(boolean meltsAnItem, List<FuelGrade> grades, int comboDrain,
+                                           FuelStock stock) {
         if (!meltsAnItem) {
-            return 0;
+            return null;
         }
         if (comboStands(grades, stock)) {
-            return burnComboTick(grades, comboDrain, stock);
+            return new MeltHeat(burnComboTick(grades, comboDrain, stock), true);
         }
-        return burnBoughtHeat(grades, stock);
+        FuelGrade burned = burnBoughtHeat(grades, stock);
+        return burned == null ? null : new MeltHeat(burned, false);
+    }
+
+    /**
+     * The heat one melt tick burned.
+     *
+     * @param grade the grade whose clock the tick melts on
+     * @param combo true when every grade burned together, advancing every item
+     *              (decision combo-advances-every-item)
+     */
+    public record MeltHeat(FuelGrade grade, boolean combo) {
     }
 
     /**
@@ -109,18 +121,18 @@ public final class CrucibleHeat {
      *
      * @param grades the fuel grades in burn order
      * @param stock  the reservoir
-     * @return the melt rate of the heat burned, 0 when no heat could be bought
+     * @return the grade of the heat burned, null when no heat could be bought
      */
-    private int burnBoughtHeat(List<FuelGrade> grades, FuelStock stock) {
+    private @Nullable FuelGrade burnBoughtHeat(List<FuelGrade> grades, FuelStock stock) {
         if (heatTicks <= 0 && !buyHeat(grades, stock)) {
-            return 0;
+            return null;
         }
         FuelGrade burning = grade;
         heatTicks--;
         if (heatTicks == 0) {
             grade = null;
         }
-        return burning == null ? 0 : burning.meltRate();
+        return burning;
     }
 
     /**
@@ -143,22 +155,24 @@ public final class CrucibleHeat {
     }
 
     /**
-     * Burns one combo tick: extracts up to the drain from each fuel and melts the product
-     * of the grades' melt rates, each scaled by the share of the drain its fuel supplied,
-     * so a short last tick melts in proportion rather than at full (decision blaze-unstable-combo-burn).
+     * Burns one combo tick: extracts up to the drain from each fuel, a short last tick taking
+     * what stands, and answers the grade with the fastest clock, unstable's by default
+     * (decisions blaze-unstable-combo-burn, combo-advances-every-item).
      *
      * @param grades     the fuel grades, every one stocked
      * @param comboDrain the mB of each fuel a full combo tick burns
      * @param stock      the reservoir
-     * @return the mB to melt this tick
+     * @return the grade whose clock the combo melts on
      */
-    private static int burnComboTick(List<FuelGrade> grades, int comboDrain, FuelStock stock) {
-        double melt = 1;
+    private static FuelGrade burnComboTick(List<FuelGrade> grades, int comboDrain, FuelStock stock) {
+        FuelGrade fastest = grades.get(0);
         for (FuelGrade candidate : grades) {
-            int taken = stock.extract(candidate.fuel(), comboDrain);
-            melt *= (double) candidate.meltRate() * taken / comboDrain;
+            stock.extract(candidate.fuel(), comboDrain);
+            if (candidate.meltExponent() < fastest.meltExponent()) {
+                fastest = candidate;
+            }
         }
-        return (int) Math.min(Integer.MAX_VALUE, Math.floor(melt));
+        return fastest;
     }
 
     /**

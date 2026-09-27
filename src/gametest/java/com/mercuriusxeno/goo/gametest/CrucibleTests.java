@@ -7,10 +7,12 @@ import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBasin;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
 import com.mercuriusxeno.goo.block.crucible.CrucibleCapacity;
+import com.mercuriusxeno.goo.block.crucible.CrucibleMath;
 import com.mercuriusxeno.goo.item.BlobStacks;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.PartiallyMeltedItem;
 import com.mercuriusxeno.goo.registry.GooBlocks;
+import com.mercuriusxeno.goo.registry.GooItems;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.component.DataComponents;
@@ -19,6 +21,7 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -27,8 +30,10 @@ import net.minecraft.world.item.component.ItemContainerContents;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -88,6 +93,19 @@ public final class CrucibleTests {
     private static final String RESERVOIR_AT_CAP = "reservoir filled to the cap";
     private static final String UNFIT_BLOBS_STAY = "blobs that did not fit stay in hand";
     private static final String PUDDLE_SHORT_OF_WALLS = "drawn %s for %d mB melted, %d mB unmelted";
+    /** Blaze goo stocked to buy heat: enough for every melt clock these tests run. */
+    private static final int BLAZE_STOCK = 1_000;
+    private static final double DROP_REACH = 2.0;
+    private static final int STACK_OF_FOUR = 4;
+    private static final int STACK_OF_THREE = 3;
+    /** Unstable goo stocked beside the blaze: enough combo ticks for every clock these tests run. */
+    private static final int UNSTABLE_STOCK = 1_000;
+    private static final String WHOLE_ON_LAST_TICK = "items' goo whole in the reservoir on melt tick ";
+    private static final String SHORT_BEFORE_LAST_TICK = "items' goo short of whole before the last turn";
+    private static final String BROKEN_HALFWAY = "crucible broken halfway through the clock";
+    private static final String PART_MELTED = "pool part melted at the break: ";
+    private static final String ONE_MELTED_ITEM_DROPPED = "one partially melted item dropped";
+    private static final String DROP_CARRIES_REMAINDER = "dropped item carries the unmelted remainder";
     private static final String SPARK_RESULT = "the crucible's answer to the flint and steel click";
     private static final String SPARK_HEAT = "heat ticks after the click";
     private static final String FLINT_DAMAGE = "flint and steel damage after the click";
@@ -353,6 +371,170 @@ public final class CrucibleTests {
                 String.format(PUDDLE_SHORT_OF_WALLS, drawn, melted, crucible.getPoolVolume()));
             helper.succeed();
         });
+    }
+
+    // -- Melt clock (decision melt-time-is-mb-to-a-power) --
+
+    /**
+     * One cobblestone alone in a crucible burning blaze goo reaches the reservoir whole on
+     * melt tick ceil(V ^ 0.75), V being its mB, and not the tick before.
+     *
+     * @param helper the gametest helper
+     */
+    public static void itemMeltsOnItsClock(GameTestHelper helper) {
+        CrucibleBlockEntity crucible = placeBlazeStockedCrucible(helper);
+        GooContents perItem = cobblestoneValue();
+        long clock = CrucibleMath.meltTicks(perItem.totalVolume(), GooConfig.BLAZE_MELT_EXPONENT.get());
+        Map<Long, Long> meltedByTick = new HashMap<>();
+        spawnInBasin(helper, new ItemStack(Items.COBBLESTONE));
+        helper.onEachTick(() -> meltedByTick.put(meltTicksBurned(crucible), itemGooIn(crucible, perItem)));
+        helper.succeedWhen(() -> {
+            helper.assertValueEqual(perItem.totalVolume(), meltedByTick.get(clock), WHOLE_ON_LAST_TICK + clock);
+            helper.assertTrue(meltedByTick.get(clock - 1) < perItem.totalVolume(), SHORT_BEFORE_LAST_TICK);
+        });
+    }
+
+    /**
+     * A stack of four cobblestone inserted at once is four items each on its own clock, a lone
+     * blaze fuel taking them in turn: the reservoir holds the stack's whole value on melt tick
+     * 4 x ceil(V ^ 0.75) and not four ticks before (decision lone-fuel-advances-one-item).
+     *
+     * @param helper the gametest helper
+     */
+    public static void stackMeltsItemByItemInTurn(GameTestHelper helper) {
+        CrucibleBlockEntity crucible = placeBlazeStockedCrucible(helper);
+        GooContents perItem = cobblestoneValue();
+        long stackVolume = perItem.totalVolume() * STACK_OF_FOUR;
+        long clock = STACK_OF_FOUR * CrucibleMath.meltTicks(perItem.totalVolume(), GooConfig.BLAZE_MELT_EXPONENT.get());
+        Map<Long, Long> meltedByTick = new HashMap<>();
+        spawnInBasin(helper, new ItemStack(Items.COBBLESTONE, STACK_OF_FOUR));
+        helper.onEachTick(() -> meltedByTick.put(meltTicksBurned(crucible), itemGooIn(crucible, perItem)));
+        helper.succeedWhen(() -> {
+            helper.assertValueEqual(stackVolume, meltedByTick.get(clock), WHOLE_ON_LAST_TICK + clock);
+            helper.assertTrue(meltedByTick.get(clock - STACK_OF_FOUR) < stackVolume, SHORT_BEFORE_LAST_TICK);
+        });
+    }
+
+    /**
+     * Three cobblestone in a crucible stocked with blaze and unstable goo all finish together
+     * on unstable's clock: the reservoir holds their whole value on melt tick ceil(V ^ 0.5)
+     * and not the tick before (decision combo-advances-every-item).
+     *
+     * @param helper the gametest helper
+     */
+    public static void comboMeltsEveryItemAtOnce(GameTestHelper helper) {
+        CrucibleBlockEntity crucible = placeBlazeStockedCrucible(helper);
+        crucible.insertGoo(GooTypes.UNSTABLE, UNSTABLE_STOCK);
+        GooContents perItem = cobblestoneValue();
+        long stackVolume = perItem.totalVolume() * STACK_OF_THREE;
+        long clock = CrucibleMath.meltTicks(perItem.totalVolume(), GooConfig.UNSTABLE_MELT_EXPONENT.get());
+        Map<Long, Long> meltedByTick = new HashMap<>();
+        spawnInBasin(helper, new ItemStack(Items.COBBLESTONE, STACK_OF_THREE));
+        helper.onEachTick(() -> meltedByTick.put(comboTicksBurned(crucible), itemGooIn(crucible, perItem)));
+        helper.succeedWhen(() -> {
+            helper.assertValueEqual(stackVolume, meltedByTick.get(clock), WHOLE_ON_LAST_TICK + clock);
+            helper.assertTrue(meltedByTick.get(clock - 1) < stackVolume, SHORT_BEFORE_LAST_TICK);
+        });
+    }
+
+    /**
+     * A crucible broken halfway through a cobblestone's clock drops a partially melted item
+     * carrying the goo the reservoir had not yet taken.
+     *
+     * @param helper the gametest helper
+     */
+    public static void brokenMidMeltDropsTheRemainder(GameTestHelper helper) {
+        CrucibleBlockEntity crucible = placeBlazeStockedCrucible(helper);
+        GooContents perItem = cobblestoneValue();
+        long halfway = CrucibleMath.meltTicks(perItem.totalVolume(), GooConfig.BLAZE_MELT_EXPONENT.get()) / 2;
+        List<GooContents> unmelted = new ArrayList<>();
+        spawnInBasin(helper, new ItemStack(Items.COBBLESTONE));
+        helper.onEachTick(() -> {
+            if (unmelted.isEmpty() && meltTicksBurned(crucible) >= halfway) {
+                unmelted.add(PartiallyMeltedItem.getContents(crucible.getMeltingItem()));
+                survivalPlayerBreaks(helper);
+            }
+        });
+        helper.succeedWhen(() -> {
+            helper.assertFalse(unmelted.isEmpty(), BROKEN_HALFWAY);
+            GooContents remainder = unmelted.getFirst();
+            helper.assertTrue(remainder.totalVolume() > 0 && remainder.totalVolume() < perItem.totalVolume(),
+                PART_MELTED + remainder);
+            List<ItemEntity> dropped = helper.getEntities(EntityType.ITEM, BE_POS, DROP_REACH).stream()
+                .filter(entity -> entity.getItem().is(GooItems.PARTIALLY_MELTED_ITEM.get())).toList();
+            helper.assertValueEqual(1, dropped.size(), ONE_MELTED_ITEM_DROPPED);
+            helper.assertValueEqual(remainder, PartiallyMeltedItem.getContents(dropped.getFirst().getItem()),
+                DROP_CARRIES_REMAINDER);
+        });
+    }
+
+    /**
+     * Places a crucible whose reservoir holds blaze goo to buy heat with.
+     *
+     * @param helper the gametest helper
+     * @return the crucible block entity
+     */
+    private static CrucibleBlockEntity placeBlazeStockedCrucible(GameTestHelper helper) {
+        CrucibleBlockEntity crucible = placeCrucible(helper);
+        crucible.insertGoo(GooTypes.BLAZE, BLAZE_STOCK);
+        return crucible;
+    }
+
+    /**
+     * Returns one cobblestone's goo value.
+     *
+     * @return the goo one cobblestone carries
+     */
+    private static GooContents cobblestoneValue() {
+        return Goo.GOO_VALUES.lookup(BuiltInRegistries.ITEM.getKey(Items.COBBLESTONE)).toGooContents();
+    }
+
+    /**
+     * Returns the melt ticks a blaze-stocked crucible has burned: the heat its spent blaze bought, less what is left.
+     *
+     * @param crucible the crucible block entity
+     * @return the melt ticks burned
+     */
+    private static long meltTicksBurned(CrucibleBlockEntity crucible) {
+        long spent = BLAZE_STOCK - crucible.getReservoir().getVolume(GooTypes.BLAZE);
+        return spent * GooConfig.BLAZE_TICKS_PER_MB.get() - crucible.heatTicks();
+    }
+
+    /**
+     * Returns the combo ticks a crucible stocked with both fuels has burned, each taking the drain of unstable.
+     *
+     * @param crucible the crucible block entity
+     * @return the combo ticks burned
+     */
+    private static long comboTicksBurned(CrucibleBlockEntity crucible) {
+        long spent = UNSTABLE_STOCK - crucible.getReservoir().getVolume(GooTypes.UNSTABLE);
+        return spent / GooConfig.COMBO_DRAIN_PER_TICK.get();
+    }
+
+    /**
+     * Returns the reservoir's mB of the types an item carries.
+     *
+     * @param crucible the crucible block entity
+     * @param perItem  the goo one item carries
+     * @return the reservoir's volume of those types
+     */
+    private static long itemGooIn(CrucibleBlockEntity crucible, GooContents perItem) {
+        GooContents reservoir = crucible.getReservoir();
+        return perItem.getAll().keySet().stream().mapToLong(reservoir::getVolume).sum();
+    }
+
+    /**
+     * Breaks the crucible the way a survival player's break runs: the block's
+     * {@code playerWillDestroy}, which drops its contents, then the removal.
+     *
+     * @param helper the gametest helper
+     */
+    private static void survivalPlayerBreaks(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        BlockPos pos = helper.absolutePos(BE_POS);
+        BlockState state = helper.getLevel().getBlockState(pos);
+        state.getBlock().playerWillDestroy(helper.getLevel(), pos, state, player);
+        helper.getLevel().destroyBlock(pos, true, player);
     }
 
     // -- The spark gate (decision spark-gate-consumes-the-click) --

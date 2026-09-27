@@ -30,9 +30,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class CruciblePanelRowsTest {
 
     private static final FuelGrade BLAZE = new FuelGrade(
-            GooTypes.BLAZE, GooConfig.DEFAULT_BLAZE_TICKS_PER_MB, GooConfig.DEFAULT_BLAZE_MELT_RATE);
+            GooTypes.BLAZE, GooConfig.DEFAULT_BLAZE_TICKS_PER_MB, GooConfig.DEFAULT_BLAZE_MELT_EXPONENT);
     private static final FuelGrade UNSTABLE = new FuelGrade(
-            GooTypes.UNSTABLE, GooConfig.DEFAULT_UNSTABLE_TICKS_PER_MB, GooConfig.DEFAULT_UNSTABLE_MELT_RATE);
+            GooTypes.UNSTABLE, GooConfig.DEFAULT_UNSTABLE_TICKS_PER_MB, GooConfig.DEFAULT_UNSTABLE_MELT_EXPONENT);
     private static final List<FuelGrade> BURN_ORDER = List.of(UNSTABLE, BLAZE);
     private static final int DRAIN = GooConfig.DEFAULT_COMBO_DRAIN_PER_TICK;
 
@@ -105,16 +105,18 @@ class CruciblePanelRowsTest {
         return row.segments().stream().map(PanelRow.TextSegment::text).collect(Collectors.joining());
     }
 
-    /** A diamond a quarter dissolved ahead of a waiting log reads its icon, "25%" and a dim "+1". */
+    /** A 16 mB diamond one tick into its 4-tick clock ahead of a waiting log reads its icon, "25%" and a dim "+1". */
     @Test
     void meltRowShowsHeadIconFractionAndWaitingCount() {
         Identifier diamond = Identifier.fromNamespaceAndPath("minecraft", "diamond");
         Identifier atlas = Identifier.fromNamespaceAndPath("minecraft", "textures/atlas/items.png");
         GooRenderUtil.UvRect diamondUv = new GooRenderUtil.UvRect(0.25f, 0.5f, 0.375f, 0.625f);
         CrucibleMeltQueue queue = new CrucibleMeltQueue();
-        queue.appendAll(List.of(new ValuedStack(diamond, 1, 100),
-                new ValuedStack(Identifier.fromNamespaceAndPath("minecraft", "oak_log"), 1, 40)));
-        queue.charge(25);
+        GooContents diamondUnit = GooContents.EMPTY.withAdded(GooTypes.CRYSTAL, 16);
+        queue.appendAll(List.of(new ValuedStack(diamond, 1, diamondUnit),
+                new ValuedStack(Identifier.fromNamespaceAndPath("minecraft", "oak_log"), 1,
+                        GooContents.EMPTY.withAdded(GooTypes.LEAF, 40))));
+        queue.advanceNext(GooConfig.DEFAULT_UNSTABLE_MELT_EXPONENT, diamondUnit, (type, amount, simulate) -> amount);
 
         PanelRow row = CruciblePanelRows.meltRow(queue.head(), queue.waiting().size(),
                 item -> item.equals(diamond) ? new CruciblePanelRows.ItemIcon(atlas, diamondUv) : null);

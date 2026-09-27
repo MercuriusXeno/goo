@@ -17,7 +17,7 @@ final class CrucibleSerialization {
 
     private CrucibleSerialization() { }
 
-    /** Saves the melting item stack, its melt queue, the heat ticks and the fuel that bought them.
+    /** Saves the melting item stack, its melt queue with each item's progress and the cursor, the heat ticks and the fuel that bought them.
      *
      * @param be     the crucible block entity
      * @param output the value output to write to
@@ -27,7 +27,7 @@ final class CrucibleSerialization {
             output.store(CrucibleBlockEntity.TAG_MELTING_ITEM, ItemStack.CODEC, be.meltingItem);
         }
         if (!be.meltQueue.isEmpty()) {
-            output.store(CrucibleBlockEntity.TAG_MELT_QUEUE, CrucibleMeltQueue.CODEC, be.meltQueue.entries());
+            output.store(CrucibleBlockEntity.TAG_MELT_QUEUE, CrucibleMeltQueue.CODEC, be.meltQueue.saved());
         }
         FuelGrade grade = be.heat.grade();
         if (be.heat.heatTicks() > 0 && grade != null) {
@@ -45,7 +45,7 @@ final class CrucibleSerialization {
         be.meltingItem = input.read(CrucibleBlockEntity.TAG_MELTING_ITEM, ItemStack.CODEC)
             .orElse(ItemStack.EMPTY);
         be.meltQueue.loadFrom(input.read(CrucibleBlockEntity.TAG_MELT_QUEUE, CrucibleMeltQueue.CODEC)
-            .orElse(List.of()));
+            .orElse(new CrucibleMeltQueue.Saved(List.of(), 0)));
         int ticks = input.getIntOr(CrucibleBlockEntity.TAG_HEAT_TICKS, 0);
         ResourceKey<GooTypeDefinition> fuel = input.read(CrucibleBlockEntity.TAG_HEAT_FUEL, GooTypes.KEY_CODEC)
             .orElse(GooTypes.BLAZE);
