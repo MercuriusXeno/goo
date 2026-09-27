@@ -29,23 +29,16 @@ import java.util.function.BiPredicate;
  */
 public final class HudAnimator<T> {
 
-    /** Exponential smoothing time constant in seconds. Lower = snappier. */
-    private static final float SMOOTH_TAU = 0.1f;
-
     /** Seconds a panel takes to fade fully in or fully out (decision diagnose-then-fix-hud-panel-fade). */
     private static final float FADE_SECONDS = 0.1f;
 
     /** Float rounding a run of frame steps leaves short of an end of the fade, snapped to that end. */
     private static final float FADE_ROUNDING_SLACK = 1e-4f;
 
-    /** Pitch value for a fully emerged panel. */
-    private static final float PITCH_EMERGED = 1f;
-
     private final long[] lastFrameNanos = {0};
     private final BiPredicate<T, T> sameTarget;
 
     private @Nullable T tracked;
-    private float currentPitch;
     private float fadeProgress;
     private boolean retracting;
 
@@ -80,7 +73,6 @@ public final class HudAnimator<T> {
     void tick(@Nullable T target, float dt) {
         applyTransition(target);
         advanceFade(dt);
-        advancePitch(dt);
     }
 
     /** @return the currently-tracked target, or {@code null} if idle */
@@ -88,9 +80,15 @@ public final class HudAnimator<T> {
         return tracked;
     }
 
-    /** @return the current pitch in [0, 1]: 0 = flush, 1 = fully emerged */
+    /**
+     * Eases the fade progress out, so the tilt rises and falls on the fade's
+     * clock (decision tilt-stays-beside-the-fade).
+     *
+     * @return the current pitch in [0, 1]: 0 = flush, 1 = fully emerged
+     */
     public float pitch() {
-        return currentPitch;
+        float remaining = 1f - fadeProgress;
+        return 1f - remaining * remaining;
     }
 
     /** @return the panel opacity in [0, 1]: 0 = invisible, 1 = fully faded in */
@@ -101,7 +99,6 @@ public final class HudAnimator<T> {
     /** Resets all state to idle. */
     public void clear() {
         tracked = null;
-        currentPitch = 0f;
         fadeProgress = 0f;
         retracting = false;
     }
@@ -124,7 +121,7 @@ public final class HudAnimator<T> {
         }
     }
 
-    /** Marks the tracked target for retract on the next pitch advance. */
+    /** Marks the tracked target for retract on the next fade advance. */
     private void beginRetractIfTracking() {
         if (tracked != null && !retracting) {
             retracting = true;
@@ -148,7 +145,6 @@ public final class HudAnimator<T> {
      */
     private void startEmerge(T target) {
         tracked = target;
-        currentPitch = 0f;
         fadeProgress = 0f;
         retracting = false;
     }
@@ -184,18 +180,5 @@ public final class HudAnimator<T> {
             return 0f;
         }
         return moved >= 1f - FADE_ROUNDING_SLACK ? 1f : moved;
-    }
-
-    /**
-     * Advances the smoothed pitch toward its target value (0 retracting, 1 emerged).
-     *
-     * @param dt seconds since the previous frame
-     */
-    private void advancePitch(float dt) {
-        if (tracked == null) {
-            return;
-        }
-        float targetPitch = retracting ? 0f : PITCH_EMERGED;
-        currentPitch = InWorldHud.smoothToward(currentPitch, targetPitch, dt, SMOOTH_TAU);
     }
 }

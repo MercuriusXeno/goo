@@ -248,21 +248,6 @@ public final class InWorldHud {
     }
 
     /**
-     * Frame-rate-independent exponential smoothing.
-     * Moves current toward target at a rate governed by time constant tau.
-     *
-     * @param current the current smoothed value
-     * @param target  the desired target value
-     * @param dt      the delta time in seconds
-     * @param tau     the time constant controlling convergence speed
-     * @return the new smoothed value after one frame step
-     */
-    public static float smoothToward(float current, float target, float dt, float tau) {
-        float factor = 1f - (float) Math.exp(-dt / tau);
-        return current + (target - current) * factor;
-    }
-
-    /**
      * Returns the horizontal direction whose outward normal is most anti-parallel to
      * the player's look vector - i.e. the face most directly visible to the player.
      *
