@@ -1,25 +1,30 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.ChainFootprint;
+import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.RecordingVertexConsumer;
 import com.mercuriusxeno.goo.client.RenderContext;
 import com.mojang.blaze3d.vertex.PoseStack;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Stream;
 import net.minecraft.core.Direction;
 import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * FuseOrbVisual's orb geometry, emitted through a recording consumer at the
- * pose the renderer places it with.
+ * pose the renderer places it with, and the scale its fuse expiry takes.
  */
 class FuseOrbVisualTest {
 
@@ -158,6 +163,94 @@ class FuseOrbVisualTest {
                 assertEquals(BLOCK_CENTER - expectedHalf, min, TOLERANCE, orb + " " + lateral + " min");
                 assertEquals(BLOCK_CENTER + expectedHalf, max, TOLERANCE, orb + " " + lateral + " max");
             }
+        }
+    }
+
+    /** A game time far from zero, as a live level's clock reads. */
+    private static final float GAME_TIME = 48_213f;
+
+    /** The shrink's scale at each whole tick of its window, first tick to last. */
+    private static float[] shrinkAtEachTick() {
+        float[] scales = new float[FuseOrbVisual.SHRINK_TICKS + 1];
+        for (int tick = 0; tick <= FuseOrbVisual.SHRINK_TICKS; tick++) {
+            int remaining = FuseOrbVisual.FUSE_EXPIRY_TICKS - tick;
+            scales[tick] = FuseOrbVisual.computeImplosionScale(remaining, 0f, GAME_TIME + tick);
+        }
+        return scales;
+    }
+
+    private static float largestShrinkDelta() {
+        float[] scales = shrinkAtEachTick();
+        float largest = 0f;
+        for (int i = 1; i < scales.length; i++) {
+            largest = Math.max(largest, scales[i - 1] - scales[i]);
+        }
+        return largest;
+    }
+
+    @Nested
+    class ShrinkEasesThenJitters {
+
+        @Test
+        void shrinkFallsSlowFastSlowFromRestToTheMinimum() {
+            float[] scales = shrinkAtEachTick();
+            int last = scales.length - 1;
+
+            assertEquals(1f, scales[0], TOLERANCE);
+            assertEquals(FuseOrbVisual.IMPLOSION_MIN, scales[last], TOLERANCE);
+            for (int i = 1; i <= last; i++) {
+                assertFalse(scales[i] > scales[i - 1], "the shrink rises at tick " + i);
+            }
+            float firstDelta = scales[0] - scales[1];
+            float middleDelta = scales[last / 2 - 1] - scales[last / 2];
+            float lastDelta = scales[last - 1] - scales[last];
+            assertTrue(firstDelta < middleDelta,
+                    "first delta " + firstDelta + " not below middle " + middleDelta);
+            assertTrue(lastDelta < middleDelta,
+                    "last delta " + lastDelta + " not below middle " + middleDelta);
+        }
+
+        @Test
+        void orbJittersInItsBandAcrossTheLastFuseTick() {
+            Set<Float> distinct = new HashSet<>();
+            for (int step = 0; step < 10; step++) {
+                float partial = step / 10f;
+                float scale = FuseOrbVisual.computeImplosionScale(1, partial, GAME_TIME + partial);
+                assertTrue(scale > 0f, "scale " + scale + " at or below zero");
+                assertTrue(
+                        scale <= FuseOrbVisual.IMPLOSION_MIN + FuseOrbVisual.JITTER_AMPLITUDE + TOLERANCE,
+                        "scale " + scale + " above the band");
+                assertTrue(
+                        scale >= FuseOrbVisual.IMPLOSION_MIN - FuseOrbVisual.JITTER_AMPLITUDE - TOLERANCE,
+                        "scale " + scale + " below the band");
+                distinct.add(scale);
+            }
+            assertTrue(distinct.size() >= 2, "the orb holds still at its minimum");
+        }
+
+        @Test
+        void handoffStartsWithinTheJitterBandAndNeverJumps() {
+            float partial = 0.9f;
+            float lastFuseFrame = FuseOrbVisual.computeImplosionScale(1, partial, GAME_TIME + partial);
+            float firstActiveFrame = FuseOrbVisual.computeHandoffScale(0f);
+            assertEquals(lastFuseFrame, firstActiveFrame, FuseOrbVisual.JITTER_AMPLITUDE + TOLERANCE);
+
+            float bound = largestShrinkDelta() + TOLERANCE;
+            float previous = firstActiveFrame;
+            for (int tick = 1; tick <= FuseOrbVisual.SHRINK_TICKS + 2; tick++) {
+                float scale = FuseOrbVisual.computeHandoffScale(tick);
+                assertTrue(Math.abs(scale - previous) <= bound,
+                        "handoff jumps " + (scale - previous) + " at tick " + tick);
+                previous = scale;
+            }
+            assertEquals(1f, previous, TOLERANCE);
+        }
+
+        @Test
+        void syncThresholdCoversTheWholeShrinkWindow() {
+            assertTrue(
+                    ChainMarkerBlockEntity.IMPLOSION_SYNC_THRESHOLD
+                            >= FuseOrbVisual.FUSE_EXPIRY_TICKS);
         }
     }
 }

@@ -64,9 +64,11 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
      */
     private static final int SYNC_INTERVAL = 5;
     /**
-     * Ticks before detonation where we sync every tick for smooth implosion.
+     * Ticks before detonation where we sync every tick, covering the fuse
+     * orb's whole shrink and jitter so every tick of it reaches the client
+     * (decision shrink-eases-then-jitters).
      */
-    private static final int IMPLOSION_SYNC_THRESHOLD = 8;
+    public static final int IMPLOSION_SYNC_THRESHOLD = 16;
 
     /**
      * Where a client-side marker reads its ability's steps; client setup
@@ -116,6 +118,11 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
      */
     @Nullable
     private ProgramBehavior behavior;
+    /**
+     * Game time a client first drew the behavior, NaN while none stands;
+     * the fuse orb's handoff back to size runs on it.
+     */
+    private float behaviorFirstDrawnAt = Float.NaN;
     /**
      * Id of the ability the marker runs at fuse expiry (decision
      * no-throw-without-ability); a marker loaded without one runs nothing.
@@ -539,6 +546,24 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
     @Nullable
     public ProgramBehavior getBehavior() {
         return behavior;
+    }
+
+    /**
+     * Answers how long the behavior has stood as the renderer saw it,
+     * starting the clock on the first frame drawn with one.
+     *
+     * @param gameTime the game time including the partial tick
+     * @return ticks since the first frame drawn with the behavior, 0 while none stands
+     */
+    public float drawBehaviorAge(float gameTime) {
+        if (behavior == null) {
+            behaviorFirstDrawnAt = Float.NaN;
+            return 0f;
+        }
+        if (Float.isNaN(behaviorFirstDrawnAt)) {
+            behaviorFirstDrawnAt = gameTime;
+        }
+        return gameTime - behaviorFirstDrawnAt;
     }
 
 
