@@ -12,7 +12,6 @@ import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import org.jspecify.annotations.NonNull;
-import org.jspecify.annotations.Nullable;
 import java.util.Map;
 
 /**
@@ -49,7 +48,7 @@ public class VatBlockItem extends BlockItem implements GooCarrierItem {
             @NonNull Slot slot, @NonNull ClickAction action, @NonNull Player player,
             @NonNull SlotAccess cursorAccess) {
         if (cursor.isEmpty() && action == ClickAction.SECONDARY) {
-            return CanisterInventoryHandler.drainToCursor(cursorAccess, new VatGooSource(vat));
+            return CanisterInventoryHandler.drainIntoInventory(new VatGooSource(vat), GooDeposit.intoInventory(player, vat));
         }
         return action == ClickAction.PRIMARY && CanisterInventoryHandler.insertFromCursor(
                 cursor, cursorAccess, (type, volume) -> addGoo(vat, type, volume));
@@ -130,14 +129,16 @@ public class VatBlockItem extends BlockItem implements GooCarrierItem {
     }
 
     /**
-     * The vat item as a drain source: its largest goo type, removed up to what it holds.
+     * The vat item as a drain source: its largest goo type, whole.
      *
      * @param vat the vat item stack
      */
     private record VatGooSource(ItemStack vat) implements CanisterInventoryHandler.GooSource {
         @Override
-        public @Nullable ResourceKey<GooTypeDefinition> dominantType() {
-            return getGooContents(vat).largestType();
+        public Map<ResourceKey<GooTypeDefinition>, Integer> drainable() {
+            GooContents contents = getGooContents(vat);
+            ResourceKey<GooTypeDefinition> largest = contents.largestType();
+            return largest == null ? Map.of() : Map.of(largest, contents.getVolume(largest));
         }
 
         @Override
