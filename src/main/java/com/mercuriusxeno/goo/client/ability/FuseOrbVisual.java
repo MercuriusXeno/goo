@@ -154,7 +154,7 @@ public final class FuseOrbVisual {
      * @param poseStack the pose stack for rendering
      * @param face      the placed face direction
      * @param shape     the orb shape
-     * @param modifier  the combined implosion, pulse and spike-contract scale
+     * @param modifier  the combined orb scale modifier
      */
     static void placeOrb(PoseStack poseStack, Direction face, OrbShape shape, float modifier) {
         translateToFace(poseStack, face);
@@ -249,7 +249,7 @@ public final class FuseOrbVisual {
     }
 
     /**
-     * Combines implosion, pulse, and spike contraction into a single scale factor.
+     * Combines the implosion, the stack pulse and each ability's own rhythm into one scale factor.
      *
      * @param state the chain marker render state
      * @return the combined scale modifier
@@ -259,9 +259,9 @@ public final class FuseOrbVisual {
                 ? computeHandoffScale(state.behaviorAge)
                 : computeImplosionScale(state.fuseRemaining, state.partialTick, state.gameTime);
         float pulse = computePulseScale(state);
-        float spikeContract = computeSpikeContraction(state);
+        float spikeShake = computeSpikeShake(state);
         float ebb = crystalEbb(state.crystalActive, state.gameTime);
-        return implosion * pulse * spikeContract * ebb;
+        return implosion * pulse * spikeShake * ebb;
     }
 
     /**
@@ -341,24 +341,21 @@ public final class FuseOrbVisual {
     }
 
     /**
-     * Minimum blob contraction across all active spike animations.
-     * During windup the blob squeezes before the spike emerges.
+     * The strongest windup shake across the spikes in flight, so the orb
+     * shakes each time it is about to stab.
      *
      * @param state the chain marker render state
-     * @return contraction scale [0.85, 1.0]
+     * @return the shake scale, 1 while no spike winds up
      */
-    private static float computeSpikeContraction(ChainMarkerRenderState state) {
-        if (state.spikeAnims.isEmpty()) {
-            return 1f;
-        }
-        float minScale = 1f;
+    private static float computeSpikeShake(ChainMarkerRenderState state) {
+        float strongest = 1f;
         for (FieldStrike spike : state.spikeAnims) {
-            float s = MetalSpikeVisual.blobContraction(spike.age(), state.partialTick, state.spikeStrikeTick);
-            if (s < minScale) {
-                minScale = s;
+            float s = MetalSpikeVisual.blobShake(spike.age(), state.partialTick, state.spikeStrikeTick);
+            if (Math.abs(s - 1f) > Math.abs(strongest - 1f)) {
+                strongest = s;
             }
         }
-        return minScale;
+        return strongest;
     }
 
     /**
@@ -390,7 +387,7 @@ public final class FuseOrbVisual {
      *
      * @param poseStack the pose stack to scale
      * @param face      the placed face direction
-     * @param modifier  combined implosion/pulse/spike-contract scale
+     * @param modifier  the combined orb scale modifier
      */
     private static void applySplatScale(PoseStack poseStack, Direction face, float modifier) {
         float wide = SPLAT_WIDTH * modifier;
