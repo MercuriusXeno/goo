@@ -6,6 +6,7 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.NonNull;
 
 /**
@@ -18,10 +19,11 @@ import org.jspecify.annotations.NonNull;
  * @param targetFace     the target face ordinal
  * @param grannyArc      whether to use the boosted arc trajectory
  * @param abilityId      the selected ability id string
+ * @param origin         the aim line's start at the click, the point the flight leaves from
  */
 public record BlobThrowPayload(String gooTypeId, int targetEntityId,
                                BlockPos targetPos, int targetFace,
-                               boolean grannyArc, String abilityId)
+                               boolean grannyArc, String abilityId, Vec3 origin)
         implements CustomPacketPayload {
 
     /** Payload type ID for registration. */
@@ -50,6 +52,9 @@ public record BlobThrowPayload(String gooTypeId, int targetEntityId,
         buf.writeVarInt(payload.targetFace);
         buf.writeBoolean(payload.grannyArc);
         buf.writeUtf(payload.abilityId);
+        buf.writeDouble(payload.origin.x);
+        buf.writeDouble(payload.origin.y);
+        buf.writeDouble(payload.origin.z);
     }
 
     /**
@@ -65,7 +70,8 @@ public record BlobThrowPayload(String gooTypeId, int targetEntityId,
         int targetFace = buf.readVarInt();
         boolean grannyArc = buf.readBoolean();
         String abilityId = buf.readUtf();
+        Vec3 origin = new Vec3(buf.readDouble(), buf.readDouble(), buf.readDouble());
         return new BlobThrowPayload(gooTypeId, targetEntityId, targetPos, targetFace,
-                grannyArc, abilityId);
+                grannyArc, abilityId, origin);
     }
 }

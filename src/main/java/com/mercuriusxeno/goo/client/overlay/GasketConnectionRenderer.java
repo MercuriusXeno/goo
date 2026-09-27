@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.overlay;
 
+import com.mercuriusxeno.goo.block.gasket.IGasketHolder;
 import com.mercuriusxeno.goo.client.LineContext;
 import com.mercuriusxeno.goo.item.gasket.GasketPartner;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
@@ -12,7 +13,6 @@ import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
@@ -125,10 +125,9 @@ final class GasketConnectionRenderer {
      */
     private static Vec3 resolvePartnerEndpoint(
             Minecraft mc, BlockPos partnerPos, int partnerSlot, GasketRole partnerRole) {
-        BlockEntity partnerBe = mc.level.getBlockEntity(partnerPos);
-        if (partnerBe == null) { return null; }
+        if (!(mc.level.getBlockEntity(partnerPos) instanceof IGasketHolder partner)) { return null; }
 
-        AABB partnerBounds = GasketBoundsResolver.resolveGasketBounds(partnerBe, partnerRole, partnerSlot);
+        AABB partnerBounds = partner.slotBoundsFor(partnerSlot, partnerRole);
         if (partnerBounds == null) {
             return partnerFallbackCenter(partnerPos, partnerRole);
         }

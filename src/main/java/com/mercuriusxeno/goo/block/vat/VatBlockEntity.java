@@ -22,6 +22,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -38,6 +39,15 @@ import java.util.List;
  * Gasket field storage owned by {@link GasketState#dual}.</p>
  */
 public class VatBlockEntity extends GooGlowingMachineBlockEntity implements IGooReceptacle {
+
+    /**
+     * The cap gasket's overlay region: the block's upper half.
+     */
+    private static final AABB CAP_GASKET_BOUNDS = new AABB(0, 0.5, 0, 1, 1, 1);
+    /**
+     * The base gasket's overlay region: the block's lower half.
+     */
+    private static final AABB BASE_GASKET_BOUNDS = new AABB(0, 0, 0, 1, 0.5, 1);
 
     // Package-private fields accessed by VatSerialization, VatStackRedistributor.
     final GooFluidHandler fluidHandler = GooFluidHandler.withWaterTank(
@@ -267,6 +277,18 @@ public class VatBlockEntity extends GooGlowingMachineBlockEntity implements IGoo
     @Override
     public BooleanProperty gasketFlag(GasketRole role) {
         return role == GasketRole.RECEIVER ? VatBlock.GASKET_CAP : VatBlock.GASKET_BASE;
+    }
+
+    /**
+     * The cap gasket is the block's upper half and the base gasket its lower half
+     * (decision hosts-answer-bounds-through-interfaces).
+     */
+    @Override
+    public @Nullable AABB slotBoundsFor(int slot, GasketRole role) {
+        if (!holdsBlockGasket(role)) {
+            return null;
+        }
+        return role == GasketRole.RECEIVER ? CAP_GASKET_BOUNDS : BASE_GASKET_BOUNDS;
     }
 
     @Override

@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import net.minecraft.resources.Identifier;
+import net.minecraft.util.ARGB;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
@@ -76,6 +77,7 @@ class RadialWheelRendererTest {
         private static final int HOLDINGS = 1500;
         private static final int AFFORDABLE = 1000;
         private static final int UNAFFORDABLE = 2000;
+        private static final int SIXTEEN_BLOBS = 16_000;
 
         private static ClientAbility costing(int firstThrow) {
             return new ClientAbility(Identifier.fromNamespaceAndPath(Goo.MODID, "cost_" + firstThrow),
@@ -88,15 +90,14 @@ class RadialWheelRendererTest {
             ClientAbility cheap = costing(AFFORDABLE);
             ClientAbility dear = costing(UNAFFORDABLE);
 
-            assertEquals(RadialWheelRenderer.formatQuantity(cheap.throwCost(0)),
-                    RadialWheelRenderer.fanSlot(cheap, HOLDINGS).costLabel());
-            assertEquals("1.0k", RadialWheelRenderer.fanSlot(cheap, HOLDINGS).costLabel());
-            assertEquals("2.0k", RadialWheelRenderer.fanSlot(dear, HOLDINGS).costLabel());
+            assertEquals("1", RadialWheelRenderer.fanSlot(cheap, HOLDINGS).costLabel());
+            assertEquals("2", RadialWheelRenderer.fanSlot(dear, HOLDINGS).costLabel());
         }
 
         @Test
         void centerReadsTheTypesHoldings() {
-            assertEquals("1.5k", RadialWheelRenderer.holdingsLabel(HOLDINGS));
+            assertEquals("1.5", RadialWheelRenderer.holdingsLabel(HOLDINGS));
+            assertEquals("16", RadialWheelRenderer.holdingsLabel(SIXTEEN_BLOBS));
         }
 
         @Test
@@ -130,6 +131,39 @@ class RadialWheelRendererTest {
         void emptyIconFallsBackToTheConventionPath() {
             assertEquals(Identifier.fromNamespaceAndPath(Goo.MODID, TEXTURE_PATH),
                     RadialWheelRenderer.resolveAbilityIcon(abilityWithIcon("")));
+        }
+    }
+
+    /** The tint a textured wedge blits under still tells hovered and disabled from resting (decision wedges-render-fluid-texture). */
+    @Nested
+    class OverlayTint {
+
+        private final int resting = RadialWheelRenderer.computeOverlayTint(false, false);
+
+        @Test
+        void hoveredIsBrighterAndMoreOpaqueThanResting() {
+            int hovered = RadialWheelRenderer.computeOverlayTint(true, false);
+            assertAll(
+                    () -> assertTrue(ARGB.alpha(hovered) > ARGB.alpha(resting)),
+                    () -> assertTrue(ARGB.red(hovered) > ARGB.red(resting)),
+                    () -> assertTrue(ARGB.green(hovered) > ARGB.green(resting)),
+                    () -> assertTrue(ARGB.blue(hovered) > ARGB.blue(resting)));
+        }
+
+        @Test
+        void disabledIsDarkerAndDimmerThanResting() {
+            int disabled = RadialWheelRenderer.computeOverlayTint(false, true);
+            assertAll(
+                    () -> assertTrue(ARGB.alpha(disabled) < ARGB.alpha(resting)),
+                    () -> assertTrue(ARGB.red(disabled) < ARGB.red(resting)),
+                    () -> assertTrue(ARGB.green(disabled) < ARGB.green(resting)),
+                    () -> assertTrue(ARGB.blue(disabled) < ARGB.blue(resting)));
+        }
+
+        @Test
+        void disabledOutweighsHovered() {
+            assertEquals(RadialWheelRenderer.computeOverlayTint(false, true),
+                    RadialWheelRenderer.computeOverlayTint(true, true));
         }
     }
 }

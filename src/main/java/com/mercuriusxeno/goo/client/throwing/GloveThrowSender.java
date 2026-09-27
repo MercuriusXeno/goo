@@ -22,6 +22,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -95,7 +96,7 @@ public final class GloveThrowSender {
      */
     private static @Nullable BlobThrowPayload affordablePayload(Player player, TargetResult target,
             ResourceKey<GooTypeDefinition> gooType, String abilityId) {
-        BlobThrowPayload payload = targetToPayload(target, gooType, abilityId);
+        BlobThrowPayload payload = targetToPayload(target, gooType, abilityId, lineOrigin());
         if (payload == null || !affordsThrow(AbilitySyncHandler.findAbility(abilityId), keyedStacksAt(payload),
                 amount -> GooSourceScanner.hasEnough(player, gooType, amount))) {
             return null;
@@ -143,7 +144,8 @@ public final class GloveThrowSender {
         if (gooType == null) {
             return OptionalInt.empty();
         }
-        BlobThrowPayload payload = targetToPayload(AimTracker.currentTarget(), gooType, selection.abilityId());
+        BlobThrowPayload payload = targetToPayload(AimTracker.currentTarget(), gooType, selection.abilityId(),
+                lineOrigin());
         int stacks = payload == null ? 0 : keyedStacksAt(payload);
         return OptionalInt.of(priceThrow(AbilitySyncHandler.findAbility(selection.abilityId()), stacks));
     }
@@ -388,19 +390,31 @@ public final class GloveThrowSender {
     }
 
     /**
+     * The point the aim line starts at, the glove blob the player sees, so
+     * the flight leaves from where the line was drawn (decision
+     * diagnose-then-fix-blob-off-the-line).
+     *
+     * @return the world-space aim line origin
+     */
+    private static Vec3 lineOrigin() {
+        return GloveAim.handPosition(Minecraft.getInstance().gameRenderer.getMainCamera());
+    }
+
+    /**
      * Converts a target result into a throw payload, or null if no valid target.
      *
      * @param target    the aim target
      * @param gooType   the selected goo type
      * @param abilityId the selected ability id string
+     * @param origin    the aim line start, where the flight leaves from
      * @return the payload, or null for no target
      */
     private static @Nullable BlobThrowPayload targetToPayload(TargetResult target,
-                                                              ResourceKey<GooTypeDefinition> gooType, String abilityId) {
+            ResourceKey<GooTypeDefinition> gooType, String abilityId, Vec3 origin) {
         if (target instanceof TargetResult.None) {
             return null;
         }
-        return buildPayload(target, GooTypes.id(gooType), abilityId);
+        return buildPayload(target, GooTypes.id(gooType), abilityId, origin);
     }
 
     /**
@@ -425,16 +439,18 @@ public final class GloveThrowSender {
      * @param target    the resolved non-None aim target
      * @param typeId    the goo type registry id
      * @param abilityId the selected ability id string
+     * @param origin    the aim line start, where the flight leaves from
      * @return the constructed throw payload
      * reduces the switch to 4 arms and keeps CC within threshold.
      */
-    private static BlobThrowPayload buildPayload(TargetResult target, String typeId, String abilityId) {
+    private static BlobThrowPayload buildPayload(TargetResult target, String typeId, String abilityId,
+            Vec3 origin) {
         return switch (target) {
-            case TargetResult.EntityTarget et -> entityPayload(typeId, et, abilityId);
-            case TargetResult.BlockTarget bt -> blockPayload(typeId, bt, abilityId);
-            case TargetResult.ChainMarkerTarget cmt -> chainMarkerPayload(typeId, cmt, abilityId);
+            case TargetResult.EntityTarget et -> entityPayload(typeId, et, abilityId, origin);
+            case TargetResult.BlockTarget bt -> blockPayload(typeId, bt, abilityId, origin);
+            case TargetResult.ChainMarkerTarget cmt -> chainMarkerPayload(typeId, cmt, abilityId, origin);
             case TargetResult.GlowCrystalTarget gct -> new BlobThrowPayload(typeId, NO_ENTITY,
-                    gct.pos(), gct.face().ordinal(), false, abilityId);
+                    gct.pos(), gct.face().ordinal(), false, abilityId, origin);
             default -> throw new IllegalArgumentException(target.toString());
         };
     }
@@ -445,12 +461,13 @@ public final class GloveThrowSender {
      * @param typeId    the goo type registry id
      * @param et        the entity aim target
      * @param abilityId the selected ability id string
+     * @param origin    the aim line start, where the flight leaves from
      * @return the entity-targeted throw payload
      */
     private static BlobThrowPayload entityPayload(String typeId,
-                                                  TargetResult.EntityTarget et, String abilityId) {
+            TargetResult.EntityTarget et, String abilityId, Vec3 origin) {
         return new BlobThrowPayload(typeId, et.entity().getId(), BlockPos.ZERO, NO_ENTITY,
-                false, abilityId);
+                false, abilityId, origin);
     }
 
     /**
@@ -459,12 +476,13 @@ public final class GloveThrowSender {
      * @param typeId    the goo type registry id
      * @param bt        the block face aim target
      * @param abilityId the selected ability id string
+     * @param origin    the aim line start, where the flight leaves from
      * @return the block-targeted throw payload
      */
     private static BlobThrowPayload blockPayload(String typeId,
-                                                 TargetResult.BlockTarget bt, String abilityId) {
+            TargetResult.BlockTarget bt, String abilityId, Vec3 origin) {
         return new BlobThrowPayload(typeId, NO_ENTITY, bt.pos(), bt.face().ordinal(),
-                bt.grannyArc(), abilityId);
+                bt.grannyArc(), abilityId, origin);
     }
 
     /**
@@ -473,12 +491,13 @@ public final class GloveThrowSender {
      * @param typeId    the goo type registry id
      * @param cmt       the chain marker aim target
      * @param abilityId the selected ability id string
+     * @param origin    the aim line start, where the flight leaves from
      * @return the chain-marker-targeted throw payload
      */
     private static BlobThrowPayload chainMarkerPayload(String typeId,
-                                                       TargetResult.ChainMarkerTarget cmt, String abilityId) {
+            TargetResult.ChainMarkerTarget cmt, String abilityId, Vec3 origin) {
         int faceOrdinal = resolveChainMarkerFace(cmt.pos()).getOpposite().ordinal();
-        return new BlobThrowPayload(typeId, NO_ENTITY, cmt.pos(), faceOrdinal, false, abilityId);
+        return new BlobThrowPayload(typeId, NO_ENTITY, cmt.pos(), faceOrdinal, false, abilityId, origin);
     }
 
     /**

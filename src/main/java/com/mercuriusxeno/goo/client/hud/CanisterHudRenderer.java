@@ -2,10 +2,7 @@ package com.mercuriusxeno.goo.client.hud;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.block.canister.ICanisterHolder;
-import com.mercuriusxeno.goo.block.reactor.ReactorBlockEntity;
-import com.mercuriusxeno.goo.block.tap.TapBlockEntity;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
-import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.CanisterMetadata;
 import com.mercuriusxeno.goo.registry.GooEnchantments;
 import net.minecraft.client.Camera;
@@ -14,7 +11,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -73,81 +69,8 @@ public final class CanisterHudRenderer {
         if (level == null) {
             return null;
         }
-        BlockEntity be = level.getBlockEntity(pos);
-        return dispatchSlotData(be, slot);
-    }
-
-    /**
-     * Routes to the appropriate slot-data extractor based on block entity type.
-     *
-     * @param be   the block entity at the target position
-     * @param slot the canister slot index
-     * @return slot data for the matched entity, or null
-     */
-    private static @Nullable SlotData dispatchSlotData(@Nullable BlockEntity be, int slot) {
-        if (be instanceof TapBlockEntity tap) {
-            return matchTapSlot(tap, slot);
-        }
-        if (be instanceof ReactorBlockEntity reactor) {
-            return matchReactorSlot(reactor, slot);
-        }
-        if (be instanceof ICanisterHolder holder) {
-            return lookupContainerSlotData(holder, slot);
-        }
-        return null;
-    }
-
-    /**
-     * Returns tap slot data only when the slot index matches the tap's dedicated slot.
-     *
-     * @param tap  the tap block entity
-     * @param slot the requested slot index
-     * @return slot data if the slot matches, or null
-     */
-    private static @Nullable SlotData matchTapSlot(TapBlockEntity tap, int slot) {
-        return slot == CanisterTargetResolver.TAP_SLOT ? lookupTapSlotData(tap) : null;
-    }
-
-    /**
-     * Returns reactor slot data only when the slot index matches the reactor's output slot.
-     *
-     * @param reactor the reactor block entity
-     * @param slot    the requested slot index
-     * @return slot data if the slot matches, or null
-     */
-    private static @Nullable SlotData matchReactorSlot(ReactorBlockEntity reactor, int slot) {
-        return slot == CanisterTargetResolver.REACTOR_SLOT ? lookupReactorSlotData(reactor) : null;
-    }
-
-    /**
-     * Extracts slot data from a tap block entity's held canister.
-     *
-     * @param tap the tap block entity
-     * @return the slot data, or null if the tap holds no canister
-     */
-    private static @Nullable SlotData lookupTapSlotData(TapBlockEntity tap) {
-        ItemStack canister = tap.getCanister();
-        if (canister.isEmpty()) {
-            return null;
-        }
-        int compression = GooEnchantments.getCompressionLevel(canister);
-        return new SlotData(tap.getFluidContent(), null, compression);
-    }
-
-    /**
-     * Extracts slot data from a reactor's output canister.
-     *
-     * @param reactor the reactor block entity
-     * @return the slot data, or null if no output canister
-     */
-    private static @Nullable SlotData lookupReactorSlotData(ReactorBlockEntity reactor) {
-        ItemStack canister = reactor.getOutputCanister();
-        if (canister.isEmpty()) {
-            return null;
-        }
-        CanisterFluidContent content = CanisterItem.getFluidContent(canister);
-        int compression = GooEnchantments.getCompressionLevel(canister);
-        return new SlotData(content, null, compression);
+        return level.getBlockEntity(pos) instanceof ICanisterHolder holder
+                ? lookupContainerSlotData(holder, slot) : null;
     }
 
     /**

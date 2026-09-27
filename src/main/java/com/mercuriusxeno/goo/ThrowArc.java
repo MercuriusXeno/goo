@@ -1,12 +1,9 @@
 package com.mercuriusxeno.goo;
 
-import com.mercuriusxeno.goo.item.GooGloveItem;
-import net.minecraft.world.entity.HumanoidArm;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Pure math for goo blob throw trajectories and glove hand positioning.
+ * Pure math for goo blob throw trajectories and the throw origin's reach.
  * Shared between client (preview arc, flight rendering) and server (throw
  * origin). Every method is side-agnostic and testable without framework state.
  */
@@ -24,11 +21,11 @@ public final class ThrowArc {
     /** Multiplier the granny arc applies to the base peak (1.15 = +15%). */
     public static final double GRANNY_PEAK_SCALE = 1.15;
 
-    /** Lateral offset from eye to the glove arm, in blocks at scale 1. */
-    public static final double ARM_SIDE = 0.35;
-
-    /** Downward offset from eye to hand height, in blocks at scale 1. */
-    public static final double ARM_DOWN = 0.35;
+    /**
+     * Farthest the throw origin sits from the thrower's eye, in blocks at
+     * scale 1: the rendered glove blob sits inside it, a forged origin does not.
+     */
+    public static final double HAND_REACH = 2.0;
 
     /**
      * Where the arc peaks as a fraction of total flight [0..1].
@@ -39,8 +36,6 @@ public final class ThrowArc {
 
     /** Parabolic factor for "2 - s" envelope in the skewed arc rise phase. */
     private static final double ARC_RISE_FACTOR = 2.0;
-    /** Left-arm side indicator (negative direction). */
-    private static final float LEFT_ARM_SIDE = -1f;
 
     private ThrowArc() {}
 
@@ -140,34 +135,22 @@ public final class ThrowArc {
     }
 
     /**
-     * Pure hand-offset calculation. Takes basis vectors and returns the
-     * world-space offset from the eye to the glove hand.
+     * Holds the throw origin the client sent within reach of the eye: an
+     * origin inside the reach sphere passes through unchanged, one beyond it
+     * is pulled onto the sphere along the line from the eye (decision
+     * diagnose-then-fix-blob-off-the-line).
      *
-     * @param right  the camera right vector
-     * @param up     the camera up vector
-     * @param side   +1 for right arm, −1 for left arm
-     * @param scale  player scale factor
-     * @return offset vector to add to eye position
+     * @param eye    the thrower's eye position
+     * @param origin the aim line's start the client sent
+     * @param reach  the reach sphere's radius in blocks
+     * @return the origin, clamped onto the reach sphere around the eye
      */
-    public static Vec3 handOffset(Vec3 right, Vec3 up, float side, float scale) {
-        double s = side * ARM_SIDE * scale;
-        double d = ARM_DOWN * scale;
-        return new Vec3(
-                right.x * s - up.x * d,
-                right.y * s - up.y * d,
-                right.z * s - up.z * d);
-    }
-
-    /**
-     * Determines which side the glove is on (+1 right, −1 left).
-     *
-     * @param mainItem main-hand ItemStack
-     * @param mainArm  the player's dominant arm
-     * @return +1f for right arm, −1f for left arm
-     */
-    public static float gloveSide(ItemStack mainItem, HumanoidArm mainArm) {
-        boolean inMainHand = mainItem.getItem() instanceof GooGloveItem;
-        HumanoidArm arm = inMainHand ? mainArm : mainArm.getOpposite();
-        return arm == HumanoidArm.RIGHT ? 1f : LEFT_ARM_SIDE;
+    public static Vec3 clampToReach(Vec3 eye, Vec3 origin, double reach) {
+        Vec3 offset = origin.subtract(eye);
+        double length = offset.length();
+        if (length <= reach) {
+            return origin;
+        }
+        return eye.add(offset.scale(reach / length));
     }
 }

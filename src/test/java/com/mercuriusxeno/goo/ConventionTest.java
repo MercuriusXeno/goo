@@ -30,6 +30,13 @@ class ConventionTest {
     private static final String LEVEL_LIGHT_ENGINE = "net.minecraft.world.level.lighting.LevelLightEngine";
     private static final String RUN_LIGHT_UPDATES = "runLightUpdates";
     private static final String CLIENT_PACKAGE = "com.mercuriusxeno.goo.client..";
+    private static final String CLIENT_OVERLAY_PACKAGE = "com.mercuriusxeno.goo.client.overlay..";
+    private static final String CLIENT_HUD_PACKAGE = "com.mercuriusxeno.goo.client.hud..";
+    private static final String MACHINE_BLOCK = "com.mercuriusxeno.goo.block.GooMachineBlock";
+    private static final String MACHINE_BLOCK_ENTITY = "com.mercuriusxeno.goo.block.GooMachineBlockEntity";
+    private static final String PLEXER_BLOCK_ENTITY = "com.mercuriusxeno.goo.block.plexer.PlexerBlockEntity";
+    private static final String ITEM_PACKAGE = "com.mercuriusxeno.goo.item.";
+    private static final String GOO_SOURCE_SCANNER = ITEM_PACKAGE + "GooSourceScanner";
     private static final String GOO_SUBMITTER = "com.mercuriusxeno.goo.client.GooSubmitter";
     private static final String RENDER_TYPES = "net.minecraft.client.renderer.rendertype.RenderTypes";
     private static final String ENTITY_TRANSLUCENT = "entityTranslucent";
@@ -157,6 +164,64 @@ class ConventionTest {
                 .because("every goo render type lives in GooSubmitter"
                         + " (decision submitter-owns-every-render-choice)")
                 .check(mainClasses);
+    }
+
+    /**
+     * No class under client.overlay or client.hud checks instanceof against a
+     * machine block or block entity type: each dispatches on ICanisterHolder,
+     * IGasketHolder or another host interface, so a new machine joins every
+     * outline, preview, HUD and gasket overlay by implementing them (decision
+     * hosts-answer-bounds-through-interfaces).
+     */
+    @Test
+    void clientReadersDispatchOnHostInterfaces() {
+        classes()
+                .that().resideInAnyPackage(CLIENT_OVERLAY_PACKAGE, CLIENT_HUD_PACKAGE)
+                .should(checkNoInstanceofOn(machineType()))
+                .because("client readers dispatch on the host interfaces"
+                        + " (decision hosts-answer-bounds-through-interfaces)")
+                .check(mainClasses);
+    }
+
+    /**
+     * GooSourceScanner reads every goo-carrying item through GooCarrierItem and
+     * checks no carrier item class itself, so a new carrier joins the scan by
+     * implementing the interface (decision hosts-answer-bounds-through-interfaces).
+     */
+    @Test
+    void sourceScannerDispatchesOnTheCarrierInterface() {
+        classes()
+                .that().haveFullyQualifiedName(GOO_SOURCE_SCANNER)
+                .should(checkNoInstanceofOn(carrierItemClass()))
+                .because("the scan reads carriers through GooCarrierItem"
+                        + " (decision hosts-answer-bounds-through-interfaces)")
+                .check(mainClasses);
+    }
+
+    private static DescribedPredicate<JavaClass> carrierItemClass() {
+        return assignableTo(ITEM_PACKAGE + "GooOmniblobItem")
+                .or(assignableTo(ITEM_PACKAGE + "CanisterItem")).or(assignableTo(ITEM_PACKAGE + "VatBlockItem"))
+                .or(assignableTo(ITEM_PACKAGE + "HubBlockItem"))
+                .as("a goo carrier item class");
+    }
+
+    private static DescribedPredicate<JavaClass> machineType() {
+        return assignableTo(MACHINE_BLOCK).or(assignableTo(MACHINE_BLOCK_ENTITY)).or(assignableTo(PLEXER_BLOCK_ENTITY))
+                .as("a machine block or block entity type");
+    }
+
+    private static ArchCondition<JavaClass> checkNoInstanceofOn(DescribedPredicate<JavaClass> forbidden) {
+        return new ArchCondition<>("check no instanceof against " + forbidden.getDescription()) {
+            @Override
+            public void check(JavaClass cls, ConditionEvents events) {
+                cls.getCodeUnits().stream()
+                        .flatMap(unit -> unit.getInstanceofChecks().stream())
+                        .filter(check -> forbidden.test(check.getRawType()))
+                        .forEach(check -> events.add(SimpleConditionEvent.violated(check,
+                                check.getOwner().getFullName() + " checks instanceof "
+                                        + check.getRawType().getName() + " " + check.getSourceCodeLocation())));
+            }
+        };
     }
 
     /**

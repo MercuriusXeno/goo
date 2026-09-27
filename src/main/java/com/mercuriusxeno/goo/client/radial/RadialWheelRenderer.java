@@ -6,6 +6,8 @@ import com.mercuriusxeno.goo.GooTypeNames;
 import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
+import com.mercuriusxeno.goo.client.GooSubmitter;
+import com.mercuriusxeno.goo.client.GooTooltipHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -29,6 +31,9 @@ final class RadialWheelRenderer {
     private static final int HOVER_ALPHA = 0xDD;
     private static final int DISABLED_ALPHA = 0x55;
     private static final float DISABLED_DIM = 0.4f;
+    /** Shade a resting wedge's fluid fill blits under, below the hovered wedge's full white. */
+    private static final int REST_SHADE = 0xCC;
+    private static final int DISABLED_SHADE = (int) (0xFF * DISABLED_DIM);
     private static final int HUB_COLOR = 0x44FFFFFF;
     private static final int COLOR_WHITE = 0xFFFFFFFF;
     private static final int HOVER_TEXT_COLOR = 0xFFFFFF00;
@@ -47,14 +52,6 @@ final class RadialWheelRenderer {
     private static final char NAMESPACE_SEPARATOR = ':';
     private static final String MOB_SUFFIX = " (Mob)";
 
-    private static final String ZERO_LABEL = "0";
-    private static final int KILO_THRESHOLD = 1_000;
-    private static final int MEGA_THRESHOLD = 1_000_000;
-    private static final double KILO_DIVISOR = 1_000.0;
-    private static final double MEGA_DIVISOR = 1_000_000.0;
-    private static final String MB_SUFFIX = " mB";
-    private static final String KILO_FORMAT = "%.1fk";
-    private static final String MEGA_FORMAT = "%.1fM";
 
     private RadialWheelRenderer() {
     }
@@ -65,7 +62,7 @@ final class RadialWheelRenderer {
      * @param wheel     the wheel's state
      * @param types     the types, one per wedge
      * @param abilities the abilities each type fans out, by type index
-     * @param available the mB the player holds per type, snapshot on open
+     * @param available the microblobs the player holds per type, snapshot on open
      * @param centerX   the wheel's center x
      * @param centerY   the wheel's center y
      * @param radius    the wheel's outer radius
@@ -98,10 +95,9 @@ final class RadialWheelRenderer {
         ResourceKey<GooTypeDefinition> key = frame.types().get(type);
         double outer = wheel.isFanned() ? RadialWheel.RING_FRACTION : 1.0;
         boolean selected = type == wheel.selectedType();
-        int base = selected ? ClientGooTypes.bright(key) : ClientGooTypes.wheel(key);
-        int color = computeWedgeColor(base, selected, frame.available().getOrDefault(key, 0) <= 0);
-        blitMask(graphics, frame, RadialTextures.getArcTexture(type * wheel.typeArc(), wheel.typeArc(),
-                RadialWheel.HUB_FRACTION, outer), color);
+        blitWedge(graphics, frame, key, new WedgeBounds(type * wheel.typeArc(), wheel.typeArc(),
+                RadialWheel.HUB_FRACTION, outer),
+                computeOverlayTint(selected, frame.available().getOrDefault(key, 0) <= 0));
         double iconRadius = (RadialWheel.HUB_FRACTION + outer) * MID * frame.radius();
         blitIcon(graphics, typeIcon(key), frame, wheel.typeCenter(type), iconRadius, COLOR_WHITE);
     }
@@ -110,26 +106,52 @@ final class RadialWheelRenderer {
         RadialWheel wheel = frame.wheel();
         int type = wheel.selectedType();
         List<ClientAbility> fan = frame.abilities().get(type);
-        int base = ClientGooTypes.wheel(frame.types().get(type));
+        ResourceKey<GooTypeDefinition> key = frame.types().get(type);
+        int base = ClientGooTypes.wheel(key);
         double arc = wheel.fanArc(type);
         double slotRadius = (RadialWheel.RING_FRACTION + 1.0) * MID * frame.radius();
-        int holdings = frame.available().getOrDefault(frame.types().get(type), 0);
+        int holdings = frame.available().getOrDefault(key, 0);
         for (int ability = 0; ability < fan.size(); ability++) {
             boolean hovered = ability == wheel.hoveredAbility();
             FanSlot slotLabels = fanSlot(fan.get(ability), holdings);
             int color = slotLabels.dimmed() ? computeWedgeColor(base, false, true)
                     : ARGB.color(hovered ? HOVER_ALPHA : NORMAL_ALPHA, base);
             double start = wheel.fanStart(type) + ability * arc;
-            blitMask(graphics, frame, RadialTextures.getArcTexture(start, arc, RadialWheel.RING_FRACTION, 1.0), color);
+            blitWedge(graphics, frame, key, new WedgeBounds(start, arc, RadialWheel.RING_FRACTION, 1.0),
+                    computeOverlayTint(hovered, slotLabels.dimmed()));
             double middle = start + arc * MID;
             blitIcon(graphics, resolveAbilityIcon(fan.get(ability)), frame, middle, slotRadius, color);
-            int[] slot = pointAt(frame, middle, slotRadius);
             int textColor = slotLabels.dimmed() ? DISABLED_TEXT_COLOR : hovered ? HOVER_TEXT_COLOR : COLOR_WHITE;
-            int labelY = slot[1] + ICON_OFFSET + LABEL_GAP;
-            graphics.centeredText(font, buildLabel(fan.get(ability)), slot[0], labelY, textColor);
-            graphics.centeredText(font, Component.literal(slotLabels.costLabel()), slot[0],
-                    labelY + font.lineHeight, textColor);
+            drawSlotLabels(graphics, font, pointAt(frame, middle, slotRadius),
+                    List.of(buildLabel(fan.get(ability)), Component.literal(slotLabels.costLabel())), textColor);
         }
+    }
+
+    private static void drawSlotLabels(GuiGraphicsExtractor graphics, Font font, int[] slot,
+                                       List<Component> lines, int textColor) {
+        int labelY = slot[1] + ICON_OFFSET + LABEL_GAP;
+        for (Component line : lines) {
+            graphics.centeredText(font, line, slot[0], labelY, textColor);
+            labelY += font.lineHeight;
+        }
+    }
+
+    /**
+     * A wedge's place on the wheel.
+     *
+     * @param start the wedge's start angle, clockwise from the top
+     * @param arc   the wedge's span
+     * @param inner the wedge's inner radius as a fraction of the wheel's
+     * @param outer the wedge's outer radius as a fraction of the wheel's
+     */
+    private record WedgeBounds(double start, double arc, double inner, double outer) {
+    }
+
+    private static void blitWedge(GuiGraphicsExtractor graphics, Frame frame, ResourceKey<GooTypeDefinition> key,
+                                  WedgeBounds bounds, int overlay) {
+        blitMask(graphics, frame, RadialTextures.getArcTexture(bounds.start(), bounds.arc(), bounds.inner(),
+                bounds.outer(), GooSubmitter.fluidSprites(key).still(), GooSubmitter.fluidTint(key),
+                ARGB.opaque(ClientGooTypes.edge(key))), overlay);
     }
 
     /**
@@ -146,22 +168,23 @@ final class RadialWheelRenderer {
      * Reads an ability wedge's first-throw cost against the type's holdings.
      *
      * @param ability  the synced ability
-     * @param holdings the mB the player holds of its type
+     * @param holdings the microblobs the player holds of its type
      * @return the wedge's labels
      */
     static FanSlot fanSlot(ClientAbility ability, int holdings) {
         int firstThrow = ability.throwCost(0);
-        return new FanSlot(formatQuantity(firstThrow), firstThrow > holdings);
+        return new FanSlot(GooTooltipHandler.formatFluidDisplayCompact(firstThrow), firstThrow > holdings);
     }
 
     /**
      * The center's holdings line for the selected type.
      *
-     * @param holdings the mB the player holds of the type
+     * @param holdings the microblobs the player holds of the type
      * @return the holdings, formatted
      */
     static String holdingsLabel(int holdings) {
-        return formatQuantity(holdings);
+        // hud-amounts-read-through-goo-format: the machine panels' blob convention
+        return GooTooltipHandler.formatFluidDisplayCompact(holdings);
     }
 
     private static void renderCenterLabel(GuiGraphicsExtractor graphics, Font font, Frame frame) {
@@ -222,6 +245,23 @@ final class RadialWheelRenderer {
         return ARGB.color(hovered ? HOVER_ALPHA : NORMAL_ALPHA, r, g, b);
     }
 
+    /**
+     * Computes the tint a wedge's textured mask blits under, so the fluid
+     * fill still reads hovered and disabled (decision wedges-render-fluid-texture):
+     * a hovered wedge is brighter and more opaque than a resting one, a
+     * disabled one darker and dimmer.
+     *
+     * @param hovered  true for the hovered or selected wedge
+     * @param disabled true when the player holds none of it, or cannot afford it
+     * @return the packed ARGB tint
+     */
+    static int computeOverlayTint(boolean hovered, boolean disabled) {
+        if (disabled) {
+            return ARGB.color(DISABLED_ALPHA, DISABLED_SHADE, DISABLED_SHADE, DISABLED_SHADE);
+        }
+        return hovered ? ARGB.color(HOVER_ALPHA, COLOR_WHITE) : ARGB.color(NORMAL_ALPHA, REST_SHADE, REST_SHADE, REST_SHADE);
+    }
+
     private static Component buildLabel(ClientAbility ability) {
         Component base = Component.translatable(ability.displayName());
         return ability.hasTag(AbilityTags.ENTITY) ? base.copy().append(MOB_SUFFIX) : base;
@@ -242,25 +282,5 @@ final class RadialWheelRenderer {
                     : Identifier.fromNamespaceAndPath(Goo.MODID, ability.icon());
         }
         return Identifier.fromNamespaceAndPath(Goo.MODID, ABILITY_ICON_PREFIX + ability.id().getPath() + ICON_SUFFIX);
-    }
-
-    /**
-     * Formats a mB quantity for display. Shows "0" for zero,
-     * abbreviated "1.2k" for thousands, "1.2M" for millions.
-     *
-     * @param mB the quantity in microblobs
-     * @return the human-readable formatted string
-     */
-    static String formatQuantity(int mB) {
-        if (mB <= 0) {
-            return ZERO_LABEL;
-        }
-        if (mB < KILO_THRESHOLD) {
-            return mB + MB_SUFFIX;
-        }
-        if (mB < MEGA_THRESHOLD) {
-            return String.format(KILO_FORMAT, mB / KILO_DIVISOR);
-        }
-        return String.format(MEGA_FORMAT, mB / MEGA_DIVISOR);
     }
 }
