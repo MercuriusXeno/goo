@@ -4,13 +4,11 @@ import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Tests the drift that draws items off the crucible's rim walls, down
- * its mouth and to the basin center, and the rest that gates consuming them
- * (decisions rim-and-mouth-items-slide-inward, consume-at-rest-in-place).
+ * Tests the inward nudge that draws items off the crucible's rim walls and down
+ * its mouth (decision rim-and-mouth-items-slide-inward).
  */
 class CrucibleItemDriftTest {
 
@@ -93,59 +91,6 @@ class CrucibleItemDriftTest {
         @Test
         void itemBesideTheBlockIsLeftAlone() {
             assertEquals(Vec3.ZERO, CrucibleItemDrift.inwardNudge(-0.2, CrucibleBasin.RIM_Y, CENTER));
-        }
-    }
-
-    /** Inside the cavity an item is drawn to the center and slowed (decision consume-at-rest-in-place). */
-    @Nested
-    class Settle {
-
-        @Test
-        void offCenterItemIsDrawnTowardTheCenter() {
-            Vec3 settled = CrucibleItemDrift.settledDelta(Vec3.ZERO, 0.6, 0.4);
-            assertTrue(settled.x < 0);
-            assertTrue(settled.z > 0);
-        }
-
-        @Test
-        void motionIsDampedAtTheCenter() {
-            Vec3 settled = CrucibleItemDrift.settledDelta(new Vec3(0.1, -0.2, -0.1), CENTER, CENTER);
-            assertEquals(0.1 * (1 - CrucibleItemDrift.SETTLE_DAMPING), settled.x, EPSILON);
-            assertEquals(-0.1 * (1 - CrucibleItemDrift.SETTLE_DAMPING), settled.z, EPSILON);
-            assertEquals(-0.2, settled.y, EPSILON);
-        }
-    }
-
-    /** The rest predicate that alone lets an item be consumed. */
-    @Nested
-    class RestsAtCenter {
-
-        private static final double SURFACE = 0.6;
-
-        @Test
-        void stoppedItemAtTheCenterOnTheSurfaceRests() {
-            assertTrue(CrucibleItemDrift.restsAtCenter(CENTER, CENTER, 0.0, SURFACE, SURFACE));
-        }
-
-        @Test
-        void stoppedItemOnTheEmptyFloorRests() {
-            assertTrue(CrucibleItemDrift.restsAtCenter(CENTER + 0.01, CENTER, 0.001,
-                CrucibleBasin.FLOOR_Y, CrucibleBasin.FLOOR_Y));
-        }
-
-        @Test
-        void movingItemAtTheCenterDoesNotRest() {
-            assertFalse(CrucibleItemDrift.restsAtCenter(CENTER, CENTER, 0.01, SURFACE, SURFACE));
-        }
-
-        @Test
-        void stoppedItemOffCenterDoesNotRest() {
-            assertFalse(CrucibleItemDrift.restsAtCenter(CENTER + 0.05, CENTER, 0.0, SURFACE, SURFACE));
-        }
-
-        @Test
-        void itemFallingAboveTheSurfaceDoesNotRest() {
-            assertFalse(CrucibleItemDrift.restsAtCenter(CENTER, CENTER, 0.0, SURFACE + 0.1, SURFACE));
         }
     }
 }

@@ -37,7 +37,7 @@ final class CrucibleSpawns {
      */
     static ItemEntity spawnInBasin(GameTestHelper helper, ItemStack stack) {
         CrucibleBlockEntity crucible = helper.getBlockEntity(CRUCIBLE_POS, CrucibleBlockEntity.class);
-        double restY = BLOCK_ORIGIN + CrucibleBasin.itemRestY(crucible.basinVolumes());
+        double restY = BLOCK_ORIGIN + CrucibleBasin.killBoxTopY(crucible.basinVolumes());
         return spawnAt(helper, stack, new Vec3(BASIN_CENTER_XZ, restY + JUST_ABOVE_SURFACE, BASIN_CENTER_XZ));
     }
 

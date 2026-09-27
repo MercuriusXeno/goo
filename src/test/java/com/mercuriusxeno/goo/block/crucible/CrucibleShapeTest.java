@@ -64,25 +64,4 @@ class CrucibleShapeTest {
         }
         return false;
     }
-
-    @Test
-    void itemRestsOnTheGooSurfaceTheRendererDraws() {
-        CrucibleBasin.Volumes volumes = new CrucibleBasin.Volumes(CrucibleBasin.SPREAD_VOLUME * 16L, 0);
-        float surfaceY = CrucibleBasin.surfaceYForVolume(volumes.reservoir());
-        VoxelShape forItem = CrucibleShape.itemRestShape(CrucibleBasin.itemRestY(volumes));
-        assertEquals(surfaceY, forItem.max(Direction.Axis.Y, BASIN_CENTER, BASIN_CENTER), EPSILON);
-    }
-
-    @Test
-    void emptyBasinLeavesTheItemOnTheFloor() {
-        VoxelShape forItem = CrucibleShape.itemRestShape(CrucibleBasin.itemRestY(CrucibleBasin.Volumes.EMPTY));
-        assertEquals(CrucibleBasin.FLOOR_Y, forItem.max(Direction.Axis.Y, BASIN_CENTER, BASIN_CENTER), EPSILON);
-    }
-
-    @Test
-    void fullBasinHoldsTheItemAtTheRim() {
-        VoxelShape forItem = CrucibleShape.itemRestShape(
-            CrucibleBasin.itemRestY(new CrucibleBasin.Volumes(CrucibleBasin.RIM_VOLUME, 0)));
-        assertEquals(CrucibleBasin.RIM_Y, forItem.max(Direction.Axis.Y, BASIN_CENTER, BASIN_CENTER), EPSILON);
-    }
 }

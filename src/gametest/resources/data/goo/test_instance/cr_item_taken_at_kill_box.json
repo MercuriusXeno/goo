@@ -1,6 +1,6 @@
 {
   "type": "minecraft:function",
-  "function": "goo:cr_cold_item_waits_at_center",
+  "function": "goo:cr_item_taken_at_kill_box",
   "environment": "minecraft:default",
   "structure": "minecraft:empty",
   "max_ticks": 40,

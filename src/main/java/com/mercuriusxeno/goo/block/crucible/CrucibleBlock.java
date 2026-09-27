@@ -9,7 +9,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -27,14 +26,13 @@ import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.level.redstone.Orientation;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.EntityCollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.Nullable;
 
 /**
  * The crucible block (goocible): melts items into goo. Items for melting are
- * item entities that come to rest at the basin center (CrucibleItemDrift), not right-clicks.
+ * item entities that reach the basin's kill box (CrucibleItemDrift), not right-clicks.
  * Right-click handles fuel rod insertion, blob insertion, canister collection,
  * and empty-hand goo extraction.
  * Drops internal state (PMI, fuel rod, reservoir blobs) when broken.
@@ -133,26 +131,6 @@ public class CrucibleBlock extends GooMachineBlock {
     @Override
     protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos,
             CollisionContext context) {
-        return CrucibleShape.SHAPE;
-    }
-
-    /** Returns the standing shape, with the cavity filled to the goo surface for an item entity
-     * so it rides the goo on server and client alike (decision consume-at-rest-in-place).
-     *
-     * @param state   the block state
-     * @param level   the current level
-     * @param pos     the block position
-     * @param context the collision context
-     * @return the collision shape
-     */
-    @Override
-    protected VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos,
-            CollisionContext context) {
-        if (context instanceof EntityCollisionContext entityContext
-                && entityContext.getEntity() instanceof ItemEntity
-                && level.getBlockEntity(pos) instanceof CrucibleBlockEntity crucible) {
-            return CrucibleShape.itemRestShape(CrucibleBasin.itemRestY(crucible.basinVolumes()));
-        }
         return CrucibleShape.SHAPE;
     }
 

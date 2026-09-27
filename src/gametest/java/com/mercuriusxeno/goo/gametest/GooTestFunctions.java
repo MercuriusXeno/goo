@@ -168,8 +168,8 @@ public final class GooTestFunctions {
     private static final String CR_LEDGE_ITEM_UNCONSUMED = "cr_ledge_item_unconsumed";
     private static final String CR_WALL_TOP_ITEMS_SLIDE_IN = "cr_wall_top_items_slide_in";
     private static final String CR_LEDGE_ITEM_STAYS_PUT = "cr_ledge_item_stays_put";
-    private static final String CR_ITEM_SETTLES_THEN_CONSUMED = "cr_item_settles_then_consumed";
-    private static final String CR_COLD_ITEM_WAITS_AT_CENTER = "cr_cold_item_waits_at_center";
+    private static final String CR_ITEM_TAKEN_AT_KILL_BOX = "cr_item_taken_at_kill_box";
+    private static final String CR_COLD_ITEM_WAITS_ON_FLOOR = "cr_cold_item_waits_on_floor";
     private static final String CR_ITEM_MELTS_ON_ITS_CLOCK = "cr_item_melts_on_its_clock";
     private static final String CR_BROKEN_MID_MELT_DROPS_REMAINDER = "cr_broken_mid_melt_drops_remainder";
     private static final String CR_STACK_MELTS_ITEM_BY_ITEM = "cr_stack_melts_item_by_item";
@@ -502,8 +502,8 @@ public final class GooTestFunctions {
         reg(r, CR_LEDGE_ITEM_UNCONSUMED, CrucibleTests::ledgeItemLeftUnconsumed);
         reg(r, CR_WALL_TOP_ITEMS_SLIDE_IN, CrucibleTests::wallTopItemsSlideIntoTheCavity);
         reg(r, CR_LEDGE_ITEM_STAYS_PUT, CrucibleTests::ledgeItemStaysPut);
-        reg(r, CR_ITEM_SETTLES_THEN_CONSUMED, CrucibleTests::offCenterItemSettlesThenIsConsumed);
-        reg(r, CR_COLD_ITEM_WAITS_AT_CENTER, CrucibleTests::coldCrucibleItemWaitsAtCenter);
+        reg(r, CR_ITEM_TAKEN_AT_KILL_BOX, CrucibleTests::droppedItemTakenAtTheKillBox);
+        reg(r, CR_COLD_ITEM_WAITS_ON_FLOOR, CrucibleTests::coldCrucibleItemWaitsOnTheFloor);
         reg(r, CR_ITEM_MELTS_ON_ITS_CLOCK, CrucibleTests::itemMeltsOnItsClock);
         reg(r, CR_BROKEN_MID_MELT_DROPS_REMAINDER, CrucibleTests::brokenMidMeltDropsTheRemainder);
         reg(r, CR_STACK_MELTS_ITEM_BY_ITEM, CrucibleTests::stackMeltsItemByItemInTurn);
