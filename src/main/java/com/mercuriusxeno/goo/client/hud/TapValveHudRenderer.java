@@ -60,7 +60,8 @@ public final class TapValveHudRenderer {
         Direction facing = state.getValue(TapBlock.FACING);
         Camera camera = mc.gameRenderer.getMainCamera();
         Vec3 anchor = TapValve.panelAnchor(pos, facing, camera.position(), !tap.getCanister().isEmpty());
-        PanelPlacement placement = PanelPlacement.onFace(anchor, Direction.UP, false, ANIMATOR.pitch());
+        PanelPlacement placement = PanelPlacement.onFace(anchor, Direction.UP, false,
+                ANIMATOR.pitch(), ANIMATOR.opacity());
         PanelPainter.paint(event.getPoseStack(), camera, placement, TapPanelRows.rows(grade));
     }
 
