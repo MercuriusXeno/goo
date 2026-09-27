@@ -93,8 +93,9 @@ public final class CrucibleTests {
     /** Blaze goo stocked to buy heat: enough for every melt clock these tests run. */
     private static final int BLAZE_STOCK = 1_000;
     private static final double DROP_REACH = 2.0;
-    private static final String WHOLE_ON_LAST_TICK = "item's goo whole in the reservoir on melt tick ";
-    private static final String SHORT_BEFORE_LAST_TICK = "item's goo short of whole the tick before";
+    private static final int STACK_OF_FOUR = 4;
+    private static final String WHOLE_ON_LAST_TICK = "items' goo whole in the reservoir on melt tick ";
+    private static final String SHORT_BEFORE_LAST_TICK = "items' goo short of whole before the last turn";
     private static final String BROKEN_HALFWAY = "crucible broken halfway through the clock";
     private static final String PART_MELTED = "pool part melted at the break: ";
     private static final String ONE_MELTED_ITEM_DROPPED = "one partially melted item dropped";
@@ -381,6 +382,27 @@ public final class CrucibleTests {
         helper.succeedWhen(() -> {
             helper.assertValueEqual(perItem.totalVolume(), meltedByTick.get(clock), WHOLE_ON_LAST_TICK + clock);
             helper.assertTrue(meltedByTick.get(clock - 1) < perItem.totalVolume(), SHORT_BEFORE_LAST_TICK);
+        });
+    }
+
+    /**
+     * A stack of four cobblestone inserted at once is four items each on its own clock, a lone
+     * blaze fuel taking them in turn: the reservoir holds the stack's whole value on melt tick
+     * 4 x ceil(V ^ 0.75) and not four ticks before (decision lone-fuel-advances-one-item).
+     *
+     * @param helper the gametest helper
+     */
+    public static void stackMeltsItemByItemInTurn(GameTestHelper helper) {
+        CrucibleBlockEntity crucible = placeBlazeStockedCrucible(helper);
+        GooContents perItem = cobblestoneValue();
+        long stackVolume = perItem.totalVolume() * STACK_OF_FOUR;
+        long clock = STACK_OF_FOUR * CrucibleMath.meltTicks(perItem.totalVolume(), GooConfig.BLAZE_MELT_EXPONENT.get());
+        Map<Long, Long> meltedByTick = new HashMap<>();
+        spawnInBasin(helper, new ItemStack(Items.COBBLESTONE, STACK_OF_FOUR));
+        helper.onEachTick(() -> meltedByTick.put(meltTicksBurned(crucible), itemGooIn(crucible, perItem)));
+        helper.succeedWhen(() -> {
+            helper.assertValueEqual(stackVolume, meltedByTick.get(clock), WHOLE_ON_LAST_TICK + clock);
+            helper.assertTrue(meltedByTick.get(clock - STACK_OF_FOUR) < stackVolume, SHORT_BEFORE_LAST_TICK);
         });
     }
 
