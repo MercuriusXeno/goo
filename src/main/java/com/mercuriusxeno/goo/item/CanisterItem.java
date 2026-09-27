@@ -1,13 +1,12 @@
 package com.mercuriusxeno.goo.item;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
-import com.mercuriusxeno.goo.block.canister.CanisterBlock;
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
+import com.mercuriusxeno.goo.item.CanisterPlacementResolver.CanisterPlacement;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
 import com.mercuriusxeno.goo.registry.GooEnchantments;
 import com.mercuriusxeno.goo.registry.GooFluids;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.SlotAccess;
@@ -30,10 +29,9 @@ import java.util.Map;
  * Canister item: single-type fluid storage accepting any registered fluid.
  * Capacity scales with Compression enchantment via ContainerCapacity.
  *
- * <p>Overrides placement to support multi-canister blocks: clicking an
- * existing canister block inserts into the targeted slot rather than
- * placing a new block. Slot targeting uses the vanilla BlockHitResult
- * location directly.</p>
+ * <p>Overrides placement to support multi-canister blocks: CanisterPlacementResolver
+ * decides whether a use inserts into an existing canister block, places a new one,
+ * or does nothing.</p>
  */
 public class CanisterItem extends BlockItem implements IGooItemInteraction, GooCarrierItem {
 
@@ -50,68 +48,25 @@ public class CanisterItem extends BlockItem implements IGooItemInteraction, GooC
     // --- Interaction overrides ---
 
     /**
-     * Intercepts use-on to handle clicking existing canister blocks.
-     * Two paths: direct hit on a canister shape, or clicking the block
-     * beneath the canister (ray through empty space hits the surface below).
+     * Places or inserts where the placement resolver says, the rule the green preview also
+     * reads (decision preview-runs-the-placement-validator).
      *
      * @param context the use-on context
      * @return the interaction result
      */
     @Override
     public @NonNull InteractionResult useOn(@NonNull UseOnContext context) {
-        Level level = context.getLevel();
-        BlockPos clickedPos = context.getClickedPos();
-        if (isCanisterBlock(level, clickedPos)) {
-            return tryInsertCanister(context, level, clickedPos, context.getClickedFace());
-        }
-        return useOnNonCanister(context, level, clickedPos);
-    }
-
-    /**
-     * Handles use-on when the clicked block is not a canister (place-through or new placement).
-     *
-     * @param context    the use-on context
-     * @param level      the current level
-     * @param clickedPos the originally clicked block position
-     * @return the interaction result
-     */
-    private InteractionResult useOnNonCanister(UseOnContext context, Level level, BlockPos clickedPos) {
-        BlockPos placePos = clickedPos.relative(context.getClickedFace());
-        if (isCanisterBlock(level, placePos)) {
-            return tryInsertCanister(context, level, placePos, context.getClickedFace().getOpposite());
-        }
-        return placeNewCanister(context, level, placePos);
-    }
-
-    /**
-     * Returns true if the block at the given position is a canister block.
-     *
-     * @param level the current level
-     * @param pos   the block position to check
-     * @return true if the block is a canister block
-     */
-    private static boolean isCanisterBlock(Level level, BlockPos pos) {
-        return level.getBlockState(pos).getBlock() instanceof CanisterBlock;
-    }
-
-    // --- Insertion logic ---
-
-    /**
-     * Places a new canister block when the block below supports it: its top face
-     * covers the central 12x12 pixels, or it is an attachable machine with capacity.
-     *
-     * @param context  the use-on context
-     * @param level    the current level
-     * @param placePos the target placement position
-     * @return the interaction result
-     */
-    private InteractionResult placeNewCanister(UseOnContext context, Level level, BlockPos placePos) {
-        if (!CanisterPlacementValidator.isSupportedBelow(level, placePos.below())) {
+        Player player = context.getPlayer();
+        boolean sneaking = player != null && player.isSecondaryUseActive();
+        CanisterPlacement placement = CanisterPlacementResolver.resolve(new BlockPlaceContext(context), sneaking);
+        if (placement == null) {
             return InteractionResult.PASS;
         }
-
+        if (placement.intoExisting()) {
+            return insertCanister(context, placement);
+        }
         InteractionResult result = super.useOn(context);
-        shrinkInCreative(result, context, level);
+        shrinkInCreative(result, context, context.getLevel());
         return result;
     }
 
@@ -130,55 +85,24 @@ public class CanisterItem extends BlockItem implements IGooItemInteraction, GooC
     }
 
     /**
-     * Inserts this canister into an existing canister block's grid.
-     * Handles both direct hits and click-through: entryFace determines
-     * which face the slot resolves against.
+     * Inserts this canister into the slot the resolver chose in an existing canister block.
      *
      * @param context   the use-on context
-     * @param level     the current level
-     * @param pos       the canister block position
-     * @param entryFace the face used for slot resolution
+     * @param placement the resolved insert
      * @return the interaction result
      */
-    private InteractionResult tryInsertCanister(
-            UseOnContext context, Level level, BlockPos pos, Direction entryFace) {
+    private static InteractionResult insertCanister(UseOnContext context, CanisterPlacement placement) {
+        Level level = context.getLevel();
         if (level.isClientSide()) { return InteractionResult.SUCCESS; }
-        if (context.getPlayer() == null) { return InteractionResult.PASS; }
-
-        var be = canisterEntityAt(level, pos);
-        if (be == null) { return InteractionResult.PASS; }
-
-        int slot = CanisterSlotResolver.resolveAndConstrain(context.getClickLocation(), pos, entryFace, be);
-        if (slot < 0) { return InteractionResult.PASS; }
-        return commitInsertion(context, be, slot, level);
-    }
-
-    /**
-     * Returns the CanisterBlockEntity at the position, or null.
-     *
-     * @param level the current level
-     * @param pos   the block position
-     * @return the canister block entity, or null if absent
-     */
-    private static @Nullable CanisterBlockEntity canisterEntityAt(Level level, BlockPos pos) {
-        return level.getBlockEntity(pos) instanceof CanisterBlockEntity be ? be : null;
-    }
-
-    /**
-     * Commits the canister insertion into a resolved slot.
-     *
-     * @param context the use-on context
-     * @param be      the canister block entity
-     * @param slot    the target slot index
-     * @param level   the current level
-     * @return the interaction result
-     */
-    private static InteractionResult commitInsertion(
-            UseOnContext context, CanisterBlockEntity be, int slot, Level level) {
         Player player = context.getPlayer();
+        if (player == null
+                || !(level.getBlockEntity(placement.pos()) instanceof CanisterBlockEntity canister)) {
+            return InteractionResult.PASS;
+        }
         ItemStack stack = context.getItemInHand();
-        boolean creative = player != null && player.isCreative();
-        if (!be.insertCanister(slot, stack, creative)) { return InteractionResult.PASS; }
+        if (!canister.insertCanister(placement.slot(), stack, player.isCreative())) {
+            return InteractionResult.PASS;
+        }
         stack.shrink(1);
         return InteractionResult.SUCCESS;
     }
@@ -217,11 +141,8 @@ public class CanisterItem extends BlockItem implements IGooItemInteraction, GooC
      */
     private void initPlacedCanister(
             BlockPlaceContext context, Level level, BlockPos pos, CanisterBlockEntity be) {
-        int slot = CanisterPlacementValidator.constrainSlot(
-                CanisterPlacementValidator.computePlacementSlot(
-                        context.getClickLocation(), context.getClickedPos(),
-                        context.getClickedFace().getOpposite()),
-                level, pos);
+        int slot = CanisterPlacementResolver.newBlockSlot(
+                level, pos, context.getClickLocation(), context.getClickedFace());
         boolean creative = context.getPlayer() != null && context.getPlayer().isCreative();
         be.assignFromItemStack(slot, context.getItemInHand(), creative);
         CanisterPlacementValidator.stampOwner(be, context.getPlayer());

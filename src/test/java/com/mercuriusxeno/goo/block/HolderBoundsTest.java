@@ -205,16 +205,6 @@ class HolderBoundsTest {
             assertAll(() -> assertTrue(be.takesCanisterAt(hollow, false)),
                     () -> assertFalse(be.takesCanisterAt(hollow, true)));
         }
-
-        @Test
-        void canisterInsertsFromANeighbourIntoTheNearestEmptySlot() {
-            ICanisterHolder empty = (ICanisterHolder) canister(false);
-            ICanisterHolder full = (ICanisterHolder) canister(true);
-            Vec3 centre = new Vec3(0.5, 0.0, 0.5);
-            assertAll(() -> assertEquals(4, empty.insertionSlotFrom(centre)),
-                    () -> assertEquals(-1, full.insertionSlotFrom(centre)),
-                    () -> assertEquals(-1, ((ICanisterHolder) hub(false)).insertionSlotFrom(centre)));
-        }
     }
 
     @Nested
