@@ -164,8 +164,8 @@ public class CrucibleBlockEntity extends GooGlowingMachineBlockEntity implements
     public GooContents getReservoir() { return reservoir.toGooContents(); }
 
     /**
-     * A standing canister click on a crucible holding goo collects it into the canister, or
-     * hands it out as blobs when the canister takes none.
+     * A standing canister click on a crucible holding goo is the empty-hand drain into carried
+     * containers (decision canister-click-is-any-other-click-on-crucible-and-vat).
      */
     @Override
     public boolean takesCanisterClick(ItemStack canister) {
