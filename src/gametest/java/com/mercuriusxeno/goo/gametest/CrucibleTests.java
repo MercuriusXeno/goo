@@ -20,12 +20,14 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.ItemContainerContents;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,8 +49,11 @@ public final class CrucibleTests {
     private static final double MOUTH_DROP_Y = 2.3;
     /** An item entity's half-width, a quarter block wide. */
     private static final double ITEM_HALF_WIDTH = 0.125;
-    /** A ledge spot in test-relative X, the item's east face against the west rim wall. */
-    private static final double LEDGE_X = 1.0 + CrucibleShape.COLLAR_MIN - ITEM_HALF_WIDTH;
+    /**
+     * A ledge spot in test-relative X, the item's west face against the east rim wall;
+     * the east side, since barriers bound the test area on the west.
+     */
+    private static final double LEDGE_X = 1.0 + CrucibleShape.COLLAR_MAX + ITEM_HALF_WIDTH;
     /** The ledge top in test-relative Y. */
     private static final double LEDGE_TOP_Y = 1.0 + CrucibleShape.LEDGE_Y;
     /** How far a resting item's feet may sit from the floor. */
@@ -57,6 +62,25 @@ public final class CrucibleTests {
     private static final String ON_FLOOR = "item rests on the 8/16 basin floor: ";
     private static final String LEDGE_ITEM_STAYS = "ledge item stays";
     private static final String LEDGE_ITEM_WHOLE = "ledge item unshrunk";
+    /** Ticks an item at rest on a wall top has to slide into the cavity. */
+    private static final int SLIDE_BOUND = 40;
+    /** A wall top's middle, three pixels in from the block's edge. */
+    private static final double WALL_MIDDLE = 3.0 / 16.0;
+    /** The wall tops in test-relative Y. */
+    private static final double WALL_TOP_Y = 1.0 + CrucibleBasin.RIM_Y;
+    /** An item at rest on the middle of each rim wall top: west, east, north, south. */
+    private static final Vec3[] WALL_TOPS = {
+        new Vec3(1.0 + WALL_MIDDLE, WALL_TOP_Y, CrucibleSpawns.BASIN_CENTER_XZ),
+        new Vec3(2.0 - WALL_MIDDLE, WALL_TOP_Y, CrucibleSpawns.BASIN_CENTER_XZ),
+        new Vec3(CrucibleSpawns.BASIN_CENTER_XZ, WALL_TOP_Y, 1.0 + WALL_MIDDLE),
+        new Vec3(CrucibleSpawns.BASIN_CENTER_XZ, WALL_TOP_Y, 2.0 - WALL_MIDDLE),
+    };
+    private static final Item[] WALL_ITEMS = {Items.COBBLESTONE, Items.DIRT, Items.SAND, Items.GRAVEL};
+    /** How far a ledge item may drift and still read as where it landed. */
+    private static final double LEDGE_SLACK = 1e-3;
+    private static final String SLID_ITEM_STAYS = "slid item still exists: ";
+    private static final String SLID_INTO_CAVITY = "wall-top item slid into the cavity: ";
+    private static final String LEDGE_ITEM_STILL = "ledge item stays where it landed: ";
     private static final String SHOULD_HAVE_GOO = "Crucible reservoir should contain goo after blob insert";
     private static final String SHOULD_ABSORB = "Crucible should absorb the item entity";
     private static final String RESERVOIR_UNCHANGED = "reservoir unchanged";
@@ -178,6 +202,60 @@ public final class CrucibleTests {
             helper.assertFalse(onLedge.isRemoved(), LEDGE_ITEM_STAYS);
             helper.assertValueEqual(COBBLE_OFFERED, onLedge.getItem().getCount(), LEDGE_ITEM_WHOLE);
             helper.assertTrue(crucible.reservoirHandler().isEmpty(), RESERVOIR_UNCHANGED);
+            assertOnLedge(helper, onLedge);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Asserts an item sits where the ledge spot put it, on the body top outside the east wall.
+     *
+     * @param helper the gametest helper
+     * @param item   the item entity
+     */
+    private static void assertOnLedge(GameTestHelper helper, ItemEntity item) {
+        Vec3 rel = CrucibleSpawns.relativeToCrucible(helper, item);
+        helper.assertTrue(Math.abs(rel.x - (LEDGE_X - 1.0)) < LEDGE_SLACK
+            && Math.abs(rel.z - (CrucibleSpawns.BASIN_CENTER_XZ - 1.0)) < LEDGE_SLACK
+            && Math.abs(rel.y - CrucibleShape.LEDGE_Y) < LEDGE_SLACK, LEDGE_ITEM_STILL + rel);
+    }
+
+    // -- Sliding in (decision rim-and-mouth-items-slide-inward) --
+
+    /**
+     * An item at rest on each of the four rim wall tops of a cold crucible ends
+     * inside the cavity footprint within the slide bound. Each wall carries a
+     * different item so the four never merge on meeting at the center.
+     *
+     * @param helper the gametest helper
+     */
+    public static void wallTopItemsSlideIntoTheCavity(GameTestHelper helper) {
+        placeCrucible(helper);
+        List<ItemEntity> onWalls = new ArrayList<>();
+        for (int wall = 0; wall < WALL_TOPS.length; wall++) {
+            onWalls.add(CrucibleSpawns.spawnAt(helper, new ItemStack(WALL_ITEMS[wall]), WALL_TOPS[wall]));
+        }
+        helper.runAfterDelay(SLIDE_BOUND, () -> {
+            for (ItemEntity item : onWalls) {
+                Vec3 rel = CrucibleSpawns.relativeToCrucible(helper, item);
+                helper.assertFalse(item.isRemoved(), SLID_ITEM_STAYS + item.getItem());
+                helper.assertTrue(CrucibleBasin.holdsPoint(rel.x, rel.y, rel.z), SLID_INTO_CAVITY + rel);
+            }
+            helper.succeed();
+        });
+    }
+
+    /**
+     * An item on the outer ledge of a cold crucible stays where it landed.
+     *
+     * @param helper the gametest helper
+     */
+    public static void ledgeItemStaysPut(GameTestHelper helper) {
+        placeCrucible(helper);
+        ItemEntity onLedge = CrucibleSpawns.spawnAt(helper, new ItemStack(Items.COBBLESTONE),
+            new Vec3(LEDGE_X, LEDGE_TOP_Y, CrucibleSpawns.BASIN_CENTER_XZ));
+        helper.runAfterDelay(SLIDE_BOUND, () -> {
+            assertOnLedge(helper, onLedge);
             helper.succeed();
         });
     }
