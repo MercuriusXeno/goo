@@ -51,6 +51,9 @@ public class ChainMarkerRenderState extends BlockEntityRenderState {
      * mining. The ghost outline persists through the mining phase. */
     public boolean behaviorActive;
 
+    /** Ticks since this client first drew the behavior, partial tick included; the orb eases back to size on it. */
+    public float behaviorAge;
+
     /** Number of depth layers already mined by the active behavior. */
     public int minedLayers;
 

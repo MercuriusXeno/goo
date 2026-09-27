@@ -89,6 +89,7 @@ public class ChainMarkerBlockEntityRenderer
                 || ThrowFreezeState.isFrozenOnChainMarker(pos);
         state.placedFace = be.getPlacedFace();
         state.behaviorActive = be.getBehavior() != null;
+        state.behaviorAge = be.drawBehaviorAge(state.gameTime);
         state.minedLayers = be.getMinedLayers();
     }
 

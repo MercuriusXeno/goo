@@ -54,10 +54,20 @@ public final class FuseOrbVisual {
     /** Outer shell alpha when the player is aiming at the node. */
     private static final int SHELL_ALPHA_TARGETED = 0xC0;
 
-    /** Ticks before detonation where implosion starts. */
-    private static final int IMPLOSION_TICKS = 6;
+    /** Ticks the eased shrink takes, from resting size to the minimum. */
+    static final int SHRINK_TICKS = 12;
+    /** Ticks the orb jitters at its minimum before detonation. */
+    static final int JITTER_TICKS = 4;
+    /** Ticks before detonation where the shrink starts: the shrink, then the jitter. */
+    public static final int FUSE_EXPIRY_TICKS = SHRINK_TICKS + JITTER_TICKS;
     /** Minimum scale during implosion (fraction of normal). */
     static final float IMPLOSION_MIN = 0.3f;
+    /** How far the jitter swings the scale either side of the minimum. */
+    static final float JITTER_AMPLITUDE = IMPLOSION_MIN * 0.2f;
+    /** Jitter phase speed in radians per tick, a swing about every tick and a half. */
+    private static final float JITTER_RATE = 4.2f;
+    /** Maps 1 - cos, which spans [0, 2], onto [0, 1]. */
+    private static final float COSINE_TO_UNIT = 0.5f;
 
     /** Center offset in block units. */
     private static final float BLOCK_CENTER = 0.5f;
@@ -241,7 +251,8 @@ public final class FuseOrbVisual {
      */
     private static float computeOrbModifier(ChainMarkerRenderState state) {
         float implosion = state.behaviorActive
-                ? 1f : computeImplosionScale(state.fuseRemaining, state.partialTick);
+                ? computeHandoffScale(state.behaviorAge)
+                : computeImplosionScale(state.fuseRemaining, state.partialTick, state.gameTime);
         float pulse = computePulseScale(state);
         float spikeContract = computeSpikeContraction(state);
         return implosion * pulse * spikeContract;
@@ -369,19 +380,51 @@ public final class FuseOrbVisual {
     }
 
     /**
-     * Implosion scale: 1.0 normally, shrinks to IMPLOSION_MIN in the
-     * final IMPLOSION_TICKS before detonation. Smooth via partial tick.
+     * Implosion scale (decision shrink-eases-then-jitters): 1.0 until the
+     * last FUSE_EXPIRY_TICKS, then an ease-in-out fall to IMPLOSION_MIN over
+     * SHRINK_TICKS, then a jitter about the minimum until detonation. A
+     * fuse waiting on a trigger holds at the minimum, still.
      *
      * @param fuseRemaining the fuse ticks remaining
      * @param partialTick   the partial tick for interpolation
+     * @param gameTime      the game time including the partial tick, the jitter's clock
      * @return the computed implosion scale
      */
-    private static float computeImplosionScale(int fuseRemaining, float partialTick) {
-        if (fuseRemaining > IMPLOSION_TICKS) {
-            return 1f;
+    static float computeImplosionScale(int fuseRemaining, float partialTick, float gameTime) {
+        if (fuseRemaining < 0) {
+            return IMPLOSION_MIN;
         }
         float smoothFuse = Math.max(0f, fuseRemaining - partialTick);
-        float t = 1f - (smoothFuse / IMPLOSION_TICKS);
-        return 1f - t * (1f - IMPLOSION_MIN);
+        if (smoothFuse >= FUSE_EXPIRY_TICKS) {
+            return 1f;
+        }
+        if (smoothFuse >= JITTER_TICKS) {
+            float t = (FUSE_EXPIRY_TICKS - smoothFuse) / SHRINK_TICKS;
+            return 1f - easeInOut(t) * (1f - IMPLOSION_MIN);
+        }
+        return IMPLOSION_MIN + JITTER_AMPLITUDE * (float) Math.sin(gameTime * JITTER_RATE);
+    }
+
+    /**
+     * The scale after the behavior becomes active: the shrink curve run
+     * backward, from the jitter's minimum to resting size over SHRINK_TICKS,
+     * so the orb never snaps back to size.
+     *
+     * @param behaviorAge ticks since the client first drew the behavior, partial tick included
+     * @return the handoff scale
+     */
+    static float computeHandoffScale(float behaviorAge) {
+        float t = Math.min(1f, Math.max(0f, behaviorAge / SHRINK_TICKS));
+        return IMPLOSION_MIN + easeInOut(t) * (1f - IMPLOSION_MIN);
+    }
+
+    /**
+     * Cosine ease-in-out: slow, then fast, then slow.
+     *
+     * @param t progress in [0, 1]
+     * @return eased progress in [0, 1]
+     */
+    private static float easeInOut(float t) {
+        return (1f - (float) Math.cos(t * Math.PI)) * COSINE_TO_UNIT;
     }
 }
