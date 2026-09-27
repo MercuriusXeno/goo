@@ -1,8 +1,20 @@
 {
   "multipart": [
-    { "apply": { "model": "goo:block/crystallizer_body" } },
-    { "when": { "dial": "1" }, "apply": { "model": "goo:block/crystallizer_dial" } },
-    { "when": { "dial": "2" }, "apply": { "model": "goo:block/crystallizer_dial", "y": 90 } },
-    { "when": { "dial": "3" }, "apply": { "model": "goo:block/crystallizer_dial", "y": 180 } }
+    { "when": { "facing": "north" }, "apply": { "model": "goo:block/crystallizer_body", "y": 0 } },
+    { "when": { "facing": "east" }, "apply": { "model": "goo:block/crystallizer_body", "y": 90 } },
+    { "when": { "facing": "south" }, "apply": { "model": "goo:block/crystallizer_body", "y": 180 } },
+    { "when": { "facing": "west" }, "apply": { "model": "goo:block/crystallizer_body", "y": 270 } },
+    { "when": { "facing": "north", "knob": "1" }, "apply": { "model": "goo:block/crystallizer_knob_1", "y": 0 } },
+    { "when": { "facing": "north", "knob": "2" }, "apply": { "model": "goo:block/crystallizer_knob_2", "y": 0 } },
+    { "when": { "facing": "north", "knob": "3" }, "apply": { "model": "goo:block/crystallizer_knob_3", "y": 0 } },
+    { "when": { "facing": "east", "knob": "1" }, "apply": { "model": "goo:block/crystallizer_knob_1", "y": 90 } },
+    { "when": { "facing": "east", "knob": "2" }, "apply": { "model": "goo:block/crystallizer_knob_2", "y": 90 } },
+    { "when": { "facing": "east", "knob": "3" }, "apply": { "model": "goo:block/crystallizer_knob_3", "y": 90 } },
+    { "when": { "facing": "south", "knob": "1" }, "apply": { "model": "goo:block/crystallizer_knob_1", "y": 180 } },
+    { "when": { "facing": "south", "knob": "2" }, "apply": { "model": "goo:block/crystallizer_knob_2", "y": 180 } },
+    { "when": { "facing": "south", "knob": "3" }, "apply": { "model": "goo:block/crystallizer_knob_3", "y": 180 } },
+    { "when": { "facing": "west", "knob": "1" }, "apply": { "model": "goo:block/crystallizer_knob_1", "y": 270 } },
+    { "when": { "facing": "west", "knob": "2" }, "apply": { "model": "goo:block/crystallizer_knob_2", "y": 270 } },
+    { "when": { "facing": "west", "knob": "3" }, "apply": { "model": "goo:block/crystallizer_knob_3", "y": 270 } }
   ]
 }

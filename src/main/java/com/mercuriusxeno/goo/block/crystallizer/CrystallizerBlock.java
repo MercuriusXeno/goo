@@ -12,21 +12,25 @@ import com.mercuriusxeno.goo.item.GooInteractionType;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.HorizontalDirectionalBlock;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
+import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
@@ -34,36 +38,47 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
+import java.util.Map;
 
 /**
  * The crystallizer block (decision crystallizer-emits-chrysm): a gasket receiver
- * that phases goo into chrysm. An omniblob click pours goo in; a click on the
- * dial steps the tier it stops at; an empty-hand click elsewhere takes the
- * chrysm formed inside, and a sneak click pops the gasket. The model is a
- * placeholder until the machine's look is designed.
+ * that crystallizes goo into chrysm. An omniblob click pours goo in; a click on
+ * the knob, a small part on the face toward the placing player, steps the tier
+ * it stops at; an empty-hand click elsewhere takes the chrysm formed inside,
+ * and a sneak click pops the gasket. The body is a placeholder until the
+ * operator designs the glass machine.
  */
 public class CrystallizerBlock extends GooMachineBlock {
 
     /** Whether a choral gasket is installed on this crystallizer. */
     public static final BooleanProperty HAS_GASKET = BooleanProperty.create("has_gasket");
+    /** The face the knob sits on, toward the player who placed the crystallizer. */
+    public static final EnumProperty<Direction> FACING = HorizontalDirectionalBlock.FACING;
     /**
-     * The dial, sizes 1 to 3: the tier the crystallizer stops at, small, medium or large
-     * (operator ruling: a right click on the dial steps it and wraps from 3 to 1).
+     * The knob, sizes 1 to 3: the tier the crystallizer stops at, small, medium or large
+     * (operator ruling: a right click on the knob steps it and wraps from 3 to 1).
      */
-    public static final IntegerProperty DIAL = IntegerProperty.create("dial", 1, ChrysmTier.values().length);
+    public static final IntegerProperty KNOB = IntegerProperty.create("knob", 1, ChrysmTier.values().length);
     public static final MapCodec<CrystallizerBlock> CODEC = simpleCodec(CrystallizerBlock::new);
 
-    /** The dial model part's own shape, on the body's top face. */
-    public static final VoxelShape DIAL_SHAPE = box(4, 13, 4, 12, 16, 12);
-    private static final VoxelShape BODY_SHAPE = box(0, 0, 0, 16, 13, 16);
-    private static final VoxelShape SHAPE = Shapes.or(BODY_SHAPE, DIAL_SHAPE);
+    /**
+     * The knob part's own small shape on each face, standing two pixels proud of
+     * it (operator ruling: small, affixed to the side of the block).
+     */
+    private static final Map<Direction, VoxelShape> KNOB_SHAPES = Map.of(
+            Direction.NORTH, box(6, 6, -2, 10, 10, 0),
+            Direction.SOUTH, box(6, 6, 16, 10, 10, 18),
+            Direction.WEST, box(-2, 6, 6, 0, 10, 10),
+            Direction.EAST, box(16, 6, 6, 18, 10, 10));
+    private static final VoxelShape BODY_SHAPE = Shapes.block();
 
     /**
      * @param properties the block properties
      */
     public CrystallizerBlock(Properties properties) {
         super(properties);
-        registerDefaultState(stateDefinition.any().setValue(HAS_GASKET, false).setValue(DIAL, 1));
+        registerDefaultState(stateDefinition.any().setValue(FACING, Direction.NORTH).setValue(HAS_GASKET, false)
+                .setValue(KNOB, 1));
     }
 
     @Override
@@ -78,21 +93,47 @@ public class CrystallizerBlock extends GooMachineBlock {
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(HAS_GASKET, DIAL);
+        builder.add(FACING, HAS_GASKET, KNOB);
+    }
+
+    /**
+     * Turns the knob's face toward the placing player.
+     *
+     * @param context the placement context
+     * @return the placed state
+     */
+    @Override
+    public @NonNull BlockState getStateForPlacement(@NonNull BlockPlaceContext context) {
+        return defaultBlockState().setValue(FACING, context.getHorizontalDirection().getOpposite());
     }
 
     /**
      * @param state a crystallizer block state
-     * @return the tier its dial names
+     * @return the tier its knob names
      */
-    public static ChrysmTier dialTier(BlockState state) {
-        return ChrysmTier.values()[state.getValue(DIAL) - 1];
+    public static ChrysmTier knobTier(BlockState state) {
+        return ChrysmTier.values()[state.getValue(KNOB) - 1];
+    }
+
+    /**
+     * @param state a crystallizer block state
+     * @return the knob's shape on the face it sits on
+     */
+    public static VoxelShape knobShape(BlockState state) {
+        return KNOB_SHAPES.get(state.getValue(FACING));
     }
 
     @Override
     protected @NonNull VoxelShape getShape(@NonNull BlockState state, @NonNull BlockGetter level,
                                            @NonNull BlockPos pos, @NonNull CollisionContext context) {
-        return SHAPE;
+        return Shapes.or(BODY_SHAPE, knobShape(state));
+    }
+
+    /** The knob is too small to stand on or bump; only the body collides. */
+    @Override
+    protected @NonNull VoxelShape getCollisionShape(@NonNull BlockState state, @NonNull BlockGetter level,
+                                                    @NonNull BlockPos pos, @NonNull CollisionContext context) {
+        return BODY_SHAPE;
     }
 
     @Override
@@ -121,7 +162,7 @@ public class CrystallizerBlock extends GooMachineBlock {
     }
 
     /**
-     * Empty-hand clicks: a click on the dial steps it, sneak elsewhere pops the
+     * Empty-hand clicks: a click on the knob steps it, sneak elsewhere pops the
      * gasket, and any other click hands the formed chrysm to the player.
      */
     @Override
@@ -135,8 +176,8 @@ public class CrystallizerBlock extends GooMachineBlock {
         if (!(level.getBlockEntity(pos) instanceof CrystallizerBlockEntity crystallizer)) {
             return InteractionResult.PASS;
         }
-        if (ShapeHitCheck.hitInsideShape(hitResult, pos, DIAL_SHAPE)) {
-            level.setBlock(pos, state.setValue(DIAL, CrystallizerPhases.nextKnob(state.getValue(DIAL))), Block.UPDATE_ALL);
+        if (ShapeHitCheck.hitInsideShape(hitResult, pos, knobShape(state))) {
+            level.setBlock(pos, state.setValue(KNOB, CrystallizerPhases.nextKnob(state.getValue(KNOB))), Block.UPDATE_ALL);
             level.playSound(null, pos, SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.BLOCKS, 1.0f, 1.0f);
             return InteractionResult.SUCCESS;
         }

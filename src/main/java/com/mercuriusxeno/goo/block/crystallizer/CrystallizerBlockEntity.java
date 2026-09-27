@@ -63,7 +63,7 @@ public class CrystallizerBlockEntity extends GooMachineBlockEntity implements IG
      */
     CrystallizerPhases.Chamber chamber() {
         return new CrystallizerPhases.Chamber(tank.toGooContents(), crystallized, formingType,
-                CrystallizerBlock.dialTier(getBlockState()));
+                CrystallizerBlock.knobTier(getBlockState()));
     }
 
     /**

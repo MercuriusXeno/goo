@@ -1,0 +1,29 @@
+{
+  "textures": {
+    "particle": "minecraft:block/amethyst_block",
+    "knob": "minecraft:block/amethyst_block",
+    "pointer": "minecraft:block/calcite"
+  },
+  "elements": [
+    {
+      "from": [6, 6, -2],
+      "to": [10, 10, 0],
+      "rotation": {"angle": 0, "axis": "z", "origin": [8, 8, -1]},
+      "faces": {
+        "north": {"uv": [6, 6, 10, 10], "texture": "#knob"},
+        "east":  {"uv": [6, 6, 8, 10], "texture": "#knob"},
+        "west":  {"uv": [6, 6, 8, 10], "texture": "#knob"},
+        "up":    {"uv": [6, 6, 10, 8], "texture": "#knob"},
+        "down":  {"uv": [6, 6, 10, 8], "texture": "#knob"}
+      }
+    },
+    {
+      "from": [7.5, 8, -2.25],
+      "to": [8.5, 10, -2],
+      "rotation": {"angle": 0, "axis": "z", "origin": [8, 8, -1]},
+      "faces": {
+        "north": {"uv": [7, 6, 8, 8], "texture": "#pointer"}
+      }
+    }
+  ]
+}
