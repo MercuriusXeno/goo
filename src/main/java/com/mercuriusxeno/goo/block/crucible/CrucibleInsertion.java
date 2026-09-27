@@ -87,8 +87,8 @@ final class CrucibleInsertion {
     }
 
     /**
-     * Melts in the whole chrysm of a stack whose tier volume fits the pool,
-     * each worth its tier's volume of its type (decision chrysm-melts-back-to-its-goo).
+     * Melts in the whole chrysm of a stack whose value fits the pool, each worth
+     * its tier's volume of its type and its crystal (decision chrysm-melts-back-to-its-goo).
      *
      * @param be     the crucible block entity
      * @param stack  the chrysm stack
@@ -105,8 +105,10 @@ final class CrucibleInsertion {
         if (fitting <= 0) {
             return 0;
         }
-        GooContents arriving = GooContents.EMPTY.withAdded(type,
-                Math.multiplyExact(fitting, perUnit.getVolume(type)));
+        GooContents arriving = GooContents.EMPTY;
+        for (var entry : perUnit.getAll().entrySet()) {
+            arriving = arriving.withAdded(entry.getKey(), Math.multiplyExact(fitting, entry.getValue()));
+        }
         Identifier id = BuiltInRegistries.ITEM.getKey(chrysm);
         if (!mergeIntoPool(be, arriving, List.of(new ValuedStack(id, fitting, arriving.totalVolume())))) {
             return 0;

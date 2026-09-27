@@ -135,8 +135,8 @@ public final class CrucibleTests {
 
     /**
      * One chrysm of a type dropped into a lit crucible melts into exactly 1,000 mB
-     * of that type, pool and reservoir together, and no crystal goo
-     * (decision chrysm-melts-back-to-its-goo).
+     * of that type and the 100 mB of crystal spent on it, pool and reservoir
+     * together (decision chrysm-melts-back-to-its-goo).
      *
      * @param helper the gametest helper
      */
@@ -151,7 +151,8 @@ public final class CrucibleTests {
             helper.assertTrue(chrysm.isRemoved(), "The chrysm should melt in whole");
             helper.assertValueEqual(Math.toIntExact(ChrysmTier.CHRYSM.volume()), held.getVolume(GooTypes.ENDER),
                     "ender goo from one chrysm");
-            helper.assertValueEqual(0, held.getVolume(GooTypes.CRYSTAL), "crystal goo returned");
+            helper.assertValueEqual(Math.toIntExact(ChrysmTier.CHRYSM.volume() / 10), held.getVolume(GooTypes.CRYSTAL),
+                    "crystal goo returned");
             helper.succeed();
         });
     }

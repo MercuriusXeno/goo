@@ -8,7 +8,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 /**
  * The chrysm tiers hold their fixed volumes, each 1,000 of the one below
  * (decision chrysm-tiers-fixed-and-stackable), and melt back into exactly that
- * volume of their type (decision chrysm-melts-back-to-its-goo).
+ * volume of their type and the tenth in crystal spent on them (decision
+ * chrysm-melts-back-to-its-goo).
  */
 class ChrysmTierTest {
 
@@ -31,11 +32,17 @@ class ChrysmTierTest {
     }
 
     @Test
-    void eachTierMeltsIntoItsVolumeOfItsTypeAlone() {
+    void eachTierIsWorthItsVolumeOfItsTypeAndATenthInCrystal() {
         for (ChrysmTier tier : ChrysmTier.values()) {
             GooContents melted = tier.contentsOf(GooTypes.ENDER);
-            assertEquals(Map.of(GooTypes.ENDER, (int) tier.volume()), melted.getAll(), tier.name());
+            assertEquals(Map.of(GooTypes.ENDER, (int) tier.volume(), GooTypes.CRYSTAL, (int) (tier.volume() / 10)),
+                    melted.getAll(), tier.name());
         }
+    }
+
+    @Test
+    void crystalChrysmIsWorthItsVolumeAndItsCrystalInOneEntry() {
+        assertEquals(Map.of(GooTypes.CRYSTAL, 1_100), ChrysmTier.CHRYSM.contentsOf(GooTypes.CRYSTAL).getAll());
     }
 
     @Test
