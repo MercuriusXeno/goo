@@ -71,11 +71,8 @@ public final class MachineInteractionTests {
     private static final String COAL_LEFT_BLAZE = "The coal's blaze should stand in the reservoir";
     private static final String COAL_LEFT_ROCK = "The coal's rock should stand in the reservoir";
     private static final String COAL_ENDS_HOT = "The crucible should end able to heat";
-    private static final int ABSORB_DELAY = 5;
-    /** X/Z center of the crucible basin in test-relative coords. */
-    private static final double BASIN_CENTER_XZ = 1.5;
-    /** Y just above the crucible body surface (13/16 + block y=1). */
-    private static final double BASIN_SURFACE_Y = 1.85;
+    /** Ticks a still item dropped at the basin center takes to land, rest and be consumed. */
+    private static final int ABSORB_DELAY = 10;
     private static final double BLOCK_CENTER = 0.5;
     private static final double UPPER_HIT_Y = 0.9;
 
@@ -448,10 +445,6 @@ public final class MachineInteractionTests {
      * @return the spawned entity
      */
     private static ItemEntity spawnInBasin(GameTestHelper helper, Item item) {
-        Vec3 at = helper.absoluteVec(new Vec3(BASIN_CENTER_XZ, BASIN_SURFACE_Y, BASIN_CENTER_XZ));
-        ItemEntity entity = new ItemEntity(helper.getLevel(), at.x, at.y, at.z, new ItemStack(item));
-        entity.setDeltaMovement(Vec3.ZERO);
-        helper.getLevel().addFreshEntity(entity);
-        return entity;
+        return CrucibleSpawns.spawnInBasin(helper, new ItemStack(item));
     }
 }
