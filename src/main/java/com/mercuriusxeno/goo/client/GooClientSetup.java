@@ -133,6 +133,8 @@ public final class GooClientSetup {
                 ReactorBlockEntityRenderer::new);
         event.registerBlockEntityRenderer(GooBlockEntities.TAP.get(),
                 TapBlockEntityRenderer::new);
+        event.registerBlockEntityRenderer(GooBlockEntities.CRYSTALLIZER.get(),
+                CrystallizerBlockEntityRenderer::new);
     }
 
     /**

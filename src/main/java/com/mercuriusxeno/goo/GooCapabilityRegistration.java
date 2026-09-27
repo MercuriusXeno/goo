@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo;
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
 import com.mercuriusxeno.goo.block.canister.CanisterSlotFluidHandler;
 import com.mercuriusxeno.goo.block.canister.ICanisterHolder;
+import com.mercuriusxeno.goo.block.crystallizer.CrystallizerBlockEntity;
 import com.mercuriusxeno.goo.block.fluid.PlayerInventorySlotHandler;
 import com.mercuriusxeno.goo.block.hub.HubBlockEntity;
 import com.mercuriusxeno.goo.fluid.GooBucketResourceHandler;
@@ -185,13 +186,13 @@ final class GooCapabilityRegistration {
     }
 
     /**
-     * Registers GASKET_BLOCK for the crystallizer: its receiver gasket pours into its holding.
+     * Registers GASKET_BLOCK for the crystallizer: scans its two canisters for a gasket UUID match.
      *
      * @param event the capability registration event
      */
     private static void registerCrystallizerGasketBlock(RegisterCapabilitiesEvent event) {
         event.registerBlockEntity(GooCapabilities.GASKET_BLOCK, GooBlockEntities.CRYSTALLIZER.get(),
-                (be, gasketId) -> gasketId.equals(be.getGasketId(GasketRole.RECEIVER)) ? be.tank() : null);
+                (be, gasketId) -> findSlotForGasket(be, CrystallizerBlockEntity.SLOT_COUNT, gasketId));
     }
 
     /**
