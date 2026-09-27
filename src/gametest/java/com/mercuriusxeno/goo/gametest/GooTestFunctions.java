@@ -199,6 +199,12 @@ public final class GooTestFunctions {
     private static final String IX_CANISTER_CLICK_PICKUP = "ix_canister_click_pickup";
     private static final String IX_CANISTER_LAST_PICKUP = "ix_canister_last_pickup";
     private static final String IX_CANISTER_EMPTY_HAND = "ix_canister_empty_hand";
+    private static final String IX_CANISTER_VAT_TOP_PLACES = "ix_canister_vat_top_places";
+    private static final String IX_CANISTER_STONE_TOP_PLACES = "ix_canister_stone_top_places";
+    private static final String IX_CANISTER_CRUCIBLE_TOP_REFUSES = "ix_canister_crucible_top_refuses";
+    private static final String IX_CANISTER_SIGN_TOP_REFUSES = "ix_canister_sign_top_refuses";
+    private static final String IX_CANISTER_SNEAK_VAT_TOP_PLACES = "ix_canister_sneak_vat_top_places";
+    private static final String IX_CANISTER_HUB_ATTACH_SPOT = "ix_canister_hub_attach_spot";
 
     // --- Machine interactions ---
     private static final String IX_TAP_VALVE = "ix_tap_valve_toggle";
@@ -241,6 +247,8 @@ public final class GooTestFunctions {
     private static final String IX_BLOB_INSERT_SHARED = "ix_blob_insert_shared";
     private static final String IX_LEGACY_BLOB_STACK = "ix_legacy_blob_stack";
     private static final String IX_VAT_STREAM_HOLDS = "ix_vat_stream_holds";
+    private static final String IX_CRUCIBLE_TOPS_UP_CANISTER = "ix_crucible_tops_up_canister";
+    private static final String IX_VAT_UNPACKS_EVERY_TYPE = "ix_vat_unpacks_every_type";
 
     // --- Machines ---
     private static final String MACHINE_CANISTER_INSERT = "machine_canister_insert";
@@ -482,10 +490,12 @@ public final class GooTestFunctions {
         reg(r, IX_HUB_ITEM_IS_GOO_SOURCE, GooSourceScannerTests::hubItemIsAGooSource);
         reg(r, IX_VAT_ITEM_BLOB_INSERT, VatItemClickTests::blobInsertFillsVatAndFullRefuses);
         reg(r, IX_VAT_ITEM_OMNIBLOB_INSERT, VatItemClickTests::omniblobInsertKeepsRemainder);
-        reg(r, IX_VAT_ITEM_DRAIN, VatItemClickTests::secondaryClickDrainsLargerType);
+        reg(r, IX_VAT_ITEM_DRAIN, VatItemClickTests::secondaryClickUnpacksEveryType);
         reg(r, IX_BLOB_INSERT_SHARED, BlobInsertTests::pourDepletesByAccepted);
         reg(r, IX_LEGACY_BLOB_STACK, LegacyBlobStackTests::legacyStackHalvesAndDepletesWithoutDuplication);
         reg(r, IX_VAT_STREAM_HOLDS, VatStreamTests::blobClickHoldsStream);
+        reg(r, IX_CRUCIBLE_TOPS_UP_CANISTER, DrainIntoInventoryTests::crucibleTopsUpCarriedCanister);
+        reg(r, IX_VAT_UNPACKS_EVERY_TYPE, DrainIntoInventoryTests::vatUnpacksEveryTypeIntoInventory);
     }
 
     private static void registerCrucibleTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
@@ -547,6 +557,12 @@ public final class GooTestFunctions {
         reg(r, IX_CANISTER_CLICK_PICKUP, CanisterInteractionTests::clickPicksUp);
         reg(r, IX_CANISTER_LAST_PICKUP, CanisterInteractionTests::lastPickupRemovesBlock);
         reg(r, IX_CANISTER_EMPTY_HAND, CanisterInteractionTests::emptyHandPicksUp);
+        reg(r, IX_CANISTER_VAT_TOP_PLACES, CanisterPlacementTests::vatTopTakesCanister);
+        reg(r, IX_CANISTER_STONE_TOP_PLACES, CanisterPlacementTests::stoneTopTakesCanister);
+        reg(r, IX_CANISTER_CRUCIBLE_TOP_REFUSES, CanisterPlacementTests::crucibleTopRefusesCanister);
+        reg(r, IX_CANISTER_SIGN_TOP_REFUSES, CanisterPlacementTests::signTopRefusesCanister);
+        reg(r, IX_CANISTER_SNEAK_VAT_TOP_PLACES, CanisterPlacementTests::sneakClickVatTopTakesCanister);
+        reg(r, IX_CANISTER_HUB_ATTACH_SPOT, CanisterPlacementTests::hubAttachSpotTakesCanisterAbove);
     }
 
     private static void registerMachineTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {

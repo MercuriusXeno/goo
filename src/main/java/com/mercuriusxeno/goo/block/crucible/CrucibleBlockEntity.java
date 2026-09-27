@@ -32,7 +32,7 @@ import java.util.List;
  * {@link CrucibleInsertion} (item/goo insertion),
  * {@link CrucibleSerialization} (NBT).</p>
  */
-public class CrucibleBlockEntity extends GooGlowingMachineBlockEntity implements IGooReceptacle {
+public class CrucibleBlockEntity extends GooGlowingMachineBlockEntity implements IGooReceptacle, ICanisterClickTaker {
 
     /** Reference saturation cap (mB) for crucible reservoir light scaling.
      * Mirrors the BER's visual fill cap so the light response tracks the
@@ -149,12 +149,6 @@ public class CrucibleBlockEntity extends GooGlowingMachineBlockEntity implements
         return heat.forecast(FuelGrade.configured(), GooConfig.COMBO_DRAIN_PER_TICK.get(), fuelStock::volume);
     }
 
-    /** Returns true if the crucible is enabled (no redstone signal).
-     *
-     * @return true if enabled
-     */
-    public boolean isEnabled() { return !getBlockState().getValue(CrucibleBlock.POWERED); }
-
     /**
      * Returns the backing fluid handler for direct Transfer API access.
      *
@@ -168,6 +162,15 @@ public class CrucibleBlockEntity extends GooGlowingMachineBlockEntity implements
      * @return the snapshot
      */
     public GooContents getReservoir() { return reservoir.toGooContents(); }
+
+    /**
+     * A standing canister click on a crucible holding goo is the empty-hand drain into carried
+     * containers (decision canister-click-is-any-other-click-on-crucible-and-vat).
+     */
+    @Override
+    public boolean takesCanisterClick(ItemStack canister) {
+        return !getReservoir().isEmpty();
+    }
 
     /**
      * Inserts goo of the given type into the reservoir.
@@ -190,12 +193,6 @@ public class CrucibleBlockEntity extends GooGlowingMachineBlockEntity implements
      */
     public int extractGoo(ResourceKey<GooTypeDefinition> type, int amount) {
         return reservoir.extractGoo(type, Math.min(amount, Integer.MAX_VALUE), false);
-    }
-
-    /** Empties the entire reservoir. */
-    public void drainReservoir() {
-        reservoir.loadFrom(GooContents.EMPTY);
-        syncToClients();
     }
 
     /**

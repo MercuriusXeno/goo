@@ -16,37 +16,46 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests that the type bands partition [0, 1] over a vat's goo, one band per
- * type, largest first, each as wide as its type's volume ratio, and that
- * their layers over-blend to each type's volume ratio.
+ * type, in the fixed type order for a surface and largest first for a
+ * dissolve glow, each as wide as its type's volume ratio, and that their
+ * layers over-blend to each type's volume ratio.
  */
 class TypeBandsTest {
 
     private static final float RATIO_TOLERANCE = 1e-6f;
     private static final float COVERAGE_TOLERANCE = 1e-5f;
 
-    static Stream<Arguments> contentsAndLargestFirstOrder() {
+    static Stream<Arguments> contentsAndTypeOrder() {
         return Stream.of(
             Arguments.of(Map.of(GooTypes.BLAZE, 700), List.of(GooTypes.BLAZE)),
             Arguments.of(Map.of(GooTypes.BLAZE, 300, GooTypes.FROST, 900),
-                List.of(GooTypes.FROST, GooTypes.BLAZE)),
+                List.of(GooTypes.BLAZE, GooTypes.FROST)),
             Arguments.of(Map.of(GooTypes.AEON, 100, GooTypes.BLAZE, 600, GooTypes.FROST, 300),
-                List.of(GooTypes.BLAZE, GooTypes.FROST, GooTypes.AEON)),
+                List.of(GooTypes.AEON, GooTypes.BLAZE, GooTypes.FROST)),
             Arguments.of(Map.of(GooTypes.GLOW, 500, GooTypes.CRYSTAL, 500),
                 List.of(GooTypes.CRYSTAL, GooTypes.GLOW)),
-            Arguments.of(Map.of(GooTypes.ENDER, 1, GooTypes.BLAZE, 2_000_000_000),
+            Arguments.of(Map.of(GooTypes.ENDER, 2_000_000_000, GooTypes.BLAZE, 1),
                 List.of(GooTypes.BLAZE, GooTypes.ENDER)));
     }
 
+    @Test
+    void dissolveBandsStandLargestFirst() {
+        GooContents contents = new GooContents(Map.of(GooTypes.AEON, 100, GooTypes.BLAZE, 300, GooTypes.FROST, 900));
+
+        assertEquals(List.of(GooTypes.FROST, GooTypes.BLAZE, GooTypes.AEON),
+            TypeBands.largestFirst(contents).stream().map(TypeBand::type).toList());
+    }
+
     @ParameterizedTest
-    @MethodSource("contentsAndLargestFirstOrder")
-    void bandsPartitionTheRangeByVolumeRatioLargestFirst(
+    @MethodSource("contentsAndTypeOrder")
+    void bandsPartitionTheRangeByVolumeRatioInTypeOrder(
             Map<ResourceKey<GooTypeDefinition>, Integer> volumes,
-            List<ResourceKey<GooTypeDefinition>> largestFirst) {
+            List<ResourceKey<GooTypeDefinition>> typeOrder) {
         GooContents contents = new GooContents(volumes);
 
         List<TypeBand> bands = TypeBands.over(contents);
 
-        assertEquals(largestFirst, bands.stream().map(TypeBand::type).toList());
+        assertEquals(typeOrder, bands.stream().map(TypeBand::type).toList());
         assertEquals(0f, bands.getFirst().lo());
         assertEquals(1f, bands.getLast().hi());
         for (int i = 1; i < bands.size(); i++) {
@@ -59,10 +68,10 @@ class TypeBandsTest {
     }
 
     @ParameterizedTest
-    @MethodSource("contentsAndLargestFirstOrder")
+    @MethodSource("contentsAndTypeOrder")
     void layersOverBlendToEachTypesVolumeRatio(
             Map<ResourceKey<GooTypeDefinition>, Integer> volumes,
-            List<ResourceKey<GooTypeDefinition>> largestFirst) {
+            List<ResourceKey<GooTypeDefinition>> typeOrder) {
         GooContents contents = new GooContents(volumes);
 
         List<TypeBand> bands = TypeBands.over(contents);
@@ -82,10 +91,10 @@ class TypeBandsTest {
     }
 
     @Test
-    void packingCarriesTheShareLowAndTheLayerHigh() {
-        TypeBand band = new TypeBand(GooTypes.BLAZE, 0.75f, 1f, 2);
+    void packingCarriesTheShareLowAndTheTypeSeedHigh() {
+        TypeBand band = new TypeBand(GooTypes.FROST, 0.75f, 1f, 2);
 
-        assertEquals(TypeBand.SHARE_UNITS / 4 | 2 << 16, band.packed());
+        assertEquals(TypeBand.SHARE_UNITS / 4 | GooTypes.indexOf(GooTypes.FROST) << 16, band.packed());
     }
 
     @Test

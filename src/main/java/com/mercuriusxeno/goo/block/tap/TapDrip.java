@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.block.tap;
 
+import com.mercuriusxeno.goo.DripFall;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.block.canister.ICanisterHolder;
 import com.mercuriusxeno.goo.registry.GooDripParticleOptions;
@@ -122,6 +123,19 @@ public final class TapDrip {
      */
     private static void send(ParticleSink sink, ParticleOptions particle, Vec3 at) {
         sink.send(particle, at, new Vec3(0.0, DRIP_LEAVE_SPEED, 0.0));
+    }
+
+    /**
+     * The server tick a released drip lands on, once its particle has hung at
+     * the spigot and fallen to the surface (decision tap-drop-swells-then-falls).
+     *
+     * @param releaseTick the server tick the drip leaves the spigot
+     * @param spigotY     the spigot underside
+     * @param surfaceY    the surface the drip lands on
+     * @return the tick the landing is due
+     */
+    static int landingTick(int releaseTick, double spigotY, double surfaceY) {
+        return releaseTick + DripFall.arrivalTicks(spigotY - surfaceY, -DRIP_LEAVE_SPEED);
     }
 
     /**

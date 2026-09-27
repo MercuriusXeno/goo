@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.block.vat;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.block.GooGlowingMachineBlockEntity;
 import com.mercuriusxeno.goo.block.GooLightEntry;
+import com.mercuriusxeno.goo.block.ICanisterClickTaker;
 import com.mercuriusxeno.goo.block.IGooReceptacle;
 import com.mercuriusxeno.goo.block.fluid.GooFluidHandler;
 import com.mercuriusxeno.goo.block.fluid.GooStream;
@@ -17,6 +18,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponentGetter;
 import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
@@ -38,7 +40,7 @@ import java.util.List;
  * {@link VatGasketOps} (gasket face resolution, stacking, drops).
  * Gasket field storage owned by {@link GasketState#dual}.</p>
  */
-public class VatBlockEntity extends GooGlowingMachineBlockEntity implements IGooReceptacle {
+public class VatBlockEntity extends GooGlowingMachineBlockEntity implements IGooReceptacle, ICanisterClickTaker {
 
     /**
      * The cap gasket's overlay region: the block's upper half.
@@ -166,6 +168,15 @@ public class VatBlockEntity extends GooGlowingMachineBlockEntity implements IGoo
      */
     public boolean canAccept() {
         return fluidHandler.totalVolume() < getCapacity();
+    }
+
+    /**
+     * A standing canister click on a vat holding goo is the empty-hand unpack into the inventory
+     * (decision canister-click-is-any-other-click-on-crucible-and-vat).
+     */
+    @Override
+    public boolean takesCanisterClick(ItemStack canister) {
+        return !isEmpty();
     }
 
     /**

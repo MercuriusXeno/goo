@@ -72,6 +72,9 @@ public class ChainMarkerRenderState extends BlockEntityRenderState {
     /** Slow cycling phase [0-1] for crystal crack drift animation. */
     public float crystalAnimationTime;
 
+    /** The level's game time at full precision, the clock crystal reflections ease on. */
+    public double crystalReflectionClock;
+
     /** Cloud radius fraction [0-1] for expand/contract animation. */
     public float crystalRadiusFraction;
 
