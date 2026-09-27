@@ -45,8 +45,8 @@ import java.util.Map;
  * that crystallizes goo into chrysm. An omniblob click pours goo in; a click on
  * the knob, a small part on the face toward the placing player, steps the tier
  * it stops at; an empty-hand click elsewhere takes the chrysm formed inside,
- * and a sneak click pops the gasket. The body is a placeholder until the
- * operator designs the glass machine.
+ * and a sneak click pops the gasket. The model is the operator's: the body
+ * lights its inlay while active, and the dial turns to the knob's position.
  */
 public class CrystallizerBlock extends GooMachineBlock {
 
@@ -61,16 +61,20 @@ public class CrystallizerBlock extends GooMachineBlock {
     public static final IntegerProperty KNOB = IntegerProperty.create("knob", 1, ChrysmTier.values().length);
     public static final MapCodec<CrystallizerBlock> CODEC = simpleCodec(CrystallizerBlock::new);
 
+    /** Whether the crystallizer crystallized within the last few ticks; the model lights its inlay. */
+    public static final BooleanProperty ACTIVE = BooleanProperty.create("active");
+
     /**
-     * The knob part's own small shape on each face, standing two pixels proud of
-     * it (operator ruling: small, affixed to the side of the block).
+     * The dial and its pointer on the facing face, the operator's model's dial at
+     * x 6.5 to 9.5, y 5.5 to 9.5 on its front, turned to each facing.
      */
     private static final Map<Direction, VoxelShape> KNOB_SHAPES = Map.of(
-            Direction.NORTH, box(6, 6, -2, 10, 10, 0),
-            Direction.SOUTH, box(6, 6, 16, 10, 10, 18),
-            Direction.WEST, box(-2, 6, 6, 0, 10, 10),
-            Direction.EAST, box(16, 6, 6, 18, 10, 10));
-    private static final VoxelShape BODY_SHAPE = Shapes.block();
+            Direction.SOUTH, box(6.5, 5.5, 15, 9.5, 9.5, 16),
+            Direction.NORTH, box(6.5, 5.5, 0, 9.5, 9.5, 1),
+            Direction.EAST, box(15, 5.5, 6.5, 16, 9.5, 9.5),
+            Direction.WEST, box(0, 5.5, 6.5, 1, 9.5, 9.5));
+    /** The operator's model's body, 14 by 16 by 14. */
+    private static final VoxelShape BODY_SHAPE = box(1, 0, 1, 15, 16, 15);
 
     /**
      * @param properties the block properties
@@ -78,7 +82,7 @@ public class CrystallizerBlock extends GooMachineBlock {
     public CrystallizerBlock(Properties properties) {
         super(properties);
         registerDefaultState(stateDefinition.any().setValue(FACING, Direction.NORTH).setValue(HAS_GASKET, false)
-                .setValue(KNOB, 1));
+                .setValue(KNOB, 1).setValue(ACTIVE, false));
     }
 
     @Override
@@ -93,7 +97,7 @@ public class CrystallizerBlock extends GooMachineBlock {
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(FACING, HAS_GASKET, KNOB);
+        builder.add(FACING, HAS_GASKET, KNOB, ACTIVE);
     }
 
     /**
@@ -129,7 +133,7 @@ public class CrystallizerBlock extends GooMachineBlock {
         return Shapes.or(BODY_SHAPE, knobShape(state));
     }
 
-    /** The knob is too small to stand on or bump; only the body collides. */
+    /** The dial is too small to stand on or bump; only the body collides. */
     @Override
     protected @NonNull VoxelShape getCollisionShape(@NonNull BlockState state, @NonNull BlockGetter level,
                                                     @NonNull BlockPos pos, @NonNull CollisionContext context) {
