@@ -15,8 +15,8 @@ import net.minecraft.world.phys.BlockHitResult;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Stateless dispatch and handler methods for vat block interactions:
- * item-use and empty-hand logic.
+ * Stateless dispatch and handler methods for vat block interactions: gasket install,
+ * omniblob insert and the empty-hand unpack every other item falls through to.
  */
 final class VatInteractionHandler {
 
@@ -31,7 +31,9 @@ final class VatInteractionHandler {
     // --- Dispatch ---
 
     /**
-     * Server-side instanceof dispatch chain for item interactions.
+     * Server-side dispatch for item interactions: a gasket installs, an omniblob pours in, and
+     * every other item, a canister among them, falls through to the empty-hand unpack
+     * (decision canister-click-is-any-other-click-on-crucible-and-vat).
      *
      * @param vat       the vat block entity
      * @param stack     the item stack
@@ -44,14 +46,7 @@ final class VatInteractionHandler {
             VatBlockEntity vat, ItemStack stack,
             Player player, InteractionHand hand, BlockHitResult hitResult) {
         InteractionResult result = dispatchGasketOrBlob(vat, stack, player, hitResult);
-        if (result != null) {
-            return result;
-        }
-        result = VatFluidInteraction.dispatchFluidContainers(vat, stack, player, hand);
-        if (result != null) {
-            return result;
-        }
-        return InteractionResult.TRY_WITH_EMPTY_HAND;
+        return result != null ? result : InteractionResult.TRY_WITH_EMPTY_HAND;
     }
 
     /**
