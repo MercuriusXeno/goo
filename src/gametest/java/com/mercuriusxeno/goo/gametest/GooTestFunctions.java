@@ -164,6 +164,8 @@ public final class GooTestFunctions {
     private static final String CR_BLOB_STACK_WHOLE = "cr_blob_stack_whole";
     private static final String CR_BLOB_STACK_TO_CAP = "cr_blob_stack_to_cap";
     private static final String CR_FIRST_MELT_PUDDLE = "cr_first_melt_puddle";
+    private static final String CR_ITEM_MELTS_ON_ITS_CLOCK = "cr_item_melts_on_its_clock";
+    private static final String CR_BROKEN_MID_MELT_DROPS_REMAINDER = "cr_broken_mid_melt_drops_remainder";
 
     // --- Placement ---
     private static final String PL_BLAZE = "pl_blaze_places";
@@ -485,6 +487,8 @@ public final class GooTestFunctions {
         reg(r, CR_BLOB_STACK_WHOLE, CrucibleTests::blobStackConsumedWhole);
         reg(r, CR_BLOB_STACK_TO_CAP, CrucibleTests::blobStackFillsToTheCap);
         reg(r, CR_FIRST_MELT_PUDDLE, CrucibleTests::firstMeltTicksDrawAPuddle);
+        reg(r, CR_ITEM_MELTS_ON_ITS_CLOCK, CrucibleTests::itemMeltsOnItsClock);
+        reg(r, CR_BROKEN_MID_MELT_DROPS_REMAINDER, CrucibleTests::brokenMidMeltDropsTheRemainder);
     }
 
     private static void registerPlacementTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {

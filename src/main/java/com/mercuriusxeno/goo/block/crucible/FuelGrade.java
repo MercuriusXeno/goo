@@ -7,18 +7,18 @@ import net.minecraft.resources.ResourceKey;
 import java.util.List;
 
 /**
- * One fuel goo's burn in the crucible: the heat ticks one mB buys and the mB
- * the crucible melts per tick on that heat (decision fuel-goo-heats-per-mb).
+ * One fuel goo's burn in the crucible: the heat ticks one mB buys (decision fuel-goo-heats-per-mb)
+ * and the exponent of an item's melt clock on that heat (decision melt-time-is-mb-to-a-power).
  *
- * @param fuel       the fuel goo type
- * @param ticksPerMb the heat ticks one mB of the fuel buys
- * @param meltRate   the mB melted per tick on this fuel's heat
+ * @param fuel         the fuel goo type
+ * @param ticksPerMb   the heat ticks one mB of the fuel buys
+ * @param meltExponent an item alone melts in ceil(mB ^ this) ticks on this fuel's heat
  */
-public record FuelGrade(ResourceKey<GooTypeDefinition> fuel, int ticksPerMb, int meltRate) {
+public record FuelGrade(ResourceKey<GooTypeDefinition> fuel, int ticksPerMb, double meltExponent) {
 
     /**
      * Returns the configured fuel grades: both burn together as the combo when both stand,
-     * and a lone grade burns at its own rate (decision blaze-unstable-combo-burn).
+     * and a lone grade burns on its own clock (decision blaze-unstable-combo-burn).
      *
      * @return the grades, read from GooConfig
      */
@@ -32,7 +32,7 @@ public record FuelGrade(ResourceKey<GooTypeDefinition> fuel, int ticksPerMb, int
      * @return the unstable grade
      */
     public static FuelGrade configuredUnstable() {
-        return new FuelGrade(GooTypes.UNSTABLE, GooConfig.UNSTABLE_TICKS_PER_MB.get(), GooConfig.UNSTABLE_MELT_RATE.get());
+        return new FuelGrade(GooTypes.UNSTABLE, GooConfig.UNSTABLE_TICKS_PER_MB.get(), GooConfig.UNSTABLE_MELT_EXPONENT.get());
     }
 
     /**
@@ -41,6 +41,6 @@ public record FuelGrade(ResourceKey<GooTypeDefinition> fuel, int ticksPerMb, int
      * @return the blaze grade
      */
     public static FuelGrade configuredBlaze() {
-        return new FuelGrade(GooTypes.BLAZE, GooConfig.BLAZE_TICKS_PER_MB.get(), GooConfig.BLAZE_MELT_RATE.get());
+        return new FuelGrade(GooTypes.BLAZE, GooConfig.BLAZE_TICKS_PER_MB.get(), GooConfig.BLAZE_MELT_EXPONENT.get());
     }
 }
