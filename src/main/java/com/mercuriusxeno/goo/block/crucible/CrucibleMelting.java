@@ -62,7 +62,7 @@ final class CrucibleMelting {
         if (!be.isEnabled()) {
             return;
         }
-        FuelGrade burning = be.heat.burnMeltTick(hasMeltableItem(be), FuelGrade.configured(),
+        CrucibleHeat.MeltHeat burning = be.heat.burnMeltTick(hasMeltableItem(be), FuelGrade.configured(),
                 GooConfig.COMBO_DRAIN_PER_TICK.get(), be.fuelStock);
         if (burning == null) {
             return;
@@ -76,10 +76,11 @@ final class CrucibleMelting {
      * @param be      the crucible block entity
      * @param level   the current level
      * @param pos     the block position
-     * @param burning the grade whose heat burned this tick
+     * @param burning the heat that burned this tick
      */
-    private static void processMeltCycle(CrucibleBlockEntity be, Level level, BlockPos pos, FuelGrade burning) {
-        advanceMeltClock(be, burning.meltExponent());
+    private static void processMeltCycle(CrucibleBlockEntity be, Level level, BlockPos pos,
+                                         CrucibleHeat.MeltHeat burning) {
+        advanceMeltClock(be, burning);
         spawnActiveEffects(be, level, pos);
         clearFinishedMeltingItem(be);
         be.syncToClients();
@@ -183,17 +184,21 @@ final class CrucibleMelting {
     }
 
     /**
-     * Advances the next item's clock one tick, round robin, moving its share of the tick from
-     * the PMI pool into the reservoir (decision lone-fuel-advances-one-item).
+     * Advances the melt clocks one tick, moving each advanced item's share of the tick from
+     * the PMI pool into the reservoir: every item under the combo, the next item round robin
+     * under a lone fuel (decisions combo-advances-every-item, lone-fuel-advances-one-item).
      *
-     * @param be       the crucible block entity
-     * @param exponent the burning grade's melt exponent
+     * @param be      the crucible block entity
+     * @param burning the heat that burned this tick
      */
-    private static void advanceMeltClock(CrucibleBlockEntity be, double exponent) {
+    private static void advanceMeltClock(CrucibleBlockEntity be, CrucibleHeat.MeltHeat burning) {
         CrucibleInsertion.queueUnaccountedPool(be);
         GooContents pool = PartiallyMeltedItem.getContents(be.meltingItem);
-        PartiallyMeltedItem.setContents(be.meltingItem, be.meltQueue.advanceNext(exponent, pool,
-                be.reservoir::insertGoo));
+        double exponent = burning.grade().meltExponent();
+        GooContents after = burning.combo()
+                ? be.meltQueue.advanceEvery(exponent, pool, be.reservoir::insertGoo)
+                : be.meltQueue.advanceNext(exponent, pool, be.reservoir::insertGoo);
+        PartiallyMeltedItem.setContents(be.meltingItem, after);
     }
 
     /**

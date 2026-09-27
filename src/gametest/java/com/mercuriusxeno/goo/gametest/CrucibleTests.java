@@ -94,6 +94,9 @@ public final class CrucibleTests {
     private static final int BLAZE_STOCK = 1_000;
     private static final double DROP_REACH = 2.0;
     private static final int STACK_OF_FOUR = 4;
+    private static final int STACK_OF_THREE = 3;
+    /** Unstable goo stocked beside the blaze: enough combo ticks for every clock these tests run. */
+    private static final int UNSTABLE_STOCK = 1_000;
     private static final String WHOLE_ON_LAST_TICK = "items' goo whole in the reservoir on melt tick ";
     private static final String SHORT_BEFORE_LAST_TICK = "items' goo short of whole before the last turn";
     private static final String BROKEN_HALFWAY = "crucible broken halfway through the clock";
@@ -407,6 +410,28 @@ public final class CrucibleTests {
     }
 
     /**
+     * Three cobblestone in a crucible stocked with blaze and unstable goo all finish together
+     * on unstable's clock: the reservoir holds their whole value on melt tick ceil(V ^ 0.5)
+     * and not the tick before (decision combo-advances-every-item).
+     *
+     * @param helper the gametest helper
+     */
+    public static void comboMeltsEveryItemAtOnce(GameTestHelper helper) {
+        CrucibleBlockEntity crucible = placeBlazeStockedCrucible(helper);
+        crucible.insertGoo(GooTypes.UNSTABLE, UNSTABLE_STOCK);
+        GooContents perItem = cobblestoneValue();
+        long stackVolume = perItem.totalVolume() * STACK_OF_THREE;
+        long clock = CrucibleMath.meltTicks(perItem.totalVolume(), GooConfig.UNSTABLE_MELT_EXPONENT.get());
+        Map<Long, Long> meltedByTick = new HashMap<>();
+        spawnInBasin(helper, new ItemStack(Items.COBBLESTONE, STACK_OF_THREE));
+        helper.onEachTick(() -> meltedByTick.put(comboTicksBurned(crucible), itemGooIn(crucible, perItem)));
+        helper.succeedWhen(() -> {
+            helper.assertValueEqual(stackVolume, meltedByTick.get(clock), WHOLE_ON_LAST_TICK + clock);
+            helper.assertTrue(meltedByTick.get(clock - 1) < stackVolume, SHORT_BEFORE_LAST_TICK);
+        });
+    }
+
+    /**
      * A crucible broken halfway through a cobblestone's clock drops a partially melted item
      * carrying the goo the reservoir had not yet taken.
      *
@@ -467,6 +492,17 @@ public final class CrucibleTests {
     private static long meltTicksBurned(CrucibleBlockEntity crucible) {
         long spent = BLAZE_STOCK - crucible.getReservoir().getVolume(GooTypes.BLAZE);
         return spent * GooConfig.BLAZE_TICKS_PER_MB.get() - crucible.heatTicks();
+    }
+
+    /**
+     * Returns the combo ticks a crucible stocked with both fuels has burned, each taking the drain of unstable.
+     *
+     * @param crucible the crucible block entity
+     * @return the combo ticks burned
+     */
+    private static long comboTicksBurned(CrucibleBlockEntity crucible) {
+        long spent = UNSTABLE_STOCK - crucible.getReservoir().getVolume(GooTypes.UNSTABLE);
+        return spent / GooConfig.COMBO_DRAIN_PER_TICK.get();
     }
 
     /**

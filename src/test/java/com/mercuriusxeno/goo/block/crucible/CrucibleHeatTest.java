@@ -33,6 +33,9 @@ class CrucibleHeatTest {
     private static final List<FuelGrade> GRADES = List.of(BLAZE);
     private static final List<FuelGrade> BURN_ORDER = List.of(UNSTABLE, BLAZE);
     private static final int DRAIN = GooConfig.DEFAULT_COMBO_DRAIN_PER_TICK;
+    private static final CrucibleHeat.MeltHeat LONE_BLAZE = new CrucibleHeat.MeltHeat(BLAZE, false);
+    private static final CrucibleHeat.MeltHeat LONE_UNSTABLE = new CrucibleHeat.MeltHeat(UNSTABLE, false);
+    private static final CrucibleHeat.MeltHeat COMBO = new CrucibleHeat.MeltHeat(UNSTABLE, true);
     private static final Identifier ROCK_ITEM = Identifier.fromNamespaceAndPath("minecraft", "cobblestone");
 
     /** A map-backed reservoir. */
@@ -97,7 +100,8 @@ class CrucibleHeatTest {
 
     /**
      * Runs one melt tick the way CrucibleMelting does: burn heat, then advance the
-     * queue's clock on the burning grade, moving goo from the pool into the reservoir.
+     * queue's clocks on the burning grade, every item under the combo and the next one under
+     * a lone fuel, moving goo from the pool into the reservoir.
      *
      * @param heat   the heat
      * @param grades the fuel grades in burn order
@@ -105,10 +109,14 @@ class CrucibleHeatTest {
      * @param stock  the reservoir, receiving the melted goo
      */
     private static void meltTick(CrucibleHeat heat, List<FuelGrade> grades, Pool pool, MapStock stock) {
-        FuelGrade burning = heat.burnMeltTick(pool.contents.totalVolume() > 0, grades, DRAIN, stock);
-        if (burning != null) {
-            pool.contents = pool.queue.advanceNext(burning.meltExponent(), pool.contents, stock::accept);
+        CrucibleHeat.MeltHeat burning = heat.burnMeltTick(pool.contents.totalVolume() > 0, grades, DRAIN, stock);
+        if (burning == null) {
+            return;
         }
+        double exponent = burning.grade().meltExponent();
+        pool.contents = burning.combo()
+                ? pool.queue.advanceEvery(exponent, pool.contents, stock::accept)
+                : pool.queue.advanceNext(exponent, pool.contents, stock::accept);
     }
 
     /**
@@ -182,6 +190,43 @@ class CrucibleHeatTest {
             assertEquals(List.of(355, 356), finishedOn);
         }
 
+        /**
+         * With both fuels stocked, three 1000 mB items all finish on tick ceil(1000 ^ 0.5) = 32,
+         * the reservoir short of their 3000 mB on every tick before (decision combo-advances-every-item).
+         */
+        @Test
+        void comboFinishesEveryItemOnUnstablesClock() {
+            CrucibleHeat heat = new CrucibleHeat();
+            MapStock stock = new MapStock().with(GooTypes.BLAZE, 1000).with(GooTypes.UNSTABLE, 1000);
+            Pool pool = new Pool().with(GooTypes.ROCK, 1000, 3);
+            int tick = 0;
+            while (pool.contents.totalVolume() > 0) {
+                assertTrue(stock.volume(GooTypes.ROCK) < 3000);
+                meltTick(heat, BURN_ORDER, pool, stock);
+                tick++;
+            }
+            assertEquals(32, tick);
+            assertEquals(3000, stock.volume(GooTypes.ROCK));
+        }
+
+        /**
+         * 2 mB of unstable beside blaze buys one combo tick advancing both items, and the lone
+         * blaze after it advances the first item alone.
+         */
+        @Test
+        void loneFuelResumesTheTickAfterTheComboEnds() {
+            CrucibleHeat heat = new CrucibleHeat();
+            MapStock stock = new MapStock().with(GooTypes.BLAZE, 100).with(GooTypes.UNSTABLE, 2);
+            Pool pool = new Pool().with(GooTypes.ROCK, 1000, 2);
+            meltTick(heat, BURN_ORDER, pool, stock);
+            assertEquals(List.of(1.0 / 32, 1.0 / 32), pool.queue.head().progress());
+
+            meltTick(heat, BURN_ORDER, pool, stock);
+            List<Double> progress = pool.queue.head().progress();
+            assertEquals(1.0 / 32 + 1.0 / 178, progress.get(0), 1e-12);
+            assertEquals(1.0 / 32, progress.get(1));
+        }
+
         /** Halfway through its 178 ticks a 1000 mB item has moved half its goo, the pool holding the rest. */
         @Test
         void gooMovesInProportionAsTheClockAdvances() {
@@ -224,7 +269,7 @@ class CrucibleHeatTest {
             CrucibleHeat heat = new CrucibleHeat();
             MapStock stock = new MapStock().with(GooTypes.BLAZE, 1);
 
-            assertEquals(BLAZE, heat.burnMeltTick(true, GRADES, DRAIN, stock));
+            assertEquals(LONE_BLAZE, heat.burnMeltTick(true, GRADES, DRAIN, stock));
             assertEquals(3, heat.heatTicks());
             assertEquals(0, stock.volume(GooTypes.BLAZE));
         }
@@ -344,7 +389,7 @@ class CrucibleHeatTest {
             CrucibleHeat heat = new CrucibleHeat();
             MapStock stock = new MapStock().with(GooTypes.BLAZE, 100);
             for (int tick = 0; tick < 4; tick++) {
-                assertEquals(BLAZE, heat.burnMeltTick(true, BURN_ORDER, DRAIN, stock));
+                assertEquals(LONE_BLAZE, heat.burnMeltTick(true, BURN_ORDER, DRAIN, stock));
             }
             assertEquals(99, stock.volume(GooTypes.BLAZE));
         }
@@ -355,7 +400,7 @@ class CrucibleHeatTest {
             CrucibleHeat heat = new CrucibleHeat();
             MapStock stock = new MapStock().with(GooTypes.UNSTABLE, 100);
             for (int tick = 0; tick < 4; tick++) {
-                assertEquals(UNSTABLE, heat.burnMeltTick(true, BURN_ORDER, DRAIN, stock));
+                assertEquals(LONE_UNSTABLE, heat.burnMeltTick(true, BURN_ORDER, DRAIN, stock));
             }
             assertEquals(96, stock.volume(GooTypes.UNSTABLE));
         }
@@ -365,12 +410,12 @@ class CrucibleHeatTest {
         void rateSwitchesOnlyAtTheMbBoundary() {
             CrucibleHeat heat = new CrucibleHeat();
             MapStock stock = new MapStock().with(GooTypes.BLAZE, 1);
-            assertEquals(BLAZE, heat.burnMeltTick(true, BURN_ORDER, DRAIN, stock));
+            assertEquals(LONE_BLAZE, heat.burnMeltTick(true, BURN_ORDER, DRAIN, stock));
             stock.insert(GooTypes.UNSTABLE, 1);
             for (int tick = 0; tick < 3; tick++) {
-                assertEquals(BLAZE, heat.burnMeltTick(true, BURN_ORDER, DRAIN, stock));
+                assertEquals(LONE_BLAZE, heat.burnMeltTick(true, BURN_ORDER, DRAIN, stock));
             }
-            assertEquals(UNSTABLE, heat.burnMeltTick(true, BURN_ORDER, DRAIN, stock));
+            assertEquals(LONE_UNSTABLE, heat.burnMeltTick(true, BURN_ORDER, DRAIN, stock));
         }
     }
 
@@ -382,7 +427,7 @@ class CrucibleHeatTest {
         void bothFuelsBurnTwoOfEachOnUnstablesClock() {
             CrucibleHeat heat = new CrucibleHeat();
             MapStock stock = new MapStock().with(GooTypes.BLAZE, 100).with(GooTypes.UNSTABLE, 200);
-            assertEquals(UNSTABLE, heat.burnMeltTick(true, BURN_ORDER, DRAIN, stock));
+            assertEquals(COMBO, heat.burnMeltTick(true, BURN_ORDER, DRAIN, stock));
             assertEquals(98, stock.volume(GooTypes.BLAZE));
             assertEquals(198, stock.volume(GooTypes.UNSTABLE));
         }
@@ -392,7 +437,7 @@ class CrucibleHeatTest {
         void comboBurnsTheConfiguredDrain() {
             CrucibleHeat heat = new CrucibleHeat();
             MapStock stock = new MapStock().with(GooTypes.BLAZE, 100).with(GooTypes.UNSTABLE, 200);
-            assertEquals(UNSTABLE, heat.burnMeltTick(true, BURN_ORDER, 3, stock));
+            assertEquals(COMBO, heat.burnMeltTick(true, BURN_ORDER, 3, stock));
             assertEquals(97, stock.volume(GooTypes.BLAZE));
             assertEquals(197, stock.volume(GooTypes.UNSTABLE));
         }
@@ -402,7 +447,7 @@ class CrucibleHeatTest {
         void shortLastTickDrainsWhatStands() {
             CrucibleHeat heat = new CrucibleHeat();
             MapStock stock = new MapStock().with(GooTypes.BLAZE, 1).with(GooTypes.UNSTABLE, 50);
-            assertEquals(UNSTABLE, heat.burnMeltTick(true, BURN_ORDER, DRAIN, stock));
+            assertEquals(COMBO, heat.burnMeltTick(true, BURN_ORDER, DRAIN, stock));
             assertEquals(0, stock.volume(GooTypes.BLAZE));
             assertEquals(48, stock.volume(GooTypes.UNSTABLE));
         }
@@ -413,7 +458,7 @@ class CrucibleHeatTest {
             CrucibleHeat heat = new CrucibleHeat();
             heat.set(3, BLAZE);
             MapStock stock = new MapStock().with(GooTypes.BLAZE, 10).with(GooTypes.UNSTABLE, 10);
-            assertEquals(UNSTABLE, heat.burnMeltTick(true, BURN_ORDER, DRAIN, stock));
+            assertEquals(COMBO, heat.burnMeltTick(true, BURN_ORDER, DRAIN, stock));
             assertEquals(3, heat.heatTicks());
         }
 

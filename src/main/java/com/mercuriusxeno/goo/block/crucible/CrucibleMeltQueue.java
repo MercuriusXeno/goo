@@ -19,7 +19,8 @@ import java.util.Map;
  * pool-keeps-stacks-in-order). Every item of every stack melts on its own clock of
  * ceil(mB ^ exponent) ticks, moving its goo into the reservoir in proportion as the
  * clock advances (decision melt-time-is-mb-to-a-power); a lone fuel advances one item
- * per tick, a cursor passing over the items in turn (decision lone-fuel-advances-one-item).
+ * per tick, a cursor passing over the items in turn (decision lone-fuel-advances-one-item),
+ * and the combo advances every item every tick (decision combo-advances-every-item).
  */
 public final class CrucibleMeltQueue {
 
@@ -82,6 +83,29 @@ public final class CrucibleMeltQueue {
         int left = itemCount();
         cursor = left == 0 ? 0 : (advance.finished() ? at : at + 1) % left;
         return advance.pool();
+    }
+
+    /**
+     * Advances every item one tick on the given clock, the cursor staying on the item it
+     * held (decision combo-advances-every-item).
+     *
+     * @param exponent the burning fuel's melt exponent
+     * @param pool     the melt pool's contents
+     * @param sink     the reservoir
+     * @return the pool after the tick
+     */
+    public GooContents advanceEvery(double exponent, GooContents pool, MeltSink sink) {
+        GooContents after = pool;
+        for (int index = itemCount() - 1; index >= 0; index--) {
+            Advance advance = advanceItem(index, exponent, after, sink);
+            after = advance.pool();
+            if (advance.finished() && index < cursor) {
+                cursor--;
+            }
+        }
+        int left = itemCount();
+        cursor = left == 0 ? 0 : cursor % left;
+        return after;
     }
 
     /**
