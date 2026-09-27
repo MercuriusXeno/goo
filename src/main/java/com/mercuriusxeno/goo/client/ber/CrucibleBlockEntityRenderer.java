@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.RenderContext;
 import com.mercuriusxeno.goo.client.SurfaceAgitation;
+import com.mercuriusxeno.goo.client.SurfaceRipple;
 import com.mercuriusxeno.goo.client.TypeBand;
 import com.mercuriusxeno.goo.client.TypeBands;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -54,22 +55,26 @@ public class CrucibleBlockEntityRenderer
             ModelFeatureRenderer.@Nullable CrumblingOverlay breakProgress) {
         BlockEntityRenderState.extractBase(be, state, breakProgress);
         extractPoolState(be, state);
-        extractRipple(be, state);
+        extractRipple(be, state, partialTick);
         meltingItems.extract(be, state);
     }
 
     /**
      * Ticks this crucible's surface agitation on its fill, which moves as an
-     * item dissolves into the pool (decision undulating-fluid-surface).
+     * item dissolves into the pool (decision undulating-fluid-surface), and reads the
+     * day fraction the ripple runs on, so tiles bob in step with the surface
+     * (decision each-tile-bobs-with-the-ripple).
      *
      * @param be the crucible block entity
      * @param state the render state, pool volumes already extracted
+     * @param partialTick the fraction of the tick elapsed
      */
-    private void extractRipple(CrucibleBlockEntity be, CrucibleRenderState state) {
+    private void extractRipple(CrucibleBlockEntity be, CrucibleRenderState state, float partialTick) {
         long gameTick = be.getLevel() != null ? be.getLevel().getGameTime() : 0L;
         float fill = CrucibleBasin.heightFraction(state.volumes.reservoir());
         state.rippleAmplitude = agitations.computeIfAbsent(be, key -> new SurfaceAgitation())
             .tick(fill, 0f, gameTick);
+        state.dayFraction = SurfaceRipple.dayFraction(gameTick, partialTick);
     }
 
     /**

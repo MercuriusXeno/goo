@@ -22,6 +22,9 @@ public class CrucibleRenderState extends BlockEntityRenderState {
     /** Ripple amplitude of the liquid surface in blocks. */
     public float rippleAmplitude = RenderContext.RESTING_RIPPLE_AMPLITUDE;
 
+    /** The fraction of the day the surface shader's GameTime reads this frame, which the tiles bob by. */
+    public float dayFraction;
+
     /** The dissolving item's model, meaningful while {@link #hasHead}. */
     public final ItemStackRenderState headItem = new ItemStackRenderState();
 
