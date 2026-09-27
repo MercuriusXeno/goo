@@ -37,6 +37,7 @@ final class CrucibleMelting {
      */
     static void serverTick(CrucibleBlockEntity be, Level level, BlockPos pos, BlockState state) {
         tickIgnitionSpray(be);
+        CrucibleItemDrift.nudgeItems(level, pos);
         handleMeltingTick(be, level, pos);
         handleBoilingEffects(be, level, pos);
         be.gasketPusher.tick();

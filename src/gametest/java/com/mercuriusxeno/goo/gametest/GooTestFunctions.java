@@ -166,6 +166,8 @@ public final class GooTestFunctions {
     private static final String CR_FIRST_MELT_PUDDLE = "cr_first_melt_puddle";
     private static final String CR_DROP_RESTS_ON_FLOOR = "cr_drop_rests_on_floor";
     private static final String CR_LEDGE_ITEM_UNCONSUMED = "cr_ledge_item_unconsumed";
+    private static final String CR_WALL_TOP_ITEMS_SLIDE_IN = "cr_wall_top_items_slide_in";
+    private static final String CR_LEDGE_ITEM_STAYS_PUT = "cr_ledge_item_stays_put";
 
     // --- Placement ---
     private static final String PL_BLAZE = "pl_blaze_places";
@@ -489,6 +491,8 @@ public final class GooTestFunctions {
         reg(r, CR_FIRST_MELT_PUDDLE, CrucibleTests::firstMeltTicksDrawAPuddle);
         reg(r, CR_DROP_RESTS_ON_FLOOR, CrucibleTests::droppedItemRestsOnBasinFloor);
         reg(r, CR_LEDGE_ITEM_UNCONSUMED, CrucibleTests::ledgeItemLeftUnconsumed);
+        reg(r, CR_WALL_TOP_ITEMS_SLIDE_IN, CrucibleTests::wallTopItemsSlideIntoTheCavity);
+        reg(r, CR_LEDGE_ITEM_STAYS_PUT, CrucibleTests::ledgeItemStaysPut);
     }
 
     private static void registerPlacementTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
