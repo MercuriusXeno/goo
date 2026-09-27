@@ -2,7 +2,7 @@
   "type": "minecraft:function",
   "function": "goo:cr_cap_items_that_fit",
   "environment": "minecraft:default",
-  "structure": "minecraft:empty",
+  "structure": "goo:crucible_bay",
   "max_ticks": 40,
   "setup_ticks": 0,
   "required": true
