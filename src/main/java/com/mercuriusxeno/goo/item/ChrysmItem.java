@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.item;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypeNames;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
+import com.mercuriusxeno.goo.registry.GooItems;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.Item;
@@ -44,6 +45,17 @@ public class ChrysmItem extends Item {
         ItemStack stack = new ItemStack(this);
         stack.set(GooDataComponents.GOO_TYPE.get(), key);
         return stack;
+    }
+
+    /**
+     * Creates one chrysm of the tier carrying the given type.
+     *
+     * @param tier the tier
+     * @param key  the goo type's registry key
+     * @return a new stack of one
+     */
+    public static ItemStack stackOf(ChrysmTier tier, ResourceKey<GooTypeDefinition> key) {
+        return GooItems.CHRYSM_TIERS.get(tier.ordinal()).get().createOf(key);
     }
 
     /**

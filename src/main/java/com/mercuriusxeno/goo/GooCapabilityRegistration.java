@@ -173,7 +173,7 @@ final class GooCapabilityRegistration {
     }
 
     /**
-     * Registers GASKET_BLOCK for vat, tap, and plexer (simple gasket ID checks).
+     * Registers GASKET_BLOCK for vat, tap, plexer and crystallizer (simple gasket ID checks).
      *
      * @param event the capability registration event
      */
@@ -181,6 +181,17 @@ final class GooCapabilityRegistration {
         registerVatGasketBlock(event);
         registerTapGasketBlock(event);
         registerPlexerGasketBlock(event);
+        registerCrystallizerGasketBlock(event);
+    }
+
+    /**
+     * Registers GASKET_BLOCK for the crystallizer: its receiver gasket pours into its holding.
+     *
+     * @param event the capability registration event
+     */
+    private static void registerCrystallizerGasketBlock(RegisterCapabilitiesEvent event) {
+        event.registerBlockEntity(GooCapabilities.GASKET_BLOCK, GooBlockEntities.CRYSTALLIZER.get(),
+                (be, gasketId) -> gasketId.equals(be.getGasketId(GasketRole.RECEIVER)) ? be.tank() : null);
     }
 
     /**
