@@ -16,6 +16,7 @@ import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.util.ARGB;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.Vec3;
@@ -86,8 +87,20 @@ public final class PanelPainter {
         if (placement.face() == Direction.DOWN) {
             poseStack.translate(0, size.height(), 0);
         }
-        paintBody(poseStack, font, size, rows);
+        paintBody(poseStack, font, size, rows, placement.opacity());
         poseStack.popPose();
+    }
+
+    /**
+     * Scales a packed ARGB color's alpha by the panel's fade, keeping its RGB
+     * (decision diagnose-then-fix-hud-panel-fade).
+     *
+     * @param argb    the packed ARGB color
+     * @param opacity the fade factor [0, 1]
+     * @return the color with its alpha scaled
+     */
+    public static int fadeColor(int argb, float opacity) {
+        return ARGB.multiplyAlpha(argb, opacity);
     }
 
     /**
@@ -220,20 +233,38 @@ public final class PanelPainter {
      */
     public static void drawRow(PoseStack poseStack, Font font, MultiBufferSource buffers,
                                PanelRow row, float x, float y) {
-        RowGeometry geometry = rowGeometry(y, row.icon() != null, DIGIT_GLYPH_HEIGHT);
+        drawRow(poseStack, font, buffers, row, new RowOrigin(x, y, 1f));
+    }
+
+    /**
+     * Draws one row at the panel's fade.
+     *
+     * @param poseStack the pose stack for rendering
+     * @param font      the font renderer
+     * @param buffers   the buffer source
+     * @param row       the row
+     * @param origin    the row's top left and the fade it draws at
+     */
+    private static void drawRow(PoseStack poseStack, Font font, MultiBufferSource buffers,
+                                PanelRow row, RowOrigin origin) {
+        float x = origin.x();
+        RowGeometry geometry = rowGeometry(origin.y(), row.icon() != null, DIGIT_GLYPH_HEIGHT);
+        int iconColor = fadeColor(InWorldHud.OPAQUE_WHITE, origin.opacity());
         Identifier icon = row.icon();
         Identifier secondIcon = row.secondIcon();
         if (icon != null) {
             GooRenderUtil.UvRect uv = row.iconUv() == null ? WHOLE_TEXTURE : row.iconUv();
-            drawIcon(poseStack, buffers, row.seeThrough(), new IconQuad(icon, uv), x, geometry.iconTop());
+            drawIcon(poseStack, buffers, row.seeThrough(), new IconQuad(icon, uv, iconColor), x, geometry.iconTop());
         }
         if (icon != null && secondIcon != null) {
-            drawIcon(poseStack, buffers, row.seeThrough(), new IconQuad(secondIcon, WHOLE_TEXTURE),
+            drawIcon(poseStack, buffers, row.seeThrough(), new IconQuad(secondIcon, WHOLE_TEXTURE, iconColor),
                     x + ICON_SIZE + ICON_TEXT_GAP, geometry.iconTop());
         }
         float textX = x + row.iconsWidth();
         for (PanelRow.TextSegment segment : row.segments()) {
-            drawSegment(poseStack, font, buffers, row.seeThrough(), segment, textX, geometry.textTop());
+            PanelRow.TextSegment faded = new PanelRow.TextSegment(
+                    segment.text(), fadeColor(segment.color(), origin.opacity()));
+            drawSegment(poseStack, font, buffers, row.seeThrough(), faded, textX, geometry.textTop());
             textX += font.width(segment.text());
         }
     }
@@ -281,16 +312,19 @@ public final class PanelPainter {
      * @param font      the font renderer
      * @param size      the measured panel size
      * @param rows      the rows top to bottom
+     * @param opacity   the fade every part of the panel draws at
      */
-    private static void paintBody(PoseStack poseStack, Font font, PanelSize size, List<PanelRow> rows) {
+    private static void paintBody(PoseStack poseStack, Font font, PanelSize size, List<PanelRow> rows,
+                                  float opacity) {
         MultiBufferSource.BufferSource buffers = Minecraft.getInstance().renderBuffers().bufferSource();
         float halfW = size.width() / HALF;
         InWorldHud.renderBackground(poseStack, buffers,
-                new PanelRectangle(-halfW, -size.height(), size.width(), size.height()));
+                new PanelRectangle(-halfW, -size.height(), size.width(), size.height()),
+                fadeColor(InWorldHud.OPAQUE_WHITE, opacity));
         float x = -halfW + InWorldHud.BORDER;
         float y = -size.height() + InWorldHud.BORDER;
         for (PanelRow row : rows) {
-            drawRow(poseStack, font, buffers, row, x, y);
+            drawRow(poseStack, font, buffers, row, new RowOrigin(x, y, opacity));
             y += ROW_HEIGHT;
         }
         buffers.endBatch();
@@ -322,7 +356,7 @@ public final class PanelPainter {
      * @param poseStack  the pose stack for rendering
      * @param buffers    the buffer source
      * @param seeThrough whether the icon draws over world geometry
-     * @param icon       the icon texture and the region of it drawn
+     * @param icon       the icon texture, the region of it drawn and its tint
      * @param x          the icon's left X
      * @param y          the icon's top Y
      */
@@ -332,21 +366,33 @@ public final class PanelPainter {
                 seeThrough ? RenderTypes.textSeeThrough(icon.texture()) : RenderTypes.text(icon.texture()));
         PoseStack.Pose pose = poseStack.last();
         GooRenderUtil.UvRect uv = icon.uv();
+        int color = icon.color();
         float x2 = x + ICON_SIZE;
         float y2 = y + ICON_SIZE;
-        InWorldHud.iconVertex(vc, pose, x, y, InWorldHud.CONTENT_Z, uv.u0(), uv.v0());
-        InWorldHud.iconVertex(vc, pose, x, y2, InWorldHud.CONTENT_Z, uv.u0(), uv.v1());
-        InWorldHud.iconVertex(vc, pose, x2, y2, InWorldHud.CONTENT_Z, uv.u1(), uv.v1());
-        InWorldHud.iconVertex(vc, pose, x2, y, InWorldHud.CONTENT_Z, uv.u1(), uv.v0());
+        InWorldHud.iconVertex(vc, pose, x, y, InWorldHud.CONTENT_Z, uv.u0(), uv.v0(), color);
+        InWorldHud.iconVertex(vc, pose, x, y2, InWorldHud.CONTENT_Z, uv.u0(), uv.v1(), color);
+        InWorldHud.iconVertex(vc, pose, x2, y2, InWorldHud.CONTENT_Z, uv.u1(), uv.v1(), color);
+        InWorldHud.iconVertex(vc, pose, x2, y, InWorldHud.CONTENT_Z, uv.u1(), uv.v0(), color);
     }
 
     /**
-     * An icon texture and the region of it one icon quad draws.
+     * An icon texture, the region of it one icon quad draws, and the tint it draws at.
      *
      * @param texture the texture
      * @param uv      the region drawn
+     * @param color   the ARGB tint, whose alpha carries the panel's fade
      */
-    private record IconQuad(Identifier texture, GooRenderUtil.UvRect uv) {
+    private record IconQuad(Identifier texture, GooRenderUtil.UvRect uv, int color) {
+    }
+
+    /**
+     * Where a row starts and the fade it draws at.
+     *
+     * @param x       the row's left X
+     * @param y       the row's top Y
+     * @param opacity the fade factor [0, 1]
+     */
+    private record RowOrigin(float x, float y, float opacity) {
     }
 
     /**
