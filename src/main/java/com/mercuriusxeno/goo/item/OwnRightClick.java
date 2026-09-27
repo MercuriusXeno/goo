@@ -2,8 +2,8 @@ package com.mercuriusxeno.goo.item;
 
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockBehaviour;
+import java.lang.reflect.Method;
 import java.util.Arrays;
-import java.util.Set;
 
 /**
  * Whether a block class defines its own right click: a class between it and BlockBehaviour
@@ -12,13 +12,14 @@ import java.util.Set;
  */
 final class OwnRightClick {
 
-    private static final Set<String> RIGHT_CLICK_METHODS = Set.of("useItemOn", "useWithoutItem");
+    private static final String USE_ITEM_ON = "useItemOn";
+    private static final String USE_WITHOUT_ITEM = "useWithoutItem";
 
     private static final ClassValue<Boolean> DEFINED = new ClassValue<>() {
         @Override
         protected Boolean computeValue(Class<?> type) {
             for (Class<?> c = type; c != null && c != BlockBehaviour.class; c = c.getSuperclass()) {
-                if (Arrays.stream(c.getDeclaredMethods()).anyMatch(m -> RIGHT_CLICK_METHODS.contains(m.getName()))) {
+                if (Arrays.stream(c.getDeclaredMethods()).anyMatch(OwnRightClick::isRightClick)) {
                     return true;
                 }
             }
@@ -27,6 +28,10 @@ final class OwnRightClick {
     };
 
     private OwnRightClick() {
+    }
+
+    private static boolean isRightClick(Method method) {
+        return USE_ITEM_ON.equals(method.getName()) || USE_WITHOUT_ITEM.equals(method.getName());
     }
 
     /**
