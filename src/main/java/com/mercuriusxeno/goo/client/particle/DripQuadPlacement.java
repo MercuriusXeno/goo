@@ -10,6 +10,9 @@ public final class DripQuadPlacement {
     /** Height every drip quad keeps above the surface its collision box rests on. */
     public static final double SURFACE_MARGIN = 0.02;
 
+    /** Half extents in a quad's full height. */
+    private static final double HALVES_PER_QUAD = 2.0;
+
     private DripQuadPlacement() {
     }
 
@@ -35,6 +38,36 @@ public final class DripQuadPlacement {
      */
     static double fallQuadLowestY(double particleY, float halfSize) {
         return fallQuadCenterY(particleY, halfSize) - halfSize;
+    }
+
+    /**
+     * A drop hanging from a spigot: its quad's top sits at the spigot's
+     * underside, so its collision box starts a quad height and the margin
+     * lower, where its drawn bottom sits.
+     *
+     * @param spigotY  the spigot's underside
+     * @param halfSize the quad's half extent
+     * @return the y the hanging drop's collision box starts at
+     */
+    static double hangingSpawnY(double spigotY, float halfSize) {
+        return spigotY - hangingDrop(halfSize);
+    }
+
+    /**
+     * @param halfSize the quad's half extent
+     * @return how far below the spigot a hanging drop's collision box starts
+     */
+    static double hangingDrop(float halfSize) {
+        return HALVES_PER_QUAD * halfSize + SURFACE_MARGIN;
+    }
+
+    /**
+     * @param roomBelow the clear height under the spigot, up to {@link #hangingDrop}
+     * @param halfSize  the quad's half extent
+     * @return whether a drop of that size hangs from the spigot clear of the surface
+     */
+    static boolean dropFits(double roomBelow, float halfSize) {
+        return roomBelow >= hangingDrop(halfSize);
     }
 
     /**
