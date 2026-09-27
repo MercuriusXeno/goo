@@ -168,6 +168,9 @@ public final class GooTestFunctions {
     private static final String CR_BROKEN_MID_MELT_DROPS_REMAINDER = "cr_broken_mid_melt_drops_remainder";
     private static final String CR_STACK_MELTS_ITEM_BY_ITEM = "cr_stack_melts_item_by_item";
     private static final String CR_COMBO_MELTS_EVERY_ITEM = "cr_combo_melts_every_item";
+    private static final String CR_SPARK_REFUSED_BLAZE = "cr_spark_refused_blaze";
+    private static final String CR_SPARK_REFUSED_HEAT = "cr_spark_refused_heat";
+    private static final String CR_SPARK_LIGHTS_COLD = "cr_spark_lights_cold";
 
     // --- Placement ---
     private static final String PL_BLAZE = "pl_blaze_places";
@@ -493,6 +496,9 @@ public final class GooTestFunctions {
         reg(r, CR_BROKEN_MID_MELT_DROPS_REMAINDER, CrucibleTests::brokenMidMeltDropsTheRemainder);
         reg(r, CR_STACK_MELTS_ITEM_BY_ITEM, CrucibleTests::stackMeltsItemByItemInTurn);
         reg(r, CR_COMBO_MELTS_EVERY_ITEM, CrucibleTests::comboMeltsEveryItemAtOnce);
+        reg(r, CR_SPARK_REFUSED_BLAZE, CrucibleTests::sparkRefusedOnBlazeGoo);
+        reg(r, CR_SPARK_REFUSED_HEAT, CrucibleTests::sparkRefusedOnHeatTicks);
+        reg(r, CR_SPARK_LIGHTS_COLD, CrucibleTests::sparkLightsColdEmptyCrucible);
     }
 
     private static void registerPlacementTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {

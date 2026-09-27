@@ -65,8 +65,8 @@ public final class MachineInteractionTests {
     private static final String SPARK_SUCCEEDS = "A flint-and-steel click on a cold crucible should answer SUCCESS";
     private static final String SPARK_HEATS = "A spark should leave the crucible holding the spark's heat";
     private static final String SPARK_COSTS_ONE = "A spark should cost the flint and steel one durability";
-    private static final String HOT_SPARK_PASSES = "A flint-and-steel click on a heated crucible should answer PASS";
-    private static final String HOT_SPARK_FREE = "A pass should leave the flint and steel undamaged";
+    private static final String HOT_SPARK_CONSUMED = "A flint-and-steel click on a heated crucible should be consumed";
+    private static final String HOT_SPARK_FREE = "A consumed click should leave the flint and steel undamaged";
     private static final String COAL_MELTED = "The sparked crucible should melt the coal to the end";
     private static final String COAL_LEFT_BLAZE = "The coal's blaze should stand in the reservoir";
     private static final String COAL_LEFT_ROCK = "The coal's rock should stand in the reservoir";
@@ -374,7 +374,7 @@ public final class MachineInteractionTests {
 
     /**
      * Crucible: a flint-and-steel click sparks a cold crucible for the spark's heat at one
-     * durability; the same click on the heated crucible passes and costs nothing
+     * durability; the same click on the heated crucible is consumed and costs nothing
      * (decision flint-and-steel-sparks-the-crucible).
      *
      * @param helper the gametest helper
@@ -390,7 +390,7 @@ public final class MachineInteractionTests {
         helper.assertValueEqual(crucible.heatTicks(), GooConfig.SPARK_HEAT_TICKS.get(), SPARK_HEATS);
         helper.assertValueEqual(flint.getDamageValue(), 1, SPARK_COSTS_ONE);
 
-        helper.assertValueEqual(sparkClick(helper, player), InteractionResult.PASS, HOT_SPARK_PASSES);
+        helper.assertValueEqual(sparkClick(helper, player), InteractionResult.CONSUME, HOT_SPARK_CONSUMED);
         helper.assertValueEqual(flint.getDamageValue(), 1, HOT_SPARK_FREE);
         helper.succeed();
     }

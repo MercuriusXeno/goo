@@ -5,7 +5,6 @@ import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.*;
 import com.mercuriusxeno.goo.ability.AbilityDefinition.ChainConfig;
 import com.mercuriusxeno.goo.ability.program.FieldEffectState;
-import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.PhasedState;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.ProgressiveAreaStep;
@@ -68,6 +67,12 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
      * Ticks before detonation where we sync every tick for smooth implosion.
      */
     private static final int IMPLOSION_SYNC_THRESHOLD = 8;
+
+    /**
+     * Where a client-side marker reads its ability's steps; client setup
+     * installs the synced abilities' source.
+     */
+    private static MarkerStepSource clientSteps = MarkerStepSource.NONE;
 
     private ResourceKey<GooTypeDefinition> gooType = GooTypes.ROCK;
     private final ChainMarkerFuse fuse = new ChainMarkerFuse();
@@ -454,13 +459,22 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
 
 
     /**
-     * Loads the marker's ability program for the marker host.
+     * Installs the source a client-side marker reads its ability's steps
+     * from. Called from client setup, so this class links no client class.
      *
-     * @return the ability's program, or null when the registry holds no such ability
+     * @param source the client's step source
+     */
+    public static void installClientSteps(MarkerStepSource source) {
+        clientSteps = source;
+    }
+
+    /**
+     * Loads the marker's ability program from the steps this side holds.
+     *
+     * @return the ability's program, or null when this side holds no such ability
      */
     private @Nullable ProgramBehavior createBehavior() {
-        AbilityDefinition def = ability();
-        return def != null ? ProgramBehavior.forHost(def.behaviors(), HostKind.MARKER) : null;
+        return MarkerStepSource.forSide(level != null && level.isClientSide(), clientSteps).program(abilityId);
     }
 
     /**
