@@ -26,7 +26,7 @@ import static org.mockito.Mockito.when;
 
 /**
  * Tests that a crucible submits one surface per goo type it shows, each
- * carrying its share and layer and lifted one layer above the one below,
+ * carrying its share and its type's noise seed and lifted one layer above the one below,
  * and a single type one whole surface.
  */
 class CrucibleMingledSurfaceTest {
@@ -44,7 +44,7 @@ class CrucibleMingledSurfaceTest {
         return Stream.of(
             Arguments.of(Map.of(GooTypes.BLAZE, 700), List.of(TypeBand.SHARE_UNITS)),
             Arguments.of(Map.of(GooTypes.BLAZE, 250, GooTypes.FROST, 750),
-                List.of(TypeBand.SHARE_UNITS, TypeBand.SHARE_UNITS / 4)));
+                List.of(TypeBand.SHARE_UNITS, TypeBand.SHARE_UNITS * 3 / 4)));
     }
 
     @ParameterizedTest
@@ -69,7 +69,8 @@ class CrucibleMingledSurfaceTest {
             List<RecordingVertexConsumer.Vertex> vertices = surfaces.get(layer);
             assertFalse(vertices.isEmpty());
             for (RecordingVertexConsumer.Vertex vertex : vertices) {
-                assertEquals(List.of(shareUnitsPerLayer.get(layer), layer), List.of(vertex.uv2U(), vertex.uv2V()));
+                assertEquals(List.of(shareUnitsPerLayer.get(layer), state.typeBands.get(layer).seed()),
+                    List.of(vertex.uv2U(), vertex.uv2V()));
                 assertEquals(SURFACE_Y + layer * TypeBand.LAYER_LIFT, vertex.y(), 1e-6f);
             }
         }
