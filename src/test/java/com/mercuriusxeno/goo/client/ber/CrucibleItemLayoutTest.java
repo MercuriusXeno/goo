@@ -4,8 +4,11 @@ import com.mercuriusxeno.goo.block.crucible.CrucibleBasin;
 import com.mercuriusxeno.goo.client.RenderContext;
 import com.mercuriusxeno.goo.client.SurfaceAgitation;
 import com.mercuriusxeno.goo.client.SurfaceRipple;
+import net.minecraft.client.resources.model.geometry.BakedQuad;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -194,6 +197,63 @@ class CrucibleItemLayoutTest {
                 assertEquals(floor + piece.homeY() - head.frame().bottomY(), home.get(i).y(), FLOAT_ROUNDING);
                 assertEquals(floor + piece.homeY() - piece.floorY(), rest.get(i).y(), FLOAT_ROUNDING);
             }
+        }
+    }
+
+    /**
+     * The scatter follows the item alone: the same item cuts and scatters the same on every
+     * call, so every client and a relog draw it with nothing saved or sent, and two items
+     * scatter differently (decision fragments-are-client-visuals).
+     */
+    @Nested
+    class Seeding {
+
+        /** Two different items at fraction one scatter differently. */
+        @Test
+        void differentItemsScatterDifferently() {
+            for (boolean block : new boolean[] {false, true}) {
+                HeadShards iron = block ? cubeHead("minecraft:iron_ingot") : flatHead("minecraft:iron_ingot");
+                HeadShards diamond = block ? cubeHead("minecraft:diamond") : flatHead("minecraft:diamond");
+
+                assertNotEquals(shardsAt(iron, 1f), shardsAt(diamond, 1f));
+            }
+        }
+
+        /** One item cut twice answers equal shard maps and equal placements at one fraction. */
+        @Test
+        void sameItemScattersTheSameEveryTime() {
+            for (boolean block : new boolean[] {false, true}) {
+                HeadShards first = block ? cubeHead(ITEM) : flatHead(ITEM);
+                HeadShards second = block ? cubeHead(ITEM) : flatHead(ITEM);
+
+                for (BakedQuadOwners owners : BakedQuadOwners.of(first, second, block)) {
+                    assertEquals(owners.first(), owners.second());
+                }
+                assertEquals(shardsAt(first, MID_DISSOLVE), shardsAt(second, MID_DISSOLVE));
+                assertEquals(shardsAt(first, 1f), shardsAt(second, 1f));
+            }
+        }
+    }
+
+    /**
+     * One quad's cell owners in two cuts of the same item, compared as lists.
+     *
+     * @param first  the owners in the first cut
+     * @param second the owners in the second cut
+     */
+    private record BakedQuadOwners(List<Integer> first, List<Integer> second) {
+
+        static List<BakedQuadOwners> of(HeadShards first, HeadShards second, boolean block) {
+            List<BakedQuadOwners> owners = new ArrayList<>();
+            for (BakedQuad quad : block ? ShardModels.cube() : ShardModels.flatItem()) {
+                owners.add(new BakedQuadOwners(boxed(first.model().cutOf(quad).owners()),
+                        boxed(second.model().cutOf(quad).owners())));
+            }
+            return owners;
+        }
+
+        private static List<Integer> boxed(int[] owners) {
+            return Arrays.stream(owners).boxed().toList();
         }
     }
 
