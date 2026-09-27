@@ -13,7 +13,7 @@ import java.util.List;
 
 /**
  * Static helpers for item entity absorption into the crucible basin.
- * Handles blobs, PMIs, containers, and regular meltable items that
+ * Handles blobs, PMIs, chrysm, containers, and regular meltable items that
  * fall or are thrown into the goocible.
  */
 final class CrucibleAbsorption {
@@ -46,6 +46,8 @@ final class CrucibleAbsorption {
     private static void absorbNonBlob(ItemEntity entity, ItemStack stack, CrucibleBlockEntity crucible) {
         if (stack.getItem() instanceof PartiallyMeltedItem) {
             absorbPMI(entity, stack, crucible);
+        } else if (stack.getItem() instanceof ChrysmItem chrysm) {
+            absorbChrysm(entity, stack, chrysm, crucible);
         } else if (crucible.containerEvaluator.isContainer(stack)) {
             absorbContainer(entity, stack, crucible);
         } else {
@@ -137,6 +139,24 @@ final class CrucibleAbsorption {
     private static void absorbMeltable(ItemEntity entity, ItemStack stack,
                                        CrucibleBlockEntity crucible) {
         int melted = CrucibleInsertion.insertItem(crucible, stack, stack.getCount());
+        if (melted > 0) {
+            takeUnits(entity, stack, melted);
+            spawnMeltEffects(entity.level(), crucible);
+        }
+    }
+
+    /**
+     * Melts the whole chrysm whose tier volume fits the pool; the rest stay as
+     * the item entity (decisions chrysm-melts-back-to-its-goo, crucible-refuses-past-two-billion).
+     *
+     * @param entity   the item entity
+     * @param stack    the item stack
+     * @param chrysm   the stack's chrysm item
+     * @param crucible the crucible block entity
+     */
+    private static void absorbChrysm(ItemEntity entity, ItemStack stack, ChrysmItem chrysm,
+                                     CrucibleBlockEntity crucible) {
+        int melted = CrucibleInsertion.insertChrysm(crucible, stack, chrysm);
         if (melted > 0) {
             takeUnits(entity, stack, melted);
             spawnMeltEffects(entity.level(), crucible);

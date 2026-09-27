@@ -160,6 +160,7 @@ public final class GooTestFunctions {
     // --- Crucible ---
     private static final String CR_BLOB_INSERT = "cr_blob_insert";
     private static final String CR_ITEM_ABSORB = "cr_item_absorb";
+    private static final String CR_MELTS_CHRYSM = "cr_melts_chrysm";
     private static final String CR_CAP_EACH_TYPE = "cr_cap_each_type";
     private static final String CR_CAP_BLOB_IN_HAND = "cr_cap_blob_in_hand";
     private static final String CR_CAP_BLOB_ENTITY = "cr_cap_blob_entity";
@@ -490,6 +491,7 @@ public final class GooTestFunctions {
     private static void registerCrucibleTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
         reg(r, CR_BLOB_INSERT, CrucibleTests::blobInsertViaInteraction);
         reg(r, CR_ITEM_ABSORB, CrucibleTests::itemEntityAbsorption);
+        reg(r, CR_MELTS_CHRYSM, CrucibleTests::meltsChrysm);
         reg(r, CR_CAP_EACH_TYPE, CrucibleTests::reservoirCapsEachType);
         reg(r, CR_CAP_BLOB_IN_HAND, CrucibleTests::blobInHandRefusedAtCap);
         reg(r, CR_CAP_BLOB_ENTITY, CrucibleTests::blobEntityRefusedAtCap);
