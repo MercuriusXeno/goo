@@ -5,8 +5,8 @@ import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 import net.minecraft.core.Direction;
 
 /**
- * Render state snapshot for the crystallizer BER: its facing and the two
- * canisters standing on its top.
+ * Render state snapshot for the crystallizer BER: its facing, the two
+ * canisters standing on its top and the quartz cluster growing from its spot.
  */
 public class CrystallizerRenderState extends BlockEntityRenderState {
 
@@ -18,6 +18,12 @@ public class CrystallizerRenderState extends BlockEntityRenderState {
 
     /** The two canister slots, back left then back right. */
     public final SlotState[] slots = {new SlotState(), new SlotState()};
+
+    /** The goo crystallized so far, in mB; the quartz cluster grows with it. */
+    public long crystallized;
+
+    /** The cluster's tint, the growing type's color with its alpha. */
+    public int crystalColor;
 
     /**
      * @return where the canisters stand
