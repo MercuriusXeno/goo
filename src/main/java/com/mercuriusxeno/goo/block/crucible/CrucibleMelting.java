@@ -40,7 +40,7 @@ final class CrucibleMelting {
         handleBoilingEffects(be, level, pos);
         be.gasketPusher.tick();
 
-        boolean lit = be.isEnabled() && be.canHeat();
+        boolean lit = be.canHeat();
         if (lit != state.getValue(CrucibleBlock.LIT)) {
             if (lit) {
                 beginIgnitionSpray(be);
@@ -51,17 +51,14 @@ final class CrucibleMelting {
 
     /**
      * Per-tick melting: burns one heat tick and advances an item's melt clock on the
-     * burning grade's exponent (decision melt-time-is-mb-to-a-power). Skips if disabled,
-     * and burns nothing without a meltable item or heat to buy.
+     * burning grade's exponent (decision melt-time-is-mb-to-a-power);
+     * it burns nothing without a meltable item or heat to buy.
      *
      * @param be    the crucible block entity
      * @param level the current level
      * @param pos   the block position
      */
     private static void handleMeltingTick(CrucibleBlockEntity be, Level level, BlockPos pos) {
-        if (!be.isEnabled()) {
-            return;
-        }
         CrucibleHeat.MeltHeat burning = be.heat.burnMeltTick(hasMeltableItem(be), FuelGrade.configured(),
                 GooConfig.COMBO_DRAIN_PER_TICK.get(), be.fuelStock);
         if (burning == null) {
@@ -96,9 +93,6 @@ final class CrucibleMelting {
      * @param pos   the block position
      */
     private static void handleBoilingEffects(CrucibleBlockEntity be, Level level, BlockPos pos) {
-        if (!be.isEnabled()) {
-            return;
-        }
         if (!be.canHeat()) {
             return;
         }

@@ -97,7 +97,8 @@ public class CanisterItem extends BlockItem implements IGooItemInteraction, GooC
     // --- Insertion logic ---
 
     /**
-     * Validates and places a new canister block, checking support below.
+     * Places a new canister block when the block below supports it: its top face
+     * covers the central 12x12 pixels, or it is an attachable machine with capacity.
      *
      * @param context  the use-on context
      * @param level    the current level

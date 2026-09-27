@@ -149,12 +149,6 @@ public class CrucibleBlockEntity extends GooGlowingMachineBlockEntity implements
         return heat.forecast(FuelGrade.configured(), GooConfig.COMBO_DRAIN_PER_TICK.get(), fuelStock::volume);
     }
 
-    /** Returns true if the crucible is enabled (no redstone signal).
-     *
-     * @return true if enabled
-     */
-    public boolean isEnabled() { return !getBlockState().getValue(CrucibleBlock.POWERED); }
-
     /**
      * Returns the backing fluid handler for direct Transfer API access.
      *
