@@ -53,6 +53,9 @@ public final class CrystallizerTests {
     private static final int IDLE_TICKS = 40;
     private static final double HALF = 0.5;
     private static final double DIAL_CENTER_Y = 7.0 / 16.0;
+    /** The purple spot the crystal grows from, block-local, with the dial facing north. */
+    private static final double[] CRYSTAL_SPOT_NORTH = {8.0 / 16.0, 5.0 / 16.0};
+    private static final double CRYSTAL_HIT_LIFT = 2.0 / 16.0;
     /** Block-local centers of the back-left and back-right slots with the dial facing north. */
     private static final double[][] NORTH_SLOT_CENTERS = {{12.0 / 16.0, 12.0 / 16.0}, {4.0 / 16.0, 12.0 / 16.0}};
 
@@ -242,6 +245,30 @@ public final class CrystallizerTests {
             helper.assertTrue(crystallizer.crystallized() > 0 && GooTypes.ENDER.equals(crystallizer.formingType()),
                     "Ender through the canister's gasket should crystallize, crystallized "
                             + crystallizer.crystallized());
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A crystallized chrysm grows a crystal above the spot: the crystallizer's shape
+     * reaches up around it, and an empty-hand click on the crystal hands the chrysm.
+     *
+     * @param helper the gametest helper
+     */
+    public static void clickingTheCrystalTakesTheChrysm(GameTestHelper helper) {
+        CrystallizerBlockEntity crystallizer = placeCrystallizer(helper, 1);
+        crystallizer.insertCanister(FIRST, canister(GooTypes.CRYSTAL, CRYSTAL_COST), false);
+        crystallizer.insertCanister(SECOND, canister(GooTypes.ENDER, CHRYSM_VOLUME), false);
+        helper.runAfterDelay(CRYSTALLIZE_TICKS, () -> {
+            BlockPos abs = helper.absolutePos(CRYSTALLIZER_POS);
+            double top = helper.getBlockState(CRYSTALLIZER_POS).getShape(helper.getLevel(), abs).bounds().maxY;
+            helper.assertTrue(top > 1.0, "The crystallizer's shape should reach up around the crystal, top " + top);
+            Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+            helper.useBlock(CRYSTALLIZER_POS, player, new BlockHitResult(
+                    new Vec3(abs.getX() + CRYSTAL_SPOT_NORTH[0], abs.getY() + 1.0 + CRYSTAL_HIT_LIFT,
+                            abs.getZ() + CRYSTAL_SPOT_NORTH[1]), Direction.UP, abs, false));
+            ItemStack hand = player.getItemInHand(InteractionHand.MAIN_HAND);
+            helper.assertTrue(hand.is(GooItems.CHRYSM.get()), "A click on the crystal should hand the chrysm, found " + hand);
             helper.succeed();
         });
     }

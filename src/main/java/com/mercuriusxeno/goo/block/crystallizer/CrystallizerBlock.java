@@ -206,8 +206,26 @@ public class CrystallizerBlock extends GooMachineBlock {
                     shape = Shapes.or(shape, canisterSlotShape(state.getValue(FACING), slot));
                 }
             }
+            shape = Shapes.or(shape, crystalShape(state.getValue(FACING), crystallizer.crystallized()));
         }
         return shape;
+    }
+
+    /**
+     * The box around the quartz cluster, so a click on the crystal lands on the crystallizer.
+     *
+     * @param facing       the face the dial sits on
+     * @param crystallized the crystallized volume, in mB
+     * @return the cluster's box, empty while nothing is crystallized
+     */
+    public static VoxelShape crystalShape(Direction facing, long crystallized) {
+        double[] reach = CrystalCluster.reach(crystallized);
+        if (reach[1] <= 0) {
+            return Shapes.empty();
+        }
+        double[] center = modelToWorld(facing, CrystalCluster.BASE_X, CrystalCluster.BASE_Z);
+        return box(center[0] - reach[0], TOP, center[1] - reach[0],
+                center[0] + reach[0], TOP + reach[1], center[1] + reach[0]);
     }
 
     /** The dial is too small to stand on or bump; only the body collides. */
