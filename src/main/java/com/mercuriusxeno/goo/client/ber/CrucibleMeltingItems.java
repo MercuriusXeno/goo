@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.block.crucible.CrucibleBasin;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
 import com.mercuriusxeno.goo.block.crucible.CrucibleMeltQueue;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
+import com.mercuriusxeno.goo.client.SurfaceRipple;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
@@ -76,7 +77,8 @@ final class CrucibleMeltingItems {
     void submit(CrucibleRenderState state, CrucibleBasin.@Nullable DrawnSurface surface,
                 PoseStack poseStack, SubmitNodeCollector nodeCollector) {
         if (state.hasHead) {
-            submitTiles(state.headItem, CrucibleItemLayout.headTiles(surface, state.rippleAmplitude, state.headGlow.fraction()),
+            submitTiles(state.headItem, CrucibleItemLayout.headTiles(surface, state.rippleAmplitude, state.headGlow.fraction(),
+                            new SurfaceRipple.Field(state.blockPos.getX(), state.blockPos.getZ(), state.dayFraction)),
                     state.headGlow, poseStack, nodeCollector, state.lightCoords);
         }
         List<CrucibleItemLayout.ItemPlacement> placements = CrucibleItemLayout.waiting(surface, state.rippleAmplitude,

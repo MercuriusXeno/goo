@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.block.crucible.CrucibleBasin;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.RecordingVertexConsumer;
 import com.mercuriusxeno.goo.client.RenderContext;
+import com.mercuriusxeno.goo.client.SurfaceRipple;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
@@ -82,7 +83,8 @@ class CrucibleMeltingItemsTest {
         }).when(delegate).submitCustomGeometry(any(PoseStack.class), any(RenderType.class), any());
 
         CrucibleMeltingItems.submitTiles(oneQuadItem(),
-                CrucibleItemLayout.headTiles(null, RenderContext.RESTING_RIPPLE_AMPLITUDE, 0f),
+                CrucibleItemLayout.headTiles(null, RenderContext.RESTING_RIPPLE_AMPLITUDE, 0f,
+                        new SurfaceRipple.Field(0, 0, 0f)),
                 DissolveGlow.single(FRACTION, 0xFFFFFF), new PoseStack(), delegate, LIGHT);
 
         assertEquals(CrucibleItemLayout.TILE_COUNT, renderTypes.size());
