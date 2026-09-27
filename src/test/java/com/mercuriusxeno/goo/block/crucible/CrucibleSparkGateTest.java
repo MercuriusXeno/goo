@@ -17,8 +17,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class CrucibleSparkGateTest {
 
     private static final List<FuelGrade> GRADES = List.of(
-        new FuelGrade(GooTypes.UNSTABLE, GooConfig.DEFAULT_UNSTABLE_TICKS_PER_MB, GooConfig.DEFAULT_UNSTABLE_MELT_RATE),
-        new FuelGrade(GooTypes.BLAZE, GooConfig.DEFAULT_BLAZE_TICKS_PER_MB, GooConfig.DEFAULT_BLAZE_MELT_RATE));
+        new FuelGrade(GooTypes.UNSTABLE, GooConfig.DEFAULT_UNSTABLE_TICKS_PER_MB, GooConfig.DEFAULT_UNSTABLE_MELT_EXPONENT),
+        new FuelGrade(GooTypes.BLAZE, GooConfig.DEFAULT_BLAZE_TICKS_PER_MB, GooConfig.DEFAULT_BLAZE_MELT_EXPONENT));
     private static final int SOME_HEAT = 20;
     private static final int SOME_FUEL = 1;
 
