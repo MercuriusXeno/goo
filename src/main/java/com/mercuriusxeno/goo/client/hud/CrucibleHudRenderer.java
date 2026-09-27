@@ -27,9 +27,6 @@ import java.util.List;
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class CrucibleHudRenderer {
 
-    /** Y threshold in block-local coords: below this is the fuel rod area, not the basin. */
-    private static final double BASIN_MIN_Y = 10.0 / 16.0;
-
     private static final HudAnimator<BlockPos> ANIMATOR = new HudAnimator<>(BlockPos::equals);
 
     private CrucibleHudRenderer() {}
@@ -56,9 +53,8 @@ public final class CrucibleHudRenderer {
     }
 
     /**
-     * Returns the block position of the targeted crucible basin, or null.
-     * Only returns a target when the crosshair hits the basin portion (Y >= 10/16),
-     * not the fuel rod area below.
+     * Returns the block position of the targeted crucible basin, or null when
+     * the crosshair misses a crucible or rests on its fuel-rod area.
      *
      * @return the targetPos
      */
@@ -66,10 +62,8 @@ public final class CrucibleHudRenderer {
         Minecraft mc = Minecraft.getInstance();
         BlockHitResult hit = getBlockHitResult(mc);
         if (hit == null) { return null; }
-        BlockPos pos = hit.getBlockPos();
-        if (mc.level.getBlockEntity(pos, GooBlockEntities.CRUCIBLE.get()).isEmpty()) { return null; }
-        if (hitsBelowBasin(hit, pos)) { return null; }
-        return pos;
+        if (mc.level.getBlockEntity(hit.getBlockPos(), GooBlockEntities.CRUCIBLE.get()).isEmpty()) { return null; }
+        return CrucibleHudTarget.basinTarget(hit);
     }
 
     /**
@@ -82,18 +76,6 @@ public final class CrucibleHudRenderer {
         if (mc.level == null || mc.hitResult == null) { return null; }
         if (mc.hitResult.getType() != HitResult.Type.BLOCK) { return null; }
         return (BlockHitResult) mc.hitResult;
-    }
-
-    /**
-     * Returns true if the hit location is below the basin floor (fuel rod area).
-     *
-     * @param hit the block hit result
-     * @param pos the block position
-     * @return true if the condition is met
-     */
-    private static boolean hitsBelowBasin(BlockHitResult hit, BlockPos pos) {
-        double localY = hit.getLocation().y - pos.getY();
-        return localY < BASIN_MIN_Y;
     }
 
     /**
@@ -122,6 +104,6 @@ public final class CrucibleHudRenderer {
             return;
         }
         Vec3 anchor = CrucibleRimMath.rimAnchor(be.getBlockPos(), camera);
-        PanelPainter.paint(poseStack, camera, PanelPlacement.onRim(anchor, ANIMATOR.pitch()), rows);
+        PanelPainter.paint(poseStack, camera, PanelPlacement.onRim(anchor, ANIMATOR.pitch(), ANIMATOR.opacity()), rows);
     }
 }

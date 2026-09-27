@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.client.RenderContext;
 import com.mercuriusxeno.goo.client.TypeBand;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
+import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
@@ -22,12 +23,21 @@ public class CrucibleRenderState extends BlockEntityRenderState {
     /** Ripple amplitude of the liquid surface in blocks. */
     public float rippleAmplitude = RenderContext.RESTING_RIPPLE_AMPLITUDE;
 
+    /** The fraction of the day the surface shader's GameTime reads this frame, which the tiles bob by. */
+    public float dayFraction;
+
     /** The dissolving item's model, meaningful while {@link #hasHead}. */
     public final ItemStackRenderState headItem = new ItemStackRenderState();
 
     /** The pose the dissolving item is drawn at: flat at rest, or easing from its item entity's pose. */
     public CrucibleHeadHandoff.ItemPose headPose = new CrucibleHeadHandoff.ItemPose(0f, 0f, 0f, 0f,
         CrucibleHeadHandoff.FLAT_TILT_DEGREES, 1f);
+
+    /** True while the head eases in from its item entity's pose, drawn whole until it lies at rest. */
+    public boolean headEasing;
+
+    /** The dissolving item's shards, or null while none dissolves. */
+    public @Nullable HeadShards headShards;
 
     /** True when an item is dissolving and its model resolved. */
     public boolean hasHead;

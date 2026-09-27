@@ -117,7 +117,8 @@ final class HubBlockHandlers {
     // --- Item insertion handlers ---
 
     /**
-     * Inserts a canister item into the best slot resolved from the hit result.
+     * Inserts a canister item into the best slot resolved from the hit result. A hit on the
+     * attach spot passes, so the canister item places above the hub.
      *
      * @param hub       the hub block entity
      * @param hitResult the ray trace hit result
@@ -128,6 +129,9 @@ final class HubBlockHandlers {
     private static InteractionResult handleCanisterInsert(
             HubBlockEntity hub, BlockHitResult hitResult,
             ItemStack stack, Player player) {
+        if (HubBlock.isAttachSpotHit(hitResult, hub.getBlockPos())) {
+            return InteractionResult.PASS;
+        }
         if (!tryInsertCanister(hub, hitResult, stack)) {
             return InteractionResult.TRY_WITH_EMPTY_HAND;
         }

@@ -1,5 +1,5 @@
 // Mingle noise of decision noise-mingled-type-textures: each goo type past
-// the largest draws over the layers below at an opacity from its own noise
+// the first draws over the layers below at an opacity from its own noise
 // field of world position and GameTime, so the types form blobs that blend
 // at short seams and never average into one sludge.
 // A shader under shaders/core imports it by its quoted relative name.
@@ -20,8 +20,8 @@ const float MINGLE_ROLL_CYCLES_PER_DAY = 55.0;
 const float MINGLE_HEAVE_CYCLES_PER_DAY = 70.0;
 // Cells each drift loop reaches from its centre.
 const float MINGLE_DRIFT_CELLS = 0.6;
-// Offsets each layer's field so every type blobs on its own.
-const vec3 MINGLE_LAYER_SEED = vec3(37.1, 11.7, 53.3);
+// Offsets each seed's field so every type blobs on its own.
+const vec3 MINGLE_SEED_OFFSET = vec3(37.1, 11.7, 53.3);
 // Mean opacity at thresholds -MINGLE_SEAM + i/32 (1 + 2 MINGLE_SEAM),
 // measured over three million uniform samples of mingleField, so the
 // threshold whose mean opacity is a layer's share is read off by inversion.
@@ -77,25 +77,25 @@ float mingleThreshold(float share) {
     return mingleCoverageThreshold(MINGLE_COVERAGE_STEPS);
 }
 
-// Closed loops in all three axes, phase-shifted per layer, so the blobs sway
+// Closed loops in all three axes, phase-shifted per seed, so the blobs sway
 // across the top and heave up and down the sides.
-vec3 mingleDrift(float gameTime, float layer) {
-    float sway = gameTime * MINGLE_TAU * MINGLE_SWAY_CYCLES_PER_DAY + layer;
-    float roll = gameTime * MINGLE_TAU * MINGLE_ROLL_CYCLES_PER_DAY + layer * 1.7;
-    float heave = gameTime * MINGLE_TAU * MINGLE_HEAVE_CYCLES_PER_DAY + layer * 2.3;
+vec3 mingleDrift(float gameTime, float seed) {
+    float sway = gameTime * MINGLE_TAU * MINGLE_SWAY_CYCLES_PER_DAY + seed;
+    float roll = gameTime * MINGLE_TAU * MINGLE_ROLL_CYCLES_PER_DAY + seed * 1.7;
+    float heave = gameTime * MINGLE_TAU * MINGLE_HEAVE_CYCLES_PER_DAY + seed * 2.3;
     return MINGLE_DRIFT_CELLS * vec3(cos(sway) + sin(roll), sin(heave), sin(sway) + cos(roll));
 }
 
-// The opacity a layer draws at: 1 for layer 0, else a smoothstep of its own
-// field around the threshold whose mean opacity over the surface is share.
-float mingleOpacity(vec3 worldPos, float gameTime, float share, float layer) {
-    if (layer < 0.5) {
-        return 1.0;
-    }
+// The opacity a layer draws at: a smoothstep of the field its seed picks
+// around the threshold whose mean opacity over the surface is share. Layer 0's
+// share is 1, whose threshold sits a seam below the field's floor, so it
+// draws whole; the field follows the seed rather than the layer, so no layer
+// renumbering reshuffles a pattern (decision mingle-noise-keyed-by-type).
+float mingleOpacity(vec3 worldPos, float gameTime, float share, float seed) {
     if (share <= 0.0) {
         return 0.0;
     }
-    vec3 p = worldPos * MINGLE_CELLS_PER_BLOCK + mingleDrift(gameTime, layer) + layer * MINGLE_LAYER_SEED;
+    vec3 p = worldPos * MINGLE_CELLS_PER_BLOCK + mingleDrift(gameTime, seed) + seed * MINGLE_SEED_OFFSET;
     float threshold = mingleThreshold(share);
     return smoothstep(threshold - MINGLE_SEAM, threshold + MINGLE_SEAM, mingleField(p));
 }

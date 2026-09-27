@@ -16,6 +16,7 @@ import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.util.ARGB;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.Vec3;
@@ -66,6 +67,15 @@ public final class PanelPainter {
     private static final float HALF = 2f;
     /** Border count across a panel, one on each side. */
     private static final int BORDERS_ACROSS = 2;
+    /**
+     * The most of the screen's height a panel covers before it splits or shrinks
+     * (decision wheel-fills-eighty-percent-of-screen).
+     */
+    private static final double SCREEN_HEIGHT_CAP = 0.8;
+    /** Columns a panel splits into past the cap. */
+    private static final int COLUMNS = 2;
+    /** Gap between two columns: the panel's left and right borders together. */
+    private static final float COLUMN_GAP = InWorldHud.BORDER * BORDERS_ACROSS;
 
     private PanelPainter() {
     }
@@ -79,15 +89,120 @@ public final class PanelPainter {
      * @param rows      the rows top to bottom
      */
     public static void paint(PoseStack poseStack, Camera camera, PanelPlacement placement, List<PanelRow> rows) {
+        Minecraft minecraft = Minecraft.getInstance();
+        Font font = minecraft.font;
+        double distance = camera.position().distanceTo(placement.anchor());
+        double fovDegrees = minecraft.options.fov().get();
+        PanelLayout layout = layOut(rows, font::width, distance, fovDegrees);
+        float shrink = (float) shrinkFactor(
+                projectedFraction(layout.size().height() * InWorldHud.PIXEL_SCALE, distance, fovDegrees));
         poseStack.pushPose();
         orient(poseStack, camera, placement);
-        Font font = Minecraft.getInstance().font;
-        PanelSize size = measure(rows, font::width);
+        // scales about the bottom center, the anchor (decision panel-wraps-to-two-columns-then-shrinks)
+        poseStack.scale(shrink, shrink, shrink);
         if (placement.face() == Direction.DOWN) {
-            poseStack.translate(0, size.height(), 0);
+            poseStack.translate(0, layout.size().height(), 0);
         }
-        paintBody(poseStack, font, size, rows);
+        paintBody(poseStack, font, layout, rows, placement.opacity());
         poseStack.popPose();
+    }
+
+    /**
+     * Scales a packed ARGB color's alpha by the panel's fade, keeping its RGB
+     * (decision diagnose-then-fix-hud-panel-fade).
+     *
+     * @param argb    the packed ARGB color
+     * @param opacity the fade factor [0, 1]
+     * @return the color with its alpha scaled
+     */
+    public static int fadeColor(int argb, float opacity) {
+        return ARGB.multiplyAlpha(argb, opacity);
+    }
+
+    /**
+     * Answers how much of the screen's height a panel covers at a distance from
+     * the camera: its world height over the view frustum's height there
+     * (decision panel-wraps-to-two-columns-then-shrinks).
+     *
+     * @param worldHeight the panel's height in blocks
+     * @param distance    the panel's distance from the camera in blocks
+     * @param fovDegrees  the vertical field of view in degrees
+     * @return the panel's height as a fraction of the screen's height
+     */
+    public static double projectedFraction(double worldHeight, double distance, double fovDegrees) {
+        return worldHeight / (HALF * distance * Math.tan(Math.toRadians(fovDegrees) / HALF));
+    }
+
+    /**
+     * Answers the uniform scale that brings a panel covering a fraction of the
+     * screen's height down to {@link #SCREEN_HEIGHT_CAP}, never above its
+     * natural size (decision panel-wraps-to-two-columns-then-shrinks).
+     *
+     * @param fraction the laid out panel's height as a fraction of the screen's height
+     * @return the cap over the fraction past the cap, 1 at or under it
+     */
+    public static double shrinkFactor(double fraction) {
+        return Math.min(1, SCREEN_HEIGHT_CAP / fraction);
+    }
+
+    /**
+     * Lays the rows out in one column, or in two side by side when one column
+     * would cover more than {@link #SCREEN_HEIGHT_CAP} of the screen's height
+     * (decision panel-wraps-to-two-columns-then-shrinks).
+     *
+     * @param rows       the rows top to bottom
+     * @param textWidth  the width in pixels the font gives a string
+     * @param distance   the panel's distance from the camera in blocks
+     * @param fovDegrees the vertical field of view in degrees
+     * @return the panel size and where each row stands in it
+     */
+    public static PanelLayout layOut(List<PanelRow> rows, ToIntFunction<String> textWidth,
+                                     double distance, double fovDegrees) {
+        PanelSize oneColumn = measure(rows, textWidth);
+        double fraction = projectedFraction(oneColumn.height() * InWorldHud.PIXEL_SCALE, distance, fovDegrees);
+        if (fraction <= SCREEN_HEIGHT_CAP) {
+            return new PanelLayout(oneColumn, placeColumn(rows.size(), 0, 0));
+        }
+        int firstColumnRows = (rows.size() + 1) / COLUMNS;
+        float firstWidth = contentWidth(rows.subList(0, firstColumnRows), textWidth);
+        float secondWidth = contentWidth(rows.subList(firstColumnRows, rows.size()), textWidth);
+        List<RowSpot> spots = new ArrayList<>(placeColumn(firstColumnRows, 0, 0));
+        spots.addAll(placeColumn(rows.size() - firstColumnRows, 1, firstWidth + COLUMN_GAP));
+        PanelSize size = new PanelSize(
+                firstWidth + COLUMN_GAP + secondWidth + InWorldHud.BORDER * BORDERS_ACROSS,
+                InWorldHud.BORDER * BORDERS_ACROSS + firstColumnRows * ROW_HEIGHT);
+        return new PanelLayout(size, spots);
+    }
+
+    /**
+     * Stacks a column's rows from the panel's top border down.
+     *
+     * @param rowCount the rows in the column
+     * @param column   the column index, 0 for the left
+     * @param offset   the column's left edge past the left border
+     * @return each row's spot, top first
+     */
+    private static List<RowSpot> placeColumn(int rowCount, int column, float offset) {
+        List<RowSpot> spots = new ArrayList<>(rowCount);
+        for (int i = 0; i < rowCount; i++) {
+            spots.add(new RowSpot(column, InWorldHud.BORDER + offset, InWorldHud.BORDER + i * ROW_HEIGHT));
+        }
+        return spots;
+    }
+
+    /**
+     * Answers the widest row's width.
+     *
+     * @param rows      the rows
+     * @param textWidth the width in pixels the font gives a string
+     * @return the widest row's width, 0 for no rows
+     */
+    private static float contentWidth(List<PanelRow> rows, ToIntFunction<String> textWidth) {
+        float width = 0;
+        for (PanelRow row : rows) {
+            width = Math.max(width, row.width(textWidth));
+        }
+        return width;
     }
 
     /**
@@ -98,12 +213,8 @@ public final class PanelPainter {
      * @return the panel size in scaled pixels
      */
     public static PanelSize measure(List<PanelRow> rows, ToIntFunction<String> textWidth) {
-        float contentWidth = 0;
-        for (PanelRow row : rows) {
-            contentWidth = Math.max(contentWidth, row.width(textWidth));
-        }
         return new PanelSize(
-                contentWidth + InWorldHud.BORDER * BORDERS_ACROSS,
+                contentWidth(rows, textWidth) + InWorldHud.BORDER * BORDERS_ACROSS,
                 InWorldHud.BORDER * BORDERS_ACROSS + rows.size() * ROW_HEIGHT);
     }
 
@@ -220,20 +331,38 @@ public final class PanelPainter {
      */
     public static void drawRow(PoseStack poseStack, Font font, MultiBufferSource buffers,
                                PanelRow row, float x, float y) {
-        RowGeometry geometry = rowGeometry(y, row.icon() != null, DIGIT_GLYPH_HEIGHT);
+        drawRow(poseStack, font, buffers, row, new RowOrigin(x, y, 1f));
+    }
+
+    /**
+     * Draws one row at the panel's fade.
+     *
+     * @param poseStack the pose stack for rendering
+     * @param font      the font renderer
+     * @param buffers   the buffer source
+     * @param row       the row
+     * @param origin    the row's top left and the fade it draws at
+     */
+    private static void drawRow(PoseStack poseStack, Font font, MultiBufferSource buffers,
+                                PanelRow row, RowOrigin origin) {
+        float x = origin.x();
+        RowGeometry geometry = rowGeometry(origin.y(), row.icon() != null, DIGIT_GLYPH_HEIGHT);
+        int iconColor = fadeColor(InWorldHud.OPAQUE_WHITE, origin.opacity());
         Identifier icon = row.icon();
         Identifier secondIcon = row.secondIcon();
         if (icon != null) {
             GooRenderUtil.UvRect uv = row.iconUv() == null ? WHOLE_TEXTURE : row.iconUv();
-            drawIcon(poseStack, buffers, row.seeThrough(), new IconQuad(icon, uv), x, geometry.iconTop());
+            drawIcon(poseStack, buffers, row.seeThrough(), new IconQuad(icon, uv, iconColor), x, geometry.iconTop());
         }
         if (icon != null && secondIcon != null) {
-            drawIcon(poseStack, buffers, row.seeThrough(), new IconQuad(secondIcon, WHOLE_TEXTURE),
+            drawIcon(poseStack, buffers, row.seeThrough(), new IconQuad(secondIcon, WHOLE_TEXTURE, iconColor),
                     x + ICON_SIZE + ICON_TEXT_GAP, geometry.iconTop());
         }
         float textX = x + row.iconsWidth();
         for (PanelRow.TextSegment segment : row.segments()) {
-            drawSegment(poseStack, font, buffers, row.seeThrough(), segment, textX, geometry.textTop());
+            PanelRow.TextSegment faded = new PanelRow.TextSegment(
+                    segment.text(), fadeColor(segment.color(), origin.opacity()));
+            drawSegment(poseStack, font, buffers, row.seeThrough(), faded, textX, geometry.textTop());
             textX += font.width(segment.text());
         }
     }
@@ -279,19 +408,21 @@ public final class PanelPainter {
      *
      * @param poseStack the pose stack for rendering
      * @param font      the font renderer
-     * @param size      the measured panel size
+     * @param layout    the panel size and where each row stands
      * @param rows      the rows top to bottom
+     * @param opacity   the fade every part of the panel draws at
      */
-    private static void paintBody(PoseStack poseStack, Font font, PanelSize size, List<PanelRow> rows) {
+    private static void paintBody(PoseStack poseStack, Font font, PanelLayout layout, List<PanelRow> rows,
+                                  float opacity) {
         MultiBufferSource.BufferSource buffers = Minecraft.getInstance().renderBuffers().bufferSource();
-        float halfW = size.width() / HALF;
-        InWorldHud.renderBackground(poseStack, buffers,
-                new PanelRectangle(-halfW, -size.height(), size.width(), size.height()));
-        float x = -halfW + InWorldHud.BORDER;
-        float y = -size.height() + InWorldHud.BORDER;
-        for (PanelRow row : rows) {
-            drawRow(poseStack, font, buffers, row, x, y);
-            y += ROW_HEIGHT;
+        PanelSize size = layout.size();
+        float left = -size.width() / HALF;
+        float top = -size.height();
+        InWorldHud.renderBackground(poseStack, buffers, new PanelRectangle(left, top, size.width(), size.height()),
+                fadeColor(InWorldHud.OPAQUE_WHITE, opacity));
+        for (int i = 0; i < rows.size(); i++) {
+            RowSpot spot = layout.spots().get(i);
+            drawRow(poseStack, font, buffers, rows.get(i), new RowOrigin(left + spot.x(), top + spot.y(), opacity));
         }
         buffers.endBatch();
     }
@@ -322,7 +453,7 @@ public final class PanelPainter {
      * @param poseStack  the pose stack for rendering
      * @param buffers    the buffer source
      * @param seeThrough whether the icon draws over world geometry
-     * @param icon       the icon texture and the region of it drawn
+     * @param icon       the icon texture, the region of it drawn and its tint
      * @param x          the icon's left X
      * @param y          the icon's top Y
      */
@@ -332,21 +463,33 @@ public final class PanelPainter {
                 seeThrough ? RenderTypes.textSeeThrough(icon.texture()) : RenderTypes.text(icon.texture()));
         PoseStack.Pose pose = poseStack.last();
         GooRenderUtil.UvRect uv = icon.uv();
+        int color = icon.color();
         float x2 = x + ICON_SIZE;
         float y2 = y + ICON_SIZE;
-        InWorldHud.iconVertex(vc, pose, x, y, InWorldHud.CONTENT_Z, uv.u0(), uv.v0());
-        InWorldHud.iconVertex(vc, pose, x, y2, InWorldHud.CONTENT_Z, uv.u0(), uv.v1());
-        InWorldHud.iconVertex(vc, pose, x2, y2, InWorldHud.CONTENT_Z, uv.u1(), uv.v1());
-        InWorldHud.iconVertex(vc, pose, x2, y, InWorldHud.CONTENT_Z, uv.u1(), uv.v0());
+        InWorldHud.iconVertex(vc, pose, x, y, InWorldHud.CONTENT_Z, uv.u0(), uv.v0(), color);
+        InWorldHud.iconVertex(vc, pose, x, y2, InWorldHud.CONTENT_Z, uv.u0(), uv.v1(), color);
+        InWorldHud.iconVertex(vc, pose, x2, y2, InWorldHud.CONTENT_Z, uv.u1(), uv.v1(), color);
+        InWorldHud.iconVertex(vc, pose, x2, y, InWorldHud.CONTENT_Z, uv.u1(), uv.v0(), color);
     }
 
     /**
-     * An icon texture and the region of it one icon quad draws.
+     * An icon texture, the region of it one icon quad draws, and the tint it draws at.
      *
      * @param texture the texture
      * @param uv      the region drawn
+     * @param color   the ARGB tint, whose alpha carries the panel's fade
      */
-    private record IconQuad(Identifier texture, GooRenderUtil.UvRect uv) {
+    private record IconQuad(Identifier texture, GooRenderUtil.UvRect uv, int color) {
+    }
+
+    /**
+     * Where a row starts and the fade it draws at.
+     *
+     * @param x       the row's left X
+     * @param y       the row's top Y
+     * @param opacity the fade factor [0, 1]
+     */
+    private record RowOrigin(float x, float y, float opacity) {
     }
 
     /**
@@ -356,6 +499,34 @@ public final class PanelPainter {
      * @param height the panel height including borders
      */
     public record PanelSize(float width, float height) {
+    }
+
+    /**
+     * A laid out panel: its size and each row's spot, in row order.
+     *
+     * @param size  the panel size including borders
+     * @param spots each row's spot, one per row in row order
+     */
+    public record PanelLayout(PanelSize size, List<RowSpot> spots) {
+        /**
+         * Copies the spots so the layout holds its own list.
+         *
+         * @param size  the panel size including borders
+         * @param spots each row's spot, one per row in row order
+         */
+        public PanelLayout {
+            spots = List.copyOf(spots);
+        }
+    }
+
+    /**
+     * Where one row stands in its panel, from the panel's top left corner.
+     *
+     * @param column the column index, 0 for the left
+     * @param x      the row's left X
+     * @param y      the row's top Y
+     */
+    public record RowSpot(int column, float x, float y) {
     }
 
     /**

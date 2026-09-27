@@ -20,6 +20,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.neoforged.neoforge.client.event.RegisterRenderPipelinesEvent;
+import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -71,7 +72,7 @@ class DissolvingItemCollectorTest {
     private static List<RecordingVertexConsumer.Vertex> submitThrough(DissolveGlow glow,
                                                                       RenderType[] renderType) {
         SubmitNodeCollector delegate = mock(SubmitNodeCollector.class);
-        new DissolvingItemCollector(delegate, glow).submitItem(new PoseStack(), ItemDisplayContext.FIXED,
+        new DissolvingItemCollector(delegate, glow, null, 0, new Matrix4f()).submitItem(new PoseStack(), ItemDisplayContext.FIXED,
                 LIGHT, 0, 0, new int[0], List.of(quadOnItemAtlas()), ItemStackRenderState.FoilType.NONE);
 
         ArgumentCaptor<RenderType> type = ArgumentCaptor.forClass(RenderType.class);
@@ -90,7 +91,7 @@ class DissolvingItemCollectorTest {
         /** A 600/300/100 item's bands span its goo in volume ratio, largest first. */
         @Test
         void threeTypeBandsFollowVolumeRatio() {
-            List<TypeBand> bands = TypeBands.over(THREE_TYPES.toGooContents());
+            List<TypeBand> bands = TypeBands.largestFirst(THREE_TYPES.toGooContents());
 
             assertEquals(List.of(GooTypes.BLAZE, GooTypes.FROST, GooTypes.METAL),
                     bands.stream().map(TypeBand::type).toList());

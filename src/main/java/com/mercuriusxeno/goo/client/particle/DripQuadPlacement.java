@@ -1,5 +1,7 @@
 package com.mercuriusxeno.goo.client.particle;
 
+import com.mercuriusxeno.goo.DripFall;
+
 /**
  * Where a drip's quads sit against the surface its collision box lands on,
  * so neither the falling drop nor its splat shares the block top's plane
@@ -8,7 +10,7 @@ package com.mercuriusxeno.goo.client.particle;
 public final class DripQuadPlacement {
 
     /** Height every drip quad keeps above the surface its collision box rests on. */
-    public static final double SURFACE_MARGIN = 0.02;
+    public static final double SURFACE_MARGIN = DripFall.SURFACE_MARGIN;
 
     /** Half extents in a quad's full height. */
     private static final double HALVES_PER_QUAD = 2.0;
@@ -26,18 +28,6 @@ public final class DripQuadPlacement {
      */
     static double fallQuadCenterY(double particleY, float halfSize) {
         return particleY + halfSize + SURFACE_MARGIN;
-    }
-
-    /**
-     * A camera-facing quad keeps its horizontal axis level, so its lowest
-     * corner sits one half extent under its center at any camera pitch.
-     *
-     * @param particleY the falling drip's y, the bottom of its collision box
-     * @param halfSize  the quad's half extent
-     * @return the lowest y the falling drip's quad reaches
-     */
-    static double fallQuadLowestY(double particleY, float halfSize) {
-        return fallQuadCenterY(particleY, halfSize) - halfSize;
     }
 
     /**
@@ -68,6 +58,68 @@ public final class DripQuadPlacement {
      */
     static boolean dropFits(double roomBelow, float halfSize) {
         return roomBelow >= hangingDrop(halfSize);
+    }
+
+    /**
+     * What a drop hung at the spigot does once its hang ends: fall where it
+     * has room to hang clear of the surface, else splat on the surface
+     * (decision tap-drop-swells-then-falls).
+     */
+    enum HangEnd {
+        /** The drop falls from where it hung. */
+        FALL,
+        /** The drop vanishes and its splat appears on the surface below the spigot. */
+        SPLAT
+    }
+
+    /**
+     * @param roomBelow the clear height under the spigot, up to {@link #hangingDrop}
+     * @param halfSize  the quad's half extent
+     * @return what the hung drop does when its hang ends
+     */
+    static HangEnd hangEnd(double roomBelow, float halfSize) {
+        return dropFits(roomBelow, halfSize) ? HangEnd.FALL : HangEnd.SPLAT;
+    }
+
+    /**
+     * @param hungTicks   hang ticks already run
+     * @param partialTick the partial tick for interpolation
+     * @param hangTicks   the whole hang's length
+     * @return how far the drop has swelled, nothing at 0 and its full square at 1
+     */
+    static float hangProgress(int hungTicks, float partialTick, int hangTicks) {
+        return Math.min(1f, Math.max(0f, (hungTicks + partialTick) / hangTicks));
+    }
+
+    /**
+     * The hanging drop's cuboid: it grows in all three dimensions from a point
+     * to a 2x2 footprint one half extent tall, its top pinned to the spigot,
+     * the growth capped so its bottom stays the margin above a surface too
+     * close to fit it (decisions tap-drop-swells-then-falls, diagnose-then-fix-drip-z-fighting).
+     *
+     * @param spigotY   the spigot's underside
+     * @param halfSize  the drop's full half extent
+     * @param progress  the swell, from {@link #hangProgress}
+     * @param roomBelow the clear height under the spigot, up to {@link #hangingDrop}
+     * @return the cuboid the hanging drop draws
+     */
+    static DripCuboid.Extent hangingCuboid(double spigotY, float halfSize, float progress, double roomBelow) {
+        float roomScale = (float) Math.max(0.0, (roomBelow - SURFACE_MARGIN) / halfSize);
+        float scale = Math.min(progress, roomScale);
+        float height = halfSize * scale;
+        return new DripCuboid.Extent(spigotY - height, halfSize * scale, height);
+    }
+
+    /**
+     * The falling drop's cube, a full quad height tall, its bottom the margin
+     * above its collision box's bottom (decision diagnose-then-fix-drip-z-fighting).
+     *
+     * @param particleY the falling drip's y, the bottom of its collision box
+     * @param halfSize  the drop's half extent
+     * @return the cube the falling drop draws
+     */
+    static DripCuboid.Extent fallingCuboid(double particleY, float halfSize) {
+        return new DripCuboid.Extent(particleY + SURFACE_MARGIN, halfSize, (float) (HALVES_PER_QUAD * halfSize));
     }
 
     /**
