@@ -48,7 +48,8 @@ class TapDripLookTest {
         private DripLook lookFor(long seed) {
             return TapDripLook.of(TYPE,
                     type -> type == TYPE ? sprite : mock(TextureAtlasSprite.class),
-                    type -> FLUID_TINT, type -> FLAT_COLOR, RandomSource.create(seed));
+                    type -> FLUID_TINT, type -> FLAT_COLOR, TapDripParticle.DROP_PATCH_PIXELS,
+                    RandomSource.create(seed));
         }
 
         @Test
@@ -63,13 +64,16 @@ class TapDripLookTest {
 
             assertTrue(uv.u0() >= SPRITE_U0 - UV_TOLERANCE && uv.u1() <= SPRITE_U1 + UV_TOLERANCE, "u " + uv);
             assertTrue(uv.v0() >= SPRITE_V0 - UV_TOLERANCE && uv.v1() <= SPRITE_V1 + UV_TOLERANCE, "v " + uv);
-            assertEquals((SPRITE_U1 - SPRITE_U0) * TapDripLook.PATCH_SPAN, uv.u1() - uv.u0(), UV_TOLERANCE);
-            assertEquals((SPRITE_V1 - SPRITE_V0) * TapDripLook.PATCH_SPAN, uv.v1() - uv.v0(), UV_TOLERANCE);
+            float span = (float) TapDripParticle.DROP_PATCH_PIXELS / TapDripLook.SPRITE_PIXELS;
+            assertEquals((SPRITE_U1 - SPRITE_U0) * span, uv.u1() - uv.u0(), UV_TOLERANCE);
+            assertEquals((SPRITE_V1 - SPRITE_V0) * span, uv.v1() - uv.v0(), UV_TOLERANCE);
         }
 
         @Test
         void farthestPatchEndsOnTheSpritesEdge() {
-            GooRenderUtil.UvRect uv = TapDripLook.patch(sprite, 8, 8);
+            int patch = TapDripParticle.SPLAT_PATCH_PIXELS;
+            int farthest = TapDripLook.SPRITE_PIXELS - patch;
+            GooRenderUtil.UvRect uv = TapDripLook.patch(sprite, patch, farthest, farthest);
 
             assertEquals(SPRITE_U1, uv.u1(), UV_TOLERANCE);
             assertEquals(SPRITE_V1, uv.v1(), UV_TOLERANCE);

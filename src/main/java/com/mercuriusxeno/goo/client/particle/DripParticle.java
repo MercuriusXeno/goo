@@ -12,9 +12,12 @@ import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Quaternionf;
 import org.jspecify.annotations.Nullable;
+import java.util.List;
 
 /**
  * Blocky slime drip particle shared by the trail-drip and the tap-drip.
@@ -30,6 +33,9 @@ public abstract class DripParticle extends SingleQuadParticle {
 
     /** Initial particle size for drip collision box. */
     private static final float DRIP_SIZE = 0.01f;
+
+    /** Share of the collision box's width either side of its center. */
+    private static final double HALF = 0.5;
 
     /** Drag per tick shared with the server's drip arrival timing. */
     private static final float DRAG = (float) DripFall.DRAG;
@@ -132,6 +138,23 @@ public abstract class DripParticle extends SingleQuadParticle {
 
     /** Ground-contact behavior after each move. */
     protected abstract void postMoveUpdate();
+
+    /**
+     * Sweeps a drip's collision box straight down from a point the way the
+     * drip's own move does, stopping at the first surface.
+     *
+     * @param level the client level
+     * @param x     the X of the point
+     * @param y     the Y of the point, the collision box's bottom
+     * @param z     the Z of the point
+     * @param reach how far down to sweep
+     * @return the clear height under the point, at most the reach
+     */
+    static double roomBelow(ClientLevel level, double x, double y, double z, double reach) {
+        double half = DRIP_SIZE * HALF;
+        AABB box = new AABB(x - half, y, z - half, x + half, y + DRIP_SIZE, z + half);
+        return -Entity.collideBoundingBox(null, new Vec3(0.0, -reach, 0.0), box, level, List.of()).y;
+    }
 
     /**
      * The falling drip - falls under gravity, spawns its land splat on ground contact.
@@ -266,6 +289,14 @@ public abstract class DripParticle extends SingleQuadParticle {
         protected abstract Layer layer();
 
         /**
+         * @param randomHalfSize the half extent the particle rolled
+         * @return the half extent the drop's quad draws at
+         */
+        protected float quadHalfSize(float randomHalfSize) {
+            return randomHalfSize;
+        }
+
+        /**
          * @param options the option the drip was sent with
          * @return the splat option the drip spawns on ground contact
          */
@@ -291,8 +322,10 @@ public abstract class DripParticle extends SingleQuadParticle {
                 double x, double y, double z,
                 double xSpeed, double ySpeed, double zSpeed,
                 RandomSource random) {
-            return new FallParticle(level, x, y, z, new Vec3(xSpeed, ySpeed, zSpeed),
+            FallParticle drop = new FallParticle(level, x, y, z, new Vec3(xSpeed, ySpeed, zSpeed),
                     look(options, random), layer(), landOption(options));
+            drop.quadSize = quadHalfSize(drop.quadSize);
+            return drop;
         }
     }
 
@@ -317,6 +350,14 @@ public abstract class DripParticle extends SingleQuadParticle {
         protected abstract Layer layer();
 
         /**
+         * @param rolledHalfSize the half extent the splat rolled, scaled for landing
+         * @return the half extent the splat's quad starts at before it spreads
+         */
+        protected float quadHalfSize(float rolledHalfSize) {
+            return rolledHalfSize;
+        }
+
+        /**
          * Creates a ground splat particle.
          *
          * @param options the option the splat was spawned with
@@ -336,7 +377,9 @@ public abstract class DripParticle extends SingleQuadParticle {
                 double x, double y, double z,
                 double xSpeed, double ySpeed, double zSpeed,
                 RandomSource random) {
-            return new LandParticle(level, x, y, z, look(options, random), layer());
+            LandParticle splat = new LandParticle(level, x, y, z, look(options, random), layer());
+            splat.quadSize = quadHalfSize(splat.quadSize);
+            return splat;
         }
     }
 }
