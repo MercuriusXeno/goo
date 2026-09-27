@@ -41,6 +41,28 @@ class TapDripFallTest {
         return ticks;
     }
 
+    /**
+     * Ticks the client tap-drip takes from spawn to a surface a distance
+     * below: it holds still for the hang ticks, then falls in particle order.
+     */
+    private static int particleTicksToArrive(double distance, double leaveSpeed) {
+        double y = 0;
+        double yd = -leaveSpeed;
+        int hung = 0;
+        int ticks = 0;
+        while (hung < DripFall.HANG_TICKS || y > -distance) {
+            if (hung < DripFall.HANG_TICKS) {
+                hung++;
+            } else {
+                yd -= DripFall.GRAVITY;
+                y += yd;
+                yd *= DripFall.DRAG;
+            }
+            ticks++;
+        }
+        return ticks;
+    }
+
     private static Function<BlockPos, VoxelShape> solidAt(int y, VoxelShape shape) {
         return pos -> pos.getY() == y ? shape : Shapes.empty();
     }
@@ -57,6 +79,30 @@ class TapDripFallTest {
         assertEquals(particleTicksToPass(distance, 0), DripFall.fallTicks(distance, 0));
         assertEquals(particleTicksToPass(distance, -TapDrip.DRIP_LEAVE_SPEED),
                 DripFall.fallTicks(distance, -TapDrip.DRIP_LEAVE_SPEED));
+    }
+
+    @Test
+    void theHangLastsTheFastestParticleGradesInterval() {
+        assertEquals(TapDripGrade.ONE_PER_4_TICKS.intervalTicks(), DripFall.HANG_TICKS);
+    }
+
+    @ParameterizedTest
+    @ValueSource(doubles = {0.0, 0.1, 1.0, 1.875, 2.875, 10.0, 64.0, 300.0})
+    void arrivalWaitsTheHangThenTheFall(double distance) {
+        int arrival = DripFall.arrivalTicks(distance, -TapDrip.DRIP_LEAVE_SPEED);
+
+        assertEquals(DripFall.HANG_TICKS + DripFall.fallTicks(distance, -TapDrip.DRIP_LEAVE_SPEED), arrival);
+        assertEquals(particleTicksToArrive(distance, -TapDrip.DRIP_LEAVE_SPEED), arrival);
+    }
+
+    @ParameterizedTest
+    @ValueSource(doubles = {61.0, 63.5, 0.0})
+    void releaseQueuesTheLandingAtTheReleaseTickPlusTheArrival(double surfaceY) {
+        int releaseTick = 1200;
+        double spigotY = 64.125;
+
+        assertEquals(releaseTick + DripFall.arrivalTicks(spigotY - surfaceY, -TapDrip.DRIP_LEAVE_SPEED),
+                TapDrip.landingTick(releaseTick, spigotY, surfaceY));
     }
 
     @Test

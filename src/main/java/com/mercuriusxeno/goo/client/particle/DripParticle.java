@@ -22,9 +22,9 @@ import java.util.List;
 /**
  * Blocky slime drip particle shared by the trail-drip and the tap-drip.
  * Modeled after vanilla's lava/water drip particles - falls under gravity,
- * splats on ground contact. Spawned directly into the fall phase (no hang
- * phase). Each drip's provider names its look, its layer and the splat its
- * fall spawns.
+ * splats on ground contact. A drip whose provider names hang ticks first
+ * hangs swelling where it spawned, then falls (decision tap-drop-swells-then-falls).
+ * Each drip's provider names its look, its layer and the splat its fall spawns.
  */
 public abstract class DripParticle extends SingleQuadParticle {
 
@@ -110,10 +110,18 @@ public abstract class DripParticle extends SingleQuadParticle {
         this.xo = this.x;
         this.yo = this.y;
         this.zo = this.z;
+        boolean held = this.holdsStill();
         this.preMoveUpdate();
-        if (!this.removed) {
+        if (!this.removed && !held) {
             applyPhysics();
         }
+    }
+
+    /**
+     * @return whether this tick holds the drip where it stands, running no physics
+     */
+    protected boolean holdsStill() {
+        return false;
     }
 
     /** Applies gravity, moves the particle, runs post-move hooks, and damps velocity. */
@@ -157,16 +165,22 @@ public abstract class DripParticle extends SingleQuadParticle {
     }
 
     /**
-     * The falling drip - falls under gravity, spawns its land splat on ground contact.
+     * The falling drip - hangs swelling at the spigot for its hang ticks,
+     * then falls under gravity and spawns its land splat on ground contact.
      */
     private static final class FallParticle extends DripParticle {
 
         private final ParticleOptions landOption;
+        private final int hangTicks;
+        private int hungTicks;
+        private double spigotY;
+        private double roomBelow;
 
         FallParticle(ClientLevel level, double x, double y, double z, Vec3 velocity,
-                DripLook look, Layer layer, ParticleOptions landOption) {
+                DripLook look, Layer layer, ParticleOptions landOption, int hangTicks) {
             super(level, x, y, z, look, layer);
             this.landOption = landOption;
+            this.hangTicks = hangTicks;
             this.xd = velocity.x;
             this.yd = velocity.y;
             this.zd = velocity.z;
@@ -174,8 +188,65 @@ public abstract class DripParticle extends SingleQuadParticle {
         }
 
         /**
-         * Draws the camera-facing quad lifted clear of the surface its
-         * collision box lands on (decision diagnose-then-fix-drip-z-fighting).
+         * Hangs the drop from a spigot: its collision box sits where the full
+         * drop hangs clear of the surface, or on the surface where it has no room.
+         *
+         * @param spigotYAt the spigot's underside
+         * @param room      the clear height under the spigot, up to the hanging drop
+         */
+        void hangFrom(double spigotYAt, double room) {
+            this.spigotY = spigotYAt;
+            this.roomBelow = room;
+            double boxY = DripQuadPlacement.hangEnd(room, this.quadSize) == DripQuadPlacement.HangEnd.FALL
+                    ? DripQuadPlacement.hangingSpawnY(spigotYAt, this.quadSize)
+                    : spigotYAt - room;
+            this.setPos(this.x, boxY, this.z);
+            this.xo = this.x;
+            this.yo = this.y;
+            this.zo = this.z;
+        }
+
+        private boolean hanging() {
+            return this.hungTicks < this.hangTicks;
+        }
+
+        @Override
+        protected boolean holdsStill() {
+            return hanging();
+        }
+
+        /** Counts the hang down, then the lifetime; a drop with no room splats as its hang ends. */
+        @Override
+        protected void preMoveUpdate() {
+            if (!hanging()) {
+                super.preMoveUpdate();
+                return;
+            }
+            this.hungTicks++;
+            if (!hanging() && DripQuadPlacement.hangEnd(this.roomBelow, this.quadSize)
+                    == DripQuadPlacement.HangEnd.SPLAT) {
+                this.remove();
+                this.level.addParticle(landOption, this.x, this.y, this.z, 0.0, 0.0, 0.0);
+            }
+        }
+
+        /**
+         * @param partialTick the partial tick for interpolation
+         * @return the swelling half extent while hanging, the full one after
+         */
+        @Override
+        public float getQuadSize(float partialTick) {
+            if (!hanging()) {
+                return super.getQuadSize(partialTick);
+            }
+            return DripQuadPlacement.hangingHalfSize(this.quadSize,
+                    DripQuadPlacement.hangProgress(this.hungTicks, partialTick, this.hangTicks), this.roomBelow);
+        }
+
+        /**
+         * Draws the camera-facing quad with its top pinned to the spigot while
+         * it hangs, then lifted clear of the surface its collision box lands on
+         * (decision diagnose-then-fix-drip-z-fighting).
          *
          * @param reusedState the reusable render state for quad particles
          * @param camera      the active camera for view transform
@@ -186,8 +257,10 @@ public abstract class DripParticle extends SingleQuadParticle {
         protected void extractRotatedQuad(QuadParticleRenderState reusedState, Camera camera,
                 Quaternionf rotation, float partialTick) {
             Vec3 cameraPos = camera.position();
-            double particleY = Mth.lerp(partialTick, this.yo, this.y);
-            double quadY = DripQuadPlacement.fallQuadCenterY(particleY, this.getQuadSize(partialTick));
+            float halfSize = this.getQuadSize(partialTick);
+            double quadY = hanging()
+                    ? DripQuadPlacement.hangingQuadCenterY(this.spigotY, halfSize)
+                    : DripQuadPlacement.fallQuadCenterY(Mth.lerp(partialTick, this.yo, this.y), halfSize);
             this.extractRotatedQuad(reusedState, rotation,
                     (float) (Mth.lerp(partialTick, this.xo, this.x) - cameraPos.x()),
                     (float) (quadY - cameraPos.y()),
@@ -303,7 +376,16 @@ public abstract class DripParticle extends SingleQuadParticle {
         protected abstract ParticleOptions landOption(T options);
 
         /**
-         * Creates a falling goo drip particle.
+         * @return ticks the drip hangs swelling where it spawns before it falls
+         */
+        protected int hangTicks() {
+            return 0;
+        }
+
+        /**
+         * Creates a falling goo drip particle; one with hang ticks spawns
+         * hanging from the spawn point, its top pinned there
+         * (decision tap-drop-swells-then-falls).
          *
          * @param options the option the drip was sent with
          * @param level the client level to spawn in
@@ -323,8 +405,11 @@ public abstract class DripParticle extends SingleQuadParticle {
                 double xSpeed, double ySpeed, double zSpeed,
                 RandomSource random) {
             FallParticle drop = new FallParticle(level, x, y, z, new Vec3(xSpeed, ySpeed, zSpeed),
-                    look(options, random), layer(), landOption(options));
+                    look(options, random), layer(), landOption(options), hangTicks());
             drop.quadSize = quadHalfSize(drop.quadSize);
+            if (hangTicks() > 0) {
+                drop.hangFrom(y, roomBelow(level, x, y, z, DripQuadPlacement.hangingDrop(drop.quadSize)));
+            }
             return drop;
         }
     }
