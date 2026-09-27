@@ -4,10 +4,12 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.GooConfig;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
+import com.mercuriusxeno.goo.block.crucible.CrucibleAimAssist;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBasin;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
 import com.mercuriusxeno.goo.block.crucible.CrucibleCapacity;
 import com.mercuriusxeno.goo.block.crucible.CrucibleMath;
+import com.mercuriusxeno.goo.block.crucible.CrucibleShape;
 import com.mercuriusxeno.goo.item.BlobStacks;
 import com.mercuriusxeno.goo.item.ChrysmTier;
 import com.mercuriusxeno.goo.item.GooContents;
@@ -25,6 +27,7 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.ItemContainerContents;
@@ -47,13 +50,98 @@ import java.util.Map;
 public final class CrucibleTests {
 
     private static final BlockPos BE_POS = new BlockPos(1, 1, 1);
-    private static final int ABSORB_DELAY = 5;
+    /** Ticks a still item dropped at the basin center takes to land, rest and be consumed. */
+    private static final int ABSORB_DELAY = 10;
     /** Heat granted to a test crucible: an hour of melting, so no test runs it cold. */
     private static final int TEST_HEAT_TICKS = 72_000;
-    /** X/Z center of the crucible basin in test-relative coords. */
-    private static final float BASIN_CENTER_XZ = 1.5f;
-    /** Y position just above the crucible body surface (13/16 + block y=1). */
-    private static final float BASIN_SURFACE_Y = 1.85f;
+    /** Ticks an item dropped over the mouth takes to fall to the floor and stop. */
+    private static final int SETTLE_DELAY = 30;
+    /** A drop height above the rim in test-relative Y. */
+    private static final double MOUTH_DROP_Y = 2.3;
+    /** An item entity's half-width, a quarter block wide. */
+    private static final double ITEM_HALF_WIDTH = 0.125;
+    /**
+     * A ledge spot in test-relative X, the item's west face against the east rim wall;
+     * the east side, since barriers bound the test area on the west.
+     */
+    private static final double LEDGE_X = 1.0 + CrucibleShape.COLLAR_MAX + ITEM_HALF_WIDTH;
+    /** The ledge top in test-relative Y. */
+    private static final double LEDGE_TOP_Y = 1.0 + CrucibleShape.LEDGE_Y;
+    /** How far a resting item's feet may sit from the floor. */
+    private static final double FLOOR_SLACK = 0.01;
+    private static final String IN_FOOTPRINT = "item rests inside the basin footprint: ";
+    private static final String ON_FLOOR = "item rests on the 8/16 basin floor: ";
+    private static final String LEDGE_ITEM_STAYS = "ledge item stays";
+    private static final String LEDGE_ITEM_WHOLE = "ledge item unshrunk";
+    /** Ticks an item at rest on a wall top has to slide into the cavity. */
+    private static final int SLIDE_BOUND = 40;
+    /** A wall top's middle, three pixels in from the block's edge. */
+    private static final double WALL_MIDDLE = 3.0 / 16.0;
+    /** The wall tops in test-relative Y. */
+    private static final double WALL_TOP_Y = 1.0 + CrucibleBasin.RIM_Y;
+    /** An item at rest on the middle of each rim wall top: west, east, north, south. */
+    private static final Vec3[] WALL_TOPS = {
+        new Vec3(1.0 + WALL_MIDDLE, WALL_TOP_Y, CrucibleSpawns.BASIN_CENTER_XZ),
+        new Vec3(2.0 - WALL_MIDDLE, WALL_TOP_Y, CrucibleSpawns.BASIN_CENTER_XZ),
+        new Vec3(CrucibleSpawns.BASIN_CENTER_XZ, WALL_TOP_Y, 1.0 + WALL_MIDDLE),
+        new Vec3(CrucibleSpawns.BASIN_CENTER_XZ, WALL_TOP_Y, 2.0 - WALL_MIDDLE),
+    };
+    private static final Item[] WALL_ITEMS = {Items.COBBLESTONE, Items.DIRT, Items.SAND, Items.GRAVEL};
+    private static final String SLID_ITEM_STAYS = "slid item still exists: ";
+    private static final String SLID_INTO_CAVITY = "wall-top item slid into the cavity: ";
+    private static final String LEDGE_ITEM_OUTSIDE = "ledge item still outside the cavity: ";
+    private static final String LEDGE_ITEM_TAKEN = "ledge item taken once lifted into the cavity";
+    /** Ticks after a ledge item is spawned at which the lift has it in the air, still outside the cavity. */
+    private static final int LIFT_CHECK_TICKS = 2;
+    /** A throw's start in test-relative X, over the crucible's west ledge in the pull field. */
+    private static final double THROW_START_X = 1.05;
+    /** A throw's height in test-relative Y, inside the pull field over the rim. */
+    private static final double THROW_START_Y = 2.2;
+    /** A side throw's start in test-relative X, east of the crucible, out of the field's reach. */
+    private static final double SIDE_THROW_START_X = 2.3;
+    /** A side throw's height in test-relative Y, just under the block's outer top edge. */
+    private static final double SIDE_THROW_START_Y = 1.0 + CrucibleShape.LEDGE_Y - 0.05;
+    /** A side throw's speed west, into the body's side. */
+    private static final double SIDE_THROW_SPEED = 0.3;
+    /**
+     * A rough toss's start in test-relative coords, over the crucible's south-east corner
+     * and inside its own block column, whose chunk the crucible's ticking keeps loaded; an
+     * item spawned past that column can sit in a chunk the test server does not tick.
+     */
+    private static final Vec3 AIM_THROW_FROM = new Vec3(1.95, 2.3, 1.9);
+    /** A rough toss's motion, whose unsteered fall comes down on the east wall top at tick 11. */
+    private static final Vec3 AIM_THROW_MOTION = new Vec3(-0.015, 0.2, -0.02);
+    /** A tick after the toss's arc comes down through the rim. */
+    private static final int AIM_LANDING_TICKS = 12;
+    /** Ticks into the toss at which it is still high over the rim, above the pull field. */
+    private static final int AIM_MIDFLIGHT_TICKS = 3;
+    /** The pull field's top over the rim, which a mid-flight check must be above. */
+    private static final double FIELD_TOP_ABOVE_RIM = 0.25;
+    /** How far from the mouth's center a steered arc may be predicted to come down. */
+    private static final double AIM_ARC_SLACK = 0.01;
+    private static final String STILL_ABOVE_FIELD = "toss still above the pull field mid-flight: ";
+    private static final String ARC_STEERED = "mid-flight arc comes down at the mouth's center: ";
+    /** How far from the mouth's center a steered throw may be a tick after it comes down. */
+    private static final double AIM_CENTER_SLACK = 0.1;
+    private static final String STEERED_TO_CENTER = "steered throw came down at the mouth's center, off by ";
+    /** A throw's speed east, enough to cross the whole block in two ticks. */
+    private static final double THROW_SPEED = 0.5;
+    /** An off-center drop's X offset from the basin center, near the east wall. */
+    private static final double OFF_CENTER_X = 0.1;
+    /** An off-center drop's Z offset from the basin center, near the north wall. */
+    private static final double OFF_CENTER_Z = -0.08;
+    /** A drop height above the basin floor, clear of the goo surface below it. */
+    private static final double DROP_ABOVE_KILL_BOX = 0.4;
+    /** Reservoir goo that stands the surface a pixel and a half over the floor. */
+    private static final int SURFACE_GOO = 16_000;
+    /** Ticks an item dropped over the cavity takes to fall into the kill box. */
+    private static final int KILL_BOX_DELAY = 8;
+    private static final String FALLING_ITEM_STAYS = "item still exists while it falls toward the goo";
+    private static final String TAKEN_AT_KILL_BOX = "item taken once it reached the goo surface";
+    private static final String WAITS_UNCONSUMED = "cold crucible leaves the item";
+    private static final String WAITS_UNSHRUNK = "waiting item unshrunk";
+    private static final String WAITS_ON_FLOOR = "waiting item sank to the floor: ";
+    private static final String WAITS_WHERE_IT_LANDED = "waiting item stays where it landed: ";
     private static final String SHOULD_HAVE_GOO = "Crucible reservoir should contain goo after blob insert";
     private static final String SHOULD_ABSORB = "Crucible should absorb the item entity";
     private static final String RESERVOIR_UNCHANGED = "reservoir unchanged";
@@ -148,8 +236,7 @@ public final class CrucibleTests {
         CrucibleBlockEntity crucible = helper.getBlockEntity(BE_POS, CrucibleBlockEntity.class);
         crucible.addHeat(TEST_HEAT_TICKS);
 
-        // Spawn inside the basin (center of block, just above the body surface)
-        helper.spawnItem(Items.COBBLESTONE, BASIN_CENTER_XZ, BASIN_SURFACE_Y, BASIN_CENTER_XZ);
+        CrucibleSpawns.spawnInBasin(helper, new ItemStack(Items.COBBLESTONE));
 
         helper.runAfterDelay(ABSORB_DELAY, () -> {
             helper.assertFalse(crucible.reservoirHandler().isEmpty(), SHOULD_ABSORB);
@@ -168,8 +255,7 @@ public final class CrucibleTests {
         helper.setBlock(BE_POS, GooBlocks.CRUCIBLE.get());
         CrucibleBlockEntity crucible = helper.getBlockEntity(BE_POS, CrucibleBlockEntity.class);
         crucible.addHeat(TEST_HEAT_TICKS);
-        ItemEntity chrysm = helper.spawnItem(GooItems.CHRYSM.get(), BASIN_CENTER_XZ, BASIN_SURFACE_Y, BASIN_CENTER_XZ);
-        chrysm.setItem(GooItems.CHRYSM.get().createOf(GooTypes.ENDER));
+        ItemEntity chrysm = CrucibleSpawns.spawnInBasin(helper, GooItems.CHRYSM.get().createOf(GooTypes.ENDER));
         helper.runAfterDelay(ABSORB_DELAY, () -> {
             GooContents held = crucible.getReservoir().mergeWith(PartiallyMeltedItem.getContents(crucible.getMeltingItem()));
             helper.assertTrue(chrysm.isRemoved(), "The chrysm should melt in whole");
@@ -179,6 +265,220 @@ public final class CrucibleTests {
                     "crystal goo returned");
             helper.succeed();
         });
+    }
+
+    // -- The cavity (decision collision-is-the-drawn-cavity) --
+
+    /**
+     * An item dropped over the mouth of a cold crucible falls into the cavity and
+     * rests on the drawn floor at 8/16, not on the old invisible floor at 13/16.
+     *
+     * @param helper the gametest helper
+     */
+    public static void droppedItemRestsOnBasinFloor(GameTestHelper helper) {
+        placeCrucible(helper);
+        ItemEntity dropped = CrucibleSpawns.spawnAt(helper, new ItemStack(Items.COBBLESTONE),
+            new Vec3(CrucibleSpawns.BASIN_CENTER_XZ, MOUTH_DROP_Y, CrucibleSpawns.BASIN_CENTER_XZ));
+        helper.runAfterDelay(SETTLE_DELAY, () -> {
+            Vec3 rel = CrucibleSpawns.relativeToCrucible(helper, dropped);
+            helper.assertTrue(rel.x >= CrucibleBasin.FOOTPRINT_MIN && rel.x <= CrucibleBasin.FOOTPRINT_MAX
+                && rel.z >= CrucibleBasin.FOOTPRINT_MIN && rel.z <= CrucibleBasin.FOOTPRINT_MAX,
+                IN_FOOTPRINT + rel);
+            helper.assertTrue(Math.abs(rel.y - CrucibleBasin.FLOOR_Y) < FLOOR_SLACK, ON_FLOOR + rel);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * An item on the outer ledge of a heating crucible is whole while it is still outside
+     * the cavity, and taken only once the lift has carried it in.
+     *
+     * @param helper the gametest helper
+     */
+    public static void ledgeItemTakenOnlyInsideTheCavity(GameTestHelper helper) {
+        CrucibleBlockEntity crucible = placeFueledCrucible(helper);
+        ItemEntity onLedge = spawnOnLedge(helper, new ItemStack(Items.COBBLESTONE, COBBLE_OFFERED));
+        helper.runAfterDelay(LIFT_CHECK_TICKS, () -> {
+            Vec3 rel = CrucibleSpawns.relativeToCrucible(helper, onLedge);
+            helper.assertFalse(CrucibleBasin.holdsPoint(rel.x, rel.y, rel.z), LEDGE_ITEM_OUTSIDE + rel);
+            helper.assertFalse(onLedge.isRemoved(), LEDGE_ITEM_STAYS);
+            helper.assertValueEqual(COBBLE_OFFERED, onLedge.getItem().getCount(), LEDGE_ITEM_WHOLE);
+            helper.assertTrue(crucible.reservoirHandler().isEmpty(), RESERVOIR_UNCHANGED);
+        });
+        helper.runAfterDelay(SLIDE_BOUND, () -> {
+            helper.assertTrue(onLedge.isRemoved(), LEDGE_ITEM_TAKEN);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * @param helper the gametest helper
+     * @param stack  the stack the entity carries
+     * @return a still item grounded on the ledge, its west face against the east rim wall
+     */
+    private static ItemEntity spawnOnLedge(GameTestHelper helper, ItemStack stack) {
+        return CrucibleSpawns.spawnAt(helper, stack, new Vec3(LEDGE_X, LEDGE_TOP_Y, CrucibleSpawns.BASIN_CENTER_XZ));
+    }
+
+    // -- Sliding in (decision rim-and-mouth-items-slide-inward) --
+
+    /**
+     * An item at rest on each of the four rim wall tops of a cold crucible ends
+     * inside the cavity footprint within the slide bound. Each wall carries a
+     * different item so the four never merge on meeting at the center.
+     *
+     * @param helper the gametest helper
+     */
+    public static void wallTopItemsSlideIntoTheCavity(GameTestHelper helper) {
+        placeCrucible(helper);
+        List<ItemEntity> onWalls = new ArrayList<>();
+        for (int wall = 0; wall < WALL_TOPS.length; wall++) {
+            onWalls.add(CrucibleSpawns.spawnAt(helper, new ItemStack(WALL_ITEMS[wall]), WALL_TOPS[wall]));
+        }
+        helper.runAfterDelay(SLIDE_BOUND, () -> {
+            for (ItemEntity item : onWalls) {
+                Vec3 rel = CrucibleSpawns.relativeToCrucible(helper, item);
+                helper.assertFalse(item.isRemoved(), SLID_ITEM_STAYS + item.getItem());
+                helper.assertTrue(CrucibleBasin.holdsPoint(rel.x, rel.y, rel.z), SLID_INTO_CAVITY + rel);
+            }
+            helper.succeed();
+        });
+    }
+
+    /**
+     * An item grounded on the outer ledge of a cold crucible is lifted up and over the
+     * rim wall into the cavity, rather than catching on the collar.
+     *
+     * @param helper the gametest helper
+     */
+    public static void ledgeItemLiftedIntoTheCavity(GameTestHelper helper) {
+        placeCrucible(helper);
+        ItemEntity onLedge = spawnOnLedge(helper, new ItemStack(Items.COBBLESTONE));
+        helper.runAfterDelay(SLIDE_BOUND, () -> assertInCavity(helper, onLedge));
+    }
+
+    /**
+     * An item thrown across the top of a cold crucible, fast enough to sail over it,
+     * is caught by the pull field and drops into the cavity.
+     *
+     * @param helper the gametest helper
+     */
+    public static void thrownItemCaughtByTheField(GameTestHelper helper) {
+        placeCrucible(helper);
+        ItemEntity thrown = CrucibleSpawns.spawnAt(helper, new ItemStack(Items.COBBLESTONE),
+            new Vec3(THROW_START_X, THROW_START_Y, CrucibleSpawns.BASIN_CENTER_XZ));
+        thrown.setDeltaMovement(THROW_SPEED, 0.0, 0.0);
+        helper.runAfterDelay(SLIDE_BOUND, () -> assertInCavity(helper, thrown));
+    }
+
+    /**
+     * An item thrown into the side of a cold crucible just under the block's outer top
+     * edge is lifted up and over the collar into the cavity rather than sliding down
+     * beside the block. Thrown
+     * from the east, since barriers bound the test area on the west.
+     *
+     * @param helper the gametest helper
+     */
+    public static void sideHitItemLiftedIntoTheCavity(GameTestHelper helper) {
+        placeCrucible(helper);
+        ItemEntity thrown = CrucibleSpawns.spawnAt(helper, new ItemStack(Items.COBBLESTONE),
+            new Vec3(SIDE_THROW_START_X, SIDE_THROW_START_Y, CrucibleSpawns.BASIN_CENTER_XZ));
+        thrown.setDeltaMovement(-SIDE_THROW_SPEED, 0.0, 0.0);
+        helper.runAfterDelay(SLIDE_BOUND, () -> assertInCavity(helper, thrown));
+    }
+
+    /**
+     * An item tossed up over a cold crucible on an arc that would come down on the east
+     * wall top is steered while still high over the rim, out of the pull field: a few
+     * ticks in, its own motion carries it down through the rim at the mouth's center, and
+     * a tick after its arc comes down it is in the cavity within a tenth of a block of the
+     * center.
+     *
+     * @param helper the gametest helper
+     */
+    public static void roughThrowSteeredIntoTheMouth(GameTestHelper helper) {
+        placeCrucible(helper);
+        ItemEntity thrown = CrucibleSpawns.spawnAt(helper, new ItemStack(Items.COBBLESTONE), AIM_THROW_FROM);
+        thrown.setDeltaMovement(AIM_THROW_MOTION);
+        helper.runAfterDelay(AIM_MIDFLIGHT_TICKS, () -> {
+            Vec3 rel = CrucibleSpawns.relativeToCrucible(helper, thrown);
+            CrucibleAimAssist.Landing landing = CrucibleAimAssist.landing(rel, thrown.getDeltaMovement());
+            helper.assertTrue(rel.y > CrucibleBasin.RIM_Y + FIELD_TOP_ABOVE_RIM, STILL_ABOVE_FIELD + rel);
+            helper.assertTrue(landing != null && Math.hypot(landing.x() - 0.5, landing.z() - 0.5) < AIM_ARC_SLACK,
+                ARC_STEERED + landing);
+        });
+        helper.runAfterDelay(AIM_LANDING_TICKS, () -> {
+            Vec3 rel = CrucibleSpawns.relativeToCrucible(helper, thrown);
+            double offCenter = Math.hypot(rel.x - CrucibleSpawns.BASIN_CENTER_XZ + 1.0,
+                rel.z - CrucibleSpawns.BASIN_CENTER_XZ + 1.0);
+            helper.assertTrue(CrucibleBasin.holdsPoint(rel.x, rel.y, rel.z), SLID_INTO_CAVITY + rel);
+            helper.assertTrue(offCenter < AIM_CENTER_SLACK, STEERED_TO_CENTER + offCenter);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Asserts an item still exists and lies in the cavity, then succeeds.
+     *
+     * @param helper the gametest helper
+     * @param item   the item entity
+     */
+    private static void assertInCavity(GameTestHelper helper, ItemEntity item) {
+        Vec3 rel = CrucibleSpawns.relativeToCrucible(helper, item);
+        helper.assertFalse(item.isRemoved(), SLID_ITEM_STAYS + item.getItem());
+        helper.assertTrue(CrucibleBasin.holdsPoint(rel.x, rel.y, rel.z), SLID_INTO_CAVITY + rel);
+        helper.succeed();
+    }
+
+    // -- The kill box (decision consume-at-rest-in-place, as the operator reframed it) --
+
+    /**
+     * An item dropped off-center over a heating crucible holding goo is taken the tick it
+     * reaches the goo surface, wherever it lands in the footprint, with no drift or rest first.
+     *
+     * @param helper the gametest helper
+     */
+    public static void droppedItemTakenAtTheKillBox(GameTestHelper helper) {
+        CrucibleBlockEntity crucible = placeFueledCrucible(helper);
+        crucible.insertGoo(GooTypes.ROCK, SURFACE_GOO);
+        ItemEntity item = spawnOffCenter(helper, CrucibleSpawns.BASIN_FLOOR_Y + DROP_ABOVE_KILL_BOX);
+        helper.runAfterDelay(1, () -> helper.assertFalse(item.isRemoved(), FALLING_ITEM_STAYS));
+        helper.runAfterDelay(KILL_BOX_DELAY, () -> {
+            helper.assertTrue(item.isRemoved(), TAKEN_AT_KILL_BOX);
+            helper.assertFalse(crucible.getMeltingItem().isEmpty(), SHOULD_ABSORB);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * An item dropped off-center into a cold crucible holding goo sinks to the basin floor
+     * and waits there whole, where it landed.
+     *
+     * @param helper the gametest helper
+     */
+    public static void coldCrucibleItemWaitsOnTheFloor(GameTestHelper helper) {
+        CrucibleBlockEntity crucible = placeCrucible(helper);
+        crucible.insertGoo(GooTypes.ROCK, SURFACE_GOO);
+        ItemEntity item = spawnOffCenter(helper, CrucibleSpawns.BASIN_FLOOR_Y + DROP_ABOVE_KILL_BOX);
+        helper.runAfterDelay(KILL_BOX_DELAY, () -> {
+            helper.assertFalse(item.isRemoved(), WAITS_UNCONSUMED);
+            helper.assertValueEqual(1, item.getItem().getCount(), WAITS_UNSHRUNK);
+            Vec3 rel = CrucibleSpawns.relativeToCrucible(helper, item);
+            helper.assertTrue(Math.abs(rel.y - CrucibleBasin.FLOOR_Y) < FLOOR_SLACK, WAITS_ON_FLOOR + rel);
+            helper.assertTrue(Math.abs(rel.x - (CrucibleSpawns.BASIN_CENTER_XZ - 1.0 + OFF_CENTER_X)) < FLOOR_SLACK,
+                WAITS_WHERE_IT_LANDED + rel);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * @param helper the gametest helper
+     * @param y      the test-relative drop height
+     * @return a still cobblestone entity dropped over the cavity, off the center on both axes
+     */
+    private static ItemEntity spawnOffCenter(GameTestHelper helper, double y) {
+        return CrucibleSpawns.spawnAt(helper, new ItemStack(Items.COBBLESTONE), new Vec3(
+            CrucibleSpawns.BASIN_CENTER_XZ + OFF_CENTER_X, y, CrucibleSpawns.BASIN_CENTER_XZ + OFF_CENTER_Z));
     }
 
     // -- At the cap (decision crucible-refuses-past-two-billion) --
@@ -667,18 +967,7 @@ public final class CrucibleTests {
         return fullPool;
     }
 
-    /**
-     * Spawns a still item entity inside the basin.
-     *
-     * @param helper the gametest helper
-     * @param stack  the stack the entity carries
-     * @return the spawned entity
-     */
     private static ItemEntity spawnInBasin(GameTestHelper helper, ItemStack stack) {
-        Vec3 at = helper.absoluteVec(new Vec3(BASIN_CENTER_XZ, BASIN_SURFACE_Y, BASIN_CENTER_XZ));
-        ItemEntity entity = new ItemEntity(helper.getLevel(), at.x, at.y, at.z, stack);
-        entity.setDeltaMovement(Vec3.ZERO);
-        helper.getLevel().addFreshEntity(entity);
-        return entity;
+        return CrucibleSpawns.spawnInBasin(helper, stack);
     }
 }
