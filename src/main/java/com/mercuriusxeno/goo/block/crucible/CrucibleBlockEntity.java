@@ -192,12 +192,6 @@ public class CrucibleBlockEntity extends GooGlowingMachineBlockEntity implements
         return reservoir.extractGoo(type, Math.min(amount, Integer.MAX_VALUE), false);
     }
 
-    /** Empties the entire reservoir. */
-    public void drainReservoir() {
-        reservoir.loadFrom(GooContents.EMPTY);
-        syncToClients();
-    }
-
     /**
      * Each reservoir entry glows against {@link #LIGHT_REFERENCE_CAPACITY},
      * the visual fill cap.

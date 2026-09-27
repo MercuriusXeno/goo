@@ -13,9 +13,6 @@ public final class ContainerCapacity {
     /** Base vat capacity in microblobs (2^25 = 33,554,432 mB). */
     public static final int VAT_BASE = 1 << 25;
 
-    /** Hard cap for blob item volume in microblobs (64,000 mB = 64 blobs). */
-    public static final int BLOB_CAP = 64_000;
-
     /** Maximum Compression enchantment level (shared by canister and vat). */
     public static final int MAX_COMPRESSION = 5;
 
