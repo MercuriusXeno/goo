@@ -93,9 +93,11 @@ class HolderBoundsTest {
      * @param slot            the slot the hit addresses, or -1 for a block-level gasket
      * @param role            the gasket role the overlay reads
      * @param anchorsWhenEmpty true when the holder anchors the HUD on an empty slot too
+     * @param ownClickInserts  true when the holder's own standing click inserts a canister
      */
     record Holder(String name, BiFunction<Boolean, Boolean, IGasketHolder> stand,
-                  BlockHitResult hit, int slot, GasketRole role, boolean anchorsWhenEmpty) {
+                  BlockHitResult hit, int slot, GasketRole role, boolean anchorsWhenEmpty,
+                  boolean ownClickInserts) {
         IGasketHolder stood(boolean filled, boolean gasketed) {
             return stand.apply(filled, gasketed);
         }
@@ -109,22 +111,22 @@ class HolderBoundsTest {
     static Stream<Holder> canisterHolders() {
         return Stream.of(
                 new Holder("canister", (filled, gasketed) -> canister(filled),
-                        hitAt(0.5, 0.75, 0.5, Direction.UP), 4, GasketRole.RECEIVER, true),
+                        hitAt(0.5, 0.75, 0.5, Direction.UP), 4, GasketRole.RECEIVER, true, false),
                 new Holder("hub", (filled, gasketed) -> hub(filled),
-                        hitAt(0.5, 0.5, 2.0 / 16.0, Direction.NORTH), 0, GasketRole.TRANSMITTER, true),
+                        hitAt(0.5, 0.5, 2.0 / 16.0, Direction.NORTH), 0, GasketRole.TRANSMITTER, true, true),
                 new Holder("tap", (filled, gasketed) -> tap(filled, gasketed, Direction.SOUTH),
-                        hitAt(0.5, 10.0 / 16.0, 3.0 / 16.0, Direction.NORTH), -1, GasketRole.RECEIVER, false),
+                        hitAt(0.5, 10.0 / 16.0, 3.0 / 16.0, Direction.NORTH), -1, GasketRole.RECEIVER, false, true),
                 new Holder("reactor", (filled, gasketed) -> reactor(filled),
                         hitAt(0.5, 7.0 / 16.0, 3.0 / 16.0, Direction.NORTH), ReactorBlockEntity.OUTPUT_SLOT,
-                        GasketRole.TRANSMITTER, false));
+                        GasketRole.TRANSMITTER, false, true));
     }
 
     static Stream<Holder> gasketHolders() {
         Stream<Holder> blockLevel = Stream.of(
                 new Holder("vat", (filled, gasketed) -> vat(gasketed),
-                        hitAt(0.5, 0.75, 0.5, Direction.UP), -1, GasketRole.RECEIVER, false),
+                        hitAt(0.5, 0.75, 0.5, Direction.UP), -1, GasketRole.RECEIVER, false, false),
                 new Holder("crucible", (filled, gasketed) -> crucible(gasketed),
-                        hitAt(0.5, 0.75, 0.5, Direction.UP), -1, GasketRole.TRANSMITTER, false));
+                        hitAt(0.5, 0.75, 0.5, Direction.UP), -1, GasketRole.TRANSMITTER, false, false));
         return Stream.concat(canisterHolders(), blockLevel);
     }
 
@@ -140,14 +142,14 @@ class HolderBoundsTest {
                     () -> assertNotNull(be.slotBounds(slot), "slotBounds"),
                     () -> assertNotNull(be.outlineShape(holder.hit()), "outlineShape"),
                     () -> assertNotNull(be.pickupBounds(holder.hit()), "pickupBounds"),
-                    () -> assertNull(be.previewBounds(holder.hit(), false), "previewBounds"),
+                    () -> assertNull(be.previewBounds(holder.hit()), "previewBounds"),
                     () -> assertNotNull(be.hudAnchor(holder.hit(), VIEWER), "hudAnchor"),
                     () -> assertTrue(be.takesCanisterAt(holder.hit(), false), "takesCanisterAt"));
         }
 
         @ParameterizedTest(name = "{0}")
         @MethodSource("com.mercuriusxeno.goo.block.HolderBoundsTest#canisterHolders")
-        void emptySlotAnswersPreviewAndNoPickup(Holder holder) {
+        void emptySlotAnswersOwnClickPreviewAndNoPickup(Holder holder) {
             ICanisterHolder be = (ICanisterHolder) holder.stood(false, true);
             int slot = Math.max(holder.slot(), 0);
             HudAnchor anchor = be.hudAnchor(holder.hit(), VIEWER);
@@ -155,7 +157,7 @@ class HolderBoundsTest {
                     () -> assertNotNull(be.slotBounds(slot), "slotBounds"),
                     () -> assertNotNull(be.outlineShape(holder.hit()), "outlineShape"),
                     () -> assertNull(be.pickupBounds(holder.hit()), "pickupBounds"),
-                    () -> assertNotNull(be.previewBounds(holder.hit(), false), "previewBounds"),
+                    () -> assertEquals(holder.ownClickInserts(), be.previewBounds(holder.hit()) != null, "previewBounds"),
                     () -> assertEquals(holder.anchorsWhenEmpty(), anchor != null, "hudAnchor"));
         }
 
@@ -199,21 +201,20 @@ class HolderBoundsTest {
         }
 
         @Test
+        void hubAttachSpotIsNoHubSlot() {
+            ICanisterHolder be = (ICanisterHolder) hub(false);
+            BlockHitResult intakeTop = hitAt(0.5, 1.0, 0.5, Direction.UP);
+            assertAll(() -> assertFalse(be.takesCanisterAt(intakeTop, false)),
+                    () -> assertNull(be.previewBounds(intakeTop)),
+                    () -> assertTrue(be.takesCanisterAt(hitAt(0.5, 0.5, 2.0 / 16.0, Direction.NORTH), false)));
+        }
+
+        @Test
         void reactorTakesAHollowUseOnlyStanding() {
             ICanisterHolder be = (ICanisterHolder) reactor(false);
             BlockHitResult hollow = hitAt(0.5, 7.0 / 16.0, 3.0 / 16.0, Direction.NORTH);
             assertAll(() -> assertTrue(be.takesCanisterAt(hollow, false)),
                     () -> assertFalse(be.takesCanisterAt(hollow, true)));
-        }
-
-        @Test
-        void canisterInsertsFromANeighbourIntoTheNearestEmptySlot() {
-            ICanisterHolder empty = (ICanisterHolder) canister(false);
-            ICanisterHolder full = (ICanisterHolder) canister(true);
-            Vec3 centre = new Vec3(0.5, 0.0, 0.5);
-            assertAll(() -> assertEquals(4, empty.insertionSlotFrom(centre)),
-                    () -> assertEquals(-1, full.insertionSlotFrom(centre)),
-                    () -> assertEquals(-1, ((ICanisterHolder) hub(false)).insertionSlotFrom(centre)));
         }
     }
 

@@ -10,10 +10,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class CompiledStateDefinitionTest {
 
     @Test
-    void crucibleReadsFacingPoweredLitAndGasket() {
+    void crucibleReadsFacingLitAndGasket() {
         assertEquals(List.of(
                         Map.entry("facing", List.of("north", "south", "west", "east")),
-                        Map.entry("powered", List.of("true", "false")),
                         Map.entry("lit", List.of("true", "false")),
                         Map.entry("has_gasket", List.of("true", "false"))),
                 List.copyOf(CompiledStateDefinition.of(CrucibleBlock.class).entrySet()));

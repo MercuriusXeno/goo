@@ -314,7 +314,7 @@ public class ReactorBlockEntity extends GooGlowingMachineBlockEntity
     }
 
     @Override
-    public @Nullable AABB previewBounds(BlockHitResult hit, boolean sneaking) {
+    public @Nullable AABB previewBounds(BlockHitResult hit) {
         return isCutawayHit(hit) && !isSlotFilled(OUTPUT_SLOT) ? slotBounds(OUTPUT_SLOT) : null;
     }
 
