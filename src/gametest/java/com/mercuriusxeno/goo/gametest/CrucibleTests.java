@@ -20,13 +20,16 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.ItemContainerContents;
+import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
@@ -103,6 +106,9 @@ public final class CrucibleTests {
     private static final String PART_MELTED = "pool part melted at the break: ";
     private static final String ONE_MELTED_ITEM_DROPPED = "one partially melted item dropped";
     private static final String DROP_CARRIES_REMAINDER = "dropped item carries the unmelted remainder";
+    private static final String SPARK_RESULT = "the crucible's answer to the flint and steel click";
+    private static final String SPARK_HEAT = "heat ticks after the click";
+    private static final String FLINT_DAMAGE = "flint and steel damage after the click";
 
     private CrucibleTests() {}
 
@@ -529,6 +535,81 @@ public final class CrucibleTests {
         BlockState state = helper.getLevel().getBlockState(pos);
         state.getBlock().playerWillDestroy(helper.getLevel(), pos, state, player);
         helper.getLevel().destroyBlock(pos, true, player);
+    }
+
+    // -- The spark gate (decision spark-gate-consumes-the-click) --
+
+    /**
+     * A flint and steel click on a crucible holding blaze goo is consumed: no heat, no
+     * durability, no fire beside the crucible.
+     *
+     * @param helper the gametest helper
+     */
+    public static void sparkRefusedOnBlazeGoo(GameTestHelper helper) {
+        placeCrucible(helper).insertGoo(GooTypes.BLAZE, BlobStacks.MB_PER_BLOB);
+        assertSparkRefused(helper);
+    }
+
+    /**
+     * A flint and steel click on a crucible holding heat ticks and no goo is consumed: no
+     * heat, no durability, no fire beside the crucible.
+     *
+     * @param helper the gametest helper
+     */
+    public static void sparkRefusedOnHeatTicks(GameTestHelper helper) {
+        placeCrucible(helper).addHeat(TEST_HEAT_TICKS);
+        assertSparkRefused(helper);
+    }
+
+    /**
+     * A flint and steel click on a cold, empty crucible sparks it for the spark's heat at
+     * one durability.
+     *
+     * @param helper the gametest helper
+     */
+    public static void sparkLightsColdEmptyCrucible(GameTestHelper helper) {
+        CrucibleBlockEntity crucible = placeCrucible(helper);
+        ItemStack flint = new ItemStack(Items.FLINT_AND_STEEL);
+        helper.assertValueEqual(InteractionResult.SUCCESS, clickSideWith(helper, flint), SPARK_RESULT);
+        helper.assertValueEqual(GooConfig.SPARK_HEAT_TICKS.get(), crucible.heatTicks(), SPARK_HEAT);
+        helper.assertValueEqual(1, flint.getDamageValue(), FLINT_DAMAGE);
+        helper.succeed();
+    }
+
+    private static void assertSparkRefused(GameTestHelper helper) {
+        CrucibleBlockEntity crucible = helper.getBlockEntity(BE_POS, CrucibleBlockEntity.class);
+        int heatBefore = crucible.heatTicks();
+        ItemStack flint = new ItemStack(Items.FLINT_AND_STEEL);
+        helper.assertValueEqual(InteractionResult.CONSUME, clickSideWith(helper, flint), SPARK_RESULT);
+        helper.assertValueEqual(heatBefore, crucible.heatTicks(), SPARK_HEAT);
+        helper.assertValueEqual(0, flint.getDamageValue(), FLINT_DAMAGE);
+        for (Direction side : Direction.values()) {
+            helper.assertBlockNotPresent(Blocks.FIRE, BE_POS.relative(side));
+        }
+        helper.succeed();
+    }
+
+    /**
+     * Right-clicks the crucible's north face with a survival player holding the stack, the
+     * way a server player's click runs: the block first, then the item when the block
+     * passes. A stone floor under the north neighbor lets a fallen-through spark place fire.
+     *
+     * @param helper the gametest helper
+     * @param stack  the held stack
+     * @return the block's answer to the click
+     */
+    private static InteractionResult clickSideWith(GameTestHelper helper, ItemStack stack) {
+        helper.setBlock(BE_POS.north().below(), Blocks.STONE);
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        player.setItemInHand(InteractionHand.MAIN_HAND, stack);
+        BlockPos abs = helper.absolutePos(BE_POS);
+        BlockHitResult hit = new BlockHitResult(Vec3.atCenterOf(abs), Direction.NORTH, abs, false);
+        InteractionResult answer = helper.getBlockState(BE_POS)
+            .useItemOn(stack, helper.getLevel(), player, InteractionHand.MAIN_HAND, hit);
+        if (!answer.consumesAction()) {
+            stack.useOn(new UseOnContext(player, InteractionHand.MAIN_HAND, hit));
+        }
+        return answer;
     }
 
     private static CrucibleBlockEntity placeCrucible(GameTestHelper helper) {
