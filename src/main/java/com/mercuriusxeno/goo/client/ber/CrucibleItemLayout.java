@@ -15,6 +15,10 @@ final class CrucibleItemLayout {
 
     /** The dissolving item's width across the basin, in blocks. */
     static final float HEAD_SIZE = 0.26f;
+    /** The tiles along each side of the grid the dissolving item is cut into, four texture pixels each. */
+    static final int TILE_GRID = 4;
+    /** The tiles the dissolving item is cut into. */
+    static final int TILE_COUNT = TILE_GRID * TILE_GRID;
     /** A waiting item's width, in blocks. */
     static final float WAITING_SIZE = 0.14f;
     /** The waiting items the basin shows, one per corner. */
@@ -47,14 +51,27 @@ final class CrucibleItemLayout {
     }
 
     /**
-     * Places the dissolving item flat at the center of the fill's top.
+     * Places each tile of the dissolving item at its spot in the grid centered on the
+     * fill's top, so the tiles together draw the whole item (decision tiles-of-the-items-image).
+     * A tile's column runs along the model's X, which lies along X; its row runs along the
+     * model's Y, which the item lying face up turns toward -Z.
      *
      * @param surface   the drawn surface, or null while nothing has melted
      * @param amplitude the ripple amplitude the surface undulates at, in blocks
-     * @return the head's placement
+     * @return one placement per tile, in {@link ItemTileClipper.TileGrid#tile} index order
      */
-    static ItemPlacement head(CrucibleBasin.@Nullable DrawnSurface surface, float amplitude) {
-        return new ItemPlacement(CENTER, restingY(surface, amplitude), CENTER, HEAD_SIZE);
+    static List<ItemPlacement> headTiles(CrucibleBasin.@Nullable DrawnSurface surface, float amplitude) {
+        float y = restingY(surface, amplitude);
+        float tileSize = HEAD_SIZE / TILE_GRID;
+        List<ItemPlacement> tiles = new ArrayList<>(TILE_COUNT);
+        for (int row = 0; row < TILE_GRID; row++) {
+            for (int column = 0; column < TILE_GRID; column++) {
+                float x = CENTER + ((column + HALF) / TILE_GRID - HALF) * HEAD_SIZE;
+                float z = CENTER - ((row + HALF) / TILE_GRID - HALF) * HEAD_SIZE;
+                tiles.add(new ItemPlacement(x, y, z, tileSize));
+            }
+        }
+        return tiles;
     }
 
     /**

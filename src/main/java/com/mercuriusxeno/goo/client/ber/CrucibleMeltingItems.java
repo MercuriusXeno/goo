@@ -76,13 +76,44 @@ final class CrucibleMeltingItems {
     void submit(CrucibleRenderState state, CrucibleBasin.@Nullable DrawnSurface surface,
                 PoseStack poseStack, SubmitNodeCollector nodeCollector) {
         if (state.hasHead) {
-            submitLyingFlat(state.headItem, CrucibleItemLayout.head(surface, state.rippleAmplitude), poseStack,
-                    new DissolvingItemCollector(nodeCollector, state.headGlow), state.lightCoords);
+            submitTiles(state.headItem, CrucibleItemLayout.headTiles(surface, state.rippleAmplitude),
+                    state.headGlow, poseStack, nodeCollector, state.lightCoords);
         }
         List<CrucibleItemLayout.ItemPlacement> placements = CrucibleItemLayout.waiting(surface, state.rippleAmplitude,
                 state.waitingShown);
         for (int i = 0; i < placements.size(); i++) {
             submitLyingFlat(state.waitingItems[i], placements.get(i), poseStack, nodeCollector, state.lightCoords);
+        }
+    }
+
+    /**
+     * Submits the dissolving item once per tile of its image, each tile lying face up on
+     * its own placement and dissolving on its own (decision tiles-of-the-items-image).
+     *
+     * @param item          the resolved item model
+     * @param tiles         where each tile lies, in grid index order
+     * @param glow          how far the item has dissolved and the layers its edge glows in
+     * @param poseStack     the pose stack at the block's origin
+     * @param nodeCollector the render node collector
+     * @param light         the packed light coordinates
+     */
+    static void submitTiles(ItemStackRenderState item, List<CrucibleItemLayout.ItemPlacement> tiles,
+                            DissolveGlow glow, PoseStack poseStack, SubmitNodeCollector nodeCollector, int light) {
+        AABB box = item.getModelBoundingBox();
+        ItemTileClipper.TileGrid grid = ItemTileClipper.TileGrid.around(box, CrucibleItemLayout.TILE_GRID);
+        double centerZ = box.getCenter().z;
+        for (int i = 0; i < tiles.size(); i++) {
+            ItemTileClipper.Tile tile = grid.tile(i);
+            CrucibleItemLayout.ItemPlacement placement = tiles.get(i);
+            float scale = (float) (placement.size() / Math.max(grid.cell(), MIN_EXTENT));
+            poseStack.pushPose();
+            poseStack.translate(placement.x(), placement.y(), placement.z());
+            poseStack.mulPose(Axis.XP.rotationDegrees(FACE_UP_DEGREES));
+            poseStack.scale(scale, scale, scale);
+            poseStack.translate(-tile.centerX(), -tile.centerY(), -centerZ);
+            item.submit(poseStack, new DissolvingItemCollector(nodeCollector, glow, tile), light,
+                    OverlayTexture.NO_OVERLAY, 0);
+            poseStack.popPose();
         }
     }
 
