@@ -227,7 +227,7 @@ public class CrystallizerBlockEntity extends GooGlowingMachineBlockEntity implem
     }
 
     @Override
-    public @Nullable AABB previewBounds(BlockHitResult hit, boolean sneaking) {
+    public @Nullable AABB previewBounds(BlockHitResult hit) {
         int slot = CrystallizerBlock.slotAt(getBlockState(), getBlockPos(), hit);
         return slot != NO_SLOT && !isSlotFilled(slot) ? slotBounds(slot) : null;
     }
