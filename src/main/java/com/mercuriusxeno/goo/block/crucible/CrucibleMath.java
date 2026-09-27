@@ -1,33 +1,30 @@
 package com.mercuriusxeno.goo.block.crucible;
 
-import com.mercuriusxeno.goo.GooTypeDefinition;
-import com.mercuriusxeno.goo.item.GooContents;
-import net.minecraft.resources.ResourceKey;
-import java.util.HashMap;
-import java.util.Map;
-
 /**
  * Pure math and logic for the crucible, extracted so unit tests can
  * run without triggering Minecraft class initialization.
  */
 public final class CrucibleMath {
 
+    /** Absorbs floating error in an exact power, so 100 ^ 0.5 reads 10 ticks rather than 11. */
+    private static final double POWER_TOLERANCE = 1e-9;
+
     private CrucibleMath() {
     }
 
     /**
-     * The mB drained from the melting item this tick: the burning fuel's flat melt rate
-     * whatever the pool holds, and nothing once the pool is empty (decision melt-rate-is-flat).
+     * The ticks an item melts in when it is alone in the crucible: ceil(mB ^ exponent),
+     * at least one (decision melt-time-is-mb-to-a-power).
      *
-     * @param remaining the pool's remaining volume in mB
-     * @param meltRate  the burning fuel's melt rate in mB/tick
-     * @return the extraction rate in mB/tick
+     * @param volume   one item's whole goo value across its types, in mB
+     * @param exponent the burning fuel's melt exponent
+     * @return the melt time in ticks
      */
-    public static int extractionRate(long remaining, int meltRate) {
-        if (remaining <= 0) {
-            return 0;
+    public static long meltTicks(long volume, double exponent) {
+        if (volume <= 0) {
+            return 1;
         }
-        return Math.max(1, meltRate);
+        return Math.max(1L, (long) Math.ceil(Math.pow(volume, exponent) - POWER_TOLERANCE));
     }
 
     /**
@@ -43,68 +40,5 @@ public final class CrucibleMath {
             return Math.min(current + step, target);
         }
         return Math.max(current - step, target);
-    }
-
-    /**
-     * Distributes a total extraction budget proportionally across all goo types
-     * in the pool. Each type gets floor(rate * typeVolume / totalVolume), with
-     * a minimum of 1 mB (clamped to available volume). Remainder from rounding
-     * is given to the largest type.
-     *
-     * @param contents the goo contents
-     * @param rate     the extraction rate in mB/tick
-     * @return the computed drain shares
-     */
-    public static Map<ResourceKey<GooTypeDefinition>, Integer> computeDrainShares(GooContents contents, int rate) {
-        Map<ResourceKey<GooTypeDefinition>, Integer> shares = new HashMap<>();
-        long totalVolume = contents.totalVolume();
-        int allocated = allocateProportional(shares, contents, rate, totalVolume);
-        distributeRemainder(shares, contents, rate, allocated);
-        return shares;
-    }
-
-    /**
-     * Allocates each type's share proportionally, floored to at least 1 mB.
-     *
-     * @param shares      output map for per-type shares
-     * @param contents    the goo contents
-     * @param rate        the extraction rate
-     * @param totalVolume the total goo volume
-     * @return the sum of all allocated shares
-     */
-    private static int allocateProportional(Map<ResourceKey<GooTypeDefinition>, Integer> shares,
-                                            GooContents contents, int rate, long totalVolume) {
-        int allocated = 0;
-        for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> entry : contents.getAll().entrySet()) {
-            int available = entry.getValue();
-            int share = (int) Math.min(Math.max(1L, (long) rate * available / totalVolume), available);
-            shares.put(entry.getKey(), share);
-            allocated += share;
-        }
-        return allocated;
-    }
-
-    /**
-     * Assigns unallocated budget (from rounding) to the largest type,
-     * capped at that type's available volume.
-     *
-     * @param shares    the per-type drain shares
-     * @param contents  the goo contents
-     * @param rate      the extraction rate in mB/tick
-     * @param allocated the total allocated so far
-     */
-    private static void distributeRemainder(Map<ResourceKey<GooTypeDefinition>, Integer> shares,
-                                            GooContents contents, int rate, int allocated) {
-        int remainder = rate - allocated;
-        if (remainder <= 0) {
-            return;
-        }
-        ResourceKey<GooTypeDefinition> largest = contents.largestType();
-        if (largest == null) {
-            return;
-        }
-        int available = contents.getVolume(largest);
-        int current = shares.getOrDefault(largest, 0);
-        shares.put(largest, Math.min(current + remainder, available));
     }
 }
