@@ -8,9 +8,9 @@ import net.minecraft.world.phys.Vec3;
 
 /**
  * Draws item entities off the crucible's rim walls and down its mouth into the
- * cavity (decision rim-and-mouth-items-slide-inward), then to the basin center,
- * where an item at rest is consumed (decision consume-at-rest-in-place). An item
- * on the outer ledge, below the wall tops, is left where it lands.
+ * cavity (decision rim-and-mouth-items-slide-inward), and takes an item the tick
+ * it reaches the kill box, the cavity up to the goo surface. An item on the outer
+ * ledge, below the wall tops, is left where it lands.
  */
 public final class CrucibleItemDrift {
 
@@ -23,16 +23,6 @@ public final class CrucibleItemDrift {
     /** Leeway around the rim height within which an item reads as resting on a wall top. */
     static final double WALL_TOP_TOLERANCE = 1.0 / 64.0;
 
-    /** Horizontal speed added per tick inside the cavity for each block of distance from the center. */
-    static final double SETTLE_GAIN = 0.08;
-    /** The share of an item's horizontal motion the cavity takes away each tick, so it stops at the center. */
-    static final double SETTLE_DAMPING = 0.3;
-    /** How far from the center an item may sit and read as at rest there. */
-    static final double REST_RADIUS = 1.0 / 64.0;
-    /** The horizontal speed below which an item reads as stopped. */
-    static final double REST_SPEED = 0.005;
-    /** How far an item's feet may sit from the surface or floor and read as riding it. */
-    static final double REST_HEIGHT_TOLERANCE = 1.0 / 64.0;
     /** A change in motion smaller than this is left unsynced, so a resting item sends nothing. */
     private static final double SYNC_THRESHOLD_SQR = 1e-10;
 
@@ -43,32 +33,28 @@ public final class CrucibleItemDrift {
 
     /**
      * Draws each item entity on the wall tops or over the mouth inward, keeping the
-     * rest of its motion so a thrown item holds its arc; settles each item in the
-     * cavity toward the center and consumes it once at rest there, while the
-     * crucible is enabled and can heat.
+     * rest of its motion so a thrown item holds its arc, and takes each item in the
+     * kill box while the crucible is enabled and can heat.
      *
      * @param crucible the crucible block entity
      * @param level    the server level
      * @param pos      the crucible's position
      */
     static void driftItems(CrucibleBlockEntity crucible, Level level, BlockPos pos) {
-        AABB reach = new AABB(pos.getX(), pos.getY() + CrucibleBasin.FLOOR_Y - REST_HEIGHT_TOLERANCE, pos.getZ(),
+        AABB reach = new AABB(pos.getX(), pos.getY() + CrucibleBasin.FLOOR_Y, pos.getZ(),
             pos.getX() + 1.0, pos.getY() + CrucibleBasin.RIM_Y + MOUTH_COLUMN_HEIGHT, pos.getZ() + 1.0);
-        double restY = CrucibleBasin.itemRestY(crucible.basinVolumes());
+        float killTopY = CrucibleBasin.killBoxTopY(crucible.basinVolumes());
         for (ItemEntity item : level.getEntitiesOfClass(ItemEntity.class, reach)) {
             double x = item.getX() - pos.getX();
             double y = item.getY() - pos.getY();
             double z = item.getZ() - pos.getZ();
-            Vec3 delta = item.getDeltaMovement();
-            if (!CrucibleBasin.holdsPoint(x, y, z)) {
-                applyMotion(item, nudgedDelta(delta, inwardNudge(x, y, z)));
+            if (CrucibleBasin.inKillBox(x, y, z, killTopY)) {
+                if (crucible.isEnabled() && crucible.canHeat()) {
+                    CrucibleAbsorption.tryAbsorbItem(item, crucible);
+                }
                 continue;
             }
-            applyMotion(item, settledDelta(delta, x, z));
-            if (restsAtCenter(x, z, delta.horizontalDistance(), y, restY)
-                    && crucible.isEnabled() && crucible.canHeat()) {
-                CrucibleAbsorption.tryAbsorbItem(item, crucible);
-            }
+            applyMotion(item, nudgedDelta(item.getDeltaMovement(), inwardNudge(x, y, z)));
         }
     }
 
@@ -82,40 +68,6 @@ public final class CrucibleItemDrift {
         if (motion.distanceToSqr(item.getDeltaMovement()) <= SYNC_THRESHOLD_SQR) { return; }
         item.setDeltaMovement(motion);
         item.needsSync = true;
-    }
-
-    /**
-     * The motion of an item inside the cavity: its horizontal motion damped and
-     * drawn toward the center, its vertical motion kept.
-     *
-     * @param delta the item's motion this tick
-     * @param x     the item's X relative to the block
-     * @param z     the item's Z relative to the block
-     * @return the settled motion
-     */
-    static Vec3 settledDelta(Vec3 delta, double x, double z) {
-        double keep = 1.0 - SETTLE_DAMPING;
-        return new Vec3(delta.x * keep + (BASIN_CENTER - x) * SETTLE_GAIN, delta.y,
-            delta.z * keep + (BASIN_CENTER - z) * SETTLE_GAIN);
-    }
-
-    /**
-     * Answers whether an item has come to rest at the basin center on the goo
-     * surface or the floor, the only moment it is consumed (decision consume-at-rest-in-place).
-     *
-     * @param x               the item's X relative to the block
-     * @param z               the item's Z relative to the block
-     * @param horizontalSpeed the item's horizontal speed
-     * @param feetY           the item's feet Y relative to the block
-     * @param restY           the surface or floor height it rests at
-     * @return true when the item sits at the center, stopped, on the surface
-     */
-    public static boolean restsAtCenter(double x, double z, double horizontalSpeed, double feetY, double restY) {
-        double dx = x - BASIN_CENTER;
-        double dz = z - BASIN_CENTER;
-        return dx * dx + dz * dz <= REST_RADIUS * REST_RADIUS
-            && horizontalSpeed < REST_SPEED
-            && Math.abs(feetY - restY) <= REST_HEIGHT_TOLERANCE;
     }
 
     /**

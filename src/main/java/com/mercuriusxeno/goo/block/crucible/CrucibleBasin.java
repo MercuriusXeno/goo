@@ -41,6 +41,9 @@ public final class CrucibleBasin {
     /** The collision solver's slack at the floor and rim, so an item resting on either still reads inside. */
     private static final double CAVITY_EDGE_TOLERANCE = 1e-4;
 
+    /** How far above the goo surface or floor an item's feet may sit and still be taken. */
+    private static final double KILL_BOX_TOLERANCE = 1.0 / 64.0;
+
     /** The footprint's center in block-relative X and Z. */
     private static final float FOOTPRINT_CENTER = (FOOTPRINT_MIN + FOOTPRINT_MAX) / 2f;
     /** The full basin's half-width, the puddle's at the spread volume. */
@@ -147,15 +150,30 @@ public final class CrucibleBasin {
     }
 
     /**
-     * The height an item entity rests at in the cavity: on the drawn goo surface,
-     * or on the floor while the reservoir is empty (decision consume-at-rest-in-place).
+     * The kill box's top: the drawn goo surface, or the floor while the reservoir is
+     * empty. An item is taken the tick it reaches it.
      *
      * @param volumes the reservoir and pool volumes
-     * @return the rest height in block-relative Y
+     * @return the kill box's top in block-relative Y
      */
-    public static float itemRestY(Volumes volumes) {
+    public static float killBoxTopY(Volumes volumes) {
         DrawnSurface surface = drawnSurface(volumes);
         return surface == null ? FLOOR_Y : surface.surfaceY();
+    }
+
+    /**
+     * Answers whether an item stands in the kill box: over the footprint, its feet
+     * between the floor and the goo surface, where the crucible takes it wherever it
+     * lands, moving or not.
+     *
+     * @param x        the item's X relative to the block
+     * @param y        the item's feet Y relative to the block
+     * @param z        the item's Z relative to the block
+     * @param killTopY the kill box's top, from {@link #killBoxTopY}
+     * @return true when the item is in the kill box
+     */
+    public static boolean inKillBox(double x, double y, double z, float killTopY) {
+        return holdsPoint(x, y, z) && y <= killTopY + KILL_BOX_TOLERANCE;
     }
 
     /**

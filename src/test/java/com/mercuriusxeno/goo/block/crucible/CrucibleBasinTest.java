@@ -238,4 +238,52 @@ class CrucibleBasinTest {
             assertFalse(CrucibleBasin.holdsPoint(CENTER, CrucibleBasin.FLOOR_Y - 0.01, CENTER));
         }
     }
+
+    /** The kill box an item is taken from: the cavity up to the goo surface. */
+    @Nested
+    class KillBox {
+
+        private static final double CENTER = 0.5;
+        private static final CrucibleBasin.Volumes MODERATE =
+            new CrucibleBasin.Volumes(CrucibleBasin.MODERATE_VOLUME, 0);
+
+        @Test
+        void topIsTheSurfaceTheRendererDraws() {
+            assertEquals(CrucibleBasin.surfaceYForVolume(CrucibleBasin.MODERATE_VOLUME),
+                CrucibleBasin.killBoxTopY(MODERATE), EPSILON);
+        }
+
+        @Test
+        void topIsTheFloorWhileEmpty() {
+            assertEquals(CrucibleBasin.FLOOR_Y, CrucibleBasin.killBoxTopY(CrucibleBasin.Volumes.EMPTY), EPSILON);
+        }
+
+        @Test
+        void itemReachingTheSurfaceOffCenterIsTaken() {
+            float top = CrucibleBasin.killBoxTopY(MODERATE);
+            assertTrue(CrucibleBasin.inKillBox(CrucibleBasin.FOOTPRINT_MIN + 0.01, top, CENTER, top));
+        }
+
+        @Test
+        void itemSunkBelowTheSurfaceIsTaken() {
+            float top = CrucibleBasin.killBoxTopY(MODERATE);
+            assertTrue(CrucibleBasin.inKillBox(CENTER, CrucibleBasin.FLOOR_Y, CENTER, top));
+        }
+
+        @Test
+        void itemFallingAboveTheSurfaceIsNotTaken() {
+            float top = CrucibleBasin.killBoxTopY(MODERATE);
+            assertFalse(CrucibleBasin.inKillBox(CENTER, top + 0.1, CENTER, top));
+        }
+
+        @Test
+        void itemOnTheEmptyFloorIsTaken() {
+            assertTrue(CrucibleBasin.inKillBox(CENTER, CrucibleBasin.FLOOR_Y, CENTER, CrucibleBasin.FLOOR_Y));
+        }
+
+        @Test
+        void itemOnAWallTopIsNotTakenInAFullBasin() {
+            assertFalse(CrucibleBasin.inKillBox(3.0 / 16.0, CrucibleBasin.RIM_Y, CENTER, CrucibleBasin.RIM_Y));
+        }
+    }
 }
