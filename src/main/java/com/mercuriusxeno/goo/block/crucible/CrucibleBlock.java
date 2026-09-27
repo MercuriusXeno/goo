@@ -9,9 +9,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.InsideBlockEffectApplier;
-import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -28,13 +25,12 @@ import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.Nullable;
 
 /**
  * The crucible block (goocible): melts items into goo. Items for melting are
- * received by detecting item entities landing in the block, not by right-click.
+ * item entities that reach the basin's kill box (CrucibleItemDrift), not right-clicks.
  * Right-click handles fuel rod insertion, blob insertion, canister collection,
  * and empty-hand goo extraction.
  * Drops internal state (PMI, fuel rod, reservoir blobs) when broken.
@@ -56,17 +52,6 @@ public class CrucibleBlock extends GooMachineBlock {
     private static final int CRUCIBLE_LIT_LIGHT = 13;
     /** Whether a gasket is attached to this crucible. */
     public static final BooleanProperty HAS_GASKET = BooleanProperty.create("has_gasket");
-
-    /** Goocible body: full-width solid base, 13px tall. */
-    private static final VoxelShape BODY = box(0, 0, 0, 16, 13, 16);
-    /** Goocible rim: 4 walls forming a hollow collar so items can fall inside. */
-    private static final VoxelShape RIM = Shapes.or(
-        box(2, 13, 2, 14, 16, 4),
-        box(2, 13, 12, 14, 16, 14),
-        box(2, 13, 4, 4, 16, 12),
-        box(12, 13, 4, 14, 16, 12));
-    /** Combined collision/outline shape. */
-    private static final VoxelShape SHAPE = Shapes.or(BODY, RIM);
 
     /** Creates a crucible block and registers default blockstate values.
      *
@@ -130,7 +115,7 @@ public class CrucibleBlock extends GooMachineBlock {
         return state.getValue(LIT) ? CRUCIBLE_LIT_LIGHT : 0;
     }
 
-    /** Returns the goocible pot collision/outline shape.
+    /** Returns the goocible pot collision/outline shape, the basin hollowed to its drawn floor.
      *
      * @param state   the block state
      * @param level   the current level
@@ -141,7 +126,7 @@ public class CrucibleBlock extends GooMachineBlock {
     @Override
     protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos,
             CollisionContext context) {
-        return SHAPE;
+        return CrucibleShape.SHAPE;
     }
 
     /** Enables shape-based light occlusion for the non-full-block crucible.
@@ -246,41 +231,6 @@ public class CrucibleBlock extends GooMachineBlock {
             return InteractionResult.PASS;
         }
         return CrucibleInteraction.tryExtractGoo(crucible, player);
-    }
-
-    // -- Item entity absorption --
-
-    /**
-     * Absorbs item entities that land in the basin, feeding them into the melting pipeline.
-     * Only absorbs when the crucible holds heat or fuel goo.
-     *
-     * @param state         the block state
-     * @param level         the current level
-     * @param pos           the block position
-     * @param entity        the item entity
-     * @param effectApplier the block effect applier
-     * @param moving        true if the entity is moving
-     */
-    @Override
-    protected void entityInside(BlockState state, Level level, BlockPos pos, Entity entity,
-            InsideBlockEffectApplier effectApplier, boolean moving) {
-        if (level.isClientSide()) { return; }
-        if (!(entity instanceof ItemEntity itemEntity)) { return; }
-        if (itemEntity.isRemoved()) { return; }
-        tryAbsorbItemEntity(level, pos, itemEntity);
-    }
-
-    /** Attempts absorption if the crucible can heat.
-     *
-     * @param level      the current level
-     * @param pos        the block position
-     * @param itemEntity the item entity inside the block
-     */
-    private static void tryAbsorbItemEntity(Level level, BlockPos pos, ItemEntity itemEntity) {
-        BlockEntity be = level.getBlockEntity(pos);
-        if (!(be instanceof CrucibleBlockEntity crucible)) { return; }
-        if (!crucible.canHeat()) { return; }
-        CrucibleAbsorption.tryAbsorbItem(itemEntity, crucible);
     }
 
     // -- Block break drops --

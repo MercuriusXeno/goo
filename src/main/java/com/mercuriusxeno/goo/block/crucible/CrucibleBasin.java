@@ -38,6 +38,17 @@ public final class CrucibleBasin {
     /** The height in pixels above the floor the moderate volume stands at. */
     static final double MODERATE_HEIGHT_PIXELS = 1.5;
 
+    /** The collision solver's slack at the floor and rim, so an item resting on either still reads inside. */
+    private static final double CAVITY_EDGE_TOLERANCE = 1e-4;
+
+    /**
+     * How far above its feet an item entity's picture is drawn: ItemEntityRenderer's
+     * fixed sixteenth of a block hover plus the middle of its bob.
+     */
+    public static final float ITEM_DRAWN_HOVER = 1f / 16f + 0.1f;
+    /** How far above the goo surface or floor an item's feet may sit and still be taken. */
+    private static final double KILL_BOX_TOLERANCE = 1.0 / 64.0;
+
     /** The footprint's center in block-relative X and Z. */
     private static final float FOOTPRINT_CENTER = (FOOTPRINT_MIN + FOOTPRINT_MAX) / 2f;
     /** The full basin's half-width, the puddle's at the spread volume. */
@@ -141,6 +152,34 @@ public final class CrucibleBasin {
             return null;
         }
         return new DrawnSurface(footprintForVolume(reservoir), surfaceYForVolume(reservoir));
+    }
+
+    /**
+     * The kill box's top: the drawn goo surface less the height an item entity is
+     * drawn above its feet, so the item vanishes as its picture meets the goo, and
+     * never below the floor. An item is taken the tick its feet reach it.
+     *
+     * @param volumes the reservoir and pool volumes
+     * @return the kill box's top in block-relative Y
+     */
+    public static float killBoxTopY(Volumes volumes) {
+        DrawnSurface surface = drawnSurface(volumes);
+        return surface == null ? FLOOR_Y : Math.max(FLOOR_Y, surface.surfaceY() - ITEM_DRAWN_HOVER);
+    }
+
+    /**
+     * Answers whether an item stands in the kill box: over the footprint, its feet
+     * between the floor and the goo surface, where the crucible takes it wherever it
+     * lands, moving or not.
+     *
+     * @param x        the item's X relative to the block
+     * @param y        the item's feet Y relative to the block
+     * @param z        the item's Z relative to the block
+     * @param killTopY the kill box's top, from {@link #killBoxTopY}
+     * @return true when the item is in the kill box
+     */
+    public static boolean inKillBox(double x, double y, double z, float killTopY) {
+        return holdsPoint(x, y, z) && y <= killTopY + KILL_BOX_TOLERANCE;
     }
 
     /**
@@ -251,6 +290,29 @@ public final class CrucibleBasin {
      */
     public static boolean holdsNoGoo(long reservoirVolume, long poolVolume) {
         return reservoirVolume <= 0 && poolVolume <= 0;
+    }
+
+    /**
+     * Answers whether a point sits in the cavity, the only place an item is
+     * consumed from (decision collision-is-the-drawn-cavity): within the
+     * footprint, from the floor up to the rim, where a full basin's surface stands.
+     *
+     * @param x the point's X relative to the block
+     * @param y the point's Y relative to the block, an entity's feet
+     * @param z the point's Z relative to the block
+     * @return true when the point lies inside the cavity
+     */
+    public static boolean holdsPoint(double x, double y, double z) {
+        return withinFootprint(x) && withinFootprint(z)
+            && y >= FLOOR_Y - CAVITY_EDGE_TOLERANCE && y <= RIM_Y + CAVITY_EDGE_TOLERANCE;
+    }
+
+    /**
+     * @param coordinate a block-relative X or Z
+     * @return true when it lies between the footprint's edges
+     */
+    private static boolean withinFootprint(double coordinate) {
+        return coordinate >= FOOTPRINT_MIN && coordinate <= FOOTPRINT_MAX;
     }
 
     /**
