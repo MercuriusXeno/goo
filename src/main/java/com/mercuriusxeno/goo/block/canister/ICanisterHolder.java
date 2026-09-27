@@ -9,8 +9,13 @@ import com.mercuriusxeno.goo.item.CanisterMetadata;
 import com.mercuriusxeno.goo.registry.GooFluids;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import org.jspecify.annotations.Nullable;
+import static com.mercuriusxeno.goo.GooConstants.NO_SLOT;
 
 /**
  * Common interface for block entities that hold canister slots with metadata
@@ -92,6 +97,18 @@ public interface ICanisterHolder extends IGooLightSource {
     }
 
     /**
+     * Inserts a canister into an empty slot through the shared slot lifecycle.
+     *
+     * @param index        the slot index
+     * @param stack        the canister item stack
+     * @param stripGaskets true to strip the canister's gasket ids on the way in
+     * @return true if the canister went in
+     */
+    default boolean insertCanister(int index, ItemStack stack, boolean stripGaskets) {
+        return containerState().insert(index, stack, stripGaskets);
+    }
+
+    /**
      * @param index the slot index
      * @return true if the slot has a canister with remaining capacity
      */
@@ -148,5 +165,78 @@ public interface ICanisterHolder extends IGooLightSource {
      */
     default int extractGoo(int index, ResourceKey<GooTypeDefinition> type, int requested) {
         return extractFluid(index, GooFluids.resource(type), requested);
+    }
+
+    // --- Client-read geometry (decision hosts-answer-bounds-through-interfaces) ---
+
+    /**
+     * @param index the slot index
+     * @return true when the slot holds a canister
+     */
+    default boolean isSlotFilled(int index) {
+        return !getCanister(index).isEmpty();
+    }
+
+    /**
+     * The block-local bounds a slot's canister occupies, filled or not.
+     *
+     * @param index the slot index
+     * @return the slot's bounds, or null when {@code index} is no slot of this holder
+     */
+    @Nullable AABB slotBounds(int index);
+
+    /**
+     * The outline the block draws while the cursor rests on it.
+     *
+     * @param hit the ray trace hit on this holder
+     * @return the outline shape in block-local coordinates
+     */
+    VoxelShape outlineShape(BlockHitResult hit);
+
+    /**
+     * The filled slot an empty-hand click at the hit would take the canister from.
+     *
+     * @param hit the ray trace hit on this holder
+     * @return the slot's bounds, or null when the hit addresses no filled slot
+     */
+    @Nullable AABB pickupBounds(BlockHitResult hit);
+
+    /**
+     * The empty slot a held canister would enter on a click at the hit.
+     *
+     * @param hit      the ray trace hit on this holder
+     * @param sneaking true when the player is sneaking
+     * @return the slot's bounds, or null when the click would insert nowhere
+     */
+    @Nullable AABB previewBounds(BlockHitResult hit, boolean sneaking);
+
+    /**
+     * The HUD target under the cursor: the slot it reads and where its panel sits.
+     *
+     * @param hit    the ray trace hit on this holder
+     * @param viewer what the client knows about the viewer
+     * @return the anchor, or null when the hit reads no canister
+     */
+    @Nullable HudAnchor hudAnchor(BlockHitResult hit, HudViewer viewer);
+
+    /**
+     * Whether a canister use at the hit goes into this holder rather than
+     * placing a new canister block beside it.
+     *
+     * @param hit      the ray trace hit on this holder
+     * @param sneaking true when the player is sneaking
+     * @return true when this holder takes the use
+     */
+    boolean takesCanisterAt(BlockHitResult hit, boolean sneaking);
+
+    /**
+     * The empty slot a canister placed against a neighbour would enter here,
+     * this holder standing where the new block would go. Default: none.
+     *
+     * @param hitLocation the world-space point on the neighbour's face
+     * @return the slot, or {@code NO_SLOT} when this holder takes no such insertion
+     */
+    default int insertionSlotFrom(Vec3 hitLocation) {
+        return NO_SLOT;
     }
 }
