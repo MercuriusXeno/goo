@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.block.tap;
 
 import com.mercuriusxeno.goo.GooTypes;
-import net.minecraft.core.particles.ColorParticleOption;
+import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -23,9 +23,9 @@ class TapDripReleaseTest {
     private static final Vec3 SPIGOT = new Vec3(0.5, 64.125, 0.5);
     private static final TapStream POUR = new TapStream(GooTypes.BLAZE, SURFACE_Y, 1);
 
-    private final List<ColorParticleOption> sent = new ArrayList<>();
+    private final List<ParticleOptions> sent = new ArrayList<>();
     private final TapDrip.ParticleSink sink = (option, at, velocity) -> sent.add(option);
-    private final ColorParticleOption particle = mock(ColorParticleOption.class);
+    private final ParticleOptions particle = mock(ParticleOptions.class);
 
     @ParameterizedTest
     @EnumSource(value = TapDripGrade.class, names = {"ONE_PER_TICK", "FOUR_PER_TICK"})
