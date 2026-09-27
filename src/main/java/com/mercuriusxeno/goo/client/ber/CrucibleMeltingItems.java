@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
 import com.mercuriusxeno.goo.block.crucible.CrucibleMeltQueue;
 import com.mercuriusxeno.goo.block.crucible.CrucibleShape;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
+import com.mercuriusxeno.goo.client.SurfaceRipple;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
@@ -22,10 +23,13 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import org.joml.Matrix4fc;
 import org.jspecify.annotations.Nullable;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
+import java.util.function.Function;
 
 /**
  * Draws the items the crucible's pool holds on its fill: the oldest dissolving through
@@ -40,10 +44,20 @@ final class CrucibleMeltingItems {
     private static final double MIN_EXTENT = 1e-3;
     /** The basin center in block-relative X and Z. */
     private static final double BASIN_CENTER = (CrucibleBasin.FOOTPRINT_MIN + CrucibleBasin.FOOTPRINT_MAX) / 2.0;
+    /** The items' shards kept, enough for every item melting in the crucibles in view. */
+    private static final int KEPT_ITEMS = 32;
+    private static final float LOAD_FACTOR = 0.75f;
 
     private final ItemModelResolver itemModelResolver;
     /** Each crucible's entity-to-head handoff, held client-side and dropped with the crucible. */
     private final Map<CrucibleBlockEntity, CrucibleHeadHandoff> handoffs = new WeakHashMap<>();
+    /** Each melting item's shards, the last {@link #KEPT_ITEMS} items kept. */
+    private final Map<Identifier, HeadShards> shards = new LinkedHashMap<>(KEPT_ITEMS, LOAD_FACTOR, true) {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<Identifier, HeadShards> eldest) {
+            return size() > KEPT_ITEMS;
+        }
+    };
 
     /**
      * @param itemModelResolver resolves an item stack to its model
@@ -79,6 +93,26 @@ final class CrucibleMeltingItems {
     }
 
     /**
+     * Returns the head's shards, worked out once per item and kept while it melts, since the
+     * item's seed fixes the cut and the rest shifts, and cut again when a resource reload has
+     * baked the item's model anew (decision tiles-of-the-items-image).
+     *
+     * @param item   the resolved head model
+     * @param itemId the head's item id
+     * @return the head's shards
+     */
+    private HeadShards shardsOf(ItemStackRenderState item, Identifier itemId) {
+        HeadShards kept = shards.get(itemId);
+        if (kept != null && ItemModelProbe.covers(kept.model(), item)) {
+            return kept;
+        }
+        long seed = ItemShardCutter.seedOf(itemId.toString());
+        HeadShards cut = HeadShards.of(ItemModelProbe.probe(item, seed), seed);
+        shards.put(itemId, cut);
+        return cut;
+    }
+
+    /**
      * Sees the item entity resting in the basin and poses the head from it.
      *
      * @param be          the crucible block entity
@@ -95,11 +129,45 @@ final class CrucibleMeltingItems {
         double now = level.getGameTime() + (double) partialTick;
         CrucibleHeadHandoff handoff = handoffs.computeIfAbsent(be, key -> new CrucibleHeadHandoff());
         seeBasinEntity(handoff, level, be.getBlockPos(), partialTick, now);
-        AABB box = state.headItem.getModelBoundingBox();
-        CrucibleItemLayout.ItemPlacement placement = CrucibleItemLayout.head(
-            CrucibleBasin.drawnSurface(state.volumes), state.rippleAmplitude);
-        CrucibleHeadHandoff.ItemPose rest = CrucibleHeadHandoff.restingPose(placement, box, MIN_EXTENT);
-        state.headPose = handoff.headPose(state.hasHead && head != null ? head.item() : null, box, rest, now);
+        Identifier dissolving = state.hasHead && head != null ? head.item() : null;
+        state.headShards = dissolving != null ? shardsOf(state.headItem, dissolving) : null;
+        CrucibleHeadHandoff.ItemPose rest = restPoseOf(state);
+        state.headPose = handoff.headPose(dissolving, state.headItem.getModelBoundingBox(), rest, now);
+        state.headEasing = state.headPose != rest;
+    }
+
+    /**
+     * Returns the pose the head eases into from its item entity: where its shards stand at
+     * home once it has them, or lying flat at the basin center.
+     *
+     * @param state the render state, head and its shards resolved
+     * @return the head's resting pose
+     */
+    private static CrucibleHeadHandoff.ItemPose restPoseOf(CrucibleRenderState state) {
+        CrucibleBasin.DrawnSurface surface = CrucibleBasin.drawnSurface(state.volumes);
+        CrucibleItemLayout.ItemPlacement placement = CrucibleItemLayout.head(surface, state.rippleAmplitude);
+        if (state.headShards == null) {
+            return CrucibleHeadHandoff.restingPose(placement, state.headItem.getModelBoundingBox(), MIN_EXTENT);
+        }
+        return wholeAtHome(state.headShards, placement, CrucibleItemLayout.shardY(surface, state.rippleAmplitude,
+            new SurfaceRipple.Field(state.blockPos.getX(), state.blockPos.getZ(), state.dayFraction),
+            placement.x(), placement.z(), 0f));
+    }
+
+    /**
+     * Returns the pose the whole head takes where its shards stand at home, so the ease from
+     * the item entity lands exactly where the shards take over: a flat item face up, a block
+     * upright, at the shards' scale, its bottom on the surface (decision tiles-of-the-items-image).
+     *
+     * @param head      the head's shards
+     * @param placement the head's center on the basin floor plan
+     * @param surfaceY  the surface height the shards stand on at the head's center
+     * @return the head's resting pose
+     */
+    private static CrucibleHeadHandoff.ItemPose wholeAtHome(HeadShards head, CrucibleItemLayout.ItemPlacement placement,
+                                                            float surfaceY) {
+        return new CrucibleHeadHandoff.ItemPose(placement.x(), surfaceY - head.frame().bottomY(), placement.z(), 0f,
+            head.model().flat() ? CrucibleHeadHandoff.FLAT_TILT_DEGREES : 0f, head.scale());
     }
 
     /**
@@ -143,13 +211,69 @@ final class CrucibleMeltingItems {
     void submit(CrucibleRenderState state, CrucibleBasin.@Nullable DrawnSurface surface,
                 PoseStack poseStack, SubmitNodeCollector nodeCollector) {
         if (state.hasHead) {
-            submitPosed(state.headItem, state.headPose, poseStack,
-                    new DissolvingItemCollector(nodeCollector, state.headGlow), state.lightCoords);
+            submitHead(state, surface, poseStack, nodeCollector);
         }
         List<CrucibleItemLayout.ItemPlacement> placements = CrucibleItemLayout.waiting(surface, state.rippleAmplitude,
                 state.waitingShown);
         for (int i = 0; i < placements.size(); i++) {
             submitLyingFlat(state.waitingItems[i], placements.get(i), poseStack, nodeCollector, state.lightCoords);
+        }
+    }
+
+    /**
+     * Submits the dissolving item: whole at its handoff pose while it eases in from the item
+     * entity it came from (decision consume-at-rest-in-place), then as its shards once it
+     * lies at rest (decision tiles-of-the-items-image).
+     *
+     * @param state         the crucible render state
+     * @param surface       the drawn surface, or null while nothing has melted
+     * @param poseStack     the pose stack at the block's origin
+     * @param nodeCollector the render node collector
+     */
+    private static void submitHead(CrucibleRenderState state, CrucibleBasin.@Nullable DrawnSurface surface,
+                                   PoseStack poseStack, SubmitNodeCollector nodeCollector) {
+        HeadShards head = state.headShards;
+        if (state.headEasing || head == null) {
+            submitPosed(state.headItem, state.headPose, poseStack,
+                    pose -> new DissolvingItemCollector(nodeCollector, state.headGlow, null, 0, pose),
+                    state.lightCoords);
+            return;
+        }
+        submitShards(state.headItem, head, CrucibleItemLayout.headShards(surface, state.rippleAmplitude,
+                        state.headGlow.fraction(),
+                        new SurfaceRipple.Field(state.blockPos.getX(), state.blockPos.getZ(), state.dayFraction),
+                        head.pieces(), head.frame(), head.shifts()),
+                state.headGlow, poseStack, nodeCollector, state.lightCoords);
+    }
+
+    /**
+     * Submits the dissolving item once per shard of its model, each shard at its own
+     * placement, lying as the item lies, and dissolving on its own (decision tiles-of-the-items-image).
+     *
+     * @param item          the resolved item model
+     * @param head          the item's shards
+     * @param placements    where each shard's centroid lies, in shard order
+     * @param glow          how far the item has dissolved and the layers its edge glows in
+     * @param poseStack     the pose stack at the block's origin
+     * @param nodeCollector the render node collector
+     * @param light         the packed light coordinates
+     */
+    static void submitShards(ItemStackRenderState item, HeadShards head,
+                             List<CrucibleItemLayout.ItemPlacement> placements, DissolveGlow glow,
+                             PoseStack poseStack, SubmitNodeCollector nodeCollector, int light) {
+        for (int shard = 0; shard < placements.size(); shard++) {
+            CrucibleItemLayout.ItemPlacement placement = placements.get(shard);
+            float[] centroid = head.centroids().get(shard);
+            poseStack.pushPose();
+            poseStack.translate(placement.x(), placement.y(), placement.z());
+            poseStack.mulPose(head.lying());
+            poseStack.scale(head.scale(), head.scale(), head.scale());
+            poseStack.translate(-centroid[QuadRectClipper.X], -centroid[QuadRectClipper.Y],
+                    -centroid[QuadRectClipper.Z]);
+            DissolvingItemCollector shardCollector =
+                    new DissolvingItemCollector(nodeCollector, glow, head.model(), shard, poseStack.last().pose());
+            item.submit(poseStack, shardCollector, light, OverlayTexture.NO_OVERLAY, 0);
+            poseStack.popPose();
         }
     }
 
@@ -165,20 +289,21 @@ final class CrucibleMeltingItems {
     private static void submitLyingFlat(ItemStackRenderState item, CrucibleItemLayout.ItemPlacement placement,
                                         PoseStack poseStack, SubmitNodeCollector collector, int light) {
         submitPosed(item, CrucibleHeadHandoff.restingPose(placement, item.getModelBoundingBox(), MIN_EXTENT),
-            poseStack, collector, light);
+            poseStack, itemPose -> collector, light);
     }
 
     /**
      * Submits an item model at a pose: centered on it, turned, tilted and scaled.
      *
-     * @param item      the resolved item model
-     * @param pose      the pose the model's center takes
-     * @param poseStack the pose stack at the block's origin
-     * @param collector the collector the item submits into
-     * @param light     the packed light coordinates
+     * @param item        the resolved item model
+     * @param pose        the pose the model's center takes
+     * @param poseStack   the pose stack at the block's origin
+     * @param collectorAt the collector the item submits into, given the pose it is submitted at
+     * @param light       the packed light coordinates
      */
     private static void submitPosed(ItemStackRenderState item, CrucibleHeadHandoff.ItemPose pose,
-                                    PoseStack poseStack, SubmitNodeCollector collector, int light) {
+                                    PoseStack poseStack, Function<Matrix4fc, SubmitNodeCollector> collectorAt,
+                                    int light) {
         Vec3Center center = new Vec3Center(item.getModelBoundingBox());
         poseStack.pushPose();
         poseStack.translate(pose.x(), pose.y(), pose.z());
@@ -186,7 +311,7 @@ final class CrucibleMeltingItems {
         poseStack.mulPose(Axis.XP.rotationDegrees(pose.tilt()));
         poseStack.scale(pose.scale(), pose.scale(), pose.scale());
         poseStack.translate(-center.x(), -center.y(), -center.z());
-        item.submit(poseStack, collector, light, OverlayTexture.NO_OVERLAY, 0);
+        item.submit(poseStack, collectorAt.apply(poseStack.last().pose()), light, OverlayTexture.NO_OVERLAY, 0);
         poseStack.popPose();
     }
 

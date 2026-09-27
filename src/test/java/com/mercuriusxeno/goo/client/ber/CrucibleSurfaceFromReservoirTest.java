@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.mockito.Mockito.mock;
 
 /**
  * The crucible's drawn surface and bubble spawn surface follow the reservoir alone,
@@ -17,14 +18,16 @@ class CrucibleSurfaceFromReservoirTest {
     private static final long MELTED = 2_000;
 
     /**
-     * Builds a render state holding the given volumes.
+     * Builds a render state holding the given volumes. The state is a mock, since the real
+     * constructor loads BlockEntityType and through it Blocks, which fails unbootstrapped and
+     * poisons Blocks for every later test in the same JVM.
      *
      * @param reservoir the reservoir volume in mB
      * @param pool      the pool volume in mB
      * @return the render state
      */
     private static CrucibleRenderState stateHolding(long reservoir, long pool) {
-        CrucibleRenderState state = new CrucibleRenderState();
+        CrucibleRenderState state = mock(CrucibleRenderState.class);
         state.volumes = new CrucibleBasin.Volumes(reservoir, pool);
         return state;
     }
