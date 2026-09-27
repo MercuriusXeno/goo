@@ -24,6 +24,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.DamageResistant;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.phys.Vec3;
 import java.util.Collection;
 import java.util.Objects;
 
@@ -152,7 +153,7 @@ public final class GooItemTests {
     private static BlobThrowPayload throwAt(GameTestHelper helper, ResourceKey<GooTypeDefinition> type,
                                             String abilityId, BlockPos wall) {
         return new BlobThrowPayload(GooTypes.id(type), NO_TARGET_ENTITY, helper.absolutePos(wall),
-                THROW_FACE.ordinal(), false, abilityId);
+                THROW_FACE.ordinal(), false, abilityId, Vec3.ZERO);
     }
 
     private static void assertMarker(GameTestHelper helper, BlockPos pos, ResourceKey<GooTypeDefinition> type) {

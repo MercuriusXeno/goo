@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.block.BlockEntitySync;
 import com.mercuriusxeno.goo.block.GooSyncedBlockEntity;
+import com.mercuriusxeno.goo.block.ICutawayMachine;
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
 import com.mercuriusxeno.goo.block.canister.ICanisterAttachable;
 import com.mercuriusxeno.goo.data.GooValue;
@@ -31,7 +32,7 @@ import java.util.Map;
  * All 9 copper fittings on the top face are always available (no slot
  * constraints).
  */
-public class PlexerBlockEntity extends GooSyncedBlockEntity implements ICanisterAttachable {
+public class PlexerBlockEntity extends GooSyncedBlockEntity implements ICanisterAttachable, ICutawayMachine {
 
     /**
      * Total canister positions on the 3x3 grid.
@@ -120,12 +121,7 @@ public class PlexerBlockEntity extends GooSyncedBlockEntity implements ICanister
         BlockEntitySync.markDirtyAndSync(this);
     }
 
-    /**
-     * Returns true if the given hit result lands in the cutaway region.
-     *
-     * @param hit the block hit result
-     * @return true if the hit is in the cutaway
-     */
+    @Override
     public boolean isCutawayHit(net.minecraft.world.phys.BlockHitResult hit) {
         return CutawayInteractionHelper.isCutawayClick(getBlockState(), getBlockPos(), hit);
     }

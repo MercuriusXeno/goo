@@ -16,11 +16,11 @@ import java.util.function.IntUnaryOperator;
 public final class RadialWheel {
 
     /** The wheel's diameter as a fraction of the smaller screen dimension. */
-    static final double SCREEN_FRACTION = 0.6;
+    static final double SCREEN_FRACTION = 0.95;
     /** The hub's radius as a fraction of the wheel's: the cursor inside it collapses the fan. */
     static final double HUB_FRACTION = 0.2;
     /** Where the inner ring meets the outer ring, as a fraction of the wheel's radius. */
-    static final double RING_FRACTION = 0.62;
+    static final double RING_FRACTION = 0.70;
     /** No type selected, or no ability hovered. */
     static final int NONE = -1;
 
@@ -46,7 +46,7 @@ public final class RadialWheel {
     }
 
     /**
-     * The wheel's outer radius for a screen: 60% of the smaller dimension, halved.
+     * The wheel's outer radius for a screen: 95% of the smaller dimension, halved.
      *
      * @param width  the screen width
      * @param height the screen height

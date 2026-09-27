@@ -25,16 +25,12 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class BlobFlightManager {
 
-    /** Active flights, keyed by a monotonically increasing ID. */
-    /**
-     * Divisor for computing entity vertical center.
-     */
-    private static final double ENTITY_CENTER_DIVISOR = 2.0;
     /**
      * Epsilon for near-zero length detection in direction vectors.
      */
     private static final double DIRECTION_EPSILON = 1e-6;
 
+    /** Active flights, keyed by a monotonically increasing ID. */
     private static final Map<Integer, BlobFlight> FLIGHTS = new ConcurrentHashMap<>();
     /**
      * Velocity finite-difference step size.
@@ -59,14 +55,47 @@ public final class BlobFlightManager {
 
         Vec3 start = new Vec3(payload.startX(), payload.startY(), payload.startZ());
         int targetEntityId = payload.targetEntityId();
-        Vec3 blockEnd = (targetEntityId < 0) ? resolveBlockTargetPos(payload) : start;
+        Vec3 throwEnd = targetEntityId < 0
+                ? resolveBlockTargetPos(payload) : resolveEntityEndAtThrow(targetEntityId, start);
         int travelTicks = payload.travelTicks();
 
         boolean grannyArc = payload.grannyArc();
         int id = nextId;
         nextId++;
-        FLIGHTS.put(id, new BlobFlight(start, blockEnd, targetEntityId,
+        FLIGHTS.put(id, new BlobFlight(start, throwEnd, targetEntityId,
                 payload.targetPos(), type, travelTicks, grannyArc));
+    }
+
+    /**
+     * The mob's endpoint when the throw lands on this client, the point the
+     * aim line arced to (decision diagnose-then-fix-blob-off-the-line).
+     *
+     * @param entityId the target entity's id
+     * @param start    the flight's start, standing in when the entity is not loaded
+     * @return the entity's bounding-box center, or the start
+     */
+    private static Vec3 resolveEntityEndAtThrow(int entityId, Vec3 start) {
+        Vec3 end = resolveEntityPos(entityId);
+        return end == null ? start : end;
+    }
+
+    /**
+     * The arc peak a flight flies, from the distance between its start and
+     * its endpoint at the throw, as the aim line reads it: glow flies straight.
+     *
+     * @param start      the flight's start
+     * @param throwEnd   the flight's endpoint at the throw
+     * @param gooType    the thrown goo type
+     * @param grannyArc  whether the throw uses the boosted arc
+     * @return the peak height in blocks
+     */
+    static double peakForFlight(Vec3 start, Vec3 throwEnd, ResourceKey<GooTypeDefinition> gooType,
+            boolean grannyArc) {
+        if (gooType == GooTypes.GLOW) {
+            return 0;
+        }
+        double distance = start.distanceTo(throwEnd);
+        return grannyArc ? ThrowArc.grannyPeak(distance) : ThrowArc.basePeak(distance);
     }
 
     /**
@@ -162,7 +191,8 @@ public final class BlobFlightManager {
     }
 
     /**
-     * Resolves an entity's current center position, or null if gone.
+     * Resolves an entity's bounding-box center, the endpoint the aim line
+     * reads, or null if gone.
      *
      * @param entityId the entityId identifier
      * @return the resolved result, or null if unresolvable
@@ -176,7 +206,7 @@ public final class BlobFlightManager {
         if (e == null) {
             return null;
         }
-        return e.position().add(0, e.getBbHeight() / ENTITY_CENTER_DIVISOR, 0);
+        return new TargetResult.EntityTarget(e).resolveEndpoint();
     }
 
     /**
@@ -185,9 +215,10 @@ public final class BlobFlightManager {
     public static class BlobFlight {
         public final Vec3 start;
         /**
-         * Fixed end position for block targets; ignored for entity targets.
+         * End position at the throw: the block face for a block target, the
+         * mob's center for an entity target, where a gone mob's flight lands.
          */
-        public final Vec3 blockEnd;
+        public final Vec3 throwEnd;
         /**
          * Target entity ID, or -1 for block targets.
          */
@@ -199,18 +230,24 @@ public final class BlobFlightManager {
         public final ResourceKey<GooTypeDefinition> gooType;
         public final int travelTicks;
         public final boolean grannyArc;
+
+        /**
+         * Arc peak, fixed at the throw from start to throwEnd.
+         */
+        private final double peak;
         public int ticksElapsed;
 
-        public BlobFlight(Vec3 start, Vec3 blockEnd, int targetEntityId,
+        public BlobFlight(Vec3 start, Vec3 throwEnd, int targetEntityId,
                           BlockPos targetBlockPos, ResourceKey<GooTypeDefinition> gooType,
                           int travelTicks, boolean grannyArc) {
             this.start = start;
-            this.blockEnd = blockEnd;
+            this.throwEnd = throwEnd;
             this.targetEntityId = targetEntityId;
             this.targetBlockPos = targetBlockPos;
             this.gooType = gooType;
             this.travelTicks = travelTicks;
             this.grannyArc = grannyArc;
+            this.peak = peakForFlight(start, throwEnd, gooType, grannyArc);
             this.ticksElapsed = 0;
         }
 
@@ -226,22 +263,7 @@ public final class BlobFlightManager {
                     return live;
                 }
             }
-            return blockEnd;
-        }
-
-        /**
-         * Returns the arc peak height for this flight.
-         *
-         * @return the peak height in blocks above the start-end line
-         */
-        private double peak() {
-            if (gooType == GooTypes.GLOW) {
-                return 0;
-            }
-            double distance = start.distanceTo(blockEnd);
-            return grannyArc
-                    ? ThrowArc.grannyPeak(distance)
-                    : ThrowArc.basePeak(distance);
+            return throwEnd;
         }
 
         /**
@@ -252,7 +274,7 @@ public final class BlobFlightManager {
          */
         public Vec3 getPosition(float partialTick) {
             float t = Math.min(1.0f, (ticksElapsed + partialTick) / travelTicks);
-            return ThrowArc.arcPoint(start, getEnd(), t, peak());
+            return ThrowArc.arcPoint(start, getEnd(), t, peak);
         }
 
         /**
@@ -264,10 +286,9 @@ public final class BlobFlightManager {
         public Vec3 getVelocity(float partialTick) {
             float t = Math.min(1.0f, (ticksElapsed + partialTick) / travelTicks);
             Vec3 end = getEnd();
-            double p = peak();
-            Vec3 posNow = ThrowArc.arcPoint(start, end, t, p);
+            Vec3 posNow = ThrowArc.arcPoint(start, end, t, peak);
             Vec3 posNext = ThrowArc.arcPoint(start, end,
-                    Math.min(1.0, t + VELOCITY_DT), p);
+                    Math.min(1.0, t + VELOCITY_DT), peak);
             Vec3 diff = posNext.subtract(posNow);
             double len = diff.length();
             return len > DIRECTION_EPSILON ? diff.scale(1.0 / len) : new Vec3(0, 1, 0);
