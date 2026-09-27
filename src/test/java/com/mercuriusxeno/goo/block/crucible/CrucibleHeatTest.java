@@ -9,6 +9,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -106,7 +107,7 @@ class CrucibleHeatTest {
     private static void meltTick(CrucibleHeat heat, List<FuelGrade> grades, Pool pool, MapStock stock) {
         FuelGrade burning = heat.burnMeltTick(pool.contents.totalVolume() > 0, grades, DRAIN, stock);
         if (burning != null) {
-            pool.contents = pool.queue.advanceHead(burning.meltExponent(), pool.contents, stock::accept);
+            pool.contents = pool.queue.advanceNext(burning.meltExponent(), pool.contents, stock::accept);
         }
     }
 
@@ -132,6 +133,16 @@ class CrucibleHeatTest {
         return tick;
     }
 
+    /**
+     * Returns the items still melting in the pool's queue.
+     *
+     * @param pool the pool
+     * @return the item count
+     */
+    private static int itemsMelting(Pool pool) {
+        return pool.queue.entries().stream().mapToInt(CrucibleMeltQueue.Entry::count).sum();
+    }
+
     @Nested
     class Clock {
 
@@ -145,6 +156,30 @@ class CrucibleHeatTest {
         @Test
         void thousandMbItemMeltsIn32TicksUnderUnstable() {
             assertEquals(32, ticksToMelt(List.of(UNSTABLE), new MapStock().with(GooTypes.UNSTABLE, 1000), 1000));
+        }
+
+        /**
+         * Two 1000 mB items under lone blaze take turns: both half melted on tick 178, the first
+         * finishing on tick 355 and the second on tick 356 (decision lone-fuel-advances-one-item).
+         */
+        @Test
+        void twoItemsTakeTurnsUnderALoneFuel() {
+            CrucibleHeat heat = new CrucibleHeat();
+            MapStock stock = new MapStock().with(GooTypes.BLAZE, 1000);
+            Pool pool = new Pool().with(GooTypes.ROCK, 1000, 2);
+            List<Integer> finishedOn = new ArrayList<>();
+            for (int tick = 1; pool.contents.totalVolume() > 0; tick++) {
+                int before = itemsMelting(pool);
+                meltTick(heat, GRADES, pool, stock);
+                for (int finished = itemsMelting(pool); finished < before; finished++) {
+                    finishedOn.add(tick);
+                }
+                if (tick == 178) {
+                    assertEquals(List.of(0.5, 0.5), pool.queue.head().progress().stream()
+                            .map(progress -> Math.round(progress * 1e6) / 1e6).toList());
+                }
+            }
+            assertEquals(List.of(355, 356), finishedOn);
         }
 
         /** Halfway through its 178 ticks a 1000 mB item has moved half its goo, the pool holding the rest. */

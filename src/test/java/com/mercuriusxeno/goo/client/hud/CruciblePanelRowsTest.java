@@ -116,7 +116,7 @@ class CruciblePanelRowsTest {
         queue.appendAll(List.of(new ValuedStack(diamond, 1, diamondUnit),
                 new ValuedStack(Identifier.fromNamespaceAndPath("minecraft", "oak_log"), 1,
                         GooContents.EMPTY.withAdded(GooTypes.LEAF, 40))));
-        queue.advanceHead(GooConfig.DEFAULT_UNSTABLE_MELT_EXPONENT, diamondUnit, (type, amount, simulate) -> amount);
+        queue.advanceNext(GooConfig.DEFAULT_UNSTABLE_MELT_EXPONENT, diamondUnit, (type, amount, simulate) -> amount);
 
         PanelRow row = CruciblePanelRows.meltRow(queue.head(), queue.waiting().size(),
                 item -> item.equals(diamond) ? new CruciblePanelRows.ItemIcon(atlas, diamondUv) : null);

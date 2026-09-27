@@ -50,7 +50,7 @@ final class CrucibleMelting {
     }
 
     /**
-     * Per-tick melting: burns one heat tick and advances the head item's melt clock on the
+     * Per-tick melting: burns one heat tick and advances an item's melt clock on the
      * burning grade's exponent (decision melt-time-is-mb-to-a-power). Skips if disabled,
      * and burns nothing without a meltable item or heat to buy.
      *
@@ -183,8 +183,8 @@ final class CrucibleMelting {
     }
 
     /**
-     * Advances the head item's clock one tick, moving its share of the tick from the PMI pool
-     * into the reservoir.
+     * Advances the next item's clock one tick, round robin, moving its share of the tick from
+     * the PMI pool into the reservoir (decision lone-fuel-advances-one-item).
      *
      * @param be       the crucible block entity
      * @param exponent the burning grade's melt exponent
@@ -192,7 +192,7 @@ final class CrucibleMelting {
     private static void advanceMeltClock(CrucibleBlockEntity be, double exponent) {
         CrucibleInsertion.queueUnaccountedPool(be);
         GooContents pool = PartiallyMeltedItem.getContents(be.meltingItem);
-        PartiallyMeltedItem.setContents(be.meltingItem, be.meltQueue.advanceHead(exponent, pool,
+        PartiallyMeltedItem.setContents(be.meltingItem, be.meltQueue.advanceNext(exponent, pool,
                 be.reservoir::insertGoo));
     }
 
