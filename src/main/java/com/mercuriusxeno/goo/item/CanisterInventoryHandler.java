@@ -9,11 +9,11 @@ import net.minecraft.world.entity.SlotAccess;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import org.jspecify.annotations.Nullable;
+import java.util.Map;
 
 /**
- * Static helpers for canister inventory click handling: blob/omniblob insert,
- * empty-cursor drain, and gasket cleanup on placement. The hub item shares the
+ * Static helpers for canister inventory click handling: omniblob insert,
+ * empty-cursor drain into the inventory, and gasket cleanup on placement. The hub item shares the
  * cursor insert through {@link #insertFromCursor}.
  * Extracted from CanisterItem to reduce method count.
  */
@@ -90,15 +90,15 @@ final class CanisterInventoryHandler {
     // --- Drain operations ---
 
     /**
-     * Where a drain's goo comes from: answers its dominant type and gives up goo of a type.
+     * Where a drain's goo comes from: answers the goo it gives up and removes goo of a type.
      */
     interface GooSource {
         /**
-         * Answers the goo type the drain takes.
+         * Answers the goo this drain takes, per type.
          *
-         * @return the dominant goo type, or null when empty
+         * @return the volume per type, empty when there is nothing to drain
          */
-        @Nullable ResourceKey<GooTypeDefinition> dominantType();
+        Map<ResourceKey<GooTypeDefinition>, Integer> drainable();
 
         /**
          * Removes up to the given volume of one goo type, capped by what the source holds.
@@ -111,21 +111,16 @@ final class CanisterInventoryHandler {
     }
 
     /**
-     * Drains up to 64,000 mB of the source's dominant goo type onto the cursor as a blob output.
+     * Drains the source whole into the inventory; the cursor is never set, and goo that finds
+     * no home stays in the source (decisions vats-and-canisters-drain-whole and
+     * drained-goo-fills-carried-containers-first).
      *
-     * @param cursorAccess access to set the cursor contents
-     * @param source       where the goo comes from
-     * @return true if any goo was extracted
+     * @param source    where the goo comes from
+     * @param depositor where the goo goes
+     * @return true if any goo moved
      */
-    static boolean drainToCursor(SlotAccess cursorAccess, GooSource source) {
-        ResourceKey<GooTypeDefinition> dominant = source.dominantType();
-        if (dominant == null) { return false; }
-
-        int extracted = source.remove(dominant, ContainerCapacity.BLOB_CAP);
-        if (extracted <= 0) { return false; }
-
-        cursorAccess.set(BlobStacks.createForOutput(dominant, extracted));
-        return true;
+    static boolean drainIntoInventory(GooSource source, GooDeposit.Depositor depositor) {
+        return GooDeposit.drainEveryType(source.drainable(), source::remove, depositor);
     }
 
     // --- Gasket mutual exclusivity ---

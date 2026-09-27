@@ -14,7 +14,6 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Static helpers for crucible right-click interactions: the flint-and-steel spark,
@@ -167,22 +166,29 @@ final class CrucibleInteraction {
     }
 
     /**
-     * Extracts the entire reservoir as one omniblob per goo type.
+     * Drains every type in the reservoir into the player's inventory; what finds no home
+     * stays in the crucible (decision drained-goo-fills-carried-containers-first).
      *
      * @param crucible the crucible block entity
      * @param player   the interacting player
-     * @return the result
+     * @return SUCCESS if any goo moved, else PASS
      */
     static InteractionResult tryExtractGoo(CrucibleBlockEntity crucible, Player player) {
-        GooContents res = crucible.getReservoir();
-        if (res.isEmpty()) {
-            return InteractionResult.PASS;
-        }
+        return extractInto(crucible.getReservoir(), crucible::extractGoo,
+                GooDeposit.intoInventory(player, ItemStack.EMPTY));
+    }
 
-        for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> entry : res.getAll().entrySet()) {
-            BlobStacks.mergeIntoInventory(player, entry.getKey(), entry.getValue());
-        }
-        crucible.drainReservoir();
-        return InteractionResult.SUCCESS;
+    /**
+     * Drains a reservoir snapshot through a depositor, drawing only what found a home.
+     *
+     * @param reservoir the reservoir snapshot
+     * @param drawer    removes goo from the reservoir
+     * @param depositor where the goo goes
+     * @return SUCCESS if any goo moved, else PASS
+     */
+    static InteractionResult extractInto(GooContents reservoir, GooDeposit.GooDrawer drawer,
+                                         GooDeposit.Depositor depositor) {
+        return GooDeposit.drainEveryType(reservoir.getAll(), drawer, depositor)
+                ? InteractionResult.SUCCESS : InteractionResult.PASS;
     }
 }
