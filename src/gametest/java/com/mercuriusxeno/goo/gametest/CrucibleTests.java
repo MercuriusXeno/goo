@@ -95,6 +95,12 @@ public final class CrucibleTests {
     private static final double THROW_START_X = 1.05;
     /** A throw's height in test-relative Y, inside the pull field over the rim. */
     private static final double THROW_START_Y = 2.2;
+    /** A side throw's start in test-relative X, east of the crucible, out of the field's reach. */
+    private static final double SIDE_THROW_START_X = 2.3;
+    /** A side throw's height in test-relative Y, level with the body's side under the ledge. */
+    private static final double SIDE_THROW_START_Y = 1.75;
+    /** A side throw's speed west, into the body's side. */
+    private static final double SIDE_THROW_SPEED = 0.3;
     /** A throw's speed east, enough to cross the whole block in two ticks. */
     private static final double THROW_SPEED = 0.5;
     /** An off-center drop's X offset from the basin center, near the east wall. */
@@ -316,6 +322,21 @@ public final class CrucibleTests {
         ItemEntity thrown = CrucibleSpawns.spawnAt(helper, new ItemStack(Items.COBBLESTONE),
             new Vec3(THROW_START_X, THROW_START_Y, CrucibleSpawns.BASIN_CENTER_XZ));
         thrown.setDeltaMovement(THROW_SPEED, 0.0, 0.0);
+        helper.runAfterDelay(SLIDE_BOUND, () -> assertInCavity(helper, thrown));
+    }
+
+    /**
+     * An item thrown into the side of a cold crucible, below the ledge, is lifted up and
+     * over the collar into the cavity rather than sliding down beside the block. Thrown
+     * from the east, since barriers bound the test area on the west.
+     *
+     * @param helper the gametest helper
+     */
+    public static void sideHitItemLiftedIntoTheCavity(GameTestHelper helper) {
+        placeCrucible(helper);
+        ItemEntity thrown = CrucibleSpawns.spawnAt(helper, new ItemStack(Items.COBBLESTONE),
+            new Vec3(SIDE_THROW_START_X, SIDE_THROW_START_Y, CrucibleSpawns.BASIN_CENTER_XZ));
+        thrown.setDeltaMovement(-SIDE_THROW_SPEED, 0.0, 0.0);
         helper.runAfterDelay(SLIDE_BOUND, () -> assertInCavity(helper, thrown));
     }
 

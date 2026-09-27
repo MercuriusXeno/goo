@@ -8,7 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Tests the pull field over the crucible and the lift off its ledge
+ * Tests the pull field over the crucible and the lift up its sides
  * (decision rim-and-mouth-items-slide-inward).
  */
 class CrucibleItemDriftTest {
@@ -26,7 +26,7 @@ class CrucibleItemDriftTest {
 
         @Test
         void thrownItemIsSlowedAndDrawnToTheCenter() {
-            Vec3 after = CrucibleItemDrift.fieldDelta(THROWN, 0.8, IN_FIELD, 0.3, false);
+            Vec3 after = CrucibleItemDrift.fieldDelta(THROWN, 0.8, IN_FIELD, 0.3);
             double keep = 1.0 - CrucibleItemDrift.FIELD_DAMPING;
             assertEquals(THROWN.x * keep + (CENTER - 0.8) * CrucibleItemDrift.FIELD_GAIN, after.x, EPSILON);
             assertEquals(THROWN.z * keep + (CENTER - 0.3) * CrucibleItemDrift.FIELD_GAIN, after.z, EPSILON);
@@ -34,49 +34,70 @@ class CrucibleItemDriftTest {
 
         @Test
         void fieldKeepsTheFall() {
-            assertEquals(THROWN.y, CrucibleItemDrift.fieldDelta(THROWN, 0.8, IN_FIELD, 0.3, false).y, EPSILON);
+            assertEquals(THROWN.y, CrucibleItemDrift.fieldDelta(THROWN, 0.8, IN_FIELD, 0.3).y, EPSILON);
         }
 
         @Test
         void itemOnAWallTopIsDrawnInward() {
-            Vec3 after = CrucibleItemDrift.fieldDelta(Vec3.ZERO, WALL_MIDDLE, CrucibleBasin.RIM_Y, CENTER, true);
+            Vec3 after = CrucibleItemDrift.fieldDelta(Vec3.ZERO, WALL_MIDDLE, CrucibleBasin.RIM_Y, CENTER);
             assertTrue(after.x > 0);
         }
 
         @Test
         void fieldReachesAQuarterBlockOverTheRim() {
             double top = CrucibleBasin.RIM_Y + CrucibleItemDrift.FIELD_HEIGHT;
-            assertTrue(CrucibleItemDrift.fieldDelta(THROWN, 0.8, top, CENTER, false).x < THROWN.x);
-            assertSame(THROWN, CrucibleItemDrift.fieldDelta(THROWN, 0.8, top + 0.01, CENTER, false));
+            assertTrue(CrucibleItemDrift.fieldDelta(THROWN, 0.8, top, CENTER).x < THROWN.x);
+            assertSame(THROWN, CrucibleItemDrift.fieldDelta(THROWN, 0.8, top + 0.01, CENTER));
         }
 
         @Test
-        void itemBesideTheBlockIsLeftAlone() {
-            assertSame(THROWN, CrucibleItemDrift.fieldDelta(THROWN, -0.1, IN_FIELD, CENTER, false));
-            assertSame(THROWN, CrucibleItemDrift.fieldDelta(THROWN, CENTER, IN_FIELD, 1.1, false));
+        void itemWhoseEdgeIsInReachIsPulled() {
+            double edgeInReach = -(CrucibleItemDrift.FIELD_REACH + CrucibleItemDrift.ITEM_HALF_WIDTH) + 0.01;
+            assertTrue(CrucibleItemDrift.fieldDelta(THROWN, edgeInReach, IN_FIELD, CENTER).x < THROWN.x);
+            assertTrue(CrucibleItemDrift.fieldDelta(THROWN, CENTER, IN_FIELD, 1.0 - edgeInReach).z > THROWN.z);
+        }
+
+        @Test
+        void itemWhoseEdgeIsPastTheReachIsLeftAlone() {
+            double edgeOut = -(CrucibleItemDrift.FIELD_REACH + CrucibleItemDrift.ITEM_HALF_WIDTH) - 0.01;
+            assertSame(THROWN, CrucibleItemDrift.fieldDelta(THROWN, edgeOut, IN_FIELD, CENTER));
+            assertSame(THROWN, CrucibleItemDrift.fieldDelta(THROWN, CENTER, IN_FIELD, 1.0 - edgeOut));
         }
     }
 
-    /** An item grounded on the ledge is lifted over the collar. */
+    /** An item below the rim, on the ledge or against the sides, is lifted over the collar. */
     @Nested
-    class LedgeLift {
+    class Lift {
 
         @Test
-        void groundedLedgeItemIsLiftedInward() {
-            Vec3 after = CrucibleItemDrift.fieldDelta(Vec3.ZERO, LEDGE_MIDDLE, CrucibleShape.LEDGE_Y, CENTER, true);
+        void ledgeItemIsLiftedInward() {
+            Vec3 after = CrucibleItemDrift.fieldDelta(Vec3.ZERO, LEDGE_MIDDLE, CrucibleShape.LEDGE_Y, CENTER);
             assertEquals(CrucibleItemDrift.LIFT_SPEED, after.y, EPSILON);
             assertEquals((CENTER - LEDGE_MIDDLE) * CrucibleItemDrift.LIFT_INWARD_GAIN, after.x, EPSILON);
         }
 
         @Test
-        void airborneItemBelowTheRimIsNotLiftedAgain() {
-            Vec3 rising = new Vec3(0.05, 0.1, 0.0);
-            assertSame(rising, CrucibleItemDrift.fieldDelta(rising, LEDGE_MIDDLE, 0.9, CENTER, false));
+        void itemTouchingTheSideIsLiftedInward() {
+            Vec3 after = CrucibleItemDrift.fieldDelta(THROWN, 1.0 + CrucibleItemDrift.ITEM_HALF_WIDTH, 0.7, CENTER);
+            assertEquals(CrucibleItemDrift.LIFT_SPEED, after.y, EPSILON);
+            assertTrue(after.x < 0);
+        }
+
+        @Test
+        void risingItemKeepsItsFasterClimb() {
+            Vec3 rising = new Vec3(0.0, 0.35, 0.0);
+            assertEquals(0.35, CrucibleItemDrift.fieldDelta(rising, LEDGE_MIDDLE, 0.9, CENTER).y, EPSILON);
+        }
+
+        @Test
+        void itemBelowTheLiftIsLeftAlone() {
+            double under = CrucibleShape.LEDGE_Y - CrucibleItemDrift.LIFT_DEPTH - 0.01;
+            assertSame(THROWN, CrucibleItemDrift.fieldDelta(THROWN, -0.1, under, CENTER));
         }
 
         @Test
         void itemInsideTheCavityIsNotLifted() {
-            assertSame(THROWN, CrucibleItemDrift.fieldDelta(THROWN, 0.4, CrucibleShape.LEDGE_Y, 0.6, true));
+            assertSame(THROWN, CrucibleItemDrift.fieldDelta(THROWN, 0.4, CrucibleShape.LEDGE_Y, 0.6));
         }
     }
 }
