@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.client.machine.VatStackAggregator.VatStackData;
 import com.mercuriusxeno.goo.item.GooContents;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -26,6 +27,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * recorded size reads back by hand from the old formulas: a panel is its widest
  * row plus a 3-pixel border each side wide, and 11 pixels a row plus the
  * borders tall; a goo row is a 10-pixel icon, a 2-pixel gap, then its text.
+ * It also covers the projected height measure and the column layout that keep
+ * a panel on screen (decision panel-wraps-to-two-columns-then-shrinks).
  */
 class PanelPainterMeasureTest {
 
@@ -117,6 +120,72 @@ class PanelPainterMeasureTest {
         float width = PanelPainter.measure(rows, SIX_PIXELS_A_CHARACTER).width();
         assertEquals(96f, width);
         assertTrue(width > CRUCIBLE_FLOOR_WIDTH);
+    }
+
+    /**
+     * The projected height measure: a panel's world height over the view
+     * frustum's height at its distance (decision panel-wraps-to-two-columns-then-shrinks).
+     */
+    @Nested
+    class ProjectedHeight {
+        /** A 1-block panel 1 block away at a 70 degree fov covers 1 / (2 tan 35 degrees). */
+        @Test
+        void oneBlockAtOneBlockCoversTheFrustumShare() {
+            assertEquals(1 / (2 * Math.tan(Math.toRadians(35))),
+                    PanelPainter.projectedFraction(1, 1, 70), 1e-9);
+        }
+
+        /** Doubling the distance halves the share of the screen the panel covers. */
+        @Test
+        void doublingTheDistanceHalvesTheFraction() {
+            double near = PanelPainter.projectedFraction(1, 1, 70);
+            assertEquals(near / 2, PanelPainter.projectedFraction(1, 2, 70), 1e-9);
+        }
+    }
+
+    /**
+     * The column layout: past the 80% cap the rows split into two columns, the
+     * first taking the odd row; at or under it they stay one column.
+     */
+    @Nested
+    class ColumnLayout {
+        /** A 70 degree vertical fov. */
+        private static final double FOV = 70;
+
+        /** Five headers of 24, 12, 36, 6 and 30 pixels: one column is 61 pixels tall. */
+        private final List<PanelRow> fiveRows = List.of(
+                PanelRow.header("aaaa", 0), PanelRow.header("bb", 0), PanelRow.header("cccccc", 0),
+                PanelRow.header("d", 0), PanelRow.header("eeeee", 0));
+
+        /**
+         * 61 pixels is 0.95 blocks; half a block away the frustum is 0.70 blocks
+         * tall, so one column covers 136% and the rows split 3 and 2.
+         */
+        @Test
+        void rowsPastTheCapSplitIntoTwoColumns() {
+            PanelPainter.PanelLayout layout =
+                    PanelPainter.layOut(fiveRows, SIX_PIXELS_A_CHARACTER, 0.5, FOV);
+            // first column 36 wide, gap 6, second column 30 wide, borders 6; three rows tall
+            assertEquals(new PanelPainter.PanelSize(78f, 39f), layout.size());
+            assertEquals(List.of(
+                    new PanelPainter.RowSpot(0, 3f, 3f),
+                    new PanelPainter.RowSpot(0, 3f, 14f),
+                    new PanelPainter.RowSpot(0, 3f, 25f),
+                    new PanelPainter.RowSpot(1, 45f, 3f),
+                    new PanelPainter.RowSpot(1, 45f, 14f)), layout.spots());
+        }
+
+        /** Five blocks away one column covers 14%, so the rows stay one column at the measured size. */
+        @Test
+        void rowsUnderTheCapStayOneColumn() {
+            PanelPainter.PanelLayout layout =
+                    PanelPainter.layOut(fiveRows, SIX_PIXELS_A_CHARACTER, 5, FOV);
+            assertEquals(PanelPainter.measure(fiveRows, SIX_PIXELS_A_CHARACTER), layout.size());
+            assertEquals(new PanelPainter.PanelSize(42f, 61f), layout.size());
+            for (int i = 0; i < fiveRows.size(); i++) {
+                assertEquals(new PanelPainter.RowSpot(0, 3f, 3f + 11f * i), layout.spots().get(i));
+            }
+        }
     }
 
     /**
