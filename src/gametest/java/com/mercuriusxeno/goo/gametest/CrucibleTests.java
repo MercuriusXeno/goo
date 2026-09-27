@@ -85,11 +85,18 @@ public final class CrucibleTests {
         new Vec3(CrucibleSpawns.BASIN_CENTER_XZ, WALL_TOP_Y, 2.0 - WALL_MIDDLE),
     };
     private static final Item[] WALL_ITEMS = {Items.COBBLESTONE, Items.DIRT, Items.SAND, Items.GRAVEL};
-    /** How far a ledge item may drift and still read as where it landed. */
-    private static final double LEDGE_SLACK = 1e-3;
     private static final String SLID_ITEM_STAYS = "slid item still exists: ";
     private static final String SLID_INTO_CAVITY = "wall-top item slid into the cavity: ";
-    private static final String LEDGE_ITEM_STILL = "ledge item stays where it landed: ";
+    private static final String LEDGE_ITEM_OUTSIDE = "ledge item still outside the cavity: ";
+    private static final String LEDGE_ITEM_TAKEN = "ledge item taken once lifted into the cavity";
+    /** Ticks after a ledge item is spawned at which the lift has it in the air, still outside the cavity. */
+    private static final int LIFT_CHECK_TICKS = 2;
+    /** A throw's start in test-relative X, over the crucible's west ledge in the pull field. */
+    private static final double THROW_START_X = 1.05;
+    /** A throw's height in test-relative Y, inside the pull field over the rim. */
+    private static final double THROW_START_Y = 2.2;
+    /** A throw's speed east, enough to cross the whole block in two ticks. */
+    private static final double THROW_SPEED = 0.5;
     /** An off-center drop's X offset from the basin center, near the east wall. */
     private static final double OFF_CENTER_X = 0.1;
     /** An off-center drop's Z offset from the basin center, near the north wall. */
@@ -231,34 +238,34 @@ public final class CrucibleTests {
     }
 
     /**
-     * An item resting on the outer ledge of a heating crucible is left whole.
+     * An item on the outer ledge of a heating crucible is whole while it is still outside
+     * the cavity, and taken only once the lift has carried it in.
      *
      * @param helper the gametest helper
      */
-    public static void ledgeItemLeftUnconsumed(GameTestHelper helper) {
+    public static void ledgeItemTakenOnlyInsideTheCavity(GameTestHelper helper) {
         CrucibleBlockEntity crucible = placeFueledCrucible(helper);
-        ItemEntity onLedge = CrucibleSpawns.spawnAt(helper, new ItemStack(Items.COBBLESTONE, COBBLE_OFFERED),
-            new Vec3(LEDGE_X, LEDGE_TOP_Y, CrucibleSpawns.BASIN_CENTER_XZ));
-        helper.runAfterDelay(ABSORB_DELAY, () -> {
+        ItemEntity onLedge = spawnOnLedge(helper, new ItemStack(Items.COBBLESTONE, COBBLE_OFFERED));
+        helper.runAfterDelay(LIFT_CHECK_TICKS, () -> {
+            Vec3 rel = CrucibleSpawns.relativeToCrucible(helper, onLedge);
+            helper.assertFalse(CrucibleBasin.holdsPoint(rel.x, rel.y, rel.z), LEDGE_ITEM_OUTSIDE + rel);
             helper.assertFalse(onLedge.isRemoved(), LEDGE_ITEM_STAYS);
             helper.assertValueEqual(COBBLE_OFFERED, onLedge.getItem().getCount(), LEDGE_ITEM_WHOLE);
             helper.assertTrue(crucible.reservoirHandler().isEmpty(), RESERVOIR_UNCHANGED);
-            assertOnLedge(helper, onLedge);
+        });
+        helper.runAfterDelay(SLIDE_BOUND, () -> {
+            helper.assertTrue(onLedge.isRemoved(), LEDGE_ITEM_TAKEN);
             helper.succeed();
         });
     }
 
     /**
-     * Asserts an item sits where the ledge spot put it, on the body top outside the east wall.
-     *
      * @param helper the gametest helper
-     * @param item   the item entity
+     * @param stack  the stack the entity carries
+     * @return a still item grounded on the ledge, its west face against the east rim wall
      */
-    private static void assertOnLedge(GameTestHelper helper, ItemEntity item) {
-        Vec3 rel = CrucibleSpawns.relativeToCrucible(helper, item);
-        helper.assertTrue(Math.abs(rel.x - (LEDGE_X - 1.0)) < LEDGE_SLACK
-            && Math.abs(rel.z - (CrucibleSpawns.BASIN_CENTER_XZ - 1.0)) < LEDGE_SLACK
-            && Math.abs(rel.y - CrucibleShape.LEDGE_Y) < LEDGE_SLACK, LEDGE_ITEM_STILL + rel);
+    private static ItemEntity spawnOnLedge(GameTestHelper helper, ItemStack stack) {
+        return CrucibleSpawns.spawnAt(helper, stack, new Vec3(LEDGE_X, LEDGE_TOP_Y, CrucibleSpawns.BASIN_CENTER_XZ));
     }
 
     // -- Sliding in (decision rim-and-mouth-items-slide-inward) --
@@ -287,18 +294,42 @@ public final class CrucibleTests {
     }
 
     /**
-     * An item on the outer ledge of a cold crucible stays where it landed.
+     * An item grounded on the outer ledge of a cold crucible is lifted up and over the
+     * rim wall into the cavity, rather than catching on the collar.
      *
      * @param helper the gametest helper
      */
-    public static void ledgeItemStaysPut(GameTestHelper helper) {
+    public static void ledgeItemLiftedIntoTheCavity(GameTestHelper helper) {
         placeCrucible(helper);
-        ItemEntity onLedge = CrucibleSpawns.spawnAt(helper, new ItemStack(Items.COBBLESTONE),
-            new Vec3(LEDGE_X, LEDGE_TOP_Y, CrucibleSpawns.BASIN_CENTER_XZ));
-        helper.runAfterDelay(SLIDE_BOUND, () -> {
-            assertOnLedge(helper, onLedge);
-            helper.succeed();
-        });
+        ItemEntity onLedge = spawnOnLedge(helper, new ItemStack(Items.COBBLESTONE));
+        helper.runAfterDelay(SLIDE_BOUND, () -> assertInCavity(helper, onLedge));
+    }
+
+    /**
+     * An item thrown across the top of a cold crucible, fast enough to sail over it,
+     * is caught by the pull field and drops into the cavity.
+     *
+     * @param helper the gametest helper
+     */
+    public static void thrownItemCaughtByTheField(GameTestHelper helper) {
+        placeCrucible(helper);
+        ItemEntity thrown = CrucibleSpawns.spawnAt(helper, new ItemStack(Items.COBBLESTONE),
+            new Vec3(THROW_START_X, THROW_START_Y, CrucibleSpawns.BASIN_CENTER_XZ));
+        thrown.setDeltaMovement(THROW_SPEED, 0.0, 0.0);
+        helper.runAfterDelay(SLIDE_BOUND, () -> assertInCavity(helper, thrown));
+    }
+
+    /**
+     * Asserts an item still exists and lies in the cavity, then succeeds.
+     *
+     * @param helper the gametest helper
+     * @param item   the item entity
+     */
+    private static void assertInCavity(GameTestHelper helper, ItemEntity item) {
+        Vec3 rel = CrucibleSpawns.relativeToCrucible(helper, item);
+        helper.assertFalse(item.isRemoved(), SLID_ITEM_STAYS + item.getItem());
+        helper.assertTrue(CrucibleBasin.holdsPoint(rel.x, rel.y, rel.z), SLID_INTO_CAVITY + rel);
+        helper.succeed();
     }
 
     // -- The kill box (decision consume-at-rest-in-place, as the operator reframed it) --

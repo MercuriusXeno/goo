@@ -244,13 +244,21 @@ class CrucibleBasinTest {
     class KillBox {
 
         private static final double CENTER = 0.5;
-        private static final CrucibleBasin.Volumes MODERATE =
+        /** Goo standing five pixels over the floor, deeper than an item's drawn hover. */
+        private static final long DEEP_VOLUME = (long) CrucibleBasin.pixelCrossingVolume(5);
+        private static final CrucibleBasin.Volumes MODERATE = new CrucibleBasin.Volumes(DEEP_VOLUME, 0);
+        private static final CrucibleBasin.Volumes SHALLOW =
             new CrucibleBasin.Volumes(CrucibleBasin.MODERATE_VOLUME, 0);
 
         @Test
-        void topIsTheSurfaceTheRendererDraws() {
-            assertEquals(CrucibleBasin.surfaceYForVolume(CrucibleBasin.MODERATE_VOLUME),
+        void topSitsAnItemsDrawnHoverUnderTheSurfaceTheRendererDraws() {
+            assertEquals(CrucibleBasin.surfaceYForVolume(DEEP_VOLUME) - CrucibleBasin.ITEM_DRAWN_HOVER,
                 CrucibleBasin.killBoxTopY(MODERATE), EPSILON);
+        }
+
+        @Test
+        void topIsTheFloorUnderGooShallowerThanTheHover() {
+            assertEquals(CrucibleBasin.FLOOR_Y, CrucibleBasin.killBoxTopY(SHALLOW), EPSILON);
         }
 
         @Test
