@@ -5,10 +5,11 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Tests that a machine panel fades in and out linearly over 0.1 s on the
- * animator's clock (decision diagnose-then-fix-hud-panel-fade), driven at a
+ * Tests that a machine panel fades in and out linearly over 0.1 s, its tilt
+ * riding the same clock, on the animator (decision diagnose-then-fix-hud-panel-fade), driven at a
  * fixed 60 fps frame rather than the system clock.
  */
 class HudAnimatorTest {
@@ -101,6 +102,42 @@ class HudAnimatorTest {
             tickFrames(animator, null, FADE_FRAMES / 2);
             tickFrames(animator, "vat", 1);
             assertEquals(4f / FADE_FRAMES, animator.opacity(), 0.01f);
+        }
+    }
+
+    /** The tilt rides the fade's clock (decision tilt-stays-beside-the-fade). */
+    @Nested
+    class Tilt {
+
+        @Test
+        void reachesFullPitchWhenOpacityDoes() {
+            assertEquals(1f, fadedIn().pitch(), EXACT);
+        }
+
+        @Test
+        void risesEveryEmergeFrame() {
+            HudAnimator<String> animator = new HudAnimator<>(String::equals);
+            float previous = animator.pitch();
+            for (int i = 0; i < FADE_FRAMES; i++) {
+                animator.tick("vat", FRAME);
+                assertTrue(animator.pitch() > previous, "frame " + i + " pitch " + animator.pitch());
+                previous = animator.pitch();
+            }
+        }
+
+        @Test
+        void fallsFlushAndClearsWhenOpacityDoes() {
+            HudAnimator<String> animator = fadedIn();
+            tickFrames(animator, null, FADE_FRAMES);
+            assertEquals(0f, animator.pitch());
+            assertNull(animator.tracked());
+        }
+
+        @Test
+        void easesOutAheadOfTheFade() {
+            HudAnimator<String> animator = new HudAnimator<>(String::equals);
+            tickFrames(animator, "vat", FADE_FRAMES / 2);
+            assertEquals(0.75f, animator.pitch(), 0.01f);
         }
     }
 }
