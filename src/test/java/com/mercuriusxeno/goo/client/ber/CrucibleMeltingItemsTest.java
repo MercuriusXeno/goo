@@ -82,7 +82,7 @@ class CrucibleMeltingItemsTest {
         }).when(delegate).submitCustomGeometry(any(PoseStack.class), any(RenderType.class), any());
 
         CrucibleMeltingItems.submitTiles(oneQuadItem(),
-                CrucibleItemLayout.headTiles(null, RenderContext.RESTING_RIPPLE_AMPLITUDE),
+                CrucibleItemLayout.headTiles(null, RenderContext.RESTING_RIPPLE_AMPLITUDE, 0f),
                 DissolveGlow.single(FRACTION, 0xFFFFFF), new PoseStack(), delegate, LIGHT);
 
         assertEquals(CrucibleItemLayout.TILE_COUNT, renderTypes.size());

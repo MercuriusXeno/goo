@@ -76,7 +76,7 @@ final class CrucibleMeltingItems {
     void submit(CrucibleRenderState state, CrucibleBasin.@Nullable DrawnSurface surface,
                 PoseStack poseStack, SubmitNodeCollector nodeCollector) {
         if (state.hasHead) {
-            submitTiles(state.headItem, CrucibleItemLayout.headTiles(surface, state.rippleAmplitude),
+            submitTiles(state.headItem, CrucibleItemLayout.headTiles(surface, state.rippleAmplitude, state.headGlow.fraction()),
                     state.headGlow, poseStack, nodeCollector, state.lightCoords);
         }
         List<CrucibleItemLayout.ItemPlacement> placements = CrucibleItemLayout.waiting(surface, state.rippleAmplitude,
