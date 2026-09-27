@@ -66,6 +66,11 @@ public final class FuseOrbVisual {
     static final float JITTER_AMPLITUDE = IMPLOSION_MIN * 0.2f;
     /** Jitter phase speed in radians per tick, a swing about every tick and a half. */
     private static final float JITTER_RATE = 4.2f;
+    /** Ticks per cycle of the crystal marker's ebb, four seconds. */
+    static final float CRYSTAL_EBB_PERIOD = 80f;
+    /** How far the crystal ebb swings the orb either side of resting size. */
+    static final float CRYSTAL_EBB_AMPLITUDE = 0.03f;
+    private static final double TWO_PI = 2 * Math.PI;
     /** Maps 1 - cos, which spans [0, 2], onto [0, 1]. */
     private static final float COSINE_TO_UNIT = 0.5f;
 
@@ -255,7 +260,24 @@ public final class FuseOrbVisual {
                 : computeImplosionScale(state.fuseRemaining, state.partialTick, state.gameTime);
         float pulse = computePulseScale(state);
         float spikeContract = computeSpikeContraction(state);
-        return implosion * pulse * spikeContract;
+        float ebb = crystalEbb(state.crystalActive, state.gameTime);
+        return implosion * pulse * spikeContract * ebb;
+    }
+
+    /**
+     * The crystal marker's slow, faint ebb and flow while its cloud holds
+     * the shards aloft (decision orchestration-animation-per-ability).
+     *
+     * @param crystalActive true while the crystal cloud stands
+     * @param gameTime      the game time including the partial tick
+     * @return the ebb factor, exactly 1 while no cloud stands
+     */
+    static float crystalEbb(boolean crystalActive, float gameTime) {
+        if (!crystalActive) {
+            return 1f;
+        }
+        double phase = TWO_PI * gameTime / CRYSTAL_EBB_PERIOD;
+        return 1f + CRYSTAL_EBB_AMPLITUDE * (float) Math.sin(phase);
     }
 
     /**

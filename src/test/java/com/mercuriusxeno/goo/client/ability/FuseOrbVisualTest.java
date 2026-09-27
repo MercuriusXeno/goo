@@ -253,4 +253,37 @@ class FuseOrbVisualTest {
                             >= FuseOrbVisual.FUSE_EXPIRY_TICKS);
         }
     }
+
+    @Nested
+    class CrystalMarkerEbbs {
+
+        private static final int SAMPLES = 40;
+        private static final int SLOW_PERIOD_TICKS = 60;
+        private static final float FAINT_AMPLITUDE = 0.05f;
+
+        @Test
+        void ebbIsSlowFaintAndReturnsAfterOnePeriod() {
+            float period = FuseOrbVisual.CRYSTAL_EBB_PERIOD;
+            assertTrue(period >= SLOW_PERIOD_TICKS, "period " + period + " is under three seconds");
+            assertEquals(FuseOrbVisual.crystalEbb(true, GAME_TIME),
+                    FuseOrbVisual.crystalEbb(true, GAME_TIME + period), TOLERANCE);
+
+            float lowest = Float.MAX_VALUE;
+            float highest = -Float.MAX_VALUE;
+            for (int i = 0; i < SAMPLES; i++) {
+                float ebb = FuseOrbVisual.crystalEbb(true, GAME_TIME + i * period / SAMPLES);
+                assertTrue(Math.abs(ebb - 1f) <= FAINT_AMPLITUDE, "ebb " + ebb + " is not faint");
+                lowest = Math.min(lowest, ebb);
+                highest = Math.max(highest, ebb);
+            }
+            assertTrue(highest - lowest > FuseOrbVisual.CRYSTAL_EBB_AMPLITUDE, "the orb does not ebb");
+        }
+
+        @Test
+        void orbRestsWithoutACloud() {
+            for (int i = 0; i < SAMPLES; i++) {
+                assertEquals(1f, FuseOrbVisual.crystalEbb(false, GAME_TIME + i), 0f);
+            }
+        }
+    }
 }
