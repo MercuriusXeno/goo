@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.client.RenderContext;
 import com.mercuriusxeno.goo.client.TypeBand;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
+import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
@@ -34,6 +35,9 @@ public class CrucibleRenderState extends BlockEntityRenderState {
 
     /** True while the head eases in from its item entity's pose, drawn whole until it lies at rest. */
     public boolean headEasing;
+
+    /** The dissolving item's face and the shards it breaks into, or null while none dissolves. */
+    public @Nullable ShardFace headFace;
 
     /** True when an item is dissolving and its model resolved. */
     public boolean hasHead;
