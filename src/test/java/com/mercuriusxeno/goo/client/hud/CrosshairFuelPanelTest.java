@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import net.minecraft.world.item.ItemStack;
 import org.junit.jupiter.api.Test;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -35,6 +36,25 @@ class CrosshairFuelPanelTest {
         assertEquals(GooTypes.UNSTABLE, row.type());
         assertEquals("3", row.heldText());
         assertEquals("- 4.5", row.costText());
+    }
+
+    /** A 60 by 22 panel at (100, 50) cuts the 24x24 effect background into nine slices with a 3px border (decision diagnose-then-fix-aiming-panel-stretch). */
+    @Test
+    void backgroundCutsTheEffectBackgroundIntoNineSlices() {
+        float b = 3f / 24f;
+        float e = 1f - b;
+        List<NineSlice.Slice> expected = List.of(
+                new NineSlice.Slice(100, 50, 103, 53, 0f, 0f, b, b),
+                new NineSlice.Slice(157, 50, 160, 53, e, 0f, 1f, b),
+                new NineSlice.Slice(100, 69, 103, 72, 0f, e, b, 1f),
+                new NineSlice.Slice(157, 69, 160, 72, e, e, 1f, 1f),
+                new NineSlice.Slice(103, 50, 157, 53, b, 0f, e, b),
+                new NineSlice.Slice(103, 69, 157, 72, b, e, e, 1f),
+                new NineSlice.Slice(100, 53, 103, 69, 0f, b, b, e),
+                new NineSlice.Slice(157, 53, 160, 69, e, b, 1f, e),
+                new NineSlice.Slice(103, 53, 157, 69, b, b, e, e));
+
+        assertEquals(expected, CrosshairFuelPanel.backgroundSlices(new PanelRectangle(100, 50, 60, 22)));
     }
 
     @Test
