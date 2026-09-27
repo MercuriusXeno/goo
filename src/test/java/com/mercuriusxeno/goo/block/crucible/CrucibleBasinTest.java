@@ -4,6 +4,7 @@ import net.minecraft.util.RandomSource;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -195,5 +196,46 @@ class CrucibleBasinTest {
         }
         double perTick = (double) bubbles / ticks;
         assertEquals(0.05, perTick, 0.005, "bubbles per tick over a seeded run");
+    }
+
+    /** The cavity predicate the consume gate reads (decision collision-is-the-drawn-cavity). */
+    @Nested
+    class HoldsPoint {
+
+        private static final double CENTER = 0.5;
+        private static final double LEDGE_TOP = 13.0 / 16.0;
+        private static final double LEDGE_MIDDLE = 1.0 / 16.0;
+        private static final double WALL_MIDDLE = 3.0 / 16.0;
+
+        @Test
+        void itemRestingOnTheFloorIsInside() {
+            assertTrue(CrucibleBasin.holdsPoint(CENTER, CrucibleBasin.FLOOR_Y, CENTER));
+        }
+
+        @Test
+        void itemMidwayUpTheCavityAtItsEdgeIsInside() {
+            assertTrue(CrucibleBasin.holdsPoint(CrucibleBasin.FOOTPRINT_MIN, 0.75, CrucibleBasin.FOOTPRINT_MAX));
+        }
+
+        @Test
+        void itemOnTheOuterLedgeIsOutside() {
+            assertFalse(CrucibleBasin.holdsPoint(LEDGE_MIDDLE, LEDGE_TOP, CENTER));
+        }
+
+        @Test
+        void itemOnAWallTopIsOutside() {
+            assertFalse(CrucibleBasin.holdsPoint(WALL_MIDDLE, CrucibleBasin.RIM_Y, CENTER));
+            assertFalse(CrucibleBasin.holdsPoint(CENTER, CrucibleBasin.RIM_Y, 1.0 - WALL_MIDDLE));
+        }
+
+        @Test
+        void itemOverTheMouthIsOutside() {
+            assertFalse(CrucibleBasin.holdsPoint(CENTER, CrucibleBasin.RIM_Y + 0.2, CENTER));
+        }
+
+        @Test
+        void pointUnderTheFloorIsOutside() {
+            assertFalse(CrucibleBasin.holdsPoint(CENTER, CrucibleBasin.FLOOR_Y - 0.01, CENTER));
+        }
     }
 }

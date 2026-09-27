@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBasin;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
 import com.mercuriusxeno.goo.block.crucible.CrucibleCapacity;
+import com.mercuriusxeno.goo.block.crucible.CrucibleShape;
 import com.mercuriusxeno.goo.item.BlobStacks;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.PartiallyMeltedItem;
@@ -40,10 +41,22 @@ public final class CrucibleTests {
     private static final int ABSORB_DELAY = 5;
     /** Heat granted to a test crucible: an hour of melting, so no test runs it cold. */
     private static final int TEST_HEAT_TICKS = 72_000;
-    /** X/Z center of the crucible basin in test-relative coords. */
-    private static final float BASIN_CENTER_XZ = 1.5f;
-    /** Y position just above the crucible body surface (13/16 + block y=1). */
-    private static final float BASIN_SURFACE_Y = 1.85f;
+    /** Ticks an item dropped over the mouth takes to fall to the floor and stop. */
+    private static final int SETTLE_DELAY = 30;
+    /** A drop height above the rim in test-relative Y. */
+    private static final double MOUTH_DROP_Y = 2.3;
+    /** An item entity's half-width, a quarter block wide. */
+    private static final double ITEM_HALF_WIDTH = 0.125;
+    /** A ledge spot in test-relative X, the item's east face against the west rim wall. */
+    private static final double LEDGE_X = 1.0 + CrucibleShape.COLLAR_MIN - ITEM_HALF_WIDTH;
+    /** The ledge top in test-relative Y. */
+    private static final double LEDGE_TOP_Y = 1.0 + CrucibleShape.LEDGE_Y;
+    /** How far a resting item's feet may sit from the floor. */
+    private static final double FLOOR_SLACK = 0.01;
+    private static final String IN_FOOTPRINT = "item rests inside the basin footprint: ";
+    private static final String ON_FLOOR = "item rests on the 8/16 basin floor: ";
+    private static final String LEDGE_ITEM_STAYS = "ledge item stays";
+    private static final String LEDGE_ITEM_WHOLE = "ledge item unshrunk";
     private static final String SHOULD_HAVE_GOO = "Crucible reservoir should contain goo after blob insert";
     private static final String SHOULD_ABSORB = "Crucible should absorb the item entity";
     private static final String RESERVOIR_UNCHANGED = "reservoir unchanged";
@@ -122,11 +135,49 @@ public final class CrucibleTests {
         CrucibleBlockEntity crucible = helper.getBlockEntity(BE_POS, CrucibleBlockEntity.class);
         crucible.addHeat(TEST_HEAT_TICKS);
 
-        // Spawn inside the basin (center of block, just above the body surface)
-        helper.spawnItem(Items.COBBLESTONE, BASIN_CENTER_XZ, BASIN_SURFACE_Y, BASIN_CENTER_XZ);
+        CrucibleSpawns.spawnInBasin(helper, new ItemStack(Items.COBBLESTONE));
 
         helper.runAfterDelay(ABSORB_DELAY, () -> {
             helper.assertFalse(crucible.reservoirHandler().isEmpty(), SHOULD_ABSORB);
+            helper.succeed();
+        });
+    }
+
+    // -- The cavity (decision collision-is-the-drawn-cavity) --
+
+    /**
+     * An item dropped over the mouth of a cold crucible falls into the cavity and
+     * rests on the drawn floor at 8/16, not on the old invisible floor at 13/16.
+     *
+     * @param helper the gametest helper
+     */
+    public static void droppedItemRestsOnBasinFloor(GameTestHelper helper) {
+        placeCrucible(helper);
+        ItemEntity dropped = CrucibleSpawns.spawnAt(helper, new ItemStack(Items.COBBLESTONE),
+            new Vec3(CrucibleSpawns.BASIN_CENTER_XZ, MOUTH_DROP_Y, CrucibleSpawns.BASIN_CENTER_XZ));
+        helper.runAfterDelay(SETTLE_DELAY, () -> {
+            Vec3 rel = CrucibleSpawns.relativeToCrucible(helper, dropped);
+            helper.assertTrue(rel.x >= CrucibleBasin.FOOTPRINT_MIN && rel.x <= CrucibleBasin.FOOTPRINT_MAX
+                && rel.z >= CrucibleBasin.FOOTPRINT_MIN && rel.z <= CrucibleBasin.FOOTPRINT_MAX,
+                IN_FOOTPRINT + rel);
+            helper.assertTrue(Math.abs(rel.y - CrucibleBasin.FLOOR_Y) < FLOOR_SLACK, ON_FLOOR + rel);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * An item resting on the outer ledge of a heating crucible is left whole.
+     *
+     * @param helper the gametest helper
+     */
+    public static void ledgeItemLeftUnconsumed(GameTestHelper helper) {
+        CrucibleBlockEntity crucible = placeFueledCrucible(helper);
+        ItemEntity onLedge = CrucibleSpawns.spawnAt(helper, new ItemStack(Items.COBBLESTONE, COBBLE_OFFERED),
+            new Vec3(LEDGE_X, LEDGE_TOP_Y, CrucibleSpawns.BASIN_CENTER_XZ));
+        helper.runAfterDelay(ABSORB_DELAY, () -> {
+            helper.assertFalse(onLedge.isRemoved(), LEDGE_ITEM_STAYS);
+            helper.assertValueEqual(COBBLE_OFFERED, onLedge.getItem().getCount(), LEDGE_ITEM_WHOLE);
+            helper.assertTrue(crucible.reservoirHandler().isEmpty(), RESERVOIR_UNCHANGED);
             helper.succeed();
         });
     }
@@ -378,18 +429,7 @@ public final class CrucibleTests {
         return fullPool;
     }
 
-    /**
-     * Spawns a still item entity inside the basin.
-     *
-     * @param helper the gametest helper
-     * @param stack  the stack the entity carries
-     * @return the spawned entity
-     */
     private static ItemEntity spawnInBasin(GameTestHelper helper, ItemStack stack) {
-        Vec3 at = helper.absoluteVec(new Vec3(BASIN_CENTER_XZ, BASIN_SURFACE_Y, BASIN_CENTER_XZ));
-        ItemEntity entity = new ItemEntity(helper.getLevel(), at.x, at.y, at.z, stack);
-        entity.setDeltaMovement(Vec3.ZERO);
-        helper.getLevel().addFreshEntity(entity);
-        return entity;
+        return CrucibleSpawns.spawnInBasin(helper, stack);
     }
 }
