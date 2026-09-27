@@ -120,7 +120,7 @@ public class GooBlocks {
     public static final DeferredBlock<TapBlock> TAP = BLOCKS.registerBlock("tap",
             TapBlock::new, TAP_PROPERTY_SUPPLIER);
     private static final Supplier<BlockBehaviour.Properties> CRYSTALLIZER_PROPERTY_SUPPLIER = () -> BlockBehaviour.Properties.of()
-            .mapColor(MapColor.COLOR_PURPLE).strength(1.5F).sound(SoundType.AMETHYST);
+            .mapColor(MapColor.COLOR_PURPLE).strength(1.5F).sound(SoundType.AMETHYST).noOcclusion();
     /** Phases goo into chrysm (decision crystallizer-emits-chrysm). */
     public static final DeferredBlock<CrystallizerBlock> CRYSTALLIZER = BLOCKS.registerBlock("crystallizer",
             CrystallizerBlock::new, CRYSTALLIZER_PROPERTY_SUPPLIER);

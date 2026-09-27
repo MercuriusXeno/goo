@@ -3,9 +3,11 @@ package com.mercuriusxeno.goo.block.crystallizer;
 import com.mercuriusxeno.goo.block.BlockEntityTicks;
 import com.mercuriusxeno.goo.block.GooBlockInteraction;
 import com.mercuriusxeno.goo.block.GooMachineBlock;
+import com.mercuriusxeno.goo.block.ShapeHitCheck;
 import com.mercuriusxeno.goo.block.canister.SlottedCanisterData;
 import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
 import com.mercuriusxeno.goo.item.BlobInsert;
+import com.mercuriusxeno.goo.item.ChrysmTier;
 import com.mercuriusxeno.goo.item.GooInteractionType;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mojang.serialization.MapCodec;
@@ -16,6 +18,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
@@ -24,28 +27,43 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
+import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
  * The crystallizer block (decision crystallizer-emits-chrysm): a gasket receiver
- * that phases goo into chrysm. An omniblob click pours goo in; an empty-hand
- * click takes the chrysm formed inside, and a sneak click pops the gasket. The
- * model is a placeholder until the machine's look is designed.
+ * that phases goo into chrysm. An omniblob click pours goo in; a click on the
+ * dial steps the tier it stops at; an empty-hand click elsewhere takes the
+ * chrysm formed inside, and a sneak click pops the gasket. The model is a
+ * placeholder until the machine's look is designed.
  */
 public class CrystallizerBlock extends GooMachineBlock {
 
     /** Whether a choral gasket is installed on this crystallizer. */
     public static final BooleanProperty HAS_GASKET = BooleanProperty.create("has_gasket");
+    /**
+     * The dial, sizes 1 to 3: the tier the crystallizer stops at, small, medium or large
+     * (operator ruling: a right click on the dial steps it and wraps from 3 to 1).
+     */
+    public static final IntegerProperty DIAL = IntegerProperty.create("dial", 1, ChrysmTier.values().length);
     public static final MapCodec<CrystallizerBlock> CODEC = simpleCodec(CrystallizerBlock::new);
+
+    /** The dial model part's own shape, on the body's top face. */
+    public static final VoxelShape DIAL_SHAPE = box(4, 13, 4, 12, 16, 12);
+    private static final VoxelShape BODY_SHAPE = box(0, 0, 0, 16, 13, 16);
+    private static final VoxelShape SHAPE = Shapes.or(BODY_SHAPE, DIAL_SHAPE);
 
     /**
      * @param properties the block properties
      */
     public CrystallizerBlock(Properties properties) {
         super(properties);
-        registerDefaultState(stateDefinition.any().setValue(HAS_GASKET, false));
+        registerDefaultState(stateDefinition.any().setValue(HAS_GASKET, false).setValue(DIAL, 1));
     }
 
     @Override
@@ -60,7 +78,21 @@ public class CrystallizerBlock extends GooMachineBlock {
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(HAS_GASKET);
+        builder.add(HAS_GASKET, DIAL);
+    }
+
+    /**
+     * @param state a crystallizer block state
+     * @return the tier its dial names
+     */
+    public static ChrysmTier dialTier(BlockState state) {
+        return ChrysmTier.values()[state.getValue(DIAL) - 1];
+    }
+
+    @Override
+    protected @NonNull VoxelShape getShape(@NonNull BlockState state, @NonNull BlockGetter level,
+                                           @NonNull BlockPos pos, @NonNull CollisionContext context) {
+        return SHAPE;
     }
 
     @Override
@@ -89,8 +121,8 @@ public class CrystallizerBlock extends GooMachineBlock {
     }
 
     /**
-     * Empty-hand clicks: sneak pops the gasket, and any other click hands the
-     * formed chrysm to the player.
+     * Empty-hand clicks: a click on the dial steps it, sneak elsewhere pops the
+     * gasket, and any other click hands the formed chrysm to the player.
      */
     @Override
     protected @NonNull InteractionResult useWithoutItem(
@@ -102,6 +134,11 @@ public class CrystallizerBlock extends GooMachineBlock {
         }
         if (!(level.getBlockEntity(pos) instanceof CrystallizerBlockEntity crystallizer)) {
             return InteractionResult.PASS;
+        }
+        if (ShapeHitCheck.hitInsideShape(hitResult, pos, DIAL_SHAPE)) {
+            level.setBlock(pos, state.setValue(DIAL, CrystallizerPhases.nextDial(state.getValue(DIAL))), Block.UPDATE_ALL);
+            level.playSound(null, pos, SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.BLOCKS, 1.0f, 1.0f);
+            return InteractionResult.SUCCESS;
         }
         if (GasketInstallation.removeAddressedGasket(level, pos, player, hitResult)) {
             return InteractionResult.SUCCESS;
