@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.item;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.GooTypes;
 import net.minecraft.resources.ResourceKey;
 
 /**
@@ -14,6 +15,8 @@ public enum ChrysmTier {
     KILOCHRYSM("kilochrysm", 1_000_000L),
     MEGACHRYSM("megachrysm", 1_000_000_000L);
 
+    /** The crystal spent crystallizing a chrysm is a tenth of its goo. */
+    private static final long CRYSTAL_DIVISOR = 10L;
     private static final String ITEM_KEY_PREFIX = "item." + Goo.MODID + ".";
 
     private final String registryPath;
@@ -39,14 +42,16 @@ public enum ChrysmTier {
     }
 
     /**
-     * The goo one item of this tier melts back into: its volume of its type alone,
-     * the crystal goo spent to form it not returned (decision chrysm-melts-back-to-its-goo).
+     * The goo one item of this tier is worth and melts back into: its volume of its
+     * type and the crystal goo spent to crystallize it, a tenth of that volume, so
+     * storing goo as chrysm loses no crystal (decision chrysm-melts-back-to-its-goo).
      *
      * @param type the goo type the chrysm carries
-     * @return the tier volume of that type
+     * @return the tier volume of that type beside its crystal
      */
     public GooContents contentsOf(ResourceKey<GooTypeDefinition> type) {
-        return GooContents.EMPTY.withAdded(type, Math.toIntExact(volume));
+        return GooContents.EMPTY.withAdded(type, Math.toIntExact(volume))
+                .withAdded(GooTypes.CRYSTAL, Math.toIntExact(volume / CRYSTAL_DIVISOR));
     }
 
     /**
