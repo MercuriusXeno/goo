@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.GooConstants;
+import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlock;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
@@ -8,15 +9,19 @@ import com.mercuriusxeno.goo.block.crystallizer.CrystallizerBlock;
 import com.mercuriusxeno.goo.block.crystallizer.CrystallizerBlockEntity;
 import com.mercuriusxeno.goo.block.crystallizer.CrystallizerPhases;
 import com.mercuriusxeno.goo.data.GasketRegistry;
+import com.mercuriusxeno.goo.item.CanisterFluidContent;
+import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.ChrysmTier;
 import com.mercuriusxeno.goo.item.gasket.GasketPartner;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
+import com.mercuriusxeno.goo.registry.GooFluids;
 import com.mercuriusxeno.goo.registry.GooItems;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
@@ -27,10 +32,10 @@ import net.minecraft.world.phys.Vec3;
 import java.util.UUID;
 
 /**
- * Gametests for the crystallizer (decision crystallizer-emits-chrysm): a gasket
- * receiver taking one goo type and crystal goo and refusing a third, crystallizing
- * on arrival at 10% crystal up to the knob tier, and handing the highest tier
- * reached to an empty-hand click.
+ * Gametests for the crystallizer (decision crystallizer-emits-chrysm): two
+ * canisters on its top, whichever holds crystal the catalyst and the other's goo
+ * what grows, crystallizing at 10% crystal up to the knob tier, and handing the
+ * highest tier reached to an empty-hand click.
  */
 public final class CrystallizerTests {
 
@@ -38,87 +43,116 @@ public final class CrystallizerTests {
     private static final BlockPos CRYSTALLIZER_POS = new BlockPos(3, 1, 1);
     private static final int CHRYSM_VOLUME = Math.toIntExact(ChrysmTier.CHRYSM.volume());
     private static final int CRYSTAL_COST = CHRYSM_VOLUME / CrystallizerPhases.GOO_PER_CRYSTAL;
-    private static final int THIRD_TYPE_VOLUME = 500;
     private static final int KILO_VOLUME = Math.toIntExact(ChrysmTier.KILOCHRYSM.volume());
     private static final int HALF_KILO = KILO_VOLUME / 2;
-    private static final int SENDER_VOLUME = 5_000;
+    private static final int MORE_ENDER = 5_000;
+    private static final int FIRST = 0;
+    private static final int SECOND = 1;
     private static final int PUSH_TICKS = 20;
     private static final int CRYSTALLIZE_TICKS = 2;
     private static final int IDLE_TICKS = 40;
     private static final double HALF = 0.5;
     private static final double DIAL_CENTER_Y = 7.0 / 16.0;
+    /** Block-local centers of the back-left and back-right slots with the dial facing north. */
+    private static final double[][] NORTH_SLOT_CENTERS = {{12.0 / 16.0, 12.0 / 16.0}, {4.0 / 16.0, 12.0 / 16.0}};
 
     private CrystallizerTests() {
     }
 
     /**
-     * A crucible transmitter holding ender, crystal and rock, linked to a
-     * crystallizer, feeds it ender and crystal, which crystallize, while its rock stays put.
+     * A crystal canister slotted first and ticked, then an ender canister slotted,
+     * crystallizes ender: a click hands one ender chrysm.
      *
      * @param helper the gametest helper
      */
-    public static void takesTwoTypesRefusesThird(GameTestHelper helper) {
-        CrucibleBlockEntity sender = placeLinkedPair(helper);
-        sender.insertGoo(GooTypes.ENDER, CHRYSM_VOLUME);
-        sender.insertGoo(GooTypes.CRYSTAL, CRYSTAL_COST);
-        sender.insertGoo(GooTypes.ROCK, THIRD_TYPE_VOLUME);
-        CrystallizerBlockEntity crystallizer = helper.getBlockEntity(CRYSTALLIZER_POS, CrystallizerBlockEntity.class);
-        helper.runAfterDelay(PUSH_TICKS, () -> {
-            helper.assertTrue(crystallizer.crystallized() > 0,
-                    "The crystallizer should take and crystallize ender, crystallized " + crystallizer.crystallized());
-            helper.assertTrue(sender.getReservoir().getVolume(GooTypes.CRYSTAL) < CRYSTAL_COST,
-                    "The crystallizer should take crystal from the sender");
-            helper.assertValueEqual(0, crystallizer.held().getVolume(GooTypes.ROCK), "rock in the crystallizer");
-            helper.assertValueEqual(THIRD_TYPE_VOLUME, sender.getReservoir().getVolume(GooTypes.ROCK),
-                    "rock left on the sender");
+    public static void crystalFirstThenEnder(GameTestHelper helper) {
+        CrystallizerBlockEntity crystallizer = placeCrystallizer(helper, 1);
+        crystallizer.insertCanister(FIRST, canister(GooTypes.CRYSTAL, CRYSTAL_COST), false);
+        helper.runAfterDelay(CRYSTALLIZE_TICKS, () -> {
+            helper.assertValueEqual(0L, crystallizer.crystallized(), "crystallized from crystal alone");
+            crystallizer.insertCanister(SECOND, canister(GooTypes.ENDER, CHRYSM_VOLUME), false);
+            helper.runAfterDelay(CRYSTALLIZE_TICKS, () -> {
+                assertClickHands(helper, GooItems.CHRYSM.get(), GooTypes.ENDER);
+                helper.succeed();
+            });
+        });
+    }
+
+    /**
+     * Ender in the first slot and crystal in the second crystallize the same as the other way round.
+     *
+     * @param helper the gametest helper
+     */
+    public static void eitherSlotHoldsTheCrystal(GameTestHelper helper) {
+        CrystallizerBlockEntity crystallizer = placeCrystallizer(helper, 1);
+        crystallizer.insertCanister(FIRST, canister(GooTypes.ENDER, CHRYSM_VOLUME), false);
+        crystallizer.insertCanister(SECOND, canister(GooTypes.CRYSTAL, CRYSTAL_COST), false);
+        helper.runAfterDelay(CRYSTALLIZE_TICKS, () -> {
+            assertClickHands(helper, GooItems.CHRYSM.get(), GooTypes.ENDER);
             helper.succeed();
         });
     }
 
     /**
-     * A crystallizer given 1,000 mB of ender and 100 mB of crystal crystallizes
-     * both on arrival into one chrysm, and an empty-hand click puts it in the player hand.
+     * Two crystal canisters grow a crystal chrysm, the first spent as the catalyst.
      *
      * @param helper the gametest helper
      */
-    public static void formsOneChrysm(GameTestHelper helper) {
-        helper.setBlock(CRYSTALLIZER_POS, GooBlocks.CRYSTALLIZER.get());
-        CrystallizerBlockEntity crystallizer = helper.getBlockEntity(CRYSTALLIZER_POS, CrystallizerBlockEntity.class);
-        helper.assertValueEqual(CHRYSM_VOLUME, crystallizer.insertGoo(GooTypes.ENDER, CHRYSM_VOLUME), "ender taken");
-        helper.assertValueEqual(CRYSTAL_COST, crystallizer.insertGoo(GooTypes.CRYSTAL, CRYSTAL_COST), "crystal taken");
+    public static void twoCrystalCanistersGrowCrystal(GameTestHelper helper) {
+        CrystallizerBlockEntity crystallizer = placeCrystallizer(helper, 1);
+        crystallizer.insertCanister(FIRST, canister(GooTypes.CRYSTAL, CRYSTAL_COST), false);
+        crystallizer.insertCanister(SECOND, canister(GooTypes.CRYSTAL, CHRYSM_VOLUME), false);
         helper.runAfterDelay(CRYSTALLIZE_TICKS, () -> {
-            helper.assertTrue(crystallizer.held().isEmpty(), "Crystallizing should spend the goo and crystal, held "
-                    + crystallizer.held());
+            assertClickHands(helper, GooItems.CHRYSM.get(), GooTypes.CRYSTAL);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A canister clicked onto a filled slot stays in the hand and the slot keeps its canister;
+     * clicked onto the empty slot it goes in.
+     *
+     * @param helper the gametest helper
+     */
+    public static void filledSlotRefusesACanister(GameTestHelper helper) {
+        CrystallizerBlockEntity crystallizer = placeCrystallizer(helper, 1);
+        crystallizer.insertCanister(FIRST, canister(GooTypes.CRYSTAL, CRYSTAL_COST), false);
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        player.setItemInHand(InteractionHand.MAIN_HAND, canister(GooTypes.ENDER, CHRYSM_VOLUME));
+        helper.useBlock(CRYSTALLIZER_POS, player, topHit(helper, FIRST));
+        helper.assertTrue(player.getItemInHand(InteractionHand.MAIN_HAND).is(GooItems.CANISTER.get()),
+                "A canister clicked onto a filled slot should stay in the hand");
+        helper.assertValueEqual(GooTypes.CRYSTAL, crystallizer.getSlotGooType(FIRST), "the filled slot's goo");
+        helper.useBlock(CRYSTALLIZER_POS, player, topHit(helper, SECOND));
+        helper.assertTrue(player.getItemInHand(InteractionHand.MAIN_HAND).isEmpty(),
+                "A canister clicked onto the empty slot should go in");
+        helper.assertValueEqual(GooTypes.ENDER, crystallizer.getSlotGooType(SECOND), "the empty slot's new goo");
+        helper.succeed();
+    }
+
+    /**
+     * 1,000 mB of ender beside only 50 mB of crystal crystallizes half and forms no
+     * chrysm; 50 mB more crystal finishes it. The model reads active while it
+     * crystallizes and idle after.
+     *
+     * @param helper the gametest helper
+     */
+    public static void pausesWithoutCrystal(GameTestHelper helper) {
+        CrystallizerBlockEntity crystallizer = placeCrystallizer(helper, 1);
+        crystallizer.insertCanister(FIRST, canister(GooTypes.CRYSTAL, CRYSTAL_COST / 2), false);
+        crystallizer.insertCanister(SECOND, canister(GooTypes.ENDER, CHRYSM_VOLUME), false);
+        helper.runAfterDelay(CRYSTALLIZE_TICKS, () -> {
+            helper.assertValueEqual(CHRYSM_VOLUME / 2L, crystallizer.crystallized(), "crystallized on half the crystal");
+            helper.assertTrue(crystallizer.formed().isEmpty(), "No chrysm should form without the crystal for it");
             helper.assertTrue(helper.getBlockState(CRYSTALLIZER_POS).getValue(CrystallizerBlock.ACTIVE),
                     "The crystallizer should read active while crystallizing");
-            assertClickHands(helper, crystallizer, GooItems.CHRYSM.get());
+            crystallizer.insertGoo(FIRST, GooTypes.CRYSTAL, CRYSTAL_COST / 2);
+            helper.runAfterDelay(CRYSTALLIZE_TICKS, () -> assertClickHands(helper, GooItems.CHRYSM.get(), GooTypes.ENDER));
         });
         helper.runAfterDelay(IDLE_TICKS, () -> {
             helper.assertFalse(helper.getBlockState(CRYSTALLIZER_POS).getValue(CrystallizerBlock.ACTIVE),
                     "The crystallizer should read idle once nothing crystallizes");
             helper.succeed();
-        });
-    }
-
-    /**
-     * 1,000 mB of ender with only 50 mB of crystal crystallizes half and forms no
-     * chrysm; 50 mB more crystal finishes it.
-     *
-     * @param helper the gametest helper
-     */
-    public static void pausesWithoutCrystal(GameTestHelper helper) {
-        helper.setBlock(CRYSTALLIZER_POS, GooBlocks.CRYSTALLIZER.get());
-        CrystallizerBlockEntity crystallizer = helper.getBlockEntity(CRYSTALLIZER_POS, CrystallizerBlockEntity.class);
-        crystallizer.insertGoo(GooTypes.ENDER, CHRYSM_VOLUME);
-        crystallizer.insertGoo(GooTypes.CRYSTAL, CRYSTAL_COST / 2);
-        helper.runAfterDelay(CRYSTALLIZE_TICKS, () -> {
-            helper.assertValueEqual(CHRYSM_VOLUME / 2L, crystallizer.crystallized(), "crystallized on half the crystal");
-            helper.assertTrue(crystallizer.formed().isEmpty(), "No chrysm should form without the crystal for it");
-            crystallizer.insertGoo(GooTypes.CRYSTAL, CRYSTAL_COST / 2);
-            helper.runAfterDelay(CRYSTALLIZE_TICKS, () -> {
-                assertClickHands(helper, crystallizer, GooItems.CHRYSM.get());
-                helper.succeed();
-            });
         });
     }
 
@@ -129,11 +163,12 @@ public final class CrystallizerTests {
      * @param helper the gametest helper
      */
     public static void advancesToKilochrysm(GameTestHelper helper) {
-        CrystallizerBlockEntity crystallizer = placeAtMedium(helper);
-        helper.assertValueEqual(KILO_VOLUME, crystallizer.insertGoo(GooTypes.ENDER, KILO_VOLUME), "ender taken");
-        crystallizer.insertGoo(GooTypes.CRYSTAL, KILO_VOLUME / CrystallizerPhases.GOO_PER_CRYSTAL);
+        CrystallizerBlockEntity crystallizer = placeCrystallizer(helper, 2);
+        crystallizer.insertCanister(FIRST, canister(GooTypes.CRYSTAL, KILO_VOLUME / CrystallizerPhases.GOO_PER_CRYSTAL),
+                false);
+        crystallizer.insertCanister(SECOND, canister(GooTypes.ENDER, KILO_VOLUME), false);
         helper.runAfterDelay(CRYSTALLIZE_TICKS, () -> {
-            assertClickHands(helper, crystallizer, GooItems.KILOCHRYSM.get());
+            assertClickHands(helper, GooItems.KILOCHRYSM.get(), GooTypes.ENDER);
             helper.succeed();
         });
     }
@@ -145,11 +180,12 @@ public final class CrystallizerTests {
      * @param helper the gametest helper
      */
     public static void takingKeepsTheRemainder(GameTestHelper helper) {
-        CrystallizerBlockEntity crystallizer = placeAtMedium(helper);
-        crystallizer.insertGoo(GooTypes.ENDER, HALF_KILO);
-        crystallizer.insertGoo(GooTypes.CRYSTAL, HALF_KILO / CrystallizerPhases.GOO_PER_CRYSTAL);
+        CrystallizerBlockEntity crystallizer = placeCrystallizer(helper, 2);
+        crystallizer.insertCanister(FIRST, canister(GooTypes.CRYSTAL, HALF_KILO / CrystallizerPhases.GOO_PER_CRYSTAL),
+                false);
+        crystallizer.insertCanister(SECOND, canister(GooTypes.ENDER, HALF_KILO), false);
         helper.runAfterDelay(CRYSTALLIZE_TICKS, () -> {
-            assertClickHands(helper, crystallizer, GooItems.CHRYSM.get());
+            assertClickHands(helper, GooItems.CHRYSM.get(), GooTypes.ENDER);
             helper.assertValueEqual((long) HALF_KILO - CHRYSM_VOLUME, crystallizer.crystallized(),
                     "crystallized goo kept after taking a chrysm");
             helper.succeed();
@@ -157,49 +193,67 @@ public final class CrystallizerTests {
     }
 
     /**
-     * With the knob at small, a linked crystallizer holding a chrysm leaves the
-     * sender ender where it is; once a click takes the chrysm, the sender ender
-     * starts to drop.
+     * With the knob at small, a crystallizer holding a chrysm leaves the ender in its
+     * canister; once a click takes the chrysm, that ender starts to crystallize.
      *
      * @param helper the gametest helper
      */
     public static void smallDialHoldsAtChrysm(GameTestHelper helper) {
-        CrucibleBlockEntity sender = placeLinkedPair(helper);
-        CrystallizerBlockEntity crystallizer = helper.getBlockEntity(CRYSTALLIZER_POS, CrystallizerBlockEntity.class);
-        crystallizer.insertGoo(GooTypes.ENDER, CHRYSM_VOLUME);
-        crystallizer.insertGoo(GooTypes.CRYSTAL, CRYSTAL_COST);
+        CrystallizerBlockEntity crystallizer = placeCrystallizer(helper, 1);
+        crystallizer.insertCanister(FIRST, canister(GooTypes.CRYSTAL, CRYSTAL_COST * 2), false);
+        crystallizer.insertCanister(SECOND, canister(GooTypes.ENDER, CHRYSM_VOLUME), false);
         helper.runAfterDelay(CRYSTALLIZE_TICKS, () -> {
             helper.assertTrue(crystallizer.formedTier() == ChrysmTier.CHRYSM, "A chrysm should form");
-            sender.insertGoo(GooTypes.ENDER, SENDER_VOLUME);
-            sender.insertGoo(GooTypes.CRYSTAL, SENDER_VOLUME);
+            crystallizer.insertGoo(SECOND, GooTypes.ENDER, MORE_ENDER);
             helper.runAfterDelay(PUSH_TICKS, () -> {
-                helper.assertValueEqual(SENDER_VOLUME, sender.getReservoir().getVolume(GooTypes.ENDER),
-                        "sender ender while the chrysm is held");
-                assertClickHands(helper, crystallizer, GooItems.CHRYSM.get());
-                helper.runAfterDelay(PUSH_TICKS, () -> {
-                    helper.assertTrue(sender.getReservoir().getVolume(GooTypes.ENDER) < SENDER_VOLUME,
-                            "The sender ender should drop once the chrysm is taken");
+                helper.assertValueEqual(MORE_ENDER, enderIn(crystallizer), "ender held while the chrysm is inside");
+                assertClickHands(helper, GooItems.CHRYSM.get(), GooTypes.ENDER);
+                helper.runAfterDelay(CRYSTALLIZE_TICKS, () -> {
+                    helper.assertTrue(enderIn(crystallizer) < MORE_ENDER,
+                            "The ender should crystallize once the chrysm is taken");
                     helper.succeed();
                 });
             });
         });
     }
 
-    private static CrystallizerBlockEntity placeAtMedium(GameTestHelper helper) {
-        helper.setBlock(CRYSTALLIZER_POS, GooBlocks.CRYSTALLIZER.get().defaultBlockState()
-                .setValue(CrystallizerBlock.KNOB, ChrysmTier.KILOCHRYSM.ordinal() + 1));
-        return helper.getBlockEntity(CRYSTALLIZER_POS, CrystallizerBlockEntity.class);
+    /**
+     * A crucible transmitter linked to the gasket on the ingredient canister's top
+     * fills that canister, and the ender it brings crystallizes.
+     *
+     * @param helper the gametest helper
+     */
+    public static void gasketFillsTheIngredientCanister(GameTestHelper helper) {
+        helper.setBlock(SENDER_POS, GooBlocks.CRUCIBLE.get().defaultBlockState().setValue(CrucibleBlock.HAS_GASKET, true));
+        CrucibleBlockEntity sender = helper.getBlockEntity(SENDER_POS, CrucibleBlockEntity.class);
+        CrystallizerBlockEntity crystallizer = placeCrystallizer(helper, 1);
+        crystallizer.insertCanister(FIRST, canister(GooTypes.CRYSTAL, CRYSTAL_COST), false);
+        UUID receiver = UUID.randomUUID();
+        ItemStack ingredient = new ItemStack(GooItems.CANISTER.get());
+        CanisterItem.setMetadata(ingredient, CanisterItem.getMetadata(ingredient).withTopGasketId(receiver));
+        crystallizer.insertCanister(SECOND, ingredient, false);
+        UUID transmitter = sender.ensureGasketId(GasketRole.TRANSMITTER);
+        GasketRegistry.get(helper.getLevel()).link(transmitter, receiver);
+        sender.setPartner(GasketRole.TRANSMITTER, new GasketPartner(helper.absolutePos(CRYSTALLIZER_POS), SECOND));
+        crystallizer.setPartner(GasketRole.RECEIVER, SECOND,
+                new GasketPartner(helper.absolutePos(SENDER_POS), GooConstants.NO_SLOT));
+        sender.insertGoo(GooTypes.ENDER, CHRYSM_VOLUME);
+        helper.runAfterDelay(PUSH_TICKS, () -> {
+            helper.assertTrue(crystallizer.crystallized() > 0 && GooTypes.ENDER.equals(crystallizer.formingType()),
+                    "Ender through the canister's gasket should crystallize, crystallized "
+                            + crystallizer.crystallized());
+            helper.succeed();
+        });
     }
 
     /**
-     * A right click on the knob, on the face toward the player, steps it small,
+     * A right click on the dial, on the face toward the player, steps the knob small,
      * medium, large and wraps back to small; a click on the top face leaves it.
      *
      * @param helper the gametest helper
      */
     public static void dialClickWrapsFromLargeToSmall(GameTestHelper helper) {
-        helper.setBlock(CRYSTALLIZER_POS, GooBlocks.CRYSTALLIZER.get().defaultBlockState()
-                .setValue(CrystallizerBlock.FACING, Direction.NORTH));
+        placeCrystallizer(helper, 1);
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
         BlockPos abs = helper.absolutePos(CRYSTALLIZER_POS);
         BlockHitResult knobHit = new BlockHitResult(
@@ -218,40 +272,43 @@ public final class CrystallizerTests {
     }
 
     /**
-     * Clicks the crystallizer back face empty-handed and asserts one ender chrysm of
-     * the tier lands in the player hand.
+     * Sets a crystallizer, its dial facing north, with the knob at the given size.
      */
-    private static void assertClickHands(GameTestHelper helper, CrystallizerBlockEntity crystallizer, Item tier) {
+    private static CrystallizerBlockEntity placeCrystallizer(GameTestHelper helper, int knob) {
+        helper.setBlock(CRYSTALLIZER_POS, GooBlocks.CRYSTALLIZER.get().defaultBlockState()
+                .setValue(CrystallizerBlock.FACING, Direction.NORTH).setValue(CrystallizerBlock.KNOB, knob));
+        return helper.getBlockEntity(CRYSTALLIZER_POS, CrystallizerBlockEntity.class);
+    }
+
+    private static ItemStack canister(ResourceKey<GooTypeDefinition> type, int volume) {
+        ItemStack canister = new ItemStack(GooItems.CANISTER.get());
+        CanisterItem.setFluidContent(canister, new CanisterFluidContent(GooFluids.resource(type), volume));
+        return canister;
+    }
+
+    private static int enderIn(CrystallizerBlockEntity crystallizer) {
+        CanisterFluidContent content = crystallizer.getSlotFluidContent(SECOND);
+        return content.isEmpty() ? 0 : content.amount();
+    }
+
+    /** A click on the top face over a slot's footprint, the dial facing north. */
+    private static BlockHitResult topHit(GameTestHelper helper, int slot) {
+        BlockPos abs = helper.absolutePos(CRYSTALLIZER_POS);
+        return new BlockHitResult(new Vec3(abs.getX() + NORTH_SLOT_CENTERS[slot][0], abs.getY() + 1.0,
+                abs.getZ() + NORTH_SLOT_CENTERS[slot][1]), Direction.UP, abs, false);
+    }
+
+    /**
+     * Clicks the crystallizer's back face empty-handed and asserts one chrysm of the
+     * tier and type lands in the player hand.
+     */
+    private static void assertClickHands(GameTestHelper helper, Item tier, ResourceKey<GooTypeDefinition> type) {
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
         BlockPos abs = helper.absolutePos(CRYSTALLIZER_POS);
         helper.useBlock(CRYSTALLIZER_POS, player, new BlockHitResult(
                 new Vec3(abs.getX() + HALF, abs.getY() + HALF, abs.getZ() + 1.0), Direction.SOUTH, abs, false));
         ItemStack hand = player.getItemInHand(InteractionHand.MAIN_HAND);
-        helper.assertTrue(hand.is(tier) && hand.getCount() == 1
-                        && GooTypes.ENDER.equals(hand.get(GooDataComponents.GOO_TYPE.get())),
-                "The click should hand one ender " + tier + ", found " + hand);
-    }
-
-    /**
-     * Sets a gasketed crucible and a gasketed crystallizer and links the
-     * crucible's transmitter to the crystallizer's receiver.
-     *
-     * @param helper the gametest helper
-     * @return the crucible, the sender
-     */
-    private static CrucibleBlockEntity placeLinkedPair(GameTestHelper helper) {
-        helper.setBlock(SENDER_POS, GooBlocks.CRUCIBLE.get().defaultBlockState().setValue(CrucibleBlock.HAS_GASKET, true));
-        helper.setBlock(CRYSTALLIZER_POS,
-                GooBlocks.CRYSTALLIZER.get().defaultBlockState().setValue(CrystallizerBlock.HAS_GASKET, true));
-        CrucibleBlockEntity sender = helper.getBlockEntity(SENDER_POS, CrucibleBlockEntity.class);
-        CrystallizerBlockEntity crystallizer = helper.getBlockEntity(CRYSTALLIZER_POS, CrystallizerBlockEntity.class);
-        UUID transmitter = sender.ensureGasketId(GasketRole.TRANSMITTER);
-        UUID receiver = crystallizer.ensureGasketId(GasketRole.RECEIVER);
-        GasketRegistry.get(helper.getLevel()).link(transmitter, receiver);
-        sender.setPartner(GasketRole.TRANSMITTER,
-                new GasketPartner(helper.absolutePos(CRYSTALLIZER_POS), GooConstants.NO_SLOT));
-        crystallizer.setPartner(GasketRole.RECEIVER,
-                new GasketPartner(helper.absolutePos(SENDER_POS), GooConstants.NO_SLOT));
-        return sender;
+        helper.assertTrue(hand.is(tier) && hand.getCount() == 1 && type.equals(hand.get(GooDataComponents.GOO_TYPE.get())),
+                "The click should hand one " + type.identifier().getPath() + " " + tier + ", found " + hand);
     }
 }

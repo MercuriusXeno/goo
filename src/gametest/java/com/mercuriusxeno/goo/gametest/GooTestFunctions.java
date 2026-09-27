@@ -61,13 +61,16 @@ public final class GooTestFunctions {
     private static final String EXO_GAUNTLET_SMITHING = "exo_gauntlet_smithing";
     private static final String EXO_GAUNTLET_KEEPS_BENEFITS = "exo_gauntlet_keeps_benefits";
     // --- Crystallizer ---
-    private static final String CRYSTALLIZER_TAKES_TWO_TYPES = "crystallizer_takes_two_types";
-    private static final String CRYSTALLIZER_FORMS_ONE_CHRYSM = "crystallizer_forms_one_chrysm";
+    private static final String CRYSTALLIZER_CRYSTAL_FIRST = "crystallizer_crystal_first_then_ender";
+    private static final String CRYSTALLIZER_EITHER_SLOT = "crystallizer_either_slot_holds_crystal";
+    private static final String CRYSTALLIZER_TWO_CRYSTAL = "crystallizer_two_crystal_grow_crystal";
+    private static final String CRYSTALLIZER_FILLED_SLOT = "crystallizer_filled_slot_refuses";
     private static final String CRYSTALLIZER_ADVANCES_TO_KILOCHRYSM = "crystallizer_advances_to_kilochrysm";
     private static final String CRYSTALLIZER_SMALL_DIAL_HOLDS = "crystallizer_small_dial_holds";
     private static final String CRYSTALLIZER_DIAL_WRAPS = "crystallizer_dial_wraps";
     private static final String CRYSTALLIZER_PAUSES_WITHOUT_CRYSTAL = "crystallizer_pauses_without_crystal";
     private static final String CRYSTALLIZER_TAKING_KEEPS_REMAINDER = "crystallizer_taking_keeps_remainder";
+    private static final String CRYSTALLIZER_GASKET_FILLS_CANISTER = "crystallizer_gasket_fills_canister";
     // --- Brewing ---
     private static final String BREWING_OMNIBLOB_NEVER_BREWS = "brewing_omniblob_never_brews";
     private static final String BREWING_CHRYSM_BREWS_POTION = "brewing_chrysm_brews_potion";
@@ -338,13 +341,16 @@ public final class GooTestFunctions {
     }
 
     private static void registerCrystallizerTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
-        reg(r, CRYSTALLIZER_TAKES_TWO_TYPES, CrystallizerTests::takesTwoTypesRefusesThird);
-        reg(r, CRYSTALLIZER_FORMS_ONE_CHRYSM, CrystallizerTests::formsOneChrysm);
+        reg(r, CRYSTALLIZER_CRYSTAL_FIRST, CrystallizerTests::crystalFirstThenEnder);
+        reg(r, CRYSTALLIZER_EITHER_SLOT, CrystallizerTests::eitherSlotHoldsTheCrystal);
+        reg(r, CRYSTALLIZER_TWO_CRYSTAL, CrystallizerTests::twoCrystalCanistersGrowCrystal);
+        reg(r, CRYSTALLIZER_FILLED_SLOT, CrystallizerTests::filledSlotRefusesACanister);
         reg(r, CRYSTALLIZER_ADVANCES_TO_KILOCHRYSM, CrystallizerTests::advancesToKilochrysm);
         reg(r, CRYSTALLIZER_SMALL_DIAL_HOLDS, CrystallizerTests::smallDialHoldsAtChrysm);
         reg(r, CRYSTALLIZER_DIAL_WRAPS, CrystallizerTests::dialClickWrapsFromLargeToSmall);
         reg(r, CRYSTALLIZER_PAUSES_WITHOUT_CRYSTAL, CrystallizerTests::pausesWithoutCrystal);
         reg(r, CRYSTALLIZER_TAKING_KEEPS_REMAINDER, CrystallizerTests::takingKeepsTheRemainder);
+        reg(r, CRYSTALLIZER_GASKET_FILLS_CANISTER, CrystallizerTests::gasketFillsTheIngredientCanister);
     }
 
     private static void registerBrewingTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {

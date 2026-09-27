@@ -3,18 +3,16 @@ package com.mercuriusxeno.goo.block.crystallizer;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.item.ChrysmTier;
-import com.mercuriusxeno.goo.item.GooContents;
 import net.minecraft.resources.ResourceKey;
 import org.jspecify.annotations.Nullable;
 
 /**
  * The crystallizer's arithmetic over plain values, so a unit test reaches it
- * without a registry (decision crystallizer-emits-chrysm). Operator ruling:
- * goo crystallizes as it arrives, spending crystal goo at 10% of the goo and
- * pausing when crystal runs out, up to the tier the knob names; the item inside
- * is the highest tier the crystallized volume reached. Crystal goo is the
- * catalyst; the crystallizer holds one other type, the type it crystallizes,
- * or crystallizes crystal itself when crystal is all it holds.
+ * without a registry (decision crystallizer-emits-chrysm). Operator rulings: the
+ * crystallizer holds two canisters, and it doesn't matter which slot has the
+ * crystal goo, the other slot governs what goo grows; goo crystallizes as it
+ * goes, spending crystal at 10% of the goo and pausing when crystal runs out, up
+ * to the tier the knob names; the item inside is the highest tier reached.
  */
 public final class CrystallizerPhases {
 
@@ -28,15 +26,32 @@ public final class CrystallizerPhases {
     }
 
     /**
-     * What the crystallizer holds, in plain values.
+     * What one canister holds, in plain values.
      *
-     * @param held         the raw goo and crystal in its holding
-     * @param crystallized the goo crystallized so far, in mB
-     * @param formingType  the type crystallized so far, or null when none is
-     * @param knob         the tier the knob caps crystallizing at
+     * @param type   the goo type it holds, or null when empty or holding no goo
+     * @param volume the volume it holds, in mB
      */
-    public record Chamber(GooContents held, long crystallized,
-                          @Nullable ResourceKey<GooTypeDefinition> formingType, ChrysmTier knob) {
+    public record Held(@Nullable ResourceKey<GooTypeDefinition> type, int volume) {
+
+        /** A canister slot holding nothing. */
+        public static final Held NOTHING = new Held(null, 0);
+
+        boolean holds(ResourceKey<GooTypeDefinition> wanted) {
+            return volume > 0 && wanted.equals(type);
+        }
+
+        boolean holdsGoo() {
+            return volume > 0 && type != null;
+        }
+    }
+
+    /**
+     * Which canister slot is the catalyst and which the ingredient.
+     *
+     * @param catalyst   the slot whose crystal is spent
+     * @param ingredient the slot whose goo grows
+     */
+    public record Roles(int catalyst, int ingredient) {
     }
 
     /**
@@ -76,104 +91,46 @@ public final class CrystallizerPhases {
     }
 
     /**
-     * The type the chamber crystallizes: the type crystallized so far, else the
-     * one type besides crystal in the holding, else crystal when it is all the holding.
+     * Operator ruling: whichever canister holds crystal is the catalyst and the
+     * other's goo is what grows; both holding crystal, the first slot is the catalyst.
      *
-     * @param chamber the crystallizer's state
-     * @return the forming type, or null when the chamber holds nothing
+     * @param first  what the first slot holds
+     * @param second what the second slot holds
+     * @return the roles, or null while no slot holds crystal or the other holds nothing
      */
-    public static @Nullable ResourceKey<GooTypeDefinition> formingType(Chamber chamber) {
-        return chamber.formingType() != null ? chamber.formingType() : formingType(chamber.held());
-    }
-
-    /**
-     * The one type besides crystal in a holding, or crystal when it is all the holding.
-     *
-     * @param held the goo in the holding
-     * @return the forming type, or null for an empty holding
-     */
-    public static @Nullable ResourceKey<GooTypeDefinition> formingType(GooContents held) {
-        ResourceKey<GooTypeDefinition> crystal = null;
-        for (var entry : held.getAll().entrySet()) {
-            if (entry.getValue() <= 0) {
-                continue;
-            }
-            if (!CATALYST.equals(entry.getKey())) {
-                return entry.getKey();
-            }
-            crystal = entry.getKey();
+    public static @Nullable Roles roles(Held first, Held second) {
+        if (first.holds(CATALYST) && second.holdsGoo()) {
+            return new Roles(0, 1);
         }
-        return crystal;
-    }
-
-    /**
-     * The most of one type the holding takes: the goo still to crystallize up to
-     * the knob's tier, the crystal that pays for it, and nothing of a third type.
-     *
-     * @param chamber the crystallizer's state
-     * @param offered the type offered
-     * @return the most of that type the holding takes, in mB
-     */
-    public static int capacityFor(Chamber chamber, ResourceKey<GooTypeDefinition> offered) {
-        long room = roomToKnob(chamber);
-        ResourceKey<GooTypeDefinition> forming = formingType(chamber);
-        if (CATALYST.equals(offered)) {
-            return Math.toIntExact(crystalForms(forming) ? room + crystalFor(room) : crystalFor(room));
+        if (second.holds(CATALYST) && first.holdsGoo()) {
+            return new Roles(1, 0);
         }
-        boolean unclaimed = chamber.formingType() == null && crystalForms(forming);
-        return unclaimed || offered.equals(forming) ? Math.toIntExact(room) : 0;
+        return null;
     }
 
     /**
-     * One tick's crystallizing: as much held goo of the forming type as the held
-     * crystal pays for, in whole steps, up to the knob's tier.
+     * One tick's crystallizing: as much of the ingredient as the catalyst pays for,
+     * in whole steps, up to the knob's tier, and only of the type already crystallized.
      *
-     * @param chamber the crystallizer's state
+     * @param ingredient   what the ingredient canister holds
+     * @param catalyst     what the catalyst canister holds
+     * @param crystallized the goo crystallized so far, in mB
+     * @param formingType  the type crystallized so far, or null when none is
+     * @param knob         the tier the knob caps crystallizing at
      * @return the step, or null when nothing crystallizes this tick
      */
-    public static @Nullable Step step(Chamber chamber) {
-        ResourceKey<GooTypeDefinition> forming = formingType(chamber);
-        if (forming == null) {
+    public static @Nullable Step step(Held ingredient, Held catalyst, long crystallized,
+                                      @Nullable ResourceKey<GooTypeDefinition> formingType, ChrysmTier knob) {
+        ResourceKey<GooTypeDefinition> type = ingredient.type();
+        if (type == null || formingType != null && !formingType.equals(type)) {
             return null;
         }
-        long steps = Math.min(affordableSteps(chamber.held(), forming), roomToKnob(chamber) / GOO_PER_CRYSTAL);
+        long room = Math.max(0, knob.volume() - crystallized);
+        long steps = Math.min(Math.min(ingredient.volume() / GOO_PER_CRYSTAL, catalyst.volume()),
+                room / GOO_PER_CRYSTAL);
         if (steps <= 0) {
             return null;
         }
-        return new Step(forming, Math.toIntExact(steps * GOO_PER_CRYSTAL), Math.toIntExact(steps));
-    }
-
-    /**
-     * Whole steps the holding pays for: goo in 10 mB lots and one mB of crystal
-     * each, or 11 mB of crystal each when crystal crystallizes itself.
-     *
-     * @param held    the goo in the holding
-     * @param forming the type crystallizing
-     * @return the steps paid for
-     */
-    private static long affordableSteps(GooContents held, ResourceKey<GooTypeDefinition> forming) {
-        int crystal = held.getVolume(CATALYST);
-        if (CATALYST.equals(forming)) {
-            return crystal / (GOO_PER_CRYSTAL + 1);
-        }
-        return Math.min(held.getVolume(forming) / GOO_PER_CRYSTAL, crystal);
-    }
-
-    /**
-     * The goo left to crystallize before the knob tier; a tank capacity counts what it holds.
-     *
-     * @param chamber the crystallizer state
-     * @return the room, in mB
-     */
-    private static long roomToKnob(Chamber chamber) {
-        return Math.max(0, chamber.knob().volume() - chamber.crystallized());
-    }
-
-    private static long crystalFor(long goo) {
-        return (goo + GOO_PER_CRYSTAL - 1) / GOO_PER_CRYSTAL;
-    }
-
-    private static boolean crystalForms(@Nullable ResourceKey<GooTypeDefinition> forming) {
-        return forming == null || CATALYST.equals(forming);
+        return new Step(type, Math.toIntExact(steps * GOO_PER_CRYSTAL), Math.toIntExact(steps));
     }
 }
