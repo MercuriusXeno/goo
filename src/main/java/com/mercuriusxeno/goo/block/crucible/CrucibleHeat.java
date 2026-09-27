@@ -92,17 +92,28 @@ public final class CrucibleHeat {
      * @param grades      the fuel grades in burn order
      * @param comboDrain  the mB of each fuel a combo tick burns
      * @param stock       the reservoir
-     * @return the grade whose heat burned this tick, null when nothing melts or no heat could be bought
+     * @return the heat that burned this tick, null when nothing melts or no heat could be bought
      */
-    public @Nullable FuelGrade burnMeltTick(boolean meltsAnItem, List<FuelGrade> grades, int comboDrain,
-                                            FuelStock stock) {
+    public @Nullable MeltHeat burnMeltTick(boolean meltsAnItem, List<FuelGrade> grades, int comboDrain,
+                                           FuelStock stock) {
         if (!meltsAnItem) {
             return null;
         }
         if (comboStands(grades, stock)) {
-            return burnComboTick(grades, comboDrain, stock);
+            return new MeltHeat(burnComboTick(grades, comboDrain, stock), true);
         }
-        return burnBoughtHeat(grades, stock);
+        FuelGrade burned = burnBoughtHeat(grades, stock);
+        return burned == null ? null : new MeltHeat(burned, false);
+    }
+
+    /**
+     * The heat one melt tick burned.
+     *
+     * @param grade the grade whose clock the tick melts on
+     * @param combo true when every grade burned together, advancing every item
+     *              (decision combo-advances-every-item)
+     */
+    public record MeltHeat(FuelGrade grade, boolean combo) {
     }
 
     /**
@@ -144,8 +155,9 @@ public final class CrucibleHeat {
     }
 
     /**
-     * Burns one combo tick: extracts up to the drain from each fuel, and answers the grade
-     * with the fastest clock, unstable's by default (decision blaze-unstable-combo-burn).
+     * Burns one combo tick: extracts up to the drain from each fuel, a short last tick taking
+     * what stands, and answers the grade with the fastest clock, unstable's by default
+     * (decisions blaze-unstable-combo-burn, combo-advances-every-item).
      *
      * @param grades     the fuel grades, every one stocked
      * @param comboDrain the mB of each fuel a full combo tick burns

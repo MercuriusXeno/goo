@@ -61,7 +61,7 @@ public class GooConfig {
 
         COMBO_DRAIN_PER_TICK = builder
             .comment("mB of each fuel goo the crucible burns per melt tick while blaze and unstable both stand,",
-                "melting on unstableMeltExponent's clock.")
+                "advancing every item each tick on unstableMeltExponent's clock.")
             .defineInRange("comboDrainPerTick", DEFAULT_COMBO_DRAIN_PER_TICK, 1, Integer.MAX_VALUE);
 
         builder.pop();

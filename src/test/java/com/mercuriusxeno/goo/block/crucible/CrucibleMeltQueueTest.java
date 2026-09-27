@@ -183,6 +183,35 @@ class CrucibleMeltQueueTest {
             assertEquals(200, crucible.reservoir.volume(GooTypes.CRYSTAL));
         }
 
+        /**
+         * The combo advances every item one tick and leaves the cursor on its item, so the
+         * lone tick after it takes the first log (decision combo-advances-every-item).
+         */
+        @Test
+        void comboAdvancesEveryItemAndLeavesTheCursor() {
+            Crucible crucible = new Crucible();
+            crucible.tick(1);
+            crucible.pool = crucible.queue.advanceEvery(SQUARE_ROOT, crucible.pool, crucible.reservoir);
+            assertProgress(List.of(0.2), crucible.progressOf(0));
+            assertProgress(List.of(0.25, 0.25), crucible.progressOf(1));
+
+            crucible.tick(1);
+            assertProgress(List.of(0.5, 0.25), crucible.progressOf(1));
+        }
+
+        /** Items the combo finishes ahead of the cursor pull it back, so it stays on its item. */
+        @Test
+        void comboFinishingItemsKeepsTheCursorOnItsItem() {
+            Crucible crucible = new Crucible(new ValuedStack(OAK_LOG, 2, LOG_UNIT), new ValuedStack(DIAMOND, 1, DIAMOND_UNIT));
+            crucible.tick(2);
+            for (int tick = 0; tick < 3; tick++) {
+                crucible.pool = crucible.queue.advanceEvery(SQUARE_ROOT, crucible.pool, crucible.reservoir);
+            }
+            assertEquals(List.of(DIAMOND), crucible.queue.entries().stream().map(CrucibleMeltQueue.Entry::item).toList());
+            assertEquals(0, crucible.queue.saved().cursor());
+            assertEquals(32, crucible.reservoir.volume(GooTypes.LEAF));
+        }
+
         /** A 100 mB item of 60 rock and 40 metal moves each of its types in proportion. */
         @Test
         void itemMovesEachOfItsTypesInProportion() {
