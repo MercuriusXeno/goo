@@ -241,6 +241,7 @@ public final class GooTestFunctions {
     private static final String IX_BLOB_INSERT_SHARED = "ix_blob_insert_shared";
     private static final String IX_LEGACY_BLOB_STACK = "ix_legacy_blob_stack";
     private static final String IX_VAT_STREAM_HOLDS = "ix_vat_stream_holds";
+    private static final String IX_CRUCIBLE_TOPS_UP_CANISTER = "ix_crucible_tops_up_canister";
 
     // --- Machines ---
     private static final String MACHINE_CANISTER_INSERT = "machine_canister_insert";
@@ -486,6 +487,7 @@ public final class GooTestFunctions {
         reg(r, IX_BLOB_INSERT_SHARED, BlobInsertTests::pourDepletesByAccepted);
         reg(r, IX_LEGACY_BLOB_STACK, LegacyBlobStackTests::legacyStackHalvesAndDepletesWithoutDuplication);
         reg(r, IX_VAT_STREAM_HOLDS, VatStreamTests::blobClickHoldsStream);
+        reg(r, IX_CRUCIBLE_TOPS_UP_CANISTER, DrainIntoInventoryTests::crucibleTopsUpCarriedCanister);
     }
 
     private static void registerCrucibleTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {

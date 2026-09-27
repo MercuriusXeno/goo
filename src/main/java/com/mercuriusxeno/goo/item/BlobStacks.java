@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.item;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
-import com.mercuriusxeno.goo.PlayerUtils;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
@@ -146,43 +145,6 @@ public final class BlobStacks {
         int total = absorbedVolume(volumeOf(source), GooOmniblobItem.getVolume(omniblobStack));
         GooOmniblobItem.setVolume(omniblobStack, total);
         source.setCount(0);
-    }
-
-    /**
-     * Merges goo volume into a player's inventory, stacking with existing items.
-     * Adds to the first matching omniblob, or creates one for the volume.
-     *
-     * @param player   the player to receive the goo
-     * @param type     the goo type
-     * @param volumeMb volume in microblobs
-     */
-    public static void mergeIntoInventory(Player player, ResourceKey<GooTypeDefinition> type, int volumeMb) {
-        if (volumeMb <= 0) {
-            return;
-        }
-        int remaining = mergeIntoExistingOmniblobs(player, type, volumeMb);
-        if (remaining > 0) {
-            PlayerUtils.addOrDrop(player, createForOutput(type, remaining));
-        }
-    }
-
-    /**
-     * Adds volume to the first matching omniblob found in the inventory.
-     *
-     * @param player   the player whose inventory to scan
-     * @param type     the goo type to match
-     * @param volumeMb volume to merge in microblobs
-     * @return remaining volume not merged (0 if fully absorbed)
-     */
-    private static int mergeIntoExistingOmniblobs(Player player, ResourceKey<GooTypeDefinition> type, int volumeMb) {
-        for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
-            ItemStack slot = player.getInventory().getItem(i);
-            if (slot.getItem() instanceof GooOmniblobItem && keyOf(slot) == type) {
-                GooOmniblobItem.setVolume(slot, GooOmniblobItem.getVolume(slot) + volumeMb);
-                return 0;
-            }
-        }
-        return volumeMb;
     }
 
     /**
