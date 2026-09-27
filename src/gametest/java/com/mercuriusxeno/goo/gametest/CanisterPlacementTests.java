@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.registry.GooItems;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -39,6 +40,27 @@ public final class CanisterPlacementTests {
     public static void vatTopTakesCanister(GameTestHelper helper) {
         helper.setBlock(SUPPORT_POS, GooBlocks.VAT.get());
         helper.useBlock(SUPPORT_POS, playerHoldingCanister(helper), aimedSlotTopHit(helper));
+        assertCanisterInAimedSlot(helper);
+        helper.succeed();
+    }
+
+    /**
+     * A sneaking player's canister use on an empty vat's top places a canister block on the vat.
+     * Runs the server's own click path, ServerPlayerGameMode.useItemOn, which skips the vat's own
+     * click for a sneaking player holding an item (decision diagnose-then-fix-sneak-place-above-canister).
+     *
+     * @param helper the gametest helper
+     */
+    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
+    public static void sneakClickVatTopTakesCanister(GameTestHelper helper) {
+        helper.setBlock(SUPPORT_POS, GooBlocks.VAT.get());
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        player.setPos(Vec3.atCenterOf(helper.absolutePos(SUPPORT_POS.east(2))));
+        player.setShiftKeyDown(true);
+        ItemStack canister = new ItemStack(GooItems.CANISTER.get());
+        player.setItemInHand(InteractionHand.MAIN_HAND, canister);
+        player.gameMode.useItemOn(player, helper.getLevel(), canister, InteractionHand.MAIN_HAND,
+            aimedSlotTopHit(helper));
         assertCanisterInAimedSlot(helper);
         helper.succeed();
     }
