@@ -286,4 +286,33 @@ class FuseOrbVisualTest {
             }
         }
     }
+
+    @Nested
+    class MiningMarkerBeats {
+
+        private static final long LAST_LAYER_TICK = 48_200L;
+
+        @Test
+        void miningBeatsFasterThanTheNetherPulse() {
+            assertTrue(FuseOrbVisual.MINING_BEAT_PERIOD < BlackHolePhases.HOLE_PULSE_PERIOD);
+        }
+
+        @Test
+        void layerStrikeRestartsTheBeat() {
+            assertEquals(0f, FuseOrbVisual.miningBeatPhase(LAST_LAYER_TICK, LAST_LAYER_TICK), 0f);
+            assertEquals(1f, FuseOrbVisual.miningBeat(true, LAST_LAYER_TICK, LAST_LAYER_TICK), 0f);
+            float midBeat = LAST_LAYER_TICK + FuseOrbVisual.MINING_BEAT_PERIOD / 2;
+            assertEquals(1f + FuseOrbVisual.MINING_BEAT_AMPLITUDE,
+                    FuseOrbVisual.miningBeat(true, midBeat, LAST_LAYER_TICK), TOLERANCE);
+            float nextBeat = LAST_LAYER_TICK + FuseOrbVisual.MINING_BEAT_PERIOD;
+            assertEquals(0f, FuseOrbVisual.miningBeatPhase(nextBeat, LAST_LAYER_TICK), TOLERANCE);
+        }
+
+        @Test
+        void orbRestsWhileNoProgramRuns() {
+            for (int i = 0; i < FuseOrbVisual.MINING_BEAT_PERIOD * 2; i++) {
+                assertEquals(1f, FuseOrbVisual.miningBeat(false, LAST_LAYER_TICK + i + 0.5f, LAST_LAYER_TICK), 0f);
+            }
+        }
+    }
 }

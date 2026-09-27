@@ -97,6 +97,11 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
      */
     private int minedLayers;
     /**
+     * Game time the struck layer count last changed as this side saw it;
+     * the mining marker's beat restarts on it.
+     */
+    private long minedLayersChangedAt;
+    /**
      * State a running field effect keeps through the marker host: strikes
      * in flight, cooldown and charges spent, read back by the spike visual.
      */
@@ -345,7 +350,28 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
      * @param layers the struck layer count
      */
     public void setMinedLayers(int layers) {
-        this.minedLayers = layers;
+        recordMinedLayers(layers);
+    }
+
+    /**
+     * Stores the struck layer count, stamping the game time it changed.
+     *
+     * @param layers the struck layer count
+     */
+    private void recordMinedLayers(int layers) {
+        if (layers != minedLayers && level != null) {
+            minedLayersChangedAt = level.getGameTime();
+        }
+        minedLayers = layers;
+    }
+
+    /**
+     * Returns the game time the struck layer count last changed.
+     *
+     * @return the game time of the last layer strike this side saw
+     */
+    public long getMinedLayersChangedAt() {
+        return minedLayersChangedAt;
     }
 
     /**
@@ -595,7 +621,7 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
         areaMode = input.getStringOr(TAG_AREA_MODE, DEFAULT_AREA_MODE);
         lastStackTick = input.getLongOr(TAG_LAST_STACK_TICK, 0);
         abilityId = input.getStringOr(TAG_ABILITY_ID, abilityId);
-        minedLayers = input.getIntOr(TAG_MINED_LAYERS, 0);
+        recordMinedLayers(input.getIntOr(TAG_MINED_LAYERS, 0));
         fieldEffect.load(input);
         phased.load(input);
         consumedGoo = input.read(TAG_CONSUMED_GOO, GooContents.CODEC).orElse(GooContents.EMPTY);

@@ -70,6 +70,10 @@ public final class FuseOrbVisual {
     static final float CRYSTAL_EBB_PERIOD = 80f;
     /** How far the crystal ebb swings the orb either side of resting size. */
     static final float CRYSTAL_EBB_AMPLITUDE = 0.03f;
+    /** Ticks per mining beat, rapid beside the nether pulse. */
+    static final float MINING_BEAT_PERIOD = 6f;
+    /** How far a mining beat swells the orb past resting size, at its peak. */
+    static final float MINING_BEAT_AMPLITUDE = 0.12f;
     private static final double TWO_PI = 2 * Math.PI;
     /** Maps 1 - cos, which spans [0, 2], onto [0, 1]. */
     private static final float COSINE_TO_UNIT = 0.5f;
@@ -261,7 +265,38 @@ public final class FuseOrbVisual {
         float pulse = computePulseScale(state);
         float spikeShake = computeSpikeShake(state);
         float ebb = crystalEbb(state.crystalActive, state.gameTime);
-        return implosion * pulse * spikeShake * ebb;
+        float beat = miningBeat(state.miningActive, state.gameTime, state.lastLayerTick);
+        return implosion * pulse * spikeShake * ebb * beat;
+    }
+
+    /**
+     * The rock, blaze and frost marker's rapid beat while its program breaks
+     * blocks, each beat swelling from resting size and back (decision
+     * orchestration-animation-per-ability).
+     *
+     * @param miningActive  true while a progressive-area program runs
+     * @param gameTime      the game time including the partial tick
+     * @param lastLayerTick the game time the mined layer count last changed
+     * @return the beat factor, exactly 1 while no program runs
+     */
+    static float miningBeat(boolean miningActive, float gameTime, long lastLayerTick) {
+        if (!miningActive) {
+            return 1f;
+        }
+        float swell = 1f - (float) Math.cos(TWO_PI * miningBeatPhase(gameTime, lastLayerTick));
+        return 1f + MINING_BEAT_AMPLITUDE * swell * COSINE_TO_UNIT;
+    }
+
+    /**
+     * Where the mining beat stands in its cycle, restarting on each layer strike.
+     *
+     * @param gameTime      the game time including the partial tick
+     * @param lastLayerTick the game time the mined layer count last changed
+     * @return the beat's phase in [0, 1), 0 on the strike
+     */
+    static float miningBeatPhase(float gameTime, long lastLayerTick) {
+        float elapsed = Math.max(0f, gameTime - lastLayerTick);
+        return (elapsed % MINING_BEAT_PERIOD) / MINING_BEAT_PERIOD;
     }
 
     /**

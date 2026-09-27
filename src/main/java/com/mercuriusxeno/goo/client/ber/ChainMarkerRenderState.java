@@ -57,6 +57,12 @@ public class ChainMarkerRenderState extends BlockEntityRenderState {
     /** Number of depth layers already mined by the active behavior. */
     public int minedLayers;
 
+    /** True while a rock, blaze or frost progressive-area program breaks blocks. */
+    public boolean miningActive;
+
+    /** Game time the mined layer count last changed; the mining beat restarts on it. */
+    public long lastLayerTick;
+
     /** Metal spikes in flight, read from the marker's field-effect state. */
     public java.util.List<com.mercuriusxeno.goo.ability.program.FieldStrike> spikeAnims = java.util.List.of();
 
