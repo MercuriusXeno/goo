@@ -20,6 +20,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
+import java.util.List;
 import java.util.OptionalInt;
 
 /**
@@ -32,8 +33,7 @@ import java.util.OptionalInt;
 public final class CrosshairFuelPanel {
 
     private static final Identifier LAYER_ID = Identifier.fromNamespaceAndPath(Goo.MODID, "crosshair_fuel");
-    /** The vanilla effect background sprite, a nine-slice the in-world panels back with too. */
-    private static final Identifier BACKGROUND_SPRITE = Identifier.withDefaultNamespace("hud/effect_background");
+    private static final int BACKGROUND_TEXTURE_SIZE = 24;
     private static final String COST_PREFIX = "- ";
     private static final String GAP = " ";
     private static final int COST_COLOR = 0xFFFF5555;
@@ -104,12 +104,36 @@ public final class CrosshairFuelPanel {
         paint(graphics, font, row, graphics.guiWidth() / HALF + CROSSHAIR_OFFSET, graphics.guiHeight() / HALF);
     }
 
+    /**
+     * The quads the panel's background draws over a rectangle.
+     *
+     * @param rect the panel rectangle
+     * @return the slices, each with its screen rect and texture rect
+     */
+    static List<NineSlice.Slice> backgroundSlices(PanelRectangle rect) {
+        // diagnose-then-fix-aiming-panel-stretch: vanilla ships effect_background with no nine_slice metadata, so blitSprite stretched it whole
+        return NineSlice.of(rect);
+    }
+
+    private static void blitSlice(GuiGraphicsExtractor graphics, NineSlice.Slice slice) {
+        int x = Math.round(slice.x0());
+        int y = Math.round(slice.y0());
+        graphics.blit(RenderPipelines.GUI_TEXTURED, InWorldHud.BG_TEXTURE, x, y,
+                slice.u0() * BACKGROUND_TEXTURE_SIZE, slice.v0() * BACKGROUND_TEXTURE_SIZE,
+                Math.round(slice.x1()) - x, Math.round(slice.y1()) - y,
+                Math.round((slice.u1() - slice.u0()) * BACKGROUND_TEXTURE_SIZE),
+                Math.round((slice.v1() - slice.v0()) * BACKGROUND_TEXTURE_SIZE),
+                BACKGROUND_TEXTURE_SIZE, BACKGROUND_TEXTURE_SIZE);
+    }
+
     private static void paint(GuiGraphicsExtractor graphics, Font font, FuelRow row, int left, int centerY) {
         int textWidth = font.width(row.heldText() + GAP + row.costText());
         int width = BORDER + ITEM_SIZE + ICON_GAP + TYPE_ICON_SIZE + ICON_GAP + textWidth + BORDER;
         int height = BORDER + ITEM_SIZE + BORDER;
         int top = centerY - height / HALF;
-        graphics.blitSprite(RenderPipelines.GUI_TEXTURED, BACKGROUND_SPRITE, left, top, width, height);
+        for (NineSlice.Slice slice : backgroundSlices(new PanelRectangle(left, top, width, height))) {
+            blitSlice(graphics, slice);
+        }
         int x = left + BORDER;
         int rowTop = top + BORDER;
         if (!row.source().isEmpty()) {

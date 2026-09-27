@@ -25,11 +25,7 @@ public final class InWorldHud {
     /**
      * Border inset in scaled pixels for nine-slice rendering.
      */
-    public static final float BORDER = 3f;
-    /**
-     * Border inset as UV fraction (3px / 24px texture).
-     */
-    public static final float BORDER_UV = 3f / 24f;
+    public static final float BORDER = NineSlice.BORDER;
     /**
      * Z offset for content (icons, text) to sit in front of the background.
      */
@@ -106,63 +102,9 @@ public final class InWorldHud {
         VertexConsumer vc = buffers.getBuffer(
                 seeThrough ? RenderTypes.textSeeThrough(BG_TEXTURE) : RenderTypes.text(BG_TEXTURE));
         PoseStack.Pose pose = poseStack.last();
-        float x1 = rect.x() + BORDER;
-        float x2 = rect.x() + rect.w() - BORDER;
-        float y1 = rect.y() + BORDER;
-        float y2 = rect.y() + rect.h() - BORDER;
-        emitCorners(vc, pose, rect, x1, x2, y1, y2);
-        emitEdgesAndCenter(vc, pose, rect, x1, x2, y1, y2);
-    }
-
-    /**
-     * Emits the four corner quads of a nine-slice background.
-     *
-     * @param vc   the vertex consumer for quad output
-     * @param pose the pose matrix entry
-     * @param rect the panel rectangle (position + size)
-     * @param x1   the left edge after border inset
-     * @param x2   the right edge before border inset
-     * @param y1   the top edge after border inset
-     * @param y2   the bottom edge before border inset
-     */
-    private static void emitCorners(VertexConsumer vc, PoseStack.Pose pose,
-                                    PanelRectangle rect,
-                                    float x1, float x2, float y1, float y2) {
-        float uB = BORDER_UV;
-        float x = rect.x();
-        float y = rect.y();
-        float xw = x + rect.w();
-        float yh = y + rect.h();
-        nineSliceQuad(vc, pose, x, y, x1, y1, 0f, 0f, uB, uB);
-        nineSliceQuad(vc, pose, x2, y, xw, y1, 1f - uB, 0f, 1f, uB);
-        nineSliceQuad(vc, pose, x, y2, x1, yh, 0f, 1f - uB, uB, 1f);
-        nineSliceQuad(vc, pose, x2, y2, xw, yh, 1f - uB, 1f - uB, 1f, 1f);
-    }
-
-    /**
-     * Emits the four edge quads and center quad of a nine-slice background.
-     *
-     * @param vc   the vertex consumer for quad output
-     * @param pose the pose matrix entry
-     * @param rect the panel rectangle (position + size)
-     * @param x1   the left edge after border inset
-     * @param x2   the right edge before border inset
-     * @param y1   the top edge after border inset
-     * @param y2   the bottom edge before border inset
-     */
-    private static void emitEdgesAndCenter(VertexConsumer vc, PoseStack.Pose pose,
-                                           PanelRectangle rect,
-                                           float x1, float x2, float y1, float y2) {
-        float uB = BORDER_UV;
-        float x = rect.x();
-        float y = rect.y();
-        float xw = x + rect.w();
-        float yh = y + rect.h();
-        nineSliceQuad(vc, pose, x1, y, x2, y1, uB, 0f, 1f - uB, uB);
-        nineSliceQuad(vc, pose, x1, y2, x2, yh, uB, 1f - uB, 1f - uB, 1f);
-        nineSliceQuad(vc, pose, x, y1, x1, y2, 0f, uB, uB, 1f - uB);
-        nineSliceQuad(vc, pose, x2, y1, xw, y2, 1f - uB, uB, 1f, 1f - uB);
-        nineSliceQuad(vc, pose, x1, y1, x2, y2, uB, uB, 1f - uB, 1f - uB);
+        for (NineSlice.Slice s : NineSlice.of(rect)) {
+            nineSliceQuad(vc, pose, s.x0(), s.y0(), s.x1(), s.y1(), s.u0(), s.v0(), s.u1(), s.v1());
+        }
     }
 
     /**
