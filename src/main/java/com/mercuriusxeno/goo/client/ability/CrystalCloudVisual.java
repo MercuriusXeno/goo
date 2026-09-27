@@ -26,6 +26,8 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import org.joml.Vector3f;
 import org.jspecify.annotations.Nullable;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Renders the crystal shard cloud as scattered glass splinters floating
@@ -87,8 +89,22 @@ public final class CrystalCloudVisual {
      */
     private static final double REFLECT_COEFF = 2.0;
 
+    /**
+     * The most faces one sliver's pyramid carries: a diamond's four.
+     */
+    static final int MAX_FACES_PER_SLIVER = 4;
+    /**
+     * Ticks a cloud may go undrawn before its eased reflections are dropped.
+     */
+    private static final double STALE_EASING_TICKS = 100;
+
     private static final CloudShardTables TABLES = new CloudShardTables();
     private static @Nullable Level tablesLevel;
+
+    /**
+     * Each drawn marker's eased reflections, keyed by its packed block position.
+     */
+    private static final Map<Long, ReflectionEasing> EASINGS = new HashMap<>();
 
     /**
      * What one frame of one cloud draws.
@@ -101,9 +117,12 @@ public final class CrystalCloudVisual {
      * @param origin       the marker block's world corner
      * @param camPos       the camera eye position
      * @param probe        casts the reflection rays
+     * @param clock        the client tick with its partial tick, the clock reflections ease on
+     * @param easing       the shown reflection color of every face of this cloud
      */
     record CloudDraw(int visibleCount, int alpha, float time, float radius, ShardTable shards,
-                     Vec3 origin, Vec3 camPos, BlockColorProbe probe) {
+                     Vec3 origin, Vec3 camPos, BlockColorProbe probe,
+                     double clock, ReflectionEasing easing) {
     }
 
     /**
@@ -153,7 +172,9 @@ public final class CrystalCloudVisual {
         state.crystalDensity = field.density();
         state.crystalRadiusFraction = field.radiusFraction(expandTicks, contractTicks);
         state.crystalRadius = cloud.radius().evaluateFloat(variables);
-        state.crystalAnimationTime = be.getLevel() != null ? be.getLevel().getGameTime() : 0L;
+        long gameTime = be.getLevel() != null ? be.getLevel().getGameTime() : 0L;
+        state.crystalAnimationTime = gameTime;
+        state.crystalReflectionClock = gameTime;
     }
 
     /**
@@ -181,6 +202,7 @@ public final class CrystalCloudVisual {
         state.crystalRadiusFraction = 0f;
         state.crystalRadius = 0f;
         state.crystalAnimationTime = 0f;
+        state.crystalReflectionClock = 0;
     }
 
     /**
@@ -246,6 +268,7 @@ public final class CrystalCloudVisual {
     private static CloudDraw drawOf(ChainMarkerRenderState state, Level level, Vec3 camPos) {
         float radiusFrac = state.crystalRadiusFraction;
         float density = state.crystalDensity;
+        double clock = state.crystalReflectionClock + state.partialTick;
         return new CloudDraw(
                 Math.max(1, (int) (ShardTable.MAX_SLIVERS * Math.max(density, radiusFrac))),
                 (int) (BASE_ALPHA * Math.max(density, MIN_DENSITY_FLOOR) * radiusFrac * BYTE_SCALE),
@@ -254,7 +277,23 @@ public final class CrystalCloudVisual {
                 TABLES.tableAt(state.blockPos),
                 Vec3.atLowerCornerOf(state.blockPos),
                 camPos,
-                (origin, direction) -> raycastBlockColor(level, origin, direction));
+                (origin, direction) -> raycastBlockColor(level, origin, direction),
+                clock,
+                easingFor(state.blockPos.asLong(), clock));
+    }
+
+    /**
+     * The eased reflections of the marker at a position, dropping every
+     * cloud's that has gone undrawn long enough to have left the view.
+     *
+     * @param packedPos the marker's packed block position
+     * @param clock     this frame's clock
+     * @return the marker's eased reflections
+     */
+    private static ReflectionEasing easingFor(long packedPos, double clock) {
+        EASINGS.values().removeIf(e -> Math.abs(clock - e.lastClock()) > STALE_EASING_TICKS);
+        return EASINGS.computeIfAbsent(packedPos,
+                p -> new ReflectionEasing(ShardTable.MAX_SLIVERS * MAX_FACES_PER_SLIVER));
     }
 
     /**
@@ -264,6 +303,7 @@ public final class CrystalCloudVisual {
      * @param draw what this frame draws
      */
     static void emitCloud(FlatQuadContext face, CloudDraw draw) {
+        draw.easing().beginFrame(draw.clock());
         for (int i = 0; i < draw.visibleCount(); i++) {
             emitSliver(face, i, draw);
         }
@@ -280,7 +320,8 @@ public final class CrystalCloudVisual {
         ShardFrame frame = frameOf(index, draw);
         Vec3 worldCenter = draw.origin().add(frame.center().x(), frame.center().y(), frame.center().z());
         Vector3f apex = frame.apex(draw.shards().depthRatio(index) * frame.halfLength());
-        emitPyramid(face, baseRing(draw.shards().shape(index), frame), apex, draw, worldCenter);
+        emitPyramid(face, baseRing(draw.shards().shape(index), frame), apex, draw,
+                new ShardPlace(worldCenter, index * MAX_FACES_PER_SLIVER));
     }
 
     /**
@@ -335,15 +376,15 @@ public final class CrystalCloudVisual {
      * @param ring        the base corners in winding order
      * @param apex        the apex
      * @param draw        what this frame draws
-     * @param worldCenter the shard's world position
+     * @param place       where the shard stands and where its faces start in the cloud
      */
     private static void emitPyramid(FlatQuadContext face, Vector3f[] ring, Vector3f apex,
-                                    CloudDraw draw, Vec3 worldCenter) {
+                                    CloudDraw draw, ShardPlace place) {
         for (int i = 0; i < ring.length; i++) {
             Vector3f start = ring[i];
             Vector3f end = ring[(i + 1) % ring.length];
             Vector3f normal = new Vector3f(end).sub(start).cross(new Vector3f(apex).sub(start));
-            int color = reflectColor(draw, worldCenter, normal);
+            int color = reflectColor(draw, place, i, normal);
             ConeGeometry.emitTriangle(corner -> {
                 Vector3f at = switch (corner) {
                     case ConeGeometry.BASE_START -> start;
@@ -356,15 +397,27 @@ public final class CrystalCloudVisual {
     }
 
     /**
-     * The color a face reflects: the camera's view of the shard bounced off
-     * the face's normal and cast into the world, brightened, at the draw's alpha.
+     * Where one shard stands and where its faces start among the cloud's faces.
      *
-     * @param draw        what this frame draws, carrying the camera and the probe
      * @param worldCenter the shard's world position
-     * @param normal      the face normal (unnormalized)
+     * @param firstFace   the cloud-wide index of the shard's first face
+     */
+    private record ShardPlace(Vec3 worldCenter, int firstFace) {
+    }
+
+    /**
+     * The color a face reflects: the camera's view of the shard bounced off
+     * the face's normal and cast into the world, eased from the face's last
+     * shown color, brightened, at the draw's alpha.
+     *
+     * @param draw   what this frame draws, carrying the camera, the probe and the easing
+     * @param place  where the shard stands and where its faces start
+     * @param side   the face's index within its shard
+     * @param normal the face normal (unnormalized)
      * @return packed ARGB with the reflected block color and the draw's alpha
      */
-    private static int reflectColor(CloudDraw draw, Vec3 worldCenter, Vector3f normal) {
+    private static int reflectColor(CloudDraw draw, ShardPlace place, int side, Vector3f normal) {
+        Vec3 worldCenter = place.worldCenter();
         float len = normal.length();
         if (len < NORMALIZE_EPSILON) {
             return ARGB.color(draw.alpha(), SKY_COLOR);
@@ -379,7 +432,8 @@ public final class CrystalCloudVisual {
                 toShard.x - REFLECT_COEFF * dot * fnx,
                 toShard.y - REFLECT_COEFF * dot * fny,
                 toShard.z - REFLECT_COEFF * dot * fnz);
-        int rgb = draw.probe().colorAlong(worldCenter, reflected);
+        int rgb = draw.easing().shownColor(place.firstFace() + side,
+                draw.probe().colorAlong(worldCenter, reflected));
         int r = Math.min((int) (ARGB.red(rgb) * REFLECT_BRIGHTNESS), FULL_ALPHA);
         int g = Math.min((int) (ARGB.green(rgb) * REFLECT_BRIGHTNESS), FULL_ALPHA);
         int b = Math.min((int) (ARGB.blue(rgb) * REFLECT_BRIGHTNESS), FULL_ALPHA);
