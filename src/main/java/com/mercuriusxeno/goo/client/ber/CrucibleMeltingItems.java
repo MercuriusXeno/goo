@@ -149,9 +149,9 @@ final class CrucibleMeltingItems {
         if (state.headShards == null) {
             return CrucibleHeadHandoff.restingPose(placement, state.headItem.getModelBoundingBox(), MIN_EXTENT);
         }
-        return wholeAtHome(state.headShards, placement, CrucibleItemLayout.tileY(surface, state.rippleAmplitude,
+        return wholeAtHome(state.headShards, placement, CrucibleItemLayout.shardY(surface, state.rippleAmplitude,
             new SurfaceRipple.Field(state.blockPos.getX(), state.blockPos.getZ(), state.dayFraction),
-            placement.x(), placement.z()));
+            placement.x(), placement.z(), 0f));
     }
 
     /**

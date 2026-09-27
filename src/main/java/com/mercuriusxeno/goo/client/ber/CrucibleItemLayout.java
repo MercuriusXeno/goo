@@ -22,8 +22,6 @@ final class CrucibleItemLayout {
     static final float HEAD_SIZE = 0.26f;
     /** A block's width across the basin, smaller than a flat item's so its shards fit the open basin at rest. */
     static final float BLOCK_HEAD_SIZE = 0.16f;
-    /** A shard's nominal width, a quarter of the head, which the ripple lift is sized to. */
-    static final float TILE_SIZE = HEAD_SIZE / 4;
     /** The span of the dissolve fraction a shard takes to drift from home to its resting spot. */
     static final float DRIFT_SPAN = 0.25f;
     /** A waiting item's width, in blocks. */
@@ -47,13 +45,6 @@ final class CrucibleItemLayout {
     private static final float[][] CORNERS = {
         {NEAR_CORNER, NEAR_CORNER}, {FAR_CORNER, FAR_CORNER}, {NEAR_CORNER, FAR_CORNER}, {FAR_CORNER, NEAR_CORNER},
     };
-    /**
-     * A tile's lift over the wave at its center, per block of amplitude: the most the ripple
-     * rises from a tile's center to its corner near a crest at the highest wavenumber, so no
-     * crest humps over a tile's edge (decision each-tile-bobs-with-the-ripple).
-     */
-    private static final float TILE_SAG_PER_AMPLITUDE =
-            (float) (1.0 - Math.cos(SurfaceRipple.SECONDARY_WAVENUMBER * TILE_SIZE * HALF * Math.sqrt(2.0)));
 
     private CrucibleItemLayout() {
     }
@@ -79,8 +70,10 @@ final class CrucibleItemLayout {
      * @param homeZ     the centroid's Z offset from the head's center
      * @param floorY    its lowest cell's height relative to the head's center
      * @param footprint the lattice cells it covers seen from above, each a column and a row
+     * @param reach     how far its cells reach from its centroid across the surface, which
+     *                  sizes its lift over the wave
      */
-    record ShardPiece(float homeX, float homeY, float homeZ, float floorY, int[][] footprint) {
+    record ShardPiece(float homeX, float homeY, float homeZ, float floorY, int[][] footprint, float reach) {
     }
 
     /**
@@ -135,7 +128,8 @@ final class CrucibleItemLayout {
             float x = CENTER + shard.homeX() + shifts[i][0] * frame.cell() * drift;
             float z = CENTER + shard.homeZ() + shifts[i][1] * frame.cell() * drift;
             float rise = shard.homeY() - frame.bottomY() + (frame.bottomY() - shard.floorY()) * drift;
-            placements.add(new ItemPlacement(x, tileY(surface, amplitude, ripple, x, z) + rise, z, HEAD_SIZE));
+            placements.add(new ItemPlacement(x, shardY(surface, amplitude, ripple, x, z, shard.reach()) + rise, z,
+                    HEAD_SIZE));
         }
         return placements;
     }
@@ -373,33 +367,40 @@ final class CrucibleItemLayout {
     }
 
     /**
-     * Returns the height a tile rests at: the fill's surface plus the wave at the tile's
-     * spot plus {@link #tileLift}, or the still floor while nothing has melted.
+     * Returns the height a shard's centroid rides at before its rise over the surface: the
+     * fill's surface plus the wave at the shard's spot plus {@link #shardLift}, or the still
+     * floor while nothing has melted (decision each-tile-bobs-with-the-ripple).
      *
      * @param surface   the drawn surface, or null while nothing has melted
      * @param amplitude the ripple amplitude the surface undulates at, in blocks
      * @param ripple    the wave over this crucible's block at this frame
-     * @param x         the tile's block-relative X
-     * @param z         the tile's block-relative Z
+     * @param x         the shard's block-relative X
+     * @param z         the shard's block-relative Z
+     * @param reach     how far the shard reaches from its centroid across the surface, in blocks
      * @return the Y in block-relative coords
      */
-    static float tileY(CrucibleBasin.@Nullable DrawnSurface surface, float amplitude, SurfaceRipple.Field ripple,
-                       float x, float z) {
+    static float shardY(CrucibleBasin.@Nullable DrawnSurface surface, float amplitude, SurfaceRipple.Field ripple,
+                        float x, float z, float reach) {
         if (surface == null) {
             return CrucibleBasin.FLOOR_Y + FLOAT_LIFT;
         }
         float scale = Math.max(amplitude, 0f);
-        return surface.surfaceY() + scale * ripple.at(x, z) + tileLift(scale);
+        return surface.surfaceY() + scale * ripple.at(x, z) + shardLift(scale, reach);
     }
 
     /**
-     * Returns a tile's lift over the wave at its center.
+     * Returns a shard's lift over the wave at its centroid: the most the ripple rises from the
+     * centroid to the shard's farthest reach near a crest at the highest wavenumber, so no
+     * crest humps over its edge; a wide shard sits higher than a narrow one, and no lift
+     * passes the wave's full rise of two amplitudes.
      *
      * @param amplitude the ripple amplitude, in blocks
+     * @param reach     how far the shard reaches from its centroid, in blocks
      * @return the lift, in blocks
      */
-    static float tileLift(float amplitude) {
-        return amplitude * TILE_SAG_PER_AMPLITUDE + FLOAT_LIFT;
+    static float shardLift(float amplitude, float reach) {
+        double phase = Math.min(SurfaceRipple.SECONDARY_WAVENUMBER * reach, Math.PI);
+        return amplitude * (float) (1.0 - Math.cos(phase)) + FLOAT_LIFT;
     }
 
     /**

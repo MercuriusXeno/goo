@@ -30,6 +30,8 @@ record HeadShards(ShardedModel model, Matrix4fc lying, float scale, List<float[]
     /** The smallest span a model is scaled by, so an empty model never divides by zero. */
     private static final float MIN_SPAN = 1e-3f;
     private static final int CORNERS = 8;
+    /** A cell's half diagonal per unit of its width, from a cell's center to its corner. */
+    private static final float HALF_DIAGONAL = (float) (Math.sqrt(2.0) / 2.0);
     private static final int HIGH_X = 1;
     private static final int HIGH_Y = 2;
     private static final int HIGH_Z = 4;
@@ -122,10 +124,12 @@ record HeadShards(ShardedModel model, Matrix4fc lying, float scale, List<float[]
     private static CrucibleItemLayout.ShardPiece pieceOf(List<float[]> cells, Vector3f centroid, Lying lying,
                                                          Lattice lattice) {
         float floor = Float.MAX_VALUE;
+        float reach = 0f;
         Set<Long> covered = new LinkedHashSet<>();
         for (float[] cell : cells) {
             Vector3f at = lying.lie(cell);
             floor = Math.min(floor, at.y());
+            reach = Math.max(reach, (float) Math.hypot(at.x() - centroid.x(), at.z() - centroid.z()));
             covered.add(lattice.cellOf(at));
         }
         int[][] footprint = new int[covered.size()][];
@@ -133,7 +137,8 @@ record HeadShards(ShardedModel model, Matrix4fc lying, float scale, List<float[]
         for (long key : covered) {
             footprint[i++] = new int[] {(int) (key >> Integer.SIZE), (int) key};
         }
-        return new CrucibleItemLayout.ShardPiece(centroid.x(), centroid.y(), centroid.z(), floor, footprint);
+        return new CrucibleItemLayout.ShardPiece(centroid.x(), centroid.y(), centroid.z(), floor, footprint,
+                reach + lattice.frame().cell() * HALF_DIAGONAL);
     }
 
     private static float[] centroidOf(List<float[]> cells) {
