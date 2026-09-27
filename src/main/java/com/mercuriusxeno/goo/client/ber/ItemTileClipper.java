@@ -4,6 +4,8 @@ import net.minecraft.client.model.geom.builders.UVPair;
 import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.phys.AABB;
+import org.joml.Matrix4fc;
+import org.joml.Vector3f;
 import org.joml.Vector3fc;
 import java.util.ArrayList;
 import java.util.List;
@@ -52,6 +54,17 @@ final class ItemTileClipper {
         ClipVertex toward(ClipVertex other, float t) {
             return new ClipVertex(lerp(x, other.x, t), lerp(y, other.y, t), lerp(z, other.z, t),
                     lerp(u, other.u, t), lerp(v, other.v, t), ARGB.srgbLerp(t, color, other.color));
+        }
+
+        /**
+         * Returns this vertex with its position carried through a transform.
+         *
+         * @param transform the affine transform
+         * @return the moved vertex, its UV and color kept
+         */
+        ClipVertex moved(Matrix4fc transform) {
+            Vector3f position = transform.transformPosition(x, y, z, new Vector3f());
+            return new ClipVertex(position.x(), position.y(), position.z(), u, v, color);
         }
 
         private static float lerp(float from, float to, float t) {
