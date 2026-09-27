@@ -237,10 +237,10 @@ public class HubBlockEntity extends GooGlowingMachineBlockEntity implements ICan
     }
 
     /**
-     * The empty slot nearest the hit's contact point; a sneak changes nothing.
+     * The empty slot nearest the hit's contact point.
      */
     @Override
-    public @Nullable AABB previewBounds(BlockHitResult hit, boolean sneaking) {
+    public @Nullable AABB previewBounds(BlockHitResult hit) {
         BlockPos pos = getBlockPos();
         double px = (hit.getLocation().x - pos.getX()) * ShapeHitCheck.PIXELS_PER_BLOCK;
         double pz = (hit.getLocation().z - pos.getZ()) * ShapeHitCheck.PIXELS_PER_BLOCK;
@@ -268,9 +268,12 @@ public class HubBlockEntity extends GooGlowingMachineBlockEntity implements ICan
                 CANISTER_MID, side);
     }
 
+    /**
+     * Every standing hit but the attach spot, which places a canister above the hub.
+     */
     @Override
     public boolean takesCanisterAt(BlockHitResult hit, boolean sneaking) {
-        return true;
+        return !HubBlock.isAttachSpotHit(hit, getBlockPos());
     }
 
     /**

@@ -68,7 +68,7 @@ public final class CrucibleItemDrift {
             Vec3 at = item.position().subtract(Vec3.atLowerCornerOf(pos));
             if (!CrucibleBasin.inKillBox(at.x, at.y, at.z, killTopY)) {
                 applyMotion(item, steeredDelta(item, at));
-            } else if (crucible.isEnabled() && crucible.canHeat()) {
+            } else if (crucible.canHeat()) {
                 CrucibleAbsorption.tryAbsorbItem(item, crucible);
             }
         }

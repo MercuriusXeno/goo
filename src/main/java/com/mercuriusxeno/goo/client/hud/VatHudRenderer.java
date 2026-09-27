@@ -145,7 +145,8 @@ public final class VatHudRenderer {
                                     VatTarget target) {
         Vec3 anchor = new Vec3(target.pos.getX() + target.cx, target.pos.getY() + target.lift,
                 target.pos.getZ() + target.cz);
-        PanelPlacement placement = PanelPlacement.onFace(anchor, target.face, false, ANIMATOR.pitch());
+        PanelPlacement placement = PanelPlacement.onFace(anchor, target.face, false,
+                ANIMATOR.pitch(), ANIMATOR.opacity());
         PanelPainter.paint(poseStack, camera, placement, VatPanelRows.rows(data));
     }
 

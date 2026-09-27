@@ -6,7 +6,6 @@ import com.mercuriusxeno.goo.block.BlockEntitySync;
 import com.mercuriusxeno.goo.block.GooBlockInteraction;
 import com.mercuriusxeno.goo.block.GooGlowingMachineBlockEntity;
 import com.mercuriusxeno.goo.block.IGooReceptacle;
-import com.mercuriusxeno.goo.block.ShapeHitCheck;
 import com.mercuriusxeno.goo.block.gasket.GasketAttachment;
 import com.mercuriusxeno.goo.block.gasket.GasketPusher;
 import com.mercuriusxeno.goo.item.*;
@@ -31,7 +30,6 @@ import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.neoforged.neoforge.transfer.fluid.FluidUtil;
@@ -241,16 +239,12 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
     }
 
     /**
-     * An aimed filled slot previews only under a sneak, which resolves to an adjacent empty slot.
+     * None: a standing click on a canister block picks up, and a sneak's insert is the
+     * placement resolver's preview (decision preview-runs-the-placement-validator).
      */
     @Override
-    public @Nullable AABB previewBounds(BlockHitResult hit, boolean sneaking) {
-        int aimed = CanisterBlock.hitSlot(hit, getBlockPos());
-        if (!sneaking && aimed >= 0 && isSlotFilled(aimed)) {
-            return null;
-        }
-        int slot = CanisterSlotResolver.resolveAndConstrain(hit.getLocation(), getBlockPos(), hit.getDirection(), this);
-        return slot >= 0 ? slotBounds(slot) : null;
+    public @Nullable AABB previewBounds(BlockHitResult hit) {
+        return null;
     }
 
     @Override
@@ -262,21 +256,6 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
     @Override
     public boolean takesCanisterAt(BlockHitResult hit, boolean sneaking) {
         return true;
-    }
-
-    /**
-     * The nearest empty slot to the point, while the block below allows it.
-     */
-    @Override
-    public int insertionSlotFrom(Vec3 hitLocation) {
-        BlockPos pos = getBlockPos();
-        float px = (float) ((hitLocation.x - pos.getX()) * ShapeHitCheck.PIXELS_PER_BLOCK);
-        float pz = (float) ((hitLocation.z - pos.getZ()) * ShapeHitCheck.PIXELS_PER_BLOCK);
-        int slot = CanisterSlotLayout.nearestSlot(px, pz);
-        Level lvl = getLevel();
-        boolean open = slot >= 0 && !isSlotFilled(slot)
-                && lvl != null && CanisterPlacementValidator.isSlotAllowed(lvl, pos, slot);
-        return open ? slot : GooConstants.NO_SLOT;
     }
 
     @Override

@@ -5,14 +5,15 @@ import net.minecraft.world.phys.Vec3;
 
 /**
  * Where and how a HUD panel stands in the world: its world anchor, the way it
- * turns toward the camera, the face it hangs from, and the animated pitch.
+ * turns toward the camera, the face it hangs from, and the animated pitch and opacity.
  *
  * @param anchor the panel anchor in world coordinates
  * @param facing how the panel turns toward the camera
  * @param face   the block face the panel stands on; DOWN hangs the panel below its anchor
- * @param pitch  the billboard pitch factor [0, 1]
+ * @param pitch   the billboard pitch factor [0, 1]
+ * @param opacity the fade factor every part of the panel draws at [0, 1]
  */
-public record PanelPlacement(Vec3 anchor, Facing facing, Direction face, float pitch) {
+public record PanelPlacement(Vec3 anchor, Facing facing, Direction face, float pitch, float opacity) {
 
     /** Offset along the panel normal that lifts a top or bottom panel off the block face. */
     private static final float VERTICAL_FACE_NUDGE = 0.01f;
@@ -28,23 +29,26 @@ public record PanelPlacement(Vec3 anchor, Facing facing, Direction face, float p
      * @param face      the block face the panel stands on
      * @param flatOnTop whether a top or bottom panel lies flat instead of billboarding
      * @param pitch     the billboard pitch factor [0, 1]
+     * @param opacity   the fade factor [0, 1]
      * @return the placement
      */
-    public static PanelPlacement onFace(Vec3 anchor, Direction face, boolean flatOnTop, float pitch) {
+    public static PanelPlacement onFace(Vec3 anchor, Direction face, boolean flatOnTop,
+                                        float pitch, float opacity) {
         boolean vertical = face == Direction.UP || face == Direction.DOWN;
         Facing facing = vertical ? (flatOnTop ? Facing.FLAT : Facing.BILLBOARD) : Facing.SIDE_FACE;
-        return new PanelPlacement(anchor, facing, face, pitch);
+        return new PanelPlacement(anchor, facing, face, pitch, opacity);
     }
 
     /**
      * Places a billboarded panel on a basin rim.
      *
      * @param anchor the rim anchor in world coordinates
-     * @param pitch  the billboard pitch factor [0, 1]
+     * @param pitch   the billboard pitch factor [0, 1]
+     * @param opacity the fade factor [0, 1]
      * @return the placement
      */
-    public static PanelPlacement onRim(Vec3 anchor, float pitch) {
-        return new PanelPlacement(anchor, Facing.RIM, Direction.UP, pitch);
+    public static PanelPlacement onRim(Vec3 anchor, float pitch, float opacity) {
+        return new PanelPlacement(anchor, Facing.RIM, Direction.UP, pitch, opacity);
     }
 
     /**

@@ -11,11 +11,9 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import org.jspecify.annotations.Nullable;
-import static com.mercuriusxeno.goo.GooConstants.NO_SLOT;
 
 /**
  * Common interface for block entities that hold canister slots with metadata
@@ -202,13 +200,13 @@ public interface ICanisterHolder extends IGooLightSource {
     @Nullable AABB pickupBounds(BlockHitResult hit);
 
     /**
-     * The empty slot a held canister would enter on a click at the hit.
+     * The empty slot a held canister would enter on this holder's own standing click at the
+     * hit. A sneak skips the holder's click, so the placement resolver answers it instead.
      *
-     * @param hit      the ray trace hit on this holder
-     * @param sneaking true when the player is sneaking
+     * @param hit the ray trace hit on this holder
      * @return the slot's bounds, or null when the click would insert nowhere
      */
-    @Nullable AABB previewBounds(BlockHitResult hit, boolean sneaking);
+    @Nullable AABB previewBounds(BlockHitResult hit);
 
     /**
      * The HUD target under the cursor: the slot it reads and where its panel sits.
@@ -228,15 +226,4 @@ public interface ICanisterHolder extends IGooLightSource {
      * @return true when this holder takes the use
      */
     boolean takesCanisterAt(BlockHitResult hit, boolean sneaking);
-
-    /**
-     * The empty slot a canister placed against a neighbour would enter here,
-     * this holder standing where the new block would go. Default: none.
-     *
-     * @param hitLocation the world-space point on the neighbour's face
-     * @return the slot, or {@code NO_SLOT} when this holder takes no such insertion
-     */
-    default int insertionSlotFrom(Vec3 hitLocation) {
-        return NO_SLOT;
-    }
 }
