@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:cr_wall_top_items_slide_in",
+  "environment": "minecraft:default",
+  "structure": "minecraft:empty",
+  "max_ticks": 50,
+  "setup_ticks": 0,
+  "required": true
+}
