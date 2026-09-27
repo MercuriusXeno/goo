@@ -88,12 +88,17 @@ public final class PanelPainter {
      * @param rows      the rows top to bottom
      */
     public static void paint(PoseStack poseStack, Camera camera, PanelPlacement placement, List<PanelRow> rows) {
-        poseStack.pushPose();
-        orient(poseStack, camera, placement);
         Minecraft minecraft = Minecraft.getInstance();
         Font font = minecraft.font;
         double distance = camera.position().distanceTo(placement.anchor());
-        PanelLayout layout = layOut(rows, font::width, distance, minecraft.options.fov().get());
+        double fovDegrees = minecraft.options.fov().get();
+        PanelLayout layout = layOut(rows, font::width, distance, fovDegrees);
+        float shrink = (float) shrinkFactor(
+                projectedFraction(layout.size().height() * InWorldHud.PIXEL_SCALE, distance, fovDegrees));
+        poseStack.pushPose();
+        orient(poseStack, camera, placement);
+        // scales about the bottom center, the anchor (decision panel-wraps-to-two-columns-then-shrinks)
+        poseStack.scale(shrink, shrink, shrink);
         if (placement.face() == Direction.DOWN) {
             poseStack.translate(0, layout.size().height(), 0);
         }
@@ -113,6 +118,18 @@ public final class PanelPainter {
      */
     public static double projectedFraction(double worldHeight, double distance, double fovDegrees) {
         return worldHeight / (HALF * distance * Math.tan(Math.toRadians(fovDegrees) / HALF));
+    }
+
+    /**
+     * Answers the uniform scale that brings a panel covering a fraction of the
+     * screen's height down to {@link #SCREEN_HEIGHT_CAP}, never above its
+     * natural size (decision panel-wraps-to-two-columns-then-shrinks).
+     *
+     * @param fraction the laid out panel's height as a fraction of the screen's height
+     * @return the cap over the fraction past the cap, 1 at or under it
+     */
+    public static double shrinkFactor(double fraction) {
+        return Math.min(1, SCREEN_HEIGHT_CAP / fraction);
     }
 
     /**

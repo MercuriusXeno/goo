@@ -27,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * recorded size reads back by hand from the old formulas: a panel is its widest
  * row plus a 3-pixel border each side wide, and 11 pixels a row plus the
  * borders tall; a goo row is a 10-pixel icon, a 2-pixel gap, then its text.
- * It also covers the projected height measure and the column layout that keep
+ * It also covers the projected height measure, the column layout and the shrink factor that keep
  * a panel on screen (decision panel-wraps-to-two-columns-then-shrinks).
  */
 class PanelPainterMeasureTest {
@@ -185,6 +185,22 @@ class PanelPainterMeasureTest {
             for (int i = 0; i < fiveRows.size(); i++) {
                 assertEquals(new PanelPainter.RowSpot(0, 3f, 3f + 11f * i), layout.spots().get(i));
             }
+        }
+    }
+
+    /** The shrink factor: the cap over the fraction past the 80% cap, and never a growth. */
+    @Nested
+    class ShrinkFactor {
+        /** Twice the cap's height shrinks by half. */
+        @Test
+        void twiceTheCapShrinksByHalf() {
+            assertEquals(0.5, PanelPainter.shrinkFactor(1.6), 1e-9);
+        }
+
+        /** A panel that fits keeps its natural size. */
+        @Test
+        void panelUnderTheCapKeepsItsSize() {
+            assertEquals(1, PanelPainter.shrinkFactor(0.5));
         }
     }
 
