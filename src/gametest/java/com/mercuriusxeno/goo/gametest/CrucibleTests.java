@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.GooConfig;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
+import com.mercuriusxeno.goo.block.crucible.CrucibleAimAssist;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBasin;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
 import com.mercuriusxeno.goo.block.crucible.CrucibleCapacity;
@@ -101,6 +102,27 @@ public final class CrucibleTests {
     private static final double SIDE_THROW_START_Y = 1.0 + CrucibleShape.LEDGE_Y - 0.05;
     /** A side throw's speed west, into the body's side. */
     private static final double SIDE_THROW_SPEED = 0.3;
+    /**
+     * A rough toss's start in test-relative coords, over the crucible's south-east corner
+     * and inside its own block column, whose chunk the crucible's ticking keeps loaded; an
+     * item spawned past that column can sit in a chunk the test server does not tick.
+     */
+    private static final Vec3 AIM_THROW_FROM = new Vec3(1.95, 2.3, 1.9);
+    /** A rough toss's motion, whose unsteered fall comes down on the east wall top at tick 11. */
+    private static final Vec3 AIM_THROW_MOTION = new Vec3(-0.015, 0.2, -0.02);
+    /** A tick after the toss's arc comes down through the rim. */
+    private static final int AIM_LANDING_TICKS = 12;
+    /** Ticks into the toss at which it is still high over the rim, above the pull field. */
+    private static final int AIM_MIDFLIGHT_TICKS = 3;
+    /** The pull field's top over the rim, which a mid-flight check must be above. */
+    private static final double FIELD_TOP_ABOVE_RIM = 0.25;
+    /** How far from the mouth's center a steered arc may be predicted to come down. */
+    private static final double AIM_ARC_SLACK = 0.01;
+    private static final String STILL_ABOVE_FIELD = "toss still above the pull field mid-flight: ";
+    private static final String ARC_STEERED = "mid-flight arc comes down at the mouth's center: ";
+    /** How far from the mouth's center a steered throw may be a tick after it comes down. */
+    private static final double AIM_CENTER_SLACK = 0.1;
+    private static final String STEERED_TO_CENTER = "steered throw came down at the mouth's center, off by ";
     /** A throw's speed east, enough to cross the whole block in two ticks. */
     private static final double THROW_SPEED = 0.5;
     /** An off-center drop's X offset from the basin center, near the east wall. */
@@ -339,6 +361,36 @@ public final class CrucibleTests {
             new Vec3(SIDE_THROW_START_X, SIDE_THROW_START_Y, CrucibleSpawns.BASIN_CENTER_XZ));
         thrown.setDeltaMovement(-SIDE_THROW_SPEED, 0.0, 0.0);
         helper.runAfterDelay(SLIDE_BOUND, () -> assertInCavity(helper, thrown));
+    }
+
+    /**
+     * An item tossed up over a cold crucible on an arc that would come down on the east
+     * wall top is steered while still high over the rim, out of the pull field: a few
+     * ticks in, its own motion carries it down through the rim at the mouth's center, and
+     * a tick after its arc comes down it is in the cavity within a tenth of a block of the
+     * center.
+     *
+     * @param helper the gametest helper
+     */
+    public static void roughThrowSteeredIntoTheMouth(GameTestHelper helper) {
+        placeCrucible(helper);
+        ItemEntity thrown = CrucibleSpawns.spawnAt(helper, new ItemStack(Items.COBBLESTONE), AIM_THROW_FROM);
+        thrown.setDeltaMovement(AIM_THROW_MOTION);
+        helper.runAfterDelay(AIM_MIDFLIGHT_TICKS, () -> {
+            Vec3 rel = CrucibleSpawns.relativeToCrucible(helper, thrown);
+            CrucibleAimAssist.Landing landing = CrucibleAimAssist.landing(rel, thrown.getDeltaMovement());
+            helper.assertTrue(rel.y > CrucibleBasin.RIM_Y + FIELD_TOP_ABOVE_RIM, STILL_ABOVE_FIELD + rel);
+            helper.assertTrue(landing != null && Math.hypot(landing.x() - 0.5, landing.z() - 0.5) < AIM_ARC_SLACK,
+                ARC_STEERED + landing);
+        });
+        helper.runAfterDelay(AIM_LANDING_TICKS, () -> {
+            Vec3 rel = CrucibleSpawns.relativeToCrucible(helper, thrown);
+            double offCenter = Math.hypot(rel.x - CrucibleSpawns.BASIN_CENTER_XZ + 1.0,
+                rel.z - CrucibleSpawns.BASIN_CENTER_XZ + 1.0);
+            helper.assertTrue(CrucibleBasin.holdsPoint(rel.x, rel.y, rel.z), SLID_INTO_CAVITY + rel);
+            helper.assertTrue(offCenter < AIM_CENTER_SLACK, STEERED_TO_CENTER + offCenter);
+            helper.succeed();
+        });
     }
 
     /**

@@ -170,6 +170,7 @@ public final class GooTestFunctions {
     private static final String CR_LEDGE_ITEM_LIFTED_IN = "cr_ledge_item_lifted_in";
     private static final String CR_THROWN_ITEM_CAUGHT = "cr_thrown_item_caught";
     private static final String CR_SIDE_HIT_LIFTED_IN = "cr_side_hit_lifted_in";
+    private static final String CR_ROUGH_THROW_STEERED_IN = "cr_rough_throw_steered_in";
     private static final String CR_ITEM_TAKEN_AT_KILL_BOX = "cr_item_taken_at_kill_box";
     private static final String CR_COLD_ITEM_WAITS_ON_FLOOR = "cr_cold_item_waits_on_floor";
     private static final String CR_ITEM_MELTS_ON_ITS_CLOCK = "cr_item_melts_on_its_clock";
@@ -506,6 +507,7 @@ public final class GooTestFunctions {
         reg(r, CR_LEDGE_ITEM_LIFTED_IN, CrucibleTests::ledgeItemLiftedIntoTheCavity);
         reg(r, CR_THROWN_ITEM_CAUGHT, CrucibleTests::thrownItemCaughtByTheField);
         reg(r, CR_SIDE_HIT_LIFTED_IN, CrucibleTests::sideHitItemLiftedIntoTheCavity);
+        reg(r, CR_ROUGH_THROW_STEERED_IN, CrucibleTests::roughThrowSteeredIntoTheMouth);
         reg(r, CR_ITEM_TAKEN_AT_KILL_BOX, CrucibleTests::droppedItemTakenAtTheKillBox);
         reg(r, CR_COLD_ITEM_WAITS_ON_FLOOR, CrucibleTests::coldCrucibleItemWaitsOnTheFloor);
         reg(r, CR_ITEM_MELTS_ON_ITS_CLOCK, CrucibleTests::itemMeltsOnItsClock);
