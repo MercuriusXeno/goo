@@ -1,22 +1,10 @@
 {
-  "parent": "goo:block/crystallizer_body",
   "textures": {
+    "particle": "minecraft:block/amethyst_block",
     "dial": "minecraft:block/amethyst_block",
     "pointer": "minecraft:block/calcite"
   },
   "elements": [
-    {
-      "from": [0, 0, 0],
-      "to": [16, 13, 16],
-      "faces": {
-        "down":  {"uv": [0, 0, 16, 16], "texture": "#body"},
-        "up":    {"uv": [0, 0, 16, 16], "texture": "#body"},
-        "north": {"uv": [0, 3, 16, 16], "texture": "#body"},
-        "south": {"uv": [0, 3, 16, 16], "texture": "#body"},
-        "west":  {"uv": [0, 3, 16, 16], "texture": "#body"},
-        "east":  {"uv": [0, 3, 16, 16], "texture": "#body"}
-      }
-    },
     {
       "from": [4, 13, 4],
       "to": [12, 16, 12],

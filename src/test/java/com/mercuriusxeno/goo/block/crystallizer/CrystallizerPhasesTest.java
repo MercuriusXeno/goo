@@ -1,35 +1,88 @@
 package com.mercuriusxeno.goo.block.crystallizer;
 
 import com.mercuriusxeno.goo.GooTypes;
+import com.mercuriusxeno.goo.block.crystallizer.CrystallizerPhases.Chamber;
 import com.mercuriusxeno.goo.item.ChrysmTier;
 import com.mercuriusxeno.goo.item.GooContents;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * The crystallizer's phase arithmetic (decision crystallizer-emits-chrysm): the
- * operator's n and cube-root crystal cost, what the holding takes, and what
- * forming a chrysm spends.
+ * operator's n, cube-root crystal cost and log phase times, the dial's stop, what
+ * the holding takes, and what each phase spends.
  */
 class CrystallizerPhasesTest {
 
     private static final int CHRYSM = 1_000;
+    private static final int KILO = 1_000_000;
     private static final int COST = 10;
+    private static final int KILO_COST = 100;
+    private static final long TIER_RATIO = 1_000L;
 
-    @Test
-    void chrysmFormsInTwoHundredTicks() {
-        assertEquals(200, CrystallizerPhases.CHRYSM_TICKS);
+    private static Chamber empty(ChrysmTier dial) {
+        return new Chamber(GooContents.EMPTY, null, null, dial);
+    }
+
+    private static Chamber holding(GooContents held, ChrysmTier dial) {
+        return new Chamber(held, null, null, dial);
+    }
+
+    private static Chamber formedEnder(GooContents held, ChrysmTier formed, ChrysmTier dial) {
+        return new Chamber(held, formed, GooTypes.ENDER, dial);
     }
 
     @Test
     void crystalCostIsTheCubeRootOfTheTierVolume() {
-        assertEquals(10, CrystallizerPhases.crystalCost(ChrysmTier.CHRYSM));
-        assertEquals(100, CrystallizerPhases.crystalCost(ChrysmTier.KILOCHRYSM));
+        assertEquals(COST, CrystallizerPhases.crystalCost(ChrysmTier.CHRYSM));
+        assertEquals(KILO_COST, CrystallizerPhases.crystalCost(ChrysmTier.KILOCHRYSM));
         assertEquals(1_000, CrystallizerPhases.crystalCost(ChrysmTier.MEGACHRYSM));
+    }
+
+    @Nested
+    class PhaseTicks {
+
+        @Test
+        void phasesTakeTwoFourAndSixHundredTicks() {
+            assertEquals(200, CrystallizerPhases.phaseTicks(ChrysmTier.CHRYSM));
+            assertEquals(400, CrystallizerPhases.phaseTicks(ChrysmTier.KILOCHRYSM));
+            assertEquals(600, CrystallizerPhases.phaseTicks(ChrysmTier.MEGACHRYSM));
+        }
+
+        @Test
+        void eachPhaseTakesUnderAThousandTimesTheOneBelow() {
+            assertTrue(CrystallizerPhases.phaseTicks(ChrysmTier.KILOCHRYSM)
+                    < TIER_RATIO * CrystallizerPhases.phaseTicks(ChrysmTier.CHRYSM));
+            assertTrue(CrystallizerPhases.phaseTicks(ChrysmTier.MEGACHRYSM)
+                    < TIER_RATIO * CrystallizerPhases.phaseTicks(ChrysmTier.KILOCHRYSM));
+        }
+    }
+
+    @Nested
+    class Goal {
+
+        @Test
+        void nothingFormedFormsAChrysmAtAnyDial() {
+            assertEquals(ChrysmTier.CHRYSM, CrystallizerPhases.goal(empty(ChrysmTier.CHRYSM)));
+        }
+
+        @Test
+        void aFormedTierBelowTheDialAdvances() {
+            assertEquals(ChrysmTier.KILOCHRYSM,
+                    CrystallizerPhases.goal(formedEnder(GooContents.EMPTY, ChrysmTier.CHRYSM, ChrysmTier.KILOCHRYSM)));
+            assertEquals(ChrysmTier.MEGACHRYSM,
+                    CrystallizerPhases.goal(formedEnder(GooContents.EMPTY, ChrysmTier.KILOCHRYSM, ChrysmTier.MEGACHRYSM)));
+        }
+
+        @Test
+        void aFormedTierAtOrPastTheDialHolds() {
+            assertNull(CrystallizerPhases.goal(formedEnder(GooContents.EMPTY, ChrysmTier.CHRYSM, ChrysmTier.CHRYSM)));
+            assertNull(CrystallizerPhases.goal(formedEnder(GooContents.EMPTY, ChrysmTier.KILOCHRYSM, ChrysmTier.CHRYSM)));
+            assertNull(CrystallizerPhases.goal(formedEnder(GooContents.EMPTY, ChrysmTier.MEGACHRYSM, ChrysmTier.MEGACHRYSM)));
+        }
     }
 
     @Nested
@@ -47,8 +100,9 @@ class CrystallizerPhasesTest {
         }
 
         @Test
-        void anEmptyHoldingFormsNothing() {
-            assertNull(CrystallizerPhases.formingType(GooContents.EMPTY));
+        void aFormedChrysmNamesTheType() {
+            assertEquals(GooTypes.ENDER, CrystallizerPhases.formingType(
+                    formedEnder(GooContents.EMPTY, ChrysmTier.CHRYSM, ChrysmTier.KILOCHRYSM)));
         }
     }
 
@@ -58,30 +112,35 @@ class CrystallizerPhasesTest {
         private final GooContents holdingEnder = GooContents.EMPTY.withAdded(GooTypes.ENDER, 1);
 
         @Test
-        void theFormingTypeTakesAChrysmVolume() {
-            assertEquals(CHRYSM, CrystallizerPhases.capacityFor(holdingEnder, null, GooTypes.ENDER));
-        }
-
-        @Test
-        void crystalBesideAnotherTypeTakesThePhaseCost() {
-            assertEquals(COST, CrystallizerPhases.capacityFor(holdingEnder, null, GooTypes.CRYSTAL));
+        void theFirstPhaseTakesAChrysmVolumeAndItsCrystal() {
+            assertEquals(CHRYSM, CrystallizerPhases.capacityFor(holding(holdingEnder, ChrysmTier.CHRYSM), GooTypes.ENDER));
+            assertEquals(COST, CrystallizerPhases.capacityFor(holding(holdingEnder, ChrysmTier.CHRYSM), GooTypes.CRYSTAL));
         }
 
         @Test
         void aThirdTypeIsRefused() {
-            assertEquals(0, CrystallizerPhases.capacityFor(holdingEnder, null, GooTypes.ROCK));
+            assertEquals(0, CrystallizerPhases.capacityFor(holding(holdingEnder, ChrysmTier.CHRYSM), GooTypes.ROCK));
         }
 
         @Test
         void anEmptyHoldingTakesAnyTypeAndCrystalForItself() {
-            assertEquals(CHRYSM, CrystallizerPhases.capacityFor(GooContents.EMPTY, null, GooTypes.ROCK));
-            assertEquals(CHRYSM + COST, CrystallizerPhases.capacityFor(GooContents.EMPTY, null, GooTypes.CRYSTAL));
+            assertEquals(CHRYSM, CrystallizerPhases.capacityFor(empty(ChrysmTier.CHRYSM), GooTypes.ROCK));
+            assertEquals(CHRYSM + COST, CrystallizerPhases.capacityFor(empty(ChrysmTier.CHRYSM), GooTypes.CRYSTAL));
         }
 
         @Test
-        void aFormedChrysmTakesNothingMore() {
-            assertEquals(0, CrystallizerPhases.capacityFor(holdingEnder, ChrysmTier.CHRYSM, GooTypes.ENDER));
-            assertEquals(0, CrystallizerPhases.capacityFor(holdingEnder, ChrysmTier.CHRYSM, GooTypes.CRYSTAL));
+        void aChrysmAdvancingTakesTheGooBetweenTiersAndThePhaseCrystal() {
+            Chamber chamber = formedEnder(GooContents.EMPTY, ChrysmTier.CHRYSM, ChrysmTier.KILOCHRYSM);
+            assertEquals(KILO - CHRYSM, CrystallizerPhases.capacityFor(chamber, GooTypes.ENDER));
+            assertEquals(KILO_COST, CrystallizerPhases.capacityFor(chamber, GooTypes.CRYSTAL));
+            assertEquals(0, CrystallizerPhases.capacityFor(chamber, GooTypes.ROCK));
+        }
+
+        @Test
+        void aChrysmHeldAtTheDialTakesNothing() {
+            Chamber chamber = formedEnder(GooContents.EMPTY, ChrysmTier.CHRYSM, ChrysmTier.CHRYSM);
+            assertEquals(0, CrystallizerPhases.capacityFor(chamber, GooTypes.ENDER));
+            assertEquals(0, CrystallizerPhases.capacityFor(chamber, GooTypes.CRYSTAL));
         }
     }
 
@@ -91,26 +150,46 @@ class CrystallizerPhasesTest {
         @Test
         void aChrysmVolumeAndThePhaseCrystalSpendBoth() {
             GooContents held = GooContents.EMPTY.withAdded(GooTypes.ENDER, CHRYSM).withAdded(GooTypes.CRYSTAL, COST);
-            assertEquals(held, CrystallizerPhases.spentToForm(held));
-            assertTrue(CrystallizerPhases.readyToForm(held));
+            assertEquals(held, CrystallizerPhases.spentToForm(holding(held, ChrysmTier.CHRYSM)));
         }
 
         @Test
-        void missingCrystalIsNotReady() {
-            GooContents held = GooContents.EMPTY.withAdded(GooTypes.ENDER, CHRYSM).withAdded(GooTypes.CRYSTAL, COST - 1);
-            assertFalse(CrystallizerPhases.readyToForm(held));
-        }
-
-        @Test
-        void missingGooIsNotReady() {
-            GooContents held = GooContents.EMPTY.withAdded(GooTypes.ENDER, CHRYSM - 1).withAdded(GooTypes.CRYSTAL, COST);
-            assertFalse(CrystallizerPhases.readyToForm(held));
+        void missingCrystalOrGooIsNotReady() {
+            GooContents shortCrystal = GooContents.EMPTY.withAdded(GooTypes.ENDER, CHRYSM)
+                    .withAdded(GooTypes.CRYSTAL, COST - 1);
+            GooContents shortGoo = GooContents.EMPTY.withAdded(GooTypes.ENDER, CHRYSM - 1)
+                    .withAdded(GooTypes.CRYSTAL, COST);
+            assertNull(CrystallizerPhases.spentToForm(holding(shortCrystal, ChrysmTier.CHRYSM)));
+            assertNull(CrystallizerPhases.spentToForm(holding(shortGoo, ChrysmTier.CHRYSM)));
         }
 
         @Test
         void crystalAloneFormsFromAChrysmVolumeAndItsCost() {
-            assertFalse(CrystallizerPhases.readyToForm(GooContents.EMPTY.withAdded(GooTypes.CRYSTAL, CHRYSM + COST - 1)));
-            assertTrue(CrystallizerPhases.readyToForm(GooContents.EMPTY.withAdded(GooTypes.CRYSTAL, CHRYSM + COST)));
+            GooContents short1 = GooContents.EMPTY.withAdded(GooTypes.CRYSTAL, CHRYSM + COST - 1);
+            GooContents enough = GooContents.EMPTY.withAdded(GooTypes.CRYSTAL, CHRYSM + COST);
+            assertNull(CrystallizerPhases.spentToForm(holding(short1, ChrysmTier.CHRYSM)));
+            assertEquals(enough, CrystallizerPhases.spentToForm(holding(enough, ChrysmTier.CHRYSM)));
         }
+
+        @Test
+        void theKilochrysmPhaseSpendsTheGooBetweenTiersAndItsCrystal() {
+            GooContents held = GooContents.EMPTY.withAdded(GooTypes.ENDER, KILO - CHRYSM)
+                    .withAdded(GooTypes.CRYSTAL, KILO_COST);
+            assertEquals(held, CrystallizerPhases.spentToForm(
+                    formedEnder(held, ChrysmTier.CHRYSM, ChrysmTier.KILOCHRYSM)));
+        }
+
+        @Test
+        void aChamberHeldAtTheDialSpendsNothing() {
+            GooContents held = GooContents.EMPTY.withAdded(GooTypes.ENDER, KILO).withAdded(GooTypes.CRYSTAL, KILO_COST);
+            assertNull(CrystallizerPhases.spentToForm(formedEnder(held, ChrysmTier.CHRYSM, ChrysmTier.CHRYSM)));
+        }
+    }
+
+    @Test
+    void theDialWrapsFromThreeToOne() {
+        assertEquals(2, CrystallizerPhases.nextDial(1));
+        assertEquals(3, CrystallizerPhases.nextDial(2));
+        assertEquals(1, CrystallizerPhases.nextDial(3));
     }
 }

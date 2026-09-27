@@ -13,6 +13,7 @@ import com.mercuriusxeno.goo.item.ChrysmTier;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
+import com.mercuriusxeno.goo.registry.GooDataComponents;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.ItemStack;
@@ -28,9 +29,9 @@ import org.jspecify.annotations.Nullable;
 /**
  * The crystallizer's block entity (decision crystallizer-emits-chrysm): a gasket
  * receiver holding goo of one type and crystal goo, which forms one chrysm of
- * that type once it holds the chrysm's volume and the phase's crystal and
- * {@link CrystallizerPhases#CHRYSM_TICKS} have passed. The chrysm stays inside
- * until a player takes it.
+ * that type and keeps advancing it a tier per phase, each phase spending the goo
+ * between the tiers and its crystal over its time, until the tier the dial
+ * names. The chrysm stays inside until a player takes it.
  */
 public class CrystallizerBlockEntity extends GooMachineBlockEntity implements IGooReceptacle {
 
@@ -54,12 +55,20 @@ public class CrystallizerBlockEntity extends GooMachineBlockEntity implements IG
     }
 
     private int capacityFor(ResourceKey<GooTypeDefinition> type) {
-        return CrystallizerPhases.capacityFor(tank.toGooContents(), formedTier(), type);
+        return CrystallizerPhases.capacityFor(chamber(), type);
     }
 
     /**
-     * Server tick: while the holding is ready and nothing stands formed inside,
-     * counts toward the chrysm; a holding that stops being ready restarts the count.
+     * @return the crystallizer's state in plain values
+     */
+    CrystallizerPhases.Chamber chamber() {
+        return new CrystallizerPhases.Chamber(tank.toGooContents(), formedTier(),
+                formed.get(GooDataComponents.GOO_TYPE.get()), CrystallizerBlock.dialTier(getBlockState()));
+    }
+
+    /**
+     * Server tick: while the holding carries what the phase in progress needs,
+     * counts toward its tier; a holding that stops being ready restarts the count.
      *
      * @param level        the level
      * @param pos          the block position
@@ -71,26 +80,26 @@ public class CrystallizerBlockEntity extends GooMachineBlockEntity implements IG
     }
 
     /**
-     * Runs one tick of the forming phase.
+     * Runs one tick of the phase in progress.
      */
     void advance() {
-        GooContents held = tank.toGooContents();
-        GooContents spent = formed.isEmpty() ? CrystallizerPhases.spentToForm(held) : null;
-        if (spent == null) {
+        CrystallizerPhases.Chamber chamber = chamber();
+        GooContents spent = CrystallizerPhases.spentToForm(chamber);
+        ChrysmTier goal = CrystallizerPhases.goal(chamber);
+        if (spent == null || goal == null) {
             progressTicks = 0;
             return;
         }
         progressTicks++;
-        if (progressTicks >= CrystallizerPhases.CHRYSM_TICKS) {
-            form(held, spent);
+        if (progressTicks >= CrystallizerPhases.phaseTicks(goal)) {
+            form(goal, CrystallizerPhases.formingType(chamber), spent);
         }
         setChanged();
     }
 
-    private void form(GooContents held, GooContents spent) {
-        ResourceKey<GooTypeDefinition> forming = CrystallizerPhases.formingType(held);
+    private void form(ChrysmTier goal, ResourceKey<GooTypeDefinition> forming, GooContents spent) {
         spent.getAll().forEach((type, volume) -> tank.extractGoo(type, volume, false));
-        formed = ChrysmItem.stackOf(ChrysmTier.CHRYSM, forming);
+        formed = ChrysmItem.stackOf(goal, forming);
         progressTicks = 0;
         BlockEntitySync.markDirtyAndSync(this);
     }
