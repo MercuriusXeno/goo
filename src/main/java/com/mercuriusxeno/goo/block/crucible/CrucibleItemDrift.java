@@ -49,18 +49,20 @@ public final class CrucibleItemDrift {
 
     private CrucibleItemDrift() {}
 
+    /** How far out from the block, sideways, below and above, the aim assist looks for thrown items. */
+    static final double AIM_RANGE = 3.0;
+
     /**
      * Takes each item in the kill box while the crucible is enabled and can heat,
-     * and moves each other item in reach by the pull field and the lift.
+     * steers each airborne item thrown roughly at the mouth into it, and moves each
+     * other item in reach by the pull field and the lift.
      *
      * @param crucible the crucible block entity
      * @param level    the server level
      * @param pos      the crucible's position
      */
     static void driftItems(CrucibleBlockEntity crucible, Level level, BlockPos pos) {
-        AABB reach = new AABB(pos.getX() - FIELD_REACH, pos.getY() + CrucibleBasin.FLOOR_Y, pos.getZ() - FIELD_REACH,
-            pos.getX() + 1.0 + FIELD_REACH, pos.getY() + CrucibleBasin.RIM_Y + FIELD_HEIGHT,
-            pos.getZ() + 1.0 + FIELD_REACH);
+        AABB reach = new AABB(pos).inflate(AIM_RANGE);
         float killTopY = CrucibleBasin.killBoxTopY(crucible.basinVolumes());
         for (ItemEntity item : level.getEntitiesOfClass(ItemEntity.class, reach)) {
             double x = item.getX() - pos.getX();
@@ -72,7 +74,9 @@ public final class CrucibleItemDrift {
                 }
                 continue;
             }
-            applyMotion(item, fieldDelta(item.getDeltaMovement(), x, y, z));
+            Vec3 aimed = item.onGround() ? null
+                : CrucibleAimAssist.aimedDelta(new Vec3(x, y, z), item.getDeltaMovement());
+            applyMotion(item, aimed != null ? aimed : fieldDelta(item.getDeltaMovement(), x, y, z));
         }
     }
 
