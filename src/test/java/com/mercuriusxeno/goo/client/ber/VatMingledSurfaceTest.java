@@ -25,8 +25,8 @@ import static org.mockito.Mockito.when;
 
 /**
  * Tests that a vat holding two goo types submits one surface per type, each
- * on its own type's sprite, every vertex carrying that type's share and
- * layer, and the second layer lifted outward of the first.
+ * on its own type's sprite in the fixed type order, every vertex carrying
+ * that type's share and noise seed, and the second layer lifted outward of the first.
  */
 class VatMingledSurfaceTest {
 
@@ -73,17 +73,18 @@ class VatMingledSurfaceTest {
     }
 
     @Test
-    void twoTypesSubmitOneLayerEachCarryingShareAndLayerOnTheirOwnSprites() {
+    void twoTypesSubmitOneLayerEachCarryingShareAndSeedOnTheirOwnSprites() {
         List<Surface> surfaces = renderTwoTypes();
 
-        assertEquals(List.of(GooTypes.FROST, GooTypes.BLAZE), surfaces.stream().map(s -> s.band().type()).toList());
-        List<List<Integer>> shareAndLayer = List.of(
-            List.of(TypeBand.SHARE_UNITS, 0), List.of(TypeBand.SHARE_UNITS / 4, 1));
+        assertEquals(List.of(GooTypes.BLAZE, GooTypes.FROST), surfaces.stream().map(s -> s.band().type()).toList());
+        List<List<Integer>> shareAndSeed = List.of(
+            List.of(TypeBand.SHARE_UNITS, GooTypes.indexOf(GooTypes.BLAZE)),
+            List.of(TypeBand.SHARE_UNITS * 3 / 4, GooTypes.indexOf(GooTypes.FROST)));
         for (int k = 0; k < surfaces.size(); k++) {
             Surface surface = surfaces.get(k);
             assertFalse(surface.vertices().isEmpty());
             for (RecordingVertexConsumer.Vertex vertex : surface.vertices()) {
-                assertEquals(shareAndLayer.get(k), List.of(vertex.uv2U(), vertex.uv2V()));
+                assertEquals(shareAndSeed.get(k), List.of(vertex.uv2U(), vertex.uv2V()));
                 assertTrue(vertex.u() >= surface.sprite().getU0() && vertex.u() <= surface.sprite().getU1());
             }
         }

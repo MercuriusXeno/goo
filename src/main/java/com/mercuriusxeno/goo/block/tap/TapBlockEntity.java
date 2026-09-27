@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.block.tap;
 
-import com.mercuriusxeno.goo.DripFall;
 import com.mercuriusxeno.goo.GooConstants;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.block.BlockEntitySync;
@@ -144,9 +143,9 @@ public class TapBlockEntity extends GooGlowingMachineBlockEntity implements ICan
         Vec3 spigot = TapSpigot.underside(pos);
         setStream(TapDrip.release(dripGrade, new TapStream(type, landing.surfaceY(), dripGrade.dripVolume()), TapDrip.sinkOf(server),
                 TapDrip.dripParticle(GooParticles.TAP_DRIP.get(), type), spigot));
-        int fallTicks = DripFall.fallTicks(spigot.y - landing.surfaceY(), -TapDrip.DRIP_LEAVE_SPEED);
         TapDripScheduler.enqueue(new TapDripScheduler.PendingDrip(server, pos, landing.pos(), Direction.UP,
-                type, drawn.volume(), server.getServer().getTickCount() + fallTicks));
+                type, drawn.volume(), TapDrip.landingTick(server.getServer().getTickCount(), spigot.y,
+                        landing.surfaceY())));
     }
 
     // --- Drip grade ---
@@ -237,7 +236,7 @@ public class TapBlockEntity extends GooGlowingMachineBlockEntity implements ICan
     }
 
     @Override
-    public @Nullable AABB previewBounds(BlockHitResult hit, boolean sneaking) {
+    public @Nullable AABB previewBounds(BlockHitResult hit) {
         return isSlotFilled(SLOT) ? null : slotBounds(SLOT);
     }
 

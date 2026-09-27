@@ -91,7 +91,7 @@ class DissolvingItemCollectorTest {
         /** A 600/300/100 item's bands span its goo in volume ratio, largest first. */
         @Test
         void threeTypeBandsFollowVolumeRatio() {
-            List<TypeBand> bands = TypeBands.over(THREE_TYPES.toGooContents());
+            List<TypeBand> bands = TypeBands.largestFirst(THREE_TYPES.toGooContents());
 
             assertEquals(List.of(GooTypes.BLAZE, GooTypes.FROST, GooTypes.METAL),
                     bands.stream().map(TypeBand::type).toList());

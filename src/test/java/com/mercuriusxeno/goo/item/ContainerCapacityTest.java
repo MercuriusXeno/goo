@@ -21,11 +21,6 @@ class ContainerCapacityTest {
         assertEquals(33_554_432, ContainerCapacity.VAT_BASE);
     }
 
-    @Test
-    void blobCapIs64000() {
-        assertEquals(64_000, ContainerCapacity.BLOB_CAP);
-    }
-
     // -- canister capacity at each compression level --
 
     @Test

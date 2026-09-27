@@ -17,12 +17,12 @@ in float cylindricalVertexDistance;
 in vec4 vertexColor;
 in vec2 texCoord0;
 in vec3 mingleWorldPos;
-flat in vec2 layerShare;
+flat in vec2 shareSeed;
 
 out vec4 fragColor;
 
 void main() {
-    float opacity = mingleOpacity(mingleWorldPos, GameTime, layerShare.x, layerShare.y);
+    float opacity = mingleOpacity(mingleWorldPos, GameTime, shareSeed.x, shareSeed.y);
     if (opacity <= 0.0) {
         discard;
     }
