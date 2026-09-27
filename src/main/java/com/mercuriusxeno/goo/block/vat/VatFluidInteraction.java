@@ -149,7 +149,7 @@ final class VatFluidInteraction {
      * @return the dominant goo type, or null if the vat is empty
      */
     @Nullable
-    static ResourceKey<GooTypeDefinition> extractableDominant(VatBlockEntity vat) {
+    private static ResourceKey<GooTypeDefinition> extractableDominant(VatBlockEntity vat) {
         if (vat.isEmpty()) {
             return null;
         }

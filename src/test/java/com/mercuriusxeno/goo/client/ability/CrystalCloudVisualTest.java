@@ -9,8 +9,10 @@ import java.util.List;
 import java.util.Set;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.phys.Vec3;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -46,9 +48,18 @@ class CrystalCloudVisualTest {
         }
     }
 
-    private static CrystalCloudVisual.CloudDraw draw(Vec3 camPos, RecordingProbe probe) {
+    private static CrystalCloudVisual.CloudDraw draw(Vec3 camPos, CrystalCloudVisual.BlockColorProbe probe) {
+        return draw(camPos, probe, 0, newEasing());
+    }
+
+    private static CrystalCloudVisual.CloudDraw draw(Vec3 camPos, CrystalCloudVisual.BlockColorProbe probe,
+                                                     double clock, ReflectionEasing easing) {
         return new CrystalCloudVisual.CloudDraw(VISIBLE, ALPHA, 100f, 2f, SHARDS,
-                new Vec3(10, 64, 10), camPos, probe);
+                new Vec3(10, 64, 10), camPos, probe, clock, easing);
+    }
+
+    private static ReflectionEasing newEasing() {
+        return new ReflectionEasing(VISIBLE * CrystalCloudVisual.MAX_FACES_PER_SLIVER);
     }
 
     private static List<RecordingVertexConsumer.Vertex> emitFrame(CrystalCloudVisual.CloudDraw draw) {
@@ -98,5 +109,84 @@ class CrystalCloudVisualTest {
 
         assertEquals(before.directions.size(), after.directions.size());
         assertTrue(!before.directions.get(0).equals(after.directions.get(0)));
+    }
+
+    /**
+     * A face whose ray flips from a dark block to a bright one eases toward
+     * the bright color a fraction per client tick instead of stepping to it
+     * in one frame (decision diagnose-then-ease-crystal-reflection).
+     */
+    @Nested
+    class ReflectionEasesAcrossTicks {
+
+        private static final int DARK = 0x101010;
+        private static final int BRIGHT = 0xB0B0B0;
+        private static final int EASED_TICKS = 20;
+        private static final Vec3 CAMERA = new Vec3(0.5, 70, 0.5);
+
+        /** A probe answering one color for every ray until it is switched. */
+        private static final class SwitchingProbe implements CrystalCloudVisual.BlockColorProbe {
+            private int color = DARK;
+
+            @Override
+            public int colorAlong(Vec3 origin, Vec3 direction) {
+                return color;
+            }
+        }
+
+        private final SwitchingProbe probe = new SwitchingProbe();
+        private final ReflectionEasing easing = newEasing();
+
+        private int firstFaceRedAt(double clock) {
+            return ARGB.red(emitFrame(draw(CAMERA, probe, clock, easing)).get(0).color());
+        }
+
+        @Test
+        void aFlippedSampleMovesTowardTheNewColorEachTickAndLandsWithinTheEasedTicks() {
+            int dark = firstFaceRedAt(0);
+            int bright = (int) (ARGB.red(BRIGHT) * 1.3f);
+            probe.color = BRIGHT;
+
+            int previous = dark;
+            int landedTick = -1;
+            for (int tick = 1; tick <= EASED_TICKS && landedTick < 0; tick++) {
+                int shown = firstFaceRedAt(tick);
+                assertTrue(shown >= previous, "tick " + tick + " shows " + shown + " after " + previous);
+                assertTrue(shown <= bright, "tick " + tick + " overshoots to " + shown);
+                if (tick == 1) {
+                    assertTrue(shown > dark, "the first tick after the flip does not move");
+                    assertNotEquals(bright, shown, "the first tick after the flip lands the new color");
+                }
+                if (shown == bright) {
+                    landedTick = tick;
+                }
+                previous = shown;
+            }
+            assertTrue(landedTick > 1, "the shown color never reached the new sample");
+        }
+
+        @Test
+        void framesWithinOneTickMoveLessThanAWholeTick() {
+            int dark = firstFaceRedAt(0);
+            probe.color = BRIGHT;
+
+            int halfTick = firstFaceRedAt(0.5);
+            ReflectionEasing wholeTickEasing = newEasing();
+            SwitchingProbe wholeTickProbe = new SwitchingProbe();
+            emitFrame(draw(CAMERA, wholeTickProbe, 0, wholeTickEasing));
+            wholeTickProbe.color = BRIGHT;
+            int wholeTick = ARGB.red(emitFrame(draw(CAMERA, wholeTickProbe, 1, wholeTickEasing)).get(0).color());
+
+            assertTrue(halfTick > dark && halfTick < wholeTick,
+                    "half a tick shows " + halfTick + ", a whole tick " + wholeTick);
+        }
+
+        @Test
+        void aClockRunningBackwardShowsTheSampleAtOnce() {
+            firstFaceRedAt(100);
+            probe.color = BRIGHT;
+
+            assertEquals((int) (ARGB.red(BRIGHT) * 1.3f), firstFaceRedAt(0));
+        }
     }
 }

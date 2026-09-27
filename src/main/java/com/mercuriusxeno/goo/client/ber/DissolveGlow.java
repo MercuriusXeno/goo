@@ -64,7 +64,7 @@ public record DissolveGlow(float fraction, List<Layer> layers) {
     public static DissolveGlow of(float fraction, GooValue value,
                                   ToIntFunction<ResourceKey<GooTypeDefinition>> colorOf) {
         List<Layer> layers = new ArrayList<>();
-        for (TypeBand band : TypeBands.over(value.toGooContents())) {
+        for (TypeBand band : TypeBands.largestFirst(value.toGooContents())) {
             if (band.layer() < MAX_LAYERS) {
                 layers.add(new Layer(colorOf.applyAsInt(band.type()), band.share(), band.layer()));
             }

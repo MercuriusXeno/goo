@@ -247,6 +247,8 @@ public final class GooTestFunctions {
     private static final String IX_BLOB_INSERT_SHARED = "ix_blob_insert_shared";
     private static final String IX_LEGACY_BLOB_STACK = "ix_legacy_blob_stack";
     private static final String IX_VAT_STREAM_HOLDS = "ix_vat_stream_holds";
+    private static final String IX_CRUCIBLE_TOPS_UP_CANISTER = "ix_crucible_tops_up_canister";
+    private static final String IX_VAT_UNPACKS_EVERY_TYPE = "ix_vat_unpacks_every_type";
 
     // --- Machines ---
     private static final String MACHINE_CANISTER_INSERT = "machine_canister_insert";
@@ -488,10 +490,12 @@ public final class GooTestFunctions {
         reg(r, IX_HUB_ITEM_IS_GOO_SOURCE, GooSourceScannerTests::hubItemIsAGooSource);
         reg(r, IX_VAT_ITEM_BLOB_INSERT, VatItemClickTests::blobInsertFillsVatAndFullRefuses);
         reg(r, IX_VAT_ITEM_OMNIBLOB_INSERT, VatItemClickTests::omniblobInsertKeepsRemainder);
-        reg(r, IX_VAT_ITEM_DRAIN, VatItemClickTests::secondaryClickDrainsLargerType);
+        reg(r, IX_VAT_ITEM_DRAIN, VatItemClickTests::secondaryClickUnpacksEveryType);
         reg(r, IX_BLOB_INSERT_SHARED, BlobInsertTests::pourDepletesByAccepted);
         reg(r, IX_LEGACY_BLOB_STACK, LegacyBlobStackTests::legacyStackHalvesAndDepletesWithoutDuplication);
         reg(r, IX_VAT_STREAM_HOLDS, VatStreamTests::blobClickHoldsStream);
+        reg(r, IX_CRUCIBLE_TOPS_UP_CANISTER, DrainIntoInventoryTests::crucibleTopsUpCarriedCanister);
+        reg(r, IX_VAT_UNPACKS_EVERY_TYPE, DrainIntoInventoryTests::vatUnpacksEveryTypeIntoInventory);
     }
 
     private static void registerCrucibleTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
