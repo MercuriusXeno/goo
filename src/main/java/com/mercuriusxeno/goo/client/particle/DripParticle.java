@@ -1,26 +1,30 @@
 package com.mercuriusxeno.goo.client.particle;
 
 import com.mercuriusxeno.goo.DripFall;
+import com.mercuriusxeno.goo.client.GooRenderUtil;
 import net.minecraft.client.Camera;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.Particle;
 import net.minecraft.client.particle.ParticleProvider;
 import net.minecraft.client.particle.SingleQuadParticle;
-import net.minecraft.client.particle.SpriteSet;
 import net.minecraft.client.renderer.state.level.QuadParticleRenderState;
-import net.minecraft.core.particles.ColorParticleOption;
-import net.minecraft.core.particles.ParticleType;
+import net.minecraft.core.particles.ParticleOptions;
+import net.minecraft.util.ARGB;
+import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import org.joml.Quaternionf;
 import org.jspecify.annotations.Nullable;
-import java.util.function.Supplier;
+import java.util.List;
 
 /**
  * Blocky slime drip particle shared by the trail-drip and the tap-drip.
  * Modeled after vanilla's lava/water drip particles - falls under gravity,
  * splats on ground contact. Spawned directly into the fall phase (no hang
- * phase). Each drip names the splat type its fall spawns and draws its own
- * sprites (decision tap-drip-own-square-particles).
+ * phase). Each drip's provider names its look, its layer and the splat its
+ * fall spawns.
  */
 public abstract class DripParticle extends SingleQuadParticle {
 
@@ -30,23 +34,11 @@ public abstract class DripParticle extends SingleQuadParticle {
     /** Initial particle size for drip collision box. */
     private static final float DRIP_SIZE = 0.01f;
 
+    /** Share of the collision box's width either side of its center. */
+    private static final double HALF = 0.5;
+
     /** Drag per tick shared with the server's drip arrival timing. */
     private static final float DRAG = (float) DripFall.DRAG;
-
-    /** Maximum channel value for color packing. */
-    private static final int MAX_CHANNEL = 255;
-
-    /** Mask for extracting a single color channel. */
-    private static final int CHANNEL_MASK = 0xFF;
-
-    /** Fully opaque black alpha for color packing. */
-    private static final int OPAQUE_BLACK = 0xFF000000;
-
-    /** Bit shift for red channel in ARGB packing. */
-    private static final int RED_SHIFT = 16;
-
-    /** Bit shift for green channel in ARGB packing. */
-    private static final int GREEN_SHIFT = 8;
 
     /** Lifetime divisor for randomized particle duration. */
     private static final double LIFETIME_DIVISOR = 64.0;
@@ -57,52 +49,59 @@ public abstract class DripParticle extends SingleQuadParticle {
     /** Lifetime random range. */
     private static final double LIFETIME_RANGE = 0.8;
 
-    /** Ground nudge to prevent z-fighting for land splats. */
-    private static final double LAND_SURFACE_NUDGE = 0.02;
-
     /** Scale factor for land splat quad size. */
     private static final float LAND_QUAD_SCALE = 1.2f;
 
     /** Land splat lifetime divisor. */
     private static final double LAND_LIFETIME_DIVISOR = 10.0;
 
-    private final float red;
-    private final float green;
-    private final float blue;
+    private final Layer layer;
+    private final GooRenderUtil.UvRect uv;
 
     /**
-     * Creates a goo drip tinted to the given color.
+     * Creates a goo drip drawing the given look on the given layer.
      *
-     * @param level   the client level
-     * @param x       the X spawn position
-     * @param y       the Y spawn position
-     * @param z       the Z spawn position
-     * @param red     the red color component
-     * @param green   the green color component
-     * @param blue    the blue color component
-     * @param sprites the sprite set for animation frames
+     * @param level the client level
+     * @param x     the X spawn position
+     * @param y     the Y spawn position
+     * @param z     the Z spawn position
+     * @param look  the sprite, UVs and color the quad draws
+     * @param layer the particle layer, bound to the look's atlas
      */
-    private DripParticle(ClientLevel level, double x, double y, double z,
-            float red, float green, float blue, SpriteSet sprites) {
-        super(level, x, y, z, sprites.get(0, 1));
+    private DripParticle(ClientLevel level, double x, double y, double z, DripLook look, Layer layer) {
+        super(level, x, y, z, look.sprite());
         this.setSize(DRIP_SIZE, DRIP_SIZE);
         this.gravity = DRIP_GRAVITY;
-        this.red = red;
-        this.green = green;
-        this.blue = blue;
-        this.rCol = red;
-        this.gCol = green;
-        this.bCol = blue;
+        this.layer = layer;
+        this.uv = look.uv();
+        this.rCol = ARGB.redFloat(look.rgb());
+        this.gCol = ARGB.greenFloat(look.rgb());
+        this.bCol = ARGB.blueFloat(look.rgb());
     }
 
-    /**
-     * Renders on the translucent particle layer for alpha blending.
-     *
-     * @return the translucent particle render layer
-     */
     @Override
     public Layer getLayer() {
-        return Layer.TRANSLUCENT;
+        return layer;
+    }
+
+    @Override
+    protected float getU0() {
+        return uv.u0();
+    }
+
+    @Override
+    protected float getU1() {
+        return uv.u1();
+    }
+
+    @Override
+    protected float getV0() {
+        return uv.v0();
+    }
+
+    @Override
+    protected float getV1() {
+        return uv.v1();
     }
 
     /** Applies gravity, movement, drag, and delegates to pre/post move hooks. */
@@ -141,15 +140,20 @@ public abstract class DripParticle extends SingleQuadParticle {
     protected abstract void postMoveUpdate();
 
     /**
-     * Packs stored RGB into ARGB for spawning child particles.
+     * Sweeps a drip's collision box straight down from a point the way the
+     * drip's own move does, stopping at the first surface.
      *
-     * @return the packed ARGB color integer
+     * @param level the client level
+     * @param x     the X of the point
+     * @param y     the Y of the point, the collision box's bottom
+     * @param z     the Z of the point
+     * @param reach how far down to sweep
+     * @return the clear height under the point, at most the reach
      */
-    protected int packedColor() {
-        int r = (int) (red * MAX_CHANNEL) & CHANNEL_MASK;
-        int g = (int) (green * MAX_CHANNEL) & CHANNEL_MASK;
-        int b = (int) (blue * MAX_CHANNEL) & CHANNEL_MASK;
-        return OPAQUE_BLACK | (r << RED_SHIFT) | (g << GREEN_SHIFT) | b;
+    static double roomBelow(ClientLevel level, double x, double y, double z, double reach) {
+        double half = DRIP_SIZE * HALF;
+        AABB box = new AABB(x - half, y, z - half, x + half, y + DRIP_SIZE, z + half);
+        return -Entity.collideBoundingBox(null, new Vec3(0.0, -reach, 0.0), box, level, List.of()).y;
     }
 
     /**
@@ -157,18 +161,38 @@ public abstract class DripParticle extends SingleQuadParticle {
      */
     private static final class FallParticle extends DripParticle {
 
-        private final Supplier<? extends ParticleType<ColorParticleOption>> landType;
+        private final ParticleOptions landOption;
 
-        FallParticle(ClientLevel level, double x, double y, double z,
-                double vx, double vy, double vz,
-                float red, float green, float blue, SpriteSet sprites,
-                Supplier<? extends ParticleType<ColorParticleOption>> landType) {
-            super(level, x, y, z, red, green, blue, sprites);
-            this.landType = landType;
-            this.xd = vx;
-            this.yd = vy;
-            this.zd = vz;
+        FallParticle(ClientLevel level, double x, double y, double z, Vec3 velocity,
+                DripLook look, Layer layer, ParticleOptions landOption) {
+            super(level, x, y, z, look, layer);
+            this.landOption = landOption;
+            this.xd = velocity.x;
+            this.yd = velocity.y;
+            this.zd = velocity.z;
             this.lifetime = (int) (LIFETIME_DIVISOR / (level.getRandom().nextFloat() * LIFETIME_RANGE + LIFETIME_MIN_FACTOR));
+        }
+
+        /**
+         * Draws the camera-facing quad lifted clear of the surface its
+         * collision box lands on (decision diagnose-then-fix-drip-z-fighting).
+         *
+         * @param reusedState the reusable render state for quad particles
+         * @param camera      the active camera for view transform
+         * @param rotation    the camera-facing rotation
+         * @param partialTick the partial tick for interpolation
+         */
+        @Override
+        protected void extractRotatedQuad(QuadParticleRenderState reusedState, Camera camera,
+                Quaternionf rotation, float partialTick) {
+            Vec3 cameraPos = camera.position();
+            double particleY = Mth.lerp(partialTick, this.yo, this.y);
+            double quadY = DripQuadPlacement.fallQuadCenterY(particleY, this.getQuadSize(partialTick));
+            this.extractRotatedQuad(reusedState, rotation,
+                    (float) (Mth.lerp(partialTick, this.xo, this.x) - cameraPos.x()),
+                    (float) (quadY - cameraPos.y()),
+                    (float) (Mth.lerp(partialTick, this.zo, this.z) - cameraPos.z()),
+                    partialTick);
         }
 
         /** Spawns a landing splat on ground contact. */
@@ -176,10 +200,7 @@ public abstract class DripParticle extends SingleQuadParticle {
         protected void postMoveUpdate() {
             if (this.onGround) {
                 this.remove();
-                ColorParticleOption landOption = ColorParticleOption.create(
-                        landType.get(), packedColor());
-                this.level.addParticle(landOption,
-                        this.x, this.y, this.z, 0.0, 0.0, 0.0);
+                this.level.addParticle(landOption, this.x, this.y, this.z, 0.0, 0.0, 0.0);
             }
         }
     }
@@ -197,11 +218,9 @@ public abstract class DripParticle extends SingleQuadParticle {
 
         private final int maxLifetime;
 
-        LandParticle(ClientLevel level, double x, double y, double z,
-                float red, float green, float blue, SpriteSet sprites) {
-            super(level, x, y, z, red, green, blue, sprites);
-            // Nudge above the block surface so the flat quad doesn't z-fight.
-            this.y += LAND_SURFACE_NUDGE;
+        LandParticle(ClientLevel level, double x, double y, double z, DripLook look, Layer layer) {
+            super(level, x, y, z, look, layer);
+            this.y = DripQuadPlacement.landQuadY(this.y);
             this.yo = this.y;
             this.quadSize *= LAND_QUAD_SCALE;
             this.lifetime = (int) (LAND_LIFETIME_DIVISOR / (level.getRandom().nextFloat() * LIFETIME_RANGE + LIFETIME_MIN_FACTOR));
@@ -249,27 +268,44 @@ public abstract class DripParticle extends SingleQuadParticle {
         }
     }
 
-    /** Provider for a falling drip that splats as the land type it names. */
-    public static class FallProvider implements ParticleProvider<ColorParticleOption> {
-
-        private final SpriteSet sprites;
-        private final Supplier<? extends ParticleType<ColorParticleOption>> landType;
+    /**
+     * Provider for a falling drip: the subclass names the look an option
+     * draws, the layer it draws on and the splat it lands as.
+     *
+     * @param <T> the particle option the drip is sent with
+     */
+    public abstract static class FallProvider<T extends ParticleOptions> implements ParticleProvider<T> {
 
         /**
-         * Creates a provider with the given sprite set from the particle definition.
-         *
-         * @param sprites  the sprite set for drip animation frames
-         * @param landType the splat type the drip spawns on ground contact
+         * @param options the option the drip was sent with
+         * @param random  the random source
+         * @return the sprite, UVs and color the drip draws
          */
-        public FallProvider(SpriteSet sprites, Supplier<? extends ParticleType<ColorParticleOption>> landType) {
-            this.sprites = sprites;
-            this.landType = landType;
+        protected abstract DripLook look(T options, RandomSource random);
+
+        /**
+         * @return the particle layer bound to the look's atlas
+         */
+        protected abstract Layer layer();
+
+        /**
+         * @param randomHalfSize the half extent the particle rolled
+         * @return the half extent the drop's quad draws at
+         */
+        protected float quadHalfSize(float randomHalfSize) {
+            return randomHalfSize;
         }
 
         /**
-         * Creates a falling goo drip particle, extracting RGB from the color option.
+         * @param options the option the drip was sent with
+         * @return the splat option the drip spawns on ground contact
+         */
+        protected abstract ParticleOptions landOption(T options);
+
+        /**
+         * Creates a falling goo drip particle.
          *
-         * @param options the color particle data carrying RGB values
+         * @param options the option the drip was sent with
          * @param level the client level to spawn in
          * @param x the x spawn coordinate
          * @param y the y spawn coordinate
@@ -278,38 +314,53 @@ public abstract class DripParticle extends SingleQuadParticle {
          * @param ySpeed the y velocity for the falling drip
          * @param zSpeed the z velocity for the falling drip
          * @param random the random source
-         * @return the new falling drip particle, or null if skipped
+         * @return the new falling drip particle
          */
         @Override
         public @Nullable Particle createParticle(
-                ColorParticleOption options, ClientLevel level,
+                T options, ClientLevel level,
                 double x, double y, double z,
                 double xSpeed, double ySpeed, double zSpeed,
                 RandomSource random) {
-            return new FallParticle(level, x, y, z,
-                    xSpeed, ySpeed, zSpeed,
-                    options.getRed(), options.getGreen(), options.getBlue(), sprites, landType);
+            FallParticle drop = new FallParticle(level, x, y, z, new Vec3(xSpeed, ySpeed, zSpeed),
+                    look(options, random), layer(), landOption(options));
+            drop.quadSize = quadHalfSize(drop.quadSize);
+            return drop;
         }
     }
 
-    /** Provider for the ground splat - spawned by a falling drip on impact. */
-    public static class LandProvider implements ParticleProvider<ColorParticleOption> {
-
-        private final SpriteSet sprites;
+    /**
+     * Provider for the ground splat spawned by a falling drip on impact: the
+     * subclass names the look an option draws and the layer it draws on.
+     *
+     * @param <T> the particle option the splat is spawned with
+     */
+    public abstract static class LandProvider<T extends ParticleOptions> implements ParticleProvider<T> {
 
         /**
-         * Creates a land provider with the given sprite set.
-         *
-         * @param sprites the sprite set for land splat rendering
+         * @param options the option the splat was spawned with
+         * @param random  the random source
+         * @return the sprite, UVs and color the splat draws
          */
-        public LandProvider(SpriteSet sprites) {
-            this.sprites = sprites;
+        protected abstract DripLook look(T options, RandomSource random);
+
+        /**
+         * @return the particle layer bound to the look's atlas
+         */
+        protected abstract Layer layer();
+
+        /**
+         * @param rolledHalfSize the half extent the splat rolled, scaled for landing
+         * @return the half extent the splat's quad starts at before it spreads
+         */
+        protected float quadHalfSize(float rolledHalfSize) {
+            return rolledHalfSize;
         }
 
         /**
-         * Creates a ground splat particle, extracting RGB from the color option.
+         * Creates a ground splat particle.
          *
-         * @param options the color particle data carrying RGB values
+         * @param options the option the splat was spawned with
          * @param level the client level to spawn in
          * @param x the x spawn coordinate
          * @param y the y spawn coordinate
@@ -318,16 +369,17 @@ public abstract class DripParticle extends SingleQuadParticle {
          * @param ySpeed the y velocity (unused for land splats)
          * @param zSpeed the z velocity (unused for land splats)
          * @param random the random source
-         * @return the new land splat particle, or null if skipped
+         * @return the new land splat particle
          */
         @Override
         public @Nullable Particle createParticle(
-                ColorParticleOption options, ClientLevel level,
+                T options, ClientLevel level,
                 double x, double y, double z,
                 double xSpeed, double ySpeed, double zSpeed,
                 RandomSource random) {
-            return new LandParticle(level, x, y, z,
-                    options.getRed(), options.getGreen(), options.getBlue(), sprites);
+            LandParticle splat = new LandParticle(level, x, y, z, look(options, random), layer());
+            splat.quadSize = quadHalfSize(splat.quadSize);
+            return splat;
         }
     }
 }
