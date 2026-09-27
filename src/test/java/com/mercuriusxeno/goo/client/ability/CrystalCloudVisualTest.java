@@ -26,6 +26,7 @@ class CrystalCloudVisualTest {
     private static final int ALPHA = 200;
     /** The sky-blue a face too thin to carry a normal takes without casting a ray. */
     private static final int SKY_FALLBACK = ARGB.color(ALPHA, 0x87CEEB);
+    private static final ShardTable SHARDS = ShardTable.fromSeed(7L);
 
     /** A probe that records every ray cast and answers a color keyed to its direction. */
     private static final class RecordingProbe implements CrystalCloudVisual.BlockColorProbe {
@@ -46,7 +47,7 @@ class CrystalCloudVisualTest {
     }
 
     private static CrystalCloudVisual.CloudDraw draw(Vec3 camPos, RecordingProbe probe) {
-        return new CrystalCloudVisual.CloudDraw(VISIBLE, ALPHA, 100f, 2f,
+        return new CrystalCloudVisual.CloudDraw(VISIBLE, ALPHA, 100f, 2f, SHARDS,
                 new Vec3(10, 64, 10), camPos, probe);
     }
 
