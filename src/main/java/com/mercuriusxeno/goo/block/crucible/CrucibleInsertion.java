@@ -110,7 +110,7 @@ final class CrucibleInsertion {
             arriving = arriving.withAdded(entry.getKey(), Math.multiplyExact(fitting, entry.getValue()));
         }
         Identifier id = BuiltInRegistries.ITEM.getKey(chrysm);
-        if (!mergeIntoPool(be, arriving, List.of(new ValuedStack(id, fitting, arriving.totalVolume())))) {
+        if (!mergeIntoPool(be, arriving, List.of(new ValuedStack(id, fitting, perUnit)))) {
             return 0;
         }
         be.syncToClients();
