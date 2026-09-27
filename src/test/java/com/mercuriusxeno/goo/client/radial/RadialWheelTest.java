@@ -42,9 +42,9 @@ class RadialWheelTest {
     class Layout {
 
         @Test
-        void radiusIsSixtyPercentOfTheSmallerDimensionHalved() {
-            assertEquals(1080 * 0.6 / 2, RadialWheel.outerRadius(1920, 1080), EPSILON);
-            assertEquals(800 * 0.6 / 2, RadialWheel.outerRadius(800, 1200), EPSILON);
+        void radiusIsNinetyFivePercentOfTheSmallerDimensionHalved() {
+            assertEquals(513, RadialWheel.outerRadius(1920, 1080), EPSILON);
+            assertEquals(380, RadialWheel.outerRadius(800, 1200), EPSILON);
         }
 
         @Test

@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.hud;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.ability.GloveSelection;
+import com.mercuriusxeno.goo.client.GooTooltipHandler;
 import com.mercuriusxeno.goo.client.throwing.GloveThrowSender;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import net.minecraft.client.DeltaTracker;
@@ -19,21 +20,20 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
+import java.util.List;
 import java.util.OptionalInt;
 
 /**
  * A nine-slice panel to the right of the crosshair while a glove with a
  * selection is held: the icon of the stack the throw deducts from first,
- * the goo type and the mB it holds, and "- N mB", the throw's cost at the
+ * the goo type and the blobs it holds, and "- N", the throw's cost at the
  * aimed target (decision crosshair-panel-shows-source-and-cost).
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class CrosshairFuelPanel {
 
     private static final Identifier LAYER_ID = Identifier.fromNamespaceAndPath(Goo.MODID, "crosshair_fuel");
-    /** The vanilla effect background sprite, a nine-slice the in-world panels back with too. */
-    private static final Identifier BACKGROUND_SPRITE = Identifier.withDefaultNamespace("hud/effect_background");
-    private static final String MB_SUFFIX = " mB";
+    private static final int BACKGROUND_TEXTURE_SIZE = 24;
     private static final String COST_PREFIX = "- ";
     private static final String GAP = " ";
     private static final int COST_COLOR = 0xFFFF5555;
@@ -53,7 +53,7 @@ public final class CrosshairFuelPanel {
      *
      * @param source   the stack the throw deducts from first, or empty when the player holds none
      * @param type     the selected goo type
-     * @param heldText the mB the source holds of the type
+     * @param heldText the source's volume of the type, in blobs
      * @param costText the throw's cost at the aimed target
      */
     public record FuelRow(ItemStack source, ResourceKey<GooTypeDefinition> type, String heldText, String costText) {
@@ -64,12 +64,14 @@ public final class CrosshairFuelPanel {
      *
      * @param source the stack the throw deducts from first, or empty
      * @param type   the selected goo type
-     * @param held   the mB the source holds of the type
-     * @param cost   the throw's cost at the aimed target in mB
+     * @param held   the microblobs the source holds of the type
+     * @param cost   the throw's cost at the aimed target in microblobs
      * @return the row
      */
     public static FuelRow fuelRow(ItemStack source, ResourceKey<GooTypeDefinition> type, int held, int cost) {
-        return new FuelRow(source, type, held + MB_SUFFIX, COST_PREFIX + cost + MB_SUFFIX);
+        // hud-amounts-read-through-goo-format: the machine panels' blob convention
+        return new FuelRow(source, type, GooTooltipHandler.formatFluidDisplayCompact(held),
+                COST_PREFIX + GooTooltipHandler.formatFluidDisplayCompact(cost));
     }
 
     /**
@@ -102,12 +104,36 @@ public final class CrosshairFuelPanel {
         paint(graphics, font, row, graphics.guiWidth() / HALF + CROSSHAIR_OFFSET, graphics.guiHeight() / HALF);
     }
 
+    /**
+     * The quads the panel's background draws over a rectangle.
+     *
+     * @param rect the panel rectangle
+     * @return the slices, each with its screen rect and texture rect
+     */
+    static List<NineSlice.Slice> backgroundSlices(PanelRectangle rect) {
+        // diagnose-then-fix-aiming-panel-stretch: vanilla ships effect_background with no nine_slice metadata, so blitSprite stretched it whole
+        return NineSlice.of(rect);
+    }
+
+    private static void blitSlice(GuiGraphicsExtractor graphics, NineSlice.Slice slice) {
+        int x = Math.round(slice.x0());
+        int y = Math.round(slice.y0());
+        graphics.blit(RenderPipelines.GUI_TEXTURED, InWorldHud.BG_TEXTURE, x, y,
+                slice.u0() * BACKGROUND_TEXTURE_SIZE, slice.v0() * BACKGROUND_TEXTURE_SIZE,
+                Math.round(slice.x1()) - x, Math.round(slice.y1()) - y,
+                Math.round((slice.u1() - slice.u0()) * BACKGROUND_TEXTURE_SIZE),
+                Math.round((slice.v1() - slice.v0()) * BACKGROUND_TEXTURE_SIZE),
+                BACKGROUND_TEXTURE_SIZE, BACKGROUND_TEXTURE_SIZE);
+    }
+
     private static void paint(GuiGraphicsExtractor graphics, Font font, FuelRow row, int left, int centerY) {
         int textWidth = font.width(row.heldText() + GAP + row.costText());
         int width = BORDER + ITEM_SIZE + ICON_GAP + TYPE_ICON_SIZE + ICON_GAP + textWidth + BORDER;
         int height = BORDER + ITEM_SIZE + BORDER;
         int top = centerY - height / HALF;
-        graphics.blitSprite(RenderPipelines.GUI_TEXTURED, BACKGROUND_SPRITE, left, top, width, height);
+        for (NineSlice.Slice slice : backgroundSlices(new PanelRectangle(left, top, width, height))) {
+            blitSlice(graphics, slice);
+        }
         int x = left + BORDER;
         int rowTop = top + BORDER;
         if (!row.source().isEmpty()) {
