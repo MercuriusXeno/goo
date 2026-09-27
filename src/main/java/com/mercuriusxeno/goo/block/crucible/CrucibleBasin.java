@@ -38,8 +38,8 @@ public final class CrucibleBasin {
     /** The height in pixels above the floor the moderate volume stands at. */
     static final double MODERATE_HEIGHT_PIXELS = 1.5;
 
-    /** The collision solver's slack under the floor, so an item resting on it still reads inside. */
-    private static final double FLOOR_TOLERANCE = 1e-4;
+    /** The collision solver's slack at the floor and rim, so an item resting on either still reads inside. */
+    private static final double CAVITY_EDGE_TOLERANCE = 1e-4;
 
     /** The footprint's center in block-relative X and Z. */
     private static final float FOOTPRINT_CENTER = (FOOTPRINT_MIN + FOOTPRINT_MAX) / 2f;
@@ -144,6 +144,18 @@ public final class CrucibleBasin {
             return null;
         }
         return new DrawnSurface(footprintForVolume(reservoir), surfaceYForVolume(reservoir));
+    }
+
+    /**
+     * The height an item entity rests at in the cavity: on the drawn goo surface,
+     * or on the floor while the reservoir is empty (decision consume-at-rest-in-place).
+     *
+     * @param volumes the reservoir and pool volumes
+     * @return the rest height in block-relative Y
+     */
+    public static float itemRestY(Volumes volumes) {
+        DrawnSurface surface = drawnSurface(volumes);
+        return surface == null ? FLOOR_Y : surface.surfaceY();
     }
 
     /**
@@ -259,7 +271,7 @@ public final class CrucibleBasin {
     /**
      * Answers whether a point sits in the cavity, the only place an item is
      * consumed from (decision collision-is-the-drawn-cavity): within the
-     * footprint, at or above the floor and below the rim.
+     * footprint, from the floor up to the rim, where a full basin's surface stands.
      *
      * @param x the point's X relative to the block
      * @param y the point's Y relative to the block, an entity's feet
@@ -268,7 +280,7 @@ public final class CrucibleBasin {
      */
     public static boolean holdsPoint(double x, double y, double z) {
         return withinFootprint(x) && withinFootprint(z)
-            && y >= FLOOR_Y - FLOOR_TOLERANCE && y < RIM_Y;
+            && y >= FLOOR_Y - CAVITY_EDGE_TOLERANCE && y <= RIM_Y + CAVITY_EDGE_TOLERANCE;
     }
 
     /**

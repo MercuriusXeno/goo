@@ -35,4 +35,19 @@ public final class CrucibleShape {
     public static final VoxelShape SHAPE = Shapes.join(Shapes.or(BODY, COLLAR), CAVITY, BooleanOp.ONLY_FIRST);
 
     private CrucibleShape() {}
+
+    /**
+     * The shape an item entity collides with: the standing shape with the cavity
+     * filled up to the goo surface, so an item rides the goo the renderer draws
+     * on server and client alike (decision consume-at-rest-in-place).
+     *
+     * @param surfaceY the goo surface in block-relative Y, the floor when the basin is empty
+     * @return the shape an item rests on
+     */
+    public static VoxelShape itemRestShape(double surfaceY) {
+        if (surfaceY <= CrucibleBasin.FLOOR_Y) { return SHAPE; }
+        return Shapes.or(SHAPE, Shapes.box(
+            CrucibleBasin.FOOTPRINT_MIN, CrucibleBasin.FLOOR_Y, CrucibleBasin.FOOTPRINT_MIN,
+            CrucibleBasin.FOOTPRINT_MAX, Math.min(surfaceY, CrucibleBasin.RIM_Y), CrucibleBasin.FOOTPRINT_MAX));
+    }
 }

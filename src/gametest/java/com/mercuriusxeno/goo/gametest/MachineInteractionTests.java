@@ -71,7 +71,8 @@ public final class MachineInteractionTests {
     private static final String COAL_LEFT_BLAZE = "The coal's blaze should stand in the reservoir";
     private static final String COAL_LEFT_ROCK = "The coal's rock should stand in the reservoir";
     private static final String COAL_ENDS_HOT = "The crucible should end able to heat";
-    private static final int ABSORB_DELAY = 5;
+    /** Ticks a still item dropped at the basin center takes to land, rest and be consumed. */
+    private static final int ABSORB_DELAY = 10;
     private static final double BLOCK_CENTER = 0.5;
     private static final double UPPER_HIT_Y = 0.9;
 
