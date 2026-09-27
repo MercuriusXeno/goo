@@ -97,8 +97,8 @@ public final class CrucibleTests {
     private static final double THROW_START_Y = 2.2;
     /** A side throw's start in test-relative X, east of the crucible, out of the field's reach. */
     private static final double SIDE_THROW_START_X = 2.3;
-    /** A side throw's height in test-relative Y, low on the body's side. */
-    private static final double SIDE_THROW_START_Y = 1.3;
+    /** A side throw's height in test-relative Y, just under the block's outer top edge. */
+    private static final double SIDE_THROW_START_Y = 1.0 + CrucibleShape.LEDGE_Y - 0.05;
     /** A side throw's speed west, into the body's side. */
     private static final double SIDE_THROW_SPEED = 0.3;
     /** A throw's speed east, enough to cross the whole block in two ticks. */
@@ -326,8 +326,9 @@ public final class CrucibleTests {
     }
 
     /**
-     * An item thrown low into the side of a cold crucible is lifted up and over the
-     * collar into the cavity rather than sliding down beside the block. Thrown
+     * An item thrown into the side of a cold crucible just under the block's outer top
+     * edge is lifted up and over the collar into the cavity rather than sliding down
+     * beside the block. Thrown
      * from the east, since barriers bound the test area on the west.
      *
      * @param helper the gametest helper
