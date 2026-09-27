@@ -18,6 +18,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.storage.ValueInput;
@@ -41,7 +42,11 @@ public class CrystallizerBlockEntity extends GooMachineBlockEntity implements IG
     private static final String TAG_FORMING_TYPE = "FormingType";
 
     private final CrystallizerTank tank;
+    /** Idle ticks the inlay stays lit after the last crystallizing, so a trickle feed reads steady. */
+    private static final int ACTIVE_HOLD_TICKS = 20;
+
     private long crystallized;
+    private int idleTicks;
     private @Nullable ResourceKey<GooTypeDefinition> formingType;
 
     /**
@@ -84,13 +89,31 @@ public class CrystallizerBlockEntity extends GooMachineBlockEntity implements IG
     void advance() {
         CrystallizerPhases.Step step = CrystallizerPhases.step(chamber());
         if (step == null) {
+            idleTicks++;
+            if (idleTicks == ACTIVE_HOLD_TICKS) {
+                showActive(false);
+            }
             return;
         }
+        idleTicks = 0;
+        showActive(true);
         tank.extractGoo(step.type(), step.goo(), false);
         tank.extractGoo(CrystallizerPhases.CATALYST, step.crystal(), false);
         crystallized += step.goo();
         formingType = step.type();
         BlockEntitySync.markDirtyAndSync(this);
+    }
+
+    /**
+     * Lights or darkens the model's inlay, touching the block state only when it changes.
+     *
+     * @param active whether the crystallizer is crystallizing
+     */
+    private void showActive(boolean active) {
+        BlockState state = getBlockState();
+        if (level != null && state.getValue(CrystallizerBlock.ACTIVE) != active) {
+            level.setBlock(worldPosition, state.setValue(CrystallizerBlock.ACTIVE, active), Block.UPDATE_CLIENTS);
+        }
     }
 
     /**

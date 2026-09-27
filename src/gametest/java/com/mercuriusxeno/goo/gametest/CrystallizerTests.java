@@ -44,8 +44,9 @@ public final class CrystallizerTests {
     private static final int SENDER_VOLUME = 5_000;
     private static final int PUSH_TICKS = 20;
     private static final int CRYSTALLIZE_TICKS = 2;
+    private static final int IDLE_TICKS = 40;
     private static final double HALF = 0.5;
-    private static final double KNOB_PROUD = 0.1;
+    private static final double DIAL_CENTER_Y = 7.0 / 16.0;
 
     private CrystallizerTests() {
     }
@@ -88,7 +89,13 @@ public final class CrystallizerTests {
         helper.runAfterDelay(CRYSTALLIZE_TICKS, () -> {
             helper.assertTrue(crystallizer.held().isEmpty(), "Crystallizing should spend the goo and crystal, held "
                     + crystallizer.held());
+            helper.assertTrue(helper.getBlockState(CRYSTALLIZER_POS).getValue(CrystallizerBlock.ACTIVE),
+                    "The crystallizer should read active while crystallizing");
             assertClickHands(helper, crystallizer, GooItems.CHRYSM.get());
+        });
+        helper.runAfterDelay(IDLE_TICKS, () -> {
+            helper.assertFalse(helper.getBlockState(CRYSTALLIZER_POS).getValue(CrystallizerBlock.ACTIVE),
+                    "The crystallizer should read idle once nothing crystallizes");
             helper.succeed();
         });
     }
@@ -196,7 +203,7 @@ public final class CrystallizerTests {
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
         BlockPos abs = helper.absolutePos(CRYSTALLIZER_POS);
         BlockHitResult knobHit = new BlockHitResult(
-                new Vec3(abs.getX() + HALF, abs.getY() + HALF, abs.getZ() - KNOB_PROUD), Direction.NORTH, abs, false);
+                new Vec3(abs.getX() + HALF, abs.getY() + DIAL_CENTER_Y, abs.getZ()), Direction.NORTH, abs, false);
         BlockHitResult topHit = new BlockHitResult(
                 new Vec3(abs.getX() + HALF, abs.getY() + 1.0, abs.getZ() + HALF), Direction.UP, abs, false);
         helper.useBlock(CRYSTALLIZER_POS, player, topHit);
