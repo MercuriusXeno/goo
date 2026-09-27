@@ -164,6 +164,22 @@ public final class GooTestFunctions {
     private static final String CR_BLOB_STACK_WHOLE = "cr_blob_stack_whole";
     private static final String CR_BLOB_STACK_TO_CAP = "cr_blob_stack_to_cap";
     private static final String CR_FIRST_MELT_PUDDLE = "cr_first_melt_puddle";
+    private static final String CR_DROP_RESTS_ON_FLOOR = "cr_drop_rests_on_floor";
+    private static final String CR_LEDGE_ITEM_TAKEN_INSIDE = "cr_ledge_item_taken_inside";
+    private static final String CR_WALL_TOP_ITEMS_SLIDE_IN = "cr_wall_top_items_slide_in";
+    private static final String CR_LEDGE_ITEM_LIFTED_IN = "cr_ledge_item_lifted_in";
+    private static final String CR_THROWN_ITEM_CAUGHT = "cr_thrown_item_caught";
+    private static final String CR_SIDE_HIT_LIFTED_IN = "cr_side_hit_lifted_in";
+    private static final String CR_ROUGH_THROW_STEERED_IN = "cr_rough_throw_steered_in";
+    private static final String CR_ITEM_TAKEN_AT_KILL_BOX = "cr_item_taken_at_kill_box";
+    private static final String CR_COLD_ITEM_WAITS_ON_FLOOR = "cr_cold_item_waits_on_floor";
+    private static final String CR_ITEM_MELTS_ON_ITS_CLOCK = "cr_item_melts_on_its_clock";
+    private static final String CR_BROKEN_MID_MELT_DROPS_REMAINDER = "cr_broken_mid_melt_drops_remainder";
+    private static final String CR_STACK_MELTS_ITEM_BY_ITEM = "cr_stack_melts_item_by_item";
+    private static final String CR_COMBO_MELTS_EVERY_ITEM = "cr_combo_melts_every_item";
+    private static final String CR_SPARK_REFUSED_BLAZE = "cr_spark_refused_blaze";
+    private static final String CR_SPARK_REFUSED_HEAT = "cr_spark_refused_heat";
+    private static final String CR_SPARK_LIGHTS_COLD = "cr_spark_lights_cold";
 
     // --- Placement ---
     private static final String PL_BLAZE = "pl_blaze_places";
@@ -485,6 +501,22 @@ public final class GooTestFunctions {
         reg(r, CR_BLOB_STACK_WHOLE, CrucibleTests::blobStackConsumedWhole);
         reg(r, CR_BLOB_STACK_TO_CAP, CrucibleTests::blobStackFillsToTheCap);
         reg(r, CR_FIRST_MELT_PUDDLE, CrucibleTests::firstMeltTicksDrawAPuddle);
+        reg(r, CR_DROP_RESTS_ON_FLOOR, CrucibleTests::droppedItemRestsOnBasinFloor);
+        reg(r, CR_LEDGE_ITEM_TAKEN_INSIDE, CrucibleTests::ledgeItemTakenOnlyInsideTheCavity);
+        reg(r, CR_WALL_TOP_ITEMS_SLIDE_IN, CrucibleTests::wallTopItemsSlideIntoTheCavity);
+        reg(r, CR_LEDGE_ITEM_LIFTED_IN, CrucibleTests::ledgeItemLiftedIntoTheCavity);
+        reg(r, CR_THROWN_ITEM_CAUGHT, CrucibleTests::thrownItemCaughtByTheField);
+        reg(r, CR_SIDE_HIT_LIFTED_IN, CrucibleTests::sideHitItemLiftedIntoTheCavity);
+        reg(r, CR_ROUGH_THROW_STEERED_IN, CrucibleTests::roughThrowSteeredIntoTheMouth);
+        reg(r, CR_ITEM_TAKEN_AT_KILL_BOX, CrucibleTests::droppedItemTakenAtTheKillBox);
+        reg(r, CR_COLD_ITEM_WAITS_ON_FLOOR, CrucibleTests::coldCrucibleItemWaitsOnTheFloor);
+        reg(r, CR_ITEM_MELTS_ON_ITS_CLOCK, CrucibleTests::itemMeltsOnItsClock);
+        reg(r, CR_BROKEN_MID_MELT_DROPS_REMAINDER, CrucibleTests::brokenMidMeltDropsTheRemainder);
+        reg(r, CR_STACK_MELTS_ITEM_BY_ITEM, CrucibleTests::stackMeltsItemByItemInTurn);
+        reg(r, CR_COMBO_MELTS_EVERY_ITEM, CrucibleTests::comboMeltsEveryItemAtOnce);
+        reg(r, CR_SPARK_REFUSED_BLAZE, CrucibleTests::sparkRefusedOnBlazeGoo);
+        reg(r, CR_SPARK_REFUSED_HEAT, CrucibleTests::sparkRefusedOnHeatTicks);
+        reg(r, CR_SPARK_LIGHTS_COLD, CrucibleTests::sparkLightsColdEmptyCrucible);
     }
 
     private static void registerPlacementTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
