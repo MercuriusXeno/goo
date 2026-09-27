@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.GooSubmitter;
+import com.mercuriusxeno.goo.client.GooTooltipHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -51,14 +52,6 @@ final class RadialWheelRenderer {
     private static final char NAMESPACE_SEPARATOR = ':';
     private static final String MOB_SUFFIX = " (Mob)";
 
-    private static final String ZERO_LABEL = "0";
-    private static final int KILO_THRESHOLD = 1_000;
-    private static final int MEGA_THRESHOLD = 1_000_000;
-    private static final double KILO_DIVISOR = 1_000.0;
-    private static final double MEGA_DIVISOR = 1_000_000.0;
-    private static final String MB_SUFFIX = " mB";
-    private static final String KILO_FORMAT = "%.1fk";
-    private static final String MEGA_FORMAT = "%.1fM";
 
     private RadialWheelRenderer() {
     }
@@ -69,7 +62,7 @@ final class RadialWheelRenderer {
      * @param wheel     the wheel's state
      * @param types     the types, one per wedge
      * @param abilities the abilities each type fans out, by type index
-     * @param available the mB the player holds per type, snapshot on open
+     * @param available the microblobs the player holds per type, snapshot on open
      * @param centerX   the wheel's center x
      * @param centerY   the wheel's center y
      * @param radius    the wheel's outer radius
@@ -175,22 +168,23 @@ final class RadialWheelRenderer {
      * Reads an ability wedge's first-throw cost against the type's holdings.
      *
      * @param ability  the synced ability
-     * @param holdings the mB the player holds of its type
+     * @param holdings the microblobs the player holds of its type
      * @return the wedge's labels
      */
     static FanSlot fanSlot(ClientAbility ability, int holdings) {
         int firstThrow = ability.throwCost(0);
-        return new FanSlot(formatQuantity(firstThrow), firstThrow > holdings);
+        return new FanSlot(GooTooltipHandler.formatFluidDisplayCompact(firstThrow), firstThrow > holdings);
     }
 
     /**
      * The center's holdings line for the selected type.
      *
-     * @param holdings the mB the player holds of the type
+     * @param holdings the microblobs the player holds of the type
      * @return the holdings, formatted
      */
     static String holdingsLabel(int holdings) {
-        return formatQuantity(holdings);
+        // hud-amounts-read-through-goo-format: the machine panels' blob convention
+        return GooTooltipHandler.formatFluidDisplayCompact(holdings);
     }
 
     private static void renderCenterLabel(GuiGraphicsExtractor graphics, Font font, Frame frame) {
@@ -288,25 +282,5 @@ final class RadialWheelRenderer {
                     : Identifier.fromNamespaceAndPath(Goo.MODID, ability.icon());
         }
         return Identifier.fromNamespaceAndPath(Goo.MODID, ABILITY_ICON_PREFIX + ability.id().getPath() + ICON_SUFFIX);
-    }
-
-    /**
-     * Formats a mB quantity for display. Shows "0" for zero,
-     * abbreviated "1.2k" for thousands, "1.2M" for millions.
-     *
-     * @param mB the quantity in microblobs
-     * @return the human-readable formatted string
-     */
-    static String formatQuantity(int mB) {
-        if (mB <= 0) {
-            return ZERO_LABEL;
-        }
-        if (mB < KILO_THRESHOLD) {
-            return mB + MB_SUFFIX;
-        }
-        if (mB < MEGA_THRESHOLD) {
-            return String.format(KILO_FORMAT, mB / KILO_DIVISOR);
-        }
-        return String.format(MEGA_FORMAT, mB / MEGA_DIVISOR);
     }
 }

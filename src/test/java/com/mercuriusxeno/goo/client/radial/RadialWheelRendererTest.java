@@ -77,6 +77,7 @@ class RadialWheelRendererTest {
         private static final int HOLDINGS = 1500;
         private static final int AFFORDABLE = 1000;
         private static final int UNAFFORDABLE = 2000;
+        private static final int SIXTEEN_BLOBS = 16_000;
 
         private static ClientAbility costing(int firstThrow) {
             return new ClientAbility(Identifier.fromNamespaceAndPath(Goo.MODID, "cost_" + firstThrow),
@@ -89,15 +90,14 @@ class RadialWheelRendererTest {
             ClientAbility cheap = costing(AFFORDABLE);
             ClientAbility dear = costing(UNAFFORDABLE);
 
-            assertEquals(RadialWheelRenderer.formatQuantity(cheap.throwCost(0)),
-                    RadialWheelRenderer.fanSlot(cheap, HOLDINGS).costLabel());
-            assertEquals("1.0k", RadialWheelRenderer.fanSlot(cheap, HOLDINGS).costLabel());
-            assertEquals("2.0k", RadialWheelRenderer.fanSlot(dear, HOLDINGS).costLabel());
+            assertEquals("1", RadialWheelRenderer.fanSlot(cheap, HOLDINGS).costLabel());
+            assertEquals("2", RadialWheelRenderer.fanSlot(dear, HOLDINGS).costLabel());
         }
 
         @Test
         void centerReadsTheTypesHoldings() {
-            assertEquals("1.5k", RadialWheelRenderer.holdingsLabel(HOLDINGS));
+            assertEquals("1.5", RadialWheelRenderer.holdingsLabel(HOLDINGS));
+            assertEquals("16", RadialWheelRenderer.holdingsLabel(SIXTEEN_BLOBS));
         }
 
         @Test
