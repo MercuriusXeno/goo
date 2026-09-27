@@ -1,6 +1,6 @@
 {
   "type": "minecraft:function",
-  "function": "goo:cr_ledge_item_stays_put",
+  "function": "goo:cr_ledge_item_lifted_in",
   "environment": "minecraft:default",
   "structure": "minecraft:empty",
   "max_ticks": 50,

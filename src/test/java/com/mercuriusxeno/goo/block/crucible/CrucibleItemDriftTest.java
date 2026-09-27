@@ -4,11 +4,12 @@ import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Tests the inward nudge that draws items off the crucible's rim walls and down
- * its mouth (decision rim-and-mouth-items-slide-inward).
+ * Tests the pull field over the crucible and the lift off its ledge
+ * (decision rim-and-mouth-items-slide-inward).
  */
 class CrucibleItemDriftTest {
 
@@ -16,81 +17,66 @@ class CrucibleItemDriftTest {
     private static final double CENTER = 0.5;
     private static final double WALL_MIDDLE = 3.0 / 16.0;
     private static final double LEDGE_MIDDLE = 1.0 / 16.0;
+    private static final double IN_FIELD = CrucibleBasin.RIM_Y + 0.1;
+    private static final Vec3 THROWN = new Vec3(0.4, -0.2, -0.3);
 
-    /** Wall tops and the mouth column answer a push toward the center. */
+    /** The field over the block damps a throw and draws it to the center. */
     @Nested
-    class TowardCenter {
+    class PullField {
 
         @Test
-        void westWallTopPushesEast() {
-            Vec3 nudge = CrucibleItemDrift.inwardNudge(WALL_MIDDLE, CrucibleBasin.RIM_Y, CENTER);
-            assertTrue(nudge.x > 0);
-            assertEquals(0.0, nudge.z, EPSILON);
-            assertEquals(0.0, nudge.y, EPSILON);
+        void thrownItemIsSlowedAndDrawnToTheCenter() {
+            Vec3 after = CrucibleItemDrift.fieldDelta(THROWN, 0.8, IN_FIELD, 0.3, false);
+            double keep = 1.0 - CrucibleItemDrift.FIELD_DAMPING;
+            assertEquals(THROWN.x * keep + (CENTER - 0.8) * CrucibleItemDrift.FIELD_GAIN, after.x, EPSILON);
+            assertEquals(THROWN.z * keep + (CENTER - 0.3) * CrucibleItemDrift.FIELD_GAIN, after.z, EPSILON);
         }
 
         @Test
-        void eastWallTopPushesWest() {
-            assertTrue(CrucibleItemDrift.inwardNudge(1.0 - WALL_MIDDLE, CrucibleBasin.RIM_Y, CENTER).x < 0);
+        void fieldKeepsTheFall() {
+            assertEquals(THROWN.y, CrucibleItemDrift.fieldDelta(THROWN, 0.8, IN_FIELD, 0.3, false).y, EPSILON);
         }
 
         @Test
-        void northWallTopPushesSouth() {
-            assertTrue(CrucibleItemDrift.inwardNudge(CENTER, CrucibleBasin.RIM_Y, WALL_MIDDLE).z > 0);
+        void itemOnAWallTopIsDrawnInward() {
+            Vec3 after = CrucibleItemDrift.fieldDelta(Vec3.ZERO, WALL_MIDDLE, CrucibleBasin.RIM_Y, CENTER, true);
+            assertTrue(after.x > 0);
         }
 
         @Test
-        void southWallTopPushesNorth() {
-            assertTrue(CrucibleItemDrift.inwardNudge(CENTER, CrucibleBasin.RIM_Y, 1.0 - WALL_MIDDLE).z < 0);
-        }
-
-        @Test
-        void itemOverhangingTheWallsOuterFacePushesInward() {
-            assertTrue(CrucibleItemDrift.inwardNudge(0.01, CrucibleBasin.RIM_Y, CENTER).x > 0);
-        }
-
-        @Test
-        void itemFallingOverTheMouthIsDrawnToCenter() {
-            Vec3 nudge = CrucibleItemDrift.inwardNudge(0.3, CrucibleBasin.RIM_Y + 0.3, 0.7);
-            assertEquals((CENTER - 0.3) * CrucibleItemDrift.NUDGE_GAIN, nudge.x, EPSILON);
-            assertEquals((CENTER - 0.7) * CrucibleItemDrift.NUDGE_GAIN, nudge.z, EPSILON);
-        }
-
-        @Test
-        void nudgeAddsToAThrownItemsMotion() {
-            Vec3 thrown = new Vec3(0.2, -0.3, -0.1);
-            Vec3 nudge = CrucibleItemDrift.inwardNudge(0.3, CrucibleBasin.RIM_Y + 0.3, CENTER);
-            Vec3 after = CrucibleItemDrift.nudgedDelta(thrown, nudge);
-            assertEquals(thrown.x + nudge.x, after.x, EPSILON);
-            assertEquals(thrown.y, after.y, EPSILON);
-            assertEquals(thrown.z, after.z, EPSILON);
-        }
-    }
-
-    /** The ledge, the cavity and the air beside the block answer nothing. */
-    @Nested
-    class Still {
-
-        @Test
-        void outerLedgeIsLeftAlone() {
-            assertEquals(Vec3.ZERO, CrucibleItemDrift.inwardNudge(LEDGE_MIDDLE, CrucibleShape.LEDGE_Y, CENTER));
-        }
-
-        @Test
-        void itemInsideTheCavityIsLeftToSettle() {
-            assertEquals(Vec3.ZERO, CrucibleItemDrift.inwardNudge(0.3, CrucibleBasin.FLOOR_Y, 0.6));
-            assertEquals(Vec3.ZERO, CrucibleItemDrift.inwardNudge(0.3, CrucibleBasin.RIM_Y - 0.1, 0.6));
-        }
-
-        @Test
-        void itemHighOverTheMouthIsLeftToFall() {
-            assertEquals(Vec3.ZERO, CrucibleItemDrift.inwardNudge(0.3,
-                CrucibleBasin.RIM_Y + CrucibleItemDrift.MOUTH_COLUMN_HEIGHT + 0.1, CENTER));
+        void fieldReachesAQuarterBlockOverTheRim() {
+            double top = CrucibleBasin.RIM_Y + CrucibleItemDrift.FIELD_HEIGHT;
+            assertTrue(CrucibleItemDrift.fieldDelta(THROWN, 0.8, top, CENTER, false).x < THROWN.x);
+            assertSame(THROWN, CrucibleItemDrift.fieldDelta(THROWN, 0.8, top + 0.01, CENTER, false));
         }
 
         @Test
         void itemBesideTheBlockIsLeftAlone() {
-            assertEquals(Vec3.ZERO, CrucibleItemDrift.inwardNudge(-0.2, CrucibleBasin.RIM_Y, CENTER));
+            assertSame(THROWN, CrucibleItemDrift.fieldDelta(THROWN, -0.1, IN_FIELD, CENTER, false));
+            assertSame(THROWN, CrucibleItemDrift.fieldDelta(THROWN, CENTER, IN_FIELD, 1.1, false));
+        }
+    }
+
+    /** An item grounded on the ledge is lifted over the collar. */
+    @Nested
+    class LedgeLift {
+
+        @Test
+        void groundedLedgeItemIsLiftedInward() {
+            Vec3 after = CrucibleItemDrift.fieldDelta(Vec3.ZERO, LEDGE_MIDDLE, CrucibleShape.LEDGE_Y, CENTER, true);
+            assertEquals(CrucibleItemDrift.LIFT_SPEED, after.y, EPSILON);
+            assertEquals((CENTER - LEDGE_MIDDLE) * CrucibleItemDrift.LIFT_INWARD_GAIN, after.x, EPSILON);
+        }
+
+        @Test
+        void airborneItemBelowTheRimIsNotLiftedAgain() {
+            Vec3 rising = new Vec3(0.05, 0.1, 0.0);
+            assertSame(rising, CrucibleItemDrift.fieldDelta(rising, LEDGE_MIDDLE, 0.9, CENTER, false));
+        }
+
+        @Test
+        void itemInsideTheCavityIsNotLifted() {
+            assertSame(THROWN, CrucibleItemDrift.fieldDelta(THROWN, 0.4, CrucibleShape.LEDGE_Y, 0.6, true));
         }
     }
 }

@@ -41,6 +41,11 @@ public final class CrucibleBasin {
     /** The collision solver's slack at the floor and rim, so an item resting on either still reads inside. */
     private static final double CAVITY_EDGE_TOLERANCE = 1e-4;
 
+    /**
+     * How far above its feet an item entity's picture is drawn: ItemEntityRenderer's
+     * fixed sixteenth of a block hover plus the middle of its bob.
+     */
+    public static final float ITEM_DRAWN_HOVER = 1f / 16f + 0.1f;
     /** How far above the goo surface or floor an item's feet may sit and still be taken. */
     private static final double KILL_BOX_TOLERANCE = 1.0 / 64.0;
 
@@ -150,15 +155,16 @@ public final class CrucibleBasin {
     }
 
     /**
-     * The kill box's top: the drawn goo surface, or the floor while the reservoir is
-     * empty. An item is taken the tick it reaches it.
+     * The kill box's top: the drawn goo surface less the height an item entity is
+     * drawn above its feet, so the item vanishes as its picture meets the goo, and
+     * never below the floor. An item is taken the tick its feet reach it.
      *
      * @param volumes the reservoir and pool volumes
      * @return the kill box's top in block-relative Y
      */
     public static float killBoxTopY(Volumes volumes) {
         DrawnSurface surface = drawnSurface(volumes);
-        return surface == null ? FLOOR_Y : surface.surfaceY();
+        return surface == null ? FLOOR_Y : Math.max(FLOOR_Y, surface.surfaceY() - ITEM_DRAWN_HOVER);
     }
 
     /**

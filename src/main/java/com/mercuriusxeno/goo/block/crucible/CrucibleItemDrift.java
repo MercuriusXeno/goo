@@ -7,23 +7,29 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Draws item entities off the crucible's rim walls and down its mouth into the
- * cavity (decision rim-and-mouth-items-slide-inward), and takes an item the tick
- * it reaches the kill box, the cavity up to the goo surface. An item on the outer
- * ledge, below the wall tops, is left where it lands.
+ * Pulls item entities into the crucible's mouth and takes them at the kill box
+ * (decision rim-and-mouth-items-slide-inward). A pull field a quarter block deep
+ * rests over the block, from the rim up: it damps a thrown item's sideways speed
+ * and draws it toward the mouth, so a throw drops in rather than sailing over. An
+ * item grounded on the ledge against the collar is lifted up and over the wall. An
+ * item beside the block is left alone.
  */
 public final class CrucibleItemDrift {
 
-    /** Horizontal speed added per tick for each block of distance from the basin center. */
-    static final double NUDGE_GAIN = 0.1;
-    /** How far above the rim the air column over the mouth reaches. */
-    static final double MOUTH_COLUMN_HEIGHT = 0.5;
-    /** An item entity's half-width, a quarter block wide. */
-    static final double ITEM_HALF_WIDTH = 0.125;
-    /** Leeway around the rim height within which an item reads as resting on a wall top. */
-    static final double WALL_TOP_TOLERANCE = 1.0 / 64.0;
+    /** How far above the rim the pull field reaches. */
+    static final double FIELD_HEIGHT = 0.25;
+    /** The share of an item's sideways motion the field takes away each tick. */
+    static final double FIELD_DAMPING = 0.5;
+    /** Sideways speed the field adds per tick for each block of distance from the basin center. */
+    static final double FIELD_GAIN = 0.15;
+    /** The upward speed a grounded ledge item is given, enough to clear the collar and no more. */
+    static final double LIFT_SPEED = 0.2;
+    /** Sideways speed a lifted ledge item is given for each block of distance from the basin center. */
+    static final double LIFT_INWARD_GAIN = 0.15;
+    /** Leeway below the rim and the ledge within which an item reads as standing on them. */
+    static final double SURFACE_TOLERANCE = 1.0 / 64.0;
 
-    /** A change in motion smaller than this is left unsynced, so a resting item sends nothing. */
+    /** A change in motion smaller than this is left unsynced, so a still item sends nothing. */
     private static final double SYNC_THRESHOLD_SQR = 1e-10;
 
     /** The basin center in block-relative X and Z. */
@@ -32,9 +38,8 @@ public final class CrucibleItemDrift {
     private CrucibleItemDrift() {}
 
     /**
-     * Draws each item entity on the wall tops or over the mouth inward, keeping the
-     * rest of its motion so a thrown item holds its arc, and takes each item in the
-     * kill box while the crucible is enabled and can heat.
+     * Takes each item in the kill box while the crucible is enabled and can heat,
+     * and moves each other item over the block by the pull field and the ledge lift.
      *
      * @param crucible the crucible block entity
      * @param level    the server level
@@ -42,7 +47,7 @@ public final class CrucibleItemDrift {
      */
     static void driftItems(CrucibleBlockEntity crucible, Level level, BlockPos pos) {
         AABB reach = new AABB(pos.getX(), pos.getY() + CrucibleBasin.FLOOR_Y, pos.getZ(),
-            pos.getX() + 1.0, pos.getY() + CrucibleBasin.RIM_Y + MOUTH_COLUMN_HEIGHT, pos.getZ() + 1.0);
+            pos.getX() + 1.0, pos.getY() + CrucibleBasin.RIM_Y + FIELD_HEIGHT, pos.getZ() + 1.0);
         float killTopY = CrucibleBasin.killBoxTopY(crucible.basinVolumes());
         for (ItemEntity item : level.getEntitiesOfClass(ItemEntity.class, reach)) {
             double x = item.getX() - pos.getX();
@@ -54,7 +59,7 @@ public final class CrucibleItemDrift {
                 }
                 continue;
             }
-            applyMotion(item, nudgedDelta(item.getDeltaMovement(), inwardNudge(x, y, z)));
+            applyMotion(item, fieldDelta(item.getDeltaMovement(), x, y, z, item.onGround()));
         }
     }
 
@@ -71,57 +76,57 @@ public final class CrucibleItemDrift {
     }
 
     /**
-     * @param delta the entity's motion this tick
-     * @param nudge the inward nudge
-     * @return the motion with the nudge added, the rest kept
-     */
-    static Vec3 nudgedDelta(Vec3 delta, Vec3 nudge) {
-        return delta.add(nudge);
-    }
-
-    /**
-     * The horizontal velocity toward the basin center for an item on a rim wall top
-     * or in the air column over the mouth, zero anywhere else.
+     * An item's motion after the pull field and the ledge lift: in the field its
+     * sideways motion is damped and drawn to the center, its fall kept; grounded on
+     * the ledge it is lifted and sent inward; anywhere else its motion is kept.
      *
-     * @param x the item's X relative to the block
-     * @param y the item's feet Y relative to the block
-     * @param z the item's Z relative to the block
-     * @return the nudge to add to the item's motion this tick
+     * @param delta    the item's motion this tick
+     * @param x        the item's X relative to the block
+     * @param y        the item's feet Y relative to the block
+     * @param z        the item's Z relative to the block
+     * @param grounded whether the item stands on something
+     * @return the item's motion
      */
-    public static Vec3 inwardNudge(double x, double y, double z) {
-        if (!onWallTop(x, y, z) && !overMouth(x, y, z)) { return Vec3.ZERO; }
-        return new Vec3((BASIN_CENTER - x) * NUDGE_GAIN, 0.0, (BASIN_CENTER - z) * NUDGE_GAIN);
+    public static Vec3 fieldDelta(Vec3 delta, double x, double y, double z, boolean grounded) {
+        if (!overBlock(x) || !overBlock(z)) { return delta; }
+        if (inPullField(y)) {
+            double keep = 1.0 - FIELD_DAMPING;
+            return new Vec3(delta.x * keep + (BASIN_CENTER - x) * FIELD_GAIN, delta.y,
+                delta.z * keep + (BASIN_CENTER - z) * FIELD_GAIN);
+        }
+        if (grounded && onLedge(x, y, z)) {
+            return new Vec3((BASIN_CENTER - x) * LIFT_INWARD_GAIN, Math.max(delta.y, LIFT_SPEED),
+                (BASIN_CENTER - z) * LIFT_INWARD_GAIN);
+        }
+        return delta;
+    }
+
+    /**
+     * @param y the item's feet Y relative to the block
+     * @return true when the item is in the field, from the rim to its top
+     */
+    private static boolean inPullField(double y) {
+        return y >= CrucibleBasin.RIM_Y - SURFACE_TOLERANCE && y <= CrucibleBasin.RIM_Y + FIELD_HEIGHT;
     }
 
     /**
      * @param x the item's X relative to the block
      * @param y the item's feet Y relative to the block
      * @param z the item's Z relative to the block
-     * @return true when the item rests at rim height with its footprint over the collar
+     * @return true when the item stands on the ledge, outside the mouth and below the rim
      */
-    private static boolean onWallTop(double x, double y, double z) {
-        return Math.abs(y - CrucibleBasin.RIM_Y) <= WALL_TOP_TOLERANCE
-            && overCollar(x) && overCollar(z);
-    }
-
-    /**
-     * @param x the item's X relative to the block
-     * @param y the item's feet Y relative to the block
-     * @param z the item's Z relative to the block
-     * @return true when the item hangs in the air column over the mouth, above the rim
-     */
-    private static boolean overMouth(double x, double y, double z) {
-        return y >= CrucibleBasin.RIM_Y && y <= CrucibleBasin.RIM_Y + MOUTH_COLUMN_HEIGHT
-            && withinMouth(x) && withinMouth(z);
+    private static boolean onLedge(double x, double y, double z) {
+        boolean overMouth = withinMouth(x) && withinMouth(z);
+        return !overMouth && y >= CrucibleShape.LEDGE_Y - SURFACE_TOLERANCE
+            && y < CrucibleBasin.RIM_Y - SURFACE_TOLERANCE;
     }
 
     /**
      * @param coordinate a block-relative X or Z of the item's center
-     * @return true when an item centered there overlaps the collar
+     * @return true when it lies over the block
      */
-    private static boolean overCollar(double coordinate) {
-        return coordinate > CrucibleShape.COLLAR_MIN - ITEM_HALF_WIDTH
-            && coordinate < CrucibleShape.COLLAR_MAX + ITEM_HALF_WIDTH;
+    private static boolean overBlock(double coordinate) {
+        return coordinate >= 0.0 && coordinate <= 1.0;
     }
 
     /**
