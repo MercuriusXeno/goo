@@ -52,8 +52,9 @@ class DissolvingItemCollectorTest {
     private static final GooValue THREE_TYPES =
             new GooValue(Map.of(GooTypes.BLAZE, 600, GooTypes.FROST, 300, GooTypes.METAL, 100));
     private static final float EPSILON = 1e-6f;
-    /** One tile spanning the whole unit quad, so the quad re-emits uncut. */
-    private static final ItemTileClipper.Tile WHOLE_ITEM = new ItemTileClipper.TileGrid(0f, 0f, 1f, 1).tile(0);
+    /** One shard owning the whole unit face, so the quad re-emits uncut. */
+    private static final ShardFace WHOLE_ITEM = new ShardFace(new QuadRectClipper.Rect(0f, 0f, 1f, 1f),
+            ItemShardCutter.ShardMap.whole(1, 1));
 
     private static BakedQuad quadOnItemAtlas() {
         TextureAtlasSprite sprite = mock(TextureAtlasSprite.class);
@@ -74,7 +75,7 @@ class DissolvingItemCollectorTest {
     private static List<RecordingVertexConsumer.Vertex> submitThrough(DissolveGlow glow,
                                                                       RenderType[] renderType) {
         SubmitNodeCollector delegate = mock(SubmitNodeCollector.class);
-        new DissolvingItemCollector(delegate, glow, WHOLE_ITEM, new Matrix4f()).submitItem(new PoseStack(), ItemDisplayContext.FIXED,
+        new DissolvingItemCollector(delegate, glow, WHOLE_ITEM, 0, new Matrix4f()).submitItem(new PoseStack(), ItemDisplayContext.FIXED,
                 LIGHT, 0, 0, new int[0], List.of(quadOnItemAtlas()), ItemStackRenderState.FoilType.NONE);
 
         ArgumentCaptor<RenderType> type = ArgumentCaptor.forClass(RenderType.class);

@@ -23,6 +23,7 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doAnswer;
@@ -82,58 +83,15 @@ class CrucibleMeltingItemsTest {
         return item;
     }
 
-    /** Submits the tiles and records every vertex they emit in the block's space. */
-    private static List<RecordingVertexConsumer.Vertex> submitAndRecord(ItemStackRenderState item) {
-        SubmitNodeCollector delegate = mock(SubmitNodeCollector.class);
-        RecordingVertexConsumer recorder = new RecordingVertexConsumer();
-        doAnswer(call -> {
-            PoseStack submittedAt = call.getArgument(0);
-            SubmitNodeCollector.CustomGeometryRenderer renderer = call.getArgument(2);
-            renderer.render(submittedAt.last(), recorder);
-            return null;
-        }).when(delegate).submitCustomGeometry(any(PoseStack.class), any(RenderType.class), any());
-        CrucibleMeltingItems.submitTiles(item,
-                CrucibleItemLayout.headTiles(null, RenderContext.RESTING_RIPPLE_AMPLITUDE, 0f,
-                        new SurfaceRipple.Field(0, 0, 0f)),
-                DissolveGlow.single(FRACTION, 0xFFFFFF), new PoseStack(), delegate, LIGHT);
-        return recorder.vertices();
+    private static final long SEED = ItemShardCutter.seedOf("minecraft:iron_ingot");
+
+    /** What one head submission drew: the render type of each submission and every vertex. */
+    private record Submitted(List<RenderType> renderTypes, List<RecordingVertexConsumer.Vertex> vertices,
+                             ShardFace face) {
     }
 
-    /**
-     * An item whose layer moves its model before submitting still draws whole and flat:
-     * the tiles cut the face in the space the bounding box measures, so every tile carries
-     * its own piece of the face, lying face up, spanning the head's square.
-     */
-    @Test
-    void layerTransformedItemTilesWholeAndFlat() {
-        List<RecordingVertexConsumer.Vertex> vertices = submitAndRecord(transformedLayerItem());
-
-        assertEquals(CrucibleItemLayout.TILE_COUNT * 4, vertices.size());
-        float center = (CrucibleBasin.FOOTPRINT_MIN + CrucibleBasin.FOOTPRINT_MAX) / 2f;
-        float half = CrucibleItemLayout.HEAD_SIZE / 2f;
-        float minX = Float.MAX_VALUE;
-        float maxX = -Float.MAX_VALUE;
-        float minZ = Float.MAX_VALUE;
-        float maxZ = -Float.MAX_VALUE;
-        for (RecordingVertexConsumer.Vertex vertex : vertices) {
-            assertEquals(vertices.getFirst().y(), vertex.y(), EPSILON, "a tile stands off the face's plane");
-            minX = Math.min(minX, vertex.x());
-            maxX = Math.max(maxX, vertex.x());
-            minZ = Math.min(minZ, vertex.z());
-            maxZ = Math.max(maxZ, vertex.z());
-        }
-        assertEquals(center - half, minX, EPSILON);
-        assertEquals(center + half, maxX, EPSILON);
-        assertEquals(center - half, minZ, EPSILON);
-        assertEquals(center + half, maxZ, EPSILON);
-    }
-
-    /**
-     * One item quad submits once per tile on the dissolve render type, every vertex
-     * carrying the fraction, and the tiles' vertices span the head's square at the center.
-     */
-    @Test
-    void headSubmitsOncePerTileOnTheDissolveType() {
+    /** Submits the head's shards at home and records every vertex they emit in the block's space. */
+    private static Submitted submitAndRecord(ItemStackRenderState item) {
         SubmitNodeCollector delegate = mock(SubmitNodeCollector.class);
         List<RenderType> renderTypes = new ArrayList<>();
         RecordingVertexConsumer recorder = new RecordingVertexConsumer();
@@ -144,35 +102,73 @@ class CrucibleMeltingItemsTest {
             renderer.render(submittedAt.last(), recorder);
             return null;
         }).when(delegate).submitCustomGeometry(any(PoseStack.class), any(RenderType.class), any());
-
-        CrucibleMeltingItems.submitTiles(oneQuadItem(),
-                CrucibleItemLayout.headTiles(null, RenderContext.RESTING_RIPPLE_AMPLITUDE, 0f,
-                        new SurfaceRipple.Field(0, 0, 0f)),
+        ShardFace face = ItemFaceProbe.probe(item, SEED);
+        CrucibleMeltingItems.submitShards(item, face,
+                CrucibleItemLayout.shardHomes(null, RenderContext.RESTING_RIPPLE_AMPLITUDE,
+                        new SurfaceRipple.Field(0, 0, 0f), CrucibleMeltingItems.homeOffsets(face)),
                 DissolveGlow.single(FRACTION, 0xFFFFFF), new PoseStack(), delegate, LIGHT);
+        return new Submitted(renderTypes, recorder.vertices(), face);
+    }
 
-        assertEquals(CrucibleItemLayout.TILE_COUNT, renderTypes.size());
-        for (RenderType renderType : renderTypes) {
-            assertEquals(GooRenderTypes.crucibleDissolve(ITEM_ATLAS), renderType);
-        }
-        List<RecordingVertexConsumer.Vertex> vertices = recorder.vertices();
-        assertEquals(CrucibleItemLayout.TILE_COUNT * 4, vertices.size());
+    /**
+     * Asserts the shards at home draw the whole item flat at the basin center: every vertex
+     * in one plane, the vertices spanning the head's square, the quads' areas summing to it.
+     */
+    private static void assertWholeAndFlat(List<RecordingVertexConsumer.Vertex> vertices) {
         float center = (CrucibleBasin.FOOTPRINT_MIN + CrucibleBasin.FOOTPRINT_MAX) / 2f;
         float half = CrucibleItemLayout.HEAD_SIZE / 2f;
         float minX = Float.MAX_VALUE;
         float maxX = -Float.MAX_VALUE;
         float minZ = Float.MAX_VALUE;
         float maxZ = -Float.MAX_VALUE;
-        for (RecordingVertexConsumer.Vertex vertex : vertices) {
-            assertEquals((int) (DissolveGlow.FRACTION_UNITS * FRACTION), vertex.uv1U());
-            assertEquals(vertices.getFirst().y(), vertex.y(), EPSILON);
-            minX = Math.min(minX, vertex.x());
-            maxX = Math.max(maxX, vertex.x());
-            minZ = Math.min(minZ, vertex.z());
-            maxZ = Math.max(maxZ, vertex.z());
+        float area = 0f;
+        for (int quad = 0; quad < vertices.size(); quad += 4) {
+            float twice = 0f;
+            for (int corner = 0; corner < 4; corner++) {
+                RecordingVertexConsumer.Vertex a = vertices.get(quad + corner);
+                RecordingVertexConsumer.Vertex b = vertices.get(quad + (corner + 1) % 4);
+                assertEquals(vertices.getFirst().y(), a.y(), EPSILON, "a shard stands off the face's plane");
+                twice += a.x() * b.z() - b.x() * a.z();
+                minX = Math.min(minX, a.x());
+                maxX = Math.max(maxX, a.x());
+                minZ = Math.min(minZ, a.z());
+                maxZ = Math.max(maxZ, a.z());
+            }
+            area += Math.abs(twice) / 2f;
         }
         assertEquals(center - half, minX, EPSILON);
         assertEquals(center + half, maxX, EPSILON);
         assertEquals(center - half, minZ, EPSILON);
         assertEquals(center + half, maxZ, EPSILON);
+        assertEquals(CrucibleItemLayout.HEAD_SIZE * CrucibleItemLayout.HEAD_SIZE, area, EPSILON);
+    }
+
+    /**
+     * An item whose layer moves its model before submitting still draws whole and flat:
+     * the shards cut the face in the space the bounding box measures, so every shard carries
+     * its own piece of the face, lying face up, together spanning the head's square.
+     */
+    @Test
+    void layerTransformedItemTilesWholeAndFlat() {
+        assertWholeAndFlat(submitAndRecord(transformedLayerItem()).vertices());
+    }
+
+    /**
+     * One item quad submits once per shard of the item's shard map on the dissolve render
+     * type, every vertex carrying the fraction, the shards together the whole item at home.
+     */
+    @Test
+    void headSubmitsOncePerShardOnTheDissolveType() {
+        Submitted submitted = submitAndRecord(oneQuadItem());
+
+        assertEquals(submitted.face().map().count(), submitted.renderTypes().size());
+        assertTrue(submitted.face().map().count() >= ItemShardCutter.MIN_SHARDS);
+        for (RenderType renderType : submitted.renderTypes()) {
+            assertEquals(GooRenderTypes.crucibleDissolve(ITEM_ATLAS), renderType);
+        }
+        for (RecordingVertexConsumer.Vertex vertex : submitted.vertices()) {
+            assertEquals((int) (DissolveGlow.FRACTION_UNITS * FRACTION), vertex.uv1U());
+        }
+        assertWholeAndFlat(submitted.vertices());
     }
 }

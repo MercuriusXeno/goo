@@ -107,6 +107,30 @@ final class CrucibleItemLayout {
     }
 
     /**
+     * Places each shard of the dissolving item at its home, its centroid where it lies in the
+     * whole item flat at the center of the fill's top, so the shards together draw the whole
+     * item, each riding the wave at its own spot (decisions tiles-of-the-items-image,
+     * each-tile-bobs-with-the-ripple).
+     *
+     * @param surface   the drawn surface, or null while nothing has melted
+     * @param amplitude the ripple amplitude the surface undulates at, in blocks
+     * @param ripple    the wave over this crucible's block at this frame
+     * @param offsets   each shard centroid's X and Y offset from the face's center, in widths
+     *                  of the face's larger side, Y running along the model's Y
+     * @return one placement per shard, its size the width the whole face scales to
+     */
+    static List<ItemPlacement> shardHomes(CrucibleBasin.@Nullable DrawnSurface surface, float amplitude,
+                                          SurfaceRipple.Field ripple, List<float[]> offsets) {
+        List<ItemPlacement> homes = new ArrayList<>(offsets.size());
+        for (float[] offset : offsets) {
+            float x = CENTER + offset[0] * HEAD_SIZE;
+            float z = CENTER - offset[1] * HEAD_SIZE;
+            homes.add(new ItemPlacement(x, tileY(surface, amplitude, ripple, x, z), z, HEAD_SIZE));
+        }
+        return homes;
+    }
+
+    /**
      * Places each tile of the dissolving item: in the grid centered on the fill's top until
      * the fraction reaches its break-off, then easing out to its resting spot in the open
      * basin over {@link #DRIFT_SPAN}, so the item is whole at zero and scattered near one,

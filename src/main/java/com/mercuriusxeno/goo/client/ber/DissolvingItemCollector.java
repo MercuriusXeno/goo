@@ -12,41 +12,54 @@ import net.minecraft.world.item.ItemDisplayContext;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.joml.Vector3f;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Proxy SubmitNodeCollector that re-emits one tile of a melting item's quads on the dissolve
+ * Proxy SubmitNodeCollector that re-emits one shard of a melting item's quads on the dissolve
  * render type once per glow layer, largest type first, each vertex carrying the
  * dissolve fraction, the layer's color, share and index (decisions dissolve-shader-on-item,
  * glow-color-from-mingling). The layers emit in order within one submission, so a later
- * layer's glow draws over an earlier one's and each fragment ends in one type.
+ * layer's glow draws over an earlier one's and each fragment ends in one type. A quad
+ * across the face cuts to the shard's texel runs; a quad along its edge draws whole with the
+ * shard owning the texel it borders (decision tiles-of-the-items-image).
  */
 class DissolvingItemCollector extends ItemQuadCollector {
 
+    /** The extent over which a quad counts as spanning an axis, a fraction of a texel. */
+    private static final float SPANS_TEXELS = 0.5f;
+    private static final float HALF = 0.5f;
+
     private final DissolveGlow glow;
-    private final ItemTileClipper.Tile tile;
-    private final Matrix4fc tilePose;
+    private final ShardFace face;
+    private final int shard;
+    private final List<QuadRectClipper.Rect> runRects;
+    private final Matrix4fc shardPose;
 
     /**
-     * Creates a proxy that dissolves the one tile of the item it is handed.
+     * Creates a proxy that dissolves the one shard of the item it is handed.
      *
-     * @param delegate the real collector to emit the dissolving geometry into
-     * @param glow     how far the item has dissolved and the layers its edge glows in
-     * @param tile     the tile of the item's image this proxy emits, in the space the
-     *                 item's model bounding box measures
-     * @param tilePose the pose the item is submitted at, before its layers apply their
-     *                 own transforms
+     * @param delegate  the real collector to emit the dissolving geometry into
+     * @param glow      how far the item has dissolved and the layers its edge glows in
+     * @param face      the item's face and shard map, in the space the item's model
+     *                  bounding box measures
+     * @param shard     the shard this proxy emits
+     * @param shardPose the pose the item is submitted at, before its layers apply their
+     *                  own transforms
      */
-    DissolvingItemCollector(SubmitNodeCollector delegate, DissolveGlow glow, ItemTileClipper.Tile tile,
-                            Matrix4fc tilePose) {
+    DissolvingItemCollector(SubmitNodeCollector delegate, DissolveGlow glow, ShardFace face, int shard,
+                            Matrix4fc shardPose) {
         super(delegate);
         this.glow = glow;
-        this.tile = tile;
-        this.tilePose = new Matrix4f(tilePose);
+        this.face = face;
+        this.shard = shard;
+        this.runRects = face.runRects(shard);
+        this.shardPose = new Matrix4f(shardPose);
     }
 
     /**
-     * Re-emits the item's quads on the dissolve render type, once per glow layer.
+     * Re-emits the shard's pieces of the item's quads on the dissolve render type, once per
+     * glow layer.
      *
      * @param poseStack      the pose stack
      * @param displayContext the item display context
@@ -62,13 +75,13 @@ class DissolvingItemCollector extends ItemQuadCollector {
                            int lightCoords, int overlayCoords, int outlineColor,
                            int[] tintLayers, List<BakedQuad> quads,
                            ItemStackRenderState.FoilType foilType) {
-        GridSpace space = GridSpace.between(tilePose, poseStack.last().pose());
+        GridSpace space = GridSpace.between(shardPose, poseStack.last().pose());
         resubmitByAtlas(poseStack, quads, GooRenderTypes::crucibleDissolve, (pose, buffer, group) -> {
             for (DissolveGlow.Layer layer : glow.layers()) {
                 int overlay = glow.overlayCoords(layer);
                 int light = DissolveGlow.lightCoords(lightCoords, layer);
                 for (BakedQuad quad : group) {
-                    emitTilePieces(pose, buffer, quad, space,
+                    emitShardPieces(pose, buffer, quad, space,
                             new QuadCoords(tintOf(quad, tintLayers), overlay, light));
                 }
             }
@@ -77,16 +90,16 @@ class DissolvingItemCollector extends ItemQuadCollector {
 
     /**
      * The map between a layer's raw quad positions and the space the model's bounding box
-     * measures, which the tile grid is laid in: the layer's own transforms, found as the
-     * submitted pose with the tile's pose undone.
+     * measures, which the face's texels are laid in: the layer's own transforms, found as
+     * the submitted pose with the shard's pose undone.
      *
-     * @param toGrid   maps a raw quad position into the grid's space
-     * @param fromGrid maps a grid-space position back to the raw quad's space
+     * @param toGrid   maps a raw quad position into the face's space
+     * @param fromGrid maps a face-space position back to the raw quad's space
      */
     private record GridSpace(Matrix4fc toGrid, Matrix4fc fromGrid) {
 
-        static GridSpace between(Matrix4fc tilePose, Matrix4fc layerPose) {
-            Matrix4f toGrid = new Matrix4f(tilePose).invert().mul(layerPose);
+        static GridSpace between(Matrix4fc shardPose, Matrix4fc layerPose) {
+            Matrix4f toGrid = new Matrix4f(shardPose).invert().mul(layerPose);
             return new GridSpace(toGrid, new Matrix4f(toGrid).invert());
         }
     }
@@ -111,29 +124,58 @@ class DissolvingItemCollector extends ItemQuadCollector {
     }
 
     /**
-     * Emits the pieces of one quad inside this proxy's tile with the coordinates given
+     * Emits the pieces of one quad this proxy's shard holds with the coordinates given
      * verbatim, where putBakedQuad would fold a quad's light emission into the lightmap
      * coordinates the layer's share rides in.
      *
      * @param pose   the pose the geometry was submitted at
      * @param buffer the buffer to emit into
      * @param quad   the baked quad
-     * @param space  the map between the quad's positions and the tile grid's space
+     * @param space  the map between the quad's positions and the face's space
      * @param coords the tint, overlay and lightmap coordinates
      */
-    private void emitTilePieces(PoseStack.Pose pose, VertexConsumer buffer, BakedQuad quad, GridSpace space,
-                                QuadCoords coords) {
+    private void emitShardPieces(PoseStack.Pose pose, VertexConsumer buffer, BakedQuad quad, GridSpace space,
+                                 QuadCoords coords) {
         Vector3f normal = pose.transformNormal(quad.direction().getUnitVec3f(), new Vector3f());
-        List<ItemTileClipper.ClipVertex> inGrid = ItemTileClipper.verticesOf(quad).stream()
+        List<QuadRectClipper.ClipVertex> inGrid = QuadRectClipper.verticesOf(quad).stream()
                 .map(vertex -> vertex.moved(space.toGrid())).toList();
-        for (List<ItemTileClipper.ClipVertex> piece : ItemTileClipper.clip(inGrid, tile)) {
-            for (ItemTileClipper.ClipVertex gridVertex : piece) {
-                ItemTileClipper.ClipVertex vertex = gridVertex.moved(space.fromGrid());
+        for (List<QuadRectClipper.ClipVertex> piece : piecesOf(quad, inGrid, space)) {
+            for (QuadRectClipper.ClipVertex gridVertex : piece) {
+                QuadRectClipper.ClipVertex vertex = gridVertex.moved(space.fromGrid());
                 Vector3f position = pose.pose().transformPosition(vertex.x(), vertex.y(), vertex.z(), new Vector3f());
                 buffer.addVertex(position.x(), position.y(), position.z(),
                         ARGB.multiply(coords.tint(), vertex.color()), vertex.u(), vertex.v(),
                         coords.overlay(), coords.light(), normal.x(), normal.y(), normal.z());
             }
         }
+    }
+
+    /**
+     * Returns the pieces of one quad in the face's space this shard draws: a quad spanning
+     * the face's X and Y cut to each of the shard's texel runs, any other quad whole when
+     * the shard owns the texel it borders, found a half texel in from it against its normal.
+     *
+     * @param quad   the baked quad
+     * @param inGrid its vertices in the face's space
+     * @param space  the map between the quad's positions and the face's space
+     * @return the pieces, four vertices each
+     */
+    private List<List<QuadRectClipper.ClipVertex>> piecesOf(BakedQuad quad,
+                                                            List<QuadRectClipper.ClipVertex> inGrid,
+                                                            GridSpace space) {
+        QuadRectClipper.Rect extent = QuadRectClipper.extentOf(inGrid);
+        boolean spansX = extent.maxX() - extent.minX() > face.texelWidth() * SPANS_TEXELS;
+        boolean spansY = extent.maxY() - extent.minY() > face.texelHeight() * SPANS_TEXELS;
+        if (spansX && spansY) {
+            List<List<QuadRectClipper.ClipVertex>> pieces = new ArrayList<>();
+            for (QuadRectClipper.Rect rect : runRects) {
+                pieces.addAll(QuadRectClipper.clip(inGrid, rect));
+            }
+            return pieces;
+        }
+        Vector3f outward = space.toGrid().transformDirection(quad.direction().getUnitVec3f(), new Vector3f());
+        float x = (extent.minX() + extent.maxX()) * HALF - Math.signum(outward.x()) * face.texelWidth() * HALF;
+        float y = (extent.minY() + extent.maxY()) * HALF - Math.signum(outward.y()) * face.texelHeight() * HALF;
+        return face.ownerAt(x, y) == shard ? List.of(inGrid) : List.of();
     }
 }

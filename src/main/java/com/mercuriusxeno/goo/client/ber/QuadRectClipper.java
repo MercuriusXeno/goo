@@ -3,7 +3,6 @@ package com.mercuriusxeno.goo.client.ber;
 import net.minecraft.client.model.geom.builders.UVPair;
 import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.util.ARGB;
-import net.minecraft.world.phys.AABB;
 import org.joml.Matrix4fc;
 import org.joml.Vector3f;
 import org.joml.Vector3fc;
@@ -11,16 +10,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Cuts a melting item's baked quads into the tiles of a square grid over the model's XY,
- * the plane its flat face spans, so each tile draws its own piece of the item's image
- * (decision tiles-of-the-items-image). Each tile is a prism, x and y bounded and z free;
- * a cut edge interpolates position, UV and color.
+ * Cuts a quad to an XY rectangle, the prism x and y bounded and z free, so a shard's run of
+ * texels draws exactly its own piece of the item's face (decision tiles-of-the-items-image).
+ * A cut edge interpolates position, UV and color.
  */
-final class ItemTileClipper {
+final class QuadRectClipper {
 
-    /** The extent under which a clipped piece counts as collapsed onto a tile's edge. */
+    /** The extent under which a clipped piece counts as collapsed onto the rectangle's edge. */
     private static final float COLLAPSED = 1e-5f;
-    private static final float HALF = 0.5f;
     private static final int TRIANGLE = 3;
     /** Each fanned quad takes two more corners of the polygon past the last quad's. */
     private static final int FAN_STEP = 2;
@@ -29,11 +26,11 @@ final class ItemTileClipper {
     /** Keeps the side of a plane at or below its bound. */
     private static final float KEEP_BELOW = -1f;
 
-    private ItemTileClipper() {
+    private QuadRectClipper() {
     }
 
     /**
-     * One vertex of a quad being cut, in model space.
+     * One vertex of a quad being cut.
      *
      * @param x     the X position
      * @param y     the Y position
@@ -73,93 +70,14 @@ final class ItemTileClipper {
     }
 
     /**
-     * A square grid of tiles over a model's XY.
+     * An axis-aligned rectangle in XY.
      *
-     * @param minX  the grid's low X edge
-     * @param minY  the grid's low Y edge
-     * @param span  the grid's side
-     * @param count the tiles along each side
+     * @param minX the low X edge
+     * @param minY the low Y edge
+     * @param maxX the high X edge
+     * @param maxY the high Y edge
      */
-    record TileGrid(float minX, float minY, float span, int count) {
-
-        /**
-         * Lays a grid over a model: a square as wide as the model's larger XY extent,
-         * centered on it, so the tiles scale with the model to the head's width.
-         *
-         * @param box   the model's bounding box
-         * @param count the tiles along each side
-         * @return the grid
-         */
-        static TileGrid around(AABB box, int count) {
-            float span = (float) Math.max(box.getXsize(), box.getYsize());
-            float centerX = (float) (box.minX + box.maxX) * HALF;
-            float centerY = (float) (box.minY + box.maxY) * HALF;
-            return new TileGrid(centerX - span * HALF, centerY - span * HALF, span, count);
-        }
-
-        /**
-         * @return one tile's side
-         */
-        float cell() {
-            return span / count;
-        }
-
-        /**
-         * Returns the tile at a grid index, counted along X, then along Y.
-         *
-         * @param index the tile index
-         * @return the tile
-         */
-        Tile tile(int index) {
-            return new Tile(this, index % count, index / count);
-        }
-
-        /**
-         * Returns the column or row a coordinate belongs to: on a shared edge, the tile whose
-         * low edge it lies on, or the last tile on the grid's high edge, so a quad lying flat
-         * on a shared edge draws once.
-         *
-         * @param coordinate the coordinate along the axis
-         * @param gridMin    the grid's low edge along the axis
-         * @return the column or row index
-         */
-        private int indexAlong(float coordinate, float gridMin) {
-            return Math.clamp((int) Math.floor((coordinate - gridMin) / cell()), 0, count - 1);
-        }
-    }
-
-    /**
-     * One tile of a grid.
-     *
-     * @param grid   the grid it belongs to
-     * @param column its column, along X
-     * @param row    its row, along Y
-     */
-    record Tile(TileGrid grid, int column, int row) {
-
-        float minX() {
-            return grid.minX() + column * grid.cell();
-        }
-
-        float maxX() {
-            return minX() + grid.cell();
-        }
-
-        float minY() {
-            return grid.minY() + row * grid.cell();
-        }
-
-        float maxY() {
-            return minY() + grid.cell();
-        }
-
-        float centerX() {
-            return minX() + grid.cell() * HALF;
-        }
-
-        float centerY() {
-            return minY() + grid.cell() * HALF;
-        }
+    record Rect(float minX, float minY, float maxX, float maxY) {
     }
 
     /**
@@ -180,26 +98,47 @@ final class ItemTileClipper {
     }
 
     /**
-     * Cuts one quad to a tile: whole when it lies inside, nothing when it lies outside,
-     * otherwise the piece inside as quads, a piece beyond four corners fanned into several.
+     * Returns the XY rectangle a set of vertices spans.
+     *
+     * @param vertices the vertices
+     * @return their extent in X and Y
+     */
+    static Rect extentOf(List<ClipVertex> vertices) {
+        float minX = Float.MAX_VALUE;
+        float minY = Float.MAX_VALUE;
+        float maxX = -Float.MAX_VALUE;
+        float maxY = -Float.MAX_VALUE;
+        for (ClipVertex vertex : vertices) {
+            minX = Math.min(minX, vertex.x());
+            minY = Math.min(minY, vertex.y());
+            maxX = Math.max(maxX, vertex.x());
+            maxY = Math.max(maxY, vertex.y());
+        }
+        return new Rect(minX, minY, maxX, maxY);
+    }
+
+    /**
+     * Cuts one quad spanning X and Y to a rectangle: whole when it lies inside, nothing when
+     * it lies outside or only touches an edge, otherwise the piece inside as quads, a piece
+     * beyond four corners fanned into several.
      *
      * @param quad the quad's four vertices
-     * @param tile the tile to cut to
-     * @return the quads of the piece inside the tile, four vertices each
+     * @param rect the rectangle to cut to
+     * @return the quads of the piece inside the rectangle, four vertices each
      */
-    static List<List<ClipVertex>> clip(List<ClipVertex> quad, Tile tile) {
-        List<ClipVertex> piece = clipAxis(quad, Axis.X, tile);
-        piece = clipAxis(piece, Axis.Y, tile);
+    static List<List<ClipVertex>> clip(List<ClipVertex> quad, Rect rect) {
+        if (insideWhole(quad, rect)) {
+            return List.of(quad);
+        }
+        List<ClipVertex> piece = clipAxis(quad, Axis.X, rect);
+        piece = clipAxis(piece, Axis.Y, rect);
         if (piece.size() < TRIANGLE) {
             return List.of();
-        }
-        if (insideWhole(quad, tile)) {
-            return List.of(quad);
         }
         return fan(piece);
     }
 
-    /** The two axes a tile bounds. */
+    /** The two axes a rectangle bounds. */
     private enum Axis {
         X, Y;
 
@@ -207,27 +146,19 @@ final class ItemTileClipper {
             return this == X ? vertex.x() : vertex.y();
         }
 
-        float min(Tile tile) {
-            return this == X ? tile.minX() : tile.minY();
+        float min(Rect rect) {
+            return this == X ? rect.minX() : rect.minY();
         }
 
-        float max(Tile tile) {
-            return this == X ? tile.maxX() : tile.maxY();
-        }
-
-        int indexOf(TileGrid grid, float coordinate) {
-            return grid.indexAlong(coordinate, this == X ? grid.minX() : grid.minY());
-        }
-
-        int indexOf(Tile tile) {
-            return this == X ? tile.column() : tile.row();
+        float max(Rect rect) {
+            return this == X ? rect.maxX() : rect.maxY();
         }
     }
 
-    private static boolean insideWhole(List<ClipVertex> quad, Tile tile) {
+    private static boolean insideWhole(List<ClipVertex> quad, Rect rect) {
         for (ClipVertex vertex : quad) {
-            if (vertex.x() < tile.minX() || vertex.x() > tile.maxX()
-                    || vertex.y() < tile.minY() || vertex.y() > tile.maxY()) {
+            if (vertex.x() < rect.minX() || vertex.x() > rect.maxX()
+                    || vertex.y() < rect.minY() || vertex.y() > rect.maxY()) {
                 return false;
             }
         }
@@ -235,24 +166,20 @@ final class ItemTileClipper {
     }
 
     /**
-     * Cuts a polygon to a tile's bounds along one axis. A polygon flat in that axis, such
-     * as an item's side face, belongs whole to the one tile its coordinate falls in; a
-     * piece collapsed onto the tile's edge is dropped.
+     * Cuts a polygon to a rectangle's bounds along one axis, dropping a piece collapsed onto
+     * the rectangle's edge.
      *
      * @param polygon the polygon to cut
      * @param axis    the axis to cut along
-     * @param tile    the tile to cut to
-     * @return the piece inside the tile's bounds along the axis, or none
+     * @param rect    the rectangle to cut to
+     * @return the piece inside the rectangle's bounds along the axis, or none
      */
-    private static List<ClipVertex> clipAxis(List<ClipVertex> polygon, Axis axis, Tile tile) {
+    private static List<ClipVertex> clipAxis(List<ClipVertex> polygon, Axis axis, Rect rect) {
         if (polygon.isEmpty()) {
             return polygon;
         }
-        if (extent(polygon, axis) < COLLAPSED) {
-            return axis.indexOf(tile.grid(), axis.of(polygon.getFirst())) == axis.indexOf(tile) ? polygon : List.of();
-        }
-        List<ClipVertex> piece = clipPlane(clipPlane(polygon, axis, axis.min(tile), KEEP_ABOVE),
-                axis, axis.max(tile), KEEP_BELOW);
+        List<ClipVertex> piece = clipPlane(clipPlane(polygon, axis, axis.min(rect), KEEP_ABOVE),
+                axis, axis.max(rect), KEEP_BELOW);
         return piece.isEmpty() || extent(piece, axis) < COLLAPSED ? List.of() : piece;
     }
 
