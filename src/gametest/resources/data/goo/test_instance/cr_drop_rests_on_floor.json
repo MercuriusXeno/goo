@@ -1,6 +1,6 @@
 {
   "type": "minecraft:function",
-  "function": "goo:cr_cap_container",
+  "function": "goo:cr_drop_rests_on_floor",
   "environment": "minecraft:default",
   "structure": "minecraft:empty",
   "max_ticks": 40,
