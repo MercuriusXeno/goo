@@ -9,8 +9,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.InsideBlockEffectApplier;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -29,13 +27,14 @@ import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.level.redstone.Orientation;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.EntityCollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.Nullable;
 
 /**
  * The crucible block (goocible): melts items into goo. Items for melting are
- * received by detecting item entities landing in the block, not by right-click.
+ * item entities that come to rest at the basin center (CrucibleItemDrift), not right-clicks.
  * Right-click handles fuel rod insertion, blob insertion, canister collection,
  * and empty-hand goo extraction.
  * Drops internal state (PMI, fuel rod, reservoir blobs) when broken.
@@ -134,6 +133,26 @@ public class CrucibleBlock extends GooMachineBlock {
     @Override
     protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos,
             CollisionContext context) {
+        return CrucibleShape.SHAPE;
+    }
+
+    /** Returns the standing shape, with the cavity filled to the goo surface for an item entity
+     * so it rides the goo on server and client alike (decision consume-at-rest-in-place).
+     *
+     * @param state   the block state
+     * @param level   the current level
+     * @param pos     the block position
+     * @param context the collision context
+     * @return the collision shape
+     */
+    @Override
+    protected VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos,
+            CollisionContext context) {
+        if (context instanceof EntityCollisionContext entityContext
+                && entityContext.getEntity() instanceof ItemEntity
+                && level.getBlockEntity(pos) instanceof CrucibleBlockEntity crucible) {
+            return CrucibleShape.itemRestShape(CrucibleBasin.itemRestY(crucible.basinVolumes()));
+        }
         return CrucibleShape.SHAPE;
     }
 
@@ -251,45 +270,6 @@ public class CrucibleBlock extends GooMachineBlock {
             return InteractionResult.PASS;
         }
         return CrucibleInteraction.tryExtractGoo(crucible, player);
-    }
-
-    // -- Item entity absorption --
-
-    /**
-     * Absorbs item entities inside the cavity, feeding them into the melting pipeline;
-     * one on the outer ledge or a rim wall is left alone (decision collision-is-the-drawn-cavity).
-     * Only absorbs when the crucible is enabled (no redstone) and holds heat or fuel goo.
-     *
-     * @param state         the block state
-     * @param level         the current level
-     * @param pos           the block position
-     * @param entity        the item entity
-     * @param effectApplier the block effect applier
-     * @param moving        true if the entity is moving
-     */
-    @Override
-    protected void entityInside(BlockState state, Level level, BlockPos pos, Entity entity,
-            InsideBlockEffectApplier effectApplier, boolean moving) {
-        if (level.isClientSide()) { return; }
-        if (!(entity instanceof ItemEntity itemEntity)) { return; }
-        if (itemEntity.isRemoved()) { return; }
-        if (!CrucibleBasin.holdsPoint(itemEntity.getX() - pos.getX(),
-                itemEntity.getY() - pos.getY(), itemEntity.getZ() - pos.getZ())) { return; }
-        tryAbsorbItemEntity(level, pos, itemEntity);
-    }
-
-    /** Attempts absorption if the crucible is enabled and can heat.
-     *
-     * @param level      the current level
-     * @param pos        the block position
-     * @param itemEntity the item entity inside the block
-     */
-    private static void tryAbsorbItemEntity(Level level, BlockPos pos, ItemEntity itemEntity) {
-        BlockEntity be = level.getBlockEntity(pos);
-        if (!(be instanceof CrucibleBlockEntity crucible)) { return; }
-        if (!crucible.isEnabled()) { return; }
-        if (!crucible.canHeat()) { return; }
-        CrucibleAbsorption.tryAbsorbItem(itemEntity, crucible);
     }
 
     // -- Neighbor updates (redstone) --

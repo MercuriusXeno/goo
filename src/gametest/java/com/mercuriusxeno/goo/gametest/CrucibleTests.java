@@ -40,7 +40,8 @@ import java.util.Map;
 public final class CrucibleTests {
 
     private static final BlockPos BE_POS = new BlockPos(1, 1, 1);
-    private static final int ABSORB_DELAY = 5;
+    /** Ticks a still item dropped at the basin center takes to land, rest and be consumed. */
+    private static final int ABSORB_DELAY = 10;
     /** Heat granted to a test crucible: an hour of melting, so no test runs it cold. */
     private static final int TEST_HEAT_TICKS = 72_000;
     /** Ticks an item dropped over the mouth takes to fall to the floor and stop. */
@@ -81,6 +82,22 @@ public final class CrucibleTests {
     private static final String SLID_ITEM_STAYS = "slid item still exists: ";
     private static final String SLID_INTO_CAVITY = "wall-top item slid into the cavity: ";
     private static final String LEDGE_ITEM_STILL = "ledge item stays where it landed: ";
+    /** An off-center drop's X offset from the basin center, near the east wall. */
+    private static final double OFF_CENTER_X = 0.1;
+    /** An off-center drop's Z offset from the basin center, near the north wall. */
+    private static final double OFF_CENTER_Z = -0.08;
+    /** An off-center drop's height above the floor. */
+    private static final double DROP_ABOVE_FLOOR = 0.1;
+    /** Ticks after an off-center drop at which it is still drifting. */
+    private static final int DRIFT_CHECK_TICKS = 3;
+    /** How far from the center a waiting item may sit. */
+    private static final double CENTER_SLACK = 1.0 / 32.0;
+    private static final String STILL_DRIFTING = "item still exists while it drifts";
+    private static final String MOVED_TOWARD_CENTER = "item moved toward the center: ";
+    private static final String CONSUMED_AT_REST = "item consumed once at rest at the center";
+    private static final String WAITS_UNCONSUMED = "cold crucible leaves the item";
+    private static final String WAITS_UNSHRUNK = "waiting item unshrunk";
+    private static final String WAITS_AT_CENTER = "waiting item sits at the center: ";
     private static final String SHOULD_HAVE_GOO = "Crucible reservoir should contain goo after blob insert";
     private static final String SHOULD_ABSORB = "Crucible should absorb the item entity";
     private static final String RESERVOIR_UNCHANGED = "reservoir unchanged";
@@ -258,6 +275,67 @@ public final class CrucibleTests {
             assertOnLedge(helper, onLedge);
             helper.succeed();
         });
+    }
+
+    // -- Settling (decision consume-at-rest-in-place) --
+
+    /**
+     * An item dropped off-center into a heating crucible still exists and is moving
+     * toward the center a few ticks in, and is consumed once it rests there.
+     *
+     * @param helper the gametest helper
+     */
+    public static void offCenterItemSettlesThenIsConsumed(GameTestHelper helper) {
+        CrucibleBlockEntity crucible = placeFueledCrucible(helper);
+        ItemEntity item = spawnOffCenter(helper);
+        double startDistance = distanceFromCenter(helper, item);
+        helper.runAfterDelay(DRIFT_CHECK_TICKS, () -> {
+            helper.assertFalse(item.isRemoved(), STILL_DRIFTING);
+            double drifted = distanceFromCenter(helper, item);
+            helper.assertTrue(drifted < startDistance, MOVED_TOWARD_CENTER + startDistance + " -> " + drifted);
+        });
+        helper.runAfterDelay(SETTLE_DELAY, () -> {
+            helper.assertTrue(item.isRemoved(), CONSUMED_AT_REST);
+            helper.assertFalse(crucible.getMeltingItem().isEmpty(), SHOULD_ABSORB);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * An item dropped off-center into a cold crucible settles at the center and waits there whole.
+     *
+     * @param helper the gametest helper
+     */
+    public static void coldCrucibleItemWaitsAtCenter(GameTestHelper helper) {
+        placeCrucible(helper);
+        ItemEntity item = spawnOffCenter(helper);
+        helper.runAfterDelay(SETTLE_DELAY, () -> {
+            helper.assertFalse(item.isRemoved(), WAITS_UNCONSUMED);
+            helper.assertValueEqual(1, item.getItem().getCount(), WAITS_UNSHRUNK);
+            double distance = distanceFromCenter(helper, item);
+            helper.assertTrue(distance < CENTER_SLACK, WAITS_AT_CENTER + distance);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * @param helper the gametest helper
+     * @return a still cobblestone entity dropped inside the cavity, off the center on both axes
+     */
+    private static ItemEntity spawnOffCenter(GameTestHelper helper) {
+        return CrucibleSpawns.spawnAt(helper, new ItemStack(Items.COBBLESTONE), new Vec3(
+            CrucibleSpawns.BASIN_CENTER_XZ + OFF_CENTER_X, CrucibleSpawns.BASIN_FLOOR_Y + DROP_ABOVE_FLOOR,
+            CrucibleSpawns.BASIN_CENTER_XZ + OFF_CENTER_Z));
+    }
+
+    /**
+     * @param helper the gametest helper
+     * @param item   the item entity
+     * @return the item's horizontal distance from the basin center
+     */
+    private static double distanceFromCenter(GameTestHelper helper, ItemEntity item) {
+        Vec3 rel = CrucibleSpawns.relativeToCrucible(helper, item);
+        return Math.hypot(rel.x - CrucibleSpawns.BASIN_CENTER_XZ + 1.0, rel.z - CrucibleSpawns.BASIN_CENTER_XZ + 1.0);
     }
 
     // -- At the cap (decision crucible-refuses-past-two-billion) --

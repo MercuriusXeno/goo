@@ -1,13 +1,15 @@
 package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.block.crucible.CrucibleBasin;
+import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
+import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Spawns still item entities at spots on a crucible standing at test-relative (1, 1, 1),
+ * Spawns still item entities at spots on a crucible standing at {@link #CRUCIBLE_POS},
  * shared by the crucible gametests so each reads the basin from {@link CrucibleBasin}.
  */
 final class CrucibleSpawns {
@@ -18,20 +20,25 @@ final class CrucibleSpawns {
     static final double BASIN_CENTER_XZ = BLOCK_ORIGIN + 0.5;
     /** The basin floor in test-relative Y. */
     static final double BASIN_FLOOR_Y = BLOCK_ORIGIN + CrucibleBasin.FLOOR_Y;
-    /** A drop height just above the floor, inside the cavity. */
-    private static final double JUST_ABOVE_FLOOR = 0.05;
+    /** The crucible's position in test-relative coords. */
+    static final BlockPos CRUCIBLE_POS = new BlockPos(1, 1, 1);
+    /** A drop height just above the goo surface or floor, inside the cavity. */
+    private static final double JUST_ABOVE_SURFACE = 0.05;
 
     private CrucibleSpawns() {}
 
     /**
-     * Spawns a still item entity inside the cavity, just above the basin floor.
+     * Spawns a still item entity at the basin center, just above the goo surface
+     * the crucible's reservoir stands at, or the floor when it is empty.
      *
      * @param helper the gametest helper
      * @param stack  the stack the entity carries
      * @return the spawned entity
      */
     static ItemEntity spawnInBasin(GameTestHelper helper, ItemStack stack) {
-        return spawnAt(helper, stack, new Vec3(BASIN_CENTER_XZ, BASIN_FLOOR_Y + JUST_ABOVE_FLOOR, BASIN_CENTER_XZ));
+        CrucibleBlockEntity crucible = helper.getBlockEntity(CRUCIBLE_POS, CrucibleBlockEntity.class);
+        double restY = BLOCK_ORIGIN + CrucibleBasin.itemRestY(crucible.basinVolumes());
+        return spawnAt(helper, stack, new Vec3(BASIN_CENTER_XZ, restY + JUST_ABOVE_SURFACE, BASIN_CENTER_XZ));
     }
 
     /**
