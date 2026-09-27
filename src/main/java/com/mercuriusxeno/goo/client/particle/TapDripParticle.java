@@ -22,7 +22,7 @@ import org.jspecify.annotations.Nullable;
 public final class TapDripParticle {
 
     /** The drop's half extent: a 2-pixel square, narrower than the 4-pixel spigot. */
-    static final float DROP_HALF_SIZE = 1f / 16f;
+    static final float DROP_HALF_SIZE = DripFall.TAP_DROP_HALF_SIZE;
 
     /** The drop's patch of the fluid sprite: 2 pixels, the drop's width at native scale. */
     static final int DROP_PATCH_PIXELS = 2;

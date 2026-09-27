@@ -1,5 +1,7 @@
 package com.mercuriusxeno.goo.client.particle;
 
+import com.mercuriusxeno.goo.DripFall;
+
 /**
  * Where a drip's quads sit against the surface its collision box lands on,
  * so neither the falling drop nor its splat shares the block top's plane
@@ -8,7 +10,7 @@ package com.mercuriusxeno.goo.client.particle;
 public final class DripQuadPlacement {
 
     /** Height every drip quad keeps above the surface its collision box rests on. */
-    public static final double SURFACE_MARGIN = 0.02;
+    public static final double SURFACE_MARGIN = DripFall.SURFACE_MARGIN;
 
     /** Half extents in a quad's full height. */
     private static final double HALVES_PER_QUAD = 2.0;
