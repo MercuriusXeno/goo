@@ -1,14 +1,12 @@
 package com.mercuriusxeno.goo.client.overlay;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.block.ICutawayMachine;
 import com.mercuriusxeno.goo.block.canister.CanisterBlock;
-import com.mercuriusxeno.goo.block.canister.CanisterSlotLayout;
-import com.mercuriusxeno.goo.block.canister.ICanisterHolder;
 import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.LineContext;
 import com.mercuriusxeno.goo.item.CanisterItem;
-import com.mercuriusxeno.goo.item.CanisterPlacementValidator;
+import com.mercuriusxeno.goo.item.CanisterPlacementResolver;
+import com.mercuriusxeno.goo.item.CanisterPlacementResolver.CanisterPlacement;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -17,9 +15,9 @@ import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.state.level.BlockOutlineRenderState;
 import net.minecraft.client.renderer.state.level.LevelRenderState;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.util.ARGB;
-import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
@@ -32,17 +30,11 @@ import net.neoforged.neoforge.client.event.ExtractBlockOutlineRenderStateEvent;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Client-side overlay that renders a green wireframe placement preview when
- * the player holds a canister and aims at a solid surface. Shows where the
- * new canister block would be placed and which slot would be targeted.
+ * Client-side overlay that renders a green wireframe where the held canister would land:
+ * the slot the placement resolver answers, the same answer the server places by.
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class CanisterPlacementOverlay {
-
-    /**
-     * Pixels per block for hit-location to pixel-space conversion.
-     */
-    private static final double PIXELS_PER_BLOCK = 16.0;
 
     /**
      * Translucent green color for the placement preview.
@@ -50,20 +42,11 @@ public final class CanisterPlacementOverlay {
     private static final int PREVIEW_COLOR = ARGB.color(180, 100, 255, 100);
 
     /**
-     * Cached new-block placement target, updated each tick.
+     * Where the held canister would land this tick, or null when the use would place nothing.
      */
-    private static @Nullable PlacementTarget cachedPlacement;
+    private static @Nullable CanisterPlacement cachedPlacement;
 
     private CanisterPlacementOverlay() {
-    }
-
-    /**
-     * Returns the current new-block placement target, or null.
-     *
-     * @return the cachedPlacement
-     */
-    public static @Nullable PlacementTarget getCachedPlacement() {
-        return cachedPlacement;
     }
 
     /**
@@ -77,136 +60,36 @@ public final class CanisterPlacementOverlay {
     }
 
     /**
-     * Computes placement target. When the player aims at a surface and the
-     * placement position already has a canister block, shows the insertion
-     * preview on it. Otherwise shows new-block placement preview.
+     * Asks the placement resolver the server's placement also reads where the held canister
+     * would land (decision preview-runs-the-placement-validator).
      *
-     * @return the placement target, or null if placement is not valid
+     * @return the placement, or null when the use would place nothing
      */
-    private static @Nullable PlacementTarget computePlacement() {
+    private static @Nullable CanisterPlacement computePlacement() {
         Minecraft mc = Minecraft.getInstance();
-        if (!isHoldingCanister(mc)) {
-            return null;
-        }
-        BlockHitResult bhr = getValidBlockHit(mc);
-        if (bhr == null) {
-            return null;
-        }
-        if (machineTakesTheUse(mc.level.getBlockEntity(bhr.getBlockPos()), bhr, isSneaking(mc))) {
-            return null;
-        }
-
-        BlockPos placePos = bhr.getBlockPos().relative(bhr.getDirection());
-        return resolveTarget(mc, bhr, placePos);
-    }
-
-    /**
-     * Returns true when the aimed machine takes a canister use at the hit rather
-     * than a new canister block placing beside it: a canister holder that says so,
-     * or a standing click in a machine's cutaway.
-     *
-     * @param be       the block entity at the hit, or null
-     * @param bhr      the block hit result
-     * @param sneaking true when the player is sneaking
-     * @return true if the machine takes the use
-     */
-    private static boolean machineTakesTheUse(@Nullable BlockEntity be, BlockHitResult bhr, boolean sneaking) {
-        if (be instanceof ICanisterHolder holder && holder.takesCanisterAt(bhr, sneaking)) {
-            return true;
-        }
-        return !sneaking && be instanceof ICutawayMachine machine && machine.isCutawayHit(bhr);
-    }
-
-    private static boolean isSneaking(Minecraft mc) {
-        return mc.player != null && mc.player.isSecondaryUseActive();
-    }
-
-    /**
-     * Returns true if the local player exists and is holding a canister in their main hand.
-     *
-     * @param mc the Minecraft client instance
-     * @return true if the player is holding a canister
-     */
-    private static boolean isHoldingCanister(Minecraft mc) {
         LocalPlayer player = mc.player;
-        return player != null && mc.level != null
-                && player.getMainHandItem().getItem() instanceof CanisterItem;
+        if (player == null || mc.level == null || !(player.getMainHandItem().getItem() instanceof CanisterItem)) {
+            return null;
+        }
+        if (!(mc.hitResult instanceof BlockHitResult hit) || hit.getType() == HitResult.Type.MISS) {
+            return null;
+        }
+        BlockPlaceContext context = new BlockPlaceContext(player, InteractionHand.MAIN_HAND, player.getMainHandItem(), hit);
+        return CanisterPlacementResolver.resolve(context, player.isSecondaryUseActive());
     }
 
     /**
-     * Returns the current block hit result if it is a non-miss block target.
-     *
-     * @param mc the Minecraft client instance
-     * @return the block hit result, or null if the crosshair is not targeting a block
-     */
-    private static @Nullable BlockHitResult getValidBlockHit(Minecraft mc) {
-        if (!(mc.hitResult instanceof BlockHitResult bhr)) {
-            return null;
-        }
-        if (bhr.getType() == HitResult.Type.MISS) {
-            return null;
-        }
-        return bhr;
-    }
-
-    /**
-     * Resolves the placement target at placePos: an insertion into a holder standing
-     * there, or a new canister block where the space is replaceable.
-     *
-     * @param mc       the Minecraft client instance
-     * @param bhr      the block hit result from the aimed surface
-     * @param placePos the block position where the new canister would be placed
-     * @return the resolved placement target, or null if placement is invalid
-     */
-    private static @Nullable PlacementTarget resolveTarget(
-            Minecraft mc, BlockHitResult bhr, BlockPos placePos) {
-        if (mc.level.getBlockEntity(placePos) instanceof ICanisterHolder holder) {
-            int slot = holder.insertionSlotFrom(bhr.getLocation());
-            return slot >= 0 ? new PlacementTarget(placePos, slot) : null;
-        }
-        if (!mc.level.getBlockState(placePos).canBeReplaced()) {
-            return null;
-        }
-        int slot = slotFromHitLocation(bhr, placePos);
-        if (!CanisterPlacementValidator.isSlotAllowed(mc.level, placePos, slot)) {
-            return null;
-        }
-        return new PlacementTarget(placePos, slot);
-    }
-
-    /**
-     * Computes the canister grid cell from the BlockHitResult location.
-     * The hit location is on the solid block's face, which shares a plane
-     * with the new block's entry face.
-     *
-     * @param bhr      the block hit result
-     * @param placePos the placement block position
-     * @return the grid slot index for the hit location
-     */
-    private static int slotFromHitLocation(BlockHitResult bhr, BlockPos placePos) {
-        Vec3 loc = bhr.getLocation();
-        float px = (float) ((loc.x - placePos.getX()) * PIXELS_PER_BLOCK);
-        float pz = (float) ((loc.z - placePos.getZ()) * PIXELS_PER_BLOCK);
-        Direction entryFace = bhr.getDirection().getOpposite();
-        return CanisterSlotLayout.placementSlot(entryFace, px, pz);
-    }
-
-    /**
-     * Hooks into the block outline event to render the new-block placement preview.
+     * Hooks into the block outline event to render the placement preview.
      * Adds a non-suppressing renderer so the vanilla outline still draws.
      *
      * @param event the event instance
      */
     @SubscribeEvent
     public static void onExtractOutline(ExtractBlockOutlineRenderStateEvent event) {
-        BlockEntity be = event.getLevel().getBlockEntity(event.getBlockPos());
-        if (machineTakesTheUse(be, event.getHitResult(), isSneaking(Minecraft.getInstance()))) {
-            return;
-        }
-
-        if (cachedPlacement != null) {
-            AABB bounds = CanisterBlock.slotShape(cachedPlacement.slot()).bounds();
-            event.addCustomRenderer(previewRendererAt(cachedPlacement.pos(), bounds));
+        CanisterPlacement placement = cachedPlacement;
+        if (placement != null) {
+            AABB bounds = CanisterBlock.slotShape(placement.slot()).bounds();
+            event.addCustomRenderer(previewRendererAt(placement.pos(), bounds));
         }
     }
 
@@ -276,14 +159,5 @@ public final class CanisterPlacementOverlay {
                         (float) (bounds.minY + oy), (float) (bounds.maxY + oy)),
                 PREVIEW_COLOR, lineWidth);
         bufferSource.endLastBatch();
-    }
-
-    /**
-     * A placement target: block position and slot index.
-     *
-     * @param pos  the target block position
-     * @param slot the target slot index
-     */
-    public record PlacementTarget(BlockPos pos, int slot) {
     }
 }

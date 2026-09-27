@@ -50,6 +50,9 @@ final class VatFluidInteraction {
      * @return the interaction result
      */
     private static InteractionResult handleCanisterInteraction(VatBlockEntity vat, ItemStack stack) {
+        if (!takesCanister(vat, stack)) {
+            return InteractionResult.PASS;
+        }
         CanisterFluidContent canisterContent = CanisterItem.getFluidContent(stack);
         if (!canisterContent.isEmpty()) {
             return handleCanisterDump(vat, stack, canisterContent);
@@ -121,6 +124,23 @@ final class VatFluidInteraction {
     }
 
     // --- Helpers ---
+
+    /**
+     * Whether a standing canister click moves goo: a filled canister into a vat with room,
+     * or an empty canister out of a vat holding goo. The placement preview reads the same
+     * answer (decision preview-runs-the-placement-validator).
+     *
+     * @param vat   the vat block entity
+     * @param stack the canister item stack
+     * @return true when the vat takes the canister click
+     */
+    static boolean takesCanister(VatBlockEntity vat, ItemStack stack) {
+        CanisterFluidContent content = CanisterItem.getFluidContent(stack);
+        if (!content.isEmpty()) {
+            return vat.canAccept() && content.getGooType() != null;
+        }
+        return extractableDominant(vat) != null && canisterRemainingSpace(stack) > 0;
+    }
 
     /**
      * Returns the dominant goo type if the vat is non-empty, or null otherwise.

@@ -6,7 +6,6 @@ import com.mercuriusxeno.goo.block.BlockEntitySync;
 import com.mercuriusxeno.goo.block.GooBlockInteraction;
 import com.mercuriusxeno.goo.block.GooGlowingMachineBlockEntity;
 import com.mercuriusxeno.goo.block.IGooReceptacle;
-import com.mercuriusxeno.goo.block.ShapeHitCheck;
 import com.mercuriusxeno.goo.block.gasket.GasketAttachment;
 import com.mercuriusxeno.goo.block.gasket.GasketPusher;
 import com.mercuriusxeno.goo.item.*;
@@ -31,7 +30,6 @@ import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.neoforged.neoforge.transfer.fluid.FluidUtil;
@@ -262,21 +260,6 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
     @Override
     public boolean takesCanisterAt(BlockHitResult hit, boolean sneaking) {
         return true;
-    }
-
-    /**
-     * The nearest empty slot to the point, while the block below allows it.
-     */
-    @Override
-    public int insertionSlotFrom(Vec3 hitLocation) {
-        BlockPos pos = getBlockPos();
-        float px = (float) ((hitLocation.x - pos.getX()) * ShapeHitCheck.PIXELS_PER_BLOCK);
-        float pz = (float) ((hitLocation.z - pos.getZ()) * ShapeHitCheck.PIXELS_PER_BLOCK);
-        int slot = CanisterSlotLayout.nearestSlot(px, pz);
-        Level lvl = getLevel();
-        boolean open = slot >= 0 && !isSlotFilled(slot)
-                && lvl != null && CanisterPlacementValidator.isSlotAllowed(lvl, pos, slot);
-        return open ? slot : GooConstants.NO_SLOT;
     }
 
     @Override

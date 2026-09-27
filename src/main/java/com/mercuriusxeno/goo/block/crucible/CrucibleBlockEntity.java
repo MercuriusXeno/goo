@@ -32,7 +32,7 @@ import java.util.List;
  * {@link CrucibleInsertion} (item/goo insertion),
  * {@link CrucibleSerialization} (NBT).</p>
  */
-public class CrucibleBlockEntity extends GooGlowingMachineBlockEntity implements IGooReceptacle {
+public class CrucibleBlockEntity extends GooGlowingMachineBlockEntity implements IGooReceptacle, ICanisterClickTaker {
 
     /** Reference saturation cap (mB) for crucible reservoir light scaling.
      * Mirrors the BER's visual fill cap so the light response tracks the
@@ -162,6 +162,15 @@ public class CrucibleBlockEntity extends GooGlowingMachineBlockEntity implements
      * @return the snapshot
      */
     public GooContents getReservoir() { return reservoir.toGooContents(); }
+
+    /**
+     * A standing canister click on a crucible holding goo collects it into the canister, or
+     * hands it out as blobs when the canister takes none.
+     */
+    @Override
+    public boolean takesCanisterClick(ItemStack canister) {
+        return !getReservoir().isEmpty();
+    }
 
     /**
      * Inserts goo of the given type into the reservoir.
