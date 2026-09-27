@@ -13,6 +13,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import org.jspecify.annotations.Nullable;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -40,14 +41,16 @@ final class CrucibleInteraction {
     }
 
     /**
-     * Sparks a cold crucible with a flint and steel: adds the spark's heat, costs the tool
-     * one durability and starts the ignition spray (decision flint-and-steel-sparks-the-crucible).
+     * Sparks a cold, unfueled crucible with a flint and steel: adds the spark's heat, costs the
+     * tool one durability and starts the ignition spray (decision flint-and-steel-sparks-the-crucible).
+     * A crucible holding heat or fuel goo consumes the click and nothing happens, so the item's
+     * own use never sets fire beside it (decision spark-gate-consumes-the-click).
      *
      * @param stack    the held item stack
      * @param crucible the crucible block entity
      * @param player   the interacting player
      * @param hand     the hand holding the stack
-     * @return SUCCESS when the spark lit a cold crucible, PASS when it already holds heat,
+     * @return SUCCESS when the spark lit the crucible, CONSUME when it holds heat or fuel goo,
      *         null when the stack is no flint and steel
      */
     static @Nullable InteractionResult trySpark(ItemStack stack, CrucibleBlockEntity crucible,
@@ -55,8 +58,8 @@ final class CrucibleInteraction {
         if (!stack.is(Items.FLINT_AND_STEEL)) {
             return null;
         }
-        if (crucible.heatTicks() > 0) {
-            return InteractionResult.PASS;
+        if (!sparkLights(crucible.heat, FuelGrade.configured(), crucible.fuelStock)) {
+            return InteractionResult.CONSUME;
         }
         crucible.addHeat(GooConfig.SPARK_HEAT_TICKS.get());
         stack.hurtAndBreak(1, player, hand);
@@ -67,6 +70,19 @@ final class CrucibleInteraction {
         }
         CrucibleMelting.beginIgnitionSpray(crucible);
         return InteractionResult.SUCCESS;
+    }
+
+    /**
+     * Returns true when a spark would light the crucible: it holds no heat ticks and no
+     * fuel goo (decision spark-gate-consumes-the-click).
+     *
+     * @param heat   the crucible's heat
+     * @param grades the fuel grades
+     * @param stock  the reservoir
+     * @return true if the spark lights
+     */
+    static boolean sparkLights(CrucibleHeat heat, List<FuelGrade> grades, CrucibleHeat.FuelStock stock) {
+        return !heat.canHeat(grades, stock);
     }
 
     /**
