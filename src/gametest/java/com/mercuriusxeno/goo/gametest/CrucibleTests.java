@@ -7,9 +7,11 @@ import com.mercuriusxeno.goo.block.crucible.CrucibleBasin;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
 import com.mercuriusxeno.goo.block.crucible.CrucibleCapacity;
 import com.mercuriusxeno.goo.item.BlobStacks;
+import com.mercuriusxeno.goo.item.ChrysmTier;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.PartiallyMeltedItem;
 import com.mercuriusxeno.goo.registry.GooBlocks;
+import com.mercuriusxeno.goo.registry.GooItems;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.component.DataComponents;
@@ -127,6 +129,29 @@ public final class CrucibleTests {
 
         helper.runAfterDelay(ABSORB_DELAY, () -> {
             helper.assertFalse(crucible.reservoirHandler().isEmpty(), SHOULD_ABSORB);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * One chrysm of a type dropped into a lit crucible melts into exactly 1,000 mB
+     * of that type, pool and reservoir together, and no crystal goo
+     * (decision chrysm-melts-back-to-its-goo).
+     *
+     * @param helper the gametest helper
+     */
+    public static void meltsChrysm(GameTestHelper helper) {
+        helper.setBlock(BE_POS, GooBlocks.CRUCIBLE.get());
+        CrucibleBlockEntity crucible = helper.getBlockEntity(BE_POS, CrucibleBlockEntity.class);
+        crucible.addHeat(TEST_HEAT_TICKS);
+        ItemEntity chrysm = helper.spawnItem(GooItems.CHRYSM.get(), BASIN_CENTER_XZ, BASIN_SURFACE_Y, BASIN_CENTER_XZ);
+        chrysm.setItem(GooItems.CHRYSM.get().createOf(GooTypes.ENDER));
+        helper.runAfterDelay(ABSORB_DELAY, () -> {
+            GooContents held = crucible.getReservoir().mergeWith(PartiallyMeltedItem.getContents(crucible.getMeltingItem()));
+            helper.assertTrue(chrysm.isRemoved(), "The chrysm should melt in whole");
+            helper.assertValueEqual(Math.toIntExact(ChrysmTier.CHRYSM.volume()), held.getVolume(GooTypes.ENDER),
+                    "ender goo from one chrysm");
+            helper.assertValueEqual(0, held.getVolume(GooTypes.CRYSTAL), "crystal goo returned");
             helper.succeed();
         });
     }

@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.item;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import net.minecraft.resources.ResourceKey;
 
 /**
  * The three fixed chrysm tiers and the goo volume each holds, the one place
@@ -34,6 +36,17 @@ public enum ChrysmTier {
      */
     public long volume() {
         return volume;
+    }
+
+    /**
+     * The goo one item of this tier melts back into: its volume of its type alone,
+     * the crystal goo spent to form it not returned (decision chrysm-melts-back-to-its-goo).
+     *
+     * @param type the goo type the chrysm carries
+     * @return the tier volume of that type
+     */
+    public GooContents contentsOf(ResourceKey<GooTypeDefinition> type) {
+        return GooContents.EMPTY.withAdded(type, Math.toIntExact(volume));
     }
 
     /**
