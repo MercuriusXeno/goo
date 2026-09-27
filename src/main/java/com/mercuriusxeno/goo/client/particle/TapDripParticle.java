@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.particle;
 
+import com.mercuriusxeno.goo.DripFall;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.registry.GooDripParticleOptions;
@@ -13,15 +14,15 @@ import net.minecraft.util.RandomSource;
 import org.jspecify.annotations.Nullable;
 
 /**
- * The tap-drip: a square drop falling straight down from a tap's spigot, and
- * its square splat, each drawing a muted patch of its goo type's fluid
+ * The tap-drip: a cuboid drop falling straight down from a tap's spigot, and
+ * its flat square splat, each drawing a muted patch of its goo type's fluid
  * sprite on the block atlas (decision particles-render-muted-goo-texture).
  * The definitions' own sprite sets stand registered but go undrawn.
  */
 public final class TapDripParticle {
 
     /** The drop's half extent: a 2-pixel square, narrower than the 4-pixel spigot. */
-    static final float DROP_HALF_SIZE = 1f / 16f;
+    static final float DROP_HALF_SIZE = DripFall.TAP_DROP_HALF_SIZE;
 
     /** The drop's patch of the fluid sprite: 2 pixels, the drop's width at native scale. */
     static final int DROP_PATCH_PIXELS = 2;
@@ -76,11 +77,21 @@ public final class TapDripParticle {
             return new GooDripParticleOptions(GooParticles.TAP_DRIP_LAND.get(), options.gooType());
         }
 
+        @Override
+        protected int hangTicks() {
+            return DripFall.HANG_TICKS;
+        }
+
+        @Override
+        protected boolean drawsCuboid() {
+            return true;
+        }
+
         /**
-         * Creates a falling tap-drip hanging from the spigot with no horizontal
-         * speed, whatever the packet carried; where the drop has no room to
-         * hang clear of the surface, spawns its splat on that surface instead
-         * (decision diagnose-then-fix-drip-z-fighting).
+         * Creates a tap-drip hanging from the spigot with no horizontal speed,
+         * whatever the packet carried; it swells there, then falls, or splats
+         * on the surface where it has no room to fall
+         * (decision tap-drop-swells-then-falls).
          *
          * @param options the goo type the drip carries
          * @param level the client level to spawn in
@@ -91,7 +102,7 @@ public final class TapDripParticle {
          * @param ySpeed the y velocity for the falling drip
          * @param zSpeed the z velocity, dropped
          * @param random the random source
-         * @return the new falling drip particle, or null when the splat stands in for it
+         * @return the new hanging drip particle
          */
         @Override
         public @Nullable Particle createParticle(
@@ -99,13 +110,7 @@ public final class TapDripParticle {
                 double x, double y, double z,
                 double xSpeed, double ySpeed, double zSpeed,
                 RandomSource random) {
-            double room = DripParticle.roomBelow(level, x, y, z, DripQuadPlacement.hangingDrop(DROP_HALF_SIZE));
-            if (!DripQuadPlacement.dropFits(room, DROP_HALF_SIZE)) {
-                level.addParticle(landOption(options), x, y - room, z, 0.0, 0.0, 0.0);
-                return null;
-            }
-            return super.createParticle(options, level, x, DripQuadPlacement.hangingSpawnY(y, DROP_HALF_SIZE), z,
-                    0.0, ySpeed, 0.0, random);
+            return super.createParticle(options, level, x, y, z, 0.0, ySpeed, 0.0, random);
         }
     }
 
