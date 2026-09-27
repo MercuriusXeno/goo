@@ -39,10 +39,10 @@ public final class SlotOutlineRenderer {
         }
         BlockHitResult hit = event.getHitResult();
         var player = Minecraft.getInstance().player;
-        boolean sneaking = player != null && player.isSecondaryUseActive();
+        boolean standing = player != null && !player.isSecondaryUseActive();
         VoxelShape outline = holder.outlineShape(hit);
-        AABB pickup = player != null && !sneaking ? holder.pickupBounds(hit) : null;
-        AABB preview = isHoldingCanister() ? holder.previewBounds(hit, sneaking) : null;
+        AABB pickup = standing ? holder.pickupBounds(hit) : null;
+        AABB preview = standing && isHoldingCanister() ? holder.previewBounds(hit) : null;
         event.addCustomRenderer(slotRenderer(outline, preview, pickup));
     }
 
