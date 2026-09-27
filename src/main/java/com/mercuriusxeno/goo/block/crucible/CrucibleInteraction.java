@@ -17,7 +17,7 @@ import java.util.List;
 
 /**
  * Static helpers for crucible right-click interactions: the flint-and-steel spark,
- * canister collection, blob insertion, and goo extraction. Keeps framework overrides in CrucibleBlock.
+ * omniblob insertion, and goo extraction. Keeps framework overrides in CrucibleBlock.
  */
 final class CrucibleInteraction {
 
@@ -85,52 +85,14 @@ final class CrucibleInteraction {
     }
 
     /**
-     * Returns true if the stack holds a goo carrier item (canister or omniblob).
+     * Returns true if the stack holds an omniblob; a canister is any other item and falls
+     * through to the empty-hand drain (decision canister-click-is-any-other-click-on-crucible-and-vat).
      *
      * @param stack the item stack to test
-     * @return true if the item is a goo carrier
+     * @return true if the item is an omniblob
      */
     static boolean isGooCarrier(ItemStack stack) {
-        return stack.getItem() instanceof CanisterItem
-                || stack.getItem() instanceof GooOmniblobItem;
-    }
-
-    /**
-     * Collects matching goo type from the reservoir into a canister.
-     *
-     * @param stack    the item stack
-     * @param crucible the crucible block entity
-     * @return true if goo was collected
-     */
-    static boolean tryCollectWithCanister(ItemStack stack, CrucibleBlockEntity crucible) {
-        if (!(stack.getItem() instanceof CanisterItem)) {
-            return false;
-        }
-        GooContents res = crucible.getReservoir();
-        if (res.isEmpty()) {
-            return false;
-        }
-        ResourceKey<GooTypeDefinition> type = res.largestType();
-        return type != null && transferDominantGoo(stack, crucible, type, res.getVolume(type));
-    }
-
-    /**
-     * Transfers the dominant goo type from the crucible reservoir into the canister.
-     *
-     * @param canister  the canister item stack to fill
-     * @param crucible  the crucible block entity to drain from
-     * @param type      the dominant goo type to transfer
-     * @param available the volume available in the reservoir (mB)
-     * @return true if any goo was transferred
-     */
-    private static boolean transferDominantGoo(ItemStack canister, CrucibleBlockEntity crucible,
-                                               ResourceKey<GooTypeDefinition> type, int available) {
-        int added = CanisterItem.addGoo(canister, type, available);
-        if (added <= 0) {
-            return false;
-        }
-        crucible.extractGoo(type, added);
-        return true;
+        return stack.getItem() instanceof GooOmniblobItem;
     }
 
     /**

@@ -171,12 +171,12 @@ public class VatBlockEntity extends GooGlowingMachineBlockEntity implements IGoo
     }
 
     /**
-     * A standing canister click dumps a filled canister into a vat with room, or drains an
-     * empty canister from a vat holding goo.
+     * A standing canister click on a vat holding goo is the empty-hand unpack into the inventory
+     * (decision canister-click-is-any-other-click-on-crucible-and-vat).
      */
     @Override
     public boolean takesCanisterClick(ItemStack canister) {
-        return VatFluidInteraction.takesCanister(this, canister);
+        return !isEmpty();
     }
 
     /**
