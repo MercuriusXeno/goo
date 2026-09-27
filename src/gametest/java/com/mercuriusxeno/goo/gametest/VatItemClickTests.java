@@ -18,7 +18,7 @@ import net.minecraft.world.level.GameType;
 
 /**
  * Gametests for blobs and omniblobs clicked onto a vat item in inventory
- * (decisions vat-item-insert-shared and vat-item-drain-shared).
+ * (decisions vat-item-insert-shared, vat-item-drain-shared and vat-click-unpacks-into-inventory).
  */
 public final class VatItemClickTests {
 
@@ -40,10 +40,9 @@ public final class VatItemClickTests {
     private static final String CURSOR_UNTOUCHED = "Cursor never set on refusal";
     private static final String VAT_VOLUME = "Vat volume of the inserted type";
     private static final String DRAIN_HANDLED = "Drain from a filled vat item should be handled";
-    private static final String DRAINED_TYPE = "The inventory omniblob holds the larger type";
-    private static final String DRAINED_VOLUME = "The inventory omniblob holds the larger type whole";
-    private static final String LARGER_LEFT = "The larger type left the vat whole";
-    private static final String SMALLER_LEFT = "Smaller type stays in the vat";
+    private static final String ROCK_DRAINED = "The inventory holds the vat's rock whole";
+    private static final String NETHER_DRAINED = "The inventory holds the vat's nether whole";
+    private static final String VAT_EMPTIED = "Every type left the vat";
     private static final String EMPTY_REFUSES = "Drain from an empty vat item answers false";
     private static final String CURSOR_STAYS_EMPTY = "Nothing drained onto the cursor";
 
@@ -97,12 +96,12 @@ public final class VatItemClickTests {
     }
 
     /**
-     * An empty-cursor secondary click on a vat item holding two types drains the larger type
-     * whole into the inventory and never sets the cursor; on an empty vat item it answers false.
+     * An empty-cursor secondary click on a vat item holding two types unpacks both whole into
+     * the inventory and never sets the cursor; on an empty vat item it answers false.
      *
      * @param helper the gametest helper
      */
-    public static void secondaryClickDrainsLargerType(GameTestHelper helper) {
+    public static void secondaryClickUnpacksEveryType(GameTestHelper helper) {
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
         ItemStack vat = vatWith(ROCK, ROCK_HELD);
         VatBlockItem.addGoo(vat, NETHER, NETHER_HELD);
@@ -110,12 +109,9 @@ public final class VatItemClickTests {
 
         helper.assertTrue(secondaryClick(vat, cursor, player), DRAIN_HANDLED);
         helper.assertFalse(cursor.wasSet(), CURSOR_UNTOUCHED);
-        ItemStack drained = player.getInventory().getItem(0);
-        helper.assertValueEqual(BlobStacks.keyOf(drained), ROCK, DRAINED_TYPE);
-        helper.assertValueEqual(BlobStacks.volumeOf(drained), ROCK_HELD, DRAINED_VOLUME);
-        GooContents left = VatBlockItem.getGooContents(vat);
-        helper.assertValueEqual(left.getVolume(ROCK), 0, LARGER_LEFT);
-        helper.assertValueEqual(left.getVolume(NETHER), NETHER_HELD, SMALLER_LEFT);
+        helper.assertValueEqual(inventoryVolume(player, ROCK), ROCK_HELD, ROCK_DRAINED);
+        helper.assertValueEqual(inventoryVolume(player, NETHER), NETHER_HELD, NETHER_DRAINED);
+        helper.assertTrue(VatBlockItem.getGooContents(vat).isEmpty(), VAT_EMPTIED);
 
         ItemStack empty = new ItemStack(GooItems.VAT.get());
         CursorHolder untouched = new CursorHolder(ItemStack.EMPTY);
@@ -123,6 +119,17 @@ public final class VatItemClickTests {
         helper.assertFalse(untouched.wasSet(), CURSOR_UNTOUCHED);
         helper.assertTrue(untouched.get().isEmpty(), CURSOR_STAYS_EMPTY);
         helper.succeed();
+    }
+
+    private static int inventoryVolume(Player player, ResourceKey<GooTypeDefinition> type) {
+        int volume = 0;
+        for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
+            ItemStack stack = player.getInventory().getItem(slot);
+            if (BlobStacks.keyOf(stack) == type) {
+                volume += BlobStacks.volumeOf(stack);
+            }
+        }
+        return volume;
     }
 
     private static boolean secondaryClick(ItemStack vat, CursorHolder cursor, Player player) {
