@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:cr_stack_melts_item_by_item",
+  "environment": "minecraft:default",
+  "structure": "minecraft:empty",
+  "max_ticks": 1200,
+  "setup_ticks": 0,
+  "required": true
+}
