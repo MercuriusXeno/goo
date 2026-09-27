@@ -202,7 +202,7 @@ class CrucibleItemLayoutTest {
 
         /**
          * Each shard rests at the surface plus the amplitude times the wave at its own spot
-         * plus the tile lift, raised by its height over the surface, at home and at rest.
+         * plus the lift for its own reach, raised by its height over the surface, at home and at rest.
          */
         @Test
         void shardRestsOnTheWaveAtItsSpot() {
@@ -219,35 +219,55 @@ class CrucibleItemLayoutTest {
                     float rise = piece.homeY() - (fraction == 0f ? head.frame().bottomY() : piece.floorY());
                     float wave = SurfaceRipple.at(-37 + shard.x(), 112 + shard.z(), 0.3f);
                     assertEquals(surface.surfaceY() + FULLY_AGITATED * wave
-                            + CrucibleItemLayout.tileLift(FULLY_AGITATED) + rise, shard.y(), FLOAT_ROUNDING);
+                            + CrucibleItemLayout.shardLift(FULLY_AGITATED, piece.reach()) + rise, shard.y(),
+                            FLOAT_ROUNDING);
                 }
             }
         }
 
+        /** Two shards of different reach at one spot and moment differ in height, the wider one higher. */
+        @Test
+        void widerShardSitsHigher() {
+            CrucibleBasin.DrawnSurface surface = CrucibleBasin.drawnSurface(new CrucibleBasin.Volumes(MELTED, 0));
+            List<CrucibleItemLayout.ShardPiece> pieces = flatHead(ITEM).pieces();
+            CrucibleItemLayout.ShardPiece narrow = pieces.stream()
+                    .min((a, b) -> Float.compare(a.reach(), b.reach())).orElseThrow();
+            CrucibleItemLayout.ShardPiece wide = pieces.stream()
+                    .max((a, b) -> Float.compare(a.reach(), b.reach())).orElseThrow();
+
+            float narrowY = CrucibleItemLayout.shardY(surface, FULLY_AGITATED, STILL, CENTER, CENTER, narrow.reach());
+            float wideY = CrucibleItemLayout.shardY(surface, FULLY_AGITATED, STILL, CENTER, CENTER, wide.reach());
+
+            assertTrue(wide.reach() > narrow.reach(), "every shard reaches equally far");
+            assertTrue(wideY > narrowY, wideY + " vs " + narrowY);
+        }
+
+        /** The lift covers the wave's sag across a shard's reach at the highest wavenumber, capped at a full rise. */
+        @Test
+        void shardLiftCoversTheSagAcrossItsReach() {
+            float reach = 0.05f;
+            float sag = (float) (1.0 - Math.cos(SurfaceRipple.SECONDARY_WAVENUMBER * reach));
+
+            assertEquals(CrucibleItemLayout.FLOAT_LIFT, CrucibleItemLayout.shardLift(0f, reach), EPSILON);
+            assertEquals(FULLY_AGITATED * sag + CrucibleItemLayout.FLOAT_LIFT,
+                    CrucibleItemLayout.shardLift(FULLY_AGITATED, reach), EPSILON);
+            assertEquals(2f * FULLY_AGITATED + CrucibleItemLayout.FLOAT_LIFT,
+                    CrucibleItemLayout.shardLift(FULLY_AGITATED, 1f), EPSILON);
+        }
+
         /** A tile on the primary crest and one half a wavelength on, in its trough, ride the wave out of step. */
         @Test
-        void tilesHalfAWavelengthApartDifferInHeight() {
+        void shardsHalfAWavelengthApartDifferInHeight() {
             CrucibleBasin.DrawnSurface surface = CrucibleBasin.drawnSurface(new CrucibleBasin.Volumes(MELTED, 0));
             float crest = (float) (2.5 * Math.PI / (SurfaceRipple.PRIMARY_WAVENUMBER
                     * (SurfaceRipple.PRIMARY_DIRECTION_X + SurfaceRipple.PRIMARY_DIRECTION_Z)));
             float farX = crest + SurfaceRipple.PRIMARY_DIRECTION_X * HALF_PRIMARY_WAVELENGTH;
             float farZ = crest + SurfaceRipple.PRIMARY_DIRECTION_Z * HALF_PRIMARY_WAVELENGTH;
 
-            float near = CrucibleItemLayout.tileY(surface, FULLY_AGITATED, STILL, crest, crest);
-            float far = CrucibleItemLayout.tileY(surface, FULLY_AGITATED, STILL, farX, farZ);
+            float near = CrucibleItemLayout.shardY(surface, FULLY_AGITATED, STILL, crest, crest, 0f);
+            float far = CrucibleItemLayout.shardY(surface, FULLY_AGITATED, STILL, farX, farZ, 0f);
 
             assertTrue(Math.abs(near - far) > FULLY_AGITATED / 4f, near + " vs " + far);
-        }
-
-        /** The tile lift grows with the amplitude and never drops below the float lift. */
-        @Test
-        void tileLiftCoversTheSagAcrossATile() {
-            float halfDiagonal = CrucibleItemLayout.TILE_SIZE / 2f * (float) Math.sqrt(2.0);
-            float sag = (float) (1.0 - Math.cos(SurfaceRipple.SECONDARY_WAVENUMBER * halfDiagonal));
-
-            assertEquals(CrucibleItemLayout.FLOAT_LIFT, CrucibleItemLayout.tileLift(0f), EPSILON);
-            assertEquals(FULLY_AGITATED * sag + CrucibleItemLayout.FLOAT_LIFT,
-                    CrucibleItemLayout.tileLift(FULLY_AGITATED), EPSILON);
         }
 
         /** A waiting item keeps the crest rule: the fill, a full amplitude and the float lift. */
