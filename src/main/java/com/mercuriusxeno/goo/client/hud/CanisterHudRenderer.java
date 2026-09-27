@@ -53,7 +53,7 @@ public final class CanisterHudRenderer {
         Vec3 anchor = new Vec3(target.pos.getX() + target.cx, target.pos.getY() + target.lift,
                 target.pos.getZ() + target.cz);
         PanelPlacement placement = PanelPlacement.onFace(anchor, target.hitFace,
-                target.hasBlockAbove, ANIMATOR.pitch());
+                target.hasBlockAbove, ANIMATOR.pitch(), ANIMATOR.opacity());
         PanelPainter.paint(event.getPoseStack(), camera, placement, CanisterPanelRows.rows(data));
     }
 

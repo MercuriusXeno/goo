@@ -38,7 +38,7 @@ public final class InWorldHud {
     /**
      * Full white color for quad rendering.
      */
-    private static final int OPAQUE_WHITE = 0xFFFFFFFF;
+    public static final int OPAQUE_WHITE = 0xFFFFFFFF;
     /**
      * Degrees-to-radians offset for camera yaw (faces player).
      */
@@ -71,10 +71,11 @@ public final class InWorldHud {
      * @param poseStack the pose stack for rendering
      * @param buffers   the buffer source for rendering
      * @param rect      the panel rectangle (position + size)
+     * @param color     the ARGB tint, whose alpha fades the background
      */
     public static void renderBackground(PoseStack poseStack, MultiBufferSource buffers,
-                                        PanelRectangle rect) {
-        renderBackgroundInternal(poseStack, buffers, rect, false);
+                                        PanelRectangle rect, int color) {
+        renderBackgroundInternal(poseStack, buffers, rect, false, color);
     }
 
     /**
@@ -86,7 +87,7 @@ public final class InWorldHud {
      */
     public static void renderBackgroundSeeThrough(PoseStack poseStack, MultiBufferSource buffers,
                                                   PanelRectangle rect) {
-        renderBackgroundInternal(poseStack, buffers, rect, true);
+        renderBackgroundInternal(poseStack, buffers, rect, true, OPAQUE_WHITE);
     }
 
     /**
@@ -96,55 +97,49 @@ public final class InWorldHud {
      * @param buffers    the buffer source for rendering
      * @param rect       the panel rectangle (position + size)
      * @param seeThrough whether to disable depth testing
+     * @param color      the ARGB tint of every quad
      */
     private static void renderBackgroundInternal(PoseStack poseStack, MultiBufferSource buffers,
-                                                 PanelRectangle rect, boolean seeThrough) {
+                                                 PanelRectangle rect, boolean seeThrough, int color) {
         VertexConsumer vc = buffers.getBuffer(
                 seeThrough ? RenderTypes.textSeeThrough(BG_TEXTURE) : RenderTypes.text(BG_TEXTURE));
         PoseStack.Pose pose = poseStack.last();
         for (NineSlice.Slice s : NineSlice.of(rect)) {
-            nineSliceQuad(vc, pose, s.x0(), s.y0(), s.x1(), s.y1(), s.u0(), s.v0(), s.u1(), s.v1());
+            nineSliceQuad(vc, pose, s, color);
         }
     }
 
     /**
      * Emits one quad of the nine-slice background at z=0.
      *
-     * @param vc   the vertex consumer
-     * @param pose the pose matrix entry
-     * @param px0  the left X pixel coordinate
-     * @param py0  the top Y pixel coordinate
-     * @param px1  the right X pixel coordinate
-     * @param py1  the bottom Y pixel coordinate
-     * @param u0   the minimum U texture coordinate
-     * @param v0   the minimum V texture coordinate
-     * @param u1   the maximum U texture coordinate
-     * @param v1   the maximum V texture coordinate
+     * @param vc    the vertex consumer
+     * @param pose  the pose matrix entry
+     * @param s     the slice's pixel rectangle and texture region
+     * @param color the ARGB tint of the quad
      */
-    public static void nineSliceQuad(VertexConsumer vc, PoseStack.Pose pose,
-                                     float px0, float py0, float px1, float py1,
-                                     float u0, float v0, float u1, float v1) {
-        iconVertex(vc, pose, px0, py0, 0f, u0, v0);
-        iconVertex(vc, pose, px0, py1, 0f, u0, v1);
-        iconVertex(vc, pose, px1, py1, 0f, u1, v1);
-        iconVertex(vc, pose, px1, py0, 0f, u1, v0);
+    private static void nineSliceQuad(VertexConsumer vc, PoseStack.Pose pose, NineSlice.Slice s, int color) {
+        iconVertex(vc, pose, s.x0(), s.y0(), 0f, s.u0(), s.v0(), color);
+        iconVertex(vc, pose, s.x0(), s.y1(), 0f, s.u0(), s.v1(), color);
+        iconVertex(vc, pose, s.x1(), s.y1(), 0f, s.u1(), s.v1(), color);
+        iconVertex(vc, pose, s.x1(), s.y0(), 0f, s.u1(), s.v0(), color);
     }
 
     /**
      * Adds a vertex with full-bright lighting at the given depth.
      *
-     * @param vc   the vertex consumer
-     * @param pose the pose matrix entry
-     * @param x    the X coordinate
-     * @param y    the Y coordinate
-     * @param z    the Z coordinate
-     * @param u    the U texture coordinate
-     * @param v    the V texture coordinate
+     * @param vc    the vertex consumer
+     * @param pose  the pose matrix entry
+     * @param x     the X coordinate
+     * @param y     the Y coordinate
+     * @param z     the Z coordinate
+     * @param u     the U texture coordinate
+     * @param v     the V texture coordinate
+     * @param color the ARGB tint, whose alpha fades the vertex
      */
     public static void iconVertex(VertexConsumer vc, PoseStack.Pose pose,
-                                  float x, float y, float z, float u, float v) {
+                                  float x, float y, float z, float u, float v, int color) {
         vc.addVertex(pose, x, y, z)
-                .setColor(OPAQUE_WHITE)
+                .setColor(color)
                 .setUv(u, v)
                 .setLight(GooSubmitter.fullbrightLight());
     }

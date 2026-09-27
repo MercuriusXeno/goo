@@ -122,6 +122,6 @@ public final class CrucibleHudRenderer {
             return;
         }
         Vec3 anchor = CrucibleRimMath.rimAnchor(be.getBlockPos(), camera);
-        PanelPainter.paint(poseStack, camera, PanelPlacement.onRim(anchor, ANIMATOR.pitch()), rows);
+        PanelPainter.paint(poseStack, camera, PanelPlacement.onRim(anchor, ANIMATOR.pitch(), ANIMATOR.opacity()), rows);
     }
 }
