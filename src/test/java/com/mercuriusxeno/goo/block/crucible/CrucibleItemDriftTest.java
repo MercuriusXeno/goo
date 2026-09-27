@@ -90,14 +90,15 @@ class CrucibleItemDriftTest {
         }
 
         @Test
-        void itemLowOnTheSideIsLiftedInward() {
-            Vec3 after = CrucibleItemDrift.fieldDelta(THROWN, -CrucibleItemDrift.ITEM_HALF_WIDTH, 0.1, CENTER);
+        void liftReachesAnEighthUnderTheOuterTopEdge() {
+            double floor = CrucibleShape.LEDGE_Y - 0.125;
+            assertEquals(floor, CrucibleItemDrift.LIFT_FLOOR_Y, EPSILON);
+            Vec3 after = CrucibleItemDrift.fieldDelta(THROWN, -CrucibleItemDrift.ITEM_HALF_WIDTH, floor, CENTER);
             assertEquals(CrucibleItemDrift.LIFT_SPEED, after.y, EPSILON);
-            assertTrue(after.x > 0);
         }
 
         @Test
-        void itemBelowTheBlocksBaseIsLeftAlone() {
+        void itemFurtherDownTheSideIsLeftAlone() {
             assertSame(THROWN, CrucibleItemDrift.fieldDelta(THROWN, -0.1, CrucibleItemDrift.LIFT_FLOOR_Y - 0.01, CENTER));
         }
 

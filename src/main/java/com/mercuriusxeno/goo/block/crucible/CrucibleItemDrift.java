@@ -12,9 +12,9 @@ import net.minecraft.world.phys.Vec3;
  * block past each side, measured to the item's edge, so an item grazing the block's
  * corner counts. Over the rim, a quarter block deep, it damps a thrown item's
  * sideways speed and draws it toward the mouth, so a throw drops in rather than
- * sailing over. Below the rim, all the way down the block's side, it lifts an item
- * up and over the collar, so one that hits the side anywhere or lands on the ledge
- * never slides down or catches there.
+ * sailing over. Below the rim, down to an eighth of a block under the block's outer
+ * top edge (where its side meets the ledge), it lifts an item up and over the collar,
+ * so one that clips that edge or lands on the ledge never slides down or catches there.
  */
 public final class CrucibleItemDrift {
 
@@ -26,8 +26,10 @@ public final class CrucibleItemDrift {
     static final double ITEM_HALF_WIDTH = 0.125;
     /** How far past each side an item's center may sit while its edge is in reach. */
     private static final double CENTER_REACH = FIELD_REACH + ITEM_HALF_WIDTH;
-    /** The lift's floor in block-relative Y, the block's base, so it covers the whole side. */
-    static final double LIFT_FLOOR_Y = 0.0;
+    /** How far under the block's outer top edge the lift reaches down its side. */
+    static final double LIFT_DEPTH = 0.125;
+    /** The lift's floor in block-relative Y, an eighth of a block under the outer top edge. */
+    static final double LIFT_FLOOR_Y = CrucibleShape.LEDGE_Y - LIFT_DEPTH;
     /** The share of an item's sideways motion the field takes away each tick. */
     static final double FIELD_DAMPING = 0.5;
     /** Sideways speed the field adds per tick for each block of distance from the basin center. */
@@ -56,7 +58,7 @@ public final class CrucibleItemDrift {
      * @param pos      the crucible's position
      */
     static void driftItems(CrucibleBlockEntity crucible, Level level, BlockPos pos) {
-        AABB reach = new AABB(pos.getX() - FIELD_REACH, pos.getY() + LIFT_FLOOR_Y, pos.getZ() - FIELD_REACH,
+        AABB reach = new AABB(pos.getX() - FIELD_REACH, pos.getY() + CrucibleBasin.FLOOR_Y, pos.getZ() - FIELD_REACH,
             pos.getX() + 1.0 + FIELD_REACH, pos.getY() + CrucibleBasin.RIM_Y + FIELD_HEIGHT,
             pos.getZ() + 1.0 + FIELD_REACH);
         float killTopY = CrucibleBasin.killBoxTopY(crucible.basinVolumes());
@@ -123,7 +125,7 @@ public final class CrucibleItemDrift {
      * @param x the item's X relative to the block
      * @param y the item's feet Y relative to the block
      * @param z the item's Z relative to the block
-     * @return true when the item is below the rim and above the block's base, outside the mouth
+     * @return true when the item is below the rim and above the lift's floor, outside the mouth
      */
     private static boolean inLiftRing(double x, double y, double z) {
         boolean overMouth = withinMouth(x) && withinMouth(z);
