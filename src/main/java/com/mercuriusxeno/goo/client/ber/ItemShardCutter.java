@@ -6,10 +6,11 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * Breaks an item's flat face into shards along its pixels (decision tiles-of-the-items-image):
- * seeded points land on the face's opaque texels, and each texel joins the nearest point
- * after its position is warped by noise on the same seed, so shard edges run jagged along
- * texel boundaries. The seed comes from the item, so one item always breaks the same way.
+ * Breaks an item's model into shards along its pixels (decision tiles-of-the-items-image):
+ * every quad of the model is cut into texel cells in its own plane, seeded points land on
+ * opaque cells, and each cell joins the nearest point after its position is warped by 3D
+ * noise on the same seed, so shard edges run jagged along texel boundaries on every face of
+ * a flat item or a block. The seed comes from the item, so one item always breaks the same way.
  */
 final class ItemShardCutter {
 
@@ -17,23 +18,23 @@ final class ItemShardCutter {
     static final int MIN_SHARDS = 8;
     /** The most shards an item breaks into. */
     static final int MAX_SHARDS = 14;
+    /** A cell no shard draws, where the item's texture is transparent. */
+    static final int NO_SHARD = -1;
 
-    /** How far noise pushes a texel before it picks its nearest point, in texels. */
+    /** How far noise pushes a cell before it picks its nearest point, in texels. */
     private static final double WARP_TEXELS = 1.6;
     /** The texels between the warp noise's lattice points, so edges wander over a few pixels. */
     private static final double WARP_PERIOD_TEXELS = 4.0;
-    /** How far a seeded point strays from its texel's center, in texels. */
+    /** How far a seeded point strays from its cell's center, in texels. */
     private static final double POINT_JITTER = 0.4;
     /** Recuts on a derived seed when a cut leaves fewer than {@link #MIN_SHARDS} shards. */
     private static final int MAX_RECUTS = 16;
-    private static final double HALF = 0.5;
+    private static final int AXES = 3;
     /** The cubic smoothstep 3t² - 2t³ written as t²(3 - 2t). */
     private static final double SMOOTHSTEP_RISE = 3.0;
     private static final double SMOOTHSTEP_FALL = 2.0;
     /** The width of the span minus one to one, which a number from zero to one stretches over. */
     private static final double SIGNED_SPAN = 2.0;
-    /** A point no texel has claimed yet, while the shards are numbered. */
-    private static final int UNNUMBERED = -1;
     private static final long GOLDEN_GAMMA = 0x9E3779B97F4A7C15L;
     private static final long MIX_A = 0xBF58476D1CE4E5B9L;
     private static final long MIX_B = 0x94D049BB133111EBL;
@@ -45,115 +46,20 @@ final class ItemShardCutter {
     private static final int BYTE_MASK = 0xFF;
     private static final int MANTISSA_SHIFT = 11;
     private static final double MANTISSA_SCALE = 0x1.0p-53;
-    private static final long WARP_X_SALT = 0x5851F42D4C957F2DL;
-    private static final long WARP_Z_SALT = 0x14057B7EF767814FL;
-    private static final long LATTICE_ROW_SALT = 0x2545F4914F6CDD1DL;
+    private static final long[] WARP_SALTS = {0x5851F42D4C957F2DL, 0x14057B7EF767814FL, 0x2127599BF4325C37L};
+    private static final long LATTICE_Y_SALT = 0x2545F4914F6CDD1DL;
+    private static final long LATTICE_Z_SALT = 0x6C8E9CF570932BD5L;
 
     private ItemShardCutter() {
     }
 
     /**
-     * Whether a texel of the face shows any of the item.
-     */
-    @FunctionalInterface
-    interface TexelOpacity {
-        /** Every texel counts as opaque. */
-        TexelOpacity ALL = (column, row) -> true;
-
-        /**
-         * @param column the texel's column, along the face's X
-         * @param row    the texel's row, along the face's Y
-         * @return true if the texel is not fully transparent
-         */
-        boolean opaque(int column, int row);
-    }
-
-    /**
-     * One horizontal run of a shard's texels in one row.
+     * Which shard each cell of the model belongs to.
      *
-     * @param row        the row, along the face's Y
-     * @param fromColumn the first column of the run
-     * @param toColumn   the column past the run's last
+     * @param owners each cell's shard, or {@link #NO_SHARD} for a transparent cell
+     * @param count  the shards the model breaks into, numbered from zero
      */
-    record TexelRun(int row, int fromColumn, int toColumn) {
-    }
-
-    /**
-     * Which shard each texel of the face belongs to.
-     *
-     * @param columns the texels along the face's X
-     * @param rows    the texels along the face's Y
-     * @param owners  each texel's shard, row by row from row zero
-     * @param count   the shards the face breaks into, numbered from zero
-     */
-    record ShardMap(int columns, int rows, int[] owners, int count) {
-
-        /**
-         * A face left whole, one shard owning every texel.
-         *
-         * @param columns the texels along the face's X
-         * @param rows    the texels along the face's Y
-         * @return the one-shard map
-         */
-        static ShardMap whole(int columns, int rows) {
-            return new ShardMap(columns, rows, new int[columns * rows], 1);
-        }
-
-        /**
-         * @param column the texel's column
-         * @param row    the texel's row
-         * @return the shard that texel belongs to
-         */
-        int ownerOf(int column, int row) {
-            return owners[row * columns + column];
-        }
-
-        /**
-         * Returns a shard's texels as runs along each row, the quads the shard's face draws.
-         *
-         * @param shard the shard
-         * @return its runs, row by row
-         */
-        List<TexelRun> runs(int shard) {
-            List<TexelRun> runs = new ArrayList<>();
-            for (int row = 0; row < rows; row++) {
-                int column = 0;
-                while (column < columns) {
-                    if (ownerOf(column, row) != shard) {
-                        column++;
-                        continue;
-                    }
-                    int from = column;
-                    while (column < columns && ownerOf(column, row) == shard) {
-                        column++;
-                    }
-                    runs.add(new TexelRun(row, from, column));
-                }
-            }
-            return runs;
-        }
-
-        /**
-         * Returns a shard's centroid over its texel centers, in texels from the face's low corner.
-         *
-         * @param shard the shard
-         * @return the centroid's column and row coordinates
-         */
-        double[] centroid(int shard) {
-            double sumColumn = 0;
-            double sumRow = 0;
-            int texels = 0;
-            for (int row = 0; row < rows; row++) {
-                for (int column = 0; column < columns; column++) {
-                    if (ownerOf(column, row) == shard) {
-                        sumColumn += column + HALF;
-                        sumRow += row + HALF;
-                        texels++;
-                    }
-                }
-            }
-            return new double[] {sumColumn / Math.max(texels, 1), sumRow / Math.max(texels, 1)};
-        }
+    record Assignment(int[] owners, int count) {
     }
 
     /**
@@ -172,85 +78,84 @@ final class ItemShardCutter {
     }
 
     /**
-     * Breaks a face into shards.
+     * Breaks a model's cells into shards.
      *
      * @param seed    the item's seed, as {@link #seedOf} answers
-     * @param columns the texels along the face's X
-     * @param rows    the texels along the face's Y
-     * @param opacity which texels show the item, where the points land
-     * @return the shard map
+     * @param centers each cell's center, X, Y and Z, in the model's space
+     * @param opaque  whether each cell shows the item; points land only on these, and only
+     *                these join a shard
+     * @param texel   one texel's width in the model's space, which the noise scales by
+     * @return each cell's shard
      */
-    static ShardMap cut(long seed, int columns, int rows, TexelOpacity opacity) {
-        List<int[]> landing = opaqueTexels(columns, rows, opacity);
-        if (landing.isEmpty()) {
-            landing = opaqueTexels(columns, rows, TexelOpacity.ALL);
-        }
-        ShardMap map = cutOnce(seed, columns, rows, landing);
-        for (int recut = 1; recut <= MAX_RECUTS && map.count() < Math.min(MIN_SHARDS, landing.size()); recut++) {
-            map = cutOnce(mix(seed + recut * GOLDEN_GAMMA), columns, rows, landing);
-        }
-        return map;
-    }
-
-    private static List<int[]> opaqueTexels(int columns, int rows, TexelOpacity opacity) {
-        List<int[]> texels = new ArrayList<>();
-        for (int row = 0; row < rows; row++) {
-            for (int column = 0; column < columns; column++) {
-                if (opacity.opaque(column, row)) {
-                    texels.add(new int[] {column, row});
-                }
+    static Assignment assign(long seed, float[][] centers, boolean[] opaque, float texel) {
+        List<Integer> landing = new ArrayList<>();
+        for (int i = 0; i < centers.length; i++) {
+            if (opaque[i]) {
+                landing.add(i);
             }
         }
-        return texels;
+        Assignment assignment = assignOnce(seed, centers, opaque, texel, landing);
+        int fewest = Math.min(MIN_SHARDS, landing.size());
+        for (int recut = 1; recut <= MAX_RECUTS && assignment.count() < fewest; recut++) {
+            assignment = assignOnce(mix(seed + recut * GOLDEN_GAMMA), centers, opaque, texel, landing);
+        }
+        return assignment;
     }
 
     /**
-     * One cut: points on distinct landing texels, every texel to the nearest point from its
-     * warped position, shards left empty dropped and the rest numbered in order.
+     * One cut: points on distinct opaque cells, every opaque cell to the nearest point from
+     * its warped position, shards left empty dropped and the rest numbered in order.
      *
      * @param seed    the seed this cut draws its points and noise from
-     * @param columns the texels along the face's X
-     * @param rows    the texels along the face's Y
-     * @param landing the texels a point may land on
-     * @return the shard map
+     * @param centers each cell's center
+     * @param opaque  whether each cell shows the item
+     * @param texel   one texel's width
+     * @param landing the cells a point may land on
+     * @return each cell's shard
      */
-    private static ShardMap cutOnce(long seed, int columns, int rows, List<int[]> landing) {
+    private static Assignment assignOnce(long seed, float[][] centers, boolean[] opaque, float texel,
+                                         List<Integer> landing) {
         SeedStream stream = new SeedStream(seed);
         int target = MIN_SHARDS + stream.nextInt(MAX_SHARDS - MIN_SHARDS + 1);
-        double[][] points = pickPoints(stream, landing, Math.min(target, landing.size()));
-        int[] owners = new int[columns * rows];
-        for (int row = 0; row < rows; row++) {
-            for (int column = 0; column < columns; column++) {
-                double x = column + HALF;
-                double y = row + HALF;
-                double warpedX = x + WARP_TEXELS * valueNoise(seed ^ WARP_X_SALT, x, y);
-                double warpedY = y + WARP_TEXELS * valueNoise(seed ^ WARP_Z_SALT, x, y);
-                owners[row * columns + column] = nearest(points, warpedX, warpedY);
-            }
+        double[][] points = pickPoints(stream, centers, landing, Math.min(target, landing.size()), texel);
+        int[] owners = new int[centers.length];
+        for (int i = 0; i < centers.length; i++) {
+            owners[i] = opaque[i] && points.length > 0 ? nearest(points, warped(seed, centers[i], texel)) : NO_SHARD;
         }
-        return compact(columns, rows, owners, points.length);
+        return compact(owners, points.length);
     }
 
-    private static double[][] pickPoints(SeedStream stream, List<int[]> landing, int count) {
-        List<int[]> pool = new ArrayList<>(landing);
+    private static double[] warped(long seed, float[] center, float texel) {
+        double[] at = new double[AXES];
+        for (int axis = 0; axis < AXES; axis++) {
+            at[axis] = center[axis] + WARP_TEXELS * texel * valueNoise(seed ^ WARP_SALTS[axis], center, texel);
+        }
+        return at;
+    }
+
+    private static double[][] pickPoints(SeedStream stream, float[][] centers, List<Integer> landing, int count,
+                                         float texel) {
+        List<Integer> pool = new ArrayList<>(landing);
         double[][] points = new double[count][];
         for (int i = 0; i < count; i++) {
-            int[] texel = pool.remove(stream.nextInt(pool.size()));
-            points[i] = new double[] {
-                texel[0] + HALF + signed(stream.nextDouble()) * POINT_JITTER,
-                texel[1] + HALF + signed(stream.nextDouble()) * POINT_JITTER,
-            };
+            float[] center = centers[pool.remove(stream.nextInt(pool.size()))];
+            points[i] = new double[AXES];
+            for (int axis = 0; axis < AXES; axis++) {
+                points[i][axis] = center[axis] + signed(stream.nextDouble()) * POINT_JITTER * texel;
+            }
         }
         return points;
     }
 
-    private static int nearest(double[][] points, double x, double y) {
+    private static int nearest(double[][] points, double[] at) {
         int best = 0;
         double bestDistance = Double.MAX_VALUE;
         for (int i = 0; i < points.length; i++) {
-            double dx = points[i][0] - x;
-            double dy = points[i][1] - y;
-            double distance = dx * dx + dy * dy;
+            double distance = 0;
+            for (int axis = 0; axis < AXES; axis++) {
+                double d = points[i][axis] - at[axis];
+                distance += d * d;
+            }
             if (distance < bestDistance) {
                 bestDistance = distance;
                 best = i;
@@ -259,41 +164,50 @@ final class ItemShardCutter {
         return best;
     }
 
-    private static ShardMap compact(int columns, int rows, int[] owners, int points) {
+    private static Assignment compact(int[] owners, int points) {
         int[] renumbered = new int[points];
-        Arrays.fill(renumbered, UNNUMBERED);
+        Arrays.fill(renumbered, NO_SHARD);
         int count = 0;
         for (int i = 0; i < owners.length; i++) {
-            if (renumbered[owners[i]] < 0) {
+            if (owners[i] == NO_SHARD) {
+                continue;
+            }
+            if (renumbered[owners[i]] == NO_SHARD) {
                 renumbered[owners[i]] = count++;
             }
             owners[i] = renumbered[owners[i]];
         }
-        return new ShardMap(columns, rows, owners, count);
+        return new Assignment(owners, count);
     }
 
     /**
-     * Smooth value noise from minus one to one, its lattice {@link #WARP_PERIOD_TEXELS} apart.
+     * Smooth 3D value noise from minus one to one, its lattice {@link #WARP_PERIOD_TEXELS} apart.
      *
-     * @param seed the noise's seed
-     * @param x    the X, in texels
-     * @param y    the Y, in texels
+     * @param seed   the noise's seed
+     * @param center the point, in the model's space
+     * @param texel  one texel's width
      * @return the noise there
      */
-    private static double valueNoise(long seed, double x, double y) {
-        double gx = x / WARP_PERIOD_TEXELS;
-        double gy = y / WARP_PERIOD_TEXELS;
+    private static double valueNoise(long seed, float[] center, float texel) {
+        double period = WARP_PERIOD_TEXELS * texel;
+        double gx = center[QuadRectClipper.X] / period;
+        double gy = center[QuadRectClipper.Y] / period;
+        double gz = center[QuadRectClipper.Z] / period;
         int x0 = (int) Math.floor(gx);
         int y0 = (int) Math.floor(gy);
+        int z0 = (int) Math.floor(gz);
         double tx = smooth(gx - x0);
         double ty = smooth(gy - y0);
-        double low = lerp(lattice(seed, x0, y0), lattice(seed, x0 + 1, y0), tx);
-        double high = lerp(lattice(seed, x0, y0 + 1), lattice(seed, x0 + 1, y0 + 1), tx);
-        return lerp(low, high, ty);
+        double tz = smooth(gz - z0);
+        double near = lerp(lerp(lattice(seed, x0, y0, z0), lattice(seed, x0 + 1, y0, z0), tx),
+                lerp(lattice(seed, x0, y0 + 1, z0), lattice(seed, x0 + 1, y0 + 1, z0), tx), ty);
+        double far = lerp(lerp(lattice(seed, x0, y0, z0 + 1), lattice(seed, x0 + 1, y0, z0 + 1), tx),
+                lerp(lattice(seed, x0, y0 + 1, z0 + 1), lattice(seed, x0 + 1, y0 + 1, z0 + 1), tx), ty);
+        return lerp(near, far, tz);
     }
 
-    private static double lattice(long seed, int x, int y) {
-        long hash = mix(seed + x * GOLDEN_GAMMA + y * LATTICE_ROW_SALT);
+    private static double lattice(long seed, int x, int y, int z) {
+        long hash = mix(seed + x * GOLDEN_GAMMA + y * LATTICE_Y_SALT + z * LATTICE_Z_SALT);
         return signed((hash >>> MANTISSA_SHIFT) * MANTISSA_SCALE);
     }
 
@@ -329,7 +243,7 @@ final class ItemShardCutter {
     }
 
     /** A deterministic stream of numbers from one seed, with no per-frame or global state. */
-    private static final class SeedStream {
+    static final class SeedStream {
         private long state;
 
         SeedStream(long seed) {

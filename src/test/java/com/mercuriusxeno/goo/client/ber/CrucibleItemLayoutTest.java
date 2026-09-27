@@ -6,16 +6,19 @@ import com.mercuriusxeno.goo.client.SurfaceAgitation;
 import com.mercuriusxeno.goo.client.SurfaceRipple;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Where the crucible lays its melting items: the head's tiles whole at the center of the
- * fill's top, breaking off in turn to rest across the open basin, above every ripple crest,
- * the waiting items in its corners (decisions dissolve-shader-on-item,
- * tiles-break-off-as-dissolve-advances).
+ * Where the crucible lays its melting items: the head's shards whole at the center of the
+ * fill's top, breaking off rim first to rest at their own seeded spots across the open basin
+ * with no two shards' pixels overlapping, each riding the ripple at its own spot, the waiting
+ * items in its corners on the crest (decisions dissolve-shader-on-item,
+ * tiles-break-off-as-dissolve-advances, each-tile-bobs-with-the-ripple).
  */
 class CrucibleItemLayoutTest {
 
@@ -31,6 +34,24 @@ class CrucibleItemLayoutTest {
     private static final SurfaceRipple.Field STILL = new SurfaceRipple.Field(0, 0, 0f);
     /** Half the primary wave's wavelength, in blocks. */
     private static final float HALF_PRIMARY_WAVELENGTH = (float) (Math.PI / SurfaceRipple.PRIMARY_WAVENUMBER);
+    private static final String ITEM = "minecraft:iron_ingot";
+    private static final List<String> SAMPLE_ITEMS = List.of("minecraft:iron_ingot", "minecraft:diamond",
+            "minecraft:apple", "minecraft:stick", "minecraft:redstone", "minecraft:bone", "goo:gasket",
+            "minecraft:ender_pearl", "minecraft:blaze_rod", "minecraft:emerald", "minecraft:coal",
+            "minecraft:gold_nugget", "minecraft:feather", "minecraft:string", "minecraft:paper", "goo:crucible");
+
+    private static HeadShards flatHead(String itemId) {
+        return HeadShards.of(ShardModels.flatFor(itemId), ItemShardCutter.seedOf(itemId));
+    }
+
+    private static HeadShards cubeHead(String itemId) {
+        return HeadShards.of(ShardModels.cubeFor(itemId), ItemShardCutter.seedOf(itemId));
+    }
+
+    private static List<CrucibleItemLayout.ItemPlacement> shardsAt(HeadShards head, float fraction) {
+        return CrucibleItemLayout.headShards(null, RESTING, fraction, STILL, head.pieces(), head.frame(),
+                head.shifts());
+    }
 
     private static void assertInsideBasin(CrucibleItemLayout.ItemPlacement placement) {
         float half = placement.size() / 2f;
@@ -40,109 +61,139 @@ class CrucibleItemLayoutTest {
         assertTrue(placement.z() + half <= CrucibleBasin.FOOTPRINT_MAX, placement + " leaves the basin at high Z");
     }
 
-    /** Asserts a placement's square shares no area with any of the four corner slots' squares. */
-    private static void assertClearOfCorners(CrucibleItemLayout.ItemPlacement placement) {
-        for (CrucibleItemLayout.ItemPlacement corner
-                : CrucibleItemLayout.waiting(null, RESTING, CrucibleItemLayout.WAITING_SLOTS)) {
-            float reach = (placement.size() + corner.size()) / 2f;
-            boolean apart = Math.abs(placement.x() - corner.x()) >= reach
-                    || Math.abs(placement.z() - corner.z()) >= reach;
-            assertTrue(apart, placement + " overlaps the corner slot " + corner);
+    /**
+     * Asserts every shard's footprint at rest lies inside the footprint, outside the four
+     * corner slots, and shares no lattice cell with another shard's.
+     */
+    private static void assertRestingClear(String label, HeadShards head) {
+        CrucibleItemLayout.HeadFrame frame = head.frame();
+        List<CrucibleItemLayout.ItemPlacement> corners =
+                CrucibleItemLayout.waiting(null, RESTING, CrucibleItemLayout.WAITING_SLOTS);
+        Set<Long> claimed = new HashSet<>();
+        for (int i = 0; i < head.pieces().size(); i++) {
+            for (int[] cell : head.pieces().get(i).footprint()) {
+                int column = cell[0] + head.shifts()[i][0];
+                int row = cell[1] + head.shifts()[i][1];
+                float x = CENTER + frame.originX() + column * frame.cell();
+                float z = CENTER + frame.originZ() + row * frame.cell();
+                assertTrue(x >= CrucibleBasin.FOOTPRINT_MIN - EPSILON
+                        && x + frame.cell() <= CrucibleBasin.FOOTPRINT_MAX + EPSILON
+                        && z >= CrucibleBasin.FOOTPRINT_MIN - EPSILON
+                        && z + frame.cell() <= CrucibleBasin.FOOTPRINT_MAX + EPSILON,
+                        label + " shard " + i + " leaves the basin");
+                for (CrucibleItemLayout.ItemPlacement corner : corners) {
+                    float reach = corner.size() / 2f;
+                    boolean apart = x >= corner.x() + reach - EPSILON || x + frame.cell() <= corner.x() - reach + EPSILON
+                            || z >= corner.z() + reach - EPSILON || z + frame.cell() <= corner.z() - reach + EPSILON;
+                    assertTrue(apart, label + " shard " + i + " overlaps the corner slot " + corner);
+                }
+                assertTrue(claimed.add(((long) column << Integer.SIZE) | Integer.toUnsignedLong(row)),
+                        label + " shard " + i + " overlaps another shard's pixels");
+            }
         }
-    }
-
-    /** The spot a tile at a grid index draws at while the item is whole, rows running toward -Z. */
-    private static float[] gridSpot(int index) {
-        float step = CrucibleItemLayout.HEAD_SIZE / CrucibleItemLayout.TILE_GRID;
-        float offset = (CrucibleItemLayout.TILE_GRID - 1) / 2f;
-        return new float[] {CENTER + (index % CrucibleItemLayout.TILE_GRID - offset) * step,
-            CENTER - (index / CrucibleItemLayout.TILE_GRID - offset) * step};
     }
 
     @Nested
     class Scatter {
 
-        /** At fraction zero every tile sits at its grid spot, the tiles' union the head's square at the center. */
+        /**
+         * At fraction zero every shard sits at its home, its centroid within the whole item at
+         * the basin center, and the shards' footprints together cover the whole head.
+         */
         @Test
         void wholeAtFractionZero() {
-            CrucibleBasin.DrawnSurface surface = CrucibleBasin.drawnSurface(new CrucibleBasin.Volumes(MELTED, 0));
-            List<CrucibleItemLayout.ItemPlacement> tiles = CrucibleItemLayout.headTiles(surface, RESTING, 0f, STILL);
-            float half = CrucibleItemLayout.HEAD_SIZE / 2f;
+            HeadShards head = flatHead(ITEM);
+            List<CrucibleItemLayout.ItemPlacement> shards = shardsAt(head, 0f);
 
-            assertEquals(CrucibleItemLayout.TILE_COUNT, tiles.size());
-            float minX = Float.MAX_VALUE;
-            float maxX = -Float.MAX_VALUE;
-            float minZ = Float.MAX_VALUE;
-            float maxZ = -Float.MAX_VALUE;
-            for (int i = 0; i < tiles.size(); i++) {
-                CrucibleItemLayout.ItemPlacement tile = tiles.get(i);
-                assertEquals(gridSpot(i)[0], tile.x(), EPSILON, "tile " + i);
-                assertEquals(gridSpot(i)[1], tile.z(), EPSILON, "tile " + i);
-                assertEquals(CrucibleItemLayout.tileY(surface, RESTING, STILL, tile.x(), tile.z()), tile.y(), EPSILON);
-                minX = Math.min(minX, tile.x() - tile.size() / 2f);
-                maxX = Math.max(maxX, tile.x() + tile.size() / 2f);
-                minZ = Math.min(minZ, tile.z() - tile.size() / 2f);
-                maxZ = Math.max(maxZ, tile.z() + tile.size() / 2f);
+            Set<Long> covered = new HashSet<>();
+            for (int i = 0; i < shards.size(); i++) {
+                CrucibleItemLayout.ShardPiece piece = head.pieces().get(i);
+                assertEquals(CENTER + piece.homeX(), shards.get(i).x(), EPSILON);
+                assertEquals(CENTER + piece.homeZ(), shards.get(i).z(), EPSILON);
+                for (int[] cell : piece.footprint()) {
+                    covered.add(((long) cell[0] << Integer.SIZE) | Integer.toUnsignedLong(cell[1]));
+                }
             }
-            assertEquals(CENTER - half, minX, EPSILON);
-            assertEquals(CENTER + half, maxX, EPSILON);
-            assertEquals(CENTER - half, minZ, EPSILON);
-            assertEquals(CENTER + half, maxZ, EPSILON);
+            assertEquals(ShardModels.TEXELS * ShardModels.TEXELS, covered.size(), "the head's texels, all covered");
+            assertEquals(CrucibleItemLayout.HEAD_SIZE, head.frame().cell() * ShardModels.TEXELS, EPSILON);
         }
 
-        /** At fraction one every tile rests at its own spot inside the basin, clear of the corner slots. */
+        /** At fraction one every shard of a flat item rests inside the basin, clear of the corners and each other. */
         @Test
-        void scatteredAtFractionOne() {
-            List<CrucibleItemLayout.ItemPlacement> tiles = CrucibleItemLayout.headTiles(null, RESTING, 1f, STILL);
-
-            for (int i = 0; i < tiles.size(); i++) {
-                assertInsideBasin(tiles.get(i));
-                assertClearOfCorners(tiles.get(i));
-                assertNotEquals(gridSpot(i)[0] + "," + gridSpot(i)[1], tiles.get(i).x() + "," + tiles.get(i).z());
+        void flatItemsRestClear() {
+            for (String itemId : SAMPLE_ITEMS) {
+                assertRestingClear(itemId, flatHead(itemId));
             }
-            assertEquals(tiles.size(), tiles.stream().distinct().count(), "two tiles share a resting spot");
+        }
+
+        /** Every shard of a block, top, bottom and sides, rests clear of the corners and each other. */
+        @Test
+        void blocksRestClear() {
+            for (String itemId : SAMPLE_ITEMS) {
+                assertRestingClear(itemId + " block", cubeHead(itemId));
+            }
+        }
+
+        /** A shard farther from the head's center breaks off no later than a nearer one. */
+        @Test
+        void rimShardsBreakOffFirst() {
+            for (HeadShards head : List.of(flatHead(ITEM), cubeHead(ITEM))) {
+                List<CrucibleItemLayout.ShardPiece> pieces = head.pieces();
+                float[] breakOffs = CrucibleItemLayout.breakOffs(pieces);
+                for (int i = 0; i < pieces.size(); i++) {
+                    for (int j = 0; j < pieces.size(); j++) {
+                        if (CrucibleItemLayout.distanceFromCenter(pieces.get(i))
+                                > CrucibleItemLayout.distanceFromCenter(pieces.get(j))) {
+                            assertTrue(breakOffs[i] <= breakOffs[j], "shard " + i + " breaks after nearer shard " + j);
+                        }
+                    }
+                }
+            }
         }
 
         /**
-         * Midway, some tiles still sit in the grid and some have moved, each moved tile on
-         * the segment from its grid spot to its resting spot.
+         * Midway, some shards still sit at home and some have moved, each moved shard on the
+         * segment from its home to its resting spot.
          */
         @Test
-        void tilesBreakOffInTurn() {
-            List<CrucibleItemLayout.ItemPlacement> mid = CrucibleItemLayout.headTiles(null, RESTING, MID_DISSOLVE, STILL);
-            List<CrucibleItemLayout.ItemPlacement> rest = CrucibleItemLayout.headTiles(null, RESTING, 1f, STILL);
+        void shardsBreakOffInTurn() {
+            HeadShards head = flatHead(ITEM);
+            List<CrucibleItemLayout.ItemPlacement> home = shardsAt(head, 0f);
+            List<CrucibleItemLayout.ItemPlacement> mid = shardsAt(head, MID_DISSOLVE);
+            List<CrucibleItemLayout.ItemPlacement> rest = shardsAt(head, 1f);
 
             int unmoved = 0;
             int moved = 0;
             for (int i = 0; i < mid.size(); i++) {
-                float[] grid = gridSpot(i);
-                float dx = mid.get(i).x() - grid[0];
-                float dz = mid.get(i).z() - grid[1];
+                float dx = mid.get(i).x() - home.get(i).x();
+                float dz = mid.get(i).z() - home.get(i).z();
                 if (Math.abs(dx) < EPSILON && Math.abs(dz) < EPSILON) {
                     unmoved++;
                     continue;
                 }
                 moved++;
-                float spanX = rest.get(i).x() - grid[0];
-                float spanZ = rest.get(i).z() - grid[1];
-                assertEquals(0f, dx * spanZ - dz * spanX, EPSILON, "tile " + i + " leaves its drift line");
+                float spanX = rest.get(i).x() - home.get(i).x();
+                float spanZ = rest.get(i).z() - home.get(i).z();
+                assertEquals(0f, dx * spanZ - dz * spanX, FLOAT_ROUNDING, "shard " + i + " leaves its drift line");
                 float along = (dx * spanX + dz * spanZ) / (spanX * spanX + spanZ * spanZ);
-                assertTrue(along > 0f && along <= 1f + EPSILON, "tile " + i + " passes its ends: " + along);
+                assertTrue(along > 0f && along <= 1f + FLOAT_ROUNDING, "shard " + i + " passes its ends: " + along);
             }
-            assertTrue(unmoved > 0, "every tile has broken off midway");
-            assertTrue(moved > 0, "no tile has broken off midway");
+            assertTrue(unmoved > 0, "every shard has broken off midway");
+            assertTrue(moved > 0, "no shard has broken off midway");
         }
 
-        /** The rim tiles break off before the inner ones. */
+        /** A block's shards stand on the surface at home and settle onto it at rest. */
         @Test
-        void rimTilesBreakOffFirst() {
-            int firstInner = CrucibleItemLayout.TILE_GRID + 1;
-            float justPastRim = 12f / CrucibleItemLayout.TILE_COUNT * (1f - CrucibleItemLayout.DRIFT_SPAN);
-            List<CrucibleItemLayout.ItemPlacement> tiles = CrucibleItemLayout.headTiles(null, RESTING, justPastRim, STILL);
-
-            assertEquals(gridSpot(firstInner)[0], tiles.get(firstInner).x(), EPSILON);
-            float moved = Math.abs(gridSpot(0)[0] - tiles.get(0).x()) + Math.abs(gridSpot(0)[1] - tiles.get(0).z());
-            assertTrue(moved > EPSILON, "the corner tile has not broken off");
+        void blockShardsSettleOntoTheSurface() {
+            HeadShards head = cubeHead(ITEM);
+            List<CrucibleItemLayout.ItemPlacement> home = shardsAt(head, 0f);
+            List<CrucibleItemLayout.ItemPlacement> rest = shardsAt(head, 1f);
+            float floor = CrucibleBasin.FLOOR_Y + CrucibleItemLayout.FLOAT_LIFT;
+            for (int i = 0; i < home.size(); i++) {
+                CrucibleItemLayout.ShardPiece piece = head.pieces().get(i);
+                assertEquals(floor + piece.homeY() - head.frame().bottomY(), home.get(i).y(), FLOAT_ROUNDING);
+                assertEquals(floor + piece.homeY() - piece.floorY(), rest.get(i).y(), FLOAT_ROUNDING);
+            }
         }
     }
 
@@ -150,20 +201,25 @@ class CrucibleItemLayoutTest {
     class Bobbing {
 
         /**
-         * Each tile rests at the surface plus the amplitude times the wave at its own spot
-         * plus the tile lift, at every fraction the tiles drift through.
+         * Each shard rests at the surface plus the amplitude times the wave at its own spot
+         * plus the tile lift, raised by its height over the surface, at home and at rest.
          */
         @Test
-        void tileRestsOnTheWaveAtItsSpot() {
+        void shardRestsOnTheWaveAtItsSpot() {
             CrucibleBasin.DrawnSurface surface = CrucibleBasin.drawnSurface(new CrucibleBasin.Volumes(MELTED, 0));
             SurfaceRipple.Field field = new SurfaceRipple.Field(-37, 112, 0.3f);
+            HeadShards head = flatHead(ITEM);
 
-            for (float fraction : new float[] {0f, MID_DISSOLVE, 1f}) {
-                for (CrucibleItemLayout.ItemPlacement tile
-                        : CrucibleItemLayout.headTiles(surface, FULLY_AGITATED, fraction, field)) {
-                    float wave = SurfaceRipple.at(-37 + tile.x(), 112 + tile.z(), 0.3f);
+            for (float fraction : new float[] {0f, 1f}) {
+                List<CrucibleItemLayout.ItemPlacement> shards = CrucibleItemLayout.headShards(surface, FULLY_AGITATED,
+                        fraction, field, head.pieces(), head.frame(), head.shifts());
+                for (int i = 0; i < shards.size(); i++) {
+                    CrucibleItemLayout.ItemPlacement shard = shards.get(i);
+                    CrucibleItemLayout.ShardPiece piece = head.pieces().get(i);
+                    float rise = piece.homeY() - (fraction == 0f ? head.frame().bottomY() : piece.floorY());
+                    float wave = SurfaceRipple.at(-37 + shard.x(), 112 + shard.z(), 0.3f);
                     assertEquals(surface.surfaceY() + FULLY_AGITATED * wave
-                            + CrucibleItemLayout.tileLift(FULLY_AGITATED), tile.y(), FLOAT_ROUNDING);
+                            + CrucibleItemLayout.tileLift(FULLY_AGITATED) + rise, shard.y(), FLOAT_ROUNDING);
                 }
             }
         }
@@ -174,12 +230,10 @@ class CrucibleItemLayoutTest {
             CrucibleBasin.DrawnSurface surface = CrucibleBasin.drawnSurface(new CrucibleBasin.Volumes(MELTED, 0));
             float crest = (float) (2.5 * Math.PI / (SurfaceRipple.PRIMARY_WAVENUMBER
                     * (SurfaceRipple.PRIMARY_DIRECTION_X + SurfaceRipple.PRIMARY_DIRECTION_Z)));
-            float x = crest;
-            float z = crest;
-            float farX = x + SurfaceRipple.PRIMARY_DIRECTION_X * HALF_PRIMARY_WAVELENGTH;
-            float farZ = z + SurfaceRipple.PRIMARY_DIRECTION_Z * HALF_PRIMARY_WAVELENGTH;
+            float farX = crest + SurfaceRipple.PRIMARY_DIRECTION_X * HALF_PRIMARY_WAVELENGTH;
+            float farZ = crest + SurfaceRipple.PRIMARY_DIRECTION_Z * HALF_PRIMARY_WAVELENGTH;
 
-            float near = CrucibleItemLayout.tileY(surface, FULLY_AGITATED, STILL, x, z);
+            float near = CrucibleItemLayout.tileY(surface, FULLY_AGITATED, STILL, crest, crest);
             float far = CrucibleItemLayout.tileY(surface, FULLY_AGITATED, STILL, farX, farZ);
 
             assertTrue(Math.abs(near - far) > FULLY_AGITATED / 4f, near + " vs " + far);
@@ -206,13 +260,6 @@ class CrucibleItemLayoutTest {
                         EPSILON);
             }
         }
-    }
-
-    /** With nothing melted the head rests on the basin floor. */
-    @Test
-    void headRestsOnTheFloorBeforeAnythingMelts() {
-        assertEquals(CrucibleBasin.FLOOR_Y + CrucibleItemLayout.FLOAT_LIFT,
-                CrucibleItemLayout.headTiles(null, RESTING, 0f, STILL).getFirst().y(), EPSILON);
     }
 
     /** Three waiting stacks lie in three distinct corners inside the basin, above the fill. */

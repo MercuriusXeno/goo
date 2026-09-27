@@ -8,25 +8,23 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * Where the crucible lays the items its pool holds: the dissolving head cut into tiles
- * that start whole at the center of the fill's top and break off in turn to drift across
- * the open basin, each bobbing on the ripple at its own spot, and the stacks waiting
- * behind it in the basin's corners, riding just above the highest crest the ripple
- * reaches so no wave humps over them; all on the floor while nothing has melted
- * (decisions dissolve-shader-on-item, tiles-break-off-as-dissolve-advances,
+ * Where the crucible lays the items its pool holds: the dissolving head broken into shards
+ * that start whole at the center of the fill's top and break off rim first to drift to
+ * their own seeded spots across the open basin, each bobbing on the ripple at its own spot,
+ * and the stacks waiting behind it in the basin's corners, riding just above the highest
+ * crest the ripple reaches so no wave humps over them; all on the floor while nothing has
+ * melted (decisions dissolve-shader-on-item, tiles-break-off-as-dissolve-advances,
  * each-tile-bobs-with-the-ripple).
  */
 final class CrucibleItemLayout {
 
     /** The dissolving item's width across the basin, in blocks. */
     static final float HEAD_SIZE = 0.26f;
-    /** The tiles along each side of the grid the dissolving item is cut into, four texture pixels each. */
-    static final int TILE_GRID = 4;
-    /** The tiles the dissolving item is cut into. */
-    static final int TILE_COUNT = TILE_GRID * TILE_GRID;
-    /** A tile's width, in blocks. */
-    static final float TILE_SIZE = HEAD_SIZE / TILE_GRID;
-    /** The span of the dissolve fraction a tile takes to drift from the grid to its resting spot. */
+    /** A block's width across the basin, smaller than a flat item's so its shards fit the open basin at rest. */
+    static final float BLOCK_HEAD_SIZE = 0.16f;
+    /** A shard's nominal width, a quarter of the head, which the ripple lift is sized to. */
+    static final float TILE_SIZE = HEAD_SIZE / 4;
+    /** The span of the dissolve fraction a shard takes to drift from home to its resting spot. */
     static final float DRIFT_SPAN = 0.25f;
     /** A waiting item's width, in blocks. */
     static final float WAITING_SIZE = 0.14f;
@@ -36,6 +34,8 @@ final class CrucibleItemLayout {
     static final float FLOAT_LIFT = 1f / 256f;
     /** Gap between an item and the basin wall. */
     private static final float WALL_GAP = 1f / 64f;
+    /** Keeps the rest shifts' draw apart from the shard cut's, on the same item seed. */
+    private static final long SPOT_SALT = 0x6A09E667F3BCC909L;
 
     private static final float HALF = 0.5f;
     /** The cubic smoothstep 3t² - 2t³ written as t²(3 - 2t). */
@@ -48,28 +48,12 @@ final class CrucibleItemLayout {
         {NEAR_CORNER, NEAR_CORNER}, {FAR_CORNER, FAR_CORNER}, {NEAR_CORNER, FAR_CORNER}, {FAR_CORNER, NEAR_CORNER},
     };
     /**
-     * How far from the center the inner resting spots on each arm of the open basin lie:
-     * a tile's width clear of the center, so no two arms' inner tiles overlap.
-     */
-    private static final float ARM_INNER = TILE_SIZE + TILE_SIZE * HALF;
-    /**
-     * How far the outer resting spots lie, a tile's width past the inner, their centers
-     * inside the surface's rippling interior rather than its still rim cell.
-     */
-    private static final float ARM_OUTER = ARM_INNER + TILE_SIZE;
-    /**
      * A tile's lift over the wave at its center, per block of amplitude: the most the ripple
      * rises from a tile's center to its corner near a crest at the highest wavenumber, so no
      * crest humps over a tile's edge (decision each-tile-bobs-with-the-ripple).
      */
     private static final float TILE_SAG_PER_AMPLITUDE =
             (float) (1.0 - Math.cos(SurfaceRipple.SECONDARY_WAVENUMBER * TILE_SIZE * HALF * Math.sqrt(2.0)));
-    /** The four directions the open basin's arms run from the center, between the corners. */
-    private static final float[][] ARM_DIRECTIONS = {{1f, 0f}, {0f, 1f}, {-1f, 0f}, {0f, -1f}};
-
-    private static final List<Spot> GRID_SPOTS = gridSpots();
-    private static final List<Spot> RESTING_SPOTS = restingSpotsByGridAngle();
-    private static final float[] BREAK_OFF = rimFirstBreakOffs();
 
     private CrucibleItemLayout() {
     }
@@ -86,12 +70,29 @@ final class CrucibleItemLayout {
     }
 
     /**
-     * A spot on the basin's floor plan.
+     * One shard as the layout sees it, in blocks relative to the head's center with the item
+     * lying as it rests: where its centroid sits in the whole item, how far its lowest cell
+     * lies under the centroid, and the texel cells it covers on the basin floor.
      *
-     * @param x the X
-     * @param z the Z
+     * @param homeX     the centroid's X offset from the head's center
+     * @param homeY     the centroid's height relative to the head's center
+     * @param homeZ     the centroid's Z offset from the head's center
+     * @param floorY    its lowest cell's height relative to the head's center
+     * @param footprint the lattice cells it covers seen from above, each a column and a row
      */
-    private record Spot(float x, float z) {
+    record ShardPiece(float homeX, float homeY, float homeZ, float floorY, int[][] footprint) {
+    }
+
+    /**
+     * The whole head as the layout sees it: the texel lattice its shards' footprints are
+     * counted on, and how far its lowest point lies under its center.
+     *
+     * @param originX the lattice's low X edge, in blocks relative to the head's center
+     * @param originZ the lattice's low Z edge, in blocks relative to the head's center
+     * @param cell    one lattice cell's width, one texel of the item, in blocks
+     * @param bottomY the head's lowest point relative to its center
+     */
+    record HeadFrame(float originX, float originZ, float cell, float bottomY) {
     }
 
     /**
@@ -107,54 +108,268 @@ final class CrucibleItemLayout {
     }
 
     /**
-     * Places each shard of the dissolving item at its home, its centroid where it lies in the
-     * whole item flat at the center of the fill's top, so the shards together draw the whole
-     * item, each riding the wave at its own spot (decisions tiles-of-the-items-image,
+     * Places each shard of the dissolving item: at home, its centroid where it lies in the
+     * whole item standing on the fill's top at the basin center, until the fraction reaches
+     * its break-off, then easing out by its rest shift over {@link #DRIFT_SPAN} and down onto
+     * the surface, so the item is whole at zero and scattered near one, each shard riding the
+     * wave at its own spot (decisions tiles-of-the-items-image, tiles-break-off-as-dissolve-advances,
      * each-tile-bobs-with-the-ripple).
-     *
-     * @param surface   the drawn surface, or null while nothing has melted
-     * @param amplitude the ripple amplitude the surface undulates at, in blocks
-     * @param ripple    the wave over this crucible's block at this frame
-     * @param offsets   each shard centroid's X and Y offset from the face's center, in widths
-     *                  of the face's larger side, Y running along the model's Y
-     * @return one placement per shard, its size the width the whole face scales to
-     */
-    static List<ItemPlacement> shardHomes(CrucibleBasin.@Nullable DrawnSurface surface, float amplitude,
-                                          SurfaceRipple.Field ripple, List<float[]> offsets) {
-        List<ItemPlacement> homes = new ArrayList<>(offsets.size());
-        for (float[] offset : offsets) {
-            float x = CENTER + offset[0] * HEAD_SIZE;
-            float z = CENTER - offset[1] * HEAD_SIZE;
-            homes.add(new ItemPlacement(x, tileY(surface, amplitude, ripple, x, z), z, HEAD_SIZE));
-        }
-        return homes;
-    }
-
-    /**
-     * Places each tile of the dissolving item: in the grid centered on the fill's top until
-     * the fraction reaches its break-off, then easing out to its resting spot in the open
-     * basin over {@link #DRIFT_SPAN}, so the item is whole at zero and scattered near one,
-     * each bobbing with the ripple at its own spot (decisions tiles-of-the-items-image,
-     * tiles-break-off-as-dissolve-advances, each-tile-bobs-with-the-ripple).
      *
      * @param surface   the drawn surface, or null while nothing has melted
      * @param amplitude the ripple amplitude the surface undulates at, in blocks
      * @param fraction  how far the item has dissolved, zero to one
      * @param ripple    the wave over this crucible's block at this frame
-     * @return one placement per tile, in {@link ItemTileClipper.TileGrid#tile} index order
+     * @param shards    the item's shards, in shard order
+     * @param frame     the head's lattice and bottom
+     * @param shifts    each shard's rest shift in lattice cells, as {@link #restShifts} answers
+     * @return one placement per shard, its centroid; its size the width the whole head scales to
      */
-    static List<ItemPlacement> headTiles(CrucibleBasin.@Nullable DrawnSurface surface, float amplitude,
-                                         float fraction, SurfaceRipple.Field ripple) {
-        List<ItemPlacement> tiles = new ArrayList<>(TILE_COUNT);
-        for (int i = 0; i < TILE_COUNT; i++) {
-            float drift = easeInOut((fraction - BREAK_OFF[i]) / DRIFT_SPAN);
-            Spot grid = GRID_SPOTS.get(i);
-            Spot rest = RESTING_SPOTS.get(i);
-            float x = grid.x() + (rest.x() - grid.x()) * drift;
-            float z = grid.z() + (rest.z() - grid.z()) * drift;
-            tiles.add(new ItemPlacement(x, tileY(surface, amplitude, ripple, x, z), z, TILE_SIZE));
+    static List<ItemPlacement> headShards(CrucibleBasin.@Nullable DrawnSurface surface, float amplitude,
+                                          float fraction, SurfaceRipple.Field ripple, List<ShardPiece> shards,
+                                          HeadFrame frame, int[][] shifts) {
+        float[] breakOffs = breakOffs(shards);
+        List<ItemPlacement> placements = new ArrayList<>(shards.size());
+        for (int i = 0; i < shards.size(); i++) {
+            ShardPiece shard = shards.get(i);
+            float drift = easeInOut((fraction - breakOffs[i]) / DRIFT_SPAN);
+            float x = CENTER + shard.homeX() + shifts[i][0] * frame.cell() * drift;
+            float z = CENTER + shard.homeZ() + shifts[i][1] * frame.cell() * drift;
+            float rise = shard.homeY() - frame.bottomY() + (frame.bottomY() - shard.floorY()) * drift;
+            placements.add(new ItemPlacement(x, tileY(surface, amplitude, ripple, x, z) + rise, z, HEAD_SIZE));
         }
-        return tiles;
+        return placements;
+    }
+
+    /**
+     * Returns each shard's break-off fraction: ranked by its centroid's distance from the
+     * head's center, farthest first, spaced evenly so the last still reaches its spot by one.
+     *
+     * @param shards the item's shards
+     * @return each shard's break-off fraction, in shard order
+     */
+    static float[] breakOffs(List<ShardPiece> shards) {
+        List<Integer> byDistance = new ArrayList<>(shards.size());
+        for (int i = 0; i < shards.size(); i++) {
+            byDistance.add(i);
+        }
+        byDistance.sort(Comparator.comparingDouble((Integer i) -> distanceFromCenter(shards.get(i))).reversed());
+        float[] breakOffs = new float[shards.size()];
+        for (int rank = 0; rank < byDistance.size(); rank++) {
+            breakOffs[byDistance.get(rank)] = rank * (1f - DRIFT_SPAN) / shards.size();
+        }
+        return breakOffs;
+    }
+
+    /**
+     * @param shard a shard
+     * @return its centroid's distance from the head's center
+     */
+    static double distanceFromCenter(ShardPiece shard) {
+        return Math.sqrt(shard.homeX() * shard.homeX() + shard.homeY() * shard.homeY()
+                + shard.homeZ() * shard.homeZ());
+    }
+
+    /**
+     * Returns each shard's rest shift, whole lattice cells from its home, drawn from the
+     * item's seed: the shards covering the most cells placed first, each where all its cells
+     * lie inside the basin footprint by the wall gap, clear of the four corner slots and of
+     * every cell a shard placed before it covers, so no two shards' pixels overlap at rest.
+     * The shift is whole cells, so every shard's pixels stay on the one lattice.
+     *
+     * @param shards the item's shards
+     * @param frame  the head's lattice
+     * @param seed   the item's seed
+     * @return each shard's shift, a column and a row, in shard order
+     */
+    static int[][] restShifts(List<ShardPiece> shards, HeadFrame frame, long seed) {
+        RestLattice lattice = new RestLattice(frame);
+        List<Integer> bySize = new ArrayList<>(shards.size());
+        for (int i = 0; i < shards.size(); i++) {
+            bySize.add(i);
+        }
+        bySize.sort(Comparator.comparingInt((Integer i) -> shards.get(i).footprint().length).reversed());
+        ItemShardCutter.SeedStream stream = new ItemShardCutter.SeedStream(seed ^ SPOT_SALT);
+        int[][] shifts = new int[shards.size()][];
+        for (int i : bySize) {
+            shifts[i] = lattice.place(shards.get(i).footprint(), stream);
+        }
+        return shifts;
+    }
+
+    /**
+     * The lattice rows and columns a footprint reaches.
+     *
+     * @param lowRow     its lowest row
+     * @param highRow    its highest row
+     * @param lowColumn  its lowest column
+     * @param highColumn its highest column
+     */
+    private record FootprintReach(int lowRow, int highRow, int lowColumn, int highColumn) {
+
+        static FootprintReach of(int[][] footprint) {
+            int lowRow = Integer.MAX_VALUE;
+            int highRow = Integer.MIN_VALUE;
+            int lowColumn = Integer.MAX_VALUE;
+            int highColumn = Integer.MIN_VALUE;
+            for (int[] cell : footprint) {
+                lowRow = Math.min(lowRow, cell[1]);
+                highRow = Math.max(highRow, cell[1]);
+                lowColumn = Math.min(lowColumn, cell[0]);
+                highColumn = Math.max(highColumn, cell[0]);
+            }
+            return new FootprintReach(lowRow, highRow, lowColumn, highColumn);
+        }
+    }
+
+    /**
+     * The basin floor counted in the head's lattice cells: which cells a resting shard may
+     * cover, and which it already does.
+     */
+    private static final class RestLattice {
+        private final int lowColumn;
+        private final int lowRow;
+        private final int columns;
+        private final int rows;
+        private final boolean[] blocked;
+
+        RestLattice(HeadFrame frame) {
+            float low = CrucibleBasin.FOOTPRINT_MIN + WALL_GAP - CENTER;
+            float high = CrucibleBasin.FOOTPRINT_MAX - WALL_GAP - CENTER;
+            lowColumn = (int) Math.ceil((low - frame.originX()) / frame.cell());
+            lowRow = (int) Math.ceil((low - frame.originZ()) / frame.cell());
+            columns = (int) Math.floor((high - frame.originX()) / frame.cell()) - lowColumn;
+            rows = (int) Math.floor((high - frame.originZ()) / frame.cell()) - lowRow;
+            blocked = new boolean[Math.max(columns, 0) * Math.max(rows, 0)];
+            for (int row = 0; row < rows; row++) {
+                for (int column = 0; column < columns; column++) {
+                    float x = CENTER + frame.originX() + (lowColumn + column) * frame.cell();
+                    float z = CENTER + frame.originZ() + (lowRow + row) * frame.cell();
+                    blocked[row * columns + column] = inCorner(x, z, frame.cell());
+                }
+            }
+        }
+
+        private static boolean inCorner(float x, float z, float cell) {
+            float reach = WAITING_SIZE * HALF;
+            for (float[] corner : CORNERS) {
+                if (overlaps(x, cell, corner[0], reach) && overlaps(z, cell, corner[1], reach)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /**
+         * @param low    a cell's low edge along an axis
+         * @param cell   the cell's width
+         * @param center a slot's center along the axis
+         * @param reach  the slot's half width
+         * @return true if the cell and the slot share some of the axis
+         */
+        private static boolean overlaps(float low, float cell, float center, float reach) {
+            return low < center + reach && low + cell > center - reach;
+        }
+
+        /**
+         * Places one footprint at the first clear shift of a seeded order over every shift
+         * that keeps it on the floor, and marks its cells covered.
+         *
+         * @param footprint the shard's cells at home
+         * @param stream    the item's seeded stream
+         * @return the shift, a column and a row; none when nothing is clear
+         */
+        int[] place(int[][] footprint, ItemShardCutter.SeedStream stream) {
+            int[] best = null;
+            int bestContact = 0;
+            for (int[] shift : shuffledShifts(footprint, stream)) {
+                if (!fits(footprint, shift)) {
+                    continue;
+                }
+                int contact = contact(footprint, shift);
+                if (best == null || contact > bestContact) {
+                    best = shift;
+                    bestContact = contact;
+                }
+            }
+            if (best == null) {
+                return new int[] {0, 0};
+            }
+            cover(footprint, best);
+            return best;
+        }
+
+        /**
+         * Lists every shift that keeps a footprint's reach on the lattice, in the seeded order
+         * that breaks ties between equally snug spots.
+         *
+         * @param footprint the shard's cells at home
+         * @param stream    the item's seeded stream
+         * @return the shifts, each a column and a row
+         */
+        private List<int[]> shuffledShifts(int[][] footprint, ItemShardCutter.SeedStream stream) {
+            FootprintReach reach = FootprintReach.of(footprint);
+            List<int[]> shifts = new ArrayList<>();
+            for (int row = lowRow - reach.lowRow(); row < lowRow + rows - reach.highRow(); row++) {
+                for (int column = lowColumn - reach.lowColumn(); column < lowColumn + columns - reach.highColumn();
+                     column++) {
+                    shifts.add(new int[] {column, row});
+                }
+            }
+            for (int i = shifts.size() - 1; i > 0; i--) {
+                int j = stream.nextInt(i + 1);
+                int[] swap = shifts.get(i);
+                shifts.set(i, shifts.get(j));
+                shifts.set(j, swap);
+            }
+            return shifts;
+        }
+
+        /**
+         * Counts the sides of a placed footprint's cells that touch a wall, a corner slot or a
+         * shard already placed, so each shard settles against the others and the open floor
+         * stays in one piece for the shards still to come.
+         *
+         * @param footprint the shard's cells at home
+         * @param shift     the candidate shift
+         * @return the touching sides
+         */
+        private int contact(int[][] footprint, int[] shift) {
+            int touching = 0;
+            for (int[] cell : footprint) {
+                int column = cell[0] + shift[0] - lowColumn;
+                int row = cell[1] + shift[1] - lowRow;
+                touching += closed(column - 1, row) + closed(column + 1, row)
+                        + closed(column, row - 1) + closed(column, row + 1);
+            }
+            return touching;
+        }
+
+        private int closed(int column, int row) {
+            return open(column, row) ? 0 : 1;
+        }
+
+        private boolean open(int column, int row) {
+            return onLattice(column, row) && !blocked[row * columns + column];
+        }
+
+        private boolean onLattice(int column, int row) {
+            return column >= 0 && row >= 0 && column < columns && row < rows;
+        }
+
+        private boolean fits(int[][] footprint, int[] shift) {
+            for (int[] cell : footprint) {
+                if (!open(cell[0] + shift[0] - lowColumn, cell[1] + shift[1] - lowRow)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        private void cover(int[][] footprint, int[] shift) {
+            for (int[] cell : footprint) {
+                blocked[(cell[1] + shift[1] - lowRow) * columns + cell[0] + shift[0] - lowColumn] = true;
+            }
+        }
     }
 
     /**
@@ -185,80 +400,6 @@ final class CrucibleItemLayout {
      */
     static float tileLift(float amplitude) {
         return amplitude * TILE_SAG_PER_AMPLITUDE + FLOAT_LIFT;
-    }
-
-    /**
-     * @return each tile's spot in the grid around the center, in tile index order
-     */
-    private static List<Spot> gridSpots() {
-        List<Spot> spots = new ArrayList<>(TILE_COUNT);
-        for (int row = 0; row < TILE_GRID; row++) {
-            for (int column = 0; column < TILE_GRID; column++) {
-                spots.add(new Spot(CENTER + ((column + HALF) / TILE_GRID - HALF) * HEAD_SIZE,
-                        CENTER - ((row + HALF) / TILE_GRID - HALF) * HEAD_SIZE));
-            }
-        }
-        return spots;
-    }
-
-    /**
-     * Returns each tile's resting spot: four spots on each arm of the open basin between
-     * the corner slots, two abreast and two deep, paired to the tiles by their angle around
-     * the center so each tile drifts outward on its own side.
-     *
-     * @return each tile's resting spot, in tile index order
-     */
-    private static List<Spot> restingSpotsByGridAngle() {
-        List<Spot> spots = new ArrayList<>(TILE_COUNT);
-        for (float[] arm : ARM_DIRECTIONS) {
-            for (float along : new float[] {ARM_INNER, ARM_OUTER}) {
-                for (float abreast : new float[] {-TILE_SIZE * HALF, TILE_SIZE * HALF}) {
-                    spots.add(new Spot(CENTER + arm[0] * along - arm[1] * abreast,
-                            CENTER + arm[1] * along + arm[0] * abreast));
-                }
-            }
-        }
-        spots.sort(Comparator.comparingDouble(CrucibleItemLayout::angleAroundCenter));
-        List<Integer> tilesByAngle = new ArrayList<>(TILE_COUNT);
-        for (int i = 0; i < TILE_COUNT; i++) {
-            tilesByAngle.add(i);
-        }
-        tilesByAngle.sort(Comparator.comparingDouble(i -> angleAroundCenter(GRID_SPOTS.get(i))));
-        Spot[] byTile = new Spot[TILE_COUNT];
-        for (int rank = 0; rank < TILE_COUNT; rank++) {
-            byTile[tilesByAngle.get(rank)] = spots.get(rank);
-        }
-        return List.of(byTile);
-    }
-
-    private static double angleAroundCenter(Spot spot) {
-        return Math.atan2(spot.z() - CENTER, spot.x() - CENTER);
-    }
-
-    /**
-     * Returns each tile's break-off fraction: the rim tiles first, then the inner ones,
-     * spaced evenly so the last one still reaches its spot by fraction one.
-     *
-     * @return each tile's break-off fraction, in tile index order
-     */
-    private static float[] rimFirstBreakOffs() {
-        float[] breakOffs = new float[TILE_COUNT];
-        int rank = 0;
-        for (boolean rim : new boolean[] {true, false}) {
-            for (int i = 0; i < TILE_COUNT; i++) {
-                if (onRim(i) == rim) {
-                    breakOffs[i] = rank * (1f - DRIFT_SPAN) / TILE_COUNT;
-                    rank++;
-                }
-            }
-        }
-        return breakOffs;
-    }
-
-    private static boolean onRim(int index) {
-        int column = index % TILE_GRID;
-        int row = index / TILE_GRID;
-        return column == 0 || row == 0 || column == TILE_GRID - 1 || row == TILE_GRID - 1;
     }
 
     /**

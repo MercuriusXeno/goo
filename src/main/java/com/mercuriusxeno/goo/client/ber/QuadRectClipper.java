@@ -10,9 +10,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Cuts a quad to an XY rectangle, the prism x and y bounded and z free, so a shard's run of
- * texels draws exactly its own piece of the item's face (decision tiles-of-the-items-image).
- * A cut edge interpolates position, UV and color.
+ * Cuts a quad to a rectangle in the plane of two axes, the prism those two bounded and the
+ * third free, so a shard's run of texel cells draws exactly its own piece of a face of the
+ * item's model (decision tiles-of-the-items-image). A cut edge interpolates position, UV and color.
  */
 final class QuadRectClipper {
 
@@ -25,6 +25,13 @@ final class QuadRectClipper {
     private static final float KEEP_ABOVE = 1f;
     /** Keeps the side of a plane at or below its bound. */
     private static final float KEEP_BELOW = -1f;
+
+    /** The X axis. */
+    static final int X = 0;
+    /** The Y axis. */
+    static final int Y = 1;
+    /** The Z axis. */
+    static final int Z = 2;
 
     private QuadRectClipper() {
     }
@@ -54,6 +61,14 @@ final class QuadRectClipper {
         }
 
         /**
+         * @param axis {@link #X}, {@link #Y} or {@link #Z}
+         * @return the position's coordinate along that axis
+         */
+        float along(int axis) {
+            return axis == X ? x : axis == Y ? y : z;
+        }
+
+        /**
          * Returns this vertex with its position carried through a transform.
          *
          * @param transform the affine transform
@@ -70,12 +85,13 @@ final class QuadRectClipper {
     }
 
     /**
-     * An axis-aligned rectangle in XY.
+     * An axis-aligned rectangle in the plane of two axes, the first axis read as X and the
+     * second as Y.
      *
-     * @param minX the low X edge
-     * @param minY the low Y edge
-     * @param maxX the high X edge
-     * @param maxY the high Y edge
+     * @param minX the low edge along the first axis
+     * @param minY the low edge along the second axis
+     * @param maxX the high edge along the first axis
+     * @param maxY the high edge along the second axis
      */
     record Rect(float minX, float minY, float maxX, float maxY) {
     }
@@ -118,47 +134,43 @@ final class QuadRectClipper {
     }
 
     /**
-     * Cuts one quad spanning X and Y to a rectangle: whole when it lies inside, nothing when
-     * it lies outside or only touches an edge, otherwise the piece inside as quads, a piece
-     * beyond four corners fanned into several.
+     * Cuts one quad spanning X and Y to a rectangle.
      *
      * @param quad the quad's four vertices
      * @param rect the rectangle to cut to
      * @return the quads of the piece inside the rectangle, four vertices each
      */
     static List<List<ClipVertex>> clip(List<ClipVertex> quad, Rect rect) {
-        if (insideWhole(quad, rect)) {
+        return clip(quad, rect, X, Y);
+    }
+
+    /**
+     * Cuts one quad to a rectangle in the plane of two axes: whole when it lies inside,
+     * nothing when it lies outside or only touches an edge, otherwise the piece inside as
+     * quads, a piece beyond four corners fanned into several.
+     *
+     * @param quad  the quad's four vertices
+     * @param rect  the rectangle to cut to
+     * @param axisA the axis the rectangle's X runs along
+     * @param axisB the axis the rectangle's Y runs along
+     * @return the quads of the piece inside the rectangle, four vertices each
+     */
+    static List<List<ClipVertex>> clip(List<ClipVertex> quad, Rect rect, int axisA, int axisB) {
+        if (insideWhole(quad, rect, axisA, axisB)) {
             return List.of(quad);
         }
-        List<ClipVertex> piece = clipAxis(quad, Axis.X, rect);
-        piece = clipAxis(piece, Axis.Y, rect);
+        List<ClipVertex> piece = clipAxis(quad, axisA, rect.minX(), rect.maxX());
+        piece = clipAxis(piece, axisB, rect.minY(), rect.maxY());
         if (piece.size() < TRIANGLE) {
             return List.of();
         }
         return fan(piece);
     }
 
-    /** The two axes a rectangle bounds. */
-    private enum Axis {
-        X, Y;
-
-        float of(ClipVertex vertex) {
-            return this == X ? vertex.x() : vertex.y();
-        }
-
-        float min(Rect rect) {
-            return this == X ? rect.minX() : rect.minY();
-        }
-
-        float max(Rect rect) {
-            return this == X ? rect.maxX() : rect.maxY();
-        }
-    }
-
-    private static boolean insideWhole(List<ClipVertex> quad, Rect rect) {
+    private static boolean insideWhole(List<ClipVertex> quad, Rect rect, int axisA, int axisB) {
         for (ClipVertex vertex : quad) {
-            if (vertex.x() < rect.minX() || vertex.x() > rect.maxX()
-                    || vertex.y() < rect.minY() || vertex.y() > rect.maxY()) {
+            if (vertex.along(axisA) < rect.minX() || vertex.along(axisA) > rect.maxX()
+                    || vertex.along(axisB) < rect.minY() || vertex.along(axisB) > rect.maxY()) {
                 return false;
             }
         }
@@ -166,20 +178,19 @@ final class QuadRectClipper {
     }
 
     /**
-     * Cuts a polygon to a rectangle's bounds along one axis, dropping a piece collapsed onto
-     * the rectangle's edge.
+     * Cuts a polygon to a slab along one axis, dropping a piece collapsed onto its edge.
      *
      * @param polygon the polygon to cut
      * @param axis    the axis to cut along
-     * @param rect    the rectangle to cut to
-     * @return the piece inside the rectangle's bounds along the axis, or none
+     * @param low     the slab's low bound
+     * @param high    the slab's high bound
+     * @return the piece inside the slab, or none
      */
-    private static List<ClipVertex> clipAxis(List<ClipVertex> polygon, Axis axis, Rect rect) {
+    private static List<ClipVertex> clipAxis(List<ClipVertex> polygon, int axis, float low, float high) {
         if (polygon.isEmpty()) {
             return polygon;
         }
-        List<ClipVertex> piece = clipPlane(clipPlane(polygon, axis, axis.min(rect), KEEP_ABOVE),
-                axis, axis.max(rect), KEEP_BELOW);
+        List<ClipVertex> piece = clipPlane(clipPlane(polygon, axis, low, KEEP_ABOVE), axis, high, KEEP_BELOW);
         return piece.isEmpty() || extent(piece, axis) < COLLAPSED ? List.of() : piece;
     }
 
@@ -190,12 +201,12 @@ final class QuadRectClipper {
      * @param axis    the axis
      * @return its highest coordinate less its lowest
      */
-    private static float extent(List<ClipVertex> polygon, Axis axis) {
+    private static float extent(List<ClipVertex> polygon, int axis) {
         float low = Float.MAX_VALUE;
         float high = -Float.MAX_VALUE;
         for (ClipVertex vertex : polygon) {
-            low = Math.min(low, axis.of(vertex));
-            high = Math.max(high, axis.of(vertex));
+            low = Math.min(low, vertex.along(axis));
+            high = Math.max(high, vertex.along(axis));
         }
         return high - low;
     }
@@ -210,13 +221,13 @@ final class QuadRectClipper {
      * @param side    {@link #KEEP_ABOVE} or {@link #KEEP_BELOW}
      * @return the vertices kept, with one cut vertex where an edge crosses the plane
      */
-    private static List<ClipVertex> clipPlane(List<ClipVertex> polygon, Axis axis, float bound, float side) {
+    private static List<ClipVertex> clipPlane(List<ClipVertex> polygon, int axis, float bound, float side) {
         List<ClipVertex> kept = new ArrayList<>(polygon.size() + 1);
         for (int i = 0; i < polygon.size(); i++) {
             ClipVertex from = polygon.get(i);
             ClipVertex to = polygon.get((i + 1) % polygon.size());
-            float fromDistance = side * (axis.of(from) - bound);
-            float toDistance = side * (axis.of(to) - bound);
+            float fromDistance = side * (from.along(axis) - bound);
+            float toDistance = side * (to.along(axis) - bound);
             if (fromDistance >= 0f) {
                 kept.add(from);
             }
