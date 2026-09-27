@@ -60,6 +60,9 @@ public final class GooTestFunctions {
     private static final String SOUL_BOUND_SURVIVES_DEATH = "soul_bound_survives_death";
     private static final String EXO_GAUNTLET_SMITHING = "exo_gauntlet_smithing";
     private static final String EXO_GAUNTLET_KEEPS_BENEFITS = "exo_gauntlet_keeps_benefits";
+    // --- Crystallizer ---
+    private static final String CRYSTALLIZER_TAKES_TWO_TYPES = "crystallizer_takes_two_types";
+    private static final String CRYSTALLIZER_FORMS_ONE_CHRYSM = "crystallizer_forms_one_chrysm";
     // --- Brewing ---
     private static final String BREWING_OMNIBLOB_NEVER_BREWS = "brewing_omniblob_never_brews";
     private static final String BREWING_CHRYSM_BREWS_POTION = "brewing_chrysm_brews_potion";
@@ -309,7 +312,13 @@ public final class GooTestFunctions {
             registerTapDripTests(registrar);
             registerLabTests(registrar);
             registerBrewingTests(registrar);
+            registerCrystallizerTests(registrar);
         });
+    }
+
+    private static void registerCrystallizerTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
+        reg(r, CRYSTALLIZER_TAKES_TWO_TYPES, CrystallizerTests::takesTwoTypesRefusesThird);
+        reg(r, CRYSTALLIZER_FORMS_ONE_CHRYSM, CrystallizerTests::formsOneChrysm);
     }
 
     private static void registerBrewingTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {

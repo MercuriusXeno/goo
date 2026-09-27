@@ -42,6 +42,7 @@ public class GooCreativeTabs {
                 output.accept(GooItems.REACTOR.get());
                 output.accept(GooItems.VAT.get());
                 output.accept(GooItems.TAP.get());
+                output.accept(GooItems.CRYSTALLIZER.get());
                 // Intermediates
                 output.accept(GooItems.CHORAL_GASKET.get());
                 output.accept(GooItems.CHORAL_TUNER.get());

@@ -1,0 +1,6 @@
+{
+  "variants": {
+    "has_gasket=false": { "model": "goo:block/crystallizer" },
+    "has_gasket=true": { "model": "goo:block/crystallizer" }
+  }
+}

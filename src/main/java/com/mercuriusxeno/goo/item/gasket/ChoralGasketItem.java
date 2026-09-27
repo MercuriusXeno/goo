@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.item.gasket;
 
 import com.mercuriusxeno.goo.block.canister.ICanisterHolder;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
+import com.mercuriusxeno.goo.block.crystallizer.CrystallizerBlockEntity;
 import com.mercuriusxeno.goo.block.gasket.ChoralGasketBlock;
 import com.mercuriusxeno.goo.block.gasket.IGasketHolder;
 import com.mercuriusxeno.goo.block.tap.TapBlockEntity;
@@ -88,6 +89,7 @@ public class ChoralGasketItem extends Item implements IGooItemInteraction {
      * Machine name: tap.
      */
     private static final String MACHINE_TAP = "tap";
+    private static final String MACHINE_CRYSTALLIZER = "crystallizer";
     /**
      * Supplier for the world-placeable gasket block, wired during registration.
      */
@@ -139,6 +141,7 @@ public class ChoralGasketItem extends Item implements IGooItemInteraction {
      * Handles gasket installation on machines. Dispatch order:
      * 1. Crucible (blockstate HAS_GASKET)
      * 2. Tap (blockstate HAS_GASKET)
+     * 2b. Crystallizer (blockstate HAS_GASKET)
      * 3. Slotted machines (canister/hub - per-face UUID on CanisterMetadata)
      * Vat gasket handling is in VatBlock.useItemOn.
      *
@@ -176,6 +179,10 @@ public class ChoralGasketItem extends Item implements IGooItemInteraction {
         if (be instanceof TapBlockEntity tap) {
             return GasketInstallHelper.installBlockGasket(context, tap, GasketRole.RECEIVER,
                     MSG_THIS_PREFIX + MACHINE_TAP + MSG_ALREADY_SUFFIX, MSG_INSTALLED_ON + MACHINE_TAP);
+        }
+        if (be instanceof CrystallizerBlockEntity crystallizer) {
+            return GasketInstallHelper.installBlockGasket(context, crystallizer, GasketRole.RECEIVER,
+                    MSG_THIS_PREFIX + MACHINE_CRYSTALLIZER + MSG_ALREADY_SUFFIX, MSG_INSTALLED_ON + MACHINE_CRYSTALLIZER);
         }
         return dispatchSlottedIfApplicable(be, context);
     }
