@@ -48,6 +48,11 @@ class CrucibleBlendStaysContinuousTest {
     /** A frame changing more than this many times the window's largest change jumped. */
     private static final float JUMP_RATIO = 3f;
     private static final float WORLD_OFFSET = 7f;
+    /**
+     * A start volume that holds the moving type off the surface until twice
+     * the window has passed, so its arrival is a frame the assertions check.
+     */
+    private static final int ARRIVES_AFTER_WINDOW = -2 * WINDOW * MB_PER_FRAME;
     /** The reservoir the frames sample: its footprint and height, held fixed. */
     private static final long VOLUME = 2000L;
 
@@ -67,6 +72,18 @@ class CrucibleBlendStaysContinuousTest {
             return volumes;
         }
 
+        /**
+         * The types present, largest volume first: the ranking a layer-numbered
+         * surface drew by, so a frame where it changes is the event under test.
+         */
+        List<ResourceKey<GooTypeDefinition>> rankingAt(int frame) {
+            return volumesAt(frame).entrySet().stream()
+                .sorted(Map.Entry.<ResourceKey<GooTypeDefinition>, Integer>comparingByValue().reversed()
+                    .thenComparing(Map.Entry.comparingByKey(GooTypes.ORDER)))
+                .map(Map.Entry::getKey)
+                .toList();
+        }
+
         List<ResourceKey<GooTypeDefinition>> types() {
             List<ResourceKey<GooTypeDefinition>> types = new ArrayList<>(still.keySet());
             types.add(moving);
@@ -79,7 +96,8 @@ class CrucibleBlendStaysContinuousTest {
             Arguments.of("leaf melts past 1000 mB of blaze",
                 new Scenario(Map.of(GooTypes.BLAZE, 1000), GooTypes.LEAF, 900, MB_PER_FRAME)),
             Arguments.of("crystal arrives between blaze and leaf in the type order",
-                new Scenario(Map.of(GooTypes.BLAZE, 1000, GooTypes.LEAF, 1000), GooTypes.CRYSTAL, 0, MB_PER_FRAME)),
+                new Scenario(Map.of(GooTypes.BLAZE, 1000, GooTypes.LEAF, 1000), GooTypes.CRYSTAL,
+                    ARRIVES_AFTER_WINDOW, MB_PER_FRAME)),
             Arguments.of("blaze burns away under crystal and leaf",
                 new Scenario(Map.of(GooTypes.CRYSTAL, 500, GooTypes.LEAF, 1000), GooTypes.BLAZE, 100, -MB_PER_FRAME)));
     }
@@ -89,6 +107,7 @@ class CrucibleBlendStaysContinuousTest {
     void blendAdvancesContinuouslyAsOneTypeChanges(String event, Scenario scenario) {
         CrucibleBasin.PuddleFootprint footprint = CrucibleBasin.footprintForVolume(VOLUME);
         float surfaceY = CrucibleBasin.surfaceYForVolume(VOLUME);
+        assertEventFallsPastTheWindow(event, scenario);
         List<ResourceKey<GooTypeDefinition>> types = scenario.types();
         float[][] previous = null;
         List<Float> changes = new ArrayList<>();
@@ -111,6 +130,17 @@ class CrucibleBlendStaysContinuousTest {
                 + scenario.volumesAt(at + 1) + " changed " + change + " of the surface, against at most " + bound
                 + " in each of the " + WINDOW + " frames before it");
         }
+    }
+
+    /** A frame the assertions skip cannot hold the event, or the case passes without testing it. */
+    private static void assertEventFallsPastTheWindow(String event, Scenario scenario) {
+        List<ResourceKey<GooTypeDefinition>> first = scenario.rankingAt(0);
+        int eventFrame = 1;
+        while (eventFrame < FRAMES && scenario.rankingAt(eventFrame).equals(first)) {
+            eventFrame++;
+        }
+        assertTrue(eventFrame > WINDOW && eventFrame < FRAMES, event + ": the ranking changes on frame " + eventFrame
+            + ", outside the frames " + (WINDOW + 1) + " to " + (FRAMES - 1) + " the assertions check");
     }
 
     /** One submitted layer: the type its sprite shows and the share and seed its vertices carry. */
