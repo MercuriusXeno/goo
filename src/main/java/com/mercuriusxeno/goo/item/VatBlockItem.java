@@ -129,16 +129,15 @@ public class VatBlockItem extends BlockItem implements GooCarrierItem {
     }
 
     /**
-     * The vat item as a drain source: its largest goo type, whole.
+     * The vat item as a drain source: every goo type it holds, whole
+     * (decisions vat-click-unpacks-into-inventory and vat-item-drain-shared).
      *
      * @param vat the vat item stack
      */
     private record VatGooSource(ItemStack vat) implements CanisterInventoryHandler.GooSource {
         @Override
         public Map<ResourceKey<GooTypeDefinition>, Integer> drainable() {
-            GooContents contents = getGooContents(vat);
-            ResourceKey<GooTypeDefinition> largest = contents.largestType();
-            return largest == null ? Map.of() : Map.of(largest, contents.getVolume(largest));
+            return getGooContents(vat).getAll();
         }
 
         @Override
