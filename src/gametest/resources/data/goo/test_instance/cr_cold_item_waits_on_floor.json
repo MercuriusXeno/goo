@@ -1,6 +1,6 @@
 {
   "type": "minecraft:function",
-  "function": "goo:cr_cap_container",
+  "function": "goo:cr_cold_item_waits_on_floor",
   "environment": "minecraft:default",
   "structure": "minecraft:empty",
   "max_ticks": 40,
