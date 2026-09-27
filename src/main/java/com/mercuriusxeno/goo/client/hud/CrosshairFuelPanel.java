@@ -24,10 +24,11 @@ import java.util.List;
 import java.util.OptionalInt;
 
 /**
- * A nine-slice panel to the right of the crosshair while a glove with a
- * selection is held: the icon of the stack the throw deducts from first,
- * the goo type and the blobs it holds, and "- N", the throw's cost at the
- * aimed target (decision crosshair-panel-shows-source-and-cost).
+ * A nine-slice panel at the bottom right of the screen while a glove with a
+ * selection is held (decision fuel-panel-sits-at-bottom-right): the icon of
+ * the stack the throw deducts from first, the goo type and the blobs it
+ * holds, and "- N", the throw's cost at the aimed target (decision
+ * crosshair-panel-shows-source-and-cost).
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class CrosshairFuelPanel {
@@ -37,8 +38,8 @@ public final class CrosshairFuelPanel {
     private static final String COST_PREFIX = "- ";
     private static final String GAP = " ";
     private static final int COST_COLOR = 0xFFFF5555;
-    /** Gap between the crosshair's center and the panel's left edge. */
-    private static final int CROSSHAIR_OFFSET = 10;
+    /** Gap between the panel and the gui's right and bottom edges. */
+    private static final int EDGE_MARGIN = 4;
     private static final int BORDER = 3;
     private static final int ITEM_SIZE = 16;
     private static final int TYPE_ICON_SIZE = 10;
@@ -101,7 +102,22 @@ public final class CrosshairFuelPanel {
         }
         ItemStack source = GooSourceScanner.firstSource(player, type);
         FuelRow row = fuelRow(source, type, GooSourceScanner.volumeIn(source, type), cost.getAsInt());
-        paint(graphics, font, row, graphics.guiWidth() / HALF + CROSSHAIR_OFFSET, graphics.guiHeight() / HALF);
+        paint(graphics, font, row, graphics.guiWidth(), graphics.guiHeight());
+    }
+
+    /**
+     * The panel's rectangle, its right and bottom edges inset from the gui's by the edge margin.
+     *
+     * @param guiWidth    the gui's width
+     * @param guiHeight   the gui's height
+     * @param panelWidth  the panel's width
+     * @param panelHeight the panel's height
+     * @return the panel's rectangle
+     */
+    static PanelRectangle bottomRightAnchor(int guiWidth, int guiHeight, int panelWidth, int panelHeight) {
+        // fuel-panel-sits-at-bottom-right: out of the center of the screen
+        return new PanelRectangle(guiWidth - EDGE_MARGIN - panelWidth, guiHeight - EDGE_MARGIN - panelHeight,
+                panelWidth, panelHeight);
     }
 
     /**
@@ -126,12 +142,14 @@ public final class CrosshairFuelPanel {
                 BACKGROUND_TEXTURE_SIZE, BACKGROUND_TEXTURE_SIZE);
     }
 
-    private static void paint(GuiGraphicsExtractor graphics, Font font, FuelRow row, int left, int centerY) {
+    private static void paint(GuiGraphicsExtractor graphics, Font font, FuelRow row, int guiWidth, int guiHeight) {
         int textWidth = font.width(row.heldText() + GAP + row.costText());
         int width = BORDER + ITEM_SIZE + ICON_GAP + TYPE_ICON_SIZE + ICON_GAP + textWidth + BORDER;
         int height = BORDER + ITEM_SIZE + BORDER;
-        int top = centerY - height / HALF;
-        for (NineSlice.Slice slice : backgroundSlices(new PanelRectangle(left, top, width, height))) {
+        PanelRectangle rect = bottomRightAnchor(guiWidth, guiHeight, width, height);
+        int left = Math.round(rect.x());
+        int top = Math.round(rect.y());
+        for (NineSlice.Slice slice : backgroundSlices(rect)) {
             blitSlice(graphics, slice);
         }
         int x = left + BORDER;
