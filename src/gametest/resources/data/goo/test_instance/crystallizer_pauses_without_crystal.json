@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:crystallizer_pauses_without_crystal",
+  "environment": "minecraft:default",
+  "structure": "minecraft:empty",
+  "max_ticks": 300,
+  "setup_ticks": 0,
+  "required": true
+}

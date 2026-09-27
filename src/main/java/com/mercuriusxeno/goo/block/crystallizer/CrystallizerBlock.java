@@ -136,7 +136,7 @@ public class CrystallizerBlock extends GooMachineBlock {
             return InteractionResult.PASS;
         }
         if (ShapeHitCheck.hitInsideShape(hitResult, pos, DIAL_SHAPE)) {
-            level.setBlock(pos, state.setValue(DIAL, CrystallizerPhases.nextDial(state.getValue(DIAL))), Block.UPDATE_ALL);
+            level.setBlock(pos, state.setValue(DIAL, CrystallizerPhases.nextKnob(state.getValue(DIAL))), Block.UPDATE_ALL);
             level.playSound(null, pos, SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.BLOCKS, 1.0f, 1.0f);
             return InteractionResult.SUCCESS;
         }
