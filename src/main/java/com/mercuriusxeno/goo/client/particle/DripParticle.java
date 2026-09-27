@@ -16,6 +16,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Quaternionf;
+import org.joml.Quaternionfc;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
 
@@ -172,15 +173,17 @@ public abstract class DripParticle extends SingleQuadParticle {
 
         private final ParticleOptions landOption;
         private final int hangTicks;
+        private final boolean drawsCuboid;
         private int hungTicks;
         private double spigotY;
         private double roomBelow;
 
         FallParticle(ClientLevel level, double x, double y, double z, Vec3 velocity,
-                DripLook look, Layer layer, ParticleOptions landOption, int hangTicks) {
+                DripLook look, Layer layer, ParticleOptions landOption, int hangTicks, boolean drawsCuboid) {
             super(level, x, y, z, look, layer);
             this.landOption = landOption;
             this.hangTicks = hangTicks;
+            this.drawsCuboid = drawsCuboid;
             this.xd = velocity.x;
             this.yd = velocity.y;
             this.zd = velocity.z;
@@ -231,22 +234,47 @@ public abstract class DripParticle extends SingleQuadParticle {
         }
 
         /**
+         * A cuboid drop draws its faces; any other drop draws its camera-facing quad.
+         *
+         * @param reusedState the reusable render state for quad particles
+         * @param camera      the active camera for view transform
          * @param partialTick the partial tick for interpolation
-         * @return the swelling half extent while hanging, the full one after
          */
         @Override
-        public float getQuadSize(float partialTick) {
-            if (!hanging()) {
-                return super.getQuadSize(partialTick);
+        public void extract(QuadParticleRenderState reusedState, Camera camera, float partialTick) {
+            if (!this.drawsCuboid) {
+                super.extract(reusedState, camera, partialTick);
+                return;
             }
-            return DripQuadPlacement.hangingHalfSize(this.quadSize,
-                    DripQuadPlacement.hangProgress(this.hungTicks, partialTick, this.hangTicks), this.roomBelow);
+            Vec3 cameraPos = camera.position();
+            double x = Mth.lerp(partialTick, this.xo, this.x) - cameraPos.x();
+            double z = Mth.lerp(partialTick, this.zo, this.z) - cameraPos.z();
+            int color = ARGB.colorFromFloat(this.alpha, this.rCol, this.gCol, this.bCol);
+            int light = this.getLightCoords(partialTick);
+            for (DripCuboid.Tile tile : DripCuboid.tiles(cuboid(partialTick))) {
+                Quaternionfc rotation = tile.rotation();
+                reusedState.add(this.getLayer(),
+                        (float) (x + tile.dx()), (float) (tile.y() - cameraPos.y()), (float) (z + tile.dz()),
+                        rotation.x(), rotation.y(), rotation.z(), rotation.w(), tile.halfSize(),
+                        this.getU0(), this.getU1(), this.getV0(), this.getV1(), color, light);
+            }
         }
 
         /**
-         * Draws the camera-facing quad with its top pinned to the spigot while
-         * it hangs, then lifted clear of the surface its collision box lands on
-         * (decision diagnose-then-fix-drip-z-fighting).
+         * @param partialTick the partial tick for interpolation
+         * @return the swelling cuboid pinned to the spigot while hanging, the falling cube after
+         */
+        private DripCuboid.Extent cuboid(float partialTick) {
+            if (hanging()) {
+                return DripQuadPlacement.hangingCuboid(this.spigotY, this.quadSize,
+                        DripQuadPlacement.hangProgress(this.hungTicks, partialTick, this.hangTicks), this.roomBelow);
+            }
+            return DripQuadPlacement.fallingCuboid(Mth.lerp(partialTick, this.yo, this.y), this.quadSize);
+        }
+
+        /**
+         * Draws the camera-facing quad lifted clear of the surface its
+         * collision box lands on (decision diagnose-then-fix-drip-z-fighting).
          *
          * @param reusedState the reusable render state for quad particles
          * @param camera      the active camera for view transform
@@ -257,10 +285,8 @@ public abstract class DripParticle extends SingleQuadParticle {
         protected void extractRotatedQuad(QuadParticleRenderState reusedState, Camera camera,
                 Quaternionf rotation, float partialTick) {
             Vec3 cameraPos = camera.position();
-            float halfSize = this.getQuadSize(partialTick);
-            double quadY = hanging()
-                    ? DripQuadPlacement.hangingQuadCenterY(this.spigotY, halfSize)
-                    : DripQuadPlacement.fallQuadCenterY(Mth.lerp(partialTick, this.yo, this.y), halfSize);
+            double particleY = Mth.lerp(partialTick, this.yo, this.y);
+            double quadY = DripQuadPlacement.fallQuadCenterY(particleY, this.getQuadSize(partialTick));
             this.extractRotatedQuad(reusedState, rotation,
                     (float) (Mth.lerp(partialTick, this.xo, this.x) - cameraPos.x()),
                     (float) (quadY - cameraPos.y()),
@@ -383,6 +409,13 @@ public abstract class DripParticle extends SingleQuadParticle {
         }
 
         /**
+         * @return whether the drip draws as a cuboid rather than a camera-facing quad
+         */
+        protected boolean drawsCuboid() {
+            return false;
+        }
+
+        /**
          * Creates a falling goo drip particle; one with hang ticks spawns
          * hanging from the spawn point, its top pinned there
          * (decision tap-drop-swells-then-falls).
@@ -405,7 +438,7 @@ public abstract class DripParticle extends SingleQuadParticle {
                 double xSpeed, double ySpeed, double zSpeed,
                 RandomSource random) {
             FallParticle drop = new FallParticle(level, x, y, z, new Vec3(xSpeed, ySpeed, zSpeed),
-                    look(options, random), layer(), landOption(options), hangTicks());
+                    look(options, random), layer(), landOption(options), hangTicks(), drawsCuboid());
             drop.quadSize = quadHalfSize(drop.quadSize);
             if (hangTicks() > 0) {
                 drop.hangFrom(y, roomBelow(level, x, y, z, DripQuadPlacement.hangingDrop(drop.quadSize)));

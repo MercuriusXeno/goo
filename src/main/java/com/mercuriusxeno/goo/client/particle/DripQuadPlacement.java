@@ -29,18 +29,6 @@ public final class DripQuadPlacement {
     }
 
     /**
-     * A camera-facing quad keeps its horizontal axis level, so its lowest
-     * corner sits one half extent under its center at any camera pitch.
-     *
-     * @param particleY the falling drip's y, the bottom of its collision box
-     * @param halfSize  the quad's half extent
-     * @return the lowest y the falling drip's quad reaches
-     */
-    static double fallQuadLowestY(double particleY, float halfSize) {
-        return fallQuadCenterY(particleY, halfSize) - halfSize;
-    }
-
-    /**
      * A drop hanging from a spigot: its quad's top sits at the spigot's
      * underside, so its collision box starts a quad height and the margin
      * lower, where its drawn bottom sits.
@@ -102,27 +90,34 @@ public final class DripQuadPlacement {
     }
 
     /**
-     * The swelling drop's half extent: its full half extent scaled by the
-     * swell, capped so its bottom stays the margin above a surface too close
-     * to fit the full square (decision diagnose-then-fix-drip-z-fighting).
+     * The hanging drop's cuboid: it grows in all three dimensions from a point
+     * to a 2x2 footprint one half extent tall, its top pinned to the spigot,
+     * the growth capped so its bottom stays the margin above a surface too
+     * close to fit it (decisions tap-drop-swells-then-falls, diagnose-then-fix-drip-z-fighting).
      *
+     * @param spigotY   the spigot's underside
      * @param halfSize  the drop's full half extent
      * @param progress  the swell, from {@link #hangProgress}
      * @param roomBelow the clear height under the spigot, up to {@link #hangingDrop}
-     * @return the half extent the hanging drop draws at
+     * @return the cuboid the hanging drop draws
      */
-    static float hangingHalfSize(float halfSize, float progress, double roomBelow) {
-        float roomHalf = (float) Math.max(0.0, (roomBelow - SURFACE_MARGIN) / HALVES_PER_QUAD);
-        return Math.min(halfSize * progress, roomHalf);
+    static DripCuboid.Extent hangingCuboid(double spigotY, float halfSize, float progress, double roomBelow) {
+        float roomScale = (float) Math.max(0.0, (roomBelow - SURFACE_MARGIN) / halfSize);
+        float scale = Math.min(progress, roomScale);
+        float height = halfSize * scale;
+        return new DripCuboid.Extent(spigotY - height, halfSize * scale, height);
     }
 
     /**
-     * @param spigotY         the spigot's underside, where the drop's top is pinned
-     * @param swollenHalfSize the half extent the drop draws at, from {@link #hangingHalfSize}
-     * @return the y the hanging drop's camera-facing quad is centered on
+     * The falling drop's cube, a full quad height tall, its bottom the margin
+     * above its collision box's bottom (decision diagnose-then-fix-drip-z-fighting).
+     *
+     * @param particleY the falling drip's y, the bottom of its collision box
+     * @param halfSize  the drop's half extent
+     * @return the cube the falling drop draws
      */
-    static double hangingQuadCenterY(double spigotY, float swollenHalfSize) {
-        return spigotY - swollenHalfSize;
+    static DripCuboid.Extent fallingCuboid(double particleY, float halfSize) {
+        return new DripCuboid.Extent(particleY + SURFACE_MARGIN, halfSize, (float) (HALVES_PER_QUAD * halfSize));
     }
 
     /**

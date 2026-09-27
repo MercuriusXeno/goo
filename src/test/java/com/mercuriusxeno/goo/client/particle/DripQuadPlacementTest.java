@@ -81,25 +81,29 @@ class DripQuadPlacementTest {
         }
 
         /**
-         * Each hang tick draws the drop with its top at the spigot's underside,
-         * no taller than the tick before, clear of the surface by the margin,
-         * from nothing at the first tick to the full square at the last.
+         * Each hang tick draws the drop's cuboid with its top at the spigot's
+         * underside, larger than the tick before in all three dimensions,
+         * clear of the surface by the margin, from a point at the first tick
+         * to a 2x2 footprint 1 pixel tall at the last.
          */
         private void assertHangSwellsFromTheSpigot(double spigotY, double room, float halfSize) {
-            float previous = -1f;
+            DripCuboid.Extent previous = null;
             for (int hung = 0; hung <= DripFall.HANG_TICKS; hung++) {
-                float progress = DripQuadPlacement.hangProgress(hung, 0f, DripFall.HANG_TICKS);
-                float swollen = DripQuadPlacement.hangingHalfSize(halfSize, progress, room);
-                double center = DripQuadPlacement.hangingQuadCenterY(spigotY, swollen);
-                String at = "spigot y " + spigotY + ", hang tick " + hung + ": half size " + swollen;
-                assertEquals(spigotY, center + swollen, TOP_TOLERANCE, at);
-                assertTrue(center - swollen >= SURFACE_Y + DripQuadPlacement.SURFACE_MARGIN, at);
-                assertTrue(swollen > previous, at);
-                previous = swollen;
+                DripCuboid.Extent cuboid = DripQuadPlacement.hangingCuboid(spigotY, halfSize,
+                        DripQuadPlacement.hangProgress(hung, 0f, DripFall.HANG_TICKS), room);
+                String at = "spigot y " + spigotY + ", hang tick " + hung + ": " + cuboid;
+                assertEquals(spigotY, cuboid.topY(), TOP_TOLERANCE, at);
+                assertTrue(cuboid.bottomY() >= SURFACE_Y + DripQuadPlacement.SURFACE_MARGIN, at);
+                if (previous == null) {
+                    assertEquals(0f, cuboid.halfWidth(), at);
+                    assertEquals(0f, cuboid.height(), at);
+                } else {
+                    assertTrue(cuboid.halfWidth() > previous.halfWidth() && cuboid.height() > previous.height(), at);
+                }
+                previous = cuboid;
             }
-            assertEquals(0f, DripQuadPlacement.hangingHalfSize(halfSize,
-                    DripQuadPlacement.hangProgress(0, 0f, DripFall.HANG_TICKS), room));
-            assertEquals(halfSize, previous);
+            assertEquals(halfSize, previous.halfWidth());
+            assertEquals(halfSize, previous.height());
         }
 
         @Test
@@ -119,17 +123,19 @@ class DripQuadPlacementTest {
         }
 
         /**
-         * The drop draws every tick it lives; the contact tick removes it and
-         * draws the splat. Its quad's top never rises above the spigot's underside.
+         * The drop draws its falling cube every tick it lives; the contact tick
+         * removes it and draws the splat. The cube is 2x2x2 and its top never
+         * rises above the spigot's underside.
          */
         private void assertRenderedTicksClear(double spigotY, List<Double> path, float halfSize) {
             for (int tick = 0; tick < path.size() - 1; tick++) {
-                double lowest = DripQuadPlacement.fallQuadLowestY(path.get(tick), halfSize);
-                double highest = lowest + 2.0 * halfSize;
+                DripCuboid.Extent cube = DripQuadPlacement.fallingCuboid(path.get(tick), halfSize);
                 String at = "spigot y " + spigotY + ", tick " + tick + " of " + (path.size() - 1)
-                        + ": drip y " + path.get(tick) + ", quad " + lowest + " to " + highest;
-                assertTrue(lowest >= SURFACE_Y + DripQuadPlacement.SURFACE_MARGIN, at);
-                assertTrue(highest <= spigotY + TOP_TOLERANCE, at);
+                        + ": drip y " + path.get(tick) + ", " + cube;
+                assertEquals(2f * halfSize, cube.height(), at);
+                assertEquals(halfSize, cube.halfWidth(), at);
+                assertTrue(cube.bottomY() >= SURFACE_Y + DripQuadPlacement.SURFACE_MARGIN, at);
+                assertTrue(cube.topY() <= spigotY + TOP_TOLERANCE, at);
             }
         }
     }
@@ -166,16 +172,26 @@ class DripQuadPlacementTest {
             double room = Math.min(LOWEST_SPIGOT_Y - SURFACE_Y, DripQuadPlacement.hangingDrop(halfSize));
             float previous = 0f;
             for (int hung = 1; hung <= DripFall.HANG_TICKS; hung++) {
-                float swollen = DripQuadPlacement.hangingHalfSize(halfSize,
+                DripCuboid.Extent cuboid = DripQuadPlacement.hangingCuboid(LOWEST_SPIGOT_Y, halfSize,
                         DripQuadPlacement.hangProgress(hung, 0f, DripFall.HANG_TICKS), room);
-                double center = DripQuadPlacement.hangingQuadCenterY(LOWEST_SPIGOT_Y, swollen);
-                String at = "hang tick " + hung + ": half size " + swollen;
-                assertTrue(swollen > 0f && swollen >= previous, at);
-                assertEquals(LOWEST_SPIGOT_Y, center + swollen, TOP_TOLERANCE, at);
-                assertTrue(center - swollen >= SURFACE_Y + DripQuadPlacement.SURFACE_MARGIN - TOP_TOLERANCE, at);
-                previous = swollen;
+                String at = "hang tick " + hung + ": " + cuboid;
+                assertTrue(cuboid.height() > previous, at);
+                assertEquals(LOWEST_SPIGOT_Y, cuboid.topY(), TOP_TOLERANCE, at);
+                assertTrue(cuboid.bottomY() >= SURFACE_Y + DripQuadPlacement.SURFACE_MARGIN, at);
+                previous = cuboid.height();
             }
             assertEquals(DripQuadPlacement.HangEnd.SPLAT, DripQuadPlacement.hangEnd(room, halfSize));
+        }
+
+        /** A surface closer than the full hang shape caps the swell, keeping the margin. */
+        @Test
+        void aSurfaceTooCloseForTheFullSwellCapsIt() {
+            double room = DripQuadPlacement.SURFACE_MARGIN + halfSize / 2.0;
+            DripCuboid.Extent cuboid = DripQuadPlacement.hangingCuboid(LOWEST_SPIGOT_Y, halfSize, 1f, room);
+
+            assertEquals(halfSize / 2f, cuboid.height(), TOP_TOLERANCE);
+            assertEquals(halfSize / 2f, cuboid.halfWidth(), TOP_TOLERANCE);
+            assertEquals(LOWEST_SPIGOT_Y - room + DripQuadPlacement.SURFACE_MARGIN, cuboid.bottomY(), TOP_TOLERANCE);
         }
 
         @Test
