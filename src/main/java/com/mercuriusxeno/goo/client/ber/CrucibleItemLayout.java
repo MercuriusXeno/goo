@@ -95,6 +95,18 @@ final class CrucibleItemLayout {
     }
 
     /**
+     * Places the dissolving item whole and flat at the center of the fill's top, riding the
+     * crest, the rest its handoff from the item entity eases into (decision consume-at-rest-in-place).
+     *
+     * @param surface   the drawn surface, or null while nothing has melted
+     * @param amplitude the ripple amplitude the surface undulates at, in blocks
+     * @return the head's placement
+     */
+    static ItemPlacement head(CrucibleBasin.@Nullable DrawnSurface surface, float amplitude) {
+        return new ItemPlacement(CENTER, crestY(surface, amplitude), CENTER, HEAD_SIZE);
+    }
+
+    /**
      * Places each tile of the dissolving item: in the grid centered on the fill's top until
      * the fraction reaches its break-off, then easing out to its resting spot in the open
      * basin over {@link #DRIFT_SPAN}, so the item is whole at zero and scattered near one,

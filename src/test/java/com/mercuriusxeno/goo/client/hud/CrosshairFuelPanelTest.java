@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import net.minecraft.world.item.ItemStack;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 
@@ -55,6 +56,31 @@ class CrosshairFuelPanelTest {
                 new NineSlice.Slice(103, 53, 157, 69, b, b, e, e));
 
         assertEquals(expected, CrosshairFuelPanel.backgroundSlices(new PanelRectangle(100, 50, 60, 22)));
+    }
+
+    /** The panel's right and bottom edges sit 4px inside the gui's (decision fuel-panel-sits-at-bottom-right). */
+    @Nested
+    class BottomRightAnchor {
+
+        @Test
+        void panelSitsFourPixelsInFromTheBottomRightOfA480By270Gui() {
+            PanelRectangle rect = CrosshairFuelPanel.bottomRightAnchor(480, 270, 80, 22);
+
+            assertEquals(396f, rect.x());
+            assertEquals(244f, rect.y());
+            assertEquals(476f, rect.x() + rect.w());
+            assertEquals(266f, rect.y() + rect.h());
+        }
+
+        @Test
+        void panelKeepsTheFourPixelMarginOnAnotherGuiSize() {
+            PanelRectangle rect = CrosshairFuelPanel.bottomRightAnchor(320, 240, 60, 22);
+
+            assertEquals(256f, rect.x());
+            assertEquals(214f, rect.y());
+            assertEquals(316f, rect.x() + rect.w());
+            assertEquals(236f, rect.y() + rect.h());
+        }
     }
 
     @Test

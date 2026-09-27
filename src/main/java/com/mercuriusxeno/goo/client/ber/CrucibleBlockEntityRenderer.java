@@ -56,7 +56,7 @@ public class CrucibleBlockEntityRenderer
         BlockEntityRenderState.extractBase(be, state, breakProgress);
         extractPoolState(be, state);
         extractRipple(be, state, partialTick);
-        meltingItems.extract(be, state);
+        meltingItems.extract(be, state, partialTick);
     }
 
     /**

@@ -65,17 +65,14 @@ public final class MachineInteractionTests {
     private static final String SPARK_SUCCEEDS = "A flint-and-steel click on a cold crucible should answer SUCCESS";
     private static final String SPARK_HEATS = "A spark should leave the crucible holding the spark's heat";
     private static final String SPARK_COSTS_ONE = "A spark should cost the flint and steel one durability";
-    private static final String HOT_SPARK_PASSES = "A flint-and-steel click on a heated crucible should answer PASS";
-    private static final String HOT_SPARK_FREE = "A pass should leave the flint and steel undamaged";
+    private static final String HOT_SPARK_CONSUMED = "A flint-and-steel click on a heated crucible should be consumed";
+    private static final String HOT_SPARK_FREE = "A consumed click should leave the flint and steel undamaged";
     private static final String COAL_MELTED = "The sparked crucible should melt the coal to the end";
     private static final String COAL_LEFT_BLAZE = "The coal's blaze should stand in the reservoir";
     private static final String COAL_LEFT_ROCK = "The coal's rock should stand in the reservoir";
     private static final String COAL_ENDS_HOT = "The crucible should end able to heat";
-    private static final int ABSORB_DELAY = 5;
-    /** X/Z center of the crucible basin in test-relative coords. */
-    private static final double BASIN_CENTER_XZ = 1.5;
-    /** Y just above the crucible body surface (13/16 + block y=1). */
-    private static final double BASIN_SURFACE_Y = 1.85;
+    /** Ticks a still item dropped at the basin center takes to land, rest and be consumed. */
+    private static final int ABSORB_DELAY = 10;
     private static final double BLOCK_CENTER = 0.5;
     private static final double UPPER_HIT_Y = 0.9;
 
@@ -374,7 +371,7 @@ public final class MachineInteractionTests {
 
     /**
      * Crucible: a flint-and-steel click sparks a cold crucible for the spark's heat at one
-     * durability; the same click on the heated crucible passes and costs nothing
+     * durability; the same click on the heated crucible is consumed and costs nothing
      * (decision flint-and-steel-sparks-the-crucible).
      *
      * @param helper the gametest helper
@@ -390,7 +387,7 @@ public final class MachineInteractionTests {
         helper.assertValueEqual(crucible.heatTicks(), GooConfig.SPARK_HEAT_TICKS.get(), SPARK_HEATS);
         helper.assertValueEqual(flint.getDamageValue(), 1, SPARK_COSTS_ONE);
 
-        helper.assertValueEqual(sparkClick(helper, player), InteractionResult.PASS, HOT_SPARK_PASSES);
+        helper.assertValueEqual(sparkClick(helper, player), InteractionResult.CONSUME, HOT_SPARK_CONSUMED);
         helper.assertValueEqual(flint.getDamageValue(), 1, HOT_SPARK_FREE);
         helper.succeed();
     }
@@ -448,10 +445,6 @@ public final class MachineInteractionTests {
      * @return the spawned entity
      */
     private static ItemEntity spawnInBasin(GameTestHelper helper, Item item) {
-        Vec3 at = helper.absoluteVec(new Vec3(BASIN_CENTER_XZ, BASIN_SURFACE_Y, BASIN_CENTER_XZ));
-        ItemEntity entity = new ItemEntity(helper.getLevel(), at.x, at.y, at.z, new ItemStack(item));
-        entity.setDeltaMovement(Vec3.ZERO);
-        helper.getLevel().addFreshEntity(entity);
-        return entity;
+        return CrucibleSpawns.spawnInBasin(helper, new ItemStack(item));
     }
 }
