@@ -73,7 +73,7 @@ public class ContainerEvaluator {
         if (value == null || value.isEmpty()) {
             return null;
         }
-        return new ValuedStack(itemId, count, value.toGooContents(count).totalVolume());
+        return new ValuedStack(itemId, count, value.toGooContents());
     }
 
     /**

@@ -5,8 +5,12 @@ import com.mercuriusxeno.goo.block.canister.CanisterGeometry;
 import com.mercuriusxeno.goo.block.tap.TapBlock;
 import com.mercuriusxeno.goo.block.tap.TapBlockEntity;
 import com.mercuriusxeno.goo.block.tap.TapStream;
+import com.mercuriusxeno.goo.client.ClientGooTypes;
+import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.RenderContext;
+import com.mercuriusxeno.goo.client.particle.DripQuadPlacement;
+import com.mercuriusxeno.goo.client.particle.TapDripLook;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.ContainerCapacity;
@@ -56,6 +60,26 @@ public class TapBlockEntityRenderer
      * Top of the stream: the spigot's underside.
      */
     private static final float STREAM_TOP = (float) TapStream.SPIGOT_UNDERSIDE_LOCAL_Y;
+
+    // -- Splat geometry (decision stream-leaves-a-live-splat) --
+
+    /**
+     * How many stream half-widths the splat spreads to either side of the
+     * landing point, so it widens with the stream from 1:1 to 1:4.
+     */
+    private static final float SPLAT_SPREAD = 6f;
+
+    /** Radians the splat's pulse advances a tick. */
+    private static final float SPLAT_PULSE_FREQUENCY = 0.4f;
+
+    /** Fraction the splat's half-width swells and shrinks by as it pulses. */
+    private static final float SPLAT_PULSE_AMPLITUDE = 0.15f;
+
+    /** Splat width in sprite-local space per block of splat half-width: the sprite at native scale, both ways. */
+    private static final float SPLAT_SPRITE_PER_HALF_WIDTH = 2f;
+
+    /** Blocks the splat's texture drifts a tick, so the sprite patch keeps moving under the stream. */
+    private static final float SPLAT_DRIFT_PER_TICK = 0.02f;
 
     /**
      * Creates a tap BER.
@@ -126,6 +150,44 @@ public class TapBlockEntityRenderer
     }
 
     /**
+     * Emits the splat a pouring stream keeps where it lands: one flat,
+     * upward-facing quad centered on the landing point, lifted the drip's
+     * surface margin off the surface, widening with the stream, pulsing with
+     * the animation time and drifting across the fluid sprite so it reads as
+     * continuously refreshing; a tap pouring no stream emits nothing
+     * (decision stream-leaves-a-live-splat).
+     *
+     * @param ctx    the render context
+     * @param state  the tap render state
+     * @param sprite the goo type's fluid sprite
+     * @param color  the muted color the tap's drip particles draw under
+     */
+    static void emitSplat(RenderContext ctx, TapRenderState state, TextureAtlasSprite sprite, int color) {
+        if (state.streamType == null) {
+            return;
+        }
+        float halfWidth = splatHalfWidth(state.streamMbPerTick, state.animationTime);
+        float y = state.streamBottomY + (float) DripQuadPlacement.SURFACE_MARGIN;
+        float span = Math.min(1f, halfWidth * SPLAT_SPRITE_PER_HALF_WIDTH);
+        float drift = state.animationTime * SPLAT_DRIFT_PER_TICK;
+        float u0 = (drift - (float) Math.floor(drift)) * (1f - span);
+        ctx.liquidSurface(color,
+                new CuboidBounds(STREAM_CENTER - halfWidth, STREAM_CENTER + halfWidth,
+                        STREAM_CENTER - halfWidth, STREAM_CENTER + halfWidth, y, y),
+                GooSubmitter.spriteSubRect(sprite, u0, u0, u0 + span, u0 + span));
+    }
+
+    /**
+     * @param mbPerTick     the mB the tap pours a tick
+     * @param animationTime game time plus partial tick
+     * @return the splat's half-width, a spread of the stream's pulsing over time
+     */
+    static float splatHalfWidth(int mbPerTick, float animationTime) {
+        float pulse = 1f + SPLAT_PULSE_AMPLITUDE * (float) Math.sin(animationTime * SPLAT_PULSE_FREQUENCY);
+        return streamHalfWidth(mbPerTick) * SPLAT_SPREAD * pulse;
+    }
+
+    /**
      * @param mbPerTick the mB the tap pours a tick
      * @return the stream's half-width, a trickle at 1 mB and twice as wide at 4
      */
@@ -134,8 +196,8 @@ public class TapBlockEntityRenderer
     }
 
     /**
-     * Submits the stream through the shared submitter, fullbright like every
-     * goo fluid (decision submitter-owns-render-choices).
+     * Submits the stream and its splat through the shared submitter,
+     * fullbright like every goo fluid (decision submitter-owns-render-choices).
      *
      * @param poseStack     the pose stack for rendering
      * @param nodeCollector the render node collector
@@ -148,7 +210,11 @@ public class TapBlockEntityRenderer
         }
         TextureAtlasSprite sprite = GooSubmitter.fluidSprite(type);
         int tint = GooSubmitter.fluidTint(type);
-        GooSubmitter.submitFluid(poseStack, nodeCollector, ctx -> emitStream(ctx, state, sprite, tint));
+        int splatColor = TapDripLook.mute(tint, ClientGooTypes.color(type));
+        GooSubmitter.submitFluid(poseStack, nodeCollector, ctx -> {
+            emitStream(ctx, state, sprite, tint);
+            emitSplat(ctx, state, sprite, splatColor);
+        });
     }
 
     @Override

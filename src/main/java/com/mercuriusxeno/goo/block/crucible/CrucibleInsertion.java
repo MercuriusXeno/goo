@@ -80,7 +80,7 @@ final class CrucibleInsertion {
         int fitting = CrucibleCapacity.wholeUnitsThatFit(poolContents(be), value.toGooContents(), count);
         GooContents arriving = value.toGooContents(fitting);
         if (fitting > 0 && mergeIntoPool(be, arriving,
-                List.of(new ValuedStack(itemId, fitting, arriving.totalVolume())))) {
+                List.of(new ValuedStack(itemId, fitting, value.toGooContents())))) {
             be.syncToClients();
         }
         return fitting;
@@ -151,7 +151,20 @@ final class CrucibleInsertion {
      */
     static boolean mergeStackIntoPool(CrucibleBlockEntity be, ItemStack stack, GooContents contents) {
         Identifier id = BuiltInRegistries.ITEM.getKey(stack.getItem());
-        return mergeIntoPool(be, contents, List.of(new ValuedStack(id, 1, contents.totalVolume())));
+        return mergeIntoPool(be, contents, List.of(new ValuedStack(id, 1, contents)));
+    }
+
+    /**
+     * Queues a pool no entry accounts for as one item under the PMI's id, as an older save
+     * leaves it, so its goo still melts on a clock.
+     *
+     * @param be the crucible block entity
+     */
+    static void queueUnaccountedPool(CrucibleBlockEntity be) {
+        if (be.meltQueue.isEmpty() && !be.meltingItem.isEmpty()) {
+            be.meltQueue.appendAll(List.of(new ValuedStack(
+                    BuiltInRegistries.ITEM.getKey(be.meltingItem.getItem()), 1, poolContents(be))));
+        }
     }
 
     /**

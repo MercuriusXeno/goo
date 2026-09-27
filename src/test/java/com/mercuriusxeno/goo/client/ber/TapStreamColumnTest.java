@@ -5,9 +5,13 @@ import com.mercuriusxeno.goo.block.tap.TapDripGrade;
 import com.mercuriusxeno.goo.block.tap.TapStream;
 import com.mercuriusxeno.goo.client.RecordingVertexConsumer;
 import com.mercuriusxeno.goo.client.RenderContext;
+import com.mercuriusxeno.goo.client.particle.DripQuadPlacement;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -16,8 +20,8 @@ import static org.mockito.Mockito.when;
 
 /**
  * The tap renderer emits a thin column of the goo's tint from the spigot
- * underside to the landing surface while the tap pours a stream, and
- * nothing while it drips.
+ * underside to the landing surface while the tap pours a stream, and a live
+ * splat where it lands; nothing while it drips.
  */
 class TapStreamColumnTest {
 
@@ -125,5 +129,95 @@ class TapStreamColumnTest {
         state.streamType = null;
 
         assertTrue(emit(state).isEmpty());
+    }
+
+    /** The splat a pouring stream keeps at its landing (decision stream-leaves-a-live-splat). */
+    @Nested
+    class Splat {
+
+        private static final int SPLAT_COLOR = 0xFF99AA33;
+        private static final float SPRITE_U0 = 0.25f;
+        private static final float SPRITE_V0 = 0.5f;
+        private static final float SPRITE_U1 = 0.375f;
+        private static final float SPRITE_V1 = 0.625f;
+        private static final float EARLY = 3f;
+        private static final float LATE = 7.5f;
+        private static final float Y_TOLERANCE = 1e-6f;
+
+        private TextureAtlasSprite atlasSprite() {
+            TextureAtlasSprite sprite = mock(TextureAtlasSprite.class);
+            when(sprite.getU0()).thenReturn(SPRITE_U0);
+            when(sprite.getU1()).thenReturn(SPRITE_U1);
+            when(sprite.getV0()).thenReturn(SPRITE_V0);
+            when(sprite.getV1()).thenReturn(SPRITE_V1);
+            return sprite;
+        }
+
+        private TapRenderState pouring(int mbPerTick, float animationTime) {
+            TapRenderState state = mock(TapRenderState.class);
+            state.streamType = GooTypes.BLAZE;
+            state.streamBottomY = LANDING_LOCAL_Y;
+            state.streamMbPerTick = mbPerTick;
+            state.animationTime = animationTime;
+            return state;
+        }
+
+        private List<RecordingVertexConsumer.Vertex> emitSplat(TapRenderState state) {
+            RecordingVertexConsumer recorder = new RecordingVertexConsumer();
+            TapBlockEntityRenderer.emitSplat(new RenderContext(new PoseStack().last(), recorder, 0), state,
+                    atlasSprite(), SPLAT_COLOR);
+            return recorder.vertices();
+        }
+
+        private float width(List<RecordingVertexConsumer.Vertex> vertices) {
+            return span(vertices, RecordingVertexConsumer.Vertex::x);
+        }
+
+        @ParameterizedTest
+        @ValueSource(ints = {1, 4})
+        void aPouringTapEmitsAFlatUpwardSplatCenteredOnTheLandingAboveTheSurface(int mbPerTick) {
+            List<RecordingVertexConsumer.Vertex> vertices = emitSplat(pouring(mbPerTick, EARLY));
+
+            assertEquals(VERTICES_PER_QUAD, vertices.size());
+            float splatY = LANDING_LOCAL_Y + (float) DripQuadPlacement.SURFACE_MARGIN;
+            for (RecordingVertexConsumer.Vertex vertex : vertices) {
+                assertEquals(splatY, vertex.y(), Y_TOLERANCE, "splat lies at the landing plus the margin");
+                assertTrue(vertex.y() > LANDING_LOCAL_Y, "splat lies strictly above the surface");
+                assertEquals(1f, vertex.ny(), "splat faces up");
+                assertEquals(SPLAT_COLOR, vertex.color());
+                assertTrue(vertex.u() >= SPRITE_U0 && vertex.u() <= SPRITE_U1, "u " + vertex.u());
+                assertTrue(vertex.v() >= SPRITE_V0 && vertex.v() <= SPRITE_V1, "v " + vertex.v());
+            }
+            assertEquals(HALF_BLOCK, (float) vertices.stream().mapToDouble(RecordingVertexConsumer.Vertex::x)
+                    .average().orElseThrow(), Y_TOLERANCE);
+            assertEquals(HALF_BLOCK, (float) vertices.stream().mapToDouble(RecordingVertexConsumer.Vertex::z)
+                    .average().orElseThrow(), Y_TOLERANCE);
+        }
+
+        @Test
+        void oneToFourSplatsWiderThanOneToOne() {
+            float trickle = width(emitSplat(pouring(1, EARLY)));
+            float fourPerTick = width(emitSplat(pouring(4, EARLY)));
+
+            assertTrue(fourPerTick > trickle, "1:4 splat " + fourPerTick + " vs 1:1 splat " + trickle);
+        }
+
+        @Test
+        void theSplatChangesWithAnimationTime() {
+            List<RecordingVertexConsumer.Vertex> early = emitSplat(pouring(1, EARLY));
+            List<RecordingVertexConsumer.Vertex> late = emitSplat(pouring(1, LATE));
+
+            assertTrue(width(early) != width(late), "size " + width(early) + " at both times");
+            assertTrue(early.getFirst().u() != late.getFirst().u(), "uv offset " + early.getFirst().u()
+                    + " at both times");
+        }
+
+        @Test
+        void aDrippingTapEmitsNoSplat() {
+            TapRenderState state = mock(TapRenderState.class);
+            state.streamType = null;
+
+            assertTrue(emitSplat(state).isEmpty());
+        }
     }
 }
