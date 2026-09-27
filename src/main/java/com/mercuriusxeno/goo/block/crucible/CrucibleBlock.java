@@ -33,8 +33,8 @@ import org.jspecify.annotations.Nullable;
 /**
  * The crucible block (goocible): melts items into goo. Items for melting are
  * item entities that reach the basin's kill box (CrucibleItemDrift), not right-clicks.
- * Right-click handles fuel rod insertion, blob insertion, canister collection,
- * and empty-hand goo extraction.
+ * Right-click handles the flint-and-steel spark, omniblob insertion, and the goo
+ * extraction that every other item, a canister among them, falls through to.
  * Drops internal state (PMI, fuel rod, reservoir blobs) when broken.
  *
  * Blockstate properties: POWERED (redstone gating), LIT (active/melting visual),
@@ -173,7 +173,8 @@ public class CrucibleBlock extends GooMachineBlock {
         return BlockEntityTicks.onServer(GooBlockEntities.CRUCIBLE, CrucibleBlockEntity::serverTick);
     }
 
-    /** Dispatches held-item interactions: the flint-and-steel spark, canister or blob insertion.
+    /** Dispatches held-item interactions: the flint-and-steel spark and omniblob insertion; every
+     * other item falls through to the empty-hand drain.
      *
      * @param stack     the item stack
      * @param state     the block state
@@ -219,7 +220,6 @@ public class CrucibleBlock extends GooMachineBlock {
      */
     private static InteractionResult serverItemInteraction(
             ItemStack stack, CrucibleBlockEntity crucible, Player player) {
-        if (CrucibleInteraction.tryCollectWithCanister(stack, crucible)) { return InteractionResult.SUCCESS; }
         if (CrucibleInteraction.tryInsertBlob(stack, crucible, player)) { return InteractionResult.SUCCESS; }
         return InteractionResult.TRY_WITH_EMPTY_HAND;
     }
