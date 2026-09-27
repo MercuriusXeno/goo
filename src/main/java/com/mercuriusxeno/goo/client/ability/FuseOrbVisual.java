@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.GooSubmitter;
+import com.mercuriusxeno.goo.client.RenderContext;
 import com.mercuriusxeno.goo.client.ber.ChainMarkerRenderState;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.SubmitNodeCollector;
@@ -22,7 +23,9 @@ import net.minecraft.util.ARGB;
  * scales with stack count and pulses on each stack add. Implodes inward
  * in the final ticks before detonation. GLOW orbs match the crystal
  * voxel shape from placement; FLAT-shape blobs splat against the placed
- * face with axis-asymmetric scaling.
+ * face with axis-asymmetric scaling. Every layer is the outward half of its
+ * box alone, from the face plane into the marker's own block, so nothing of
+ * the orb reaches into the block it rests on (decision blob-sits-on-the-face).
  */
 public final class FuseOrbVisual {
 
@@ -30,19 +33,19 @@ public final class FuseOrbVisual {
     private static final String SHAPE_FLAT = "flat";
 
     /** Base inner core half-size in block units (2 pixels) at 1 stack. */
-    private static final float CORE_BASE = 2f / 16f;
+    static final float CORE_BASE = 2f / 16f;
     /** Shell extends 1 pixel beyond core in each direction. */
-    private static final float SHELL_MARGIN = 1f / 16f;
+    static final float SHELL_MARGIN = 1f / 16f;
     /** Core growth per additional stack (1/32 block = 0.5 pixel). */
-    private static final float CORE_GROWTH = 1f / 32f;
+    static final float CORE_GROWTH = 1f / 32f;
 
     /** Splat squish factor along placed face axis (half height). */
-    private static final float SPLAT_HEIGHT = 0.5f;
+    static final float SPLAT_HEIGHT = 0.5f;
     /** Splat widen factor perpendicular to placed face (sqrt 2). */
-    private static final float SPLAT_WIDTH = 1.414f;
+    static final float SPLAT_WIDTH = 1.414f;
 
     /** Pulse amplitude: 10% size increase on stack add. */
-    private static final float PULSE_AMPLITUDE = 0.10f;
+    static final float PULSE_AMPLITUDE = 0.10f;
     /** Pulse duration in ticks. */
     private static final int PULSE_TICKS = 4;
 
@@ -54,12 +57,38 @@ public final class FuseOrbVisual {
     /** Ticks before detonation where implosion starts. */
     private static final int IMPLOSION_TICKS = 6;
     /** Minimum scale during implosion (fraction of normal). */
-    private static final float IMPLOSION_MIN = 0.3f;
+    static final float IMPLOSION_MIN = 0.3f;
 
     /** Center offset in block units. */
     private static final float BLOCK_CENTER = 0.5f;
     /** Divisor for converting crystal extent to half-size in block units. */
     private static final float CRYSTAL_HALF_DIVISOR = 2f;
+
+    /** The silhouette an orb takes, which picks its scale and its depth off the face. */
+    enum OrbShape {
+        /** A cube scaled evenly by the orb modifier. */
+        BLOB,
+        /** A cube squished along the face axis and widened across it. */
+        SPLAT,
+        /** A glow crystal's bump, its depth the crystal model's. */
+        GLOW_BUMP,
+        /** A glow crystal's flat, its depth the crystal model's. */
+        GLOW_FLAT;
+
+        /**
+         * Picks the shape a marker's goo type and blob shape draw.
+         *
+         * @param state the chain marker render state
+         * @return the orb shape
+         */
+        static OrbShape of(ChainMarkerRenderState state) {
+            boolean flat = SHAPE_FLAT.equals(state.blobShape);
+            if (state.gooType == GooTypes.GLOW) {
+                return flat ? GLOW_FLAT : GLOW_BUMP;
+            }
+            return flat ? SPLAT : BLOB;
+        }
+    }
 
     private FuseOrbVisual() {
     }
@@ -78,12 +107,15 @@ public final class FuseOrbVisual {
         float modifier = computeOrbModifier(state);
         int shellColor = computeShellColor(state);
         GooRenderUtil.UvRect uv = lookupSpriteUv(state.gooType);
+        OrbShape shape = OrbShape.of(state);
+        Direction face = state.placedFace;
 
         poseStack.pushPose();
-        translateToFace(poseStack, state);
-        applyOrbScale(poseStack, state, coreHalf, modifier);
-        submitCubeLayer(poseStack, nodeCollector, GooRenderUtil.OPAQUE_WHITE, coreHalf, uv);
-        submitCubeLayer(poseStack, nodeCollector, shellColor, shellHalf, uv);
+        placeOrb(poseStack, face, shape, modifier);
+        GooSubmitter.submitFluid(poseStack, nodeCollector,
+                ctx -> emitOrbLayer(ctx, GooRenderUtil.OPAQUE_WHITE, coreHalf, face, shape, uv));
+        GooSubmitter.submitFluid(poseStack, nodeCollector,
+                ctx -> emitOrbLayer(ctx, shellColor, shellHalf, face, shape, uv));
         poseStack.popPose();
     }
 
@@ -97,6 +129,97 @@ public final class FuseOrbVisual {
      */
     public static float peakShellHalf(int stackCount) {
         return (CORE_BASE + (stackCount - 1) * CORE_GROWTH + SHELL_MARGIN) * (1f + PULSE_AMPLITUDE);
+    }
+
+    /**
+     * Moves the pose to the placed face plane and scales it about that
+     * plane, so no scale moves the orb into the block it rests on. Glow
+     * orbs keep the crystal's size and take no scale.
+     *
+     * @param poseStack the pose stack for rendering
+     * @param face      the placed face direction
+     * @param shape     the orb shape
+     * @param modifier  the combined implosion, pulse and spike-contract scale
+     */
+    static void placeOrb(PoseStack poseStack, Direction face, OrbShape shape, float modifier) {
+        translateToFace(poseStack, face);
+        if (shape == OrbShape.SPLAT) {
+            applySplatScale(poseStack, face, modifier);
+        } else if (shape == OrbShape.BLOB) {
+            poseStack.scale(modifier, modifier, modifier);
+        }
+    }
+
+    /**
+     * Emits one orb layer as the outward half of its box: a glow orb stands
+     * off the face by the crystal model's depth, every other orb by its
+     * half-size.
+     *
+     * @param ctx   the render context, its pose placed by placeOrb
+     * @param color the ARGB tint color
+     * @param half  the layer's lateral half-size in block units
+     * @param face  the placed face direction
+     * @param shape the orb shape
+     * @param uv    the UV texture rectangle
+     */
+    static void emitOrbLayer(RenderContext ctx, int color, float half, Direction face,
+                             OrbShape shape, GooRenderUtil.UvRect uv) {
+        ctx.emitBox(color, outwardHalfBounds(half, face, orbDepth(shape, half)), uv);
+    }
+
+    /**
+     * The box one orb layer fills: laterally from -half to +half, and along
+     * the face axis from the face plane out to depth in the direction the
+     * face steps (decision blob-sits-on-the-face).
+     *
+     * @param half  the lateral half-size
+     * @param face  the placed face direction
+     * @param depth the extent off the face plane
+     * @return the layer's bounds, relative to the center of the face plane
+     */
+    static CuboidBounds outwardHalfBounds(float half, Direction face, float depth) {
+        float near = face.getAxisDirection() == Direction.AxisDirection.POSITIVE ? 0f : -depth;
+        return new CuboidBounds(
+                lowOn(Direction.Axis.X, face, half, near), highOn(Direction.Axis.X, face, half, near + depth),
+                lowOn(Direction.Axis.Z, face, half, near), highOn(Direction.Axis.Z, face, half, near + depth),
+                lowOn(Direction.Axis.Y, face, half, near), highOn(Direction.Axis.Y, face, half, near + depth));
+    }
+
+    /**
+     * @param axis the axis the bound lies on
+     * @param face the placed face direction
+     * @param half the lateral half-size
+     * @param near the face-axis bound nearest the block the orb rests on
+     * @return the box's low bound on the axis
+     */
+    private static float lowOn(Direction.Axis axis, Direction face, float half, float near) {
+        return axis == face.getAxis() ? near : -half;
+    }
+
+    /**
+     * @param axis the axis the bound lies on
+     * @param face the placed face direction
+     * @param half the lateral half-size
+     * @param far  the face-axis bound farthest from the block the orb rests on
+     * @return the box's high bound on the axis
+     */
+    private static float highOn(Direction.Axis axis, Direction face, float half, float far) {
+        return axis == face.getAxis() ? far : half;
+    }
+
+    /**
+     * How far one orb layer stands off the face plane, before pose scale.
+     *
+     * @param shape the orb shape
+     * @param half  the layer's lateral half-size
+     * @return the layer's depth in block units
+     */
+    private static float orbDepth(OrbShape shape, float half) {
+        return switch (shape) {
+            case GLOW_BUMP -> (float) GlowCrystalBlock.BUMP_DEPTH;
+            case GLOW_FLAT -> (float) GlowCrystalBlock.FLAT_DEPTH;
+            case BLOB, SPLAT -> half;
+        };
     }
 
     /**
@@ -125,25 +248,6 @@ public final class FuseOrbVisual {
     }
 
     /**
-     * Applies the correct scale transform based on goo type and flat mode.
-     *
-     * @param poseStack the pose stack for rendering
-     * @param state     the chain marker render state
-     * @param coreHalf  the inner core half-size in block units
-     * @param modifier  the combined scale modifier
-     */
-    private static void applyOrbScale(PoseStack poseStack, ChainMarkerRenderState state,
-                                      float coreHalf, float modifier) {
-        if (state.gooType == GooTypes.GLOW) {
-            applyGlowScale(poseStack, state, coreHalf);
-        } else if (SHAPE_FLAT.equals(state.blobShape)) {
-            applySplatScale(poseStack, state.placedFace, modifier);
-        } else {
-            poseStack.scale(modifier, modifier, modifier);
-        }
-    }
-
-    /**
      * Computes the core half-size based on stack count. For GLOW type,
      * smoothly interpolates from the standard blob size down to the
      * crystal's lateral extent over the fuse duration.
@@ -153,7 +257,7 @@ public final class FuseOrbVisual {
      */
     private static float computeCoreHalf(ChainMarkerRenderState state) {
         if (state.gooType == GooTypes.GLOW) {
-            return computeGlowCoreHalf(state);
+            return computeGlowCoreHalf(state.stackCount);
         }
         return CORE_BASE + (state.stackCount - 1) * CORE_GROWTH;
     }
@@ -162,12 +266,12 @@ public final class FuseOrbVisual {
      * Returns the crystal's lateral half-extent so the glow orb matches
      * the crystal voxel shape from the moment it lands.
      *
-     * @param state the chain marker render state
+     * @param stackCount the marker's stack count
      * @return the crystal half-size in block units
      */
-    private static float computeGlowCoreHalf(ChainMarkerRenderState state) {
+    static float computeGlowCoreHalf(int stackCount) {
         GlowCrystalBlock.CrystalSize cs =
-                GlowCrystalBlock.CrystalSize.fromStacks(state.stackCount);
+                GlowCrystalBlock.CrystalSize.fromStacks(stackCount);
         return (float) ((cs.max - cs.min) / CRYSTAL_HALF_DIVISOR);
     }
 
@@ -238,10 +342,9 @@ public final class FuseOrbVisual {
      * Translates to the face boundary where the blob splats into the wall.
      *
      * @param poseStack the pose stack for rendering
-     * @param state     the chain marker render state
+     * @param face      the placed face direction
      */
-    private static void translateToFace(PoseStack poseStack, ChainMarkerRenderState state) {
-        Direction face = state.placedFace;
+    private static void translateToFace(PoseStack poseStack, Direction face) {
         float ox = face.getStepX() * BLOCK_CENTER;
         float oy = face.getStepY() * BLOCK_CENTER;
         float oz = face.getStepZ() * BLOCK_CENTER;
@@ -263,42 +366,6 @@ public final class FuseOrbVisual {
         float sy = face.getAxis() == Direction.Axis.Y ? thin : wide;
         float sz = face.getAxis() == Direction.Axis.Z ? thin : wide;
         poseStack.scale(sx, sy, sz);
-    }
-
-    /**
-     * Scales the glow orb so the face axis depth matches the crystal
-     * model exactly (2px for bump, 0.01 for flat).
-     *
-     * @param poseStack the pose stack to scale
-     * @param state     the render state
-     * @param coreHalf  the lateral half-size (used to compute depth ratio)
-     */
-    private static void applyGlowScale(PoseStack poseStack,
-                                       ChainMarkerRenderState state, float coreHalf) {
-        float visibleDepth = (float) (SHAPE_FLAT.equals(state.blobShape)
-                ? GlowCrystalBlock.FLAT_DEPTH : GlowCrystalBlock.BUMP_DEPTH);
-        float depthScale = visibleDepth / coreHalf;
-        Direction face = state.placedFace;
-        float sx = face.getAxis() == Direction.Axis.X ? depthScale : 1f;
-        float sy = face.getAxis() == Direction.Axis.Y ? depthScale : 1f;
-        float sz = face.getAxis() == Direction.Axis.Z ? depthScale : 1f;
-        poseStack.scale(sx, sy, sz);
-    }
-
-    /**
-     * Submits one fullbright translucent cube layer.
-     *
-     * @param poseStack     the pose stack for rendering
-     * @param nodeCollector the render node collector
-     * @param color         the ARGB tint color
-     * @param half          the half-size of the cube
-     * @param uv            the UV texture rectangle
-     */
-    private static void submitCubeLayer(PoseStack poseStack,
-                                        SubmitNodeCollector nodeCollector, int color, float half,
-                                        GooRenderUtil.UvRect uv) {
-        CuboidBounds box = new CuboidBounds(-half, half, -half, half, -half, half);
-        GooSubmitter.submitFluid(poseStack, nodeCollector, ctx -> ctx.emitBox(color, box, uv));
     }
 
     /**
