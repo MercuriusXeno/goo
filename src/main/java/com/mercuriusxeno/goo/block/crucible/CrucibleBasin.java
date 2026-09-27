@@ -38,6 +38,9 @@ public final class CrucibleBasin {
     /** The height in pixels above the floor the moderate volume stands at. */
     static final double MODERATE_HEIGHT_PIXELS = 1.5;
 
+    /** The collision solver's slack under the floor, so an item resting on it still reads inside. */
+    private static final double FLOOR_TOLERANCE = 1e-4;
+
     /** The footprint's center in block-relative X and Z. */
     private static final float FOOTPRINT_CENTER = (FOOTPRINT_MIN + FOOTPRINT_MAX) / 2f;
     /** The full basin's half-width, the puddle's at the spread volume. */
@@ -251,6 +254,29 @@ public final class CrucibleBasin {
      */
     public static boolean holdsNoGoo(long reservoirVolume, long poolVolume) {
         return reservoirVolume <= 0 && poolVolume <= 0;
+    }
+
+    /**
+     * Answers whether a point sits in the cavity, the only place an item is
+     * consumed from (decision collision-is-the-drawn-cavity): within the
+     * footprint, at or above the floor and below the rim.
+     *
+     * @param x the point's X relative to the block
+     * @param y the point's Y relative to the block, an entity's feet
+     * @param z the point's Z relative to the block
+     * @return true when the point lies inside the cavity
+     */
+    public static boolean holdsPoint(double x, double y, double z) {
+        return withinFootprint(x) && withinFootprint(z)
+            && y >= FLOOR_Y - FLOOR_TOLERANCE && y < RIM_Y;
+    }
+
+    /**
+     * @param coordinate a block-relative X or Z
+     * @return true when it lies between the footprint's edges
+     */
+    private static boolean withinFootprint(double coordinate) {
+        return coordinate >= FOOTPRINT_MIN && coordinate <= FOOTPRINT_MAX;
     }
 
     /**

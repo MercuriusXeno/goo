@@ -60,17 +60,6 @@ public class CrucibleBlock extends GooMachineBlock {
     /** Whether a gasket is attached to this crucible. */
     public static final BooleanProperty HAS_GASKET = BooleanProperty.create("has_gasket");
 
-    /** Goocible body: full-width solid base, 13px tall. */
-    private static final VoxelShape BODY = box(0, 0, 0, 16, 13, 16);
-    /** Goocible rim: 4 walls forming a hollow collar so items can fall inside. */
-    private static final VoxelShape RIM = Shapes.or(
-        box(2, 13, 2, 14, 16, 4),
-        box(2, 13, 12, 14, 16, 14),
-        box(2, 13, 4, 4, 16, 12),
-        box(12, 13, 4, 14, 16, 12));
-    /** Combined collision/outline shape. */
-    private static final VoxelShape SHAPE = Shapes.or(BODY, RIM);
-
     /** Creates a crucible block and registers default blockstate values.
      *
      * @param properties the block properties
@@ -134,7 +123,7 @@ public class CrucibleBlock extends GooMachineBlock {
         return state.getValue(LIT) ? CRUCIBLE_LIT_LIGHT : 0;
     }
 
-    /** Returns the goocible pot collision/outline shape.
+    /** Returns the goocible pot collision/outline shape, the basin hollowed to its drawn floor.
      *
      * @param state   the block state
      * @param level   the current level
@@ -145,7 +134,7 @@ public class CrucibleBlock extends GooMachineBlock {
     @Override
     protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos,
             CollisionContext context) {
-        return SHAPE;
+        return CrucibleShape.SHAPE;
     }
 
     /** Enables shape-based light occlusion for the non-full-block crucible.
@@ -267,7 +256,8 @@ public class CrucibleBlock extends GooMachineBlock {
     // -- Item entity absorption --
 
     /**
-     * Absorbs item entities that land in the basin, feeding them into the melting pipeline.
+     * Absorbs item entities inside the cavity, feeding them into the melting pipeline;
+     * one on the outer ledge or a rim wall is left alone (decision collision-is-the-drawn-cavity).
      * Only absorbs when the crucible is enabled (no redstone) and holds heat or fuel goo.
      *
      * @param state         the block state
@@ -283,6 +273,8 @@ public class CrucibleBlock extends GooMachineBlock {
         if (level.isClientSide()) { return; }
         if (!(entity instanceof ItemEntity itemEntity)) { return; }
         if (itemEntity.isRemoved()) { return; }
+        if (!CrucibleBasin.holdsPoint(itemEntity.getX() - pos.getX(),
+                itemEntity.getY() - pos.getY(), itemEntity.getZ() - pos.getZ())) { return; }
         tryAbsorbItemEntity(level, pos, itemEntity);
     }
 
