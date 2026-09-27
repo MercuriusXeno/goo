@@ -71,6 +71,61 @@ public final class DripQuadPlacement {
     }
 
     /**
+     * What a drop hung at the spigot does once its hang ends: fall where it
+     * has room to hang clear of the surface, else splat on the surface
+     * (decision tap-drop-swells-then-falls).
+     */
+    enum HangEnd {
+        /** The drop falls from where it hung. */
+        FALL,
+        /** The drop vanishes and its splat appears on the surface below the spigot. */
+        SPLAT
+    }
+
+    /**
+     * @param roomBelow the clear height under the spigot, up to {@link #hangingDrop}
+     * @param halfSize  the quad's half extent
+     * @return what the hung drop does when its hang ends
+     */
+    static HangEnd hangEnd(double roomBelow, float halfSize) {
+        return dropFits(roomBelow, halfSize) ? HangEnd.FALL : HangEnd.SPLAT;
+    }
+
+    /**
+     * @param hungTicks   hang ticks already run
+     * @param partialTick the partial tick for interpolation
+     * @param hangTicks   the whole hang's length
+     * @return how far the drop has swelled, nothing at 0 and its full square at 1
+     */
+    static float hangProgress(int hungTicks, float partialTick, int hangTicks) {
+        return Math.min(1f, Math.max(0f, (hungTicks + partialTick) / hangTicks));
+    }
+
+    /**
+     * The swelling drop's half extent: its full half extent scaled by the
+     * swell, capped so its bottom stays the margin above a surface too close
+     * to fit the full square (decision diagnose-then-fix-drip-z-fighting).
+     *
+     * @param halfSize  the drop's full half extent
+     * @param progress  the swell, from {@link #hangProgress}
+     * @param roomBelow the clear height under the spigot, up to {@link #hangingDrop}
+     * @return the half extent the hanging drop draws at
+     */
+    static float hangingHalfSize(float halfSize, float progress, double roomBelow) {
+        float roomHalf = (float) Math.max(0.0, (roomBelow - SURFACE_MARGIN) / HALVES_PER_QUAD);
+        return Math.min(halfSize * progress, roomHalf);
+    }
+
+    /**
+     * @param spigotY         the spigot's underside, where the drop's top is pinned
+     * @param swollenHalfSize the half extent the drop draws at, from {@link #hangingHalfSize}
+     * @return the y the hanging drop's camera-facing quad is centered on
+     */
+    static double hangingQuadCenterY(double spigotY, float swollenHalfSize) {
+        return spigotY - swollenHalfSize;
+    }
+
+    /**
      * @param landingY the y the drip's collision box landed at
      * @return the y the splat's flat quad lies at
      */
