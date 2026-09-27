@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.item.CanisterPlacementResolver.CanisterPlacement;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
@@ -196,6 +197,46 @@ class CanisterPlacementResolverTest {
             BlockEntity vat = mock(BlockEntity.class, withSettings().extraInterfaces(ICanisterClickTaker.class));
             when(((ICanisterClickTaker) vat).takesCanisterClick(canister)).thenReturn(takes);
             when(level.getBlockEntity(AIMED)).thenReturn(vat);
+        }
+    }
+
+    @Nested
+    class BlockWithItsOwnClick {
+
+        @Test
+        void standingOnABlockWithItsOwnClickRefuses() {
+            aimAtBlockOfClass(ClickableBlock.class);
+            assertNull(resolve(topHitAtSlot(SLOT_ZERO), false));
+        }
+
+        @Test
+        void sneakingOnABlockWithItsOwnClickPlaces() {
+            aimAtBlockOfClass(ClickableBlock.class);
+            assertEquals(new CanisterPlacement(ABOVE, SLOT_ZERO, false), resolve(topHitAtSlot(SLOT_ZERO), true));
+        }
+
+        @Test
+        void standingOnAPlainBlockPlaces() {
+            aimAtBlockOfClass(Block.class);
+            assertEquals(new CanisterPlacement(ABOVE, SLOT_ZERO, false), resolve(topHitAtSlot(SLOT_ZERO), false));
+        }
+
+        private void aimAtBlockOfClass(Class<? extends Block> blockClass) {
+            Block block = mock(blockClass);
+            when(level.getBlockState(AIMED).getBlock()).thenReturn(block);
+        }
+    }
+
+    /** A block that defines its own right click, as a chest or a door does. */
+    abstract static class ClickableBlock extends Block {
+        ClickableBlock(Properties properties) {
+            super(properties);
+        }
+
+        @Override
+        protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player,
+                                                   BlockHitResult hit) {
+            return InteractionResult.SUCCESS;
         }
     }
 }

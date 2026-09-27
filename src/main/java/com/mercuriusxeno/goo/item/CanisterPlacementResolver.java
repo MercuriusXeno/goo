@@ -10,6 +10,7 @@ import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
@@ -53,7 +54,7 @@ public final class CanisterPlacementResolver {
         Level level = context.getLevel();
         BlockHitResult hit = aimedHit(context);
         BlockEntity aimed = level.getBlockEntity(hit.getBlockPos());
-        if (!sneaking && aimedBlockTakesTheClick(aimed, hit, context.getItemInHand())) {
+        if (!sneaking && aimedBlockTakesTheClick(level, aimed, hit, context.getItemInHand())) {
             return null;
         }
         if (aimed instanceof CanisterBlockEntity clicked) {
@@ -83,15 +84,28 @@ public final class CanisterPlacementResolver {
     }
 
     /**
-     * Returns true when a standing click on the aimed block is the block's own: a canister holder
-     * that takes the use, a machine's cutaway, or a machine whose click moves goo with the canister.
+     * Returns true when a standing click on the aimed block is the block's own. A goo machine
+     * answers exactly: a canister holder that takes the use, a machine's cutaway, or a machine
+     * whose click moves goo with the canister. Any other block takes the click when its class
+     * defines its own right click (the operator's rule: no outline where a plain click is the block's).
      *
+     * @param level    the current level
      * @param aimed    the block entity at the hit, or null
      * @param hit      the hit
      * @param canister the held canister
      * @return true when the aimed block handles the click
      */
-    private static boolean aimedBlockTakesTheClick(@Nullable BlockEntity aimed, BlockHitResult hit, ItemStack canister) {
+    private static boolean aimedBlockTakesTheClick(Level level, @Nullable BlockEntity aimed, BlockHitResult hit,
+                                                   ItemStack canister) {
+        if (aimed instanceof ICanisterHolder || aimed instanceof ICutawayMachine
+                || aimed instanceof ICanisterClickTaker) {
+            return gooMachineTakesTheClick(aimed, hit, canister);
+        }
+        Block block = level.getBlockState(hit.getBlockPos()).getBlock();
+        return block != null && OwnRightClick.definedBy(block.getClass());
+    }
+
+    private static boolean gooMachineTakesTheClick(BlockEntity aimed, BlockHitResult hit, ItemStack canister) {
         if (aimed instanceof ICanisterHolder holder && holder.takesCanisterAt(hit, false)) {
             return true;
         }

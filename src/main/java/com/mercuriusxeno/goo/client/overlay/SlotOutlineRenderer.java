@@ -42,7 +42,7 @@ public final class SlotOutlineRenderer {
         boolean sneaking = player != null && player.isSecondaryUseActive();
         VoxelShape outline = holder.outlineShape(hit);
         AABB pickup = player != null && !sneaking ? holder.pickupBounds(hit) : null;
-        AABB preview = isHoldingCanister() ? holder.previewBounds(hit, sneaking) : null;
+        AABB preview = isHoldingCanister() && !sneaking ? holder.previewBounds(hit) : null;
         event.addCustomRenderer(slotRenderer(outline, preview, pickup));
     }
 

@@ -200,13 +200,13 @@ public interface ICanisterHolder extends IGooLightSource {
     @Nullable AABB pickupBounds(BlockHitResult hit);
 
     /**
-     * The empty slot a held canister would enter on a click at the hit.
+     * The empty slot a held canister would enter on this holder's own standing click at the
+     * hit. A sneak skips the holder's click, so the placement resolver answers it instead.
      *
-     * @param hit      the ray trace hit on this holder
-     * @param sneaking true when the player is sneaking
+     * @param hit the ray trace hit on this holder
      * @return the slot's bounds, or null when the click would insert nowhere
      */
-    @Nullable AABB previewBounds(BlockHitResult hit, boolean sneaking);
+    @Nullable AABB previewBounds(BlockHitResult hit);
 
     /**
      * The HUD target under the cursor: the slot it reads and where its panel sits.
