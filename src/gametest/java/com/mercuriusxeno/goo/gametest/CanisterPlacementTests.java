@@ -61,6 +61,7 @@ public final class CanisterPlacementTests {
         player.setItemInHand(InteractionHand.MAIN_HAND, canister);
         player.gameMode.useItemOn(player, helper.getLevel(), canister, InteractionHand.MAIN_HAND,
             aimedSlotTopHit(helper));
+        helper.getLevel().getServer().getPlayerList().remove(player);
         assertCanisterInAimedSlot(helper);
         helper.succeed();
     }
