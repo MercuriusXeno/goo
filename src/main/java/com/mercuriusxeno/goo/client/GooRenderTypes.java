@@ -219,6 +219,16 @@ public final class GooRenderTypes {
     public static final RenderType METAL_EXPLOSION_TYPE = burnoutType(METAL_EXPLOSION);
 
     /**
+     * Crystal goo's burnout explosion pipeline: the prism burst, alpha
+     * blended, through {@code crystal_explosion.vsh / .fsh}.
+     */
+    public static final RenderPipeline CRYSTAL_EXPLOSION = burnoutPipeline("crystal_explosion",
+            BlendFunction.TRANSLUCENT);
+
+    /** RenderType that draws crystal goo's burnout explosion. */
+    public static final RenderType CRYSTAL_EXPLOSION_TYPE = burnoutType(CRYSTAL_EXPLOSION);
+
+    /**
      * Nether black-hole accretion-disk pipeline: third render pass that
      * emits a flat annular ring in the world XZ plane around the sphere,
      * inner radius pinned to the main sphere radius and outer radius at
@@ -503,6 +513,7 @@ public final class GooRenderTypes {
         event.registerPipeline(FROST_EXPLOSION);
         event.registerPipeline(NETHER_EXPLOSION);
         event.registerPipeline(METAL_EXPLOSION);
+        event.registerPipeline(CRYSTAL_EXPLOSION);
         event.registerPipeline(NETHER_DISK);
         event.registerPipeline(NETHER_CUBE_EDGE);
         event.registerPipeline(LINES_NO_DEPTH_PIPELINE);
