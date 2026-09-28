@@ -71,6 +71,11 @@ class ChainBurnoutsTest {
     }
 
     @Test
+    void crystalResolvesItsOwnExplosion() {
+        assertSame(CrystalExplosionVisual.INSTANCE, BurnoutVisuals.forType(GooTypes.CRYSTAL));
+    }
+
+    @Test
     void progressRunsFromStartToDuration() {
         ChainBurnouts.Burnout burnout = new ChainBurnouts().add(POS, Direction.UP, GooTypes.UNSTABLE,
                 ABILITY, 1, START);

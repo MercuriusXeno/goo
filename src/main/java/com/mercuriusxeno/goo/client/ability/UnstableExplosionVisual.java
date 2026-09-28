@@ -3,12 +3,9 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.program.ExplodeStep;
-import com.mercuriusxeno.goo.ability.program.HostVariables;
-import com.mercuriusxeno.goo.ability.program.Variables;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
-import java.util.OptionalDouble;
 
 /**
  * Unstable goo's burnout explosion, the design the operator settled
@@ -56,7 +53,7 @@ public final class UnstableExplosionVisual implements BurnoutVisual {
     @Override
     public void render(ChainBurnouts.Burnout burnout, BurnoutFrame frame) {
         float progress = burnout.progress(frame.gameTime());
-        float reach = blastReach(burnout.abilityId(), burnout.stackCount());
+        float reach = blastReach(burnout);
         float sphere = sphereRadius(progress, reach);
         float ring = ringRadius(progress, reach);
         int progressByte = NetherDiscMesh.toByte(progress);
@@ -93,15 +90,12 @@ public final class UnstableExplosionVisual implements BurnoutVisual {
      * The blast radius: the power of the ability's explode step at the
      * marker's stack count, read off the synced ability.
      *
-     * @param abilityId  the ability the marker ran
-     * @param stackCount the marker's stack count at burnout
+     * @param burnout the burnout
      * @return the blast radius in blocks
      */
-    private static float blastReach(String abilityId, int stackCount) {
-        Variables stacks = name -> HostVariables.STACKS.equals(name)
-                ? OptionalDouble.of(stackCount) : OptionalDouble.empty();
-        return SyncedSteps.first(abilityId, ExplodeStep.class)
-                .map(step -> step.power().evaluateFloat(stacks))
+    private static float blastReach(ChainBurnouts.Burnout burnout) {
+        return SyncedSteps.first(burnout.abilityId(), ExplodeStep.class)
+                .map(step -> step.power().evaluateFloat(burnout.variables()))
                 .orElse(FALLBACK_REACH);
     }
 }

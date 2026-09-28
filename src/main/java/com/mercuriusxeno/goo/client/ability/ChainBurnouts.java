@@ -1,11 +1,14 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.ability.program.HostVariables;
+import com.mercuriusxeno.goo.ability.program.Variables;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.OptionalDouble;
 
 /**
  * The burnout explosions playing on this client, each held from the game
@@ -40,6 +43,16 @@ public final class ChainBurnouts {
                 return 1f;
             }
             return Math.min(1f, Math.max(0f, (gameTime - startTick) / duration));
+        }
+
+        /**
+         * The variables a step param reads for this burnout: its stack count.
+         *
+         * @return the burnout's variables
+         */
+        public Variables variables() {
+            return name -> HostVariables.STACKS.equals(name)
+                    ? OptionalDouble.of(stackCount) : OptionalDouble.empty();
         }
 
         /**
