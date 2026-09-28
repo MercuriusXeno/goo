@@ -257,6 +257,7 @@ public final class GooTestFunctions {
     private static final String IX_VAT_GASKET = "ix_vat_gasket_apply";
     private static final String IX_HUB_INSERT = "ix_hub_canister_insert";
     private static final String IX_HUB_PICKUP = "ix_hub_canister_pickup";
+    private static final String IX_HUB_POUR_AIMED_ONLY = "ix_hub_pour_aimed_only";
     private static final String IX_PLEXER_TARGET = "ix_plexer_set_target";
     private static final String IX_CRUCIBLE_BLAZE_ROD_COLD = "ix_crucible_blaze_rod_click_leaves_cold";
     private static final String IX_CRUCIBLE_COLD_ABSORBS_NOTHING = "ix_crucible_cold_absorbs_nothing";
@@ -536,6 +537,7 @@ public final class GooTestFunctions {
         reg(r, IX_VAT_GASKET, MachineInteractionTests::vatGasketApply);
         reg(r, IX_HUB_INSERT, MachineInteractionTests::hubCanisterInsert);
         reg(r, IX_HUB_PICKUP, MachineInteractionTests::hubCanisterPickup);
+        reg(r, IX_HUB_POUR_AIMED_ONLY, MachineInteractionTests::hubPourFillsOnlyTheAimedCanister);
         reg(r, IX_PLEXER_TARGET, MachineInteractionTests::plexerSetTarget);
         reg(r, IX_CRUCIBLE_BLAZE_ROD_COLD, MachineInteractionTests::crucibleBlazeRodClickLeavesItCold);
         reg(r, IX_CRUCIBLE_COLD_ABSORBS_NOTHING, MachineInteractionTests::coldCrucibleAbsorbsNothing);
