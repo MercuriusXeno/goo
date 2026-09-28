@@ -37,9 +37,15 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.GameType;
+import net.neoforged.neoforge.event.PlayLevelSoundEvent;
+import net.neoforged.neoforge.common.NeoForge;
+import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Consumer;
 import java.util.Set;
 import java.util.UUID;
 
@@ -255,6 +261,41 @@ public final class CrystallizerTests {
                 "a canister click on the top");
         helper.assertValueEqual(net.minecraft.world.InteractionResult.PASS,
                 state.useWithoutItem(helper.getLevel(), player, top), "an empty-hand click on the top");
+        helper.succeed();
+    }
+
+    /**
+     * Each canister used on the crystallizer's top plays a sound where it lands: the
+     * first stands a new canister block, the second enters the block already standing.
+     * Listens for the level sounds the server plays at the canister block.
+     *
+     * @param helper the gametest helper
+     */
+    public static void eachCanisterPlacedPlaysASound(GameTestHelper helper) {
+        placeCrystallizerAlone(helper, 1);
+        BlockPos above = helper.absolutePos(CANISTERS_POS);
+        List<String> heard = new ArrayList<>();
+        Consumer<PlayLevelSoundEvent.AtPosition> listener = event -> {
+            if (BlockPos.containing(event.getPosition()).equals(above)) {
+                heard.add(event.getSound().getRegisteredName());
+            }
+        };
+        NeoForge.EVENT_BUS.addListener(listener);
+        try {
+            for (int role = FIRST; role <= SECOND; role++) {
+                Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+                ItemStack canister = new ItemStack(GooItems.CANISTER.get());
+                player.setItemInHand(InteractionHand.MAIN_HAND, canister);
+                int before = heard.size();
+                canister.useOn(new UseOnContext(player, InteractionHand.MAIN_HAND, topHit(helper, role)));
+                helper.assertTrue(canisters(helper).slotBounds(NORTH_SLOTS[role]) != null,
+                        "The canister for role " + role + " should stand in its slot");
+                helper.assertTrue(heard.size() > before,
+                        "Placing the canister for role " + role + " should play a sound, heard " + heard);
+            }
+        } finally {
+            NeoForge.EVENT_BUS.unregister(listener);
+        }
         helper.succeed();
     }
 

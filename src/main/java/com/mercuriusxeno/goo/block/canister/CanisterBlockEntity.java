@@ -438,9 +438,18 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
             return InteractionResult.PASS;
         }
         stack.consume(1, player);
-        level.playSound(null, worldPosition, SoundEvents.DECORATED_POT_INSERT,
-                SoundSource.BLOCKS, 1.0f, 1.0f);
+        playInsertSound();
         return InteractionResult.SUCCESS;
+    }
+
+    /**
+     * Plays the sound of a canister entering this block, heard by every player near it,
+     * the placer included.
+     */
+    public void playInsertSound() {
+        if (level != null) {
+            level.playSound(null, worldPosition, SoundEvents.DECORATED_POT_INSERT, SoundSource.BLOCKS, 1.0f, 1.0f);
+        }
     }
 
     private boolean tryInsertCanister(BlockHitResult hitResult, ItemStack stack, boolean stripGaskets) {
