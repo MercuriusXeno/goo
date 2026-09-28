@@ -323,6 +323,37 @@ public final class CrystallizerTests {
     }
 
     /**
+     * Only one canister holds the goo that grows: beside ender, the other canister
+     * refuses ender and blaze, by pour, by network insert and as a filled canister,
+     * and takes crystal; beside crystal it takes ender.
+     *
+     * @param helper the gametest helper
+     */
+    public static void oneCanisterHoldsTheGrowingGoo(GameTestHelper helper) {
+        placeCrystallizer(helper, 1);
+        insert(helper, FIRST, canister(GooTypes.ENDER, CHRYSM_VOLUME));
+        insert(helper, SECOND, new ItemStack(GooItems.CANISTER.get()));
+        CanisterBlockEntity canisters = canisters(helper);
+        int second = NORTH_SLOTS[SECOND];
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        player.setItemInHand(InteractionHand.MAIN_HAND, BlobStacks.createForOutput(GooTypes.ENDER, CHRYSM_VOLUME));
+        helper.useBlock(CANISTERS_POS, player, canisterHit(helper, SECOND));
+        helper.assertTrue(canisters.getSlotFluidContent(second).isEmpty(), "a poured ender beside ender is refused");
+        helper.assertValueEqual(0, canisters.insertGoo(second, GooTypes.BLAZE, CHRYSM_VOLUME),
+                "a network blaze beside ender is refused");
+        helper.assertValueEqual(CRYSTAL_COST, canisters.insertGoo(second, GooTypes.CRYSTAL, CRYSTAL_COST),
+                "crystal beside ender is taken");
+        canisters.removeCanister(second);
+        helper.assertFalse(canisters.insertCanister(second, canister(GooTypes.BLAZE, CHRYSM_VOLUME), false),
+                "a filled blaze canister beside ender is refused");
+        canisters.removeCanister(NORTH_SLOTS[FIRST]);
+        insert(helper, FIRST, canister(GooTypes.CRYSTAL, CRYSTAL_COST));
+        helper.assertTrue(canisters.insertCanister(second, canister(GooTypes.ENDER, CHRYSM_VOLUME), false),
+                "an ender canister beside crystal is taken");
+        helper.succeed();
+    }
+
+    /**
      * 1,000 mB of ender beside only 50 mB of crystal crystallizes half and forms no
      * chrysm; 50 mB more crystal finishes it. The model reads active while it
      * crystallizes and idle after.

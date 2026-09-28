@@ -54,6 +54,19 @@ public final class CrystallizerPhases {
     }
 
     /**
+     * Whether a canister takes an arriving goo beside what the other canister holds:
+     * crystal always, any other goo only while the other canister holds crystal or
+     * nothing, so at most one canister holds the goo that grows.
+     *
+     * @param other    what the other canister holds
+     * @param incoming the goo arriving, or null for a fluid that is not goo
+     * @return true when the canister takes it
+     */
+    public static boolean admits(Held other, @Nullable ResourceKey<GooTypeDefinition> incoming) {
+        return CATALYST.equals(incoming) || !other.holdsGoo() || other.holds(CATALYST);
+    }
+
+    /**
      * Which canister slot is the catalyst and which the ingredient.
      *
      * @param catalyst   the slot whose crystal is spent

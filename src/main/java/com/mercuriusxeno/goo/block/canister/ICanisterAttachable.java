@@ -1,5 +1,8 @@
 package com.mercuriusxeno.goo.block.canister;
 
+import com.mercuriusxeno.goo.GooTypeDefinition;
+import net.minecraft.resources.ResourceKey;
+import org.jspecify.annotations.Nullable;
 import java.util.Set;
 
 /**
@@ -58,6 +61,18 @@ public interface ICanisterAttachable {
      *
      * @return the slot centers, in pixels
      */
+    /**
+     * Whether a slot of the canister block on top takes a goo, the machine's rule for
+     * what may stand in each canister; any goo by default.
+     *
+     * @param slot     the canister block slot
+     * @param incoming the goo type arriving, or null for a fluid that is not goo
+     * @return true when the slot takes it
+     */
+    default boolean admitsGoo(int slot, @Nullable ResourceKey<GooTypeDefinition> incoming) {
+        return true;
+    }
+
     default float[][] slotCenters() {
         return CanisterSlotLayout.SLOT_CENTERS;
     }

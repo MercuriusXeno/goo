@@ -28,6 +28,7 @@ import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BiPredicate;
 import java.util.function.Function;
 import java.util.function.IntFunction;
 import java.util.function.IntPredicate;
@@ -53,6 +54,7 @@ public class SlottedCanisterData {
     private final Runnable syncCallback;
     private final Function<CanisterSlot[], VoxelShape> shapeBuilder;
     private final IntPredicate slotAllowed;
+    private final BiPredicate<Integer, FluidResource> fluidAdmitted;
     private VoxelShape compositeShape;
 
     /**
@@ -69,7 +71,7 @@ public class SlottedCanisterData {
     public SlottedCanisterData(GooMachineBlockEntity owner, int maxSlots,
             IntFunction<VoxelShape> slotShapeFor,
             Function<CanisterSlot[], VoxelShape> shapeBuilder) {
-        this(owner, maxSlots, slotShapeFor, shapeBuilder, index -> true);
+        this(owner, maxSlots, slotShapeFor, shapeBuilder, index -> true, (index, incoming) -> true);
     }
 
     /**
@@ -80,20 +82,23 @@ public class SlottedCanisterData {
      * @param slotShapeFor function from slot index to its filled voxel shape
      * @param shapeBuilder builds the composite voxel shape from the slot array
      * @param slotAllowed  answers whether a slot takes a canister where the machine stands
+     * @param fluidAdmitted answers whether a slot takes a goo where the machine stands
      */
     public SlottedCanisterData(GooMachineBlockEntity owner, int maxSlots,
             IntFunction<VoxelShape> slotShapeFor,
             Function<CanisterSlot[], VoxelShape> shapeBuilder,
-            IntPredicate slotAllowed) {
+            IntPredicate slotAllowed, BiPredicate<Integer, FluidResource> fluidAdmitted) {
         this.owner = owner;
         this.maxSlots = maxSlots;
         this.syncCallback = owner.gasketSyncCallback();
         this.shapeBuilder = shapeBuilder;
         this.slotAllowed = slotAllowed;
+        this.fluidAdmitted = fluidAdmitted;
         this.slots = new CanisterSlot[maxSlots];
         for (int i = 0; i < maxSlots; i++) {
+            int index = i;
             slots[i] = new CanisterSlot(i, slotShapeFor.apply(i),
-                    syncCallback, this::onStructureChanged);
+                    syncCallback, this::onStructureChanged, incoming -> fluidAdmitted.test(index, incoming));
         }
         this.compositeShape = shapeBuilder.apply(this.slots);
     }
@@ -345,8 +350,7 @@ public class SlottedCanisterData {
      * @return true if the canister went in
      */
     public boolean insert(int index, ItemStack stack, boolean stripGaskets) {
-        if (!inRange(index) || !(stack.getItem() instanceof CanisterItem)
-                || !slots[index].isEmpty() || !slotAllowed.test(index)) {
+        if (!takesCanister(index, stack)) {
             return false;
         }
         CanisterSlot slot = slots[index];
@@ -361,6 +365,16 @@ public class SlottedCanisterData {
                 index, CanisterItem.getMetadata(slot.canister()));
         syncCallback.run();
         return true;
+    }
+
+    private boolean takesCanister(int index, ItemStack stack) {
+        boolean openSlot = inRange(index) && slots[index].isEmpty() && slotAllowed.test(index);
+        return openSlot && stack.getItem() instanceof CanisterItem && admitsContents(index, stack);
+    }
+
+    private boolean admitsContents(int index, ItemStack canister) {
+        CanisterFluidContent content = CanisterItem.getFluidContent(canister);
+        return content.isEmpty() || fluidAdmitted.test(index, content.resource());
     }
 
     /**
