@@ -26,6 +26,9 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Multi-canister block: holds up to 9 canisters in a 3x3 grid within
@@ -65,6 +68,12 @@ public class CanisterBlock extends GooMachineBlock {
 
     /** Half-width of a canister slot in pixels (each slot is 4px wide). */
     private static final float SLOT_HALF_WIDTH = 2;
+
+    /**
+     * Slot body shapes for each overriding centers array, keyed by the array
+     * itself: an attachable hands back one stable array per state.
+     */
+    private static final Map<float[][], VoxelShape[]> SHAPES_BY_OVERRIDE = new ConcurrentHashMap<>();
 
     static {
         for (int slot = 0; slot < SLOT_COUNT; slot++) {
@@ -149,6 +158,38 @@ public class CanisterBlock extends GooMachineBlock {
     }
 
     /**
+     * Returns the body shape of a slot laid out at the given centers: the
+     * precomputed grid shape for the fixed grid, else one built once per
+     * centers array.
+     *
+     * @param centers pixel centers per slot, from {@link CanisterSlotLayout#centersAt}
+     * @param slot    the slot index (0-8)
+     * @return the slot's body shape, or the center slot's if out of range
+     */
+    public static VoxelShape slotShape(float[][] centers, int slot) {
+        if (centers == SLOT_CENTERS) {
+            return slotShape(slot);
+        }
+        VoxelShape[] shapes = SHAPES_BY_OVERRIDE.computeIfAbsent(centers, CanisterBlock::buildBodies);
+        return isValidSlot(slot) ? shapes[slot] : shapes[CENTER_SLOT];
+    }
+
+    /**
+     * Builds the 4x12x4 body shape of every slot at the given centers.
+     *
+     * @param centers pixel centers per slot
+     * @return one body shape per slot
+     */
+    private static VoxelShape[] buildBodies(float[][] centers) {
+        VoxelShape[] shapes = new VoxelShape[SLOT_COUNT];
+        for (int slot = 0; slot < SLOT_COUNT; slot++) {
+            shapes[slot] = box(centers[slot][0] - SLOT_HALF_WIDTH, 0, centers[slot][1] - SLOT_HALF_WIDTH,
+                    centers[slot][0] + SLOT_HALF_WIDTH, BODY_HEIGHT, centers[slot][1] + SLOT_HALF_WIDTH);
+        }
+        return shapes;
+    }
+
+    /**
      * Returns the upper gasket (receiver/cap) VoxelShape for a slot.
      *
      * @param slot the slot index (0-8)
@@ -197,7 +238,7 @@ public class CanisterBlock extends GooMachineBlock {
      */
     private static VoxelShape getCachedShapeOrDefault(BlockGetter level, BlockPos pos) {
         return level.getBlockEntity(pos) instanceof CanisterBlockEntity canister
-            ? canister.containerState().compositeShape() : SLOT_SHAPES[CENTER_SLOT];
+            ? canister.compositeShape() : SLOT_SHAPES[CENTER_SLOT];
     }
 
     /**
@@ -221,17 +262,20 @@ public class CanisterBlock extends GooMachineBlock {
     // --- Hit detection ---
 
     /**
-     * Determines which slot the player clicked, using nearest-center detection.
-     * Returns -1 if no slot is within threshold.
+     * Determines which slot the player clicked, using nearest-center detection
+     * over the slots in play of the canister block at pos, so a hit never names a
+     * slot the block can't hold. Returns -1 if no slot is within threshold.
      *
-     * @param hit the block hit result from the interaction
-     * @param pos the block position
+     * @param hit     the block hit result from the interaction
+     * @param pos     the block position
+     * @param centers pixel centers per slot, from {@link CanisterSlotLayout#centersAt}
+     * @param inPlay  the slots a canister can stand in, from {@link CanisterSlotLayout#slotsInPlayAt}
      * @return the slot index (0-8), or -1 if no slot matched
      */
-    public static int hitSlot(BlockHitResult hit, BlockPos pos) {
+    public static int hitSlot(BlockHitResult hit, BlockPos pos, float[][] centers, Set<Integer> inPlay) {
         double hitPixelX = (hit.getLocation().x - pos.getX()) * ShapeHitCheck.PIXELS_PER_BLOCK;
         double hitPixelZ = (hit.getLocation().z - pos.getZ()) * ShapeHitCheck.PIXELS_PER_BLOCK;
-        return CanisterSlotLayout.nearestSlot((float) hitPixelX, (float) hitPixelZ);
+        return CanisterSlotLayout.nearestSlotInPlay(centers, inPlay, (float) hitPixelX, (float) hitPixelZ);
     }
 
     /**

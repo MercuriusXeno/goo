@@ -173,7 +173,7 @@ final class GooCapabilityRegistration {
     }
 
     /**
-     * Registers GASKET_BLOCK for vat, tap, and plexer (simple gasket ID checks).
+     * Registers GASKET_BLOCK for vat, tap and plexer (simple gasket ID checks).
      *
      * @param event the capability registration event
      */

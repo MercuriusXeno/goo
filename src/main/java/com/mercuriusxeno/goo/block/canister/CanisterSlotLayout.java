@@ -1,6 +1,13 @@
 package com.mercuriusxeno.goo.block.canister;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import org.jspecify.annotations.Nullable;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import static com.mercuriusxeno.goo.GooConstants.NO_SLOT;
 
 /**
@@ -58,20 +65,59 @@ public final class CanisterSlotLayout {
      * Slot centers in block-local coordinates ({@code SLOT_CENTERS / 16}).
      * Precomputed for renderers that consume block-coord positions.
      */
-    public static final float[][] SLOT_CENTERS_BLOCK = buildBlockCenters();
+    public static final float[][] SLOT_CENTERS_BLOCK = buildBlockCenters(SLOT_CENTERS);
+    /**
+     * Block-local centers for each overriding centers array, keyed by the array itself:
+     * an attachable hands back one stable array, so this holds one entry per override.
+     */
+    private static final Map<float[][], float[][]> BLOCK_CENTERS_BY_OVERRIDE = new ConcurrentHashMap<>();
 
     private CanisterSlotLayout() {
     }
 
-    private static float[][] buildBlockCenters() {
-        float[][] block = new float[SLOT_COUNT][];
-        for (int i = 0; i < SLOT_COUNT; i++) {
+    private static float[][] buildBlockCenters(float[][] centers) {
+        float[][] block = new float[centers.length][];
+        for (int i = 0; i < centers.length; i++) {
             block[i] = new float[]{
-                    SLOT_CENTERS[i][0] / BLOCK_PIXELS,
-                    SLOT_CENTERS[i][1] / BLOCK_PIXELS
+                    centers[i][0] / BLOCK_PIXELS,
+                    centers[i][1] / BLOCK_PIXELS
             };
         }
         return block;
+    }
+
+    /**
+     * The slot centers of the canister block at a position: the centers the
+     * attachable machine below names, else the fixed grid.
+     *
+     * @param level       the level
+     * @param canisterPos the canister block position
+     * @return pixel centers per slot index 0-8
+     */
+    public static float[][] centersAt(BlockGetter level, BlockPos canisterPos) {
+        return centersOf(level.getBlockEntity(canisterPos.below()));
+    }
+
+    /**
+     * The slot centers a canister block takes from what stands below it.
+     *
+     * @param below the block entity below, or null
+     * @return the attachable's centers, or the fixed grid
+     */
+    public static float[][] centersOf(@Nullable Object below) {
+        return below instanceof ICanisterAttachable attachable ? attachable.slotCenters() : SLOT_CENTERS;
+    }
+
+    /**
+     * Block-local centers ({@code centers / 16}) for renderers; the fixed grid's
+     * are precomputed, an override's are computed once and kept.
+     *
+     * @param centers pixel centers per slot
+     * @return block-local centers per slot
+     */
+    public static float[][] blockCenters(float[][] centers) {
+        return centers == SLOT_CENTERS ? SLOT_CENTERS_BLOCK
+                : BLOCK_CENTERS_BY_OVERRIDE.computeIfAbsent(centers, CanisterSlotLayout::buildBlockCenters);
     }
 
     /**
@@ -83,10 +129,23 @@ public final class CanisterSlotLayout {
      * @return slot index 0-8, or -1 if beyond threshold
      */
     public static int nearestSlot(float px, float pz) {
+        return nearestSlot(SLOT_CENTERS, px, pz);
+    }
+
+    /**
+     * Finds the nearest of the given slot centers to the pixel coordinates.
+     * Returns -1 if the closest center is beyond the hit threshold.
+     *
+     * @param centers pixel centers per slot
+     * @param px      pixel-space X coordinate
+     * @param pz      pixel-space Z coordinate
+     * @return slot index 0-8, or -1 if beyond threshold
+     */
+    public static int nearestSlot(float[][] centers, float px, float pz) {
         int best = NO_SLOT;
         float bestDistSq = Float.MAX_VALUE;
-        for (int i = 0; i < SLOT_COUNT; i++) {
-            float distSq = squaredDistToSlot(i, px, pz);
+        for (int i = 0; i < centers.length; i++) {
+            float distSq = squaredDist(centers[i], px, pz);
             if (distSq < bestDistSq) {
                 bestDistSq = distSq;
                 best = i;
@@ -107,17 +166,69 @@ public final class CanisterSlotLayout {
     }
 
     /**
-     * Returns the squared distance from a point to a slot's center.
+     * Returns the squared distance from a point to a center.
      *
-     * @param slot the slot index
-     * @param px   pixel-space X coordinate
-     * @param pz   pixel-space Z coordinate
+     * @param center the pixel center {x, z}
+     * @param px     pixel-space X coordinate
+     * @param pz     pixel-space Z coordinate
      * @return squared distance in pixel space
      */
-    private static float squaredDistToSlot(int slot, float px, float pz) {
-        float dx = px - SLOT_CENTERS[slot][0];
-        float dz = pz - SLOT_CENTERS[slot][1];
+    private static float squaredDist(float[] center, float px, float pz) {
+        float dx = px - center[0];
+        float dz = pz - center[1];
         return dx * dx + dz * dz;
+    }
+
+    /**
+     * The slots a canister block at a position lays canisters in: those the attachable
+     * machine below allows, else every slot.
+     *
+     * @param level       the level
+     * @param canisterPos the canister block's position
+     * @return the slots in play
+     */
+    public static Set<Integer> slotsInPlayAt(BlockGetter level, BlockPos canisterPos) {
+        BlockEntity below = level.getBlockEntity(canisterPos.below());
+        return below instanceof ICanisterAttachable attachable ? attachable.allowedSlots() : ICanisterAttachable.ALL_SLOTS;
+    }
+
+    /**
+     * The slot in play whose center lies nearest a point, within the hit threshold, so a
+     * hit never resolves to a slot the canister block can't hold (a canister block on a
+     * machine that moves only some slots would otherwise answer an unused slot left at
+     * its grid position).
+     *
+     * @param centers pixel centers per slot
+     * @param inPlay  the slots a canister can stand in
+     * @param px      pixel-space X coordinate
+     * @param pz      pixel-space Z coordinate
+     * @return the slot index, or NO_SLOT when no slot in play is within threshold
+     */
+    public static int nearestSlotInPlay(float[][] centers, Set<Integer> inPlay, float px, float pz) {
+        int best = nearestAllowed(centers, inPlay, px, pz);
+        return best == NO_SLOT ? NO_SLOT : withinThreshold(best, squaredDist(centers[best], px, pz));
+    }
+
+    /**
+     * The allowed slot whose center lies nearest a point, the lowest index on a tie.
+     *
+     * @param centers pixel centers per slot
+     * @param allowed the slots to choose among
+     * @param px      pixel-space X coordinate
+     * @param pz      pixel-space Z coordinate
+     * @return the nearest allowed slot, or -1 when none is allowed
+     */
+    public static int nearestAllowed(float[][] centers, Set<Integer> allowed, float px, float pz) {
+        int best = NO_SLOT;
+        float bestDistSq = Float.MAX_VALUE;
+        for (int i = 0; i < centers.length; i++) {
+            float distSq = squaredDist(centers[i], px, pz);
+            if (allowed.contains(i) && distSq < bestDistSq) {
+                bestDistSq = distSq;
+                best = i;
+            }
+        }
+        return best;
     }
 
     /**
@@ -164,8 +275,22 @@ public final class CanisterSlotLayout {
      * @return adjacent slot index 0-8
      */
     public static int adjacentByCursorLean(int occupiedSlot, float px, float pz) {
-        float dx = px - SLOT_CENTERS[occupiedSlot][0];
-        float dz = pz - SLOT_CENTERS[occupiedSlot][1];
+        return adjacentByCursorLean(SLOT_CENTERS, occupiedSlot, px, pz);
+    }
+
+    /**
+     * As {@link #adjacentByCursorLean(int, float, float)}, leaning from the
+     * occupied slot's center in the given centers.
+     *
+     * @param centers      pixel centers per slot
+     * @param occupiedSlot the slot that was hit
+     * @param px           block-local X in pixel space
+     * @param pz           block-local Z in pixel space
+     * @return adjacent slot index 0-8
+     */
+    public static int adjacentByCursorLean(float[][] centers, int occupiedSlot, float px, float pz) {
+        float dx = px - centers[occupiedSlot][0];
+        float dz = pz - centers[occupiedSlot][1];
         int row = occupiedSlot / GRID_SIZE;
         int col = occupiedSlot % GRID_SIZE;
         return leanToAdjacent(dx, dz, row, col);

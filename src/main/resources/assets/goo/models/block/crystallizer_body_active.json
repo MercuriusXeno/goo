@@ -1,0 +1,7 @@
+{
+	"parent": "goo:block/crystallizer_body",
+	"textures": {
+		"body": "goo:block/crystallizer_active",
+		"particle": "goo:block/crystallizer_active"
+	}
+}

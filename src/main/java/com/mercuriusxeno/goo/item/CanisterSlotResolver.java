@@ -89,7 +89,8 @@ public final class CanisterSlotResolver {
         if (isEmptyAndAllowed(be, level, pos, slot)) {
             return slot;
         }
-        int adjacent = CanisterSlotLayout.adjacentByCursorLean(slot, px, pz);
+        float[][] centers = level == null ? CanisterSlotLayout.SLOT_CENTERS : CanisterSlotLayout.centersAt(level, pos);
+        int adjacent = CanisterSlotLayout.adjacentByCursorLean(centers, slot, px, pz);
         if (isEmptyAndAllowed(be, level, pos, adjacent)) {
             return adjacent;
         }

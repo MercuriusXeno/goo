@@ -33,14 +33,15 @@ final class CanisterHudAnchors {
     }
 
     /**
+     * @param center the aimed slot's pixel center {x, z}, from the block's slot centers
      * @param slot   the aimed grid slot
      * @param face   the face the hit landed on
      * @param viewer what the client knows about the viewer
      * @return the slot's anchor
      */
-    static HudAnchor anchor(int slot, Direction face, HudViewer viewer) {
-        double cx = CanisterSlotLayout.SLOT_CENTERS[slot][0] / BLOCK_PIXELS;
-        double cz = CanisterSlotLayout.SLOT_CENTERS[slot][1] / BLOCK_PIXELS;
+    static HudAnchor anchor(float[] center, int slot, Direction face, HudViewer viewer) {
+        double cx = center[0] / BLOCK_PIXELS;
+        double cz = center[1] / BLOCK_PIXELS;
         if (face == Direction.DOWN) {
             return new HudAnchor(slot, cx, cz, BLOCK_BOTTOM, Direction.DOWN);
         }

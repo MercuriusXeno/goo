@@ -2,7 +2,7 @@
   "type": "minecraft:function",
   "function": "goo:fx_fallen_marker_keeps_ability",
   "environment": "minecraft:default",
-  "structure": "minecraft:empty",
+  "structure": "goo:test_bay",
   "max_ticks": 60,
   "setup_ticks": 0,
   "required": true

@@ -103,6 +103,7 @@ public class CanisterItem extends BlockItem implements IGooItemInteraction, GooC
             return InteractionResult.PASS;
         }
         stack.shrink(1);
+        canister.playInsertSound();
         return InteractionResult.SUCCESS;
     }
 

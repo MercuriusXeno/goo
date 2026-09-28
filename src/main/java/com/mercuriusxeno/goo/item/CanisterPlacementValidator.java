@@ -97,7 +97,9 @@ public final class CanisterPlacementValidator {
     }
 
     /**
-     * Falls back to the first allowed slot if the target slot is disallowed.
+     * Falls back to an allowed slot if the target slot is disallowed: the first
+     * allowed slot on the fixed grid, or, where the machine below lays the slots
+     * out at its own centers, the allowed slot nearest the target's grid cell.
      *
      * @param slot  the preferred slot index
      * @param level the current level
@@ -110,9 +112,25 @@ public final class CanisterPlacementValidator {
         }
         Set<Integer> allowed = getAllowedSlots(level, pos);
         if (allowed != null && !allowed.isEmpty()) {
-            return allowed.iterator().next();
+            return fallbackSlot(slot, allowed, CanisterSlotLayout.centersAt(level, pos));
         }
         return slot;
+    }
+
+    /**
+     * The allowed slot a disallowed target falls back to.
+     *
+     * @param slot    the disallowed target slot, 0-8
+     * @param allowed the non-empty allowed slots
+     * @param centers the canister block's slot centers
+     * @return the fallback slot
+     */
+    static int fallbackSlot(int slot, Set<Integer> allowed, float[][] centers) {
+        if (centers == CanisterSlotLayout.SLOT_CENTERS || slot < 0 || slot >= CanisterSlotLayout.SLOT_COUNT) {
+            return allowed.iterator().next();
+        }
+        float[] cell = CanisterSlotLayout.SLOT_CENTERS[slot];
+        return CanisterSlotLayout.nearestAllowed(centers, allowed, cell[0], cell[1]);
     }
 
     /**
