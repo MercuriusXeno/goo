@@ -11,6 +11,7 @@ import com.mercuriusxeno.goo.ability.program.ProgressiveAreaStep;
 import com.mercuriusxeno.goo.block.BlockEntitySync;
 import com.mercuriusxeno.goo.block.GooSyncedBlockEntity;
 import com.mercuriusxeno.goo.item.GooContents;
+import com.mercuriusxeno.goo.network.ChainBurnoutPayload;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import net.minecraft.core.BlockPos;
@@ -22,6 +23,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
+import net.neoforged.neoforge.network.PacketDistributor;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -474,20 +476,76 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
      * @param pos   the block position
      */
     private void detonate(ServerLevel level, BlockPos pos) {
-        behavior = createBehavior();
-        if (behavior == null) {
+        ChainMarkerDetonation.fire(new FiringMarker(level, pos));
+    }
+
+    /**
+     * Removes the marker block, when the block at its position is still a marker.
+     *
+     * @param level the server level
+     * @param pos   the marker position
+     */
+    private static void removeMarkerBlock(ServerLevel level, BlockPos pos) {
+        if (level.getBlockState(pos).is(GooBlocks.CHAIN_MARKER.get())) {
             level.removeBlock(pos, false);
-            return;
         }
-        behavior.onFuseExpired(level, pos, this);
-        if (!behavior.isActive()) {
-            if (level.getBlockState(pos).is(GooBlocks.CHAIN_MARKER.get())) {
-                level.removeBlock(pos, false);
-            }
-            return;
+    }
+
+    /**
+     * This marker's world actions as it fires.
+     */
+    private final class FiringMarker implements ChainMarkerDetonation {
+
+        private final ServerLevel level;
+        private final BlockPos pos;
+
+        /**
+         * @param level the server level
+         * @param pos   the marker position
+         */
+        FiringMarker(ServerLevel level, BlockPos pos) {
+            this.level = level;
+            this.pos = pos;
         }
-        setChanged();
-        BlockEntitySync.markDirtyAndSync(this);
+
+        @Override
+        public void announceBurnout() {
+            PacketDistributor.sendToPlayersTrackingChunk(level, level.getChunkAt(pos).getPos(), burnoutPayload(pos));
+        }
+
+        @Override
+        public boolean loadProgram() {
+            behavior = createBehavior();
+            return behavior != null;
+        }
+
+        @Override
+        public boolean runFirstTick() {
+            behavior.onFuseExpired(level, pos, ChainMarkerBlockEntity.this);
+            return behavior.isActive();
+        }
+
+        @Override
+        public void removeMarker() {
+            removeMarkerBlock(level, pos);
+        }
+
+        @Override
+        public void syncRunningProgram() {
+            setChanged();
+            BlockEntitySync.markDirtyAndSync(ChainMarkerBlockEntity.this);
+        }
+    }
+
+    /**
+     * The burnout this marker announces as it fires.
+     *
+     * @param pos the marker position
+     * @return the burnout payload
+     */
+    private ChainBurnoutPayload burnoutPayload(BlockPos pos) {
+        return new ChainBurnoutPayload(pos, placedFace.ordinal(), GooTypes.id(gooType), abilityId,
+                fuse.stackCount());
     }
 
 
