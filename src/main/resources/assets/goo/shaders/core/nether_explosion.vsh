@@ -5,8 +5,8 @@
 
 // Nether goo's burnout explosion (decision elemental-explosion-per-type).
 // NetherExplosionVisual packs the vertex color: red is the explosion's
-// progress, green how near the rush has come to the center, blue how much
-// of it is left. The normal is the unit direction from the center.
+// progress, green how near the rush has come to the center, blue the rush's
+// strength. The normal is the unit direction from the center.
 
 in vec3 Position;
 in vec4 Color;
@@ -17,7 +17,7 @@ out vec3 viewNormal;
 out vec3 surfaceDir;
 out float progress;
 out float nearness;
-out float remaining;
+out float strength;
 
 void main() {
     vec4 vp = ModelViewMat * vec4(Position, 1.0);
@@ -27,5 +27,5 @@ void main() {
     surfaceDir = Normal;
     progress = Color.r;
     nearness = Color.g;
-    remaining = Color.b;
+    strength = Color.b;
 }
