@@ -13,6 +13,7 @@ import com.mercuriusxeno.goo.block.crystallizer.CrystallizerPhases.Held;
 import com.mercuriusxeno.goo.block.crystallizer.CrystallizerPhases.Roles;
 import com.mercuriusxeno.goo.block.gasket.GasketAttachment;
 import com.mercuriusxeno.goo.block.gasket.GasketPusher;
+import com.mercuriusxeno.goo.item.BlobStacks;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.ChrysmItem;
 import com.mercuriusxeno.goo.item.ChrysmTier;
@@ -35,6 +36,8 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import static com.mercuriusxeno.goo.GooConstants.NO_SLOT;
 
@@ -201,17 +204,28 @@ public class CrystallizerBlockEntity extends GooGlowingMachineBlockEntity
     }
 
     /**
-     * @return one chrysm of the highest tier reached, or EMPTY
+     * Operator ruling: the crystal is clickable once it reaches maturity, the knob's tier.
+     *
+     * @param knob the tier the knob names
+     * @return true when the crystallized volume has reached that tier
      */
-    public ItemStack formed() {
-        ChrysmTier tier = formedTier();
-        return tier == null || formingType == null ? ItemStack.EMPTY : ChrysmItem.stackOf(tier, formingType);
+    public boolean isMature(ChrysmTier knob) {
+        return crystallized > 0 && crystallized >= knob.volume();
     }
 
     /**
-     * Takes one chrysm of the highest tier reached out, keeping the remainder crystallized.
+     * @return one chrysm of the highest tier reached, once the crystal is mature, or EMPTY
+     */
+    public ItemStack formed() {
+        ChrysmTier tier = formedTier();
+        boolean mature = isMature(CrystallizerBlock.knobTier(getBlockState()));
+        return !mature || tier == null || formingType == null ? ItemStack.EMPTY : ChrysmItem.stackOf(tier, formingType);
+    }
+
+    /**
+     * Breaks a mature crystal, handing its tier's item; a part-grown crystal hands nothing.
      *
-     * @return the chrysm, or EMPTY when no tier is reached
+     * @return the chrysm, or EMPTY while the crystal is not mature
      */
     public ItemStack takeFormed() {
         ItemStack taken = formed();
@@ -225,6 +239,32 @@ public class CrystallizerBlockEntity extends GooGlowingMachineBlockEntity
         }
         BlockEntitySync.markDirtyAndSync(this);
         return taken;
+    }
+
+    /**
+     * Operator ruling: changing the dial while the crystal is working shatters it
+     * back into omniblobs, one of the crystallized goo and one of the crystal it
+     * spent, since chrysm loses no crystal.
+     *
+     * @return the omniblobs, none when nothing is growing
+     */
+    public List<ItemStack> shatter() {
+        List<ItemStack> shards = new ArrayList<>();
+        if (crystallized <= 0 || formingType == null) {
+            return shards;
+        }
+        int goo = Math.toIntExact(crystallized);
+        shards.add(BlobStacks.createForOutput(formingType, goo));
+        ItemStack crystal = BlobStacks.createForOutput(CrystallizerPhases.CATALYST,
+                goo / CrystallizerPhases.GOO_PER_CRYSTAL);
+        if (!crystal.isEmpty()) {
+            shards.add(crystal);
+        }
+        crystallized = 0;
+        formingType = null;
+        paceBudget = 0;
+        BlockEntitySync.markDirtyAndSync(this);
+        return shards;
     }
 
     // --- Canister slots ---
