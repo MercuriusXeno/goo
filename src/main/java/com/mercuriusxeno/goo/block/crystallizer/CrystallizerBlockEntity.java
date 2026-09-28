@@ -62,6 +62,9 @@ public class CrystallizerBlockEntity extends GooGlowingMachineBlockEntity
     private final SlottedCanisterData state = new SlottedCanisterData(this, SLOT_COUNT,
             i -> Shapes.empty(), slots -> Shapes.empty());
     private long crystallized;
+    /** Client only: the crystal growth drawn this tick and last tick, eased toward the synced volume. */
+    private double displayedGrowth;
+    private double previousGrowth;
     /** The pace's unspent mB, carried across ticks; not saved, a reload starts the tick afresh. */
     private double paceBudget;
     private int idleTicks;
@@ -99,6 +102,32 @@ public class CrystallizerBlockEntity extends GooGlowingMachineBlockEntity
                                   CrystallizerBlockEntity crystallizer) {
         crystallizer.state.tickPushers();
         crystallizer.advance();
+    }
+
+    /**
+     * Client tick: eases the drawn crystal growth toward the synced volume, so the
+     * crystal grows smoothly between server ticks.
+     *
+     * @param level        the level
+     * @param pos          the block position
+     * @param blockState   the block state
+     * @param crystallizer the block entity
+     */
+    public static void clientTick(Level level, BlockPos pos, BlockState blockState,
+                                  CrystallizerBlockEntity crystallizer) {
+        crystallizer.previousGrowth = crystallizer.displayedGrowth;
+        crystallizer.displayedGrowth = CrystalCluster.ease(crystallizer.displayedGrowth,
+                CrystalCluster.growth(crystallizer.crystallized));
+    }
+
+    /**
+     * The crystal growth to draw this frame, between last tick's and this tick's.
+     *
+     * @param partialTick the share of the tick past
+     * @return the growth, from 0 to 1
+     */
+    public double drawnGrowth(float partialTick) {
+        return previousGrowth + (displayedGrowth - previousGrowth) * partialTick;
     }
 
     /**
