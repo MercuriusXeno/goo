@@ -22,13 +22,14 @@ import java.util.function.Consumer;
 /**
  * Special item renderer for the chrysm tiers (decision chrysm-tiers-fixed-and-stackable):
  * each draws as the quartz crystal the crystallizer grows, at its tier's volume, in
- * its goo type's own texture (operator ruling), so the three tiers show at their
- * own sizes. The operator's drawn sizes can replace it later.
+ * its goo type's own texture. Operator ruling: each tier fills the slot, the tiers
+ * reading apart by their cluster. The operator's drawn sizes can replace it later.
  */
 public class ChrysmSpecialRenderer implements SpecialModelRenderer<ResourceKey<GooTypeDefinition>> {
 
-    /** One scale for every tier, so a megachrysm fits the item box and the smaller tiers read smaller. */
-    private static final float SCALE = 0.7f;
+    /** The item box a cluster fills: 7 px either side of its base and 14 px tall. */
+    private static final double BOX_HALF_WIDTH = 7;
+    private static final double BOX_HEIGHT = 14;
     private static final float CENTER = 0.5f;
     /** The crystal's base sits one pixel above the item box floor. */
     private static final float FLOOR = 1f / 16f;
@@ -60,12 +61,24 @@ public class ChrysmSpecialRenderer implements SpecialModelRenderer<ResourceKey<G
         }
         poseStack.pushPose();
         poseStack.translate(CENTER, FLOOR, CENTER);
-        poseStack.scale(SCALE, SCALE, SCALE);
+        float scale = fitScale(CrystalCluster.reach(tier.volume()));
+        poseStack.scale(scale, scale, scale);
         poseStack.translate(-CrystalCluster.BASE_X * PIXEL, -CrystalCluster.BASE_Y * PIXEL,
                 -CrystalCluster.BASE_Z * PIXEL);
         CrystalClusterSubmitter.submit(poseStack, nodeCollector, CrystalCluster.prisms(tier.volume()),
                 CrystalClusterSubmitter.lookOf(type, ClientGooTypes.color(type)), packedLight);
         poseStack.popPose();
+    }
+
+    /**
+     * The scale that brings a cluster to fill the item box, its widest reach or its
+     * height touching the box's edge.
+     *
+     * @param reach the cluster's {half width, height}, in pixels
+     * @return the scale
+     */
+    static float fitScale(double[] reach) {
+        return (float) Math.min(BOX_HALF_WIDTH / reach[0], BOX_HEIGHT / reach[1]);
     }
 
     @Override
