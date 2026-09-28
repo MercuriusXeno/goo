@@ -46,4 +46,19 @@ public interface ICanisterAttachable {
     default Set<Integer> allowedSlots() {
         return ALL_SLOTS;
     }
+
+    /**
+     * Returns the pixel centers {x, z} of the canister block standing on this
+     * block's top, per slot index 0-8. Every reader of a canister block's slot
+     * geometry (shapes, hits, the HUD, the renderer, placement) reads these
+     * through {@link CanisterSlotLayout#centersAt}. An override returns the same
+     * array on each call, one per state, since shapes are cached per array.
+     *
+     * <p>Default returns the fixed 3x3 grid.</p>
+     *
+     * @return the slot centers, in pixels
+     */
+    default float[][] slotCenters() {
+        return CanisterSlotLayout.SLOT_CENTERS;
+    }
 }

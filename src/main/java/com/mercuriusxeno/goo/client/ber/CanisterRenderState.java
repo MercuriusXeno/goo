@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.ber;
 
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
 import com.mercuriusxeno.goo.block.canister.CanisterGeometry;
+import com.mercuriusxeno.goo.block.canister.CanisterSlotLayout;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 
 /**
@@ -15,6 +16,9 @@ public class CanisterRenderState extends BlockEntityRenderState {
 
     /** Animation time (game ticks + partial tick) for sin-wave pulsing. */
     public float animationTime;
+
+    /** The block's slot centers in pixels: the machine's below it, else the fixed grid. */
+    public float[][] centers = CanisterSlotLayout.SLOT_CENTERS;
 
     /**
      * @return where a canister in the grid stands: on the block floor

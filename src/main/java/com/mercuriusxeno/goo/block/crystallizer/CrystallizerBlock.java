@@ -1,13 +1,10 @@
 package com.mercuriusxeno.goo.block.crystallizer;
 
-import com.mercuriusxeno.goo.GooConstants;
 import com.mercuriusxeno.goo.block.BlockEntityTicks;
 import com.mercuriusxeno.goo.block.GooBlockInteraction;
 import com.mercuriusxeno.goo.block.GooMachineBlock;
 import com.mercuriusxeno.goo.block.ShapeHitCheck;
 import com.mercuriusxeno.goo.block.canister.SlottedCanisterData;
-import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
-import com.mercuriusxeno.goo.item.BlobInsert;
 import com.mercuriusxeno.goo.item.ChrysmTier;
 import com.mercuriusxeno.goo.item.GooInteractionType;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
@@ -39,18 +36,17 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
-import java.util.EnumMap;
 import java.util.Map;
 
 /**
  * The crystallizer block (decision crystallizer-emits-chrysm): it crystallizes the
- * goo of one of the two canisters standing on its top, back left and back right,
- * with the crystal of the other. A canister click over a slot's footprint slots it
- * in; an empty-hand click on a canister takes it out; a click on the knob, on the
- * face toward the placing player, steps the tier it stops at; an empty-hand click
- * elsewhere takes the chrysm formed inside, and a sneak click on a canister pops
- * the gasket it addresses. The model is the operator's: the body lights its inlay
- * while active, and the dial turns to the knob's position.
+ * goo of one of the two canisters standing in the canister block on its top, back
+ * left and back right, with the crystal of the other. Canister clicks, omniblob
+ * pours and gaskets land on that canister block, as on the reactor. A click on the
+ * knob, on the face toward the placing player, steps the tier it stops at; a click
+ * on a mature crystal, whatever the player holds, takes the chrysm formed, as does
+ * an empty-hand click elsewhere. The model is the operator's: the body lights its
+ * inlay while active, and the dial turns to the knob's position.
  */
 public class CrystallizerBlock extends GooMachineBlock {
 
@@ -77,16 +73,7 @@ public class CrystallizerBlock extends GooMachineBlock {
             Direction.WEST, box(0, 5.5, 6.5, 1, 9.5, 9.5));
     /** The operator's model's body, 14 by 16 by 14. */
     private static final VoxelShape BODY_SHAPE = box(1, 0, 1, 15, 16, 15);
-    /** A canister's footprint half-width, 2 px, and its height, caps included, 12 px. */
-    private static final double CANISTER_HALF = 2;
-    private static final double CANISTER_HEIGHT = 12;
-    private static final double TOP = 16;
-    /**
-     * The two canister slots' centers in model space, the dial on the south face:
-     * back left then back right, 3 px in from the back and side (operator ruling: inset 2 px, then in 1x1).
-     */
-    private static final double[][] SLOT_CENTERS = {{5, 5}, {11, 5}};
-    private static final Map<Direction, VoxelShape[]> CANISTER_SHAPES = buildCanisterShapes();
+    private static final double TOP = CrystallizerLayout.TOP;
 
     /**
      * @param properties the block properties
@@ -139,77 +126,13 @@ public class CrystallizerBlock extends GooMachineBlock {
         return KNOB_SHAPES.get(state.getValue(FACING));
     }
 
-    /**
-     * @param facing the face the dial sits on
-     * @param slot   the canister slot, 0 back left or 1 back right
-     * @return the slot's canister shape standing on the top, caps included
-     */
-    public static VoxelShape canisterSlotShape(Direction facing, int slot) {
-        return CANISTER_SHAPES.get(facing)[slot];
-    }
-
-    /**
-     * The canister slot a hit lands on: the canister itself, or the top face over its footprint.
-     *
-     * @param state the crystallizer's state
-     * @param pos   the crystallizer's position
-     * @param hit   the hit
-     * @return the slot, or NO_SLOT when the hit lands on neither
-     */
-    public static int slotAt(BlockState state, BlockPos pos, BlockHitResult hit) {
-        for (int slot = 0; slot < SLOT_CENTERS.length; slot++) {
-            if (ShapeHitCheck.hitInsideShape(hit, pos, canisterSlotShape(state.getValue(FACING), slot))) {
-                return slot;
-            }
-        }
-        return GooConstants.NO_SLOT;
-    }
-
-    private static Map<Direction, VoxelShape[]> buildCanisterShapes() {
-        Map<Direction, VoxelShape[]> shapes = new EnumMap<>(Direction.class);
-        for (Direction facing : Direction.Plane.HORIZONTAL) {
-            VoxelShape[] slots = new VoxelShape[SLOT_CENTERS.length];
-            for (int slot = 0; slot < SLOT_CENTERS.length; slot++) {
-                double[] center = modelToWorld(facing, SLOT_CENTERS[slot][0], SLOT_CENTERS[slot][1]);
-                slots[slot] = box(center[0] - CANISTER_HALF, TOP, center[1] - CANISTER_HALF,
-                        center[0] + CANISTER_HALF, TOP + CANISTER_HEIGHT, center[1] + CANISTER_HALF);
-            }
-            shapes.put(facing, slots);
-        }
-        return shapes;
-    }
-
-    /**
-     * Turns a model-space point, the dial on the south face, to the world by the
-     * blockstate's y rotation for the facing (south 0, west 90, north 180, east 270).
-     *
-     * @param facing the face the dial sits on
-     * @param x      model x, in pixels
-     * @param z      model z, in pixels
-     * @return world {x, z}, in pixels
-     */
-    static double[] modelToWorld(Direction facing, double x, double z) {
-        return switch (facing) {
-            case WEST -> new double[] {TOP - z, x};
-            case NORTH -> new double[] {TOP - x, TOP - z};
-            case EAST -> new double[] {z, TOP - x};
-            default -> new double[] {x, z};
-        };
-    }
-
     @Override
     protected @NonNull VoxelShape getShape(@NonNull BlockState state, @NonNull BlockGetter level,
                                            @NonNull BlockPos pos, @NonNull CollisionContext context) {
         VoxelShape shape = Shapes.or(BODY_SHAPE, knobShape(state));
-        if (level.getBlockEntity(pos) instanceof CrystallizerBlockEntity crystallizer) {
-            for (int slot = 0; slot < CrystallizerBlockEntity.SLOT_COUNT; slot++) {
-                if (crystallizer.isSlotFilled(slot)) {
-                    shape = Shapes.or(shape, canisterSlotShape(state.getValue(FACING), slot));
-                }
-            }
-            if (crystallizer.isMature(knobTier(state))) {
-                shape = Shapes.or(shape, crystalShape(state.getValue(FACING), crystallizer.crystallized()));
-            }
+        if (level.getBlockEntity(pos) instanceof CrystallizerBlockEntity crystallizer
+                && crystallizer.isMature(knobTier(state))) {
+            shape = Shapes.or(shape, crystalShape(state.getValue(FACING), crystallizer.crystallized()));
         }
         return shape;
     }
@@ -226,7 +149,7 @@ public class CrystallizerBlock extends GooMachineBlock {
         if (reach[1] <= 0) {
             return Shapes.empty();
         }
-        double[] center = modelToWorld(facing, CrystalCluster.BASE_X, CrystalCluster.BASE_Z);
+        double[] center = CrystallizerLayout.modelToWorld(facing, CrystalCluster.BASE_X, CrystalCluster.BASE_Z);
         return box(center[0] - reach[0], TOP, center[1] - reach[0],
                 center[0] + reach[0], TOP + reach[1], center[1] + reach[0]);
     }
@@ -250,10 +173,9 @@ public class CrystallizerBlock extends GooMachineBlock {
     }
 
     /**
-     * Classifies the held item and dispatches as the canister block does: a canister
-     * over a slot slots in, or takes a filled slot's canister out; an omniblob pours
-     * into the addressed slot's canister; every other item falls through to the
-     * empty-hand click.
+     * A click on a mature crystal takes it whatever the player holds; a tuner passes
+     * to its own use; every other item falls through to the empty-hand click, and
+     * from there a canister's own use places it in the canister block on the top.
      */
     @Override
     protected @NonNull InteractionResult useItemOn(
@@ -265,18 +187,13 @@ public class CrystallizerBlock extends GooMachineBlock {
             return level.isClientSide() ? InteractionResult.SUCCESS
                     : SlottedCanisterData.handToPlayer(crystallizer.takeFormed(), player, level, pos);
         }
-        return GooBlockInteraction.handleItemInteraction(
-                stack, level, pos, player, hand, hitResult,
-                CrystallizerBlockEntity.class,
-                type -> type != GooInteractionType.CANISTER_INSERT && type != GooInteractionType.BLOB_INSERT
-                        && type != GooInteractionType.TUNER_PASS,
-                CrystallizerBlock::dispatchItem);
+        return GooInteractionType.classify(stack) == GooInteractionType.TUNER_PASS
+                ? InteractionResult.PASS : InteractionResult.TRY_WITH_EMPTY_HAND;
     }
 
     /**
-     * Empty-hand clicks: a click on the knob steps it, a sneak click pops the
-     * gasket it addresses, a click on a canister takes it out, and any other click
-     * hands the formed chrysm to the player.
+     * Empty-hand clicks: a click on the knob steps it, and any other click hands the
+     * formed chrysm to the player.
      */
     @Override
     protected @NonNull InteractionResult useWithoutItem(
@@ -292,10 +209,7 @@ public class CrystallizerBlock extends GooMachineBlock {
         if (ShapeHitCheck.hitInsideShape(hitResult, pos, knobShape(state))) {
             return stepKnob(crystallizer, state, level, pos);
         }
-        if (GasketInstallation.removeAddressedGasket(level, pos, player, hitResult)) {
-            return InteractionResult.SUCCESS;
-        }
-        return takeCanisterOrChrysm(crystallizer, state, level, pos, player, hitResult);
+        return SlottedCanisterData.handToPlayer(crystallizer.takeFormed(), player, level, pos);
     }
 
     /**
@@ -318,17 +232,6 @@ public class CrystallizerBlock extends GooMachineBlock {
     }
 
     /**
-     * Hands the canister the hit lands on to the player, or the formed chrysm when it lands on none.
-     *
-     * @param crystallizer the crystallizer
-     * @param state        its block state
-     * @param level        the level
-     * @param pos          its position
-     * @param player       the clicking player
-     * @param hitResult    the click's hit
-     * @return SUCCESS when something was handed over, PASS otherwise
-     */
-    /**
      * @param crystallizer the crystallizer
      * @param state        its block state
      * @param pos          its position
@@ -341,82 +244,19 @@ public class CrystallizerBlock extends GooMachineBlock {
                 crystalShape(state.getValue(FACING), crystallizer.crystallized()));
     }
 
-    private static InteractionResult takeCanisterOrChrysm(CrystallizerBlockEntity crystallizer, BlockState state,
-                                                          Level level, BlockPos pos, Player player,
-                                                          BlockHitResult hitResult) {
-        int slot = slotAt(state, pos, hitResult);
-        ItemStack taken = slot != GooConstants.NO_SLOT && crystallizer.isSlotFilled(slot)
-                ? crystallizer.containerState().remove(slot) : crystallizer.takeFormed();
-        return SlottedCanisterData.handToPlayer(taken, player, level, pos);
-    }
-
-    private static InteractionResult dispatchItem(
-            GooInteractionType interaction, CrystallizerBlockEntity crystallizer, ItemStack stack,
-            Player player, InteractionHand hand, BlockHitResult hitResult, BlockPos pos, Level level) {
-        int slot = slotAt(crystallizer.getBlockState(), pos, hitResult);
-        if (interaction == GooInteractionType.BLOB_INSERT) {
-            return pourBlob(crystallizer, stack, player, slot, level, pos);
-        }
-        if (slot == GooConstants.NO_SLOT) {
-            // Off both slots the canister's own use runs, and the placement resolver refuses the crystallizer's top.
-            return InteractionResult.PASS;
-        }
-        if (crystallizer.isSlotFilled(slot)) {
-            return SlottedCanisterData.handToPlayer(crystallizer.containerState().remove(slot), player, level, pos);
-        }
-        if (!crystallizer.containerState().insert(slot, stack.copyWithCount(1), false)) {
-            return InteractionResult.PASS;
-        }
-        stack.consume(1, player);
-        level.playSound(null, pos, SoundEvents.DECORATED_POT_INSERT, SoundSource.BLOCKS, 1.0f, 1.0f);
-        return InteractionResult.SUCCESS;
-    }
-
     /**
-     * Pours an omniblob into the addressed slot's canister, or the first canister that takes it,
-     * as the canister block does.
+     * Whether a click with a held canister is the crystallizer's own rather than a
+     * placement on the canister block above.
      *
      * @param crystallizer the crystallizer
-     * @param stack        the omniblob
-     * @param player       the pouring player
-     * @param hitSlot      the slot the click addresses, or NO_SLOT
-     * @param level        the level
-     * @param pos          the crystallizer's position
-     * @return SUCCESS when goo went in, PASS otherwise
+     * @param state        its block state
+     * @param pos          its position
+     * @param hit          the click's hit
+     * @return true when the hit lands on the knob or a mature crystal
      */
-    private static InteractionResult pourBlob(CrystallizerBlockEntity crystallizer, ItemStack stack, Player player,
-                                              int hitSlot, Level level, BlockPos pos) {
-        int accepted = BlobInsert.pour(stack, player, (type, volume) -> {
-            int slot = GooBlockInteraction.findSlot(hitSlot, CrystallizerBlockEntity.SLOT_COUNT, crystallizer::canAccept);
-            return slot == GooConstants.NO_SLOT ? 0 : crystallizer.insertGoo(slot, type, volume);
-        });
-        if (accepted <= 0) {
-            return InteractionResult.PASS;
-        }
-        level.playSound(null, pos, SoundEvents.BOTTLE_EMPTY, SoundSource.BLOCKS, 1.0f, 1.0f);
-        return InteractionResult.SUCCESS;
-    }
-
-    /**
-     * Drops both canisters on break; the base drops their gaskets.
-     *
-     * @param level  the level
-     * @param pos    the block position
-     * @param state  the block state
-     * @param player the breaking player
-     * @return the block state
-     */
-    @Override
-    public @NonNull BlockState playerWillDestroy(@NonNull Level level, @NonNull BlockPos pos,
-                                                @NonNull BlockState state, @NonNull Player player) {
-        if (!level.isClientSide() && level.getBlockEntity(pos) instanceof CrystallizerBlockEntity crystallizer) {
-            for (int slot = 0; slot < CrystallizerBlockEntity.SLOT_COUNT; slot++) {
-                ItemStack canister = crystallizer.containerState().remove(slot);
-                if (!canister.isEmpty()) {
-                    popResource(level, pos, canister);
-                }
-            }
-        }
-        return super.playerWillDestroy(level, pos, state, player);
+    static boolean hitsKnobOrMatureCrystal(CrystallizerBlockEntity crystallizer, BlockState state, BlockPos pos,
+                                           BlockHitResult hit) {
+        return ShapeHitCheck.hitInsideShape(hit, pos, knobShape(state))
+                || hitsMatureCrystal(crystallizer, state, pos, hit);
     }
 }

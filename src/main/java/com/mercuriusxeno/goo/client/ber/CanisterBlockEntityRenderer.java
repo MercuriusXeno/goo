@@ -65,6 +65,7 @@ public class CanisterBlockEntityRenderer
         BlockEntityRenderState.extractBase(be, state, breakProgress);
         long gameTick = be.getLevel() != null ? be.getLevel().getGameTime() : 0L;
         state.animationTime = gameTick + partialTick;
+        state.centers = be.slotCenters();
         for (int i = 0; i < CanisterBlockEntity.MAX_SLOTS; i++) {
             extractSlot(be, state, i, gameTick);
         }
@@ -169,10 +170,11 @@ public class CanisterBlockEntityRenderer
             SubmitNodeCollector nodeCollector, CameraRenderState cameraState) {
         if (!hasAnyCanister(state)) { return; }
         submitBodies(poseStack, nodeCollector, state);
+        float[][] blockCenters = CanisterSlotLayout.blockCenters(state.centers);
         CanisterSlotRenderer.submitCaps(poseStack, nodeCollector, state.lightCoords,
-                state.canisterGeometry(), state.slots, CanisterSlotLayout.SLOT_CENTERS_BLOCK);
+                state.canisterGeometry(), state.slots, blockCenters);
         CanisterSlotRenderer.submitFluids(poseStack, nodeCollector,
-                state.canisterGeometry(), state.slots, CanisterSlotLayout.SLOT_CENTERS_BLOCK, true);
+                state.canisterGeometry(), state.slots, blockCenters, true);
         submitStreams(poseStack, nodeCollector, state);
     }
 
@@ -201,7 +203,7 @@ public class CanisterBlockEntityRenderer
         int light = state.lightCoords;
         for (int i = 0; i < CanisterBlockEntity.MAX_SLOTS; i++) {
             if (!state.slots[i].present) { continue; }
-            submitSlotBody(poseStack, nodeCollector, light, i);
+            submitSlotBody(poseStack, nodeCollector, light, state.centers[i]);
         }
     }
 
@@ -211,12 +213,12 @@ public class CanisterBlockEntityRenderer
      * @param poseStack the pose stack for rendering
      * @param nodeCollector the render node collector
      * @param light the packed light value
-     * @param slot the slot index
+     * @param center the slot's pixel center {x, z}
      */
     private static void submitSlotBody(PoseStack poseStack,
-            SubmitNodeCollector nodeCollector, int light, int slot) {
-        float cx = CanisterSlotLayout.SLOT_CENTERS[slot][0] / BLOCK_PIXELS;
-        float cz = CanisterSlotLayout.SLOT_CENTERS[slot][1] / BLOCK_PIXELS;
+            SubmitNodeCollector nodeCollector, int light, float[] center) {
+        float cx = center[0] / BLOCK_PIXELS;
+        float cz = center[1] / BLOCK_PIXELS;
         poseStack.pushPose();
         poseStack.translate(cx - MODEL_CENTER, 0, cz - MODEL_CENTER);
         GooSubmitter.submitCanisterBody(poseStack, nodeCollector, light);
@@ -267,8 +269,8 @@ public class CanisterBlockEntityRenderer
      * @param slot the slot index
      */
     private static void renderSlotStream(RenderContext ctx, float anim, CanisterRenderState state, int slot) {
-        float cx = CanisterSlotLayout.SLOT_CENTERS[slot][0] / BLOCK_PIXELS;
-        float cz = CanisterSlotLayout.SLOT_CENTERS[slot][1] / BLOCK_PIXELS;
+        float cx = state.centers[slot][0] / BLOCK_PIXELS;
+        float cz = state.centers[slot][1] / BLOCK_PIXELS;
         CanisterGeometry geometry = state.canisterGeometry();
         GooStreamRenderer.renderStream(ctx,
             cx, cz, geometry.bodyTop(), geometry.fluidSurface(state.slots[slot].fill),
@@ -285,8 +287,8 @@ public class CanisterBlockEntityRenderer
      */
     private static void renderVanillaSlotStream(
             RenderContext ctx, float anim, CanisterRenderState state, int slot) {
-        float cx = CanisterSlotLayout.SLOT_CENTERS[slot][0] / BLOCK_PIXELS;
-        float cz = CanisterSlotLayout.SLOT_CENTERS[slot][1] / BLOCK_PIXELS;
+        float cx = state.centers[slot][0] / BLOCK_PIXELS;
+        float cz = state.centers[slot][1] / BLOCK_PIXELS;
         CanisterGeometry geometry = state.canisterGeometry();
         GooStreamRenderer.renderStream(ctx,
                 cx, cz, geometry.bodyTop(), geometry.fluidSurface(state.slots[slot].fill),
