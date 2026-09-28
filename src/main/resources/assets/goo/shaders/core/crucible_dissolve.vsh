@@ -10,7 +10,9 @@
 // decisions dissolve-shader-on-item and glow-color-from-mingling: the overlay
 // coordinates carry the dissolve fraction and the layer's glow color instead of
 // the hurt overlay, and the lightmap coordinates' high bytes carry the layer's
-// share and index beside the light in their low bytes.
+// share and index beside the light in their low bytes. The low nibble of each
+// light byte, which the lightmap lookup drops, carries half the melt's seed
+// (decision diagnose-then-fix-dissolve-repeat).
 
 in vec3 Position;
 in vec4 Color;
@@ -31,11 +33,16 @@ flat out float dissolveFraction;
 flat out vec3 glowColor;
 flat out float glowShare;
 flat out float glowLayer;
+flat out float dissolveSeed;
 
 // Must match DissolveGlow.FRACTION_UNITS: UV1.x carries the fraction dissolved.
 const float FRACTION_UNITS = 4096.0;
 // Must match DissolveGlow.SHARE_UNITS: UV2.x's high byte carries the layer's share.
 const float SHARE_UNITS = 127.0;
+// Must match DissolveGlow.SEED_NIBBLE_BITS and SEED_NIBBLE_MASK: UV2.x's low nibble
+// carries the seed's low bits and UV2.y's its high bits.
+const int SEED_NIBBLE_BITS = 4;
+const int SEED_NIBBLE_MASK = 15;
 
 // UV1.y carries the glow color as RGB565, read back unsigned from the short.
 vec3 unpackRgb565(int rgb565) {
@@ -60,4 +67,5 @@ void main() {
     glowColor = unpackRgb565(UV1.y);
     glowShare = float(UV2.x >> 8) / SHARE_UNITS;
     glowLayer = float(UV2.y >> 8);
+    dissolveSeed = float((UV2.x & SEED_NIBBLE_MASK) | (UV2.y & SEED_NIBBLE_MASK) << SEED_NIBBLE_BITS);
 }

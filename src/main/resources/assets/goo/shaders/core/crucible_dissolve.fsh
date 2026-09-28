@@ -28,6 +28,7 @@ flat in float dissolveFraction;
 flat in vec3 glowColor;
 flat in float glowShare;
 flat in float glowLayer;
+flat in float dissolveSeed;
 
 out vec4 fragColor;
 
@@ -46,7 +47,8 @@ const float PICK_OPACITY = 0.5;
 
 void main() {
     float threshold = mingleThreshold(1.0 - dissolveFraction);
-    float field = mingleField(dissolveWorldPos * DISSOLVE_CELLS_PER_BLOCK);
+    // Each seed step moves the sample tens of cells per axis, so each melt erodes through its own field (decision diagnose-then-fix-dissolve-repeat).
+    float field = mingleField(dissolveWorldPos * DISSOLVE_CELLS_PER_BLOCK + dissolveSeed * MINGLE_SEED_OFFSET);
     if (field < threshold) {
         discard;
     }
