@@ -2,9 +2,13 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
+import com.mercuriusxeno.goo.client.RecordingVertexConsumer;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.FieldSource;
@@ -12,6 +16,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * ChainBurnouts holds each burnout from the game time it began, resolves its
@@ -73,6 +80,23 @@ class ChainBurnoutsTest {
     @Test
     void crystalResolvesItsOwnExplosion() {
         assertSame(CrystalExplosionVisual.INSTANCE, BurnoutVisuals.forType(GooTypes.CRYSTAL));
+    }
+
+    @Test
+    void glowResolvesItsOwnExplosion() {
+        assertSame(GlowExplosionVisual.INSTANCE, BurnoutVisuals.forType(GooTypes.GLOW));
+    }
+
+    @Test
+    void glowBurnoutRendersWithNoBlockEntityAtItsPosition() {
+        ChainBurnouts.Burnout burnout = new ChainBurnouts().add(POS, Direction.UP, GooTypes.GLOW, ABILITY, 1, START);
+        RecordingVertexConsumer consumer = new RecordingVertexConsumer();
+        MultiBufferSource.BufferSource buffers = mock(MultiBufferSource.BufferSource.class);
+        when(buffers.getBuffer(any())).thenReturn(consumer);
+
+        burnout.visual().render(burnout, new BurnoutFrame(new PoseStack(), buffers, Vec3.ZERO, START + 5f));
+
+        assertFalse(consumer.vertices().isEmpty(), "the glow explosion drew nothing");
     }
 
     @Test
