@@ -1,7 +1,10 @@
 {
   "model": {
-    "type": "minecraft:model",
-    "model": "goo:item/chrysm",
-    "tints": [{"type": "goo:goo_type"}]
+    "type": "minecraft:special",
+    "base": "goo:item/chrysm_crystal",
+    "model": {
+      "type": "goo:chrysm_crystal",
+      "tier": "chrysm"
+    }
   }
 }

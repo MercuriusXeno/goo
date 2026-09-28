@@ -12,8 +12,9 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Each chrysm tier's item definition draws a model whose texture ships, tinted by
- * goo:goo_type, and its name has a lang entry (decision chrysm-tiers-fixed-and-stackable).
+ * Each chrysm tier's item definition draws the quartz crystal at its own tier through
+ * the goo:chrysm_crystal special model, and its name has a lang entry (decision
+ * chrysm-tiers-fixed-and-stackable).
  * Reads the resources through the classpath.
  */
 class ChrysmResourcesTest {
@@ -22,19 +23,15 @@ class ChrysmResourcesTest {
 
     @ParameterizedTest
     @EnumSource(ChrysmTier.class)
-    void itemDefinitionDrawsAShippedTextureTintedByType(ChrysmTier tier) throws Exception {
+    void itemDefinitionDrawsTheCrystalAtItsTier(ChrysmTier tier) throws Exception {
         JsonObject definition = readJson("/assets/goo/items/" + tier.registryPath() + ".json").getAsJsonObject("model");
-        assertEquals("goo:goo_type",
-                definition.getAsJsonArray("tints").get(0).getAsJsonObject().get("type").getAsString());
-        String model = definition.get("model").getAsString();
-        assertTrue(model.startsWith(GOO_NAMESPACE), model + " should be a goo model");
-        String texture = readJson("/assets/goo/models/" + model.substring(GOO_NAMESPACE.length()) + ".json")
-                .getAsJsonObject("textures").get("layer0").getAsString();
-        assertTrue(texture.startsWith(GOO_NAMESPACE), texture + " should be a goo texture");
-        String path = "/assets/goo/textures/" + texture.substring(GOO_NAMESPACE.length()) + ".png";
-        try (InputStream in = ChrysmResourcesTest.class.getResourceAsStream(path)) {
-            assertNotNull(in, "Texture missing on classpath: " + path);
-        }
+        assertEquals("minecraft:special", definition.get("type").getAsString());
+        JsonObject special = definition.getAsJsonObject("model");
+        assertEquals("goo:chrysm_crystal", special.get("type").getAsString());
+        assertEquals(tier.registryPath(), special.get("tier").getAsString());
+        String base = definition.get("base").getAsString();
+        assertTrue(base.startsWith(GOO_NAMESPACE), base + " should be a goo model");
+        readJson("/assets/goo/models/" + base.substring(GOO_NAMESPACE.length()) + ".json");
     }
 
     @ParameterizedTest
