@@ -6,11 +6,6 @@ import com.mercuriusxeno.goo.block.crystallizer.CrystalCluster;
 import com.mercuriusxeno.goo.block.crystallizer.CrystallizerBlock;
 import com.mercuriusxeno.goo.block.crystallizer.CrystallizerBlockEntity;
 import com.mercuriusxeno.goo.client.CrystalClusterSubmitter;
-import com.mercuriusxeno.goo.item.CanisterFluidContent;
-import com.mercuriusxeno.goo.item.CanisterItem;
-import com.mercuriusxeno.goo.item.CanisterMetadata;
-import com.mercuriusxeno.goo.item.ContainerCapacity;
-import com.mercuriusxeno.goo.registry.GooEnchantments;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import net.minecraft.client.renderer.LevelRenderer;
@@ -22,23 +17,19 @@ import net.minecraft.client.renderer.feature.ModelFeatureRenderer;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Renders the two canisters standing on the crystallizer's top, back left and
- * back right, and the quartz cluster growing from its purple spot in the growing
- * type's own fluid texture (decision crystallizer-emits-chrysm), all turned with
- * its facing.
+ * Renders the quartz cluster growing from the crystallizer's purple spot in the
+ * growing type's own fluid texture (decision crystallizer-emits-chrysm), turned
+ * with its facing. The canisters on its top stand in a canister block, which
+ * draws them.
  */
 public class CrystallizerBlockEntityRenderer
         implements BlockEntityRenderer<CrystallizerBlockEntity, CrystallizerRenderState> {
 
     private static final float BLOCK_CENTER = 0.5f;
-
-    /** The slots' centers in model space, the dial on the south face: back left then back right. */
-    private static final float[][] SLOT_CENTERS = {{5f / 16f, 5f / 16f}, {11f / 16f, 5f / 16f}};
 
     /**
      * @param context the renderer provider context
@@ -59,39 +50,10 @@ public class CrystallizerBlockEntityRenderer
         if (be.getLevel() != null) {
             state.lightCoords = LevelRenderer.getLightCoords(be.getLevel(), be.getBlockPos().above());
         }
-        for (int slot = 0; slot < state.slots.length; slot++) {
-            extractSlot(be.getCanister(slot), state.slots[slot]);
-        }
         state.crystalGrowth = be.drawnGrowth(partialTick);
         ResourceKey<GooTypeDefinition> type = be.formingType();
         state.crystalLook = type == null || be.getLevel() == null ? null
                 : CrystalClusterSubmitter.lookOf(type, GooColors.get(be.getLevel().registryAccess(), type));
-    }
-
-    /**
-     * Reads presence, compression, gasket caps and goo fill from one canister.
-     *
-     * @param canister the canister stack, or EMPTY
-     * @param slot     the slot snapshot to fill
-     */
-    private static void extractSlot(ItemStack canister, SlotState slot) {
-        slot.present = !canister.isEmpty();
-        slot.type = null;
-        slot.fill = 0f;
-        slot.topGasketPresent = false;
-        slot.bottomGasketPresent = false;
-        if (!slot.present) {
-            return;
-        }
-        slot.compression = GooEnchantments.getCompressionLevel(canister);
-        CanisterMetadata meta = CanisterItem.getMetadata(canister);
-        slot.topGasketPresent = meta.topGasketId() != null;
-        slot.bottomGasketPresent = meta.bottomGasketId() != null;
-        CanisterFluidContent content = CanisterItem.getFluidContent(canister);
-        if (!content.isEmpty()) {
-            slot.type = content.getGooType();
-            slot.fill = Math.min(1f, (float) content.amount() / ContainerCapacity.canisterCapacity(slot.compression));
-        }
     }
 
     @Override
@@ -99,12 +61,6 @@ public class CrystallizerBlockEntityRenderer
             SubmitNodeCollector nodeCollector, CameraRenderState cameraState) {
         poseStack.pushPose();
         rotateToFacing(poseStack, state.facing);
-        CanisterSlotRenderer.submitBodies(poseStack, nodeCollector, state.lightCoords, state.canisterGeometry(),
-                state.slots, SLOT_CENTERS);
-        CanisterSlotRenderer.submitCaps(poseStack, nodeCollector, state.lightCoords, state.canisterGeometry(),
-                state.slots, SLOT_CENTERS);
-        CanisterSlotRenderer.submitFluids(poseStack, nodeCollector, state.canisterGeometry(), state.slots,
-                SLOT_CENTERS, false);
         CrystalClusterSubmitter.Look look = state.crystalLook;
         if (look != null) {
             CrystalClusterSubmitter.submit(poseStack, nodeCollector, CrystalCluster.prisms(state.crystalGrowth), look,

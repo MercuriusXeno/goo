@@ -4,42 +4,32 @@ import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.block.BlockEntitySync;
 import com.mercuriusxeno.goo.block.GooGlowingMachineBlockEntity;
-import com.mercuriusxeno.goo.block.canister.HudAnchor;
-import com.mercuriusxeno.goo.block.canister.HudViewer;
+import com.mercuriusxeno.goo.block.ICutawayMachine;
+import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
 import com.mercuriusxeno.goo.block.canister.ICanisterAttachable;
-import com.mercuriusxeno.goo.block.canister.ICanisterHolder;
-import com.mercuriusxeno.goo.block.canister.SlottedCanisterData;
 import com.mercuriusxeno.goo.block.crystallizer.CrystallizerPhases.Held;
 import com.mercuriusxeno.goo.block.crystallizer.CrystallizerPhases.Roles;
 import com.mercuriusxeno.goo.block.gasket.GasketAttachment;
-import com.mercuriusxeno.goo.block.gasket.GasketPusher;
 import com.mercuriusxeno.goo.item.BlobStacks;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.ChrysmItem;
 import com.mercuriusxeno.goo.item.ChrysmTier;
-import com.mercuriusxeno.goo.item.gasket.GasketPartner;
-import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
-import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.shapes.Shapes;
-import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import static com.mercuriusxeno.goo.GooConstants.NO_SLOT;
 
 /**
  * The crystallizer's block entity (decision crystallizer-emits-chrysm): two
@@ -47,23 +37,21 @@ import static com.mercuriusxeno.goo.GooConstants.NO_SLOT;
  * other's goo what grows, and the goo crystallizes as it goes, spending crystal
  * at 10% of it, up to the tier the knob names. The item inside is the highest
  * tier the crystallized volume reached, and it stays until a player takes it;
- * the remainder stays crystallized. Goo reaches it only through the canisters,
- * each carrying its own gaskets as the reactor's output canister does.
+ * the remainder stays crystallized. The canisters stand in a canister block on
+ * its top, as the reactor's inputs do, in the two slots {@link CrystallizerLayout}
+ * names for its facing; goo reaches them through that block's slot gaskets.
  */
 public class CrystallizerBlockEntity extends GooGlowingMachineBlockEntity
-        implements ICanisterHolder, ICanisterAttachable {
+        implements ICanisterAttachable, ICutawayMachine {
 
-    /** The two canister slots on the top, back left then back right. */
-    public static final int SLOT_COUNT = 2;
+    /** The two canisters it reads, back left then back right. */
+    public static final int SLOT_COUNT = CrystallizerLayout.CANISTER_COUNT;
 
-    private static final String TAG_CANISTERS = "Canisters";
     private static final String TAG_CRYSTALLIZED = "Crystallized";
     private static final String TAG_FORMING_TYPE = "FormingType";
     /** Idle ticks the inlay stays lit after the last crystallizing, so a trickle feed reads steady. */
     private static final int ACTIVE_HOLD_TICKS = 20;
 
-    private final SlottedCanisterData state = new SlottedCanisterData(this, SLOT_COUNT,
-            i -> Shapes.empty(), slots -> Shapes.empty());
     private long crystallized;
     /** Client only: the crystal growth drawn this tick and last tick, eased toward the synced volume. */
     private double displayedGrowth;
@@ -78,23 +66,12 @@ public class CrystallizerBlockEntity extends GooGlowingMachineBlockEntity
      * @param blockState the block state
      */
     public CrystallizerBlockEntity(BlockPos pos, BlockState blockState) {
-        // Roleless: each canister's metadata holds its gasket ids, as on the reactor.
+        // No gaskets of its own: the canister block on its top holds its canisters' gaskets.
         super(GooBlockEntities.CRYSTALLIZER.get(), pos, blockState, GasketAttachment::none);
-        GasketAttachment gasket = gasket();
-        gasket.rebuildPushers(this.state::rebuildAllPushers);
-        gasket.afterLoad(() -> {
-            if (level instanceof ServerLevel serverLevel) {
-                for (int slot = 0; slot < SLOT_COUNT; slot++) {
-                    GasketPusher.forceTransmitterChunk(getSlotMetadata(slot).topGasketId(),
-                            gasket.registryAccess(), serverLevel, worldPosition);
-                }
-            }
-        });
     }
 
     /**
-     * Server tick: the canisters push through their gaskets, then the crystallizer
-     * crystallizes what the catalyst canister pays for.
+     * Server tick: the crystallizer crystallizes what the catalyst canister pays for.
      *
      * @param level        the level
      * @param pos          the block position
@@ -103,7 +80,6 @@ public class CrystallizerBlockEntity extends GooGlowingMachineBlockEntity
      */
     public static void serverTick(Level level, BlockPos pos, BlockState blockState,
                                   CrystallizerBlockEntity crystallizer) {
-        crystallizer.state.tickPushers();
         crystallizer.advance();
     }
 
@@ -154,20 +130,53 @@ public class CrystallizerBlockEntity extends GooGlowingMachineBlockEntity
         idleTicks = 0;
         paceBudget -= step.goo();
         showActive(true);
-        extractGoo(roles.ingredient(), step.type(), step.goo());
-        extractGoo(roles.catalyst(), CrystallizerPhases.CATALYST, step.crystal());
+        spend(roles, step);
         crystallized += step.goo();
         formingType = step.type();
         BlockEntitySync.markDirtyAndSync(this);
     }
 
     /**
-     * @param slot the canister slot
-     * @return what its canister holds, in plain values
+     * Draws a step's goo from the ingredient canister and its crystal from the catalyst canister.
+     *
+     * @param roles which canister is which
+     * @param step  the step crystallized
      */
-    Held held(int slot) {
-        CanisterFluidContent content = getSlotFluidContent(slot);
+    private void spend(Roles roles, CrystallizerPhases.Step step) {
+        CanisterBlockEntity canisters = canistersAbove();
+        if (canisters != null) {
+            canisters.extractGoo(canisterSlot(roles.ingredient()), step.type(), step.goo());
+            canisters.extractGoo(canisterSlot(roles.catalyst()), CrystallizerPhases.CATALYST, step.crystal());
+        }
+    }
+
+    /**
+     * @param role the canister, 0 back left or 1 back right
+     * @return what its canister in the canister block above holds, in plain values
+     */
+    Held held(int role) {
+        CanisterBlockEntity canisters = canistersAbove();
+        CanisterFluidContent content = canisters == null ? CanisterFluidContent.EMPTY
+                : canisters.getSlotFluidContent(canisterSlot(role));
         return content.isEmpty() ? Held.NOTHING : new Held(content.getGooType(), content.amount());
+    }
+
+    /**
+     * @return the canister block standing on the top, or null
+     */
+    public @Nullable CanisterBlockEntity canistersAbove() {
+        return level != null && level.getBlockEntity(worldPosition.above()) instanceof CanisterBlockEntity canisters
+                ? canisters : null;
+    }
+
+    /**
+     * The canister block slot a canister role reads, fixed per facing.
+     *
+     * @param role the canister, 0 back left or 1 back right
+     * @return the slot index in the canister block above
+     */
+    public int canisterSlot(int role) {
+        return CrystallizerLayout.slot(facing(), role);
     }
 
     /**
@@ -267,109 +276,61 @@ public class CrystallizerBlockEntity extends GooGlowingMachineBlockEntity
         return shards;
     }
 
-    // --- Canister slots ---
-
-    @Override
-    public SlottedCanisterData containerState() {
-        return state;
-    }
-
-    @Override
-    protected SlottedCanisterData heldSlots() {
-        return state;
-    }
+    // --- ICanisterAttachable: its canisters stand in the canister block on its top ---
 
     private Direction facing() {
         return getBlockState().getValue(CrystallizerBlock.FACING);
     }
 
-    @Override
-    public @Nullable AABB slotBounds(int index) {
-        return index >= 0 && index < SLOT_COUNT ? CrystallizerBlock.canisterSlotShape(facing(), index).bounds() : null;
-    }
-
-    @Override
-    public VoxelShape outlineShape(BlockHitResult hit) {
-        return getBlockState().getShape(getLevel(), getBlockPos());
-    }
-
     /**
-     * The canister the hit lands on, when its slot is filled.
-     */
-    @Override
-    public @Nullable AABB pickupBounds(BlockHitResult hit) {
-        int slot = CrystallizerBlock.slotAt(getBlockState(), getBlockPos(), hit);
-        return slot != NO_SLOT && isSlotFilled(slot) ? slotBounds(slot) : null;
-    }
-
-    @Override
-    public @Nullable AABB previewBounds(BlockHitResult hit) {
-        int slot = CrystallizerBlock.slotAt(getBlockState(), getBlockPos(), hit);
-        return slot != NO_SLOT && !isSlotFilled(slot) ? slotBounds(slot) : null;
-    }
-
-    /**
-     * Over the canister the hit lands on.
-     */
-    @Override
-    public @Nullable HudAnchor hudAnchor(BlockHitResult hit, HudViewer viewer) {
-        int slot = CrystallizerBlock.slotAt(getBlockState(), getBlockPos(), hit);
-        if (slot == NO_SLOT || !isSlotFilled(slot)) {
-            return null;
-        }
-        AABB bounds = CrystallizerBlock.canisterSlotShape(facing(), slot).bounds();
-        return new HudAnchor(slot, bounds.getCenter().x, bounds.getCenter().z, bounds.maxY, Direction.UP);
-    }
-
-    /**
-     * A standing canister click over a slot footprint goes into that slot.
-     */
-    @Override
-    public boolean takesCanisterAt(BlockHitResult hit, boolean sneaking) {
-        return !sneaking && CrystallizerBlock.slotAt(getBlockState(), getBlockPos(), hit) != NO_SLOT;
-    }
-
-    // --- ICanisterAttachable: no canister block goes on the crystallizer ---
-
-    /**
-     * Operator ruling: a canister is refused anywhere on the crystallizer but its two
-     * marked slots, so no canister block may stand on it and the placement preview
-     * shows nothing there.
+     * Operator ruling: the crystallizer takes two canisters, back left and back right.
      *
-     * @return no slot
+     * @return the two canister block slots it reads
      */
     @Override
     public Set<Integer> allowedSlots() {
-        return Set.of();
+        return CrystallizerLayout.allowedSlots(facing());
+    }
+
+    @Override
+    public int maxTopAttachments() {
+        return SLOT_COUNT;
     }
 
     @Override
     public int currentTopAttachments() {
-        return 0;
-    }
-
-    // --- IGasketHolder: each canister carries its own gaskets ---
-
-    @Override
-    public boolean supportsRole(GasketRole role) {
-        return true;
-    }
-
-    @Override
-    public int resolveSlot(BlockHitResult hit) {
-        int slot = CrystallizerBlock.slotAt(getBlockState(), getBlockPos(), hit);
-        return slot != NO_SLOT ? slot : SLOT_MISS;
+        CanisterBlockEntity canisters = canistersAbove();
+        if (canisters == null) {
+            return 0;
+        }
+        int count = 0;
+        for (int role = 0; role < SLOT_COUNT; role++) {
+            if (canisters.isSlotFilled(canisterSlot(role))) {
+                count++;
+            }
+        }
+        return count;
     }
 
     /**
-     * A transmitter partner change re-stands that canister's pusher on the new link.
+     * Operator ruling: the canisters stand off the grid, at the model's (4, 4) and (12, 4).
+     *
+     * @return the grid with the two slots it reads moved to those centers, turned to its facing
      */
     @Override
-    public void setPartner(GasketRole role, int slot, @Nullable GasketPartner partner) {
-        super.setPartner(role, slot, partner);
-        if (role == GasketRole.TRANSMITTER) {
-            state.rebuildPusher(slot);
-        }
+    public float[][] slotCenters() {
+        return CrystallizerLayout.centers(facing());
+    }
+
+    /**
+     * The knob and a mature crystal take a held canister's click, so no canister block places there.
+     *
+     * @param hit the hit on the crystallizer
+     * @return true when the hit lands on the knob or a mature crystal
+     */
+    @Override
+    public boolean isCutawayHit(BlockHitResult hit) {
+        return CrystallizerBlock.hitsKnobOrMatureCrystal(this, getBlockState(), getBlockPos(), hit);
     }
 
     // --- Serialization ---
@@ -377,7 +338,6 @@ public class CrystallizerBlockEntity extends GooGlowingMachineBlockEntity
     @Override
     protected void saveAdditional(@NonNull ValueOutput output) {
         super.saveAdditional(output);
-        state.save(output, TAG_CANISTERS);
         output.putLong(TAG_CRYSTALLIZED, crystallized);
         output.storeNullable(TAG_FORMING_TYPE, GooTypes.KEY_CODEC, formingType);
     }
@@ -385,7 +345,6 @@ public class CrystallizerBlockEntity extends GooGlowingMachineBlockEntity
     @Override
     protected void loadAdditional(@NonNull ValueInput input) {
         super.loadAdditional(input);
-        state.load(input, TAG_CANISTERS);
         crystallized = input.getLongOr(TAG_CRYSTALLIZED, 0L);
         formingType = input.read(TAG_FORMING_TYPE, GooTypes.KEY_CODEC).orElse(null);
     }

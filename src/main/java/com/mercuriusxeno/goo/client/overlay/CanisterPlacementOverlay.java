@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.overlay;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.block.canister.CanisterBlock;
+import com.mercuriusxeno.goo.block.canister.CanisterSlotLayout;
 import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.LineContext;
 import com.mercuriusxeno.goo.item.CanisterItem;
@@ -9,6 +10,7 @@ import com.mercuriusxeno.goo.item.CanisterPlacementResolver;
 import com.mercuriusxeno.goo.item.CanisterPlacementResolver.CanisterPlacement;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
@@ -87,8 +89,10 @@ public final class CanisterPlacementOverlay {
     @SubscribeEvent
     public static void onExtractOutline(ExtractBlockOutlineRenderStateEvent event) {
         CanisterPlacement placement = cachedPlacement;
-        if (placement != null) {
-            AABB bounds = CanisterBlock.slotShape(placement.slot()).bounds();
+        ClientLevel level = Minecraft.getInstance().level;
+        if (placement != null && level != null) {
+            AABB bounds = CanisterBlock.slotShape(CanisterSlotLayout.centersAt(level, placement.pos()),
+                    placement.slot()).bounds();
             event.addCustomRenderer(previewRendererAt(placement.pos(), bounds));
         }
     }

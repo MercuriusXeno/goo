@@ -1,9 +1,9 @@
 {
   "type": "minecraft:function",
-  "function": "goo:crystallizer_canister_refused_off_slots",
+  "function": "goo:crystallizer_canisters_at_its_centers",
   "environment": "minecraft:default",
   "structure": "goo:machine_bay",
-  "max_ticks": 800,
+  "max_ticks": 100,
   "setup_ticks": 0,
   "required": true
 }
