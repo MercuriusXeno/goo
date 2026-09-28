@@ -27,6 +27,7 @@ class CrystallizerResourcesTest {
     private static final List<String> KNOB_POSITIONS = List.of("1", "2", "3");
     private static final List<Double> KNOB_ANGLES = List.of(22.5, 0.0, -22.5);
     private static final List<Double> LIT_PIXELS = List.of(3.0, 7.0, 10.0);
+    private static final double LINE_PIXELS = 10;
     private static final List<Double> PIVOT = List.of(8.0, 7.0, 15.5);
 
     @Test
@@ -68,10 +69,8 @@ class CrystallizerResourcesTest {
             String path = modelPath("goo:block/crystallizer_dial_" + KNOB_POSITIONS.get(i));
             for (JsonElement e : readJson(path).getAsJsonArray("elements")) {
                 JsonObject element = e.getAsJsonObject();
-                if ("strength_line".equals(element.get("name").getAsString())) {
-                    double width = element.getAsJsonArray("to").get(0).getAsDouble()
-                            - element.getAsJsonArray("from").get(0).getAsDouble();
-                    assertEquals(LIT_PIXELS.get(i), width, path);
+                String name = element.get("name").getAsString();
+                if ("strength_line".equals(name) || "strength_line_unlit".equals(name)) {
                     continue;
                 }
                 JsonObject rotation = element.getAsJsonObject("rotation");
@@ -82,6 +81,35 @@ class CrystallizerResourcesTest {
                 assertEquals(PIVOT, origin, path);
             }
         }
+    }
+
+    @Test
+    void theStrengthLineLightsOnlyTheKnobsPixelsActiveOrIdle() throws Exception {
+        for (int i = 0; i < KNOB_POSITIONS.size(); i++) {
+            String path = modelPath("goo:block/crystallizer_dial_" + KNOB_POSITIONS.get(i));
+            JsonObject model = readJson(path);
+            double lit = 0;
+            double unlit = 0;
+            for (JsonElement e : model.getAsJsonArray("elements")) {
+                JsonObject element = e.getAsJsonObject();
+                String name = element.get("name").getAsString();
+                double width = element.getAsJsonArray("to").get(0).getAsDouble()
+                        - element.getAsJsonArray("from").get(0).getAsDouble();
+                String texture = element.getAsJsonObject("faces").has("south")
+                        ? element.getAsJsonObject("faces").getAsJsonObject("south").get("texture").getAsString() : "";
+                if ("strength_line".equals(name)) {
+                    lit = width;
+                    assertEquals("#lit", texture, path);
+                } else if ("strength_line_unlit".equals(name)) {
+                    unlit = width;
+                    assertEquals("#dial", texture, path);
+                }
+            }
+            assertEquals(LIT_PIXELS.get(i), lit, path);
+            assertEquals(LINE_PIXELS - LIT_PIXELS.get(i), unlit, path);
+        }
+        assertEquals("goo:block/crystallizer", readJson(modelPath("goo:block/crystallizer_dial_1"))
+                .getAsJsonObject("textures").get("dial").getAsString(), "the unlit strip reads the idle texture");
     }
 
     @Test
