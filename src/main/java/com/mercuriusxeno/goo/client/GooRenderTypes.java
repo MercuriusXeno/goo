@@ -183,6 +183,15 @@ public final class GooRenderTypes {
     public static final RenderType ROCK_EXPLOSION_TYPE = burnoutType(ROCK_EXPLOSION);
 
     /**
+     * Blaze goo's burnout explosion pipeline: the flame bloom, additive so
+     * it lights what it covers, through {@code blaze_explosion.vsh / .fsh}.
+     */
+    public static final RenderPipeline BLAZE_EXPLOSION = burnoutPipeline("blaze_explosion", BlendFunction.LIGHTNING);
+
+    /** RenderType that draws blaze goo's burnout explosion. */
+    public static final RenderType BLAZE_EXPLOSION_TYPE = burnoutType(BLAZE_EXPLOSION);
+
+    /**
      * Nether black-hole accretion-disk pipeline: third render pass that
      * emits a flat annular ring in the world XZ plane around the sphere,
      * inner radius pinned to the main sphere radius and outer radius at
@@ -463,6 +472,7 @@ public final class GooRenderTypes {
         event.registerPipeline(NETHER_CORONA);
         event.registerPipeline(UNSTABLE_EXPLOSION);
         event.registerPipeline(ROCK_EXPLOSION);
+        event.registerPipeline(BLAZE_EXPLOSION);
         event.registerPipeline(NETHER_DISK);
         event.registerPipeline(NETHER_CUBE_EDGE);
         event.registerPipeline(LINES_NO_DEPTH_PIPELINE);
