@@ -143,4 +143,16 @@ class CrystallizerPhasesTest {
         assertEquals(3, CrystallizerPhases.nextKnob(2));
         assertEquals(1, CrystallizerPhases.nextKnob(3));
     }
+
+    @Test
+    void onlyOneCanisterHoldsTheGrowingGoo() {
+        CrystallizerPhases.Held ender = new CrystallizerPhases.Held(GooTypes.ENDER, 1000);
+        CrystallizerPhases.Held crystal = new CrystallizerPhases.Held(GooTypes.CRYSTAL, 10);
+        org.junit.jupiter.api.Assertions.assertFalse(CrystallizerPhases.admits(ender, GooTypes.BLAZE), "blaze beside ender");
+        org.junit.jupiter.api.Assertions.assertFalse(CrystallizerPhases.admits(ender, GooTypes.ENDER), "ender beside ender");
+        org.junit.jupiter.api.Assertions.assertTrue(CrystallizerPhases.admits(ender, GooTypes.CRYSTAL), "crystal beside ender");
+        org.junit.jupiter.api.Assertions.assertTrue(CrystallizerPhases.admits(crystal, GooTypes.ENDER), "ender beside crystal");
+        org.junit.jupiter.api.Assertions.assertTrue(CrystallizerPhases.admits(CrystallizerPhases.Held.NOTHING, GooTypes.ENDER),
+                "ender beside nothing");
+    }
 }

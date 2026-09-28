@@ -11,6 +11,7 @@ import com.mercuriusxeno.goo.item.*;
 import com.mercuriusxeno.goo.item.gasket.GasketPartner;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
+import com.mercuriusxeno.goo.registry.GooFluids;
 import com.mercuriusxeno.goo.registry.GooItems;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.UUIDUtil;
@@ -31,6 +32,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
+import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import net.neoforged.neoforge.transfer.fluid.FluidUtil;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -86,7 +88,8 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
         this.state = new SlottedCanisterData(this, MAX_SLOTS,
                 CanisterBlock::slotShape,
                 CanisterBlockEntity::buildCompositeShape,
-                slot -> level == null || CanisterPlacementValidator.isSlotAllowed(level, worldPosition, slot));
+                slot -> level == null || CanisterPlacementValidator.isSlotAllowed(level, worldPosition, slot),
+                this::admitsFluid);
         gasket.rebuildPushers(this.state::rebuildAllPushers);
         gasket.afterLoad(() -> {
             if (level instanceof ServerLevel serverLevel) {
@@ -94,6 +97,18 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
                         serverLevel, worldPosition);
             }
         });
+    }
+
+    /**
+     * Whether a slot takes a goo: the attachable machine below decides, else any goo.
+     *
+     * @param slot     the slot index
+     * @param incoming the goo arriving
+     * @return true when the slot takes it
+     */
+    private boolean admitsFluid(int slot, FluidResource incoming) {
+        return level == null || !(level.getBlockEntity(worldPosition.below()) instanceof ICanisterAttachable machine)
+                || machine.admitsGoo(slot, GooFluids.keyOf(incoming));
     }
 
     /**

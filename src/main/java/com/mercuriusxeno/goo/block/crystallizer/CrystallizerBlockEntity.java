@@ -44,6 +44,9 @@ import java.util.Set;
 public class CrystallizerBlockEntity extends GooGlowingMachineBlockEntity
         implements ICanisterAttachable, ICutawayMachine {
 
+    /** The two canisters, 0 back left and 1 back right. */
+    private static final int ROLE_COUNT = 2;
+
     /** The two canisters it reads, back left then back right. */
     public static final int SLOT_COUNT = CrystallizerLayout.CANISTER_COUNT;
 
@@ -287,6 +290,16 @@ public class CrystallizerBlockEntity extends GooGlowingMachineBlockEntity
      *
      * @return the two canister block slots it reads
      */
+    @Override
+    public boolean admitsGoo(int slot, @Nullable ResourceKey<GooTypeDefinition> incoming) {
+        for (int role = 0; role < ROLE_COUNT; role++) {
+            if (canisterSlot(role) == slot) {
+                return CrystallizerPhases.admits(held(ROLE_COUNT - 1 - role), incoming);
+            }
+        }
+        return true;
+    }
+
     @Override
     public Set<Integer> allowedSlots() {
         return CrystallizerLayout.allowedSlots(facing());
