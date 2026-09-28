@@ -23,6 +23,9 @@ public final class CrystalClusterSubmitter {
     private static final int SIDES = 6;
     private static final double SIDE_ANGLE = Math.PI * 2 / SIDES;
     private static final double PIXEL = 1.0 / 16.0;
+    /** A sprite is 16 texture pixels across. */
+    private static final double SPRITE_PIXELS = 16;
+    private static final double HALF = 0.5;
 
     private CrystalClusterSubmitter() {
     }
@@ -64,24 +67,29 @@ public final class CrystalClusterSubmitter {
         if (prisms.isEmpty()) {
             return;
         }
-        float[][] corners = quadUv(look.uv());
         nodeCollector.submitCustomGeometry(poseStack, GooSubmitter.renderType(), (pose, c) -> {
             RenderContext ctx = new RenderContext(pose, c, light);
             for (CrystalCluster.Prism prism : prisms) {
-                emitPrism(ctx, prism, look.color(), corners);
+                emitPrism(ctx, prism, look.color(), look.uv());
             }
         });
     }
 
     /**
-     * Maps a sprite's rectangle onto a quad's corners in winding order: bottom left,
-     * bottom right, top right, top left, so every face shows the whole sprite upright.
+     * Maps a face onto the sprite at one texture pixel per model pixel, tiling rather
+     * than stretching (operator ruling): a face W by H pixels takes W/16 by H/16 of the
+     * sprite from its corner. Corners run in winding order: bottom left, bottom right,
+     * top right, top left. No face of the crystal passes 16 pixels, so none wraps.
      *
-     * @param uv the sprite's rectangle on the atlas
+     * @param uv     the sprite's rectangle on the atlas
+     * @param width  the face's width, in model pixels
+     * @param height the face's height, in model pixels
      * @return {u, v} for each of the four corners
      */
-    static float[][] quadUv(GooRenderUtil.UvRect uv) {
-        return new float[][] {{uv.u0(), uv.v1()}, {uv.u1(), uv.v1()}, {uv.u1(), uv.v0()}, {uv.u0(), uv.v0()}};
+    static float[][] quadUv(GooRenderUtil.UvRect uv, double width, double height) {
+        float u1 = uv.u0() + (uv.u1() - uv.u0()) * (float) Math.min(1, width / SPRITE_PIXELS);
+        float v0 = uv.v1() - (uv.v1() - uv.v0()) * (float) Math.min(1, height / SPRITE_PIXELS);
+        return new float[][] {{uv.u0(), uv.v1()}, {u1, uv.v1()}, {u1, v0}, {uv.u0(), v0}};
     }
 
     /**
@@ -90,9 +98,9 @@ public final class CrystalClusterSubmitter {
      * @param ctx   the render context
      * @param prism the prism
      * @param color the tint
-     * @param uv    the sprite UV at each quad corner, from {@link #quadUv}
+     * @param uv    the type's sprite rectangle, tiled onto each face by {@link #quadUv}
      */
-    private static void emitPrism(RenderContext ctx, CrystalCluster.Prism prism, int color, float[][] uv) {
+    private static void emitPrism(RenderContext ctx, CrystalCluster.Prism prism, int color, GooRenderUtil.UvRect uv) {
         double tilt = Math.toRadians(prism.tilt());
         double yaw = Math.toRadians(prism.yaw());
         Vec3 axis = new Vec3(Math.sin(tilt) * Math.sin(yaw), Math.cos(tilt), Math.sin(tilt) * Math.cos(yaw));
@@ -109,10 +117,13 @@ public final class CrystalClusterSubmitter {
             bottom[k] = base.add(rim);
             top[k] = bottom[k].add(shaft);
         }
+        double edge = bottom[0].distanceTo(bottom[1]);
+        float[][] sideUv = quadUv(uv, edge, prism.length() - prism.tipLength());
         for (int k = 0; k < SIDES; k++) {
             int next = (k + 1) % SIDES;
-            emitQuad(ctx, color, uv, new Vec3[] {bottom[k], bottom[next], top[next], top[k]});
-            emitQuad(ctx, color, uv, new Vec3[] {top[k], top[next], tip, tip});
+            float[][] tipUv = quadUv(uv, edge, tip.distanceTo(top[k].add(top[next]).scale(HALF)));
+            emitQuad(ctx, color, sideUv, new Vec3[] {bottom[k], bottom[next], top[next], top[k]});
+            emitQuad(ctx, color, tipUv, new Vec3[] {top[k], top[next], tip, tip});
         }
     }
 
