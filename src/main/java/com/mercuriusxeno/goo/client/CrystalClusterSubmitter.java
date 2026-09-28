@@ -25,6 +25,11 @@ public final class CrystalClusterSubmitter {
     private static final double PIXEL = 1.0 / 16.0;
     /** A sprite is 16 texture pixels across. */
     private static final double SPRITE_PIXELS = 16;
+    /**
+     * A face turned evenly between x and z reads x's plane: without the margin, rounding
+     * in its normal flips the choice frame to frame as the crystal grows, and the face flickers.
+     */
+    private static final double AXIS_TIE = 1e-6;
 
     private CrystalClusterSubmitter() {
     }
@@ -114,7 +119,7 @@ public final class CrystalClusterSubmitter {
         if (Math.abs(normal.y) >= Math.abs(normal.x) && Math.abs(normal.y) >= Math.abs(normal.z)) {
             return new double[] {corner.x, corner.z};
         }
-        return Math.abs(normal.x) >= Math.abs(normal.z)
+        return Math.abs(normal.x) >= Math.abs(normal.z) - AXIS_TIE
                 ? new double[] {corner.z, down} : new double[] {corner.x, down};
     }
 

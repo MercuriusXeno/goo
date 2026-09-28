@@ -44,4 +44,14 @@ class CrystalClusterSubmitterTest {
                     "corner " + corner[0] + ", " + corner[1] + " should stay on the sprite");
         }
     }
+
+    @Test
+    void aFaceTurnedEvenlyBetweenXAndZReadsOnePlaneWhateverTheRounding() {
+        Vec3[] face = {new Vec3(3, 18, 5), new Vec3(5, 18, 3), new Vec3(5, 22, 3), new Vec3(3, 22, 5)};
+        Vec3 leansX = new Vec3(0.7071067811865476, 0, 0.7071067811865475);
+        Vec3 leansZ = new Vec3(0.7071067811865475, 0, 0.7071067811865476);
+        assertEquals(CrystalClusterSubmitter.blockUv(SPRITE, face, leansX)[0][0],
+                CrystalClusterSubmitter.blockUv(SPRITE, face, leansZ)[0][0], 1e-6,
+                "rounding in the normal should not swap the plane the face reads, or it flickers as it grows");
+    }
 }
