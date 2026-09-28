@@ -200,7 +200,7 @@ public final class ConeGeometry {
      * @param angle the angle around the base, from perp toward cross
      * @return the corner
      */
-    private static Vector3f baseCorner(Cone cone, float[] basis, float angle) {
+    static Vector3f baseCorner(Cone cone, float[] basis, float angle) {
         float cos = (float) Math.cos(angle) * cone.radius();
         float sin = (float) Math.sin(angle) * cone.radius();
         return new Vector3f(
