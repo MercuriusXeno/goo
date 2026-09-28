@@ -18,6 +18,8 @@ import net.minecraft.world.phys.Vec3;
  */
 public final class BlackHolePhases {
 
+    /** The phase before expand, while nether's inward rush plays and the hole draws nothing. */
+    private static final String GATHER = "gather";
     private static final String EXPAND = "expand";
     private static final String HOLD = "hold";
     private static final String CONTRACT = "contract";
@@ -88,14 +90,14 @@ public final class BlackHolePhases {
      * Fills the render state's nether fields from the marker's phase cursor,
      * the one extraction every hole style shares (decision
      * one-disc-mesh-config-lens), or clears {@code netherActive} when no
-     * black hole runs.
+     * black hole runs or it is still gathering.
      *
      * @param be    the chain marker block entity
      * @param state the render state to populate
      * @return true when a black hole with a visible body should mark the lens
      */
     public static boolean populateRenderState(ChainMarkerBlockEntity be, ChainMarkerRenderState state) {
-        if (!isRunning(be)) {
+        if (!isRunning(be) || !holeDraws(be.getPhased())) {
             state.netherActive = false;
             return false;
         }
@@ -107,6 +109,18 @@ public final class BlackHolePhases {
                 .map(step -> step.radius().evaluateFloat(new MarkerVariables(be))).orElse(0f);
         state.animationTime = NetherDiscMesh.animationTime(be);
         return state.visibleScale > 0f;
+    }
+
+    /**
+     * Answers whether the hole draws in a phase: in every phase but the
+     * gather, which leaves the stage to nether's inward rush while the
+     * marker's orb holds (decision elemental-explosion-per-type).
+     *
+     * @param phase the phase cursor
+     * @return true when the hole draws
+     */
+    static boolean holeDraws(PhasedState phase) {
+        return !GATHER.equals(phase.name());
     }
 
     /**

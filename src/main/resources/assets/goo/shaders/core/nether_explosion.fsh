@@ -11,7 +11,7 @@ in vec3 viewNormal;
 in vec3 surfaceDir;
 in float progress;
 in float nearness;
-in float remaining;
+in float strength;
 
 out vec4 fragColor;
 
@@ -53,6 +53,6 @@ void main() {
     vec3 color = mix(DEEP_COLOR, BRIGHT_COLOR, smoothstep(0.0, 0.6, nearness));
     color = mix(color, HOT_COLOR, smoothstep(0.6, 1.0, nearness));
     float rim = 1.0 - facing;
-    float alpha = (streak + 0.25 * rim) * remaining;
+    float alpha = (streak + 0.25 * rim) * strength;
     fragColor = vec4(color * RUSH_INTENSITY, clamp(alpha, 0.0, 1.0));
 }
