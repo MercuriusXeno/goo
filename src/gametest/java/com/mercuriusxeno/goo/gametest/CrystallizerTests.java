@@ -25,11 +25,13 @@ import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.GameType;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import java.util.UUID;
@@ -231,22 +233,58 @@ public final class CrystallizerTests {
     }
 
     /**
-     * With the knob at medium, 500,000 mB of ender crystallized: a click hands one
-     * chrysm and the crystallizer keeps the other 499,000 mB crystallized.
+     * With the knob at medium, 500,000 mB of ender crystallized is part grown: a click
+     * hands nothing and the crystal stays.
      *
      * @param helper the gametest helper
      */
-    public static void takingKeepsTheRemainder(GameTestHelper helper) {
+    public static void partGrownCrystalIsNotClickable(GameTestHelper helper) {
         CrystallizerBlockEntity crystallizer = placeCrystallizer(helper, 2);
         crystallizer.insertCanister(FIRST, canister(GooTypes.CRYSTAL, HALF_KILO / CrystallizerPhases.GOO_PER_CRYSTAL),
                 false);
         crystallizer.insertCanister(SECOND, canister(GooTypes.ENDER, HALF_KILO), false);
         helper.runAfterDelay(HALF_KILO_TICKS, () -> {
-            assertClickHands(helper, GooItems.CHRYSM.get(), GooTypes.ENDER);
-            helper.assertValueEqual((long) HALF_KILO - CHRYSM_VOLUME, crystallizer.crystallized(),
-                    "crystallized goo kept after taking a chrysm");
+            helper.assertValueEqual((long) HALF_KILO, crystallizer.crystallized(), "crystallized before the click");
+            Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+            BlockPos abs = helper.absolutePos(CRYSTALLIZER_POS);
+            helper.useBlock(CRYSTALLIZER_POS, player, new BlockHitResult(
+                    new Vec3(abs.getX() + HALF, abs.getY() + HALF, abs.getZ() + 1.0), Direction.SOUTH, abs, false));
+            helper.assertTrue(player.getItemInHand(InteractionHand.MAIN_HAND).isEmpty(),
+                    "A part-grown crystal should hand nothing");
+            helper.assertValueEqual((long) HALF_KILO, crystallizer.crystallized(), "crystallized after the click");
             helper.succeed();
         });
+    }
+
+    /**
+     * Stepping the dial while 500 mB of ender is still crystallizing shatters it into
+     * a 500 mB ender omniblob and a 50 mB crystal omniblob, and the crystal is gone.
+     *
+     * @param helper the gametest helper
+     */
+    public static void dialChangeShattersAGrowingCrystal(GameTestHelper helper) {
+        CrystallizerBlockEntity crystallizer = placeCrystallizer(helper, 1);
+        crystallizer.insertCanister(FIRST, canister(GooTypes.CRYSTAL, CRYSTAL_COST / 2), false);
+        crystallizer.insertCanister(SECOND, canister(GooTypes.ENDER, CHRYSM_VOLUME), false);
+        helper.runAfterDelay(HALF_CHRYSM_TICKS + SOME_TICKS, () -> {
+            helper.assertValueEqual(CHRYSM_VOLUME / 2L, crystallizer.crystallized(), "crystallized before the dial");
+            Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+            BlockPos abs = helper.absolutePos(CRYSTALLIZER_POS);
+            helper.useBlock(CRYSTALLIZER_POS, player, new BlockHitResult(
+                    new Vec3(abs.getX() + HALF, abs.getY() + DIAL_CENTER_Y, abs.getZ()), Direction.NORTH, abs, false));
+            helper.assertValueEqual(0L, crystallizer.crystallized(), "crystallized after the dial");
+            assertOmniblobDropped(helper, GooTypes.ENDER, CHRYSM_VOLUME / 2);
+            assertOmniblobDropped(helper, GooTypes.CRYSTAL, CRYSTAL_COST / 2);
+            helper.succeed();
+        });
+    }
+
+    private static void assertOmniblobDropped(GameTestHelper helper, ResourceKey<GooTypeDefinition> type, int volume) {
+        boolean dropped = helper.getLevel().getEntitiesOfClass(ItemEntity.class,
+                new AABB(helper.absolutePos(CRYSTALLIZER_POS)).inflate(2)).stream()
+                .map(ItemEntity::getItem)
+                .anyMatch(stack -> type.equals(BlobStacks.keyOf(stack)) && BlobStacks.volumeOf(stack) == volume);
+        helper.assertTrue(dropped, "A " + volume + " mB " + type.identifier().getPath() + " omniblob should drop");
     }
 
     /**
@@ -372,6 +410,9 @@ public final class CrystallizerTests {
             helper.assertValueEqual(expected, helper.getBlockState(CRYSTALLIZER_POS).getValue(CrystallizerBlock.KNOB),
                     "knob after a click");
         }
+        helper.assertTrue(helper.getLevel().getEntitiesOfClass(ItemEntity.class,
+                new AABB(helper.absolutePos(CRYSTALLIZER_POS)).inflate(2)).isEmpty(),
+                "Dial clicks on an empty crystallizer should drop nothing");
         helper.succeed();
     }
 

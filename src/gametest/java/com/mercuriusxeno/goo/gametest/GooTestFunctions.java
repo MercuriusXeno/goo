@@ -71,7 +71,8 @@ public final class GooTestFunctions {
     private static final String CRYSTALLIZER_SMALL_DIAL_HOLDS = "crystallizer_small_dial_holds";
     private static final String CRYSTALLIZER_DIAL_WRAPS = "crystallizer_dial_wraps";
     private static final String CRYSTALLIZER_PAUSES_WITHOUT_CRYSTAL = "crystallizer_pauses_without_crystal";
-    private static final String CRYSTALLIZER_TAKING_KEEPS_REMAINDER = "crystallizer_taking_keeps_remainder";
+    private static final String CRYSTALLIZER_PART_GROWN_NOT_CLICKABLE = "crystallizer_part_grown_not_clickable";
+    private static final String CRYSTALLIZER_DIAL_SHATTERS = "crystallizer_dial_shatters";
     private static final String CRYSTALLIZER_GASKET_FILLS_CANISTER = "crystallizer_gasket_fills_canister";
     private static final String CRYSTALLIZER_CLICK_CRYSTAL = "crystallizer_click_crystal";
     private static final String CRYSTALLIZER_EVEN_PACE = "crystallizer_even_pace";
@@ -363,7 +364,8 @@ public final class GooTestFunctions {
         reg(r, CRYSTALLIZER_SMALL_DIAL_HOLDS, CrystallizerTests::smallDialHoldsAtChrysm);
         reg(r, CRYSTALLIZER_DIAL_WRAPS, CrystallizerTests::dialClickWrapsFromLargeToSmall);
         reg(r, CRYSTALLIZER_PAUSES_WITHOUT_CRYSTAL, CrystallizerTests::pausesWithoutCrystal);
-        reg(r, CRYSTALLIZER_TAKING_KEEPS_REMAINDER, CrystallizerTests::takingKeepsTheRemainder);
+        reg(r, CRYSTALLIZER_PART_GROWN_NOT_CLICKABLE, CrystallizerTests::partGrownCrystalIsNotClickable);
+        reg(r, CRYSTALLIZER_DIAL_SHATTERS, CrystallizerTests::dialChangeShattersAGrowingCrystal);
         reg(r, CRYSTALLIZER_GASKET_FILLS_CANISTER, CrystallizerTests::gasketFillsTheIngredientCanister);
         reg(r, CRYSTALLIZER_CLICK_CRYSTAL, CrystallizerTests::clickingTheCrystalTakesTheChrysm);
         reg(r, CRYSTALLIZER_EVEN_PACE, CrystallizerTests::crystallizesAtAnEvenPace);

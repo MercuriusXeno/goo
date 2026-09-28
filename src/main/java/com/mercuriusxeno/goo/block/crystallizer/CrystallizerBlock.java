@@ -207,7 +207,9 @@ public class CrystallizerBlock extends GooMachineBlock {
                     shape = Shapes.or(shape, canisterSlotShape(state.getValue(FACING), slot));
                 }
             }
-            shape = Shapes.or(shape, crystalShape(state.getValue(FACING), crystallizer.crystallized()));
+            if (crystallizer.isMature(knobTier(state))) {
+                shape = Shapes.or(shape, crystalShape(state.getValue(FACING), crystallizer.crystallized()));
+            }
         }
         return shape;
     }
@@ -282,7 +284,7 @@ public class CrystallizerBlock extends GooMachineBlock {
             return InteractionResult.PASS;
         }
         if (ShapeHitCheck.hitInsideShape(hitResult, pos, knobShape(state))) {
-            return stepKnob(state, level, pos);
+            return stepKnob(crystallizer, state, level, pos);
         }
         if (GasketInstallation.removeAddressedGasket(level, pos, player, hitResult)) {
             return InteractionResult.SUCCESS;
@@ -290,7 +292,20 @@ public class CrystallizerBlock extends GooMachineBlock {
         return takeCanisterOrChrysm(crystallizer, state, level, pos, player, hitResult);
     }
 
-    private static InteractionResult stepKnob(BlockState state, Level level, BlockPos pos) {
+    /**
+     * Steps the knob; a crystal still growing shatters back into omniblobs first (operator ruling).
+     *
+     * @param crystallizer the crystallizer
+     * @param state        its block state
+     * @param level        the level
+     * @param pos          its position
+     * @return SUCCESS
+     */
+    private static InteractionResult stepKnob(CrystallizerBlockEntity crystallizer, BlockState state, Level level,
+                                              BlockPos pos) {
+        if (!crystallizer.isMature(knobTier(state))) {
+            crystallizer.shatter().forEach(shard -> popResource(level, pos.above(), shard));
+        }
         level.setBlock(pos, state.setValue(KNOB, CrystallizerPhases.nextKnob(state.getValue(KNOB))), Block.UPDATE_ALL);
         level.playSound(null, pos, SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.BLOCKS, 1.0f, 1.0f);
         return InteractionResult.SUCCESS;
