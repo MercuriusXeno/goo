@@ -8,10 +8,11 @@ import java.util.List;
  * geometry (decision crystallizer-emits-chrysm). Operator ruling: something
  * quartz shaped, angled prisms jutting out of a base at odd 22.5 incremental
  * angles, growing steadily until it can't anymore, visibly the next tier; hacked
- * procedurally until a drawn crystal replaces it. Growth reads the crystallized
- * volume on a log scale, so each tier, 1,000 times the last, stands a third
- * taller; the crystallizer stops crystallizing at the knob's tier, so the cluster
- * stops there too.
+ * procedurally until a drawn crystal replaces it. Growth reads the crystallizer's
+ * pace: a third per tier, flat in volume over the first tier and log1000 past it,
+ * so at the even pace the crystal grows at one rate through every tier and each
+ * tier stands a third taller; the crystallizer stops crystallizing at the knob's
+ * tier, so the cluster stops there too.
  */
 public final class CrystalCluster {
 
@@ -24,8 +25,13 @@ public final class CrystalCluster {
     /** Every angle the cluster uses is a multiple of this. */
     public static final double ANGLE_STEP = 22.5;
 
-    /** A megachrysm's crystallized volume, 10^9 mB, is full growth. */
-    private static final double FULL_GROWTH_LOG = 9;
+    /** Each of the three tiers is a third of full growth. */
+    private static final double TIER_SHARE = 1.0 / 3;
+    private static final double TIER_LOG = Math.log(1_000);
+    private static final double CHRYSM_VOLUME = 1_000;
+    /** Each client tick closes this share of the gap between the drawn growth and the synced growth. */
+    private static final double EASE_SHARE = 0.3;
+    private static final double EASE_SNAP = 1e-4;
     private static final double MAX_LENGTH = 12;
     private static final double MAX_RADIUS = 2.5;
     private static final double TIP_FRACTION = 0.25;
@@ -70,8 +76,9 @@ public final class CrystalCluster {
     }
 
     /**
-     * How far the cluster has grown: the crystallized volume's order of magnitude
-     * over a megachrysm's.
+     * How far the cluster has grown, read as the crystallizer's pace reads it: a
+     * third per tier, flat in volume up to a chrysm and log1000 past it, so the
+     * even pace grows it at one rate.
      *
      * @param crystallized the crystallized volume, in mB
      * @return the growth, from 0 for nothing to 1 for a megachrysm
@@ -80,7 +87,25 @@ public final class CrystalCluster {
         if (crystallized <= 0) {
             return 0;
         }
-        return Math.min(1, Math.log10(Math.max(1, crystallized)) / FULL_GROWTH_LOG);
+        if (crystallized < CHRYSM_VOLUME) {
+            return crystallized / CHRYSM_VOLUME * TIER_SHARE;
+        }
+        return Math.min(1, (1 + Math.log(crystallized / CHRYSM_VOLUME) / TIER_LOG) * TIER_SHARE);
+    }
+
+    /**
+     * Eases the drawn growth toward the synced growth, one client tick: it closes a
+     * share of the gap going up, and snaps straight down when a chrysm is taken.
+     *
+     * @param displayed the growth drawn last tick
+     * @param target    the growth the synced volume reads
+     * @return the growth to draw this tick
+     */
+    public static double ease(double displayed, double target) {
+        if (target <= displayed || target - displayed < EASE_SNAP) {
+            return target;
+        }
+        return displayed + (target - displayed) * EASE_SHARE;
     }
 
     /**
@@ -88,7 +113,14 @@ public final class CrystalCluster {
      * @return the prisms grown so far, the central one first; none for nothing crystallized
      */
     public static List<Prism> prisms(long crystallized) {
-        double growth = growth(crystallized);
+        return prisms(growth(crystallized));
+    }
+
+    /**
+     * @param growth how far the cluster has grown, from 0 to 1
+     * @return the prisms grown so far, the central one first; none for no growth
+     */
+    public static List<Prism> prisms(double growth) {
         List<Prism> prisms = new ArrayList<>();
         for (Seed seed : SEEDS) {
             if (growth <= seed.birth()) {
@@ -108,9 +140,17 @@ public final class CrystalCluster {
      * @return {half width, height} in pixels, zero for nothing crystallized
      */
     public static double[] reach(long crystallized) {
+        return reach(growth(crystallized));
+    }
+
+    /**
+     * @param growth how far the cluster has grown, from 0 to 1
+     * @return {half width, height} in pixels, zero for no growth
+     */
+    public static double[] reach(double growth) {
         double halfWidth = 0;
         double height = 0;
-        for (Prism prism : prisms(crystallized)) {
+        for (Prism prism : prisms(growth)) {
             double tilt = Math.toRadians(prism.tilt());
             halfWidth = Math.max(halfWidth, prism.length() * Math.sin(tilt) + prism.radius());
             height = Math.max(height, prism.length() * Math.cos(tilt));

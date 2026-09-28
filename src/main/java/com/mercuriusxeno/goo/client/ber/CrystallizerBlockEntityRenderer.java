@@ -62,7 +62,7 @@ public class CrystallizerBlockEntityRenderer
         for (int slot = 0; slot < state.slots.length; slot++) {
             extractSlot(be.getCanister(slot), state.slots[slot]);
         }
-        state.crystallized = be.crystallized();
+        state.crystalGrowth = be.drawnGrowth(partialTick);
         ResourceKey<GooTypeDefinition> type = be.formingType();
         state.crystalLook = type == null || be.getLevel() == null ? null
                 : CrystalClusterSubmitter.lookOf(type, GooColors.get(be.getLevel().registryAccess(), type));
@@ -107,7 +107,7 @@ public class CrystallizerBlockEntityRenderer
                 SLOT_CENTERS, false);
         CrystalClusterSubmitter.Look look = state.crystalLook;
         if (look != null) {
-            CrystalClusterSubmitter.submit(poseStack, nodeCollector, CrystalCluster.prisms(state.crystallized), look,
+            CrystalClusterSubmitter.submit(poseStack, nodeCollector, CrystalCluster.prisms(state.crystalGrowth), look,
                     state.lightCoords);
         }
         poseStack.popPose();

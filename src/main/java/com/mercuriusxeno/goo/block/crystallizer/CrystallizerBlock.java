@@ -243,7 +243,8 @@ public class CrystallizerBlock extends GooMachineBlock {
 
     @Override
     protected BlockEntityTicks<CrystallizerBlockEntity> ticks() {
-        return BlockEntityTicks.onServer(GooBlockEntities.CRYSTALLIZER, CrystallizerBlockEntity::serverTick);
+        return BlockEntityTicks.bothSides(GooBlockEntities.CRYSTALLIZER, CrystallizerBlockEntity::serverTick,
+                CrystallizerBlockEntity::clientTick);
     }
 
     /**

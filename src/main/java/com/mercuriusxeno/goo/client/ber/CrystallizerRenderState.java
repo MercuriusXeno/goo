@@ -21,8 +21,8 @@ public class CrystallizerRenderState extends BlockEntityRenderState {
     /** The two canister slots, back left then back right. */
     public final SlotState[] slots = {new SlotState(), new SlotState()};
 
-    /** The goo crystallized so far, in mB; the quartz cluster grows with it. */
-    public long crystallized;
+    /** The crystal's growth this frame, eased and lerped on the client, from 0 to 1. */
+    public double crystalGrowth;
 
     /** The growing type's crystal look, or null while nothing grows. */
     public CrystalClusterSubmitter.@Nullable Look crystalLook;

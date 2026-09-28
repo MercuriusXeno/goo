@@ -9,11 +9,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * The quartz cluster's geometry (decision crystallizer-emits-chrysm): prisms at
- * multiples of 22.5 degrees, growing steadily with the crystallized volume, each
- * tier larger than the last, and nothing for nothing crystallized.
+ * multiples of 22.5 degrees, growing at one rate through every tier at the
+ * crystallizer's pace, each tier larger than the last, nothing for nothing
+ * crystallized, and the client's easing closing on its target smoothly.
  */
 class CrystalClusterTest {
 
+    /** The steadiness is read over 10-tick windows, since single ticks crystallize whole 10 mB steps. */
+    private static final int WINDOW = 10;
+    private static final double STEADINESS = 0.1;
     private static final long[] VOLUMES = {1, 10, 100, 1_000, 10_000, 250_000, 1_000_000, 50_000_000,
         1_000_000_000L};
 
@@ -59,5 +63,42 @@ class CrystalClusterTest {
     void growthStopsAtAMegachrysm() {
         assertEquals(1.0, CrystalCluster.growth(ChrysmTier.MEGACHRYSM.volume()), 1e-9);
         assertEquals(1.0, CrystalCluster.growth(Long.MAX_VALUE), 1e-9);
+    }
+
+    @Test
+    void thePaceGrowsTheCrystalAtOneRateThroughEveryTier() {
+        long crystallized = 0;
+        double budget = 0;
+        int ticks = CrystallizerPhases.TICKS_PER_TIER * ChrysmTier.values().length;
+        double[] growth = new double[ticks + 1];
+        for (int tick = 1; tick <= ticks; tick++) {
+            budget = CrystallizerPhases.nextBudget(budget, crystallized);
+            long steps = (long) (budget / CrystallizerPhases.GOO_PER_CRYSTAL);
+            crystallized += steps * CrystallizerPhases.GOO_PER_CRYSTAL;
+            budget -= steps * CrystallizerPhases.GOO_PER_CRYSTAL;
+            growth[tick] = CrystalCluster.growth(Math.min(crystallized, ChrysmTier.MEGACHRYSM.volume()));
+        }
+        double mean = growth[ticks - WINDOW] / (ticks - WINDOW);
+        for (int tick = WINDOW; tick + WINDOW < ticks; tick += WINDOW) {
+            double rate = (growth[tick + WINDOW] - growth[tick]) / WINDOW;
+            assertEquals(mean, rate, mean * STEADINESS, "growth rate over ticks " + tick + " to " + (tick + WINDOW));
+        }
+    }
+
+    @Test
+    void easingClosesOnTheTargetWithoutOvershoot() {
+        double displayed = 0;
+        double previous;
+        for (int tick = 0; tick < 50; tick++) {
+            previous = displayed;
+            displayed = CrystalCluster.ease(displayed, 0.5);
+            assertTrue(displayed >= previous && displayed <= 0.5, "tick " + tick + " drew " + displayed);
+        }
+        assertEquals(0.5, displayed, 1e-3);
+    }
+
+    @Test
+    void easingSnapsDownWhenAChrysmIsTaken() {
+        assertEquals(0.1, CrystalCluster.ease(0.6, 0.1), 1e-9);
     }
 }
