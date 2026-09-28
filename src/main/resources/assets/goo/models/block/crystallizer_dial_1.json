@@ -184,6 +184,30 @@
 					"texture": "#lit"
 				}
 			}
+		},
+		{
+			"name": "strength_line_unlit",
+			"from": [
+				6,
+				13,
+				15
+			],
+			"to": [
+				13,
+				14,
+				15.01
+			],
+			"faces": {
+				"south": {
+					"uv": [
+						1.25,
+						9.0,
+						3.0,
+						9.5
+					],
+					"texture": "#dial"
+				}
+			}
 		}
 	]
 }
