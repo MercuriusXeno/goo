@@ -1,8 +1,10 @@
 package com.mercuriusxeno.goo.client.ber;
 
 import com.mercuriusxeno.goo.block.canister.CanisterGeometry;
+import com.mercuriusxeno.goo.client.GooRenderUtil;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 import net.minecraft.core.Direction;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Render state snapshot for the crystallizer BER: its facing, the two
@@ -22,8 +24,11 @@ public class CrystallizerRenderState extends BlockEntityRenderState {
     /** The goo crystallized so far, in mB; the quartz cluster grows with it. */
     public long crystallized;
 
-    /** The cluster's tint, the growing type's color with its alpha. */
+    /** The cluster's tint: white over a named sprite, the type's color over the grey base. */
     public int crystalColor;
+
+    /** The growing type's fluid sprite rectangle on the block atlas, or null while nothing grows. */
+    public GooRenderUtil.@Nullable UvRect crystalUv;
 
     /**
      * @return where the canisters stand
