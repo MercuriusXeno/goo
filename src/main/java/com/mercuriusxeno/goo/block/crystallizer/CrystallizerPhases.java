@@ -12,7 +12,8 @@ import org.jspecify.annotations.Nullable;
  * crystallizer holds two canisters, and it doesn't matter which slot has the
  * crystal goo, the other slot governs what goo grows; goo crystallizes as it
  * goes, spending crystal at 10% of the goo and pausing when crystal runs out, up
- * to the tier the knob names; the item inside is the highest tier reached.
+ * to the tier the knob names, at an even pace per tier; the item inside is the
+ * highest tier reached.
  */
 public final class CrystallizerPhases {
 
@@ -21,6 +22,13 @@ public final class CrystallizerPhases {
 
     /** Goo crystallizes in steps of this many mB, each spending one mB of crystal (10%). */
     public static final int GOO_PER_CRYSTAL = 10;
+
+    /** Operator ruling: each tier takes about 10 s more, 200 ticks. */
+    public static final int TICKS_PER_TIER = 200;
+    /** Below a chrysm the pace is flat: a chrysm's volume over one tier's ticks. */
+    private static final double FLAT_PACE = (double) ChrysmTier.CHRYSM.volume() / TICKS_PER_TIER;
+    /** Past a chrysm the volume grows 1,000-fold, one tier, every tier's ticks. */
+    private static final double GROWTH_PER_TICK = Math.log(1_000) / TICKS_PER_TIER;
 
     private CrystallizerPhases() {
     }
@@ -75,6 +83,31 @@ public final class CrystallizerPhases {
     }
 
     /**
+     * Operator ruling: an even pace per tier, a chrysm at about 10 s, a kilochrysm by
+     * 20 s and a megachrysm by 30 s. Flat below a chrysm, then growing with what's
+     * crystallized so every tier's 1,000-fold climb takes the same 200 ticks.
+     *
+     * @param crystallized the goo crystallized so far, in mB
+     * @return the mB one tick may crystallize
+     */
+    public static double paceAllowance(long crystallized) {
+        return crystallized < ChrysmTier.CHRYSM.volume() ? FLAT_PACE : crystallized * GROWTH_PER_TICK;
+    }
+
+    /**
+     * Carries the pace across ticks: this tick's allowance joins the unspent budget,
+     * held to at most one tick's allowance and one step so an idle stretch banks no burst.
+     *
+     * @param budget       the mB left unspent from earlier ticks
+     * @param crystallized the goo crystallized so far, in mB
+     * @return the budget this tick may spend
+     */
+    public static double nextBudget(double budget, long crystallized) {
+        double allowance = paceAllowance(crystallized);
+        return Math.min(budget + allowance, allowance + GOO_PER_CRYSTAL);
+    }
+
+    /**
      * The highest tier a crystallized volume reached.
      *
      * @param crystallized the crystallized volume, in mB
@@ -109,25 +142,28 @@ public final class CrystallizerPhases {
     }
 
     /**
-     * One tick's crystallizing: as much of the ingredient as the catalyst pays for,
-     * in whole steps, up to the knob's tier, and only of the type already crystallized.
+     * One tick's crystallizing: as much of the ingredient as the catalyst pays for and
+     * the pace allows, in whole steps, up to the knob's tier, and only of the type
+     * already crystallized.
      *
      * @param ingredient   what the ingredient canister holds
      * @param catalyst     what the catalyst canister holds
      * @param crystallized the goo crystallized so far, in mB
      * @param formingType  the type crystallized so far, or null when none is
      * @param knob         the tier the knob caps crystallizing at
+     * @param budget       the mB the pace lets this tick crystallize
      * @return the step, or null when nothing crystallizes this tick
      */
     public static @Nullable Step step(Held ingredient, Held catalyst, long crystallized,
-                                      @Nullable ResourceKey<GooTypeDefinition> formingType, ChrysmTier knob) {
+                                      @Nullable ResourceKey<GooTypeDefinition> formingType, ChrysmTier knob,
+                                      double budget) {
         ResourceKey<GooTypeDefinition> type = ingredient.type();
         if (type == null || formingType != null && !formingType.equals(type)) {
             return null;
         }
         long room = Math.max(0, knob.volume() - crystallized);
         long steps = Math.min(Math.min(ingredient.volume() / GOO_PER_CRYSTAL, catalyst.volume()),
-                room / GOO_PER_CRYSTAL);
+                Math.min(room / GOO_PER_CRYSTAL, (long) (budget / GOO_PER_CRYSTAL)));
         if (steps <= 0) {
             return null;
         }

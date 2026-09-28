@@ -59,6 +59,8 @@ public class CrystallizerBlockEntity extends GooGlowingMachineBlockEntity implem
     private final SlottedCanisterData state = new SlottedCanisterData(this, SLOT_COUNT,
             i -> Shapes.empty(), slots -> Shapes.empty());
     private long crystallized;
+    /** The pace's unspent mB, carried across ticks; not saved, a reload starts the tick afresh. */
+    private double paceBudget;
     private int idleTicks;
     private @Nullable ResourceKey<GooTypeDefinition> formingType;
 
@@ -103,9 +105,10 @@ public class CrystallizerBlockEntity extends GooGlowingMachineBlockEntity implem
         Held first = held(0);
         Held second = held(1);
         Roles roles = CrystallizerPhases.roles(first, second);
+        paceBudget = CrystallizerPhases.nextBudget(paceBudget, crystallized);
         CrystallizerPhases.Step step = roles == null ? null : CrystallizerPhases.step(
                 roles.ingredient() == 0 ? first : second, roles.catalyst() == 0 ? first : second,
-                crystallized, formingType, CrystallizerBlock.knobTier(getBlockState()));
+                crystallized, formingType, CrystallizerBlock.knobTier(getBlockState()), paceBudget);
         if (step == null) {
             idleTicks++;
             if (idleTicks == ACTIVE_HOLD_TICKS) {
@@ -114,6 +117,7 @@ public class CrystallizerBlockEntity extends GooGlowingMachineBlockEntity implem
             return;
         }
         idleTicks = 0;
+        paceBudget -= step.goo();
         showActive(true);
         extractGoo(roles.ingredient(), step.type(), step.goo());
         extractGoo(roles.catalyst(), CrystallizerPhases.CATALYST, step.crystal());

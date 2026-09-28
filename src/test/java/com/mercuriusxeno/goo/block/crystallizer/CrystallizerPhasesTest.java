@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * The crystallizer's arithmetic (decision crystallizer-emits-chrysm): whichever
@@ -21,6 +22,9 @@ class CrystallizerPhasesTest {
     private static final int CHRYSM = 1_000;
     private static final Held ENDER = new Held(GooTypes.ENDER, CHRYSM);
     private static final Held CRYSTAL = new Held(GooTypes.CRYSTAL, 100);
+    /** A budget that never limits a step, so the step tests read the goo, crystal and knob alone. */
+    private static final double UNPACED = Double.MAX_VALUE;
+    private static final double TOLERANCE = 0.02;
 
     @Nested
     class ChoosingRoles {
@@ -50,36 +54,78 @@ class CrystallizerPhasesTest {
         @Test
         void goodCrystalCrystallizesAllTheGooAtOneTenth() {
             assertEquals(new Step(GooTypes.ENDER, CHRYSM, 100),
-                    CrystallizerPhases.step(ENDER, CRYSTAL, 0, null, ChrysmTier.CHRYSM));
+                    CrystallizerPhases.step(ENDER, CRYSTAL, 0, null, ChrysmTier.CHRYSM, UNPACED));
         }
 
         @Test
         void shortCrystalCrystallizesWhatItPaysFor() {
             assertEquals(new Step(GooTypes.ENDER, 500, 50),
-                    CrystallizerPhases.step(ENDER, new Held(GooTypes.CRYSTAL, 50), 0, null, ChrysmTier.CHRYSM));
+                    CrystallizerPhases.step(ENDER, new Held(GooTypes.CRYSTAL, 50), 0, null, ChrysmTier.CHRYSM, UNPACED));
         }
 
         @Test
         void noCrystalPauses() {
-            assertNull(CrystallizerPhases.step(ENDER, Held.NOTHING, 0, null, ChrysmTier.CHRYSM));
+            assertNull(CrystallizerPhases.step(ENDER, Held.NOTHING, 0, null, ChrysmTier.CHRYSM, UNPACED));
         }
 
         @Test
         void gooUnderOneStepWaits() {
-            assertNull(CrystallizerPhases.step(new Held(GooTypes.ENDER, 9), CRYSTAL, 0, null, ChrysmTier.CHRYSM));
+            assertNull(CrystallizerPhases.step(new Held(GooTypes.ENDER, 9), CRYSTAL, 0, null, ChrysmTier.CHRYSM, UNPACED));
         }
 
         @Test
         void crystallizingStopsAtTheKnobTier() {
             assertEquals(new Step(GooTypes.ENDER, 400, 40),
-                    CrystallizerPhases.step(ENDER, CRYSTAL, 600, GooTypes.ENDER, ChrysmTier.CHRYSM));
-            assertNull(CrystallizerPhases.step(ENDER, CRYSTAL, CHRYSM, GooTypes.ENDER, ChrysmTier.CHRYSM));
+                    CrystallizerPhases.step(ENDER, CRYSTAL, 600, GooTypes.ENDER, ChrysmTier.CHRYSM, UNPACED));
+            assertNull(CrystallizerPhases.step(ENDER, CRYSTAL, CHRYSM, GooTypes.ENDER, ChrysmTier.CHRYSM, UNPACED));
         }
 
         @Test
         void anotherTypeWaitsWhileOneIsCrystallized() {
             assertNull(CrystallizerPhases.step(new Held(GooTypes.ROCK, CHRYSM), CRYSTAL, 500, GooTypes.ENDER,
-                    ChrysmTier.KILOCHRYSM));
+                    ChrysmTier.KILOCHRYSM, UNPACED));
+        }
+    }
+
+    @Nested
+    class Pace {
+
+        @Test
+        void eachTierTakesAboutTwoHundredTicksMore() {
+            long crystallized = 0;
+            double budget = 0;
+            int[] reachedAt = new int[ChrysmTier.values().length];
+            for (int tick = 1; tick <= 700 && reachedAt[2] == 0; tick++) {
+                budget = CrystallizerPhases.nextBudget(budget, crystallized);
+                long steps = (long) (budget / CrystallizerPhases.GOO_PER_CRYSTAL);
+                crystallized += steps * CrystallizerPhases.GOO_PER_CRYSTAL;
+                budget -= steps * CrystallizerPhases.GOO_PER_CRYSTAL;
+                for (ChrysmTier tier : ChrysmTier.values()) {
+                    if (reachedAt[tier.ordinal()] == 0 && crystallized >= tier.volume()) {
+                        reachedAt[tier.ordinal()] = tick;
+                    }
+                }
+            }
+            for (ChrysmTier tier : ChrysmTier.values()) {
+                int expected = CrystallizerPhases.TICKS_PER_TIER * (tier.ordinal() + 1);
+                assertEquals(expected, reachedAt[tier.ordinal()], expected * TOLERANCE, tier.name());
+            }
+        }
+
+        @Test
+        void thePaceBoundsAStep() {
+            assertEquals(new Step(GooTypes.ENDER, 50, 5), CrystallizerPhases.step(ENDER, CRYSTAL, 0, null,
+                    ChrysmTier.CHRYSM, 55));
+            assertNull(CrystallizerPhases.step(ENDER, CRYSTAL, 0, null, ChrysmTier.CHRYSM, 9));
+        }
+
+        @Test
+        void anIdleStretchBanksNoBurst() {
+            double budget = 0;
+            for (int tick = 0; tick < 1_000; tick++) {
+                budget = CrystallizerPhases.nextBudget(budget, 0);
+            }
+            assertTrue(budget <= CrystallizerPhases.paceAllowance(0) + CrystallizerPhases.GOO_PER_CRYSTAL);
         }
     }
 
