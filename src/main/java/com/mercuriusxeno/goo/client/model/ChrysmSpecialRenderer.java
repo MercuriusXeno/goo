@@ -23,19 +23,23 @@ import java.util.function.Consumer;
  * Special item renderer for the chrysm tiers (decision chrysm-tiers-fixed-and-stackable):
  * each draws as the quartz crystal the crystallizer grows, at its tier's volume, in
  * its goo type's own texture. Operator rulings: each tier fills the slot, then
- * steps up 20% per tier, so each tier reads larger than the one below. The
- * operator's drawn sizes can replace it later.
+ * steps past it, so each tier reads larger than the one below, and each stands
+ * centered in the slot. The operator's drawn sizes can replace it later.
  */
 public class ChrysmSpecialRenderer implements SpecialModelRenderer<ResourceKey<GooTypeDefinition>> {
 
     /** The item box a cluster fills: 7 px either side of its base and 14 px tall. */
     private static final double BOX_HALF_WIDTH = 7;
     private static final double BOX_HEIGHT = 14;
-    /** Operator ruling: every tier 20% past the fit, and each tier 20% past the one below. */
-    private static final double TIER_STEP = 1.2;
+    /**
+     * Operator rulings: each tier past its fit, a chrysm slightly (1.1), a kilochrysm
+     * 20% past the fit twice over (1.44) and a megachrysm three times (1.728).
+     */
+    private static final double[] TIER_SCALES = {1.1, 1.44, 1.728};
+    /** The item box's middle height, in pixels. */
+    private static final double BOX_MIDDLE = 8;
+    private static final double HALF = 0.5;
     private static final float CENTER = 0.5f;
-    /** The crystal's base sits one pixel above the item box floor. */
-    private static final float FLOOR = 1f / 16f;
     private static final float PIXEL = 1f / 16f;
     private static final float EXTENT_LOW = 0.1f;
     private static final float EXTENT_HIGH = 0.9f;
@@ -63,8 +67,8 @@ public class ChrysmSpecialRenderer implements SpecialModelRenderer<ResourceKey<G
             return;
         }
         poseStack.pushPose();
-        poseStack.translate(CENTER, FLOOR, CENTER);
         float scale = tierScale(tier);
+        poseStack.translate(CENTER, baseHeight(tier, scale) * PIXEL, CENTER);
         poseStack.scale(scale, scale, scale);
         poseStack.translate(-CrystalCluster.BASE_X * PIXEL, -CrystalCluster.BASE_Y * PIXEL,
                 -CrystalCluster.BASE_Z * PIXEL);
@@ -81,7 +85,19 @@ public class ChrysmSpecialRenderer implements SpecialModelRenderer<ResourceKey<G
      * @return the scale
      */
     static float tierScale(ChrysmTier tier) {
-        return (float) (fitScale(CrystalCluster.reach(tier.volume())) * Math.pow(TIER_STEP, tier.ordinal() + 1));
+        return (float) (fitScale(CrystalCluster.reach(tier.volume())) * TIER_SCALES[tier.ordinal()]);
+    }
+
+    /**
+     * Where the crystal's base stands so its scaled height is centered in the item box
+     * (operator ruling: the larger tiers sat high, the megachrysm touching the top).
+     *
+     * @param tier  the tier
+     * @param scale the tier's drawn scale
+     * @return the base's height, in pixels
+     */
+    static float baseHeight(ChrysmTier tier, float scale) {
+        return (float) (BOX_MIDDLE - CrystalCluster.reach(tier.volume())[1] * scale * HALF);
     }
 
     /**

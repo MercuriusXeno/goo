@@ -14,6 +14,7 @@ class ChrysmSpecialRendererTest {
 
     private static final double BOX_HALF_WIDTH = 7;
     private static final double BOX_HEIGHT = 14;
+    private static final double[] TIER_SCALES = {1.1, 1.44, 1.728};
 
     @ParameterizedTest
     @EnumSource(ChrysmTier.class)
@@ -26,10 +27,19 @@ class ChrysmSpecialRendererTest {
 
     @ParameterizedTest
     @EnumSource(ChrysmTier.class)
-    void eachTierStepsUpTwentyPercentPastTheOneBelow(ChrysmTier tier) {
+    void eachTierDrawsItsRuledScalePastTheFit(ChrysmTier tier) {
         double[] reach = CrystalCluster.reach(tier.volume());
         float scale = ChrysmSpecialRenderer.tierScale(tier);
         double fill = Math.max(reach[0] * scale / BOX_HALF_WIDTH, reach[1] * scale / BOX_HEIGHT);
-        assertEquals(Math.pow(1.2, tier.ordinal() + 1), fill, 1e-5, tier.name());
+        assertEquals(TIER_SCALES[tier.ordinal()], fill, 1e-5, tier.name());
+    }
+
+    @ParameterizedTest
+    @EnumSource(ChrysmTier.class)
+    void eachTierStandsCenteredInTheItemBox(ChrysmTier tier) {
+        float scale = ChrysmSpecialRenderer.tierScale(tier);
+        double height = CrystalCluster.reach(tier.volume())[1] * scale;
+        double middle = ChrysmSpecialRenderer.baseHeight(tier, scale) + height / 2;
+        assertEquals(8.0, middle, 1e-4, tier.name());
     }
 }
