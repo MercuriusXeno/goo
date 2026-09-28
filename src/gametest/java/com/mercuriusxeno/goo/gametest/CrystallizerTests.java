@@ -49,8 +49,16 @@ public final class CrystallizerTests {
     private static final int FIRST = 0;
     private static final int SECOND = 1;
     private static final int PUSH_TICKS = 20;
-    private static final int CRYSTALLIZE_TICKS = 2;
-    private static final int IDLE_TICKS = 40;
+    /** A chrysm's 200 ticks at the pace, with margin. */
+    private static final int CHRYSM_TICKS = 220;
+    /** A kilochrysm's 400 ticks at the pace, with margin. */
+    private static final int KILOCHRYSM_TICKS = 440;
+    /** 500,000 mB at the pace: about 380 ticks, with margin. */
+    private static final int HALF_KILO_TICKS = 420;
+    /** Half a chrysm, 500 mB, at the flat pace of 5 mB a tick: 100 ticks, with margin. */
+    private static final int HALF_CHRYSM_TICKS = 110;
+    private static final int STILL_GROWING_TICKS = 100;
+    private static final int SOME_TICKS = 20;
     private static final double HALF = 0.5;
     private static final double DIAL_CENTER_Y = 7.0 / 16.0;
     /** The purple spot the crystal grows from, block-local, with the dial facing north. */
@@ -71,10 +79,10 @@ public final class CrystallizerTests {
     public static void crystalFirstThenEnder(GameTestHelper helper) {
         CrystallizerBlockEntity crystallizer = placeCrystallizer(helper, 1);
         crystallizer.insertCanister(FIRST, canister(GooTypes.CRYSTAL, CRYSTAL_COST), false);
-        helper.runAfterDelay(CRYSTALLIZE_TICKS, () -> {
+        helper.runAfterDelay(SOME_TICKS, () -> {
             helper.assertValueEqual(0L, crystallizer.crystallized(), "crystallized from crystal alone");
             crystallizer.insertCanister(SECOND, canister(GooTypes.ENDER, CHRYSM_VOLUME), false);
-            helper.runAfterDelay(CRYSTALLIZE_TICKS, () -> {
+            helper.runAfterDelay(CHRYSM_TICKS, () -> {
                 assertClickHands(helper, GooItems.CHRYSM.get(), GooTypes.ENDER);
                 helper.succeed();
             });
@@ -90,7 +98,7 @@ public final class CrystallizerTests {
         CrystallizerBlockEntity crystallizer = placeCrystallizer(helper, 1);
         crystallizer.insertCanister(FIRST, canister(GooTypes.ENDER, CHRYSM_VOLUME), false);
         crystallizer.insertCanister(SECOND, canister(GooTypes.CRYSTAL, CRYSTAL_COST), false);
-        helper.runAfterDelay(CRYSTALLIZE_TICKS, () -> {
+        helper.runAfterDelay(CHRYSM_TICKS, () -> {
             assertClickHands(helper, GooItems.CHRYSM.get(), GooTypes.ENDER);
             helper.succeed();
         });
@@ -105,7 +113,7 @@ public final class CrystallizerTests {
         CrystallizerBlockEntity crystallizer = placeCrystallizer(helper, 1);
         crystallizer.insertCanister(FIRST, canister(GooTypes.CRYSTAL, CRYSTAL_COST), false);
         crystallizer.insertCanister(SECOND, canister(GooTypes.CRYSTAL, CHRYSM_VOLUME), false);
-        helper.runAfterDelay(CRYSTALLIZE_TICKS, () -> {
+        helper.runAfterDelay(CHRYSM_TICKS, () -> {
             assertClickHands(helper, GooItems.CHRYSM.get(), GooTypes.CRYSTAL);
             helper.succeed();
         });
@@ -144,18 +152,19 @@ public final class CrystallizerTests {
         CrystallizerBlockEntity crystallizer = placeCrystallizer(helper, 1);
         crystallizer.insertCanister(FIRST, canister(GooTypes.CRYSTAL, CRYSTAL_COST / 2), false);
         crystallizer.insertCanister(SECOND, canister(GooTypes.ENDER, CHRYSM_VOLUME), false);
-        helper.runAfterDelay(CRYSTALLIZE_TICKS, () -> {
+        helper.runAfterDelay(STILL_GROWING_TICKS / 2, () -> helper.assertTrue(
+                helper.getBlockState(CRYSTALLIZER_POS).getValue(CrystallizerBlock.ACTIVE),
+                "The crystallizer should read active while crystallizing"));
+        helper.runAfterDelay(HALF_CHRYSM_TICKS + SOME_TICKS + SOME_TICKS, () -> {
             helper.assertValueEqual(CHRYSM_VOLUME / 2L, crystallizer.crystallized(), "crystallized on half the crystal");
             helper.assertTrue(crystallizer.formed().isEmpty(), "No chrysm should form without the crystal for it");
-            helper.assertTrue(helper.getBlockState(CRYSTALLIZER_POS).getValue(CrystallizerBlock.ACTIVE),
-                    "The crystallizer should read active while crystallizing");
-            crystallizer.insertGoo(FIRST, GooTypes.CRYSTAL, CRYSTAL_COST / 2);
-            helper.runAfterDelay(CRYSTALLIZE_TICKS, () -> assertClickHands(helper, GooItems.CHRYSM.get(), GooTypes.ENDER));
-        });
-        helper.runAfterDelay(IDLE_TICKS, () -> {
             helper.assertFalse(helper.getBlockState(CRYSTALLIZER_POS).getValue(CrystallizerBlock.ACTIVE),
                     "The crystallizer should read idle once nothing crystallizes");
-            helper.succeed();
+            crystallizer.insertGoo(FIRST, GooTypes.CRYSTAL, CRYSTAL_COST / 2);
+            helper.runAfterDelay(HALF_CHRYSM_TICKS, () -> {
+                assertClickHands(helper, GooItems.CHRYSM.get(), GooTypes.ENDER);
+                helper.succeed();
+            });
         });
     }
 
@@ -170,7 +179,7 @@ public final class CrystallizerTests {
         crystallizer.insertCanister(FIRST, canister(GooTypes.CRYSTAL, KILO_VOLUME / CrystallizerPhases.GOO_PER_CRYSTAL),
                 false);
         crystallizer.insertCanister(SECOND, canister(GooTypes.ENDER, KILO_VOLUME), false);
-        helper.runAfterDelay(CRYSTALLIZE_TICKS, () -> {
+        helper.runAfterDelay(KILOCHRYSM_TICKS, () -> {
             assertClickHands(helper, GooItems.KILOCHRYSM.get(), GooTypes.ENDER);
             helper.succeed();
         });
@@ -187,7 +196,7 @@ public final class CrystallizerTests {
         crystallizer.insertCanister(FIRST, canister(GooTypes.CRYSTAL, HALF_KILO / CrystallizerPhases.GOO_PER_CRYSTAL),
                 false);
         crystallizer.insertCanister(SECOND, canister(GooTypes.ENDER, HALF_KILO), false);
-        helper.runAfterDelay(CRYSTALLIZE_TICKS, () -> {
+        helper.runAfterDelay(HALF_KILO_TICKS, () -> {
             assertClickHands(helper, GooItems.CHRYSM.get(), GooTypes.ENDER);
             helper.assertValueEqual((long) HALF_KILO - CHRYSM_VOLUME, crystallizer.crystallized(),
                     "crystallized goo kept after taking a chrysm");
@@ -205,17 +214,40 @@ public final class CrystallizerTests {
         CrystallizerBlockEntity crystallizer = placeCrystallizer(helper, 1);
         crystallizer.insertCanister(FIRST, canister(GooTypes.CRYSTAL, CRYSTAL_COST * 2), false);
         crystallizer.insertCanister(SECOND, canister(GooTypes.ENDER, CHRYSM_VOLUME), false);
-        helper.runAfterDelay(CRYSTALLIZE_TICKS, () -> {
+        helper.runAfterDelay(CHRYSM_TICKS, () -> {
             helper.assertTrue(crystallizer.formedTier() == ChrysmTier.CHRYSM, "A chrysm should form");
             crystallizer.insertGoo(SECOND, GooTypes.ENDER, MORE_ENDER);
             helper.runAfterDelay(PUSH_TICKS, () -> {
                 helper.assertValueEqual(MORE_ENDER, enderIn(crystallizer), "ender held while the chrysm is inside");
                 assertClickHands(helper, GooItems.CHRYSM.get(), GooTypes.ENDER);
-                helper.runAfterDelay(CRYSTALLIZE_TICKS, () -> {
+                helper.runAfterDelay(SOME_TICKS, () -> {
                     helper.assertTrue(enderIn(crystallizer) < MORE_ENDER,
                             "The ender should crystallize once the chrysm is taken");
                     helper.succeed();
                 });
+            });
+        });
+    }
+
+    /**
+     * Full canisters of ender and crystal crystallize at the pace: no chrysm 100 ticks
+     * in, one by 220 (operator ruling: a chrysm at about 10 s).
+     *
+     * @param helper the gametest helper
+     */
+    public static void crystallizesAtAnEvenPace(GameTestHelper helper) {
+        CrystallizerBlockEntity crystallizer = placeCrystallizer(helper, 1);
+        crystallizer.insertCanister(FIRST, canister(GooTypes.CRYSTAL, KILO_VOLUME / CrystallizerPhases.GOO_PER_CRYSTAL),
+                false);
+        crystallizer.insertCanister(SECOND, canister(GooTypes.ENDER, KILO_VOLUME), false);
+        helper.runAfterDelay(STILL_GROWING_TICKS, () -> {
+            helper.assertTrue(crystallizer.crystallized() > 0 && crystallizer.formed().isEmpty(),
+                    "Half way to a chrysm there should be crystallized goo and no chrysm, crystallized "
+                            + crystallizer.crystallized());
+            helper.runAfterDelay(CHRYSM_TICKS - STILL_GROWING_TICKS, () -> {
+                helper.assertTrue(crystallizer.formedTier() == ChrysmTier.CHRYSM,
+                        "A chrysm should have formed by 220 ticks, crystallized " + crystallizer.crystallized());
+                helper.succeed();
             });
         });
     }
@@ -259,7 +291,7 @@ public final class CrystallizerTests {
         CrystallizerBlockEntity crystallizer = placeCrystallizer(helper, 1);
         crystallizer.insertCanister(FIRST, canister(GooTypes.CRYSTAL, CRYSTAL_COST), false);
         crystallizer.insertCanister(SECOND, canister(GooTypes.ENDER, CHRYSM_VOLUME), false);
-        helper.runAfterDelay(CRYSTALLIZE_TICKS, () -> {
+        helper.runAfterDelay(CHRYSM_TICKS, () -> {
             BlockPos abs = helper.absolutePos(CRYSTALLIZER_POS);
             double top = helper.getBlockState(CRYSTALLIZER_POS).getShape(helper.getLevel(), abs).bounds().maxY;
             helper.assertTrue(top > 1.0, "The crystallizer's shape should reach up around the crystal, top " + top);
