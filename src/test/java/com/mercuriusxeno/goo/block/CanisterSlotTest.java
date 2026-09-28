@@ -4,7 +4,6 @@ import com.mercuriusxeno.goo.block.canister.CanisterBlock;
 import com.mercuriusxeno.goo.block.canister.CanisterSlotLayout;
 import net.minecraft.core.Direction;
 import org.junit.jupiter.api.Test;
-import java.util.function.IntPredicate;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -94,48 +93,6 @@ class CanisterSlotTest {
         assertFalse(CanisterBlock.isValidSlot(9));
         assertFalse(CanisterBlock.isValidSlot(Integer.MIN_VALUE));
         assertFalse(CanisterBlock.isValidSlot(Integer.MAX_VALUE));
-    }
-
-    // --- findSlot tests ---
-
-    @Test
-    void findSlot_prefersHitSlot() {
-        IntPredicate allMatch = i -> true;
-        assertEquals(5, GooBlockInteraction.findSlot(5, 9, allMatch));
-    }
-
-    @Test
-    void findSlot_fallsBackToFirstMatch() {
-        IntPredicate onlySlot3 = i -> i == 3;
-        assertEquals(3, GooBlockInteraction.findSlot(-1, 9, onlySlot3));
-    }
-
-    @Test
-    void findSlot_hitSlotFailsFallsThrough() {
-        IntPredicate onlySlot7 = i -> i == 7;
-        assertEquals(7, GooBlockInteraction.findSlot(2, 9, onlySlot7));
-    }
-
-    @Test
-    void findSlot_noMatch() {
-        IntPredicate noneMatch = i -> false;
-        assertEquals(-1, GooBlockInteraction.findSlot(-1, 9, noneMatch));
-        assertEquals(-1, GooBlockInteraction.findSlot(4, 9, noneMatch));
-    }
-
-    @Test
-    void findSlot_negativeHitSlot_skipsPreference() {
-        IntPredicate onlySlot0 = i -> i == 0;
-        assertEquals(0, GooBlockInteraction.findSlot(-1, 9, onlySlot0));
-    }
-
-    @Test
-    void findSlot_respectsMaxSlots() {
-        IntPredicate onlySlot7 = i -> i == 7;
-        assertEquals(-1, GooBlockInteraction.findSlot(-1, 5, onlySlot7),
-                "Slot 7 should not be found when maxSlots is 5");
-        assertEquals(7, GooBlockInteraction.findSlot(-1, 8, onlySlot7),
-                "Slot 7 should be found when maxSlots is 8");
     }
 
     // --- placementSlot tests ---

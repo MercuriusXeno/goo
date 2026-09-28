@@ -1,0 +1,87 @@
+{
+	"parent": "minecraft:block/block",
+	"textures": {
+		"body": "goo:block/crystallizer",
+		"particle": "goo:block/crystallizer"
+	},
+	"elements": [
+		{
+			"name": "body",
+			"from": [
+				1,
+				0,
+				1
+			],
+			"to": [
+				15,
+				16,
+				15
+			],
+			"rotation": {
+				"angle": 0,
+				"axis": "y",
+				"origin": [
+					8,
+					8,
+					8
+				]
+			},
+			"faces": {
+				"north": {
+					"uv": [
+						0,
+						0,
+						3.5,
+						8
+					],
+					"texture": "#body"
+				},
+				"east": {
+					"uv": [
+						3.5,
+						0,
+						7,
+						8
+					],
+					"texture": "#body"
+				},
+				"south": {
+					"uv": [
+						0,
+						8,
+						3.5,
+						16
+					],
+					"texture": "#body"
+				},
+				"west": {
+					"uv": [
+						3.5,
+						8,
+						7,
+						16
+					],
+					"texture": "#body"
+				},
+				"up": {
+					"uv": [
+						7,
+						0,
+						10.5,
+						7.0
+					],
+					"texture": "#body"
+				},
+				"down": {
+					"uv": [
+						7,
+						7.0,
+						10.5,
+						14
+					],
+					"texture": "#body"
+				}
+			}
+		}
+	]
+}

@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:crystallizer_gasket_fills_canister",
+  "environment": "minecraft:default",
+  "structure": "goo:machine_bay",
+  "max_ticks": 800,
+  "setup_ticks": 0,
+  "required": true
+}

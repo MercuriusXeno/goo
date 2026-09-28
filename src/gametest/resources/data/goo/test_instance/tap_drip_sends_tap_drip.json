@@ -2,7 +2,7 @@
   "type": "minecraft:function",
   "function": "goo:tap_drip_sends_tap_drip",
   "environment": "minecraft:default",
-  "structure": "minecraft:empty",
+  "structure": "goo:test_bay",
   "max_ticks": 100,
   "setup_ticks": 0,
   "required": true

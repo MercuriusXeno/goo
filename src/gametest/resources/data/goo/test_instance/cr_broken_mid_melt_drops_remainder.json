@@ -2,7 +2,7 @@
   "type": "minecraft:function",
   "function": "goo:cr_broken_mid_melt_drops_remainder",
   "environment": "minecraft:default",
-  "structure": "minecraft:empty",
+  "structure": "goo:crucible_bay",
   "max_ticks": 1200,
   "setup_ticks": 0,
   "required": true

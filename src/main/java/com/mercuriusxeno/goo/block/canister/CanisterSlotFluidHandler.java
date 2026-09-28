@@ -13,6 +13,7 @@ import net.neoforged.neoforge.transfer.transaction.Transaction;
 import org.jspecify.annotations.Nullable;
 import java.util.Map;
 import java.util.function.LongSupplier;
+import java.util.function.Predicate;
 
 /**
  * Single-tank block-level fluid handler for canister slots. Accepts any
@@ -26,6 +27,7 @@ public class CanisterSlotFluidHandler extends FluidStacksResourceHandler {
 
     private final Runnable onChange;
     private final LongSupplier tickSupplier;
+    private final Predicate<FluidResource> admits;
 
     // --- Stream tracking (transient, for rendering incoming fluid) ---
 
@@ -67,9 +69,23 @@ public class CanisterSlotFluidHandler extends FluidStacksResourceHandler {
      * @param tickSupplier supplies current game tick for stream timing
      */
     public CanisterSlotFluidHandler(int capacity, Runnable onChange, LongSupplier tickSupplier) {
+        this(capacity, onChange, tickSupplier, incoming -> true);
+    }
+
+    /**
+     * Creates a single-tank handler that takes only the goo its holder admits.
+     *
+     * @param capacity     total capacity in microblobs (mB)
+     * @param onChange     called when contents change
+     * @param tickSupplier supplies current game tick for stream timing
+     * @param admits       answers whether the holder takes an arriving goo
+     */
+    public CanisterSlotFluidHandler(int capacity, Runnable onChange, LongSupplier tickSupplier,
+                                    Predicate<FluidResource> admits) {
         super(1, capacity);
         this.onChange = onChange;
         this.tickSupplier = tickSupplier;
+        this.admits = admits;
     }
 
     /**
@@ -85,7 +101,7 @@ public class CanisterSlotFluidHandler extends FluidStacksResourceHandler {
             return false;
         }
         FluidResource current = getResource(0);
-        return current.isEmpty() || current.equals(resource);
+        return (current.isEmpty() || current.equals(resource)) && admits.test(resource);
     }
 
     /**

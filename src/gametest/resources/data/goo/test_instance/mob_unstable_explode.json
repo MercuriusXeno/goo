@@ -2,7 +2,7 @@
   "type": "minecraft:function",
   "function": "goo:mob_unstable_explode",
   "environment": "minecraft:default",
-  "structure": "minecraft:empty",
+  "structure": "goo:test_bay",
   "max_ticks": 5,
   "setup_ticks": 0,
   "required": true
