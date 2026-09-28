@@ -27,6 +27,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -262,18 +263,19 @@ public class CanisterBlock extends GooMachineBlock {
 
     /**
      * Determines which slot the player clicked, using nearest-center detection
-     * over the slot centers of the canister block at pos.
-     * Returns -1 if no slot is within threshold.
+     * over the slots in play of the canister block at pos, so a hit never names a
+     * slot the block can't hold. Returns -1 if no slot is within threshold.
      *
      * @param hit     the block hit result from the interaction
      * @param pos     the block position
      * @param centers pixel centers per slot, from {@link CanisterSlotLayout#centersAt}
+     * @param inPlay  the slots a canister can stand in, from {@link CanisterSlotLayout#slotsInPlayAt}
      * @return the slot index (0-8), or -1 if no slot matched
      */
-    public static int hitSlot(BlockHitResult hit, BlockPos pos, float[][] centers) {
+    public static int hitSlot(BlockHitResult hit, BlockPos pos, float[][] centers, Set<Integer> inPlay) {
         double hitPixelX = (hit.getLocation().x - pos.getX()) * ShapeHitCheck.PIXELS_PER_BLOCK;
         double hitPixelZ = (hit.getLocation().z - pos.getZ()) * ShapeHitCheck.PIXELS_PER_BLOCK;
-        return CanisterSlotLayout.nearestSlot(centers, (float) hitPixelX, (float) hitPixelZ);
+        return CanisterSlotLayout.nearestSlotInPlay(centers, inPlay, (float) hitPixelX, (float) hitPixelZ);
     }
 
     /**

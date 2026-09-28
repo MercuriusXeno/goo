@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.block.canister;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import org.jspecify.annotations.Nullable;
 import java.util.Map;
 import java.util.Set;
@@ -176,6 +177,36 @@ public final class CanisterSlotLayout {
         float dx = px - center[0];
         float dz = pz - center[1];
         return dx * dx + dz * dz;
+    }
+
+    /**
+     * The slots a canister block at a position lays canisters in: those the attachable
+     * machine below allows, else every slot.
+     *
+     * @param level       the level
+     * @param canisterPos the canister block's position
+     * @return the slots in play
+     */
+    public static Set<Integer> slotsInPlayAt(BlockGetter level, BlockPos canisterPos) {
+        BlockEntity below = level.getBlockEntity(canisterPos.below());
+        return below instanceof ICanisterAttachable attachable ? attachable.allowedSlots() : ICanisterAttachable.ALL_SLOTS;
+    }
+
+    /**
+     * The slot in play whose center lies nearest a point, within the hit threshold, so a
+     * hit never resolves to a slot the canister block can't hold (a canister block on a
+     * machine that moves only some slots would otherwise answer an unused slot left at
+     * its grid position).
+     *
+     * @param centers pixel centers per slot
+     * @param inPlay  the slots a canister can stand in
+     * @param px      pixel-space X coordinate
+     * @param pz      pixel-space Z coordinate
+     * @return the slot index, or NO_SLOT when no slot in play is within threshold
+     */
+    public static int nearestSlotInPlay(float[][] centers, Set<Integer> inPlay, float px, float pz) {
+        int best = nearestAllowed(centers, inPlay, px, pz);
+        return best == NO_SLOT ? NO_SLOT : withinThreshold(best, squaredDist(centers[best], px, pz));
     }
 
     /**
