@@ -29,6 +29,7 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.phys.AABB;
@@ -385,6 +386,42 @@ public final class CrystallizerTests {
             ItemStack hand = player.getItemInHand(InteractionHand.MAIN_HAND);
             helper.assertTrue(hand.is(GooItems.CHRYSM.get()), "A click on the crystal should hand the chrysm, found " + hand);
             helper.succeed();
+        });
+    }
+
+    /**
+     * A mature crystal is taken whatever the player holds: a stone block, a canister
+     * and an omniblob each take a chrysm in turn, and each held item stays.
+     *
+     * @param helper the gametest helper
+     */
+    public static void anyHeldItemTakesTheCrystal(GameTestHelper helper) {
+        CrystallizerBlockEntity crystallizer = placeCrystallizer(helper, 1);
+        crystallizer.insertCanister(FIRST, canister(GooTypes.CRYSTAL, CRYSTAL_COST * 3), false);
+        crystallizer.insertCanister(SECOND, canister(GooTypes.ENDER, CHRYSM_VOLUME * 3), false);
+        ItemStack[] held = {new ItemStack(Items.STONE), new ItemStack(GooItems.CANISTER.get()),
+            BlobStacks.createForOutput(GooTypes.ENDER, CHRYSM_VOLUME)};
+        takeWithEach(helper, held, 0);
+    }
+
+    private static void takeWithEach(GameTestHelper helper, ItemStack[] held, int index) {
+        if (index == held.length) {
+            helper.succeed();
+            return;
+        }
+        helper.runAfterDelay(CHRYSM_TICKS, () -> {
+            Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+            ItemStack holding = held[index].copy();
+            player.setItemInHand(InteractionHand.MAIN_HAND, holding);
+            BlockPos abs = helper.absolutePos(CRYSTALLIZER_POS);
+            BlockHitResult crystalHit = new BlockHitResult(new Vec3(abs.getX() + CRYSTAL_SPOT_NORTH[0],
+                    abs.getY() + 1.0 + CRYSTAL_HIT_LIFT, abs.getZ() + CRYSTAL_SPOT_NORTH[1]), Direction.UP, abs, false);
+            helper.useBlock(CRYSTALLIZER_POS, player, crystalHit);
+            helper.assertTrue(player.getInventory().contains(stack -> stack.is(GooItems.CHRYSM.get())),
+                    "Holding " + held[index] + " should still take the crystal");
+            helper.assertTrue(ItemStack.matches(held[index], player.getItemInHand(InteractionHand.MAIN_HAND)),
+                    "The held " + held[index] + " should stay in the hand");
+            takeWithEach(helper, held, index + 1);
         });
     }
 

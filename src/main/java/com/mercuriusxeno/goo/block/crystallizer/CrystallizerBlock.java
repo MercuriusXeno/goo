@@ -259,6 +259,12 @@ public class CrystallizerBlock extends GooMachineBlock {
     protected @NonNull InteractionResult useItemOn(
             @NonNull ItemStack stack, @NonNull BlockState state, @NonNull Level level, @NonNull BlockPos pos,
             @NonNull Player player, @NonNull InteractionHand hand, @NonNull BlockHitResult hitResult) {
+        // crystallizer-emits-chrysm: a mature crystal is taken whatever the player holds.
+        if (level.getBlockEntity(pos) instanceof CrystallizerBlockEntity crystallizer
+                && hitsMatureCrystal(crystallizer, state, pos, hitResult)) {
+            return level.isClientSide() ? InteractionResult.SUCCESS
+                    : SlottedCanisterData.handToPlayer(crystallizer.takeFormed(), player, level, pos);
+        }
         return GooBlockInteraction.handleItemInteraction(
                 stack, level, pos, player, hand, hitResult,
                 CrystallizerBlockEntity.class,
@@ -322,6 +328,19 @@ public class CrystallizerBlock extends GooMachineBlock {
      * @param hitResult    the click's hit
      * @return SUCCESS when something was handed over, PASS otherwise
      */
+    /**
+     * @param crystallizer the crystallizer
+     * @param state        its block state
+     * @param pos          its position
+     * @param hit          the click's hit
+     * @return true when the hit lands on a mature crystal
+     */
+    private static boolean hitsMatureCrystal(CrystallizerBlockEntity crystallizer, BlockState state, BlockPos pos,
+                                             BlockHitResult hit) {
+        return crystallizer.isMature(knobTier(state)) && ShapeHitCheck.hitInsideShape(hit, pos,
+                crystalShape(state.getValue(FACING), crystallizer.crystallized()));
+    }
+
     private static InteractionResult takeCanisterOrChrysm(CrystallizerBlockEntity crystallizer, BlockState state,
                                                           Level level, BlockPos pos, Player player,
                                                           BlockHitResult hitResult) {
