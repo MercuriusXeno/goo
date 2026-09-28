@@ -75,9 +75,6 @@ public final class BlazeExplosionVisual implements BurnoutVisual {
      * @return the flame's remaining strength in [0, 1]
      */
     static float flameStrength(float progress) {
-        if (progress <= BURN_OFF_START) {
-            return 1f;
-        }
-        return Math.max(0f, 1f - (progress - BURN_OFF_START) / (1f - BURN_OFF_START));
+        return BurnoutGeometry.fadeAfter(progress, BURN_OFF_START);
     }
 }

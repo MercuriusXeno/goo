@@ -85,9 +85,6 @@ public final class FrostExplosionVisual implements BurnoutVisual {
      * @return the nova's remaining opacity in [0, 1]
      */
     static float remaining(float progress) {
-        if (progress <= FADE_START) {
-            return 1f;
-        }
-        return Math.max(0f, 1f - (progress - FADE_START) / (1f - FADE_START));
+        return BurnoutGeometry.fadeAfter(progress, FADE_START);
     }
 }

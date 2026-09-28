@@ -201,6 +201,15 @@ public final class GooRenderTypes {
     public static final RenderType FROST_EXPLOSION_TYPE = burnoutType(FROST_EXPLOSION);
 
     /**
+     * Nether goo's burnout explosion pipeline: the inward rush, additive,
+     * through {@code nether_explosion.vsh / .fsh}.
+     */
+    public static final RenderPipeline NETHER_EXPLOSION = burnoutPipeline("nether_explosion", BlendFunction.LIGHTNING);
+
+    /** RenderType that draws nether goo's burnout explosion. */
+    public static final RenderType NETHER_EXPLOSION_TYPE = burnoutType(NETHER_EXPLOSION);
+
+    /**
      * Nether black-hole accretion-disk pipeline: third render pass that
      * emits a flat annular ring in the world XZ plane around the sphere,
      * inner radius pinned to the main sphere radius and outer radius at
@@ -483,6 +492,7 @@ public final class GooRenderTypes {
         event.registerPipeline(ROCK_EXPLOSION);
         event.registerPipeline(BLAZE_EXPLOSION);
         event.registerPipeline(FROST_EXPLOSION);
+        event.registerPipeline(NETHER_EXPLOSION);
         event.registerPipeline(NETHER_DISK);
         event.registerPipeline(NETHER_CUBE_EDGE);
         event.registerPipeline(LINES_NO_DEPTH_PIPELINE);

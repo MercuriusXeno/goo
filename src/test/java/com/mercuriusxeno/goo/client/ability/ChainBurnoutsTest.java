@@ -61,6 +61,11 @@ class ChainBurnoutsTest {
     }
 
     @Test
+    void netherResolvesItsOwnExplosion() {
+        assertSame(NetherExplosionVisual.INSTANCE, BurnoutVisuals.forType(GooTypes.NETHER));
+    }
+
+    @Test
     void progressRunsFromStartToDuration() {
         ChainBurnouts.Burnout burnout = new ChainBurnouts().add(POS, Direction.UP, GooTypes.UNSTABLE,
                 ABILITY, 1, START);

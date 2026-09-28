@@ -153,6 +153,21 @@ final class BurnoutGeometry {
     }
 
     /**
+     * A strength that holds whole until start, then falls linearly to
+     * nothing at the explosion's end.
+     *
+     * @param progress the explosion's progress in [0, 1]
+     * @param start    the progress at which the fall begins, below 1
+     * @return the strength in [0, 1]
+     */
+    static float fadeAfter(float progress, float start) {
+        if (progress <= start) {
+            return 1f;
+        }
+        return Math.max(0f, 1f - (progress - start) / (1f - start));
+    }
+
+    /**
      * Cubic ease-out: fast, then slow.
      *
      * @param t progress in [0, 1]
