@@ -22,14 +22,17 @@ import java.util.function.Consumer;
 /**
  * Special item renderer for the chrysm tiers (decision chrysm-tiers-fixed-and-stackable):
  * each draws as the quartz crystal the crystallizer grows, at its tier's volume, in
- * its goo type's own texture. Operator ruling: each tier fills the slot, the tiers
- * reading apart by their cluster. The operator's drawn sizes can replace it later.
+ * its goo type's own texture. Operator rulings: each tier fills the slot, then
+ * steps up 20% per tier, so each tier reads larger than the one below. The
+ * operator's drawn sizes can replace it later.
  */
 public class ChrysmSpecialRenderer implements SpecialModelRenderer<ResourceKey<GooTypeDefinition>> {
 
     /** The item box a cluster fills: 7 px either side of its base and 14 px tall. */
     private static final double BOX_HALF_WIDTH = 7;
     private static final double BOX_HEIGHT = 14;
+    /** Operator ruling: every tier 20% past the fit, and each tier 20% past the one below. */
+    private static final double TIER_STEP = 1.2;
     private static final float CENTER = 0.5f;
     /** The crystal's base sits one pixel above the item box floor. */
     private static final float FLOOR = 1f / 16f;
@@ -61,13 +64,24 @@ public class ChrysmSpecialRenderer implements SpecialModelRenderer<ResourceKey<G
         }
         poseStack.pushPose();
         poseStack.translate(CENTER, FLOOR, CENTER);
-        float scale = fitScale(CrystalCluster.reach(tier.volume()));
+        float scale = tierScale(tier);
         poseStack.scale(scale, scale, scale);
         poseStack.translate(-CrystalCluster.BASE_X * PIXEL, -CrystalCluster.BASE_Y * PIXEL,
                 -CrystalCluster.BASE_Z * PIXEL);
         CrystalClusterSubmitter.submit(poseStack, nodeCollector, CrystalCluster.prisms(tier.volume()),
                 CrystalClusterSubmitter.lookOf(type, ClientGooTypes.color(type)), packedLight);
         poseStack.popPose();
+    }
+
+    /**
+     * The tier's drawn scale: its cluster's fit to the item box, stepped up 20% per
+     * tier (operator ruling), so a kilochrysm and a megachrysm read larger than a chrysm.
+     *
+     * @param tier the tier
+     * @return the scale
+     */
+    static float tierScale(ChrysmTier tier) {
+        return (float) (fitScale(CrystalCluster.reach(tier.volume())) * Math.pow(TIER_STEP, tier.ordinal() + 1));
     }
 
     /**

@@ -23,4 +23,13 @@ class ChrysmSpecialRendererTest {
         double fill = Math.max(reach[0] * scale / BOX_HALF_WIDTH, reach[1] * scale / BOX_HEIGHT);
         assertEquals(1.0, fill, 1e-6, tier.name());
     }
+
+    @ParameterizedTest
+    @EnumSource(ChrysmTier.class)
+    void eachTierStepsUpTwentyPercentPastTheOneBelow(ChrysmTier tier) {
+        double[] reach = CrystalCluster.reach(tier.volume());
+        float scale = ChrysmSpecialRenderer.tierScale(tier);
+        double fill = Math.max(reach[0] * scale / BOX_HALF_WIDTH, reach[1] * scale / BOX_HEIGHT);
+        assertEquals(Math.pow(1.2, tier.ordinal() + 1), fill, 1e-5, tier.name());
+    }
 }
