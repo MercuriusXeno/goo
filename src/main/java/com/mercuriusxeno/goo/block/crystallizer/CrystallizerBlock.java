@@ -1,12 +1,10 @@
 package com.mercuriusxeno.goo.block.crystallizer;
 
 import com.mercuriusxeno.goo.block.BlockEntityTicks;
-import com.mercuriusxeno.goo.block.GooBlockInteraction;
 import com.mercuriusxeno.goo.block.GooMachineBlock;
 import com.mercuriusxeno.goo.block.ShapeHitCheck;
 import com.mercuriusxeno.goo.block.canister.SlottedCanisterData;
 import com.mercuriusxeno.goo.item.ChrysmTier;
-import com.mercuriusxeno.goo.item.GooInteractionType;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
@@ -173,43 +171,52 @@ public class CrystallizerBlock extends GooMachineBlock {
     }
 
     /**
-     * A click on a mature crystal takes it whatever the player holds; a tuner passes
-     * to its own use; every other item falls through to the empty-hand click, and
-     * from there a canister's own use places it in the canister block on the top.
+     * A click with an item in hand: the knob and a mature crystal are the crystallizer's
+     * whatever the player holds; any other click passes to the item's own use, so a
+     * canister places its canister block on top, sound included.
      */
     @Override
     protected @NonNull InteractionResult useItemOn(
             @NonNull ItemStack stack, @NonNull BlockState state, @NonNull Level level, @NonNull BlockPos pos,
             @NonNull Player player, @NonNull InteractionHand hand, @NonNull BlockHitResult hitResult) {
-        // crystallizer-emits-chrysm: a mature crystal is taken whatever the player holds.
-        if (level.getBlockEntity(pos) instanceof CrystallizerBlockEntity crystallizer
-                && hitsMatureCrystal(crystallizer, state, pos, hitResult)) {
-            return level.isClientSide() ? InteractionResult.SUCCESS
-                    : SlottedCanisterData.handToPlayer(crystallizer.takeFormed(), player, level, pos);
-        }
-        return GooInteractionType.classify(stack) == GooInteractionType.TUNER_PASS
-                ? InteractionResult.PASS : InteractionResult.TRY_WITH_EMPTY_HAND;
+        return click(state, level, pos, player, hitResult);
     }
 
     /**
-     * Empty-hand clicks: a click on the knob steps it, and any other click hands the
-     * formed chrysm to the player.
+     * An empty-hand click: the knob steps, a mature crystal breaks into its chrysm, and
+     * any other click passes.
      */
     @Override
     protected @NonNull InteractionResult useWithoutItem(
             @NonNull BlockState state, @NonNull Level level, @NonNull BlockPos pos,
             @NonNull Player player, @NonNull BlockHitResult hitResult) {
-        InteractionResult earlyOut = GooBlockInteraction.validateEmptyHand(level, pos, player);
-        if (earlyOut != null) {
-            return earlyOut;
-        }
+        return click(state, level, pos, player, hitResult);
+    }
+
+    /**
+     * The crystallizer's own clicks, the same on client and server so neither side
+     * swallows a click the other passes: the knob and a mature crystal, nothing else.
+     *
+     * @param state     the block state
+     * @param level     the level
+     * @param pos       the crystallizer's position
+     * @param player    the clicking player
+     * @param hitResult the click's hit
+     * @return SUCCESS for the knob or a mature crystal, PASS otherwise
+     */
+    private static InteractionResult click(BlockState state, Level level, BlockPos pos, Player player,
+                                           BlockHitResult hitResult) {
         if (!(level.getBlockEntity(pos) instanceof CrystallizerBlockEntity crystallizer)) {
             return InteractionResult.PASS;
         }
         if (ShapeHitCheck.hitInsideShape(hitResult, pos, knobShape(state))) {
-            return stepKnob(crystallizer, state, level, pos);
+            return level.isClientSide() ? InteractionResult.SUCCESS : stepKnob(crystallizer, state, level, pos);
         }
-        return SlottedCanisterData.handToPlayer(crystallizer.takeFormed(), player, level, pos);
+        if (hitsMatureCrystal(crystallizer, state, pos, hitResult)) {
+            return level.isClientSide() ? InteractionResult.SUCCESS
+                    : SlottedCanisterData.handToPlayer(crystallizer.takeFormed(), player, level, pos);
+        }
+        return InteractionResult.PASS;
     }
 
     /**
