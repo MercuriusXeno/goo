@@ -23,6 +23,12 @@ import net.neoforged.neoforge.client.event.RegisterRenderPipelinesEvent;
 public final class GooRenderTypes {
     /** Mod namespace for identifier construction. */
     private static final String NAMESPACE = "goo";
+    /** Path prefix of a pipeline's location. */
+    private static final String PIPELINE_PATH = "pipeline/";
+    /** Path prefix of a core shader. */
+    private static final String CORE_SHADER_PATH = "core/";
+    /** Name prefix of a goo render type. */
+    private static final String TYPE_NAME_PREFIX = "goo_";
 
     /**
      * Lines pipeline with LIGHTNING blend (SRC_ALPHA, ONE) and no depth write.
@@ -161,26 +167,20 @@ public final class GooRenderTypes {
      * ring, additive with depth write off and both faces drawn, through
      * {@code unstable_explosion.vsh / .fsh}.
      */
-    public static final RenderPipeline UNSTABLE_EXPLOSION = RenderPipeline.builder(
-                    RenderPipelines.MATRICES_PROJECTION_SNIPPET,
-                    RenderPipelines.GLOBALS_SNIPPET)
-            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, "pipeline/unstable_explosion"))
-            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, "core/unstable_explosion"))
-            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, "core/unstable_explosion"))
-            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR_NORMAL, VertexFormat.Mode.QUADS)
-            .withColorTargetState(new ColorTargetState(BlendFunction.LIGHTNING))
-            .withDepthStencilState(new DepthStencilState(
-                    DepthStencilState.DEFAULT.depthTest(), false))
-            .withCull(false)
-            .build();
+    public static final RenderPipeline UNSTABLE_EXPLOSION = burnoutPipeline("unstable_explosion", BlendFunction.LIGHTNING);
 
     /** RenderType that draws unstable goo's burnout explosion. */
-    public static final RenderType UNSTABLE_EXPLOSION_TYPE = RenderType.create(
-            "goo_unstable_explosion",
-            RenderSetup.builder(UNSTABLE_EXPLOSION)
-                    .setOutputTarget(OutputTarget.MAIN_TARGET)
-                    .createRenderSetup()
-    );
+    public static final RenderType UNSTABLE_EXPLOSION_TYPE = burnoutType(UNSTABLE_EXPLOSION);
+
+    /**
+     * Rock goo's burnout explosion pipeline: the dust shock disc, alpha
+     * blended so the dust hides what is behind it, through
+     * {@code rock_explosion.vsh / .fsh}.
+     */
+    public static final RenderPipeline ROCK_EXPLOSION = burnoutPipeline("rock_explosion", BlendFunction.TRANSLUCENT);
+
+    /** RenderType that draws rock goo's burnout explosion. */
+    public static final RenderType ROCK_EXPLOSION_TYPE = burnoutType(ROCK_EXPLOSION);
 
     /**
      * Nether black-hole accretion-disk pipeline: third render pass that
@@ -420,6 +420,39 @@ public final class GooRenderTypes {
     private GooRenderTypes() {}
 
     /**
+     * A burnout explosion pipeline (decision elemental-explosion-per-type):
+     * the type's own shader pair under {@code core/<name>}, position, color
+     * and normal quads, depth tested with depth write off, both faces drawn.
+     *
+     * @param name  the shader pair's and pipeline's name
+     * @param blend how the explosion blends over the world
+     * @return the pipeline
+     */
+    private static RenderPipeline burnoutPipeline(String name, BlendFunction blend) {
+        return RenderPipeline.builder(RenderPipelines.MATRICES_PROJECTION_SNIPPET, RenderPipelines.GLOBALS_SNIPPET)
+                .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + name))
+                .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + name))
+                .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + name))
+                .withVertexFormat(DefaultVertexFormat.POSITION_COLOR_NORMAL, VertexFormat.Mode.QUADS)
+                .withColorTargetState(new ColorTargetState(blend))
+                .withDepthStencilState(new DepthStencilState(DepthStencilState.DEFAULT.depthTest(), false))
+                .withCull(false)
+                .build();
+    }
+
+    /**
+     * The render type that draws a burnout explosion pipeline to the main target.
+     *
+     * @param pipeline the explosion's pipeline
+     * @return the render type
+     */
+    private static RenderType burnoutType(RenderPipeline pipeline) {
+        String name = pipeline.getLocation().getPath().substring(PIPELINE_PATH.length());
+        return RenderType.create(TYPE_NAME_PREFIX + name,
+                RenderSetup.builder(pipeline).setOutputTarget(OutputTarget.MAIN_TARGET).createRenderSetup());
+    }
+
+    /**
      * Registers custom pipelines with the NeoForge pipeline registry.
      *
      * @param event the event instance
@@ -429,6 +462,7 @@ public final class GooRenderTypes {
         event.registerPipeline(NETHER_BLACKHOLE);
         event.registerPipeline(NETHER_CORONA);
         event.registerPipeline(UNSTABLE_EXPLOSION);
+        event.registerPipeline(ROCK_EXPLOSION);
         event.registerPipeline(NETHER_DISK);
         event.registerPipeline(NETHER_CUBE_EDGE);
         event.registerPipeline(LINES_NO_DEPTH_PIPELINE);

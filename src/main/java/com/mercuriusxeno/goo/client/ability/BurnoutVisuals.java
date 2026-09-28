@@ -47,6 +47,9 @@ public final class BurnoutVisuals {
         if (gooType == GooTypes.UNSTABLE) {
             return UnstableExplosionVisual.INSTANCE;
         }
+        if (gooType == GooTypes.ROCK) {
+            return RockExplosionVisual.INSTANCE;
+        }
         return BurnoutVisual.undesigned(gooType);
     }
 }
