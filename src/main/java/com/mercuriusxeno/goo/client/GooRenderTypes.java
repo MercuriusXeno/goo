@@ -156,6 +156,33 @@ public final class GooRenderTypes {
     );
 
     /**
+     * Unstable goo's burnout explosion pipeline (decision
+     * elemental-explosion-per-type): the fireball sphere and its shockwave
+     * ring, additive with depth write off and both faces drawn, through
+     * {@code unstable_explosion.vsh / .fsh}.
+     */
+    public static final RenderPipeline UNSTABLE_EXPLOSION = RenderPipeline.builder(
+                    RenderPipelines.MATRICES_PROJECTION_SNIPPET,
+                    RenderPipelines.GLOBALS_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, "pipeline/unstable_explosion"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, "core/unstable_explosion"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, "core/unstable_explosion"))
+            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR_NORMAL, VertexFormat.Mode.QUADS)
+            .withColorTargetState(new ColorTargetState(BlendFunction.LIGHTNING))
+            .withDepthStencilState(new DepthStencilState(
+                    DepthStencilState.DEFAULT.depthTest(), false))
+            .withCull(false)
+            .build();
+
+    /** RenderType that draws unstable goo's burnout explosion. */
+    public static final RenderType UNSTABLE_EXPLOSION_TYPE = RenderType.create(
+            "goo_unstable_explosion",
+            RenderSetup.builder(UNSTABLE_EXPLOSION)
+                    .setOutputTarget(OutputTarget.MAIN_TARGET)
+                    .createRenderSetup()
+    );
+
+    /**
      * Nether black-hole accretion-disk pipeline: third render pass that
      * emits a flat annular ring in the world XZ plane around the sphere,
      * inner radius pinned to the main sphere radius and outer radius at
@@ -401,6 +428,7 @@ public final class GooRenderTypes {
         event.registerPipeline(LINES_ADDITIVE_GLOW);
         event.registerPipeline(NETHER_BLACKHOLE);
         event.registerPipeline(NETHER_CORONA);
+        event.registerPipeline(UNSTABLE_EXPLOSION);
         event.registerPipeline(NETHER_DISK);
         event.registerPipeline(NETHER_CUBE_EDGE);
         event.registerPipeline(LINES_NO_DEPTH_PIPELINE);

@@ -29,7 +29,21 @@ public final class SyncedSteps {
      *         marker's id or its program holds no such step
      */
     public static <S extends Step> Optional<S> first(ChainMarkerBlockEntity be, Class<S> type) {
-        ClientAbility ability = AbilitySyncHandler.findAbility(be.getAbilityId());
+        return first(be.getAbilityId(), type);
+    }
+
+    /**
+     * Finds the first step of a type in an ability's program, for a marker
+     * already gone, such as one that burned out.
+     *
+     * @param abilityId the ability id
+     * @param type      the step type
+     * @param <S>       the step class
+     * @return the step, or empty when no ability is synced under the id or
+     *         its program holds no such step
+     */
+    public static <S extends Step> Optional<S> first(String abilityId, Class<S> type) {
+        ClientAbility ability = AbilitySyncHandler.findAbility(abilityId);
         if (ability == null) {
             return Optional.empty();
         }

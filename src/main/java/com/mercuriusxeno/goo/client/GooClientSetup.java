@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ISidedProxy;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
+import com.mercuriusxeno.goo.client.ability.ChainBurnouts;
 import com.mercuriusxeno.goo.client.ber.*;
 import com.mercuriusxeno.goo.client.model.*;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
@@ -208,6 +209,8 @@ public final class GooClientSetup {
         event.registerSpriteSet(GooParticles.TAP_DRIP_LAND.get(), TapDripParticle.LandProvider::new);
         event.registerSpriteSet(GooParticles.GOO_FOG.get(), GooFogParticle.Provider::new);
         event.registerSpriteSet(GooParticles.ORIENTED_BOOM.get(), OrientedBoomParticle.Provider::new);
+        event.registerSpecial(GooParticles.SILENT_BLAST.get(),
+                (options, level, x, y, z, dx, dy, dz, random) -> null);
     }
 
     /**
@@ -307,6 +310,7 @@ public final class GooClientSetup {
         Goo.GOO_VALUES.clearAll();
         TunerAwaitState.clear();
         BlobFlightManager.clear();
+        ChainBurnouts.CLIENT.clear();
         ThrowFreezeState.clear();
     }
 
