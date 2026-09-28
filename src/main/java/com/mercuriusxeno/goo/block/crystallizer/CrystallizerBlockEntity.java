@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.block.BlockEntitySync;
 import com.mercuriusxeno.goo.block.GooGlowingMachineBlockEntity;
 import com.mercuriusxeno.goo.block.canister.HudAnchor;
 import com.mercuriusxeno.goo.block.canister.HudViewer;
+import com.mercuriusxeno.goo.block.canister.ICanisterAttachable;
 import com.mercuriusxeno.goo.block.canister.ICanisterHolder;
 import com.mercuriusxeno.goo.block.canister.SlottedCanisterData;
 import com.mercuriusxeno.goo.block.crystallizer.CrystallizerPhases.Held;
@@ -34,6 +35,7 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
+import java.util.Set;
 import static com.mercuriusxeno.goo.GooConstants.NO_SLOT;
 
 /**
@@ -45,7 +47,8 @@ import static com.mercuriusxeno.goo.GooConstants.NO_SLOT;
  * the remainder stays crystallized. Goo reaches it only through the canisters,
  * each carrying its own gaskets as the reactor's output canister does.
  */
-public class CrystallizerBlockEntity extends GooGlowingMachineBlockEntity implements ICanisterHolder {
+public class CrystallizerBlockEntity extends GooGlowingMachineBlockEntity
+        implements ICanisterHolder, ICanisterAttachable {
 
     /** The two canister slots on the top, back left then back right. */
     public static final int SLOT_COUNT = 2;
@@ -255,6 +258,25 @@ public class CrystallizerBlockEntity extends GooGlowingMachineBlockEntity implem
     @Override
     public boolean takesCanisterAt(BlockHitResult hit, boolean sneaking) {
         return !sneaking && CrystallizerBlock.slotAt(getBlockState(), getBlockPos(), hit) != NO_SLOT;
+    }
+
+    // --- ICanisterAttachable: no canister block goes on the crystallizer ---
+
+    /**
+     * Operator ruling: a canister is refused anywhere on the crystallizer but its two
+     * marked slots, so no canister block may stand on it and the placement preview
+     * shows nothing there.
+     *
+     * @return no slot
+     */
+    @Override
+    public Set<Integer> allowedSlots() {
+        return Set.of();
+    }
+
+    @Override
+    public int currentTopAttachments() {
+        return 0;
     }
 
     // --- IGasketHolder: each canister carries its own gaskets ---

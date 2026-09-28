@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.block.GooMachineBlock;
 import com.mercuriusxeno.goo.block.ShapeHitCheck;
 import com.mercuriusxeno.goo.block.canister.SlottedCanisterData;
 import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
+import com.mercuriusxeno.goo.item.BlobInsert;
 import com.mercuriusxeno.goo.item.ChrysmTier;
 import com.mercuriusxeno.goo.item.GooInteractionType;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
@@ -246,8 +247,10 @@ public class CrystallizerBlock extends GooMachineBlock {
     }
 
     /**
-     * Classifies the held item and dispatches: a canister over an empty slot's
-     * footprint slots in, and every other item falls through to the empty-hand click.
+     * Classifies the held item and dispatches as the canister block does: a canister
+     * over a slot slots in, or takes a filled slot's canister out; an omniblob pours
+     * into the addressed slot's canister; every other item falls through to the
+     * empty-hand click.
      */
     @Override
     protected @NonNull InteractionResult useItemOn(
@@ -256,7 +259,8 @@ public class CrystallizerBlock extends GooMachineBlock {
         return GooBlockInteraction.handleItemInteraction(
                 stack, level, pos, player, hand, hitResult,
                 CrystallizerBlockEntity.class,
-                type -> type != GooInteractionType.CANISTER_INSERT && type != GooInteractionType.TUNER_PASS,
+                type -> type != GooInteractionType.CANISTER_INSERT && type != GooInteractionType.BLOB_INSERT
+                        && type != GooInteractionType.TUNER_PASS,
                 CrystallizerBlock::dispatchItem);
     }
 
@@ -315,15 +319,46 @@ public class CrystallizerBlock extends GooMachineBlock {
             GooInteractionType interaction, CrystallizerBlockEntity crystallizer, ItemStack stack,
             Player player, InteractionHand hand, BlockHitResult hitResult, BlockPos pos, Level level) {
         int slot = slotAt(crystallizer.getBlockState(), pos, hitResult);
-        if (slot == GooConstants.NO_SLOT) {
-            return InteractionResult.TRY_WITH_EMPTY_HAND;
+        if (interaction == GooInteractionType.BLOB_INSERT) {
+            return pourBlob(crystallizer, stack, player, slot, level, pos);
         }
-        // A filled slot refuses the canister and the click ends, so it never falls through to taking one out.
+        if (slot == GooConstants.NO_SLOT) {
+            // Off both slots the canister's own use runs, and the placement resolver refuses the crystallizer's top.
+            return InteractionResult.PASS;
+        }
+        if (crystallizer.isSlotFilled(slot)) {
+            return SlottedCanisterData.handToPlayer(crystallizer.containerState().remove(slot), player, level, pos);
+        }
         if (!crystallizer.containerState().insert(slot, stack.copyWithCount(1), false)) {
-            return InteractionResult.SUCCESS;
+            return InteractionResult.PASS;
         }
         stack.consume(1, player);
         level.playSound(null, pos, SoundEvents.DECORATED_POT_INSERT, SoundSource.BLOCKS, 1.0f, 1.0f);
+        return InteractionResult.SUCCESS;
+    }
+
+    /**
+     * Pours an omniblob into the addressed slot's canister, or the first canister that takes it,
+     * as the canister block does.
+     *
+     * @param crystallizer the crystallizer
+     * @param stack        the omniblob
+     * @param player       the pouring player
+     * @param hitSlot      the slot the click addresses, or NO_SLOT
+     * @param level        the level
+     * @param pos          the crystallizer's position
+     * @return SUCCESS when goo went in, PASS otherwise
+     */
+    private static InteractionResult pourBlob(CrystallizerBlockEntity crystallizer, ItemStack stack, Player player,
+                                              int hitSlot, Level level, BlockPos pos) {
+        int accepted = BlobInsert.pour(stack, player, (type, volume) -> {
+            int slot = GooBlockInteraction.findSlot(hitSlot, CrystallizerBlockEntity.SLOT_COUNT, crystallizer::canAccept);
+            return slot == GooConstants.NO_SLOT ? 0 : crystallizer.insertGoo(slot, type, volume);
+        });
+        if (accepted <= 0) {
+            return InteractionResult.PASS;
+        }
+        level.playSound(null, pos, SoundEvents.BOTTLE_EMPTY, SoundSource.BLOCKS, 1.0f, 1.0f);
         return InteractionResult.SUCCESS;
     }
 

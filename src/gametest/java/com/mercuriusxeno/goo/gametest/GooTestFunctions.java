@@ -64,7 +64,9 @@ public final class GooTestFunctions {
     private static final String CRYSTALLIZER_CRYSTAL_FIRST = "crystallizer_crystal_first_then_ender";
     private static final String CRYSTALLIZER_EITHER_SLOT = "crystallizer_either_slot_holds_crystal";
     private static final String CRYSTALLIZER_TWO_CRYSTAL = "crystallizer_two_crystal_grow_crystal";
-    private static final String CRYSTALLIZER_FILLED_SLOT = "crystallizer_filled_slot_refuses";
+    private static final String CRYSTALLIZER_CANISTER_TAKES_FILLED = "crystallizer_canister_takes_filled";
+    private static final String CRYSTALLIZER_OMNIBLOB_POURS = "crystallizer_omniblob_pours";
+    private static final String CRYSTALLIZER_CANISTER_REFUSED_OFF_SLOTS = "crystallizer_canister_refused_off_slots";
     private static final String CRYSTALLIZER_ADVANCES_TO_KILOCHRYSM = "crystallizer_advances_to_kilochrysm";
     private static final String CRYSTALLIZER_SMALL_DIAL_HOLDS = "crystallizer_small_dial_holds";
     private static final String CRYSTALLIZER_DIAL_WRAPS = "crystallizer_dial_wraps";
@@ -354,7 +356,9 @@ public final class GooTestFunctions {
         reg(r, CRYSTALLIZER_CRYSTAL_FIRST, CrystallizerTests::crystalFirstThenEnder);
         reg(r, CRYSTALLIZER_EITHER_SLOT, CrystallizerTests::eitherSlotHoldsTheCrystal);
         reg(r, CRYSTALLIZER_TWO_CRYSTAL, CrystallizerTests::twoCrystalCanistersGrowCrystal);
-        reg(r, CRYSTALLIZER_FILLED_SLOT, CrystallizerTests::filledSlotRefusesACanister);
+        reg(r, CRYSTALLIZER_CANISTER_TAKES_FILLED, CrystallizerTests::canisterClickTakesAFilledSlotsCanister);
+        reg(r, CRYSTALLIZER_OMNIBLOB_POURS, CrystallizerTests::omniblobPoursIntoTheSlotsCanister);
+        reg(r, CRYSTALLIZER_CANISTER_REFUSED_OFF_SLOTS, CrystallizerTests::canisterRefusedOffTheSlots);
         reg(r, CRYSTALLIZER_ADVANCES_TO_KILOCHRYSM, CrystallizerTests::advancesToKilochrysm);
         reg(r, CRYSTALLIZER_SMALL_DIAL_HOLDS, CrystallizerTests::smallDialHoldsAtChrysm);
         reg(r, CRYSTALLIZER_DIAL_WRAPS, CrystallizerTests::dialClickWrapsFromLargeToSmall);

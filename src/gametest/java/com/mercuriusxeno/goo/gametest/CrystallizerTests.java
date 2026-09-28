@@ -9,8 +9,10 @@ import com.mercuriusxeno.goo.block.crystallizer.CrystallizerBlock;
 import com.mercuriusxeno.goo.block.crystallizer.CrystallizerBlockEntity;
 import com.mercuriusxeno.goo.block.crystallizer.CrystallizerPhases;
 import com.mercuriusxeno.goo.data.GasketRegistry;
+import com.mercuriusxeno.goo.item.BlobStacks;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
+import com.mercuriusxeno.goo.item.CanisterPlacementResolver;
 import com.mercuriusxeno.goo.item.ChrysmTier;
 import com.mercuriusxeno.goo.item.gasket.GasketPartner;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
@@ -26,6 +28,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
@@ -61,6 +64,8 @@ public final class CrystallizerTests {
     private static final int SOME_TICKS = 20;
     private static final double HALF = 0.5;
     private static final double DIAL_CENTER_Y = 7.0 / 16.0;
+    /** A top-face point well clear of both slots, near the dial, with the dial facing north. */
+    private static final double OFF_SLOT_Z = 2.0 / 16.0;
     /** The purple spot the crystal grows from, block-local, with the dial facing north. */
     private static final double[] CRYSTAL_SPOT_NORTH = {8.0 / 16.0, 5.0 / 16.0};
     private static final double CRYSTAL_HIT_LIFT = 2.0 / 16.0;
@@ -120,24 +125,64 @@ public final class CrystallizerTests {
     }
 
     /**
-     * A canister clicked onto a filled slot stays in the hand and the slot keeps its canister;
-     * clicked onto the empty slot it goes in.
+     * A canister clicked onto a filled slot takes that canister out while the held one
+     * stays, as on a canister block; clicked onto the empty slot it goes in.
      *
      * @param helper the gametest helper
      */
-    public static void filledSlotRefusesACanister(GameTestHelper helper) {
+    public static void canisterClickTakesAFilledSlotsCanister(GameTestHelper helper) {
         CrystallizerBlockEntity crystallizer = placeCrystallizer(helper, 1);
         crystallizer.insertCanister(FIRST, canister(GooTypes.CRYSTAL, CRYSTAL_COST), false);
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
         player.setItemInHand(InteractionHand.MAIN_HAND, canister(GooTypes.ENDER, CHRYSM_VOLUME));
         helper.useBlock(CRYSTALLIZER_POS, player, topHit(helper, FIRST));
+        helper.assertFalse(crystallizer.isSlotFilled(FIRST), "The filled slot's canister should come out");
         helper.assertTrue(player.getItemInHand(InteractionHand.MAIN_HAND).is(GooItems.CANISTER.get()),
-                "A canister clicked onto a filled slot should stay in the hand");
-        helper.assertValueEqual(GooTypes.CRYSTAL, crystallizer.getSlotGooType(FIRST), "the filled slot's goo");
+                "The held canister should stay in the hand");
+        helper.assertTrue(player.getInventory().contains(stack -> stack.is(GooItems.CANISTER.get())
+                        && GooTypes.CRYSTAL.equals(CanisterItem.getFluidContent(stack).getGooType())),
+                "The crystal canister should reach the player");
         helper.useBlock(CRYSTALLIZER_POS, player, topHit(helper, SECOND));
-        helper.assertTrue(player.getItemInHand(InteractionHand.MAIN_HAND).isEmpty(),
-                "A canister clicked onto the empty slot should go in");
         helper.assertValueEqual(GooTypes.ENDER, crystallizer.getSlotGooType(SECOND), "the empty slot's new goo");
+        helper.succeed();
+    }
+
+    /**
+     * An ender omniblob clicked onto the ingredient slot pours into its canister.
+     *
+     * @param helper the gametest helper
+     */
+    public static void omniblobPoursIntoTheSlotsCanister(GameTestHelper helper) {
+        CrystallizerBlockEntity crystallizer = placeCrystallizer(helper, 1);
+        crystallizer.insertCanister(SECOND, new ItemStack(GooItems.CANISTER.get()), false);
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        player.setItemInHand(InteractionHand.MAIN_HAND, BlobStacks.createForOutput(GooTypes.ENDER, CHRYSM_VOLUME));
+        helper.useBlock(CRYSTALLIZER_POS, player, topHit(helper, SECOND));
+        helper.assertValueEqual(CHRYSM_VOLUME, enderIn(crystallizer), "ender poured into the slot's canister");
+        helper.succeed();
+    }
+
+    /**
+     * A canister used on the crystallizer's top away from both slots, standing or sneaking,
+     * places no canister block there: the placement resolver refuses the spot.
+     *
+     * @param helper the gametest helper
+     */
+    public static void canisterRefusedOffTheSlots(GameTestHelper helper) {
+        placeCrystallizer(helper, 1);
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.CANISTER.get()));
+        BlockPos abs = helper.absolutePos(CRYSTALLIZER_POS);
+        BlockHitResult frontOfTop = new BlockHitResult(
+                new Vec3(abs.getX() + HALF, abs.getY() + 1.0, abs.getZ() + OFF_SLOT_Z), Direction.UP, abs, false);
+        for (boolean sneaking : new boolean[] {false, true}) {
+            BlockPlaceContext context = new BlockPlaceContext(player, InteractionHand.MAIN_HAND,
+                    player.getItemInHand(InteractionHand.MAIN_HAND), frontOfTop);
+            helper.assertTrue(CanisterPlacementResolver.resolve(context, sneaking) == null,
+                    "No canister should go on the crystallizer off its slots, sneaking " + sneaking);
+        }
+        helper.useBlock(CRYSTALLIZER_POS, player, frontOfTop);
+        helper.assertBlockNotPresent(GooBlocks.CANISTER.get(), CRYSTALLIZER_POS.above());
         helper.succeed();
     }
 
