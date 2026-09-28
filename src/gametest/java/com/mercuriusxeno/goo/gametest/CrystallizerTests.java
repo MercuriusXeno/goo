@@ -19,6 +19,7 @@ import com.mercuriusxeno.goo.item.CanisterPlacementResolver;
 import com.mercuriusxeno.goo.item.CanisterPlacementResolver.CanisterPlacement;
 import com.mercuriusxeno.goo.item.CanisterPlacementValidator;
 import com.mercuriusxeno.goo.item.ChrysmTier;
+import com.mercuriusxeno.goo.item.ContainerCapacity;
 import com.mercuriusxeno.goo.item.gasket.GasketPartner;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.registry.GooBlocks;
@@ -296,6 +297,28 @@ public final class CrystallizerTests {
         } finally {
             NeoForge.EVENT_BUS.unregister(listener);
         }
+        helper.succeed();
+    }
+
+    /**
+     * A blob poured on a full canister stays in the hand: the pour goes only into the
+     * canister aimed at, never into the empty one beside it.
+     *
+     * @param helper the gametest helper
+     */
+    public static void aPourFillsOnlyTheAimedCanister(GameTestHelper helper) {
+        placeCrystallizer(helper, 1);
+        int full = ContainerCapacity.canisterCapacity(0);
+        insert(helper, FIRST, canister(GooTypes.BLAZE, full));
+        insert(helper, SECOND, new ItemStack(GooItems.CANISTER.get()));
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        player.setItemInHand(InteractionHand.MAIN_HAND, BlobStacks.createForOutput(GooTypes.BLAZE, CHRYSM_VOLUME));
+        helper.useBlock(CANISTERS_POS, player, canisterHit(helper, FIRST));
+        helper.assertTrue(canisters(helper).getSlotFluidContent(NORTH_SLOTS[SECOND]).isEmpty(),
+                "A pour on the full canister should leave the empty one empty, found "
+                        + canisters(helper).getSlotFluidContent(NORTH_SLOTS[SECOND]));
+        helper.assertValueEqual(full, canisters(helper).getSlotFluidContent(NORTH_SLOTS[FIRST]).amount(),
+                "the aimed canister stays full");
         helper.succeed();
     }
 
