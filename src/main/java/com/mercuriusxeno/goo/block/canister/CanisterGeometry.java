@@ -19,6 +19,23 @@ public record CanisterGeometry(float gasketBottom, float bodyBottom, float bodyT
     /** Inset from body walls to avoid z-fighting with fluid surfaces (0.5px). */
     public static final float FLUID_INSET = 0.5f / 16f;
 
+    /**
+     * The goo surface's height above the bottom cap at the lowest fill: a tenth of a
+     * pixel, so a nearly empty canister's goo never shares the cap's plane and z-fights.
+     */
+    public static final float FLUID_FLOOR = 0.1f / 16f;
+
+    /**
+     * @param fill       the fill fraction in [0, 1]
+     * @param bodyBottom the body's bottom edge
+     * @param bodyTop    the body's top edge
+     * @return the goo surface's height, clear of the bottom cap at any fill
+     */
+    public static float fluidSurface(float fill, float bodyBottom, float bodyTop) {
+        float floor = bodyBottom + FLUID_FLOOR;
+        return floor + fill * (bodyTop - floor);
+    }
+
     /** Each gasket cap is one pixel thick. */
     private static final float CAP_THICKNESS = 1f / 16f;
 

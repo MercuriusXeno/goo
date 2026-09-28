@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.ber;
 
+import com.mercuriusxeno.goo.block.canister.CanisterGeometry;
 import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.GooSubmitter;
@@ -42,7 +43,7 @@ final class SlotFluidGeometry {
         float x1 = cx + g.hw() - g.fluidInset();
         float z0 = cz - g.hw() + g.fluidInset();
         float z1 = cz + g.hw() - g.fluidInset();
-        float yTop = g.bodyBot() + fill * (g.bodyTop() - g.bodyBot());
+        float yTop = CanisterGeometry.fluidSurface(fill, g.bodyBot(), g.bodyTop());
         return new CuboidBounds(x0, x1, z0, z1, g.bodyBot(), yTop);
     }
 
@@ -97,7 +98,7 @@ final class SlotFluidGeometry {
      */
     static void renderFluidSides(RenderContext ctx, CuboidBounds b,
             TextureAtlasSprite sprite, float fill, SlotGeometry g, int color) {
-        float fillHeight = fill * (g.bodyTop() - g.bodyBot());
+        float fillHeight = b.yTop() - b.yBot();
         GooRenderUtil.UvRect xUv = GooSubmitter.spriteSubRect(sprite, 0f, 0f, b.x1() - b.x0(), fillHeight);
         GooRenderUtil.UvRect zUv = GooSubmitter.spriteSubRect(sprite, 0f, 0f, b.z1() - b.z0(), fillHeight);
         ctx.emitFace(color, b, xUv, Direction.NORTH);
