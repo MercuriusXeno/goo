@@ -35,6 +35,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import net.neoforged.neoforge.transfer.fluid.FluidUtil;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -155,6 +156,19 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
     }
 
     /**
+     * The slot a hit on this block names, among the slots in play at the block's
+     * centers: those the machine below allows, else every slot.
+     *
+     * @param hit the hit
+     * @return the slot, or -1 when no slot in play is within reach
+     */
+    private int aimedSlot(BlockHitResult hit) {
+        Set<Integer> inPlay = level == null ? ICanisterAttachable.ALL_SLOTS
+                : CanisterSlotLayout.slotsInPlayAt(level, getBlockPos());
+        return CanisterBlock.hitSlot(hit, getBlockPos(), slotCenters(), inPlay);
+    }
+
+    /**
      * The union of the occupied slots' shapes at this block's centers: the
      * slot data's cached composite on the fixed grid, else one rebuilt only
      * when the centers or the occupied slots change.
@@ -270,7 +284,7 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
 
     @Override
     public int resolveSlot(BlockHitResult hit) {
-        int slot = CanisterBlock.hitSlot(hit, getBlockPos(), slotCenters());
+        int slot = aimedSlot(hit);
         return slot < 0 ? SLOT_MISS : slot;
     }
 
@@ -287,13 +301,13 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
     @Override
     public VoxelShape outlineShape(BlockHitResult hit) {
         float[][] centers = slotCenters();
-        int slot = CanisterBlock.hitSlot(hit, getBlockPos(), centers);
+        int slot = aimedSlot(hit);
         return slot < 0 ? getBlockState().getShape(getLevel(), getBlockPos()) : CanisterBlock.slotShape(centers, slot);
     }
 
     @Override
     public @Nullable AABB pickupBounds(BlockHitResult hit) {
-        int slot = CanisterBlock.hitSlot(hit, getBlockPos(), slotCenters());
+        int slot = aimedSlot(hit);
         return slot >= 0 && isSlotFilled(slot) ? slotBounds(slot) : null;
     }
 
@@ -309,7 +323,7 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
     @Override
     public @Nullable HudAnchor hudAnchor(BlockHitResult hit, HudViewer viewer) {
         float[][] centers = slotCenters();
-        int slot = CanisterBlock.hitSlot(hit, getBlockPos(), centers);
+        int slot = aimedSlot(hit);
         return slot < 0 ? null : CanisterHudAnchors.anchor(centers[slot], slot, hit.getDirection(), viewer);
     }
 
@@ -342,7 +356,7 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
      * @return SUCCESS if a canister was picked up, PASS otherwise
      */
     public InteractionResult handleCanisterPickup(Player player, BlockHitResult hitResult) {
-        int slotIndex = CanisterBlock.hitSlot(hitResult, worldPosition, slotCenters());
+        int slotIndex = aimedSlot(hitResult);
         if (slotIndex < 0 || level == null) {
             return InteractionResult.PASS;
         }
@@ -387,7 +401,7 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
      */
     public @Nullable InteractionResult tryFluidInteraction(Player player, InteractionHand hand,
                                                            BlockHitResult hitResult) {
-        int slotIndex = CanisterBlock.hitSlot(hitResult, worldPosition, slotCenters());
+        int slotIndex = aimedSlot(hitResult);
         CanisterSlot slot = slot(slotIndex);
         if (slot == null || slot.handler() == null) {
             return null;
@@ -436,7 +450,7 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
     }
 
     private InteractionResult handleBlobInsert(BlockHitResult hitResult, ItemStack stack, Player player) {
-        int hitSlot = CanisterBlock.hitSlot(hitResult, worldPosition, slotCenters());
+        int hitSlot = aimedSlot(hitResult);
         int accepted = BlobInsert.pour(stack, player,
                 (type, volume) -> tryInsertBlobGoo(hitSlot, type, volume));
         if (accepted <= 0) {
