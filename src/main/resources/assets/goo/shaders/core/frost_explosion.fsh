@@ -1,70 +1,69 @@
 #version 330
 
 // Frost goo's burnout explosion (decision elemental-explosion-per-type): a
-// frost nova. Voronoi ice facets sharpen across the sphere from a soft
-// D5FFFF haze into crisp ADD8E6 edges with white glints, under a bright
-// fresnel rim. TRANSLUCENT blend.
+// rolling freeze fog. Billowing white-blue noise, soft and matte, drifts
+// across the fog front; while the fog rolls, a crisp frost-white leading
+// edge shows where the front meets air, and once it has rolled the front
+// settles into hanging mist that fades. TRANSLUCENT blend.
 
 in vec3 viewPos;
 in vec3 viewNormal;
 in vec3 surfaceDir;
-in float crystallized;
-in float remaining;
+in float progress;
+in float rolled;
+in float mist;
 
 out vec4 fragColor;
 
-const vec3 HAZE_COLOR = vec3(0.835, 1.0, 1.0);
-const vec3 FACET_COLOR = vec3(0.678, 0.847, 0.902);
-const vec3 GLINT_COLOR = vec3(1.0, 1.0, 1.0);
-const float FACET_SCALE = 5.0;
-const float HAZE_OPACITY = 0.2;
-const float RIM_OPACITY = 0.55;
-const float EDGE_OPACITY = 0.7;
+const vec3 FOG_COLOR = vec3(0.80, 0.90, 0.96);
+const vec3 SHADE_COLOR = vec3(0.62, 0.78, 0.90);
+const vec3 EDGE_COLOR = vec3(0.97, 0.99, 1.0);
+const float FOG_SCALE = 2.5;
+const float FOG_DRIFT = 1.8;
+const float FOG_OPACITY = 0.45;
+const float EDGE_OPACITY = 0.75;
 
-vec3 hash3(vec3 p) {
-    p = vec3(dot(p, vec3(127.1, 311.7, 74.7)), dot(p, vec3(269.5, 183.3, 246.1)), dot(p, vec3(113.5, 271.9, 124.6)));
-    return fract(sin(p) * 43758.5453);
+float hash(vec3 p) {
+    p = fract(p * 0.3183099 + 0.1);
+    p *= 17.0;
+    return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
 }
 
-// Distance to the nearest facet center and to the second nearest; their
-// gap is small along a facet's edge.
-vec2 voronoi(vec3 x) {
-    vec3 cell = floor(x);
-    vec3 local = fract(x);
-    float nearest = 8.0;
-    float second = 8.0;
-    for (int k = -1; k <= 1; k++) {
-        for (int j = -1; j <= 1; j++) {
-            for (int i = -1; i <= 1; i++) {
-                vec3 offset = vec3(float(i), float(j), float(k));
-                vec3 toPoint = offset + hash3(cell + offset) - local;
-                float d = dot(toPoint, toPoint);
-                if (d < nearest) {
-                    second = nearest;
-                    nearest = d;
-                } else if (d < second) {
-                    second = d;
-                }
-            }
-        }
+float noise(vec3 x) {
+    vec3 i = floor(x);
+    vec3 f = fract(x);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(
+        mix(mix(hash(i), hash(i + vec3(1.0, 0.0, 0.0)), f.x),
+            mix(hash(i + vec3(0.0, 1.0, 0.0)), hash(i + vec3(1.0, 1.0, 0.0)), f.x), f.y),
+        mix(mix(hash(i + vec3(0.0, 0.0, 1.0)), hash(i + vec3(1.0, 0.0, 1.0)), f.x),
+            mix(hash(i + vec3(0.0, 1.0, 1.0)), hash(i + vec3(1.0, 1.0, 1.0)), f.x), f.y),
+        f.z);
+}
+
+float billow(vec3 p) {
+    float sum = 0.0;
+    float amplitude = 0.5;
+    for (int octave = 0; octave < 4; octave++) {
+        sum += amplitude * noise(p);
+        p *= 2.1;
+        amplitude *= 0.5;
     }
-    return vec2(sqrt(nearest), sqrt(second));
+    return sum;
 }
 
 void main() {
-    vec2 cells = voronoi(surfaceDir * FACET_SCALE);
-    float gap = cells.y - cells.x;
-    // The edge line narrows as the frost crystallizes: a wide soft blur
-    // at first, a crisp line at the end.
-    float width = mix(0.35, 0.05, crystallized);
-    float edge = 1.0 - smoothstep(0.0, width, gap);
-    float glint = step(0.97, hash3(floor(surfaceDir * FACET_SCALE * 3.0)).x) * crystallized;
+    vec3 dir = normalize(surfaceDir);
+    float fog = billow(dir * FOG_SCALE + vec3(0.0, progress * FOG_DRIFT, progress * FOG_DRIFT * 0.5));
 
     float facing = abs(dot(normalize(viewNormal), normalize(-viewPos)));
-    float rim = pow(1.0 - facing, 2.0);
+    // The leading edge: a crisp band where the front turns away from the
+    // eye, present while the fog is still rolling.
+    float front = smoothstep(0.55, 0.85, 1.0 - facing) * (1.0 - rolled * rolled);
+    float edge = front * smoothstep(0.35, 0.6, fog);
 
-    vec3 color = mix(HAZE_COLOR, FACET_COLOR, edge * crystallized);
-    color = mix(color, GLINT_COLOR, max(glint, rim * 0.6));
-    float alpha = HAZE_OPACITY + RIM_OPACITY * rim + EDGE_OPACITY * edge * crystallized + glint;
-    fragColor = vec4(color, clamp(alpha * remaining, 0.0, 1.0));
+    vec3 color = mix(SHADE_COLOR, FOG_COLOR, smoothstep(0.3, 0.8, fog));
+    color = mix(color, EDGE_COLOR, edge);
+    float alpha = FOG_OPACITY * smoothstep(0.25, 0.75, fog) + EDGE_OPACITY * edge;
+    fragColor = vec4(color, clamp(alpha * mist, 0.0, 1.0));
 }
