@@ -192,7 +192,7 @@ public final class GooRenderTypes {
     public static final RenderType BLAZE_EXPLOSION_TYPE = burnoutType(BLAZE_EXPLOSION);
 
     /**
-     * Frost goo's burnout explosion pipeline: the frost nova, alpha blended,
+     * Frost goo's burnout explosion pipeline: the rolling freeze fog, alpha blended,
      * through {@code frost_explosion.vsh / .fsh}.
      */
     public static final RenderPipeline FROST_EXPLOSION = burnoutPipeline("frost_explosion", BlendFunction.TRANSLUCENT);
