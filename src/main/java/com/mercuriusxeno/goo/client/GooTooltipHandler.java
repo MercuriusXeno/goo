@@ -80,10 +80,27 @@ public final class GooTooltipHandler {
         if (handleBlobTooltip(event.getTooltipElements(), stack)) {
             return;
         }
+        GooContents chrysmValue = chrysmValue(stack);
+        if (chrysmValue != null) {
+            appendGooContentsComponents(event.getTooltipElements(), chrysmValue);
+            return;
+        }
         if (handleContainerTooltip(event.getTooltipElements(), stack)) {
             return;
         }
         handleItemTooltip(event.getTooltipElements(), stack);
+    }
+
+    /**
+     * A chrysm's goo value, read from its tier and type rather than the item registry:
+     * its tier volume of its type and the crystal spent on it (decision chrysm-melts-back-to-its-goo).
+     *
+     * @param stack the item stack
+     * @return the value, or null when the stack is no typed chrysm
+     */
+    static @org.jspecify.annotations.Nullable GooContents chrysmValue(ItemStack stack) {
+        ResourceKey<GooTypeDefinition> type = stack.get(GooDataComponents.GOO_TYPE.get());
+        return stack.getItem() instanceof ChrysmItem chrysm && type != null ? chrysm.tier().contentsOf(type) : null;
     }
 
     /**
@@ -104,7 +121,7 @@ public final class GooTooltipHandler {
      * @return true if goo tooltip would be non-empty
      */
     private static boolean hasGooData(ItemStack stack) {
-        if (stack.getItem() instanceof GooOmniblobItem) {
+        if (stack.getItem() instanceof GooOmniblobItem || chrysmValue(stack) != null) {
             return true;
         }
         return getGooContentType(stack) != null || hasStoredGooData(stack);
