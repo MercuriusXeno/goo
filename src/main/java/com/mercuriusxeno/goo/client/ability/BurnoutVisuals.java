@@ -26,7 +26,8 @@ public final class BurnoutVisuals {
             GooTypes.ROCK, RockExplosionVisual.INSTANCE,
             GooTypes.BLAZE, BlazeExplosionVisual.INSTANCE,
             GooTypes.FROST, FrostExplosionVisual.INSTANCE,
-            GooTypes.NETHER, NetherExplosionVisual.INSTANCE);
+            GooTypes.NETHER, NetherExplosionVisual.INSTANCE,
+            GooTypes.METAL, MetalExplosionVisual.INSTANCE);
 
     private static final Map<ResourceKey<GooTypeDefinition>, BurnoutVisual> BY_TYPE =
             CHAIN_TYPES.stream().collect(Collectors.toUnmodifiableMap(Function.identity(), BurnoutVisuals::designFor));

@@ -66,6 +66,11 @@ class ChainBurnoutsTest {
     }
 
     @Test
+    void metalResolvesItsOwnExplosion() {
+        assertSame(MetalExplosionVisual.INSTANCE, BurnoutVisuals.forType(GooTypes.METAL));
+    }
+
+    @Test
     void progressRunsFromStartToDuration() {
         ChainBurnouts.Burnout burnout = new ChainBurnouts().add(POS, Direction.UP, GooTypes.UNSTABLE,
                 ABILITY, 1, START);
