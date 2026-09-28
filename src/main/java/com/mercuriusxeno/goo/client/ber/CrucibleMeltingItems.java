@@ -17,6 +17,7 @@ import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
@@ -51,6 +52,10 @@ final class CrucibleMeltingItems {
     private final ItemModelResolver itemModelResolver;
     /** Each crucible's entity-to-head handoff, held client-side and dropped with the crucible. */
     private final Map<CrucibleBlockEntity, CrucibleHeadHandoff> handoffs = new WeakHashMap<>();
+    /** Each crucible's melt seed, held client-side and dropped with the crucible. */
+    private final Map<CrucibleBlockEntity, DissolveMeltSeed> meltSeeds = new WeakHashMap<>();
+    /** The client random each melt's seed is drawn from. */
+    private final RandomSource seedRandom = RandomSource.create();
     /** Each melting item's shards, the last {@link #KEPT_ITEMS} items kept. */
     private final Map<Identifier, HeadShards> shards = new LinkedHashMap<>(KEPT_ITEMS, LOAD_FACTOR, true) {
         @Override
@@ -78,8 +83,11 @@ final class CrucibleMeltingItems {
     void extract(CrucibleBlockEntity be, CrucibleRenderState state, float partialTick) {
         CrucibleMeltQueue.Entry head = be.meltHead();
         state.hasHead = head != null && resolve(state.headItem, head.item(), ItemDisplayContext.GROUND);
-        if (head != null) {
-            state.headGlow = glowOf(head);
+        DissolveMeltSeed meltSeed = meltSeeds.computeIfAbsent(be, key -> new DissolveMeltSeed(seedRandom));
+        if (head == null) {
+            meltSeed.seedOf(null, 0f);
+        } else {
+            state.headGlow = glowOf(head).withSeed(meltSeed.seedOf(head.item(), head.dissolveFraction()));
         }
         extractHeadPose(be, state, head, partialTick);
         List<CrucibleMeltQueue.Entry> waiting = be.meltWaiting();

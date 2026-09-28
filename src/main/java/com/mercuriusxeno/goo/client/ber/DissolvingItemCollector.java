@@ -19,8 +19,8 @@ import java.util.List;
 /**
  * Proxy SubmitNodeCollector that re-emits one shard of a melting item's quads on the dissolve
  * render type once per glow layer, largest type first, each vertex carrying the
- * dissolve fraction, the layer's color, share and index (decisions dissolve-shader-on-item,
- * glow-color-from-mingling). The layers emit in order within one submission, so a later
+ * dissolve fraction, the melt's seed, the layer's color, share and index (decisions
+ * dissolve-shader-on-item, glow-color-from-mingling, diagnose-then-fix-dissolve-repeat). The layers emit in order within one submission, so a later
  * layer's glow draws over an earlier one's and each fragment ends in one type. Each quad cuts
  * to the runs of texel cells the shard owns in it, on every face of the model (decision
  * tiles-of-the-items-image); with no sharded model the item draws whole.
@@ -73,7 +73,7 @@ class DissolvingItemCollector extends ItemQuadCollector {
         resubmitByAtlas(poseStack, quads, GooRenderTypes::crucibleDissolve, (pose, buffer, group) -> {
             for (DissolveGlow.Layer layer : glow.layers()) {
                 int overlay = glow.overlayCoords(layer);
-                int light = DissolveGlow.lightCoords(lightCoords, layer);
+                int light = glow.lightCoords(lightCoords, layer);
                 for (BakedQuad quad : group) {
                     emitShardPieces(pose, buffer, quad, space,
                             new QuadCoords(tintOf(quad, tintLayers), overlay, light));

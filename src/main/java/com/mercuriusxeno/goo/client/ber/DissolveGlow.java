@@ -17,18 +17,30 @@ import java.util.function.ToIntFunction;
  *
  * <p>Each layer draws the item once. The overlay coordinates carry the fraction in the low
  * half and the layer's color as RGB565 in the high half; the lightmap coordinates keep the
- * light in each half's low byte and carry the layer's share and index in the high bytes.
+ * light level in the high nibble of each half's low byte, carry the melt's seed in the two
+ * low nibbles the lightmap lookup drops, and the layer's share and index in the high bytes
+ * (decision diagnose-then-fix-dissolve-repeat).
  *
  * @param fraction the share of the item dissolved, from 0 whole to 1 gone
+ * @param seed     the melt's seed, from 0 to {@link #SEED_UNITS} less one, which offsets the
+ *                 dissolve field so two melts erode in different orders
  * @param layers   the glow layers, largest type first; the first draws the item's body
  */
-public record DissolveGlow(float fraction, List<Layer> layers) {
+public record DissolveGlow(float fraction, int seed, List<Layer> layers) {
 
     /** Overlay units per whole fraction; must match FRACTION_UNITS in crucible_dissolve.vsh. */
     public static final int FRACTION_UNITS = 4096;
     /** Share units per whole share; must match SHARE_UNITS in crucible_dissolve.vsh. */
     public static final int SHARE_UNITS = 127;
+    /** The seed's bits per lightmap half; must match SEED_NIBBLE_BITS in crucible_dissolve.vsh. */
+    public static final int SEED_NIBBLE_BITS = 4;
+    /** The low nibble of a lightmap half; must match SEED_NIBBLE_MASK in crucible_dissolve.vsh. */
+    public static final int SEED_NIBBLE_MASK = 0xF;
+    /** The seeds a melt draws among, the two nibbles' worth. */
+    public static final int SEED_UNITS = 1 << (2 * SEED_NIBBLE_BITS);
 
+    /** The light level's bits in a lightmap half's low byte, the nibble above the seed's. */
+    private static final int LIGHT_LEVEL_MASK = 0xF0;
     private static final int BYTE = 0xFF;
     private static final int HALF_MASK = 0xFFFF;
     private static final int RED_SHIFT = 16;
@@ -69,7 +81,17 @@ public record DissolveGlow(float fraction, List<Layer> layers) {
                 layers.add(new Layer(colorOf.applyAsInt(band.type()), band.share(), band.layer()));
             }
         }
-        return new DissolveGlow(fraction, layers);
+        return new DissolveGlow(fraction, 0, layers);
+    }
+
+    /**
+     * Returns this glow for the melt the seed names.
+     *
+     * @param meltSeed the melt's seed, from 0 to {@link #SEED_UNITS} less one
+     * @return the glow carrying the seed
+     */
+    public DissolveGlow withSeed(int meltSeed) {
+        return new DissolveGlow(fraction, meltSeed, layers);
     }
 
     /**
@@ -80,7 +102,7 @@ public record DissolveGlow(float fraction, List<Layer> layers) {
      * @return the glow
      */
     public static DissolveGlow single(float fraction, int glowRgb) {
-        return new DissolveGlow(fraction, List.of(new Layer(glowRgb, 1f, 0)));
+        return new DissolveGlow(fraction, 0, List.of(new Layer(glowRgb, 1f, 0)));
     }
 
     /**
@@ -118,17 +140,31 @@ public record DissolveGlow(float fraction, List<Layer> layers) {
     }
 
     /**
-     * Returns the lightmap coordinates of one layer: each half's low byte keeps the light,
-     * the block half's high byte the share and the sky half's high byte the layer index.
+     * Returns the lightmap coordinates of one layer: each half's low byte keeps the light
+     * level over a nibble of the seed, the block half's high byte the share and the sky
+     * half's high byte the layer index.
      *
      * @param light the packed light coordinates the item is lit at
      * @param layer the glow layer
      * @return the lightmap coordinates
      */
-    public static int lightCoords(int light, Layer layer) {
+    public int lightCoords(int light, Layer layer) {
         int shareUnits = Math.clamp(Math.round(layer.share() * SHARE_UNITS), 0, SHARE_UNITS);
-        int block = (light & BYTE) | shareUnits << HIGH_BYTE_SHIFT;
-        int sky = ((light >> HIGH_HALF_SHIFT) & BYTE) | layer.layer() << HIGH_BYTE_SHIFT;
+        int block = lightHalf(light, seed, shareUnits);
+        int sky = lightHalf(light >> HIGH_HALF_SHIFT, seed >> SEED_NIBBLE_BITS, layer.layer());
         return (block & HALF_MASK) | sky << HIGH_HALF_SHIFT;
+    }
+
+    /**
+     * Returns one lightmap half: the light level, a nibble of the seed below it and a byte above.
+     *
+     * @param light    the light half, its level in the low byte's high nibble
+     * @param seedBits the seed shifted so its nibble for this half sits lowest
+     * @param highByte the value the half's high byte carries
+     * @return the lightmap half
+     */
+    private static int lightHalf(int light, int seedBits, int highByte) {
+        int lowByte = (light & LIGHT_LEVEL_MASK) | (seedBits & SEED_NIBBLE_MASK);
+        return lowByte | highByte << HIGH_BYTE_SHIFT;
     }
 }
