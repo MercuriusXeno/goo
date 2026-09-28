@@ -9,7 +9,11 @@ import com.mercuriusxeno.goo.block.plexer.PlexerBlockEntity;
 import com.mercuriusxeno.goo.block.tap.TapBlockEntity;
 import com.mercuriusxeno.goo.block.vat.VatBlock;
 import com.mercuriusxeno.goo.item.BlobStacks;
+import com.mercuriusxeno.goo.item.CanisterFluidContent;
+import com.mercuriusxeno.goo.item.CanisterItem;
+import com.mercuriusxeno.goo.item.ContainerCapacity;
 import com.mercuriusxeno.goo.registry.GooBlocks;
+import com.mercuriusxeno.goo.registry.GooFluids;
 import com.mercuriusxeno.goo.registry.GooItems;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -286,6 +290,31 @@ public final class MachineInteractionTests {
                     HUB_SHOULD_HOLD_BOTH);
             helper.succeed();
         });
+    }
+
+    /**
+     * Hub: a blob poured on a full canister stays in the hand; the pour goes only into
+     * the canister aimed at, never into the empty one beside it.
+     *
+     * @param helper the gametest helper
+     */
+    public static void hubPourFillsOnlyTheAimedCanister(GameTestHelper helper) {
+        helper.setBlock(BE_POS, GooBlocks.HUB.get());
+        HubBlockEntity hub = helper.getBlockEntity(BE_POS, HubBlockEntity.class);
+        int full = ContainerCapacity.canisterCapacity(0);
+        ItemStack fullCanister = new ItemStack(GooItems.CANISTER.get());
+        CanisterItem.setFluidContent(fullCanister, new CanisterFluidContent(GooFluids.resource(GooTypes.ROCK), full));
+        int beside = (HUB_SLOT_NORTH + 1) % HubBlock.SLOT_CENTERS.length;
+        helper.assertTrue(hub.insertCanister(HUB_SLOT_NORTH, fullCanister), HUB_SHOULD_INSERT);
+        helper.assertTrue(hub.insertCanister(beside, new ItemStack(GooItems.CANISTER.get())), HUB_SHOULD_INSERT);
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        player.setItemInHand(InteractionHand.MAIN_HAND, BlobStacks.createForOutput(GooTypes.ROCK, BlobStacks.MB_PER_BLOB));
+
+        helper.useBlock(BE_POS, player, slotHit(helper, HUB_SLOT_NORTH));
+
+        helper.assertTrue(CanisterItem.getFluidContent(hub.getCanister(beside)).isEmpty(),
+                "A pour on the full hub canister should leave the empty one beside it empty");
+        helper.succeed();
     }
 
     /**
