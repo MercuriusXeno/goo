@@ -25,7 +25,6 @@ public final class CrystalClusterSubmitter {
     private static final double PIXEL = 1.0 / 16.0;
     /** A sprite is 16 texture pixels across. */
     private static final double SPRITE_PIXELS = 16;
-    private static final double HALF = 0.5;
 
     private CrystalClusterSubmitter() {
     }
@@ -76,20 +75,64 @@ public final class CrystalClusterSubmitter {
     }
 
     /**
-     * Maps a face onto the sprite at one texture pixel per model pixel, tiling rather
-     * than stretching (operator ruling): a face W by H pixels takes W/16 by H/16 of the
-     * sprite from its corner. Corners run in winding order: bottom left, bottom right,
-     * top right, top left. No face of the crystal passes 16 pixels, so none wraps.
+     * Maps a face onto the sprite by where its corners sit in the block, one texture
+     * pixel per model pixel, so the goo texture tiles continuously across the crystal
+     * as it does across a block face (operator ruling: tile, don't stretch). Each face
+     * projects on its dominant axis: a face turned up reads x and z, one turned to x
+     * reads z and height, one turned to z reads x and height. A face is shifted whole
+     * into one sprite and clamped to its edge, so it never wraps mid-face.
      *
-     * @param uv     the sprite's rectangle on the atlas
-     * @param width  the face's width, in model pixels
-     * @param height the face's height, in model pixels
-     * @return {u, v} for each of the four corners
+     * @param uv      the sprite's rectangle on the atlas
+     * @param corners the face's corners, in model pixels
+     * @param normal  the face's normal
+     * @return {u, v} for each corner
      */
-    static float[][] quadUv(GooRenderUtil.UvRect uv, double width, double height) {
-        float u1 = uv.u0() + (uv.u1() - uv.u0()) * (float) Math.min(1, width / SPRITE_PIXELS);
-        float v0 = uv.v1() - (uv.v1() - uv.v0()) * (float) Math.min(1, height / SPRITE_PIXELS);
-        return new float[][] {{uv.u0(), uv.v1()}, {u1, uv.v1()}, {u1, v0}, {uv.u0(), v0}};
+    static float[][] blockUv(GooRenderUtil.UvRect uv, Vec3[] corners, Vec3 normal) {
+        double[][] planar = new double[corners.length][];
+        for (int i = 0; i < corners.length; i++) {
+            planar[i] = project(corners[i], normal);
+        }
+        double shiftU = spriteShift(planar, 0);
+        double shiftV = spriteShift(planar, 1);
+        float[][] mapped = new float[corners.length][];
+        for (int i = 0; i < corners.length; i++) {
+            double u = clampToSprite(planar[i][0] - shiftU);
+            double v = clampToSprite(planar[i][1] - shiftV);
+            mapped[i] = new float[] {uv.u0() + (uv.u1() - uv.u0()) * (float) (u / SPRITE_PIXELS),
+                uv.v0() + (uv.v1() - uv.v0()) * (float) (v / SPRITE_PIXELS)};
+        }
+        return mapped;
+    }
+
+    /**
+     * @param corner a corner, in model pixels
+     * @param normal the face's normal
+     * @return the corner's {u, v} in pixels on the face's dominant plane, v counted down from the top
+     */
+    private static double[] project(Vec3 corner, Vec3 normal) {
+        double down = SPRITE_PIXELS - (corner.y - CrystalCluster.BASE_Y);
+        if (Math.abs(normal.y) >= Math.abs(normal.x) && Math.abs(normal.y) >= Math.abs(normal.z)) {
+            return new double[] {corner.x, corner.z};
+        }
+        return Math.abs(normal.x) >= Math.abs(normal.z)
+                ? new double[] {corner.z, down} : new double[] {corner.x, down};
+    }
+
+    /**
+     * @param planar the face's projected corners
+     * @param axis   0 for u, 1 for v
+     * @return the whole-sprite shift that brings the face's lowest corner into the sprite
+     */
+    private static double spriteShift(double[][] planar, int axis) {
+        double lowest = Double.MAX_VALUE;
+        for (double[] point : planar) {
+            lowest = Math.min(lowest, point[axis]);
+        }
+        return Math.floor(lowest / SPRITE_PIXELS) * SPRITE_PIXELS;
+    }
+
+    private static double clampToSprite(double pixels) {
+        return Math.max(0, Math.min(SPRITE_PIXELS, pixels));
     }
 
     /**
@@ -98,7 +141,7 @@ public final class CrystalClusterSubmitter {
      * @param ctx   the render context
      * @param prism the prism
      * @param color the tint
-     * @param uv    the type's sprite rectangle, tiled onto each face by {@link #quadUv}
+     * @param uv    the type's sprite rectangle, tiled onto each face by {@link #blockUv}
      */
     private static void emitPrism(RenderContext ctx, CrystalCluster.Prism prism, int color, GooRenderUtil.UvRect uv) {
         double tilt = Math.toRadians(prism.tilt());
@@ -117,13 +160,10 @@ public final class CrystalClusterSubmitter {
             bottom[k] = base.add(rim);
             top[k] = bottom[k].add(shaft);
         }
-        double edge = bottom[0].distanceTo(bottom[1]);
-        float[][] sideUv = quadUv(uv, edge, prism.length() - prism.tipLength());
         for (int k = 0; k < SIDES; k++) {
             int next = (k + 1) % SIDES;
-            float[][] tipUv = quadUv(uv, edge, tip.distanceTo(top[k].add(top[next]).scale(HALF)));
-            emitQuad(ctx, color, sideUv, new Vec3[] {bottom[k], bottom[next], top[next], top[k]});
-            emitQuad(ctx, color, tipUv, new Vec3[] {top[k], top[next], tip, tip});
+            emitQuad(ctx, color, uv, new Vec3[] {bottom[k], bottom[next], top[next], top[k]});
+            emitQuad(ctx, color, uv, new Vec3[] {top[k], top[next], tip, tip});
         }
     }
 
@@ -132,11 +172,12 @@ public final class CrystalClusterSubmitter {
      *
      * @param ctx     the render context
      * @param color   the tint
-     * @param uv      the sprite UV at each corner
+     * @param sprite  the type's sprite rectangle
      * @param corners the four corners in winding order
      */
-    private static void emitQuad(RenderContext ctx, int color, float[][] uv, Vec3[] corners) {
+    private static void emitQuad(RenderContext ctx, int color, GooRenderUtil.UvRect sprite, Vec3[] corners) {
         Vec3 normal = corners[1].subtract(corners[0]).cross(corners[corners.length - 1].subtract(corners[0])).normalize();
+        float[][] uv = blockUv(sprite, corners, normal);
         for (int i = 0; i < corners.length; i++) {
             Vec3 corner = corners[i].scale(PIXEL);
             ctx.vertexColored(color, (float) corner.x, (float) corner.y, (float) corner.z, uv[i][0], uv[i][1],
