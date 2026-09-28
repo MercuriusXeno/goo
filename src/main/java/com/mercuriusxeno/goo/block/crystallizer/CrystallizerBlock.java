@@ -82,9 +82,9 @@ public class CrystallizerBlock extends GooMachineBlock {
     private static final double TOP = 16;
     /**
      * The two canister slots' centers in model space, the dial on the south face:
-     * back left then back right, inset 2 px from the back and side (operator ruling).
+     * back left then back right, 3 px in from the back and side (operator ruling: inset 2 px, then in 1x1).
      */
-    private static final double[][] SLOT_CENTERS = {{4, 4}, {12, 4}};
+    private static final double[][] SLOT_CENTERS = {{5, 5}, {11, 5}};
     private static final Map<Direction, VoxelShape[]> CANISTER_SHAPES = buildCanisterShapes();
 
     /**

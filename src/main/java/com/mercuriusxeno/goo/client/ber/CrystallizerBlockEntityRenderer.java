@@ -39,7 +39,7 @@ public class CrystallizerBlockEntityRenderer
     private static final float BLOCK_CENTER = 0.5f;
 
     /** The slots' centers in model space, the dial on the south face: back left then back right. */
-    private static final float[][] SLOT_CENTERS = {{4f / 16f, 4f / 16f}, {12f / 16f, 4f / 16f}};
+    private static final float[][] SLOT_CENTERS = {{5f / 16f, 5f / 16f}, {11f / 16f, 5f / 16f}};
 
     /** The cluster wears vanilla quartz, tinted by the growing type, until a drawn crystal replaces it. */
     private static final Identifier CRYSTAL_TEXTURE = Identifier.withDefaultNamespace("textures/block/quartz_block_side.png");

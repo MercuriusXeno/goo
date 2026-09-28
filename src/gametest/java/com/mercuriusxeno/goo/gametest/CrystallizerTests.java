@@ -57,7 +57,7 @@ public final class CrystallizerTests {
     private static final double[] CRYSTAL_SPOT_NORTH = {8.0 / 16.0, 5.0 / 16.0};
     private static final double CRYSTAL_HIT_LIFT = 2.0 / 16.0;
     /** Block-local centers of the back-left and back-right slots with the dial facing north. */
-    private static final double[][] NORTH_SLOT_CENTERS = {{12.0 / 16.0, 12.0 / 16.0}, {4.0 / 16.0, 12.0 / 16.0}};
+    private static final double[][] NORTH_SLOT_CENTERS = {{11.0 / 16.0, 11.0 / 16.0}, {5.0 / 16.0, 11.0 / 16.0}};
 
     private CrystallizerTests() {
     }
