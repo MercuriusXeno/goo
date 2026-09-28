@@ -75,6 +75,7 @@ public final class CrystallizerTests {
     private static final int STILL_GROWING_TICKS = 100;
     private static final int SOME_TICKS = 20;
     private static final double HALF = 0.5;
+    private static final double SIDE_OFFSET = 2;
     private static final double PIXELS = 16.0;
     private static final double EPSILON = 1.0e-6;
     private static final double DIAL_CENTER_Y = 7.0 / 16.0;
@@ -207,11 +208,53 @@ public final class CrystallizerTests {
                     "Slot " + slot + " should center at " + NORTH_CANISTER_CENTERS[role][0] + ", "
                             + NORTH_CANISTER_CENTERS[role][1] + ", found " + bounds);
             BlockHitResult hit = canisterHit(helper, role);
-            helper.assertValueEqual(slot, CanisterBlock.hitSlot(hit, above, centers), "hit slot for role " + role);
-            helper.assertValueEqual(slot, canisters.resolveSlot(hit), "gasket slot for role " + role);
+            helper.assertValueEqual(slot, canisters.resolveSlot(hit), "hit slot for role " + role);
+            BlockHitResult side = canisterSideHit(helper, role);
+            helper.assertValueEqual(slot, canisters.resolveSlot(side), "side hit slot for role " + role);
+            AABB outline = canisters.outlineShape(side).bounds();
+            helper.assertTrue(Math.abs(outline.getCenter().x * PIXELS - NORTH_CANISTER_CENTERS[role][0]) < EPSILON
+                            && Math.abs(outline.getCenter().z * PIXELS - NORTH_CANISTER_CENTERS[role][1]) < EPSILON,
+                    "A side hit should outline its own canister, not an unused grid slot, found " + outline);
             AABB shape = helper.getBlockState(CANISTERS_POS).getShape(helper.getLevel(), above).bounds();
             helper.assertTrue(shape.contains(bounds.getCenter()), "The block's shape should hold slot " + slot);
         }
+        helper.succeed();
+    }
+
+    /**
+     * A hit on a canister's outer side, 2 px out from its center on x and 2 px toward
+     * the grid's middle row on z, nearer an unused grid slot's center than its own.
+     */
+    private static BlockHitResult canisterSideHit(GameTestHelper helper, int role) {
+        BlockPos above = helper.absolutePos(CANISTERS_POS);
+        double[] center = NORTH_CANISTER_CENTERS[role];
+        double outward = center[0] > HALF * PIXELS ? SIDE_OFFSET : -SIDE_OFFSET;
+        return new BlockHitResult(new Vec3(above.getX() + (center[0] + outward) / PIXELS, above.getY() + HALF,
+                above.getZ() + (center[1] - SIDE_OFFSET) / PIXELS),
+                outward > 0 ? Direction.EAST : Direction.WEST, above, false);
+    }
+
+    /**
+     * The crystallizer's own clicks pass anything but the knob and a mature crystal:
+     * a canister click on its top and an empty-hand click there both answer PASS, so a
+     * canister's own placement runs, on the client too.
+     *
+     * @param helper the gametest helper
+     */
+    public static void clicksItDoesNotOwnPass(GameTestHelper helper) {
+        placeCrystallizerAlone(helper, 1);
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        ItemStack canister = new ItemStack(GooItems.CANISTER.get());
+        player.setItemInHand(InteractionHand.MAIN_HAND, canister);
+        BlockPos abs = helper.absolutePos(CRYSTALLIZER_POS);
+        BlockHitResult top = new BlockHitResult(
+                new Vec3(abs.getX() + HALF, abs.getY() + 1.0, abs.getZ() + HALF), Direction.UP, abs, false);
+        var state = helper.getBlockState(CRYSTALLIZER_POS);
+        helper.assertValueEqual(net.minecraft.world.InteractionResult.PASS,
+                state.useItemOn(canister, helper.getLevel(), player, InteractionHand.MAIN_HAND, top),
+                "a canister click on the top");
+        helper.assertValueEqual(net.minecraft.world.InteractionResult.PASS,
+                state.useWithoutItem(helper.getLevel(), player, top), "an empty-hand click on the top");
         helper.succeed();
     }
 
@@ -538,14 +581,14 @@ public final class CrystallizerTests {
     }
 
     /**
-     * Clicks the crystallizer's back face empty-handed and asserts one chrysm of the
-     * tier and type lands in the player hand.
+     * Clicks the mature crystal empty-handed and asserts one chrysm of the tier and
+     * type lands in the player hand.
      */
     private static void assertClickHands(GameTestHelper helper, Item tier, ResourceKey<GooTypeDefinition> type) {
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
         BlockPos abs = helper.absolutePos(CRYSTALLIZER_POS);
-        helper.useBlock(CRYSTALLIZER_POS, player, new BlockHitResult(
-                new Vec3(abs.getX() + HALF, abs.getY() + HALF, abs.getZ() + 1.0), Direction.SOUTH, abs, false));
+        helper.useBlock(CRYSTALLIZER_POS, player, new BlockHitResult(new Vec3(abs.getX() + CRYSTAL_SPOT_NORTH[0],
+                abs.getY() + 1.0 + CRYSTAL_HIT_LIFT, abs.getZ() + CRYSTAL_SPOT_NORTH[1]), Direction.UP, abs, false));
         ItemStack hand = player.getItemInHand(InteractionHand.MAIN_HAND);
         helper.assertTrue(hand.is(tier) && hand.getCount() == 1 && type.equals(hand.get(GooDataComponents.GOO_TYPE.get())),
                 "The click should hand one " + type.identifier().getPath() + " " + tier + ", found " + hand);
