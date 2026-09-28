@@ -56,6 +56,11 @@ class ChainBurnoutsTest {
     }
 
     @Test
+    void frostResolvesItsOwnExplosion() {
+        assertSame(FrostExplosionVisual.INSTANCE, BurnoutVisuals.forType(GooTypes.FROST));
+    }
+
+    @Test
     void progressRunsFromStartToDuration() {
         ChainBurnouts.Burnout burnout = new ChainBurnouts().add(POS, Direction.UP, GooTypes.UNSTABLE,
                 ABILITY, 1, START);

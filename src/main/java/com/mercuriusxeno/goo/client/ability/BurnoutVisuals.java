@@ -24,7 +24,8 @@ public final class BurnoutVisuals {
     private static final Map<ResourceKey<GooTypeDefinition>, BurnoutVisual> DESIGNED = Map.of(
             GooTypes.UNSTABLE, UnstableExplosionVisual.INSTANCE,
             GooTypes.ROCK, RockExplosionVisual.INSTANCE,
-            GooTypes.BLAZE, BlazeExplosionVisual.INSTANCE);
+            GooTypes.BLAZE, BlazeExplosionVisual.INSTANCE,
+            GooTypes.FROST, FrostExplosionVisual.INSTANCE);
 
     private static final Map<ResourceKey<GooTypeDefinition>, BurnoutVisual> BY_TYPE =
             CHAIN_TYPES.stream().collect(Collectors.toUnmodifiableMap(Function.identity(), BurnoutVisuals::designFor));
