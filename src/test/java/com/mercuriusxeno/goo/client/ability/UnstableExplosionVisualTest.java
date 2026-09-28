@@ -1,10 +1,8 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.client.GooRenderTypes;
-import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -49,12 +47,6 @@ class UnstableExplosionVisualTest {
 
     @Test
     void pipelineShadersResolveOnTheClasspath() {
-        assertShaderExists(GooRenderTypes.UNSTABLE_EXPLOSION.getVertexShader(), ".vsh");
-        assertShaderExists(GooRenderTypes.UNSTABLE_EXPLOSION.getFragmentShader(), ".fsh");
-    }
-
-    private static void assertShaderExists(Identifier shader, String extension) {
-        String path = "/assets/" + shader.getNamespace() + "/shaders/" + shader.getPath() + extension;
-        assertNotNull(UnstableExplosionVisualTest.class.getResource(path), path + " is not on the classpath");
+        PipelineShaders.assertExist(GooRenderTypes.UNSTABLE_EXPLOSION);
     }
 }
