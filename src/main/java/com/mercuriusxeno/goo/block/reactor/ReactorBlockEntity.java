@@ -14,6 +14,7 @@ import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -448,7 +449,11 @@ public class ReactorBlockEntity extends GooGlowingMachineBlockEntity
      * @return the matched reaction, or null
      */
     private @Nullable GooReaction resolveReaction(CanisterBlockEntity inputBe) {
-        for (GooReaction reaction : GooReactionLoader.getReactions()) {
+        MinecraftServer server = level == null ? null : level.getServer();
+        if (server == null) {
+            return null;
+        }
+        for (GooReaction reaction : GooReactionLoader.reactionsOf(server)) {
             if (inputsSatisfy(inputBe, reaction)) {
                 return reaction;
             }

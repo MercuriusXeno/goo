@@ -316,7 +316,7 @@ public final class EffectExecutorTests {
      * @return the init
      */
     private static BiConsumer<ChainMarkerBlockEntity, Direction> initGlowAbility(GameTestHelper helper) {
-        AbilityDefinition ability = AbilityRegistry.getAbility(Identifier.parse(ABILITY_GLOW_CRYSTAL));
+        AbilityDefinition ability = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(ABILITY_GLOW_CRYSTAL));
         helper.assertTrue(ability != null, ABILITIES_REQUIRED);
         return (be, placedFace) -> be.initChainFromAbility(GooTypes.GLOW, placedFace, ability);
     }
@@ -379,7 +379,7 @@ public final class EffectExecutorTests {
         helper.setBlock(CRYSTAL_POS, GooBlocks.GLOW_CRYSTAL.get().defaultBlockState()
                 .setValue(GlowCrystalBlock.FACING, Direction.UP)
                 .setValue(GlowCrystalBlock.SIZE, size));
-        AbilityDefinition ability = AbilityRegistry.getAbility(Identifier.parse(abilityId));
+        AbilityDefinition ability = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(abilityId));
         helper.assertTrue(ability != null, ABILITIES_REQUIRED);
         AbilityImpact.land(helper.getLevel(), helper.absolutePos(CRYSTAL_POS), type, Direction.UP, ability);
     }
@@ -454,7 +454,7 @@ public final class EffectExecutorTests {
     private static void placeMarkerWithAbility(GameTestHelper helper, ResourceKey<GooTypeDefinition> type, String abilityId) {
         helper.setBlock(MARKER_POS, GooBlocks.CHAIN_MARKER.get());
         ChainMarkerBlockEntity be = helper.getBlockEntity(MARKER_POS, ChainMarkerBlockEntity.class);
-        AbilityDefinition ability = AbilityRegistry.getAbility(Identifier.parse(abilityId));
+        AbilityDefinition ability = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(abilityId));
         helper.assertTrue(ability != null, ABILITIES_REQUIRED);
         be.initChainFromAbility(type, Direction.SOUTH, ability);
     }

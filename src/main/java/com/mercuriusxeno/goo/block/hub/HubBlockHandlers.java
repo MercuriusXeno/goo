@@ -108,7 +108,7 @@ final class HubBlockHandlers {
 
         InteractionResult handed = SlottedCanisterData.handToPlayer(hub.removeCanister(slot), player, level, pos);
         if (handed == InteractionResult.SUCCESS) {
-            InteractionCooldown.markInteraction(player.getUUID(), level.getGameTime());
+            InteractionCooldown.markInteraction(level, player);
         }
         return handed;
     }
@@ -137,7 +137,7 @@ final class HubBlockHandlers {
         stack.consume(1, player);
         hub.getLevel().playSound(null, hub.getBlockPos(),
                 SoundEvents.DECORATED_POT_INSERT, SoundSource.BLOCKS, 1.0f, 1.0f);
-        InteractionCooldown.markInteraction(player.getUUID(), hub.getLevel().getGameTime());
+        InteractionCooldown.markInteraction(hub.getLevel(), player);
         return InteractionResult.SUCCESS;
     }
 

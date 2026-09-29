@@ -6,58 +6,38 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
-import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jspecify.annotations.Nullable;
-import java.util.*;
+import java.util.List;
 
 /**
- * Client-side handler for the ability sync payload. Stores the ability
- * list in a client-accessible cache so the ability radial menu can
- * read it without server-side registry access.
+ * Client-side handler for the ability sync payload. Hands the abilities to
+ * the connection, which holds them for its life, and reads them back for the
+ * radial menu and the throw without server-side registry access
+ * (decision type-package-and-per-server-holders).
  */
 public final class AbilitySyncHandler {
 
     private static final String LOG_SYNCED = "Synced {} abilities from server";
 
-    private static Map<ResourceKey<GooTypeDefinition>, List<ClientAbility>> byType = new HashMap<>();
-    private static Map<String, ClientAbility> byId = new HashMap<>();
-
     private AbilitySyncHandler() {
     }
 
     /**
-     * Handles the sync payload on the client thread.
+     * Hands the sync payload to the connection on the client thread.
      *
      * @param payload the sync payload
      * @param context the network context
      */
     public static void handle(AbilitySyncPayload payload, IPayloadContext context) {
-        context.enqueueWork(() -> applySync(payload));
-    }
-
-    private static void applySync(AbilitySyncPayload payload) {
-        Map<ResourceKey<GooTypeDefinition>, List<ClientAbility>> map = new HashMap<>();
-        Map<String, ClientAbility> ids = new HashMap<>();
-        for (AbilitySyncPayload.Entry e : payload.entries()) {
-            ResourceKey<GooTypeDefinition> type = GooTypes.byId(e.gooTypeId());
-            if (type == null) {
-                continue;
+        context.enqueueWork(() -> {
+            ((ClientAbilityConnection) context.listener()).receiveClientAbilities(ClientAbilities.fromPayload(payload));
+            if (Goo.LOGGER.isDebugEnabled()) {
+                Goo.LOGGER.debug(LOG_SYNCED, payload.entries().size());
             }
-            ClientAbility ability = ClientAbility.fromEntry(e);
-            map.computeIfAbsent(type, t -> new ArrayList<>()).add(ability);
-            ids.put(e.abilityId(), ability);
-        }
-        for (List<ClientAbility> list : map.values()) {
-            list.sort(Comparator.comparingInt(ClientAbility::order));
-        }
-        byType = map;
-        byId = ids;
-        if (Goo.LOGGER.isDebugEnabled()) {
-            Goo.LOGGER.debug(LOG_SYNCED, payload.entries().size());
-        }
+        });
     }
 
     /**
@@ -67,8 +47,7 @@ public final class AbilitySyncHandler {
      * @return immutable list, empty if none synced
      */
     public static List<ClientAbility> getAbilitiesForType(ResourceKey<GooTypeDefinition> type) {
-        List<ClientAbility> list = byType.get(type);
-        return list != null ? Collections.unmodifiableList(list) : List.of();
+        return ClientAbilities.current().forType(type);
     }
 
     /**
@@ -78,7 +57,7 @@ public final class AbilitySyncHandler {
      * @return the ability, or null when none synced under that id
      */
     public static @Nullable ClientAbility findAbility(String abilityId) {
-        return byId.get(abilityId);
+        return ClientAbilities.current().find(abilityId);
     }
 
     /**

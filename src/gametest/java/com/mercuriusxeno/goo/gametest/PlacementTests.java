@@ -129,7 +129,7 @@ public final class PlacementTests {
      */
     private static void throwAbility(GameTestHelper helper, BlockPos hit, Direction face,
                                      ResourceKey<GooTypeDefinition> type, String abilityId) {
-        AbilityDefinition ability = AbilityRegistry.getAbility(Identifier.parse(abilityId));
+        AbilityDefinition ability = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(abilityId));
         helper.assertTrue(ability != null, ABILITIES_REQUIRED);
         EffectBlockPlacement.placeOrStackAbility(helper.getLevel(), helper.absolutePos(hit), type, face, ability);
     }

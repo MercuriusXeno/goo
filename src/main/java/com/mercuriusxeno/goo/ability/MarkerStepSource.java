@@ -16,30 +16,36 @@ import java.util.List;
 public interface MarkerStepSource {
 
     /**
-     * The server's source, reading the registry the ability loader fills.
-     */
-    MarkerStepSource REGISTRY = abilityId -> {
-        Identifier id = Identifier.tryParse(abilityId);
-        AbilityDefinition def = id != null ? AbilityRegistry.getAbility(id) : null;
-        return def != null ? def.behaviors() : null;
-    };
-
-    /**
      * The client's source before client setup installs the synced one: it
      * answers no ability.
      */
     MarkerStepSource NONE = abilityId -> null;
 
     /**
-     * Picks the source a marker's side reads: a dedicated server's client
-     * holds an empty registry, so the client reads the synced abilities.
+     * The server's source, reading the abilities the server's datapack load holds.
+     *
+     * @param registry the server's abilities
+     * @return the source
+     */
+    static MarkerStepSource of(AbilityRegistry registry) {
+        return abilityId -> {
+            Identifier id = Identifier.tryParse(abilityId);
+            AbilityDefinition def = id != null ? registry.getAbility(id) : null;
+            return def != null ? def.behaviors() : null;
+        };
+    }
+
+    /**
+     * Picks the source a marker's side reads: a client holds no registry,
+     * so the client reads the synced abilities.
      *
      * @param clientSide  true when the marker sits in a client level
      * @param clientSteps the client's installed source
-     * @return the client source on the client, the registry otherwise
+     * @param registry    the abilities the marker's server holds
+     * @return the client source on the client, the registry's otherwise
      */
-    static MarkerStepSource forSide(boolean clientSide, MarkerStepSource clientSteps) {
-        return clientSide ? clientSteps : REGISTRY;
+    static MarkerStepSource forSide(boolean clientSide, MarkerStepSource clientSteps, AbilityRegistry registry) {
+        return clientSide ? clientSteps : of(registry);
     }
 
     /**

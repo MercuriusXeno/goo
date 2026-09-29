@@ -89,7 +89,7 @@ public final class GooTypeRegistryTests {
     public static void chainMarkerReloadsType(GameTestHelper helper) {
         helper.setBlock(MARKER_POS, GooBlocks.CHAIN_MARKER.get());
         ChainMarkerBlockEntity marker = helper.getBlockEntity(MARKER_POS, ChainMarkerBlockEntity.class);
-        AbilityDefinition frostSphere = AbilityRegistry.getAbility(FROST_SPHERE);
+        AbilityDefinition frostSphere = AbilityRegistry.of(helper.getLevel()).getAbility(FROST_SPHERE);
         helper.assertTrue(frostSphere != null, ABILITIES_REQUIRED);
         marker.initChainFromAbility(GooTypes.FROST, Direction.UP, frostSphere);
         CompoundTag saved = marker.getUpdateTag(helper.getLevel().registryAccess());

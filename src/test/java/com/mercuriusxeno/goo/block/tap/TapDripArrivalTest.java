@@ -30,12 +30,13 @@ class TapDripArrivalTest {
 
     @Test
     void dripOfATypeWithNoTapAbilityRunsNoProgram() {
-        assertNull(AbilityRegistry.tapAbilityFor(GooTypes.ROCK));
+        AbilityRegistry abilities = AbilityRegistry.EMPTY;
+        assertNull(abilities.tapAbilityFor(GooTypes.ROCK));
 
         TapDripScheduler.PendingDrip drip = new TapDripScheduler.PendingDrip(
                 null, TAP_POS, LANDING, Direction.UP, GooTypes.ROCK, 1, 0);
 
-        assertEquals(0, TapDripScheduler.land(drip));
+        assertEquals(0, TapDripScheduler.land(drip, null, landed -> TapDripScheduler.runTapAbility(landed, abilities)));
     }
 
     @Nested

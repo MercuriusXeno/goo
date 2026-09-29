@@ -21,14 +21,16 @@ import java.util.function.ToIntFunction;
 
 /**
  * Holds tap drips in flight until the server tick they land on, drained from
- * the server tick the way the blob throw's pending effects are.
+ * the server tick the way the blob throw's pending effects are. Each server
+ * holds one, so its drips end with the server
+ * (decision type-package-and-per-server-holders).
  */
 public final class TapDripScheduler {
 
     /**
      * Drips in flight, in the order they left their taps.
      */
-    private static final List<PendingDrip> PENDING = new ArrayList<>();
+    private final List<PendingDrip> pending = new ArrayList<>();
 
     /**
      * Log: a tap ability's program the tap host refused at load.
@@ -41,47 +43,47 @@ public final class TapDripScheduler {
     private static final String LOG_LANDED = "Tap drip from {} landed on {} ({} landed)";
 
     /**
-     * Drips landed since the server started this JVM, for the debug log.
+     * Drips landed since the server started, for the debug log.
      */
-    private static long landedCount;
-
-    private TapDripScheduler() {
-    }
+    private long landedCount;
 
     /**
      * Queues a drip to land after its fall.
      *
      * @param drip the drip in flight
      */
-    static void enqueue(PendingDrip drip) {
-        PENDING.add(drip);
+    public void enqueue(PendingDrip drip) {
+        pending.add(drip);
+    }
+
+    /**
+     * Drops every drip in flight, as a server stop does.
+     */
+    public void clear() {
+        pending.clear();
     }
 
     /**
      * @return a copy of the drips in flight
      */
-    public static List<PendingDrip> pending() {
-        return List.copyOf(PENDING);
+    public List<PendingDrip> pending() {
+        return List.copyOf(pending);
     }
 
     /**
-     * Lands every drip whose arrival tick has come. A drip whose level
-     * belongs to a server no longer running is dropped. The client drip
+     * Lands every drip whose arrival tick has come. The client drip
      * particle draws its own splat on reaching the surface, so a landing
      * sends none; it pours into the block below or runs the type's tap ability.
      *
      * @param server the ticking server
      */
-    public static void drainArrived(MinecraftServer server) {
-        if (PENDING.isEmpty()) {
+    public void drainArrived(MinecraftServer server) {
+        if (pending.isEmpty()) {
             return;
         }
         int currentTick = server.getTickCount();
         List<PendingDrip> arrived = new ArrayList<>();
-        PENDING.removeIf(drip -> {
-            if (drip.level().getServer() != server) {
-                return true;
-            }
+        pending.removeIf(drip -> {
             if (currentTick < drip.arrivalTick()) {
                 return false;
             }
@@ -96,9 +98,9 @@ public final class TapDripScheduler {
     }
 
     /**
-     * @return drips landed since the JVM started
+     * @return drips landed since the server started
      */
-    public static long landedCount() {
+    public long landedCount() {
         return landedCount;
     }
 
@@ -109,7 +111,8 @@ public final class TapDripScheduler {
      * @return the programs run
      */
     static int land(PendingDrip drip) {
-        return land(drip, receptacleAt(drip.level(), drip.landingPos()), TapDripScheduler::runTapAbility);
+        AbilityRegistry abilities = AbilityRegistry.of(drip.level());
+        return land(drip, receptacleAt(drip.level(), drip.landingPos()), landed -> runTapAbility(landed, abilities));
     }
 
     /**
@@ -145,11 +148,12 @@ public final class TapDripScheduler {
      * tap ability lands its drip and nothing further happens: no program
      * loads and nothing logs (decision drip-without-ability).
      *
-     * @param drip the arrived drip
+     * @param drip      the arrived drip
+     * @param abilities the abilities the drip's server holds
      * @return the programs run: one when the type carries a tap ability, else zero
      */
-    public static int runTapAbility(PendingDrip drip) {
-        AbilityDefinition ability = AbilityRegistry.tapAbilityFor(drip.type());
+    public static int runTapAbility(PendingDrip drip, AbilityRegistry abilities) {
+        AbilityDefinition ability = abilities.tapAbilityFor(drip.type());
         if (ability == null) {
             return 0;
         }

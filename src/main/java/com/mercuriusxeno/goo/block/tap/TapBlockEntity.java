@@ -15,6 +15,7 @@ import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mercuriusxeno.goo.registry.GooFluids;
 import com.mercuriusxeno.goo.registry.GooParticles;
+import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -166,7 +167,7 @@ public class TapBlockEntity extends GooGlowingMachineBlockEntity implements ICan
         Vec3 spigot = TapSpigot.underside(pos);
         setStream(TapDrip.release(dripGrade, new TapStream(type, landing.surfaceY(), dripGrade.dripVolume()), TapDrip.sinkOf(server),
                 TapDrip.dripParticle(GooParticles.TAP_DRIP.get(), type), spigot));
-        TapDripScheduler.enqueue(new TapDripScheduler.PendingDrip(server, pos, landing.pos(), Direction.UP,
+        GooServerState.of(server.getServer()).tapDrips().enqueue(new TapDripScheduler.PendingDrip(server, pos, landing.pos(), Direction.UP,
                 type, drawn.volume(), TapDrip.landingTick(server.getServer().getTickCount(), spigot.y,
                         landing.surfaceY())));
     }

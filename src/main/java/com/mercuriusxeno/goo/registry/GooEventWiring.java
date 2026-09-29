@@ -1,16 +1,15 @@
 package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.ability.AbilityLoader;
-import com.mercuriusxeno.goo.block.ability.ChainMarkerFallScheduler;
-import com.mercuriusxeno.goo.block.tap.TapDripScheduler;
+import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.AbilityRegistrySource;
 import com.mercuriusxeno.goo.command.GooCommand;
 import com.mercuriusxeno.goo.data.GooReactionLoader;
+import com.mercuriusxeno.goo.data.GooReactionSource;
 import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.item.gasket.ChoralGasketItem;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
-import com.mercuriusxeno.goo.network.BlobThrowHandler;
 import com.mercuriusxeno.goo.network.GooValueSync;
-import com.mercuriusxeno.goo.type.GooTypes;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
@@ -61,10 +60,11 @@ public final class GooEventWiring {
      */
     @SubscribeEvent
     public static void onAddReloadListeners(AddServerReloadListenersEvent event) {
-        // The type registry is loaded by now and the value and ability loaders below read it by id.
-        GooTypes.capture(event.getRegistryAccess());
-        event.addListener(GooReactionLoader.LISTENER_ID, new GooReactionLoader());
-        event.addListener(AbilityLoader.LISTENER_ID, new AbilityLoader());
+        // Each load hands what it reads to the resources it builds, which the server swaps in whole.
+        event.addListener(GooReactionLoader.LISTENER_ID,
+                new GooReactionLoader((GooReactionSource) event.getServerResources()));
+        event.addListener(AbilityLoader.LISTENER_ID,
+                new AbilityLoader((AbilityRegistrySource) event.getServerResources()));
     }
 
     /**
@@ -79,14 +79,16 @@ public final class GooEventWiring {
     }
 
     /**
-     * Drops the stopped server's goo value registry, so the next server starts
-     * from its own values.
+     * Drops the stopped server's goo value registry and everything it held in
+     * flight, so nothing lands against its levels and the next server starts
+     * from its own.
      *
      * @param event the server stopped event
      */
     @SubscribeEvent
     public static void onServerStopped(ServerStoppedEvent event) {
         GooValues.detach(event.getServer());
+        GooServerState.of(event.getServer()).clear();
     }
 
     /**
@@ -106,7 +108,8 @@ public final class GooEventWiring {
      */
     @SubscribeEvent
     public static void onDatapackSync(OnDatapackSyncEvent event) {
-        AbilitySyncPayload abilityPayload = AbilitySyncPayload.fromRegistry();
+        AbilitySyncPayload abilityPayload =
+                AbilitySyncPayload.fromRegistry(AbilityRegistry.of(event.getPlayerList().getServer()));
         // A listener that never negotiated the mod's channels, a gametest's mock player, gets no sync.
         event.getRelevantPlayers()
                 .filter(player -> player.connection.hasChannel(abilityPayload))
@@ -117,17 +120,12 @@ public final class GooEventWiring {
     }
 
     /**
-     * Ticks pending blob effects and tap drips so they apply on arrival.
+     * Lands the server's pending blob effects, marker falls and tap drips on arrival.
      *
      * @param event the post-tick event instance
      */
     @SubscribeEvent
     public static void onServerTick(ServerTickEvent.Post event) {
-        BlobThrowHandler.onServerTick(event);
-        if (ChainMarkerFallScheduler.hasPending()) {
-            ChainMarkerFallScheduler
-                    .drainArrivedFalls(event.getServer().getTickCount());
-        }
-        TapDripScheduler.drainArrived(event.getServer());
+        GooServerState.of(event.getServer()).drainArrived(event.getServer());
     }
 }
