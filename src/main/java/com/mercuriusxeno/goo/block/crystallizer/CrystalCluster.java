@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.block.crystallizer;
 
+import com.mercuriusxeno.goo.item.ChrysmTier;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -9,9 +10,9 @@ import java.util.List;
  * quartz shaped, angled prisms jutting out of a base at odd 22.5 incremental
  * angles, growing steadily until it can't anymore, visibly the next tier; hacked
  * procedurally until a drawn crystal replaces it. Growth reads the crystallizer's
- * pace: a third per tier, flat in volume over the first tier and log1000 past it,
+ * pace: a quarter per tier, flat in volume over the first tier and log32 past it,
  * so at the even pace the crystal grows at one rate through every tier and each
- * tier stands a third taller; the crystallizer stops crystallizing at the knob's
+ * tier stands a quarter taller; the crystallizer stops crystallizing at the knob's
  * tier, so the cluster stops there too.
  */
 public final class CrystalCluster {
@@ -25,10 +26,14 @@ public final class CrystalCluster {
     /** Every angle the cluster uses is a multiple of this. */
     public static final double ANGLE_STEP = 22.5;
 
-    /** Each of the three tiers is a third of full growth. */
-    private static final double TIER_SHARE = 1.0 / 3;
-    private static final double TIER_LOG = Math.log(1_000);
-    private static final double CHRYSM_VOLUME = 1_000;
+    /** Each tier is an even share of full growth. */
+    private static final double TIER_SHARE = 1.0 / ChrysmTier.values().length;
+    private static final double CHRYSM_VOLUME = ChrysmTier.CHRYSM.volume();
+    /** The log of one tier's step, about 32x, set so materia reads full growth. */
+    private static final double TIER_LOG = Math.log(ChrysmTier.MATERIA.volume() / CHRYSM_VOLUME)
+            / (ChrysmTier.values().length - 1);
+    /** The materia orb's radius, in model pixels: a marble half the item slot wide (operator ruling). */
+    public static final double ORB_RADIUS = 4;
     /** Each client tick closes this share of the gap between the drawn growth and the synced growth. */
     private static final double EASE_SHARE = 0.3;
     private static final double EASE_SNAP = 1e-4;
@@ -77,11 +82,11 @@ public final class CrystalCluster {
 
     /**
      * How far the cluster has grown, read as the crystallizer's pace reads it: a
-     * third per tier, flat in volume up to a chrysm and log1000 past it, so the
+     * quarter per tier, flat in volume up to a chrysm and log32 past it, so the
      * even pace grows it at one rate.
      *
      * @param crystallized the crystallized volume, in mB
-     * @return the growth, from 0 for nothing to 1 for a megachrysm
+     * @return the growth, from 0 for nothing to 1 for a materia
      */
     public static double growth(long crystallized) {
         if (crystallized <= 0) {

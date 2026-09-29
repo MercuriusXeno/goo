@@ -19,9 +19,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class CrystallizerPhasesTest {
 
-    private static final int CHRYSM = 1_000;
+    private static final int CHRYSM = (int) ChrysmTier.CHRYSM.volume();
+    private static final int CHRYSM_CRYSTAL = CHRYSM / CrystallizerPhases.GOO_PER_CRYSTAL;
     private static final Held ENDER = new Held(GooTypes.ENDER, CHRYSM);
-    private static final Held CRYSTAL = new Held(GooTypes.CRYSTAL, 100);
+    private static final Held CRYSTAL = new Held(GooTypes.CRYSTAL, CHRYSM_CRYSTAL);
     /** A budget that never limits a step, so the step tests read the goo, crystal and knob alone. */
     private static final double UNPACED = Double.MAX_VALUE;
     private static final double TOLERANCE = 0.02;
@@ -53,7 +54,7 @@ class CrystallizerPhasesTest {
 
         @Test
         void goodCrystalCrystallizesAllTheGooAtOneTenth() {
-            assertEquals(new Step(GooTypes.ENDER, CHRYSM, 100),
+            assertEquals(new Step(GooTypes.ENDER, CHRYSM, CHRYSM_CRYSTAL),
                     CrystallizerPhases.step(ENDER, CRYSTAL, 0, null, ChrysmTier.CHRYSM, UNPACED));
         }
 
@@ -76,14 +77,14 @@ class CrystallizerPhasesTest {
         @Test
         void crystallizingStopsAtTheKnobTier() {
             assertEquals(new Step(GooTypes.ENDER, 400, 40),
-                    CrystallizerPhases.step(ENDER, CRYSTAL, 600, GooTypes.ENDER, ChrysmTier.CHRYSM, UNPACED));
+                    CrystallizerPhases.step(ENDER, CRYSTAL, CHRYSM - 400, GooTypes.ENDER, ChrysmTier.CHRYSM, UNPACED));
             assertNull(CrystallizerPhases.step(ENDER, CRYSTAL, CHRYSM, GooTypes.ENDER, ChrysmTier.CHRYSM, UNPACED));
         }
 
         @Test
         void anotherTypeWaitsWhileOneIsCrystallized() {
             assertNull(CrystallizerPhases.step(new Held(GooTypes.ROCK, CHRYSM), CRYSTAL, 500, GooTypes.ENDER,
-                    ChrysmTier.KILOCHRYSM, UNPACED));
+                    ChrysmTier.BUDDING_CHRYSM, UNPACED));
         }
     }
 
@@ -95,7 +96,8 @@ class CrystallizerPhasesTest {
             long crystallized = 0;
             double budget = 0;
             int[] reachedAt = new int[ChrysmTier.values().length];
-            for (int tick = 1; tick <= 700 && reachedAt[2] == 0; tick++) {
+            int last = reachedAt.length - 1;
+            for (int tick = 1; tick <= 1_000 && reachedAt[last] == 0; tick++) {
                 budget = CrystallizerPhases.nextBudget(budget, crystallized);
                 long steps = (long) (budget / CrystallizerPhases.GOO_PER_CRYSTAL);
                 crystallized += steps * CrystallizerPhases.GOO_PER_CRYSTAL;
@@ -133,8 +135,9 @@ class CrystallizerPhasesTest {
     void theItemInsideIsTheHighestTierReached() {
         assertNull(CrystallizerPhases.reachedTier(CHRYSM - 1));
         assertEquals(ChrysmTier.CHRYSM, CrystallizerPhases.reachedTier(999_999));
-        assertEquals(ChrysmTier.KILOCHRYSM, CrystallizerPhases.reachedTier(1_000_000));
-        assertEquals(ChrysmTier.MEGACHRYSM, CrystallizerPhases.reachedTier(1_000_000_000L));
+        assertEquals(ChrysmTier.BUDDING_CHRYSM, CrystallizerPhases.reachedTier(1_000_000));
+        assertEquals(ChrysmTier.FLOWERING_CHRYSM, CrystallizerPhases.reachedTier(32_000_000));
+        assertEquals(ChrysmTier.MATERIA, CrystallizerPhases.reachedTier(1_000_000_000L));
     }
 
     @Test

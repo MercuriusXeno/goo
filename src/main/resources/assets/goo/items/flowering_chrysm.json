@@ -4,7 +4,7 @@
     "base": "goo:item/chrysm_crystal",
     "model": {
       "type": "goo:chrysm_crystal",
-      "tier": "megachrysm"
+      "tier": "flowering_chrysm"
     }
   }
 }

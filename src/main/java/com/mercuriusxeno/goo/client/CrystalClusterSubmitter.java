@@ -31,6 +31,11 @@ public final class CrystalClusterSubmitter {
     /** Texels per model pixel: half the texture's first scale (operator ruling). */
     private static final double TEXELS_PER_PIXEL = 2;
     private static final int TRIANGLE = 3;
+    /** The orb's bands of latitude and slices of longitude: round enough to read as a marble at item size. */
+    private static final int ORB_BANDS = 8;
+    private static final int ORB_SLICES = 12;
+    /** The orb's latitudes count up from the south pole, a quarter turn below its equator. */
+    private static final double SOUTH_POLE = Math.PI / 2;
     /**
      * A face turned evenly between x and z reads x's plane: without the margin, rounding
      * in its normal flips the choice frame to frame as the crystal grows, and the face flickers.
@@ -83,6 +88,58 @@ public final class CrystalClusterSubmitter {
                 emitPrism(ctx, prism, look.color(), look.uv());
             }
         });
+    }
+
+    /**
+     * Submits the materia orb, a sphere standing on {@link CrystalCluster}'s base point,
+     * in one draw on the block atlas (decision chrysm-tiers-in-32x-steps).
+     *
+     * @param poseStack     the pose stack, placed so model pixels map onto the block
+     * @param nodeCollector the node collector
+     * @param radius        the orb's radius, in model pixels
+     * @param look          the type's sprite and tint
+     * @param light         the packed light
+     */
+    public static void submitOrb(PoseStack poseStack, SubmitNodeCollector nodeCollector, double radius, Look look,
+                                 int light) {
+        Vec3 center = new Vec3(CrystalCluster.BASE_X, CrystalCluster.BASE_Y + radius, CrystalCluster.BASE_Z);
+        nodeCollector.submitCustomGeometry(poseStack, GooSubmitter.renderType(), (pose, c) -> {
+            RenderContext ctx = new RenderContext(pose, c, light);
+            for (Vec3[] face : orbFaces(center, radius)) {
+                emitQuad(ctx, look.color(), look.uv(), face);
+            }
+        });
+    }
+
+    /**
+     * A sphere's faces in model pixels, bands of latitude cut into slices of longitude,
+     * each four corners wound outward; a band at a pole closes on the pole twice.
+     *
+     * @param center the sphere's center, in model pixels
+     * @param radius the sphere's radius, in model pixels
+     * @return the faces
+     */
+    static List<Vec3[]> orbFaces(Vec3 center, double radius) {
+        List<Vec3[]> faces = new ArrayList<>();
+        for (int band = 0; band < ORB_BANDS; band++) {
+            for (int slice = 0; slice < ORB_SLICES; slice++) {
+                Vec3 lowerLeft = orbPoint(center, radius, band, slice);
+                Vec3 lowerRight = orbPoint(center, radius, band, slice + 1);
+                Vec3 upperRight = orbPoint(center, radius, band + 1, slice + 1);
+                Vec3 upperLeft = orbPoint(center, radius, band + 1, slice);
+                // The south band starts on its upper edge, so the pole's repeat falls last and the normal holds.
+                faces.add(band == 0 ? new Vec3[] {upperRight, upperLeft, lowerLeft, lowerRight}
+                        : new Vec3[] {lowerLeft, lowerRight, upperRight, upperLeft});
+            }
+        }
+        return faces;
+    }
+
+    private static Vec3 orbPoint(Vec3 center, double radius, int latitude, int longitude) {
+        double phi = Math.PI * latitude / ORB_BANDS - SOUTH_POLE;
+        double theta = Math.TAU * longitude / ORB_SLICES;
+        return center.add(Math.cos(phi) * Math.sin(theta) * radius, Math.sin(phi) * radius,
+                Math.cos(phi) * Math.cos(theta) * radius);
     }
 
     /**

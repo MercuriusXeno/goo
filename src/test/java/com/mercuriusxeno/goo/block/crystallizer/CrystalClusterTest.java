@@ -29,7 +29,7 @@ class CrystalClusterTest {
 
     @Test
     void everyPrismTiltsAndTurnsInStepsOfTwentyTwoAndAHalf() {
-        for (Prism prism : CrystalCluster.prisms(ChrysmTier.MEGACHRYSM.volume())) {
+        for (Prism prism : CrystalCluster.prisms(ChrysmTier.MATERIA.volume())) {
             assertEquals(0, prism.tilt() % CrystalCluster.ANGLE_STEP, 1e-9, prism.toString());
             assertEquals(0, prism.yaw() % CrystalCluster.ANGLE_STEP, 1e-9, prism.toString());
         }
@@ -51,17 +51,19 @@ class CrystalClusterTest {
 
     @Test
     void eachTierStandsLargerThanTheOneBelow() {
-        double chrysm = CrystalCluster.reach(ChrysmTier.CHRYSM.volume())[1];
-        double kilo = CrystalCluster.reach(ChrysmTier.KILOCHRYSM.volume())[1];
-        double mega = CrystalCluster.reach(ChrysmTier.MEGACHRYSM.volume())[1];
-        assertTrue(chrysm > 0 && kilo > chrysm && mega > kilo, chrysm + " < " + kilo + " < " + mega);
-        assertTrue(CrystalCluster.prisms(ChrysmTier.MEGACHRYSM.volume()).size()
+        double previous = 0;
+        for (ChrysmTier tier : ChrysmTier.values()) {
+            double height = CrystalCluster.reach(tier.volume())[1];
+            assertTrue(height > previous, tier + " stands " + height + " over " + previous);
+            previous = height;
+        }
+        assertTrue(CrystalCluster.prisms(ChrysmTier.MATERIA.volume()).size()
                 > CrystalCluster.prisms(ChrysmTier.CHRYSM.volume()).size(), "a larger tier grows more prisms");
     }
 
     @Test
-    void growthStopsAtAMegachrysm() {
-        assertEquals(1.0, CrystalCluster.growth(ChrysmTier.MEGACHRYSM.volume()), 1e-9);
+    void growthStopsAtMateria() {
+        assertEquals(1.0, CrystalCluster.growth(ChrysmTier.MATERIA.volume()), 1e-9);
         assertEquals(1.0, CrystalCluster.growth(Long.MAX_VALUE), 1e-9);
     }
 
@@ -76,7 +78,7 @@ class CrystalClusterTest {
             long steps = (long) (budget / CrystallizerPhases.GOO_PER_CRYSTAL);
             crystallized += steps * CrystallizerPhases.GOO_PER_CRYSTAL;
             budget -= steps * CrystallizerPhases.GOO_PER_CRYSTAL;
-            growth[tick] = CrystalCluster.growth(Math.min(crystallized, ChrysmTier.MEGACHRYSM.volume()));
+            growth[tick] = CrystalCluster.growth(Math.min(crystallized, ChrysmTier.MATERIA.volume()));
         }
         double mean = growth[ticks - WINDOW] / (ticks - WINDOW);
         for (int tick = WINDOW; tick + WINDOW < ticks; tick += WINDOW) {

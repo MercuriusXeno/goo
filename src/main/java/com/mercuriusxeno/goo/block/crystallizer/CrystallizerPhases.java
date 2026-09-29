@@ -27,8 +27,10 @@ public final class CrystallizerPhases {
     public static final int TICKS_PER_TIER = 200;
     /** Below a chrysm the pace is flat: a chrysm's volume over one tier's ticks. */
     private static final double FLAT_PACE = (double) ChrysmTier.CHRYSM.volume() / TICKS_PER_TIER;
-    /** Past a chrysm the volume grows 1,000-fold, one tier, every tier's ticks. */
-    private static final double GROWTH_PER_TICK = Math.log(1_000) / TICKS_PER_TIER;
+    /** Past a chrysm the volume grows 32-fold, one tier, every tier's ticks (decision chrysm-tiers-in-32x-steps). */
+    private static final double GROWTH_PER_TICK = Math.log(32) / TICKS_PER_TIER;
+    /** The knob's positions, each capping crystallizing at the tier of its number. */
+    public static final int KNOB_POSITIONS = 3;
 
     private CrystallizerPhases() {
     }
@@ -92,13 +94,13 @@ public final class CrystallizerPhases {
      * @return the next size
      */
     public static int nextKnob(int knob) {
-        return knob % ChrysmTier.values().length + 1;
+        return knob % KNOB_POSITIONS + 1;
     }
 
     /**
-     * Operator ruling: an even pace per tier, a chrysm at about 10 s, a kilochrysm by
-     * 20 s and a megachrysm by 30 s. Flat below a chrysm, then growing with what's
-     * crystallized so every tier's 1,000-fold climb takes the same 200 ticks.
+     * Operator ruling: an even pace per tier, a chrysm at about 10 s and each tier
+     * after about 10 s more. Flat below a chrysm, then growing with what's
+     * crystallized so every tier's 32-fold climb takes the same 200 ticks.
      *
      * @param crystallized the goo crystallized so far, in mB
      * @return the mB one tick may crystallize

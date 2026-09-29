@@ -6,14 +6,16 @@ import com.mercuriusxeno.goo.GooTypes;
 import net.minecraft.resources.ResourceKey;
 
 /**
- * The three fixed chrysm tiers and the goo volume each holds, the one place
- * those volumes live (decision chrysm-tiers-fixed-and-stackable): each tier is
- * 1,000 of the one below, and no tier sits past megachrysm.
+ * The four fixed chrysm tiers and the goo volume each holds, the one place
+ * those volumes live (decision chrysm-tiers-in-32x-steps): round numbers about
+ * 32 times the tier below, named for growth, and no tier past materia, since
+ * one more step breaks the int cap (decision chrysm-tiers-fixed-and-stackable).
  */
 public enum ChrysmTier {
-    CHRYSM("chrysm", 1_000L),
-    KILOCHRYSM("kilochrysm", 1_000_000L),
-    MEGACHRYSM("megachrysm", 1_000_000_000L);
+    CHRYSM("chrysm", 32_000L),
+    BUDDING_CHRYSM("budding_chrysm", 1_000_000L),
+    FLOWERING_CHRYSM("flowering_chrysm", 32_000_000L),
+    MATERIA("materia", 1_000_000_000L);
 
     /** The crystal spent crystallizing a chrysm is a tenth of its goo. */
     private static final long CRYSTAL_DIVISOR = 10L;
