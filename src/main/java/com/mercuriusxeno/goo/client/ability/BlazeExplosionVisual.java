@@ -17,7 +17,10 @@ import net.minecraft.util.ARGB;
  * so it lights what it covers, fading out over the last half. The vertex
  * color carries progress in red, the placed face's ordinal in green and
  * the flame's remaining strength in blue, since a core pipeline takes no
- * per-draw uniforms.
+ * per-draw uniforms. A blaze_tunnel marker draws no dome: its burnout sends
+ * an orange heat shimmer into the wall ahead of the smelting, the
+ * {@link TunnelWave} drawn through {@code blaze_tunnel_wave.fsh}, as the
+ * operator settled.
  */
 public final class BlazeExplosionVisual implements BurnoutVisual {
 
@@ -48,7 +51,16 @@ public final class BlazeExplosionVisual implements BurnoutVisual {
     }
 
     @Override
+    public int durationTicks(ChainBurnouts.Burnout burnout) {
+        return TunnelWave.isTunnel(burnout) ? TunnelWave.durationTicks(burnout.stackCount()) : DURATION_TICKS;
+    }
+
+    @Override
     public void render(ChainBurnouts.Burnout burnout, BurnoutFrame frame) {
+        if (TunnelWave.isTunnel(burnout)) {
+            TunnelWave.render(burnout, frame, GooRenderTypes.BLAZE_TUNNEL_WAVE_TYPE);
+            return;
+        }
         float progress = burnout.progress(frame.gameTime());
         float radius = domeRadius(progress);
         int color = ARGB.color(OPAQUE, NetherDiscMesh.toByte(progress), burnout.placedFace().ordinal(),
