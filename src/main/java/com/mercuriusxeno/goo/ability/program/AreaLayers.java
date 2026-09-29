@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import com.mercuriusxeno.goo.ability.AbilityMath;
 import com.mercuriusxeno.goo.ability.ChainFootprint;
 import com.mercuriusxeno.goo.ability.LayerGeometry;
 import net.minecraft.core.BlockPos;
@@ -26,7 +25,7 @@ final class AreaLayers {
 
     /**
      * Counts the layers the walk strikes: the tunnel depth, the flat
-     * ring count, or the freeze radius as shell count.
+     * ring count, or the ball's shell count.
      *
      * @param shape       the footprint shape
      * @param stacks      the marker's stack count
@@ -37,7 +36,7 @@ final class AreaLayers {
         return switch (shape) {
             case TUNNEL -> ChainFootprint.tunnelDepth(stacks);
             case FLAT_CIRCLE -> ChainFootprint.flatRings(stacks, startRadius).size();
-            case SPHERE -> AbilityMath.computeFreezeRadius(stacks);
+            case SPHERE -> ChainFootprint.radiusAtStacks(stacks, startRadius) + 1;
         };
     }
 
@@ -74,7 +73,7 @@ final class AreaLayers {
         return switch (shape) {
             case TUNNEL -> ChainFootprint.layerFootprint(stacks).size();
             case FLAT_CIRCLE -> ChainFootprint.flatRings(stacks, startRadius).get(layer).size();
-            case SPHERE -> ChainFootprint.sphereShell(layer).size();
+            case SPHERE -> ChainFootprint.sphereShell(layer, ChainFootprint.radiusAtStacks(stacks, startRadius)).size();
         };
     }
 
@@ -95,7 +94,8 @@ final class AreaLayers {
             case TUNNEL -> perpendicular(ChainFootprint.layerFootprint(stacks), origin, placedFace, layer);
             case FLAT_CIRCLE -> perpendicular(ChainFootprint.flatRings(stacks, startRadius).get(layer), origin,
                     placedFace, 0);
-            case SPHERE -> offsets(ChainFootprint.sphereShellOffsets(layer, placedFace), origin);
+            case SPHERE -> offsets(ChainFootprint.sphereShellOffsets(layer,
+                    ChainFootprint.radiusAtStacks(stacks, startRadius), placedFace), origin);
         };
     }
 

@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.ability.BlockEffectType;
+import com.mercuriusxeno.goo.ability.ChainFootprint;
 import com.mercuriusxeno.goo.ability.LayerAudioType;
 import com.mercuriusxeno.goo.ability.LayerVisualsType;
 import com.mojang.serialization.Codec;
@@ -74,6 +75,17 @@ public record ProgressiveAreaStep(AreaShape shape, String effect, String visuals
                 return DataResult.error(refusal::getMessage);
             }
         });
+    }
+
+    /**
+     * The disc's or the ball's radius at a stack count: the start radius at
+     * one stack and one block more per stack (decision sphere-is-frost-alone).
+     *
+     * @param stacks the marker's stack count
+     * @return the radius in blocks
+     */
+    public int radius(int stacks) {
+        return ChainFootprint.radiusAtStacks(stacks, startRadius);
     }
 
     /**

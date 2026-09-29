@@ -20,7 +20,8 @@
       "effect": "freeze",
       "visuals": "none",
       "audio": "none",
-      "preview_delay": 8
+      "preview_delay": 8,
+      "start_radius": 3
     }
   ],
   "tags": ["transmute", "radial"]

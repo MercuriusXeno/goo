@@ -11,13 +11,15 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.stream.IntStream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
  * The area abilities' JSONs decode to the stack ceiling and start radius the
  * shape ladder reads (decisions disc-opens-circularly-per-stack,
- * tunnel-stays-3x3-ee-homage), read from the classpath.
+ * tunnel-stays-3x3-ee-homage, sphere-is-frost-alone), read from the classpath.
  */
 class AreaAbilityJsonTest {
 
@@ -56,6 +58,13 @@ class AreaAbilityJsonTest {
     @ValueSource(strings = {"rock_tunnel", "blaze_tunnel", "frost_tunnel"})
     void tunnelStacksSix(String ability) throws IOException {
         assertEquals(LADDER_STACKS, decode(ability).chain().maxStacks(), ability + " maxStacks");
+    }
+
+    @Test
+    void frostBallOpensFromRadiusThreeOneBlockPerStack() throws IOException {
+        ProgressiveAreaStep step = (ProgressiveAreaStep) decode("frost_sphere").behaviors().getFirst();
+
+        assertEquals(List.of(3, 4, 5, 6), IntStream.rangeClosed(1, 4).mapToObj(step::radius).toList());
     }
 
     @Test

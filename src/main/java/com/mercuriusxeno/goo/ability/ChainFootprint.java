@@ -9,7 +9,7 @@ import java.util.List;
  * Shared footprint math for rock, blaze and frost chain effects. The
  * tunnel bores 1x1 at one stack, then 3x3 at depths 1, 2, 4, 7 and 10
  * (decision tunnel-stays-3x3-ee-homage). Flat mode opens a round disc one
- * block of radius per throw on one layer.
+ * block of radius per throw on one layer, and the sphere a round ball.
  */
 public final class ChainFootprint {
 
@@ -105,14 +105,15 @@ public final class ChainFootprint {
     }
 
     /**
-     * The disc radius at a stack count: one block per throw from the
-     * start radius the ability JSON names (decision disc-opens-circularly-per-stack).
+     * The disc's or the ball's radius at a stack count: one block per throw
+     * from the start radius the ability JSON names (decisions
+     * disc-opens-circularly-per-stack, sphere-is-frost-alone).
      *
      * @param stacks      blob stack count (1-based)
      * @param startRadius the radius of the first throw
      * @return the radius, never below zero
      */
-    public static int discRadius(int stacks, int startRadius) {
+    public static int radiusAtStacks(int stacks, int startRadius) {
         return Math.max(0, startRadius + stacks - 1);
     }
 
@@ -128,7 +129,7 @@ public final class ChainFootprint {
 
     /**
      * Returns the flat disc: every cell whose center lies under
-     * {@code r + 0.5} of the center, for r the {@link #discRadius}.
+     * {@code r + 0.5} of the center, for r the {@link #radiusAtStacks}.
      *
      * @param stacks      blob stack count (1-based)
      * @param startRadius the radius of the first throw
@@ -162,7 +163,7 @@ public final class ChainFootprint {
      * @return list of rings, each ring a list of [a, b] offset pairs
      */
     public static List<List<int[]>> flatRings(int stacks, int startRadius) {
-        int radius = discRadius(stacks, startRadius);
+        int radius = radiusAtStacks(stacks, startRadius);
         List<List<int[]>> rings = new ArrayList<>(radius + 1);
         for (int k = 0; k <= radius; k++) {
             rings.add(new ArrayList<>());
@@ -208,38 +209,25 @@ public final class ChainFootprint {
 
 
     /**
-     * Returns all 3D block offsets in the effect region, relative to
-     * the marker position. Each offset is {dx, dy, dz} in world axes.
-     * Layer 0 starts one step into the wall from the marker.
+     * Returns all 3D block offsets in the effect region for the given area
+     * mode, relative to the marker position: the tunnel's layers, the flat
+     * disc, or the ball. Layer 0 starts one step into the wall from the marker.
      *
-     * @param stacks   blob stack count
-     * @param flatMode true for flat mode
-     * @param face     the placed face
+     * @param stacks      blob stack count
+     * @param areaMode    "tunnel", "flat_circle", or "sphere"
+     * @param startRadius the disc's or the ball's radius at one stack
+     * @param face        the placed face
      * @return list of {dx, dy, dz} offsets
      */
-    public static List<int[]> computeRegionOffsets(int stacks, boolean flatMode, Direction face) {
-        List<int[]> footprint = flatMode ? flatFootprint(stacks) : layerFootprint(stacks);
-        int depth = flatMode ? 1 : tunnelDepth(stacks);
-        Direction blastDir = face.getOpposite();
-        return expandLayers(footprint, depth, blastDir);
-    }
-
-    /**
-     * Returns all 3D block offsets in the effect region for the given area mode.
-     * Dispatches to tunnel, flat circle, or sphere computation.
-     *
-     * @param stacks   blob stack count
-     * @param areaMode "tunnel", "flat_circle", or "sphere"
-     * @param face     the placed face
-     * @return list of {dx, dy, dz} offsets
-     */
-    public static List<int[]> computeRegionOffsets(int stacks, String areaMode, Direction face) {
+    public static List<int[]> computeRegionOffsets(int stacks, String areaMode, int startRadius, Direction face) {
         if (AREA_SPHERE.equals(areaMode)) {
-            int radius = AbilityMath.computeFreezeRadius(stacks);
-            return computeSphereOffsets(radius, face);
+            return computeSphereOffsets(radiusAtStacks(stacks, startRadius), face);
         }
-        boolean flat = AREA_FLAT_CIRCLE.equals(areaMode);
-        return computeRegionOffsets(stacks, flat, face);
+        Direction blastDir = face.getOpposite();
+        if (AREA_FLAT_CIRCLE.equals(areaMode)) {
+            return expandLayers(flatFootprint(stacks, startRadius), 1, blastDir);
+        }
+        return expandLayers(layerFootprint(stacks), tunnelDepth(stacks), blastDir);
     }
 
     /**
@@ -281,69 +269,53 @@ public final class ChainFootprint {
     }
 
     /**
-     * Returns all 3D block offsets in a sphere centered one block into
-     * the wall from the marker. Used by frost and other spheroid effects.
+     * Returns all 3D block offsets in the ball centered one block into
+     * the wall from the marker: every cell whose center lies under
+     * {@code radius + 0.5} of the ball's center.
      *
-     * @param radius the sphere radius in blocks
+     * @param radius the ball's radius in blocks
      * @param face   the placed face (determines center offset direction)
      * @return list of {dx, dy, dz} offsets relative to the marker
      */
     public static List<int[]> computeSphereOffsets(int radius, Direction face) {
-        Direction blastDir = face.getOpposite();
-        int cx = blastDir.getStepX();
-        int cy = blastDir.getStepY();
-        int cz = blastDir.getStepZ();
-        int r2 = radius * radius;
-        List<int[]> result = new ArrayList<>();
-        for (int dx = -radius; dx <= radius; dx++) {
-            for (int dy = -radius; dy <= radius; dy++) {
-                for (int dz = -radius; dz <= radius; dz++) {
-                    if (dx * dx + dy * dy + dz * dz <= r2) {
-                        result.add(new int[]{dx + cx, dy + cy, dz + cz});
-                    }
-                }
-            }
+        List<int[]> ball = new ArrayList<>();
+        for (int shell = 0; shell <= radius; shell++) {
+            ball.addAll(sphereShellOffsets(shell, radius, face));
         }
-        return result;
+        return ball;
     }
 
     /**
-     * Returns 3D offsets for a single spherical shell at the given radius.
-     * Shell r contains all integer positions where r-1 < distance <= r,
-     * computed as floor(sqrt(d2)) == r. Shell 0 is the origin block.
-     * Shells 0..R union to the full solid sphere of radius R.
+     * Returns the 3D offsets of one shell of a ball: the cells with
+     * {@code floor(sqrt(dx*dx + dy*dy + dz*dz)) == shell} whose centers lie
+     * under {@code radius + 0.5}. Shell 0 is the center; shells 0 through
+     * radius are disjoint and unite to the ball.
      *
-     * @param shellRadius the shell radius (0 = origin only)
+     * @param shell  the shell index, from the center outward
+     * @param radius the ball's radius
      * @return list of {dx, dy, dz} offsets
      */
-    public static List<int[]> sphereShell(int shellRadius) {
-        if (shellRadius == 0) {
-            return List.of(new int[]{0, 0, 0});
-        }
-        int r2max = shellRadius * shellRadius;
-        int r2min = (shellRadius - 1) * (shellRadius - 1);
+    public static List<int[]> sphereShell(int shell, int radius) {
         List<int[]> result = new ArrayList<>();
-        for (int dx = -shellRadius; dx <= shellRadius; dx++) {
-            collectShellSlice(result, dx, shellRadius, r2min, r2max);
+        for (int dx = -radius; dx <= radius; dx++) {
+            collectShellSlice(result, dx, shell, radius);
         }
         return result;
     }
 
     /**
-     * Collects all positions in one x-slice of a spherical shell.
+     * Collects the cells of one x-slice of a ball's shell.
      *
-     * @param result      the output list
-     * @param dx          the x offset
-     * @param shellRadius the shell radius
-     * @param r2min       the squared inner radius (exclusive)
-     * @param r2max       the squared outer radius (inclusive)
+     * @param result the output list
+     * @param dx     the x offset
+     * @param shell  the shell index
+     * @param radius the ball's radius
      */
-    private static void collectShellSlice(List<int[]> result, int dx,
-                                          int shellRadius, int r2min, int r2max) {
-        for (int dy = -shellRadius; dy <= shellRadius; dy++) {
-            for (int dz = -shellRadius; dz <= shellRadius; dz++) {
-                int d2 = dx * dx + dy * dy + dz * dz;
-                if (d2 <= r2max && d2 > r2min) {
+    private static void collectShellSlice(List<int[]> result, int dx, int shell, int radius) {
+        for (int dy = -radius; dy <= radius; dy++) {
+            for (int dz = -radius; dz <= radius; dz++) {
+                int squared = dx * dx + dy * dy + dz * dz;
+                if (withinRound(squared, radius) && (int) Math.sqrt(squared) == shell) {
                     result.add(new int[]{dx, dy, dz});
                 }
             }
@@ -351,21 +323,22 @@ public final class ChainFootprint {
     }
 
     /**
-     * Returns 3D offsets for a single spherical shell, translated so the
-     * sphere center is one block into the wall from the marker.
+     * Returns one shell of a ball, translated so the ball's center is one
+     * block into the wall from the marker.
      *
-     * @param shellRadius the shell radius (0 = center block)
-     * @param face        the placed face (determines center offset)
+     * @param shell  the shell index (0 = center block)
+     * @param radius the ball's radius
+     * @param face   the placed face (determines center offset)
      * @return list of {dx, dy, dz} offsets relative to the marker
      */
-    public static List<int[]> sphereShellOffsets(int shellRadius, Direction face) {
+    public static List<int[]> sphereShellOffsets(int shell, int radius, Direction face) {
         Direction blastDir = face.getOpposite();
         int cx = blastDir.getStepX();
         int cy = blastDir.getStepY();
         int cz = blastDir.getStepZ();
-        List<int[]> shell = sphereShell(shellRadius);
-        List<int[]> result = new ArrayList<>(shell.size());
-        for (int[] p : shell) {
+        List<int[]> cells = sphereShell(shell, radius);
+        List<int[]> result = new ArrayList<>(cells.size());
+        for (int[] p : cells) {
             result.add(new int[]{p[0] + cx, p[1] + cy, p[Z_INDEX] + cz});
         }
         return result;
