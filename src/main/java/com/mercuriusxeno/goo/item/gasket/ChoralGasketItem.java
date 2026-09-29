@@ -128,11 +128,11 @@ public class ChoralGasketItem extends Item implements IGooItemInteraction {
     /**
      * Tells goo machine blocks to pass so the gasket's own useOn handles it.
      *
-     * @return the tuner pass interaction type
+     * @return the gasket install interaction type
      */
     @Override
     public GooInteractionType canisterInteraction() {
-        return GooInteractionType.TUNER_PASS;
+        return GooInteractionType.GASKET_INSTALL;
     }
 
     /**

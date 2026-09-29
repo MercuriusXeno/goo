@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.block.canister;
 
 import com.mercuriusxeno.goo.GooConstants;
 import com.mercuriusxeno.goo.block.BlockEntitySync;
+import com.mercuriusxeno.goo.block.GooBlockInteraction;
 import com.mercuriusxeno.goo.block.GooGlowingMachineBlockEntity;
 import com.mercuriusxeno.goo.block.IGooReceptacle;
 import com.mercuriusxeno.goo.block.gasket.GasketAttachment;
@@ -63,7 +64,6 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
 
     private static final String TAG_OWNER_UUID = "OwnerUuid";
     private static final String TAG_SLOTS = "Slots";
-    private static final String ERR_TUNER_PASS = "TUNER_PASS handled in validate";
     private static final String ERR_UNHANDLED = "Unhandled interaction: ";
 
     private final SlottedCanisterData state;
@@ -427,7 +427,7 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
      * @param hitResult the ray trace hit result
      * @return SUCCESS if fluid transferred, null if not applicable
      */
-    public @Nullable InteractionResult tryFluidInteraction(Player player, InteractionHand hand,
+    private @Nullable InteractionResult tryFluidInteraction(Player player, InteractionHand hand,
                                                            BlockHitResult hitResult) {
         int slotIndex = aimedSlot(hitResult);
         CanisterSlot slot = slot(slotIndex);
@@ -441,55 +441,82 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
     }
 
     /**
+     * Reports whether the hit aims at a slot holding a canister, the slot state the click
+     * classifies against.
+     *
+     * @param hitResult the ray trace hit result
+     * @return true when the aimed slot holds a canister
+     */
+    public boolean aimedSlotHoldsCanister(BlockHitResult hitResult) {
+        CanisterSlot slot = slot(aimedSlot(hitResult));
+        return slot != null && !slot.isEmpty();
+    }
+
+    /**
      * Dispatches a validated interaction to the appropriate handler method.
      *
      * @param interaction the classified interaction type
      * @param stack       the held item stack
      * @param player      the interacting player
+     * @param hand        the hand holding the item
      * @param hitResult   the ray trace hit result
      * @return the interaction result
      */
     public InteractionResult dispatch(GooInteractionType interaction, ItemStack stack,
-                                      Player player, BlockHitResult hitResult) {
-        if (interaction == GooInteractionType.TUNER_PASS) {
-            throw new IllegalStateException(ERR_TUNER_PASS);
-        }
+                                      Player player, InteractionHand hand, BlockHitResult hitResult) {
         return switch (interaction) {
             case CANISTER_INSERT -> handleCanisterInsert(hitResult, stack, player);
+            case CANISTER_PICKUP -> handleCanisterPickup(player, hitResult);
+            case FLUID_CONTAINER -> handleFluidContainer(player, hand, hitResult);
             case BLOB_INSERT -> handleBlobInsert(hitResult, stack, player);
             default -> throw new IllegalStateException(ERR_UNHANDLED + interaction);
         };
     }
 
     private InteractionResult handleCanisterInsert(BlockHitResult hitResult, ItemStack stack, Player player) {
-        if (!tryInsertCanister(hitResult, stack, player.isCreative())) {
-            return InteractionResult.PASS;
-        }
-        stack.consume(1, player);
-        playInsertSound();
-        return InteractionResult.SUCCESS;
+        int slot = CanisterSlotResolver.resolveAndConstrain(
+                hitResult.getLocation(), worldPosition, hitResult.getDirection(), this);
+        return insertHeldCanister(slot, stack, player) ? InteractionResult.SUCCESS : InteractionResult.PASS;
     }
 
     /**
-     * Plays the sound of a canister entering this block, heard by every player near it,
-     * the placer included.
+     * A bucket that moves no fluid falls to the empty-hand click, as a click with no item would.
+     *
+     * @param player    the interacting player
+     * @param hand      the hand holding the fluid container
+     * @param hitResult the ray trace hit result
+     * @return SUCCESS when fluid moved, else TRY_WITH_EMPTY_HAND
      */
-    public void playInsertSound() {
-        if (level != null) {
-            level.playSound(null, worldPosition, SoundEvents.DECORATED_POT_INSERT, SoundSource.BLOCKS, 1.0f, 1.0f);
-        }
+    private InteractionResult handleFluidContainer(Player player, InteractionHand hand, BlockHitResult hitResult) {
+        InteractionResult moved = tryFluidInteraction(player, hand, hitResult);
+        return moved != null ? moved : InteractionResult.TRY_WITH_EMPTY_HAND;
     }
 
-    private boolean tryInsertCanister(BlockHitResult hitResult, ItemStack stack, boolean stripGaskets) {
-        int slot = CanisterSlotResolver.resolveAndConstrain(
-                hitResult.getLocation(), worldPosition, hitResult.getDirection(), this);
-        return slot >= 0 && insertCanister(slot, stack, stripGaskets);
+    /**
+     * Inserts the held canister into the slot, takes it from the hand and plays the insert
+     * sound: the one canister insert both the block's click and the canister item's
+     * empty-slot click call (decision every-machine-clicks-through-the-dispatcher).
+     *
+     * @param slot   the slot the canister enters, or a negative index for none
+     * @param stack  the held canister stack
+     * @param player the interacting player
+     * @return true when the canister went in
+     */
+    public boolean insertHeldCanister(int slot, ItemStack stack, Player player) {
+        if (slot < 0 || !insertCanister(slot, stack, player.isCreative())) {
+            return false;
+        }
+        GooBlockInteraction.consumeOneHeld(stack, player);
+        if (level != null) {
+            GooBlockInteraction.playCanisterInsertSound(level, worldPosition);
+        }
+        return true;
     }
 
     private InteractionResult handleBlobInsert(BlockHitResult hitResult, ItemStack stack, Player player) {
         int hitSlot = aimedSlot(hitResult);
         int accepted = BlobInsert.pour(stack, player,
-                (type, volume) -> tryInsertBlobGoo(hitSlot, type, volume));
+                (type, volume) -> blobGooIntoSlot(hitSlot, type, volume));
         if (accepted <= 0) {
             return InteractionResult.PASS;
         }
@@ -498,7 +525,7 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
         return InteractionResult.SUCCESS;
     }
 
-    private int tryInsertBlobGoo(int hitSlot, ResourceKey<GooTypeDefinition> type, int volume) {
+    private int blobGooIntoSlot(int hitSlot, ResourceKey<GooTypeDefinition> type, int volume) {
         return hitSlot >= 0 && canAccept(hitSlot) ? insertGoo(hitSlot, type, volume) : 0;
     }
 

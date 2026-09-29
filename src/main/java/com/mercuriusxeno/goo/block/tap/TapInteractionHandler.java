@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.block.tap;
 
+import com.mercuriusxeno.goo.block.GooBlockInteraction;
 import com.mercuriusxeno.goo.block.ShapeHitCheck;
 import com.mercuriusxeno.goo.block.canister.SlottedCanisterData;
 import com.mercuriusxeno.goo.item.BlobInsert;
@@ -132,9 +133,8 @@ final class TapInteractionHandler {
         if (!tap.insertCanister(stack.copyWithCount(1))) {
             return InteractionResult.TRY_WITH_EMPTY_HAND;
         }
-        stack.consume(1, player);
-        tap.getLevel().playSound(null, tap.getBlockPos(), SoundEvents.DECORATED_POT_INSERT,
-                SoundSource.BLOCKS, 1.0f, 1.0f);
+        GooBlockInteraction.consumeOneHeld(stack, player);
+        GooBlockInteraction.playCanisterInsertSound(tap.getLevel(), tap.getBlockPos());
         return InteractionResult.SUCCESS;
     }
 
