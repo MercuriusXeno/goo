@@ -1,9 +1,9 @@
 package com.mercuriusxeno.goo.client.hud;
 
+import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.GooTypes;
-import com.mercuriusxeno.goo.ability.AbilityDefinition;
-import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -17,26 +17,25 @@ import static org.mockito.Mockito.mock;
 class CrosshairFuelPanelTest {
 
     private static final int CANISTER_VOLUME = 3000;
-    private static final int AIMED_STACKS = 2;
+    private static final int AIMED_STACKS = 3;
+    private static final int FLAT_COST = 2500;
 
-    private static ClientAbility proximityMine() {
-        AbilityDefinition definition = AbilityJson.decode("unstable_proximity_mine");
-        return new ClientAbility(definition.id(), definition.displayName(), definition.icon(),
-                definition.order(), definition.tags(), definition.chain().fuseTicks(),
-                definition.chain().maxStacks(), definition.behaviors(), definition.cost());
+    private static ClientAbility costing(int cost) {
+        return new ClientAbility(Identifier.fromNamespaceAndPath(Goo.MODID, "cost_" + cost), "ability.goo.cost", "",
+                0, List.of(), 0, AIMED_STACKS + 1, List.of(), cost);
     }
 
     @Test
     void rowReadsTheCanisterItsVolumeAndTheCostAtTheAimedStack() {
         ItemStack canister = mock(ItemStack.class);
-        int cost = proximityMine().throwCost(AIMED_STACKS);
+        int cost = costing(FLAT_COST).throwCost(AIMED_STACKS);
 
         CrosshairFuelPanel.FuelRow row = CrosshairFuelPanel.fuelRow(canister, GooTypes.UNSTABLE, CANISTER_VOLUME, cost);
 
         assertSame(canister, row.source());
         assertEquals(GooTypes.UNSTABLE, row.type());
         assertEquals("3", row.heldText());
-        assertEquals("- 4.5", row.costText());
+        assertEquals("- 2.5", row.costText());
     }
 
     /** A 60 by 22 panel at (100, 50) cuts the 24x24 effect background into nine slices with a 3px border (decision diagnose-then-fix-aiming-panel-stretch). */
@@ -84,10 +83,14 @@ class CrosshairFuelPanelTest {
     }
 
     @Test
-    void aimedStackCostsAboveTheFirstThrowForAPowerLaw() {
-        ClientAbility mine = proximityMine();
+    void costReadsTheSyncedFlatFigureAtStacksZeroAndThree() {
+        ClientAbility ability = costing(FLAT_COST);
+        ItemStack canister = mock(ItemStack.class);
 
-        assertEquals(2000, mine.throwCost(0));
-        assertEquals(4500, mine.throwCost(AIMED_STACKS));
+        for (int stacks : new int[]{0, AIMED_STACKS}) {
+            CrosshairFuelPanel.FuelRow row = CrosshairFuelPanel.fuelRow(canister, GooTypes.UNSTABLE, CANISTER_VOLUME,
+                    ability.throwCost(stacks));
+            assertEquals("- 2.5", row.costText(), "cost at stacks=" + stacks);
+        }
     }
 }

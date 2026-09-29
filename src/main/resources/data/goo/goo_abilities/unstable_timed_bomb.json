@@ -2,13 +2,7 @@
   "gooType": "unstable",
   "displayName": "goo.ability.unstable.timed_bomb",
   "order": 0,
-  "cost": {
-    "formula": "quadratic",
-    "baseCost": 1000,
-    "a": 0.0,
-    "b": 1.0,
-    "c": 1.0
-  },
+  "cost": 1000,
   "chain": {
     "fuseTicks": 60,
     "maxStacks": 8

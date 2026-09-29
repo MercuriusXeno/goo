@@ -40,7 +40,7 @@ import static org.mockito.Mockito.when;
 class NetherBlackHoleProgramTest {
 
     private static final int STACKS = 1;
-    /** One stack's blast radius, {@code 1 + 2 * stacks}. */
+    /** One stack's blast radius, {@code 2 + stacks}. */
     private static final int RADIUS = 3;
     private static final int PULL_RADIUS = 3 * RADIUS;
     private static final double PULL_SPEED = 0.15;

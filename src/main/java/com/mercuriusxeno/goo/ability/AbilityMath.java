@@ -23,18 +23,6 @@ public final class AbilityMath {
      * Majority threshold multiplier: rockTotal * 2 > total means >50%.
      */
     private static final int MAJORITY_MULTIPLIER = 2;
-    /**
-     * Base freeze radius before stacking.
-     */
-    private static final int FREEZE_BASE_RADIUS = 2;
-    /**
-     * Nether conversion base radius.
-     */
-    private static final int NETHER_BASE_RADIUS = 1;
-    /**
-     * Nether conversion radius added per stack.
-     */
-    private static final int NETHER_RADIUS_PER_STACK = 2;
 
     private AbilityMath() {
     }
@@ -99,26 +87,4 @@ public final class AbilityMath {
         }
         return rockTotal * MAJORITY_MULTIPLIER > value.totalBlobs();
     }
-
-
-    /**
-     * Frost freeze radius. Formula: 2 + n.
-     *
-     * @param stackCount 1-based stack level
-     * @return spherical freeze radius (3, 4, 5, 6)
-     */
-    public static int computeFreezeRadius(int stackCount) {
-        return FREEZE_BASE_RADIUS + stackCount;
-    }
-
-    /**
-     * Nether conversion radius. Formula: 1 + 2n.
-     *
-     * @param stackCount 1-based stack level
-     * @return spherical conversion radius (3, 5, 7, 9)
-     */
-    public static int computeNetherRadius(int stackCount) {
-        return NETHER_BASE_RADIUS + NETHER_RADIUS_PER_STACK * stackCount;
-    }
-
 }
