@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Covers the affordability gate a glove press passes before any swing, packet
  * or sound: the cost at the aimed marker's stack position against the
- * player's holdings (decision unaffordable-click-does-nothing).
+ * player's holdings (decisions unaffordable-click-does-nothing, flat-cost-per-throw).
  */
 class GloveThrowSenderTest {
 
@@ -46,11 +46,11 @@ class GloveThrowSenderTest {
     }
 
     @Test
-    void aimedStackPositionPricesAboveTheFirstThrow() {
+    void holdingsCoveringTheFirstThrowCoverAThrowAtAStackedMarker() {
         ClientAbility mine = clientAbility("unstable_proximity_mine");
 
         assertTrue(affordsWithHoldings(mine, 0, mine.throwCost(0)));
-        assertFalse(affordsWithHoldings(mine, AIMED_STACKS, mine.throwCost(0)));
+        assertTrue(affordsWithHoldings(mine, AIMED_STACKS, mine.throwCost(0)));
     }
 
     @Test

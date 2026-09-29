@@ -12,8 +12,9 @@ import org.jspecify.annotations.Nullable;
  * crystallizer holds two canisters, and it doesn't matter which slot has the
  * crystal goo, the other slot governs what goo grows; goo crystallizes as it
  * goes, spending crystal at 10% of the goo and pausing when crystal runs out, up
- * to the tier the knob names, at an even pace per tier; the item inside is the
- * highest tier reached.
+ * to the tier the knob names, at an even pace within each tier, each tier taking
+ * twice the time of the one before (decision crystal-pace-doubles-per-tier); the
+ * item inside is the highest tier reached.
  */
 public final class CrystallizerPhases {
 
@@ -23,12 +24,12 @@ public final class CrystallizerPhases {
     /** Goo crystallizes in steps of this many mB, each spending one mB of crystal (10%). */
     public static final int GOO_PER_CRYSTAL = 10;
 
-    /** Operator ruling: each tier takes about 10 s more, 200 ticks. */
-    public static final int TICKS_PER_TIER = 200;
-    /** Below a chrysm the pace is flat: a chrysm's volume over one tier's ticks. */
-    private static final double FLAT_PACE = (double) ChrysmTier.CHRYSM.volume() / TICKS_PER_TIER;
-    /** Past a chrysm the volume grows 1,000-fold, one tier, every tier's ticks. */
-    private static final double GROWTH_PER_TICK = Math.log(1_000) / TICKS_PER_TIER;
+    /** A chrysm crystallizes from empty in 25 s, and each tier after takes twice the one before. */
+    public static final int CHRYSM_TICKS = 500;
+    /** The knob's five positions: 0 is off, and 1 to 4 cap crystallizing at the tier of their number. */
+    public static final int KNOB_POSITIONS = 5;
+    /** The knob's highest position, materia. */
+    public static final int KNOB_MAX = KNOB_POSITIONS - 1;
 
     private CrystallizerPhases() {
     }
@@ -86,39 +87,116 @@ public final class CrystallizerPhases {
     }
 
     /**
-     * Operator ruling: a right click on the knob steps its size and wraps from 3 to 1.
+     * A right click on the knob steps it up and wraps from materia to off (decision
+     * dial-five-positions-off-to-materia).
      *
-     * @param knob the knob's size, 1 to 3
-     * @return the next size
+     * @param knob the knob's position, 0 to 4
+     * @return the next position
      */
     public static int nextKnob(int knob) {
-        return knob % ChrysmTier.values().length + 1;
+        return (knob + 1) % KNOB_POSITIONS;
     }
 
     /**
-     * Operator ruling: an even pace per tier, a chrysm at about 10 s, a kilochrysm by
-     * 20 s and a megachrysm by 30 s. Flat below a chrysm, then growing with what's
-     * crystallized so every tier's 1,000-fold climb takes the same 200 ticks.
+     * The tier a knob position caps crystallizing at (decision dial-five-positions-off-to-materia).
+     *
+     * @param knob the knob's position, 0 to 4
+     * @return chrysm, budding chrysm, flowering chrysm or materia for 1 to 4, null for off
+     */
+    public static @Nullable ChrysmTier tierForKnob(int knob) {
+        return knob == 0 ? null : ChrysmTier.values()[knob - 1];
+    }
+
+    /**
+     * Operator ruling: the crystal is clickable once it reaches maturity, the knob's
+     * tier. With the knob off nothing grows, so any tier a crystal already reached is
+     * mature.
+     *
+     * @param crystallized the crystallized volume, in mB
+     * @param cap          the tier the knob caps at, or null when off
+     * @return true when the crystal is mature
+     */
+    public static boolean isMature(long crystallized, @Nullable ChrysmTier cap) {
+        return cap == null ? reachedTier(crystallized) != null : crystallized > 0 && crystallized >= cap.volume();
+    }
+
+    /**
+     * The chrysm a click on the crystal hands (operator ruling): the dial's tier once
+     * the crystal reaches it, the rest handed as excess; with the dial off, the highest
+     * tier reached.
+     *
+     * @param crystallized the crystallized volume, in mB
+     * @param cap          the tier the knob caps at, or null when off
+     * @return the tier handed, or null while the crystal is not mature
+     */
+    public static @Nullable ChrysmTier harvestTier(long crystallized, @Nullable ChrysmTier cap) {
+        if (!isMature(crystallized, cap)) {
+            return null;
+        }
+        return cap == null ? reachedTier(crystallized) : cap;
+    }
+
+    /**
+     * The ticks a tier's span takes to crystallize: 25 s for a chrysm, doubling each
+     * tier (decision crystal-pace-doubles-per-tier).
+     *
+     * @param tier the tier
+     * @return the ticks from the tier below to this one
+     */
+    public static int ticksFor(ChrysmTier tier) {
+        return CHRYSM_TICKS << tier.ordinal();
+    }
+
+    /**
+     * @param tier the tier
+     * @return the volume of the tier below, where this tier's span starts; zero for a chrysm
+     */
+    public static long spanStart(ChrysmTier tier) {
+        return tier.ordinal() == 0 ? 0 : ChrysmTier.values()[tier.ordinal() - 1].volume();
+    }
+
+    /**
+     * The tier a crystallized volume is growing toward: the first it has not reached,
+     * or materia once every tier is reached.
+     *
+     * @param crystallized the goo crystallized so far, in mB
+     * @return the tier growing
+     */
+    public static ChrysmTier growingTier(long crystallized) {
+        for (ChrysmTier tier : ChrysmTier.values()) {
+            if (crystallized < tier.volume()) {
+                return tier;
+            }
+        }
+        return ChrysmTier.MATERIA;
+    }
+
+    /**
+     * An even pace per tier, the tier's span over its ticks, so the goo drawn a tick
+     * rises about 16x per tier as the cost rises 32x and the time doubles (decision
+     * crystal-pace-doubles-per-tier).
      *
      * @param crystallized the goo crystallized so far, in mB
      * @return the mB one tick may crystallize
      */
     public static double paceAllowance(long crystallized) {
-        return crystallized < ChrysmTier.CHRYSM.volume() ? FLAT_PACE : crystallized * GROWTH_PER_TICK;
+        ChrysmTier tier = growingTier(crystallized);
+        return (double) (tier.volume() - spanStart(tier)) / ticksFor(tier);
     }
 
     /**
      * The mB per tick the crystallizer asks of a canister's source: its pace for the goo
      * that grows and a tenth of it for crystal, whole mB rounded up, and nothing once the
-     * crystal has reached the knob's tier (decision receivers-demand-and-links-relay).
+     * crystal has reached the knob's tier (decision receivers-demand-and-links-relay), or
+     * while the knob is off (decision dial-five-positions-off-to-materia).
      *
      * @param crystallized the goo crystallized so far, in mB
-     * @param knob         the tier the knob caps crystallizing at
+     * @param knob         the tier the knob caps crystallizing at, or null when it is off
      * @param catalyst     true for the crystal the growing goo spends
      * @return the demand, in mB per tick
      */
-    public static int demand(long crystallized, ChrysmTier knob, boolean catalyst) {
-        if (crystallized >= knob.volume()) {
+    public static int demand(long crystallized, @Nullable ChrysmTier knob, boolean catalyst) {
+        if (knob == null || crystallized >= knob.volume()) {
             return 0;
         }
         double pace = paceAllowance(crystallized);
@@ -181,15 +259,15 @@ public final class CrystallizerPhases {
      * @param catalyst     what the catalyst canister holds
      * @param crystallized the goo crystallized so far, in mB
      * @param formingType  the type crystallized so far, or null when none is
-     * @param knob         the tier the knob caps crystallizing at
+     * @param knob         the tier the knob caps crystallizing at, or null when it is off
      * @param budget       the mB the pace lets this tick crystallize
      * @return the step, or null when nothing crystallizes this tick
      */
     public static @Nullable Step step(Held ingredient, Held catalyst, long crystallized,
-                                      @Nullable ResourceKey<GooTypeDefinition> formingType, ChrysmTier knob,
-                                      double budget) {
+                                      @Nullable ResourceKey<GooTypeDefinition> formingType,
+                                      @Nullable ChrysmTier knob, double budget) {
         ResourceKey<GooTypeDefinition> type = ingredient.type();
-        if (type == null || formingType != null && !formingType.equals(type)) {
+        if (knob == null || type == null || formingType != null && !formingType.equals(type)) {
             return null;
         }
         long room = Math.max(0, knob.volume() - crystallized);

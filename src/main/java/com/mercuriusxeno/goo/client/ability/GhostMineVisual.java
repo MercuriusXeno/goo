@@ -125,7 +125,7 @@ public final class GhostMineVisual {
      */
     private static List<int[]> computeFilteredOffsets(ChainMarkerRenderState state) {
         List<int[]> allOffsets = ChainFootprint.computeRegionOffsets(
-                state.stackCount, state.areaMode, state.placedFace);
+                state.stackCount, state.areaMode, state.areaStartRadius, state.placedFace);
         List<int[]> afterMined = excludeMinedLayers(allOffsets, state.placedFace, state.minedLayers);
         return excludeAirBlocks(afterMined, state.blockPos);
     }

@@ -1,8 +1,9 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.ability.AbilityMath;
 import com.mercuriusxeno.goo.ability.ChainFootprint;
 import com.mercuriusxeno.goo.ability.program.AreaShape;
+import com.mercuriusxeno.goo.ability.program.Expr;
+import com.mercuriusxeno.goo.ability.program.ProgressiveAreaStep;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import net.minecraft.core.Direction;
 import net.minecraft.world.phys.AABB;
@@ -10,6 +11,7 @@ import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -21,8 +23,13 @@ class FrostExplosionVisualTest {
 
     private static final float TOLERANCE = 1e-5f;
     private static final int MAX_FROST_STACKS = 4;
+    private static final int FROST_START_RADIUS = 3;
     private static final int ANGLES = 16;
     private static final float SPEED = 0.3f;
+
+    private static ProgressiveAreaStep step(AreaShape shape, int startRadius) {
+        return new ProgressiveAreaStep(shape, "freeze", "none", "none", Expr.literal(8), startRadius);
+    }
 
     private static float progressAt(float tick) {
         return tick / FrostExplosionVisual.DURATION_TICKS;
@@ -50,10 +57,10 @@ class FrostExplosionVisualTest {
 
     @ParameterizedTest
     @EnumSource(Direction.class)
-    void sphereRingReachesTheFreezeRadius(Direction face) {
+    void sphereRingReachesTheBallsRadius(Direction face) {
+        Optional<ProgressiveAreaStep> ball = Optional.of(step(AreaShape.SPHERE, FROST_START_RADIUS));
         for (int stacks = 1; stacks <= MAX_FROST_STACKS; stacks++) {
-            assertEquals(AbilityMath.computeFreezeRadius(stacks),
-                    FrostExplosionVisual.zoneReach(AreaShape.SPHERE, stacks, face), 0f);
+            assertEquals(FROST_START_RADIUS + stacks - 1, FrostExplosionVisual.zoneReach(ball, stacks, face), 0f);
         }
     }
 
@@ -63,7 +70,8 @@ class FrostExplosionVisualTest {
         int stacks = 3;
         AABB box = ChainFootprint.computeBounds(stacks, shape == AreaShape.FLAT_CIRCLE, Direction.UP);
         double widest = Math.max(Math.max(0.5 - box.minX, box.maxX - 0.5), Math.max(0.5 - box.minZ, box.maxZ - 0.5));
-        assertEquals(widest, FrostExplosionVisual.zoneReach(shape, stacks, Direction.UP), TOLERANCE);
+        assertEquals(widest, FrostExplosionVisual.zoneReach(Optional.of(step(shape, 0)), stacks, Direction.UP),
+                TOLERANCE);
     }
 
     @ParameterizedTest

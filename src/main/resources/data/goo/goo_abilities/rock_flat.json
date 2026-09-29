@@ -2,13 +2,10 @@
   "gooType": "rock",
   "displayName": "goo.ability.rock.flat",
   "order": 1,
-  "cost": {
-    "formula": "block_count",
-    "costPerBlock": 200
-  },
+  "cost": 1000,
   "chain": {
     "fuseTicks": 30,
-    "maxStacks": 28,
+    "maxStacks": 6,
     "blobShape": "flat"
   },
   "behaviors": [

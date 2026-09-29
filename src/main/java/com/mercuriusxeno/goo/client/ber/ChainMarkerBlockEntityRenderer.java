@@ -68,6 +68,8 @@ public class ChainMarkerBlockEntityRenderer
         state.partialTick = partialTick;
         state.blobShape = be.getBlobShape();
         state.areaMode = be.getAreaMode();
+        state.areaStartRadius = SyncedSteps.first(be, ProgressiveAreaStep.class)
+                .map(ProgressiveAreaStep::startRadius).orElse(0);
         state.lastStackTick = be.getLastStackTick();
         state.gameTime = be.getLevel() != null
                 ? be.getLevel().getGameTime() + partialTick : 0f;

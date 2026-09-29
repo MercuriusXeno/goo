@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.block.crystallizer;
 
+import com.mercuriusxeno.goo.item.ChrysmTier;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -9,9 +10,10 @@ import java.util.List;
  * quartz shaped, angled prisms jutting out of a base at odd 22.5 incremental
  * angles, growing steadily until it can't anymore, visibly the next tier; hacked
  * procedurally until a drawn crystal replaces it. Growth reads the crystallizer's
- * pace: a third per tier, flat in volume over the first tier and log1000 past it,
- * so at the even pace the crystal grows at one rate through every tier and each
- * tier stands a third taller; the crystallizer stops crystallizing at the knob's
+ * pace: a quarter per tier, even with the goo inside the tier. Operator ruling:
+ * through the materia tier the crystal compresses, its buds retracting while the
+ * central prism shrinks and its six sides round into 60 degree spheroid segments,
+ * until a marble stands alone. The crystallizer stops crystallizing at the knob's
  * tier, so the cluster stops there too.
  */
 public final class CrystalCluster {
@@ -25,10 +27,13 @@ public final class CrystalCluster {
     /** Every angle the cluster uses is a multiple of this. */
     public static final double ANGLE_STEP = 22.5;
 
-    /** Each of the three tiers is a third of full growth. */
-    private static final double TIER_SHARE = 1.0 / 3;
-    private static final double TIER_LOG = Math.log(1_000);
-    private static final double CHRYSM_VOLUME = 1_000;
+    /** Each tier is an even share of full growth. */
+    private static final double TIER_SHARE = 1.0 / ChrysmTier.values().length;
+    /** The cluster grows over every tier below materia; materia's share compresses it. */
+    private static final double CLUSTER_SHARE = 1 - TIER_SHARE;
+    /** The materia marble's radius, in model pixels, smaller than the prism it rounds from. */
+    public static final double ORB_RADIUS = 2;
+    private static final double ORB_DIAMETER = 2 * ORB_RADIUS;
     /** Each client tick closes this share of the gap between the drawn growth and the synced growth. */
     private static final double EASE_SHARE = 0.3;
     private static final double EASE_SNAP = 1e-4;
@@ -41,12 +46,26 @@ public final class CrystalCluster {
     /**
      * One prism of the cluster.
      *
-     * @param tilt   degrees from vertical, a multiple of 22.5
-     * @param yaw    degrees around the vertical, a multiple of 22.5
-     * @param length the prism's length to its tip, in pixels
-     * @param radius the prism's hexagon radius, in pixels
+     * @param tilt     degrees from vertical, a multiple of 22.5
+     * @param yaw      degrees around the vertical, a multiple of 22.5
+     * @param length   the prism's length to its tip, in pixels
+     * @param radius   the prism's hexagon radius, in pixels
+     * @param rounding how far its faces have rounded, 0 for the hexagonal prism, 1 for
+     *                 the spheroid its length and radius span
      */
-    public record Prism(double tilt, double yaw, double length, double radius) {
+    public record Prism(double tilt, double yaw, double length, double radius, double rounding) {
+
+        /**
+         * A prism with flat faces.
+         *
+         * @param tilt   degrees from vertical, a multiple of 22.5
+         * @param yaw    degrees around the vertical, a multiple of 22.5
+         * @param length the prism's length to its tip, in pixels
+         * @param radius the prism's hexagon radius, in pixels
+         */
+        public Prism(double tilt, double yaw, double length, double radius) {
+            this(tilt, yaw, length, radius, 0);
+        }
 
         /**
          * @return the share of the length the pointed tip takes
@@ -76,21 +95,31 @@ public final class CrystalCluster {
     }
 
     /**
-     * How far the cluster has grown, read as the crystallizer's pace reads it: a
-     * third per tier, flat in volume up to a chrysm and log1000 past it, so the
-     * even pace grows it at one rate.
+     * How far the crystal has grown: a quarter per tier, even with the goo inside the
+     * tier as the crystallizer's pace is (operator ruling).
      *
      * @param crystallized the crystallized volume, in mB
-     * @return the growth, from 0 for nothing to 1 for a megachrysm
+     * @return the growth, from 0 for nothing to 1 for a materia
      */
     public static double growth(long crystallized) {
         if (crystallized <= 0) {
             return 0;
         }
-        if (crystallized < CHRYSM_VOLUME) {
-            return crystallized / CHRYSM_VOLUME * TIER_SHARE;
+        if (crystallized >= ChrysmTier.MATERIA.volume()) {
+            return 1;
         }
-        return Math.min(1, (1 + Math.log(crystallized / CHRYSM_VOLUME) / TIER_LOG) * TIER_SHARE);
+        ChrysmTier tier = CrystallizerPhases.growingTier(crystallized);
+        long start = CrystallizerPhases.spanStart(tier);
+        double withinTier = (double) (crystallized - start) / (tier.volume() - start);
+        return (tier.ordinal() + withinTier) * TIER_SHARE;
+    }
+
+    /**
+     * @param growth how far the crystal has grown, from 0 to 1
+     * @return how far it has compressed toward the marble, 0 until flowering chrysm, 1 at materia
+     */
+    public static double compression(double growth) {
+        return Math.max(0, Math.min(1, (growth - CLUSTER_SHARE) / TIER_SHARE));
     }
 
     /**
@@ -121,16 +150,52 @@ public final class CrystalCluster {
      * @return the prisms grown so far, the central one first; none for no growth
      */
     public static List<Prism> prisms(double growth) {
+        double clusterGrowth = Math.min(1, growth / CLUSTER_SHARE);
+        double compressed = compression(growth);
         List<Prism> prisms = new ArrayList<>();
         for (Seed seed : SEEDS) {
-            if (growth <= seed.birth()) {
+            if (clusterGrowth <= seed.birth()) {
                 continue;
             }
-            double grown = (growth - seed.birth()) / (1 - seed.birth());
-            prisms.add(new Prism(seed.tilt(), seed.yaw(), MAX_LENGTH * seed.lengthShare() * grown,
-                    MAX_RADIUS * seed.radiusShare() * (RADIUS_FLOOR + (1 - RADIUS_FLOOR) * grown)));
+            double grown = (clusterGrowth - seed.birth()) / (1 - seed.birth());
+            Prism prism = new Prism(seed.tilt(), seed.yaw(), MAX_LENGTH * seed.lengthShare() * grown,
+                    MAX_RADIUS * seed.radiusShare() * (RADIUS_FLOOR + (1 - RADIUS_FLOOR) * grown));
+            if (prisms.isEmpty()) {
+                prisms.add(compress(prism, compressed));
+            } else if (compressed < 1) {
+                prisms.add(retract(prism, compressed));
+            }
         }
         return prisms;
+    }
+
+    /**
+     * The central prism compressing into the marble: its length and radius shrink to
+     * the marble's as its faces round.
+     *
+     * @param prism      the full-grown central prism
+     * @param compressed how far it has compressed, from 0 to 1
+     * @return the prism at that compression
+     */
+    private static Prism compress(Prism prism, double compressed) {
+        return new Prism(prism.tilt(), prism.yaw(), lerp(prism.length(), ORB_DIAMETER, compressed),
+                lerp(prism.radius(), ORB_RADIUS, compressed), compressed);
+    }
+
+    /**
+     * A bud retracting into the base as the crystal compresses.
+     *
+     * @param prism      the full-grown bud
+     * @param compressed how far the crystal has compressed, from 0 to 1
+     * @return the bud at that compression
+     */
+    private static Prism retract(Prism prism, double compressed) {
+        double kept = 1 - compressed;
+        return new Prism(prism.tilt(), prism.yaw(), prism.length() * kept, prism.radius() * kept);
+    }
+
+    private static double lerp(double from, double to, double share) {
+        return from + (to - from) * share;
     }
 
     /**
