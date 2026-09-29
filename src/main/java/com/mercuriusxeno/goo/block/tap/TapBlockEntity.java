@@ -14,6 +14,7 @@ import com.mercuriusxeno.goo.block.gasket.GasketAttachment;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
+import com.mercuriusxeno.goo.registry.GooFluids;
 import com.mercuriusxeno.goo.registry.GooParticles;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -60,6 +61,10 @@ public class TapBlockEntity extends GooGlowingMachineBlockEntity implements ICan
      */
     private static final String TAG_STREAM = "Stream";
     /**
+     * NBT key for what the tap's gasket received and has not yet dripped.
+     */
+    private static final String TAG_GASKET_INTAKE = "GasketIntake";
+    /**
      * Slot state holding the single canister.
      */
     private final SlottedCanisterData state;
@@ -78,6 +83,13 @@ public class TapBlockEntity extends GooGlowingMachineBlockEntity implements ICan
      * The stream the tap pours at 1:1, or null while it drips or stands idle.
      */
     private @Nullable TapStream stream;
+
+    /**
+     * What the tap's gasket received from its partner, dripped once the canister is empty.
+     */
+    private final TapGasketIntake gasketIntake = new TapGasketIntake(
+            () -> dripGrade.dripVolume(), this::asksGasketPartner, this::setChanged,
+            () -> level != null ? level.getGameTime() : 0, resource -> GooFluids.keyOf(resource) != null);
 
     /**
      * Creates a new tap block entity.
@@ -121,12 +133,23 @@ public class TapBlockEntity extends GooGlowingMachineBlockEntity implements ICan
             tap.setStream(null);
             return;
         }
-        TapDrip.Drawn drawn = TapDrip.draw(tap, SLOT, tap.dripGrade.dripVolume());
+        TapDrip.Drawn drawn = tap.drawDrip();
         if (drawn == null) {
             tap.setStream(null);
             return;
         }
         tap.release(server, pos, landing, drawn);
+    }
+
+    /**
+     * Draws one drip from the canister, or once it is empty from what the gasket received
+     * (decision tap-asks-gasket-partner-per-drip).
+     *
+     * @return the goo drawn, or null when neither held any
+     */
+    private TapDrip.@Nullable Drawn drawDrip() {
+        TapDrip.Drawn drawn = TapDrip.draw(this, SLOT, dripGrade.dripVolume());
+        return drawn != null ? drawn : TapDrip.drawIntake(gasketIntake, dripGrade.dripVolume());
     }
 
     /**
@@ -146,6 +169,23 @@ public class TapBlockEntity extends GooGlowingMachineBlockEntity implements ICan
         TapDripScheduler.enqueue(new TapDripScheduler.PendingDrip(server, pos, landing.pos(), Direction.UP,
                 type, drawn.volume(), TapDrip.landingTick(server.getServer().getTickCount(), spigot.y,
                         landing.surfaceY())));
+    }
+
+    /**
+     * @return what the tap's gasket received, the handler its partner sends to
+     */
+    public TapGasketIntake gasketIntake() {
+        return gasketIntake;
+    }
+
+    /**
+     * The tap asks its partner while its valve is open and its canister holds no goo
+     * (decision tap-asks-gasket-partner-per-drip).
+     *
+     * @return true when the tap asks
+     */
+    private boolean asksGasketPartner() {
+        return getBlockState().getValue(TapBlock.OPEN) && getSlotGooType(SLOT) == null;
     }
 
     // --- Drip grade ---
@@ -389,6 +429,7 @@ public class TapBlockEntity extends GooGlowingMachineBlockEntity implements ICan
         dripGrade.save(output);
         dripCountdown.save(output);
         output.storeNullable(TAG_STREAM, TapStream.CODEC, stream);
+        output.store(TAG_GASKET_INTAKE, CanisterFluidContent.CODEC, gasketIntake.toFluidContent());
     }
 
     @Override
@@ -399,5 +440,7 @@ public class TapBlockEntity extends GooGlowingMachineBlockEntity implements ICan
         dripCountdown.retime(dripGrade.intervalTicks());
         dripCountdown.load(input);
         stream = input.read(TAG_STREAM, TapStream.CODEC).orElse(null);
+        gasketIntake.loadFrom(input.read(TAG_GASKET_INTAKE, CanisterFluidContent.CODEC)
+                .orElse(CanisterFluidContent.EMPTY));
     }
 }

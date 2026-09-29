@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.block.hub;
 
 import com.mercuriusxeno.goo.block.BlockEntitySync;
+import com.mercuriusxeno.goo.block.canister.CanisterSlotFluidHandler;
+import com.mercuriusxeno.goo.block.gasket.GasketDemand;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.ContainerCapacity;
@@ -9,6 +11,7 @@ import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.transfer.ResourceHandler;
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import net.neoforged.neoforge.transfer.transaction.TransactionContext;
+import java.util.OptionalInt;
 
 /**
  * Block-level fluid handler for the Hub. Presents one virtual tank per
@@ -18,7 +21,7 @@ import net.neoforged.neoforge.transfer.transaction.TransactionContext;
  * <p>This is a read-through/write-through adapter: no data duplication.
  * All state lives on the Hub's internal canister ItemStacks.</p>
  */
-public class HubFluidHandler implements ResourceHandler<FluidResource> {
+public class HubFluidHandler implements ResourceHandler<FluidResource>, GasketDemand {
 
     private final HubBlockEntity hub;
 
@@ -117,9 +120,28 @@ public class HubFluidHandler implements ResourceHandler<FluidResource> {
         if (amount <= 0 || resource.isEmpty()) {
             return 0;
         }
-        return Math.min(
-                hub.containerState().routeFluid(resource, amount),
-                Integer.MAX_VALUE);
+        int shared = shareByDemand(resource, amount, transaction);
+        return shared + hub.containerState().routeFluid(resource, amount - shared, transaction);
+    }
+
+    /**
+     * Gives each canister taking the fluid up to the demand it states, so one canister's
+     * share never pours into another that merely sits first (decision receivers-demand-and-links-relay).
+     *
+     * @param resource    the fluid arriving
+     * @param amount      the mB arriving
+     * @param transaction the caller's transaction
+     * @return the mB the canisters took by demand
+     */
+    private int shareByDemand(FluidResource resource, int amount, TransactionContext transaction) {
+        int left = amount;
+        for (int i = 0; i < HubBlockEntity.MAX_CANISTERS && left > 0; i++) {
+            CanisterSlotFluidHandler slot = hub.containerState().getSlotFluidHandler(i);
+            if (slot != null && slot.isValid(0, resource)) {
+                left -= slot.insert(0, resource, Math.min(left, GasketDemand.demandOf(slot, resource)), transaction);
+            }
+        }
+        return amount - left;
     }
 
     /**
@@ -173,6 +195,22 @@ public class HubFluidHandler implements ResourceHandler<FluidResource> {
             remaining -= CanisterItem.removeFluid(stack, fluid, remaining);
         }
         return remaining;
+    }
+
+    /**
+     * The hub's intake asks what its canisters ask together, each mirroring its own
+     * consumer or resting at the power law of its capacity (decision receivers-demand-and-links-relay).
+     */
+    @Override
+    public OptionalInt statedDemand(FluidResource resource) {
+        long total = 0;
+        for (int i = 0; i < HubBlockEntity.MAX_CANISTERS; i++) {
+            CanisterSlotFluidHandler slot = hub.containerState().getSlotFluidHandler(i);
+            if (slot != null && slot.isValid(0, resource)) {
+                total += GasketDemand.demandOf(slot, resource);
+            }
+        }
+        return OptionalInt.of((int) Math.min(total, Integer.MAX_VALUE));
     }
 
     // --- Helpers ---
