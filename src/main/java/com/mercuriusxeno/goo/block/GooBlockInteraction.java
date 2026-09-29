@@ -10,9 +10,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.BlockHitResult;
 import org.jspecify.annotations.Nullable;
-import java.util.function.IntPredicate;
 import java.util.function.Predicate;
-import static com.mercuriusxeno.goo.GooConstants.NO_SLOT;
 
 /**
  * Shared interaction infrastructure for slot-based goo blocks.
@@ -136,27 +134,6 @@ public final class GooBlockInteraction {
             return InteractionResult.SUCCESS;
         }
         return null;
-    }
-
-    /**
-     * Finds the first slot matching the predicate, preferring the hit slot.
-     * Returns -1 if no slot matches.
-     *
-     * @param hitSlot  the slot the player targeted, or -1
-     * @param maxSlots the total number of slots to scan
-     * @param matches  predicate testing whether a slot index qualifies
-     * @return matching slot index, or -1
-     */
-    public static int findSlot(int hitSlot, int maxSlots, IntPredicate matches) {
-        if (hitSlot >= 0 && matches.test(hitSlot)) {
-            return hitSlot;
-        }
-        for (int i = 0; i < maxSlots; i++) {
-            if (matches.test(i)) {
-                return i;
-            }
-        }
-        return NO_SLOT;
     }
 
     /**

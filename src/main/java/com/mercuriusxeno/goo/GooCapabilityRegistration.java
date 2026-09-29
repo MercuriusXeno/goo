@@ -173,7 +173,7 @@ final class GooCapabilityRegistration {
     }
 
     /**
-     * Registers GASKET_BLOCK for vat, tap, and plexer (simple gasket ID checks).
+     * Registers GASKET_BLOCK for vat, tap and plexer (simple gasket ID checks).
      *
      * @param event the capability registration event
      */
@@ -200,13 +200,15 @@ final class GooCapabilityRegistration {
     }
 
     /**
-     * Registers GASKET_BLOCK for tap (stub - taps drip, not receive).
+     * Registers GASKET_BLOCK for tap: its receiver gasket answers the intake it drips from
+     * (decision receivers-demand-and-links-relay).
      *
      * @param event the capability registration event
      */
     private static void registerTapGasketBlock(RegisterCapabilitiesEvent event) {
         event.registerBlockEntity(GooCapabilities.GASKET_BLOCK,
-                GooBlockEntities.TAP.get(), (be, gasketId) -> null);
+                GooBlockEntities.TAP.get(), (be, gasketId) ->
+                        gasketId.equals(be.getGasketId(GasketRole.RECEIVER)) ? be.gasketIntake() : null);
     }
 
     /**

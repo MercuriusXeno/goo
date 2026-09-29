@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:brewing_chrysm_brews_splash",
+  "environment": "minecraft:default",
+  "structure": "goo:machine_bay",
+  "max_ticks": 500,
+  "setup_ticks": 0,
+  "required": true
+}

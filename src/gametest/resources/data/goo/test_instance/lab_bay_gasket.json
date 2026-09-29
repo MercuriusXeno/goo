@@ -2,7 +2,7 @@
   "type": "minecraft:function",
   "function": "goo:lab_bay_gasket",
   "environment": "minecraft:default",
-  "structure": "minecraft:empty",
+  "structure": "goo:test_bay",
   "max_ticks": 20,
   "setup_ticks": 0,
   "required": true,

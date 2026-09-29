@@ -86,6 +86,7 @@ public class VatBlockEntity extends GooGlowingMachineBlockEntity implements IGoo
     public VatBlockEntity(BlockPos pos, BlockState state) {
         super(GooBlockEntities.VAT.get(), pos, state, be -> GasketAttachment.dual(be, "cap", "base"));
         this.gasketPusher = gasket().singlePusher(fluidHandler);
+        fluidHandler.readDemandFrom(gasketPusher::partnerStatedDemand);
     }
 
     /**

@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.block.gasket.GasketAttachment;
 import com.mercuriusxeno.goo.block.gasket.SlotGasketPusher;
 import com.mercuriusxeno.goo.block.gasket.SlotGasketRegistration;
 import com.mercuriusxeno.goo.data.GasketRegistry;
+import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.CanisterMetadata;
 import net.minecraft.SharedConstants;
@@ -105,6 +106,7 @@ class SlottedCanisterDataLifecycleTest {
         pusher = mockStatic(SlotGasketPusher.class);
         canisterItem = mockStatic(CanisterItem.class);
         canisterItem.when(() -> CanisterItem.getMetadata(any())).thenReturn(CanisterMetadata.EMPTY);
+        canisterItem.when(() -> CanisterItem.getFluidContent(any())).thenReturn(CanisterFluidContent.EMPTY);
     }
 
     @AfterEach
@@ -116,7 +118,7 @@ class SlottedCanisterDataLifecycleTest {
 
     private SlottedCanisterData data(int slotCount, boolean slotAllowed) {
         return new SlottedCanisterData(owner, slotCount, i -> Shapes.empty(), s -> Shapes.empty(),
-                index -> slotAllowed);
+                index -> slotAllowed, (index, incoming) -> true);
     }
 
     private static CanisterSlot mockSlot(SlottedCanisterData data, int index, boolean empty) {

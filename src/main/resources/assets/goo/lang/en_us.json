@@ -5,6 +5,10 @@
 
   "item.goo.goo_bucket": "%s Goo Bucket",
 
+  "item.goo.chrysm": "%s Chrysm",
+  "item.goo.kilochrysm": "%s Kilochrysm",
+  "item.goo.megachrysm": "%s Megachrysm",
+
   "item.goo.choral_gasket": "Choral Gasket",
   "item.goo.exorite": "Exorite",
   "item.goo.exorite_upgrade_smithing_template": "Exorite Upgrade",
@@ -37,6 +41,7 @@
   "block.goo.plexer": "Plexer",
   "block.goo.reactor": "Reactor",
   "block.goo.tap": "Tap",
+  "block.goo.crystallizer": "Crystallizer",
   "block.goo.triplexer": "Triplexer",
   "block.goo.vat": "Vat",
 

@@ -2,7 +2,7 @@
   "type": "minecraft:function",
   "function": "goo:cr_ledge_item_lifted_in",
   "environment": "minecraft:default",
-  "structure": "minecraft:empty",
+  "structure": "goo:crucible_bay",
   "max_ticks": 50,
   "setup_ticks": 0,
   "required": true

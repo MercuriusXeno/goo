@@ -25,9 +25,14 @@ import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
+import net.neoforged.neoforge.transfer.transaction.Transaction;
+import net.neoforged.neoforge.transfer.transaction.TransactionContext;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.OptionalInt;
+import java.util.function.BiFunction;
+import java.util.function.BiPredicate;
 import java.util.function.Function;
 import java.util.function.IntFunction;
 import java.util.function.IntPredicate;
@@ -53,7 +58,11 @@ public class SlottedCanisterData {
     private final Runnable syncCallback;
     private final Function<CanisterSlot[], VoxelShape> shapeBuilder;
     private final IntPredicate slotAllowed;
+    private final BiPredicate<Integer, FluidResource> fluidAdmitted;
     private VoxelShape compositeShape;
+
+    /** The demand the machine drawing on a slot states; none unless the holder sets one. */
+    private BiFunction<Integer, FluidResource, OptionalInt> machineDemand = (slot, incoming) -> OptionalInt.empty();
 
     /**
      * Creates the slot grid for a machine that takes a canister in any slot.
@@ -69,7 +78,7 @@ public class SlottedCanisterData {
     public SlottedCanisterData(GooMachineBlockEntity owner, int maxSlots,
             IntFunction<VoxelShape> slotShapeFor,
             Function<CanisterSlot[], VoxelShape> shapeBuilder) {
-        this(owner, maxSlots, slotShapeFor, shapeBuilder, index -> true);
+        this(owner, maxSlots, slotShapeFor, shapeBuilder, index -> true, (index, incoming) -> true);
     }
 
     /**
@@ -80,23 +89,38 @@ public class SlottedCanisterData {
      * @param slotShapeFor function from slot index to its filled voxel shape
      * @param shapeBuilder builds the composite voxel shape from the slot array
      * @param slotAllowed  answers whether a slot takes a canister where the machine stands
+     * @param fluidAdmitted answers whether a slot takes a goo where the machine stands
      */
     public SlottedCanisterData(GooMachineBlockEntity owner, int maxSlots,
             IntFunction<VoxelShape> slotShapeFor,
             Function<CanisterSlot[], VoxelShape> shapeBuilder,
-            IntPredicate slotAllowed) {
+            IntPredicate slotAllowed, BiPredicate<Integer, FluidResource> fluidAdmitted) {
         this.owner = owner;
         this.maxSlots = maxSlots;
         this.syncCallback = owner.gasketSyncCallback();
         this.shapeBuilder = shapeBuilder;
         this.slotAllowed = slotAllowed;
+        this.fluidAdmitted = fluidAdmitted;
         this.slots = new CanisterSlot[maxSlots];
         for (int i = 0; i < maxSlots; i++) {
+            int index = i;
             slots[i] = new CanisterSlot(i, slotShapeFor.apply(i),
-                    syncCallback, this::onStructureChanged);
+                    syncCallback, this::onStructureChanged, incoming -> fluidAdmitted.test(index, incoming),
+                    incoming -> machineDemand.apply(index, incoming));
         }
         this.compositeShape = shapeBuilder.apply(this.slots);
     }
+
+    /**
+     * Sets the demand the machine drawing on these slots states, relayed by each slot's
+     * canister to its source (decision receivers-demand-and-links-relay).
+     *
+     * @param demand the machine's stated demand for a slot and a resource, or empty
+     */
+    public void setMachineDemand(BiFunction<Integer, FluidResource, OptionalInt> demand) {
+        this.machineDemand = demand;
+    }
+
     /** @return the configured slot count */
     public int maxSlots() {
         return maxSlots;
@@ -264,7 +288,26 @@ public class SlottedCanisterData {
      * @return total volume accepted across all slots
      */
     public int routeFluid(FluidResource fluid, int amount) {
-        int routed = distributeAcrossSlots(fluid, amount);
+        try (var tx = Transaction.openRoot()) {
+            int routed = routeFluid(fluid, amount, tx);
+            tx.commit();
+            return routed;
+        }
+    }
+
+    /**
+     * Distributes fluid across slots inside the caller's transaction, so a gasket push
+     * into a hub opens no second root (decision receivers-demand-and-links-relay).
+     *
+     * @param fluid       the fluid resource to route
+     * @param amount      volume in mB
+     * @param transaction the caller's transaction
+     * @return total volume accepted across all slots
+     */
+    public int routeFluid(FluidResource fluid, int amount, TransactionContext transaction) {
+        int remaining = distributePass(fluid, amount, true, transaction);
+        remaining = distributePass(fluid, remaining, false, transaction);
+        int routed = amount - remaining;
         if (routed > 0) {
             syncCallback.run();
         }
@@ -282,13 +325,8 @@ public class SlottedCanisterData {
         return routeFluid(GooFluids.resource(type), amount);
     }
 
-    private int distributeAcrossSlots(FluidResource fluid, int amount) {
-        int remaining = distributePass(fluid, amount, true);
-        remaining = distributePass(fluid, remaining, false);
-        return amount - remaining;
-    }
-
-    private int distributePass(FluidResource fluid, int remaining, boolean existing) {
+    private int distributePass(FluidResource fluid, int remaining, boolean existing,
+                               TransactionContext transaction) {
         int left = remaining;
         for (CanisterSlot slot : slots) {
             if (left <= 0) {
@@ -301,7 +339,7 @@ public class SlottedCanisterData {
             if (!isEligibleFluidHolder(fluid, existing, handler)) {
                 continue;
             }
-            left -= handler.insertFluid(fluid, left, false);
+            left -= handler.insert(0, fluid, left, transaction);
         }
         return left;
     }
@@ -345,8 +383,7 @@ public class SlottedCanisterData {
      * @return true if the canister went in
      */
     public boolean insert(int index, ItemStack stack, boolean stripGaskets) {
-        if (!inRange(index) || !(stack.getItem() instanceof CanisterItem)
-                || !slots[index].isEmpty() || !slotAllowed.test(index)) {
+        if (!takesCanister(index, stack)) {
             return false;
         }
         CanisterSlot slot = slots[index];
@@ -361,6 +398,16 @@ public class SlottedCanisterData {
                 index, CanisterItem.getMetadata(slot.canister()));
         syncCallback.run();
         return true;
+    }
+
+    private boolean takesCanister(int index, ItemStack stack) {
+        boolean openSlot = inRange(index) && slots[index].isEmpty() && slotAllowed.test(index);
+        return openSlot && stack.getItem() instanceof CanisterItem && admitsContents(index, stack);
+    }
+
+    private boolean admitsContents(int index, ItemStack canister) {
+        CanisterFluidContent content = CanisterItem.getFluidContent(canister);
+        return content.isEmpty() || fluidAdmitted.test(index, content.resource());
     }
 
     /**

@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:crystallizer_takes_only_two_slots",
+  "environment": "minecraft:default",
+  "structure": "goo:machine_bay",
+  "max_ticks": 100,
+  "setup_ticks": 0,
+  "required": true
+}

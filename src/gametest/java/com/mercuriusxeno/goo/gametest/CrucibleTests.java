@@ -11,6 +11,7 @@ import com.mercuriusxeno.goo.block.crucible.CrucibleCapacity;
 import com.mercuriusxeno.goo.block.crucible.CrucibleMath;
 import com.mercuriusxeno.goo.block.crucible.CrucibleShape;
 import com.mercuriusxeno.goo.item.BlobStacks;
+import com.mercuriusxeno.goo.item.ChrysmTier;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.PartiallyMeltedItem;
 import com.mercuriusxeno.goo.registry.GooBlocks;
@@ -239,6 +240,29 @@ public final class CrucibleTests {
 
         helper.runAfterDelay(ABSORB_DELAY, () -> {
             helper.assertFalse(crucible.reservoirHandler().isEmpty(), SHOULD_ABSORB);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * One chrysm of a type dropped into a lit crucible melts into exactly 1,000 mB
+     * of that type and the 100 mB of crystal spent on it, pool and reservoir
+     * together (decision chrysm-melts-back-to-its-goo).
+     *
+     * @param helper the gametest helper
+     */
+    public static void meltsChrysm(GameTestHelper helper) {
+        helper.setBlock(BE_POS, GooBlocks.CRUCIBLE.get());
+        CrucibleBlockEntity crucible = helper.getBlockEntity(BE_POS, CrucibleBlockEntity.class);
+        crucible.addHeat(TEST_HEAT_TICKS);
+        ItemEntity chrysm = CrucibleSpawns.spawnInBasin(helper, GooItems.CHRYSM.get().createOf(GooTypes.ENDER));
+        helper.runAfterDelay(ABSORB_DELAY, () -> {
+            GooContents held = crucible.getReservoir().mergeWith(PartiallyMeltedItem.getContents(crucible.getMeltingItem()));
+            helper.assertTrue(chrysm.isRemoved(), "The chrysm should melt in whole");
+            helper.assertValueEqual(Math.toIntExact(ChrysmTier.CHRYSM.volume()), held.getVolume(GooTypes.ENDER),
+                    "ender goo from one chrysm");
+            helper.assertValueEqual(Math.toIntExact(ChrysmTier.CHRYSM.volume() / 10), held.getVolume(GooTypes.CRYSTAL),
+                    "crystal goo returned");
             helper.succeed();
         });
     }
