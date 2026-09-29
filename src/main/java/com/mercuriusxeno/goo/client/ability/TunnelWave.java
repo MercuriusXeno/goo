@@ -3,9 +3,6 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.ability.ChainFootprint;
 import com.mercuriusxeno.goo.ability.program.AreaShape;
 import com.mercuriusxeno.goo.ability.program.ProgressiveAreaStep;
-import com.mercuriusxeno.goo.client.FlatQuadContext;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.core.Direction;
 import net.minecraft.util.ARGB;
@@ -13,25 +10,40 @@ import net.minecraft.world.phys.AABB;
 
 /**
  * The force wave a tunnel-mining marker's burnout sends into the wall in
- * place of a radial burst (decision elemental-explosion-per-type): a plate
- * the tunnel's cross-section wide drives into the wall one layer per tick
- * from burnout, the pace the layer walk previews at, so it reaches each
- * layer as that layer is previewed and leads its strike by the walk's
- * preview delay. It is drawn through the wall, with depth test off, the way
- * the ghost outline is, and fades in over its first ticks and out over the
- * tunnel's last layers. Each goo type shades the plate with its own
- * fragment shader; the vertex color carries the wave's progress in red,
- * the plate-local position in green and blue, and its strength in alpha.
+ * place of a radial burst, the operator's settled design (decision
+ * elemental-explosion-per-type): a train of thin round shock rings, each as
+ * wide as the tunnel, launched from the marker every RING_SPACING ticks
+ * through the walk's preview lead and traveling down the tunnel's axis one
+ * layer per tick, the pace the layer walk previews at, so every ring reaches
+ * each layer ahead of its strike and the wall shows ripples pulsing ahead of
+ * the breaking. The rings are drawn through the wall, with depth test off,
+ * the way the ghost outline is; each fades in as it leaves the wall's face
+ * and out over the tunnel's last layers. Each goo type shades its rings
+ * with its own fragment shader; the vertex color carries the wave's
+ * progress in red, the vertex's place around the ring in green, its place
+ * across the ring's band in blue, and the ring's strength in alpha.
  */
 final class TunnelWave {
 
-    /** Ticks the wave takes to fade in from the wall's face. */
+    /** Ticks between one ring's launch and the next. */
+    static final int RING_SPACING = 2;
+    /**
+     * The tick the last ring launches: the rings launch through the layer
+     * walk's preview lead, so every one of them leads the strikes.
+     */
+    static final int LAST_LAUNCH = 6;
+    /** Ticks a ring takes to fade in as it leaves the wall's face. */
     static final float FADE_IN_TICKS = 2f;
-    /** Layers over which the wave fades out as it reaches the tunnel's end. */
+    /** Layers over which a ring fades out as it reaches the tunnel's end. */
     static final float FADE_OUT_LAYERS = 3f;
+    /** The ring band's inner edge, as a fraction of the ring's radius. */
+    static final float BAND_INNER = 0.7f;
     /** How far the wall's face sits from the marker's center along the blast: half a block. */
     private static final float WALL_FACE = 0.5f;
+    private static final int RING_SEGMENTS = 40;
     private static final int OPAQUE = 0xFF;
+    private static final double HALF = 0.5;
+    private static final double TWO_PI = 2 * Math.PI;
 
     private TunnelWave() {
     }
@@ -49,42 +61,65 @@ final class TunnelWave {
     }
 
     /**
-     * How long the wave runs: one tick per layer of the tunnel, and one to leave the last.
+     * How long the wave runs: until the last ring has traveled the tunnel's
+     * length, and one tick to leave it.
      *
      * @param stacks the marker's stack count
      * @return the wave's duration in ticks
      */
     static int durationTicks(int stacks) {
-        return ChainFootprint.tunnelDepth(stacks) + 1;
+        return LAST_LAUNCH + ChainFootprint.tunnelDepth(stacks) + 1;
     }
 
     /**
-     * How far the wave has driven into the wall from the marker's center:
-     * the wall's face, then one layer per tick.
+     * How far a ring has traveled into the wall from the marker's center:
+     * the wall's face at its launch, then one layer per tick.
      *
      * @param elapsed ticks since burnout, partial tick included
-     * @return the plate's distance from the marker's center along the blast, in blocks
+     * @param launch  the tick the ring launched
+     * @return the ring's distance from the marker's center along the blast, in blocks
      */
-    static float depth(float elapsed) {
-        return WALL_FACE + Math.max(0f, elapsed);
+    static float ringDepth(float elapsed, int launch) {
+        return WALL_FACE + Math.max(0f, elapsed - launch);
     }
 
     /**
-     * The wave's strength: fading in over FADE_IN_TICKS, whole down the
-     * tunnel, fading out over its last FADE_OUT_LAYERS layers.
+     * A ring's strength: nothing before its launch, fading in over
+     * FADE_IN_TICKS, whole down the tunnel, fading out over its last
+     * FADE_OUT_LAYERS layers.
      *
      * @param elapsed ticks since burnout, partial tick included
+     * @param launch  the tick the ring launched
      * @param layers  the tunnel's depth in layers
      * @return the strength in [0, 1]
      */
-    static float strength(float elapsed, int layers) {
-        float fadeIn = Math.min(1f, Math.max(0f, elapsed / FADE_IN_TICKS));
-        float fadeOut = Math.min(1f, Math.max(0f, (layers - elapsed) / FADE_OUT_LAYERS));
+    static float ringStrength(float elapsed, int launch, int layers) {
+        float traveled = elapsed - launch;
+        float fadeIn = Math.min(1f, Math.max(0f, traveled / FADE_IN_TICKS));
+        float fadeOut = Math.min(1f, Math.max(0f, (layers - traveled) / FADE_OUT_LAYERS));
         return fadeIn * fadeOut;
     }
 
     /**
-     * Draws the wave plate for a tunnel burnout through the given render type.
+     * The rings' radius: the tunnel's half-width across the face, so each
+     * ring is as wide as the tunnel.
+     *
+     * @param section the tunnel's bounds, marker-local
+     * @param face    the placed face
+     * @return the radius in blocks
+     */
+    static float ringRadius(AABB section, Direction face) {
+        double radius = 0;
+        for (Direction.Axis axis : Direction.Axis.values()) {
+            if (axis != face.getAxis()) {
+                radius = Math.max(radius, (section.max(axis) - section.min(axis)) * HALF);
+            }
+        }
+        return (float) radius;
+    }
+
+    /**
+     * Draws a tunnel burnout's train of rings through the given render type.
      *
      * @param burnout the burnout
      * @param frame   the frame being drawn
@@ -93,67 +128,19 @@ final class TunnelWave {
     static void render(ChainBurnouts.Burnout burnout, BurnoutFrame frame, RenderType type) {
         float elapsed = frame.gameTime() - burnout.startTick();
         int layers = ChainFootprint.tunnelDepth(burnout.stackCount());
-        float strength = strength(elapsed, layers);
-        if (strength <= 0f) {
-            return;
-        }
         Direction face = burnout.placedFace();
-        AABB section = ChainFootprint.computeBounds(burnout.stackCount(), false, face);
-        float along = depth(elapsed);
-        int progressByte = NetherDiscMesh.toByte(Math.min(1f, elapsed / layers));
-        int alpha = NetherDiscMesh.toByte(strength);
-        BurnoutGeometry.drawAtMarker(frame, burnout.pos(), type, (pose, c) ->
-                emitPlate(pose, c, face, section, along, alpha, progressByte));
-    }
-
-    /**
-     * Emits the plate: the tunnel's cross-section, square to the blast, at
-     * the given distance into the wall.
-     *
-     * @param pose         the pose entry
-     * @param c            the vertex consumer
-     * @param face         the placed face
-     * @param section      the tunnel's bounds, marker-local
-     * @param along        the plate's distance from the marker's center along the blast
-     * @param alpha        the wave's strength as a byte
-     * @param progressByte the wave's progress as a byte
-     */
-    private static void emitPlate(PoseStack.Pose pose, VertexConsumer c, Direction face, AABB section,
-                                  float along, int alpha, int progressByte) {
-        Direction.Axis axis = face.getAxis();
-        Direction.Axis first = axis == Direction.Axis.X ? Direction.Axis.Y : Direction.Axis.X;
-        Direction.Axis second = axis == Direction.Axis.Z ? Direction.Axis.Y : Direction.Axis.Z;
-        float plane = BurnoutGeometry.BLOCK_CENTER - face.getAxisDirection().getStep() * along;
-        FlatQuadContext quads = new FlatQuadContext(pose, c);
-        int[][] corners = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
-        for (int[] corner : corners) {
-            float a = (float) (corner[0] == 0 ? section.min(first) : section.max(first));
-            float b = (float) (corner[1] == 0 ? section.min(second) : section.max(second));
-            int color = ARGB.color(alpha, progressByte, corner[0] * OPAQUE, corner[1] * OPAQUE);
-            quads.vertex(coordinate(Direction.Axis.X, axis, first, plane, a, b),
-                    coordinate(Direction.Axis.Y, axis, first, plane, a, b),
-                    coordinate(Direction.Axis.Z, axis, first, plane, a, b), color,
-                    face.getStepX(), face.getStepY(), face.getStepZ());
-        }
-    }
-
-    /**
-     * One coordinate of a plate corner: the plate's plane on the blast axis,
-     * the corner's first or second in-plane coordinate on the others.
-     *
-     * @param of    the axis whose coordinate this is
-     * @param blast the blast axis
-     * @param first the first in-plane axis
-     * @param plane the plate's coordinate on the blast axis
-     * @param a     the corner's coordinate on the first in-plane axis
-     * @param b     the corner's coordinate on the second in-plane axis
-     * @return the coordinate
-     */
-    private static float coordinate(Direction.Axis of, Direction.Axis blast, Direction.Axis first,
-                                    float plane, float a, float b) {
-        if (of == blast) {
-            return plane;
-        }
-        return of == first ? a : b;
+        float radius = ringRadius(ChainFootprint.computeBounds(burnout.stackCount(), false, face), face);
+        int progressByte = NetherDiscMesh.toByte(Math.min(1f, elapsed / durationTicks(burnout.stackCount())));
+        BurnoutGeometry.drawAtMarker(frame, burnout.pos(), type, (pose, c) -> {
+            for (int launch = 0; launch <= LAST_LAUNCH; launch += RING_SPACING) {
+                float strength = ringStrength(elapsed, launch, layers);
+                if (strength > 0f) {
+                    int alpha = NetherDiscMesh.toByte(strength);
+                    BurnoutGeometry.emitAnnulus(pose, c, face, -ringDepth(elapsed, launch), radius * BAND_INNER,
+                            radius, RING_SEGMENTS, (angle, outer) -> ARGB.color(alpha, progressByte,
+                                    NetherDiscMesh.toByte((float) (angle / TWO_PI)), outer ? OPAQUE : 0));
+                }
+            }
+        });
     }
 }
