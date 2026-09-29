@@ -80,6 +80,9 @@ public final class GooTestFunctions {
     private static final String CRYSTALLIZER_GASKET_FILLS_CANISTER = "crystallizer_gasket_fills_canister";
     private static final String CRYSTALLIZER_CLICK_CRYSTAL = "crystallizer_click_crystal";
     private static final String CRYSTALLIZER_EVEN_PACE = "crystallizer_even_pace";
+    // --- Gasket demand ---
+    private static final String GASKET_DEMAND_VAT_FILLS_HUB = "gasket_demand_vat_fills_hub";
+    private static final String GASKET_DEMAND_VAT_FEEDS_TAP = "gasket_demand_vat_feeds_tap";
     // --- Brewing ---
     private static final String BREWING_OMNIBLOB_NEVER_BREWS = "brewing_omniblob_never_brews";
     private static final String BREWING_CHRYSM_BREWS_POTION = "brewing_chrysm_brews_potion";
@@ -355,7 +358,13 @@ public final class GooTestFunctions {
             registerLabTests(registrar);
             registerBrewingTests(registrar);
             registerCrystallizerTests(registrar);
+            registerGasketDemandTests(registrar);
         });
+    }
+
+    private static void registerGasketDemandTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
+        reg(r, GASKET_DEMAND_VAT_FILLS_HUB, GasketDemandTests::vatFillsHubAtTheTaperRate);
+        reg(r, GASKET_DEMAND_VAT_FEEDS_TAP, GasketDemandTests::vatFeedsTapAtTheValveRate);
     }
 
     private static void registerCrystallizerTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {

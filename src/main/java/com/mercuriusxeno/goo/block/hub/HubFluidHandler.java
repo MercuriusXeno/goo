@@ -118,7 +118,7 @@ public class HubFluidHandler implements ResourceHandler<FluidResource> {
             return 0;
         }
         return Math.min(
-                hub.containerState().routeFluid(resource, amount),
+                hub.containerState().routeFluid(resource, amount, transaction),
                 Integer.MAX_VALUE);
     }
 
