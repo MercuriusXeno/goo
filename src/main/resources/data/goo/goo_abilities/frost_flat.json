@@ -13,7 +13,7 @@
       "type": "progressive_area",
       "shape": "flat_circle",
       "effect": "freeze",
-      "visuals": "none",
+      "visuals": "frost_rime",
       "audio": "none",
       "preview_delay": 8
     }
