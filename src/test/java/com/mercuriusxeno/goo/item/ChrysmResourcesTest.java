@@ -38,8 +38,11 @@ class ChrysmResourcesTest {
     @EnumSource(ChrysmTier.class)
     void nameTakesTheTypeBeforeTheTier(ChrysmTier tier) throws Exception {
         JsonObject lang = readJson("/assets/goo/lang/en_us.json");
-        String tierWord = Character.toUpperCase(tier.registryPath().charAt(0)) + tier.registryPath().substring(1);
-        assertEquals("%s " + tierWord, lang.get(tier.translationKey()).getAsString());
+        StringBuilder tierWords = new StringBuilder();
+        for (String word : tier.registryPath().split("_")) {
+            tierWords.append(' ').append(Character.toUpperCase(word.charAt(0))).append(word.substring(1));
+        }
+        assertEquals("%s" + tierWords, lang.get(tier.translationKey()).getAsString());
     }
 
     private static JsonObject readJson(String path) throws Exception {

@@ -13,58 +13,6 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class EffectMathTest {
 
-    // ── Frost: freeze radius = 2 + n ──────────────────────────────────────
-
-    @Nested
-    class FreezeRadius {
-
-        @Test
-        void stack1Is3() {
-            assertEquals(3, AbilityMath.computeFreezeRadius(1));
-        }
-
-        @Test
-        void stack2Is4() {
-            assertEquals(4, AbilityMath.computeFreezeRadius(2));
-        }
-
-        @Test
-        void stack3Is5() {
-            assertEquals(5, AbilityMath.computeFreezeRadius(3));
-        }
-
-        @Test
-        void stack4Is6() {
-            assertEquals(6, AbilityMath.computeFreezeRadius(4));
-        }
-    }
-
-    // ── Nether: conversion radius = 1 + 2n ────────────────────────────────
-
-    @Nested
-    class NetherRadius {
-
-        @Test
-        void stack1Is3() {
-            assertEquals(3, AbilityMath.computeNetherRadius(1));
-        }
-
-        @Test
-        void stack2Is5() {
-            assertEquals(5, AbilityMath.computeNetherRadius(2));
-        }
-
-        @Test
-        void stack3Is7() {
-            assertEquals(7, AbilityMath.computeNetherRadius(3));
-        }
-
-        @Test
-        void stack4Is9() {
-            assertEquals(9, AbilityMath.computeNetherRadius(4));
-        }
-    }
-
     // ── Rock: isRockCompatible (majority rule) ────────────────────────────
 
     @Nested

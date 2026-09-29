@@ -198,8 +198,8 @@ public class HubFluidHandler implements ResourceHandler<FluidResource>, GasketDe
     }
 
     /**
-     * The hub's intake asks what its canisters ask together, each mirroring its own
-     * consumer or resting at the power law of its capacity (decision receivers-demand-and-links-relay).
+     * The hub's intake asks what its canisters ask together, each its resting demand at the
+     * power law of its capacity plus its own consumer's (decision relay-adds-dependent-ask-to-own).
      */
     @Override
     public OptionalInt statedDemand(FluidResource resource) {

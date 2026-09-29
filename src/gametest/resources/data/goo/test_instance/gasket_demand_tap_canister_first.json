@@ -1,9 +1,9 @@
 {
   "type": "minecraft:function",
-  "function": "goo:crystallizer_dial_shatters",
+  "function": "goo:gasket_demand_tap_canister_first",
   "environment": "minecraft:default",
-  "structure": "goo:machine_bay",
-  "max_ticks": 800,
+  "structure": "goo:test_bay",
+  "max_ticks": 200,
   "setup_ticks": 0,
   "required": true
 }

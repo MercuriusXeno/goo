@@ -34,7 +34,7 @@ public class CanisterSlotFluidHandler extends FluidStacksResourceHandler impleme
     private final Predicate<FluidResource> admits;
 
     /**
-     * This canister's link in the gasket chain: the consumer's demand mirrored, or its resting demand.
+     * This canister's link in the gasket chain: its resting demand plus the consumer's.
      */
     private final DemandRelay relay = new DemandRelay();
 
@@ -107,8 +107,8 @@ public class CanisterSlotFluidHandler extends FluidStacksResourceHandler impleme
     }
 
     /**
-     * A canister mirrors the demand of the consumer behind it, and at rest asks the power
-     * law of its own capacity (decision receivers-demand-and-links-relay).
+     * A canister asks the power law of its own capacity plus the demand of the consumer
+     * behind it (decision relay-adds-dependent-ask-to-own).
      */
     @Override
     public OptionalInt statedDemand(FluidResource resource) {

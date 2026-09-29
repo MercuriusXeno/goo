@@ -6,25 +6,32 @@ import com.mojang.serialization.DataResult;
 import com.mojang.serialization.JsonOps;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
-import java.util.function.IntUnaryOperator;
+import java.nio.file.Path;
+import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * A block_count ability charges each stack for the blocks that stack adds
- * to its footprint, and a cost formula the variants do not hold refuses at
- * load (decision diagnose-then-fix-fuse-and-cost).
+ * Every ability prices a throw at the one integer its JSON names, the same at
+ * every stack count, and a cost that is not one whole number refuses at load
+ * naming the cost (decision flat-cost-per-throw).
  */
 class ThrowCostTest {
 
     private static final String ABILITIES = "data/goo/goo_abilities/";
-    private static final int COST_PER_BLOCK = 200;
+    private static final String ROCK_TUNNEL = ABILITIES + "rock_tunnel.json";
+    private static final int MAX_STACK_PROBED = 5;
+
+    static List<Path> shippedAbilities() {
+        return AbilityJson.files();
+    }
 
     private static JsonElement read(String resource) throws IOException {
         try (InputStream in = ThrowCostTest.class.getClassLoader().getResourceAsStream(resource)) {
@@ -33,43 +40,42 @@ class ThrowCostTest {
         }
     }
 
-    private static AbilityDefinition decode(String resource) throws IOException {
-        return AbilityDefinition.codecFor(AbilityJson.idOfResource(resource)).parse(JsonOps.INSTANCE, read(resource))
-                .getOrThrow(message -> new IllegalStateException(resource + ": " + message));
-    }
+    @ParameterizedTest
+    @MethodSource("shippedAbilities")
+    void everyStackPricesAtTheJsonsCost(Path file) throws IOException {
+        String resource = ABILITIES + file.getFileName();
+        int jsonCost = read(resource).getAsJsonObject().get("cost").getAsInt();
+        AbilityDefinition definition = AbilityJson.decode(file);
 
-    private static IntUnaryOperator footprintOf(String shape) {
-        return switch (shape) {
-            case "tunnel" -> ChainFootprint::totalBlocks;
-            case "flat_circle" -> stacks -> ChainFootprint.flatFootprint(stacks).size();
-            default -> throw new IllegalArgumentException(shape);
-        };
+        for (int stacks = 0; stacks <= MAX_STACK_PROBED; stacks++) {
+            assertEquals(jsonCost, definition.throwCost(stacks), definition.id() + " at stack " + stacks);
+        }
     }
 
     @ParameterizedTest
-    @CsvSource({
-            "rock_tunnel, tunnel, 1", "rock_tunnel, tunnel, 2", "rock_tunnel, tunnel, 3", "rock_tunnel, tunnel, 4",
-            "rock_flat, flat_circle, 1", "rock_flat, flat_circle, 2", "rock_flat, flat_circle, 3",
-            "rock_flat, flat_circle, 4",
-    })
-    void throwCost(String ability, String shape, int stack) throws IOException {
-        AbilityDefinition definition = decode(ABILITIES + ability + ".json");
-        IntUnaryOperator footprint = footprintOf(shape);
-        int previous = stack == 1 ? 0 : footprint.applyAsInt(stack - 1);
-        int marginalBlocks = footprint.applyAsInt(stack) - previous;
+    @ValueSource(strings = {"{\"formula\": \"quadratic\", \"baseCost\": 1000}", "1000.5", "-1", "\"cheap\""})
+    void costThatIsNotOneWholeNumberRefusesNamingIt(String cost) throws IOException {
+        JsonElement json = read(ROCK_TUNNEL);
+        json.getAsJsonObject().add("cost", JsonParser.parseString(cost));
 
-        assertEquals(COST_PER_BLOCK * marginalBlocks, definition.throwCost(stack - 1));
+        DataResult<AbilityDefinition> parsed = AbilityDefinition.codecFor(AbilityJson.idOfResource(ROCK_TUNNEL))
+                .parse(JsonOps.INSTANCE, json);
+
+        assertTrue(parsed.error().isPresent(), "an ability costing " + cost + " loaded");
+        String message = parsed.error().get().message();
+        String named = JsonParser.parseString(cost).isJsonPrimitive()
+                ? JsonParser.parseString(cost).getAsString() : "quadratic";
+        assertTrue(message.contains(named), message);
     }
 
     @Test
-    void codec_refusesUnknownFormula() throws IOException {
-        JsonElement json = read(ABILITIES + "rock_tunnel.json");
-        json.getAsJsonObject().getAsJsonObject("cost").addProperty("formula", "bogus");
+    void wholeNumberCostLoads() throws IOException {
+        JsonElement json = read(ROCK_TUNNEL);
+        json.getAsJsonObject().addProperty("cost", 750);
 
-        DataResult<AbilityDefinition> parsed = AbilityDefinition.codecFor(AbilityJson.idOfResource(ABILITIES + "rock_tunnel.json"))
-                .parse(JsonOps.INSTANCE, json);
+        AbilityDefinition definition = AbilityDefinition.codecFor(AbilityJson.idOfResource(ROCK_TUNNEL))
+                .parse(JsonOps.INSTANCE, json).getOrThrow();
 
-        assertTrue(parsed.error().isPresent(), "an ability with cost formula \"bogus\" loaded");
-        assertTrue(parsed.error().get().message().contains("bogus"), parsed.error().get().message());
+        assertEquals(750, definition.throwCost(3));
     }
 }

@@ -16,17 +16,18 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * The crystallizer draws the operator's model as ruled (decision crystallizer-emits-chrysm):
  * every facing, knob and active state draws one body, active naming the active texture,
- * and one dial model; the dials turn about z on (8, 7, 15.5) at 22.5, 0 and -22.5 and
- * light 3, 7 and 10 pixels of the front red line. Reads the resources through the classpath.
+ * and one dial model; the five dials turn about z on (8, 7, 15.5) at 45, 22.5, 0, -22.5
+ * and -45 and light 0, 3, 5, 7 and 10 pixels of the front red line (decision
+ * dial-five-positions-off-to-materia). Reads the resources through the classpath.
  */
 class CrystallizerResourcesTest {
 
     private static final String BLOCKSTATE = "/assets/goo/blockstates/crystallizer.json";
     private static final String GOO = "goo:";
     private static final List<String> FACINGS = List.of("north", "east", "south", "west");
-    private static final List<String> KNOB_POSITIONS = List.of("1", "2", "3");
-    private static final List<Double> KNOB_ANGLES = List.of(22.5, 0.0, -22.5);
-    private static final List<Double> LIT_PIXELS = List.of(3.0, 7.0, 10.0);
+    private static final List<String> KNOB_POSITIONS = List.of("0", "1", "2", "3", "4");
+    private static final List<Double> KNOB_ANGLES = List.of(45.0, 22.5, 0.0, -22.5, -45.0);
+    private static final List<Double> LIT_PIXELS = List.of(0.0, 3.0, 5.0, 7.0, 10.0);
     private static final double LINE_PIXELS = 10;
     private static final List<Double> PIVOT = List.of(8.0, 7.0, 15.5);
 
@@ -115,8 +116,8 @@ class CrystallizerResourcesTest {
     @Test
     void everyNamedTextureShips() throws Exception {
         List<String> models = List.of("goo:block/crystallizer", "goo:block/crystallizer_body",
-                "goo:block/crystallizer_body_active", "goo:block/crystallizer_dial_1",
-                "goo:block/crystallizer_dial_2", "goo:block/crystallizer_dial_3");
+                "goo:block/crystallizer_body_active", "goo:block/crystallizer_dial_0", "goo:block/crystallizer_dial_1",
+                "goo:block/crystallizer_dial_2", "goo:block/crystallizer_dial_3", "goo:block/crystallizer_dial_4");
         for (String model : models) {
             JsonObject json = readJson(modelPath(model));
             if (!json.has("textures")) {
