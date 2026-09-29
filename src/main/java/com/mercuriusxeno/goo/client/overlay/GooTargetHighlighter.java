@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.overlay;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.GooClientConfig;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
@@ -230,10 +231,12 @@ public final class GooTargetHighlighter {
             easeStartSeconds = nowSeconds;
         }
         double elapsed = nowSeconds - easeStartSeconds;
-        Vec3 drawn = ArcEndpointEase.easeEndpoint(easeFromEndpoint, end, elapsed, ArcEndpointEase.EASE_SECONDS);
+        // decision aim-arc-snap-option
+        double easeSeconds = GooClientConfig.SNAP_AIM_ARC.get() ? 0 : ArcEndpointEase.EASE_SECONDS;
+        Vec3 drawn = ArcEndpointEase.easeEndpoint(easeFromEndpoint, end, elapsed, easeSeconds);
         drawnEndpoint = drawn;
         drawnGrannyWeight = ArcEndpointEase.easeGrannyWeight(easeFromGrannyWeight, grannyWeight, elapsed,
-                ArcEndpointEase.EASE_SECONDS);
+                easeSeconds);
         return drawn;
     }
 

@@ -83,7 +83,8 @@ class ArcEndpointEaseTest {
     }
 
     @Test
-    void zeroEaseTimeSnapsToNewEndpoint() {
+    void zeroEaseTimeSnapsToNewEndpointAndWeight() {
         assertSamePoint(TO, ArcEndpointEase.easeEndpoint(FROM, TO, 0, 0));
+        assertEquals(1, ArcEndpointEase.easeGrannyWeight(0, 1, 0, 0), EPSILON);
     }
 }
