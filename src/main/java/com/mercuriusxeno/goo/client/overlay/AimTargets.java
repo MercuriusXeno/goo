@@ -38,20 +38,22 @@ final class AimTargets {
     }
 
     /**
-     * Resolves the aim for the given hint from the player's eye at the end of the tick.
+     * Resolves the aim for the given hint from the player's eye and look as
+     * the frame draws them (decision aim-target-follows-client-aim).
      *
-     * @param player the local player
-     * @param seed   the previous tick's aim-assist hit, the sticky seed
-     * @param hint   the targeting mode from the selected ability
+     * @param player      the local player
+     * @param seed        the previous frame's aim-assist hit, the sticky seed
+     * @param hint        the targeting mode from the selected ability
+     * @param partialTick the frame's partial tick
      * @return the target and the aim-assist hit behind it
      */
     static AimState.Resolution resolve(Player player, AimAssistResolver.@Nullable AimHit seed,
-                                       TargetingHint hint) {
+                                       TargetingHint hint, float partialTick) {
         if (hint == TargetingHint.NONE) {
             return AimState.Resolution.NOTHING;
         }
-        Vec3 eyePos = player.getEyePosition(1.0f);
-        Vec3 reach = eyePos.add(player.getViewVector(1.0f).scale(AimState.MAX_RANGE));
+        Vec3 eyePos = player.getEyePosition(partialTick);
+        Vec3 reach = eyePos.add(player.getViewVector(partialTick).scale(AimState.MAX_RANGE));
         String abilityId = GloveAim.selectedAbilityId(player);
         if (hint == TargetingHint.ENTITY) {
             AimAssistResolver.AimHit hit = AimAssistResolver.findClosestAimHit(player, eyePos, reach, seed, abilityId);

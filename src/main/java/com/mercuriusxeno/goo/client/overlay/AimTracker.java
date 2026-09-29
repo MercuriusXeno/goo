@@ -16,13 +16,13 @@ import net.minecraft.world.entity.player.Player;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.neoforge.client.event.RenderFrameEvent;
 
 /**
- * Ticks the client's one {@link AimState} and answers its readers: the
- * frame and the throw read the tick's target, the entity renderer its
- * outline, the chain marker renderer whether it is aimed at (decision
- * render-context-is-the-one-emitter).
+ * Resolves the client's one {@link AimState} each frame and answers its
+ * readers: the frame and the throw read the frame's target, the entity
+ * renderer its outline, the chain marker renderer whether it is aimed at
+ * (decisions render-context-is-the-one-emitter, aim-target-follows-client-aim).
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class AimTracker {
@@ -33,13 +33,13 @@ public final class AimTracker {
     }
 
     /**
-     * Client tick: resolves the aim once for the tick, or holds the frozen
-     * target through the post-throw freeze.
+     * Frame start: resolves the aim from the look the frame draws, or holds
+     * the frozen target through the post-throw freeze.
      *
      * @param event the event instance
      */
     @SubscribeEvent
-    public static void onClientTick(ClientTickEvent.Post event) {
+    public static void onRenderFrameStart(RenderFrameEvent.Pre event) {
         Minecraft mc = Minecraft.getInstance();
         Player player = mc.player;
         if (player == null || mc.level == null) {
@@ -53,11 +53,13 @@ public final class AimTracker {
             STATE.update(seed -> new AimState.Resolution(frozen, seed), entityOutline);
             return;
         }
-        STATE.update(seed -> AimTargets.resolve(player, seed, GloveAim.targetingHint(player)), entityOutline);
+        float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        STATE.update(seed -> AimTargets.resolve(player, seed, GloveAim.targetingHint(player), partialTick),
+                entityOutline);
     }
 
     /**
-     * The target this tick resolved, the one the frame shows and the throw sends.
+     * The target the last frame resolved, the one the frame shows and the throw sends.
      *
      * @return the target, NONE when nothing is aimed at
      */
