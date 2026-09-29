@@ -60,6 +60,38 @@ public final class GooTestFunctions {
     private static final String SOUL_BOUND_SURVIVES_DEATH = "soul_bound_survives_death";
     private static final String EXO_GAUNTLET_SMITHING = "exo_gauntlet_smithing";
     private static final String EXO_GAUNTLET_KEEPS_BENEFITS = "exo_gauntlet_keeps_benefits";
+    // --- Crystallizer ---
+    private static final String CRYSTALLIZER_CRYSTAL_FIRST = "crystallizer_crystal_first_then_ender";
+    private static final String CRYSTALLIZER_EITHER_SLOT = "crystallizer_either_slot_holds_crystal";
+    private static final String CRYSTALLIZER_TWO_CRYSTAL = "crystallizer_two_crystal_grow_crystal";
+    private static final String CRYSTALLIZER_TAKES_ONLY_TWO_SLOTS = "crystallizer_takes_only_two_slots";
+    private static final String CRYSTALLIZER_CANISTERS_AT_ITS_CENTERS = "crystallizer_canisters_at_its_centers";
+    private static final String CRYSTALLIZER_ADVANCES_TO_KILOCHRYSM = "crystallizer_advances_to_kilochrysm";
+    private static final String CRYSTALLIZER_SMALL_DIAL_HOLDS = "crystallizer_small_dial_holds";
+    private static final String CRYSTALLIZER_DIAL_WRAPS = "crystallizer_dial_wraps";
+    private static final String CRYSTALLIZER_PAUSES_WITHOUT_CRYSTAL = "crystallizer_pauses_without_crystal";
+    private static final String CRYSTALLIZER_PART_GROWN_NOT_CLICKABLE = "crystallizer_part_grown_not_clickable";
+    private static final String CRYSTALLIZER_DIAL_SHATTERS = "crystallizer_dial_shatters";
+    private static final String CRYSTALLIZER_ANY_ITEM_TAKES = "crystallizer_any_item_takes";
+    private static final String CRYSTALLIZER_PASSES_OTHER_CLICKS = "crystallizer_passes_other_clicks";
+    private static final String CRYSTALLIZER_CANISTER_SOUNDS = "crystallizer_canister_sounds";
+    private static final String CRYSTALLIZER_POUR_AIMED_ONLY = "crystallizer_pour_aimed_only";
+    private static final String CRYSTALLIZER_ONE_GROWING_GOO = "crystallizer_one_growing_goo";
+    private static final String CRYSTALLIZER_GASKET_FILLS_CANISTER = "crystallizer_gasket_fills_canister";
+    private static final String CRYSTALLIZER_CLICK_CRYSTAL = "crystallizer_click_crystal";
+    private static final String CRYSTALLIZER_EVEN_PACE = "crystallizer_even_pace";
+    // --- Gasket demand ---
+    private static final String GASKET_DEMAND_VAT_FILLS_HUB = "gasket_demand_vat_fills_hub";
+    private static final String GASKET_DEMAND_VAT_FEEDS_TAP = "gasket_demand_vat_feeds_tap";
+    private static final String GASKET_DEMAND_CRYSTALLIZER_CHAIN = "gasket_demand_crystallizer_chain";
+    private static final String GASKET_DEMAND_CRYSTALLIZER_VAT_CHAIN = "gasket_demand_crystallizer_vat_chain";
+    private static final String GASKET_DEMAND_HUB_SHARES = "gasket_demand_hub_shares";
+    // --- Brewing ---
+    private static final String BREWING_OMNIBLOB_NEVER_BREWS = "brewing_omniblob_never_brews";
+    private static final String BREWING_CHRYSM_BREWS_POTION = "brewing_chrysm_brews_potion";
+    private static final String BREWING_CHRYSM_BREWS_SPLASH = "brewing_chrysm_brews_splash";
+    private static final String BREWING_CHRYSM_BREWS_LINGERING = "brewing_chrysm_brews_lingering";
+    private static final String BREWING_HIGHER_TIERS_NEVER_BREW = "brewing_higher_tiers_never_brew";
     private static final String EXORITE_NOT_ENCHANTABLE = "exorite_not_enchantable";
     private static final String EXORITE_ANVIL_REFUSES_BOOK = "exorite_anvil_refuses_book";
     private static final String EXORITE_BARS_REGISTERED = "exorite_bars_registered";
@@ -154,6 +186,7 @@ public final class GooTestFunctions {
     // --- Crucible ---
     private static final String CR_BLOB_INSERT = "cr_blob_insert";
     private static final String CR_ITEM_ABSORB = "cr_item_absorb";
+    private static final String CR_MELTS_CHRYSM = "cr_melts_chrysm";
     private static final String CR_CAP_EACH_TYPE = "cr_cap_each_type";
     private static final String CR_CAP_BLOB_IN_HAND = "cr_cap_blob_in_hand";
     private static final String CR_CAP_BLOB_ENTITY = "cr_cap_blob_entity";
@@ -230,6 +263,7 @@ public final class GooTestFunctions {
     private static final String IX_VAT_GASKET = "ix_vat_gasket_apply";
     private static final String IX_HUB_INSERT = "ix_hub_canister_insert";
     private static final String IX_HUB_PICKUP = "ix_hub_canister_pickup";
+    private static final String IX_HUB_POUR_AIMED_ONLY = "ix_hub_pour_aimed_only";
     private static final String IX_PLEXER_TARGET = "ix_plexer_set_target";
     private static final String IX_CRUCIBLE_BLAZE_ROD_COLD = "ix_crucible_blaze_rod_click_leaves_cold";
     private static final String IX_CRUCIBLE_COLD_ABSORBS_NOTHING = "ix_crucible_cold_absorbs_nothing";
@@ -325,7 +359,48 @@ public final class GooTestFunctions {
             registerLightingTests(registrar);
             registerTapDripTests(registrar);
             registerLabTests(registrar);
+            registerBrewingTests(registrar);
+            registerCrystallizerTests(registrar);
+            registerGasketDemandTests(registrar);
         });
+    }
+
+    private static void registerGasketDemandTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
+        reg(r, GASKET_DEMAND_VAT_FILLS_HUB, GasketDemandTests::vatFillsHubAtItsRestingDemand);
+        reg(r, GASKET_DEMAND_VAT_FEEDS_TAP, GasketDemandTests::vatFeedsTapAtTheValveRate);
+        reg(r, GASKET_DEMAND_CRYSTALLIZER_CHAIN, GasketDemandTests::crystallizerDrawsItsPaceThroughACanister);
+        reg(r, GASKET_DEMAND_CRYSTALLIZER_VAT_CHAIN, GasketDemandTests::crystallizerDrawsItsPaceThroughAVat);
+        reg(r, GASKET_DEMAND_HUB_SHARES, GasketDemandTests::hubGivesEachCanisterItsOwnDemand);
+    }
+
+    private static void registerCrystallizerTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
+        reg(r, CRYSTALLIZER_CRYSTAL_FIRST, CrystallizerTests::crystalFirstThenEnder);
+        reg(r, CRYSTALLIZER_EITHER_SLOT, CrystallizerTests::eitherSlotHoldsTheCrystal);
+        reg(r, CRYSTALLIZER_TWO_CRYSTAL, CrystallizerTests::twoCrystalCanistersGrowCrystal);
+        reg(r, CRYSTALLIZER_TAKES_ONLY_TWO_SLOTS, CrystallizerTests::canisterBlockAboveTakesOnlyTheTwoSlots);
+        reg(r, CRYSTALLIZER_CANISTERS_AT_ITS_CENTERS, CrystallizerTests::canisterBlockOnCrystallizerStandsAtItsCenters);
+        reg(r, CRYSTALLIZER_ADVANCES_TO_KILOCHRYSM, CrystallizerTests::advancesToKilochrysm);
+        reg(r, CRYSTALLIZER_SMALL_DIAL_HOLDS, CrystallizerTests::smallDialHoldsAtChrysm);
+        reg(r, CRYSTALLIZER_DIAL_WRAPS, CrystallizerTests::dialClickWrapsFromLargeToSmall);
+        reg(r, CRYSTALLIZER_PAUSES_WITHOUT_CRYSTAL, CrystallizerTests::pausesWithoutCrystal);
+        reg(r, CRYSTALLIZER_PART_GROWN_NOT_CLICKABLE, CrystallizerTests::partGrownCrystalIsNotClickable);
+        reg(r, CRYSTALLIZER_DIAL_SHATTERS, CrystallizerTests::dialChangeShattersAGrowingCrystal);
+        reg(r, CRYSTALLIZER_ANY_ITEM_TAKES, CrystallizerTests::anyHeldItemTakesTheCrystal);
+        reg(r, CRYSTALLIZER_PASSES_OTHER_CLICKS, CrystallizerTests::clicksItDoesNotOwnPass);
+        reg(r, CRYSTALLIZER_CANISTER_SOUNDS, CrystallizerTests::eachCanisterPlacedPlaysASound);
+        reg(r, CRYSTALLIZER_POUR_AIMED_ONLY, CrystallizerTests::aPourFillsOnlyTheAimedCanister);
+        reg(r, CRYSTALLIZER_ONE_GROWING_GOO, CrystallizerTests::oneCanisterHoldsTheGrowingGoo);
+        reg(r, CRYSTALLIZER_GASKET_FILLS_CANISTER, CrystallizerTests::gasketFillsTheIngredientCanister);
+        reg(r, CRYSTALLIZER_CLICK_CRYSTAL, CrystallizerTests::clickingTheCrystalTakesTheChrysm);
+        reg(r, CRYSTALLIZER_EVEN_PACE, CrystallizerTests::crystallizesAtAnEvenPace);
+    }
+
+    private static void registerBrewingTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
+        reg(r, BREWING_OMNIBLOB_NEVER_BREWS, BrewingTests::omniblobNeverBrews);
+        reg(r, BREWING_CHRYSM_BREWS_POTION, BrewingTests::chrysmBrewsTypePotion);
+        reg(r, BREWING_CHRYSM_BREWS_SPLASH, BrewingTests::chrysmBrewsTypeSplashPotion);
+        reg(r, BREWING_CHRYSM_BREWS_LINGERING, BrewingTests::chrysmBrewsTypeLingeringPotion);
+        reg(r, BREWING_HIGHER_TIERS_NEVER_BREW, BrewingTests::higherTiersNeverBrew);
     }
 
     private static void registerTapDripTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
@@ -477,6 +552,7 @@ public final class GooTestFunctions {
         reg(r, IX_VAT_GASKET, MachineInteractionTests::vatGasketApply);
         reg(r, IX_HUB_INSERT, MachineInteractionTests::hubCanisterInsert);
         reg(r, IX_HUB_PICKUP, MachineInteractionTests::hubCanisterPickup);
+        reg(r, IX_HUB_POUR_AIMED_ONLY, MachineInteractionTests::hubPourFillsOnlyTheAimedCanister);
         reg(r, IX_PLEXER_TARGET, MachineInteractionTests::plexerSetTarget);
         reg(r, IX_CRUCIBLE_BLAZE_ROD_COLD, MachineInteractionTests::crucibleBlazeRodClickLeavesItCold);
         reg(r, IX_CRUCIBLE_COLD_ABSORBS_NOTHING, MachineInteractionTests::coldCrucibleAbsorbsNothing);
@@ -501,6 +577,7 @@ public final class GooTestFunctions {
     private static void registerCrucibleTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
         reg(r, CR_BLOB_INSERT, CrucibleTests::blobInsertViaInteraction);
         reg(r, CR_ITEM_ABSORB, CrucibleTests::itemEntityAbsorption);
+        reg(r, CR_MELTS_CHRYSM, CrucibleTests::meltsChrysm);
         reg(r, CR_CAP_EACH_TYPE, CrucibleTests::reservoirCapsEachType);
         reg(r, CR_CAP_BLOB_IN_HAND, CrucibleTests::blobInHandRefusedAtCap);
         reg(r, CR_CAP_BLOB_ENTITY, CrucibleTests::blobEntityRefusedAtCap);

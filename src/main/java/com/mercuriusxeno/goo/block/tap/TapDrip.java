@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.block.tap;
 
 import com.mercuriusxeno.goo.DripFall;
 import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.block.canister.CanisterSlotFluidHandler;
 import com.mercuriusxeno.goo.block.canister.ICanisterHolder;
 import com.mercuriusxeno.goo.registry.GooDripParticleOptions;
 import com.mercuriusxeno.goo.registry.GooParticles;
@@ -66,6 +67,22 @@ public final class TapDrip {
             return null;
         }
         int drawn = holder.extractGoo(slot, type, volume);
+        return drawn > 0 ? new Drawn(type, drawn) : null;
+    }
+
+    /**
+     * Draws one drip from what the tap's gasket received.
+     *
+     * @param intake the tap's gasket intake
+     * @param volume the mB one drip draws at the tap's grade
+     * @return the goo drawn, or null when the intake held no goo
+     */
+    static @Nullable Drawn drawIntake(CanisterSlotFluidHandler intake, int volume) {
+        ResourceKey<GooTypeDefinition> type = intake.getGooType();
+        if (type == null) {
+            return null;
+        }
+        int drawn = intake.extractGoo(type, volume, false);
         return drawn > 0 ? new Drawn(type, drawn) : null;
     }
 

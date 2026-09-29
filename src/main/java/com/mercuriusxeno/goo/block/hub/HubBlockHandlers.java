@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.block.hub;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.ISidedProxy;
-import com.mercuriusxeno.goo.block.GooBlockInteraction;
 import com.mercuriusxeno.goo.block.InteractionCooldown;
 import com.mercuriusxeno.goo.block.canister.SlottedCanisterData;
 import com.mercuriusxeno.goo.item.BlobInsert;
@@ -158,7 +157,7 @@ final class HubBlockHandlers {
     }
 
     /**
-     * Inserts goo from a blob or omniblob item into the first accepting hub slot.
+     * Pours goo from a blob or omniblob item into the aimed hub canister.
      *
      * @param hub       the hub block entity
      * @param hitResult the ray trace hit result
@@ -178,7 +177,7 @@ final class HubBlockHandlers {
     }
 
     /**
-     * Finds the best slot and inserts blob goo into it.
+     * Inserts blob goo into the aimed hub canister, or nowhere when it can't take it.
      *
      * @param hub       the hub block entity
      * @param hitResult the ray trace hit result for slot targeting
@@ -187,11 +186,8 @@ final class HubBlockHandlers {
      * @return the volume accepted, or 0 if no slot accepted
      */
     private static int insertBlobGoo(HubBlockEntity hub, BlockHitResult hitResult, ResourceKey<GooTypeDefinition> type, int volume) {
-        var pos = hub.getBlockPos();
-        int slot = GooBlockInteraction.findSlot(
-                HubBlock.hitSlot(hitResult, pos), HubBlockEntity.MAX_CANISTERS, hub::canAccept);
-        if (slot < 0) { return 0; }
-        return hub.insertGoo(slot, type, volume);
+        int slot = HubBlock.hitSlot(hitResult, hub.getBlockPos());
+        return slot >= 0 && hub.canAccept(slot) ? hub.insertGoo(slot, type, volume) : 0;
     }
 
 }

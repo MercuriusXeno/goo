@@ -48,6 +48,7 @@ public final class GooClientSetup {
      * Special renderer key for canister goo.
      */
     private static final String RENDERER_CANISTER = "canister_goo";
+    private static final String RENDERER_CHRYSM = "chrysm_crystal";
     /**
      * Special renderer key for vat goo.
      */
@@ -134,6 +135,8 @@ public final class GooClientSetup {
                 ReactorBlockEntityRenderer::new);
         event.registerBlockEntityRenderer(GooBlockEntities.TAP.get(),
                 TapBlockEntityRenderer::new);
+        event.registerBlockEntityRenderer(GooBlockEntities.CRYSTALLIZER.get(),
+                CrystallizerBlockEntityRenderer::new);
     }
 
     /**
@@ -269,6 +272,10 @@ public final class GooClientSetup {
         event.register(
                 Identifier.fromNamespaceAndPath(Goo.MODID, RENDERER_GLOVE),
                 GloveSpecialRenderer.Unbaked.MAP_CODEC
+        );
+        event.register(
+                Identifier.fromNamespaceAndPath(Goo.MODID, RENDERER_CHRYSM),
+                ChrysmSpecialRenderer.Unbaked.MAP_CODEC
         );
     }
 

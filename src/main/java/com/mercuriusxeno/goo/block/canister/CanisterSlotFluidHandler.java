@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.block.canister;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.block.gasket.DemandRelay;
+import com.mercuriusxeno.goo.block.gasket.GasketDemand;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.registry.GooFluids;
@@ -12,7 +14,10 @@ import net.neoforged.neoforge.transfer.fluid.FluidStacksResourceHandler;
 import net.neoforged.neoforge.transfer.transaction.Transaction;
 import org.jspecify.annotations.Nullable;
 import java.util.Map;
+import java.util.OptionalInt;
+import java.util.function.Function;
 import java.util.function.LongSupplier;
+import java.util.function.Predicate;
 
 /**
  * Single-tank block-level fluid handler for canister slots. Accepts any
@@ -22,10 +27,16 @@ import java.util.function.LongSupplier;
  * <p>Used by canister and hub block entities for per-slot fluid storage.
  * Replaces the multi-tank ordinal-indexed GooFluidHandler for canister slots.</p>
  */
-public class CanisterSlotFluidHandler extends FluidStacksResourceHandler {
+public class CanisterSlotFluidHandler extends FluidStacksResourceHandler implements GasketDemand {
 
     private final Runnable onChange;
     private final LongSupplier tickSupplier;
+    private final Predicate<FluidResource> admits;
+
+    /**
+     * This canister's link in the gasket chain: the consumer's demand mirrored, or its resting demand.
+     */
+    private final DemandRelay relay = new DemandRelay();
 
     // --- Stream tracking (transient, for rendering incoming fluid) ---
 
@@ -67,9 +78,41 @@ public class CanisterSlotFluidHandler extends FluidStacksResourceHandler {
      * @param tickSupplier supplies current game tick for stream timing
      */
     public CanisterSlotFluidHandler(int capacity, Runnable onChange, LongSupplier tickSupplier) {
+        this(capacity, onChange, tickSupplier, incoming -> true);
+    }
+
+    /**
+     * Creates a single-tank handler that takes only the goo its holder admits.
+     *
+     * @param capacity     total capacity in microblobs (mB)
+     * @param onChange     called when contents change
+     * @param tickSupplier supplies current game tick for stream timing
+     * @param admits       answers whether the holder takes an arriving goo
+     */
+    public CanisterSlotFluidHandler(int capacity, Runnable onChange, LongSupplier tickSupplier,
+                                    Predicate<FluidResource> admits) {
         super(1, capacity);
         this.onChange = onChange;
         this.tickSupplier = tickSupplier;
+        this.admits = admits;
+    }
+
+    /**
+     * Sets where this canister reads the demand of the consumer behind it.
+     *
+     * @param demand the consumer's stated demand for a resource, or empty when none stands behind it
+     */
+    public void setConsumerDemand(Function<FluidResource, OptionalInt> demand) {
+        relay.readDemandFrom(demand);
+    }
+
+    /**
+     * A canister mirrors the demand of the consumer behind it, and at rest asks the power
+     * law of its own capacity (decision receivers-demand-and-links-relay).
+     */
+    @Override
+    public OptionalInt statedDemand(FluidResource resource) {
+        return relay.statedDemand(resource, () -> GasketDemand.restingDemand(resource, capacity, getAmount()));
     }
 
     /**
@@ -85,7 +128,7 @@ public class CanisterSlotFluidHandler extends FluidStacksResourceHandler {
             return false;
         }
         FluidResource current = getResource(0);
-        return current.isEmpty() || current.equals(resource);
+        return (current.isEmpty() || current.equals(resource)) && admits.test(resource);
     }
 
     /**

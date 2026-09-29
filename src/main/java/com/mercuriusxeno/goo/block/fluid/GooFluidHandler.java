@@ -2,6 +2,8 @@ package com.mercuriusxeno.goo.block.fluid;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
+import com.mercuriusxeno.goo.block.gasket.DemandRelay;
+import com.mercuriusxeno.goo.block.gasket.GasketDemand;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.registry.GooFluids;
 import net.minecraft.resources.ResourceKey;
@@ -14,6 +16,8 @@ import org.jspecify.annotations.Nullable;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalInt;
+import java.util.function.Function;
 import java.util.function.LongSupplier;
 
 /**
@@ -27,7 +31,12 @@ import java.util.function.LongSupplier;
  * @see GooTypes
  * @see GooContents
  */
-public class GooFluidHandler extends FluidStacksResourceHandler {
+public class GooFluidHandler extends FluidStacksResourceHandler implements GasketDemand {
+
+    /**
+     * This container's link in the gasket chain: the demand behind it mirrored, or its resting demand.
+     */
+    private final DemandRelay relay = new DemandRelay();
 
     private final Runnable onChange;
     private final LongSupplier tickSupplier;
@@ -351,6 +360,39 @@ public class GooFluidHandler extends FluidStacksResourceHandler {
      */
     public boolean isEmpty() {
         return totalVolume() == 0;
+    }
+
+    /**
+     * Sets where this container reads the demand placed on it from behind.
+     *
+     * @param demandBehind the stated demand of what it feeds, or empty when nothing stands behind it
+     */
+    public void readDemandFrom(Function<FluidResource, OptionalInt> demandBehind) {
+        relay.readDemandFrom(demandBehind);
+    }
+
+    /**
+     * A container mirrors the demand of what it feeds, and at rest asks the power law of
+     * its capacity, so a bigger vat pulls harder (decision receivers-demand-and-links-relay).
+     * A per-type handler rests against the one tank the resource fills.
+     */
+    @Override
+    public OptionalInt statedDemand(FluidResource resource) {
+        return relay.statedDemand(resource, () -> GasketDemand.restingDemand(resource, capacity,
+                capacityPerType ? heldOf(resource) : totalVolume()));
+    }
+
+    /**
+     * @param resource the fluid
+     * @return what the tank holding that fluid holds, in mB
+     */
+    private long heldOf(FluidResource resource) {
+        for (int i = 0; i < size(); i++) {
+            if (getResource(i).equals(resource)) {
+                return getAmountAsLong(i);
+            }
+        }
+        return 0;
     }
 
     /**

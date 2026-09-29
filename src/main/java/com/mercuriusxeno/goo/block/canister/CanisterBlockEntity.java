@@ -3,7 +3,6 @@ package com.mercuriusxeno.goo.block.canister;
 import com.mercuriusxeno.goo.GooConstants;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.block.BlockEntitySync;
-import com.mercuriusxeno.goo.block.GooBlockInteraction;
 import com.mercuriusxeno.goo.block.GooGlowingMachineBlockEntity;
 import com.mercuriusxeno.goo.block.IGooReceptacle;
 import com.mercuriusxeno.goo.block.gasket.GasketAttachment;
@@ -12,6 +11,7 @@ import com.mercuriusxeno.goo.item.*;
 import com.mercuriusxeno.goo.item.gasket.GasketPartner;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
+import com.mercuriusxeno.goo.registry.GooFluids;
 import com.mercuriusxeno.goo.registry.GooItems;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.UUIDUtil;
@@ -32,9 +32,12 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
+import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import net.neoforged.neoforge.transfer.fluid.FluidUtil;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
+import java.util.OptionalInt;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -67,6 +70,13 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
 
     private @Nullable UUID ownerUuid;
 
+    /** The centers the last override composite was built for, or null. */
+    private float[][] overrideCenters;
+    /** The occupied-slot mask the last override composite was built for. */
+    private int overrideMask;
+    /** The last composite built at overriding centers. */
+    private @Nullable VoxelShape overrideComposite;
+
     /**
      * Creates a new canister block entity at the given position.
      *
@@ -79,7 +89,9 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
         this.state = new SlottedCanisterData(this, MAX_SLOTS,
                 CanisterBlock::slotShape,
                 CanisterBlockEntity::buildCompositeShape,
-                slot -> level == null || CanisterPlacementValidator.isSlotAllowed(level, worldPosition, slot));
+                slot -> level == null || CanisterPlacementValidator.isSlotAllowed(level, worldPosition, slot),
+                this::admitsFluid);
+        this.state.setMachineDemand(this::machineDemand);
         gasket.rebuildPushers(this.state::rebuildAllPushers);
         gasket.afterLoad(() -> {
             if (level instanceof ServerLevel serverLevel) {
@@ -87,6 +99,30 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
                         serverLevel, worldPosition);
             }
         });
+    }
+
+    /**
+     * Whether a slot takes a goo: the attachable machine below decides, else any goo.
+     *
+     * @param slot     the slot index
+     * @param incoming the goo arriving
+     * @return true when the slot takes it
+     */
+    private boolean admitsFluid(int slot, FluidResource incoming) {
+        return level == null || !(level.getBlockEntity(worldPosition.below()) instanceof ICanisterAttachable machine)
+                || machine.admitsGoo(slot, GooFluids.keyOf(incoming));
+    }
+
+    /**
+     * The demand the attachable machine below states for a slot, or none.
+     *
+     * @param slot     the slot index
+     * @param incoming the fluid arriving
+     * @return the machine's stated demand, or empty
+     */
+    private OptionalInt machineDemand(int slot, FluidResource incoming) {
+        return level != null && level.getBlockEntity(worldPosition.below()) instanceof ICanisterAttachable machine
+                ? machine.statedDemand(slot, GooFluids.keyOf(incoming)) : OptionalInt.empty();
     }
 
     /**
@@ -135,6 +171,70 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
     @Override
     public SlottedCanisterData containerState() {
         return state;
+    }
+
+    /**
+     * The slot centers this canister block lays its canisters out at: the
+     * attachable machine's below it, else the fixed grid.
+     *
+     * @return pixel centers per slot
+     */
+    public float[][] slotCenters() {
+        return level == null ? CanisterSlotLayout.SLOT_CENTERS : CanisterSlotLayout.centersAt(level, worldPosition);
+    }
+
+    /**
+     * The slot a hit on this block names, among the slots in play at the block's
+     * centers: those the machine below allows, else every slot.
+     *
+     * @param hit the hit
+     * @return the slot, or -1 when no slot in play is within reach
+     */
+    private int aimedSlot(BlockHitResult hit) {
+        Set<Integer> inPlay = level == null ? ICanisterAttachable.ALL_SLOTS
+                : CanisterSlotLayout.slotsInPlayAt(level, getBlockPos());
+        return CanisterBlock.hitSlot(hit, getBlockPos(), slotCenters(), inPlay);
+    }
+
+    /**
+     * The union of the occupied slots' shapes at this block's centers: the
+     * slot data's cached composite on the fixed grid, else one rebuilt only
+     * when the centers or the occupied slots change.
+     *
+     * @return the composite voxel shape
+     */
+    public VoxelShape compositeShape() {
+        float[][] centers = slotCenters();
+        if (centers == CanisterSlotLayout.SLOT_CENTERS) {
+            return state.compositeShape();
+        }
+        int mask = occupiedMask();
+        if (centers != overrideCenters || mask != overrideMask || overrideComposite == null) {
+            overrideComposite = buildCompositeAt(centers, mask);
+            overrideCenters = centers;
+            overrideMask = mask;
+        }
+        return overrideComposite;
+    }
+
+    private int occupiedMask() {
+        int mask = 0;
+        for (CanisterSlot slot : state.slots) {
+            if (!slot.isEmpty()) {
+                mask |= 1 << slot.index();
+            }
+        }
+        return mask;
+    }
+
+    private static VoxelShape buildCompositeAt(float[][] centers, int mask) {
+        VoxelShape result = Shapes.empty();
+        for (int slot = 0; slot < MAX_SLOTS; slot++) {
+            if ((mask & (1 << slot)) != 0) {
+                result = Shapes.or(result, CanisterBlock.slotShape(centers, slot));
+            }
+        }
+        return mask == 0 ? CanisterBlock.slotShape(centers, CENTER_SLOT) : result;
     }
 
     /**
@@ -212,7 +312,7 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
 
     @Override
     public int resolveSlot(BlockHitResult hit) {
-        int slot = CanisterBlock.hitSlot(hit, getBlockPos());
+        int slot = aimedSlot(hit);
         return slot < 0 ? SLOT_MISS : slot;
     }
 
@@ -220,7 +320,7 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
 
     @Override
     public @Nullable AABB slotBounds(int index) {
-        return containerState().inRange(index) ? CanisterBlock.slotShape(index).bounds() : null;
+        return containerState().inRange(index) ? CanisterBlock.slotShape(slotCenters(), index).bounds() : null;
     }
 
     /**
@@ -228,13 +328,14 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
      */
     @Override
     public VoxelShape outlineShape(BlockHitResult hit) {
-        int slot = CanisterBlock.hitSlot(hit, getBlockPos());
-        return slot < 0 ? getBlockState().getShape(getLevel(), getBlockPos()) : CanisterBlock.slotShape(slot);
+        float[][] centers = slotCenters();
+        int slot = aimedSlot(hit);
+        return slot < 0 ? getBlockState().getShape(getLevel(), getBlockPos()) : CanisterBlock.slotShape(centers, slot);
     }
 
     @Override
     public @Nullable AABB pickupBounds(BlockHitResult hit) {
-        int slot = CanisterBlock.hitSlot(hit, getBlockPos());
+        int slot = aimedSlot(hit);
         return slot >= 0 && isSlotFilled(slot) ? slotBounds(slot) : null;
     }
 
@@ -249,8 +350,9 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
 
     @Override
     public @Nullable HudAnchor hudAnchor(BlockHitResult hit, HudViewer viewer) {
-        int slot = CanisterBlock.hitSlot(hit, getBlockPos());
-        return slot < 0 ? null : CanisterHudAnchors.anchor(slot, hit.getDirection(), viewer);
+        float[][] centers = slotCenters();
+        int slot = aimedSlot(hit);
+        return slot < 0 ? null : CanisterHudAnchors.anchor(centers[slot], slot, hit.getDirection(), viewer);
     }
 
     @Override
@@ -282,7 +384,7 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
      * @return SUCCESS if a canister was picked up, PASS otherwise
      */
     public InteractionResult handleCanisterPickup(Player player, BlockHitResult hitResult) {
-        int slotIndex = CanisterBlock.hitSlot(hitResult, worldPosition);
+        int slotIndex = aimedSlot(hitResult);
         if (slotIndex < 0 || level == null) {
             return InteractionResult.PASS;
         }
@@ -327,7 +429,7 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
      */
     public @Nullable InteractionResult tryFluidInteraction(Player player, InteractionHand hand,
                                                            BlockHitResult hitResult) {
-        int slotIndex = CanisterBlock.hitSlot(hitResult, worldPosition);
+        int slotIndex = aimedSlot(hitResult);
         CanisterSlot slot = slot(slotIndex);
         if (slot == null || slot.handler() == null) {
             return null;
@@ -364,9 +466,18 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
             return InteractionResult.PASS;
         }
         stack.consume(1, player);
-        level.playSound(null, worldPosition, SoundEvents.DECORATED_POT_INSERT,
-                SoundSource.BLOCKS, 1.0f, 1.0f);
+        playInsertSound();
         return InteractionResult.SUCCESS;
+    }
+
+    /**
+     * Plays the sound of a canister entering this block, heard by every player near it,
+     * the placer included.
+     */
+    public void playInsertSound() {
+        if (level != null) {
+            level.playSound(null, worldPosition, SoundEvents.DECORATED_POT_INSERT, SoundSource.BLOCKS, 1.0f, 1.0f);
+        }
     }
 
     private boolean tryInsertCanister(BlockHitResult hitResult, ItemStack stack, boolean stripGaskets) {
@@ -376,7 +487,7 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
     }
 
     private InteractionResult handleBlobInsert(BlockHitResult hitResult, ItemStack stack, Player player) {
-        int hitSlot = CanisterBlock.hitSlot(hitResult, worldPosition);
+        int hitSlot = aimedSlot(hitResult);
         int accepted = BlobInsert.pour(stack, player,
                 (type, volume) -> tryInsertBlobGoo(hitSlot, type, volume));
         if (accepted <= 0) {
@@ -388,11 +499,7 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
     }
 
     private int tryInsertBlobGoo(int hitSlot, ResourceKey<GooTypeDefinition> type, int volume) {
-        int slot = GooBlockInteraction.findSlot(hitSlot, MAX_SLOTS, this::canAccept);
-        if (slot < 0) {
-            return 0;
-        }
-        return insertGoo(slot, type, volume);
+        return hitSlot >= 0 && canAccept(hitSlot) ? insertGoo(hitSlot, type, volume) : 0;
     }
 
     // --- Framework lifecycle ---

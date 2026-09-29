@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:cr_melts_chrysm",
+  "environment": "minecraft:default",
+  "structure": "goo:crucible_bay",
+  "max_ticks": 10,
+  "setup_ticks": 0,
+  "required": true
+}

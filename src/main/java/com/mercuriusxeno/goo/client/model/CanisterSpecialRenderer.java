@@ -241,7 +241,7 @@ public class CanisterSpecialRenderer implements SpecialModelRenderer<CanisterSpe
         float max = CENTER + CanisterGeometry.HALF_WIDTH - CanisterGeometry.FLUID_INSET;
         return new CuboidBounds(min, max, min, max,
                 CanisterGeometry.STANDING.bodyBottom(),
-                CanisterGeometry.STANDING.bodyBottom() + fill * (CanisterGeometry.STANDING.bodyTop() - CanisterGeometry.STANDING.bodyBottom()));
+                CanisterGeometry.fluidSurface(fill, CanisterGeometry.STANDING.bodyBottom(), CanisterGeometry.STANDING.bodyTop()));
     }
 
     /**

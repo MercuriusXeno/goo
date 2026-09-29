@@ -22,11 +22,12 @@ import net.neoforged.neoforge.event.brewing.RegisterBrewingRecipesEvent;
 import java.util.List;
 
 /**
- * Registers brewing recipes: blob + awkward potion yields goo potion, one
- * per bundled type, over the same keys GooPotions registers by (decision
- * potions-stay-per-type). The blob is one item carrying its type in a
- * component (decision generic-goo-items), so the ingredient matches the
- * component rather than the item, over each potion container vanilla mixes.
+ * Registers brewing recipes: one chrysm + awkward potion yields goo potion,
+ * one per bundled type, over the same keys GooPotions registers by (decisions
+ * potions-stay-per-type, brew-from-chrysm-on-vanilla-stand). The chrysm carries
+ * its type in a component (decision generic-goo-items), so the ingredient
+ * matches the component on the chrysm item, over each potion container vanilla
+ * mixes. Kilochrysm and megachrysm are no ingredient.
  */
 @EventBusSubscriber(modid = Goo.MODID)
 public final class GooBrewingRecipes {
@@ -52,19 +53,19 @@ public final class GooBrewingRecipes {
     }
 
     /**
-     * Adds awkward + omniblob of the type = the potion, for every container.
+     * Adds awkward + chrysm of the type = the potion, for every container.
      *
      * @param builder the brewing builder
-     * @param key     the goo type whose blob brews the potion
+     * @param key     the goo type whose chrysm brews the potion
      * @param potion  the potion brewed
      */
     private static void addMix(PotionBrewing.Builder builder, ResourceKey<GooTypeDefinition> key,
                                Holder<Potion> potion) {
-        Ingredient blob = DataComponentIngredient.of(false, GooDataComponents.GOO_TYPE, key, GooItems.GOO_OMNIBLOB);
+        Ingredient chrysm = DataComponentIngredient.of(false, GooDataComponents.GOO_TYPE, key, GooItems.CHRYSM);
         for (Item container : CONTAINERS) {
             Ingredient awkward = DataComponentIngredient.of(false, DataComponents.POTION_CONTENTS,
                     new PotionContents(Potions.AWKWARD), container);
-            builder.addRecipe(awkward, blob, PotionContents.createItemStack(container, potion));
+            builder.addRecipe(awkward, chrysm, PotionContents.createItemStack(container, potion));
         }
     }
 }
