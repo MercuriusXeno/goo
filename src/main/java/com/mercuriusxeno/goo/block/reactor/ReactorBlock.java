@@ -304,9 +304,8 @@ public class ReactorBlock extends FacingRedstoneMachineBlock {
     protected @NonNull InteractionResult useWithoutItem(
             @NonNull BlockState state, Level level, @NonNull BlockPos pos,
             @NonNull Player player, @NonNull BlockHitResult hitResult) {
-        InteractionResult earlyOut = GooBlockInteraction.validateEmptyHand(level, pos, player);
-        if (earlyOut != null) {
-            return earlyOut;
+        if (level.isClientSide()) {
+            return InteractionResult.SUCCESS;
         }
         if (GasketInstallation.removeAddressedGasket(level, pos, player, hitResult)) {
             return InteractionResult.SUCCESS;

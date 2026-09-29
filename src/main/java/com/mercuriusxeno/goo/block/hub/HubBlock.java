@@ -387,9 +387,8 @@ public class HubBlock extends GooMachineBlock {
     protected @NonNull InteractionResult useWithoutItem(
             @NonNull BlockState state, Level level, @NonNull BlockPos pos,
             @NonNull Player player, @NonNull BlockHitResult hitResult) {
-        InteractionResult earlyOut = GooBlockInteraction.validateEmptyHand(level, pos, player);
-        if (earlyOut != null) {
-            return earlyOut;
+        if (level.isClientSide()) {
+            return InteractionResult.SUCCESS;
         }
         if (!(level.getBlockEntity(pos) instanceof HubBlockEntity hub)) {
             return InteractionResult.PASS;

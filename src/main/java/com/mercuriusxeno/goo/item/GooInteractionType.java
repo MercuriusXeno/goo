@@ -35,17 +35,6 @@ public enum GooInteractionType {
     SPARK;
 
     /**
-     * Returns true if this interaction type should be subject to the interaction cooldown:
-     * a canister moved in or out leaves the hand holding a canister, so a held click would
-     * swap it straight back. Blobs are self-limiting (consumed on use).
-     *
-     * @return true if cooldown applies
-     */
-    public boolean requiresCooldown() {
-        return this == CANISTER_INSERT || this == CANISTER_PICKUP;
-    }
-
-    /**
      * Reports whether the machine passes this click on so the held item's own use runs.
      *
      * @return true for the tuner and the gasket

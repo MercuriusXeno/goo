@@ -78,7 +78,7 @@ public final class GooBlockInteraction {
         boolean targetSlotFilled = entityType.isInstance(found)
                 && targetSlot.holdsCanister(entityType.cast(found), hitResult);
         GooInteractionType interaction = GooInteractionType.classify(stack, targetSlotFilled);
-        InteractionResult earlyOut = validate(interaction, level, pos, player, entityType, rows);
+        InteractionResult earlyOut = validate(interaction, level, pos, entityType, rows);
         if (earlyOut != null) {
             return earlyOut;
         }
@@ -108,15 +108,13 @@ public final class GooBlockInteraction {
      * @param interaction the classified interaction type, or null
      * @param level       the world
      * @param pos         the block position
-     * @param player      the interacting player
      * @param entityType  expected block entity class
      * @param rows        the interaction types the machine's dispatcher answers
      * @return an early-out result, or null to continue dispatch
      */
     static <T extends BlockEntity> @Nullable InteractionResult validate(
             @Nullable GooInteractionType interaction, Level level,
-            BlockPos pos, Player player, Class<T> entityType,
-            Set<GooInteractionType> rows) {
+            BlockPos pos, Class<T> entityType, Set<GooInteractionType> rows) {
         InteractionResult unanswered = rowGate(interaction, rows);
         if (unanswered != null) {
             return unanswered;
@@ -124,10 +122,7 @@ public final class GooBlockInteraction {
         if (level.isClientSide()) {
             return InteractionResult.SUCCESS;
         }
-        if (!entityType.isInstance(level.getBlockEntity(pos))) {
-            return InteractionResult.PASS;
-        }
-        return checkCooldown(interaction, level, player);
+        return entityType.isInstance(level.getBlockEntity(pos)) ? null : InteractionResult.PASS;
     }
 
     /**
@@ -145,43 +140,6 @@ public final class GooBlockInteraction {
         }
         return interaction != null && interaction.passesToItem()
                 ? InteractionResult.PASS : InteractionResult.TRY_WITH_EMPTY_HAND;
-    }
-
-    /**
-     * Returns SUCCESS if the interaction is on cooldown, null otherwise.
-     *
-     * @param interaction the classified interaction type
-     * @param level       the current level (for game time)
-     * @param player      the interacting player (for UUID-based cooldown)
-     * @return SUCCESS if on cooldown, null to continue dispatch
-     */
-    private static @Nullable InteractionResult checkCooldown(
-            GooInteractionType interaction, Level level, Player player) {
-        if (interaction.requiresCooldown()
-                && InteractionCooldown.isOnCooldown(player.getUUID(), level.getGameTime())) {
-            return InteractionResult.SUCCESS;
-        }
-        return null;
-    }
-
-    /**
-     * Shared validation for empty-hand interactions.
-     * Returns an early-out result or null to continue.
-     *
-     * @param level  the current level
-     * @param pos    the block position
-     * @param player the interacting player
-     * @return the interaction result
-     */
-    public static @Nullable InteractionResult validateEmptyHand(
-            Level level, BlockPos pos, Player player) {
-        if (level.isClientSide()) {
-            return InteractionResult.SUCCESS;
-        }
-        if (InteractionCooldown.isOnCooldown(player.getUUID(), level.getGameTime())) {
-            return InteractionResult.SUCCESS;
-        }
-        return null;
     }
 
     /**
