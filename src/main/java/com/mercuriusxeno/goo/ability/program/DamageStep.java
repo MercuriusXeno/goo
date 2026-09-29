@@ -13,7 +13,7 @@ import java.util.stream.Stream;
 
 /**
  * Hurts the host's target and finishes. On the struck entity host the
- * target is the entity the blob hit, so the metal javelin is one
+ * target is the entity the goo hit, so the metal javelin is one
  * {@code damage amount=8 source=magic} step. The metal trap's impale is
  * {@code damage amount=6 source=stalagmite knockback=false}, pinning the
  * target where the spike caught it; the crystal cloud's shred is

@@ -13,10 +13,10 @@
   "base_flight_time": 3,
   "map_color": "metal",
   "textures": {
-    "blob_tiny": "goo:item/metal_blob_tiny",
-    "blob_small": "goo:item/metal_blob_small",
-    "blob_base": "goo:item/metal_blob_base",
-    "blob_large": "goo:item/metal_blob_large",
+    "goo_tiny": "goo:item/metal_goo_tiny",
+    "goo_small": "goo:item/metal_goo_small",
+    "goo_base": "goo:item/metal_goo_base",
+    "goo_large": "goo:item/metal_goo_large",
     "fluid_still": "goo:fluid/metal_fluid",
     "fluid_flowing": "goo:fluid/metal_fluid"
   }

@@ -9,7 +9,7 @@ import net.minecraft.util.RandomSource;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Radial gradient fog puff for blob flight trails.
+ * Radial gradient fog puff for goo flight trails.
  * Alpha-blended billboard on Layer.TRANSLUCENT - starts semi-transparent and
  * fades to zero, giving a smoggy buildup when multiple puffs overlap.
  * Uses a radial-gradient "dot" texture for soft edges.

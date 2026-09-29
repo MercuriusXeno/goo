@@ -1,8 +1,8 @@
 package com.mercuriusxeno.goo.block.vat;
 
 import com.mercuriusxeno.goo.block.GooBlockInteraction;
-import com.mercuriusxeno.goo.item.BlobInsert;
 import com.mercuriusxeno.goo.item.GooDeposit;
+import com.mercuriusxeno.goo.item.GooInsert;
 import com.mercuriusxeno.goo.item.GooInteractionType;
 import com.mercuriusxeno.goo.item.gasket.GasketInstallHelper;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
@@ -17,7 +17,7 @@ import net.minecraft.world.phys.BlockHitResult;
 
 /**
  * Stateless dispatch and handler methods for vat block interactions: gasket install,
- * omniblob insert and the empty-hand unpack every other item falls through to.
+ * goo insert and the empty-hand unpack every other item falls through to.
  */
 final class VatInteractionHandler {
 
@@ -30,7 +30,7 @@ final class VatInteractionHandler {
     // --- Dispatch ---
 
     /**
-     * Routes a vat row to its handler: a gasket installs on the vat itself, an omniblob pours
+     * Routes a vat row to its handler: a gasket installs on the vat itself, a goo pours
      * in. Every other item, a canister among them, never reaches here and falls through to the
      * empty-hand unpack (decision canister-click-is-any-other-click-on-crucible-and-vat).
      *
@@ -49,7 +49,7 @@ final class VatInteractionHandler {
             Player player, InteractionHand hand, BlockHitResult hitResult, BlockPos pos, Level level) {
         return switch (interaction) {
             case GASKET_INSTALL -> handleGasketApply(vat, stack, player, hitResult);
-            case BLOB_INSERT -> handleBlobInsert(vat, stack, player);
+            case GOO_INSERT -> handleGooInsert(vat, stack, player);
             default -> throw new IllegalStateException(ERR_UNHANDLED + interaction);
         };
     }
@@ -82,19 +82,19 @@ final class VatInteractionHandler {
         return InteractionResult.SUCCESS;
     }
 
-    // --- Blob handlers ---
+    // --- Goo handlers ---
 
     /**
-     * Inserts a blob or omniblob's volume into the vat.
+     * Inserts a goo or goo's volume into the vat.
      *
      * @param vat    the vat block entity
      * @param stack  the item stack
      * @param player the interacting player
      * @return the interaction result
      */
-    static InteractionResult handleBlobInsert(
+    static InteractionResult handleGooInsert(
             VatBlockEntity vat, ItemStack stack, Player player) {
-        int accepted = BlobInsert.pour(stack, player,
+        int accepted = GooInsert.pour(stack, player,
                 (type, volume) -> volume > 0 && vat.canAccept() ? vat.insertGoo(type, volume) : 0);
         return accepted > 0 ? InteractionResult.SUCCESS : InteractionResult.PASS;
     }
@@ -107,7 +107,7 @@ final class VatInteractionHandler {
      * @param player the interacting player
      * @return SUCCESS if any goo moved, else PASS
      */
-    static InteractionResult handleBlobExtract(VatBlockEntity vat, Player player) {
+    static InteractionResult handleGooExtract(VatBlockEntity vat, Player player) {
         boolean moved = GooDeposit.drainEveryType(vat.getContents().getAll(), vat::extractGoo,
                 GooDeposit.intoInventory(player, ItemStack.EMPTY));
         return moved ? InteractionResult.SUCCESS : InteractionResult.PASS;

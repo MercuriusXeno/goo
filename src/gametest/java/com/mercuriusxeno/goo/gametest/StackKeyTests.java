@@ -4,10 +4,10 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
-import com.mercuriusxeno.goo.item.BlobStacks;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
-import com.mercuriusxeno.goo.network.BlobThrowHandler;
-import com.mercuriusxeno.goo.network.BlobThrowPayload;
+import com.mercuriusxeno.goo.item.GooStacks;
+import com.mercuriusxeno.goo.network.GooThrowHandler;
+import com.mercuriusxeno.goo.network.GooThrowPayload;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -21,7 +21,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Blocks;
 
 /**
- * Gametest for a thrown blob meeting a standing marker of another ability:
+ * Gametest for a thrown goo meeting a standing marker of another ability:
  * the marker is a target, a fuse stall and a stack position only for a
  * throw naming its ability id (decision diagnose-then-fix-stack-key-match).
  */
@@ -33,8 +33,8 @@ public final class StackKeyTests {
     private static final Identifier FROST_SPHERE = Identifier.fromNamespaceAndPath(Goo.MODID, "frost_sphere");
     private static final Identifier FROST_TUNNEL = Identifier.fromNamespaceAndPath(Goo.MODID, "frost_tunnel");
     private static final int NO_TARGET_ENTITY = -1;
-    private static final int FROST_BLOBS = 10;
-    private static final int MB_PER_BLOB = 1000;
+    private static final int FROST_GOO = 10;
+    private static final int THOUSAND = 1000;
     /** Ticks the marker's fuse runs down before the throw, so a stall reads as a rise. */
     private static final int FUSE_RUNDOWN_TICKS = 5;
     /** Ticks past the arc from the player to the marker, short of the fuse left. */
@@ -77,10 +77,10 @@ public final class StackKeyTests {
     private static void throwTunnelAtMarker(GameTestHelper helper, ServerPlayer player,
                                             ChainMarkerBlockEntity marker, AbilityDefinition tunnel) {
         int fuse = marker.getFuseRemaining();
-        BlobThrowHandler.execute(player, new BlobThrowPayload(GooTypes.id(GooTypes.FROST), NO_TARGET_ENTITY,
+        GooThrowHandler.execute(player, new GooThrowPayload(GooTypes.id(GooTypes.FROST), NO_TARGET_ENTITY,
                 helper.absolutePos(MARKER_POS), Direction.DOWN.ordinal(), false, FROST_TUNNEL.toString(),
                 player.getEyePosition()));
-        int spent = FROST_BLOBS * MB_PER_BLOB
+        int spent = FROST_GOO * THOUSAND
                 - GooSourceScanner.aggregateAvailable(player).getOrDefault(GooTypes.FROST, 0);
         int fuseAfter = marker.getFuseRemaining();
         helper.assertTrue(fuseAfter == fuse, String.format(FUSE_STALLED, fuse, fuseAfter));
@@ -103,7 +103,7 @@ public final class StackKeyTests {
         BlockPos stand = helper.absolutePos(PLAYER_POS);
         player.setPos(stand.getX(), stand.getY(), stand.getZ());
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.GOO_GLOVE.get()));
-        player.getInventory().add(BlobStacks.createForOutput(GooTypes.FROST, FROST_BLOBS * BlobStacks.MB_PER_BLOB));
+        player.getInventory().add(GooStacks.createForOutput(GooTypes.FROST, FROST_GOO * GooStacks.THOUSAND));
         return player;
     }
 }

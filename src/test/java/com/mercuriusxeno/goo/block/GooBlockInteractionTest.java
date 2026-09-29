@@ -16,23 +16,23 @@ import static org.junit.jupiter.api.Assertions.assertNull;
  */
 class GooBlockInteractionTest {
 
-    private static final Set<GooInteractionType> BLOB_ONLY = Set.of(GooInteractionType.BLOB_INSERT);
+    private static final Set<GooInteractionType> GOO_ONLY = Set.of(GooInteractionType.GOO_INSERT);
 
     @Test
     void rowTheMachineDoesNotAnswerFallsToTheEmptyHand() {
         assertEquals(InteractionResult.TRY_WITH_EMPTY_HAND,
-                GooBlockInteraction.rowGate(GooInteractionType.CANISTER_INSERT, BLOB_ONLY));
+                GooBlockInteraction.rowGate(GooInteractionType.CANISTER_INSERT, GOO_ONLY));
     }
 
     @Test
     void unclassifiedItemFallsToTheEmptyHand() {
-        assertEquals(InteractionResult.TRY_WITH_EMPTY_HAND, GooBlockInteraction.rowGate(null, BLOB_ONLY));
+        assertEquals(InteractionResult.TRY_WITH_EMPTY_HAND, GooBlockInteraction.rowGate(null, GOO_ONLY));
     }
 
     @Test
     void gasketTheMachineDoesNotAnswerPassesToTheItem() {
         assertEquals(InteractionResult.PASS,
-                GooBlockInteraction.rowGate(GooInteractionType.GASKET_INSTALL, BLOB_ONLY));
+                GooBlockInteraction.rowGate(GooInteractionType.GASKET_INSTALL, GOO_ONLY));
     }
 
     @Test

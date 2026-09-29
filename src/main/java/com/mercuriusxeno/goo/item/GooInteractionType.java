@@ -25,8 +25,8 @@ public enum GooInteractionType {
     /** Canister item on a slot holding a canister: pick the held-in-block canister up. */
     CANISTER_PICKUP,
 
-    /** Blob or omniblob: pour goo volume into a matching slot. */
-    BLOB_INSERT,
+    /** Goo or goo: pour goo volume into a matching slot. */
+    GOO_INSERT,
 
     /** A bucket or any other item carrying a fluid handler: fill from or drain into the slot. */
     FLUID_CONTAINER,

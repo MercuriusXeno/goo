@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:cr_goo_stack_whole",
+  "environment": "minecraft:default",
+  "structure": "goo:crucible_bay",
+  "max_ticks": 5,
+  "setup_ticks": 0,
+  "required": true
+}

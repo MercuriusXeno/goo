@@ -2,8 +2,8 @@ package com.mercuriusxeno.goo.client.hud;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.GloveSelection;
-import com.mercuriusxeno.goo.client.GooTooltipHandler;
 import com.mercuriusxeno.goo.client.throwing.GloveThrowSender;
+import com.mercuriusxeno.goo.item.GooFormat;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.client.DeltaTracker;
@@ -26,7 +26,7 @@ import java.util.OptionalInt;
 /**
  * A nine-slice panel at the bottom right of the screen while a glove with a
  * selection is held (decision fuel-panel-sits-at-bottom-right): the icon of
- * the stack the throw deducts from first, the goo type and the blobs it
+ * the stack the throw deducts from first, the goo type and the goo it
  * holds, and "- N", the throw's cost at the aimed target (decision
  * crosshair-panel-shows-source-and-cost).
  */
@@ -54,7 +54,7 @@ public final class CrosshairFuelPanel {
      *
      * @param source   the stack the throw deducts from first, or empty when the player holds none
      * @param type     the selected goo type
-     * @param heldText the source's volume of the type, in blobs
+     * @param heldText the source's volume of the type, in goo
      * @param costText the throw's cost at the aimed target
      */
     public record FuelRow(ItemStack source, ResourceKey<GooTypeDefinition> type, String heldText, String costText) {
@@ -65,14 +65,14 @@ public final class CrosshairFuelPanel {
      *
      * @param source the stack the throw deducts from first, or empty
      * @param type   the selected goo type
-     * @param held   the microblobs the source holds of the type
-     * @param cost   the throw's cost at the aimed target in microblobs
+     * @param held   the amount the source holds of the type
+     * @param cost   the throw's cost at the aimed target
      * @return the row
      */
     public static FuelRow fuelRow(ItemStack source, ResourceKey<GooTypeDefinition> type, int held, int cost) {
-        // hud-amounts-read-through-goo-format: the machine panels' blob convention
-        return new FuelRow(source, type, GooTooltipHandler.formatFluidDisplayCompact(held),
-                COST_PREFIX + GooTooltipHandler.formatFluidDisplayCompact(cost));
+        // hud-amounts-read-through-goo-format: the machine panels' goo convention
+        return new FuelRow(source, type, GooFormat.formatAmount(held),
+                COST_PREFIX + GooFormat.formatAmount(cost));
     }
 
     /**

@@ -258,7 +258,7 @@ public final class CanisterSlot {
      * Inserts fluid into this slot's handler.
      *
      * @param fluid  the fluid resource to insert
-     * @param volume volume in microblobs
+     * @param volume volume
      * @return the amount actually inserted
      */
     public int insertFluid(FluidResource fluid, int volume) {
@@ -269,7 +269,7 @@ public final class CanisterSlot {
      * Extracts fluid from this slot's handler.
      *
      * @param fluid     the fluid resource to extract
-     * @param requested volume in microblobs
+     * @param requested volume
      * @return the amount actually extracted
      */
     public int extractFluid(FluidResource fluid, int requested) {
@@ -280,7 +280,7 @@ public final class CanisterSlot {
      * Inserts goo by type.
      *
      * @param type   the goo type
-     * @param volume volume in microblobs
+     * @param volume volume
      * @return the amount actually inserted
      */
     public int insertGoo(ResourceKey<GooTypeDefinition> type, int volume) {
@@ -291,7 +291,7 @@ public final class CanisterSlot {
      * Extracts goo by type.
      *
      * @param type      the goo type
-     * @param requested volume in microblobs
+     * @param requested volume
      * @return the amount actually extracted
      */
     public int extractGoo(ResourceKey<GooTypeDefinition> type, int requested) {

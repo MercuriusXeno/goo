@@ -1,0 +1,322 @@
+package com.mercuriusxeno.goo.network;
+
+import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.AbilityDefinition;
+import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.StackKey;
+import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
+import com.mercuriusxeno.goo.item.GooGloveItem;
+import com.mercuriusxeno.goo.item.GooSourceScanner;
+import com.mercuriusxeno.goo.registry.GooServerState;
+import com.mercuriusxeno.goo.throwing.ThrowArc;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypes;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.network.PacketDistributor;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
+import org.jspecify.annotations.Nullable;
+
+/**
+ * Server-side handler for goo throw requests. Validates the client's claim,
+ * depletes goo from the player's inventory, broadcasts the flight to nearby
+ * players, and schedules the effect application after the goo "arrives."
+ */
+public final class GooThrowHandler {
+
+    /** Cost of one throw (1 goo = 1,000 mB). */
+    public static final int THROW_COST = 1000;
+    /** Maximum throw range in blocks. */
+    public static final double MAX_RANGE = 64.0;
+    private static final double MAX_RANGE_SQUARED = MAX_RANGE * MAX_RANGE;
+
+    /** Block center offset (half-block). */
+    private static final double BLOCK_CENTER = 0.5;
+
+    /** Log: player not holding glove. */
+    private static final String LOG_NO_GLOVE = "Throw rejected: player {} not holding glove";
+    /** Log: unknown goo type. */
+    private static final String LOG_BAD_TYPE = "Throw rejected: unknown goo type '{}'";
+    /** Log: target out of range. */
+    private static final String LOG_OUT_OF_RANGE = "Throw rejected: target out of range ({} blocks)";
+    /** Log: insufficient goo for throw. */
+    private static final String LOG_NO_GOO = "Throw rejected: insufficient {} goo";
+    /** Log: partial depletion warning. */
+    private static final String LOG_PARTIAL_DEPLETE = "Partial depletion ({}/{}) for {} throw - proceeding anyway";
+    /** Log: throw executed successfully. */
+    private static final String LOG_THROW_OK = "Throw executed: {} by {} -> arrival in {} ticks";
+
+    private GooThrowHandler() {}
+
+    /**
+     * Handles the throw payload on the server thread.
+     *
+     * @param payload the throw payload data
+     * @param context the network context
+     */
+    public static void handle(GooThrowPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            if (!(context.player() instanceof ServerPlayer player)) { return; }
+            execute(player, payload);
+        });
+    }
+
+    /**
+     * Validates and executes the throw: the glove, the type, the range and
+     * the goo in the player's inventory are checked, the goo is depleted,
+     * the flight is broadcast and the effect scheduled for arrival.
+     *
+     * @param player  the throwing player
+     * @param payload the throw payload data
+     */
+    public static void execute(ServerPlayer player, GooThrowPayload payload) {
+        if (!validateGlove(player)) { return; }
+        ResourceKey<GooTypeDefinition> gooType = validateGooType(payload);
+        if (gooType == null) { return; }
+        if (!validateRange(player, payload)) { return; }
+        int cost = resolveThrowCost(player, payload, gooType);
+        if (!validateSupply(player, gooType, cost)) { return; }
+        double distSq = targetDistanceSquared(player, payload);
+        depleteAndThrow(player, payload, gooType, distSq, cost);
+    }
+
+    /** Validates glove is held, logging rejection if not.
+     *
+     * @param player the throwing player
+     * @return true if valid
+     */
+    private static boolean validateGlove(ServerPlayer player) {
+        boolean held = player.getMainHandItem().getItem() instanceof GooGloveItem
+            || player.getOffhandItem().getItem() instanceof GooGloveItem;
+        if (held) { return true; }
+        if (Goo.LOGGER.isDebugEnabled()) { Goo.LOGGER.debug(LOG_NO_GLOVE, player.getName().getString()); }
+        return false;
+    }
+
+    /** Validates and resolves the goo type from the payload, logging rejection if invalid.
+     *
+     * @param payload the throw payload data
+     * @return the resolved goo type, or null if invalid
+     */
+    private static ResourceKey<GooTypeDefinition> validateGooType(GooThrowPayload payload) {
+        ResourceKey<GooTypeDefinition> gooType = GooTypes.known(payload.gooTypeId());
+        if (gooType == null && Goo.LOGGER.isDebugEnabled()) {
+            Goo.LOGGER.debug(LOG_BAD_TYPE, payload.gooTypeId());
+        }
+        return gooType;
+    }
+
+    /** Validates target is within max throw range, logging rejection if not.
+     *
+     * @param player  the throwing player
+     * @param payload the throw payload data
+     * @return true if in range
+     */
+    private static boolean validateRange(ServerPlayer player, GooThrowPayload payload) {
+        double distSq = targetDistanceSquared(player, payload);
+        if (distSq <= MAX_RANGE_SQUARED) { return true; }
+        if (Goo.LOGGER.isDebugEnabled()) { Goo.LOGGER.debug(LOG_OUT_OF_RANGE, Math.sqrt(distSq)); }
+        return false;
+    }
+
+    /** Validates the player has enough goo, logging rejection if not.
+     *
+     * @param player  the throwing player
+     * @param gooType the goo type to check
+     * @param cost    the resolved mB cost for this throw
+     * @return true if supply is sufficient
+     */
+    private static boolean validateSupply(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, int cost) {
+        if (GooSourceScanner.hasEnough(player, gooType, cost)) { return true; }
+        if (Goo.LOGGER.isDebugEnabled()) { Goo.LOGGER.debug(LOG_NO_GOO, GooTypes.id(gooType)); }
+        return false;
+    }
+
+    /** Resolves the throw cost from the ability definition, falling back to THROW_COST.
+     * Uses the sequence-aware stack position (landed + in-flight at target).
+     *
+     * @param player  the throwing player
+     * @param payload the throw payload
+     * @param gooType the resolved goo type
+     * @return the cost in mB for this throw
+     */
+    private static int resolveThrowCost(ServerPlayer player, GooThrowPayload payload,
+            ResourceKey<GooTypeDefinition> gooType) {
+        if (payload.abilityId().isEmpty()) { return THROW_COST; }
+        net.minecraft.resources.Identifier abilityId =
+                net.minecraft.resources.Identifier.tryParse(payload.abilityId());
+        if (abilityId == null) { return THROW_COST; }
+        AbilityDefinition def = AbilityRegistry.of(player.level()).getAbility(abilityId);
+        if (def == null || def.gooType() != gooType) { return THROW_COST; }
+        int stackPos = countExistingStacks(player.level(), payload.targetPos(), payload.abilityId());
+        return def.throwCost(stackPos);
+    }
+
+    /** Counts the current stack count of the thrown ability's marker at a target position.
+     *
+     * @param level     the server level
+     * @param pos       the target block position
+     * @param abilityId the thrown ability id
+     * @return the current stack count, or 0 if no marker of that ability stands there
+     */
+    private static int countExistingStacks(ServerLevel level, BlockPos pos, String abilityId) {
+        ChainMarkerBlockEntity be = findChainMarker(level, pos, null, abilityId);
+        return be != null ? be.getStackCount() : 0;
+    }
+
+    /** Depletes goo, broadcasts the flight, and schedules the delayed effect.
+     *
+     * @param player  the throwing player
+     * @param payload the throw payload data
+     * @param gooType the validated goo type
+     * @param distSq  squared distance to target (pre-validated)
+     * @param cost    the resolved mB cost for this throw
+     */
+    private static void depleteAndThrow(ServerPlayer player, GooThrowPayload payload,
+            ResourceKey<GooTypeDefinition> gooType, double distSq, int cost) {
+        int depleted = GooSourceScanner.deplete(player, gooType, cost);
+        if (depleted < cost && Goo.LOGGER.isWarnEnabled()) {
+            Goo.LOGGER.warn(LOG_PARTIAL_DEPLETE, depleted, cost, GooTypes.id(gooType));
+        }
+
+        stallChainMarkerFuse(player, payload);
+        double distance = Math.sqrt(distSq);
+        GooTypeDefinition definition = GooTypes.definition(player.level().registryAccess(), gooType);
+        int travelTicks = (int) ThrowArc.travelTicks(distance, definition.levity(), definition.baseFlightTime());
+        broadcastFlight(player, payload, travelTicks);
+        GooServerState.of(player.level().getServer()).gooEffects()
+                .scheduleEffect(player, payload, gooType, travelTicks);
+
+        if (Goo.LOGGER.isDebugEnabled()) { Goo.LOGGER.debug(LOG_THROW_OK, GooTypes.id(gooType), player.getName().getString(), travelTicks); }
+    }
+
+    /** Builds and broadcasts the flight payload to tracking players and the thrower.
+     *
+     * @param player      the throwing player
+     * @param payload     the throw payload data
+     * @param travelTicks the number of ticks until arrival
+     */
+    private static void broadcastFlight(ServerPlayer player, GooThrowPayload payload,
+            int travelTicks) {
+        Vec3 hand = ThrowArc.clampToReach(player.getEyePosition(), payload.origin(),
+                ThrowArc.HAND_REACH * player.getScale());
+        GooFlightPayload flight = buildFlightPayload(hand, payload, travelTicks);
+        PacketDistributor.sendToPlayersTrackingEntity(player, flight);
+        // A listener that never negotiated the mod's channels, a gametest's mock player, gets no flight.
+        if (player.connection.hasChannel(flight)) {
+            PacketDistributor.sendToPlayer(player, flight);
+        }
+    }
+
+    /** Builds the flight payload from the throw origin, throw data, and travel time.
+     *
+     * @param hand        the world-space throw origin, clamped within reach
+     * @param payload     the throw payload data
+     * @param travelTicks the number of ticks until arrival
+     * @return the constructed flight payload
+     */
+    private static GooFlightPayload buildFlightPayload(Vec3 hand, GooThrowPayload payload,
+            int travelTicks) {
+        return new GooFlightPayload(
+                hand.x, hand.y, hand.z,
+                payload.gooTypeId(),
+                payload.targetEntityId(),
+                payload.targetPos(),
+                payload.targetFace(),
+                travelTicks,
+                payload.grannyArc(),
+                payload.abilityId()
+        );
+    }
+
+    /**
+     * If the throw targets a chain marker of its own ability (directly or
+     * at the adjacent position), resets its fuse so it doesn't detonate
+     * while goo are in flight. The user's throw declaration is treated
+     * as intent to stack, keeping the fuse alive.
+     *
+     * @param player  the throwing player
+     * @param payload the throw payload data
+     */
+    private static void stallChainMarkerFuse(ServerPlayer player, GooThrowPayload payload) {
+        if (payload.targetEntityId() >= 0) { return; }
+        BlockPos pos = payload.targetPos();
+        Direction face = directionFromOrdinal(payload.targetFace());
+        ServerLevel level = player.level();
+        ChainMarkerBlockEntity be = findChainMarker(level, pos, face, payload.abilityId());
+        if (be != null && be.getBehavior() == null) {
+            be.stallFuse();
+        }
+    }
+
+    /**
+     * Finds the thrown ability's chain marker at the given pos or the adjacent block.
+     *
+     * @param level     the server level
+     * @param pos       the hit block position
+     * @param face      the hit face, or null
+     * @param abilityId the thrown ability id
+     * @return the chain marker BE, or null
+     */
+    private static @Nullable ChainMarkerBlockEntity findChainMarker(
+            ServerLevel level, BlockPos pos, @Nullable Direction face, String abilityId) {
+        ChainMarkerBlockEntity primary = asKeyedMarker(level.getBlockEntity(pos), abilityId);
+        if (primary != null) {
+            return primary;
+        }
+        if (face == null) {
+            return null;
+        }
+        return asKeyedMarker(level.getBlockEntity(pos.relative(face)), abilityId);
+    }
+
+    /**
+     * Casts the given BE to a {@link ChainMarkerBlockEntity} running the thrown ability, or returns null.
+     *
+     * @param entity    the block entity to test (may be null)
+     * @param abilityId the thrown ability id
+     * @return the marker BE, or null
+     */
+    private static @Nullable ChainMarkerBlockEntity asKeyedMarker(@Nullable BlockEntity entity, String abilityId) {
+        return entity instanceof ChainMarkerBlockEntity be && StackKey.matches(be.getAbilityId(), abilityId)
+                ? be : null;
+    }
+
+    /**
+     * Returns squared distance from the player to the packet's target.
+     *
+     * @param player  the throwing player
+     * @param payload the throw payload data
+     * @return squared distance in blocks
+     */
+    private static double targetDistanceSquared(ServerPlayer player, GooThrowPayload payload) {
+        if (payload.targetEntityId() >= 0) {
+            Entity target = player.level().getEntity(payload.targetEntityId());
+            if (target == null) { return Double.MAX_VALUE; }
+            return player.distanceToSqr(target);
+        }
+        BlockPos pos = payload.targetPos();
+        return player.distanceToSqr(pos.getX() + BLOCK_CENTER, pos.getY() + BLOCK_CENTER, pos.getZ() + BLOCK_CENTER);
+    }
+
+    /**
+     * Converts a Direction ordinal (from the network payload) to a Direction.
+     * Returns null for out-of-range values (e.g. -1 for entity targets).
+     *
+     * @param ordinal the direction ordinal from the payload
+     * @return the corresponding direction, or null if invalid
+     */
+    static Direction directionFromOrdinal(int ordinal) {
+        Direction[] dirs = Direction.values();
+        if (ordinal >= 0 && ordinal < dirs.length) {
+            return dirs[ordinal];
+        }
+        return null;
+    }
+}

@@ -460,8 +460,8 @@
           "suspicious_gravel",
           "dirt_path"
         ],
-        "omniblobs": [
-            "goo:goo_omniblob"
+        "goo_items": [
+            "goo:goo"
         ],
         "goo_special": [
             "goo:goo_gauntlet",
@@ -609,8 +609,8 @@
         ]
     },
     "#creative_only": "denied",
-    "#blobs": "denied",
-    "#omniblobs": "denied",
+    "#goo": "denied",
+    "#goo_items": "denied",
     "#trial_chamber": "denied",
     "#goo_special": "denied",
 

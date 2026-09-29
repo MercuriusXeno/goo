@@ -235,7 +235,7 @@ public class CanisterItem extends BlockItem implements IGooItemInteraction, GooC
      *
      * @param stack  the canister item stack
      * @param fluid  the fluid resource to add
-     * @param amount the volume in microblobs to add
+     * @param amount the volume to add
      * @return the amount actually accepted
      */
     public static int addFluid(ItemStack stack, FluidResource fluid, int amount) {
@@ -253,7 +253,7 @@ public class CanisterItem extends BlockItem implements IGooItemInteraction, GooC
      *
      * @param stack  the canister item stack
      * @param type   the goo type to add
-     * @param amount the volume in microblobs to add
+     * @param amount the volume to add
      * @return the amount actually accepted
      */
     public static int addGoo(ItemStack stack, ResourceKey<GooTypeDefinition> type, int amount) {
@@ -266,7 +266,7 @@ public class CanisterItem extends BlockItem implements IGooItemInteraction, GooC
      *
      * @param stack  the canister item stack
      * @param fluid  the fluid resource to remove
-     * @param amount the volume in microblobs to remove
+     * @param amount the volume to remove
      * @return the amount actually removed
      */
     public static int removeFluid(ItemStack stack, FluidResource fluid, int amount) {
@@ -282,7 +282,7 @@ public class CanisterItem extends BlockItem implements IGooItemInteraction, GooC
      *
      * @param stack  the canister item stack
      * @param type   the goo type to remove
-     * @param amount the volume in microblobs to remove
+     * @param amount the volume to remove
      * @return the amount actually removed
      */
     public static int removeGoo(ItemStack stack, ResourceKey<GooTypeDefinition> type, int amount) {
@@ -292,7 +292,7 @@ public class CanisterItem extends BlockItem implements IGooItemInteraction, GooC
     // --- Inventory click interactions ---
 
     /**
-     * Handles cursor-on-canister inventory clicks: blob/omniblob insert,
+     * Handles cursor-on-canister inventory clicks: goo/goo insert,
      * empty-cursor drain.
      *
      * @param canister    the canister item stack in the slot

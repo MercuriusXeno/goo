@@ -107,7 +107,7 @@ public final class PlayerInventorySlotHandler implements ResourceHandler<FluidRe
      *
      * @param index       the tank index
      * @param resource    the fluid resource
-     * @param amount      volume in microblobs
+     * @param amount      volume
      * @param transaction the transaction context
      * @return the integer value
      */
@@ -125,7 +125,7 @@ public final class PlayerInventorySlotHandler implements ResourceHandler<FluidRe
      *
      * @param index       the tank index
      * @param resource    the fluid resource
-     * @param amount      volume in microblobs
+     * @param amount      volume
      * @param transaction the transaction context
      * @return the integer value
      */

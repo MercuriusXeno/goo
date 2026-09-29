@@ -6,37 +6,37 @@ import net.minecraft.resources.Identifier;
 import java.util.Optional;
 
 /**
- * The textures a goo type JSON names for its blob and its fluid (decision
+ * The textures a goo type JSON names for its goo and its fluid (decision
  * type-named-textures). Every field is optional: a texture the JSON leaves
  * unnamed renders as the grey base tinted by the type's highlight color.
  *
- * @param blobTiny     sprite of the tiny blob model, on the item atlas
- * @param blobSmall    sprite of the small blob model, on the item atlas
- * @param blobBase     sprite of the base blob model, on the item atlas
- * @param blobLarge    sprite of the large blob model, on the item atlas
+ * @param gooTiny     sprite of the tiny goo model, on the item atlas
+ * @param gooSmall    sprite of the small goo model, on the item atlas
+ * @param gooBase     sprite of the base goo model, on the item atlas
+ * @param gooLarge    sprite of the large goo model, on the item atlas
  * @param fluidStill   still fluid sprite, on the block atlas
  * @param fluidFlowing flowing fluid sprite, on the block atlas
  */
-public record GooTypeTextures(Optional<Identifier> blobTiny, Optional<Identifier> blobSmall,
-                              Optional<Identifier> blobBase, Optional<Identifier> blobLarge,
+public record GooTypeTextures(Optional<Identifier> gooTiny, Optional<Identifier> gooSmall,
+                              Optional<Identifier> gooBase, Optional<Identifier> gooLarge,
                               Optional<Identifier> fluidStill, Optional<Identifier> fluidFlowing) {
 
     /**
-     * JSON key of {@link #blobTiny}.
+     * JSON key of {@link #gooTiny}.
      */
-    public static final String BLOB_TINY = "blob_tiny";
+    public static final String GOO_TINY = "goo_tiny";
     /**
-     * JSON key of {@link #blobSmall}.
+     * JSON key of {@link #gooSmall}.
      */
-    public static final String BLOB_SMALL = "blob_small";
+    public static final String GOO_SMALL = "goo_small";
     /**
-     * JSON key of {@link #blobBase}.
+     * JSON key of {@link #gooBase}.
      */
-    public static final String BLOB_BASE = "blob_base";
+    public static final String GOO_BASE = "goo_base";
     /**
-     * JSON key of {@link #blobLarge}.
+     * JSON key of {@link #gooLarge}.
      */
-    public static final String BLOB_LARGE = "blob_large";
+    public static final String GOO_LARGE = "goo_large";
     /**
      * JSON key of {@link #fluidStill}.
      */
@@ -56,26 +56,26 @@ public record GooTypeTextures(Optional<Identifier> blobTiny, Optional<Identifier
      * Codec of the {@code textures} object of a goo type JSON.
      */
     public static final Codec<GooTypeTextures> CODEC = RecordCodecBuilder.create(instance -> instance.group(
-            Identifier.CODEC.optionalFieldOf(BLOB_TINY).forGetter(GooTypeTextures::blobTiny),
-            Identifier.CODEC.optionalFieldOf(BLOB_SMALL).forGetter(GooTypeTextures::blobSmall),
-            Identifier.CODEC.optionalFieldOf(BLOB_BASE).forGetter(GooTypeTextures::blobBase),
-            Identifier.CODEC.optionalFieldOf(BLOB_LARGE).forGetter(GooTypeTextures::blobLarge),
+            Identifier.CODEC.optionalFieldOf(GOO_TINY).forGetter(GooTypeTextures::gooTiny),
+            Identifier.CODEC.optionalFieldOf(GOO_SMALL).forGetter(GooTypeTextures::gooSmall),
+            Identifier.CODEC.optionalFieldOf(GOO_BASE).forGetter(GooTypeTextures::gooBase),
+            Identifier.CODEC.optionalFieldOf(GOO_LARGE).forGetter(GooTypeTextures::gooLarge),
             Identifier.CODEC.optionalFieldOf(FLUID_STILL).forGetter(GooTypeTextures::fluidStill),
             Identifier.CODEC.optionalFieldOf(FLUID_FLOWING).forGetter(GooTypeTextures::fluidFlowing)
     ).apply(instance, GooTypeTextures::new));
 
     /**
-     * The blob sprite the JSON names for a model size.
+     * The goo sprite the JSON names for a model size.
      *
-     * @param size the blob model size
+     * @param size the goo model size
      * @return the named sprite, or empty when the JSON names none for that size
      */
-    public Optional<Identifier> blob(BlobModelSize size) {
+    public Optional<Identifier> goo(GooModelSize size) {
         return switch (size) {
-            case TINY -> blobTiny;
-            case SMALL -> blobSmall;
-            case BASE -> blobBase;
-            case LARGE -> blobLarge;
+            case TINY -> gooTiny;
+            case SMALL -> gooSmall;
+            case BASE -> gooBase;
+            case LARGE -> gooLarge;
         };
     }
 }

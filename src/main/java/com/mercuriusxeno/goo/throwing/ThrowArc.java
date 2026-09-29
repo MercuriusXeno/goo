@@ -3,7 +3,7 @@ package com.mercuriusxeno.goo.throwing;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Pure math for goo blob throw trajectories and the throw origin's reach.
+ * Pure math for goo throw trajectories and the throw origin's reach.
  * Shared between client (preview arc, flight rendering) and server (throw
  * origin). Every method is side-agnostic and testable without framework state.
  */
@@ -17,13 +17,13 @@ public final class ThrowArc {
 
     /**
      * Farthest the throw origin sits from the thrower's eye, in blocks at
-     * scale 1: the rendered glove blob sits inside it, a forged origin does not.
+     * scale 1: the rendered glove goo sits inside it, a forged origin does not.
      */
     public static final double HAND_REACH = 2.0;
 
     /**
      * Where the arc peaks as a fraction of total flight [0..1].
-     * Values below 0.5 front-load the climb: the blob rises steeply
+     * Values below 0.5 front-load the climb: the goo rises steeply
      * in the first portion then glides down more gently. 0.5 = symmetric.
      */
     public static final double ARC_PEAK_T = 0.5;
@@ -144,7 +144,7 @@ public final class ThrowArc {
      * Holds the throw origin the client sent within reach of the eye: an
      * origin inside the reach sphere passes through unchanged, one beyond it
      * is pulled onto the sphere along the line from the eye (decision
-     * diagnose-then-fix-blob-off-the-line).
+     * diagnose-then-fix-goo-off-the-line).
      *
      * @param eye    the thrower's eye position
      * @param origin the aim line's start the client sent

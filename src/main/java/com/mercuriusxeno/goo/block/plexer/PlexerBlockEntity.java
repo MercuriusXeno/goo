@@ -294,7 +294,7 @@ public class PlexerBlockEntity extends GooSyncedBlockEntity implements ICanister
      *
      * @param slots  the list of slot references
      * @param type   the goo type
-     * @param amount volume in microblobs
+     * @param amount volume
      */
     private void consumeGoo(List<SlotRef> slots, ResourceKey<GooTypeDefinition> type, int amount) {
         int remaining = amount;

@@ -32,8 +32,8 @@ public class ChainMarkerRenderState extends BlockEntityRenderState {
     /** True when the player's crosshair is on this block. */
     public boolean targeted;
 
-    /** Cosmetic blob shape: "blob" or "flat". */
-    public String blobShape = "blob";
+    /** Cosmetic goo shape: "goo" or "flat". */
+    public String markerShape = "round";
 
     /** Delivery area mode: "tunnel", "flat_circle", or "sphere". */
     public String areaMode = "tunnel";

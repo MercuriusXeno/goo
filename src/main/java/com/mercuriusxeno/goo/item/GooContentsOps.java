@@ -22,8 +22,8 @@ public final class GooContentsOps {
      *
      * @param stack    the item stack holding the goo contents
      * @param type     the goo type to add
-     * @param amount   desired volume in microblobs
-     * @param capacity maximum total volume the stack may hold, in microblobs
+     * @param amount   desired volume
+     * @param capacity maximum total volume the stack may hold
      * @return the amount actually accepted (0 if full or non-positive input)
      */
     public static int addGoo(ItemStack stack, ResourceKey<GooTypeDefinition> type, int amount, int capacity) {
@@ -41,7 +41,7 @@ public final class GooContentsOps {
      *
      * @param stack  the item stack holding the goo contents
      * @param type   the goo type to remove
-     * @param amount desired volume to remove, in microblobs
+     * @param amount desired volume to remove
      * @return the amount actually removed
      */
     public static int removeGoo(ItemStack stack, ResourceKey<GooTypeDefinition> type, int amount) {

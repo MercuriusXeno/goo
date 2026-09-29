@@ -12,7 +12,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import java.util.Map;
 
 /**
- * Static helpers for canister inventory click handling: omniblob insert,
+ * Static helpers for canister inventory click handling: goo insert,
  * empty-cursor drain into the inventory, and gasket cleanup on placement. The hub item shares the
  * cursor insert through {@link #insertFromCursor}.
  * Extracted from CanisterItem to reduce method count.
@@ -37,10 +37,10 @@ final class CanisterInventoryHandler {
                 (type, volume) -> CanisterItem.addGoo(canister, type, volume));
     }
 
-    // --- Omniblob insert ---
+    // --- Goo insert ---
 
     /**
-     * Pours an omniblob cursor into a sink and depletes the cursor by what the
+     * Pours a goo cursor into a sink and depletes the cursor by what the
      * sink accepted. Any other cursor, or a sink accepting nothing, leaves both untouched.
      *
      * @param cursor       the item stack on the cursor
@@ -49,41 +49,41 @@ final class CanisterInventoryHandler {
      * @return true if any goo was transferred
      */
     static boolean insertFromCursor(ItemStack cursor, SlotAccess cursorAccess, GooSink sink) {
-        return cursor.getItem() instanceof GooOmniblobItem
-                && handleOmniblobInsert(cursor, cursorAccess, sink);
+        return cursor.getItem() instanceof GooItem
+                && handleGooInsert(cursor, cursorAccess, sink);
     }
 
     /**
-     * Transfers omniblob goo into the sink, reducing or clearing the cursor.
+     * Transfers goo into the sink, reducing or clearing the cursor.
      *
-     * @param cursor       the omniblob on the cursor
+     * @param cursor       the goo on the cursor
      * @param cursorAccess access to set the cursor contents
      * @param sink         where the goo goes
      * @return true if any goo was transferred
      */
-    private static boolean handleOmniblobInsert(ItemStack cursor, SlotAccess cursorAccess, GooSink sink) {
-        ResourceKey<GooTypeDefinition> type = BlobStacks.keyOf(cursor);
+    private static boolean handleGooInsert(ItemStack cursor, SlotAccess cursorAccess, GooSink sink) {
+        ResourceKey<GooTypeDefinition> type = GooStacks.keyOf(cursor);
         if (type == null) { return false; }
-        int volume = GooOmniblobItem.getVolume(cursor);
+        int volume = GooItem.getVolume(cursor);
         int accepted = sink.accept(type, volume);
         if (accepted <= 0) { return false; }
 
-        applyOmniblobRemainder(cursor, cursorAccess, volume - accepted);
+        applyGooRemainder(cursor, cursorAccess, volume - accepted);
         return true;
     }
 
     /**
-     * Clears the omniblob cursor or updates its remaining volume.
+     * Clears the goo cursor or updates its remaining volume.
      *
-     * @param cursor       the omniblob item stack
+     * @param cursor       the goo item stack
      * @param cursorAccess access to set the cursor contents
      * @param remaining    the remaining volume after transfer
      */
-    private static void applyOmniblobRemainder(ItemStack cursor, SlotAccess cursorAccess, int remaining) {
+    private static void applyGooRemainder(ItemStack cursor, SlotAccess cursorAccess, int remaining) {
         if (remaining <= 0) {
             cursorAccess.set(ItemStack.EMPTY);
         } else {
-            GooOmniblobItem.setVolume(cursor, remaining);
+            GooItem.setVolume(cursor, remaining);
         }
     }
 

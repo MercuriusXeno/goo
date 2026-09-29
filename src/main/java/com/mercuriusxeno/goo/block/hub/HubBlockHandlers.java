@@ -3,7 +3,7 @@ package com.mercuriusxeno.goo.block.hub;
 import com.mercuriusxeno.goo.ISidedProxy;
 import com.mercuriusxeno.goo.block.GooBlockInteraction;
 import com.mercuriusxeno.goo.block.canister.SlottedCanisterData;
-import com.mercuriusxeno.goo.item.BlobInsert;
+import com.mercuriusxeno.goo.item.GooInsert;
 import com.mercuriusxeno.goo.item.GooInteractionType;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
@@ -64,7 +64,7 @@ final class HubBlockHandlers {
         return switch (interaction) {
             case CANISTER_INSERT  -> handleCanisterInsert(hub, hitResult, stack, player);
             case CANISTER_PICKUP  -> removeCanister(hub, hitResult, pos, player, level);
-            case BLOB_INSERT      -> handleBlobInsert(hub, hitResult, stack, player);
+            case GOO_INSERT      -> handleGooInsert(hub, hitResult, stack, player);
             default -> throw new IllegalStateException(ERR_UNHANDLED + interaction);
         };
     }
@@ -129,7 +129,7 @@ final class HubBlockHandlers {
     }
 
     /**
-     * Pours goo from a blob or omniblob item into the aimed hub canister.
+     * Pours goo from a goo or goo item into the aimed hub canister.
      *
      * @param hub       the hub block entity
      * @param hitResult the ray trace hit result
@@ -137,11 +137,11 @@ final class HubBlockHandlers {
      * @param player    the interacting player
      * @return the interaction result
      */
-    private static InteractionResult handleBlobInsert(
+    private static InteractionResult handleGooInsert(
             HubBlockEntity hub, BlockHitResult hitResult,
             ItemStack stack, Player player) {
-        int accepted = BlobInsert.pour(stack, player,
-                (type, volume) -> insertBlobGoo(hub, hitResult, type, volume));
+        int accepted = GooInsert.pour(stack, player,
+                (type, volume) -> insertGoo(hub, hitResult, type, volume));
         if (accepted <= 0) { return InteractionResult.PASS; }
 
         hub.getLevel().playSound(null, hub.getBlockPos(), SoundEvents.BOTTLE_EMPTY, SoundSource.BLOCKS, 1.0f, 1.0f);
@@ -149,15 +149,15 @@ final class HubBlockHandlers {
     }
 
     /**
-     * Inserts blob goo into the aimed hub canister, or nowhere when it can't take it.
+     * Inserts goo into the aimed hub canister, or nowhere when it can't take it.
      *
      * @param hub       the hub block entity
      * @param hitResult the ray trace hit result for slot targeting
      * @param type      the goo type to insert
-     * @param volume    the volume of goo in microblobs
+     * @param volume    the volume of goo
      * @return the volume accepted, or 0 if no slot accepted
      */
-    private static int insertBlobGoo(HubBlockEntity hub, BlockHitResult hitResult, ResourceKey<GooTypeDefinition> type, int volume) {
+    private static int insertGoo(HubBlockEntity hub, BlockHitResult hitResult, ResourceKey<GooTypeDefinition> type, int volume) {
         int slot = HubBlock.hitSlot(hitResult, hub.getBlockPos());
         return slot >= 0 && hub.canAccept(slot) ? hub.insertGoo(slot, type, volume) : 0;
     }

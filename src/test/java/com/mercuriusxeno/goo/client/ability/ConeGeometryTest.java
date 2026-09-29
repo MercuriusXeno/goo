@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  * ConeGeometry.emitCone writes the vertices the metal spike's and the metal
  * dart's own segment emitters wrote before they folded into it, for a table
  * of bases; the reference emitters below transcribe the deleted
- * MetalSpikeVisual.emitConeSegment and BlobFlightRenderer.emitDartSegment
+ * MetalSpikeVisual.emitConeSegment and GooFlightRenderer.emitDartSegment
  * (decision render-context-is-the-one-emitter).
  */
 class ConeGeometryTest {
@@ -95,7 +95,7 @@ class ConeGeometryTest {
         return out;
     }
 
-    /** The deleted BlobFlightRenderer.emitDartSegment, every side, transcribed: base at the origin. */
+    /** The deleted GooFlightRenderer.emitDartSegment, every side, transcribed: base at the origin. */
     private static List<Expected> oldDart(float dirX, float dirY, float dirZ,
                                           float length, float radius, float[] basis) {
         float tipX = dirX * length;

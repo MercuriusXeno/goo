@@ -7,7 +7,7 @@ import java.util.List;
 /**
  * Routes goo across the canisters a hub item nests: canisters already holding
  * the type first, empty canisters second, the rule SlottedCanisterData applies
- * to a placed hub (decision hub-item-blob-insert).
+ * to a placed hub (decision hub-item-goo-insert).
  */
 final class HubCanisterRouting {
 

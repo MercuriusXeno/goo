@@ -117,7 +117,7 @@ public class HubBlock extends GooMachineBlock {
     /** The clicks a hub answers through its dispatcher. */
     private static final Set<GooInteractionType> CLICK_ROWS = Set.of(
             GooInteractionType.CANISTER_INSERT, GooInteractionType.CANISTER_PICKUP,
-            GooInteractionType.BLOB_INSERT);
+            GooInteractionType.GOO_INSERT);
     /** Sentinel value: no matching slot found. */
 
     /**

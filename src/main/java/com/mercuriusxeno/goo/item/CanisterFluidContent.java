@@ -14,12 +14,12 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Immutable single-fluid data component for canister items.
- * Stores one fluid resource and its volume in microblobs (mB).
+ * Stores one fluid resource and its volume (mB).
  * Accepts any fluid resource: a goo type is the goo fluid stamped with its
  * type component (decision generic-goo-fluids), and vanilla fluids are bare.
  *
  * @param resource the stored fluid resource, or {@link FluidResource#EMPTY} if none
- * @param amount   the volume in microblobs (mB), 0 if empty
+ * @param amount   the volume (mB), 0 if empty
  */
 public record CanisterFluidContent(FluidResource resource, int amount) {
 
@@ -85,7 +85,7 @@ public record CanisterFluidContent(FluidResource resource, int amount) {
      * match the current one (or current must be empty).
      *
      * @param addResource the resource to add
-     * @param addAmount   the volume to add in microblobs
+     * @param addAmount   the volume to add
      * @return new content with the addition, or this if incompatible
      */
     public CanisterFluidContent withAdded(FluidResource addResource, int addAmount) {
@@ -98,7 +98,7 @@ public record CanisterFluidContent(FluidResource resource, int amount) {
     /**
      * Returns a new content with the given volume removed.
      *
-     * @param removeAmount the volume to remove in microblobs
+     * @param removeAmount the volume to remove
      * @return new content with the removal applied
      */
     public CanisterFluidContent withRemoved(int removeAmount) {

@@ -5,7 +5,7 @@ import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.program.EntityFilter;
 import com.mercuriusxeno.goo.ability.program.EntityHost;
 import com.mercuriusxeno.goo.ability.program.EntityScan;
-import com.mercuriusxeno.goo.network.BlobEffectScheduler.PendingEffect;
+import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -25,8 +25,8 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Gametests for the mob abilities: each test spawns a mob, lands a blob of
- * the ability on it through {@link BlobEffectScheduler#applyEffect} and
+ * Gametests for the mob abilities: each test spawns a mob, lands a goo of
+ * the ability on it through {@link GooEffectScheduler#applyEffect} and
  * asserts the live entity's reaction (damage, status effect, fire, AI
  * state, a move). What a program asks of its host without an entity is
  * graded in MobProgramTest. They sit in the scheduler's package because
@@ -126,7 +126,7 @@ public final class MobEffectTests {
     }
 
     /**
-     * Lands one blob of the named ability on the mob through the
+     * Lands one goo of the named ability on the mob through the
      * scheduler's impact, the path an arrived throw takes, so the ability
      * resolves from the registry and its program runs on the struck
      * entity host (decision world-tests-assert-one-observation).
@@ -138,7 +138,7 @@ public final class MobEffectTests {
     private static void strike(GameTestHelper helper, Mob mob, String abilityId) {
         AbilityDefinition ability = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(abilityId));
         helper.assertTrue(ability != null, ABILITIES_REQUIRED);
-        BlobEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), null, ability.gooType(),
+        GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), null, ability.gooType(),
                 mob.getId(), mob.blockPosition(), Direction.UP, abilityId));
     }
 

@@ -2,8 +2,8 @@ package com.mercuriusxeno.goo.client.hud;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
-import com.mercuriusxeno.goo.client.GooTooltipHandler;
 import com.mercuriusxeno.goo.item.GooContents;
+import com.mercuriusxeno.goo.item.GooFormat;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -228,7 +228,7 @@ public final class PanelPainter {
     public static List<PanelRow> rows(List<PanelRow> headers, GooContents goo) {
         List<PanelRow> rows = new ArrayList<>(headers);
         for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> entry : goo.getAll().entrySet()) {
-            rows.add(gooRow(entry.getKey(), GooTooltipHandler.formatFluidDisplayCompact(entry.getValue())));
+            rows.add(gooRow(entry.getKey(), GooFormat.formatAmount(entry.getValue())));
         }
         return rows;
     }
@@ -304,7 +304,7 @@ public final class PanelPainter {
      * @return the row
      */
     private static PanelRow bucketRow(Identifier icon, long amount) {
-        String text = GooTooltipHandler.formatFluidDisplayCompact(amount);
+        String text = GooFormat.formatAmount(amount);
         return new PanelRow(icon, List.of(new PanelRow.TextSegment(text, TEXT_COLOR)), true);
     }
 

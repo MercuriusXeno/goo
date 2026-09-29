@@ -26,10 +26,10 @@ import java.util.Locale;
  * @param extinguishes   whether the fluid puts out a burning entity
  * @param mapColor       the color the fluid block paints on a map
  * @param levity         multiplier on the square root of throw distance in
- *                       the blob's flight time, lower flies faster
+ *                       the goo's flight time, lower flies faster
  * @param baseFlightTime ticks every throw of the type spends in flight
  *                       before distance adds any
- * @param textures       the blob and fluid sprites the JSON names, each optional
+ * @param textures       the goo and fluid sprites the JSON names, each optional
  */
 public record GooTypeDefinition(int peakLight, float saturationFill, int wheel, int bright, int highlight, int edge,
                                 int density, int viscosity, int temperature, boolean extinguishes, MapColor mapColor,

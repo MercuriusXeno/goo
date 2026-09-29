@@ -2,7 +2,7 @@ package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.block.ability.ChainMarkerFallScheduler;
 import com.mercuriusxeno.goo.block.tap.TapDripScheduler;
-import com.mercuriusxeno.goo.network.BlobEffectScheduler;
+import com.mercuriusxeno.goo.network.GooEffectScheduler;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -20,7 +20,7 @@ class GooServerStateTest {
     private static final BlockPos POS = new BlockPos(0, 64, 0);
 
     private static void fill(GooServerState state) {
-        state.blobEffects().enqueue(new BlobEffectScheduler.PendingEffect(
+        state.gooEffects().enqueue(new GooEffectScheduler.PendingEffect(
                 1, null, null, GooTypes.ROCK, -1, POS, Direction.UP, ""));
         state.tapDrips().enqueue(new TapDripScheduler.PendingDrip(
                 null, POS.above(), POS, Direction.UP, GooTypes.ROCK, 1, 1));
@@ -29,7 +29,7 @@ class GooServerStateTest {
     }
 
     private static boolean holdsNothing(GooServerState state) {
-        return !state.blobEffects().hasPending()
+        return !state.gooEffects().hasPending()
                 && state.tapDrips().pending().isEmpty()
                 && !state.markerFalls().hasPending();
     }
@@ -39,7 +39,7 @@ class GooServerStateTest {
         GooServerState state = new GooServerState();
         fill(state);
 
-        assertTrue(state.blobEffects().hasPending());
+        assertTrue(state.gooEffects().hasPending());
         assertFalse(state.tapDrips().pending().isEmpty());
         assertTrue(state.markerFalls().hasPending());
     }

@@ -41,10 +41,9 @@ class GooContentsAtTheCapTest {
         assertEquals(TWO_FULL_TYPES, GooContents.STREAM_CODEC.decode(buf));
     }
 
-    /** The readout formats the 4B total in the M tier. */
+    /** The readout formats the 4B total in the B magnitude. */
     @Test
-    void readoutFormatsLongTotalInMegaTier() {
-        assertEquals("4 M", GooFormat.formatFluidDisplay(TWO_FULL_TYPES.totalVolume()));
-        assertEquals("4M", GooFormat.formatFluidDisplayCompact(TWO_FULL_TYPES.totalVolume()));
+    void readoutFormatsLongTotalInBillions() {
+        assertEquals("4B", GooFormat.formatAmount(TWO_FULL_TYPES.totalVolume()));
     }
 }

@@ -71,7 +71,7 @@ public class GooFluidHandler extends FluidStacksResourceHandler implements Gaske
     /**
      * Creates a handler with shared capacity and a change callback.
      *
-     * @param capacity total shared capacity in microblobs (mB)
+     * @param capacity total shared capacity (mB)
      * @param onChange called when contents change (e.g. markDirtyAndSync)
      */
     public GooFluidHandler(int capacity, Runnable onChange) {
@@ -82,7 +82,7 @@ public class GooFluidHandler extends FluidStacksResourceHandler implements Gaske
      * Creates a handler with shared capacity, change callback, and tick supplier
      * for stream tracking.
      *
-     * @param capacity     total shared capacity in microblobs (mB)
+     * @param capacity     total shared capacity (mB)
      * @param onChange     called when contents change (e.g. markDirtyAndSync)
      * @param tickSupplier supplies the current game tick for stream timing
      */
@@ -93,7 +93,7 @@ public class GooFluidHandler extends FluidStacksResourceHandler implements Gaske
     /**
      * Creates a handler whose capacity is shared across tanks or held by each.
      *
-     * @param capacity        the capacity in microblobs (mB)
+     * @param capacity        the capacity (mB)
      * @param onChange        called when contents change
      * @param tickSupplier    supplies the current game tick for stream timing
      * @param capacityPerType true when each tank holds the whole capacity

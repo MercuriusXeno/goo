@@ -67,7 +67,7 @@ public final class GloveUseTracker {
 
         trackGloveHold(mc, player);
         tickAvailabilityCheck(player);
-        BlobFlightManager.tick();
+        GooFlightManager.tick();
         GloveThrowSender.tick();
         ThrowFreezeState.tick();
     }

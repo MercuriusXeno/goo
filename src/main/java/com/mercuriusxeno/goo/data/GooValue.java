@@ -11,7 +11,7 @@ import java.util.Map;
 // Arithmetic operations live in GooValueArithmetic; instance methods delegate there.
 
 /**
- * Represents the goo composition of an item: how many blobs of each type it contains.
+ * Represents the goo composition of an item: how many goo of each type it contains.
  */
 public class GooValue {
 
@@ -51,7 +51,7 @@ public class GooValue {
      * Returns the amount of the given goo type, or 0 if absent.
      *
      * @param type the goo type to query
-     * @return amount in blobs, or 0
+     * @return amount in goo, or 0
      */
     public int get(ResourceKey<GooTypeDefinition> type) {
         return values.getOrDefault(type, 0);
@@ -96,9 +96,9 @@ public class GooValue {
     /**
      * Returns the sum of all goo type amounts.
      *
-     * @return total blobs across all types
+     * @return total goo across all types
      */
-    public int totalBlobs() {
+    public int totalGoo() {
         return values.values().stream().mapToInt(Integer::intValue).sum();
     }
 

@@ -113,7 +113,7 @@ public final class GooCommand {
      */
     private static final String MSG_TIMES = " x";
     /**
-     * Suffix showing total blob count.
+     * Suffix showing total goo count.
      */
     private static final String MSG_TOTAL_PREFIX = " (total: ";
     /**
@@ -447,7 +447,7 @@ public final class GooCommand {
             appendTypeEntry(msg, GooColors.get(registries, entry.getKey()), entry.getKey(), entry.getValue());
             first = false;
         }
-        msg.append(Component.literal(MSG_TOTAL_PREFIX + value.totalBlobs() + MSG_CLOSE_PAREN));
+        msg.append(Component.literal(MSG_TOTAL_PREFIX + value.totalGoo() + MSG_CLOSE_PAREN));
         return msg;
     }
 
