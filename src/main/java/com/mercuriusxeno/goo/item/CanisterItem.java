@@ -84,7 +84,9 @@ public class CanisterItem extends BlockItem implements IGooItemInteraction, GooC
     }
 
     /**
-     * Inserts this canister into the slot the resolver chose in an existing canister block.
+     * Inserts this canister into the slot the resolver chose in an existing canister block, for
+     * the clicks the block never sees: one aimed at an empty slot, which lands on the block behind,
+     * and a sneaking one, which skips the block's own click.
      *
      * @param context   the use-on context
      * @param placement the resolved insert
@@ -98,13 +100,8 @@ public class CanisterItem extends BlockItem implements IGooItemInteraction, GooC
                 || !(level.getBlockEntity(placement.pos()) instanceof CanisterBlockEntity canister)) {
             return InteractionResult.PASS;
         }
-        ItemStack stack = context.getItemInHand();
-        if (!canister.insertCanister(placement.slot(), stack, player.isCreative())) {
-            return InteractionResult.PASS;
-        }
-        stack.shrink(1);
-        canister.playInsertSound();
-        return InteractionResult.SUCCESS;
+        return canister.insertHeldCanister(placement.slot(), context.getItemInHand(), player)
+                ? InteractionResult.SUCCESS : InteractionResult.PASS;
     }
 
     // --- Block placement ---
