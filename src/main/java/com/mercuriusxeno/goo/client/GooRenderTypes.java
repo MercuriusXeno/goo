@@ -204,6 +204,16 @@ public final class GooRenderTypes {
     public static final RenderType BLAZE_EXPLOSION_TYPE = burnoutType(BLAZE_EXPLOSION);
 
     /**
+     * Blaze goo's tunnel wave pipeline: the orange heat shimmer that leads
+     * blaze_tunnel's smelting into the wall, through
+     * {@code tunnel_wave.vsh} and {@code blaze_tunnel_wave.fsh}.
+     */
+    public static final RenderPipeline BLAZE_TUNNEL_WAVE = tunnelWavePipeline("blaze_tunnel_wave");
+
+    /** RenderType that draws blaze goo's tunnel wave. */
+    public static final RenderType BLAZE_TUNNEL_WAVE_TYPE = burnoutType(BLAZE_TUNNEL_WAVE);
+
+    /**
      * Frost goo's burnout explosion pipeline: the fog ring, alpha blended,
      * through {@code frost_explosion.vsh / .fsh}.
      */
@@ -559,6 +569,7 @@ public final class GooRenderTypes {
         event.registerPipeline(ROCK_EXPLOSION);
         event.registerPipeline(ROCK_TUNNEL_WAVE);
         event.registerPipeline(BLAZE_EXPLOSION);
+        event.registerPipeline(BLAZE_TUNNEL_WAVE);
         event.registerPipeline(FROST_EXPLOSION);
         event.registerPipeline(NETHER_EXPLOSION);
         event.registerPipeline(METAL_EXPLOSION);

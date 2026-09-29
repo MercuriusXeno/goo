@@ -40,5 +40,6 @@ class BlazeExplosionVisualTest {
     @Test
     void pipelineShadersResolveOnTheClasspath() {
         PipelineShaders.assertExist(GooRenderTypes.BLAZE_EXPLOSION);
+        PipelineShaders.assertExist(GooRenderTypes.BLAZE_TUNNEL_WAVE);
     }
 }
