@@ -46,6 +46,16 @@ class CrystallizerHudTargetTest {
         assertNull(CrystallizerHudTarget.crystalTarget(hitAt(DIAL, Direction.NORTH), FACING, GROWING));
     }
 
+    /** The hit the dev client logged on the crystal's north face, which rounded outside the box on subtraction. */
+    @Test
+    void hitOnTheCrystalFaceTargetsTheCrystallizer() {
+        BlockPos pos = new BlockPos(7, -60, 3);
+        Vec3 location = new Vec3(7.495647874417606, -58.93500404420586, 3.2480794270833333);
+        BlockHitResult hit = new BlockHitResult(location, Direction.NORTH, pos, false);
+
+        assertEquals(pos, CrystallizerHudTarget.crystalTarget(hit, FACING, 9200));
+    }
+
     @Test
     void emptyCrystallizerTargetsNothing() {
         assertNull(CrystallizerHudTarget.crystalTarget(hitAt(crystalCenter(), Direction.UP), FACING, 0));

@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.block.crystallizer.CrystallizerShapes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.Nullable;
 
@@ -13,6 +14,9 @@ import org.jspecify.annotations.Nullable;
  * crystal HUD reports on, rather than the body or the dial (decision crystal-hud-shows-on-crystal-look).
  */
 final class CrystallizerHudTarget {
+
+    /** Far above the rounding a block-local subtraction leaves, far below a pixel. */
+    private static final double FACE_TOLERANCE = 1e-7;
 
     private CrystallizerHudTarget() {
     }
@@ -25,9 +29,11 @@ final class CrystallizerHudTarget {
      */
     static @Nullable BlockPos crystalTarget(BlockHitResult hit, Direction facing, long crystallized) {
         VoxelShape crystal = CrystallizerShapes.crystalShape(facing, crystallized);
-        if (crystal.isEmpty() || !ShapeHitCheck.hitInsideShape(hit, hit.getBlockPos(), crystal)) {
+        if (crystal.isEmpty()) {
             return null;
         }
-        return hit.getBlockPos();
+        // A crosshair hit lies on the crystal's face, and subtracting the block position can round it just outside.
+        VoxelShape faceTolerant = Shapes.create(crystal.bounds().inflate(FACE_TOLERANCE));
+        return ShapeHitCheck.hitInsideShape(hit, hit.getBlockPos(), faceTolerant) ? hit.getBlockPos() : null;
     }
 }

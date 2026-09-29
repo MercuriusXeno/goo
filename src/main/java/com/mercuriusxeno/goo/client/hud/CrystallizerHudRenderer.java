@@ -98,8 +98,7 @@ public final class CrystallizerHudRenderer {
     private static void paintPanel(PoseStack poseStack, Camera camera, CrystallizerBlockEntity crystallizer) {
         ResourceKey<GooTypeDefinition> formingType = crystallizer.formingType();
         ChrysmTier knobTier = CrystallizerBlock.knobTier(crystallizer.getBlockState());
-        if (formingType == null || knobTier == null) {
-            return;
+        if (formingType == null || knobTier == null) {            return;
         }
         List<PanelRow> rows = CrystallizerPanelRows.rows(formingType, crystallizer.crystallized(), knobTier,
                 tier -> Component.translatable(tier.translationKey(), GooTypeNames.name(formingType)).getString());
