@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.block.canister;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.block.gasket.DemandRelay;
+import com.mercuriusxeno.goo.block.gasket.GasketDemand;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.registry.GooFluids;
@@ -12,6 +14,8 @@ import net.neoforged.neoforge.transfer.fluid.FluidStacksResourceHandler;
 import net.neoforged.neoforge.transfer.transaction.Transaction;
 import org.jspecify.annotations.Nullable;
 import java.util.Map;
+import java.util.OptionalInt;
+import java.util.function.Function;
 import java.util.function.LongSupplier;
 import java.util.function.Predicate;
 
@@ -23,11 +27,16 @@ import java.util.function.Predicate;
  * <p>Used by canister and hub block entities for per-slot fluid storage.
  * Replaces the multi-tank ordinal-indexed GooFluidHandler for canister slots.</p>
  */
-public class CanisterSlotFluidHandler extends FluidStacksResourceHandler {
+public class CanisterSlotFluidHandler extends FluidStacksResourceHandler implements GasketDemand {
 
     private final Runnable onChange;
     private final LongSupplier tickSupplier;
     private final Predicate<FluidResource> admits;
+
+    /**
+     * This canister's link in the gasket chain: the consumer's demand mirrored, or its resting demand.
+     */
+    private final DemandRelay relay = new DemandRelay();
 
     // --- Stream tracking (transient, for rendering incoming fluid) ---
 
@@ -86,6 +95,24 @@ public class CanisterSlotFluidHandler extends FluidStacksResourceHandler {
         this.onChange = onChange;
         this.tickSupplier = tickSupplier;
         this.admits = admits;
+    }
+
+    /**
+     * Sets where this canister reads the demand of the consumer behind it.
+     *
+     * @param demand the consumer's stated demand for a resource, or empty when none stands behind it
+     */
+    public void setConsumerDemand(Function<FluidResource, OptionalInt> demand) {
+        relay.readDemandFrom(demand);
+    }
+
+    /**
+     * A canister mirrors the demand of the consumer behind it, and at rest asks the power
+     * law of its own capacity (decision receivers-demand-and-links-relay).
+     */
+    @Override
+    public OptionalInt statedDemand(FluidResource resource) {
+        return relay.statedDemand(resource, () -> GasketDemand.restingDemand(resource, capacity, getAmount()));
     }
 
     /**
