@@ -308,13 +308,13 @@ public final class GooClientSetup {
     }
 
     /**
-     * Clears cached goo values and tuner await state on disconnect.
+     * Clears tuner await state and client flight state on disconnect; the goo
+     * values leave with the connection that held them.
      *
      * @param event the event instance
      */
     @SubscribeEvent
     public static void onClientDisconnect(ClientPlayerNetworkEvent.LoggingOut event) {
-        Goo.GOO_VALUES.clearAll();
         TunerAwaitState.clear();
         BlobFlightManager.clear();
         ChainBurnouts.CLIENT.clear();

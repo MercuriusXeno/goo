@@ -291,17 +291,18 @@ class ConventionTest {
     }
 
     /**
-     * Goo.GOO_VALUES must only appear in adapter wrappers, not domain logic.
+     * Only adapter wrappers resolve goo values from a level; domain logic takes
+     * an IGooValueLookup (decision type-package-and-per-server-holders).
      */
     @Test
-    void domainLayerDoesNotAccessGooValues() {
+    void domainLayerDoesNotResolveGooValues() {
         noClasses()
                 .that().resideInAnyPackage(DOMAIN_PACKAGES)
                 .and(DescribedPredicate.not(
                         simpleName("CrucibleBlockEntity").or(simpleName("PlexerBlockEntity"))
                                 .or(simpleName("CrucibleInsertion"))))
-                .should().accessField(Goo.class, "GOO_VALUES")
-                .because("domain layer must use IGooValueLookup seams, not Goo.GOO_VALUES (decoupling-arch §5.2)")
+                .should().dependOnClassesThat().haveFullyQualifiedName("com.mercuriusxeno.goo.data.GooValues")
+                .because("domain layer must use IGooValueLookup seams, not GooValues (decoupling-arch §5.2)")
                 .check(mainClasses);
     }
 

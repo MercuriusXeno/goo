@@ -1,9 +1,10 @@
 package com.mercuriusxeno.goo.block.crucible;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.block.ContainerEvaluator;
 import com.mercuriusxeno.goo.block.ValuedStack;
 import com.mercuriusxeno.goo.data.GooValue;
+import com.mercuriusxeno.goo.data.GooValueTable;
+import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.data.IGooValueLookup;
 import com.mercuriusxeno.goo.item.ChrysmItem;
 import com.mercuriusxeno.goo.item.GooContents;
@@ -14,6 +15,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
 
@@ -27,14 +29,14 @@ final class CrucibleInsertion {
     }
 
     /**
-     * Returns true if the item has a non-empty goo value.
+     * Answers the goo values the crucible's side holds.
      *
-     * @param stack the item stack to check
-     * @return true if the item can be inserted
+     * @param be the crucible block entity
+     * @return the values, empty for a crucible in no level
      */
-    static boolean canInsertItem(ItemStack stack) {
-        Identifier id = BuiltInRegistries.ITEM.getKey(stack.getItem());
-        return canInsertItem(id, Goo.GOO_VALUES);
+    private static IGooValueLookup valuesOf(CrucibleBlockEntity be) {
+        Level level = be.getLevel();
+        return level == null ? GooValueTable.EMPTY : GooValues.of(level);
     }
 
     /**
@@ -59,7 +61,7 @@ final class CrucibleInsertion {
      */
     static int insertItem(CrucibleBlockEntity be, ItemStack stack, int count) {
         Identifier id = BuiltInRegistries.ITEM.getKey(stack.getItem());
-        return insertItem(be, id, count, Goo.GOO_VALUES);
+        return insertItem(be, id, count, valuesOf(be));
     }
 
     /**
@@ -222,7 +224,7 @@ final class CrucibleInsertion {
      */
     static @Nullable List<ItemStack> insertContainer(CrucibleBlockEntity be, ItemStack container) {
         Identifier containerId = BuiltInRegistries.ITEM.getKey(container.getItem());
-        return insertContainer(be, containerId, container, Goo.GOO_VALUES);
+        return insertContainer(be, containerId, container, valuesOf(be));
     }
 
     /**

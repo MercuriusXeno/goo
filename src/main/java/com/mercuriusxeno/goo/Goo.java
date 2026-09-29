@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo;
 
-import com.mercuriusxeno.goo.data.GooValueRegistry;
 import com.mercuriusxeno.goo.registry.*;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.logging.LogUtils;
@@ -8,7 +7,6 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
-import net.neoforged.fml.loading.FMLPaths;
 import org.slf4j.Logger;
 
 @Mod(Goo.MODID)
@@ -16,7 +14,6 @@ public class Goo {
 
     public static final String MODID = GooTypes.NAMESPACE;
     public static final Logger LOGGER = LogUtils.getLogger();
-    public static final GooValueRegistry GOO_VALUES = new GooValueRegistry();
 
     /**
      * Registers all deferred registries, event listeners, and config on mod construction.
@@ -33,9 +30,6 @@ public class Goo {
         modContainer.registerConfig(ModConfig.Type.CLIENT, GooClientConfig.SPEC);
 
         GooEventWiring.register(modEventBus);
-
-        GOO_VALUES.setEffectiveCachePath(
-                FMLPaths.CONFIGDIR.get().resolve("goo_derived_values.json"));
 
         LOGGER.info("Goo mod initialized");
     }

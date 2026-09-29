@@ -1,12 +1,12 @@
 package com.mercuriusxeno.goo.gametest;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityMath;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.world.AbilityImpact;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
+import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.item.BlobStacks;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -169,7 +169,7 @@ public final class EffectExecutorTests {
      * @param helper the gametest helper
      */
     public static void rockMinesBlock(GameTestHelper helper) {
-        helper.assertTrue(Goo.GOO_VALUES.size() > 0, VALUES_REQUIRED);
+        helper.assertTrue(GooValues.of(helper.getLevel()).size() > 0, VALUES_REQUIRED);
         placeMarkerWithWall(helper, GooTypes.ROCK, ABILITY_ROCK_TUNNEL);
         BlockPos target = MARKER_POS.north();
         helper.runAfterDelay(FUSE_TICKS + MINING_POST_FUSE, () -> {
@@ -236,7 +236,7 @@ public final class EffectExecutorTests {
      * @param helper the gametest helper
      */
     public static void netherImplodes(GameTestHelper helper) {
-        helper.assertTrue(Goo.GOO_VALUES.size() > 0, VALUES_REQUIRED);
+        helper.assertTrue(GooValues.of(helper.getLevel()).size() > 0, VALUES_REQUIRED);
         placeMarkerWithWall(helper, GooTypes.NETHER, ABILITY_NETHER_BLACK_HOLE);
         helper.runAfterDelay(FUSE_TICKS + NETHER_POST_FUSE, () -> {
             helper.assertTrue(helper.getBlockState(MARKER_POS.north()).isAir(), HOLE_LEFT_STONE);
@@ -483,7 +483,7 @@ public final class EffectExecutorTests {
      * @param helper the gametest helper
      */
     public static void abilityRockTunnel(GameTestHelper helper) {
-        helper.assertTrue(Goo.GOO_VALUES.size() > 0, VALUES_REQUIRED);
+        helper.assertTrue(GooValues.of(helper.getLevel()).size() > 0, VALUES_REQUIRED);
         fillWall(helper, Blocks.STONE);
         placeMarkerWithAbility(helper, GooTypes.ROCK, ABILITY_ROCK_TUNNEL);
         BlockPos struck = MARKER_POS.north();
@@ -634,7 +634,7 @@ public final class EffectExecutorTests {
      * @param helper the gametest helper
      */
     public static void programNetherBlackHole(GameTestHelper helper) {
-        helper.assertTrue(Goo.GOO_VALUES.size() > 0, VALUES_REQUIRED);
+        helper.assertTrue(GooValues.of(helper.getLevel()).size() > 0, VALUES_REQUIRED);
         discardLeftoverEntities(helper);
         fillWall(helper, Blocks.STONE);
         layBarrierFloor(helper);

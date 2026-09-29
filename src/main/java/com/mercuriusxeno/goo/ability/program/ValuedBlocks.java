@@ -1,8 +1,8 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityMath;
 import com.mercuriusxeno.goo.data.GooValue;
+import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
@@ -58,7 +58,7 @@ public final class ValuedBlocks {
         if (state.isAir() || item == Items.AIR) {
             return;
         }
-        GooValue value = Goo.GOO_VALUES.lookup(BuiltInRegistries.ITEM.getKey(item));
+        GooValue value = GooValues.of(level).lookup(BuiltInRegistries.ITEM.getKey(item));
         if (value == null || value.isEmpty()) {
             return;
         }

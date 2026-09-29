@@ -6,9 +6,12 @@
     "ContainerShiftClickMergeMixin",
     "InventoryPickupMergeMixin",
     "ItemStackLegacyBlobMixin",
+    "MinecraftServerGooValuesMixin",
     "OmniblobQuickCraftMixin"
   ],
   "client": [
+    "ClientLevelGooValuesMixin",
+    "ClientPacketListenerGooValuesMixin",
     "OmniblobQuickCraftScreenMixin"
   ]
 }

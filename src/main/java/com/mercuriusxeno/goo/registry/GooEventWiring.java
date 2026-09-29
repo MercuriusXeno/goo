@@ -1,12 +1,11 @@
 package com.mercuriusxeno.goo.registry;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityLoader;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerFallScheduler;
 import com.mercuriusxeno.goo.block.tap.TapDripScheduler;
 import com.mercuriusxeno.goo.command.GooCommand;
 import com.mercuriusxeno.goo.data.GooReactionLoader;
-import com.mercuriusxeno.goo.data.GooValueRegistry;
+import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.item.gasket.ChoralGasketItem;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.network.BlobThrowHandler;
@@ -20,6 +19,7 @@ import net.neoforged.neoforge.event.AddServerReloadListenersEvent;
 import net.neoforged.neoforge.event.OnDatapackSyncEvent;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
+import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 
@@ -29,15 +29,6 @@ import net.neoforged.neoforge.network.PacketDistributor;
  * type-package-and-per-server-holders).
  */
 public final class GooEventWiring {
-
-    /**
-     * Log message for startup value loading.
-     */
-    private static final String LOG_VALUES_LOADED = "Goo values loaded: {} effective values from cache";
-    /**
-     * Log message when no cache exists and derivation runs on first boot.
-     */
-    private static final String LOG_NO_CACHE = "No cached goo values found, deriving from recipes";
 
     private GooEventWiring() {
     }
@@ -77,25 +68,25 @@ public final class GooEventWiring {
     }
 
     /**
-     * Loads goo values from the effective cache when the server starts.
-     * If no cache exists (first run or fresh world), derives values from
-     * recipes and saves the cache for subsequent starts.
+     * Stands the starting server's goo value registry, loaded from the cache
+     * or derived from recipes.
      *
      * @param event the server starting event
      */
     @SubscribeEvent
     public static void onServerStarting(ServerStartingEvent event) {
-        GooValueRegistry values = Goo.GOO_VALUES;
-        values.loadEffectiveCache();
-        if (values.size() == 0) {
-            Goo.LOGGER.info(LOG_NO_CACHE);
-            values.loadBaseValuesFromPacks(event.getServer());
-            values.deriveFromRecipes(event.getServer());
-            values.saveEffectiveValues();
-        }
-        if (Goo.LOGGER.isInfoEnabled()) {
-            Goo.LOGGER.info(LOG_VALUES_LOADED, values.size());
-        }
+        GooValues.attach(event.getServer());
+    }
+
+    /**
+     * Drops the stopped server's goo value registry, so the next server starts
+     * from its own values.
+     *
+     * @param event the server stopped event
+     */
+    @SubscribeEvent
+    public static void onServerStopped(ServerStoppedEvent event) {
+        GooValues.detach(event.getServer());
     }
 
     /**
