@@ -7,6 +7,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -45,7 +46,7 @@ class ProgressiveAreaStepTest {
     private static final int ONE_STACK = 1;
 
     private static ProgressiveAreaStep step(AreaShape shape) {
-        return new ProgressiveAreaStep(shape, SILK_BREAK, ROCK_DUST, STONE_BREAK, Expr.literal(DELAY));
+        return new ProgressiveAreaStep(shape, SILK_BREAK, ROCK_DUST, STONE_BREAK, Expr.literal(DELAY), 0);
     }
 
     private static MarkerHost host(Direction placedFace, int stacks) {
@@ -149,17 +150,18 @@ class ProgressiveAreaStepTest {
     void flatCircleWalksRingsOneBlockIntoTheWall() {
         MarkerHost host = host(Direction.UP, 2);
 
-        run(host, AreaShape.FLAT_CIRCLE, DELAY + 1);
+        run(host, AreaShape.FLAT_CIRCLE, DELAY + 2);
 
         BlockPos center = ORIGIN.below();
-        assertEquals(Set.of(center, center.north(), center.south(), center.east(), center.west()),
-                Set.copyOf(struckCells(host)));
+        Set<BlockPos> disc = new HashSet<>();
+        BlockPos.betweenClosed(center.offset(-1, 0, -1), center.offset(1, 0, 1)).forEach(p -> disc.add(p.immutable()));
+        assertEquals(disc, Set.copyOf(struckCells(host)));
     }
 
     @Test
     void sphereWalksShellsAroundTheBlockPastTheMarker() {
         MarkerHost host = host(Direction.SOUTH, ONE_STACK);
-        int shells = AreaLayers.layerCount(AreaShape.SPHERE, ONE_STACK);
+        int shells = AreaLayers.layerCount(AreaShape.SPHERE, ONE_STACK, 0);
 
         run(host, AreaShape.SPHERE, DELAY + shells);
 

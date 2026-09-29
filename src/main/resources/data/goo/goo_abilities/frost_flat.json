@@ -11,7 +11,7 @@
   },
   "chain": {
     "fuseTicks": 30,
-    "maxStacks": 4,
+    "maxStacks": 6,
     "blobShape": "flat"
   },
   "behaviors": [

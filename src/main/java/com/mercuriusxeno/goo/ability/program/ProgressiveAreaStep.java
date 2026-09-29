@@ -28,9 +28,10 @@ import java.util.stream.Stream;
  * @param visuals      the layer visuals' registered name
  * @param audio        the layer audio's registered name
  * @param previewDelay ticks between a layer's preview and its strike
+ * @param startRadius  the footprint's radius at one stack, zero when the JSON names none
  */
 public record ProgressiveAreaStep(AreaShape shape, String effect, String visuals, String audio,
-                                  Expr previewDelay) implements Step {
+                                  Expr previewDelay, int startRadius) implements Step {
 
     private static final String NAME = "progressive_area";
     private static final String FIELD_SHAPE = "shape";
@@ -38,6 +39,7 @@ public record ProgressiveAreaStep(AreaShape shape, String effect, String visuals
     private static final String FIELD_VISUALS = "visuals";
     private static final String FIELD_AUDIO = "audio";
     private static final String FIELD_PREVIEW_DELAY = "preview_delay";
+    private static final String FIELD_START_RADIUS = "start_radius";
 
     /**
      * Codec for the step's params.
@@ -47,7 +49,8 @@ public record ProgressiveAreaStep(AreaShape shape, String effect, String visuals
             registered(BlockEffectType::byName).fieldOf(FIELD_EFFECT).forGetter(ProgressiveAreaStep::effect),
             registered(LayerVisualsType::byName).fieldOf(FIELD_VISUALS).forGetter(ProgressiveAreaStep::visuals),
             registered(LayerAudioType::byName).fieldOf(FIELD_AUDIO).forGetter(ProgressiveAreaStep::audio),
-            Expr.CODEC.fieldOf(FIELD_PREVIEW_DELAY).forGetter(ProgressiveAreaStep::previewDelay)
+            Expr.CODEC.fieldOf(FIELD_PREVIEW_DELAY).forGetter(ProgressiveAreaStep::previewDelay),
+            Codec.INT.optionalFieldOf(FIELD_START_RADIUS, 0).forGetter(ProgressiveAreaStep::startRadius)
     ).apply(inst, ProgressiveAreaStep::new));
 
     /**
@@ -80,7 +83,7 @@ public record ProgressiveAreaStep(AreaShape shape, String effect, String visuals
      * @return the block count
      */
     public int footprintBlocks(int stacks) {
-        return AreaLayers.blockCount(shape, stacks);
+        return AreaLayers.blockCount(shape, stacks, startRadius);
     }
 
     @Override
@@ -91,7 +94,7 @@ public record ProgressiveAreaStep(AreaShape shape, String effect, String visuals
     @Override
     public boolean tick(StepContext context) {
         LayerWalkHost host = context.hostAs(LayerWalkHost.class);
-        int layers = AreaLayers.layerCount(shape, context.hostAs(StacksHost.class).stackCount());
+        int layers = AreaLayers.layerCount(shape, context.hostAs(StacksHost.class).stackCount(), startRadius);
         int delay = previewDelay.evaluateInt(context);
         int tick = context.stepTicks();
         if (tick < layers) {
@@ -115,7 +118,7 @@ public record ProgressiveAreaStep(AreaShape shape, String effect, String visuals
     private void strike(StepContext context, int layer) {
         LayerWalkHost host = context.hostAs(LayerWalkHost.class);
         int destroyed = 0;
-        for (BlockPos cell : AreaLayers.layerCells(shape, context.hostAs(StacksHost.class).stackCount(),
+        for (BlockPos cell : AreaLayers.layerCells(shape, context.hostAs(StacksHost.class).stackCount(), startRadius,
                 host.position(), context.hostAs(PlacedFaceHost.class).placedFace(), layer)) {
             if (host.applyBlockEffect(effect, cell)) {
                 destroyed++;

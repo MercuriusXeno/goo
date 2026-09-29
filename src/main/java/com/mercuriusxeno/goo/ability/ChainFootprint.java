@@ -8,8 +8,8 @@ import java.util.List;
 /**
  * Shared footprint math for rock and blaze chain effects. Both use
  * the same scaling: 1x1 at 1 stack, cross at 2, 3x3 at 3, then
- * 3x3 with increasing depth beyond 3. Flat mode redistributes the
- * same total block count into a taxicab-distance circle on one layer.
+ * 3x3 with increasing depth beyond 3. Flat mode opens a round disc one
+ * block of radius per throw on one layer.
  */
 public final class ChainFootprint {
 
@@ -70,6 +70,14 @@ public final class ChainFootprint {
      * Array index for Z component in offset triples.
      */
     private static final int Z_INDEX = 2;
+    /**
+     * Cells across a round shape per block of radius, either side of the center.
+     */
+    private static final int DIAMETER_PER_RADIUS = 2;
+    /**
+     * Scale of a squared distance measured in half blocks, so r + 0.5 compares in integers.
+     */
+    private static final int HALVES_SQUARED = 4;
 
     private ChainFootprint() {
     }
@@ -122,160 +130,90 @@ public final class ChainFootprint {
     }
 
     /**
-     * Returns the 2D offsets for flat mode at the given stack count.
-     * For 1-3 stacks this is identical to {@link #layerFootprint}.
-     * For 4+, distributes {@link #totalBlocks} into taxicab-distance
-     * rings for a quasi-circular flat pattern.
+     * The disc radius at a stack count: one block per throw from the
+     * start radius the ability JSON names (decision disc-opens-circularly-per-stack).
+     *
+     * @param stacks      blob stack count (1-based)
+     * @param startRadius the radius of the first throw
+     * @return the radius, never below zero
+     */
+    public static int discRadius(int stacks, int startRadius) {
+        return Math.max(0, startRadius + stacks - 1);
+    }
+
+    /**
+     * Returns the flat disc at a start radius of zero.
      *
      * @param stacks blob stack count (1-based)
      * @return list of [a, b] offset pairs
      */
     public static List<int[]> flatFootprint(int stacks) {
-        if (stacks <= FULL_THRESHOLD) {
-            return layerFootprint(stacks);
-        }
-        return euclideanCircle(totalBlocks(stacks));
+        return flatFootprint(stacks, 0);
     }
 
+    /**
+     * Returns the flat disc: every cell whose center lies under
+     * {@code r + 0.5} of the center, for r the {@link #discRadius}.
+     *
+     * @param stacks      blob stack count (1-based)
+     * @param startRadius the radius of the first throw
+     * @return list of [a, b] offset pairs, ring by ring outward
+     */
+    public static List<int[]> flatFootprint(int stacks, int startRadius) {
+        List<int[]> disc = new ArrayList<>();
+        for (List<int[]> ring : flatRings(stacks, startRadius)) {
+            disc.addAll(ring);
+        }
+        return disc;
+    }
 
     /**
-     * Decomposes the flat footprint into concentric distance rings.
-     * Each ring contains positions at the same squared distance from center.
-     * Ring 0 is the origin, ring 1 is the first cardinal neighbors, etc.
-     * The union of all rings equals {@link #flatFootprint(int)}.
+     * Returns the flat disc's rings at a start radius of zero.
      *
      * @param stacks blob stack count (1-based)
      * @return list of rings, each ring a list of [a, b] offset pairs
      */
     public static List<List<int[]>> flatRings(int stacks) {
-        if (stacks <= FULL_THRESHOLD) {
-            return List.of(layerFootprint(stacks));
-        }
-        int budget = totalBlocks(stacks);
-        int searchRadius = (int) Math.ceil(Math.sqrt(budget)) + 1;
-        List<int[]> candidates = collectCandidates(searchRadius);
-        candidates.sort((p, q) -> Integer.compare(sqDist(p), sqDist(q)));
-        return splitIntoTiers(candidates, budget);
+        return flatRings(stacks, 0);
     }
 
     /**
-     * Splits sorted candidates into distance tiers, stopping at budget.
+     * Splits the flat disc into rings by integer distance: ring k holds
+     * the cells with {@code floor(sqrt(a*a + b*b)) == k}, so ring 0 is the
+     * center and the rings step outward, disjoint, uniting to the disc.
      *
-     * @param sorted positions sorted by squared distance
-     * @param budget maximum total block count
-     * @return the tier-decomposed ring list
+     * @param stacks      blob stack count (1-based)
+     * @param startRadius the radius of the first throw
+     * @return list of rings, each ring a list of [a, b] offset pairs
      */
-    private static List<List<int[]>> splitIntoTiers(List<int[]> sorted, int budget) {
-        List<List<int[]>> rings = new ArrayList<>();
-        int total = 0;
-        int i = 0;
-        while (i < sorted.size()) {
-            int tierEnd = findTierEnd(sorted, i);
-            int tierSize = tierEnd - i;
-            if (total + tierSize > budget) {
-                break;
+    public static List<List<int[]>> flatRings(int stacks, int startRadius) {
+        int radius = discRadius(stacks, startRadius);
+        List<List<int[]>> rings = new ArrayList<>(radius + 1);
+        for (int k = 0; k <= radius; k++) {
+            rings.add(new ArrayList<>());
+        }
+        for (int a = -radius; a <= radius; a++) {
+            for (int b = -radius; b <= radius; b++) {
+                int squared = a * a + b * b;
+                if (withinRound(squared, radius)) {
+                    rings.get((int) Math.sqrt(squared)).add(new int[]{a, b});
+                }
             }
-            List<int[]> ring = new ArrayList<>(tierSize);
-            addRange(ring, sorted, i, tierEnd);
-            rings.add(ring);
-            total += tierSize;
-            i = tierEnd;
         }
         return rings;
     }
 
     /**
-     * Builds the roundest possible flat region by filling positions
-     * sorted by Euclidean distance from center. Positions at equal
-     * distance form a tier; tiers are added in full to maintain
-     * quarter symmetry. Stops before adding a tier that would exceed
-     * the budget, so actual count may be slightly less than target.
+     * Whether a cell center at a squared distance lies under {@code radius + 0.5},
+     * in integers: {@code 4 * d2 < (2r + 1)^2}.
      *
-     * @param budget maximum number of blocks
-     * @return list of [a, b] offset pairs
+     * @param squaredDistance the cell's squared distance from the center
+     * @param radius          the round shape's radius
+     * @return true when the cell belongs to the shape
      */
-    public static List<int[]> euclideanCircle(int budget) {
-        int searchRadius = (int) Math.ceil(Math.sqrt(budget)) + 1;
-        List<int[]> candidates = collectCandidates(searchRadius);
-        candidates.sort((p, q) -> {
-            int da = p[0] * p[0] + p[1] * p[1];
-            int db = q[0] * q[0] + q[1] * q[1];
-            return Integer.compare(da, db);
-        });
-        return fillByTier(candidates, budget);
-    }
-
-    /**
-     * Collects all grid positions within the search radius.
-     *
-     * @param radius the search radius
-     * @return unsorted candidate positions
-     */
-    private static List<int[]> collectCandidates(int radius) {
-        List<int[]> candidates = new ArrayList<>();
-        for (int a = -radius; a <= radius; a++) {
-            for (int b = -radius; b <= radius; b++) {
-                candidates.add(new int[]{a, b});
-            }
-        }
-        return candidates;
-    }
-
-    /**
-     * Fills complete Euclidean distance tiers until the next full
-     * tier would exceed the budget.
-     *
-     * @param sorted positions sorted by squared distance
-     * @param budget maximum block count
-     * @return the filled positions
-     */
-    private static List<int[]> fillByTier(List<int[]> sorted, int budget) {
-        List<int[]> result = new ArrayList<>(budget);
-        int i = 0;
-        while (i < sorted.size()) {
-            int tierEnd = findTierEnd(sorted, i);
-            int tierSize = tierEnd - i;
-            if (result.size() + tierSize > budget) {
-                break;
-            }
-            addRange(result, sorted, i, tierEnd);
-            i = tierEnd;
-        }
-        return result;
-    }
-
-    /**
-     * Returns the exclusive end index of the tier starting at {@code from}.
-     *
-     * @param sorted the sorted offset list
-     * @param from   the start index
-     * @return the exclusive end index of the tier
-     */
-    private static int findTierEnd(List<int[]> sorted, int from) {
-        int dist = sqDist(sorted.get(from));
-        int i = from;
-        while (i < sorted.size() && sqDist(sorted.get(i)) == dist) {
-            i++;
-        }
-        return i;
-    }
-
-    /**
-     * Adds elements from sorted[start..end) to the result list.
-     *
-     * @param result the destination list
-     * @param sorted the source list
-     * @param start  the inclusive start index
-     * @param end    the exclusive end index
-     */
-    private static void addRange(List<int[]> result, List<int[]> sorted, int start, int end) {
-        for (int j = start; j < end; j++) {
-            result.add(sorted.get(j));
-        }
-    }
-
-    private static int sqDist(int[] pos) {
-        return pos[0] * pos[0] + pos[1] * pos[1];
+    private static boolean withinRound(int squaredDistance, int radius) {
+        int diameter = DIAMETER_PER_RADIUS * radius + 1;
+        return HALVES_SQUARED * squaredDistance < diameter * diameter;
     }
 
 
