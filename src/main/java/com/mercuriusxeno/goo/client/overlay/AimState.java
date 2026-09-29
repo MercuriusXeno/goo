@@ -6,11 +6,12 @@ import net.minecraft.world.entity.Entity;
 import org.jspecify.annotations.Nullable;
 
 /**
- * The glove's aim as one tick resolved it, read by everything that needs
- * it until the next tick: the frame's highlight and arc, the throw, the
- * entity outline and the chain marker's targeted look. One resolve per tick
- * means one sticky seed, the hit that resolve found (decision
- * render-context-is-the-one-emitter). {@link AimTracker} ticks it.
+ * The glove's aim as one frame resolved it, read by everything that needs
+ * it until the next frame: the frame's highlight and arc, the throw, the
+ * entity outline and the chain marker's targeted look. One resolve per frame
+ * means one sticky seed, the hit that resolve found (decisions
+ * render-context-is-the-one-emitter, aim-target-follows-client-aim).
+ * {@link AimTracker} updates it.
  */
 public final class AimState {
 
@@ -24,24 +25,24 @@ public final class AimState {
     private int outlineColor;
 
     /**
-     * Resolves one tick's aim from the previous tick's aim-assist hit.
+     * Resolves one frame's aim from the previous frame's aim-assist hit.
      */
     @FunctionalInterface
     interface AimResolver {
         /**
          * Resolves the aim.
          *
-         * @param seed the previous tick's aim-assist hit, or null
+         * @param seed the previous frame's aim-assist hit, or null
          * @return the target and the aim-assist hit behind it
          */
         Resolution resolve(AimAssistResolver.@Nullable AimHit seed);
     }
 
     /**
-     * One tick's resolved aim.
+     * One frame's resolved aim.
      *
      * @param target the target the aim names
-     * @param hit    the aim-assist hit behind it, the next tick's sticky seed, or null
+     * @param hit    the aim-assist hit behind it, the next frame's sticky seed, or null
      */
     record Resolution(TargetResult target, AimAssistResolver.@Nullable AimHit hit) {
         /** No aim at all. */
@@ -52,7 +53,7 @@ public final class AimState {
     }
 
     /**
-     * The target this tick's resolve found.
+     * The target this frame's resolve found.
      *
      * @return the target, NONE when nothing is aimed at
      */
@@ -61,7 +62,7 @@ public final class AimState {
     }
 
     /**
-     * Stores one tick's aim, resolved from the last tick's hit.
+     * Stores one frame's aim, resolved from the last frame's hit.
      *
      * @param resolver           resolves the aim
      * @param entityOutlineColor the outline an aimed-at entity takes, 0 for none
@@ -86,7 +87,7 @@ public final class AimState {
      * Whether the aim assist is locked onto the chain marker at the given position.
      *
      * @param pos the chain marker block position
-     * @return true if this tick's hit is that marker
+     * @return true if this frame's hit is that marker
      */
     boolean isAimedAtMarker(BlockPos pos) {
         return hit instanceof AimAssistResolver.AimHit.ChainMarkerHit cmh && cmh.pos().equals(pos);

@@ -6,12 +6,13 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Eases the aim arc from what it drew for the last target to the new target
- * over a fixed time on the frame clock, so the line slides rather than snaps
- * (decision aim-line-lerps-toward-target).
+ * over a fixed time of real time, so the line slides rather than snaps and
+ * the tick rate never stretches the slide (decisions
+ * aim-line-lerps-toward-target, aim-arc-slides-in-real-time).
  */
 final class ArcEndpointEase {
     /** Seconds the arc takes to slide from the last target to the new one. */
-    static final double EASE_SECONDS = 0.1;
+    static final double EASE_SECONDS = 0.05;
 
     private ArcEndpointEase() {}
 
