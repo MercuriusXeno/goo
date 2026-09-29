@@ -2,8 +2,8 @@ package com.mercuriusxeno.goo.data;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.mercuriusxeno.goo.GooTypeDefinition;
-import com.mercuriusxeno.goo.GooTypes;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import org.junit.jupiter.api.BeforeEach;

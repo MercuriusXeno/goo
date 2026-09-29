@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.ability;
 
-import com.mercuriusxeno.goo.GooTypes;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Test;
 import java.util.List;

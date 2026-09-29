@@ -1,12 +1,12 @@
 package com.mercuriusxeno.goo.command;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.GooColors;
-import com.mercuriusxeno.goo.GooTypeDefinition;
-import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.data.ScaffoldGenerator;
 import com.mercuriusxeno.goo.network.GooValueSync;
+import com.mercuriusxeno.goo.type.GooColors;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;

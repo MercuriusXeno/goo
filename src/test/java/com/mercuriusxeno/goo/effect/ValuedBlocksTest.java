@@ -1,9 +1,9 @@
 package com.mercuriusxeno.goo.effect;
 
-import com.mercuriusxeno.goo.GooTypeDefinition;
-import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.program.ValuedBlocks;
 import com.mercuriusxeno.goo.data.GooValue;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.ResourceKey;
 import org.junit.jupiter.api.Test;
 import java.util.HashMap;

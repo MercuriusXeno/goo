@@ -1,14 +1,14 @@
 package com.mercuriusxeno.goo.client.hud;
 
 import com.mercuriusxeno.goo.GooConfig;
-import com.mercuriusxeno.goo.GooTypeDefinition;
-import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.block.ValuedStack;
 import com.mercuriusxeno.goo.block.crucible.CrucibleHeat;
 import com.mercuriusxeno.goo.block.crucible.CrucibleMeltQueue;
 import com.mercuriusxeno.goo.block.crucible.FuelGrade;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.item.GooContents;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import org.junit.jupiter.api.Test;

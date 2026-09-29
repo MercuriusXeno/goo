@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.client;
 
 import com.google.common.reflect.TypeToken;
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ISidedProxy;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
@@ -19,6 +18,7 @@ import com.mercuriusxeno.goo.client.throwing.BlobVolumeDecorator;
 import com.mercuriusxeno.goo.client.throwing.ThrowFreezeState;
 import com.mercuriusxeno.goo.item.gasket.TunerAwaitState;
 import com.mercuriusxeno.goo.registry.*;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.client.renderer.block.FluidModel;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
