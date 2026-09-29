@@ -1,8 +1,8 @@
 package com.mercuriusxeno.goo.block.plexer;
 
-import com.mercuriusxeno.goo.CutawayInteractionHelper;
 import com.mercuriusxeno.goo.block.CutawayShapeHelper;
 import com.mercuriusxeno.goo.block.FacingRedstoneMachineBlock;
+import com.mercuriusxeno.goo.block.plexer.CutawayInteractionHelper;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;

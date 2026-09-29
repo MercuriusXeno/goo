@@ -1,4 +1,4 @@
-package com.mercuriusxeno.goo;
+package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
 import com.mercuriusxeno.goo.block.canister.CanisterSlotFluidHandler;

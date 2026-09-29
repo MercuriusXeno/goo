@@ -1,9 +1,9 @@
 package com.mercuriusxeno.goo.item;
 
 import com.mercuriusxeno.goo.ISidedProxy;
-import com.mercuriusxeno.goo.PlayerUtils;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
+import com.mercuriusxeno.goo.item.PlayerUtils;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;

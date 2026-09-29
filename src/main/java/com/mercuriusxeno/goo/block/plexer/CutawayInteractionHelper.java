@@ -1,4 +1,4 @@
-package com.mercuriusxeno.goo;
+package com.mercuriusxeno.goo.block.plexer;
 
 import com.mercuriusxeno.goo.block.plexer.PlexerBlock;
 import com.mercuriusxeno.goo.block.plexer.PlexerBlockEntity;

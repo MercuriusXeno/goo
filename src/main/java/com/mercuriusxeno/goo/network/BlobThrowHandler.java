@@ -1,13 +1,13 @@
 package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.ThrowArc;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.StackKey;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
+import com.mercuriusxeno.goo.throwing.ThrowArc;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;

@@ -1,8 +1,8 @@
 package com.mercuriusxeno.goo.block.gasket;
 
-import com.mercuriusxeno.goo.PlayerUtils;
 import com.mercuriusxeno.goo.data.GasketLocation;
 import com.mercuriusxeno.goo.data.GasketRegistry;
+import com.mercuriusxeno.goo.item.PlayerUtils;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.registry.GooItems;
 import net.minecraft.core.BlockPos;
