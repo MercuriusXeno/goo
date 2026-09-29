@@ -2,8 +2,8 @@ package com.mercuriusxeno.goo.client.hud;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.GloveSelection;
-import com.mercuriusxeno.goo.client.GooTooltipHandler;
 import com.mercuriusxeno.goo.client.throwing.GloveThrowSender;
+import com.mercuriusxeno.goo.item.GooFormat;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.client.DeltaTracker;
@@ -71,8 +71,8 @@ public final class CrosshairFuelPanel {
      */
     public static FuelRow fuelRow(ItemStack source, ResourceKey<GooTypeDefinition> type, int held, int cost) {
         // hud-amounts-read-through-goo-format: the machine panels' blob convention
-        return new FuelRow(source, type, GooTooltipHandler.formatFluidDisplayCompact(held),
-                COST_PREFIX + GooTooltipHandler.formatFluidDisplayCompact(cost));
+        return new FuelRow(source, type, GooFormat.formatAmount(held),
+                COST_PREFIX + GooFormat.formatAmount(cost));
     }
 
     /**

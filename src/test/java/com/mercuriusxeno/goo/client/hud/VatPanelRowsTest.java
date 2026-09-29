@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.client.hud;
 
-import com.mercuriusxeno.goo.client.GooTooltipHandler;
 import com.mercuriusxeno.goo.client.machine.VatStackAggregator.VatStackData;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -29,7 +28,7 @@ class VatPanelRowsTest {
         assertEquals(1, rows.size());
         assertTrue(waterRow.seeThrough());
         assertEquals(PanelPainter.waterIcon(), waterRow.icon());
-        assertEquals(GooTooltipHandler.formatFluidDisplayCompact(WATER), waterRow.segments().getFirst().text());
+        assertEquals("4M", waterRow.segments().getFirst().text());
     }
 
     /** A stack holding no water paints no fluid row. */

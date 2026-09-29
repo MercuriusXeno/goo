@@ -51,7 +51,7 @@ public record AbilityDefinition(
     private static final String FIELD_CHAIN = "chain";
     private static final String FIELD_BEHAVIORS = "behaviors";
     private static final String FIELD_TAGS = "tags";
-    private static final String NOT_A_FLAT_COST = "Ability cost must be one whole number of mB, not %s";
+    private static final String NOT_A_FLAT_COST = "Ability cost must be one whole amount, not %s";
 
     /**
      * Codec for the cost: one whole number of mB per throw (decision flat-cost-per-throw).

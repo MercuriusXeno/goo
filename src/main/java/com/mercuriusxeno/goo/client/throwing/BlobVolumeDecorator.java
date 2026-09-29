@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.client.throwing;
 
-import com.mercuriusxeno.goo.client.GooTooltipHandler;
 import com.mercuriusxeno.goo.item.BlobStacks;
+import com.mercuriusxeno.goo.item.GooFormat;
 import com.mercuriusxeno.goo.item.GooOmniblobItem;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -101,7 +101,7 @@ public class BlobVolumeDecorator implements IItemDecorator {
      */
     private void renderVolumeLabel(GuiGraphicsExtractor graphics, Font font,
             int volume, int xOffset, int yOffset) {
-        String label = GooTooltipHandler.formatFluidDisplayCompact(volume);
+        String label = GooFormat.formatAmount(volume);
         int textWidth = font.width(label);
 
         int x = (int) ((xOffset + TEXT_RIGHT_EDGE) / TEXT_SCALE) - textWidth;

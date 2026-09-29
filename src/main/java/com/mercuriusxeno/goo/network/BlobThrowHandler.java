@@ -48,7 +48,7 @@ public final class BlobThrowHandler {
     /** Log: insufficient goo for throw. */
     private static final String LOG_NO_GOO = "Throw rejected: insufficient {} goo";
     /** Log: partial depletion warning. */
-    private static final String LOG_PARTIAL_DEPLETE = "Partial depletion ({}/{} mB) for {} throw - proceeding anyway";
+    private static final String LOG_PARTIAL_DEPLETE = "Partial depletion ({}/{}) for {} throw - proceeding anyway";
     /** Log: throw executed successfully. */
     private static final String LOG_THROW_OK = "Throw executed: {} by {} -> arrival in {} ticks";
 

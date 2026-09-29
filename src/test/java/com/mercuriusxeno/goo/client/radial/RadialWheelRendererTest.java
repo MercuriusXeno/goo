@@ -88,14 +88,14 @@ class RadialWheelRendererTest {
             ClientAbility cheap = costing(AFFORDABLE);
             ClientAbility dear = costing(UNAFFORDABLE);
 
-            assertEquals("1", RadialWheelRenderer.fanSlot(cheap, HOLDINGS).costLabel());
-            assertEquals("2", RadialWheelRenderer.fanSlot(dear, HOLDINGS).costLabel());
+            assertEquals("1K", RadialWheelRenderer.fanSlot(cheap, HOLDINGS).costLabel());
+            assertEquals("2K", RadialWheelRenderer.fanSlot(dear, HOLDINGS).costLabel());
         }
 
         @Test
         void centerReadsTheTypesHoldings() {
-            assertEquals("1.5", RadialWheelRenderer.holdingsLabel(HOLDINGS));
-            assertEquals("16", RadialWheelRenderer.holdingsLabel(SIXTEEN_BLOBS));
+            assertEquals("1.5K", RadialWheelRenderer.holdingsLabel(HOLDINGS));
+            assertEquals("16K", RadialWheelRenderer.holdingsLabel(SIXTEEN_BLOBS));
         }
 
         @Test

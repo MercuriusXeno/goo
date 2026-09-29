@@ -37,12 +37,8 @@ public enum TapDripGrade {
 
     /** Server ticks per second, for the rate panel's label. */
     private static final int TICKS_PER_SECOND = 20;
-    /** Label text before the seconds one mB takes, below 1 mB/s. */
-    private static final String SECONDS_PER_MB_PREFIX = "1 mB/";
-    /** Label text after the seconds one mB takes. */
-    private static final String SECONDS_PER_MB_SUFFIX = " s";
-    /** Label text after mB per second. */
-    private static final String MB_PER_SECOND_SUFFIX = " mB/s";
+    /** Label text after the amount per second, with no unit word (decision valve-panel-reads-rate). */
+    private static final String PER_SECOND_SUFFIX = "/s";
     /** Decimal places a label computes to before trailing zeros drop. */
     private static final int LABEL_SCALE = 4;
 
@@ -70,25 +66,15 @@ public enum TapDripGrade {
 
     /**
      * The rate panel's label, computed from the grade's interval and volume
-     * so the text cannot drift from the rate: mB per second, or seconds per
-     * mB below 1 mB/s, where a truncated decimal would mislead
-     * (decision valve-panel-reads-rate).
+     * so the text cannot drift from the rate: the amount per second with no
+     * unit word (decisions valve-panel-reads-rate, amounts-format-by-magnitude-without-blob).
      *
-     * @return the label, such as "1 mB/3.2 s" or "20 mB/s"
+     * @return the label, such as "0.3125/s" or "20/s"
      */
     public String rateLabel() {
-        BigDecimal mbPerSecond = BigDecimal.valueOf((long) TICKS_PER_SECOND * dripVolume)
+        BigDecimal perSecond = BigDecimal.valueOf((long) TICKS_PER_SECOND * dripVolume)
                 .divide(BigDecimal.valueOf(intervalTicks), LABEL_SCALE, RoundingMode.HALF_UP);
-        if (mbPerSecond.compareTo(BigDecimal.ONE) < 0) {
-            BigDecimal secondsPerMb = BigDecimal.valueOf(intervalTicks)
-                    .divide(BigDecimal.valueOf((long) TICKS_PER_SECOND * dripVolume), LABEL_SCALE, RoundingMode.HALF_UP);
-            return SECONDS_PER_MB_PREFIX + plain(secondsPerMb) + SECONDS_PER_MB_SUFFIX;
-        }
-        return plain(mbPerSecond) + MB_PER_SECOND_SUFFIX;
-    }
-
-    private static String plain(BigDecimal value) {
-        return value.stripTrailingZeros().toPlainString();
+        return perSecond.stripTrailingZeros().toPlainString() + PER_SECOND_SUFFIX;
     }
 
     /**
