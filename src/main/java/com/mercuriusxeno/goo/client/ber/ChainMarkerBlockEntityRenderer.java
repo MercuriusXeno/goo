@@ -1,11 +1,13 @@
 package com.mercuriusxeno.goo.client.ber;
 
+import com.mercuriusxeno.goo.ability.program.ProgressiveAreaStep;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.ability.CrystalCloudVisual;
 import com.mercuriusxeno.goo.client.ability.FuseOrbVisual;
 import com.mercuriusxeno.goo.client.ability.GhostMineVisual;
 import com.mercuriusxeno.goo.client.ability.MetalSpikeVisual;
+import com.mercuriusxeno.goo.client.ability.SyncedSteps;
 import com.mercuriusxeno.goo.client.ber.style.NetherHoleStyles;
 import com.mercuriusxeno.goo.client.overlay.AimTracker;
 import com.mercuriusxeno.goo.client.throwing.ThrowFreezeState;
@@ -89,7 +91,11 @@ public class ChainMarkerBlockEntityRenderer
                 || ThrowFreezeState.isFrozenOnChainMarker(pos);
         state.placedFace = be.getPlacedFace();
         state.behaviorActive = be.getBehavior() != null;
+        state.behaviorAge = be.drawBehaviorAge(state.gameTime);
         state.minedLayers = be.getMinedLayers();
+        state.miningActive = state.behaviorActive
+                && SyncedSteps.first(be, ProgressiveAreaStep.class).isPresent();
+        state.lastLayerTick = be.getMinedLayersChangedAt();
     }
 
     @Override

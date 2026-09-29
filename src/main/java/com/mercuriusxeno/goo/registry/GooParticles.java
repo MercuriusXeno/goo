@@ -23,6 +23,15 @@ public class GooParticles {
     public static final DeferredHolder<ParticleType<?>, SimpleParticleType> GOO_SPARK =
         PARTICLE_TYPES.register("goo_spark", () -> new SimpleParticleType(false));
 
+    /**
+     * The particle a chain marker's explosion names in place of vanilla's
+     * explosion particles; its client provider spawns nothing, so the goo
+     * type's own burnout explosion is the one seen (decision
+     * elemental-explosion-per-type).
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> SILENT_BLAST =
+        PARTICLE_TYPES.register("silent_blast", () -> new SimpleParticleType(false));
+
     /** Color-tinted bubble particle spawned during goo extraction. */
     public static final DeferredHolder<ParticleType<?>, ParticleType<ColorParticleOption>> GOO_BUBBLE =
         PARTICLE_TYPES.register("goo_bubble", GooParticles::colorParticleType);

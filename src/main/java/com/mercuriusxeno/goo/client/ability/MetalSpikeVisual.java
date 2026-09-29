@@ -46,8 +46,11 @@ public final class MetalSpikeVisual {
     private static final int EMERGE_LEAD = 2;
     /** Ticks the spike holds at full extension after it lands. */
     private static final int HOLD_TICKS = 3;
-    /** Blob contraction scale during windup (0 = no change, positive = smaller). */
-    private static final float WINDUP_CONTRACT = 0.30f;
+    /** How far the windup shake swings the orb either side of resting size, at its peak. */
+    static final float SHAKE_AMPLITUDE = 0.15f;
+    /** Ticks per cycle of the windup shake. */
+    static final float SHAKE_PERIOD = 1.5f;
+    private static final double TWO_PI = 2 * Math.PI;
 
     private MetalSpikeVisual() {
     }
@@ -103,28 +106,25 @@ public final class MetalSpikeVisual {
     }
 
     /**
-     * Computes the blob contraction scale for one spike: the orb squeezes
-     * through the windup and returns to size as the spike emerges.
+     * Computes the orb's shake for one spike (decision
+     * orchestration-animation-per-ability): through the windup the orb
+     * oscillates rapidly about resting size, building toward the strike,
+     * and comes to rest on the tick the spike lands. Outside a windup the
+     * orb is still.
      *
      * @param age         the spike's age in ticks
      * @param partialTick the partial tick for smooth interpolation
      * @param strikeTick  the age at which the spike lands
-     * @return scale multiplier for the orb, in [1 - WINDUP_CONTRACT, 1]
+     * @return scale multiplier for the orb, within SHAKE_AMPLITUDE of 1
      */
-    static float blobContraction(int age, float partialTick, int strikeTick) {
+    static float blobShake(int age, float partialTick, int strikeTick) {
         float t = age + partialTick;
-        int emerge = strikeTick - EMERGE_LEAD;
-        if (t < 0) {
+        if (t < 0 || t >= strikeTick) {
             return 1f;
         }
-        if (t < emerge) {
-            float contractCurve = (float) Math.sin(t / emerge * Math.PI);
-            return 1f - WINDUP_CONTRACT * contractCurve;
-        }
-        if (t < strikeTick) {
-            return 1f - WINDUP_CONTRACT * (1f - (t - emerge) / EMERGE_LEAD);
-        }
-        return 1f;
+        float buildUp = t / strikeTick;
+        double phase = TWO_PI * (strikeTick - t) / SHAKE_PERIOD;
+        return 1f + SHAKE_AMPLITUDE * buildUp * (float) Math.sin(phase);
     }
 
     /**
