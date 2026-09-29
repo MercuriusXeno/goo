@@ -31,8 +31,7 @@ public final class CrystallizerHudRenderer {
     private static final HudAnimator<BlockPos> ANIMATOR = new HudAnimator<>(BlockPos::equals);
     private static final int HEADER_COLOR = 0xFFE0C8FF;
     private static final String CRYSTALLIZER_NAME_KEY = "block.goo.crystallizer";
-    private static final double BLOCK_CENTER = 0.5;
-    private static final double BLOCK_TOP = 1.0;
+    private static final double HALF = 0.5;
 
     private CrystallizerHudRenderer() {
     }
@@ -55,7 +54,7 @@ public final class CrystallizerHudRenderer {
             return;
         }
         Camera camera = Minecraft.getInstance().gameRenderer.getMainCamera();
-        paintPanel(event.getPoseStack(), camera, pos);
+        paintPanel(event.getPoseStack(), camera, crystallizer);
     }
 
     /**
@@ -88,18 +87,21 @@ public final class CrystallizerHudRenderer {
     }
 
     /**
-     * Paints the crystal panel over the crystallizer's top, a header naming the crystallizer.
+     * Paints the crystal panel beside the crystal, a header naming the crystallizer.
      *
-     * @param poseStack the pose stack for rendering
-     * @param camera    the render camera
-     * @param pos       the crystallizer's position
+     * @param poseStack    the pose stack for rendering
+     * @param camera       the render camera
+     * @param crystallizer the crystallizer whose crystal the panel reports
      */
-    private static void paintPanel(PoseStack poseStack, Camera camera, BlockPos pos) {
-        Vec3 anchor = new Vec3(pos.getX() + BLOCK_CENTER, pos.getY() + BLOCK_TOP, pos.getZ() + BLOCK_CENTER);
-        PanelPlacement placement = PanelPlacement.onFace(anchor, Direction.UP, false,
-                ANIMATOR.pitch(), ANIMATOR.opacity());
+    private static void paintPanel(PoseStack poseStack, Camera camera, CrystallizerBlockEntity crystallizer) {
         List<PanelRow> rows = List.of(PanelRow.header(
                 Component.translatable(CRYSTALLIZER_NAME_KEY).getString(), HEADER_COLOR));
-        PanelPainter.paint(poseStack, camera, placement, rows);
+        double panelHalfWidth = PanelPainter.measure(rows, Minecraft.getInstance().font::width).width()
+                * InWorldHud.PIXEL_SCALE * HALF;
+        Vec3 anchor = CrystallizerHudAnchor.besideCrystal(crystallizer.getBlockPos(),
+                crystallizer.getBlockState().getValue(CrystallizerBlock.FACING), crystallizer.crystallized(),
+                camera.position(), panelHalfWidth);
+        PanelPainter.paint(poseStack, camera,
+                CrystallizerHudAnchor.placement(anchor, ANIMATOR.pitch(), ANIMATOR.opacity()), rows);
     }
 }
