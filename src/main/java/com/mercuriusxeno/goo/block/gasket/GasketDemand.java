@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.block.gasket;
 
 import net.neoforged.neoforge.transfer.ResourceHandler;
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
+import org.jspecify.annotations.Nullable;
 import java.util.OptionalInt;
 
 /**
@@ -43,8 +44,17 @@ public interface GasketDemand {
      * @return the demand, in mB per tick
      */
     static int demandOf(ResourceHandler<FluidResource> receiver, FluidResource resource, int sourceHolds) {
-        OptionalInt stated = receiver instanceof GasketDemand demanding
-                ? demanding.statedDemand(resource) : OptionalInt.empty();
-        return stated.orElseGet(() -> defaultDemand(resource, sourceHolds));
+        return statedDemandOf(receiver, resource).orElseGet(() -> defaultDemand(resource, sourceHolds));
+    }
+
+    /**
+     * The demand a receiver states of its own, the one a link relays upstream.
+     *
+     * @param receiver the receiver's fluid handler, or null when there is none
+     * @param resource the fluid it would receive
+     * @return its stated demand, or empty when it states none
+     */
+    static OptionalInt statedDemandOf(@Nullable ResourceHandler<FluidResource> receiver, FluidResource resource) {
+        return receiver instanceof GasketDemand demanding ? demanding.statedDemand(resource) : OptionalInt.empty();
     }
 }

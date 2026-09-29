@@ -36,6 +36,7 @@ import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import net.neoforged.neoforge.transfer.fluid.FluidUtil;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.UUID;
 
@@ -90,6 +91,7 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
                 CanisterBlockEntity::buildCompositeShape,
                 slot -> level == null || CanisterPlacementValidator.isSlotAllowed(level, worldPosition, slot),
                 this::admitsFluid);
+        this.state.setMachineDemand(this::machineDemand);
         gasket.rebuildPushers(this.state::rebuildAllPushers);
         gasket.afterLoad(() -> {
             if (level instanceof ServerLevel serverLevel) {
@@ -109,6 +111,18 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
     private boolean admitsFluid(int slot, FluidResource incoming) {
         return level == null || !(level.getBlockEntity(worldPosition.below()) instanceof ICanisterAttachable machine)
                 || machine.admitsGoo(slot, GooFluids.keyOf(incoming));
+    }
+
+    /**
+     * The demand the attachable machine below states for a slot, or none.
+     *
+     * @param slot     the slot index
+     * @param incoming the fluid arriving
+     * @return the machine's stated demand, or empty
+     */
+    private OptionalInt machineDemand(int slot, FluidResource incoming) {
+        return level != null && level.getBlockEntity(worldPosition.below()) instanceof ICanisterAttachable machine
+                ? machine.statedDemand(slot, GooFluids.keyOf(incoming)) : OptionalInt.empty();
     }
 
     /**
