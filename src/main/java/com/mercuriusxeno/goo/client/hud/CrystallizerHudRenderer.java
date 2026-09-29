@@ -33,7 +33,6 @@ import java.util.List;
 public final class CrystallizerHudRenderer {
 
     private static final HudAnimator<BlockPos> ANIMATOR = new HudAnimator<>(BlockPos::equals);
-    private static final double HALF = 0.5;
 
     private CrystallizerHudRenderer() {
     }
@@ -89,7 +88,7 @@ public final class CrystallizerHudRenderer {
     }
 
     /**
-     * Paints the crystal panel beside the crystal: the tier reached, then the forming
+     * Paints the crystal panel above the crystal: the tier reached, then the forming
      * goo's volume over the dial tier's. A dial at off or a crystal with no forming goo paints nothing.
      *
      * @param poseStack    the pose stack for rendering
@@ -104,11 +103,8 @@ public final class CrystallizerHudRenderer {
         }
         List<PanelRow> rows = CrystallizerPanelRows.rows(formingType, crystallizer.crystallized(), knobTier,
                 tier -> Component.translatable(tier.translationKey(), GooTypeNames.name(formingType)).getString());
-        double panelHalfWidth = PanelPainter.measure(rows, Minecraft.getInstance().font::width).width()
-                * InWorldHud.PIXEL_SCALE * HALF;
-        Vec3 anchor = CrystallizerHudAnchor.besideCrystal(crystallizer.getBlockPos(),
-                crystallizer.getBlockState().getValue(CrystallizerBlock.FACING), crystallizer.crystallized(),
-                camera.position(), panelHalfWidth);
+        Vec3 anchor = CrystallizerHudAnchor.aboveCrystal(crystallizer.getBlockPos(),
+                crystallizer.getBlockState().getValue(CrystallizerBlock.FACING), crystallizer.crystallized());
         PanelPainter.paint(poseStack, camera,
                 CrystallizerHudAnchor.placement(anchor, ANIMATOR.pitch(), ANIMATOR.opacity()), rows);
     }
