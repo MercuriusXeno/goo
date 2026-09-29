@@ -10,7 +10,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.BlockHitResult;
 import org.jspecify.annotations.Nullable;
-import java.util.function.Predicate;
+import java.util.Set;
 
 /**
  * Shared interaction infrastructure for slot-based goo blocks.
@@ -24,40 +24,61 @@ public final class GooBlockInteraction {
      */
     private static final String UNCHECKED = "unchecked";
 
-    /**
-     * Sentinel value: no matching slot found.
-     */
-
     private GooBlockInteraction() {
     }
 
     /**
-     * Full item interaction flow: classify -> validate -> dispatch.
-     * Call from useItemOn().
+     * Full item interaction flow for a machine whose clicks aim at no canister slot:
+     * classify -> validate -> dispatch.
      *
-     * @param stack             the held item stack
-     * @param level             the world
-     * @param pos               the block position
-     * @param player            the interacting player
-     * @param hand              the hand used
-     * @param hitResult         the block hit result
-     * @param entityType        expected block entity class
-     * @param rejectAsEmptyHand predicate returning true for interaction types that should
-     *                          fall through to useWithoutItem (e.g. null)
-     * @param dispatcher        block-specific dispatch function
-     * @param <T>               the block entity type
+     * @param stack      the held item stack
+     * @param level      the world
+     * @param pos        the block position
+     * @param player     the interacting player
+     * @param hand       the hand used
+     * @param hitResult  the block hit result
+     * @param entityType expected block entity class
+     * @param rows       the interaction types this machine's dispatcher answers
+     * @param dispatcher block-specific dispatch function
+     * @param <T>        the block entity type
      * @return the interaction result
      */
     public static <T extends BlockEntity> InteractionResult handleItemInteraction(
             ItemStack stack, Level level, BlockPos pos, Player player,
             InteractionHand hand, BlockHitResult hitResult,
-            Class<T> entityType,
-            Predicate<@Nullable GooInteractionType> rejectAsEmptyHand,
+            Class<T> entityType, Set<GooInteractionType> rows,
             Dispatcher<T> dispatcher) {
+        return handleItemInteraction(stack, level, pos, player, hand, hitResult,
+                entityType, (entity, hit) -> false, rows, dispatcher);
+    }
 
-        GooInteractionType interaction = GooInteractionType.classify(stack);
-        InteractionResult earlyOut = validate(
-                interaction, level, pos, player, entityType, rejectAsEmptyHand);
+    /**
+     * Full item interaction flow: classify against the aimed slot -> validate -> dispatch.
+     * Call from useItemOn().
+     *
+     * @param stack      the held item stack
+     * @param level      the world
+     * @param pos        the block position
+     * @param player     the interacting player
+     * @param hand       the hand used
+     * @param hitResult  the block hit result
+     * @param entityType expected block entity class
+     * @param targetSlot reports whether the hit aims at a slot holding a canister
+     * @param rows       the interaction types this machine's dispatcher answers
+     * @param dispatcher block-specific dispatch function
+     * @param <T>        the block entity type
+     * @return the interaction result
+     */
+    public static <T extends BlockEntity> InteractionResult handleItemInteraction(
+            ItemStack stack, Level level, BlockPos pos, Player player,
+            InteractionHand hand, BlockHitResult hitResult,
+            Class<T> entityType, TargetSlot<T> targetSlot,
+            Set<GooInteractionType> rows, Dispatcher<T> dispatcher) {
+        BlockEntity found = level.getBlockEntity(pos);
+        boolean targetSlotFilled = entityType.isInstance(found)
+                && targetSlot.holdsCanister(entityType.cast(found), hitResult);
+        GooInteractionType interaction = GooInteractionType.classify(stack, targetSlotFilled);
+        InteractionResult earlyOut = validate(interaction, level, pos, player, entityType, rows);
         if (earlyOut != null) {
             return earlyOut;
         }
@@ -68,27 +89,36 @@ public final class GooBlockInteraction {
     }
 
     /**
+     * Takes one of the held item on an insert, leaving it in hand for a creative player:
+     * the one creative consume rule every machine insert shares
+     * (decision every-machine-clicks-through-the-dispatcher).
+     *
+     * @param stack  the held item stack
+     * @param player the interacting player
+     */
+    public static void consumeOneHeld(ItemStack stack, Player player) {
+        stack.consume(1, player);
+    }
+
+    /**
      * Shared validation for item interactions.
      * Returns an early-out result or null to continue.
      *
-     * @param <T>               the block entity type
-     * @param interaction       the classified interaction type, or null
-     * @param level             the world
-     * @param pos               the block position
-     * @param player            the interacting player
-     * @param entityType        expected block entity class
-     * @param rejectAsEmptyHand predicate returning true for types that fall through
+     * @param <T>         the block entity type
+     * @param interaction the classified interaction type, or null
+     * @param level       the world
+     * @param pos         the block position
+     * @param player      the interacting player
+     * @param entityType  expected block entity class
+     * @param rows        the interaction types the machine's dispatcher answers
      * @return an early-out result, or null to continue dispatch
      */
     static <T extends BlockEntity> @Nullable InteractionResult validate(
             @Nullable GooInteractionType interaction, Level level,
             BlockPos pos, Player player, Class<T> entityType,
-            Predicate<@Nullable GooInteractionType> rejectAsEmptyHand) {
-        if (rejectAsEmptyHand.test(interaction)) {
-            return InteractionResult.TRY_WITH_EMPTY_HAND;
-        }
-        if (interaction == GooInteractionType.TUNER_PASS) {
-            return InteractionResult.PASS;
+            Set<GooInteractionType> rows) {
+        if (interaction == null || !rows.contains(interaction)) {
+            return unansweredRow(interaction);
         }
         if (level.isClientSide()) {
             return InteractionResult.SUCCESS;
@@ -97,6 +127,18 @@ public final class GooBlockInteraction {
             return InteractionResult.PASS;
         }
         return checkCooldown(interaction, level, player);
+    }
+
+    /**
+     * The answer to a click no row of the machine takes: the tuner and the gasket pass on
+     * to their own use, and every other item tries the empty-hand path.
+     *
+     * @param interaction the classified interaction type, or null
+     * @return PASS or TRY_WITH_EMPTY_HAND
+     */
+    private static InteractionResult unansweredRow(@Nullable GooInteractionType interaction) {
+        return interaction != null && interaction.passesToItem()
+                ? InteractionResult.PASS : InteractionResult.TRY_WITH_EMPTY_HAND;
     }
 
     /**
@@ -134,6 +176,16 @@ public final class GooBlockInteraction {
             return InteractionResult.SUCCESS;
         }
         return null;
+    }
+
+    /**
+     * Reports whether a hit on a machine aims at a canister slot that holds a canister.
+     *
+     * @param <T> the block entity type
+     */
+    @FunctionalInterface
+    public interface TargetSlot<T extends BlockEntity> {
+        boolean holdsCanister(T entity, BlockHitResult hitResult);
     }
 
     /**

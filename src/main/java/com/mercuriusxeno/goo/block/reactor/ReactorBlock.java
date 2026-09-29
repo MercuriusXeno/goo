@@ -142,7 +142,7 @@ public class ReactorBlock extends FacingRedstoneMachineBlock {
         if (!reactor.insertOutputCanister(stack)) {
             return InteractionResult.PASS;
         }
-        stack.consume(1, player);
+        GooBlockInteraction.consumeOneHeld(stack, player);
         level.playSound(null, pos, SoundEvents.DECORATED_POT_INSERT,
                 SoundSource.BLOCKS, 1.0f, 1.0f);
         return InteractionResult.SUCCESS;
@@ -260,7 +260,7 @@ public class ReactorBlock extends FacingRedstoneMachineBlock {
             @NonNull ItemStack stack, @NonNull BlockState state,
             Level level, @NonNull BlockPos pos, @NonNull Player player,
             @NonNull InteractionHand hand, @NonNull BlockHitResult hitResult) {
-        if (GooInteractionType.classify(stack) == GooInteractionType.TUNER_PASS) {
+        if (heldItemUsesItself(stack)) {
             return InteractionResult.PASS;
         }
         if (!(stack.getItem() instanceof CanisterItem)) {
@@ -276,6 +276,17 @@ public class ReactorBlock extends FacingRedstoneMachineBlock {
             return InteractionResult.PASS;
         }
         return handleCanisterInteraction(reactor, stack, player, level, pos);
+    }
+
+    /**
+     * Reports whether the held item is a tuner or a gasket, whose own use answers the click.
+     *
+     * @param stack the held item stack
+     * @return true when the reactor passes the click on
+     */
+    private static boolean heldItemUsesItself(ItemStack stack) {
+        GooInteractionType interaction = GooInteractionType.classify(stack);
+        return interaction != null && interaction.passesToItem();
     }
 
     /**

@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.block.vat;
 
+import com.mercuriusxeno.goo.block.GooBlockInteraction;
 import com.mercuriusxeno.goo.item.BlobInsert;
 import com.mercuriusxeno.goo.item.GooDeposit;
 import com.mercuriusxeno.goo.item.GooOmniblobItem;
@@ -95,20 +96,8 @@ final class VatInteractionHandler {
         if (!GasketInstallHelper.installBlockGasket(vat.getLevel(), vat.getBlockPos(), vat, role)) {
             return InteractionResult.PASS;
         }
-        consumeIfSurvival(stack, player);
+        GooBlockInteraction.consumeOneHeld(stack, player);
         return InteractionResult.SUCCESS;
-    }
-
-    /**
-     * Shrinks the stack by one unless the player is in creative mode.
-     *
-     * @param stack  the item stack to consume from
-     * @param player the interacting player
-     */
-    private static void consumeIfSurvival(ItemStack stack, Player player) {
-        if (!player.isCreative()) {
-            stack.shrink(1);
-        }
     }
 
     // --- Blob handlers ---

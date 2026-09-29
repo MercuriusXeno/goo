@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.block.canister;
 import com.mercuriusxeno.goo.GooConstants;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.block.BlockEntitySync;
+import com.mercuriusxeno.goo.block.GooBlockInteraction;
 import com.mercuriusxeno.goo.block.GooGlowingMachineBlockEntity;
 import com.mercuriusxeno.goo.block.IGooReceptacle;
 import com.mercuriusxeno.goo.block.gasket.GasketAttachment;
@@ -465,7 +466,7 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
         if (!tryInsertCanister(hitResult, stack, player.isCreative())) {
             return InteractionResult.PASS;
         }
-        stack.consume(1, player);
+        GooBlockInteraction.consumeOneHeld(stack, player);
         playInsertSound();
         return InteractionResult.SUCCESS;
     }
