@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.resources.ResourceKey;
 
 /**
@@ -18,6 +19,17 @@ public interface BurnoutVisual {
      * @return how many ticks the explosion plays before its entry is dropped
      */
     int durationTicks();
+
+    /**
+     * Starts one burnout's explosion, once, as the client adds it: the place
+     * for effects the level owns, such as particles.
+     *
+     * @param burnout the burnout
+     * @param level   the client level
+     */
+    default void begin(ChainBurnouts.Burnout burnout, ClientLevel level) {
+        // An explosion drawn wholly by its shader starts nothing.
+    }
 
     /**
      * Draws one burnout at its point in the explosion.
