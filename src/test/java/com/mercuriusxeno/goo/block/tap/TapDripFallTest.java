@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.block.tap;
 
-import com.mercuriusxeno.goo.DripFall;
+import com.mercuriusxeno.goo.throwing.DripFall;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;

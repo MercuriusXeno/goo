@@ -1,4 +1,4 @@
-package com.mercuriusxeno.goo;
+package com.mercuriusxeno.goo.throwing;
 
 import net.minecraft.world.phys.Vec3;
 

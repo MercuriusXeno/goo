@@ -1,10 +1,10 @@
 package com.mercuriusxeno.goo.gametest;
 
 import com.google.gson.JsonObject;
-import com.mercuriusxeno.goo.GooTypes;
-import com.mojang.serialization.JsonOps;
 import com.mercuriusxeno.goo.item.BlobStacks;
 import com.mercuriusxeno.goo.registry.GooItems;
+import com.mercuriusxeno.goo.type.GooTypes;
+import com.mojang.serialization.JsonOps;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.entity.player.Player;

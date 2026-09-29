@@ -1,4 +1,4 @@
-package com.mercuriusxeno.goo;
+package com.mercuriusxeno.goo.type;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
@@ -8,10 +8,13 @@ import net.minecraft.core.Registry;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.MinecraftServer;
+import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import org.jspecify.annotations.Nullable;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 
 /**
  * Keys into the {@code goo:goo_type} datapack registry: the registry key
@@ -26,6 +29,11 @@ public final class GooTypes {
      * {@code data/<namespace>/goo/} that holds each type's JSON.
      */
     public static final String REGISTRY_PATH = "goo_type";
+    /**
+     * The mod's namespace, held here so the type package reaches no goo
+     * package (decision type-package-and-per-server-holders).
+     */
+    public static final String NAMESPACE = "goo";
     private static final String UNKNOWN_ID = "Not a goo type id: ";
     private static final char NAMESPACE_SEPARATOR = ':';
 
@@ -33,7 +41,7 @@ public final class GooTypes {
      * The datapack registry every goo type lives in.
      */
     public static final ResourceKey<Registry<GooTypeDefinition>> REGISTRY =
-            ResourceKey.createRegistryKey(Identifier.fromNamespaceAndPath(Goo.MODID, REGISTRY_PATH));
+            ResourceKey.createRegistryKey(Identifier.fromNamespaceAndPath(NAMESPACE, REGISTRY_PATH));
 
     /**
      * A type key as its id, the form the GOO_TYPE data component persists
@@ -93,11 +101,12 @@ public final class GooTypes {
             .thenComparing(key -> key.identifier().getPath());
 
     /**
-     * The keys of every type the registry held when a level last captured
-     * them, in {@link #ORDER}; the bundled set until a level does.
+     * Reads the client connection's types; the client setup installs it once
+     * and a dedicated server leaves it answering none. A hook, holding no types
+     * itself (decision type-package-and-per-server-holders).
      */
-    private static final AtomicReference<List<ResourceKey<GooTypeDefinition>>> CAPTURED =
-            new AtomicReference<>(BUNDLED);
+    private static final AtomicReference<Supplier<@Nullable List<ResourceKey<GooTypeDefinition>>>> CONNECTION_ORDER =
+            new AtomicReference<>(() -> null);
 
     private GooTypes() {
     }
@@ -109,7 +118,7 @@ public final class GooTypes {
      * @return the key addressing that type in {@link #REGISTRY}
      */
     public static ResourceKey<GooTypeDefinition> bundled(String path) {
-        return ResourceKey.create(REGISTRY, Identifier.fromNamespaceAndPath(Goo.MODID, path));
+        return ResourceKey.create(REGISTRY, Identifier.fromNamespaceAndPath(NAMESPACE, path));
     }
 
     /**
@@ -118,7 +127,7 @@ public final class GooTypes {
      */
     public static String id(ResourceKey<GooTypeDefinition> key) {
         Identifier identifier = key.identifier();
-        return Goo.MODID.equals(identifier.getNamespace()) ? identifier.getPath() : identifier.toString();
+        return NAMESPACE.equals(identifier.getNamespace()) ? identifier.getPath() : identifier.toString();
     }
 
     /**
@@ -127,17 +136,17 @@ public final class GooTypes {
      */
     public static @Nullable ResourceKey<GooTypeDefinition> byId(String id) {
         Identifier identifier = id.indexOf(NAMESPACE_SEPARATOR) < 0
-                ? Identifier.tryBuild(Goo.MODID, id)
+                ? Identifier.tryBuild(NAMESPACE, id)
                 : Identifier.tryParse(id);
         return identifier == null ? null : ResourceKey.create(REGISTRY, identifier);
     }
 
     /**
-     * The key an id names when the last capture holds that type, which is
+     * The key an id names when this side holds that type, which is
      * what a payload from a client is checked against.
      *
      * @param id a bare path or a namespaced id
-     * @return the key, or null for text naming no captured type
+     * @return the key, or null for text naming no type this side holds
      */
     public static @Nullable ResourceKey<GooTypeDefinition> known(String id) {
         ResourceKey<GooTypeDefinition> key = byId(id);
@@ -145,12 +154,12 @@ public final class GooTypes {
     }
 
     /**
-     * Parses an id the way the enum's valueOf did: text naming a type the
-     * last capture holds answers its key, and anything else is refused.
+     * Parses an id the way the enum's valueOf did: text naming a type this
+     * side holds answers its key, and anything else is refused.
      *
      * @param id a bare path or a namespaced id
      * @return the key it names
-     * @throws IllegalArgumentException for text naming no captured type
+     * @throws IllegalArgumentException for text naming no type this side holds
      */
     public static ResourceKey<GooTypeDefinition> parseKnown(String id) {
         ResourceKey<GooTypeDefinition> key = known(id);
@@ -190,27 +199,35 @@ public final class GooTypes {
     }
 
     /**
-     * Captures the registry's keys for code that runs with no level in
-     * hand, such as item fluid handlers and the radial wheel. A server
-     * captures at datapack sync and a client at login; the dynamic registry
-     * stands unchanged between those.
+     * The keys of every type this side holds, for code that runs with no
+     * level in hand, such as fluid tanks and the radial wheel: the running
+     * server's types, else the client connection's, else the bundled set. A
+     * singleplayer client and its server hold the same types
+     * (decision type-package-and-per-server-holders).
      *
-     * @param registries the registry access of the level in hand
+     * @return the keys, in {@link #ORDER}
      */
-    public static void capture(HolderLookup.Provider registries) {
-        CAPTURED.set(all(registries));
+    public static List<ResourceKey<GooTypeDefinition>> order() {
+        MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+        if (server instanceof GooTypeOrderSource source) {
+            return source.gooTypeOrder();
+        }
+        List<ResourceKey<GooTypeDefinition>> connectionOrder = CONNECTION_ORDER.get().get();
+        return connectionOrder != null ? connectionOrder : BUNDLED;
     }
 
     /**
-     * @return the keys the last capture held, in {@link #ORDER}, or the bundled set before any capture
+     * Installs the reader of the client connection's types, from the client setup.
+     *
+     * @param connectionOrder answers the connection's types, or null while no connection stands
      */
-    public static List<ResourceKey<GooTypeDefinition>> order() {
-        return CAPTURED.get();
+    public static void readConnectionOrderFrom(Supplier<@Nullable List<ResourceKey<GooTypeDefinition>>> connectionOrder) {
+        CONNECTION_ORDER.set(connectionOrder);
     }
 
     /**
      * @param key a goo type's key
-     * @return its position in {@link #order()}, or -1 for a key the capture does not hold
+     * @return its position in {@link #order()}, or -1 for a key this side does not hold
      */
     public static int indexOf(ResourceKey<GooTypeDefinition> key) {
         return order().indexOf(key);

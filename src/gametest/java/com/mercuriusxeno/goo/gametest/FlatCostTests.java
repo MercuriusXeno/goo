@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
@@ -9,6 +8,7 @@ import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.network.BlobThrowHandler;
 import com.mercuriusxeno.goo.network.BlobThrowPayload;
 import com.mercuriusxeno.goo.registry.GooBlocks;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -40,7 +40,7 @@ public final class FlatCostTests {
      * @param helper the gametest helper
      */
     public static void secondThrowCostsTheSameAsTheFirst(GameTestHelper helper) {
-        AbilityDefinition sphere = AbilityRegistry.getAbility(FROST_SPHERE);
+        AbilityDefinition sphere = AbilityRegistry.of(helper.getLevel()).getAbility(FROST_SPHERE);
         helper.assertTrue(sphere != null, ABILITY_REQUIRED);
         placeMarker(helper, sphere);
         ServerPlayer player = StackKeyTests.makeFrostThrower(helper);

@@ -1,8 +1,7 @@
 package com.mercuriusxeno.goo.gametest;
 
-import com.mercuriusxeno.goo.CutawayInteractionHelper;
+import com.mercuriusxeno.goo.block.plexer.CutawayInteractionHelper;
 import com.mercuriusxeno.goo.GooConfig;
-import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
 import com.mercuriusxeno.goo.block.hub.HubBlock;
 import com.mercuriusxeno.goo.block.hub.HubBlockEntity;
@@ -18,6 +17,7 @@ import com.mercuriusxeno.goo.item.ContainerCapacity;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooFluids;
 import com.mercuriusxeno.goo.registry.GooItems;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;

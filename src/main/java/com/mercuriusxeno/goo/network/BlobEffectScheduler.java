@@ -1,8 +1,6 @@
 package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.GooTypeDefinition;
-import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.program.EntityHost;
@@ -11,6 +9,8 @@ import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
 import com.mercuriusxeno.goo.ability.world.AbilityImpact;
 import com.mercuriusxeno.goo.registry.GooSounds;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
@@ -28,10 +28,11 @@ import java.util.List;
 
 /**
  * Schedules and applies delayed goo effects after blob flight completes.
- * Manages the pending-effect queue and plays impact sounds on arrival.
+ * Each server holds one, so its pending effects end with the server
+ * (decision type-package-and-per-server-holders); it plays impact sounds on arrival.
  * Extracted from {@link BlobThrowHandler} to keep per-class method counts manageable.
  */
-final class BlobEffectScheduler {
+public final class BlobEffectScheduler {
 
     /**
      * Sound volume for throw event.
@@ -82,10 +83,7 @@ final class BlobEffectScheduler {
     /**
      * Pending effects waiting for their blob to arrive.
      */
-    private static final List<PendingEffect> PENDING_EFFECTS = new ArrayList<>();
-
-    private BlobEffectScheduler() {
-    }
+    private final List<PendingEffect> pendingEffects = new ArrayList<>();
 
     /**
      * Plays the throw sound and queues a pending effect for blob arrival.
@@ -95,7 +93,7 @@ final class BlobEffectScheduler {
      * @param gooType     the goo type being thrown
      * @param travelTicks the number of ticks until arrival
      */
-    static void scheduleEffect(ServerPlayer player, BlobThrowPayload payload,
+    void scheduleEffect(ServerPlayer player, BlobThrowPayload payload,
                                ResourceKey<GooTypeDefinition> gooType, int travelTicks) {
         playThrowSound(player, gooType);
         enqueueArrival(player, payload, gooType, travelTicks);
@@ -126,15 +124,24 @@ final class BlobEffectScheduler {
      * @param gooType     the goo type being thrown
      * @param travelTicks the number of ticks until arrival
      */
-    static void enqueueArrival(ServerPlayer player, BlobThrowPayload payload,
+    void enqueueArrival(ServerPlayer player, BlobThrowPayload payload,
                                ResourceKey<GooTypeDefinition> gooType, int travelTicks) {
         ServerLevel level = player.level();
         int arrivalTick = level.getServer().getTickCount() + travelTicks;
         Direction face = BlobThrowHandler.directionFromOrdinal(payload.targetFace());
-        PENDING_EFFECTS.add(new PendingEffect(
+        enqueue(new PendingEffect(
                 arrivalTick, level, player, gooType,
                 payload.targetEntityId(), payload.targetPos(), face,
                 payload.abilityId()));
+    }
+
+    /**
+     * Queues an effect to apply on its arrival tick.
+     *
+     * @param effect the pending effect
+     */
+    public void enqueue(PendingEffect effect) {
+        pendingEffects.add(effect);
     }
 
     /**
@@ -142,8 +149,15 @@ final class BlobEffectScheduler {
      *
      * @return true if the queue is non-empty
      */
-    static boolean hasPending() {
-        return !PENDING_EFFECTS.isEmpty();
+    public boolean hasPending() {
+        return !pendingEffects.isEmpty();
+    }
+
+    /**
+     * Drops every pending effect, as a server stop does.
+     */
+    public void clear() {
+        pendingEffects.clear();
     }
 
     /**
@@ -151,9 +165,9 @@ final class BlobEffectScheduler {
      *
      * @param currentTick the current server tick
      */
-    static void drainArrivedEffects(int currentTick) {
+    public void drainArrivedEffects(int currentTick) {
         List<PendingEffect> ready = new ArrayList<>();
-        Iterator<PendingEffect> it = PENDING_EFFECTS.iterator();
+        Iterator<PendingEffect> it = pendingEffects.iterator();
         while (it.hasNext()) {
             PendingEffect pe = it.next();
             if (currentTick >= pe.arrivalTick) {
@@ -194,18 +208,18 @@ final class BlobEffectScheduler {
             return;
         }
         playImpactSound(pe.level, living.getX(), living.getY(), living.getZ());
-        AbilityDefinition def = resolveAbility(pe.abilityId);
+        AbilityDefinition def = resolveAbility(pe.level, pe.abilityId);
         if (def != null) {
             runEntityProgram(pe, def, living);
         }
     }
 
-    private static AbilityDefinition resolveAbility(String abilityId) {
+    private static AbilityDefinition resolveAbility(ServerLevel level, String abilityId) {
         Identifier id = Identifier.tryParse(abilityId);
         if (id == null) {
             return null;
         }
-        return AbilityRegistry.getAbility(id);
+        return AbilityRegistry.of(level).getAbility(id);
     }
 
     /**
@@ -254,7 +268,7 @@ final class BlobEffectScheduler {
         if (id == null) {
             return;
         }
-        AbilityDefinition def = AbilityRegistry.getAbility(id);
+        AbilityDefinition def = AbilityRegistry.of(pe.level).getAbility(id);
         if (def == null) {
             return;
         }
@@ -277,8 +291,17 @@ final class BlobEffectScheduler {
 
     /**
      * A goo effect waiting for its blob to finish travelling.
+     *
+     * @param arrivalTick    the server tick the blob lands on
+     * @param level          the level it lands in
+     * @param thrower        the throwing player
+     * @param gooType        the goo type thrown
+     * @param targetEntityId the struck entity's id, or -1 for a block
+     * @param targetPos      the struck block
+     * @param targetFace     the struck face
+     * @param abilityId      the ability the throw names, or empty
      */
-    record PendingEffect(int arrivalTick, ServerLevel level,
+    public record PendingEffect(int arrivalTick, ServerLevel level,
                          ServerPlayer thrower, ResourceKey<GooTypeDefinition> gooType,
                          int targetEntityId, BlockPos targetPos,
                          Direction targetFace, String abilityId) {

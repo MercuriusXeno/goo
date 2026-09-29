@@ -1,8 +1,8 @@
 package com.mercuriusxeno.goo.client;
 
-import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.fluid.GooFluidBlockEntity;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.client.renderer.block.BlockAndTintGetter;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;

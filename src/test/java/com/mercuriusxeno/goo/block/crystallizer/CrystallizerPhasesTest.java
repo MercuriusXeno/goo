@@ -1,10 +1,10 @@
 package com.mercuriusxeno.goo.block.crystallizer;
 
-import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.block.crystallizer.CrystallizerPhases.Held;
 import com.mercuriusxeno.goo.block.crystallizer.CrystallizerPhases.Roles;
 import com.mercuriusxeno.goo.block.crystallizer.CrystallizerPhases.Step;
 import com.mercuriusxeno.goo.item.ChrysmTier;
+import com.mercuriusxeno.goo.type.GooTypes;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;

@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.block.plexer;
 
-import com.mercuriusxeno.goo.CutawayInteractionHelper;
 import com.mercuriusxeno.goo.block.CutawayShapeHelper;
 import com.mercuriusxeno.goo.block.FacingRedstoneMachineBlock;
 import com.mercuriusxeno.goo.block.GooBlockInteraction;

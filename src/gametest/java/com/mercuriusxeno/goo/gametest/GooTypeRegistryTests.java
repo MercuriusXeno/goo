@@ -1,8 +1,6 @@
 package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.GooTypeDefinition;
-import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.GloveSelection;
@@ -11,6 +9,8 @@ import com.mercuriusxeno.goo.command.GooTypesCommand;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooItems;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
@@ -89,7 +89,7 @@ public final class GooTypeRegistryTests {
     public static void chainMarkerReloadsType(GameTestHelper helper) {
         helper.setBlock(MARKER_POS, GooBlocks.CHAIN_MARKER.get());
         ChainMarkerBlockEntity marker = helper.getBlockEntity(MARKER_POS, ChainMarkerBlockEntity.class);
-        AbilityDefinition frostSphere = AbilityRegistry.getAbility(FROST_SPHERE);
+        AbilityDefinition frostSphere = AbilityRegistry.of(helper.getLevel()).getAbility(FROST_SPHERE);
         helper.assertTrue(frostSphere != null, ABILITIES_REQUIRED);
         marker.initChainFromAbility(GooTypes.FROST, Direction.UP, frostSphere);
         CompoundTag saved = marker.getUpdateTag(helper.getLevel().registryAccess());

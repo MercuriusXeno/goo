@@ -1,21 +1,21 @@
 package com.mercuriusxeno.goo.gametest;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.GooConfig;
-import com.mercuriusxeno.goo.GooTypeDefinition;
-import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.block.crucible.CrucibleAimAssist;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBasin;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
 import com.mercuriusxeno.goo.block.crucible.CrucibleCapacity;
 import com.mercuriusxeno.goo.block.crucible.CrucibleMath;
 import com.mercuriusxeno.goo.block.crucible.CrucibleShape;
+import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.item.BlobStacks;
 import com.mercuriusxeno.goo.item.ChrysmTier;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.PartiallyMeltedItem;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooItems;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.component.DataComponents;
@@ -589,7 +589,7 @@ public final class CrucibleTests {
      */
     public static void itemStackMeltsWholeItemsThatFit(GameTestHelper helper) {
         CrucibleBlockEntity crucible = placeFueledCrucible(helper);
-        GooContents perItem = Goo.GOO_VALUES.lookup(BuiltInRegistries.ITEM.getKey(Items.COBBLESTONE)).toGooContents();
+        GooContents perItem = GooValues.of(helper.getLevel()).lookup(BuiltInRegistries.ITEM.getKey(Items.COBBLESTONE)).toGooContents();
         Map<ResourceKey<GooTypeDefinition>, Integer> room = new HashMap<>();
         perItem.getAll().forEach((type, amount) -> {
             crucible.insertGoo(type, CAP);
@@ -708,7 +708,7 @@ public final class CrucibleTests {
      */
     public static void itemMeltsOnItsClock(GameTestHelper helper) {
         CrucibleBlockEntity crucible = placeBlazeStockedCrucible(helper);
-        GooContents perItem = cobblestoneValue();
+        GooContents perItem = cobblestoneValue(helper);
         long clock = CrucibleMath.meltTicks(perItem.totalVolume(), GooConfig.BLAZE_MELT_EXPONENT.get());
         Map<Long, Long> meltedByTick = new HashMap<>();
         spawnInBasin(helper, new ItemStack(Items.COBBLESTONE));
@@ -728,7 +728,7 @@ public final class CrucibleTests {
      */
     public static void stackMeltsItemByItemInTurn(GameTestHelper helper) {
         CrucibleBlockEntity crucible = placeBlazeStockedCrucible(helper);
-        GooContents perItem = cobblestoneValue();
+        GooContents perItem = cobblestoneValue(helper);
         long stackVolume = perItem.totalVolume() * STACK_OF_FOUR;
         long clock = STACK_OF_FOUR * CrucibleMath.meltTicks(perItem.totalVolume(), GooConfig.BLAZE_MELT_EXPONENT.get());
         Map<Long, Long> meltedByTick = new HashMap<>();
@@ -750,7 +750,7 @@ public final class CrucibleTests {
     public static void comboMeltsEveryItemAtOnce(GameTestHelper helper) {
         CrucibleBlockEntity crucible = placeBlazeStockedCrucible(helper);
         crucible.insertGoo(GooTypes.UNSTABLE, UNSTABLE_STOCK);
-        GooContents perItem = cobblestoneValue();
+        GooContents perItem = cobblestoneValue(helper);
         long stackVolume = perItem.totalVolume() * STACK_OF_THREE;
         long clock = CrucibleMath.meltTicks(perItem.totalVolume(), GooConfig.UNSTABLE_MELT_EXPONENT.get());
         Map<Long, Long> meltedByTick = new HashMap<>();
@@ -770,7 +770,7 @@ public final class CrucibleTests {
      */
     public static void brokenMidMeltDropsTheRemainder(GameTestHelper helper) {
         CrucibleBlockEntity crucible = placeBlazeStockedCrucible(helper);
-        GooContents perItem = cobblestoneValue();
+        GooContents perItem = cobblestoneValue(helper);
         long halfway = CrucibleMath.meltTicks(perItem.totalVolume(), GooConfig.BLAZE_MELT_EXPONENT.get()) / 2;
         List<GooContents> unmelted = new ArrayList<>();
         spawnInBasin(helper, new ItemStack(Items.COBBLESTONE));
@@ -808,10 +808,11 @@ public final class CrucibleTests {
     /**
      * Returns one cobblestone's goo value.
      *
+     * @param helper the gametest helper
      * @return the goo one cobblestone carries
      */
-    private static GooContents cobblestoneValue() {
-        return Goo.GOO_VALUES.lookup(BuiltInRegistries.ITEM.getKey(Items.COBBLESTONE)).toGooContents();
+    private static GooContents cobblestoneValue(GameTestHelper helper) {
+        return GooValues.of(helper.getLevel()).lookup(BuiltInRegistries.ITEM.getKey(Items.COBBLESTONE)).toGooContents();
     }
 
     /**
@@ -956,7 +957,7 @@ public final class CrucibleTests {
      * @return the pool contents spawned into the basin
      */
     private static GooContents fillPoolAndReservoirForCobblestone(GameTestHelper helper, CrucibleBlockEntity crucible) {
-        GooContents perItem = Goo.GOO_VALUES.lookup(BuiltInRegistries.ITEM.getKey(Items.COBBLESTONE)).toGooContents();
+        GooContents perItem = GooValues.of(helper.getLevel()).lookup(BuiltInRegistries.ITEM.getKey(Items.COBBLESTONE)).toGooContents();
         Map<ResourceKey<GooTypeDefinition>, Integer> full = new HashMap<>();
         perItem.getAll().keySet().forEach(type -> {
             crucible.insertGoo(type, CAP);

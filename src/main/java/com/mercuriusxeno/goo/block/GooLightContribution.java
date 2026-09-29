@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.block;
 
-import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import org.jspecify.annotations.Nullable;
 
 /**

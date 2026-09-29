@@ -1,9 +1,9 @@
 package com.mercuriusxeno.goo.data;
 
-import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.data.GooValueExpression.ExprVal;
 import com.mercuriusxeno.goo.data.GooValueExpression.GooVal;
 import com.mercuriusxeno.goo.data.GooValueExpression.ScalarVal;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.logging.LogUtils;
 import net.minecraft.resources.ResourceKey;
 import org.slf4j.Logger;
