@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.registry;
 
-import com.mercuriusxeno.goo.block.InteractionCooldown;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerFallScheduler;
 import com.mercuriusxeno.goo.block.tap.TapDripScheduler;
 import com.mercuriusxeno.goo.network.BlobEffectScheduler;
@@ -10,7 +9,7 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * What one server holds between ticks: the blob effects, tap drips and marker
- * falls in flight, and the interaction cooldown marks. Each server holds its
+ * falls in flight. Each server holds its
  * own and a server stop clears it, so nothing in flight lands against a
  * stopped server's levels (decision type-package-and-per-server-holders).
  */
@@ -19,7 +18,6 @@ public final class GooServerState {
     private final BlobEffectScheduler blobEffects = new BlobEffectScheduler();
     private final TapDripScheduler tapDrips = new TapDripScheduler();
     private final ChainMarkerFallScheduler markerFalls = new ChainMarkerFallScheduler();
-    private final InteractionCooldown interactionCooldown = new InteractionCooldown();
 
     /**
      * Answers the state the server holds.
@@ -64,13 +62,6 @@ public final class GooServerState {
     }
 
     /**
-     * @return the interaction cooldown marks
-     */
-    public InteractionCooldown interactionCooldown() {
-        return interactionCooldown;
-    }
-
-    /**
      * Lands every effect, drip and fall whose arrival tick has come.
      *
      * @param server the ticking server
@@ -87,12 +78,11 @@ public final class GooServerState {
     }
 
     /**
-     * Drops everything in flight and every cooldown mark, as a server stop does.
+     * Drops everything in flight, as a server stop does.
      */
     public void clear() {
         blobEffects.clear();
         tapDrips.clear();
         markerFalls.clear();
-        interactionCooldown.clear();
     }
 }

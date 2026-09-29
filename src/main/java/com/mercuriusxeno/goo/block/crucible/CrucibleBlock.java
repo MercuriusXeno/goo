@@ -1,8 +1,10 @@
 package com.mercuriusxeno.goo.block.crucible;
 
 import com.mercuriusxeno.goo.block.BlockEntityTicks;
+import com.mercuriusxeno.goo.block.GooBlockInteraction;
 import com.mercuriusxeno.goo.block.GooMachineBlock;
 import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
+import com.mercuriusxeno.goo.item.GooInteractionType;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
@@ -27,6 +29,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.Nullable;
+import java.util.Set;
 
 /**
  * The crucible block (goocible): melts items into goo. Items for melting are
@@ -50,6 +53,12 @@ public class CrucibleBlock extends GooMachineBlock {
     /** Light level emitted by the firebox while LIT (matches the prior
      * Properties.lightLevel(13) value). */
     private static final int CRUCIBLE_LIT_LIGHT = 13;
+
+    /** The clicks a crucible answers through its dispatcher; a canister click is not among them. */
+    static final Set<GooInteractionType> CLICK_ROWS = Set.of(GooInteractionType.SPARK, GooInteractionType.BLOB_INSERT);
+
+    /** Error message prefix for an interaction type outside CLICK_ROWS reaching dispatch. */
+    private static final String ERR_UNHANDLED = "Unhandled interaction: ";
     /** Whether a gasket is attached to this crucible. */
     public static final BooleanProperty HAS_GASKET = BooleanProperty.create("has_gasket");
 
@@ -156,8 +165,9 @@ public class CrucibleBlock extends GooMachineBlock {
         return BlockEntityTicks.onServer(GooBlockEntities.CRUCIBLE, CrucibleBlockEntity::serverTick);
     }
 
-    /** Dispatches held-item interactions: the flint-and-steel spark and omniblob insertion; every
-     * other item falls through to the empty-hand drain.
+    /** Dispatches held-item interactions: the flint-and-steel spark and omniblob insertion; a
+     * tuner or gasket passes to its own use, and every other item, a canister among them, falls
+     * through to the empty-hand drain (decision canister-click-is-any-other-click-on-crucible-and-vat).
      *
      * @param stack     the item stack
      * @param state     the block state
@@ -172,39 +182,31 @@ public class CrucibleBlock extends GooMachineBlock {
     protected InteractionResult useItemOn(
             ItemStack stack, BlockState state, Level level, BlockPos pos, Player player,
             InteractionHand hand, BlockHitResult hitResult) {
-
-        BlockEntity be = level.getBlockEntity(pos);
-        if (!(be instanceof CrucibleBlockEntity crucible)) { return InteractionResult.PASS; }
-
-        if (level.isClientSide()) {
-            return clientItemResult(stack);
-        }
-        InteractionResult spark = CrucibleInteraction.trySpark(stack, crucible, player, hand);
-        if (spark != null) { return spark; }
-        return serverItemInteraction(stack, crucible, player);
+        return GooBlockInteraction.handleItemInteraction(
+                stack, level, pos, player, hand, hitResult,
+                CrucibleBlockEntity.class, CLICK_ROWS, CrucibleBlock::dispatchClick);
     }
 
-    /** Returns the client-side result based on whether the item is handled.
+    /** Routes a crucible row to its handler.
      *
-     * @param stack the item stack
-     * @return SUCCESS if handled, TRY_WITH_EMPTY_HAND otherwise
+     * @param interaction the classified interaction, one of CLICK_ROWS
+     * @param crucible    the crucible block entity
+     * @param stack       the held item stack
+     * @param player      the interacting player
+     * @param hand        the hand used
+     * @param hitResult   the ray trace hit result
+     * @param pos         the block position
+     * @param level       the current level
+     * @return the interaction result
      */
-    private static InteractionResult clientItemResult(ItemStack stack) {
-        return CrucibleInteraction.wouldHandleItem(stack)
-            ? InteractionResult.SUCCESS : InteractionResult.TRY_WITH_EMPTY_HAND;
-    }
-
-    /** Attempts each server-side item interaction in priority order.
-     *
-     * @param stack    the item stack
-     * @param crucible the crucible block entity
-     * @param player   the interacting player
-     * @return SUCCESS if any interaction matched, TRY_WITH_EMPTY_HAND otherwise
-     */
-    private static InteractionResult serverItemInteraction(
-            ItemStack stack, CrucibleBlockEntity crucible, Player player) {
-        if (CrucibleInteraction.tryInsertBlob(stack, crucible, player)) { return InteractionResult.SUCCESS; }
-        return InteractionResult.TRY_WITH_EMPTY_HAND;
+    private static InteractionResult dispatchClick(
+            GooInteractionType interaction, CrucibleBlockEntity crucible, ItemStack stack,
+            Player player, InteractionHand hand, BlockHitResult hitResult, BlockPos pos, Level level) {
+        return switch (interaction) {
+            case SPARK -> CrucibleInteraction.spark(stack, crucible, player, hand);
+            case BLOB_INSERT -> CrucibleInteraction.pourBlob(stack, crucible, player);
+            default -> throw new IllegalStateException(ERR_UNHANDLED + interaction);
+        };
     }
 
     /** Handles empty-hand interactions: sneak pops the gasket, else passes; plain = goo extraction.

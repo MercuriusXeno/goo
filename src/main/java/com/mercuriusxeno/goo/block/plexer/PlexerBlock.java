@@ -2,7 +2,8 @@ package com.mercuriusxeno.goo.block.plexer;
 
 import com.mercuriusxeno.goo.block.CutawayShapeHelper;
 import com.mercuriusxeno.goo.block.FacingRedstoneMachineBlock;
-import com.mercuriusxeno.goo.block.plexer.CutawayInteractionHelper;
+import com.mercuriusxeno.goo.block.GooBlockInteraction;
+import com.mercuriusxeno.goo.item.GooInteractionType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
@@ -23,7 +24,10 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
+import java.util.Collections;
+import java.util.EnumSet;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Plexer block: reconstitutes items from goo in attached canisters.
@@ -41,6 +45,10 @@ public class PlexerBlock extends FacingRedstoneMachineBlock {
      * How long the crafting visual persists after a successful reconstitution.
      */
     private static final int CRAFTING_DISPLAY_TICKS = 6;
+
+    /** Every held item is a target to the plexer, tuners and gaskets included. */
+    private static final Set<GooInteractionType> CLICK_ROWS =
+            Collections.unmodifiableSet(EnumSet.allOf(GooInteractionType.class));
 
     // -- Shape pieces (south-facing, cutaway on north face z=[0,4]) --
     /**
@@ -113,7 +121,9 @@ public class PlexerBlock extends FacingRedstoneMachineBlock {
     }
 
     /**
-     * Handles item-in-hand interactions: sets or passes through canister placement.
+     * Handles item-in-hand interactions through the dispatcher: any held item clicked into the
+     * cutaway becomes the target, a tuner or gasket as much as any other; a click beside the
+     * cutaway passes through to canister placement.
      *
      * @param stack     the item stack
      * @param state     the block state
@@ -128,19 +138,31 @@ public class PlexerBlock extends FacingRedstoneMachineBlock {
     protected @NonNull InteractionResult useItemOn(
             @NonNull ItemStack stack, @NonNull BlockState state, Level level, @NonNull BlockPos pos, @NonNull Player player,
             @NonNull InteractionHand hand, @NonNull BlockHitResult hitResult) {
-        if (level.isClientSide()) {
-            return InteractionResult.SUCCESS;
-        }
-        if (CutawayInteractionHelper.shouldPassItemInteraction(stack, state, pos, hitResult)) {
+        return GooBlockInteraction.handleItemInteraction(
+                stack, level, pos, player, hand, hitResult,
+                PlexerBlockEntity.class, CLICK_ROWS, PlexerBlock::setTargetFromClick);
+    }
+
+    /**
+     * Sets the held item as the plexer's target when the click lands in the cutaway.
+     *
+     * @param interaction the classified interaction, any held item
+     * @param plexer      the plexer block entity
+     * @param stack       the held item stack
+     * @param player      the interacting player
+     * @param hand        the hand used
+     * @param hitResult   the ray trace hit result
+     * @param pos         the block position
+     * @param level       the current level
+     * @return the interaction result
+     */
+    private static InteractionResult setTargetFromClick(
+            GooInteractionType interaction, PlexerBlockEntity plexer, ItemStack stack,
+            Player player, InteractionHand hand, BlockHitResult hitResult, BlockPos pos, Level level) {
+        if (CutawayInteractionHelper.shouldPassItemInteraction(stack, plexer.getBlockState(), pos, hitResult)) {
             return InteractionResult.PASS;
         }
-        if (!(level.getBlockEntity(pos) instanceof PlexerBlockEntity plexer)) {
-            return InteractionResult.PASS;
-        }
-        if (!stack.isEmpty()) {
-            return CutawayInteractionHelper.applyTargetItem(plexer, player, stack);
-        }
-        return InteractionResult.TRY_WITH_EMPTY_HAND;
+        return CutawayInteractionHelper.applyTargetItem(plexer, player, stack);
     }
 
     /**
