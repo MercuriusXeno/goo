@@ -163,150 +163,80 @@ class ChainFootprintTest {
     }
 
     @Nested
-    class FlatFootprint {
+    class FlatDisc {
         @Test
-        void oneToThreeSameAsLayer() {
-            for (int s = 1; s <= 3; s++) {
-                assertEquals(
-                        ChainFootprint.layerFootprint(s).size(),
-                        ChainFootprint.flatFootprint(s).size(),
-                        "flat footprint size mismatch at stacks=" + s);
+        void ladderReadsOneNineTwentyOneThirtySevenSixtyNineNinetySeven() {
+            int[] ladder = {1, 9, 21, 37, 69, 97};
+            for (int s = 1; s <= ladder.length; s++) {
+                assertEquals(ladder[s - 1], ChainFootprint.flatFootprint(s).size(), "disc cells at stacks=" + s);
             }
         }
 
         @Test
-        void fourStacksDoesNotExceedBudget() {
-            List<int[]> fp = ChainFootprint.flatFootprint(4);
-            assertTrue(fp.size() <= 18, "flat 4 exceeds budget: " + fp.size());
-            assertAllUnique(fp);
-        }
-
-        @Test
-        void fiveStacksDoesNotExceedBudget() {
-            List<int[]> fp = ChainFootprint.flatFootprint(5);
-            assertTrue(fp.size() <= 27, "flat 5 exceeds budget: " + fp.size());
-            assertAllUnique(fp);
-        }
-
-        @Test
-        void includesOrigin() {
-            for (int s = 4; s <= 8; s++) {
-                assertTrue(containsOffset(ChainFootprint.flatFootprint(s), 0, 0),
-                        "flat footprint missing origin at stacks=" + s);
-            }
-        }
-
-        @Test
-        void quarterSymmetric() {
-            for (int s = 4; s <= 10; s++) {
-                List<int[]> fp = ChainFootprint.flatFootprint(s);
-                for (int[] pos : fp) {
-                    if (pos[0] == 0 && pos[1] == 0) {
-                        continue;
+        void holdsEveryCellCenteredUnderRadiusPlusHalfAndNoOther() {
+            for (int s = 1; s <= 6; s++) {
+                List<int[]> disc = ChainFootprint.flatFootprint(s);
+                assertAllUnique(disc);
+                double reach = (s - 1) + 0.5;
+                int span = s + 1;
+                for (int a = -span; a <= span; a++) {
+                    for (int b = -span; b <= span; b++) {
+                        assertEquals(Math.hypot(a, b) < reach, containsOffset(disc, a, b),
+                                "cell [" + a + "," + b + "] at stacks=" + s);
                     }
-                    assertTrue(
-                            containsOffset(fp, -pos[0], pos[1])
-                                    && containsOffset(fp, pos[0], -pos[1])
-                                    && containsOffset(fp, -pos[0], -pos[1]),
-                            "Asymmetric at stacks=" + s
-                                    + " pos=[" + pos[0] + "," + pos[1] + "]");
                 }
             }
         }
-    }
-
-    @Nested
-    class EuclideanCircle {
-        @Test
-        void smallBudgetReturnsOrigin() {
-            List<int[]> circle = ChainFootprint.euclideanCircle(1);
-            assertEquals(1, circle.size());
-            assertArrayEquals(new int[]{0, 0}, circle.get(0));
-        }
 
         @Test
-        void budgetFiveReturnsFullFirstTier() {
-            List<int[]> circle = ChainFootprint.euclideanCircle(5);
-            assertEquals(5, circle.size());
-            assertTrue(containsOffset(circle, 0, 0));
-            assertTrue(containsOffset(circle, 1, 0));
-            assertTrue(containsOffset(circle, -1, 0));
-            assertTrue(containsOffset(circle, 0, 1));
-            assertTrue(containsOffset(circle, 0, -1));
-        }
-
-        @Test
-        void allPositionsUnique() {
-            for (int budget : new int[]{9, 18, 27, 36, 50}) {
-                assertAllUnique(ChainFootprint.euclideanCircle(budget));
-            }
-        }
-
-        @Test
-        void neverExceedsBudget() {
-            for (int budget = 1; budget <= 50; budget++) {
-                assertTrue(ChainFootprint.euclideanCircle(budget).size() <= budget,
-                        "exceeded budget " + budget);
-            }
+        void startRadiusShiftsTheLadder() {
+            assertEquals(ChainFootprint.flatFootprint(4).size(), ChainFootprint.flatFootprint(1, 3).size());
+            assertEquals(ChainFootprint.flatFootprint(6).size(), ChainFootprint.flatFootprint(3, 3).size());
         }
     }
 
     @Nested
     class FlatRings {
+        private static Set<String> keys(List<int[]> cells) {
+            Set<String> set = new HashSet<>();
+            for (int[] p : cells) {
+                set.add(p[0] + "," + p[1]);
+            }
+            return set;
+        }
+
         @Test
-        void ringsUnionEqualsFlatFootprint() {
-            for (int s = 4; s <= 10; s++) {
-                List<List<int[]>> rings = ChainFootprint.flatRings(s);
+        void ringsDoNotOverlapAndUniteToTheDisc() {
+            for (int s = 2; s <= 6; s++) {
                 Set<String> union = new HashSet<>();
-                for (List<int[]> ring : rings) {
+                for (List<int[]> ring : ChainFootprint.flatRings(s)) {
                     for (int[] p : ring) {
-                        union.add(p[0] + "," + p[1]);
+                        assertTrue(union.add(p[0] + "," + p[1]), "duplicate across rings at stacks=" + s);
                     }
                 }
-                List<int[]> flat = ChainFootprint.flatFootprint(s);
-                assertEquals(flat.size(), union.size(),
-                        "ring union size != flat footprint at stacks=" + s);
+                assertEquals(keys(ChainFootprint.flatFootprint(s)), union, "ring union at stacks=" + s);
             }
         }
 
         @Test
-        void ringsDoNotOverlap() {
-            for (int s = 4; s <= 8; s++) {
+        void ringsStepOutwardByIntegerDistance() {
+            for (int s = 2; s <= 6; s++) {
                 List<List<int[]>> rings = ChainFootprint.flatRings(s);
-                Set<String> seen = new HashSet<>();
-                for (List<int[]> ring : rings) {
-                    for (int[] p : ring) {
-                        assertTrue(seen.add(p[0] + "," + p[1]),
-                                "duplicate across rings at stacks=" + s);
+                assertEquals(s, rings.size(), "ring count at stacks=" + s);
+                for (int k = 0; k < rings.size(); k++) {
+                    for (int[] p : rings.get(k)) {
+                        assertEquals(k, (int) Math.floor(Math.hypot(p[0], p[1])),
+                                "ring " + k + " holds [" + p[0] + "," + p[1] + "] at stacks=" + s);
                     }
                 }
             }
         }
 
         @Test
-        void firstRingIsOrigin() {
-            List<List<int[]>> rings = ChainFootprint.flatRings(5);
-            assertFalse(rings.isEmpty());
-            assertTrue(containsOffset(rings.get(0), 0, 0));
-        }
-
-        @Test
-        void ringsExpandOutward() {
-            List<List<int[]>> rings = ChainFootprint.flatRings(6);
-            for (int i = 1; i < rings.size(); i++) {
-                int prevMaxDist = maxSqDist(rings.get(i - 1));
-                int currMinDist = minSqDist(rings.get(i));
-                assertTrue(currMinDist > prevMaxDist,
-                        "ring " + i + " not strictly farther than ring " + (i - 1));
-            }
-        }
-
-        private int maxSqDist(List<int[]> ring) {
-            return ring.stream().mapToInt(p -> p[0] * p[0] + p[1] * p[1]).max().orElse(0);
-        }
-
-        private int minSqDist(List<int[]> ring) {
-            return ring.stream().mapToInt(p -> p[0] * p[0] + p[1] * p[1]).min().orElse(0);
+        void firstRingIsTheCenterAlone() {
+            List<int[]> center = ChainFootprint.flatRings(6).getFirst();
+            assertEquals(1, center.size());
+            assertArrayEquals(new int[]{0, 0}, center.getFirst());
         }
     }
 
