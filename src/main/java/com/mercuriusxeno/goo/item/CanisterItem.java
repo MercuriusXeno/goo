@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.item;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
-import com.mercuriusxeno.goo.block.GooBlockInteraction;
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
 import com.mercuriusxeno.goo.item.CanisterPlacementResolver.CanisterPlacement;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
@@ -85,7 +84,9 @@ public class CanisterItem extends BlockItem implements IGooItemInteraction, GooC
     }
 
     /**
-     * Inserts this canister into the slot the resolver chose in an existing canister block.
+     * Inserts this canister into the slot the resolver chose in an existing canister block, for
+     * the clicks the block never sees: one aimed at an empty slot, which lands on the block behind,
+     * and a sneaking one, which skips the block's own click.
      *
      * @param context   the use-on context
      * @param placement the resolved insert
@@ -99,13 +100,8 @@ public class CanisterItem extends BlockItem implements IGooItemInteraction, GooC
                 || !(level.getBlockEntity(placement.pos()) instanceof CanisterBlockEntity canister)) {
             return InteractionResult.PASS;
         }
-        ItemStack stack = context.getItemInHand();
-        if (!canister.insertCanister(placement.slot(), stack, player.isCreative())) {
-            return InteractionResult.PASS;
-        }
-        GooBlockInteraction.consumeOneHeld(stack, player);
-        canister.playInsertSound();
-        return InteractionResult.SUCCESS;
+        return canister.insertHeldCanister(placement.slot(), context.getItemInHand(), player)
+                ? InteractionResult.SUCCESS : InteractionResult.PASS;
     }
 
     // --- Block placement ---

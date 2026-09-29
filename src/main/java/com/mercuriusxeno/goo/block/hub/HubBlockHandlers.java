@@ -23,9 +23,6 @@ import net.minecraft.world.phys.BlockHitResult;
  */
 final class HubBlockHandlers {
 
-    /** Error message for TUNER_PASS reaching dispatch. */
-    private static final String ERR_TUNER_PASS = "TUNER_PASS handled in validate";
-
     /** Error message prefix for unexpected interaction types reaching dispatch. */
     private static final String ERR_UNHANDLED = "Unhandled interaction: ";
 
@@ -65,28 +62,9 @@ final class HubBlockHandlers {
     static InteractionResult dispatchHub(
             GooInteractionType interaction, HubBlockEntity hub, ItemStack stack,
             Player player, InteractionHand hand, BlockHitResult hitResult, BlockPos pos, Level level) {
-        if (interaction == GooInteractionType.TUNER_PASS) {
-            throw new IllegalStateException(ERR_TUNER_PASS);
-        }
-        return dispatchNonTuner(interaction, hub, stack, player, hand, hitResult);
-    }
-
-    /**
-     * Dispatches a non-tuner interaction to the matching hub handler.
-     *
-     * @param interaction the classified interaction type (must not be TUNER_PASS)
-     * @param hub         the hub block entity
-     * @param stack       the held item stack
-     * @param player      the interacting player
-     * @param hand        the hand used
-     * @param hitResult   the ray trace hit result
-     * @return the interaction result
-     */
-    private static InteractionResult dispatchNonTuner(
-            GooInteractionType interaction, HubBlockEntity hub, ItemStack stack,
-            Player player, InteractionHand hand, BlockHitResult hitResult) {
         return switch (interaction) {
             case CANISTER_INSERT  -> handleCanisterInsert(hub, hitResult, stack, player);
+            case CANISTER_PICKUP  -> removeCanister(hub, hitResult, pos, player, level);
             case BLOB_INSERT      -> handleBlobInsert(hub, hitResult, stack, player);
             default -> throw new IllegalStateException(ERR_UNHANDLED + interaction);
         };
