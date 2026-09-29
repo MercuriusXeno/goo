@@ -30,7 +30,7 @@ public final class LeafSteps {
      * Removes every block with a goo value within a sphere around the host
      * anchor, adding each block's goo to the total the host keeps; the
      * nether black hole consumes its blast sphere as it leaves its expand
-     * phase: {@code consume_blocks radius="1 + 2 * stacks"}.
+     * phase: {@code consume_blocks radius="2 + stacks"}.
      */
     public static final LeafStepType<Expr> CONSUME_BLOCKS = StepType.of("consume_blocks", "radius", CONSUMED_GOO,
             (radius, context) -> {

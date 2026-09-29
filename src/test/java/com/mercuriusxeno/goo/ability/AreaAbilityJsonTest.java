@@ -2,7 +2,14 @@ package com.mercuriusxeno.goo.ability;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.mercuriusxeno.goo.ability.program.Expr;
+import com.mercuriusxeno.goo.ability.program.HostVariables;
+import com.mercuriusxeno.goo.ability.program.LeafStep;
+import com.mercuriusxeno.goo.ability.program.LeafSteps;
 import com.mercuriusxeno.goo.ability.program.ProgressiveAreaStep;
+import com.mercuriusxeno.goo.ability.program.PullStep;
+import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.ability.program.Variables;
 import com.mojang.serialization.JsonOps;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -12,14 +19,17 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.OptionalDouble;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
  * The area abilities' JSONs decode to the stack ceiling and start radius the
  * shape ladder reads (decisions disc-opens-circularly-per-stack,
- * tunnel-stays-3x3-ee-homage, sphere-is-frost-alone), read from the classpath.
+ * tunnel-stays-3x3-ee-homage, sphere-is-frost-alone, nether-radius-one-per-stack), read from the classpath.
  */
 class AreaAbilityJsonTest {
 
@@ -65,6 +75,34 @@ class AreaAbilityJsonTest {
         ProgressiveAreaStep step = (ProgressiveAreaStep) decode("frost_sphere").behaviors().getFirst();
 
         assertEquals(List.of(3, 4, 5, 6), IntStream.rangeClosed(1, 4).mapToObj(step::radius).toList());
+    }
+
+    @Test
+    void blackHoleConsumesThreeToSevenAndPullsThreeTimesThat() throws IOException {
+        List<Step> steps = decode("nether_black_hole").behaviors().stream()
+                .flatMap(AreaAbilityJsonTest::withDescendants).toList();
+        Expr consume = steps.stream().filter(LeafStep.class::isInstance).map(LeafStep.class::cast)
+                .filter(leaf -> leaf.leaf() == LeafSteps.CONSUME_BLOCKS).map(leaf -> (Expr) leaf.params())
+                .findFirst().orElseThrow();
+        List<Expr> pulls = steps.stream().filter(PullStep.class::isInstance).map(PullStep.class::cast)
+                .map(PullStep::radius).toList();
+
+        assertFalse(pulls.isEmpty(), "nether_black_hole holds no pull step");
+        for (int stacks = 1; stacks <= 5; stacks++) {
+            Variables scope = stacksScope(stacks);
+            assertEquals(stacks + 2, consume.evaluateInt(scope), "consume radius at stacks=" + stacks);
+            for (Expr pull : pulls) {
+                assertEquals(3 * (stacks + 2), pull.evaluateInt(scope), "pull radius at stacks=" + stacks);
+            }
+        }
+    }
+
+    private static Stream<Step> withDescendants(Step step) {
+        return Stream.concat(Stream.of(step), step.children().flatMap(AreaAbilityJsonTest::withDescendants));
+    }
+
+    private static Variables stacksScope(int stacks) {
+        return name -> HostVariables.STACKS.equals(name) ? OptionalDouble.of(stacks) : OptionalDouble.empty();
     }
 
     @Test
