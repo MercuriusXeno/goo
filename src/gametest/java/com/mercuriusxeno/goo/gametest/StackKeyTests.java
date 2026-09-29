@@ -98,7 +98,7 @@ public final class StackKeyTests {
     }
 
     @SuppressWarnings(REMOVAL) // vanilla marks the mock server player helper for removal and names no replacement
-    private static ServerPlayer makeFrostThrower(GameTestHelper helper) {
+    static ServerPlayer makeFrostThrower(GameTestHelper helper) {
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         BlockPos stand = helper.absolutePos(PLAYER_POS);
         player.setPos(stand.getX(), stand.getY(), stand.getZ());

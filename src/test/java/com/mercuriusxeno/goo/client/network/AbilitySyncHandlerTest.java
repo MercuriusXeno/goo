@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.network;
 
+import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
@@ -8,6 +9,9 @@ import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
+import java.io.IOException;
+import java.io.Reader;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.stream.IntStream;
@@ -16,8 +20,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * The client prices a throw at every stack exactly as the server does, from
- * the cost formula and step program the sync carries, over every shipped
- * ability and so every cost formula (decision unaffordable-click-does-nothing).
+ * the flat cost the sync carries, over every shipped ability
+ * (decisions unaffordable-click-does-nothing, flat-cost-per-throw).
  */
 class AbilitySyncHandlerTest {
 
@@ -35,13 +39,20 @@ class AbilitySyncHandlerTest {
 
     @ParameterizedTest
     @MethodSource("shippedAbilities")
-    void clientCostEqualsServerCostAtEveryStack(Path file) {
+    void bothSidesPriceEveryStackAtTheJsonsCost(Path file) throws IOException {
+        int jsonCost;
+        try (Reader reader = Files.newBufferedReader(file)) {
+            jsonCost = JsonParser.parseReader(reader).getAsJsonObject().get("cost").getAsInt();
+        }
         AbilityDefinition definition = AbilityJson.decode(file);
+        assertEquals(jsonCost, definition.cost(), definition.id() + " server cost");
         for (AbilitySyncPayload.Entry entry : roundTrip(definition)) {
             ClientAbility client = ClientAbility.fromEntry(entry);
-            IntStream.rangeClosed(0, definition.chain().maxStacks()).forEach(stack ->
-                    assertEquals(definition.throwCost(stack), client.throwCost(stack),
-                            definition.id() + " at stack " + stack));
+            assertEquals(jsonCost, client.cost(), definition.id() + " synced cost");
+            IntStream.rangeClosed(0, definition.chain().maxStacks()).forEach(stack -> {
+                assertEquals(jsonCost, definition.throwCost(stack), definition.id() + " server at stack " + stack);
+                assertEquals(jsonCost, client.throwCost(stack), definition.id() + " client at stack " + stack);
+            });
         }
     }
 }

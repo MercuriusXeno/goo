@@ -2,11 +2,7 @@
   "gooType": "unstable",
   "displayName": "goo.ability.unstable.proximity_mine",
   "order": 2,
-  "cost": {
-    "formula": "power_law",
-    "baseCost": 2000,
-    "mult": 1.5
-  },
+  "cost": 1000,
   "chain": {
     "fuseTicks": -1,
     "maxStacks": 6

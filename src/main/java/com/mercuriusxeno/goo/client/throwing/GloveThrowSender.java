@@ -115,7 +115,7 @@ public final class GloveThrowSender {
      * @return true when the holdings cover the cost
      */
     static boolean affordsThrow(@Nullable ClientAbility ability, int existingStacks, IntPredicate holdsAtLeast) {
-        return holdsAtLeast.test(priceThrow(ability, existingStacks));
+        return holdsAtLeast.test(throwCostOf(ability, existingStacks));
     }
 
     /**
@@ -126,7 +126,7 @@ public final class GloveThrowSender {
      * @param existingStacks the stacks the target marker already holds
      * @return the cost in mB
      */
-    static int priceThrow(@Nullable ClientAbility ability, int existingStacks) {
+    static int throwCostOf(@Nullable ClientAbility ability, int existingStacks) {
         return ability == null ? BlobThrowHandler.THROW_COST : ability.throwCost(existingStacks);
     }
 
@@ -147,7 +147,7 @@ public final class GloveThrowSender {
         BlobThrowPayload payload = targetToPayload(AimTracker.currentTarget(), gooType, selection.abilityId(),
                 lineOrigin());
         int stacks = payload == null ? 0 : keyedStacksAt(payload);
-        return OptionalInt.of(priceThrow(AbilitySyncHandler.findAbility(selection.abilityId()), stacks));
+        return OptionalInt.of(throwCostOf(AbilitySyncHandler.findAbility(selection.abilityId()), stacks));
     }
 
     /**

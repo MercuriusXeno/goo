@@ -1,9 +1,9 @@
 {
   "type": "minecraft:function",
-  "function": "goo:crystallizer_dial_shatters",
+  "function": "goo:pl_second_throw_costs_the_same",
   "environment": "minecraft:default",
-  "structure": "goo:machine_bay",
-  "max_ticks": 800,
+  "structure": "goo:test_bay",
+  "max_ticks": 100,
   "setup_ticks": 0,
   "required": true
 }

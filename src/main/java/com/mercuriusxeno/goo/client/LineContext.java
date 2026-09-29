@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.world.phys.Vec3;
 
 /**
  * Vertex context for line-segment rendering (wireframes, arcs, edges).
@@ -40,6 +41,25 @@ public record LineContext(PoseStack.Pose pose, VertexConsumer c) {
             .setColor(color).setNormal(pose, dx, dy, dz).setLineWidth(lineWidth);
         c.addVertex(pose, bx, by, bz)
             .setColor(color).setNormal(pose, dx, dy, dz).setLineWidth(lineWidth);
+    }
+
+    /**
+     * Emits a polyline through world-space points as camera-relative segments.
+     *
+     * @param cam       the camera position
+     * @param points    the polyline's points in world space
+     * @param color     the ARGB color
+     * @param lineWidth the line width in pixels
+     */
+    public void emitPolyline(Vec3 cam, Vec3[] points, int color, float lineWidth) {
+        for (int i = 0; i < points.length - 1; i++) {
+            Vec3 a = points[i];
+            Vec3 b = points[i + 1];
+            emitEdge(
+                (float) (a.x - cam.x), (float) (a.y - cam.y), (float) (a.z - cam.z),
+                (float) (b.x - cam.x), (float) (b.y - cam.y), (float) (b.z - cam.z),
+                color, lineWidth);
+        }
     }
 
     /**

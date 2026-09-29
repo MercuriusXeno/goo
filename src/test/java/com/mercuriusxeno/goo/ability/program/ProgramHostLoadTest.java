@@ -183,7 +183,7 @@ class ProgramHostLoadTest {
     @Test
     void progressiveAreaProgramLoadsForTheMarkerHostAndRefusesTheEntityHost() {
         List<Step> rock = List.of(new ProgressiveAreaStep(AreaShape.TUNNEL, "silk_break", "rock_dust",
-                "stone_break", Expr.literal(8)));
+                "stone_break", Expr.literal(8), 0));
 
         assertDoesNotThrow(() -> ProgramBehavior.forHost(rock, HostKind.MARKER));
         ProgramLoadException refusal = assertThrows(ProgramLoadException.class,

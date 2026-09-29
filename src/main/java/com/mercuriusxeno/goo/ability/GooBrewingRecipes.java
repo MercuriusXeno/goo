@@ -27,7 +27,7 @@ import java.util.List;
  * potions-stay-per-type, brew-from-chrysm-on-vanilla-stand). The chrysm carries
  * its type in a component (decision generic-goo-items), so the ingredient
  * matches the component on the chrysm item, over each potion container vanilla
- * mixes. Kilochrysm and megachrysm are no ingredient.
+ * mixes. The higher tiers are no ingredient.
  */
 @EventBusSubscriber(modid = Goo.MODID)
 public final class GooBrewingRecipes {

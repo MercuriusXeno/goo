@@ -119,6 +119,18 @@ public final class GooTargetHighlighter {
         }
 
         /**
+         * Draws the bullseye on the target's struck face, taken from the
+         * resolved target rather than the eased arc endpoint (decision
+         * aim-arc-ends-in-face-bullseye).
+         *
+         * @param target the aim target
+         */
+        void bullseye(TargetResult target) {
+            FaceBullseyeRenderer.render(ps, buf, camera, target, ClientGooTypes.highlight(selectedType),
+                    realTimeSeconds());
+        }
+
+        /**
          * Draws the stack-count billboard above the chain marker at the given position.
          *
          * @param pos     the chain marker position
@@ -162,8 +174,10 @@ public final class GooTargetHighlighter {
         } else if (TargetBlockReads.isWaterSource(frame.level(), bt.pos())) {
             VoxelHighlightRenderer.renderFullCube(frame.ps(), frame.buf(), frame.camera(), bt.pos(),
                     frame.selectedType());
+            frame.bullseye(bt);
         } else {
             frame.outlineShape(bt.pos());
+            frame.bullseye(bt);
         }
     }
 
@@ -241,8 +255,9 @@ public final class GooTargetHighlighter {
     }
 
     /**
-     * The real-time clock the slide runs on, so a slow or paused tick leaves
-     * the slide's length unchanged (decision aim-arc-slides-in-real-time).
+     * The real-time clock the slide and the ripple run on, so a slow or paused
+     * tick leaves their timing unchanged (decisions aim-arc-slides-in-real-time,
+     * ripple-rings-fade-to-face-edge).
      *
      * @return seconds on the monotonic clock
      */

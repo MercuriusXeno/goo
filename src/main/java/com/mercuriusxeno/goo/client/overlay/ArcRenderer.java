@@ -157,7 +157,7 @@ public final class ArcRenderer {
             float width = baseWidth * (1.0f + pass * ARC_GLOW_WIDTH_STEP);
             int color = computeGlowPassColor(rgb, pass);
             if (pass == 0) {
-                emitSolidPass(ctx, cam, points, segments, color, width);
+                ctx.emitPolyline(cam, points, color, width);
             } else {
                 emitDashedPass(ctx, cam, points, segments,
                         dashOffset, color, width);
@@ -177,29 +177,6 @@ public final class ArcRenderer {
         float alphaScale = (float) Math.pow(ARC_GLOW_ALPHA_DECAY, pass);
         int alpha = Mth.clamp((int) (ARC_ALPHA * alphaScale), 0, MAX_ALPHA);
         return ARGB.color(alpha, ARGB.red(rgb), ARGB.green(rgb), ARGB.blue(rgb));
-    }
-
-    /**
-     * Emits a solid (unbroken) line for the core pass of the arc.
-     *
-     * @param ctx      the line render context
-     * @param cam      the camera position
-     * @param points   the sampled arc polyline points
-     * @param segments the number of arc segments
-     * @param color    the ARGB color value
-     * @param width    the line width
-     */
-    private static void emitSolidPass(
-            LineContext ctx, Vec3 cam, Vec3[] points, int segments,
-            int color, float width) {
-        for (int i = 0; i < segments; i++) {
-            Vec3 a = points[i];
-            Vec3 b = points[i + 1];
-            ctx.emitEdge(
-                (float) (a.x - cam.x), (float) (a.y - cam.y), (float) (a.z - cam.z),
-                (float) (b.x - cam.x), (float) (b.y - cam.y), (float) (b.z - cam.z),
-                color, width);
-        }
     }
 
     /**
