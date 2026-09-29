@@ -5,27 +5,20 @@
 
 // Frost goo's burnout explosion (decision elemental-explosion-per-type).
 // FrostExplosionVisual packs the vertex color: red is the explosion's
-// progress, green how far the fog has rolled, blue how much mist is left.
-// The normal is the vertex's direction from the zone's center.
+// progress, green and blue the vertex's position on the ring's disc, each
+// of [-1, 1] mapped onto [0, 1], and alpha the fog's remaining opacity.
 
 in vec3 Position;
 in vec4 Color;
 in vec3 Normal;
 
-out vec3 viewPos;
-out vec3 viewNormal;
-out vec3 surfaceDir;
 out float progress;
-out float rolled;
-out float mist;
+out vec2 discPos;
+out float fog;
 
 void main() {
-    vec4 vp = ModelViewMat * vec4(Position, 1.0);
-    gl_Position = ProjMat * vp;
-    viewPos = vp.xyz;
-    viewNormal = (ModelViewMat * vec4(Normal, 0.0)).xyz;
-    surfaceDir = Normal;
+    gl_Position = ProjMat * ModelViewMat * vec4(Position, 1.0);
     progress = Color.r;
-    rolled = Color.g;
-    mist = Color.b;
+    discPos = Color.gb * 2.0 - 1.0;
+    fog = Color.a;
 }
