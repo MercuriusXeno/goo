@@ -121,6 +121,22 @@ public final class CrystallizerPhases {
     }
 
     /**
+     * The chrysm a click on the crystal hands (operator ruling): the dial's tier once
+     * the crystal reaches it, the rest handed as excess; with the dial off, the highest
+     * tier reached.
+     *
+     * @param crystallized the crystallized volume, in mB
+     * @param cap          the tier the knob caps at, or null when off
+     * @return the tier handed, or null while the crystal is not mature
+     */
+    public static @Nullable ChrysmTier harvestTier(long crystallized, @Nullable ChrysmTier cap) {
+        if (!isMature(crystallized, cap)) {
+            return null;
+        }
+        return cap == null ? reachedTier(crystallized) : cap;
+    }
+
+    /**
      * The ticks a tier's span takes to crystallize: 25 s for a chrysm, doubling each
      * tier (decision crystal-pace-doubles-per-tier).
      *

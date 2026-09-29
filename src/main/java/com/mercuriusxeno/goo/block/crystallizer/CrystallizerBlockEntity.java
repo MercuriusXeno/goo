@@ -224,57 +224,42 @@ public class CrystallizerBlockEntity extends GooGlowingMachineBlockEntity
     }
 
     /**
-     * @return one chrysm of the highest tier reached, once the crystal is mature, or EMPTY
+     * @return one chrysm of the tier a click hands, once the crystal is mature, or EMPTY
      */
     public ItemStack formed() {
-        ChrysmTier tier = formedTier();
-        boolean mature = isMature(CrystallizerBlock.knobTier(getBlockState()));
-        return !mature || tier == null || formingType == null ? ItemStack.EMPTY : ChrysmItem.stackOf(tier, formingType);
+        ChrysmTier tier = CrystallizerPhases.harvestTier(crystallized, CrystallizerBlock.knobTier(getBlockState()));
+        return tier == null || formingType == null ? ItemStack.EMPTY : ChrysmItem.stackOf(tier, formingType);
     }
 
     /**
-     * Breaks a mature crystal, handing its tier's item; a part-grown crystal hands nothing.
+     * Takes a mature crystal whole (operator ruling): one chrysm of the tier a click
+     * hands, then the excess past that tier as an omniblob of its goo and one of the
+     * crystal spent on it, so nothing is lost; the crystallizer empties. A part-grown
+     * crystal hands nothing.
      *
-     * @return the chrysm, or EMPTY while the crystal is not mature
+     * @return the chrysm first, then the excess omniblobs; none while the crystal is not mature
      */
-    public ItemStack takeFormed() {
-        ItemStack taken = formed();
-        ChrysmTier tier = formedTier();
-        if (taken.isEmpty() || tier == null) {
-            return ItemStack.EMPTY;
+    public List<ItemStack> takeFormed() {
+        ChrysmTier tier = CrystallizerPhases.harvestTier(crystallized, CrystallizerBlock.knobTier(getBlockState()));
+        List<ItemStack> taken = new ArrayList<>();
+        if (tier == null || formingType == null) {
+            return taken;
         }
-        crystallized -= tier.volume();
-        if (crystallized == 0) {
-            formingType = null;
-        }
-        BlockEntitySync.markDirtyAndSync(this);
-        return taken;
-    }
-
-    /**
-     * Operator ruling: changing the dial while the crystal is working shatters it
-     * back into omniblobs, one of the crystallized goo and one of the crystal it
-     * spent, since chrysm loses no crystal.
-     *
-     * @return the omniblobs, none when nothing is growing
-     */
-    public List<ItemStack> shatter() {
-        List<ItemStack> shards = new ArrayList<>();
-        if (crystallized <= 0 || formingType == null) {
-            return shards;
-        }
-        int goo = Math.toIntExact(crystallized);
-        shards.add(BlobStacks.createForOutput(formingType, goo));
-        ItemStack crystal = BlobStacks.createForOutput(CrystallizerPhases.CATALYST,
-                goo / CrystallizerPhases.GOO_PER_CRYSTAL);
-        if (!crystal.isEmpty()) {
-            shards.add(crystal);
+        taken.add(ChrysmItem.stackOf(tier, formingType));
+        int excess = Math.toIntExact(crystallized - tier.volume());
+        if (excess > 0) {
+            taken.add(BlobStacks.createForOutput(formingType, excess));
+            ItemStack crystal = BlobStacks.createForOutput(CrystallizerPhases.CATALYST,
+                    excess / CrystallizerPhases.GOO_PER_CRYSTAL);
+            if (!crystal.isEmpty()) {
+                taken.add(crystal);
+            }
         }
         crystallized = 0;
         formingType = null;
         paceBudget = 0;
         BlockEntitySync.markDirtyAndSync(this);
-        return shards;
+        return taken;
     }
 
     // --- ICanisterAttachable: its canisters stand in the canister block on its top ---

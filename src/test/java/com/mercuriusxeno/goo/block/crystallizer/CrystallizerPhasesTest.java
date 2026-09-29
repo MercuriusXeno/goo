@@ -190,6 +190,16 @@ class CrystallizerPhasesTest {
         }
 
         @Test
+        void aClickHandsTheDialsTierOnceReachedAndAtOffTheHighestReached() {
+            long flowering = ChrysmTier.FLOWERING_CHRYSM.volume() + 5_000_000;
+            assertEquals(ChrysmTier.CHRYSM, CrystallizerPhases.harvestTier(flowering, ChrysmTier.CHRYSM));
+            assertEquals(ChrysmTier.BUDDING_CHRYSM, CrystallizerPhases.harvestTier(flowering, ChrysmTier.BUDDING_CHRYSM));
+            assertEquals(ChrysmTier.FLOWERING_CHRYSM, CrystallizerPhases.harvestTier(flowering, null));
+            assertNull(CrystallizerPhases.harvestTier(flowering, ChrysmTier.MATERIA));
+            assertNull(CrystallizerPhases.harvestTier(CHRYSM - 10, null));
+        }
+
+        @Test
         void offLeavesAFormedCrystalMatureAndNothingElse() {
             assertTrue(CrystallizerPhases.isMature(CHRYSM, null));
             assertFalse(CrystallizerPhases.isMature(CHRYSM - 10, null));
