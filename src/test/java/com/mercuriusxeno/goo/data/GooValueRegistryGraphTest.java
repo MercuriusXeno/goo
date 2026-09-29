@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.data;
 
-import com.mercuriusxeno.goo.GooTypes;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
@@ -31,9 +31,7 @@ class GooValueRegistryGraphTest {
      * Sets base values on the registry, copying to effective.
      */
     private void setBaseValues(Map<Identifier, GooValue> values) {
-        registry.baseValues.clear();
-        registry.baseValues.putAll(values);
-        registry.publishEffectiveValues(values);
+        registry.seedBaseValues(values);
     }
 
     // ── SCC Classification ──────────────────────────────────────────────

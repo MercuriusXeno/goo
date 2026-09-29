@@ -1,45 +1,19 @@
 package com.mercuriusxeno.goo;
 
-import com.mercuriusxeno.goo.ability.AbilityLoader;
-import com.mercuriusxeno.goo.block.ability.ChainMarkerFallScheduler;
-import com.mercuriusxeno.goo.block.tap.TapDripScheduler;
-import com.mercuriusxeno.goo.command.GooCommand;
-import com.mercuriusxeno.goo.data.GooReactionLoader;
-import com.mercuriusxeno.goo.data.GooValueRegistry;
-import com.mercuriusxeno.goo.network.AbilitySyncPayload;
-import com.mercuriusxeno.goo.network.GooValueSync;
 import com.mercuriusxeno.goo.registry.*;
+import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.logging.LogUtils;
 import net.neoforged.bus.api.IEventBus;
-import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
-import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
-import net.neoforged.fml.loading.FMLPaths;
-import net.neoforged.neoforge.common.NeoForge;
-import net.neoforged.neoforge.event.AddServerReloadListenersEvent;
-import net.neoforged.neoforge.event.OnDatapackSyncEvent;
-import net.neoforged.neoforge.event.RegisterCommandsEvent;
-import net.neoforged.neoforge.event.server.ServerStartingEvent;
-import net.neoforged.neoforge.event.tick.ServerTickEvent;
-import net.neoforged.neoforge.network.PacketDistributor;
 import org.slf4j.Logger;
 
 @Mod(Goo.MODID)
 public class Goo {
 
-    public static final String MODID = "goo";
+    public static final String MODID = GooTypes.NAMESPACE;
     public static final Logger LOGGER = LogUtils.getLogger();
-    public static final GooValueRegistry GOO_VALUES = new GooValueRegistry();
-    /**
-     * Log message for startup value loading.
-     */
-    private static final String LOG_VALUES_LOADED = "Goo values loaded: {} effective values from cache";
-    /**
-     * Log message when no cache exists and derivation runs on first boot.
-     */
-    private static final String LOG_NO_CACHE = "No cached goo values found, deriving from recipes";
 
     /**
      * Registers all deferred registries, event listeners, and config on mod construction.
@@ -55,10 +29,7 @@ public class Goo {
         modContainer.registerConfig(ModConfig.Type.COMMON, GooConfig.SPEC);
         modContainer.registerConfig(ModConfig.Type.CLIENT, GooClientConfig.SPEC);
 
-        NeoForge.EVENT_BUS.register(this);
-
-        GOO_VALUES.setEffectiveCachePath(
-                FMLPaths.CONFIGDIR.get().resolve("goo_derived_values.json"));
+        GooEventWiring.register(modEventBus);
 
         LOGGER.info("Goo mod initialized");
     }
@@ -102,99 +73,11 @@ public class Goo {
     }
 
     /**
-     * Registers mod event bus listeners for capabilities, setup, and tickets.
+     * Registers the mod event bus listener for tickets.
      *
      * @param modEventBus the mod event bus
      */
     private static void registerModListeners(IEventBus modEventBus) {
-        modEventBus.addListener(GooCapabilityRegistration::registerCapabilities);
-        modEventBus.addListener(Goo::commonSetup);
         modEventBus.addListener(GooTickets::register);
-    }
-
-    /**
-     * Common setup - registers chain profiles for world effects.
-     *
-     * @param event the common setup event
-     */
-    private static void commonSetup(FMLCommonSetupEvent event) {
-        com.mercuriusxeno.goo.item.gasket.ChoralGasketItem.setGasketBlockSupplier(
-                GooBlocks.CHORAL_GASKET_BLOCK::get);
-    }
-
-    /**
-     * Registers the reaction datapack reload listener.
-     *
-     * @param event the reload listener registration event
-     */
-    @SubscribeEvent
-    public void onAddReloadListeners(AddServerReloadListenersEvent event) {
-        // The type registry is loaded by now and the value and ability loaders below read it by id.
-        GooTypes.capture(event.getRegistryAccess());
-        event.addListener(GooReactionLoader.LISTENER_ID, new GooReactionLoader());
-        event.addListener(AbilityLoader.LISTENER_ID, new AbilityLoader());
-    }
-
-    /**
-     * Loads goo values from the effective cache when the server starts.
-     * If no cache exists (first run or fresh world), derives values from
-     * recipes and saves the cache for subsequent starts.
-     *
-     * @param event the server starting event
-     */
-    @SubscribeEvent
-    public void onServerStarting(ServerStartingEvent event) {
-        GOO_VALUES.loadEffectiveCache();
-        if (GOO_VALUES.size() == 0) {
-            LOGGER.info(LOG_NO_CACHE);
-            GOO_VALUES.loadBaseValuesFromPacks(event.getServer());
-            GOO_VALUES.deriveFromRecipes(event.getServer());
-            GOO_VALUES.saveEffectiveValues();
-        }
-        if (LOGGER.isInfoEnabled()) {
-            LOGGER.info(LOG_VALUES_LOADED, GOO_VALUES.size());
-        }
-    }
-
-    /**
-     * Registers /goo subcommands with the server command dispatcher.
-     *
-     * @param event the command registration event
-     */
-    @SubscribeEvent
-    public void onRegisterCommands(RegisterCommandsEvent event) {
-        GooCommand.register(event.getDispatcher());
-    }
-
-    /**
-     * Sends goo values and ability definitions to players on login and datapack reload.
-     *
-     * @param event the datapack sync event (player-specific on login, all players on /reload)
-     */
-    @SubscribeEvent
-    public void onDatapackSync(OnDatapackSyncEvent event) {
-        AbilitySyncPayload abilityPayload = AbilitySyncPayload.fromRegistry();
-        // A listener that never negotiated the mod's channels, a gametest's mock player, gets no sync.
-        event.getRelevantPlayers()
-                .filter(player -> player.connection.hasChannel(abilityPayload))
-                .forEach(player -> {
-                    GooValueSync.sendToPlayer(player);
-                    PacketDistributor.sendToPlayer(player, abilityPayload);
-                });
-    }
-
-    /**
-     * Ticks pending blob effects and tap drips so they apply on arrival.
-     *
-     * @param event the post-tick event instance
-     */
-    @SubscribeEvent
-    public void onServerTick(ServerTickEvent.Post event) {
-        com.mercuriusxeno.goo.network.BlobThrowHandler.onServerTick(event);
-        if (ChainMarkerFallScheduler.hasPending()) {
-            ChainMarkerFallScheduler
-                    .drainArrivedFalls(event.getServer().getTickCount());
-        }
-        TapDripScheduler.drainArrived(event.getServer());
     }
 }

@@ -1,8 +1,8 @@
 package com.mercuriusxeno.goo.client.throwing;
 
-import com.mercuriusxeno.goo.GooTypes;
-import com.mercuriusxeno.goo.ThrowArc;
 import com.mercuriusxeno.goo.client.overlay.ArcRenderer;
+import com.mercuriusxeno.goo.throwing.ThrowArc;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;

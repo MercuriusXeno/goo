@@ -1,13 +1,13 @@
 package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.item.BlobStacks;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooItems;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -49,7 +49,7 @@ public final class GloveRecollectTests {
     public static void shiftClickRecollectsMarker(GameTestHelper helper) {
         helper.setBlock(MARKER_POS, GooBlocks.CHAIN_MARKER.get());
         ChainMarkerBlockEntity marker = helper.getBlockEntity(MARKER_POS, ChainMarkerBlockEntity.class);
-        AbilityDefinition frostSphere = AbilityRegistry.getAbility(FROST_SPHERE);
+        AbilityDefinition frostSphere = AbilityRegistry.of(helper.getLevel()).getAbility(FROST_SPHERE);
         helper.assertTrue(frostSphere != null, ABILITIES_REQUIRED);
         marker.initChainFromAbility(GooTypes.FROST, Direction.UP, frostSphere);
         marker.tryStack();

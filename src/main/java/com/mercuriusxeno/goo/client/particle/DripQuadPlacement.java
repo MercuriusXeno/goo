@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.client.particle;
 
-import com.mercuriusxeno.goo.DripFall;
+import com.mercuriusxeno.goo.throwing.DripFall;
 
 /**
  * Where a drip's quads sit against the surface its collision box lands on,

@@ -32,6 +32,9 @@ public final class GooTestFunctions {
     private static final String TYPES_DATAPACK_LISTED = "types_datapack_listed";
     private static final String TYPES_MARKER_RELOADS = "types_marker_reloads";
     private static final String TYPES_GLOVE_RELOADS = "types_glove_reloads";
+
+    // --- Goo value lifecycle ---
+    private static final String VALUES_FRESH_AFTER_STOP = "values_fresh_after_stop";
     private static final String GLOVE_TYPE_ONLY_REFUSED = "glove_type_only_refused";
     private static final String GLOVE_SHIFT_RECOLLECTS_MARKER = "glove_shift_recollects_marker";
     private static final String GLOVE_CLICK_NO_USING_STATE = "glove_click_no_using_state";
@@ -350,6 +353,7 @@ public final class GooTestFunctions {
         event.register(Registries.TEST_FUNCTION, registrar -> {
             reg(registrar, SMOKE, GameTestHelper::succeed);
             registerGooTypeRegistryTests(registrar);
+            reg(registrar, VALUES_FRESH_AFTER_STOP, GooValueLifecycleTests::freshRegistryReadsAfterStop);
             registerGooFluidTests(registrar);
             registerGooItemTests(registrar);
             registerExoriteTests(registrar);

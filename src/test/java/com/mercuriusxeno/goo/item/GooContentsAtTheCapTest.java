@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.item;
 
 import com.google.gson.JsonElement;
-import com.mercuriusxeno.goo.GooTypes;
+import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.serialization.JsonOps;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;

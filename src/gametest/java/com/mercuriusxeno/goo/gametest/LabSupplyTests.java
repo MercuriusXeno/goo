@@ -1,11 +1,9 @@
 package com.mercuriusxeno.goo.gametest;
 
-import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.GooTypeDefinition;
-import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.block.canister.CanisterBlock;
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
 import com.mercuriusxeno.goo.command.LabCommand;
+import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.lab.LabBox;
 import com.mercuriusxeno.goo.lab.LabBuilder;
@@ -14,6 +12,8 @@ import com.mercuriusxeno.goo.lab.LabPlan;
 import com.mercuriusxeno.goo.lab.LabStock;
 import com.mercuriusxeno.goo.lab.LabSupply;
 import com.mercuriusxeno.goo.registry.GooItems;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -128,7 +128,7 @@ public final class LabSupplyTests {
         helper.assertTrue(chest != null, NO_CHEST + station.gooTypeId());
         for (int slot = 0; slot < chest.getContainerSize(); slot++) {
             ItemStack stack = chest.getItem(slot);
-            helper.assertTrue(stack.isEmpty() || Goo.GOO_VALUES.lookup(stack).get(type) > 0,
+            helper.assertTrue(stack.isEmpty() || GooValues.of(helper.getLevel()).lookup(stack).get(type) > 0,
                     STRAY_ITEM + station.gooTypeId() + SEPARATOR + stack);
         }
     }

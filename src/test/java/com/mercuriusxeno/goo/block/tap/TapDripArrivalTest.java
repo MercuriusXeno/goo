@@ -1,8 +1,8 @@
 package com.mercuriusxeno.goo.block.tap;
 
-import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.block.IGooReceptacle;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import org.junit.jupiter.api.Nested;
@@ -30,12 +30,13 @@ class TapDripArrivalTest {
 
     @Test
     void dripOfATypeWithNoTapAbilityRunsNoProgram() {
-        assertNull(AbilityRegistry.tapAbilityFor(GooTypes.ROCK));
+        AbilityRegistry abilities = AbilityRegistry.EMPTY;
+        assertNull(abilities.tapAbilityFor(GooTypes.ROCK));
 
         TapDripScheduler.PendingDrip drip = new TapDripScheduler.PendingDrip(
                 null, TAP_POS, LANDING, Direction.UP, GooTypes.ROCK, 1, 0);
 
-        assertEquals(0, TapDripScheduler.land(drip));
+        assertEquals(0, TapDripScheduler.land(drip, null, landed -> TapDripScheduler.runTapAbility(landed, abilities)));
     }
 
     @Nested

@@ -9,14 +9,18 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
-import net.minecraft.world.item.ItemStack;
 import org.jspecify.annotations.Nullable;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Path;
 import java.util.*;
 
 /**
- * Central registry for all item goo values. Loads base values from JSON,
- * derives values from all recipe types using LCD rule, and persists derived values.
+ * The server's pipeline for item goo values: loads base values from JSON,
+ * derives values from all recipe types using LCD rule, persists derived values,
+ * and publishes each result as a {@link GooValueTable} readers look up through
+ * {@link #table()}. One lives on each running server
+ * (decision type-package-and-per-server-holders).
  *
  * <p>The derivation engine is split into two layers: a thin Minecraft adapter
  * (recipe/ingredient resolution) and a pure logic core that operates on
@@ -27,7 +31,7 @@ import java.util.*;
  * {@link GooValueValidator} (authoring checks), {@link GooValueRecipeAdapter}
  * (MC recipe conversion), and {@link GooValueCache} (disk persistence).</p>
  */
-public class GooValueRegistry implements IGooValueLookup {
+public class GooValueRegistry {
 
     static final int MAX_DERIVATION_PASSES = 20;
 
@@ -35,10 +39,6 @@ public class GooValueRegistry implements IGooValueLookup {
      * Log: derived values from recipes.
      */
     private static final String LOG_DERIVED = "Derived {} goo values from recipes";
-    /**
-     * Log: client received values.
-     */
-    private static final String LOG_CLIENT_RECEIVED = "Client received {} effective goo values";
     /**
      * Warning: no base values loaded yet.
      */
@@ -48,57 +48,49 @@ public class GooValueRegistry implements IGooValueLookup {
      */
     private static final String ERROR_NO_DATAPACK = "No datapack provides goo_values/base_values.json";
 
-    // --- Instance state (package-private for test access) ---
-
-    final Map<Identifier, GooValue> baseValues = new HashMap<>();
+    private final Map<Identifier, GooValue> baseValues = new HashMap<>();
     /**
-     * Effective values after LCD comparison between base and derived: an
-     * unmodifiable map replaced whole, never mutated, so a reader on another
-     * thread holds one consistent snapshot
+     * The values readers look up: an immutable table replaced whole, never
+     * mutated, so a reader on another thread holds one consistent snapshot
      * (decision diagnose-then-fix-server-link-and-value-race).
      */
-    volatile Map<Identifier, GooValue> effectiveValues = Map.of();
+    private volatile GooValueTable table = GooValueTable.EMPTY;
     /**
      * Items explicitly denied a value (e.g. ore blocks - fortune makes them unvaluable).
      */
-    final Set<Identifier> deniedItems = new HashSet<>();
+    private final Set<Identifier> deniedItems = new HashSet<>();
     /**
      * Items restricted from plexer reconstitution but still decomposable.
      */
-    final Set<Identifier> restrictedItems = new HashSet<>();
+    private final Set<Identifier> restrictedItems = new HashSet<>();
     /**
      * Named constants from _constants block, resolved during value parsing.
      */
-    final Map<String, Integer> constants = new HashMap<>();
+    private final Map<String, Integer> constants = new HashMap<>();
     /**
      * Tree constants from _constants block: GooValue objects keyed by name.
      */
-    final Map<String, GooValue> treeConstants = new HashMap<>();
+    private final Map<String, GooValue> treeConstants = new HashMap<>();
     /**
      * Pseudo-tags from _groups block: group name to item set.
      */
-    final Map<String, Set<Identifier>> pseudoTags = new HashMap<>();
+    private final Map<String, Set<Identifier>> pseudoTags = new HashMap<>();
     /**
      * Post-derivation conversions from _post_conversions block.
      */
-    GooConversion.ParsedConversions postConversions;
-
+    private GooConversion.ParsedConversions postConversions;
     /**
      * Result of the last derivation or cache load. Null before first derivation.
      */
-    @Nullable
-    DerivationResult lastDerivation;
-
+    private @Nullable DerivationResult lastDerivation;
     /**
      * Cached recipe inputs from the last derivation, for scaffold generation.
      */
-    List<RecipeInput> lastRecipes = List.of();
-
+    private List<RecipeInput> lastRecipes = List.of();
     /**
      * Last merged base_values JSON from regen, retained for validation.
      */
-    @Nullable
-    JsonObject lastMergedBaseValues;
+    private @Nullable JsonObject lastMergedBaseValues;
 
     private Path effectiveCachePath;
 
@@ -157,13 +149,22 @@ public class GooValueRegistry implements IGooValueLookup {
     }
 
     /**
-     * Replaces the effective values with an unmodifiable copy of the given map
-     * in one write, so no reader sees a half-built map.
+     * Publishes a fresh table of the given effective values beside the base,
+     * denied and restricted items, in one write, so no reader sees a half-built table.
      *
      * @param built the complete effective values
      */
-    void publishEffectiveValues(Map<Identifier, GooValue> built) {
-        effectiveValues = Collections.unmodifiableMap(new HashMap<>(built));
+    private void publishEffectiveValues(Map<Identifier, GooValue> built) {
+        table = new GooValueTable(built, baseValues.keySet(), deniedItems, restrictedItems);
+    }
+
+    /**
+     * Answers the values this registry last published.
+     *
+     * @return the current table
+     */
+    public GooValueTable table() {
+        return table;
     }
 
     /**
@@ -200,7 +201,7 @@ public class GooValueRegistry implements IGooValueLookup {
      * Also serves as the reload entry point.
      */
     public void loadEffectiveCache() {
-        Map<Identifier, GooValue> loaded = new HashMap<>(effectiveValues);
+        Map<Identifier, GooValue> loaded = new HashMap<>(table.getEffectiveValues());
         GooValueCache.loadEffectiveCache(effectiveCachePath, loaded);
         publishEffectiveValues(loaded);
     }
@@ -209,7 +210,7 @@ public class GooValueRegistry implements IGooValueLookup {
      * Saves the complete effective value map to the cache file.
      */
     public void saveEffectiveValues() {
-        GooValueCache.saveEffectiveValues(effectiveCachePath, effectiveValues);
+        GooValueCache.saveEffectiveValues(effectiveCachePath, table.getEffectiveValues());
     }
 
     /**
@@ -225,32 +226,6 @@ public class GooValueRegistry implements IGooValueLookup {
         }
         GooValueValidator.validateJson(lastMergedBaseValues, warnings);
         return warnings;
-    }
-
-    /**
-     * Replaces effective values wholesale with server-provided data.
-     *
-     * @param values the server-synced effective values
-     */
-    public void receiveClientValues(Map<Identifier, GooValue> values) {
-        publishEffectiveValues(values);
-        if (Goo.LOGGER.isDebugEnabled()) {
-            Goo.LOGGER.debug(LOG_CLIENT_RECEIVED, values.size());
-        }
-    }
-
-    /**
-     * Clears all internal state. Used on client disconnect to prevent stale data.
-     */
-    public void clearAll() {
-        baseValues.clear();
-        effectiveValues = Map.of();
-        deniedItems.clear();
-        restrictedItems.clear();
-        constants.clear();
-        treeConstants.clear();
-        lastDerivation = null;
-        lastMergedBaseValues = null;
     }
 
     /**
@@ -279,69 +254,8 @@ public class GooValueRegistry implements IGooValueLookup {
     public ScaffoldGenerator.ScaffoldResult generateScaffoldMissing(boolean bare) {
         Set<Identifier> allItems = BuiltInRegistries.ITEM.keySet();
         List<ScaffoldGenerator.Root> roots = ScaffoldGenerator.findRoots(
-                lastRecipes, effectiveValues, deniedItems, allItems);
+                lastRecipes, table.getEffectiveValues(), deniedItems, allItems);
         return ScaffoldGenerator.generateScaffold(roots, lastRecipes, bare);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public GooValue lookup(Identifier itemId) {
-        return effectiveValues.get(itemId);
-    }
-
-    /**
-     * Looks up the goo value for an item stack by its item id.
-     *
-     * @param stack the item stack to look up
-     * @return effective GooValue, or null if none
-     */
-    public GooValue lookup(ItemStack stack) {
-        if (stack.isEmpty()) {
-            return null;
-        }
-        return lookup(BuiltInRegistries.ITEM.getKey(stack.getItem()));
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public int size() {
-        return effectiveValues.size();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public boolean hasBaseValue(Identifier itemId) {
-        return baseValues.containsKey(itemId);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public boolean isDenied(Identifier itemId) {
-        return deniedItems.contains(itemId);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public boolean isRestricted(Identifier itemId) {
-        return restrictedItems.contains(itemId);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public Map<Identifier, GooValue> getEffectiveValues() {
-        return effectiveValues;
     }
 
     /**
@@ -393,6 +307,64 @@ public class GooValueRegistry implements IGooValueLookup {
         GooConversionLoader.applyConversions(postConversions, derivedEffective, pseudoTags);
         publishEffectiveValues(derivedEffective);
         return lastDerivation.derivedValues().size();
+    }
+
+    /**
+     * Replaces the base values and publishes them as the effective values, the
+     * state a pack load leaves before any derivation. A seam for tests.
+     *
+     * @param values the base values
+     */
+    void seedBaseValues(Map<Identifier, GooValue> values) {
+        baseValues.clear();
+        baseValues.putAll(values);
+        publishEffectiveValues(values);
+    }
+
+    /**
+     * Replaces the denied items. A seam for tests.
+     *
+     * @param items the items denied a value
+     */
+    void seedDeniedItems(Set<Identifier> items) {
+        deniedItems.clear();
+        deniedItems.addAll(items);
+        publishEffectiveValues(table.getEffectiveValues());
+    }
+
+    /**
+     * Parses one base_values.json stream into this registry's state and
+     * publishes what it loaded. A seam for tests.
+     *
+     * @param stream the JSON stream
+     * @throws IOException when the stream cannot be read
+     */
+    void parseBaseValues(InputStream stream) throws IOException {
+        Map<Identifier, GooValue> loadedEffective = new HashMap<>(table.getEffectiveValues());
+        var state = createParseState(loadedEffective);
+        GooValueLoader.parseBaseValuesFromStream(stream, state);
+        postConversions = state.postConversions;
+        publishEffectiveValues(loadedEffective);
+    }
+
+    /**
+     * Copies the base values over the effective values and applies the
+     * post-conversions, as a load with no recipes would. A seam for tests.
+     */
+    void publishBaseAsEffective() {
+        Map<Identifier, GooValue> effective = new HashMap<>(table.getEffectiveValues());
+        effective.putAll(baseValues);
+        GooConversionLoader.applyConversions(postConversions, effective, pseudoTags);
+        publishEffectiveValues(effective);
+    }
+
+    /**
+     * Answers the values the last derivation derived from recipes.
+     *
+     * @return the derived values, empty before any derivation
+     */
+    Map<Identifier, GooValue> lastDerivedValues() {
+        return lastDerivation != null ? lastDerivation.derivedValues() : Map.of();
     }
 
     /**

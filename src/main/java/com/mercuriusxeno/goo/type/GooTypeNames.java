@@ -1,4 +1,4 @@
-package com.mercuriusxeno.goo;
+package com.mercuriusxeno.goo.type;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -41,7 +41,7 @@ public final class GooTypeNames {
      */
     public static String translationKey(ResourceKey<GooTypeDefinition> key) {
         Identifier id = key.identifier();
-        return Goo.MODID.equals(id.getNamespace())
+        return GooTypes.NAMESPACE.equals(id.getNamespace())
                 ? TYPE_PREFIX + id.getPath()
                 : TYPE_PREFIX + id.getNamespace() + SEPARATOR + id.getPath();
     }

@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:values_fresh_after_stop",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 5,
+  "setup_ticks": 0,
+  "required": true
+}

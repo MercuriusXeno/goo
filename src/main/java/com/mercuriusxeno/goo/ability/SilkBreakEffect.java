@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.ability;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.data.GooValue;
+import com.mercuriusxeno.goo.data.GooValues;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -78,7 +78,7 @@ public final class SilkBreakEffect implements BlockEffect {
             return false;
         }
         Identifier itemId = BuiltInRegistries.ITEM.getKey(item);
-        GooValue value = Goo.GOO_VALUES.lookup(itemId);
+        GooValue value = GooValues.of(level).lookup(itemId);
         return AbilityMath.isRockCompatible(value);
     }
 

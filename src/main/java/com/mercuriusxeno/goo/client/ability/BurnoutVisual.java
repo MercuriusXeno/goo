@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.resources.ResourceKey;
 

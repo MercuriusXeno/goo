@@ -1,4 +1,4 @@
-package com.mercuriusxeno.goo;
+package com.mercuriusxeno.goo.throwing;
 
 /**
  * Pure math for a goo drip falling under the drip particle's physics, shared

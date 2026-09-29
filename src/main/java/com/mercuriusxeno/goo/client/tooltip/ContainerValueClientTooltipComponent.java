@@ -1,9 +1,9 @@
 package com.mercuriusxeno.goo.client.tooltip;
 
-import com.mercuriusxeno.goo.GooTypeNames;
-import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.GooTooltipHandler;
+import com.mercuriusxeno.goo.type.GooTypeNames;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;

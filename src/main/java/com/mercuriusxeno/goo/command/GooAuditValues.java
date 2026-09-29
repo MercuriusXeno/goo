@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.command;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.data.GooValueRegistry;
 import com.mercuriusxeno.goo.data.IGooValueLookup;
@@ -185,11 +184,12 @@ final class GooAuditValues {
     /**
      * Appends the conflicts section to the report, returns count of recipe-cheaper conflicts.
      *
+     * @param values the server's goo value registry
      * @param report the report lines list to append to
      * @return the number of recipe-cheaper conflicts
      */
-    static int appendConflictsSection(List<String> report) {
-        List<GooValueRegistry.ValueConflict> conflicts = Goo.GOO_VALUES.diagnostics().conflicts();
+    static int appendConflictsSection(GooValueRegistry values, List<String> report) {
+        List<GooValueRegistry.ValueConflict> conflicts = values.diagnostics().conflicts();
         long exploitCount = conflicts.stream().filter(GooValueRegistry.ValueConflict::isRecipeCheaper).count();
         GooAuditReport.appendSectionBody(report,
                 HDR_CONFLICTS_PREFIX + conflicts.size() + HDR_CONFLICTS_MID + exploitCount + HDR_CONFLICTS_SUFFIX,
@@ -200,10 +200,11 @@ final class GooAuditValues {
     /**
      * Sends a conflict count summary to chat.
      *
+     * @param values the server's goo value registry
      * @param ctx the command context
      */
-    static void sendConflictsSummary(CommandContext<CommandSourceStack> ctx) {
-        List<GooValueRegistry.ValueConflict> conflicts = Goo.GOO_VALUES.diagnostics().conflicts();
+    static void sendConflictsSummary(GooValueRegistry values, CommandContext<CommandSourceStack> ctx) {
+        List<GooValueRegistry.ValueConflict> conflicts = values.diagnostics().conflicts();
         if (conflicts.isEmpty()) {
             return;
         }
@@ -232,23 +233,25 @@ final class GooAuditValues {
     /**
      * Appends the divisibility loss section to the report, returns count of lossy recipes.
      *
+     * @param values the server's goo value registry
      * @param report the report lines list to append to
      * @return the number of lossy recipes
      */
-    static int appendDivisibilitySection(List<String> report) {
-        List<GooValueRegistry.DivisibilityLoss> losses = Goo.GOO_VALUES.diagnostics().divisibilityLosses();
+    static int appendDivisibilitySection(GooValueRegistry values, List<String> report) {
+        List<GooValueRegistry.DivisibilityLoss> losses = values.diagnostics().divisibilityLosses();
         GooAuditReport.appendSectionBody(report, HDR_DIV_PREFIX + losses.size() + HDR_DIV_SUFFIX,
-                MSG_NO_DIV, losses, GooAuditValues::formatDivisibilityLine);
+                MSG_NO_DIV, losses, loss -> formatDivisibilityLine(values, loss));
         return losses.size();
     }
 
     /**
      * Sends a divisibility loss count summary to chat.
      *
+     * @param values the server's goo value registry
      * @param ctx the command context
      */
-    static void sendDivisibilitySummary(CommandContext<CommandSourceStack> ctx) {
-        List<GooValueRegistry.DivisibilityLoss> losses = Goo.GOO_VALUES.diagnostics().divisibilityLosses();
+    static void sendDivisibilitySummary(GooValueRegistry values, CommandContext<CommandSourceStack> ctx) {
+        List<GooValueRegistry.DivisibilityLoss> losses = values.diagnostics().divisibilityLosses();
         if (losses.isEmpty()) {
             return;
         }
@@ -261,61 +264,65 @@ final class GooAuditValues {
     /**
      * Formats a single divisibility loss with ingredient provenance.
      *
+     * @param values the server's goo value registry
      * @param loss the divisibility loss to format
      * @return the formatted line
      */
-    private static String formatDivisibilityLine(GooValueRegistry.DivisibilityLoss loss) {
+    private static String formatDivisibilityLine(GooValueRegistry values, GooValueRegistry.DivisibilityLoss loss) {
         StringBuilder sb = new StringBuilder(DIVISIBILITY_LINE_CAPACITY);
         sb.append(GooAuditReport.INDENT).append(loss.output()).append(SEP_DASH)
                 .append(loss.inputTotal()).append(DIV_TOTAL)
                 .append(loss.outputCount()).append(DIV_ITEMS).append(loss.perItemValue())
                 .append(DIV_EACH).append(loss.lostBlobs()).append(DIV_BLOBS);
-        appendIngredientProvenance(sb, loss);
+        appendIngredientProvenance(values, sb, loss);
         return sb.toString();
     }
 
     /**
      * Appends ingredient value sources to the divisibility loss line.
      *
+     * @param values the server's goo value registry
      * @param sb   the string builder to append to
      * @param loss the divisibility loss record
      */
-    private static void appendIngredientProvenance(StringBuilder sb,
+    private static void appendIngredientProvenance(GooValueRegistry values, StringBuilder sb,
                                                    GooValueRegistry.DivisibilityLoss loss) {
         for (var alternatives : loss.recipe().ingredientAlternatives()) {
-            Identifier cheapest = findCheapestIngredientId(alternatives);
+            Identifier cheapest = findCheapestIngredientId(values, alternatives);
             if (cheapest == null) {
                 continue;
             }
             sb.append(DIV_INGREDIENT_INDENT).append(cheapest);
-            appendValueSource(sb, cheapest);
+            appendValueSource(values, sb, cheapest);
         }
     }
 
     /**
      * Finds the cheapest valued item ID among alternatives.
      *
+     * @param values the server's goo value registry
      * @param alternatives the set of alternative item IDs
      * @return the cheapest item ID, or null if none have values
      */
-    private static Identifier findCheapestIngredientId(Set<Identifier> alternatives) {
-        return IGooValueLookup.findCheapestAmong(alternatives, Goo.GOO_VALUES::lookup);
+    private static Identifier findCheapestIngredientId(GooValueRegistry values, Set<Identifier> alternatives) {
+        return IGooValueLookup.findCheapestAmong(alternatives, values.table()::lookup);
     }
 
     /**
      * Appends " = {value} (base|derived)" for a single ingredient.
      *
+     * @param values the server's goo value registry
      * @param sb     the string builder to append to
      * @param itemId the ingredient item ID
      */
-    private static void appendValueSource(StringBuilder sb, Identifier itemId) {
-        GooValue val = Goo.GOO_VALUES.lookup(itemId);
+    private static void appendValueSource(GooValueRegistry values, StringBuilder sb, Identifier itemId) {
+        GooValue val = values.table().lookup(itemId);
         if (val == null) {
             sb.append(LABEL_NO_VALUE);
             return;
         }
         sb.append(LABEL_EQ_VALUE).append(val.totalBlobs()).append(LABEL_OPEN_BRACE).append(val).append(LABEL_BLOBS_CLOSE)
-                .append(Goo.GOO_VALUES.hasBaseValue(itemId) ? LABEL_BASE : LABEL_DERIVED);
+                .append(values.table().hasBaseValue(itemId) ? LABEL_BASE : LABEL_DERIVED);
     }
 
     // --- All Values ---
@@ -323,57 +330,61 @@ final class GooAuditValues {
     /**
      * Appends a section listing every item's effective value and its source.
      *
+     * @param values the server's goo value registry
      * @param report the report lines list to append to
      */
-    static void appendAllValuesSection(List<String> report) {
-        Map<Identifier, GooValue> effective = Goo.GOO_VALUES.getEffectiveValues();
+    static void appendAllValuesSection(GooValueRegistry values, List<String> report) {
+        Map<Identifier, GooValue> effective = values.table().getEffectiveValues();
         List<Identifier> sorted = new ArrayList<>(effective.keySet());
         Collections.sort(sorted);
         GooAuditReport.appendSectionBody(report, HDR_ALL_PREFIX + sorted.size() + HDR_ALL_SUFFIX,
-                GooAuditReport.EMPTY_LINE, sorted, id -> formatValueLine(id, effective.get(id)));
+                GooAuditReport.EMPTY_LINE, sorted, id -> formatValueLine(values, id, effective.get(id)));
     }
 
     /**
      * Formats a single item's value with its provenance (base/derived + source recipe).
      *
+     * @param values the server's goo value registry
      * @param itemId the item identifier
      * @param value  the item's goo value
      * @return the formatted line
      */
-    private static String formatValueLine(Identifier itemId, GooValue value) {
+    private static String formatValueLine(GooValueRegistry values, Identifier itemId, GooValue value) {
         StringBuilder sb = new StringBuilder();
         sb.append(GooAuditReport.INDENT).append(itemId).append(LABEL_EQ_VALUE)
                 .append(value.totalBlobs()).append(LABEL_OPEN_BRACE).append(value).append(LABEL_BLOBS_CLOSE);
-        appendProvenance(sb, itemId);
+        appendProvenance(values, sb, itemId);
         return sb.toString();
     }
 
     /**
      * Appends the provenance tag: (base), (derived), or (base+derived).
      *
+     * @param values the server's goo value registry
      * @param sb     the string builder to append to
      * @param itemId the item identifier
      */
-    private static void appendProvenance(StringBuilder sb, Identifier itemId) {
-        boolean hasBase = Goo.GOO_VALUES.hasBaseValue(itemId);
-        RecipeInput source = Goo.GOO_VALUES.diagnostics().derivationSources().get(itemId);
+    private static void appendProvenance(GooValueRegistry values, StringBuilder sb, Identifier itemId) {
+        boolean hasBase = values.table().hasBaseValue(itemId);
+        RecipeInput source = values.diagnostics().derivationSources().get(itemId);
         if (hasBase && source != null) {
-            sb.append(PROV_BASE_DERIVED).append(formatSourceRecipe(source)).append(GooAuditReport.MSG_CLOSE_PAREN);
+            sb.append(PROV_BASE_DERIVED).append(formatSourceRecipe(values, source)).append(GooAuditReport.MSG_CLOSE_PAREN);
         } else if (hasBase) {
             sb.append(LABEL_BASE);
         } else if (source != null) {
-            sb.append(PROV_DERIVED).append(formatSourceRecipe(source)).append(GooAuditReport.MSG_CLOSE_PAREN);
+            sb.append(PROV_DERIVED).append(formatSourceRecipe(values, source)).append(GooAuditReport.MSG_CLOSE_PAREN);
         }
     }
 
     /**
      * Formats a source recipe as a compact ingredient list.
      *
+     * @param values the server's goo value registry
      * @param recipe the source recipe input
      * @return the formatted recipe string
      */
-    private static String formatSourceRecipe(RecipeInput recipe) {
-        Map<Identifier, Integer> counts = countIngredients(recipe);
+    private static String formatSourceRecipe(GooValueRegistry values, RecipeInput recipe) {
+        Map<Identifier, Integer> counts = countIngredients(values, recipe);
         String ingredientStr = counts.entrySet().stream()
                 .map(e -> e.getValue() > 1 ? e.getValue() + RECIPE_TIMES_PREFIX + e.getKey() : e.getKey().toString())
                 .collect(Collectors.joining(RECIPE_PLUS));
@@ -384,13 +395,14 @@ final class GooAuditValues {
     /**
      * Counts how many times each cheapest ingredient appears in a recipe.
      *
+     * @param values the server's goo value registry
      * @param recipe the source recipe input
      * @return ingredient counts keyed by cheapest item ID
      */
-    private static Map<Identifier, Integer> countIngredients(RecipeInput recipe) {
+    private static Map<Identifier, Integer> countIngredients(GooValueRegistry values, RecipeInput recipe) {
         Map<Identifier, Integer> counts = new LinkedHashMap<>();
         for (Set<Identifier> alts : recipe.ingredientAlternatives()) {
-            Identifier cheapest = findCheapestIngredientId(alts);
+            Identifier cheapest = findCheapestIngredientId(values, alts);
             if (cheapest != null) {
                 counts.merge(cheapest, 1, Integer::sum);
             }

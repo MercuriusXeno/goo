@@ -1,10 +1,12 @@
 package com.mercuriusxeno.goo.lab;
 
-import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.GooTypeDefinition;
-import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.block.canister.CanisterBlock;
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
+import com.mercuriusxeno.goo.data.GooValue;
+import com.mercuriusxeno.goo.data.GooValues;
+import com.mercuriusxeno.goo.data.IGooValueLookup;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
@@ -22,7 +24,7 @@ import java.util.Map;
  * Stocks the supply row from the registries at build time (decision
  * lab-iterates-the-registries): each station's canister block gets a canister
  * filled with its goo type, and its chest the items whose goo values
- * ({@link Goo#GOO_VALUES}) hold that type, so a type or a value a datapack adds
+ * ({@link GooValues}) hold that type, so a type or a value a datapack adds
  * reaches the row with no lab edit.
  */
 public final class LabStock {
@@ -66,7 +68,7 @@ public final class LabStock {
         }
         BlockPos chestPos = LabBuilder.worldPos(origin, station.chestOffset());
         if (level.getBlockEntity(chestPos) instanceof ChestBlockEntity chest) {
-            List<Item> items = itemsHolding(type);
+            List<Item> items = itemsHolding(GooValues.of(level), type);
             for (int slot = 0; slot < chest.getContainerSize() && slot < items.size(); slot++) {
                 Item item = items.get(slot);
                 chest.setItem(slot, new ItemStack(item, item.getDefaultMaxStackSize()));
@@ -77,13 +79,14 @@ public final class LabStock {
     /**
      * Answers the items whose goo value holds a type, sorted by item id.
      *
-     * @param type the goo type
+     * @param values the goo values the level's server holds
+     * @param type   the goo type
      * @return the items
      */
-    public static List<Item> itemsHolding(ResourceKey<GooTypeDefinition> type) {
-        Map<Identifier, ?> values = Goo.GOO_VALUES.getEffectiveValues();
-        return values.keySet().stream()
-                .filter(id -> Goo.GOO_VALUES.lookup(id).get(type) > 0)
+    public static List<Item> itemsHolding(IGooValueLookup values, ResourceKey<GooTypeDefinition> type) {
+        Map<Identifier, GooValue> effective = values.getEffectiveValues();
+        return effective.keySet().stream()
+                .filter(id -> effective.get(id).get(type) > 0)
                 .sorted(Comparator.comparing(Identifier::toString))
                 .map(BuiltInRegistries.ITEM::getValue)
                 .filter(item -> item != Items.AIR)

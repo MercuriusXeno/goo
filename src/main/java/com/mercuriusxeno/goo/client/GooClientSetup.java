@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.client;
 
 import com.google.common.reflect.TypeToken;
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ISidedProxy;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
@@ -19,11 +18,17 @@ import com.mercuriusxeno.goo.client.throwing.BlobVolumeDecorator;
 import com.mercuriusxeno.goo.client.throwing.ThrowFreezeState;
 import com.mercuriusxeno.goo.item.gasket.TunerAwaitState;
 import com.mercuriusxeno.goo.registry.*;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypeOrderSource;
+import com.mercuriusxeno.goo.type.GooTypes;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.renderer.block.FluidModel;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.resources.model.sprite.Material;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.Entity;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -69,6 +74,7 @@ public final class GooClientSetup {
     static {
         ISidedProxy.INSTANCE[0] = new ClientProxy();
         ChainMarkerBlockEntity.installClientSteps(GooClientSetup::syncedSteps);
+        GooTypes.readConnectionOrderFrom(GooClientSetup::connectionTypeOrder);
     }
 
     /**
@@ -308,13 +314,13 @@ public final class GooClientSetup {
     }
 
     /**
-     * Clears cached goo values and tuner await state on disconnect.
+     * Clears tuner await state and client flight state on disconnect; the goo
+     * values leave with the connection that held them.
      *
      * @param event the event instance
      */
     @SubscribeEvent
     public static void onClientDisconnect(ClientPlayerNetworkEvent.LoggingOut event) {
-        Goo.GOO_VALUES.clearAll();
         TunerAwaitState.clear();
         BlobFlightManager.clear();
         ChainBurnouts.CLIENT.clear();
@@ -329,8 +335,16 @@ public final class GooClientSetup {
     @SubscribeEvent
     public static void onClientLogin(ClientPlayerNetworkEvent.LoggingIn event) {
         TunerAwaitState.clear();
-        // The synced type registry is in hand at login, so the wheel and item handlers read its size.
-        GooTypes.capture(event.getPlayer().registryAccess());
+    }
+
+    /**
+     * Answers the goo types the current connection holds.
+     *
+     * @return the types, or null while no connection stands
+     */
+    private static @Nullable List<ResourceKey<GooTypeDefinition>> connectionTypeOrder() {
+        ClientPacketListener connection = Minecraft.getInstance().getConnection();
+        return connection instanceof GooTypeOrderSource source ? source.gooTypeOrder() : null;
     }
 
 }

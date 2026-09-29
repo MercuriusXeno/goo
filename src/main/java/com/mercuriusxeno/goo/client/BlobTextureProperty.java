@@ -1,8 +1,8 @@
 package com.mercuriusxeno.goo.client;
 
-import com.mercuriusxeno.goo.BlobModelSize;
-import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
+import com.mercuriusxeno.goo.type.BlobModelSize;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.client.Minecraft;
