@@ -66,7 +66,7 @@ public final class GooTestFunctions {
     private static final String CRYSTALLIZER_TWO_CRYSTAL = "crystallizer_two_crystal_grow_crystal";
     private static final String CRYSTALLIZER_TAKES_ONLY_TWO_SLOTS = "crystallizer_takes_only_two_slots";
     private static final String CRYSTALLIZER_CANISTERS_AT_ITS_CENTERS = "crystallizer_canisters_at_its_centers";
-    private static final String CRYSTALLIZER_ADVANCES_TO_KILOCHRYSM = "crystallizer_advances_to_kilochrysm";
+    private static final String CRYSTALLIZER_ADVANCES_TO_BUDDING_CHRYSM = "crystallizer_advances_to_budding_chrysm";
     private static final String CRYSTALLIZER_SMALL_DIAL_HOLDS = "crystallizer_small_dial_holds";
     private static final String CRYSTALLIZER_DIAL_WRAPS = "crystallizer_dial_wraps";
     private static final String CRYSTALLIZER_PAUSES_WITHOUT_CRYSTAL = "crystallizer_pauses_without_crystal";
@@ -364,7 +364,7 @@ public final class GooTestFunctions {
         reg(r, CRYSTALLIZER_TWO_CRYSTAL, CrystallizerTests::twoCrystalCanistersGrowCrystal);
         reg(r, CRYSTALLIZER_TAKES_ONLY_TWO_SLOTS, CrystallizerTests::canisterBlockAboveTakesOnlyTheTwoSlots);
         reg(r, CRYSTALLIZER_CANISTERS_AT_ITS_CENTERS, CrystallizerTests::canisterBlockOnCrystallizerStandsAtItsCenters);
-        reg(r, CRYSTALLIZER_ADVANCES_TO_KILOCHRYSM, CrystallizerTests::advancesToKilochrysm);
+        reg(r, CRYSTALLIZER_ADVANCES_TO_BUDDING_CHRYSM, CrystallizerTests::advancesToBuddingChrysm);
         reg(r, CRYSTALLIZER_SMALL_DIAL_HOLDS, CrystallizerTests::smallDialHoldsAtChrysm);
         reg(r, CRYSTALLIZER_DIAL_WRAPS, CrystallizerTests::dialClickWrapsFromLargeToSmall);
         reg(r, CRYSTALLIZER_PAUSES_WITHOUT_CRYSTAL, CrystallizerTests::pausesWithoutCrystal);

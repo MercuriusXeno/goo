@@ -12,7 +12,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * The crystal's faces tile the growing type's sprite by their place in the block, two
  * texels per model pixel, cut at the sprite's edges so the texture repeats rather than
  * clamps, and read one plane however rounding turns their normal (decision
- * crystallizer-emits-chrysm).
+ * crystallizer-emits-chrysm); the materia orb's faces sit on its sphere, turned out
+ * (decision chrysm-tiers-in-32x-steps).
  */
 class CrystalClusterSubmitterTest {
 
@@ -22,6 +23,21 @@ class CrystalClusterSubmitterTest {
 
     private static Vec3[] faceAtZ(double x0, double x1, double y0, double y1) {
         return new Vec3[] {new Vec3(x0, y0, 8), new Vec3(x1, y0, 8), new Vec3(x1, y1, 8), new Vec3(x0, y1, 8)};
+    }
+
+    @Test
+    void theOrbsFacesSitOnItsSphereAndFaceOutward() {
+        Vec3 center = new Vec3(8, 20, 8);
+        double radius = CrystalCluster.ORB_RADIUS;
+        for (Vec3[] face : CrystalClusterSubmitter.orbFaces(center, radius)) {
+            Vec3 middle = Vec3.ZERO;
+            for (Vec3 corner : face) {
+                assertEquals(radius, corner.distanceTo(center), 1e-6, "a corner off the sphere");
+                middle = middle.add(corner.scale(1.0 / face.length));
+            }
+            assertTrue(CrystalClusterSubmitter.faceNormal(face).dot(middle.subtract(center)) > 0,
+                    "a face turned inward at " + middle);
+        }
     }
 
     @Test

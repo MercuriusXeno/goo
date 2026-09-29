@@ -65,19 +65,19 @@ public final class CrystallizerTests {
     private static final BlockPos CANISTERS_POS = CRYSTALLIZER_POS.above();
     private static final int CHRYSM_VOLUME = Math.toIntExact(ChrysmTier.CHRYSM.volume());
     private static final int CRYSTAL_COST = CHRYSM_VOLUME / CrystallizerPhases.GOO_PER_CRYSTAL;
-    private static final int KILO_VOLUME = Math.toIntExact(ChrysmTier.KILOCHRYSM.volume());
-    private static final int HALF_KILO = KILO_VOLUME / 2;
+    private static final int BUDDING_VOLUME = Math.toIntExact(ChrysmTier.BUDDING_CHRYSM.volume());
+    private static final int HALF_BUDDING = BUDDING_VOLUME / 2;
     private static final int MORE_ENDER = 5_000;
     private static final int FIRST = 0;
     private static final int SECOND = 1;
     private static final int PUSH_TICKS = 20;
     /** A chrysm's 200 ticks at the pace, with margin. */
     private static final int CHRYSM_TICKS = 220;
-    /** A kilochrysm's 400 ticks at the pace, with margin. */
-    private static final int KILOCHRYSM_TICKS = 440;
-    /** 500,000 mB at the pace: about 380 ticks, with margin. */
-    private static final int HALF_KILO_TICKS = 420;
-    /** Half a chrysm, 500 mB, at the flat pace of 5 mB a tick: 100 ticks, with margin. */
+    /** A budding chrysm's 400 ticks at the pace, with margin. */
+    private static final int BUDDING_CHRYSM_TICKS = 440;
+    /** 500,000 mB at the pace: about 360 ticks, with margin. */
+    private static final int HALF_BUDDING_TICKS = 420;
+    /** Half a chrysm, 16,000 mB, at the flat pace of 160 mB a tick: 100 ticks, with margin. */
     private static final int HALF_CHRYSM_TICKS = 110;
     private static final int STILL_GROWING_TICKS = 100;
     private static final int SOME_TICKS = 20;
@@ -354,8 +354,8 @@ public final class CrystallizerTests {
     }
 
     /**
-     * 1,000 mB of ender beside only 50 mB of crystal crystallizes half and forms no
-     * chrysm; 50 mB more crystal finishes it. The model reads active while it
+     * A chrysm's ender beside half its crystal crystallizes half and forms no
+     * chrysm; the other half of the crystal finishes it. The model reads active while it
      * crystallizes and idle after.
      *
      * @param helper the gametest helper
@@ -381,47 +381,47 @@ public final class CrystallizerTests {
     }
 
     /**
-     * With the knob at medium, 1,000,000 mB of ender and 100,000 mB of crystal
-     * crystallize into a kilochrysm that a click hands over.
+     * With the knob at 2, 1,000,000 mB of ender and 100,000 mB of crystal
+     * crystallize into a budding chrysm that a click hands over.
      *
      * @param helper the gametest helper
      */
-    public static void advancesToKilochrysm(GameTestHelper helper) {
+    public static void advancesToBuddingChrysm(GameTestHelper helper) {
         CrystallizerBlockEntity crystallizer = placeCrystallizer(helper, 2);
-        insert(helper, FIRST, canister(GooTypes.CRYSTAL, KILO_VOLUME / CrystallizerPhases.GOO_PER_CRYSTAL));
-        insert(helper, SECOND, canister(GooTypes.ENDER, KILO_VOLUME));
-        helper.runAfterDelay(KILOCHRYSM_TICKS, () -> {
-            assertClickHands(helper, GooItems.KILOCHRYSM.get(), GooTypes.ENDER);
+        insert(helper, FIRST, canister(GooTypes.CRYSTAL, BUDDING_VOLUME / CrystallizerPhases.GOO_PER_CRYSTAL));
+        insert(helper, SECOND, canister(GooTypes.ENDER, BUDDING_VOLUME));
+        helper.runAfterDelay(BUDDING_CHRYSM_TICKS, () -> {
+            assertClickHands(helper, GooItems.BUDDING_CHRYSM.get(), GooTypes.ENDER);
             helper.succeed();
         });
     }
 
     /**
-     * With the knob at medium, 500,000 mB of ender crystallized is part grown: a click
+     * With the knob at 2, 500,000 mB of ender crystallized is part grown: a click
      * hands nothing and the crystal stays.
      *
      * @param helper the gametest helper
      */
     public static void partGrownCrystalIsNotClickable(GameTestHelper helper) {
         CrystallizerBlockEntity crystallizer = placeCrystallizer(helper, 2);
-        insert(helper, FIRST, canister(GooTypes.CRYSTAL, HALF_KILO / CrystallizerPhases.GOO_PER_CRYSTAL));
-        insert(helper, SECOND, canister(GooTypes.ENDER, HALF_KILO));
-        helper.runAfterDelay(HALF_KILO_TICKS, () -> {
-            helper.assertValueEqual((long) HALF_KILO, crystallizer.crystallized(), "crystallized before the click");
+        insert(helper, FIRST, canister(GooTypes.CRYSTAL, HALF_BUDDING / CrystallizerPhases.GOO_PER_CRYSTAL));
+        insert(helper, SECOND, canister(GooTypes.ENDER, HALF_BUDDING));
+        helper.runAfterDelay(HALF_BUDDING_TICKS, () -> {
+            helper.assertValueEqual((long) HALF_BUDDING, crystallizer.crystallized(), "crystallized before the click");
             Player player = helper.makeMockPlayer(GameType.SURVIVAL);
             BlockPos abs = helper.absolutePos(CRYSTALLIZER_POS);
             helper.useBlock(CRYSTALLIZER_POS, player, new BlockHitResult(
                     new Vec3(abs.getX() + HALF, abs.getY() + HALF, abs.getZ() + 1.0), Direction.SOUTH, abs, false));
             helper.assertTrue(player.getItemInHand(InteractionHand.MAIN_HAND).isEmpty(),
                     "A part-grown crystal should hand nothing");
-            helper.assertValueEqual((long) HALF_KILO, crystallizer.crystallized(), "crystallized after the click");
+            helper.assertValueEqual((long) HALF_BUDDING, crystallizer.crystallized(), "crystallized after the click");
             helper.succeed();
         });
     }
 
     /**
-     * Stepping the dial while 500 mB of ender is still crystallizing shatters it into
-     * a 500 mB ender omniblob and a 50 mB crystal omniblob, and the crystal is gone.
+     * Stepping the dial while half a chrysm of ender is still crystallizing shatters it
+     * into an ender omniblob of that half and a crystal omniblob of its tenth, and the crystal is gone.
      *
      * @param helper the gametest helper
      */
@@ -483,8 +483,8 @@ public final class CrystallizerTests {
      */
     public static void crystallizesAtAnEvenPace(GameTestHelper helper) {
         CrystallizerBlockEntity crystallizer = placeCrystallizer(helper, 1);
-        insert(helper, FIRST, canister(GooTypes.CRYSTAL, KILO_VOLUME / CrystallizerPhases.GOO_PER_CRYSTAL));
-        insert(helper, SECOND, canister(GooTypes.ENDER, KILO_VOLUME));
+        insert(helper, FIRST, canister(GooTypes.CRYSTAL, BUDDING_VOLUME / CrystallizerPhases.GOO_PER_CRYSTAL));
+        insert(helper, SECOND, canister(GooTypes.ENDER, BUDDING_VOLUME));
         helper.runAfterDelay(STILL_GROWING_TICKS, () -> {
             helper.assertTrue(crystallizer.crystallized() > 0 && crystallizer.formed().isEmpty(),
                     "Half way to a chrysm there should be crystallized goo and no chrysm, crystallized "
