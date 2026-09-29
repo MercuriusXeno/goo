@@ -11,7 +11,7 @@ import java.util.Map;
  */
 public final class LayerVisualsType {
 
-    /** Sonic-boom preview + dust-plume on struck. */
+    /** Goo ring preview in rock's tan + dust-plume on struck. */
     public static final String ROCK_DUST = "rock_dust";
     /** Per-block flame preview + flame/lava/ember on struck. */
     public static final String BLAZE_FLAME = "blaze_flame";

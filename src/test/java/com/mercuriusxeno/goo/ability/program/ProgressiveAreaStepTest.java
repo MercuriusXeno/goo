@@ -42,6 +42,10 @@ class ProgressiveAreaStepTest {
     private static final int DEEP_STACKS = 3;
     private static final int DEEP_LAYERS = 2;
     private static final int FOOTPRINT_3X3 = 9;
+    /** A ring spanning the 3x3 face: half its width. */
+    private static final float THREE_BY_THREE_REACH = 1.5f;
+    /** A ring spanning the one-block face. */
+    private static final float SINGLE_BLOCK_REACH = 0.5f;
     /** Stacks giving a one-block footprint. */
     private static final int ONE_STACK = 1;
 
@@ -115,8 +119,8 @@ class ProgressiveAreaStepTest {
         for (int tick = 0; tick < DELAY; tick++) {
             program.tick(host);
         }
-        verify(host).previewLayer(ROCK_DUST, 0);
-        verify(host).previewLayer(ROCK_DUST, DEEP_LAYERS - 1);
+        verify(host).previewLayer(ROCK_DUST, 0, THREE_BY_THREE_REACH);
+        verify(host).previewLayer(ROCK_DUST, DEEP_LAYERS - 1, THREE_BY_THREE_REACH);
         verify(host, never()).applyBlockEffect(any(), any());
         verify(host, never()).reportMinedLayers(anyInt());
 
@@ -132,6 +136,15 @@ class ProgressiveAreaStepTest {
         order.verify(host).reportMinedLayers(1);
         order.verify(host).reportMinedLayers(DEEP_LAYERS);
         assertFalse(program.isActive());
+    }
+
+    @Test
+    void oneStackTunnelPreviewsWithTheOneBlockFacesReach() {
+        MarkerHost host = host(Direction.SOUTH, ONE_STACK);
+
+        run(host, AreaShape.TUNNEL, 1);
+
+        verify(host).previewLayer(ROCK_DUST, 0, SINGLE_BLOCK_REACH);
     }
 
     @Test

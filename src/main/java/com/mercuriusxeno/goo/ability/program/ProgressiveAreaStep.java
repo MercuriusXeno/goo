@@ -96,11 +96,12 @@ public record ProgressiveAreaStep(AreaShape shape, String effect, String visuals
     @Override
     public boolean tick(StepContext context) {
         LayerWalkHost host = context.hostAs(LayerWalkHost.class);
-        int layers = AreaLayers.layerCount(shape, context.hostAs(StacksHost.class).stackCount(), startRadius);
+        int stacks = context.hostAs(StacksHost.class).stackCount();
+        int layers = AreaLayers.layerCount(shape, stacks, startRadius);
         int delay = previewDelay.evaluateInt(context);
         int tick = context.stepTicks();
         if (tick < layers) {
-            host.previewLayer(visuals, tick);
+            host.previewLayer(visuals, tick, AreaLayers.layerReach(stacks));
         }
         int struck = tick - delay;
         if (struck >= 0 && struck < layers) {

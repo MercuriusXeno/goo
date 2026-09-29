@@ -30,7 +30,7 @@ final class BlazeFlameVisuals implements LayerVisuals {
 
     @Override
     public void preview(ServerLevel level, BlockPos origin, Direction placedFace,
-                        int stepIndex, int stackCount) {
+                        int stepIndex, int stackCount, float reach) {
         BlockPos layerCenter = LayerGeometry.layerCenter(origin, placedFace, stepIndex);
         Direction.Axis blastAxis = placedFace.getOpposite().getAxis();
         List<int[]> footprint = ChainFootprint.layerFootprint(stackCount);

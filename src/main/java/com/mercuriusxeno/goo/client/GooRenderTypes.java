@@ -238,6 +238,18 @@ public final class GooRenderTypes {
     public static final RenderType GLOW_EXPLOSION_TYPE = burnoutType(GLOW_EXPLOSION);
 
     /**
+     * Goo's swirling ring particle pipeline (decision goo-swirl-ring-particle):
+     * the disc in front of a layer about to break, alpha blended, through
+     * {@code goo_ring.vsh / .fsh}. Its quads carry position, UV0 and color, so
+     * the vertex color holds the theme tint beside the progress.
+     */
+    public static final RenderPipeline GOO_RING = burnoutPipeline("goo_ring", BlendFunction.TRANSLUCENT,
+            DefaultVertexFormat.POSITION_TEX_COLOR);
+
+    /** RenderType that draws goo's ring particle. */
+    public static final RenderType GOO_RING_TYPE = burnoutType(GOO_RING);
+
+    /**
      * Nether black-hole accretion-disk pipeline: third render pass that
      * emits a flat annular ring in the world XZ plane around the sphere,
      * inner radius pinned to the main sphere radius and outer radius at
@@ -484,11 +496,24 @@ public final class GooRenderTypes {
      * @return the pipeline
      */
     private static RenderPipeline burnoutPipeline(String name, BlendFunction blend) {
+        return burnoutPipeline(name, blend, DefaultVertexFormat.POSITION_COLOR_NORMAL);
+    }
+
+    /**
+     * A burnout-style pipeline on a vertex format of its own: the shader pair
+     * under {@code core/<name>}, depth tested with depth write off, both faces drawn.
+     *
+     * @param name   the shader pair's and pipeline's name
+     * @param blend  how the pipeline blends over the world
+     * @param format the vertex format its quads carry
+     * @return the pipeline
+     */
+    private static RenderPipeline burnoutPipeline(String name, BlendFunction blend, VertexFormat format) {
         return RenderPipeline.builder(RenderPipelines.MATRICES_PROJECTION_SNIPPET, RenderPipelines.GLOBALS_SNIPPET)
                 .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + name))
                 .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + name))
                 .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + name))
-                .withVertexFormat(DefaultVertexFormat.POSITION_COLOR_NORMAL, VertexFormat.Mode.QUADS)
+                .withVertexFormat(format, VertexFormat.Mode.QUADS)
                 .withColorTargetState(new ColorTargetState(blend))
                 .withDepthStencilState(new DepthStencilState(DepthStencilState.DEFAULT.depthTest(), false))
                 .withCull(false)
@@ -544,5 +569,6 @@ public final class GooRenderTypes {
         event.registerPipeline(METAL_EXPLOSION);
         event.registerPipeline(CRYSTAL_EXPLOSION);
         event.registerPipeline(GLOW_EXPLOSION);
+        event.registerPipeline(GOO_RING);
     }
 }

@@ -130,26 +130,27 @@ final class BurnoutGeometry {
      */
     private static void annulusVertex(FlatQuadContext ring, Direction face, float lift, double angle,
                                       float radius, int color) {
+        Vector3f point = discPoint(face, angle, radius).add(BLOCK_CENTER + face.getStepX() * lift,
+                BLOCK_CENTER + face.getStepY() * lift, BLOCK_CENTER + face.getStepZ() * lift);
+        ring.vertex(point.x(), point.y(), point.z(), color, face.getStepX(), face.getStepY(), face.getStepZ());
+    }
+
+    /**
+     * A point on a disc square to the face's axis, about the origin.
+     *
+     * @param face   the face whose axis the disc lies square to
+     * @param angle  the angle about the face axis in radians
+     * @param radius the distance from the center in blocks
+     * @return the point
+     */
+    static Vector3f discPoint(Direction face, double angle, float radius) {
         float u = (float) Math.cos(angle) * radius;
         float v = (float) Math.sin(angle) * radius;
-        float x = BLOCK_CENTER + face.getStepX() * lift;
-        float y = BLOCK_CENTER + face.getStepY() * lift;
-        float z = BLOCK_CENTER + face.getStepZ() * lift;
-        switch (face.getAxis()) {
-            case X -> {
-                y += u;
-                z += v;
-            }
-            case Y -> {
-                x += u;
-                z += v;
-            }
-            case Z -> {
-                x += u;
-                y += v;
-            }
-        }
-        ring.vertex(x, y, z, color, face.getStepX(), face.getStepY(), face.getStepZ());
+        return switch (face.getAxis()) {
+            case X -> new Vector3f(0f, u, v);
+            case Y -> new Vector3f(u, 0f, v);
+            case Z -> new Vector3f(u, v, 0f);
+        };
     }
 
     /**

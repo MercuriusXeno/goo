@@ -52,17 +52,17 @@ public class GooParticles {
     public static final DeferredHolder<ParticleType<?>, ParticleType<GooDripParticleOptions>> TAP_DRIP_LAND =
         PARTICLE_TYPES.register("tap_drip_land", GooParticles::gooDripParticleType);
 
-    /** Sonic-boom-style particle oriented along the blast axis. */
-    public static final DeferredHolder<ParticleType<?>, ParticleType<OrientedBoomParticleOptions>> ORIENTED_BOOM =
-        PARTICLE_TYPES.register("oriented_boom", () -> new ParticleType<>(false) {
+    /** Goo's swirling ring, drawn in front of a layer about to break (decision goo-swirl-ring-particle). */
+    public static final DeferredHolder<ParticleType<?>, ParticleType<GooRingParticleOptions>> GOO_RING =
+        PARTICLE_TYPES.register("goo_ring", () -> new ParticleType<>(false) {
             @Override
-            public MapCodec<OrientedBoomParticleOptions> codec() {
-                return OrientedBoomParticleOptions.CODEC;
+            public MapCodec<GooRingParticleOptions> codec() {
+                return GooRingParticleOptions.CODEC;
             }
 
             @Override
-            public StreamCodec<? super RegistryFriendlyByteBuf, OrientedBoomParticleOptions> streamCodec() {
-                return OrientedBoomParticleOptions.STREAM_CODEC;
+            public StreamCodec<? super RegistryFriendlyByteBuf, GooRingParticleOptions> streamCodec() {
+                return GooRingParticleOptions.STREAM_CODEC;
             }
         });
 
