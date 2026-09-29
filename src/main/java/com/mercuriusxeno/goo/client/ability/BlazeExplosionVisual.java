@@ -18,7 +18,7 @@ import net.minecraft.util.ARGB;
  * color carries progress in red, the placed face's ordinal in green and
  * the flame's remaining strength in blue, since a core pipeline takes no
  * per-draw uniforms. A blaze_tunnel marker draws no dome: its burnout sends
- * an orange heat shimmer into the wall ahead of the smelting, the
+ * a train of round orange heat rings down the tunnel ahead of the smelting, the
  * {@link TunnelWave} drawn through {@code blaze_tunnel_wave.fsh}, as the
  * operator settled.
  */
