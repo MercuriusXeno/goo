@@ -358,7 +358,7 @@ public class GasketPusher {
                 continue;
             }
             int amount = (int) source.getAmountAsLong(i);
-            int offer = Math.min(GasketDemand.demandOf(target, resource, amount), amount);
+            int offer = Math.min(GasketDemand.demandOf(target, resource), amount);
             if (offer <= 0) {
                 continue;
             }

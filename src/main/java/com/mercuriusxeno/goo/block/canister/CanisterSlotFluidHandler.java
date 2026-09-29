@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.block.canister;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.block.gasket.DemandRelay;
 import com.mercuriusxeno.goo.block.gasket.GasketDemand;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.GooContents;
@@ -33,14 +34,9 @@ public class CanisterSlotFluidHandler extends FluidStacksResourceHandler impleme
     private final Predicate<FluidResource> admits;
 
     /**
-     * The demand of the consumer behind this canister, relayed to its source.
+     * This canister's link in the gasket chain: the consumer's demand mirrored, or its resting demand.
      */
-    private Function<FluidResource, OptionalInt> consumerDemand = resource -> OptionalInt.empty();
-
-    /**
-     * True while this canister is answering its demand, so a loop of links relays no demand forever.
-     */
-    private boolean relaying;
+    private final DemandRelay relay = new DemandRelay();
 
     // --- Stream tracking (transient, for rendering incoming fluid) ---
 
@@ -107,25 +103,16 @@ public class CanisterSlotFluidHandler extends FluidStacksResourceHandler impleme
      * @param demand the consumer's stated demand for a resource, or empty when none stands behind it
      */
     public void setConsumerDemand(Function<FluidResource, OptionalInt> demand) {
-        this.consumerDemand = demand;
+        relay.readDemandFrom(demand);
     }
 
     /**
-     * A canister between a source and a consumer states the consumer's demand, and one
-     * with nothing behind it states none, so its source sends the power-law default
-     * (decision receivers-demand-and-links-relay).
+     * A canister mirrors the demand of the consumer behind it, and at rest asks the power
+     * law of its own capacity (decision receivers-demand-and-links-relay).
      */
     @Override
     public OptionalInt statedDemand(FluidResource resource) {
-        if (relaying) {
-            return OptionalInt.empty();
-        }
-        relaying = true;
-        try {
-            return consumerDemand.apply(resource);
-        } finally {
-            relaying = false;
-        }
+        return relay.statedDemand(resource, () -> GasketDemand.restingDemand(resource, capacity, getAmount()));
     }
 
     /**

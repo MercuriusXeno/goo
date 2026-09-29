@@ -22,18 +22,19 @@ import static org.mockito.Mockito.when;
 /**
  * A canister slot relays to its source the demand of the consumer it feeds
  * (decision receivers-demand-and-links-relay): the machine drawing on it, else the
- * partner behind its bottom gasket, else none, so its source sends the power-law
- * default. The pusher is a mock; the vanilla bootstrap stands the water fluid the
- * default's exponent is read against.
+ * partner behind its bottom gasket, and with nothing asking behind it, the power law
+ * of its own capacity. The pusher is a mock; the vanilla bootstrap stands the water
+ * fluid the exponent is read against.
  */
 class CanisterSlotRelayTest {
 
     private static final int PARTNER_DEMAND = 242_000;
     private static final int MACHINE_DEMAND = 7;
-    private static final int SOURCE_HOLDS = 1_000_000;
+    private static final int CAPACITY = 1 << 20;
 
     private FluidResource goo;
     private CanisterSlotFluidHandler handler;
+    private int resting;
 
     @BeforeAll
     static void standVanillaFluids() {
@@ -47,10 +48,11 @@ class CanisterSlotRelayTest {
     void standGoo() {
         goo = mock(FluidResource.class);
         when(goo.getFluid()).thenReturn(mock(GooFluid.Source.class));
-        handler = new CanisterSlotFluidHandler(SOURCE_HOLDS, () -> { });
+        handler = new CanisterSlotFluidHandler(CAPACITY, () -> { });
+        resting = GasketDemand.restingDemand(goo, CAPACITY, 0);
     }
 
-    private CanisterSlot slotStatingMachineDemand(OptionalInt machine) {
+    private static CanisterSlot slotStatingMachineDemand(OptionalInt machine) {
         return new CanisterSlot(0, mock(VoxelShape.class), () -> { }, () -> { }, incoming -> true,
                 incoming -> machine);
     }
@@ -61,40 +63,43 @@ class CanisterSlotRelayTest {
         return pusher;
     }
 
+    private int relayedWith(OptionalInt machine, OptionalInt partner) {
+        CanisterSlot slot = slotStatingMachineDemand(machine);
+        slot.setPusher(pusherWhosePartnerStates(partner, goo));
+        handler.setConsumerDemand(slot::consumerDemand);
+        return GasketDemand.demandOf(handler, goo);
+    }
+
     @Test
     void aSlotFeedingAPartnerAnswersThatPartnersDemand() {
-        CanisterSlot slot = slotStatingMachineDemand(OptionalInt.empty());
-        slot.setPusher(pusherWhosePartnerStates(OptionalInt.of(PARTNER_DEMAND), goo));
-        handler.setConsumerDemand(slot::consumerDemand);
-        assertEquals(PARTNER_DEMAND, GasketDemand.demandOf(handler, goo, SOURCE_HOLDS));
+        assertEquals(PARTNER_DEMAND, relayedWith(OptionalInt.empty(), OptionalInt.of(PARTNER_DEMAND)));
     }
 
     @Test
-    void aSlotWithNothingBehindItAnswersTheTaperRate() {
+    void aSlotWithNothingBehindItRestsAtThePowerLawOfItsCapacity() {
         CanisterSlot slot = slotStatingMachineDemand(OptionalInt.empty());
         handler.setConsumerDemand(slot::consumerDemand);
-        assertEquals(GasketDemand.defaultDemand(goo, SOURCE_HOLDS), GasketDemand.demandOf(handler, goo, SOURCE_HOLDS));
+        assertEquals(resting, GasketDemand.demandOf(handler, goo));
     }
 
     @Test
-    void aSlotWhosePartnerStatesNoneAnswersTheTaperRate() {
-        CanisterSlot slot = slotStatingMachineDemand(OptionalInt.empty());
-        slot.setPusher(pusherWhosePartnerStates(OptionalInt.empty(), goo));
-        handler.setConsumerDemand(slot::consumerDemand);
-        assertEquals(GasketDemand.defaultDemand(goo, SOURCE_HOLDS), GasketDemand.demandOf(handler, goo, SOURCE_HOLDS));
+    void aSlotWhosePartnerStatesNoneRests() {
+        assertEquals(resting, relayedWith(OptionalInt.empty(), OptionalInt.empty()));
+    }
+
+    @Test
+    void aSlotWhosePartnerAsksNothingRests() {
+        assertEquals(resting, relayedWith(OptionalInt.empty(), OptionalInt.of(0)));
     }
 
     @Test
     void theMachineDrawingOnTheSlotIsTheConsumerItRelays() {
-        CanisterSlot slot = slotStatingMachineDemand(OptionalInt.of(MACHINE_DEMAND));
-        slot.setPusher(pusherWhosePartnerStates(OptionalInt.of(PARTNER_DEMAND), goo));
-        handler.setConsumerDemand(slot::consumerDemand);
-        assertEquals(MACHINE_DEMAND, GasketDemand.demandOf(handler, goo, SOURCE_HOLDS));
+        assertEquals(MACHINE_DEMAND, relayedWith(OptionalInt.of(MACHINE_DEMAND), OptionalInt.of(PARTNER_DEMAND)));
     }
 
     @Test
-    void aLoopOfLinksFallsBackToTheTaperRate() {
+    void aLoopOfLinksRests() {
         handler.setConsumerDemand(resource -> GasketDemand.statedDemandOf(handler, resource));
-        assertEquals(GasketDemand.defaultDemand(goo, SOURCE_HOLDS), GasketDemand.demandOf(handler, goo, SOURCE_HOLDS));
+        assertEquals(resting, GasketDemand.demandOf(handler, goo));
     }
 }
