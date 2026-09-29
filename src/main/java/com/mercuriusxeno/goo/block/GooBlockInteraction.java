@@ -117,8 +117,9 @@ public final class GooBlockInteraction {
             @Nullable GooInteractionType interaction, Level level,
             BlockPos pos, Player player, Class<T> entityType,
             Set<GooInteractionType> rows) {
-        if (interaction == null || !rows.contains(interaction)) {
-            return unansweredRow(interaction);
+        InteractionResult unanswered = rowGate(interaction, rows);
+        if (unanswered != null) {
+            return unanswered;
         }
         if (level.isClientSide()) {
             return InteractionResult.SUCCESS;
@@ -134,9 +135,14 @@ public final class GooBlockInteraction {
      * to their own use, and every other item tries the empty-hand path.
      *
      * @param interaction the classified interaction type, or null
-     * @return PASS or TRY_WITH_EMPTY_HAND
+     * @param rows        the interaction types the machine's dispatcher answers
+     * @return PASS or TRY_WITH_EMPTY_HAND for a click no row takes, null for one a row takes
      */
-    private static InteractionResult unansweredRow(@Nullable GooInteractionType interaction) {
+    static @Nullable InteractionResult rowGate(@Nullable GooInteractionType interaction,
+                                               Set<GooInteractionType> rows) {
+        if (interaction != null && rows.contains(interaction)) {
+            return null;
+        }
         return interaction != null && interaction.passesToItem()
                 ? InteractionResult.PASS : InteractionResult.TRY_WITH_EMPTY_HAND;
     }
