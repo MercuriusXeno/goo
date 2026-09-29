@@ -16,6 +16,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import java.util.OptionalInt;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.ArgumentMatchers.any;
@@ -28,8 +29,9 @@ import static org.mockito.Mockito.withSettings;
 
 /**
  * A receiver's demand on the gasket network (decision receivers-demand-and-links-relay):
- * the power-law default a receiver stating none asks, and the pusher sending the lesser
- * of the demand its partner states and what it holds. The vanilla bootstrap stands the
+ * the power law of its capacity a container asks at rest, a link mirroring the demand
+ * behind it, and the pusher sending the lesser of the demand its partner states and
+ * what it holds. The vanilla bootstrap stands the
  * water fluid; goo is a mocked goo fluid, and the handlers are mocks, since a fluid
  * stack needs data components a unit JVM never binds.
  */
@@ -58,30 +60,65 @@ class GasketDemandTest {
     }
 
     @Nested
-    class DefaultDemand {
+    class RestingDemand {
 
         @ParameterizedTest
-        @ValueSource(ints = {1, 1_000, 65_536, FAR_MORE_THAN_ASKED})
-        void gooAsksTheTaperRateAtTheGooExponent(int sourceHolds) {
+        @ValueSource(ints = {1_000, 65_536, FAR_MORE_THAN_ASKED, 1 << 25})
+        void gooRestsAtThePowerLawOfItsCapacity(int capacity) {
             FluidResource goo = resourceOf(mock(GooFluid.Source.class));
-            assertEquals(GasketPushMath.taperRate(sourceHolds, GasketPushMath.GOO_EXPONENT),
-                    GasketDemand.defaultDemand(goo, sourceHolds));
+            assertEquals(GasketPushMath.taperRate(capacity, GasketPushMath.GOO_EXPONENT),
+                    GasketDemand.restingDemand(goo, capacity, 0));
         }
 
         @ParameterizedTest
-        @ValueSource(ints = {1, 1_000, 65_536, FAR_MORE_THAN_ASKED})
-        void waterAsksTheTaperRateAtTheWaterExponent(int sourceHolds) {
-            assertEquals(GasketPushMath.taperRate(sourceHolds, GasketPushMath.WATER_EXPONENT),
-                    GasketDemand.defaultDemand(resourceOf(Fluids.WATER), sourceHolds));
+        @ValueSource(ints = {1_000, 65_536, FAR_MORE_THAN_ASKED, 1 << 25})
+        void waterRestsAtThePowerLawOfItsCapacityAtTheWaterExponent(int capacity) {
+            assertEquals(GasketPushMath.taperRate(capacity, GasketPushMath.WATER_EXPONENT),
+                    GasketDemand.restingDemand(resourceOf(Fluids.WATER), capacity, 0));
+        }
+
+        @Test
+        void aBiggerContainerPullsHarder() {
+            FluidResource goo = resourceOf(mock(GooFluid.Source.class));
+            assertTrue(GasketDemand.restingDemand(goo, 1 << 25, 0) > GasketDemand.restingDemand(goo, 1 << 20, 0));
+        }
+
+        @Test
+        void aNearlyFullContainerAsksOnlyItsRoom() {
+            FluidResource goo = resourceOf(mock(GooFluid.Source.class));
+            assertEquals(LESS_THAN_ASKED, GasketDemand.restingDemand(goo, FAR_MORE_THAN_ASKED,
+                    FAR_MORE_THAN_ASKED - LESS_THAN_ASKED));
         }
 
         @Test
         @SuppressWarnings("unchecked")
-        void aReceiverStatingNoDemandAsksTheDefault() {
+        void aReceiverStatingNoDemandRestsAtItsLargestTank() {
             FluidResource water = resourceOf(Fluids.WATER);
             ResourceHandler<FluidResource> plainContainer = mock(ResourceHandler.class);
-            assertEquals(GasketDemand.defaultDemand(water, FAR_MORE_THAN_ASKED),
-                    GasketDemand.demandOf(plainContainer, water, FAR_MORE_THAN_ASKED));
+            when(plainContainer.size()).thenReturn(1);
+            when(plainContainer.isValid(0, water)).thenReturn(true);
+            when(plainContainer.getCapacityAsLong(0, water)).thenReturn((long) FAR_MORE_THAN_ASKED);
+            assertEquals(GasketDemand.restingDemand(water, FAR_MORE_THAN_ASKED, 0),
+                    GasketDemand.demandOf(plainContainer, water));
+        }
+    }
+
+    @Nested
+    class MirrorOrRest {
+
+        @Test
+        void aDemandPlacedBehindIsMirrored() {
+            assertEquals(ASKED, GasketDemand.mirrorOrRest(OptionalInt.of(ASKED), LESS_THAN_ASKED));
+        }
+
+        @Test
+        void nothingBehindRests() {
+            assertEquals(LESS_THAN_ASKED, GasketDemand.mirrorOrRest(OptionalInt.empty(), LESS_THAN_ASKED));
+        }
+
+        @Test
+        void aConsumerAskingNothingLeavesTheLinkAtRest() {
+            assertEquals(LESS_THAN_ASKED, GasketDemand.mirrorOrRest(OptionalInt.of(0), LESS_THAN_ASKED));
         }
     }
 

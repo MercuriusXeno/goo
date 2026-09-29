@@ -7,10 +7,9 @@ import java.util.OptionalInt;
 
 /**
  * The rate a receiver on the gasket network asks of its partner each tick
- * (decision receivers-demand-and-links-relay): a receiver's fluid handler
- * implements this to state a demand of its own, and a handler that states
- * none, or does not implement it, asks the power-law rate so a container with
- * no consumer behind it fills as it always has.
+ * (decision receivers-demand-and-links-relay): a link mirrors the demand placed
+ * on it from behind, and at rest asks the power law of its own capacity, so the
+ * bigger a container is the stronger it pulls.
  */
 @FunctionalInterface
 public interface GasketDemand {
@@ -19,32 +18,47 @@ public interface GasketDemand {
      * The mB this receiver asks per tick of the given resource.
      *
      * @param resource the fluid its partner would send
-     * @return the demand, or empty to ask the power-law default
+     * @return the demand, or empty when it cannot say, which asks its resting demand
      */
     OptionalInt statedDemand(FluidResource resource);
 
     /**
-     * The power-law rate a receiver stating no demand asks: the taper rate of
-     * what its source holds, at the fluid's own exponent.
+     * The demand a container asks at rest: the taper rate of its capacity at the
+     * fluid's own exponent, no more than the room it has left.
      *
-     * @param resource    the fluid the source holds
-     * @param sourceHolds the mB the source holds
-     * @return the default demand, in mB per tick
+     * @param resource the fluid it would receive
+     * @param capacity the most it holds, in mB
+     * @param held     what it holds now, in mB
+     * @return the resting demand, in mB per tick
      */
-    static int defaultDemand(FluidResource resource, int sourceHolds) {
-        return GasketPushMath.taperRate(sourceHolds, GasketPushMath.exponentFor(resource.getFluid()));
+    static int restingDemand(FluidResource resource, long capacity, long held) {
+        int pull = GasketPushMath.taperRate((int) Math.min(capacity, Integer.MAX_VALUE),
+                GasketPushMath.exponentFor(resource.getFluid()));
+        return (int) Math.max(0, Math.min(pull, capacity - held));
     }
 
     /**
-     * The demand a receiver answers its source this tick: the one it states, or the default.
+     * A link's demand: the demand placed on it from behind while that asks anything,
+     * otherwise its resting demand.
      *
-     * @param receiver    the receiver's fluid handler
-     * @param resource    the fluid the source would send
-     * @param sourceHolds the mB the source holds
+     * @param placed  the demand of what stands behind the link, or empty when nothing does
+     * @param resting the link's resting demand
+     * @return the demand the link states upstream
+     */
+    static int mirrorOrRest(OptionalInt placed, int resting) {
+        return placed.isPresent() && placed.getAsInt() > 0 ? placed.getAsInt() : resting;
+    }
+
+    /**
+     * The demand a receiver answers its source this tick: the one it states, or for a
+     * handler stating none, the resting demand of its largest tank that takes the resource.
+     *
+     * @param receiver the receiver's fluid handler
+     * @param resource the fluid the source would send
      * @return the demand, in mB per tick
      */
-    static int demandOf(ResourceHandler<FluidResource> receiver, FluidResource resource, int sourceHolds) {
-        return statedDemandOf(receiver, resource).orElseGet(() -> defaultDemand(resource, sourceHolds));
+    static int demandOf(ResourceHandler<FluidResource> receiver, FluidResource resource) {
+        return statedDemandOf(receiver, resource).orElseGet(() -> restingDemandOf(receiver, resource));
     }
 
     /**
@@ -56,5 +70,23 @@ public interface GasketDemand {
      */
     static OptionalInt statedDemandOf(@Nullable ResourceHandler<FluidResource> receiver, FluidResource resource) {
         return receiver instanceof GasketDemand demanding ? demanding.statedDemand(resource) : OptionalInt.empty();
+    }
+
+    /**
+     * The resting demand of a handler that states none: that of its largest tank taking the resource.
+     *
+     * @param receiver the receiver's fluid handler
+     * @param resource the fluid it would receive
+     * @return the resting demand, in mB per tick
+     */
+    private static int restingDemandOf(ResourceHandler<FluidResource> receiver, FluidResource resource) {
+        int best = 0;
+        for (int i = 0; i < receiver.size(); i++) {
+            if (receiver.isValid(i, resource)) {
+                best = Math.max(best, restingDemand(resource, receiver.getCapacityAsLong(i, resource),
+                        receiver.getAmountAsLong(i)));
+            }
+        }
+        return best;
     }
 }
