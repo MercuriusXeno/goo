@@ -46,7 +46,8 @@ import java.util.function.IntSupplier;
  * Receivers on the gasket network state their demand and their partner sends it
  * (decision receivers-demand-and-links-relay): a container with nothing demanding
  * behind it asks the power law of its capacity, a tap asks the rate its valve sets,
- * and a canister or vat between a source and a crystallizer mirrors its pace upstream.
+ * and a canister or vat between a source and a crystallizer asks its own rest plus the
+ * crystallizer's pace upstream (decision relay-adds-dependent-ask-to-own).
  */
 public final class GasketDemandTests {
 
@@ -84,8 +85,6 @@ public final class GasketDemandTests {
     private static final int CHAIN_VAT_GOO = 2_000_000;
     /** Whole 10 mB steps and a pace carried across ticks keep growth a little behind the pace owed. */
     private static final double PACE_KEPT = 0.9;
-    /** A tick's rounding up of the pace, over the run. */
-    private static final int LEVEL_DRIFT = MEASURED_TICKS;
 
     private GasketDemandTests() {
     }
@@ -230,8 +229,8 @@ public final class GasketDemandTests {
 
     /**
      * A vat feeding a canister that feeds a crystallizer's ingredient canister: the
-     * crystallizer takes its pace each tick through the middle canister, whose level holds
-     * where it started, though the taper rate of that level is far below the pace.
+     * crystallizer takes its pace each tick through the middle canister, though the taper
+     * rate of that canister's level is far below the pace, and the canister fills on its own ask.
      *
      * @param helper the gametest helper
      */
@@ -256,8 +255,8 @@ public final class GasketDemandTests {
 
     /**
      * A vat feeding a vat that feeds a crystallizer's ingredient canister: the middle vat
-     * mirrors the crystallizer's pace upstream, so the crystallizer takes its pace each tick
-     * and the middle vat's level holds where it started.
+     * asks its own rest plus the crystallizer's pace upstream, so the crystallizer takes its
+     * pace each tick and the middle vat fills.
      *
      * @param helper the gametest helper
      */
@@ -319,8 +318,8 @@ public final class GasketDemandTests {
     /**
      * Stands the seeded crystallizer, links the middle link's outlet to its ingredient
      * canister, and asserts over the run that the crystallizer grows at its pace while the
-     * middle link's level holds. The source, then the middle link, then the crystallizer are
-     * placed, so each tick's flow runs down the chain in that order and both links ask the same pace.
+     * middle link fills on its own ask. The source, then the middle link, then the crystallizer
+     * are placed, so each tick's flow runs down the chain in that order.
      *
      * @param helper       the gametest helper
      * @param middleOutlet the middle link's transmitter gasket id
@@ -353,8 +352,8 @@ public final class GasketDemandTests {
             helper.assertTrue(grown >= paceOwed[0] * PACE_KEPT,
                     "The crystallizer should grow at its pace: grew " + grown + " of " + (long) paceOwed[0]);
             int middleNow = middleLevel.getAsInt();
-            helper.assertTrue(Math.abs(middleNow - MIDDLE_HELD) <= LEVEL_DRIFT,
-                    "The middle link's level should hold at " + MIDDLE_HELD + ", reads " + middleNow);
+            helper.assertTrue(middleNow > MIDDLE_HELD,
+                    "The middle link should fill past " + MIDDLE_HELD + " on its own ask, reads " + middleNow);
             helper.succeed();
         });
     }
