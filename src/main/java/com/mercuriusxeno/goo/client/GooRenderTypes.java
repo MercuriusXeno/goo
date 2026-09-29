@@ -223,6 +223,16 @@ public final class GooRenderTypes {
     public static final RenderType FROST_EXPLOSION_TYPE = burnoutType(FROST_EXPLOSION);
 
     /**
+     * Frost goo's tunnel wave pipeline: the white-blue fog front that leads
+     * frost_tunnel's freezing into the wall, through
+     * {@code tunnel_wave.vsh} and {@code frost_tunnel_wave.fsh}.
+     */
+    public static final RenderPipeline FROST_TUNNEL_WAVE = tunnelWavePipeline("frost_tunnel_wave");
+
+    /** RenderType that draws frost goo's tunnel wave. */
+    public static final RenderType FROST_TUNNEL_WAVE_TYPE = burnoutType(FROST_TUNNEL_WAVE);
+
+    /**
      * Nether goo's burnout explosion pipeline: the inward rush, additive,
      * through {@code nether_explosion.vsh / .fsh}.
      */
@@ -562,19 +572,10 @@ public final class GooRenderTypes {
      * @param event the event instance
      */
     public static void registerPipelines(RegisterRenderPipelinesEvent event) {
+        registerBurnoutPipelines(event);
         event.registerPipeline(LINES_ADDITIVE_GLOW);
         event.registerPipeline(NETHER_BLACKHOLE);
         event.registerPipeline(NETHER_CORONA);
-        event.registerPipeline(UNSTABLE_EXPLOSION);
-        event.registerPipeline(ROCK_EXPLOSION);
-        event.registerPipeline(ROCK_TUNNEL_WAVE);
-        event.registerPipeline(BLAZE_EXPLOSION);
-        event.registerPipeline(BLAZE_TUNNEL_WAVE);
-        event.registerPipeline(FROST_EXPLOSION);
-        event.registerPipeline(NETHER_EXPLOSION);
-        event.registerPipeline(METAL_EXPLOSION);
-        event.registerPipeline(CRYSTAL_EXPLOSION);
-        event.registerPipeline(GLOW_EXPLOSION);
         event.registerPipeline(NETHER_DISK);
         event.registerPipeline(NETHER_CUBE_EDGE);
         event.registerPipeline(LINES_NO_DEPTH_PIPELINE);
@@ -585,5 +586,25 @@ public final class GooRenderTypes {
         event.registerPipeline(GOO_FLUID);
         event.registerPipeline(GOO_FLUID_SURFACE);
         event.registerPipeline(CRUCIBLE_DISSOLVE);
+    }
+
+    /**
+     * Registers the burnout explosion and tunnel wave pipelines (decision
+     * elemental-explosion-per-type).
+     *
+     * @param event the event instance
+     */
+    private static void registerBurnoutPipelines(RegisterRenderPipelinesEvent event) {
+        event.registerPipeline(UNSTABLE_EXPLOSION);
+        event.registerPipeline(ROCK_EXPLOSION);
+        event.registerPipeline(ROCK_TUNNEL_WAVE);
+        event.registerPipeline(BLAZE_EXPLOSION);
+        event.registerPipeline(BLAZE_TUNNEL_WAVE);
+        event.registerPipeline(FROST_EXPLOSION);
+        event.registerPipeline(FROST_TUNNEL_WAVE);
+        event.registerPipeline(NETHER_EXPLOSION);
+        event.registerPipeline(METAL_EXPLOSION);
+        event.registerPipeline(CRYSTAL_EXPLOSION);
+        event.registerPipeline(GLOW_EXPLOSION);
     }
 }
