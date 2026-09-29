@@ -101,7 +101,8 @@ public record ProgressiveAreaStep(AreaShape shape, String effect, String visuals
         int delay = previewDelay.evaluateInt(context);
         int tick = context.stepTicks();
         if (tick < layers) {
-            host.previewLayer(visuals, tick, AreaLayers.layerReach(stacks));
+            host.previewLayer(visuals, AreaLayers.layerDepth(shape, tick),
+                    AreaLayers.layerReach(shape, stacks, startRadius));
         }
         int struck = tick - delay;
         if (struck >= 0 && struck < layers) {
@@ -127,7 +128,7 @@ public record ProgressiveAreaStep(AreaShape shape, String effect, String visuals
                 destroyed++;
             }
         }
-        host.strikeLayerFx(visuals, audio, layer, destroyed);
+        host.strikeLayerFx(visuals, audio, layer, AreaLayers.layerDepth(shape, layer), destroyed);
     }
 
     @Override
