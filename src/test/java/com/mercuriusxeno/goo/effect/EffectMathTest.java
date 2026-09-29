@@ -1,8 +1,8 @@
 package com.mercuriusxeno.goo.effect;
 
-import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.AbilityMath;
 import com.mercuriusxeno.goo.data.GooValue;
+import com.mercuriusxeno.goo.type.GooTypes;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.Map;

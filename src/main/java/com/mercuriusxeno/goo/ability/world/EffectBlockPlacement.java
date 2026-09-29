@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.ability.world;
 
-import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.ChainPlacementRules;
 import com.mercuriusxeno.goo.ability.ChainPlacementRules.CandidateState;
@@ -9,6 +8,7 @@ import com.mercuriusxeno.goo.ability.ChainPlacementRules.WaterHandling;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlock;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.registry.GooBlocks;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;

@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.data;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.datafixers.util.Either;
 import com.mojang.serialization.JsonOps;
 import net.minecraft.resources.FileToIdConverter;

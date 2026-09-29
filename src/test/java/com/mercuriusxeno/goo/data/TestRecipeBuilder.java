@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.data;
 
-import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import java.util.*;

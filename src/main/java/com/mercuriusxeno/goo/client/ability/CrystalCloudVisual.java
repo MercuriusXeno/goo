@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.program.FieldEffectState;
 import com.mercuriusxeno.goo.ability.program.FieldEffectStep;
 import com.mercuriusxeno.goo.ability.program.MarkerVariables;
@@ -9,6 +8,7 @@ import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.client.FlatQuadContext;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.ber.ChainMarkerRenderState;
+import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.SubmitNodeCollector;

@@ -1,9 +1,9 @@
 package com.mercuriusxeno.goo.client.hud;
 
-import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.client.GooTooltipHandler;
 import com.mercuriusxeno.goo.client.machine.VatStackAggregator.VatStackData;
 import com.mercuriusxeno.goo.item.GooContents;
+import com.mercuriusxeno.goo.type.GooTypes;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Map;

@@ -1,11 +1,11 @@
 package com.mercuriusxeno.goo.block.hub;
 
-import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.ISidedProxy;
 import com.mercuriusxeno.goo.block.InteractionCooldown;
 import com.mercuriusxeno.goo.block.canister.SlottedCanisterData;
 import com.mercuriusxeno.goo.item.BlobInsert;
 import com.mercuriusxeno.goo.item.GooInteractionType;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.sounds.SoundEvents;

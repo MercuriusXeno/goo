@@ -1,8 +1,8 @@
 package com.mercuriusxeno.goo.block.crystallizer;
 
-import com.mercuriusxeno.goo.GooTypeDefinition;
-import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.item.ChrysmTier;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.ResourceKey;
 import org.jspecify.annotations.Nullable;
 

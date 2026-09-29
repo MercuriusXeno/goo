@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.block.plexer;
 
 import com.mercuriusxeno.goo.CutawayInteractionHelper;
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.block.BlockEntitySync;
 import com.mercuriusxeno.goo.block.GooSyncedBlockEntity;
 import com.mercuriusxeno.goo.block.ICutawayMachine;
@@ -13,6 +12,7 @@ import com.mercuriusxeno.goo.data.IGooValueLookup;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;

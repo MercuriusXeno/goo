@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.block.tap;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.program.HostKind;
@@ -9,6 +8,7 @@ import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
 import com.mercuriusxeno.goo.ability.program.TapHost;
 import com.mercuriusxeno.goo.block.IGooReceptacle;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;

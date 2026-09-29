@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.client;
 
-import com.mercuriusxeno.goo.GooColors;
-import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooColors;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.Holder;

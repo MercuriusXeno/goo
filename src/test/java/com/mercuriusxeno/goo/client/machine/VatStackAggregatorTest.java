@@ -1,8 +1,8 @@
 package com.mercuriusxeno.goo.client.machine;
 
-import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.client.machine.VatStackAggregator.VatStackData;
 import com.mercuriusxeno.goo.item.GooContents;
+import com.mercuriusxeno.goo.type.GooTypes;
 import org.junit.jupiter.api.Test;
 import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertFalse;

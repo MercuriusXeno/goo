@@ -1,11 +1,11 @@
 package com.mercuriusxeno.goo.ability;
 
-import com.mercuriusxeno.goo.GooTypeDefinition;
-import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.program.PlaceBlockStep;
 import com.mercuriusxeno.goo.ability.program.ProgressiveAreaStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.StepTypes;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.resources.Identifier;

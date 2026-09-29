@@ -1,8 +1,8 @@
 package com.mercuriusxeno.goo.client;
 
-import com.mercuriusxeno.goo.BlobModelSize;
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.GooTypeTextures;
+import com.mercuriusxeno.goo.type.BlobModelSize;
+import com.mercuriusxeno.goo.type.GooTypeTextures;
 import net.minecraft.resources.Identifier;
 import org.jspecify.annotations.Nullable;
 import java.util.Optional;

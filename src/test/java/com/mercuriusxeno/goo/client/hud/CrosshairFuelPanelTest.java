@@ -1,9 +1,9 @@
 package com.mercuriusxeno.goo.client.hud;
 
-import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.world.item.ItemStack;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;

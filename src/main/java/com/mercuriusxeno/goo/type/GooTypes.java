@@ -1,4 +1,4 @@
-package com.mercuriusxeno.goo;
+package com.mercuriusxeno.goo.type;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
@@ -26,6 +26,11 @@ public final class GooTypes {
      * {@code data/<namespace>/goo/} that holds each type's JSON.
      */
     public static final String REGISTRY_PATH = "goo_type";
+    /**
+     * The mod's namespace, held here so the type package reaches no goo
+     * package (decision type-package-and-per-server-holders).
+     */
+    public static final String NAMESPACE = "goo";
     private static final String UNKNOWN_ID = "Not a goo type id: ";
     private static final char NAMESPACE_SEPARATOR = ':';
 
@@ -33,7 +38,7 @@ public final class GooTypes {
      * The datapack registry every goo type lives in.
      */
     public static final ResourceKey<Registry<GooTypeDefinition>> REGISTRY =
-            ResourceKey.createRegistryKey(Identifier.fromNamespaceAndPath(Goo.MODID, REGISTRY_PATH));
+            ResourceKey.createRegistryKey(Identifier.fromNamespaceAndPath(NAMESPACE, REGISTRY_PATH));
 
     /**
      * A type key as its id, the form the GOO_TYPE data component persists
@@ -109,7 +114,7 @@ public final class GooTypes {
      * @return the key addressing that type in {@link #REGISTRY}
      */
     public static ResourceKey<GooTypeDefinition> bundled(String path) {
-        return ResourceKey.create(REGISTRY, Identifier.fromNamespaceAndPath(Goo.MODID, path));
+        return ResourceKey.create(REGISTRY, Identifier.fromNamespaceAndPath(NAMESPACE, path));
     }
 
     /**
@@ -118,7 +123,7 @@ public final class GooTypes {
      */
     public static String id(ResourceKey<GooTypeDefinition> key) {
         Identifier identifier = key.identifier();
-        return Goo.MODID.equals(identifier.getNamespace()) ? identifier.getPath() : identifier.toString();
+        return NAMESPACE.equals(identifier.getNamespace()) ? identifier.getPath() : identifier.toString();
     }
 
     /**
@@ -127,7 +132,7 @@ public final class GooTypes {
      */
     public static @Nullable ResourceKey<GooTypeDefinition> byId(String id) {
         Identifier identifier = id.indexOf(NAMESPACE_SEPARATOR) < 0
-                ? Identifier.tryBuild(Goo.MODID, id)
+                ? Identifier.tryBuild(NAMESPACE, id)
                 : Identifier.tryParse(id);
         return identifier == null ? null : ResourceKey.create(REGISTRY, identifier);
     }

@@ -1,9 +1,9 @@
 package com.mercuriusxeno.goo.network;
 
-import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.network.BlobEffectScheduler.PendingEffect;
 import com.mercuriusxeno.goo.registry.GooBlocks;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;

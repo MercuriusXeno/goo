@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.block.crucible;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.block.ContainerEvaluator;
 import com.mercuriusxeno.goo.block.ValuedStack;
 import com.mercuriusxeno.goo.data.GooValue;
@@ -10,6 +9,7 @@ import com.mercuriusxeno.goo.item.ChrysmItem;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.PartiallyMeltedItem;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;

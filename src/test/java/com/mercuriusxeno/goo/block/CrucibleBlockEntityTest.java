@@ -1,8 +1,8 @@
 package com.mercuriusxeno.goo.block;
 
-import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.item.GooContents;
+import com.mercuriusxeno.goo.type.GooTypes;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;

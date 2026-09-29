@@ -1,7 +1,5 @@
 package com.mercuriusxeno.goo.block.ability;
 
-import com.mercuriusxeno.goo.GooTypeDefinition;
-import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.*;
 import com.mercuriusxeno.goo.ability.AbilityDefinition.ChainConfig;
 import com.mercuriusxeno.goo.ability.program.FieldEffectState;
@@ -14,6 +12,8 @@ import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.network.ChainBurnoutPayload;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mercuriusxeno.goo.registry.GooBlocks;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;

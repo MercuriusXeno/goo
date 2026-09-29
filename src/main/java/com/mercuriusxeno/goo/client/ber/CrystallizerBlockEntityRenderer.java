@@ -1,11 +1,11 @@
 package com.mercuriusxeno.goo.client.ber;
 
-import com.mercuriusxeno.goo.GooColors;
-import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.block.crystallizer.CrystalCluster;
 import com.mercuriusxeno.goo.block.crystallizer.CrystallizerBlock;
 import com.mercuriusxeno.goo.block.crystallizer.CrystallizerBlockEntity;
 import com.mercuriusxeno.goo.client.CrystalClusterSubmitter;
+import com.mercuriusxeno.goo.type.GooColors;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import net.minecraft.client.renderer.LevelRenderer;

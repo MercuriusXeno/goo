@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.client;
 
-import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.client.model.CanisterBodyModels;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.QuadInstance;
 import net.minecraft.client.Minecraft;

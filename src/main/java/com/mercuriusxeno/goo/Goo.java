@@ -9,6 +9,7 @@ import com.mercuriusxeno.goo.data.GooValueRegistry;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.network.GooValueSync;
 import com.mercuriusxeno.goo.registry.*;
+import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.logging.LogUtils;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -29,7 +30,7 @@ import org.slf4j.Logger;
 @Mod(Goo.MODID)
 public class Goo {
 
-    public static final String MODID = "goo";
+    public static final String MODID = GooTypes.NAMESPACE;
     public static final Logger LOGGER = LogUtils.getLogger();
     public static final GooValueRegistry GOO_VALUES = new GooValueRegistry();
     /**

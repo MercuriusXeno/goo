@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.ability;
 
-import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Nested;

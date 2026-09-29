@@ -1,4 +1,4 @@
-package com.mercuriusxeno.goo;
+package com.mercuriusxeno.goo.type;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
