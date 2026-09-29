@@ -41,6 +41,8 @@ public class GasketPusher {
     private final Supplier<GasketRegistry> registryAccess;
 
     private int idleTicks;
+    /** The source slot the next push walk starts at. */
+    private int nextTurn;
     private @Nullable BlockCapabilityCache<ResourceHandler<FluidResource>, UUID> endpointCache;
     private @Nullable ChunkPos forcedChunk;
 
@@ -346,28 +348,46 @@ public class GasketPusher {
 
     /**
      * Sends each source slot the lesser of the demand the target states and
-     * what the slot holds, in a single transaction per slot.
+     * what the slot holds, in a single transaction per slot. The walk starts at the
+     * slot after the one that sent first last time and wraps, so a target asking one
+     * type at a time receives the source's types by turns, and an empty slot yields
+     * its turn to the next (decision vat-round-robins-gasket-send).
      *
      * @param target the destination fluid handler
      */
     void pushViaHandler(ResourceHandler<FluidResource> target) {
+        int slots = source.size();
         boolean moved = false;
-        for (int i = 0; i < source.size(); i++) {
-            FluidResource resource = source.getResource(i);
-            if (resource.isEmpty()) {
-                continue;
+        int firstSent = nextTurn;
+        for (int step = 0; step < slots; step++) {
+            int i = (nextTurn + step) % slots;
+            if (sendSlot(target, i)) {
+                firstSent = moved ? firstSent : i;
+                moved = true;
             }
-            int amount = (int) source.getAmountAsLong(i);
-            int offer = Math.min(GasketDemand.demandOf(target, resource), amount);
-            if (offer <= 0) {
-                continue;
-            }
-            moved |= transferSlot(target, i, resource, offer);
         }
         if (moved) {
+            nextTurn = (firstSent + 1) % slots;
             idleTicks = 0;
             sync.run();
         }
+    }
+
+    /**
+     * Sends one source slot the lesser of the target's demand and what the slot holds.
+     *
+     * @param target the destination fluid handler
+     * @param slot   the source slot
+     * @return true if any fluid moved
+     */
+    private boolean sendSlot(ResourceHandler<FluidResource> target, int slot) {
+        FluidResource resource = source.getResource(slot);
+        if (resource.isEmpty()) {
+            return false;
+        }
+        int amount = (int) source.getAmountAsLong(slot);
+        int offer = Math.min(GasketDemand.demandOf(target, resource), amount);
+        return offer > 0 && transferSlot(target, slot, resource, offer);
     }
 
     /**

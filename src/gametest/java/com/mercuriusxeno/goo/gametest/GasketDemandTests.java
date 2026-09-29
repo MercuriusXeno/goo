@@ -189,6 +189,27 @@ public final class GasketDemandTests {
     }
 
     /**
+     * A vat holding blaze and unstable feeding a gasketed tap over a crucible sends the
+     * types by turns, so the crucible stocks both (decision vat-round-robins-gasket-send).
+     *
+     * @param helper the gametest helper
+     */
+    public static void vatFeedsTapBothTypesByTurns(GameTestHelper helper) {
+        VatBlockEntity vat = placeVat(helper);
+        TapBlockEntity tap = placeGasketedTapOverCrucible(helper);
+        link(helper, vat, tap, RECEIVER_POS);
+        vat.insertGoo(GooTypes.BLAZE, VAT_GOO);
+        vat.insertGoo(GooTypes.UNSTABLE, VAT_GOO);
+        helper.runAfterDelay(MEASURED_TICKS, () -> {
+            int blaze = crucibleHolds(helper, GooTypes.BLAZE);
+            int unstable = crucibleHolds(helper, GooTypes.UNSTABLE);
+            helper.assertTrue(blaze > 0 && unstable > 0,
+                    "The crucible should stock both types, holds blaze " + blaze + " and unstable " + unstable);
+            helper.succeed();
+        });
+    }
+
+    /**
      * Stands a crucible, and over it an open gasketed tap with an empty slot at the valve grade.
      *
      * @param helper the gametest helper
