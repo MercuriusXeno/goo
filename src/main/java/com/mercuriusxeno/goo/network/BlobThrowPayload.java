@@ -17,7 +17,7 @@ import org.jspecify.annotations.NonNull;
  * @param targetEntityId the target entity ID, or -1 for block targets
  * @param targetPos      the target block position
  * @param targetFace     the target face ordinal
- * @param grannyArc      whether to use the boosted arc trajectory
+ * @param grannyArc      whether the throw is a lob onto a top face
  * @param abilityId      the selected ability id string
  * @param origin         the aim line's start at the click, the point the flight leaves from
  */

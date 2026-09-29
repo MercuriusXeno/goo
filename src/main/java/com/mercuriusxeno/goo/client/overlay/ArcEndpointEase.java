@@ -48,7 +48,7 @@ final class ArcEndpointEase {
 
     /**
      * The granny weight to draw while easing toward a new target: 0 draws the
-     * plain peak, 1 the granny peak.
+     * plain peak, 1 the lob peak.
      *
      * @param fromWeight     the weight drawn when the target changed
      * @param toWeight       the new target's weight
