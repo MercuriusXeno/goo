@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.block.GooMachineBlock;
 import com.mercuriusxeno.goo.block.ShapeHitCheck;
 import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
 import com.mercuriusxeno.goo.item.CanisterItem;
+import com.mercuriusxeno.goo.item.GooInteractionType;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
@@ -30,6 +31,7 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
+import java.util.Set;
 import static com.mercuriusxeno.goo.GooConstants.NO_SLOT;
 
 /**
@@ -356,7 +358,7 @@ public class HubBlock extends GooMachineBlock {
         return GooBlockInteraction.handleItemInteraction(
                 stack, level, pos, player, hand, hitResult,
                 HubBlockEntity.class,
-                t -> t == null,
+                Set.of(GooInteractionType.CANISTER_INSERT, GooInteractionType.BLOB_INSERT),
                 HubBlockHandlers::dispatchHub);
     }
 

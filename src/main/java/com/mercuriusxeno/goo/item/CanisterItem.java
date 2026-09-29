@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.item;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.block.GooBlockInteraction;
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
 import com.mercuriusxeno.goo.item.CanisterPlacementResolver.CanisterPlacement;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
@@ -102,7 +103,7 @@ public class CanisterItem extends BlockItem implements IGooItemInteraction, GooC
         if (!canister.insertCanister(placement.slot(), stack, player.isCreative())) {
             return InteractionResult.PASS;
         }
-        stack.shrink(1);
+        GooBlockInteraction.consumeOneHeld(stack, player);
         canister.playInsertSound();
         return InteractionResult.SUCCESS;
     }

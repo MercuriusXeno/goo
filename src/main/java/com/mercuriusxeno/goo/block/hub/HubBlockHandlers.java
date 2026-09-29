@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.block.hub;
 
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.ISidedProxy;
+import com.mercuriusxeno.goo.block.GooBlockInteraction;
 import com.mercuriusxeno.goo.block.InteractionCooldown;
 import com.mercuriusxeno.goo.block.canister.SlottedCanisterData;
 import com.mercuriusxeno.goo.item.BlobInsert;
@@ -134,7 +135,7 @@ final class HubBlockHandlers {
         if (!tryInsertCanister(hub, hitResult, stack)) {
             return InteractionResult.TRY_WITH_EMPTY_HAND;
         }
-        stack.consume(1, player);
+        GooBlockInteraction.consumeOneHeld(stack, player);
         hub.getLevel().playSound(null, hub.getBlockPos(),
                 SoundEvents.DECORATED_POT_INSERT, SoundSource.BLOCKS, 1.0f, 1.0f);
         InteractionCooldown.markInteraction(player.getUUID(), hub.getLevel().getGameTime());

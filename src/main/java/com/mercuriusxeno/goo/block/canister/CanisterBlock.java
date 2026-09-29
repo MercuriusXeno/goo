@@ -339,7 +339,8 @@ public class CanisterBlock extends GooMachineBlock {
         // Blob/goo insertion via standard dispatch
         return GooBlockInteraction.handleItemInteraction(
                 stack, level, pos, player, hand, hitResult,
-                CanisterBlockEntity.class, t -> t == null,
+                CanisterBlockEntity.class,
+                Set.of(GooInteractionType.CANISTER_INSERT, GooInteractionType.BLOB_INSERT),
                 (interaction, canister, s, p, h, hit, bpos, lvl) ->
                     canister.dispatch(interaction, s, p, hit));
     }
