@@ -86,7 +86,7 @@ public final class BlobFlightManager {
      * @param start      the flight's start
      * @param throwEnd   the flight's endpoint at the throw
      * @param gooType    the thrown goo type
-     * @param grannyArc  whether the throw uses the boosted arc
+     * @param grannyArc  whether the throw is a lob onto a top face
      * @return the peak height in blocks
      */
     static double peakForFlight(Vec3 start, Vec3 throwEnd, ResourceKey<GooTypeDefinition> gooType,
@@ -94,8 +94,7 @@ public final class BlobFlightManager {
         if (gooType == GooTypes.GLOW) {
             return 0;
         }
-        double distance = start.distanceTo(throwEnd);
-        return grannyArc ? ThrowArc.grannyPeak(distance) : ThrowArc.basePeak(distance);
+        return grannyArc ? ThrowArc.lobPeak(start, throwEnd) : ThrowArc.basePeak(start.distanceTo(throwEnd));
     }
 
     /**

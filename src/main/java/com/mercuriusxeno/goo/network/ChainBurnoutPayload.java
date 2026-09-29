@@ -1,0 +1,63 @@
+package com.mercuriusxeno.goo.network;
+
+import com.mercuriusxeno.goo.Goo;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.Identifier;
+import org.jspecify.annotations.NonNull;
+
+/**
+ * Server-to-client payload: a chain marker burned out, sent to the players
+ * tracking its chunk before the marker can be removed, so each goo type's
+ * burnout explosion plays even for a program that finishes the tick it
+ * fires (decision elemental-explosion-per-type).
+ *
+ * @param pos        the marker's block position
+ * @param placedFace the ordinal of the face the marker was placed on
+ * @param gooTypeId  the goo type's short id
+ * @param abilityId  the id of the ability the marker ran
+ * @param stackCount the marker's stack count at burnout
+ */
+public record ChainBurnoutPayload(BlockPos pos, int placedFace, String gooTypeId,
+                                  String abilityId, int stackCount) implements CustomPacketPayload {
+
+    /** Payload type ID for registration. */
+    public static final Type<ChainBurnoutPayload> TYPE =
+        new Type<>(Identifier.fromNamespaceAndPath(Goo.MODID, "chain_burnout"));
+
+    /** Stream codec for encoding/decoding. */
+    public static final StreamCodec<FriendlyByteBuf, ChainBurnoutPayload> STREAM_CODEC =
+        StreamCodec.of(ChainBurnoutPayload::encode, ChainBurnoutPayload::decode);
+
+    @Override
+    public @NonNull Type<? extends CustomPacketPayload> type() {
+        return TYPE;
+    }
+
+    /**
+     * Writes the payload to the buffer.
+     *
+     * @param buf     the output buffer
+     * @param payload the payload to encode
+     */
+    private static void encode(FriendlyByteBuf buf, ChainBurnoutPayload payload) {
+        buf.writeBlockPos(payload.pos);
+        buf.writeVarInt(payload.placedFace);
+        buf.writeUtf(payload.gooTypeId);
+        buf.writeUtf(payload.abilityId);
+        buf.writeVarInt(payload.stackCount);
+    }
+
+    /**
+     * Reads the payload from the buffer.
+     *
+     * @param buf the input buffer
+     * @return the decoded payload
+     */
+    private static ChainBurnoutPayload decode(FriendlyByteBuf buf) {
+        return new ChainBurnoutPayload(buf.readBlockPos(), buf.readVarInt(), buf.readUtf(),
+                buf.readUtf(), buf.readVarInt());
+    }
+}

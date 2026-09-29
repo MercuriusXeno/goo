@@ -51,8 +51,17 @@ public class ChainMarkerRenderState extends BlockEntityRenderState {
      * mining. The ghost outline persists through the mining phase. */
     public boolean behaviorActive;
 
+    /** Ticks since this client first drew the behavior, partial tick included; the orb eases back to size on it. */
+    public float behaviorAge;
+
     /** Number of depth layers already mined by the active behavior. */
     public int minedLayers;
+
+    /** True while a rock, blaze or frost progressive-area program breaks blocks. */
+    public boolean miningActive;
+
+    /** Game time the mined layer count last changed; the mining beat restarts on it. */
+    public long lastLayerTick;
 
     /** Metal spikes in flight, read from the marker's field-effect state. */
     public java.util.List<com.mercuriusxeno.goo.ability.program.FieldStrike> spikeAnims = java.util.List.of();

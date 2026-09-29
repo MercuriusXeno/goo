@@ -15,12 +15,6 @@ public final class ThrowArc {
     /** Power of throw distance the base peak grows by. */
     public static final double PEAK_EXPONENT = 0.75;
 
-    /** Flat boost the granny arc adds to the base peak, in blocks. */
-    public static final double ARC_FLAT_BOOST = 1.0;
-
-    /** Multiplier the granny arc applies to the base peak (1.15 = +15%). */
-    public static final double GRANNY_PEAK_SCALE = 1.15;
-
     /**
      * Farthest the throw origin sits from the thrower's eye, in blocks at
      * scale 1: the rendered glove blob sits inside it, a forged origin does not.
@@ -36,6 +30,9 @@ public final class ThrowArc {
 
     /** Parabolic factor for "2 - s" envelope in the skewed arc rise phase. */
     private static final double ARC_RISE_FACTOR = 2.0;
+
+    /** Derivative factor of the descent's {@code 1 - s * s} envelope at landing. */
+    private static final double DESCENT_SLOPE_FACTOR = 2.0;
 
     private ThrowArc() {}
 
@@ -66,13 +63,22 @@ public final class ThrowArc {
     }
 
     /**
-     * Computes the granny-arc boosted peak: 115% of the base peak + 1 block.
+     * Computes the lob's peak: from a hand below the targeted top face, the
+     * arc levels off at the face's height and never climbs above it; from a
+     * hand level with the face or above it, the plain throw peak (decision
+     * lob-apex-at-top-face-height).
      *
-     * @param distance world-space distance in blocks
-     * @return boosted peak height in blocks
+     * @param start arc origin (hand position)
+     * @param end   arc destination, the targeted top face's center
+     * @return peak height in blocks
      */
-    public static double grannyPeak(double distance) {
-        return basePeak(distance) * GRANNY_PEAK_SCALE + ARC_FLAT_BOOST;
+    public static double lobPeak(Vec3 start, Vec3 end) {
+        double rise = end.y - start.y;
+        if (rise <= 0) {
+            return basePeak(start.distanceTo(end));
+        }
+        // Landing slope rise - 2 * peak / (1 - ARC_PEAK_T) reads zero here, so the apex sits on the face.
+        return rise * (1.0 - ARC_PEAK_T) / DESCENT_SLOPE_FACTOR;
     }
 
     /**
