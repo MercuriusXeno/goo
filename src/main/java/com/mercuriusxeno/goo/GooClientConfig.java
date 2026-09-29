@@ -4,7 +4,8 @@ import net.neoforged.neoforge.common.ModConfigSpec;
 
 /**
  * Client-side settings, read from goo-client.toml, so the nether hole's
- * style and lens switch without a rebuild (decision one-disc-mesh-config-lens).
+ * style and lens and the aim arc's slide switch without a rebuild
+ * (decisions one-disc-mesh-config-lens, aim-arc-snap-option).
  */
 public final class GooClientConfig {
 
@@ -19,6 +20,7 @@ public final class GooClientConfig {
     public static final ModConfigSpec SPEC;
     public static final ModConfigSpec.EnumValue<NetherHoleShape> NETHER_HOLE_SHAPE;
     public static final ModConfigSpec.BooleanValue SHOW_NETHER_LENS;
+    public static final ModConfigSpec.BooleanValue SNAP_AIM_ARC;
 
     static {
         ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
@@ -35,6 +37,17 @@ public final class GooClientConfig {
                 "When true, a screen-space lens warps the view around the nether black hole.",
                 "When false (default), no lens work runs.")
             .define("lensEnabled", false);
+
+        builder.pop();
+
+        builder.comment("Glove aim arc");
+        builder.push("aimArc");
+
+        SNAP_AIM_ARC = builder
+            .comment(
+                "When true, the aim arc snaps to a new target the frame the target changes.",
+                "When false (default), the arc slides to the new target over 0.05 seconds.")
+            .define("snap", false);
 
         builder.pop();
 

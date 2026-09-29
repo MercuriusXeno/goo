@@ -130,7 +130,7 @@ public final class ArcRenderer {
      * @param partialTick the partial tick for the frame
      * @return seconds of game time at this frame
      */
-    static double frameSeconds(float partialTick) {
+    private static double frameSeconds(float partialTick) {
         Minecraft mc = Minecraft.getInstance();
         return (mc.level.getGameTime() + partialTick) / TICKS_PER_SECOND;
     }
