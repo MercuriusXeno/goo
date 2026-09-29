@@ -13,7 +13,7 @@ import net.minecraft.world.level.block.state.properties.Property;
 import java.util.List;
 
 /**
- * What an ability blob does when it lands on a block: a blob striking a
+ * What an ability goo does when it lands on a block: a goo striking a
  * block its own ability places grows that block one size, and any other
  * strike places or stacks the ability's chain marker.
  */
@@ -26,13 +26,13 @@ public final class AbilityImpact {
     }
 
     /**
-     * Lands an ability blob on a block.
+     * Lands an ability goo on a block.
      *
      * @param level   the server level
      * @param pos     the struck block
      * @param type    the goo type thrown
      * @param face    the struck face
-     * @param ability the ability the blob names
+     * @param ability the ability the goo names
      */
     public static void land(ServerLevel level, BlockPos pos, ResourceKey<GooTypeDefinition> type,
                             Direction face, AbilityDefinition ability) {
@@ -43,15 +43,15 @@ public final class AbilityImpact {
     }
 
     /**
-     * Absorbs the blob into the struck block when the ability's place_block
+     * Absorbs the goo into the struck block when the ability's place_block
      * step names that block and the block grows by size, growing it one
      * size unless it is already at its largest (decision
      * place-block-ability-grows-block).
      *
      * @param level   the server level
      * @param pos     the struck block
-     * @param ability the ability the blob names
-     * @return true if the blob was absorbed and no marker should be placed
+     * @param ability the ability the goo names
+     * @return true if the goo was absorbed and no marker should be placed
      */
     private static boolean absorbIntoPlacedBlock(ServerLevel level, BlockPos pos, AbilityDefinition ability) {
         BlockState state = level.getBlockState(pos);

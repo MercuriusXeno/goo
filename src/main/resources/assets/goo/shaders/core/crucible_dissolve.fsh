@@ -33,14 +33,14 @@ flat in float dissolveSeed;
 out vec4 fragColor;
 
 // Noise cells per block: an item spans a fraction of a block, so the field runs
-// finer than the surface's blobs to break it into several flecks.
+// finer than the surface's goo to break it into several flecks.
 const float DISSOLVE_CELLS_PER_BLOCK = 12.0;
 // Width of the glowing band above the threshold, in field units.
 const float GLOW_BAND = 0.06;
 // The band's brightness at the threshold, above one so it reads as emissive.
 const float GLOW_STRENGTH = 1.6;
 // Scales world position into the type pick's field, so a few type patches run
-// along the rim of one item rather than one surface blob covering it.
+// along the rim of one item rather than one surface goo covering it.
 const float PICK_SCALE = 2.4;
 // A later layer takes a fragment where its mingle opacity passes one half.
 const float PICK_OPACITY = 0.5;

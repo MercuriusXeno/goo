@@ -90,7 +90,7 @@ class PanelPainterMeasureTest {
 
     /**
      * "9.99K / 9.99K" is 78 after the 12 of icon and gap, plus 6 of borders: the
-     * crucible floor (decision crucible-panel-floors-width-under-ten-blobs).
+     * crucible floor (decision crucible-panel-floors-width-under-ten-thousand).
      */
     private static final float CRUCIBLE_FLOOR_WIDTH = 96f;
 

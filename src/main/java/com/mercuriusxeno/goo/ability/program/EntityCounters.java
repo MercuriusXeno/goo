@@ -7,7 +7,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * The named counters a struck entity keeps between blob hits, such as the
+ * The named counters a struck entity keeps between goo hits, such as the
  * aeon ritual's {@code goo:ritual} (decision aeon-mob-ritual-drops-spawn-egg).
  * The entity holds it as a data attachment that saves with it, so a ritual
  * survives the mob unloading. Immutable: each write answers a new value

@@ -7,10 +7,10 @@ import org.jspecify.annotations.Nullable;
 /**
  * Client-only static holder for the post-throw aim-freeze window.
  *
- * <p>When the player throws a blob, the resolved aim target is captured here
+ * <p>When the player throws a goo, the resolved aim target is captured here
  * for a short window of ticks. While frozen, {@code AimTracker}
  * returns the frozen target instead of re-resolving, so rapid chain throws
- * land on the exact same spot even while the first blob is mid-flight.
+ * land on the exact same spot even while the first goo is mid-flight.
  *
  * <p>Pure state - no Minecraft hot-path imports - so it is unit-testable
  * in a plain JUnit context.

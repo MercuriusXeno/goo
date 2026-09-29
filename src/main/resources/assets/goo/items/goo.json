@@ -1,0 +1,113 @@
+{
+  "model": {
+    "type": "minecraft:range_dispatch",
+    "property": "goo:goo_size",
+    "fallback": {
+        "type": "minecraft:select",
+        "property": "goo:goo_texture",
+        "size": "tiny",
+        "cases": [
+            {"when": "goo:item/aeon_goo_tiny", "model": {"type": "minecraft:model", "model": "goo:item/aeon_goo_tiny"}},
+            {"when": "goo:item/blaze_goo_tiny", "model": {"type": "minecraft:model", "model": "goo:item/blaze_goo_tiny"}},
+            {"when": "goo:item/crystal_goo_tiny", "model": {"type": "minecraft:model", "model": "goo:item/crystal_goo_tiny"}},
+            {"when": "goo:item/ender_goo_tiny", "model": {"type": "minecraft:model", "model": "goo:item/ender_goo_tiny"}},
+            {"when": "goo:item/frost_goo_tiny", "model": {"type": "minecraft:model", "model": "goo:item/frost_goo_tiny"}},
+            {"when": "goo:item/glow_goo_tiny", "model": {"type": "minecraft:model", "model": "goo:item/glow_goo_tiny"}},
+            {"when": "goo:item/hex_goo_tiny", "model": {"type": "minecraft:model", "model": "goo:item/hex_goo_tiny"}},
+            {"when": "goo:item/leaf_goo_tiny", "model": {"type": "minecraft:model", "model": "goo:item/leaf_goo_tiny"}},
+            {"when": "goo:item/metal_goo_tiny", "model": {"type": "minecraft:model", "model": "goo:item/metal_goo_tiny"}},
+            {"when": "goo:item/nether_goo_tiny", "model": {"type": "minecraft:model", "model": "goo:item/nether_goo_tiny"}},
+            {"when": "goo:item/pulse_goo_tiny", "model": {"type": "minecraft:model", "model": "goo:item/pulse_goo_tiny"}},
+            {"when": "goo:item/rock_goo_tiny", "model": {"type": "minecraft:model", "model": "goo:item/rock_goo_tiny"}},
+            {"when": "goo:item/shroom_goo_tiny", "model": {"type": "minecraft:model", "model": "goo:item/shroom_goo_tiny"}},
+            {"when": "goo:item/typhoon_goo_tiny", "model": {"type": "minecraft:model", "model": "goo:item/typhoon_goo_tiny"}},
+            {"when": "goo:item/unstable_goo_tiny", "model": {"type": "minecraft:model", "model": "goo:item/unstable_goo_tiny"}},
+            {"when": "goo:item/vital_goo_tiny", "model": {"type": "minecraft:model", "model": "goo:item/vital_goo_tiny"}}
+        ],
+        "fallback": {"type": "minecraft:model", "model": "goo:item/goo_tiny", "tints": [{"type": "goo:goo_type"}]}
+      },
+    "entries": [
+      {
+      "threshold": 1.0,
+      "model": {
+        "type": "minecraft:select",
+        "property": "goo:goo_texture",
+        "size": "small",
+        "cases": [
+            {"when": "goo:item/aeon_goo_small", "model": {"type": "minecraft:model", "model": "goo:item/aeon_goo_small"}},
+            {"when": "goo:item/blaze_goo_small", "model": {"type": "minecraft:model", "model": "goo:item/blaze_goo_small"}},
+            {"when": "goo:item/crystal_goo_small", "model": {"type": "minecraft:model", "model": "goo:item/crystal_goo_small"}},
+            {"when": "goo:item/ender_goo_small", "model": {"type": "minecraft:model", "model": "goo:item/ender_goo_small"}},
+            {"when": "goo:item/frost_goo_small", "model": {"type": "minecraft:model", "model": "goo:item/frost_goo_small"}},
+            {"when": "goo:item/glow_goo_small", "model": {"type": "minecraft:model", "model": "goo:item/glow_goo_small"}},
+            {"when": "goo:item/hex_goo_small", "model": {"type": "minecraft:model", "model": "goo:item/hex_goo_small"}},
+            {"when": "goo:item/leaf_goo_small", "model": {"type": "minecraft:model", "model": "goo:item/leaf_goo_small"}},
+            {"when": "goo:item/metal_goo_small", "model": {"type": "minecraft:model", "model": "goo:item/metal_goo_small"}},
+            {"when": "goo:item/nether_goo_small", "model": {"type": "minecraft:model", "model": "goo:item/nether_goo_small"}},
+            {"when": "goo:item/pulse_goo_small", "model": {"type": "minecraft:model", "model": "goo:item/pulse_goo_small"}},
+            {"when": "goo:item/rock_goo_small", "model": {"type": "minecraft:model", "model": "goo:item/rock_goo_small"}},
+            {"when": "goo:item/shroom_goo_small", "model": {"type": "minecraft:model", "model": "goo:item/shroom_goo_small"}},
+            {"when": "goo:item/typhoon_goo_small", "model": {"type": "minecraft:model", "model": "goo:item/typhoon_goo_small"}},
+            {"when": "goo:item/unstable_goo_small", "model": {"type": "minecraft:model", "model": "goo:item/unstable_goo_small"}},
+            {"when": "goo:item/vital_goo_small", "model": {"type": "minecraft:model", "model": "goo:item/vital_goo_small"}}
+        ],
+        "fallback": {"type": "minecraft:model", "model": "goo:item/goo_small", "tints": [{"type": "goo:goo_type"}]}
+      }
+      },
+      {
+      "threshold": 2.0,
+      "model": {
+        "type": "minecraft:select",
+        "property": "goo:goo_texture",
+        "size": "base",
+        "cases": [
+            {"when": "goo:item/aeon_goo_base", "model": {"type": "minecraft:model", "model": "goo:item/aeon_goo"}},
+            {"when": "goo:item/blaze_goo_base", "model": {"type": "minecraft:model", "model": "goo:item/blaze_goo"}},
+            {"when": "goo:item/crystal_goo_base", "model": {"type": "minecraft:model", "model": "goo:item/crystal_goo"}},
+            {"when": "goo:item/ender_goo_base", "model": {"type": "minecraft:model", "model": "goo:item/ender_goo"}},
+            {"when": "goo:item/frost_goo_base", "model": {"type": "minecraft:model", "model": "goo:item/frost_goo"}},
+            {"when": "goo:item/glow_goo_base", "model": {"type": "minecraft:model", "model": "goo:item/glow_goo"}},
+            {"when": "goo:item/hex_goo_base", "model": {"type": "minecraft:model", "model": "goo:item/hex_goo"}},
+            {"when": "goo:item/leaf_goo_base", "model": {"type": "minecraft:model", "model": "goo:item/leaf_goo"}},
+            {"when": "goo:item/metal_goo_base", "model": {"type": "minecraft:model", "model": "goo:item/metal_goo"}},
+            {"when": "goo:item/nether_goo_base", "model": {"type": "minecraft:model", "model": "goo:item/nether_goo"}},
+            {"when": "goo:item/pulse_goo_base", "model": {"type": "minecraft:model", "model": "goo:item/pulse_goo"}},
+            {"when": "goo:item/rock_goo_base", "model": {"type": "minecraft:model", "model": "goo:item/rock_goo"}},
+            {"when": "goo:item/shroom_goo_base", "model": {"type": "minecraft:model", "model": "goo:item/shroom_goo"}},
+            {"when": "goo:item/typhoon_goo_base", "model": {"type": "minecraft:model", "model": "goo:item/typhoon_goo"}},
+            {"when": "goo:item/unstable_goo_base", "model": {"type": "minecraft:model", "model": "goo:item/unstable_goo"}},
+            {"when": "goo:item/vital_goo_base", "model": {"type": "minecraft:model", "model": "goo:item/vital_goo"}}
+        ],
+        "fallback": {"type": "minecraft:model", "model": "goo:item/goo", "tints": [{"type": "goo:goo_type"}]}
+      }
+      },
+      {
+      "threshold": 3.0,
+      "model": {
+        "type": "minecraft:select",
+        "property": "goo:goo_texture",
+        "size": "large",
+        "cases": [
+            {"when": "goo:item/aeon_goo_large", "model": {"type": "minecraft:model", "model": "goo:item/aeon_goo_large"}},
+            {"when": "goo:item/blaze_goo_large", "model": {"type": "minecraft:model", "model": "goo:item/blaze_goo_large"}},
+            {"when": "goo:item/crystal_goo_large", "model": {"type": "minecraft:model", "model": "goo:item/crystal_goo_large"}},
+            {"when": "goo:item/ender_goo_large", "model": {"type": "minecraft:model", "model": "goo:item/ender_goo_large"}},
+            {"when": "goo:item/frost_goo_large", "model": {"type": "minecraft:model", "model": "goo:item/frost_goo_large"}},
+            {"when": "goo:item/glow_goo_large", "model": {"type": "minecraft:model", "model": "goo:item/glow_goo_large"}},
+            {"when": "goo:item/hex_goo_large", "model": {"type": "minecraft:model", "model": "goo:item/hex_goo_large"}},
+            {"when": "goo:item/leaf_goo_large", "model": {"type": "minecraft:model", "model": "goo:item/leaf_goo_large"}},
+            {"when": "goo:item/metal_goo_large", "model": {"type": "minecraft:model", "model": "goo:item/metal_goo_large"}},
+            {"when": "goo:item/nether_goo_large", "model": {"type": "minecraft:model", "model": "goo:item/nether_goo_large"}},
+            {"when": "goo:item/pulse_goo_large", "model": {"type": "minecraft:model", "model": "goo:item/pulse_goo_large"}},
+            {"when": "goo:item/rock_goo_large", "model": {"type": "minecraft:model", "model": "goo:item/rock_goo_large"}},
+            {"when": "goo:item/shroom_goo_large", "model": {"type": "minecraft:model", "model": "goo:item/shroom_goo_large"}},
+            {"when": "goo:item/typhoon_goo_large", "model": {"type": "minecraft:model", "model": "goo:item/typhoon_goo_large"}},
+            {"when": "goo:item/unstable_goo_large", "model": {"type": "minecraft:model", "model": "goo:item/unstable_goo_large"}},
+            {"when": "goo:item/vital_goo_large", "model": {"type": "minecraft:model", "model": "goo:item/vital_goo_large"}}
+        ],
+        "fallback": {"type": "minecraft:model", "model": "goo:item/goo_large", "tints": [{"type": "goo:goo_type"}]}
+      }
+      }
+    ]
+  }
+}

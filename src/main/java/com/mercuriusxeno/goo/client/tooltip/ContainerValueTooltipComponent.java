@@ -22,7 +22,7 @@ public record ContainerValueTooltipComponent(
      * A single goo type + amount entry for one column row.
      *
      * @param type   the goo type
-     * @param amount the volume in microblobs
+     * @param amount the volume
      */
     public record Entry(ResourceKey<GooTypeDefinition> type, int amount) {
     }

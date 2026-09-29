@@ -17,17 +17,17 @@ final class GooRecipeEvaluator {
     }
 
     /**
-     * Cheaper = fewer total blobs, then fewer goo types as tiebreaker.
+     * Cheaper = fewer total goo, then fewer goo types as tiebreaker.
      *
      * @param candidate the proposed replacement value
      * @param current   the existing value to compare against
      * @return true if candidate is cheaper than current
      */
     static boolean isCheaper(GooValue candidate, GooValue current) {
-        int cBlobs = candidate.totalBlobs();
-        int eBlobs = current.totalBlobs();
-        if (cBlobs != eBlobs) {
-            return cBlobs < eBlobs;
+        int cGoo = candidate.totalGoo();
+        int eGoo = current.totalGoo();
+        if (cGoo != eGoo) {
+            return cGoo < eGoo;
         }
         return candidate.typeCount() < current.typeCount();
     }

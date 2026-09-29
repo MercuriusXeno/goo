@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.client;
 
 import com.google.gson.JsonParser;
-import com.mercuriusxeno.goo.type.BlobModelSize;
+import com.mercuriusxeno.goo.type.GooModelSize;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypeTextures;
 import com.mojang.serialization.JsonOps;
@@ -30,14 +30,14 @@ class GooTypeSpritesTest {
     private static final Predicate<Identifier> NO_SPRITE_STITCHED = id -> false;
 
     /**
-     * Bundled blaze answers its own blob sprite at each size, untinted.
+     * Bundled blaze answers its own goo sprite at each size, untinted.
      */
     @ParameterizedTest
-    @EnumSource(BlobModelSize.class)
-    void blob_namedTexturesAnswerBlazeArt(BlobModelSize size) throws Exception {
-        Identifier expected = Identifier.parse("goo:item/blaze_blob_" + size.getSerializedName());
+    @EnumSource(GooModelSize.class)
+    void goo_namedTexturesAnswerBlazeArt(GooModelSize size) throws Exception {
+        Identifier expected = Identifier.parse("goo:item/blaze_goo_" + size.getSerializedName());
         assertEquals(new GooTypeSprites.TypeSprite(expected, false),
-                GooTypeSprites.blob(blazeTextures(), size, EVERY_SPRITE_STITCHED));
+                GooTypeSprites.goo(blazeTextures(), size, EVERY_SPRITE_STITCHED));
     }
 
     /**
@@ -45,13 +45,13 @@ class GooTypeSpritesTest {
      * sprite the atlas lacks each answer the tinted grey base of the size.
      */
     @ParameterizedTest
-    @EnumSource(BlobModelSize.class)
-    void blob_unnamedOrUnstitchedAnswersTintedGreyBase(BlobModelSize size) throws Exception {
+    @EnumSource(GooModelSize.class)
+    void goo_unnamedOrUnstitchedAnswersTintedGreyBase(GooModelSize size) throws Exception {
         GooTypeSprites.TypeSprite grey = new GooTypeSprites.TypeSprite(
-                Identifier.parse("goo:item/goo_blob_" + size.getSerializedName()), true);
-        assertEquals(grey, GooTypeSprites.blob(GooTypeTextures.NONE, size, EVERY_SPRITE_STITCHED));
-        assertEquals(grey, GooTypeSprites.blob(null, size, EVERY_SPRITE_STITCHED));
-        assertEquals(grey, GooTypeSprites.blob(blazeTextures(), size, NO_SPRITE_STITCHED));
+                Identifier.parse("goo:item/goo_" + size.getSerializedName()), true);
+        assertEquals(grey, GooTypeSprites.goo(GooTypeTextures.NONE, size, EVERY_SPRITE_STITCHED));
+        assertEquals(grey, GooTypeSprites.goo(null, size, EVERY_SPRITE_STITCHED));
+        assertEquals(grey, GooTypeSprites.goo(blazeTextures(), size, NO_SPRITE_STITCHED));
     }
 
     /**

@@ -250,7 +250,7 @@ public class TapBlock extends GooMachineBlock {
         return GooBlockInteraction.handleItemInteraction(
                 stack, level, pos, player, hand, hitResult,
                 TapBlockEntity.class,
-                Set.of(GooInteractionType.CANISTER_INSERT, GooInteractionType.BLOB_INSERT),
+                Set.of(GooInteractionType.CANISTER_INSERT, GooInteractionType.GOO_INSERT),
                 TapInteractionHandler::dispatchTap);
     }
 

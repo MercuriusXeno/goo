@@ -48,7 +48,7 @@ class GooSourceScannerTest {
     }
 
     @ParameterizedTest
-    @ValueSource(classes = {GooOmniblobItem.class, CanisterItem.class,
+    @ValueSource(classes = {GooItem.class, CanisterItem.class,
             VatBlockItem.class, HubBlockItem.class})
     void everyCarrierIsScanned(Class<? extends Item> type) {
         ItemStack stack = carrierStack(type);
@@ -64,13 +64,13 @@ class GooSourceScannerTest {
     }
 
     @Test
-    void omniblobsDrainBeforeAVatInAnEarlierSlot() {
+    void gooStacksDrainBeforeAVatInAnEarlierSlot() {
         ItemStack vat = carrierStack(VatBlockItem.class);
-        ItemStack blob = carrierStack(GooOmniblobItem.class);
-        Player player = playerHolding(vat, blob);
+        ItemStack goo = carrierStack(GooItem.class);
+        Player player = playerHolding(vat, goo);
         GooCarrierItem vatItem = (GooCarrierItem) vat.getItem();
 
-        assertSame(blob, GooSourceScanner.firstSource(player, ROCK));
+        assertSame(goo, GooSourceScanner.firstSource(player, ROCK));
         assertEquals(50, GooSourceScanner.deplete(player, ROCK, 50));
         verify(vatItem, never()).drawGoo(any(), any(), anyInt());
     }

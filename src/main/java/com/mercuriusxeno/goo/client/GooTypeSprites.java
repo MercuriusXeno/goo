@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.client;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.type.BlobModelSize;
+import com.mercuriusxeno.goo.type.GooModelSize;
 import com.mercuriusxeno.goo.type.GooTypeTextures;
 import net.minecraft.resources.Identifier;
 import org.jspecify.annotations.Nullable;
@@ -45,16 +45,16 @@ public final class GooTypeSprites {
     }
 
     /**
-     * The blob sprite of a type at a model size.
+     * The goo sprite of a type at a model size.
      *
      * @param textures the type's named textures, or null for a key no entry stands behind
-     * @param size     the blob model size
+     * @param size     the goo model size
      * @param stitched whether a sprite id is stitched into the item atlas
      * @return the named sprite when stitched, otherwise the tinted grey base of that size
      */
-    public static TypeSprite blob(@Nullable GooTypeTextures textures, BlobModelSize size,
+    public static TypeSprite goo(@Nullable GooTypeTextures textures, GooModelSize size,
                                   Predicate<Identifier> stitched) {
-        Optional<Identifier> named = textures == null ? Optional.empty() : textures.blob(size).filter(stitched);
+        Optional<Identifier> named = textures == null ? Optional.empty() : textures.goo(size).filter(stitched);
         return named.map(id -> new TypeSprite(id, false)).orElseGet(() -> new TypeSprite(size.greyBase(), true));
     }
 

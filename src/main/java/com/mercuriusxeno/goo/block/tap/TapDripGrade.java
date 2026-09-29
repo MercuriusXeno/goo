@@ -67,7 +67,7 @@ public enum TapDripGrade {
     /**
      * The rate panel's label, computed from the grade's interval and volume
      * so the text cannot drift from the rate: the amount per second with no
-     * unit word (decisions valve-panel-reads-rate, amounts-format-by-magnitude-without-blob).
+     * unit word (decisions valve-panel-reads-rate, amounts-format-by-magnitude-alone).
      *
      * @return the label, such as "0.3125/s" or "20/s"
      */

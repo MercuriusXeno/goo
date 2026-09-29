@@ -13,10 +13,10 @@
   "base_flight_time": 3,
   "map_color": "ice",
   "textures": {
-    "blob_tiny": "goo:item/crystal_blob_tiny",
-    "blob_small": "goo:item/crystal_blob_small",
-    "blob_base": "goo:item/crystal_blob_base",
-    "blob_large": "goo:item/crystal_blob_large",
+    "goo_tiny": "goo:item/crystal_goo_tiny",
+    "goo_small": "goo:item/crystal_goo_small",
+    "goo_base": "goo:item/crystal_goo_base",
+    "goo_large": "goo:item/crystal_goo_large",
     "fluid_still": "goo:fluid/crystal_fluid",
     "fluid_flowing": "goo:fluid/crystal_fluid"
   }

@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.block.ability;
 
-import com.mercuriusxeno.goo.item.BlobStacks;
+import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -27,7 +27,7 @@ import java.util.Map;
 /**
  * Permanent glow crystal left behind by glow chain marker detonation.
  * No collision, variable light level by size, breaks like a torch and
- * drops a glow blob. Attaches to any surface (floor, wall, ceiling).
+ * drops a glow goo. Attaches to any surface (floor, wall, ceiling).
  *
  * <p>Blockstate properties: FACING (6 dirs), SHAPE (bump/flat),
  * SIZE (tiny/small/medium/large).</p>
@@ -215,7 +215,7 @@ public class GlowCrystalBlock extends Block {
     protected @NonNull List<ItemStack> getDrops(@NonNull BlockState state,
                                                 LootParams.@NonNull Builder builder) {
         int count = state.getValue(SIZE).ordinal() + 1;
-        return List.of(BlobStacks.createForOutput(GooTypes.GLOW, count * BlobStacks.MB_PER_BLOB));
+        return List.of(GooStacks.createForOutput(GooTypes.GLOW, count * GooStacks.THOUSAND));
     }
 
     /**

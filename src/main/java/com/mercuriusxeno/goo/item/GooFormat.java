@@ -2,7 +2,7 @@ package com.mercuriusxeno.goo.item;
 
 /**
  * Formats a raw goo amount by magnitude, K, M and B, with no unit word
- * (decision amounts-format-by-magnitude-without-blob). Shared between
+ * (decision amounts-format-by-magnitude-alone). Shared between
  * server-side data components and client-side renderers.
  */
 public final class GooFormat {

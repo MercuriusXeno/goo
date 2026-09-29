@@ -167,7 +167,7 @@ public final class GooTargetHighlighter {
         BlockPos markerPos = TargetBlockReads.adjacentMarker(frame.level(), bt.pos(), bt.face(),
                 GloveAim.selectedAbilityId(frame.mc().player));
         if (markerPos != null) {
-            if (TargetBlockReads.canAcceptMoreBlobs(frame.level(), markerPos)) {
+            if (TargetBlockReads.canAcceptMoreGoo(frame.level(), markerPos)) {
                 frame.outlineShape(markerPos);
             }
             frame.billboard(markerPos, frame.selectedType());
@@ -188,11 +188,11 @@ public final class GooTargetHighlighter {
      * @param frame what the frame draws with
      */
     private static void renderChainMarkerHighlight(BlockPos pos, HighlightFrame frame) {
-        if (TargetBlockReads.canAcceptMoreBlobs(frame.level(), pos)) {
+        if (TargetBlockReads.canAcceptMoreGoo(frame.level(), pos)) {
             frame.outlineShape(pos);
         }
-        ResourceKey<GooTypeDefinition> blobType = TargetBlockReads.markerGooType(frame.level(), pos);
-        frame.billboard(pos, blobType != null ? blobType : frame.selectedType());
+        ResourceKey<GooTypeDefinition> gooType = TargetBlockReads.markerGooType(frame.level(), pos);
+        frame.billboard(pos, gooType != null ? gooType : frame.selectedType());
     }
 
     /**

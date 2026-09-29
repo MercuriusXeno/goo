@@ -1,10 +1,19 @@
 package com.mercuriusxeno.goo.type;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.mercuriusxeno.goo.item.GooFormat;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import org.junit.jupiter.api.Test;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.nio.charset.StandardCharsets;
+import java.util.Objects;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
@@ -18,7 +27,7 @@ class GooTypeNamesTest {
 
     private static final ResourceKey<GooTypeDefinition> SEVENTEENTH = ResourceKey.create(
             GooTypes.REGISTRY, Identifier.fromNamespaceAndPath("gootest", "seventeenth"));
-    private static final String TIER = "Puddle";
+    private static final String LANG_PATH = "/assets/goo/lang/en_us.json";
 
     /**
      * A bundled type's translation key is the one the lang file spells.
@@ -38,17 +47,16 @@ class GooTypeNamesTest {
     }
 
     /**
-     * The omniblob name takes the type name then the tier, and the bucket
-     * name takes the type name.
+     * The goo name and the bucket name each take the type name alone.
      */
     @Test
-    void omniblobAndBucketNamesResolveTypeName() {
-        TranslatableContents omniblob = translatable(GooTypeNames.omniblobName(GooTypes.FROST, TIER));
-        assertEquals(GooTypeNames.OMNIBLOB, omniblob.getKey());
-        assertEquals("goo.type.frost", argumentKey(omniblob, 0));
-        assertEquals(TIER, omniblob.getArgs()[1]);
+    void gooAndBucketNamesResolveTypeName() {
+        TranslatableContents goo = translatable(GooTypeNames.gooName(GooTypes.FROST));
+        assertEquals(GooTypeNames.GOO, goo.getKey());
+        assertEquals("goo.type.frost", argumentKey(goo, 0));
+        assertEquals(1, goo.getArgs().length);
 
-        TranslatableContents datapack = translatable(GooTypeNames.omniblobName(SEVENTEENTH, TIER));
+        TranslatableContents datapack = translatable(GooTypeNames.gooName(SEVENTEENTH));
         assertEquals("goo.type.gootest.seventeenth", argumentKey(datapack, 0));
 
         TranslatableContents bucket = translatable(GooTypeNames.bucketName(GooTypes.ROCK));
@@ -61,7 +69,24 @@ class GooTypeNamesTest {
      */
     @Test
     void untypedItemNamesItselfUntyped() {
-        assertEquals(GooTypeNames.UNTYPED, argumentKey(translatable(GooTypeNames.omniblobName(null, TIER)), 0));
+        assertEquals(GooTypeNames.UNTYPED, argumentKey(translatable(GooTypeNames.gooName(null)), 0));
+    }
+
+    /**
+     * A blaze goo stack of 16000 reads "Blaze Goo" through the lang file and
+     * "16K" on its slot (decision amounts-format-by-magnitude-alone).
+     */
+    @Test
+    void blazeGooAtSixteenThousandReadsBlazeGooOverSixteenK() throws IOException {
+        JsonObject lang;
+        try (InputStream in = GooTypeNamesTest.class.getResourceAsStream(LANG_PATH);
+             Reader reader = new InputStreamReader(Objects.requireNonNull(in), StandardCharsets.UTF_8)) {
+            lang = JsonParser.parseReader(reader).getAsJsonObject();
+        }
+        TranslatableContents name = translatable(GooTypeNames.gooName(GooTypes.BLAZE));
+        String typeName = lang.get(argumentKey(name, 0)).getAsString();
+        assertEquals("Blaze Goo", String.format(lang.get(name.getKey()).getAsString(), typeName));
+        assertEquals("16K", GooFormat.formatAmount(16_000));
     }
 
     private static TranslatableContents translatable(Component component) {

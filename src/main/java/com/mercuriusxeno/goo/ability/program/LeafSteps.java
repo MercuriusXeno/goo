@@ -39,7 +39,7 @@ public final class LeafSteps {
             });
 
     /**
-     * Drops the goo total the host consumed as blob items at the anchor,
+     * Drops the goo total the host consumed as goo items at the anchor,
      * emptying the total; the nether black hole pops what it consumed once
      * it has contracted: {@code drop_consumed}.
      */

@@ -117,7 +117,7 @@ public final class MetalSpikeVisual {
      * @param strikeTick  the age at which the spike lands
      * @return scale multiplier for the orb, within SHAKE_AMPLITUDE of 1
      */
-    static float blobShake(int age, float partialTick, int strikeTick) {
+    static float gooShake(int age, float partialTick, int strikeTick) {
         float t = age + partialTick;
         if (t < 0 || t >= strikeTick) {
             return 1f;

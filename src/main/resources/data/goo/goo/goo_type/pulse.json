@@ -13,10 +13,10 @@
   "base_flight_time": 3,
   "map_color": "color_red",
   "textures": {
-    "blob_tiny": "goo:item/pulse_blob_tiny",
-    "blob_small": "goo:item/pulse_blob_small",
-    "blob_base": "goo:item/pulse_blob_base",
-    "blob_large": "goo:item/pulse_blob_large",
+    "goo_tiny": "goo:item/pulse_goo_tiny",
+    "goo_small": "goo:item/pulse_goo_small",
+    "goo_base": "goo:item/pulse_goo_base",
+    "goo_large": "goo:item/pulse_goo_large",
     "fluid_still": "goo:fluid/pulse_fluid",
     "fluid_flowing": "goo:fluid/pulse_fluid"
   }

@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * Tests that GooFormat formats a raw amount by magnitude, K, M and B, with no
- * unit word and no division by 1000 (decision amounts-format-by-magnitude-without-blob).
+ * unit word and no division by 1000 (decision amounts-format-by-magnitude-alone).
  */
 class GooFormatTest {
 

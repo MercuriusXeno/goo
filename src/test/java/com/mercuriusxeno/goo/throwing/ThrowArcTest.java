@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Tests that blob flight time grows with the square root of distance scaled
+ * Tests that goo flight time grows with the square root of distance scaled
  * by the type's levity plus its base flight time, per decision
  * flight-time-root-times-levity-plus-base, and that the arc peak grows as
  * 0.2 times distance to the power 0.75.

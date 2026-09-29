@@ -8,7 +8,7 @@ import java.nio.file.Path;
 import javax.imageio.ImageIO;
 
 /**
- * Luminance-based color shading for fluid and blob textures.
+ * Luminance-based color shading for fluid and goo textures.
  * Shadows shift toward a per-type hue with saturation boost;
  * highlights blend toward white for specular sheen.
  */

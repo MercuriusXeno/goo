@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * CanisterInventoryHandler.drainIntoInventory empties a source whole into the inventory, past
- * the old 64,000 mB blob cap, every type a vat holds included, and keeps what finds no home
+ * the old 64,000 mB goo cap, every type a vat holds included, and keeps what finds no home
  * (decisions vats-and-canisters-drain-whole and vat-click-unpacks-into-inventory).
  * The drain takes no SlotAccess, so it has no cursor to set; the inventory is fake deposit slots.
  */
@@ -48,7 +48,7 @@ class CanisterInventoryDrainTest {
     }
 
     @Test
-    void twoTypeVatUnpacksIntoOneOmniblobPerType() {
+    void twoTypeVatUnpacksIntoOneGooPerType() {
         FakeSource vat = new FakeSource(ROCK, HELD);
         vat.add(NETHER, NETHER_HELD);
         FakeDepositSlot first = FakeDepositSlot.empty();

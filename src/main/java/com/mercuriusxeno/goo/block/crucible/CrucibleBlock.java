@@ -34,9 +34,9 @@ import java.util.Set;
 /**
  * The crucible block (goocible): melts items into goo. Items for melting are
  * item entities that reach the basin's kill box (CrucibleItemDrift), not right-clicks.
- * Right-click handles the flint-and-steel spark, omniblob insertion, and the goo
+ * Right-click handles the flint-and-steel spark, goo insertion, and the goo
  * extraction that every other item, a canister among them, falls through to.
- * Drops internal state (PMI, fuel rod, reservoir blobs) when broken.
+ * Drops internal state (PMI, fuel rod, reservoir goo) when broken.
  *
  * Blockstate properties: LIT (active/melting visual),
  * HAS_GASKET (bottom gasket).
@@ -55,7 +55,7 @@ public class CrucibleBlock extends GooMachineBlock {
     private static final int CRUCIBLE_LIT_LIGHT = 13;
 
     /** The clicks a crucible answers through its dispatcher; a canister click is not among them. */
-    static final Set<GooInteractionType> CLICK_ROWS = Set.of(GooInteractionType.SPARK, GooInteractionType.BLOB_INSERT);
+    static final Set<GooInteractionType> CLICK_ROWS = Set.of(GooInteractionType.SPARK, GooInteractionType.GOO_INSERT);
 
     /** Error message prefix for an interaction type outside CLICK_ROWS reaching dispatch. */
     private static final String ERR_UNHANDLED = "Unhandled interaction: ";
@@ -165,7 +165,7 @@ public class CrucibleBlock extends GooMachineBlock {
         return BlockEntityTicks.onServer(GooBlockEntities.CRUCIBLE, CrucibleBlockEntity::serverTick);
     }
 
-    /** Dispatches held-item interactions: the flint-and-steel spark and omniblob insertion; a
+    /** Dispatches held-item interactions: the flint-and-steel spark and goo insertion; a
      * tuner or gasket passes to its own use, and every other item, a canister among them, falls
      * through to the empty-hand drain (decision canister-click-is-any-other-click-on-crucible-and-vat).
      *
@@ -204,7 +204,7 @@ public class CrucibleBlock extends GooMachineBlock {
             Player player, InteractionHand hand, BlockHitResult hitResult, BlockPos pos, Level level) {
         return switch (interaction) {
             case SPARK -> CrucibleInteraction.spark(stack, crucible, player, hand);
-            case BLOB_INSERT -> CrucibleInteraction.pourBlob(stack, crucible, player);
+            case GOO_INSERT -> CrucibleInteraction.pourGoo(stack, crucible, player);
             default -> throw new IllegalStateException(ERR_UNHANDLED + interaction);
         };
     }

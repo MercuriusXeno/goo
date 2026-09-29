@@ -30,7 +30,7 @@ public class GooConfig {
         BASE_VALUES_OVERRIDE_RECIPES = builder
             .comment(
                 "When true, hand-keyed base values always win over recipe-derived values.",
-                "When false (default), the lowest total blob count wins (LCD rule).",
+                "When false (default), the lowest total goo count wins (LCD rule).",
                 "Set to true if you are a modpack author who wants full control over base values.")
             .define("baseValuesOverrideRecipes", false);
 

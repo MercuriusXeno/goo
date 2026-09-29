@@ -2,10 +2,10 @@ package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
 import com.mercuriusxeno.goo.block.vat.VatBlockEntity;
-import com.mercuriusxeno.goo.item.BlobStacks;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.ContainerCapacity;
-import com.mercuriusxeno.goo.item.GooOmniblobItem;
+import com.mercuriusxeno.goo.item.GooItem;
+import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -34,13 +34,13 @@ public final class DrainIntoInventoryTests {
     /** A slot off the hotbar's selected slot, so the main hand stays empty. */
     private static final int CANISTER_SLOT = 9;
     private static final String CANISTER_FULL = "The carried rock canister is topped up to its capacity";
-    private static final String OMNIBLOB_HOLDS_REST = "One omniblob holds what the canister had no room for";
+    private static final String GOO_HOLDS_REST = "One goo holds what the canister had no room for";
     private static final String CRUCIBLE_EMPTY = "The crucible gave up all its rock";
     private static final ResourceKey<GooTypeDefinition> NETHER = GooTypes.NETHER;
     private static final int VAT_ROCK = 150_000;
     private static final int VAT_NETHER = 90_000;
-    private static final String VAT_ROCK_OUT = "One rock omniblob holds the vat's rock whole";
-    private static final String VAT_NETHER_OUT = "One nether omniblob holds the vat's nether whole";
+    private static final String VAT_ROCK_OUT = "One rock goo holds the vat's rock whole";
+    private static final String VAT_NETHER_OUT = "One nether goo holds the vat's nether whole";
     private static final String VAT_EMPTY = "The vat gave up every type in one click";
 
     private DrainIntoInventoryTests() {
@@ -48,7 +48,7 @@ public final class DrainIntoInventoryTests {
 
     /**
      * A crucible holding rock, clicked with an empty hand by a player carrying a rock canister
-     * short of full, tops the canister up and puts the rest in one new omniblob.
+     * short of full, tops the canister up and puts the rest in one new goo.
      *
      * @param helper the gametest helper
      */
@@ -66,15 +66,15 @@ public final class DrainIntoInventoryTests {
         helper.useBlock(BE_POS, player, new BlockHitResult(Vec3.atCenterOf(abs), Direction.UP, abs, false));
 
         helper.assertValueEqual(CanisterItem.getFluidContent(canister).amount(), capacity, CANISTER_FULL);
-        helper.assertValueEqual(omniblobVolume(player.getInventory(), ROCK), CRUCIBLE_ROCK - CANISTER_ROOM,
-                OMNIBLOB_HOLDS_REST);
+        helper.assertValueEqual(gooVolume(player.getInventory(), ROCK), CRUCIBLE_ROCK - CANISTER_ROOM,
+                GOO_HOLDS_REST);
         helper.assertTrue(crucible.getReservoir().isEmpty(), CRUCIBLE_EMPTY);
         helper.succeed();
     }
 
     /**
      * A vat block holding two types above 64,000 mB each, clicked with an empty hand by a player
-     * with an empty inventory, unpacks both whole into one omniblob per type
+     * with an empty inventory, unpacks both whole into one goo per type
      * (decision vat-click-unpacks-into-inventory).
      *
      * @param helper the gametest helper
@@ -89,27 +89,27 @@ public final class DrainIntoInventoryTests {
         BlockPos abs = helper.absolutePos(BE_POS);
         helper.useBlock(BE_POS, player, new BlockHitResult(Vec3.atCenterOf(abs), Direction.NORTH, abs, false));
 
-        helper.assertValueEqual(omniblobVolume(player.getInventory(), ROCK), VAT_ROCK, VAT_ROCK_OUT);
-        helper.assertValueEqual(omniblobVolume(player.getInventory(), NETHER), VAT_NETHER, VAT_NETHER_OUT);
+        helper.assertValueEqual(gooVolume(player.getInventory(), ROCK), VAT_ROCK, VAT_ROCK_OUT);
+        helper.assertValueEqual(gooVolume(player.getInventory(), NETHER), VAT_NETHER, VAT_NETHER_OUT);
         helper.assertTrue(vat.getContents().isEmpty(), VAT_EMPTY);
         helper.succeed();
     }
 
     /**
-     * The volume of the one omniblob of a type in the inventory.
+     * The volume of the one goo of a type in the inventory.
      *
      * @param inventory the player inventory
      * @param type      the goo type
-     * @return the omniblob's volume, or minus the count when there is not exactly one
+     * @return the goo's volume, or minus the count when there is not exactly one
      */
-    private static int omniblobVolume(Inventory inventory, ResourceKey<GooTypeDefinition> type) {
+    private static int gooVolume(Inventory inventory, ResourceKey<GooTypeDefinition> type) {
         int found = 0;
         int volume = 0;
         for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
             ItemStack stack = inventory.getItem(slot);
-            if (stack.getItem() instanceof GooOmniblobItem && BlobStacks.keyOf(stack) == type) {
+            if (stack.getItem() instanceof GooItem && GooStacks.keyOf(stack) == type) {
                 found++;
-                volume += GooOmniblobItem.getVolume(stack);
+                volume += GooItem.getVolume(stack);
             }
         }
         return found == 1 ? volume : -found;
