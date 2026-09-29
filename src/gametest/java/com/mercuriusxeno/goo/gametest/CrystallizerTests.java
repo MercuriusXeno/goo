@@ -589,8 +589,9 @@ public final class CrystallizerTests {
     }
 
     /**
-     * A right click on the dial, on the face toward the player, steps the knob small,
-     * medium, large and wraps back to small; a click on the top face leaves it.
+     * A right click on the dial, on the face toward the player, steps the knob through
+     * budding chrysm, flowering chrysm, materia and off, and back to chrysm; a click on
+     * the top face leaves it.
      *
      * @param helper the gametest helper
      */
@@ -605,7 +606,7 @@ public final class CrystallizerTests {
         helper.useBlock(CRYSTALLIZER_POS, player, topHit);
         helper.assertValueEqual(1, helper.getBlockState(CRYSTALLIZER_POS).getValue(CrystallizerBlock.KNOB),
                 "knob after a top-face click");
-        for (int expected : new int[] {2, 3, 1}) {
+        for (int expected : new int[] {2, 3, 4, 0, 1}) {
             helper.useBlock(CRYSTALLIZER_POS, player, knobHit);
             helper.assertValueEqual(expected, helper.getBlockState(CRYSTALLIZER_POS).getValue(CrystallizerBlock.KNOB),
                     "knob after a click");
@@ -614,6 +615,25 @@ public final class CrystallizerTests {
                 new AABB(helper.absolutePos(CRYSTALLIZER_POS)).inflate(2)).isEmpty(),
                 "Dial clicks on an empty crystallizer should drop nothing");
         helper.succeed();
+    }
+
+    /**
+     * With the knob off, a crystallizer fed ender and crystal crystallizes nothing and
+     * reads idle (decision dial-five-positions-off-to-materia).
+     *
+     * @param helper the gametest helper
+     */
+    public static void offCrystallizesNothing(GameTestHelper helper) {
+        CrystallizerBlockEntity crystallizer = placeCrystallizer(helper, 0);
+        insert(helper, FIRST, canister(GooTypes.CRYSTAL, CRYSTAL_COST));
+        insert(helper, SECOND, canister(GooTypes.ENDER, CHRYSM_VOLUME));
+        helper.runAfterDelay(STILL_GROWING_TICKS, () -> {
+            helper.assertValueEqual(0L, crystallizer.crystallized(), "crystallized with the knob off");
+            helper.assertValueEqual(CHRYSM_VOLUME, enderIn(helper), "ender left in its canister");
+            helper.assertFalse(helper.getBlockState(CRYSTALLIZER_POS).getValue(CrystallizerBlock.ACTIVE),
+                    "The crystallizer should read idle with the knob off");
+            helper.succeed();
+        });
     }
 
     /**

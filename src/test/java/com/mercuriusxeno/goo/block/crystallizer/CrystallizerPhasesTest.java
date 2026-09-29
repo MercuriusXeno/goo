@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.item.ChrysmTier;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -161,11 +162,40 @@ class CrystallizerPhasesTest {
         assertEquals(ChrysmTier.MATERIA, CrystallizerPhases.reachedTier(1_000_000_000L));
     }
 
-    @Test
-    void theKnobWrapsFromThreeToOne() {
-        assertEquals(2, CrystallizerPhases.nextKnob(1));
-        assertEquals(3, CrystallizerPhases.nextKnob(2));
-        assertEquals(1, CrystallizerPhases.nextKnob(3));
+    @Nested
+    class Knob {
+
+        @Test
+        void aClickStepsUpThroughFivePositionsAndWrapsMateriaToOff() {
+            assertEquals(1, CrystallizerPhases.nextKnob(0));
+            assertEquals(2, CrystallizerPhases.nextKnob(1));
+            assertEquals(3, CrystallizerPhases.nextKnob(2));
+            assertEquals(4, CrystallizerPhases.nextKnob(3));
+            assertEquals(0, CrystallizerPhases.nextKnob(4));
+        }
+
+        @Test
+        void offCapsNothingAndOneToFourCapAtEachTier() {
+            assertNull(CrystallizerPhases.tierForKnob(0));
+            assertEquals(ChrysmTier.CHRYSM, CrystallizerPhases.tierForKnob(1));
+            assertEquals(ChrysmTier.BUDDING_CHRYSM, CrystallizerPhases.tierForKnob(2));
+            assertEquals(ChrysmTier.FLOWERING_CHRYSM, CrystallizerPhases.tierForKnob(3));
+            assertEquals(ChrysmTier.MATERIA, CrystallizerPhases.tierForKnob(4));
+        }
+
+        @Test
+        void offCrystallizesNothing() {
+            assertNull(CrystallizerPhases.step(ENDER, CRYSTAL, 0, null, null, UNPACED));
+            assertNull(CrystallizerPhases.step(ENDER, CRYSTAL, 500, GooTypes.ENDER, null, UNPACED));
+        }
+
+        @Test
+        void offLeavesAFormedCrystalMatureAndNothingElse() {
+            assertTrue(CrystallizerPhases.isMature(CHRYSM, null));
+            assertFalse(CrystallizerPhases.isMature(CHRYSM - 10, null));
+            assertFalse(CrystallizerPhases.isMature(CHRYSM, ChrysmTier.BUDDING_CHRYSM));
+            assertTrue(CrystallizerPhases.isMature(ChrysmTier.BUDDING_CHRYSM.volume(), ChrysmTier.BUDDING_CHRYSM));
+        }
     }
 
     @Test
