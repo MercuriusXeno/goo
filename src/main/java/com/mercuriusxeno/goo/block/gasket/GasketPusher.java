@@ -349,13 +349,12 @@ public class GasketPusher {
     }
 
     /**
-     * Transfers fluid from the source handler to the target handler.
-     * Iterates all source slots, computes a tapered offer for each,
-     * and transfers via a single transaction per slot.
+     * Sends each source slot the lesser of the demand the target states and
+     * what the slot holds, in a single transaction per slot.
      *
      * @param target the destination fluid handler
      */
-    private void pushViaHandler(ResourceHandler<FluidResource> target) {
+    void pushViaHandler(ResourceHandler<FluidResource> target) {
         boolean moved = false;
         for (int i = 0; i < source.size(); i++) {
             FluidResource resource = source.getResource(i);
@@ -363,8 +362,7 @@ public class GasketPusher {
                 continue;
             }
             int amount = (int) source.getAmountAsLong(i);
-            double exponent = GasketPushMath.exponentFor(resource.getFluid());
-            int offer = GasketPushMath.taperRate(amount, exponent);
+            int offer = Math.min(GasketDemand.demandOf(target, resource, amount), amount);
             if (offer <= 0) {
                 continue;
             }
