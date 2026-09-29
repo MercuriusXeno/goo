@@ -8,13 +8,10 @@ import com.mercuriusxeno.goo.block.ShapeHitCheck;
 import com.mercuriusxeno.goo.block.canister.SlottedCanisterData;
 import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
 import com.mercuriusxeno.goo.block.plexer.CutawayInteractionHelper;
-import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.GooInteractionType;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
@@ -33,6 +30,7 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import java.util.EnumMap;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Reactor block: consumes goo from 4 corner canisters on top and
@@ -41,8 +39,14 @@ import java.util.Map;
  */
 public class ReactorBlock extends FacingRedstoneMachineBlock {
 
-    /**
+    /** The clicks a reactor answers through its dispatcher. */
+    private static final Set<GooInteractionType> CLICK_ROWS =
+            Set.of(GooInteractionType.CANISTER_INSERT, GooInteractionType.CANISTER_PICKUP);
 
+    /** Error message prefix for an interaction type outside CLICK_ROWS reaching dispatch. */
+    private static final String ERR_UNHANDLED = "Unhandled interaction: ";
+
+    /**
      * Hollow volume in model space (south-facing): x in [5,11], y in [1,15], z in [0,6].
      */
     private static final double HOLLOW_MIN_X = 5.0 / 16.0;
@@ -105,25 +109,30 @@ public class ReactorBlock extends FacingRedstoneMachineBlock {
     }
 
     /**
-     * Routes canister clicks to insert or remove based on slot occupancy.
+     * Routes a canister click in the hollow: an empty output slot takes the held canister, a
+     * filled one gives its canister up. A click outside the hollow passes to the canister's own use.
      *
-     * @param reactor the reactor block entity
-     * @param stack   the held canister item stack
-     * @param player  the interacting player
-     * @param level   the current level
-     * @param pos     the block position
-     * @return SUCCESS, PASS, or TRY_WITH_EMPTY_HAND
+     * @param interaction the classified interaction, one of CLICK_ROWS
+     * @param reactor     the reactor block entity
+     * @param stack       the held canister item stack
+     * @param player      the interacting player
+     * @param hand        the hand used
+     * @param hitResult   the ray trace hit result
+     * @param pos         the block position
+     * @param level       the current level
+     * @return the interaction result
      */
-    private static InteractionResult handleCanisterInteraction(
-            ReactorBlockEntity reactor, ItemStack stack, Player player,
-            Level level, BlockPos pos) {
-        if (reactor.getOutputCanister().isEmpty()) {
-            return insertReactorCanister(reactor, stack, player, level, pos);
+    private static InteractionResult dispatchCanisterClick(
+            GooInteractionType interaction, ReactorBlockEntity reactor, ItemStack stack,
+            Player player, InteractionHand hand, BlockHitResult hitResult, BlockPos pos, Level level) {
+        if (!isHollowClick(reactor.getBlockState(), pos, hitResult)) {
+            return InteractionResult.PASS;
         }
-        if (!player.isSecondaryUseActive()) {
-            return removeReactorCanister(reactor, player, level, pos);
-        }
-        return InteractionResult.SUCCESS;
+        return switch (interaction) {
+            case CANISTER_INSERT -> insertReactorCanister(reactor, stack, player, level, pos);
+            case CANISTER_PICKUP -> removeReactorCanister(reactor, player, level, pos);
+            default -> throw new IllegalStateException(ERR_UNHANDLED + interaction);
+        };
     }
 
     /**
@@ -142,9 +151,8 @@ public class ReactorBlock extends FacingRedstoneMachineBlock {
         if (!reactor.insertOutputCanister(stack)) {
             return InteractionResult.PASS;
         }
-        stack.consume(1, player);
-        level.playSound(null, pos, SoundEvents.DECORATED_POT_INSERT,
-                SoundSource.BLOCKS, 1.0f, 1.0f);
+        GooBlockInteraction.consumeOneHeld(stack, player);
+        GooBlockInteraction.playCanisterInsertSound(level, pos);
         return InteractionResult.SUCCESS;
     }
 
@@ -242,9 +250,10 @@ public class ReactorBlock extends FacingRedstoneMachineBlock {
     }
 
     /**
-     * Right-click with item: insert a canister into the output hollow. A gasket
-     * or tuner passes so its own use logic reaches the output canister, as on
-     * the canister block; the empty-hand path would pop the canister instead.
+     * Right-click with item through the dispatcher: a canister in the hollow inserts into an
+     * empty output slot or picks up from a filled one. A gasket or tuner passes so its own use
+     * logic reaches the output canister, as on the canister block; any other item falls to the
+     * empty-hand path.
      *
      * @param stack     the held item
      * @param state     the block state
@@ -260,22 +269,10 @@ public class ReactorBlock extends FacingRedstoneMachineBlock {
             @NonNull ItemStack stack, @NonNull BlockState state,
             Level level, @NonNull BlockPos pos, @NonNull Player player,
             @NonNull InteractionHand hand, @NonNull BlockHitResult hitResult) {
-        if (GooInteractionType.classify(stack) == GooInteractionType.TUNER_PASS) {
-            return InteractionResult.PASS;
-        }
-        if (!(stack.getItem() instanceof CanisterItem)) {
-            return InteractionResult.TRY_WITH_EMPTY_HAND;
-        }
-        if (!isHollowClick(state, pos, hitResult)) {
-            return InteractionResult.PASS;
-        }
-        if (level.isClientSide()) {
-            return InteractionResult.SUCCESS;
-        }
-        if (!(level.getBlockEntity(pos) instanceof ReactorBlockEntity reactor)) {
-            return InteractionResult.PASS;
-        }
-        return handleCanisterInteraction(reactor, stack, player, level, pos);
+        return GooBlockInteraction.handleItemInteraction(
+                stack, level, pos, player, hand, hitResult,
+                ReactorBlockEntity.class, (reactor, hit) -> !reactor.getOutputCanister().isEmpty(),
+                CLICK_ROWS, ReactorBlock::dispatchCanisterClick);
     }
 
     /**
@@ -293,9 +290,8 @@ public class ReactorBlock extends FacingRedstoneMachineBlock {
     protected @NonNull InteractionResult useWithoutItem(
             @NonNull BlockState state, Level level, @NonNull BlockPos pos,
             @NonNull Player player, @NonNull BlockHitResult hitResult) {
-        InteractionResult earlyOut = GooBlockInteraction.validateEmptyHand(level, pos, player);
-        if (earlyOut != null) {
-            return earlyOut;
+        if (level.isClientSide()) {
+            return InteractionResult.SUCCESS;
         }
         if (GasketInstallation.removeAddressedGasket(level, pos, player, hitResult)) {
             return InteractionResult.SUCCESS;

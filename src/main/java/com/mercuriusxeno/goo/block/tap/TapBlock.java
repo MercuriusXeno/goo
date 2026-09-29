@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.block.BlockEntityTicks;
 import com.mercuriusxeno.goo.block.GooBlockInteraction;
 import com.mercuriusxeno.goo.block.GooMachineBlock;
 import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
+import com.mercuriusxeno.goo.item.GooInteractionType;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
@@ -30,6 +31,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Tap block: a faucet with a canister slot that drips goo on a timer.
@@ -248,7 +250,7 @@ public class TapBlock extends GooMachineBlock {
         return GooBlockInteraction.handleItemInteraction(
                 stack, level, pos, player, hand, hitResult,
                 TapBlockEntity.class,
-                t -> t == null,
+                Set.of(GooInteractionType.CANISTER_INSERT, GooInteractionType.BLOB_INSERT),
                 TapInteractionHandler::dispatchTap);
     }
 
@@ -268,9 +270,8 @@ public class TapBlock extends GooMachineBlock {
     protected @NonNull InteractionResult useWithoutItem(
             @NonNull BlockState state, Level level, @NonNull BlockPos pos,
             @NonNull Player player, @NonNull BlockHitResult hitResult) {
-        InteractionResult earlyOut = GooBlockInteraction.validateEmptyHand(level, pos, player);
-        if (earlyOut != null) {
-            return earlyOut;
+        if (level.isClientSide()) {
+            return InteractionResult.SUCCESS;
         }
 
         if (!(level.getBlockEntity(pos) instanceof TapBlockEntity tap)) {
