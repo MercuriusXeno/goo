@@ -1,19 +1,19 @@
 package com.mercuriusxeno.goo.gametest;
 
-import com.mercuriusxeno.goo.block.plexer.CutawayInteractionHelper;
 import com.mercuriusxeno.goo.GooConfig;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
 import com.mercuriusxeno.goo.block.hub.HubBlock;
 import com.mercuriusxeno.goo.block.hub.HubBlockEntity;
+import com.mercuriusxeno.goo.block.plexer.CutawayInteractionHelper;
 import com.mercuriusxeno.goo.block.plexer.PlexerBlockEntity;
 import com.mercuriusxeno.goo.block.reactor.ReactorBlock;
 import com.mercuriusxeno.goo.block.reactor.ReactorBlockEntity;
 import com.mercuriusxeno.goo.block.tap.TapBlockEntity;
 import com.mercuriusxeno.goo.block.vat.VatBlock;
-import com.mercuriusxeno.goo.item.BlobStacks;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.ContainerCapacity;
+import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooFluids;
 import com.mercuriusxeno.goo.registry.GooItems;
@@ -46,11 +46,11 @@ public final class MachineInteractionTests {
     private static final String TAP_SLOT_FILLED = "Tap canister slot should be occupied";
     private static final String TAP_HAND_SHRANK = "Held canister stack should shrink by one";
     private static final int TAP_HAND_COUNT = 2;
-    private static final int TAP_BLOB_COUNT = 5;
+    private static final int TAP_GOO_COUNT = 5;
     private static final String TAP_SLOT_EMPTIED = "Tap canister slot should be empty after an empty-hand click";
     private static final String TAP_CANISTER_IN_HAND = "Player should hold the canister taken from the tap";
-    private static final String TAP_CANISTER_FILLED = "Tap's slotted canister should hold every poured blob";
-    private static final String TAP_BLOB_USED_UP = "Blob stack should be used up by the pour";
+    private static final String TAP_CANISTER_FILLED = "Tap's slotted canister should hold every poured goo";
+    private static final String TAP_GOO_USED_UP = "Goo stack should be used up by the pour";
     /** South-facing tap: a point on the body's top face, which is the slot region's bottom face. */
     private static final Vec3 TAP_BODY_TOP_HIT_PX = new Vec3(8, 4, 3);
     /** South-facing tap: a point inside the slot region, above the body. */
@@ -150,21 +150,21 @@ public final class MachineInteractionTests {
     }
 
     /**
-     * Tap: a blob click inside the slot region of a filled tap pours the blobs into the
-     * slotted canister and uses the blob stack up.
+     * Tap: a goo click inside the slot region of a filled tap pours the goo into the
+     * slotted canister and uses the goo stack up.
      *
      * @param helper the gametest helper
      */
-    public static void tapBlobClickPoursIntoSlottedCanister(GameTestHelper helper) {
+    public static void tapGooClickPoursIntoSlottedCanister(GameTestHelper helper) {
         TapBlockEntity tap = placeFilledTap(helper);
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
-        player.setItemInHand(InteractionHand.MAIN_HAND, BlobStacks.createForOutput(GooTypes.ROCK, TAP_BLOB_COUNT * BlobStacks.MB_PER_BLOB));
+        player.setItemInHand(InteractionHand.MAIN_HAND, GooStacks.createForOutput(GooTypes.ROCK, TAP_GOO_COUNT * GooStacks.THOUSAND));
 
         helper.useBlock(BE_POS, player, tapHit(helper, TAP_SLOT_REGION_HIT_PX, Direction.NORTH));
 
-        helper.assertTrue(tap.getFluidContent().amount() == TAP_BLOB_COUNT * BlobStacks.MB_PER_BLOB,
+        helper.assertTrue(tap.getFluidContent().amount() == TAP_GOO_COUNT * GooStacks.THOUSAND,
                 TAP_CANISTER_FILLED);
-        helper.assertTrue(player.getMainHandItem().isEmpty(), TAP_BLOB_USED_UP);
+        helper.assertTrue(player.getMainHandItem().isEmpty(), TAP_GOO_USED_UP);
         helper.succeed();
     }
 
@@ -293,7 +293,7 @@ public final class MachineInteractionTests {
     }
 
     /**
-     * Hub: a blob poured on a full canister stays in the hand; the pour goes only into
+     * Hub: a goo poured on a full canister stays in the hand; the pour goes only into
      * the canister aimed at, never into the empty one beside it.
      *
      * @param helper the gametest helper
@@ -308,7 +308,7 @@ public final class MachineInteractionTests {
         helper.assertTrue(hub.insertCanister(HUB_SLOT_NORTH, fullCanister), HUB_SHOULD_INSERT);
         helper.assertTrue(hub.insertCanister(beside, new ItemStack(GooItems.CANISTER.get())), HUB_SHOULD_INSERT);
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
-        player.setItemInHand(InteractionHand.MAIN_HAND, BlobStacks.createForOutput(GooTypes.ROCK, BlobStacks.MB_PER_BLOB));
+        player.setItemInHand(InteractionHand.MAIN_HAND, GooStacks.createForOutput(GooTypes.ROCK, GooStacks.THOUSAND));
 
         helper.useBlock(BE_POS, player, slotHit(helper, HUB_SLOT_NORTH));
 

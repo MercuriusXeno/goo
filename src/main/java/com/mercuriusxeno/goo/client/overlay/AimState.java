@@ -16,7 +16,7 @@ import org.jspecify.annotations.Nullable;
 public final class AimState {
 
     /**
-     * Maximum range for blob throwing in blocks.
+     * Maximum range for goo throwing in blocks.
      */
     public static final double MAX_RANGE = 64.0;
 

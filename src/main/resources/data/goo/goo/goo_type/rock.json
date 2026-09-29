@@ -13,10 +13,10 @@
   "base_flight_time": 3,
   "map_color": "stone",
   "textures": {
-    "blob_tiny": "goo:item/rock_blob_tiny",
-    "blob_small": "goo:item/rock_blob_small",
-    "blob_base": "goo:item/rock_blob_base",
-    "blob_large": "goo:item/rock_blob_large",
+    "goo_tiny": "goo:item/rock_goo_tiny",
+    "goo_small": "goo:item/rock_goo_small",
+    "goo_base": "goo:item/rock_goo_base",
+    "goo_large": "goo:item/rock_goo_large",
     "fluid_still": "goo:fluid/rock_fluid",
     "fluid_flowing": "goo:fluid/rock_fluid"
   }

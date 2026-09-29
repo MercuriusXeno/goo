@@ -21,7 +21,7 @@ class MetalSpikeVisualTest {
         for (int step = 1; step < STRIKE_TICK * STEPS_PER_TICK; step++) {
             int age = step / STEPS_PER_TICK;
             float partial = (step % STEPS_PER_TICK) / (float) STEPS_PER_TICK;
-            float offset = MetalSpikeVisual.blobShake(age, partial, STRIKE_TICK) - 1f;
+            float offset = MetalSpikeVisual.gooShake(age, partial, STRIKE_TICK) - 1f;
             assertTrue(Math.abs(offset) <= MetalSpikeVisual.SHAKE_AMPLITUDE, "shake " + offset + " past its amplitude");
             if (previousOffset != 0f && Math.signum(offset) != Math.signum(previousOffset)) {
                 signChanges++;
@@ -35,19 +35,19 @@ class MetalSpikeVisualTest {
 
     @Test
     void orbRestsOnTheStrikeTick() {
-        assertEquals(1f, MetalSpikeVisual.blobShake(STRIKE_TICK, 0f, STRIKE_TICK), 0f);
+        assertEquals(1f, MetalSpikeVisual.gooShake(STRIKE_TICK, 0f, STRIKE_TICK), 0f);
     }
 
     @Test
     void orbIsStillPastTheStrike() {
         for (int age = STRIKE_TICK; age < STRIKE_TICK * 3; age++) {
-            assertEquals(1f, MetalSpikeVisual.blobShake(age, 0.5f, STRIKE_TICK), 0f);
+            assertEquals(1f, MetalSpikeVisual.gooShake(age, 0.5f, STRIKE_TICK), 0f);
         }
     }
 
     @Test
     void orbComesToRestContinuouslyAtTheStrike() {
-        float lastWindupFrame = MetalSpikeVisual.blobShake(STRIKE_TICK - 1, 0.99f, STRIKE_TICK);
+        float lastWindupFrame = MetalSpikeVisual.gooShake(STRIKE_TICK - 1, 0.99f, STRIKE_TICK);
         assertEquals(1f, lastWindupFrame, 0.02f);
     }
 }

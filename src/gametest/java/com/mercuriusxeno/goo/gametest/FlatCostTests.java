@@ -5,8 +5,8 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
-import com.mercuriusxeno.goo.network.BlobThrowHandler;
-import com.mercuriusxeno.goo.network.BlobThrowPayload;
+import com.mercuriusxeno.goo.network.GooThrowHandler;
+import com.mercuriusxeno.goo.network.GooThrowPayload;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
@@ -47,7 +47,7 @@ public final class FlatCostTests {
         int held = frostHeld(player);
 
         for (int throwNumber = 1; throwNumber <= 2; throwNumber++) {
-            BlobThrowHandler.execute(player, new BlobThrowPayload(GooTypes.id(GooTypes.FROST), NO_TARGET_ENTITY,
+            GooThrowHandler.execute(player, new GooThrowPayload(GooTypes.id(GooTypes.FROST), NO_TARGET_ENTITY,
                     helper.absolutePos(MARKER_POS), Direction.DOWN.ordinal(), false, FROST_SPHERE.toString(),
                     player.getEyePosition()));
             int after = frostHeld(player);

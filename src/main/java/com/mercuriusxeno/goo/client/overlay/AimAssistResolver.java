@@ -31,7 +31,7 @@ import java.util.Optional;
 final class AimAssistResolver {
 
     /**
-     * Maximum range for blob throwing in blocks.
+     * Maximum range for goo throwing in blocks.
      */
     private static final double MAX_RANGE = AimState.MAX_RANGE;
 

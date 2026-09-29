@@ -110,7 +110,7 @@ public class HubFluidHandler implements ResourceHandler<FluidResource>, GasketDe
      *
      * @param index       the tank index
      * @param resource    the fluid resource
-     * @param amount      volume in microblobs
+     * @param amount      volume
      * @param transaction the transaction context
      * @return the amount inserted
      */
@@ -149,7 +149,7 @@ public class HubFluidHandler implements ResourceHandler<FluidResource>, GasketDe
      *
      * @param index       the tank index
      * @param resource    the fluid resource
-     * @param amount      volume in microblobs
+     * @param amount      volume
      * @param transaction the transaction context
      * @return the amount extracted
      */

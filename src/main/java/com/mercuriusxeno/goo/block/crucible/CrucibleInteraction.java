@@ -15,7 +15,7 @@ import java.util.List;
 
 /**
  * Static helpers for crucible right-click interactions: the flint-and-steel spark,
- * omniblob insertion, and goo extraction. Keeps framework overrides in CrucibleBlock.
+ * goo insertion, and goo extraction. Keeps framework overrides in CrucibleBlock.
  */
 final class CrucibleInteraction {
 
@@ -69,26 +69,26 @@ final class CrucibleInteraction {
     }
 
     /**
-     * Pours an omniblob directly into the reservoir (bypass, no fuel needed) through the shared
-     * blob insert (decision block-insert-shared).
+     * Pours a goo directly into the reservoir (bypass, no fuel needed) through the shared
+     * goo insert (decision block-insert-shared).
      *
-     * @param stack    the held omniblob
+     * @param stack    the held goo
      * @param crucible the crucible block entity
      * @param player   the interacting player
-     * @return SUCCESS for an omniblob holding goo, inserted or refused at the cap, so a refused
-     *         omniblob never falls through to goo extraction; TRY_WITH_EMPTY_HAND for an empty one
+     * @return SUCCESS for a goo holding goo, inserted or refused at the cap, so a refused
+     *         goo never falls through to goo extraction; TRY_WITH_EMPTY_HAND for an empty one
      */
-    static InteractionResult pourBlob(ItemStack stack, CrucibleBlockEntity crucible, Player player) {
-        if (BlobStacks.volumeOf(stack) <= 0) {
+    static InteractionResult pourGoo(ItemStack stack, CrucibleBlockEntity crucible, Player player) {
+        if (GooStacks.volumeOf(stack) <= 0) {
             return InteractionResult.TRY_WITH_EMPTY_HAND;
         }
-        BlobInsert.pour(stack, player, (type, volume) -> acceptWholeUnits(crucible, type, volume));
+        GooInsert.pour(stack, player, (type, volume) -> acceptWholeUnits(crucible, type, volume));
         return InteractionResult.SUCCESS;
     }
 
     /**
      * Inserts the mB of the offered volume that fit the reservoir under the cap
-     * (decision diagnose-then-fix-crucible-blob-duplication).
+     * (decision diagnose-then-fix-crucible-goo-duplication).
      *
      * @param crucible the crucible block entity to insert into
      * @param type     the goo type offered

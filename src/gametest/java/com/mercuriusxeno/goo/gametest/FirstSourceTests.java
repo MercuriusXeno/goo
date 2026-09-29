@@ -1,9 +1,9 @@
 package com.mercuriusxeno.goo.gametest;
 
-import com.mercuriusxeno.goo.item.BlobStacks;
 import com.mercuriusxeno.goo.item.CanisterItem;
-import com.mercuriusxeno.goo.item.GooOmniblobItem;
+import com.mercuriusxeno.goo.item.GooItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
+import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.item.VatBlockItem;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
 import com.mercuriusxeno.goo.registry.GooItems;
@@ -22,7 +22,7 @@ import java.util.function.Supplier;
 
 /**
  * Gametest theory for the crosshair panel's source: over inventories mixing
- * blobs, omniblobs, canisters (a hub's included) and vats in main slots and
+ * thousands, gooStacks, canisters (a hub's included) and vats in main slots and
  * the offhand, GooSourceScanner.firstSource names the stack a deplete of one
  * mB shrinks (decision crosshair-panel-shows-source-and-cost).
  */
@@ -33,7 +33,7 @@ public final class FirstSourceTests {
     private static final int OFFHAND = Inventory.SLOT_OFFHAND;
     private static final int VOLUME = 3_000;
     private static final int ONE_MB = 1;
-    private static final int BLOB_COUNT = 2;
+    private static final int GOO_COUNT = 2;
     private static final int NO_SLOT = -1;
     private static final int SLOT_0 = 0;
     private static final int SLOT_1 = 1;
@@ -51,12 +51,12 @@ public final class FirstSourceTests {
     private FirstSourceTests() {
     }
 
-    private static Supplier<ItemStack> blob(ResourceKey<GooTypeDefinition> type) {
-        return () -> BlobStacks.createForOutput(type, BLOB_COUNT * BlobStacks.MB_PER_BLOB);
+    private static Supplier<ItemStack> thousands(ResourceKey<GooTypeDefinition> type) {
+        return () -> GooStacks.createForOutput(type, GOO_COUNT * GooStacks.THOUSAND);
     }
 
-    private static Supplier<ItemStack> omniblob(ResourceKey<GooTypeDefinition> type) {
-        return () -> GooOmniblobItem.createWithVolume(type, VOLUME);
+    private static Supplier<ItemStack> goo(ResourceKey<GooTypeDefinition> type) {
+        return () -> GooItem.createWithVolume(type, VOLUME);
     }
 
     private static Supplier<ItemStack> canister(ResourceKey<GooTypeDefinition> type) {
@@ -90,14 +90,14 @@ public final class FirstSourceTests {
      */
     private static List<Map<Integer, Supplier<ItemStack>>> inventories() {
         return List.of(
-                Map.of(SLOT_0, canister(ROCK), SLOT_5, blob(ROCK)),
-                Map.of(SLOT_0, vat(ROCK), SLOT_9, omniblob(ROCK)),
+                Map.of(SLOT_0, canister(ROCK), SLOT_5, thousands(ROCK)),
+                Map.of(SLOT_0, vat(ROCK), SLOT_9, goo(ROCK)),
                 Map.of(SLOT_2, canister(ROCK), SLOT_1, vat(ROCK)),
-                Map.of(OFFHAND, blob(ROCK), SLOT_30, blob(ROCK)),
+                Map.of(OFFHAND, thousands(ROCK), SLOT_30, thousands(ROCK)),
                 Map.of(OFFHAND, vat(ROCK), SLOT_0, canister(NETHER)),
-                Map.of(SLOT_0, omniblob(NETHER), SLOT_1, canister(ROCK), SLOT_3, blob(ROCK)),
+                Map.of(SLOT_0, goo(NETHER), SLOT_1, canister(ROCK), SLOT_3, thousands(ROCK)),
                 Map.of(SLOT_4, hub(ROCK), SLOT_2, vat(ROCK)),
-                Map.of(SLOT_7, canister(ROCK), SLOT_3, canister(ROCK), OFFHAND, omniblob(ROCK)));
+                Map.of(SLOT_7, canister(ROCK), SLOT_3, canister(ROCK), OFFHAND, goo(ROCK)));
     }
 
     /**

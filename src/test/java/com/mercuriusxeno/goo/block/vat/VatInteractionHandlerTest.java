@@ -12,8 +12,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class VatInteractionHandlerTest {
 
     @Test
-    void vatAnswersOnlyTheGasketAndTheBlob() {
-        assertEquals(EnumSet.of(GooInteractionType.GASKET_INSTALL, GooInteractionType.BLOB_INSERT),
+    void vatAnswersOnlyTheGasketAndTheGoo() {
+        assertEquals(EnumSet.of(GooInteractionType.GASKET_INSTALL, GooInteractionType.GOO_INSERT),
                 EnumSet.copyOf(VatBlock.CLICK_ROWS));
     }
 }

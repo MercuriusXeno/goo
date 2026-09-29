@@ -472,7 +472,7 @@ final class GooValueExpression {
         GooValue toGooValue();
 
         /**
-         * Converts this expression value to an int (totalBlobs for GooVal, identity for ScalarVal).
+         * Converts this expression value to an int (totalGoo for GooVal, identity for ScalarVal).
          *
          * @return the integer representation
          */
@@ -497,7 +497,7 @@ final class GooValueExpression {
 
         @Override
         public int toInt() {
-            return value.totalBlobs();
+            return value.totalGoo();
         }
 
         @Override

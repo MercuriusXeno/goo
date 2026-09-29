@@ -50,7 +50,7 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
      * Default face name when loading from NBT.
      */
     private static final String DEFAULT_FACE = "up";
-    private static final String TAG_BLOB_SHAPE = "BlobShape";
+    private static final String TAG_MARKER_SHAPE = "MarkerShape";
     private static final String TAG_AREA_MODE = "AreaMode";
     private static final String TAG_LAST_STACK_TICK = "LastStackTick";
     private static final String TAG_ABILITY_ID = "AbilityId";
@@ -82,9 +82,9 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
     private final ChainMarkerFuse fuse = new ChainMarkerFuse();
     private Direction placedFace = Direction.UP;
     /**
-     * Cosmetic blob shape: "blob" or "flat". Affects BER mesh only.
+     * Cosmetic marker shape: "round" or "flat". Affects BER mesh only.
      */
-    private String blobShape = AbilityDefinition.ChainConfig.SHAPE_BLOB;
+    private String markerShape = AbilityDefinition.ChainConfig.SHAPE_ROUND;
     /**
      * Delivery area mode: "tunnel", "flat_circle", or "sphere". Drives footprint.
      */
@@ -115,7 +115,7 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
     private final PhasedState phased = new PhasedState();
     /**
      * Goo a running black hole consumed from the blocks around it, dropped
-     * as blobs when it pops or when the marker is broken first.
+     * as goo when it pops or when the marker is broken first.
      */
     private GooContents consumedGoo = GooContents.EMPTY;
     /**
@@ -199,7 +199,7 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
         this.placedFace = face;
         fuse.arm(chain);
         this.abilityId = ability.id().toString();
-        this.blobShape = chain.blobShape();
+        this.markerShape = chain.markerShape();
         this.areaMode = extractAreaMode(ability);
         setChanged();
         BlockEntitySync.markDirtyAndSync(this);
@@ -228,7 +228,7 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
     }
 
     /**
-     * Returns true when a standing behavior takes no more blobs.
+     * Returns true when a standing behavior takes no more goo.
      *
      * @return true if a behavior stands and refuses a top-off
      */
@@ -259,7 +259,7 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
         this.abilityId = snapshot.abilityId();
         this.placedFace = snapshot.face();
         fuse.restore(snapshot.stackCount(), snapshot.maxStacks(), snapshot.fuse());
-        this.blobShape = snapshot.blobShape();
+        this.markerShape = snapshot.markerShape();
         this.areaMode = snapshot.areaMode();
         setChanged();
         BlockEntitySync.markDirtyAndSync(this);
@@ -268,7 +268,7 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
     /**
      * Resets the fuse to the ability's full fuse. Called by the server
      * when a throw is declared toward this marker, keeping the fuse alive
-     * while blobs are in flight.
+     * while goo are in flight.
      */
     public void stallFuse() {
         ChainConfig chain = abilityChain();
@@ -309,12 +309,12 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
     }
 
     /**
-     * Returns the cosmetic blob shape ("blob" or "flat").
+     * Returns the cosmetic marker shape ("round" or "flat").
      *
-     * @return the blob shape string
+     * @return the goo shape string
      */
-    public String getBlobShape() {
-        return blobShape;
+    public String getMarkerShape() {
+        return markerShape;
     }
 
     /**
@@ -327,16 +327,16 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
     }
 
     /**
-     * Returns true if the blob should render as squished (flat shape).
+     * Returns true if the goo should render as squished (flat shape).
      *
-     * @return true for flat blob visual
+     * @return true for flat goo visual
      */
-    public boolean isFlatBlob() {
-        return AbilityDefinition.ChainConfig.SHAPE_FLAT.equals(blobShape);
+    public boolean isFlatGoo() {
+        return AbilityDefinition.ChainConfig.SHAPE_FLAT.equals(markerShape);
     }
 
     /**
-     * Returns the game tick when the last blob was stacked.
+     * Returns the game tick when the last goo was stacked.
      *
      * @return the game tick of the last stack event
      */
@@ -590,7 +590,7 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
     }
 
     /**
-     * Returns the current stack count (number of blobs absorbed).
+     * Returns the current stack count (number of goo absorbed).
      *
      * @return the stack count
      */
@@ -678,7 +678,7 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
         gooType = loaded != null ? loaded : GooTypes.ROCK;
         fuse.restore(input.getIntOr(TAG_STACK_COUNT, 1), input.getIntOr(TAG_MAX_STACKS, 1),
                 input.getIntOr(TAG_FUSE_REMAINING, 0));
-        blobShape = input.getStringOr(TAG_BLOB_SHAPE, AbilityDefinition.ChainConfig.SHAPE_BLOB);
+        markerShape = input.getStringOr(TAG_MARKER_SHAPE, AbilityDefinition.ChainConfig.SHAPE_ROUND);
         areaMode = input.getStringOr(TAG_AREA_MODE, DEFAULT_AREA_MODE);
         lastStackTick = input.getLongOr(TAG_LAST_STACK_TICK, 0);
         abilityId = input.getStringOr(TAG_ABILITY_ID, abilityId);
@@ -731,7 +731,7 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
         output.putInt(TAG_MAX_STACKS, fuse.maxStacks());
         output.putInt(TAG_FUSE_REMAINING, fuse.fuseRemaining());
         output.putString(TAG_PLACED_FACE, placedFace.getName());
-        output.putString(TAG_BLOB_SHAPE, blobShape);
+        output.putString(TAG_MARKER_SHAPE, markerShape);
         output.putString(TAG_AREA_MODE, areaMode);
         output.putLong(TAG_LAST_STACK_TICK, lastStackTick);
         output.putString(TAG_ABILITY_ID, abilityId);

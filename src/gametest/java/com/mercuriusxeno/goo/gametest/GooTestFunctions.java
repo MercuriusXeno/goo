@@ -45,7 +45,7 @@ public final class GooTestFunctions {
     private static final String FLUID_FIELDS_STAMPED = "fluid_fields_stamped";
 
     // --- Generic goo items ---
-    private static final String ITEM_THROWN_BLOBS_OWN_TYPE = "item_thrown_blobs_own_type";
+    private static final String ITEM_THROWN_GOO_OWN_TYPE = "item_thrown_goo_own_type";
     private static final String ITEM_TAB_DATAPACK_TYPE = "item_tab_datapack_type";
 
     // --- Exorite tier ---
@@ -97,7 +97,7 @@ public final class GooTestFunctions {
     private static final String GASKET_DEMAND_CRYSTALLIZER_VAT_CHAIN = "gasket_demand_crystallizer_vat_chain";
     private static final String GASKET_DEMAND_HUB_SHARES = "gasket_demand_hub_shares";
     // --- Brewing ---
-    private static final String BREWING_OMNIBLOB_NEVER_BREWS = "brewing_omniblob_never_brews";
+    private static final String BREWING_GOO_NEVER_BREWS = "brewing_goo_never_brews";
     private static final String BREWING_CHRYSM_BREWS_POTION = "brewing_chrysm_brews_potion";
     private static final String BREWING_CHRYSM_BREWS_SPLASH = "brewing_chrysm_brews_splash";
     private static final String BREWING_CHRYSM_BREWS_LINGERING = "brewing_chrysm_brews_lingering";
@@ -195,18 +195,18 @@ public final class GooTestFunctions {
     private static final String FX_PROGRAM_NETHER_BLACK_HOLE = "fx_program_nether_black_hole";
 
     // --- Crucible ---
-    private static final String CR_BLOB_INSERT = "cr_blob_insert";
+    private static final String CR_GOO_INSERT = "cr_goo_insert";
     private static final String CR_ITEM_ABSORB = "cr_item_absorb";
     private static final String CR_MELTS_CHRYSM = "cr_melts_chrysm";
     private static final String CR_CAP_EACH_TYPE = "cr_cap_each_type";
-    private static final String CR_CAP_BLOB_IN_HAND = "cr_cap_blob_in_hand";
-    private static final String CR_CAP_BLOB_ENTITY = "cr_cap_blob_entity";
+    private static final String CR_CAP_GOO_IN_HAND = "cr_cap_goo_in_hand";
+    private static final String CR_CAP_GOO_ENTITY = "cr_cap_goo_entity";
     private static final String CR_CAP_ITEMS_THAT_FIT = "cr_cap_items_that_fit";
     private static final String CR_CAP_CONTAINER = "cr_cap_container";
     private static final String CR_CAP_MELTED_ITEM = "cr_cap_melted_item";
     private static final String CR_CAP_ACCOUNTED = "cr_cap_accounted";
-    private static final String CR_BLOB_STACK_WHOLE = "cr_blob_stack_whole";
-    private static final String CR_BLOB_STACK_TO_CAP = "cr_blob_stack_to_cap";
+    private static final String CR_GOO_STACK_WHOLE = "cr_goo_stack_whole";
+    private static final String CR_GOO_STACK_TO_CAP = "cr_goo_stack_to_cap";
     private static final String CR_FIRST_MELT_PUDDLE = "cr_first_melt_puddle";
     private static final String CR_DROP_RESTS_ON_FLOOR = "cr_drop_rests_on_floor";
     private static final String CR_LEDGE_ITEM_TAKEN_INSIDE = "cr_ledge_item_taken_inside";
@@ -258,7 +258,7 @@ public final class GooTestFunctions {
     private static final String IX_TAP_TOP_CLICK_INSERT = "ix_tap_top_click_insert";
     private static final String IX_TAP_SLOT_CLICK_INSERT = "ix_tap_slot_click_insert";
     private static final String IX_TAP_EMPTY_HAND_TAKE = "ix_tap_empty_hand_take";
-    private static final String IX_TAP_BLOB_POUR = "ix_tap_blob_pour";
+    private static final String IX_TAP_GOO_POUR = "ix_tap_goo_pour";
 
     // --- Tap drip ---
     private static final String TAP_DRIP_DRAWS_ONE_MB = "tap_drip_draws_one_mb";
@@ -285,16 +285,15 @@ public final class GooTestFunctions {
     private static final String IX_CRUCIBLE_BLAZE_ABSORBS = "ix_crucible_blaze_absorbs_item";
     private static final String IX_CRUCIBLE_FLINT_SPARKS = "ix_crucible_flint_and_steel_sparks";
     private static final String IX_CRUCIBLE_SPARK_MELTS_COAL = "ix_crucible_spark_melts_coal";
-    private static final String IX_HUB_ITEM_BLOB_INSERT = "ix_hub_item_blob_insert";
-    private static final String IX_HUB_ITEM_OMNIBLOB_INSERT = "ix_hub_item_omniblob_insert";
+    private static final String IX_HUB_ITEM_GOO_INSERT = "ix_hub_item_goo_insert";
+    private static final String IX_HUB_ITEM_GOO_INSERT_REMAINDER = "ix_hub_item_goo_insert_remainder";
     private static final String IX_HUB_ITEM_INSERT_REFUSED = "ix_hub_item_insert_refused";
     private static final String IX_HUB_ITEM_DRAINS_NOTHING = "ix_hub_item_drains_nothing";
     private static final String IX_HUB_ITEM_IS_GOO_SOURCE = "ix_hub_item_is_goo_source";
-    private static final String IX_VAT_ITEM_BLOB_INSERT = "ix_vat_item_blob_insert";
-    private static final String IX_VAT_ITEM_OMNIBLOB_INSERT = "ix_vat_item_omniblob_insert";
+    private static final String IX_VAT_ITEM_GOO_INSERT = "ix_vat_item_goo_insert";
+    private static final String IX_VAT_ITEM_GOO_INSERT_REMAINDER = "ix_vat_item_goo_insert_remainder";
     private static final String IX_VAT_ITEM_DRAIN = "ix_vat_item_drain";
-    private static final String IX_BLOB_INSERT_SHARED = "ix_blob_insert_shared";
-    private static final String IX_LEGACY_BLOB_STACK = "ix_legacy_blob_stack";
+    private static final String IX_GOO_INSERT_SHARED = "ix_goo_insert_shared";
     private static final String IX_VAT_STREAM_HOLDS = "ix_vat_stream_holds";
     private static final String IX_CRUCIBLE_TOPS_UP_CANISTER = "ix_crucible_tops_up_canister";
     private static final String IX_VAT_UNPACKS_EVERY_TYPE = "ix_vat_unpacks_every_type";
@@ -421,7 +420,7 @@ public final class GooTestFunctions {
     }
 
     private static void registerBrewingTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
-        reg(r, BREWING_OMNIBLOB_NEVER_BREWS, BrewingTests::omniblobNeverBrews);
+        reg(r, BREWING_GOO_NEVER_BREWS, BrewingTests::gooNeverBrews);
         reg(r, BREWING_CHRYSM_BREWS_POTION, BrewingTests::chrysmBrewsTypePotion);
         reg(r, BREWING_CHRYSM_BREWS_SPLASH, BrewingTests::chrysmBrewsTypeSplashPotion);
         reg(r, BREWING_CHRYSM_BREWS_LINGERING, BrewingTests::chrysmBrewsTypeLingeringPotion);
@@ -469,7 +468,7 @@ public final class GooTestFunctions {
     }
 
     private static void registerGooItemTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
-        reg(r, ITEM_THROWN_BLOBS_OWN_TYPE, GooItemTests::thrownBlobsLandOwnType);
+        reg(r, ITEM_THROWN_GOO_OWN_TYPE, GooItemTests::thrownGooLandOwnType);
         reg(r, ITEM_TAB_DATAPACK_TYPE, GooItemTests::creativeTabOffersDatapackType);
     }
 
@@ -574,7 +573,7 @@ public final class GooTestFunctions {
         reg(r, IX_TAP_TOP_CLICK_INSERT, MachineInteractionTests::tapTopClickInsertsCanister);
         reg(r, IX_TAP_SLOT_CLICK_INSERT, MachineInteractionTests::tapSlotRegionClickInsertsCanister);
         reg(r, IX_TAP_EMPTY_HAND_TAKE, MachineInteractionTests::tapEmptyHandClickTakesCanister);
-        reg(r, IX_TAP_BLOB_POUR, MachineInteractionTests::tapBlobClickPoursIntoSlottedCanister);
+        reg(r, IX_TAP_GOO_POUR, MachineInteractionTests::tapGooClickPoursIntoSlottedCanister);
         reg(r, IX_VAT_GASKET, MachineInteractionTests::vatGasketApply);
         reg(r, IX_HUB_INSERT, MachineInteractionTests::hubCanisterInsert);
         reg(r, IX_HUB_PICKUP, MachineInteractionTests::hubCanisterPickup);
@@ -586,34 +585,33 @@ public final class GooTestFunctions {
         reg(r, IX_CRUCIBLE_BLAZE_ABSORBS, MachineInteractionTests::blazeCrucibleAbsorbsItem);
         reg(r, IX_CRUCIBLE_FLINT_SPARKS, MachineInteractionTests::flintAndSteelSparksColdCrucible);
         reg(r, IX_CRUCIBLE_SPARK_MELTS_COAL, MachineInteractionTests::sparkedCrucibleMeltsCoalOnItsBlaze);
-        reg(r, IX_HUB_ITEM_BLOB_INSERT, HubItemClickTests::blobInsertFillsCanisterAndPlaces);
-        reg(r, IX_HUB_ITEM_OMNIBLOB_INSERT, HubItemClickTests::omniblobInsertKeepsRemainder);
+        reg(r, IX_HUB_ITEM_GOO_INSERT, HubItemClickTests::gooInsertFillsCanisterAndPlaces);
+        reg(r, IX_HUB_ITEM_GOO_INSERT_REMAINDER, HubItemClickTests::gooInsertKeepsRemainder);
         reg(r, IX_HUB_ITEM_INSERT_REFUSED, HubItemClickTests::insertRefusedLeavesStacks);
         reg(r, IX_HUB_ITEM_DRAINS_NOTHING, HubItemClickTests::secondaryClickDrainsNothing);
         reg(r, IX_HUB_ITEM_IS_GOO_SOURCE, GooSourceScannerTests::hubItemIsAGooSource);
-        reg(r, IX_VAT_ITEM_BLOB_INSERT, VatItemClickTests::blobInsertFillsVatAndFullRefuses);
-        reg(r, IX_VAT_ITEM_OMNIBLOB_INSERT, VatItemClickTests::omniblobInsertKeepsRemainder);
+        reg(r, IX_VAT_ITEM_GOO_INSERT, VatItemClickTests::gooInsertFillsVatAndFullRefuses);
+        reg(r, IX_VAT_ITEM_GOO_INSERT_REMAINDER, VatItemClickTests::gooInsertKeepsRemainder);
         reg(r, IX_VAT_ITEM_DRAIN, VatItemClickTests::secondaryClickUnpacksEveryType);
-        reg(r, IX_BLOB_INSERT_SHARED, BlobInsertTests::pourDepletesByAccepted);
-        reg(r, IX_LEGACY_BLOB_STACK, LegacyBlobStackTests::legacyStackHalvesAndDepletesWithoutDuplication);
-        reg(r, IX_VAT_STREAM_HOLDS, VatStreamTests::blobClickHoldsStream);
+        reg(r, IX_GOO_INSERT_SHARED, GooInsertTests::pourDepletesByAccepted);
+        reg(r, IX_VAT_STREAM_HOLDS, VatStreamTests::gooClickHoldsStream);
         reg(r, IX_CRUCIBLE_TOPS_UP_CANISTER, DrainIntoInventoryTests::crucibleTopsUpCarriedCanister);
         reg(r, IX_VAT_UNPACKS_EVERY_TYPE, DrainIntoInventoryTests::vatUnpacksEveryTypeIntoInventory);
     }
 
     private static void registerCrucibleTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
-        reg(r, CR_BLOB_INSERT, CrucibleTests::blobInsertViaInteraction);
+        reg(r, CR_GOO_INSERT, CrucibleTests::gooInsertViaInteraction);
         reg(r, CR_ITEM_ABSORB, CrucibleTests::itemEntityAbsorption);
         reg(r, CR_MELTS_CHRYSM, CrucibleTests::meltsChrysm);
         reg(r, CR_CAP_EACH_TYPE, CrucibleTests::reservoirCapsEachType);
-        reg(r, CR_CAP_BLOB_IN_HAND, CrucibleTests::blobInHandRefusedAtCap);
-        reg(r, CR_CAP_BLOB_ENTITY, CrucibleTests::blobEntityRefusedAtCap);
+        reg(r, CR_CAP_GOO_IN_HAND, CrucibleTests::gooInHandRefusedAtCap);
+        reg(r, CR_CAP_GOO_ENTITY, CrucibleTests::gooEntityRefusedAtCap);
         reg(r, CR_CAP_ITEMS_THAT_FIT, CrucibleTests::itemStackMeltsWholeItemsThatFit);
         reg(r, CR_CAP_CONTAINER, CrucibleTests::containerRefusedWholeAtCap);
         reg(r, CR_CAP_MELTED_ITEM, CrucibleTests::meltedItemRefusedWholeAtCap);
         reg(r, CR_CAP_ACCOUNTED, CrucibleTests::fillPastTheCapAccountsForEveryMb);
-        reg(r, CR_BLOB_STACK_WHOLE, CrucibleTests::blobStackConsumedWhole);
-        reg(r, CR_BLOB_STACK_TO_CAP, CrucibleTests::blobStackFillsToTheCap);
+        reg(r, CR_GOO_STACK_WHOLE, CrucibleTests::gooStackConsumedWhole);
+        reg(r, CR_GOO_STACK_TO_CAP, CrucibleTests::gooStackFillsToTheCap);
         reg(r, CR_FIRST_MELT_PUDDLE, CrucibleTests::firstMeltTicksDrawAPuddle);
         reg(r, CR_DROP_RESTS_ON_FLOOR, CrucibleTests::droppedItemRestsOnBasinFloor);
         reg(r, CR_LEDGE_ITEM_TAKEN_INSIDE, CrucibleTests::ledgeItemTakenOnlyInsideTheCavity);

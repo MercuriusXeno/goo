@@ -27,7 +27,7 @@ public final class GooAttachments {
                     () -> AttachmentType.builder(() -> SoulBoundStacks.NONE).serialize(SoulBoundStacks.CODEC).build());
 
     /**
-     * The counters a struck entity keeps between blob hits, saved with the
+     * The counters a struck entity keeps between goo hits, saved with the
      * entity (decision aeon-mob-ritual-drops-spawn-egg).
      */
     public static final Supplier<AttachmentType<EntityCounters>> ENTITY_COUNTERS =

@@ -3,7 +3,7 @@ package com.mercuriusxeno.goo.block.tap;
 import com.mercuriusxeno.goo.block.GooBlockInteraction;
 import com.mercuriusxeno.goo.block.ShapeHitCheck;
 import com.mercuriusxeno.goo.block.canister.SlottedCanisterData;
-import com.mercuriusxeno.goo.item.BlobInsert;
+import com.mercuriusxeno.goo.item.GooInsert;
 import com.mercuriusxeno.goo.item.GooInteractionType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -82,7 +82,7 @@ final class TapInteractionHandler {
             Player player, InteractionHand hand) {
         return switch (interaction) {
             case CANISTER_INSERT -> handleCanisterInsert(tap, stack, player);
-            case BLOB_INSERT -> handleBlobInsert(tap, stack, player);
+            case GOO_INSERT -> handleGooInsert(tap, stack, player);
             default -> throw new IllegalStateException(ERR_UNHANDLED + interaction);
         };
     }
@@ -139,16 +139,16 @@ final class TapInteractionHandler {
     }
 
     /**
-     * Pours goo from a blob or omniblob into the tap's canister.
+     * Pours goo from a goo or goo into the tap's canister.
      *
      * @param tap    the tap block entity
      * @param stack  the item stack
      * @param player the interacting player
      * @return the interaction result
      */
-    static InteractionResult handleBlobInsert(
+    static InteractionResult handleGooInsert(
             TapBlockEntity tap, ItemStack stack, Player player) {
-        int accepted = BlobInsert.pour(stack, player,
+        int accepted = GooInsert.pour(stack, player,
                 (type, volume) -> tap.canAcceptGoo() ? tap.insertGoo(type, volume) : 0);
         if (accepted <= 0) {
             return InteractionResult.PASS;

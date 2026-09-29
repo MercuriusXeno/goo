@@ -40,7 +40,7 @@ import java.util.List;
 /**
  * The crystallizer block (decision crystallizer-emits-chrysm): it crystallizes the
  * goo of one of the two canisters standing in the canister block on its top, back
- * left and back right, with the crystal of the other. Canister clicks, omniblob
+ * left and back right, with the crystal of the other. Canister clicks, goo
  * pours and gaskets land on that canister block, as on the reactor. A click on the
  * knob, on the face toward the placing player, steps the tier it stops at; a click
  * on a mature crystal, whatever the player holds, takes the chrysm formed, as does
@@ -188,7 +188,7 @@ public class CrystallizerBlock extends GooMachineBlock {
     }
 
     /**
-     * @param taken  the chrysm first, then any excess omniblobs
+     * @param taken  the chrysm first, then any excess gooStacks
      * @param player the clicking player
      * @param level  the level
      * @param pos    the crystallizer's position

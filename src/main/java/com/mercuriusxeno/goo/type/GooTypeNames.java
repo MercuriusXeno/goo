@@ -7,7 +7,7 @@ import net.minecraft.resources.ResourceKey;
 
 /**
  * Translation keys and name components for goo types named by registry
- * key, so a generic item spells "[Type] [Tier]" from the type it carries
+ * key, so a generic item spells "[Type] Goo" from the type it carries
  * (decision generic-goo-items). A bundled type keeps the {@code goo.type.<id>}
  * key the enum spelled; a datapack type's key carries its namespace too.
  */
@@ -18,9 +18,9 @@ public final class GooTypeNames {
      */
     public static final String TYPE_PREFIX = "goo.type.";
     /**
-     * Translation key of the omniblob item name, taking the type name and the tier.
+     * Translation key of the goo item name, taking the type name.
      */
-    public static final String OMNIBLOB = "item.goo.goo_omniblob";
+    public static final String GOO = "item.goo.goo";
     /**
      * Translation key of the goo bucket item name, taking the type name.
      */
@@ -55,12 +55,11 @@ public final class GooTypeNames {
     }
 
     /**
-     * @param key  the type an omniblob carries, or null
-     * @param tier the tier name its volume earns
-     * @return the omniblob item name, "[Type] [Tier]"
+     * @param key the type a goo stack carries, or null
+     * @return the goo item name, "[Type] Goo" (decision amounts-format-by-magnitude-alone)
      */
-    public static MutableComponent omniblobName(ResourceKey<GooTypeDefinition> key, String tier) {
-        return Component.translatable(OMNIBLOB, name(key), tier);
+    public static MutableComponent gooName(ResourceKey<GooTypeDefinition> key) {
+        return Component.translatable(GOO, name(key));
     }
 
     /**

@@ -1,43 +1,64 @@
 package com.mercuriusxeno.goo.item;
 
 import org.junit.jupiter.api.Test;
-import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.LongStream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Tests the compact format's length across the sub-10-blob range, pinning why
- * the crucible HUD panel resized while a melting item drained (decision
- * diagnose-then-fix-crucible-panel-width): compactSigDigits keeps three
- * significant digits and padAndTrimZeros trims the trailing zeros, so the
- * string runs 4, 3 or 1 characters as a volume crosses 9,990, 9,900 and
- * 9,000 mB, and the panel, sized to its widest row, shrinks and grows back.
+ * Tests that GooFormat formats a raw amount by magnitude, K, M and B, with no
+ * unit word and no division by 1000 (decision amounts-format-by-magnitude-alone).
  */
 class GooFormatTest {
 
     @Test
-    void compactFormatTrimsTrailingZerosUnderTenBlobs() {
-        assertEquals(".999", GooFormat.formatFluidDisplayCompact(999));
-        assertEquals("9.99", GooFormat.formatFluidDisplayCompact(9_990));
-        assertEquals("9.9", GooFormat.formatFluidDisplayCompact(9_900));
-        assertEquals("9", GooFormat.formatFluidDisplayCompact(9_000));
+    void amountUnderAThousandReadsWhole() {
+        assertEquals("200", GooFormat.formatAmount(200));
     }
 
     @Test
-    void compactLengthMovesAcrossTheSubTenBlobSweep() {
-        Set<Integer> lengths = LongStream.of(999, 9_000, 9_900, 9_990)
-                .mapToObj(GooFormat::formatFluidDisplayCompact)
-                .map(String::length)
-                .collect(Collectors.toSet());
-        assertEquals(Set.of(1, 3, 4), lengths);
+    void zeroReadsZero() {
+        assertEquals("0", GooFormat.formatAmount(0));
     }
 
     @Test
-    void noSubTenBlobVolumeFormatsLongerThanFourCharacters() {
-        assertTrue(LongStream.range(0, 10_000)
-                .mapToObj(GooFormat::formatFluidDisplayCompact)
-                .allMatch(text -> text.length() <= 4));
+    void amountJustUnderAThousandReadsWhole() {
+        assertEquals("999", GooFormat.formatAmount(999));
+    }
+
+    @Test
+    void thousandReadsOneK() {
+        assertEquals("1K", GooFormat.formatAmount(1_000));
+    }
+
+    @Test
+    void twelveHundredReadsOnePointTwoK() {
+        assertEquals("1.2K", GooFormat.formatAmount(1_200));
+    }
+
+    @Test
+    void sixteenThousandReadsSixteenK() {
+        assertEquals("16K", GooFormat.formatAmount(16_000));
+    }
+
+    @Test
+    void thirtyTwoMillionReadsThirtyTwoM() {
+        assertEquals("32M", GooFormat.formatAmount(32_000_000));
+    }
+
+    @Test
+    void billionReadsOneB() {
+        assertEquals("1B", GooFormat.formatAmount(1_000_000_000));
+    }
+
+    @Test
+    void amountKeepsThreeSignificantDigitsTruncated() {
+        assertEquals("1.23K", GooFormat.formatAmount(1_239));
+        assertEquals("12.3K", GooFormat.formatAmount(12_399));
+        assertEquals("123K", GooFormat.formatAmount(123_999));
+        assertEquals("999K", GooFormat.formatAmount(999_999));
+    }
+
+    @Test
+    void fractionTruncatingToZeroReadsWhole() {
+        assertEquals("1M", GooFormat.formatAmount(1_001_000));
     }
 }

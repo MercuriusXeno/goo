@@ -10,7 +10,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Result of resolving the player's aim target for blob throwing.
+ * Result of resolving the player's aim target for goo throwing.
  * Sealed hierarchy: entity hit, block face hit, or nothing in range.
  */
 public sealed interface TargetResult {
@@ -79,7 +79,7 @@ public sealed interface TargetResult {
 
     /**
      * Returns the world-space Vec3 destination for this target. Used by
-     * both the arc renderer and the blob flight manager so the endpoint
+     * both the arc renderer and the goo flight manager so the endpoint
      * computation is not duplicated.
      *
      * @return the endpoint position, or null for {@link None}
@@ -124,7 +124,7 @@ public sealed interface TargetResult {
     record ChainMarkerTarget(BlockPos pos) implements TargetResult {
         /**
          * Returns the orb center, accounting for the placed face so
-         * the arc lands on the visible blob, not above it.
+         * the arc lands on the visible goo, not above it.
          */
         @Override
         public Vec3 resolveEndpoint() {

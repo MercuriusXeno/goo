@@ -37,7 +37,7 @@ import java.util.Map;
 public final class GooTooltipHandler {
 
     /**
-     * One vanilla bucket in millibuckets / microblobs.
+     * One vanilla bucket in millibuckets / amount.
      */
     private static final int BUCKET_VOLUME = 1000;
 
@@ -58,7 +58,7 @@ public final class GooTooltipHandler {
 
     /**
      * Intercepts tooltip component gathering to inject goo value entries.
-     * For blob items, shows the blob's actual volume instead of the registry base value.
+     * For goo items, shows the goo's actual volume instead of the registry base value.
      *
      * @param event the event instance
      */
@@ -78,7 +78,7 @@ public final class GooTooltipHandler {
     }
 
     private static void handleTooltipOrchestration(RenderTooltipEvent.GatherComponents event, ItemStack stack) {
-        if (handleBlobTooltip(event.getTooltipElements(), stack)) {
+        if (handleGooTooltip(event.getTooltipElements(), stack)) {
             return;
         }
         GooContents chrysmValue = chrysmValue(stack);
@@ -122,7 +122,7 @@ public final class GooTooltipHandler {
      * @return true if goo tooltip would be non-empty
      */
     private static boolean hasGooData(ItemStack stack) {
-        if (stack.getItem() instanceof GooOmniblobItem || chrysmValue(stack) != null) {
+        if (stack.getItem() instanceof GooItem || chrysmValue(stack) != null) {
             return true;
         }
         return getGooContentType(stack) != null || hasStoredGooData(stack);
@@ -156,15 +156,15 @@ public final class GooTooltipHandler {
     }
 
     /**
-     * Handles omniblob items, returning true if a blob tooltip was appended.
+     * Handles goo items, returning true if a goo tooltip was appended.
      *
      * @param elements the tooltip element list
      * @param stack    the item stack
-     * @return true if the stack was an omniblob
+     * @return true if the stack was a goo
      */
-    private static boolean handleBlobTooltip(List<Either<FormattedText, TooltipComponent>> elements, ItemStack stack) {
-        if (stack.getItem() instanceof GooOmniblobItem) {
-            appendBlobComponent(elements, BlobStacks.keyOf(stack), GooOmniblobItem.getVolume(stack));
+    private static boolean handleGooTooltip(List<Either<FormattedText, TooltipComponent>> elements, ItemStack stack) {
+        if (stack.getItem() instanceof GooItem) {
+            appendGooComponent(elements, GooStacks.keyOf(stack), GooItem.getVolume(stack));
             return true;
         }
         return false;
@@ -233,7 +233,7 @@ public final class GooTooltipHandler {
     }
 
     /**
-     * Returns the fluid amount in microblobs, or 0.
+     * Returns the fluid amount, or 0.
      *
      * @param stack the item stack
      * @return the amount
@@ -266,7 +266,7 @@ public final class GooTooltipHandler {
     }
 
     /**
-     * Handles non-blob items: goo contents, upgrades, and base registry values.
+     * Handles non-goo items: goo contents, upgrades, and base registry values.
      *
      * @param elements the tooltip element list
      * @param stack    the item stack
@@ -326,13 +326,13 @@ public final class GooTooltipHandler {
     }
 
     /**
-     * Appends a single tooltip line showing the blob/omniblob's volume and type.
+     * Appends a single tooltip line showing the goo/goo's volume and type.
      *
      * @param elements the tooltip element list
      * @param type     the goo type
-     * @param volume   the volume in microblobs
+     * @param volume   the volume
      */
-    private static void appendBlobComponent(
+    private static void appendGooComponent(
             List<Either<FormattedText, TooltipComponent>> elements,
             @org.jspecify.annotations.Nullable ResourceKey<GooTypeDefinition> type, int volume) {
         if (volume <= 0 || type == null) {
@@ -432,26 +432,5 @@ public final class GooTooltipHandler {
             elements.add(Either.left(
                     Component.literal(meta.label()).withStyle(ChatFormatting.GOLD)));
         }
-    }
-
-
-    /**
-     * Delegates to {@link GooFormat#formatFluidDisplay(long)}.
-     *
-     * @param microblobs the volume in microblobs
-     * @return the formatted string
-     */
-    public static String formatFluidDisplay(long microblobs) {
-        return GooFormat.formatFluidDisplay(microblobs);
-    }
-
-    /**
-     * Delegates to {@link GooFormat#formatFluidDisplayCompact(long)}.
-     *
-     * @param microblobs the volume in microblobs
-     * @return the formatted string
-     */
-    public static String formatFluidDisplayCompact(long microblobs) {
-        return GooFormat.formatFluidDisplayCompact(microblobs);
     }
 }

@@ -174,7 +174,7 @@ public final class GlowFadeVisual {
      * @param offsets       all 3D block offsets in the effect region
      * @param filled        packed position set for neighbor lookups
      * @param baseColor     the ARGB fill color at the base of the wall
-     * @param placedFace    the face the blob was placed on
+     * @param placedFace    the face the goo was placed on
      * @param gameTime      the current game time for sine animation
      */
     static void submit(PoseStack poseStack,
@@ -186,11 +186,11 @@ public final class GlowFadeVisual {
         int pulsedAlpha = (int) (FADE_WALL_ALPHA * pulse);
         int pulsedBase = ARGB.color(pulsedAlpha, baseColor);
         int transparentColor = ARGB.color(0, baseColor);
-        Set<Long> blobMost = computeBlobMostLayer(offsets, placedFace);
+        Set<Long> gooMost = computeGooMostLayer(offsets, placedFace);
         submitPrimaryPass(poseStack, nodeCollector, offsets, filled,
-                blobMost, placedFace, pulsedBase, transparentColor, gameTime);
+                gooMost, placedFace, pulsedBase, transparentColor, gameTime);
         submitBroadBandPass(poseStack, nodeCollector, offsets, filled,
-                blobMost, placedFace, baseColor, gameTime);
+                gooMost, placedFace, baseColor, gameTime);
     }
 
     /**
@@ -201,21 +201,21 @@ public final class GlowFadeVisual {
      * @param nodeCollector    the render node collector
      * @param offsets          all 3D block offsets in the region
      * @param filled           packed position set for neighbor checks
-     * @param blobMost         packed positions of the blob-most layer
-     * @param placedFace       the face the blob was placed on
+     * @param gooMost         packed positions of the goo-most layer
+     * @param placedFace       the face the goo was placed on
      * @param pulsedBase       pulsed ARGB base color
      * @param transparentColor fully transparent version of the base color
      * @param gameTime         the current game time for animation
      */
     private static void submitPrimaryPass(PoseStack poseStack,
                                           SubmitNodeCollector nodeCollector, List<int[]> offsets,
-                                          Set<Long> filled, Set<Long> blobMost, Direction placedFace,
+                                          Set<Long> filled, Set<Long> gooMost, Direction placedFace,
                                           int pulsedBase, int transparentColor, float gameTime) {
         nodeCollector.submitCustomGeometry(poseStack,
                 GooRenderTypes.QUADS_ADDITIVE_NO_DEPTH,
                 (pose, c) -> {
                     for (int[] o : offsets) {
-                        if (!blobMost.contains(GhostMineVisual.packPos(o[X], o[Y], o[Z]))) {
+                        if (!gooMost.contains(GhostMineVisual.packPos(o[X], o[Y], o[Z]))) {
                             continue;
                         }
                         emitEdgesForBlock(pose, c, o, placedFace, filled,
@@ -235,21 +235,21 @@ public final class GlowFadeVisual {
      * @param nodeCollector the render node collector
      * @param offsets       all 3D block offsets in the region
      * @param filled        packed position set for neighbor checks
-     * @param blobMost      packed positions of the blob-most layer
-     * @param placedFace    the face the blob was placed on
+     * @param gooMost      packed positions of the goo-most layer
+     * @param placedFace    the face the goo was placed on
      * @param baseColor     the ARGB fill color
      * @param gameTime      the current game time for animation
      */
     private static void submitBroadBandPass(PoseStack poseStack,
                                             SubmitNodeCollector nodeCollector, List<int[]> offsets,
-                                            Set<Long> filled, Set<Long> blobMost, Direction placedFace,
+                                            Set<Long> filled, Set<Long> gooMost, Direction placedFace,
                                             int baseColor, float gameTime) {
         int transparentColor = ARGB.color(0, baseColor);
         nodeCollector.submitCustomGeometry(poseStack,
                 GooRenderTypes.QUADS_ADDITIVE_NO_DEPTH,
                 (pose, c) -> {
                     for (int[] o : offsets) {
-                        if (!blobMost.contains(GhostMineVisual.packPos(o[X], o[Y], o[Z]))) {
+                        if (!gooMost.contains(GhostMineVisual.packPos(o[X], o[Y], o[Z]))) {
                             continue;
                         }
                         emitEdgesForBlock(pose, c, o, placedFace, filled,
@@ -562,15 +562,15 @@ public final class GlowFadeVisual {
 
     /**
      * For each perpendicular column along the blast axis, finds the
-     * block closest to the blob (highest offset in the placed-face
+     * block closest to the goo (highest offset in the placed-face
      * direction). Only these blocks receive fade walls, preventing
      * interior layers from rendering redundant geometry.
      *
      * @param offsets    all 3D block offsets in the region
-     * @param placedFace the face the blob was placed on
-     * @return packed positions of the blob-most block per column
+     * @param placedFace the face the goo was placed on
+     * @return packed positions of the goo-most block per column
      */
-    private static Set<Long> computeBlobMostLayer(List<int[]> offsets,
+    private static Set<Long> computeGooMostLayer(List<int[]> offsets,
                                                   Direction placedFace) {
         Map<Long, int[]> bestPerColumn = new HashMap<>();
         int ax = placedFace.getStepX();

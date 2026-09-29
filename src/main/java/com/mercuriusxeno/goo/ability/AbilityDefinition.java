@@ -51,7 +51,7 @@ public record AbilityDefinition(
     private static final String FIELD_CHAIN = "chain";
     private static final String FIELD_BEHAVIORS = "behaviors";
     private static final String FIELD_TAGS = "tags";
-    private static final String NOT_A_FLAT_COST = "Ability cost must be one whole number of mB, not %s";
+    private static final String NOT_A_FLAT_COST = "Ability cost must be one whole amount, not %s";
 
     /**
      * Codec for the cost: one whole number of mB per throw (decision flat-cost-per-throw).
@@ -144,32 +144,32 @@ public record AbilityDefinition(
      * Chain marker parameters for abilities that use the chain system.
      *
      * @param fuseTicks    fuse countdown (-1 for trigger-based)
-     * @param maxStacks    maximum blob stacks
-     * @param blobShape    cosmetic blob shape: "blob" (default) or "flat" (squished)
+     * @param maxStacks    maximum goo stacks
+     * @param markerShape    cosmetic goo shape: "round" (default) or "flat" (squished)
      */
     public record ChainConfig(
             int fuseTicks,
             int maxStacks,
-            String blobShape
+            String markerShape
     ) {
         /**
-         * Default blob shape.
+         * Default goo shape.
          */
-        public static final String SHAPE_BLOB = "blob";
+        public static final String SHAPE_ROUND = "round";
         /**
-         * Squished blob shape.
+         * Squished goo shape.
          */
         public static final String SHAPE_FLAT = "flat";
 
         /**
          * Default chain config for abilities that don't specify one.
          */
-        static final ChainConfig DEFAULT = new ChainConfig(30, 1, SHAPE_BLOB);
+        static final ChainConfig DEFAULT = new ChainConfig(30, 1, SHAPE_ROUND);
 
         static final Codec<ChainConfig> CODEC = RecordCodecBuilder.create(inst -> inst.group(
                 Codec.INT.optionalFieldOf("fuseTicks", 30).forGetter(ChainConfig::fuseTicks),
                 Codec.INT.optionalFieldOf("maxStacks", 1).forGetter(ChainConfig::maxStacks),
-                Codec.STRING.optionalFieldOf("blobShape", SHAPE_BLOB).forGetter(ChainConfig::blobShape)
+                Codec.STRING.optionalFieldOf("markerShape", SHAPE_ROUND).forGetter(ChainConfig::markerShape)
         ).apply(inst, ChainConfig::new));
     }
 }

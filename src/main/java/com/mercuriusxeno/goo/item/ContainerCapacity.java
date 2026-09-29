@@ -7,10 +7,10 @@ package com.mercuriusxeno.goo.item;
  */
 public final class ContainerCapacity {
 
-    /** Base canister capacity in microblobs (2^20 = 1,048,576 mB). */
+    /** Base canister capacity (2^20 = 1,048,576 mB). */
     public static final int CANISTER_BASE = 1 << 20;
 
-    /** Base vat capacity in microblobs (2^25 = 33,554,432 mB). */
+    /** Base vat capacity (2^25 = 33,554,432 mB). */
     public static final int VAT_BASE = 1 << 25;
 
     /** Maximum Compression enchantment level (shared by canister and vat). */
@@ -24,7 +24,7 @@ public final class ContainerCapacity {
      * Range: 2^20 mB (level 0) to 2^25 mB (level 5).
      *
      * @param compressionLevel the Compression enchantment level (0-5)
-     * @return capacity in microblobs
+     * @return capacity
      */
     public static int canisterCapacity(int compressionLevel) {
         return CANISTER_BASE << Math.max(0, Math.min(compressionLevel, MAX_COMPRESSION));
@@ -36,7 +36,7 @@ public final class ContainerCapacity {
      * Range: 2^25 mB (level 0) to 2^30 mB (level 5).
      *
      * @param compressionLevel the Compression enchantment level (0-5)
-     * @return capacity in microblobs
+     * @return capacity
      */
     public static int vatCapacity(int compressionLevel) {
         return VAT_BASE << Math.max(0, Math.min(compressionLevel, MAX_COMPRESSION));

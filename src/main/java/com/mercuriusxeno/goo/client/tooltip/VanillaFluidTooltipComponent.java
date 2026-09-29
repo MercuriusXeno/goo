@@ -7,7 +7,7 @@ import net.minecraft.world.level.material.Fluid;
  * Data model for a vanilla fluid tooltip line: bucket icon + mB amount.
  *
  * @param fluid the vanilla fluid (water, lava, etc.)
- * @param amount the volume in microblobs
+ * @param amount the volume
  */
 public record VanillaFluidTooltipComponent(Fluid fluid, int amount) implements TooltipComponent {
 }

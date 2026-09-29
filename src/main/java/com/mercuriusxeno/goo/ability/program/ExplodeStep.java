@@ -7,7 +7,7 @@ import java.util.stream.Stream;
 
 /**
  * Detonates at the host's anchor and finishes. The power is an expression
- * over the host, so {@code "2 + 1 * (stacks - 1)"} scales with the blobs
+ * over the host, so {@code "2 + 1 * (stacks - 1)"} scales with the goo
  * stacked on the marker.
  *
  * @param power the explosion power, evaluated when the step runs

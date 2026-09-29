@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.gametest;
 
-import com.mercuriusxeno.goo.item.BlobStacks;
+import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.registry.GooPotions;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -20,7 +20,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BrewingStandBlockEntity;
 
 /**
- * Gametests for goo on the vanilla brewing stand: an omniblob is no brew
+ * Gametests for goo on the vanilla brewing stand: a goo is no brew
  * ingredient (decision new-thread-swaps-the-ingredient), and one chrysm of a
  * type brews that type's potion (decision brew-from-chrysm-on-vanilla-stand).
  * Each case sets a real stand and lets vanilla tick it past its brew time.
@@ -43,23 +43,23 @@ public final class BrewingTests {
     }
 
     /**
-     * An omniblob of a type over three awkward potions never brews: after the
-     * brew time the bottles still hold awkward potion and the omniblob is still
+     * A goo of a type over three awkward potions never brews: after the
+     * brew time the bottles still hold awkward potion and the goo is still
      * in the slot. A nether wart over water on a second stand brews awkward in
      * the same time, so the stand was ticking.
      *
      * @param helper the gametest helper
      */
-    public static void omniblobNeverBrews(GameTestHelper helper) {
-        ItemStack omniblob = BlobStacks.createForOutput(TYPE, BlobStacks.MB_PER_BLOB);
-        BrewingStandBlockEntity gooStand = placeStand(helper, FIRST_STAND, Items.POTION, Potions.AWKWARD, omniblob);
+    public static void gooNeverBrews(GameTestHelper helper) {
+        ItemStack goo = GooStacks.createForOutput(TYPE, GooStacks.THOUSAND);
+        BrewingStandBlockEntity gooStand = placeStand(helper, FIRST_STAND, Items.POTION, Potions.AWKWARD, goo);
         BrewingStandBlockEntity controlStand = placeStand(helper, SECOND_STAND, Items.POTION, Potions.WATER,
                 new ItemStack(Items.NETHER_WART));
         helper.runAfterDelay(BREW_WAIT_TICKS, () -> {
             assertBottlesHold(helper, controlStand, Items.POTION, Potions.AWKWARD, "the nether wart control");
-            assertBottlesHold(helper, gooStand, Items.POTION, Potions.AWKWARD, "the omniblob stand");
-            helper.assertTrue(ItemStack.matches(omniblob, gooStand.getItem(INGREDIENT_SLOT)),
-                    "The omniblob" + INGREDIENT_KEPT + gooStand.getItem(INGREDIENT_SLOT));
+            assertBottlesHold(helper, gooStand, Items.POTION, Potions.AWKWARD, "the goo stand");
+            helper.assertTrue(ItemStack.matches(goo, gooStand.getItem(INGREDIENT_SLOT)),
+                    "The goo" + INGREDIENT_KEPT + gooStand.getItem(INGREDIENT_SLOT));
             helper.succeed();
         });
     }

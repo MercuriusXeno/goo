@@ -8,10 +8,10 @@ import com.mercuriusxeno.goo.block.canister.ICanisterAttachable;
 import com.mercuriusxeno.goo.block.crystallizer.CrystallizerPhases.Held;
 import com.mercuriusxeno.goo.block.crystallizer.CrystallizerPhases.Roles;
 import com.mercuriusxeno.goo.block.gasket.GasketAttachment;
-import com.mercuriusxeno.goo.item.BlobStacks;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.ChrysmItem;
 import com.mercuriusxeno.goo.item.ChrysmTier;
+import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -234,11 +234,11 @@ public class CrystallizerBlockEntity extends GooGlowingMachineBlockEntity
 
     /**
      * Takes a mature crystal whole (operator ruling): one chrysm of the tier a click
-     * hands, then the excess past that tier as an omniblob of its goo and one of the
+     * hands, then the excess past that tier as a goo of its goo and one of the
      * crystal spent on it, so nothing is lost; the crystallizer empties. A part-grown
      * crystal hands nothing.
      *
-     * @return the chrysm first, then the excess omniblobs; none while the crystal is not mature
+     * @return the chrysm first, then the excess gooStacks; none while the crystal is not mature
      */
     public List<ItemStack> takeFormed() {
         ChrysmTier tier = CrystallizerPhases.harvestTier(crystallized, CrystallizerBlock.knobTier(getBlockState()));
@@ -249,8 +249,8 @@ public class CrystallizerBlockEntity extends GooGlowingMachineBlockEntity
         taken.add(ChrysmItem.stackOf(tier, formingType));
         int excess = Math.toIntExact(crystallized - tier.volume());
         if (excess > 0) {
-            taken.add(BlobStacks.createForOutput(formingType, excess));
-            ItemStack crystal = BlobStacks.createForOutput(CrystallizerPhases.CATALYST,
+            taken.add(GooStacks.createForOutput(formingType, excess));
+            ItemStack crystal = GooStacks.createForOutput(CrystallizerPhases.CATALYST,
                     excess / CrystallizerPhases.GOO_PER_CRYSTAL);
             if (!crystal.isEmpty()) {
                 taken.add(crystal);

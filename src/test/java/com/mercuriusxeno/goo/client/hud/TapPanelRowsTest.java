@@ -14,11 +14,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class TapPanelRowsTest {
 
     private static final Map<TapDripGrade, String> EXPECTED = Map.of(
-            TapDripGrade.ONE_PER_64_TICKS, "1 mB/3.2 s",
-            TapDripGrade.ONE_PER_16_TICKS, "1.25 mB/s",
-            TapDripGrade.ONE_PER_4_TICKS, "5 mB/s",
-            TapDripGrade.ONE_PER_TICK, "20 mB/s",
-            TapDripGrade.FOUR_PER_TICK, "80 mB/s");
+            TapDripGrade.ONE_PER_64_TICKS, "0.3125/s",
+            TapDripGrade.ONE_PER_16_TICKS, "1.25/s",
+            TapDripGrade.ONE_PER_4_TICKS, "5/s",
+            TapDripGrade.ONE_PER_TICK, "20/s",
+            TapDripGrade.FOUR_PER_TICK, "80/s");
 
     private static String onlyText(List<PanelRow> rows) {
         assertEquals(1, rows.size());

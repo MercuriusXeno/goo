@@ -78,7 +78,7 @@ public class CanisterFluidHandler extends ItemAccessResourceHandler<FluidResourc
      *
      * @param index    always 0 (single tank)
      * @param resource the fluid resource
-     * @return capacity in microblobs
+     * @return capacity
      */
     @Override
     protected int getCapacity(int index, FluidResource resource) {

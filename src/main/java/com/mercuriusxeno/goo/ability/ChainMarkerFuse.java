@@ -27,7 +27,7 @@ public final class ChainMarkerFuse {
 
     /**
      * Resets the fuse to the chain block's full fuse, as when a throw is
-     * declared toward the marker or a blob lands on it before it fires.
+     * declared toward the marker or a goo lands on it before it fires.
      *
      * @param chain the ability's chain block
      */

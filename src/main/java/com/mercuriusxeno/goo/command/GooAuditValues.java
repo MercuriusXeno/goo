@@ -50,13 +50,13 @@ final class GooAuditValues {
      */
     private static final String MSG_CONFLICTS_CHAT_SUFFIX = " recipe-cheaper)";
     /**
-     * Blobs label in conflict lines.
+     * Goo label in conflict lines.
      */
-    private static final String LABEL_BLOBS_OPEN = " blobs {";
+    private static final String LABEL_GOO_OPEN = " goo {";
     /**
      * Close brace in conflict lines.
      */
-    private static final String LABEL_BLOBS_CLOSE = "}";
+    private static final String LABEL_GOO_CLOSE = "}";
     /**
      * Recipe cheaper direction label.
      */
@@ -99,7 +99,7 @@ final class GooAuditValues {
     /**
      * Divisibility chat suffix.
      */
-    private static final String MSG_DIV_CHAT_SUFFIX = " recipe(s) lose blobs to integer division";
+    private static final String MSG_DIV_CHAT_SUFFIX = " recipe(s) lose goo to integer division";
     /**
      * Divisibility total label.
      */
@@ -113,9 +113,9 @@ final class GooAuditValues {
      */
     private static final String DIV_EACH = " each (loses ";
     /**
-     * Divisibility blob(s) suffix.
+     * Divisibility goo(s) suffix.
      */
-    private static final String DIV_BLOBS = " blob(s))";
+    private static final String DIV_GOO = " goo(s))";
     /**
      * Divisibility ingredient provenance newline indent.
      */
@@ -222,8 +222,8 @@ final class GooAuditValues {
      * @return the formatted line
      */
     private static String formatConflictFileLine(GooValueRegistry.ValueConflict conflict) {
-        String baseStr = conflict.baseValue().totalBlobs() + LABEL_BLOBS_OPEN + conflict.baseValue() + LABEL_BLOBS_CLOSE;
-        String recipeStr = conflict.recipeValue().totalBlobs() + LABEL_BLOBS_OPEN + conflict.recipeValue() + LABEL_BLOBS_CLOSE;
+        String baseStr = conflict.baseValue().totalGoo() + LABEL_GOO_OPEN + conflict.baseValue() + LABEL_GOO_CLOSE;
+        String recipeStr = conflict.recipeValue().totalGoo() + LABEL_GOO_OPEN + conflict.recipeValue() + LABEL_GOO_CLOSE;
         String direction = conflict.isRecipeCheaper() ? DIR_RECIPE_CHEAPER : DIR_BASE_CHEAPER;
         return GooAuditReport.INDENT + conflict.item() + CONFLICT_BASE + baseStr + CONFLICT_VS + recipeStr + GooAuditReport.SEP_SPACE + direction;
     }
@@ -273,7 +273,7 @@ final class GooAuditValues {
         sb.append(GooAuditReport.INDENT).append(loss.output()).append(SEP_DASH)
                 .append(loss.inputTotal()).append(DIV_TOTAL)
                 .append(loss.outputCount()).append(DIV_ITEMS).append(loss.perItemValue())
-                .append(DIV_EACH).append(loss.lostBlobs()).append(DIV_BLOBS);
+                .append(DIV_EACH).append(loss.lostGoo()).append(DIV_GOO);
         appendIngredientProvenance(values, sb, loss);
         return sb.toString();
     }
@@ -321,7 +321,7 @@ final class GooAuditValues {
             sb.append(LABEL_NO_VALUE);
             return;
         }
-        sb.append(LABEL_EQ_VALUE).append(val.totalBlobs()).append(LABEL_OPEN_BRACE).append(val).append(LABEL_BLOBS_CLOSE)
+        sb.append(LABEL_EQ_VALUE).append(val.totalGoo()).append(LABEL_OPEN_BRACE).append(val).append(LABEL_GOO_CLOSE)
                 .append(values.table().hasBaseValue(itemId) ? LABEL_BASE : LABEL_DERIVED);
     }
 
@@ -352,7 +352,7 @@ final class GooAuditValues {
     private static String formatValueLine(GooValueRegistry values, Identifier itemId, GooValue value) {
         StringBuilder sb = new StringBuilder();
         sb.append(GooAuditReport.INDENT).append(itemId).append(LABEL_EQ_VALUE)
-                .append(value.totalBlobs()).append(LABEL_OPEN_BRACE).append(value).append(LABEL_BLOBS_CLOSE);
+                .append(value.totalGoo()).append(LABEL_OPEN_BRACE).append(value).append(LABEL_GOO_CLOSE);
         appendProvenance(values, sb, itemId);
         return sb.toString();
     }

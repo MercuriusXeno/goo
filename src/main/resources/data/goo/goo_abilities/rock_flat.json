@@ -6,7 +6,7 @@
   "chain": {
     "fuseTicks": 30,
     "maxStacks": 6,
-    "blobShape": "flat"
+    "markerShape": "flat"
   },
   "behaviors": [
     {

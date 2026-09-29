@@ -91,8 +91,8 @@ class ConventionTest {
                 .or(simpleName("CanisterBlockEntity"))
                 .or(simpleName("VatBlock"))
                 .or(simpleName("GooCauldronInteractions"))
-                .or(simpleName("BlobStacks"))
-                .or(simpleName("GooOmniblobItem"))
+                .or(simpleName("GooStacks"))
+                .or(simpleName("GooItem"))
                 .or(simpleName("ChrysmItem"))
                 .or(simpleName("PartiallyMeltedItem"))
                 .or(simpleName("GooFluidHandler"))
@@ -150,7 +150,7 @@ class ConventionTest {
 
     /**
      * No class under client but GooSubmitter picks an entity render type
-     * itself: every goo draw, a body, a fluid, a gasket cap, a thrown blob or
+     * itself: every goo draw, a body, a fluid, a gasket cap, a thrown goo or
      * an ability visual, asks the submitter for it. FULL_BRIGHT is a
      * compile-time constant javac inlines, so its guard is the checkstyle
      * regexp over the same packages rather than a bytecode rule.
@@ -200,7 +200,7 @@ class ConventionTest {
     }
 
     private static DescribedPredicate<JavaClass> carrierItemClass() {
-        return assignableTo(ITEM_PACKAGE + "GooOmniblobItem")
+        return assignableTo(ITEM_PACKAGE + "GooItem")
                 .or(assignableTo(ITEM_PACKAGE + "CanisterItem")).or(assignableTo(ITEM_PACKAGE + "VatBlockItem"))
                 .or(assignableTo(ITEM_PACKAGE + "HubBlockItem"))
                 .as("a goo carrier item class");
