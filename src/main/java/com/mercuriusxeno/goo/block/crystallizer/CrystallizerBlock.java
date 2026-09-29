@@ -30,6 +30,7 @@ import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -261,8 +262,9 @@ public class CrystallizerBlock extends GooMachineBlock {
      */
     private static boolean hitsMatureCrystal(CrystallizerBlockEntity crystallizer, BlockState state, BlockPos pos,
                                              BlockHitResult hit) {
-        return crystallizer.isMature(knobTier(state)) && ShapeHitCheck.hitInsideShape(hit, pos,
-                crystalShape(state.getValue(FACING), crystallizer.crystallized()));
+        VoxelShape crystal = crystalShape(state.getValue(FACING), crystallizer.crystallized());
+        return crystallizer.isMature(knobTier(state)) && !crystal.isEmpty()
+                && CrystalReach.landsOn(crystal.bounds(), hit.getLocation().subtract(Vec3.atLowerCornerOf(pos)));
     }
 
     /**

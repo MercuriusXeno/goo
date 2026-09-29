@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.item.ChrysmTier;
 import com.mercuriusxeno.goo.network.BlockLandingTests;
 import com.mercuriusxeno.goo.network.GloveSelectTests;
 import com.mercuriusxeno.goo.network.MobEffectTests;
@@ -82,6 +83,7 @@ public final class GooTestFunctions {
     private static final String CRYSTALLIZER_GASKET_FILLS_CANISTER = "crystallizer_gasket_fills_canister";
     private static final String CRYSTALLIZER_CLICK_CRYSTAL = "crystallizer_click_crystal";
     private static final String CRYSTALLIZER_EVEN_PACE = "crystallizer_even_pace";
+    private static final String CRYSTALLIZER_STANDING_AIM_TAKES = "crystallizer_standing_aim_takes_";
     private static final String CRYSTALLIZER_OFF_CRYSTALLIZES_NOTHING = "crystallizer_off_crystallizes_nothing";
     // --- Gasket demand ---
     private static final String GASKET_DEMAND_VAT_FILLS_HUB = "gasket_demand_vat_fills_hub";
@@ -398,6 +400,10 @@ public final class GooTestFunctions {
         reg(r, CRYSTALLIZER_GASKET_FILLS_CANISTER, CrystallizerTests::gasketFillsTheIngredientCanister);
         reg(r, CRYSTALLIZER_CLICK_CRYSTAL, CrystallizerTests::clickingTheCrystalTakesTheChrysm);
         reg(r, CRYSTALLIZER_EVEN_PACE, CrystallizerTests::crystallizesAtAnEvenPace);
+        for (ChrysmTier tier : ChrysmTier.values()) {
+            reg(r, CRYSTALLIZER_STANDING_AIM_TAKES + tier.registryPath(),
+                    h -> CrystallizerTests.standingAimTakesTheCrystal(h, tier));
+        }
         reg(r, CRYSTALLIZER_OFF_CRYSTALLIZES_NOTHING, CrystallizerTests::offCrystallizesNothing);
     }
 

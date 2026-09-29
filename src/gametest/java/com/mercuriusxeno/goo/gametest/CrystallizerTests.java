@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
 import com.mercuriusxeno.goo.block.canister.CanisterSlotLayout;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlock;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
+import com.mercuriusxeno.goo.block.crystallizer.CrystalReach;
 import com.mercuriusxeno.goo.block.crystallizer.CrystallizerBlock;
 import com.mercuriusxeno.goo.block.crystallizer.CrystallizerBlockEntity;
 import com.mercuriusxeno.goo.block.crystallizer.CrystallizerPhases;
@@ -30,6 +31,12 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
@@ -81,6 +88,8 @@ public final class CrystallizerTests {
     private static final int HALF_CHRYSM_TICKS = 260;
     private static final int STILL_GROWING_TICKS = 100;
     private static final int SOME_TICKS = 20;
+    /** The server takes a click's point only within this of its block's center. */
+    private static final double SERVER_REACH = 1.0000001;
     /** Goo past a chrysm: 16,000 mB at the budding pace of 968 a tick, 17 ticks after the chrysm's 500. */
     private static final int EXCESS = 16_000;
     private static final int EXCESS_TICKS = 560;
@@ -619,6 +628,105 @@ public final class CrystallizerTests {
             helper.assertTrue(hand.is(GooItems.CHRYSM.get()), "A click on the crystal should hand the chrysm, found " + hand);
             helper.succeed();
         });
+    }
+
+    /**
+     * A grown crystal of the tier is taken from beside the crystallizer at a standing
+     * player's eye height, aimed anywhere across its body, level looks included, through
+     * the client's target decision: the game's own ray, or the crystal on the sight line
+     * when it is nearer (operator ruling: the crystal's shape is the thing to interact
+     * with, from any side, at the player's normal reach).
+     *
+     * @param helper the gametest helper
+     * @param tier   the tier the crystal has grown to, the dial set to it
+     */
+    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
+    public static void standingAimTakesTheCrystal(GameTestHelper helper, ChrysmTier tier) {
+        placeCrystallizer(helper, tier.ordinal() + 1);
+        seedCrystal(helper, tier);
+        BlockPos abs = helper.absolutePos(CRYSTALLIZER_POS);
+        CrystallizerBlockEntity crystallizer = helper.getBlockEntity(CRYSTALLIZER_POS, CrystallizerBlockEntity.class);
+        AABB box = CrystallizerBlock.crystalShape(Direction.NORTH, crystallizer.crystallized()).bounds().move(abs);
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        StringBuilder failed = new StringBuilder();
+        int tried = 0;
+        Vec3[] eyes = {new Vec3(abs.getX() - 1.3, abs.getY() + 1.62, abs.getZ() + 0.35),
+            new Vec3(abs.getX() - 1.3, abs.getY() + 1.62, abs.getZ() + 0.9),
+            new Vec3(abs.getX() - 1.3, box.minY + (box.maxY - box.minY) * HALF, box.minZ + (box.maxZ - box.minZ) * HALF)};
+        for (Vec3 eye : eyes) {
+            for (double u = 0.2; u <= 0.8; u += 0.3) {
+                for (double v = 0.1; v <= 0.9; v += 0.4) {
+                    Vec3 aim = new Vec3(box.minX + (box.maxX - box.minX) * u, box.minY + (box.maxY - box.minY) * v,
+                            box.minZ + (box.maxZ - box.minZ) * HALF);
+                    tried++;
+                    String missed = clickAlongSight(helper, player, eye, aim, tier);
+                    if (missed != null) {
+                        failed.append(" | eye ").append(eye.subtract(Vec3.atLowerCornerOf(abs))).append(" aim ")
+                                .append(aim.subtract(Vec3.atLowerCornerOf(abs))).append(": ").append(missed);
+                    }
+                }
+            }
+        }
+        helper.getLevel().removePlayerImmediately(player, net.minecraft.world.entity.Entity.RemovalReason.DISCARDED);
+        helper.assertTrue(failed.isEmpty(), "Standing aims that missed the " + tier + " crystal (" + tried
+                + " tried, box " + box.move(Vec3.atLowerCornerOf(abs).reverse()) + "):" + failed);
+        helper.succeed();
+    }
+
+    /**
+     * Clicks along one sight line as the client targets it, and seeds the crystal again after a take.
+     *
+     * @return null when the tier's chrysm was taken or another block stands in front, else what happened
+     */
+    private static String clickAlongSight(GameTestHelper helper, ServerPlayer player, Vec3 eye, Vec3 aim,
+                                          ChrysmTier tier) {
+        player.setPos(eye.x, eye.y - player.getEyeHeight(), eye.z);
+        player.getInventory().clearContent();
+        Vec3 end = eye.add(aim.subtract(eye).normalize().scale(player.blockInteractionRange()));
+        BlockHitResult gameHit = helper.getLevel().clip(new ClipContext(eye, end, ClipContext.Block.OUTLINE,
+                ClipContext.Fluid.NONE, player));
+        BlockHitResult sighted = CrystalReach.nearestCrystalHit(pos -> takeableCrystalShape(helper, pos), eye, end);
+        BlockHitResult click = (BlockHitResult) CrystalReach.retarget(gameHit, sighted, eye);
+        if (!click.getBlockPos().equals(helper.absolutePos(CRYSTALLIZER_POS))) {
+            return null; // Another block stands in front of the crystal on this sight line, so the click is rightly its.
+        }
+        Vec3 off = click.getLocation().subtract(Vec3.atCenterOf(click.getBlockPos()));
+        boolean serverAccepts = Math.abs(off.x) < SERVER_REACH && Math.abs(off.y) < SERVER_REACH
+                && Math.abs(off.z) < SERVER_REACH;
+        InteractionResult result = serverAccepts ? player.gameMode.useItemOn(player, helper.getLevel(),
+                player.getItemInHand(InteractionHand.MAIN_HAND), InteractionHand.MAIN_HAND, click) : null;
+        Item handed = GooItems.CHRYSM_TIERS.get(tier.ordinal()).get();
+        if (player.getInventory().contains(stack -> stack.is(handed))) {
+            seedCrystal(helper, tier);
+            return null;
+        }
+        BlockPos abs = helper.absolutePos(CRYSTALLIZER_POS);
+        return "gameHit " + helper.getLevel().getBlockState(gameHit.getBlockPos()).getBlock() + " " + gameHit.getType()
+                + ", sighted " + (sighted == null ? null : sighted.getLocation().subtract(Vec3.atLowerCornerOf(abs)))
+                + ", clicked " + click.getLocation().subtract(Vec3.atLowerCornerOf(abs)) + ", serverAccepts "
+                + serverAccepts + ", result " + result;
+    }
+
+    /** Reloads the crystallizer from its saved data holding a grown crystal of ender at the tier. */
+    private static void seedCrystal(GameTestHelper helper, ChrysmTier tier) {
+        net.minecraft.server.level.ServerLevel level = helper.getLevel();
+        CrystallizerBlockEntity placed = helper.getBlockEntity(CRYSTALLIZER_POS, CrystallizerBlockEntity.class);
+        net.minecraft.nbt.CompoundTag saved = placed.saveWithFullMetadata(level.registryAccess());
+        saved.putLong("Crystallized", tier.volume());
+        saved.putString("FormingType", GooTypes.ENDER.identifier().toString());
+        level.removeBlockEntity(placed.getBlockPos());
+        level.setBlockEntity(net.minecraft.world.level.block.entity.BlockEntity.loadStatic(placed.getBlockPos(),
+                placed.getBlockState(), saved, level.registryAccess()));
+    }
+
+    private static VoxelShape takeableCrystalShape(GameTestHelper helper, BlockPos pos) {
+        BlockState state = helper.getLevel().getBlockState(pos);
+        if (!(state.getBlock() instanceof CrystallizerBlock)
+                || !(helper.getLevel().getBlockEntity(pos) instanceof CrystallizerBlockEntity crystallizer)
+                || !crystallizer.isMature(CrystallizerBlock.knobTier(state))) {
+            return Shapes.empty();
+        }
+        return CrystallizerBlock.crystalShape(state.getValue(CrystallizerBlock.FACING), crystallizer.crystallized());
     }
 
     /**
