@@ -22,10 +22,8 @@ final class FaceBullseyeRenderer {
     static final double FACE_NUDGE = 0.01;
     /** Line segments each ring is drawn with. */
     static final int RING_SEGMENTS = 32;
-    /** Radii of the rings, in blocks from the face center; none reaches the face's edge. */
-    static final double[] RING_RADII = {0.12, 0.24, 0.36};
-    /** Alpha of every ring on the additive glow lines. */
-    private static final int RING_ALPHA = 160;
+    /** Alpha of a ring at birth on the additive glow lines, before it fades. */
+    private static final int RING_PEAK_ALPHA = 160;
 
     private FaceBullseyeRenderer() {}
 
@@ -75,9 +73,10 @@ final class FaceBullseyeRenderer {
      * @param camera       the render camera
      * @param target       the aim target; only a block target draws
      * @param rgb          the goo's highlight color
+     * @param nowSeconds   seconds on the real-time clock the ripple runs on
      */
     static void render(PoseStack poseStack, MultiBufferSource.BufferSource bufferSource,
-            Camera camera, TargetResult target, int rgb) {
+            Camera camera, TargetResult target, int rgb, double nowSeconds) {
         Direction face = bullseyeFace(target);
         if (face == null) {
             return;
@@ -85,10 +84,14 @@ final class FaceBullseyeRenderer {
         Vec3 faceCenter = target.resolveEndpoint();
         Vec3 cam = camera.position();
         float width = Minecraft.getInstance().getWindow().getAppropriateLineWidth();
-        int color = ARGB.color(RING_ALPHA, ARGB.red(rgb), ARGB.green(rgb), ARGB.blue(rgb));
         LineContext ctx = new LineContext(poseStack.last(), bufferSource.getBuffer(GooRenderTypes.LINES_GLOW));
-        for (double radius : RING_RADII) {
-            ctx.emitPolyline(cam, ringPoints(faceCenter, face, radius, RING_SEGMENTS), color, width);
+        for (double phase : RippleRings.ringPhases(nowSeconds)) {
+            int alpha = (int) (RING_PEAK_ALPHA * RippleRings.ringOpacity(phase));
+            if (RippleRings.isAlive(phase) && alpha > 0) {
+                int color = ARGB.color(alpha, ARGB.red(rgb), ARGB.green(rgb), ARGB.blue(rgb));
+                Vec3[] ring = ringPoints(faceCenter, face, RippleRings.ringRadius(phase), RING_SEGMENTS);
+                ctx.emitPolyline(cam, ring, color, width);
+            }
         }
         bufferSource.endLastBatch();
     }

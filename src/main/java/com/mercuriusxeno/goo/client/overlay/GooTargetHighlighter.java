@@ -126,7 +126,8 @@ public final class GooTargetHighlighter {
          * @param target the aim target
          */
         void bullseye(TargetResult target) {
-            FaceBullseyeRenderer.render(ps, buf, camera, target, ClientGooTypes.highlight(selectedType));
+            FaceBullseyeRenderer.render(ps, buf, camera, target, ClientGooTypes.highlight(selectedType),
+                    realTimeSeconds());
         }
 
         /**
@@ -254,8 +255,9 @@ public final class GooTargetHighlighter {
     }
 
     /**
-     * The real-time clock the slide runs on, so a slow or paused tick leaves
-     * the slide's length unchanged (decision aim-arc-slides-in-real-time).
+     * The real-time clock the slide and the ripple run on, so a slow or paused
+     * tick leaves their timing unchanged (decisions aim-arc-slides-in-real-time,
+     * ripple-rings-fade-to-face-edge).
      *
      * @return seconds on the monotonic clock
      */
