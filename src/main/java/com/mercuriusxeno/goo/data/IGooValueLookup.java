@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.data;
 
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.item.ItemStack;
 import org.jspecify.annotations.Nullable;
 import java.util.Map;
 import java.util.Set;
@@ -41,6 +43,19 @@ public interface IGooValueLookup {
      * @return effective GooValue, or null
      */
     @Nullable GooValue lookup(Identifier itemId);
+
+    /**
+     * Returns the effective goo value for an item stack by its item id.
+     *
+     * @param stack the item stack to look up
+     * @return effective GooValue, or null for an empty stack or an unvalued item
+     */
+    default @Nullable GooValue lookup(ItemStack stack) {
+        if (stack.isEmpty()) {
+            return null;
+        }
+        return lookup(BuiltInRegistries.ITEM.getKey(stack.getItem()));
+    }
 
     /**
      * Returns true if the item has a hand-keyed base value (not derived from recipes).

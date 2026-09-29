@@ -31,9 +31,7 @@ class GooValueRegistryGraphTest {
      * Sets base values on the registry, copying to effective.
      */
     private void setBaseValues(Map<Identifier, GooValue> values) {
-        registry.baseValues.clear();
-        registry.baseValues.putAll(values);
-        registry.publishEffectiveValues(values);
+        registry.seedBaseValues(values);
     }
 
     // ── SCC Classification ──────────────────────────────────────────────

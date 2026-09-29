@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.client.tooltip.GooValueTooltipComponent;
 import com.mercuriusxeno.goo.client.tooltip.VanillaFluidTooltipComponent;
 import com.mercuriusxeno.goo.data.GooValue;
+import com.mercuriusxeno.goo.data.IGooValueLookup;
 import com.mercuriusxeno.goo.fluid.GooBucketItem;
 import com.mercuriusxeno.goo.item.*;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
@@ -256,9 +257,10 @@ public final class GooTooltipHandler {
      */
     private static GooValue lookupContainerValue(ItemStack stack) {
         Identifier itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
-        GooValue value = Goo.GOO_VALUES.lookup(itemId);
+        IGooValueLookup values = ClientGooValues.current();
+        GooValue value = values.lookup(itemId);
         if ((value == null || value.isEmpty()) && stack.getItem() instanceof BucketItem) {
-            return Goo.GOO_VALUES.lookup(BuiltInRegistries.ITEM.getKey(Items.BUCKET));
+            return values.lookup(BuiltInRegistries.ITEM.getKey(Items.BUCKET));
         }
         return value;
     }
@@ -320,7 +322,7 @@ public final class GooTooltipHandler {
      * @return the value, or null if not found
      */
     private static GooValue lookupValue(ItemStack stack) {
-        return Goo.GOO_VALUES.lookup(stack);
+        return ClientGooValues.current().lookup(stack);
     }
 
     /**

@@ -1,11 +1,11 @@
 package com.mercuriusxeno.goo.client.ber;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBasin;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
 import com.mercuriusxeno.goo.block.crucible.CrucibleMeltQueue;
 import com.mercuriusxeno.goo.block.crucible.CrucibleShape;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
+import com.mercuriusxeno.goo.client.ClientGooValues;
 import com.mercuriusxeno.goo.client.SurfaceRipple;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -358,7 +358,7 @@ final class CrucibleMeltingItems {
      * @return the glow
      */
     private static DissolveGlow glowOf(CrucibleMeltQueue.Entry head) {
-        GooValue value = Goo.GOO_VALUES.lookup(head.item());
+        GooValue value = ClientGooValues.current().lookup(head.item());
         if (value == null || value.isEmpty()) {
             return DissolveGlow.single(head.dissolveFraction(), WHITE_GLOW);
         }
