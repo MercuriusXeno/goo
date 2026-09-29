@@ -26,8 +26,10 @@ public final class CrystallizerPhases {
 
     /** A chrysm crystallizes from empty in 25 s, and each tier after takes twice the one before. */
     public static final int CHRYSM_TICKS = 500;
-    /** The knob's positions, each capping crystallizing at the tier of its number. */
-    public static final int KNOB_POSITIONS = 3;
+    /** The knob's five positions: 0 is off, and 1 to 4 cap crystallizing at the tier of their number. */
+    public static final int KNOB_POSITIONS = 5;
+    /** The knob's highest position, materia. */
+    public static final int KNOB_MAX = KNOB_POSITIONS - 1;
 
     private CrystallizerPhases() {
     }
@@ -85,13 +87,37 @@ public final class CrystallizerPhases {
     }
 
     /**
-     * Operator ruling: a right click on the knob steps its size and wraps from 3 to 1.
+     * A right click on the knob steps it up and wraps from materia to off (decision
+     * dial-five-positions-off-to-materia).
      *
-     * @param knob the knob's size, 1 to 3
-     * @return the next size
+     * @param knob the knob's position, 0 to 4
+     * @return the next position
      */
     public static int nextKnob(int knob) {
-        return knob % KNOB_POSITIONS + 1;
+        return (knob + 1) % KNOB_POSITIONS;
+    }
+
+    /**
+     * The tier a knob position caps crystallizing at (decision dial-five-positions-off-to-materia).
+     *
+     * @param knob the knob's position, 0 to 4
+     * @return chrysm, budding chrysm, flowering chrysm or materia for 1 to 4, null for off
+     */
+    public static @Nullable ChrysmTier tierForKnob(int knob) {
+        return knob == 0 ? null : ChrysmTier.values()[knob - 1];
+    }
+
+    /**
+     * Operator ruling: the crystal is clickable once it reaches maturity, the knob's
+     * tier. With the knob off nothing grows, so any tier a crystal already reached is
+     * mature.
+     *
+     * @param crystallized the crystallized volume, in mB
+     * @param cap          the tier the knob caps at, or null when off
+     * @return true when the crystal is mature
+     */
+    public static boolean isMature(long crystallized, @Nullable ChrysmTier cap) {
+        return cap == null ? reachedTier(crystallized) != null : crystallized > 0 && crystallized >= cap.volume();
     }
 
     /**
@@ -198,15 +224,15 @@ public final class CrystallizerPhases {
      * @param catalyst     what the catalyst canister holds
      * @param crystallized the goo crystallized so far, in mB
      * @param formingType  the type crystallized so far, or null when none is
-     * @param knob         the tier the knob caps crystallizing at
+     * @param knob         the tier the knob caps crystallizing at, or null when it is off
      * @param budget       the mB the pace lets this tick crystallize
      * @return the step, or null when nothing crystallizes this tick
      */
     public static @Nullable Step step(Held ingredient, Held catalyst, long crystallized,
-                                      @Nullable ResourceKey<GooTypeDefinition> formingType, ChrysmTier knob,
-                                      double budget) {
+                                      @Nullable ResourceKey<GooTypeDefinition> formingType,
+                                      @Nullable ChrysmTier knob, double budget) {
         ResourceKey<GooTypeDefinition> type = ingredient.type();
-        if (type == null || formingType != null && !formingType.equals(type)) {
+        if (knob == null || type == null || formingType != null && !formingType.equals(type)) {
             return null;
         }
         long room = Math.max(0, knob.volume() - crystallized);

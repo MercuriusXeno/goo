@@ -216,13 +216,11 @@ public class CrystallizerBlockEntity extends GooGlowingMachineBlockEntity
     }
 
     /**
-     * Operator ruling: the crystal is clickable once it reaches maturity, the knob's tier.
-     *
-     * @param knob the tier the knob names
-     * @return true when the crystallized volume has reached that tier
+     * @param knob the tier the knob names, or null when it is off
+     * @return true when the crystal is mature, as {@link CrystallizerPhases#isMature} reads it
      */
-    public boolean isMature(ChrysmTier knob) {
-        return crystallized > 0 && crystallized >= knob.volume();
+    public boolean isMature(@Nullable ChrysmTier knob) {
+        return CrystallizerPhases.isMature(crystallized, knob);
     }
 
     /**

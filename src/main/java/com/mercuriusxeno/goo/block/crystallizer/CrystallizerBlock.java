@@ -51,10 +51,10 @@ public class CrystallizerBlock extends GooMachineBlock {
     /** The face the knob sits on, toward the player who placed the crystallizer. */
     public static final EnumProperty<Direction> FACING = HorizontalDirectionalBlock.FACING;
     /**
-     * The knob, positions 1 to 3: the tier the crystallizer stops at, chrysm, budding or
-     * flowering chrysm (operator ruling: a right click on the knob steps it and wraps from 3 to 1).
+     * The knob, positions 0 to 4: off, then the tier the crystallizer stops at, chrysm,
+     * budding chrysm, flowering chrysm or materia (decision dial-five-positions-off-to-materia).
      */
-    public static final IntegerProperty KNOB = IntegerProperty.create("knob", 1, CrystallizerPhases.KNOB_POSITIONS);
+    public static final IntegerProperty KNOB = IntegerProperty.create("knob", 0, CrystallizerPhases.KNOB_MAX);
     public static final MapCodec<CrystallizerBlock> CODEC = simpleCodec(CrystallizerBlock::new);
 
     /** Whether the crystallizer crystallized within the last few ticks; the model lights its inlay. */
@@ -110,10 +110,10 @@ public class CrystallizerBlock extends GooMachineBlock {
 
     /**
      * @param state a crystallizer block state
-     * @return the tier its knob names
+     * @return the tier its knob names, or null when the knob is off
      */
-    public static ChrysmTier knobTier(BlockState state) {
-        return ChrysmTier.values()[state.getValue(KNOB) - 1];
+    public static @Nullable ChrysmTier knobTier(BlockState state) {
+        return CrystallizerPhases.tierForKnob(state.getValue(KNOB));
     }
 
     /**
