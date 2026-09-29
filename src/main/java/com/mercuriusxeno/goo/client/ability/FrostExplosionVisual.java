@@ -30,7 +30,10 @@ import net.minecraft.world.phys.Vec3;
  * riding out with the edge and drifting down. The vertex color carries
  * progress in red, the disc-local position in green and blue, and the fog's
  * remaining opacity in alpha, since a core pipeline takes no per-draw
- * uniforms.
+ * uniforms. A frost_tunnel marker draws no ring and sheds no snowflakes:
+ * its burnout sends a white-blue fog front into the wall ahead of the
+ * freezing, the {@link TunnelWave} drawn through
+ * {@code frost_tunnel_wave.fsh}, as the operator settled.
  */
 public final class FrostExplosionVisual implements BurnoutVisual {
 
@@ -68,7 +71,15 @@ public final class FrostExplosionVisual implements BurnoutVisual {
     }
 
     @Override
+    public int durationTicks(ChainBurnouts.Burnout burnout) {
+        return TunnelWave.isTunnel(burnout) ? TunnelWave.durationTicks(burnout.stackCount()) : DURATION_TICKS;
+    }
+
+    @Override
     public void begin(ChainBurnouts.Burnout burnout, ClientLevel level) {
+        if (TunnelWave.isTunnel(burnout)) {
+            return;
+        }
         Direction face = burnout.placedFace();
         float reach = zoneReach(areaShape(burnout), burnout.stackCount(), face);
         BlockPos pos = burnout.pos();
@@ -84,6 +95,10 @@ public final class FrostExplosionVisual implements BurnoutVisual {
 
     @Override
     public void render(ChainBurnouts.Burnout burnout, BurnoutFrame frame) {
+        if (TunnelWave.isTunnel(burnout)) {
+            TunnelWave.render(burnout, frame, GooRenderTypes.FROST_TUNNEL_WAVE_TYPE);
+            return;
+        }
         float progress = burnout.progress(frame.gameTime());
         float radius = zoneReach(areaShape(burnout), burnout.stackCount(), burnout.placedFace()) * spread(progress);
         int progressByte = NetherDiscMesh.toByte(progress);
