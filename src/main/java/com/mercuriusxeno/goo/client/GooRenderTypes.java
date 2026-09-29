@@ -185,7 +185,7 @@ public final class GooRenderTypes {
     public static final RenderType ROCK_EXPLOSION_TYPE = burnoutType(ROCK_EXPLOSION);
 
     /**
-     * Rock goo's tunnel wave pipeline: the tan pressure ripple that leads
+     * Rock goo's tunnel wave pipeline: the tan shock rings that lead
      * rock_tunnel's breaking into the wall, through
      * {@code tunnel_wave.vsh} and {@code rock_tunnel_wave.fsh}.
      */
@@ -204,7 +204,7 @@ public final class GooRenderTypes {
     public static final RenderType BLAZE_EXPLOSION_TYPE = burnoutType(BLAZE_EXPLOSION);
 
     /**
-     * Blaze goo's tunnel wave pipeline: the orange heat shimmer that leads
+     * Blaze goo's tunnel wave pipeline: the orange heat rings that lead
      * blaze_tunnel's smelting into the wall, through
      * {@code tunnel_wave.vsh} and {@code blaze_tunnel_wave.fsh}.
      */
@@ -223,7 +223,7 @@ public final class GooRenderTypes {
     public static final RenderType FROST_EXPLOSION_TYPE = burnoutType(FROST_EXPLOSION);
 
     /**
-     * Frost goo's tunnel wave pipeline: the white-blue fog front that leads
+     * Frost goo's tunnel wave pipeline: the white-blue fog rings that lead
      * frost_tunnel's freezing into the wall, through
      * {@code tunnel_wave.vsh} and {@code frost_tunnel_wave.fsh}.
      */
