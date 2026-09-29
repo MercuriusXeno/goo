@@ -29,6 +29,7 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.OptionalInt;
 import java.util.Set;
 
 /**
@@ -298,6 +299,21 @@ public class CrystallizerBlockEntity extends GooGlowingMachineBlockEntity
             }
         }
         return true;
+    }
+
+    /**
+     * The crystallizer draws each of its two canisters at its pace: the growing goo at the
+     * pace, crystal at a tenth of it (decision receivers-demand-and-links-relay).
+     */
+    @Override
+    public OptionalInt statedDemand(int slot, @Nullable ResourceKey<GooTypeDefinition> incoming) {
+        for (int role = 0; role < ROLE_COUNT; role++) {
+            if (canisterSlot(role) == slot) {
+                return OptionalInt.of(CrystallizerPhases.demand(crystallized,
+                        CrystallizerBlock.knobTier(getBlockState()), CrystallizerPhases.CATALYST.equals(incoming)));
+            }
+        }
+        return OptionalInt.empty();
     }
 
     @Override

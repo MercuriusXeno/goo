@@ -21,6 +21,8 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import org.jspecify.annotations.Nullable;
+import java.util.OptionalInt;
+import java.util.function.Function;
 import java.util.function.LongSupplier;
 import java.util.function.Predicate;
 
@@ -55,6 +57,7 @@ public final class CanisterSlot {
     private final Runnable onSync;
     private final Runnable onStructureChanged;
     private final Predicate<FluidResource> admits;
+    private final Function<FluidResource, OptionalInt> machineDemand;
 
     private ItemStack canister = ItemStack.EMPTY;
     private @Nullable CanisterSlotFluidHandler handler;
@@ -89,11 +92,42 @@ public final class CanisterSlot {
      */
     public CanisterSlot(int index, VoxelShape filledShape,
             Runnable onSync, Runnable onStructureChanged, Predicate<FluidResource> admits) {
+        this(index, filledShape, onSync, onStructureChanged, admits, resource -> OptionalInt.empty());
+    }
+
+    /**
+     * Creates an empty slot whose canister feeds a machine stating its own demand.
+     *
+     * @param index              the slot's position in the parent grid
+     * @param filledShape        the voxel shape this slot occupies when a canister is present
+     * @param onSync             called when transient state mutates (stream snapshot)
+     * @param onStructureChanged called when canister occupancy mutates (insert/remove)
+     * @param admits             answers whether the canister takes an arriving goo
+     * @param machineDemand      the demand the machine drawing on this slot states, or empty
+     */
+    public CanisterSlot(int index, VoxelShape filledShape, Runnable onSync, Runnable onStructureChanged,
+            Predicate<FluidResource> admits, Function<FluidResource, OptionalInt> machineDemand) {
         this.index = index;
         this.filledShape = filledShape;
         this.onSync = onSync;
         this.onStructureChanged = onStructureChanged;
         this.admits = admits;
+        this.machineDemand = machineDemand;
+    }
+
+    /**
+     * The demand of the consumer this canister feeds: the machine drawing on the slot, else
+     * the partner behind its bottom gasket, else none (decision receivers-demand-and-links-relay).
+     *
+     * @param resource the fluid the canister would receive
+     * @return the consumer's stated demand, or empty when nothing behind the canister states one
+     */
+    OptionalInt consumerDemand(FluidResource resource) {
+        OptionalInt machine = machineDemand.apply(resource);
+        if (machine.isPresent() || pusher == null) {
+            return machine;
+        }
+        return pusher.partnerStatedDemand(resource);
     }
 
     // --- Accessors ---
@@ -161,6 +195,7 @@ public final class CanisterSlot {
                 () -> onHandlerChanged(gameTime.getAsLong()),
                 gameTime, admits);
         newHandler.loadFrom(CanisterItem.getFluidContent(canister));
+        newHandler.setConsumerDemand(this::consumerDemand);
         this.handler = newHandler;
     }
 

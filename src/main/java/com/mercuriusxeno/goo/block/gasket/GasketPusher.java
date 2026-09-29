@@ -17,6 +17,7 @@ import net.neoforged.neoforge.transfer.ResourceHandler;
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import net.neoforged.neoforge.transfer.transaction.Transaction;
 import org.jspecify.annotations.Nullable;
+import java.util.OptionalInt;
 import java.util.UUID;
 import java.util.function.Supplier;
 
@@ -279,49 +280,44 @@ public class GasketPusher {
     }
 
     /**
-     * Dispatches to block or entity push path based on partner type.
+     * Pushes to the partner's handler when the source holds anything.
      */
     private void pushToDestinations() {
-        GasketPartner p = partner.get();
-        if (isSourceEmpty() || p == null) {
+        if (isSourceEmpty()) {
             return;
         }
-        if (p.isEntityTarget()) {
-            pushToEntityTarget(p);
-        } else {
-            pushToBlockTarget();
+        ResourceHandler<FluidResource> handler = resolveTarget();
+        if (handler != null) {
+            pushViaHandler(handler);
         }
     }
 
     /**
-     * Pushes via BlockCapabilityCache for block-based gasket partners.
-     */
-    private void pushToBlockTarget() {
-        if (endpointCache == null) {
-            return;
-        }
-        ResourceHandler<FluidResource> handler = endpointCache.getCapability();
-        if (handler == null) {
-            return;
-        }
-        pushViaHandler(handler);
-    }
-
-    /**
-     * Looks up the player entity by UUID and queries GASKET_ENTITY.
+     * The demand the partner states for a resource, the one the link this pusher
+     * stands on relays upstream (decision receivers-demand-and-links-relay).
      *
-     * @param p the gasket partner describing the entity target
+     * @param resource the fluid the link would receive
+     * @return the partner's stated demand, or empty when it states none or is unreachable
      */
-    private void pushToEntityTarget(GasketPartner p) {
-        Level lvl = level.get();
-        if (!(lvl instanceof ServerLevel serverLevel)) {
-            return;
+    public OptionalInt partnerStatedDemand(FluidResource resource) {
+        return GasketDemand.statedDemandOf(resolveTarget(), resource);
+    }
+
+    /**
+     * The partner's fluid handler: through the capability cache for a block, or the
+     * player's GASKET_ENTITY for an entity.
+     *
+     * @return the handler, or null when the partner is unset or unreachable
+     */
+    private @Nullable ResourceHandler<FluidResource> resolveTarget() {
+        GasketPartner p = partner.get();
+        if (p == null) {
+            return null;
         }
-        ResourceHandler<FluidResource> handler = resolveEntityHandler(serverLevel, p);
-        if (handler == null) {
-            return;
+        if (!p.isEntityTarget()) {
+            return endpointCache == null ? null : endpointCache.getCapability();
         }
-        pushViaHandler(handler);
+        return level.get() instanceof ServerLevel serverLevel ? resolveEntityHandler(serverLevel, p) : null;
     }
 
     /**

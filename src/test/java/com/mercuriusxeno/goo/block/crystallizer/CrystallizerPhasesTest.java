@@ -7,6 +7,8 @@ import com.mercuriusxeno.goo.block.crystallizer.CrystallizerPhases.Step;
 import com.mercuriusxeno.goo.item.ChrysmTier;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -154,5 +156,28 @@ class CrystallizerPhasesTest {
         org.junit.jupiter.api.Assertions.assertTrue(CrystallizerPhases.admits(crystal, GooTypes.ENDER), "ender beside crystal");
         org.junit.jupiter.api.Assertions.assertTrue(CrystallizerPhases.admits(CrystallizerPhases.Held.NOTHING, GooTypes.ENDER),
                 "ender beside nothing");
+    }
+
+    @Nested
+    class Demand {
+
+        @ParameterizedTest
+        @ValueSource(longs = {0, 500, 1_000, 250_000, 1_000_000, 500_000_000})
+        void theGrowingGooIsAskedAtThePace(long crystallized) {
+            assertEquals((int) Math.ceil(CrystallizerPhases.paceAllowance(crystallized)),
+                    CrystallizerPhases.demand(crystallized, ChrysmTier.MEGACHRYSM, false));
+        }
+
+        @Test
+        void crystalIsAskedAtATenthOfThePace() {
+            long crystallized = 250_000;
+            assertEquals((int) Math.ceil(CrystallizerPhases.paceAllowance(crystallized) / CrystallizerPhases.GOO_PER_CRYSTAL),
+                    CrystallizerPhases.demand(crystallized, ChrysmTier.MEGACHRYSM, true));
+        }
+
+        @Test
+        void aCrystalAtTheKnobsTierAsksNothing() {
+            assertEquals(0, CrystallizerPhases.demand(ChrysmTier.KILOCHRYSM.volume(), ChrysmTier.KILOCHRYSM, false));
+        }
     }
 }
