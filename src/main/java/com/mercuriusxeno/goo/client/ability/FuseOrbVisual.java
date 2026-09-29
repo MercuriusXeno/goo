@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.GooSubmitter;
+import com.mercuriusxeno.goo.client.RenderContext;
 import com.mercuriusxeno.goo.client.ber.ChainMarkerRenderState;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.SubmitNodeCollector;
@@ -22,7 +23,9 @@ import net.minecraft.util.ARGB;
  * scales with stack count and pulses on each stack add. Implodes inward
  * in the final ticks before detonation. GLOW orbs match the crystal
  * voxel shape from placement; FLAT-shape blobs splat against the placed
- * face with axis-asymmetric scaling.
+ * face with axis-asymmetric scaling. Every layer is the outward half of its
+ * box alone, from the face plane into the marker's own block, so nothing of
+ * the orb reaches into the block it rests on (decision blob-sits-on-the-face).
  */
 public final class FuseOrbVisual {
 
@@ -30,19 +33,19 @@ public final class FuseOrbVisual {
     private static final String SHAPE_FLAT = "flat";
 
     /** Base inner core half-size in block units (2 pixels) at 1 stack. */
-    private static final float CORE_BASE = 2f / 16f;
+    static final float CORE_BASE = 2f / 16f;
     /** Shell extends 1 pixel beyond core in each direction. */
-    private static final float SHELL_MARGIN = 1f / 16f;
+    static final float SHELL_MARGIN = 1f / 16f;
     /** Core growth per additional stack (1/32 block = 0.5 pixel). */
-    private static final float CORE_GROWTH = 1f / 32f;
+    static final float CORE_GROWTH = 1f / 32f;
 
     /** Splat squish factor along placed face axis (half height). */
-    private static final float SPLAT_HEIGHT = 0.5f;
+    static final float SPLAT_HEIGHT = 0.5f;
     /** Splat widen factor perpendicular to placed face (sqrt 2). */
-    private static final float SPLAT_WIDTH = 1.414f;
+    static final float SPLAT_WIDTH = 1.414f;
 
     /** Pulse amplitude: 10% size increase on stack add. */
-    private static final float PULSE_AMPLITUDE = 0.10f;
+    static final float PULSE_AMPLITUDE = 0.10f;
     /** Pulse duration in ticks. */
     private static final int PULSE_TICKS = 4;
 
@@ -51,15 +54,60 @@ public final class FuseOrbVisual {
     /** Outer shell alpha when the player is aiming at the node. */
     private static final int SHELL_ALPHA_TARGETED = 0xC0;
 
-    /** Ticks before detonation where implosion starts. */
-    private static final int IMPLOSION_TICKS = 6;
+    /** Ticks the eased shrink takes, from resting size to the minimum. */
+    static final int SHRINK_TICKS = 12;
+    /** Ticks the orb jitters at its minimum before detonation. */
+    static final int JITTER_TICKS = 4;
+    /** Ticks before detonation where the shrink starts: the shrink, then the jitter. */
+    public static final int FUSE_EXPIRY_TICKS = SHRINK_TICKS + JITTER_TICKS;
     /** Minimum scale during implosion (fraction of normal). */
-    private static final float IMPLOSION_MIN = 0.3f;
+    static final float IMPLOSION_MIN = 0.3f;
+    /** How far the jitter swings the scale either side of the minimum. */
+    static final float JITTER_AMPLITUDE = IMPLOSION_MIN * 0.2f;
+    /** Jitter phase speed in radians per tick, a swing about every tick and a half. */
+    private static final float JITTER_RATE = 4.2f;
+    /** Ticks per cycle of the crystal marker's ebb, four seconds. */
+    static final float CRYSTAL_EBB_PERIOD = 80f;
+    /** How far the crystal ebb swings the orb either side of resting size. */
+    static final float CRYSTAL_EBB_AMPLITUDE = 0.03f;
+    /** Ticks per mining beat, rapid beside the nether pulse. */
+    static final float MINING_BEAT_PERIOD = 6f;
+    /** How far a mining beat swells the orb past resting size, at its peak. */
+    static final float MINING_BEAT_AMPLITUDE = 0.12f;
+    private static final double TWO_PI = 2 * Math.PI;
+    /** Maps 1 - cos, which spans [0, 2], onto [0, 1]. */
+    private static final float COSINE_TO_UNIT = 0.5f;
 
     /** Center offset in block units. */
     private static final float BLOCK_CENTER = 0.5f;
     /** Divisor for converting crystal extent to half-size in block units. */
     private static final float CRYSTAL_HALF_DIVISOR = 2f;
+
+    /** The silhouette an orb takes, which picks its scale and its depth off the face. */
+    enum OrbShape {
+        /** A cube scaled evenly by the orb modifier. */
+        BLOB,
+        /** A cube squished along the face axis and widened across it. */
+        SPLAT,
+        /** A glow crystal's bump, its depth the crystal model's. */
+        GLOW_BUMP,
+        /** A glow crystal's flat, its depth the crystal model's. */
+        GLOW_FLAT;
+
+        /**
+         * Picks the shape a marker's goo type and blob shape draw.
+         *
+         * @param state the chain marker render state
+         * @return the orb shape
+         */
+        static OrbShape of(ChainMarkerRenderState state) {
+            boolean flat = SHAPE_FLAT.equals(state.blobShape);
+            if (state.gooType == GooTypes.GLOW) {
+                return flat ? GLOW_FLAT : GLOW_BUMP;
+            }
+            return flat ? SPLAT : BLOB;
+        }
+    }
 
     private FuseOrbVisual() {
     }
@@ -78,12 +126,15 @@ public final class FuseOrbVisual {
         float modifier = computeOrbModifier(state);
         int shellColor = computeShellColor(state);
         GooRenderUtil.UvRect uv = lookupSpriteUv(state.gooType);
+        OrbShape shape = OrbShape.of(state);
+        Direction face = state.placedFace;
 
         poseStack.pushPose();
-        translateToFace(poseStack, state);
-        applyOrbScale(poseStack, state, coreHalf, modifier);
-        submitCubeLayer(poseStack, nodeCollector, GooRenderUtil.OPAQUE_WHITE, coreHalf, uv);
-        submitCubeLayer(poseStack, nodeCollector, shellColor, shellHalf, uv);
+        placeOrb(poseStack, face, shape, modifier);
+        GooSubmitter.submitFluid(poseStack, nodeCollector,
+                ctx -> emitOrbLayer(ctx, GooRenderUtil.OPAQUE_WHITE, coreHalf, face, shape, uv));
+        GooSubmitter.submitFluid(poseStack, nodeCollector,
+                ctx -> emitOrbLayer(ctx, shellColor, shellHalf, face, shape, uv));
         poseStack.popPose();
     }
 
@@ -100,6 +151,97 @@ public final class FuseOrbVisual {
     }
 
     /**
+     * Moves the pose to the placed face plane and scales it about that
+     * plane, so no scale moves the orb into the block it rests on. Glow
+     * orbs keep the crystal's size and take no scale.
+     *
+     * @param poseStack the pose stack for rendering
+     * @param face      the placed face direction
+     * @param shape     the orb shape
+     * @param modifier  the combined orb scale modifier
+     */
+    static void placeOrb(PoseStack poseStack, Direction face, OrbShape shape, float modifier) {
+        translateToFace(poseStack, face);
+        if (shape == OrbShape.SPLAT) {
+            applySplatScale(poseStack, face, modifier);
+        } else if (shape == OrbShape.BLOB) {
+            poseStack.scale(modifier, modifier, modifier);
+        }
+    }
+
+    /**
+     * Emits one orb layer as the outward half of its box: a glow orb stands
+     * off the face by the crystal model's depth, every other orb by its
+     * half-size.
+     *
+     * @param ctx   the render context, its pose placed by placeOrb
+     * @param color the ARGB tint color
+     * @param half  the layer's lateral half-size in block units
+     * @param face  the placed face direction
+     * @param shape the orb shape
+     * @param uv    the UV texture rectangle
+     */
+    static void emitOrbLayer(RenderContext ctx, int color, float half, Direction face,
+                             OrbShape shape, GooRenderUtil.UvRect uv) {
+        ctx.emitBox(color, outwardHalfBounds(half, face, orbDepth(shape, half)), uv);
+    }
+
+    /**
+     * The box one orb layer fills: laterally from -half to +half, and along
+     * the face axis from the face plane out to depth in the direction the
+     * face steps (decision blob-sits-on-the-face).
+     *
+     * @param half  the lateral half-size
+     * @param face  the placed face direction
+     * @param depth the extent off the face plane
+     * @return the layer's bounds, relative to the center of the face plane
+     */
+    static CuboidBounds outwardHalfBounds(float half, Direction face, float depth) {
+        float near = face.getAxisDirection() == Direction.AxisDirection.POSITIVE ? 0f : -depth;
+        return new CuboidBounds(
+                lowOn(Direction.Axis.X, face, half, near), highOn(Direction.Axis.X, face, half, near + depth),
+                lowOn(Direction.Axis.Z, face, half, near), highOn(Direction.Axis.Z, face, half, near + depth),
+                lowOn(Direction.Axis.Y, face, half, near), highOn(Direction.Axis.Y, face, half, near + depth));
+    }
+
+    /**
+     * @param axis the axis the bound lies on
+     * @param face the placed face direction
+     * @param half the lateral half-size
+     * @param near the face-axis bound nearest the block the orb rests on
+     * @return the box's low bound on the axis
+     */
+    private static float lowOn(Direction.Axis axis, Direction face, float half, float near) {
+        return axis == face.getAxis() ? near : -half;
+    }
+
+    /**
+     * @param axis the axis the bound lies on
+     * @param face the placed face direction
+     * @param half the lateral half-size
+     * @param far  the face-axis bound farthest from the block the orb rests on
+     * @return the box's high bound on the axis
+     */
+    private static float highOn(Direction.Axis axis, Direction face, float half, float far) {
+        return axis == face.getAxis() ? far : half;
+    }
+
+    /**
+     * How far one orb layer stands off the face plane, before pose scale.
+     *
+     * @param shape the orb shape
+     * @param half  the layer's lateral half-size
+     * @return the layer's depth in block units
+     */
+    private static float orbDepth(OrbShape shape, float half) {
+        return switch (shape) {
+            case GLOW_BUMP -> (float) GlowCrystalBlock.BUMP_DEPTH;
+            case GLOW_FLAT -> (float) GlowCrystalBlock.FLAT_DEPTH;
+            case BLOB, SPLAT -> half;
+        };
+    }
+
+    /**
      * Glow orbs have no shell margin; all others add one.
      *
      * @param state    the chain marker render state
@@ -111,36 +253,66 @@ public final class FuseOrbVisual {
     }
 
     /**
-     * Combines implosion, pulse, and spike contraction into a single scale factor.
+     * Combines the implosion, the stack pulse and each ability's own rhythm into one scale factor.
      *
      * @param state the chain marker render state
      * @return the combined scale modifier
      */
     private static float computeOrbModifier(ChainMarkerRenderState state) {
         float implosion = state.behaviorActive
-                ? 1f : computeImplosionScale(state.fuseRemaining, state.partialTick);
+                ? computeHandoffScale(state.behaviorAge)
+                : computeImplosionScale(state.fuseRemaining, state.partialTick, state.gameTime);
         float pulse = computePulseScale(state);
-        float spikeContract = computeSpikeContraction(state);
-        return implosion * pulse * spikeContract;
+        float spikeShake = computeSpikeShake(state);
+        float ebb = crystalEbb(state.crystalActive, state.gameTime);
+        float beat = miningBeat(state.miningActive, state.gameTime, state.lastLayerTick);
+        return implosion * pulse * spikeShake * ebb * beat;
     }
 
     /**
-     * Applies the correct scale transform based on goo type and flat mode.
+     * The rock, blaze and frost marker's rapid beat while its program breaks
+     * blocks, each beat swelling from resting size and back (decision
+     * orchestration-animation-per-ability).
      *
-     * @param poseStack the pose stack for rendering
-     * @param state     the chain marker render state
-     * @param coreHalf  the inner core half-size in block units
-     * @param modifier  the combined scale modifier
+     * @param miningActive  true while a progressive-area program runs
+     * @param gameTime      the game time including the partial tick
+     * @param lastLayerTick the game time the mined layer count last changed
+     * @return the beat factor, exactly 1 while no program runs
      */
-    private static void applyOrbScale(PoseStack poseStack, ChainMarkerRenderState state,
-                                      float coreHalf, float modifier) {
-        if (state.gooType == GooTypes.GLOW) {
-            applyGlowScale(poseStack, state, coreHalf);
-        } else if (SHAPE_FLAT.equals(state.blobShape)) {
-            applySplatScale(poseStack, state.placedFace, modifier);
-        } else {
-            poseStack.scale(modifier, modifier, modifier);
+    static float miningBeat(boolean miningActive, float gameTime, long lastLayerTick) {
+        if (!miningActive) {
+            return 1f;
         }
+        float swell = 1f - (float) Math.cos(TWO_PI * miningBeatPhase(gameTime, lastLayerTick));
+        return 1f + MINING_BEAT_AMPLITUDE * swell * COSINE_TO_UNIT;
+    }
+
+    /**
+     * Where the mining beat stands in its cycle, restarting on each layer strike.
+     *
+     * @param gameTime      the game time including the partial tick
+     * @param lastLayerTick the game time the mined layer count last changed
+     * @return the beat's phase in [0, 1), 0 on the strike
+     */
+    static float miningBeatPhase(float gameTime, long lastLayerTick) {
+        float elapsed = Math.max(0f, gameTime - lastLayerTick);
+        return (elapsed % MINING_BEAT_PERIOD) / MINING_BEAT_PERIOD;
+    }
+
+    /**
+     * The crystal marker's slow, faint ebb and flow while its cloud holds
+     * the shards aloft (decision orchestration-animation-per-ability).
+     *
+     * @param crystalActive true while the crystal cloud stands
+     * @param gameTime      the game time including the partial tick
+     * @return the ebb factor, exactly 1 while no cloud stands
+     */
+    static float crystalEbb(boolean crystalActive, float gameTime) {
+        if (!crystalActive) {
+            return 1f;
+        }
+        double phase = TWO_PI * gameTime / CRYSTAL_EBB_PERIOD;
+        return 1f + CRYSTAL_EBB_AMPLITUDE * (float) Math.sin(phase);
     }
 
     /**
@@ -153,7 +325,7 @@ public final class FuseOrbVisual {
      */
     private static float computeCoreHalf(ChainMarkerRenderState state) {
         if (state.gooType == GooTypes.GLOW) {
-            return computeGlowCoreHalf(state);
+            return computeGlowCoreHalf(state.stackCount);
         }
         return CORE_BASE + (state.stackCount - 1) * CORE_GROWTH;
     }
@@ -162,12 +334,12 @@ public final class FuseOrbVisual {
      * Returns the crystal's lateral half-extent so the glow orb matches
      * the crystal voxel shape from the moment it lands.
      *
-     * @param state the chain marker render state
+     * @param stackCount the marker's stack count
      * @return the crystal half-size in block units
      */
-    private static float computeGlowCoreHalf(ChainMarkerRenderState state) {
+    static float computeGlowCoreHalf(int stackCount) {
         GlowCrystalBlock.CrystalSize cs =
-                GlowCrystalBlock.CrystalSize.fromStacks(state.stackCount);
+                GlowCrystalBlock.CrystalSize.fromStacks(stackCount);
         return (float) ((cs.max - cs.min) / CRYSTAL_HALF_DIVISOR);
     }
 
@@ -204,24 +376,21 @@ public final class FuseOrbVisual {
     }
 
     /**
-     * Minimum blob contraction across all active spike animations.
-     * During windup the blob squeezes before the spike emerges.
+     * The strongest windup shake across the spikes in flight, so the orb
+     * shakes each time it is about to stab.
      *
      * @param state the chain marker render state
-     * @return contraction scale [0.85, 1.0]
+     * @return the shake scale, 1 while no spike winds up
      */
-    private static float computeSpikeContraction(ChainMarkerRenderState state) {
-        if (state.spikeAnims.isEmpty()) {
-            return 1f;
-        }
-        float minScale = 1f;
+    private static float computeSpikeShake(ChainMarkerRenderState state) {
+        float strongest = 1f;
         for (FieldStrike spike : state.spikeAnims) {
-            float s = MetalSpikeVisual.blobContraction(spike.age(), state.partialTick, state.spikeStrikeTick);
-            if (s < minScale) {
-                minScale = s;
+            float s = MetalSpikeVisual.blobShake(spike.age(), state.partialTick, state.spikeStrikeTick);
+            if (Math.abs(s - 1f) > Math.abs(strongest - 1f)) {
+                strongest = s;
             }
         }
-        return minScale;
+        return strongest;
     }
 
     /**
@@ -238,10 +407,9 @@ public final class FuseOrbVisual {
      * Translates to the face boundary where the blob splats into the wall.
      *
      * @param poseStack the pose stack for rendering
-     * @param state     the chain marker render state
+     * @param face      the placed face direction
      */
-    private static void translateToFace(PoseStack poseStack, ChainMarkerRenderState state) {
-        Direction face = state.placedFace;
+    private static void translateToFace(PoseStack poseStack, Direction face) {
         float ox = face.getStepX() * BLOCK_CENTER;
         float oy = face.getStepY() * BLOCK_CENTER;
         float oz = face.getStepZ() * BLOCK_CENTER;
@@ -254,7 +422,7 @@ public final class FuseOrbVisual {
      *
      * @param poseStack the pose stack to scale
      * @param face      the placed face direction
-     * @param modifier  combined implosion/pulse/spike-contract scale
+     * @param modifier  the combined orb scale modifier
      */
     private static void applySplatScale(PoseStack poseStack, Direction face, float modifier) {
         float wide = SPLAT_WIDTH * modifier;
@@ -266,55 +434,51 @@ public final class FuseOrbVisual {
     }
 
     /**
-     * Scales the glow orb so the face axis depth matches the crystal
-     * model exactly (2px for bump, 0.01 for flat).
-     *
-     * @param poseStack the pose stack to scale
-     * @param state     the render state
-     * @param coreHalf  the lateral half-size (used to compute depth ratio)
-     */
-    private static void applyGlowScale(PoseStack poseStack,
-                                       ChainMarkerRenderState state, float coreHalf) {
-        float visibleDepth = (float) (SHAPE_FLAT.equals(state.blobShape)
-                ? GlowCrystalBlock.FLAT_DEPTH : GlowCrystalBlock.BUMP_DEPTH);
-        float depthScale = visibleDepth / coreHalf;
-        Direction face = state.placedFace;
-        float sx = face.getAxis() == Direction.Axis.X ? depthScale : 1f;
-        float sy = face.getAxis() == Direction.Axis.Y ? depthScale : 1f;
-        float sz = face.getAxis() == Direction.Axis.Z ? depthScale : 1f;
-        poseStack.scale(sx, sy, sz);
-    }
-
-    /**
-     * Submits one fullbright translucent cube layer.
-     *
-     * @param poseStack     the pose stack for rendering
-     * @param nodeCollector the render node collector
-     * @param color         the ARGB tint color
-     * @param half          the half-size of the cube
-     * @param uv            the UV texture rectangle
-     */
-    private static void submitCubeLayer(PoseStack poseStack,
-                                        SubmitNodeCollector nodeCollector, int color, float half,
-                                        GooRenderUtil.UvRect uv) {
-        CuboidBounds box = new CuboidBounds(-half, half, -half, half, -half, half);
-        GooSubmitter.submitFluid(poseStack, nodeCollector, ctx -> ctx.emitBox(color, box, uv));
-    }
-
-    /**
-     * Implosion scale: 1.0 normally, shrinks to IMPLOSION_MIN in the
-     * final IMPLOSION_TICKS before detonation. Smooth via partial tick.
+     * Implosion scale (decision shrink-eases-then-jitters): 1.0 until the
+     * last FUSE_EXPIRY_TICKS, then an ease-in-out fall to IMPLOSION_MIN over
+     * SHRINK_TICKS, then a jitter about the minimum until detonation. A
+     * fuse waiting on a trigger holds at the minimum, still.
      *
      * @param fuseRemaining the fuse ticks remaining
      * @param partialTick   the partial tick for interpolation
+     * @param gameTime      the game time including the partial tick, the jitter's clock
      * @return the computed implosion scale
      */
-    private static float computeImplosionScale(int fuseRemaining, float partialTick) {
-        if (fuseRemaining > IMPLOSION_TICKS) {
-            return 1f;
+    static float computeImplosionScale(int fuseRemaining, float partialTick, float gameTime) {
+        if (fuseRemaining < 0) {
+            return IMPLOSION_MIN;
         }
         float smoothFuse = Math.max(0f, fuseRemaining - partialTick);
-        float t = 1f - (smoothFuse / IMPLOSION_TICKS);
-        return 1f - t * (1f - IMPLOSION_MIN);
+        if (smoothFuse >= FUSE_EXPIRY_TICKS) {
+            return 1f;
+        }
+        if (smoothFuse >= JITTER_TICKS) {
+            float t = (FUSE_EXPIRY_TICKS - smoothFuse) / SHRINK_TICKS;
+            return 1f - easeInOut(t) * (1f - IMPLOSION_MIN);
+        }
+        return IMPLOSION_MIN + JITTER_AMPLITUDE * (float) Math.sin(gameTime * JITTER_RATE);
+    }
+
+    /**
+     * The scale after the behavior becomes active: the shrink curve run
+     * backward, from the jitter's minimum to resting size over SHRINK_TICKS,
+     * so the orb never snaps back to size.
+     *
+     * @param behaviorAge ticks since the client first drew the behavior, partial tick included
+     * @return the handoff scale
+     */
+    static float computeHandoffScale(float behaviorAge) {
+        float t = Math.min(1f, Math.max(0f, behaviorAge / SHRINK_TICKS));
+        return IMPLOSION_MIN + easeInOut(t) * (1f - IMPLOSION_MIN);
+    }
+
+    /**
+     * Cosine ease-in-out: slow, then fast, then slow.
+     *
+     * @param t progress in [0, 1]
+     * @return eased progress in [0, 1]
+     */
+    private static float easeInOut(float t) {
+        return (1f - (float) Math.cos(t * Math.PI)) * COSINE_TO_UNIT;
     }
 }

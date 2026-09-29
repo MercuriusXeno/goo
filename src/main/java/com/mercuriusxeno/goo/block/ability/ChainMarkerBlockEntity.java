@@ -11,6 +11,7 @@ import com.mercuriusxeno.goo.ability.program.ProgressiveAreaStep;
 import com.mercuriusxeno.goo.block.BlockEntitySync;
 import com.mercuriusxeno.goo.block.GooSyncedBlockEntity;
 import com.mercuriusxeno.goo.item.GooContents;
+import com.mercuriusxeno.goo.network.ChainBurnoutPayload;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import net.minecraft.core.BlockPos;
@@ -22,6 +23,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
+import net.neoforged.neoforge.network.PacketDistributor;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -64,9 +66,11 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
      */
     private static final int SYNC_INTERVAL = 5;
     /**
-     * Ticks before detonation where we sync every tick for smooth implosion.
+     * Ticks before detonation where we sync every tick, covering the fuse
+     * orb's whole shrink and jitter so every tick of it reaches the client
+     * (decision shrink-eases-then-jitters).
      */
-    private static final int IMPLOSION_SYNC_THRESHOLD = 8;
+    public static final int IMPLOSION_SYNC_THRESHOLD = 16;
 
     /**
      * Where a client-side marker reads its ability's steps; client setup
@@ -95,6 +99,11 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
      */
     private int minedLayers;
     /**
+     * Game time the struck layer count last changed as this side saw it;
+     * the mining marker's beat restarts on it.
+     */
+    private long minedLayersChangedAt;
+    /**
      * State a running field effect keeps through the marker host: strikes
      * in flight, cooldown and charges spent, read back by the spike visual.
      */
@@ -116,6 +125,11 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
      */
     @Nullable
     private ProgramBehavior behavior;
+    /**
+     * Game time a client first drew the behavior, NaN while none stands;
+     * the fuse orb's handoff back to size runs on it.
+     */
+    private float behaviorFirstDrawnAt = Float.NaN;
     /**
      * Id of the ability the marker runs at fuse expiry (decision
      * no-throw-without-ability); a marker loaded without one runs nothing.
@@ -338,7 +352,28 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
      * @param layers the struck layer count
      */
     public void setMinedLayers(int layers) {
-        this.minedLayers = layers;
+        recordMinedLayers(layers);
+    }
+
+    /**
+     * Stores the struck layer count, stamping the game time it changed.
+     *
+     * @param layers the struck layer count
+     */
+    private void recordMinedLayers(int layers) {
+        if (layers != minedLayers && level != null) {
+            minedLayersChangedAt = level.getGameTime();
+        }
+        minedLayers = layers;
+    }
+
+    /**
+     * Returns the game time the struck layer count last changed.
+     *
+     * @return the game time of the last layer strike this side saw
+     */
+    public long getMinedLayersChangedAt() {
+        return minedLayersChangedAt;
     }
 
     /**
@@ -441,20 +476,76 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
      * @param pos   the block position
      */
     private void detonate(ServerLevel level, BlockPos pos) {
-        behavior = createBehavior();
-        if (behavior == null) {
+        ChainMarkerDetonation.fire(new FiringMarker(level, pos));
+    }
+
+    /**
+     * Removes the marker block, when the block at its position is still a marker.
+     *
+     * @param level the server level
+     * @param pos   the marker position
+     */
+    private static void removeMarkerBlock(ServerLevel level, BlockPos pos) {
+        if (level.getBlockState(pos).is(GooBlocks.CHAIN_MARKER.get())) {
             level.removeBlock(pos, false);
-            return;
         }
-        behavior.onFuseExpired(level, pos, this);
-        if (!behavior.isActive()) {
-            if (level.getBlockState(pos).is(GooBlocks.CHAIN_MARKER.get())) {
-                level.removeBlock(pos, false);
-            }
-            return;
+    }
+
+    /**
+     * This marker's world actions as it fires.
+     */
+    private final class FiringMarker implements ChainMarkerDetonation {
+
+        private final ServerLevel level;
+        private final BlockPos pos;
+
+        /**
+         * @param level the server level
+         * @param pos   the marker position
+         */
+        FiringMarker(ServerLevel level, BlockPos pos) {
+            this.level = level;
+            this.pos = pos;
         }
-        setChanged();
-        BlockEntitySync.markDirtyAndSync(this);
+
+        @Override
+        public void announceBurnout() {
+            PacketDistributor.sendToPlayersTrackingChunk(level, level.getChunkAt(pos).getPos(), burnoutPayload(pos));
+        }
+
+        @Override
+        public boolean loadProgram() {
+            behavior = createBehavior();
+            return behavior != null;
+        }
+
+        @Override
+        public boolean runFirstTick() {
+            behavior.onFuseExpired(level, pos, ChainMarkerBlockEntity.this);
+            return behavior.isActive();
+        }
+
+        @Override
+        public void removeMarker() {
+            removeMarkerBlock(level, pos);
+        }
+
+        @Override
+        public void syncRunningProgram() {
+            setChanged();
+            BlockEntitySync.markDirtyAndSync(ChainMarkerBlockEntity.this);
+        }
+    }
+
+    /**
+     * The burnout this marker announces as it fires.
+     *
+     * @param pos the marker position
+     * @return the burnout payload
+     */
+    private ChainBurnoutPayload burnoutPayload(BlockPos pos) {
+        return new ChainBurnoutPayload(pos, placedFace.ordinal(), GooTypes.id(gooType), abilityId,
+                fuse.stackCount());
     }
 
 
@@ -541,6 +632,24 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
         return behavior;
     }
 
+    /**
+     * Answers how long the behavior has stood as the renderer saw it,
+     * starting the clock on the first frame drawn with one.
+     *
+     * @param gameTime the game time including the partial tick
+     * @return ticks since the first frame drawn with the behavior, 0 while none stands
+     */
+    public float drawBehaviorAge(float gameTime) {
+        if (behavior == null) {
+            behaviorFirstDrawnAt = Float.NaN;
+            return 0f;
+        }
+        if (Float.isNaN(behaviorFirstDrawnAt)) {
+            behaviorFirstDrawnAt = gameTime;
+        }
+        return gameTime - behaviorFirstDrawnAt;
+    }
+
 
     /**
      * Restores chain state from persistent storage.
@@ -570,7 +679,7 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
         areaMode = input.getStringOr(TAG_AREA_MODE, DEFAULT_AREA_MODE);
         lastStackTick = input.getLongOr(TAG_LAST_STACK_TICK, 0);
         abilityId = input.getStringOr(TAG_ABILITY_ID, abilityId);
-        minedLayers = input.getIntOr(TAG_MINED_LAYERS, 0);
+        recordMinedLayers(input.getIntOr(TAG_MINED_LAYERS, 0));
         fieldEffect.load(input);
         phased.load(input);
         consumedGoo = input.read(TAG_CONSUMED_GOO, GooContents.CODEC).orElse(GooContents.EMPTY);

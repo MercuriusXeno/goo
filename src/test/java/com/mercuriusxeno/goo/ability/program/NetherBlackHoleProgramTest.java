@@ -27,7 +27,8 @@ import static org.mockito.Mockito.when;
  * The nether_black_hole program, decoded from its JSON and loaded for the
  * marker host, runs its phases in order on a Mockito marker host holding
  * one stack and a real phase cursor, recording the radius of every sphere
- * it scans: on the fuse tick it scans its radius twice and three times its
+ * it scans: it gathers first, running no act while nether's inward rush
+ * plays on the client; on expand's first tick it scans its radius twice and three times its
  * radius once, for the blindness and the two darkness bands, and plays its
  * sound; it pulls from three times its radius through expand and hold;
  * leaving expand it consumes its sphere's valued blocks once and scans its
@@ -43,10 +44,15 @@ class NetherBlackHoleProgramTest {
     private static final int RADIUS = 3;
     private static final int PULL_RADIUS = 3 * RADIUS;
     private static final double PULL_SPEED = 0.15;
+    private static final int GATHER_TICKS = 20;
     private static final int EXPAND_TICKS = 15;
+    /** The first tick of expand, the tick after the gather ends. */
+    private static final int EXPAND_START = GATHER_TICKS + 1;
+    /** The last tick of expand. */
+    private static final int EXPAND_END = GATHER_TICKS + EXPAND_TICKS;
     private static final int HOLD_TICKS = 15;
     private static final int CONTRACT_TICKS = 30;
-    private static final int LAST_CONTRACT_TICK = EXPAND_TICKS + HOLD_TICKS + CONTRACT_TICKS;
+    private static final int LAST_CONTRACT_TICK = GATHER_TICKS + EXPAND_TICKS + HOLD_TICKS + CONTRACT_TICKS;
     private static final int POPPING_TICK = LAST_CONTRACT_TICK + 1;
     private static final Identifier BLACK_HOLE_SOUND = Identifier.parse("goo:effects.black_hole");
     private static final float PROGRESS_TOLERANCE = 1e-6f;
@@ -139,36 +145,45 @@ class NetherBlackHoleProgramTest {
     }
 
     @Test
-    void phasesRunExpandHoldContractThenPopAndTheProgramEnds() {
+    void phasesRunGatherExpandHoldContractThenPopAndTheProgramEnds() {
         runToTheEnd();
 
         assertEquals(POPPING_TICK, tick);
         assertFalse(runner.isActive());
         assertFalse(state.isRunning());
-        assertEquals("expand", phaseAfterTick.get(EXPAND_TICKS - 2));
-        assertEquals("hold", phaseAfterTick.get(EXPAND_TICKS - 1));
-        assertEquals("hold", phaseAfterTick.get(EXPAND_TICKS + HOLD_TICKS - 2));
-        assertEquals("contract", phaseAfterTick.get(EXPAND_TICKS + HOLD_TICKS - 1));
+        assertEquals("gather", phaseAfterTick.get(GATHER_TICKS - 2));
+        assertEquals("expand", phaseAfterTick.get(GATHER_TICKS - 1));
+        assertEquals("expand", phaseAfterTick.get(EXPAND_END - 2));
+        assertEquals("hold", phaseAfterTick.get(EXPAND_END - 1));
+        assertEquals("hold", phaseAfterTick.get(EXPAND_END + HOLD_TICKS - 2));
+        assertEquals("contract", phaseAfterTick.get(EXPAND_END + HOLD_TICKS - 1));
         assertEquals("contract", phaseAfterTick.get(LAST_CONTRACT_TICK - 2));
         assertEquals("popping", phaseAfterTick.get(LAST_CONTRACT_TICK - 1));
     }
 
     @Test
-    void theFuseTickScansForBlindnessAndBothDarknessBandsAndPlaysTheSound() {
-        tickOnce();
+    void theGatherRunsNoActAndConsumesNoBlocks() {
+        IntStream.range(0, GATHER_TICKS).forEach(i -> tickOnce());
 
-        assertEquals(List.of(1, 1), ticksOf("scan within " + (double) RADIUS));
-        assertEquals(List.of(1), ticksOf("scan within " + (double) PULL_RADIUS));
-        assertEquals(List.of(1), ticksOf("sound " + BLACK_HOLE_SOUND + " at volume 6.0"));
+        assertTrue(actTicks.isEmpty(), "the gather ran " + actTicks.keySet());
+    }
+
+    @Test
+    void expandsFirstTickScansForBlindnessAndBothDarknessBandsAndPlaysTheSound() {
+        IntStream.range(0, EXPAND_START).forEach(i -> tickOnce());
+
+        assertEquals(List.of(EXPAND_START, EXPAND_START), ticksOf("scan within " + (double) RADIUS));
+        assertEquals(List.of(EXPAND_START), ticksOf("scan within " + (double) PULL_RADIUS));
+        assertEquals(List.of(EXPAND_START), ticksOf("sound " + BLACK_HOLE_SOUND + " at volume 6.0"));
         runToTheEnd();
-        assertEquals(List.of(1), ticksOf("sound " + BLACK_HOLE_SOUND + " at volume 6.0"));
+        assertEquals(List.of(EXPAND_START), ticksOf("sound " + BLACK_HOLE_SOUND + " at volume 6.0"));
     }
 
     @Test
     void pullRunsEveryTickOfExpandAndHoldFromThreeTimesTheRadius() {
         runToTheEnd();
 
-        assertEquals(ticks(1, EXPAND_TICKS + HOLD_TICKS),
+        assertEquals(ticks(EXPAND_START, EXPAND_END + HOLD_TICKS),
                 ticksOf("pull within " + (double) PULL_RADIUS + " at " + PULL_SPEED));
     }
 
@@ -176,7 +191,7 @@ class NetherBlackHoleProgramTest {
     void soulParticlesRunEveryTickOfExpandHoldAndContract() {
         runToTheEnd();
 
-        assertEquals(ticks(1, LAST_CONTRACT_TICK),
+        assertEquals(ticks(EXPAND_START, LAST_CONTRACT_TICK),
                 ticksOf("particles minecraft:soul x" + (1 + STACKS) + " spread " + 0.6 * RADIUS));
     }
 
@@ -184,8 +199,8 @@ class NetherBlackHoleProgramTest {
     void leavingExpandConsumesTheSphereOnceAndScansItOnceForTheHalvingHit() {
         runToTheEnd();
 
-        assertEquals(List.of(EXPAND_TICKS), ticksOf("consume within " + RADIUS));
-        assertEquals(List.of(1, 1, EXPAND_TICKS), ticksOf("scan within " + (double) RADIUS));
+        assertEquals(List.of(EXPAND_END), ticksOf("consume within " + RADIUS));
+        assertEquals(List.of(EXPAND_START, EXPAND_START, EXPAND_END), ticksOf("scan within " + (double) RADIUS));
     }
 
     @Test
@@ -197,7 +212,7 @@ class NetherBlackHoleProgramTest {
 
     @Test
     void theCursorExposesPhaseProgressAndTheStepItsRadiusToTheRenderer() {
-        IntStream.range(0, EXPAND_TICKS / 3).forEach(i -> tickOnce());
+        IntStream.range(0, GATHER_TICKS + EXPAND_TICKS / 3).forEach(i -> tickOnce());
 
         assertTrue(state.isRunning());
         assertEquals("expand", state.name());

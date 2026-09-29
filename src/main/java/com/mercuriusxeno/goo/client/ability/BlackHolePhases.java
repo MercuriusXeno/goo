@@ -13,11 +13,13 @@ import net.minecraft.world.phys.Vec3;
  * keeps on the marker: the sphere eases out to full size through
  * {@code expand}, holds through {@code hold} and eases back to nothing
  * through {@code contract}, while the accretion disk sweeps out on a
- * curve of its own. The phase names are the ones
+ * curve of its own, the body pulsing steadily through all three. The phase names are the ones
  * {@code nether_black_hole.json} declares.
  */
 public final class BlackHolePhases {
 
+    /** The phase before expand, while nether's inward rush plays and the hole draws nothing. */
+    private static final String GATHER = "gather";
     private static final String EXPAND = "expand";
     private static final String HOLD = "hold";
     private static final String CONTRACT = "contract";
@@ -34,6 +36,11 @@ public final class BlackHolePhases {
      * covers the blast zone.
      */
     private static final float OCCLUSION_MARGIN = 0.75f;
+    /** Ticks per cycle of the hole's pulse. */
+    static final float HOLE_PULSE_PERIOD = 20f;
+    /** How far the pulse swings the hole's radius either side of its phase size. */
+    static final float HOLE_PULSE_AMPLITUDE = 0.04f;
+    private static final double TWO_PI = 2 * Math.PI;
 
     private BlackHolePhases() {
     }
@@ -83,14 +90,14 @@ public final class BlackHolePhases {
      * Fills the render state's nether fields from the marker's phase cursor,
      * the one extraction every hole style shares (decision
      * one-disc-mesh-config-lens), or clears {@code netherActive} when no
-     * black hole runs.
+     * black hole runs or it is still gathering.
      *
      * @param be    the chain marker block entity
      * @param state the render state to populate
      * @return true when a black hole with a visible body should mark the lens
      */
     public static boolean populateRenderState(ChainMarkerBlockEntity be, ChainMarkerRenderState state) {
-        if (!isRunning(be)) {
+        if (!isRunning(be) || !holeDraws(be.getPhased())) {
             state.netherActive = false;
             return false;
         }
@@ -102,6 +109,18 @@ public final class BlackHolePhases {
                 .map(step -> step.radius().evaluateFloat(new MarkerVariables(be))).orElse(0f);
         state.animationTime = NetherDiscMesh.animationTime(be);
         return state.visibleScale > 0f;
+    }
+
+    /**
+     * Answers whether the hole draws in a phase: in every phase but the
+     * gather, which leaves the stage to nether's inward rush while the
+     * marker's orb holds (decision elemental-explosion-per-type).
+     *
+     * @param phase the phase cursor
+     * @return true when the hole draws
+     */
+    static boolean holeDraws(PhasedState phase) {
+        return !GATHER.equals(phase.name());
     }
 
     /**
@@ -123,7 +142,32 @@ public final class BlackHolePhases {
      * @return the visible radius in world blocks
      */
     public static float visibleRadius(ChainMarkerRenderState state) {
-        return Math.max(HOLE_MIN_RADIUS, fullRadius(state) * state.visibleScale);
+        return bodyRadius(fullRadius(state), state.visibleScale, state.gameTime);
+    }
+
+    /**
+     * The hole body's radius at a phase scale, carrying the nether marker's
+     * constant pulse (decision orchestration-animation-per-ability).
+     *
+     * @param fullRadius   the hole's full radius in world blocks
+     * @param visibleScale the phase scale visibleScale answers
+     * @param gameTime     the game time including the partial tick
+     * @return the visible radius in world blocks
+     */
+    static float bodyRadius(float fullRadius, float visibleScale, float gameTime) {
+        return Math.max(HOLE_MIN_RADIUS, fullRadius * visibleScale * holePulse(gameTime));
+    }
+
+    /**
+     * The nether marker's steady pulse: a sine about 1 the hole rides
+     * through expand, hold and contract alike.
+     *
+     * @param gameTime the game time including the partial tick
+     * @return the pulse factor in [1 - HOLE_PULSE_AMPLITUDE, 1 + HOLE_PULSE_AMPLITUDE]
+     */
+    static float holePulse(float gameTime) {
+        double phase = TWO_PI * gameTime / HOLE_PULSE_PERIOD;
+        return 1f + HOLE_PULSE_AMPLITUDE * (float) Math.sin(phase);
     }
 
     /**
