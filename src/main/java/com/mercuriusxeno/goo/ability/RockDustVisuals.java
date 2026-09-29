@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.ability;
 
-import com.mercuriusxeno.goo.registry.GooRingParticleOptions;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
@@ -19,7 +18,6 @@ final class RockDustVisuals implements LayerVisuals {
     /** Rock's tan, the rock explosion's dust color C2A868; the ring shader lifts its highlights toward EAD090. */
     static final int RING_COLOR = 0xC2A868;
 
-    private static final double BLOCK_CENTER_OFFSET = 0.5;
     private static final int DUST_PARTICLES_PER_BLOCK = 4;
     private static final double DUST_PERP_SPREAD = 0.45;
     private static final double DUST_ALONG_SPREAD = 0.12;
@@ -31,13 +29,7 @@ final class RockDustVisuals implements LayerVisuals {
     @Override
     public void preview(ServerLevel level, BlockPos origin, Direction placedFace,
                         int stepIndex, int stackCount, float reach) {
-        BlockPos layerCenter = LayerGeometry.layerCenter(origin, placedFace, stepIndex);
-        BlockPos particlePos = layerCenter.relative(placedFace);
-        double cx = particlePos.getX() + BLOCK_CENTER_OFFSET;
-        double cy = particlePos.getY() + BLOCK_CENTER_OFFSET;
-        double cz = particlePos.getZ() + BLOCK_CENTER_OFFSET;
-        level.sendParticles(new GooRingParticleOptions(placedFace.getOpposite(), reach, RING_COLOR),
-                cx, cy, cz, 1, 0.0, 0.0, 0.0, 0.0);
+        LayerRing.send(level, origin, placedFace, stepIndex, reach, RING_COLOR);
     }
 
     @Override
@@ -46,16 +38,7 @@ final class RockDustVisuals implements LayerVisuals {
         if (destroyed <= 0) {
             return;
         }
-        BlockPos layerCenter = LayerGeometry.layerCenter(origin, placedFace, stepIndex);
-        Direction.Axis blastAxis = placedFace.getOpposite().getAxis();
-        double cx = layerCenter.getX() + BLOCK_CENTER_OFFSET;
-        double cy = layerCenter.getY() + BLOCK_CENTER_OFFSET;
-        double cz = layerCenter.getZ() + BLOCK_CENTER_OFFSET;
-        int count = DUST_PARTICLES_PER_BLOCK * destroyed;
-        double spreadX = blastAxis == Direction.Axis.X ? DUST_ALONG_SPREAD : DUST_PERP_SPREAD;
-        double spreadY = blastAxis == Direction.Axis.Y ? DUST_ALONG_SPREAD : DUST_PERP_SPREAD;
-        double spreadZ = blastAxis == Direction.Axis.Z ? DUST_ALONG_SPREAD : DUST_PERP_SPREAD;
-        level.sendParticles(ParticleTypes.DUST_PLUME,
-                cx, cy, cz, count, spreadX, spreadY, spreadZ, DUST_PARTICLE_SPEED);
+        LayerBurst.at(origin, placedFace, stepIndex, DUST_PERP_SPREAD, DUST_ALONG_SPREAD)
+                .send(level, ParticleTypes.DUST_PLUME, DUST_PARTICLES_PER_BLOCK * destroyed, DUST_PARTICLE_SPEED);
     }
 }
