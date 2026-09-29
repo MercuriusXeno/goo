@@ -1,7 +1,5 @@
 package com.mercuriusxeno.goo.block.canister;
 
-import com.mercuriusxeno.goo.GooTypeDefinition;
-import com.mercuriusxeno.goo.PlayerUtils;
 import com.mercuriusxeno.goo.block.GooLightEntry;
 import com.mercuriusxeno.goo.block.GooMachineBlockEntity;
 import com.mercuriusxeno.goo.block.gasket.GasketPusher;
@@ -10,7 +8,9 @@ import com.mercuriusxeno.goo.block.gasket.SlotGasketRegistration;
 import com.mercuriusxeno.goo.data.GasketRegistry;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
+import com.mercuriusxeno.goo.item.PlayerUtils;
 import com.mercuriusxeno.goo.registry.GooFluids;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceKey;

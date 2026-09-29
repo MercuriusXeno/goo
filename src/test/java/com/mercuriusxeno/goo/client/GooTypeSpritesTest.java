@@ -1,9 +1,9 @@
 package com.mercuriusxeno.goo.client;
 
 import com.google.gson.JsonParser;
-import com.mercuriusxeno.goo.BlobModelSize;
-import com.mercuriusxeno.goo.GooTypeDefinition;
-import com.mercuriusxeno.goo.GooTypeTextures;
+import com.mercuriusxeno.goo.type.BlobModelSize;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypeTextures;
 import com.mojang.serialization.JsonOps;
 import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Test;

@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.client.particle;
 
-import com.mercuriusxeno.goo.DripFall;
 import com.mercuriusxeno.goo.block.tap.TapStream;
+import com.mercuriusxeno.goo.throwing.DripFall;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;

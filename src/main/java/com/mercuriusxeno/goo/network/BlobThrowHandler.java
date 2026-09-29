@@ -1,15 +1,16 @@
 package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.GooTypeDefinition;
-import com.mercuriusxeno.goo.GooTypes;
-import com.mercuriusxeno.goo.ThrowArc;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.StackKey;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
+import com.mercuriusxeno.goo.registry.GooServerState;
+import com.mercuriusxeno.goo.throwing.ThrowArc;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
@@ -151,7 +152,7 @@ public final class BlobThrowHandler {
         net.minecraft.resources.Identifier abilityId =
                 net.minecraft.resources.Identifier.tryParse(payload.abilityId());
         if (abilityId == null) { return THROW_COST; }
-        AbilityDefinition def = AbilityRegistry.getAbility(abilityId);
+        AbilityDefinition def = AbilityRegistry.of(player.level()).getAbility(abilityId);
         if (def == null || def.gooType() != gooType) { return THROW_COST; }
         int stackPos = countExistingStacks(player.level(), payload.targetPos(), payload.abilityId());
         return def.throwCost(stackPos);
@@ -189,7 +190,8 @@ public final class BlobThrowHandler {
         GooTypeDefinition definition = GooTypes.definition(player.level().registryAccess(), gooType);
         int travelTicks = (int) ThrowArc.travelTicks(distance, definition.levity(), definition.baseFlightTime());
         broadcastFlight(player, payload, travelTicks);
-        BlobEffectScheduler.scheduleEffect(player, payload, gooType, travelTicks);
+        GooServerState.of(player.level().getServer()).blobEffects()
+                .scheduleEffect(player, payload, gooType, travelTicks);
 
         if (Goo.LOGGER.isDebugEnabled()) { Goo.LOGGER.debug(LOG_THROW_OK, GooTypes.id(gooType), player.getName().getString(), travelTicks); }
     }
@@ -231,18 +233,6 @@ public final class BlobThrowHandler {
                 payload.grannyArc(),
                 payload.abilityId()
         );
-    }
-
-    /**
-     * Called every server tick to apply effects whose blobs have arrived.
-     * Wire this to {@code ServerTickEvent.Post} in the mod event bus.
-     *
-     * @param event the post-tick event instance
-     */
-    public static void onServerTick(net.neoforged.neoforge.event.tick.ServerTickEvent.Post event) {
-        if (!BlobEffectScheduler.hasPending()) { return; }
-        int currentTick = event.getServer().getTickCount();
-        BlobEffectScheduler.drainArrivedEffects(currentTick);
     }
 
     /**

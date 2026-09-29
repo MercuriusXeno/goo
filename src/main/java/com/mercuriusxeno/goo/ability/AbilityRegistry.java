@@ -1,38 +1,65 @@
 package com.mercuriusxeno.goo.ability;
 
-import com.mercuriusxeno.goo.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.level.Level;
 import org.jspecify.annotations.Nullable;
 import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * Static registry of loaded ability definitions. Populated by
- * {@link AbilityLoader} during datapack reload. Provides lookup
- * by identifier and by goo type.
+ * The ability definitions one datapack load holds, by identifier and by goo
+ * type. {@link AbilityLoader} builds one each load and hands it to the
+ * server's datapack resources, so the abilities live as long as the load
+ * that read them (decision type-package-and-per-server-holders).
  */
 public final class AbilityRegistry {
 
-    private static Map<Identifier, AbilityDefinition> byId = Map.of();
-    private static Map<ResourceKey<GooTypeDefinition>, List<AbilityDefinition>> byType = new HashMap<>();
+    /**
+     * The registry a side holds before any load, and a client level's.
+     */
+    public static final AbilityRegistry EMPTY = new AbilityRegistry(Map.of());
 
-    private AbilityRegistry() {
-    }
+    private final Map<Identifier, AbilityDefinition> byId;
+    private final Map<ResourceKey<GooTypeDefinition>, List<AbilityDefinition>> byType;
 
     /**
-     * Replaces the registry contents. Called by the loader after parsing.
+     * Builds a registry of the loaded abilities.
      *
      * @param abilities the loaded ability map keyed by resource id
      */
-    static void reload(Map<Identifier, AbilityDefinition> abilities) {
+    public AbilityRegistry(Map<Identifier, AbilityDefinition> abilities) {
         byId = Map.copyOf(abilities);
-        byType = abilities.values().stream()
+        byType = Map.copyOf(abilities.values().stream()
                 .sorted(Comparator.comparingInt(AbilityDefinition::order))
                 .collect(Collectors.groupingBy(
                         AbilityDefinition::gooType,
-                        () -> new HashMap<>(),
-                        Collectors.collectingAndThen(Collectors.toList(), Collections::unmodifiableList)));
+                        HashMap::new,
+                        Collectors.collectingAndThen(Collectors.toList(), Collections::unmodifiableList))));
+    }
+
+    /**
+     * Answers the abilities the server's current datapack load holds.
+     *
+     * @param server the server
+     * @return the registry
+     */
+    public static AbilityRegistry of(MinecraftServer server) {
+        return ((AbilityRegistrySource) server.getServerResources().managers()).abilityRegistry();
+    }
+
+    /**
+     * Answers the abilities the level's server holds; a client level holds
+     * none, since the client reads the synced abilities instead.
+     *
+     * @param level the level
+     * @return the registry, empty on the client
+     */
+    public static AbilityRegistry of(Level level) {
+        MinecraftServer server = level.getServer();
+        return server == null ? EMPTY : of(server);
     }
 
     /**
@@ -41,7 +68,7 @@ public final class AbilityRegistry {
      * @param id the resource identifier
      * @return the definition, or null if not found
      */
-    public static @Nullable AbilityDefinition getAbility(Identifier id) {
+    public @Nullable AbilityDefinition getAbility(Identifier id) {
         return byId.get(id);
     }
 
@@ -51,7 +78,7 @@ public final class AbilityRegistry {
      * @param type the goo type
      * @return immutable list, empty if none registered
      */
-    public static List<AbilityDefinition> getAbilitiesForType(ResourceKey<GooTypeDefinition> type) {
+    public List<AbilityDefinition> getAbilitiesForType(ResourceKey<GooTypeDefinition> type) {
         return byType.getOrDefault(type, List.of());
     }
 
@@ -62,7 +89,7 @@ public final class AbilityRegistry {
      * @param type the goo type
      * @return the tap ability, or null when the type carries none
      */
-    public static @Nullable AbilityDefinition tapAbilityFor(ResourceKey<GooTypeDefinition> type) {
+    public @Nullable AbilityDefinition tapAbilityFor(ResourceKey<GooTypeDefinition> type) {
         return firstTagged(getAbilitiesForType(type), AbilityTags.TAP);
     }
 
@@ -86,7 +113,7 @@ public final class AbilityRegistry {
      * @param type the goo type
      * @return true if at least one ability is registered
      */
-    public static boolean hasAbilities(ResourceKey<GooTypeDefinition> type) {
+    public boolean hasAbilities(ResourceKey<GooTypeDefinition> type) {
         return !getAbilitiesForType(type).isEmpty();
     }
 
@@ -97,7 +124,7 @@ public final class AbilityRegistry {
      * @param abilityId the ability resource id
      * @return true if the ability exists and belongs to the type
      */
-    public static boolean isValidAbility(ResourceKey<GooTypeDefinition> type, Identifier abilityId) {
+    public boolean isValidAbility(ResourceKey<GooTypeDefinition> type, Identifier abilityId) {
         AbilityDefinition def = byId.get(abilityId);
         return def != null && def.gooType() == type;
     }
@@ -107,7 +134,7 @@ public final class AbilityRegistry {
      *
      * @return the count
      */
-    public static int size() {
+    public int size() {
         return byId.size();
     }
 }

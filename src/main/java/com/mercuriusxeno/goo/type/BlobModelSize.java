@@ -1,4 +1,4 @@
-package com.mercuriusxeno.goo;
+package com.mercuriusxeno.goo.type;
 
 import com.mojang.serialization.Codec;
 import net.minecraft.resources.Identifier;
@@ -38,7 +38,7 @@ public enum BlobModelSize implements StringRepresentable {
 
     BlobModelSize(String serializedName, String greyBasePath) {
         this.serializedName = serializedName;
-        this.greyBase = Identifier.fromNamespaceAndPath(Goo.MODID, greyBasePath);
+        this.greyBase = Identifier.fromNamespaceAndPath(GooTypes.NAMESPACE, greyBasePath);
     }
 
     /**

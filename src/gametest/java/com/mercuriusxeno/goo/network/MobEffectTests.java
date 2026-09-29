@@ -136,7 +136,7 @@ public final class MobEffectTests {
      * @param abilityId the ability the throw names
      */
     private static void strike(GameTestHelper helper, Mob mob, String abilityId) {
-        AbilityDefinition ability = AbilityRegistry.getAbility(Identifier.parse(abilityId));
+        AbilityDefinition ability = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(abilityId));
         helper.assertTrue(ability != null, ABILITIES_REQUIRED);
         BlobEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), null, ability.gooType(),
                 mob.getId(), mob.blockPosition(), Direction.UP, abilityId));

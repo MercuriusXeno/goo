@@ -1,10 +1,10 @@
 package com.mercuriusxeno.goo.client.particle;
 
-import com.mercuriusxeno.goo.DripFall;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.registry.GooDripParticleOptions;
 import com.mercuriusxeno.goo.registry.GooParticles;
+import com.mercuriusxeno.goo.throwing.DripFall;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.Particle;
 import net.minecraft.client.particle.SingleQuadParticle;
