@@ -2,20 +2,20 @@ package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.block.ability.ChainMarkerFallScheduler;
 import com.mercuriusxeno.goo.block.tap.TapDripScheduler;
-import com.mercuriusxeno.goo.network.BlobEffectScheduler;
+import com.mercuriusxeno.goo.network.GooEffectScheduler;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.Level;
 import org.jspecify.annotations.Nullable;
 
 /**
- * What one server holds between ticks: the blob effects, tap drips and marker
+ * What one server holds between ticks: the goo effects, tap drips and marker
  * falls in flight. Each server holds its
  * own and a server stop clears it, so nothing in flight lands against a
  * stopped server's levels (decision type-package-and-per-server-holders).
  */
 public final class GooServerState {
 
-    private final BlobEffectScheduler blobEffects = new BlobEffectScheduler();
+    private final GooEffectScheduler gooEffects = new GooEffectScheduler();
     private final TapDripScheduler tapDrips = new TapDripScheduler();
     private final ChainMarkerFallScheduler markerFalls = new ChainMarkerFallScheduler();
 
@@ -41,10 +41,10 @@ public final class GooServerState {
     }
 
     /**
-     * @return the blob effects waiting for their blobs to land
+     * @return the goo effects waiting for their goo to land
      */
-    public BlobEffectScheduler blobEffects() {
-        return blobEffects;
+    public GooEffectScheduler gooEffects() {
+        return gooEffects;
     }
 
     /**
@@ -68,8 +68,8 @@ public final class GooServerState {
      */
     public void drainArrived(MinecraftServer server) {
         int currentTick = server.getTickCount();
-        if (blobEffects.hasPending()) {
-            blobEffects.drainArrivedEffects(currentTick);
+        if (gooEffects.hasPending()) {
+            gooEffects.drainArrivedEffects(currentTick);
         }
         if (markerFalls.hasPending()) {
             markerFalls.drainArrivedFalls(currentTick);
@@ -81,7 +81,7 @@ public final class GooServerState {
      * Drops everything in flight, as a server stop does.
      */
     public void clear() {
-        blobEffects.clear();
+        gooEffects.clear();
         tapDrips.clear();
         markerFalls.clear();
     }

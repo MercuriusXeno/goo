@@ -117,7 +117,7 @@ public final class GloveAim {
     }
 
     /**
-     * Returns the world-space arc origin from the blob center captured
+     * Returns the world-space arc origin from the goo center captured
      * during item rendering, the last capture unconditionally. Before the
      * first capture, the camera position stands in until the next frame.
      *
@@ -125,7 +125,7 @@ public final class GloveAim {
      * @return the world-space hand position
      */
     public static Vec3 handPosition(Camera camera) {
-        Vec3 captured = GloveSpecialRenderer.getLastBlobCenterCamRel();
+        Vec3 captured = GloveSpecialRenderer.getLastGooCenterCamRel();
         if (captured == null) {
             return camera.position();
         }

@@ -70,7 +70,7 @@ public final class AbilityMath {
 
     /**
      * Returns true if rock + crystal make up strictly more than half of
-     * the block's total goo blobs. This lets mixed-composition blocks
+     * the block's total goo. This lets mixed-composition blocks
      * like bricks or polished stone qualify while keeping metal-heavy
      * or organic blocks out.
      *
@@ -85,6 +85,6 @@ public final class AbilityMath {
         for (ResourceKey<GooTypeDefinition> type : ROCK_FAMILY) {
             rockTotal += value.get(type);
         }
-        return rockTotal * MAJORITY_MULTIPLIER > value.totalBlobs();
+        return rockTotal * MAJORITY_MULTIPLIER > value.totalGoo();
     }
 }

@@ -4,7 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
-import com.mercuriusxeno.goo.item.BlobStacks;
+import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -34,14 +34,14 @@ public final class GloveRecollectTests {
     private static final String ABILITIES_REQUIRED = "Ability registry must be loaded";
     private static final String NOT_STACKED = "The marker should hold more than one stack before recollect";
     private static final String NOT_SUCCESS = "Shift-click with the glove on a marker should succeed";
-    private static final String BLOBS_MISSING = "Shift-click recollect should give the marker's stacked blobs to the player";
+    private static final String GOO_MISSING = "Shift-click recollect should give the marker's stacked goo to the player";
 
     private GloveRecollectTests() {
     }
 
     /**
      * A sneaking player using the glove on a marker holding stacks gets the
-     * stacked blobs back and the marker is removed.
+     * stacked goo back and the marker is removed.
      *
      * @param helper the gametest helper
      */
@@ -55,7 +55,7 @@ public final class GloveRecollectTests {
         marker.tryStack();
         int stacks = marker.getStackCount();
         helper.assertTrue(stacks > 1, NOT_STACKED);
-        ItemStack expected = BlobStacks.createForOutput(GooTypes.FROST, stacks * BlobStacks.MB_PER_BLOB);
+        ItemStack expected = GooStacks.createForOutput(GooTypes.FROST, stacks * GooStacks.THOUSAND);
 
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         ItemStack glove = new ItemStack(GooItems.GOO_GLOVE.get());
@@ -67,7 +67,7 @@ public final class GloveRecollectTests {
 
         helper.assertTrue(result == InteractionResult.SUCCESS, NOT_SUCCESS);
         helper.assertBlockNotPresent(GooBlocks.CHAIN_MARKER.get(), MARKER_POS);
-        helper.assertTrue(holdsStack(player.getInventory(), expected), BLOBS_MISSING);
+        helper.assertTrue(holdsStack(player.getInventory(), expected), GOO_MISSING);
         helper.getLevel().getServer().getPlayerList().remove(player);
         helper.succeed();
     }

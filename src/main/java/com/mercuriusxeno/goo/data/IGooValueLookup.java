@@ -15,7 +15,7 @@ import java.util.function.Function;
 public interface IGooValueLookup {
 
     /**
-     * Returns the item ID with the lowest {@link GooValue#totalBlobs()} among {@code candidates},
+     * Returns the item ID with the lowest {@link GooValue#totalGoo()} among {@code candidates},
      * using {@code lookup} to resolve each ID. Null and empty values are skipped.
      *
      * @param candidates set of item IDs to compare
@@ -28,8 +28,8 @@ public interface IGooValueLookup {
         int cheapestTotal = Integer.MAX_VALUE;
         for (Identifier itemId : candidates) {
             GooValue val = lookup.apply(itemId);
-            if (val != null && !val.isEmpty() && val.totalBlobs() < cheapestTotal) {
-                cheapestTotal = val.totalBlobs();
+            if (val != null && !val.isEmpty() && val.totalGoo() < cheapestTotal) {
+                cheapestTotal = val.totalGoo();
                 cheapestId = itemId;
             }
         }

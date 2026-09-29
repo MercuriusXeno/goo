@@ -176,7 +176,7 @@ public class CrucibleBlockEntity extends GooGlowingMachineBlockEntity implements
      * Inserts goo of the given type into the reservoir.
      *
      * @param type   the goo type
-     * @param volume volume in microblobs
+     * @param volume volume
      * @return the amount actually inserted
      */
     @Override
@@ -188,7 +188,7 @@ public class CrucibleBlockEntity extends GooGlowingMachineBlockEntity implements
      * Extracts up to the given amount of a specific goo type.
      *
      * @param type   the goo type
-     * @param amount maximum volume in microblobs
+     * @param amount maximum volume
      * @return the amount actually extracted
      */
     public int extractGoo(ResourceKey<GooTypeDefinition> type, int amount) {

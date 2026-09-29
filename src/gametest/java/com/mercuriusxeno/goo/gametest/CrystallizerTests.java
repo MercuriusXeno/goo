@@ -10,8 +10,8 @@ import com.mercuriusxeno.goo.block.crystallizer.CrystalReach;
 import com.mercuriusxeno.goo.block.crystallizer.CrystallizerBlock;
 import com.mercuriusxeno.goo.block.crystallizer.CrystallizerBlockEntity;
 import com.mercuriusxeno.goo.block.crystallizer.CrystallizerPhases;
+import com.mercuriusxeno.goo.block.crystallizer.CrystallizerShapes;
 import com.mercuriusxeno.goo.data.GasketRegistry;
-import com.mercuriusxeno.goo.item.BlobStacks;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.CanisterPlacementResolver;
@@ -19,6 +19,7 @@ import com.mercuriusxeno.goo.item.CanisterPlacementResolver.CanisterPlacement;
 import com.mercuriusxeno.goo.item.CanisterPlacementValidator;
 import com.mercuriusxeno.goo.item.ChrysmTier;
 import com.mercuriusxeno.goo.item.ContainerCapacity;
+import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.item.gasket.GasketPartner;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.registry.GooBlocks;
@@ -313,7 +314,7 @@ public final class CrystallizerTests {
     }
 
     /**
-     * A blob poured on a full canister stays in the hand: the pour goes only into the
+     * A goo poured on a full canister stays in the hand: the pour goes only into the
      * canister aimed at, never into the empty one beside it.
      *
      * @param helper the gametest helper
@@ -324,7 +325,7 @@ public final class CrystallizerTests {
         insert(helper, FIRST, canister(GooTypes.BLAZE, full));
         insert(helper, SECOND, new ItemStack(GooItems.CANISTER.get()));
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
-        player.setItemInHand(InteractionHand.MAIN_HAND, BlobStacks.createForOutput(GooTypes.BLAZE, CHRYSM_VOLUME));
+        player.setItemInHand(InteractionHand.MAIN_HAND, GooStacks.createForOutput(GooTypes.BLAZE, CHRYSM_VOLUME));
         helper.useBlock(CANISTERS_POS, player, canisterHit(helper, FIRST));
         helper.assertTrue(canisters(helper).getSlotFluidContent(NORTH_SLOTS[SECOND]).isEmpty(),
                 "A pour on the full canister should leave the empty one empty, found "
@@ -348,7 +349,7 @@ public final class CrystallizerTests {
         CanisterBlockEntity canisters = canisters(helper);
         int second = NORTH_SLOTS[SECOND];
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
-        player.setItemInHand(InteractionHand.MAIN_HAND, BlobStacks.createForOutput(GooTypes.ENDER, CHRYSM_VOLUME));
+        player.setItemInHand(InteractionHand.MAIN_HAND, GooStacks.createForOutput(GooTypes.ENDER, CHRYSM_VOLUME));
         helper.useBlock(CANISTERS_POS, player, canisterHit(helper, SECOND));
         helper.assertTrue(canisters.getSlotFluidContent(second).isEmpty(), "a poured ender beside ender is refused");
         helper.assertValueEqual(0, canisters.insertGoo(second, GooTypes.BLAZE, CHRYSM_VOLUME),
@@ -483,7 +484,7 @@ public final class CrystallizerTests {
 
     /**
      * A crystal grown past a chrysm, the dial then stepped round to chrysm, hands one
-     * chrysm and the excess as an ender omniblob and a crystal omniblob of its tenth,
+     * chrysm and the excess as an ender goo and a crystal goo of its tenth,
      * emptying the crystallizer (operator ruling).
      *
      * @param helper the gametest helper
@@ -506,10 +507,10 @@ public final class CrystallizerTests {
                             abs.getZ() + CRYSTAL_SPOT_NORTH[1]), Direction.UP, abs, false));
             helper.assertTrue(player.getInventory().contains(stack -> stack.is(GooItems.CHRYSM.get())),
                     "The click should hand one chrysm");
-            helper.assertTrue(player.getInventory().contains(stack -> GooTypes.ENDER.equals(BlobStacks.keyOf(stack))
-                    && BlobStacks.volumeOf(stack) == EXCESS), "The click should hand the excess ender");
-            helper.assertTrue(player.getInventory().contains(stack -> GooTypes.CRYSTAL.equals(BlobStacks.keyOf(stack))
-                    && BlobStacks.volumeOf(stack) == EXCESS / CrystallizerPhases.GOO_PER_CRYSTAL),
+            helper.assertTrue(player.getInventory().contains(stack -> GooTypes.ENDER.equals(GooStacks.keyOf(stack))
+                    && GooStacks.volumeOf(stack) == EXCESS), "The click should hand the excess ender");
+            helper.assertTrue(player.getInventory().contains(stack -> GooTypes.CRYSTAL.equals(GooStacks.keyOf(stack))
+                    && GooStacks.volumeOf(stack) == EXCESS / CrystallizerPhases.GOO_PER_CRYSTAL),
                     "The click should hand the excess's crystal");
             helper.assertValueEqual(0L, crystallizer.crystallized(), "crystallized after the click");
             helper.succeed();
@@ -646,7 +647,7 @@ public final class CrystallizerTests {
         seedCrystal(helper, tier);
         BlockPos abs = helper.absolutePos(CRYSTALLIZER_POS);
         CrystallizerBlockEntity crystallizer = helper.getBlockEntity(CRYSTALLIZER_POS, CrystallizerBlockEntity.class);
-        AABB box = CrystallizerBlock.crystalShape(Direction.NORTH, crystallizer.crystallized()).bounds().move(abs);
+        AABB box = CrystallizerShapes.crystalShape(Direction.NORTH, crystallizer.crystallized()).bounds().move(abs);
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         StringBuilder failed = new StringBuilder();
         int tried = 0;
@@ -685,7 +686,7 @@ public final class CrystallizerTests {
         Vec3 end = eye.add(aim.subtract(eye).normalize().scale(player.blockInteractionRange()));
         BlockHitResult gameHit = helper.getLevel().clip(new ClipContext(eye, end, ClipContext.Block.OUTLINE,
                 ClipContext.Fluid.NONE, player));
-        BlockHitResult sighted = CrystalReach.nearestCrystalHit(pos -> takeableCrystalShape(helper, pos), eye, end);
+        BlockHitResult sighted = CrystalReach.nearestCrystalHit(pos -> crystalShapeAt(helper, pos), eye, end);
         BlockHitResult click = (BlockHitResult) CrystalReach.retarget(gameHit, sighted, eye);
         if (!click.getBlockPos().equals(helper.absolutePos(CRYSTALLIZER_POS))) {
             return null; // Another block stands in front of the crystal on this sight line, so the click is rightly its.
@@ -719,19 +720,18 @@ public final class CrystallizerTests {
                 placed.getBlockState(), saved, level.registryAccess()));
     }
 
-    private static VoxelShape takeableCrystalShape(GameTestHelper helper, BlockPos pos) {
+    private static VoxelShape crystalShapeAt(GameTestHelper helper, BlockPos pos) {
         BlockState state = helper.getLevel().getBlockState(pos);
         if (!(state.getBlock() instanceof CrystallizerBlock)
-                || !(helper.getLevel().getBlockEntity(pos) instanceof CrystallizerBlockEntity crystallizer)
-                || !crystallizer.isMature(CrystallizerBlock.knobTier(state))) {
+                || !(helper.getLevel().getBlockEntity(pos) instanceof CrystallizerBlockEntity crystallizer)) {
             return Shapes.empty();
         }
-        return CrystallizerBlock.crystalShape(state.getValue(CrystallizerBlock.FACING), crystallizer.crystallized());
+        return CrystallizerShapes.crystalShape(state.getValue(CrystallizerBlock.FACING), crystallizer.crystallized());
     }
 
     /**
      * A mature crystal is taken whatever the player holds: a stone block, a canister
-     * and an omniblob each take a chrysm in turn, and each held item stays.
+     * and a goo each take a chrysm in turn, and each held item stays.
      *
      * @param helper the gametest helper
      */
@@ -740,7 +740,7 @@ public final class CrystallizerTests {
         insert(helper, FIRST, canister(GooTypes.CRYSTAL, CRYSTAL_COST * 3));
         insert(helper, SECOND, canister(GooTypes.ENDER, CHRYSM_VOLUME * 3));
         ItemStack[] held = {new ItemStack(Items.STONE), new ItemStack(GooItems.CANISTER.get()),
-            BlobStacks.createForOutput(GooTypes.ENDER, CHRYSM_VOLUME)};
+            GooStacks.createForOutput(GooTypes.ENDER, CHRYSM_VOLUME)};
         takeWithEach(helper, held, 0);
     }
 

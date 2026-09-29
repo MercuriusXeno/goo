@@ -21,7 +21,7 @@ import java.util.function.ToIntFunction;
 
 /**
  * Holds tap drips in flight until the server tick they land on, drained from
- * the server tick the way the blob throw's pending effects are. Each server
+ * the server tick the way the goo throw's pending effects are. Each server
  * holds one, so its drips end with the server
  * (decision type-package-and-per-server-holders).
  */

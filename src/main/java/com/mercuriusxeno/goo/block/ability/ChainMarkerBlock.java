@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.block.ability;
 
 import com.mercuriusxeno.goo.block.BlockEntityTicks;
-import com.mercuriusxeno.goo.item.BlobStacks;
+import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -292,7 +292,7 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
         if (!(server.getBlockEntity(pos) instanceof ChainMarkerBlockEntity be)) {
             return;
         }
-        BlobStacks.dropAll(be.takeConsumedGoo(), server, pos);
+        GooStacks.dropAll(be.takeConsumedGoo(), server, pos);
     }
 
     /**
@@ -504,9 +504,9 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
             return SELECTION_SHAPE;
         }
         if (be.getGooType() == GooTypes.GLOW) {
-            return computeGlowShape(be.getStackCount(), be.getPlacedFace(), be.isFlatBlob());
+            return computeGlowShape(be.getStackCount(), be.getPlacedFace(), be.isFlatGoo());
         }
-        return computeOrbShape(be.getStackCount(), be.getPlacedFace(), be.isFlatBlob());
+        return computeOrbShape(be.getStackCount(), be.getPlacedFace(), be.isFlatGoo());
     }
 
     /**

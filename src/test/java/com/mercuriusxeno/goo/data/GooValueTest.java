@@ -39,7 +39,7 @@ class GooValueTest {
     void emptyMapProducesEmptyValue() {
         GooValue val = new GooValue(Map.of());
         assertTrue(val.isEmpty());
-        assertEquals(0, val.totalBlobs());
+        assertEquals(0, val.totalGoo());
     }
 
     /**
@@ -48,28 +48,28 @@ class GooValueTest {
     @Test
     void emptySingletonIsEmpty() {
         assertTrue(GooValue.EMPTY.isEmpty());
-        assertEquals(0, GooValue.EMPTY.totalBlobs());
+        assertEquals(0, GooValue.EMPTY.totalGoo());
         assertNull(GooValue.EMPTY.largestType());
     }
 
-    // ── totalBlobs ──────────────────────────────────────────────────────
+    // ── totalGoo ──────────────────────────────────────────────────────
 
     /**
-     * Total blobs sums all types.
+     * Total goo sums all types.
      */
     @Test
-    void totalBlobsSumsAllTypes() {
+    void totalGooSumsAllTypes() {
         GooValue val = goo(GooTypes.METAL, 5, GooTypes.CRYSTAL, 3);
-        assertEquals(8, val.totalBlobs());
+        assertEquals(8, val.totalGoo());
     }
 
     /**
-     * Single type total blobs equals that type's amount.
+     * Single type total goo equals that type's amount.
      */
     @Test
-    void singleTypeTotalBlobs() {
+    void singleTypeTotalGoo() {
         GooValue val = goo(GooTypes.VITAL, 42);
-        assertEquals(42, val.totalBlobs());
+        assertEquals(42, val.totalGoo());
     }
 
     // ── largestType ──────────────────────────────────────────────────

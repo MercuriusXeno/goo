@@ -167,7 +167,7 @@ final class GooValueDerivation {
         GooValue base = baseValues.get(itemId);
         GooValue derived = derivedValues.get(itemId);
         if (base != null && derived != null) {
-            return base.totalBlobs() <= derived.totalBlobs() ? base : derived;
+            return base.totalGoo() <= derived.totalGoo() ? base : derived;
         }
         return base != null ? base : derived;
     }

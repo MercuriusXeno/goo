@@ -1,9 +1,9 @@
 package com.mercuriusxeno.goo.gametest;
 
-import com.mercuriusxeno.goo.item.BlobStacks;
 import com.mercuriusxeno.goo.item.ContainerCapacity;
 import com.mercuriusxeno.goo.item.GooContents;
-import com.mercuriusxeno.goo.item.GooOmniblobItem;
+import com.mercuriusxeno.goo.item.GooItem;
+import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.item.VatBlockItem;
 import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -17,23 +17,23 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameType;
 
 /**
- * Gametests for blobs and omniblobs clicked onto a vat item in inventory
+ * Gametests for thousands and gooStacks clicked onto a vat item in inventory
  * (decisions vat-item-insert-shared, vat-item-drain-shared and vat-click-unpacks-into-inventory).
  */
 public final class VatItemClickTests {
 
     private static final ResourceKey<GooTypeDefinition> ROCK = GooTypes.ROCK;
     private static final ResourceKey<GooTypeDefinition> NETHER = GooTypes.NETHER;
-    private static final int BLOB_COUNT = 5;
-    private static final int OMNIBLOB_OVERFLOW = 3_000;
+    private static final int GOO_COUNT = 5;
+    private static final int GOO_OVERFLOW = 3_000;
     private static final int PARTIAL_ROOM = 2_000;
     private static final int ROCK_HELD = 200_000;
     private static final int NETHER_HELD = 3_000;
     private static final String REGISTERED_OVERRIDE = "Registered vat item carries the override";
-    private static final String BLOB_HANDLED = "Blob insert should be handled";
-    private static final String OMNIBLOB_HANDLED = "Omniblob insert should be handled";
+    private static final String THOUSANDS_HANDLED = "Goo insert should be handled";
+    private static final String OMNITHOUSANDS_HANDLED = "Goo insert should be handled";
     private static final String CURSOR_EMPTIED = "Cursor should be empty once all its goo went in";
-    private static final String OMNIBLOB_REMAINDER = "Omniblob remainder";
+    private static final String GOO_REMAINDER = "Goo remainder";
     private static final String FULL_REFUSES = "A full vat item refuses";
     private static final String CONTENTS_UNCHANGED = "Vat contents after refusal";
     private static final String CURSOR_COUNT = "Cursor count after refusal";
@@ -50,48 +50,48 @@ public final class VatItemClickTests {
     }
 
     /**
-     * A five-blob omniblob onto an empty vat item fills it and empties the cursor;
+     * A five-goo onto an empty vat item fills it and empties the cursor;
      * the same stack onto a full vat item is refused and neither stack changes.
      *
      * @param helper the gametest helper
      */
-    public static void blobInsertFillsVatAndFullRefuses(GameTestHelper helper) {
+    public static void gooInsertFillsVatAndFullRefuses(GameTestHelper helper) {
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
         ItemStack vat = new ItemStack(GooItems.VAT.get());
-        CursorHolder cursor = new CursorHolder(BlobStacks.createForOutput(ROCK, BLOB_COUNT * BlobStacks.MB_PER_BLOB));
+        CursorHolder cursor = new CursorHolder(GooStacks.createForOutput(ROCK, GOO_COUNT * GooStacks.THOUSAND));
 
         helper.assertTrue(GooItems.VAT.get() instanceof VatBlockItem, REGISTERED_OVERRIDE);
-        helper.assertTrue(primaryClick(vat, cursor, player), BLOB_HANDLED);
+        helper.assertTrue(primaryClick(vat, cursor, player), THOUSANDS_HANDLED);
         helper.assertValueEqual(VatBlockItem.getGooContents(vat).getVolume(ROCK),
-                BLOB_COUNT * BlobStacks.MB_PER_BLOB, VAT_VOLUME);
+                GOO_COUNT * GooStacks.THOUSAND, VAT_VOLUME);
         helper.assertTrue(cursor.get().isEmpty(), CURSOR_EMPTIED);
 
         ItemStack full = vatWith(ROCK, ContainerCapacity.vatCapacity(0));
         GooContents before = VatBlockItem.getGooContents(full);
-        CursorHolder refused = new CursorHolder(BlobStacks.createForOutput(ROCK, BLOB_COUNT * BlobStacks.MB_PER_BLOB));
+        CursorHolder refused = new CursorHolder(GooStacks.createForOutput(ROCK, GOO_COUNT * GooStacks.THOUSAND));
 
         helper.assertFalse(primaryClick(full, refused, player), FULL_REFUSES);
         helper.assertValueEqual(VatBlockItem.getGooContents(full), before, CONTENTS_UNCHANGED);
-        helper.assertValueEqual(BlobStacks.volumeOf(refused.get()), BLOB_COUNT * BlobStacks.MB_PER_BLOB, CURSOR_COUNT);
+        helper.assertValueEqual(GooStacks.volumeOf(refused.get()), GOO_COUNT * GooStacks.THOUSAND, CURSOR_COUNT);
         helper.assertFalse(refused.wasSet(), CURSOR_UNTOUCHED);
         helper.succeed();
     }
 
     /**
-     * An omniblob larger than the vat item's free room fills it and keeps its remainder.
+     * A goo larger than the vat item's free room fills it and keeps its remainder.
      *
      * @param helper the gametest helper
      */
-    public static void omniblobInsertKeepsRemainder(GameTestHelper helper) {
+    public static void gooInsertKeepsRemainder(GameTestHelper helper) {
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
         int capacity = ContainerCapacity.vatCapacity(0);
         ItemStack vat = vatWith(ROCK, capacity - PARTIAL_ROOM);
-        CursorHolder cursor = new CursorHolder(GooOmniblobItem.createWithVolume(ROCK, OMNIBLOB_OVERFLOW));
+        CursorHolder cursor = new CursorHolder(GooItem.createWithVolume(ROCK, GOO_OVERFLOW));
 
-        helper.assertTrue(primaryClick(vat, cursor, player), OMNIBLOB_HANDLED);
+        helper.assertTrue(primaryClick(vat, cursor, player), OMNITHOUSANDS_HANDLED);
         helper.assertValueEqual(VatBlockItem.getGooContents(vat).getVolume(ROCK), capacity, VAT_VOLUME);
-        helper.assertValueEqual(GooOmniblobItem.getVolume(cursor.get()),
-                OMNIBLOB_OVERFLOW - PARTIAL_ROOM, OMNIBLOB_REMAINDER);
+        helper.assertValueEqual(GooItem.getVolume(cursor.get()),
+                GOO_OVERFLOW - PARTIAL_ROOM, GOO_REMAINDER);
         helper.succeed();
     }
 
@@ -125,8 +125,8 @@ public final class VatItemClickTests {
         int volume = 0;
         for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
             ItemStack stack = player.getInventory().getItem(slot);
-            if (BlobStacks.keyOf(stack) == type) {
-                volume += BlobStacks.volumeOf(stack);
+            if (GooStacks.keyOf(stack) == type) {
+                volume += GooStacks.volumeOf(stack);
             }
         }
         return volume;

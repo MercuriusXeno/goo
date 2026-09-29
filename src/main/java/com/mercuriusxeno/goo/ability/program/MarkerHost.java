@@ -4,7 +4,7 @@ import com.mercuriusxeno.goo.ability.BlockEffectType;
 import com.mercuriusxeno.goo.ability.LayerAudioType;
 import com.mercuriusxeno.goo.ability.LayerVisualsType;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
-import com.mercuriusxeno.goo.item.BlobStacks;
+import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooParticles;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -26,7 +26,7 @@ import java.util.function.Consumer;
 
 /**
  * The {@link StepHost} over a chain marker block entity: reads stack
- * count, placed face and blob shape from the block entity, and acts on
+ * count, placed face and goo shape from the block entity, and acts on
  * the server level at the marker position. Built fresh each tick from
  * what the {@link ProgramBehavior} marker callbacks
  * hand over, so it holds no state of its own.
@@ -131,7 +131,7 @@ public record MarkerHost(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity
 
     @Override
     public void dropConsumedGoo() {
-        BlobStacks.dropAll(be.takeConsumedGoo(), level, pos);
+        GooStacks.dropAll(be.takeConsumedGoo(), level, pos);
     }
 
     @Override

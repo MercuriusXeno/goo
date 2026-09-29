@@ -30,8 +30,8 @@ public final class GooLightContribution {
      * Light contribution for a single (type, amount, capacity) triple.
      *
      * @param type     the goo type's registry entry, may be null
-     * @param amount   present amount in microblobs (mB)
-     * @param capacity slot capacity in microblobs; non-positive yields 0
+     * @param amount   present amount (mB)
+     * @param capacity slot capacity; non-positive yields 0
      * @return contribution in [{@link #FLOOR_PRESENT}, peakLight] when present, 0 if empty
      */
     public static int forSlot(@Nullable GooTypeDefinition type, long amount, long capacity) {

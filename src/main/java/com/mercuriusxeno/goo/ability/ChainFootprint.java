@@ -75,7 +75,7 @@ public final class ChainFootprint {
      * Total blocks the tunnel bores at the given stack count: 1, 9, 18,
      * 36, 63 and 90 over six stacks.
      *
-     * @param stacks blob stack count (1-based)
+     * @param stacks goo stack count (1-based)
      * @return total block count
      */
     public static int totalBlocks(int stacks) {
@@ -86,7 +86,7 @@ public final class ChainFootprint {
      * Tunnel depth (layers into the wall) at the given stack count, read
      * from the ladder 1, 1, 2, 4, 7, 10 and held at its last rung past six.
      *
-     * @param stacks blob stack count (1-based)
+     * @param stacks goo stack count (1-based)
      * @return depth in layers
      */
     public static int tunnelDepth(int stacks) {
@@ -100,7 +100,7 @@ public final class ChainFootprint {
      * at one stack, the 3x3 from two stacks on. Coordinates are
      * (perpA, perpB) relative to the layer center.
      *
-     * @param stacks blob stack count (1-based)
+     * @param stacks goo stack count (1-based)
      * @return list of [a, b] offset pairs
      */
     public static List<int[]> layerFootprint(int stacks) {
@@ -123,7 +123,7 @@ public final class ChainFootprint {
      * from the start radius the ability JSON names (decisions
      * disc-opens-circularly-per-stack, sphere-is-frost-alone).
      *
-     * @param stacks      blob stack count (1-based)
+     * @param stacks      goo stack count (1-based)
      * @param startRadius the radius of the first throw
      * @return the radius, never below zero
      */
@@ -134,7 +134,7 @@ public final class ChainFootprint {
     /**
      * Returns the flat disc at a start radius of zero.
      *
-     * @param stacks blob stack count (1-based)
+     * @param stacks goo stack count (1-based)
      * @return list of [a, b] offset pairs
      */
     public static List<int[]> flatFootprint(int stacks) {
@@ -145,7 +145,7 @@ public final class ChainFootprint {
      * Returns the flat disc: every cell whose center lies under
      * {@code r + 0.5} of the center, for r the {@link #radiusAtStacks}.
      *
-     * @param stacks      blob stack count (1-based)
+     * @param stacks      goo stack count (1-based)
      * @param startRadius the radius of the first throw
      * @return list of [a, b] offset pairs, ring by ring outward
      */
@@ -160,7 +160,7 @@ public final class ChainFootprint {
     /**
      * Returns the flat disc's rings at a start radius of zero.
      *
-     * @param stacks blob stack count (1-based)
+     * @param stacks goo stack count (1-based)
      * @return list of rings, each ring a list of [a, b] offset pairs
      */
     public static List<List<int[]>> flatRings(int stacks) {
@@ -172,7 +172,7 @@ public final class ChainFootprint {
      * the cells with {@code floor(sqrt(a*a + b*b)) == k}, so ring 0 is the
      * center and the rings step outward, disjoint, uniting to the disc.
      *
-     * @param stacks      blob stack count (1-based)
+     * @param stacks      goo stack count (1-based)
      * @param startRadius the radius of the first throw
      * @return list of rings, each ring a list of [a, b] offset pairs
      */
@@ -227,7 +227,7 @@ public final class ChainFootprint {
      * mode, relative to the marker position: the tunnel's layers, the flat
      * disc, or the ball. Layer 0 starts one step into the wall from the marker.
      *
-     * @param stacks      blob stack count
+     * @param stacks      goo stack count
      * @param areaMode    "tunnel", "flat_circle", or "sphere"
      * @param startRadius the disc's or the ball's radius at one stack
      * @param face        the placed face
@@ -364,7 +364,7 @@ public final class ChainFootprint {
      * position. The marker sits in the air block adjacent to the wall;
      * layer 0 is one step into the wall from the marker.
      *
-     * @param stacks   blob stack count
+     * @param stacks   goo stack count
      * @param flatMode true for flat mode, false for tunnel
      * @param face     the face the marker was placed on
      * @return AABB in marker-local coordinates (marker at origin)

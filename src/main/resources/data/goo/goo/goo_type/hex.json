@@ -13,10 +13,10 @@
   "base_flight_time": 3,
   "map_color": "color_black",
   "textures": {
-    "blob_tiny": "goo:item/hex_blob_tiny",
-    "blob_small": "goo:item/hex_blob_small",
-    "blob_base": "goo:item/hex_blob_base",
-    "blob_large": "goo:item/hex_blob_large",
+    "goo_tiny": "goo:item/hex_goo_tiny",
+    "goo_small": "goo:item/hex_goo_small",
+    "goo_base": "goo:item/hex_goo_base",
+    "goo_large": "goo:item/hex_goo_large",
     "fluid_still": "goo:fluid/hex_fluid",
     "fluid_flowing": "goo:fluid/hex_fluid"
   }

@@ -11,7 +11,7 @@ import net.minecraft.util.ARGB;
 import net.minecraft.util.RandomSource;
 
 /**
- * The trail-drip: a 2x3 slime drip shed by thrown goo blobs mid-flight, and
+ * The trail-drip: a 2x3 slime drip shed by thrown goo mid-flight, and
  * its splat, each drawing its own sprite under the option's color
  * (decision tap-drip-own-square-particles).
  */

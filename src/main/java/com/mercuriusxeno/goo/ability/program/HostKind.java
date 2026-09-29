@@ -19,7 +19,7 @@ public enum HostKind {
             Set.of(HostVariables.STACKS, HostVariables.MAX_STACKS, HostVariables.FLAT)),
     /**
      * The struck living entity: a target and its thrower, acted on in the
-     * tick the blob lands, with no driver for later ticks.
+     * tick the goo lands, with no driver for later ticks.
      */
     ENTITY("struck entity", EntityHost.class,
             Set.of(HostVariables.HEALTH, HostVariables.MAX_HEALTH, HostVariables.DISTANCE,

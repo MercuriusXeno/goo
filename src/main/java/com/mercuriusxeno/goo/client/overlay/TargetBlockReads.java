@@ -11,7 +11,7 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * What the aim reads off the aimed-at block: the chain marker of the
- * selected ability there or beside it, whether it takes another blob, its goo type, and whether
+ * selected ability there or beside it, whether it takes another goo, its goo type, and whether
  * the block is a water source (decision render-context-is-the-one-emitter).
  */
 final class TargetBlockReads {
@@ -47,7 +47,7 @@ final class TargetBlockReads {
 
     /**
      * The chain marker of the selected ability at the hit block or on the
-     * hit face beside it, where a thrown blob would place one.
+     * hit face beside it, where a thrown goo would place one.
      *
      * @param level     the client level
      * @param pos       the hit block position
@@ -83,13 +83,13 @@ final class TargetBlockReads {
 
     /**
      * Returns true if the chain marker at the given position can still
-     * accept more blobs (not at max stacks, no active fuse or behavior).
+     * accept more goo (not at max stacks, no active fuse or behavior).
      *
      * @param level the client level
      * @param pos   the chain marker position
-     * @return true if more blobs can be stacked
+     * @return true if more goo can be stacked
      */
-    static boolean canAcceptMoreBlobs(Level level, BlockPos pos) {
+    static boolean canAcceptMoreGoo(Level level, BlockPos pos) {
         if (!(level.getBlockEntity(pos) instanceof ChainMarkerBlockEntity be)) {
             return false;
         }

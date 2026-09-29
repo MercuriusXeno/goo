@@ -15,7 +15,7 @@ final class GooDerivationDiagnostics {
     }
 
     /**
-     * Detects items where the base value and derived value disagree on total blobs.
+     * Detects items where the base value and derived value disagree on total goo.
      *
      * @param baseValues    hand-keyed base values
      * @param derivedValues recipe-derived values
@@ -31,7 +31,7 @@ final class GooDerivationDiagnostics {
     }
 
     /**
-     * Appends a conflict entry when derived and base total blobs disagree.
+     * Appends a conflict entry when derived and base total goo disagree.
      *
      * @param itemId        the item to check
      * @param base          the base goo value
@@ -42,7 +42,7 @@ final class GooDerivationDiagnostics {
                                            Map<Identifier, GooValue> derivedValues,
                                            List<GooValueRegistry.ValueConflict> conflicts) {
         GooValue derived = derivedValues.get(itemId);
-        if (derived != null && derived.totalBlobs() != base.totalBlobs()) {
+        if (derived != null && derived.totalGoo() != base.totalGoo()) {
             conflicts.add(new GooValueRegistry.ValueConflict(itemId, base, derived));
         }
     }
@@ -168,7 +168,7 @@ final class GooDerivationDiagnostics {
         if (inputValue.isEmpty()) {
             return;
         }
-        buildLossIfRemainder(outputId, recipe, inputValue.get().totalBlobs(), losses);
+        buildLossIfRemainder(outputId, recipe, inputValue.get().totalGoo(), losses);
     }
 
     /**
@@ -176,7 +176,7 @@ final class GooDerivationDiagnostics {
      *
      * @param outputId   the output item ID
      * @param recipe     the recipe being checked
-     * @param inputTotal total input blobs before division
+     * @param inputTotal total input goo before division
      * @param losses     accumulator for detected losses
      */
     static void buildLossIfRemainder(Identifier outputId, RecipeInput recipe,

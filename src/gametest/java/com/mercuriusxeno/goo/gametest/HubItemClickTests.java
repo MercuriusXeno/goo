@@ -1,11 +1,11 @@
 package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.block.hub.HubBlockEntity;
-import com.mercuriusxeno.goo.item.BlobStacks;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.ContainerCapacity;
-import com.mercuriusxeno.goo.item.GooOmniblobItem;
+import com.mercuriusxeno.goo.item.GooItem;
+import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.item.HubBlockItem;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
 import com.mercuriusxeno.goo.registry.GooItems;
@@ -27,8 +27,8 @@ import net.minecraft.world.phys.Vec3;
 import java.util.List;
 
 /**
- * Gametests for blobs and omniblobs clicked onto a hub item in inventory
- * (decision hub-item-blob-insert).
+ * Gametests for thousands and gooStacks clicked onto a hub item in inventory
+ * (decision hub-item-goo-insert).
  */
 public final class HubItemClickTests {
 
@@ -36,16 +36,16 @@ public final class HubItemClickTests {
     private static final BlockPos HUB_POS = FLOOR_POS.above();
     private static final ResourceKey<GooTypeDefinition> ROCK = GooTypes.ROCK;
     private static final ResourceKey<GooTypeDefinition> NETHER = GooTypes.NETHER;
-    private static final int BLOB_COUNT = 5;
-    private static final int OMNIBLOB_OVERFLOW = 3_000;
-    private static final int OMNIBLOB_FITS = 2_500;
+    private static final int GOO_COUNT = 5;
+    private static final int GOO_OVERFLOW = 3_000;
+    private static final int GOO_FITS = 2_500;
     private static final int PARTIAL_ROOM = 2_000;
     private static final double HALF_BLOCK = 0.5;
     private static final String REGISTERED_OVERRIDE = "Registered hub item carries the override";
-    private static final String BLOB_HANDLED = "Blob insert should be handled";
-    private static final String OMNIBLOB_HANDLED = "Omniblob insert should be handled";
+    private static final String THOUSANDS_HANDLED = "Goo insert should be handled";
+    private static final String OMNITHOUSANDS_HANDLED = "Goo insert should be handled";
     private static final String CURSOR_EMPTIED = "Cursor should be empty once all its goo went in";
-    private static final String OMNIBLOB_REMAINDER = "Omniblob remainder";
+    private static final String GOO_REMAINDER = "Goo remainder";
     private static final String BARE_REFUSES = "A hub without canisters refuses";
     private static final String BARE_STAYS_BARE = "Bare hub gains no canisters";
     private static final String CURSOR_COUNT = "Cursor count after refusal";
@@ -61,19 +61,19 @@ public final class HubItemClickTests {
     }
 
     /**
-     * A five-blob omniblob onto a hub holding an empty canister fills it, empties the cursor,
+     * A five-goo onto a hub holding an empty canister fills it, empties the cursor,
      * and a hub placed from that stack holds the goo in slot 0.
      *
      * @param helper the gametest helper
      */
-    public static void blobInsertFillsCanisterAndPlaces(GameTestHelper helper) {
+    public static void gooInsertFillsCanisterAndPlaces(GameTestHelper helper) {
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
         ItemStack hub = hubHolding(new ItemStack(GooItems.CANISTER.get()));
-        CursorHolder cursor = new CursorHolder(BlobStacks.createForOutput(ROCK, BLOB_COUNT * BlobStacks.MB_PER_BLOB));
+        CursorHolder cursor = new CursorHolder(GooStacks.createForOutput(ROCK, GOO_COUNT * GooStacks.THOUSAND));
 
         helper.assertTrue(GooItems.HUB.get() instanceof HubBlockItem, REGISTERED_OVERRIDE);
-        helper.assertTrue(primaryClick(hub, cursor, player), BLOB_HANDLED);
-        assertCanister(helper, canistersOf(hub).getFirst(), ROCK, BLOB_COUNT * BlobStacks.MB_PER_BLOB);
+        helper.assertTrue(primaryClick(hub, cursor, player), THOUSANDS_HANDLED);
+        assertCanister(helper, canistersOf(hub).getFirst(), ROCK, GOO_COUNT * GooStacks.THOUSAND);
         helper.assertTrue(cursor.get().isEmpty(), CURSOR_EMPTIED);
 
         helper.setBlock(FLOOR_POS, Blocks.STONE);
@@ -83,30 +83,30 @@ public final class HubItemClickTests {
                 new BlockHitResult(Vec3.atCenterOf(floor).add(0, HALF_BLOCK, 0), Direction.UP, floor, false));
 
         HubBlockEntity placed = helper.getBlockEntity(HUB_POS, HubBlockEntity.class);
-        assertCanister(helper, placed.getCanister(0), ROCK, BLOB_COUNT * BlobStacks.MB_PER_BLOB);
+        assertCanister(helper, placed.getCanister(0), ROCK, GOO_COUNT * GooStacks.THOUSAND);
         helper.succeed();
     }
 
     /**
-     * An omniblob larger than the free room keeps its remainder; one that fits clears the cursor.
+     * A goo larger than the free room keeps its remainder; one that fits clears the cursor.
      *
      * @param helper the gametest helper
      */
-    public static void omniblobInsertKeepsRemainder(GameTestHelper helper) {
+    public static void gooInsertKeepsRemainder(GameTestHelper helper) {
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
         int capacity = ContainerCapacity.canisterCapacity(0);
         ItemStack hub = hubHolding(canisterWith(ROCK, capacity - PARTIAL_ROOM));
-        CursorHolder overflow = new CursorHolder(GooOmniblobItem.createWithVolume(ROCK, OMNIBLOB_OVERFLOW));
+        CursorHolder overflow = new CursorHolder(GooItem.createWithVolume(ROCK, GOO_OVERFLOW));
 
-        helper.assertTrue(primaryClick(hub, overflow, player), OMNIBLOB_HANDLED);
+        helper.assertTrue(primaryClick(hub, overflow, player), OMNITHOUSANDS_HANDLED);
         assertCanister(helper, canistersOf(hub).getFirst(), ROCK, capacity);
-        helper.assertValueEqual(GooOmniblobItem.getVolume(overflow.get()),
-                OMNIBLOB_OVERFLOW - PARTIAL_ROOM, OMNIBLOB_REMAINDER);
+        helper.assertValueEqual(GooItem.getVolume(overflow.get()),
+                GOO_OVERFLOW - PARTIAL_ROOM, GOO_REMAINDER);
 
         ItemStack roomyHub = hubHolding(new ItemStack(GooItems.CANISTER.get()));
-        CursorHolder fits = new CursorHolder(GooOmniblobItem.createWithVolume(ROCK, OMNIBLOB_FITS));
-        helper.assertTrue(primaryClick(roomyHub, fits, player), OMNIBLOB_HANDLED);
-        assertCanister(helper, canistersOf(roomyHub).getFirst(), ROCK, OMNIBLOB_FITS);
+        CursorHolder fits = new CursorHolder(GooItem.createWithVolume(ROCK, GOO_FITS));
+        helper.assertTrue(primaryClick(roomyHub, fits, player), OMNITHOUSANDS_HANDLED);
+        assertCanister(helper, canistersOf(roomyHub).getFirst(), ROCK, GOO_FITS);
         helper.assertTrue(fits.get().isEmpty(), CURSOR_EMPTIED);
         helper.succeed();
     }
@@ -119,11 +119,11 @@ public final class HubItemClickTests {
     public static void insertRefusedLeavesStacks(GameTestHelper helper) {
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
         ItemStack bare = new ItemStack(GooItems.HUB.get());
-        CursorHolder cursor = new CursorHolder(BlobStacks.createForOutput(ROCK, BLOB_COUNT * BlobStacks.MB_PER_BLOB));
+        CursorHolder cursor = new CursorHolder(GooStacks.createForOutput(ROCK, GOO_COUNT * GooStacks.THOUSAND));
 
         helper.assertFalse(primaryClick(bare, cursor, player), BARE_REFUSES);
         helper.assertFalse(bare.has(GooDataComponents.HUB_CANISTERS.get()), BARE_STAYS_BARE);
-        helper.assertValueEqual(BlobStacks.volumeOf(cursor.get()), BLOB_COUNT * BlobStacks.MB_PER_BLOB, CURSOR_COUNT);
+        helper.assertValueEqual(GooStacks.volumeOf(cursor.get()), GOO_COUNT * GooStacks.THOUSAND, CURSOR_COUNT);
 
         int capacity = ContainerCapacity.canisterCapacity(0);
         ItemStack blocked = hubHolding(canisterWith(ROCK, capacity), canisterWith(NETHER, PARTIAL_ROOM));
@@ -131,7 +131,7 @@ public final class HubItemClickTests {
 
         helper.assertFalse(primaryClick(blocked, cursor, player), BLOCKED_REFUSES);
         helper.assertValueEqual(contentsOf(blocked), before, CONTENTS_UNCHANGED);
-        helper.assertValueEqual(BlobStacks.volumeOf(cursor.get()), BLOB_COUNT * BlobStacks.MB_PER_BLOB, CURSOR_COUNT);
+        helper.assertValueEqual(GooStacks.volumeOf(cursor.get()), GOO_COUNT * GooStacks.THOUSAND, CURSOR_COUNT);
         helper.assertFalse(cursor.wasSet(), CURSOR_UNTOUCHED);
         helper.succeed();
     }

@@ -13,7 +13,7 @@ import java.util.List;
 
 /**
  * Static helpers for item entity absorption into the crucible basin.
- * Handles blobs, PMIs, chrysm, containers, and regular meltable items that
+ * Handles goo, PMIs, chrysm, containers, and regular meltable items that
  * fall or are thrown into the goocible.
  */
 final class CrucibleAbsorption {
@@ -29,21 +29,21 @@ final class CrucibleAbsorption {
      */
     static void tryAbsorbItem(ItemEntity itemEntity, CrucibleBlockEntity crucible) {
         ItemStack stack = itemEntity.getItem();
-        if (isGooBlob(stack)) {
-            absorbBlob(itemEntity, stack, crucible);
+        if (isGoo(stack)) {
+            absorbGoo(itemEntity, stack, crucible);
         } else {
-            absorbNonBlob(itemEntity, stack, crucible);
+            absorbNonGoo(itemEntity, stack, crucible);
         }
     }
 
     /**
-     * Routes non-blob items to the correct absorption handler.
+     * Routes non-goo items to the correct absorption handler.
      *
      * @param entity   the item entity to absorb
      * @param stack    the item stack from the entity
      * @param crucible the crucible block entity
      */
-    private static void absorbNonBlob(ItemEntity entity, ItemStack stack, CrucibleBlockEntity crucible) {
+    private static void absorbNonGoo(ItemEntity entity, ItemStack stack, CrucibleBlockEntity crucible) {
         if (stack.getItem() instanceof PartiallyMeltedItem) {
             absorbPMI(entity, stack, crucible);
         } else if (stack.getItem() instanceof ChrysmItem chrysm) {
@@ -56,13 +56,13 @@ final class CrucibleAbsorption {
     }
 
     /**
-     * Returns true if the stack is an omniblob, the one goo item.
+     * Returns true if the stack is a goo, the one goo item.
      *
      * @param stack the item stack to test
-     * @return true if the stack is an omniblob
+     * @return true if the stack is a goo
      */
-    private static boolean isGooBlob(ItemStack stack) {
-        return stack.getItem() instanceof GooOmniblobItem;
+    private static boolean isGoo(ItemStack stack) {
+        return stack.getItem() instanceof GooItem;
     }
 
     /**
@@ -87,7 +87,7 @@ final class CrucibleAbsorption {
     }
 
     /**
-     * Inserts the whole omniblob when it fits the reservoir,
+     * Inserts the whole goo when it fits the reservoir,
      * bypassing the melt pipeline; what does not fit stays on the ground
      * (decision crucible-refuses-past-two-billion).
      *
@@ -95,10 +95,10 @@ final class CrucibleAbsorption {
      * @param stack    the item stack
      * @param crucible the crucible block entity
      */
-    private static void absorbBlob(ItemEntity entity, ItemStack stack,
+    private static void absorbGoo(ItemEntity entity, ItemStack stack,
                                    CrucibleBlockEntity crucible) {
-        ResourceKey<GooTypeDefinition> type = BlobStacks.keyOf(stack);
-        int volume = BlobStacks.volumeOf(stack);
+        ResourceKey<GooTypeDefinition> type = GooStacks.keyOf(stack);
+        int volume = GooStacks.volumeOf(stack);
         if (type == null || volume <= 0) {
             return;
         }

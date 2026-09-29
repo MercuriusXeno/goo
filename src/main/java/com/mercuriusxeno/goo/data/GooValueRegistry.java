@@ -386,12 +386,12 @@ public class GooValueRegistry {
      */
     public record ValueConflict(Identifier item, GooValue baseValue, GooValue recipeValue) {
         /**
-         * Returns true if the recipe path produces fewer total blobs than the base value.
+         * Returns true if the recipe path produces fewer total goo than the base value.
          *
          * @return true if derived is cheaper than hand-keyed
          */
         public boolean isRecipeCheaper() {
-            return recipeValue.totalBlobs() < baseValue.totalBlobs();
+            return recipeValue.totalGoo() < baseValue.totalGoo();
         }
     }
 
@@ -400,13 +400,13 @@ public class GooValueRegistry {
      *
      * @param output       the output item
      * @param outputCount  the recipe output count
-     * @param inputTotal   the total input value in blobs
+     * @param inputTotal   the total input value in goo
      * @param perItemValue the per-item value after division
-     * @param lostBlobs    the blobs lost to integer truncation
+     * @param lostGoo    the goo lost to integer truncation
      * @param recipe       the source recipe input
      */
     public record DivisibilityLoss(Identifier output, int outputCount, int inputTotal,
-                                   int perItemValue, int lostBlobs, RecipeInput recipe) {
+                                   int perItemValue, int lostGoo, RecipeInput recipe) {
     }
 
     /**

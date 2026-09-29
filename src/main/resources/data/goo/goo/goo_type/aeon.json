@@ -13,10 +13,10 @@
   "base_flight_time": 3,
   "map_color": "gold",
   "textures": {
-    "blob_tiny": "goo:item/aeon_blob_tiny",
-    "blob_small": "goo:item/aeon_blob_small",
-    "blob_base": "goo:item/aeon_blob_base",
-    "blob_large": "goo:item/aeon_blob_large",
+    "goo_tiny": "goo:item/aeon_goo_tiny",
+    "goo_small": "goo:item/aeon_goo_small",
+    "goo_base": "goo:item/aeon_goo_base",
+    "goo_large": "goo:item/aeon_goo_large",
     "fluid_still": "goo:fluid/aeon_fluid",
     "fluid_flowing": "goo:fluid/aeon_fluid"
   }

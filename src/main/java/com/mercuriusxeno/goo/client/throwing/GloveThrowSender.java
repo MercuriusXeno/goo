@@ -9,8 +9,8 @@ import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.overlay.AimTracker;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
-import com.mercuriusxeno.goo.network.BlobThrowHandler;
-import com.mercuriusxeno.goo.network.BlobThrowPayload;
+import com.mercuriusxeno.goo.network.GooThrowHandler;
+import com.mercuriusxeno.goo.network.GooThrowPayload;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.client.Minecraft;
@@ -32,7 +32,7 @@ import java.util.function.IntPredicate;
 
 /**
  * Client-only helper that resolves the player's aim target and sends
- * a {@link BlobThrowPayload} to the server. Tracks in-flight blob
+ * a {@link GooThrowPayload} to the server. Tracks in-flight goo
  * counts per chain marker so the client can block throws that would
  * exceed max stacks without waiting for server acknowledgement.
  */
@@ -58,7 +58,7 @@ public final class GloveThrowSender {
 
     /**
      * Resolves the current aim target and sends the throw packet for the
-     * held glove's selection. Blocks the throw if in-flight blobs would
+     * held glove's selection. Blocks the throw if in-flight goo would
      * exceed the marker's max stacks, and arms a throw-block freeze when maxed.
      *
      * @param player the local player
@@ -71,7 +71,7 @@ public final class GloveThrowSender {
             return false;
         }
         TargetResult target = AimTracker.currentTarget();
-        BlobThrowPayload payload = affordablePayload(player, target, gooType, selection.abilityId());
+        GooThrowPayload payload = affordablePayload(player, target, gooType, selection.abilityId());
         if (payload == null) {
             return false;
         }
@@ -94,9 +94,9 @@ public final class GloveThrowSender {
      * @param abilityId the selected ability id string
      * @return the payload, or null for no target or an unaffordable throw
      */
-    private static @Nullable BlobThrowPayload affordablePayload(Player player, TargetResult target,
+    private static @Nullable GooThrowPayload affordablePayload(Player player, TargetResult target,
             ResourceKey<GooTypeDefinition> gooType, String abilityId) {
-        BlobThrowPayload payload = targetToPayload(target, gooType, abilityId, lineOrigin());
+        GooThrowPayload payload = targetToPayload(target, gooType, abilityId, lineOrigin());
         if (payload == null || !affordsThrow(AbilitySyncHandler.findAbility(abilityId), keyedStacksAt(payload),
                 amount -> GooSourceScanner.hasEnough(player, gooType, amount))) {
             return null;
@@ -127,7 +127,7 @@ public final class GloveThrowSender {
      * @return the cost in mB
      */
     static int throwCostOf(@Nullable ClientAbility ability, int existingStacks) {
-        return ability == null ? BlobThrowHandler.THROW_COST : ability.throwCost(existingStacks);
+        return ability == null ? GooThrowHandler.THROW_COST : ability.throwCost(existingStacks);
     }
 
     /**
@@ -144,7 +144,7 @@ public final class GloveThrowSender {
         if (gooType == null) {
             return OptionalInt.empty();
         }
-        BlobThrowPayload payload = targetToPayload(AimTracker.currentTarget(), gooType, selection.abilityId(),
+        GooThrowPayload payload = targetToPayload(AimTracker.currentTarget(), gooType, selection.abilityId(),
                 lineOrigin());
         int stacks = payload == null ? 0 : keyedStacksAt(payload);
         return OptionalInt.of(throwCostOf(AbilitySyncHandler.findAbility(selection.abilityId()), stacks));
@@ -157,7 +157,7 @@ public final class GloveThrowSender {
      * @param payload the throw payload
      * @return the marker's stack count, or 0 when no marker of the ability stands there
      */
-    private static int keyedStacksAt(BlobThrowPayload payload) {
+    private static int keyedStacksAt(GooThrowPayload payload) {
         ClientLevel level = Minecraft.getInstance().level;
         if (level != null && level.getBlockEntity(payload.targetPos()) instanceof ChainMarkerBlockEntity be
                 && StackKey.matches(be.getAbilityId(), payload.abilityId())) {
@@ -167,11 +167,11 @@ public final class GloveThrowSender {
     }
 
     /**
-     * Called each client tick to decrement in-flight counters as blobs
+     * Called each client tick to decrement in-flight counters as goo
      * arrive. Wire to the same client tick as {@link ThrowFreezeState#tick()}.
      */
     public static void tick() {
-        // In-flight counts are decremented when BlobFlightManager removes
+        // In-flight counts are decremented when GooFlightManager removes
         // arrived flights. This tick cleans up stale entries.
         Iterator<Map.Entry<BlockPos, Integer>> it = IN_FLIGHT.entrySet().iterator();
         while (it.hasNext()) {
@@ -182,7 +182,7 @@ public final class GloveThrowSender {
     }
 
     /**
-     * Decrements the in-flight count for a chain marker when a blob
+     * Decrements the in-flight count for a chain marker when a goo
      * arrives. Checks both the given pos and all adjacent positions
      * since the flight payload carries the hit block pos but the
      * in-flight map tracks the canonical marker pos (which may be adjacent).
@@ -218,7 +218,7 @@ public final class GloveThrowSender {
     }
 
     /**
-     * Returns the number of blobs currently in flight toward the given position.
+     * Returns the number of goo currently in flight toward the given position.
      *
      * @param pos the target position
      * @return the in-flight count
@@ -229,7 +229,7 @@ public final class GloveThrowSender {
 
     /**
      * Returns true if this throw would push a chain marker past max stacks,
-     * counting both current stacks and in-flight blobs. Works even before
+     * counting both current stacks and in-flight goo. Works even before
      * the marker exists on the client by predicting the placement position
      * and reading the stack ceiling from the selected ability's synced
      * chain block (decision diagnose-then-fix-fuse-and-cost).
@@ -291,11 +291,11 @@ public final class GloveThrowSender {
     }
 
     /**
-     * Returns true if the crystal is at (or will reach) max size with in-flight blobs.
+     * Returns true if the crystal is at (or will reach) max size with in-flight goo.
      *
      * @param gct       the glow crystal target
      * @param abilityId the selected glow ability id string
-     * @return true if the crystal cannot accept another blob
+     * @return true if the crystal cannot accept another goo
      */
     private static boolean wouldExceedCrystalMax(TargetResult.GlowCrystalTarget gct, String abilityId) {
         int current = gct.currentStacks();
@@ -390,9 +390,9 @@ public final class GloveThrowSender {
     }
 
     /**
-     * The point the aim line starts at, the glove blob the player sees, so
+     * The point the aim line starts at, the glove goo the player sees, so
      * the flight leaves from where the line was drawn (decision
-     * diagnose-then-fix-blob-off-the-line).
+     * diagnose-then-fix-goo-off-the-line).
      *
      * @return the world-space aim line origin
      */
@@ -409,7 +409,7 @@ public final class GloveThrowSender {
      * @param origin    the aim line start, where the flight leaves from
      * @return the payload, or null for no target
      */
-    private static @Nullable BlobThrowPayload targetToPayload(TargetResult target,
+    private static @Nullable GooThrowPayload targetToPayload(TargetResult target,
             ResourceKey<GooTypeDefinition> gooType, String abilityId, Vec3 origin) {
         if (target instanceof TargetResult.None) {
             return null;
@@ -443,13 +443,13 @@ public final class GloveThrowSender {
      * @return the constructed throw payload
      * reduces the switch to 4 arms and keeps CC within threshold.
      */
-    private static BlobThrowPayload buildPayload(TargetResult target, String typeId, String abilityId,
+    private static GooThrowPayload buildPayload(TargetResult target, String typeId, String abilityId,
             Vec3 origin) {
         return switch (target) {
             case TargetResult.EntityTarget et -> entityPayload(typeId, et, abilityId, origin);
             case TargetResult.BlockTarget bt -> blockPayload(typeId, bt, abilityId, origin);
             case TargetResult.ChainMarkerTarget cmt -> chainMarkerPayload(typeId, cmt, abilityId, origin);
-            case TargetResult.GlowCrystalTarget gct -> new BlobThrowPayload(typeId, NO_ENTITY,
+            case TargetResult.GlowCrystalTarget gct -> new GooThrowPayload(typeId, NO_ENTITY,
                     gct.pos(), gct.face().ordinal(), false, abilityId, origin);
             default -> throw new IllegalArgumentException(target.toString());
         };
@@ -464,9 +464,9 @@ public final class GloveThrowSender {
      * @param origin    the aim line start, where the flight leaves from
      * @return the entity-targeted throw payload
      */
-    private static BlobThrowPayload entityPayload(String typeId,
+    private static GooThrowPayload entityPayload(String typeId,
             TargetResult.EntityTarget et, String abilityId, Vec3 origin) {
-        return new BlobThrowPayload(typeId, et.entity().getId(), BlockPos.ZERO, NO_ENTITY,
+        return new GooThrowPayload(typeId, et.entity().getId(), BlockPos.ZERO, NO_ENTITY,
                 false, abilityId, origin);
     }
 
@@ -479,9 +479,9 @@ public final class GloveThrowSender {
      * @param origin    the aim line start, where the flight leaves from
      * @return the block-targeted throw payload
      */
-    private static BlobThrowPayload blockPayload(String typeId,
+    private static GooThrowPayload blockPayload(String typeId,
             TargetResult.BlockTarget bt, String abilityId, Vec3 origin) {
-        return new BlobThrowPayload(typeId, NO_ENTITY, bt.pos(), bt.face().ordinal(),
+        return new GooThrowPayload(typeId, NO_ENTITY, bt.pos(), bt.face().ordinal(),
                 bt.grannyArc(), abilityId, origin);
     }
 
@@ -494,10 +494,10 @@ public final class GloveThrowSender {
      * @param origin    the aim line start, where the flight leaves from
      * @return the chain-marker-targeted throw payload
      */
-    private static BlobThrowPayload chainMarkerPayload(String typeId,
+    private static GooThrowPayload chainMarkerPayload(String typeId,
             TargetResult.ChainMarkerTarget cmt, String abilityId, Vec3 origin) {
         int faceOrdinal = resolveChainMarkerFace(cmt.pos()).getOpposite().ordinal();
-        return new BlobThrowPayload(typeId, NO_ENTITY, cmt.pos(), faceOrdinal, false, abilityId, origin);
+        return new GooThrowPayload(typeId, NO_ENTITY, cmt.pos(), faceOrdinal, false, abilityId, origin);
     }
 
     /**
@@ -521,7 +521,7 @@ public final class GloveThrowSender {
      *
      * @param payload the payload to send
      */
-    private static void sendPayload(BlobThrowPayload payload) {
+    private static void sendPayload(GooThrowPayload payload) {
         var connection = Minecraft.getInstance().getConnection();
         if (connection != null) {
             connection.send(new ServerboundCustomPayloadPacket(payload));

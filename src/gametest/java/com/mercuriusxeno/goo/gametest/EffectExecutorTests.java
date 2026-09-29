@@ -6,7 +6,7 @@ import com.mercuriusxeno.goo.ability.world.AbilityImpact;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
 import com.mercuriusxeno.goo.data.GooValues;
-import com.mercuriusxeno.goo.item.BlobStacks;
+import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -32,7 +32,7 @@ import java.util.function.BiConsumer;
  * Gametests for chain markers. Each test stands a marker initialized
  * through an ability and waits for the fuse and the ability's program to
  * complete. Covers the ChainMarkerBlockEntity tick lifecycle, the programs
- * the abilities declare, the fall and the blob landing on a block.
+ * the abilities declare, the fall and the goo landing on a block.
  */
 public final class EffectExecutorTests {
 
@@ -102,7 +102,7 @@ public final class EffectExecutorTests {
     /** The barrier floor spans the one-stack sphere's footprint around the marker, three blocks each way. */
     private static final int BARRIER_FLOOR_MIN = 0;
     private static final int BARRIER_FLOOR_MAX = 6;
-    /** Blocks around the marker searched for popped blobs, the reach of the barrier floor. */
+    /** Blocks around the marker searched for popped goo, the reach of the barrier floor. */
     private static final double ITEM_SEARCH_RADIUS = 4;
     /** Blocks around the marker cleared of leftovers, the one-stack black hole's pull reach. */
     private static final double LEFTOVER_CLEAR_RADIUS = 9;
@@ -111,7 +111,7 @@ public final class EffectExecutorTests {
     private static final String HOLE_LEFT_STONE = "The black hole left the stone it faced standing";
     private static final String HOLE_MISSED_PIG = "The black hole left the pig inside it at other than half health";
     private static final String HOLE_DROPPED_EARLY = "The black hole dropped items before it contracted";
-    private static final String HOLE_DROPPED_NO_ROCK = "The black hole popped no rock blob for the stone it consumed";
+    private static final String HOLE_DROPPED_NO_ROCK = "The black hole popped no rock goo for the stone it consumed";
 
     /** The floor a falling marker lands on. */
     private static final BlockPos FALL_FLOOR_POS = new BlockPos(3, 1, 3);
@@ -282,7 +282,7 @@ public final class EffectExecutorTests {
 
     /**
      * Asserts the glow crystal replaced the marker with facing from the
-     * placed face, shape bump (no flat blob) and size tiny (one stack).
+     * placed face, shape bump (no flat goo) and size tiny (one stack).
      *
      * @param helper the gametest helper
      * @param facing the placed face the crystal must face
@@ -369,12 +369,12 @@ public final class EffectExecutorTests {
 
     /**
      * Stands a glow crystal of the given size on stone, facing up, and
-     * lands one blob of the named ability on it.
+     * lands one goo of the named ability on it.
      *
      * @param helper    the gametest helper
-     * @param size      the crystal's size before the blob lands
+     * @param size      the crystal's size before the goo lands
      * @param type      the goo type thrown
-     * @param abilityId the ability the blob names
+     * @param abilityId the ability the goo names
      */
     private static void landOnCrystal(GameTestHelper helper, GlowCrystalBlock.CrystalSize size,
                                       ResourceKey<GooTypeDefinition> type, String abilityId) {
@@ -388,7 +388,7 @@ public final class EffectExecutorTests {
     }
 
     /**
-     * A glow_crystal blob landing on a tiny glow crystal grows it to small
+     * A glow_crystal goo landing on a tiny glow crystal grows it to small
      * and places no marker (decision place-block-ability-grows-block).
      *
      * @param helper the gametest helper
@@ -401,7 +401,7 @@ public final class EffectExecutorTests {
     }
 
     /**
-     * A glow_crystal blob landing on a large glow crystal leaves it large
+     * A glow_crystal goo landing on a large glow crystal leaves it large
      * and places no marker.
      *
      * @param helper the gametest helper
@@ -414,7 +414,7 @@ public final class EffectExecutorTests {
     }
 
     /**
-     * A metal_spikes blob landing on a glow crystal grows nothing and
+     * A metal_spikes goo landing on a glow crystal grows nothing and
      * places its own marker on the crystal's face.
      *
      * @param helper the gametest helper
@@ -638,10 +638,10 @@ public final class EffectExecutorTests {
     /**
      * Nether black hole as a phased program: one stack, facing a stone
      * wall with a pig standing inside its sphere on a barrier floor, which
-     * holds no goo so the sphere leaves it and the popped blobs land on
+     * holds no goo so the sphere leaves it and the popped goo land on
      * it inside the test's bounds, consumes the
      * stone as it leaves expand and halves the pig's health, drops nothing
-     * until it has contracted, then pops the consumed goo as a rock blob
+     * until it has contracted, then pops the consumed goo as a rock goo
      * and removes its marker.
      *
      * @param helper the gametest helper
@@ -662,7 +662,7 @@ public final class EffectExecutorTests {
         helper.runAfterDelay(FUSE_TICKS + BLACK_HOLE_LIFE_TICKS + SHORT_POST_FUSE, () -> {
             helper.assertBlockNotPresent(GooBlocks.CHAIN_MARKER.get(), MARKER_POS);
             helper.assertTrue(itemsAroundMarker(helper).stream()
-                    .anyMatch(item -> GooTypes.ROCK.equals(BlobStacks.keyOf(item.getItem()))), HOLE_DROPPED_NO_ROCK);
+                    .anyMatch(item -> GooTypes.ROCK.equals(GooStacks.keyOf(item.getItem()))), HOLE_DROPPED_NO_ROCK);
             helper.succeed();
         });
     }
@@ -726,7 +726,7 @@ public final class EffectExecutorTests {
 
     /**
      * Places a metal spikes marker over stone at the mine target and
-     * stacks it to two blobs.
+     * stacks it to two goo.
      *
      * @param helper the gametest helper
      * @return the marker's block entity
