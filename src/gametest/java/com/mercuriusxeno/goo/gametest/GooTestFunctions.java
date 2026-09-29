@@ -88,6 +88,8 @@ public final class GooTestFunctions {
     // --- Gasket demand ---
     private static final String GASKET_DEMAND_VAT_FILLS_HUB = "gasket_demand_vat_fills_hub";
     private static final String GASKET_DEMAND_VAT_FEEDS_TAP = "gasket_demand_vat_feeds_tap";
+    private static final String GASKET_DEMAND_TAP_CANISTER_FIRST = "gasket_demand_tap_canister_first";
+    private static final String GASKET_DEMAND_TAP_TYPES_BY_TURNS = "gasket_demand_tap_types_by_turns";
     private static final String GASKET_DEMAND_CRYSTALLIZER_CHAIN = "gasket_demand_crystallizer_chain";
     private static final String GASKET_DEMAND_CRYSTALLIZER_VAT_CHAIN = "gasket_demand_crystallizer_vat_chain";
     private static final String GASKET_DEMAND_HUB_SHARES = "gasket_demand_hub_shares";
@@ -374,6 +376,8 @@ public final class GooTestFunctions {
     private static void registerGasketDemandTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
         reg(r, GASKET_DEMAND_VAT_FILLS_HUB, GasketDemandTests::vatFillsHubAtItsRestingDemand);
         reg(r, GASKET_DEMAND_VAT_FEEDS_TAP, GasketDemandTests::vatFeedsTapAtTheValveRate);
+        reg(r, GASKET_DEMAND_TAP_CANISTER_FIRST, GasketDemandTests::tapDrainsItsCanisterBeforeAskingTheVat);
+        reg(r, GASKET_DEMAND_TAP_TYPES_BY_TURNS, GasketDemandTests::vatFeedsTapBothTypesByTurns);
         reg(r, GASKET_DEMAND_CRYSTALLIZER_CHAIN, GasketDemandTests::crystallizerDrawsItsPaceThroughACanister);
         reg(r, GASKET_DEMAND_CRYSTALLIZER_VAT_CHAIN, GasketDemandTests::crystallizerDrawsItsPaceThroughAVat);
         reg(r, GASKET_DEMAND_HUB_SHARES, GasketDemandTests::hubGivesEachCanisterItsOwnDemand);
