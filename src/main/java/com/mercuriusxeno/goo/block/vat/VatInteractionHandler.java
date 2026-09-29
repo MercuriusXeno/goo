@@ -1,18 +1,19 @@
 package com.mercuriusxeno.goo.block.vat;
 
+import com.mercuriusxeno.goo.block.GooBlockInteraction;
 import com.mercuriusxeno.goo.item.BlobInsert;
 import com.mercuriusxeno.goo.item.GooDeposit;
-import com.mercuriusxeno.goo.item.GooOmniblobItem;
-import com.mercuriusxeno.goo.item.gasket.ChoralGasketItem;
+import com.mercuriusxeno.goo.item.GooInteractionType;
 import com.mercuriusxeno.goo.item.gasket.GasketInstallHelper;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.phys.BlockHitResult;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Stateless dispatch and handler methods for vat block interactions: gasket install,
@@ -20,10 +21,8 @@ import org.jspecify.annotations.Nullable;
  */
 final class VatInteractionHandler {
 
-    /**
-     * Block update flags: notify neighbors + send to clients.
-     */
-    private static final int BLOCK_UPDATE_FLAGS = 3;
+    /** Error message prefix for an interaction type outside the vat's rows reaching dispatch. */
+    private static final String ERR_UNHANDLED = "Unhandled interaction: ";
 
     private VatInteractionHandler() {
     }
@@ -31,44 +30,28 @@ final class VatInteractionHandler {
     // --- Dispatch ---
 
     /**
-     * Server-side dispatch for item interactions: a gasket installs, an omniblob pours in, and
-     * every other item, a canister among them, falls through to the empty-hand unpack
-     * (decision canister-click-is-any-other-click-on-crucible-and-vat).
+     * Routes a vat row to its handler: a gasket installs on the vat itself, an omniblob pours
+     * in. Every other item, a canister among them, never reaches here and falls through to the
+     * empty-hand unpack (decision canister-click-is-any-other-click-on-crucible-and-vat).
      *
-     * @param vat       the vat block entity
-     * @param stack     the item stack
-     * @param player    the interacting player
-     * @param hand      the hand used
-     * @param hitResult the ray trace hit result
+     * @param interaction the classified interaction, one of VatBlock.CLICK_ROWS
+     * @param vat         the vat block entity
+     * @param stack       the item stack
+     * @param player      the interacting player
+     * @param hand        the hand used
+     * @param hitResult   the ray trace hit result
+     * @param pos         the block position
+     * @param level       the current level
      * @return the interaction result
      */
     static InteractionResult dispatchInteraction(
-            VatBlockEntity vat, ItemStack stack,
-            Player player, InteractionHand hand, BlockHitResult hitResult) {
-        InteractionResult result = dispatchGasketOrBlob(vat, stack, player, hitResult);
-        return result != null ? result : InteractionResult.TRY_WITH_EMPTY_HAND;
-    }
-
-    /**
-     * Dispatches gasket apply and blob insert interactions.
-     *
-     * @param vat       the vat block entity
-     * @param stack     the item stack
-     * @param player    the interacting player
-     * @param hitResult the ray trace hit result
-     * @return the interaction result, or null if no match
-     */
-    @Nullable
-    private static InteractionResult dispatchGasketOrBlob(
-            VatBlockEntity vat, ItemStack stack,
-            Player player, BlockHitResult hitResult) {
-        if (stack.getItem() instanceof ChoralGasketItem) {
-            return handleGasketApply(vat, stack, player, hitResult);
-        }
-        if (stack.getItem() instanceof GooOmniblobItem) {
-            return handleBlobInsert(vat, stack, player);
-        }
-        return null;
+            GooInteractionType interaction, VatBlockEntity vat, ItemStack stack,
+            Player player, InteractionHand hand, BlockHitResult hitResult, BlockPos pos, Level level) {
+        return switch (interaction) {
+            case GASKET_INSTALL -> handleGasketApply(vat, stack, player, hitResult);
+            case BLOB_INSERT -> handleBlobInsert(vat, stack, player);
+            default -> throw new IllegalStateException(ERR_UNHANDLED + interaction);
+        };
     }
 
     // --- Gasket handlers ---
@@ -95,20 +78,8 @@ final class VatInteractionHandler {
         if (!GasketInstallHelper.installBlockGasket(vat.getLevel(), vat.getBlockPos(), vat, role)) {
             return InteractionResult.PASS;
         }
-        consumeIfSurvival(stack, player);
+        GooBlockInteraction.consumeOneHeld(stack, player);
         return InteractionResult.SUCCESS;
-    }
-
-    /**
-     * Shrinks the stack by one unless the player is in creative mode.
-     *
-     * @param stack  the item stack to consume from
-     * @param player the interacting player
-     */
-    private static void consumeIfSurvival(ItemStack stack, Player player) {
-        if (!player.isCreative()) {
-            stack.shrink(1);
-        }
     }
 
     // --- Blob handlers ---

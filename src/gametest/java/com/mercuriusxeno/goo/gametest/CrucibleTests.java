@@ -203,7 +203,7 @@ public final class CrucibleTests {
 
     /**
      * Right-click a crucible with a rock blob inserts goo into the reservoir.
-     * Exercises CrucibleInteraction.tryInsertBlob -> CrucibleInsertion.insertGoo.
+     * Exercises CrucibleInteraction.pourBlob -> CrucibleInsertion.insertGoo.
      *
      * @param helper the gametest helper
      */

@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.GooConstants;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypes;
 import com.mercuriusxeno.goo.block.canister.CanisterBlock;
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlock;
@@ -26,6 +28,7 @@ import com.mercuriusxeno.goo.registry.GooItems;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
@@ -36,6 +39,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -64,6 +68,8 @@ public final class GasketHolderTests {
     /** Above the output canister's vertical midpoint: resolves the top (receiver) face. */
     private static final double UPPER_HOLLOW_Y = 0.65;
     private static final double HALF = 0.5;
+    /** Rock goo seeded in the crucible before the gasket and tuner clicks. */
+    private static final int CRUCIBLE_GOO_VOLUME = 1000;
     private static final String REACTOR_CANISTER_KEPT =
             "Gasket click on the reactor hollow should leave the output canister in place";
     private static final String REACTOR_BOTTOM_GASKET =
@@ -479,6 +485,43 @@ public final class GasketHolderTests {
         GasketLocation expected = new GasketLocation(helper.getLevel().dimension(),
                 helper.absolutePos(BE_POS), false, ReactorBlockEntity.OUTPUT_SLOT);
         helper.assertTrue(expected.equals(registry.getLocation(gasketId)), REACTOR_LOCATION_RESTORED);
+        helper.succeed();
+    }
+
+    /**
+     * Crucible holding goo: a gasket click installs the crucible's gasket and a tuner click
+     * starts the link that the reactor's output canister then completes, and neither click
+     * drains the reservoir, since the dispatcher passes both to the item before any
+     * empty-hand fallthrough (decision every-machine-clicks-through-the-dispatcher).
+     *
+     * @param helper the gametest helper
+     */
+    public static void crucibleHoldingGooTakesGasketAndTuner(GameTestHelper helper) {
+        ReactorBlockEntity reactor = placeReactorWithOutputCanister(helper);
+        Player player = playerHolding(helper, GooItems.CHORAL_GASKET.get());
+        helper.useBlock(BE_POS, player, reactorHollowHit(helper, UPPER_HOLLOW_Y));
+        UUID reactorGasket = CanisterItem.getMetadata(reactor.getOutputCanister()).topGasketId();
+        helper.assertTrue(reactorGasket != null, REACTOR_TOP_GASKET);
+
+        helper.setBlock(CRUCIBLE_POS, GooBlocks.CRUCIBLE.get());
+        CrucibleBlockEntity crucible = helper.getBlockEntity(CRUCIBLE_POS, CrucibleBlockEntity.class);
+        crucible.insertGoo(GooTypes.ROCK, CRUCIBLE_GOO_VOLUME);
+        Map<ResourceKey<GooTypeDefinition>, Integer> before = crucible.getReservoir().getAll();
+        helper.assertFalse(before.isEmpty(), "The crucible should hold goo before the clicks");
+
+        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.CHORAL_GASKET.get()));
+        helper.useBlock(CRUCIBLE_POS, player, centerHit(helper, CRUCIBLE_POS));
+        UUID crucibleGasket = crucible.getGasketId(GasketRole.TRANSMITTER);
+        helper.assertTrue(crucibleGasket != null, CRUCIBLE_GASKET_PRESENT);
+
+        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.CHORAL_TUNER.get()));
+        helper.useBlock(CRUCIBLE_POS, player, centerHit(helper, CRUCIBLE_POS));
+        helper.useBlock(BE_POS, player, reactorHollowHit(helper, UPPER_HOLLOW_Y));
+
+        helper.assertTrue(reactorGasket.equals(GasketRegistry.get(helper.getLevel()).getTarget(crucibleGasket)),
+                REACTOR_LINKED);
+        helper.assertTrue(before.equals(crucible.getReservoir().getAll()),
+                "Gasket and tuner clicks should leave the crucible's goo untouched");
         helper.succeed();
     }
 

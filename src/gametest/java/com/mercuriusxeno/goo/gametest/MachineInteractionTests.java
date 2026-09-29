@@ -1,10 +1,13 @@
 package com.mercuriusxeno.goo.gametest;
 
+import com.mercuriusxeno.goo.block.plexer.CutawayInteractionHelper;
 import com.mercuriusxeno.goo.GooConfig;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
 import com.mercuriusxeno.goo.block.hub.HubBlock;
 import com.mercuriusxeno.goo.block.hub.HubBlockEntity;
 import com.mercuriusxeno.goo.block.plexer.PlexerBlockEntity;
+import com.mercuriusxeno.goo.block.reactor.ReactorBlock;
+import com.mercuriusxeno.goo.block.reactor.ReactorBlockEntity;
 import com.mercuriusxeno.goo.block.tap.TapBlockEntity;
 import com.mercuriusxeno.goo.block.vat.VatBlock;
 import com.mercuriusxeno.goo.item.BlobStacks;
@@ -27,6 +30,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 
@@ -58,7 +62,6 @@ public final class MachineInteractionTests {
     private static final String HUB_SHOULD_HOLD_BOTH = "Player should hold the picked-up canister beside the held one";
     private static final int HUB_SLOT_NORTH = 0;
     private static final int HUB_PICKUP_HAND_COUNT = 2;
-    private static final int HUB_PICKUP_DELAY_TICKS = 12;
     private static final double PIXELS_PER_BLOCK = 16.0;
     private static final String PLEXER_SHOULD_SET = "Plexer should have target item after interaction";
     private static final String BLAZE_ROD_STAYS_WHOLE = "A blaze rod click should leave the held stack whole";
@@ -279,17 +282,14 @@ public final class MachineInteractionTests {
         helper.useBlock(BE_POS, player, slotHit(helper, HUB_SLOT_NORTH));
         helper.assertFalse(hub.getCanister(HUB_SLOT_NORTH).isEmpty(), HUB_SHOULD_INSERT);
 
-        // InteractionCooldown refuses a second click for ten ticks after the insert.
-        helper.runAfterDelay(HUB_PICKUP_DELAY_TICKS, () -> {
-            helper.useBlock(BE_POS, player, slotHit(helper, HUB_SLOT_NORTH));
+        helper.useBlock(BE_POS, player, slotHit(helper, HUB_SLOT_NORTH));
 
-            helper.assertTrue(hub.getCanister(HUB_SLOT_NORTH).isEmpty(), HUB_SHOULD_PICKUP);
-            helper.assertFalse(player.getMainHandItem().isEmpty(), HUB_SHOULD_KEEP_HELD);
-            helper.assertTrue(
-                    player.getInventory().countItem(GooItems.CANISTER.get()) == HUB_PICKUP_HAND_COUNT,
-                    HUB_SHOULD_HOLD_BOTH);
-            helper.succeed();
-        });
+        helper.assertTrue(hub.getCanister(HUB_SLOT_NORTH).isEmpty(), HUB_SHOULD_PICKUP);
+        helper.assertFalse(player.getMainHandItem().isEmpty(), HUB_SHOULD_KEEP_HELD);
+        helper.assertTrue(
+                player.getInventory().countItem(GooItems.CANISTER.get()) == HUB_PICKUP_HAND_COUNT,
+                HUB_SHOULD_HOLD_BOTH);
+        helper.succeed();
     }
 
     /**
@@ -334,18 +334,84 @@ public final class MachineInteractionTests {
     }
 
     /**
-     * Plexer: setting a target item directly exercises the BE's target lifecycle.
-     * The cutaway hit detection is geometric and hard to simulate via useBlock,
-     * so we test the BE method that the interaction handler delegates to.
+     * Plexer: an item clicked into the cutaway becomes the target through the dispatcher.
      *
      * @param helper the gametest helper
      */
     public static void plexerSetTarget(GameTestHelper helper) {
         helper.setBlock(BE_POS, GooBlocks.PLEXER.get());
         PlexerBlockEntity plexer = helper.getBlockEntity(BE_POS, PlexerBlockEntity.class);
-        plexer.setTargetItem(new ItemStack(Items.STONE));
-        helper.assertFalse(plexer.getTargetItem().isEmpty(), PLEXER_SHOULD_SET);
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.STONE));
+
+        helper.useBlock(BE_POS, player, cutawayHit(helper));
+
+        helper.assertTrue(plexer.getTargetItem().is(Items.STONE), PLEXER_SHOULD_SET);
         helper.succeed();
+    }
+
+    /**
+     * A hit inside the plexer's cutaway, found by walking the block's pixel grid with the
+     * same test the plexer's click reads.
+     *
+     * @param helper the gametest helper
+     * @return the hit result
+     */
+    private static BlockHitResult cutawayHit(GameTestHelper helper) {
+        BlockPos abs = helper.absolutePos(BE_POS);
+        BlockState state = helper.getBlockState(BE_POS);
+        for (int x = 1; x < PIXELS_PER_BLOCK; x++) {
+            for (int y = 1; y < PIXELS_PER_BLOCK; y++) {
+                for (int z = 1; z < PIXELS_PER_BLOCK; z++) {
+                    BlockHitResult hit = new BlockHitResult(new Vec3(abs.getX() + x / PIXELS_PER_BLOCK,
+                            abs.getY() + y / PIXELS_PER_BLOCK, abs.getZ() + z / PIXELS_PER_BLOCK),
+                            Direction.UP, abs, false);
+                    if (CutawayInteractionHelper.isCutawayClick(state, abs, hit)) {
+                        return hit;
+                    }
+                }
+            }
+        }
+        throw new IllegalStateException("No pixel of the plexer lies in its cutaway");
+    }
+
+    /**
+     * Reactor: a canister clicked into the empty hollow inserts, and a second click, sneaking
+     * this time, picks it back up; no sneaking click is swallowed doing nothing.
+     *
+     * @param helper the gametest helper
+     */
+    public static void reactorCanisterInsertThenSneakPickup(GameTestHelper helper) {
+        helper.setBlock(BE_POS, GooBlocks.REACTOR.get());
+        ReactorBlockEntity reactor = helper.getBlockEntity(BE_POS, ReactorBlockEntity.class);
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        player.setItemInHand(InteractionHand.MAIN_HAND,
+                new ItemStack(GooItems.CANISTER.get(), HUB_PICKUP_HAND_COUNT));
+
+        helper.useBlock(BE_POS, player, reactorHollowHit(helper));
+        helper.assertFalse(reactor.getOutputCanister().isEmpty(), "A canister click should fill the reactor hollow");
+
+        player.setShiftKeyDown(true);
+        helper.useBlock(BE_POS, player, reactorHollowHit(helper));
+        helper.assertTrue(reactor.getOutputCanister().isEmpty(), "A second canister click should pick it up");
+        helper.assertTrue(player.getInventory().countItem(GooItems.CANISTER.get()) == HUB_PICKUP_HAND_COUNT,
+                "The picked-up canister should join the held one");
+        helper.succeed();
+    }
+
+    /**
+     * A hit on the middle of the reactor's output canister box.
+     *
+     * @param helper the gametest helper
+     * @return the hit result
+     */
+    private static BlockHitResult reactorHollowHit(GameTestHelper helper) {
+        BlockPos abs = helper.absolutePos(BE_POS);
+        Direction facing = helper.getBlockState(BE_POS).getValue(ReactorBlock.FACING);
+        AABB slot = ReactorBlock.outputSlotShape(facing).bounds();
+        return new BlockHitResult(new Vec3(abs.getX() + (slot.minX + slot.maxX) * BLOCK_CENTER,
+                abs.getY() + (slot.minY + slot.maxY) * BLOCK_CENTER,
+                abs.getZ() + (slot.minZ + slot.maxZ) * BLOCK_CENTER), facing, abs, false);
     }
 
     /**

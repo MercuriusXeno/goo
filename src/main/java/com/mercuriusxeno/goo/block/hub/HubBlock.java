@@ -5,7 +5,7 @@ import com.mercuriusxeno.goo.block.GooBlockInteraction;
 import com.mercuriusxeno.goo.block.GooMachineBlock;
 import com.mercuriusxeno.goo.block.ShapeHitCheck;
 import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
-import com.mercuriusxeno.goo.item.CanisterItem;
+import com.mercuriusxeno.goo.item.GooInteractionType;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
@@ -30,6 +30,7 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
+import java.util.Set;
 import static com.mercuriusxeno.goo.GooConstants.NO_SLOT;
 
 /**
@@ -112,6 +113,11 @@ public class HubBlock extends GooMachineBlock {
      * Max XZ pixel distance from a slot center to count as a hit (4px covers 4x4 canister).
      */
     private static final double MAX_SLOT_DISTANCE = 4.0;
+
+    /** The clicks a hub answers through its dispatcher. */
+    private static final Set<GooInteractionType> CLICK_ROWS = Set.of(
+            GooInteractionType.CANISTER_INSERT, GooInteractionType.CANISTER_PICKUP,
+            GooInteractionType.BLOB_INSERT);
     /** Sentinel value: no matching slot found. */
 
     /**
@@ -349,52 +355,22 @@ public class HubBlock extends GooMachineBlock {
     protected @NonNull InteractionResult useItemOn(
             @NonNull ItemStack stack, @NonNull BlockState state, Level level, @NonNull BlockPos pos,
             @NonNull Player player, @NonNull InteractionHand hand, @NonNull BlockHitResult hitResult) {
-        // decision hub-plain-click-rule
-        if (stack.getItem() instanceof CanisterItem && targetsFilledSlot(level, pos, hitResult)) {
-            return pickupTargetedCanister(level, pos, player, hitResult);
-        }
         return GooBlockInteraction.handleItemInteraction(
                 stack, level, pos, player, hand, hitResult,
-                HubBlockEntity.class,
-                t -> t == null,
+                HubBlockEntity.class, HubBlock::targetsFilledSlot, CLICK_ROWS,
                 HubBlockHandlers::dispatchHub);
     }
 
     /**
      * Reports whether the hit lands on a hub slot that already holds a canister.
      *
-     * @param level     the current level
-     * @param pos       the block position
+     * @param hub       the hub block entity
      * @param hitResult the ray trace hit result
      * @return true when the targeted slot holds a canister
      */
-    private static boolean targetsFilledSlot(Level level, BlockPos pos, BlockHitResult hitResult) {
-        if (!(level.getBlockEntity(pos) instanceof HubBlockEntity hub)) {
-            return false;
-        }
-        int slot = hitSlot(hitResult, pos);
+    private static boolean targetsFilledSlot(HubBlockEntity hub, BlockHitResult hitResult) {
+        int slot = hitSlot(hitResult, hub.getBlockPos());
         return slot >= 0 && !hub.getCanister(slot).isEmpty();
-    }
-
-    /**
-     * Picks up the canister at the hit slot. Held canister remains in the player's hand.
-     *
-     * @param level     the current level
-     * @param pos       the block position
-     * @param player    the interacting player
-     * @param hitResult the ray trace hit result
-     * @return SUCCESS if removed, PASS if no slot or empty
-     */
-    private static InteractionResult pickupTargetedCanister(
-            Level level, BlockPos pos, Player player, BlockHitResult hitResult) {
-        InteractionResult earlyOut = GooBlockInteraction.validateEmptyHand(level, pos, player);
-        if (earlyOut != null) {
-            return earlyOut;
-        }
-        if (!(level.getBlockEntity(pos) instanceof HubBlockEntity hub)) {
-            return InteractionResult.PASS;
-        }
-        return HubBlockHandlers.removeCanister(hub, hitResult, pos, player, level);
     }
 
     /**
@@ -411,9 +387,8 @@ public class HubBlock extends GooMachineBlock {
     protected @NonNull InteractionResult useWithoutItem(
             @NonNull BlockState state, Level level, @NonNull BlockPos pos,
             @NonNull Player player, @NonNull BlockHitResult hitResult) {
-        InteractionResult earlyOut = GooBlockInteraction.validateEmptyHand(level, pos, player);
-        if (earlyOut != null) {
-            return earlyOut;
+        if (level.isClientSide()) {
+            return InteractionResult.SUCCESS;
         }
         if (!(level.getBlockEntity(pos) instanceof HubBlockEntity hub)) {
             return InteractionResult.PASS;
