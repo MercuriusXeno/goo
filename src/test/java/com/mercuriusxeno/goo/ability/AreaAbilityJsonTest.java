@@ -16,7 +16,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
  * The area abilities' JSONs decode to the stack ceiling and start radius the
- * shape ladder reads (decision disc-opens-circularly-per-stack), read from the classpath.
+ * shape ladder reads (decisions disc-opens-circularly-per-stack,
+ * tunnel-stays-3x3-ee-homage), read from the classpath.
  */
 class AreaAbilityJsonTest {
 
@@ -49,6 +50,12 @@ class AreaAbilityJsonTest {
 
         assertEquals(LADDER_STACKS, definition.chain().maxStacks(), ability + " maxStacks");
         assertEquals(0, step.startRadius(), ability + " start_radius");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"rock_tunnel", "blaze_tunnel", "frost_tunnel"})
+    void tunnelStacksSix(String ability) throws IOException {
+        assertEquals(LADDER_STACKS, decode(ability).chain().maxStacks(), ability + " maxStacks");
     }
 
     @Test

@@ -38,9 +38,9 @@ class ProgressiveAreaStepTest {
     private static final String SILK_BREAK = "silk_break";
     private static final String ROCK_DUST = "rock_dust";
     private static final String STONE_BREAK = "stone_break";
-    /** Stacks giving a tunnel three layers deep with a 3x3 footprint. */
-    private static final int DEEP_STACKS = 5;
-    private static final int DEEP_LAYERS = 3;
+    /** Stacks giving a tunnel two layers deep with a 3x3 footprint. */
+    private static final int DEEP_STACKS = 3;
+    private static final int DEEP_LAYERS = 2;
     private static final int FOOTPRINT_3X3 = 9;
     /** Stacks giving a one-block footprint. */
     private static final int ONE_STACK = 1;
@@ -128,9 +128,8 @@ class ProgressiveAreaStepTest {
         assertTrue(program.isActive());
 
         program.tick(host);
-        program.tick(host);
         InOrder order = inOrder(host);
-        order.verify(host).reportMinedLayers(2);
+        order.verify(host).reportMinedLayers(1);
         order.verify(host).reportMinedLayers(DEEP_LAYERS);
         assertFalse(program.isActive());
     }

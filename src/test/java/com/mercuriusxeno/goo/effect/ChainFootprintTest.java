@@ -47,118 +47,50 @@ class ChainFootprintTest {
     }
 
     @Nested
-    class TotalBlocks {
+    class Tunnel {
+        private static final int[] DEPTHS = {1, 1, 2, 4, 7, 10};
+        private static final int[] BLOCKS = {1, 9, 18, 36, 63, 90};
+
         @Test
-        void oneStack() {
-            assertEquals(1, ChainFootprint.totalBlocks(1));
+        void depthReadsTheLadderOneOneTwoFourSevenTen() {
+            for (int s = 1; s <= DEPTHS.length; s++) {
+                assertEquals(DEPTHS[s - 1], ChainFootprint.tunnelDepth(s), "depth at stacks=" + s);
+            }
         }
 
         @Test
-        void twoStacks() {
-            assertEquals(5, ChainFootprint.totalBlocks(2));
+        void boresOneNineEighteenThirtySixSixtyThreeNinety() {
+            for (int s = 1; s <= BLOCKS.length; s++) {
+                assertEquals(BLOCKS[s - 1], ChainFootprint.totalBlocks(s), "blocks at stacks=" + s);
+            }
         }
 
         @Test
-        void threeStacks() {
-            assertEquals(9, ChainFootprint.totalBlocks(3));
-        }
-
-        @Test
-        void fourStacks() {
-            assertEquals(18, ChainFootprint.totalBlocks(4));
-        }
-
-        @Test
-        void fiveStacks() {
-            assertEquals(27, ChainFootprint.totalBlocks(5));
-        }
-
-        @Test
-        void sixStacks() {
-            assertEquals(36, ChainFootprint.totalBlocks(6));
-        }
-
-        @Test
-        void twentySevenStacks() {
-            assertEquals(225, ChainFootprint.totalBlocks(27));
-        }
-    }
-
-    @Nested
-    class TunnelDepth {
-        @Test
-        void oneStack() {
-            assertEquals(1, ChainFootprint.tunnelDepth(1));
-        }
-
-        @Test
-        void twoStacks() {
-            assertEquals(1, ChainFootprint.tunnelDepth(2));
-        }
-
-        @Test
-        void threeStacks() {
-            assertEquals(1, ChainFootprint.tunnelDepth(3));
-        }
-
-        @Test
-        void fourStacks() {
-            assertEquals(2, ChainFootprint.tunnelDepth(4));
-        }
-
-        @Test
-        void fiveStacks() {
-            assertEquals(3, ChainFootprint.tunnelDepth(5));
-        }
-
-        @Test
-        void twentySevenStacks() {
-            assertEquals(25, ChainFootprint.tunnelDepth(27));
-        }
-
-        @Test
-        void capsAtMaxDepth() {
-            assertEquals(25, ChainFootprint.tunnelDepth(30));
-        }
-    }
-
-    // ── Helpers ──
-
-    @Nested
-    class LayerFootprint {
-        @Test
-        void singleBlock() {
+        void oneStackIsTheSingleBlock() {
             List<int[]> fp = ChainFootprint.layerFootprint(1);
             assertEquals(1, fp.size());
-            assertArrayEquals(new int[]{0, 0}, fp.get(0));
+            assertArrayEquals(new int[]{0, 0}, fp.getFirst());
         }
 
         @Test
-        void crossHasFiveBlocks() {
-            List<int[]> fp = ChainFootprint.layerFootprint(2);
-            assertEquals(5, fp.size());
-            assertTrue(containsOffset(fp, 0, 0));
-            assertTrue(containsOffset(fp, 1, 0));
-            assertTrue(containsOffset(fp, -1, 0));
-            assertTrue(containsOffset(fp, 0, 1));
-            assertTrue(containsOffset(fp, 0, -1));
-        }
-
-        @Test
-        void threeByThreeHasNineBlocks() {
-            List<int[]> fp = ChainFootprint.layerFootprint(3);
-            assertEquals(9, fp.size());
-            for (int a = -1; a <= 1; a++) {
-                for (int b = -1; b <= 1; b++) {
-                    assertTrue(containsOffset(fp, a, b),
-                            "Missing offset [" + a + "," + b + "]");
+        void twoStacksOnIsTheFullThreeByThree() {
+            for (int s = 2; s <= DEPTHS.length; s++) {
+                List<int[]> fp = ChainFootprint.layerFootprint(s);
+                assertEquals(9, fp.size(), "layer cells at stacks=" + s);
+                assertAllUnique(fp);
+                for (int a = -1; a <= 1; a++) {
+                    for (int b = -1; b <= 1; b++) {
+                        assertTrue(containsOffset(fp, a, b), "missing [" + a + "," + b + "] at stacks=" + s);
+                    }
                 }
             }
         }
 
         @Test
-        void fourStacksStillThreeByThreePerLayer() {
-            assertEquals(9, ChainFootprint.layerFootprint(4).size());
+        void ladderEndsAtSixStacksTenDeep() {
+            assertEquals(6, ChainFootprint.MAX_STACKS);
+            assertEquals(10, ChainFootprint.MAX_DEPTH);
+            assertEquals(10, ChainFootprint.tunnelDepth(9));
         }
     }
 

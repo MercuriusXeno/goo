@@ -6,28 +6,33 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Shared footprint math for rock and blaze chain effects. Both use
- * the same scaling: 1x1 at 1 stack, cross at 2, 3x3 at 3, then
- * 3x3 with increasing depth beyond 3. Flat mode opens a round disc one
+ * Shared footprint math for rock, blaze and frost chain effects. The
+ * tunnel bores 1x1 at one stack, then 3x3 at depths 1, 2, 4, 7 and 10
+ * (decision tunnel-stays-3x3-ee-homage). Flat mode opens a round disc one
  * block of radius per throw on one layer.
  */
 public final class ChainFootprint {
 
     /**
-     * Maximum tunnel depth, reached at 27 stacks.
+     * Tunnel depth by stack count, one to six stacks.
      */
-    public static final int MAX_DEPTH = 25;
+    private static final int[] TUNNEL_DEPTHS = {1, 1, 2, 4, 7, 10};
 
     /**
-     * Maximum meaningful stack count (3 + MAX_DEPTH).
+     * Maximum tunnel depth, the ladder's last rung.
      */
-    public static final int MAX_STACKS = 3 + MAX_DEPTH;
+    public static final int MAX_DEPTH = TUNNEL_DEPTHS[TUNNEL_DEPTHS.length - 1];
+
+    /**
+     * Maximum meaningful stack count, the ladder's length.
+     */
+    public static final int MAX_STACKS = TUNNEL_DEPTHS.length;
     /**
      * Area mode: 3x3 tunnel advancing along placed face axis.
      */
     public static final String AREA_TUNNEL = "tunnel";
     /**
-     * Area mode: euclidean circle, one layer deep.
+     * Area mode: round disc, one layer deep.
      */
     public static final String AREA_FLAT_CIRCLE = "flat_circle";
     /**
@@ -35,31 +40,11 @@ public final class ChainFootprint {
      */
     public static final String AREA_SPHERE = "sphere";
     /**
-     * Stack count where footprint widens to a cross.
-     */
-    private static final int CROSS_THRESHOLD = 2;
-    /**
-     * Stack count where footprint fills to 3x3.
-     */
-    private static final int FULL_THRESHOLD = 3;
-    /**
-     * Block count for a cross footprint (center + 4 cardinal).
-     */
-    private static final int CROSS_BLOCKS = 5;
-    /**
-     * Block count for a 3x3 footprint.
-     */
-    private static final int FULL_BLOCKS = 9;
-    /**
-     * Depth offset: stacks minus this = tunnel depth for stacks > 3.
-     */
-    private static final int DEPTH_OFFSET = 2;
-    /**
      * Half-width of the 3x3 grid.
      */
     private static final int GRID_HALF = 1;
     /**
-     * Negative unit offset for cardinal directions.
+     * Negative unit offset along an axis.
      */
     private static final int NEG = -1;
     /**
@@ -84,49 +69,39 @@ public final class ChainFootprint {
 
 
     /**
-     * Total blocks affected at the given stack count.
+     * Total blocks the tunnel bores at the given stack count: 1, 9, 18,
+     * 36, 63 and 90 over six stacks.
      *
      * @param stacks blob stack count (1-based)
      * @return total block count
      */
     public static int totalBlocks(int stacks) {
-        return switch (stacks) {
-            case 1 -> 1;
-            case CROSS_THRESHOLD -> CROSS_BLOCKS;
-            default -> FULL_BLOCKS * tunnelDepth(stacks);
-        };
+        return layerFootprint(stacks).size() * tunnelDepth(stacks);
     }
 
     /**
-     * Tunnel depth (layers into the wall) at the given stack count.
-     * 1-3 stacks produce depth 1; each stack beyond 3 adds one layer,
-     * capped at {@link #MAX_DEPTH}.
+     * Tunnel depth (layers into the wall) at the given stack count, read
+     * from the ladder 1, 1, 2, 4, 7, 10 and held at its last rung past six.
      *
      * @param stacks blob stack count (1-based)
      * @return depth in layers
      */
     public static int tunnelDepth(int stacks) {
-        if (stacks <= FULL_THRESHOLD) {
-            return 1;
-        }
-        return Math.min(stacks - DEPTH_OFFSET, MAX_DEPTH);
+        int rung = Math.clamp(stacks, 1, MAX_STACKS) - 1;
+        return TUNNEL_DEPTHS[rung];
     }
 
 
     /**
-     * Returns the 2D offsets for one tunnel-mode layer at the given
-     * stack count. Coordinates are (perpA, perpB) relative to the
-     * layer center.
+     * Returns the 2D offsets for one tunnel-mode layer: the single block
+     * at one stack, the 3x3 from two stacks on. Coordinates are
+     * (perpA, perpB) relative to the layer center.
      *
      * @param stacks blob stack count (1-based)
      * @return list of [a, b] offset pairs
      */
     public static List<int[]> layerFootprint(int stacks) {
-        return switch (stacks) {
-            case 1 -> singleBlock();
-            case CROSS_THRESHOLD -> crossShape();
-            default -> threeByThree();
-        };
+        return stacks == 1 ? singleBlock() : threeByThree();
     }
 
     /**
@@ -221,18 +196,8 @@ public final class ChainFootprint {
         return List.of(new int[]{0, 0});
     }
 
-    private static List<int[]> crossShape() {
-        List<int[]> cross = new ArrayList<>(CROSS_BLOCKS);
-        cross.add(new int[]{0, 0});
-        cross.add(new int[]{1, 0});
-        cross.add(new int[]{NEG, 0});
-        cross.add(new int[]{0, 1});
-        cross.add(new int[]{0, NEG});
-        return cross;
-    }
-
     private static List<int[]> threeByThree() {
-        List<int[]> grid = new ArrayList<>(FULL_BLOCKS);
+        List<int[]> grid = new ArrayList<>();
         for (int a = -GRID_HALF; a <= GRID_HALF; a++) {
             for (int b = -GRID_HALF; b <= GRID_HALF; b++) {
                 grid.add(new int[]{a, b});
