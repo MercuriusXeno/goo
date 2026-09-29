@@ -38,7 +38,7 @@ public final class ChainBurnouts {
          * @return the explosion's progress in [0, 1]
          */
         public float progress(float gameTime) {
-            int duration = visual.durationTicks();
+            int duration = visual.durationTicks(this);
             if (duration <= 0) {
                 return 1f;
             }
@@ -60,7 +60,7 @@ public final class ChainBurnouts {
          * @return true once the explosion has run its duration
          */
         boolean isOver(long now) {
-            return now - startTick >= visual.durationTicks();
+            return now - startTick >= visual.durationTicks(this);
         }
     }
 

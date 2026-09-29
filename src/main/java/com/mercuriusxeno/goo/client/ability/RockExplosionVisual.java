@@ -16,7 +16,10 @@ import net.minecraft.util.ARGB;
  * the edge and over time. A thin bright sonic ring pulses out across the
  * disc once over the first half, echoing the boom rock's mining shows. The
  * vertex color carries progress in red and the disc-local position in green
- * and blue, since a core pipeline takes no per-draw uniforms.
+ * and blue, since a core pipeline takes no per-draw uniforms. A rock_tunnel
+ * marker draws no disc: its burnout sends a tan pressure ripple into the
+ * wall ahead of the breaking, the {@link TunnelWave} drawn through
+ * {@code rock_tunnel_wave.fsh}, as the operator settled.
  */
 public final class RockExplosionVisual implements BurnoutVisual {
 
@@ -53,7 +56,16 @@ public final class RockExplosionVisual implements BurnoutVisual {
     }
 
     @Override
+    public int durationTicks(ChainBurnouts.Burnout burnout) {
+        return TunnelWave.isTunnel(burnout) ? TunnelWave.durationTicks(burnout.stackCount()) : DURATION_TICKS;
+    }
+
+    @Override
     public void render(ChainBurnouts.Burnout burnout, BurnoutFrame frame) {
+        if (TunnelWave.isTunnel(burnout)) {
+            TunnelWave.render(burnout, frame, GooRenderTypes.ROCK_TUNNEL_WAVE_TYPE);
+            return;
+        }
         float progress = burnout.progress(frame.gameTime());
         float radius = discRadius(progress);
         int progressByte = NetherDiscMesh.toByte(progress);
