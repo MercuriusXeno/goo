@@ -26,14 +26,18 @@ import static org.mockito.Mockito.spy;
  */
 class TapGasketIntakeTest {
 
-    private static final FluidResource ANY_GOO = mock(FluidResource.class);
+    private static FluidResource anyGoo;
 
+    /**
+     * FluidResource's class init reads the built-in registries, so the goo mock stands after the bootstrap.
+     */
     @BeforeAll
     static void standVanillaFluids() {
         try (MockedStatic<FMLLoader> loader = mockStatic(FMLLoader.class, RETURNS_DEEP_STUBS)) {
             SharedConstants.tryDetectVersion();
             Bootstrap.bootStrap();
         }
+        anyGoo = mock(FluidResource.class);
     }
 
     private static TapGasketIntake intake(TapDripGrade grade, AtomicBoolean asking) {
@@ -44,7 +48,7 @@ class TapGasketIntakeTest {
     void aTapNotAskingStatesNoDemand() {
         TapGasketIntake intake = intake(TapDripGrade.FOUR_PER_TICK, new AtomicBoolean(false));
 
-        assertEquals(OptionalInt.of(0), intake.statedDemand(ANY_GOO));
+        assertEquals(OptionalInt.of(0), intake.statedDemand(anyGoo));
     }
 
     @ParameterizedTest
@@ -52,7 +56,7 @@ class TapGasketIntakeTest {
     void anEmptyIntakeAsksOneDripAtTheValveGrade(TapDripGrade grade) {
         TapGasketIntake intake = intake(grade, new AtomicBoolean(true));
 
-        assertEquals(OptionalInt.of(grade.dripVolume()), intake.statedDemand(ANY_GOO));
+        assertEquals(OptionalInt.of(grade.dripVolume()), intake.statedDemand(anyGoo));
     }
 
     @Test
@@ -60,18 +64,18 @@ class TapGasketIntakeTest {
         TapGasketIntake intake = spy(intake(TapDripGrade.FOUR_PER_TICK, new AtomicBoolean(true)));
         doReturn(1).when(intake).getAmount();
 
-        assertEquals(OptionalInt.of(TapDripGrade.FOUR_PER_TICK.dripVolume() - 1), intake.statedDemand(ANY_GOO));
+        assertEquals(OptionalInt.of(TapDripGrade.FOUR_PER_TICK.dripVolume() - 1), intake.statedDemand(anyGoo));
     }
 
     @Test
     void theDemandFollowsWhetherTheTapAsksNow() {
         AtomicBoolean asking = new AtomicBoolean(false);
         TapGasketIntake intake = intake(TapDripGrade.ONE_PER_TICK, asking);
-        OptionalInt whileCanisterHoldsGoo = intake.statedDemand(ANY_GOO);
+        OptionalInt whileCanisterHoldsGoo = intake.statedDemand(anyGoo);
         asking.set(true);
 
         assertEquals(OptionalInt.of(0), whileCanisterHoldsGoo);
-        assertEquals(OptionalInt.of(1), intake.statedDemand(ANY_GOO));
+        assertEquals(OptionalInt.of(1), intake.statedDemand(anyGoo));
     }
 
     @Test
