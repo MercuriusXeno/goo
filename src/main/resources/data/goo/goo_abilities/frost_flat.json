@@ -2,13 +2,7 @@
   "gooType": "frost",
   "displayName": "goo.ability.frost.flat",
   "order": 2,
-  "cost": {
-    "formula": "quadratic",
-    "baseCost": 1000,
-    "a": 0.0,
-    "b": 1.0,
-    "c": 1.0
-  },
+  "cost": 1000,
   "chain": {
     "fuseTicks": 30,
     "maxStacks": 6,

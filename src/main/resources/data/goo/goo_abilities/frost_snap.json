@@ -2,13 +2,7 @@
   "gooType": "frost",
   "displayName": "goo.ability.frost.snap",
   "order": 10,
-  "cost": {
-    "formula": "quadratic",
-    "baseCost": 1000,
-    "a": 0.0,
-    "b": 1.0,
-    "c": 1.0
-  },
+  "cost": 1000,
   "behaviors": [
     {
       "type": "target",

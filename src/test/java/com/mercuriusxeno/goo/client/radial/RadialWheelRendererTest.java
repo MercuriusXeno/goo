@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.client.radial;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.ability.AbilityCost;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
@@ -45,7 +44,7 @@ class RadialWheelRendererTest {
 
     private static ClientAbility abilityWithIcon(String icon) {
         return new ClientAbility(Identifier.fromNamespaceAndPath(Goo.MODID, "unstable_timed_bomb"),
-                "ability.goo.unstable_timed_bomb", icon, 0, List.of(), 0, 0, List.of(), null);
+                "ability.goo.unstable_timed_bomb", icon, 0, List.of(), 0, 0, List.of(), 0);
     }
 
     @Nested
@@ -81,8 +80,7 @@ class RadialWheelRendererTest {
 
         private static ClientAbility costing(int firstThrow) {
             return new ClientAbility(Identifier.fromNamespaceAndPath(Goo.MODID, "cost_" + firstThrow),
-                    "ability.goo.cost", "", 0, List.of(), 0, 1, List.of(),
-                    new AbilityCost.Quadratic(firstThrow, 0f, 1f, 1f));
+                    "ability.goo.cost", "", 0, List.of(), 0, 1, List.of(), firstThrow);
         }
 
         @Test

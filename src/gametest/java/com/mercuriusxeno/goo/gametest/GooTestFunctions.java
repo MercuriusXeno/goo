@@ -226,6 +226,7 @@ public final class GooTestFunctions {
     private static final String PL_ABILITY_LAVA = "pl_ability_lava";
     private static final String PL_ABILITY_SAME_STACK = "pl_ability_same_stack";
     private static final String PL_OTHER_ABILITY_THROW_LEAVES_MARKER = "pl_other_ability_throw_leaves_marker";
+    private static final String PL_SECOND_THROW_COSTS_THE_SAME = "pl_second_throw_costs_the_same";
 
     // --- Canister interactions ---
     private static final String IX_CANISTER_SHIFT_INSERT = "ix_canister_shift_insert";
@@ -618,6 +619,7 @@ public final class GooTestFunctions {
         reg(r, PL_ABILITY_LAVA, PlacementTests::abilityRefusesLava);
         reg(r, PL_ABILITY_SAME_STACK, PlacementTests::abilityStacksOnlyOntoSameAbility);
         reg(r, PL_OTHER_ABILITY_THROW_LEAVES_MARKER, StackKeyTests::otherAbilityThrowLeavesMarker);
+        reg(r, PL_SECOND_THROW_COSTS_THE_SAME, FlatCostTests::secondThrowCostsTheSameAsTheFirst);
     }
 
     private static void registerGasketRemovalTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
