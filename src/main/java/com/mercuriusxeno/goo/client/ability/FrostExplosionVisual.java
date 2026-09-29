@@ -31,8 +31,8 @@ import net.minecraft.world.phys.Vec3;
  * progress in red, the disc-local position in green and blue, and the fog's
  * remaining opacity in alpha, since a core pipeline takes no per-draw
  * uniforms. A frost_tunnel marker draws no ring and sheds no snowflakes:
- * its burnout sends a white-blue fog front into the wall ahead of the
- * freezing, the {@link TunnelWave} drawn through
+ * its burnout sends a train of round white-blue fog rings down the tunnel
+ * ahead of the freezing, the {@link TunnelWave} drawn through
  * {@code frost_tunnel_wave.fsh}, as the operator settled.
  */
 public final class FrostExplosionVisual implements BurnoutVisual {
