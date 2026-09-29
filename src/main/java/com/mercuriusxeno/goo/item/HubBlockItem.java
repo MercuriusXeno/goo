@@ -18,8 +18,8 @@ import java.util.Map;
 
 /**
  * Hub block item: carries its canisters in HUB_CANISTERS. A primary click with a
- * blob or omniblob on the cursor routes the goo into those canisters, type match
- * first then empty (decision hub-item-blob-insert).
+ * goo or goo on the cursor routes the goo into those canisters, type match
+ * first then empty (decision hub-item-goo-insert).
  *
  * <p>The hub item takes insert and no drain: no click names which of its canisters
  * to drain, so an empty-cursor secondary click is left to vanilla, which picks the
@@ -79,7 +79,7 @@ public class HubBlockItem extends BlockItem implements GooCarrierItem {
     }
 
     /**
-     * Handles a blob or omniblob clicked onto the hub item.
+     * Handles a goo or goo clicked onto the hub item.
      *
      * @param hub          the hub item stack in the slot
      * @param cursor       the item stack on the cursor

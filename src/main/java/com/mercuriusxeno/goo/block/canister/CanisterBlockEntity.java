@@ -468,7 +468,7 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
             case CANISTER_INSERT -> handleCanisterInsert(hitResult, stack, player);
             case CANISTER_PICKUP -> handleCanisterPickup(player, hitResult);
             case FLUID_CONTAINER -> handleFluidContainer(player, hand, hitResult);
-            case BLOB_INSERT -> handleBlobInsert(hitResult, stack, player);
+            case GOO_INSERT -> handleGooInsert(hitResult, stack, player);
             default -> throw new IllegalStateException(ERR_UNHANDLED + interaction);
         };
     }
@@ -513,10 +513,10 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
         return true;
     }
 
-    private InteractionResult handleBlobInsert(BlockHitResult hitResult, ItemStack stack, Player player) {
+    private InteractionResult handleGooInsert(BlockHitResult hitResult, ItemStack stack, Player player) {
         int hitSlot = aimedSlot(hitResult);
-        int accepted = BlobInsert.pour(stack, player,
-                (type, volume) -> blobGooIntoSlot(hitSlot, type, volume));
+        int accepted = GooInsert.pour(stack, player,
+                (type, volume) -> gooIntoSlot(hitSlot, type, volume));
         if (accepted <= 0) {
             return InteractionResult.PASS;
         }
@@ -525,7 +525,7 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
         return InteractionResult.SUCCESS;
     }
 
-    private int blobGooIntoSlot(int hitSlot, ResourceKey<GooTypeDefinition> type, int volume) {
+    private int gooIntoSlot(int hitSlot, ResourceKey<GooTypeDefinition> type, int volume) {
         return hitSlot >= 0 && canAccept(hitSlot) ? insertGoo(hitSlot, type, volume) : 0;
     }
 

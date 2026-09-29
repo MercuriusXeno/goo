@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:cr_cap_goo_entity",
+  "environment": "minecraft:default",
+  "structure": "goo:crucible_bay",
+  "max_ticks": 30,
+  "setup_ticks": 0,
+  "required": true
+}

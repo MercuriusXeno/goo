@@ -186,7 +186,7 @@ public class SlottedCanisterData {
      *
      * @param index  the slot index
      * @param fluid  the fluid resource to insert
-     * @param volume volume in microblobs
+     * @param volume volume
      * @return the amount actually inserted
      */
     public int insertFluid(int index, FluidResource fluid, int volume) {
@@ -198,7 +198,7 @@ public class SlottedCanisterData {
      *
      * @param index     the slot index
      * @param fluid     the fluid resource to extract
-     * @param requested volume in microblobs
+     * @param requested volume
      * @return the amount actually extracted
      */
     public int extractFluid(int index, FluidResource fluid, int requested) {
@@ -210,7 +210,7 @@ public class SlottedCanisterData {
      *
      * @param index  the slot index
      * @param type   the goo type to insert
-     * @param volume volume in microblobs
+     * @param volume volume
      * @return the amount actually inserted
      */
     public int insertGoo(int index, ResourceKey<GooTypeDefinition> type, int volume) {
@@ -222,7 +222,7 @@ public class SlottedCanisterData {
      *
      * @param index     the slot index
      * @param type      the goo type
-     * @param requested volume in microblobs
+     * @param requested volume
      * @return the amount actually extracted
      */
     public int extractGoo(int index, ResourceKey<GooTypeDefinition> type, int requested) {
@@ -284,7 +284,7 @@ public class SlottedCanisterData {
      * Distributes fluid across slots: matching slots first, then empty slots.
      *
      * @param fluid  the fluid resource to route
-     * @param amount volume in microblobs
+     * @param amount volume
      * @return total volume accepted across all slots
      */
     public int routeFluid(FluidResource fluid, int amount) {
@@ -318,7 +318,7 @@ public class SlottedCanisterData {
      * Convenience: route goo by type.
      *
      * @param type   the goo type
-     * @param amount volume in microblobs
+     * @param amount volume
      * @return total volume accepted across all slots
      */
     public int routeGoo(ResourceKey<GooTypeDefinition> type, int amount) {

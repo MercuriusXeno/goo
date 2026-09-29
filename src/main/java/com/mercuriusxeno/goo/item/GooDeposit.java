@@ -12,13 +12,13 @@ import java.util.Objects;
 
 /**
  * Deposits goo drained by hand into what the player carries: canisters already holding
- * the type, then the first omniblob of the type, then a vat, then a new omniblob in a free
+ * the type, then the first goo of the type, then a vat, then a new goo in a free
  * slot. What finds no home is answered back so it stays in the container it came from
  * (decision drained-goo-fills-carried-containers-first).
  */
 public final class GooDeposit {
 
-    /** Main inventory slots end here; a new omniblob never lands in the offhand. */
+    /** Main inventory slots end here; a new goo never lands in the offhand. */
     private static final int MAIN_END = 36;
 
     private GooDeposit() {
@@ -30,11 +30,11 @@ public final class GooDeposit {
     enum Home {
         /** A canister, a home only for the type it already holds. */
         CANISTER,
-        /** An omniblob, a home only for its own type. */
-        OMNIBLOB,
+        /** A goo, a home only for its own type. */
+        GOO,
         /** A vat, a home for any type while it has room. */
         VAT,
-        /** An empty main-inventory slot, where a new omniblob goes. */
+        /** An empty main-inventory slot, where a new goo goes. */
         EMPTY,
         /** Anything else: never a home. */
         NONE
@@ -52,7 +52,7 @@ public final class GooDeposit {
         Home home();
 
         /**
-         * Answers whether this slot takes the given type: a canister or omniblob of that
+         * Answers whether this slot takes the given type: a canister or goo of that
          * type, or any vat or empty slot.
          *
          * @param type the goo type
@@ -194,18 +194,18 @@ public final class GooDeposit {
     }
 
     /**
-     * The volume an omniblob can still grow by before its int volume overflows.
+     * The volume a goo can still grow by before its int volume overflows.
      *
-     * @param held    the omniblob's volume
+     * @param held    the goo's volume
      * @param offered the volume offered
      * @return the volume it takes
      */
-    static int omniblobRoom(int held, int offered) {
+    static int gooRoom(int held, int offered) {
         return Math.min(offered, Integer.MAX_VALUE - held);
     }
 
     /**
-     * A live inventory slot, read fresh on every call so a new omniblob placed by an
+     * A live inventory slot, read fresh on every call so a new goo placed by an
      * earlier deposit is seen by the next.
      *
      * @param inventory the player inventory
@@ -225,8 +225,8 @@ public final class GooDeposit {
             if (stack.getItem() instanceof CanisterItem) {
                 return Home.CANISTER;
             }
-            if (stack.getItem() instanceof GooOmniblobItem) {
-                return Home.OMNIBLOB;
+            if (stack.getItem() instanceof GooItem) {
+                return Home.GOO;
             }
             return stack.getItem() instanceof VatBlockItem ? Home.VAT : Home.NONE;
         }
@@ -238,7 +238,7 @@ public final class GooDeposit {
                 CanisterFluidContent content = CanisterItem.getFluidContent(stack);
                 return !content.isEmpty() && Objects.equals(content.getGooType(), type);
             }
-            return !(stack.getItem() instanceof GooOmniblobItem) || Objects.equals(BlobStacks.keyOf(stack), type);
+            return !(stack.getItem() instanceof GooItem) || Objects.equals(GooStacks.keyOf(stack), type);
         }
 
         @Override
@@ -246,22 +246,22 @@ public final class GooDeposit {
             ItemStack stack = stack();
             return switch (home()) {
                 case CANISTER -> CanisterItem.addGoo(stack, type, volume);
-                case OMNIBLOB -> growOmniblob(stack, volume);
+                case GOO -> growGoo(stack, volume);
                 case VAT -> VatBlockItem.addGoo(stack, type, volume);
-                case EMPTY -> placeOmniblob(type, volume);
+                case EMPTY -> placeGoo(type, volume);
                 case NONE -> 0;
             };
         }
 
-        private static int growOmniblob(ItemStack stack, int volume) {
-            int held = GooOmniblobItem.getVolume(stack);
-            int taken = omniblobRoom(held, volume);
-            GooOmniblobItem.setVolume(stack, held + taken);
+        private static int growGoo(ItemStack stack, int volume) {
+            int held = GooItem.getVolume(stack);
+            int taken = gooRoom(held, volume);
+            GooItem.setVolume(stack, held + taken);
             return taken;
         }
 
-        private int placeOmniblob(ResourceKey<GooTypeDefinition> type, int volume) {
-            inventory.setItem(index, BlobStacks.createForOutput(type, volume));
+        private int placeGoo(ResourceKey<GooTypeDefinition> type, int volume) {
+            inventory.setItem(index, GooStacks.createForOutput(type, volume));
             return volume;
         }
     }

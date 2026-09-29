@@ -13,7 +13,7 @@ import java.util.stream.Stream;
  * child steps on it within the same tick, then finishes. On the struck
  * entity host the anchor is the target, so blaze ignite's splash is
  * {@code entities shape=sphere radius=2.5 where=[living, not_fire_immune]}
- * around the entity the blob hit.
+ * around the entity the goo hit.
  *
  * <p>The children run to completion in the tick the selection runs, so
  * they are instant steps, and each runs on a host bound to the selected

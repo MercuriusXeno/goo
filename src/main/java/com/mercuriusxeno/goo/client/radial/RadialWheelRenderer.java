@@ -4,8 +4,8 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.GooSubmitter;
-import com.mercuriusxeno.goo.client.GooTooltipHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
+import com.mercuriusxeno.goo.item.GooFormat;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypeNames;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -62,7 +62,7 @@ final class RadialWheelRenderer {
      * @param wheel     the wheel's state
      * @param types     the types, one per wedge
      * @param abilities the abilities each type fans out, by type index
-     * @param available the microblobs the player holds per type, snapshot on open
+     * @param available the amount the player holds per type, snapshot on open
      * @param centerX   the wheel's center x
      * @param centerY   the wheel's center y
      * @param radius    the wheel's outer radius
@@ -168,23 +168,23 @@ final class RadialWheelRenderer {
      * Reads an ability wedge's first-throw cost against the type's holdings.
      *
      * @param ability  the synced ability
-     * @param holdings the microblobs the player holds of its type
+     * @param holdings the amount the player holds of its type
      * @return the wedge's labels
      */
     static FanSlot fanSlot(ClientAbility ability, int holdings) {
         int firstThrow = ability.throwCost(0);
-        return new FanSlot(GooTooltipHandler.formatFluidDisplayCompact(firstThrow), firstThrow > holdings);
+        return new FanSlot(GooFormat.formatAmount(firstThrow), firstThrow > holdings);
     }
 
     /**
      * The center's holdings line for the selected type.
      *
-     * @param holdings the microblobs the player holds of the type
+     * @param holdings the amount the player holds of the type
      * @return the holdings, formatted
      */
     static String holdingsLabel(int holdings) {
-        // hud-amounts-read-through-goo-format: the machine panels' blob convention
-        return GooTooltipHandler.formatFluidDisplayCompact(holdings);
+        // hud-amounts-read-through-goo-format: the machine panels' goo convention
+        return GooFormat.formatAmount(holdings);
     }
 
     private static void renderCenterLabel(GuiGraphicsExtractor graphics, Font font, Frame frame) {

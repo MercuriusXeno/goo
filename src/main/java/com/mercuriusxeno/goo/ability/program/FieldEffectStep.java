@@ -11,7 +11,7 @@ import java.util.stream.Stream;
 /**
  * The field-effect-with-controller sub-chain as one step (decision
  * field-effect-pattern-branch): the marker stays as a controller while its
- * stacked blobs last. Each tick it ages the strikes in flight, landing each
+ * stacked goo last. Each tick it ages the strikes in flight, landing each
  * on its entity at {@code strike_tick}; then, off cooldown, it selects the
  * living entities in the radius that every filter keeps and starts a strike
  * on each one not already struck whose {@code interval} divides the field's
@@ -30,13 +30,13 @@ import java.util.stream.Stream;
  * <p>The metal trap strikes one entity per ten-tick cooldown, landing a
  * stalagmite impale six ticks after choosing it; the crystal cloud shreds
  * every moving entity each second tick, each tick for a sprinting player,
- * eight shreds to a blob, expanding and contracting over ten ticks.
+ * eight shreds to a goo, expanding and contracting over ten ticks.
  *
  * @param radius      the selection radius in blocks
  * @param where       the filters an entity must pass to be struck
  * @param cooldown    ticks after a strike starts before the next may start
  * @param interval    the tick period on which a selected entity may be struck, read on the entity
- * @param perStack    charges each stacked blob holds
+ * @param perStack    charges each stacked goo holds
  * @param spendChance the chance in [0, 1] that a strike spends its charge
  * @param strikeTick  the strike age at which the strike body lands, zero to land at once
  * @param strikeTicks how many ticks a strike stays in flight

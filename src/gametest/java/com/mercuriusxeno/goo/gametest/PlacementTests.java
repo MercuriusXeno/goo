@@ -17,16 +17,16 @@ import net.minecraft.world.level.block.Blocks;
 import java.util.Map;
 
 /**
- * Gametests for EffectBlockPlacement on the ability path: an ability blob
+ * Gametests for EffectBlockPlacement on the ability path: an ability goo
  * lands through ChainPlacementRules and stands or stacks its chain marker.
  */
 public final class PlacementTests {
 
     private static final BlockPos WALL_POS = new BlockPos(1, 1, 1);
     private static final BlockPos AIR_POS = new BlockPos(1, 1, 2);
-    /** The soil under the tall grass an ability blob strikes. */
+    /** The soil under the tall grass an ability goo strikes. */
     private static final BlockPos GRASS_SOIL_POS = new BlockPos(3, 1, 3);
-    /** The grass an ability blob strikes from above. */
+    /** The grass an ability goo strikes from above. */
     private static final BlockPos GRASS_POS = GRASS_SOIL_POS.above();
     private static final String BLAZE_TUNNEL = "goo:blaze_tunnel";
     private static final String ROCK_TUNNEL = "goo:rock_tunnel";
@@ -37,16 +37,16 @@ public final class PlacementTests {
     private static final String UNSTABLE_TIMED_BOMB = "goo:unstable_timed_bomb";
     private static final String GLOW_CRYSTAL = "goo:glow_crystal";
     private static final String ABILITIES_REQUIRED = "Ability registry must be loaded";
-    private static final String OTHER_ABILITY_STACKED = "A blob of another ability stacked onto the marker";
-    private static final String OTHER_ABILITY_REPLACED = "A blob of another ability replaced the marker";
-    /** The stack count after a second blob of the same ability. */
+    private static final String OTHER_ABILITY_STACKED = "A goo of another ability stacked onto the marker";
+    private static final String OTHER_ABILITY_REPLACED = "A goo of another ability replaced the marker";
+    /** The stack count after a second goo of the same ability. */
     private static final int TWO_STACKS = 2;
-    private static final String SAME_ABILITY_NOT_STACKED = "A second blob of the same ability did not stack";
+    private static final String SAME_ABILITY_NOT_STACKED = "A second goo of the same ability did not stack";
 
     private PlacementTests() {}
 
     /**
-     * Hitting a stone block with a blaze_tunnel blob places a chain marker in the
+     * Hitting a stone block with a blaze_tunnel goo places a chain marker in the
      * adjacent air block. Exercises the full placement dispatch path.
      *
      * @param helper the gametest helper
@@ -59,7 +59,7 @@ public final class PlacementTests {
     }
 
     /**
-     * Hitting a stone block with a rock_tunnel blob places a chain marker.
+     * Hitting a stone block with a rock_tunnel goo places a chain marker.
      *
      * @param helper the gametest helper
      */
@@ -71,7 +71,7 @@ public final class PlacementTests {
     }
 
     /**
-     * Hitting a stone block with a frost_sphere blob places a chain marker.
+     * Hitting a stone block with a frost_sphere goo places a chain marker.
      *
      * @param helper the gametest helper
      */
@@ -118,14 +118,14 @@ public final class PlacementTests {
     }
 
     /**
-     * Throws one ability blob at a block face through the ability placement
+     * Throws one ability goo at a block face through the ability placement
      * path.
      *
      * @param helper    the gametest helper
      * @param hit       the struck block, relative
      * @param face      the struck face
      * @param type      the goo type
-     * @param abilityId the ability the blob names
+     * @param abilityId the ability the goo names
      */
     private static void throwAbility(GameTestHelper helper, BlockPos hit, Direction face,
                                      ResourceKey<GooTypeDefinition> type, String abilityId) {
@@ -135,7 +135,7 @@ public final class PlacementTests {
     }
 
     /**
-     * An ability blob striking tall grass from above places its marker in
+     * An ability goo striking tall grass from above places its marker in
      * the grass block's place, not on top of it.
      *
      * @param helper the gametest helper
@@ -150,7 +150,7 @@ public final class PlacementTests {
     }
 
     /**
-     * An ability blob striking stone behind a water source places its
+     * An ability goo striking stone behind a water source places its
      * marker waterlogged in the water.
      *
      * @param helper the gametest helper
@@ -165,7 +165,7 @@ public final class PlacementTests {
     }
 
     /**
-     * An ability blob striking stone behind lava places no marker.
+     * An ability goo striking stone behind lava places no marker.
      *
      * @param helper the gametest helper
      */
@@ -178,8 +178,8 @@ public final class PlacementTests {
     }
 
     /**
-     * A second blob of the same ability stacks onto the first marker; a
-     * blob of another ability on the same face leaves it as it stood.
+     * A second goo of the same ability stacks onto the first marker; a
+     * goo of another ability on the same face leaves it as it stood.
      *
      * @param helper the gametest helper
      */

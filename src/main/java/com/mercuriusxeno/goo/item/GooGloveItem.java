@@ -45,8 +45,8 @@ public class GooGloveItem extends Item {
     }
 
     /**
-     * Shift+right-click on a chain marker recollects blobs. Returns the
-     * stacked blobs to the player's inventory and removes the marker.
+     * Shift+right-click on a chain marker recollects goo. Returns the
+     * stacked goo to the player's inventory and removes the marker.
      *
      * @param context the use-on-block context
      * @return SUCCESS if recollected, PASS otherwise
@@ -61,25 +61,25 @@ public class GooGloveItem extends Item {
             return InteractionResult.PASS;
         }
         if (!level.isClientSide()) {
-            recollectBlobs(level, pos, be, player);
+            recollectGoo(level, pos, be, player);
         }
         return InteractionResult.SUCCESS;
     }
 
     /**
-     * Gives the marker's stacked blobs back to the player and removes the block.
+     * Gives the marker's stacked goo back to the player and removes the block.
      * @param level the world the marker exists in
      * @param pos the marker block position
-     * @param be the chain marker block entity holding blob data
-     * @param player the player receiving the recollected blobs
+     * @param be the chain marker block entity holding goo data
+     * @param player the player receiving the recollected goo
      */
-    private static void recollectBlobs(Level level, BlockPos pos,
+    private static void recollectGoo(Level level, BlockPos pos,
             ChainMarkerBlockEntity be, Player player) {
         ResourceKey<GooTypeDefinition> type = be.getGooType();
         int stacks = be.getStackCount();
         if (stacks > 0) {
-            ItemStack blobs = BlobStacks.createForOutput(type, stacks * BlobStacks.MB_PER_BLOB);
-            PlayerUtils.addOrDrop(player, blobs);
+            ItemStack goo = GooStacks.createForOutput(type, stacks * GooStacks.THOUSAND);
+            PlayerUtils.addOrDrop(player, goo);
         }
         level.removeBlock(pos, false);
         level.playSound(null, pos, SoundEvents.ITEM_PICKUP, SoundSource.PLAYERS,

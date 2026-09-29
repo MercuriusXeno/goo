@@ -13,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.Mockito.mock;
 
-/** Covers the crosshair panel's row: the first source, the blobs it holds and the cost at the aimed stack (decision crosshair-panel-shows-source-and-cost). */
+/** Covers the crosshair panel's row: the first source, the goo it holds and the cost at the aimed stack (decision crosshair-panel-shows-source-and-cost). */
 class CrosshairFuelPanelTest {
 
     private static final int CANISTER_VOLUME = 3000;
@@ -34,8 +34,8 @@ class CrosshairFuelPanelTest {
 
         assertSame(canister, row.source());
         assertEquals(GooTypes.UNSTABLE, row.type());
-        assertEquals("3", row.heldText());
-        assertEquals("- 2.5", row.costText());
+        assertEquals("3K", row.heldText());
+        assertEquals("- 2.5K", row.costText());
     }
 
     /** A 60 by 22 panel at (100, 50) cuts the 24x24 effect background into nine slices with a 3px border (decision diagnose-then-fix-aiming-panel-stretch). */
@@ -90,7 +90,7 @@ class CrosshairFuelPanelTest {
         for (int stacks : new int[]{0, AIMED_STACKS}) {
             CrosshairFuelPanel.FuelRow row = CrosshairFuelPanel.fuelRow(canister, GooTypes.UNSTABLE, CANISTER_VOLUME,
                     ability.throwCost(stacks));
-            assertEquals("- 2.5", row.costText(), "cost at stacks=" + stacks);
+            assertEquals("- 2.5K", row.costText(), "cost at stacks=" + stacks);
         }
     }
 }

@@ -173,7 +173,7 @@ public final class EffectBlockPlacement {
     /**
      * Places or stacks a chain marker for a data-driven ability, deciding
      * through {@link ChainPlacementRules}: a replaceable hit block takes the
-     * marker in place, water waterlogs it, lava refuses it, and a blob stacks
+     * marker in place, water waterlogs it, lava refuses it, and a goo stacks
      * only onto a marker of the same ability (decision
      * ability-path-uses-placement-rules).
      *
@@ -190,10 +190,10 @@ public final class EffectBlockPlacement {
     }
 
     /**
-     * Which standing markers a blob stacks onto, and how a fresh marker it
+     * Which standing markers a goo stacks onto, and how a fresh marker it
      * places initializes.
      *
-     * @param stacksOnto true for a marker this blob stacks onto
+     * @param stacksOnto true for a marker this goo stacks onto
      * @param init       initializes a freshly placed marker with its placed face
      */
     private record MarkerKind(Predicate<ChainMarkerBlockEntity> stacksOnto,

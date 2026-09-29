@@ -13,7 +13,7 @@ import org.jspecify.annotations.NonNull;
 /**
  * Chrysm, crystallized goo at a fixed tier (decision chrysm-tiers-fixed-and-stackable):
  * stackable, its type in the GOO_TYPE component and its volume fixed by its
- * {@link ChrysmTier}, so it carries no BLOB_VOLUME.
+ * {@link ChrysmTier}, so it carries no GOO_VOLUME.
  */
 public class ChrysmItem extends Item {
 

@@ -12,9 +12,9 @@ import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.overlay.AimTracker;
 import com.mercuriusxeno.goo.client.particle.*;
-import com.mercuriusxeno.goo.client.throwing.BlobFlightManager;
-import com.mercuriusxeno.goo.client.throwing.BlobSizeProperty;
-import com.mercuriusxeno.goo.client.throwing.BlobVolumeDecorator;
+import com.mercuriusxeno.goo.client.throwing.GooFlightManager;
+import com.mercuriusxeno.goo.client.throwing.GooSizeProperty;
+import com.mercuriusxeno.goo.client.throwing.GooVolumeDecorator;
 import com.mercuriusxeno.goo.client.throwing.ThrowFreezeState;
 import com.mercuriusxeno.goo.item.gasket.TunerAwaitState;
 import com.mercuriusxeno.goo.registry.*;
@@ -46,9 +46,9 @@ import java.util.List;
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class GooClientSetup {
     /**
-     * Property name for blob size range select.
+     * Property name for goo size range select.
      */
-    private static final String PROP_BLOB_SIZE = "blob_size";
+    private static final String PROP_GOO_SIZE = "goo_size";
     /**
      * Special renderer key for canister goo.
      */
@@ -63,9 +63,9 @@ public final class GooClientSetup {
      */
     private static final String RENDERER_GLOVE = "glove_goo";
     /**
-     * Property name for the blob texture a stack's type names.
+     * Property name for the goo texture a stack's type names.
      */
-    private static final String PROP_BLOB_TEXTURE = "blob_texture";
+    private static final String PROP_GOO_TEXTURE = "goo_texture";
     /**
      * SuppressWarnings annotation value for unchecked casts.
      */
@@ -156,14 +156,14 @@ public final class GooClientSetup {
     }
 
     /**
-     * Registers the goo type icon decorator on the omniblob item.
+     * Registers the goo type icon decorator on the goo item.
      *
      * @param event the event instance
      */
     @SubscribeEvent
     public static void registerItemDecorations(RegisterItemDecorationsEvent event) {
-        BlobVolumeDecorator decorator = new BlobVolumeDecorator();
-        event.register(GooItems.GOO_OMNIBLOB.get(), decorator);
+        GooVolumeDecorator decorator = new GooVolumeDecorator();
+        event.register(GooItems.GOO.get(), decorator);
     }
 
     /**
@@ -179,28 +179,28 @@ public final class GooClientSetup {
     }
 
     /**
-     * Registers range_dispatch properties for blob size and fuel depletion.
+     * Registers range_dispatch properties for goo size and fuel depletion.
      *
      * @param event the event instance
      */
     @SubscribeEvent
     public static void registerRangeSelectProperties(RegisterRangeSelectItemModelPropertyEvent event) {
         event.register(
-                Identifier.fromNamespaceAndPath(Goo.MODID, PROP_BLOB_SIZE),
-                BlobSizeProperty.MAP_CODEC
+                Identifier.fromNamespaceAndPath(Goo.MODID, PROP_GOO_SIZE),
+                GooSizeProperty.MAP_CODEC
         );
     }
 
     /**
      * Registers the select property keyed by the GOO_TYPE component that
-     * answers the blob texture the stack's type names (decision
+     * answers the goo texture the stack's type names (decision
      * type-named-textures).
      *
      * @param event the event instance
      */
     @SubscribeEvent
     public static void registerSelectProperties(RegisterSelectItemModelPropertyEvent event) {
-        event.register(Identifier.fromNamespaceAndPath(Goo.MODID, PROP_BLOB_TEXTURE), BlobTextureProperty.TYPE);
+        event.register(Identifier.fromNamespaceAndPath(Goo.MODID, PROP_GOO_TEXTURE), GooTextureProperty.TYPE);
     }
 
     /**
@@ -322,7 +322,7 @@ public final class GooClientSetup {
     @SubscribeEvent
     public static void onClientDisconnect(ClientPlayerNetworkEvent.LoggingOut event) {
         TunerAwaitState.clear();
-        BlobFlightManager.clear();
+        GooFlightManager.clear();
         ChainBurnouts.CLIENT.clear();
         ThrowFreezeState.clear();
     }

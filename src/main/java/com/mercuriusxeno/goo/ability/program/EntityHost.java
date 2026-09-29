@@ -15,17 +15,17 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 /**
- * The {@link StepHost} over the living entity a thrown blob struck: it
+ * The {@link StepHost} over the living entity a thrown goo struck: it
  * hands the target to the effect steps, which act on it (decision
  * step-tick-holds-effect); reads answer its health and its distance
- * from the thrower, and world actions anchor at the target. A blob lands
+ * from the thrower, and world actions anchor at the target. A goo lands
  * in one tick and nothing ticks an entity afterwards, so this host has no
  * {@link HostCapability#TICKING} and a program with a waiting step refuses
  * at load (decision host-agnostic-runtime).
  *
  * @param level   the server level
  * @param target  the struck entity
- * @param thrower the entity that threw the blob, or null when unknown
+ * @param thrower the entity that threw the goo, or null when unknown
  */
 public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entity thrower)
         implements TargetHost, ExplodeHost, EntityScanHost {

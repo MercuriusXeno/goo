@@ -2,8 +2,8 @@ package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.fluid.GooBucketItem;
-import com.mercuriusxeno.goo.item.BlobStacks;
-import com.mercuriusxeno.goo.item.GooOmniblobItem;
+import com.mercuriusxeno.goo.item.GooItem;
+import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.Holder;
@@ -18,21 +18,21 @@ import java.util.Comparator;
 
 /**
  * Creative mode tab registration. Shows machines, intermediates, and for
- * every type the goo type registry holds, a datapack's included, one blob,
- * two sample omniblobs, a bucket and the three chrysm tiers (decision generic-goo-items).
+ * every type the goo type registry holds, a datapack's included, one goo,
+ * two sample gooStacks, a bucket and the three chrysm tiers (decision generic-goo-items).
  */
 public class GooCreativeTabs {
     public static final DeferredRegister<CreativeModeTab> TABS =
         DeferredRegister.create(Registries.CREATIVE_MODE_TAB, Goo.MODID);
 
-    private static final int SAMPLE_OMNIBLOB_VOLUME = 1_000_000;
-    private static final int LARGE_OMNIBLOB_VOLUME = 1_000_000_000;
+    private static final int SAMPLE_GOO_VOLUME = 1_000_000;
+    private static final int LARGE_GOO_VOLUME = 1_000_000_000;
 
     public static final DeferredHolder<CreativeModeTab, CreativeModeTab> GOO_TAB =
         TABS.register("goo_tab", () -> CreativeModeTab.builder()
             .title(Component.translatable("itemGroup.goo"))
             .withTabsBefore(CreativeModeTabs.COMBAT)
-            .icon(() -> BlobStacks.createForOutput(GooTypes.ENDER, BlobStacks.MB_PER_BLOB))
+            .icon(() -> GooStacks.createForOutput(GooTypes.ENDER, GooStacks.THOUSAND))
             .displayItems((params, output) -> {
                 // Machines
                 output.accept(GooItems.CRUCIBLE.get());
@@ -63,15 +63,15 @@ public class GooCreativeTabs {
         );
 
     /**
-     * Offers one type's 1-blob, 1K-blob and 1M-blob omniblobs, a bucket and one of each chrysm tier.
+     * Offers one type's 1-goo, 1K-goo and 1M-gooStacks, a bucket and one of each chrysm tier.
      *
      * @param output the tab's item sink
      * @param key    the goo type's registry key
      */
     private static void acceptType(CreativeModeTab.Output output, ResourceKey<GooTypeDefinition> key) {
-        output.accept(BlobStacks.createForOutput(key, BlobStacks.MB_PER_BLOB));
-        output.accept(GooOmniblobItem.createWithVolume(key, SAMPLE_OMNIBLOB_VOLUME));
-        output.accept(GooOmniblobItem.createWithVolume(key, LARGE_OMNIBLOB_VOLUME));
+        output.accept(GooStacks.createForOutput(key, GooStacks.THOUSAND));
+        output.accept(GooItem.createWithVolume(key, SAMPLE_GOO_VOLUME));
+        output.accept(GooItem.createWithVolume(key, LARGE_GOO_VOLUME));
         output.accept(GooBucketItem.of(key));
         GooItems.CHRYSM_TIERS.forEach(tier -> output.accept(tier.get().createOf(key)));
     }

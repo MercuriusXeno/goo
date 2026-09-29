@@ -2,7 +2,7 @@ package com.mercuriusxeno.goo.ability.program;
 
 /**
  * A host filling a goo total from the valued blocks around its anchor and
- * dropping it as blobs (capability {@link HostCapability#CONSUMED_GOO}).
+ * dropping it as goo (capability {@link HostCapability#CONSUMED_GOO}).
  */
 public interface ConsumedGooHost extends StepHost {
 
@@ -15,7 +15,7 @@ public interface ConsumedGooHost extends StepHost {
     void consumeValuedBlocks(int radius);
 
     /**
-     * Drops the consumed goo total as blob items at the anchor and empties it.
+     * Drops the consumed goo total as goo items at the anchor and empties it.
      */
     void dropConsumedGoo();
 }

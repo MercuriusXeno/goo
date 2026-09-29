@@ -40,7 +40,7 @@ public final class GooNetworking {
         r.playToClient(GooValueSyncPayload.TYPE, GooValueSyncPayload.STREAM_CODEC);
         r.playToClient(OpenNamingScreenPayload.TYPE, OpenNamingScreenPayload.STREAM_CODEC);
         r.playToClient(TunerFeedbackPayload.TYPE, TunerFeedbackPayload.STREAM_CODEC);
-        r.playToClient(BlobFlightPayload.TYPE, BlobFlightPayload.STREAM_CODEC);
+        r.playToClient(GooFlightPayload.TYPE, GooFlightPayload.STREAM_CODEC);
         r.playToClient(AbilitySyncPayload.TYPE, AbilitySyncPayload.STREAM_CODEC);
         r.playToClient(ChainBurnoutPayload.TYPE, ChainBurnoutPayload.STREAM_CODEC);
     }
@@ -52,7 +52,7 @@ public final class GooNetworking {
     private static void registerServerPayloads(PayloadRegistrar r) {
         r.playToServer(CanisterRenamePayload.TYPE, CanisterRenamePayload.STREAM_CODEC, CanisterRenameHandler::handle);
         r.playToServer(CanisterUnlinkPayload.TYPE, CanisterUnlinkPayload.STREAM_CODEC, CanisterUnlinkHandler::handle);
-        r.playToServer(BlobThrowPayload.TYPE, BlobThrowPayload.STREAM_CODEC, BlobThrowHandler::handle);
+        r.playToServer(GooThrowPayload.TYPE, GooThrowPayload.STREAM_CODEC, GooThrowHandler::handle);
         r.playToServer(GloveSelectPayload.TYPE, GloveSelectPayload.STREAM_CODEC, GloveSelectHandler::handle);
     }
 }

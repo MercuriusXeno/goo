@@ -29,7 +29,7 @@ final class AimTargets {
 
     /**
      * Granny-arc threshold: when a side-face hit lands in the upper 15% of
-     * the shape's height, targeting redirects to the UP face so the blob
+     * the shape's height, targeting redirects to the UP face so the goo
      * arcs onto the top of the block instead of hitting the side.
      */
     private static final double GRANNY_ARC_THRESHOLD = 0.85;

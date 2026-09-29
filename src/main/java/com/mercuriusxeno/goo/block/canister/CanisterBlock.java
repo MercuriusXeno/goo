@@ -77,7 +77,7 @@ public class CanisterBlock extends GooMachineBlock {
     /** The clicks a canister block answers through its dispatcher. */
     private static final Set<GooInteractionType> CLICK_ROWS = Set.of(
             GooInteractionType.CANISTER_INSERT, GooInteractionType.CANISTER_PICKUP,
-            GooInteractionType.FLUID_CONTAINER, GooInteractionType.BLOB_INSERT);
+            GooInteractionType.FLUID_CONTAINER, GooInteractionType.GOO_INSERT);
 
     static {
         for (int slot = 0; slot < SLOT_COUNT; slot++) {
@@ -316,7 +316,7 @@ public class CanisterBlock extends GooMachineBlock {
     /**
      * A plain click with a canister reads the aimed slot: a filled slot gives its canister up,
      * an empty one takes the held canister (decision hub-plain-click-rule). Buckets move fluid,
-     * blobs pour goo.
+     * goo pour goo.
      */
     @Override
     protected @NonNull InteractionResult useItemOn(

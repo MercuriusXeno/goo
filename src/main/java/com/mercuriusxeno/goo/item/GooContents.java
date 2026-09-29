@@ -24,10 +24,10 @@ import java.util.function.Consumer;
  * Unified data component for all goo containers:
  * canisters, vats, crucible reservoirs, and partially melted items.
  *
- * <p>Each entry maps a goo type key to a volume in microblobs (mB).
+ * <p>Each entry maps a goo type key to a volume (mB).
  * Mutation methods return new instances; this record is never modified in place.</p>
  *
- * @param contents the map of goo types to volumes in microblobs
+ * @param contents the map of goo types to volumes
  */
 public record GooContents(Map<ResourceKey<GooTypeDefinition>, Integer> contents) implements TooltipProvider {
 
@@ -121,7 +121,7 @@ public record GooContents(Map<ResourceKey<GooTypeDefinition>, Integer> contents)
      * Returns the total volume across all goo types, a long because each type
      * alone may hold up to an int's range (decision diagnose-then-fix-crucible-overflow).
      *
-     * @return total volume in microblobs
+     * @return total volume
      */
     public long totalVolume() {
         long total = 0;
@@ -184,7 +184,7 @@ public record GooContents(Map<ResourceKey<GooTypeDefinition>, Integer> contents)
      * Returns the volume of a specific goo type, or 0 if absent.
      *
      * @param type the goo type to query
-     * @return volume in microblobs
+     * @return volume
      */
     public int getVolume(ResourceKey<GooTypeDefinition> type) {
         return contents.getOrDefault(type, 0);
@@ -193,7 +193,7 @@ public record GooContents(Map<ResourceKey<GooTypeDefinition>, Integer> contents)
     /**
      * Returns an unmodifiable view of all contents.
      *
-     * @return map of goo type to volume in microblobs
+     * @return map of goo type to volume
      */
     public Map<ResourceKey<GooTypeDefinition>, Integer> getAll() {
         return contents;
@@ -203,7 +203,7 @@ public record GooContents(Map<ResourceKey<GooTypeDefinition>, Integer> contents)
      * Returns a new GooContents with the given volume added to the specified type.
      *
      * @param type   the goo type to add to
-     * @param amount the volume to add in microblobs
+     * @param amount the volume to add
      * @return new contents with the addition applied
      */
     public GooContents withAdded(ResourceKey<GooTypeDefinition> type, int amount) {
@@ -241,7 +241,7 @@ public record GooContents(Map<ResourceKey<GooTypeDefinition>, Integer> contents)
      * Returns a new GooContents with the given volume removed from the specified type.
      *
      * @param type   the goo type to remove from
-     * @param amount the volume to remove in microblobs
+     * @param amount the volume to remove
      * @return new contents with the removal applied
      */
     public GooContents withRemoved(ResourceKey<GooTypeDefinition> type, int amount) {

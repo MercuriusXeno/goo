@@ -202,7 +202,7 @@ final class CrucibleInsertion {
      *
      * @param be     the crucible block entity
      * @param type   the goo type
-     * @param volume volume in microblobs
+     * @param volume volume
      * @return the amount actually inserted
      */
     static int insertGoo(CrucibleBlockEntity be, ResourceKey<GooTypeDefinition> type, int volume) {

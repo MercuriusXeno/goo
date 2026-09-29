@@ -36,7 +36,7 @@ public class GooParticles {
     public static final DeferredHolder<ParticleType<?>, ParticleType<ColorParticleOption>> GOO_BUBBLE =
         PARTICLE_TYPES.register("goo_bubble", GooParticles::colorParticleType);
 
-    /** The trail-drip: 2x3 slime drip shed by thrown goo blobs mid-flight. */
+    /** The trail-drip: 2x3 slime drip shed by thrown goo mid-flight. */
     public static final DeferredHolder<ParticleType<?>, ParticleType<ColorParticleOption>> TRAIL_DRIP =
         PARTICLE_TYPES.register("trail_drip", GooParticles::colorParticleType);
 
@@ -66,7 +66,7 @@ public class GooParticles {
             }
         });
 
-    /** Radial gradient fog puff for blob flight trails. */
+    /** Radial gradient fog puff for goo flight trails. */
     public static final DeferredHolder<ParticleType<?>, ParticleType<ColorParticleOption>> GOO_FOG =
         PARTICLE_TYPES.register("goo_fog", GooParticles::colorParticleType);
 

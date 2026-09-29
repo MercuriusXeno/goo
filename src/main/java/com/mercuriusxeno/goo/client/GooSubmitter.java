@@ -36,7 +36,7 @@ import java.util.function.Consumer;
  * block entity's world light while fluid vertices carry fullbright, which
  * makes the lightmap multiply a no-op without a shader or pipeline change.
  * The vat and crucible fluid alone submit on the undulating surface type.
- * Every other goo draw under client, the gasket caps, the thrown blob, the
+ * Every other goo draw under client, the gasket caps, the thrown goo, the
  * fuse orb and the metal spikes, takes its render type, light and sprite
  * UVs here too (decision submitter-owns-every-render-choice).
  */
@@ -104,7 +104,7 @@ public final class GooSubmitter {
 
     /**
      * Returns the solid render type on the block atlas, for an opaque draw
-     * of a goo sprite such as the thrown blob's core.
+     * of a goo sprite such as the thrown goo's core.
      *
      * @return entitySolid on the block atlas
      */

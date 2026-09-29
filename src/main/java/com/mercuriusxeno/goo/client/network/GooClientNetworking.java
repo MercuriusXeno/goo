@@ -2,8 +2,8 @@ package com.mercuriusxeno.goo.client.network;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
-import com.mercuriusxeno.goo.network.BlobFlightPayload;
 import com.mercuriusxeno.goo.network.ChainBurnoutPayload;
+import com.mercuriusxeno.goo.network.GooFlightPayload;
 import com.mercuriusxeno.goo.network.GooValueSyncPayload;
 import com.mercuriusxeno.goo.network.OpenNamingScreenPayload;
 import com.mercuriusxeno.goo.network.TunerFeedbackPayload;
@@ -33,7 +33,7 @@ public final class GooClientNetworking {
         event.register(GooValueSyncPayload.TYPE, GooValueSyncHandler::handle);
         event.register(OpenNamingScreenPayload.TYPE, OpenNamingScreenHandler::handle);
         event.register(TunerFeedbackPayload.TYPE, TunerFeedbackHandler::handle);
-        event.register(BlobFlightPayload.TYPE, BlobFlightHandler::handle);
+        event.register(GooFlightPayload.TYPE, GooFlightHandler::handle);
         event.register(AbilitySyncPayload.TYPE, AbilitySyncHandler::handle);
         event.register(ChainBurnoutPayload.TYPE, ChainBurnoutHandler::handle);
     }

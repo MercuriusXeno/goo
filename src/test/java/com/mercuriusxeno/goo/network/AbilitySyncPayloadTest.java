@@ -21,7 +21,7 @@ class AbilitySyncPayloadTest {
 
     private static AbilityDefinition ability(String name, int order, String tag) {
         return new AbilityDefinition(Identifier.fromNamespaceAndPath("goo", name), GooTypes.ROCK,
-                name, "", order, 0, new AbilityDefinition.ChainConfig(30, 1, "blob"),
+                name, "", order, 0, new AbilityDefinition.ChainConfig(30, 1, "goo"),
                 List.of(), List.of(tag));
     }
 

@@ -215,7 +215,7 @@ class GooValueRegistryTest {
         }
 
         /**
-         * Same total blobs, fewer goo types wins.
+         * Same total goo, fewer goo types wins.
          */
         @Test
         void fewerGooTypesWinsTiebreak() {
@@ -223,7 +223,7 @@ class GooValueRegistryTest {
                     id("a"), goo(GooTypes.METAL, 16, GooTypes.ROCK, 8, GooTypes.CRYSTAL, 8),
                     id("b"), goo(GooTypes.METAL, 16, GooTypes.ROCK, 16)
             ));
-            // Both recipes cost 32 total blobs, but b has 2 types vs a's 3
+            // Both recipes cost 32 total goo, but b has 2 types vs a's 3
             List<RecipeInput> recipes = List.of(
                     recipe("x", 1, slot("a")),
                     recipe("x", 1, slot("b"))
@@ -238,7 +238,7 @@ class GooValueRegistryTest {
         }
 
         /**
-         * When total blobs differ, cheaper still wins regardless of type count.
+         * When total goo differ, cheaper still wins regardless of type count.
          */
         @Test
         void cheaperStillWinsOverFewerTypes() {
@@ -255,7 +255,7 @@ class GooValueRegistryTest {
             registry.deriveFromRecipeInputs(recipes, false);
             GooValue val = registry.table().lookup(id("x"));
             assertNotNull(val);
-            assertEquals(30, val.totalBlobs(), "Cheaper recipe wins even with more types");
+            assertEquals(30, val.totalGoo(), "Cheaper recipe wins even with more types");
             assertEquals(3, val.getAll().size());
         }
 
@@ -506,7 +506,7 @@ class GooValueRegistryTest {
             assertEquals(10, loss.inputTotal());
             assertEquals(3, loss.outputCount());
             assertEquals(3, loss.perItemValue());
-            assertEquals(1, loss.lostBlobs());
+            assertEquals(1, loss.lostGoo());
         }
 
         /**
@@ -898,10 +898,10 @@ class GooValueRegistryTest {
     class FindCheapestAmong {
 
         /**
-         * Returns the candidate with fewest total blobs.
+         * Returns the candidate with fewest total goo.
          */
         @Test
-        void returnsLowestTotalBlobs() {
+        void returnsLowestTotalGoo() {
             Map<Identifier, GooValue> values = Map.of(
                     id("a"), goo(GooTypes.METAL, 10),
                     id("b"), goo(GooTypes.METAL, 3),
@@ -1917,7 +1917,7 @@ class GooValueRegistryTest {
             for (Map.Entry<Identifier, GooValue> entry : before.entrySet()) {
                 GooValue reloaded = registry.table().lookup(entry.getKey());
                 assertNotNull(reloaded, "Missing after reload: " + entry.getKey());
-                assertEquals(entry.getValue().totalBlobs(), reloaded.totalBlobs(),
+                assertEquals(entry.getValue().totalGoo(), reloaded.totalGoo(),
                         "Mismatch for " + entry.getKey());
             }
         }

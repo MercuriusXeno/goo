@@ -12,8 +12,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class CrucibleInteractionTest {
 
     @Test
-    void crucibleAnswersOnlyTheSparkAndTheBlob() {
-        assertEquals(EnumSet.of(GooInteractionType.SPARK, GooInteractionType.BLOB_INSERT),
+    void crucibleAnswersOnlyTheSparkAndTheGoo() {
+        assertEquals(EnumSet.of(GooInteractionType.SPARK, GooInteractionType.GOO_INSERT),
                 EnumSet.copyOf(CrucibleBlock.CLICK_ROWS));
     }
 }

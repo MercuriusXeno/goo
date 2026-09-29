@@ -17,7 +17,7 @@ import java.util.Map;
 /**
  * Vat block item: retains goo contents when picked up (like shulker boxes).
  * Supports inventory click interactions matching CanisterItem behavior:
- * blob insert, blob drain.
+ * goo insert, goo drain.
  */
 public class VatBlockItem extends BlockItem implements GooCarrierItem {
 
@@ -32,7 +32,7 @@ public class VatBlockItem extends BlockItem implements GooCarrierItem {
     }
 
     /**
-     * Handles cursor-on-vat inventory clicks: blob/omniblob insert,
+     * Handles cursor-on-vat inventory clicks: goo/goo insert,
      * empty-cursor drain.
      *
      * @param vat         the vat item stack in the slot
@@ -86,7 +86,7 @@ public class VatBlockItem extends BlockItem implements GooCarrierItem {
      *
      * @param stack  the vat item stack
      * @param type   the goo type to add
-     * @param amount the volume in microblobs to add
+     * @param amount the volume to add
      * @return the amount actually accepted
      */
     public static int addGoo(ItemStack stack, ResourceKey<GooTypeDefinition> type, int amount) {
@@ -99,7 +99,7 @@ public class VatBlockItem extends BlockItem implements GooCarrierItem {
      *
      * @param stack  the vat item stack
      * @param type   the goo type to remove
-     * @param amount the volume in microblobs to remove
+     * @param amount the volume to remove
      * @return the amount actually removed
      */
     public static int removeGoo(ItemStack stack, ResourceKey<GooTypeDefinition> type, int amount) {

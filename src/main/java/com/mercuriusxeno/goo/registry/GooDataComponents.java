@@ -34,7 +34,7 @@ public class GooDataComponents {
                             .build());
 
     /**
-     * The goo type a generic goo fluid stack, blob, omniblob or bucket
+     * The goo type a generic goo fluid stack, goo, goo or bucket
      * carries, as its registry key (decisions generic-goo-fluids and
      * generic-goo-items). A fluid resource or item stack with this component
      * is one goo type; two types are two resources of the one fluid or two
@@ -78,10 +78,10 @@ public class GooDataComponents {
                             .build());
 
     /**
-     * Volume of goo in a blob item, measured in microblobs (mB).
+     * Volume of goo in a goo item, measured (mB).
      */
-    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> BLOB_VOLUME =
-            DATA_COMPONENTS.register("blob_volume",
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> GOO_VOLUME =
+            DATA_COMPONENTS.register("goo_volume",
                     () -> DataComponentType.<Integer>builder()
                             .persistent(Codec.INT)
                             .networkSynchronized(ByteBufCodecs.VAR_INT)
