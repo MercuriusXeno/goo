@@ -1,16 +1,16 @@
 // Mingle noise of decision noise-mingled-type-textures: each goo type past
 // the first draws over the layers below at an opacity from its own noise
-// field of world position and GameTime, so the types form blobs that blend
+// field of world position and GameTime, so the types form goo that blend
 // at short seams and never average into one sludge.
 // A shader under shaders/core imports it by its quoted relative name.
 
 const float MINGLE_TAU = 6.2831853;
-// Noise cells per block: the size of one blob.
+// Noise cells per block: the size of one goo.
 const float MINGLE_CELLS_PER_BLOCK = 2.5;
 // Half the width of a seam, in field units: the crossfade between two types.
 const float MINGLE_SEAM = 0.12;
-// The warp field runs at this fraction of the blob frequency and pushes the
-// blobs this many cells, so the patches swirl into each other.
+// The warp field runs at this fraction of the goo frequency and pushes the
+// goo this many cells, so the patches swirl into each other.
 const float MINGLE_WARP_SCALE = 0.5;
 const float MINGLE_WARP_CELLS = 2.4;
 // GameTime is the fraction of a 24000-tick day, so whole cycles per day keep
@@ -20,7 +20,7 @@ const float MINGLE_ROLL_CYCLES_PER_DAY = 55.0;
 const float MINGLE_HEAVE_CYCLES_PER_DAY = 70.0;
 // Cells each drift loop reaches from its centre.
 const float MINGLE_DRIFT_CELLS = 0.6;
-// Offsets each seed's field so every type blobs on its own.
+// Offsets each seed's field so every type goo on its own.
 const vec3 MINGLE_SEED_OFFSET = vec3(37.1, 11.7, 53.3);
 // Mean opacity at thresholds -MINGLE_SEAM + i/32 (1 + 2 MINGLE_SEAM),
 // measured over three million uniform samples of mingleField, so the
@@ -77,7 +77,7 @@ float mingleThreshold(float share) {
     return mingleCoverageThreshold(MINGLE_COVERAGE_STEPS);
 }
 
-// Closed loops in all three axes, phase-shifted per seed, so the blobs sway
+// Closed loops in all three axes, phase-shifted per seed, so the goo sway
 // across the top and heave up and down the sides.
 vec3 mingleDrift(float gameTime, float seed) {
     float sway = gameTime * MINGLE_TAU * MINGLE_SWAY_CYCLES_PER_DAY + seed;

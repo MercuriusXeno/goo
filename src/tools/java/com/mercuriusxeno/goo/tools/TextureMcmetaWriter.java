@@ -5,8 +5,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
- * Writes .mcmeta animation sidecar files for fluid strips and blob sprites.
- * Fluid strips use simple looping; blob sprites use ping-pong interpolation.
+ * Writes .mcmeta animation sidecar files for fluid strips and goo sprites.
+ * Fluid strips use simple looping; goo sprites use ping-pong interpolation.
  */
 final class TextureMcmetaWriter {
 
@@ -35,14 +35,14 @@ final class TextureMcmetaWriter {
     }
 
     /**
-     * Writes a ping-pong mcmeta for a blob sprite strip.
+     * Writes a ping-pong mcmeta for a goo sprite strip.
      *
      * @param frametime the animation frame time in ticks
      * @param outputDir the directory to write into
      * @param filename  the mcmeta filename to write
      * @throws IOException if the file cannot be written
      */
-    static void writeBlobMcmeta(int frametime, Path outputDir, String filename) throws IOException {
+    static void writeGooMcmeta(int frametime, Path outputDir, String filename) throws IOException {
         String mcmeta = """
                 {"animation": {"frametime": %d, "interpolate": true, "frames": [%s]}}
                 """.formatted(frametime, buildPingPongFrames());

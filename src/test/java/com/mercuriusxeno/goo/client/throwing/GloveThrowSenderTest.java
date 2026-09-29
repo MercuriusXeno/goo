@@ -3,7 +3,7 @@ package com.mercuriusxeno.goo.client.throwing;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
-import com.mercuriusxeno.goo.network.BlobThrowHandler;
+import com.mercuriusxeno.goo.network.GooThrowHandler;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -55,7 +55,7 @@ class GloveThrowSenderTest {
 
     @Test
     void unsyncedAbilityPricesAtTheServerFallback() {
-        assertFalse(GloveThrowSender.affordsThrow(null, 0, amount -> BlobThrowHandler.THROW_COST - 1 >= amount));
-        assertTrue(GloveThrowSender.affordsThrow(null, 0, amount -> BlobThrowHandler.THROW_COST >= amount));
+        assertFalse(GloveThrowSender.affordsThrow(null, 0, amount -> GooThrowHandler.THROW_COST - 1 >= amount));
+        assertTrue(GloveThrowSender.affordsThrow(null, 0, amount -> GooThrowHandler.THROW_COST >= amount));
     }
 }

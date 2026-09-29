@@ -34,7 +34,7 @@ import java.util.function.Consumer;
  */
 public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRenderer.GloveData> {
 
-    // --- Blob center capture for arc rendering ---
+    // --- Goo center capture for arc rendering ---
     /**
      * Smoothing factor per frame (lower = more smoothing).
      */
@@ -48,21 +48,21 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
      */
     private static final int COLOR_WHITE = 0xFFFFFFFF;
     /**
-     * Half-width of the held blob cuboid in model pixels.
+     * Half-width of the held goo cuboid in model pixels.
      */
-    private static final float BLOB_HW_PX = 2.5f;
+    private static final float GOO_HW_PX = 2.5f;
     /**
-     * Center X of the blob in model pixels.
+     * Center X of the goo in model pixels.
      */
-    private static final float BLOB_CX_PX = 8f;
+    private static final float GOO_CX_PX = 8f;
     /**
-     * Center Y of the blob in model pixels.
+     * Center Y of the goo in model pixels.
      */
-    private static final float BLOB_CY_PX = 3.5f;
+    private static final float GOO_CY_PX = 3.5f;
     /**
-     * Center Z of the blob in model pixels.
+     * Center Z of the goo in model pixels.
      */
-    private static final float BLOB_CZ_PX = 6f;
+    private static final float GOO_CZ_PX = 6f;
     /**
      * Minimum extent X in model pixels.
      */
@@ -88,25 +88,25 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
      */
     private static final float EXTENT_MAX_Z_PX = 11.5f;
     /**
-     * Camera-relative position of the held blob's center, captured during
+     * Camera-relative position of the held goo's center, captured during
      * item rendering. The arc renderer adds camera.position() to get world space.
      */
-    private static volatile Vec3 blobCenterCamRel;
+    private static volatile Vec3 gooCenterCamRel;
     /**
-     * Smoothed blob center for arc origin - filters out swing jitter.
+     * Smoothed goo center for arc origin - filters out swing jitter.
      */
-    private static volatile Vec3 smoothedBlobCenter;
+    private static volatile Vec3 smoothedGooCenter;
 
     /**
-     * Returns the last captured camera-relative blob center. No age
+     * Returns the last captured camera-relative goo center. No age
      * check - once captured, the value is always valid. The position
-     * updates every frame the glove's held blob renders, so staleness
+     * updates every frame the glove's held goo renders, so staleness
      * is at most one frame (~16ms at 60fps). Returns null only if the
      * item renderer has never fired (first frame after world load,
      * before the glove has ever been held - in practice unreachable
      * because the arc handler only runs when you're holding the glove).
      *
-     * @return camera-relative blob center, or null if never captured
+     * @return camera-relative goo center, or null if never captured
      */
     /**
      * Creates a glove special renderer.
@@ -115,21 +115,21 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
     }
 
     /**
-     * Returns the raw captured blob center (includes swing).
+     * Returns the raw captured goo center (includes swing).
      *
-     * @return camera-relative blob center, or null if never captured
+     * @return camera-relative goo center, or null if never captured
      */
-    public static @Nullable Vec3 getLastBlobCenterCamRel() {
-        return blobCenterCamRel;
+    public static @Nullable Vec3 getLastGooCenterCamRel() {
+        return gooCenterCamRel;
     }
 
     /**
-     * Returns the smoothed blob center for arc origin (swing filtered out).
+     * Returns the smoothed goo center for arc origin (swing filtered out).
      *
-     * @return smoothed camera-relative blob center, or null if never captured
+     * @return smoothed camera-relative goo center, or null if never captured
      */
-    public static @Nullable Vec3 getSmoothedBlobCenterCamRel() {
-        return smoothedBlobCenter;
+    public static @Nullable Vec3 getSmoothedGooCenterCamRel() {
+        return smoothedGooCenter;
     }
 
     /**
@@ -157,44 +157,44 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
 
     /**
      * Renders a fluid cuboid (5x5x5 pixels) in the palm area,
-     * sitting above the finger plate so the blob is substantial.
+     * sitting above the finger plate so the goo is substantial.
      *
      * @param poseStack     the pose stack for rendering
      * @param nodeCollector the render node collector
      * @param packedLight   the packed light value
      * @param type          the goo type
      */
-    private static void submitHeldBlob(PoseStack poseStack,
+    private static void submitHeldGoo(PoseStack poseStack,
                                        SubmitNodeCollector nodeCollector, int packedLight, ResourceKey<GooTypeDefinition> type) {
-        float hw = BLOB_HW_PX / BLOCK_PIXELS;
-        float cx = BLOB_CX_PX / BLOCK_PIXELS;
-        float cy = BLOB_CY_PX / BLOCK_PIXELS;
-        float cz = BLOB_CZ_PX / BLOCK_PIXELS;
+        float hw = GOO_HW_PX / BLOCK_PIXELS;
+        float cx = GOO_CX_PX / BLOCK_PIXELS;
+        float cy = GOO_CY_PX / BLOCK_PIXELS;
+        float cz = GOO_CZ_PX / BLOCK_PIXELS;
 
-        captureBlobCenter(poseStack, cx, cy, cz);
+        captureGooCenter(poseStack, cx, cy, cz);
 
         nodeCollector.submitCustomGeometry(poseStack, GooSubmitter.renderType(),
-                (pose, c) -> emitBlobFaces(pose, c, packedLight, type, cx, cy, cz, hw));
+                (pose, c) -> emitGooFaces(pose, c, packedLight, type, cx, cy, cz, hw));
     }
 
     /**
-     * Emits all six faces of the held blob cuboid.
+     * Emits all six faces of the held goo cuboid.
      *
      * @param pose        the pose matrix entry
      * @param c           the vertex consumer for geometry output
      * @param packedLight the packed light value
      * @param type        the goo type determining the fluid texture
-     * @param cx          the blob center X in block coords
-     * @param cy          the blob center Y in block coords
-     * @param cz          the blob center Z in block coords
+     * @param cx          the goo center X in block coords
+     * @param cy          the goo center Y in block coords
+     * @param cz          the goo center Z in block coords
      * @param hw          the half-width of the cuboid in block coords
      */
-    private static void emitBlobFaces(PoseStack.Pose pose, VertexConsumer c, int packedLight,
+    private static void emitGooFaces(PoseStack.Pose pose, VertexConsumer c, int packedLight,
                                       ResourceKey<GooTypeDefinition> type, float cx, float cy, float cz, float hw) {
-        GooRenderUtil.UvRect uv = buildBlobUv(type);
+        GooRenderUtil.UvRect uv = buildGooUv(type);
 
-        CuboidBounds blob = new CuboidBounds(cx - hw, cx + hw, cz - hw, cz + hw, cy - hw, cy + hw);
-        new RenderContext(pose, c, packedLight).emitBox(blob, uv);
+        CuboidBounds goo = new CuboidBounds(cx - hw, cx + hw, cz - hw, cz + hw, cy - hw, cy + hw);
+        new RenderContext(pose, c, packedLight).emitBox(goo, uv);
     }
 
     /**
@@ -203,12 +203,12 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
      * @param type the goo type to look up the fluid sprite for
      * @return the UV rectangle covering the full fluid sprite
      */
-    private static GooRenderUtil.UvRect buildBlobUv(ResourceKey<GooTypeDefinition> type) {
+    private static GooRenderUtil.UvRect buildGooUv(ResourceKey<GooTypeDefinition> type) {
         return GooSubmitter.spriteUv(GooRenderUtil.lookupFluidSprite(type));
     }
 
     /**
-     * Transforms the blob center through the current PoseStack to get
+     * Transforms the goo center through the current PoseStack to get
      * camera-relative coordinates and stores them for the arc renderer.
      *
      * @param poseStack the pose stack for rendering
@@ -216,14 +216,14 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
      * @param cy        the center Y in block coords
      * @param cz        the center Z in block coords
      */
-    private static void captureBlobCenter(PoseStack poseStack,
+    private static void captureGooCenter(PoseStack poseStack,
                                           float cx, float cy, float cz) {
         Vector4f pos = new Vector4f(cx, cy, cz, 1.0f);
         poseStack.last().pose().transform(pos);
         Vec3 raw = new Vec3(pos.x(), pos.y(), pos.z());
-        blobCenterCamRel = raw;
-        Vec3 prev = smoothedBlobCenter;
-        smoothedBlobCenter = prev == null ? raw : prev.lerp(raw, ARC_SMOOTH_FACTOR);
+        gooCenterCamRel = raw;
+        Vec3 prev = smoothedGooCenter;
+        smoothedGooCenter = prev == null ? raw : prev.lerp(raw, ARC_SMOOTH_FACTOR);
     }
 
     /**
@@ -238,7 +238,7 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
             return null;
         }
         ResourceKey<GooTypeDefinition> type = GooGloveItem.getSelectedType(stack);
-        // Suppress the held blob visual when the player has no goo of that type
+        // Suppress the held goo visual when the player has no goo of that type
         if (type != null && !GloveUseTracker.isSelectedTypeAvailable()) {
             type = null;
         }
@@ -246,7 +246,7 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
     }
 
     /**
-     * Renders the glove body and optional held blob overlay.
+     * Renders the glove body and optional held goo overlay.
      *
      * @param data          extracted glove data (may be null)
      * @param poseStack     the current pose stack
@@ -266,7 +266,7 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
         submitGloveBody(poseStack, nodeCollector, packedLight, gloveItem);
 
         if (data != null && data.selectedType() != null) {
-            submitHeldBlob(poseStack, nodeCollector, packedLight, data.selectedType());
+            submitHeldGoo(poseStack, nodeCollector, packedLight, data.selectedType());
         }
 
         poseStack.popPose();

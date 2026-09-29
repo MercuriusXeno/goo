@@ -63,7 +63,7 @@ public class CanisterSlotFluidHandler extends FluidStacksResourceHandler impleme
     /**
      * Creates a single-tank handler with the given capacity and change callback.
      *
-     * @param capacity total capacity in microblobs (mB)
+     * @param capacity total capacity (mB)
      * @param onChange called when contents change
      */
     public CanisterSlotFluidHandler(int capacity, Runnable onChange) {
@@ -73,7 +73,7 @@ public class CanisterSlotFluidHandler extends FluidStacksResourceHandler impleme
     /**
      * Creates a single-tank handler with capacity, change callback, and tick supplier.
      *
-     * @param capacity     total capacity in microblobs (mB)
+     * @param capacity     total capacity (mB)
      * @param onChange     called when contents change
      * @param tickSupplier supplies current game tick for stream timing
      */
@@ -84,7 +84,7 @@ public class CanisterSlotFluidHandler extends FluidStacksResourceHandler impleme
     /**
      * Creates a single-tank handler that takes only the goo its holder admits.
      *
-     * @param capacity     total capacity in microblobs (mB)
+     * @param capacity     total capacity (mB)
      * @param onChange     called when contents change
      * @param tickSupplier supplies current game tick for stream timing
      * @param admits       answers whether the holder takes an arriving goo

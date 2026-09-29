@@ -29,7 +29,7 @@ final class CruciblePanelRows {
     private static final String VOLUME_SEPARATOR = " / ";
     /**
      * The widest type row text under 10K, which every type row measures at
-     * least (decision crucible-panel-floors-width-under-ten-blobs).
+     * least (decision crucible-panel-floors-width-under-ten-thousand).
      */
     static final String SUB_TEN_THOUSAND_FLOOR_TEXT = "9.99K" + VOLUME_SEPARATOR + "9.99K";
     /** Percent in a whole fraction. */

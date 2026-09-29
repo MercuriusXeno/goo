@@ -120,7 +120,7 @@ public final class GooEventWiring {
     }
 
     /**
-     * Lands the server's pending blob effects, marker falls and tap drips on arrival.
+     * Lands the server's pending goo effects, marker falls and tap drips on arrival.
      *
      * @param event the post-tick event instance
      */

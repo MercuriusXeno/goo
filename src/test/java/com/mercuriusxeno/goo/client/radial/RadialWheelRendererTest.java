@@ -76,7 +76,7 @@ class RadialWheelRendererTest {
         private static final int HOLDINGS = 1500;
         private static final int AFFORDABLE = 1000;
         private static final int UNAFFORDABLE = 2000;
-        private static final int SIXTEEN_BLOBS = 16_000;
+        private static final int SIXTEEN_GOO = 16_000;
 
         private static ClientAbility costing(int firstThrow) {
             return new ClientAbility(Identifier.fromNamespaceAndPath(Goo.MODID, "cost_" + firstThrow),
@@ -95,7 +95,7 @@ class RadialWheelRendererTest {
         @Test
         void centerReadsTheTypesHoldings() {
             assertEquals("1.5K", RadialWheelRenderer.holdingsLabel(HOLDINGS));
-            assertEquals("16K", RadialWheelRenderer.holdingsLabel(SIXTEEN_BLOBS));
+            assertEquals("16K", RadialWheelRenderer.holdingsLabel(SIXTEEN_GOO));
         }
 
         @Test

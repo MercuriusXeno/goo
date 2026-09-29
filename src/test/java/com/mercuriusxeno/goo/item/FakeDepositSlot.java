@@ -32,8 +32,8 @@ final class FakeDepositSlot implements GooDeposit.DepositSlot {
         return new FakeDepositSlot(GooDeposit.Home.CANISTER, type, volume, capacity);
     }
 
-    static FakeDepositSlot omniblob(ResourceKey<GooTypeDefinition> type, int volume) {
-        return new FakeDepositSlot(GooDeposit.Home.OMNIBLOB, type, volume, Integer.MAX_VALUE);
+    static FakeDepositSlot goo(ResourceKey<GooTypeDefinition> type, int volume) {
+        return new FakeDepositSlot(GooDeposit.Home.GOO, type, volume, Integer.MAX_VALUE);
     }
 
     static FakeDepositSlot vat(int capacity) {
@@ -74,7 +74,7 @@ final class FakeDepositSlot implements GooDeposit.DepositSlot {
         int taken = Math.min(volume, capacity - total());
         held.merge(type, taken, Integer::sum);
         if (home == GooDeposit.Home.EMPTY) {
-            home = GooDeposit.Home.OMNIBLOB;
+            home = GooDeposit.Home.GOO;
             ownType = type;
         }
         return taken;

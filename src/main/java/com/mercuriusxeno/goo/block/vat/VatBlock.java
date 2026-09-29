@@ -31,7 +31,7 @@ import java.util.Set;
 
 /**
  * Stationary bulk goo storage block. Multi-type, large capacity scaled by the Compression enchantment.
- * Right-click with blob to insert, empty hand to extract.
+ * Right-click with goo to insert, empty hand to extract.
  */
 public class VatBlock extends GooMachineBlock {
 
@@ -62,7 +62,7 @@ public class VatBlock extends GooMachineBlock {
 
     /** The clicks a vat answers through its dispatcher; a canister click is not among them. */
     static final Set<GooInteractionType> CLICK_ROWS =
-            Set.of(GooInteractionType.GASKET_INSTALL, GooInteractionType.BLOB_INSERT);
+            Set.of(GooInteractionType.GASKET_INSTALL, GooInteractionType.GOO_INSERT);
     /**
      * Block update flags: notify neighbors + send to clients.
      */
@@ -206,7 +206,7 @@ public class VatBlock extends GooMachineBlock {
 
     /**
      * Dispatches item-on-vat interactions through the dispatcher: a gasket installs on the vat,
-     * an omniblob pours in, a tuner passes to its own use, and every other item falls through
+     * a goo pours in, a tuner passes to its own use, and every other item falls through
      * to the empty-hand unpack.
      *
      * @param stack     the item stack
@@ -228,7 +228,7 @@ public class VatBlock extends GooMachineBlock {
     }
 
     /**
-     * Empty-hand: sneak pops the gasket on the hit face and nothing else, otherwise extracts dominant goo type as blobs.
+     * Empty-hand: sneak pops the gasket on the hit face and nothing else, otherwise extracts dominant goo type as goo.
      *
      * @param state     the block state
      * @param level     the current level
@@ -258,7 +258,7 @@ public class VatBlock extends GooMachineBlock {
             return InteractionResult.PASS;
         }
 
-        return VatInteractionHandler.handleBlobExtract(vat, player);
+        return VatInteractionHandler.handleGooExtract(vat, player);
     }
 
     // -- Block break drops --

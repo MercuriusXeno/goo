@@ -52,11 +52,11 @@ class GooValueSnapshotTest {
                 failure.set(new AssertionError("lookup of " + KNOWN_ITEM + " answered no value"));
                 return;
             }
-            long blobs = 0;
+            long goo = 0;
             for (GooValue value : snapshot.getEffectiveValues().values()) {
-                blobs += value.totalBlobs();
+                goo += value.totalGoo();
             }
-            assertTrue(blobs > 0);
+            assertTrue(goo > 0);
         } catch (RuntimeException | AssertionError e) {
             failure.set(e);
         }

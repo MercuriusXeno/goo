@@ -76,7 +76,7 @@ class ValuedBlocksTest {
         }
 
         assertEquals(1152 * blockCount, totals.get(GooTypes.ROCK));
-        // Single entry → nether BE will drop a single omniblob at the center.
+        // Single entry → nether BE will drop a single goo at the center.
         assertEquals(1, totals.size());
     }
 

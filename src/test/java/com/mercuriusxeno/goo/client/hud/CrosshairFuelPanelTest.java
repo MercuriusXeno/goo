@@ -13,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.Mockito.mock;
 
-/** Covers the crosshair panel's row: the first source, the blobs it holds and the cost at the aimed stack (decision crosshair-panel-shows-source-and-cost). */
+/** Covers the crosshair panel's row: the first source, the goo it holds and the cost at the aimed stack (decision crosshair-panel-shows-source-and-cost). */
 class CrosshairFuelPanelTest {
 
     private static final int CANISTER_VOLUME = 3000;

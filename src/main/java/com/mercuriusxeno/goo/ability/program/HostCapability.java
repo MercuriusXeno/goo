@@ -60,7 +60,7 @@ public enum HostCapability {
     PHASED(PhasedHost.class),
     /**
      * A goo total the host fills by consuming the valued blocks around its
-     * anchor and drops as blobs.
+     * anchor and drops as goo.
      */
     CONSUMED_GOO(ConsumedGooHost.class);
 

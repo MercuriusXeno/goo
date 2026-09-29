@@ -33,16 +33,11 @@ public class GooItems {
     private static final float SWORD_SPEED = -2.4F;
 
     /**
-     * The omniblob, the one goo item at every volume (decision blobs-become-omniblobs):
+     * The goo, the one goo item at every volume (decision one-goo-item-at-every-amount):
      * unstackable, uncapped volume, its type in the GOO_TYPE component.
      */
-    public static final DeferredItem<GooOmniblobItem> GOO_OMNIBLOB = ITEMS.registerItem("goo_omniblob",
-            props -> new GooOmniblobItem(props.stacksTo(1)));
-
-    static {
-        // blobs-become-omniblobs: a saved world's goo:goo_blob stacks load as omniblobs.
-        ITEMS.addAlias(Identifier.fromNamespaceAndPath(Goo.MODID, "goo_blob"), GOO_OMNIBLOB.getId());
-    }
+    public static final DeferredItem<GooItem> GOO = ITEMS.registerItem("goo",
+            props -> new GooItem(props.stacksTo(1)));
 
     /**
      * The one goo bucket over the generic fluid, 1000 mB, its type in the
@@ -68,7 +63,7 @@ public class GooItems {
     public static final DeferredItem<BlockItem> CRUCIBLE = ITEMS.registerSimpleBlockItem("crucible", GooBlocks.CRUCIBLE);
     /**
      * Stacks to 1: HUB_CANISTERS covers the whole stack, so goo routed into a
-     * stack of hubs would copy onto every hub in it (decision hub-item-blob-insert).
+     * stack of hubs would copy onto every hub in it (decision hub-item-goo-insert).
      */
     public static final DeferredItem<HubBlockItem> HUB = ITEMS.registerItem("hub",
             props -> new HubBlockItem(GooBlocks.HUB.get(), props.stacksTo(1).useBlockDescriptionPrefix()));

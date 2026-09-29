@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.block.ability;
 
-import com.mercuriusxeno.goo.network.BlobFlightPayload;
+import com.mercuriusxeno.goo.network.GooFlightPayload;
 import com.mercuriusxeno.goo.throwing.ThrowArc;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -30,7 +30,7 @@ public final class ChainMarkerFallScheduler {
      */
     private static final double BLOCK_CENTER = 0.5;
     /**
-     * Sentinel for "no target entity" in BlobFlightPayload.
+     * Sentinel for "no target entity" in GooFlightPayload.
      */
     private static final int NO_ENTITY = -1;
     /**
@@ -110,8 +110,8 @@ public final class ChainMarkerFallScheduler {
     }
 
     /**
-     * Broadcasts a blob flight payload for the falling animation, naming
-     * the marker's ability so the flight renders as that ability's blob.
+     * Broadcasts a goo flight payload for the falling animation, naming
+     * the marker's ability so the flight renders as that ability's goo.
      *
      * @param level       the server level
      * @param oldPos      the starting position
@@ -121,7 +121,7 @@ public final class ChainMarkerFallScheduler {
      */
     private static void broadcastFlight(ServerLevel level, BlockPos oldPos, BlockPos landingPos,
                                         ChainMarkerSnapshot snapshot, int travelTicks) {
-        BlobFlightPayload flight = new BlobFlightPayload(
+        GooFlightPayload flight = new GooFlightPayload(
                 oldPos.getX() + BLOCK_CENTER,
                 oldPos.getY() + BLOCK_CENTER,
                 oldPos.getZ() + BLOCK_CENTER,

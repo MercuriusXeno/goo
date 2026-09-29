@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class VatPanelRowsTest {
 
-    /** The water a stack holds in the tests, in microblobs. */
+    /** The water a stack holds in the tests. */
     private static final long WATER = 4_000_000L;
 
     /** A stack holding water paints a see-through fluid row carrying the compact amount text. */

@@ -20,7 +20,7 @@ public final class ChainFuseTests {
     private static final Identifier PROXIMITY_MINE = Identifier.parse("goo:unstable_proximity_mine");
     /** The proximity mine JSON's fuse: armed until a trigger, never counting down. */
     private static final int MINE_FUSE = -1;
-    /** Ticks the test waits after the second blob, past the twenty-tick unstable fuse the Java table carried. */
+    /** Ticks the test waits after the second goo, past the twenty-tick unstable fuse the Java table carried. */
     private static final int WAIT_TICKS = 40;
     private static final String ABILITIES_REQUIRED = "Ability registry must be loaded";
     private static final String FUSE_OVERWRITTEN = "The mine's fuse read %d, not the JSON's %d";
@@ -29,7 +29,7 @@ public final class ChainFuseTests {
     private ChainFuseTests() {}
 
     /**
-     * A proximity mine takes a declared throw and the blob it lands, and
+     * A proximity mine takes a declared throw and the goo it lands, and
      * after forty ticks still stands with the JSON's fuse of -1.
      *
      * @param helper the gametest helper

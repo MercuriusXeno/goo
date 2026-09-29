@@ -13,7 +13,7 @@ import java.util.Random;
 import javax.imageio.ImageIO;
 
 /**
- * Generates animated fluid textures and blob base sprites using a cellular automata
+ * Generates animated fluid textures and goo base sprites using a cellular automata
  * algorithm inspired by Minecraft Classic's lava/water animation.
  * <p>
  * Three heat layers (soupHeat, potHeat, flameHeat) simulate fluid dynamics.
@@ -34,10 +34,10 @@ public final class FluidTextureGenerator {
     private static final Path OUTPUT_ROOT = Path.of("src/main/resources/assets/goo/textures");
     static final Path ITEM_DIR = OUTPUT_ROOT.resolve("item");
 
-    static final Path BLOB_MASK_TINY_PATH = ITEM_DIR.resolve("goo_blob_mask_tiny.png");
-    static final Path BLOB_MASK_SMALL_PATH = ITEM_DIR.resolve("goo_blob_mask_small.png");
-    static final Path BLOB_MASK_PATH = ITEM_DIR.resolve("goo_blob_mask.png");
-    static final Path BLOB_MASK_LARGE_PATH = ITEM_DIR.resolve("goo_blob_mask_large.png");
+    static final Path GOO_MASK_TINY_PATH = ITEM_DIR.resolve("goo_mask_tiny.png");
+    static final Path GOO_MASK_SMALL_PATH = ITEM_DIR.resolve("goo_mask_small.png");
+    static final Path GOO_MASK_PATH = ITEM_DIR.resolve("goo_mask.png");
+    static final Path GOO_MASK_LARGE_PATH = ITEM_DIR.resolve("goo_mask_large.png");
     private static final Path FLUID_DIR = OUTPUT_ROOT.resolve("fluid");
     private static final Path FLUID_TYPES_JSON = Path.of("src/main/resources/data/goo/goo_fluid_types.json");
 
@@ -154,7 +154,7 @@ public final class FluidTextureGenerator {
     /**
      * Console message suffix for completion summary.
      */
-    private static final String MSG_DONE_SUFFIX = " fluid textures and blob bases.";
+    private static final String MSG_DONE_SUFFIX = " fluid textures and goo bases.";
     /**
      * File suffix for fluid PNG textures.
      */
@@ -188,7 +188,7 @@ public final class FluidTextureGenerator {
     }
 
     /**
-     * Generates all goo fluid and blob textures from the JSON type definitions.
+     * Generates all goo fluid and goo textures from the JSON type definitions.
      *
      * @param args unused
      * @throws IOException if texture files cannot be read or written
@@ -202,7 +202,7 @@ public final class FluidTextureGenerator {
     }
 
     /**
-     * Generates fluid textures and blob bases for all types with progress output.
+     * Generates fluid textures and goo bases for all types with progress output.
      *
      * @param types the list of goo fluid type definitions
      * @throws IOException if texture files cannot be written
@@ -211,7 +211,7 @@ public final class FluidTextureGenerator {
         for (GooFluidType type : types) {
             System.out.println(MSG_GENERATING + type.id());
             generateFluidTexture(type);
-            BlobTextureRenderer.generateBlobBase(type);
+            GooTextureRenderer.generateGooBase(type);
         }
     }
 

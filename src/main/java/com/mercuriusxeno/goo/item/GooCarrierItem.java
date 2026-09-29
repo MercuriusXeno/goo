@@ -6,7 +6,7 @@ import net.minecraft.world.item.ItemStack;
 import java.util.Map;
 
 /**
- * An item whose stacks carry goo the player can throw: an omniblob, a canister,
+ * An item whose stacks carry goo the player can throw: a goo, a canister,
  * a hub carrying canisters or a vat. The source scanner reads every
  * carrier through this interface, so a new goo-carrying item joins the scan by
  * implementing it (decision hosts-answer-bounds-through-interfaces).
@@ -17,8 +17,8 @@ public interface GooCarrierItem {
      * The passes a deplete runs, in declaration order: the carrier drawn first leads.
      */
     enum DepletionPass {
-        /** Omniblob stacks. */
-        OMNIBLOB,
+        /** Goo stacks. */
+        GOO,
         /** Canisters, a hub's carried canisters included. */
         CANISTER,
         /** Vat items. */

@@ -11,7 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 
 /**
  * Tests for the hub item's canister routing over fake canisters, since gooTest
- * cannot bootstrap an ItemStack (decision hub-item-blob-insert).
+ * cannot bootstrap an ItemStack (decision hub-item-goo-insert).
  */
 class HubCanisterRoutingTest {
 

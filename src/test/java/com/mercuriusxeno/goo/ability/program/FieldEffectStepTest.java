@@ -53,7 +53,7 @@ import static org.mockito.Mockito.when;
  * sneaking player and a dying mob cost none, and a spent budget tears down once and ends
  * the program; eight crystal shreds spend one stack, a sprinting player is
  * shredded twice as often, a standing entity not at all, and the cloud
- * expands, then contracts once its last blob is spent.
+ * expands, then contracts once its last goo is spent.
  */
 class FieldEffectStepTest {
 
@@ -66,9 +66,9 @@ class FieldEffectStepTest {
     private static final int STRIKE_TICKS = 13;
     private static final int COOLDOWN = 10;
     private static final int IDLE_TICKS = 40;
-    private static final int CHARGES_PER_BLOB = 8;
-    /** A walker is shredded every second tick, so a blob's eight charges last sixteen ticks. */
-    private static final int WALKING_TICKS_FOR_A_BLOB = 16;
+    private static final int CHARGES_PER_GOO = 8;
+    /** A walker is shredded every second tick, so a goo's eight charges last sixteen ticks. */
+    private static final int WALKING_TICKS_FOR_A_GOO = 16;
     private static final int SPRINT_WINDOW = 6;
     private static final int CLOUD_ANIMATION_TICKS = 10;
     private static final float FRACTION_TOLERANCE = 1e-5f;
@@ -355,13 +355,13 @@ class FieldEffectStepTest {
         MarkerHost host = marker(stacks, List.of(walker));
         ProgramBehavior program = ProgramBehavior.forHost(crystalProgram(), HostKind.MARKER);
 
-        tick(program, host, WALKING_TICKS_FOR_A_BLOB - 1);
+        tick(program, host, WALKING_TICKS_FOR_A_GOO - 1);
         assertEquals(2, stacks.get());
-        verify(walker, times(CHARGES_PER_BLOB - 1)).playSound(PROBE_CUE);
+        verify(walker, times(CHARGES_PER_GOO - 1)).playSound(PROBE_CUE);
 
         program.tick(host);
 
-        verify(walker, times(CHARGES_PER_BLOB)).playSound(PROBE_CUE);
+        verify(walker, times(CHARGES_PER_GOO)).playSound(PROBE_CUE);
         verify(host, times(1)).decrementStack();
         assertEquals(1, stacks.get());
     }
@@ -394,7 +394,7 @@ class FieldEffectStepTest {
     }
 
     @Test
-    void theCloudExpandsThenContractsOnceItsLastBlobIsSpent() throws IOException {
+    void theCloudExpandsThenContractsOnceItsLastGooIsSpent() throws IOException {
         AtomicInteger stacks = new AtomicInteger(1);
         MarkerHost host = marker(stacks, List.of(walker(WALKER_ID)));
         FieldEffectState state = host.fieldEffect();
@@ -402,7 +402,7 @@ class FieldEffectStepTest {
 
         tick(program, host, CLOUD_ANIMATION_TICKS / 2);
         assertEquals(0.5f, state.radiusFraction(CLOUD_ANIMATION_TICKS, CLOUD_ANIMATION_TICKS), FRACTION_TOLERANCE);
-        tick(program, host, WALKING_TICKS_FOR_A_BLOB - CLOUD_ANIMATION_TICKS / 2);
+        tick(program, host, WALKING_TICKS_FOR_A_GOO - CLOUD_ANIMATION_TICKS / 2);
         assertEquals(0, stacks.get());
         assertEquals(1f, state.radiusFraction(CLOUD_ANIMATION_TICKS, CLOUD_ANIMATION_TICKS), FRACTION_TOLERANCE);
         assertEquals(0f, state.density(), FRACTION_TOLERANCE);

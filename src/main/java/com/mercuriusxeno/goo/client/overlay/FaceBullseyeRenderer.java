@@ -13,7 +13,7 @@ import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Draws concentric rings on the face of a block target the blob will strike,
+ * Draws concentric rings on the face of a block target the goo will strike,
  * where the aim arc ends, so the mark names the face as the outline names the
  * block (decision aim-arc-ends-in-face-bullseye).
  */
@@ -65,7 +65,7 @@ final class FaceBullseyeRenderer {
 
     /**
      * Draws the bullseye on the target's struck face, anchored to the resolved
-     * target rather than the sliding arc end, so it names the face the blob
+     * target rather than the sliding arc end, so it names the face the goo
      * will strike.
      *
      * @param poseStack    the pose stack

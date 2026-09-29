@@ -172,7 +172,7 @@ public final class ProgramBehavior {
     }
 
     /**
-     * Returns true if the marker accepts more blobs after its fuse expires,
+     * Returns true if the marker accepts more goo after its fuse expires,
      * which the running step decides.
      *
      * @return true if post-fuse stacking is allowed

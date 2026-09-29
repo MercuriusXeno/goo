@@ -83,7 +83,7 @@ class FuseOrbVisualTest {
     /** The pose scale the renderer lays across the face, per shape. */
     private static float lateralScale(OrbCase orb) {
         return switch (orb.shape()) {
-            case BLOB -> orb.modifier();
+            case GOO -> orb.modifier();
             case SPLAT -> FuseOrbVisual.SPLAT_WIDTH * orb.modifier();
             case GLOW_BUMP, GLOW_FLAT -> 1f;
         };
@@ -92,7 +92,7 @@ class FuseOrbVisualTest {
     /** How far the layer reaches off the face plane after the pose scale, per shape. */
     private static float outwardDepth(OrbCase orb) {
         return switch (orb.shape()) {
-            case BLOB -> restingHalf(orb) * orb.modifier();
+            case GOO -> restingHalf(orb) * orb.modifier();
             case SPLAT -> restingHalf(orb) * FuseOrbVisual.SPLAT_HEIGHT * orb.modifier();
             case GLOW_BUMP -> (float) GlowCrystalBlock.BUMP_DEPTH;
             case GLOW_FLAT -> (float) GlowCrystalBlock.FLAT_DEPTH;

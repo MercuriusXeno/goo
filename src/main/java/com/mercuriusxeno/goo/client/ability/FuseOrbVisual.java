@@ -22,14 +22,14 @@ import net.minecraft.util.ARGB;
  * shell with goo-tinted color. Both are emissive (fullbright). Size
  * scales with stack count and pulses on each stack add. Implodes inward
  * in the final ticks before detonation. GLOW orbs match the crystal
- * voxel shape from placement; FLAT-shape blobs splat against the placed
+ * voxel shape from placement; FLAT-shape goo splat against the placed
  * face with axis-asymmetric scaling. Every layer is the outward half of its
  * box alone, from the face plane into the marker's own block, so nothing of
- * the orb reaches into the block it rests on (decision blob-sits-on-the-face).
+ * the orb reaches into the block it rests on (decision goo-sits-on-the-face).
  */
 public final class FuseOrbVisual {
 
-    /** Blob shape constant for flat visual. */
+    /** Goo shape constant for flat visual. */
     private static final String SHAPE_FLAT = "flat";
 
     /** Base inner core half-size in block units (2 pixels) at 1 stack. */
@@ -86,7 +86,7 @@ public final class FuseOrbVisual {
     /** The silhouette an orb takes, which picks its scale and its depth off the face. */
     enum OrbShape {
         /** A cube scaled evenly by the orb modifier. */
-        BLOB,
+        GOO,
         /** A cube squished along the face axis and widened across it. */
         SPLAT,
         /** A glow crystal's bump, its depth the crystal model's. */
@@ -95,17 +95,17 @@ public final class FuseOrbVisual {
         GLOW_FLAT;
 
         /**
-         * Picks the shape a marker's goo type and blob shape draw.
+         * Picks the shape a marker's goo type and goo shape draw.
          *
          * @param state the chain marker render state
          * @return the orb shape
          */
         static OrbShape of(ChainMarkerRenderState state) {
-            boolean flat = SHAPE_FLAT.equals(state.blobShape);
+            boolean flat = SHAPE_FLAT.equals(state.markerShape);
             if (state.gooType == GooTypes.GLOW) {
                 return flat ? GLOW_FLAT : GLOW_BUMP;
             }
-            return flat ? SPLAT : BLOB;
+            return flat ? SPLAT : GOO;
         }
     }
 
@@ -164,7 +164,7 @@ public final class FuseOrbVisual {
         translateToFace(poseStack, face);
         if (shape == OrbShape.SPLAT) {
             applySplatScale(poseStack, face, modifier);
-        } else if (shape == OrbShape.BLOB) {
+        } else if (shape == OrbShape.GOO) {
             poseStack.scale(modifier, modifier, modifier);
         }
     }
@@ -189,7 +189,7 @@ public final class FuseOrbVisual {
     /**
      * The box one orb layer fills: laterally from -half to +half, and along
      * the face axis from the face plane out to depth in the direction the
-     * face steps (decision blob-sits-on-the-face).
+     * face steps (decision goo-sits-on-the-face).
      *
      * @param half  the lateral half-size
      * @param face  the placed face direction
@@ -237,7 +237,7 @@ public final class FuseOrbVisual {
         return switch (shape) {
             case GLOW_BUMP -> (float) GlowCrystalBlock.BUMP_DEPTH;
             case GLOW_FLAT -> (float) GlowCrystalBlock.FLAT_DEPTH;
-            case BLOB, SPLAT -> half;
+            case GOO, SPLAT -> half;
         };
     }
 
@@ -317,7 +317,7 @@ public final class FuseOrbVisual {
 
     /**
      * Computes the core half-size based on stack count. For GLOW type,
-     * smoothly interpolates from the standard blob size down to the
+     * smoothly interpolates from the standard goo size down to the
      * crystal's lateral extent over the fuse duration.
      *
      * @param state the chain marker render state
@@ -385,7 +385,7 @@ public final class FuseOrbVisual {
     private static float computeSpikeShake(ChainMarkerRenderState state) {
         float strongest = 1f;
         for (FieldStrike spike : state.spikeAnims) {
-            float s = MetalSpikeVisual.blobShake(spike.age(), state.partialTick, state.spikeStrikeTick);
+            float s = MetalSpikeVisual.gooShake(spike.age(), state.partialTick, state.spikeStrikeTick);
             if (Math.abs(s - 1f) > Math.abs(strongest - 1f)) {
                 strongest = s;
             }
@@ -404,7 +404,7 @@ public final class FuseOrbVisual {
     }
 
     /**
-     * Translates to the face boundary where the blob splats into the wall.
+     * Translates to the face boundary where the goo splats into the wall.
      *
      * @param poseStack the pose stack for rendering
      * @param face      the placed face direction

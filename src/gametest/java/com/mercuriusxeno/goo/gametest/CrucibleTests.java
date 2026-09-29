@@ -8,9 +8,9 @@ import com.mercuriusxeno.goo.block.crucible.CrucibleCapacity;
 import com.mercuriusxeno.goo.block.crucible.CrucibleMath;
 import com.mercuriusxeno.goo.block.crucible.CrucibleShape;
 import com.mercuriusxeno.goo.data.GooValues;
-import com.mercuriusxeno.goo.item.BlobStacks;
 import com.mercuriusxeno.goo.item.ChrysmTier;
 import com.mercuriusxeno.goo.item.GooContents;
+import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.item.PartiallyMeltedItem;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooItems;
@@ -45,7 +45,7 @@ import java.util.Map;
 /**
  * Gametests for crucible absorption and insertion paths.
  * Exercises CrucibleAbsorption (item entity intake) and
- * CrucibleInsertion (blob right-click insertion).
+ * CrucibleInsertion (goo right-click insertion).
  */
 public final class CrucibleTests {
 
@@ -142,18 +142,18 @@ public final class CrucibleTests {
     private static final String WAITS_UNSHRUNK = "waiting item unshrunk";
     private static final String WAITS_ON_FLOOR = "waiting item sank to the floor: ";
     private static final String WAITS_WHERE_IT_LANDED = "waiting item stays where it landed: ";
-    private static final String SHOULD_HAVE_GOO = "Crucible reservoir should contain goo after blob insert";
+    private static final String SHOULD_HAVE_GOO = "Crucible reservoir should contain goo after goo insert";
     private static final String SHOULD_ABSORB = "Crucible should absorb the item entity";
     private static final String RESERVOIR_UNCHANGED = "reservoir unchanged";
     private static final int CAP = CrucibleCapacity.TYPE_CAPACITY;
     /** Cobblestone offered to a pool with room for two items and one mB short of a third. */
     private static final int COBBLE_OFFERED = 5;
-    private static final int REFUSED_BLOB = 1_000;
+    private static final int REFUSED_GOO = 1_000;
     private static final int POOL_ROCK = 200_000_000;
     private static final int POOL_METAL = 100;
     private static final long FILL_PAST = 2_200_000_000L;
-    /** Blob stack size offered to a full reservoir. */
-    private static final int BLOBS_OFFERED = 2;
+    /** Goo stack size offered to a full reservoir. */
+    private static final int GOO_OFFERED = 2;
     /** Whole cobblestone the pool has room for. */
     private static final int ITEMS_THAT_FIT = 2;
     /** Types filled to the cap in the accounting test, rock and metal. */
@@ -162,9 +162,9 @@ public final class CrucibleTests {
     private static final String METAL_TO_CAP = "metal accepted to the cap";
     private static final String ROCK_PAST_CAP = "rock past the cap";
     private static final String METAL_PAST_CAP = "metal past the cap";
-    private static final String BLOB_KEPT_IN = "blob kept in ";
-    private static final String BLOB_STAYS = "blob entity stays on the ground";
-    private static final String BLOB_COUNT_UNCHANGED = "blob count unchanged";
+    private static final String GOO_KEPT_IN = "goo kept in ";
+    private static final String GOO_STAYS = "goo entity stays on the ground";
+    private static final String GOO_COUNT_UNCHANGED = "goo count unchanged";
     private static final String UNFIT_ITEMS_STAY = "unfit items stay";
     private static final String POOL_TOOK_TWO = "pool took two items of ";
     private static final String CONTAINER_STAYS = "container stays on the ground";
@@ -175,12 +175,12 @@ public final class CrucibleTests {
     private static final String EVERY_MB_ACCOUNTED = "every mB offered is held or refused";
     private static final String FILL_ABOVE_ZERO = "surface fill above zero";
     private static final int FULL_STACK = 64;
-    /** Whole blobs of room left under the cap in the fill-to-the-cap test. */
-    private static final int BLOBS_ROOM = 3;
+    /** Whole goo of room left under the cap in the fill-to-the-cap test. */
+    private static final int GOO_ROOM = 3;
     private static final String RESERVOIR_TOOK_STACK = "reservoir took the stack's goo";
     private static final String STACK_SPENT = "stack spent";
     private static final String RESERVOIR_AT_CAP = "reservoir filled to the cap";
-    private static final String UNFIT_BLOBS_STAY = "blobs that did not fit stay in hand";
+    private static final String UNFIT_GOO_STAY = "goo that did not fit stay in hand";
     private static final String PUDDLE_SHORT_OF_WALLS = "drawn %s for %d mB melted, %d mB unmelted";
     /** Blaze goo stocked to buy heat: enough for every melt clock these tests run. */
     private static final int BLAZE_STOCK = 1_000;
@@ -202,18 +202,18 @@ public final class CrucibleTests {
     private CrucibleTests() {}
 
     /**
-     * Right-click a crucible with a rock blob inserts goo into the reservoir.
-     * Exercises CrucibleInteraction.pourBlob -> CrucibleInsertion.insertGoo.
+     * Right-click a crucible with a rock goo inserts goo into the reservoir.
+     * Exercises CrucibleInteraction.pourGoo -> CrucibleInsertion.insertGoo.
      *
      * @param helper the gametest helper
      */
-    public static void blobInsertViaInteraction(GameTestHelper helper) {
+    public static void gooInsertViaInteraction(GameTestHelper helper) {
         helper.setBlock(BE_POS, GooBlocks.CRUCIBLE.get());
         CrucibleBlockEntity crucible = helper.getBlockEntity(BE_POS, CrucibleBlockEntity.class);
 
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
         player.setItemInHand(InteractionHand.MAIN_HAND,
-            BlobStacks.createForOutput(GooTypes.ROCK, BlobStacks.MB_PER_BLOB));
+            GooStacks.createForOutput(GooTypes.ROCK, GooStacks.THOUSAND));
 
         BlockPos abs = helper.absolutePos(BE_POS);
         BlockHitResult hit = new BlockHitResult(
@@ -498,83 +498,83 @@ public final class CrucibleTests {
     }
 
     /**
-     * A blob in hand stays in hand, survival and creative alike, when its type is full.
+     * A goo in hand stays in hand, survival and creative alike, when its type is full.
      *
      * @param helper the gametest helper
      */
-    public static void blobInHandRefusedAtCap(GameTestHelper helper) {
+    public static void gooInHandRefusedAtCap(GameTestHelper helper) {
         CrucibleBlockEntity crucible = placeCrucible(helper);
         crucible.insertGoo(GooTypes.ROCK, CAP);
         for (GameType mode : new GameType[] {GameType.SURVIVAL, GameType.CREATIVE}) {
             Player player = helper.makeMockPlayer(mode);
-            player.setItemInHand(InteractionHand.MAIN_HAND, BlobStacks.createForOutput(GooTypes.ROCK, BlobStacks.MB_PER_BLOB));
+            player.setItemInHand(InteractionHand.MAIN_HAND, GooStacks.createForOutput(GooTypes.ROCK, GooStacks.THOUSAND));
             BlockPos abs = helper.absolutePos(BE_POS);
             helper.useBlock(BE_POS, player, new BlockHitResult(Vec3.atCenterOf(abs), Direction.UP, abs, false));
-            helper.assertValueEqual(BlobStacks.MB_PER_BLOB, BlobStacks.volumeOf(player.getMainHandItem()), BLOB_KEPT_IN + mode);
+            helper.assertValueEqual(GooStacks.THOUSAND, GooStacks.volumeOf(player.getMainHandItem()), GOO_KEPT_IN + mode);
         }
         helper.assertValueEqual(CAP, crucible.getReservoir().getVolume(GooTypes.ROCK), RESERVOIR_UNCHANGED);
         helper.succeed();
     }
 
     /**
-     * A 64-blob omniblob right-clicked on an empty crucible puts in exactly the goo
-     * it took (decision diagnose-then-fix-crucible-blob-duplication).
+     * A 64-goo right-clicked on an empty crucible puts in exactly the goo
+     * it took (decision diagnose-then-fix-crucible-goo-duplication).
      *
      * @param helper the gametest helper
      */
-    public static void blobStackConsumedWhole(GameTestHelper helper) {
+    public static void gooStackConsumedWhole(GameTestHelper helper) {
         CrucibleBlockEntity crucible = placeCrucible(helper);
-        Player player = clickWithBlobs(helper, FULL_STACK);
-        helper.assertValueEqual(FULL_STACK * BlobStacks.MB_PER_BLOB,
+        Player player = clickWithGoo(helper, FULL_STACK);
+        helper.assertValueEqual(FULL_STACK * GooStacks.THOUSAND,
             crucible.getReservoir().getVolume(GooTypes.ROCK), RESERVOIR_TOOK_STACK);
         helper.assertTrue(player.getMainHandItem().isEmpty(), STACK_SPENT);
         helper.succeed();
     }
 
     /**
-     * A 64-blob omniblob offered to a type a few blobs short of the cap fills it to the
+     * A 64-goo offered to a type a few goo short of the cap fills it to the
      * cap and leaves the volume that did not fit in hand.
      *
      * @param helper the gametest helper
      */
-    public static void blobStackFillsToTheCap(GameTestHelper helper) {
+    public static void gooStackFillsToTheCap(GameTestHelper helper) {
         CrucibleBlockEntity crucible = placeCrucible(helper);
-        crucible.insertGoo(GooTypes.ROCK, CAP - BLOBS_ROOM * BlobStacks.MB_PER_BLOB);
-        Player player = clickWithBlobs(helper, FULL_STACK);
+        crucible.insertGoo(GooTypes.ROCK, CAP - GOO_ROOM * GooStacks.THOUSAND);
+        Player player = clickWithGoo(helper, FULL_STACK);
         helper.assertValueEqual(CAP, crucible.getReservoir().getVolume(GooTypes.ROCK), RESERVOIR_AT_CAP);
-        helper.assertValueEqual((FULL_STACK - BLOBS_ROOM) * BlobStacks.MB_PER_BLOB,
-            BlobStacks.volumeOf(player.getMainHandItem()), UNFIT_BLOBS_STAY);
+        helper.assertValueEqual((FULL_STACK - GOO_ROOM) * GooStacks.THOUSAND,
+            GooStacks.volumeOf(player.getMainHandItem()), UNFIT_GOO_STAY);
         helper.succeed();
     }
 
     /**
-     * Right-clicks the crucible with a survival player holding rock blobs.
+     * Right-clicks the crucible with a survival player holding rock goo.
      *
      * @param helper the gametest helper
-     * @param count  the blobs held
+     * @param count  the goo held
      * @return the player, holding what the click left
      */
-    private static Player clickWithBlobs(GameTestHelper helper, int count) {
+    private static Player clickWithGoo(GameTestHelper helper, int count) {
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
-        player.setItemInHand(InteractionHand.MAIN_HAND, BlobStacks.createForOutput(GooTypes.ROCK, count * BlobStacks.MB_PER_BLOB));
+        player.setItemInHand(InteractionHand.MAIN_HAND, GooStacks.createForOutput(GooTypes.ROCK, count * GooStacks.THOUSAND));
         BlockPos abs = helper.absolutePos(BE_POS);
         helper.useBlock(BE_POS, player, new BlockHitResult(Vec3.atCenterOf(abs), Direction.UP, abs, false));
         return player;
     }
 
     /**
-     * A blob item entity stays on the ground when its type is full.
+     * A goo item entity stays on the ground when its type is full.
      *
      * @param helper the gametest helper
      */
-    public static void blobEntityRefusedAtCap(GameTestHelper helper) {
+    public static void gooEntityRefusedAtCap(GameTestHelper helper) {
         CrucibleBlockEntity crucible = placeFueledCrucible(helper);
         crucible.insertGoo(GooTypes.ROCK, CAP);
-        ItemEntity blob = spawnInBasin(helper, BlobStacks.createForOutput(GooTypes.ROCK, BLOBS_OFFERED * BlobStacks.MB_PER_BLOB));
+        ItemEntity goo = spawnInBasin(helper, GooStacks.createForOutput(GooTypes.ROCK, GOO_OFFERED * GooStacks.THOUSAND));
         helper.runAfterDelay(ABSORB_DELAY, () -> {
-            helper.assertFalse(blob.isRemoved(), BLOB_STAYS);
-            helper.assertValueEqual(BLOBS_OFFERED * BlobStacks.MB_PER_BLOB, BlobStacks.volumeOf(blob.getItem()),
-                BLOB_COUNT_UNCHANGED);
+            helper.assertFalse(goo.isRemoved(), GOO_STAYS);
+            helper.assertValueEqual(GOO_OFFERED * GooStacks.THOUSAND, GooStacks.volumeOf(goo.getItem()),
+                GOO_COUNT_UNCHANGED);
             helper.assertValueEqual(CAP, crucible.getReservoir().getVolume(GooTypes.ROCK), RESERVOIR_UNCHANGED);
             helper.succeed();
         });
@@ -657,7 +657,7 @@ public final class CrucibleTests {
 
     /**
      * Fills a crucible past 2.2B across rock and metal with a melting item in
-     * the pool and a blob refused at the cap; what it holds plus what it
+     * the pool and a goo refused at the cap; what it holds plus what it
      * refused equals what was offered, and the surface fill reads above zero.
      *
      * @param helper the gametest helper
@@ -665,11 +665,11 @@ public final class CrucibleTests {
     public static void fillPastTheCapAccountsForEveryMb(GameTestHelper helper) {
         CrucibleBlockEntity crucible = placeFueledCrucible(helper);
         GooContents poolOffered = new GooContents(Map.of(GooTypes.ROCK, POOL_ROCK, GooTypes.METAL, POOL_METAL));
-        long offered = FULL_TYPES * CAP + REFUSED_BLOB + poolOffered.totalVolume();
+        long offered = FULL_TYPES * CAP + REFUSED_GOO + poolOffered.totalVolume();
         long accepted = (long) crucible.insertGoo(GooTypes.ROCK, CAP)
             + crucible.insertGoo(GooTypes.METAL, CAP)
-            + crucible.insertGoo(GooTypes.ROCK, REFUSED_BLOB);
-        long refused = FULL_TYPES * CAP + REFUSED_BLOB - accepted;
+            + crucible.insertGoo(GooTypes.ROCK, REFUSED_GOO);
+        long refused = FULL_TYPES * CAP + REFUSED_GOO - accepted;
         spawnInBasin(helper, PartiallyMeltedItem.createWith(poolOffered));
         helper.runAfterDelay(ABSORB_DELAY, () -> {
             long held = CrucibleBasin.heldVolume(crucible.getPoolVolume(), crucible.getReservoir().totalVolume());
@@ -872,7 +872,7 @@ public final class CrucibleTests {
      * @param helper the gametest helper
      */
     public static void sparkRefusedOnBlazeGoo(GameTestHelper helper) {
-        placeCrucible(helper).insertGoo(GooTypes.BLAZE, BlobStacks.MB_PER_BLOB);
+        placeCrucible(helper).insertGoo(GooTypes.BLAZE, GooStacks.THOUSAND);
         assertSparkRefused(helper);
     }
 

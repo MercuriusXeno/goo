@@ -1,9 +1,9 @@
 package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
-import com.mercuriusxeno.goo.item.BlobStacks;
-import com.mercuriusxeno.goo.network.BlobThrowHandler;
-import com.mercuriusxeno.goo.network.BlobThrowPayload;
+import com.mercuriusxeno.goo.item.GooStacks;
+import com.mercuriusxeno.goo.network.GooThrowHandler;
+import com.mercuriusxeno.goo.network.GooThrowPayload;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooCreativeTabs;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
@@ -29,11 +29,11 @@ import java.util.Collection;
 import java.util.Objects;
 
 /**
- * Gametests for the generic goo items (decision generic-goo-items): a blob
+ * Gametests for the generic goo items (decision generic-goo-items): a goo
  * created for a type throws as that type and lands that type's ability, and
- * the creative tab offers omniblobs, a one-blob one among them, and a bucket
+ * the creative tab offers gooStacks, a one-goo one among them, and a bucket
  * for every type the registry holds, a datapack's included
- * (decision blobs-become-omniblobs).
+ * (decision thousands-become-gooStacks).
  */
 public final class GooItemTests {
 
@@ -55,32 +55,32 @@ public final class GooItemTests {
     private static final ResourceKey<GooTypeDefinition> SEVENTEENTH = ResourceKey.create(
             GooTypes.REGISTRY, Identifier.fromNamespaceAndPath(TEST_PACK_NAMESPACE, "seventeenth"));
 
-    private static final String BLOB_NOT_SPENT = "Throwing should spend the blob of the thrown type: ";
-    private static final String NO_MARKER = "Thrown blob should land a chain marker beside the wall at ";
-    private static final String WRONG_MARKER_TYPE = "Chain marker should carry the thrown blob's type at ";
+    private static final String GOO_NOT_SPENT = "Throwing should spend the goo of the thrown type: ";
+    private static final String NO_MARKER = "Thrown goo should land a chain marker beside the wall at ";
+    private static final String WRONG_MARKER_TYPE = "Chain marker should carry the thrown goo's type at ";
     private static final String EXO_NOT_FIRE_RESISTANT = "A fresh exo gauntlet should resist fire damage";
-    private static final String TAB_LACKS_BLOB = "Creative tab should offer a one-blob omniblob of the datapack type";
-    private static final String TAB_LACKS_OMNIBLOB = "Creative tab should offer an omniblob of the datapack type";
+    private static final String TAB_LACKS_THOUSAND = "Creative tab should offer a one-goo of the datapack type";
+    private static final String TAB_LACKS_GOO = "Creative tab should offer a goo of the datapack type";
     private static final String TAB_LACKS_BUCKET = "Creative tab should offer a bucket of the datapack type";
 
     private GooItemTests() {
     }
 
     /**
-     * A player holding a glove, with one blaze blob and one rock blob made
-     * through BlobStacks, throws each at its own stone wall; each throw spends
-     * that blob and lands a chain marker of that type beside its wall.
+     * A player holding a glove, with one blaze goo and one rock goo made
+     * through GooStacks, throws each at its own stone wall; each throw spends
+     * that goo and lands a chain marker of that type beside its wall.
      *
      * @param helper the gametest helper
      */
-    public static void thrownBlobsLandOwnType(GameTestHelper helper) {
-        throwBlobsFrom(helper, GooItems.GOO_GLOVE.get());
+    public static void thrownGooLandOwnType(GameTestHelper helper) {
+        throwGooFrom(helper, GooItems.GOO_GLOVE.get());
     }
 
     /**
      * The exo gauntlet keeps the goo gauntlet's benefits (decision
      * exo-gauntlet-smithed-with-exorite): a fresh one resists fire, and a
-     * player holding it throws blobs that land their own type's chain
+     * player holding it throws thousands that land their own type's chain
      * markers the way the glove's do.
      *
      * @param helper the gametest helper
@@ -88,11 +88,11 @@ public final class GooItemTests {
     public static void exoGauntletKeepsBenefits(GameTestHelper helper) {
         DamageResistant resistant = new ItemStack(GooItems.EXO_GAUNTLET.get()).get(DataComponents.DAMAGE_RESISTANT);
         helper.assertTrue(resistant != null && resistant.types().unwrapKey().filter(DamageTypeTags.IS_FIRE::equals).isPresent(), EXO_NOT_FIRE_RESISTANT);
-        throwBlobsFrom(helper, GooItems.EXO_GAUNTLET.get());
+        throwGooFrom(helper, GooItems.EXO_GAUNTLET.get());
     }
 
     /**
-     * A mock player holding the thrower throws one blaze and one rock blob,
+     * A mock player holding the thrower throws one blaze and one rock goo,
      * each at its own stone wall, then leaves the level once the markers are
      * read, so a later thrower's tracking broadcast never reaches its mock
      * connection, which never negotiated the mod's channels.
@@ -101,22 +101,22 @@ public final class GooItemTests {
      * @param thrower the glove or gauntlet the player holds
      */
     @SuppressWarnings(REMOVAL) // vanilla marks the mock server player helper for removal and names no replacement
-    private static void throwBlobsFrom(GameTestHelper helper, Item thrower) {
+    private static void throwGooFrom(GameTestHelper helper, Item thrower) {
         helper.setBlock(BLAZE_WALL, Blocks.STONE);
         helper.setBlock(ROCK_WALL, Blocks.STONE);
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         BlockPos stand = helper.absolutePos(PLAYER_POS);
         player.setPos(stand.getX(), stand.getY(), stand.getZ());
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(thrower));
-        ItemStack blaze = BlobStacks.createForOutput(GooTypes.BLAZE, BlobStacks.MB_PER_BLOB);
-        ItemStack rock = BlobStacks.createForOutput(GooTypes.ROCK, BlobStacks.MB_PER_BLOB);
+        ItemStack blaze = GooStacks.createForOutput(GooTypes.BLAZE, GooStacks.THOUSAND);
+        ItemStack rock = GooStacks.createForOutput(GooTypes.ROCK, GooStacks.THOUSAND);
         player.getInventory().add(blaze);
         player.getInventory().add(rock);
 
-        BlobThrowHandler.execute(player, throwAt(helper, GooTypes.BLAZE, BLAZE_TUNNEL, BLAZE_WALL));
-        BlobThrowHandler.execute(player, throwAt(helper, GooTypes.ROCK, ROCK_TUNNEL, ROCK_WALL));
-        helper.assertTrue(blaze.isEmpty(), BLOB_NOT_SPENT + GooTypes.id(GooTypes.BLAZE));
-        helper.assertTrue(rock.isEmpty(), BLOB_NOT_SPENT + GooTypes.id(GooTypes.ROCK));
+        GooThrowHandler.execute(player, throwAt(helper, GooTypes.BLAZE, BLAZE_TUNNEL, BLAZE_WALL));
+        GooThrowHandler.execute(player, throwAt(helper, GooTypes.ROCK, ROCK_TUNNEL, ROCK_WALL));
+        helper.assertTrue(blaze.isEmpty(), GOO_NOT_SPENT + GooTypes.id(GooTypes.BLAZE));
+        helper.assertTrue(rock.isEmpty(), GOO_NOT_SPENT + GooTypes.id(GooTypes.ROCK));
 
         helper.runAfterDelay(ARRIVAL_TICKS, () -> {
             assertMarker(helper, BLAZE_WALL.relative(THROW_FACE), GooTypes.BLAZE);
@@ -128,7 +128,7 @@ public final class GooItemTests {
 
     /**
      * The goo creative tab, built against the level's registries, holds a
-     * one-blob omniblob, an omniblob and a bucket whose GOO_TYPE component names the
+     * one-goo, a goo and a bucket whose GOO_TYPE component names the
      * seventeenth type the test datapack adds.
      *
      * @param helper the gametest helper
@@ -138,10 +138,10 @@ public final class GooItemTests {
         tab.buildContents(new CreativeModeTab.ItemDisplayParameters(
                 helper.getLevel().enabledFeatures(), false, helper.getLevel().registryAccess()));
         Collection<ItemStack> shown = tab.getDisplayItems();
-        helper.assertTrue(shown.stream().anyMatch(stack -> stack.is(GooItems.GOO_OMNIBLOB.get())
-                && SEVENTEENTH.equals(BlobStacks.keyOf(stack))
-                && BlobStacks.volumeOf(stack) == BlobStacks.MB_PER_BLOB), TAB_LACKS_BLOB);
-        helper.assertTrue(holdsTyped(shown, GooItems.GOO_OMNIBLOB.get(), SEVENTEENTH), TAB_LACKS_OMNIBLOB);
+        helper.assertTrue(shown.stream().anyMatch(stack -> stack.is(GooItems.GOO.get())
+                && SEVENTEENTH.equals(GooStacks.keyOf(stack))
+                && GooStacks.volumeOf(stack) == GooStacks.THOUSAND), TAB_LACKS_THOUSAND);
+        helper.assertTrue(holdsTyped(shown, GooItems.GOO.get(), SEVENTEENTH), TAB_LACKS_GOO);
         helper.assertTrue(holdsTyped(shown, GooItems.GOO_BUCKET.get(), SEVENTEENTH), TAB_LACKS_BUCKET);
         helper.succeed();
     }
@@ -150,9 +150,9 @@ public final class GooItemTests {
         return stacks.stream().anyMatch(stack -> stack.is(item) && key.equals(stack.get(GooDataComponents.GOO_TYPE.get())));
     }
 
-    private static BlobThrowPayload throwAt(GameTestHelper helper, ResourceKey<GooTypeDefinition> type,
+    private static GooThrowPayload throwAt(GameTestHelper helper, ResourceKey<GooTypeDefinition> type,
                                             String abilityId, BlockPos wall) {
-        return new BlobThrowPayload(GooTypes.id(type), NO_TARGET_ENTITY, helper.absolutePos(wall),
+        return new GooThrowPayload(GooTypes.id(type), NO_TARGET_ENTITY, helper.absolutePos(wall),
                 THROW_FACE.ordinal(), false, abilityId, Vec3.ZERO);
     }
 

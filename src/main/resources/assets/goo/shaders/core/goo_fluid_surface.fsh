@@ -8,7 +8,7 @@
 // The vanilla entity fragment shader under EMISSIVE and NO_OVERLAY, plus the
 // layering of decision noise-mingled-type-textures: each goo type draws its
 // own surface, layer 0 whole and every later layer at its mingle opacity, so
-// the types form blobs that crossfade at their seams.
+// the types form goo that crossfade at their seams.
 
 uniform sampler2D Sampler0;
 

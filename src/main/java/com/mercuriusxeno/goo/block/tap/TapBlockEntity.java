@@ -343,7 +343,7 @@ public class TapBlockEntity extends GooGlowingMachineBlockEntity implements ICan
      * Inserts goo into the canister. Returns the amount actually accepted.
      *
      * @param type   the goo type to insert
-     * @param volume volume in microblobs to insert
+     * @param volume volume to insert
      * @return the amount actually accepted (mB)
      */
     @Override
@@ -355,7 +355,7 @@ public class TapBlockEntity extends GooGlowingMachineBlockEntity implements ICan
      * Extracts goo from the canister. Returns the amount actually removed.
      *
      * @param type      the goo type to extract
-     * @param requested the desired volume in microblobs
+     * @param requested the desired volume
      * @return the amount actually extracted (mB)
      */
     public int extractGoo(ResourceKey<GooTypeDefinition> type, int requested) {

@@ -13,10 +13,10 @@
   "base_flight_time": 3,
   "map_color": "nether",
   "textures": {
-    "blob_tiny": "goo:item/nether_blob_tiny",
-    "blob_small": "goo:item/nether_blob_small",
-    "blob_base": "goo:item/nether_blob_base",
-    "blob_large": "goo:item/nether_blob_large",
+    "goo_tiny": "goo:item/nether_goo_tiny",
+    "goo_small": "goo:item/nether_goo_small",
+    "goo_base": "goo:item/nether_goo_base",
+    "goo_large": "goo:item/nether_goo_large",
     "fluid_still": "goo:fluid/nether_fluid",
     "fluid_flowing": "goo:fluid/nether_fluid"
   }
