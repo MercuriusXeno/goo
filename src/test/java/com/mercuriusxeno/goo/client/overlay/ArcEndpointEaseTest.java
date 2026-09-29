@@ -8,8 +8,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * The aim arc slides its endpoint and its peak weight from the last target to
- * the new one over the ease time rather than snapping (decision
- * aim-line-lerps-toward-target).
+ * the new one over the ease time rather than snapping, and the ease time is
+ * 0.05 seconds (decisions aim-line-lerps-toward-target,
+ * aim-arc-slides-in-real-time).
  */
 class ArcEndpointEaseTest {
 
@@ -75,7 +76,15 @@ class ArcEndpointEaseTest {
     }
 
     @Test
-    void zeroEaseTimeSnapsToNewEndpoint() {
+    void theSlideTakesFiftyMilliseconds() {
+        assertEquals(0.05, ArcEndpointEase.EASE_SECONDS, EPSILON);
+        assertEquals(0.5, ArcEndpointEase.easeProgress(0.025, ArcEndpointEase.EASE_SECONDS), EPSILON);
+        assertEquals(1, ArcEndpointEase.easeProgress(0.05, ArcEndpointEase.EASE_SECONDS), EPSILON);
+    }
+
+    @Test
+    void zeroEaseTimeSnapsToNewEndpointAndWeight() {
         assertSamePoint(TO, ArcEndpointEase.easeEndpoint(FROM, TO, 0, 0));
+        assertEquals(1, ArcEndpointEase.easeGrannyWeight(0, 1, 0, 0), EPSILON);
     }
 }
