@@ -24,7 +24,8 @@ import java.util.function.Consumer;
  * each draws as the quartz crystal the crystallizer grows, at its tier's volume, in
  * its goo type's own texture. Operator rulings: each tier fills the slot, then
  * steps past it, so each tier reads larger than the one below, and each stands
- * centered in the slot. The operator's drawn sizes can replace it later.
+ * centered in the slot, and materia draws as a marble-like orb half the slot wide
+ * (decision chrysm-tiers-in-32x-steps). The operator's drawn sizes can replace it later.
  */
 public class ChrysmSpecialRenderer implements SpecialModelRenderer<ResourceKey<GooTypeDefinition>> {
 
@@ -32,10 +33,12 @@ public class ChrysmSpecialRenderer implements SpecialModelRenderer<ResourceKey<G
     private static final double BOX_HALF_WIDTH = 7;
     private static final double BOX_HEIGHT = 14;
     /**
-     * Operator rulings: each tier past its fit, a chrysm slightly (1.1), a kilochrysm
-     * 20% past the fit twice over (1.44) and a megachrysm three times (1.728).
+     * Operator rulings: each cluster tier past its fit, a chrysm slightly (1.1), a budding
+     * chrysm 20% past the fit twice over (1.44) and a flowering chrysm three times (1.728).
      */
     private static final double[] TIER_SCALES = {1.1, 1.44, 1.728};
+    /** The materia orb's drawn height: half the 16 pixel slot (operator ruling). */
+    private static final double ORB_HEIGHT = 8;
     /** The item box's middle height, in pixels. */
     private static final double BOX_MIDDLE = 8;
     private static final double HALF = 0.5;
@@ -78,26 +81,49 @@ public class ChrysmSpecialRenderer implements SpecialModelRenderer<ResourceKey<G
     }
 
     /**
-     * The tier's drawn scale: its cluster's fit to the item box, stepped up 20% per
-     * tier (operator ruling), so a kilochrysm and a megachrysm read larger than a chrysm.
+     * Operator ruling: materia draws as a marble-like orb rather than a cluster, the
+     * marble a materia's crystal compresses into.
+     *
+     * @param tier the tier
+     * @return true when the tier draws as the orb
+     */
+    static boolean drawsAsOrb(ChrysmTier tier) {
+        return tier == ChrysmTier.MATERIA;
+    }
+
+    /**
+     * The tier's drawn scale: a cluster's fit to the item box, stepped past it by its
+     * ruled share, so each cluster tier reads larger than the one below; the orb draws
+     * at its own size.
      *
      * @param tier the tier
      * @return the scale
      */
     static float tierScale(ChrysmTier tier) {
+        if (drawsAsOrb(tier)) {
+            return (float) (ORB_HEIGHT / drawnHeight(tier));
+        }
         return (float) (fitScale(CrystalCluster.reach(tier.volume())) * TIER_SCALES[tier.ordinal()]);
     }
 
     /**
+     * @param tier the tier
+     * @return the unscaled height of what the tier draws, in pixels
+     */
+    static double drawnHeight(ChrysmTier tier) {
+        return CrystalCluster.reach(tier.volume())[1];
+    }
+
+    /**
      * Where the crystal's base stands so its scaled height is centered in the item box
-     * (operator ruling: the larger tiers sat high, the megachrysm touching the top).
+     * (operator ruling: the larger tiers sat high, the largest touching the top).
      *
      * @param tier  the tier
      * @param scale the tier's drawn scale
      * @return the base's height, in pixels
      */
     static float baseHeight(ChrysmTier tier, float scale) {
-        return (float) (BOX_MIDDLE - CrystalCluster.reach(tier.volume())[1] * scale * HALF);
+        return (float) (BOX_MIDDLE - drawnHeight(tier) * scale * HALF);
     }
 
     /**

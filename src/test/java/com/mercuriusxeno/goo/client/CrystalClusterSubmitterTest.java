@@ -12,7 +12,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * The crystal's faces tile the growing type's sprite by their place in the block, two
  * texels per model pixel, cut at the sprite's edges so the texture repeats rather than
  * clamps, and read one plane however rounding turns their normal (decision
- * crystallizer-emits-chrysm).
+ * crystallizer-emits-chrysm); a prism rounding into the materia marble keeps its
+ * hexagon unrounded and is a sphere, its faces turned out, fully rounded (operator ruling).
  */
 class CrystalClusterSubmitterTest {
 
@@ -22,6 +23,38 @@ class CrystalClusterSubmitterTest {
 
     private static Vec3[] faceAtZ(double x0, double x1, double y0, double y1) {
         return new Vec3[] {new Vec3(x0, y0, 8), new Vec3(x1, y0, 8), new Vec3(x1, y1, 8), new Vec3(x0, y1, 8)};
+    }
+
+    @Test
+    void aFullyRoundedPrismIsASphereOnTheSpotWithItsFacesTurnedOut() {
+        double radius = CrystalCluster.ORB_RADIUS;
+        CrystalCluster.Prism marble = new CrystalCluster.Prism(0, 0, 2 * radius, radius, 1);
+        Vec3 center = new Vec3(CrystalCluster.BASE_X, CrystalCluster.BASE_Y + radius, CrystalCluster.BASE_Z);
+        for (Vec3[] face : CrystalClusterSubmitter.roundedFaces(marble)) {
+            Vec3 middle = Vec3.ZERO;
+            for (Vec3 corner : face) {
+                assertEquals(radius, corner.distanceTo(center), 1e-6, "a corner off the sphere");
+                middle = middle.add(corner.scale(1.0 / face.length));
+            }
+            assertTrue(CrystalClusterSubmitter.faceNormal(face).dot(middle.subtract(center)) > 0,
+                    "a face turned inward at " + middle);
+        }
+    }
+
+    @Test
+    void anUnroundedPrismMeshKeepsTheHexagonsCornersAndFlatSides() {
+        CrystalCluster.Prism prism = new CrystalCluster.Prism(0, 0, 12, 2.5, 0);
+        Vec3 axisAtBase = new Vec3(CrystalCluster.BASE_X, 0, CrystalCluster.BASE_Z);
+        double sideMiddle = 2.5 * Math.cos(Math.PI / 6);
+        for (Vec3[] face : CrystalClusterSubmitter.roundedFaces(prism)) {
+            for (Vec3 corner : face) {
+                double fromAxis = new Vec3(corner.x, 0, corner.z).distanceTo(axisAtBase);
+                assertTrue(fromAxis <= 2.5 + 1e-6, "a corner outside the hexagon at " + corner);
+                if (corner.y > CrystalCluster.BASE_Y + 1e-6 && corner.y < CrystalCluster.BASE_Y + 9 - 1e-6) {
+                    assertTrue(fromAxis >= sideMiddle - 1e-6, "a shaft corner inside the hexagon's sides at " + corner);
+                }
+            }
+        }
     }
 
     @Test

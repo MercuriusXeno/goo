@@ -70,13 +70,13 @@ public final class GasketDemandTests {
     private static final BlockPos CHAIN_VAT_POS = new BlockPos(1, 1, 0);
     private static final int CATALYST_ROLE = 0;
     private static final int INGREDIENT_ROLE = 1;
-    /** The knob size naming a kilochrysm. */
-    private static final int KILOCHRYSM_KNOB = 2;
-    /** Past a chrysm, so the pace, about 690 mB a tick, outruns the middle canister's taper rate of 64. */
-    private static final long SEEDED_CRYSTALLIZED = 20_000L;
+    /** The knob position naming a budding chrysm. */
+    private static final int BUDDING_CHRYSM_KNOB = 2;
+    /** Past a chrysm, so the budding pace, 968 mB a tick, outruns the middle canister's taper rate of 64. */
+    private static final long SEEDED_CRYSTALLIZED = 100_000L;
     /** The crystallizer's save key for what it has crystallized. */
     private static final String TAG_CRYSTALLIZED = "Crystallized";
-    /** Crystal enough for the run: the pace climbs about 32-fold over 100 ticks. */
+    /** Crystal enough for the run: a tenth of the budding pace over 100 ticks is under 10,000 mB. */
     private static final int CRYSTAL_HELD = 100_000;
     private static final int MIDDLE_HELD = 1_000;
     /** The hub canister that rests, lower than the feeder so slot order would fill it first. */
@@ -359,7 +359,7 @@ public final class GasketDemandTests {
     }
 
     /**
-     * Places the crystallizer with its knob at kilochrysm, a canister block on its top, and
+     * Places the crystallizer with its knob at budding chrysm, a canister block on its top, and
      * reloads it from its saved data holding {@link #SEEDED_CRYSTALLIZED}, so its pace starts
      * past a chrysm.
      *
@@ -368,7 +368,7 @@ public final class GasketDemandTests {
      */
     private static CrystallizerBlockEntity placeSeededCrystallizer(GameTestHelper helper) {
         helper.setBlock(CRYSTALLIZER_POS, GooBlocks.CRYSTALLIZER.get().defaultBlockState()
-                .setValue(CrystallizerBlock.FACING, Direction.NORTH).setValue(CrystallizerBlock.KNOB, KILOCHRYSM_KNOB));
+                .setValue(CrystallizerBlock.FACING, Direction.NORTH).setValue(CrystallizerBlock.KNOB, BUDDING_CHRYSM_KNOB));
         helper.setBlock(CRYSTALLIZER_POS.above(), GooBlocks.CANISTER.get());
         ServerLevel level = helper.getLevel();
         BlockEntity placed = helper.getBlockEntity(CRYSTALLIZER_POS, CrystallizerBlockEntity.class);
