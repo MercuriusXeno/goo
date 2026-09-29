@@ -3,8 +3,6 @@ package com.mercuriusxeno.goo.client.network;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
-import com.mercuriusxeno.goo.ability.AbilityCost;
-import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import net.minecraft.resources.Identifier;
@@ -102,11 +100,11 @@ public final class AbilitySyncHandler {
      * @param fuseTicks   the chain block's full fuse
      * @param maxStacks   the chain block's stack ceiling
      * @param behaviors   the ability's step program, whose params the marker's renderers read
-     * @param cost        the cost formula a throw is priced with
+     * @param cost        the mB a throw costs, the same at every stack count
      */
     public record ClientAbility(Identifier id, String displayName, String icon,
                                 int order, List<String> tags, int fuseTicks, int maxStacks,
-                                List<Step> behaviors, AbilityCost cost) {
+                                List<Step> behaviors, int cost) {
 
         /**
          * Builds the client descriptor from a synced entry.
@@ -121,14 +119,14 @@ public final class AbilitySyncHandler {
         }
 
         /**
-         * Prices a throw the way the server does, from the synced cost and
-         * step program (decision unaffordable-click-does-nothing).
+         * Prices a throw the way the server does: the synced flat cost,
+         * whatever the target already holds (decision flat-cost-per-throw).
          *
          * @param existingStacks the stacks the target marker already holds
          * @return the cost in mB
          */
         public int throwCost(int existingStacks) {
-            return AbilityDefinition.priceThrow(cost, behaviors, existingStacks);
+            return cost;
         }
 
         /**

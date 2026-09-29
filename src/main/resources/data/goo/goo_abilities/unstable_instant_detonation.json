@@ -2,13 +2,7 @@
   "gooType": "unstable",
   "displayName": "goo.ability.unstable.instant_detonation",
   "order": 1,
-  "cost": {
-    "formula": "quadratic",
-    "baseCost": 1500,
-    "a": 0.0,
-    "b": 1.0,
-    "c": 1.0
-  },
+  "cost": 1000,
   "chain": {
     "fuseTicks": 1,
     "maxStacks": 4

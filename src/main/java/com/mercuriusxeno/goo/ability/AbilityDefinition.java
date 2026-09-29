@@ -3,10 +3,10 @@ package com.mercuriusxeno.goo.ability;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.program.PlaceBlockStep;
-import com.mercuriusxeno.goo.ability.program.ProgressiveAreaStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.StepTypes;
 import com.mojang.serialization.Codec;
+import com.mojang.serialization.DataResult;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
@@ -18,14 +18,14 @@ import java.util.stream.Stream;
 /**
  * A single ability within a goo type's repertoire. Loaded from datapack
  * JSON under {@code data/<ns>/goo_abilities/}. Defines the step program,
- * cost formula, chain parameters, and display metadata.
+ * flat cost per throw, chain parameters, and display metadata.
  *
  * @param id          the datapack resource identifier (from filename)
  * @param gooType     the goo type this ability belongs to
  * @param displayName the translation key for the ability name
  * @param icon        the texture path for the radial menu icon
  * @param order       sort order within the type's ability list
- * @param cost        the cost formula for this ability
+ * @param cost        the mB a throw costs, the same at every stack count
  * @param chain       chain marker parameters (nullable for non-chain abilities)
  * @param behaviors   the step trees the ability runs, in order
  * @param tags        categorical tags (explosive, instant, trap, field-effect, etc.)
@@ -36,7 +36,7 @@ public record AbilityDefinition(
         String displayName,
         String icon,
         int order,
-        AbilityCost cost,
+        int cost,
         ChainConfig chain,
         List<Step> behaviors,
         List<String> tags
@@ -51,6 +51,13 @@ public record AbilityDefinition(
     private static final String FIELD_CHAIN = "chain";
     private static final String FIELD_BEHAVIORS = "behaviors";
     private static final String FIELD_TAGS = "tags";
+    private static final String NOT_A_FLAT_COST = "Ability cost must be one whole number of mB, not %s";
+
+    /**
+     * Codec for the cost: one whole number of mB per throw (decision flat-cost-per-throw).
+     */
+    private static final Codec<Integer> FLAT_COST_CODEC =
+            Codec.DOUBLE.comapFlatMap(AbilityDefinition::flatCost, Integer::doubleValue);
 
     /**
      * Builds the codec for one ability file. The id comes from the filename, not the
@@ -66,7 +73,7 @@ public record AbilityDefinition(
                 Codec.STRING.fieldOf(FIELD_DISPLAY_NAME).forGetter(AbilityDefinition::displayName),
                 Codec.STRING.optionalFieldOf(FIELD_ICON, NO_ICON).forGetter(AbilityDefinition::icon),
                 Codec.INT.optionalFieldOf(FIELD_ORDER, 0).forGetter(AbilityDefinition::order),
-                AbilityCost.CODEC.fieldOf(FIELD_COST).forGetter(AbilityDefinition::cost),
+                FLAT_COST_CODEC.fieldOf(FIELD_COST).forGetter(AbilityDefinition::cost),
                 ChainConfig.CODEC.optionalFieldOf(FIELD_CHAIN, ChainConfig.DEFAULT).forGetter(AbilityDefinition::chain),
                 StepTypes.LIST_CODEC.fieldOf(FIELD_BEHAVIORS).forGetter(AbilityDefinition::behaviors),
                 Codec.STRING.listOf().optionalFieldOf(FIELD_TAGS, List.of()).forGetter(AbilityDefinition::tags)
@@ -100,48 +107,27 @@ public record AbilityDefinition(
     }
 
     /**
-     * Prices the next throw at a target already holding some stacks, with
-     * a block_count cost charging the blocks that stack adds to this
-     * ability's footprint (decision diagnose-then-fix-fuse-and-cost).
+     * The cost of a throw, the one figure the ability's JSON names, the same
+     * whatever the target already holds (decision flat-cost-per-throw).
      *
      * @param existingStacks the stacks the target already holds; zero for a first throw
      * @return the cost in mB
      */
     public int throwCost(int existingStacks) {
-        return priceThrow(cost, behaviors, existingStacks);
+        return cost;
     }
 
     /**
-     * Prices a throw from a cost formula and the step program its footprint
-     * reads, the one pricing the server and the client's synced copy share
-     * (decision unaffordable-click-does-nothing).
+     * Accepts a cost that is one whole, non-negative number of mB and refuses any
+     * other, naming the cost it read.
      *
-     * @param cost           the cost formula
-     * @param behaviors      the ability's step program
-     * @param existingStacks the stacks the target already holds; zero for a first throw
-     * @return the cost in mB
+     * @param cost the cost as the JSON wrote it
+     * @return the cost, or an error naming it
      */
-    public static int priceThrow(AbilityCost cost, List<Step> behaviors, int existingStacks) {
-        return cost.costForStack(existingStacks, stacks -> footprintBlocks(behaviors, stacks));
-    }
-
-    /**
-     * Counts the blocks a step program's footprint covers at a stack count:
-     * its first progressive_area step's footprint, or one block per stack
-     * for an ability walking no area.
-     *
-     * @param behaviors the ability's step program
-     * @param stacks    the stack count
-     * @return the block count
-     */
-    private static int footprintBlocks(List<Step> behaviors, int stacks) {
-        return behaviors.stream()
-                .flatMap(AbilityDefinition::withDescendants)
-                .filter(ProgressiveAreaStep.class::isInstance)
-                .map(ProgressiveAreaStep.class::cast)
-                .findFirst()
-                .map(area -> area.footprintBlocks(stacks))
-                .orElse(Math.max(stacks, 0));
+    private static DataResult<Integer> flatCost(double cost) {
+        return cost >= 0 && cost <= Integer.MAX_VALUE && cost == Math.rint(cost)
+                ? DataResult.success((int) cost)
+                : DataResult.error(() -> NOT_A_FLAT_COST.formatted(cost));
     }
 
     /**

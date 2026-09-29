@@ -2,11 +2,7 @@
   "gooType": "metal",
   "displayName": "goo.ability.metal.spikes",
   "order": 0,
-  "cost": {
-    "formula": "power_law",
-    "baseCost": 1000,
-    "mult": 1.2
-  },
+  "cost": 1000,
   "chain": {
     "fuseTicks": 30,
     "maxStacks": 8

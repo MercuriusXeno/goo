@@ -6,28 +6,33 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Shared footprint math for rock and blaze chain effects. Both use
- * the same scaling: 1x1 at 1 stack, cross at 2, 3x3 at 3, then
- * 3x3 with increasing depth beyond 3. Flat mode redistributes the
- * same total block count into a taxicab-distance circle on one layer.
+ * Shared footprint math for rock, blaze and frost chain effects. The
+ * tunnel bores 1x1 at one stack, then 3x3 at depths 1, 2, 4, 7 and 10
+ * (decision tunnel-stays-3x3-ee-homage). Flat mode opens a round disc one
+ * block of radius per throw on one layer, and the sphere a round ball.
  */
 public final class ChainFootprint {
 
     /**
-     * Maximum tunnel depth, reached at 27 stacks.
+     * Tunnel depth by stack count, one to six stacks.
      */
-    public static final int MAX_DEPTH = 25;
+    private static final int[] TUNNEL_DEPTHS = {1, 1, 2, 4, 7, 10};
 
     /**
-     * Maximum meaningful stack count (3 + MAX_DEPTH).
+     * Maximum tunnel depth, the ladder's last rung.
      */
-    public static final int MAX_STACKS = 3 + MAX_DEPTH;
+    public static final int MAX_DEPTH = TUNNEL_DEPTHS[TUNNEL_DEPTHS.length - 1];
+
+    /**
+     * Maximum meaningful stack count, the ladder's length.
+     */
+    public static final int MAX_STACKS = TUNNEL_DEPTHS.length;
     /**
      * Area mode: 3x3 tunnel advancing along placed face axis.
      */
     public static final String AREA_TUNNEL = "tunnel";
     /**
-     * Area mode: euclidean circle, one layer deep.
+     * Area mode: round disc, one layer deep.
      */
     public static final String AREA_FLAT_CIRCLE = "flat_circle";
     /**
@@ -35,31 +40,11 @@ public final class ChainFootprint {
      */
     public static final String AREA_SPHERE = "sphere";
     /**
-     * Stack count where footprint widens to a cross.
-     */
-    private static final int CROSS_THRESHOLD = 2;
-    /**
-     * Stack count where footprint fills to 3x3.
-     */
-    private static final int FULL_THRESHOLD = 3;
-    /**
-     * Block count for a cross footprint (center + 4 cardinal).
-     */
-    private static final int CROSS_BLOCKS = 5;
-    /**
-     * Block count for a 3x3 footprint.
-     */
-    private static final int FULL_BLOCKS = 9;
-    /**
-     * Depth offset: stacks minus this = tunnel depth for stacks > 3.
-     */
-    private static final int DEPTH_OFFSET = 2;
-    /**
      * Half-width of the 3x3 grid.
      */
     private static final int GRID_HALF = 1;
     /**
-     * Negative unit offset for cardinal directions.
+     * Negative unit offset along an axis.
      */
     private static final int NEG = -1;
     /**
@@ -70,212 +55,141 @@ public final class ChainFootprint {
      * Array index for Z component in offset triples.
      */
     private static final int Z_INDEX = 2;
+    /**
+     * Cells across a round shape per block of radius, either side of the center.
+     */
+    private static final int DIAMETER_PER_RADIUS = 2;
+    /**
+     * Scale of a squared distance measured in half blocks, so r + 0.5 compares in integers.
+     */
+    private static final int HALVES_SQUARED = 4;
 
     private ChainFootprint() {
     }
 
 
     /**
-     * Total blocks affected at the given stack count.
+     * Total blocks the tunnel bores at the given stack count: 1, 9, 18,
+     * 36, 63 and 90 over six stacks.
      *
      * @param stacks blob stack count (1-based)
      * @return total block count
      */
     public static int totalBlocks(int stacks) {
-        return switch (stacks) {
-            case 1 -> 1;
-            case CROSS_THRESHOLD -> CROSS_BLOCKS;
-            default -> FULL_BLOCKS * tunnelDepth(stacks);
-        };
+        return layerFootprint(stacks).size() * tunnelDepth(stacks);
     }
 
     /**
-     * Tunnel depth (layers into the wall) at the given stack count.
-     * 1-3 stacks produce depth 1; each stack beyond 3 adds one layer,
-     * capped at {@link #MAX_DEPTH}.
+     * Tunnel depth (layers into the wall) at the given stack count, read
+     * from the ladder 1, 1, 2, 4, 7, 10 and held at its last rung past six.
      *
      * @param stacks blob stack count (1-based)
      * @return depth in layers
      */
     public static int tunnelDepth(int stacks) {
-        if (stacks <= FULL_THRESHOLD) {
-            return 1;
-        }
-        return Math.min(stacks - DEPTH_OFFSET, MAX_DEPTH);
+        int rung = Math.clamp(stacks, 1, MAX_STACKS) - 1;
+        return TUNNEL_DEPTHS[rung];
     }
 
 
     /**
-     * Returns the 2D offsets for one tunnel-mode layer at the given
-     * stack count. Coordinates are (perpA, perpB) relative to the
-     * layer center.
+     * Returns the 2D offsets for one tunnel-mode layer: the single block
+     * at one stack, the 3x3 from two stacks on. Coordinates are
+     * (perpA, perpB) relative to the layer center.
      *
      * @param stacks blob stack count (1-based)
      * @return list of [a, b] offset pairs
      */
     public static List<int[]> layerFootprint(int stacks) {
-        return switch (stacks) {
-            case 1 -> singleBlock();
-            case CROSS_THRESHOLD -> crossShape();
-            default -> threeByThree();
-        };
+        return stacks == 1 ? singleBlock() : threeByThree();
     }
 
     /**
-     * Returns the 2D offsets for flat mode at the given stack count.
-     * For 1-3 stacks this is identical to {@link #layerFootprint}.
-     * For 4+, distributes {@link #totalBlocks} into taxicab-distance
-     * rings for a quasi-circular flat pattern.
+     * The disc's or the ball's radius at a stack count: one block per throw
+     * from the start radius the ability JSON names (decisions
+     * disc-opens-circularly-per-stack, sphere-is-frost-alone).
+     *
+     * @param stacks      blob stack count (1-based)
+     * @param startRadius the radius of the first throw
+     * @return the radius, never below zero
+     */
+    public static int radiusAtStacks(int stacks, int startRadius) {
+        return Math.max(0, startRadius + stacks - 1);
+    }
+
+    /**
+     * Returns the flat disc at a start radius of zero.
      *
      * @param stacks blob stack count (1-based)
      * @return list of [a, b] offset pairs
      */
     public static List<int[]> flatFootprint(int stacks) {
-        if (stacks <= FULL_THRESHOLD) {
-            return layerFootprint(stacks);
-        }
-        return euclideanCircle(totalBlocks(stacks));
+        return flatFootprint(stacks, 0);
     }
 
+    /**
+     * Returns the flat disc: every cell whose center lies under
+     * {@code r + 0.5} of the center, for r the {@link #radiusAtStacks}.
+     *
+     * @param stacks      blob stack count (1-based)
+     * @param startRadius the radius of the first throw
+     * @return list of [a, b] offset pairs, ring by ring outward
+     */
+    public static List<int[]> flatFootprint(int stacks, int startRadius) {
+        List<int[]> disc = new ArrayList<>();
+        for (List<int[]> ring : flatRings(stacks, startRadius)) {
+            disc.addAll(ring);
+        }
+        return disc;
+    }
 
     /**
-     * Decomposes the flat footprint into concentric distance rings.
-     * Each ring contains positions at the same squared distance from center.
-     * Ring 0 is the origin, ring 1 is the first cardinal neighbors, etc.
-     * The union of all rings equals {@link #flatFootprint(int)}.
+     * Returns the flat disc's rings at a start radius of zero.
      *
      * @param stacks blob stack count (1-based)
      * @return list of rings, each ring a list of [a, b] offset pairs
      */
     public static List<List<int[]>> flatRings(int stacks) {
-        if (stacks <= FULL_THRESHOLD) {
-            return List.of(layerFootprint(stacks));
-        }
-        int budget = totalBlocks(stacks);
-        int searchRadius = (int) Math.ceil(Math.sqrt(budget)) + 1;
-        List<int[]> candidates = collectCandidates(searchRadius);
-        candidates.sort((p, q) -> Integer.compare(sqDist(p), sqDist(q)));
-        return splitIntoTiers(candidates, budget);
+        return flatRings(stacks, 0);
     }
 
     /**
-     * Splits sorted candidates into distance tiers, stopping at budget.
+     * Splits the flat disc into rings by integer distance: ring k holds
+     * the cells with {@code floor(sqrt(a*a + b*b)) == k}, so ring 0 is the
+     * center and the rings step outward, disjoint, uniting to the disc.
      *
-     * @param sorted positions sorted by squared distance
-     * @param budget maximum total block count
-     * @return the tier-decomposed ring list
+     * @param stacks      blob stack count (1-based)
+     * @param startRadius the radius of the first throw
+     * @return list of rings, each ring a list of [a, b] offset pairs
      */
-    private static List<List<int[]>> splitIntoTiers(List<int[]> sorted, int budget) {
-        List<List<int[]>> rings = new ArrayList<>();
-        int total = 0;
-        int i = 0;
-        while (i < sorted.size()) {
-            int tierEnd = findTierEnd(sorted, i);
-            int tierSize = tierEnd - i;
-            if (total + tierSize > budget) {
-                break;
+    public static List<List<int[]>> flatRings(int stacks, int startRadius) {
+        int radius = radiusAtStacks(stacks, startRadius);
+        List<List<int[]>> rings = new ArrayList<>(radius + 1);
+        for (int k = 0; k <= radius; k++) {
+            rings.add(new ArrayList<>());
+        }
+        for (int a = -radius; a <= radius; a++) {
+            for (int b = -radius; b <= radius; b++) {
+                int squared = a * a + b * b;
+                if (withinRound(squared, radius)) {
+                    rings.get((int) Math.sqrt(squared)).add(new int[]{a, b});
+                }
             }
-            List<int[]> ring = new ArrayList<>(tierSize);
-            addRange(ring, sorted, i, tierEnd);
-            rings.add(ring);
-            total += tierSize;
-            i = tierEnd;
         }
         return rings;
     }
 
     /**
-     * Builds the roundest possible flat region by filling positions
-     * sorted by Euclidean distance from center. Positions at equal
-     * distance form a tier; tiers are added in full to maintain
-     * quarter symmetry. Stops before adding a tier that would exceed
-     * the budget, so actual count may be slightly less than target.
+     * Whether a cell center at a squared distance lies under {@code radius + 0.5},
+     * in integers: {@code 4 * d2 < (2r + 1)^2}.
      *
-     * @param budget maximum number of blocks
-     * @return list of [a, b] offset pairs
+     * @param squaredDistance the cell's squared distance from the center
+     * @param radius          the round shape's radius
+     * @return true when the cell belongs to the shape
      */
-    public static List<int[]> euclideanCircle(int budget) {
-        int searchRadius = (int) Math.ceil(Math.sqrt(budget)) + 1;
-        List<int[]> candidates = collectCandidates(searchRadius);
-        candidates.sort((p, q) -> {
-            int da = p[0] * p[0] + p[1] * p[1];
-            int db = q[0] * q[0] + q[1] * q[1];
-            return Integer.compare(da, db);
-        });
-        return fillByTier(candidates, budget);
-    }
-
-    /**
-     * Collects all grid positions within the search radius.
-     *
-     * @param radius the search radius
-     * @return unsorted candidate positions
-     */
-    private static List<int[]> collectCandidates(int radius) {
-        List<int[]> candidates = new ArrayList<>();
-        for (int a = -radius; a <= radius; a++) {
-            for (int b = -radius; b <= radius; b++) {
-                candidates.add(new int[]{a, b});
-            }
-        }
-        return candidates;
-    }
-
-    /**
-     * Fills complete Euclidean distance tiers until the next full
-     * tier would exceed the budget.
-     *
-     * @param sorted positions sorted by squared distance
-     * @param budget maximum block count
-     * @return the filled positions
-     */
-    private static List<int[]> fillByTier(List<int[]> sorted, int budget) {
-        List<int[]> result = new ArrayList<>(budget);
-        int i = 0;
-        while (i < sorted.size()) {
-            int tierEnd = findTierEnd(sorted, i);
-            int tierSize = tierEnd - i;
-            if (result.size() + tierSize > budget) {
-                break;
-            }
-            addRange(result, sorted, i, tierEnd);
-            i = tierEnd;
-        }
-        return result;
-    }
-
-    /**
-     * Returns the exclusive end index of the tier starting at {@code from}.
-     *
-     * @param sorted the sorted offset list
-     * @param from   the start index
-     * @return the exclusive end index of the tier
-     */
-    private static int findTierEnd(List<int[]> sorted, int from) {
-        int dist = sqDist(sorted.get(from));
-        int i = from;
-        while (i < sorted.size() && sqDist(sorted.get(i)) == dist) {
-            i++;
-        }
-        return i;
-    }
-
-    /**
-     * Adds elements from sorted[start..end) to the result list.
-     *
-     * @param result the destination list
-     * @param sorted the source list
-     * @param start  the inclusive start index
-     * @param end    the exclusive end index
-     */
-    private static void addRange(List<int[]> result, List<int[]> sorted, int start, int end) {
-        for (int j = start; j < end; j++) {
-            result.add(sorted.get(j));
-        }
-    }
-
-    private static int sqDist(int[] pos) {
-        return pos[0] * pos[0] + pos[1] * pos[1];
+    private static boolean withinRound(int squaredDistance, int radius) {
+        int diameter = DIAMETER_PER_RADIUS * radius + 1;
+        return HALVES_SQUARED * squaredDistance < diameter * diameter;
     }
 
 
@@ -283,18 +197,8 @@ public final class ChainFootprint {
         return List.of(new int[]{0, 0});
     }
 
-    private static List<int[]> crossShape() {
-        List<int[]> cross = new ArrayList<>(CROSS_BLOCKS);
-        cross.add(new int[]{0, 0});
-        cross.add(new int[]{1, 0});
-        cross.add(new int[]{NEG, 0});
-        cross.add(new int[]{0, 1});
-        cross.add(new int[]{0, NEG});
-        return cross;
-    }
-
     private static List<int[]> threeByThree() {
-        List<int[]> grid = new ArrayList<>(FULL_BLOCKS);
+        List<int[]> grid = new ArrayList<>();
         for (int a = -GRID_HALF; a <= GRID_HALF; a++) {
             for (int b = -GRID_HALF; b <= GRID_HALF; b++) {
                 grid.add(new int[]{a, b});
@@ -305,38 +209,25 @@ public final class ChainFootprint {
 
 
     /**
-     * Returns all 3D block offsets in the effect region, relative to
-     * the marker position. Each offset is {dx, dy, dz} in world axes.
-     * Layer 0 starts one step into the wall from the marker.
+     * Returns all 3D block offsets in the effect region for the given area
+     * mode, relative to the marker position: the tunnel's layers, the flat
+     * disc, or the ball. Layer 0 starts one step into the wall from the marker.
      *
-     * @param stacks   blob stack count
-     * @param flatMode true for flat mode
-     * @param face     the placed face
+     * @param stacks      blob stack count
+     * @param areaMode    "tunnel", "flat_circle", or "sphere"
+     * @param startRadius the disc's or the ball's radius at one stack
+     * @param face        the placed face
      * @return list of {dx, dy, dz} offsets
      */
-    public static List<int[]> computeRegionOffsets(int stacks, boolean flatMode, Direction face) {
-        List<int[]> footprint = flatMode ? flatFootprint(stacks) : layerFootprint(stacks);
-        int depth = flatMode ? 1 : tunnelDepth(stacks);
-        Direction blastDir = face.getOpposite();
-        return expandLayers(footprint, depth, blastDir);
-    }
-
-    /**
-     * Returns all 3D block offsets in the effect region for the given area mode.
-     * Dispatches to tunnel, flat circle, or sphere computation.
-     *
-     * @param stacks   blob stack count
-     * @param areaMode "tunnel", "flat_circle", or "sphere"
-     * @param face     the placed face
-     * @return list of {dx, dy, dz} offsets
-     */
-    public static List<int[]> computeRegionOffsets(int stacks, String areaMode, Direction face) {
+    public static List<int[]> computeRegionOffsets(int stacks, String areaMode, int startRadius, Direction face) {
         if (AREA_SPHERE.equals(areaMode)) {
-            int radius = AbilityMath.computeFreezeRadius(stacks);
-            return computeSphereOffsets(radius, face);
+            return computeSphereOffsets(radiusAtStacks(stacks, startRadius), face);
         }
-        boolean flat = AREA_FLAT_CIRCLE.equals(areaMode);
-        return computeRegionOffsets(stacks, flat, face);
+        Direction blastDir = face.getOpposite();
+        if (AREA_FLAT_CIRCLE.equals(areaMode)) {
+            return expandLayers(flatFootprint(stacks, startRadius), 1, blastDir);
+        }
+        return expandLayers(layerFootprint(stacks), tunnelDepth(stacks), blastDir);
     }
 
     /**
@@ -378,69 +269,53 @@ public final class ChainFootprint {
     }
 
     /**
-     * Returns all 3D block offsets in a sphere centered one block into
-     * the wall from the marker. Used by frost and other spheroid effects.
+     * Returns all 3D block offsets in the ball centered one block into
+     * the wall from the marker: every cell whose center lies under
+     * {@code radius + 0.5} of the ball's center.
      *
-     * @param radius the sphere radius in blocks
+     * @param radius the ball's radius in blocks
      * @param face   the placed face (determines center offset direction)
      * @return list of {dx, dy, dz} offsets relative to the marker
      */
     public static List<int[]> computeSphereOffsets(int radius, Direction face) {
-        Direction blastDir = face.getOpposite();
-        int cx = blastDir.getStepX();
-        int cy = blastDir.getStepY();
-        int cz = blastDir.getStepZ();
-        int r2 = radius * radius;
-        List<int[]> result = new ArrayList<>();
-        for (int dx = -radius; dx <= radius; dx++) {
-            for (int dy = -radius; dy <= radius; dy++) {
-                for (int dz = -radius; dz <= radius; dz++) {
-                    if (dx * dx + dy * dy + dz * dz <= r2) {
-                        result.add(new int[]{dx + cx, dy + cy, dz + cz});
-                    }
-                }
-            }
+        List<int[]> ball = new ArrayList<>();
+        for (int shell = 0; shell <= radius; shell++) {
+            ball.addAll(sphereShellOffsets(shell, radius, face));
         }
-        return result;
+        return ball;
     }
 
     /**
-     * Returns 3D offsets for a single spherical shell at the given radius.
-     * Shell r contains all integer positions where r-1 < distance <= r,
-     * computed as floor(sqrt(d2)) == r. Shell 0 is the origin block.
-     * Shells 0..R union to the full solid sphere of radius R.
+     * Returns the 3D offsets of one shell of a ball: the cells with
+     * {@code floor(sqrt(dx*dx + dy*dy + dz*dz)) == shell} whose centers lie
+     * under {@code radius + 0.5}. Shell 0 is the center; shells 0 through
+     * radius are disjoint and unite to the ball.
      *
-     * @param shellRadius the shell radius (0 = origin only)
+     * @param shell  the shell index, from the center outward
+     * @param radius the ball's radius
      * @return list of {dx, dy, dz} offsets
      */
-    public static List<int[]> sphereShell(int shellRadius) {
-        if (shellRadius == 0) {
-            return List.of(new int[]{0, 0, 0});
-        }
-        int r2max = shellRadius * shellRadius;
-        int r2min = (shellRadius - 1) * (shellRadius - 1);
+    public static List<int[]> sphereShell(int shell, int radius) {
         List<int[]> result = new ArrayList<>();
-        for (int dx = -shellRadius; dx <= shellRadius; dx++) {
-            collectShellSlice(result, dx, shellRadius, r2min, r2max);
+        for (int dx = -radius; dx <= radius; dx++) {
+            collectShellSlice(result, dx, shell, radius);
         }
         return result;
     }
 
     /**
-     * Collects all positions in one x-slice of a spherical shell.
+     * Collects the cells of one x-slice of a ball's shell.
      *
-     * @param result      the output list
-     * @param dx          the x offset
-     * @param shellRadius the shell radius
-     * @param r2min       the squared inner radius (exclusive)
-     * @param r2max       the squared outer radius (inclusive)
+     * @param result the output list
+     * @param dx     the x offset
+     * @param shell  the shell index
+     * @param radius the ball's radius
      */
-    private static void collectShellSlice(List<int[]> result, int dx,
-                                          int shellRadius, int r2min, int r2max) {
-        for (int dy = -shellRadius; dy <= shellRadius; dy++) {
-            for (int dz = -shellRadius; dz <= shellRadius; dz++) {
-                int d2 = dx * dx + dy * dy + dz * dz;
-                if (d2 <= r2max && d2 > r2min) {
+    private static void collectShellSlice(List<int[]> result, int dx, int shell, int radius) {
+        for (int dy = -radius; dy <= radius; dy++) {
+            for (int dz = -radius; dz <= radius; dz++) {
+                int squared = dx * dx + dy * dy + dz * dz;
+                if (withinRound(squared, radius) && (int) Math.sqrt(squared) == shell) {
                     result.add(new int[]{dx, dy, dz});
                 }
             }
@@ -448,21 +323,22 @@ public final class ChainFootprint {
     }
 
     /**
-     * Returns 3D offsets for a single spherical shell, translated so the
-     * sphere center is one block into the wall from the marker.
+     * Returns one shell of a ball, translated so the ball's center is one
+     * block into the wall from the marker.
      *
-     * @param shellRadius the shell radius (0 = center block)
-     * @param face        the placed face (determines center offset)
+     * @param shell  the shell index (0 = center block)
+     * @param radius the ball's radius
+     * @param face   the placed face (determines center offset)
      * @return list of {dx, dy, dz} offsets relative to the marker
      */
-    public static List<int[]> sphereShellOffsets(int shellRadius, Direction face) {
+    public static List<int[]> sphereShellOffsets(int shell, int radius, Direction face) {
         Direction blastDir = face.getOpposite();
         int cx = blastDir.getStepX();
         int cy = blastDir.getStepY();
         int cz = blastDir.getStepZ();
-        List<int[]> shell = sphereShell(shellRadius);
-        List<int[]> result = new ArrayList<>(shell.size());
-        for (int[] p : shell) {
+        List<int[]> cells = sphereShell(shell, radius);
+        List<int[]> result = new ArrayList<>(cells.size());
+        for (int[] p : cells) {
             result.add(new int[]{p[0] + cx, p[1] + cy, p[Z_INDEX] + cz});
         }
         return result;

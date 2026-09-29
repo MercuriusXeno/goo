@@ -2,11 +2,7 @@
   "gooType": "nether",
   "displayName": "goo.ability.nether.black_hole",
   "order": 0,
-  "cost": {
-    "formula": "power_law",
-    "baseCost": 2000,
-    "mult": 1.5
-  },
+  "cost": 1000,
   "chain": {
     "fuseTicks": 30,
     "maxStacks": 5
@@ -14,7 +10,7 @@
   "behaviors": [
     {
       "type": "phased",
-      "radius": "1 + 2 * stacks",
+      "radius": "2 + stacks",
       "phases": [
         {
           "name": "gather",
@@ -24,24 +20,24 @@
           "name": "expand",
           "ticks": 15,
           "enter": [
-            { "type": "entities", "radius": "1 + 2 * stacks", "steps": [
+            { "type": "entities", "radius": "2 + stacks", "steps": [
               { "type": "potion", "effect": "minecraft:blindness", "duration": 70, "visible": false }
             ] },
-            { "type": "entities", "radius": "3 * (1 + 2 * stacks)", "steps": [
+            { "type": "entities", "radius": "3 * (2 + stacks)", "steps": [
               { "type": "potion", "effect": "minecraft:darkness", "duration": 70, "amplifier": 1, "visible": false }
             ] },
-            { "type": "entities", "radius": "1 + 2 * stacks", "steps": [
+            { "type": "entities", "radius": "2 + stacks", "steps": [
               { "type": "potion", "effect": "minecraft:darkness", "duration": 70, "amplifier": 2, "visible": false }
             ] },
             { "type": "sound", "id": "goo:effects.black_hole", "source": "blocks", "volume": 6, "pitch": 1 }
           ],
           "tick": [
-            { "type": "particles", "id": "minecraft:soul", "count": "1 + stacks", "spread": "0.6 * (1 + 2 * stacks)", "speed": 0.02 },
-            { "type": "pull", "radius": "3 * (1 + 2 * stacks)", "speed": 0.15 }
+            { "type": "particles", "id": "minecraft:soul", "count": "1 + stacks", "spread": "0.6 * (2 + stacks)", "speed": 0.02 },
+            { "type": "pull", "radius": "3 * (2 + stacks)", "speed": 0.15 }
           ],
           "leave": [
-            { "type": "consume_blocks", "radius": "1 + 2 * stacks" },
-            { "type": "entities", "radius": "1 + 2 * stacks", "steps": [
+            { "type": "consume_blocks", "radius": "2 + stacks" },
+            { "type": "entities", "radius": "2 + stacks", "steps": [
               { "type": "damage", "amount": "health * 0.5", "source": "magic" }
             ] }
           ]
@@ -50,15 +46,15 @@
           "name": "hold",
           "ticks": 15,
           "tick": [
-            { "type": "particles", "id": "minecraft:soul", "count": "1 + stacks", "spread": "0.6 * (1 + 2 * stacks)", "speed": 0.02 },
-            { "type": "pull", "radius": "3 * (1 + 2 * stacks)", "speed": 0.15 }
+            { "type": "particles", "id": "minecraft:soul", "count": "1 + stacks", "spread": "0.6 * (2 + stacks)", "speed": 0.02 },
+            { "type": "pull", "radius": "3 * (2 + stacks)", "speed": 0.15 }
           ]
         },
         {
           "name": "contract",
           "ticks": 30,
           "tick": [
-            { "type": "particles", "id": "minecraft:soul", "count": "1 + stacks", "spread": "0.6 * (1 + 2 * stacks)", "speed": 0.02 }
+            { "type": "particles", "id": "minecraft:soul", "count": "1 + stacks", "spread": "0.6 * (2 + stacks)", "speed": 0.02 }
           ]
         },
         {
