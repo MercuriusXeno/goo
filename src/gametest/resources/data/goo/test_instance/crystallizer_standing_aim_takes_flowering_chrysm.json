@@ -1,9 +1,9 @@
 {
   "type": "minecraft:function",
-  "function": "goo:crystallizer_canister_sounds",
+  "function": "goo:crystallizer_standing_aim_takes_flowering_chrysm",
   "environment": "minecraft:default",
   "structure": "goo:machine_bay",
-  "max_ticks": 1200,
+  "max_ticks": 100,
   "setup_ticks": 0,
   "required": true
 }

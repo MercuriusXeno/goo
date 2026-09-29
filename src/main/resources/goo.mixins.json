@@ -9,6 +9,7 @@
     "OmniblobQuickCraftMixin"
   ],
   "client": [
+    "MinecraftCrystalPickMixin",
     "OmniblobQuickCraftScreenMixin"
   ]
 }

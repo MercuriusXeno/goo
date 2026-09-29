@@ -3,7 +3,7 @@
   "function": "goo:crystallizer_any_item_takes",
   "environment": "minecraft:default",
   "structure": "goo:machine_bay",
-  "max_ticks": 1000,
+  "max_ticks": 1800,
   "setup_ticks": 0,
   "required": true
 }

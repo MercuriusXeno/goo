@@ -18,7 +18,7 @@
 				16
 			],
 			"rotation": {
-				"angle": -22.5,
+				"angle": 45,
 				"axis": "z",
 				"origin": [
 					8,
@@ -96,7 +96,7 @@
 				16
 			],
 			"rotation": {
-				"angle": -22.5,
+				"angle": 45,
 				"axis": "z",
 				"origin": [
 					8,
@@ -162,14 +162,14 @@
 			}
 		},
 		{
-			"name": "strength_line",
+			"name": "strength_line_unlit",
 			"from": [
 				3,
 				13,
 				15
 			],
 			"to": [
-				10,
+				13,
 				14,
 				15.01
 			],
@@ -177,30 +177,6 @@
 				"south": {
 					"uv": [
 						0.5,
-						9.0,
-						2.25,
-						9.5
-					],
-					"texture": "#lit"
-				}
-			}
-		},
-		{
-			"name": "strength_line_unlit",
-			"from": [
-				10,
-				13,
-				15
-			],
-			"to": [
-				13,
-				14,
-				15.01
-			],
-			"faces": {
-				"south": {
-					"uv": [
-						2.25,
 						9.0,
 						3.0,
 						9.5
