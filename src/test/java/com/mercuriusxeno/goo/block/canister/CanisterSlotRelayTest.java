@@ -20,10 +20,9 @@ import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
 /**
- * A canister slot relays to its source the demand of the consumer it feeds
- * (decision receivers-demand-and-links-relay): the machine drawing on it, else the
- * partner behind its bottom gasket, and with nothing asking behind it, the power law
- * of its own capacity. The pusher is a mock; the vanilla bootstrap stands the water
+ * A canister slot asks its source the power law of its own capacity plus the demand of
+ * the consumer it feeds (decision relay-adds-dependent-ask-to-own): the machine drawing
+ * on it, else the partner behind its bottom gasket. The pusher is a mock; the vanilla bootstrap stands the water
  * fluid the exponent is read against.
  */
 class CanisterSlotRelayTest {
@@ -71,8 +70,8 @@ class CanisterSlotRelayTest {
     }
 
     @Test
-    void aSlotFeedingAPartnerAnswersThatPartnersDemand() {
-        assertEquals(PARTNER_DEMAND, relayedWith(OptionalInt.empty(), OptionalInt.of(PARTNER_DEMAND)));
+    void aSlotFeedingAPartnerAsksItsRestPlusThatPartnersDemand() {
+        assertEquals(resting + PARTNER_DEMAND, relayedWith(OptionalInt.empty(), OptionalInt.of(PARTNER_DEMAND)));
     }
 
     @Test
@@ -93,8 +92,8 @@ class CanisterSlotRelayTest {
     }
 
     @Test
-    void theMachineDrawingOnTheSlotIsTheConsumerItRelays() {
-        assertEquals(MACHINE_DEMAND, relayedWith(OptionalInt.of(MACHINE_DEMAND), OptionalInt.of(PARTNER_DEMAND)));
+    void theMachineDrawingOnTheSlotIsTheConsumerItStacks() {
+        assertEquals(resting + MACHINE_DEMAND, relayedWith(OptionalInt.of(MACHINE_DEMAND), OptionalInt.of(PARTNER_DEMAND)));
     }
 
     @Test

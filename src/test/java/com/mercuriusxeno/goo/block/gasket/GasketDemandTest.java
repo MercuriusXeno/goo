@@ -29,7 +29,7 @@ import static org.mockito.Mockito.withSettings;
 
 /**
  * A receiver's demand on the gasket network (decision receivers-demand-and-links-relay):
- * the power law of its capacity a container asks at rest, a link mirroring the demand
+ * the power law of its capacity a container asks at rest, a link adding the demand
  * behind it, and the pusher sending the lesser of the demand its partner states and
  * what it holds. The vanilla bootstrap stands the
  * water fluid; goo is a mocked goo fluid, and the handlers are mocks, since a fluid
@@ -103,22 +103,35 @@ class GasketDemandTest {
         }
     }
 
+    /**
+     * A link asks its own resting demand plus its dependent's (decision relay-adds-dependent-ask-to-own).
+     */
     @Nested
-    class MirrorOrRest {
+    class StackOnRest {
 
         @Test
-        void aDemandPlacedBehindIsMirrored() {
-            assertEquals(ASKED, GasketDemand.mirrorOrRest(OptionalInt.of(ASKED), LESS_THAN_ASKED));
+        void aDemandPlacedBehindStacksOnTheLinksRest() {
+            assertEquals(ASKED + LESS_THAN_ASKED, GasketDemand.stackOnRest(OptionalInt.of(ASKED), LESS_THAN_ASKED));
         }
 
         @Test
         void nothingBehindRests() {
-            assertEquals(LESS_THAN_ASKED, GasketDemand.mirrorOrRest(OptionalInt.empty(), LESS_THAN_ASKED));
+            assertEquals(LESS_THAN_ASKED, GasketDemand.stackOnRest(OptionalInt.empty(), LESS_THAN_ASKED));
         }
 
         @Test
         void aConsumerAskingNothingLeavesTheLinkAtRest() {
-            assertEquals(LESS_THAN_ASKED, GasketDemand.mirrorOrRest(OptionalInt.of(0), LESS_THAN_ASKED));
+            assertEquals(LESS_THAN_ASKED, GasketDemand.stackOnRest(OptionalInt.of(0), LESS_THAN_ASKED));
+        }
+
+        @Test
+        void aFullLinkPassesItsDependentsDemandAlone() {
+            assertEquals(ASKED, GasketDemand.stackOnRest(OptionalInt.of(ASKED), 0));
+        }
+
+        @Test
+        void aStackPastTheIntRangeHoldsAtItsMost() {
+            assertEquals(Integer.MAX_VALUE, GasketDemand.stackOnRest(OptionalInt.of(Integer.MAX_VALUE), ASKED));
         }
     }
 

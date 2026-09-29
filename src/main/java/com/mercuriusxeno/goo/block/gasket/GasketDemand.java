@@ -7,7 +7,7 @@ import java.util.OptionalInt;
 
 /**
  * The rate a receiver on the gasket network asks of its partner each tick
- * (decision receivers-demand-and-links-relay): a link mirrors the demand placed
+ * (decision receivers-demand-and-links-relay): a link adds the demand placed
  * on it from behind, and at rest asks the power law of its own capacity, so the
  * bigger a container is the stronger it pulls.
  */
@@ -38,15 +38,16 @@ public interface GasketDemand {
     }
 
     /**
-     * A link's demand: the demand placed on it from behind while that asks anything,
-     * otherwise its resting demand.
+     * A link's demand: its own resting demand plus the demand placed on it from behind
+     * (decision relay-adds-dependent-ask-to-own).
      *
      * @param placed  the demand of what stands behind the link, or empty when nothing does
      * @param resting the link's resting demand
      * @return the demand the link states upstream
      */
-    static int mirrorOrRest(OptionalInt placed, int resting) {
-        return placed.isPresent() && placed.getAsInt() > 0 ? placed.getAsInt() : resting;
+    static int stackOnRest(OptionalInt placed, int resting) {
+        long stacked = (long) resting + Math.max(0, placed.orElse(0));
+        return (int) Math.min(stacked, Integer.MAX_VALUE);
     }
 
     /**

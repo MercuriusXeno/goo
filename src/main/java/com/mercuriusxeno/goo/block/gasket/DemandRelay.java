@@ -6,9 +6,9 @@ import java.util.function.Function;
 import java.util.function.IntSupplier;
 
 /**
- * A container's link in the gasket chain (decision receivers-demand-and-links-relay):
- * it mirrors the demand placed on it from behind, and at rest asks its own resting
- * demand. A loop of links asking round finds this link already answering and rests.
+ * A container's link in the gasket chain (decision relay-adds-dependent-ask-to-own):
+ * it asks its own resting demand plus the demand placed on it from behind. A loop of
+ * links asking round finds this link already answering and adds nothing.
  */
 public final class DemandRelay {
 
@@ -37,7 +37,7 @@ public final class DemandRelay {
         }
         answering = true;
         try {
-            return OptionalInt.of(GasketDemand.mirrorOrRest(placed.apply(resource), resting.getAsInt()));
+            return OptionalInt.of(GasketDemand.stackOnRest(placed.apply(resource), resting.getAsInt()));
         } finally {
             answering = false;
         }

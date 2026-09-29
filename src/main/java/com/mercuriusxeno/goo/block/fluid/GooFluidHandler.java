@@ -34,7 +34,7 @@ import java.util.function.LongSupplier;
 public class GooFluidHandler extends FluidStacksResourceHandler implements GasketDemand {
 
     /**
-     * This container's link in the gasket chain: the demand behind it mirrored, or its resting demand.
+     * This container's link in the gasket chain: its resting demand plus the demand behind it.
      */
     private final DemandRelay relay = new DemandRelay();
 
@@ -372,8 +372,8 @@ public class GooFluidHandler extends FluidStacksResourceHandler implements Gaske
     }
 
     /**
-     * A container mirrors the demand of what it feeds, and at rest asks the power law of
-     * its capacity, so a bigger vat pulls harder (decision receivers-demand-and-links-relay).
+     * A container asks the power law of its capacity, so a bigger vat pulls harder, plus
+     * the demand of what it feeds (decision relay-adds-dependent-ask-to-own).
      * A per-type handler rests against the one tank the resource fills.
      */
     @Override
