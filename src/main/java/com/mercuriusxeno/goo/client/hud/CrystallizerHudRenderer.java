@@ -3,13 +3,17 @@ package com.mercuriusxeno.goo.client.hud;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.block.crystallizer.CrystallizerBlock;
 import com.mercuriusxeno.goo.block.crystallizer.CrystallizerBlockEntity;
+import com.mercuriusxeno.goo.item.ChrysmTier;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypeNames;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
@@ -29,8 +33,6 @@ import java.util.List;
 public final class CrystallizerHudRenderer {
 
     private static final HudAnimator<BlockPos> ANIMATOR = new HudAnimator<>(BlockPos::equals);
-    private static final int HEADER_COLOR = 0xFFE0C8FF;
-    private static final String CRYSTALLIZER_NAME_KEY = "block.goo.crystallizer";
     private static final double HALF = 0.5;
 
     private CrystallizerHudRenderer() {
@@ -87,15 +89,21 @@ public final class CrystallizerHudRenderer {
     }
 
     /**
-     * Paints the crystal panel beside the crystal, a header naming the crystallizer.
+     * Paints the crystal panel beside the crystal: the tier reached, then the forming
+     * goo's volume over the dial tier's. A dial at off or a crystal with no forming goo paints nothing.
      *
      * @param poseStack    the pose stack for rendering
      * @param camera       the render camera
      * @param crystallizer the crystallizer whose crystal the panel reports
      */
     private static void paintPanel(PoseStack poseStack, Camera camera, CrystallizerBlockEntity crystallizer) {
-        List<PanelRow> rows = List.of(PanelRow.header(
-                Component.translatable(CRYSTALLIZER_NAME_KEY).getString(), HEADER_COLOR));
+        ResourceKey<GooTypeDefinition> formingType = crystallizer.formingType();
+        ChrysmTier knobTier = CrystallizerBlock.knobTier(crystallizer.getBlockState());
+        if (formingType == null || knobTier == null) {
+            return;
+        }
+        List<PanelRow> rows = CrystallizerPanelRows.rows(formingType, crystallizer.crystallized(), knobTier,
+                tier -> Component.translatable(tier.translationKey(), GooTypeNames.name(formingType)).getString());
         double panelHalfWidth = PanelPainter.measure(rows, Minecraft.getInstance().font::width).width()
                 * InWorldHud.PIXEL_SCALE * HALF;
         Vec3 anchor = CrystallizerHudAnchor.besideCrystal(crystallizer.getBlockPos(),
