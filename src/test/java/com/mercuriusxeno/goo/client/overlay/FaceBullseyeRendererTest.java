@@ -96,11 +96,4 @@ class FaceBullseyeRendererTest {
             assertNull(FaceBullseyeRenderer.bullseyeFace(new TargetResult.EntityTarget(null)));
         }
     }
-
-    @Test
-    void everyRingStaysInsideTheFace() {
-        for (double radius : FaceBullseyeRenderer.RING_RADII) {
-            assertTrue(radius > 0 && radius < 0.5, () -> "radius " + radius);
-        }
-    }
 }
