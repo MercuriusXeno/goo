@@ -2,6 +2,8 @@ package com.mercuriusxeno.goo.block;
 
 import com.mercuriusxeno.goo.item.GooInteractionType;
 import net.minecraft.core.BlockPos;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
@@ -98,6 +100,17 @@ public final class GooBlockInteraction {
      */
     public static void consumeOneHeld(ItemStack stack, Player player) {
         stack.consume(1, player);
+    }
+
+    /**
+     * Plays the sound of a canister entering a machine, heard by every player near it: the one
+     * insert sound every canister host shares (decision every-machine-clicks-through-the-dispatcher).
+     *
+     * @param level the level the machine stands in
+     * @param pos   the machine's position
+     */
+    public static void playCanisterInsertSound(Level level, BlockPos pos) {
+        level.playSound(null, pos, SoundEvents.DECORATED_POT_INSERT, SoundSource.BLOCKS, 1.0f, 1.0f);
     }
 
     /**

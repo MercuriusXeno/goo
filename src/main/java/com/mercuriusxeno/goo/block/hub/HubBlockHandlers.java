@@ -109,8 +109,7 @@ final class HubBlockHandlers {
             return InteractionResult.TRY_WITH_EMPTY_HAND;
         }
         GooBlockInteraction.consumeOneHeld(stack, player);
-        hub.getLevel().playSound(null, hub.getBlockPos(),
-                SoundEvents.DECORATED_POT_INSERT, SoundSource.BLOCKS, 1.0f, 1.0f);
+        GooBlockInteraction.playCanisterInsertSound(hub.getLevel(), hub.getBlockPos());
         return InteractionResult.SUCCESS;
     }
 

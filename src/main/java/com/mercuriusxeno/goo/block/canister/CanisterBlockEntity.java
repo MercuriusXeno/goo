@@ -508,7 +508,7 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
         }
         GooBlockInteraction.consumeOneHeld(stack, player);
         if (level != null) {
-            level.playSound(null, worldPosition, SoundEvents.DECORATED_POT_INSERT, SoundSource.BLOCKS, 1.0f, 1.0f);
+            GooBlockInteraction.playCanisterInsertSound(level, worldPosition);
         }
         return true;
     }
