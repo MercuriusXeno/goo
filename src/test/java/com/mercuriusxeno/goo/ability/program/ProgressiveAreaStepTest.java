@@ -116,7 +116,7 @@ class ProgressiveAreaStepTest {
     }
 
     @Test
-    void previewLeadsTheStrikeByTheDelayAndTheWalkEndsWithTheLastLayer() {
+    void laterLayersPreviewAsTheLayerBeforeThemBreaksAndTheWalkEndsWithTheLastLayer() {
         MarkerHost host = host(Direction.SOUTH, DEEP_STACKS);
         ProgramBehavior program = new ProgramBehavior(List.of(step(AreaShape.TUNNEL)));
 
@@ -124,13 +124,15 @@ class ProgressiveAreaStepTest {
             program.tick(host);
         }
         verify(host).previewLayer(ROCK_DUST, 0, THREE_BY_THREE_REACH);
-        verify(host).previewLayer(ROCK_DUST, DEEP_LAYERS - 1, THREE_BY_THREE_REACH);
+        verify(host, never()).previewLayer(ROCK_DUST, 1, THREE_BY_THREE_REACH);
         verify(host, never()).applyBlockEffect(any(), any());
         verify(host, never()).reportMinedLayers(anyInt());
 
         program.tick(host);
         verify(host, times(FOOTPRINT_3X3)).applyBlockEffect(eq(SILK_BREAK), any());
-        verify(host).strikeLayerFx(ROCK_DUST, STONE_BREAK, 0, 0, FOOTPRINT_3X3);
+        InOrder opening = inOrder(host);
+        opening.verify(host).strikeLayerFx(ROCK_DUST, STONE_BREAK, 0, 0, FOOTPRINT_3X3);
+        opening.verify(host).previewLayer(ROCK_DUST, DEEP_LAYERS - 1, THREE_BY_THREE_REACH);
         verify(host).reportMinedLayers(1);
         assertTrue(program.isActive());
 
