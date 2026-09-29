@@ -17,7 +17,7 @@ import net.minecraft.world.phys.Vec3;
  * Renders a glowing dashed arc polyline from the glove hand to the target,
  * previewing the throw trajectory with multi-pass bloom.
  */
-final class ArcRenderer {
+public final class ArcRenderer {
     /** Dash segment length in world units. */
     private static final float DASH_ON = 0.5f;
     /** Gap length between dashes in world units. */
@@ -65,7 +65,7 @@ final class ArcRenderer {
      * @param end          the target endpoint position
      * @param rgb          the RGB color for tinting
      * @param partialTick  the partial tick for animation
-     * @param grannyWeight blend of the peak rules: 0 the plain peak, 1 the granny peak
+     * @param grannyWeight blend of the peak rules: 0 the plain peak, 1 the lob peak
      * @param straightLine if true, peak is zero (straight line, no arc)
      */
     static void renderTargetArc(
@@ -86,14 +86,14 @@ final class ArcRenderer {
      *
      * @param start     arc origin (hand position)
      * @param end       arc destination (target center)
-     * @param grannyWeight blend of the peak rules: 0 the plain peak, 1 the granny peak
+     * @param grannyWeight blend of the peak rules: 0 the plain peak, 1 the lob peak
      * @param straightLine true for zero peak (straight line)
      * @return sampled polyline points
      */
     private static Vec3[] sampleArcPoints(Vec3 start, Vec3 end,
             double grannyWeight, boolean straightLine) {
         double distance = start.distanceTo(end);
-        double peak = straightLine ? 0 : computeArcPeak(distance, grannyWeight);
+        double peak = straightLine ? 0 : computeArcPeak(start, end, grannyWeight);
         int segments = Mth.clamp(
                 (int) (distance / SAMPLE_SPACING),
                 MIN_ARC_SEGMENTS, MAX_ARC_SEGMENTS);
@@ -101,16 +101,17 @@ final class ArcRenderer {
     }
 
     /**
-     * Blends the plain and granny peak heights by weight, so the height
+     * Blends the plain and lob peak heights by weight, so the height
      * eases with the endpoint between the two kinds of target (decision
      * aim-line-lerps-toward-target).
      *
-     * @param distance     throw distance in blocks
-     * @param grannyWeight 0 for the plain peak, 1 for the granny peak
+     * @param start        arc origin (hand position)
+     * @param end          arc destination
+     * @param grannyWeight 0 for the plain peak, 1 for the lob peak
      * @return the arc peak height
      */
-    private static double computeArcPeak(double distance, double grannyWeight) {
-        return Mth.lerp(grannyWeight, ThrowArc.basePeak(distance), ThrowArc.grannyPeak(distance));
+    public static double computeArcPeak(Vec3 start, Vec3 end, double grannyWeight) {
+        return Mth.lerp(grannyWeight, ThrowArc.basePeak(start.distanceTo(end)), ThrowArc.lobPeak(start, end));
     }
 
     /**

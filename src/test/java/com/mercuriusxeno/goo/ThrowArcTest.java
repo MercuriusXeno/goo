@@ -23,6 +23,8 @@ class ThrowArcTest {
     private static final double SIXTEEN_BLOCKS = 16;
     private static final double EIGHTY_ONE_BLOCKS = 81;
     private static final double PEAK_TOLERANCE = 1e-9;
+    private static final double FACE_HEIGHT_TOLERANCE = 0.05;
+    private static final int ARC_SAMPLES = 200;
 
     /**
      * A 60-block throw at the default levity and base lands in 11 ticks.
@@ -71,11 +73,41 @@ class ThrowArcTest {
     }
 
     /**
-     * The granny arc is the base peak times 1.15 plus one block.
+     * A lob from a hand below the top face climbs to the face's height and no
+     * higher, at every throw length and hand depth (decision
+     * lob-apex-at-top-face-height).
      */
     @Test
-    void grannyPeakScalesAndBoostsTheBase() {
-        assertEquals(1.6 * 1.15 + 1.0, ThrowArc.grannyPeak(SIXTEEN_BLOCKS), PEAK_TOLERANCE);
+    void lobFromBelowTopsOutAtTheFace() {
+        double[] throwLengths = {2, 8, 16, 32};
+        double[] handDepths = {0.5, 1, 3};
+        Vec3 face = new Vec3(4.5, 70, 9.5);
+        for (double length : throwLengths) {
+            for (double depth : handDepths) {
+                Vec3 hand = face.add(-length, -depth, 0);
+                Vec3[] points = ThrowArc.sampleArc(hand, face, ThrowArc.lobPeak(hand, face), ARC_SAMPLES);
+                double highest = Double.NEGATIVE_INFINITY;
+                for (Vec3 point : points) {
+                    highest = Math.max(highest, point.y);
+                }
+                assertEquals(face.y, highest, FACE_HEIGHT_TOLERANCE, "length " + length + ", depth " + depth);
+            }
+        }
+    }
+
+    /**
+     * A lob from a hand level with the top face or above it flies the plain
+     * throw peak.
+     */
+    @Test
+    void lobFromLevelOrAboveFliesThePlainPeak() {
+        Vec3 face = new Vec3(4.5, 70, 9.5);
+        Vec3 levelHand = face.add(-SIXTEEN_BLOCKS, 0, 0);
+        Vec3 highHand = face.add(-SIXTEEN_BLOCKS, 2, 0);
+        assertEquals(ThrowArc.basePeak(levelHand.distanceTo(face)), ThrowArc.lobPeak(levelHand, face),
+                PEAK_TOLERANCE);
+        assertEquals(ThrowArc.basePeak(highHand.distanceTo(face)), ThrowArc.lobPeak(highHand, face),
+                PEAK_TOLERANCE);
     }
 
     /**

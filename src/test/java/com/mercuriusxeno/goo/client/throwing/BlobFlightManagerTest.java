@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.throwing;
 
 import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ThrowArc;
+import com.mercuriusxeno.goo.client.overlay.ArcRenderer;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -27,12 +28,18 @@ class BlobFlightManagerTest {
     }
 
     /**
-     * A granny arc at the same mob reads the boosted peak.
+     * A lob flight flies the peak the aim indicator draws for the same start
+     * and top face, whether the hand sits below the face or above it
+     * (decision lob-apex-at-top-face-height).
      */
     @Test
-    void grannyArcReadsTheBoostedPeak() {
-        assertEquals(ThrowArc.grannyPeak(16),
-                BlobFlightManager.peakForFlight(START, MOB_SIXTEEN_AWAY, GooTypes.FROST, true), PEAK_TOLERANCE);
+    void lobFlightFliesTheIndicatorPeak() {
+        Vec3 faceAboveHand = START.add(0, 2, 8);
+        Vec3 faceBelowHand = START.add(0, -2, 8);
+        assertEquals(ArcRenderer.computeArcPeak(START, faceAboveHand, 1),
+                BlobFlightManager.peakForFlight(START, faceAboveHand, GooTypes.FROST, true), PEAK_TOLERANCE);
+        assertEquals(ArcRenderer.computeArcPeak(START, faceBelowHand, 1),
+                BlobFlightManager.peakForFlight(START, faceBelowHand, GooTypes.FROST, true), PEAK_TOLERANCE);
     }
 
     /**
