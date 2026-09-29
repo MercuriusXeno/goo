@@ -38,6 +38,9 @@ public class ChainMarkerRenderState extends BlockEntityRenderState {
     /** Delivery area mode: "tunnel", "flat_circle", or "sphere". */
     public String areaMode = "tunnel";
 
+    /** The progressive-area step's radius at one stack, zero when the ability names none. */
+    public int areaStartRadius;
+
     /** Game tick when the last stack was added (for pulse animation). */
     public long lastStackTick;
 

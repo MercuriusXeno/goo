@@ -26,7 +26,6 @@ public final class AbilityMath {
     /**
      * Base freeze radius before stacking.
      */
-    private static final int FREEZE_BASE_RADIUS = 2;
     /**
      * Nether conversion base radius.
      */
@@ -100,16 +99,6 @@ public final class AbilityMath {
         return rockTotal * MAJORITY_MULTIPLIER > value.totalBlobs();
     }
 
-
-    /**
-     * Frost freeze radius. Formula: 2 + n.
-     *
-     * @param stackCount 1-based stack level
-     * @return spherical freeze radius (3, 4, 5, 6)
-     */
-    public static int computeFreezeRadius(int stackCount) {
-        return FREEZE_BASE_RADIUS + stackCount;
-    }
 
     /**
      * Nether conversion radius. Formula: 1 + 2n.

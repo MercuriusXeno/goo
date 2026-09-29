@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.effect;
 
 import com.mercuriusxeno.goo.ability.ChainFootprint;
+import net.minecraft.core.Direction;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.HashSet;
@@ -9,7 +10,7 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Tests for ChainFootprint: shared scaling math for rock and blaze effects.
+ * ChainFootprint's tunnel ladder, round disc and round ball.
  */
 class ChainFootprintTest {
 
@@ -27,23 +28,6 @@ class ChainFootprintTest {
 
     private static boolean containsOffset3d(List<int[]> list, int x, int y, int z) {
         return list.stream().anyMatch(p -> p[0] == x && p[1] == y && p[2] == z);
-    }
-
-    private static Set<String> toSet3d(List<int[]> list) {
-        Set<String> set = new HashSet<>();
-        for (int[] p : list) {
-            set.add(p[0] + "," + p[1] + "," + p[2]);
-        }
-        return set;
-    }
-
-    private static boolean disjoint(Set<String> a, Set<String> b) {
-        for (String s : a) {
-            if (b.contains(s)) {
-                return false;
-            }
-        }
-        return true;
     }
 
     @Nested
@@ -173,67 +157,65 @@ class ChainFootprintTest {
     }
 
     @Nested
-    class SphereShell {
-        @Test
-        void radius0IsOriginOnly() {
-            List<int[]> shell = ChainFootprint.sphereShell(0);
-            assertEquals(1, shell.size());
-            assertTrue(containsOffset3d(shell, 0, 0, 0));
-        }
-
-        @Test
-        void radius1HasSixCardinals() {
-            List<int[]> shell = ChainFootprint.sphereShell(1);
-            assertTrue(containsOffset3d(shell, 1, 0, 0));
-            assertTrue(containsOffset3d(shell, -1, 0, 0));
-            assertTrue(containsOffset3d(shell, 0, 1, 0));
-            assertTrue(containsOffset3d(shell, 0, -1, 0));
-            assertTrue(containsOffset3d(shell, 0, 0, 1));
-            assertTrue(containsOffset3d(shell, 0, 0, -1));
-            assertFalse(containsOffset3d(shell, 0, 0, 0), "origin should not be in shell 1");
-        }
-
-        @Test
-        void shellsDoNotOverlap() {
-            Set<String> r0 = toSet3d(ChainFootprint.sphereShell(0));
-            Set<String> r1 = toSet3d(ChainFootprint.sphereShell(1));
-            Set<String> r2 = toSet3d(ChainFootprint.sphereShell(2));
-            assertTrue(disjoint(r0, r1), "shell 0 and 1 overlap");
-            assertTrue(disjoint(r1, r2), "shell 1 and 2 overlap");
-            assertTrue(disjoint(r0, r2), "shell 0 and 2 overlap");
-        }
-
-        @Test
-        void shellsUnionEqualsSolid() {
-            int radius = 3;
-            Set<String> union = new HashSet<>();
-            for (int r = 0; r <= radius; r++) {
-                union.addAll(toSet3d(ChainFootprint.sphereShell(r)));
-            }
-            int r2 = radius * radius;
-            int solidCount = 0;
-            for (int x = -radius; x <= radius; x++) {
-                for (int y = -radius; y <= radius; y++) {
-                    for (int z = -radius; z <= radius; z++) {
-                        if (x * x + y * y + z * z <= r2) {
-                            solidCount++;
+    class Ball {
+        private static Set<String> ballByRule(int radius) {
+            Set<String> ball = new HashSet<>();
+            double reach = radius + 0.5;
+            for (int x = -radius - 1; x <= radius + 1; x++) {
+                for (int y = -radius - 1; y <= radius + 1; y++) {
+                    for (int z = -radius - 1; z <= radius + 1; z++) {
+                        if (Math.sqrt(x * x + y * y + z * z) < reach) {
+                            ball.add(x + "," + y + "," + z);
                         }
                     }
                 }
             }
-            assertEquals(solidCount, union.size(),
-                    "union of shells 0.." + radius + " should equal solid sphere");
+            return ball;
         }
 
         @Test
-        void allUniqueWithinShell() {
-            for (int r = 0; r <= 4; r++) {
-                List<int[]> shell = ChainFootprint.sphereShell(r);
-                Set<String> seen = new HashSet<>();
-                for (int[] p : shell) {
-                    assertTrue(seen.add(p[0] + "," + p[1] + "," + p[2]),
-                            "duplicate in shell " + r);
+        void shellsAreDisjointAndUniteToEveryCellCenteredUnderRadiusPlusHalf() {
+            for (int radius = 0; radius <= 6; radius++) {
+                Set<String> union = new HashSet<>();
+                for (int shell = 0; shell <= radius; shell++) {
+                    for (int[] p : ChainFootprint.sphereShell(shell, radius)) {
+                        assertTrue(union.add(p[0] + "," + p[1] + "," + p[2]),
+                                "cell in two shells at radius=" + radius);
+                    }
                 }
+                assertEquals(ballByRule(radius), union, "ball at radius=" + radius);
+            }
+        }
+
+        @Test
+        void shellsStepOutwardByIntegerDistance() {
+            for (int radius = 0; radius <= 6; radius++) {
+                for (int shell = 0; shell <= radius; shell++) {
+                    for (int[] p : ChainFootprint.sphereShell(shell, radius)) {
+                        int distance = (int) Math.floor(Math.sqrt(p[0] * p[0] + p[1] * p[1] + p[2] * p[2]));
+                        assertEquals(shell, distance, "shell " + shell + " at radius=" + radius);
+                    }
+                }
+            }
+        }
+
+        @Test
+        void radiusZeroIsTheCenterAlone() {
+            List<int[]> center = ChainFootprint.sphereShell(0, 0);
+            assertEquals(1, center.size());
+            assertTrue(containsOffset3d(center, 0, 0, 0));
+        }
+
+        @Test
+        void regionOffsetsHoldTheBallAtTheStartRadiusPlusStacksLessOne() {
+            for (int stacks = 1; stacks <= 4; stacks++) {
+                int radius = 3 + stacks - 1;
+                Set<String> shifted = new HashSet<>();
+                for (int[] p : ChainFootprint.computeRegionOffsets(stacks, ChainFootprint.AREA_SPHERE, 3,
+                        Direction.SOUTH)) {
+                    shifted.add(p[0] + "," + p[1] + "," + (p[2] + 1));
+                }
+                assertEquals(ballByRule(radius), shifted, "ball at stacks=" + stacks);
             }
         }
     }
