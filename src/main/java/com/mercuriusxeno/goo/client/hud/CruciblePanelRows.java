@@ -3,8 +3,8 @@ package com.mercuriusxeno.goo.client.hud;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
 import com.mercuriusxeno.goo.block.crucible.CrucibleMeltQueue;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
-import com.mercuriusxeno.goo.client.GooTooltipHandler;
 import com.mercuriusxeno.goo.item.GooContents;
+import com.mercuriusxeno.goo.item.GooFormat;
 import com.mercuriusxeno.goo.item.PartiallyMeltedItem;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.resources.Identifier;
@@ -28,10 +28,10 @@ final class CruciblePanelRows {
     /** Separator between reservoir and total volumes. */
     private static final String VOLUME_SEPARATOR = " / ";
     /**
-     * The widest type row text under 10 blobs, which every type row measures at
+     * The widest type row text under 10K, which every type row measures at
      * least (decision crucible-panel-floors-width-under-ten-blobs).
      */
-    static final String SUB_TEN_BLOB_FLOOR_TEXT = "9.99" + VOLUME_SEPARATOR + "9.99";
+    static final String SUB_TEN_THOUSAND_FLOOR_TEXT = "9.99K" + VOLUME_SEPARATOR + "9.99K";
     /** Percent in a whole fraction. */
     private static final int PERCENT = 100;
     /** Suffix after the dissolved percent. */
@@ -126,7 +126,7 @@ final class CruciblePanelRows {
 
     /**
      * Builds one type row: icon, reservoir volume, a dim separator, total volume,
-     * floored at the widest sub-10-blob text so the panel holds still while draining.
+     * floored at the widest text under 10K so the panel holds still while draining.
      *
      * @param type         the goo type
      * @param reservoirVol the reservoir volume in mB
@@ -135,11 +135,11 @@ final class CruciblePanelRows {
      */
     private static PanelRow typeRow(ResourceKey<GooTypeDefinition> type, int reservoirVol, long totalVol) {
         return new PanelRow(PanelPainter.gooIcon(type), List.of(
-                new PanelRow.TextSegment(GooTooltipHandler.formatFluidDisplayCompact(reservoirVol),
+                new PanelRow.TextSegment(GooFormat.formatAmount(reservoirVol),
                         PanelPainter.TEXT_COLOR),
                 new PanelRow.TextSegment(VOLUME_SEPARATOR, SEPARATOR_COLOR),
-                new PanelRow.TextSegment(GooTooltipHandler.formatFluidDisplayCompact(totalVol),
-                        PanelPainter.TEXT_COLOR)), false, SUB_TEN_BLOB_FLOOR_TEXT);
+                new PanelRow.TextSegment(GooFormat.formatAmount(totalVol),
+                        PanelPainter.TEXT_COLOR)), false, SUB_TEN_THOUSAND_FLOOR_TEXT);
     }
 
     /**

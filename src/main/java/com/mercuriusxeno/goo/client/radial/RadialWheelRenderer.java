@@ -4,8 +4,8 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.GooSubmitter;
-import com.mercuriusxeno.goo.client.GooTooltipHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
+import com.mercuriusxeno.goo.item.GooFormat;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypeNames;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -173,7 +173,7 @@ final class RadialWheelRenderer {
      */
     static FanSlot fanSlot(ClientAbility ability, int holdings) {
         int firstThrow = ability.throwCost(0);
-        return new FanSlot(GooTooltipHandler.formatFluidDisplayCompact(firstThrow), firstThrow > holdings);
+        return new FanSlot(GooFormat.formatAmount(firstThrow), firstThrow > holdings);
     }
 
     /**
@@ -184,7 +184,7 @@ final class RadialWheelRenderer {
      */
     static String holdingsLabel(int holdings) {
         // hud-amounts-read-through-goo-format: the machine panels' blob convention
-        return GooTooltipHandler.formatFluidDisplayCompact(holdings);
+        return GooFormat.formatAmount(holdings);
     }
 
     private static void renderCenterLabel(GuiGraphicsExtractor graphics, Font font, Frame frame) {

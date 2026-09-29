@@ -18,7 +18,6 @@ import java.util.Map;
 import java.util.function.ToIntFunction;
 import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests that PanelPainter measures the canister, vat and crucible panels to the
@@ -48,11 +47,11 @@ class PanelPainterMeasureTest {
         twoTypes.put(GooTypes.BLAZE, 250);
         PanelRow fuelSixtySeconds = PanelRow.iconText(Identifier.withDefaultNamespace("fuel"), "60s", 0);
         return Stream.of(
-                // label "Tank" 24, "Lv 2" 24, ".500" row 12+24=36: 36+6 by 6+3*11
+                // label "Tank" 24, "Lv 2" 24, "500" row 12+18=30: 30+6 by 6+3*11
                 Arguments.of("canister label upgrade goo",
-                        CanisterPanelRows.rows("Tank", 2, rock500), 42f, 39f),
+                        CanisterPanelRows.rows("Tank", 2, rock500), 36f, 39f),
                 Arguments.of("canister goo only",
-                        CanisterPanelRows.rows(null, 0, rock500), 42f, 17f),
+                        CanisterPanelRows.rows(null, 0, rock500), 36f, 17f),
                 // "Reservoir North" 90 is the widest; two header rows
                 Arguments.of("canister empty with label and upgrade",
                         CanisterPanelRows.rows("Reservoir North", 3, GooContents.EMPTY), 96f, 28f),
@@ -60,13 +59,13 @@ class PanelPainterMeasureTest {
                 Arguments.of("vat stack with every header",
                         VatPanelRows.rows(vat(contents(twoTypes), 1, "Main", 3)), 54f, 61f),
                 Arguments.of("vat single goo only",
-                        VatPanelRows.rows(vat(rock500, 0, null, 1)), 42f, 17f),
-                // ".500 / .750" 66 after icon and gap: 78+6 by 6+11
+                        VatPanelRows.rows(vat(rock500, 0, null, 1)), 36f, 17f),
+                // the "9.99K / 9.99K" floor, 78 after icon and gap: 90+6 by 6+11
                 Arguments.of("crucible reservoir and pool",
-                        CruciblePanelRows.rows(rock500, rock250, List.of()), 84f, 17f),
-                // ".500 / .500" row 78 beats the "60s" fuel row 30
+                        CruciblePanelRows.rows(rock500, rock250, List.of()), 96f, 17f),
+                // the floored goo row 90 beats the "60s" fuel row 30
                 Arguments.of("crucible goo and fuel",
-                        CruciblePanelRows.rows(rock500, GooContents.EMPTY, List.of(fuelSixtySeconds)), 84f, 28f),
+                        CruciblePanelRows.rows(rock500, GooContents.EMPTY, List.of(fuelSixtySeconds)), 96f, 28f),
                 // fuel row alone: 12+18=30, plus borders
                 Arguments.of("crucible fuel only",
                         CruciblePanelRows.rows(GooContents.EMPTY, GooContents.EMPTY, List.of(fuelSixtySeconds)),
@@ -90,36 +89,23 @@ class PanelPainterMeasureTest {
     }
 
     /**
-     * "9.99 / 9.99" is 66 after the 12 of icon and gap, plus 6 of borders: the
+     * "9.99K / 9.99K" is 78 after the 12 of icon and gap, plus 6 of borders: the
      * crucible floor (decision crucible-panel-floors-width-under-ten-blobs).
      */
-    private static final float CRUCIBLE_FLOOR_WIDTH = 84f;
+    private static final float CRUCIBLE_FLOOR_WIDTH = 96f;
 
     /**
-     * A draining crucible below 10 blobs measures the floor's width whatever
-     * the compact format's length at that volume.
+     * A draining crucible below 10K measures the floor's width whatever
+     * the format's length at that amount.
      *
-     * @param reservoirVolume the reservoir volume in mB, with an empty pool
+     * @param reservoirVolume the reservoir amount, with an empty pool
      */
-    @ParameterizedTest(name = "{0} mB")
+    @ParameterizedTest(name = "{0}")
     @ValueSource(ints = {500, 9_000, 9_900, 9_990})
-    void crucibleBelowTenBlobsMeasuresTheFloor(int reservoirVolume) {
+    void crucibleBelowTenThousandMeasuresTheFloor(int reservoirVolume) {
         List<PanelRow> rows = CruciblePanelRows.rows(
                 contents(Map.of(GooTypes.ROCK, reservoirVolume)), GooContents.EMPTY, List.of());
         assertEquals(CRUCIBLE_FLOOR_WIDTH, PanelPainter.measure(rows, SIX_PIXELS_A_CHARACTER).width());
-    }
-
-    /**
-     * Past 10 blobs a crucible row whose text outgrows the floor measures wider:
-     * "1.23K / 1.23K" is 78 after the icon and gap, plus borders.
-     */
-    @Test
-    void crucibleTextWiderThanTheFloorMeasuresWider() {
-        List<PanelRow> rows = CruciblePanelRows.rows(
-                contents(Map.of(GooTypes.ROCK, 1_234_567)), GooContents.EMPTY, List.of());
-        float width = PanelPainter.measure(rows, SIX_PIXELS_A_CHARACTER).width();
-        assertEquals(96f, width);
-        assertTrue(width > CRUCIBLE_FLOOR_WIDTH);
     }
 
     /**

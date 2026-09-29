@@ -44,23 +44,23 @@ public class GooConfig {
             .defineInRange("sparkHeatTicks", DEFAULT_SPARK_HEAT_TICKS, 1, Integer.MAX_VALUE);
 
         BLAZE_TICKS_PER_MB = builder
-            .comment("Ticks of heat one mB of blaze goo buys; heat is spent only on ticks that melt an item.")
+            .comment("Ticks of heat one unit of blaze goo buys; heat is spent only on ticks that melt an item.")
             .defineInRange("blazeTicksPerMb", DEFAULT_BLAZE_TICKS_PER_MB, 1, Integer.MAX_VALUE);
 
         BLAZE_MELT_EXPONENT = builder
-            .comment("An item alone in the crucible melts in ceil(mB ^ this) ticks while the crucible burns blaze goo.")
+            .comment("An item alone in the crucible melts in ceil(amount ^ this) ticks while the crucible burns blaze goo.")
             .defineInRange("blazeMeltExponent", DEFAULT_BLAZE_MELT_EXPONENT, 0.0, MAX_MELT_EXPONENT);
 
         UNSTABLE_TICKS_PER_MB = builder
-            .comment("Ticks of heat one mB of unstable goo buys.")
+            .comment("Ticks of heat one unit of unstable goo buys.")
             .defineInRange("unstableTicksPerMb", DEFAULT_UNSTABLE_TICKS_PER_MB, 1, Integer.MAX_VALUE);
 
         UNSTABLE_MELT_EXPONENT = builder
-            .comment("An item alone in the crucible melts in ceil(mB ^ this) ticks while the crucible burns unstable goo.")
+            .comment("An item alone in the crucible melts in ceil(amount ^ this) ticks while the crucible burns unstable goo.")
             .defineInRange("unstableMeltExponent", DEFAULT_UNSTABLE_MELT_EXPONENT, 0.0, MAX_MELT_EXPONENT);
 
         COMBO_DRAIN_PER_TICK = builder
-            .comment("mB of each fuel goo the crucible burns per melt tick while blaze and unstable both stand,",
+            .comment("Amount of each fuel goo the crucible burns per melt tick while blaze and unstable both stand,",
                 "advancing every item each tick on unstableMeltExponent's clock.")
             .defineInRange("comboDrainPerTick", DEFAULT_COMBO_DRAIN_PER_TICK, 1, Integer.MAX_VALUE);
 

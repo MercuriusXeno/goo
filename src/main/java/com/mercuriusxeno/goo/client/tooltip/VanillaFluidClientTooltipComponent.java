@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.client.tooltip;
 
-import com.mercuriusxeno.goo.client.GooTooltipHandler;
+import com.mercuriusxeno.goo.item.GooFormat;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;
@@ -12,7 +12,7 @@ import net.minecraft.world.level.material.Fluids;
 import org.jspecify.annotations.NonNull;
 
 /**
- * Renders a vanilla fluid tooltip line: bucket item icon + "NNNN mB" text.
+ * Renders a vanilla fluid tooltip line: bucket item icon + the amount text GooFormat formats.
  */
 public class VanillaFluidClientTooltipComponent implements ClientTooltipComponent {
 
@@ -42,7 +42,7 @@ public class VanillaFluidClientTooltipComponent implements ClientTooltipComponen
     public VanillaFluidClientTooltipComponent(VanillaFluidTooltipComponent data) {
         this.bucketIcon = getBucketForFluid(data.fluid());
         this.displayText = Component.literal(
-                GooTooltipHandler.formatFluidDisplay(data.amount()));
+                GooFormat.formatAmount(data.amount()));
     }
 
     /**
