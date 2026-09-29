@@ -15,10 +15,11 @@ import java.util.stream.Stream;
 
 /**
  * The progressive-area sub-chain as one step: walks the layers of a
- * footprint, previewing layer {@code i} on tick {@code i} and striking it
- * on tick {@code i + preview_delay} with a per-cell block effect, then the
- * layer's visuals and audio scaled by the cells the effect changed, and
- * finishes once the last layer is struck. The effect, the visuals and the
+ * footprint, striking layer {@code i} on tick {@code i + preview_delay}
+ * with a per-cell block effect, then the layer's visuals and audio scaled
+ * by the cells the effect changed, and finishes once the last layer is
+ * struck. Layer 0 previews on the first tick and every later layer on the
+ * tick the layer before it breaks, so its ring stands in an open block. The effect, the visuals and the
  * audio are the data-selected delegates of {@link BlockEffectType},
  * {@link LayerVisualsType} and {@link LayerAudioType}; a name none of
  * them holds refuses at load. Rock, blaze and frost each run this step
@@ -28,7 +29,7 @@ import java.util.stream.Stream;
  * @param effect       the block effect's registered name
  * @param visuals      the layer visuals' registered name
  * @param audio        the layer audio's registered name
- * @param previewDelay ticks between a layer's preview and its strike
+ * @param previewDelay ticks between layer 0's preview and its strike
  * @param startRadius  the footprint's radius at one stack, zero when the JSON names none
  */
 public record ProgressiveAreaStep(AreaShape shape, String effect, String visuals, String audio,
@@ -100,16 +101,34 @@ public record ProgressiveAreaStep(AreaShape shape, String effect, String visuals
         int layers = AreaLayers.layerCount(shape, stacks, startRadius);
         int delay = previewDelay.evaluateInt(context);
         int tick = context.stepTicks();
-        if (tick < layers) {
-            host.previewLayer(visuals, AreaLayers.layerDepth(shape, tick),
-                    AreaLayers.layerReach(shape, stacks, startRadius));
+        if (tick == 0) {
+            preview(host, stacks, 0);
         }
         int struck = tick - delay;
         if (struck >= 0 && struck < layers) {
             strike(context, struck);
             host.reportMinedLayers(struck + 1);
+            if (struck + 1 < layers) {
+                preview(host, stacks, struck + 1);
+            }
         }
         return tick + 1 >= layers + delay;
+    }
+
+    /**
+     * Plays a layer's preview. Its ring stands in the block the layer
+     * before it filled, so it goes out once that block is open: on the
+     * first tick for layer 0, whose ring stands in the marker's air, and
+     * on the tick the layer before breaks for every later one (decision
+     * themed-ring-before-every-layer).
+     *
+     * @param host   the layer walk host
+     * @param stacks the marker's stack count
+     * @param layer  the layer index
+     */
+    private void preview(LayerWalkHost host, int stacks, int layer) {
+        host.previewLayer(visuals, AreaLayers.layerDepth(shape, layer),
+                AreaLayers.layerReach(shape, stacks, startRadius));
     }
 
     /**
