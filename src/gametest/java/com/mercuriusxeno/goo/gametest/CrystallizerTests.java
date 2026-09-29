@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
 import com.mercuriusxeno.goo.block.canister.CanisterSlotLayout;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlock;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
+import com.mercuriusxeno.goo.block.crystallizer.CrystalReach;
 import com.mercuriusxeno.goo.block.crystallizer.CrystallizerBlock;
 import com.mercuriusxeno.goo.block.crystallizer.CrystallizerBlockEntity;
 import com.mercuriusxeno.goo.block.crystallizer.CrystallizerPhases;
@@ -30,6 +31,12 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
@@ -65,22 +72,27 @@ public final class CrystallizerTests {
     private static final BlockPos CANISTERS_POS = CRYSTALLIZER_POS.above();
     private static final int CHRYSM_VOLUME = Math.toIntExact(ChrysmTier.CHRYSM.volume());
     private static final int CRYSTAL_COST = CHRYSM_VOLUME / CrystallizerPhases.GOO_PER_CRYSTAL;
-    private static final int KILO_VOLUME = Math.toIntExact(ChrysmTier.KILOCHRYSM.volume());
-    private static final int HALF_KILO = KILO_VOLUME / 2;
+    private static final int BUDDING_VOLUME = Math.toIntExact(ChrysmTier.BUDDING_CHRYSM.volume());
+    private static final int HALF_BUDDING = BUDDING_VOLUME / 2;
     private static final int MORE_ENDER = 5_000;
     private static final int FIRST = 0;
     private static final int SECOND = 1;
     private static final int PUSH_TICKS = 20;
-    /** A chrysm's 200 ticks at the pace, with margin. */
-    private static final int CHRYSM_TICKS = 220;
-    /** A kilochrysm's 400 ticks at the pace, with margin. */
-    private static final int KILOCHRYSM_TICKS = 440;
-    /** 500,000 mB at the pace: about 380 ticks, with margin. */
-    private static final int HALF_KILO_TICKS = 420;
-    /** Half a chrysm, 500 mB, at the flat pace of 5 mB a tick: 100 ticks, with margin. */
-    private static final int HALF_CHRYSM_TICKS = 110;
+    /** A chrysm's 500 ticks at the pace, with margin. */
+    private static final int CHRYSM_TICKS = 520;
+    /** A budding chrysm's 1,500 ticks at the pace, with margin. */
+    private static final int BUDDING_CHRYSM_TICKS = 1_540;
+    /** 500,000 mB at the pace: a chrysm's 500 ticks and 468,000 mB at 968 a tick, about 984 ticks, with margin. */
+    private static final int HALF_BUDDING_TICKS = 1_020;
+    /** Half a chrysm, 16,000 mB, at the chrysm pace of 64 mB a tick: 250 ticks, with margin. */
+    private static final int HALF_CHRYSM_TICKS = 260;
     private static final int STILL_GROWING_TICKS = 100;
     private static final int SOME_TICKS = 20;
+    /** The server takes a click's point only within this of its block's center. */
+    private static final double SERVER_REACH = 1.0000001;
+    /** Goo past a chrysm: 16,000 mB at the budding pace of 968 a tick, 17 ticks after the chrysm's 500. */
+    private static final int EXCESS = 16_000;
+    private static final int EXCESS_TICKS = 560;
     private static final double HALF = 0.5;
     private static final double SIDE_OFFSET = 2;
     private static final double PIXELS = 16.0;
@@ -354,8 +366,8 @@ public final class CrystallizerTests {
     }
 
     /**
-     * 1,000 mB of ender beside only 50 mB of crystal crystallizes half and forms no
-     * chrysm; 50 mB more crystal finishes it. The model reads active while it
+     * A chrysm's ender beside half its crystal crystallizes half and forms no
+     * chrysm; the other half of the crystal finishes it. The model reads active while it
      * crystallizes and idle after.
      *
      * @param helper the gametest helper
@@ -381,73 +393,139 @@ public final class CrystallizerTests {
     }
 
     /**
-     * With the knob at medium, 1,000,000 mB of ender and 100,000 mB of crystal
-     * crystallize into a kilochrysm that a click hands over.
+     * With the knob at 2, 1,000,000 mB of ender and 100,000 mB of crystal
+     * crystallize into a budding chrysm that a click hands over.
      *
      * @param helper the gametest helper
      */
-    public static void advancesToKilochrysm(GameTestHelper helper) {
+    public static void advancesToBuddingChrysm(GameTestHelper helper) {
         CrystallizerBlockEntity crystallizer = placeCrystallizer(helper, 2);
-        insert(helper, FIRST, canister(GooTypes.CRYSTAL, KILO_VOLUME / CrystallizerPhases.GOO_PER_CRYSTAL));
-        insert(helper, SECOND, canister(GooTypes.ENDER, KILO_VOLUME));
-        helper.runAfterDelay(KILOCHRYSM_TICKS, () -> {
-            assertClickHands(helper, GooItems.KILOCHRYSM.get(), GooTypes.ENDER);
+        insert(helper, FIRST, canister(GooTypes.CRYSTAL, BUDDING_VOLUME / CrystallizerPhases.GOO_PER_CRYSTAL));
+        insert(helper, SECOND, canister(GooTypes.ENDER, BUDDING_VOLUME));
+        helper.runAfterDelay(BUDDING_CHRYSM_TICKS, () -> {
+            assertClickHands(helper, GooItems.BUDDING_CHRYSM.get(), GooTypes.ENDER);
             helper.succeed();
         });
     }
 
     /**
-     * With the knob at medium, 500,000 mB of ender crystallized is part grown: a click
+     * With the knob at 2, 500,000 mB of ender crystallized is part grown: a click
      * hands nothing and the crystal stays.
      *
      * @param helper the gametest helper
      */
     public static void partGrownCrystalIsNotClickable(GameTestHelper helper) {
         CrystallizerBlockEntity crystallizer = placeCrystallizer(helper, 2);
-        insert(helper, FIRST, canister(GooTypes.CRYSTAL, HALF_KILO / CrystallizerPhases.GOO_PER_CRYSTAL));
-        insert(helper, SECOND, canister(GooTypes.ENDER, HALF_KILO));
-        helper.runAfterDelay(HALF_KILO_TICKS, () -> {
-            helper.assertValueEqual((long) HALF_KILO, crystallizer.crystallized(), "crystallized before the click");
+        insert(helper, FIRST, canister(GooTypes.CRYSTAL, HALF_BUDDING / CrystallizerPhases.GOO_PER_CRYSTAL));
+        insert(helper, SECOND, canister(GooTypes.ENDER, HALF_BUDDING));
+        helper.runAfterDelay(HALF_BUDDING_TICKS, () -> {
+            helper.assertValueEqual((long) HALF_BUDDING, crystallizer.crystallized(), "crystallized before the click");
             Player player = helper.makeMockPlayer(GameType.SURVIVAL);
             BlockPos abs = helper.absolutePos(CRYSTALLIZER_POS);
             helper.useBlock(CRYSTALLIZER_POS, player, new BlockHitResult(
                     new Vec3(abs.getX() + HALF, abs.getY() + HALF, abs.getZ() + 1.0), Direction.SOUTH, abs, false));
             helper.assertTrue(player.getItemInHand(InteractionHand.MAIN_HAND).isEmpty(),
                     "A part-grown crystal should hand nothing");
-            helper.assertValueEqual((long) HALF_KILO, crystallizer.crystallized(), "crystallized after the click");
+            helper.assertValueEqual((long) HALF_BUDDING, crystallizer.crystallized(), "crystallized after the click");
             helper.succeed();
         });
     }
 
     /**
-     * Stepping the dial while 500 mB of ender is still crystallizing shatters it into
-     * a 500 mB ender omniblob and a 50 mB crystal omniblob, and the crystal is gone.
+     * Stepping the dial up while half a chrysm of ender is still crystallizing keeps the
+     * crystal whole and drops nothing, and it grows on once crystal arrives (operator
+     * ruling: a dial click never resets the crystal).
      *
      * @param helper the gametest helper
      */
-    public static void dialChangeShattersAGrowingCrystal(GameTestHelper helper) {
+    public static void dialStepKeepsAGrowingCrystal(GameTestHelper helper) {
         CrystallizerBlockEntity crystallizer = placeCrystallizer(helper, 1);
         insert(helper, FIRST, canister(GooTypes.CRYSTAL, CRYSTAL_COST / 2));
         insert(helper, SECOND, canister(GooTypes.ENDER, CHRYSM_VOLUME));
         helper.runAfterDelay(HALF_CHRYSM_TICKS + SOME_TICKS, () -> {
             helper.assertValueEqual(CHRYSM_VOLUME / 2L, crystallizer.crystallized(), "crystallized before the dial");
+            clickDial(helper);
+            helper.assertValueEqual(2, helper.getBlockState(CRYSTALLIZER_POS).getValue(CrystallizerBlock.KNOB),
+                    "knob after the click");
+            helper.assertValueEqual(CHRYSM_VOLUME / 2L, crystallizer.crystallized(), "crystallized after the dial");
+            helper.assertTrue(droppedNear(helper).isEmpty(), "A dial click should drop nothing");
+            canisters(helper).insertGoo(NORTH_SLOTS[FIRST], GooTypes.CRYSTAL, CRYSTAL_COST / 2);
+            helper.runAfterDelay(SOME_TICKS, () -> {
+                helper.assertTrue(crystallizer.crystallized() > CHRYSM_VOLUME / 2L,
+                        "The kept crystal should grow on, crystallized " + crystallizer.crystallized());
+                helper.succeed();
+            });
+        });
+    }
+
+    /**
+     * Wrapping the dial from materia to off keeps a growing crystal whole and pauses it.
+     *
+     * @param helper the gametest helper
+     */
+    public static void offPausesAGrowingCrystal(GameTestHelper helper) {
+        CrystallizerBlockEntity crystallizer = placeCrystallizer(helper, CrystallizerPhases.KNOB_MAX);
+        insert(helper, FIRST, canister(GooTypes.CRYSTAL, CRYSTAL_COST));
+        insert(helper, SECOND, canister(GooTypes.ENDER, CHRYSM_VOLUME));
+        helper.runAfterDelay(STILL_GROWING_TICKS, () -> {
+            long before = crystallizer.crystallized();
+            helper.assertTrue(before > 0, "The crystal should be growing before the dial");
+            clickDial(helper);
+            helper.assertValueEqual(0, helper.getBlockState(CRYSTALLIZER_POS).getValue(CrystallizerBlock.KNOB),
+                    "knob after the wrap");
+            helper.runAfterDelay(SOME_TICKS, () -> {
+                helper.assertValueEqual(before, crystallizer.crystallized(), "crystallized while off");
+                helper.assertTrue(droppedNear(helper).isEmpty(), "The wrap to off should drop nothing");
+                helper.succeed();
+            });
+        });
+    }
+
+    /**
+     * A crystal grown past a chrysm, the dial then stepped round to chrysm, hands one
+     * chrysm and the excess as an ender omniblob and a crystal omniblob of its tenth,
+     * emptying the crystallizer (operator ruling).
+     *
+     * @param helper the gametest helper
+     */
+    public static void clickHandsTheDialsTierAndTheExcess(GameTestHelper helper) {
+        CrystallizerBlockEntity crystallizer = placeCrystallizer(helper, 2);
+        insert(helper, FIRST, canister(GooTypes.CRYSTAL, (CHRYSM_VOLUME + EXCESS) / CrystallizerPhases.GOO_PER_CRYSTAL));
+        insert(helper, SECOND, canister(GooTypes.ENDER, CHRYSM_VOLUME + EXCESS));
+        helper.runAfterDelay(EXCESS_TICKS, () -> {
+            helper.assertValueEqual((long) CHRYSM_VOLUME + EXCESS, crystallizer.crystallized(), "crystallized");
+            for (int click = 0; click < CrystallizerPhases.KNOB_POSITIONS - 1; click++) {
+                clickDial(helper);
+            }
+            helper.assertValueEqual(1, helper.getBlockState(CRYSTALLIZER_POS).getValue(CrystallizerBlock.KNOB),
+                    "knob stepped round to chrysm");
             Player player = helper.makeMockPlayer(GameType.SURVIVAL);
             BlockPos abs = helper.absolutePos(CRYSTALLIZER_POS);
             helper.useBlock(CRYSTALLIZER_POS, player, new BlockHitResult(
-                    new Vec3(abs.getX() + HALF, abs.getY() + DIAL_CENTER_Y, abs.getZ()), Direction.NORTH, abs, false));
-            helper.assertValueEqual(0L, crystallizer.crystallized(), "crystallized after the dial");
-            assertOmniblobDropped(helper, GooTypes.ENDER, CHRYSM_VOLUME / 2);
-            assertOmniblobDropped(helper, GooTypes.CRYSTAL, CRYSTAL_COST / 2);
+                    new Vec3(abs.getX() + CRYSTAL_SPOT_NORTH[0], abs.getY() + 1.0 + CRYSTAL_HIT_LIFT,
+                            abs.getZ() + CRYSTAL_SPOT_NORTH[1]), Direction.UP, abs, false));
+            helper.assertTrue(player.getInventory().contains(stack -> stack.is(GooItems.CHRYSM.get())),
+                    "The click should hand one chrysm");
+            helper.assertTrue(player.getInventory().contains(stack -> GooTypes.ENDER.equals(BlobStacks.keyOf(stack))
+                    && BlobStacks.volumeOf(stack) == EXCESS), "The click should hand the excess ender");
+            helper.assertTrue(player.getInventory().contains(stack -> GooTypes.CRYSTAL.equals(BlobStacks.keyOf(stack))
+                    && BlobStacks.volumeOf(stack) == EXCESS / CrystallizerPhases.GOO_PER_CRYSTAL),
+                    "The click should hand the excess's crystal");
+            helper.assertValueEqual(0L, crystallizer.crystallized(), "crystallized after the click");
             helper.succeed();
         });
     }
 
-    private static void assertOmniblobDropped(GameTestHelper helper, ResourceKey<GooTypeDefinition> type, int volume) {
-        boolean dropped = helper.getLevel().getEntitiesOfClass(ItemEntity.class,
-                new AABB(helper.absolutePos(CRYSTALLIZER_POS)).inflate(2)).stream()
-                .map(ItemEntity::getItem)
-                .anyMatch(stack -> type.equals(BlobStacks.keyOf(stack)) && BlobStacks.volumeOf(stack) == volume);
-        helper.assertTrue(dropped, "A " + volume + " mB " + type.identifier().getPath() + " omniblob should drop");
+    private static void clickDial(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        BlockPos abs = helper.absolutePos(CRYSTALLIZER_POS);
+        helper.useBlock(CRYSTALLIZER_POS, player, new BlockHitResult(
+                new Vec3(abs.getX() + HALF, abs.getY() + DIAL_CENTER_Y, abs.getZ()), Direction.NORTH, abs, false));
+    }
+
+    private static List<ItemEntity> droppedNear(GameTestHelper helper) {
+        return helper.getLevel().getEntitiesOfClass(ItemEntity.class,
+                new AABB(helper.absolutePos(CRYSTALLIZER_POS)).inflate(2));
     }
 
     /**
@@ -477,21 +555,21 @@ public final class CrystallizerTests {
 
     /**
      * Full canisters of ender and crystal crystallize at the pace: no chrysm 100 ticks
-     * in, one by 220 (operator ruling: a chrysm at about 10 s).
+     * in, one by 520 (decision crystal-pace-doubles-per-tier: a chrysm at 25 s).
      *
      * @param helper the gametest helper
      */
     public static void crystallizesAtAnEvenPace(GameTestHelper helper) {
         CrystallizerBlockEntity crystallizer = placeCrystallizer(helper, 1);
-        insert(helper, FIRST, canister(GooTypes.CRYSTAL, KILO_VOLUME / CrystallizerPhases.GOO_PER_CRYSTAL));
-        insert(helper, SECOND, canister(GooTypes.ENDER, KILO_VOLUME));
+        insert(helper, FIRST, canister(GooTypes.CRYSTAL, BUDDING_VOLUME / CrystallizerPhases.GOO_PER_CRYSTAL));
+        insert(helper, SECOND, canister(GooTypes.ENDER, BUDDING_VOLUME));
         helper.runAfterDelay(STILL_GROWING_TICKS, () -> {
             helper.assertTrue(crystallizer.crystallized() > 0 && crystallizer.formed().isEmpty(),
                     "Half way to a chrysm there should be crystallized goo and no chrysm, crystallized "
                             + crystallizer.crystallized());
             helper.runAfterDelay(CHRYSM_TICKS - STILL_GROWING_TICKS, () -> {
                 helper.assertTrue(crystallizer.formedTier() == ChrysmTier.CHRYSM,
-                        "A chrysm should have formed by 220 ticks, crystallized " + crystallizer.crystallized());
+                        "A chrysm should have formed by 520 ticks, crystallized " + crystallizer.crystallized());
                 helper.succeed();
             });
         });
@@ -553,6 +631,105 @@ public final class CrystallizerTests {
     }
 
     /**
+     * A grown crystal of the tier is taken from beside the crystallizer at a standing
+     * player's eye height, aimed anywhere across its body, level looks included, through
+     * the client's target decision: the game's own ray, or the crystal on the sight line
+     * when it is nearer (operator ruling: the crystal's shape is the thing to interact
+     * with, from any side, at the player's normal reach).
+     *
+     * @param helper the gametest helper
+     * @param tier   the tier the crystal has grown to, the dial set to it
+     */
+    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
+    public static void standingAimTakesTheCrystal(GameTestHelper helper, ChrysmTier tier) {
+        placeCrystallizer(helper, tier.ordinal() + 1);
+        seedCrystal(helper, tier);
+        BlockPos abs = helper.absolutePos(CRYSTALLIZER_POS);
+        CrystallizerBlockEntity crystallizer = helper.getBlockEntity(CRYSTALLIZER_POS, CrystallizerBlockEntity.class);
+        AABB box = CrystallizerBlock.crystalShape(Direction.NORTH, crystallizer.crystallized()).bounds().move(abs);
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        StringBuilder failed = new StringBuilder();
+        int tried = 0;
+        Vec3[] eyes = {new Vec3(abs.getX() - 1.3, abs.getY() + 1.62, abs.getZ() + 0.35),
+            new Vec3(abs.getX() - 1.3, abs.getY() + 1.62, abs.getZ() + 0.9),
+            new Vec3(abs.getX() - 1.3, box.minY + (box.maxY - box.minY) * HALF, box.minZ + (box.maxZ - box.minZ) * HALF)};
+        for (Vec3 eye : eyes) {
+            for (double u = 0.2; u <= 0.8; u += 0.3) {
+                for (double v = 0.1; v <= 0.9; v += 0.4) {
+                    Vec3 aim = new Vec3(box.minX + (box.maxX - box.minX) * u, box.minY + (box.maxY - box.minY) * v,
+                            box.minZ + (box.maxZ - box.minZ) * HALF);
+                    tried++;
+                    String missed = clickAlongSight(helper, player, eye, aim, tier);
+                    if (missed != null) {
+                        failed.append(" | eye ").append(eye.subtract(Vec3.atLowerCornerOf(abs))).append(" aim ")
+                                .append(aim.subtract(Vec3.atLowerCornerOf(abs))).append(": ").append(missed);
+                    }
+                }
+            }
+        }
+        helper.getLevel().removePlayerImmediately(player, net.minecraft.world.entity.Entity.RemovalReason.DISCARDED);
+        helper.assertTrue(failed.isEmpty(), "Standing aims that missed the " + tier + " crystal (" + tried
+                + " tried, box " + box.move(Vec3.atLowerCornerOf(abs).reverse()) + "):" + failed);
+        helper.succeed();
+    }
+
+    /**
+     * Clicks along one sight line as the client targets it, and seeds the crystal again after a take.
+     *
+     * @return null when the tier's chrysm was taken or another block stands in front, else what happened
+     */
+    private static String clickAlongSight(GameTestHelper helper, ServerPlayer player, Vec3 eye, Vec3 aim,
+                                          ChrysmTier tier) {
+        player.setPos(eye.x, eye.y - player.getEyeHeight(), eye.z);
+        player.getInventory().clearContent();
+        Vec3 end = eye.add(aim.subtract(eye).normalize().scale(player.blockInteractionRange()));
+        BlockHitResult gameHit = helper.getLevel().clip(new ClipContext(eye, end, ClipContext.Block.OUTLINE,
+                ClipContext.Fluid.NONE, player));
+        BlockHitResult sighted = CrystalReach.nearestCrystalHit(pos -> takeableCrystalShape(helper, pos), eye, end);
+        BlockHitResult click = (BlockHitResult) CrystalReach.retarget(gameHit, sighted, eye);
+        if (!click.getBlockPos().equals(helper.absolutePos(CRYSTALLIZER_POS))) {
+            return null; // Another block stands in front of the crystal on this sight line, so the click is rightly its.
+        }
+        Vec3 off = click.getLocation().subtract(Vec3.atCenterOf(click.getBlockPos()));
+        boolean serverAccepts = Math.abs(off.x) < SERVER_REACH && Math.abs(off.y) < SERVER_REACH
+                && Math.abs(off.z) < SERVER_REACH;
+        InteractionResult result = serverAccepts ? player.gameMode.useItemOn(player, helper.getLevel(),
+                player.getItemInHand(InteractionHand.MAIN_HAND), InteractionHand.MAIN_HAND, click) : null;
+        Item handed = GooItems.CHRYSM_TIERS.get(tier.ordinal()).get();
+        if (player.getInventory().contains(stack -> stack.is(handed))) {
+            seedCrystal(helper, tier);
+            return null;
+        }
+        BlockPos abs = helper.absolutePos(CRYSTALLIZER_POS);
+        return "gameHit " + helper.getLevel().getBlockState(gameHit.getBlockPos()).getBlock() + " " + gameHit.getType()
+                + ", sighted " + (sighted == null ? null : sighted.getLocation().subtract(Vec3.atLowerCornerOf(abs)))
+                + ", clicked " + click.getLocation().subtract(Vec3.atLowerCornerOf(abs)) + ", serverAccepts "
+                + serverAccepts + ", result " + result;
+    }
+
+    /** Reloads the crystallizer from its saved data holding a grown crystal of ender at the tier. */
+    private static void seedCrystal(GameTestHelper helper, ChrysmTier tier) {
+        net.minecraft.server.level.ServerLevel level = helper.getLevel();
+        CrystallizerBlockEntity placed = helper.getBlockEntity(CRYSTALLIZER_POS, CrystallizerBlockEntity.class);
+        net.minecraft.nbt.CompoundTag saved = placed.saveWithFullMetadata(level.registryAccess());
+        saved.putLong("Crystallized", tier.volume());
+        saved.putString("FormingType", GooTypes.ENDER.identifier().toString());
+        level.removeBlockEntity(placed.getBlockPos());
+        level.setBlockEntity(net.minecraft.world.level.block.entity.BlockEntity.loadStatic(placed.getBlockPos(),
+                placed.getBlockState(), saved, level.registryAccess()));
+    }
+
+    private static VoxelShape takeableCrystalShape(GameTestHelper helper, BlockPos pos) {
+        BlockState state = helper.getLevel().getBlockState(pos);
+        if (!(state.getBlock() instanceof CrystallizerBlock)
+                || !(helper.getLevel().getBlockEntity(pos) instanceof CrystallizerBlockEntity crystallizer)
+                || !crystallizer.isMature(CrystallizerBlock.knobTier(state))) {
+            return Shapes.empty();
+        }
+        return CrystallizerBlock.crystalShape(state.getValue(CrystallizerBlock.FACING), crystallizer.crystallized());
+    }
+
+    /**
      * A mature crystal is taken whatever the player holds: a stone block, a canister
      * and an omniblob each take a chrysm in turn, and each held item stays.
      *
@@ -589,8 +766,9 @@ public final class CrystallizerTests {
     }
 
     /**
-     * A right click on the dial, on the face toward the player, steps the knob small,
-     * medium, large and wraps back to small; a click on the top face leaves it.
+     * A right click on the dial, on the face toward the player, steps the knob through
+     * budding chrysm, flowering chrysm, materia and off, and back to chrysm; a click on
+     * the top face leaves it.
      *
      * @param helper the gametest helper
      */
@@ -605,7 +783,7 @@ public final class CrystallizerTests {
         helper.useBlock(CRYSTALLIZER_POS, player, topHit);
         helper.assertValueEqual(1, helper.getBlockState(CRYSTALLIZER_POS).getValue(CrystallizerBlock.KNOB),
                 "knob after a top-face click");
-        for (int expected : new int[] {2, 3, 1}) {
+        for (int expected : new int[] {2, 3, 4, 0, 1}) {
             helper.useBlock(CRYSTALLIZER_POS, player, knobHit);
             helper.assertValueEqual(expected, helper.getBlockState(CRYSTALLIZER_POS).getValue(CrystallizerBlock.KNOB),
                     "knob after a click");
@@ -614,6 +792,25 @@ public final class CrystallizerTests {
                 new AABB(helper.absolutePos(CRYSTALLIZER_POS)).inflate(2)).isEmpty(),
                 "Dial clicks on an empty crystallizer should drop nothing");
         helper.succeed();
+    }
+
+    /**
+     * With the knob off, a crystallizer fed ender and crystal crystallizes nothing and
+     * reads idle (decision dial-five-positions-off-to-materia).
+     *
+     * @param helper the gametest helper
+     */
+    public static void offCrystallizesNothing(GameTestHelper helper) {
+        CrystallizerBlockEntity crystallizer = placeCrystallizer(helper, 0);
+        insert(helper, FIRST, canister(GooTypes.CRYSTAL, CRYSTAL_COST));
+        insert(helper, SECOND, canister(GooTypes.ENDER, CHRYSM_VOLUME));
+        helper.runAfterDelay(STILL_GROWING_TICKS, () -> {
+            helper.assertValueEqual(0L, crystallizer.crystallized(), "crystallized with the knob off");
+            helper.assertValueEqual(CHRYSM_VOLUME, enderIn(helper), "ender left in its canister");
+            helper.assertFalse(helper.getBlockState(CRYSTALLIZER_POS).getValue(CrystallizerBlock.ACTIVE),
+                    "The crystallizer should read idle with the knob off");
+            helper.succeed();
+        });
     }
 
     /**

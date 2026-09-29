@@ -93,23 +93,23 @@ public final class BrewingTests {
     }
 
     /**
-     * A kilochrysm and a megachrysm, each on its own stand over awkward
+     * A budding chrysm and a materia, each on its own stand over awkward
      * potions, never brew: the bottles stay awkward and the item stays.
      *
      * @param helper the gametest helper
      */
     public static void higherTiersNeverBrew(GameTestHelper helper) {
-        ItemStack kilochrysm = GooItems.KILOCHRYSM.get().createOf(TYPE);
-        ItemStack megachrysm = GooItems.MEGACHRYSM.get().createOf(TYPE);
-        BrewingStandBlockEntity kiloStand = placeStand(helper, FIRST_STAND, Items.POTION, Potions.AWKWARD, kilochrysm);
-        BrewingStandBlockEntity megaStand = placeStand(helper, SECOND_STAND, Items.POTION, Potions.AWKWARD, megachrysm);
+        ItemStack budding = GooItems.BUDDING_CHRYSM.get().createOf(TYPE);
+        ItemStack materia = GooItems.MATERIA.get().createOf(TYPE);
+        BrewingStandBlockEntity buddingStand = placeStand(helper, FIRST_STAND, Items.POTION, Potions.AWKWARD, budding);
+        BrewingStandBlockEntity materiaStand = placeStand(helper, SECOND_STAND, Items.POTION, Potions.AWKWARD, materia);
         helper.runAfterDelay(BREW_WAIT_TICKS, () -> {
-            assertBottlesHold(helper, kiloStand, Items.POTION, Potions.AWKWARD, "the kilochrysm stand");
-            assertBottlesHold(helper, megaStand, Items.POTION, Potions.AWKWARD, "the megachrysm stand");
-            helper.assertTrue(ItemStack.matches(kilochrysm, kiloStand.getItem(INGREDIENT_SLOT)),
-                    "The kilochrysm" + INGREDIENT_KEPT + kiloStand.getItem(INGREDIENT_SLOT));
-            helper.assertTrue(ItemStack.matches(megachrysm, megaStand.getItem(INGREDIENT_SLOT)),
-                    "The megachrysm" + INGREDIENT_KEPT + megaStand.getItem(INGREDIENT_SLOT));
+            assertBottlesHold(helper, buddingStand, Items.POTION, Potions.AWKWARD, "the budding chrysm stand");
+            assertBottlesHold(helper, materiaStand, Items.POTION, Potions.AWKWARD, "the materia stand");
+            helper.assertTrue(ItemStack.matches(budding, buddingStand.getItem(INGREDIENT_SLOT)),
+                    "The budding chrysm" + INGREDIENT_KEPT + buddingStand.getItem(INGREDIENT_SLOT));
+            helper.assertTrue(ItemStack.matches(materia, materiaStand.getItem(INGREDIENT_SLOT)),
+                    "The materia" + INGREDIENT_KEPT + materiaStand.getItem(INGREDIENT_SLOT));
             helper.succeed();
         });
     }
