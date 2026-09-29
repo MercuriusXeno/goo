@@ -31,6 +31,8 @@ import org.jspecify.annotations.Nullable;
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class GooTargetHighlighter {
 
+    private static final double NANOS_PER_SECOND = 1e9;
+
     /**
      * Target the opaque stage leaves for the translucent arc stage, or null
      * when the frame drew none or the arc stage already took it.
@@ -50,7 +52,7 @@ public final class GooTargetHighlighter {
     private static @Nullable Vec3 easeFromEndpoint;
     /** The granny weight drawn when the target last changed. */
     private static double easeFromGrannyWeight;
-    /** Frame clock seconds when the target last changed. */
+    /** Real-time seconds when the target last changed. */
     private static double easeStartSeconds;
     /** The endpoint drawn last frame, or null when none was drawn. */
     private static @Nullable Vec3 drawnEndpoint;
@@ -203,7 +205,7 @@ public final class GooTargetHighlighter {
             return;
         }
         double grannyWeight = target instanceof TargetResult.BlockTarget bt && bt.grannyArc() ? 1 : 0;
-        Vec3 drawn = easeArcToward(target, end, grannyWeight, ArcRenderer.frameSeconds(partialTick));
+        Vec3 drawn = easeArcToward(target, end, grannyWeight, realTimeSeconds());
         ArcRenderer.renderTargetArc(event.getPoseStack(), mc.renderBuffers().bufferSource(),
                 mc.gameRenderer.getMainCamera(), drawn, ClientGooTypes.highlight(type),
                 partialTick, drawnGrannyWeight, type == GooTypes.GLOW);
@@ -217,7 +219,7 @@ public final class GooTargetHighlighter {
      * @param target       the target this frame aims at
      * @param end          the target's endpoint
      * @param grannyWeight the target's peak weight, 1 for a granny arc
-     * @param nowSeconds   the frame clock
+     * @param nowSeconds   the real-time clock
      * @return the endpoint to draw this frame
      */
     private static Vec3 easeArcToward(TargetResult target, Vec3 end, double grannyWeight, double nowSeconds) {
@@ -233,6 +235,16 @@ public final class GooTargetHighlighter {
         drawnGrannyWeight = ArcEndpointEase.easeGrannyWeight(easeFromGrannyWeight, grannyWeight, elapsed,
                 ArcEndpointEase.EASE_SECONDS);
         return drawn;
+    }
+
+    /**
+     * The real-time clock the slide runs on, so a slow or paused tick leaves
+     * the slide's length unchanged (decision aim-arc-slides-in-real-time).
+     *
+     * @return seconds on the monotonic clock
+     */
+    private static double realTimeSeconds() {
+        return System.nanoTime() / NANOS_PER_SECOND;
     }
 
     /**
