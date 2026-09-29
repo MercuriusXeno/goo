@@ -4,6 +4,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.Nullable;
@@ -21,6 +22,10 @@ public final class CrystalReach {
     /** The server takes a click's point only within 1.0000001 of its block's center; the crystal may stand past that. */
     private static final double SERVER_REACH = 0.5;
     private static final double INSIDE = 1e-4;
+    /** Far more than the rounding of a hit's point on a face, far less than a pixel. */
+    private static final double FACE_ROUNDING = 1e-4;
+    /** Squared distance under which the game's pick and the crystal hit are one point. */
+    private static final double SAME_POINT = 1e-6;
 
     private CrystalReach() {
     }
@@ -52,6 +57,38 @@ public final class CrystalReach {
             }
         }
         return nearest;
+    }
+
+    /**
+     * The target a click acts on: the game's own pick, or the crystal on the sight line
+     * when the pick missed or lies farther, its point pulled within the server's reach.
+     *
+     * @param gameHit the game's own pick, or null
+     * @param crystal the nearest crystal on the sight line, or null
+     * @param eye     the player's eye
+     * @return the game's pick unchanged, or the crystal hit
+     */
+    public static @Nullable HitResult retarget(@Nullable HitResult gameHit, @Nullable BlockHitResult crystal, Vec3 eye) {
+        if (crystal == null) {
+            return gameHit;
+        }
+        // A pick landing on the crystal itself is taken as the crystal, so its point is pulled within reach too.
+        boolean gameHitNearer = gameHit != null && gameHit.getType() != HitResult.Type.MISS
+                && gameHit.getLocation().distanceToSqr(eye) < crystal.getLocation().distanceToSqr(eye) - SAME_POINT;
+        return gameHitNearer ? gameHit : reachableByServer(crystal);
+    }
+
+    /**
+     * Whether a click's point lands on the crystal. A click's point lies on the crystal's
+     * face, and the rounding of the ray's arithmetic and the click packet's floats puts
+     * it a hair either side of the box's edge, so the box is widened by that rounding.
+     *
+     * @param crystalBox the crystal's box, block-local
+     * @param local      the click's point, block-local
+     * @return true when the point lies on or in the crystal's box
+     */
+    public static boolean landsOn(AABB crystalBox, Vec3 local) {
+        return crystalBox.inflate(FACE_ROUNDING).contains(local);
     }
 
     /**
