@@ -103,7 +103,7 @@ public sealed interface TargetResult {
      *
      * @param pos       the targeted block position
      * @param face      the targeted block face
-     * @param grannyArc whether to use the boosted arc trajectory
+     * @param grannyArc whether the throw is a lob onto a top face
      */
     record BlockTarget(BlockPos pos, Direction face, boolean grannyArc) implements TargetResult {
         @Override
