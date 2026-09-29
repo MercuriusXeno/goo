@@ -15,6 +15,8 @@ public final class LayerVisualsType {
     public static final String ROCK_DUST = "rock_dust";
     /** Per-block flame preview + flame/lava/ember on struck. */
     public static final String BLAZE_FLAME = "blaze_flame";
+    /** Snowflake preview + snowflake and cloud burst on struck. */
+    public static final String FROST_RIME = "frost_rime";
     /** No-op for pipelines that emit no per-layer particles. */
     public static final String NONE = "none";
 
@@ -25,6 +27,7 @@ public final class LayerVisualsType {
     static {
         VISUALS.put(ROCK_DUST, RockDustVisuals.INSTANCE);
         VISUALS.put(BLAZE_FLAME, BlazeFlameVisuals.INSTANCE);
+        VISUALS.put(FROST_RIME, FrostRimeVisuals.INSTANCE);
         VISUALS.put(NONE, NoneLayerVisuals.INSTANCE);
     }
 

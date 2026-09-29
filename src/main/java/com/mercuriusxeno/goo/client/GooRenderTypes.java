@@ -27,8 +27,6 @@ public final class GooRenderTypes {
     private static final String PIPELINE_PATH = "pipeline/";
     /** Path prefix of a core shader. */
     private static final String CORE_SHADER_PATH = "core/";
-    /** The vertex shader every tunnel wave shares. */
-    private static final String TUNNEL_WAVE_VERTEX = "tunnel_wave";
     /** Name prefix of a goo render type. */
     private static final String TYPE_NAME_PREFIX = "goo_";
 
@@ -185,16 +183,6 @@ public final class GooRenderTypes {
     public static final RenderType ROCK_EXPLOSION_TYPE = burnoutType(ROCK_EXPLOSION);
 
     /**
-     * Rock goo's tunnel wave pipeline: the tan shock rings that lead
-     * rock_tunnel's breaking into the wall, through
-     * {@code tunnel_wave.vsh} and {@code rock_tunnel_wave.fsh}.
-     */
-    public static final RenderPipeline ROCK_TUNNEL_WAVE = tunnelWavePipeline("rock_tunnel_wave");
-
-    /** RenderType that draws rock goo's tunnel wave. */
-    public static final RenderType ROCK_TUNNEL_WAVE_TYPE = burnoutType(ROCK_TUNNEL_WAVE);
-
-    /**
      * Blaze goo's burnout explosion pipeline: the flame bloom, additive so
      * it lights what it covers, through {@code blaze_explosion.vsh / .fsh}.
      */
@@ -204,16 +192,6 @@ public final class GooRenderTypes {
     public static final RenderType BLAZE_EXPLOSION_TYPE = burnoutType(BLAZE_EXPLOSION);
 
     /**
-     * Blaze goo's tunnel wave pipeline: the orange heat rings that lead
-     * blaze_tunnel's smelting into the wall, through
-     * {@code tunnel_wave.vsh} and {@code blaze_tunnel_wave.fsh}.
-     */
-    public static final RenderPipeline BLAZE_TUNNEL_WAVE = tunnelWavePipeline("blaze_tunnel_wave");
-
-    /** RenderType that draws blaze goo's tunnel wave. */
-    public static final RenderType BLAZE_TUNNEL_WAVE_TYPE = burnoutType(BLAZE_TUNNEL_WAVE);
-
-    /**
      * Frost goo's burnout explosion pipeline: the fog ring, alpha blended,
      * through {@code frost_explosion.vsh / .fsh}.
      */
@@ -221,16 +199,6 @@ public final class GooRenderTypes {
 
     /** RenderType that draws frost goo's burnout explosion. */
     public static final RenderType FROST_EXPLOSION_TYPE = burnoutType(FROST_EXPLOSION);
-
-    /**
-     * Frost goo's tunnel wave pipeline: the white-blue fog rings that lead
-     * frost_tunnel's freezing into the wall, through
-     * {@code tunnel_wave.vsh} and {@code frost_tunnel_wave.fsh}.
-     */
-    public static final RenderPipeline FROST_TUNNEL_WAVE = tunnelWavePipeline("frost_tunnel_wave");
-
-    /** RenderType that draws frost goo's tunnel wave. */
-    public static final RenderType FROST_TUNNEL_WAVE_TYPE = burnoutType(FROST_TUNNEL_WAVE);
 
     /**
      * Nether goo's burnout explosion pipeline: the inward rush, additive,
@@ -516,40 +484,13 @@ public final class GooRenderTypes {
      * @return the pipeline
      */
     private static RenderPipeline burnoutPipeline(String name, BlendFunction blend) {
-        return burnoutPipeline(name, name, blend,
-                new DepthStencilState(DepthStencilState.DEFAULT.depthTest(), false));
-    }
-
-    /**
-     * A tunnel wave pipeline: the shared {@code tunnel_wave} vertex shader,
-     * the type's own fragment shader, alpha blended and drawn through the
-     * wall with depth test off, the way the ghost outline is.
-     *
-     * @param fragment the type's fragment shader's name
-     * @return the pipeline
-     */
-    private static RenderPipeline tunnelWavePipeline(String fragment) {
-        return burnoutPipeline(fragment, TUNNEL_WAVE_VERTEX, BlendFunction.TRANSLUCENT, DEPTH_ALWAYS);
-    }
-
-    /**
-     * A burnout pipeline over position, color and normal quads, both faces drawn.
-     *
-     * @param name     the pipeline's name, and its fragment shader's
-     * @param vertex   the vertex shader's name
-     * @param blend    how the explosion blends over the world
-     * @param depth    the depth test and write it draws with
-     * @return the pipeline
-     */
-    private static RenderPipeline burnoutPipeline(String name, String vertex, BlendFunction blend,
-                                                  DepthStencilState depth) {
         return RenderPipeline.builder(RenderPipelines.MATRICES_PROJECTION_SNIPPET, RenderPipelines.GLOBALS_SNIPPET)
                 .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + name))
-                .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + vertex))
+                .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + name))
                 .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + name))
                 .withVertexFormat(DefaultVertexFormat.POSITION_COLOR_NORMAL, VertexFormat.Mode.QUADS)
                 .withColorTargetState(new ColorTargetState(blend))
-                .withDepthStencilState(depth)
+                .withDepthStencilState(new DepthStencilState(DepthStencilState.DEFAULT.depthTest(), false))
                 .withCull(false)
                 .build();
     }
@@ -589,7 +530,7 @@ public final class GooRenderTypes {
     }
 
     /**
-     * Registers the burnout explosion and tunnel wave pipelines (decision
+     * Registers the burnout explosion pipelines (decision
      * elemental-explosion-per-type).
      *
      * @param event the event instance
@@ -597,11 +538,8 @@ public final class GooRenderTypes {
     private static void registerBurnoutPipelines(RegisterRenderPipelinesEvent event) {
         event.registerPipeline(UNSTABLE_EXPLOSION);
         event.registerPipeline(ROCK_EXPLOSION);
-        event.registerPipeline(ROCK_TUNNEL_WAVE);
         event.registerPipeline(BLAZE_EXPLOSION);
-        event.registerPipeline(BLAZE_TUNNEL_WAVE);
         event.registerPipeline(FROST_EXPLOSION);
-        event.registerPipeline(FROST_TUNNEL_WAVE);
         event.registerPipeline(NETHER_EXPLOSION);
         event.registerPipeline(METAL_EXPLOSION);
         event.registerPipeline(CRYSTAL_EXPLOSION);
