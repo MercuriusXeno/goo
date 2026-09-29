@@ -71,7 +71,9 @@ public final class GooTestFunctions {
     private static final String CRYSTALLIZER_DIAL_WRAPS = "crystallizer_dial_wraps";
     private static final String CRYSTALLIZER_PAUSES_WITHOUT_CRYSTAL = "crystallizer_pauses_without_crystal";
     private static final String CRYSTALLIZER_PART_GROWN_NOT_CLICKABLE = "crystallizer_part_grown_not_clickable";
-    private static final String CRYSTALLIZER_DIAL_SHATTERS = "crystallizer_dial_shatters";
+    private static final String CRYSTALLIZER_DIAL_KEEPS_GROWING = "crystallizer_dial_keeps_growing";
+    private static final String CRYSTALLIZER_OFF_PAUSES = "crystallizer_off_pauses";
+    private static final String CRYSTALLIZER_HANDS_THE_EXCESS = "crystallizer_hands_the_excess";
     private static final String CRYSTALLIZER_ANY_ITEM_TAKES = "crystallizer_any_item_takes";
     private static final String CRYSTALLIZER_PASSES_OTHER_CLICKS = "crystallizer_passes_other_clicks";
     private static final String CRYSTALLIZER_CANISTER_SOUNDS = "crystallizer_canister_sounds";
@@ -370,7 +372,9 @@ public final class GooTestFunctions {
         reg(r, CRYSTALLIZER_DIAL_WRAPS, CrystallizerTests::dialClickWrapsFromLargeToSmall);
         reg(r, CRYSTALLIZER_PAUSES_WITHOUT_CRYSTAL, CrystallizerTests::pausesWithoutCrystal);
         reg(r, CRYSTALLIZER_PART_GROWN_NOT_CLICKABLE, CrystallizerTests::partGrownCrystalIsNotClickable);
-        reg(r, CRYSTALLIZER_DIAL_SHATTERS, CrystallizerTests::dialChangeShattersAGrowingCrystal);
+        reg(r, CRYSTALLIZER_DIAL_KEEPS_GROWING, CrystallizerTests::dialStepKeepsAGrowingCrystal);
+        reg(r, CRYSTALLIZER_OFF_PAUSES, CrystallizerTests::offPausesAGrowingCrystal);
+        reg(r, CRYSTALLIZER_HANDS_THE_EXCESS, CrystallizerTests::clickHandsTheDialsTierAndTheExcess);
         reg(r, CRYSTALLIZER_ANY_ITEM_TAKES, CrystallizerTests::anyHeldItemTakesTheCrystal);
         reg(r, CRYSTALLIZER_PASSES_OTHER_CLICKS, CrystallizerTests::clicksItDoesNotOwnPass);
         reg(r, CRYSTALLIZER_CANISTER_SOUNDS, CrystallizerTests::eachCanisterPlacedPlaysASound);

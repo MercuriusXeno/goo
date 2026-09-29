@@ -81,6 +81,9 @@ public final class CrystallizerTests {
     private static final int HALF_CHRYSM_TICKS = 260;
     private static final int STILL_GROWING_TICKS = 100;
     private static final int SOME_TICKS = 20;
+    /** Goo past a chrysm: 16,000 mB at the budding pace of 968 a tick, 17 ticks after the chrysm's 500. */
+    private static final int EXCESS = 16_000;
+    private static final int EXCESS_TICKS = 560;
     private static final double HALF = 0.5;
     private static final double SIDE_OFFSET = 2;
     private static final double PIXELS = 16.0;
@@ -420,34 +423,100 @@ public final class CrystallizerTests {
     }
 
     /**
-     * Stepping the dial while half a chrysm of ender is still crystallizing shatters it
-     * into an ender omniblob of that half and a crystal omniblob of its tenth, and the crystal is gone.
+     * Stepping the dial up while half a chrysm of ender is still crystallizing keeps the
+     * crystal whole and drops nothing, and it grows on once crystal arrives (operator
+     * ruling: a dial click never resets the crystal).
      *
      * @param helper the gametest helper
      */
-    public static void dialChangeShattersAGrowingCrystal(GameTestHelper helper) {
+    public static void dialStepKeepsAGrowingCrystal(GameTestHelper helper) {
         CrystallizerBlockEntity crystallizer = placeCrystallizer(helper, 1);
         insert(helper, FIRST, canister(GooTypes.CRYSTAL, CRYSTAL_COST / 2));
         insert(helper, SECOND, canister(GooTypes.ENDER, CHRYSM_VOLUME));
         helper.runAfterDelay(HALF_CHRYSM_TICKS + SOME_TICKS, () -> {
             helper.assertValueEqual(CHRYSM_VOLUME / 2L, crystallizer.crystallized(), "crystallized before the dial");
+            clickDial(helper);
+            helper.assertValueEqual(2, helper.getBlockState(CRYSTALLIZER_POS).getValue(CrystallizerBlock.KNOB),
+                    "knob after the click");
+            helper.assertValueEqual(CHRYSM_VOLUME / 2L, crystallizer.crystallized(), "crystallized after the dial");
+            helper.assertTrue(droppedNear(helper).isEmpty(), "A dial click should drop nothing");
+            canisters(helper).insertGoo(NORTH_SLOTS[FIRST], GooTypes.CRYSTAL, CRYSTAL_COST / 2);
+            helper.runAfterDelay(SOME_TICKS, () -> {
+                helper.assertTrue(crystallizer.crystallized() > CHRYSM_VOLUME / 2L,
+                        "The kept crystal should grow on, crystallized " + crystallizer.crystallized());
+                helper.succeed();
+            });
+        });
+    }
+
+    /**
+     * Wrapping the dial from materia to off keeps a growing crystal whole and pauses it.
+     *
+     * @param helper the gametest helper
+     */
+    public static void offPausesAGrowingCrystal(GameTestHelper helper) {
+        CrystallizerBlockEntity crystallizer = placeCrystallizer(helper, CrystallizerPhases.KNOB_MAX);
+        insert(helper, FIRST, canister(GooTypes.CRYSTAL, CRYSTAL_COST));
+        insert(helper, SECOND, canister(GooTypes.ENDER, CHRYSM_VOLUME));
+        helper.runAfterDelay(STILL_GROWING_TICKS, () -> {
+            long before = crystallizer.crystallized();
+            helper.assertTrue(before > 0, "The crystal should be growing before the dial");
+            clickDial(helper);
+            helper.assertValueEqual(0, helper.getBlockState(CRYSTALLIZER_POS).getValue(CrystallizerBlock.KNOB),
+                    "knob after the wrap");
+            helper.runAfterDelay(SOME_TICKS, () -> {
+                helper.assertValueEqual(before, crystallizer.crystallized(), "crystallized while off");
+                helper.assertTrue(droppedNear(helper).isEmpty(), "The wrap to off should drop nothing");
+                helper.succeed();
+            });
+        });
+    }
+
+    /**
+     * A crystal grown past a chrysm, the dial then stepped round to chrysm, hands one
+     * chrysm and the excess as an ender omniblob and a crystal omniblob of its tenth,
+     * emptying the crystallizer (operator ruling).
+     *
+     * @param helper the gametest helper
+     */
+    public static void clickHandsTheDialsTierAndTheExcess(GameTestHelper helper) {
+        CrystallizerBlockEntity crystallizer = placeCrystallizer(helper, 2);
+        insert(helper, FIRST, canister(GooTypes.CRYSTAL, (CHRYSM_VOLUME + EXCESS) / CrystallizerPhases.GOO_PER_CRYSTAL));
+        insert(helper, SECOND, canister(GooTypes.ENDER, CHRYSM_VOLUME + EXCESS));
+        helper.runAfterDelay(EXCESS_TICKS, () -> {
+            helper.assertValueEqual((long) CHRYSM_VOLUME + EXCESS, crystallizer.crystallized(), "crystallized");
+            for (int click = 0; click < CrystallizerPhases.KNOB_POSITIONS - 1; click++) {
+                clickDial(helper);
+            }
+            helper.assertValueEqual(1, helper.getBlockState(CRYSTALLIZER_POS).getValue(CrystallizerBlock.KNOB),
+                    "knob stepped round to chrysm");
             Player player = helper.makeMockPlayer(GameType.SURVIVAL);
             BlockPos abs = helper.absolutePos(CRYSTALLIZER_POS);
             helper.useBlock(CRYSTALLIZER_POS, player, new BlockHitResult(
-                    new Vec3(abs.getX() + HALF, abs.getY() + DIAL_CENTER_Y, abs.getZ()), Direction.NORTH, abs, false));
-            helper.assertValueEqual(0L, crystallizer.crystallized(), "crystallized after the dial");
-            assertOmniblobDropped(helper, GooTypes.ENDER, CHRYSM_VOLUME / 2);
-            assertOmniblobDropped(helper, GooTypes.CRYSTAL, CRYSTAL_COST / 2);
+                    new Vec3(abs.getX() + CRYSTAL_SPOT_NORTH[0], abs.getY() + 1.0 + CRYSTAL_HIT_LIFT,
+                            abs.getZ() + CRYSTAL_SPOT_NORTH[1]), Direction.UP, abs, false));
+            helper.assertTrue(player.getInventory().contains(stack -> stack.is(GooItems.CHRYSM.get())),
+                    "The click should hand one chrysm");
+            helper.assertTrue(player.getInventory().contains(stack -> GooTypes.ENDER.equals(BlobStacks.keyOf(stack))
+                    && BlobStacks.volumeOf(stack) == EXCESS), "The click should hand the excess ender");
+            helper.assertTrue(player.getInventory().contains(stack -> GooTypes.CRYSTAL.equals(BlobStacks.keyOf(stack))
+                    && BlobStacks.volumeOf(stack) == EXCESS / CrystallizerPhases.GOO_PER_CRYSTAL),
+                    "The click should hand the excess's crystal");
+            helper.assertValueEqual(0L, crystallizer.crystallized(), "crystallized after the click");
             helper.succeed();
         });
     }
 
-    private static void assertOmniblobDropped(GameTestHelper helper, ResourceKey<GooTypeDefinition> type, int volume) {
-        boolean dropped = helper.getLevel().getEntitiesOfClass(ItemEntity.class,
-                new AABB(helper.absolutePos(CRYSTALLIZER_POS)).inflate(2)).stream()
-                .map(ItemEntity::getItem)
-                .anyMatch(stack -> type.equals(BlobStacks.keyOf(stack)) && BlobStacks.volumeOf(stack) == volume);
-        helper.assertTrue(dropped, "A " + volume + " mB " + type.identifier().getPath() + " omniblob should drop");
+    private static void clickDial(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        BlockPos abs = helper.absolutePos(CRYSTALLIZER_POS);
+        helper.useBlock(CRYSTALLIZER_POS, player, new BlockHitResult(
+                new Vec3(abs.getX() + HALF, abs.getY() + DIAL_CENTER_Y, abs.getZ()), Direction.NORTH, abs, false));
+    }
+
+    private static List<ItemEntity> droppedNear(GameTestHelper helper) {
+        return helper.getLevel().getEntitiesOfClass(ItemEntity.class,
+                new AABB(helper.absolutePos(CRYSTALLIZER_POS)).inflate(2));
     }
 
     /**

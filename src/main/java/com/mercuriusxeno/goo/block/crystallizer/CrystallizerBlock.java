@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.block.crystallizer;
 
+import com.mercuriusxeno.goo.PlayerUtils;
 import com.mercuriusxeno.goo.block.BlockEntityTicks;
 import com.mercuriusxeno.goo.block.GooMachineBlock;
 import com.mercuriusxeno.goo.block.ShapeHitCheck;
@@ -34,6 +35,7 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -213,14 +215,29 @@ public class CrystallizerBlock extends GooMachineBlock {
             return level.isClientSide() ? InteractionResult.SUCCESS : stepKnob(crystallizer, state, level, pos);
         }
         if (hitsMatureCrystal(crystallizer, state, pos, hitResult)) {
-            return level.isClientSide() ? InteractionResult.SUCCESS
-                    : SlottedCanisterData.handToPlayer(crystallizer.takeFormed(), player, level, pos);
+            return level.isClientSide() ? InteractionResult.SUCCESS : handOver(crystallizer.takeFormed(), player, level, pos);
         }
         return InteractionResult.PASS;
     }
 
     /**
-     * Steps the knob; a crystal still growing shatters back into omniblobs first (operator ruling).
+     * @param taken  the chrysm first, then any excess omniblobs
+     * @param player the clicking player
+     * @param level  the level
+     * @param pos    the crystallizer's position
+     * @return SUCCESS once something is handed, PASS when nothing is
+     */
+    private static InteractionResult handOver(List<ItemStack> taken, Player player, Level level, BlockPos pos) {
+        if (taken.isEmpty()) {
+            return InteractionResult.PASS;
+        }
+        taken.subList(1, taken.size()).forEach(excess -> PlayerUtils.addOrDrop(player, excess));
+        return SlottedCanisterData.handToPlayer(taken.getFirst(), player, level, pos);
+    }
+
+    /**
+     * Steps the knob, keeping the crystal whole: it grows on toward the new position's
+     * tier, or waits at off (operator ruling: a dial click never resets the crystal).
      *
      * @param crystallizer the crystallizer
      * @param state        its block state
@@ -230,9 +247,6 @@ public class CrystallizerBlock extends GooMachineBlock {
      */
     private static InteractionResult stepKnob(CrystallizerBlockEntity crystallizer, BlockState state, Level level,
                                               BlockPos pos) {
-        if (!crystallizer.isMature(knobTier(state))) {
-            crystallizer.shatter().forEach(shard -> popResource(level, pos.above(), shard));
-        }
         level.setBlock(pos, state.setValue(KNOB, CrystallizerPhases.nextKnob(state.getValue(KNOB))), Block.UPDATE_ALL);
         level.playSound(null, pos, SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.BLOCKS, 1.0f, 1.0f);
         return InteractionResult.SUCCESS;
