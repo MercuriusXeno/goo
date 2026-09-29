@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.item.ChrysmTier;
 import com.mercuriusxeno.goo.network.BlockLandingTests;
 import com.mercuriusxeno.goo.network.GloveSelectTests;
 import com.mercuriusxeno.goo.network.MobEffectTests;
@@ -69,12 +70,14 @@ public final class GooTestFunctions {
     private static final String CRYSTALLIZER_TWO_CRYSTAL = "crystallizer_two_crystal_grow_crystal";
     private static final String CRYSTALLIZER_TAKES_ONLY_TWO_SLOTS = "crystallizer_takes_only_two_slots";
     private static final String CRYSTALLIZER_CANISTERS_AT_ITS_CENTERS = "crystallizer_canisters_at_its_centers";
-    private static final String CRYSTALLIZER_ADVANCES_TO_KILOCHRYSM = "crystallizer_advances_to_kilochrysm";
+    private static final String CRYSTALLIZER_ADVANCES_TO_BUDDING_CHRYSM = "crystallizer_advances_to_budding_chrysm";
     private static final String CRYSTALLIZER_SMALL_DIAL_HOLDS = "crystallizer_small_dial_holds";
     private static final String CRYSTALLIZER_DIAL_WRAPS = "crystallizer_dial_wraps";
     private static final String CRYSTALLIZER_PAUSES_WITHOUT_CRYSTAL = "crystallizer_pauses_without_crystal";
     private static final String CRYSTALLIZER_PART_GROWN_NOT_CLICKABLE = "crystallizer_part_grown_not_clickable";
-    private static final String CRYSTALLIZER_DIAL_SHATTERS = "crystallizer_dial_shatters";
+    private static final String CRYSTALLIZER_DIAL_KEEPS_GROWING = "crystallizer_dial_keeps_growing";
+    private static final String CRYSTALLIZER_OFF_PAUSES = "crystallizer_off_pauses";
+    private static final String CRYSTALLIZER_HANDS_THE_EXCESS = "crystallizer_hands_the_excess";
     private static final String CRYSTALLIZER_ANY_ITEM_TAKES = "crystallizer_any_item_takes";
     private static final String CRYSTALLIZER_PASSES_OTHER_CLICKS = "crystallizer_passes_other_clicks";
     private static final String CRYSTALLIZER_CANISTER_SOUNDS = "crystallizer_canister_sounds";
@@ -83,6 +86,8 @@ public final class GooTestFunctions {
     private static final String CRYSTALLIZER_GASKET_FILLS_CANISTER = "crystallizer_gasket_fills_canister";
     private static final String CRYSTALLIZER_CLICK_CRYSTAL = "crystallizer_click_crystal";
     private static final String CRYSTALLIZER_EVEN_PACE = "crystallizer_even_pace";
+    private static final String CRYSTALLIZER_STANDING_AIM_TAKES = "crystallizer_standing_aim_takes_";
+    private static final String CRYSTALLIZER_OFF_CRYSTALLIZES_NOTHING = "crystallizer_off_crystallizes_nothing";
     // --- Gasket demand ---
     private static final String GASKET_DEMAND_VAT_FILLS_HUB = "gasket_demand_vat_fills_hub";
     private static final String GASKET_DEMAND_VAT_FEEDS_TAP = "gasket_demand_vat_feeds_tap";
@@ -229,6 +234,7 @@ public final class GooTestFunctions {
     private static final String PL_ABILITY_LAVA = "pl_ability_lava";
     private static final String PL_ABILITY_SAME_STACK = "pl_ability_same_stack";
     private static final String PL_OTHER_ABILITY_THROW_LEAVES_MARKER = "pl_other_ability_throw_leaves_marker";
+    private static final String PL_SECOND_THROW_COSTS_THE_SAME = "pl_second_throw_costs_the_same";
 
     // --- Canister interactions ---
     private static final String IX_CANISTER_SHIFT_INSERT = "ix_canister_shift_insert";
@@ -383,12 +389,14 @@ public final class GooTestFunctions {
         reg(r, CRYSTALLIZER_TWO_CRYSTAL, CrystallizerTests::twoCrystalCanistersGrowCrystal);
         reg(r, CRYSTALLIZER_TAKES_ONLY_TWO_SLOTS, CrystallizerTests::canisterBlockAboveTakesOnlyTheTwoSlots);
         reg(r, CRYSTALLIZER_CANISTERS_AT_ITS_CENTERS, CrystallizerTests::canisterBlockOnCrystallizerStandsAtItsCenters);
-        reg(r, CRYSTALLIZER_ADVANCES_TO_KILOCHRYSM, CrystallizerTests::advancesToKilochrysm);
+        reg(r, CRYSTALLIZER_ADVANCES_TO_BUDDING_CHRYSM, CrystallizerTests::advancesToBuddingChrysm);
         reg(r, CRYSTALLIZER_SMALL_DIAL_HOLDS, CrystallizerTests::smallDialHoldsAtChrysm);
         reg(r, CRYSTALLIZER_DIAL_WRAPS, CrystallizerTests::dialClickWrapsFromLargeToSmall);
         reg(r, CRYSTALLIZER_PAUSES_WITHOUT_CRYSTAL, CrystallizerTests::pausesWithoutCrystal);
         reg(r, CRYSTALLIZER_PART_GROWN_NOT_CLICKABLE, CrystallizerTests::partGrownCrystalIsNotClickable);
-        reg(r, CRYSTALLIZER_DIAL_SHATTERS, CrystallizerTests::dialChangeShattersAGrowingCrystal);
+        reg(r, CRYSTALLIZER_DIAL_KEEPS_GROWING, CrystallizerTests::dialStepKeepsAGrowingCrystal);
+        reg(r, CRYSTALLIZER_OFF_PAUSES, CrystallizerTests::offPausesAGrowingCrystal);
+        reg(r, CRYSTALLIZER_HANDS_THE_EXCESS, CrystallizerTests::clickHandsTheDialsTierAndTheExcess);
         reg(r, CRYSTALLIZER_ANY_ITEM_TAKES, CrystallizerTests::anyHeldItemTakesTheCrystal);
         reg(r, CRYSTALLIZER_PASSES_OTHER_CLICKS, CrystallizerTests::clicksItDoesNotOwnPass);
         reg(r, CRYSTALLIZER_CANISTER_SOUNDS, CrystallizerTests::eachCanisterPlacedPlaysASound);
@@ -397,6 +405,11 @@ public final class GooTestFunctions {
         reg(r, CRYSTALLIZER_GASKET_FILLS_CANISTER, CrystallizerTests::gasketFillsTheIngredientCanister);
         reg(r, CRYSTALLIZER_CLICK_CRYSTAL, CrystallizerTests::clickingTheCrystalTakesTheChrysm);
         reg(r, CRYSTALLIZER_EVEN_PACE, CrystallizerTests::crystallizesAtAnEvenPace);
+        for (ChrysmTier tier : ChrysmTier.values()) {
+            reg(r, CRYSTALLIZER_STANDING_AIM_TAKES + tier.registryPath(),
+                    h -> CrystallizerTests.standingAimTakesTheCrystal(h, tier));
+        }
+        reg(r, CRYSTALLIZER_OFF_CRYSTALLIZES_NOTHING, CrystallizerTests::offCrystallizesNothing);
     }
 
     private static void registerBrewingTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
@@ -622,6 +635,7 @@ public final class GooTestFunctions {
         reg(r, PL_ABILITY_LAVA, PlacementTests::abilityRefusesLava);
         reg(r, PL_ABILITY_SAME_STACK, PlacementTests::abilityStacksOnlyOntoSameAbility);
         reg(r, PL_OTHER_ABILITY_THROW_LEAVES_MARKER, StackKeyTests::otherAbilityThrowLeavesMarker);
+        reg(r, PL_SECOND_THROW_COSTS_THE_SAME, FlatCostTests::secondThrowCostsTheSameAsTheFirst);
     }
 
     private static void registerGasketRemovalTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {

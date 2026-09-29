@@ -60,7 +60,7 @@ class StepCodecTest {
                     "shape", new StateValue.Named("flat"),
                     "size", new StateValue.Pick(Expr.parse("stacks - 1").getOrThrow(), List.of("tiny", "large"))))),
             Map.entry("progressive_area", new ProgressiveAreaStep(AreaShape.FLAT_CIRCLE, "fortune_smelt_break",
-                    "blaze_flame", "generic_explode", Expr.literal(8))),
+                    "blaze_flame", "generic_explode", Expr.literal(8), 0)),
             Map.entry("field_effect", new FieldEffectStep(Expr.literal(3.75),
                     List.of(EntityFilter.LIVING, EntityFilter.NOT_ITEM, EntityFilter.NOT_SNEAKING),
                     Expr.literal(10), Expr.parse("2 - sprinting").getOrThrow(), Expr.literal(1),
@@ -192,7 +192,7 @@ class StepCodecTest {
                 + " \"visuals\": \"rock_dust\", \"audio\": \"stone_break\", \"preview_delay\": 8}";
         ProgressiveAreaStep step = assertInstanceOf(ProgressiveAreaStep.class, decode(json).getOrThrow());
         assertEquals(new ProgressiveAreaStep(AreaShape.TUNNEL, "silk_break", "rock_dust", "stone_break",
-                Expr.literal(8)), step);
+                Expr.literal(8), 0), step);
     }
 
     @Test

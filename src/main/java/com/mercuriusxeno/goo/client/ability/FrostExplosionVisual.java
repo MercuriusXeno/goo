@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.ability.AbilityMath;
 import com.mercuriusxeno.goo.ability.ChainFootprint;
 import com.mercuriusxeno.goo.ability.program.AreaShape;
 import com.mercuriusxeno.goo.ability.program.ProgressiveAreaStep;
@@ -15,13 +14,14 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import java.util.Optional;
 
 /**
  * Frost goo's burnout explosion, the design the operator settled (decision
  * elemental-explosion-per-type): a fog ring with snowflakes. Built like
  * rock's dust shock disc, a flat ring in the placed face's plane spreads out
  * from the marker to the freeze zone's reach over 20 ticks on an ease-out:
- * for a sphere, the freeze radius; for a tunnel or flat circle, the
+ * for a sphere, the ball's radius; for a tunnel or flat circle, the
  * footprint's widest reach across the face. Its fragment shader
  * ({@code frost_explosion.fsh}) draws it with frost's fog, white-blue
  * billows with a crisp frost-white leading edge, the fog thinning behind the
@@ -71,7 +71,7 @@ public final class FrostExplosionVisual implements BurnoutVisual {
     @Override
     public void begin(ChainBurnouts.Burnout burnout, ClientLevel level) {
         Direction face = burnout.placedFace();
-        float reach = zoneReach(areaShape(burnout), burnout.stackCount(), face);
+        float reach = zoneReach(areaStep(burnout), burnout.stackCount(), face);
         BlockPos pos = burnout.pos();
         double x = pos.getX() + BurnoutGeometry.BLOCK_CENTER + face.getStepX() * RING_LIFT;
         double y = pos.getY() + BurnoutGeometry.BLOCK_CENTER + face.getStepY() * RING_LIFT;
@@ -86,7 +86,7 @@ public final class FrostExplosionVisual implements BurnoutVisual {
     @Override
     public void render(ChainBurnouts.Burnout burnout, BurnoutFrame frame) {
         float progress = burnout.progress(frame.gameTime());
-        float radius = zoneReach(areaShape(burnout), burnout.stackCount(), burnout.placedFace()) * spread(progress);
+        float radius = zoneReach(areaStep(burnout), burnout.stackCount(), burnout.placedFace()) * spread(progress);
         int progressByte = NetherDiscMesh.toByte(progress);
         int fog = NetherDiscMesh.toByte(fog(progress));
         int center = ARGB.color(fog, progressByte, NetherDiscMesh.toByte(SIGNED_TO_UNIT),
@@ -118,17 +118,18 @@ public final class FrostExplosionVisual implements BurnoutVisual {
 
     /**
      * How far the zone a frost marker freezes reaches across its face: the
-     * freeze radius for a sphere, the footprint's widest reach from the
+     * step's radius for a sphere, the footprint's widest reach from the
      * marker's center across the face for a tunnel or flat circle.
      *
-     * @param shape  the progressive-area step's shape
+     * @param step   the progressive-area step, empty when the ability cannot be read
      * @param stacks the marker's stack count
      * @param face   the placed face
      * @return the reach in blocks
      */
-    static float zoneReach(AreaShape shape, int stacks, Direction face) {
+    static float zoneReach(Optional<ProgressiveAreaStep> step, int stacks, Direction face) {
+        AreaShape shape = step.map(ProgressiveAreaStep::shape).orElse(AreaShape.SPHERE);
         if (shape == AreaShape.SPHERE) {
-            return AbilityMath.computeFreezeRadius(stacks);
+            return step.map(area -> area.radius(stacks)).orElse(0);
         }
         AABB box = ChainFootprint.computeBounds(stacks, shape == AreaShape.FLAT_CIRCLE, face);
         double center = BurnoutGeometry.BLOCK_CENTER;
@@ -160,15 +161,14 @@ public final class FrostExplosionVisual implements BurnoutVisual {
     }
 
     /**
-     * The shape of the zone the burnout's ability freezes, read off its
-     * synced progressive-area step.
+     * The burnout's ability's synced progressive-area step, which names the
+     * zone's shape and radius.
      *
      * @param burnout the burnout
-     * @return the zone's shape, a sphere when the step cannot be read
+     * @return the step, empty when it cannot be read
      */
-    private static AreaShape areaShape(ChainBurnouts.Burnout burnout) {
-        return SyncedSteps.first(burnout.abilityId(), ProgressiveAreaStep.class)
-                .map(ProgressiveAreaStep::shape).orElse(AreaShape.SPHERE);
+    private static Optional<ProgressiveAreaStep> areaStep(ChainBurnouts.Burnout burnout) {
+        return SyncedSteps.first(burnout.abilityId(), ProgressiveAreaStep.class);
     }
 
     /**

@@ -245,8 +245,8 @@ public final class CrucibleTests {
     }
 
     /**
-     * One chrysm of a type dropped into a lit crucible melts into exactly 1,000 mB
-     * of that type and the 100 mB of crystal spent on it, pool and reservoir
+     * One chrysm of a type dropped into a lit crucible melts into exactly 32,000 mB
+     * of that type and the 3,200 mB of crystal spent on it, pool and reservoir
      * together (decision chrysm-melts-back-to-its-goo).
      *
      * @param helper the gametest helper

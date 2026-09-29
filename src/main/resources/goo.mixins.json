@@ -13,6 +13,7 @@
   "client": [
     "ClientLevelGooValuesMixin",
     "ClientPacketListenerGooMixin",
+    "MinecraftCrystalPickMixin",
     "OmniblobQuickCraftScreenMixin"
   ]
 }
