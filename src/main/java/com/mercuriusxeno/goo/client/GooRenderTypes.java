@@ -23,6 +23,12 @@ import net.neoforged.neoforge.client.event.RegisterRenderPipelinesEvent;
 public final class GooRenderTypes {
     /** Mod namespace for identifier construction. */
     private static final String NAMESPACE = "goo";
+    /** Path prefix of a pipeline's location. */
+    private static final String PIPELINE_PATH = "pipeline/";
+    /** Path prefix of a core shader. */
+    private static final String CORE_SHADER_PATH = "core/";
+    /** Name prefix of a goo render type. */
+    private static final String TYPE_NAME_PREFIX = "goo_";
 
     /**
      * Lines pipeline with LIGHTNING blend (SRC_ALPHA, ONE) and no depth write.
@@ -154,6 +160,82 @@ public final class GooRenderTypes {
                     .setOutputTarget(OutputTarget.MAIN_TARGET)
                     .createRenderSetup()
     );
+
+    /**
+     * Unstable goo's burnout explosion pipeline (decision
+     * elemental-explosion-per-type): the fireball sphere and its shockwave
+     * ring, additive with depth write off and both faces drawn, through
+     * {@code unstable_explosion.vsh / .fsh}.
+     */
+    public static final RenderPipeline UNSTABLE_EXPLOSION = burnoutPipeline("unstable_explosion", BlendFunction.LIGHTNING);
+
+    /** RenderType that draws unstable goo's burnout explosion. */
+    public static final RenderType UNSTABLE_EXPLOSION_TYPE = burnoutType(UNSTABLE_EXPLOSION);
+
+    /**
+     * Rock goo's burnout explosion pipeline: the dust shock disc, alpha
+     * blended so the dust hides what is behind it, through
+     * {@code rock_explosion.vsh / .fsh}.
+     */
+    public static final RenderPipeline ROCK_EXPLOSION = burnoutPipeline("rock_explosion", BlendFunction.TRANSLUCENT);
+
+    /** RenderType that draws rock goo's burnout explosion. */
+    public static final RenderType ROCK_EXPLOSION_TYPE = burnoutType(ROCK_EXPLOSION);
+
+    /**
+     * Blaze goo's burnout explosion pipeline: the flame bloom, additive so
+     * it lights what it covers, through {@code blaze_explosion.vsh / .fsh}.
+     */
+    public static final RenderPipeline BLAZE_EXPLOSION = burnoutPipeline("blaze_explosion", BlendFunction.LIGHTNING);
+
+    /** RenderType that draws blaze goo's burnout explosion. */
+    public static final RenderType BLAZE_EXPLOSION_TYPE = burnoutType(BLAZE_EXPLOSION);
+
+    /**
+     * Frost goo's burnout explosion pipeline: the fog ring, alpha blended,
+     * through {@code frost_explosion.vsh / .fsh}.
+     */
+    public static final RenderPipeline FROST_EXPLOSION = burnoutPipeline("frost_explosion", BlendFunction.TRANSLUCENT);
+
+    /** RenderType that draws frost goo's burnout explosion. */
+    public static final RenderType FROST_EXPLOSION_TYPE = burnoutType(FROST_EXPLOSION);
+
+    /**
+     * Nether goo's burnout explosion pipeline: the inward rush, additive,
+     * through {@code nether_explosion.vsh / .fsh}.
+     */
+    public static final RenderPipeline NETHER_EXPLOSION = burnoutPipeline("nether_explosion", BlendFunction.LIGHTNING);
+
+    /** RenderType that draws nether goo's burnout explosion. */
+    public static final RenderType NETHER_EXPLOSION_TYPE = burnoutType(NETHER_EXPLOSION);
+
+    /**
+     * Metal goo's burnout explosion pipeline: the chrome urchin, drawn
+     * solid, through {@code metal_explosion.vsh / .fsh}.
+     */
+    public static final RenderPipeline METAL_EXPLOSION = burnoutPipeline("metal_explosion", BlendFunction.TRANSLUCENT);
+
+    /** RenderType that draws metal goo's burnout explosion. */
+    public static final RenderType METAL_EXPLOSION_TYPE = burnoutType(METAL_EXPLOSION);
+
+    /**
+     * Crystal goo's burnout explosion pipeline: the prism burst, alpha
+     * blended, through {@code crystal_explosion.vsh / .fsh}.
+     */
+    public static final RenderPipeline CRYSTAL_EXPLOSION = burnoutPipeline("crystal_explosion",
+            BlendFunction.TRANSLUCENT);
+
+    /** RenderType that draws crystal goo's burnout explosion. */
+    public static final RenderType CRYSTAL_EXPLOSION_TYPE = burnoutType(CRYSTAL_EXPLOSION);
+
+    /**
+     * Glow goo's burnout explosion pipeline: the aurora bloom, additive,
+     * through {@code glow_explosion.vsh / .fsh}.
+     */
+    public static final RenderPipeline GLOW_EXPLOSION = burnoutPipeline("glow_explosion", BlendFunction.LIGHTNING);
+
+    /** RenderType that draws glow goo's burnout explosion. */
+    public static final RenderType GLOW_EXPLOSION_TYPE = burnoutType(GLOW_EXPLOSION);
 
     /**
      * Nether black-hole accretion-disk pipeline: third render pass that
@@ -393,11 +475,45 @@ public final class GooRenderTypes {
     private GooRenderTypes() {}
 
     /**
+     * A burnout explosion pipeline (decision elemental-explosion-per-type):
+     * the type's own shader pair under {@code core/<name>}, position, color
+     * and normal quads, depth tested with depth write off, both faces drawn.
+     *
+     * @param name  the shader pair's and pipeline's name
+     * @param blend how the explosion blends over the world
+     * @return the pipeline
+     */
+    private static RenderPipeline burnoutPipeline(String name, BlendFunction blend) {
+        return RenderPipeline.builder(RenderPipelines.MATRICES_PROJECTION_SNIPPET, RenderPipelines.GLOBALS_SNIPPET)
+                .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + name))
+                .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + name))
+                .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + name))
+                .withVertexFormat(DefaultVertexFormat.POSITION_COLOR_NORMAL, VertexFormat.Mode.QUADS)
+                .withColorTargetState(new ColorTargetState(blend))
+                .withDepthStencilState(new DepthStencilState(DepthStencilState.DEFAULT.depthTest(), false))
+                .withCull(false)
+                .build();
+    }
+
+    /**
+     * The render type that draws a burnout explosion pipeline to the main target.
+     *
+     * @param pipeline the explosion's pipeline
+     * @return the render type
+     */
+    private static RenderType burnoutType(RenderPipeline pipeline) {
+        String name = pipeline.getLocation().getPath().substring(PIPELINE_PATH.length());
+        return RenderType.create(TYPE_NAME_PREFIX + name,
+                RenderSetup.builder(pipeline).setOutputTarget(OutputTarget.MAIN_TARGET).createRenderSetup());
+    }
+
+    /**
      * Registers custom pipelines with the NeoForge pipeline registry.
      *
      * @param event the event instance
      */
     public static void registerPipelines(RegisterRenderPipelinesEvent event) {
+        registerBurnoutPipelines(event);
         event.registerPipeline(LINES_ADDITIVE_GLOW);
         event.registerPipeline(NETHER_BLACKHOLE);
         event.registerPipeline(NETHER_CORONA);
@@ -411,5 +527,22 @@ public final class GooRenderTypes {
         event.registerPipeline(GOO_FLUID);
         event.registerPipeline(GOO_FLUID_SURFACE);
         event.registerPipeline(CRUCIBLE_DISSOLVE);
+    }
+
+    /**
+     * Registers the burnout explosion pipelines (decision
+     * elemental-explosion-per-type).
+     *
+     * @param event the event instance
+     */
+    private static void registerBurnoutPipelines(RegisterRenderPipelinesEvent event) {
+        event.registerPipeline(UNSTABLE_EXPLOSION);
+        event.registerPipeline(ROCK_EXPLOSION);
+        event.registerPipeline(BLAZE_EXPLOSION);
+        event.registerPipeline(FROST_EXPLOSION);
+        event.registerPipeline(NETHER_EXPLOSION);
+        event.registerPipeline(METAL_EXPLOSION);
+        event.registerPipeline(CRYSTAL_EXPLOSION);
+        event.registerPipeline(GLOW_EXPLOSION);
     }
 }

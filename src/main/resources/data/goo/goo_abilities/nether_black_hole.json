@@ -17,6 +17,10 @@
       "radius": "1 + 2 * stacks",
       "phases": [
         {
+          "name": "gather",
+          "ticks": 20
+        },
+        {
           "name": "expand",
           "ticks": 15,
           "enter": [

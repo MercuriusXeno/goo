@@ -20,7 +20,7 @@ import org.jspecify.annotations.NonNull;
  * @param targetPos      the target block position
  * @param targetFace     the target face ordinal
  * @param travelTicks    the number of ticks for the flight arc
- * @param grannyArc      whether to use the boosted arc trajectory
+ * @param grannyArc      whether the throw is a lob onto a top face
  * @param abilityId      the ability id string the blob carries
  */
 public record BlobFlightPayload(double startX, double startY, double startZ,

@@ -94,9 +94,19 @@ public final class NetherSphereVisual {
      * Pre-generated unit sphere mesh. Every 4 consecutive entries form
      * one quad. Each vertex's XYZ doubles as the unit outward normal.
      */
-    private static final List<Vector3f> SPHERE_MESH = buildSphereMesh();
+    private static final List<Vector3f> SPHERE_MESH = List.copyOf(buildSphereMesh());
 
     private NetherSphereVisual() {
+    }
+
+    /**
+     * The unit sphere mesh, every four entries one quad, each vertex also its
+     * outward normal; shared with the burnout explosions that draw spheres.
+     *
+     * @return the unit sphere vertex list
+     */
+    static List<Vector3f> unitSphereMesh() {
+        return SPHERE_MESH;
     }
 
     /**

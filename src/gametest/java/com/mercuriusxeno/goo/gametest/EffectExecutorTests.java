@@ -44,7 +44,7 @@ public final class EffectExecutorTests {
     /** Extra ticks after fuse for mining behaviors (1 stack). */
     private static final int MINING_POST_FUSE = 15;
     /** Extra ticks for Nether's multi-phase behavior. */
-    private static final int NETHER_POST_FUSE = 80;
+    private static final int NETHER_POST_FUSE = 100;
     /** Extra ticks for simpler instant/short behaviors. */
     private static final int SHORT_POST_FUSE = 5;
     private static final String VALUES_REQUIRED = "Goo values must be loaded for rock mining to work";
@@ -95,8 +95,10 @@ public final class EffectExecutorTests {
     private static final String ABILITY_NETHER_BLACK_HOLE = "goo:nether_black_hole";
     /** Ticks the black hole expands before it consumes its sphere. */
     private static final int BLACK_HOLE_EXPAND_TICKS = 15;
-    /** Ticks from the fuse to the tick the black hole pops: expand, hold and contract. */
-    private static final int BLACK_HOLE_LIFE_TICKS = 60;
+    /** Ticks the black hole gathers before it expands, while nether's inward rush plays. */
+    private static final int BLACK_HOLE_GATHER_TICKS = 20;
+    /** Ticks from the fuse to the tick the black hole pops: gather, expand, hold and contract. */
+    private static final int BLACK_HOLE_LIFE_TICKS = 80;
     private static final float HEALTH_TOLERANCE = 0.01f;
     /** The barrier floor spans the one-stack sphere's footprint around the marker, three blocks each way. */
     private static final int BARRIER_FLOOR_MIN = 0;
@@ -638,7 +640,7 @@ public final class EffectExecutorTests {
         layBarrierFloor(helper);
         placeMarkerWithAbility(helper, GooTypes.NETHER, ABILITY_NETHER_BLACK_HOLE);
         Pig pig = helper.spawnWithNoFreeWill(EntityType.PIG, MINE_TARGET_POS);
-        helper.runAfterDelay(FUSE_TICKS + BLACK_HOLE_EXPAND_TICKS + SHORT_POST_FUSE, () -> {
+        helper.runAfterDelay(FUSE_TICKS + BLACK_HOLE_GATHER_TICKS + BLACK_HOLE_EXPAND_TICKS + SHORT_POST_FUSE, () -> {
             helper.assertTrue(helper.getBlockState(MARKER_POS.north()).isAir(), HOLE_LEFT_STONE);
             helper.assertTrue(Math.abs(pig.getHealth() - pig.getMaxHealth() * HALF) < HEALTH_TOLERANCE,
                     HOLE_MISSED_PIG);
