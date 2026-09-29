@@ -45,8 +45,8 @@ class GooInteractionTypeTest {
                 arguments("flint and steel", GooInteractionType.SPARK, false, true, GooInteractionType.SPARK),
                 arguments("bucket", null, true, false, GooInteractionType.FLUID_CONTAINER),
                 arguments("bucket", null, true, true, GooInteractionType.FLUID_CONTAINER),
-                arguments("stick", null, false, false, null),
-                arguments("stick", null, false, true, null));
+                arguments("stick", null, false, false, GooInteractionType.OTHER_ITEM),
+                arguments("stick", null, false, true, GooInteractionType.OTHER_ITEM));
     }
 
     @ParameterizedTest(name = "{0}, slot filled {3} -> {4}")

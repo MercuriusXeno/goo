@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:ix_reactor_insert_pickup",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 5,
+  "setup_ticks": 0,
+  "required": true
+}

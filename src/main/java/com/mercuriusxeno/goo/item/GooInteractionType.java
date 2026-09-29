@@ -32,7 +32,10 @@ public enum GooInteractionType {
     FLUID_CONTAINER,
 
     /** Flint and steel: spark a machine that lights. */
-    SPARK;
+    SPARK,
+
+    /** Any other held item, which only a machine that takes every item, the plexer, answers. */
+    OTHER_ITEM;
 
     /**
      * Reports whether the machine passes this click on so the held item's own use runs.
@@ -47,7 +50,7 @@ public enum GooInteractionType {
      * Resolves the interaction type for the given item stack aimed at no canister slot.
      *
      * @param stack the held item stack
-     * @return the interaction type, or null if the item has no goo interaction
+     * @return the interaction type, or null for an empty hand
      */
     public static @Nullable GooInteractionType classify(ItemStack stack) {
         return classify(stack, false);
@@ -60,11 +63,14 @@ public enum GooInteractionType {
      *
      * @param stack            the held item stack
      * @param targetSlotFilled whether the aimed canister slot holds a canister
-     * @return the interaction type, or null if the item has no goo interaction
+     * @return the interaction type, or null for an empty hand
      */
     public static @Nullable GooInteractionType classify(ItemStack stack, boolean targetSlotFilled) {
+        if (stack.isEmpty()) {
+            return null;
+        }
         GooInteractionType selfClassified = itemKind(stack);
-        boolean fluidContainer = selfClassified == null && !stack.isEmpty()
+        boolean fluidContainer = selfClassified == null
                 && stack.getCapability(Capabilities.Fluid.ITEM, ItemAccess.forStack(stack)) != null;
         return resolve(selfClassified, fluidContainer, targetSlotFilled);
     }
@@ -89,9 +95,9 @@ public enum GooInteractionType {
      * @param selfClassified   the type a goo item names for itself, or null
      * @param fluidContainer   whether the item carries a fluid handler
      * @param targetSlotFilled whether the aimed canister slot holds a canister
-     * @return the interaction type, or null if the item has no goo interaction
+     * @return the interaction type of a held item
      */
-    static @Nullable GooInteractionType resolve(
+    static GooInteractionType resolve(
             @Nullable GooInteractionType selfClassified, boolean fluidContainer, boolean targetSlotFilled) {
         if (selfClassified == CANISTER_INSERT && targetSlotFilled) {
             return CANISTER_PICKUP;
@@ -99,6 +105,6 @@ public enum GooInteractionType {
         if (selfClassified != null) {
             return selfClassified;
         }
-        return fluidContainer ? FLUID_CONTAINER : null;
+        return fluidContainer ? FLUID_CONTAINER : OTHER_ITEM;
     }
 }
