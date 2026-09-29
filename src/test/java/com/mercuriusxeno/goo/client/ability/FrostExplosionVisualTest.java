@@ -84,6 +84,5 @@ class FrostExplosionVisualTest {
     @Test
     void pipelineShadersResolveOnTheClasspath() {
         PipelineShaders.assertExist(GooRenderTypes.FROST_EXPLOSION);
-        PipelineShaders.assertExist(GooRenderTypes.FROST_TUNNEL_WAVE);
     }
 }

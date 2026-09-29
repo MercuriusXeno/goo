@@ -39,6 +39,5 @@ class RockExplosionVisualTest {
     @Test
     void pipelineShadersResolveOnTheClasspath() {
         PipelineShaders.assertExist(GooRenderTypes.ROCK_EXPLOSION);
-        PipelineShaders.assertExist(GooRenderTypes.ROCK_TUNNEL_WAVE);
     }
 }

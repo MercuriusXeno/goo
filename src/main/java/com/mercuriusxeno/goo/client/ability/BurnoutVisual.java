@@ -20,16 +20,6 @@ public interface BurnoutVisual {
      */
     int durationTicks();
 
-    /**
-     * How many ticks one burnout's explosion plays, for a visual whose
-     * length follows the burnout, such as a tunnel's wave.
-     *
-     * @param burnout the burnout
-     * @return the explosion's duration in ticks
-     */
-    default int durationTicks(ChainBurnouts.Burnout burnout) {
-        return durationTicks();
-    }
 
     /**
      * Starts one burnout's explosion, once, as the client adds it: the place
