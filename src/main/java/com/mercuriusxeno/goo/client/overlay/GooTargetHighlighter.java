@@ -22,7 +22,7 @@ import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Draws the glove's aim each frame from the tick's {@link AimTracker}: a
+ * Draws the glove's aim each frame from the frame's {@link AimTracker}: a
  * goo-colored highlight on the targeted block or chain marker at the opaque
  * stage, and the throw arc after translucent blocks. The entity outline
  * rides the render state modifier AimTracker registers (decision
