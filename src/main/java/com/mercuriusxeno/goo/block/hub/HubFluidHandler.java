@@ -120,9 +120,28 @@ public class HubFluidHandler implements ResourceHandler<FluidResource>, GasketDe
         if (amount <= 0 || resource.isEmpty()) {
             return 0;
         }
-        return Math.min(
-                hub.containerState().routeFluid(resource, amount, transaction),
-                Integer.MAX_VALUE);
+        int shared = shareByDemand(resource, amount, transaction);
+        return shared + hub.containerState().routeFluid(resource, amount - shared, transaction);
+    }
+
+    /**
+     * Gives each canister taking the fluid up to the demand it states, so one canister's
+     * share never pours into another that merely sits first (decision receivers-demand-and-links-relay).
+     *
+     * @param resource    the fluid arriving
+     * @param amount      the mB arriving
+     * @param transaction the caller's transaction
+     * @return the mB the canisters took by demand
+     */
+    private int shareByDemand(FluidResource resource, int amount, TransactionContext transaction) {
+        int left = amount;
+        for (int i = 0; i < HubBlockEntity.MAX_CANISTERS && left > 0; i++) {
+            CanisterSlotFluidHandler slot = hub.containerState().getSlotFluidHandler(i);
+            if (slot != null && slot.isValid(0, resource)) {
+                left -= slot.insert(0, resource, Math.min(left, GasketDemand.demandOf(slot, resource)), transaction);
+            }
+        }
+        return amount - left;
     }
 
     /**

@@ -75,6 +75,9 @@ public final class GasketDemandTests {
     /** Crystal enough for the run: the pace climbs about 32-fold over 100 ticks. */
     private static final int CRYSTAL_HELD = 100_000;
     private static final int MIDDLE_HELD = 1_000;
+    /** The hub canister that rests, lower than the feeder so slot order would fill it first. */
+    private static final int RESTING_HUB_SLOT = 0;
+    private static final int FEEDING_HUB_SLOT = 3;
     private static final int CHAIN_VAT_GOO = 2_000_000;
     /** Whole 10 mB steps and a pace carried across ticks keep growth a little behind the pace owed. */
     private static final double PACE_KEPT = 0.9;
@@ -199,6 +202,44 @@ public final class GasketDemandTests {
         assertCrystallizerDrawsThrough(helper, middleOutlet, GooConstants.NO_SLOT,
                 outlet -> middle.setPartner(GasketRole.TRANSMITTER, outlet),
                 () -> middle.getContents().getVolume(GooTypes.ENDER));
+    }
+
+    /**
+     * A vat feeding a hub's intake, the hub holding two canisters of ender: the lower
+     * canister rests with room, and the higher one's bottom gasket feeds a crystallizer.
+     * The hub gives each canister the demand it states, so the crystallizer grows at its
+     * pace and the resting canister gains no more than its resting demand a tick.
+     *
+     * @param helper the gametest helper
+     */
+    public static void hubGivesEachCanisterItsOwnDemand(GameTestHelper helper) {
+        VatBlockEntity source = placeVat(helper, CHAIN_VAT_POS);
+        source.insertGoo(GooTypes.ENDER, CHAIN_VAT_GOO);
+        helper.setBlock(MIDDLE_POS, GooBlocks.HUB.get().defaultBlockState().setValue(HubBlock.HAS_GASKET, true));
+        HubBlockEntity hub = helper.getBlockEntity(MIDDLE_POS, HubBlockEntity.class);
+        UUID feederBottom = UUID.randomUUID();
+        hub.insertCanister(RESTING_HUB_SLOT, canister(GooTypes.ENDER, MIDDLE_HELD, null, null));
+        hub.insertCanister(FEEDING_HUB_SLOT, canister(GooTypes.ENDER, MIDDLE_HELD, null, feederBottom));
+        UUID intake = hub.ensureGasketId(GasketRole.RECEIVER);
+        GasketRegistry.get(helper.getLevel()).link(source.ensureGasketId(GasketRole.TRANSMITTER), intake);
+        source.setPartner(GasketRole.TRANSMITTER, new GasketPartner(helper.absolutePos(MIDDLE_POS), GooConstants.NO_SLOT));
+        hub.setPartner(GasketRole.RECEIVER, new GasketPartner(helper.absolutePos(CHAIN_VAT_POS), GooConstants.NO_SLOT));
+
+        int restingPull = GasketPushMath.taperRate(ContainerCapacity.canisterCapacity(0), GasketPushMath.GOO_EXPONENT);
+        AtomicInteger restingHeld = new AtomicInteger(MIDDLE_HELD);
+        helper.onEachTick(() -> {
+            int now = hubSlotHolds(hub, RESTING_HUB_SLOT);
+            int gained = now - restingHeld.getAndSet(now);
+            helper.assertTrue(gained <= restingPull,
+                    "The resting canister should gain at most its resting demand, " + restingPull + ", gained " + gained);
+        });
+        assertCrystallizerDrawsThrough(helper, feederBottom, FEEDING_HUB_SLOT,
+                outlet -> hub.setPartner(GasketRole.TRANSMITTER, FEEDING_HUB_SLOT, outlet),
+                () -> hubSlotHolds(hub, FEEDING_HUB_SLOT));
+    }
+
+    private static int hubSlotHolds(HubBlockEntity hub, int slot) {
+        return (int) hub.getFluidHandler().getAmountAsLong(slot);
     }
 
     /**
