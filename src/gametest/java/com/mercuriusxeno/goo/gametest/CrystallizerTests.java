@@ -10,6 +10,7 @@ import com.mercuriusxeno.goo.block.crystallizer.CrystalReach;
 import com.mercuriusxeno.goo.block.crystallizer.CrystallizerBlock;
 import com.mercuriusxeno.goo.block.crystallizer.CrystallizerBlockEntity;
 import com.mercuriusxeno.goo.block.crystallizer.CrystallizerPhases;
+import com.mercuriusxeno.goo.block.crystallizer.CrystallizerShapes;
 import com.mercuriusxeno.goo.data.GasketRegistry;
 import com.mercuriusxeno.goo.item.BlobStacks;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
@@ -646,7 +647,7 @@ public final class CrystallizerTests {
         seedCrystal(helper, tier);
         BlockPos abs = helper.absolutePos(CRYSTALLIZER_POS);
         CrystallizerBlockEntity crystallizer = helper.getBlockEntity(CRYSTALLIZER_POS, CrystallizerBlockEntity.class);
-        AABB box = CrystallizerBlock.crystalShape(Direction.NORTH, crystallizer.crystallized()).bounds().move(abs);
+        AABB box = CrystallizerShapes.crystalShape(Direction.NORTH, crystallizer.crystallized()).bounds().move(abs);
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         StringBuilder failed = new StringBuilder();
         int tried = 0;
@@ -685,7 +686,7 @@ public final class CrystallizerTests {
         Vec3 end = eye.add(aim.subtract(eye).normalize().scale(player.blockInteractionRange()));
         BlockHitResult gameHit = helper.getLevel().clip(new ClipContext(eye, end, ClipContext.Block.OUTLINE,
                 ClipContext.Fluid.NONE, player));
-        BlockHitResult sighted = CrystalReach.nearestCrystalHit(pos -> takeableCrystalShape(helper, pos), eye, end);
+        BlockHitResult sighted = CrystalReach.nearestCrystalHit(pos -> crystalShapeAt(helper, pos), eye, end);
         BlockHitResult click = (BlockHitResult) CrystalReach.retarget(gameHit, sighted, eye);
         if (!click.getBlockPos().equals(helper.absolutePos(CRYSTALLIZER_POS))) {
             return null; // Another block stands in front of the crystal on this sight line, so the click is rightly its.
@@ -719,14 +720,13 @@ public final class CrystallizerTests {
                 placed.getBlockState(), saved, level.registryAccess()));
     }
 
-    private static VoxelShape takeableCrystalShape(GameTestHelper helper, BlockPos pos) {
+    private static VoxelShape crystalShapeAt(GameTestHelper helper, BlockPos pos) {
         BlockState state = helper.getLevel().getBlockState(pos);
         if (!(state.getBlock() instanceof CrystallizerBlock)
-                || !(helper.getLevel().getBlockEntity(pos) instanceof CrystallizerBlockEntity crystallizer)
-                || !crystallizer.isMature(CrystallizerBlock.knobTier(state))) {
+                || !(helper.getLevel().getBlockEntity(pos) instanceof CrystallizerBlockEntity crystallizer)) {
             return Shapes.empty();
         }
-        return CrystallizerBlock.crystalShape(state.getValue(CrystallizerBlock.FACING), crystallizer.crystallized());
+        return CrystallizerShapes.crystalShape(state.getValue(CrystallizerBlock.FACING), crystallizer.crystallized());
     }
 
     /**
