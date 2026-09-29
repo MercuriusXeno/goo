@@ -37,6 +37,8 @@ public class ChrysmSpecialRenderer implements SpecialModelRenderer<ResourceKey<G
      * chrysm 20% past the fit twice over (1.44) and a flowering chrysm three times (1.728).
      */
     private static final double[] TIER_SCALES = {1.1, 1.44, 1.728};
+    /** The materia orb's drawn height: half the 16 pixel slot (operator ruling). */
+    private static final double ORB_HEIGHT = 8;
     /** The item box's middle height, in pixels. */
     private static final double BOX_MIDDLE = 8;
     private static final double HALF = 0.5;
@@ -73,18 +75,14 @@ public class ChrysmSpecialRenderer implements SpecialModelRenderer<ResourceKey<G
         poseStack.scale(scale, scale, scale);
         poseStack.translate(-CrystalCluster.BASE_X * PIXEL, -CrystalCluster.BASE_Y * PIXEL,
                 -CrystalCluster.BASE_Z * PIXEL);
-        CrystalClusterSubmitter.Look look = CrystalClusterSubmitter.lookOf(type, ClientGooTypes.color(type));
-        if (drawsAsOrb(tier)) {
-            CrystalClusterSubmitter.submitOrb(poseStack, nodeCollector, CrystalCluster.ORB_RADIUS, look, packedLight);
-        } else {
-            CrystalClusterSubmitter.submit(poseStack, nodeCollector, CrystalCluster.prisms(tier.volume()), look,
-                    packedLight);
-        }
+        CrystalClusterSubmitter.submit(poseStack, nodeCollector, CrystalCluster.prisms(tier.volume()),
+                CrystalClusterSubmitter.lookOf(type, ClientGooTypes.color(type)), packedLight);
         poseStack.popPose();
     }
 
     /**
-     * Operator ruling: materia draws as a marble-like orb rather than a cluster.
+     * Operator ruling: materia draws as a marble-like orb rather than a cluster, the
+     * marble a materia's crystal compresses into.
      *
      * @param tier the tier
      * @return true when the tier draws as the orb
@@ -103,7 +101,7 @@ public class ChrysmSpecialRenderer implements SpecialModelRenderer<ResourceKey<G
      */
     static float tierScale(ChrysmTier tier) {
         if (drawsAsOrb(tier)) {
-            return 1f;
+            return (float) (ORB_HEIGHT / drawnHeight(tier));
         }
         return (float) (fitScale(CrystalCluster.reach(tier.volume())) * TIER_SCALES[tier.ordinal()]);
     }
@@ -113,7 +111,7 @@ public class ChrysmSpecialRenderer implements SpecialModelRenderer<ResourceKey<G
      * @return the unscaled height of what the tier draws, in pixels
      */
     static double drawnHeight(ChrysmTier tier) {
-        return drawsAsOrb(tier) ? CrystalCluster.ORB_RADIUS / HALF : CrystalCluster.reach(tier.volume())[1];
+        return CrystalCluster.reach(tier.volume())[1];
     }
 
     /**

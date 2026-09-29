@@ -25,7 +25,6 @@ class CrystallizerPhasesTest {
     private static final Held CRYSTAL = new Held(GooTypes.CRYSTAL, CHRYSM_CRYSTAL);
     /** A budget that never limits a step, so the step tests read the goo, crystal and knob alone. */
     private static final double UNPACED = Double.MAX_VALUE;
-    private static final double TOLERANCE = 0.02;
 
     @Nested
     class ChoosingRoles {
@@ -92,25 +91,47 @@ class CrystallizerPhasesTest {
     class Pace {
 
         @Test
-        void eachTierTakesAboutTwoHundredTicksMore() {
+        void eachTierCrystallizesAtItsOwnEvenRate() {
+            assertEquals(64, CrystallizerPhases.paceAllowance(0), 1e-9);
+            assertEquals(64, CrystallizerPhases.paceAllowance(31_990), 1e-9);
+            assertEquals(968, CrystallizerPhases.paceAllowance(32_000), 1e-9);
+            assertEquals(968, CrystallizerPhases.paceAllowance(999_990), 1e-9);
+            assertEquals(15_500, CrystallizerPhases.paceAllowance(1_000_000), 1e-9);
+            assertEquals(15_500, CrystallizerPhases.paceAllowance(20_000_000), 1e-9);
+            assertEquals(242_000, CrystallizerPhases.paceAllowance(32_000_000), 1e-9);
+            assertEquals(242_000, CrystallizerPhases.paceAllowance(999_999_990), 1e-9);
+        }
+
+        @Test
+        void fromEmptyEachTierCompletesAtItsDoublingTickSpendingATenthInCrystal() {
+            Held endless = new Held(GooTypes.ENDER, Integer.MAX_VALUE);
+            Held endlessCrystal = new Held(GooTypes.CRYSTAL, Integer.MAX_VALUE);
             long crystallized = 0;
+            long crystalSpent = 0;
             double budget = 0;
             int[] reachedAt = new int[ChrysmTier.values().length];
-            int last = reachedAt.length - 1;
-            for (int tick = 1; tick <= 1_000 && reachedAt[last] == 0; tick++) {
+            long[] crystalAt = new long[ChrysmTier.values().length];
+            for (int tick = 1; tick <= 8_000; tick++) {
                 budget = CrystallizerPhases.nextBudget(budget, crystallized);
-                long steps = (long) (budget / CrystallizerPhases.GOO_PER_CRYSTAL);
-                crystallized += steps * CrystallizerPhases.GOO_PER_CRYSTAL;
-                budget -= steps * CrystallizerPhases.GOO_PER_CRYSTAL;
+                Step step = CrystallizerPhases.step(endless, endlessCrystal, crystallized, GooTypes.ENDER,
+                        ChrysmTier.MATERIA, budget);
+                if (step != null) {
+                    crystallized += step.goo();
+                    crystalSpent += step.crystal();
+                    budget -= step.goo();
+                }
                 for (ChrysmTier tier : ChrysmTier.values()) {
                     if (reachedAt[tier.ordinal()] == 0 && crystallized >= tier.volume()) {
                         reachedAt[tier.ordinal()] = tick;
+                        crystalAt[tier.ordinal()] = crystalSpent;
                     }
                 }
             }
+            int[] expected = {500, 1_500, 3_500, 7_500};
             for (ChrysmTier tier : ChrysmTier.values()) {
-                int expected = CrystallizerPhases.TICKS_PER_TIER * (tier.ordinal() + 1);
-                assertEquals(expected, reachedAt[tier.ordinal()], expected * TOLERANCE, tier.name());
+                assertEquals(expected[tier.ordinal()], reachedAt[tier.ordinal()], tier.name());
+                assertEquals(tier.volume() / CrystallizerPhases.GOO_PER_CRYSTAL, crystalAt[tier.ordinal()],
+                        tier.name() + " crystal spent");
             }
         }
 

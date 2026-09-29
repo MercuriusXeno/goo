@@ -71,14 +71,14 @@ public final class CrystallizerTests {
     private static final int FIRST = 0;
     private static final int SECOND = 1;
     private static final int PUSH_TICKS = 20;
-    /** A chrysm's 200 ticks at the pace, with margin. */
-    private static final int CHRYSM_TICKS = 220;
-    /** A budding chrysm's 400 ticks at the pace, with margin. */
-    private static final int BUDDING_CHRYSM_TICKS = 440;
-    /** 500,000 mB at the pace: about 360 ticks, with margin. */
-    private static final int HALF_BUDDING_TICKS = 420;
-    /** Half a chrysm, 16,000 mB, at the flat pace of 160 mB a tick: 100 ticks, with margin. */
-    private static final int HALF_CHRYSM_TICKS = 110;
+    /** A chrysm's 500 ticks at the pace, with margin. */
+    private static final int CHRYSM_TICKS = 520;
+    /** A budding chrysm's 1,500 ticks at the pace, with margin. */
+    private static final int BUDDING_CHRYSM_TICKS = 1_540;
+    /** 500,000 mB at the pace: a chrysm's 500 ticks and 468,000 mB at 968 a tick, about 984 ticks, with margin. */
+    private static final int HALF_BUDDING_TICKS = 1_020;
+    /** Half a chrysm, 16,000 mB, at the chrysm pace of 64 mB a tick: 250 ticks, with margin. */
+    private static final int HALF_CHRYSM_TICKS = 260;
     private static final int STILL_GROWING_TICKS = 100;
     private static final int SOME_TICKS = 20;
     private static final double HALF = 0.5;
@@ -477,7 +477,7 @@ public final class CrystallizerTests {
 
     /**
      * Full canisters of ender and crystal crystallize at the pace: no chrysm 100 ticks
-     * in, one by 220 (operator ruling: a chrysm at about 10 s).
+     * in, one by 520 (decision crystal-pace-doubles-per-tier: a chrysm at 25 s).
      *
      * @param helper the gametest helper
      */
@@ -491,7 +491,7 @@ public final class CrystallizerTests {
                             + crystallizer.crystallized());
             helper.runAfterDelay(CHRYSM_TICKS - STILL_GROWING_TICKS, () -> {
                 helper.assertTrue(crystallizer.formedTier() == ChrysmTier.CHRYSM,
-                        "A chrysm should have formed by 220 ticks, crystallized " + crystallizer.crystallized());
+                        "A chrysm should have formed by 520 ticks, crystallized " + crystallizer.crystallized());
                 helper.succeed();
             });
         });
