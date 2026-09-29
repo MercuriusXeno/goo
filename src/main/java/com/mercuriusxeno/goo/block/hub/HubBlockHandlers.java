@@ -3,7 +3,6 @@ package com.mercuriusxeno.goo.block.hub;
 import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.ISidedProxy;
 import com.mercuriusxeno.goo.block.GooBlockInteraction;
-import com.mercuriusxeno.goo.block.InteractionCooldown;
 import com.mercuriusxeno.goo.block.canister.SlottedCanisterData;
 import com.mercuriusxeno.goo.item.BlobInsert;
 import com.mercuriusxeno.goo.item.GooInteractionType;
@@ -85,11 +84,7 @@ final class HubBlockHandlers {
         int slot = HubBlock.hitSlot(hitResult, pos);
         if (slot < 0) { return InteractionResult.PASS; }
 
-        InteractionResult handed = SlottedCanisterData.handToPlayer(hub.removeCanister(slot), player, level, pos);
-        if (handed == InteractionResult.SUCCESS) {
-            InteractionCooldown.markInteraction(player.getUUID(), level.getGameTime());
-        }
-        return handed;
+        return SlottedCanisterData.handToPlayer(hub.removeCanister(slot), player, level, pos);
     }
 
     // --- Item insertion handlers ---
@@ -116,7 +111,6 @@ final class HubBlockHandlers {
         GooBlockInteraction.consumeOneHeld(stack, player);
         hub.getLevel().playSound(null, hub.getBlockPos(),
                 SoundEvents.DECORATED_POT_INSERT, SoundSource.BLOCKS, 1.0f, 1.0f);
-        InteractionCooldown.markInteraction(player.getUUID(), hub.getLevel().getGameTime());
         return InteractionResult.SUCCESS;
     }
 

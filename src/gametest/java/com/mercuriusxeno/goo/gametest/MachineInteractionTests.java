@@ -58,7 +58,6 @@ public final class MachineInteractionTests {
     private static final String HUB_SHOULD_HOLD_BOTH = "Player should hold the picked-up canister beside the held one";
     private static final int HUB_SLOT_NORTH = 0;
     private static final int HUB_PICKUP_HAND_COUNT = 2;
-    private static final int HUB_PICKUP_DELAY_TICKS = 12;
     private static final double PIXELS_PER_BLOCK = 16.0;
     private static final String PLEXER_SHOULD_SET = "Plexer should have target item after interaction";
     private static final String BLAZE_ROD_STAYS_WHOLE = "A blaze rod click should leave the held stack whole";
@@ -279,17 +278,14 @@ public final class MachineInteractionTests {
         helper.useBlock(BE_POS, player, slotHit(helper, HUB_SLOT_NORTH));
         helper.assertFalse(hub.getCanister(HUB_SLOT_NORTH).isEmpty(), HUB_SHOULD_INSERT);
 
-        // InteractionCooldown refuses a second click for ten ticks after the insert.
-        helper.runAfterDelay(HUB_PICKUP_DELAY_TICKS, () -> {
-            helper.useBlock(BE_POS, player, slotHit(helper, HUB_SLOT_NORTH));
+        helper.useBlock(BE_POS, player, slotHit(helper, HUB_SLOT_NORTH));
 
-            helper.assertTrue(hub.getCanister(HUB_SLOT_NORTH).isEmpty(), HUB_SHOULD_PICKUP);
-            helper.assertFalse(player.getMainHandItem().isEmpty(), HUB_SHOULD_KEEP_HELD);
-            helper.assertTrue(
-                    player.getInventory().countItem(GooItems.CANISTER.get()) == HUB_PICKUP_HAND_COUNT,
-                    HUB_SHOULD_HOLD_BOTH);
-            helper.succeed();
-        });
+        helper.assertTrue(hub.getCanister(HUB_SLOT_NORTH).isEmpty(), HUB_SHOULD_PICKUP);
+        helper.assertFalse(player.getMainHandItem().isEmpty(), HUB_SHOULD_KEEP_HELD);
+        helper.assertTrue(
+                player.getInventory().countItem(GooItems.CANISTER.get()) == HUB_PICKUP_HAND_COUNT,
+                HUB_SHOULD_HOLD_BOTH);
+        helper.succeed();
     }
 
     /**
