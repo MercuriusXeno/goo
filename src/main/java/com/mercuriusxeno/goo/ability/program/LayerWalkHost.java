@@ -23,8 +23,9 @@ public interface LayerWalkHost extends StepHost {
      *
      * @param visuals the layer visuals' registered name
      * @param layer   the layer index, from zero
+     * @param reach   the layer's reach in blocks, which its ring sizes to
      */
-    void previewLayer(String visuals, int layer);
+    void previewLayer(String visuals, int layer, float reach);
 
     /**
      * Plays the fx of a layer just struck.

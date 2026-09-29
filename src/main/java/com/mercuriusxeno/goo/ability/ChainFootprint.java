@@ -27,6 +27,9 @@ public final class ChainFootprint {
      * Maximum meaningful stack count, the ladder's length.
      */
     public static final int MAX_STACKS = TUNNEL_DEPTHS.length;
+
+    private static final float SINGLE_BLOCK_REACH = 0.5f;
+    private static final float THREE_BY_THREE_REACH = 1.5f;
     /**
      * Area mode: 3x3 tunnel advancing along placed face axis.
      */
@@ -102,6 +105,17 @@ public final class ChainFootprint {
      */
     public static List<int[]> layerFootprint(int stacks) {
         return stacks == 1 ? singleBlock() : threeByThree();
+    }
+
+    /**
+     * The reach of one tunnel layer: half the width of its face, so a ring
+     * of this radius spans the 1x1 or the 3x3 (decision goo-swirl-ring-particle).
+     *
+     * @param stacks blob stack count (1-based)
+     * @return the reach in blocks
+     */
+    public static float tunnelFaceReach(int stacks) {
+        return stacks == 1 ? SINGLE_BLOCK_REACH : THREE_BY_THREE_REACH;
     }
 
     /**

@@ -158,8 +158,8 @@ public record MarkerHost(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity
     }
 
     @Override
-    public void previewLayer(String visuals, int layer) {
-        LayerVisualsType.byName(visuals).preview(level, pos, be.getPlacedFace(), layer, be.getStackCount());
+    public void previewLayer(String visuals, int layer, float reach) {
+        LayerVisualsType.byName(visuals).preview(level, pos, be.getPlacedFace(), layer, be.getStackCount(), reach);
     }
 
     @Override

@@ -41,6 +41,18 @@ final class AreaLayers {
     }
 
     /**
+     * The reach a layer's preview sizes its ring to (decision
+     * goo-swirl-ring-particle): a tunnel's face, which every shape takes
+     * until each shape rings its own round footprint.
+     *
+     * @param stacks the marker's stack count
+     * @return the reach in blocks
+     */
+    static float layerReach(int stacks) {
+        return ChainFootprint.tunnelFaceReach(stacks);
+    }
+
+    /**
      * Lists the block positions of one layer.
      *
      * @param shape       the footprint shape
