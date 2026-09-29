@@ -1,11 +1,11 @@
 package com.mercuriusxeno.goo.client.ber;
 
-import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.block.tap.TapDripGrade;
 import com.mercuriusxeno.goo.block.tap.TapStream;
 import com.mercuriusxeno.goo.client.RecordingVertexConsumer;
 import com.mercuriusxeno.goo.client.RenderContext;
 import com.mercuriusxeno.goo.client.particle.DripQuadPlacement;
+import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import org.junit.jupiter.api.Nested;

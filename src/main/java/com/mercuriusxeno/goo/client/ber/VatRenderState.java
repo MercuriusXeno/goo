@@ -1,8 +1,8 @@
 package com.mercuriusxeno.goo.client.ber;
 
-import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.client.RenderContext;
 import com.mercuriusxeno.goo.client.TypeBand;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 import net.minecraft.resources.ResourceKey;
 import org.jspecify.annotations.Nullable;

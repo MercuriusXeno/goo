@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.item;
 
-import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.registry.GooFluids;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.network.RegistryFriendlyByteBuf;

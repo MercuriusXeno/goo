@@ -110,7 +110,7 @@ public final class GooBlockInteraction {
     private static @Nullable InteractionResult checkCooldown(
             GooInteractionType interaction, Level level, Player player) {
         if (interaction.requiresCooldown()
-                && InteractionCooldown.isOnCooldown(player.getUUID(), level.getGameTime())) {
+                && InteractionCooldown.isOnCooldown(level, player)) {
             return InteractionResult.SUCCESS;
         }
         return null;
@@ -130,7 +130,7 @@ public final class GooBlockInteraction {
         if (level.isClientSide()) {
             return InteractionResult.SUCCESS;
         }
-        if (InteractionCooldown.isOnCooldown(player.getUUID(), level.getGameTime())) {
+        if (InteractionCooldown.isOnCooldown(level, player)) {
             return InteractionResult.SUCCESS;
         }
         return null;

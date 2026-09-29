@@ -1,8 +1,8 @@
 package com.mercuriusxeno.goo.mixin;
 
-import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.item.BlobStacks;
 import com.mercuriusxeno.goo.item.OmniblobQuickCraft;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.resources.ResourceKey;

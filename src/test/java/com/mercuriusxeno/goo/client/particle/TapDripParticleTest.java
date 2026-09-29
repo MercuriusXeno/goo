@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.client.particle;
 
-import com.mercuriusxeno.goo.DripFall;
+import com.mercuriusxeno.goo.throwing.DripFall;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;

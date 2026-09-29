@@ -1,12 +1,13 @@
 package com.mercuriusxeno.goo.command;
 
-import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.GooColors;
-import com.mercuriusxeno.goo.GooTypeDefinition;
-import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.data.GooValue;
+import com.mercuriusxeno.goo.data.GooValueRegistry;
+import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.data.ScaffoldGenerator;
 import com.mercuriusxeno.goo.network.GooValueSync;
+import com.mercuriusxeno.goo.type.GooColors;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -399,6 +400,16 @@ public final class GooCommand {
     }
 
     /**
+     * Answers the goo value registry of the server running the command.
+     *
+     * @param ctx the command context
+     * @return the registry
+     */
+    private static GooValueRegistry valuesOf(CommandContext<CommandSourceStack> ctx) {
+        return GooValues.registryOf(ctx.getSource().getServer());
+    }
+
+    /**
      * Resolves and sends the goo value for a validated item ID.
      *
      * @param ctx      the command context
@@ -408,7 +419,7 @@ public final class GooCommand {
      */
     private static int sendLookupResult(CommandContext<CommandSourceStack> ctx,
                                         String itemName, Identifier itemId) {
-        GooValue value = Goo.GOO_VALUES.lookup(itemId);
+        GooValue value = valuesOf(ctx).table().lookup(itemId);
         if (value == null || value.isEmpty()) {
             ctx.getSource().sendSuccess(() -> Component.literal(itemName + MSG_NO_GOO_VALUE), false);
         } else {
@@ -460,10 +471,10 @@ public final class GooCommand {
      * @return 1 on success
      */
     private static int reload(CommandContext<CommandSourceStack> ctx) {
-        Goo.GOO_VALUES.loadEffectiveCache();
+        valuesOf(ctx).loadEffectiveCache();
         GooValueSync.sendToAll(ctx.getSource().getServer());
         ctx.getSource().sendSuccess(() ->
-                Component.literal(MSG_RELOADED + Goo.GOO_VALUES.size() +
+                Component.literal(MSG_RELOADED + valuesOf(ctx).table().size() +
                         MSG_EFFECTIVE_CACHE), true);
         return 1;
     }
@@ -475,13 +486,13 @@ public final class GooCommand {
      * @return 1 on success
      */
     private static int regen(CommandContext<CommandSourceStack> ctx) {
-        Goo.GOO_VALUES.loadBaseValuesFromPacks(ctx.getSource().getServer());
-        int derived = Goo.GOO_VALUES.deriveFromRecipes(ctx.getSource().getServer());
-        Goo.GOO_VALUES.saveEffectiveValues();
+        valuesOf(ctx).loadBaseValuesFromPacks(ctx.getSource().getServer());
+        int derived = valuesOf(ctx).deriveFromRecipes(ctx.getSource().getServer());
+        valuesOf(ctx).saveEffectiveValues();
         GooValueSync.sendToAll(ctx.getSource().getServer());
         ctx.getSource().sendSuccess(() ->
                 Component.literal(MSG_REGEN_PREFIX + derived +
-                        MSG_REGEN_MID + Goo.GOO_VALUES.size()), true);
+                        MSG_REGEN_MID + valuesOf(ctx).table().size()), true);
         return 1;
     }
 
@@ -569,7 +580,7 @@ public final class GooCommand {
      */
     private static int scaffoldFresh(CommandContext<CommandSourceStack> ctx) {
         ScaffoldGenerator.ScaffoldResult result =
-                Goo.GOO_VALUES.generateScaffoldFresh(ctx.getSource().getServer(), false);
+                valuesOf(ctx).generateScaffoldFresh(ctx.getSource().getServer(), false);
         return writeScaffoldAndReport(ctx, result, MODE_FRESH);
     }
 
@@ -581,7 +592,7 @@ public final class GooCommand {
      */
     private static int scaffoldFreshBare(CommandContext<CommandSourceStack> ctx) {
         ScaffoldGenerator.ScaffoldResult result =
-                Goo.GOO_VALUES.generateScaffoldFresh(ctx.getSource().getServer(), true);
+                valuesOf(ctx).generateScaffoldFresh(ctx.getSource().getServer(), true);
         return writeScaffoldAndReport(ctx, result, MODE_FRESH_BARE);
     }
 
@@ -592,12 +603,12 @@ public final class GooCommand {
      * @return 1 on success, 0 if no cached recipes
      */
     private static int scaffoldMissingBare(CommandContext<CommandSourceStack> ctx) {
-        if (Goo.GOO_VALUES.diagnostics().derivedSize() == 0) {
+        if (valuesOf(ctx).diagnostics().derivedSize() == 0) {
             ctx.getSource().sendFailure(
                     Component.literal(MSG_NO_CACHED));
             return 0;
         }
-        ScaffoldGenerator.ScaffoldResult result = Goo.GOO_VALUES.generateScaffoldMissing(true);
+        ScaffoldGenerator.ScaffoldResult result = valuesOf(ctx).generateScaffoldMissing(true);
         return writeScaffoldAndReport(ctx, result, MODE_MISSING_BARE);
     }
 
@@ -608,12 +619,12 @@ public final class GooCommand {
      * @return 1 on success, 0 if no cached recipes
      */
     private static int scaffoldMissing(CommandContext<CommandSourceStack> ctx) {
-        if (Goo.GOO_VALUES.diagnostics().derivedSize() == 0) {
+        if (valuesOf(ctx).diagnostics().derivedSize() == 0) {
             ctx.getSource().sendFailure(
                     Component.literal(MSG_NO_CACHED));
             return 0;
         }
-        ScaffoldGenerator.ScaffoldResult result = Goo.GOO_VALUES.generateScaffoldMissing(false);
+        ScaffoldGenerator.ScaffoldResult result = valuesOf(ctx).generateScaffoldMissing(false);
         return writeScaffoldAndReport(ctx, result, MODE_MISSING);
     }
 

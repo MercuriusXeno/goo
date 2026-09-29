@@ -1,9 +1,9 @@
 package com.mercuriusxeno.goo.data;
 
-import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.data.GooConversion.Assignment;
 import com.mercuriusxeno.goo.data.GooConversion.Formula;
 import com.mercuriusxeno.goo.data.GooConversion.Stack;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.logging.LogUtils;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;

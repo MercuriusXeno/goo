@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.block;
 
-import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.item.GooContents;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.resources.ResourceKey;
 import java.util.ArrayList;
 import java.util.List;

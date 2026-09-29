@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.data;
 
-import com.mercuriusxeno.goo.GooTypes;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;

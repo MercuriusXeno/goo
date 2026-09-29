@@ -1,23 +1,25 @@
 package com.mercuriusxeno.goo.block.plexer;
 
-import com.mercuriusxeno.goo.CutawayInteractionHelper;
-import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.block.BlockEntitySync;
 import com.mercuriusxeno.goo.block.GooSyncedBlockEntity;
 import com.mercuriusxeno.goo.block.ICutawayMachine;
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
 import com.mercuriusxeno.goo.block.canister.ICanisterAttachable;
+import com.mercuriusxeno.goo.block.plexer.CutawayInteractionHelper;
 import com.mercuriusxeno.goo.data.GooValue;
+import com.mercuriusxeno.goo.data.GooValueTable;
+import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.data.IGooValueLookup;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
@@ -134,11 +136,22 @@ public class PlexerBlockEntity extends GooSyncedBlockEntity implements ICanister
      */
     public boolean isValidTarget(ItemStack stack) {
         Identifier itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
-        GooValue value = Goo.GOO_VALUES.lookup(itemId);
+        IGooValueLookup values = gooValues();
+        GooValue value = values.lookup(itemId);
         if (value == null || value.isEmpty()) {
             return false;
         }
-        return !Goo.GOO_VALUES.isRestricted(itemId);
+        return !values.isRestricted(itemId);
+    }
+
+    /**
+     * Answers the goo values the plexer's side holds.
+     *
+     * @return the values, empty for a plexer in no level
+     */
+    private IGooValueLookup gooValues() {
+        Level level = getLevel();
+        return level == null ? GooValueTable.EMPTY : GooValues.of(level);
     }
 
     // --- Reconstitution (reads from external CanisterBlock above) ---
@@ -153,7 +166,7 @@ public class PlexerBlockEntity extends GooSyncedBlockEntity implements ICanister
             return ItemStack.EMPTY;
         }
         Identifier targetId = BuiltInRegistries.ITEM.getKey(targetItem.getItem());
-        return tryReconstitute(targetId, Goo.GOO_VALUES);
+        return tryReconstitute(targetId, gooValues());
     }
 
     /**

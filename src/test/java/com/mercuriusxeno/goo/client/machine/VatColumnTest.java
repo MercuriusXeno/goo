@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.client.machine;
 
-import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.item.GooContents;
+import com.mercuriusxeno.goo.type.GooTypes;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;

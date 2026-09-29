@@ -1,8 +1,8 @@
 package com.mercuriusxeno.goo.block;
 
-import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.block.canister.SlottedCanisterData;
 import com.mercuriusxeno.goo.block.gasket.GasketAttachment;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.world.level.Level;

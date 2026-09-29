@@ -1,13 +1,13 @@
 package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.GooTypeDefinition;
-import com.mercuriusxeno.goo.GooTypes;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.StepTypes;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypes;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
@@ -47,14 +47,15 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
     private static final StreamCodec<ByteBuf, List<Step>> STEPS_CODEC = ByteBufCodecs.fromCodec(StepTypes.LIST_CODEC);
 
     /**
-     * Builds the sync payload from the current server ability registry.
+     * Builds the sync payload from a server's ability registry.
      *
+     * @param registry the server's abilities
      * @return the payload with all loaded abilities
      */
-    public static AbilitySyncPayload fromRegistry() {
+    public static AbilitySyncPayload fromRegistry(AbilityRegistry registry) {
         List<Entry> entries = new ArrayList<>();
         for (ResourceKey<GooTypeDefinition> type : GooTypes.order()) {
-            entries.addAll(gloveEntries(type, AbilityRegistry.getAbilitiesForType(type)));
+            entries.addAll(gloveEntries(type, registry.getAbilitiesForType(type)));
         }
         return new AbilitySyncPayload(entries);
     }

@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.data;
 
-import com.mercuriusxeno.goo.GooTypes;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
@@ -13,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * A reader of goo values holds a consistent snapshot while a regen derivation
- * or a received sync replaces the values on another thread
+ * or a base value reload replaces the published table on another thread
  * (decision diagnose-then-fix-server-link-and-value-race).
  */
 class GooValueSnapshotTest {
@@ -23,18 +23,17 @@ class GooValueSnapshotTest {
     private static final Identifier KNOWN_ITEM = id("goo:base_0");
 
     @Test
-    void readerSeesEveryValueWhileRegenAndSyncReplaceThem() throws InterruptedException {
+    void readerSeesEveryValueWhileRegenAndReloadReplaceThem() throws InterruptedException {
         GooValueRegistry registry = new GooValueRegistry();
         Map<Identifier, GooValue> baseValues = baseValues();
-        registry.baseValues.putAll(baseValues);
-        registry.receiveClientValues(baseValues);
+        registry.seedBaseValues(baseValues);
         List<RecipeInput> recipes = recipes();
         AtomicReference<Throwable> failure = new AtomicReference<>();
 
         Thread replacer = new Thread(() -> {
             for (int i = 0; i < REPLACEMENTS; i++) {
                 registry.deriveFromRecipeInputs(recipes, false);
-                registry.receiveClientValues(baseValues);
+                registry.seedBaseValues(baseValues);
             }
         });
         replacer.start();
@@ -48,12 +47,13 @@ class GooValueSnapshotTest {
 
     private static void readEveryValue(GooValueRegistry registry, AtomicReference<Throwable> failure) {
         try {
-            if (registry.lookup(KNOWN_ITEM) == null) {
+            IGooValueLookup snapshot = registry.table();
+            if (snapshot.lookup(KNOWN_ITEM) == null) {
                 failure.set(new AssertionError("lookup of " + KNOWN_ITEM + " answered no value"));
                 return;
             }
             long blobs = 0;
-            for (GooValue value : registry.getEffectiveValues().values()) {
+            for (GooValue value : snapshot.getEffectiveValues().values()) {
                 blobs += value.totalBlobs();
             }
             assertTrue(blobs > 0);

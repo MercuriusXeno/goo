@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.block.reactor;
 
-import com.mercuriusxeno.goo.CutawayInteractionHelper;
 import com.mercuriusxeno.goo.block.BlockEntityTicks;
 import com.mercuriusxeno.goo.block.CutawayShapeHelper;
 import com.mercuriusxeno.goo.block.FacingRedstoneMachineBlock;
@@ -8,6 +7,7 @@ import com.mercuriusxeno.goo.block.GooBlockInteraction;
 import com.mercuriusxeno.goo.block.ShapeHitCheck;
 import com.mercuriusxeno.goo.block.canister.SlottedCanisterData;
 import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
+import com.mercuriusxeno.goo.block.plexer.CutawayInteractionHelper;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.GooInteractionType;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;

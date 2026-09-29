@@ -33,6 +33,17 @@ public final class AbilityLoader
 
     private static final FileToIdConverter LISTER = FileToIdConverter.json(DIRECTORY);
 
+    private final AbilityRegistrySource source;
+
+    /**
+     * A loader that hands what it reads to the load's resources.
+     *
+     * @param source the reloadable resources this load builds
+     */
+    public AbilityLoader(AbilityRegistrySource source) {
+        this.source = source;
+    }
+
     @Override
     protected Map<Identifier, AbilityDefinition> prepare(ResourceManager manager, ProfilerFiller profiler) {
         return IdentifiedJsonScan.scan(manager, LISTER, makeConditionalOps(JsonOps.INSTANCE),
@@ -42,7 +53,7 @@ public final class AbilityLoader
     @Override
     protected void apply(Map<Identifier, AbilityDefinition> prepared,
                          ResourceManager manager, ProfilerFiller profiler) {
-        AbilityRegistry.reload(prepared);
+        source.holdAbilityRegistry(new AbilityRegistry(prepared));
         if (Goo.LOGGER.isInfoEnabled()) {
             Goo.LOGGER.info(LOG_LOADED, prepared.size());
         }

@@ -1,4 +1,4 @@
-package com.mercuriusxeno.goo;
+package com.mercuriusxeno.goo.type;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.resources.ResourceKey;

@@ -1,8 +1,8 @@
 package com.mercuriusxeno.goo.fluid;
 
-import com.mercuriusxeno.goo.GooTypeDefinition;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
 import com.mercuriusxeno.goo.registry.GooFluids;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.Items;
 import net.neoforged.neoforge.fluids.FluidType;

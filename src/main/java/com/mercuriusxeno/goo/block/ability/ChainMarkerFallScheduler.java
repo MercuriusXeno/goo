@@ -1,9 +1,9 @@
 package com.mercuriusxeno.goo.block.ability;
 
-import com.mercuriusxeno.goo.GooTypeDefinition;
-import com.mercuriusxeno.goo.GooTypes;
-import com.mercuriusxeno.goo.ThrowArc;
 import com.mercuriusxeno.goo.network.BlobFlightPayload;
+import com.mercuriusxeno.goo.throwing.ThrowArc;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
@@ -20,7 +20,8 @@ import java.util.List;
  * Schedules deferred chain marker re-placements after a support block
  * breaks. The marker is removed immediately; after the flight animation
  * completes, a new marker is placed at the landing position carrying the
- * state the old one held.
+ * state the old one held. Each server holds one, so its falls end with the
+ * server (decision type-package-and-per-server-holders).
  */
 public final class ChainMarkerFallScheduler {
 
@@ -37,10 +38,7 @@ public final class ChainMarkerFallScheduler {
      */
     private static final int BLOCK_UPDATE_FLAGS = 3;
 
-    private static final List<PendingFall> PENDING_FALLS = new ArrayList<>();
-
-    private ChainMarkerFallScheduler() {
-    }
+    private final List<PendingFall> pendingFalls = new ArrayList<>();
 
     /**
      * Initiates a chain marker fall: broadcasts a flight animation and
@@ -53,7 +51,7 @@ public final class ChainMarkerFallScheduler {
      * @param markerBlock the chain marker block instance
      * @param snapshot    the marker's state, taken before removal
      */
-    public static void scheduleFall(ServerLevel level, BlockPos oldPos, BlockPos landingPos,
+    public void scheduleFall(ServerLevel level, BlockPos oldPos, BlockPos landingPos,
                                     Block markerBlock, ChainMarkerSnapshot snapshot) {
         double distance = oldPos.distManhattan(landingPos);
         GooTypeDefinition definition = GooTypes.definition(level.registryAccess(), snapshot.gooType());
@@ -62,7 +60,16 @@ public final class ChainMarkerFallScheduler {
         broadcastFlight(level, oldPos, landingPos, snapshot, travelTicks);
 
         int arrivalTick = level.getServer().getTickCount() + travelTicks;
-        PENDING_FALLS.add(new PendingFall(arrivalTick, level, landingPos, markerBlock, snapshot));
+        enqueue(new PendingFall(arrivalTick, level, landingPos, markerBlock, snapshot));
+    }
+
+    /**
+     * Queues a fall to place its marker on its arrival tick.
+     *
+     * @param fall the pending fall
+     */
+    public void enqueue(PendingFall fall) {
+        pendingFalls.add(fall);
     }
 
     /**
@@ -71,9 +78,9 @@ public final class ChainMarkerFallScheduler {
      *
      * @param currentTick the current server tick count
      */
-    public static void drainArrivedFalls(int currentTick) {
+    public void drainArrivedFalls(int currentTick) {
         List<PendingFall> ready = new ArrayList<>();
-        Iterator<PendingFall> it = PENDING_FALLS.iterator();
+        Iterator<PendingFall> it = pendingFalls.iterator();
         while (it.hasNext()) {
             PendingFall pf = it.next();
             if (currentTick >= pf.arrivalTick) {
@@ -91,8 +98,15 @@ public final class ChainMarkerFallScheduler {
      *
      * @return true if the queue is non-empty
      */
-    public static boolean hasPending() {
-        return !PENDING_FALLS.isEmpty();
+    public boolean hasPending() {
+        return !pendingFalls.isEmpty();
+    }
+
+    /**
+     * Drops every pending fall, as a server stop does.
+     */
+    public void clear() {
+        pendingFalls.clear();
     }
 
     /**
@@ -141,8 +155,14 @@ public final class ChainMarkerFallScheduler {
 
     /**
      * A chain marker in mid-fall.
+     *
+     * @param arrivalTick the server tick it lands on
+     * @param level       the level it falls in
+     * @param landingPos  the position it lands at
+     * @param markerBlock the chain marker block
+     * @param snapshot    the state the falling marker carries
      */
-    private record PendingFall(int arrivalTick, ServerLevel level, BlockPos landingPos,
-                               Block markerBlock, ChainMarkerSnapshot snapshot) {
+    public record PendingFall(int arrivalTick, ServerLevel level, BlockPos landingPos,
+                              Block markerBlock, ChainMarkerSnapshot snapshot) {
     }
 }
