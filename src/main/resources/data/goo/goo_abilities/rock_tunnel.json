@@ -2,10 +2,7 @@
   "gooType": "rock",
   "displayName": "goo.ability.rock.tunnel",
   "order": 0,
-  "cost": {
-    "formula": "block_count",
-    "costPerBlock": 200
-  },
+  "cost": 1000,
   "chain": {
     "fuseTicks": 30,
     "maxStacks": 6

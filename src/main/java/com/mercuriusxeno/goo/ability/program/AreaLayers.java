@@ -41,43 +41,6 @@ final class AreaLayers {
     }
 
     /**
-     * Counts the blocks the whole footprint covers at a stack count, the
-     * sum of its layers.
-     *
-     * @param shape       the footprint shape
-     * @param stacks      the marker's stack count; zero or fewer covers nothing
-     * @param startRadius the step's radius at one stack
-     * @return the block count
-     */
-    static int blockCount(AreaShape shape, int stacks, int startRadius) {
-        if (stacks <= 0) {
-            return 0;
-        }
-        int blocks = 0;
-        for (int layer = 0; layer < layerCount(shape, stacks, startRadius); layer++) {
-            blocks += layerSize(shape, stacks, startRadius, layer);
-        }
-        return blocks;
-    }
-
-    /**
-     * Counts the blocks of one layer.
-     *
-     * @param shape       the footprint shape
-     * @param stacks      the marker's stack count
-     * @param startRadius the step's radius at one stack
-     * @param layer       the layer index, from zero
-     * @return the layer's block count
-     */
-    private static int layerSize(AreaShape shape, int stacks, int startRadius, int layer) {
-        return switch (shape) {
-            case TUNNEL -> ChainFootprint.layerFootprint(stacks).size();
-            case FLAT_CIRCLE -> ChainFootprint.flatRings(stacks, startRadius).get(layer).size();
-            case SPHERE -> ChainFootprint.sphereShell(layer, ChainFootprint.radiusAtStacks(stacks, startRadius)).size();
-        };
-    }
-
-    /**
      * Lists the block positions of one layer.
      *
      * @param shape       the footprint shape

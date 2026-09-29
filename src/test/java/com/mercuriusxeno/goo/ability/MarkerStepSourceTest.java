@@ -69,7 +69,7 @@ class MarkerStepSourceTest {
             List<Step> registered = program();
             Identifier id = Identifier.parse(ABILITY_ID);
             AbilityRegistry.reload(Map.of(id, new AbilityDefinition(id, GooTypes.ROCK, id.getPath(), "", 0,
-                    null, AbilityDefinition.ChainConfig.DEFAULT, registered, List.of())));
+                    0, AbilityDefinition.ChainConfig.DEFAULT, registered, List.of())));
 
             MarkerStepSource source = MarkerStepSource.forSide(SERVER, MarkerStepSource.NONE);
 
