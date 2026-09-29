@@ -49,14 +49,15 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
     private static final StreamCodec<ByteBuf, AbilityCost> COST_CODEC = ByteBufCodecs.fromCodec(AbilityCost.CODEC);
 
     /**
-     * Builds the sync payload from the current server ability registry.
+     * Builds the sync payload from a server's ability registry.
      *
+     * @param registry the server's abilities
      * @return the payload with all loaded abilities
      */
-    public static AbilitySyncPayload fromRegistry() {
+    public static AbilitySyncPayload fromRegistry(AbilityRegistry registry) {
         List<Entry> entries = new ArrayList<>();
         for (ResourceKey<GooTypeDefinition> type : GooTypes.order()) {
-            entries.addAll(gloveEntries(type, AbilityRegistry.getAbilitiesForType(type)));
+            entries.addAll(gloveEntries(type, registry.getAbilitiesForType(type)));
         }
         return new AbilitySyncPayload(entries);
     }

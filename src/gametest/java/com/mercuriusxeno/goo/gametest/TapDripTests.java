@@ -14,6 +14,7 @@ import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooDripParticleOptions;
 import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.registry.GooParticles;
+import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
@@ -193,7 +194,7 @@ public final class TapDripTests {
         AtomicBoolean seen = new AtomicBoolean();
 
         helper.onEachTick(() -> {
-            List<TapDripScheduler.PendingDrip> mine = TapDripScheduler.pending().stream()
+            List<TapDripScheduler.PendingDrip> mine = GooServerState.of(helper.getLevel().getServer()).tapDrips().pending().stream()
                     .filter(drip -> drip.level() == helper.getLevel() && drip.tapPos().equals(tapAbs))
                     .toList();
             if (!mine.isEmpty()) {
@@ -223,7 +224,7 @@ public final class TapDripTests {
 
         helper.runAfterDelay(DRIPS * DRIP_INTERVAL + SETTLE_TICKS, () -> {
             helper.assertValueEqual(tap.getFluidContent().amount(), START_VOLUME, BOTTOMLESS_VOLUME);
-            helper.assertValueEqual(TapDripScheduler.pending().stream()
+            helper.assertValueEqual(GooServerState.of(helper.getLevel().getServer()).tapDrips().pending().stream()
                     .filter(drip -> drip.tapPos().equals(tapAbs)).count(), 0L, BOTTOMLESS_PENDING);
             helper.succeed();
         });
@@ -259,7 +260,7 @@ public final class TapDripTests {
      * @param helper the gametest helper
      */
     public static void tapDripNoAbility(GameTestHelper helper) {
-        helper.assertTrue(AbilityRegistry.tapAbilityFor(TYPE) == null, NO_TAP_ABILITY);
+        helper.assertTrue(AbilityRegistry.of(helper.getLevel()).tapAbilityFor(TYPE) == null, NO_TAP_ABILITY);
         TapBlockEntity tap = filledTap(helper);
         BlockPos stone = TAP_POS.below();
         Map<BlockPos, BlockState> before = new HashMap<>();
@@ -272,7 +273,7 @@ public final class TapDripTests {
 
         helper.runAfterDelay(DRIP_INTERVAL + SETTLE_TICKS, () -> {
             helper.assertValueEqual(tap.getFluidContent().amount(), START_VOLUME - 1, TAP_VOLUME);
-            helper.assertValueEqual(TapDripScheduler.pending().stream()
+            helper.assertValueEqual(GooServerState.of(helper.getLevel().getServer()).tapDrips().pending().stream()
                     .filter(drip -> drip.tapPos().equals(tapAbs)).count(), 0L, NO_ABILITY_PENDING);
             before.forEach((pos, state) -> helper.assertValueEqual(helper.getBlockState(pos), state, NEIGHBOR_STATE));
             helper.assertValueEqual(helper.getLevel().getEntities((Entity) null, around, entity -> true).size(), 0,
@@ -323,7 +324,7 @@ public final class TapDripTests {
         helper.succeedWhen(() -> {
             int lost = START_VOLUME - tap.getFluidContent().amount();
             helper.assertTrue(lost >= DRIPS, CRUCIBLE_DRIPS_DRAWN);
-            helper.assertValueEqual(TapDripScheduler.pending().stream()
+            helper.assertValueEqual(GooServerState.of(helper.getLevel().getServer()).tapDrips().pending().stream()
                     .filter(drip -> drip.tapPos().equals(tapAbs)).count(), 0L, CRUCIBLE_PENDING);
             helper.assertValueEqual(crucible.getReservoir().getVolume(GooTypes.BLAZE), lost, CRUCIBLE_RESERVOIR);
         });

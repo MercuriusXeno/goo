@@ -3,7 +3,6 @@ package com.mercuriusxeno.goo.ability;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.Identifier;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.List;
@@ -24,11 +23,6 @@ class MarkerStepSourceTest {
     private static final boolean CLIENT = true;
     private static final boolean SERVER = false;
 
-    @AfterEach
-    void emptyRegistry() {
-        AbilityRegistry.reload(Map.of());
-    }
-
     private static List<Step> program() {
         return List.of(mock(Step.class));
     }
@@ -45,7 +39,7 @@ class MarkerStepSourceTest {
             List<Step> synced = program();
             MarkerStepSource syncedSource = id -> ABILITY_ID.equals(id) ? synced : null;
 
-            MarkerStepSource source = MarkerStepSource.forSide(CLIENT, syncedSource);
+            MarkerStepSource source = MarkerStepSource.forSide(CLIENT, syncedSource, AbilityRegistry.EMPTY);
 
             assertEquals(synced, source.steps(ABILITY_ID));
             assertNotNull(source.program(ABILITY_ID));
@@ -53,7 +47,7 @@ class MarkerStepSourceTest {
 
         @Test
         void abilityNeverSyncedLoadsNoProgram() {
-            assertNull(MarkerStepSource.forSide(CLIENT, MarkerStepSource.NONE).program(ABILITY_ID));
+            assertNull(MarkerStepSource.forSide(CLIENT, MarkerStepSource.NONE, AbilityRegistry.EMPTY).program(ABILITY_ID));
         }
     }
 
@@ -68,10 +62,10 @@ class MarkerStepSourceTest {
         void registeredStepsBuildTheProgram() {
             List<Step> registered = program();
             Identifier id = Identifier.parse(ABILITY_ID);
-            AbilityRegistry.reload(Map.of(id, new AbilityDefinition(id, GooTypes.ROCK, id.getPath(), "", 0,
-                    null, AbilityDefinition.ChainConfig.DEFAULT, registered, List.of())));
+            AbilityRegistry registry = new AbilityRegistry(Map.of(id, new AbilityDefinition(id, GooTypes.ROCK,
+                    id.getPath(), "", 0, null, AbilityDefinition.ChainConfig.DEFAULT, registered, List.of())));
 
-            MarkerStepSource source = MarkerStepSource.forSide(SERVER, MarkerStepSource.NONE);
+            MarkerStepSource source = MarkerStepSource.forSide(SERVER, MarkerStepSource.NONE, registry);
 
             assertEquals(registered, source.steps(ABILITY_ID));
             assertNotNull(source.program(ABILITY_ID));

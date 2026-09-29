@@ -35,7 +35,7 @@ public final class ChainFuseTests {
      * @param helper the gametest helper
      */
     public static void mineKeepsJsonFuse(GameTestHelper helper) {
-        AbilityDefinition mine = AbilityRegistry.getAbility(PROXIMITY_MINE);
+        AbilityDefinition mine = AbilityRegistry.of(helper.getLevel()).getAbility(PROXIMITY_MINE);
         helper.assertTrue(mine != null, ABILITIES_REQUIRED);
         helper.setBlock(MARKER_POS, GooBlocks.CHAIN_MARKER.get());
         ChainMarkerBlockEntity marker = helper.getBlockEntity(MARKER_POS, ChainMarkerBlockEntity.class);

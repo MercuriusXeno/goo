@@ -295,7 +295,7 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
      */
     private @Nullable AbilityDefinition ability() {
         Identifier id = Identifier.tryParse(abilityId);
-        return id != null ? AbilityRegistry.getAbility(id) : null;
+        return id != null && level != null ? AbilityRegistry.of(level).getAbility(id) : null;
     }
 
     /**
@@ -565,7 +565,10 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
      * @return the ability's program, or null when this side holds no such ability
      */
     private @Nullable ProgramBehavior createBehavior() {
-        return MarkerStepSource.forSide(level != null && level.isClientSide(), clientSteps).program(abilityId);
+        if (level == null) {
+            return null;
+        }
+        return MarkerStepSource.forSide(level.isClientSide(), clientSteps, AbilityRegistry.of(level)).program(abilityId);
     }
 
     /**

@@ -7,6 +7,7 @@ import com.mojang.serialization.JsonOps;
 import net.minecraft.resources.FileToIdConverter;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimplePreparableReloadListener;
 import net.minecraft.util.profiling.ProfilerFiller;
@@ -36,20 +37,28 @@ public final class GooReactionLoader
     private static final String LOG_LOADED = "Loaded {} goo reactions";
     private static final String LOG_CONFLICT_IDENTICAL =
             "Reaction conflict: {} and {} have identical input type sets";
-    /**
-     * Sorted reactions, most inputs first. Immutable after load.
-     */
-    private static List<GooReaction> reactions = List.of();
-
     private static final FileToIdConverter LISTER = FileToIdConverter.json(DIRECTORY);
 
+    private final GooReactionSource source;
+
     /**
-     * Returns all loaded reactions, sorted by input count descending.
+     * A loader that hands what it reads to the load's resources.
      *
+     * @param source the reloadable resources this load builds
+     */
+    public GooReactionLoader(GooReactionSource source) {
+        this.source = source;
+    }
+
+    /**
+     * Returns the reactions the server's current datapack load holds, sorted
+     * by input count descending.
+     *
+     * @param server the server
      * @return immutable reaction list
      */
-    public static List<GooReaction> getReactions() {
-        return reactions;
+    public static List<GooReaction> reactionsOf(MinecraftServer server) {
+        return ((GooReactionSource) server.getServerResources().managers()).gooReactions();
     }
 
     /**
@@ -105,9 +114,9 @@ public final class GooReactionLoader
         validateConflicts(loaded);
         loaded.sort(Comparator.comparingInt(
                 (GooReaction r) -> r.inputs().size()).reversed());
-        reactions = Collections.unmodifiableList(loaded);
+        source.holdGooReactions(List.copyOf(loaded));
         if (Goo.LOGGER.isInfoEnabled()) {
-            Goo.LOGGER.info(LOG_LOADED, reactions.size());
+            Goo.LOGGER.info(LOG_LOADED, loaded.size());
         }
     }
 }

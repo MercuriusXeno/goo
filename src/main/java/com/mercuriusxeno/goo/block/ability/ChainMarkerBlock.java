@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.block.ability;
 import com.mercuriusxeno.goo.block.BlockEntityTicks;
 import com.mercuriusxeno.goo.item.BlobStacks;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
+import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.serialization.MapCodec;
@@ -240,7 +241,7 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
         }
         ChainMarkerSnapshot snapshot = ChainMarkerSnapshot.of((ChainMarkerBlockEntity) level.getBlockEntity(pos));
         level.removeBlock(pos, false);
-        ChainMarkerFallScheduler.scheduleFall(level, pos, landing, state.getBlock(), snapshot);
+        GooServerState.of(level.getServer()).markerFalls().scheduleFall(level, pos, landing, state.getBlock(), snapshot);
     }
 
     /**

@@ -56,8 +56,8 @@ public final class StackKeyTests {
      * @param helper the gametest helper
      */
     public static void otherAbilityThrowLeavesMarker(GameTestHelper helper) {
-        AbilityDefinition sphere = AbilityRegistry.getAbility(FROST_SPHERE);
-        AbilityDefinition tunnel = AbilityRegistry.getAbility(FROST_TUNNEL);
+        AbilityDefinition sphere = AbilityRegistry.of(helper.getLevel()).getAbility(FROST_SPHERE);
+        AbilityDefinition tunnel = AbilityRegistry.of(helper.getLevel()).getAbility(FROST_TUNNEL);
         helper.assertTrue(sphere != null && tunnel != null, ABILITIES_REQUIRED);
         ChainMarkerBlockEntity marker = placeStackedMarker(helper, sphere);
         int stacks = marker.getStackCount();
