@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:crystallizer_off_pauses",
+  "environment": "minecraft:default",
+  "structure": "goo:machine_bay",
+  "max_ticks": 1200,
+  "setup_ticks": 0,
+  "required": true
+}

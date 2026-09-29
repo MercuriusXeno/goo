@@ -52,10 +52,18 @@ public class GooItems {
             props -> new GooBucketItem(GooFluids.SOURCE.get(), props.craftRemainder(Items.BUCKET).stacksTo(1)));
     // chrysm-tiers-fixed-and-stackable: each tier stacks to the default 64.
     public static final DeferredItem<ChrysmItem> CHRYSM = registerChrysm(ChrysmTier.CHRYSM);
-    public static final DeferredItem<ChrysmItem> KILOCHRYSM = registerChrysm(ChrysmTier.KILOCHRYSM);
-    public static final DeferredItem<ChrysmItem> MEGACHRYSM = registerChrysm(ChrysmTier.MEGACHRYSM);
-    /** The three chrysm tiers, smallest first. */
-    public static final List<DeferredItem<ChrysmItem>> CHRYSM_TIERS = List.of(CHRYSM, KILOCHRYSM, MEGACHRYSM);
+    public static final DeferredItem<ChrysmItem> BUDDING_CHRYSM = registerChrysm(ChrysmTier.BUDDING_CHRYSM);
+    public static final DeferredItem<ChrysmItem> FLOWERING_CHRYSM = registerChrysm(ChrysmTier.FLOWERING_CHRYSM);
+    public static final DeferredItem<ChrysmItem> MATERIA = registerChrysm(ChrysmTier.MATERIA);
+    /** The four chrysm tiers, smallest first. */
+    public static final List<DeferredItem<ChrysmItem>> CHRYSM_TIERS = List.of(CHRYSM, BUDDING_CHRYSM,
+            FLOWERING_CHRYSM, MATERIA);
+
+    static {
+        // chrysm-tiers-in-32x-steps: a saved kilochrysm holds a budding chrysm's volume, a megachrysm materia's.
+        ITEMS.addAlias(Identifier.fromNamespaceAndPath(Goo.MODID, "kilochrysm"), BUDDING_CHRYSM.getId());
+        ITEMS.addAlias(Identifier.fromNamespaceAndPath(Goo.MODID, "megachrysm"), MATERIA.getId());
+    }
     // --- Block items ---
     public static final DeferredItem<BlockItem> CRUCIBLE = ITEMS.registerSimpleBlockItem("crucible", GooBlocks.CRUCIBLE);
     /**
