@@ -12,8 +12,9 @@ import org.jspecify.annotations.Nullable;
  * crystallizer holds two canisters, and it doesn't matter which slot has the
  * crystal goo, the other slot governs what goo grows; goo crystallizes as it
  * goes, spending crystal at 10% of the goo and pausing when crystal runs out, up
- * to the tier the knob names, at an even pace per tier; the item inside is the
- * highest tier reached.
+ * to the tier the knob names, at an even pace within each tier, each tier taking
+ * twice the time of the one before (decision crystal-pace-doubles-per-tier); the
+ * item inside is the highest tier reached.
  */
 public final class CrystallizerPhases {
 
@@ -23,12 +24,8 @@ public final class CrystallizerPhases {
     /** Goo crystallizes in steps of this many mB, each spending one mB of crystal (10%). */
     public static final int GOO_PER_CRYSTAL = 10;
 
-    /** Operator ruling: each tier takes about 10 s more, 200 ticks. */
-    public static final int TICKS_PER_TIER = 200;
-    /** Below a chrysm the pace is flat: a chrysm's volume over one tier's ticks. */
-    private static final double FLAT_PACE = (double) ChrysmTier.CHRYSM.volume() / TICKS_PER_TIER;
-    /** Past a chrysm the volume grows 32-fold, one tier, every tier's ticks (decision chrysm-tiers-in-32x-steps). */
-    private static final double GROWTH_PER_TICK = Math.log(32) / TICKS_PER_TIER;
+    /** A chrysm crystallizes from empty in 25 s, and each tier after takes twice the one before. */
+    public static final int CHRYSM_TICKS = 500;
     /** The knob's positions, each capping crystallizing at the tier of its number. */
     public static final int KNOB_POSITIONS = 3;
 
@@ -98,15 +95,51 @@ public final class CrystallizerPhases {
     }
 
     /**
-     * Operator ruling: an even pace per tier, a chrysm at about 10 s and each tier
-     * after about 10 s more. Flat below a chrysm, then growing with what's
-     * crystallized so every tier's 32-fold climb takes the same 200 ticks.
+     * The ticks a tier's span takes to crystallize: 25 s for a chrysm, doubling each
+     * tier (decision crystal-pace-doubles-per-tier).
+     *
+     * @param tier the tier
+     * @return the ticks from the tier below to this one
+     */
+    public static int ticksFor(ChrysmTier tier) {
+        return CHRYSM_TICKS << tier.ordinal();
+    }
+
+    /**
+     * @param tier the tier
+     * @return the volume of the tier below, where this tier's span starts; zero for a chrysm
+     */
+    public static long spanStart(ChrysmTier tier) {
+        return tier.ordinal() == 0 ? 0 : ChrysmTier.values()[tier.ordinal() - 1].volume();
+    }
+
+    /**
+     * The tier a crystallized volume is growing toward: the first it has not reached,
+     * or materia once every tier is reached.
+     *
+     * @param crystallized the goo crystallized so far, in mB
+     * @return the tier growing
+     */
+    public static ChrysmTier growingTier(long crystallized) {
+        for (ChrysmTier tier : ChrysmTier.values()) {
+            if (crystallized < tier.volume()) {
+                return tier;
+            }
+        }
+        return ChrysmTier.MATERIA;
+    }
+
+    /**
+     * An even pace per tier, the tier's span over its ticks, so the goo drawn a tick
+     * rises about 16x per tier as the cost rises 32x and the time doubles (decision
+     * crystal-pace-doubles-per-tier).
      *
      * @param crystallized the goo crystallized so far, in mB
      * @return the mB one tick may crystallize
      */
     public static double paceAllowance(long crystallized) {
-        return crystallized < ChrysmTier.CHRYSM.volume() ? FLAT_PACE : crystallized * GROWTH_PER_TICK;
+        ChrysmTier tier = growingTier(crystallized);
+        return (double) (tier.volume() - spanStart(tier)) / ticksFor(tier);
     }
 
     /**

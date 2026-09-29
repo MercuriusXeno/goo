@@ -9,17 +9,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * The quartz cluster's geometry (decision crystallizer-emits-chrysm): prisms at
- * multiples of 22.5 degrees, growing at one rate through every tier at the
- * crystallizer's pace, each tier larger than the last, nothing for nothing
- * crystallized, and the client's easing closing on its target smoothly.
+ * multiples of 22.5 degrees, growing a quarter per tier evenly with the goo inside
+ * it, each cluster tier larger than the last, compressing through materia into a
+ * marble (operator ruling), nothing for nothing crystallized, and the client's
+ * easing closing on its target smoothly.
  */
 class CrystalClusterTest {
 
-    /** The steadiness is read over 10-tick windows, since single ticks crystallize whole 10 mB steps. */
-    private static final int WINDOW = 10;
-    private static final double STEADINESS = 0.1;
-    private static final long[] VOLUMES = {1, 10, 100, 1_000, 10_000, 250_000, 1_000_000, 50_000_000,
-        1_000_000_000L};
+    private static final long[] VOLUMES = {1, 10, 100, 1_000, 10_000, 250_000, 1_000_000, 20_000_000,
+        32_000_000};
+    private static final double QUARTER = 0.25;
 
     @Test
     void nothingCrystallizedGrowsNothing() {
@@ -29,7 +28,7 @@ class CrystalClusterTest {
 
     @Test
     void everyPrismTiltsAndTurnsInStepsOfTwentyTwoAndAHalf() {
-        for (Prism prism : CrystalCluster.prisms(ChrysmTier.MATERIA.volume())) {
+        for (Prism prism : CrystalCluster.prisms(ChrysmTier.FLOWERING_CHRYSM.volume())) {
             assertEquals(0, prism.tilt() % CrystalCluster.ANGLE_STEP, 1e-9, prism.toString());
             assertEquals(0, prism.yaw() % CrystalCluster.ANGLE_STEP, 1e-9, prism.toString());
         }
@@ -50,14 +49,14 @@ class CrystalClusterTest {
     }
 
     @Test
-    void eachTierStandsLargerThanTheOneBelow() {
+    void eachClusterTierStandsLargerThanTheOneBelow() {
         double previous = 0;
-        for (ChrysmTier tier : ChrysmTier.values()) {
+        for (ChrysmTier tier : List.of(ChrysmTier.CHRYSM, ChrysmTier.BUDDING_CHRYSM, ChrysmTier.FLOWERING_CHRYSM)) {
             double height = CrystalCluster.reach(tier.volume())[1];
             assertTrue(height > previous, tier + " stands " + height + " over " + previous);
             previous = height;
         }
-        assertTrue(CrystalCluster.prisms(ChrysmTier.MATERIA.volume()).size()
+        assertTrue(CrystalCluster.prisms(ChrysmTier.FLOWERING_CHRYSM.volume()).size()
                 > CrystalCluster.prisms(ChrysmTier.CHRYSM.volume()).size(), "a larger tier grows more prisms");
     }
 
@@ -68,23 +67,42 @@ class CrystalClusterTest {
     }
 
     @Test
-    void thePaceGrowsTheCrystalAtOneRateThroughEveryTier() {
-        long crystallized = 0;
-        double budget = 0;
-        int ticks = CrystallizerPhases.TICKS_PER_TIER * ChrysmTier.values().length;
-        double[] growth = new double[ticks + 1];
-        for (int tick = 1; tick <= ticks; tick++) {
-            budget = CrystallizerPhases.nextBudget(budget, crystallized);
-            long steps = (long) (budget / CrystallizerPhases.GOO_PER_CRYSTAL);
-            crystallized += steps * CrystallizerPhases.GOO_PER_CRYSTAL;
-            budget -= steps * CrystallizerPhases.GOO_PER_CRYSTAL;
-            growth[tick] = CrystalCluster.growth(Math.min(crystallized, ChrysmTier.MATERIA.volume()));
+    void eachTierGrowsAQuarterEvenlyWithItsGoo() {
+        assertEquals(0.5 * QUARTER, CrystalCluster.growth(16_000), 1e-9);
+        assertEquals(QUARTER, CrystalCluster.growth(ChrysmTier.CHRYSM.volume()), 1e-9);
+        assertEquals(1.5 * QUARTER, CrystalCluster.growth(516_000), 1e-9);
+        assertEquals(2 * QUARTER, CrystalCluster.growth(ChrysmTier.BUDDING_CHRYSM.volume()), 1e-9);
+        assertEquals(2.5 * QUARTER, CrystalCluster.growth(16_500_000), 1e-9);
+        assertEquals(3 * QUARTER, CrystalCluster.growth(ChrysmTier.FLOWERING_CHRYSM.volume()), 1e-9);
+        assertEquals(3.5 * QUARTER, CrystalCluster.growth(516_000_000), 1e-9);
+    }
+
+    @Test
+    void theClusterStandsWholeAndFlatFacedAtFlowering() {
+        List<Prism> prisms = CrystalCluster.prisms(3 * QUARTER);
+        assertEquals(7, prisms.size(), "every bud stands at flowering");
+        assertEquals(0, prisms.getFirst().rounding(), 1e-9);
+    }
+
+    @Test
+    void throughMateriaTheBudsRetractAsTheCentralPrismRoundsAndShrinks() {
+        List<Prism> full = CrystalCluster.prisms(3 * QUARTER);
+        List<Prism> half = CrystalCluster.prisms(3.5 * QUARTER);
+        assertEquals(0.5, half.getFirst().rounding(), 1e-9, "the central prism half rounded");
+        assertTrue(half.getFirst().length() < full.getFirst().length(), "the central prism shrinks");
+        for (int i = 1; i < full.size(); i++) {
+            assertEquals(full.get(i).length() / 2, half.get(i).length(), 1e-9, "bud " + i + " half retracted");
         }
-        double mean = growth[ticks - WINDOW] / (ticks - WINDOW);
-        for (int tick = WINDOW; tick + WINDOW < ticks; tick += WINDOW) {
-            double rate = (growth[tick + WINDOW] - growth[tick]) / WINDOW;
-            assertEquals(mean, rate, mean * STEADINESS, "growth rate over ticks " + tick + " to " + (tick + WINDOW));
-        }
+    }
+
+    @Test
+    void atMateriaOnlyTheMarbleStands() {
+        List<Prism> prisms = CrystalCluster.prisms(ChrysmTier.MATERIA.volume());
+        assertEquals(1, prisms.size(), "the buds are gone");
+        Prism marble = prisms.getFirst();
+        assertEquals(1, marble.rounding(), 1e-9);
+        assertEquals(CrystalCluster.ORB_RADIUS, marble.radius(), 1e-9);
+        assertEquals(2 * CrystalCluster.ORB_RADIUS, marble.length(), 1e-9);
     }
 
     @Test
