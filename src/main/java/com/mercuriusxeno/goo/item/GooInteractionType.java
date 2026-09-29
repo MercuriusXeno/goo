@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.item;
 
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.transfer.access.ItemAccess;
 import org.jspecify.annotations.Nullable;
@@ -28,7 +29,10 @@ public enum GooInteractionType {
     BLOB_INSERT,
 
     /** A bucket or any other item carrying a fluid handler: fill from or drain into the slot. */
-    FLUID_CONTAINER;
+    FLUID_CONTAINER,
+
+    /** Flint and steel: spark a machine that lights. */
+    SPARK;
 
     /**
      * Returns true if this interaction type should be subject to the interaction cooldown:
@@ -62,19 +66,32 @@ public enum GooInteractionType {
 
     /**
      * Resolves the interaction type for the given item stack and the slot it aims at.
-     * Goo items self-classify via {@link IGooItemInteraction}; any other item with a
-     * fluid handler is a fluid container.
+     * Goo items self-classify via {@link IGooItemInteraction}, flint and steel sparks, and
+     * any other item with a fluid handler is a fluid container.
      *
      * @param stack            the held item stack
      * @param targetSlotFilled whether the aimed canister slot holds a canister
      * @return the interaction type, or null if the item has no goo interaction
      */
     public static @Nullable GooInteractionType classify(ItemStack stack, boolean targetSlotFilled) {
-        GooInteractionType selfClassified = stack.getItem() instanceof IGooItemInteraction gooItem
-                ? gooItem.canisterInteraction() : null;
+        GooInteractionType selfClassified = itemKind(stack);
         boolean fluidContainer = selfClassified == null && !stack.isEmpty()
                 && stack.getCapability(Capabilities.Fluid.ITEM, ItemAccess.forStack(stack)) != null;
         return resolve(selfClassified, fluidContainer, targetSlotFilled);
+    }
+
+    /**
+     * The type an item names by its kind alone: what a goo item says of itself, or a spark for
+     * flint and steel.
+     *
+     * @param stack the held item stack
+     * @return the type, or null for any other item
+     */
+    private static @Nullable GooInteractionType itemKind(ItemStack stack) {
+        if (stack.getItem() instanceof IGooItemInteraction gooItem) {
+            return gooItem.canisterInteraction();
+        }
+        return stack.is(Items.FLINT_AND_STEEL) ? SPARK : null;
     }
 
     /**

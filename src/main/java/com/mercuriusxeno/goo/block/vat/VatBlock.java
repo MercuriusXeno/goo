@@ -1,9 +1,10 @@
 package com.mercuriusxeno.goo.block.vat;
 
 import com.mercuriusxeno.goo.block.BlockEntityTicks;
+import com.mercuriusxeno.goo.block.GooBlockInteraction;
 import com.mercuriusxeno.goo.block.GooMachineBlock;
 import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
-import com.mercuriusxeno.goo.item.gasket.ChoralTunerItem;
+import com.mercuriusxeno.goo.item.GooInteractionType;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
@@ -26,6 +27,7 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
+import java.util.Set;
 
 /**
  * Stationary bulk goo storage block. Multi-type, large capacity scaled by the Compression enchantment.
@@ -57,6 +59,10 @@ public class VatBlock extends GooMachineBlock {
      * Vat collision shape: 14x16x14 cuboid centered in the block.
      */
     private static final VoxelShape SHAPE = box(1, 0, 1, 15, 16, 15);
+
+    /** The clicks a vat answers through its dispatcher; a canister click is not among them. */
+    static final Set<GooInteractionType> CLICK_ROWS =
+            Set.of(GooInteractionType.GASKET_INSTALL, GooInteractionType.BLOB_INSERT);
     /**
      * Block update flags: notify neighbors + send to clients.
      */
@@ -199,8 +205,9 @@ public class VatBlock extends GooMachineBlock {
     // -- Interactions --
 
     /**
-     * Dispatches item-on-vat interactions. Tuner passes through, client returns early,
-     * then delegates to the server-side dispatch chain.
+     * Dispatches item-on-vat interactions through the dispatcher: a gasket installs on the vat,
+     * an omniblob pours in, a tuner passes to its own use, and every other item falls through
+     * to the empty-hand unpack.
      *
      * @param stack     the item stack
      * @param state     the block state
@@ -215,21 +222,9 @@ public class VatBlock extends GooMachineBlock {
     protected @NonNull InteractionResult useItemOn(
             @NonNull ItemStack stack, @NonNull BlockState state, Level level, @NonNull BlockPos pos, @NonNull Player player,
             @NonNull InteractionHand hand, @NonNull BlockHitResult hitResult) {
-
-        if (stack.getItem() instanceof ChoralTunerItem) {
-            return InteractionResult.PASS;
-        }
-
-        if (level.isClientSide()) {
-            return InteractionResult.SUCCESS;
-        }
-
-        BlockEntity be = level.getBlockEntity(pos);
-        if (!(be instanceof VatBlockEntity vat)) {
-            return InteractionResult.PASS;
-        }
-
-        return VatInteractionHandler.dispatchInteraction(vat, stack, player, hand, hitResult);
+        return GooBlockInteraction.handleItemInteraction(
+                stack, level, pos, player, hand, hitResult,
+                VatBlockEntity.class, CLICK_ROWS, VatInteractionHandler::dispatchInteraction);
     }
 
     /**

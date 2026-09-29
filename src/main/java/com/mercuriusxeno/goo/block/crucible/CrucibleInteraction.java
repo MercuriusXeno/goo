@@ -10,9 +10,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
-import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
@@ -30,33 +28,19 @@ final class CrucibleInteraction {
     }
 
     /**
-     * Returns true if this item type would be handled by the crucible on the server.
-     *
-     * @param stack the item stack
-     * @return true if the condition is met
-     */
-    static boolean wouldHandleItem(ItemStack stack) {
-        return stack.is(Items.FLINT_AND_STEEL) || isGooCarrier(stack);
-    }
-
-    /**
      * Sparks a cold, unfueled crucible with a flint and steel: adds the spark's heat, costs the
      * tool one durability and starts the ignition spray (decision flint-and-steel-sparks-the-crucible).
      * A crucible holding heat or fuel goo consumes the click and nothing happens, so the item's
      * own use never sets fire beside it (decision spark-gate-consumes-the-click).
      *
-     * @param stack    the held item stack
+     * @param stack    the held flint and steel
      * @param crucible the crucible block entity
      * @param player   the interacting player
      * @param hand     the hand holding the stack
-     * @return SUCCESS when the spark lit the crucible, CONSUME when it holds heat or fuel goo,
-     *         null when the stack is no flint and steel
+     * @return SUCCESS when the spark lit the crucible, CONSUME when it holds heat or fuel goo
      */
-    static @Nullable InteractionResult trySpark(ItemStack stack, CrucibleBlockEntity crucible,
-                                                Player player, InteractionHand hand) {
-        if (!stack.is(Items.FLINT_AND_STEEL)) {
-            return null;
-        }
+    static InteractionResult spark(ItemStack stack, CrucibleBlockEntity crucible,
+                                   Player player, InteractionHand hand) {
         if (!sparkLights(crucible.heat, FuelGrade.configured(), crucible.fuelStock)) {
             return InteractionResult.CONSUME;
         }
@@ -85,31 +69,21 @@ final class CrucibleInteraction {
     }
 
     /**
-     * Returns true if the stack holds an omniblob; a canister is any other item and falls
-     * through to the empty-hand drain (decision canister-click-is-any-other-click-on-crucible-and-vat).
+     * Pours an omniblob directly into the reservoir (bypass, no fuel needed) through the shared
+     * blob insert (decision block-insert-shared).
      *
-     * @param stack the item stack to test
-     * @return true if the item is an omniblob
-     */
-    static boolean isGooCarrier(ItemStack stack) {
-        return stack.getItem() instanceof GooOmniblobItem;
-    }
-
-    /**
-     * Inserts an omniblob directly into the reservoir (bypass, no fuel needed).
-     *
-     * @param stack    the item stack
+     * @param stack    the held omniblob
      * @param crucible the crucible block entity
      * @param player   the interacting player
-     * @return true if the stack is an omniblob, inserted or refused at the cap; a refused
-     *         omniblob still ends the click so it never falls through to goo extraction
+     * @return SUCCESS for an omniblob holding goo, inserted or refused at the cap, so a refused
+     *         omniblob never falls through to goo extraction; TRY_WITH_EMPTY_HAND for an empty one
      */
-    static boolean tryInsertBlob(ItemStack stack, CrucibleBlockEntity crucible, Player player) {
+    static InteractionResult pourBlob(ItemStack stack, CrucibleBlockEntity crucible, Player player) {
         if (BlobStacks.volumeOf(stack) <= 0) {
-            return false;
+            return InteractionResult.TRY_WITH_EMPTY_HAND;
         }
         BlobInsert.pour(stack, player, (type, volume) -> acceptWholeUnits(crucible, type, volume));
-        return true;
+        return InteractionResult.SUCCESS;
     }
 
     /**

@@ -41,6 +41,8 @@ class GooInteractionTypeTest {
                         GooInteractionType.GASKET_INSTALL),
                 arguments("gasket", GooInteractionType.GASKET_INSTALL, false, true,
                         GooInteractionType.GASKET_INSTALL),
+                arguments("flint and steel", GooInteractionType.SPARK, false, false, GooInteractionType.SPARK),
+                arguments("flint and steel", GooInteractionType.SPARK, false, true, GooInteractionType.SPARK),
                 arguments("bucket", null, true, false, GooInteractionType.FLUID_CONTAINER),
                 arguments("bucket", null, true, true, GooInteractionType.FLUID_CONTAINER),
                 arguments("stick", null, false, false, null),

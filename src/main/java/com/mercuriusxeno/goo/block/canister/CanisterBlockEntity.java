@@ -516,7 +516,7 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
     private InteractionResult handleBlobInsert(BlockHitResult hitResult, ItemStack stack, Player player) {
         int hitSlot = aimedSlot(hitResult);
         int accepted = BlobInsert.pour(stack, player,
-                (type, volume) -> tryInsertBlobGoo(hitSlot, type, volume));
+                (type, volume) -> blobGooIntoSlot(hitSlot, type, volume));
         if (accepted <= 0) {
             return InteractionResult.PASS;
         }
@@ -525,7 +525,7 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
         return InteractionResult.SUCCESS;
     }
 
-    private int tryInsertBlobGoo(int hitSlot, ResourceKey<GooTypeDefinition> type, int volume) {
+    private int blobGooIntoSlot(int hitSlot, ResourceKey<GooTypeDefinition> type, int volume) {
         return hitSlot >= 0 && canAccept(hitSlot) ? insertGoo(hitSlot, type, volume) : 0;
     }
 
