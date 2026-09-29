@@ -32,12 +32,10 @@ import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
-import java.util.Map;
 
 /**
  * The crystallizer block (decision crystallizer-emits-chrysm): it crystallizes the
@@ -62,19 +60,6 @@ public class CrystallizerBlock extends GooMachineBlock {
 
     /** Whether the crystallizer crystallized within the last few ticks; the model lights its inlay. */
     public static final BooleanProperty ACTIVE = BooleanProperty.create("active");
-
-    /**
-     * The dial and its pointer on the facing face, the operator's model's dial at
-     * x 6.5 to 9.5, y 5.5 to 9.5 on its front, turned to each facing.
-     */
-    private static final Map<Direction, VoxelShape> KNOB_SHAPES = Map.of(
-            Direction.SOUTH, box(6.5, 5.5, 15, 9.5, 9.5, 16),
-            Direction.NORTH, box(6.5, 5.5, 0, 9.5, 9.5, 1),
-            Direction.EAST, box(15, 5.5, 6.5, 16, 9.5, 9.5),
-            Direction.WEST, box(0, 5.5, 6.5, 1, 9.5, 9.5));
-    /** The operator's model's body, 14 by 16 by 14. */
-    private static final VoxelShape BODY_SHAPE = box(1, 0, 1, 15, 16, 15);
-    private static final double TOP = CrystallizerLayout.TOP;
 
     /**
      * @param properties the block properties
@@ -124,42 +109,23 @@ public class CrystallizerBlock extends GooMachineBlock {
      * @return the knob's shape on the face it sits on
      */
     public static VoxelShape knobShape(BlockState state) {
-        return KNOB_SHAPES.get(state.getValue(FACING));
+        return CrystallizerShapes.knobShape(state.getValue(FACING));
     }
 
+    /** The growing crystal joins the shape from its first mB, so the crystal HUD targets it (decision crystal-hud-shows-on-crystal-look). */
     @Override
     protected @NonNull VoxelShape getShape(@NonNull BlockState state, @NonNull BlockGetter level,
                                            @NonNull BlockPos pos, @NonNull CollisionContext context) {
-        VoxelShape shape = Shapes.or(BODY_SHAPE, knobShape(state));
-        if (level.getBlockEntity(pos) instanceof CrystallizerBlockEntity crystallizer
-                && crystallizer.isMature(knobTier(state))) {
-            shape = Shapes.or(shape, crystalShape(state.getValue(FACING), crystallizer.crystallized()));
-        }
-        return shape;
-    }
-
-    /**
-     * The box around the quartz cluster, so a click on the crystal lands on the crystallizer.
-     *
-     * @param facing       the face the dial sits on
-     * @param crystallized the crystallized volume, in mB
-     * @return the cluster's box, empty while nothing is crystallized
-     */
-    public static VoxelShape crystalShape(Direction facing, long crystallized) {
-        double[] reach = CrystalCluster.reach(crystallized);
-        if (reach[1] <= 0) {
-            return Shapes.empty();
-        }
-        double[] center = CrystallizerLayout.modelToWorld(facing, CrystalCluster.BASE_X, CrystalCluster.BASE_Z);
-        return box(center[0] - reach[0], TOP, center[1] - reach[0],
-                center[0] + reach[0], TOP + reach[1], center[1] + reach[0]);
+        long crystallized = level.getBlockEntity(pos) instanceof CrystallizerBlockEntity crystallizer
+                ? crystallizer.crystallized() : 0;
+        return CrystallizerShapes.hitShape(state.getValue(FACING), crystallized);
     }
 
     /** The dial is too small to stand on or bump; only the body collides. */
     @Override
     protected @NonNull VoxelShape getCollisionShape(@NonNull BlockState state, @NonNull BlockGetter level,
                                                     @NonNull BlockPos pos, @NonNull CollisionContext context) {
-        return BODY_SHAPE;
+        return CrystallizerShapes.BODY_SHAPE;
     }
 
     @Override
@@ -262,7 +228,7 @@ public class CrystallizerBlock extends GooMachineBlock {
      */
     private static boolean hitsMatureCrystal(CrystallizerBlockEntity crystallizer, BlockState state, BlockPos pos,
                                              BlockHitResult hit) {
-        VoxelShape crystal = crystalShape(state.getValue(FACING), crystallizer.crystallized());
+        VoxelShape crystal = CrystallizerShapes.crystalShape(state.getValue(FACING), crystallizer.crystallized());
         return crystallizer.isMature(knobTier(state)) && !crystal.isEmpty()
                 && CrystalReach.landsOn(crystal.bounds(), hit.getLocation().subtract(Vec3.atLowerCornerOf(pos)));
     }
