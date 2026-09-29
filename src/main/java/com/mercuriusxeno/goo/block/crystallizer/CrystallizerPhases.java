@@ -185,6 +185,25 @@ public final class CrystallizerPhases {
     }
 
     /**
+     * The mB per tick the crystallizer asks of a canister's source: its pace for the goo
+     * that grows and a tenth of it for crystal, whole mB rounded up, and nothing once the
+     * crystal has reached the knob's tier (decision receivers-demand-and-links-relay), or
+     * while the knob is off (decision dial-five-positions-off-to-materia).
+     *
+     * @param crystallized the goo crystallized so far, in mB
+     * @param knob         the tier the knob caps crystallizing at, or null when it is off
+     * @param catalyst     true for the crystal the growing goo spends
+     * @return the demand, in mB per tick
+     */
+    public static int demand(long crystallized, @Nullable ChrysmTier knob, boolean catalyst) {
+        if (knob == null || crystallized >= knob.volume()) {
+            return 0;
+        }
+        double pace = paceAllowance(crystallized);
+        return (int) Math.ceil(catalyst ? pace / GOO_PER_CRYSTAL : pace);
+    }
+
+    /**
      * Carries the pace across ticks: this tick's allowance joins the unspent budget,
      * held to at most one tick's allowance and one step so an idle stretch banks no burst.
      *

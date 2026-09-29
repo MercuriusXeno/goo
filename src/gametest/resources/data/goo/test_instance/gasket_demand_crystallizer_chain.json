@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:gasket_demand_crystallizer_chain",
+  "environment": "minecraft:default",
+  "structure": "goo:machine_bay",
+  "max_ticks": 300,
+  "setup_ticks": 0,
+  "required": true
+}
