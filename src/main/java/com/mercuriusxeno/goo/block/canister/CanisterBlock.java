@@ -5,7 +5,6 @@ import com.mercuriusxeno.goo.block.GooBlockInteraction;
 import com.mercuriusxeno.goo.block.GooMachineBlock;
 import com.mercuriusxeno.goo.block.ShapeHitCheck;
 import com.mercuriusxeno.goo.block.gasket.GasketInstallation;
-import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.GooInteractionType;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mojang.serialization.MapCodec;
@@ -74,6 +73,11 @@ public class CanisterBlock extends GooMachineBlock {
      * itself: an attachable hands back one stable array per state.
      */
     private static final Map<float[][], VoxelShape[]> SHAPES_BY_OVERRIDE = new ConcurrentHashMap<>();
+
+    /** The clicks a canister block answers through its dispatcher. */
+    private static final Set<GooInteractionType> CLICK_ROWS = Set.of(
+            GooInteractionType.CANISTER_INSERT, GooInteractionType.CANISTER_PICKUP,
+            GooInteractionType.FLUID_CONTAINER, GooInteractionType.BLOB_INSERT);
 
     static {
         for (int slot = 0; slot < SLOT_COUNT; slot++) {
@@ -310,63 +314,23 @@ public class CanisterBlock extends GooMachineBlock {
     // --- Interactions ---
 
     /**
-     * Shift+canister inserts into grid. Holding a canister without shift
-     * picks up the targeted canister. Buckets do fluid transfer, blobs
-     * insert goo.
+     * A plain click with a canister reads the aimed slot: a filled slot gives its canister up,
+     * an empty one takes the held canister (decision hub-plain-click-rule). Buckets move fluid,
+     * blobs pour goo.
      */
     @Override
     protected @NonNull InteractionResult useItemOn(
             @NonNull ItemStack stack, @NonNull BlockState state, Level level, @NonNull BlockPos pos,
             @NonNull Player player, @NonNull InteractionHand hand, @NonNull BlockHitResult hitResult) {
-        // Shift+canister: insert canister item into grid
-        if (player.isSecondaryUseActive() && stack.getItem() instanceof CanisterItem) {
-            return handleCanisterGridInsert(level, pos, player, hitResult, stack);
-        }
-
-        // Holding a canister: pick up the targeted canister
-        if (stack.getItem() instanceof CanisterItem) {
-            return canisterBE(level, pos)
-                    .map(be -> be.handleCanisterPickup(player, hitResult))
-                    .orElse(InteractionResult.PASS);
-        }
-
-        // Fluid container interaction (buckets)
-        InteractionResult fluidResult = canisterBE(level, pos)
-                .map(be -> be.tryFluidInteraction(player, hand, hitResult))
-                .orElse(null);
-        if (fluidResult != null) { return fluidResult; }
-
-        // Blob/goo insertion via standard dispatch
         return GooBlockInteraction.handleItemInteraction(
                 stack, level, pos, player, hand, hitResult,
-                CanisterBlockEntity.class,
-                Set.of(GooInteractionType.CANISTER_INSERT, GooInteractionType.BLOB_INSERT),
-                (interaction, canister, s, p, h, hit, bpos, lvl) ->
-                    canister.dispatch(interaction, s, p, hit));
+                CanisterBlockEntity.class, CanisterBlockEntity::aimedSlotHoldsCanister, CLICK_ROWS,
+                (interaction, canister, s, p, h, hit, bpos, lvl) -> canister.dispatch(interaction, s, p, h, hit));
     }
 
     private static java.util.Optional<CanisterBlockEntity> canisterBE(Level level, BlockPos pos) {
         return level.getBlockEntity(pos) instanceof CanisterBlockEntity be
                 ? java.util.Optional.of(be) : java.util.Optional.empty();
-    }
-
-    /**
-     * Inserts a held canister item into the grid via shift+right-click.
-     *
-     * @param level     the current level
-     * @param pos       the block position
-     * @param player    the interacting player
-     * @param hitResult the ray trace hit result
-     * @param stack     the canister item stack
-     * @return the interaction result
-     */
-    private static InteractionResult handleCanisterGridInsert(
-            Level level, BlockPos pos, Player player,
-            BlockHitResult hitResult, ItemStack stack) {
-        if (level.isClientSide()) { return InteractionResult.SUCCESS; }
-        return canisterBE(level, pos)
-                .map(be -> be.dispatch(GooInteractionType.CANISTER_INSERT, stack, player, hitResult))
-                .orElse(InteractionResult.PASS);
     }
 
     /** Empty-hand right-click picks up the targeted canister; sneak pops the gasket it hits first. */

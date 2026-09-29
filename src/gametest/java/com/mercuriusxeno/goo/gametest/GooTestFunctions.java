@@ -228,7 +228,9 @@ public final class GooTestFunctions {
     private static final String PL_OTHER_ABILITY_THROW_LEAVES_MARKER = "pl_other_ability_throw_leaves_marker";
 
     // --- Canister interactions ---
-    private static final String IX_CANISTER_SHIFT_INSERT = "ix_canister_shift_insert";
+    private static final String IX_CANISTER_PLAIN_INSERT = "ix_canister_plain_insert";
+    private static final String IX_CANISTER_BUCKET_FILL = "ix_canister_bucket_fill";
+    private static final String IX_CANISTER_GASKET_INSTALL = "ix_canister_gasket_install";
     private static final String IX_CANISTER_CLICK_PICKUP = "ix_canister_click_pickup";
     private static final String IX_CANISTER_LAST_PICKUP = "ix_canister_last_pickup";
     private static final String IX_CANISTER_EMPTY_HAND = "ix_canister_empty_hand";
@@ -630,7 +632,9 @@ public final class GooTestFunctions {
     }
 
     private static void registerCanisterInteractionTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
-        reg(r, IX_CANISTER_SHIFT_INSERT, CanisterInteractionTests::shiftClickInserts);
+        reg(r, IX_CANISTER_PLAIN_INSERT, CanisterInteractionTests::plainClickInserts);
+        reg(r, IX_CANISTER_BUCKET_FILL, CanisterInteractionTests::bucketFillsAimedCanister);
+        reg(r, IX_CANISTER_GASKET_INSTALL, CanisterInteractionTests::gasketClickInstallsOnAimedCanister);
         reg(r, IX_CANISTER_CLICK_PICKUP, CanisterInteractionTests::clickPicksUp);
         reg(r, IX_CANISTER_LAST_PICKUP, CanisterInteractionTests::lastPickupRemovesBlock);
         reg(r, IX_CANISTER_EMPTY_HAND, CanisterInteractionTests::emptyHandPicksUp);

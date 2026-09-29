@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
+import com.mercuriusxeno.goo.item.CanisterItem;
+import com.mercuriusxeno.goo.item.CanisterMetadata;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooItems;
 import net.minecraft.core.BlockPos;
@@ -9,6 +11,7 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
@@ -22,7 +25,7 @@ public final class CanisterInteractionTests {
 
     private static final BlockPos BE_POS = new BlockPos(1, 1, 1);
     private static final int CENTER_SLOT = 4;
-    private static final String INSERT_SHOULD_FILL = "Shift+canister should insert into the grid";
+    private static final String INSERT_SHOULD_FILL = "A plain canister click should insert into the grid";
     private static final String PICKUP_SHOULD_EMPTY = "Right-click should pick up the canister";
     private static final String HAND_SHOULD_EMPTY = "Player hand should be empty after insert";
 
@@ -42,19 +45,18 @@ public final class CanisterInteractionTests {
     }
 
     /**
-     * Shift+right-click with a canister item inserts it into the grid
-     * via the full useItemOn path through CanisterBlock and CanisterBlockHandlers.
+     * A plain click with a canister item on an empty aimed slot inserts it through the
+     * dispatcher's CANISTER_INSERT row, as the hub does (decision hub-plain-click-rule).
      *
      * @param helper the gametest helper
      */
-    public static void shiftClickInserts(GameTestHelper helper) {
+    public static void plainClickInserts(GameTestHelper helper) {
         helper.setBlock(BE_POS, GooBlocks.CANISTER.get());
         CanisterBlockEntity be = helper.getBlockEntity(BE_POS, CanisterBlockEntity.class);
         // Seed the grid with one canister so the block exists
         be.insertCanister(0, new ItemStack(GooItems.CANISTER.get()), false);
 
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
-        player.setShiftKeyDown(true);
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.CANISTER.get()));
 
         helper.useBlock(BE_POS, player, centerHit(helper));
@@ -120,6 +122,51 @@ public final class CanisterInteractionTests {
         helper.useBlock(BE_POS, player, centerHit(helper));
 
         helper.assertTrue(be.containerState().getCanister(CENTER_SLOT).isEmpty(), PICKUP_SHOULD_EMPTY);
+        helper.succeed();
+    }
+
+    /**
+     * A water bucket clicked on a filled slot pours into that canister through the
+     * dispatcher's FLUID_CONTAINER row and leaves an empty bucket in hand.
+     *
+     * @param helper the gametest helper
+     */
+    public static void bucketFillsAimedCanister(GameTestHelper helper) {
+        helper.setBlock(BE_POS, GooBlocks.CANISTER.get());
+        CanisterBlockEntity be = helper.getBlockEntity(BE_POS, CanisterBlockEntity.class);
+        be.insertCanister(CENTER_SLOT, new ItemStack(GooItems.CANISTER.get()), false);
+
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.WATER_BUCKET));
+
+        helper.useBlock(BE_POS, player, centerHit(helper));
+
+        helper.assertFalse(CanisterItem.getFluidContent(be.containerState().getCanister(CENTER_SLOT)).isEmpty(),
+                "A water bucket click should fill the aimed canister");
+        helper.assertTrue(player.getMainHandItem().is(Items.BUCKET), "The bucket should be left empty in hand");
+        helper.succeed();
+    }
+
+    /**
+     * A choral gasket clicked on a filled slot passes through the dispatcher's
+     * GASKET_INSTALL row to the gasket's own use, which installs it on that canister.
+     *
+     * @param helper the gametest helper
+     */
+    public static void gasketClickInstallsOnAimedCanister(GameTestHelper helper) {
+        helper.setBlock(BE_POS, GooBlocks.CANISTER.get());
+        CanisterBlockEntity be = helper.getBlockEntity(BE_POS, CanisterBlockEntity.class);
+        be.insertCanister(CENTER_SLOT, new ItemStack(GooItems.CANISTER.get()), false);
+
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.CHORAL_GASKET.get()));
+
+        helper.useBlock(BE_POS, player, centerHit(helper));
+
+        CanisterMetadata meta = CanisterItem.getMetadata(be.containerState().getCanister(CENTER_SLOT));
+        helper.assertTrue(meta.topGasketId() != null || meta.bottomGasketId() != null,
+                "A gasket click should install a gasket on the aimed canister");
+        helper.assertTrue(player.getMainHandItem().isEmpty(), "The installed gasket should leave the hand");
         helper.succeed();
     }
 }

@@ -31,14 +31,14 @@ public enum GooInteractionType {
     FLUID_CONTAINER;
 
     /**
-     * Returns true if this interaction type should be subject to the
-     * interaction cooldown. Blobs are self-limiting (consumed on use),
-     * so no type needs one today.
+     * Returns true if this interaction type should be subject to the interaction cooldown:
+     * a canister moved in or out leaves the hand holding a canister, so a held click would
+     * swap it straight back. Blobs are self-limiting (consumed on use).
      *
      * @return true if cooldown applies
      */
     public boolean requiresCooldown() {
-        return false;
+        return this == CANISTER_INSERT || this == CANISTER_PICKUP;
     }
 
     /**
