@@ -3,6 +3,7 @@
   "displayName": "goo.ability.glow.crystal",
   "order": 0,
   "cost": 1000,
+  "delivery": { "kind": "beam", "blocks_per_tick": 2.5 },
   "chain": {
     "fuseTicks": 30,
     "maxStacks": 4

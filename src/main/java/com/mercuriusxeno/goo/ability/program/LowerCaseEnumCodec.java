@@ -9,7 +9,7 @@ import java.util.Locale;
  * constant's lower-case name, and a name no constant carries refuses at
  * load naming the enum's role.
  */
-final class LowerCaseEnumCodec {
+public final class LowerCaseEnumCodec {
 
     private static final String ERR_UNKNOWN = "Unknown %s: %s";
 
@@ -24,7 +24,7 @@ final class LowerCaseEnumCodec {
      * @param <E>  the enum type
      * @return the codec
      */
-    static <E extends Enum<E>> Codec<E> of(Class<E> type, String what) {
+    public static <E extends Enum<E>> Codec<E> of(Class<E> type, String what) {
         return Codec.STRING.comapFlatMap(key -> byKey(type, what, key), LowerCaseEnumCodec::key);
     }
 

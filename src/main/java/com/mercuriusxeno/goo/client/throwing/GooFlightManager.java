@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.throwing;
 
+import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.network.GooFlightPayload;
@@ -63,7 +64,7 @@ public final class GooFlightManager {
         int id = nextId;
         nextId++;
         FLIGHTS.put(id, new GooFlight(start, throwEnd, targetEntityId,
-                payload.targetPos(), type, travelTicks, grannyArc));
+                payload.targetPos(), type, payload.delivery(), travelTicks, grannyArc));
     }
 
     /**
@@ -80,24 +81,6 @@ public final class GooFlightManager {
     }
 
     /**
-     * The arc peak a flight flies, from the distance between its start and
-     * its endpoint at the throw, as the aim line reads it: glow flies straight.
-     *
-     * @param start      the flight's start
-     * @param throwEnd   the flight's endpoint at the throw
-     * @param gooType    the thrown goo type
-     * @param grannyArc  whether the throw is a lob onto a top face
-     * @return the peak height in blocks
-     */
-    static double peakForFlight(Vec3 start, Vec3 throwEnd, ResourceKey<GooTypeDefinition> gooType,
-            boolean grannyArc) {
-        if (gooType == GooTypes.GLOW) {
-            return 0;
-        }
-        return grannyArc ? ThrowArc.lobPeak(start, throwEnd) : ThrowArc.basePeak(start.distanceTo(throwEnd));
-    }
-
-    /**
      * Called each client tick to advance flights and remove arrivals.
      */
     public static void tick() {
@@ -105,8 +88,8 @@ public final class GooFlightManager {
         while (it.hasNext()) {
             GooFlight flight = it.next().getValue();
             flight.ticksElapsed++;
-            if (flight.gooType == GooTypes.GLOW) {
-                tickGlowFlight(it, flight);
+            if (flight.delivery.fliesStraight()) {
+                tickBeamFlight(it, flight);
             } else if (flight.ticksElapsed >= flight.travelTicks) {
                 fireArrival(flight);
                 it.remove();
@@ -115,14 +98,14 @@ public final class GooFlightManager {
     }
 
     /**
-     * Glow flights have two phases: extend (head travels) then collapse
+     * Beam flights have two phases: extend (head travels) then collapse
      * (tail chases). Effect fires when head arrives; flight removed when
      * tail is consumed.
      *
      * @param it     the iterator for safe removal
-     * @param flight the glow flight
+     * @param flight the beam flight
      */
-    private static void tickGlowFlight(
+    private static void tickBeamFlight(
             Iterator<Map.Entry<Integer, GooFlight>> it, GooFlight flight) {
         if (flight.ticksElapsed == flight.travelTicks) {
             fireArrival(flight);
@@ -227,6 +210,11 @@ public final class GooFlightManager {
          */
         public final BlockPos targetBlockPos;
         public final ResourceKey<GooTypeDefinition> gooType;
+        /**
+         * The thrown ability's delivery, which decides the flight's shape
+         * (decision delivery-block-in-ability-json).
+         */
+        public final Delivery delivery;
         public final int travelTicks;
         public final boolean grannyArc;
 
@@ -238,15 +226,16 @@ public final class GooFlightManager {
 
         public GooFlight(Vec3 start, Vec3 throwEnd, int targetEntityId,
                           BlockPos targetBlockPos, ResourceKey<GooTypeDefinition> gooType,
-                          int travelTicks, boolean grannyArc) {
+                          Delivery delivery, int travelTicks, boolean grannyArc) {
             this.start = start;
             this.throwEnd = throwEnd;
             this.targetEntityId = targetEntityId;
             this.targetBlockPos = targetBlockPos;
             this.gooType = gooType;
+            this.delivery = delivery;
             this.travelTicks = travelTicks;
             this.grannyArc = grannyArc;
-            this.peak = peakForFlight(start, throwEnd, gooType, grannyArc);
+            this.peak = delivery.peak(start, throwEnd, grannyArc);
             this.ticksElapsed = 0;
         }
 

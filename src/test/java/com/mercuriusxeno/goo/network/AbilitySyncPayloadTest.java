@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.AbilityTags;
+import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.type.GooTypes;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
@@ -22,7 +23,7 @@ class AbilitySyncPayloadTest {
     private static AbilityDefinition ability(String name, int order, String tag) {
         return new AbilityDefinition(Identifier.fromNamespaceAndPath("goo", name), GooTypes.ROCK,
                 name, "", order, 0, new AbilityDefinition.ChainConfig(30, 1, "goo"),
-                List.of(), List.of(tag));
+                Delivery.ARC, List.of(), List.of(tag));
     }
 
     /** The sync codec carries each cost formula to the client whole (decision unaffordable-click-does-nothing). */

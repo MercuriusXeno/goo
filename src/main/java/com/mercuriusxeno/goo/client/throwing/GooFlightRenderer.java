@@ -193,7 +193,7 @@ public final class GooFlightRenderer {
         Vec3 pos = flight.getPosition(ctx.partialTick);
         Vec3 vel = flight.getVelocity(ctx.partialTick);
 
-        if (flight.gooType == GooTypes.GLOW) {
+        if (flight.delivery.fliesStraight()) {
             renderGlowBeam(ctx, flight);
             return;
         }

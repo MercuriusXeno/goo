@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.throwing;
 
+import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.StackKey;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
@@ -241,11 +242,25 @@ public final class GloveThrowSender {
      */
     private static boolean wouldExceedMaxStacks(TargetResult target, ResourceKey<GooTypeDefinition> gooType,
                                                 String abilityId) {
-        if (target instanceof TargetResult.GlowCrystalTarget gct && gooType == GooTypes.GLOW) {
+        if (target instanceof TargetResult.GlowCrystalTarget gct
+                && selectedDelivery(abilityId, gooType).fliesStraight()) {
             return wouldExceedCrystalMax(gct, abilityId);
         }
         BlockPos pos = resolveTrackingPos(target, abilityId);
         return pos != null && wouldExceedMarkerMax(pos, abilityId);
+    }
+
+    /**
+     * The delivery of the selected ability, or the type's stand-in where the
+     * client holds no synced copy (decision delivery-block-in-ability-json).
+     *
+     * @param abilityId the selected ability id string
+     * @param gooType   the selected goo type
+     * @return the delivery
+     */
+    public static Delivery selectedDelivery(@Nullable String abilityId, ResourceKey<GooTypeDefinition> gooType) {
+        ClientAbility ability = abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
+        return ability == null ? Delivery.fallbackForType(gooType) : ability.delivery();
     }
 
     /**
