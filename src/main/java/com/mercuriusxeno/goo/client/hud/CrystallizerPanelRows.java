@@ -36,8 +36,8 @@ final class CrystallizerPanelRows {
         if (reached != null) {
             rows.add(PanelRow.header(tierName.apply(reached), TIER_COLOR));
         }
-        rows.add(PanelPainter.gooRow(formingType, GooFormat.formatFluidDisplayCompact(crystallized) + OVER
-                + GooFormat.formatFluidDisplayCompact(knobTier.volume())));
+        rows.add(PanelPainter.gooRow(formingType, GooFormat.formatAmount(crystallized) + OVER
+                + GooFormat.formatAmount(knobTier.volume())));
         return rows;
     }
 }
