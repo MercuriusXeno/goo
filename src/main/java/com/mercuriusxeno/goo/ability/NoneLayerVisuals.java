@@ -17,7 +17,7 @@ final class NoneLayerVisuals implements LayerVisuals {
 
     @Override
     public void preview(ServerLevel level, BlockPos origin, Direction placedFace,
-                        int stepIndex, int stackCount) {
+                        int stepIndex, int stackCount, float reach) {
     }
 
     @Override

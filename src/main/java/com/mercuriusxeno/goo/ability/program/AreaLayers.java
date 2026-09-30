@@ -41,6 +41,36 @@ final class AreaLayers {
     }
 
     /**
+     * The reach a layer's preview sizes its ring to (decision
+     * themed-ring-before-every-layer): a tunnel's face, or the round
+     * footprint's radius for a flat or a ball.
+     *
+     * @param shape       the footprint shape
+     * @param stacks      the marker's stack count
+     * @param startRadius the step's radius at one stack
+     * @return the reach in blocks
+     */
+    static float layerReach(AreaShape shape, int stacks, int startRadius) {
+        return switch (shape) {
+            case TUNNEL -> ChainFootprint.tunnelFaceReach(stacks);
+            case FLAT_CIRCLE, SPHERE -> ChainFootprint.radiusAtStacks(stacks, startRadius);
+        };
+    }
+
+    /**
+     * How deep into the wall a layer's visuals stand: a tunnel's layer steps
+     * one block deeper each, while a flat's rings all lie in the disc one
+     * block in and a ball's shells all center on it.
+     *
+     * @param shape the footprint shape
+     * @param layer the layer index, from zero
+     * @return the depth index LayerGeometry.layerCenter takes
+     */
+    static int layerDepth(AreaShape shape, int layer) {
+        return shape == AreaShape.TUNNEL ? layer : 0;
+    }
+
+    /**
      * Lists the block positions of one layer.
      *
      * @param shape       the footprint shape

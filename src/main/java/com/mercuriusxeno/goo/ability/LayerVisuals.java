@@ -21,9 +21,10 @@ public interface LayerVisuals {
      * @param placedFace the face the marker was attached to
      * @param stepIndex  zero-based layer offset along the blast direction
      * @param stackCount the current stack count (for footprint scaling)
+     * @param reach      the layer's reach in blocks, which a ring sizes to
      */
     void preview(ServerLevel level, BlockPos origin, Direction placedFace,
-                 int stepIndex, int stackCount);
+                 int stepIndex, int stackCount, float reach);
 
     /**
      * Emits the on-struck particles for a layer that was just mined.

@@ -28,16 +28,16 @@ class CrystallizerPanelRowsTest {
             PanelRow goo = rows(12_000, ChrysmTier.CHRYSM).getLast();
 
             assertEquals(PanelPainter.gooIcon(GooTypes.ROCK), goo.icon());
-            assertEquals(GooFormat.formatFluidDisplayCompact(12_000) + " / "
-                    + GooFormat.formatFluidDisplayCompact(32_000), text(goo));
+            assertEquals(GooFormat.formatAmount(12_000) + " / "
+                    + GooFormat.formatAmount(32_000), text(goo));
         }
 
         @Test
         void towardBuddingChrysmReadsCrystallizedOverTheBuddingVolume() {
             PanelRow goo = rows(500_000, ChrysmTier.BUDDING_CHRYSM).getLast();
 
-            assertEquals(GooFormat.formatFluidDisplayCompact(500_000) + " / "
-                    + GooFormat.formatFluidDisplayCompact(1_000_000), text(goo));
+            assertEquals(GooFormat.formatAmount(500_000) + " / "
+                    + GooFormat.formatAmount(1_000_000), text(goo));
         }
     }
 

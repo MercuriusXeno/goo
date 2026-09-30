@@ -158,13 +158,13 @@ public record MarkerHost(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity
     }
 
     @Override
-    public void previewLayer(String visuals, int layer) {
-        LayerVisualsType.byName(visuals).preview(level, pos, be.getPlacedFace(), layer, be.getStackCount());
+    public void previewLayer(String visuals, int depth, float reach) {
+        LayerVisualsType.byName(visuals).preview(level, pos, be.getPlacedFace(), depth, be.getStackCount(), reach);
     }
 
     @Override
-    public void strikeLayerFx(String visuals, String audio, int layer, int destroyed) {
-        LayerVisualsType.byName(visuals).onLayerStruck(level, pos, be.getPlacedFace(), layer, destroyed);
+    public void strikeLayerFx(String visuals, String audio, int layer, int depth, int destroyed) {
+        LayerVisualsType.byName(visuals).onLayerStruck(level, pos, be.getPlacedFace(), depth, destroyed);
         LayerAudioType.byName(audio).onLayerStruck(level, pos, be.getPlacedFace(), layer, destroyed,
                 be.getStackCount());
     }

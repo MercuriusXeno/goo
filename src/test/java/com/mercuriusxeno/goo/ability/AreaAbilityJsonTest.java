@@ -13,6 +13,7 @@ import com.mercuriusxeno.goo.ability.program.Variables;
 import com.mojang.serialization.JsonOps;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import java.io.IOException;
 import java.io.InputStream;
@@ -29,7 +30,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 /**
  * The area abilities' JSONs decode to the stack ceiling and start radius the
  * shape ladder reads (decisions disc-opens-circularly-per-stack,
- * tunnel-stays-3x3-ee-homage, sphere-is-frost-alone, nether-radius-one-per-stack), read from the classpath.
+ * tunnel-stays-3x3-ee-homage, sphere-is-frost-alone, nether-radius-one-per-stack) and the layer visuals
+ * each names (decision themed-ring-before-every-layer), read from the classpath.
  */
 class AreaAbilityJsonTest {
 
@@ -68,6 +70,22 @@ class AreaAbilityJsonTest {
     @ValueSource(strings = {"rock_tunnel", "blaze_tunnel", "frost_tunnel"})
     void tunnelStacksSix(String ability) throws IOException {
         assertEquals(LADDER_STACKS, decode(ability).chain().maxStacks(), ability + " maxStacks");
+    }
+
+    @ParameterizedTest
+    @CsvSource({"rock_tunnel, rock_dust", "rock_flat, rock_dust", "blaze_tunnel, blaze_flame",
+            "blaze_flat, blaze_flame", "frost_tunnel, frost_rime", "frost_flat, frost_rime"})
+    void everyTunnelAndFlatRingsItsLayersThroughItsTypesVisuals(String ability, String visuals) throws IOException {
+        ProgressiveAreaStep step = (ProgressiveAreaStep) decode(ability).behaviors().getFirst();
+
+        assertEquals(visuals, step.visuals(), ability + " visuals");
+    }
+
+    @Test
+    void frostBallTakesNoRing() throws IOException {
+        ProgressiveAreaStep step = (ProgressiveAreaStep) decode("frost_sphere").behaviors().getFirst();
+
+        assertEquals(LayerVisualsType.NONE, step.visuals());
     }
 
     @Test
