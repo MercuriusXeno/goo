@@ -84,6 +84,16 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
     }
 
     /**
+     * Whether the glove aims a line at a target, the arc or the beam; a
+     * punch aims at reach and a self ability at nothing.
+     *
+     * @return true for an arc or a beam
+     */
+    public boolean aimsALine() {
+        return kind == DeliveryKind.ARC || kind == DeliveryKind.BEAM;
+    }
+
+    /**
      * The ticks a flight takes to cover a distance: a beam at its speed, an
      * arc by the thrown type's flight time.
      *

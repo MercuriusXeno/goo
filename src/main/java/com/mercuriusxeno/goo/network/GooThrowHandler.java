@@ -74,7 +74,8 @@ public final class GooThrowHandler {
      * Validates and executes the throw: the glove, the type, the range and
      * the goo in the player's inventory are checked, the goo is depleted,
      * the flight is broadcast and the effect scheduled for arrival. A punch
-     * ability strikes at reach instead (decision punch-strikes-at-reach).
+     * ability strikes at reach instead (decision punch-strikes-at-reach),
+     * and a self ability runs on the player (decision self-delivery-runs-on-player).
      *
      * @param player  the throwing player
      * @param payload the throw payload data
@@ -84,10 +85,10 @@ public final class GooThrowHandler {
         ResourceKey<GooTypeDefinition> gooType = validateGooType(payload);
         if (gooType == null) { return; }
         AbilityDefinition ability = thrownAbility(player.level(), payload.abilityId(), gooType);
-        if (ability != null && ability.delivery().kind() == DeliveryKind.PUNCH) {
-            GooPunchHandler.punch(player, payload, gooType, ability);
-        } else {
-            throwFlight(player, payload, gooType);
+        switch (ability == null ? DeliveryKind.ARC : ability.delivery().kind()) {
+            case PUNCH -> GooPunchHandler.punch(player, payload, gooType, ability);
+            case SELF -> GooSelfHandler.invoke(player, gooType, ability);
+            default -> throwFlight(player, payload, gooType);
         }
     }
 

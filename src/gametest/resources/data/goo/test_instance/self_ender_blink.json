@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:self_ender_blink",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 20,
+  "setup_ticks": 0,
+  "required": true
+}
