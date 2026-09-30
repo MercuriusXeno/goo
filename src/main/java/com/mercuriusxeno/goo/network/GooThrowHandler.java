@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.Delivery;
+import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.StackKey;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.item.GooGloveItem;
@@ -72,7 +73,8 @@ public final class GooThrowHandler {
     /**
      * Validates and executes the throw: the glove, the type, the range and
      * the goo in the player's inventory are checked, the goo is depleted,
-     * the flight is broadcast and the effect scheduled for arrival.
+     * the flight is broadcast and the effect scheduled for arrival. A punch
+     * ability strikes at reach instead (decision punch-strikes-at-reach).
      *
      * @param player  the throwing player
      * @param payload the throw payload data
@@ -81,6 +83,24 @@ public final class GooThrowHandler {
         if (!validateGlove(player)) { return; }
         ResourceKey<GooTypeDefinition> gooType = validateGooType(payload);
         if (gooType == null) { return; }
+        AbilityDefinition ability = thrownAbility(player.level(), payload.abilityId(), gooType);
+        if (ability != null && ability.delivery().kind() == DeliveryKind.PUNCH) {
+            GooPunchHandler.punch(player, payload, gooType, ability);
+        } else {
+            throwFlight(player, payload, gooType);
+        }
+    }
+
+    /**
+     * Throws a flight at the payload's target once the range and the goo in
+     * the player's inventory check out.
+     *
+     * @param player  the throwing player
+     * @param payload the throw payload data
+     * @param gooType the validated goo type
+     */
+    private static void throwFlight(ServerPlayer player, GooThrowPayload payload,
+            ResourceKey<GooTypeDefinition> gooType) {
         if (!validateRange(player, payload)) { return; }
         int cost = resolveThrowCost(player, payload, gooType);
         if (!validateSupply(player, gooType, cost)) { return; }
@@ -148,7 +168,7 @@ public final class GooThrowHandler {
      * @param gooType the resolved goo type
      * @return the cost in mB for this throw
      */
-    private static int resolveThrowCost(ServerPlayer player, GooThrowPayload payload,
+    static int resolveThrowCost(ServerPlayer player, GooThrowPayload payload,
             ResourceKey<GooTypeDefinition> gooType) {
         AbilityDefinition def = thrownAbility(player.level(), payload.abilityId(), gooType);
         if (def == null) { return THROW_COST; }
@@ -328,7 +348,7 @@ public final class GooThrowHandler {
      * @param payload the throw payload data
      * @return squared distance in blocks
      */
-    private static double targetDistanceSquared(ServerPlayer player, GooThrowPayload payload) {
+    static double targetDistanceSquared(ServerPlayer player, GooThrowPayload payload) {
         if (payload.targetEntityId() >= 0) {
             Entity target = player.level().getEntity(payload.targetEntityId());
             if (target == null) { return Double.MAX_VALUE; }
