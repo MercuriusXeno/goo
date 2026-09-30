@@ -3,6 +3,7 @@
   "displayName": "goo.ability.vital.clone",
   "order": 0,
   "cost": 1000,
+  "delivery": { "kind": "arc" },
   "behaviors": [
     {
       "type": "target",

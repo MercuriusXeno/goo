@@ -3,6 +3,7 @@
   "displayName": "goo.ability.frost.snap",
   "order": 10,
   "cost": 1000,
+  "delivery": { "kind": "arc" },
   "behaviors": [
     {
       "type": "target",

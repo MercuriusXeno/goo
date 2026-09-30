@@ -76,7 +76,7 @@ public final class GloveThrowSender {
         if (payload == null) {
             return false;
         }
-        if (wouldExceedMaxStacks(target, gooType, selection.abilityId())) {
+        if (wouldExceedMaxStacks(target, selection.abilityId())) {
             ThrowFreezeState.armThrowBlock();
             return false;
         }
@@ -236,14 +236,12 @@ public final class GloveThrowSender {
      * chain block (decision diagnose-then-fix-fuse-and-cost).
      *
      * @param target    the resolved aim target
-     * @param gooType   the goo type being thrown
      * @param abilityId the selected ability id string
      * @return true if the throw should be blocked
      */
-    private static boolean wouldExceedMaxStacks(TargetResult target, ResourceKey<GooTypeDefinition> gooType,
-                                                String abilityId) {
+    private static boolean wouldExceedMaxStacks(TargetResult target, String abilityId) {
         if (target instanceof TargetResult.GlowCrystalTarget gct
-                && selectedDelivery(abilityId, gooType).fliesStraight()) {
+                && selectedDelivery(abilityId).fliesStraight()) {
             return wouldExceedCrystalMax(gct, abilityId);
         }
         BlockPos pos = resolveTrackingPos(target, abilityId);
@@ -251,16 +249,15 @@ public final class GloveThrowSender {
     }
 
     /**
-     * The delivery of the selected ability, or the type's stand-in where the
-     * client holds no synced copy (decision delivery-block-in-ability-json).
+     * The delivery of the selected ability, or a plain arc where the client
+     * holds no synced copy (decision standing-abilities-name-arc-or-beam).
      *
      * @param abilityId the selected ability id string
-     * @param gooType   the selected goo type
      * @return the delivery
      */
-    public static Delivery selectedDelivery(@Nullable String abilityId, ResourceKey<GooTypeDefinition> gooType) {
+    public static Delivery selectedDelivery(@Nullable String abilityId) {
         ClientAbility ability = abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
-        return ability == null ? Delivery.fallbackForType(gooType) : ability.delivery();
+        return ability == null ? Delivery.ARC : ability.delivery();
     }
 
     /**

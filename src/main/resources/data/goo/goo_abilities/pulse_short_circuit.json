@@ -3,6 +3,7 @@
   "displayName": "goo.ability.pulse.short_circuit",
   "order": 0,
   "cost": 1000,
+  "delivery": { "kind": "arc" },
   "behaviors": [
     {
       "type": "target",

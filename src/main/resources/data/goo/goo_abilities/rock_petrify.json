@@ -3,6 +3,7 @@
   "displayName": "goo.ability.rock.petrify",
   "order": 10,
   "cost": 1000,
+  "delivery": { "kind": "arc" },
   "behaviors": [
     { "type": "potion", "effect": "minecraft:slowness", "duration": 100, "amplifier": 127 },
     { "type": "damage", "amount": "max_health", "source": "magic" },

@@ -3,6 +3,7 @@
   "displayName": "goo.ability.crystal.flechettes",
   "order": 10,
   "cost": 1000,
+  "delivery": { "kind": "arc" },
   "behaviors": [
     { "type": "damage", "amount": 4, "source": "magic" },
     {

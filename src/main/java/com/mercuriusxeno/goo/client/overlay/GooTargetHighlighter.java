@@ -88,7 +88,7 @@ public final class GooTargetHighlighter {
         TargetResult target = AimTracker.currentTarget();
         cachedArcTarget = target;
         cachedArcType = selectedType;
-        cachedArcDelivery = GloveThrowSender.selectedDelivery(GloveAim.selectedAbilityId(mc.player), selectedType);
+        cachedArcDelivery = GloveThrowSender.selectedDelivery(GloveAim.selectedAbilityId(mc.player));
         cachedArcPartialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         HighlightFrame frame = new HighlightFrame(event.getPoseStack(), mc.renderBuffers().bufferSource(),
                 mc.gameRenderer.getMainCamera(), mc, selectedType);

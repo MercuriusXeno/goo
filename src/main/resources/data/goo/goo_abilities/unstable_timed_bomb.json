@@ -3,6 +3,7 @@
   "displayName": "goo.ability.unstable.timed_bomb",
   "order": 0,
   "cost": 1000,
+  "delivery": { "kind": "arc" },
   "chain": {
     "fuseTicks": 60,
     "maxStacks": 8
