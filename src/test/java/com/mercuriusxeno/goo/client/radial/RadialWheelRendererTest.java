@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.radial;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
+import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.ARGB;
@@ -33,7 +34,7 @@ class RadialWheelRendererTest {
         return new ClientAbility(definition.id(), definition.displayName(), definition.icon(),
                 definition.order(), definition.tags(),
                 definition.chain().fuseTicks(), definition.chain().maxStacks(), definition.behaviors(),
-                definition.cost());
+                definition.cost(), definition.delivery());
     }
 
     private static List<ClientAbility> shippedAbilities() {
@@ -44,7 +45,7 @@ class RadialWheelRendererTest {
 
     private static ClientAbility abilityWithIcon(String icon) {
         return new ClientAbility(Identifier.fromNamespaceAndPath(Goo.MODID, "unstable_timed_bomb"),
-                "ability.goo.unstable_timed_bomb", icon, 0, List.of(), 0, 0, List.of(), 0);
+                "ability.goo.unstable_timed_bomb", icon, 0, List.of(), 0, 0, List.of(), 0, Delivery.ARC);
     }
 
     @Nested
@@ -80,7 +81,7 @@ class RadialWheelRendererTest {
 
         private static ClientAbility costing(int firstThrow) {
             return new ClientAbility(Identifier.fromNamespaceAndPath(Goo.MODID, "cost_" + firstThrow),
-                    "ability.goo.cost", "", 0, List.of(), 0, 1, List.of(), firstThrow);
+                    "ability.goo.cost", "", 0, List.of(), 0, 1, List.of(), firstThrow, Delivery.ARC);
         }
 
         @Test

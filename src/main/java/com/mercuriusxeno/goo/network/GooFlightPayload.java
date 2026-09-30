@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.Delivery;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
@@ -22,12 +23,14 @@ import org.jspecify.annotations.NonNull;
  * @param travelTicks    the number of ticks for the flight arc
  * @param grannyArc      whether the throw is a lob onto a top face
  * @param abilityId      the ability id string the goo carries
+ * @param delivery       the ability's delivery, so the client renders the flight without a registry
+ *                       (decision delivery-block-in-ability-json)
  */
 public record GooFlightPayload(double startX, double startY, double startZ,
                                 String gooTypeId, int targetEntityId,
                                 BlockPos targetPos, int targetFace,
                                 int travelTicks, boolean grannyArc,
-                                String abilityId)
+                                String abilityId, Delivery delivery)
         implements CustomPacketPayload {
 
     /** Payload type ID for registration. */
@@ -66,7 +69,7 @@ public record GooFlightPayload(double startX, double startY, double startZ,
         buf.writeUtf(payload.gooTypeId);
     }
 
-    /** Writes target entity, position, face, travel time, and arc flag.
+    /** Writes target entity, position, face, travel time, arc flag, ability and delivery.
      *
      * @param buf     the output buffer
      * @param payload the payload
@@ -78,6 +81,7 @@ public record GooFlightPayload(double startX, double startY, double startZ,
         buf.writeVarInt(payload.travelTicks);
         buf.writeBoolean(payload.grannyArc);
         buf.writeUtf(payload.abilityId);
+        Delivery.STREAM_CODEC.encode(buf, payload.delivery);
     }
 
     /**
@@ -91,6 +95,6 @@ public record GooFlightPayload(double startX, double startY, double startZ,
                 buf.readDouble(), buf.readDouble(), buf.readDouble(),
                 buf.readUtf(), buf.readVarInt(), buf.readBlockPos(),
                 buf.readVarInt(), buf.readVarInt(), buf.readBoolean(),
-                buf.readUtf());
+                buf.readUtf(), Delivery.STREAM_CODEC.decode(buf));
     }
 }
