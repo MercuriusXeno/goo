@@ -33,6 +33,14 @@ public final class SelfDeliveryTests {
     /** The range ender_blink.json's teleport step names. */
     private static final double BLINK_RANGE = 8;
     private static final double MOVE_TOLERANCE = 1e-6;
+    private static final Identifier TYPHOON_PROPEL = Identifier.parse("goo:typhoon_propel");
+    /** The strength typhoon_propel.json's push step names. */
+    private static final double PROPEL_STRENGTH = 1.5;
+    /** Pitch forty-five degrees above level. */
+    private static final float LOOKING_UP = -45f;
+    private static final float BUILT_UP_FALL = 10f;
+    private static final String SHOULD_PROPEL = "The player's motion should read %s, read %s";
+    private static final String SHOULD_CLEAR_FALL = "Propulsion should clear the fall, read %.1f";
     private static final String ABILITY_REQUIRED = "Ability registry must hold ender_blink";
     private static final String SHOULD_BLINK_EAST = "The player should move %.1f east the tick it blinks, moved %.3f";
     private static final String SHOULD_DRAIN_COST = "Blink should drain its stack-zero cost of %d mB, drained %d";
@@ -64,6 +72,30 @@ public final class SelfDeliveryTests {
         helper.assertTrue(Math.abs(moved - BLINK_RANGE) < MOVE_TOLERANCE,
                 String.format(SHOULD_BLINK_EAST, BLINK_RANGE, moved));
         helper.assertTrue(drained == blink.throwCost(0), String.format(SHOULD_DRAIN_COST, blink.throwCost(0), drained));
+        helper.succeed();
+    }
+
+    /**
+     * A mock player looking up and east invokes typhoon propulsion, and its
+     * motion reads the push strength along its look with its fall cleared.
+     *
+     * @param helper the gametest helper
+     */
+    public static void typhoonPropel(GameTestHelper helper) {
+        ServerPlayer player = invoker(helper, GooTypes.TYPHOON);
+        player.setYRot(FACING_EAST);
+        player.setXRot(LOOKING_UP);
+        player.fallDistance = BUILT_UP_FALL;
+        Vec3 expected = player.getLookAngle().scale(PROPEL_STRENGTH);
+
+        GooThrowHandler.execute(player, new GooThrowPayload(GooTypes.id(GooTypes.TYPHOON), NO_ENTITY,
+                player.blockPosition(), NO_ENTITY, false, TYPHOON_PROPEL.toString(), player.getEyePosition()));
+
+        Vec3 motion = player.getDeltaMovement();
+        double fall = player.fallDistance;
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        helper.assertTrue(motion.distanceTo(expected) < MOVE_TOLERANCE, String.format(SHOULD_PROPEL, expected, motion));
+        helper.assertTrue(fall == 0, String.format(SHOULD_CLEAR_FALL, fall));
         helper.succeed();
     }
 

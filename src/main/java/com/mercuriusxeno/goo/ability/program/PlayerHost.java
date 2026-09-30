@@ -5,6 +5,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.phys.Vec3;
 import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -35,6 +36,18 @@ public record PlayerHost(ServerLevel level, ServerPlayer player)
     @Override
     public Entity thrower() {
         return player;
+    }
+
+    /**
+     * Sets the player moving and clears the fall it has built up, so a
+     * propelled player is not killed by the landing.
+     *
+     * @param motion the velocity to set, in blocks per tick
+     */
+    @Override
+    public void push(Vec3 motion) {
+        TargetHost.super.push(motion);
+        player.resetFallDistance();
     }
 
     /**

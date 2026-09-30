@@ -65,6 +65,34 @@ class PlayerHostTest {
     }
 
     @Nested
+    class Push {
+
+        private static final double STRENGTH = 1.5;
+
+        @Test
+        void pushSetsTheMotionMarksItAndResetsTheFall() {
+            ServerPlayer player = playerLooking(new Vec3(1, 0, 0));
+            Vec3 motion = new Vec3(0.3, 1.2, 0);
+
+            new PlayerHost(mock(ServerLevel.class), player).push(motion);
+
+            verify(player).setDeltaMovement(motion);
+            assertTrue(player.hurtMarked);
+            verify(player).resetFallDistance();
+        }
+
+        @Test
+        void pushAlongThrowerLookSendsThePlayerAlongItsOwnLook() {
+            Vec3 look = new Vec3(0.6, 0.8, 0);
+            ServerPlayer player = playerLooking(look);
+
+            run(List.of(new PushStep(Expr.literal(STRENGTH), PushDirection.THROWER_LOOK)), player);
+
+            verify(player).setDeltaMovement(look.scale(STRENGTH));
+        }
+    }
+
+    @Nested
     class Load {
 
         @Test
