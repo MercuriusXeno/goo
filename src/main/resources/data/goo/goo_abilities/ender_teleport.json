@@ -3,6 +3,7 @@
   "displayName": "goo.ability.ender.teleport",
   "order": 0,
   "cost": 1000,
+  "delivery": { "kind": "arc" },
   "behaviors": [
     { "type": "teleport", "mode": "random_offset", "range": 32 },
     { "type": "sound", "id": "minecraft:entity.enderman.teleport", "at": "target", "source": "hostile", "volume": 1, "pitch": 1 }

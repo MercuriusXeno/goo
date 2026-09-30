@@ -3,6 +3,7 @@
   "displayName": "goo.ability.unstable.explode",
   "order": 10,
   "cost": 1000,
+  "delivery": { "kind": "arc" },
   "behaviors": [
     { "type": "explode", "power": 2.0, "interaction": "tnt" }
   ],

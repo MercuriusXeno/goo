@@ -3,6 +3,7 @@
   "displayName": "goo.ability.frost.sphere",
   "order": 0,
   "cost": 1000,
+  "delivery": { "kind": "arc" },
   "chain": {
     "fuseTicks": 30,
     "maxStacks": 4

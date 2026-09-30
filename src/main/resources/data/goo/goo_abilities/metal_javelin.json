@@ -3,6 +3,7 @@
   "displayName": "goo.ability.metal.javelin",
   "order": 10,
   "cost": 1000,
+  "delivery": { "kind": "arc" },
   "behaviors": [
     { "type": "damage", "amount": 8.0, "source": "magic" }
   ],

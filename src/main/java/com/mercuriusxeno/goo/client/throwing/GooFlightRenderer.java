@@ -446,19 +446,20 @@ public final class GooFlightRenderer {
             return;
         }
 
-        emitGlowBillboard(ctx, tailPos, beamVec);
-        renderGlowHead(ctx, headPos);
+        emitGlowBillboard(ctx, tailPos, beamVec, flight.gooType);
+        renderGlowHead(ctx, headPos, flight.gooType);
     }
 
     /**
-     * Renders the glow goo at the beam's leading edge.
+     * Renders the beamed goo at the beam's leading edge.
      *
      * @param ctx     the render context
      * @param headPos world-space head position
+     * @param gooType the beamed goo type
      */
-    private static void renderGlowHead(FlightFrame ctx, Vec3 headPos) {
+    private static void renderGlowHead(FlightFrame ctx, Vec3 headPos, ResourceKey<GooTypeDefinition> gooType) {
         translateToFlight(ctx, headPos);
-        renderCore(ctx.poseStack, ctx.buffers, GooTypes.GLOW, ctx.gameTime);
+        renderCore(ctx.poseStack, ctx.buffers, gooType, ctx.gameTime);
         ctx.poseStack.popPose();
     }
 
@@ -505,9 +506,10 @@ public final class GooFlightRenderer {
      * @param ctx     render context
      * @param tailPos world-space tail
      * @param beamVec head minus tail
+     * @param gooType the beamed goo type, whose sprite the quad samples
      */
     private static void emitGlowBillboard(FlightFrame ctx, Vec3 tailPos,
-                                          Vec3 beamVec) {
+                                          Vec3 beamVec, ResourceKey<GooTypeDefinition> gooType) {
         Vec3 camPos = ctx.camera.position();
         Vec3 lateral = computeGlowLateral(tailPos, beamVec, camPos);
         if (lateral == null) {
@@ -521,7 +523,7 @@ public final class GooFlightRenderer {
                 tailPos.z - camPos.z);
 
         Vec3 normal = beamVec.cross(lateral).normalize();
-        GooRenderUtil.UvRect uv = spriteToUv(GooTypes.GLOW);
+        GooRenderUtil.UvRect uv = spriteToUv(gooType);
         VertexConsumer c = ctx.buffers.getBuffer(
                 GooSubmitter.renderType());
         PoseStack.Pose pose = ctx.poseStack.last();

@@ -3,6 +3,7 @@
   "displayName": "goo.ability.typhoon.levitate",
   "order": 0,
   "cost": 1000,
+  "delivery": { "kind": "arc" },
   "behaviors": [
     { "type": "potion", "effect": "minecraft:levitation", "duration": 100, "amplifier": 1 }
   ],

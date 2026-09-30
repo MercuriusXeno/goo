@@ -173,8 +173,9 @@ public final class GooThrowHandler {
     }
 
     /**
-     * The delivery a flight flies by: the named ability's, or the type's
-     * stand-in where the throw names no ability (decision delivery-block-in-ability-json).
+     * The delivery a flight flies by: the named ability's, or a plain arc
+     * where the throw names none, which lands nothing (decisions
+     * standing-abilities-name-arc-or-beam, no-throw-without-ability).
      *
      * @param level     the server level
      * @param abilityId the thrown ability id string
@@ -183,7 +184,7 @@ public final class GooThrowHandler {
      */
     public static Delivery flightDelivery(ServerLevel level, String abilityId, ResourceKey<GooTypeDefinition> gooType) {
         AbilityDefinition def = thrownAbility(level, abilityId, gooType);
-        return def == null ? Delivery.fallbackForType(gooType) : def.delivery();
+        return def == null ? Delivery.ARC : def.delivery();
     }
 
     /** Counts the current stack count of the thrown ability's marker at a target position.

@@ -3,14 +3,16 @@ package com.mercuriusxeno.goo.ability;
 import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.client.overlay.ArcRenderer;
 import com.mercuriusxeno.goo.throwing.ThrowArc;
-import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.JsonOps;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
+import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -55,9 +57,11 @@ class DeliveryTest {
                     .blocksPerTick(), TOLERANCE);
         }
 
+        /** A JSON naming no delivery refuses at load (decision standing-abilities-name-arc-or-beam). */
         @Test
-        void abilityNamingNoDeliveryReadsArc() {
-            assertEquals(Delivery.ARC, deliveryOf(""));
+        void abilityNamingNoDeliveryRefusesNamingTheField() {
+            DataResult<AbilityDefinition> result = decode("");
+            assertTrue(result.error().orElseThrow().message().contains("delivery"));
         }
 
         @Test
@@ -132,6 +136,13 @@ class DeliveryTest {
     @Nested
     class Shipped {
 
+        /** Every bundled ability names its delivery kind (decision standing-abilities-name-arc-or-beam). */
+        @Test
+        void everyBundledAbilityNamesAKind() {
+            assertAll(AbilityJson.files().stream().map(file -> (Executable) () ->
+                    assertNotNull(AbilityJson.decode(file).delivery().kind(), file.getFileName().toString())));
+        }
+
         @Test
         void glowAbilitiesBeam() {
             assertEquals(DeliveryKind.BEAM, AbilityJson.decode("glow_crystal").delivery().kind());
@@ -139,17 +150,4 @@ class DeliveryTest {
         }
     }
 
-    @Nested
-    class Fallback {
-
-        @Test
-        void glowStandsInForBeam() {
-            assertEquals(Delivery.BEAM, Delivery.fallbackForType(GooTypes.GLOW));
-        }
-
-        @Test
-        void otherTypesStandInForArc() {
-            assertEquals(Delivery.ARC, Delivery.fallbackForType(GooTypes.FROST));
-        }
-    }
 }

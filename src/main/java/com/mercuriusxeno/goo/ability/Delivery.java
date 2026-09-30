@@ -1,14 +1,11 @@
 package com.mercuriusxeno.goo.ability;
 
 import com.mercuriusxeno.goo.throwing.ThrowArc;
-import com.mercuriusxeno.goo.type.GooTypeDefinition;
-import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -34,7 +31,7 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
     /** A stream's ticks per cost where the JSON names none. */
     public static final int DEFAULT_TICKS_PER_CHARGE = 20;
 
-    /** An arc with every param at its default, what an ability naming no delivery reads. */
+    /** An arc with every param at its default. */
     public static final Delivery ARC = of(DeliveryKind.ARC);
     /** A beam with every param at its default. */
     public static final Delivery BEAM = of(DeliveryKind.BEAM);
@@ -75,17 +72,6 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
      */
     public static Delivery of(DeliveryKind kind) {
         return new Delivery(kind, DEFAULT_BLOCKS_PER_TICK, 0, DEFAULT_CONE_DEGREES, DEFAULT_TICKS_PER_CHARGE, true);
-    }
-
-    /**
-     * The delivery of a throw that names no ability, read off the goo type:
-     * glow beams, every other type arcs.
-     *
-     * @param gooType the thrown goo type
-     * @return the delivery the type stands in for
-     */
-    public static Delivery fallbackForType(ResourceKey<GooTypeDefinition> gooType) {
-        return gooType == GooTypes.GLOW ? BEAM : ARC;
     }
 
     /**
