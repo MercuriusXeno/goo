@@ -223,8 +223,8 @@ public final class GooTargetHighlighter {
             clearEasedArc();
             return;
         }
-        if (delivery.kind() == DeliveryKind.PUNCH) {
-            renderReachRing(event, delivery, type, partialTick);
+        if (!delivery.aimsALine()) {
+            renderLinelessAim(event, delivery, type, partialTick);
             return;
         }
         Vec3 end = target.resolveEndpoint();
@@ -239,17 +239,21 @@ public final class GooTargetHighlighter {
     }
 
     /**
-     * Draws the ring a punch strikes within in place of the aim line
-     * (decision punch-strikes-at-reach).
+     * Draws the aim of a delivery that flies no line: the ring a punch
+     * strikes within (decision punch-strikes-at-reach), and nothing for a
+     * self ability, which aims at no target (decision self-delivery-runs-on-player).
      *
      * @param event       the render stage event
-     * @param delivery    the selected punch delivery
+     * @param delivery    the selected delivery
      * @param type        the selected goo type
      * @param partialTick the partial tick captured at the opaque stage
      */
-    private static void renderReachRing(RenderLevelStageEvent.AfterTranslucentBlocks event, Delivery delivery,
-                                        ResourceKey<GooTypeDefinition> type, float partialTick) {
+    private static void renderLinelessAim(RenderLevelStageEvent.AfterTranslucentBlocks event, Delivery delivery,
+                                          ResourceKey<GooTypeDefinition> type, float partialTick) {
         clearEasedArc();
+        if (delivery.kind() != DeliveryKind.PUNCH) {
+            return;
+        }
         Minecraft mc = Minecraft.getInstance();
         ArcRenderer.renderReachRing(event.getPoseStack(), mc.renderBuffers().bufferSource(),
                 mc.gameRenderer.getMainCamera(), mc.player.getPosition(partialTick),

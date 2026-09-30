@@ -73,13 +73,49 @@ public final class GloveThrowSender {
         if (gooType == null || ThrowFreezeState.isThrowBlocked()) {
             return false;
         }
-        TargetResult target = AimTracker.currentTarget();
         Delivery delivery = selectedDelivery(selection.abilityId());
-        GooThrowPayload payload = affordablePayload(player, target, gooType, selection.abilityId());
+        return delivery.kind() == DeliveryKind.SELF
+                ? sendSelf(player, gooType, selection.abilityId())
+                : sendAimed(player, gooType, selection.abilityId(), delivery);
+    }
+
+    /**
+     * Sends a self ability's payload, naming no target, when the player can
+     * afford its cost at stack zero (decision self-delivery-runs-on-player).
+     *
+     * @param player    the local player
+     * @param gooType   the selected goo type
+     * @param abilityId the selected ability id string
+     * @return true when the payload was sent
+     */
+    private static boolean sendSelf(Player player, ResourceKey<GooTypeDefinition> gooType, String abilityId) {
+        if (!affordsThrow(AbilitySyncHandler.findAbility(abilityId), 0,
+                amount -> GooSourceScanner.hasEnough(player, gooType, amount))) {
+            return false;
+        }
+        sendPayload(new GooThrowPayload(GooTypes.id(gooType), NO_ENTITY, player.blockPosition(), NO_ENTITY,
+                false, abilityId, lineOrigin()));
+        return true;
+    }
+
+    /**
+     * Sends the payload at the aimed target when the player can afford it
+     * and, for a punch, the target stands within reach.
+     *
+     * @param player    the local player
+     * @param gooType   the selected goo type
+     * @param abilityId the selected ability id string
+     * @param delivery  the selected ability's delivery
+     * @return true when the payload was sent
+     */
+    private static boolean sendAimed(Player player, ResourceKey<GooTypeDefinition> gooType, String abilityId,
+            Delivery delivery) {
+        TargetResult target = AimTracker.currentTarget();
+        GooThrowPayload payload = affordablePayload(player, target, gooType, abilityId);
         if (payload == null || !withinPunchReach(player, target, delivery)) {
             return false;
         }
-        return sendUnlessMaxed(target, payload, delivery, selection.abilityId());
+        return sendUnlessMaxed(target, payload, delivery, abilityId);
     }
 
     /**
