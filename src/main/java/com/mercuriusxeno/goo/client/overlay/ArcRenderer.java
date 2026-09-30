@@ -53,6 +53,9 @@ public final class ArcRenderer {
     /** Ticks-per-second divisor for converting game time to seconds. */
     private static final float TICKS_PER_SECOND = 20.0f;
 
+    /** Segments of the punch reach ring. */
+    private static final int RING_SEGMENTS = 48;
+
     private ArcRenderer() {}
 
     /**
@@ -79,6 +82,43 @@ public final class ArcRenderer {
         emitDashedGlow(poseStack, bufferSource, camera, points,
                 points.length - 1, rgb, dashOffset,
                 mc.getWindow().getAppropriateLineWidth());
+    }
+
+    /**
+     * Renders the glowing dashed ring a punch strikes within, level around
+     * the player's feet (decision punch-strikes-at-reach).
+     *
+     * @param poseStack    the current pose stack
+     * @param bufferSource the buffer source for render output
+     * @param camera       the active camera
+     * @param center       the player's feet
+     * @param radius       the punch's reach in blocks
+     * @param rgb          the RGB color for tinting
+     * @param partialTick  the partial tick for animation
+     */
+    static void renderReachRing(
+            PoseStack poseStack, MultiBufferSource.BufferSource bufferSource,
+            Camera camera, Vec3 center, double radius, int rgb, float partialTick) {
+        Vec3[] points = ringPoints(center, radius, RING_SEGMENTS);
+        emitDashedGlow(poseStack, bufferSource, camera, points, points.length - 1, rgb,
+                computeDashOffset(partialTick), Minecraft.getInstance().getWindow().getAppropriateLineWidth());
+    }
+
+    /**
+     * Samples a level circle as a closed polyline: the last point repeats the first.
+     *
+     * @param center   the circle's center
+     * @param radius   the circle's radius in blocks
+     * @param segments the number of segments
+     * @return the sampled points, segments + 1 of them
+     */
+    static Vec3[] ringPoints(Vec3 center, double radius, int segments) {
+        Vec3[] points = new Vec3[segments + 1];
+        for (int i = 0; i <= segments; i++) {
+            double angle = Math.TAU * i / segments;
+            points[i] = center.add(Math.cos(angle) * radius, 0, Math.sin(angle) * radius);
+        }
+        return points;
     }
 
     /**

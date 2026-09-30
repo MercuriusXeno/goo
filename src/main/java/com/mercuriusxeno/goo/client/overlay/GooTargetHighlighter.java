@@ -3,11 +3,13 @@ package com.mercuriusxeno.goo.client.overlay;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.GooClientConfig;
 import com.mercuriusxeno.goo.ability.Delivery;
+import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.hud.ChainMarkerBillboard;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.client.throwing.GloveThrowSender;
+import com.mercuriusxeno.goo.network.GooPunchHandler;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
@@ -221,6 +223,10 @@ public final class GooTargetHighlighter {
             clearEasedArc();
             return;
         }
+        if (delivery.kind() == DeliveryKind.PUNCH) {
+            renderReachRing(event, delivery, type, partialTick);
+            return;
+        }
         Vec3 end = target.resolveEndpoint();
         if (end == null) {
             clearEasedArc();
@@ -230,6 +236,25 @@ public final class GooTargetHighlighter {
         ArcRenderer.renderTargetArc(event.getPoseStack(), mc.renderBuffers().bufferSource(),
                 mc.gameRenderer.getMainCamera(), drawn, ClientGooTypes.highlight(type),
                 partialTick, drawnGrannyWeight, delivery.fliesStraight());
+    }
+
+    /**
+     * Draws the ring a punch strikes within in place of the aim line
+     * (decision punch-strikes-at-reach).
+     *
+     * @param event       the render stage event
+     * @param delivery    the selected punch delivery
+     * @param type        the selected goo type
+     * @param partialTick the partial tick captured at the opaque stage
+     */
+    private static void renderReachRing(RenderLevelStageEvent.AfterTranslucentBlocks event, Delivery delivery,
+                                        ResourceKey<GooTypeDefinition> type, float partialTick) {
+        clearEasedArc();
+        Minecraft mc = Minecraft.getInstance();
+        ArcRenderer.renderReachRing(event.getPoseStack(), mc.renderBuffers().bufferSource(),
+                mc.gameRenderer.getMainCamera(), mc.player.getPosition(partialTick),
+                GooPunchHandler.reach(delivery, mc.player.entityInteractionRange()),
+                ClientGooTypes.highlight(type), partialTick);
     }
 
     /**

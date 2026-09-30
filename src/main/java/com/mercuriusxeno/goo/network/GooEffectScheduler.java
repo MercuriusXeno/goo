@@ -157,6 +157,16 @@ public final class GooEffectScheduler {
     }
 
     /**
+     * Counts the pending effects, so a caller sharing the scheduler can read
+     * what one act added.
+     *
+     * @return the number of effects waiting to arrive
+     */
+    int pendingCount() {
+        return pendingEffects.size();
+    }
+
+    /**
      * Drops every pending effect, as a server stop does.
      */
     public void clear() {

@@ -1,0 +1,13 @@
+{
+  "gooType": "rock",
+  "displayName": "goo.ability.gootest.punch_marker",
+  "cost": 1000,
+  "delivery": { "kind": "punch" },
+  "chain": {
+    "fuseTicks": 1200,
+    "maxStacks": 2
+  },
+  "behaviors": [
+    { "type": "wait", "ticks": 1 }
+  ]
+}

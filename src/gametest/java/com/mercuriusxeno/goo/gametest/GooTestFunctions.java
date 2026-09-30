@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.item.ChrysmTier;
 import com.mercuriusxeno.goo.network.BlockLandingTests;
 import com.mercuriusxeno.goo.network.GloveSelectTests;
 import com.mercuriusxeno.goo.network.MobEffectTests;
+import com.mercuriusxeno.goo.network.PunchDeliveryTests;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
@@ -314,6 +315,8 @@ public final class GooTestFunctions {
 
     // --- MobEffects ---
     private static final String MOB_METAL = "mob_metal_javelin";
+    private static final String MOB_METAL_FIST = "mob_metal_fist";
+    private static final String FX_PUNCH_BLOCK = "fx_punch_block";
     private static final String MOB_CRYSTAL = "mob_crystal_flechettes";
     private static final String MOB_LEAF = "mob_leaf_entangle";
     private static final String MOB_VITAL = "mob_vital_clone";
@@ -687,6 +690,8 @@ public final class GooTestFunctions {
 
     private static void registerMobEffectTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
         reg(r, MOB_METAL, MobEffectTests::metalJavelin);
+        reg(r, MOB_METAL_FIST, PunchDeliveryTests::metalFist);
+        reg(r, FX_PUNCH_BLOCK, PunchDeliveryTests::punchBlock);
         reg(r, MOB_CRYSTAL, MobEffectTests::crystalFlechettes);
         reg(r, MOB_LEAF, MobEffectTests::leafEntangle);
         reg(r, MOB_VITAL, MobEffectTests::vitalClone);
