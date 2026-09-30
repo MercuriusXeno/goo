@@ -319,6 +319,7 @@ public final class GooTestFunctions {
     private static final String MOB_METAL_FIST = "mob_metal_fist";
     private static final String FX_PUNCH_BLOCK = "fx_punch_block";
     private static final String SELF_ENDER_BLINK = "self_ender_blink";
+    private static final String SELF_TYPHOON_PROPEL = "self_typhoon_propel";
     private static final String MOB_CRYSTAL = "mob_crystal_flechettes";
     private static final String MOB_LEAF = "mob_leaf_entangle";
     private static final String MOB_VITAL = "mob_vital_clone";
@@ -695,6 +696,7 @@ public final class GooTestFunctions {
         reg(r, MOB_METAL_FIST, PunchDeliveryTests::metalFist);
         reg(r, FX_PUNCH_BLOCK, PunchDeliveryTests::punchBlock);
         reg(r, SELF_ENDER_BLINK, SelfDeliveryTests::enderBlink);
+        reg(r, SELF_TYPHOON_PROPEL, SelfDeliveryTests::typhoonPropel);
         reg(r, MOB_CRYSTAL, MobEffectTests::crystalFlechettes);
         reg(r, MOB_LEAF, MobEffectTests::leafEntangle);
         reg(r, MOB_VITAL, MobEffectTests::vitalClone);

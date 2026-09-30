@@ -50,6 +50,7 @@ public final class StepTypes {
         register(ParticlesStep.TYPE);
         register(SoundStep.TYPE);
         register(TeleportStep.TYPE);
+        register(PushStep.TYPE);
         register(PlaceBlockStep.TYPE);
         register(ProgressiveAreaStep.TYPE);
         register(FieldEffectStep.TYPE);
