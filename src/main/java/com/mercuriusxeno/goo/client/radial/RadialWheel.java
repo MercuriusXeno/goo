@@ -177,24 +177,16 @@ public final class RadialWheel {
     }
 
     /**
-     * A left click: an ability wedge selects it, anywhere else cancels.
-     * Either way the wheel closes.
+     * The pick the glove menu key's release makes: the hovered ability of
+     * the fan selects it, anywhere else cancels. Either way the wheel closes.
+     * decision radial-selects-on-g-release
      *
-     * @return the click's outcome
+     * @return the pick's outcome
      */
     public Outcome click() {
         return isFanned() && hoveredAbility != NONE
                 ? new Outcome(selectedType, hoveredAbility)
                 : Outcome.CANCEL;
-    }
-
-    /**
-     * A right click: closes the wheel with the glove unchanged, in either state.
-     *
-     * @return the cancel outcome
-     */
-    public Outcome rightClick() {
-        return Outcome.CANCEL;
     }
 
     /**
