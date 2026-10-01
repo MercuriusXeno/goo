@@ -128,6 +128,11 @@ public final class GloveUseTracker {
             public void swing() {
                 player.swing(pressHand);
             }
+
+            @Override
+            public void hold() {
+                GloveThrowSender.sendHold(player);
+            }
         });
     }
 

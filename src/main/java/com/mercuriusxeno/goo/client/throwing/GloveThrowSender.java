@@ -12,6 +12,7 @@ import com.mercuriusxeno.goo.client.overlay.AimTracker;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.network.GooPunchHandler;
+import com.mercuriusxeno.goo.network.GooStreamPayload;
 import com.mercuriusxeno.goo.network.GooThrowHandler;
 import com.mercuriusxeno.goo.network.GooThrowPayload;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -74,9 +75,48 @@ public final class GloveThrowSender {
             return false;
         }
         Delivery delivery = selectedDelivery(selection.abilityId());
-        return delivery.kind() == DeliveryKind.SELF
-                ? sendSelf(player, gooType, selection.abilityId())
-                : sendAimed(player, gooType, selection.abilityId(), delivery);
+        return switch (delivery.kind()) {
+            case SELF -> sendSelf(player, gooType, selection.abilityId());
+            case STREAM -> sendStreamTick(player, gooType, selection.abilityId());
+            default -> sendAimed(player, gooType, selection.abilityId(), delivery);
+        };
+    }
+
+    /**
+     * Carries a held glove one tick further: a stream ability streams one
+     * more tick, and every other delivery does nothing past its press
+     * (decision stream-delivery-held-cone).
+     *
+     * @param player the local player
+     */
+    public static void sendHold(Player player) {
+        GloveSelection selection = heldSelection(player);
+        ResourceKey<GooTypeDefinition> gooType = selection == null ? null : selection.getGooType();
+        if (gooType != null && selectedDelivery(selection.abilityId()).kind() == DeliveryKind.STREAM) {
+            sendStreamTick(player, gooType, selection.abilityId());
+        }
+    }
+
+    /**
+     * Sends one tick of a stream from the glove hand while the player holds
+     * any goo of the type; the server prices the tick and stops the stream
+     * when the goo runs out.
+     *
+     * @param player    the local player
+     * @param gooType   the selected goo type
+     * @param abilityId the selected ability id string
+     * @return true when the tick was sent
+     */
+    private static boolean sendStreamTick(Player player, ResourceKey<GooTypeDefinition> gooType, String abilityId) {
+        if (!GooSourceScanner.hasEnough(player, gooType, 1)) {
+            return false;
+        }
+        var connection = Minecraft.getInstance().getConnection();
+        if (connection != null) {
+            connection.send(new ServerboundCustomPayloadPacket(
+                    new GooStreamPayload(GooTypes.id(gooType), abilityId, lineOrigin())));
+        }
+        return true;
     }
 
     /**

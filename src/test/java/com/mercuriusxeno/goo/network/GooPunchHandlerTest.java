@@ -76,7 +76,7 @@ class GooPunchHandlerTest {
         @Test
         void deliveryRangeOverridesThePlayersReach() {
             Delivery longArm = new Delivery(DeliveryKind.PUNCH, Delivery.DEFAULT_BLOCKS_PER_TICK, 5,
-                    Delivery.DEFAULT_CONE_DEGREES, Delivery.DEFAULT_TICKS_PER_CHARGE, true);
+                    Delivery.DEFAULT_CONE_DEGREES, Delivery.DEFAULT_TICKS_PER_CHARGE, true, Delivery.DEFAULT_PARTICLE);
             assertEquals(5, GooPunchHandler.reach(longArm, PLAYER_REACH));
         }
     }

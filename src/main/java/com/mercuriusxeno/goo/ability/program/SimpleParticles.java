@@ -14,7 +14,7 @@ import java.util.Optional;
  * options, and an id the registry lacks or that names a particle with
  * options is logged and skipped.
  */
-final class SimpleParticles {
+public final class SimpleParticles {
 
     private static final String LOG_UNKNOWN_PARTICLE =
             "Particles step names {}, which no registry holds as a particle without options";
@@ -28,7 +28,7 @@ final class SimpleParticles {
      * @param id the particle type id
      * @return the particle, or empty after logging when none serves the id
      */
-    static Optional<SimpleParticleType> resolve(Identifier id) {
+    public static Optional<SimpleParticleType> resolve(Identifier id) {
         Optional<Holder.Reference<ParticleType<?>>> holder = BuiltInRegistries.PARTICLE_TYPE.get(id);
         if (holder.isPresent() && holder.get().value() instanceof SimpleParticleType particle) {
             return Optional.of(particle);

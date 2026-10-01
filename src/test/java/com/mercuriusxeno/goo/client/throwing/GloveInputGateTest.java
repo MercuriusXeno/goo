@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Covers the glove press resolved off the use key: throw on the press, once per hold, swing only on a sent payload (decision right-click-throws-on-press). */
+/** Covers the glove press resolved off the use key: throw on the press, once per hold, swing only on a sent payload (decision right-click-throws-on-press), and every later held tick a hold. */
 class GloveInputGateTest {
 
     private static final int LONG_HOLD_TICKS = 40;
@@ -16,6 +16,7 @@ class GloveInputGateTest {
         private final boolean payloadSent;
         private int throwsSent;
         private int swings;
+        private int holds;
 
         RecordingActions(boolean payloadSent) {
             this.payloadSent = payloadSent;
@@ -30,6 +31,11 @@ class GloveInputGateTest {
         @Override
         public void swing() {
             swings++;
+        }
+
+        @Override
+        public void hold() {
+            holds++;
         }
     }
 
@@ -59,6 +65,33 @@ class GloveInputGateTest {
         assertEquals(1, actions.throwsSent);
         assertEquals(1, actions.swings);
         assertTrue(gate.isArmed());
+    }
+
+    /** Every held tick after the press holds, which a stream streams on (decision stream-delivery-held-cone). */
+    @Test
+    void everyHeldTickAfterThePressHolds() {
+        GloveInputGate gate = new GloveInputGate();
+        RecordingActions actions = new RecordingActions(true);
+
+        gate.arm();
+        for (int tick = 0; tick < LONG_HOLD_TICKS; tick++) {
+            gate.tick(true, actions);
+        }
+
+        assertEquals(LONG_HOLD_TICKS - 1, actions.holds);
+    }
+
+    @Test
+    void releaseHoldsNothing() {
+        GloveInputGate gate = new GloveInputGate();
+        RecordingActions actions = new RecordingActions(true);
+
+        gate.arm();
+        gate.tick(true, actions);
+        gate.tick(false, actions);
+        gate.tick(false, actions);
+
+        assertEquals(0, actions.holds);
     }
 
     @Test
