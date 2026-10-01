@@ -5,6 +5,7 @@ import com.mojang.serialization.JsonOps;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -28,6 +29,27 @@ class AbilityBadgeTest {
     @CsvSource({"world, WORLD", "mob, MOB", "self, SELF", "punch, PUNCH", "channeled, CHANNELED"})
     void eachVocabularyWordParsesToItsBadge(String word, AbilityBadge expected) {
         assertEquals(expected, AbilityBadge.CODEC.parse(JsonOps.INSTANCE, new JsonPrimitive(word)).getOrThrow());
+    }
+
+    /**
+     * Each badge holds its own tier, ranked channeled, punch, mob, world, self,
+     * at orders that would reverse that rank if order alone decided; a shared
+     * badge falls back to order (decision fan-sorts-badge-then-order).
+     */
+    @Test
+    void fanOrderRanksEachBadgeThenOrder() {
+        record Ranked(String name, AbilityBadge badge, int order) {
+        }
+        List<Ranked> shuffled = List.of(
+                new Ranked("world", AbilityBadge.WORLD, 1),
+                new Ranked("self", AbilityBadge.SELF, 0),
+                new Ranked("mob_late", AbilityBadge.MOB, 2),
+                new Ranked("punch", AbilityBadge.PUNCH, 3),
+                new Ranked("channeled", AbilityBadge.CHANNELED, 4),
+                new Ranked("mob_early", AbilityBadge.MOB, 1));
+
+        assertEquals(List.of("channeled", "punch", "mob_early", "mob_late", "world", "self"),
+                shuffled.stream().sorted(AbilityBadge.fanOrder(Ranked::badge, Ranked::order)).map(Ranked::name).toList());
     }
 
     @Test
