@@ -68,9 +68,9 @@ class RadialWheelTest {
     class Layout {
 
         @Test
-        void radiusIsNinetyFivePercentOfTheSmallerDimensionHalved() {
-            assertEquals(513, RadialWheel.outerRadius(1920, 1080), EPSILON);
-            assertEquals(380, RadialWheel.outerRadius(800, 1200), EPSILON);
+        void radiusIsNinetyEightPercentOfTheSmallerDimensionHalved() {
+            assertEquals(529.2, RadialWheel.outerRadius(1920, 1080), EPSILON);
+            assertEquals(392, RadialWheel.outerRadius(800, 1200), EPSILON);
         }
 
         @Test
@@ -459,6 +459,27 @@ class RadialWheelTest {
             assertEquals(OPEN_TYPE + 1, wheel.selectedType());
             assertSameLayout(before, wheel.displayedLayout(0.0f));
             assertTrue(wheel.isAnimating());
+        }
+
+        /** decision abilities-replace-the-hovered-type */
+        @Test
+        void hoveredAbilityGrowsToTheScreensEdgeAndEasesBackWhenLeft() {
+            RadialWheel wheel = opened(ABILITIES);
+            int first = wheel.hoveredAbility();
+            assertEquals(RadialWheel.HOVER_REACH, petalOf(wheel.displayedLayout(0.0f), OPEN_TYPE, first).length(),
+                    EPSILON);
+            int other = (first + 1) % ABILITIES;
+            assertEquals(1.0, petalOf(wheel.displayedLayout(0.0f), OPEN_TYPE, other).length(), EPSILON);
+
+            moveTo(wheel, abilityPetal(wheel, other).center(), PETAL);
+            wheel.tick();
+            double midway = petalOf(wheel.displayedLayout(0.0f), OPEN_TYPE, first).length();
+            assertTrue(midway > 1.0 && midway < RadialWheel.HOVER_REACH, "easing back " + midway);
+            tick(wheel, RadialWheel.LIFT_TICKS);
+
+            assertEquals(1.0, petalOf(wheel.displayedLayout(0.0f), OPEN_TYPE, first).length(), EPSILON);
+            assertEquals(RadialWheel.HOVER_REACH, petalOf(wheel.displayedLayout(0.0f), OPEN_TYPE, other).length(),
+                    EPSILON);
         }
 
         @Test

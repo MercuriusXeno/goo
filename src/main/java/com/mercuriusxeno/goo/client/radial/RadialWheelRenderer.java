@@ -84,12 +84,17 @@ final class RadialWheelRenderer {
      */
     static void render(GuiGraphicsExtractor graphics, Font font, Frame frame) {
         blitMask(graphics, frame, frame.look().hubMask(), HUB_COLOR);
+        List<Words> words = new ArrayList<>();
         for (RadialWheel.PetalArc petal : frame.wheel().displayedLayout(frame.partialTick())) {
             if (petal.isAbility()) {
-                renderAbility(graphics, font, frame, petal);
+                words.add(renderAbility(graphics, frame, petal));
             } else {
                 renderType(graphics, frame, petal);
             }
+        }
+        // abilities-replace-the-hovered-type: words draw last, on a layer nothing draws over
+        for (Words ability : words) {
+            drawWords(graphics, font, ability);
         }
         renderCenterLabel(graphics, font, frame);
     }
@@ -112,16 +117,16 @@ final class RadialWheelRenderer {
     }
 
     /**
-     * Draws an ability petal of the open type with its icon, name and cost.
+     * Draws an ability petal of the open type with its icon at its tip, and
+     * answers the words it shows, which draw after every petal.
      * decision abilities-replace-the-hovered-type
      *
      * @param graphics the GUI graphics extractor
-     * @param font     the font
      * @param frame    what the frame draws from
      * @param petal    the ability's petal
+     * @return the ability's words and where they go
      */
-    private static void renderAbility(GuiGraphicsExtractor graphics, Font font, Frame frame,
-                                      RadialWheel.PetalArc petal) {
+    private static Words renderAbility(GuiGraphicsExtractor graphics, Frame frame, RadialWheel.PetalArc petal) {
         ResourceKey<GooTypeDefinition> key = frame.types().get(petal.type());
         ClientAbility ability = frame.abilities().get(petal.type()).get(petal.ability());
         boolean hovered = petal.ability() == frame.wheel().hoveredAbility();
@@ -132,7 +137,20 @@ final class RadialWheelRenderer {
         blitAbilityIcon(graphics, ability, slot,
                 slotLabels.dimmed() ? computeOverlayTint(false, true) : COLOR_WHITE);
         int textColor = slotLabels.dimmed() ? DISABLED_TEXT_COLOR : hovered ? HOVER_TEXT_COLOR : COLOR_WHITE;
-        drawWords(graphics, font, frame, petal, slotLines(ability, slotLabels), textColor);
+        return new Words(splitNameLines(buildLabel(ability).getString()), Component.literal(slotLabels.costLabel()),
+                slot, textColor);
+    }
+
+    /**
+     * An ability's words: its name's lines, its cost, the icon center they
+     * gather around and their color.
+     *
+     * @param name       the name's lines
+     * @param cost       the first-throw cost
+     * @param iconCenter the icon's center on screen
+     * @param color      the words' color
+     */
+    private record Words(List<Component> name, Component cost, int[] iconCenter, int color) {
     }
 
     /**
@@ -189,11 +207,6 @@ final class RadialWheelRenderer {
         return Identifier.fromNamespaceAndPath(Goo.MODID, BADGE_ICON_PREFIX + badge.getSerializedName() + ICON_SUFFIX);
     }
 
-    private static List<Component> slotLines(ClientAbility ability, FanSlot slotLabels) {
-        List<Component> lines = new ArrayList<>(splitNameLines(buildLabel(ability).getString()));
-        lines.add(Component.literal(slotLabels.costLabel()));
-        return lines;
-    }
 
     /**
      * Breaks a resolved ability name on its spaces into one line per word,
@@ -210,33 +223,23 @@ final class RadialWheelRenderer {
     }
 
     /**
-     * Draws an ability's words as one centered block where they fit inside
-     * the petal without covering its icon or the type base.
+     * Draws an ability's name centered directly above its icon and its cost
+     * centered directly below it, on screen.
      * decision abilities-replace-the-hovered-type
      *
-     * @param graphics  the GUI graphics extractor
-     * @param font      the font
-     * @param frame     what the frame draws from
-     * @param petal     the ability's petal
-     * @param lines     the name's lines, then the cost
-     * @param textColor the words' color
+     * @param graphics the GUI graphics extractor
+     * @param font     the font
+     * @param words    the ability's words and their icon
      */
-    private static void drawWords(GuiGraphicsExtractor graphics, Font font, Frame frame, RadialWheel.PetalArc petal,
-                                  List<Component> lines, int textColor) {
-        int width = lines.stream().mapToInt(font::width).max().orElse(0);
-        int height = lines.size() * font.lineHeight;
-        double pixel = 1.0 / frame.radius();
-        double iconSide = (ABILITY_ICON_SIZE + LABEL_GAP * HALF) * pixel;
-        PetalMask.Point center = PetalWords.place(
-                new PetalMask.Petal(petal.start(), petal.arc(), RadialWheel.HUB_FRACTION, petal.length()),
-                RadialWheel.TYPE_BASE_LENGTH, new PetalWords.Size(iconSide, iconSide),
-                new PetalWords.Size(width * pixel, height * pixel), pixel);
-        int x = frame.centerX() + (int) Math.round(center.x() * frame.radius());
-        int lineY = frame.centerY() + (int) Math.round(center.y() * frame.radius()) - height / HALF;
-        for (Component line : lines) {
-            graphics.centeredText(font, line, x, lineY, textColor);
-            lineY += font.lineHeight;
+    private static void drawWords(GuiGraphicsExtractor graphics, Font font, Words words) {
+        int x = words.iconCenter()[0];
+        int nameY = words.iconCenter()[1] - ABILITY_ICON_OFFSET - LABEL_GAP - words.name().size() * font.lineHeight;
+        for (Component line : words.name()) {
+            graphics.centeredText(font, line, x, nameY, words.color());
+            nameY += font.lineHeight;
         }
+        graphics.centeredText(font, words.cost(), x, words.iconCenter()[1] + ABILITY_ICON_OFFSET + LABEL_GAP,
+                words.color());
     }
 
     /**

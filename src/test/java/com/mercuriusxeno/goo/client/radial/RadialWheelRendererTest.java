@@ -411,43 +411,43 @@ class RadialWheelRendererTest {
 
         /** decision abilities-replace-the-hovered-type */
         @Test
-        void abilityIconCentersOnItsTipInItsOwnColorsAndItsWordsFitBesideIt() {
+        void abilityIconCentersOnItsTipWithTheNameAboveAndTheCostBelow() {
             RadialWheel wheel = openWheel();
             GuiGraphicsExtractor graphics = renderFrame(wheel);
             List<DrawnText> texts = renderTexts(wheel);
+            int half = RadialWheelRenderer.ABILITY_ICON_SIZE / 2;
 
-            assertAll(wheel.layout().stream().filter(RadialWheel.PetalArc::isAbility).map(petal -> (Executable) () -> {
-                PetalMask.Petal shape = new PetalMask.Petal(petal.start(), petal.arc(), RadialWheel.HUB_FRACTION,
-                        petal.length());
-                PetalMask.Point tip = shape.tipCenter();
-                String icon = "ability_" + petal.type() + "_" + petal.ability() + ".png";
-                var iconBlit = mockingDetails(graphics).getInvocations().stream()
-                        .filter(call -> call.getMethod().getName().equals("blit")
-                                && call.getArgument(1).toString().endsWith(icon))
-                        .findFirst().orElseThrow();
-                int iconX = (int) iconBlit.getArgument(2) + RadialWheelRenderer.ABILITY_ICON_SIZE / 2;
-                int iconY = (int) iconBlit.getArgument(3) + RadialWheelRenderer.ABILITY_ICON_SIZE / 2;
-                assertTrue(Math.hypot(iconX - (CENTER_X + tip.x() * RADIUS), iconY - (CENTER_Y + tip.y() * RADIUS))
-                        <= TIP_TOLERANCE, petal + " icon at " + iconX + "," + iconY);
-                assertEquals(0xFFFFFFFF, (int) iconBlit.getArgument(ICON_COLOR_ARGUMENT), petal + " icon tint");
+            assertAll(wheel.displayedLayout(0.0f).stream().filter(RadialWheel.PetalArc::isAbility)
+                    .map(petal -> (Executable) () -> {
+                        PetalMask.Point tip = new PetalMask.Petal(petal.start(), petal.arc(),
+                                RadialWheel.HUB_FRACTION, petal.length()).tipCenter();
+                        String icon = "ability_" + petal.type() + "_" + petal.ability() + ".png";
+                        var iconBlit = mockingDetails(graphics).getInvocations().stream()
+                                .filter(call -> call.getMethod().getName().equals("blit")
+                                        && call.getArgument(1).toString().endsWith(icon))
+                                .findFirst().orElseThrow();
+                        int iconX = (int) iconBlit.getArgument(2) + half;
+                        int iconY = (int) iconBlit.getArgument(3) + half;
+                        assertTrue(Math.hypot(iconX - (CENTER_X + tip.x() * RADIUS),
+                                iconY - (CENTER_Y + tip.y() * RADIUS)) <= TIP_TOLERANCE,
+                                petal + " icon at " + iconX + "," + iconY);
+                        assertEquals(0xFFFFFFFF, (int) iconBlit.getArgument(ICON_COLOR_ARGUMENT), petal + " tint");
+                        List<DrawnText> words = texts.stream().filter(text -> text.x() == iconX
+                                && Math.abs(text.y() - iconY) <= half + 2 * LINE_HEIGHT).toList();
+                        assertEquals(LINES_PER_ABILITY, words.size(), petal + " lines");
+                        assertTrue(words.getFirst().y() + LINE_HEIGHT <= iconY - half, petal + " name above");
+                        assertTrue(words.getLast().y() >= iconY + half, petal + " cost below");
+                    }));
+        }
 
-                List<DrawnText> words = texts.stream().filter(text -> !isInHub(text)
-                        && petalUnder(wheel, text).equals(petal)).toList();
-                assertEquals(LINES_PER_ABILITY, words.size(), petal + " lines");
-                double left = words.getFirst().x() - WORD_WIDTH / 2.0;
-                double right = words.getFirst().x() + WORD_WIDTH / 2.0;
-                double top = words.getFirst().y();
-                double bottom = words.getLast().y() + LINE_HEIGHT;
-                for (double[] corner : new double[][]{{left, top}, {right, top}, {left, bottom}, {right, bottom}}) {
-                    double x = (corner[0] - CENTER_X) / RADIUS;
-                    double y = (corner[1] - CENTER_Y) / RADIUS;
-                    assertTrue(shape.contains(x, y) && Math.hypot(x, y) > RadialWheel.TYPE_BASE_LENGTH,
-                            petal + " word corner " + corner[0] + "," + corner[1]);
-                }
-                int half = RadialWheelRenderer.ABILITY_ICON_SIZE / 2;
-                assertTrue(right <= iconX - half || left >= iconX + half || bottom <= iconY - half
-                        || top >= iconY + half, petal + " words cover the icon");
-            }));
+        /** decision abilities-replace-the-hovered-type */
+        @Test
+        void abilityWordsDrawAfterEveryPetalAndIcon() {
+            List<String> calls = mockingDetails(renderFrame(openWheel())).getInvocations().stream()
+                    .map(call -> call.getMethod().getName()).toList();
+            int lastShape = Math.max(calls.lastIndexOf("submitGuiElementRenderState"), calls.lastIndexOf("blit"));
+
+            assertTrue(calls.indexOf("centeredText") > lastShape, "a word drew before shape " + lastShape);
         }
 
         /** decisions petals-render-the-live-fluid, wedges-take-a-solid-edge */
