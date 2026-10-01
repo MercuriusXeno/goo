@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.client.throwing;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.client.radial.GloveRadialScreen;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -18,9 +17,9 @@ import net.neoforged.neoforge.client.event.InputEvent;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Client-side tracker for the glove press: counts the held use key
- * through {@link GloveInputGate}, throwing on a short release and opening
- * the radial at the threshold. Auto-registered via EventBusSubscriber.
+ * Client-side tracker for the glove press: resolves the use key through
+ * {@link GloveInputGate}, throwing on the press and ending the press when
+ * the key comes up. Auto-registered via EventBusSubscriber.
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class GloveUseTracker {
@@ -52,7 +51,7 @@ public final class GloveUseTracker {
     }
 
     /**
-     * Tracks glove hold duration each client tick, opening radial on threshold.
+     * Advances the glove press, the goo availability check and the throw state each client tick.
      *
      * @param event the event instance
      */
@@ -128,11 +127,6 @@ public final class GloveUseTracker {
             @Override
             public void swing() {
                 player.swing(pressHand);
-            }
-
-            @Override
-            public void openRadial() {
-                GloveRadialScreen.open();
             }
         });
     }
