@@ -6,10 +6,16 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypeNames;
+import com.mercuriusxeno.goo.type.GooTypes;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -24,6 +30,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -31,6 +38,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockingDetails;
 
 /**
  * Covers RadialWheelRenderer.resolveAbilityIcon over every shipped ability, as the
@@ -213,6 +222,107 @@ class RadialWheelRendererTest {
         @Test
         void wedgeCostingExactlyTheHoldingsReadsBright() {
             assertFalse(RadialWheelRenderer.fanSlot(costing(HOLDINGS), HOLDINGS).dimmed());
+        }
+    }
+
+    /**
+     * A frame with a type open draws shrunken type petals with no text, each
+     * ability petal with its name and cost, and the open type's name and
+     * holdings in the hub (decision abilities-replace-the-hovered-type).
+     */
+    @Nested
+    class OpenTypeFrame {
+
+        private static final int TYPES = 16;
+        private static final int OPEN_TYPE = 3;
+        private static final int ABILITIES = 4;
+        private static final int HOLDINGS = 1500;
+        private static final int CENTER_X = 1200;
+        private static final int CENTER_Y = 1100;
+        private static final int RADIUS = 1000;
+        private static final int LINES_PER_ABILITY = 2;
+
+        /** Masks and colors with no client behind them, so the frame renders off the game. */
+        private static final RadialWheelRenderer.PetalLook FAKE_LOOK = new RadialWheelRenderer.PetalLook() {
+            @Override
+            public Identifier petalMask(ResourceKey<GooTypeDefinition> type, RadialWheel.PetalArc petal) {
+                return Identifier.fromNamespaceAndPath("gootest", "petal");
+            }
+
+            @Override
+            public Identifier hubMask() {
+                return Identifier.fromNamespaceAndPath("gootest", "hub");
+            }
+
+            @Override
+            public int wheelColor(ResourceKey<GooTypeDefinition> type) {
+                return 0xFFFFFF;
+            }
+        };
+
+        /** One centeredText call the frame made: where it drew and what. */
+        private record DrawnText(int x, int y, Component text) {
+        }
+
+        private final List<ResourceKey<GooTypeDefinition>> types = IntStream.range(0, TYPES)
+                .mapToObj(type -> ResourceKey.create(GooTypes.REGISTRY,
+                        Identifier.fromNamespaceAndPath(Goo.MODID, "type_" + type)))
+                .toList();
+
+        private RadialWheel openWheel() {
+            RadialWheel wheel = new RadialWheel(TYPES, type -> ABILITIES);
+            double angle = (OPEN_TYPE + 0.5) * wheel.typeArc();
+            wheel.moveCursor(Math.sin(angle) * RADIUS * 0.6, -Math.cos(angle) * RADIUS * 0.6, RADIUS);
+            return wheel;
+        }
+
+        private List<DrawnText> renderTexts(RadialWheel wheel) {
+            List<List<ClientAbility>> abilities = IntStream.range(0, TYPES)
+                    .mapToObj(type -> IntStream.range(0, ABILITIES).mapToObj(ability -> new ClientAbility(
+                            Identifier.fromNamespaceAndPath("gootest", "ability_" + type + "_" + ability),
+                            "ability.gootest.word", "", 0, List.of(), 0, 1, List.of(), 0, AbilityBadge.WORLD))
+                            .toList())
+                    .toList();
+            GuiGraphicsExtractor graphics = mock(GuiGraphicsExtractor.class);
+            Font font = mock(Font.class);
+            RadialWheelRenderer.render(graphics, font, new RadialWheelRenderer.Frame(wheel, types, abilities,
+                    Map.of(types.get(OPEN_TYPE), HOLDINGS), CENTER_X, CENTER_Y, RADIUS, FAKE_LOOK));
+            return mockingDetails(graphics).getInvocations().stream()
+                    .filter(call -> call.getMethod().getName().equals("centeredText"))
+                    .map(call -> new DrawnText(call.getArgument(2), call.getArgument(3), call.getArgument(1)))
+                    .toList();
+        }
+
+        private static boolean isInHub(DrawnText text) {
+            return Math.hypot(text.x() - CENTER_X, text.y() - CENTER_Y) < RadialWheel.HUB_FRACTION * RADIUS;
+        }
+
+        private static RadialWheel.PetalArc petalUnder(RadialWheel wheel, DrawnText text) {
+            return RadialWheel.petalAt(wheel.layout(), RadialWheel.angleOf(text.x() - CENTER_X, text.y() - CENTER_Y));
+        }
+
+        @Test
+        void hubDrawsTheOpenTypesNameAndHoldings() {
+            List<Component> center = renderTexts(openWheel()).stream()
+                    .filter(OpenTypeFrame::isInHub)
+                    .map(DrawnText::text)
+                    .toList();
+
+            assertEquals(List.of(Component.translatable(GooTypeNames.translationKey(types.get(OPEN_TYPE))),
+                    Component.literal(RadialWheelRenderer.holdingsLabel(HOLDINGS))), center);
+        }
+
+        @Test
+        void eachAbilityPetalDrawsTwoLinesAndNoTypePetalDrawsText() {
+            RadialWheel wheel = openWheel();
+            Map<RadialWheel.PetalArc, Long> linesByPetal = renderTexts(wheel).stream()
+                    .filter(text -> !isInHub(text))
+                    .collect(Collectors.groupingBy(text -> petalUnder(wheel, text), Collectors.counting()));
+
+            assertTrue(linesByPetal.keySet().stream().allMatch(RadialWheel.PetalArc::isAbility),
+                    "text drawn on a type petal: " + linesByPetal);
+            assertAll(wheel.layout().stream().filter(RadialWheel.PetalArc::isAbility).map(petal -> (Executable) () ->
+                    assertEquals(LINES_PER_ABILITY, linesByPetal.getOrDefault(petal, 0L), petal.toString())));
         }
     }
 

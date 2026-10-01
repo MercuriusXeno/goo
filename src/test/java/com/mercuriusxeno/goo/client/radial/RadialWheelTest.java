@@ -2,25 +2,30 @@ package com.mercuriusxeno.goo.client.radial;
 
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
+import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Covers the one radial wheel's layout and its state transitions from cursor, scroll and click events (decision type-recedes-and-abilities-fan-out). */
+/** Covers the one-ring radial wheel's layout and its state transitions from cursor, scroll and click events (decisions abilities-replace-the-hovered-type, ability-petals-take-a-type-arc-to-a-floor). */
 class RadialWheelTest {
 
     private static final int TYPES = 16;
-    private static final int FANNED_TYPE = 3;
-    private static final int ABILITIES = 3;
+    private static final int OPEN_TYPE = 3;
+    private static final int ABILITIES = 4;
+    private static final int MANY_ABILITIES = 10;
     private static final double RADIUS = 100.0;
-    private static final double INNER_RING = (RadialWheel.HUB_FRACTION + RadialWheel.RING_FRACTION) / 2 * RADIUS;
-    private static final double OUTER_RING = (RadialWheel.RING_FRACTION + 1.0) / 2 * RADIUS;
+    private static final double PETAL = (RadialWheel.HUB_FRACTION + 1.0) / 2 * RADIUS;
     private static final double HUB = RadialWheel.HUB_FRACTION / 2 * RADIUS;
+    private static final double TWO_PI = 2.0 * Math.PI;
+    private static final double TYPE_ARC = TWO_PI / TYPES;
     private static final double EPSILON = 1e-9;
 
-    private static RadialWheel wheel() {
-        return new RadialWheel(TYPES, type -> ABILITIES);
+    private static RadialWheel wheel(int abilities) {
+        return new RadialWheel(TYPES, type -> abilities);
     }
 
     /** Moves the cursor to a clockwise angle from the top at a distance from the center. */
@@ -28,14 +33,22 @@ class RadialWheelTest {
         wheel.moveCursor(Math.sin(angle) * distance, -Math.cos(angle) * distance, RADIUS);
     }
 
-    private static RadialWheel fanned() {
-        RadialWheel wheel = wheel();
-        moveTo(wheel, wheel.typeCenter(FANNED_TYPE), INNER_RING);
+    private static RadialWheel opened(int abilities) {
+        RadialWheel wheel = wheel(abilities);
+        moveTo(wheel, (OPEN_TYPE + 0.5) * TYPE_ARC, PETAL);
         return wheel;
     }
 
-    private static double abilityCenter(RadialWheel wheel, int ability) {
-        return wheel.fanStart(FANNED_TYPE) + (ability + 0.5) * wheel.fanArc(FANNED_TYPE);
+    private static RadialWheel.PetalArc abilityPetal(RadialWheel wheel, int ability) {
+        return wheel.layout().stream().filter(petal -> petal.ability() == ability).findFirst().orElseThrow();
+    }
+
+    private static List<RadialWheel.PetalArc> typePetals(RadialWheel wheel) {
+        return wheel.layout().stream().filter(petal -> !petal.isAbility()).toList();
+    }
+
+    private static List<RadialWheel.PetalArc> abilityPetals(RadialWheel wheel) {
+        return wheel.layout().stream().filter(RadialWheel.PetalArc::isAbility).toList();
     }
 
     @Nested
@@ -48,31 +61,50 @@ class RadialWheelTest {
         }
 
         @Test
-        void cursorInTheInnerRingAtATypesAngleSelectsIt() {
-            RadialWheel wheel = wheel();
+        void restHoldsOneFullTypeArcPerType() {
+            List<RadialWheel.PetalArc> petals = wheel(ABILITIES).layout();
 
-            moveTo(wheel, wheel.typeCenter(FANNED_TYPE), INNER_RING);
-
-            assertEquals(FANNED_TYPE, wheel.selectedType());
-            assertTrue(wheel.isFanned());
+            assertEquals(TYPES, petals.size());
+            assertAll(petals.stream().map(petal -> (Executable) () -> {
+                assertFalse(petal.isAbility());
+                assertEquals(TYPE_ARC, petal.arc(), EPSILON);
+                assertEquals(petal.type() * TYPE_ARC, petal.start(), EPSILON);
+            }));
         }
 
         @Test
-        void fanWedgesSpanAParentArcEachCenteredOnTheParentAngle() {
-            RadialWheel wheel = wheel();
+        void openTypeIsReplacedByItsAbilitiesInTheOneRing() {
+            RadialWheel wheel = opened(ABILITIES);
+            List<RadialWheel.PetalArc> petals = wheel.layout();
 
-            assertEquals(wheel.typeArc(), wheel.fanArc(FANNED_TYPE), EPSILON);
-            assertEquals(wheel.typeCenter(FANNED_TYPE),
-                    wheel.fanStart(FANNED_TYPE) + ABILITIES * wheel.fanArc(FANNED_TYPE) / 2, EPSILON);
+            assertEquals(ABILITIES, abilityPetals(wheel).size());
+            assertEquals(TYPES - 1, typePetals(wheel).size());
+            assertTrue(typePetals(wheel).stream().noneMatch(petal -> petal.type() == OPEN_TYPE));
+            assertEquals(TWO_PI, petals.stream().mapToDouble(RadialWheel.PetalArc::arc).sum(), EPSILON);
+            for (int i = 1; i < petals.size(); i++) {
+                RadialWheel.PetalArc previous = petals.get(i - 1);
+                assertEquals(previous.start() + previous.arc(), petals.get(i).start(), EPSILON);
+            }
         }
 
         @Test
-        void cursorInTheOuterRingWithNoTypeSelectedSelectsNothing() {
-            RadialWheel wheel = wheel();
+        void abilitiesTakeAFullTypeArcWhileTheOthersHoldTheFloor() {
+            RadialWheel wheel = opened(ABILITIES);
 
-            moveTo(wheel, wheel.typeCenter(FANNED_TYPE), OUTER_RING);
+            assertAll(abilityPetals(wheel).stream().map(petal -> (Executable)
+                    () -> assertEquals(TYPE_ARC, petal.arc(), EPSILON)));
+            assertAll(typePetals(wheel).stream().map(petal -> (Executable)
+                    () -> assertEquals((TWO_PI - ABILITIES * TYPE_ARC) / (TYPES - 1), petal.arc(), EPSILON)));
+        }
 
-            assertFalse(wheel.isFanned());
+        @Test
+        void pastTheFloorTheOthersHoldTenDegreesAndTheAbilitiesSplitTheRest() {
+            RadialWheel wheel = opened(MANY_ABILITIES);
+            double floor = Math.toRadians(10.0);
+
+            assertAll(typePetals(wheel).stream().map(petal -> (Executable) () -> assertEquals(floor, petal.arc(), EPSILON)));
+            assertAll(abilityPetals(wheel).stream().map(petal -> (Executable)
+                    () -> assertEquals((TWO_PI - (TYPES - 1) * floor) / MANY_ABILITIES, petal.arc(), EPSILON)));
         }
     }
 
@@ -80,71 +112,71 @@ class RadialWheelTest {
     class Transitions {
 
         @Test
-        void cursorOnAnAbilityWedgeHoversIt() {
-            RadialWheel wheel = fanned();
+        void cursorOnATypesPetalAtRestOpensIt() {
+            RadialWheel wheel = opened(ABILITIES);
 
-            moveTo(wheel, abilityCenter(wheel, 2), OUTER_RING);
-
-            assertEquals(2, wheel.hoveredAbility());
+            assertEquals(OPEN_TYPE, wheel.selectedType());
+            assertTrue(wheel.isOpen());
         }
 
         @Test
-        void cursorPastEitherEndOfTheFanHoversNothingAndKeepsTheFan() {
-            RadialWheel wheel = fanned();
+        void cursorOnAnAbilityPetalHoversIt() {
+            RadialWheel wheel = opened(ABILITIES);
 
-            moveTo(wheel, abilityCenter(wheel, ABILITIES), OUTER_RING);
-            assertEquals(RadialWheel.NONE, wheel.hoveredAbility());
-            moveTo(wheel, abilityCenter(wheel, -1), OUTER_RING);
-            assertEquals(RadialWheel.NONE, wheel.hoveredAbility());
+            moveTo(wheel, abilityPetal(wheel, 1).center(), PETAL);
 
-            assertEquals(FANNED_TYPE, wheel.selectedType());
+            assertEquals(1, wheel.hoveredAbility());
+            assertEquals(OPEN_TYPE, wheel.selectedType());
+        }
+
+        @Test
+        void cursorOnAShrunkenNeighborOpensIt() {
+            RadialWheel wheel = opened(ABILITIES);
+            moveTo(wheel, abilityPetal(wheel, 1).center(), PETAL);
+            RadialWheel.PetalArc neighbor = typePetals(wheel).stream()
+                    .filter(petal -> petal.type() == OPEN_TYPE + 1).findFirst().orElseThrow();
+
+            moveTo(wheel, neighbor.center(), PETAL);
+
+            assertEquals(OPEN_TYPE + 1, wheel.selectedType());
+            assertEquals(RadialWheel.NONE, wheel.hoveredAbility());
+        }
+
+        @Test
+        void cursorInTheHubReturnsTheWheelToRest() {
+            RadialWheel wheel = opened(ABILITIES);
+            moveTo(wheel, abilityPetal(wheel, 1).center(), PETAL);
+
+            moveTo(wheel, abilityPetal(wheel, 1).center(), HUB);
+
+            assertEquals(RadialWheel.NONE, wheel.selectedType());
+            assertEquals(TYPES, wheel.layout().size());
+            assertEquals(RadialWheel.Outcome.CANCEL, wheel.click());
         }
 
         @Test
         void clickOnAnAbilitySelectsItOnTheGlove() {
-            RadialWheel wheel = fanned();
-            moveTo(wheel, abilityCenter(wheel, 1), OUTER_RING);
+            RadialWheel wheel = opened(ABILITIES);
+            moveTo(wheel, abilityPetal(wheel, 2).center(), PETAL);
 
             RadialWheel.Outcome outcome = wheel.click();
 
             assertTrue(outcome.selects());
-            assertEquals(new RadialWheel.Outcome(FANNED_TYPE, 1), outcome);
+            assertEquals(new RadialWheel.Outcome(OPEN_TYPE, 2), outcome);
         }
 
         @Test
-        void clickOffAnAbilityInTheFanCancels() {
-            RadialWheel wheel = fanned();
-            moveTo(wheel, abilityCenter(wheel, ABILITIES), OUTER_RING);
+        void clickWithATypeOpenAndNoAbilityHoveredCancels() {
+            assertEquals(RadialWheel.Outcome.CANCEL, opened(ABILITIES).click());
+        }
 
+        @Test
+        void typeWithNoAbilitiesKeepsItsOwnPetalWhenOpen() {
+            RadialWheel wheel = opened(0);
+
+            assertEquals(OPEN_TYPE, wheel.selectedType());
+            assertEquals(TYPES, typePetals(wheel).size());
             assertEquals(RadialWheel.Outcome.CANCEL, wheel.click());
-        }
-
-        @Test
-        void clickInTheTypeRingCancels() {
-            RadialWheel wheel = fanned();
-
-            assertEquals(RadialWheel.Outcome.CANCEL, wheel.click());
-        }
-
-        @Test
-        void cursorInTheHubCollapsesTheFanToTypes() {
-            RadialWheel wheel = fanned();
-
-            moveTo(wheel, wheel.typeCenter(FANNED_TYPE), HUB);
-
-            assertFalse(wheel.isFanned());
-            assertEquals(RadialWheel.Outcome.CANCEL, wheel.click());
-        }
-
-        @Test
-        void hoveringAnotherTypeRefansAndClearsTheHover() {
-            RadialWheel wheel = fanned();
-            moveTo(wheel, abilityCenter(wheel, 1), OUTER_RING);
-
-            moveTo(wheel, wheel.typeCenter(FANNED_TYPE + 1), INNER_RING);
-
-            assertEquals(FANNED_TYPE + 1, wheel.selectedType());
-            assertEquals(RadialWheel.NONE, wheel.hoveredAbility());
         }
     }
 
@@ -152,8 +184,8 @@ class RadialWheelTest {
     class Scroll {
 
         @Test
-        void scrollDownFromTypesSelectsTheFirstType() {
-            RadialWheel wheel = wheel();
+        void scrollDownFromRestOpensTheFirstType() {
+            RadialWheel wheel = wheel(ABILITIES);
 
             wheel.scroll(-1);
 
@@ -161,8 +193,8 @@ class RadialWheelTest {
         }
 
         @Test
-        void scrollStepsAndWrapsTheSelectedType() {
-            RadialWheel wheel = wheel();
+        void scrollStepsAndWrapsTheOpenType() {
+            RadialWheel wheel = wheel(ABILITIES);
 
             wheel.scroll(1);
             assertEquals(TYPES - 1, wheel.selectedType());
