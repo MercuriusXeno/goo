@@ -17,6 +17,7 @@ import net.neoforged.neoforge.transfer.ResourceHandler;
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import net.neoforged.neoforge.transfer.transaction.Transaction;
 import org.jspecify.annotations.Nullable;
+import java.util.Objects;
 import java.util.OptionalInt;
 import java.util.UUID;
 import java.util.function.Supplier;
@@ -45,6 +46,8 @@ public class GasketPusher {
     private int nextTurn;
     private @Nullable BlockCapabilityCache<ResourceHandler<FluidResource>, UUID> endpointCache;
     private @Nullable ChunkPos forcedChunk;
+    /** The block the endpoint cache was built on, or null when none stands. */
+    private @Nullable BlockPos targetPos;
 
     /**
      * Creates a gasket pusher wired to the host entity's state.
@@ -148,6 +151,7 @@ public class GasketPusher {
      * Pushes goo to the partner if a target exists, otherwise tracks idle time.
      */
     public void tick() {
+        followTargetLocation();
         if (!hasPushableTarget()) {
             trackIdle();
             return;
@@ -162,6 +166,7 @@ public class GasketPusher {
     public void dispose() {
         unforceChunk();
         endpointCache = null;
+        targetPos = null;
     }
 
     /**
@@ -170,34 +175,74 @@ public class GasketPusher {
     public void rebuildCache() {
         unforceChunk();
         endpointCache = null;
-        if (!canBuildCache()) {
-            return;
+        targetPos = null;
+        BlockPos pos = currentTargetPos();
+        UUID targetGasketId = pos == null ? null : resolveTargetGasketId();
+        if (targetGasketId != null) {
+            buildBlockCache(pos, targetGasketId);
         }
-        GasketPartner p = partner.get();
-        if (p == null || p.isEntityTarget()) {
-            return;
-        }
-        UUID targetGasketId = resolveTargetGasketId();
-        if (targetGasketId == null) {
-            return;
-        }
-        buildBlockCache(p, targetGasketId);
     }
 
     /**
-     * Forces the partner's chunk and creates a BlockCapabilityCache for the target block.
+     * Rebuilds the cache once the target gasket's registry location moved, so a
+     * receiving canister carried to another slot or host keeps receiving with no
+     * re-link (decision diagnose-then-fix-capability-lifetimes).
+     */
+    private void followTargetLocation() {
+        if (!Objects.equals(currentTargetPos(), targetPos)) {
+            rebuildCache();
+        }
+    }
+
+    /**
+     * Where the target gasket stands now: the registry's location for it, the one
+     * the slot grid moves when its canister changes host. A gasket the registry
+     * holds no location for answers the position the tuner stored on the partner.
      *
-     * @param p              the block-based gasket partner
+     * @return the target block position, or null when no block in this level can be pushed to
+     */
+    @Nullable BlockPos currentTargetPos() {
+        if (!canBuildCache()) {
+            return null;
+        }
+        GasketPartner p = partner.get();
+        UUID targetGasketId = resolveTargetGasketId();
+        if (p == null || p.isEntityTarget() || targetGasketId == null) {
+            return null;
+        }
+        return blockPosIn(registryAccess.get().getLocation(targetGasketId), p);
+    }
+
+    /**
+     * The block position a registry location names in this pusher's level.
+     *
+     * @param loc the target gasket's registry location, or null when it holds none
+     * @param p   the partner the tuner stored, answered when the registry holds no location
+     * @return the position, or null when the location is an entity or another dimension
+     */
+    private @Nullable BlockPos blockPosIn(@Nullable GasketLocation loc, GasketPartner p) {
+        if (loc == null) {
+            return p.pos();
+        }
+        boolean blockHere = !loc.isEntityTarget() && loc.dimension().equals(level.get().dimension());
+        return blockHere ? loc.pos() : null;
+    }
+
+    /**
+     * Forces the target's chunk and creates a BlockCapabilityCache for the target block.
+     *
+     * @param pos            the target block's position
      * @param targetGasketId the resolved gasket UUID on the partner side
      */
-    private void buildBlockCache(GasketPartner p, UUID targetGasketId) {
+    private void buildBlockCache(BlockPos pos, UUID targetGasketId) {
         ServerLevel serverLevel = (ServerLevel) level.get();
-        ChunkPos cp = ChunkPos.containing(p.pos());
+        ChunkPos cp = ChunkPos.containing(pos);
         GooTickets.gasketChunks.forceChunk(
                 serverLevel, ownerPos.get(), cp.x(), cp.z(), true, false);
         forcedChunk = cp;
+        targetPos = pos;
         endpointCache = BlockCapabilityCache.create(
-                GooCapabilities.GASKET_BLOCK, serverLevel, p.pos(), targetGasketId);
+                GooCapabilities.GASKET_BLOCK, serverLevel, pos, targetGasketId);
     }
 
     /**
@@ -214,17 +259,13 @@ public class GasketPusher {
      * Re-forces the target chunk if the ticket was released due to idle.
      */
     private void ensureChunkForced() {
-        if (forcedChunk != null) {
-            return;
-        }
-        GasketPartner p = partner.get();
-        if (p == null || p.isEntityTarget()) {
+        if (forcedChunk != null || targetPos == null) {
             return;
         }
         if (!(level.get() instanceof ServerLevel serverLevel)) {
             return;
         }
-        forcedChunk = ChunkPos.containing(p.pos());
+        forcedChunk = ChunkPos.containing(targetPos);
         GooTickets.gasketChunks.forceChunk(
                 serverLevel, ownerPos.get(), forcedChunk.x(), forcedChunk.z(), true, false);
     }

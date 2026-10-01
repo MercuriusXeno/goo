@@ -61,6 +61,12 @@ public final class GasketPusherTests {
     private static final String PARTNER_CHUNK_STILL_FORCED =
             "Crucible should hold no ticket on its partner's chunk once it left";
 
+    /** The host the linked canister is carried to. */
+    private static final BlockPos SECOND_HOST_POS = new BlockPos(3, 1, 3);
+    private static final String MOVED_RECEIVER_ROSE =
+            "Canister carried to a second host should keep receiving goo with no re-link";
+    private static final String FIRST_HOST_STAYS_EMPTY = "First host's emptied slot should receive no goo";
+
     // --- Reactor fixtures (reactor-output-push-fix) ---
 
     /** Beside the reactor, not above it, so the reactor reads it as a receiver and not an input. */
@@ -252,6 +258,46 @@ public final class GasketPusherTests {
             GooTickets.gasketChunks.forceChunk(helper.getLevel(), owner, chunk.x(), chunk.z(), false, false);
         }
         return !added;
+    }
+
+    /**
+     * A crucible linked to a canister's receiver gasket keeps pushing once the canister is
+     * carried from its first host into a second, with no re-link: the moved canister gains
+     * goo in the second host and the first host's emptied slot gains none.
+     *
+     * @param helper the gametest helper
+     */
+    public static void movedReceiverKeepsReceiving(GameTestHelper helper) {
+        helper.setBlock(BE_POS, GooBlocks.CRUCIBLE.get().defaultBlockState()
+                .setValue(CrucibleBlock.HAS_GASKET, true));
+        CrucibleBlockEntity crucible = helper.getBlockEntity(BE_POS, CrucibleBlockEntity.class);
+        UUID transmitter = crucible.ensureGasketId(GasketRole.TRANSMITTER);
+        crucible.insertGoo(GooTypes.BLAZE, OUTPUT_GOO);
+        helper.setBlock(RECEIVER_POS, GooBlocks.CANISTER.get());
+        helper.setBlock(SECOND_HOST_POS, GooBlocks.CANISTER.get());
+        CanisterBlockEntity first = helper.getBlockEntity(RECEIVER_POS, CanisterBlockEntity.class);
+        CanisterBlockEntity second = helper.getBlockEntity(SECOND_HOST_POS, CanisterBlockEntity.class);
+        UUID receiver = UUID.randomUUID();
+        ItemStack receiving = new ItemStack(GooItems.CANISTER.get());
+        CanisterItem.setMetadata(receiving, CanisterItem.getMetadata(receiving).withTopGasketId(receiver));
+        first.insertCanister(CanisterBlock.CENTER_SLOT, receiving, false);
+        GasketRegistry.get(helper.getLevel()).link(transmitter, receiver);
+        crucible.setPartner(GasketRole.TRANSMITTER,
+                new GasketPartner(helper.absolutePos(RECEIVER_POS), CanisterBlock.CENTER_SLOT));
+
+        helper.runAfterDelay(PUSH_TICKS, () -> {
+            helper.assertTrue(receiverAmount(first) > 0, RECEIVER_ROSE);
+            ItemStack carried = first.removeCanister(CanisterBlock.CENTER_SLOT);
+            second.insertCanister(CanisterBlock.CENTER_SLOT, carried, false);
+            int carriedIn = receiverAmount(second);
+            crucible.insertGoo(GooTypes.BLAZE, OUTPUT_GOO);
+            helper.runAfterDelay(PUSH_TICKS, () -> {
+                int now = receiverAmount(second);
+                helper.assertTrue(now > carriedIn, MOVED_RECEIVER_ROSE + READ + carriedIn + THEN + now);
+                helper.assertTrue(receiverAmount(first) == 0, FIRST_HOST_STAYS_EMPTY);
+                helper.succeed();
+            });
+        });
     }
 
     // --- Reactor (reactor-output-push-fix) ---
