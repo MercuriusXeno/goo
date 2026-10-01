@@ -451,7 +451,7 @@ class RadialWheelRendererTest {
             assertAll(wheel.displayedLayout(0.0f).stream().filter(RadialWheel.PetalArc::isAbility)
                     .map(petal -> (Executable) () -> {
                         PetalMask.Point tip = new PetalMask.Petal(petal.start(), petal.arc(),
-                                RadialWheel.HUB_FRACTION, petal.length()).tipCenter();
+                                petal.inner(), petal.length()).tipCenter();
                         String icon = "ability_" + petal.type() + "_" + petal.ability() + ".png";
                         var iconBlit = mockingDetails(graphics).getInvocations().stream()
                                 .filter(call -> call.getMethod().getName().equals("blit")
@@ -463,6 +463,12 @@ class RadialWheelRendererTest {
                                 iconY - (CENTER_Y + tip.y() * RADIUS)) <= TIP_TOLERANCE,
                                 petal + " icon at " + iconX + "," + iconY);
                         assertEquals(0xFFFFFFFF, (int) iconBlit.getArgument(ICON_COLOR_ARGUMENT), petal + " tint");
+                        List<org.mockito.invocation.Invocation> calls = List.copyOf(
+                                mockingDetails(graphics).getInvocations());
+                        var badgeBlit = calls.get(calls.indexOf(iconBlit) + 1);
+                        assertTrue(badgeBlit.getArgument(1).toString().contains("/badge/"), petal + " badge follows");
+                        assertEquals(iconX + half, (int) badgeBlit.getArgument(2), petal + " badge's left edge");
+                        assertEquals(iconY - half, (int) badgeBlit.getArgument(3), petal + " badge's row");
                         List<DrawnText> words = texts.stream().filter(text -> text.x() == iconX
                                 && Math.abs(text.y() - iconY) <= half + 2 * LINE_HEIGHT).toList();
                         assertEquals(LINES_PER_ABILITY, words.size(), petal + " lines");
