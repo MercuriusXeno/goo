@@ -1,6 +1,7 @@
 {
   "gooType": "vital",
   "displayName": "goo.ability.vital.clone",
+  "badge": "mob",
   "order": 0,
   "cost": 1000,
   "behaviors": [

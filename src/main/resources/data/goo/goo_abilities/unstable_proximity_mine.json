@@ -1,6 +1,7 @@
 {
   "gooType": "unstable",
   "displayName": "goo.ability.unstable.proximity_mine",
+  "badge": "world",
   "order": 2,
   "cost": 1000,
   "chain": {

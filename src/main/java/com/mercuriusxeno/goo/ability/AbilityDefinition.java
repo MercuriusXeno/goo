@@ -29,6 +29,7 @@ import java.util.stream.Stream;
  * @param chain       chain marker parameters (nullable for non-chain abilities)
  * @param behaviors   the step trees the ability runs, in order
  * @param tags        categorical tags (explosive, instant, trap, field-effect, etc.)
+ * @param badge       the target kind the radial marks on the icon
  */
 public record AbilityDefinition(
         Identifier id,
@@ -39,7 +40,8 @@ public record AbilityDefinition(
         int cost,
         ChainConfig chain,
         List<Step> behaviors,
-        List<String> tags
+        List<String> tags,
+        AbilityBadge badge
 ) {
 
     private static final String FIELD_GOO_TYPE = "gooType";
@@ -51,6 +53,7 @@ public record AbilityDefinition(
     private static final String FIELD_CHAIN = "chain";
     private static final String FIELD_BEHAVIORS = "behaviors";
     private static final String FIELD_TAGS = "tags";
+    private static final String FIELD_BADGE = "badge";
     private static final String NOT_A_FLAT_COST = "Ability cost must be one whole amount, not %s";
 
     /**
@@ -76,10 +79,12 @@ public record AbilityDefinition(
                 FLAT_COST_CODEC.fieldOf(FIELD_COST).forGetter(AbilityDefinition::cost),
                 ChainConfig.CODEC.optionalFieldOf(FIELD_CHAIN, ChainConfig.DEFAULT).forGetter(AbilityDefinition::chain),
                 StepTypes.LIST_CODEC.fieldOf(FIELD_BEHAVIORS).forGetter(AbilityDefinition::behaviors),
-                Codec.STRING.listOf().optionalFieldOf(FIELD_TAGS, List.of()).forGetter(AbilityDefinition::tags)
-        ).apply(inst, (gooType, displayName, icon, order, cost, chain, behaviors, tags) ->
+                Codec.STRING.listOf().optionalFieldOf(FIELD_TAGS, List.of()).forGetter(AbilityDefinition::tags),
+                // badge-marks-the-target-kind: required, so every ability declares its kind
+                AbilityBadge.CODEC.fieldOf(FIELD_BADGE).forGetter(AbilityDefinition::badge)
+        ).apply(inst, (gooType, displayName, icon, order, cost, chain, behaviors, tags, badge) ->
                 new AbilityDefinition(id, gooType, displayName, icon, order,
-                        cost, chain, behaviors, tags)));
+                        cost, chain, behaviors, tags, badge)));
     }
 
     /**

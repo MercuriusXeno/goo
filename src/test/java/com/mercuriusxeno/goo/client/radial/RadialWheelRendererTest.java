@@ -1,8 +1,10 @@
 package com.mercuriusxeno.goo.client.radial;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
+import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -18,6 +20,7 @@ import java.io.InputStreamReader;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -43,7 +46,7 @@ class RadialWheelRendererTest {
         return new ClientAbility(definition.id(), definition.displayName(), definition.icon(),
                 definition.order(), definition.tags(),
                 definition.chain().fuseTicks(), definition.chain().maxStacks(), definition.behaviors(),
-                definition.cost());
+                definition.cost(), definition.badge());
     }
 
     private static List<ClientAbility> shippedAbilities() {
@@ -54,7 +57,31 @@ class RadialWheelRendererTest {
 
     private static ClientAbility abilityWithIcon(String icon) {
         return new ClientAbility(Identifier.fromNamespaceAndPath(Goo.MODID, "unstable_timed_bomb"),
-                "ability.goo.unstable_timed_bomb", icon, 0, List.of(), 0, 0, List.of(), 0);
+                "ability.goo.unstable_timed_bomb", icon, 0, List.of(), 0, 0, List.of(), 0, AbilityBadge.WORLD);
+    }
+
+    /** The badge, not the label, marks the target kind (decision badge-marks-the-target-kind). */
+    @Nested
+    class Badges {
+
+        @Test
+        void entityAbilityLabelReadsTheBareName() {
+            ClientAbility entity = new ClientAbility(Identifier.fromNamespaceAndPath(Goo.MODID, "hex_charm"),
+                    "goo.ability.hex.charm", "", 0, List.of(AbilityTags.ENTITY), 0, 1, List.of(), 0, AbilityBadge.MOB);
+
+            assertEquals(Component.translatable("goo.ability.hex.charm"), RadialWheelRenderer.buildLabel(entity));
+        }
+
+        @Test
+        void everyBadgeKindDrawsFromA16x16SpriteUnderGooBadge() {
+            assertAll(Arrays.stream(AbilityBadge.values()).map(badge -> (Executable) () -> {
+                Identifier sprite = RadialWheelRenderer.badgeIcon(badge);
+                assertEquals(Identifier.fromNamespaceAndPath(Goo.MODID,
+                        "textures/goo/badge/" + badge.getSerializedName() + ".png"), sprite);
+                assertEquals(List.of(RadialWheelRenderer.ABILITY_ICON_SIZE, RadialWheelRenderer.ABILITY_ICON_SIZE),
+                        pngDimensions(ASSETS_ROOT + sprite.getNamespace() + "/" + sprite.getPath()), badge.name());
+            }));
+        }
     }
 
     @Nested
@@ -159,7 +186,7 @@ class RadialWheelRendererTest {
 
         private static ClientAbility costing(int firstThrow) {
             return new ClientAbility(Identifier.fromNamespaceAndPath(Goo.MODID, "cost_" + firstThrow),
-                    "ability.goo.cost", "", 0, List.of(), 0, 1, List.of(), firstThrow);
+                    "ability.goo.cost", "", 0, List.of(), 0, 1, List.of(), firstThrow, AbilityBadge.WORLD);
         }
 
         @Test

@@ -1,6 +1,7 @@
 {
   "gooType": "crystal",
   "displayName": "goo.ability.crystal.flechettes",
+  "badge": "mob",
   "order": 10,
   "cost": 1000,
   "behaviors": [
