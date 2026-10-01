@@ -1,6 +1,7 @@
 {
   "gooType": "typhoon",
   "displayName": "goo.ability.typhoon.propel",
+  "badge": "self",
   "order": 10,
   "cost": 1000,
   "delivery": { "kind": "self" },

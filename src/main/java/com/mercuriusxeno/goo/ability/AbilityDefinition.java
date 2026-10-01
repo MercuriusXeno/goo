@@ -30,6 +30,7 @@ import java.util.stream.Stream;
  * @param delivery    how the ability leaves the glove (decision delivery-block-in-ability-json)
  * @param behaviors   the step trees the ability runs, in order
  * @param tags        categorical tags (explosive, instant, trap, field-effect, etc.)
+ * @param badge       the target kind the radial marks on the icon
  */
 public record AbilityDefinition(
         Identifier id,
@@ -41,7 +42,8 @@ public record AbilityDefinition(
         ChainConfig chain,
         Delivery delivery,
         List<Step> behaviors,
-        List<String> tags
+        List<String> tags,
+        AbilityBadge badge
 ) {
 
     private static final String FIELD_GOO_TYPE = "gooType";
@@ -54,6 +56,7 @@ public record AbilityDefinition(
     private static final String FIELD_DELIVERY = "delivery";
     private static final String FIELD_BEHAVIORS = "behaviors";
     private static final String FIELD_TAGS = "tags";
+    private static final String FIELD_BADGE = "badge";
     private static final String NOT_A_FLAT_COST = "Ability cost must be one whole amount, not %s";
 
     /**
@@ -80,10 +83,12 @@ public record AbilityDefinition(
                 ChainConfig.CODEC.optionalFieldOf(FIELD_CHAIN, ChainConfig.DEFAULT).forGetter(AbilityDefinition::chain),
                 Delivery.CODEC.fieldOf(FIELD_DELIVERY).forGetter(AbilityDefinition::delivery),
                 StepTypes.LIST_CODEC.fieldOf(FIELD_BEHAVIORS).forGetter(AbilityDefinition::behaviors),
-                Codec.STRING.listOf().optionalFieldOf(FIELD_TAGS, List.of()).forGetter(AbilityDefinition::tags)
-        ).apply(inst, (gooType, displayName, icon, order, cost, chain, delivery, behaviors, tags) ->
+                Codec.STRING.listOf().optionalFieldOf(FIELD_TAGS, List.of()).forGetter(AbilityDefinition::tags),
+                // badge-marks-the-target-kind: required, so every ability declares its kind
+                AbilityBadge.CODEC.fieldOf(FIELD_BADGE).forGetter(AbilityDefinition::badge)
+        ).apply(inst, (gooType, displayName, icon, order, cost, chain, delivery, behaviors, tags, badge) ->
                 new AbilityDefinition(id, gooType, displayName, icon, order,
-                        cost, chain, delivery, behaviors, tags)));
+                        cost, chain, delivery, behaviors, tags, badge)));
     }
 
     /**

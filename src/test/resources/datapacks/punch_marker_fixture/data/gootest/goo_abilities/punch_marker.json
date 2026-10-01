@@ -1,6 +1,7 @@
 {
   "gooType": "rock",
   "displayName": "goo.ability.gootest.punch_marker",
+  "badge": "punch",
   "cost": 1000,
   "delivery": { "kind": "punch" },
   "chain": {

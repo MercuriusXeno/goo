@@ -1,6 +1,7 @@
 {
   "gooType": "rock",
   "displayName": "goo.ability.rock.tunnel",
+  "badge": "world",
   "order": 0,
   "cost": 1000,
   "delivery": { "kind": "arc" },

@@ -26,7 +26,7 @@ class DeliveryTest {
 
     private static final Identifier ID = Identifier.fromNamespaceAndPath("goo", "fixture");
     private static final String ABILITY_HEAD = """
-            { "gooType": "glow", "displayName": "goo.ability.fixture", "cost": 1000,
+            { "gooType": "glow", "displayName": "goo.ability.fixture", "badge": "world", "cost": 1000,
               "behaviors": [], """;
     private static final double TOLERANCE = 1e-9;
     private static final Vec3 START = new Vec3(3, 64, -2);
