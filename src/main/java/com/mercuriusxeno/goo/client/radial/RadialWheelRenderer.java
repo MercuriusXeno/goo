@@ -39,6 +39,10 @@ final class RadialWheelRenderer {
     private static final int COLOR_WHITE = 0xFFFFFFFF;
     private static final int HOVER_TEXT_COLOR = 0xFFFFFF00;
     private static final int DISABLED_TEXT_COLOR = 0xFF888888;
+    /** The near-black border every word draws inside. */
+    static final int OUTLINE_COLOR = 0xFF101010;
+    /** How many pixels the border reaches past each side of a word. */
+    private static final int OUTLINE_WIDTH = 1;
     private static final int TYPE_ICON_SIZE = 11;
     /** ability-icons-read-16x16 */
     static final int ABILITY_ICON_SIZE = 16;
@@ -223,6 +227,32 @@ final class RadialWheelRenderer {
     }
 
     /**
+     * Draws a line of words centered on a point with a dark border all the
+     * way around, so light words stand out against the brightest goos: the
+     * line eight times one pixel off in each direction in the border's color,
+     * then once on top in its own, the way glowing signs outline theirs.
+     * decision abilities-replace-the-hovered-type
+     *
+     * @param graphics the GUI graphics extractor
+     * @param font     the font
+     * @param line     the words
+     * @param centerX  the x the line centers on
+     * @param y        the line's top
+     * @param color    the words' color
+     */
+    static void outlinedText(GuiGraphicsExtractor graphics, Font font, Component line, int centerX, int y, int color) {
+        int left = centerX - font.width(line) / HALF;
+        for (int dx = -OUTLINE_WIDTH; dx <= OUTLINE_WIDTH; dx++) {
+            for (int dy = -OUTLINE_WIDTH; dy <= OUTLINE_WIDTH; dy++) {
+                if (dx != 0 || dy != 0) {
+                    graphics.text(font, line, left + dx, y + dy, OUTLINE_COLOR, false);
+                }
+            }
+        }
+        graphics.text(font, line, left, y, color, false);
+    }
+
+    /**
      * Draws an ability's name centered directly above its icon and its cost
      * centered directly below it, on screen.
      * decision abilities-replace-the-hovered-type
@@ -235,10 +265,10 @@ final class RadialWheelRenderer {
         int x = words.iconCenter()[0];
         int nameY = words.iconCenter()[1] - ABILITY_ICON_OFFSET - LABEL_GAP - words.name().size() * font.lineHeight;
         for (Component line : words.name()) {
-            graphics.centeredText(font, line, x, nameY, words.color());
+            outlinedText(graphics, font, line, x, nameY, words.color());
             nameY += font.lineHeight;
         }
-        graphics.centeredText(font, words.cost(), x, words.iconCenter()[1] + ABILITY_ICON_OFFSET + LABEL_GAP,
+        outlinedText(graphics, font, words.cost(), x, words.iconCenter()[1] + ABILITY_ICON_OFFSET + LABEL_GAP,
                 words.color());
     }
 
@@ -283,9 +313,9 @@ final class RadialWheelRenderer {
         ResourceKey<GooTypeDefinition> type = frame.types().get(wheel.selectedType());
         int holdings = frame.available().getOrDefault(type, 0);
         int textColor = holdings <= 0 ? DISABLED_TEXT_COLOR : COLOR_WHITE;
-        graphics.centeredText(font, Component.translatable(GooTypeNames.translationKey(type)),
+        outlinedText(graphics, font, Component.translatable(GooTypeNames.translationKey(type)),
                 frame.centerX(), frame.centerY() - font.lineHeight, textColor);
-        graphics.centeredText(font, Component.literal(holdingsLabel(holdings)),
+        outlinedText(graphics, font, Component.literal(holdingsLabel(holdings)),
                 frame.centerX(), frame.centerY() + LABEL_GAP, textColor);
     }
 

@@ -12,9 +12,13 @@ import java.util.List;
  * petals-render-the-live-fluid), and the rasterizer the hub's baked circle
  * mask still reads.
  *
- * <p>The cap is the circle tangent to both radial edges whose farthest
- * point reaches the outer radius on the wedge's center angle. A wedge at
- * least a half turn wide has no tip to round, so it keeps the circle cut.
+ * <p>Each corner of the end is rounded by a fillet: a circle tangent to the
+ * radial edge and to the wheel-centered circle at the outer radius, of at
+ * most {@link #MAX_CORNER} of the band. Between the two fillets the end runs
+ * along that outer circle, a blunt tip. A narrow petal's fillets meet on the
+ * center line and become the one circle tangent to both edges, its round
+ * tip. A wedge at least a half turn wide has no corners to round, so it
+ * keeps the circle cut.
  * Coordinates are normalized to the wheel: center 0, rim 1, y down positive.
  */
 final class PetalMask {
@@ -27,14 +31,14 @@ final class PetalMask {
     /** The outline's sides: the inner arc, the end edge, the cap and the start edge. */
     private static final int OUTLINE_SIDES = 4;
     /** How many times more segments the cap takes than a straight side, so the round tip reads smooth. */
-    static final int CAP_SEGMENTS_PER_SIDE = 4;
+    static final int CAP_SEGMENTS_PER_SIDE = 6;
     /**
-     * The most a wide petal's end bulges past its corners, as a fraction of
-     * its band from the inner radius to the tip, so a wide base reads as a
-     * petal rather than a circle inscribed in it.
+     * The largest a corner's rounding grows, as a fraction of the band from
+     * the inner radius to the tip, so a wide base keeps rounded corners at
+     * its sides and a blunt tip rather than reading as a circle.
      */
-    static final double MAX_BULGE = 0.25;
-    private static final double TWICE = 2.0;
+    static final double MAX_CORNER = 0.25;
+    private static final double QUARTER_TURN = Math.PI * HALF;
 
     private PetalMask() {
     }
@@ -148,97 +152,176 @@ final class PetalMask {
             if (distance < inner || distance > outer) {
                 return false;
             }
-            if (wrap(RadialWheel.angleOf(x, y) - start) >= arc) {
+            double offset = wrap(RadialWheel.angleOf(x, y) - start);
+            if (offset >= arc) {
                 return false;
             }
-            return !isRound() || isInsideStem(x, y) || capDepth(x, y) >= 0;
+            boolean startSide = offset < arc * HALF;
+            double fromEdge = startSide ? offset : arc - offset;
+            return fromEdge >= cornerTurn() || isInsideCorner(x, y, startSide);
+        }
+
+        /**
+         * Whether a point in a corner's zone, between the edge and the ray
+         * through the fillet's center, clears the corner: short of where the
+         * fillet meets the edge, or inside the fillet.
+         *
+         * @param x         normalized x
+         * @param y         normalized y, down positive
+         * @param startSide true when the point lies on the start edge's half
+         * @return true when the corner's rounding does not cut the point off
+         */
+        private boolean isInsideCorner(double x, double y, boolean startSide) {
+            double edge = startSide ? start : start + arc;
+            double alongEdge = x * Math.sin(edge) - y * Math.cos(edge);
+            if (alongEdge <= cornerCenterDistance() * Math.cos(cornerTurn())) {
+                return true;
+            }
+            Point center = cornerCenter(startSide);
+            return Math.hypot(x - center.x(), y - center.y()) <= cornerRadius();
         }
 
         /**
          * How far a ray from the wheel's center at an angle within the
-         * wedge reaches before it leaves the petal: the far side of the cap
-         * circle, or the outer radius for a wedge with no cap.
+         * wedge reaches before it leaves the petal: the far side of a corner's
+         * fillet near the edges, the outer radius across the blunt tip.
          * decision petals-render-the-live-fluid
          *
          * @param angle the ray's angle, clockwise from the top, within the wedge
          * @return the distance in normalized units
          */
         double reach(double angle) {
-            if (!isRound()) {
+            double offset = angle - start;
+            double fromEdge = Math.min(offset, arc - offset);
+            double turn = cornerTurn();
+            if (fromEdge >= turn) {
                 return outer;
             }
-            double offCenter = angle - (start + arc * HALF);
-            double capCenter = capCenter();
-            double capRadius = capRadius();
-            double across = capCenter * Math.sin(offCenter);
-            return capCenter * Math.cos(offCenter) + Math.sqrt(Math.max(0.0, capRadius * capRadius - across * across));
+            double d = cornerCenterDistance();
+            double across = d * Math.sin(turn - fromEdge);
+            double radius = cornerRadius();
+            return d * Math.cos(turn - fromEdge) + Math.sqrt(Math.max(0.0, radius * radius - across * across));
         }
 
         /**
          * The petal's far boundary from its start edge to its end edge,
-         * sampled evenly around the cap circle itself, so the tip reads round
-         * where the cap meets the edges; a wedge with no cap samples its outer
-         * arc evenly by angle.
+         * sampled evenly by the direction it turns through, so a tight fillet
+         * reads as round as the broad tip: the start corner's fillet, the
+         * blunt tip along the outer circle, the end corner's fillet.
          * decision wedges-round-off-like-petals
          *
          * @param segments the segments the far boundary is cut into
          * @return segments + 1 points, the first on the start edge, the last on the end edge
          */
         List<Point> capSamples(int segments) {
+            double turn = cornerTurn();
+            double cornerTurning = QUARTER_TURN + turn;
+            double tipTurning = arc - turn - turn;
+            double total = cornerTurning + cornerTurning + tipTurning;
             List<Point> points = new ArrayList<>(segments + 1);
             for (int i = 0; i <= segments; i++) {
-                points.add(isRound() ? capPoint(capTurnStart() + capTurn() * i / segments)
-                        : Point.polar(start + arc * i / segments, outer));
+                double turned = total * i / segments;
+                if (turned <= cornerTurning) {
+                    points.add(filletPoint(true, start - QUARTER_TURN + turned));
+                } else if (turned <= cornerTurning + tipTurning) {
+                    points.add(Point.polar(start + turn + turned - cornerTurning, outer));
+                } else {
+                    points.add(filletPoint(false, start + arc - turn + turned - cornerTurning - tipTurning));
+                }
             }
             return points;
         }
 
+        private Point filletPoint(boolean startSide, double filletAngle) {
+            Point center = cornerCenter(startSide);
+            double radius = cornerRadius();
+            return new Point(center.x() + Math.sin(filletAngle) * radius, center.y() - Math.cos(filletAngle) * radius);
+        }
+
         /**
-         * The point at the center of the petal's round tip: the cap circle's
-         * center, kept no nearer the hub than midway along the band, so a
-         * shallow end's far-off circle center still leaves the point inside.
+         * The point at the center of the petal's round tip: the fillet's
+         * center for a narrow petal whose fillets meet, kept no nearer the hub
+         * than midway along the band.
          *
          * @return the tip's center
          */
         Point tipCenter() {
-            double center = start + arc * HALF;
             double midway = (inner + outer) * HALF;
-            return Point.polar(center, isRound() ? Math.max(capCenter(), midway) : midway);
+            return Point.polar(start + arc * HALF, Math.max(outer - cornerRadius(), midway));
         }
 
         /**
-         * The center of the circle the petal's end follows.
+         * The center of a corner's fillet.
          *
-         * @return the point on the center line at the cap circle's center
+         * @param startSide true for the start edge's corner, false for the end edge's
+         * @return the fillet's center
          */
-        Point capCircleCenter() {
-            return Point.polar(start + arc * HALF, capCenter());
+        Point cornerCenter(boolean startSide) {
+            double turn = cornerTurn();
+            return Point.polar(startSide ? start + turn : start + arc - turn, cornerCenterDistance());
+        }
+
+        /**
+         * A corner's fillet radius: the circle tangent to both edges for a
+         * narrow petal, at most {@link #MAX_CORNER} of the band for a wide
+         * one, none for a wedge at least a half turn wide.
+         * decision petal-moves-animate
+         * decision wedges-round-off-like-petals
+         *
+         * @return the radius in normalized units
+         */
+        double cornerRadius() {
+            if (arc >= Math.PI) {
+                return 0.0;
+            }
+            double sinHalf = Math.sin(arc * HALF);
+            double tangent = outer * sinHalf / (1.0 + sinHalf);
+            return Math.min(tangent, MAX_CORNER * (outer - inner));
+        }
+
+        /**
+         * How far a fillet's center sits from the wheel's center: one radius
+         * short of the outer circle it touches.
+         *
+         * @return the distance in normalized units
+         */
+        private double cornerCenterDistance() {
+            return outer - cornerRadius();
+        }
+
+        /**
+         * The angle from an edge to its fillet's center, as seen from the
+         * wheel's center: half the wedge when the fillets meet on the center line.
+         *
+         * @return the angle in radians
+         */
+        private double cornerTurn() {
+            double d = cornerCenterDistance();
+            return d <= 0 ? 0.0 : Math.min(arc * HALF, Math.asin(Math.min(1.0, cornerRadius() / d)));
         }
 
         /**
          * The petal's closed outline: the inner arc from the start edge to the
-         * end edge, the end edge out to the cap, the cap back around its own
-         * circle to the start edge, and the start edge in to the inner arc.
+         * end edge, the end edge out to its fillet, the far boundary back to
+         * the start edge, and the start edge in to the inner arc.
          * decision petals-render-the-live-fluid
          * decision wedges-round-off-like-petals
          *
          * @param segments the segments each straight or inner side is cut into;
-         *                 the cap takes {@link #CAP_SEGMENTS_PER_SIDE} times as many
+         *                 the far boundary takes {@link #CAP_SEGMENTS_PER_SIDE} times as many
          * @return the outline's points in order, the last joining back to the first
          */
         List<Point> outline(int segments) {
             List<Point> cap = capSamples(segments * CAP_SEGMENTS_PER_SIDE);
             List<Point> points = new ArrayList<>(segments * OUTLINE_SIDES + cap.size());
-            Point endTip = cap.getLast();
-            Point startTip = cap.getFirst();
             for (int i = 0; i < segments; i++) {
                 points.add(Point.polar(start + arc * i / segments, inner));
             }
-            addSpoke(points, Point.polar(start + arc, inner), endTip, segments);
+            addSpoke(points, Point.polar(start + arc, inner), cap.getLast(), segments);
             for (int i = cap.size() - 1; i > 0; i--) {
                 points.add(cap.get(i));
             }
-            addSpoke(points, startTip, Point.polar(start, inner), segments);
+            addSpoke(points, cap.getFirst(), Point.polar(start, inner), segments);
             return points;
         }
 
@@ -247,136 +330,6 @@ final class PetalMask {
                 points.add(new Point(from.x() + (to.x() - from.x()) * i / segments,
                         from.y() + (to.y() - from.y()) * i / segments));
             }
-        }
-
-        /**
-         * The cap circle's own angle, clockwise from the top, where it meets
-         * the start edge.
-         *
-         * @return the angle in radians
-         */
-        private double capTurnStart() {
-            return start + arc * HALF - capHalfTurn();
-        }
-
-        /**
-         * The turn the cap circle's far side spans between the two edges.
-         *
-         * @return twice the half turn from the tip to either edge
-         */
-        private double capTurn() {
-            return TWICE * capHalfTurn();
-        }
-
-        /**
-         * The turn around the cap circle from the tip to where it meets an
-         * edge: a quarter turn and a half wedge for a cap tangent to the
-         * edges, less for a shallower end.
-         *
-         * @return the angle in radians
-         */
-        private double capHalfTurn() {
-            double corner = cornerDistance();
-            return Math.atan2(corner * sinHalf(), corner * cosHalf() - capCenter());
-        }
-
-        private Point capPoint(double capAngle) {
-            double center = start + arc * HALF;
-            double capCenter = capCenter();
-            double capRadius = capRadius();
-            return new Point(Math.sin(center) * capCenter + Math.sin(capAngle) * capRadius,
-                    -Math.cos(center) * capCenter - Math.cos(capAngle) * capRadius);
-        }
-
-        /**
-         * Whether the wedge ends in a cap; one at least a half turn wide has no tip to round.
-         *
-         * @return true for a wedge narrower than a half turn
-         */
-        private boolean isRound() {
-            return arc < Math.PI;
-        }
-
-        private double sinHalf() {
-            return Math.sin(arc * HALF);
-        }
-
-        private double cosHalf() {
-            return Math.cos(arc * HALF);
-        }
-
-        /**
-         * How far the end bulges past where the edges stop, along the center
-         * line: the circle tangent to both edges for a narrow petal, flattened
-         * to at most {@link #MAX_BULGE} of the band for a wide one, never
-         * flatter than the wheel's own circle at the tip.
-         * decision petal-moves-animate
-         * decision wedges-round-off-like-petals
-         *
-         * @return the bulge in normalized units
-         */
-        private double bulge() {
-            double tangent = outer * sinHalf();
-            double wheel = outer * (1.0 - cosHalf());
-            return Math.max(wheel, Math.min(tangent, MAX_BULGE * (outer - inner)));
-        }
-
-        /**
-         * How far along each edge the end begins.
-         *
-         * @return the distance from the wheel's center in normalized units
-         */
-        private double cornerDistance() {
-            return (outer - bulge()) / cosHalf();
-        }
-
-        /**
-         * Distance from the wheel's center to the cap circle's center, along the
-         * wedge's center angle: the circle through the tip and both corners.
-         *
-         * @return the distance in normalized units
-         */
-        private double capCenter() {
-            double bulge = bulge();
-            if (bulge <= 0) {
-                return 0.0;
-            }
-            double corner = cornerDistance();
-            return (outer * outer - corner * corner) / (TWICE * bulge);
-        }
-
-        private double capRadius() {
-            return outer - capCenter();
-        }
-
-        /**
-         * Whether a point lies short of the line joining the end's two corners.
-         *
-         * @param x normalized x
-         * @param y normalized y, down positive
-         * @return true on the wheel's center side of that line
-         */
-        private boolean isInsideStem(double x, double y) {
-            return along(x, y) <= outer - bulge();
-        }
-
-        private double along(double x, double y) {
-            double center = start + arc * HALF;
-            return x * Math.sin(center) - y * Math.cos(center);
-        }
-
-        /**
-         * How far inside the cap circle a point lies.
-         *
-         * @param x normalized x
-         * @param y normalized y, down positive
-         * @return the distance to the cap circle, negative outside it
-         */
-        private double capDepth(double x, double y) {
-            double center = start + arc * HALF;
-            double capCenter = capCenter();
-            return capRadius()
-                    - Math.hypot(x - Math.sin(center) * capCenter, y + Math.cos(center) * capCenter);
         }
     }
 }

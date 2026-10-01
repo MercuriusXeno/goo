@@ -28,7 +28,7 @@ final class PetalMesh {
     /** Where the tile grid starts: the wheel's top-left corner. */
     static final double TILE_ORIGIN = -1.0;
     /** Segments the cap's far side is cut into for the fill. */
-    static final int CAP_SEGMENTS = 48;
+    static final int CAP_SEGMENTS = 72;
     /** Segments each of the outline's straight and inner sides is cut into for the edge strip. */
     static final int OUTLINE_SEGMENTS = 12;
     /** The widest angle one fill column spans, so the inner arc reads smooth. */

@@ -265,6 +265,8 @@ class RadialWheelRendererTest {
         private static final int WORD_WIDTH = 40;
         /** The font's line height, which a mocked Font keeps from its declaration. */
         private static final int LINE_HEIGHT = 9;
+        /** Where a text call's ARGB color sits among its arguments. */
+        private static final int TEXT_COLOR_ARGUMENT = 4;
         /** Where a blit's ARGB color sits among its arguments. */
         private static final int ICON_COLOR_ARGUMENT = 10;
 
@@ -284,7 +286,7 @@ class RadialWheelRendererTest {
             }
         };
 
-        /** One centeredText call the frame made: where it drew and what. */
+        /** One line of words the frame drew in its own color: where it centered, its top and what. */
         private record DrawnText(int x, int y, Component text) {
         }
 
@@ -320,10 +322,39 @@ class RadialWheelRendererTest {
         }
 
         private List<DrawnText> renderTexts(RadialWheel wheel) {
-            return mockingDetails(renderFrame(wheel)).getInvocations().stream()
-                    .filter(call -> call.getMethod().getName().equals("centeredText"))
-                    .map(call -> new DrawnText(call.getArgument(2), call.getArgument(3), call.getArgument(1)))
+            return wordsDrawn(renderFrame(wheel), color -> color != RadialWheelRenderer.OUTLINE_COLOR);
+        }
+
+        /** The text calls a frame made in the colors a test asks for, each read back to its center. */
+        private static List<DrawnText> wordsDrawn(GuiGraphicsExtractor graphics,
+                                                  java.util.function.IntPredicate color) {
+            return mockingDetails(graphics).getInvocations().stream()
+                    .filter(call -> call.getMethod().getName().equals("text")
+                            && color.test(call.getArgument(TEXT_COLOR_ARGUMENT)))
+                    .map(call -> new DrawnText((int) call.getArgument(2) + WORD_WIDTH / 2, call.getArgument(3),
+                            call.getArgument(1)))
                     .toList();
+        }
+
+        /** decision abilities-replace-the-hovered-type */
+        @Test
+        void everyLineDrawsInsideADarkBorderAllTheWayAround() {
+            GuiGraphicsExtractor graphics = renderFrame(openWheel());
+            List<DrawnText> lines = wordsDrawn(graphics, color -> color != RadialWheelRenderer.OUTLINE_COLOR);
+            List<DrawnText> border = wordsDrawn(graphics, color -> color == RadialWheelRenderer.OUTLINE_COLOR);
+
+            assertFalse(lines.isEmpty());
+            assertAll(lines.stream().map(line -> (Executable) () -> {
+                for (int dx = -1; dx <= 1; dx++) {
+                    for (int dy = -1; dy <= 1; dy++) {
+                        int x = line.x() + dx;
+                        int y = line.y() + dy;
+                        boolean expected = dx != 0 || dy != 0;
+                        assertEquals(expected, border.stream().anyMatch(edge -> edge.x() == x && edge.y() == y
+                                && edge.text().equals(line.text())), line + " border at " + dx + "," + dy);
+                    }
+                }
+            }));
         }
 
         private <T> List<T> submittedArguments(GuiGraphicsExtractor graphics, String method, Class<T> type) {
@@ -447,7 +478,7 @@ class RadialWheelRendererTest {
                     .map(call -> call.getMethod().getName()).toList();
             int lastShape = Math.max(calls.lastIndexOf("submitGuiElementRenderState"), calls.lastIndexOf("blit"));
 
-            assertTrue(calls.indexOf("centeredText") > lastShape, "a word drew before shape " + lastShape);
+            assertTrue(calls.indexOf("text") > lastShape, "a word drew before shape " + lastShape);
         }
 
         /** decisions petals-render-the-live-fluid, wedges-take-a-solid-edge */
