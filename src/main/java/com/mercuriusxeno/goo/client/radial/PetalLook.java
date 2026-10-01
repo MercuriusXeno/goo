@@ -35,11 +35,6 @@ interface PetalLook {
         public Identifier hubMask() {
             return RadialTextures.getHubTexture(RadialWheel.HUB_FRACTION - HUB_GAP);
         }
-
-        @Override
-        public int wheelColor(ResourceKey<GooTypeDefinition> type) {
-            return ClientGooTypes.wheel(type);
-        }
     };
 
     /**
@@ -59,14 +54,6 @@ interface PetalLook {
      * @return the mask texture
      */
     Identifier hubMask();
-
-    /**
-     * A type's radial RGB, which tints its ability icons.
-     *
-     * @param type the type
-     * @return the RGB
-     */
-    int wheelColor(ResourceKey<GooTypeDefinition> type);
 
     /**
      * A sprite's rectangle on its atlas, in UV units.

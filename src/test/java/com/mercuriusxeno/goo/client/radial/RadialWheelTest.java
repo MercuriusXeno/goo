@@ -382,7 +382,7 @@ class RadialWheelTest {
         /** Mid-fan: the type petal part-receded and part-widened on top, the cards fanned part way in order. */
         private static void assertMidFan(List<RadialWheel.PetalArc> midway, double targetCard) {
             RadialWheel.PetalArc own = petalOf(midway, OPEN_TYPE, RadialWheel.NONE);
-            assertTrue(own.length() > RadialWheel.HUB_FRACTION && own.length() < 1.0, "length " + own.length());
+            assertTrue(own.length() > RadialWheel.TYPE_BASE_LENGTH && own.length() < 1.0, "length " + own.length());
             assertTrue(own.arc() > TYPE_ARC && own.arc() < ABILITIES * targetCard, "arc " + own.arc());
             assertEquals(own, midway.get(midway.indexOf(petalOf(midway, OPEN_TYPE, 0)) + 1),
                     "the type petal draws right over its first card");
@@ -408,14 +408,33 @@ class RadialWheelTest {
             assertMidFan(wheel.displayedLayout(0.0f), targetCard);
         }
 
+        /** The displayed petals less the open type's base, which the cursor-facing layout leaves out. */
+        private static List<RadialWheel.PetalArc> abilitiesAndOthers(List<RadialWheel.PetalArc> displayed) {
+            return byStart(displayed.stream()
+                    .filter(petal -> petal.isAbility() || petal.type() != OPEN_TYPE).toList());
+        }
+
         @Test
         void easeLandsOnTheTargetAndHolds() {
             RadialWheel wheel = freshlyOpened();
 
             tick(wheel, RingEase.DURATION_TICKS);
-            assertSameLayout(wheel.layout(), byStart(wheel.displayedLayout(0.0f)));
+            assertSameLayout(wheel.layout(), abilitiesAndOthers(wheel.displayedLayout(0.0f)));
             tick(wheel, RingEase.DURATION_TICKS);
-            assertSameLayout(wheel.layout(), byStart(wheel.displayedLayout(0.5f)));
+            assertSameLayout(wheel.layout(), abilitiesAndOthers(wheel.displayedLayout(0.5f)));
+        }
+
+        @Test
+        void landedTypePetalStandsAsTheShortWideBaseOfItsAbilities() {
+            RadialWheel wheel = opened(ABILITIES);
+            List<RadialWheel.PetalArc> abilities = abilityPetals(wheel);
+
+            RadialWheel.PetalArc base = petalOf(wheel.displayedLayout(0.0f), OPEN_TYPE, RadialWheel.NONE);
+
+            assertEquals(RadialWheel.TYPE_BASE_LENGTH, base.length(), EPSILON);
+            assertEquals(abilities.getFirst().start(), base.start(), EPSILON);
+            assertEquals(abilities.stream().mapToDouble(RadialWheel.PetalArc::arc).sum(), base.arc(), EPSILON);
+            assertTrue(wheel.layout().stream().noneMatch(petal -> petal.type() == OPEN_TYPE && !petal.isAbility()));
         }
 
         @Test
