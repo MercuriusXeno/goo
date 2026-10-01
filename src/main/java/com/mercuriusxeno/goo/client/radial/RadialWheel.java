@@ -40,7 +40,12 @@ public final class RadialWheel {
     private static final int TURNS_TRIED = 2;
     /** Client ticks the ring follows the cursor after a type opens: a quarter second. */
     static final int GRACE_TICKS = 5;
-    /** The smallest openness or length a petal draws at. */
+    /**
+     * How far out an open type's petal reaches, as a fraction of the wheel's
+     * radius, standing as the base its ability petals grow out of.
+     */
+    static final double TYPE_BASE_LENGTH = 0.5;
+    /** The smallest openness a fanned card draws at. */
     private static final double VISIBLE = 1e-6;
 
     private final int typeCount;
@@ -115,8 +120,20 @@ public final class RadialWheel {
      */
     List<PetalArc> layout() {
         List<PetalArc> petals = new ArrayList<>(petalsOf(targetPose()));
+        petals.removeIf(this::isOpenBase);
         petals.sort(Comparator.comparingDouble(PetalArc::start));
         return petals;
+    }
+
+    /**
+     * Whether a petal is the open type's own petal standing as its abilities'
+     * base, which the cursor reads through to the abilities over it.
+     *
+     * @param petal the petal
+     * @return true for the base of a type fanned out into abilities
+     */
+    private boolean isOpenBase(PetalArc petal) {
+        return !petal.isAbility() && petal.type() == selectedType && abilityCount.applyAsInt(selectedType) > 0;
     }
 
     /**
@@ -183,7 +200,8 @@ public final class RadialWheel {
      * Lays a pose around the ring from its rotation, each type in its slot:
      * its ability cards, full size, fanned clockwise from stacked at the
      * slot's start as far as the type is open, and its own petal across the
-     * slot, shrunk lengthwise toward the hub as far as the type is open.
+     * slot, shortened toward the base length as far as the type is open, so
+     * a fully open type's petal is the base its abilities grow out of.
      * decision petal-moves-animate
      *
      * @param pose the pose
@@ -196,8 +214,8 @@ public final class RadialWheel {
             double openness = pose.openness()[type];
             double width = pose.widths()[type];
             addCards(petals, type, start, openness);
-            double length = 1.0 - (1.0 - HUB_FRACTION) * openness;
-            if (width > 0 && length > HUB_FRACTION + VISIBLE) {
+            double length = 1.0 - (1.0 - TYPE_BASE_LENGTH) * openness;
+            if (width > 0) {
                 petals.add(new PetalArc(type, NONE, start, width, length));
             }
             start += width;

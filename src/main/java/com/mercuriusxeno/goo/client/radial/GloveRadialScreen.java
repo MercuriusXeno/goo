@@ -91,9 +91,16 @@ public final class GloveRadialScreen extends Screen {
         wheel.tick();
     }
 
+    /**
+     * Draws the wheel at the frame's true partial tick: the float a screen's
+     * render receives is the frame's delta in ticks, not how far into the
+     * tick the frame falls, and easing on it steps once a tick.
+     * decision petal-moves-animate
+     */
     @Override
-    public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
-        super.extractBackground(graphics, mouseX, mouseY, partialTick);
+    public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float frameDelta) {
+        super.extractBackground(graphics, mouseX, mouseY, frameDelta);
+        float partialTick = minecraft.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         RadialWheelRenderer.render(graphics, font, new RadialWheelRenderer.Frame(wheel, types, abilities, available,
                 width / HALF, height / HALF, radius(), PetalLook.LIVE, partialTick));
     }

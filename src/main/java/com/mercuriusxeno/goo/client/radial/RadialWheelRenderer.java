@@ -126,15 +126,13 @@ final class RadialWheelRenderer {
         ClientAbility ability = frame.abilities().get(petal.type()).get(petal.ability());
         boolean hovered = petal.ability() == frame.wheel().hoveredAbility();
         FanSlot slotLabels = fanSlot(ability, frame.available().getOrDefault(key, 0));
-        int base = frame.look().wheelColor(key);
-        int color = slotLabels.dimmed() ? computeWedgeColor(base, false, true)
-                : ARGB.color(hovered ? HOVER_ALPHA : NORMAL_ALPHA, base);
         PetalPainter.paint(graphics, frame, frame.look().fluidFace(key), petal,
                 computeOverlayTint(hovered, slotLabels.dimmed()));
         int[] slot = tipCenter(frame, petal);
-        blitAbilityIcon(graphics, ability, slot, color);
+        blitAbilityIcon(graphics, ability, slot,
+                slotLabels.dimmed() ? computeOverlayTint(false, true) : COLOR_WHITE);
         int textColor = slotLabels.dimmed() ? DISABLED_TEXT_COLOR : hovered ? HOVER_TEXT_COLOR : COLOR_WHITE;
-        drawSlotLabels(graphics, font, slot, slotLines(ability, slotLabels), textColor);
+        drawWords(graphics, font, frame, petal, slotLines(ability, slotLabels), textColor);
     }
 
     /**
@@ -211,12 +209,33 @@ final class RadialWheelRenderer {
                 .toList();
     }
 
-    private static void drawSlotLabels(GuiGraphicsExtractor graphics, Font font, int[] slot,
-                                       List<Component> lines, int textColor) {
-        int labelY = slot[1] + ABILITY_ICON_OFFSET + LABEL_GAP;
+    /**
+     * Draws an ability's words as one centered block where they fit inside
+     * the petal without covering its icon or the type base.
+     * decision abilities-replace-the-hovered-type
+     *
+     * @param graphics  the GUI graphics extractor
+     * @param font      the font
+     * @param frame     what the frame draws from
+     * @param petal     the ability's petal
+     * @param lines     the name's lines, then the cost
+     * @param textColor the words' color
+     */
+    private static void drawWords(GuiGraphicsExtractor graphics, Font font, Frame frame, RadialWheel.PetalArc petal,
+                                  List<Component> lines, int textColor) {
+        int width = lines.stream().mapToInt(font::width).max().orElse(0);
+        int height = lines.size() * font.lineHeight;
+        double pixel = 1.0 / frame.radius();
+        double iconSide = (ABILITY_ICON_SIZE + LABEL_GAP * HALF) * pixel;
+        PetalMask.Point center = PetalWords.place(
+                new PetalMask.Petal(petal.start(), petal.arc(), RadialWheel.HUB_FRACTION, petal.length()),
+                RadialWheel.TYPE_BASE_LENGTH, new PetalWords.Size(iconSide, iconSide),
+                new PetalWords.Size(width * pixel, height * pixel), pixel);
+        int x = frame.centerX() + (int) Math.round(center.x() * frame.radius());
+        int lineY = frame.centerY() + (int) Math.round(center.y() * frame.radius()) - height / HALF;
         for (Component line : lines) {
-            graphics.centeredText(font, line, slot[0], labelY, textColor);
-            labelY += font.lineHeight;
+            graphics.centeredText(font, line, x, lineY, textColor);
+            lineY += font.lineHeight;
         }
     }
 
@@ -293,26 +312,6 @@ final class RadialWheelRenderer {
 
     private static Identifier typeIcon(ResourceKey<GooTypeDefinition> type) {
         return Identifier.fromNamespaceAndPath(Goo.MODID, TYPE_ICON_PREFIX + GooTypes.id(type) + ICON_SUFFIX);
-    }
-
-    /**
-     * Computes a wedge's ARGB color, brightened when hovered or selected
-     * and dimmed when the player holds none of its goo.
-     *
-     * @param baseColor the base RGB color from the goo type
-     * @param hovered   true for the hovered or selected wedge
-     * @param disabled  true when the player holds none of it
-     * @return the packed ARGB color
-     */
-    static int computeWedgeColor(int baseColor, boolean hovered, boolean disabled) {
-        int r = ARGB.red(baseColor);
-        int g = ARGB.green(baseColor);
-        int b = ARGB.blue(baseColor);
-        if (disabled) {
-            return ARGB.color(DISABLED_ALPHA, (int) (r * DISABLED_DIM), (int) (g * DISABLED_DIM),
-                    (int) (b * DISABLED_DIM));
-        }
-        return ARGB.color(hovered ? HOVER_ALPHA : NORMAL_ALPHA, r, g, b);
     }
 
     /**
