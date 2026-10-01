@@ -15,6 +15,7 @@ import org.junit.jupiter.api.function.Executable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.List;
@@ -74,7 +75,22 @@ class RadialWheelRendererTest {
                 String resource = ASSETS_ROOT + icon.getNamespace() + "/" + icon.getPath();
                 assertNotNull(RadialWheelRendererTest.class.getClassLoader().getResource(resource),
                         ability.id() + " resolves " + icon + " but no " + resource + " is on the classpath");
+                // ability-icons-read-16x16
+                assertEquals(List.of(RadialWheelRenderer.ABILITY_ICON_SIZE, RadialWheelRenderer.ABILITY_ICON_SIZE),
+                        pngDimensions(resource), resource);
             }));
+        }
+    }
+
+    private static final int IHDR_WIDTH_OFFSET = 16;
+    private static final int IHDR_END = 24;
+
+    /** Reads a classpath PNG's width and height from its IHDR chunk, which follows the 8-byte signature and the chunk's length and type. */
+    static List<Integer> pngDimensions(String resource) throws IOException {
+        try (InputStream stream = RadialWheelRendererTest.class.getClassLoader().getResourceAsStream(resource)) {
+            assertNotNull(stream, resource + " is not on the classpath");
+            ByteBuffer header = ByteBuffer.wrap(stream.readNBytes(IHDR_END));
+            return List.of(header.getInt(IHDR_WIDTH_OFFSET), header.getInt(IHDR_WIDTH_OFFSET + Integer.BYTES));
         }
     }
 
