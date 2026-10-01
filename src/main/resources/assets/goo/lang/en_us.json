@@ -1,6 +1,9 @@
 {
   "itemGroup.goo": "Goo",
 
+  "key.category.goo.glove": "Goo Glove",
+  "key.goo.glove_menu": "Goo glove menu",
+
   "item.goo.goo": "%s Goo",
 
   "item.goo.goo_bucket": "%s Goo Bucket",
