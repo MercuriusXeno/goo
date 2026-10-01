@@ -84,6 +84,37 @@ class GloveRadialKeyGateTest {
         }
     }
 
+    /** While the petals move, a release or a click reads nothing (decision mid-animation-input-does-nothing). */
+    @Nested
+    class SettledPick {
+
+        private final RadialWheel.Outcome hovered = new RadialWheel.Outcome(2, 1);
+
+        @Test
+        void releaseWhileAnimatingClosesUnchanged() {
+            RecordingRelease release = new RecordingRelease();
+
+            GloveRadialKeyGate.release(GloveRadialKeyGate.settledPick(true, hovered), release);
+
+            assertEquals(List.of("close"), release.calls);
+        }
+
+        @Test
+        void releaseOnceLandedSelectsTheHoveredAbility() {
+            RecordingRelease release = new RecordingRelease();
+
+            GloveRadialKeyGate.release(GloveRadialKeyGate.settledPick(false, hovered), release);
+
+            assertEquals(List.of("selectHovered", "close"), release.calls);
+            assertEquals(hovered, release.selected);
+        }
+
+        @Test
+        void clickWhileAnimatingCancels() {
+            assertEquals(RadialWheel.Outcome.CANCEL, GloveRadialKeyGate.settledPick(true, hovered));
+        }
+    }
+
     @Nested
     class Translations {
 

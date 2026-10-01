@@ -285,6 +285,9 @@ class RadialWheelRendererTest {
             RadialWheel wheel = new RadialWheel(TYPES, type -> ABILITIES);
             double angle = (OPEN_TYPE + 0.5) * wheel.typeArc();
             wheel.moveCursor(Math.sin(angle) * RADIUS * 0.6, -Math.cos(angle) * RADIUS * 0.6, RADIUS);
+            for (int tick = 0; tick < RingEase.DURATION_TICKS; tick++) {
+                wheel.tick();
+            }
             return wheel;
         }
 
@@ -299,7 +302,7 @@ class RadialWheelRendererTest {
             when(graphics.pose()).thenReturn(new Matrix3x2fStack(1));
             Font font = mock(Font.class);
             RadialWheelRenderer.render(graphics, font, new RadialWheelRenderer.Frame(wheel, types, abilities,
-                    Map.of(types.get(OPEN_TYPE), HOLDINGS), CENTER_X, CENTER_Y, RADIUS, fakeLook));
+                    Map.of(types.get(OPEN_TYPE), HOLDINGS), CENTER_X, CENTER_Y, RADIUS, fakeLook, 0.0f));
             return graphics;
         }
 

@@ -26,10 +26,11 @@ import java.util.Map;
  * The glove's one radial wheel, open while the glove menu key is held:
  * hovering or scrolling to a type replaces its petal with its abilities,
  * releasing the key over an ability writes it to the glove and closes, and
- * releasing it over nothing, or pressing Escape, closes with the glove
- * unchanged. A mouse click does nothing here.
+ * releasing it over nothing, while the petals still move, or pressing
+ * Escape, closes with the glove unchanged. A mouse click does nothing here.
  * decision abilities-replace-the-hovered-type
  * decision radial-selects-on-g-release
+ * decision mid-animation-input-does-nothing
  */
 public final class GloveRadialScreen extends Screen {
 
@@ -80,11 +81,21 @@ public final class GloveRadialScreen extends Screen {
         return true;
     }
 
+    /**
+     * Advances the petals' ease on the client tick.
+     * decision petal-moves-animate
+     */
+    @Override
+    public void tick() {
+        super.tick();
+        wheel.tick();
+    }
+
     @Override
     public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         super.extractBackground(graphics, mouseX, mouseY, partialTick);
         RadialWheelRenderer.render(graphics, font, new RadialWheelRenderer.Frame(wheel, types, abilities, available,
-                width / HALF, height / HALF, radius(), PetalLook.LIVE));
+                width / HALF, height / HALF, radius(), PetalLook.LIVE, partialTick));
     }
 
     /**
@@ -100,7 +111,8 @@ public final class GloveRadialScreen extends Screen {
         if (!GloveRadialKey.MAPPING.matches(event)) {
             return super.keyReleased(event);
         }
-        GloveRadialKeyGate.release(wheel.click(), new GloveRadialKeyGate.ReleaseActions() {
+        RadialWheel.Outcome pick = GloveRadialKeyGate.settledPick(wheel.isAnimating(), wheel.click());
+        GloveRadialKeyGate.release(pick, new GloveRadialKeyGate.ReleaseActions() {
             @Override
             public void selectHovered(RadialWheel.Outcome hovered) {
                 selectAbility(types.get(hovered.type()), abilities.get(hovered.type()).get(hovered.ability()));

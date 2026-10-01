@@ -68,11 +68,12 @@ final class RadialWheelRenderer {
      * @param centerX   the wheel's center x
      * @param centerY   the wheel's center y
      * @param radius    the wheel's outer radius
-     * @param look      the masks and colors a petal draws with
+     * @param look        the fluid, edge and colors a petal draws with
+     * @param partialTick the fraction of a tick since the last one, for the petals' ease
      */
     record Frame(RadialWheel wheel, List<ResourceKey<GooTypeDefinition>> types,
                  List<List<ClientAbility>> abilities, Map<ResourceKey<GooTypeDefinition>, Integer> available,
-                 int centerX, int centerY, int radius, PetalLook look) {
+                 int centerX, int centerY, int radius, PetalLook look, float partialTick) {
     }
 
     /**
@@ -84,7 +85,7 @@ final class RadialWheelRenderer {
      */
     static void render(GuiGraphicsExtractor graphics, Font font, Frame frame) {
         blitMask(graphics, frame, frame.look().hubMask(), HUB_COLOR);
-        for (RadialWheel.PetalArc petal : frame.wheel().layout()) {
+        for (RadialWheel.PetalArc petal : frame.wheel().displayedLayout(frame.partialTick())) {
             if (petal.isAbility()) {
                 renderAbility(graphics, font, frame, petal);
             } else {
