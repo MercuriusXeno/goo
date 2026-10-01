@@ -2,7 +2,10 @@ package com.mercuriusxeno.goo.client.radial;
 
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
+import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -64,53 +67,20 @@ class PetalMaskTest {
         }
     }
 
-    /** The fill carries the fluid sprite's pixel at each wheel position (decision wedges-render-fluid-texture). */
+    /** The hub's baked circle fills one color, alpha scaled by coverage. */
     @Nested
     class Fill {
 
         private static final int SIZE = 64;
-        private static final int SPRITE_SIDE = 4;
-        private static final int WHITE = 0xFFFFFFFF;
+        private static final int GREY = 0xFF808080;
         /** A right half-plane: every sub-sample of a pixel right of center is inside. */
         private static final PetalMask.Shape RIGHT_HALF = (x, y) -> x > 0;
 
-        /** A synthetic sprite whose every pixel is distinct and opaque. */
-        private final PetalMask.PixelSource sprite = new PetalMask.PixelSource() {
-            @Override
-            public int width() {
-                return SPRITE_SIDE;
-            }
-
-            @Override
-            public int height() {
-                return SPRITE_SIDE;
-            }
-
-            @Override
-            public int pixel(int x, int y) {
-                return 0xFF000000 | (x * 0x40) << 16 | (y * 0x40) << 8 | 0x11;
-            }
-        };
-
-        private final int[] pixels = PetalMask.fill(SIZE, RIGHT_HALF, sprite, WHITE);
+        private final int[] pixels = PetalMask.fill(SIZE, RIGHT_HALF, GREY);
 
         @Test
-        void insidePixelsCarryTheSpriteAtTheTiledCoordinate() {
-            for (int py = 0; py < SIZE; py += 3) {
-                for (int px = SIZE / 2; px < SIZE; px += 5) {
-                    int tiledX = (px / PetalMask.TEXEL_SCALE) % SPRITE_SIDE;
-                    int tiledY = (py / PetalMask.TEXEL_SCALE) % SPRITE_SIDE;
-                    assertEquals(sprite.pixel(tiledX, tiledY), pixels[py * SIZE + px],
-                            "pixel " + px + "," + py);
-                }
-            }
-        }
-
-        @Test
-        void spriteRepeatsAcrossTheWheel() {
-            int period = PetalMask.TEXEL_SCALE * SPRITE_SIDE;
-            int px = SIZE / 2 + 1;
-            assertEquals(pixels[px], pixels[px + period]);
+        void insidePixelsCarryTheColor() {
+            assertEquals(GREY, pixels[SIZE - 1]);
         }
 
         @Test
@@ -121,64 +91,68 @@ class PetalMaskTest {
                 }
             }
         }
-
-        @Test
-        void tintMultipliesTheSprite() {
-            int halfGrey = 0xFF808080;
-            int[] tinted = PetalMask.fill(SIZE, RIGHT_HALF, PetalMask.PixelSource.solid(WHITE), halfGrey);
-            assertEquals(0xFF808080, tinted[SIZE - 1]);
-        }
     }
 
-    /** A petal's boundary carries a solid edge around its fluid fill (decision wedges-take-a-solid-edge). */
+    /**
+     * The outline the live petal tessellates and edges along lies on the
+     * boundary the contains test agrees with, on the cap, the radial edges
+     * of the stem and the inner arc (decision petals-render-the-live-fluid).
+     */
     @Nested
-    class SolidEdge {
+    class Outline {
 
-        private static final int SIZE = 256;
-        private static final int EDGE_COLOR = 0xFF123456;
-        private static final int FILL_COLOR = 0xFFABCDEF;
-        private static final double HALF_EDGE = PetalMask.Edge.WEDGE_THICKNESS / 2;
-        private static final double MID_RADIUS = (INNER + OUTER) / 2;
+        private static final int SEGMENTS = 12;
+        private static final double NUDGE = 1e-6;
+        private final PetalMask.Petal petal = new PetalMask.Petal(START, ARC, INNER, OUTER);
+        private final List<PetalMask.Point> outline = petal.outline(SEGMENTS);
 
-        private final int[] pixels = PetalMask.fill(SIZE, new PetalMask.Petal(START, ARC, INNER, OUTER),
-                PetalMask.PixelSource.solid(FILL_COLOR), 0xFFFFFFFF,
-                new PetalMask.Edge(EDGE_COLOR, PetalMask.Edge.WEDGE_THICKNESS));
-
-        private int pixelAt(double angle, double distance) {
-            double half = SIZE / 2.0;
-            int px = (int) Math.floor(Math.sin(angle) * distance * half + half);
-            int py = (int) Math.floor(-Math.cos(angle) * distance * half + half);
-            return pixels[py * SIZE + px];
+        /** The outline's points on one side, endpoints dropped so each sits on that side alone. */
+        private List<PetalMask.Point> side(int index) {
+            return outline.subList(index * SEGMENTS + 1, (index + 1) * SEGMENTS);
         }
 
-        /** The angle off a radial edge that puts a point half an edge's width inside it at a radius. */
-        private static double halfEdgeOff(double radius) {
-            return Math.asin(HALF_EDGE / radius);
+        private void assertOnBoundaryAlongRay(PetalMask.Point point, boolean insideIsInward) {
+            double angle = RadialWheel.angleOf(point.x(), point.y());
+            double distance = Math.hypot(point.x(), point.y());
+            double inward = insideIsInward ? -NUDGE : NUDGE;
+            PetalMask.Point inside = PetalMask.Point.polar(angle, distance + inward);
+            PetalMask.Point outside = PetalMask.Point.polar(angle, distance - inward);
+            assertTrue(petal.contains(inside.x(), inside.y()), "inside of " + point);
+            assertFalse(petal.contains(outside.x(), outside.y()), "outside of " + point);
         }
 
-        @Test
-        void innerArcIsTheEdgeColor() {
-            assertEquals(EDGE_COLOR, pixelAt(START + ARC / 2, INNER + HALF_EDGE));
-        }
-
-        @Test
-        void startEdgeIsTheEdgeColor() {
-            assertEquals(EDGE_COLOR, pixelAt(START + halfEdgeOff(MID_RADIUS), MID_RADIUS));
+        private void assertOnBoundaryAcrossAngle(PetalMask.Point point, double insideTurn) {
+            double angle = RadialWheel.angleOf(point.x(), point.y());
+            double distance = Math.hypot(point.x(), point.y());
+            PetalMask.Point inside = PetalMask.Point.polar(angle + insideTurn, distance);
+            PetalMask.Point outside = PetalMask.Point.polar(angle - insideTurn, distance);
+            assertTrue(petal.contains(inside.x(), inside.y()), "inside of " + point);
+            assertFalse(petal.contains(outside.x(), outside.y()), "outside of " + point);
         }
 
         @Test
-        void endEdgeIsTheEdgeColor() {
-            assertEquals(EDGE_COLOR, pixelAt(START + ARC - halfEdgeOff(MID_RADIUS), MID_RADIUS));
+        void innerArcPointsLieOnTheInnerBoundary() {
+            assertAll(side(0).stream().map(point -> (Executable) () -> assertOnBoundaryAlongRay(point, false)));
         }
 
         @Test
-        void roundedCapIsTheEdgeColor() {
-            assertEquals(EDGE_COLOR, pixelAt(START + ARC / 2, OUTER - HALF_EDGE));
+        void endEdgePointsLieOnTheStemsEndBoundary() {
+            assertAll(side(1).stream().map(point -> (Executable) () -> assertOnBoundaryAcrossAngle(point, -NUDGE)));
         }
 
         @Test
-        void interiorCarriesTheFill() {
-            assertEquals(FILL_COLOR, pixelAt(START + ARC / 2, MID_RADIUS));
+        void capPointsLieOnTheCapsBoundary() {
+            assertAll(side(2).stream().map(point -> (Executable) () -> assertOnBoundaryAlongRay(point, true)));
+        }
+
+        @Test
+        void startEdgePointsLieOnTheStemsStartBoundary() {
+            assertAll(side(3).stream().map(point -> (Executable) () -> assertOnBoundaryAcrossAngle(point, NUDGE)));
+        }
+
+        @Test
+        void capReachesTheOuterRadiusOnTheCenterAngle() {
+            assertEquals(OUTER, petal.reach(START + ARC / 2), 1e-12);
         }
     }
 

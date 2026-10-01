@@ -84,7 +84,7 @@ public final class GloveRadialScreen extends Screen {
     public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         super.extractBackground(graphics, mouseX, mouseY, partialTick);
         RadialWheelRenderer.render(graphics, font, new RadialWheelRenderer.Frame(wheel, types, abilities, available,
-                width / HALF, height / HALF, radius(), RadialWheelRenderer.PetalLook.LIVE));
+                width / HALF, height / HALF, radius(), PetalLook.LIVE));
     }
 
     /**

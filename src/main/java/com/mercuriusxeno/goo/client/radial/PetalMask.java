@@ -1,14 +1,16 @@
 package com.mercuriusxeno.goo.client.radial;
 
 import net.minecraft.util.ARGB;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * The pure geometry and fill of one radial wedge's mask: a petal whose
- * outer end is a rounded cap bridging its two radial edges rather than a
- * cut of the wheel's circle (decision wedges-round-off-like-petals), filled
- * with its goo's fluid sprite in place of a flat color (decision
- * wedges-render-fluid-texture) inside a solid edge (decision
- * wedges-take-a-solid-edge).
+ * The pure geometry of one radial petal: a wedge whose outer end is a
+ * rounded cap bridging its two radial edges rather than a cut of the
+ * wheel's circle (decision wedges-round-off-like-petals), with the outline
+ * the live-drawn petal tessellates and edges along (decision
+ * petals-render-the-live-fluid), and the rasterizer the hub's baked circle
+ * mask still reads.
  *
  * <p>The cap is the circle tangent to both radial edges whose farthest
  * point reaches the outer radius on the wedge's center angle. A wedge at
@@ -17,19 +19,13 @@ import net.minecraft.util.ARGB;
  */
 final class PetalMask {
 
-    /**
-     * Mask pixels one sprite pixel covers, so a 16-pixel sprite tiles four
-     * times across a 256-pixel wheel.
-     */
-    static final int TEXEL_SCALE = 4;
-
     /** Sub-samples per axis for anti-aliasing (4x4 = 16 samples per pixel). */
     private static final int AA_SAMPLES = 4;
     private static final int AA_TOTAL = AA_SAMPLES * AA_SAMPLES;
     private static final double TWO_PI = 2.0 * Math.PI;
     private static final double HALF = 0.5;
-    private static final int MAX_CHANNEL = 255;
-    private static final int OPAQUE_WHITE = 0xFFFFFFFF;
+    /** The outline's sides: the inner arc, the end edge, the cap and the start edge. */
+    private static final int OUTLINE_SIDES = 4;
 
     private PetalMask() {
     }
@@ -51,79 +47,26 @@ final class PetalMask {
     }
 
     /**
-     * Rasterizes a shape over a square mask, each covered pixel carrying the
-     * sprite's pixel at that wheel position, tiled across the wheel and
-     * multiplied by the tint, its alpha scaled by the pixel's coverage.
+     * Rasterizes a shape over a square mask in one color, each covered
+     * pixel's alpha scaled by the pixel's coverage.
      *
-     * @param size   the mask's side in pixels
-     * @param shape  the shape over normalized coordinates
-     * @param sprite the pixels the fill tiles
-     * @param tint   the ARGB tint each sprite pixel is multiplied by
+     * @param size  the mask's side in pixels
+     * @param shape the shape over normalized coordinates
+     * @param color the ARGB color of a fully covered pixel
      * @return the mask's ARGB pixels, row by row; uncovered pixels are 0
      */
-    static int[] fill(int size, Shape shape, PixelSource sprite, int tint) {
-        return fill(size, shape, sprite, tint, Edge.NONE);
-    }
-
-    /**
-     * Rasterizes a shape as {@link #fill(int, Shape, PixelSource, int)} does,
-     * with every covered pixel within the edge's thickness of the shape's
-     * boundary taking the edge color in place of the sprite (decision
-     * wedges-take-a-solid-edge).
-     *
-     * @param size   the mask's side in pixels
-     * @param shape  the shape over normalized coordinates
-     * @param sprite the pixels the fill tiles
-     * @param tint   the ARGB tint each sprite pixel is multiplied by
-     * @param edge   the solid edge drawn along the boundary
-     * @return the mask's ARGB pixels, row by row; uncovered pixels are 0
-     */
-    static int[] fill(int size, Shape shape, PixelSource sprite, int tint, Edge edge) {
+    static int[] fill(int size, Shape shape, int color) {
         int[] pixels = new int[size * size];
         double half = size * HALF;
         for (int py = 0; py < size; py++) {
             for (int px = 0; px < size; px++) {
                 int hits = countHits(px, py, half, shape);
                 if (hits > 0) {
-                    boolean onEdge = isOnEdge(shape, edge, toCenter(px, half), toCenter(py, half));
-                    pixels[py * size + px] = onEdge ? coverPixel(edge.color(), OPAQUE_WHITE, hits)
-                            : coverPixel(tiledPixel(sprite, px, py), tint, hits);
+                    pixels[py * size + px] = ARGB.color(ARGB.alpha(color) * hits / AA_TOTAL, color);
                 }
             }
         }
         return pixels;
-    }
-
-    private static boolean isOnEdge(Shape shape, Edge edge, double x, double y) {
-        return edge.thickness() > 0 && (!shape.contains(x, y) || shape.depth(x, y) <= edge.thickness());
-    }
-
-    private static double toCenter(int pixel, double half) {
-        return (pixel + HALF - half) / half;
-    }
-
-    /**
-     * The sprite pixel a mask pixel shows when the sprite tiles across the wheel.
-     *
-     * @param sprite the pixels the fill tiles
-     * @param px     the mask pixel's x
-     * @param py     the mask pixel's y
-     * @return the sprite's ARGB pixel
-     */
-    static int tiledPixel(PixelSource sprite, int px, int py) {
-        return sprite.pixel(Math.floorMod(px / TEXEL_SCALE, sprite.width()),
-                Math.floorMod(py / TEXEL_SCALE, sprite.height()));
-    }
-
-    private static int coverPixel(int spritePixel, int tint, int hits) {
-        int alpha = multiply(ARGB.alpha(spritePixel), ARGB.alpha(tint)) * hits / AA_TOTAL;
-        return ARGB.color(alpha, multiply(ARGB.red(spritePixel), ARGB.red(tint)),
-                multiply(ARGB.green(spritePixel), ARGB.green(tint)),
-                multiply(ARGB.blue(spritePixel), ARGB.blue(tint)));
-    }
-
-    private static int multiply(int channel, int tintChannel) {
-        return channel * tintChannel / MAX_CHANNEL;
     }
 
     private static int countHits(int px, int py, double half, Shape shape) {
@@ -158,31 +101,26 @@ final class PetalMask {
          * @return true when inside
          */
         boolean contains(double x, double y);
-
-        /**
-         * How far an inside point lies from the shape's boundary.
-         *
-         * @param x normalized x
-         * @param y normalized y, down positive
-         * @return the distance in normalized units; a shape with no boundary to edge answers infinity
-         */
-        default double depth(double x, double y) {
-            return Double.POSITIVE_INFINITY;
-        }
     }
 
     /**
-     * The solid edge a fill draws along a shape's boundary.
+     * A point in the wheel's normalized coordinates.
      *
-     * @param color     the opaque ARGB edge color
-     * @param thickness the edge's width inward from the boundary, in normalized units; 0 draws none
+     * @param x normalized x
+     * @param y normalized y, down positive
      */
-    record Edge(int color, double thickness) {
-        /** No edge: the fill reaches the boundary. */
-        static final Edge NONE = new Edge(0, 0.0);
+    record Point(double x, double y) {
 
-        /** The width of a wedge's edge, a fiftieth of the wheel's radius. */
-        static final double WEDGE_THICKNESS = 0.02;
+        /**
+         * The point at an angle and a distance from the wheel's center.
+         *
+         * @param angle    the angle, clockwise from the top
+         * @param distance the distance from the center
+         * @return the point
+         */
+        static Point polar(double angle, double distance) {
+            return new Point(Math.sin(angle) * distance, -Math.cos(angle) * distance);
+        }
     }
 
     /**
@@ -207,14 +145,52 @@ final class PetalMask {
             return !isRound() || isInsideStem(x, y) || capDepth(x, y) >= 0;
         }
 
-        @Override
-        public double depth(double x, double y) {
-            double depth = Math.min(Math.hypot(x, y) - inner,
-                    Math.min(rayDistance(x, y, start), rayDistance(x, y, start + arc)));
+        /**
+         * How far a ray from the wheel's center at an angle within the
+         * wedge reaches before it leaves the petal: the far side of the cap
+         * circle, or the outer radius for a wedge with no cap.
+         * decision petals-render-the-live-fluid
+         *
+         * @param angle the ray's angle, clockwise from the top, within the wedge
+         * @return the distance in normalized units
+         */
+        double reach(double angle) {
             if (!isRound()) {
-                return Math.min(depth, outer - Math.hypot(x, y));
+                return outer;
             }
-            return isInsideStem(x, y) ? depth : Math.min(depth, capDepth(x, y));
+            double offCenter = angle - (start + arc * HALF);
+            double capCenter = capCenter();
+            double capRadius = capCenter * sinHalf();
+            double across = capCenter * Math.sin(offCenter);
+            return capCenter * Math.cos(offCenter) + Math.sqrt(Math.max(0.0, capRadius * capRadius - across * across));
+        }
+
+        /**
+         * The petal's closed outline: the inner arc from the start edge to the
+         * end edge, the end edge out to the cap, the cap back to the start
+         * edge, and the start edge in to the inner arc.
+         * decision petals-render-the-live-fluid
+         *
+         * @param segments the segments each of the four sides is cut into
+         * @return the outline's points in order, the last joining back to the first
+         */
+        List<Point> outline(int segments) {
+            List<Point> points = new ArrayList<>(segments * OUTLINE_SIDES);
+            double end = start + arc;
+            for (int i = 0; i < segments; i++) {
+                points.add(Point.polar(start + arc * i / segments, inner));
+            }
+            for (int i = 0; i < segments; i++) {
+                points.add(Point.polar(end, inner + (reach(end) - inner) * i / segments));
+            }
+            for (int i = 0; i < segments; i++) {
+                double angle = end - arc * i / segments;
+                points.add(Point.polar(angle, reach(angle)));
+            }
+            for (int i = 0; i < segments; i++) {
+                points.add(Point.polar(start, reach(start) - (reach(start) - inner) * i / segments));
+            }
+            return points;
         }
 
         /**
@@ -268,63 +244,6 @@ final class PetalMask {
             double capCenter = capCenter();
             return capCenter * sinHalf()
                     - Math.hypot(x - Math.sin(center) * capCenter, y + Math.cos(center) * capCenter);
-        }
-
-        private static double rayDistance(double x, double y, double angle) {
-            double dirX = Math.sin(angle);
-            double dirY = -Math.cos(angle);
-            return x * dirX + y * dirY <= 0 ? Math.hypot(x, y) : Math.abs(x * dirY - y * dirX);
-        }
-    }
-
-    /** The pixels a fill tiles: a sprite's first frame, or a solid color. */
-    interface PixelSource {
-        /**
-         * The source's width.
-         *
-         * @return the width in pixels
-         */
-        int width();
-
-        /**
-         * The source's height.
-         *
-         * @return the height in pixels
-         */
-        int height();
-
-        /**
-         * One pixel of the source.
-         *
-         * @param x the pixel's x, within the width
-         * @param y the pixel's y, within the height
-         * @return the ARGB pixel
-         */
-        int pixel(int x, int y);
-
-        /**
-         * A one-pixel source of a single color.
-         *
-         * @param argb the color
-         * @return the source
-         */
-        static PixelSource solid(int argb) {
-            return new PixelSource() {
-                @Override
-                public int width() {
-                    return 1;
-                }
-
-                @Override
-                public int height() {
-                    return 1;
-                }
-
-                @Override
-                public int pixel(int x, int y) {
-                    return argb;
-                }
-            };
         }
     }
 }
