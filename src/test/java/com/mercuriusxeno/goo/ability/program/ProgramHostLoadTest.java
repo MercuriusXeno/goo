@@ -200,7 +200,8 @@ class ProgramHostLoadTest {
     }
 
     private static final Map<HostKind, Class<? extends StepHost>> HOST_TYPES = Map.of(
-            HostKind.MARKER, MarkerHost.class, HostKind.ENTITY, EntityHost.class, HostKind.TAP, TapHost.class);
+            HostKind.MARKER, MarkerHost.class, HostKind.ENTITY, EntityHost.class, HostKind.TAP, TapHost.class,
+            HostKind.PLAYER, PlayerHost.class);
 
     /**
      * A step needing exactly one capability, standing in for whichever

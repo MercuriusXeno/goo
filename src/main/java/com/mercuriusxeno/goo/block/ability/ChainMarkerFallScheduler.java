@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.block.ability;
 
 import com.mercuriusxeno.goo.network.GooFlightPayload;
+import com.mercuriusxeno.goo.network.GooThrowHandler;
 import com.mercuriusxeno.goo.throwing.ThrowArc;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -131,7 +132,8 @@ public final class ChainMarkerFallScheduler {
                 Direction.UP.ordinal(),
                 travelTicks,
                 false,
-                snapshot.abilityId());
+                snapshot.abilityId(),
+                GooThrowHandler.flightDelivery(level, snapshot.abilityId(), snapshot.gooType()));
         PacketDistributor.sendToPlayersTrackingChunk(
                 level, level.getChunkAt(oldPos).getPos(), flight);
     }
