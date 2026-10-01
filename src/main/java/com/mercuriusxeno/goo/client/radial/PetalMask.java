@@ -34,7 +34,8 @@ final class PetalMask {
     static final int CAP_SEGMENTS_PER_SIDE = 6;
     /**
      * The largest a corner's rounding grows, as a fraction of the band from
-     * the inner radius to the tip, so a wide base keeps rounded corners at
+     * the hub to the tip, so an ability petal rooted on its type keeps the
+     * same round tip, so a wide base keeps rounded corners at
      * its sides and a blunt tip rather than reading as a circle.
      */
     static final double MAX_CORNER = 0.25;
@@ -276,7 +277,7 @@ final class PetalMask {
             }
             double sinHalf = Math.sin(arc * HALF);
             double tangent = outer * sinHalf / (1.0 + sinHalf);
-            return Math.min(tangent, MAX_CORNER * (outer - inner));
+            return Math.min(tangent, MAX_CORNER * (outer - RadialWheel.HUB_FRACTION));
         }
 
         /**

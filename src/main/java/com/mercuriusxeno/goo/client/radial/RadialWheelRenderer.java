@@ -167,15 +167,15 @@ final class RadialWheelRenderer {
      * @return the point's x and y
      */
     static int[] tipCenter(Frame frame, RadialWheel.PetalArc petal) {
-        PetalMask.Point tip = new PetalMask.Petal(petal.start(), petal.arc(), RadialWheel.HUB_FRACTION,
-                petal.length()).tipCenter();
+        PetalMask.Point tip = new PetalMask.Petal(petal.start(), petal.arc(), petal.inner(), petal.length())
+                .tipCenter();
         return new int[]{frame.centerX() + (int) Math.round(tip.x() * frame.radius()),
                 frame.centerY() + (int) Math.round(tip.y() * frame.radius())};
     }
 
     /**
-     * Draws the ability's icon under the wedge's tint, then its badge untinted
-     * over the icon's corner, so the badge keeps the colors that tell its kind.
+     * Draws the ability's icon, then its badge untinted directly to the icon's
+     * right, where the words never clip it and it never covers the icon.
      * badge-marks-the-target-kind
      *
      * @param graphics the GUI graphics extractor
@@ -185,19 +185,19 @@ final class RadialWheelRenderer {
      */
     private static void blitAbilityIcon(GuiGraphicsExtractor graphics, ClientAbility ability, int[] slot, int color) {
         blitIcon(graphics, new Icon(resolveAbilityIcon(ability), ABILITY_ICON_SIZE), slot, color);
-        blitIcon(graphics, new Icon(badgeIcon(ability.badge()), ABILITY_ICON_SIZE), badgeCorner(slot), COLOR_WHITE);
+        blitIcon(graphics, new Icon(badgeIcon(ability.badge()), ABILITY_ICON_SIZE), badgeBeside(slot), COLOR_WHITE);
     }
 
     /**
-     * The point a badge centers on: the ability icon's top-right corner, so the
-     * badge overhangs the icon and clears the name drawn under it.
+     * The point a badge centers on: one icon's width right of the ability
+     * icon's center, on its row, so the badge sits beside the icon edge to edge.
      * badge-marks-the-target-kind
      *
      * @param iconCenter the ability icon's center
      * @return the badge's center
      */
-    private static int[] badgeCorner(int[] iconCenter) {
-        return new int[]{iconCenter[0] + ABILITY_ICON_OFFSET, iconCenter[1] - ABILITY_ICON_OFFSET};
+    private static int[] badgeBeside(int[] iconCenter) {
+        return new int[]{iconCenter[0] + ABILITY_ICON_SIZE, iconCenter[1]};
     }
 
     /**

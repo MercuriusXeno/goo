@@ -253,27 +253,53 @@ public final class RadialWheel {
         for (int type = 0; type < typeCount; type++) {
             double openness = pose.openness()[type];
             double width = pose.widths()[type];
-            addCards(petals, type, start, openness, cardLength);
             double length = 1.0 - (1.0 - TYPE_BASE_LENGTH) * openness;
+            double cardRoot = cardRoot(start, width, length);
+            addCards(petals, type, new Slot(start, openness, cardRoot), cardLength);
             if (width > 0) {
-                petals.add(new PetalArc(type, NONE, start, width, length));
+                petals.add(new PetalArc(type, NONE, start, width, HUB_FRACTION, length));
             }
             start += width;
         }
         return petals;
     }
 
-    private void addCards(List<PetalArc> petals, int type, double slotStart, double openness,
-                          CardLength cardLength) {
+    private void addCards(List<PetalArc> petals, int type, Slot slot, CardLength cardLength) {
         int abilities = abilityCount.applyAsInt(type);
-        if (abilities == 0 || openness <= VISIBLE) {
+        if (abilities == 0 || slot.openness() <= VISIBLE) {
             return;
         }
         double card = arcsWithOpenType(abilities).ability();
         for (int ability = abilities - 1; ability >= 0; ability--) {
-            petals.add(new PetalArc(type, ability, slotStart + ability * card * openness, card,
-                    cardLength.of(type, ability)));
+            petals.add(new PetalArc(type, ability, slot.start() + ability * card * slot.openness(), card,
+                    slot.cardRoot(), cardLength.of(type, ability)));
         }
+    }
+
+    /**
+     * Where a type's ability cards start out from: the type petal itself, one
+     * of its corner roundings short of its length so the cards tuck under its
+     * rounded corners, never nearer than the hub.
+     * decision petal-moves-animate
+     *
+     * @param start  the type petal's start angle
+     * @param width  the type petal's arc
+     * @param length the type petal's length
+     * @return the cards' inner radius
+     */
+    private static double cardRoot(double start, double width, double length) {
+        double corner = new PetalMask.Petal(start, width, HUB_FRACTION, length).cornerRadius();
+        return Math.max(HUB_FRACTION, length - corner);
+    }
+
+    /**
+     * A type's slot as its cards read it.
+     *
+     * @param start    the slot's start angle
+     * @param openness how far the type is open
+     * @param cardRoot the cards' inner radius
+     */
+    private record Slot(double start, double openness, double cardRoot) {
     }
 
     /**
@@ -571,9 +597,11 @@ public final class RadialWheel {
      * @param ability the ability index, or {@link #NONE} for the type's own petal
      * @param start   the petal's start angle, clockwise from the top
      * @param arc     the petal's span in radians
+     * @param inner   the petal's inner radius as a fraction of the wheel's: the hub for a type,
+     *                the type petal it starts out from for an ability
      * @param length  the petal's outer radius as a fraction of the wheel's, short of 1 while it recedes
      */
-    record PetalArc(int type, int ability, double start, double arc, double length) {
+    record PetalArc(int type, int ability, double start, double arc, double inner, double length) {
 
         /**
          * Whether the petal is an ability of the open type.

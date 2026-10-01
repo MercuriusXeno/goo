@@ -35,7 +35,7 @@ final class PetalPainter {
      */
     static void paint(GuiGraphicsExtractor graphics, RadialWheelRenderer.Frame frame, PetalLook.FluidFace face,
                       RadialWheel.PetalArc petal, int overlay) {
-        PetalMask.Petal shape = new PetalMask.Petal(petal.start(), petal.arc(), RadialWheel.HUB_FRACTION, petal.length());
+        PetalMask.Petal shape = new PetalMask.Petal(petal.start(), petal.arc(), petal.inner(), petal.length());
         Matrix3x2f pose = new Matrix3x2f(graphics.pose());
         ScreenRectangle scissor = graphics.peekScissorStack();
         List<PetalRenderState.ScreenVertex> fill = toScreen(frame, PetalMesh.fill(shape), face.sprite());
