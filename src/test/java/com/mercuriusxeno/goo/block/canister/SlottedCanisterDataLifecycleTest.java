@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.block.canister;
 
 import com.mercuriusxeno.goo.block.GooMachineBlockEntity;
+import com.mercuriusxeno.goo.block.gasket.AddressedGasket;
 import com.mercuriusxeno.goo.block.gasket.GasketAttachment;
 import com.mercuriusxeno.goo.block.gasket.SlotGasketPusher;
 import com.mercuriusxeno.goo.block.gasket.SlotGasketRegistration;
@@ -8,11 +9,14 @@ import com.mercuriusxeno.goo.data.GasketRegistry;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.CanisterMetadata;
+import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.Bootstrap;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.neoforged.fml.loading.FMLLoader;
 import net.neoforged.neoforge.attachment.AttachmentHolder;
@@ -20,17 +24,21 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.InOrder;
 import org.mockito.MockedStatic;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.inOrder;
@@ -41,6 +49,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.withSettings;
 
 /**
  * Every slotted host, whatever its slot shape, puts a canister in and takes it out through
@@ -229,6 +238,105 @@ class SlottedCanisterDataLifecycleTest {
 
             verify(slot, never()).clear();
             registration.verifyNoInteractions();
+        }
+    }
+
+    /**
+     * Each path that changes a slot's gasket ids reaches the host's capability refresh
+     * after its metadata write (decision diagnose-then-fix-capability-lifetimes): a canister
+     * block entity runs its real holder defaults over this grid.
+     */
+    @Nested
+    class MetadataWrite {
+
+        private static final int SLOT = CanisterBlock.CENTER_SLOT;
+
+        private CanisterBlockEntity holderOver(SlottedCanisterData data, CanisterMetadata meta) {
+            CanisterBlockEntity holder = mock(CanisterBlockEntity.class, withSettings().defaultAnswer(CALLS_REAL_METHODS));
+            doReturn(data).when(holder).containerState();
+            doReturn(meta).when(holder).getSlotMetadata(SLOT);
+            return holder;
+        }
+
+        private void verifyInvalidatedAfterWrite(CanisterSlot slot) {
+            InOrder order = inOrder(slot, level);
+            order.verify(slot).setMetadata(any());
+            order.verify(level).invalidateCapabilities(POS);
+        }
+
+        @Test
+        void installingASlotGasketInvalidatesTheHost() {
+            SlottedCanisterData data = data(CanisterBlockEntity.MAX_SLOTS, true);
+            CanisterSlot slot = mockSlot(data, SLOT, false);
+
+            holderOver(data, CanisterMetadata.EMPTY)
+                    .setSlotMetadata(SLOT, CanisterMetadata.EMPTY.withTopGasketId(UUID.randomUUID()));
+
+            verifyInvalidatedAfterWrite(slot);
+        }
+
+        @Test
+        void mintingASlotGasketIdInvalidatesTheHost() {
+            SlottedCanisterData data = data(CanisterBlockEntity.MAX_SLOTS, true);
+            CanisterSlot slot = mockSlot(data, SLOT, false);
+
+            holderOver(data, CanisterMetadata.EMPTY).ensureGasketId(GasketRole.RECEIVER, SLOT);
+
+            verifyInvalidatedAfterWrite(slot);
+        }
+
+        @Test
+        void uninstallingASlotGasketInvalidatesTheHost() {
+            SlottedCanisterData data = data(CanisterBlockEntity.MAX_SLOTS, true);
+            CanisterSlot slot = mockSlot(data, SLOT, false);
+            CanisterMetadata installed = CanisterMetadata.EMPTY.withTopGasketId(UUID.randomUUID());
+
+            holderOver(data, installed).uninstallGasket(new AddressedGasket(GasketRole.RECEIVER, SLOT));
+
+            verifyInvalidatedAfterWrite(slot);
+        }
+
+        @Test
+        void aClientWriteInvalidatesNothing() {
+            Level client = mock(Level.class);
+            when(client.isClientSide()).thenReturn(true);
+            doReturn(client).when(owner).getLevel();
+            SlottedCanisterData data = data(CanisterBlockEntity.MAX_SLOTS, true);
+            CanisterSlot slot = mockSlot(data, SLOT, false);
+
+            data.setMetadata(SLOT, CanisterMetadata.EMPTY.withTopGasketId(UUID.randomUUID()));
+
+            verify(slot).setMetadata(any());
+            verify(client, never()).invalidateCapabilities(any(BlockPos.class));
+        }
+
+        @Test
+        void anEmptySlotWritesAndInvalidatesNothing() {
+            SlottedCanisterData data = data(CanisterBlockEntity.MAX_SLOTS, true);
+            CanisterSlot slot = mockSlot(data, SLOT, true);
+
+            data.setMetadata(SLOT, CanisterMetadata.EMPTY.withTopGasketId(UUID.randomUUID()));
+
+            verify(slot, never()).setMetadata(any());
+            verify(level, never()).invalidateCapabilities(any(BlockPos.class));
+        }
+    }
+
+    @Nested
+    class Load {
+
+        @Test
+        void replacingEveryHandlerInvalidatesTheHost() {
+            SlottedCanisterData data = data(1, true);
+            CanisterSlot slot = mockSlot(data, 0, false);
+            ValueInput input = mock(ValueInput.class);
+            when(input.read(any(String.class), any())).thenReturn(Optional.empty());
+
+            data.load(input, "canister");
+
+            InOrder order = inOrder(slot, level);
+            order.verify(slot).buildHandler(any());
+            order.verify(level).invalidateCapabilities(POS);
         }
     }
 }
