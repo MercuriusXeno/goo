@@ -1,32 +1,34 @@
 package com.mercuriusxeno.goo.client.radial;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.IntUnaryOperator;
 
 /**
- * The glove's one radial wheel as pure layout and state: one wedge per type
- * through an inner and an outer ring. Hovering a type in the inner ring (or
- * scrolling to it) selects it with no click; its wedge recedes to the inner
- * ring and its abilities fan out in the outer ring, each about a type
- * wedge's arc, centered on the type's angle. The cursor past either end of
- * the fan hovers nothing and the fan stays open; the cursor in the hub
- * collapses the fan to types (decision type-recedes-and-abilities-fan-out).
+ * The glove's one radial wheel as pure layout and state: one ring of petals
+ * from the hub to the rim. At rest it holds one petal per type, each a full
+ * type arc. Hovering a type (or scrolling to it) opens it with no click: its
+ * petal is replaced in the same ring by its ability petals, and the other
+ * types shrink to make room. The cursor in the hub returns the wheel to rest.
+ * decision abilities-replace-the-hovered-type
+ * decision ability-petals-take-a-type-arc-to-a-floor
  *
- * <p>Angles run clockwise from the top, the way the wedge masks are drawn.
+ * <p>Angles run clockwise from the top, the way the petal masks are drawn.
  */
 public final class RadialWheel {
 
     /** The wheel's diameter as a fraction of the smaller screen dimension. */
     static final double SCREEN_FRACTION = 0.95;
-    /** The hub's radius as a fraction of the wheel's: the cursor inside it collapses the fan. */
+    /** The hub's radius as a fraction of the wheel's: the cursor inside it returns the wheel to rest. */
     static final double HUB_FRACTION = 0.2;
-    /** Where the inner ring meets the outer ring, as a fraction of the wheel's radius. */
-    static final double RING_FRACTION = 0.70;
-    /** No type selected, or no ability hovered. */
+    /** No type open, or no ability hovered. */
     static final int NONE = -1;
+    /** The narrowest arc a shrunken type petal keeps while another type is open. */
+    static final double TYPE_FLOOR = Math.toRadians(10.0);
 
     private static final double TWO_PI = 2.0 * Math.PI;
     private static final double HALF = 0.5;
-    /** A scroll up steps the selection one type counterclockwise. */
+    /** A scroll up steps the open type one petal counterclockwise. */
     private static final int STEP_BACK = -1;
 
     private final int typeCount;
@@ -35,10 +37,10 @@ public final class RadialWheel {
     private int hoveredAbility = NONE;
 
     /**
-     * Creates the wheel in its types state.
+     * Creates the wheel at rest.
      *
-     * @param typeCount    the number of type wedges
-     * @param abilityCount the number of abilities a type index fans out
+     * @param typeCount    the number of type petals
+     * @param abilityCount the number of abilities a type index opens to
      */
     public RadialWheel(int typeCount, IntUnaryOperator abilityCount) {
         this.typeCount = typeCount;
@@ -73,7 +75,7 @@ public final class RadialWheel {
     }
 
     /**
-     * The arc each type wedge spans.
+     * The arc each type petal spans at rest.
      *
      * @return the arc in radians
      */
@@ -82,84 +84,116 @@ public final class RadialWheel {
     }
 
     /**
-     * The angle at the middle of a type's wedge.
+     * The ring's petals in clockwise order from the top: one per type at
+     * rest, or with the open type's petal replaced by its ability petals.
+     * The renderer and the cursor both read this one list.
      *
-     * @param type the type index
-     * @return the angle in radians
+     * @return the petals, their arcs summing to a full turn
      */
-    double typeCenter(int type) {
-        return (type + HALF) * typeArc();
+    List<PetalArc> layout() {
+        int open = isOpen() ? abilityCount.applyAsInt(selectedType) : 0;
+        Arcs arcs = open > 0 ? arcsWithOpenType(open) : new Arcs(typeArc(), 0.0);
+        List<PetalArc> petals = new ArrayList<>(typeCount + open);
+        for (int type = 0; type < typeCount; type++) {
+            if (type == selectedType && open > 0) {
+                addAbilityPetals(petals, type, open, arcs.ability());
+            } else {
+                petals.add(new PetalArc(type, NONE, endOf(petals), arcs.type()));
+            }
+        }
+        return petals;
+    }
+
+    private static void addAbilityPetals(List<PetalArc> petals, int type, int abilities, double arc) {
+        for (int ability = 0; ability < abilities; ability++) {
+            petals.add(new PetalArc(type, ability, endOf(petals), arc));
+        }
+    }
+
+    private static double endOf(List<PetalArc> petals) {
+        if (petals.isEmpty()) {
+            return 0.0;
+        }
+        PetalArc last = petals.getLast();
+        return last.start() + last.arc();
     }
 
     /**
-     * The type whose wedge holds an angle.
+     * Sizes the petals around an open type: each ability takes a full type
+     * arc while every other type can keep the floor; past that the other
+     * types hold the floor and the abilities split the remainder evenly.
+     * decision ability-petals-take-a-type-arc-to-a-floor
      *
-     * @param angle the angle in [0, 2 pi)
-     * @return the type index
+     * @param abilities the open type's ability count, above zero
+     * @return the arc of each other type and of each ability
      */
-    int typeAt(double angle) {
-        return (int) (angle / typeArc()) % typeCount;
+    private Arcs arcsWithOpenType(int abilities) {
+        int others = typeCount - 1;
+        if (others == 0) {
+            return new Arcs(0.0, TWO_PI / abilities);
+        }
+        double floor = Math.min(TYPE_FLOOR, typeArc());
+        double othersAtFullAbilities = (TWO_PI - abilities * typeArc()) / others;
+        if (othersAtFullAbilities >= floor) {
+            return new Arcs(othersAtFullAbilities, typeArc());
+        }
+        return new Arcs(floor, (TWO_PI - others * floor) / abilities);
     }
 
     /**
-     * The arc each ability wedge of a type's fan spans: a type wedge's
-     * arc, narrowed only when the fan would wrap past a full turn.
+     * One layout's two petal sizes.
      *
-     * @param type the type index
-     * @return the arc in radians
+     * @param type    the arc of each type petal
+     * @param ability the arc of each ability petal of the open type
      */
-    double fanArc(int type) {
-        int count = abilityCount.applyAsInt(type);
-        return count <= 0 ? typeArc() : Math.min(typeArc(), TWO_PI / count);
+    private record Arcs(double type, double ability) {
     }
 
     /**
-     * The angle the first ability wedge of a type's fan starts at, so the
-     * fan centers on the type's angle.
+     * The petal of a layout an angle falls on.
      *
-     * @param type the type index
-     * @return the angle in radians, before wrapping
+     * @param petals the layout
+     * @param angle  the angle in [0, 2 pi)
+     * @return the petal holding the angle
      */
-    double fanStart(int type) {
-        return typeCenter(type) - abilityCount.applyAsInt(type) * fanArc(type) * HALF;
+    static PetalArc petalAt(List<PetalArc> petals, double angle) {
+        for (PetalArc petal : petals) {
+            if (angle < petal.start() + petal.arc()) {
+                return petal;
+            }
+        }
+        return petals.getLast();
     }
 
     /**
-     * The ability of the selected type's fan an angle falls on.
-     *
-     * @param angle the angle in [0, 2 pi)
-     * @return the ability index, or {@link #NONE} past either end of the fan
-     */
-    int abilityAt(double angle) {
-        double offset = wrap(angle - fanStart(selectedType));
-        int index = (int) (offset / fanArc(selectedType));
-        return index < abilityCount.applyAsInt(selectedType) ? index : NONE;
-    }
-
-    /**
-     * Moves the cursor: the hub collapses the fan, the inner ring selects
-     * the type under it, and the outer ring hovers the fan's ability.
+     * Moves the cursor: the hub returns the wheel to rest, an ability petal
+     * of the open type hovers it, and another type's petal opens that type.
+     * decision abilities-replace-the-hovered-type
      *
      * @param dx          the cursor's x offset from the center
      * @param dy          the cursor's y offset from the center, down positive
      * @param outerRadius the wheel's outer radius
      */
     public void moveCursor(double dx, double dy, double outerRadius) {
-        double distance = Math.hypot(dx, dy);
-        double angle = angleOf(dx, dy);
-        if (distance < HUB_FRACTION * outerRadius) {
+        if (typeCount == 0) {
+            return;
+        }
+        if (Math.hypot(dx, dy) < HUB_FRACTION * outerRadius) {
             selectedType = NONE;
             hoveredAbility = NONE;
-        } else if (distance < RING_FRACTION * outerRadius) {
-            selectedType = typeAt(angle);
-            hoveredAbility = NONE;
+            return;
+        }
+        PetalArc petal = petalAt(layout(), angleOf(dx, dy));
+        if (petal.isAbility()) {
+            hoveredAbility = petal.ability();
         } else {
-            hoveredAbility = selectedType == NONE ? NONE : abilityAt(angle);
+            selectedType = petal.type();
+            hoveredAbility = NONE;
         }
     }
 
     /**
-     * Steps the selected type with the scroll wheel, for a controller.
+     * Steps the open type with the scroll wheel, for a controller.
      *
      * @param scrollY the scroll amount; down steps clockwise
      */
@@ -178,42 +212,71 @@ public final class RadialWheel {
 
     /**
      * The pick the glove menu key's release makes: the hovered ability of
-     * the fan selects it, anywhere else cancels. Either way the wheel closes.
+     * the open type selects it, anywhere else cancels. Either way the wheel closes.
      * decision radial-selects-on-g-release
      *
      * @return the pick's outcome
      */
     public Outcome click() {
-        return isFanned() && hoveredAbility != NONE
+        return isOpen() && hoveredAbility != NONE
                 ? new Outcome(selectedType, hoveredAbility)
                 : Outcome.CANCEL;
     }
 
     /**
-     * Whether a type is selected and its abilities fan out.
+     * Whether a type is open, its abilities in place of its petal.
      *
-     * @return true in the fanned state
+     * @return true while a type is open
      */
-    public boolean isFanned() {
+    public boolean isOpen() {
         return selectedType != NONE;
     }
 
     /**
-     * The selected type.
+     * The open type.
      *
-     * @return the type index, or {@link #NONE} in the types state
+     * @return the type index, or {@link #NONE} at rest
      */
     public int selectedType() {
         return selectedType;
     }
 
     /**
-     * The hovered ability of the fan.
+     * The hovered ability of the open type.
      *
      * @return the ability index, or {@link #NONE}
      */
     public int hoveredAbility() {
         return hoveredAbility;
+    }
+
+    /**
+     * One petal of the ring: a type's own petal, or one ability petal of the open type.
+     *
+     * @param type    the type index the petal belongs to
+     * @param ability the ability index, or {@link #NONE} for the type's own petal
+     * @param start   the petal's start angle, clockwise from the top
+     * @param arc     the petal's span in radians
+     */
+    record PetalArc(int type, int ability, double start, double arc) {
+
+        /**
+         * Whether the petal is an ability of the open type.
+         *
+         * @return true for an ability petal
+         */
+        boolean isAbility() {
+            return ability != NONE;
+        }
+
+        /**
+         * The angle at the petal's middle.
+         *
+         * @return the angle in radians
+         */
+        double center() {
+            return start + arc * HALF;
+        }
     }
 
     /**

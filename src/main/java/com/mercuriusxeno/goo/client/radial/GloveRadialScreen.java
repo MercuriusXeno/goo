@@ -24,11 +24,11 @@ import java.util.Map;
 
 /**
  * The glove's one radial wheel, open while the glove menu key is held:
- * hovering or scrolling to a type fans its abilities out, releasing the key
- * over an ability writes it to the glove and closes, and releasing it over
- * nothing, or pressing Escape, closes with the glove unchanged. A mouse click
- * does nothing here.
- * decision type-recedes-and-abilities-fan-out
+ * hovering or scrolling to a type replaces its petal with its abilities,
+ * releasing the key over an ability writes it to the glove and closes, and
+ * releasing it over nothing, or pressing Escape, closes with the glove
+ * unchanged. A mouse click does nothing here.
+ * decision abilities-replace-the-hovered-type
  * decision radial-selects-on-g-release
  */
 public final class GloveRadialScreen extends Screen {
@@ -84,7 +84,7 @@ public final class GloveRadialScreen extends Screen {
     public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         super.extractBackground(graphics, mouseX, mouseY, partialTick);
         RadialWheelRenderer.render(graphics, font, new RadialWheelRenderer.Frame(wheel, types, abilities, available,
-                width / HALF, height / HALF, radius()));
+                width / HALF, height / HALF, radius(), RadialWheelRenderer.PetalLook.LIVE));
     }
 
     /**

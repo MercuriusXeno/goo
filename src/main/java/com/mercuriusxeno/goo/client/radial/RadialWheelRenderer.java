@@ -22,10 +22,11 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Draws the glove's radial wheel from a {@link RadialWheel}: type wedges
- * through both rings, or receded to the inner ring with the selected
- * type's abilities fanned in the outer ring, each with its icon and label
- * (decision type-recedes-and-abilities-fan-out).
+ * Draws the glove's radial wheel from a {@link RadialWheel}: one ring of
+ * petals from the hub to the rim, type petals with their icon alone and the
+ * open type's ability petals with icon, name and cost, the open type's name
+ * and holdings in the hub.
+ * decision abilities-replace-the-hovered-type
  */
 final class RadialWheelRenderer {
 
@@ -40,7 +41,7 @@ final class RadialWheelRenderer {
     private static final int COLOR_WHITE = 0xFFFFFFFF;
     private static final int HOVER_TEXT_COLOR = 0xFFFFFF00;
     private static final int DISABLED_TEXT_COLOR = 0xFF888888;
-    /** Gap between the hub circle and the inner ring, as a fraction of the wheel's radius. */
+    /** Gap between the hub circle and the petals, as a fraction of the wheel's radius. */
     private static final double HUB_GAP = 0.02;
     private static final int TYPE_ICON_SIZE = 11;
     /** ability-icons-read-16x16 */
@@ -65,72 +66,139 @@ final class RadialWheelRenderer {
      * What one frame of the wheel draws from.
      *
      * @param wheel     the wheel's state
-     * @param types     the types, one per wedge
-     * @param abilities the abilities each type fans out, by type index
+     * @param types     the types, one per petal at rest
+     * @param abilities the abilities each type opens to, by type index
      * @param available the amount the player holds per type, snapshot on open
      * @param centerX   the wheel's center x
      * @param centerY   the wheel's center y
      * @param radius    the wheel's outer radius
+     * @param look      the masks and colors a petal draws with
      */
     record Frame(RadialWheel wheel, List<ResourceKey<GooTypeDefinition>> types,
                  List<List<ClientAbility>> abilities, Map<ResourceKey<GooTypeDefinition>, Integer> available,
-                 int centerX, int centerY, int radius) {
+                 int centerX, int centerY, int radius, PetalLook look) {
     }
 
     /**
-     * Draws the hub, the type wedges, the fan and the center label.
+     * Where a petal's mask and its type's color come from: the client's
+     * baked textures and synced registry in play, a fake under test.
+     */
+    interface PetalLook {
+
+        /** The baked petal masks and the type colors the client level holds. */
+        PetalLook LIVE = new PetalLook() {
+            @Override
+            public Identifier petalMask(ResourceKey<GooTypeDefinition> type, RadialWheel.PetalArc petal) {
+                return RadialTextures.getArcTexture(petal.start(), petal.arc(), RadialWheel.HUB_FRACTION, 1.0,
+                        GooSubmitter.fluidSprites(type).still(), GooSubmitter.fluidTint(type),
+                        ARGB.opaque(ClientGooTypes.edge(type)));
+            }
+
+            @Override
+            public Identifier hubMask() {
+                return RadialTextures.getHubTexture(RadialWheel.HUB_FRACTION - HUB_GAP);
+            }
+
+            @Override
+            public int wheelColor(ResourceKey<GooTypeDefinition> type) {
+                return ClientGooTypes.wheel(type);
+            }
+        };
+
+        /**
+         * The mask a petal blits, filled with its type's fluid.
+         *
+         * @param type  the petal's type
+         * @param petal the petal's place on the ring
+         * @return the mask texture
+         */
+        Identifier petalMask(ResourceKey<GooTypeDefinition> type, RadialWheel.PetalArc petal);
+
+        /**
+         * The hub circle's mask.
+         *
+         * @return the mask texture
+         */
+        Identifier hubMask();
+
+        /**
+         * A type's radial RGB, which tints its ability icons.
+         *
+         * @param type the type
+         * @return the RGB
+         */
+        int wheelColor(ResourceKey<GooTypeDefinition> type);
+    }
+
+    /**
+     * Draws the hub, every petal of the ring and the center label.
      *
      * @param graphics the GUI graphics extractor
      * @param font     the font
      * @param frame    what the frame draws from
      */
     static void render(GuiGraphicsExtractor graphics, Font font, Frame frame) {
-        blitMask(graphics, frame, RadialTextures.getHubTexture(RadialWheel.HUB_FRACTION - HUB_GAP), HUB_COLOR);
-        for (int type = 0; type < frame.types().size(); type++) {
-            renderType(graphics, frame, type);
-        }
-        if (frame.wheel().isFanned()) {
-            renderFan(graphics, font, frame);
+        blitMask(graphics, frame, frame.look().hubMask(), HUB_COLOR);
+        for (RadialWheel.PetalArc petal : frame.wheel().layout()) {
+            if (petal.isAbility()) {
+                renderAbility(graphics, font, frame, petal);
+            } else {
+                renderType(graphics, frame, petal);
+            }
         }
         renderCenterLabel(graphics, font, frame);
     }
 
-    private static void renderType(GuiGraphicsExtractor graphics, Frame frame, int type) {
-        RadialWheel wheel = frame.wheel();
-        ResourceKey<GooTypeDefinition> key = frame.types().get(type);
-        double outer = wheel.isFanned() ? RadialWheel.RING_FRACTION : 1.0;
-        boolean selected = type == wheel.selectedType();
-        blitWedge(graphics, frame, key, new WedgeBounds(type * wheel.typeArc(), wheel.typeArc(),
-                RadialWheel.HUB_FRACTION, outer),
+    /**
+     * Draws a type's petal with its icon alone, shrunken or at rest.
+     * decision abilities-replace-the-hovered-type
+     *
+     * @param graphics the GUI graphics extractor
+     * @param frame    what the frame draws from
+     * @param petal    the type's petal
+     */
+    private static void renderType(GuiGraphicsExtractor graphics, Frame frame, RadialWheel.PetalArc petal) {
+        ResourceKey<GooTypeDefinition> key = frame.types().get(petal.type());
+        boolean selected = petal.type() == frame.wheel().selectedType();
+        blitMask(graphics, frame, frame.look().petalMask(key, petal),
                 computeOverlayTint(selected, frame.available().getOrDefault(key, 0) <= 0));
-        double iconRadius = (RadialWheel.HUB_FRACTION + outer) * MID * frame.radius();
-        blitIcon(graphics, new Icon(typeIcon(key), TYPE_ICON_SIZE), pointAt(frame, wheel.typeCenter(type), iconRadius),
+        blitIcon(graphics, new Icon(typeIcon(key), TYPE_ICON_SIZE), pointAt(frame, petal.center(), slotRadius(frame)),
                 COLOR_WHITE);
     }
 
-    private static void renderFan(GuiGraphicsExtractor graphics, Font font, Frame frame) {
-        RadialWheel wheel = frame.wheel();
-        int type = wheel.selectedType();
-        List<ClientAbility> fan = frame.abilities().get(type);
-        ResourceKey<GooTypeDefinition> key = frame.types().get(type);
-        int base = ClientGooTypes.wheel(key);
-        double arc = wheel.fanArc(type);
-        double slotRadius = (RadialWheel.RING_FRACTION + 1.0) * MID * frame.radius();
-        int holdings = frame.available().getOrDefault(key, 0);
-        for (int ability = 0; ability < fan.size(); ability++) {
-            boolean hovered = ability == wheel.hoveredAbility();
-            FanSlot slotLabels = fanSlot(fan.get(ability), holdings);
-            int color = slotLabels.dimmed() ? computeWedgeColor(base, false, true)
-                    : ARGB.color(hovered ? HOVER_ALPHA : NORMAL_ALPHA, base);
-            double start = wheel.fanStart(type) + ability * arc;
-            blitWedge(graphics, frame, key, new WedgeBounds(start, arc, RadialWheel.RING_FRACTION, 1.0),
-                    computeOverlayTint(hovered, slotLabels.dimmed()));
-            double middle = start + arc * MID;
-            int[] slot = pointAt(frame, middle, slotRadius);
-            blitAbilityIcon(graphics, fan.get(ability), slot, color);
-            int textColor = slotLabels.dimmed() ? DISABLED_TEXT_COLOR : hovered ? HOVER_TEXT_COLOR : COLOR_WHITE;
-            drawSlotLabels(graphics, font, slot, slotLines(fan.get(ability), slotLabels), textColor);
-        }
+    /**
+     * Draws an ability petal of the open type with its icon, name and cost.
+     * decision abilities-replace-the-hovered-type
+     *
+     * @param graphics the GUI graphics extractor
+     * @param font     the font
+     * @param frame    what the frame draws from
+     * @param petal    the ability's petal
+     */
+    private static void renderAbility(GuiGraphicsExtractor graphics, Font font, Frame frame,
+                                      RadialWheel.PetalArc petal) {
+        ResourceKey<GooTypeDefinition> key = frame.types().get(petal.type());
+        ClientAbility ability = frame.abilities().get(petal.type()).get(petal.ability());
+        boolean hovered = petal.ability() == frame.wheel().hoveredAbility();
+        FanSlot slotLabels = fanSlot(ability, frame.available().getOrDefault(key, 0));
+        int base = frame.look().wheelColor(key);
+        int color = slotLabels.dimmed() ? computeWedgeColor(base, false, true)
+                : ARGB.color(hovered ? HOVER_ALPHA : NORMAL_ALPHA, base);
+        blitMask(graphics, frame, frame.look().petalMask(key, petal), computeOverlayTint(hovered, slotLabels.dimmed()));
+        int[] slot = pointAt(frame, petal.center(), slotRadius(frame));
+        blitAbilityIcon(graphics, ability, slot, color);
+        int textColor = slotLabels.dimmed() ? DISABLED_TEXT_COLOR : hovered ? HOVER_TEXT_COLOR : COLOR_WHITE;
+        drawSlotLabels(graphics, font, slot, slotLines(ability, slotLabels), textColor);
+    }
+
+    /**
+     * The radius a petal's icon centers on: midway from the hub to the rim.
+     *
+     * @param frame what the frame draws from
+     * @return the radius in pixels
+     */
+    private static double slotRadius(Frame frame) {
+        return (RadialWheel.HUB_FRACTION + 1.0) * MID * frame.radius();
     }
 
     /**
@@ -201,25 +269,7 @@ final class RadialWheelRenderer {
     }
 
     /**
-     * A wedge's place on the wheel.
-     *
-     * @param start the wedge's start angle, clockwise from the top
-     * @param arc   the wedge's span
-     * @param inner the wedge's inner radius as a fraction of the wheel's
-     * @param outer the wedge's outer radius as a fraction of the wheel's
-     */
-    private record WedgeBounds(double start, double arc, double inner, double outer) {
-    }
-
-    private static void blitWedge(GuiGraphicsExtractor graphics, Frame frame, ResourceKey<GooTypeDefinition> key,
-                                  WedgeBounds bounds, int overlay) {
-        blitMask(graphics, frame, RadialTextures.getArcTexture(bounds.start(), bounds.arc(), bounds.inner(),
-                bounds.outer(), GooSubmitter.fluidSprites(key).still(), GooSubmitter.fluidTint(key),
-                ARGB.opaque(ClientGooTypes.edge(key))), overlay);
-    }
-
-    /**
-     * What an ability wedge of the fan reads: its first-throw cost, dimmed
+     * What an ability petal of the open type reads: its first-throw cost, dimmed
      * when it exceeds the type's holdings (decision radial-shows-first-throw-cost-and-holdings).
      *
      * @param costLabel the first-throw cost, formatted
@@ -253,7 +303,7 @@ final class RadialWheelRenderer {
 
     private static void renderCenterLabel(GuiGraphicsExtractor graphics, Font font, Frame frame) {
         RadialWheel wheel = frame.wheel();
-        if (!wheel.isFanned()) {
+        if (!wheel.isOpen()) {
             return;
         }
         ResourceKey<GooTypeDefinition> type = frame.types().get(wheel.selectedType());

@@ -14,8 +14,8 @@ import java.util.Optional;
 
 /**
  * Generates and caches anti-aliased mask textures for the radial wheel:
- * one DynamicTexture per wedge (a type wedge in either ring, or an ability
- * wedge of a fan), shaped as a {@link PetalMask} and filled with its goo's
+ * one DynamicTexture per distinct petal arc (a type petal, at rest or
+ * shrunken, or an ability petal), shaped as a {@link PetalMask} and filled with its goo's
  * fluid sprite, and one white mask per hub circle. A mask spans the wheel's
  * full diameter, so every mask blits over the same square.
  */
