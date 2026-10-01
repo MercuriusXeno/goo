@@ -102,13 +102,29 @@ class PetalMaskTest {
     class Outline {
 
         private static final int SEGMENTS = 12;
+        private static final int CAP_POINTS = SEGMENTS * PetalMask.CAP_SEGMENTS_PER_SIDE;
+        /** The widest step around the cap circle between consecutive outline points. */
+        private static final double MAX_CAP_STEP = Math.toRadians(5.0);
         private static final double NUDGE = 1e-6;
         private final PetalMask.Petal petal = new PetalMask.Petal(START, ARC, INNER, OUTER);
         private final List<PetalMask.Point> outline = petal.outline(SEGMENTS);
 
         /** The outline's points on one side, endpoints dropped so each sits on that side alone. */
         private List<PetalMask.Point> side(int index) {
-            return outline.subList(index * SEGMENTS + 1, (index + 1) * SEGMENTS);
+            int[] starts = {0, SEGMENTS, 2 * SEGMENTS, 2 * SEGMENTS + CAP_POINTS, 3 * SEGMENTS + CAP_POINTS};
+            return outline.subList(starts[index] + 1, starts[index + 1]);
+        }
+
+        /** Nudges a cap point toward and away from the cap circle's center. */
+        private void assertOnTheCapCircle(PetalMask.Point point) {
+            PetalMask.Point center = petal.tipCenter();
+            double dx = point.x() - center.x();
+            double dy = point.y() - center.y();
+            double radius = Math.hypot(dx, dy);
+            double in = (radius - NUDGE) / radius;
+            double out = (radius + NUDGE) / radius;
+            assertTrue(petal.contains(center.x() + dx * in, center.y() + dy * in), "inside of " + point);
+            assertFalse(petal.contains(center.x() + dx * out, center.y() + dy * out), "outside of " + point);
         }
 
         private void assertOnBoundaryAlongRay(PetalMask.Point point, boolean insideIsInward) {
@@ -142,12 +158,24 @@ class PetalMaskTest {
 
         @Test
         void capPointsLieOnTheCapsBoundary() {
-            assertAll(side(2).stream().map(point -> (Executable) () -> assertOnBoundaryAlongRay(point, true)));
+            assertAll(side(2).stream().map(point -> (Executable) () -> assertOnTheCapCircle(point)));
         }
 
         @Test
         void startEdgePointsLieOnTheStemsStartBoundary() {
             assertAll(side(3).stream().map(point -> (Executable) () -> assertOnBoundaryAcrossAngle(point, NUDGE)));
+        }
+
+        /** decision wedges-round-off-like-petals */
+        @Test
+        void capPointsStepEvenlyAroundTheCapCircle() {
+            PetalMask.Point center = petal.tipCenter();
+            List<PetalMask.Point> cap = outline.subList(2 * SEGMENTS, 2 * SEGMENTS + CAP_POINTS + 1);
+            for (int i = 0; i + 1 < cap.size(); i++) {
+                double from = Math.atan2(cap.get(i).x() - center.x(), -(cap.get(i).y() - center.y()));
+                double to = Math.atan2(cap.get(i + 1).x() - center.x(), -(cap.get(i + 1).y() - center.y()));
+                assertTrue(Math.abs(Math.IEEEremainder(to - from, 2 * Math.PI)) <= MAX_CAP_STEP, "step " + i);
+            }
         }
 
         @Test

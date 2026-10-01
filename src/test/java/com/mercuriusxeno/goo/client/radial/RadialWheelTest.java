@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.radial;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
+import java.util.Comparator;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
@@ -33,10 +34,22 @@ class RadialWheelTest {
         wheel.moveCursor(Math.sin(angle) * distance, -Math.cos(angle) * distance, RADIUS);
     }
 
+    /** Opens a type under the cursor and lets the fan and the grace window settle. */
     private static RadialWheel opened(int abilities) {
         RadialWheel wheel = wheel(abilities);
         moveTo(wheel, (OPEN_TYPE + 0.5) * TYPE_ARC, PETAL);
+        settle(wheel);
         return wheel;
+    }
+
+    private static void settle(RadialWheel wheel) {
+        tick(wheel, Math.max(RingEase.DURATION_TICKS, RadialWheel.GRACE_TICKS));
+    }
+
+    private static void tick(RadialWheel wheel, int ticks) {
+        for (int i = 0; i < ticks; i++) {
+            wheel.tick();
+        }
     }
 
     private static RadialWheel.PetalArc abilityPetal(RadialWheel wheel, int ability) {
@@ -185,8 +198,9 @@ class RadialWheelTest {
 
     /**
      * Leaving the open type's abilities opens the adjacent type with its
-     * abilities under the cursor, the ring turning the least it must
-     * (decision ring-rotates-to-keep-the-cursor-inside).
+     * abilities under the cursor, the ring turning the least it must and then
+     * centering the landed ability on the cursor, and following the cursor
+     * through a short grace window (decision ring-rotates-to-keep-the-cursor-inside).
      */
     @Nested
     class Rotation {
@@ -198,6 +212,8 @@ class RadialWheelTest {
         /** And end here: six abilities of a full 22.5 degree type arc each. */
         private static final double WIDE_SPAN_END = Math.toRadians(180.0);
         private static final double JUST_PAST = Math.toRadians(1.0);
+        private static final double FOLLOW = Math.toRadians(10.0);
+        private static final double PAST_THE_CENTERED_ABILITY = Math.toRadians(14.0);
 
         /** The wide type opens to six abilities, its neighbors to one, every other type to four. */
         private static RadialWheel wheelWithAWideType() {
@@ -208,6 +224,7 @@ class RadialWheelTest {
         private static RadialWheel wideTypeOpen() {
             RadialWheel wheel = wheelWithAWideType();
             moveTo(wheel, (WIDE_TYPE + 0.5) * TYPE_ARC, PETAL);
+            settle(wheel);
             return wheel;
         }
 
@@ -219,12 +236,17 @@ class RadialWheelTest {
             assertTrue(toEnd >= RadialWheel.CURSOR_MARGIN - EPSILON, "end margin " + toEnd);
         }
 
+        private static void assertHoveredCenteredOn(RadialWheel wheel, double cursor) {
+            assertEquals(0.0, Math.IEEEremainder(abilityPetal(wheel, wheel.hoveredAbility()).center() - cursor, TWO_PI),
+                    EPSILON);
+        }
+
         private static double wrap(double angle) {
             return ((angle % TWO_PI) + TWO_PI) % TWO_PI;
         }
 
         @Test
-        void wideTypeOpensUnturnedSinceItsSpanHoldsTheCursor() {
+        void wideTypeOpensUnturnedSinceItsLandedAbilityIsAlreadyCentered() {
             RadialWheel wheel = wideTypeOpen();
 
             assertEquals(WIDE_TYPE, wheel.selectedType());
@@ -257,14 +279,43 @@ class RadialWheelTest {
         }
 
         @Test
-        void ringTurnsByTheMarginShortfallAndNoMore() {
+        void ringTurnsTheLeastItMustThenCentersTheLandedAbility() {
             RadialWheel wheel = wideTypeOpen();
             double cursor = WIDE_SPAN_START - JUST_PAST;
 
             moveTo(wheel, cursor, PETAL);
 
-            // the one-ability neighbor's span starts unturned where the wide type's did
-            assertEquals(cursor - WIDE_SPAN_START - RadialWheel.CURSOR_MARGIN, wheel.rotation(), EPSILON);
+            // the solve's endpoint, cursor - span start - margin, plus the turn from the
+            // landed ability's center (span start + solve + half an arc) to the cursor
+            double solve = cursor - WIDE_SPAN_START - RadialWheel.CURSOR_MARGIN;
+            double centering = cursor - (WIDE_SPAN_START + solve + TYPE_ARC / 2);
+            assertEquals(solve + centering, wheel.rotation(), EPSILON);
+            assertHoveredCenteredOn(wheel, cursor);
+        }
+
+        @Test
+        void insideTheGraceWindowTheRingFollowsTheCursor() {
+            RadialWheel wheel = wideTypeOpen();
+            moveTo(wheel, WIDE_SPAN_START - JUST_PAST, PETAL);
+            double cursor = WIDE_SPAN_START - JUST_PAST - FOLLOW;
+
+            moveTo(wheel, cursor, PETAL);
+
+            assertEquals(WIDE_TYPE - 1, wheel.selectedType());
+            assertEquals(0, wheel.hoveredAbility());
+            assertHoveredCenteredOn(wheel, cursor);
+        }
+
+        @Test
+        void afterTheGraceWindowTheSameMoveOpensTheNextNeighbor() {
+            RadialWheel wheel = wideTypeOpen();
+            double landed = WIDE_SPAN_START - JUST_PAST;
+            moveTo(wheel, landed, PETAL);
+            tick(wheel, RadialWheel.GRACE_TICKS);
+
+            moveTo(wheel, landed - PAST_THE_CENTERED_ABILITY, PETAL);
+
+            assertEquals(WIDE_TYPE - 2, wheel.selectedType());
         }
 
         @Test
@@ -292,25 +343,29 @@ class RadialWheelTest {
     }
 
     /**
-     * The picture eases toward the target over a short duration with the
-     * cursor inside the open type throughout, and reads as animating until it
-     * lands (decisions petal-moves-animate, mid-animation-input-does-nothing).
+     * Opening a type plays like a fan of cards: the type petal recedes
+     * lengthwise and widens over the span, the full-size ability cards rotate
+     * clockwise out from stacked behind it; closing plays it in reverse
+     * (decisions petal-moves-animate, mid-animation-input-does-nothing).
      */
     @Nested
     class Ease {
 
-        private static final float[] PARTIALS = {0.0f, 0.25f, 0.5f, 0.75f};
         private static final int MID_TICKS = RingEase.DURATION_TICKS / 2;
+
+        private static RadialWheel freshlyOpened() {
+            RadialWheel wheel = wheel(ABILITIES);
+            moveTo(wheel, (OPEN_TYPE + 0.5) * TYPE_ARC, PETAL);
+            return wheel;
+        }
 
         private static RadialWheel.PetalArc petalOf(List<RadialWheel.PetalArc> petals, int type, int ability) {
             return petals.stream().filter(petal -> petal.type() == type && petal.ability() == ability)
                     .findFirst().orElseThrow();
         }
 
-        private static void tick(RadialWheel wheel, int ticks) {
-            for (int i = 0; i < ticks; i++) {
-                wheel.tick();
-            }
+        private static List<RadialWheel.PetalArc> byStart(List<RadialWheel.PetalArc> petals) {
+            return petals.stream().sorted(Comparator.comparingDouble(RadialWheel.PetalArc::start)).toList();
         }
 
         private static void assertSameLayout(List<RadialWheel.PetalArc> expected, List<RadialWheel.PetalArc> actual) {
@@ -320,77 +375,71 @@ class RadialWheelTest {
                 assertEquals(expected.get(i).ability(), actual.get(i).ability());
                 assertEquals(expected.get(i).start(), actual.get(i).start(), EPSILON);
                 assertEquals(expected.get(i).arc(), actual.get(i).arc(), EPSILON);
+                assertEquals(expected.get(i).length(), actual.get(i).length(), EPSILON);
             }
         }
 
-        /** Whether the open type's displayed petals span the cursor, any whole turn of it. */
-        private static boolean openSpanHolds(List<RadialWheel.PetalArc> displayed, int type, double cursor) {
-            List<RadialWheel.PetalArc> span = displayed.stream().filter(petal -> petal.type() == type).toList();
-            double start = span.getFirst().start();
-            double length = span.getLast().start() + span.getLast().arc() - start;
-            return ((cursor - start) % TWO_PI + TWO_PI) % TWO_PI <= length + EPSILON;
-        }
-
-        private static void assertOpenSpanHoldsTheCursorAtEveryStep(RadialWheel wheel, double cursor) {
-            for (int step = 0; step < RingEase.DURATION_TICKS; step++) {
-                for (float partial : PARTIALS) {
-                    assertTrue(openSpanHolds(wheel.displayedLayout(partial), wheel.selectedType(), cursor),
-                            "step " + step + " partial " + partial);
-                }
-                wheel.tick();
+        /** Mid-fan: the type petal part-receded and part-widened on top, the cards fanned part way in order. */
+        private static void assertMidFan(List<RadialWheel.PetalArc> midway, double targetCard) {
+            RadialWheel.PetalArc own = petalOf(midway, OPEN_TYPE, RadialWheel.NONE);
+            assertTrue(own.length() > RadialWheel.HUB_FRACTION && own.length() < 1.0, "length " + own.length());
+            assertTrue(own.arc() > TYPE_ARC && own.arc() < ABILITIES * targetCard, "arc " + own.arc());
+            assertEquals(own, midway.get(midway.indexOf(petalOf(midway, OPEN_TYPE, 0)) + 1),
+                    "the type petal draws right over its first card");
+            double previous = own.start() - EPSILON;
+            for (int ability = 0; ability < ABILITIES; ability++) {
+                RadialWheel.PetalArc card = petalOf(midway, OPEN_TYPE, ability);
+                assertEquals(targetCard, card.arc(), EPSILON);
+                assertTrue(card.start() >= previous, "card " + ability + " fans clockwise");
+                assertTrue(card.start() - own.start() <= ability * targetCard + EPSILON);
+                assertTrue(ability == 0 || card.start() - own.start() < ability * targetCard,
+                        "card " + ability + " short of its place");
+                previous = card.start() + EPSILON;
             }
-            assertTrue(openSpanHolds(wheel.displayedLayout(0.0f), wheel.selectedType(), cursor));
         }
 
         @Test
-        void easeFromRestPassesBetweenAndLandsOnTheTargetThenHolds() {
-            RadialWheel wheel = opened(ABILITIES);
-            RadialWheel.PetalArc targetAbility = petalOf(wheel.layout(), OPEN_TYPE, 0);
-            RadialWheel.PetalArc targetNeighbor = petalOf(wheel.layout(), OPEN_TYPE + 1, RadialWheel.NONE);
+        void openingFansTheCardsOutFromBehindTheRecedingTypePetal() {
+            RadialWheel wheel = freshlyOpened();
+            double targetCard = petalOf(wheel.layout(), OPEN_TYPE, 0).arc();
 
-            assertSameLayout(wheel(ABILITIES).layout(), wheel.displayedLayout(0.0f));
             tick(wheel, MID_TICKS);
-            List<RadialWheel.PetalArc> midway = wheel.displayedLayout(0.0f);
-            double abilityArc = petalOf(midway, OPEN_TYPE, 0).arc();
-            double neighborArc = petalOf(midway, OPEN_TYPE + 1, RadialWheel.NONE).arc();
-            assertTrue(abilityArc > 0 && abilityArc < targetAbility.arc(), "ability arc " + abilityArc);
-            assertTrue(neighborArc < TYPE_ARC && neighborArc > targetNeighbor.arc(), "neighbor arc " + neighborArc);
-            tick(wheel, RingEase.DURATION_TICKS - MID_TICKS);
-            assertSameLayout(wheel.layout(), wheel.displayedLayout(0.0f));
+
+            assertMidFan(wheel.displayedLayout(0.0f), targetCard);
+        }
+
+        @Test
+        void easeLandsOnTheTargetAndHolds() {
+            RadialWheel wheel = freshlyOpened();
+
             tick(wheel, RingEase.DURATION_TICKS);
-            assertSameLayout(wheel.layout(), wheel.displayedLayout(0.5f));
+            assertSameLayout(wheel.layout(), byStart(wheel.displayedLayout(0.0f)));
+            tick(wheel, RingEase.DURATION_TICKS);
+            assertSameLayout(wheel.layout(), byStart(wheel.displayedLayout(0.5f)));
+        }
+
+        @Test
+        void closingPlaysTheFanInReverse() {
+            RadialWheel wheel = opened(ABILITIES);
+            double targetCard = petalOf(wheel.layout(), OPEN_TYPE, 0).arc();
+
+            moveTo(wheel, 0.0, HUB);
+            tick(wheel, MID_TICKS);
+
+            assertMidFan(wheel.displayedLayout(0.0f), targetCard);
         }
 
         @Test
         void retargetMidEaseStartsFromTheDisplayedLayout() {
-            RadialWheel wheel = opened(ABILITIES);
+            RadialWheel wheel = freshlyOpened();
             tick(wheel, MID_TICKS);
             List<RadialWheel.PetalArc> before = wheel.displayedLayout(0.0f);
 
-            moveTo(wheel, petalOf(wheel.layout(), OPEN_TYPE + 1, RadialWheel.NONE).center(), PETAL);
+            wheel.scroll(-1);
 
             assertEquals(OPEN_TYPE + 1, wheel.selectedType());
             assertSameLayout(before, wheel.displayedLayout(0.0f));
             assertTrue(wheel.isAnimating());
-        }
-
-        @Test
-        void openSpanHoldsTheCursorThroughEveryEase() {
-            RadialWheel wheel = Rotation.wheelWithAWideType();
-            double opening = (Rotation.WIDE_TYPE + 0.5) * TYPE_ARC;
-            moveTo(wheel, opening, PETAL);
-            assertOpenSpanHoldsTheCursorAtEveryStep(wheel, opening);
-
-            double counterclockwise = Rotation.WIDE_SPAN_START - Rotation.JUST_PAST;
-            moveTo(wheel, counterclockwise, PETAL);
-            assertOpenSpanHoldsTheCursorAtEveryStep(wheel, counterclockwise);
-
-            moveTo(wheel, opening, PETAL);
-            tick(wheel, RingEase.DURATION_TICKS);
-            double clockwise = Rotation.WIDE_SPAN_END + Rotation.JUST_PAST;
-            moveTo(wheel, clockwise, PETAL);
-            assertEquals(Rotation.WIDE_TYPE + 1, wheel.selectedType());
-            assertOpenSpanHoldsTheCursorAtEveryStep(wheel, clockwise);
         }
 
         @Test

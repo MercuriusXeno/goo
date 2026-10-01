@@ -26,6 +26,8 @@ final class PetalMask {
     private static final double HALF = 0.5;
     /** The outline's sides: the inner arc, the end edge, the cap and the start edge. */
     private static final int OUTLINE_SIDES = 4;
+    /** How many times more segments the cap takes than a straight side, so the round tip reads smooth. */
+    static final int CAP_SEGMENTS_PER_SIDE = 4;
 
     private PetalMask() {
     }
@@ -166,31 +168,94 @@ final class PetalMask {
         }
 
         /**
-         * The petal's closed outline: the inner arc from the start edge to the
-         * end edge, the end edge out to the cap, the cap back to the start
-         * edge, and the start edge in to the inner arc.
-         * decision petals-render-the-live-fluid
+         * The petal's far boundary from its start edge to its end edge,
+         * sampled evenly around the cap circle itself, so the tip reads round
+         * where the cap meets the edges; a wedge with no cap samples its outer
+         * arc evenly by angle.
+         * decision wedges-round-off-like-petals
          *
-         * @param segments the segments each of the four sides is cut into
+         * @param segments the segments the far boundary is cut into
+         * @return segments + 1 points, the first on the start edge, the last on the end edge
+         */
+        List<Point> capSamples(int segments) {
+            List<Point> points = new ArrayList<>(segments + 1);
+            for (int i = 0; i <= segments; i++) {
+                points.add(isRound() ? capPoint(capTurnStart() + capTurn() * i / segments)
+                        : Point.polar(start + arc * i / segments, outer));
+            }
+            return points;
+        }
+
+        /**
+         * The point at the center of the petal's round tip: the cap circle's
+         * center, or midway along the band for a wedge with no cap.
+         *
+         * @return the tip's center
+         */
+        Point tipCenter() {
+            double center = start + arc * HALF;
+            return Point.polar(center, isRound() ? capCenter() : (inner + outer) * HALF);
+        }
+
+        /**
+         * The petal's closed outline: the inner arc from the start edge to the
+         * end edge, the end edge out to the cap, the cap back around its own
+         * circle to the start edge, and the start edge in to the inner arc.
+         * decision petals-render-the-live-fluid
+         * decision wedges-round-off-like-petals
+         *
+         * @param segments the segments each straight or inner side is cut into;
+         *                 the cap takes {@link #CAP_SEGMENTS_PER_SIDE} times as many
          * @return the outline's points in order, the last joining back to the first
          */
         List<Point> outline(int segments) {
-            List<Point> points = new ArrayList<>(segments * OUTLINE_SIDES);
-            double end = start + arc;
+            List<Point> cap = capSamples(segments * CAP_SEGMENTS_PER_SIDE);
+            List<Point> points = new ArrayList<>(segments * OUTLINE_SIDES + cap.size());
+            Point endTip = cap.getLast();
+            Point startTip = cap.getFirst();
             for (int i = 0; i < segments; i++) {
                 points.add(Point.polar(start + arc * i / segments, inner));
             }
-            for (int i = 0; i < segments; i++) {
-                points.add(Point.polar(end, inner + (reach(end) - inner) * i / segments));
+            addSpoke(points, Point.polar(start + arc, inner), endTip, segments);
+            for (int i = cap.size() - 1; i > 0; i--) {
+                points.add(cap.get(i));
             }
-            for (int i = 0; i < segments; i++) {
-                double angle = end - arc * i / segments;
-                points.add(Point.polar(angle, reach(angle)));
-            }
-            for (int i = 0; i < segments; i++) {
-                points.add(Point.polar(start, reach(start) - (reach(start) - inner) * i / segments));
-            }
+            addSpoke(points, startTip, Point.polar(start, inner), segments);
             return points;
+        }
+
+        private static void addSpoke(List<Point> points, Point from, Point to, int segments) {
+            for (int i = 0; i < segments; i++) {
+                points.add(new Point(from.x() + (to.x() - from.x()) * i / segments,
+                        from.y() + (to.y() - from.y()) * i / segments));
+            }
+        }
+
+        /**
+         * The cap circle's own angle, clockwise from the top, at the start
+         * edge's tangent point: a quarter turn and a half wedge back from the tip.
+         *
+         * @return the angle in radians
+         */
+        private double capTurnStart() {
+            return start + arc * HALF - Math.PI * HALF - arc * HALF;
+        }
+
+        /**
+         * The turn the cap circle's far side spans between its two tangent points.
+         *
+         * @return a half turn plus the wedge's arc
+         */
+        private double capTurn() {
+            return Math.PI + arc;
+        }
+
+        private Point capPoint(double capAngle) {
+            double center = start + arc * HALF;
+            double capCenter = capCenter();
+            double capRadius = capCenter * sinHalf();
+            return new Point(Math.sin(center) * capCenter + Math.sin(capAngle) * capRadius,
+                    -Math.cos(center) * capCenter - Math.cos(capAngle) * capRadius);
         }
 
         /**
