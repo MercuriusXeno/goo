@@ -21,15 +21,13 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Goo glove held in main/offhand. Right-click is overloaded, counted on
- * the client off the held use key: a short press throws the selected goo
- * type, a hold to {@link #RADIAL_THRESHOLD_TICKS} opens the radial menu to
- * change selection.
+ * Goo glove held in main/offhand. The glove menu key, G by default, opens
+ * the radial to change selection while held and selects on release.
+ * Right-click throws the selected goo type on the press, resolved on the
+ * client off the use key.
  */
 public class GooGloveItem extends Item {
 
-    /** Ticks of hold before radial menu opens instead of throwing. */
-    public static final int RADIAL_THRESHOLD_TICKS = 6;
     /** Recollect pickup sound volume. */
     private static final float PICKUP_VOLUME = 0.5f;
     /** Recollect pickup sound pitch. */

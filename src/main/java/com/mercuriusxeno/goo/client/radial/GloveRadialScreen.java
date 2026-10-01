@@ -11,7 +11,7 @@ import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.input.KeyEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
 import net.minecraft.resources.ResourceKey;
@@ -23,15 +23,16 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The glove's one radial wheel, opened by holding right click past the
- * threshold: hovering or scrolling to a type fans its abilities out, a left
- * click on an ability writes it to the glove and closes, and any other click
- * closes with the glove unchanged (decision type-recedes-and-abilities-fan-out).
+ * The glove's one radial wheel, open while the glove menu key is held:
+ * hovering or scrolling to a type fans its abilities out, releasing the key
+ * over an ability writes it to the glove and closes, and releasing it over
+ * nothing, or pressing Escape, closes with the glove unchanged. A mouse click
+ * does nothing here.
+ * decision type-recedes-and-abilities-fan-out
+ * decision radial-selects-on-g-release
  */
 public final class GloveRadialScreen extends Screen {
 
-    private static final int LEFT_BUTTON = 0;
-    private static final int RIGHT_BUTTON = 1;
     private static final int HALF = 2;
 
     private final List<ResourceKey<GooTypeDefinition>> types;
@@ -87,27 +88,29 @@ public final class GloveRadialScreen extends Screen {
     }
 
     /**
-     * A left click on an ability writes it to the glove; any other click
-     * closes with the glove unchanged.
+     * Reads the glove menu key's release here, since an open screen takes
+     * the keyboard from the mapping.
+     * decision radial-selects-on-g-release
      *
-     * @param event       the mouse button click event
-     * @param doubleClick true if this is a double-click
+     * @param event the key release event
      * @return true if the event was handled
      */
     @Override
-    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-        RadialWheel.Outcome outcome = switch (event.button()) {
-            case LEFT_BUTTON -> wheel.click();
-            case RIGHT_BUTTON -> wheel.rightClick();
-            default -> null;
-        };
-        if (outcome == null) {
-            return super.mouseClicked(event, doubleClick);
+    public boolean keyReleased(KeyEvent event) {
+        if (!GloveRadialKey.MAPPING.matches(event)) {
+            return super.keyReleased(event);
         }
-        if (outcome.selects()) {
-            selectAbility(types.get(outcome.type()), abilities.get(outcome.type()).get(outcome.ability()));
-        }
-        onClose();
+        GloveRadialKeyGate.release(wheel.click(), new GloveRadialKeyGate.ReleaseActions() {
+            @Override
+            public void selectHovered(RadialWheel.Outcome hovered) {
+                selectAbility(types.get(hovered.type()), abilities.get(hovered.type()).get(hovered.ability()));
+            }
+
+            @Override
+            public void close() {
+                onClose();
+            }
+        });
         return true;
     }
 

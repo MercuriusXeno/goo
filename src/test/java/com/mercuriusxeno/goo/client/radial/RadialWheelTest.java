@@ -137,14 +137,6 @@ class RadialWheelTest {
         }
 
         @Test
-        void rightClickCancelsWithAnAbilityHovered() {
-            RadialWheel wheel = fanned();
-            moveTo(wheel, abilityCenter(wheel, 1), OUTER_RING);
-
-            assertEquals(RadialWheel.Outcome.CANCEL, wheel.rightClick());
-        }
-
-        @Test
         void hoveringAnotherTypeRefansAndClearsTheHover() {
             RadialWheel wheel = fanned();
             moveTo(wheel, abilityCenter(wheel, 1), OUTER_RING);
