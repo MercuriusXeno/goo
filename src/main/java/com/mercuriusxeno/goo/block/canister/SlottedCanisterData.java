@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.block.gasket.SlotGasketRegistration;
 import com.mercuriusxeno.goo.data.GasketRegistry;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
+import com.mercuriusxeno.goo.item.CanisterMetadata;
 import com.mercuriusxeno.goo.item.PlayerUtils;
 import com.mercuriusxeno.goo.registry.GooFluids;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -447,6 +448,23 @@ public class SlottedCanisterData {
     }
 
     /**
+     * Writes a slot's canister metadata, then refreshes the host's capabilities:
+     * GASKET_BLOCK answers by the slot gasket ids this write installs, mints or
+     * clears (decision diagnose-then-fix-capability-lifetimes). No-op for an
+     * empty or out-of-range slot.
+     *
+     * @param index    the slot index
+     * @param metadata the new metadata
+     */
+    public void setMetadata(int index, CanisterMetadata metadata) {
+        if (!inRange(index) || slots[index].isEmpty()) {
+            return;
+        }
+        slots[index].setMetadata(metadata);
+        invalidateCapabilities();
+    }
+
+    /**
      * Stands or drops a slot's pusher from its canister's bottom gasket state.
      *
      * @param index the slot index
@@ -567,6 +585,8 @@ public class SlottedCanisterData {
     /**
      * Reads the slots {@link #save} wrote, then rebuilds each fluid handler and
      * the composite shape. Loading fires no structure callback, so no sync runs.
+     * A load into a host already standing in a server level refreshes its
+     * capabilities, since every handler a cache held was replaced.
      *
      * @param input the value input
      * @param key   the tag key the slots live under
@@ -584,6 +604,7 @@ public class SlottedCanisterData {
         for (CanisterSlot slot : slots) {
             slot.buildHandler(this::gameTime);
         }
+        invalidateCapabilities();
     }
 
     // --- Light ---

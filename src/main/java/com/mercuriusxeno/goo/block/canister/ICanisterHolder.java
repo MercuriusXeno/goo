@@ -80,18 +80,14 @@ public interface ICanisterHolder extends IGooLightSource {
     }
 
     /**
-     * Updates the canister metadata at the given slot and triggers a sync.
-     * No-op if the slot is empty or out of range.
+     * Updates the canister metadata at the given slot, triggers a sync and
+     * refreshes the host's capabilities. No-op if the slot is empty or out of range.
      *
      * @param index    the slot index
      * @param metadata the new metadata to apply
      */
     default void setSlotMetadata(int index, CanisterMetadata metadata) {
-        CanisterSlot s = slot(index);
-        if (s == null || s.isEmpty()) {
-            return;
-        }
-        s.setMetadata(metadata);
+        containerState().setMetadata(index, metadata);
     }
 
     /**
