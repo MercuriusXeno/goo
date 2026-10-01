@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.network;
 
+import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -9,7 +10,6 @@ import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.resources.ResourceKey;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,7 +19,7 @@ import java.util.Map;
  * connection holds them, so a disconnect drops them with it
  * (decision type-package-and-per-server-holders).
  *
- * @param byType each type's abilities, sorted by order
+ * @param byType each type's abilities, in fan order
  * @param byId   each ability by its id string
  */
 public record ClientAbilities(Map<ResourceKey<GooTypeDefinition>, List<ClientAbility>> byType,
@@ -61,7 +61,7 @@ public record ClientAbilities(Map<ResourceKey<GooTypeDefinition>, List<ClientAbi
         }
         Map<ResourceKey<GooTypeDefinition>, List<ClientAbility>> sorted = new HashMap<>();
         byType.forEach((type, list) -> sorted.put(type,
-                list.stream().sorted(Comparator.comparingInt(ClientAbility::order)).toList()));
+                list.stream().sorted(AbilityBadge.fanOrder(ClientAbility::badge, ClientAbility::order)).toList()));
         return new ClientAbilities(sorted, byId);
     }
 
@@ -80,7 +80,7 @@ public record ClientAbilities(Map<ResourceKey<GooTypeDefinition>, List<ClientAbi
 
     /**
      * @param type the goo type
-     * @return the type's abilities, sorted by order
+     * @return the type's abilities, in fan order
      */
     public List<ClientAbility> forType(ResourceKey<GooTypeDefinition> type) {
         return byType.getOrDefault(type, List.of());

@@ -33,7 +33,7 @@ public final class AbilityRegistry {
     public AbilityRegistry(Map<Identifier, AbilityDefinition> abilities) {
         byId = Map.copyOf(abilities);
         byType = Map.copyOf(abilities.values().stream()
-                .sorted(Comparator.comparingInt(AbilityDefinition::order))
+                .sorted(AbilityBadge.fanOrder(AbilityDefinition::badge, AbilityDefinition::order))
                 .collect(Collectors.groupingBy(
                         AbilityDefinition::gooType,
                         HashMap::new,
@@ -73,7 +73,7 @@ public final class AbilityRegistry {
     }
 
     /**
-     * Returns all abilities for the given goo type, sorted by order.
+     * Returns all abilities for the given goo type, in fan order: badge rank, then order.
      *
      * @param type the goo type
      * @return immutable list, empty if none registered
