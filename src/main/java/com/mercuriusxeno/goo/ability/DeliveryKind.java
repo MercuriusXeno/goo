@@ -5,7 +5,12 @@ import com.mojang.serialization.Codec;
 
 /**
  * How an ability leaves the glove, the fixed code vocabulary an ability's
- * delivery block names (decision delivery-block-in-ability-json).
+ * delivery block names (decision delivery-block-in-ability-json). Each kind
+ * ships with one bundled ability proving it: glow laser and glow crystal the
+ * beam, metal fist the punch, blaze spitfire the stream, ender blink and
+ * typhoon propulsion the self, every other ability the arc. A further
+ * ability is data, a goo_abilities JSON naming one of these kinds and its
+ * params, and needs no new Java (decision one-proving-ability-per-kind).
  */
 public enum DeliveryKind {
     /** A lobbed goo flying a parabola to its target. */

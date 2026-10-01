@@ -10,6 +10,9 @@ import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
+import java.util.EnumSet;
+import java.util.Set;
+import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -141,6 +144,16 @@ class DeliveryTest {
         void everyBundledAbilityNamesAKind() {
             assertAll(AbilityJson.files().stream().map(file -> (Executable) () ->
                     assertNotNull(AbilityJson.decode(file).delivery().kind(), file.getFileName().toString())));
+        }
+
+        /** A kind shipped without its proving ability fails the build (decision one-proving-ability-per-kind). */
+        @Test
+        void everyDeliveryKindIsNamedByABundledAbility() {
+            Set<DeliveryKind> named = AbilityJson.files().stream()
+                    .map(file -> AbilityJson.decode(file).delivery().kind())
+                    .collect(Collectors.toCollection(() -> EnumSet.noneOf(DeliveryKind.class)));
+            Set<DeliveryKind> unnamed = EnumSet.complementOf(EnumSet.copyOf(named));
+            assertEquals(Set.of(), unnamed, "No bundled ability names delivery kind " + unnamed);
         }
 
         @Test
