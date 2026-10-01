@@ -9,9 +9,12 @@ import java.util.function.IntUnaryOperator;
  * from the hub to the rim. At rest it holds one petal per type, each a full
  * type arc. Hovering a type (or scrolling to it) opens it with no click: its
  * petal is replaced in the same ring by its ability petals, and the other
- * types shrink to make room. The cursor in the hub returns the wheel to rest.
+ * types shrink to make room. The ring turns the least it must to keep the
+ * cursor inside the open type's abilities. The cursor in the hub returns the
+ * wheel to rest, unturned.
  * decision abilities-replace-the-hovered-type
  * decision ability-petals-take-a-type-arc-to-a-floor
+ * decision ring-rotates-to-keep-the-cursor-inside
  *
  * <p>Angles run clockwise from the top, the way the petal masks are drawn.
  */
@@ -30,11 +33,19 @@ public final class RadialWheel {
     private static final double HALF = 0.5;
     /** A scroll up steps the open type one petal counterclockwise. */
     private static final int STEP_BACK = -1;
+    /** How far inside the open type's abilities the ring turns the cursor, from either edge. */
+    static final double CURSOR_MARGIN = Math.toRadians(3.0);
+    /** Full turns either way the rotation's solve tries, enough to reach zero from any cursor and span. */
+    private static final int TURNS_TRIED = 2;
 
     private final int typeCount;
     private final IntUnaryOperator abilityCount;
     private int selectedType = NONE;
     private int hoveredAbility = NONE;
+    /** The angle every petal's start is turned by, clockwise; zero at rest. */
+    private double rotation;
+    /** The cursor's last angle outside the hub, or NaN while it has none. */
+    private double cursorAngle = Double.NaN;
 
     /**
      * Creates the wheel at rest.
@@ -84,8 +95,8 @@ public final class RadialWheel {
     }
 
     /**
-     * The ring's petals in clockwise order from the top: one per type at
-     * rest, or with the open type's petal replaced by its ability petals.
+     * The ring's petals in clockwise order from the rotation: one per type
+     * at rest, or with the open type's petal replaced by its ability petals.
      * The renderer and the cursor both read this one list.
      *
      * @return the petals, their arcs summing to a full turn
@@ -104,15 +115,15 @@ public final class RadialWheel {
         return petals;
     }
 
-    private static void addAbilityPetals(List<PetalArc> petals, int type, int abilities, double arc) {
+    private void addAbilityPetals(List<PetalArc> petals, int type, int abilities, double arc) {
         for (int ability = 0; ability < abilities; ability++) {
             petals.add(new PetalArc(type, ability, endOf(petals), arc));
         }
     }
 
-    private static double endOf(List<PetalArc> petals) {
+    private double endOf(List<PetalArc> petals) {
         if (petals.isEmpty()) {
-            return 0.0;
+            return rotation;
         }
         PetalArc last = petals.getLast();
         return last.start() + last.arc();
@@ -152,13 +163,15 @@ public final class RadialWheel {
     /**
      * The petal of a layout an angle falls on.
      *
-     * @param petals the layout
-     * @param angle  the angle in [0, 2 pi)
+     * @param petals the layout, its first petal starting anywhere
+     * @param angle  the angle, any turn
      * @return the petal holding the angle
      */
     static PetalArc petalAt(List<PetalArc> petals, double angle) {
+        double origin = petals.getFirst().start();
+        double offset = wrap(angle - origin);
         for (PetalArc petal : petals) {
-            if (angle < petal.start() + petal.arc()) {
+            if (offset < petal.start() - origin + petal.arc()) {
                 return petal;
             }
         }
@@ -167,8 +180,10 @@ public final class RadialWheel {
 
     /**
      * Moves the cursor: the hub returns the wheel to rest, an ability petal
-     * of the open type hovers it, and another type's petal opens that type.
+     * of the open type hovers it, and another type's petal opens that type,
+     * the ring turning to keep the cursor inside its abilities.
      * decision abilities-replace-the-hovered-type
+     * decision ring-rotates-to-keep-the-cursor-inside
      *
      * @param dx          the cursor's x offset from the center
      * @param dy          the cursor's y offset from the center, down positive
@@ -181,15 +196,79 @@ public final class RadialWheel {
         if (Math.hypot(dx, dy) < HUB_FRACTION * outerRadius) {
             selectedType = NONE;
             hoveredAbility = NONE;
+            rotation = 0.0;
+            cursorAngle = Double.NaN;
             return;
         }
-        PetalArc petal = petalAt(layout(), angleOf(dx, dy));
+        cursorAngle = angleOf(dx, dy);
+        PetalArc petal = petalAt(layout(), cursorAngle);
         if (petal.isAbility()) {
             hoveredAbility = petal.ability();
-        } else {
-            selectedType = petal.type();
-            hoveredAbility = NONE;
+        } else if (petal.type() != selectedType) {
+            openType(petal.type());
         }
+    }
+
+    /**
+     * Opens a type and turns the ring the least it must to put the cursor
+     * inside the type's abilities, then hovers the ability under the cursor.
+     * With no cursor angle the ring rests unturned.
+     * decision ring-rotates-to-keep-the-cursor-inside
+     *
+     * @param type the type to open
+     */
+    private void openType(int type) {
+        selectedType = type;
+        hoveredAbility = NONE;
+        rotation = 0.0;
+        if (Double.isNaN(cursorAngle)) {
+            return;
+        }
+        rotation = solveRotation(layout(), type, cursorAngle);
+        PetalArc petal = petalAt(layout(), cursorAngle);
+        hoveredAbility = petal.isAbility() ? petal.ability() : NONE;
+    }
+
+    /**
+     * The rotation nearest zero that puts an angle at least the margin
+     * inside a type's span of petals; a span narrower than two margins
+     * centers on the angle instead.
+     * decision ring-rotates-to-keep-the-cursor-inside
+     *
+     * @param unturned the layout at rotation zero
+     * @param type     the type whose span holds the angle
+     * @param angle    the angle the span must hold
+     * @return the rotation in radians
+     */
+    static double solveRotation(List<PetalArc> unturned, int type, double angle) {
+        List<PetalArc> span = unturned.stream().filter(petal -> petal.type() == type).toList();
+        double spanStart = span.getFirst().start();
+        double spanEnd = span.getLast().start() + span.getLast().arc();
+        double lowest = angle - spanEnd + CURSOR_MARGIN;
+        double highest = angle - spanStart - CURSOR_MARGIN;
+        if (lowest > highest) {
+            double centered = angle - (spanStart + spanEnd) * HALF;
+            return nearestToZero(centered, centered);
+        }
+        return nearestToZero(lowest, highest);
+    }
+
+    /**
+     * The value nearest zero in an interval of rotations, any whole turn of it.
+     *
+     * @param lowest  the interval's low end
+     * @param highest the interval's high end
+     * @return the rotation nearest zero
+     */
+    private static double nearestToZero(double lowest, double highest) {
+        double best = Double.POSITIVE_INFINITY;
+        for (int turn = -TURNS_TRIED; turn <= TURNS_TRIED; turn++) {
+            double nearest = Math.max(lowest + turn * TWO_PI, Math.min(highest + turn * TWO_PI, 0.0));
+            if (Math.abs(nearest) < Math.abs(best)) {
+                best = nearest;
+            }
+        }
+        return best;
     }
 
     /**
@@ -203,11 +282,10 @@ public final class RadialWheel {
         }
         boolean clockwise = scrollY < 0;
         if (selectedType == NONE) {
-            selectedType = clockwise ? 0 : typeCount - 1;
+            openType(clockwise ? 0 : typeCount - 1);
         } else {
-            selectedType = Math.floorMod(selectedType + (clockwise ? 1 : STEP_BACK), typeCount);
+            openType(Math.floorMod(selectedType + (clockwise ? 1 : STEP_BACK), typeCount));
         }
-        hoveredAbility = NONE;
     }
 
     /**
@@ -230,6 +308,15 @@ public final class RadialWheel {
      */
     public boolean isOpen() {
         return selectedType != NONE;
+    }
+
+    /**
+     * The angle every petal is turned by.
+     *
+     * @return the rotation in radians, clockwise; zero at rest
+     */
+    double rotation() {
+        return rotation;
     }
 
     /**
