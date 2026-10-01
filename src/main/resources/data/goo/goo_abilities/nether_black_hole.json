@@ -1,6 +1,7 @@
 {
   "gooType": "nether",
   "displayName": "goo.ability.nether.black_hole",
+  "badge": "world",
   "order": 0,
   "cost": 1000,
   "delivery": { "kind": "arc" },

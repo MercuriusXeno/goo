@@ -1,6 +1,7 @@
 {
   "gooType": "crystal",
   "displayName": "goo.ability.crystal.cloud",
+  "badge": "world",
   "order": 0,
   "cost": 1000,
   "delivery": { "kind": "arc" },

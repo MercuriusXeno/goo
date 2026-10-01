@@ -1,6 +1,7 @@
 {
   "gooType": "shroom",
   "displayName": "goo.ability.shroom.debuff",
+  "badge": "mob",
   "order": 0,
   "cost": 1000,
   "delivery": { "kind": "arc" },

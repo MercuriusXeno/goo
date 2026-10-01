@@ -1,6 +1,7 @@
 {
   "gooType": "metal",
   "displayName": "goo.ability.metal.javelin",
+  "badge": "mob",
   "order": 10,
   "cost": 1000,
   "delivery": { "kind": "arc" },

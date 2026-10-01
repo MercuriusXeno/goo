@@ -1,6 +1,7 @@
 {
   "gooType": "frost",
   "displayName": "goo.ability.frost.flat",
+  "badge": "world",
   "order": 2,
   "cost": 1000,
   "delivery": { "kind": "arc" },

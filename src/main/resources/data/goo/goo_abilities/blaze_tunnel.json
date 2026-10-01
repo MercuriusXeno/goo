@@ -1,6 +1,7 @@
 {
   "gooType": "blaze",
   "displayName": "goo.ability.blaze.tunnel",
+  "badge": "world",
   "order": 0,
   "cost": 1000,
   "delivery": { "kind": "arc" },

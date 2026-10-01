@@ -1,6 +1,7 @@
 {
   "gooType": "leaf",
   "displayName": "goo.ability.leaf.entangle",
+  "badge": "mob",
   "order": 0,
   "cost": 1000,
   "delivery": { "kind": "arc" },

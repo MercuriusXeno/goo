@@ -1,6 +1,7 @@
 {
   "gooType": "ender",
   "displayName": "goo.ability.ender.blink",
+  "badge": "self",
   "order": 10,
   "cost": 1000,
   "delivery": { "kind": "self" },

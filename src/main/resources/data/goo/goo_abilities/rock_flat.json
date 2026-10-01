@@ -1,6 +1,7 @@
 {
   "gooType": "rock",
   "displayName": "goo.ability.rock.flat",
+  "badge": "world",
   "order": 1,
   "cost": 1000,
   "delivery": { "kind": "arc" },
