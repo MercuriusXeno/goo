@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.radial;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.function.IntUnaryOperator;
 
@@ -37,6 +38,10 @@ public final class RadialWheel {
     static final double CURSOR_MARGIN = Math.toRadians(3.0);
     /** Full turns either way the rotation's solve tries, enough to reach zero from any cursor and span. */
     private static final int TURNS_TRIED = 2;
+    /** Client ticks the ring follows the cursor after a type opens: a quarter second. */
+    static final int GRACE_TICKS = 5;
+    /** The smallest openness or length a petal draws at. */
+    private static final double VISIBLE = 1e-6;
 
     private final int typeCount;
     private final IntUnaryOperator abilityCount;
@@ -46,6 +51,8 @@ public final class RadialWheel {
     private double rotation;
     /** The cursor's last angle outside the hub, or NaN while it has none. */
     private double cursorAngle = Double.NaN;
+    /** Client ticks left in the grace window after a type opened under the cursor. */
+    private int graceTicks;
     /** The picture's ease toward the target layout; the state above is the target. */
     private final RingEase ease;
 
@@ -107,11 +114,15 @@ public final class RadialWheel {
      * @return the petals, their arcs summing to a full turn
      */
     List<PetalArc> layout() {
-        return petalsOf(targetPose());
+        List<PetalArc> petals = new ArrayList<>(petalsOf(targetPose()));
+        petals.sort(Comparator.comparingDouble(PetalArc::start));
+        return petals;
     }
 
     /**
-     * The ring's petals as drawn this frame, easing toward {@link #layout()}.
+     * The ring's petals as drawn this frame, easing toward {@link #layout()},
+     * in draw order: each type's ability cards from the last to the first,
+     * then the type's own petal on top, so the cards fan out from behind it.
      * decision petal-moves-animate
      *
      * @param partialTick the fraction of a tick since the last one
@@ -121,9 +132,12 @@ public final class RadialWheel {
         return petalsOf(ease.displayed(partialTick));
     }
 
-    /** Advances the petals' ease one client tick. */
+    /** Advances the petals' ease and the grace window one client tick. */
     public void tick() {
         ease.tick();
+        if (graceTicks > 0) {
+            graceTicks--;
+        }
     }
 
     /**
@@ -137,50 +151,79 @@ public final class RadialWheel {
     }
 
     /**
-     * The target as one arc per slot: each type's own petal, then its
-     * abilities, the open type's petal and every closed type's abilities zero.
+     * Whether the ring still follows the cursor after a type opened.
+     * decision ring-rotates-to-keep-the-cursor-inside
+     *
+     * @return true inside the grace window
+     */
+    boolean isInGrace() {
+        return graceTicks > 0;
+    }
+
+    /**
+     * The target pose: the open type's slot as wide as its abilities and
+     * fully open, every other type's slot its shrunken or resting arc and closed.
      *
      * @return the target pose
      */
     private RingEase.Pose targetPose() {
         int open = isOpen() ? abilityCount.applyAsInt(selectedType) : 0;
-        Arcs arcs = open > 0 ? arcsWithOpenType(open) : new Arcs(typeArc(), 0.0);
-        List<Double> slots = new ArrayList<>();
+        Arcs arcs = arcsAround(open);
+        int fanned = open > 0 ? selectedType : NONE;
+        double[] widths = new double[typeCount];
+        double[] openness = new double[typeCount];
         for (int type = 0; type < typeCount; type++) {
-            boolean opened = type == selectedType && open > 0;
-            addTypeSlots(slots, type, opened ? new Arcs(0.0, arcs.ability()) : new Arcs(arcs.type(), 0.0));
+            widths[type] = type == fanned ? open * arcs.ability() : arcs.type();
+            openness[type] = type == fanned ? 1.0 : 0.0;
         }
-        return new RingEase.Pose(rotation, slots.stream().mapToDouble(Double::doubleValue).toArray());
-    }
-
-    private void addTypeSlots(List<Double> slots, int type, Arcs arcs) {
-        slots.add(arcs.type());
-        for (int ability = 0; ability < abilityCount.applyAsInt(type); ability++) {
-            slots.add(arcs.ability());
-        }
+        return new RingEase.Pose(rotation, widths, openness);
     }
 
     /**
-     * Lays a pose's slots around the ring from its rotation, leaving out each
-     * slot whose arc is zero.
+     * Lays a pose around the ring from its rotation, each type in its slot:
+     * its ability cards, full size, fanned clockwise from stacked at the
+     * slot's start as far as the type is open, and its own petal across the
+     * slot, shrunk lengthwise toward the hub as far as the type is open.
+     * decision petal-moves-animate
      *
      * @param pose the pose
-     * @return the petals in clockwise order
+     * @return the petals in draw order
      */
     private List<PetalArc> petalsOf(RingEase.Pose pose) {
         List<PetalArc> petals = new ArrayList<>();
         double start = pose.rotation();
-        int slot = 0;
         for (int type = 0; type < typeCount; type++) {
-            for (int ability = NONE; ability < abilityCount.applyAsInt(type); ability++) {
-                double arc = pose.arcs()[slot++];
-                if (arc > 0) {
-                    petals.add(new PetalArc(type, ability, start, arc));
-                    start += arc;
-                }
+            double openness = pose.openness()[type];
+            double width = pose.widths()[type];
+            addCards(petals, type, start, openness);
+            double length = 1.0 - (1.0 - HUB_FRACTION) * openness;
+            if (width > 0 && length > HUB_FRACTION + VISIBLE) {
+                petals.add(new PetalArc(type, NONE, start, width, length));
             }
+            start += width;
         }
         return petals;
+    }
+
+    private void addCards(List<PetalArc> petals, int type, double slotStart, double openness) {
+        int abilities = abilityCount.applyAsInt(type);
+        if (abilities == 0 || openness <= VISIBLE) {
+            return;
+        }
+        double card = arcsWithOpenType(abilities).ability();
+        for (int ability = abilities - 1; ability >= 0; ability--) {
+            petals.add(new PetalArc(type, ability, slotStart + ability * card * openness, card, 1.0));
+        }
+    }
+
+    /**
+     * The petal sizes with an open type's abilities, or at rest when none fan out.
+     *
+     * @param abilities the open type's ability count, zero at rest
+     * @return the arc of each type and of each ability
+     */
+    private Arcs arcsAround(int abilities) {
+        return abilities > 0 ? arcsWithOpenType(abilities) : new Arcs(typeArc(), 0.0);
     }
 
     /**
@@ -222,14 +265,19 @@ public final class RadialWheel {
      * @return the petal holding the angle
      */
     static PetalArc petalAt(List<PetalArc> petals, double angle) {
-        double origin = petals.getFirst().start();
-        double offset = wrap(angle - origin);
+        PetalArc nearest = petals.getFirst();
+        double nearestOff = Double.MAX_VALUE;
         for (PetalArc petal : petals) {
-            if (offset < petal.start() - origin + petal.arc()) {
+            double offset = wrap(angle - petal.start());
+            if (offset < petal.arc()) {
                 return petal;
             }
+            if (offset - petal.arc() < nearestOff) {
+                nearestOff = offset - petal.arc();
+                nearest = petal;
+            }
         }
-        return petals.getLast();
+        return nearest;
     }
 
     /**
@@ -248,18 +296,23 @@ public final class RadialWheel {
             return;
         }
         if (Math.hypot(dx, dy) < HUB_FRACTION * outerRadius) {
-            boolean wasOpen = isOpen();
-            selectedType = NONE;
-            hoveredAbility = NONE;
-            rotation = 0.0;
-            cursorAngle = Double.NaN;
-            if (wasOpen) {
-                ease.retarget(targetPose());
-            }
+            returnToRest();
             return;
         }
         cursorAngle = angleOf(dx, dy);
-        PetalArc petal = petalAt(layout(), cursorAngle);
+        if (isOpen() && isInGrace()) {
+            centerOnCursor();
+            return;
+        }
+        landOn(petalAt(layout(), cursorAngle));
+    }
+
+    /**
+     * The cursor on a petal: an ability of the open type hovers it, another type's petal opens that type.
+     *
+     * @param petal the petal under the cursor
+     */
+    private void landOn(PetalArc petal) {
         if (petal.isAbility()) {
             hoveredAbility = petal.ability();
         } else if (petal.type() != selectedType) {
@@ -267,10 +320,24 @@ public final class RadialWheel {
         }
     }
 
+    /** Closes the open type and turns the ring back to rest, the cursor in the hub. */
+    private void returnToRest() {
+        boolean wasOpen = isOpen();
+        selectedType = NONE;
+        hoveredAbility = NONE;
+        rotation = 0.0;
+        cursorAngle = Double.NaN;
+        graceTicks = 0;
+        if (wasOpen) {
+            ease.retarget(targetPose());
+        }
+    }
+
     /**
      * Opens a type and turns the ring the least it must to put the cursor
-     * inside the type's abilities, then hovers the ability under the cursor.
-     * With no cursor angle the ring rests unturned.
+     * inside the type's abilities, hovers the ability it lands on and turns
+     * that ability's center onto the cursor, opening the grace window. With
+     * no cursor angle the ring rests unturned.
      * decision ring-rotates-to-keep-the-cursor-inside
      *
      * @param type the type to open
@@ -283,8 +350,37 @@ public final class RadialWheel {
             rotation = solveRotation(layout(), type, cursorAngle);
             PetalArc petal = petalAt(layout(), cursorAngle);
             hoveredAbility = petal.isAbility() ? petal.ability() : NONE;
+            rotation += turnToCursor(petal);
+            graceTicks = GRACE_TICKS;
         }
         ease.retarget(targetPose());
+    }
+
+    /**
+     * Turns the whole ring, picture and target alike, so the hovered petal's
+     * center sits on the cursor: the grace window's follow.
+     * decision ring-rotates-to-keep-the-cursor-inside
+     */
+    private void centerOnCursor() {
+        PetalArc anchor = layout().stream()
+                .filter(petal -> petal.type() == selectedType && petal.ability() == hoveredAbility)
+                .findFirst().orElse(null);
+        if (anchor == null) {
+            return;
+        }
+        double turn = turnToCursor(anchor);
+        rotation += turn;
+        ease.turnBy(turn);
+    }
+
+    /**
+     * The shortest turn that brings a petal's center onto the cursor.
+     *
+     * @param petal the petal
+     * @return the turn in radians, within half a turn either way
+     */
+    private double turnToCursor(PetalArc petal) {
+        return Math.IEEEremainder(cursorAngle - petal.center(), TWO_PI);
     }
 
     /**
@@ -402,8 +498,9 @@ public final class RadialWheel {
      * @param ability the ability index, or {@link #NONE} for the type's own petal
      * @param start   the petal's start angle, clockwise from the top
      * @param arc     the petal's span in radians
+     * @param length  the petal's outer radius as a fraction of the wheel's, short of 1 while it recedes
      */
-    record PetalArc(int type, int ability, double start, double arc) {
+    record PetalArc(int type, int ability, double start, double arc, double length) {
 
         /**
          * Whether the petal is an ability of the open type.

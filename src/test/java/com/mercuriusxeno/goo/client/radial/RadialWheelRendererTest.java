@@ -253,6 +253,14 @@ class RadialWheelRendererTest {
         private static final PetalLook.SpriteBox SPRITE = new PetalLook.SpriteBox(0.25f, 0.5f, 0.125f, 0.25f);
         private static final int EDGE_COLOR = 0xFF123456;
         private static final String BAKED_PETAL_PATH = "dynamic/radial_arc_";
+        /** How near a grid line a corner sits to read either edge of the sprite, as a fraction of a tile. */
+        private static final double TILE_TOLERANCE = 1e-3;
+        /** How far a sampled UV may stray from the expected, in atlas units: float rounding of screen positions. */
+        private static final double SAMPLE_TOLERANCE = 1e-3;
+        /** How far, in pixels, an icon's center may sit from its tip's center: integer pixel rounding. */
+        private static final double TIP_TOLERANCE = 2.0;
+        /** How far under an icon's center its words reach: half the icon, a gap and two font lines. */
+        private static final int WORDS_BAND = 32;
 
         /** An atlas, a sprite box and colors with no client behind them, so the frame renders off the game. */
         private final PetalLook fakeLook = new PetalLook() {
@@ -376,6 +384,54 @@ class RadialWheelRendererTest {
                     corners.stream().map(PetalRenderState.ScreenVertex::v).max(Float::compare).orElseThrow()));
             assertTrue(submittedArguments(graphics, "blit", Identifier.class).stream()
                     .noneMatch(texture -> texture.getPath().startsWith(BAKED_PETAL_PATH)));
+            assertAll(corners.stream().map(corner -> (Executable) () -> {
+                assertTiled(corner.u(), corner.x(), CENTER_X, SPRITE.u0(), SPRITE.u1());
+                assertTiled(corner.v(), corner.y(), CENTER_Y, SPRITE.v0(), SPRITE.v1());
+            }));
+        }
+
+        /**
+         * A corner samples the sprite at the fraction its screen position falls
+         * within its tile of the fixed grid; a corner on a grid line may read
+         * either edge of the sprite.
+         */
+        private static void assertTiled(float sampled, float screen, int center, float low, float high) {
+            double normalized = (screen - center) / (double) RADIUS;
+            double across = (normalized - PetalMesh.TILE_ORIGIN) / PetalMesh.TILE;
+            double fraction = across - Math.floor(across);
+            double expected = low + fraction * (high - low);
+            boolean onGridLine = fraction < TILE_TOLERANCE || fraction > 1 - TILE_TOLERANCE;
+            assertTrue(Math.abs(sampled - expected) < SAMPLE_TOLERANCE
+                    || onGridLine && (Math.abs(sampled - low) < SAMPLE_TOLERANCE
+                    || Math.abs(sampled - high) < SAMPLE_TOLERANCE),
+                    "sampled " + sampled + " expected " + expected + " at " + screen);
+        }
+
+        /** decision abilities-replace-the-hovered-type */
+        @Test
+        void abilityIconCentersOnItsTipAndItsWordsSitUnderIt() {
+            RadialWheel wheel = openWheel();
+            GuiGraphicsExtractor graphics = renderFrame(wheel);
+            List<DrawnText> texts = renderTexts(wheel);
+
+            assertAll(wheel.layout().stream().filter(RadialWheel.PetalArc::isAbility).map(petal -> (Executable) () -> {
+                PetalMask.Point tip = new PetalMask.Petal(petal.start(), petal.arc(), RadialWheel.HUB_FRACTION,
+                        petal.length()).tipCenter();
+                double tipX = CENTER_X + tip.x() * RADIUS;
+                double tipY = CENTER_Y + tip.y() * RADIUS;
+                String icon = "ability_" + petal.type() + "_" + petal.ability() + ".png";
+                int[] iconCenter = mockingDetails(graphics).getInvocations().stream()
+                        .filter(call -> call.getMethod().getName().equals("blit")
+                                && call.getArgument(1).toString().endsWith(icon))
+                        .map(call -> new int[]{(int) call.getArgument(2) + RadialWheelRenderer.ABILITY_ICON_SIZE / 2,
+                                (int) call.getArgument(3) + RadialWheelRenderer.ABILITY_ICON_SIZE / 2})
+                        .findFirst().orElseThrow();
+                assertTrue(Math.hypot(iconCenter[0] - tipX, iconCenter[1] - tipY) <= TIP_TOLERANCE,
+                        petal + " icon at " + iconCenter[0] + "," + iconCenter[1]);
+                assertEquals(LINES_PER_ABILITY, texts.stream().filter(text -> text.x() == iconCenter[0]
+                        && text.y() > iconCenter[1] && text.y() <= iconCenter[1] + WORDS_BAND)
+                        .count(), petal + " words under its icon");
+            }));
         }
 
         /** decisions petals-render-the-live-fluid, wedges-take-a-solid-edge */

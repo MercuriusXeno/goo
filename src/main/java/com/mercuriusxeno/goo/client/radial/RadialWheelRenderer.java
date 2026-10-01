@@ -45,7 +45,6 @@ final class RadialWheelRenderer {
     private static final int ABILITY_ICON_OFFSET = ABILITY_ICON_SIZE / 2;
     private static final int LABEL_GAP = 1;
     private static final int HALF = 2;
-    private static final double MID = 0.5;
 
     private static final String TYPE_ICON_PREFIX = "textures/goo/type/";
     private static final String ABILITY_ICON_PREFIX = "textures/goo/ability/";
@@ -108,7 +107,7 @@ final class RadialWheelRenderer {
         boolean selected = petal.type() == frame.wheel().selectedType();
         PetalPainter.paint(graphics, frame, frame.look().fluidFace(key), petal,
                 computeOverlayTint(selected, frame.available().getOrDefault(key, 0) <= 0));
-        blitIcon(graphics, new Icon(typeIcon(key), TYPE_ICON_SIZE), pointAt(frame, petal.center(), slotRadius(frame)),
+        blitIcon(graphics, new Icon(typeIcon(key), TYPE_ICON_SIZE), tipCenter(frame, petal),
                 COLOR_WHITE);
     }
 
@@ -132,20 +131,26 @@ final class RadialWheelRenderer {
                 : ARGB.color(hovered ? HOVER_ALPHA : NORMAL_ALPHA, base);
         PetalPainter.paint(graphics, frame, frame.look().fluidFace(key), petal,
                 computeOverlayTint(hovered, slotLabels.dimmed()));
-        int[] slot = pointAt(frame, petal.center(), slotRadius(frame));
+        int[] slot = tipCenter(frame, petal);
         blitAbilityIcon(graphics, ability, slot, color);
         int textColor = slotLabels.dimmed() ? DISABLED_TEXT_COLOR : hovered ? HOVER_TEXT_COLOR : COLOR_WHITE;
         drawSlotLabels(graphics, font, slot, slotLines(ability, slotLabels), textColor);
     }
 
     /**
-     * The radius a petal's icon centers on: midway from the hub to the rim.
+     * The screen point at the center of a petal's round tip, where its icon
+     * and words have room to breathe.
+     * decision abilities-replace-the-hovered-type
      *
      * @param frame what the frame draws from
-     * @return the radius in pixels
+     * @param petal the petal
+     * @return the point's x and y
      */
-    private static double slotRadius(Frame frame) {
-        return (RadialWheel.HUB_FRACTION + 1.0) * MID * frame.radius();
+    static int[] tipCenter(Frame frame, RadialWheel.PetalArc petal) {
+        PetalMask.Point tip = new PetalMask.Petal(petal.start(), petal.arc(), RadialWheel.HUB_FRACTION,
+                petal.length()).tipCenter();
+        return new int[]{frame.centerX() + (int) Math.round(tip.x() * frame.radius()),
+                frame.centerY() + (int) Math.round(tip.y() * frame.radius())};
     }
 
     /**
@@ -285,10 +290,6 @@ final class RadialWheelRenderer {
                 0.0f, 0.0f, icon.size(), icon.size(), icon.size(), icon.size(), color);
     }
 
-    private static int[] pointAt(Frame frame, double angle, double radius) {
-        return new int[]{frame.centerX() + (int) (Math.sin(angle) * radius),
-                frame.centerY() - (int) (Math.cos(angle) * radius)};
-    }
 
     private static Identifier typeIcon(ResourceKey<GooTypeDefinition> type) {
         return Identifier.fromNamespaceAndPath(Goo.MODID, TYPE_ICON_PREFIX + GooTypes.id(type) + ICON_SUFFIX);
