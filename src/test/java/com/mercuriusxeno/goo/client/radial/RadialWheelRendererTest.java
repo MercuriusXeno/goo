@@ -13,6 +13,10 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.render.TextureSetup;
+import com.mojang.blaze3d.textures.GpuSampler;
+import com.mojang.blaze3d.textures.GpuTextureView;
+import org.joml.Matrix3x2fStack;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
@@ -40,6 +44,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockingDetails;
+import static org.mockito.Mockito.when;
 
 /**
  * Covers RadialWheelRenderer.resolveAbilityIcon over every shipped ability, as the
@@ -242,11 +247,18 @@ class RadialWheelRendererTest {
         private static final int RADIUS = 1000;
         private static final int LINES_PER_ABILITY = 2;
 
-        /** Masks and colors with no client behind them, so the frame renders off the game. */
-        private static final RadialWheelRenderer.PetalLook FAKE_LOOK = new RadialWheelRenderer.PetalLook() {
+        private static final PetalLook.SpriteBox SPRITE = new PetalLook.SpriteBox(0.25f, 0.5f, 0.125f, 0.25f);
+        private static final int EDGE_COLOR = 0xFF123456;
+        private static final String BAKED_PETAL_PATH = "dynamic/radial_arc_";
+
+        /** An atlas, a sprite box and colors with no client behind them, so the frame renders off the game. */
+        private final PetalLook fakeLook = new PetalLook() {
+            private final TextureSetup atlas = TextureSetup.singleTexture(mock(GpuTextureView.class),
+                    mock(GpuSampler.class));
+
             @Override
-            public Identifier petalMask(ResourceKey<GooTypeDefinition> type, RadialWheel.PetalArc petal) {
-                return Identifier.fromNamespaceAndPath("gootest", "petal");
+            public FluidFace fluidFace(ResourceKey<GooTypeDefinition> type) {
+                return new FluidFace(atlas, SPRITE, 0xFFFFFFFF, EDGE_COLOR);
             }
 
             @Override
@@ -276,7 +288,7 @@ class RadialWheelRendererTest {
             return wheel;
         }
 
-        private List<DrawnText> renderTexts(RadialWheel wheel) {
+        private GuiGraphicsExtractor renderFrame(RadialWheel wheel) {
             List<List<ClientAbility>> abilities = IntStream.range(0, TYPES)
                     .mapToObj(type -> IntStream.range(0, ABILITIES).mapToObj(ability -> new ClientAbility(
                             Identifier.fromNamespaceAndPath("gootest", "ability_" + type + "_" + ability),
@@ -284,12 +296,26 @@ class RadialWheelRendererTest {
                             .toList())
                     .toList();
             GuiGraphicsExtractor graphics = mock(GuiGraphicsExtractor.class);
+            when(graphics.pose()).thenReturn(new Matrix3x2fStack(1));
             Font font = mock(Font.class);
             RadialWheelRenderer.render(graphics, font, new RadialWheelRenderer.Frame(wheel, types, abilities,
-                    Map.of(types.get(OPEN_TYPE), HOLDINGS), CENTER_X, CENTER_Y, RADIUS, FAKE_LOOK));
-            return mockingDetails(graphics).getInvocations().stream()
+                    Map.of(types.get(OPEN_TYPE), HOLDINGS), CENTER_X, CENTER_Y, RADIUS, fakeLook));
+            return graphics;
+        }
+
+        private List<DrawnText> renderTexts(RadialWheel wheel) {
+            return mockingDetails(renderFrame(wheel)).getInvocations().stream()
                     .filter(call -> call.getMethod().getName().equals("centeredText"))
                     .map(call -> new DrawnText(call.getArgument(2), call.getArgument(3), call.getArgument(1)))
+                    .toList();
+        }
+
+        private <T> List<T> submittedArguments(GuiGraphicsExtractor graphics, String method, Class<T> type) {
+            return mockingDetails(graphics).getInvocations().stream()
+                    .filter(call -> call.getMethod().getName().equals(method))
+                    .flatMap(call -> Arrays.stream(call.getArguments()))
+                    .filter(type::isInstance)
+                    .map(type::cast)
                     .toList();
         }
 
@@ -323,6 +349,41 @@ class RadialWheelRendererTest {
                     "text drawn on a type petal: " + linesByPetal);
             assertAll(wheel.layout().stream().filter(RadialWheel.PetalArc::isAbility).map(petal -> (Executable) () ->
                     assertEquals(LINES_PER_ABILITY, linesByPetal.getOrDefault(petal, 0L), petal.toString())));
+        }
+
+        /** decision petals-render-the-live-fluid */
+        @Test
+        void petalFillSamplesTheAtlasSpriteAndBlitsNoBakedPetal() {
+            GuiGraphicsExtractor graphics = renderFrame(openWheel());
+            List<PetalRenderState> fills = submittedArguments(graphics, "submitGuiElementRenderState",
+                    PetalRenderState.class).stream().filter(PetalRenderState::isTextured).toList();
+            List<PetalRenderState.ScreenVertex> corners = fills.stream()
+                    .flatMap(fill -> fill.vertices().stream()).toList();
+
+            assertEquals(openWheel().layout().size(), fills.size());
+            assertTrue(corners.stream().allMatch(corner -> corner.u() >= SPRITE.u0() && corner.u() <= SPRITE.u1()
+                    && corner.v() >= SPRITE.v0() && corner.v() <= SPRITE.v1()), "a corner samples off the sprite");
+            assertEquals(List.of(SPRITE.u0(), SPRITE.u1(), SPRITE.v0(), SPRITE.v1()), List.of(
+                    corners.stream().map(PetalRenderState.ScreenVertex::u).min(Float::compare).orElseThrow(),
+                    corners.stream().map(PetalRenderState.ScreenVertex::u).max(Float::compare).orElseThrow(),
+                    corners.stream().map(PetalRenderState.ScreenVertex::v).min(Float::compare).orElseThrow(),
+                    corners.stream().map(PetalRenderState.ScreenVertex::v).max(Float::compare).orElseThrow()));
+            assertTrue(submittedArguments(graphics, "blit", Identifier.class).stream()
+                    .noneMatch(texture -> texture.getPath().startsWith(BAKED_PETAL_PATH)));
+        }
+
+        /** decisions petals-render-the-live-fluid, wedges-take-a-solid-edge */
+        @Test
+        void petalEdgeStripDrawsUntexturedInTheOpaqueEdgeColor() {
+            List<PetalRenderState> edges = submittedArguments(renderFrame(openWheel()),
+                    "submitGuiElementRenderState", PetalRenderState.class).stream()
+                    .filter(state -> !state.isTextured()).toList();
+
+            assertEquals(openWheel().layout().size(), edges.size());
+            assertAll(edges.stream().map(edge -> (Executable) () -> {
+                assertEquals(EDGE_COLOR, edge.color());
+                assertFalse(edge.vertices().isEmpty());
+            }));
         }
     }
 

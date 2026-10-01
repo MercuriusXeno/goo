@@ -2,8 +2,6 @@ package com.mercuriusxeno.goo.client.radial;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
-import com.mercuriusxeno.goo.client.ClientGooTypes;
-import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.item.GooFormat;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -41,8 +39,6 @@ final class RadialWheelRenderer {
     private static final int COLOR_WHITE = 0xFFFFFFFF;
     private static final int HOVER_TEXT_COLOR = 0xFFFFFF00;
     private static final int DISABLED_TEXT_COLOR = 0xFF888888;
-    /** Gap between the hub circle and the petals, as a fraction of the wheel's radius. */
-    private static final double HUB_GAP = 0.02;
     private static final int TYPE_ICON_SIZE = 11;
     /** ability-icons-read-16x16 */
     static final int ABILITY_ICON_SIZE = 16;
@@ -80,57 +76,6 @@ final class RadialWheelRenderer {
     }
 
     /**
-     * Where a petal's mask and its type's color come from: the client's
-     * baked textures and synced registry in play, a fake under test.
-     */
-    interface PetalLook {
-
-        /** The baked petal masks and the type colors the client level holds. */
-        PetalLook LIVE = new PetalLook() {
-            @Override
-            public Identifier petalMask(ResourceKey<GooTypeDefinition> type, RadialWheel.PetalArc petal) {
-                return RadialTextures.getArcTexture(petal.start(), petal.arc(), RadialWheel.HUB_FRACTION, 1.0,
-                        GooSubmitter.fluidSprites(type).still(), GooSubmitter.fluidTint(type),
-                        ARGB.opaque(ClientGooTypes.edge(type)));
-            }
-
-            @Override
-            public Identifier hubMask() {
-                return RadialTextures.getHubTexture(RadialWheel.HUB_FRACTION - HUB_GAP);
-            }
-
-            @Override
-            public int wheelColor(ResourceKey<GooTypeDefinition> type) {
-                return ClientGooTypes.wheel(type);
-            }
-        };
-
-        /**
-         * The mask a petal blits, filled with its type's fluid.
-         *
-         * @param type  the petal's type
-         * @param petal the petal's place on the ring
-         * @return the mask texture
-         */
-        Identifier petalMask(ResourceKey<GooTypeDefinition> type, RadialWheel.PetalArc petal);
-
-        /**
-         * The hub circle's mask.
-         *
-         * @return the mask texture
-         */
-        Identifier hubMask();
-
-        /**
-         * A type's radial RGB, which tints its ability icons.
-         *
-         * @param type the type
-         * @return the RGB
-         */
-        int wheelColor(ResourceKey<GooTypeDefinition> type);
-    }
-
-    /**
      * Draws the hub, every petal of the ring and the center label.
      *
      * @param graphics the GUI graphics extractor
@@ -160,7 +105,7 @@ final class RadialWheelRenderer {
     private static void renderType(GuiGraphicsExtractor graphics, Frame frame, RadialWheel.PetalArc petal) {
         ResourceKey<GooTypeDefinition> key = frame.types().get(petal.type());
         boolean selected = petal.type() == frame.wheel().selectedType();
-        blitMask(graphics, frame, frame.look().petalMask(key, petal),
+        PetalPainter.paint(graphics, frame, frame.look().fluidFace(key), petal,
                 computeOverlayTint(selected, frame.available().getOrDefault(key, 0) <= 0));
         blitIcon(graphics, new Icon(typeIcon(key), TYPE_ICON_SIZE), pointAt(frame, petal.center(), slotRadius(frame)),
                 COLOR_WHITE);
@@ -184,7 +129,8 @@ final class RadialWheelRenderer {
         int base = frame.look().wheelColor(key);
         int color = slotLabels.dimmed() ? computeWedgeColor(base, false, true)
                 : ARGB.color(hovered ? HOVER_ALPHA : NORMAL_ALPHA, base);
-        blitMask(graphics, frame, frame.look().petalMask(key, petal), computeOverlayTint(hovered, slotLabels.dimmed()));
+        PetalPainter.paint(graphics, frame, frame.look().fluidFace(key), petal,
+                computeOverlayTint(hovered, slotLabels.dimmed()));
         int[] slot = pointAt(frame, petal.center(), slotRadius(frame));
         blitAbilityIcon(graphics, ability, slot, color);
         int textColor = slotLabels.dimmed() ? DISABLED_TEXT_COLOR : hovered ? HOVER_TEXT_COLOR : COLOR_WHITE;
