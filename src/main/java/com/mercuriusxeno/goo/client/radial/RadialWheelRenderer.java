@@ -16,6 +16,8 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -51,6 +53,7 @@ final class RadialWheelRenderer {
     private static final String ICON_SUFFIX = ".png";
     private static final char NAMESPACE_SEPARATOR = ':';
     private static final String MOB_SUFFIX = " (Mob)";
+    private static final String WORD_SEPARATOR = "\\s+";
 
 
     private RadialWheelRenderer() {
@@ -122,9 +125,24 @@ final class RadialWheelRenderer {
             double middle = start + arc * MID;
             blitIcon(graphics, resolveAbilityIcon(fan.get(ability)), frame, middle, slotRadius, color);
             int textColor = slotLabels.dimmed() ? DISABLED_TEXT_COLOR : hovered ? HOVER_TEXT_COLOR : COLOR_WHITE;
-            drawSlotLabels(graphics, font, pointAt(frame, middle, slotRadius),
-                    List.of(buildLabel(fan.get(ability)), Component.literal(slotLabels.costLabel())), textColor);
+            List<Component> lines = new ArrayList<>(splitNameLines(buildLabel(fan.get(ability)).getString()));
+            lines.add(Component.literal(slotLabels.costLabel()));
+            drawSlotLabels(graphics, font, pointAt(frame, middle, slotRadius), lines, textColor);
         }
+    }
+
+    /**
+     * Breaks a resolved ability name on its spaces into one line per word,
+     * so a two-term name fits the petal's width.
+     * petal-label-wraps-two-terms
+     *
+     * @param name the ability's resolved name
+     * @return one line per word, a one-word name answering one line
+     */
+    static List<Component> splitNameLines(String name) {
+        return Arrays.stream(name.trim().split(WORD_SEPARATOR))
+                .map(word -> (Component) Component.literal(word))
+                .toList();
     }
 
     private static void drawSlotLabels(GuiGraphicsExtractor graphics, Font font, int[] slot,
