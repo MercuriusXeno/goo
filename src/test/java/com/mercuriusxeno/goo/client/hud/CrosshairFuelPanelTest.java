@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.hud;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
+import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.Identifier;
@@ -23,7 +24,7 @@ class CrosshairFuelPanelTest {
 
     private static ClientAbility costing(int cost) {
         return new ClientAbility(Identifier.fromNamespaceAndPath(Goo.MODID, "cost_" + cost), "ability.goo.cost", "",
-                0, List.of(), 0, AIMED_STACKS + 1, List.of(), cost, AbilityBadge.WORLD);
+                0, List.of(), 0, AIMED_STACKS + 1, List.of(), cost, Delivery.ARC, AbilityBadge.WORLD);
     }
 
     @Test

@@ -1,0 +1,13 @@
+{
+  "gooType": "ender",
+  "displayName": "goo.ability.ender.blink",
+  "badge": "self",
+  "order": 10,
+  "cost": 1000,
+  "delivery": { "kind": "self" },
+  "behaviors": [
+    { "type": "teleport", "mode": "thrower_look", "range": 8 },
+    { "type": "sound", "id": "minecraft:entity.enderman.teleport", "at": "target", "source": "players", "volume": 1, "pitch": 1 }
+  ],
+  "tags": ["self"]
+}

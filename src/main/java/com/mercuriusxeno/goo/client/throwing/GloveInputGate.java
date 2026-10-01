@@ -23,6 +23,9 @@ public final class GloveInputGate {
 
         /** Swings the arm holding the glove. */
         void swing();
+
+        /** Carries the hold one tick further, which a stream delivery streams on. */
+        void hold();
     }
 
     private boolean armed;
@@ -53,7 +56,8 @@ public final class GloveInputGate {
 
     /**
      * Advances a live press by one client tick: throws on its first tick,
-     * and ends once the use key is up.
+     * holds on every later tick the use key stays down (decision
+     * stream-delivery-held-cone), and ends once the use key is up.
      *
      * @param useKeyDown whether the use key is held this tick
      * @param actions    the throw and swing the press resolves to
@@ -65,6 +69,8 @@ public final class GloveInputGate {
         if (!thrown) {
             thrown = true;
             throwAndSwing(actions);
+        } else if (useKeyDown) {
+            actions.hold();
         }
         if (!useKeyDown) {
             cancel();

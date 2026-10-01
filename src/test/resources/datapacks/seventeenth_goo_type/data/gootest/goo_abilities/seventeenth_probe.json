@@ -3,6 +3,7 @@
   "displayName": "goo.ability.gootest.seventeenth_probe",
   "badge": "world",
   "cost": 1000,
+  "delivery": { "kind": "arc" },
   "behaviors": [
     { "type": "wait", "ticks": 1 }
   ]
