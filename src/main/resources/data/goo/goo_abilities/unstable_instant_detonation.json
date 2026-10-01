@@ -4,6 +4,7 @@
   "badge": "world",
   "order": 1,
   "cost": 1000,
+  "delivery": { "kind": "arc" },
   "chain": {
     "fuseTicks": 1,
     "maxStacks": 4

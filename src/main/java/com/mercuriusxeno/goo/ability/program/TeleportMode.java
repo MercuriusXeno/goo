@@ -22,7 +22,13 @@ public enum TeleportMode {
      * A jump of the range away from the thrower along the level line
      * between them; no thrower, no move.
      */
-    AWAY_FROM_THROWER;
+    AWAY_FROM_THROWER,
+    /**
+     * A jump of the range along the thrower's look; on a player host the
+     * player is its own thrower, so it blinks where it looks
+     * (decision self-delivery-runs-on-player).
+     */
+    THROWER_LOOK;
 
     private static final String WHAT = "teleport mode";
 

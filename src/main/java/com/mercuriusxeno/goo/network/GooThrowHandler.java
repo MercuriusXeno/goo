@@ -3,6 +3,8 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.Delivery;
+import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.StackKey;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.item.GooGloveItem;
@@ -13,6 +15,7 @@ import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -70,7 +73,9 @@ public final class GooThrowHandler {
     /**
      * Validates and executes the throw: the glove, the type, the range and
      * the goo in the player's inventory are checked, the goo is depleted,
-     * the flight is broadcast and the effect scheduled for arrival.
+     * the flight is broadcast and the effect scheduled for arrival. A punch
+     * ability strikes at reach instead (decision punch-strikes-at-reach),
+     * and a self ability runs on the player (decision self-delivery-runs-on-player).
      *
      * @param player  the throwing player
      * @param payload the throw payload data
@@ -79,6 +84,24 @@ public final class GooThrowHandler {
         if (!validateGlove(player)) { return; }
         ResourceKey<GooTypeDefinition> gooType = validateGooType(payload);
         if (gooType == null) { return; }
+        AbilityDefinition ability = thrownAbility(player.level(), payload.abilityId(), gooType);
+        switch (ability == null ? DeliveryKind.ARC : ability.delivery().kind()) {
+            case PUNCH -> GooPunchHandler.punch(player, payload, gooType, ability);
+            case SELF -> GooSelfHandler.invoke(player, gooType, ability);
+            default -> throwFlight(player, payload, gooType);
+        }
+    }
+
+    /**
+     * Throws a flight at the payload's target once the range and the goo in
+     * the player's inventory check out.
+     *
+     * @param player  the throwing player
+     * @param payload the throw payload data
+     * @param gooType the validated goo type
+     */
+    private static void throwFlight(ServerPlayer player, GooThrowPayload payload,
+            ResourceKey<GooTypeDefinition> gooType) {
         if (!validateRange(player, payload)) { return; }
         int cost = resolveThrowCost(player, payload, gooType);
         if (!validateSupply(player, gooType, cost)) { return; }
@@ -91,7 +114,7 @@ public final class GooThrowHandler {
      * @param player the throwing player
      * @return true if valid
      */
-    private static boolean validateGlove(ServerPlayer player) {
+    static boolean validateGlove(ServerPlayer player) {
         boolean held = player.getMainHandItem().getItem() instanceof GooGloveItem
             || player.getOffhandItem().getItem() instanceof GooGloveItem;
         if (held) { return true; }
@@ -146,16 +169,43 @@ public final class GooThrowHandler {
      * @param gooType the resolved goo type
      * @return the cost in mB for this throw
      */
-    private static int resolveThrowCost(ServerPlayer player, GooThrowPayload payload,
+    static int resolveThrowCost(ServerPlayer player, GooThrowPayload payload,
             ResourceKey<GooTypeDefinition> gooType) {
-        if (payload.abilityId().isEmpty()) { return THROW_COST; }
-        net.minecraft.resources.Identifier abilityId =
-                net.minecraft.resources.Identifier.tryParse(payload.abilityId());
-        if (abilityId == null) { return THROW_COST; }
-        AbilityDefinition def = AbilityRegistry.of(player.level()).getAbility(abilityId);
-        if (def == null || def.gooType() != gooType) { return THROW_COST; }
+        AbilityDefinition def = thrownAbility(player.level(), payload.abilityId(), gooType);
+        if (def == null) { return THROW_COST; }
         int stackPos = countExistingStacks(player.level(), payload.targetPos(), payload.abilityId());
         return def.throwCost(stackPos);
+    }
+
+    /**
+     * The ability a throw names, when the registry holds it for the thrown type.
+     *
+     * @param level     the server level
+     * @param abilityId the thrown ability id string, empty when the throw names none
+     * @param gooType   the thrown goo type
+     * @return the ability, or null when the throw names none of the type
+     */
+    static @Nullable AbilityDefinition thrownAbility(ServerLevel level, String abilityId,
+            ResourceKey<GooTypeDefinition> gooType) {
+        Identifier id = abilityId.isEmpty() ? null : Identifier.tryParse(abilityId);
+        if (id == null) { return null; }
+        AbilityDefinition def = AbilityRegistry.of(level).getAbility(id);
+        return def == null || def.gooType() != gooType ? null : def;
+    }
+
+    /**
+     * The delivery a flight flies by: the named ability's, or a plain arc
+     * where the throw names none, which lands nothing (decisions
+     * standing-abilities-name-arc-or-beam, no-throw-without-ability).
+     *
+     * @param level     the server level
+     * @param abilityId the thrown ability id string
+     * @param gooType   the thrown goo type
+     * @return the delivery
+     */
+    public static Delivery flightDelivery(ServerLevel level, String abilityId, ResourceKey<GooTypeDefinition> gooType) {
+        AbilityDefinition def = thrownAbility(level, abilityId, gooType);
+        return def == null ? Delivery.ARC : def.delivery();
     }
 
     /** Counts the current stack count of the thrown ability's marker at a target position.
@@ -188,10 +238,11 @@ public final class GooThrowHandler {
         stallChainMarkerFuse(player, payload);
         double distance = Math.sqrt(distSq);
         GooTypeDefinition definition = GooTypes.definition(player.level().registryAccess(), gooType);
-        int travelTicks = (int) ThrowArc.travelTicks(distance, definition.levity(), definition.baseFlightTime());
-        broadcastFlight(player, payload, travelTicks);
+        Delivery delivery = flightDelivery(player.level(), payload.abilityId(), gooType);
+        int travelTicks = delivery.travelTicks(distance, definition.levity(), definition.baseFlightTime());
+        broadcastFlight(player, payload, delivery, travelTicks);
         GooServerState.of(player.level().getServer()).gooEffects()
-                .scheduleEffect(player, payload, gooType, travelTicks);
+                .scheduleEffect(player, payload, gooType, delivery, travelTicks);
 
         if (Goo.LOGGER.isDebugEnabled()) { Goo.LOGGER.debug(LOG_THROW_OK, GooTypes.id(gooType), player.getName().getString(), travelTicks); }
     }
@@ -200,13 +251,14 @@ public final class GooThrowHandler {
      *
      * @param player      the throwing player
      * @param payload     the throw payload data
+     * @param delivery    the delivery the flight flies by
      * @param travelTicks the number of ticks until arrival
      */
-    private static void broadcastFlight(ServerPlayer player, GooThrowPayload payload,
+    private static void broadcastFlight(ServerPlayer player, GooThrowPayload payload, Delivery delivery,
             int travelTicks) {
         Vec3 hand = ThrowArc.clampToReach(player.getEyePosition(), payload.origin(),
                 ThrowArc.HAND_REACH * player.getScale());
-        GooFlightPayload flight = buildFlightPayload(hand, payload, travelTicks);
+        GooFlightPayload flight = buildFlightPayload(hand, payload, delivery, travelTicks);
         PacketDistributor.sendToPlayersTrackingEntity(player, flight);
         // A listener that never negotiated the mod's channels, a gametest's mock player, gets no flight.
         if (player.connection.hasChannel(flight)) {
@@ -218,10 +270,11 @@ public final class GooThrowHandler {
      *
      * @param hand        the world-space throw origin, clamped within reach
      * @param payload     the throw payload data
+     * @param delivery    the delivery the flight flies by
      * @param travelTicks the number of ticks until arrival
      * @return the constructed flight payload
      */
-    private static GooFlightPayload buildFlightPayload(Vec3 hand, GooThrowPayload payload,
+    private static GooFlightPayload buildFlightPayload(Vec3 hand, GooThrowPayload payload, Delivery delivery,
             int travelTicks) {
         return new GooFlightPayload(
                 hand.x, hand.y, hand.z,
@@ -231,7 +284,8 @@ public final class GooThrowHandler {
                 payload.targetFace(),
                 travelTicks,
                 payload.grannyArc(),
-                payload.abilityId()
+                payload.abilityId(),
+                delivery
         );
     }
 
@@ -295,7 +349,7 @@ public final class GooThrowHandler {
      * @param payload the throw payload data
      * @return squared distance in blocks
      */
-    private static double targetDistanceSquared(ServerPlayer player, GooThrowPayload payload) {
+    static double targetDistanceSquared(ServerPlayer player, GooThrowPayload payload) {
         if (payload.targetEntityId() >= 0) {
             Entity target = player.level().getEntity(payload.targetEntityId());
             if (target == null) { return Double.MAX_VALUE; }

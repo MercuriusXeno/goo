@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.ability.program;
 
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -25,4 +26,15 @@ public interface TargetHost extends StepHost {
      * @return the thrower, or null when unknown
      */
     @Nullable Entity thrower();
+
+    /**
+     * Sets the target moving and marks the motion for the target's client.
+     *
+     * @param motion the velocity to set, in blocks per tick
+     */
+    default void push(Vec3 motion) {
+        LivingEntity target = target();
+        target.setDeltaMovement(motion);
+        target.hurtMarked = true;
+    }
 }

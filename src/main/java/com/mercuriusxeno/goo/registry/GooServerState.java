@@ -3,13 +3,14 @@ package com.mercuriusxeno.goo.registry;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerFallScheduler;
 import com.mercuriusxeno.goo.block.tap.TapDripScheduler;
 import com.mercuriusxeno.goo.network.GooEffectScheduler;
+import com.mercuriusxeno.goo.network.StreamHolds;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.Level;
 import org.jspecify.annotations.Nullable;
 
 /**
  * What one server holds between ticks: the goo effects, tap drips and marker
- * falls in flight. Each server holds its
+ * falls in flight, and the stream holds. Each server holds its
  * own and a server stop clears it, so nothing in flight lands against a
  * stopped server's levels (decision type-package-and-per-server-holders).
  */
@@ -18,6 +19,7 @@ public final class GooServerState {
     private final GooEffectScheduler gooEffects = new GooEffectScheduler();
     private final TapDripScheduler tapDrips = new TapDripScheduler();
     private final ChainMarkerFallScheduler markerFalls = new ChainMarkerFallScheduler();
+    private final StreamHolds streamHolds = new StreamHolds();
 
     /**
      * Answers the state the server holds.
@@ -62,6 +64,13 @@ public final class GooServerState {
     }
 
     /**
+     * @return how long each player has held a stream
+     */
+    public StreamHolds streamHolds() {
+        return streamHolds;
+    }
+
+    /**
      * Lands every effect, drip and fall whose arrival tick has come.
      *
      * @param server the ticking server
@@ -84,5 +93,6 @@ public final class GooServerState {
         gooEffects.clear();
         tapDrips.clear();
         markerFalls.clear();
+        streamHolds.clear();
     }
 }

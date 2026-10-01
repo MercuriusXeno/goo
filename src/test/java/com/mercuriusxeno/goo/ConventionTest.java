@@ -324,4 +324,18 @@ class ConventionTest {
                 .because("domain layer must resolve Identifiers in adapter wrappers (decoupling-arch §5.3)")
                 .check(mainClasses);
     }
+
+    /**
+     * The throw path reads the ability's delivery kind, never the glow type, to
+     * decide a throw's flight, sound or aim line (decision standing-abilities-name-arc-or-beam).
+     */
+    @Test
+    void throwPathReadsNoGlowType() {
+        noClasses()
+                .that().resideInAnyPackage("com.mercuriusxeno.goo.network..",
+                        "com.mercuriusxeno.goo.client.throwing..", CLIENT_OVERLAY_PACKAGE)
+                .should().accessField("com.mercuriusxeno.goo.type.GooTypes", "GLOW")
+                .because("the delivery kind decides the throw, not the goo type")
+                .check(mainClasses);
+    }
 }

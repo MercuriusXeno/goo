@@ -2,12 +2,15 @@ package com.mercuriusxeno.goo.client.overlay;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.GooClientConfig;
+import com.mercuriusxeno.goo.ability.Delivery;
+import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.hud.ChainMarkerBillboard;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
+import com.mercuriusxeno.goo.client.throwing.GloveThrowSender;
+import com.mercuriusxeno.goo.network.GooPunchHandler;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
-import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
@@ -43,6 +46,10 @@ public final class GooTargetHighlighter {
      * Goo type for the cached arc target.
      */
     private static @Nullable ResourceKey<GooTypeDefinition> cachedArcType;
+    /**
+     * Delivery of the selected ability for the cached arc target.
+     */
+    private static @Nullable Delivery cachedArcDelivery;
     /**
      * Partial tick captured at the opaque stage.
      */
@@ -83,6 +90,7 @@ public final class GooTargetHighlighter {
         TargetResult target = AimTracker.currentTarget();
         cachedArcTarget = target;
         cachedArcType = selectedType;
+        cachedArcDelivery = GloveThrowSender.selectedDelivery(GloveAim.selectedAbilityId(mc.player));
         cachedArcPartialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         HighlightFrame frame = new HighlightFrame(event.getPoseStack(), mc.renderBuffers().bufferSource(),
                 mc.gameRenderer.getMainCamera(), mc, selectedType);
@@ -207,11 +215,16 @@ public final class GooTargetHighlighter {
     public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
         TargetResult target = cachedArcTarget;
         ResourceKey<GooTypeDefinition> type = cachedArcType;
+        Delivery delivery = cachedArcDelivery;
         float partialTick = cachedArcPartialTick;
         clearCachedArc();
         Minecraft mc = Minecraft.getInstance();
-        if (target == null || type == null) {
+        if (target == null || type == null || delivery == null) {
             clearEasedArc();
+            return;
+        }
+        if (!delivery.aimsALine()) {
+            renderLinelessAim(event, delivery, type, partialTick);
             return;
         }
         Vec3 end = target.resolveEndpoint();
@@ -219,11 +232,45 @@ public final class GooTargetHighlighter {
             clearEasedArc();
             return;
         }
-        double grannyWeight = target instanceof TargetResult.BlockTarget bt && bt.grannyArc() ? 1 : 0;
-        Vec3 drawn = easeArcToward(target, end, grannyWeight, realTimeSeconds());
+        Vec3 drawn = easeArcToward(target, end, grannyWeight(target, delivery), realTimeSeconds());
         ArcRenderer.renderTargetArc(event.getPoseStack(), mc.renderBuffers().bufferSource(),
                 mc.gameRenderer.getMainCamera(), drawn, ClientGooTypes.highlight(type),
-                partialTick, drawnGrannyWeight, type == GooTypes.GLOW);
+                partialTick, drawnGrannyWeight, delivery.fliesStraight());
+    }
+
+    /**
+     * Draws the aim of a delivery that flies no line: the ring a punch
+     * strikes within (decision punch-strikes-at-reach), and nothing for a
+     * self ability, which aims at no target (decision self-delivery-runs-on-player).
+     *
+     * @param event       the render stage event
+     * @param delivery    the selected delivery
+     * @param type        the selected goo type
+     * @param partialTick the partial tick captured at the opaque stage
+     */
+    private static void renderLinelessAim(RenderLevelStageEvent.AfterTranslucentBlocks event, Delivery delivery,
+                                          ResourceKey<GooTypeDefinition> type, float partialTick) {
+        clearEasedArc();
+        if (delivery.kind() != DeliveryKind.PUNCH) {
+            return;
+        }
+        Minecraft mc = Minecraft.getInstance();
+        ArcRenderer.renderReachRing(event.getPoseStack(), mc.renderBuffers().bufferSource(),
+                mc.gameRenderer.getMainCamera(), mc.player.getPosition(partialTick),
+                GooPunchHandler.reach(delivery, mc.player.entityInteractionRange()),
+                ClientGooTypes.highlight(type), partialTick);
+    }
+
+    /**
+     * The peak weight the aim line draws toward: 1 for a lob onto a top face
+     * the selected delivery allows, 0 otherwise.
+     *
+     * @param target   the target this frame aims at
+     * @param delivery the selected ability's delivery
+     * @return the granny weight
+     */
+    private static double grannyWeight(TargetResult target, Delivery delivery) {
+        return delivery.grannyAllowed() && target instanceof TargetResult.BlockTarget bt && bt.grannyArc() ? 1 : 0;
     }
 
     /**
@@ -284,6 +331,7 @@ public final class GooTargetHighlighter {
     private static void clearCachedArc() {
         cachedArcTarget = null;
         cachedArcType = null;
+        cachedArcDelivery = null;
         cachedArcPartialTick = 0f;
     }
 }

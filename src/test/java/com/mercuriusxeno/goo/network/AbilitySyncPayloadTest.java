@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.AbilityTags;
+import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.type.GooTypes;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
@@ -24,7 +25,7 @@ class AbilitySyncPayloadTest {
     private static AbilityDefinition ability(String name, int order, String tag) {
         return new AbilityDefinition(Identifier.fromNamespaceAndPath("goo", name), GooTypes.ROCK,
                 name, "", order, 0, new AbilityDefinition.ChainConfig(30, 1, "goo"),
-                List.of(), List.of(tag), AbilityBadge.WORLD);
+                Delivery.ARC, List.of(), List.of(tag), AbilityBadge.WORLD);
     }
 
     /** The sync codec carries each cost formula to the client whole (decision unaffordable-click-does-nothing). */
@@ -47,7 +48,7 @@ class AbilitySyncPayloadTest {
     @EnumSource(AbilityBadge.class)
     void badgeRoundTripsThroughTheSyncCodec(AbilityBadge badge) {
         AbilitySyncPayload sent = new AbilitySyncPayload(List.of(new AbilitySyncPayload.Entry("goo:rock_throw",
-                "rock", "rock_throw", "", 0, List.of(), 30, 1, List.of(), 0, badge)));
+                "rock", "rock_throw", "", 0, List.of(), 30, 1, List.of(), 0, Delivery.ARC, badge)));
         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
 
         AbilitySyncPayload.STREAM_CODEC.encode(buf, sent);
