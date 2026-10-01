@@ -120,11 +120,13 @@ public abstract class GooMachineBlockEntity extends GooSyncedBlockEntity impleme
     }
 
     /**
-     * Releases the slot gaskets' registry locations, and drops the block-level
-     * gaskets unless the chunk is only unloading.
+     * Releases the block-level pusher and the slot gaskets' registry locations,
+     * unloading or leaving alike, and drops the block-level gaskets unless the
+     * chunk is only unloading.
      */
     @Override
     public final void setRemoved() {
+        gasket().releasePusher();
         SlottedCanisterData slots = heldSlots();
         if (slots != null) {
             slots.releaseSlotGaskets();

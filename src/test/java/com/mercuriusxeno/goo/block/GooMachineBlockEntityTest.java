@@ -134,6 +134,29 @@ class GooMachineBlockEntityTest {
 
             verify(slots, times(1)).releaseSlotGaskets();
         }
+
+        @ParameterizedTest
+        @MethodSource("com.mercuriusxeno.goo.block.GooMachineBlockEntityTest#machines")
+        void releasesBlockLevelPusherOnceWhenLeaving(Class<? extends GooMachineBlockEntity> type) {
+            GasketAttachment attachment = mock(GasketAttachment.class);
+            GooMachineBlockEntity be = spyMachine(type, attachment, mock(SlottedCanisterData.class));
+
+            be.setRemoved();
+
+            verify(attachment, times(1)).releasePusher();
+        }
+
+        @ParameterizedTest
+        @MethodSource("com.mercuriusxeno.goo.block.GooMachineBlockEntityTest#machines")
+        void releasesBlockLevelPusherOnceWhenUnloading(Class<? extends GooMachineBlockEntity> type) {
+            GasketAttachment attachment = mock(GasketAttachment.class);
+            GooMachineBlockEntity be = spyMachine(type, attachment, mock(SlottedCanisterData.class));
+
+            be.onChunkUnloaded();
+            be.setRemoved();
+
+            verify(attachment, times(1)).releasePusher();
+        }
     }
 
     @Nested
