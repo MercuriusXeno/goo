@@ -326,6 +326,7 @@ public final class GooTestFunctions {
     private static final String MOB_METAL_TOUCH_THEN_MELEE = "mob_metal_javelin_touch_then_melee";
     private static final String MOB_METAL_MELEE_THEN_TOUCH = "mob_metal_javelin_melee_then_touch";
     private static final String MOB_ATTACK_STAYS_VANILLA = "mob_attack_stays_vanilla";
+    private static final String MOB_EXO_GAUNTLET_HIT = "mob_exo_gauntlet_hit";
     private static final String SELF_ENDER_BLINK = "self_ender_blink";
     private static final String SELF_TYPHOON_PROPEL = "self_typhoon_propel";
     private static final String STREAM_BLAZE_SPITFIRE = "stream_blaze_spitfire";
@@ -710,6 +711,7 @@ public final class GooTestFunctions {
         reg(r, MOB_METAL_TOUCH_THEN_MELEE, AttackTouchTests::touchThenMeleeLandInFull);
         reg(r, MOB_METAL_MELEE_THEN_TOUCH, AttackTouchTests::meleeThenTouchLandInFull);
         reg(r, MOB_ATTACK_STAYS_VANILLA, AttackTouchTests::attackStaysVanilla);
+        reg(r, MOB_EXO_GAUNTLET_HIT, GloveDamageTests::exoGauntletHitsForSeven);
         reg(r, SELF_ENDER_BLINK, SelfDeliveryTests::enderBlink);
         reg(r, SELF_TYPHOON_PROPEL, SelfDeliveryTests::typhoonPropel);
         reg(r, STREAM_BLAZE_SPITFIRE, StreamDeliveryTests::blazeSpitfire);
