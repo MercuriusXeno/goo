@@ -42,8 +42,10 @@ final class RadialWheelRenderer {
     private static final int DISABLED_TEXT_COLOR = 0xFF888888;
     /** Gap between the hub circle and the inner ring, as a fraction of the wheel's radius. */
     private static final double HUB_GAP = 0.02;
-    private static final int ICON_SIZE = 11;
-    private static final int ICON_OFFSET = 5;
+    private static final int TYPE_ICON_SIZE = 11;
+    /** ability-icons-read-16x16 */
+    static final int ABILITY_ICON_SIZE = 16;
+    private static final int ABILITY_ICON_OFFSET = ABILITY_ICON_SIZE / 2;
     private static final int LABEL_GAP = 1;
     private static final int HALF = 2;
     private static final double MID = 0.5;
@@ -102,7 +104,8 @@ final class RadialWheelRenderer {
                 RadialWheel.HUB_FRACTION, outer),
                 computeOverlayTint(selected, frame.available().getOrDefault(key, 0) <= 0));
         double iconRadius = (RadialWheel.HUB_FRACTION + outer) * MID * frame.radius();
-        blitIcon(graphics, typeIcon(key), frame, wheel.typeCenter(type), iconRadius, COLOR_WHITE);
+        blitIcon(graphics, new Icon(typeIcon(key), TYPE_ICON_SIZE), pointAt(frame, wheel.typeCenter(type), iconRadius),
+                COLOR_WHITE);
     }
 
     private static void renderFan(GuiGraphicsExtractor graphics, Font font, Frame frame) {
@@ -123,12 +126,18 @@ final class RadialWheelRenderer {
             blitWedge(graphics, frame, key, new WedgeBounds(start, arc, RadialWheel.RING_FRACTION, 1.0),
                     computeOverlayTint(hovered, slotLabels.dimmed()));
             double middle = start + arc * MID;
-            blitIcon(graphics, resolveAbilityIcon(fan.get(ability)), frame, middle, slotRadius, color);
+            blitIcon(graphics, new Icon(resolveAbilityIcon(fan.get(ability)), ABILITY_ICON_SIZE),
+                    pointAt(frame, middle, slotRadius), color);
             int textColor = slotLabels.dimmed() ? DISABLED_TEXT_COLOR : hovered ? HOVER_TEXT_COLOR : COLOR_WHITE;
-            List<Component> lines = new ArrayList<>(splitNameLines(buildLabel(fan.get(ability)).getString()));
-            lines.add(Component.literal(slotLabels.costLabel()));
-            drawSlotLabels(graphics, font, pointAt(frame, middle, slotRadius), lines, textColor);
+            drawSlotLabels(graphics, font, pointAt(frame, middle, slotRadius), slotLines(fan.get(ability), slotLabels),
+                    textColor);
         }
+    }
+
+    private static List<Component> slotLines(ClientAbility ability, FanSlot slotLabels) {
+        List<Component> lines = new ArrayList<>(splitNameLines(buildLabel(ability).getString()));
+        lines.add(Component.literal(slotLabels.costLabel()));
+        return lines;
     }
 
     /**
@@ -147,7 +156,7 @@ final class RadialWheelRenderer {
 
     private static void drawSlotLabels(GuiGraphicsExtractor graphics, Font font, int[] slot,
                                        List<Component> lines, int textColor) {
-        int labelY = slot[1] + ICON_OFFSET + LABEL_GAP;
+        int labelY = slot[1] + ABILITY_ICON_OFFSET + LABEL_GAP;
         for (Component line : lines) {
             graphics.centeredText(font, line, slot[0], labelY, textColor);
             labelY += font.lineHeight;
@@ -227,11 +236,19 @@ final class RadialWheelRenderer {
                 color);
     }
 
-    private static void blitIcon(GuiGraphicsExtractor graphics, Identifier icon, Frame frame,
-                                 double angle, double radius, int color) {
-        int[] at = pointAt(frame, angle, radius);
-        graphics.blit(RenderPipelines.GUI_TEXTURED, icon, at[0] - ICON_OFFSET, at[1] - ICON_OFFSET,
-                0.0f, 0.0f, ICON_SIZE, ICON_SIZE, ICON_SIZE, ICON_SIZE, color);
+    /**
+     * An icon texture and its square size, drawn at the size its source is.
+     *
+     * @param texture the icon's texture
+     * @param size    the source's width and height in pixels, and the drawn size
+     */
+    private record Icon(Identifier texture, int size) {
+    }
+
+    private static void blitIcon(GuiGraphicsExtractor graphics, Icon icon, int[] center, int color) {
+        int offset = icon.size() / HALF;
+        graphics.blit(RenderPipelines.GUI_TEXTURED, icon.texture(), center[0] - offset, center[1] - offset,
+                0.0f, 0.0f, icon.size(), icon.size(), icon.size(), icon.size(), color);
     }
 
     private static int[] pointAt(Frame frame, double angle, double radius) {
