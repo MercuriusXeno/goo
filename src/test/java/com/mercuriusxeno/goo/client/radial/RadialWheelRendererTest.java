@@ -298,7 +298,7 @@ class RadialWheelRendererTest {
             List<List<ClientAbility>> abilities = IntStream.range(0, TYPES)
                     .mapToObj(type -> IntStream.range(0, ABILITIES).mapToObj(ability -> new ClientAbility(
                             Identifier.fromNamespaceAndPath("gootest", "ability_" + type + "_" + ability),
-                            "ability.gootest.word", "", 0, List.of(), 0, 1, List.of(), 0, AbilityBadge.WORLD))
+                            "ability.gootest.word", "", 0, List.of(), 0, 1, List.of(), 0, Delivery.ARC, AbilityBadge.WORLD))
                             .toList())
                     .toList();
             GuiGraphicsExtractor graphics = mock(GuiGraphicsExtractor.class);
