@@ -1,6 +1,7 @@
 {
   "gooType": "frost",
   "displayName": "goo.ability.frost.tunnel",
+  "badge": "world",
   "order": 1,
   "cost": 1000,
   "chain": {

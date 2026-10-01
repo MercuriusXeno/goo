@@ -1,6 +1,7 @@
 {
   "gooType": "frost",
   "displayName": "goo.ability.frost.sphere",
+  "badge": "world",
   "order": 0,
   "cost": 1000,
   "chain": {

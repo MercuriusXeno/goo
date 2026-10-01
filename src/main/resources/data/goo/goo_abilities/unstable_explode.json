@@ -1,6 +1,7 @@
 {
   "gooType": "unstable",
   "displayName": "goo.ability.unstable.explode",
+  "badge": "mob",
   "order": 10,
   "cost": 1000,
   "behaviors": [

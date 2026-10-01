@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.network;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -80,10 +81,11 @@ public final class AbilitySyncHandler {
      * @param maxStacks   the chain block's stack ceiling
      * @param behaviors   the ability's step program, whose params the marker's renderers read
      * @param cost        the mB a throw costs, the same at every stack count
+     * @param badge       the target kind the radial marks on the icon
      */
     public record ClientAbility(Identifier id, String displayName, String icon,
                                 int order, List<String> tags, int fuseTicks, int maxStacks,
-                                List<Step> behaviors, int cost) {
+                                List<Step> behaviors, int cost, AbilityBadge badge) {
 
         /**
          * Builds the client descriptor from a synced entry.
@@ -94,7 +96,7 @@ public final class AbilitySyncHandler {
         public static ClientAbility fromEntry(AbilitySyncPayload.Entry entry) {
             return new ClientAbility(Identifier.tryParse(entry.abilityId()), entry.displayName(), entry.icon(),
                     entry.order(), entry.tags(), entry.fuseTicks(), entry.maxStacks(), entry.behaviors(),
-                    entry.cost());
+                    entry.cost(), entry.badge());
         }
 
         /**

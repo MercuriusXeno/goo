@@ -1,6 +1,7 @@
 {
   "gooType": "typhoon",
   "displayName": "goo.ability.typhoon.levitate",
+  "badge": "mob",
   "order": 0,
   "cost": 1000,
   "behaviors": [

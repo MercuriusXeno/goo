@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.client.radial;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.ability.AbilityTags;
+import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
@@ -54,7 +54,7 @@ final class RadialWheelRenderer {
     private static final String ABILITY_ICON_PREFIX = "textures/goo/ability/";
     private static final String ICON_SUFFIX = ".png";
     private static final char NAMESPACE_SEPARATOR = ':';
-    private static final String MOB_SUFFIX = " (Mob)";
+    private static final String BADGE_ICON_PREFIX = "textures/goo/badge/";
     private static final String WORD_SEPARATOR = "\\s+";
 
 
@@ -126,12 +126,49 @@ final class RadialWheelRenderer {
             blitWedge(graphics, frame, key, new WedgeBounds(start, arc, RadialWheel.RING_FRACTION, 1.0),
                     computeOverlayTint(hovered, slotLabels.dimmed()));
             double middle = start + arc * MID;
-            blitIcon(graphics, new Icon(resolveAbilityIcon(fan.get(ability)), ABILITY_ICON_SIZE),
-                    pointAt(frame, middle, slotRadius), color);
+            int[] slot = pointAt(frame, middle, slotRadius);
+            blitAbilityIcon(graphics, fan.get(ability), slot, color);
             int textColor = slotLabels.dimmed() ? DISABLED_TEXT_COLOR : hovered ? HOVER_TEXT_COLOR : COLOR_WHITE;
-            drawSlotLabels(graphics, font, pointAt(frame, middle, slotRadius), slotLines(fan.get(ability), slotLabels),
-                    textColor);
+            drawSlotLabels(graphics, font, slot, slotLines(fan.get(ability), slotLabels), textColor);
         }
+    }
+
+    /**
+     * Draws the ability's icon under the wedge's tint, then its badge untinted
+     * over the icon's corner, so the badge keeps the colors that tell its kind.
+     * badge-marks-the-target-kind
+     *
+     * @param graphics the GUI graphics extractor
+     * @param ability  the synced ability
+     * @param slot     the icon's center
+     * @param color    the wedge's tint for the icon
+     */
+    private static void blitAbilityIcon(GuiGraphicsExtractor graphics, ClientAbility ability, int[] slot, int color) {
+        blitIcon(graphics, new Icon(resolveAbilityIcon(ability), ABILITY_ICON_SIZE), slot, color);
+        blitIcon(graphics, new Icon(badgeIcon(ability.badge()), ABILITY_ICON_SIZE), badgeCorner(slot), COLOR_WHITE);
+    }
+
+    /**
+     * The point a badge centers on: the ability icon's top-right corner, so the
+     * badge overhangs the icon and clears the name drawn under it.
+     * badge-marks-the-target-kind
+     *
+     * @param iconCenter the ability icon's center
+     * @return the badge's center
+     */
+    private static int[] badgeCorner(int[] iconCenter) {
+        return new int[]{iconCenter[0] + ABILITY_ICON_OFFSET, iconCenter[1] - ABILITY_ICON_OFFSET};
+    }
+
+    /**
+     * The sprite that marks a badge kind.
+     * badge-marks-the-target-kind
+     *
+     * @param badge the ability's declared target kind
+     * @return the badge texture under textures/goo/badge/
+     */
+    static Identifier badgeIcon(AbilityBadge badge) {
+        return Identifier.fromNamespaceAndPath(Goo.MODID, BADGE_ICON_PREFIX + badge.getSerializedName() + ICON_SUFFIX);
     }
 
     private static List<Component> slotLines(ClientAbility ability, FanSlot slotLabels) {
@@ -297,9 +334,15 @@ final class RadialWheelRenderer {
         return hovered ? ARGB.color(HOVER_ALPHA, COLOR_WHITE) : ARGB.color(NORMAL_ALPHA, REST_SHADE, REST_SHADE, REST_SHADE);
     }
 
-    private static Component buildLabel(ClientAbility ability) {
-        Component base = Component.translatable(ability.displayName());
-        return ability.hasTag(AbilityTags.ENTITY) ? base.copy().append(MOB_SUFFIX) : base;
+    /**
+     * The petal's name label: the bare name, the badge marking the target kind.
+     * badge-marks-the-target-kind
+     *
+     * @param ability the synced ability
+     * @return the ability's translatable name
+     */
+    static Component buildLabel(ClientAbility ability) {
+        return Component.translatable(ability.displayName());
     }
 
     /**
