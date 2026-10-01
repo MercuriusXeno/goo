@@ -139,7 +139,6 @@ class RadialWheelTest {
             moveTo(wheel, neighbor.center(), PETAL);
 
             assertEquals(OPEN_TYPE + 1, wheel.selectedType());
-            assertEquals(RadialWheel.NONE, wheel.hoveredAbility());
         }
 
         @Test
@@ -167,7 +166,11 @@ class RadialWheelTest {
 
         @Test
         void clickWithATypeOpenAndNoAbilityHoveredCancels() {
-            assertEquals(RadialWheel.Outcome.CANCEL, opened(ABILITIES).click());
+            RadialWheel wheel = wheel(ABILITIES);
+            wheel.scroll(-1);
+
+            assertTrue(wheel.isOpen());
+            assertEquals(RadialWheel.Outcome.CANCEL, wheel.click());
         }
 
         @Test
@@ -177,6 +180,114 @@ class RadialWheelTest {
             assertEquals(OPEN_TYPE, wheel.selectedType());
             assertEquals(TYPES, typePetals(wheel).size());
             assertEquals(RadialWheel.Outcome.CANCEL, wheel.click());
+        }
+    }
+
+    /**
+     * Leaving the open type's abilities opens the adjacent type with its
+     * abilities under the cursor, the ring turning the least it must
+     * (decision ring-rotates-to-keep-the-cursor-inside).
+     */
+    @Nested
+    class Rotation {
+
+        private static final int WIDE_TYPE = 3;
+        private static final int WIDE_ABILITIES = 6;
+        /** The wide type's abilities start here unturned: three shrunken 15 degree petals before it. */
+        private static final double WIDE_SPAN_START = Math.toRadians(45.0);
+        /** And end here: six abilities of a full 22.5 degree type arc each. */
+        private static final double WIDE_SPAN_END = Math.toRadians(180.0);
+        private static final double JUST_PAST = Math.toRadians(1.0);
+
+        /** The wide type opens to six abilities, its neighbors to one, every other type to four. */
+        private static RadialWheel wheelWithAWideType() {
+            return new RadialWheel(TYPES, type -> type == WIDE_TYPE ? WIDE_ABILITIES
+                    : Math.abs(type - WIDE_TYPE) == 1 ? 1 : ABILITIES);
+        }
+
+        private static RadialWheel wideTypeOpen() {
+            RadialWheel wheel = wheelWithAWideType();
+            moveTo(wheel, (WIDE_TYPE + 0.5) * TYPE_ARC, PETAL);
+            return wheel;
+        }
+
+        private static void assertCursorInsideWithTheMargin(RadialWheel wheel, double cursor) {
+            RadialWheel.PetalArc hovered = abilityPetal(wheel, wheel.hoveredAbility());
+            double fromStart = wrap(cursor - hovered.start());
+            double toEnd = wrap(hovered.start() + hovered.arc() - cursor);
+            assertTrue(fromStart >= RadialWheel.CURSOR_MARGIN - EPSILON, "start margin " + fromStart);
+            assertTrue(toEnd >= RadialWheel.CURSOR_MARGIN - EPSILON, "end margin " + toEnd);
+        }
+
+        private static double wrap(double angle) {
+            return ((angle % TWO_PI) + TWO_PI) % TWO_PI;
+        }
+
+        @Test
+        void wideTypeOpensUnturnedSinceItsSpanHoldsTheCursor() {
+            RadialWheel wheel = wideTypeOpen();
+
+            assertEquals(WIDE_TYPE, wheel.selectedType());
+            assertEquals(WIDE_SPAN_START, abilityPetal(wheel, 0).start(), EPSILON);
+            assertEquals(0.0, wheel.rotation(), EPSILON);
+        }
+
+        @Test
+        void leavingCounterclockwiseOpensThatNeighborUnderTheCursor() {
+            RadialWheel wheel = wideTypeOpen();
+            double cursor = WIDE_SPAN_START - JUST_PAST;
+
+            moveTo(wheel, cursor, PETAL);
+
+            assertEquals(WIDE_TYPE - 1, wheel.selectedType());
+            assertEquals(0, wheel.hoveredAbility());
+            assertCursorInsideWithTheMargin(wheel, cursor);
+        }
+
+        @Test
+        void leavingClockwiseOpensThatNeighborUnderTheCursor() {
+            RadialWheel wheel = wideTypeOpen();
+            double cursor = WIDE_SPAN_END + JUST_PAST;
+
+            moveTo(wheel, cursor, PETAL);
+
+            assertEquals(WIDE_TYPE + 1, wheel.selectedType());
+            assertEquals(0, wheel.hoveredAbility());
+            assertCursorInsideWithTheMargin(wheel, cursor);
+        }
+
+        @Test
+        void ringTurnsByTheMarginShortfallAndNoMore() {
+            RadialWheel wheel = wideTypeOpen();
+            double cursor = WIDE_SPAN_START - JUST_PAST;
+
+            moveTo(wheel, cursor, PETAL);
+
+            // the one-ability neighbor's span starts unturned where the wide type's did
+            assertEquals(cursor - WIDE_SPAN_START - RadialWheel.CURSOR_MARGIN, wheel.rotation(), EPSILON);
+        }
+
+        @Test
+        void hubResetsTheRotationToRest() {
+            RadialWheel wheel = wideTypeOpen();
+            moveTo(wheel, WIDE_SPAN_START - JUST_PAST, PETAL);
+
+            moveTo(wheel, 0.0, HUB);
+
+            assertEquals(0.0, wheel.rotation(), EPSILON);
+            assertFalse(wheel.isOpen());
+        }
+
+        @Test
+        void scrollOpensTheNextTypeUnderTheCursor() {
+            RadialWheel wheel = wideTypeOpen();
+            double cursor = (WIDE_TYPE + 0.5) * TYPE_ARC;
+
+            wheel.scroll(-1);
+
+            assertEquals(WIDE_TYPE + 1, wheel.selectedType());
+            assertEquals(0, wheel.hoveredAbility());
+            assertCursorInsideWithTheMargin(wheel, cursor);
         }
     }
 
