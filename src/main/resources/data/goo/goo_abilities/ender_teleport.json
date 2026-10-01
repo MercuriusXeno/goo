@@ -1,6 +1,7 @@
 {
   "gooType": "ender",
   "displayName": "goo.ability.ender.teleport",
+  "badge": "mob",
   "order": 0,
   "cost": 1000,
   "behaviors": [

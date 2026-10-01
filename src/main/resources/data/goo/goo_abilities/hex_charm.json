@@ -1,6 +1,7 @@
 {
   "gooType": "hex",
   "displayName": "goo.ability.hex.charm",
+  "badge": "mob",
   "order": 0,
   "cost": 1000,
   "behaviors": [

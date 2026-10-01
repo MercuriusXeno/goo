@@ -1,6 +1,7 @@
 {
   "gooType": "pulse",
   "displayName": "goo.ability.pulse.short_circuit",
+  "badge": "mob",
   "order": 0,
   "cost": 1000,
   "behaviors": [

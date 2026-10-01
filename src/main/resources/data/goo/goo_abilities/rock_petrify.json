@@ -1,6 +1,7 @@
 {
   "gooType": "rock",
   "displayName": "goo.ability.rock.petrify",
+  "badge": "mob",
   "order": 10,
   "cost": 1000,
   "behaviors": [

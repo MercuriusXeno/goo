@@ -1,6 +1,7 @@
 {
   "gooType": "blaze",
   "displayName": "goo.ability.blaze.flat",
+  "badge": "world",
   "order": 1,
   "cost": 1000,
   "chain": {

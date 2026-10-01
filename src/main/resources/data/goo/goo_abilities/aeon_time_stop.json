@@ -1,6 +1,7 @@
 {
   "gooType": "aeon",
   "displayName": "goo.ability.aeon.time_stop",
+  "badge": "mob",
   "order": 0,
   "cost": 1000,
   "behaviors": [
