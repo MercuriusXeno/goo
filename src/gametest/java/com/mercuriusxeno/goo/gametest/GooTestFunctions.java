@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.item.ChrysmTier;
+import com.mercuriusxeno.goo.network.AttackTouchTests;
 import com.mercuriusxeno.goo.network.BlockLandingTests;
 import com.mercuriusxeno.goo.network.GloveSelectTests;
 import com.mercuriusxeno.goo.network.MobEffectTests;
@@ -322,6 +323,9 @@ public final class GooTestFunctions {
     private static final String MOB_METAL = "mob_metal_javelin";
     private static final String MOB_METAL_TOUCH = "mob_metal_javelin_touch";
     private static final String MOB_METAL_THROW_BEYOND_REACH = "mob_metal_javelin_beyond_reach";
+    private static final String MOB_METAL_TOUCH_THEN_MELEE = "mob_metal_javelin_touch_then_melee";
+    private static final String MOB_METAL_MELEE_THEN_TOUCH = "mob_metal_javelin_melee_then_touch";
+    private static final String MOB_ATTACK_STAYS_VANILLA = "mob_attack_stays_vanilla";
     private static final String SELF_ENDER_BLINK = "self_ender_blink";
     private static final String SELF_TYPHOON_PROPEL = "self_typhoon_propel";
     private static final String STREAM_BLAZE_SPITFIRE = "stream_blaze_spitfire";
@@ -703,6 +707,9 @@ public final class GooTestFunctions {
         reg(r, MOB_METAL, MobEffectTests::metalJavelin);
         reg(r, MOB_METAL_TOUCH, TouchDeliveryTests::javelinTouchesWithinReach);
         reg(r, MOB_METAL_THROW_BEYOND_REACH, TouchDeliveryTests::javelinThrowsBeyondReach);
+        reg(r, MOB_METAL_TOUCH_THEN_MELEE, AttackTouchTests::touchThenMeleeLandInFull);
+        reg(r, MOB_METAL_MELEE_THEN_TOUCH, AttackTouchTests::meleeThenTouchLandInFull);
+        reg(r, MOB_ATTACK_STAYS_VANILLA, AttackTouchTests::attackStaysVanilla);
         reg(r, SELF_ENDER_BLINK, SelfDeliveryTests::enderBlink);
         reg(r, SELF_TYPHOON_PROPEL, SelfDeliveryTests::typhoonPropel);
         reg(r, STREAM_BLAZE_SPITFIRE, StreamDeliveryTests::blazeSpitfire);

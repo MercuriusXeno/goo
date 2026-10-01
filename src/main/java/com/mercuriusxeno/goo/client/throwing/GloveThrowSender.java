@@ -190,7 +190,7 @@ public final class GloveThrowSender {
      * @param abilityId the selected ability id string
      * @return true for a mob ability aimed at an entity within reach
      */
-    public static boolean withinTouchReach(Player player, TargetResult target, @Nullable String abilityId) {
+    private static boolean withinTouchReach(Player player, TargetResult target, @Nullable String abilityId) {
         ClientAbility ability = abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
         return ability != null && target instanceof TargetResult.EntityTarget et
                 && GooTouchHandler.touches(ability.delivery(), ability.badge(), true,

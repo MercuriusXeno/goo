@@ -9,6 +9,9 @@ import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.phys.Vec3;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Server side of a touch: a mob ability aimed at an entity within the
@@ -76,6 +79,39 @@ public final class GooTouchHandler {
     public static boolean touches(Delivery delivery, AbilityBadge badge, boolean entityTarget,
                                   double distanceSquared, double reach) {
         return entityTarget && touchesAtReach(delivery, badge) && distanceSquared <= reach * reach;
+    }
+
+    /**
+     * What an attack-key press aims with, read the same way on the client
+     * that sends it and in a gametest that drives it.
+     *
+     * @param gloveInHand    whether the hand the attack key presses with holds a glove
+     * @param delivery       the glove's selected ability's delivery, or null when none
+     * @param badge          the glove's selected ability's badge, or null when none
+     * @param target         the aimed entity, or null when the aim holds a block or nothing
+     * @param playerPosition the player's feet
+     * @param reach          the player's entity interaction range
+     */
+    public record AttackPress(boolean gloveInHand, @Nullable Delivery delivery, @Nullable AbilityBadge badge,
+                              @Nullable Entity target, Vec3 playerPosition, double reach) {
+    }
+
+    /**
+     * Whether an attack-key press sends the touch beside the vanilla melee
+     * hit: a glove in the pressing hand, a mob ability selected and an
+     * entity aimed within reach.
+     * decision attack-key-touches-plus-punches
+     *
+     * @param press what the press aims with
+     * @return true when the press touches
+     */
+    public static boolean attackTouches(AttackPress press) {
+        Entity target = press.target();
+        if (!press.gloveInHand() || target == null) {
+            return false;
+        }
+        return press.delivery() != null && press.badge() != null && touches(press.delivery(), press.badge(), true,
+                press.playerPosition().distanceToSqr(target.position()), press.reach());
     }
 
     /**
