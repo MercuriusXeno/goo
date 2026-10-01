@@ -114,7 +114,7 @@ public final class GooThrowHandler {
      * @param player the throwing player
      * @return true if valid
      */
-    private static boolean validateGlove(ServerPlayer player) {
+    static boolean validateGlove(ServerPlayer player) {
         boolean held = player.getMainHandItem().getItem() instanceof GooGloveItem
             || player.getOffhandItem().getItem() instanceof GooGloveItem;
         if (held) { return true; }
@@ -185,7 +185,7 @@ public final class GooThrowHandler {
      * @param gooType   the thrown goo type
      * @return the ability, or null when the throw names none of the type
      */
-    private static @Nullable AbilityDefinition thrownAbility(ServerLevel level, String abilityId,
+    static @Nullable AbilityDefinition thrownAbility(ServerLevel level, String abilityId,
             ResourceKey<GooTypeDefinition> gooType) {
         Identifier id = abilityId.isEmpty() ? null : Identifier.tryParse(abilityId);
         if (id == null) { return null; }

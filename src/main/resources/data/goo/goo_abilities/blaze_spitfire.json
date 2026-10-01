@@ -1,0 +1,11 @@
+{
+  "gooType": "blaze",
+  "displayName": "goo.ability.blaze.spitfire",
+  "order": 30,
+  "cost": 1000,
+  "delivery": { "kind": "stream", "range": 6, "cone": 20, "ticks_per_charge": 20, "particle": "minecraft:flame" },
+  "behaviors": [
+    { "type": "ignite", "seconds": 5 }
+  ],
+  "tags": ["stream"]
+}

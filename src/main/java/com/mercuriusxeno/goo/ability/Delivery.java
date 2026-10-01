@@ -6,6 +6,7 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -20,9 +21,10 @@ import net.minecraft.world.phys.Vec3;
  * @param coneDegrees    a stream's cone, apex to rim, in degrees
  * @param ticksPerCharge a stream's ticks of hold one cost pays for
  * @param grannyAllowed  whether an arc may lob onto a top face
+ * @param particle       the particle a stream sprays along its cone
  */
 public record Delivery(DeliveryKind kind, double blocksPerTick, double range, double coneDegrees,
-                       int ticksPerCharge, boolean grannyAllowed) {
+                       int ticksPerCharge, boolean grannyAllowed, Identifier particle) {
 
     /** A beam's speed where the JSON names none. */
     public static final double DEFAULT_BLOCKS_PER_TICK = 2.5;
@@ -30,6 +32,8 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
     public static final double DEFAULT_CONE_DEGREES = 20;
     /** A stream's ticks per cost where the JSON names none. */
     public static final int DEFAULT_TICKS_PER_CHARGE = 20;
+    /** A stream's particle where the JSON names none. */
+    public static final Identifier DEFAULT_PARTICLE = Identifier.withDefaultNamespace("flame");
 
     /** An arc with every param at its default. */
     public static final Delivery ARC = of(DeliveryKind.ARC);
@@ -47,7 +51,8 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
             Codec.DOUBLE.optionalFieldOf("cone", DEFAULT_CONE_DEGREES).forGetter(Delivery::coneDegrees),
             Codec.INT.optionalFieldOf("ticks_per_charge", DEFAULT_TICKS_PER_CHARGE)
                     .forGetter(Delivery::ticksPerCharge),
-            Codec.BOOL.optionalFieldOf("granny", true).forGetter(Delivery::grannyAllowed)
+            Codec.BOOL.optionalFieldOf("granny", true).forGetter(Delivery::grannyAllowed),
+            Identifier.CODEC.optionalFieldOf("particle", DEFAULT_PARTICLE).forGetter(Delivery::particle)
     ).apply(inst, Delivery::new));
 
     /**
@@ -62,6 +67,7 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
             ByteBufCodecs.DOUBLE, Delivery::coneDegrees,
             ByteBufCodecs.VAR_INT, Delivery::ticksPerCharge,
             ByteBufCodecs.BOOL, Delivery::grannyAllowed,
+            Identifier.STREAM_CODEC, Delivery::particle,
             Delivery::new);
 
     /**
@@ -71,7 +77,8 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
      * @return the delivery
      */
     public static Delivery of(DeliveryKind kind) {
-        return new Delivery(kind, DEFAULT_BLOCKS_PER_TICK, 0, DEFAULT_CONE_DEGREES, DEFAULT_TICKS_PER_CHARGE, true);
+        return new Delivery(kind, DEFAULT_BLOCKS_PER_TICK, 0, DEFAULT_CONE_DEGREES, DEFAULT_TICKS_PER_CHARGE, true,
+                DEFAULT_PARTICLE);
     }
 
     /**
