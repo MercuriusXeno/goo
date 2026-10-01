@@ -22,7 +22,7 @@ import java.util.function.IntUnaryOperator;
 public final class RadialWheel {
 
     /** The wheel's diameter as a fraction of the smaller screen dimension. */
-    static final double SCREEN_FRACTION = 0.95;
+    static final double SCREEN_FRACTION = 0.98;
     /** The hub's radius as a fraction of the wheel's: the cursor inside it returns the wheel to rest. */
     static final double HUB_FRACTION = 0.2;
     /** No type open, or no ability hovered. */
@@ -44,7 +44,14 @@ public final class RadialWheel {
      * How far out an open type's petal reaches, as a fraction of the wheel's
      * radius, standing as the base its ability petals grow out of.
      */
-    static final double TYPE_BASE_LENGTH = 0.5;
+    static final double TYPE_BASE_LENGTH = 0.6;
+    /**
+     * How far out the hovered ability petal reaches, as a fraction of the
+     * wheel's radius: the edge of the screen.
+     */
+    static final double HOVER_REACH = 1.0 / SCREEN_FRACTION;
+    /** Client ticks the hovered ability petal takes to grow to the screen's edge, or back. */
+    static final int LIFT_TICKS = 3;
     /** The smallest openness a fanned card draws at. */
     private static final double VISIBLE = 1e-6;
 
@@ -52,6 +59,8 @@ public final class RadialWheel {
     private final IntUnaryOperator abilityCount;
     private int selectedType = NONE;
     private int hoveredAbility = NONE;
+    /** Per type and ability, the ticks its petal has grown toward the screen's edge. */
+    private final int[][] liftTicks;
     /** The angle every petal's start is turned by, clockwise; zero at rest. */
     private double rotation;
     /** The cursor's last angle outside the hub, or NaN while it has none. */
@@ -71,6 +80,10 @@ public final class RadialWheel {
         this.typeCount = typeCount;
         this.abilityCount = abilityCount;
         this.ease = new RingEase(targetPose());
+        this.liftTicks = new int[typeCount][];
+        for (int type = 0; type < typeCount; type++) {
+            liftTicks[type] = new int[abilityCount.applyAsInt(type)];
+        }
     }
 
     /**
@@ -119,7 +132,8 @@ public final class RadialWheel {
      * @return the petals, their arcs summing to a full turn
      */
     List<PetalArc> layout() {
-        List<PetalArc> petals = new ArrayList<>(petalsOf(targetPose()));
+        List<PetalArc> petals = new ArrayList<>(petalsOf(targetPose(),
+                (type, ability) -> liftTarget(type, ability) > 0 ? HOVER_REACH : 1.0));
         petals.removeIf(this::isOpenBase);
         petals.sort(Comparator.comparingDouble(PetalArc::start));
         return petals;
@@ -146,12 +160,37 @@ public final class RadialWheel {
      * @return the petals on display, an absent petal left out
      */
     List<PetalArc> displayedLayout(float partialTick) {
-        return petalsOf(ease.displayed(partialTick));
+        return petalsOf(ease.displayed(partialTick),
+                (type, ability) -> 1.0 + (HOVER_REACH - 1.0) * liftOf(type, ability, partialTick));
+    }
+
+    /**
+     * How far an ability petal of the open type has grown toward the screen's edge.
+     * decision abilities-replace-the-hovered-type
+     *
+     * @param type        the type index
+     * @param ability     the ability index
+     * @param partialTick the fraction of a tick since the last one
+     * @return 0 at the wheel's rim, 1 at the screen's edge
+     */
+    private double liftOf(int type, int ability, float partialTick) {
+        int ticks = liftTicks[type][ability];
+        double moving = Integer.signum(liftTarget(type, ability) - ticks) * partialTick;
+        return (ticks + moving) / LIFT_TICKS;
+    }
+
+    private int liftTarget(int type, int ability) {
+        return type == selectedType && ability == hoveredAbility ? LIFT_TICKS : 0;
     }
 
     /** Advances the petals' ease and the grace window one client tick. */
     public void tick() {
         ease.tick();
+        for (int type = 0; type < typeCount; type++) {
+            for (int ability = 0; ability < liftTicks[type].length; ability++) {
+                liftTicks[type][ability] += Integer.signum(liftTarget(type, ability) - liftTicks[type][ability]);
+            }
+        }
         if (graceTicks > 0) {
             graceTicks--;
         }
@@ -204,16 +243,17 @@ public final class RadialWheel {
      * a fully open type's petal is the base its abilities grow out of.
      * decision petal-moves-animate
      *
-     * @param pose the pose
+     * @param pose       the pose
+     * @param cardLength each ability petal's length, by type and ability index
      * @return the petals in draw order
      */
-    private List<PetalArc> petalsOf(RingEase.Pose pose) {
+    private List<PetalArc> petalsOf(RingEase.Pose pose, CardLength cardLength) {
         List<PetalArc> petals = new ArrayList<>();
         double start = pose.rotation();
         for (int type = 0; type < typeCount; type++) {
             double openness = pose.openness()[type];
             double width = pose.widths()[type];
-            addCards(petals, type, start, openness);
+            addCards(petals, type, start, openness, cardLength);
             double length = 1.0 - (1.0 - TYPE_BASE_LENGTH) * openness;
             if (width > 0) {
                 petals.add(new PetalArc(type, NONE, start, width, length));
@@ -223,14 +263,16 @@ public final class RadialWheel {
         return petals;
     }
 
-    private void addCards(List<PetalArc> petals, int type, double slotStart, double openness) {
+    private void addCards(List<PetalArc> petals, int type, double slotStart, double openness,
+                          CardLength cardLength) {
         int abilities = abilityCount.applyAsInt(type);
         if (abilities == 0 || openness <= VISIBLE) {
             return;
         }
         double card = arcsWithOpenType(abilities).ability();
         for (int ability = abilities - 1; ability >= 0; ability--) {
-            petals.add(new PetalArc(type, ability, slotStart + ability * card * openness, card, 1.0));
+            petals.add(new PetalArc(type, ability, slotStart + ability * card * openness, card,
+                    cardLength.of(type, ability)));
         }
     }
 
@@ -507,6 +549,19 @@ public final class RadialWheel {
      */
     public int hoveredAbility() {
         return hoveredAbility;
+    }
+
+    /** An ability petal's length as a fraction of the wheel's radius, by its type and ability. */
+    @FunctionalInterface
+    private interface CardLength {
+        /**
+         * The petal's length.
+         *
+         * @param type    the type index
+         * @param ability the ability index
+         * @return the length
+         */
+        double of(int type, int ability);
     }
 
     /**

@@ -95,60 +95,77 @@ class PetalMaskTest {
 
     /**
      * The outline the live petal tessellates and edges along lies on the
-     * boundary the contains test agrees with, on the cap, the radial edges
-     * of the stem and the inner arc (decision petals-render-the-live-fluid).
+     * boundary the contains test agrees with, on the end, the radial edges
+     * of the stem and the inner arc (decisions petals-render-the-live-fluid,
+     * wedges-round-off-like-petals).
      */
-    @Nested
-    class Outline {
+    abstract class OutlineOf {
 
-        private static final int SEGMENTS = 12;
-        private static final int CAP_POINTS = SEGMENTS * PetalMask.CAP_SEGMENTS_PER_SIDE;
-        /** The widest step around the cap circle between consecutive outline points. */
-        private static final double MAX_CAP_STEP = Math.toRadians(5.0);
-        private static final double NUDGE = 1e-6;
-        private final PetalMask.Petal petal = new PetalMask.Petal(START, ARC, INNER, OUTER);
-        private final List<PetalMask.Point> outline = petal.outline(SEGMENTS);
+        static final int SEGMENTS = 12;
+        static final int CAP_POINTS = SEGMENTS * PetalMask.CAP_SEGMENTS_PER_SIDE;
+        /** The widest step around the end's circle between consecutive outline points. */
+        static final double MAX_CAP_STEP = Math.toRadians(5.0);
+        static final double NUDGE = 1e-6;
 
-        /** The outline's points on one side, endpoints dropped so each sits on that side alone. */
-        private List<PetalMask.Point> side(int index) {
-            int[] starts = {0, SEGMENTS, 2 * SEGMENTS, 2 * SEGMENTS + CAP_POINTS, 3 * SEGMENTS + CAP_POINTS};
-            return outline.subList(starts[index] + 1, starts[index + 1]);
+        abstract PetalMask.Petal petal();
+
+        List<PetalMask.Point> outline() {
+            return petal().outline(SEGMENTS);
         }
 
-        /** Nudges a cap point toward and away from the cap circle's center. */
-        private void assertOnTheCapCircle(PetalMask.Point point) {
-            PetalMask.Point center = petal.tipCenter();
+        /** The outline's points on one side, endpoints dropped so each sits on that side alone. */
+        List<PetalMask.Point> side(int index) {
+            int[] starts = {0, SEGMENTS, 2 * SEGMENTS, 2 * SEGMENTS + CAP_POINTS, 3 * SEGMENTS + CAP_POINTS};
+            return outline().subList(starts[index] + 1, starts[index + 1]);
+        }
+
+        /** The end's points from corner to corner. */
+        List<PetalMask.Point> end() {
+            return outline().subList(2 * SEGMENTS, 2 * SEGMENTS + CAP_POINTS + 1);
+        }
+
+        void assertInsideAndOutside(PetalMask.Point inside, PetalMask.Point outside, PetalMask.Point point) {
+            assertTrue(petal().contains(inside.x(), inside.y()), "inside of " + point);
+            assertFalse(petal().contains(outside.x(), outside.y()), "outside of " + point);
+        }
+
+        /** Nudges an end point toward and away from the end circle's center. */
+        void assertOnTheEndCircle(PetalMask.Point point) {
+            PetalMask.Point center = petal().capCircleCenter();
             double dx = point.x() - center.x();
             double dy = point.y() - center.y();
             double radius = Math.hypot(dx, dy);
             double in = (radius - NUDGE) / radius;
             double out = (radius + NUDGE) / radius;
-            assertTrue(petal.contains(center.x() + dx * in, center.y() + dy * in), "inside of " + point);
-            assertFalse(petal.contains(center.x() + dx * out, center.y() + dy * out), "outside of " + point);
+            assertInsideAndOutside(new PetalMask.Point(center.x() + dx * in, center.y() + dy * in),
+                    new PetalMask.Point(center.x() + dx * out, center.y() + dy * out), point);
         }
 
-        private void assertOnBoundaryAlongRay(PetalMask.Point point, boolean insideIsInward) {
+        void assertOnBoundaryAlongRay(PetalMask.Point point) {
             double angle = RadialWheel.angleOf(point.x(), point.y());
             double distance = Math.hypot(point.x(), point.y());
-            double inward = insideIsInward ? -NUDGE : NUDGE;
-            PetalMask.Point inside = PetalMask.Point.polar(angle, distance + inward);
-            PetalMask.Point outside = PetalMask.Point.polar(angle, distance - inward);
-            assertTrue(petal.contains(inside.x(), inside.y()), "inside of " + point);
-            assertFalse(petal.contains(outside.x(), outside.y()), "outside of " + point);
+            assertInsideAndOutside(PetalMask.Point.polar(angle, distance + NUDGE),
+                    PetalMask.Point.polar(angle, distance - NUDGE), point);
         }
 
-        private void assertOnBoundaryAcrossAngle(PetalMask.Point point, double insideTurn) {
+        void assertOnBoundaryAcrossAngle(PetalMask.Point point, double insideTurn) {
             double angle = RadialWheel.angleOf(point.x(), point.y());
             double distance = Math.hypot(point.x(), point.y());
-            PetalMask.Point inside = PetalMask.Point.polar(angle + insideTurn, distance);
-            PetalMask.Point outside = PetalMask.Point.polar(angle - insideTurn, distance);
-            assertTrue(petal.contains(inside.x(), inside.y()), "inside of " + point);
-            assertFalse(petal.contains(outside.x(), outside.y()), "outside of " + point);
+            assertInsideAndOutside(PetalMask.Point.polar(angle + insideTurn, distance),
+                    PetalMask.Point.polar(angle - insideTurn, distance), point);
+        }
+
+        /** How far the end's tip reaches past its corners, along the center line. */
+        double bulge() {
+            PetalMask.Petal petal = petal();
+            PetalMask.Point corner = end().getFirst();
+            double axis = petal.start() + petal.arc() / 2;
+            return petal.outer() - (corner.x() * Math.sin(axis) - corner.y() * Math.cos(axis));
         }
 
         @Test
         void innerArcPointsLieOnTheInnerBoundary() {
-            assertAll(side(0).stream().map(point -> (Executable) () -> assertOnBoundaryAlongRay(point, false)));
+            assertAll(side(0).stream().map(point -> (Executable) () -> assertOnBoundaryAlongRay(point)));
         }
 
         @Test
@@ -157,8 +174,8 @@ class PetalMaskTest {
         }
 
         @Test
-        void capPointsLieOnTheCapsBoundary() {
-            assertAll(side(2).stream().map(point -> (Executable) () -> assertOnTheCapCircle(point)));
+        void endPointsLieOnTheEndsBoundary() {
+            assertAll(side(2).stream().map(point -> (Executable) () -> assertOnTheEndCircle(point)));
         }
 
         @Test
@@ -166,21 +183,65 @@ class PetalMaskTest {
             assertAll(side(3).stream().map(point -> (Executable) () -> assertOnBoundaryAcrossAngle(point, NUDGE)));
         }
 
-        /** decision wedges-round-off-like-petals */
         @Test
-        void capPointsStepEvenlyAroundTheCapCircle() {
-            PetalMask.Point center = petal.tipCenter();
-            List<PetalMask.Point> cap = outline.subList(2 * SEGMENTS, 2 * SEGMENTS + CAP_POINTS + 1);
-            for (int i = 0; i + 1 < cap.size(); i++) {
-                double from = Math.atan2(cap.get(i).x() - center.x(), -(cap.get(i).y() - center.y()));
-                double to = Math.atan2(cap.get(i + 1).x() - center.x(), -(cap.get(i + 1).y() - center.y()));
+        void endPointsStepEvenlyAroundTheEndCircle() {
+            PetalMask.Point center = petal().capCircleCenter();
+            List<PetalMask.Point> end = end();
+            for (int i = 0; i + 1 < end.size(); i++) {
+                double from = Math.atan2(end.get(i).x() - center.x(), -(end.get(i).y() - center.y()));
+                double to = Math.atan2(end.get(i + 1).x() - center.x(), -(end.get(i + 1).y() - center.y()));
                 assertTrue(Math.abs(Math.IEEEremainder(to - from, 2 * Math.PI)) <= MAX_CAP_STEP, "step " + i);
             }
         }
 
         @Test
-        void capReachesTheOuterRadiusOnTheCenterAngle() {
-            assertEquals(OUTER, petal.reach(START + ARC / 2), 1e-12);
+        void endReachesTheOuterRadiusOnTheCenterAngle() {
+            PetalMask.Petal petal = petal();
+            assertEquals(petal.outer(), petal.reach(petal.start() + petal.arc() / 2), 1e-12);
+        }
+    }
+
+    /** An ability-sized petal ends in the circle tangent to its edges. */
+    @Nested
+    class NarrowPetalOutline extends OutlineOf {
+
+        @Override
+        PetalMask.Petal petal() {
+            return new PetalMask.Petal(START, ARC, INNER, OUTER);
+        }
+
+        @Test
+        void endCircleIsTangentToTheEdges() {
+            PetalMask.Point center = petal().capCircleCenter();
+            // the end runs from the end edge's corner back to the start edge's
+            PetalMask.Point corner = end().getFirst();
+            double edgeX = Math.sin(START + ARC);
+            double edgeY = -Math.cos(START + ARC);
+            assertEquals(0.0, (corner.x() - center.x()) * edgeX + (corner.y() - center.y()) * edgeY, 1e-9);
+        }
+    }
+
+    /**
+     * A type base widened over four abilities ends in a shallow arc across its
+     * whole width rather than a circle inscribed in it (decision petal-moves-animate).
+     */
+    @Nested
+    class WideBaseOutline extends OutlineOf {
+
+        private static final double BASE_ARC = 4 * ARC;
+
+        @Override
+        PetalMask.Petal petal() {
+            return new PetalMask.Petal(START, BASE_ARC, INNER, RadialWheel.TYPE_BASE_LENGTH);
+        }
+
+        @Test
+        void endBulgesNoMoreThanAQuarterOfItsBandOrTheWheelsOwnCurve() {
+            double length = RadialWheel.TYPE_BASE_LENGTH;
+            double wheelCurve = length * (1 - Math.cos(BASE_ARC / 2));
+            assertTrue(bulge() <= Math.max(PetalMask.MAX_BULGE * (length - INNER), wheelCurve) + 1e-9,
+                    "bulge " + bulge());
+            assertTrue(bulge() < length * Math.sin(BASE_ARC / 2), "shallower than the inscribed circle");
         }
     }
 
