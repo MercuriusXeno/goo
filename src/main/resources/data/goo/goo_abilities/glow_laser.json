@@ -1,6 +1,7 @@
 {
   "gooType": "glow",
   "displayName": "goo.ability.glow.laser",
+  "badge": "mob",
   "order": 10,
   "cost": 1000,
   "behaviors": [
