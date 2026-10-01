@@ -21,18 +21,17 @@ class AbilityBadgeTest {
 
     private static final int SHIPPED_MOB_BADGES = 16;
     private static final int SHIPPED_WORLD_BADGES = 14;
-    private static final int SHIPPED_PUNCH_BADGES = 1;
     private static final int SHIPPED_SELF_BADGES = 2;
     private static final int SHIPPED_CHANNELED_BADGES = 1;
 
     @ParameterizedTest
-    @CsvSource({"world, WORLD", "mob, MOB", "self, SELF", "punch, PUNCH", "channeled, CHANNELED"})
+    @CsvSource({"world, WORLD", "mob, MOB", "self, SELF", "channeled, CHANNELED"})
     void eachVocabularyWordParsesToItsBadge(String word, AbilityBadge expected) {
         assertEquals(expected, AbilityBadge.CODEC.parse(JsonOps.INSTANCE, new JsonPrimitive(word)).getOrThrow());
     }
 
     /**
-     * Each badge holds its own tier, ranked channeled, punch, mob, world, self,
+     * Each badge holds its own tier, ranked channeled, mob, world, self,
      * at orders that would reverse that rank if order alone decided; a shared
      * badge falls back to order (decision fan-sorts-badge-then-order).
      */
@@ -44,22 +43,22 @@ class AbilityBadgeTest {
                 new Ranked("world", AbilityBadge.WORLD, 1),
                 new Ranked("self", AbilityBadge.SELF, 0),
                 new Ranked("mob_late", AbilityBadge.MOB, 2),
-                new Ranked("punch", AbilityBadge.PUNCH, 3),
                 new Ranked("channeled", AbilityBadge.CHANNELED, 4),
                 new Ranked("mob_early", AbilityBadge.MOB, 1));
 
-        assertEquals(List.of("channeled", "punch", "mob_early", "mob_late", "world", "self"),
+        assertEquals(List.of("channeled", "mob_early", "mob_late", "world", "self"),
                 shuffled.stream().sorted(AbilityBadge.fanOrder(Ranked::badge, Ranked::order)).map(Ranked::name).toList());
     }
 
-    @Test
-    void aWordOutsideTheVocabularyFailsToParse() {
-        assertTrue(AbilityBadge.CODEC.parse(JsonOps.INSTANCE, new JsonPrimitive("tap")).isError());
+    @ParameterizedTest
+    @CsvSource({"tap", "punch"})
+    void aWordOutsideTheVocabularyFailsToParse(String word) {
+        assertTrue(AbilityBadge.CODEC.parse(JsonOps.INSTANCE, new JsonPrimitive(word)).isError());
     }
 
     /**
-     * The badge a shipped ability wears: its delivery's own badge for a punch,
-     * a self or a stream (decision one-proving-ability-per-kind), and for a
+     * The badge a shipped ability wears: its delivery's own badge for a self
+     * or a stream (decision one-proving-ability-per-kind), and for a
      * thrown ability, mob where it targets entities and world elsewhere.
      *
      * @param definition the shipped ability
@@ -67,7 +66,6 @@ class AbilityBadgeTest {
      */
     private static AbilityBadge expectedBadge(AbilityDefinition definition) {
         return switch (definition.delivery().kind()) {
-            case PUNCH -> AbilityBadge.PUNCH;
             case SELF -> AbilityBadge.SELF;
             case STREAM -> AbilityBadge.CHANNELED;
             default -> definition.hasTag(AbilityTags.ENTITY) ? AbilityBadge.MOB : AbilityBadge.WORLD;
@@ -83,7 +81,7 @@ class AbilityBadgeTest {
         shipped.values().forEach(definition -> assertEquals(
                 expectedBadge(definition), definition.badge(), definition.id().toString()));
         assertEquals(Map.of(AbilityBadge.MOB, (long) SHIPPED_MOB_BADGES, AbilityBadge.WORLD, (long) SHIPPED_WORLD_BADGES,
-                        AbilityBadge.PUNCH, (long) SHIPPED_PUNCH_BADGES, AbilityBadge.SELF, (long) SHIPPED_SELF_BADGES,
+                        AbilityBadge.SELF, (long) SHIPPED_SELF_BADGES,
                         AbilityBadge.CHANNELED, (long) SHIPPED_CHANNELED_BADGES),
                 shipped.values().stream().collect(Collectors.groupingBy(AbilityDefinition::badge, Collectors.counting())));
     }

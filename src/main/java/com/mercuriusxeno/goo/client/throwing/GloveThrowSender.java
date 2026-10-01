@@ -11,10 +11,10 @@ import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.overlay.AimTracker;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
-import com.mercuriusxeno.goo.network.GooPunchHandler;
 import com.mercuriusxeno.goo.network.GooStreamPayload;
 import com.mercuriusxeno.goo.network.GooThrowHandler;
 import com.mercuriusxeno.goo.network.GooThrowPayload;
+import com.mercuriusxeno.goo.network.GooTouchHandler;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.client.Minecraft;
@@ -78,7 +78,7 @@ public final class GloveThrowSender {
         return switch (delivery.kind()) {
             case SELF -> sendSelf(player, gooType, selection.abilityId());
             case STREAM -> sendStreamTick(player, gooType, selection.abilityId());
-            default -> sendAimed(player, gooType, selection.abilityId(), delivery);
+            default -> sendAimed(player, gooType, selection.abilityId());
         };
     }
 
@@ -139,23 +139,20 @@ public final class GloveThrowSender {
     }
 
     /**
-     * Sends the payload at the aimed target when the player can afford it
-     * and, for a punch, the target stands within reach.
+     * Sends the payload at the aimed target when the player can afford it.
      *
      * @param player    the local player
      * @param gooType   the selected goo type
      * @param abilityId the selected ability id string
-     * @param delivery  the selected ability's delivery
      * @return true when the payload was sent
      */
-    private static boolean sendAimed(Player player, ResourceKey<GooTypeDefinition> gooType, String abilityId,
-            Delivery delivery) {
+    private static boolean sendAimed(Player player, ResourceKey<GooTypeDefinition> gooType, String abilityId) {
         TargetResult target = AimTracker.currentTarget();
         GooThrowPayload payload = affordablePayload(player, target, gooType, abilityId);
-        if (payload == null || !withinPunchReach(player, target, delivery)) {
+        if (payload == null) {
             return false;
         }
-        return sendUnlessMaxed(target, payload, delivery, abilityId);
+        return sendUnlessMaxed(target, payload, withinTouchReach(player, target, abilityId), abilityId);
     }
 
     /**
@@ -164,19 +161,19 @@ public final class GloveThrowSender {
      *
      * @param target    the resolved aim target
      * @param payload   the throw payload
-     * @param delivery  the selected ability's delivery
+     * @param touch     whether the server lands the payload as a touch
      * @param abilityId the selected ability id string
      * @return true when the payload was sent
      */
-    private static boolean sendUnlessMaxed(TargetResult target, GooThrowPayload payload, Delivery delivery,
+    private static boolean sendUnlessMaxed(TargetResult target, GooThrowPayload payload, boolean touch,
             String abilityId) {
         if (wouldExceedMaxStacks(target, abilityId)) {
             ThrowFreezeState.armThrowBlock();
             return false;
         }
         ThrowFreezeState.arm(target);
-        // decision punch-strikes-at-reach: a punch lands at once, so nothing is in flight
-        if (delivery.kind() != DeliveryKind.PUNCH) {
+        // decision mob-ability-touches-at-reach: a touch lands at once, so nothing is in flight
+        if (!touch) {
             trackInFlight(target, abilityId);
         }
         sendPayload(payload);
@@ -184,39 +181,33 @@ public final class GloveThrowSender {
     }
 
     /**
-     * Whether a punch's target stands within its reach, measured as the server
-     * measures it; any other delivery reaches every aimed target
-     * (decision punch-strikes-at-reach).
+     * Whether the server lands a throw at the target as a touch, read by the
+     * rule the server reads and measured feet to feet as the server measures.
+     * decision mob-ability-touches-at-reach
      *
-     * @param player   the local player
-     * @param target   the resolved aim target
-     * @param delivery the selected ability's delivery
-     * @return false for a punch whose target lies beyond reach
+     * @param player    the local player
+     * @param target    the resolved aim target
+     * @param abilityId the selected ability id string
+     * @return true for a mob ability aimed at an entity within reach
      */
-    private static boolean withinPunchReach(Player player, TargetResult target, Delivery delivery) {
-        if (delivery.kind() != DeliveryKind.PUNCH) {
-            return true;
-        }
-        Vec3 at = punchTargetPosition(target);
-        double reach = GooPunchHandler.reach(delivery, player.entityInteractionRange());
-        return at != null && player.position().distanceToSqr(at) <= reach * reach;
+    public static boolean withinTouchReach(Player player, TargetResult target, @Nullable String abilityId) {
+        ClientAbility ability = abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
+        return ability != null && target instanceof TargetResult.EntityTarget et
+                && GooTouchHandler.touches(ability.delivery(), ability.badge(), true,
+                        player.position().distanceToSqr(et.entity().position()), player.entityInteractionRange());
     }
 
     /**
-     * The point a punch measures its reach to, as the server measures it:
-     * the entity's position or the block's center.
+     * Whether the selected ability touches an entity within reach, the radius
+     * the aim draws its ring at.
+     * decision mob-ability-touches-at-reach
      *
-     * @param target the resolved aim target
-     * @return the point, or null for no target
+     * @param abilityId the selected ability id string
+     * @return true for a selected mob ability that flies a line
      */
-    private static @Nullable Vec3 punchTargetPosition(TargetResult target) {
-        return switch (target) {
-            case TargetResult.EntityTarget et -> et.entity().position();
-            case TargetResult.BlockTarget bt -> Vec3.atCenterOf(bt.pos());
-            case TargetResult.ChainMarkerTarget cmt -> Vec3.atCenterOf(cmt.pos());
-            case TargetResult.GlowCrystalTarget gct -> Vec3.atCenterOf(gct.pos());
-            default -> null;
-        };
+    public static boolean selectedTouchesAtReach(@Nullable String abilityId) {
+        ClientAbility ability = abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
+        return ability != null && GooTouchHandler.touchesAtReach(ability.delivery(), ability.badge());
     }
 
     /**

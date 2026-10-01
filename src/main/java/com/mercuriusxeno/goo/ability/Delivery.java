@@ -17,7 +17,7 @@ import net.minecraft.world.phys.Vec3;
  *
  * @param kind           the delivery kind
  * @param blocksPerTick  a beam's speed in blocks per tick
- * @param range          a punch's or stream's reach in blocks; zero where the kind takes the player's reach
+ * @param range          a stream's reach in blocks
  * @param coneDegrees    a stream's cone, apex to rim, in degrees
  * @param ticksPerCharge a stream's ticks of hold one cost pays for
  * @param grannyAllowed  whether an arc may lob onto a top face
@@ -92,7 +92,7 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
 
     /**
      * Whether the glove aims a line at a target, the arc or the beam; a
-     * punch aims at reach and a self ability at nothing.
+     * stream aims a cone and a self ability at nothing.
      *
      * @return true for an arc or a beam
      */
