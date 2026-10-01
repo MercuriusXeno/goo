@@ -19,6 +19,7 @@ import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooFluids;
 import com.mercuriusxeno.goo.registry.GooItems;
+import com.mercuriusxeno.goo.registry.GooTickets;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -26,6 +27,7 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.material.Fluids;
@@ -48,6 +50,22 @@ public final class GasketPusherTests {
     private static final String RECEIVER_NEVER_ROSE = "Receiver should hold goo before the output canister is removed";
     private static final String EMPTY_AFTER_IDLE = "Crucible reservoir should still be empty after idle ticks";
     private static final String NO_CRASH_NO_PARTNER = "Crucible should not crash or produce goo without a partner";
+
+    // --- Pusher release fixtures (diagnose-then-fix-capability-lifetimes) ---
+
+    private static final int CHUNK_WIDTH = 16;
+    /** Lifts the partner canister clear of neighbouring test bays in the next chunk. */
+    private static final int PARTNER_RISE = 24;
+    private static final String PARTNER_CHUNK_NEVER_FORCED =
+            "Crucible should hold a ticket on its partner's chunk once linked";
+    private static final String PARTNER_CHUNK_STILL_FORCED =
+            "Crucible should hold no ticket on its partner's chunk once it left";
+
+    /** The host the linked canister is carried to. */
+    private static final BlockPos SECOND_HOST_POS = new BlockPos(3, 1, 3);
+    private static final String MOVED_RECEIVER_ROSE =
+            "Canister carried to a second host should keep receiving goo with no re-link";
+    private static final String FIRST_HOST_STAYS_EMPTY = "First host's emptied slot should receive no goo";
 
     // --- Reactor fixtures (reactor-output-push-fix) ---
 
@@ -149,6 +167,135 @@ public final class GasketPusherTests {
                         helper.succeed();
                     });
                 });
+            });
+        });
+    }
+
+    // --- Pusher release (diagnose-then-fix-capability-lifetimes) ---
+
+    /**
+     * Breaking a crucible whose transmitter is linked to a canister in another chunk
+     * leaves no gasket chunk ticket owned by the crucible's position.
+     *
+     * @param helper the gametest helper
+     */
+    public static void crucibleBreakReleasesPartnerChunk(GameTestHelper helper) {
+        BlockPos partner = placeCrucibleLinkedAcrossChunks(helper);
+        helper.runAfterDelay(1, () -> {
+            helper.assertTrue(cruciblePartnerChunkHeld(helper, partner), PARTNER_CHUNK_NEVER_FORCED);
+            helper.destroyBlock(BE_POS);
+            helper.runAfterDelay(1, () -> {
+                helper.assertFalse(cruciblePartnerChunkHeld(helper, partner), PARTNER_CHUNK_STILL_FORCED);
+                helper.getLevel().removeBlock(partner, false);
+                helper.succeed();
+            });
+        });
+    }
+
+    /**
+     * A linked crucible whose chunk unloads, through NeoForge's onChunkUnloaded then
+     * setRemoved, leaves no gasket chunk ticket owned by the crucible's position.
+     *
+     * @param helper the gametest helper
+     */
+    public static void crucibleUnloadReleasesPartnerChunk(GameTestHelper helper) {
+        BlockPos partner = placeCrucibleLinkedAcrossChunks(helper);
+        helper.runAfterDelay(1, () -> {
+            helper.assertTrue(cruciblePartnerChunkHeld(helper, partner), PARTNER_CHUNK_NEVER_FORCED);
+            CrucibleBlockEntity crucible = helper.getBlockEntity(BE_POS, CrucibleBlockEntity.class);
+            crucible.onChunkUnloaded();
+            crucible.setRemoved();
+            helper.assertFalse(cruciblePartnerChunkHeld(helper, partner), PARTNER_CHUNK_STILL_FORCED);
+            helper.getLevel().removeBlock(partner, false);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Places a gasketed crucible and, in the next chunk east and above the test bay,
+     * a canister block whose center canister carries a top gasket, then links the
+     * crucible's transmitter to it the way the choral tuner does.
+     *
+     * @param helper the gametest helper
+     * @return the canister block's absolute position
+     */
+    private static BlockPos placeCrucibleLinkedAcrossChunks(GameTestHelper helper) {
+        helper.setBlock(BE_POS, GooBlocks.CRUCIBLE.get().defaultBlockState()
+                .setValue(CrucibleBlock.HAS_GASKET, true));
+        CrucibleBlockEntity crucible = helper.getBlockEntity(BE_POS, CrucibleBlockEntity.class);
+        UUID transmitter = crucible.ensureGasketId(GasketRole.TRANSMITTER);
+
+        BlockPos crucibleAbs = helper.absolutePos(BE_POS);
+        int nextChunkX = (ChunkPos.containing(crucibleAbs).x() + 1) * CHUNK_WIDTH + CHUNK_WIDTH / 2;
+        BlockPos partner = new BlockPos(nextChunkX, crucibleAbs.getY() + PARTNER_RISE, crucibleAbs.getZ());
+        helper.getLevel().setBlockAndUpdate(partner, GooBlocks.CANISTER.get().defaultBlockState());
+        CanisterBlockEntity canister = (CanisterBlockEntity) helper.getLevel().getBlockEntity(partner);
+        UUID receiver = UUID.randomUUID();
+        ItemStack receiving = new ItemStack(GooItems.CANISTER.get());
+        CanisterItem.setMetadata(receiving, CanisterItem.getMetadata(receiving).withTopGasketId(receiver));
+        canister.insertCanister(CanisterBlock.CENTER_SLOT, receiving, false);
+
+        GasketRegistry.get(helper.getLevel()).link(transmitter, receiver);
+        crucible.setPartner(GasketRole.TRANSMITTER, new GasketPartner(partner, CanisterBlock.CENTER_SLOT));
+        return partner;
+    }
+
+    /**
+     * Whether the crucible's position owns a gasket ticket on the partner's chunk.
+     * NeoForge's forceChunk answers whether it changed anything, so adding a ticket
+     * already held answers false; the probe then leaves a held ticket as it was.
+     *
+     * @param helper  the gametest helper
+     * @param partner the partner's absolute position
+     * @return true if the ticket is held
+     */
+    private static boolean cruciblePartnerChunkHeld(GameTestHelper helper, BlockPos partner) {
+        ChunkPos chunk = ChunkPos.containing(partner);
+        BlockPos owner = helper.absolutePos(BE_POS);
+        boolean added = GooTickets.gasketChunks.forceChunk(
+                helper.getLevel(), owner, chunk.x(), chunk.z(), true, false);
+        if (added) {
+            GooTickets.gasketChunks.forceChunk(helper.getLevel(), owner, chunk.x(), chunk.z(), false, false);
+        }
+        return !added;
+    }
+
+    /**
+     * A crucible linked to a canister's receiver gasket keeps pushing once the canister is
+     * carried from its first host into a second, with no re-link: the moved canister gains
+     * goo in the second host and the first host's emptied slot gains none.
+     *
+     * @param helper the gametest helper
+     */
+    public static void movedReceiverKeepsReceiving(GameTestHelper helper) {
+        helper.setBlock(BE_POS, GooBlocks.CRUCIBLE.get().defaultBlockState()
+                .setValue(CrucibleBlock.HAS_GASKET, true));
+        CrucibleBlockEntity crucible = helper.getBlockEntity(BE_POS, CrucibleBlockEntity.class);
+        UUID transmitter = crucible.ensureGasketId(GasketRole.TRANSMITTER);
+        crucible.insertGoo(GooTypes.BLAZE, OUTPUT_GOO);
+        helper.setBlock(RECEIVER_POS, GooBlocks.CANISTER.get());
+        helper.setBlock(SECOND_HOST_POS, GooBlocks.CANISTER.get());
+        CanisterBlockEntity first = helper.getBlockEntity(RECEIVER_POS, CanisterBlockEntity.class);
+        CanisterBlockEntity second = helper.getBlockEntity(SECOND_HOST_POS, CanisterBlockEntity.class);
+        UUID receiver = UUID.randomUUID();
+        ItemStack receiving = new ItemStack(GooItems.CANISTER.get());
+        CanisterItem.setMetadata(receiving, CanisterItem.getMetadata(receiving).withTopGasketId(receiver));
+        first.insertCanister(CanisterBlock.CENTER_SLOT, receiving, false);
+        GasketRegistry.get(helper.getLevel()).link(transmitter, receiver);
+        crucible.setPartner(GasketRole.TRANSMITTER,
+                new GasketPartner(helper.absolutePos(RECEIVER_POS), CanisterBlock.CENTER_SLOT));
+
+        helper.runAfterDelay(PUSH_TICKS, () -> {
+            helper.assertTrue(receiverAmount(first) > 0, RECEIVER_ROSE);
+            ItemStack carried = first.removeCanister(CanisterBlock.CENTER_SLOT);
+            second.insertCanister(CanisterBlock.CENTER_SLOT, carried, false);
+            int carriedIn = receiverAmount(second);
+            crucible.insertGoo(GooTypes.BLAZE, OUTPUT_GOO);
+            helper.runAfterDelay(PUSH_TICKS, () -> {
+                int now = receiverAmount(second);
+                helper.assertTrue(now > carriedIn, MOVED_RECEIVER_ROSE + READ + carriedIn + THEN + now);
+                helper.assertTrue(receiverAmount(first) == 0, FIRST_HOST_STAYS_EMPTY);
+                helper.succeed();
             });
         });
     }

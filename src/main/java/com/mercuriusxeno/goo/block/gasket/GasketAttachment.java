@@ -32,6 +32,7 @@ public final class GasketAttachment {
     @Nullable private Supplier<GasketRegistry> registryAccess;
     private Runnable rebuildPushers = () -> { };
     private Runnable afterLoad = () -> { };
+    @Nullable private GasketPusher standingPusher;
 
     private GasketAttachment(BlockEntity owner, GasketState state) {
         this.owner = owner;
@@ -110,7 +111,20 @@ public final class GasketAttachment {
                 () -> registryAccess != null ? registryAccess.get() : null);
         rebuildPushers(pusher::rebuildCache);
         afterLoad(this::forceTransmitterChunkOnLoad);
+        standingPusher = pusher;
         return pusher;
+    }
+
+    /**
+     * Disposes the pusher {@link #singlePusher} stood, releasing its forced-chunk
+     * ticket and capability cache as the owner leaves or unloads; onLoad stands
+     * them again on the block entity that returns
+     * (decision diagnose-then-fix-capability-lifetimes).
+     */
+    public void releasePusher() {
+        if (standingPusher != null) {
+            standingPusher.dispose();
+        }
     }
 
     private void forceTransmitterChunkOnLoad() {
