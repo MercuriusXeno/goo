@@ -135,6 +135,7 @@ public final class GooTestFunctions {
     private static final String PUSHER_WATERLOGGED_GASKET_VAT = "pusher_waterlogged_gasket_vat";
     private static final String PUSHER_BREAK_RELEASES_CHUNK = "pusher_crucible_break_releases_partner_chunk";
     private static final String PUSHER_UNLOAD_RELEASES_CHUNK = "pusher_crucible_unload_releases_partner_chunk";
+    private static final String PUSHER_MOVED_RECEIVER = "pusher_moved_receiver_keeps_receiving";
 
     // --- IGasketHolder ---
     private static final String CRUCIBLE_ROLE_TRANSMITTER = "crucible_role_transmitter";
@@ -518,6 +519,7 @@ public final class GooTestFunctions {
         reg(r, PUSHER_WATERLOGGED_GASKET_VAT, GasketPusherTests::waterloggedGasketPushesIntoVat);
         reg(r, PUSHER_BREAK_RELEASES_CHUNK, GasketPusherTests::crucibleBreakReleasesPartnerChunk);
         reg(r, PUSHER_UNLOAD_RELEASES_CHUNK, GasketPusherTests::crucibleUnloadReleasesPartnerChunk);
+        reg(r, PUSHER_MOVED_RECEIVER, GasketPusherTests::movedReceiverKeepsReceiving);
         reg(r, CRUCIBLE_ROLE_TRANSMITTER, GasketHolderTests::crucibleResolveRoleAlwaysTransmitter);
         reg(r, CRUCIBLE_NO_GASKET, GasketHolderTests::crucibleNoGasketUnsupported);
         reg(r, CRUCIBLE_WITH_GASKET, GasketHolderTests::crucibleWithGasketSupported);
