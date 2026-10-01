@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.AbilityTags;
+import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypeNames;
@@ -60,7 +61,7 @@ class RadialWheelRendererTest {
         return new ClientAbility(definition.id(), definition.displayName(), definition.icon(),
                 definition.order(), definition.tags(),
                 definition.chain().fuseTicks(), definition.chain().maxStacks(), definition.behaviors(),
-                definition.cost(), definition.badge());
+                definition.cost(), definition.delivery(), definition.badge());
     }
 
     private static List<ClientAbility> shippedAbilities() {
@@ -71,7 +72,7 @@ class RadialWheelRendererTest {
 
     private static ClientAbility abilityWithIcon(String icon) {
         return new ClientAbility(Identifier.fromNamespaceAndPath(Goo.MODID, "unstable_timed_bomb"),
-                "ability.goo.unstable_timed_bomb", icon, 0, List.of(), 0, 0, List.of(), 0, AbilityBadge.WORLD);
+                "ability.goo.unstable_timed_bomb", icon, 0, List.of(), 0, 0, List.of(), 0, Delivery.ARC, AbilityBadge.WORLD);
     }
 
     /** The badge, not the label, marks the target kind (decision badge-marks-the-target-kind). */
@@ -81,7 +82,7 @@ class RadialWheelRendererTest {
         @Test
         void entityAbilityLabelReadsTheBareName() {
             ClientAbility entity = new ClientAbility(Identifier.fromNamespaceAndPath(Goo.MODID, "hex_charm"),
-                    "goo.ability.hex.charm", "", 0, List.of(AbilityTags.ENTITY), 0, 1, List.of(), 0, AbilityBadge.MOB);
+                    "goo.ability.hex.charm", "", 0, List.of(AbilityTags.ENTITY), 0, 1, List.of(), 0, Delivery.ARC, AbilityBadge.MOB);
 
             assertEquals(Component.translatable("goo.ability.hex.charm"), RadialWheelRenderer.buildLabel(entity));
         }
@@ -156,6 +157,8 @@ class RadialWheelRendererTest {
                 Map.entry("typhoon_levitate", "Float"), Map.entry("unstable_timed_bomb", "Countdown"),
                 Map.entry("unstable_instant_detonation", "Blast"),
                 Map.entry("unstable_proximity_mine", "Claymore"),
+                Map.entry("metal_fist", "Fist"), Map.entry("blaze_spitfire", "Spitfire"),
+                Map.entry("ender_blink", "Blink"), Map.entry("typhoon_propel", "Propel"),
                 Map.entry("unstable_explode", "Burst"), Map.entry("vital_clone", "Clone"));
 
         private static JsonObject englishLang() throws IOException {
@@ -200,7 +203,7 @@ class RadialWheelRendererTest {
 
         private static ClientAbility costing(int firstThrow) {
             return new ClientAbility(Identifier.fromNamespaceAndPath(Goo.MODID, "cost_" + firstThrow),
-                    "ability.goo.cost", "", 0, List.of(), 0, 1, List.of(), firstThrow, AbilityBadge.WORLD);
+                    "ability.goo.cost", "", 0, List.of(), 0, 1, List.of(), firstThrow, Delivery.ARC, AbilityBadge.WORLD);
         }
 
         @Test

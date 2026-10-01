@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.program.EntityHost;
 import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
@@ -91,24 +92,26 @@ public final class GooEffectScheduler {
      * @param player      the throwing player
      * @param payload     the throw payload data
      * @param gooType     the goo type being thrown
+     * @param delivery    the delivery the throw flies by
      * @param travelTicks the number of ticks until arrival
      */
     void scheduleEffect(ServerPlayer player, GooThrowPayload payload,
-                               ResourceKey<GooTypeDefinition> gooType, int travelTicks) {
-        playThrowSound(player, gooType);
+                               ResourceKey<GooTypeDefinition> gooType, Delivery delivery, int travelTicks) {
+        playThrowSound(player, delivery);
         enqueueArrival(player, payload, gooType, travelTicks);
     }
 
     /**
-     * Plays the throw sound at the player's position. Glow uses a
-     * custom laser sound; all other types use the snowball throw.
+     * Plays the throw sound at the player's position: a beam fires the
+     * laser sound, every other delivery the snowball throw
+     * (decision delivery-block-in-ability-json).
      *
-     * @param player  the throwing player
-     * @param gooType the goo type being thrown
+     * @param player   the throwing player
+     * @param delivery the delivery the throw flies by
      */
-    static void playThrowSound(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType) {
+    static void playThrowSound(ServerPlayer player, Delivery delivery) {
         ServerLevel level = player.level();
-        SoundEvent sound = gooType == GooTypes.GLOW
+        SoundEvent sound = delivery.fliesStraight()
                 ? GooSounds.GLOW_THROW.get()
                 : SoundEvents.SNOWBALL_THROW;
         float pitch = THROW_PITCH_BASE / (level.getRandom().nextFloat() * THROW_PITCH_RANGE + THROW_PITCH_OFFSET);
@@ -151,6 +154,16 @@ public final class GooEffectScheduler {
      */
     public boolean hasPending() {
         return !pendingEffects.isEmpty();
+    }
+
+    /**
+     * Counts the pending effects, so a caller sharing the scheduler can read
+     * what one act added.
+     *
+     * @return the number of effects waiting to arrive
+     */
+    int pendingCount() {
+        return pendingEffects.size();
     }
 
     /**

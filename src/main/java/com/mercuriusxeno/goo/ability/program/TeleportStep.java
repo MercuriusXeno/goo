@@ -51,8 +51,9 @@ public record TeleportStep(TeleportMode mode, Expr range) implements Step {
             case RANDOM_OFFSET -> randomOffset(target, reach);
             case TOWARD_THROWER -> towardThrower(target, context.hostAs(TargetHost.class).thrower(), reach);
             case AWAY_FROM_THROWER -> towardThrower(target, context.hostAs(TargetHost.class).thrower(), -reach);
+            case THROWER_LOOK -> alongLook(context.hostAs(TargetHost.class).thrower(), reach);
         };
-        target.teleportTo(target.getX() + jump.x(), target.getY(), target.getZ() + jump.z());
+        target.teleportTo(target.getX() + jump.x(), target.getY() + jump.y(), target.getZ() + jump.z());
         return true;
     }
 
@@ -83,6 +84,17 @@ public record TeleportStep(TeleportMode mode, Expr range) implements Step {
         }
         Vec3 line = new Vec3(thrower.getX() - target.getX(), 0, thrower.getZ() - target.getZ());
         return line.lengthSqr() == 0 ? Vec3.ZERO : line.normalize().scale(range);
+    }
+
+    /**
+     * Measures a jump of the range along the thrower's look.
+     *
+     * @param thrower the entity whose look the jump follows, or null when unknown
+     * @param range   the jump length
+     * @return the jump, zero with no thrower
+     */
+    private static Vec3 alongLook(@Nullable Entity thrower, double range) {
+        return thrower == null ? Vec3.ZERO : thrower.getLookAngle().scale(range);
     }
 
     @Override

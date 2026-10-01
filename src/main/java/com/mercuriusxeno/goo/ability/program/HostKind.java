@@ -30,7 +30,15 @@ public enum HostKind {
      * target, no stacks and no driver for later ticks
      * (decision tap-ability-tagged-program).
      */
-    TAP("tap landing", TapHost.class, Set.of());
+    TAP("tap landing", TapHost.class, Set.of()),
+    /**
+     * The player invoking a self ability: target, thrower and anchor at
+     * once, acted on in the tick the glove is used, with no driver for
+     * later ticks (decision self-delivery-runs-on-player).
+     */
+    PLAYER("player host", PlayerHost.class,
+            Set.of(HostVariables.HEALTH, HostVariables.MAX_HEALTH, HostVariables.DISTANCE,
+                    HostVariables.UNDEAD, HostVariables.SPRINTING));
 
     private final String label;
     private final Set<HostCapability> capabilities;

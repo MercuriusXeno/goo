@@ -1,5 +1,7 @@
 package com.mercuriusxeno.goo.client.throwing;
 
+import com.mercuriusxeno.goo.ability.Delivery;
+import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.StackKey;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
@@ -9,6 +11,8 @@ import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.overlay.AimTracker;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
+import com.mercuriusxeno.goo.network.GooPunchHandler;
+import com.mercuriusxeno.goo.network.GooStreamPayload;
 import com.mercuriusxeno.goo.network.GooThrowHandler;
 import com.mercuriusxeno.goo.network.GooThrowPayload;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -70,19 +74,149 @@ public final class GloveThrowSender {
         if (gooType == null || ThrowFreezeState.isThrowBlocked()) {
             return false;
         }
-        TargetResult target = AimTracker.currentTarget();
-        GooThrowPayload payload = affordablePayload(player, target, gooType, selection.abilityId());
-        if (payload == null) {
+        Delivery delivery = selectedDelivery(selection.abilityId());
+        return switch (delivery.kind()) {
+            case SELF -> sendSelf(player, gooType, selection.abilityId());
+            case STREAM -> sendStreamTick(player, gooType, selection.abilityId());
+            default -> sendAimed(player, gooType, selection.abilityId(), delivery);
+        };
+    }
+
+    /**
+     * Carries a held glove one tick further: a stream ability streams one
+     * more tick, and every other delivery does nothing past its press
+     * (decision stream-delivery-held-cone).
+     *
+     * @param player the local player
+     */
+    public static void sendHold(Player player) {
+        GloveSelection selection = heldSelection(player);
+        ResourceKey<GooTypeDefinition> gooType = selection == null ? null : selection.getGooType();
+        if (gooType != null && selectedDelivery(selection.abilityId()).kind() == DeliveryKind.STREAM) {
+            sendStreamTick(player, gooType, selection.abilityId());
+        }
+    }
+
+    /**
+     * Sends one tick of a stream from the glove hand while the player holds
+     * any goo of the type; the server prices the tick and stops the stream
+     * when the goo runs out.
+     *
+     * @param player    the local player
+     * @param gooType   the selected goo type
+     * @param abilityId the selected ability id string
+     * @return true when the tick was sent
+     */
+    private static boolean sendStreamTick(Player player, ResourceKey<GooTypeDefinition> gooType, String abilityId) {
+        if (!GooSourceScanner.hasEnough(player, gooType, 1)) {
             return false;
         }
-        if (wouldExceedMaxStacks(target, gooType, selection.abilityId())) {
+        var connection = Minecraft.getInstance().getConnection();
+        if (connection != null) {
+            connection.send(new ServerboundCustomPayloadPacket(
+                    new GooStreamPayload(GooTypes.id(gooType), abilityId, lineOrigin())));
+        }
+        return true;
+    }
+
+    /**
+     * Sends a self ability's payload, naming no target, when the player can
+     * afford its cost at stack zero (decision self-delivery-runs-on-player).
+     *
+     * @param player    the local player
+     * @param gooType   the selected goo type
+     * @param abilityId the selected ability id string
+     * @return true when the payload was sent
+     */
+    private static boolean sendSelf(Player player, ResourceKey<GooTypeDefinition> gooType, String abilityId) {
+        if (!affordsThrow(AbilitySyncHandler.findAbility(abilityId), 0,
+                amount -> GooSourceScanner.hasEnough(player, gooType, amount))) {
+            return false;
+        }
+        sendPayload(new GooThrowPayload(GooTypes.id(gooType), NO_ENTITY, player.blockPosition(), NO_ENTITY,
+                false, abilityId, lineOrigin()));
+        return true;
+    }
+
+    /**
+     * Sends the payload at the aimed target when the player can afford it
+     * and, for a punch, the target stands within reach.
+     *
+     * @param player    the local player
+     * @param gooType   the selected goo type
+     * @param abilityId the selected ability id string
+     * @param delivery  the selected ability's delivery
+     * @return true when the payload was sent
+     */
+    private static boolean sendAimed(Player player, ResourceKey<GooTypeDefinition> gooType, String abilityId,
+            Delivery delivery) {
+        TargetResult target = AimTracker.currentTarget();
+        GooThrowPayload payload = affordablePayload(player, target, gooType, abilityId);
+        if (payload == null || !withinPunchReach(player, target, delivery)) {
+            return false;
+        }
+        return sendUnlessMaxed(target, payload, delivery, abilityId);
+    }
+
+    /**
+     * Sends the payload unless the target marker is at its stack ceiling,
+     * counting the throw in flight when it flies.
+     *
+     * @param target    the resolved aim target
+     * @param payload   the throw payload
+     * @param delivery  the selected ability's delivery
+     * @param abilityId the selected ability id string
+     * @return true when the payload was sent
+     */
+    private static boolean sendUnlessMaxed(TargetResult target, GooThrowPayload payload, Delivery delivery,
+            String abilityId) {
+        if (wouldExceedMaxStacks(target, abilityId)) {
             ThrowFreezeState.armThrowBlock();
             return false;
         }
         ThrowFreezeState.arm(target);
-        trackInFlight(target, selection.abilityId());
+        // decision punch-strikes-at-reach: a punch lands at once, so nothing is in flight
+        if (delivery.kind() != DeliveryKind.PUNCH) {
+            trackInFlight(target, abilityId);
+        }
         sendPayload(payload);
         return true;
+    }
+
+    /**
+     * Whether a punch's target stands within its reach, measured as the server
+     * measures it; any other delivery reaches every aimed target
+     * (decision punch-strikes-at-reach).
+     *
+     * @param player   the local player
+     * @param target   the resolved aim target
+     * @param delivery the selected ability's delivery
+     * @return false for a punch whose target lies beyond reach
+     */
+    private static boolean withinPunchReach(Player player, TargetResult target, Delivery delivery) {
+        if (delivery.kind() != DeliveryKind.PUNCH) {
+            return true;
+        }
+        Vec3 at = punchTargetPosition(target);
+        double reach = GooPunchHandler.reach(delivery, player.entityInteractionRange());
+        return at != null && player.position().distanceToSqr(at) <= reach * reach;
+    }
+
+    /**
+     * The point a punch measures its reach to, as the server measures it:
+     * the entity's position or the block's center.
+     *
+     * @param target the resolved aim target
+     * @return the point, or null for no target
+     */
+    private static @Nullable Vec3 punchTargetPosition(TargetResult target) {
+        return switch (target) {
+            case TargetResult.EntityTarget et -> et.entity().position();
+            case TargetResult.BlockTarget bt -> Vec3.atCenterOf(bt.pos());
+            case TargetResult.ChainMarkerTarget cmt -> Vec3.atCenterOf(cmt.pos());
+            case TargetResult.GlowCrystalTarget gct -> Vec3.atCenterOf(gct.pos());
+            default -> null;
+        };
     }
 
     /**
@@ -235,17 +369,28 @@ public final class GloveThrowSender {
      * chain block (decision diagnose-then-fix-fuse-and-cost).
      *
      * @param target    the resolved aim target
-     * @param gooType   the goo type being thrown
      * @param abilityId the selected ability id string
      * @return true if the throw should be blocked
      */
-    private static boolean wouldExceedMaxStacks(TargetResult target, ResourceKey<GooTypeDefinition> gooType,
-                                                String abilityId) {
-        if (target instanceof TargetResult.GlowCrystalTarget gct && gooType == GooTypes.GLOW) {
+    private static boolean wouldExceedMaxStacks(TargetResult target, String abilityId) {
+        if (target instanceof TargetResult.GlowCrystalTarget gct
+                && selectedDelivery(abilityId).fliesStraight()) {
             return wouldExceedCrystalMax(gct, abilityId);
         }
         BlockPos pos = resolveTrackingPos(target, abilityId);
         return pos != null && wouldExceedMarkerMax(pos, abilityId);
+    }
+
+    /**
+     * The delivery of the selected ability, or a plain arc where the client
+     * holds no synced copy (decision standing-abilities-name-arc-or-beam).
+     *
+     * @param abilityId the selected ability id string
+     * @return the delivery
+     */
+    public static Delivery selectedDelivery(@Nullable String abilityId) {
+        ClientAbility ability = abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
+        return ability == null ? Delivery.ARC : ability.delivery();
     }
 
     /**

@@ -1,0 +1,7 @@
+{
+  "pack": {
+    "description": "Adds a punch-delivery ability that stands a chain marker on the struck face",
+    "min_format": 101,
+    "max_format": 101
+  }
+}

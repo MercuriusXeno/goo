@@ -27,6 +27,7 @@ import java.util.stream.Stream;
  * @param order       sort order within the type's ability list
  * @param cost        the mB a throw costs, the same at every stack count
  * @param chain       chain marker parameters (nullable for non-chain abilities)
+ * @param delivery    how the ability leaves the glove (decision delivery-block-in-ability-json)
  * @param behaviors   the step trees the ability runs, in order
  * @param tags        categorical tags (explosive, instant, trap, field-effect, etc.)
  * @param badge       the target kind the radial marks on the icon
@@ -39,6 +40,7 @@ public record AbilityDefinition(
         int order,
         int cost,
         ChainConfig chain,
+        Delivery delivery,
         List<Step> behaviors,
         List<String> tags,
         AbilityBadge badge
@@ -51,6 +53,7 @@ public record AbilityDefinition(
     private static final String FIELD_ORDER = "order";
     private static final String FIELD_COST = "cost";
     private static final String FIELD_CHAIN = "chain";
+    private static final String FIELD_DELIVERY = "delivery";
     private static final String FIELD_BEHAVIORS = "behaviors";
     private static final String FIELD_TAGS = "tags";
     private static final String FIELD_BADGE = "badge";
@@ -78,13 +81,14 @@ public record AbilityDefinition(
                 Codec.INT.optionalFieldOf(FIELD_ORDER, 0).forGetter(AbilityDefinition::order),
                 FLAT_COST_CODEC.fieldOf(FIELD_COST).forGetter(AbilityDefinition::cost),
                 ChainConfig.CODEC.optionalFieldOf(FIELD_CHAIN, ChainConfig.DEFAULT).forGetter(AbilityDefinition::chain),
+                Delivery.CODEC.fieldOf(FIELD_DELIVERY).forGetter(AbilityDefinition::delivery),
                 StepTypes.LIST_CODEC.fieldOf(FIELD_BEHAVIORS).forGetter(AbilityDefinition::behaviors),
                 Codec.STRING.listOf().optionalFieldOf(FIELD_TAGS, List.of()).forGetter(AbilityDefinition::tags),
                 // badge-marks-the-target-kind: required, so every ability declares its kind
                 AbilityBadge.CODEC.fieldOf(FIELD_BADGE).forGetter(AbilityDefinition::badge)
-        ).apply(inst, (gooType, displayName, icon, order, cost, chain, behaviors, tags, badge) ->
+        ).apply(inst, (gooType, displayName, icon, order, cost, chain, delivery, behaviors, tags, badge) ->
                 new AbilityDefinition(id, gooType, displayName, icon, order,
-                        cost, chain, behaviors, tags, badge)));
+                        cost, chain, delivery, behaviors, tags, badge)));
     }
 
     /**

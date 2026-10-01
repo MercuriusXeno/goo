@@ -4,6 +4,7 @@
   "badge": "mob",
   "order": 0,
   "cost": 1000,
+  "delivery": { "kind": "arc" },
   "behaviors": [
     { "type": "potion", "effect": "minecraft:slowness", "duration": 100, "amplifier": 2 },
     { "type": "potion", "effect": "minecraft:poison", "duration": 60, "amplifier": 0 }
