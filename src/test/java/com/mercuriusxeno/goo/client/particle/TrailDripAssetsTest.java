@@ -31,7 +31,7 @@ class TrailDripAssetsTest {
      * Each trail-drip particle definition names the texture goo:trail_drip alone.
      */
     @ParameterizedTest
-    @ValueSource(strings = {"trail_drip.json", "trail_drip_land.json"})
+    @ValueSource(strings = {"trail_drip.json", "trail_drip_land.json", "splat_drip.json"})
     void definition_namesTrailDripTexture(String file) throws Exception {
         try (InputStream in = TrailDripAssetsTest.class.getResourceAsStream(PARTICLES + file)) {
             assertNotNull(in, "Particle definition missing on classpath: " + file);

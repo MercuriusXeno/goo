@@ -44,6 +44,13 @@ public class GooParticles {
     public static final DeferredHolder<ParticleType<?>, ParticleType<ColorParticleOption>> TRAIL_DRIP_LAND =
         PARTICLE_TYPES.register("trail_drip_land", GooParticles::colorParticleType);
 
+    /**
+     * The splat-drip: the trail-drip's drop, hanging from a goo splat on a
+     * struck mob before it falls (decision splat-holds-then-dissolves-dripping).
+     */
+    public static final DeferredHolder<ParticleType<?>, ParticleType<ColorParticleOption>> SPLAT_DRIP =
+        PARTICLE_TYPES.register("splat_drip", GooParticles::colorParticleType);
+
     /** The tap-drip: square drop falling straight down from a tap's spigot. */
     public static final DeferredHolder<ParticleType<?>, ParticleType<GooDripParticleOptions>> TAP_DRIP =
         PARTICLE_TYPES.register("tap_drip", GooParticles::gooDripParticleType);

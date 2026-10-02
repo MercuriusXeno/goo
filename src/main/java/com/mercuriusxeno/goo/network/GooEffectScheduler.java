@@ -23,6 +23,10 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.network.PacketDistributor;
+import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -67,6 +71,11 @@ public final class GooEffectScheduler {
      * Block center offset (half-block).
      */
     private static final double BLOCK_CENTER = 0.5;
+    /**
+     * Blocks an aim reaches when it is clipped against a struck mob's box,
+     * past any throw's range.
+     */
+    private static final double AIM_REACH = 256.0;
 
     /**
      * Log: entity no longer exists at goo arrival.
@@ -80,6 +89,45 @@ public final class GooEffectScheduler {
      * Log: a block throw naming no ability, refused.
      */
     private static final String LOG_NO_ABILITY = "Block throw of goo type {} names no ability; nothing lands";
+
+    /**
+     * What a goo landing on a mob does to the world, named so the landing's
+     * order runs without a live server.
+     */
+    interface MobLanding {
+
+        /**
+         * Tells the players tracking the struck mob of the hit.
+         *
+         * @param struck the struck mob
+         * @param hit    the hit payload
+         */
+        void announceHit(LivingEntity struck, MobHitPayload hit);
+
+        /**
+         * Runs the ability the effect names on the struck mob.
+         *
+         * @param pe     the pending effect targeting the mob
+         * @param struck the struck mob
+         */
+        void runProgram(PendingEffect pe, LivingEntity struck);
+    }
+
+    /**
+     * A mob landing on the live server: the hit goes to every player
+     * tracking the mob, and the ability runs on it.
+     */
+    private static final MobLanding LIVE_LANDING = new MobLanding() {
+        @Override
+        public void announceHit(LivingEntity struck, MobHitPayload hit) {
+            PacketDistributor.sendToPlayersTrackingEntity(struck, hit);
+        }
+
+        @Override
+        public void runProgram(PendingEffect pe, LivingEntity struck) {
+            runAbilityOn(pe, struck);
+        }
+    };
 
     /**
      * Pending effects waiting for their goo to arrive.
@@ -135,7 +183,19 @@ public final class GooEffectScheduler {
         enqueue(new PendingEffect(
                 arrivalTick, level, player, gooType,
                 payload.targetEntityId(), payload.targetPos(), face,
-                payload.abilityId()));
+                payload.abilityId(), crosshairAim(player)));
+    }
+
+    /**
+     * The crosshair's line as the goo leaves the hand: the striker's eye and
+     * look. The throw payload's origin is the glove hand, below and beside the
+     * eye, so a ray from it along the look would strike low.
+     *
+     * @param striker the striking player
+     * @return the aim
+     */
+    static Aim crosshairAim(ServerPlayer striker) {
+        return new Aim(striker.getEyePosition(), striker.getViewVector(1f));
     }
 
     /**
@@ -179,6 +239,17 @@ public final class GooEffectScheduler {
      * @param currentTick the current server tick
      */
     public void drainArrivedEffects(int currentTick) {
+        drainArrivedEffects(currentTick, LIVE_LANDING);
+    }
+
+    /**
+     * Applies and removes all effects whose goo have arrived, each mob
+     * landing going through the landing given.
+     *
+     * @param currentTick the current server tick
+     * @param landing     what a mob landing does to the world
+     */
+    void drainArrivedEffects(int currentTick, MobLanding landing) {
         List<PendingEffect> ready = new ArrayList<>();
         Iterator<PendingEffect> it = pendingEffects.iterator();
         while (it.hasNext()) {
@@ -189,7 +260,7 @@ public final class GooEffectScheduler {
             }
         }
         for (PendingEffect pe : ready) {
-            applyEffect(pe);
+            applyEffect(pe, landing);
         }
     }
 
@@ -199,8 +270,19 @@ public final class GooEffectScheduler {
      * @param pe the pending effect to apply
      */
     static void applyEffect(PendingEffect pe) {
+        applyEffect(pe, LIVE_LANDING);
+    }
+
+    /**
+     * Applies the goo effect at the target location or entity, a mob
+     * landing going through the landing given.
+     *
+     * @param pe      the pending effect to apply
+     * @param landing what a mob landing does to the world
+     */
+    static void applyEffect(PendingEffect pe, MobLanding landing) {
         if (pe.targetEntityId >= 0) {
-            applyEntityEffect(pe);
+            applyEntityEffect(pe, landing);
         } else {
             applyBlockEffect(pe);
         }
@@ -208,19 +290,85 @@ public final class GooEffectScheduler {
 
     /**
      * Applies the goo effect to a living entity target with impact sound:
-     * the programs of the ability the throw names run on the struck
-     * entity, and a throw naming no ability does nothing past the sound
+     * the tracking players hear of the hit, then the programs of the ability
+     * the throw names run on the struck entity in the same call, and a throw
+     * naming no ability does nothing past the sound and the hit
      * (decision no-throw-without-ability).
+     * Decision visuals-play-beside-the-program.
      *
-     * @param pe the pending effect targeting an entity
+     * @param pe      the pending effect targeting an entity
+     * @param landing what a mob landing does to the world
      */
-    static void applyEntityEffect(PendingEffect pe) {
+    static void applyEntityEffect(PendingEffect pe, MobLanding landing) {
         Entity target = pe.level.getEntity(pe.targetEntityId);
         if (!(target instanceof LivingEntity living)) {
             Goo.LOGGER.debug(LOG_ENTITY_GONE, pe.targetEntityId);
             return;
         }
         playImpactSound(pe.level, living.getX(), living.getY(), living.getZ());
+        Aim aim = aimOf(pe);
+        landing.announceHit(living, new MobHitPayload(living.getId(), GooTypes.id(pe.gooType),
+                aimedHitPoint(living.getBoundingBox(), aim), aim == null ? Vec3.ZERO : aim.direction()));
+        landing.runProgram(pe, living);
+    }
+
+    /**
+     * The aim a landing struck along: the crosshair's line, captured as a
+     * throw leaves the hand or read this tick for a punch or touch landing at
+     * once; none where no striker stands.
+     *
+     * @param pe the pending effect
+     * @return the aim, or null
+     */
+    static @Nullable Aim aimOf(PendingEffect pe) {
+        if (pe.aim() != null) {
+            return pe.aim();
+        }
+        return pe.thrower == null ? null : crosshairAim(pe.thrower);
+    }
+
+    /**
+     * The point the goo struck on a mob's box: where the aim enters it, or,
+     * where the aim misses the box by the time the goo lands, where the line
+     * from the aim's start to the box's center enters it. The client carries
+     * the aim on from this point onto the mob's model.
+     *
+     * @param box the struck mob's bounding box
+     * @param aim the aim struck along, or null
+     * @return the hit point on the box
+     */
+    static Vec3 aimedHitPoint(AABB box, @Nullable Aim aim) {
+        if (aim == null) {
+            return box.getCenter();
+        }
+        Vec3 reach = aim.from().add(aim.direction().scale(AIM_REACH));
+        return box.clip(aim.from(), reach).orElseGet(() -> hitPoint(box, aim.from()));
+    }
+
+    /**
+     * The point the goo struck on a mob: where the line from the striker's
+     * eye to the mob's center enters its box, or the box's center where no
+     * striker stands or the striker stands inside the box.
+     *
+     * @param box        the struck mob's bounding box
+     * @param struckFrom the striker's eye, or null
+     * @return the hit point
+     */
+    static Vec3 hitPoint(AABB box, @Nullable Vec3 struckFrom) {
+        Vec3 center = box.getCenter();
+        if (struckFrom == null) {
+            return center;
+        }
+        return box.clip(struckFrom, center).orElse(center);
+    }
+
+    /**
+     * Runs the ability the effect names on the struck entity.
+     *
+     * @param pe     the pending effect targeting an entity
+     * @param living the struck entity
+     */
+    private static void runAbilityOn(PendingEffect pe, LivingEntity living) {
         AbilityDefinition def = resolveAbility(pe.level, pe.abilityId);
         if (def != null) {
             runEntityProgram(pe, def, living);
@@ -313,10 +461,39 @@ public final class GooEffectScheduler {
      * @param targetPos      the struck block
      * @param targetFace     the struck face
      * @param abilityId      the ability the throw names, or empty
+     * @param aim            the aim captured as the goo left the hand, or null to read the striker's on landing
      */
     public record PendingEffect(int arrivalTick, ServerLevel level,
                          ServerPlayer thrower, ResourceKey<GooTypeDefinition> gooType,
                          int targetEntityId, BlockPos targetPos,
-                         Direction targetFace, String abilityId) {
+                         Direction targetFace, String abilityId, @Nullable Aim aim) {
+
+        /**
+         * A pending effect carrying no captured aim: one landing at once reads
+         * its striker's aim the tick it lands.
+         *
+         * @param arrivalTick    the server tick the goo lands on
+         * @param level          the level it lands in
+         * @param thrower        the throwing player
+         * @param gooType        the goo type thrown
+         * @param targetEntityId the struck entity's id, or -1 for a block
+         * @param targetPos      the struck block
+         * @param targetFace     the struck face
+         * @param abilityId      the ability the throw names, or empty
+         */
+        public PendingEffect(int arrivalTick, ServerLevel level, ServerPlayer thrower,
+                             ResourceKey<GooTypeDefinition> gooType, int targetEntityId, BlockPos targetPos,
+                             Direction targetFace, String abilityId) {
+            this(arrivalTick, level, thrower, gooType, targetEntityId, targetPos, targetFace, abilityId, null);
+        }
+    }
+
+    /**
+     * The line a goo was aimed along.
+     *
+     * @param from      where the aim starts, the striker's eye
+     * @param direction the aim's unit direction
+     */
+    public record Aim(Vec3 from, Vec3 direction) {
     }
 }
