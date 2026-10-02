@@ -57,6 +57,31 @@ class PetalMeshTest {
                         2 * Math.PI)) < ARC / 4), "the full ribbon does border it");
     }
 
+    /**
+     * Where an ability petal's border stops at the base, it ends square: the
+     * last quad's inner corner sits straight across its segment, one
+     * thickness in, not mitered to a point against the join it skips.
+     */
+    @Test
+    void abilityPetalBorderEndsSquareAtTheBase() {
+        PetalMask.Petal base = new PetalMask.Petal(START, 4 * ARC, RadialWheel.HUB_FRACTION,
+                RadialWheel.TYPE_BASE_LENGTH);
+        PetalMask.Petal card = new PetalMask.Petal(START, ARC, base.outer(), 1.0, base);
+        List<PetalMesh.Quad> edge = PetalMesh.edge(card, PetalMesh.EDGE_THICKNESS, false);
+
+        for (PetalMesh.Quad end : List.of(edge.getFirst(), edge.getLast())) {
+            List<PetalMesh.Vertex> corners = end.corners();
+            for (int i = 0; i < corners.size(); i++) {
+                PetalMesh.Vertex a = corners.get(i);
+                PetalMesh.Vertex b = corners.get((i + 1) % corners.size());
+                PetalMesh.Vertex c = corners.get((i + 2) % corners.size());
+                double dot = (a.x() - b.x()) * (c.x() - b.x()) + (a.y() - b.y()) * (c.y() - b.y());
+                double sides = Math.hypot(a.x() - b.x(), a.y() - b.y()) * Math.hypot(c.x() - b.x(), c.y() - b.y());
+                assertTrue(Math.abs(dot / sides) < 0.2, "an end quad's corner " + i + " is near square");
+            }
+        }
+    }
+
     @Test
     void edgeRibbonOfAnAbilityPetalSharesEveryCorner() {
         assertRibbonIsContinuous(new PetalMask.Petal(START, ARC, RadialWheel.HUB_FRACTION, 1.0));
