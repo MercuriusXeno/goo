@@ -52,7 +52,8 @@ import static org.mockito.Mockito.when;
  * one whose roll falls at or above it costs none, and each is impaled on the strike tick, a
  * sneaking player and a dying mob cost none, and a spent budget tears down once and ends
  * the program; eight crystal shreds spend one stack, a sprinting player is
- * shredded twice as often, a standing entity not at all, and the cloud
+ * shredded twice as often, a standing entity not at all, every shred
+ * bursts crit off the struck entity (decision razor-shred-bursts-crit), and the cloud
  * expands, then contracts once its last goo is spent.
  */
 class FieldEffectStepTest {
@@ -377,6 +378,34 @@ class FieldEffectStepTest {
 
         verify(sprinter, times(SPRINT_WINDOW)).playSound(PROBE_CUE);
         verify(walker, times(SPRINT_WINDOW / 2)).playSound(PROBE_CUE);
+    }
+
+    @Test
+    void everyShredOnAWalkerBurstsCritOffIt() throws IOException {
+        EntityHost walker = walker(WALKER_ID);
+        MarkerHost host = marker(new AtomicInteger(2), List.of(walker));
+        ProgramBehavior program = ProgramBehavior.forHost(crystalProgram(), HostKind.MARKER);
+
+        tick(program, host, WALKING_TICKS_FOR_A_GOO);
+
+        verify(walker, times(CHARGES_PER_GOO)).spawnParticles(argThat(FieldEffectStepTest::isCritBurst));
+    }
+
+    @Test
+    void aSprintingPlayerTakesCritBurstsTwiceAsOftenAsAWalker() throws IOException {
+        EntityHost walker = walker(WALKER_ID);
+        EntityHost sprinter = entityInRadius(OTHER_WALKER_ID, null, true);
+        MarkerHost host = marker(new AtomicInteger(2), List.of(walker, sprinter));
+        ProgramBehavior program = ProgramBehavior.forHost(crystalProgram(), HostKind.MARKER);
+
+        tick(program, host, SPRINT_WINDOW);
+
+        verify(sprinter, times(SPRINT_WINDOW)).spawnParticles(argThat(FieldEffectStepTest::isCritBurst));
+        verify(walker, times(SPRINT_WINDOW / 2)).spawnParticles(argThat(FieldEffectStepTest::isCritBurst));
+    }
+
+    private static boolean isCritBurst(ParticleBurst burst) {
+        return "crit".equals(burst.particle().getPath());
     }
 
     @Test
