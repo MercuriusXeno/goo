@@ -3,23 +3,30 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.network.GooEffectScheduler.MobLanding;
 import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
 import com.mercuriusxeno.goo.type.GooTypes;
+import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
+import net.minecraft.server.Bootstrap;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.fml.loading.FMLLoader;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
+import org.mockito.MockedStatic;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -43,6 +50,20 @@ class GooEffectSchedulerTest {
     private LivingEntity mob;
     private ServerPlayer thrower;
     private MobLanding landing;
+
+    /**
+     * Stands the built-in registries ServerLevel's class init reads before the
+     * first mock of it; the vanilla bootstrap asks FML whether it runs in
+     * production, which a stubbed loader answers. Without it the class init
+     * fails and poisons ServerLevel for every later test in the JVM.
+     */
+    @BeforeAll
+    static void standRegistries() {
+        try (MockedStatic<FMLLoader> loader = mockStatic(FMLLoader.class, RETURNS_DEEP_STUBS)) {
+            SharedConstants.tryDetectVersion();
+            Bootstrap.bootStrap();
+        }
+    }
 
     @BeforeEach
     void standTheMob() {
