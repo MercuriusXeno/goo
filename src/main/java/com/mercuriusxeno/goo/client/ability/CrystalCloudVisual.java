@@ -31,7 +31,8 @@ import java.util.Map;
 
 /**
  * Renders the crystal shard cloud as scattered glass splinters floating
- * in air within the cloud volume. Each sliver is a thin elongated quad
+ * in air within the cloud volume. Each sliver is a thin elongated pyramid,
+ * a sixth to a half of a block long and as wide as a tenth of its length,
  * at a position and orientation drawn from its cloud's seed. Some tumble
  * slowly, most are still. The cloud's radius, its expand and contract fraction and its charge
  * density come from the crystal_cloud field effect's
