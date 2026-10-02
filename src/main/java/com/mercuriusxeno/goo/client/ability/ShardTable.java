@@ -15,9 +15,11 @@ final class ShardTable {
      */
     static final int MAX_SLIVERS = 256;
     /**
-     * Half-length of each sliver along its long axis before size variation.
+     * Half-length of each sliver along its long axis before size variation,
+     * so every sliver reaches 0.08 to 0.24 blocks from its center.
+     * Decision razor-shards-are-bigger.
      */
-    private static final float SLIVER_HALF_LENGTH = 0.08f;
+    private static final float SLIVER_HALF_LENGTH = 0.16f;
 
     /**
      * Probability that a sliver has zero spin.
