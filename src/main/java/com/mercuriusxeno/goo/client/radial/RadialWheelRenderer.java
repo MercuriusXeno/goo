@@ -116,8 +116,24 @@ final class RadialWheelRenderer {
         boolean selected = petal.type() == frame.wheel().selectedType();
         PetalPainter.paint(graphics, frame, frame.look().fluidFace(key), petal,
                 computeOverlayTint(selected, frame.available().getOrDefault(key, 0) <= 0));
-        blitIcon(graphics, new Icon(typeIcon(key), TYPE_ICON_SIZE), tipCenter(frame, petal),
+        blitIcon(graphics, new Icon(typeIcon(key), TYPE_ICON_SIZE), lengthCenter(frame, petal),
                 COLOR_WHITE);
+    }
+
+    /**
+     * The screen point dead center along a type petal's length, on its
+     * center line halfway from the hub to its end, at rest or receded.
+     * decision abilities-replace-the-hovered-type
+     *
+     * @param frame what the frame draws from
+     * @param petal the type petal
+     * @return the point's x and y
+     */
+    static int[] lengthCenter(Frame frame, RadialWheel.PetalArc petal) {
+        PetalMask.Point center = PetalMask.Point.polar(petal.center(),
+                (RadialWheel.HUB_FRACTION + petal.length()) / HALF);
+        return new int[]{frame.centerX() + (int) Math.round(center.x() * frame.radius()),
+                frame.centerY() + (int) Math.round(center.y() * frame.radius())};
     }
 
     /**
@@ -167,8 +183,7 @@ final class RadialWheelRenderer {
      * @return the point's x and y
      */
     static int[] tipCenter(Frame frame, RadialWheel.PetalArc petal) {
-        PetalMask.Point tip = new PetalMask.Petal(petal.start(), petal.arc(), petal.inner(), petal.length())
-                .tipCenter();
+        PetalMask.Point tip = petal.shape().tipCenter();
         return new int[]{frame.centerX() + (int) Math.round(tip.x() * frame.radius()),
                 frame.centerY() + (int) Math.round(tip.y() * frame.radius())};
     }

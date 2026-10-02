@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.radial;
 
 import net.minecraft.util.ARGB;
+import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -142,18 +143,58 @@ final class PetalMask {
      *
      * @param start the wedge's start, clockwise from the top, in [0, 2 pi)
      * @param arc   the wedge's span in radians
-     * @param inner the wedge's inner radius
+     * @param inner the wedge's inner radius where it has no root
      * @param outer the wedge's outer radius, reached at the tip of the cap
+     * @param root  the petal this one starts out from, its inner boundary
+     *              following the root's far boundary, or null to start at the inner radius
      */
-    record Petal(double start, double arc, double inner, double outer) implements Shape {
+    record Petal(double start, double arc, double inner, double outer, @Nullable Petal root) implements Shape {
+
+        /**
+         * A petal starting at its inner radius.
+         *
+         * @param start the wedge's start, clockwise from the top
+         * @param arc   the wedge's span in radians
+         * @param inner the wedge's inner radius
+         * @param outer the wedge's outer radius, reached at the tip of the cap
+         */
+        Petal(double start, double arc, double inner, double outer) {
+            this(start, arc, inner, outer, null);
+        }
+
+        /**
+         * Where a ray at an angle enters the petal: the root's far boundary,
+         * so an ability petal starts exactly where its type petal ends, or the
+         * inner radius for a petal with no root.
+         * decision petal-moves-animate
+         *
+         * @param angle the ray's angle, clockwise from the top
+         * @return the distance in normalized units
+         */
+        double innerReach(double angle) {
+            return root == null ? inner : root.reachOrLength(angle);
+        }
+
+        /**
+         * How far a ray reaches before it leaves the petal, or the petal's
+         * length for a ray past either of its edges.
+         *
+         * @param angle the ray's angle, clockwise from the top
+         * @return the distance in normalized units
+         */
+        double reachOrLength(double angle) {
+            double offset = wrap(angle - start);
+            return offset <= arc ? reach(start + offset) : outer;
+        }
 
         @Override
         public boolean contains(double x, double y) {
             double distance = Math.hypot(x, y);
-            if (distance < inner || distance > outer) {
+            double angle = RadialWheel.angleOf(x, y);
+            if (distance < innerReach(angle) || distance > outer) {
                 return false;
             }
-            double offset = wrap(RadialWheel.angleOf(x, y) - start);
+            double offset = wrap(angle - start);
             if (offset >= arc) {
                 return false;
             }
@@ -315,15 +356,40 @@ final class PetalMask {
         List<Point> outline(int segments) {
             List<Point> cap = capSamples(segments * CAP_SEGMENTS_PER_SIDE);
             List<Point> points = new ArrayList<>(segments * OUTLINE_SIDES + cap.size());
-            for (int i = 0; i < segments; i++) {
-                points.add(Point.polar(start + arc * i / segments, inner));
+            for (double angle : innerAngles(segments)) {
+                points.add(Point.polar(angle, innerReach(angle)));
             }
-            addSpoke(points, Point.polar(start + arc, inner), cap.getLast(), segments);
+            addSpoke(points, Point.polar(start + arc, innerReach(start + arc)), cap.getLast(), segments);
             for (int i = cap.size() - 1; i > 0; i--) {
                 points.add(cap.get(i));
             }
-            addSpoke(points, cap.getFirst(), Point.polar(start, inner), segments);
+            addSpoke(points, cap.getFirst(), Point.polar(start, innerReach(start)), segments);
             return points;
+        }
+
+        /**
+         * The angles the inner boundary is sampled at, from the start edge up
+         * to the end edge: evenly, and wherever the root's far boundary bends,
+         * so an inner boundary following a root's rounded corner reads round.
+         *
+         * @param segments the even steps across the wedge
+         * @return the angles in order, the end edge's left out
+         */
+        List<Double> innerAngles(int segments) {
+            List<Double> angles = new ArrayList<>();
+            for (int i = 0; i < segments; i++) {
+                angles.add(start + arc * i / segments);
+            }
+            if (root != null) {
+                for (Point bend : root.capSamples(segments * CAP_SEGMENTS_PER_SIDE)) {
+                    double offset = wrap(RadialWheel.angleOf(bend.x(), bend.y()) - start);
+                    if (offset > 0 && offset < arc) {
+                        angles.add(start + offset);
+                    }
+                }
+                angles.sort(Double::compare);
+            }
+            return angles;
         }
 
         private static void addSpoke(List<Point> points, Point from, Point to, int segments) {
