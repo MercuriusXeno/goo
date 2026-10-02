@@ -18,12 +18,14 @@ import java.util.stream.Stream;
  * {@code damage amount=6 source=stalagmite knockback=false}, pinning the
  * target where the spike caught it; the crystal cloud's shred is
  * {@code damage amount=1 source=cactus invulnerable_ticks=1}, leaving the
- * target open to the next shred a tick later.
+ * target open to the next shred a tick later. The step clears the
+ * target's damage immunity before it hurts, so a goo hit lands through a
+ * hit just taken.
  *
  * @param amount            the damage, evaluated when the step runs
  * @param source            the damage source
  * @param knockback         whether the hit may push the target
- * @param invulnerableTicks the immunity ticks the hit leaves, when set; the source's own otherwise
+ * @param invulnerableTicks the immunity ticks the hit leaves, when set; none otherwise
  */
 public record DamageStep(Expr amount, DamageKind source, boolean knockback,
                          Optional<Expr> invulnerableTicks) implements Step {
@@ -69,11 +71,15 @@ public record DamageStep(Expr amount, DamageKind source, boolean knockback,
     @Override
     public boolean tick(StepContext context) {
         LivingEntity target = context.hostAs(TargetHost.class).target();
+        // A goo hit clears damage immunity on both sides, so a touch and the melee hit of the same
+        // attack-key press both land in full, in either order.
+        // decision attack-key-touches-plus-punches
+        target.invulnerableTime = 0;
         target.hurtServer((ServerLevel) target.level(), damageSource(target), amount.evaluateFloat(context));
         if (!knockback) {
             target.hurtMarked = false;
         }
-        invulnerableTicks.ifPresent(ticks -> target.invulnerableTime = ticks.evaluateInt(context));
+        target.invulnerableTime = invulnerableTicks.map(ticks -> ticks.evaluateInt(context)).orElse(0);
         return true;
     }
 

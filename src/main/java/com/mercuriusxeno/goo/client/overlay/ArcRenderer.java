@@ -53,7 +53,7 @@ public final class ArcRenderer {
     /** Ticks-per-second divisor for converting game time to seconds. */
     private static final float TICKS_PER_SECOND = 20.0f;
 
-    /** Segments of the punch reach ring. */
+    /** Segments of the touch reach ring. */
     private static final int RING_SEGMENTS = 48;
 
     private ArcRenderer() {}
@@ -85,14 +85,15 @@ public final class ArcRenderer {
     }
 
     /**
-     * Renders the glowing dashed ring a punch strikes within, level around
-     * the player's feet (decision punch-strikes-at-reach).
+     * Renders the glowing dashed ring a mob ability touches within, level
+     * around the player's feet.
+     * decision mob-ability-touches-at-reach
      *
      * @param poseStack    the current pose stack
      * @param bufferSource the buffer source for render output
      * @param camera       the active camera
      * @param center       the player's feet
-     * @param radius       the punch's reach in blocks
+     * @param radius       the touch's reach in blocks
      * @param rgb          the RGB color for tinting
      * @param partialTick  the partial tick for animation
      */

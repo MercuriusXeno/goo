@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:mob_metal_javelin_beyond_reach",
+  "environment": "minecraft:default",
+  "structure": "goo:light_bay",
+  "max_ticks": 100,
+  "setup_ticks": 0,
+  "required": true
+}

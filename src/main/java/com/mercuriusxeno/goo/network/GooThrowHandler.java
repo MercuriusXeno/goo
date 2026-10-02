@@ -73,9 +73,11 @@ public final class GooThrowHandler {
     /**
      * Validates and executes the throw: the glove, the type, the range and
      * the goo in the player's inventory are checked, the goo is depleted,
-     * the flight is broadcast and the effect scheduled for arrival. A punch
-     * ability strikes at reach instead (decision punch-strikes-at-reach),
-     * and a self ability runs on the player (decision self-delivery-runs-on-player).
+     * the flight is broadcast and the effect scheduled for arrival. A mob
+     * ability aimed at an entity within reach touches it at once instead,
+     * and a self ability runs on the player.
+     * decision mob-ability-touches-at-reach
+     * decision self-delivery-runs-on-player
      *
      * @param player  the throwing player
      * @param payload the throw payload data
@@ -85,11 +87,47 @@ public final class GooThrowHandler {
         ResourceKey<GooTypeDefinition> gooType = validateGooType(payload);
         if (gooType == null) { return; }
         AbilityDefinition ability = thrownAbility(player.level(), payload.abilityId(), gooType);
-        switch (ability == null ? DeliveryKind.ARC : ability.delivery().kind()) {
-            case PUNCH -> GooPunchHandler.punch(player, payload, gooType, ability);
-            case SELF -> GooSelfHandler.invoke(player, gooType, ability);
-            default -> throwFlight(player, payload, gooType);
+        if (ability == null) {
+            throwFlight(player, payload, gooType);
+        } else {
+            deliver(player, payload, gooType, ability);
         }
+    }
+
+    /**
+     * Sends a named ability by its delivery: a self ability on the player, a
+     * touch on an entity within reach, a flight otherwise.
+     *
+     * @param player  the throwing player
+     * @param payload the throw payload data
+     * @param gooType the validated goo type
+     * @param ability the thrown ability
+     */
+    private static void deliver(ServerPlayer player, GooThrowPayload payload, ResourceKey<GooTypeDefinition> gooType,
+            AbilityDefinition ability) {
+        if (ability.delivery().kind() == DeliveryKind.SELF) {
+            GooSelfHandler.invoke(player, gooType, ability);
+        } else if (touchesTarget(player, payload, ability)) {
+            GooTouchHandler.touch(player, payload, gooType);
+        } else {
+            throwFlight(player, payload, gooType);
+        }
+    }
+
+    /**
+     * Whether the throw lands as a touch on its target entity, measured to
+     * the player's entity interaction range.
+     *
+     * @param player  the throwing player
+     * @param payload the throw payload data
+     * @param ability the thrown ability
+     * @return true when the ability touches rather than flies
+     */
+    private static boolean touchesTarget(ServerPlayer player, GooThrowPayload payload, AbilityDefinition ability) {
+        boolean entityTarget = payload.targetEntityId() >= 0;
+        return GooTouchHandler.touches(ability.delivery(), ability.badge(), entityTarget,
+                entityTarget ? targetDistanceSquared(player, payload) : Double.MAX_VALUE,
+                player.entityInteractionRange());
     }
 
     /**

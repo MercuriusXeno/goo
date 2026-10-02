@@ -1,6 +1,6 @@
 {
   "type": "minecraft:function",
-  "function": "goo:fx_punch_block",
+  "function": "goo:mob_attack_stays_vanilla",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
   "max_ticks": 20,
