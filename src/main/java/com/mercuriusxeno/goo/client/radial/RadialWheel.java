@@ -497,19 +497,65 @@ public final class RadialWheel {
     }
 
     /**
-     * Steps the open type with the scroll wheel, for a controller.
+     * Steps the hovered ability with the scroll wheel, through every ability
+     * of every type in list order: past either end of the open type's
+     * abilities it opens the next or previous type with abilities, wrapping
+     * around the list, so the radial works on a controller. The ring stays
+     * unturned, since a controller has no cursor for it to follow.
+     * decision abilities-replace-the-hovered-type
      *
-     * @param scrollY the scroll amount; down steps clockwise
+     * @param scrollY the scroll amount; down steps forward
      */
     public void scroll(double scrollY) {
-        if (scrollY == 0 || typeCount == 0) {
+        if (scrollY == 0) {
             return;
         }
-        boolean clockwise = scrollY < 0;
-        if (selectedType == NONE) {
-            openType(clockwise ? 0 : typeCount - 1);
-        } else {
-            openType(Math.floorMod(selectedType + (clockwise ? 1 : STEP_BACK), typeCount));
+        int step = scrollY < 0 ? 1 : STEP_BACK;
+        if (isOpen() && stepWithinOpenType(step)) {
+            return;
+        }
+        int type = isOpen() ? selectedType : step > 0 ? NONE : typeCount;
+        for (int tried = 0; tried < typeCount; tried++) {
+            type = Math.floorMod(type + step, typeCount);
+            int abilities = abilityCount.applyAsInt(type);
+            if (abilities > 0) {
+                openUnturned(type, step > 0 ? 0 : abilities - 1);
+                return;
+            }
+        }
+    }
+
+    /**
+     * Steps the hover within the open type's abilities: onto its first or
+     * last when none is hovered, else to the next one either way.
+     *
+     * @param step 1 forward, -1 back
+     * @return true when the open type held the step, false past either end
+     */
+    private boolean stepWithinOpenType(int step) {
+        int abilities = abilityCount.applyAsInt(selectedType);
+        int next = hoveredAbility == NONE ? (step > 0 ? 0 : abilities - 1) : hoveredAbility + step;
+        if (next < 0 || next >= abilities) {
+            return false;
+        }
+        hoveredAbility = next;
+        return true;
+    }
+
+    /**
+     * Opens a type with one of its abilities hovered and the ring unturned.
+     *
+     * @param type    the type to open
+     * @param ability the ability to hover
+     */
+    private void openUnturned(int type, int ability) {
+        boolean changed = type != selectedType || rotation != 0.0;
+        selectedType = type;
+        hoveredAbility = ability;
+        rotation = 0.0;
+        graceTicks = 0;
+        if (changed) {
+            ease.retarget(targetPose());
         }
     }
 
