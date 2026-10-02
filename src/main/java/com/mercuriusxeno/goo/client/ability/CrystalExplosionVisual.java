@@ -4,6 +4,8 @@ import com.mercuriusxeno.goo.ability.program.FieldEffectStep;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
 
@@ -34,6 +36,8 @@ public final class CrystalExplosionVisual implements BurnoutVisual {
     /** The cloud radius drawn when the ability's field-effect step cannot be read. */
     static final float FALLBACK_REACH = 4.5f;
     private static final int OPAQUE = 0xFF;
+    /** The progress the burnout's first drawn frame shows, which the fuse-tail ramp ends on. */
+    static final float FIRST_DRAWN_PROGRESS = DomeRamp.firstDrawnProgress(DURATION_TICKS);
 
     private CrystalExplosionVisual() {
     }
@@ -52,10 +56,43 @@ public final class CrystalExplosionVisual implements BurnoutVisual {
     public void render(ChainBurnouts.Burnout burnout, BurnoutFrame frame) {
         float progress = burnout.progress(frame.gameTime());
         float radius = shellRadius(progress, cloudReach(burnout));
-        int color = ARGB.color(OPAQUE, NetherDiscMesh.toByte(progress), 0,
-                NetherDiscMesh.toByte(shattered(progress)));
+        int color = shellColor(progress, OPAQUE);
         BurnoutGeometry.drawAtMarker(frame, burnout.pos(), GooRenderTypes.CRYSTAL_EXPLOSION_TYPE, (pose, c) ->
                 BurnoutGeometry.emitSphere(pose, c, radius, color));
+    }
+
+    @Override
+    public void submitRamp(ChainBurnouts.Burnout burnout, float ramp, PoseStack poseStack,
+                           SubmitNodeCollector collector) {
+        float radius = rampShellRadius(ramp, cloudReach(burnout));
+        int color = shellColor(FIRST_DRAWN_PROGRESS, DomeRamp.alpha(ramp));
+        collector.submitCustomGeometry(poseStack, GooRenderTypes.CRYSTAL_EXPLOSION_TYPE, (pose, c) ->
+                BurnoutGeometry.emitSphere(pose, c, radius, color));
+    }
+
+    /**
+     * The glass shell's radius through the fuse-tail ramp, meeting the
+     * burnout's first drawn frame (decision dome-fades-in-before-its-start).
+     *
+     * @param ramp  the ramp's share in [0, 1]
+     * @param reach the shard cloud's radius in blocks
+     * @return the shell's radius in blocks
+     */
+    static float rampShellRadius(float ramp, float reach) {
+        return DomeRamp.radius(ramp, shellRadius(FIRST_DRAWN_PROGRESS, reach));
+    }
+
+    /**
+     * Packs the shell's vertex color: opacity in alpha, which the shader
+     * multiplies into its output alpha, progress in red and how far the
+     * shell has shattered in blue.
+     *
+     * @param progress the explosion's progress in [0, 1]
+     * @param alpha    the shell's opacity as a byte
+     * @return the packed ARGB color
+     */
+    static int shellColor(float progress, int alpha) {
+        return ARGB.color(alpha, NetherDiscMesh.toByte(progress), 0, NetherDiscMesh.toByte(shattered(progress)));
     }
 
     /**

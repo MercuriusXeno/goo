@@ -4,6 +4,7 @@ in vec3 viewPos;
 in vec3 centerView;
 in float mainRadiusSq;
 
+in float opacity;
 out vec4 fragColor;
 
 // Must match the vertex shader's CORONA_SCALE (1.08). Squared form is
@@ -59,5 +60,5 @@ void main() {
 
     // LIGHTNING blend (SRC_ALPHA, ONE): final contribution is
     // CORONA_WHITE * CORONA_INTENSITY * strength added to the scene.
-    fragColor = vec4(CORONA_WHITE * CORONA_INTENSITY, strength);
+    fragColor = vec4(CORONA_WHITE * CORONA_INTENSITY, strength * opacity);
 }

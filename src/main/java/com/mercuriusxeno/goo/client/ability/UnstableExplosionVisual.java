@@ -4,6 +4,10 @@ import com.mercuriusxeno.goo.ability.program.ExplodeStep;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
 
@@ -36,6 +40,8 @@ public final class UnstableExplosionVisual implements BurnoutVisual {
 
     private static final int OPAQUE = 0xFF;
     private static final int RING_SEGMENTS = 48;
+    /** The progress the burnout's first drawn frame shows, which the fuse-tail ramp ends on. */
+    static final float FIRST_DRAWN_PROGRESS = DomeRamp.firstDrawnProgress(DURATION_TICKS);
 
     private UnstableExplosionVisual() {
     }
@@ -56,12 +62,80 @@ public final class UnstableExplosionVisual implements BurnoutVisual {
         float reach = blastReach(burnout);
         float sphere = sphereRadius(progress, reach);
         float ring = ringRadius(progress, reach);
-        int progressByte = NetherDiscMesh.toByte(progress);
-        BurnoutGeometry.drawAtMarker(frame, burnout.pos(), GooRenderTypes.UNSTABLE_EXPLOSION_TYPE, (pose, c) -> {
-            BurnoutGeometry.emitSphere(pose, c, sphere, ARGB.color(OPAQUE, progressByte, 0, 0));
-            BurnoutGeometry.emitAnnulus(pose, c, burnout.placedFace(), 0f, ring * RING_INNER, ring,
-                    RING_SEGMENTS, (angle, outer) -> ARGB.color(OPAQUE, progressByte, OPAQUE, outer ? OPAQUE : 0));
-        });
+        BurnoutGeometry.drawAtMarker(frame, burnout.pos(), GooRenderTypes.UNSTABLE_EXPLOSION_TYPE, (pose, c) ->
+                emitFireball(pose, c, burnout.placedFace(), progress, sphere, ring, OPAQUE));
+    }
+
+    @Override
+    public void submitRamp(ChainBurnouts.Burnout burnout, float ramp, PoseStack poseStack,
+                           SubmitNodeCollector collector) {
+        float reach = blastReach(burnout);
+        float sphere = rampSphereRadius(ramp, reach);
+        float ring = rampRingRadius(ramp, reach);
+        int alpha = DomeRamp.alpha(ramp);
+        collector.submitCustomGeometry(poseStack, GooRenderTypes.UNSTABLE_EXPLOSION_TYPE, (pose, c) ->
+                emitFireball(pose, c, burnout.placedFace(), FIRST_DRAWN_PROGRESS, sphere, ring, alpha));
+    }
+
+    /**
+     * Emits the fireball and its shockwave ring.
+     *
+     * @param pose     the pose entry
+     * @param c        the vertex consumer
+     * @param face     the placed face
+     * @param progress the explosion's progress in [0, 1]
+     * @param sphere   the sphere's radius in blocks
+     * @param ring     the ring's outer radius in blocks
+     * @param alpha    the opacity as a byte, which the shader multiplies into its output alpha
+     */
+    private static void emitFireball(PoseStack.Pose pose, VertexConsumer c, Direction face, float progress,
+                                     float sphere, float ring, int alpha) {
+        BurnoutGeometry.emitSphere(pose, c, sphere, sphereColor(progress, alpha));
+        BurnoutGeometry.emitAnnulus(pose, c, face, 0f, ring * RING_INNER, ring, RING_SEGMENTS,
+                (angle, outer) -> ringColor(progress, outer, alpha));
+    }
+
+    /**
+     * The fireball sphere's radius through the fuse-tail ramp, meeting the
+     * burnout's first drawn frame (decision dome-fades-in-before-its-start).
+     *
+     * @param ramp  the ramp's share in [0, 1]
+     * @param reach the blast radius in blocks
+     * @return the sphere's radius in blocks
+     */
+    static float rampSphereRadius(float ramp, float reach) {
+        return DomeRamp.radius(ramp, sphereRadius(FIRST_DRAWN_PROGRESS, reach));
+    }
+
+    /**
+     * The shockwave ring's radius through the fuse-tail ramp, meeting the
+     * burnout's first drawn frame (decision dome-fades-in-before-its-start).
+     *
+     * @param ramp  the ramp's share in [0, 1]
+     * @param reach the blast radius in blocks
+     * @return the ring's outer radius in blocks
+     */
+    static float rampRingRadius(float ramp, float reach) {
+        return DomeRamp.radius(ramp, ringRadius(FIRST_DRAWN_PROGRESS, reach));
+    }
+
+    /**
+     * @param progress the explosion's progress in [0, 1]
+     * @param alpha    the opacity as a byte
+     * @return the sphere's packed color: progress in red
+     */
+    static int sphereColor(float progress, int alpha) {
+        return ARGB.color(alpha, NetherDiscMesh.toByte(progress), 0, 0);
+    }
+
+    /**
+     * @param progress the explosion's progress in [0, 1]
+     * @param outer    true on the ring's outer edge
+     * @param alpha    the opacity as a byte
+     * @return the ring's packed color: progress in red, the ring mark in green, the radial position in blue
+     */
+    static int ringColor(float progress, boolean outer, int alpha) {
+        return ARGB.color(alpha, NetherDiscMesh.toByte(progress), OPAQUE, outer ? OPAQUE : 0);
     }
 
     /**

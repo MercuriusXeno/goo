@@ -10,6 +10,7 @@
 
 in vec3 surfaceDir;
 in float progress;
+in float opacity;
 in float strength;
 flat in vec3 faceUp;
 
@@ -54,5 +55,5 @@ void main() {
 
     vec3 color = mix(BASE_COLOR, BODY_COLOR, smoothstep(0.0, 0.4, height));
     color = mix(color, TIP_COLOR, smoothstep(0.4, 1.0, height));
-    fragColor = vec4(color * FLAME_INTENSITY, clamp(flame * strength, 0.0, 1.0));
+    fragColor = vec4(color * FLAME_INTENSITY, clamp(flame * strength, 0.0, 1.0) * opacity);
 }
