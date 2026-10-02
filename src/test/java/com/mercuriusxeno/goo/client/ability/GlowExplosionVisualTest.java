@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import net.minecraft.core.Direction;
+import net.minecraft.util.ARGB;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -29,6 +31,14 @@ class GlowExplosionVisualTest {
         assertEquals(1f, GlowExplosionVisual.brightness(peak), TOLERANCE);
         assertEquals(0.5f, GlowExplosionVisual.brightness((1f + peak) / 2), TOLERANCE);
         assertEquals(0f, GlowExplosionVisual.brightness(1f), TOLERANCE);
+    }
+
+    @Test
+    void rampMeetsTheDomesFirstDrawnFrame() {
+        DomeRampShape.assertRampMeetsFirstFrame(GlowExplosionVisual::rampRadius,
+                GlowExplosionVisual.domeRadius(1f / GlowExplosionVisual.DURATION_TICKS),
+                ramp -> ARGB.alpha(GlowExplosionVisual.domeColor(GlowExplosionVisual.FIRST_DRAWN_PROGRESS,
+                        Direction.EAST, DomeRamp.alpha(ramp))));
     }
 
     @Test

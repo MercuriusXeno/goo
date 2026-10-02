@@ -10,6 +10,7 @@ in vec3 viewPos;
 in vec3 viewNormal;
 in vec3 surfaceDir;
 in float progress;
+in float opacity;
 in float ringFlag;
 in float ringRadial;
 
@@ -48,7 +49,7 @@ void main() {
 
     if (ringFlag > 0.5) {
         float band = sin(ringRadial * PI);
-        fragColor = vec4(BRIGHT_COLOR * RING_INTENSITY, band * fade);
+        fragColor = vec4(BRIGHT_COLOR * RING_INTENSITY, band * fade * opacity);
         return;
     }
 
@@ -62,5 +63,5 @@ void main() {
     color += flash * vec3(0.3);
     float strength = mix(0.35 + 0.65 * rim, 1.0, flash);
     float alpha = fade * flicker * strength * (0.55 + 0.45 * crackle);
-    fragColor = vec4(color, clamp(alpha, 0.0, 1.0));
+    fragColor = vec4(color, clamp(alpha, 0.0, 1.0) * opacity);
 }

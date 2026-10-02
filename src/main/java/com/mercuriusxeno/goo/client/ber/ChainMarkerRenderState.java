@@ -26,6 +26,12 @@ public class ChainMarkerRenderState extends BlockEntityRenderState {
     /** Fuse remaining in ticks (for pulsing/implosion animation). */
     public int fuseRemaining;
 
+    /** The id of the ability the marker runs. */
+    public String abilityId = "";
+
+    /** How far the burnout dome's fuse-tail ramp has run, empty while the marker draws none. */
+    public java.util.OptionalDouble domeRamp = java.util.OptionalDouble.empty();
+
     /** Partial tick for smooth interpolation. */
     public float partialTick;
 
