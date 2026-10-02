@@ -142,7 +142,7 @@ final class PetalMesh {
     }
 
     private static PetalMask.Point innerPoint(PetalMask.Petal petal, double angle) {
-        return PetalMask.Point.polar(angle, petal.inner());
+        return PetalMask.Point.polar(angle, petal.innerReach(angle));
     }
 
     private static double unwrapNear(double angle, double reference) {
@@ -262,23 +262,57 @@ final class PetalMesh {
      * @return the edge's quads
      */
     static List<Quad> edge(PetalMask.Petal petal, double thickness, boolean innerSide) {
-        List<PetalMask.Point> outline = distinct(petal.outline(OUTLINE_SEGMENTS));
+        List<PetalMask.Point> outline = petal.outline(OUTLINE_SEGMENTS);
         double inward = Math.signum(signedArea(outline)) * thickness;
-        int count = outline.size();
+        List<PetalMask.Point> path = distinct(innerSide ? outline : withoutInnerSide(petal, outline));
+        int count = path.size();
         List<PetalMask.Point> inner = new ArrayList<>(count);
         for (int i = 0; i < count; i++) {
-            inner.add(mitered(outline.get((i + count - 1) % count), outline.get(i),
-                    outline.get((i + 1) % count), inward));
+            inner.add(innerSide ? mitered(path.get((i + count - 1) % count), path.get(i), path.get((i + 1) % count),
+                    inward) : openOffset(path, i, inward));
         }
-        // the outline opens with the inner side: its segments are the first in the list
-        int firstSegment = innerSide ? 0 : OUTLINE_SEGMENTS;
-        List<Quad> quads = new ArrayList<>(count);
-        for (int i = firstSegment; i < count; i++) {
+        int segments = innerSide ? count : count - 1;
+        List<Quad> quads = new ArrayList<>(segments);
+        for (int i = 0; i < segments; i++) {
             int next = (i + 1) % count;
-            quads.add(new Quad(vertexAt(outline.get(i)), vertexAt(outline.get(next)), vertexAt(inner.get(next)),
+            quads.add(new Quad(vertexAt(path.get(i)), vertexAt(path.get(next)), vertexAt(inner.get(next)),
                     vertexAt(inner.get(i))).wound());
         }
         return quads;
+    }
+
+    /**
+     * The outline as an open path that skips the inner side: up the end edge,
+     * around the far boundary and down the start edge to where the inner side began.
+     *
+     * @param petal   the petal
+     * @param outline the petal's closed outline, which opens with its inner side
+     * @return the open path's points in order
+     */
+    private static List<PetalMask.Point> withoutInnerSide(PetalMask.Petal petal, List<PetalMask.Point> outline) {
+        int innerPoints = petal.innerAngles(OUTLINE_SEGMENTS).size();
+        List<PetalMask.Point> path = new ArrayList<>(outline.subList(innerPoints, outline.size()));
+        path.add(outline.getFirst());
+        return path;
+    }
+
+    /**
+     * An open path's inner point: mitered between its two segments inside the
+     * path, offset square along its one segment at either end, so the border
+     * ends flush where it meets the base rather than in a point.
+     *
+     * @param path   the open path
+     * @param index  the point's index
+     * @param inward the thickness, signed toward the outline's inside
+     * @return the inner point
+     */
+    private static PetalMask.Point openOffset(List<PetalMask.Point> path, int index, double inward) {
+        PetalMask.Point point = path.get(index);
+        if (index == 0 || index == path.size() - 1) {
+            double[] normal = index == 0 ? normal(point, path.get(1)) : normal(path.get(index - 1), point);
+            return new PetalMask.Point(point.x() + normal[0] * inward, point.y() + normal[1] * inward);
+        }
+        return mitered(path.get(index - 1), point, path.get(index + 1), inward);
     }
 
     /**
