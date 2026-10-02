@@ -40,6 +40,12 @@ final class PetalMask {
      * its sides and a blunt tip rather than reading as a circle.
      */
     static final double MAX_CORNER = 0.25;
+    /**
+     * How far past either edge an angle still reads as on it: a card's edge
+     * angle, summed a different way from its root's, lands a few ULPs either
+     * side of the root's edge.
+     */
+    private static final double EDGE_SLACK = 1e-9;
     private static final double QUARTER_TURN = Math.PI * HALF;
 
     private PetalMask() {
@@ -183,8 +189,12 @@ final class PetalMask {
          * @return the distance in normalized units
          */
         double reachOrLength(double angle) {
-            double offset = wrap(angle - start);
-            return offset <= arc ? reach(start + offset) : outer;
+            // measured from the middle, so an edge angle a few ULPs either side can't wrap a full turn
+            double offset = Math.IEEEremainder(angle - start - arc * HALF, TWO_PI) + arc * HALF;
+            if (offset < -EDGE_SLACK || offset > arc + EDGE_SLACK) {
+                return outer;
+            }
+            return reach(start + Math.max(0.0, Math.min(arc, offset)));
         }
 
         @Override
