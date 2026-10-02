@@ -179,8 +179,7 @@ class RadialWheelTest {
 
         @Test
         void clickWithATypeOpenAndNoAbilityHoveredCancels() {
-            RadialWheel wheel = wheel(ABILITIES);
-            wheel.scroll(-1);
+            RadialWheel wheel = opened(0);
 
             assertTrue(wheel.isOpen());
             assertEquals(RadialWheel.Outcome.CANCEL, wheel.click());
@@ -328,18 +327,6 @@ class RadialWheelTest {
             assertEquals(0.0, wheel.rotation(), EPSILON);
             assertFalse(wheel.isOpen());
         }
-
-        @Test
-        void scrollOpensTheNextTypeUnderTheCursor() {
-            RadialWheel wheel = wideTypeOpen();
-            double cursor = (WIDE_TYPE + 0.5) * TYPE_ARC;
-
-            wheel.scroll(-1);
-
-            assertEquals(WIDE_TYPE + 1, wheel.selectedType());
-            assertEquals(0, wheel.hoveredAbility());
-            assertCursorInsideWithTheMargin(wheel, cursor);
-        }
     }
 
     /**
@@ -463,7 +450,9 @@ class RadialWheelTest {
             tick(wheel, MID_TICKS);
             List<RadialWheel.PetalArc> before = wheel.displayedLayout(0.0f);
 
-            wheel.scroll(-1);
+            while (wheel.selectedType() == OPEN_TYPE) {
+                wheel.scroll(-1);
+            }
 
             assertEquals(OPEN_TYPE + 1, wheel.selectedType());
             assertSameLayout(before, wheel.displayedLayout(0.0f));
@@ -504,26 +493,88 @@ class RadialWheelTest {
         }
     }
 
+    /**
+     * The scroll wheel steps through every ability of every type in list
+     * order, so the radial works on a controller (decision abilities-replace-the-hovered-type).
+     */
     @Nested
     class Scroll {
 
-        @Test
-        void scrollDownFromRestOpensTheFirstType() {
-            RadialWheel wheel = wheel(ABILITIES);
+        private static final int EMPTY_TYPE = 1;
 
-            wheel.scroll(-1);
+        /** Types 0 and 2 onward open to two abilities each; type 1 opens to none. */
+        private static RadialWheel wheelWithAnEmptyType() {
+            return new RadialWheel(TYPES, type -> type == EMPTY_TYPE ? 0 : 2);
+        }
 
-            assertEquals(0, wheel.selectedType());
+        private static void assertHovering(RadialWheel wheel, int type, int ability) {
+            assertEquals(type, wheel.selectedType(), "type");
+            assertEquals(ability, wheel.hoveredAbility(), "ability");
+            assertEquals(0.0, wheel.rotation(), EPSILON, "rotation");
         }
 
         @Test
-        void scrollStepsAndWrapsTheOpenType() {
-            RadialWheel wheel = wheel(ABILITIES);
+        void scrollDownFromRestHoversTheFirstTypesFirstAbility() {
+            RadialWheel wheel = wheelWithAnEmptyType();
+
+            wheel.scroll(-1);
+
+            assertHovering(wheel, 0, 0);
+        }
+
+        @Test
+        void scrollUpFromRestHoversTheLastTypesLastAbility() {
+            RadialWheel wheel = wheelWithAnEmptyType();
 
             wheel.scroll(1);
-            assertEquals(TYPES - 1, wheel.selectedType());
+
+            assertHovering(wheel, TYPES - 1, 1);
+        }
+
+        @Test
+        void scrollDownStepsThroughATypesAbilitiesThenOpensTheNextSkippingAnEmptyOne() {
+            RadialWheel wheel = wheelWithAnEmptyType();
             wheel.scroll(-1);
-            assertEquals(0, wheel.selectedType());
+
+            wheel.scroll(-1);
+            assertHovering(wheel, 0, 1);
+            wheel.scroll(-1);
+            assertHovering(wheel, EMPTY_TYPE + 1, 0);
+        }
+
+        @Test
+        void scrollUpFromATypesFirstAbilityOpensThePreviousOnItsLast() {
+            RadialWheel wheel = wheelWithAnEmptyType();
+            wheel.scroll(-1);
+            wheel.scroll(-1);
+            wheel.scroll(-1);
+
+            wheel.scroll(1);
+
+            assertHovering(wheel, 0, 1);
+        }
+
+        @Test
+        void scrollDownFromTheLastTypesLastAbilityWrapsToTheFirst() {
+            RadialWheel wheel = wheelWithAnEmptyType();
+            wheel.scroll(1);
+
+            wheel.scroll(-1);
+
+            assertHovering(wheel, 0, 0);
+        }
+
+        @Test
+        void scrollLeavesTheRingUnturnedEvenAfterTheCursorTurnedIt() {
+            RadialWheel wheel = Rotation.wheelWithAWideType();
+            moveTo(wheel, (Rotation.WIDE_TYPE + 0.5) * TYPE_ARC, PETAL);
+            settle(wheel);
+            moveTo(wheel, Rotation.WIDE_SPAN_START - Rotation.JUST_PAST, PETAL);
+            assertTrue(Math.abs(wheel.rotation()) > EPSILON, "the cursor turned the ring");
+
+            wheel.scroll(-1);
+
+            assertEquals(0.0, wheel.rotation(), EPSILON);
         }
     }
 }
