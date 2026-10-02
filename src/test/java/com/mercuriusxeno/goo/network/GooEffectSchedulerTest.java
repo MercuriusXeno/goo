@@ -35,6 +35,9 @@ class GooEffectSchedulerTest {
     private static final int ARRIVAL_TICK = 7;
     private static final AABB MOB_BOX = new AABB(0, 0, 0, 1, 2, 1);
     private static final Vec3 THROWER_EYE = new Vec3(5, 1, 0.5);
+    /** Looking back along -x, rising 0.6 over the 4 blocks to the box's near face. */
+    private static final Vec3 THROWER_LOOK = new Vec3(-4, 0.6, 0).normalize();
+    private static final double EPSILON = 1e-9;
 
     private ServerLevel level;
     private LivingEntity mob;
@@ -51,6 +54,7 @@ class GooEffectSchedulerTest {
         when(level.getEntity(MOB_ID)).thenReturn(mob);
         thrower = mock(ServerPlayer.class);
         when(thrower.getEyePosition()).thenReturn(THROWER_EYE);
+        when(thrower.getViewVector(1f)).thenReturn(THROWER_LOOK);
         landing = mock(MobLanding.class);
     }
 
@@ -100,10 +104,35 @@ class GooEffectSchedulerTest {
         }
 
         @Test
-        void hitPointSitsOnTheFaceTowardTheStriker() {
+        void punchHitsWhereTheStrikersLookEntersTheBoxAndCarriesItsAim() {
             GooEffectScheduler.applyEffect(effectOnTheMob(0), landing);
 
-            assertEquals(new Vec3(1, 1, 0.5), theOneHitSent().hitPoint());
+            MobHitPayload hit = theOneHitSent();
+            assertVec(new Vec3(1, 1.6, 0.5), hit.hitPoint());
+            assertEquals(THROWER_LOOK, hit.aimDirection());
+        }
+
+        @Test
+        void thrownAimRunsFromTheEyeAlongTheLook() {
+            GooEffectScheduler.Aim aim = GooEffectScheduler.crosshairAim(thrower);
+
+            assertEquals(THROWER_EYE, aim.from());
+            assertEquals(THROWER_LOOK, aim.direction());
+            assertVec(new Vec3(1, 1.6, 0.5), GooEffectScheduler.aimedHitPoint(MOB_BOX, aim));
+        }
+
+        @Test
+        void throwHitsAlongTheAimItCapturedNotTheLookAtArrival() {
+            Vec3 capturedLook = new Vec3(-4, -0.4, 0).normalize();
+            GooEffectScheduler scheduler = new GooEffectScheduler();
+            scheduler.enqueue(new PendingEffect(ARRIVAL_TICK, level, thrower, GooTypes.BLAZE, MOB_ID, BlockPos.ZERO,
+                    null, "goo:blaze_touch", new GooEffectScheduler.Aim(THROWER_EYE, capturedLook)));
+
+            scheduler.drainArrivedEffects(ARRIVAL_TICK, landing);
+
+            MobHitPayload hit = theOneHitSent();
+            assertVec(new Vec3(1, 0.6, 0.5), hit.hitPoint());
+            assertEquals(capturedLook, hit.aimDirection());
         }
 
         @Test
@@ -158,5 +187,23 @@ class GooEffectSchedulerTest {
         void strikerInsideTheBoxStrikesTheBoxCenter() {
             assertEquals(MOB_BOX.getCenter(), GooEffectScheduler.hitPoint(MOB_BOX, new Vec3(0.2, 0.2, 0.2)));
         }
+
+        @Test
+        void aimThatMissesTheBoxFallsBackToTheLineToItsCenter() {
+            GooEffectScheduler.Aim wide = new GooEffectScheduler.Aim(THROWER_EYE, new Vec3(0, 0, 1));
+
+            assertVec(new Vec3(1, 1, 0.5), GooEffectScheduler.aimedHitPoint(MOB_BOX, wide));
+        }
+
+        @Test
+        void noAimStrikesTheBoxCenter() {
+            assertEquals(MOB_BOX.getCenter(), GooEffectScheduler.aimedHitPoint(MOB_BOX, null));
+        }
+    }
+
+    private static void assertVec(Vec3 expected, Vec3 actual) {
+        assertEquals(expected.x, actual.x, EPSILON);
+        assertEquals(expected.y, actual.y, EPSILON);
+        assertEquals(expected.z, actual.z, EPSILON);
     }
 }

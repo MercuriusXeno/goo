@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.client.ability.ChainBurnouts;
 import com.mercuriusxeno.goo.client.ability.MobCoatLayer;
 import com.mercuriusxeno.goo.client.ability.MobCoats;
+import com.mercuriusxeno.goo.client.ability.MobShells;
 import com.mercuriusxeno.goo.client.ber.*;
 import com.mercuriusxeno.goo.client.model.*;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
@@ -218,6 +219,7 @@ public final class GooClientSetup {
         event.registerSpriteSet(GooParticles.GOO_SPARK.get(), GooSparkParticle.Provider::new);
         event.registerSpriteSet(GooParticles.TRAIL_DRIP.get(), TrailDripParticle.Provider::new);
         event.registerSpriteSet(GooParticles.TRAIL_DRIP_LAND.get(), TrailDripParticle.LandProvider::new);
+        event.registerSpriteSet(GooParticles.SPLAT_DRIP.get(), TrailDripParticle.SplatProvider::new);
         event.registerSpriteSet(GooParticles.TAP_DRIP.get(), TapDripParticle.Provider::new);
         event.registerSpriteSet(GooParticles.TAP_DRIP_LAND.get(), TapDripParticle.LandProvider::new);
         event.registerSpriteSet(GooParticles.GOO_FOG.get(), GooFogParticle.Provider::new);
@@ -268,12 +270,12 @@ public final class GooClientSetup {
         for (EntityType<?> type : event.getEntityTypes()) {
             EntityRenderer<?, ?> renderer = event.getRenderer(type);
             if (renderer != null) {
-                MobCoatLayer.addTo(renderer);
+                MobCoatLayer.addTo(renderer, MobShells.of(type, event.getEntityModels()));
             }
         }
         for (PlayerModelType skin : event.getSkins()) {
-            MobCoatLayer.addTo(event.getPlayerRenderer(skin));
-            MobCoatLayer.addTo(event.getMannequinRenderer(skin));
+            MobCoatLayer.addTo(event.getPlayerRenderer(skin), MobShells.NONE);
+            MobCoatLayer.addTo(event.getMannequinRenderer(skin), MobShells.NONE);
         }
     }
 

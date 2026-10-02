@@ -15,11 +15,13 @@ import org.jspecify.annotations.NonNull;
  * Decision hit-bursts-goo-particles.
  * Decision visuals-play-beside-the-program.
  *
- * @param entityId  the struck entity's id
- * @param gooTypeId the goo type's short id
- * @param hitPoint  the point on the mob the goo struck
+ * @param entityId      the struck entity's id
+ * @param gooTypeId     the goo type's short id
+ * @param hitPoint      the point the aim entered the mob's box
+ * @param aimDirection  the aim's unit direction, which the client carries on onto the mob's model; zero where none
  */
-public record MobHitPayload(int entityId, String gooTypeId, Vec3 hitPoint) implements CustomPacketPayload {
+public record MobHitPayload(int entityId, String gooTypeId, Vec3 hitPoint, Vec3 aimDirection)
+        implements CustomPacketPayload {
 
     /** Payload type ID for registration. */
     public static final Type<MobHitPayload> TYPE =
@@ -43,9 +45,8 @@ public record MobHitPayload(int entityId, String gooTypeId, Vec3 hitPoint) imple
     private static void encode(FriendlyByteBuf buf, MobHitPayload payload) {
         buf.writeVarInt(payload.entityId);
         buf.writeUtf(payload.gooTypeId);
-        buf.writeDouble(payload.hitPoint.x);
-        buf.writeDouble(payload.hitPoint.y);
-        buf.writeDouble(payload.hitPoint.z);
+        writeVec(buf, payload.hitPoint);
+        writeVec(buf, payload.aimDirection);
     }
 
     /**
@@ -55,7 +56,16 @@ public record MobHitPayload(int entityId, String gooTypeId, Vec3 hitPoint) imple
      * @return the decoded payload
      */
     private static MobHitPayload decode(FriendlyByteBuf buf) {
-        return new MobHitPayload(buf.readVarInt(), buf.readUtf(),
-                new Vec3(buf.readDouble(), buf.readDouble(), buf.readDouble()));
+        return new MobHitPayload(buf.readVarInt(), buf.readUtf(), readVec(buf), readVec(buf));
+    }
+
+    private static void writeVec(FriendlyByteBuf buf, Vec3 vec) {
+        buf.writeDouble(vec.x);
+        buf.writeDouble(vec.y);
+        buf.writeDouble(vec.z);
+    }
+
+    private static Vec3 readVec(FriendlyByteBuf buf) {
+        return new Vec3(buf.readDouble(), buf.readDouble(), buf.readDouble());
     }
 }
