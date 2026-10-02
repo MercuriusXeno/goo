@@ -272,6 +272,10 @@ class PetalMaskTest {
     @Nested
     class RootedPetal {
 
+        private static final int ROTATIONS = 200_000;
+        /** Within this of the corner's own reach, the card touches it: the tangent point's slope blurs the last digits. */
+        private static final double CORNER_TOLERANCE = 1e-6;
+
         private final PetalMask.Petal base = new PetalMask.Petal(START, 4 * ARC, INNER, RadialWheel.TYPE_BASE_LENGTH);
         private final PetalMask.Petal card = new PetalMask.Petal(START, ARC, base.outer(), OUTER, base);
 
@@ -286,6 +290,31 @@ class PetalMaskTest {
             }
             double cornerAngle = START + base.cornerRadius() / base.outer() / 2;
             assertTrue(card.innerReach(cornerAngle) < base.outer(), "follows the base's rounded corner in");
+        }
+
+        /**
+         * At whatever rotation the ring turns to, the outermost cards start on
+         * the base's rounded corner at both of its edges, never at its full
+         * length: an edge angle that rounds a hair past the base's arc still
+         * reads as on it.
+         */
+        @Test
+        void edgeCardsMeetTheBasesCornersAtEveryRotation() {
+            int abilities = 4;
+            double openness = 1.0;
+            for (int step = 0; step < ROTATIONS; step++) {
+                // the wheel's own arithmetic: the slot from its rotation, each card from the slot's start
+                double rotation = -Math.PI + step * Math.sqrt(2) * 1e-4;
+                PetalMask.Petal turnedBase = new PetalMask.Petal(rotation, abilities * ARC, INNER,
+                        RadialWheel.TYPE_BASE_LENGTH);
+                PetalMask.Petal first = new PetalMask.Petal(rotation, ARC, turnedBase.outer(), OUTER, turnedBase);
+                PetalMask.Petal last = new PetalMask.Petal(rotation + (abilities - 1) * ARC * openness, ARC,
+                        turnedBase.outer(), OUTER, turnedBase);
+                double corner = turnedBase.reach(rotation);
+                assertEquals(corner, first.innerReach(first.start()), CORNER_TOLERANCE, "CCW edge at step " + step);
+                assertEquals(corner, last.innerReach(last.start() + last.arc()), CORNER_TOLERANCE,
+                        "CW edge at step " + step);
+            }
         }
 
         @Test
