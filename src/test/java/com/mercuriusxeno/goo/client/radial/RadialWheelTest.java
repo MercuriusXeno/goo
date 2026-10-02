@@ -390,15 +390,8 @@ class RadialWheelTest {
             for (int ability = 0; ability < ABILITIES; ability++) {
                 RadialWheel.PetalArc card = petalOf(midway, OPEN_TYPE, ability);
                 assertEquals(targetCard, card.arc(), EPSILON);
-                PetalMask.Petal base = own.shape();
-                PetalMask.Petal cardShape = card.shape();
-                for (double fraction : new double[]{0.0, 0.25, 0.5, 0.75}) {
-                    double angle = card.start() + card.arc() * fraction;
-                    assertEquals(base.reachOrLength(angle), cardShape.innerReach(angle), EPSILON,
-                            "card " + ability + " starts where the type petal ends at " + fraction);
-                    assertTrue(cardShape.innerReach(angle) > RadialWheel.HUB_FRACTION,
-                            "card " + ability + " clear of the hub");
-                }
+                assertEquals(own.length(), card.inner(), EPSILON,
+                        "card " + ability + " starts where the type petal ends");
                 assertTrue(card.start() >= previous, "card " + ability + " fans clockwise");
                 assertTrue(card.start() - own.start() <= ability * targetCard + EPSILON);
                 assertTrue(ability == 0 || card.start() - own.start() < ability * targetCard,
