@@ -6,6 +6,7 @@
 in vec3 Position;
 in vec4 Color;
 in vec3 Normal;
+out float opacity;
 
 out float radialT;
 out float angularT;
@@ -13,6 +14,8 @@ out float animPhase;
 
 void main() {
     gl_Position = ProjMat * (ModelViewMat * vec4(Position, 1.0));
+    // Alpha is the hole's opacity, faded in over its startup ramp (decision dome-fades-in-before-its-start).
+    opacity = Color.a;
 
     // Per-vertex disc coordinates packed by NetherBlackHoleRender:
     //   Color.r = radialT  - 0 at the inner edge (just outside the

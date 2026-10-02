@@ -1,5 +1,6 @@
 #version 330
 
+in float opacity;
 out vec4 fragColor;
 
 // Solid near-black core. The sphere's only job in this pass is to act
@@ -8,5 +9,5 @@ out vec4 fragColor;
 const vec3 CORE_COLOR = vec3(0.01, 0.00, 0.03);
 
 void main() {
-    fragColor = vec4(CORE_COLOR, 1.0);
+    fragColor = vec4(CORE_COLOR, opacity);
 }

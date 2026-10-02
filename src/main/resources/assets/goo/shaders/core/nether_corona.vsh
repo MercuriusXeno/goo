@@ -6,6 +6,7 @@
 in vec3 Position;
 in vec4 Color;
 in vec3 Normal;
+out float opacity;
 
 out vec3 viewPos;
 out vec3 centerView;
@@ -27,6 +28,8 @@ const float MAX_ENCODED_RADIUS = 16.0;
 void main() {
     vec4 vp = ModelViewMat * vec4(Position, 1.0);
     gl_Position = ProjMat * vp;
+    // Alpha is the hole's opacity, faded in over its startup ramp (decision dome-fades-in-before-its-start).
+    opacity = Color.a;
     viewPos = vp.xyz;
 
     // Decode the main sphere's visible radius (in world blocks) from
