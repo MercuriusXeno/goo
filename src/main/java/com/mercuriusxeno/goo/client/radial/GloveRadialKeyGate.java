@@ -3,9 +3,11 @@ package com.mercuriusxeno.goo.client.radial;
 /**
  * The glove menu key as pure decisions: a press with a glove held and no
  * screen open opens the radial, and a release selects the hovered ability
- * and closes, or closes with the glove unchanged over nothing.
+ * and closes, or closes with the glove unchanged over nothing or while the
+ * petals still move.
  * decision g-opens-radial-while-glove-held
  * decision radial-selects-on-g-release
+ * decision mid-animation-input-does-nothing
  */
 public final class GloveRadialKeyGate {
 
@@ -39,6 +41,21 @@ public final class GloveRadialKeyGate {
      */
     public static boolean pressOpensRadial(boolean gloveHeld, boolean screenOpen) {
         return gloveHeld && !screenOpen;
+    }
+
+    /**
+     * The pick a release or a click reads: nothing while the petals still
+     * move, since where they land is not yet what the player sees, and the
+     * hovered ability once they have landed. A mouse click selects nothing in
+     * the radial either way.
+     * decision mid-animation-input-does-nothing
+     *
+     * @param animating whether the petals' ease is still running
+     * @param hovered   the wheel's outcome, from {@link RadialWheel#click()}
+     * @return the cancel while animating, else the hovered outcome
+     */
+    public static RadialWheel.Outcome settledPick(boolean animating, RadialWheel.Outcome hovered) {
+        return animating ? RadialWheel.Outcome.CANCEL : hovered;
     }
 
     /**
