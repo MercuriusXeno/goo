@@ -6,6 +6,9 @@ import com.mercuriusxeno.goo.ISidedProxy;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.client.ability.ChainBurnouts;
+import com.mercuriusxeno.goo.client.ability.MobCoatLayer;
+import com.mercuriusxeno.goo.client.ability.MobCoats;
+import com.mercuriusxeno.goo.client.ability.MobShells;
 import com.mercuriusxeno.goo.client.ber.*;
 import com.mercuriusxeno.goo.client.model.*;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
@@ -30,6 +33,8 @@ import net.minecraft.client.resources.model.sprite.Material;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.player.PlayerModelType;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -214,6 +219,7 @@ public final class GooClientSetup {
         event.registerSpriteSet(GooParticles.GOO_SPARK.get(), GooSparkParticle.Provider::new);
         event.registerSpriteSet(GooParticles.TRAIL_DRIP.get(), TrailDripParticle.Provider::new);
         event.registerSpriteSet(GooParticles.TRAIL_DRIP_LAND.get(), TrailDripParticle.LandProvider::new);
+        event.registerSpriteSet(GooParticles.SPLAT_DRIP.get(), TrailDripParticle.SplatProvider::new);
         event.registerSpriteSet(GooParticles.TAP_DRIP.get(), TapDripParticle.Provider::new);
         event.registerSpriteSet(GooParticles.TAP_DRIP_LAND.get(), TapDripParticle.LandProvider::new);
         event.registerSpriteSet(GooParticles.GOO_FOG.get(), GooFogParticle.Provider::new);
@@ -247,6 +253,30 @@ public final class GooClientSetup {
                 new TypeToken<EntityRenderer<Entity, EntityRenderState>>() {
                 },
                 AimTracker::modifyEntityRenderState);
+        event.registerEntityModifier(
+                new TypeToken<EntityRenderer<Entity, EntityRenderState>>() {
+                },
+                MobCoatLayer::stampCoat);
+    }
+
+    /**
+     * Adds the goo coat layer to every living entity renderer, both player
+     * skins and mannequins among them (decision shader-coat-on-every-mob-landing).
+     *
+     * @param event the event instance
+     */
+    @SubscribeEvent
+    public static void addMobCoatLayers(EntityRenderersEvent.AddLayers event) {
+        for (EntityType<?> type : event.getEntityTypes()) {
+            EntityRenderer<?, ?> renderer = event.getRenderer(type);
+            if (renderer != null) {
+                MobCoatLayer.addTo(renderer, MobShells.of(type, event.getEntityModels()));
+            }
+        }
+        for (PlayerModelType skin : event.getSkins()) {
+            MobCoatLayer.addTo(event.getPlayerRenderer(skin), MobShells.NONE);
+            MobCoatLayer.addTo(event.getMannequinRenderer(skin), MobShells.NONE);
+        }
     }
 
     /**
@@ -335,6 +365,7 @@ public final class GooClientSetup {
         TunerAwaitState.clear();
         GooFlightManager.clear();
         ChainBurnouts.CLIENT.clear();
+        MobCoats.CLIENT.clear();
         ThrowFreezeState.clear();
     }
 

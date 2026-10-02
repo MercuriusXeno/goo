@@ -60,6 +60,29 @@ public final class TrailDripParticle {
         }
     }
 
+    /**
+     * Provider for the splat-drip: the trail-drip's drop, hanging from a goo
+     * splat on a struck mob for its hang before it falls, so it reads as goo
+     * letting go (decision splat-holds-then-dissolves-dripping).
+     */
+    public static class SplatProvider extends Provider {
+
+        /** Ticks a splat-drip hangs swelling before it falls, about a second. */
+        public static final int SPLAT_HANG_TICKS = 20;
+
+        /**
+         * @param sprites the sprite set from the splat_drip definition
+         */
+        public SplatProvider(SpriteSet sprites) {
+            super(sprites);
+        }
+
+        @Override
+        protected int hangTicks() {
+            return SPLAT_HANG_TICKS;
+        }
+    }
+
     /** Provider for the trail-drip's ground splat. */
     public static class LandProvider extends DripParticle.LandProvider<ColorParticleOption> {
 
