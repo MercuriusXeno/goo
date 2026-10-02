@@ -6,6 +6,8 @@ import com.mercuriusxeno.goo.ISidedProxy;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.client.ability.ChainBurnouts;
+import com.mercuriusxeno.goo.client.ability.MobCoatLayer;
+import com.mercuriusxeno.goo.client.ability.MobCoats;
 import com.mercuriusxeno.goo.client.ber.*;
 import com.mercuriusxeno.goo.client.model.*;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
@@ -30,6 +32,8 @@ import net.minecraft.client.resources.model.sprite.Material;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.player.PlayerModelType;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -247,6 +251,30 @@ public final class GooClientSetup {
                 new TypeToken<EntityRenderer<Entity, EntityRenderState>>() {
                 },
                 AimTracker::modifyEntityRenderState);
+        event.registerEntityModifier(
+                new TypeToken<EntityRenderer<Entity, EntityRenderState>>() {
+                },
+                MobCoatLayer::stampCoat);
+    }
+
+    /**
+     * Adds the goo coat layer to every living entity renderer, both player
+     * skins and mannequins among them (decision shader-coat-on-every-mob-landing).
+     *
+     * @param event the event instance
+     */
+    @SubscribeEvent
+    public static void addMobCoatLayers(EntityRenderersEvent.AddLayers event) {
+        for (EntityType<?> type : event.getEntityTypes()) {
+            EntityRenderer<?, ?> renderer = event.getRenderer(type);
+            if (renderer != null) {
+                MobCoatLayer.addTo(renderer);
+            }
+        }
+        for (PlayerModelType skin : event.getSkins()) {
+            MobCoatLayer.addTo(event.getPlayerRenderer(skin));
+            MobCoatLayer.addTo(event.getMannequinRenderer(skin));
+        }
     }
 
     /**
@@ -335,6 +363,7 @@ public final class GooClientSetup {
         TunerAwaitState.clear();
         GooFlightManager.clear();
         ChainBurnouts.CLIENT.clear();
+        MobCoats.CLIENT.clear();
         ThrowFreezeState.clear();
     }
 
