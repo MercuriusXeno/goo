@@ -26,6 +26,12 @@ public class ChainMarkerRenderState extends BlockEntityRenderState {
     /** Fuse remaining in ticks (for pulsing/implosion animation). */
     public int fuseRemaining;
 
+    /** The id of the ability the marker runs. */
+    public String abilityId = "";
+
+    /** How far the burnout dome's fuse-tail ramp has run, empty while the marker draws none. */
+    public java.util.OptionalDouble domeRamp = java.util.OptionalDouble.empty();
+
     /** Partial tick for smooth interpolation. */
     public float partialTick;
 
@@ -97,6 +103,9 @@ public class ChainMarkerRenderState extends BlockEntityRenderState {
      * The BER uses this flag to branch between the orb visual (false) and
      * the shader sphere (true). */
     public boolean netherActive;
+
+    /** How far the nether hole's startup ramp has run, 1 once it has run (decision dome-fades-in-before-its-start). */
+    public float holeRamp = 1f;
 
     /** Visible scale of the sphere in [0, 1]: grows through EXPAND, 1
      * during HOLD, shrinks through CONTRACT. Only meaningful when

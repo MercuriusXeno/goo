@@ -2,6 +2,7 @@
 
 in vec2 faceUv;
 
+in float opacity;
 out vec4 fragColor;
 
 // Overall additive brightness multiplier. Matches the corona's
@@ -32,5 +33,5 @@ void main() {
 
     // LIGHTNING blend (SRC_ALPHA, ONE): additive contribution is
     // EDGE_WHITE * EDGE_INTENSITY * strength added to the scene.
-    fragColor = vec4(EDGE_WHITE * EDGE_INTENSITY, strength);
+    fragColor = vec4(EDGE_WHITE * EDGE_INTENSITY, strength * opacity);
 }

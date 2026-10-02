@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import net.minecraft.util.ARGB;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -36,6 +37,14 @@ class CrystalExplosionVisualTest {
         float midShatter = CrystalExplosionVisual.GROW_TICKS + CrystalExplosionVisual.SHATTER_TICKS / 2f;
         assertEquals(0.5f, CrystalExplosionVisual.shattered(progressAt(midShatter)), TOLERANCE);
         assertEquals(1f, CrystalExplosionVisual.shattered(1f), TOLERANCE);
+    }
+
+    @Test
+    void rampMeetsTheShellsFirstDrawnFrame() {
+        DomeRampShape.assertRampMeetsFirstFrame(ramp -> CrystalExplosionVisual.rampShellRadius(ramp, REACH),
+                CrystalExplosionVisual.shellRadius(1f / CrystalExplosionVisual.DURATION_TICKS, REACH),
+                ramp -> ARGB.alpha(CrystalExplosionVisual.shellColor(CrystalExplosionVisual.FIRST_DRAWN_PROGRESS,
+                        DomeRamp.alpha(ramp))));
     }
 
     @Test

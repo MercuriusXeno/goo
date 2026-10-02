@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import net.minecraft.util.ARGB;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -43,6 +44,19 @@ class UnstableExplosionVisualTest {
         }
         assertEquals(REACH * UnstableExplosionVisual.RING_REACH,
                 UnstableExplosionVisual.ringRadius(1f, REACH), TOLERANCE);
+    }
+
+    @Test
+    void rampMeetsTheFireballsFirstDrawnFrame() {
+        float firstTick = 1f / UnstableExplosionVisual.DURATION_TICKS;
+        DomeRampShape.assertRampMeetsFirstFrame(ramp -> UnstableExplosionVisual.rampSphereRadius(ramp, REACH),
+                UnstableExplosionVisual.sphereRadius(firstTick, REACH),
+                ramp -> ARGB.alpha(UnstableExplosionVisual.sphereColor(UnstableExplosionVisual.FIRST_DRAWN_PROGRESS,
+                        DomeRamp.alpha(ramp))));
+        DomeRampShape.assertRampMeetsFirstFrame(ramp -> UnstableExplosionVisual.rampRingRadius(ramp, REACH),
+                UnstableExplosionVisual.ringRadius(firstTick, REACH),
+                ramp -> ARGB.alpha(UnstableExplosionVisual.ringColor(UnstableExplosionVisual.FIRST_DRAWN_PROGRESS,
+                        true, DomeRamp.alpha(ramp))));
     }
 
     @Test

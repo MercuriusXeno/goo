@@ -16,6 +16,7 @@ out vec3 viewPos;
 out vec3 viewNormal;
 out vec3 surfaceDir;
 out float progress;
+out float opacity;
 out float shattered;
 
 void main() {
@@ -25,5 +26,7 @@ void main() {
     viewNormal = (ModelViewMat * vec4(Normal, 0.0)).xyz;
     surfaceDir = Normal;
     progress = Color.r;
+    // Alpha is the dome's opacity, faded in over the fuse tail (decision dome-fades-in-before-its-start).
+    opacity = Color.a;
     shattered = Color.b;
 }

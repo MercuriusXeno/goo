@@ -46,10 +46,6 @@ public final class NetherSphereVisual {
      */
     private static final float BLOCK_CENTER = 0.5f;
     /**
-     * Solid alpha (0xFF) for the blackhole sphere vertices.
-     */
-    private static final int BLACKHOLE_ALPHA = 0xFF;
-    /**
      * Maximum encodable radius for the {@code Color.b} channel (in world blocks).
      * Must match the {@code MAX_ENCODED_RADIUS} constants in
      * {@code nether_corona.vsh} and {@code nether_disk.vsh}. 16 sits
@@ -136,7 +132,8 @@ public final class NetherSphereVisual {
                               SubmitNodeCollector nodeCollector) {
         float fullRadius = BlackHolePhases.fullRadius(state);
         float visibleRadius = BlackHolePhases.visibleRadius(state);
-        int color = packBlackholeColor(state.visibleScale, state.animationTime, visibleRadius);
+        int alpha = DomeRamp.alpha(state.holeRamp);
+        int color = packBlackholeColor(state.visibleScale, state.animationTime, visibleRadius, alpha);
         float coronaRadius = visibleRadius * CORONA_SCALE;
         float innerR = visibleRadius * DISK_INNER_SPHERE_MULT;
         float outerR = NetherDiscMesh.outerRadius(innerR, visibleRadius, fullRadius, state.diskExpansionScale);
@@ -150,7 +147,7 @@ public final class NetherSphereVisual {
         nodeCollector.submitCustomGeometry(poseStack, GooRenderTypes.NETHER_CORONA_TYPE,
                 (pose, c) -> emitSphereMesh(pose, c, coronaRadius, color));
         nodeCollector.submitCustomGeometry(poseStack, GooRenderTypes.NETHER_DISK_TYPE,
-                (pose, c) -> NetherDiscMesh.emitDisc(pose, c, innerR, outerR, animPhase));
+                (pose, c) -> NetherDiscMesh.emitDisc(pose, c, innerR, outerR, animPhase, alpha));
     }
 
     /**
@@ -178,15 +175,16 @@ public final class NetherSphereVisual {
      * Packs per-frame state for the sphere and corona shaders into the
      * vertex ARGB color. Channels: R = visible scale, G = animation time,
      * B = main radius normalized by {@link #MAX_ENCODED_RADIUS},
-     * A = fixed opaque.
+     * A = the hole's opacity, faded in through its startup ramp.
      *
      * @param scale         implosion visible scale in [0, 1]
      * @param animationTime swirl animation phase in [0, 1]
      * @param visibleRadius main sphere's current visible radius in world blocks
+     * @param alpha         the hole's opacity as a byte
      * @return the packed ARGB color
      */
-    private static int packBlackholeColor(float scale, float animationTime, float visibleRadius) {
-        return ARGB.color(BLACKHOLE_ALPHA, NetherDiscMesh.toByte(scale),
+    static int packBlackholeColor(float scale, float animationTime, float visibleRadius, int alpha) {
+        return ARGB.color(alpha, NetherDiscMesh.toByte(scale),
                 NetherDiscMesh.toByte(animationTime), NetherDiscMesh.toByte(visibleRadius / MAX_ENCODED_RADIUS));
     }
 

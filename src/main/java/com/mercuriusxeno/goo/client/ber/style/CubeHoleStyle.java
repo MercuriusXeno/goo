@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.client.FlatQuadContext;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.ability.BlackHolePhases;
+import com.mercuriusxeno.goo.client.ability.DomeRamp;
 import com.mercuriusxeno.goo.client.ability.NetherDiscMesh;
 import com.mercuriusxeno.goo.client.ability.NetherLensEffect;
 import com.mercuriusxeno.goo.client.ability.NetherSphereVisual;
@@ -54,8 +55,6 @@ public final class CubeHoleStyle implements NetherHoleStyle {
      * cube face silhouette but hugs it at the corners. */
     private static final float DISK_INNER_CUBE_MULT = 1.12f;
 
-    /** 0xFF opaque alpha for vertex color packing. */
-    private static final int OPAQUE_ALPHA = 0xFF;
     /** Maximum byte value for a 0..1 to byte mapping. */
     private static final int PROGRESS_BYTE_MAX = 255;
 
@@ -122,19 +121,20 @@ public final class CubeHoleStyle implements NetherHoleStyle {
         float outerR = NetherDiscMesh.outerRadius(innerR, occluderHalf,
                 BlackHolePhases.fullRadius(state), state.diskExpansionScale);
         float animPhase = state.animationTime;
+        int alpha = DomeRamp.alpha(state.holeRamp);
 
         // Pass 1: cube occluder. Reuses the sphere occluder pipeline -
         // its shader only reads Position so cube vertices produce a
         // black cube with correct depth write and nothing else.
         nodeCollector.submitCustomGeometry(poseStack, GooRenderTypes.NETHER_BLACKHOLE_TYPE,
-            (pose, c) -> emitCubeMesh(pose, c, occluderHalf, false));
+            (pose, c) -> emitCubeMesh(pose, c, occluderHalf, false, alpha));
         // Pass 2: cube edge glow. Slightly enlarged cube, per-vertex
         // intra-face UVs packed into Color.rg; the fragment shader
         // brightens toward each face edge.
         nodeCollector.submitCustomGeometry(poseStack, GooRenderTypes.NETHER_CUBE_EDGE_TYPE,
-            (pose, c) -> emitCubeMesh(pose, c, edgeHalf, true));
+            (pose, c) -> emitCubeMesh(pose, c, edgeHalf, true, alpha));
         nodeCollector.submitCustomGeometry(poseStack, GooRenderTypes.NETHER_DISK_TYPE,
-            (pose, c) -> NetherDiscMesh.emitDisc(pose, c, innerR, outerR, animPhase));
+            (pose, c) -> NetherDiscMesh.emitDisc(pose, c, innerR, outerR, animPhase, alpha));
     }
 
     /**
@@ -148,11 +148,12 @@ public final class CubeHoleStyle implements NetherHoleStyle {
      * @param c          the vertex consumer
      * @param halfExtent world-space half-extent in blocks (±halfExtent on each axis)
      * @param packUv     whether to pack the intra-face UV into Color.rg
+     * @param alpha      the hole's opacity as a byte, which both cube shaders multiply into their output alpha
      */
     private static void emitCubeMesh(PoseStack.Pose pose, VertexConsumer c,
-            float halfExtent, boolean packUv) {
+            float halfExtent, boolean packUv, int alpha) {
         for (int i = 0; i < CUBE_VERTEX_COUNT; i++) {
-            int color = packUv ? vertexUvColor(i) : packCubeOccluderColor();
+            int color = packUv ? vertexUvColor(i, alpha) : packCubeOccluderColor(alpha);
             emitCubeVertex(pose, c, i, halfExtent, color);
         }
     }
@@ -188,33 +189,35 @@ public final class CubeHoleStyle implements NetherHoleStyle {
      * from the static UV table.
      *
      * @param i cube vertex index
+     * @param alpha the hole's opacity as a byte
      * @return the packed ARGB color with UV in R/G
      */
-    private static int vertexUvColor(int i) {
+    private static int vertexUvColor(int i, int alpha) {
         int u = i * CUBE_UV_STRIDE;
         int uByte = Math.round(CUBE_FACE_UVS[u] * PROGRESS_BYTE_MAX);
         int vByte = Math.round(CUBE_FACE_UVS[u + 1] * PROGRESS_BYTE_MAX);
-        return packCubeUvColor(uByte, vByte);
+        return packCubeUvColor(uByte, vByte, alpha);
     }
 
     /** Packs the edge-glow vertex color: R = intra-face U, G = intra-face V.
      *
      * @param uByte intra-face U already encoded to a byte
      * @param vByte intra-face V already encoded to a byte
+     * @param alpha the hole's opacity as a byte
      * @return the packed ARGB color
      */
-    private static int packCubeUvColor(int uByte, int vByte) {
-        return ARGB.color(OPAQUE_ALPHA, uByte, vByte, 0);
+    private static int packCubeUvColor(int uByte, int vByte, int alpha) {
+        return ARGB.color(alpha, uByte, vByte, 0);
     }
 
-    /** Packs the occluder vertex color. The occluder shader ignores
-     * the vertex color entirely - any opaque value works - but we use
-     * opaque white so render-debug overlays read sensibly.
+    /** Packs the occluder vertex color: white, the occluder shader
+     * reading only its alpha, the hole's opacity.
      *
+     * @param alpha the hole's opacity as a byte
      * @return the packed ARGB color
      */
-    private static int packCubeOccluderColor() {
-        return ARGB.color(OPAQUE_ALPHA, PROGRESS_BYTE_MAX, PROGRESS_BYTE_MAX, PROGRESS_BYTE_MAX);
+    private static int packCubeOccluderColor(int alpha) {
+        return ARGB.color(alpha, PROGRESS_BYTE_MAX, PROGRESS_BYTE_MAX, PROGRESS_BYTE_MAX);
     }
 
     /** Builds the unit cube vertex position table as stride-3 floats.

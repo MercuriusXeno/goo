@@ -79,6 +79,14 @@ public final class ChainBurnouts {
     }
 
     /**
+     * @param abilityId the id of the ability a marker runs
+     * @return true when the marker plays a burnout explosion as it fires
+     */
+    public boolean playsBurnout(String abilityId) {
+        return !playsNoBurnout.test(abilityId);
+    }
+
+    /**
      * Adds a burnout, resolving the explosion its goo type draws, unless its
      * ability plays none.
      *
@@ -92,7 +100,7 @@ public final class ChainBurnouts {
      */
     public @Nullable Burnout add(BlockPos pos, Direction placedFace, ResourceKey<GooTypeDefinition> gooType,
                        String abilityId, int stackCount, long now) {
-        if (playsNoBurnout.test(abilityId)) {
+        if (!playsBurnout(abilityId)) {
             return null;
         }
         Burnout burnout = new Burnout(pos, placedFace, abilityId, stackCount, now,
