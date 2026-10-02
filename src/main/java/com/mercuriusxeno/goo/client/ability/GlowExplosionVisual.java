@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -13,8 +14,10 @@ import net.minecraft.util.ARGB;
  * Glow goo's burnout explosion, the design the operator settled (decision
  * elemental-explosion-per-type): an aurora bloom over the crystal the
  * marker just placed, drawn from the burnout alone since the marker is gone
- * the tick it fires. A soft dome of light rises out of the placed face to 2
- * blocks over 20 ticks on an ease-out. Its fragment shader
+ * the tick it fires. A soft dome of light rises out of the placed face over
+ * 20 ticks on an ease-out, to about 1.25 blocks over the large crystal and
+ * less over each smaller one, in step with the crystal's lateral extent
+ * (decision glow-dome-scales-with-the-crystal). Its fragment shader
  * ({@code glow_explosion.fsh}) draws vertical aurora bands, FFFF28 at the
  * base shading to FFD700 and a pale white crown, sliding slowly around the
  * dome like the fade walls' curtains, and discards the half of the sphere
@@ -30,8 +33,8 @@ public final class GlowExplosionVisual implements BurnoutVisual {
 
     /** Ticks the explosion plays. */
     static final int DURATION_TICKS = 20;
-    /** The dome's full radius in blocks. */
-    static final float DOME_REACH = 2f;
+    /** The dome's full radius in blocks over the large crystal, four stacks. */
+    static final float LARGE_DOME_REACH = 1.25f;
     /** The share of the explosion at which the bloom breathes brightest. */
     static final float BREATH_PEAK = 0.3f;
     /** How far the dome's center sits from the block center along the face's step: on the face plane. */
@@ -56,7 +59,7 @@ public final class GlowExplosionVisual implements BurnoutVisual {
     @Override
     public void render(ChainBurnouts.Burnout burnout, BurnoutFrame frame) {
         float progress = burnout.progress(frame.gameTime());
-        float radius = domeRadius(progress);
+        float radius = domeRadius(progress, burnout.stackCount());
         int color = domeColor(progress, burnout.placedFace(), OPAQUE);
         BurnoutGeometry.drawAtMarker(frame, burnout.pos(), GooRenderTypes.GLOW_EXPLOSION_TYPE, (pose, c) ->
                 BurnoutGeometry.emitSphere(pose, c, burnout.placedFace(), DOME_LIFT, radius, color));
@@ -65,7 +68,7 @@ public final class GlowExplosionVisual implements BurnoutVisual {
     @Override
     public void submitRamp(ChainBurnouts.Burnout burnout, float ramp, PoseStack poseStack,
                            SubmitNodeCollector collector) {
-        float radius = rampRadius(ramp);
+        float radius = rampRadius(ramp, burnout.stackCount());
         int color = domeColor(FIRST_DRAWN_PROGRESS, burnout.placedFace(), DomeRamp.alpha(ramp));
         collector.submitCustomGeometry(poseStack, GooRenderTypes.GLOW_EXPLOSION_TYPE, (pose, c) ->
                 BurnoutGeometry.emitSphere(pose, c, burnout.placedFace(), DOME_LIFT, radius, color));
@@ -73,13 +76,33 @@ public final class GlowExplosionVisual implements BurnoutVisual {
 
     /**
      * The dome's radius through the fuse-tail ramp, meeting the burnout's
-     * first drawn frame (decision dome-fades-in-before-its-start).
+     * first drawn frame at the same stack count.
+     * Decision dome-fades-in-before-its-start.
+     * Decision glow-dome-scales-with-the-crystal.
      *
-     * @param ramp the ramp's share in [0, 1]
+     * @param ramp   the ramp's share in [0, 1]
+     * @param stacks the marker's stack count
      * @return the dome's radius in blocks
      */
-    static float rampRadius(float ramp) {
-        return DomeRamp.radius(ramp, domeRadius(FIRST_DRAWN_PROGRESS));
+    static float rampRadius(float ramp, int stacks) {
+        return DomeRamp.radius(ramp, domeRadius(FIRST_DRAWN_PROGRESS, stacks));
+    }
+
+    /**
+     * The dome's full reach for a stack count: the large crystal's reach
+     * scaled by that crystal size's lateral extent over the large one's.
+     * Decision glow-dome-scales-with-the-crystal.
+     *
+     * @param stacks the marker's stack count
+     * @return the dome's full reach in blocks
+     */
+    static float domeReach(int stacks) {
+        return LARGE_DOME_REACH * lateralExtent(GlowCrystalBlock.CrystalSize.fromStacks(stacks))
+                / lateralExtent(GlowCrystalBlock.CrystalSize.LARGE);
+    }
+
+    private static float lateralExtent(GlowCrystalBlock.CrystalSize size) {
+        return (float) (size.max - size.min);
     }
 
     /**
@@ -98,13 +121,14 @@ public final class GlowExplosionVisual implements BurnoutVisual {
     }
 
     /**
-     * The aurora dome's radius: an ease-out growth to its full reach.
+     * The aurora dome's radius: an ease-out growth to its stack count's reach.
      *
      * @param progress the explosion's progress in [0, 1]
+     * @param stacks   the marker's stack count
      * @return the dome's radius in blocks
      */
-    static float domeRadius(float progress) {
-        return DOME_REACH * BurnoutGeometry.easeOutCubic(progress);
+    static float domeRadius(float progress, int stacks) {
+        return domeReach(stacks) * BurnoutGeometry.easeOutCubic(progress);
     }
 
     /**
