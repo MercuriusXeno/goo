@@ -29,6 +29,12 @@ final class PetalMesh {
     static final double TILE_ORIGIN = -1.0;
     /** Segments the cap's far side is cut into for the fill. */
     static final int CAP_SEGMENTS = 72;
+    /** How short a step between outline points counts as no step at all. */
+    private static final double SAME_POINT = 1e-9;
+    /** How nearly opposite two segment normals sum to nothing, where a miter has no direction. */
+    private static final double MITER_FLOOR = 1e-6;
+    /** The smallest cosine a miter divides by: a sharp turn reaches at most twice the thickness. */
+    private static final double MITER_LIMIT = 0.5;
     /** Segments each of the outline's straight and inner sides is cut into for the edge strip. */
     static final int OUTLINE_SEGMENTS = 12;
     /** The widest angle one fill column spans, so the inner arc reads smooth. */
@@ -125,14 +131,18 @@ final class PetalMesh {
                 double from = (double) split / splits;
                 double to = (double) (split + 1) / splits;
                 columns.add(List.of(
-                        PetalMask.Point.polar(previousAngle + (nextAngle - previousAngle) * from, petal.inner()),
+                        innerPoint(petal, previousAngle + (nextAngle - previousAngle) * from),
                         along(cap.get(i), cap.get(i + 1), from),
                         along(cap.get(i), cap.get(i + 1), to),
-                        PetalMask.Point.polar(previousAngle + (nextAngle - previousAngle) * to, petal.inner())));
+                        innerPoint(petal, previousAngle + (nextAngle - previousAngle) * to)));
             }
             previousAngle = nextAngle;
         }
         return columns;
+    }
+
+    private static PetalMask.Point innerPoint(PetalMask.Petal petal, double angle) {
+        return PetalMask.Point.polar(angle, petal.innerReach(angle));
     }
 
     private static double unwrapNear(double angle, double reference) {
@@ -238,31 +248,97 @@ final class PetalMesh {
     }
 
     /**
-     * The edge strip: one quad per outline segment, reaching the edge's
-     * thickness inward from the boundary.
+     * The edge strip: one continuous ribbon the edge's thickness inward
+     * from the boundary, each outline point paired with one inner point
+     * mitered between its two segments, so neighboring quads share corners
+     * and no sliver of fill shows between them where the boundary bends.
+     * decision wedges-take-a-solid-edge
      *
      * @param petal     the petal
      * @param thickness the edge's width in normalized units
      * @return the edge's quads
      */
     static List<Quad> edge(PetalMask.Petal petal, double thickness) {
-        List<PetalMask.Point> outline = petal.outline(OUTLINE_SEGMENTS);
+        List<PetalMask.Point> outline = distinct(petal.outline(OUTLINE_SEGMENTS));
         double inward = Math.signum(signedArea(outline)) * thickness;
+        List<PetalMask.Point> inner = new ArrayList<>(outline.size());
+        for (int i = 0; i < outline.size(); i++) {
+            inner.add(mitered(outline.get((i + outline.size() - 1) % outline.size()), outline.get(i),
+                    outline.get((i + 1) % outline.size()), inward));
+        }
         List<Quad> quads = new ArrayList<>(outline.size());
         for (int i = 0; i < outline.size(); i++) {
-            PetalMask.Point from = outline.get(i);
-            PetalMask.Point to = outline.get((i + 1) % outline.size());
-            double length = Math.hypot(to.x() - from.x(), to.y() - from.y());
-            if (length == 0) {
-                continue;
-            }
-            double normalX = -(to.y() - from.y()) / length * inward;
-            double normalY = (to.x() - from.x()) / length * inward;
-            quads.add(new Quad(new Vertex(from.x(), from.y(), 0, 0), new Vertex(to.x(), to.y(), 0, 0),
-                    new Vertex(to.x() + normalX, to.y() + normalY, 0, 0),
-                    new Vertex(from.x() + normalX, from.y() + normalY, 0, 0)).wound());
+            int next = (i + 1) % outline.size();
+            quads.add(new Quad(vertexAt(outline.get(i)), vertexAt(outline.get(next)), vertexAt(inner.get(next)),
+                    vertexAt(inner.get(i))).wound());
         }
         return quads;
+    }
+
+    /**
+     * The point a ribbon's inner side passes through at an outline point: the
+     * point offset inward along both segments' normals, so it lies the
+     * thickness away from each, its reach capped at twice the thickness
+     * where the outline turns sharply.
+     *
+     * @param before the outline point before
+     * @param point  the outline point
+     * @param after  the outline point after
+     * @param inward the thickness, signed toward the outline's inside
+     * @return the inner point
+     */
+    private static PetalMask.Point mitered(PetalMask.Point before, PetalMask.Point point, PetalMask.Point after,
+                                           double inward) {
+        double[] first = normal(before, point);
+        double[] second = normal(point, after);
+        double sumX = first[0] + second[0];
+        double sumY = first[1] + second[1];
+        double sumLength = Math.hypot(sumX, sumY);
+        if (sumLength < MITER_FLOOR) {
+            return new PetalMask.Point(point.x() + first[0] * inward, point.y() + first[1] * inward);
+        }
+        double cosine = (sumX * first[0] + sumY * first[1]) / sumLength;
+        double reach = inward / Math.max(cosine, MITER_LIMIT);
+        return new PetalMask.Point(point.x() + sumX / sumLength * reach, point.y() + sumY / sumLength * reach);
+    }
+
+    /**
+     * The left-hand unit normal of the segment from one point to the next.
+     *
+     * @param from the segment's start
+     * @param to   the segment's end
+     * @return the normal's x and y
+     */
+    private static double[] normal(PetalMask.Point from, PetalMask.Point to) {
+        double length = Math.hypot(to.x() - from.x(), to.y() - from.y());
+        return new double[]{-(to.y() - from.y()) / length, (to.x() - from.x()) / length};
+    }
+
+    private static Vertex vertexAt(PetalMask.Point point) {
+        return new Vertex(point.x(), point.y(), 0, 0);
+    }
+
+    /**
+     * The outline with each run of repeated points kept once, so every segment has a direction.
+     *
+     * @param outline the closed outline's points
+     * @return the points, no two neighbors alike, the last unlike the first
+     */
+    private static List<PetalMask.Point> distinct(List<PetalMask.Point> outline) {
+        List<PetalMask.Point> kept = new ArrayList<>(outline.size());
+        for (PetalMask.Point point : outline) {
+            if (kept.isEmpty() || !isSamePoint(point, kept.getLast())) {
+                kept.add(point);
+            }
+        }
+        if (kept.size() > 1 && isSamePoint(kept.getFirst(), kept.getLast())) {
+            kept.removeLast();
+        }
+        return kept;
+    }
+
+    private static boolean isSamePoint(PetalMask.Point one, PetalMask.Point other) {
+        return Math.hypot(one.x() - other.x(), one.y() - other.y()) <= SAME_POINT;
     }
 
     private static double signedArea(List<PetalMask.Point> outline) {

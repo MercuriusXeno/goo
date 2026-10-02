@@ -265,6 +265,8 @@ class RadialWheelRendererTest {
         private static final int WORD_WIDTH = 40;
         /** The font's line height, which a mocked Font keeps from its declaration. */
         private static final int LINE_HEIGHT = 9;
+        /** A type icon's side, as the renderer draws it. */
+        private static final int TYPE_ICON_SIZE = 11;
         /** Where a text call's ARGB color sits among its arguments. */
         private static final int TEXT_COLOR_ARGUMENT = 4;
         /** Where a blit's ARGB color sits among its arguments. */
@@ -450,8 +452,7 @@ class RadialWheelRendererTest {
 
             assertAll(wheel.displayedLayout(0.0f).stream().filter(RadialWheel.PetalArc::isAbility)
                     .map(petal -> (Executable) () -> {
-                        PetalMask.Point tip = new PetalMask.Petal(petal.start(), petal.arc(),
-                                petal.inner(), petal.length()).tipCenter();
+                        PetalMask.Point tip = petal.shape().tipCenter();
                         String icon = "ability_" + petal.type() + "_" + petal.ability() + ".png";
                         var iconBlit = mockingDetails(graphics).getInvocations().stream()
                                 .filter(call -> call.getMethod().getName().equals("blit")
@@ -474,6 +475,29 @@ class RadialWheelRendererTest {
                         assertEquals(LINES_PER_ABILITY, words.size(), petal + " lines");
                         assertTrue(words.getFirst().y() + LINE_HEIGHT <= iconY - half, petal + " name above");
                         assertTrue(words.getLast().y() >= iconY + half, petal + " cost below");
+                    }));
+        }
+
+        /** decision abilities-replace-the-hovered-type */
+        @Test
+        void typeIconSitsDeadCenterAlongItsPetal() {
+            RadialWheel wheel = openWheel();
+            GuiGraphicsExtractor graphics = renderFrame(wheel);
+            int half = TYPE_ICON_SIZE / 2;
+
+            assertAll(wheel.displayedLayout(0.0f).stream().filter(petal -> !petal.isAbility())
+                    .map(petal -> (Executable) () -> {
+                        String icon = "type_" + petal.type() + ".png";
+                        var iconBlit = mockingDetails(graphics).getInvocations().stream()
+                                .filter(call -> call.getMethod().getName().equals("blit")
+                                        && call.getArgument(1).toString().endsWith(icon))
+                                .findFirst().orElseThrow();
+                        double along = (RadialWheel.HUB_FRACTION + petal.length()) / 2 * RADIUS;
+                        double expectedX = CENTER_X + Math.sin(petal.center()) * along;
+                        double expectedY = CENTER_Y - Math.cos(petal.center()) * along;
+                        assertTrue(Math.hypot((int) iconBlit.getArgument(2) + half - expectedX,
+                                (int) iconBlit.getArgument(3) + half - expectedY) <= TIP_TOLERANCE,
+                                petal + " icon off its length's center");
                     }));
         }
 

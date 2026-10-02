@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.radial;
 
+import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -254,10 +255,10 @@ public final class RadialWheel {
             double openness = pose.openness()[type];
             double width = pose.widths()[type];
             double length = 1.0 - (1.0 - TYPE_BASE_LENGTH) * openness;
-            double cardRoot = cardRoot(start, width, length);
-            addCards(petals, type, new Slot(start, openness, cardRoot), cardLength);
+            PetalMask.Petal base = new PetalMask.Petal(start, width, HUB_FRACTION, length);
+            addCards(petals, type, new Slot(start, openness, base), cardLength);
             if (width > 0) {
-                petals.add(new PetalArc(type, NONE, start, width, HUB_FRACTION, length));
+                petals.add(new PetalArc(type, NONE, start, width, length, null));
             }
             start += width;
         }
@@ -272,24 +273,8 @@ public final class RadialWheel {
         double card = arcsWithOpenType(abilities).ability();
         for (int ability = abilities - 1; ability >= 0; ability--) {
             petals.add(new PetalArc(type, ability, slot.start() + ability * card * slot.openness(), card,
-                    slot.cardRoot(), cardLength.of(type, ability)));
+                    cardLength.of(type, ability), slot.base()));
         }
-    }
-
-    /**
-     * Where a type's ability cards start out from: the type petal itself, one
-     * of its corner roundings short of its length so the cards tuck under its
-     * rounded corners, never nearer than the hub.
-     * decision petal-moves-animate
-     *
-     * @param start  the type petal's start angle
-     * @param width  the type petal's arc
-     * @param length the type petal's length
-     * @return the cards' inner radius
-     */
-    private static double cardRoot(double start, double width, double length) {
-        double corner = new PetalMask.Petal(start, width, HUB_FRACTION, length).cornerRadius();
-        return Math.max(HUB_FRACTION, length - corner);
     }
 
     /**
@@ -297,9 +282,9 @@ public final class RadialWheel {
      *
      * @param start    the slot's start angle
      * @param openness how far the type is open
-     * @param cardRoot the cards' inner radius
+     * @param base     the type's own petal, which its cards start out from
      */
-    private record Slot(double start, double openness, double cardRoot) {
+    private record Slot(double start, double openness, PetalMask.Petal base) {
     }
 
     /**
@@ -597,11 +582,24 @@ public final class RadialWheel {
      * @param ability the ability index, or {@link #NONE} for the type's own petal
      * @param start   the petal's start angle, clockwise from the top
      * @param arc     the petal's span in radians
-     * @param inner   the petal's inner radius as a fraction of the wheel's: the hub for a type,
-     *                the type petal it starts out from for an ability
      * @param length  the petal's outer radius as a fraction of the wheel's, short of 1 while it recedes
+     * @param root    the type petal an ability petal starts out from, or null for a type petal,
+     *                which starts at the hub
      */
-    record PetalArc(int type, int ability, double start, double arc, double inner, double length) {
+    record PetalArc(int type, int ability, double start, double arc, double length,
+                    PetalMask.@Nullable Petal root) {
+
+        /**
+         * The petal's shape: from the hub for a type petal, from exactly where
+         * its type petal ends for an ability petal.
+         * decision petal-moves-animate
+         *
+         * @return the shape
+         */
+        PetalMask.Petal shape() {
+            return new PetalMask.Petal(start, arc, root == null ? HUB_FRACTION : root.outer(), length, root);
+        }
+
 
         /**
          * Whether the petal is an ability of the open type.
