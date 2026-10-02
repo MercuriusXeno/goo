@@ -142,7 +142,7 @@ final class PetalMesh {
     }
 
     private static PetalMask.Point innerPoint(PetalMask.Petal petal, double angle) {
-        return PetalMask.Point.polar(angle, petal.innerReach(angle));
+        return PetalMask.Point.polar(angle, petal.inner());
     }
 
     private static double unwrapNear(double angle, double reference) {
@@ -256,19 +256,25 @@ final class PetalMesh {
      *
      * @param petal     the petal
      * @param thickness the edge's width in normalized units
+     * @param innerSide whether the ribbon runs along the inner side too; an
+     *                  ability petal leaves it to the base it starts from, so
+     *                  one border marks the join
      * @return the edge's quads
      */
-    static List<Quad> edge(PetalMask.Petal petal, double thickness) {
+    static List<Quad> edge(PetalMask.Petal petal, double thickness, boolean innerSide) {
         List<PetalMask.Point> outline = distinct(petal.outline(OUTLINE_SEGMENTS));
         double inward = Math.signum(signedArea(outline)) * thickness;
-        List<PetalMask.Point> inner = new ArrayList<>(outline.size());
-        for (int i = 0; i < outline.size(); i++) {
-            inner.add(mitered(outline.get((i + outline.size() - 1) % outline.size()), outline.get(i),
-                    outline.get((i + 1) % outline.size()), inward));
+        int count = outline.size();
+        List<PetalMask.Point> inner = new ArrayList<>(count);
+        for (int i = 0; i < count; i++) {
+            inner.add(mitered(outline.get((i + count - 1) % count), outline.get(i),
+                    outline.get((i + 1) % count), inward));
         }
-        List<Quad> quads = new ArrayList<>(outline.size());
-        for (int i = 0; i < outline.size(); i++) {
-            int next = (i + 1) % outline.size();
+        // the outline opens with the inner side: its segments are the first in the list
+        int firstSegment = innerSide ? 0 : OUTLINE_SEGMENTS;
+        List<Quad> quads = new ArrayList<>(count);
+        for (int i = firstSegment; i < count; i++) {
+            int next = (i + 1) % count;
             quads.add(new Quad(vertexAt(outline.get(i)), vertexAt(outline.get(next)), vertexAt(inner.get(next)),
                     vertexAt(inner.get(i))).wound());
         }

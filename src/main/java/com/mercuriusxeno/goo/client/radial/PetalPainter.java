@@ -42,7 +42,7 @@ final class PetalPainter {
         graphics.submitGuiElementRenderState(new PetalRenderState(RenderPipelines.GUI_TEXTURED, face.texture(), pose,
                 fill, ARGB.multiply(face.tint(), overlay), scissor, bounds(fill, pose, scissor)));
         List<PetalRenderState.ScreenVertex> edge = toScreen(frame,
-                PetalMesh.edge(shape, PetalMesh.EDGE_THICKNESS), face.sprite());
+                PetalMesh.edge(shape, PetalMesh.EDGE_THICKNESS, !petal.isAbility()), face.sprite());
         graphics.submitGuiElementRenderState(new PetalRenderState(RenderPipelines.GUI, TextureSetup.noTexture(), pose,
                 edge, face.edgeColor(), scissor, bounds(edge, pose, scissor)));
     }

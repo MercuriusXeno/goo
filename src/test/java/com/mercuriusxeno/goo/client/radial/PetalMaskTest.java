@@ -264,40 +264,6 @@ class PetalMaskTest {
         }
     }
 
-    /**
-     * An ability petal rooted on its type petal starts exactly where the type
-     * petal ends, its inner boundary on the type petal's far boundary
-     * (decision petal-moves-animate).
-     */
-    @Nested
-    class RootedPetal {
-
-        private final PetalMask.Petal base = new PetalMask.Petal(START, 4 * ARC, INNER, RadialWheel.TYPE_BASE_LENGTH);
-        private final PetalMask.Petal card = new PetalMask.Petal(START, ARC, base.outer(), OUTER, base);
-
-        @Test
-        void innerBoundaryLiesOnTheBasesEnd() {
-            for (PetalMask.Point point : card.outline(OutlineOf.SEGMENTS)) {
-                double angle = RadialWheel.angleOf(point.x(), point.y());
-                double distance = Math.hypot(point.x(), point.y());
-                if (distance < base.outer() + 1e-9 && Math.abs(distance - card.innerReach(angle)) < 1e-9) {
-                    assertEquals(base.reach(angle), distance, 1e-9);
-                }
-            }
-            double cornerAngle = START + base.cornerRadius() / base.outer() / 2;
-            assertTrue(card.innerReach(cornerAngle) < base.outer(), "follows the base's rounded corner in");
-        }
-
-        @Test
-        void pointJustPastTheBaseIsInsideTheCardAndJustShortIsNot() {
-            double angle = START + ARC / 2;
-            PetalMask.Point past = PetalMask.Point.polar(angle, base.reach(angle) + 1e-6);
-            PetalMask.Point short_ = PetalMask.Point.polar(angle, base.reach(angle) - 1e-6);
-            assertTrue(card.contains(past.x(), past.y()));
-            assertFalse(card.contains(short_.x(), short_.y()));
-        }
-    }
-
     @Nested
     class HalfTurnWedge {
 
