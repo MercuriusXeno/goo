@@ -33,8 +33,6 @@ public final class NetherDiscMesh {
     private static final float RADIAL_T_INNER = 0f;
     /** Radial T packed into Color.r for outer-edge vertices. */
     private static final float RADIAL_T_OUTER = 1f;
-    /** Opaque alpha for vertex color packing. */
-    private static final int OPAQUE_ALPHA = 0xFF;
     /** Maximum byte value for a 0..1 to byte mapping. */
     private static final int PROGRESS_BYTE_MAX = 255;
     /** Cycle length in ticks for the swirl animation phase. */
@@ -78,17 +76,18 @@ public final class NetherDiscMesh {
      * @param innerR    disc inner edge radius in world blocks
      * @param outerR    disc outer edge radius in world blocks
      * @param animPhase global animation phase in [0, 1]
+     * @param alpha     the hole's opacity as a byte, which the disk shader multiplies into its output alpha
      */
     public static void emitDisc(PoseStack.Pose pose, VertexConsumer c,
-                                float innerR, float outerR, float animPhase) {
+                                float innerR, float outerR, float animPhase, int alpha) {
         int animByte = toByte(animPhase);
         for (int i = 0; i < DISK_ANGULAR_SEGMENTS; i++) {
             int i0 = i * DISK_SAMPLE_STRIDE;
             int i1 = (i + 1) * DISK_SAMPLE_STRIDE;
-            emitDiscVertex(pose, c, i0, innerR, RADIAL_T_INNER, animByte);
-            emitDiscVertex(pose, c, i1, innerR, RADIAL_T_INNER, animByte);
-            emitDiscVertex(pose, c, i1, outerR, RADIAL_T_OUTER, animByte);
-            emitDiscVertex(pose, c, i0, outerR, RADIAL_T_OUTER, animByte);
+            emitDiscVertex(pose, c, i0, innerR, RADIAL_T_INNER, animByte, alpha);
+            emitDiscVertex(pose, c, i1, innerR, RADIAL_T_INNER, animByte, alpha);
+            emitDiscVertex(pose, c, i1, outerR, RADIAL_T_OUTER, animByte, alpha);
+            emitDiscVertex(pose, c, i0, outerR, RADIAL_T_OUTER, animByte, alpha);
         }
     }
 
@@ -101,9 +100,10 @@ public final class NetherDiscMesh {
      * @param radius   world-space radius for this vertex (inner or outer)
      * @param radialT  radial coordinate (0 inner, 1 outer)
      * @param animByte pre-computed animation phase byte
+     * @param alpha    the hole's opacity as a byte
      */
     private static void emitDiscVertex(PoseStack.Pose pose, VertexConsumer c,
-                                       int sample, float radius, float radialT, int animByte) {
+                                       int sample, float radius, float radialT, int animByte, int alpha) {
         float cosT = DISK_ANGULAR_SAMPLES[sample + DISK_SAMPLE_COS_OFFSET];
         float sinT = DISK_ANGULAR_SAMPLES[sample + DISK_SAMPLE_SIN_OFFSET];
         float angularT = DISK_ANGULAR_SAMPLES[sample + DISK_SAMPLE_ANG_OFFSET];
@@ -111,20 +111,22 @@ public final class NetherDiscMesh {
                 BLOCK_CENTER + cosT * radius,
                 BLOCK_CENTER,
                 BLOCK_CENTER + sinT * radius,
-                packDiskColor(toByte(radialT), toByte(angularT), animByte),
+                packDiskColor(toByte(radialT), toByte(angularT), animByte, alpha),
                 0f, 1f, 0f);
     }
 
     /**
-     * Packs one disc vertex color: R = radialT, G = angularT, B = animation phase.
+     * Packs one disc vertex color: R = radialT, G = angularT, B = animation
+     * phase, A = the hole's opacity.
      *
      * @param radialByte  radialT already encoded to a byte
      * @param angularByte angularT already encoded to a byte
      * @param animByte    animation phase already encoded to a byte
+     * @param alpha       the hole's opacity as a byte
      * @return the packed ARGB color
      */
-    public static int packDiskColor(int radialByte, int angularByte, int animByte) {
-        return ARGB.color(OPAQUE_ALPHA, radialByte, angularByte, animByte);
+    public static int packDiskColor(int radialByte, int angularByte, int animByte, int alpha) {
+        return ARGB.color(alpha, radialByte, angularByte, animByte);
     }
 
     /**

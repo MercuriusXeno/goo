@@ -4,6 +4,7 @@ in float radialT;
 in float angularT;
 in float animPhase;
 
+in float opacity;
 out vec4 fragColor;
 
 // ── Tunables ──────────────────────────────────────────────────────────
@@ -97,5 +98,5 @@ void main() {
     // color * DISK_INTENSITY * (brightness * structure) added to the
     // scene.
     float strength = brightness * structure;
-    fragColor = vec4(color * DISK_INTENSITY, strength);
+    fragColor = vec4(color * DISK_INTENSITY, strength * opacity);
 }

@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.client.ber.ChainMarkerRenderState;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.world.phys.Vec3;
+import java.util.OptionalDouble;
 
 /**
  * Reads the nether black hole's size off the phase cursor its program
@@ -18,7 +19,7 @@ import net.minecraft.world.phys.Vec3;
  */
 public final class BlackHolePhases {
 
-    /** The phase before expand, while nether's inward rush plays and the hole draws nothing. */
+    /** The phase before expand, while nether's inward rush plays and the hole draws only its ramp. */
     private static final String GATHER = "gather";
     private static final String EXPAND = "expand";
     private static final String HOLD = "hold";
@@ -30,7 +31,7 @@ public final class BlackHolePhases {
     /**
      * Minimum visible radius so the hole never collapses to a single pixel.
      */
-    private static final float HOLE_MIN_RADIUS = 0.25f;
+    static final float HOLE_MIN_RADIUS = 0.25f;
     /**
      * World-space margin added to the implosion radius so the hole's body
      * covers the blast zone.
@@ -90,19 +91,21 @@ public final class BlackHolePhases {
      * Fills the render state's nether fields from the marker's phase cursor,
      * the one extraction every hole style shares (decision
      * one-disc-mesh-config-lens), or clears {@code netherActive} when no
-     * black hole runs or it is still gathering.
+     * black hole runs or its gather has not reached the ramp.
      *
      * @param be    the chain marker block entity
      * @param state the render state to populate
      * @return true when a black hole with a visible body should mark the lens
      */
     public static boolean populateRenderState(ChainMarkerBlockEntity be, ChainMarkerRenderState state) {
-        if (!isRunning(be) || !holeDraws(be.getPhased())) {
+        OptionalDouble ramp = isRunning(be) ? holeRamp(be.getPhased(), state.partialTick) : OptionalDouble.empty();
+        if (ramp.isEmpty()) {
             state.netherActive = false;
             return false;
         }
         PhasedState phase = be.getPhased();
         state.netherActive = true;
+        state.holeRamp = (float) ramp.getAsDouble();
         state.visibleScale = visibleScale(phase);
         state.diskExpansionScale = diskExpansionScale(phase);
         state.implodeRadius = SyncedSteps.first(be, PhasedStep.class)
@@ -112,15 +115,28 @@ public final class BlackHolePhases {
     }
 
     /**
-     * Answers whether the hole draws in a phase: in every phase but the
-     * gather, which leaves the stage to nether's inward rush while the
-     * marker's orb holds (decision elemental-explosion-per-type).
+     * How far the hole's startup ramp has run in a phase. The gather leaves
+     * the stage to nether's inward rush while the marker's orb holds
+     * (decision elemental-explosion-per-type), until its last ticks, where
+     * the hole starts small and fades in to meet expand's first frame
+     * (decision dome-fades-in-before-its-start).
      *
-     * @param phase the phase cursor
-     * @return true when the hole draws
+     * @param phase       the phase cursor
+     * @param partialTick the partial tick
+     * @return the ramp's share in [0, 1], 1 past the gather, or empty while the hole draws nothing
      */
-    static boolean holeDraws(PhasedState phase) {
-        return !GATHER.equals(phase.name());
+    static OptionalDouble holeRamp(PhasedState phase, float partialTick) {
+        if (!GATHER.equals(phase.name())) {
+            return OptionalDouble.of(1);
+        }
+        if (phase.duration() <= 0) {
+            return OptionalDouble.empty();
+        }
+        float remaining = Math.max(0f, phase.duration() - phase.ticks() - partialTick);
+        if (remaining >= DomeRamp.RAMP_TICKS) {
+            return OptionalDouble.empty();
+        }
+        return OptionalDouble.of(1f - remaining / DomeRamp.RAMP_TICKS);
     }
 
     /**
@@ -136,13 +152,28 @@ public final class BlackHolePhases {
 
     /**
      * Answers the hole body's current radius (a sphere's radius, a cube's
-     * half-extent), never collapsing below a minimum.
+     * half-extent), never collapsing below a minimum once its ramp has run.
      *
      * @param state the populated render state
      * @return the visible radius in world blocks
      */
     public static float visibleRadius(ChainMarkerRenderState state) {
-        return bodyRadius(fullRadius(state), state.visibleScale, state.gameTime);
+        return rampedBodyRadius(fullRadius(state), state.visibleScale, state.gameTime, state.holeRamp);
+    }
+
+    /**
+     * The hole body's radius through its startup ramp: easing in from
+     * nothing to the body's radius, which is the minimum at expand's first
+     * frame (decision dome-fades-in-before-its-start).
+     *
+     * @param fullRadius   the hole's full radius in world blocks
+     * @param visibleScale the phase scale visibleScale answers
+     * @param gameTime     the game time including the partial tick
+     * @param ramp         the ramp's share in [0, 1], 1 once it has run
+     * @return the visible radius in world blocks
+     */
+    static float rampedBodyRadius(float fullRadius, float visibleScale, float gameTime, float ramp) {
+        return DomeRamp.radius(ramp, bodyRadius(fullRadius, visibleScale, gameTime));
     }
 
     /**

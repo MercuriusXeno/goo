@@ -104,6 +104,9 @@ public class ChainMarkerRenderState extends BlockEntityRenderState {
      * the shader sphere (true). */
     public boolean netherActive;
 
+    /** How far the nether hole's startup ramp has run, 1 once it has run (decision dome-fades-in-before-its-start). */
+    public float holeRamp = 1f;
+
     /** Visible scale of the sphere in [0, 1]: grows through EXPAND, 1
      * during HOLD, shrinks through CONTRACT. Only meaningful when
      * {@link #netherActive} is true. */
