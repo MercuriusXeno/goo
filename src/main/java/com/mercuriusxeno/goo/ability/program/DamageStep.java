@@ -18,7 +18,8 @@ import java.util.stream.Stream;
  * {@code damage amount=6 source=stalagmite knockback=false}, pinning the
  * target where the spike caught it; the crystal cloud's shred is
  * {@code damage amount=1 source=cactus invulnerable_ticks=1}, leaving the
- * target open to the next shred a tick later. The step clears the
+ * target open to the next shred a tick later, beside a crit particles
+ * step that shows each shred land. The step clears the
  * target's damage immunity before it hurts, so a goo hit lands through a
  * hit just taken.
  *
