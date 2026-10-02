@@ -511,12 +511,21 @@ public final class RadialWheel {
             return;
         }
         int step = scrollY < 0 ? 1 : STEP_BACK;
-        if (isOpen() && stepWithinOpenType(step)) {
-            return;
+        if (!isOpen() || !stepWithinOpenType(step)) {
+            openNextTypeWithAbilities(step);
         }
-        int type = isOpen() ? selectedType : step > 0 ? NONE : typeCount;
-        for (int tried = 0; tried < typeCount; tried++) {
-            type = Math.floorMod(type + step, typeCount);
+    }
+
+    /**
+     * Opens the next or previous type in list order that has abilities, on
+     * its first or last, wrapping around the list; from rest, the first or last.
+     *
+     * @param step 1 forward, -1 back
+     */
+    private void openNextTypeWithAbilities(int step) {
+        int from = isOpen() ? selectedType : step > 0 ? NONE : typeCount;
+        for (int tried = 1; tried <= typeCount; tried++) {
+            int type = Math.floorMod(from + step * tried, typeCount);
             int abilities = abilityCount.applyAsInt(type);
             if (abilities > 0) {
                 openUnturned(type, step > 0 ? 0 : abilities - 1);
