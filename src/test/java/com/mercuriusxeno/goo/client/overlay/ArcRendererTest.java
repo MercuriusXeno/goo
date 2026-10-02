@@ -6,8 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * The punch reach ring is a closed level circle of the reach's radius around
- * the player's feet (decision punch-strikes-at-reach).
+ * The touch reach ring is a closed level circle of the reach's radius around
+ * the player's feet (decision mob-ability-touches-at-reach).
  */
 class ArcRendererTest {
 

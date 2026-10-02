@@ -28,9 +28,6 @@ public enum AbilityBadge implements StringRepresentable {
     /** Acts on the thrower. */
     SELF("self"),
 
-    /** Lands with a punch. */
-    PUNCH("punch"),
-
     /** Runs while the thrower holds it. */
     CHANNELED("channeled");
 
@@ -46,7 +43,7 @@ public enum AbilityBadge implements StringRepresentable {
      * declaration order so the network ordinal stays put.
      * fan-sorts-badge-then-order
      */
-    private static final List<AbilityBadge> FAN_RANK = List.of(CHANNELED, PUNCH, MOB, WORLD, SELF);
+    private static final List<AbilityBadge> FAN_RANK = List.of(CHANNELED, MOB, WORLD, SELF);
 
     private final String serializedName;
 
