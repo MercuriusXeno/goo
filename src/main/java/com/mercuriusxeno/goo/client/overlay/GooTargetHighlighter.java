@@ -3,13 +3,11 @@ package com.mercuriusxeno.goo.client.overlay;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.GooClientConfig;
 import com.mercuriusxeno.goo.ability.Delivery;
-import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.hud.ChainMarkerBillboard;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.client.throwing.GloveThrowSender;
-import com.mercuriusxeno.goo.network.GooPunchHandler;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
@@ -51,6 +49,11 @@ public final class GooTargetHighlighter {
      */
     private static @Nullable Delivery cachedArcDelivery;
     /**
+     * Whether the selected ability touches an entity within reach, so the
+     * arc stage draws the touch ring.
+     */
+    private static boolean cachedArcTouchesAtReach;
+    /**
      * Partial tick captured at the opaque stage.
      */
     private static float cachedArcPartialTick;
@@ -90,7 +93,9 @@ public final class GooTargetHighlighter {
         TargetResult target = AimTracker.currentTarget();
         cachedArcTarget = target;
         cachedArcType = selectedType;
-        cachedArcDelivery = GloveThrowSender.selectedDelivery(GloveAim.selectedAbilityId(mc.player));
+        String abilityId = GloveAim.selectedAbilityId(mc.player);
+        cachedArcDelivery = GloveThrowSender.selectedDelivery(abilityId);
+        cachedArcTouchesAtReach = GloveThrowSender.selectedTouchesAtReach(abilityId);
         cachedArcPartialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         HighlightFrame frame = new HighlightFrame(event.getPoseStack(), mc.renderBuffers().bufferSource(),
                 mc.gameRenderer.getMainCamera(), mc, selectedType);
@@ -217,48 +222,57 @@ public final class GooTargetHighlighter {
         ResourceKey<GooTypeDefinition> type = cachedArcType;
         Delivery delivery = cachedArcDelivery;
         float partialTick = cachedArcPartialTick;
+        boolean touchesAtReach = cachedArcTouchesAtReach;
         clearCachedArc();
-        Minecraft mc = Minecraft.getInstance();
-        if (target == null || type == null || delivery == null) {
+        if (target == null || type == null || delivery == null || !delivery.aimsALine()) {
             clearEasedArc();
             return;
         }
-        if (!delivery.aimsALine()) {
-            renderLinelessAim(event, delivery, type, partialTick);
-            return;
+        if (touchesAtReach) {
+            renderTouchRing(event, type, partialTick);
         }
+        renderAimLine(event, target, type, delivery, partialTick);
+    }
+
+    /**
+     * Draws the eased aim line toward the target, or clears the ease when the
+     * target resolves no endpoint.
+     *
+     * @param event       the render stage event
+     * @param target      the target this frame aims at
+     * @param type        the selected goo type
+     * @param delivery    the selected delivery, an arc or a beam
+     * @param partialTick the partial tick captured at the opaque stage
+     */
+    private static void renderAimLine(RenderLevelStageEvent.AfterTranslucentBlocks event, TargetResult target,
+                                      ResourceKey<GooTypeDefinition> type, Delivery delivery, float partialTick) {
         Vec3 end = target.resolveEndpoint();
         if (end == null) {
             clearEasedArc();
             return;
         }
         Vec3 drawn = easeArcToward(target, end, grannyWeight(target, delivery), realTimeSeconds());
+        Minecraft mc = Minecraft.getInstance();
         ArcRenderer.renderTargetArc(event.getPoseStack(), mc.renderBuffers().bufferSource(),
                 mc.gameRenderer.getMainCamera(), drawn, ClientGooTypes.highlight(type),
                 partialTick, drawnGrannyWeight, delivery.fliesStraight());
     }
 
     /**
-     * Draws the aim of a delivery that flies no line: the ring a punch
-     * strikes within (decision punch-strikes-at-reach), and nothing for a
-     * self ability, which aims at no target (decision self-delivery-runs-on-player).
+     * Draws the ring a mob ability touches within, the player's entity
+     * interaction range around the player's feet.
+     * decision mob-ability-touches-at-reach
      *
      * @param event       the render stage event
-     * @param delivery    the selected delivery
      * @param type        the selected goo type
      * @param partialTick the partial tick captured at the opaque stage
      */
-    private static void renderLinelessAim(RenderLevelStageEvent.AfterTranslucentBlocks event, Delivery delivery,
-                                          ResourceKey<GooTypeDefinition> type, float partialTick) {
-        clearEasedArc();
-        if (delivery.kind() != DeliveryKind.PUNCH) {
-            return;
-        }
+    private static void renderTouchRing(RenderLevelStageEvent.AfterTranslucentBlocks event,
+                                        ResourceKey<GooTypeDefinition> type, float partialTick) {
         Minecraft mc = Minecraft.getInstance();
         ArcRenderer.renderReachRing(event.getPoseStack(), mc.renderBuffers().bufferSource(),
                 mc.gameRenderer.getMainCamera(), mc.player.getPosition(partialTick),
-                GooPunchHandler.reach(delivery, mc.player.entityInteractionRange()),
-                ClientGooTypes.highlight(type), partialTick);
+                mc.player.entityInteractionRange(), ClientGooTypes.highlight(type), partialTick);
     }
 
     /**
@@ -332,6 +346,7 @@ public final class GooTargetHighlighter {
         cachedArcTarget = null;
         cachedArcType = null;
         cachedArcDelivery = null;
+        cachedArcTouchesAtReach = false;
         cachedArcPartialTick = 0f;
     }
 }
