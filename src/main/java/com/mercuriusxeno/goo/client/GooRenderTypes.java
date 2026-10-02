@@ -484,6 +484,44 @@ public final class GooRenderTypes {
         return CRUCIBLE_DISSOLVE_FACTORY.apply(texture);
     }
 
+    /**
+     * Goo splat pipeline (decision shader-coat-on-every-mob-landing): a struck
+     * mob's model drawn again through {@code goo_mob_coat.vsh / .fsh}, lifted
+     * off the skin along its normals, painting the goo type's fluid sprite
+     * over the half block around the struck point alone, lit as the mob is.
+     * Translucent with depth write off, so the splat never hides the mob's
+     * own depth.
+     */
+    public static final RenderPipeline GOO_MOB_COAT = RenderPipeline.builder(RenderPipelines.ENTITY_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_mob_coat"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_mob_coat"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_mob_coat"))
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withDepthStencilState(new DepthStencilState(DepthStencilState.DEFAULT.depthTest(), false))
+            .build();
+
+    /** Per-atlas memoized render types on the goo coat pipeline. */
+    private static final java.util.function.Function<Identifier, RenderType> GOO_MOB_COAT_FACTORY =
+            net.minecraft.util.Util.memoize(atlas -> RenderType.create(
+                    "goo_mob_coat",
+                    RenderSetup.builder(GOO_MOB_COAT)
+                            .withTexture("Sampler0", atlas)
+                            .useLightmap()
+                            .sortOnUpload()
+                            .createRenderSetup()
+            ));
+
+    /**
+     * Returns the goo coat render type for the atlas the goo type's fluid
+     * sprite sits on.
+     *
+     * @param atlas the texture atlas identifier
+     * @return memoized RenderType
+     */
+    public static RenderType gooMobCoat(Identifier atlas) {
+        return GOO_MOB_COAT_FACTORY.apply(atlas);
+    }
+
     private GooRenderTypes() {}
 
     /**
@@ -552,6 +590,7 @@ public final class GooRenderTypes {
         event.registerPipeline(GOO_FLUID);
         event.registerPipeline(GOO_FLUID_SURFACE);
         event.registerPipeline(CRUCIBLE_DISSOLVE);
+        event.registerPipeline(GOO_MOB_COAT);
     }
 
     /**
