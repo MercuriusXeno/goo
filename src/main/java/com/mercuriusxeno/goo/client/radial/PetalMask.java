@@ -1,35 +1,52 @@
 package com.mercuriusxeno.goo.client.radial;
 
 import net.minecraft.util.ARGB;
+import org.jspecify.annotations.Nullable;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * The pure geometry and fill of one radial wedge's mask: a petal whose
- * outer end is a rounded cap bridging its two radial edges rather than a
- * cut of the wheel's circle (decision wedges-round-off-like-petals), filled
- * with its goo's fluid sprite in place of a flat color (decision
- * wedges-render-fluid-texture) inside a solid edge (decision
- * wedges-take-a-solid-edge).
+ * The pure geometry of one radial petal: a wedge whose outer end is a
+ * rounded cap bridging its two radial edges rather than a cut of the
+ * wheel's circle (decision wedges-round-off-like-petals), with the outline
+ * the live-drawn petal tessellates and edges along (decision
+ * petals-render-the-live-fluid), and the rasterizer the hub's baked circle
+ * mask still reads.
  *
- * <p>The cap is the circle tangent to both radial edges whose farthest
- * point reaches the outer radius on the wedge's center angle. A wedge at
- * least a half turn wide has no tip to round, so it keeps the circle cut.
+ * <p>Each corner of the end is rounded by a fillet: a circle tangent to the
+ * radial edge and to the wheel-centered circle at the outer radius, of at
+ * most {@link #MAX_CORNER} of the band. Between the two fillets the end runs
+ * along that outer circle, a blunt tip. A narrow petal's fillets meet on the
+ * center line and become the one circle tangent to both edges, its round
+ * tip. A wedge at least a half turn wide has no corners to round, so it
+ * keeps the circle cut.
  * Coordinates are normalized to the wheel: center 0, rim 1, y down positive.
  */
 final class PetalMask {
-
-    /**
-     * Mask pixels one sprite pixel covers, so a 16-pixel sprite tiles four
-     * times across a 256-pixel wheel.
-     */
-    static final int TEXEL_SCALE = 4;
 
     /** Sub-samples per axis for anti-aliasing (4x4 = 16 samples per pixel). */
     private static final int AA_SAMPLES = 4;
     private static final int AA_TOTAL = AA_SAMPLES * AA_SAMPLES;
     private static final double TWO_PI = 2.0 * Math.PI;
     private static final double HALF = 0.5;
-    private static final int MAX_CHANNEL = 255;
-    private static final int OPAQUE_WHITE = 0xFFFFFFFF;
+    /** The outline's sides: the inner arc, the end edge, the cap and the start edge. */
+    private static final int OUTLINE_SIDES = 4;
+    /** How many times more segments the cap takes than a straight side, so the round tip reads smooth. */
+    static final int CAP_SEGMENTS_PER_SIDE = 6;
+    /**
+     * The largest a corner's rounding grows, as a fraction of the band from
+     * the hub to the tip, so an ability petal rooted on its type keeps the
+     * same round tip, so a wide base keeps rounded corners at
+     * its sides and a blunt tip rather than reading as a circle.
+     */
+    static final double MAX_CORNER = 0.25;
+    /**
+     * How far past either edge an angle still reads as on it: a card's edge
+     * angle, summed a different way from its root's, lands a few ULPs either
+     * side of the root's edge.
+     */
+    private static final double EDGE_SLACK = 1e-9;
+    private static final double QUARTER_TURN = Math.PI * HALF;
 
     private PetalMask() {
     }
@@ -51,79 +68,26 @@ final class PetalMask {
     }
 
     /**
-     * Rasterizes a shape over a square mask, each covered pixel carrying the
-     * sprite's pixel at that wheel position, tiled across the wheel and
-     * multiplied by the tint, its alpha scaled by the pixel's coverage.
+     * Rasterizes a shape over a square mask in one color, each covered
+     * pixel's alpha scaled by the pixel's coverage.
      *
-     * @param size   the mask's side in pixels
-     * @param shape  the shape over normalized coordinates
-     * @param sprite the pixels the fill tiles
-     * @param tint   the ARGB tint each sprite pixel is multiplied by
+     * @param size  the mask's side in pixels
+     * @param shape the shape over normalized coordinates
+     * @param color the ARGB color of a fully covered pixel
      * @return the mask's ARGB pixels, row by row; uncovered pixels are 0
      */
-    static int[] fill(int size, Shape shape, PixelSource sprite, int tint) {
-        return fill(size, shape, sprite, tint, Edge.NONE);
-    }
-
-    /**
-     * Rasterizes a shape as {@link #fill(int, Shape, PixelSource, int)} does,
-     * with every covered pixel within the edge's thickness of the shape's
-     * boundary taking the edge color in place of the sprite (decision
-     * wedges-take-a-solid-edge).
-     *
-     * @param size   the mask's side in pixels
-     * @param shape  the shape over normalized coordinates
-     * @param sprite the pixels the fill tiles
-     * @param tint   the ARGB tint each sprite pixel is multiplied by
-     * @param edge   the solid edge drawn along the boundary
-     * @return the mask's ARGB pixels, row by row; uncovered pixels are 0
-     */
-    static int[] fill(int size, Shape shape, PixelSource sprite, int tint, Edge edge) {
+    static int[] fill(int size, Shape shape, int color) {
         int[] pixels = new int[size * size];
         double half = size * HALF;
         for (int py = 0; py < size; py++) {
             for (int px = 0; px < size; px++) {
                 int hits = countHits(px, py, half, shape);
                 if (hits > 0) {
-                    boolean onEdge = isOnEdge(shape, edge, toCenter(px, half), toCenter(py, half));
-                    pixels[py * size + px] = onEdge ? coverPixel(edge.color(), OPAQUE_WHITE, hits)
-                            : coverPixel(tiledPixel(sprite, px, py), tint, hits);
+                    pixels[py * size + px] = ARGB.color(ARGB.alpha(color) * hits / AA_TOTAL, color);
                 }
             }
         }
         return pixels;
-    }
-
-    private static boolean isOnEdge(Shape shape, Edge edge, double x, double y) {
-        return edge.thickness() > 0 && (!shape.contains(x, y) || shape.depth(x, y) <= edge.thickness());
-    }
-
-    private static double toCenter(int pixel, double half) {
-        return (pixel + HALF - half) / half;
-    }
-
-    /**
-     * The sprite pixel a mask pixel shows when the sprite tiles across the wheel.
-     *
-     * @param sprite the pixels the fill tiles
-     * @param px     the mask pixel's x
-     * @param py     the mask pixel's y
-     * @return the sprite's ARGB pixel
-     */
-    static int tiledPixel(PixelSource sprite, int px, int py) {
-        return sprite.pixel(Math.floorMod(px / TEXEL_SCALE, sprite.width()),
-                Math.floorMod(py / TEXEL_SCALE, sprite.height()));
-    }
-
-    private static int coverPixel(int spritePixel, int tint, int hits) {
-        int alpha = multiply(ARGB.alpha(spritePixel), ARGB.alpha(tint)) * hits / AA_TOTAL;
-        return ARGB.color(alpha, multiply(ARGB.red(spritePixel), ARGB.red(tint)),
-                multiply(ARGB.green(spritePixel), ARGB.green(tint)),
-                multiply(ARGB.blue(spritePixel), ARGB.blue(tint)));
-    }
-
-    private static int multiply(int channel, int tintChannel) {
-        return channel * tintChannel / MAX_CHANNEL;
     }
 
     private static int countHits(int px, int py, double half, Shape shape) {
@@ -158,31 +122,26 @@ final class PetalMask {
          * @return true when inside
          */
         boolean contains(double x, double y);
-
-        /**
-         * How far an inside point lies from the shape's boundary.
-         *
-         * @param x normalized x
-         * @param y normalized y, down positive
-         * @return the distance in normalized units; a shape with no boundary to edge answers infinity
-         */
-        default double depth(double x, double y) {
-            return Double.POSITIVE_INFINITY;
-        }
     }
 
     /**
-     * The solid edge a fill draws along a shape's boundary.
+     * A point in the wheel's normalized coordinates.
      *
-     * @param color     the opaque ARGB edge color
-     * @param thickness the edge's width inward from the boundary, in normalized units; 0 draws none
+     * @param x normalized x
+     * @param y normalized y, down positive
      */
-    record Edge(int color, double thickness) {
-        /** No edge: the fill reaches the boundary. */
-        static final Edge NONE = new Edge(0, 0.0);
+    record Point(double x, double y) {
 
-        /** The width of a wedge's edge, a fiftieth of the wheel's radius. */
-        static final double WEDGE_THICKNESS = 0.02;
+        /**
+         * The point at an angle and a distance from the wheel's center.
+         *
+         * @param angle    the angle, clockwise from the top
+         * @param distance the distance from the center
+         * @return the point
+         */
+        static Point polar(double angle, double distance) {
+            return new Point(Math.sin(angle) * distance, -Math.cos(angle) * distance);
+        }
     }
 
     /**
@@ -190,141 +149,264 @@ final class PetalMask {
      *
      * @param start the wedge's start, clockwise from the top, in [0, 2 pi)
      * @param arc   the wedge's span in radians
-     * @param inner the wedge's inner radius
+     * @param inner the wedge's inner radius where it has no root
      * @param outer the wedge's outer radius, reached at the tip of the cap
+     * @param root  the petal this one starts out from, its inner boundary
+     *              following the root's far boundary, or null to start at the inner radius
      */
-    record Petal(double start, double arc, double inner, double outer) implements Shape {
+    record Petal(double start, double arc, double inner, double outer, @Nullable Petal root) implements Shape {
+
+        /**
+         * A petal starting at its inner radius.
+         *
+         * @param start the wedge's start, clockwise from the top
+         * @param arc   the wedge's span in radians
+         * @param inner the wedge's inner radius
+         * @param outer the wedge's outer radius, reached at the tip of the cap
+         */
+        Petal(double start, double arc, double inner, double outer) {
+            this(start, arc, inner, outer, null);
+        }
+
+        /**
+         * Where a ray at an angle enters the petal: the root's far boundary,
+         * so an ability petal starts exactly where its type petal ends, or the
+         * inner radius for a petal with no root.
+         * decision petal-moves-animate
+         *
+         * @param angle the ray's angle, clockwise from the top
+         * @return the distance in normalized units
+         */
+        double innerReach(double angle) {
+            return root == null ? inner : root.reachOrLength(angle);
+        }
+
+        /**
+         * How far a ray reaches before it leaves the petal, or the petal's
+         * length for a ray past either of its edges.
+         *
+         * @param angle the ray's angle, clockwise from the top
+         * @return the distance in normalized units
+         */
+        double reachOrLength(double angle) {
+            // measured from the middle, so an edge angle a few ULPs either side can't wrap a full turn
+            double offset = Math.IEEEremainder(angle - start - arc * HALF, TWO_PI) + arc * HALF;
+            if (offset < -EDGE_SLACK || offset > arc + EDGE_SLACK) {
+                return outer;
+            }
+            return reach(start + Math.max(0.0, Math.min(arc, offset)));
+        }
 
         @Override
         public boolean contains(double x, double y) {
             double distance = Math.hypot(x, y);
-            if (distance < inner || distance > outer) {
+            double angle = RadialWheel.angleOf(x, y);
+            if (distance < innerReach(angle) || distance > outer) {
                 return false;
             }
-            if (wrap(RadialWheel.angleOf(x, y) - start) >= arc) {
+            double offset = wrap(angle - start);
+            if (offset >= arc) {
                 return false;
             }
-            return !isRound() || isInsideStem(x, y) || capDepth(x, y) >= 0;
-        }
-
-        @Override
-        public double depth(double x, double y) {
-            double depth = Math.min(Math.hypot(x, y) - inner,
-                    Math.min(rayDistance(x, y, start), rayDistance(x, y, start + arc)));
-            if (!isRound()) {
-                return Math.min(depth, outer - Math.hypot(x, y));
-            }
-            return isInsideStem(x, y) ? depth : Math.min(depth, capDepth(x, y));
+            boolean startSide = offset < arc * HALF;
+            double fromEdge = startSide ? offset : arc - offset;
+            return fromEdge >= cornerTurn() || isInsideCorner(x, y, startSide);
         }
 
         /**
-         * Whether the wedge ends in a cap; one at least a half turn wide has no tip to round.
+         * Whether a point in a corner's zone, between the edge and the ray
+         * through the fillet's center, clears the corner: short of where the
+         * fillet meets the edge, or inside the fillet.
          *
-         * @return true for a wedge narrower than a half turn
+         * @param x         normalized x
+         * @param y         normalized y, down positive
+         * @param startSide true when the point lies on the start edge's half
+         * @return true when the corner's rounding does not cut the point off
          */
-        private boolean isRound() {
-            return arc < Math.PI;
-        }
-
-        private double sinHalf() {
-            return Math.sin(arc * HALF);
+        private boolean isInsideCorner(double x, double y, boolean startSide) {
+            double edge = startSide ? start : start + arc;
+            double alongEdge = x * Math.sin(edge) - y * Math.cos(edge);
+            if (alongEdge <= cornerCenterDistance() * Math.cos(cornerTurn())) {
+                return true;
+            }
+            Point center = cornerCenter(startSide);
+            return Math.hypot(x - center.x(), y - center.y()) <= cornerRadius();
         }
 
         /**
-         * Distance from the wheel's center to the cap circle's center, along the wedge's center angle.
+         * How far a ray from the wheel's center at an angle within the
+         * wedge reaches before it leaves the petal: the far side of a corner's
+         * fillet near the edges, the outer radius across the blunt tip.
+         * decision petals-render-the-live-fluid
+         *
+         * @param angle the ray's angle, clockwise from the top, within the wedge
+         * @return the distance in normalized units
+         */
+        double reach(double angle) {
+            double offset = angle - start;
+            double fromEdge = Math.min(offset, arc - offset);
+            double turn = cornerTurn();
+            if (fromEdge >= turn) {
+                return outer;
+            }
+            double d = cornerCenterDistance();
+            double across = d * Math.sin(turn - fromEdge);
+            double radius = cornerRadius();
+            return d * Math.cos(turn - fromEdge) + Math.sqrt(Math.max(0.0, radius * radius - across * across));
+        }
+
+        /**
+         * The petal's far boundary from its start edge to its end edge,
+         * sampled evenly by the direction it turns through, so a tight fillet
+         * reads as round as the broad tip: the start corner's fillet, the
+         * blunt tip along the outer circle, the end corner's fillet.
+         * decision wedges-round-off-like-petals
+         *
+         * @param segments the segments the far boundary is cut into
+         * @return segments + 1 points, the first on the start edge, the last on the end edge
+         */
+        List<Point> capSamples(int segments) {
+            double turn = cornerTurn();
+            double cornerTurning = QUARTER_TURN + turn;
+            double tipTurning = arc - turn - turn;
+            double total = cornerTurning + cornerTurning + tipTurning;
+            List<Point> points = new ArrayList<>(segments + 1);
+            for (int i = 0; i <= segments; i++) {
+                double turned = total * i / segments;
+                if (turned <= cornerTurning) {
+                    points.add(filletPoint(true, start - QUARTER_TURN + turned));
+                } else if (turned <= cornerTurning + tipTurning) {
+                    points.add(Point.polar(start + turn + turned - cornerTurning, outer));
+                } else {
+                    points.add(filletPoint(false, start + arc - turn + turned - cornerTurning - tipTurning));
+                }
+            }
+            return points;
+        }
+
+        private Point filletPoint(boolean startSide, double filletAngle) {
+            Point center = cornerCenter(startSide);
+            double radius = cornerRadius();
+            return new Point(center.x() + Math.sin(filletAngle) * radius, center.y() - Math.cos(filletAngle) * radius);
+        }
+
+        /**
+         * The point at the center of the petal's round tip: the fillet's
+         * center for a narrow petal whose fillets meet, kept no nearer the hub
+         * than midway along the band.
+         *
+         * @return the tip's center
+         */
+        Point tipCenter() {
+            double midway = (inner + outer) * HALF;
+            return Point.polar(start + arc * HALF, Math.max(outer - cornerRadius(), midway));
+        }
+
+        /**
+         * The center of a corner's fillet.
+         *
+         * @param startSide true for the start edge's corner, false for the end edge's
+         * @return the fillet's center
+         */
+        Point cornerCenter(boolean startSide) {
+            double turn = cornerTurn();
+            return Point.polar(startSide ? start + turn : start + arc - turn, cornerCenterDistance());
+        }
+
+        /**
+         * A corner's fillet radius: the circle tangent to both edges for a
+         * narrow petal, at most {@link #MAX_CORNER} of the band for a wide
+         * one, none for a wedge at least a half turn wide.
+         * decision petal-moves-animate
+         * decision wedges-round-off-like-petals
+         *
+         * @return the radius in normalized units
+         */
+        double cornerRadius() {
+            if (arc >= Math.PI) {
+                return 0.0;
+            }
+            double sinHalf = Math.sin(arc * HALF);
+            double tangent = outer * sinHalf / (1.0 + sinHalf);
+            return Math.min(tangent, MAX_CORNER * (outer - RadialWheel.HUB_FRACTION));
+        }
+
+        /**
+         * How far a fillet's center sits from the wheel's center: one radius
+         * short of the outer circle it touches.
          *
          * @return the distance in normalized units
          */
-        private double capCenter() {
-            return outer / (1.0 + sinHalf());
+        private double cornerCenterDistance() {
+            return outer - cornerRadius();
         }
 
         /**
-         * Whether a point lies short of the line joining the cap's two tangent points.
+         * The angle from an edge to its fillet's center, as seen from the
+         * wheel's center: half the wedge when the fillets meet on the center line.
          *
-         * @param x normalized x
-         * @param y normalized y, down positive
-         * @return true on the wheel's center side of that line
+         * @return the angle in radians
          */
-        private boolean isInsideStem(double x, double y) {
-            double cosHalf = Math.cos(arc * HALF);
-            return along(x, y) <= capCenter() * cosHalf * cosHalf;
-        }
-
-        private double along(double x, double y) {
-            double center = start + arc * HALF;
-            return x * Math.sin(center) - y * Math.cos(center);
+        private double cornerTurn() {
+            double d = cornerCenterDistance();
+            return d <= 0 ? 0.0 : Math.min(arc * HALF, Math.asin(Math.min(1.0, cornerRadius() / d)));
         }
 
         /**
-         * How far inside the cap circle a point lies.
+         * The petal's closed outline: the inner arc from the start edge to the
+         * end edge, the end edge out to its fillet, the far boundary back to
+         * the start edge, and the start edge in to the inner arc.
+         * decision petals-render-the-live-fluid
+         * decision wedges-round-off-like-petals
          *
-         * @param x normalized x
-         * @param y normalized y, down positive
-         * @return the distance to the cap circle, negative outside it
+         * @param segments the segments each straight or inner side is cut into;
+         *                 the far boundary takes {@link #CAP_SEGMENTS_PER_SIDE} times as many
+         * @return the outline's points in order, the last joining back to the first
          */
-        private double capDepth(double x, double y) {
-            double center = start + arc * HALF;
-            double capCenter = capCenter();
-            return capCenter * sinHalf()
-                    - Math.hypot(x - Math.sin(center) * capCenter, y + Math.cos(center) * capCenter);
+        List<Point> outline(int segments) {
+            List<Point> cap = capSamples(segments * CAP_SEGMENTS_PER_SIDE);
+            List<Point> points = new ArrayList<>(segments * OUTLINE_SIDES + cap.size());
+            for (double angle : innerAngles(segments)) {
+                points.add(Point.polar(angle, innerReach(angle)));
+            }
+            addSpoke(points, Point.polar(start + arc, innerReach(start + arc)), cap.getLast(), segments);
+            for (int i = cap.size() - 1; i > 0; i--) {
+                points.add(cap.get(i));
+            }
+            addSpoke(points, cap.getFirst(), Point.polar(start, innerReach(start)), segments);
+            return points;
         }
 
-        private static double rayDistance(double x, double y, double angle) {
-            double dirX = Math.sin(angle);
-            double dirY = -Math.cos(angle);
-            return x * dirX + y * dirY <= 0 ? Math.hypot(x, y) : Math.abs(x * dirY - y * dirX);
-        }
-    }
-
-    /** The pixels a fill tiles: a sprite's first frame, or a solid color. */
-    interface PixelSource {
         /**
-         * The source's width.
+         * The angles the inner boundary is sampled at, from the start edge up
+         * to the end edge: evenly, and wherever the root's far boundary bends,
+         * so an inner boundary following a root's rounded corner reads round.
          *
-         * @return the width in pixels
+         * @param segments the even steps across the wedge
+         * @return the angles in order, the end edge's left out
          */
-        int width();
-
-        /**
-         * The source's height.
-         *
-         * @return the height in pixels
-         */
-        int height();
-
-        /**
-         * One pixel of the source.
-         *
-         * @param x the pixel's x, within the width
-         * @param y the pixel's y, within the height
-         * @return the ARGB pixel
-         */
-        int pixel(int x, int y);
-
-        /**
-         * A one-pixel source of a single color.
-         *
-         * @param argb the color
-         * @return the source
-         */
-        static PixelSource solid(int argb) {
-            return new PixelSource() {
-                @Override
-                public int width() {
-                    return 1;
+        List<Double> innerAngles(int segments) {
+            List<Double> angles = new ArrayList<>();
+            for (int i = 0; i < segments; i++) {
+                angles.add(start + arc * i / segments);
+            }
+            if (root != null) {
+                for (Point bend : root.capSamples(segments * CAP_SEGMENTS_PER_SIDE)) {
+                    double offset = wrap(RadialWheel.angleOf(bend.x(), bend.y()) - start);
+                    if (offset > 0 && offset < arc) {
+                        angles.add(start + offset);
+                    }
                 }
+                angles.sort(Double::compare);
+            }
+            return angles;
+        }
 
-                @Override
-                public int height() {
-                    return 1;
-                }
-
-                @Override
-                public int pixel(int x, int y) {
-                    return argb;
-                }
-            };
+        private static void addSpoke(List<Point> points, Point from, Point to, int segments) {
+            for (int i = 0; i < segments; i++) {
+                points.add(new Point(from.x() + (to.x() - from.x()) * i / segments,
+                        from.y() + (to.y() - from.y()) * i / segments));
+            }
         }
     }
 }
