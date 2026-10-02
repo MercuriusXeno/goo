@@ -3,7 +3,11 @@ package com.mercuriusxeno.goo.client.ber;
 import com.mercuriusxeno.goo.ability.program.ProgressiveAreaStep;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
+import com.mercuriusxeno.goo.client.ability.BurnoutVisual;
+import com.mercuriusxeno.goo.client.ability.BurnoutVisuals;
+import com.mercuriusxeno.goo.client.ability.ChainBurnouts;
 import com.mercuriusxeno.goo.client.ability.CrystalCloudVisual;
+import com.mercuriusxeno.goo.client.ability.DomeRamp;
 import com.mercuriusxeno.goo.client.ability.FuseOrbVisual;
 import com.mercuriusxeno.goo.client.ability.GhostMineVisual;
 import com.mercuriusxeno.goo.client.ability.MetalSpikeVisual;
@@ -100,6 +104,26 @@ public class ChainMarkerBlockEntityRenderer
         state.lastLayerTick = be.getMinedLayersChangedAt();
     }
 
+    /**
+     * Submits the burnout dome's startup frames over the fuse's last ticks,
+     * so the burnout meets a dome already drawn (decision
+     * dome-fades-in-before-its-start).
+     *
+     * @param state         the render state
+     * @param poseStack     the pose stack, at the block's corner
+     * @param nodeCollector the render node collector
+     */
+    private static void submitDomeRamp(ChainMarkerRenderState state, PoseStack poseStack,
+                                       SubmitNodeCollector nodeCollector) {
+        if (state.domeRamp.isEmpty() || state.domeRamp.getAsDouble() <= 0) {
+            return;
+        }
+        BurnoutVisual visual = BurnoutVisuals.forType(state.gooType);
+        ChainBurnouts.Burnout burnout = new ChainBurnouts.Burnout(state.blockPos, state.placedFace,
+                state.abilityId, state.stackCount, 0L, visual);
+        visual.submitRamp(burnout, (float) state.domeRamp.getAsDouble(), poseStack, nodeCollector);
+    }
+
     @Override
     public ChainMarkerRenderState createRenderState() {
         return new ChainMarkerRenderState();
@@ -131,6 +155,9 @@ public class ChainMarkerBlockEntityRenderer
         BlockEntityRenderState.extractBase(be, state, breakProgress);
         extractCoreFields(be, state, partialTick);
         extractTargetAndFace(be, state);
+        state.abilityId = be.getAbilityId();
+        state.domeRamp = DomeRamp.rampAt(state.fuseRemaining, partialTick,
+                ChainBurnouts.CLIENT.playsBurnout(state.abilityId), state.behaviorActive);
         MetalSpikeVisual.extract(be, state);
         CrystalCloudVisual.extract(be, state);
         NetherHoleStyles.active().extract(be, state);
@@ -144,6 +171,7 @@ public class ChainMarkerBlockEntityRenderer
             return;
         }
         FuseOrbVisual.submit(state, poseStack, nodeCollector);
+        submitDomeRamp(state, poseStack, nodeCollector);
         if (state.crystalActive) {
             CrystalCloudVisual.submit(state, poseStack, nodeCollector);
         }

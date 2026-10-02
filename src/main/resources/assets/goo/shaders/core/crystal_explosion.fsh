@@ -10,6 +10,7 @@ in vec3 viewPos;
 in vec3 viewNormal;
 in vec3 surfaceDir;
 in float progress;
+in float opacity;
 in float shattered;
 
 out vec4 fragColor;
@@ -74,5 +75,5 @@ void main() {
     color = mix(color, GLINT_COLOR, glint);
 
     float alpha = GLASS_OPACITY + EDGE_OPACITY * edge + glint * 0.5;
-    fragColor = vec4(color, clamp(alpha, 0.0, 1.0));
+    fragColor = vec4(color, clamp(alpha, 0.0, 1.0) * opacity);
 }

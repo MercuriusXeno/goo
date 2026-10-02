@@ -8,6 +8,7 @@
 
 in vec3 surfaceDir;
 in float progress;
+in float opacity;
 in float brightness;
 flat in vec3 faceUp;
 
@@ -41,5 +42,5 @@ void main() {
 
     vec3 color = mix(BASE_COLOR, BODY_COLOR, smoothstep(0.0, 0.5, height));
     color = mix(color, CROWN_COLOR, smoothstep(0.5, 1.0, height));
-    fragColor = vec4(color * AURORA_INTENSITY, clamp(curtain * brightness, 0.0, 1.0));
+    fragColor = vec4(color * AURORA_INTENSITY, clamp(curtain * brightness, 0.0, 1.0) * opacity);
 }
