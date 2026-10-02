@@ -12,9 +12,13 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.EquipmentSlotGroup;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.ItemAttributeModifiers;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import org.jspecify.annotations.NonNull;
@@ -32,6 +36,50 @@ public class GooGloveItem extends Item {
     private static final float PICKUP_VOLUME = 0.5f;
     /** Recollect pickup sound pitch. */
     private static final float PICKUP_PITCH = 1.2f;
+
+    /**
+     * The glove tiers, each spelling the attack damage its main-hand melee
+     * hit adds over the fist.
+     * decision glove-damage-by-tier
+     */
+    public enum GloveTier {
+        /** The goo glove. */
+        GLOVE(2),
+        /** The goo gauntlet. */
+        GAUNTLET(4),
+        /** The exo gauntlet. */
+        EXO_GAUNTLET(6);
+
+        private final double attackDamageBonus;
+
+        GloveTier(double attackDamageBonus) {
+            this.attackDamageBonus = attackDamageBonus;
+        }
+
+        /**
+         * The attack damage this tier adds to a main-hand melee hit.
+         *
+         * @return the bonus in half hearts
+         */
+        public double attackDamageBonus() {
+            return attackDamageBonus;
+        }
+    }
+
+    /**
+     * The tier's main-hand attack damage modifier, carried by vanilla's base
+     * attack damage id the way a sword carries its damage.
+     * decision glove-damage-by-tier
+     *
+     * @param tier the glove tier
+     * @return the item's attribute modifiers
+     */
+    public static ItemAttributeModifiers attackModifiers(GloveTier tier) {
+        return ItemAttributeModifiers.builder()
+                .add(Attributes.ATTACK_DAMAGE, new AttributeModifier(BASE_ATTACK_DAMAGE_ID,
+                        tier.attackDamageBonus(), AttributeModifier.Operation.ADD_VALUE), EquipmentSlotGroup.MAINHAND)
+                .build();
+    }
 
     /**
      * Creates a goo glove item with the given properties.
