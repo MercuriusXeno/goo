@@ -30,7 +30,9 @@ import java.util.stream.Stream;
  * <p>The metal trap strikes one entity per ten-tick cooldown, landing a
  * stalagmite impale six ticks after choosing it; the crystal cloud shreds
  * every moving entity each second tick, each tick for a sprinting player,
- * eight shreds to a goo, expanding and contracting over ten ticks.
+ * eight shreds to a goo, each bursting crit particles off the struck
+ * entity, expanding and contracting over ten ticks.
+ * Decision razor-shred-bursts-crit.
  *
  * @param radius      the selection radius in blocks
  * @param where       the filters an entity must pass to be struck
