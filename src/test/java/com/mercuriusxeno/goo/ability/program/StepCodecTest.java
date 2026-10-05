@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.ability.hearts.HeartKind;
 import com.mojang.datafixers.util.Unit;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
@@ -85,7 +86,8 @@ class StepCodecTest {
                     List.of(new DropItemStep(DropItemStep.SPAWN_EGG, Expr.literal(1)), LeafSteps.DISCARD.step(Unit.INSTANCE)),
                     List.of(LeafSteps.SET_AI.step(false)))),
             Map.entry("discard", LeafSteps.DISCARD.step(Unit.INSTANCE)),
-            Map.entry("set_baby", LeafSteps.SET_BABY.step(true))
+            Map.entry("set_baby", LeafSteps.SET_BABY.step(true)),
+            Map.entry("heart_overlay", new HeartOverlayStep(HeartKind.KINDLE, Expr.literal(1200)))
     );
 
     private static Step roundTrip(Step step) {

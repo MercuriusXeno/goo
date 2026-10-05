@@ -248,15 +248,27 @@ public final class SelfDeliveryTests {
      * @param ability the ability the glove selects
      * @return the player
      */
-    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
-    private static ServerPlayer invoker(GameTestHelper helper, ResourceKey<GooTypeDefinition> gooType,
+    static ServerPlayer invoker(GameTestHelper helper, ResourceKey<GooTypeDefinition> gooType,
             Identifier ability) {
+        ServerPlayer player = invoker(helper, gooType);
+        GooGloveItem.setSelection(player.getMainHandItem(), GloveSelection.ofAbility(gooType, ability));
+        return player;
+    }
+
+    /**
+     * A mock player standing in the bay, holding a glove with no selection
+     * and two costs of the type in its inventory.
+     *
+     * @param helper  the gametest helper
+     * @param gooType the goo type the player holds
+     * @return the player
+     */
+    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
+    static ServerPlayer invoker(GameTestHelper helper, ResourceKey<GooTypeDefinition> gooType) {
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(STAND_POS));
         player.setPos(stand.x, stand.y, stand.z);
-        ItemStack glove = new ItemStack(GooItems.GOO_GLOVE.get());
-        GooGloveItem.setSelection(glove, GloveSelection.ofAbility(gooType, ability));
-        player.setItemInHand(InteractionHand.MAIN_HAND, glove);
+        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.GOO_GLOVE.get()));
         player.getInventory().add(GooStacks.createForOutput(gooType, HELD_GOO * GooStacks.THOUSAND));
         return player;
     }
