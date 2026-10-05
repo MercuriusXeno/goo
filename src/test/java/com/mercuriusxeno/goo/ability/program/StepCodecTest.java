@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.ability.hearts.HeartKind;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.datafixers.util.Unit;
 import com.google.gson.JsonElement;
@@ -91,7 +92,8 @@ class StepCodecTest {
             Map.entry("ailment_overlay", new AilmentOverlayStep(AilmentKind.HEX,
                     Expr.parse("20 * 60 / pow(health, 0.4)").getOrThrow())),
             Map.entry("afterimage", new AfterimageStep(GooTypes.HEX, Expr.literal(20))),
-            Map.entry("ghost_trail", new GhostTrailStep(GooTypes.ENDER, Expr.literal(30)))
+            Map.entry("ghost_trail", new GhostTrailStep(GooTypes.ENDER, Expr.literal(30))),
+            Map.entry("heart_overlay", new HeartOverlayStep(HeartKind.KINDLE, Expr.literal(1200)))
     );
 
     private static Step roundTrip(Step step) {
