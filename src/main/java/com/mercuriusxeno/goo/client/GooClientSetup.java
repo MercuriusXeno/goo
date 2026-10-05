@@ -15,6 +15,7 @@ import com.mercuriusxeno.goo.client.ability.MobCoats;
 import com.mercuriusxeno.goo.client.ability.MobShells;
 import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
 import com.mercuriusxeno.goo.client.ability.Transformations;
+import com.mercuriusxeno.goo.client.ability.ViewportRipples;
 import com.mercuriusxeno.goo.client.ber.*;
 import com.mercuriusxeno.goo.client.model.*;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
@@ -376,6 +377,7 @@ public final class GooClientSetup {
         Afterimages.CLIENT.clear();
         Transformations.CLIENT.clear();
         GhostTrails.CLIENT.clear();
+        ViewportRipples.CLIENT.clear();
         ThrowFreezeState.clear();
     }
 

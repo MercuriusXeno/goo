@@ -42,7 +42,7 @@ class AfterimagesTest {
         void oneSilhouetteStandsWhenTheRippleIsLeft() {
             List<Afterimages.Pulse> pulses = ripple().pulses(LEFT_AT);
 
-            assertEquals(List.of(new Afterimages.Pulse(0f, 0xFF)), pulses);
+            assertEquals(List.of(new Afterimages.Pulse(0f, 0xFF, 0f)), pulses);
         }
 
         @Test

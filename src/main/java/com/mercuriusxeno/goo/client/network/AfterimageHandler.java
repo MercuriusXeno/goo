@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.network;
 
 import com.mercuriusxeno.goo.client.ability.Afterimages;
+import com.mercuriusxeno.goo.client.ability.ViewportRipples;
 import com.mercuriusxeno.goo.network.AfterimagePayload;
 import com.mercuriusxeno.goo.type.GooColors;
 import net.minecraft.client.Minecraft;
@@ -35,6 +36,9 @@ public final class AfterimageHandler {
             }
             int rgb = GooColors.get(mc.level.registryAccess(), payload.gooType());
             Afterimages.CLIENT.add(snapshot, payload.position(), rgb, mc.level.getGameTime(), payload.lifeTicks());
+            if (mc.player != null) {
+                ViewportRipples.CLIENT.onAfterimage(payload.entityId(), mc.player.getId(), rgb, mc.level.getGameTime());
+            }
         });
     }
 }
