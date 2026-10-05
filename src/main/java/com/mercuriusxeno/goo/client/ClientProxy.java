@@ -1,6 +1,9 @@
 package com.mercuriusxeno.goo.client;
 
 import com.mercuriusxeno.goo.ISidedProxy;
+import com.mercuriusxeno.goo.ability.Delivery;
+import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
+import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.InteractionHand;
@@ -21,5 +24,11 @@ public final class ClientProxy implements ISidedProxy {
     @Override
     public void pressGlove(InteractionHand hand) {
         GloveUseTracker.pressGlove(hand);
+    }
+
+    @Override
+    public @Nullable Delivery syncedDelivery(String abilityId) {
+        ClientAbility ability = AbilitySyncHandler.findAbility(abilityId);
+        return ability == null ? null : ability.delivery();
     }
 }
