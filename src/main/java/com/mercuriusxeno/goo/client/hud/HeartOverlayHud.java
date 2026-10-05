@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.hud;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.hearts.HeartKind;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.client.Minecraft;
@@ -19,12 +20,15 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.neoforged.neoforge.client.gui.GuiLayer;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Draws a standing heart overlay over the vanilla health bar: while Kindle
- * stands, each real heart reads ash and each shielded one reads ember
- * (decisions overlay-hearts-are-an-elemental-overshield and
- * kindle-ember-hearts-ash-and-retaliate). The layer wraps vanilla's health
+ * stands, each real heart reads ash and each shielded one reads ember, and
+ * while Barkskin stands each shielded heart reads bark (decisions
+ * overlay-hearts-are-an-elemental-overshield, kindle-ember-hearts-ash-and-retaliate
+ * and barkskin-bark-hearts-thorn-and-burn). The layer wraps vanilla's health
  * layer and lays its sprites on the slots vanilla drew, mirroring vanilla's
  * slot layout, low-health jiggle and regeneration bounce.
  */
@@ -36,6 +40,8 @@ public final class HeartOverlayHud {
     private static final Identifier EMBER_HALF = sprite("ember_half");
     private static final Identifier ASH_FULL = sprite("ash_full");
     private static final Identifier ASH_HALF = sprite("ash_half");
+    private static final Identifier BARK_FULL = sprite("bark_full");
+    private static final Identifier BARK_HALF = sprite("bark_half");
     private static final int HEART_SIZE = 9;
     /** A slot index no slot holds, for a bar with no regeneration bounce. */
     private static final int NO_BOUNCE = -1;
@@ -123,18 +129,36 @@ public final class HeartOverlayHud {
     }
 
     /**
-     * The sprite an overlay heart draws with: ember over a shielded slot, ash
-     * over a bare real heart, half when the real heart is a half.
+     * The sprites an overlay heart draws, bottom first. The shield shows as
+     * many halves as it holds, never more than the real heart under it:
+     * Kindle lays ash over the whole real heart and ember over its shielded
+     * halves, Barkskin lays bark over its shielded halves and leaves the rest
+     * to vanilla's red heart.
      *
-     * @param ember whether an ember shields the slot
-     * @param half  whether the real heart under it is a half heart
-     * @return the sprite
+     * @param kind         the overlay's kind
+     * @param shieldHalves the half hearts of shield over the slot
+     * @param realHalves   the half hearts of real health in the slot, one or two
+     * @return the sprites, bottom first
      */
-    static Identifier heartSprite(boolean ember, boolean half) {
-        if (ember) {
-            return half ? EMBER_HALF : EMBER_FULL;
+    static List<Identifier> heartSprites(HeartKind kind, int shieldHalves, int realHalves) {
+        int shown = Math.min(shieldHalves, realHalves);
+        List<Identifier> sprites = new ArrayList<>();
+        if (kind == HeartKind.BARKSKIN) {
+            // barkskin-bark-hearts-thorn-and-burn: bark hearts wear oak bark over normal hearts
+            addHalves(sprites, shown, BARK_HALF, BARK_FULL);
+            return sprites;
         }
-        return half ? ASH_HALF : ASH_FULL;
+        addHalves(sprites, realHalves, ASH_HALF, ASH_FULL);
+        addHalves(sprites, shown, EMBER_HALF, EMBER_FULL);
+        return sprites;
+    }
+
+    private static void addHalves(List<Identifier> sprites, int halves, Identifier half, Identifier full) {
+        if (halves >= HeartOverlay.FULL_SHIELD) {
+            sprites.add(full);
+        } else if (halves > 0) {
+            sprites.add(half);
+        }
     }
 
     private static void paint(GuiGraphicsExtractor graphics, Gui gui, LocalPlayer player, HeartOverlay overlay,
@@ -151,9 +175,11 @@ public final class HeartOverlayHud {
                 ? gui.getGuiTicks() % Mth.ceil(maxHealth + REGEN_BOUNCE_PAD) : NO_BOUNCE;
         for (int slot = 0; slot < HeartOverlay.filledSlots(health); slot++) {
             int y = slotY(slot, yBase, rowHeight) + jiggle[slot] - (slot == bounceSlot ? REGEN_BOUNCE : 0);
-            boolean half = slot * HALF + 1 == health;
-            graphics.blitSprite(RenderPipelines.GUI_TEXTURED, heartSprite(overlay.emberAt(slot), half),
-                    slotX(slot, xLeft), y, HEART_SIZE, HEART_SIZE);
+            int x = slotX(slot, xLeft);
+            int realHalves = Math.min(HeartOverlay.FULL_SHIELD, health - slot * HALF);
+            for (Identifier sprite : heartSprites(overlay.kind(), overlay.shieldAt(slot), realHalves)) {
+                graphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x, y, HEART_SIZE, HEART_SIZE);
+            }
         }
     }
 

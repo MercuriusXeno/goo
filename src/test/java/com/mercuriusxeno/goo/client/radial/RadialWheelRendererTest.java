@@ -151,7 +151,7 @@ class RadialWheelRendererTest {
                 Map.entry("frost_tunnel", "Wave"), Map.entry("frost_flat", "Nova"),
                 Map.entry("frost_snap", "Snap"), Map.entry("glow_crystal", "Bulb"),
                 Map.entry("glow_laser", "Beam"), Map.entry("hex_charm", "Charm"),
-                Map.entry("leaf_entangle", "Vines"), Map.entry("metal_spikes", "Urchin"),
+                Map.entry("leaf_entangle", "Vines"), Map.entry("leaf_barkskin", "Barkskin"), Map.entry("metal_spikes", "Urchin"),
                 Map.entry("metal_javelin", "Dart"), Map.entry("nether_black_hole", "Anti"),
                 Map.entry("nether_wither", "Wither"), Map.entry("pulse_short_circuit", "Zap"),
                 Map.entry("rock_tunnel", "Bore"), Map.entry("rock_flat", "Disc"),

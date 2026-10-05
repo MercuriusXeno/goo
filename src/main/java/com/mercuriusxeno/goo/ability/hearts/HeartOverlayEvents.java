@@ -6,8 +6,10 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.DamageTypeTags;
+import net.minecraft.tags.ItemTags;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
@@ -17,10 +19,10 @@ import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 
 /**
  * Runs a player's heart overlay against the world: hits drain it before real
- * health, a melee attacker burns on its embers, and each tick ends it at
- * expiry, quenches it in water and reignites its ash (decisions
- * overlay-hearts-are-an-elemental-overshield and
- * kindle-ember-hearts-ash-and-retaliate).
+ * health, a melee attacker pays for its shields, and each tick ends it at
+ * expiry, quenches it in water and regrows its shields (decisions
+ * overlay-hearts-are-an-elemental-overshield, aggravated-damage-is-a-per-heart-rule,
+ * kindle-ember-hearts-ash-and-retaliate and barkskin-bark-hearts-thorn-and-burn).
  */
 @EventBusSubscriber(modid = Goo.MODID)
 public final class HeartOverlayEvents {
@@ -33,8 +35,9 @@ public final class HeartOverlayEvents {
     }
 
     /**
-     * Burns a mob that strikes a kindled player at melee reach for fire damage
-     * by the ember count, read before the hit breaks one.
+     * Spares an all-ember bar from fire, and makes a mob that strikes at melee
+     * reach pay by the shield count read before the hit breaks one: fire for
+     * Kindle's embers, thorns for Barkskin's bark.
      *
      * @param event the incoming damage event
      */
@@ -49,18 +52,27 @@ public final class HeartOverlayEvents {
             player.clearFire();
             return;
         }
-        int embers = overlay.emberCount();
+        float shields = overlay.shieldHearts();
         Mob attacker = meleeAttacker(event.getSource(), player);
-        if (embers > 0 && attacker != null) {
+        if (shields > 0f && attacker != null) {
+            retaliate(overlay.kind(), player, attacker, shields);
+        }
+    }
+
+    private static void retaliate(HeartKind kind, ServerPlayer player, Mob attacker, float shields) {
+        if (kind == HeartKind.KINDLE) {
             // kindle-ember-hearts-ash-and-retaliate: retaliatory fire by the number of ember hearts
-            attacker.hurtServer(player.level(), player.damageSources().inFire(), embers);
+            attacker.hurtServer(player.level(), player.damageSources().inFire(), shields);
             attacker.igniteForSeconds(RETALIATION_BURN_SECONDS);
+        } else {
+            // barkskin-bark-hearts-thorn-and-burn: thorns equal to the bark heart count
+            attacker.hurtServer(player.level(), player.damageSources().thorns(player), shields);
         }
     }
 
     /**
-     * Answers whether a hit is fire landing on a bar that is all ember, which
-     * fire cannot hurt.
+     * Answers whether a hit is fire landing on a kindled bar that is all ember,
+     * which fire cannot hurt.
      *
      * @param source  the damage source
      * @param player  the struck player
@@ -69,7 +81,8 @@ public final class HeartOverlayEvents {
      */
     private static boolean fireSparesTheBar(DamageSource source, ServerPlayer player, HeartOverlay overlay) {
         // kindle-ember-hearts-ash-and-retaliate: fire hurts only a bar that is not all ember
-        return overlay.stands() && source.is(DamageTypeTags.IS_FIRE) && overlay.allEmber(player.getHealth());
+        return overlay.stands() && overlay.kind() == HeartKind.KINDLE && source.is(DamageTypeTags.IS_FIRE)
+                && overlay.allShielded(player.getHealth());
     }
 
     /**
@@ -89,7 +102,7 @@ public final class HeartOverlayEvents {
     }
 
     /**
-     * Drains a hit through the overlay before real health and passes on what
+     * Runs a hit through the overlay before real health and passes on what
      * gets through.
      *
      * @param event the damage event, after armor and before absorption
@@ -100,11 +113,8 @@ public final class HeartOverlayEvents {
             return;
         }
         HeartOverlay overlay = player.getData(GooAttachments.HEART_OVERLAY);
-        long now = player.level().getGameTime();
-        HeartOverlay.Drained drained = event.getSource().is(DamageTypeTags.IS_FIRE)
-                ? overlay.burn(event.getNewDamage(), player.getHealth(), now)
-                : overlay.drain(event.getNewDamage(), now);
-        if (drained.overlay().igniteReadyAt() != overlay.igniteReadyAt()) {
+        HeartOverlay.Drained drained = strike(overlay, event.getSource(), event.getNewDamage(), player);
+        if (drained.overlay().fireReadyAt() != overlay.fireReadyAt()) {
             // the fire that paid for a relight goes out, so its ticks cannot pay again
             player.clearFire();
         }
@@ -114,15 +124,39 @@ public final class HeartOverlayEvents {
         event.setNewDamage(drained.remainder());
     }
 
+    private static HeartOverlay.Drained strike(HeartOverlay overlay, DamageSource source, float damage,
+                                               ServerPlayer player) {
+        long now = player.level().getGameTime();
+        if (overlay.kind() == HeartKind.KINDLE && source.is(DamageTypeTags.IS_FIRE)) {
+            return overlay.burn(damage, player.getHealth(), now);
+        }
+        if (overlay.kind() == HeartKind.BARKSKIN && burnsBark(source)) {
+            return overlay.aggravate(damage, now);
+        }
+        return overlay.drain(damage, now);
+    }
+
     /**
-     * Brings health a burning player regains back as ember hearts.
+     * Answers whether a hit is one bark is especially weak to: fire, or a
+     * weapon in the axes tag, since axes carry no damage type of their own.
+     *
+     * @param source the damage source
+     * @return true when the hit is aggravated against bark
+     */
+    private static boolean burnsBark(DamageSource source) {
+        ItemStack weapon = source.getWeaponItem();
+        // barkskin-bark-hearts-thorn-and-burn: fire and axes deal aggravated damage
+        return source.is(DamageTypeTags.IS_FIRE) || weapon != null && weapon.is(ItemTags.AXES);
+    }
+
+    /**
+     * Brings health a burning kindled player regains back as ember hearts.
      *
      * @param event the heal event, before the heal lands
      */
     @SubscribeEvent
     public static void onHeal(LivingHealEvent event) {
-        if (!(event.getEntity() instanceof ServerPlayer player) || !player.hasData(GooAttachments.HEART_OVERLAY)
-                || !(player.isOnFire() || player.isInLava())) {
+        if (!(event.getEntity() instanceof ServerPlayer player) || !burningWithKindle(player)) {
             return;
         }
         HeartOverlay overlay = player.getData(GooAttachments.HEART_OVERLAY);
@@ -132,6 +166,11 @@ public final class HeartOverlayEvents {
         if (lit != overlay) {
             player.setData(GooAttachments.HEART_OVERLAY, lit);
         }
+    }
+
+    private static boolean burningWithKindle(ServerPlayer player) {
+        return (player.isOnFire() || player.isInLava()) && player.hasData(GooAttachments.HEART_OVERLAY)
+                && player.getData(GooAttachments.HEART_OVERLAY).kind() == HeartKind.KINDLE;
     }
 
     /**

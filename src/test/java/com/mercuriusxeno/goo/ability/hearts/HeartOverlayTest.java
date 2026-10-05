@@ -11,41 +11,53 @@ import java.util.List;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-/** Kindle's overlay rules: laying embers, draining hits, quenching, reigniting and expiring (decisions overlay-hearts-are-an-elemental-overshield, kindle-ember-hearts-ash-and-retaliate). */
+/** The overlay's rules in half hearts: laying shields, draining and burning hits, quenching, regrowing and expiring, for Kindle and Barkskin (decisions overlay-hearts-are-an-elemental-overshield, aggravated-damage-is-a-per-heart-rule, kindle-ember-hearts-ash-and-retaliate, barkskin-bark-hearts-thorn-and-burn). */
 class HeartOverlayTest {
 
     private static final long NOW = 1_000L;
     private static final int DURATION = 1_200;
     private static final float FULL_HEALTH = 20f;
+    private static final int FULL_HALVES = 20;
     private static final float DELTA = 1e-6f;
 
-    private static HeartOverlay kindled(float health) {
-        return HeartOverlay.NONE.apply(HeartKind.KINDLE, DURATION, health, NOW);
+    private static HeartOverlay laid(HeartKind kind, float health) {
+        return HeartOverlay.NONE.apply(kind, DURATION, health, NOW);
     }
 
-    private static HeartOverlay withEmbers(int embers, int slots, long reigniteAt) {
-        List<Boolean> flags = new ArrayList<>(Collections.nCopies(slots, Boolean.FALSE));
-        for (int slot = 0; slot < embers; slot++) {
-            flags.set(slot, Boolean.TRUE);
+    private static HeartOverlay kindled(float health) {
+        return laid(HeartKind.KINDLE, health);
+    }
+
+    private static HeartOverlay barked(float health) {
+        return laid(HeartKind.BARKSKIN, health);
+    }
+
+    /** A Kindle overlay over ten slots with the given halves of ember, leftmost first. */
+    private static HeartOverlay kindledWithHalves(int halves, long regrowAt) {
+        List<Integer> shields = new ArrayList<>(Collections.nCopies(10, 0));
+        for (int slot = 0; halves > 0; slot++) {
+            int here = Math.min(HeartOverlay.FULL_SHIELD, halves);
+            shields.set(slot, here);
+            halves -= here;
         }
-        return new HeartOverlay(HeartKind.KINDLE, flags, NOW + DURATION, reigniteAt, NOW);
+        return new HeartOverlay(HeartKind.KINDLE, shields, NOW + DURATION, regrowAt, NOW);
     }
 
     @Nested
     class Apply {
 
         @Test
-        void everyPresentHeartTakesAnEmber() {
+        void everyPresentHeartTakesAFullShield() {
             HeartOverlay overlay = kindled(FULL_HEALTH);
-            assertEquals(10, overlay.emberCount());
+            assertEquals(FULL_HALVES, overlay.shieldHalves());
             assertEquals(NOW + DURATION, overlay.expiresAt());
         }
 
         @Test
         void missingHeartStaysMissing() {
             HeartOverlay overlay = kindled(13f);
-            assertEquals(7, overlay.emberCount());
-            assertFalse(overlay.emberAt(7));
+            assertEquals(14, overlay.shieldHalves());
+            assertEquals(0, overlay.shieldAt(7));
         }
 
         @Test
@@ -53,7 +65,7 @@ class HeartOverlayTest {
             HeartOverlay broken = kindled(FULL_HEALTH).drain(1f, NOW).overlay();
             HeartOverlay stacked = broken.apply(HeartKind.KINDLE, DURATION, FULL_HEALTH, NOW);
             assertEquals(NOW + 2L * DURATION, stacked.expiresAt());
-            assertEquals(broken.embers(), stacked.embers());
+            assertEquals(broken.shields(), stacked.shields());
         }
     }
 
@@ -61,34 +73,26 @@ class HeartOverlayTest {
     class Drain {
 
         @Test
-        void hitBreaksRightmostEmberAndSparesHealth() {
+        void halfAHeartOfDamageStripsHalfAShield() {
             HeartOverlay.Drained drained = kindled(FULL_HEALTH).drain(1f, NOW);
             assertEquals(0f, drained.remainder(), DELTA);
-            assertEquals(9, drained.overlay().emberCount());
-            assertFalse(drained.overlay().emberAt(9));
-            assertTrue(drained.overlay().emberAt(8));
+            assertEquals(1, drained.overlay().shieldAt(9));
+            assertEquals(2, drained.overlay().shieldAt(8));
         }
 
         @Test
-        void hitPastOneEmberWorthBreaksTheNext() {
+        void aBiggerHitStripsHalvesRightmostFirst() {
             HeartOverlay.Drained drained = kindled(FULL_HEALTH).drain(3f, NOW);
             assertEquals(0f, drained.remainder(), DELTA);
-            assertEquals(8, drained.overlay().emberCount());
+            assertEquals(0, drained.overlay().shieldAt(9));
+            assertEquals(1, drained.overlay().shieldAt(8));
         }
 
         @Test
-        void hitPastEveryEmberCostsDouble() {
-            HeartOverlay.Drained drained = withEmbers(1, 10, NOW).drain(3f, NOW);
-            assertEquals(2f, drained.remainder(), DELTA);
-            assertEquals(0, drained.overlay().emberCount());
-        }
-
-        @Test
-        void hitOnBareAshCostsDouble() {
-            HeartOverlay ash = withEmbers(0, 10, NOW);
-            HeartOverlay.Drained drained = ash.drain(1.5f, NOW);
-            assertEquals(3f, drained.remainder(), DELTA);
-            assertSame(ash, drained.overlay());
+        void hitPastEveryShieldCostsAshDouble() {
+            HeartOverlay.Drained drained = kindledWithHalves(1, NOW).drain(3f, NOW);
+            assertEquals(4f, drained.remainder(), DELTA);
+            assertEquals(0, drained.overlay().shieldHalves());
         }
 
         @Test
@@ -97,9 +101,9 @@ class HeartOverlayTest {
         }
 
         @Test
-        void brokenEmberRestartsTheReigniteClock() {
+        void strippedShieldRestartsTheRegrowClock() {
             HeartOverlay drained = kindled(FULL_HEALTH).drain(1f, NOW + 5).overlay();
-            assertEquals(NOW + 5 + HeartOverlay.reigniteInterval(9), drained.reigniteAt());
+            assertEquals(NOW + 5 + HeartKind.KINDLE.regrowInterval(19), drained.regrowAt());
         }
     }
 
@@ -114,36 +118,34 @@ class HeartOverlayTest {
         @Test
         void waterTurnsEveryEmberToAsh() {
             HeartOverlay quenched = kindled(FULL_HEALTH).tick(FULL_HEALTH, true, NOW + 1);
-            assertEquals(0, quenched.emberCount());
-            assertEquals(NOW + 1 + HeartOverlay.reigniteInterval(0), quenched.reigniteAt());
+            assertEquals(0, quenched.shieldHalves());
+            assertEquals(NOW + 1 + HeartKind.KINDLE.regrowInterval(0), quenched.regrowAt());
         }
 
         @Test
         void ashWaitsForItsInterval() {
-            HeartOverlay ash = withEmbers(0, 10, NOW + 1);
+            HeartOverlay ash = kindledWithHalves(0, NOW + 1);
             assertSame(ash, ash.tick(FULL_HEALTH, false, NOW));
         }
 
         @Test
-        void leftmostAshReignitesWhenItsIntervalPasses() {
-            HeartOverlay reignited = withEmbers(2, 10, NOW).tick(FULL_HEALTH, false, NOW);
-            assertEquals(3, reignited.emberCount());
-            assertTrue(reignited.emberAt(2));
-            assertEquals(NOW + HeartOverlay.reigniteInterval(3), reignited.reigniteAt());
+        void leftmostShortHeartRegrowsAHalfWhenItsIntervalPasses() {
+            HeartOverlay regrown = kindledWithHalves(3, NOW).tick(FULL_HEALTH, false, NOW);
+            assertEquals(2, regrown.shieldAt(1));
+            assertEquals(0, regrown.shieldAt(2));
+            assertEquals(NOW + HeartKind.KINDLE.regrowInterval(4), regrown.regrowAt());
         }
 
         @Test
-        void noReigniteWhileWet() {
-            HeartOverlay ash = withEmbers(0, 10, NOW);
+        void noRegrowWhileWet() {
+            HeartOverlay ash = kindledWithHalves(0, NOW);
             assertSame(ash, ash.tick(FULL_HEALTH, true, NOW));
         }
 
         @Test
-        void reigniteReachesOnlyRealHearts() {
-            HeartOverlay ash = withEmbers(0, 10, NOW);
-            HeartOverlay reignited = ash.tick(0.5f, false, NOW);
-            assertTrue(reignited.emberAt(0));
-            HeartOverlay full = withEmbers(1, 10, NOW);
+        void regrowthReachesOnlyRealHearts() {
+            assertEquals(1, kindledWithHalves(0, NOW).tick(0.5f, false, NOW).shieldAt(0));
+            HeartOverlay full = kindledWithHalves(2, NOW);
             assertSame(full, full.tick(1f, false, NOW));
         }
     }
@@ -153,35 +155,37 @@ class HeartOverlayTest {
 
         @Test
         void fireRelightsEveryHeartLeftForOneHeart() {
-            HeartOverlay.Drained burned = withEmbers(2, 10, NOW).burn(1f, FULL_HEALTH, NOW);
+            HeartOverlay.Drained burned = kindledWithHalves(4, NOW).burn(1f, FULL_HEALTH, NOW);
             assertEquals(2f, burned.remainder(), DELTA);
-            assertEquals(9, burned.overlay().emberCount());
-            assertFalse(burned.overlay().emberAt(9));
-            assertEquals(NOW + HeartOverlay.FIRE_REIGNITE_COOLDOWN, burned.overlay().igniteReadyAt());
+            assertEquals(18, burned.overlay().shieldHalves());
+            assertEquals(0, burned.overlay().shieldAt(9));
+            assertEquals(NOW + HeartOverlay.FIRE_RELIGHT_COOLDOWN, burned.overlay().fireReadyAt());
         }
 
         @Test
         void fireInsideItsCooldownIsAnOrdinaryHit() {
-            HeartOverlay relit = withEmbers(2, 10, NOW).burn(1f, FULL_HEALTH, NOW).overlay();
-            HeartOverlay broken = relit.drain(1f, NOW).overlay();
-            HeartOverlay.Drained cooling = broken.burn(1f, 18f, NOW + HeartOverlay.FIRE_REIGNITE_COOLDOWN - 1);
+            HeartOverlay relit = kindledWithHalves(4, NOW).burn(1f, FULL_HEALTH, NOW).overlay();
+            HeartOverlay stripped = relit.drain(1f, NOW).overlay();
+            HeartOverlay.Drained cooling = stripped.burn(1f, 18f, NOW + HeartOverlay.FIRE_RELIGHT_COOLDOWN - 1);
             assertEquals(0f, cooling.remainder(), DELTA);
-            assertEquals(7, cooling.overlay().emberCount());
-            HeartOverlay.Drained ready = broken.burn(1f, 18f, NOW + HeartOverlay.FIRE_REIGNITE_COOLDOWN);
-            assertEquals(8, ready.overlay().emberCount());
+            assertEquals(16, cooling.overlay().shieldHalves());
+            HeartOverlay.Drained ready = stripped.burn(1f, 18f, NOW + HeartOverlay.FIRE_RELIGHT_COOLDOWN);
+            assertEquals(16, ready.overlay().shieldHalves());
+            assertEquals(2f, ready.remainder(), DELTA);
         }
 
         @Test
         void fireOnAnAllEmberBarIsAnOrdinaryHit() {
             HeartOverlay.Drained burned = kindled(FULL_HEALTH).burn(1f, FULL_HEALTH, NOW);
-            assertEquals(9, burned.overlay().emberCount());
-            assertEquals(NOW, burned.overlay().igniteReadyAt());
+            assertEquals(19, burned.overlay().shieldHalves());
+            assertEquals(NOW, burned.overlay().fireReadyAt());
         }
 
         @Test
-        void allEmberMeansNoRealHeartIsAsh() {
-            assertTrue(withEmbers(3, 10, NOW).allEmber(6f));
-            assertFalse(withEmbers(3, 10, NOW).allEmber(7f));
+        void allShieldedMeansNoRealHeartShortOfAFullShield() {
+            assertTrue(kindledWithHalves(6, NOW).allShielded(6f));
+            assertFalse(kindledWithHalves(5, NOW).allShielded(6f));
+            assertFalse(kindledWithHalves(6, NOW).allShielded(7f));
         }
     }
 
@@ -189,32 +193,90 @@ class HeartOverlayTest {
     class HealInFire {
 
         @Test
-        void regainedHeartsComeBackEmber() {
-            HeartOverlay lit = withEmbers(2, 5, NOW).healInFire(10f, 14f);
-            assertTrue(lit.emberAt(5));
-            assertTrue(lit.emberAt(6));
-            assertFalse(lit.emberAt(4));
+        void regainedHeartsComeBackWholeEmber() {
+            HeartOverlay lit = kindledWithHalves(4, NOW).healInFire(10f, 14f);
+            assertEquals(2, lit.shieldAt(5));
+            assertEquals(2, lit.shieldAt(6));
+            assertEquals(0, lit.shieldAt(4));
         }
 
         @Test
         void healWithinAHeartLightsNothing() {
-            HeartOverlay overlay = withEmbers(2, 5, NOW);
+            HeartOverlay overlay = kindledWithHalves(4, NOW);
             assertSame(overlay, overlay.healInFire(9f, 10f));
         }
     }
 
     @Nested
-    class ReigniteInterval {
+    class Barkskin {
 
         @Test
-        void twoSecondsFromNoEmber() {
-            assertEquals(40L, HeartOverlay.reigniteInterval(0));
+        void ordinaryHitStripsBarkAndSparesHealth() {
+            HeartOverlay.Drained drained = barked(FULL_HEALTH).drain(1f, NOW);
+            assertEquals(0f, drained.remainder(), DELTA);
+            assertEquals(19, drained.overlay().shieldHalves());
         }
 
         @Test
-        void eachEmberStandingAddsHalfASecond() {
-            assertEquals(70L, HeartOverlay.reigniteInterval(3));
-            assertEquals(130L, HeartOverlay.reigniteInterval(9));
+        void hitPastEveryBarkCostsSingleAndEndsTheOverlay() {
+            HeartOverlay.Drained drained = barked(4f).drain(6f, NOW);
+            assertEquals(2f, drained.remainder(), DELTA);
+            assertSame(HeartOverlay.NONE, drained.overlay());
+        }
+
+        @Test
+        void aggravatedHitTakesItsWholeAmountAndBurnsItTwiceInHalves() {
+            HeartOverlay.Drained drained = barked(FULL_HEALTH).aggravate(4f, NOW);
+            assertEquals(4f, drained.remainder(), DELTA);
+            assertEquals(12, drained.overlay().shieldHalves());
+            assertEquals(2, drained.overlay().shieldAt(5));
+            assertEquals(0, drained.overlay().shieldAt(6));
+        }
+
+        @Test
+        void halfAHeartOfFireBurnsAWholeBark() {
+            assertEquals(18, barked(FULL_HEALTH).aggravate(1f, NOW).overlay().shieldHalves());
+        }
+
+        @Test
+        void tenFireAtAFullBarLeavesNoBark() {
+            HeartOverlay.Drained drained = barked(FULL_HEALTH).aggravate(10f, NOW);
+            assertEquals(10f, drained.remainder(), DELTA);
+            assertSame(HeartOverlay.NONE, drained.overlay());
+        }
+
+        @Test
+        void barkRegrowsAHalfEveryTwoAndAHalfSeconds() {
+            HeartOverlay stripped = barked(FULL_HEALTH).drain(2f, NOW).overlay();
+            assertEquals(NOW + 50L, stripped.regrowAt());
+            assertSame(stripped, stripped.tick(FULL_HEALTH, false, NOW + 49L));
+            assertEquals(19, stripped.tick(FULL_HEALTH, false, NOW + 50L).shieldHalves());
+        }
+
+        @Test
+        void waterLeavesBarkStanding() {
+            HeartOverlay stripped = barked(FULL_HEALTH).drain(1f, NOW).overlay();
+            assertSame(stripped, stripped.tick(FULL_HEALTH, true, NOW + 1L));
+        }
+    }
+
+    @Nested
+    class RegrowInterval {
+
+        @Test
+        void kindleTakesASecondAHalfFromNoEmber() {
+            assertEquals(20L, HeartKind.KINDLE.regrowInterval(0));
+        }
+
+        @Test
+        void eachEmberHeartAddsAQuarterSecondAHalf() {
+            assertEquals(25L, HeartKind.KINDLE.regrowInterval(2));
+            assertEquals(65L, HeartKind.KINDLE.regrowInterval(18));
+        }
+
+        @Test
+        void barkTakesTwoAndAHalfSecondsAHalf() {
+            assertEquals(50L, HeartKind.BARKSKIN.regrowInterval(7));
         }
     }
 }
