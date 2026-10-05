@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.gametest;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.item.ChrysmTier;
 import com.mercuriusxeno.goo.network.AttackTouchTests;
+import com.mercuriusxeno.goo.network.BarkskinTests;
 import com.mercuriusxeno.goo.network.BlockLandingTests;
 import com.mercuriusxeno.goo.network.GloveSelectTests;
 import com.mercuriusxeno.goo.network.HeartOverlayTests;
@@ -332,6 +333,8 @@ public final class GooTestFunctions {
     private static final String SELF_TYPHOON_PROPEL = "self_typhoon_propel";
     private static final String SELF_KINDLE_SHIELDS = "self_kindle_shields_then_quenches";
     private static final String SELF_KINDLE_BURNS = "self_kindle_burns_the_attacker";
+    private static final String SELF_BARKSKIN_FIRE = "self_barkskin_fire_burns_through_arrow_breaks_bark";
+    private static final String SELF_BARKSKIN_THORNS = "self_barkskin_thorns_and_the_axe";
     private static final String SELF_KINDLE_FIRE = "self_kindle_fire_relights_for_a_heart";
     private static final String STREAM_BLAZE_SPITFIRE = "stream_blaze_spitfire";
     private static final String MOB_CRYSTAL = "mob_crystal_flechettes";
@@ -720,6 +723,8 @@ public final class GooTestFunctions {
         reg(r, SELF_TYPHOON_PROPEL, SelfDeliveryTests::typhoonPropel);
         reg(r, SELF_KINDLE_SHIELDS, HeartOverlayTests::kindleShieldsThenQuenches);
         reg(r, SELF_KINDLE_BURNS, HeartOverlayTests::kindleBurnsTheAttacker);
+        reg(r, SELF_BARKSKIN_FIRE, BarkskinTests::fireBurnsThroughArrowBreaksBark);
+        reg(r, SELF_BARKSKIN_THORNS, BarkskinTests::thornsAndTheAxe);
         reg(r, SELF_KINDLE_FIRE, HeartOverlayTests::kindleFireRelightsForAHeart);
         reg(r, STREAM_BLAZE_SPITFIRE, StreamDeliveryTests::blazeSpitfire);
         reg(r, MOB_CRYSTAL, MobEffectTests::crystalFlechettes);

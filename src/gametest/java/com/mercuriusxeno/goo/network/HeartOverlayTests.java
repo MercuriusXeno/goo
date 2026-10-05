@@ -2,10 +2,12 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.registry.GooAttachments;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.CombatRules;
 import net.minecraft.world.damagesource.DamageSource;
@@ -29,27 +31,27 @@ public final class HeartOverlayTests {
     private static final BlockPos STAND_POS = new BlockPos(1, 1, 3);
     private static final BlockPos ATTACKER_POS = new BlockPos(2, 1, 3);
     private static final float FULL_HEALTH = 20f;
-    private static final int FULL_EMBERS = 10;
+    private static final int FULL_HALVES = 20;
     private static final float ONE_POINT = 1f;
     /** One point on bare ash, worth half a heart, costs two. */
     private static final float ASH_COST = 2f;
     private static final float TOLERANCE = 1e-4f;
-    private static final String SHOULD_KINDLE = "Kindle should lay %d embers over a full bar, laid %d";
-    private static final String SHOULD_SHIELD = "An ember should take the hit: health %.1f with %d embers";
+    private static final String SHOULD_KINDLE = "Kindle should lay %d ember halves over a full bar, laid %d";
+    private static final String SHOULD_SHIELD = "An ember should take the hit: health %.1f with %d ember halves";
     private static final String SHOULD_QUENCH = "Water should leave no ember standing, %d stand";
     private static final String SHOULD_COST_DOUBLE = "A point on bare ash should cost %.1f, cost %.1f";
     private static final int BROKEN_EMBERS = 3;
     private static final int BURN_SECONDS = 5;
     private static final float HEART = 2f;
     private static final String SHOULD_SPARE_EMBER_BAR =
-            "Fire should not touch an all-ember bar and should go out: health %.1f, %d embers, fire ticks %d";
+            "Fire should not touch an all-ember bar and should go out: health %.1f, %d ember halves, fire ticks %d";
     private static final String SHOULD_RELIGHT =
-            "Fire should cost one heart, relight the rest and go out: health %.1f, %d embers, fire ticks %d";
+            "Fire should cost one heart, relight the rest and go out: health %.1f, %d ember halves, fire ticks %d";
     private static final String SHOULD_COOL_DOWN =
-            "Fire inside its cooldown should break an ember like any hit: health %.1f, %d embers";
+            "Fire inside its cooldown should break an ember like any hit: health %.1f, %d ember halves";
     private static final String SHOULD_HEAL_LIT =
-            "A heart healed while burning should return ember: health %.1f, %d embers";
-    private static final String SHOULD_BURN = "The zombie should take %d fire and burn: health %.1f of %.1f, fire ticks %d";
+            "A heart healed while burning should return ember: health %.1f, %d ember halves";
+    private static final String SHOULD_BURN = "The zombie should take %.1f fire and burn: health %.1f of %.1f, fire ticks %d";
 
     private HeartOverlayTests() {
     }
@@ -62,19 +64,19 @@ public final class HeartOverlayTests {
      */
     public static void kindleShieldsThenQuenches(GameTestHelper helper) {
         ServerPlayer player = kindled(helper);
-        int laid = embers(player);
-        helper.assertTrue(laid == FULL_EMBERS, String.format(SHOULD_KINDLE, FULL_EMBERS, laid));
+        int laid = halves(player);
+        helper.assertTrue(laid == FULL_HALVES, String.format(SHOULD_KINDLE, FULL_HALVES, laid));
 
         hurt(helper, player, player.damageSources().generic(), ONE_POINT);
         float shielded = player.getHealth();
-        int afterHit = embers(player);
-        helper.assertTrue(shielded == FULL_HEALTH && afterHit == FULL_EMBERS - 1,
+        int afterHit = halves(player);
+        helper.assertTrue(shielded == FULL_HEALTH && afterHit == FULL_HALVES - 1,
                 String.format(SHOULD_SHIELD, shielded, afterHit));
 
         helper.setBlock(STAND_POS, Blocks.WATER);
         helper.succeedWhen(() -> {
             player.doTick();
-            int standing = embers(player);
+            int standing = halves(player);
             helper.assertTrue(standing == 0, String.format(SHOULD_QUENCH, standing));
             hurt(helper, player, player.damageSources().generic(), ONE_POINT);
             float cost = FULL_HEALTH - player.getHealth();
@@ -93,7 +95,7 @@ public final class HeartOverlayTests {
         ServerPlayer player = kindled(helper);
         Zombie zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ATTACKER_POS);
         float zombieMax = zombie.getMaxHealth();
-        int embers = embers(player);
+        float embers = halves(player) / (float) HeartOverlay.FULL_SHIELD;
         // the zombie's natural armor takes its cut of the fire, as it would of any armored hit
         float expectedFire = CombatRules.getDamageAfterAbsorb(zombie, embers, player.damageSources().inFire(),
                 zombie.getArmorValue(), (float) zombie.getAttributeValue(Attributes.ARMOR_TOUGHNESS));
@@ -138,14 +140,14 @@ public final class HeartOverlayTests {
         Reading healed = Reading.of(player);
         helper.getLevel().getServer().getPlayerList().remove(player);
 
-        helper.assertTrue(spared.health() == FULL_HEALTH && spared.embers() == FULL_EMBERS && spared.fireTicks() <= 0,
+        helper.assertTrue(spared.health() == FULL_HEALTH && spared.embers() == FULL_HALVES && spared.fireTicks() <= 0,
                 String.format(SHOULD_SPARE_EMBER_BAR, spared.health(), spared.embers(), spared.fireTicks()));
-        helper.assertTrue(relit.health() == FULL_HEALTH - HEART && relit.embers() == FULL_EMBERS - 1
+        helper.assertTrue(relit.health() == FULL_HEALTH - HEART && relit.embers() == FULL_HALVES - 2
                         && relit.fireTicks() <= 0,
                 String.format(SHOULD_RELIGHT, relit.health(), relit.embers(), relit.fireTicks()));
-        helper.assertTrue(cooling.health() == FULL_HEALTH - HEART && cooling.embers() == FULL_EMBERS - 3,
+        helper.assertTrue(cooling.health() == FULL_HEALTH - HEART && cooling.embers() == FULL_HALVES - 4,
                 String.format(SHOULD_COOL_DOWN, cooling.health(), cooling.embers()));
-        helper.assertTrue(healed.health() == FULL_HEALTH && healed.embers() == FULL_EMBERS - 2,
+        helper.assertTrue(healed.health() == FULL_HEALTH && healed.embers() == FULL_HALVES - 2,
                 String.format(SHOULD_HEAL_LIT, healed.health(), healed.embers()));
         helper.succeed();
     }
@@ -154,33 +156,60 @@ public final class HeartOverlayTests {
      * What a step of a gametest reads off the player.
      *
      * @param health    the player's health
-     * @param embers    the embers standing
+     * @param embers    the ember halves standing
      * @param fireTicks the player's remaining fire ticks
      */
     private record Reading(float health, int embers, int fireTicks) {
         static Reading of(ServerPlayer player) {
-            return new Reading(player.getHealth(), HeartOverlayTests.embers(player), player.getRemainingFireTicks());
+            return new Reading(player.getHealth(), HeartOverlayTests.halves(player), player.getRemainingFireTicks());
         }
     }
 
     private static ServerPlayer kindled(GameTestHelper helper) {
-        ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.BLAZE);
+        return selfInvoked(helper, GooTypes.BLAZE, BLAZE_KINDLE);
+    }
+
+    /**
+     * A survival mock player that has invoked a self ability through the real
+     * self delivery.
+     *
+     * @param helper  the gametest helper
+     * @param gooType the goo type the player holds and spends
+     * @param ability the self ability's id
+     * @return the player
+     */
+    static ServerPlayer selfInvoked(GameTestHelper helper, ResourceKey<GooTypeDefinition> gooType, Identifier ability) {
+        ServerPlayer player = SelfDeliveryTests.invoker(helper, gooType);
         // the mock player helper makes a creative player, whom no hit lands on
         player.setGameMode(GameType.SURVIVAL);
         // a player whose client has not reported loaded is invulnerable, and no mock client reports
         player.connection.markClientLoaded();
-        GooThrowHandler.execute(player, new GooThrowPayload(GooTypes.id(GooTypes.BLAZE), NO_ENTITY,
-                player.blockPosition(), NO_ENTITY, false, BLAZE_KINDLE.toString(), player.getEyePosition()));
+        GooThrowHandler.execute(player, new GooThrowPayload(GooTypes.id(gooType), NO_ENTITY,
+                player.blockPosition(), NO_ENTITY, false, ability.toString(), player.getEyePosition()));
         return player;
     }
 
-    private static void hurt(GameTestHelper helper, ServerPlayer player, DamageSource source, float amount) {
+    /**
+     * Hurts a player past its hurt cooldown, so back-to-back hits each land.
+     *
+     * @param helper the gametest helper
+     * @param player the player
+     * @param source the damage source
+     * @param amount the damage
+     */
+    static void hurt(GameTestHelper helper, ServerPlayer player, DamageSource source, float amount) {
         player.invulnerableTime = 0;
         player.hurtServer(helper.getLevel(), source, amount);
     }
 
-    private static int embers(ServerPlayer player) {
+    /**
+     * Counts the shield halves standing on a player's heart overlay.
+     *
+     * @param player the player
+     * @return the shield halves
+     */
+    static int halves(ServerPlayer player) {
         HeartOverlay overlay = player.getData(GooAttachments.HEART_OVERLAY);
-        return overlay.emberCount();
+        return overlay.shieldHalves();
     }
 }

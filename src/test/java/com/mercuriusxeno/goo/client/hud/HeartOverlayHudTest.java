@@ -1,7 +1,10 @@
 package com.mercuriusxeno.goo.client.hud;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.mercuriusxeno.goo.ability.hearts.HeartKind;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 /** The overlay's slot layout mirrors vanilla's health bar, and each slot picks its ember or ash sprite (decision overlay-hearts-are-an-elemental-overshield). */
@@ -30,10 +33,26 @@ class HeartOverlayHudTest {
     }
 
     @Test
-    void spriteFollowsEmberAndHalf() {
-        assertEquals("goo:hud/heart/ember_full", HeartOverlayHud.heartSprite(true, false).toString());
-        assertEquals("goo:hud/heart/ember_half", HeartOverlayHud.heartSprite(true, true).toString());
-        assertEquals("goo:hud/heart/ash_full", HeartOverlayHud.heartSprite(false, false).toString());
-        assertEquals("goo:hud/heart/ash_half", HeartOverlayHud.heartSprite(false, true).toString());
+    void kindleLaysAshUnderAndEmberOverItsHalves() {
+        assertEquals(List.of("goo:hud/heart/ash_full", "goo:hud/heart/ember_full"), sprites(HeartKind.KINDLE, 2, 2));
+        assertEquals(List.of("goo:hud/heart/ash_full", "goo:hud/heart/ember_half"), sprites(HeartKind.KINDLE, 1, 2));
+        assertEquals(List.of("goo:hud/heart/ash_full"), sprites(HeartKind.KINDLE, 0, 2));
+    }
+
+    @Test
+    void shieldShowsNoMoreThanTheRealHeartUnderIt() {
+        assertEquals(List.of("goo:hud/heart/ash_half", "goo:hud/heart/ember_half"), sprites(HeartKind.KINDLE, 2, 1));
+        assertEquals(List.of("goo:hud/heart/bark_half"), sprites(HeartKind.BARKSKIN, 2, 1));
+    }
+
+    @Test
+    void barkskinLaysBarkOverItsHalvesAndLeavesBareHeartsToVanilla() {
+        assertEquals(List.of("goo:hud/heart/bark_full"), sprites(HeartKind.BARKSKIN, 2, 2));
+        assertEquals(List.of("goo:hud/heart/bark_half"), sprites(HeartKind.BARKSKIN, 1, 2));
+        assertTrue(sprites(HeartKind.BARKSKIN, 0, 2).isEmpty());
+    }
+
+    private static List<String> sprites(HeartKind kind, int shieldHalves, int realHalves) {
+        return HeartOverlayHud.heartSprites(kind, shieldHalves, realHalves).stream().map(Object::toString).toList();
     }
 }

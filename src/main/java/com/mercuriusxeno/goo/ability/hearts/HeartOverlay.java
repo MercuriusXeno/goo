@@ -13,56 +13,54 @@ import java.util.List;
 /**
  * The heart overlay standing over a player's health bar: a shield layer over
  * the real heart slots, which drains before real health and exposes it when
- * gone (decision overlay-hearts-are-an-elemental-overshield). Kindle's layer
- * is one ember per shielded slot; a real heart with no ember over it reads
- * as ash (decision kindle-ember-hearts-ash-and-retaliate). Times are absolute
- * game times, so the overlay changes, and syncs, only when a heart does.
+ * gone (decision overlay-hearts-are-an-elemental-overshield). Each slot's
+ * shield counts in half hearts, two to a full shield, so hits strip it and
+ * regrowth restores it a half at a time. The kind names the shield: Kindle's
+ * embers over hearts that read ash when bare (decision
+ * kindle-ember-hearts-ash-and-retaliate), Barkskin's bark over normal hearts
+ * (decision barkskin-bark-hearts-thorn-and-burn). Times are absolute game
+ * times, so the overlay changes, and syncs, only when a heart does.
  *
- * @param kind       the overlay's kind
- * @param embers     per heart slot, from the left, whether an ember shields it
- * @param expiresAt  the game time the overlay ends at; zero when none stands
- * @param reigniteAt    the game time the next ash heart reignites at
- * @param igniteReadyAt the game time fire can next reignite the overlay at
+ * @param kind        the overlay's kind
+ * @param shields     per heart slot, from the left, the half hearts of shield over it
+ * @param expiresAt   the game time the overlay ends at; zero when none stands
+ * @param regrowAt    the game time the next half of shield regrows at
+ * @param fireReadyAt the game time fire can next relight Kindle at
  */
-public record HeartOverlay(HeartKind kind, List<Boolean> embers, long expiresAt, long reigniteAt,
-                           long igniteReadyAt) {
+public record HeartOverlay(HeartKind kind, List<Integer> shields, long expiresAt, long regrowAt,
+                           long fireReadyAt) {
 
     /**
      * The overlay a player without a heart brew holds.
      */
     public static final HeartOverlay NONE = new HeartOverlay(HeartKind.KINDLE, List.of(), 0L, 0L, 0L);
 
-    /** Health points one ember absorbs before it breaks: worth one heart. */
-    static final float EMBER_WORTH = 2.0f;
-    /** Real health is ash while Kindle stands, worth half a heart: a hit on it costs double. */
-    static final float ASH_COST_MULTIPLIER = 2.0f;
-    /** Health points one heart slot holds. */
+    /** Half hearts in a full shield, and in a heart slot. */
+    public static final int FULL_SHIELD = 2;
+    /** Health points one heart slot holds; one point is half a heart. */
     static final float HEART_POINTS = 2.0f;
-    static final int TICKS_PER_SECOND = 20;
-    /** Seconds an ash heart takes to reignite with no ember standing. */
-    static final int REIGNITE_BASE_SECONDS = 2;
-    /** Each ember standing slows the next reignite by half a second. */
-    static final int EMBERS_PER_EXTRA_SECOND = 2;
-    /** Ticks after a fire hit reignites the overlay before fire can again. */
-    static final long FIRE_REIGNITE_COOLDOWN = 10L * TICKS_PER_SECOND;
-    /** The slot answer when no real heart is bare ash. */
+    /** Ticks after fire relights Kindle before fire can again. */
+    static final long FIRE_RELIGHT_COOLDOWN = 10L * HeartKind.TICKS_PER_SECOND;
+    /** An aggravated hit burns its own amount in shields and the same amount again. */
+    static final int AGGRAVATED_BURN_FACTOR = 2;
+    /** The slot answer when every real heart wears a full shield. */
     private static final int NO_SLOT = -1;
 
     private static final String FIELD_KIND = "kind";
-    private static final String FIELD_EMBERS = "embers";
+    private static final String FIELD_SHIELDS = "shields";
     private static final String FIELD_EXPIRES_AT = "expires_at";
-    private static final String FIELD_REIGNITE_AT = "reignite_at";
-    private static final String FIELD_IGNITE_READY_AT = "ignite_ready_at";
+    private static final String FIELD_REGROW_AT = "regrow_at";
+    private static final String FIELD_FIRE_READY_AT = "fire_ready_at";
 
     /**
      * Codec for the saved overlay.
      */
     public static final MapCodec<HeartOverlay> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
             HeartKind.CODEC.fieldOf(FIELD_KIND).forGetter(HeartOverlay::kind),
-            Codec.BOOL.listOf().fieldOf(FIELD_EMBERS).forGetter(HeartOverlay::embers),
+            Codec.INT.listOf().fieldOf(FIELD_SHIELDS).forGetter(HeartOverlay::shields),
             Codec.LONG.fieldOf(FIELD_EXPIRES_AT).forGetter(HeartOverlay::expiresAt),
-            Codec.LONG.fieldOf(FIELD_REIGNITE_AT).forGetter(HeartOverlay::reigniteAt),
-            Codec.LONG.fieldOf(FIELD_IGNITE_READY_AT).forGetter(HeartOverlay::igniteReadyAt)
+            Codec.LONG.fieldOf(FIELD_REGROW_AT).forGetter(HeartOverlay::regrowAt),
+            Codec.LONG.fieldOf(FIELD_FIRE_READY_AT).forGetter(HeartOverlay::fireReadyAt)
     ).apply(inst, HeartOverlay::new));
 
     /**
@@ -70,17 +68,17 @@ public record HeartOverlay(HeartKind kind, List<Boolean> embers, long expiresAt,
      */
     public static final StreamCodec<ByteBuf, HeartOverlay> STREAM_CODEC = StreamCodec.composite(
             ByteBufCodecs.idMapper(ordinal -> HeartKind.values()[ordinal], HeartKind::ordinal), HeartOverlay::kind,
-            ByteBufCodecs.BOOL.apply(ByteBufCodecs.list()), HeartOverlay::embers,
+            ByteBufCodecs.VAR_INT.apply(ByteBufCodecs.list()), HeartOverlay::shields,
             ByteBufCodecs.VAR_LONG, HeartOverlay::expiresAt,
-            ByteBufCodecs.VAR_LONG, HeartOverlay::reigniteAt,
-            ByteBufCodecs.VAR_LONG, HeartOverlay::igniteReadyAt,
+            ByteBufCodecs.VAR_LONG, HeartOverlay::regrowAt,
+            ByteBufCodecs.VAR_LONG, HeartOverlay::fireReadyAt,
             HeartOverlay::new);
 
     /**
-     * Copies the ember list so the record holds it unmodifiable.
+     * Copies the shield list so the record holds it unmodifiable.
      */
     public HeartOverlay {
-        embers = List.copyOf(embers);
+        shields = List.copyOf(shields);
     }
 
     /**
@@ -102,34 +100,31 @@ public record HeartOverlay(HeartKind kind, List<Boolean> embers, long expiresAt,
     }
 
     /**
-     * Counts the ember hearts standing.
+     * Counts the half hearts of shield standing.
      *
-     * @return the ember count
+     * @return the shield halves
      */
-    public int emberCount() {
-        return (int) embers.stream().filter(Boolean::booleanValue).count();
+    public int shieldHalves() {
+        return sum(shields);
     }
 
     /**
-     * Answers whether an ember shields a heart slot.
+     * The shield standing, in hearts, which retaliation and thorns count by.
+     *
+     * @return the shield hearts, a half counting a half
+     */
+    public float shieldHearts() {
+        return shieldHalves() / (float) FULL_SHIELD;
+    }
+
+    /**
+     * The half hearts of shield over a heart slot.
      *
      * @param slot the heart slot, from the left
-     * @return true when an ember stands over it
+     * @return zero to two halves
      */
-    public boolean emberAt(int slot) {
-        return slot < embers.size() && embers.get(slot);
-    }
-
-    /**
-     * The ticks an ash heart takes to reignite with a number of embers standing:
-     * each ember standing adds half a second to the base two.
-     *
-     * @param emberCount the embers standing
-     * @return the interval in ticks
-     */
-    static long reigniteInterval(int emberCount) {
-        // kindle-ember-hearts-ash-and-retaliate: n / 2 + 2 seconds, so a high bar regrows slower
-        return (long) REIGNITE_BASE_SECONDS * TICKS_PER_SECOND + (long) emberCount * TICKS_PER_SECOND / EMBERS_PER_EXTRA_SECOND;
+    public int shieldAt(int slot) {
+        return slot < shields.size() ? shields.get(slot) : 0;
     }
 
     /**
@@ -144,7 +139,7 @@ public record HeartOverlay(HeartKind kind, List<Boolean> embers, long expiresAt,
 
     /**
      * Applies a heart brew. The same kind standing again adds the duration and
-     * keeps its hearts; otherwise every present heart takes an ember and a
+     * keeps its hearts; otherwise every present heart takes a full shield and a
      * missing heart stays missing.
      *
      * @param brewKind the kind the brew lays
@@ -156,17 +151,16 @@ public record HeartOverlay(HeartKind kind, List<Boolean> embers, long expiresAt,
     public HeartOverlay apply(HeartKind brewKind, int duration, float health, long now) {
         if (stands() && kind == brewKind) {
             // kindle-ember-hearts-ash-and-retaliate: the self ability stacks in duration
-            return new HeartOverlay(kind, embers, expiresAt + duration, reigniteAt, igniteReadyAt);
+            return new HeartOverlay(kind, shields, expiresAt + duration, regrowAt, fireReadyAt);
         }
-        int slots = filledSlots(health);
-        return new HeartOverlay(brewKind, Collections.nCopies(slots, Boolean.TRUE), now + duration,
-                now + reigniteInterval(slots), now);
+        List<Integer> full = Collections.nCopies(filledSlots(health), FULL_SHIELD);
+        return new HeartOverlay(brewKind, full, now + duration, now + brewKind.regrowInterval(sum(full)), now);
     }
 
     /**
-     * Runs a hit through the overlay: each ember the hit lands on absorbs up to
-     * its worth and breaks, rightmost first, and what passes every ember
-     * reaches real health at double cost.
+     * Runs a hit through the overlay: each half of shield absorbs up to half a
+     * heart and strips, rightmost first, and what passes every shield reaches
+     * real health at the kind's bare cost.
      *
      * @param damage the hit's damage
      * @param now    the game time
@@ -176,27 +170,46 @@ public record HeartOverlay(HeartKind kind, List<Boolean> embers, long expiresAt,
         if (!stands()) {
             return new Drained(this, damage);
         }
-        List<Boolean> after = new ArrayList<>(embers);
+        List<Integer> after = new ArrayList<>(shields);
         float remaining = damage;
-        int slot = after.lastIndexOf(Boolean.TRUE);
-        while (remaining > 0f && slot >= 0) {
-            after.set(slot, Boolean.FALSE);
-            remaining = Math.max(0f, remaining - EMBER_WORTH);
-            slot = after.lastIndexOf(Boolean.TRUE);
+        int slot = rightmostShielded(after);
+        while (remaining > 0f && slot != NO_SLOT) {
+            after.set(slot, after.get(slot) - 1);
+            remaining = Math.max(0f, remaining - 1f);
+            slot = rightmostShielded(after);
         }
         // overlay-hearts-are-an-elemental-overshield: the bar beneath takes only what passes the overlay
-        float remainder = remaining * ASH_COST_MULTIPLIER;
-        if (after.equals(embers)) {
-            return new Drained(this, remainder);
-        }
-        HeartOverlay broken = withEmbers(after, now + reigniteInterval(countTrue(after)));
-        return new Drained(broken, remainder);
+        return new Drained(settle(after, now), remaining * kind.bareCostMultiplier());
     }
 
     /**
-     * Advances the overlay one tick: it ends at its expiry, water or ice turns
-     * every ember to ash, and otherwise the leftmost ash heart reignites when
-     * its interval has passed.
+     * Runs a hit the kind is especially weak to: the shields absorb none of it,
+     * real health takes its whole amount, and it burns its own amount in
+     * shield halves and the same amount again, rightmost first.
+     *
+     * @param damage the hit's damage
+     * @param now    the game time
+     * @return the overlay after the hit and the damage real health takes
+     */
+    public Drained aggravate(float damage, long now) {
+        if (!stands()) {
+            return new Drained(this, damage);
+        }
+        // aggravated-damage-is-a-per-heart-rule: burn the hit again in shields, leaving space to recover
+        int burned = AGGRAVATED_BURN_FACTOR * (int) Math.ceil(damage);
+        List<Integer> after = new ArrayList<>(shields);
+        int slot = rightmostShielded(after);
+        for (int burnt = 0; burnt < burned && slot != NO_SLOT; burnt++) {
+            after.set(slot, after.get(slot) - 1);
+            slot = rightmostShielded(after);
+        }
+        return new Drained(settle(after, now), damage);
+    }
+
+    /**
+     * Advances the overlay one tick: it ends at its expiry, water or ice
+     * strips a quenchable kind's shields, and otherwise the leftmost real heart
+     * short of a full shield regrows a half when its interval has passed.
      *
      * @param health the player's real health
      * @param wet    whether the player touches water or ice
@@ -210,40 +223,27 @@ public record HeartOverlay(HeartKind kind, List<Boolean> embers, long expiresAt,
         if (now >= expiresAt) {
             return NONE;
         }
-        if (wet) {
-            return extinguish(now);
+        if (wet && kind.quenchedByWater()) {
+            return quench(now);
         }
-        return reignite(health, now);
-    }
-
-    private HeartOverlay reignite(float health, long now) {
-        int ashSlot = leftmostAshSlot(filledSlots(health));
-        if (now < reigniteAt || ashSlot == NO_SLOT) {
-            return this;
-        }
-        List<Boolean> after = new ArrayList<>(embers);
-        while (after.size() <= ashSlot) {
-            after.add(Boolean.FALSE);
-        }
-        after.set(ashSlot, Boolean.TRUE);
-        return withEmbers(after, now + reigniteInterval(countTrue(after)));
+        return regrow(health, now);
     }
 
     /**
-     * Answers whether every real heart wears an ember, which a fire hit cannot hurt.
+     * Answers whether every real heart wears a full shield, which Kindle's fire cannot hurt.
      *
      * @param health the player's real health
-     * @return true when no real heart is bare ash
+     * @return true when no real heart is short of a full shield
      */
-    public boolean allEmber(float health) {
-        return leftmostAshSlot(filledSlots(health)) == NO_SLOT;
+    public boolean allShielded(float health) {
+        return leftmostShortSlot(filledSlots(health)) == NO_SLOT;
     }
 
     /**
-     * Runs a fire hit through the overlay. With ash standing and fire's cooldown
+     * Runs a fire hit through Kindle. With ash standing and fire's cooldown
      * passed, the fire relights the bar at the price of one heart: real health
-     * loses a heart in place of the hit and every heart left relights. Inside
-     * the cooldown the fire is an ordinary hit.
+     * loses a heart in place of the hit and every heart left relights whole.
+     * Inside the cooldown the fire is an ordinary hit.
      *
      * @param damage the fire hit's damage
      * @param health the player's real health
@@ -251,14 +251,14 @@ public record HeartOverlay(HeartKind kind, List<Boolean> embers, long expiresAt,
      * @return the overlay after the fire and the damage real health takes
      */
     public Drained burn(float damage, float health, long now) {
-        if (!stands() || now < igniteReadyAt || allEmber(health)) {
+        if (!stands() || now < fireReadyAt || allShielded(health)) {
             return drain(damage, now);
         }
         // kindle-ember-hearts-ash-and-retaliate: relighting costs an ash heart, so lava never makes the player invincible
-        int left = Math.max(0, filledSlots(health - HEART_POINTS));
-        HeartOverlay relit = new HeartOverlay(kind, Collections.nCopies(left, Boolean.TRUE), expiresAt,
-                now + reigniteInterval(left), now + FIRE_REIGNITE_COOLDOWN);
-        return new Drained(relit, HEART_POINTS);
+        List<Integer> relit = Collections.nCopies(Math.max(0, filledSlots(health - HEART_POINTS)), FULL_SHIELD);
+        HeartOverlay after = new HeartOverlay(kind, relit, expiresAt, now + kind.regrowInterval(sum(relit)),
+                now + FIRE_RELIGHT_COOLDOWN);
+        return new Drained(after, HEART_POINTS);
     }
 
     /**
@@ -267,7 +267,7 @@ public record HeartOverlay(HeartKind kind, List<Boolean> embers, long expiresAt,
      *
      * @param health       the real health before the heal
      * @param healedHealth the real health after it
-     * @return the overlay with every regained heart ember, the same instance when no heart came back
+     * @return the overlay with every regained heart lit whole, the same instance when no heart came back
      */
     public HeartOverlay healInFire(float health, float healedHealth) {
         int from = filledSlots(health);
@@ -275,36 +275,77 @@ public record HeartOverlay(HeartKind kind, List<Boolean> embers, long expiresAt,
         if (!stands() || to <= from) {
             return this;
         }
-        List<Boolean> after = new ArrayList<>(embers);
-        while (after.size() < to) {
-            after.add(Boolean.FALSE);
-        }
+        List<Integer> after = padded(to);
         for (int slot = from; slot < to; slot++) {
-            after.set(slot, Boolean.TRUE);
+            after.set(slot, FULL_SHIELD);
         }
-        return withEmbers(after, reigniteAt);
+        return withShields(after, regrowAt);
     }
-    private HeartOverlay extinguish(long now) {
-        if (emberCount() == 0) {
+
+    private HeartOverlay regrow(float health, long now) {
+        int shortSlot = leftmostShortSlot(filledSlots(health));
+        if (now < regrowAt || shortSlot == NO_SLOT) {
             return this;
         }
-        return withEmbers(Collections.nCopies(embers.size(), Boolean.FALSE), now + reigniteInterval(0));
+        List<Integer> after = padded(shortSlot + 1);
+        after.set(shortSlot, after.get(shortSlot) + 1);
+        return withShields(after, now + kind.regrowInterval(sum(after)));
     }
 
-    private HeartOverlay withEmbers(List<Boolean> after, long nextReigniteAt) {
-        return new HeartOverlay(kind, after, expiresAt, nextReigniteAt, igniteReadyAt);
+    private HeartOverlay quench(long now) {
+        if (shieldHalves() == 0) {
+            return this;
+        }
+        return withShields(Collections.nCopies(shields.size(), 0), now + kind.regrowInterval(0));
     }
 
-    private int leftmostAshSlot(int filledSlots) {
+    /**
+     * The overlay after shields stripped: unchanged when none did, gone when the
+     * kind ends with its last shield, and otherwise restarting the regrow clock.
+     */
+    private HeartOverlay settle(List<Integer> after, long now) {
+        if (after.equals(shields)) {
+            return this;
+        }
+        int standing = sum(after);
+        if (standing == 0 && kind.endsWhenBare()) {
+            // barkskin-bark-hearts-thorn-and-burn: the effect lasts while a bark heart stands
+            return NONE;
+        }
+        return withShields(after, now + kind.regrowInterval(standing));
+    }
+
+    private List<Integer> padded(int size) {
+        List<Integer> after = new ArrayList<>(shields);
+        while (after.size() < size) {
+            after.add(0);
+        }
+        return after;
+    }
+
+    private HeartOverlay withShields(List<Integer> after, long nextRegrowAt) {
+        return new HeartOverlay(kind, after, expiresAt, nextRegrowAt, fireReadyAt);
+    }
+
+    private int leftmostShortSlot(int filledSlots) {
         for (int slot = 0; slot < filledSlots; slot++) {
-            if (!emberAt(slot)) {
+            if (shieldAt(slot) < FULL_SHIELD) {
                 return slot;
             }
         }
         return NO_SLOT;
     }
 
-    private static int countTrue(List<Boolean> flags) {
-        return (int) flags.stream().filter(Boolean::booleanValue).count();
+    private static int rightmostShielded(List<Integer> halves) {
+        for (int slot = halves.size() - 1; slot >= 0; slot--) {
+            if (halves.get(slot) > 0) {
+                return slot;
+            }
+        }
+        return NO_SLOT;
+    }
+
+    private static int sum(List<Integer> halves) {
+        return halves.stream().mapToInt(Integer::intValue).sum();
     }
 }
