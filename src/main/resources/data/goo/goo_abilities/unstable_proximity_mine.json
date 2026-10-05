@@ -5,13 +5,14 @@
   "order": 2,
   "cost": 1000,
   "delivery": { "kind": "arc" },
-  "chain": {
-    "fuseTicks": -1,
-    "maxStacks": 6
-  },
   "behaviors": [
-    { "type": "await_entity", "shape": "sphere", "radius": 3.0, "where": ["living"] },
-    { "type": "explode", "power": "2.5 + 1.0 * (stacks - 1)" }
+    {
+      "type": "linger",
+      "steps": [
+        { "type": "await_entity", "shape": "sphere", "radius": 3.0, "where": ["living"] },
+        { "type": "explode", "power": 2.5 }
+      ]
+    }
   ],
   "tags": ["explosive", "trap"]
 }

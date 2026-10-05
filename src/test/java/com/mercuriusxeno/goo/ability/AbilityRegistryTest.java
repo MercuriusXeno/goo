@@ -23,7 +23,7 @@ class AbilityRegistryTest {
 
     private static AbilityDefinition ability(String name, int order, AbilityBadge badge) {
         return new AbilityDefinition(Identifier.fromNamespaceAndPath("goo", name), GooTypes.ROCK,
-                name, "", order, 0, AbilityDefinition.ChainConfig.DEFAULT, Delivery.ARC, List.of(), List.of(),
+                name, "", order, 0, Delivery.ARC, List.of(), List.of(),
                 badge);
     }
 

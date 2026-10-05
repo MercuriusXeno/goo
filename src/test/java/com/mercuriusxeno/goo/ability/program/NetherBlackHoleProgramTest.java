@@ -39,7 +39,10 @@ import static org.mockito.Mockito.when;
  */
 class NetherBlackHoleProgramTest {
 
-    private static final int STACKS = 1;
+    /** The soul particles the program names each tick. */
+    private static final int SOUL_COUNT = 2;
+    /** The spread the program names for its soul particles. */
+    private static final double SOUL_SPREAD = 1.8;
     /** One stack's blast radius, {@code 2 + stacks}. */
     private static final int RADIUS = 3;
     private static final int PULL_RADIUS = 3 * RADIUS;
@@ -57,7 +60,7 @@ class NetherBlackHoleProgramTest {
     private static final Identifier BLACK_HOLE_SOUND = Identifier.parse("goo:effects.black_hole");
     private static final float PROGRESS_TOLERANCE = 1e-6f;
 
-    /** The ticks, counted from one on the fuse tick, on which each host act ran. */
+    /** The ticks, counted from one on the splat tick, on which each host act ran. */
     private final Map<String, List<Integer>> actTicks = new LinkedHashMap<>();
     /** The phase the cursor names after each tick, index zero after the first. */
     private final List<String> phaseAfterTick = new ArrayList<>();
@@ -67,7 +70,7 @@ class NetherBlackHoleProgramTest {
     private MarkerHost host;
 
     private static List<Step> program() {
-        return AbilityJson.decode("nether_black_hole").behaviors();
+        return LingerStep.bodyOf(AbilityJson.decode("nether_black_hole").behaviors()).orElseThrow();
     }
 
     private void record(String act) {
@@ -83,7 +86,7 @@ class NetherBlackHoleProgramTest {
     }
 
     /**
-     * A marker host holding one stack and a real phase cursor, recording
+     * A marker host holding a real phase cursor, recording
      * each act it is asked for.
      *
      * @return the marker host
@@ -93,7 +96,6 @@ class NetherBlackHoleProgramTest {
         when(host.kind()).thenReturn(HostKind.MARKER);
         when(host.phased()).thenReturn(state);
         when(host.read(anyString())).thenReturn(OptionalDouble.empty());
-        when(host.read(HostVariables.STACKS)).thenReturn(OptionalDouble.of(STACKS));
         doAnswer(inv -> {
             record("scan within " + inv.getArgument(1));
             return null;
@@ -130,7 +132,7 @@ class NetherBlackHoleProgramTest {
     }
 
     /**
-     * Ticks the program once, the first call standing for the fuse tick.
+     * Ticks the program once, the first call standing for the splat tick.
      */
     private void tickOnce() {
         tick++;
@@ -192,7 +194,7 @@ class NetherBlackHoleProgramTest {
         runToTheEnd();
 
         assertEquals(ticks(EXPAND_START, LAST_CONTRACT_TICK),
-                ticksOf("particles minecraft:soul x" + (1 + STACKS) + " spread " + 0.6 * RADIUS));
+                ticksOf("particles minecraft:soul x" + SOUL_COUNT + " spread " + SOUL_SPREAD));
     }
 
     @Test

@@ -9,7 +9,7 @@ import java.util.function.Consumer;
 
 /**
  * The world actions a host anchored at a block shares whatever block it
- * is, the chain marker or a tap's landing: entity scans handing each body
+ * is, the ability block or a tap's landing: entity scans handing each body
  * an entity host with no thrower, and particle bursts spread along the
  * anchor's axis.
  */

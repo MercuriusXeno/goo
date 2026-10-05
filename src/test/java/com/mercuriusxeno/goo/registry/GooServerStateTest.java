@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.registry;
 
-import com.mercuriusxeno.goo.block.ability.ChainMarkerFallScheduler;
+import com.mercuriusxeno.goo.block.ability.AbilityBlockFallScheduler;
 import com.mercuriusxeno.goo.block.tap.TapDripScheduler;
 import com.mercuriusxeno.goo.network.GooEffectScheduler;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -24,7 +24,7 @@ class GooServerStateTest {
                 1, null, null, GooTypes.ROCK, -1, POS, Direction.UP, ""));
         state.tapDrips().enqueue(new TapDripScheduler.PendingDrip(
                 null, POS.above(), POS, Direction.UP, GooTypes.ROCK, 1, 1));
-        state.markerFalls().enqueue(new ChainMarkerFallScheduler.PendingFall(
+        state.markerFalls().enqueue(new AbilityBlockFallScheduler.PendingFall(
                 1, null, POS, null, null));
     }
 

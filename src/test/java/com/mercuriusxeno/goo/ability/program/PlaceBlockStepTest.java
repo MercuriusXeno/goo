@@ -5,20 +5,22 @@ import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.EnumSource;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalDouble;
 import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
  * The glow crystal program resolves its state from the host: facing from
- * the placed face, shape from the flat predicate, size from the stack
- * count clamped to the size list; the host receives value names alone.
+ * the placed face, shape and size as named; a pick indexes its values
+ * clamped to the list; the host receives value names alone.
  */
 class PlaceBlockStepTest {
 
@@ -31,42 +33,48 @@ class PlaceBlockStepTest {
     private static PlaceBlockStep glowCrystal() {
         return new PlaceBlockStep(GLOW_CRYSTAL, Map.of(
                 FACING, new StateValue.PlacedFace(),
-                SHAPE, new StateValue.Pick(expr("flat"), List.of("bump", "flat")),
-                SIZE, new StateValue.Pick(expr("stacks - 1"), SIZES)));
+                SHAPE, new StateValue.Named("bump"),
+                SIZE, new StateValue.Named("tiny")));
     }
 
     private static Expr expr(String source) {
         return Expr.parse(source).getOrThrow();
     }
 
-    private static MarkerHost host(Direction placedFace, int stacks, boolean flat) {
+    private static MarkerHost host(Direction placedFace) {
         MarkerHost host = mock(MarkerHost.class);
         when(host.placedFace()).thenReturn(placedFace);
-        when(host.read(HostVariables.STACKS)).thenReturn(OptionalDouble.of(stacks));
-        when(host.read(HostVariables.FLAT)).thenReturn(OptionalDouble.of(flat ? 1 : 0));
+        when(host.read(anyString())).thenReturn(OptionalDouble.empty());
         return host;
     }
 
+    // decision place-block-ability-grows-block
     @ParameterizedTest
-    @CsvSource({
-            "NORTH, 1, false, bump, tiny",
-            "UP, 2, true, flat, small",
-            "EAST, 4, false, bump, large",
-            "DOWN, 9, true, flat, large",
-            "WEST, 0, false, bump, tiny"})
-    void stateResolvesFromTheHost(Direction face, int stacks, boolean flat, String shape, String size) {
-        MarkerHost host = host(face, stacks, flat);
+    @EnumSource(Direction.class)
+    void glowCrystalFacesThePlacedFaceAtItsOneSize(Direction face) {
+        MarkerHost host = host(face);
         ProgramBehavior program = new ProgramBehavior(List.of(glowCrystal()));
 
         program.tick(host);
 
-        verify(host).placeBlock(GLOW_CRYSTAL, Map.of(FACING, face.getName(), SHAPE, shape, SIZE, size));
+        verify(host).placeBlock(GLOW_CRYSTAL, Map.of(FACING, face.getName(), SHAPE, "bump", SIZE, "tiny"));
         assertFalse(program.isActive());
+    }
+
+    @ParameterizedTest
+    @CsvSource({"0, tiny", "2, medium", "9, large", "-1, tiny"})
+    void pickIndexesItsValuesClampedToTheList(int index, String size) {
+        MarkerHost host = host(Direction.UP);
+        PlaceBlockStep step = new PlaceBlockStep(GLOW_CRYSTAL, Map.of(SIZE, new StateValue.Pick(expr(String.valueOf(index)), SIZES)));
+
+        new ProgramBehavior(List.of(step)).tick(host);
+
+        verify(host).placeBlock(GLOW_CRYSTAL, Map.of(SIZE, size));
     }
 
     @Test
     void namedValuePassesThrough() {
-        MarkerHost host = host(Direction.SOUTH, 1, false);
+        MarkerHost host = host(Direction.SOUTH);
         PlaceBlockStep step = new PlaceBlockStep(GLOW_CRYSTAL, Map.of(SHAPE, new StateValue.Named("flat")));
 
         new ProgramBehavior(List.of(step)).tick(host);

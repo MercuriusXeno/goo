@@ -32,7 +32,7 @@ void main() {
     gl_Position = ProjMat * ModelViewMat * vec4(Position, 1.0);
     surfaceDir = Normal;
     progress = Color.r;
-    // Alpha is the dome's opacity, faded in over the fuse tail (decision dome-fades-in-before-its-start).
+    // Alpha is the dome's opacity.
     opacity = Color.a;
     strength = Color.b;
     faceUp = faceStep(int(Color.g * 255.0 + 0.5));

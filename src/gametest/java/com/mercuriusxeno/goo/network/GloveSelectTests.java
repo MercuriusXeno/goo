@@ -17,7 +17,7 @@ import net.minecraft.world.item.ItemStack;
 public final class GloveSelectTests {
 
     private static final String BLAZE_ID = GooTypes.id(GooTypes.BLAZE);
-    private static final String BLAZE_TUNNEL = "goo:blaze_tunnel";
+    private static final String BLAZE_IGNITE = "goo:blaze_ignite";
     private static final String NO_ABILITY = "";
     private static final String TYPE_ONLY_TOOK = "A type with no ability changed the glove's selection";
     private static final String ABILITY_NOT_HELD = "The glove does not hold the type and ability sent";
@@ -36,10 +36,10 @@ public final class GloveSelectTests {
         GloveSelectHandler.resolveAndApply(glove, new GloveSelectPayload(BLAZE_ID, NO_ABILITY));
         helper.assertTrue(GooGloveItem.getSelection(glove) == null, TYPE_ONLY_TOOK);
 
-        GloveSelectHandler.resolveAndApply(glove, new GloveSelectPayload(BLAZE_ID, BLAZE_TUNNEL));
+        GloveSelectHandler.resolveAndApply(glove, new GloveSelectPayload(BLAZE_ID, BLAZE_IGNITE));
         GloveSelection held = GooGloveItem.getSelection(glove);
         helper.assertTrue(held != null && BLAZE_ID.equals(held.gooTypeId())
-                && BLAZE_TUNNEL.equals(held.abilityId()), ABILITY_NOT_HELD);
+                && BLAZE_IGNITE.equals(held.abilityId()), ABILITY_NOT_HELD);
 
         GloveSelectHandler.resolveAndApply(glove, new GloveSelectPayload(BLAZE_ID, NO_ABILITY));
         helper.assertTrue(held.equals(GooGloveItem.getSelection(glove)), TYPE_ONLY_TOOK);
