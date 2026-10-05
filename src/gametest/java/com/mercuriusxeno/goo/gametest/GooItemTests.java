@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.gametest;
 
-import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
+import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.network.GooThrowHandler;
 import com.mercuriusxeno.goo.network.GooThrowPayload;
@@ -56,8 +56,8 @@ public final class GooItemTests {
             GooTypes.REGISTRY, Identifier.fromNamespaceAndPath(TEST_PACK_NAMESPACE, "seventeenth"));
 
     private static final String GOO_NOT_SPENT = "Throwing should spend the goo of the thrown type: ";
-    private static final String NO_MARKER = "Thrown goo should land a chain marker beside the wall at ";
-    private static final String WRONG_MARKER_TYPE = "Chain marker should carry the thrown goo's type at ";
+    private static final String NO_MARKER = "Thrown goo should land a ability block beside the wall at ";
+    private static final String WRONG_MARKER_TYPE = "Ability block should carry the thrown goo's type at ";
     private static final String EXO_NOT_FIRE_RESISTANT = "A fresh exo gauntlet should resist fire damage";
     private static final String TAB_LACKS_THOUSAND = "Creative tab should offer a one-goo of the datapack type";
     private static final String TAB_LACKS_GOO = "Creative tab should offer a goo of the datapack type";
@@ -69,7 +69,7 @@ public final class GooItemTests {
     /**
      * A player holding a glove, with one crystal goo and one metal goo made
      * through GooStacks, throws each at its own stone wall; each throw spends
-     * that goo and lands a chain marker of that type beside its wall.
+     * that goo and lands a ability block of that type beside its wall.
      *
      * @param helper the gametest helper
      */
@@ -157,8 +157,8 @@ public final class GooItemTests {
     }
 
     private static void assertMarker(GameTestHelper helper, BlockPos pos, ResourceKey<GooTypeDefinition> type) {
-        helper.assertTrue(helper.getBlockState(pos).is(GooBlocks.CHAIN_MARKER.get()), NO_MARKER + pos);
-        ChainMarkerBlockEntity marker = helper.getBlockEntity(pos, ChainMarkerBlockEntity.class);
+        helper.assertTrue(helper.getBlockState(pos).is(GooBlocks.ABILITY_BLOCK.get()), NO_MARKER + pos);
+        AbilityBlockEntity marker = helper.getBlockEntity(pos, AbilityBlockEntity.class);
         helper.assertTrue(Objects.equals(type, marker.getGooType()), WRONG_MARKER_TYPE + pos);
     }
 }

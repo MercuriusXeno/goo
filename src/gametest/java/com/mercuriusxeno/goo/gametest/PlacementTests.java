@@ -2,9 +2,9 @@ package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
-import com.mercuriusxeno.goo.ability.world.EffectBlockPlacement;
-import com.mercuriusxeno.goo.block.ability.ChainMarkerBlock;
-import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
+import com.mercuriusxeno.goo.ability.world.AbilityImpact;
+import com.mercuriusxeno.goo.block.ability.AbilityBlock;
+import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -18,7 +18,7 @@ import java.util.Map;
 
 /**
  * Gametests for EffectBlockPlacement on the ability path: an ability goo
- * lands through ChainPlacementRules and stands or stacks its chain marker.
+ * lands through ChainPlacementRules and stands or stacks its ability block.
  */
 public final class PlacementTests {
 
@@ -48,11 +48,11 @@ public final class PlacementTests {
     public static void secondThrowLandsBesideTheFirst(GameTestHelper helper) {
         helper.setBlock(WALL_POS, Blocks.STONE);
         throwAbility(helper, WALL_POS, Direction.SOUTH, GooTypes.CRYSTAL, CRYSTAL_CLOUD);
-        ChainMarkerBlockEntity first = helper.getBlockEntity(AIR_POS, ChainMarkerBlockEntity.class);
+        AbilityBlockEntity first = helper.getBlockEntity(AIR_POS, AbilityBlockEntity.class);
         throwAbility(helper, AIR_POS, Direction.SOUTH, GooTypes.CRYSTAL, CRYSTAL_CLOUD);
-        helper.assertTrue(helper.getBlockEntity(AIR_POS, ChainMarkerBlockEntity.class) == first, FIRST_MARKER_CHANGED);
+        helper.assertTrue(helper.getBlockEntity(AIR_POS, AbilityBlockEntity.class) == first, FIRST_MARKER_CHANGED);
         helper.assertTrue(first.getBehavior() != null && first.getBehavior().isActive(), FIRST_MARKER_CHANGED);
-        ChainMarkerBlockEntity second = helper.getBlockEntity(AIR_POS.south(), ChainMarkerBlockEntity.class);
+        AbilityBlockEntity second = helper.getBlockEntity(AIR_POS.south(), AbilityBlockEntity.class);
         helper.assertTrue(second != first && second.getBehavior() != null, NO_SECOND_MARKER);
         helper.succeed();
     }
@@ -70,10 +70,10 @@ public final class PlacementTests {
     public static void sidewaysMarkerSurvivesNeighborChange(GameTestHelper helper) {
         helper.setBlock(WALL_POS, Blocks.STONE);
         throwAbility(helper, WALL_POS, Direction.SOUTH, GooTypes.METAL, METAL_SPIKES);
-        helper.assertBlockPresent(GooBlocks.CHAIN_MARKER.get(), AIR_POS);
+        helper.assertBlockPresent(GooBlocks.ABILITY_BLOCK.get(), AIR_POS);
         BlockPos neighbor = AIR_POS.south();
         helper.setBlock(neighbor, Blocks.STONE);
-        helper.assertBlockPresent(GooBlocks.CHAIN_MARKER.get(), AIR_POS);
+        helper.assertBlockPresent(GooBlocks.ABILITY_BLOCK.get(), AIR_POS);
         helper.succeed();
     }
 
@@ -91,7 +91,7 @@ public final class PlacementTests {
                                      ResourceKey<GooTypeDefinition> type, String abilityId) {
         AbilityDefinition ability = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(abilityId));
         helper.assertTrue(ability != null, ABILITIES_REQUIRED);
-        EffectBlockPlacement.placeAbility(helper.getLevel(), helper.absolutePos(hit), type, face, ability);
+        AbilityImpact.land(helper.getLevel(), helper.absolutePos(hit), type, face, ability);
     }
 
     /**
@@ -104,7 +104,7 @@ public final class PlacementTests {
         helper.setBlock(GRASS_SOIL_POS, Blocks.GRASS_BLOCK);
         helper.setBlock(GRASS_POS, Blocks.SHORT_GRASS);
         throwAbility(helper, GRASS_POS, Direction.UP, GooTypes.CRYSTAL, CRYSTAL_CLOUD);
-        helper.assertBlockPresent(GooBlocks.CHAIN_MARKER.get(), GRASS_POS);
+        helper.assertBlockPresent(GooBlocks.ABILITY_BLOCK.get(), GRASS_POS);
         helper.assertBlockPresent(Blocks.AIR, GRASS_POS.above());
         helper.succeed();
     }
@@ -119,8 +119,8 @@ public final class PlacementTests {
         helper.setBlock(WALL_POS, Blocks.STONE);
         helper.setBlock(AIR_POS, Blocks.WATER);
         throwAbility(helper, WALL_POS, Direction.SOUTH, GooTypes.CRYSTAL, CRYSTAL_CLOUD);
-        helper.assertBlockPresent(GooBlocks.CHAIN_MARKER.get(), AIR_POS);
-        helper.assertBlockProperty(AIR_POS, ChainMarkerBlock.WATERLOGGED, true);
+        helper.assertBlockPresent(GooBlocks.ABILITY_BLOCK.get(), AIR_POS);
+        helper.assertBlockProperty(AIR_POS, AbilityBlock.WATERLOGGED, true);
         helper.succeed();
     }
 
@@ -147,9 +147,9 @@ public final class PlacementTests {
         helper.setBlock(WALL_POS, Blocks.STONE);
         throwAbility(helper, WALL_POS, Direction.SOUTH, GooTypes.METAL, METAL_SPIKES);
         throwAbility(helper, AIR_POS, Direction.SOUTH, GooTypes.CRYSTAL, CRYSTAL_CLOUD);
-        ChainMarkerBlockEntity first = helper.getBlockEntity(AIR_POS, ChainMarkerBlockEntity.class);
+        AbilityBlockEntity first = helper.getBlockEntity(AIR_POS, AbilityBlockEntity.class);
         helper.assertTrue(METAL_SPIKES.equals(first.getAbilityId()), FIRST_MARKER_CHANGED);
-        ChainMarkerBlockEntity second = helper.getBlockEntity(AIR_POS.south(), ChainMarkerBlockEntity.class);
+        AbilityBlockEntity second = helper.getBlockEntity(AIR_POS.south(), AbilityBlockEntity.class);
         helper.assertTrue(CRYSTAL_CLOUD.equals(second.getAbilityId()), NO_SECOND_MARKER);
         helper.succeed();
     }
@@ -168,7 +168,7 @@ public final class PlacementTests {
             helper.setBlock(WALL_POS, Blocks.STONE);
             helper.setBlock(AIR_POS, Blocks.AIR);
             throwAbility(helper, WALL_POS, Direction.SOUTH, type, abilityId);
-            helper.assertBlockPresent(GooBlocks.CHAIN_MARKER.get(), AIR_POS);
+            helper.assertBlockPresent(GooBlocks.ABILITY_BLOCK.get(), AIR_POS);
         });
         helper.succeed();
     }

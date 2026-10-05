@@ -4,7 +4,8 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.GloveSelection;
-import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
+import com.mercuriusxeno.goo.ability.world.AbilityImpact;
+import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.command.GooTypesCommand;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.registry.GooBlocks;
@@ -13,6 +14,7 @@ import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -48,7 +50,7 @@ public final class GooTypeRegistryTests {
     private static final String MISSING_BUNDLED = "Bundled goo type missing from registry: ";
     private static final String CAPTURE_STALE = "GooTypes.order() should be the registry's keys captured at reload";
     private static final String CAPTURE_LACKS_SEVENTEENTH = "GooTypes.order() should hold the datapack type";
-    private static final String MARKER_TYPE_LOST = "Chain marker should reload with the type it saved";
+    private static final String MARKER_TYPE_LOST = "Ability block should reload with the type it saved";
     private static final String SELECTION_TYPE_LOST = "Glove selection should reload with the datapack type it saved";
     private static final BlockPos MARKER_POS = new BlockPos(1, 1, 1);
     private static final Identifier CRYSTAL_CLOUD = Identifier.fromNamespaceAndPath(Goo.MODID, "crystal_cloud");
@@ -80,23 +82,24 @@ public final class GooTypeRegistryTests {
     }
 
     /**
-     * A chain marker saves its type as an id and loads it back by key: the
+     * A ability block saves its type as an id and loads it back by key: the
      * marker's tag, read into a fresh marker, carries the type it was built
      * with.
      *
      * @param helper the gametest helper
      */
-    public static void chainMarkerReloadsType(GameTestHelper helper) {
-        helper.setBlock(MARKER_POS, GooBlocks.CHAIN_MARKER.get());
-        ChainMarkerBlockEntity marker = helper.getBlockEntity(MARKER_POS, ChainMarkerBlockEntity.class);
+    public static void abilityBlockReloadsType(GameTestHelper helper) {
+        helper.setBlock(MARKER_POS.below(), Blocks.STONE);
         AbilityDefinition crystalCloud = AbilityRegistry.of(helper.getLevel()).getAbility(CRYSTAL_CLOUD);
         helper.assertTrue(crystalCloud != null, ABILITIES_REQUIRED);
-        marker.initChainFromAbility(GooTypes.CRYSTAL, Direction.UP, crystalCloud);
+        AbilityImpact.land(helper.getLevel(), helper.absolutePos(MARKER_POS.below()), GooTypes.CRYSTAL, Direction.UP,
+                crystalCloud);
+        AbilityBlockEntity marker = helper.getBlockEntity(MARKER_POS, AbilityBlockEntity.class);
         CompoundTag saved = marker.getUpdateTag(helper.getLevel().registryAccess());
 
         helper.destroyBlock(MARKER_POS);
-        helper.setBlock(MARKER_POS, GooBlocks.CHAIN_MARKER.get());
-        ChainMarkerBlockEntity restored = helper.getBlockEntity(MARKER_POS, ChainMarkerBlockEntity.class);
+        helper.setBlock(MARKER_POS, GooBlocks.ABILITY_BLOCK.get());
+        AbilityBlockEntity restored = helper.getBlockEntity(MARKER_POS, AbilityBlockEntity.class);
         try (var reporter = new ProblemReporter.ScopedCollector(restored.problemPath(), Goo.LOGGER)) {
             restored.loadCustomOnly(TagValueInput.create(reporter, helper.getLevel().registryAccess(), saved));
         }

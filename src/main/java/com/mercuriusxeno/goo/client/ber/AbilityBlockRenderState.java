@@ -7,12 +7,12 @@ import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 
 /**
- * Render state snapshot for the chain marker BER. Captures goo type,
+ * Render state snapshot for the ability block BER. Captures goo type,
  * stack count and program state for the slime-like orb visual, plus
  * a flag + sphere fields populated when a nether {@code ProgramBehavior}
  * is active so the BER can submit the black-hole shader sphere.
  */
-public class ChainMarkerRenderState extends BlockEntityRenderState {
+public class AbilityBlockRenderState extends BlockEntityRenderState {
 
     /** The goo type determining color and fluid texture. */
     public ResourceKey<GooTypeDefinition> gooType = GooTypes.ROCK;

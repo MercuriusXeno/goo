@@ -5,7 +5,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceKey;
 
 /**
- * The state a chain marker carries through a fall, taken when its support
+ * The state a ability block carries through a fall, taken when its support
  * breaks and restored where it lands: its whole saved state, so the landed
  * marker runs on with the same ability's program from where it stood
  * (decisions no-throw-without-ability, splat-runs-the-program-no-fuse).
@@ -14,7 +14,7 @@ import net.minecraft.resources.ResourceKey;
  * @param abilityId the ability the marker runs, which its flight draws
  * @param saved     the marker's saved state, its running program included
  */
-public record ChainMarkerSnapshot(ResourceKey<GooTypeDefinition> gooType, String abilityId, CompoundTag saved) {
+public record AbilityBlockSnapshot(ResourceKey<GooTypeDefinition> gooType, String abilityId, CompoundTag saved) {
 
     /**
      * Takes the snapshot of a standing marker.
@@ -22,8 +22,8 @@ public record ChainMarkerSnapshot(ResourceKey<GooTypeDefinition> gooType, String
      * @param be the marker's block entity
      * @return the marker's state
      */
-    public static ChainMarkerSnapshot of(ChainMarkerBlockEntity be) {
+    public static AbilityBlockSnapshot of(AbilityBlockEntity be) {
         CompoundTag saved = be.getLevel() != null ? be.saveCustomOnly(be.getLevel().registryAccess()) : new CompoundTag();
-        return new ChainMarkerSnapshot(be.getGooType(), be.getAbilityId(), saved);
+        return new AbilityBlockSnapshot(be.getGooType(), be.getAbilityId(), saved);
     }
 }

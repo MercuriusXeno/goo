@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
+import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.storage.ValueInput;
@@ -144,10 +144,10 @@ public final class ProgramBehavior {
      * splat-runs-the-program-no-fuse).
      *
      * @param level the server level
-     * @param pos   the chain marker position
+     * @param pos   the ability block position
      * @param be    the owning marker
      */
-    public void onSplat(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity be) {
+    public void onSplat(ServerLevel level, BlockPos pos, AbilityBlockEntity be) {
         tick(new MarkerHost(level, pos, be));
     }
 
@@ -155,10 +155,10 @@ public final class ProgramBehavior {
      * One marker tick while {@link #isActive()} is true.
      *
      * @param level the server level
-     * @param pos   the chain marker position
+     * @param pos   the ability block position
      * @param be    the owning marker
      */
-    public void serverTick(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity be) {
+    public void serverTick(ServerLevel level, BlockPos pos, AbilityBlockEntity be) {
         tick(new MarkerHost(level, pos, be));
     }
 

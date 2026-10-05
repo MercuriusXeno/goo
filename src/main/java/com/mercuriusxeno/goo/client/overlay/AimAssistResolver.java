@@ -19,7 +19,7 @@ import java.util.Optional;
  * Target resolution with two-pass aim assist (exact raytrace + cone scan)
  * and sticky retention to prevent flicker at cone edges.
  *
- * <p>Handles living entities; a standing chain marker is never an aim
+ * <p>Handles living entities; a standing ability block is never an aim
  * target, so a throw at one lands beside it (decision
  * splat-runs-the-program-no-fuse).
  */
@@ -277,7 +277,7 @@ final class AimAssistResolver {
     /**
      * Line-of-sight to an arbitrary AABB. If {@code selfBlock} is non-null,
      * rays that terminate inside that block position are treated as clear
-     * (prevents a chain marker's own voxel from occluding its own LOS).
+     * (prevents a ability block's own voxel from occluding its own LOS).
      *
      * @param level     the current level
      * @param player    the interacting player
@@ -350,7 +350,7 @@ final class AimAssistResolver {
 
     /**
      * Sealed aim-hit kind produced by the resolver. Packs either a living
-     * entity or a chain marker block position so the caller can dispatch
+     * entity or a ability block block position so the caller can dispatch
      * render and throw-payload paths differently.
      */
     sealed interface AimHit {

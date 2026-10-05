@@ -1,16 +1,16 @@
 package com.mercuriusxeno.goo.client.ber.style;
 
-import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
-import com.mercuriusxeno.goo.client.ber.ChainMarkerBlockEntityRenderer;
-import com.mercuriusxeno.goo.client.ber.ChainMarkerRenderState;
+import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
+import com.mercuriusxeno.goo.client.ber.AbilityBlockRenderState;
+import com.mercuriusxeno.goo.client.ber.AbilityBlockRenderer;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 
 /**
  * Swap-in strategy for the nether black-hole visual. Each implementation
  * is free to own its geometry, shaders, lens-markup behavior, and any
- * style-specific per-frame state it stashes on {@link ChainMarkerRenderState}.
- * {@link ChainMarkerBlockEntityRenderer} dispatches extract
+ * style-specific per-frame state it stashes on {@link AbilityBlockRenderState}.
+ * {@link AbilityBlockRenderer} dispatches extract
  * and submit through {@link NetherHoleStyles#active()} so flipping the
  * active style is a one-field change with no touching of either
  * implementation.
@@ -28,10 +28,10 @@ public interface NetherHoleStyle {
      * when the BE has no active nether behavior, so the BER's dispatch
      * check in submit can short-circuit cleanly.
      *
-     * @param be    the chain marker block entity
+     * @param be    the ability block block entity
      * @param state the render state to populate
      */
-    void extract(ChainMarkerBlockEntity be, ChainMarkerRenderState state);
+    void extract(AbilityBlockEntity be, AbilityBlockRenderState state);
 
     /** Emits the style's geometry passes to the node collector. Called
      * once per BER per frame during submit, only when
@@ -41,6 +41,6 @@ public interface NetherHoleStyle {
      * @param poseStack     the pose stack for rendering
      * @param nodeCollector the render node collector
      */
-    void submit(ChainMarkerRenderState state, PoseStack poseStack,
+    void submit(AbilityBlockRenderState state, PoseStack poseStack,
             SubmitNodeCollector nodeCollector);
 }

@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Permanent glow crystal a glow chain marker places as its program runs.
+ * Permanent glow crystal a glow ability block places as its program runs.
  * No collision, variable light level by size, breaks like a torch and
  * drops a glow goo. Attaches to any surface (floor, wall, ceiling).
  *

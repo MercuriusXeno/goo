@@ -18,13 +18,13 @@ import java.util.Iterator;
 import java.util.List;
 
 /**
- * Schedules deferred chain marker re-placements after a support block
+ * Schedules deferred ability block re-placements after a support block
  * breaks. The marker is removed immediately; after the flight animation
  * completes, a new marker is placed at the landing position carrying the
  * state the old one held. Each server holds one, so its falls end with the
  * server (decision type-package-and-per-server-holders).
  */
-public final class ChainMarkerFallScheduler {
+public final class AbilityBlockFallScheduler {
 
     /**
      * Block center offset for flight start/end positions.
@@ -42,18 +42,18 @@ public final class ChainMarkerFallScheduler {
     private final List<PendingFall> pendingFalls = new ArrayList<>();
 
     /**
-     * Initiates a chain marker fall: broadcasts a flight animation and
+     * Initiates a ability block fall: broadcasts a flight animation and
      * schedules re-placement at the landing pos. The caller removes the
      * marker.
      *
      * @param level       the server level
      * @param oldPos      the position being vacated
      * @param landingPos  the position to re-place at
-     * @param markerBlock the chain marker block instance
+     * @param markerBlock the ability block block instance
      * @param snapshot    the marker's state, taken before removal
      */
     public void scheduleFall(ServerLevel level, BlockPos oldPos, BlockPos landingPos,
-                                    Block markerBlock, ChainMarkerSnapshot snapshot) {
+                                    Block markerBlock, AbilityBlockSnapshot snapshot) {
         double distance = oldPos.distManhattan(landingPos);
         GooTypeDefinition definition = GooTypes.definition(level.registryAccess(), snapshot.gooType());
         int travelTicks = (int) ThrowArc.travelTicks(distance, definition.levity(), definition.baseFlightTime());
@@ -121,7 +121,7 @@ public final class ChainMarkerFallScheduler {
      * @param travelTicks the flight duration in ticks
      */
     private static void broadcastFlight(ServerLevel level, BlockPos oldPos, BlockPos landingPos,
-                                        ChainMarkerSnapshot snapshot, int travelTicks) {
+                                        AbilityBlockSnapshot snapshot, int travelTicks) {
         GooFlightPayload flight = new GooFlightPayload(
                 oldPos.getX() + BLOCK_CENTER,
                 oldPos.getY() + BLOCK_CENTER,
@@ -139,7 +139,7 @@ public final class ChainMarkerFallScheduler {
     }
 
     /**
-     * Places a chain marker block at the landing position and restores
+     * Places a ability block block at the landing position and restores
      * the state the falling marker carried.
      *
      * @param pf the pending fall data
@@ -150,21 +150,21 @@ public final class ChainMarkerFallScheduler {
         BlockState markerState = pf.markerBlock.defaultBlockState()
                 .setValue(BlockStateProperties.WATERLOGGED, waterlogged);
         pf.level.setBlock(pf.landingPos, markerState, BLOCK_UPDATE_FLAGS);
-        if (pf.level.getBlockEntity(pf.landingPos) instanceof ChainMarkerBlockEntity be) {
+        if (pf.level.getBlockEntity(pf.landingPos) instanceof AbilityBlockEntity be) {
             be.restoreFromFall(pf.snapshot);
         }
     }
 
     /**
-     * A chain marker in mid-fall.
+     * A ability block in mid-fall.
      *
      * @param arrivalTick the server tick it lands on
      * @param level       the level it falls in
      * @param landingPos  the position it lands at
-     * @param markerBlock the chain marker block
+     * @param markerBlock the ability block block
      * @param snapshot    the state the falling marker carries
      */
     public record PendingFall(int arrivalTick, ServerLevel level, BlockPos landingPos,
-                              Block markerBlock, ChainMarkerSnapshot snapshot) {
+                              Block markerBlock, AbilityBlockSnapshot snapshot) {
     }
 }

@@ -53,7 +53,7 @@ class ChainPlacementRulesTest {
     }
 
     /**
-     * Convenience: builds a CandidateState for a standing chain marker, which
+     * Convenience: builds a CandidateState for a standing ability block, which
      * is neither air nor replaceable.
      */
     private static CandidateState standingMarker() {
@@ -145,7 +145,7 @@ class ChainPlacementRulesTest {
         }
     }
 
-    // ── Water + WATERLOG handling (chain markers) ──────────────────────
+    // ── Water + WATERLOG handling (ability blocks) ──────────────────────
 
     @Nested
     class WaterWaterlog {

@@ -3,12 +3,13 @@ package com.mercuriusxeno.goo.block.ability;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.*;
 import com.mercuriusxeno.goo.ability.program.FieldEffectState;
+import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.PhasedState;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
+import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.block.BlockEntitySync;
 import com.mercuriusxeno.goo.block.GooSyncedBlockEntity;
 import com.mercuriusxeno.goo.item.GooContents;
-import com.mercuriusxeno.goo.network.ChainBurnoutPayload;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -17,24 +18,24 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.TagValueInput;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
-import net.neoforged.neoforge.network.PacketDistributor;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
+import java.util.List;
 
 /**
- * Ticking block entity for chain effects. Owns only the shared state:
- * goo type and placed face. Its work is the marker's ability
- * program, a {@link ProgramBehavior} loaded for the marker host and run
- * from the tick its blob splats (decision splat-runs-the-program-no-fuse).
+ * Ticking block entity a lingering ability stands where its blob lands
+ * (decision lingering-abilities-place-their-own-thing). Owns only the shared
+ * state: goo type, placed face and ability id. Its work is the body of the
+ * ability's linger step, a {@link ProgramBehavior} run on the block's host
+ * from the tick the blob splats until it ends, when the block goes.
  */
-public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
+public class AbilityBlockEntity extends GooSyncedBlockEntity {
 
     private static final String TAG_GOO_TYPE = "goo_type";
     private static final String TAG_PLACED_FACE = "PlacedFace";
@@ -73,26 +74,26 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
      */
     private GooContents consumedGoo = GooContents.EMPTY;
     /**
-     * The running ability program; null until the blob splats or when this
-     * side holds no such ability. Nulled out implicitly when the BE removes
+     * The running body of the ability's linger step; null when this side
+     * holds no such ability. Nulled out implicitly when the BE removes
      * itself.
      */
     @Nullable
     private ProgramBehavior behavior;
     /**
-     * Id of the ability the marker runs as its blob splats (decision
+     * Id of the ability that stood this block (decision
      * no-throw-without-ability); a marker loaded without one runs nothing.
      */
     private String abilityId = "";
 
     /**
-     * Creates a chain marker block entity at the given position.
+     * Creates a ability block block entity at the given position.
      *
      * @param pos   the block position
      * @param state the block state
      */
-    public ChainMarkerBlockEntity(BlockPos pos, BlockState state) {
-        super(GooBlockEntities.CHAIN_MARKER.get(), pos, state);
+    public AbilityBlockEntity(BlockPos pos, BlockState state) {
+        super(GooBlockEntities.ABILITY_BLOCK.get(), pos, state);
     }
 
     /**
@@ -105,15 +106,14 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
      * @param be    the block entity
      */
     public static void serverTick(Level level, BlockPos pos, BlockState state,
-                                  ChainMarkerBlockEntity be) {
-        ServerLevel server = (ServerLevel) level;
+                                  AbilityBlockEntity be) {
         if (be.behavior == null) {
-            server.removeBlock(pos, false);
+            level.removeBlock(pos, false);
             return;
         }
-        be.behavior.serverTick(server, pos, be);
+        be.behavior.serverTick((ServerLevel) level, pos, be);
         if (!be.behavior.isActive()) {
-            server.removeBlock(pos, false);
+            level.removeBlock(pos, false);
             return;
         }
         be.setChanged();
@@ -121,38 +121,41 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
     }
 
     /**
-     * Configures this marker from a data-driven ability definition.
+     * Stands the block for a lingering ability and runs the first tick of the
+     * steps its linger step hands it, in the tick the blob splats; steps
+     * ending that tick take the block with them (decisions
+     * splat-runs-the-program-no-fuse, lingering-abilities-place-their-own-thing).
      *
-     * @param type    the goo type
-     * @param face    the placed face
-     * @param ability the ability definition
+     * @param type      the goo type
+     * @param face      the placed face
+     * @param ability   the id of the ability that lingers
+     * @param steps     the body of the ability's linger step
      */
-    public void initChainFromAbility(ResourceKey<GooTypeDefinition> type, Direction face, AbilityDefinition ability) {
+    public void stand(ResourceKey<GooTypeDefinition> type, Direction face, String ability, List<Step> steps) {
         this.gooType = type;
         this.placedFace = face;
-        this.abilityId = ability.id().toString();
-        setChanged();
-    }
-
-    /**
-     * Resolves the marker the tick its blob splats: announces the burnout,
-     * runs the program's first tick, and removes the marker when the program
-     * ends that tick (decision splat-runs-the-program-no-fuse).
-     */
-    public void splat() {
-        if (level instanceof ServerLevel server) {
-            ChainMarkerSplat.resolve(new SplattingMarker(server, worldPosition));
+        this.abilityId = ability;
+        if (!(level instanceof ServerLevel server)) {
+            return;
         }
+        behavior = ProgramBehavior.forHost(steps, HostKind.MARKER);
+        behavior.onSplat(server, worldPosition, this);
+        if (!behavior.isActive()) {
+            removeMarkerBlock(server, worldPosition);
+            return;
+        }
+        setChanged();
+        BlockEntitySync.markDirtyAndSync(this);
     }
 
     /**
      * Restores the state a marker carried through a fall, its running
-     * program included. Called by {@link ChainMarkerFallScheduler} after the
+     * program included. Called by {@link AbilityBlockFallScheduler} after the
      * flight animation completes.
      *
      * @param snapshot the state taken when the support broke
      */
-    public void restoreFromFall(ChainMarkerSnapshot snapshot) {
+    public void restoreFromFall(AbilityBlockSnapshot snapshot) {
         if (level == null) {
             return;
         }
@@ -223,71 +226,9 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
      * @param pos   the marker position
      */
     private static void removeMarkerBlock(ServerLevel level, BlockPos pos) {
-        if (level.getBlockState(pos).is(GooBlocks.CHAIN_MARKER.get())) {
+        if (level.getBlockState(pos).is(GooBlocks.ABILITY_BLOCK.get())) {
             level.removeBlock(pos, false);
         }
-    }
-
-    /**
-     * This marker's world actions as its blob splats.
-     */
-    private final class SplattingMarker implements ChainMarkerSplat {
-
-        private final ServerLevel level;
-        private final BlockPos pos;
-
-        /**
-         * @param level the server level
-         * @param pos   the marker position
-         */
-        SplattingMarker(ServerLevel level, BlockPos pos) {
-            this.level = level;
-            this.pos = pos;
-        }
-
-        @Override
-        public void announceBurnout() {
-            ChainBurnoutPayload burnout = burnoutPayload(pos);
-            // A listener that never negotiated the mod's channels, a gametest's mock player, gets no burnout.
-            for (ServerPlayer player : level.getChunkSource().chunkMap.getPlayers(level.getChunkAt(pos).getPos(), false)) {
-                if (player.connection.hasChannel(burnout)) {
-                    PacketDistributor.sendToPlayer(player, burnout);
-                }
-            }
-        }
-
-        @Override
-        public boolean loadProgram() {
-            behavior = createBehavior();
-            return behavior != null;
-        }
-
-        @Override
-        public boolean runFirstTick() {
-            behavior.onSplat(level, pos, ChainMarkerBlockEntity.this);
-            return behavior.isActive();
-        }
-
-        @Override
-        public void removeMarker() {
-            removeMarkerBlock(level, pos);
-        }
-
-        @Override
-        public void syncRunningProgram() {
-            setChanged();
-            BlockEntitySync.markDirtyAndSync(ChainMarkerBlockEntity.this);
-        }
-    }
-
-    /**
-     * The burnout this marker announces as its blob splats.
-     *
-     * @param pos the marker position
-     * @return the burnout payload
-     */
-    private ChainBurnoutPayload burnoutPayload(BlockPos pos) {
-        return new ChainBurnoutPayload(pos, placedFace.ordinal(), GooTypes.id(gooType), abilityId);
     }
 
 
@@ -341,7 +282,7 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
     }
 
     /**
-     * Returns the running ability program, or null before the blob splats.
+     * Returns the running body of the ability's linger step, or null when this side holds none.
      *
      * @return the active chain behavior, or null
      */

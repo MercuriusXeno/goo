@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.client.ber;
 
-import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
+import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.ability.CrystalCloudVisual;
 import com.mercuriusxeno.goo.client.ability.MarkerOrbVisual;
@@ -21,7 +21,7 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Thin dispatcher for chain marker visuals. Each ability-specific
+ * Thin dispatcher for ability block visuals. Each ability-specific
  * appearance lives in its own visualizer in {@code client.ability/}; this
  * class extracts the common state fields, delegates ability-specific
  * extraction to each visualizer, and dispatches submit() based on which
@@ -35,16 +35,16 @@ import org.jspecify.annotations.Nullable;
  *   <li>{@link NetherHoleStyles#active()} - the swappable nether black-hole style</li>
  * </ul>
  */
-public class ChainMarkerBlockEntityRenderer
-        implements BlockEntityRenderer<ChainMarkerBlockEntity, ChainMarkerRenderState> {
+public class AbilityBlockRenderer
+        implements BlockEntityRenderer<AbilityBlockEntity, AbilityBlockRenderState> {
 
     /** Center offset in block units. */
     private static final float BLOCK_CENTER = 0.5f;
-    /** Half-extent of the render bounding box around a chain marker, in blocks.
+    /** Half-extent of the render bounding box around a ability block, in blocks.
      * Must exceed the maximum implosion radius (nether max = 9). */
     private static final double RENDER_BOX_HALF_EXTENT = 12.0;
 
-    public ChainMarkerBlockEntityRenderer(BlockEntityRendererProvider.Context context) {
+    public AbilityBlockRenderer(BlockEntityRendererProvider.Context context) {
     }
 
     /**
@@ -54,8 +54,8 @@ public class ChainMarkerBlockEntityRenderer
      * @param state       the render state to populate
      * @param partialTick the partial tick for interpolation
      */
-    private static void extractCoreFields(ChainMarkerBlockEntity be,
-                                          ChainMarkerRenderState state, float partialTick) {
+    private static void extractCoreFields(AbilityBlockEntity be,
+                                          AbilityBlockRenderState state, float partialTick) {
         state.gooType = be.getGooType();
         state.partialTick = partialTick;
         state.gameTime = be.getLevel() != null
@@ -68,8 +68,8 @@ public class ChainMarkerBlockEntityRenderer
      * @param be    the block entity
      * @param state the render state to populate
      */
-    private static void extractTargetAndFace(ChainMarkerBlockEntity be,
-                                             ChainMarkerRenderState state) {
+    private static void extractTargetAndFace(AbilityBlockEntity be,
+                                             AbilityBlockRenderState state) {
         // Highlight when the vanilla crosshair or the post-throw freeze
         // window (aim locked from the previous throw) is on this block.
         BlockPos pos = be.getBlockPos();
@@ -79,8 +79,8 @@ public class ChainMarkerBlockEntityRenderer
     }
 
     @Override
-    public ChainMarkerRenderState createRenderState() {
-        return new ChainMarkerRenderState();
+    public AbilityBlockRenderState createRenderState() {
+        return new AbilityBlockRenderState();
     }
 
     /**
@@ -88,11 +88,11 @@ public class ChainMarkerBlockEntityRenderer
      * nether max radius of 9) is not frustum-culled when the player looks
      * slightly away from the marker block.
      *
-     * @param blockEntity the chain marker block entity
+     * @param blockEntity the ability block block entity
      * @return an AABB large enough to contain the maximum implosion sphere
      */
     @Override
-    public @NonNull AABB getRenderBoundingBox(@NonNull ChainMarkerBlockEntity blockEntity) {
+    public @NonNull AABB getRenderBoundingBox(@NonNull AbilityBlockEntity blockEntity) {
         BlockPos pos = blockEntity.getBlockPos();
         double cx = pos.getX() + BLOCK_CENTER;
         double cy = pos.getY() + BLOCK_CENTER;
@@ -103,8 +103,8 @@ public class ChainMarkerBlockEntityRenderer
     }
 
     @Override
-    public void extractRenderState(ChainMarkerBlockEntity be,
-                                   ChainMarkerRenderState state, float partialTick, Vec3 cameraPos,
+    public void extractRenderState(AbilityBlockEntity be,
+                                   AbilityBlockRenderState state, float partialTick, Vec3 cameraPos,
                                    ModelFeatureRenderer.@Nullable CrumblingOverlay breakProgress) {
         BlockEntityRenderState.extractBase(be, state, breakProgress);
         extractCoreFields(be, state, partialTick);
@@ -116,7 +116,7 @@ public class ChainMarkerBlockEntityRenderer
     }
 
     @Override
-    public void submit(ChainMarkerRenderState state, PoseStack poseStack,
+    public void submit(AbilityBlockRenderState state, PoseStack poseStack,
                        SubmitNodeCollector nodeCollector, CameraRenderState cameraState) {
         if (state.netherActive) {
             NetherHoleStyles.active().submit(state, poseStack, nodeCollector);

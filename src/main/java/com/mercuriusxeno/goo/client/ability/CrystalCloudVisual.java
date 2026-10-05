@@ -4,10 +4,10 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.FieldEffectState;
 import com.mercuriusxeno.goo.ability.program.FieldEffectStep;
 import com.mercuriusxeno.goo.ability.program.Variables;
-import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
+import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.client.FlatQuadContext;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
-import com.mercuriusxeno.goo.client.ber.ChainMarkerRenderState;
+import com.mercuriusxeno.goo.client.ber.AbilityBlockRenderState;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
@@ -150,10 +150,10 @@ public final class CrystalCloudVisual {
      * the radius and animation lengths off the field-effect step of the
      * marker's synced ability.
      *
-     * @param be    the chain marker block entity
+     * @param be    the ability block block entity
      * @param state the render state to populate
      */
-    public static void extract(ChainMarkerBlockEntity be, ChainMarkerRenderState state) {
+    public static void extract(AbilityBlockEntity be, AbilityBlockRenderState state) {
         FieldEffectStep cloud = runningCloud(be);
         if (cloud == null) {
             TABLES.dropAt(be.getBlockPos());
@@ -182,10 +182,10 @@ public final class CrystalCloudVisual {
      * Finds the field-effect step a crystal marker runs, read off its
      * synced ability.
      *
-     * @param be the chain marker block entity
+     * @param be the ability block block entity
      * @return the step, or null when the marker is no running crystal field
      */
-    private static @Nullable FieldEffectStep runningCloud(ChainMarkerBlockEntity be) {
+    private static @Nullable FieldEffectStep runningCloud(AbilityBlockEntity be) {
         if (!GooTypes.CRYSTAL.equals(be.getGooType()) || be.getBehavior() == null) {
             return null;
         }
@@ -197,7 +197,7 @@ public final class CrystalCloudVisual {
      *
      * @param state the render state to clear
      */
-    private static void clear(ChainMarkerRenderState state) {
+    private static void clear(AbilityBlockRenderState state) {
         state.crystalActive = false;
         state.crystalDensity = 0f;
         state.crystalRadiusFraction = 0f;
@@ -233,17 +233,17 @@ public final class CrystalCloudVisual {
      * @return true while the cloud stands
      */
     private static boolean holdsCloud(Level level, BlockPos pos) {
-        return level.getBlockEntity(pos) instanceof ChainMarkerBlockEntity be && runningCloud(be) != null;
+        return level.getBlockEntity(pos) instanceof AbilityBlockEntity be && runningCloud(be) != null;
     }
 
     /**
      * Submits crystal shard splinters for rendering.
      *
-     * @param state         the chain marker render state
+     * @param state         the ability block render state
      * @param poseStack     the pose stack
      * @param nodeCollector the render node collector
      */
-    public static void submit(ChainMarkerRenderState state,
+    public static void submit(AbilityBlockRenderState state,
                               PoseStack poseStack, SubmitNodeCollector nodeCollector) {
         if (state.crystalRadiusFraction <= 0f) {
             TABLES.dropAt(state.blockPos);
@@ -261,12 +261,12 @@ public final class CrystalCloudVisual {
     /**
      * What this frame of the marker's cloud draws.
      *
-     * @param state  the chain marker render state
+     * @param state  the ability block render state
      * @param level  the client level the rays are cast in
      * @param camPos the camera eye position
      * @return the frame's draw
      */
-    private static CloudDraw drawOf(ChainMarkerRenderState state, Level level, Vec3 camPos) {
+    private static CloudDraw drawOf(AbilityBlockRenderState state, Level level, Vec3 camPos) {
         float radiusFrac = state.crystalRadiusFraction;
         float density = state.crystalDensity;
         double clock = state.crystalReflectionClock + state.partialTick;

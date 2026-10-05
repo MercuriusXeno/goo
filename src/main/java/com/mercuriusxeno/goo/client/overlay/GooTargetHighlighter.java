@@ -24,7 +24,7 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Draws the glove's aim each frame from the frame's {@link AimTracker}: a
- * goo-colored highlight on the targeted block or chain marker at the opaque
+ * goo-colored highlight on the targeted block or ability block at the opaque
  * stage, and the throw arc after translucent blocks. The entity outline
  * rides the render state modifier AimTracker registers (decision
  * render-context-is-the-one-emitter).
@@ -73,7 +73,7 @@ public final class GooTargetHighlighter {
     }
 
     /**
-     * Renders the targeted block or chain marker highlight and leaves the
+     * Renders the targeted block or ability block highlight and leaves the
      * target for the arc stage.
      *
      * @param event the event instance

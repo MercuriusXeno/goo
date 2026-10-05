@@ -44,12 +44,12 @@ import java.util.Map;
  * collision, no selection shape, purely visual. The block entity runs the
  * ability's program from the splat (decision splat-runs-the-program-no-fuse).
  *
- * <p>Implements {@link SimpleWaterloggedBlock} so chain markers can occupy
+ * <p>Implements {@link SimpleWaterloggedBlock} so ability blocks can occupy
  * water blocks without displacing them. This is required for effects that
  * operate underwater (notably leaf goo's chain effect) and is harmless for
  * effects that do not interact with water.</p>
  */
-public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWaterloggedBlock {
+public class AbilityBlock extends AbstractEffectBlock implements SimpleWaterloggedBlock {
 
     /**
      * Ticks between a neighbor change leaving the marker unsupported and the
@@ -60,14 +60,14 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
     /**
      * The program ticks on the server alone.
      */
-    private static final BlockEntityTicks<ChainMarkerBlockEntity> TICKS =
-            BlockEntityTicks.onServer(GooBlockEntities.CHAIN_MARKER, ChainMarkerBlockEntity::serverTick);
+    private static final BlockEntityTicks<AbilityBlockEntity> TICKS =
+            BlockEntityTicks.onServer(GooBlockEntities.ABILITY_BLOCK, AbilityBlockEntity::serverTick);
 
     /**
      * Waterlogged state property: true when this marker co-occupies a water block.
      */
     public static final BooleanProperty WATERLOGGED = BlockStateProperties.WATERLOGGED;
-    public static final MapCodec<ChainMarkerBlock> CODEC = simpleCodec(ChainMarkerBlock::new);
+    public static final MapCodec<AbilityBlock> CODEC = simpleCodec(AbilityBlock::new);
     /**
      * Ambient particle spread radius.
      */
@@ -124,20 +124,20 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
 
     static {
         Map<ResourceKey<GooTypeDefinition>, ParticleEmitter> m = new HashMap<>();
-        m.put(GooTypes.BLAZE, ChainMarkerBlock::spawnBlazeParticles);
-        m.put(GooTypes.ROCK, ChainMarkerBlock::spawnRockParticles);
-        m.put(GooTypes.NETHER, ChainMarkerBlock::spawnNetherParticles);
-        m.put(GooTypes.METAL, ChainMarkerBlock::spawnMetalParticles);
+        m.put(GooTypes.BLAZE, AbilityBlock::spawnBlazeParticles);
+        m.put(GooTypes.ROCK, AbilityBlock::spawnRockParticles);
+        m.put(GooTypes.NETHER, AbilityBlock::spawnNetherParticles);
+        m.put(GooTypes.METAL, AbilityBlock::spawnMetalParticles);
         // Crystal uses shard cloud BER visual instead of ambient particles.
         PARTICLE_EMITTERS = Map.copyOf(m);
     }
 
     /**
-     * Creates a chain marker block with the given properties.
+     * Creates a ability block block with the given properties.
      *
      * @param properties the block properties
      */
-    public ChainMarkerBlock(Properties properties) {
+    public AbilityBlock(Properties properties) {
         super(properties);
         registerDefaultState(stateDefinition.any().setValue(WATERLOGGED, false));
     }
@@ -150,7 +150,7 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
      * @return true if the block should be removed normally
      */
     private static boolean shouldDeferToSuper(Level level, BlockPos pos) {
-        return !(level.getBlockEntity(pos) instanceof ChainMarkerBlockEntity be) || !isProtectedFromBreaking(be);
+        return !(level.getBlockEntity(pos) instanceof AbilityBlockEntity be) || !isProtectedFromBreaking(be);
     }
 
     /**
@@ -172,7 +172,7 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
 
     /**
      * Computes a voxel shape that exactly matches the glow crystal
-     * that will replace this chain marker as its program runs.
+     * that will replace this ability block as its program runs.
      *
      * @param face the placed face direction
      * @return the crystal-matched voxel shape
@@ -190,7 +190,7 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
      * @return true if the marker has no support
      */
     private static boolean isMarkerWithNoSupport(Level level, BlockPos pos) {
-        if (!(level.getBlockEntity(pos) instanceof ChainMarkerBlockEntity be)) {
+        if (!(level.getBlockEntity(pos) instanceof AbilityBlockEntity be)) {
             return false;
         }
         BlockPos supportPos = pos.relative(be.getPlacedFace().getOpposite());
@@ -209,7 +209,7 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
         if (landing == null || landing.equals(pos)) {
             return;
         }
-        ChainMarkerSnapshot snapshot = ChainMarkerSnapshot.of((ChainMarkerBlockEntity) level.getBlockEntity(pos));
+        AbilityBlockSnapshot snapshot = AbilityBlockSnapshot.of((AbilityBlockEntity) level.getBlockEntity(pos));
         level.removeBlock(pos, false);
         GooServerState.of(level.getServer()).markerFalls().scheduleFall(level, pos, landing, state.getBlock(), snapshot);
     }
@@ -240,15 +240,15 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
      * Returns true if this marker's running program stands against breaking (metal,
      * crystal), which keeps it standing against a punch.
      *
-     * @param be the chain marker block entity
+     * @param be the ability block block entity
      * @return true if breaking should be prevented
      */
-    private static boolean isProtectedFromBreaking(ChainMarkerBlockEntity be) {
+    private static boolean isProtectedFromBreaking(AbilityBlockEntity be) {
         return be.getBehavior() != null && be.getBehavior().standsAgainstBreaking();
     }
 
     /**
-     * Drops the goo a mid-implosion chain marker consumed at {@code pos}
+     * Drops the goo a mid-implosion ability block consumed at {@code pos}
      * when it is broken. No-op on the client, for a marker that consumed
      * nothing, or if the block entity is missing.
      *
@@ -259,7 +259,7 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
         if (!(level instanceof ServerLevel server)) {
             return;
         }
-        if (!(server.getBlockEntity(pos) instanceof ChainMarkerBlockEntity be)) {
+        if (!(server.getBlockEntity(pos) instanceof AbilityBlockEntity be)) {
             return;
         }
         GooStacks.dropAll(be.takeConsumedGoo(), server, pos);
@@ -301,7 +301,7 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
     }
 
     /**
-     * Emits flame particles and occasional lava drips for blaze chain markers.
+     * Emits flame particles and occasional lava drips for blaze ability blocks.
      *
      * @param cx     block center X coordinate
      * @param cy     block center Y coordinate
@@ -340,7 +340,7 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
     }
 
     /**
-     * Emits dust plume particles for rock chain markers.
+     * Emits dust plume particles for rock ability blocks.
      *
      * @param cx     block center X coordinate
      * @param cy     block center Y coordinate
@@ -361,7 +361,7 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
     }
 
     /**
-     * Emits drifting soul particles and occasional smoke for nether chain markers.
+     * Emits drifting soul particles and occasional smoke for nether ability blocks.
      *
      * @param cx     block center X coordinate
      * @param cy     block center Y coordinate
@@ -385,7 +385,7 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
     }
 
     /**
-     * Emits metallic crit particles for metal chain markers.
+     * Emits metallic crit particles for metal ability blocks.
      *
      * @param cx     block center X coordinate
      * @param cy     block center Y coordinate
@@ -463,7 +463,7 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
     @Override
     protected @NonNull VoxelShape getShape(@NonNull BlockState state, @NonNull BlockGetter level,
                                            @NonNull BlockPos pos, @NonNull CollisionContext context) {
-        if (!(level.getBlockEntity(pos) instanceof ChainMarkerBlockEntity be)) {
+        if (!(level.getBlockEntity(pos) instanceof AbilityBlockEntity be)) {
             return SELECTION_SHAPE;
         }
         if (be.getGooType() == GooTypes.GLOW) {
@@ -473,7 +473,7 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
     }
 
     /**
-     * Prevents breaking a chain marker whose program stands against breaking;
+     * Prevents breaking a ability block whose program stands against breaking;
      * every other marker breaks normally.
      *
      * @param state  the block state
@@ -485,7 +485,7 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
     @Override
     protected float getDestroyProgress(@NonNull BlockState state, @NonNull Player player,
                                        @NonNull BlockGetter level, @NonNull BlockPos pos) {
-        if (level.getBlockEntity(pos) instanceof ChainMarkerBlockEntity be
+        if (level.getBlockEntity(pos) instanceof AbilityBlockEntity be
                 && isProtectedFromBreaking(be)) {
             return 0.0f;
         }
@@ -524,7 +524,7 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
     }
 
     /**
-     * Creates the chain marker block entity for this position.
+     * Creates the ability block block entity for this position.
      *
      * @param pos   the block position
      * @param state the block state
@@ -533,7 +533,7 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
     @Nullable
     @Override
     public BlockEntity newBlockEntity(@NonNull BlockPos pos, @NonNull BlockState state) {
-        return new ChainMarkerBlockEntity(pos, state);
+        return new AbilityBlockEntity(pos, state);
     }
 
     /**
@@ -616,7 +616,7 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
     }
 
     /**
-     * Spawns ambient particles based on the chain marker's goo type.
+     * Spawns ambient particles based on the ability block's goo type.
      *
      * @param state  the block state
      * @param level  the current level
@@ -626,7 +626,7 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
     @Override
     public void animateTick(@NonNull BlockState state, @NonNull Level level,
                             @NonNull BlockPos pos, @NonNull RandomSource random) {
-        if (!(level.getBlockEntity(pos) instanceof ChainMarkerBlockEntity be)) {
+        if (!(level.getBlockEntity(pos) instanceof AbilityBlockEntity be)) {
             return;
         }
         spawnAmbientParticles(be.getGooType(), pos, level, random);

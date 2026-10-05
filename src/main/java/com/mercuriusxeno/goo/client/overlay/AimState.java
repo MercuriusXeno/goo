@@ -7,7 +7,7 @@ import org.jspecify.annotations.Nullable;
 /**
  * The glove's aim as one frame resolved it, read by everything that needs
  * it until the next frame: the frame's highlight and arc, the throw, the
- * entity outline and the chain marker's targeted look. One resolve per frame
+ * entity outline and the ability block's targeted look. One resolve per frame
  * means one sticky seed, the hit that resolve found (decisions
  * render-context-is-the-one-emitter, aim-target-follows-client-aim).
  * {@link AimTracker} updates it.

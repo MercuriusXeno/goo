@@ -10,7 +10,7 @@ import net.minecraft.resources.ResourceKey;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 /**
- * Client-side handler for chain marker burnouts: adds each to the live
+ * Client-side handler for ability block burnouts: adds each to the live
  * explosion list, stamped with the game time it began (decision
  * elemental-explosion-per-type).
  */

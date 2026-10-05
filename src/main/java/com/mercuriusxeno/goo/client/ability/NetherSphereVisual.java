@@ -1,10 +1,10 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
+import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.client.FlatQuadContext;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
-import com.mercuriusxeno.goo.client.ber.ChainMarkerBlockEntityRenderer;
-import com.mercuriusxeno.goo.client.ber.ChainMarkerRenderState;
+import com.mercuriusxeno.goo.client.ber.AbilityBlockRenderState;
+import com.mercuriusxeno.goo.client.ber.AbilityBlockRenderer;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.renderer.SubmitNodeCollector;
@@ -15,8 +15,8 @@ import java.util.List;
 
 /**
  * Nether black-hole render path: the three-pass sphere/corona/disk
- * submission triggered from {@link ChainMarkerBlockEntityRenderer} when a nether
- * {@code ProgramBehavior} is active on the chain marker BE. All nether-
+ * submission triggered from {@link AbilityBlockRenderer} when a nether
+ * {@code ProgramBehavior} is active on the ability block BE. All nether-
  * specific geometry, mesh caches, color packing, and render-state
  * extraction for the black-hole visual lives here so the generic BER
  * only has to know about the orb visual and the thin dispatch check.
@@ -109,10 +109,10 @@ public final class NetherSphereVisual {
      * Populates the render state's nether fields from the marker's phase
      * cursor and marks the lens around the sphere's current visible radius.
      *
-     * @param be    the chain marker block entity
+     * @param be    the ability block block entity
      * @param state the render state to populate
      */
-    public static void extract(ChainMarkerBlockEntity be, ChainMarkerRenderState state) {
+    public static void extract(AbilityBlockEntity be, AbilityBlockRenderState state) {
         if (BlackHolePhases.populateRenderState(be, state)) {
             NetherLensEffect.markHoleActive(BlackHolePhases.holeCenter(be), BlackHolePhases.visibleRadius(state));
         }
@@ -128,7 +128,7 @@ public final class NetherSphereVisual {
      * @param poseStack     the pose stack for rendering
      * @param nodeCollector the render node collector
      */
-    public static void submit(ChainMarkerRenderState state, PoseStack poseStack,
+    public static void submit(AbilityBlockRenderState state, PoseStack poseStack,
                               SubmitNodeCollector nodeCollector) {
         float fullRadius = BlackHolePhases.fullRadius(state);
         float visibleRadius = BlackHolePhases.visibleRadius(state);
