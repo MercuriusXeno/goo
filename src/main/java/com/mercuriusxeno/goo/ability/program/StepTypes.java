@@ -65,6 +65,7 @@ public final class StepTypes {
         register(AilmentOverlayStep.TYPE);
         register(AfterimageStep.TYPE);
         register(GhostTrailStep.TYPE);
+        register(HeartOverlayStep.TYPE);
     }
 
     private StepTypes() {
