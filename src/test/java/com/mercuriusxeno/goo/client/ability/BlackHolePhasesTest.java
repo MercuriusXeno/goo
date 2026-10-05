@@ -64,13 +64,13 @@ class BlackHolePhasesTest {
     @Test
     void holeDrawsNothingThroughTheGatherBeforeItsRamp() {
         PhasedState gather = gatherAt(0);
-        for (int tick = 0; tick < GATHER_TICKS - DomeRamp.RAMP_TICKS; tick++) {
+        for (int tick = 0; tick < GATHER_TICKS - StartupRamp.RAMP_TICKS; tick++) {
             assertTrue(BlackHolePhases.holeRamp(gather, 0.5f).isEmpty(), "the hole draws at gather tick " + tick);
             assertEquals(0f, BlackHolePhases.visibleScale(gather), 0f);
             assertEquals(0f, BlackHolePhases.diskExpansionScale(gather), 0f);
             gather.countTick();
         }
-        assertTrue(BlackHolePhases.holeRamp(gatherAt(GATHER_TICKS - DomeRamp.RAMP_TICKS), 0f).isEmpty());
+        assertTrue(BlackHolePhases.holeRamp(gatherAt(GATHER_TICKS - StartupRamp.RAMP_TICKS), 0f).isEmpty());
     }
 
     @Test
@@ -82,11 +82,11 @@ class BlackHolePhasesTest {
 
     @Test
     void rampStartsBelowTheFloorAndTransparent() {
-        float ramp = (float) BlackHolePhases.holeRamp(gatherAt(GATHER_TICKS - DomeRamp.RAMP_TICKS), RAMP_EDGE)
+        float ramp = (float) BlackHolePhases.holeRamp(gatherAt(GATHER_TICKS - StartupRamp.RAMP_TICKS), RAMP_EDGE)
                 .orElseThrow();
         assertTrue(BlackHolePhases.rampedBodyRadius(FULL_RADIUS, 0f, GAME_TIME, ramp)
                 < BlackHolePhases.HOLE_MIN_RADIUS, "the hole starts at its floor");
-        assertEquals(0, DomeRamp.alpha(ramp));
+        assertEquals(0, StartupRamp.alpha(ramp));
     }
 
     @Test
@@ -99,20 +99,20 @@ class BlackHolePhasesTest {
         float rampEnd = (float) BlackHolePhases.holeRamp(gatherAt(GATHER_TICKS - 1), 1f).orElseThrow();
         assertEquals(expandRadius, BlackHolePhases.rampedBodyRadius(FULL_RADIUS, 0f, GAME_TIME, rampEnd),
                 TOLERANCE);
-        assertEquals(DomeRamp.alpha(expandRamp), DomeRamp.alpha(rampEnd));
-        assertEquals(FULL_ALPHA, DomeRamp.alpha(rampEnd));
+        assertEquals(StartupRamp.alpha(expandRamp), StartupRamp.alpha(rampEnd));
+        assertEquals(FULL_ALPHA, StartupRamp.alpha(rampEnd));
     }
 
     @Test
     void rampRisesThroughTheGathersLastTicks() {
         float previousRadius = -1f;
         int previousAlpha = -1;
-        for (int tick = GATHER_TICKS - DomeRamp.RAMP_TICKS; tick < GATHER_TICKS; tick++) {
+        for (int tick = GATHER_TICKS - StartupRamp.RAMP_TICKS; tick < GATHER_TICKS; tick++) {
             for (int step = 1; step <= RAMP_STEPS_PER_TICK; step++) {
                 float partial = step / (float) RAMP_STEPS_PER_TICK;
                 float ramp = (float) BlackHolePhases.holeRamp(gatherAt(tick), partial).orElseThrow();
                 float radius = BlackHolePhases.rampedBodyRadius(FULL_RADIUS, 0f, GAME_TIME, ramp);
-                int alpha = DomeRamp.alpha(ramp);
+                int alpha = StartupRamp.alpha(ramp);
                 assertTrue(radius > previousRadius, "the hole shrinks at gather tick " + tick + " + " + partial);
                 assertTrue(alpha >= previousAlpha, "the hole fades out at gather tick " + tick + " + " + partial);
                 previousRadius = radius;
@@ -123,7 +123,7 @@ class BlackHolePhasesTest {
 
     @Test
     void rampFrameColorsCarryTheRampsOpacity() {
-        int alpha = DomeRamp.alpha(HALF_RAMP);
+        int alpha = StartupRamp.alpha(HALF_RAMP);
         assertEquals(alpha, ARGB.alpha(NetherSphereVisual.packBlackholeColor(0f, 0.3f, 0.2f, alpha)));
         assertEquals(alpha, ARGB.alpha(NetherDiscMesh.packDiskColor(10, 20, 30, alpha)));
         assertNotEquals(FULL_ALPHA, alpha);

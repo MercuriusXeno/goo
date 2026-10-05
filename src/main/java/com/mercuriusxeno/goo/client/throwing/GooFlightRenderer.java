@@ -127,10 +127,6 @@ public final class GooFlightRenderer {
      */
     private static final int DART_SIDES = 3;
     /**
-     * Morph rate: spine is fully formed at 40% of flight time.
-     */
-    private static final float MORPH_RATE = 2.5f;
-    /**
      * Epsilon for near-zero length detection in beam/direction math.
      */
     private static final double LENGTH_EPSILON = 1e-6;
@@ -614,9 +610,10 @@ public final class GooFlightRenderer {
     }
 
     /**
-     * Renders a metal goo flight that morphs into a dart spine mid-flight.
-     * The goo shrinks as the spine grows, fully morphed by the midpoint.
-     * For distances under 1.5 blocks, the spine starts fully formed.
+     * Renders a metal goo flight that morphs into a dart spine in flight.
+     * The goo shrinks as the spine grows, fully morphed at the share of the
+     * flight the ability's delivery names (decisions
+     * traveling-form-transforms-in-flight, dart-transform-point-is-ability-data).
      *
      * @param ctx    the per-frame render context
      * @param flight the metal flight
@@ -627,8 +624,7 @@ public final class GooFlightRenderer {
         float progress = Math.min(1f,
                 (flight.ticksElapsed + ctx.partialTick) / flight.travelTicks);
         float dist = (float) flight.start.distanceTo(flight.getEnd());
-        float morphFrac = dist < SHORT_RANGE_THRESHOLD
-                ? 1f : Math.min(1f, progress * MORPH_RATE);
+        float morphFrac = morphFraction(progress, dist, (float) flight.delivery.transformAt());
 
         ResourceKey<GooTypeDefinition> type = flight.gooType;
 
@@ -646,6 +642,24 @@ public final class GooFlightRenderer {
         }
 
         renderTail(ctx.poseStack, ctx.buffers, type, vel, ctx.gameTime);
+    }
+
+    /**
+     * How far the blob has taken its traveling form: none at launch, whole
+     * once the flight reaches the share the delivery names, and whole from
+     * the start for a throw under the short-range threshold or a delivery
+     * naming no share (decision dart-transform-point-is-ability-data).
+     *
+     * @param progress    the flight's progress in [0, 1]
+     * @param distance    the flight's length in blocks
+     * @param transformAt the share of the flight by which the form is whole
+     * @return the morph fraction in [0, 1]
+     */
+    static float morphFraction(float progress, float distance, float transformAt) {
+        if (distance < SHORT_RANGE_THRESHOLD || transformAt <= 0f) {
+            return 1f;
+        }
+        return Math.min(1f, progress / transformAt);
     }
 
     /**

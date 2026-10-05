@@ -419,8 +419,8 @@ public final class GooEffectScheduler {
     }
 
     /**
-     * Lands the goo through the ability it names: growing a block the
-     * ability places, or placing or stacking its chain marker.
+     * Lands the goo through the ability it names, which runs its program
+     * on the landing the tick it splats.
      *
      * @param pe the pending effect with ability id set
      */

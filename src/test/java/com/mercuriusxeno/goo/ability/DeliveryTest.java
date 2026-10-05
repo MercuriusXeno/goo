@@ -77,7 +77,8 @@ class DeliveryTest {
         void streamParamsReadTheJson() {
             Delivery delivery = deliveryOf("""
                     "delivery": { "kind": "stream", "range": 6, "cone": 30, "ticks_per_charge": 10 },""");
-            assertEquals(new Delivery(DeliveryKind.STREAM, Delivery.DEFAULT_BLOCKS_PER_TICK, 6, 30, 10, true, Delivery.DEFAULT_PARTICLE),
+            assertEquals(new Delivery(DeliveryKind.STREAM, Delivery.DEFAULT_BLOCKS_PER_TICK, 6, 30, 10, true, Delivery.DEFAULT_PARTICLE,
+                    Delivery.DEFAULT_TRANSFORM_AT),
                     delivery);
         }
 
@@ -130,7 +131,7 @@ class DeliveryTest {
         void arcBarringGrannyFliesTheBasePeak() {
             Vec3 faceAboveHand = START.add(0, 2, 8);
             Delivery noGranny = new Delivery(DeliveryKind.ARC, Delivery.DEFAULT_BLOCKS_PER_TICK, 0,
-                    Delivery.DEFAULT_CONE_DEGREES, Delivery.DEFAULT_TICKS_PER_CHARGE, false, Delivery.DEFAULT_PARTICLE);
+                    Delivery.DEFAULT_CONE_DEGREES, Delivery.DEFAULT_TICKS_PER_CHARGE, false, Delivery.DEFAULT_PARTICLE, Delivery.DEFAULT_TRANSFORM_AT);
             assertEquals(ThrowArc.basePeak(START.distanceTo(faceAboveHand)),
                     noGranny.peak(START, faceAboveHand, true), TOLERANCE);
         }

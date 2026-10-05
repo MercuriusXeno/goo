@@ -177,9 +177,6 @@ public final class GooTestFunctions {
     private static final String SNEAK_POPS_CRUCIBLE_GASKET = "sneak_pops_crucible_gasket";
 
     // --- Effect executors ---
-    private static final String FX_BLAZE = "fx_blaze_mines";
-    private static final String FX_ROCK = "fx_rock_mines";
-    private static final String FX_FROST = "fx_frost_runs";
     private static final String FX_METAL = "fx_metal_runs";
     private static final String FX_CRYSTAL = "fx_crystal_runs";
     private static final String FX_NETHER = "fx_nether_implodes";
@@ -189,19 +186,23 @@ public final class GooTestFunctions {
     private static final String FX_FALLEN_MARKER_KEEPS_ABILITY = "fx_fallen_marker_keeps_ability";
     private static final String FX_NO_ABILITY_LANDS_NOTHING = "fx_no_ability_lands_nothing";
     private static final String FX_ABILITY_LANDS_MARKER = "fx_ability_lands_marker";
+    private static final String FX_BLAST_LANDS_NO_BLOCK = "fx_blast_lands_no_block";
+    private static final String FX_CLOUD_BLOCK_GOES = "fx_cloud_block_goes";
+    private static final String FX_TRAP_BLOCK_GOES = "fx_trap_block_goes";
     private static final String FX_CRYSTAL_GROWS = "fx_crystal_grows";
-    private static final String FX_CRYSTAL_STAYS_LARGE = "fx_crystal_stays_large";
     private static final String FX_OTHER_ABILITY_MARKS_CRYSTAL = "fx_other_ability_marks_crystal";
-    private static final String FX_ABILITY_BLAZE = "fx_ability_blaze_tunnel";
-    private static final String FX_ABILITY_ROCK = "fx_ability_rock_tunnel";
-    private static final String FX_ABILITY_FROST = "fx_ability_frost_sphere";
     private static final String FX_PROGRAM_INSTANT = "fx_program_instant_detonation";
     private static final String FX_PROGRAM_TIMED = "fx_program_timed_bomb";
     private static final String FX_PROGRAM_MINE = "fx_program_proximity_mine";
-    private static final String FUSE_MINE_KEEPS_JSON_FUSE = "fuse_mine_keeps_json_fuse";
     private static final String FX_PROGRAM_METAL_SPIKES = "fx_program_metal_spikes";
     private static final String FX_PROGRAM_CRYSTAL_CLOUD = "fx_program_crystal_cloud";
     private static final String FX_PROGRAM_NETHER_BLACK_HOLE = "fx_program_nether_black_hole";
+    private static final String FX_LANDED_CRYSTAL_CLOUD = "fx_landed_crystal_cloud_live";
+    private static final String FX_LANDED_METAL_SPIKES = "fx_landed_metal_spikes_live";
+    private static final String FX_LANDED_BLACK_HOLE = "fx_landed_black_hole_gathers";
+    private static final String FX_LANDED_BLAST = "fx_landed_blast_explodes";
+    private static final String FX_LANDED_MINE = "fx_landed_mine_awaits";
+    private static final String FX_LANDED_GLOW_CRYSTAL = "fx_landed_glow_crystal_stands";
 
     // --- Crucible ---
     private static final String CR_GOO_INSERT = "cr_goo_insert";
@@ -237,9 +238,6 @@ public final class GooTestFunctions {
     private static final String CR_SPARK_LIGHTS_COLD = "cr_spark_lights_cold";
 
     // --- Placement ---
-    private static final String PL_BLAZE = "pl_blaze_places";
-    private static final String PL_ROCK = "pl_rock_places";
-    private static final String PL_FROST = "pl_frost_places";
     private static final String PL_DOUBLE_STACK = "pl_double_hit_stacks";
     private static final String PL_SIDEWAYS_NEIGHBOR = "pl_sideways_neighbor";
     private static final String PL_OTHER_TYPES = "pl_other_types_place";
@@ -476,7 +474,7 @@ public final class GooTestFunctions {
     private static void registerGooTypeRegistryTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
         reg(r, TYPES_BUNDLED_RESOLVE, GooTypeRegistryTests::bundledTypesResolve);
         reg(r, TYPES_DATAPACK_LISTED, GooTypeRegistryTests::datapackTypeListed);
-        reg(r, TYPES_MARKER_RELOADS, GooTypeRegistryTests::chainMarkerReloadsType);
+        reg(r, TYPES_MARKER_RELOADS, GooTypeRegistryTests::abilityBlockReloadsType);
         reg(r, GLOVE_TYPE_ONLY_REFUSED, GloveSelectTests::typeOnlySelectionRefused);
         reg(r, GLOVE_GATED_SELECTION_REFUSED, GloveSelectTests::gatedSelectionRefusedWithoutTheRecipe);
         reg(r, GLOVE_SHIFT_RECOLLECTS_MARKER, GloveRecollectTests::shiftClickRecollectsMarker);
@@ -565,34 +563,35 @@ public final class GooTestFunctions {
     }
 
     private static void registerEffectExecutorTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
-        reg(r, FX_BLAZE, EffectExecutorTests::blazeMinesBlock);
-        reg(r, FX_ROCK, EffectExecutorTests::rockMinesBlock);
-        reg(r, FX_FROST, EffectExecutorTests::frostRuns);
         reg(r, FX_METAL, EffectExecutorTests::metalRuns);
         reg(r, FX_CRYSTAL, EffectExecutorTests::crystalRuns);
         reg(r, FX_NETHER, EffectExecutorTests::netherImplodes);
         reg(r, FX_UNSTABLE, EffectExecutorTests::unstableExplodes);
         reg(r, FX_PROGRAM_GLOW_WALL, EffectExecutorTests::programGlowWall);
         reg(r, FX_PROGRAM_GLOW_FLOOR, EffectExecutorTests::programGlowFloor);
-        reg(r, FX_ABILITY_BLAZE, EffectExecutorTests::abilityBlazeTunnel);
-        reg(r, FX_ABILITY_ROCK, EffectExecutorTests::abilityRockTunnel);
-        reg(r, FX_ABILITY_FROST, EffectExecutorTests::abilityFrostSphere);
         reg(r, FX_PROGRAM_INSTANT, EffectExecutorTests::programInstantDetonation);
         reg(r, FX_PROGRAM_TIMED, EffectExecutorTests::programTimedBomb);
         reg(r, FX_PROGRAM_MINE, EffectExecutorTests::programProximityMine);
-        reg(r, FUSE_MINE_KEEPS_JSON_FUSE, ChainFuseTests::mineKeepsJsonFuse);
         reg(r, FX_PROGRAM_METAL_SPIKES, EffectExecutorTests::programMetalSpikes);
         reg(r, FX_PROGRAM_CRYSTAL_CLOUD, EffectExecutorTests::programCrystalCloud);
         reg(r, FX_PROGRAM_NETHER_BLACK_HOLE, EffectExecutorTests::programNetherBlackHole);
+        reg(r, FX_LANDED_CRYSTAL_CLOUD, EffectExecutorTests::crystalCloudLiveAfterLanding);
+        reg(r, FX_LANDED_METAL_SPIKES, EffectExecutorTests::metalSpikesLiveAfterLanding);
+        reg(r, FX_LANDED_BLACK_HOLE, EffectExecutorTests::blackHoleGathersAfterLanding);
+        reg(r, FX_LANDED_BLAST, EffectExecutorTests::blastExplodesAfterLanding);
+        reg(r, FX_LANDED_MINE, EffectExecutorTests::mineAwaitsAfterLanding);
+        reg(r, FX_LANDED_GLOW_CRYSTAL, EffectExecutorTests::glowCrystalStandsAfterLanding);
     }
 
     private static void registerAbilityLandingTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
         reg(r, FX_FALLEN_MARKER_KEEPS_ABILITY, EffectExecutorTests::fallenMarkerKeepsAbility);
-        reg(r, FX_CRYSTAL_GROWS, EffectExecutorTests::crystalGrowsUnderItsAbility);
-        reg(r, FX_CRYSTAL_STAYS_LARGE, EffectExecutorTests::largestCrystalStaysLarge);
+        reg(r, FX_CRYSTAL_GROWS, EffectExecutorTests::crystalNeverGrowsOnALaterHit);
         reg(r, FX_OTHER_ABILITY_MARKS_CRYSTAL, EffectExecutorTests::otherAbilityMarksCrystal);
         reg(r, FX_NO_ABILITY_LANDS_NOTHING, BlockLandingTests::noAbilityLandsNothing);
         reg(r, FX_ABILITY_LANDS_MARKER, BlockLandingTests::abilityLandsItsMarker);
+        reg(r, FX_BLAST_LANDS_NO_BLOCK, BlockLandingTests::blastLandsNoBlock);
+        reg(r, FX_CLOUD_BLOCK_GOES, EffectExecutorTests::crystalCloudBlockGoesWithItsProgram);
+        reg(r, FX_TRAP_BLOCK_GOES, EffectExecutorTests::metalTrapBlockGoesWithItsProgram);
     }
 
     private static void registerMachineInteractionTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
@@ -662,17 +661,14 @@ public final class GooTestFunctions {
     }
 
     private static void registerPlacementTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
-        reg(r, PL_BLAZE, PlacementTests::blazePlacesMarker);
-        reg(r, PL_ROCK, PlacementTests::rockPlacesMarker);
-        reg(r, PL_FROST, PlacementTests::frostPlacesMarker);
-        reg(r, PL_DOUBLE_STACK, PlacementTests::doubleHitStacks);
+        reg(r, PL_DOUBLE_STACK, PlacementTests::secondThrowLandsBesideTheFirst);
         reg(r, PL_SIDEWAYS_NEIGHBOR, PlacementTests::sidewaysMarkerSurvivesNeighborChange);
         reg(r, PL_OTHER_TYPES, PlacementTests::otherTypesPlaceMarker);
         reg(r, PL_ABILITY_HIT_BLOCK, PlacementTests::abilityTakesReplaceableHitBlock);
         reg(r, PL_ABILITY_WATERLOG, PlacementTests::abilityWaterlogsInWater);
         reg(r, PL_ABILITY_LAVA, PlacementTests::abilityRefusesLava);
-        reg(r, PL_ABILITY_SAME_STACK, PlacementTests::abilityStacksOnlyOntoSameAbility);
-        reg(r, PL_OTHER_ABILITY_THROW_LEAVES_MARKER, StackKeyTests::otherAbilityThrowLeavesMarker);
+        reg(r, PL_ABILITY_SAME_STACK, PlacementTests::otherAbilityLandsBesideAStandingMarker);
+        reg(r, PL_OTHER_ABILITY_THROW_LEAVES_MARKER, StackKeyTests::secondThrowLandsItsOwnMarker);
         reg(r, PL_SECOND_THROW_COSTS_THE_SAME, FlatCostTests::secondThrowCostsTheSameAsTheFirst);
     }
 

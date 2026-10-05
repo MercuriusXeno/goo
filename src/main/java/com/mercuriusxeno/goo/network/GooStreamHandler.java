@@ -89,7 +89,7 @@ public final class GooStreamHandler {
                                       AbilityDefinition ability) {
         MinecraftServer server = player.level().getServer();
         int held = GooServerState.of(server).streamHolds().advance(player.getUUID(), server.getTickCount());
-        int share = StreamHolds.shareAt(ability.throwCost(0), ability.delivery().ticksPerCharge(), held);
+        int share = StreamHolds.shareAt(ability.cost(), ability.delivery().ticksPerCharge(), held);
         if (!GooSourceScanner.hasEnough(player, gooType, share)) {
             return false;
         }

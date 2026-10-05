@@ -13,8 +13,8 @@ import java.util.stream.Stream;
 /**
  * Writes a block at the host position with a state read from the program,
  * and finishes. The glow crystal is one {@code place_block} step naming
- * {@code goo:glow_crystal} with its facing from the placed face, its shape
- * from the flat predicate and its size from the stack count.
+ * {@code goo:glow_crystal} with its facing from the placed face and its
+ * shape and size named (decision place-block-ability-grows-block).
  *
  * @param block the block's registry id, resolved by the host when the step runs
  * @param state each state property, by name, to the value that resolves it

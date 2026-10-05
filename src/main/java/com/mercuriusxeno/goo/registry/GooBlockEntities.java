@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
+import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
 import com.mercuriusxeno.goo.block.crystallizer.CrystallizerBlockEntity;
@@ -60,9 +60,9 @@ public class GooBlockEntities {
             BLOCK_ENTITIES.register("canister",
                     () -> new BlockEntityType<>(CanisterBlockEntity::new, GooBlocks.CANISTER.get()));
 
-    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<ChainMarkerBlockEntity>> CHAIN_MARKER =
-            BLOCK_ENTITIES.register("chain_marker",
-                    () -> new BlockEntityType<>(ChainMarkerBlockEntity::new, GooBlocks.CHAIN_MARKER.get()));
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<AbilityBlockEntity>> ABILITY_BLOCK =
+            BLOCK_ENTITIES.register("ability_block",
+                    () -> new BlockEntityType<>(AbilityBlockEntity::new, GooBlocks.ABILITY_BLOCK.get()));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<ChoralGasketBlockEntity>> CHORAL_GASKET =
             BLOCK_ENTITIES.register("choral_gasket",
