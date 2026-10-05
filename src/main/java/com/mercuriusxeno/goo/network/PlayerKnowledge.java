@@ -46,7 +46,17 @@ public final class PlayerKnowledge {
      * @param learned the item learned
      */
     public static void learn(ServerPlayer player, Item learned) {
-        Identifier item = idOf(learned);
+        learn(player, idOf(learned));
+    }
+
+    /**
+     * Records the item an id names as known to the player, telling their
+     * client the first time they learn it.
+     *
+     * @param player the player who learned the item
+     * @param item   the id of the item learned
+     */
+    public static void learn(ServerPlayer player, Identifier item) {
         KnownItems known = of(player);
         if (known.contains(item)) {
             return;
