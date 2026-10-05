@@ -159,7 +159,7 @@ class RadialWheelRendererTest {
                 Map.entry("typhoon_levitate", "Float"), Map.entry("unstable_timed_bomb", "Countdown"),
                 Map.entry("unstable_instant_detonation", "Blast"),
                 Map.entry("unstable_proximity_mine", "Claymore"),
-                Map.entry("blaze_spitfire", "Spitfire"),
+                Map.entry("blaze_spitfire", "Spitfire"), Map.entry("blaze_kindle", "Kindle"),
                 Map.entry("ender_blink", "Blink"), Map.entry("typhoon_propel", "Propel"),
                 Map.entry("unstable_explode", "Burst"), Map.entry("vital_clone", "Clone"));
 

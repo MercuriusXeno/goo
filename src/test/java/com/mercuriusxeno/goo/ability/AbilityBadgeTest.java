@@ -21,7 +21,7 @@ class AbilityBadgeTest {
 
     private static final int SHIPPED_MOB_BADGES = 16;
     private static final int SHIPPED_WORLD_BADGES = 14;
-    private static final int SHIPPED_SELF_BADGES = 2;
+    private static final int SHIPPED_SELF_BADGES = 3;
     private static final int SHIPPED_CHANNELED_BADGES = 1;
 
     @ParameterizedTest
