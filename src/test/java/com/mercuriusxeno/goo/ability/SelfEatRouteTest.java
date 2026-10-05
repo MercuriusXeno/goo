@@ -16,45 +16,73 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * The eat route is decided by delivery kind alone: every shipped self
- * ability eats and no other does, a made-up self ability eats with no
- * further change, the glove reports the eat animation and vanilla's eat
- * duration for a self delivery and none for any other, and the finish
- * runs the invoke only under a self delivery
- * (decision self-brew-goos-eat-before-the-effect).
+ * The eat route is decided by badge and delivery kind alone: every shipped
+ * ability wearing the brew badge on a self delivery eats and no other does,
+ * a made-up brew ability eats with no further change, a self-badged self
+ * ability runs on command, the glove reports the eat animation and
+ * vanilla's eat duration only for an eaten ability, and the finish runs the
+ * invoke only under one (decision self-brew-goos-eat-before-the-effect).
  */
 class SelfEatRouteTest {
 
-    private static final Identifier MADE_UP = Identifier.fromNamespaceAndPath("goo", "made_up_self_ability");
+    private static final Identifier MADE_UP = Identifier.fromNamespaceAndPath("goo", "made_up_brew_ability");
     private static final int A_COST = 1000;
+    private static final Delivery SELF = Delivery.of(DeliveryKind.SELF);
 
-    private static AbilityDefinition madeUpSelfAbility() {
-        return new AbilityDefinition(MADE_UP, GooTypes.ENDER, MADE_UP.toString(), "", 0, A_COST,
-                Delivery.of(DeliveryKind.SELF), List.of(), List.of(), AbilityBadge.SELF, List.of());
+    private static AbilityDefinition madeUpBrewAbility() {
+        return new AbilityDefinition(MADE_UP, GooTypes.LEAF, MADE_UP.toString(), "", 0, A_COST,
+                SELF, List.of(), List.of(), AbilityBadge.BREW, List.of());
     }
 
     @Nested
-    class RouteByDeliveryKind {
+    class RouteByBadgeAndDelivery {
 
         @Test
-        void everyShippedAbilityEatsExactlyWhenItsDeliveryIsSelf() {
+        void everyShippedAbilityEatsExactlyWhenItIsABrewOnASelfDelivery() {
             List<Path> files = AbilityJson.files();
             assertFalse(files.isEmpty(), "No ability JSON found under " + AbilityJson.ABILITIES_DIR);
             for (Path file : files) {
                 AbilityDefinition ability = AbilityJson.decode(file);
-                assertEquals(ability.delivery().kind() == DeliveryKind.SELF, SelfEatRoute.eats(ability.delivery()),
-                        ability.id() + " should eat exactly when its delivery is self");
+                boolean brewOnSelf = ability.delivery().kind() == DeliveryKind.SELF
+                        && ability.badge() == AbilityBadge.BREW;
+                assertEquals(brewOnSelf, SelfEatRoute.eats(ability.delivery(), ability.badge()),
+                        ability.id() + " should eat exactly when it wears brew on a self delivery");
             }
         }
 
         @Test
-        void aMadeUpSelfAbilityEats() {
-            assertTrue(SelfEatRoute.eats(madeUpSelfAbility().delivery()));
+        void theShippedBrewsEatAndTheShippedSelfAbilitiesRunOnCommand() {
+            for (String brew : List.of("blaze_kindle", "leaf_barkskin")) {
+                AbilityDefinition ability = AbilityJson.decode(brew);
+                assertTrue(SelfEatRoute.eats(ability.delivery(), ability.badge()), brew);
+            }
+            for (String onCommand : List.of("ender_blink", "typhoon_propel")) {
+                AbilityDefinition ability = AbilityJson.decode(onCommand);
+                assertFalse(SelfEatRoute.eats(ability.delivery(), ability.badge()), onCommand);
+            }
+        }
+
+        @Test
+        void aMadeUpBrewAbilityEats() {
+            AbilityDefinition brew = madeUpBrewAbility();
+
+            assertTrue(SelfEatRoute.eats(brew.delivery(), brew.badge()));
+        }
+
+        @Test
+        void aSelfBadgedSelfDeliveryRunsOnCommand() {
+            assertFalse(SelfEatRoute.eats(SELF, AbilityBadge.SELF));
+        }
+
+        @ParameterizedTest
+        @EnumSource(value = DeliveryKind.class, names = "SELF", mode = EnumSource.Mode.EXCLUDE)
+        void aBrewBadgeOnAnyOtherDeliveryEatsNothing(DeliveryKind kind) {
+            assertFalse(SelfEatRoute.eats(Delivery.of(kind), AbilityBadge.BREW));
         }
 
         @Test
         void noSelectionEatsNothing() {
-            assertFalse(SelfEatRoute.eats(null));
+            assertFalse(SelfEatRoute.eats(null, null));
         }
     }
 
@@ -62,20 +90,19 @@ class SelfEatRouteTest {
     class AnimationAndDuration {
 
         @Test
-        void aSelfDeliveryReportsTheEatForVanillasDuration() {
-            Delivery self = Delivery.of(DeliveryKind.SELF);
+        void anEatenAbilityReportsTheEatForVanillasDuration() {
+            boolean eats = SelfEatRoute.eats(SELF, AbilityBadge.BREW);
 
-            assertEquals(ItemUseAnimation.EAT, SelfEatRoute.animation(self));
-            assertEquals(SelfEatRoute.EAT_TICKS, SelfEatRoute.useDuration(self));
+            assertEquals(ItemUseAnimation.EAT, SelfEatRoute.animation(eats));
+            assertEquals(SelfEatRoute.EAT_TICKS, SelfEatRoute.useDuration(eats));
         }
 
-        @ParameterizedTest
-        @EnumSource(value = DeliveryKind.class, names = "SELF", mode = EnumSource.Mode.EXCLUDE)
-        void everyOtherDeliveryReportsNoAnimationAndNoDuration(DeliveryKind kind) {
-            Delivery delivery = Delivery.of(kind);
+        @Test
+        void anAbilityOnCommandReportsNoAnimationAndNoDuration() {
+            boolean eats = SelfEatRoute.eats(SELF, AbilityBadge.SELF);
 
-            assertEquals(ItemUseAnimation.NONE, SelfEatRoute.animation(delivery));
-            assertEquals(SelfEatRoute.NO_USE, SelfEatRoute.useDuration(delivery));
+            assertEquals(ItemUseAnimation.NONE, SelfEatRoute.animation(eats));
+            assertEquals(SelfEatRoute.NO_USE, SelfEatRoute.useDuration(eats));
         }
     }
 
@@ -83,20 +110,20 @@ class SelfEatRouteTest {
     class Finish {
 
         @Test
-        void aFinishUnderASelfDeliveryRunsTheInvokeOnce() {
+        void aFinishUnderABrewRunsTheInvokeOnce() {
+            AbilityDefinition brew = madeUpBrewAbility();
             AtomicInteger invoked = new AtomicInteger();
 
-            SelfEatRoute.finish(madeUpSelfAbility().delivery(), invoked::incrementAndGet);
+            SelfEatRoute.finish(brew.delivery(), brew.badge(), invoked::incrementAndGet);
 
             assertEquals(1, invoked.get());
         }
 
-        @ParameterizedTest
-        @EnumSource(value = DeliveryKind.class, names = "SELF", mode = EnumSource.Mode.EXCLUDE)
-        void aFinishUnderAnyOtherDeliveryRunsNothing(DeliveryKind kind) {
+        @Test
+        void aFinishUnderASelfBadgedAbilityRunsNothing() {
             AtomicInteger invoked = new AtomicInteger();
 
-            SelfEatRoute.finish(Delivery.of(kind), invoked::incrementAndGet);
+            SelfEatRoute.finish(SELF, AbilityBadge.SELF, invoked::incrementAndGet);
 
             assertEquals(0, invoked.get());
         }

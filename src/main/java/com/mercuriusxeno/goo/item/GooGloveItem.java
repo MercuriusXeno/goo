@@ -3,7 +3,6 @@ package com.mercuriusxeno.goo.item;
 import com.mercuriusxeno.goo.ISidedProxy;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
-import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.SelfEatRoute;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
@@ -38,7 +37,8 @@ import org.jspecify.annotations.Nullable;
  * Goo glove held in main/offhand. The glove menu key, G by default, opens
  * the radial to change selection while held and selects on release.
  * Right-click throws the selected goo type on the press, resolved on the
- * client off the use key. With a self ability selected the glove is eaten:
+ * client off the use key. With a self + brew ability selected, one wearing
+ * the brew badge on a self delivery, the glove is eaten:
  * it reports the eat animation and vanilla's eat duration, plays the eat
  * sounds and crumbs while used, and runs the ability when the eat finishes
  * on the server.
@@ -169,9 +169,10 @@ public class GooGloveItem extends Item {
     }
 
     /**
-     * The eat animation while a self ability is selected, none otherwise.
-     * No level reaches this read, so the delivery comes from the client's
-     * synced abilities; the server reports none and reads nothing from it.
+     * The eat animation while a self + brew ability is selected, none
+     * otherwise. No level reaches this read, so the route comes from the
+     * client's synced abilities; the server reports none and reads nothing
+     * from it.
      * decision self-brew-goos-eat-before-the-effect
      *
      * @param stack the glove stack
@@ -180,11 +181,11 @@ public class GooGloveItem extends Item {
     @Override
     public @NonNull ItemUseAnimation getUseAnimation(@NonNull ItemStack stack) {
         GloveSelection selection = getSelection(stack);
-        return SelfEatRoute.animation(selection == null ? null : ISidedProxy.get().syncedDelivery(selection.abilityId()));
+        return SelfEatRoute.animation(selection != null && ISidedProxy.get().syncedAbilityEats(selection.abilityId()));
     }
 
     /**
-     * Vanilla's eat duration while a self ability is selected, zero
+     * Vanilla's eat duration while a self + brew ability is selected, zero
      * otherwise.
      * decision self-brew-goos-eat-before-the-effect
      *
@@ -194,12 +195,12 @@ public class GooGloveItem extends Item {
      */
     @Override
     public int getUseDuration(@NonNull ItemStack stack, @NonNull LivingEntity user) {
-        return SelfEatRoute.useDuration(selectedDelivery(stack, user.level()));
+        return SelfEatRoute.useDuration(selectionEats(stack, user.level()));
     }
 
     /**
-     * Plays the eat sounds and crumbs on vanilla's cadence while a self
-     * ability is eaten.
+     * Plays the eat sounds and crumbs on vanilla's cadence while a self +
+     * brew ability is eaten.
      * decision self-brew-goos-eat-before-the-effect
      *
      * @param level          the world
@@ -210,14 +211,14 @@ public class GooGloveItem extends Item {
     @Override
     public void onUseTick(@NonNull Level level, @NonNull LivingEntity user, @NonNull ItemStack stack,
             int ticksRemaining) {
-        if (SelfEatRoute.eats(selectedDelivery(stack, level)) && EAT.shouldEmitParticlesAndSounds(ticksRemaining)) {
+        if (selectionEats(stack, level) && EAT.shouldEmitParticlesAndSounds(ticksRemaining)) {
             EAT.emitParticlesAndSounds(user.getRandom(), user, stack, EAT_TICK_CRUMBS);
         }
     }
 
     /**
      * Finishes the eat: the last crumbs and sound on both sides, and on the
-     * server the selected self ability drains and runs.
+     * server the selected self + brew ability drains and runs.
      * decision self-brew-goos-eat-before-the-effect
      *
      * @param stack the glove stack
@@ -228,7 +229,7 @@ public class GooGloveItem extends Item {
     @Override
     public @NonNull ItemStack finishUsingItem(@NonNull ItemStack stack, @NonNull Level level,
             @NonNull LivingEntity user) {
-        if (!SelfEatRoute.eats(selectedDelivery(stack, level))) {
+        if (!selectionEats(stack, level)) {
             return stack;
         }
         EAT.emitParticlesAndSounds(user.getRandom(), user, stack, EAT_FINISH_CRUMBS);
@@ -239,24 +240,24 @@ public class GooGloveItem extends Item {
     }
 
     /**
-     * The delivery of this glove's selected ability: the server reads its
-     * ability registry, the client its synced abilities.
+     * Whether this glove's selected ability takes the eat route: the server
+     * reads its ability registry, the client its synced abilities.
      *
      * @param stack the glove stack
      * @param level the world
-     * @return the delivery, or null where the glove holds no selection the side knows
+     * @return true for a selected ability wearing the brew badge on a self delivery
      */
-    private static @Nullable Delivery selectedDelivery(ItemStack stack, Level level) {
+    private static boolean selectionEats(ItemStack stack, Level level) {
         GloveSelection selection = getSelection(stack);
         if (selection == null) {
-            return null;
+            return false;
         }
         if (level.isClientSide()) {
-            return ISidedProxy.get().syncedDelivery(selection.abilityId());
+            return ISidedProxy.get().syncedAbilityEats(selection.abilityId());
         }
         Identifier id = selection.getAbilityIdentifier();
         AbilityDefinition ability = id == null ? null : AbilityRegistry.of(level).getAbility(id);
-        return ability == null ? null : ability.delivery();
+        return ability != null && SelfEatRoute.eats(ability.delivery(), ability.badge());
     }
 
     /**

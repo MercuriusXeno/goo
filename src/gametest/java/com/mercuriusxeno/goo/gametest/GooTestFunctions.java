@@ -335,7 +335,8 @@ public final class GooTestFunctions {
     private static final String MOB_EXO_GAUNTLET_HIT = "mob_exo_gauntlet_hit";
     private static final String SELF_ENDER_BLINK = "self_ender_blink";
     private static final String SELF_GATED_BLINK_REFUSED = "self_gated_blink_refused";
-    private static final String SELF_BLINK_RELEASED_RUNS_NOTHING = "self_blink_released_runs_nothing";
+    private static final String SELF_KINDLE_EATS_FIRST = "self_kindle_eats_before_the_embers";
+    private static final String SELF_KINDLE_RELEASED_RUNS_NOTHING = "self_kindle_released_runs_nothing";
     private static final String SELF_TYPHOON_PROPEL = "self_typhoon_propel";
     private static final String SELF_KINDLE_SHIELDS = "self_kindle_shields_then_quenches";
     private static final String SELF_KINDLE_BURNS = "self_kindle_burns_the_attacker";
@@ -732,7 +733,8 @@ public final class GooTestFunctions {
         reg(r, MOB_EXO_GAUNTLET_HIT, GloveDamageTests::exoGauntletHitsForSeven);
         reg(r, SELF_ENDER_BLINK, SelfDeliveryTests::enderBlink);
         reg(r, SELF_GATED_BLINK_REFUSED, SelfDeliveryTests::gatedBlinkRefusedWithoutTheRecipe);
-        reg(r, SELF_BLINK_RELEASED_RUNS_NOTHING, SelfDeliveryTests::blinkLetGoMidEatRunsNothing);
+        reg(r, SELF_KINDLE_EATS_FIRST, SelfDeliveryTests::kindleEatsBeforeTheEmbers);
+        reg(r, SELF_KINDLE_RELEASED_RUNS_NOTHING, SelfDeliveryTests::kindleLetGoMidEatRunsNothing);
         reg(r, SELF_TYPHOON_PROPEL, SelfDeliveryTests::typhoonPropel);
         reg(r, SELF_KINDLE_SHIELDS, HeartOverlayTests::kindleShieldsThenQuenches);
         reg(r, SELF_KINDLE_BURNS, HeartOverlayTests::kindleBurnsTheAttacker);

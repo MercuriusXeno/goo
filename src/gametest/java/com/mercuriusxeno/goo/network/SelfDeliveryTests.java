@@ -21,20 +21,21 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Gametests for the self delivery through the real throw path: a glove use
- * with a self ability starts the player eating the glove, and the cost at
- * stack zero drains and the program runs on the player when the eat
- * finishes; an eat let go before then runs nothing and drains nothing.
- * The mock server player has no connection ticking it, so each test ticks
- * it the way the connection would, through doTick.
- * decision self-delivery-runs-on-player
- * decision self-brew-goos-eat-before-the-effect
+ * Gametests for the self delivery through the real throw path. A self
+ * ability wearing the self badge runs on command: its cost at stack zero
+ * drains and its programs run on the invoking player the tick it is invoked
+ * (decision self-delivery-runs-on-player). A self + brew ability, one
+ * wearing the brew badge, starts the player eating the glove, and drains
+ * and runs when the eat finishes; an eat let go before then runs nothing
+ * and drains nothing (decision self-brew-goos-eat-before-the-effect). The
+ * mock server player has no connection ticking it, so the eat tests tick it
+ * the way the connection would, through doTick.
  */
 public final class SelfDeliveryTests {
 
     private static final BlockPos STAND_POS = new BlockPos(1, 1, 3);
     private static final int NO_ENTITY = -1;
-    /** Two thousand mB, two blinks' worth. */
+    /** Two thousand mB, two casts' worth. */
     private static final int HELD_GOO = 2;
     /** The yaw a player faces east, toward +x, at. */
     private static final float FACING_EAST = -90f;
@@ -43,8 +44,14 @@ public final class SelfDeliveryTests {
     private static final double BLINK_RANGE = 8;
     private static final double MOVE_TOLERANCE = 1e-6;
     private static final Identifier TYPHOON_PROPEL = Identifier.parse("goo:typhoon_propel");
+    /** The strength typhoon_propel.json's push step names. */
+    private static final double PROPEL_STRENGTH = 1.5;
     /** Pitch forty-five degrees above level. */
     private static final float LOOKING_UP = -45f;
+    private static final float BUILT_UP_FALL = 10f;
+    private static final Identifier BLAZE_KINDLE = Identifier.parse("goo:blaze_kindle");
+    /** Ten hearts of ember halves, the full bar Kindle lays over full health. */
+    private static final int FULL_EMBERS = 20;
     /** Halfway through the eat, when nothing has landed yet. */
     private static final int MID_EAT = SelfEatRoute.EAT_TICKS / 2;
     /** The tick after the eat's last tick, when the finish has run. */
@@ -52,15 +59,18 @@ public final class SelfDeliveryTests {
     /** The tick a letting-go player releases the use at. */
     private static final int RELEASE_AT = 5;
     private static final String ABILITY_REQUIRED = "Ability registry must hold %s";
-    private static final String SHOULD_START_EATING = "Invoking a self ability should start the player eating";
-    private static final String SHOULD_STOP_EATING = "A released eat should leave the player out of the using state";
-    private static final String SHOULD_HOLD_MID_EAT = "Mid-eat the player should stand where it stood, moved %.3f";
+    private static final String SHOULD_RUN_ON_COMMAND = "A self-badged ability should run on command, not eat";
+    private static final String SHOULD_BLINK_EAST = "The player should move %.1f east the tick it blinks, moved %.3f";
+    private static final String SHOULD_DRAIN_COST = "The cast should drain the stack-zero cost of %d mB, drained %d";
+    private static final String SHOULD_PROPEL = "The player's motion should read %s, read %s";
+    private static final String SHOULD_CLEAR_FALL = "Propulsion should clear the fall, read %.1f";
+    private static final String SHOULD_START_EATING = "Invoking a self + brew ability should start the player eating";
+    private static final String SHOULD_LAY_NOTHING_MID_EAT = "Mid-eat no ember should stand, %d halves stand";
     private static final String SHOULD_DRAIN_NOTHING_MID_EAT = "Mid-eat no goo should drain, drained %d";
-    private static final String SHOULD_BLINK_EAST = "The player should move %.1f east when the eat finishes, moved %.3f";
-    private static final String SHOULD_DRAIN_COST = "The finish should drain the stack-zero cost of %d mB, drained %d";
-    private static final String SHOULD_RUN_NOTHING = "A released eat should leave the player where it stood, moved %.3f";
+    private static final String SHOULD_LAY_EMBERS = "The finished eat should lay %d ember halves, laid %d";
+    private static final String SHOULD_STOP_EATING = "A released eat should leave the player out of the using state";
+    private static final String SHOULD_LAY_NOTHING = "A released eat should lay no ember, %d halves stand";
     private static final String SHOULD_DRAIN_NOTHING = "A released eat should drain nothing, drained %d";
-    private static final String SHOULD_PROPEL_UP_AND_EAST = "The finish should push the player up and east, moved x %.3f y %.3f";
     private static final String SHOULD_NOT_EAT_UNKNOWN = "A refused blink should start no eat";
     private static final String SHOULD_STAY_REFUSED = "A refused blink should leave the player where it stood, moved ";
     private static final String SHOULD_DRAIN_NOTHING_REFUSED = "A refused blink should drain nothing, drained ";
@@ -69,9 +79,9 @@ public final class SelfDeliveryTests {
     }
 
     /**
-     * A mock player facing east invokes ender blink: it starts eating, stands
-     * put with its goo whole mid-eat, and moves the blink's range east with
-     * the cost drained when the eat finishes.
+     * A mock player facing east invokes ender blink and moves the blink's
+     * range east in that tick, with the goo drained by its cost and no eat
+     * started.
      *
      * @param helper the gametest helper
      */
@@ -82,60 +92,25 @@ public final class SelfDeliveryTests {
         player.setYRot(FACING_EAST);
         player.setXRot(0);
         double xBefore = player.getX();
-        int heldBefore = enderHeld(player);
+        int heldBefore = held(player, GooTypes.ENDER);
 
         invoke(player, GooTypes.ENDER, ENDER_BLINK);
 
-        helper.assertTrue(player.isUsingItem(), SHOULD_START_EATING);
-        eatThrough(helper, player, SelfEatRoute.EAT_TICKS);
-        helper.runAfterDelay(MID_EAT, () -> assertNothingLanded(helper, player, xBefore, heldBefore));
-        helper.runAfterDelay(AFTER_EAT, () -> {
-            double moved = player.getX() - xBefore;
-            int drained = heldBefore - enderHeld(player);
-            helper.getLevel().getServer().getPlayerList().remove(player);
-            helper.assertTrue(Math.abs(moved - BLINK_RANGE) < MOVE_TOLERANCE,
-                    String.format(SHOULD_BLINK_EAST, BLINK_RANGE, moved));
-            helper.assertTrue(drained == blink.cost(), String.format(SHOULD_DRAIN_COST, blink.cost(), drained));
-            helper.succeed();
-        });
+        boolean using = player.isUsingItem();
+        double moved = player.getX() - xBefore;
+        int drained = heldBefore - held(player, GooTypes.ENDER);
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        helper.assertFalse(using, SHOULD_RUN_ON_COMMAND);
+        helper.assertTrue(Math.abs(moved - BLINK_RANGE) < MOVE_TOLERANCE,
+                String.format(SHOULD_BLINK_EAST, BLINK_RANGE, moved));
+        helper.assertTrue(drained == blink.cost(), String.format(SHOULD_DRAIN_COST, blink.cost(), drained));
+        helper.succeed();
     }
 
     /**
-     * A mock player invokes ender blink and lets go of the use before the eat
-     * finishes: the eat ends, the player stays put and no goo drains.
-     *
-     * @param helper the gametest helper
-     */
-    public static void blinkLetGoMidEatRunsNothing(GameTestHelper helper) {
-        AbilityDefinition blink = requireAbility(helper, ENDER_BLINK);
-        ServerPlayer player = invoker(helper, GooTypes.ENDER, ENDER_BLINK);
-        KnownRecipes.teachRequires(player, blink);
-        player.setYRot(FACING_EAST);
-        player.setXRot(0);
-        double xBefore = player.getX();
-        int heldBefore = enderHeld(player);
-
-        invoke(player, GooTypes.ENDER, ENDER_BLINK);
-
-        helper.assertTrue(player.isUsingItem(), SHOULD_START_EATING);
-        eatThrough(helper, player, SelfEatRoute.EAT_TICKS);
-        helper.runAfterDelay(RELEASE_AT, player::releaseUsingItem);
-        helper.runAfterDelay(AFTER_EAT, () -> {
-            double moved = player.getX() - xBefore;
-            int drained = heldBefore - enderHeld(player);
-            boolean using = player.isUsingItem();
-            helper.getLevel().getServer().getPlayerList().remove(player);
-            helper.assertFalse(using, SHOULD_STOP_EATING);
-            helper.assertTrue(Math.abs(moved) < MOVE_TOLERANCE, String.format(SHOULD_RUN_NOTHING, moved));
-            helper.assertTrue(drained == 0, String.format(SHOULD_DRAIN_NOTHING, drained));
-            helper.succeed();
-        });
-    }
-
-    /**
-     * A mock player looking up and east invokes typhoon propulsion: it stands
-     * put mid-eat, and when the eat finishes the push along its look carries
-     * it up and east.
+     * A mock player looking up and east invokes typhoon propulsion, and its
+     * motion reads the push strength along its look with its fall cleared in
+     * that tick, with no eat started.
      *
      * @param helper the gametest helper
      */
@@ -145,35 +120,87 @@ public final class SelfDeliveryTests {
         KnownRecipes.teachRequires(player, propel);
         player.setYRot(FACING_EAST);
         player.setXRot(LOOKING_UP);
-        double xBefore = player.getX();
-        // The mock settles onto the bay floor during the eat, so the rise is measured from mid-eat.
-        double[] yMidEat = new double[1];
-        int heldBefore = typhoonHeld(player);
+        player.fallDistance = BUILT_UP_FALL;
+        Vec3 expected = player.getLookAngle().scale(PROPEL_STRENGTH);
 
         invoke(player, GooTypes.TYPHOON, TYPHOON_PROPEL);
 
+        boolean using = player.isUsingItem();
+        Vec3 motion = player.getDeltaMovement();
+        double fall = player.fallDistance;
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        helper.assertFalse(using, SHOULD_RUN_ON_COMMAND);
+        helper.assertTrue(motion.distanceTo(expected) < MOVE_TOLERANCE, String.format(SHOULD_PROPEL, expected, motion));
+        helper.assertTrue(fall == 0, String.format(SHOULD_CLEAR_FALL, fall));
+        helper.succeed();
+    }
+
+    /**
+     * A mock player invokes blaze kindle: it starts eating, holds no ember
+     * and its goo whole mid-eat, and wears a full ember bar with the cost
+     * drained when the eat finishes.
+     *
+     * @param helper the gametest helper
+     */
+    public static void kindleEatsBeforeTheEmbers(GameTestHelper helper) {
+        AbilityDefinition kindle = requireAbility(helper, BLAZE_KINDLE);
+        ServerPlayer player = invoker(helper, GooTypes.BLAZE, BLAZE_KINDLE);
+        KnownRecipes.teachRequires(player, kindle);
+        int heldBefore = held(player, GooTypes.BLAZE);
+
+        invoke(player, GooTypes.BLAZE, BLAZE_KINDLE);
+
         helper.assertTrue(player.isUsingItem(), SHOULD_START_EATING);
-        eatThrough(helper, player, SelfEatRoute.EAT_TICKS);
+        tickThrough(helper, player);
         helper.runAfterDelay(MID_EAT, () -> {
-            yMidEat[0] = player.getY();
-            assertNothingLanded(helper, player, xBefore, heldBefore);
+            int embers = HeartOverlayTests.halves(player);
+            int drained = heldBefore - held(player, GooTypes.BLAZE);
+            helper.assertTrue(embers == 0, String.format(SHOULD_LAY_NOTHING_MID_EAT, embers));
+            helper.assertTrue(drained == 0, String.format(SHOULD_DRAIN_NOTHING_MID_EAT, drained));
         });
         helper.runAfterDelay(AFTER_EAT, () -> {
-            double movedX = player.getX() - xBefore;
-            double movedY = player.getY() - yMidEat[0];
-            int drained = heldBefore - typhoonHeld(player);
+            int embers = HeartOverlayTests.halves(player);
+            int drained = heldBefore - held(player, GooTypes.BLAZE);
             helper.getLevel().getServer().getPlayerList().remove(player);
-            helper.assertTrue(movedX > MOVE_TOLERANCE && movedY > MOVE_TOLERANCE,
-                    String.format(SHOULD_PROPEL_UP_AND_EAST, movedX, movedY));
-            helper.assertTrue(drained == propel.cost(), String.format(SHOULD_DRAIN_COST, propel.cost(), drained));
+            helper.assertTrue(embers == FULL_EMBERS, String.format(SHOULD_LAY_EMBERS, FULL_EMBERS, embers));
+            helper.assertTrue(drained == kindle.cost(), String.format(SHOULD_DRAIN_COST, kindle.cost(), drained));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A mock player invokes blaze kindle and lets go of the use before the
+     * eat finishes: the eat ends, no ember lays and no goo drains.
+     *
+     * @param helper the gametest helper
+     */
+    public static void kindleLetGoMidEatRunsNothing(GameTestHelper helper) {
+        AbilityDefinition kindle = requireAbility(helper, BLAZE_KINDLE);
+        ServerPlayer player = invoker(helper, GooTypes.BLAZE, BLAZE_KINDLE);
+        KnownRecipes.teachRequires(player, kindle);
+        int heldBefore = held(player, GooTypes.BLAZE);
+
+        invoke(player, GooTypes.BLAZE, BLAZE_KINDLE);
+
+        helper.assertTrue(player.isUsingItem(), SHOULD_START_EATING);
+        tickThrough(helper, player);
+        helper.runAfterDelay(RELEASE_AT, player::releaseUsingItem);
+        helper.runAfterDelay(AFTER_EAT, () -> {
+            boolean using = player.isUsingItem();
+            int embers = HeartOverlayTests.halves(player);
+            int drained = heldBefore - held(player, GooTypes.BLAZE);
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.assertFalse(using, SHOULD_STOP_EATING);
+            helper.assertTrue(embers == 0, String.format(SHOULD_LAY_NOTHING, embers));
+            helper.assertTrue(drained == 0, String.format(SHOULD_DRAIN_NOTHING, drained));
             helper.succeed();
         });
     }
 
     /**
      * A mock player who has never melted an ender pearl invokes ender blink:
-     * the throw is refused whole, so no eat starts, the player stays put and
-     * no goo drains (decision ability-hidden-until-recipes-known).
+     * the throw is refused whole, so the player stays put, no goo drains and
+     * no eat starts (decision ability-hidden-until-recipes-known).
      *
      * @param helper the gametest helper
      */
@@ -182,13 +209,13 @@ public final class SelfDeliveryTests {
         player.setYRot(FACING_EAST);
         player.setXRot(0);
         double xBefore = player.getX();
-        int heldBefore = enderHeld(player);
+        int heldBefore = held(player, GooTypes.ENDER);
 
         invoke(player, GooTypes.ENDER, ENDER_BLINK);
 
         boolean using = player.isUsingItem();
         double moved = player.getX() - xBefore;
-        int drained = heldBefore - enderHeld(player);
+        int drained = heldBefore - held(player, GooTypes.ENDER);
         helper.getLevel().getServer().getPlayerList().remove(player);
         helper.assertFalse(using, SHOULD_NOT_EAT_UNKNOWN);
         helper.assertTrue(moved == 0, SHOULD_STAY_REFUSED + moved);
@@ -196,32 +223,44 @@ public final class SelfDeliveryTests {
         helper.succeed();
     }
 
-    private static void invoke(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, Identifier ability) {
+    /**
+     * Sends the payload a real glove sends for its selection: the glove is
+     * set to the ability first, as the radial sets it before any throw.
+     *
+     * @param player  the invoking player
+     * @param gooType the ability's goo type
+     * @param ability the ability's id
+     */
+    static void invoke(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, Identifier ability) {
+        GooGloveItem.setSelection(player.getMainHandItem(), GloveSelection.ofAbility(gooType, ability));
         GooThrowHandler.execute(player, new GooThrowPayload(GooTypes.id(gooType), NO_ENTITY,
                 player.blockPosition(), NO_ENTITY, false, ability.toString(), player.getEyePosition()));
     }
 
     /**
-     * Ticks the player the way its connection would, once per tick for the
-     * eat's duration, so the use counts down and finishes on the server.
+     * Carries a player through a started eat at once, ticking it the way its
+     * connection would until the eat finishes; a player not eating is left
+     * untouched.
      *
-     * @param helper the gametest helper
-     * @param player the eating player
-     * @param ticks  how many ticks to carry the player through
+     * @param player the player
      */
-    private static void eatThrough(GameTestHelper helper, ServerPlayer player, int ticks) {
-        for (int tick = 1; tick <= ticks; tick++) {
-            helper.runAfterDelay(tick, player::doTick);
+    static void eatThrough(ServerPlayer player) {
+        for (int tick = 0; tick <= SelfEatRoute.EAT_TICKS && player.isUsingItem(); tick++) {
+            player.doTick();
         }
     }
 
-    private static void assertNothingLanded(GameTestHelper helper, ServerPlayer player, double xBefore,
-            int heldBefore) {
-        double moved = player.getX() - xBefore;
-        int drained = heldBefore - GooSourceScanner.aggregateAvailable(player).values().stream()
-                .mapToInt(Integer::intValue).sum();
-        helper.assertTrue(Math.abs(moved) < MOVE_TOLERANCE, String.format(SHOULD_HOLD_MID_EAT, moved));
-        helper.assertTrue(drained == 0, String.format(SHOULD_DRAIN_NOTHING_MID_EAT, drained));
+    /**
+     * Ticks the player once per game tick for the eat's duration, so the use
+     * counts down and finishes on the server across real ticks.
+     *
+     * @param helper the gametest helper
+     * @param player the eating player
+     */
+    private static void tickThrough(GameTestHelper helper, ServerPlayer player) {
+        for (int tick = 1; tick <= SelfEatRoute.EAT_TICKS; tick++) {
+            helper.runAfterDelay(tick, player::doTick);
+        }
     }
 
     private static AbilityDefinition requireAbility(GameTestHelper helper, Identifier id) {
@@ -230,18 +269,13 @@ public final class SelfDeliveryTests {
         return ability;
     }
 
-    private static int enderHeld(ServerPlayer player) {
-        return GooSourceScanner.aggregateAvailable(player).getOrDefault(GooTypes.ENDER, 0);
-    }
-
-    private static int typhoonHeld(ServerPlayer player) {
-        return GooSourceScanner.aggregateAvailable(player).getOrDefault(GooTypes.TYPHOON, 0);
+    private static int held(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType) {
+        return GooSourceScanner.aggregateAvailable(player).getOrDefault(gooType, 0);
     }
 
     /**
      * A mock player standing in the bay, holding a glove whose selection
-     * names the ability, as a real glove does when its use reaches the
-     * server, with two costs of the type in its inventory.
+     * names the ability, with two costs of the type in its inventory.
      *
      * @param helper  the gametest helper
      * @param gooType the ability's goo type

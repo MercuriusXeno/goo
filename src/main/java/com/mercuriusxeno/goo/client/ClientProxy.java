@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.client;
 
 import com.mercuriusxeno.goo.ISidedProxy;
-import com.mercuriusxeno.goo.ability.Delivery;
+import com.mercuriusxeno.goo.ability.SelfEatRoute;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
@@ -27,8 +27,8 @@ public final class ClientProxy implements ISidedProxy {
     }
 
     @Override
-    public @Nullable Delivery syncedDelivery(String abilityId) {
+    public boolean syncedAbilityEats(String abilityId) {
         ClientAbility ability = AbilitySyncHandler.findAbility(abilityId);
-        return ability == null ? null : ability.delivery();
+        return ability != null && SelfEatRoute.eats(ability.delivery(), ability.badge());
     }
 }
