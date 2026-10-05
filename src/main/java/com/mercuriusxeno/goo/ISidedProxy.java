@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo;
 
-import com.mercuriusxeno.goo.ability.Delivery;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.phys.HitResult;
 import org.jspecify.annotations.Nullable;
@@ -49,15 +48,16 @@ public interface ISidedProxy {
     }
 
     /**
-     * The delivery of an ability the client holds synced, which the glove
-     * reads for its use animation where no level is at hand. Server: null,
-     * since the server reads the ability registry through its level.
+     * Whether an ability the client holds synced takes the eat route, which
+     * the glove reads for its use animation where no level is at hand.
+     * Server: false, since the server reads the ability registry through
+     * its level.
      * decision self-brew-goos-eat-before-the-effect
      *
      * @param abilityId the ability resource id string
-     * @return the synced delivery, or null where none is synced
+     * @return true for a synced ability wearing the brew badge on a self delivery
      */
-    default @Nullable Delivery syncedDelivery(String abilityId) {
-        return null;
+    default boolean syncedAbilityEats(String abilityId) {
+        return false;
     }
 }

@@ -17,11 +17,13 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 
 /**
- * Server side of a self delivery: nothing leaves the hand. Invoking starts
- * the player eating the glove, and when the eat finishes the ability's cost
- * at stack zero drains from the inventory and its programs run on the
- * invoking player; an eat let go or interrupted before then runs nothing
- * and drains nothing. The eat replaces the throw sound on this route.
+ * Server side of a self delivery: nothing leaves the hand. A self ability
+ * wearing the self badge runs on command: its cost at stack zero drains and
+ * its programs run on the invoking player the tick it is invoked. A self +
+ * brew ability, one wearing the brew badge, starts the player eating the
+ * glove instead, and drains and runs when the eat finishes; an eat let go or
+ * interrupted before then runs nothing and drains nothing, and the eat
+ * replaces the throw sound on that route.
  * decision self-delivery-runs-on-player
  * decision self-brew-goos-eat-before-the-effect
  */
@@ -34,24 +36,40 @@ public final class GooSelfHandler {
     }
 
     /**
-     * Starts the eat for a self ability the player can afford, in the hand
-     * holding the glove; a player short of the cost starts no eat.
+     * Delivers a self ability: a self + brew ability starts the eat, every
+     * other runs on command with the throw sound.
      *
      * @param player  the invoking player
      * @param gooType the ability's goo type
      * @param ability the self ability
      */
-    static void beginEating(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, AbilityDefinition ability) {
-        if (!affords(player, gooType, ability)) {
-            return;
+    static void deliver(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, AbilityDefinition ability) {
+        if (SelfEatRoute.eats(ability.delivery(), ability.badge())) {
+            beginEating(player, gooType, ability);
+        } else if (invoke(player, gooType, ability)) {
+            GooEffectScheduler.playThrowSound(player, ability.delivery());
         }
-        player.startUsingItem(gloveHand(player));
+    }
+
+    /**
+     * Starts the eat for a self + brew ability the player can afford, in the
+     * hand holding the glove; a player short of the cost starts no eat.
+     *
+     * @param player  the invoking player
+     * @param gooType the ability's goo type
+     * @param ability the self + brew ability
+     */
+    private static void beginEating(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
+            AbilityDefinition ability) {
+        if (affords(player, gooType, ability)) {
+            player.startUsingItem(gloveHand(player));
+        }
     }
 
     /**
      * Finishes an eat of the glove on the server: the glove's selection is
-     * resolved again, and an ability the player may still use whose
-     * delivery takes the eat route drains and runs.
+     * resolved again, and an ability the player may still use that takes the
+     * eat route drains and runs.
      *
      * @param player the eating player
      * @param glove  the glove eaten
@@ -66,7 +84,7 @@ public final class GooSelfHandler {
         if (ability == null) {
             return;
         }
-        SelfEatRoute.finish(ability.delivery(), () -> invoke(player, gooType, ability));
+        SelfEatRoute.finish(ability.delivery(), ability.badge(), () -> invoke(player, gooType, ability));
     }
 
     /**
@@ -76,10 +94,12 @@ public final class GooSelfHandler {
      * @param player  the invoking player
      * @param gooType the ability's goo type
      * @param ability the self ability
+     * @return true when the cost drained and the programs ran
      */
-    static void invoke(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, AbilityDefinition ability) {
+    private static boolean invoke(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
+            AbilityDefinition ability) {
         if (!affords(player, gooType, ability)) {
-            return;
+            return false;
         }
         GooSourceScanner.deplete(player, gooType, ability.cost());
         try {
@@ -87,6 +107,7 @@ public final class GooSelfHandler {
         } catch (ProgramLoadException e) {
             Goo.LOGGER.error(LOG_PROGRAM_REFUSED, ability.id(), e.getMessage());
         }
+        return true;
     }
 
     /**
