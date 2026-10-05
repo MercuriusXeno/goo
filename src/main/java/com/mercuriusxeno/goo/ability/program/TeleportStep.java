@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.util.RandomSource;
@@ -53,6 +54,10 @@ public record TeleportStep(TeleportMode mode, Expr range) implements Step {
             case AWAY_FROM_THROWER -> towardThrower(target, context.hostAs(TargetHost.class).thrower(), -reach);
             case THROWER_LOOK -> alongLook(context.hostAs(TargetHost.class).thrower(), reach);
         };
+        // A step after the jump, a ghost trail, reads where the target left from: a player's old
+        // position is overwritten by the teleport itself, so the source is kept on the entity.
+        // Decision ghost-trail-spans-the-blink.
+        target.setData(GooAttachments.JUMP_SOURCE, target.position());
         target.teleportTo(target.getX() + jump.x(), target.getY() + jump.y(), target.getZ() + jump.z());
         return true;
     }
@@ -93,7 +98,7 @@ public record TeleportStep(TeleportMode mode, Expr range) implements Step {
      * @param range   the jump length
      * @return the jump, zero with no thrower
      */
-    private static Vec3 alongLook(@Nullable Entity thrower, double range) {
+    static Vec3 alongLook(@Nullable Entity thrower, double range) {
         return thrower == null ? Vec3.ZERO : thrower.getLookAngle().scale(range);
     }
 
