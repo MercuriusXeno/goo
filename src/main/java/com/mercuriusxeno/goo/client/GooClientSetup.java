@@ -12,6 +12,8 @@ import com.mercuriusxeno.goo.client.ability.MobAilments;
 import com.mercuriusxeno.goo.client.ability.MobCoatLayer;
 import com.mercuriusxeno.goo.client.ability.MobCoats;
 import com.mercuriusxeno.goo.client.ability.MobShells;
+import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
+import com.mercuriusxeno.goo.client.ability.Transformations;
 import com.mercuriusxeno.goo.client.ber.*;
 import com.mercuriusxeno.goo.client.model.*;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
@@ -264,6 +266,10 @@ public final class GooClientSetup {
                 new TypeToken<EntityRenderer<Entity, EntityRenderState>>() {
                 },
                 AilmentOverlayLayer::stampAilments);
+        event.registerEntityModifier(
+                new TypeToken<EntityRenderer<Entity, EntityRenderState>>() {
+                },
+                TransformationRenderer::stampTransformation);
     }
 
     /**
@@ -379,6 +385,7 @@ public final class GooClientSetup {
         MobCoats.CLIENT.clear();
         MobAilments.CLIENT.clear();
         Afterimages.CLIENT.clear();
+        Transformations.CLIENT.clear();
         ThrowFreezeState.clear();
     }
 

@@ -1,7 +1,12 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.network.EntityVisuals;
+import com.mercuriusxeno.goo.network.TransformationPayload;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
@@ -12,21 +17,29 @@ import java.util.stream.Stream;
 
 /**
  * Spawns a fresh entity of the host's target's type beside it on a roll
- * and finishes. Vital clone is {@code clone_entity chance="100 / pow(max_health, 0.6)"}.
+ * and finishes; the players watching see a blob of the goo hop off the
+ * target and transform into the clone. Vital clone is
+ * {@code clone_entity chance="100 / pow(max_health, 0.6)" goo=vital}.
+ * Decision model-transformation-is-one-animation.
  *
  * @param chance the percent chance of a clone, evaluated when the step runs
+ * @param goo    the goo type of the blob that becomes the clone
  */
-public record CloneEntityStep(Expr chance) implements Step {
+public record CloneEntityStep(Expr chance, ResourceKey<GooTypeDefinition> goo) implements Step {
 
     private static final String NAME = "clone_entity";
     private static final float PERCENT = 100;
     private static final String FIELD_CHANCE = "chance";
+    private static final String FIELD_GOO = "goo";
+    /** Game ticks the blob takes to hop off the target and become the clone. */
+    static final int TRANSFORMATION_TICKS = 16;
 
     /**
      * Codec for the step's params.
      */
     public static final MapCodec<CloneEntityStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
-            Expr.CODEC.fieldOf(FIELD_CHANCE).forGetter(CloneEntityStep::chance)
+            Expr.CODEC.fieldOf(FIELD_CHANCE).forGetter(CloneEntityStep::chance),
+            GooTypes.ID_CODEC.fieldOf(FIELD_GOO).forGetter(CloneEntityStep::goo)
     ).apply(inst, CloneEntityStep::new));
 
     /**
@@ -52,12 +65,14 @@ public record CloneEntityStep(Expr chance) implements Step {
 
     /**
      * Spawns a fresh entity of the target's type a gaussian step away on
-     * each horizontal axis.
+     * each horizontal axis, and tells the target's watchers to play the
+     * blob becoming it. The watchers hear it before the clone's own spawn
+     * reaches them, so the clone first draws at nothing.
      *
      * @param target the entity cloned
      * @param level  the level the clone joins
      */
-    private static void spawnClone(LivingEntity target, ServerLevel level) {
+    private void spawnClone(LivingEntity target, ServerLevel level) {
         Entity clone = target.getType().create(level, EntitySpawnReason.MOB_SUMMONED);
         if (clone == null) {
             return;
@@ -65,6 +80,8 @@ public record CloneEntityStep(Expr chance) implements Step {
         RandomSource random = level.getRandom();
         clone.setPos(target.getX() + random.nextGaussian(), target.getY(), target.getZ() + random.nextGaussian());
         level.addFreshEntity(clone);
+        EntityVisuals.sendToWatchers(target, new TransformationPayload(goo, target.getBoundingBox().getCenter(),
+                clone.getBoundingBox().getCenter(), clone.getId(), TRANSFORMATION_TICKS));
     }
 
     @Override
