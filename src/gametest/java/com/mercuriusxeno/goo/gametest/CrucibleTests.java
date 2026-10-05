@@ -12,6 +12,7 @@ import com.mercuriusxeno.goo.item.ChrysmTier;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.item.PartiallyMeltedItem;
+import com.mercuriusxeno.goo.network.PlayerKnowledge;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -21,7 +22,9 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.EntityType;
@@ -143,6 +146,7 @@ public final class CrucibleTests {
     private static final String WAITS_ON_FLOOR = "waiting item sank to the floor: ";
     private static final String WAITS_WHERE_IT_LANDED = "waiting item stays where it landed: ";
     private static final String SHOULD_HAVE_GOO = "Crucible reservoir should contain goo after goo insert";
+    private static final Identifier COBBLESTONE_ID = BuiltInRegistries.ITEM.getKey(Items.COBBLESTONE);
     private static final String SHOULD_ABSORB = "Crucible should absorb the item entity";
     private static final String RESERVOIR_UNCHANGED = "reservoir unchanged";
     private static final int CAP = CrucibleCapacity.TYPE_CAPACITY;
@@ -240,6 +244,53 @@ public final class CrucibleTests {
 
         helper.runAfterDelay(ABSORB_DELAY, () -> {
             helper.assertFalse(crucible.reservoirHandler().isEmpty(), SHOULD_ABSORB);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A cobblestone a mock player threw into a lit crucible melts and the
+     * player knows cobblestone (decision knowledge-capability-remembers-destroyed-items).
+     *
+     * @param helper the gametest helper
+     */
+    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
+    public static void thrownItemTeachesTheThrower(GameTestHelper helper) {
+        helper.setBlock(BE_POS, GooBlocks.CRUCIBLE.get());
+        helper.getBlockEntity(BE_POS, CrucibleBlockEntity.class).addHeat(TEST_HEAT_TICKS);
+        ServerPlayer thrower = helper.makeMockServerPlayerInLevel();
+        ItemEntity thrown = CrucibleSpawns.spawnInBasin(helper, new ItemStack(Items.COBBLESTONE));
+        thrown.setThrower(thrower);
+
+        helper.runAfterDelay(ABSORB_DELAY, () -> {
+            helper.assertTrue(thrown.isRemoved(), SHOULD_ABSORB);
+            helper.assertTrue(PlayerKnowledge.of(thrower).contains(COBBLESTONE_ID),
+                    "The thrower should know cobblestone once it melts");
+            helper.getLevel().getServer().getPlayerList().remove(thrower);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A cobblestone with no thrower, as a hopper or dispenser drops it, melts
+     * and teaches nobody: a player standing by learns nothing
+     * (decision knowledge-capability-remembers-destroyed-items).
+     *
+     * @param helper the gametest helper
+     */
+    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
+    public static void unthrownItemTeachesNobody(GameTestHelper helper) {
+        helper.setBlock(BE_POS, GooBlocks.CRUCIBLE.get());
+        helper.getBlockEntity(BE_POS, CrucibleBlockEntity.class).addHeat(TEST_HEAT_TICKS);
+        ServerPlayer bystander = helper.makeMockServerPlayerInLevel();
+        ItemEntity dropped = CrucibleSpawns.spawnInBasin(helper, new ItemStack(Items.COBBLESTONE));
+
+        helper.runAfterDelay(ABSORB_DELAY, () -> {
+            helper.assertTrue(dropped.isRemoved(), SHOULD_ABSORB);
+            helper.assertTrue(helper.getLevel().getServer().getPlayerList().getPlayers().stream()
+                            .noneMatch(player -> PlayerKnowledge.of(player).contains(COBBLESTONE_ID)),
+                    "An item with no thrower should teach nobody");
+            helper.getLevel().getServer().getPlayerList().remove(bystander);
             helper.succeed();
         });
     }
