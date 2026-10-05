@@ -52,8 +52,8 @@ public final class StepTypes {
         register(TeleportStep.TYPE);
         register(PushStep.TYPE);
         register(PlaceBlockStep.TYPE);
-        register(ProgressiveAreaStep.TYPE);
         register(FieldEffectStep.TYPE);
+        register(LingerStep.TYPE);
         register(PhasedStep.TYPE);
         register(PullStep.TYPE);
         register(LeafSteps.CONSUME_BLOCKS.type());

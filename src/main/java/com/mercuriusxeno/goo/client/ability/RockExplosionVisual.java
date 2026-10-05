@@ -14,10 +14,9 @@ import net.minecraft.util.ARGB;
  * draws billowing dust from animated noise, C2A868 with EAD090 highlights,
  * alpha blended so the dust hides what is behind it, thinning to nothing at
  * the edge and over time. A thin bright sonic ring pulses out across the
- * disc once over the first half, the ring goo's ring particle is made from. The
+ * disc once over the first half. The
  * vertex color carries progress in red and the disc-local position in green
- * and blue, since a core pipeline takes no per-draw uniforms. A rock_tunnel
- * marker plays no burnout explosion: its per-layer dust carries the moment.
+ * and blue, since a core pipeline takes no per-draw uniforms.
  */
 public final class RockExplosionVisual implements BurnoutVisual {
 

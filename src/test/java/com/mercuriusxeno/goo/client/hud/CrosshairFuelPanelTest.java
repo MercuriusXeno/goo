@@ -19,18 +19,17 @@ import static org.mockito.Mockito.mock;
 class CrosshairFuelPanelTest {
 
     private static final int CANISTER_VOLUME = 3000;
-    private static final int AIMED_STACKS = 3;
     private static final int FLAT_COST = 2500;
 
     private static ClientAbility costing(int cost) {
         return new ClientAbility(Identifier.fromNamespaceAndPath(Goo.MODID, "cost_" + cost), "ability.goo.cost", "",
-                0, List.of(), 0, AIMED_STACKS + 1, List.of(), cost, Delivery.ARC, AbilityBadge.WORLD);
+                0, List.of(), List.of(), cost, Delivery.ARC, AbilityBadge.WORLD, List.of());
     }
 
     @Test
-    void rowReadsTheCanisterItsVolumeAndTheCostAtTheAimedStack() {
+    void rowReadsTheCanisterItsVolumeAndTheCost() {
         ItemStack canister = mock(ItemStack.class);
-        int cost = costing(FLAT_COST).throwCost(AIMED_STACKS);
+        int cost = costing(FLAT_COST).cost();
 
         CrosshairFuelPanel.FuelRow row = CrosshairFuelPanel.fuelRow(canister, GooTypes.UNSTABLE, CANISTER_VOLUME, cost);
 
@@ -81,18 +80,6 @@ class CrosshairFuelPanelTest {
             assertEquals(214f, rect.y());
             assertEquals(316f, rect.x() + rect.w());
             assertEquals(236f, rect.y() + rect.h());
-        }
-    }
-
-    @Test
-    void costReadsTheSyncedFlatFigureAtStacksZeroAndThree() {
-        ClientAbility ability = costing(FLAT_COST);
-        ItemStack canister = mock(ItemStack.class);
-
-        for (int stacks : new int[]{0, AIMED_STACKS}) {
-            CrosshairFuelPanel.FuelRow row = CrosshairFuelPanel.fuelRow(canister, GooTypes.UNSTABLE, CANISTER_VOLUME,
-                    ability.throwCost(stacks));
-            assertEquals("- 2.5K", row.costText(), "cost at stacks=" + stacks);
         }
     }
 }

@@ -56,58 +56,6 @@ public final class GooRenderTypes {
                     .createRenderSetup()
     );
 
-    /** Depth state that always passes (see-through rendering). */
-    private static final DepthStencilState DEPTH_ALWAYS = new DepthStencilState(
-            com.mojang.blaze3d.platform.CompareOp.ALWAYS_PASS, false);
-
-    /** Lines pipeline with depth test disabled for see-through ghost outlines. */
-    public static final RenderPipeline LINES_NO_DEPTH_PIPELINE = RenderPipeline.builder(RenderPipelines.LINES_SNIPPET)
-            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, "pipeline/lines_no_depth"))
-            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
-            .withDepthStencilState(DEPTH_ALWAYS)
-            .build();
-
-    /** RenderType for see-through wireframe lines (ghost outline). */
-    public static final RenderType LINES_NO_DEPTH = RenderType.create(
-            "goo_lines_no_depth",
-            RenderSetup.builder(LINES_NO_DEPTH_PIPELINE)
-                    .setLayeringTransform(LayeringTransform.VIEW_OFFSET_Z_LAYERING)
-                    .createRenderSetup()
-    );
-
-    /** Quads pipeline with depth test disabled for see-through ghost fill. */
-    public static final RenderPipeline QUADS_NO_DEPTH_PIPELINE = RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
-            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, "pipeline/quads_no_depth"))
-            .withCull(false)
-            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
-            .withDepthStencilState(DEPTH_ALWAYS)
-            .build();
-
-    /** RenderType for see-through translucent fill quads (ghost outline). */
-    public static final RenderType QUADS_NO_DEPTH = RenderType.create(
-            "goo_quads_no_depth",
-            RenderSetup.builder(QUADS_NO_DEPTH_PIPELINE)
-                    .sortOnUpload()
-                    .createRenderSetup()
-    );
-
-    /** Quads pipeline with additive blend (SRC_ALPHA, ONE) and no depth test.
-     * Used for the ghost fill brightening pass. */
-    public static final RenderPipeline QUADS_ADDITIVE_NO_DEPTH_PIPELINE = RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
-            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, "pipeline/quads_additive_no_depth"))
-            .withCull(false)
-            .withColorTargetState(new ColorTargetState(BlendFunction.LIGHTNING))
-            .withDepthStencilState(DEPTH_ALWAYS)
-            .build();
-
-    /** RenderType for additive-blend see-through quads (ghost fill glow pass). */
-    public static final RenderType QUADS_ADDITIVE_NO_DEPTH = RenderType.create(
-            "goo_quads_additive_no_depth",
-            RenderSetup.builder(QUADS_ADDITIVE_NO_DEPTH_PIPELINE)
-                    .sortOnUpload()
-                    .createRenderSetup()
-    );
-
     /**
      * Nether black-hole pipeline: POSITION_COLOR billboard quad with a custom
      * vertex + fragment shader pair (nether_blackhole.vsh / .fsh). Reads the
@@ -240,18 +188,6 @@ public final class GooRenderTypes {
 
     /** RenderType that draws glow goo's burnout explosion. */
     public static final RenderType GLOW_EXPLOSION_TYPE = burnoutType(GLOW_EXPLOSION);
-
-    /**
-     * Goo's swirling ring particle pipeline (decision goo-swirl-ring-particle):
-     * the disc in front of a layer about to break, alpha blended, through
-     * {@code goo_ring.vsh / .fsh}. Its quads carry position, UV0 and color, so
-     * the vertex color holds the theme tint beside the progress.
-     */
-    public static final RenderPipeline GOO_RING = burnoutPipeline("goo_ring", BlendFunction.TRANSLUCENT,
-            DefaultVertexFormat.POSITION_TEX_COLOR);
-
-    /** RenderType that draws goo's ring particle. */
-    public static final RenderType GOO_RING_TYPE = burnoutType(GOO_RING);
 
     /**
      * Nether black-hole accretion-disk pipeline: third render pass that
@@ -675,9 +611,6 @@ public final class GooRenderTypes {
         event.registerPipeline(NETHER_CORONA);
         event.registerPipeline(NETHER_DISK);
         event.registerPipeline(NETHER_CUBE_EDGE);
-        event.registerPipeline(LINES_NO_DEPTH_PIPELINE);
-        event.registerPipeline(QUADS_NO_DEPTH_PIPELINE);
-        event.registerPipeline(QUADS_ADDITIVE_NO_DEPTH_PIPELINE);
         event.registerPipeline(VORONOI_FISSURE);
         event.registerPipeline(CRYSTAL_SHARD);
         event.registerPipeline(GOO_FLUID);
@@ -704,6 +637,5 @@ public final class GooRenderTypes {
         event.registerPipeline(METAL_EXPLOSION);
         event.registerPipeline(CRYSTAL_EXPLOSION);
         event.registerPipeline(GLOW_EXPLOSION);
-        event.registerPipeline(GOO_RING);
     }
 }

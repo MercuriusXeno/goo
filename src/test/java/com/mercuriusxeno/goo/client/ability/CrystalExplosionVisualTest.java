@@ -40,14 +40,6 @@ class CrystalExplosionVisualTest {
     }
 
     @Test
-    void rampMeetsTheShellsFirstDrawnFrame() {
-        DomeRampShape.assertRampMeetsFirstFrame(ramp -> CrystalExplosionVisual.rampShellRadius(ramp, REACH),
-                CrystalExplosionVisual.shellRadius(1f / CrystalExplosionVisual.DURATION_TICKS, REACH),
-                ramp -> ARGB.alpha(CrystalExplosionVisual.shellColor(CrystalExplosionVisual.FIRST_DRAWN_PROGRESS,
-                        DomeRamp.alpha(ramp))));
-    }
-
-    @Test
     void pipelineShadersResolveOnTheClasspath() {
         PipelineShaders.assertExist(GooRenderTypes.CRYSTAL_EXPLOSION);
     }

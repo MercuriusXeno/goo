@@ -4,6 +4,7 @@
   "badge": "mob",
   "order": 10,
   "cost": 1000,
+  "requires": ["minecraft:gunpowder"],
   "delivery": { "kind": "arc" },
   "behaviors": [
     { "type": "explode", "power": 2.0, "interaction": "tnt" }

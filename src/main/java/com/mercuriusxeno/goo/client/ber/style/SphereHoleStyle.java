@@ -1,8 +1,8 @@
 package com.mercuriusxeno.goo.client.ber.style;
 
-import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
+import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.client.ability.NetherSphereVisual;
-import com.mercuriusxeno.goo.client.ber.ChainMarkerRenderState;
+import com.mercuriusxeno.goo.client.ber.AbilityBlockRenderState;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 
@@ -16,12 +16,12 @@ import net.minecraft.client.renderer.SubmitNodeCollector;
 final class SphereHoleStyle implements NetherHoleStyle {
 
     @Override
-    public void extract(ChainMarkerBlockEntity be, ChainMarkerRenderState state) {
+    public void extract(AbilityBlockEntity be, AbilityBlockRenderState state) {
         NetherSphereVisual.extract(be, state);
     }
 
     @Override
-    public void submit(ChainMarkerRenderState state, PoseStack poseStack,
+    public void submit(AbilityBlockRenderState state, PoseStack poseStack,
             SubmitNodeCollector nodeCollector) {
         NetherSphereVisual.submit(state, poseStack, nodeCollector);
     }

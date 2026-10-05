@@ -91,7 +91,6 @@ public final class GooFlightManager {
             if (flight.delivery.fliesStraight()) {
                 tickBeamFlight(it, flight);
             } else if (flight.ticksElapsed >= flight.travelTicks) {
-                fireArrival(flight);
                 it.remove();
             }
         }
@@ -107,22 +106,8 @@ public final class GooFlightManager {
      */
     private static void tickBeamFlight(
             Iterator<Map.Entry<Integer, GooFlight>> it, GooFlight flight) {
-        if (flight.ticksElapsed == flight.travelTicks) {
-            fireArrival(flight);
-        }
         if (flight.ticksElapsed >= flight.travelTicks + flight.travelTicks) {
             it.remove();
-        }
-    }
-
-    /**
-     * Fires the arrival callback for block-target flights.
-     *
-     * @param flight the arriving flight
-     */
-    private static void fireArrival(GooFlight flight) {
-        if (flight.targetEntityId < 0) {
-            GloveThrowSender.onFlightArrived(flight.targetBlockPos);
         }
     }
 

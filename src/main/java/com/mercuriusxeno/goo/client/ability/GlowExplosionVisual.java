@@ -4,8 +4,6 @@ import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
-import com.mojang.blaze3d.vertex.PoseStack;
-import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
@@ -40,8 +38,6 @@ public final class GlowExplosionVisual implements BurnoutVisual {
     /** How far the dome's center sits from the block center along the face's step: on the face plane. */
     private static final float DOME_LIFT = -0.5f;
     private static final int OPAQUE = 0xFF;
-    /** The progress the burnout's first drawn frame shows, which the fuse-tail ramp ends on. */
-    static final float FIRST_DRAWN_PROGRESS = DomeRamp.firstDrawnProgress(DURATION_TICKS);
 
     private GlowExplosionVisual() {
     }
@@ -59,45 +55,21 @@ public final class GlowExplosionVisual implements BurnoutVisual {
     @Override
     public void render(ChainBurnouts.Burnout burnout, BurnoutFrame frame) {
         float progress = burnout.progress(frame.gameTime());
-        float radius = domeRadius(progress, burnout.stackCount());
+        float radius = domeRadius(progress);
         int color = domeColor(progress, burnout.placedFace(), OPAQUE);
         BurnoutGeometry.drawAtMarker(frame, burnout.pos(), GooRenderTypes.GLOW_EXPLOSION_TYPE, (pose, c) ->
                 BurnoutGeometry.emitSphere(pose, c, burnout.placedFace(), DOME_LIFT, radius, color));
     }
 
-    @Override
-    public void submitRamp(ChainBurnouts.Burnout burnout, float ramp, PoseStack poseStack,
-                           SubmitNodeCollector collector) {
-        float radius = rampRadius(ramp, burnout.stackCount());
-        int color = domeColor(FIRST_DRAWN_PROGRESS, burnout.placedFace(), DomeRamp.alpha(ramp));
-        collector.submitCustomGeometry(poseStack, GooRenderTypes.GLOW_EXPLOSION_TYPE, (pose, c) ->
-                BurnoutGeometry.emitSphere(pose, c, burnout.placedFace(), DOME_LIFT, radius, color));
-    }
-
     /**
-     * The dome's radius through the fuse-tail ramp, meeting the burnout's
-     * first drawn frame at the same stack count.
-     * Decision dome-fades-in-before-its-start.
-     * Decision glow-dome-scales-with-the-crystal.
+     * The dome's full reach: the large crystal's reach scaled by the one
+     * crystal size's lateral extent over the large one's. Decision
+     * glow-dome-scales-with-the-crystal.
      *
-     * @param ramp   the ramp's share in [0, 1]
-     * @param stacks the marker's stack count
-     * @return the dome's radius in blocks
-     */
-    static float rampRadius(float ramp, int stacks) {
-        return DomeRamp.radius(ramp, domeRadius(FIRST_DRAWN_PROGRESS, stacks));
-    }
-
-    /**
-     * The dome's full reach for a stack count: the large crystal's reach
-     * scaled by that crystal size's lateral extent over the large one's.
-     * Decision glow-dome-scales-with-the-crystal.
-     *
-     * @param stacks the marker's stack count
      * @return the dome's full reach in blocks
      */
-    static float domeReach(int stacks) {
-        return LARGE_DOME_REACH * lateralExtent(GlowCrystalBlock.CrystalSize.fromStacks(stacks))
+    static float domeReach() {
+        return LARGE_DOME_REACH * lateralExtent(GlowCrystalBlock.CrystalSize.TINY)
                 / lateralExtent(GlowCrystalBlock.CrystalSize.LARGE);
     }
 
@@ -121,14 +93,13 @@ public final class GlowExplosionVisual implements BurnoutVisual {
     }
 
     /**
-     * The aurora dome's radius: an ease-out growth to its stack count's reach.
+     * The aurora dome's radius: an ease-out growth to its reach.
      *
      * @param progress the explosion's progress in [0, 1]
-     * @param stacks   the marker's stack count
      * @return the dome's radius in blocks
      */
-    static float domeRadius(float progress, int stacks) {
-        return domeReach(stacks) * BurnoutGeometry.easeOutCubic(progress);
+    static float domeRadius(float progress) {
+        return domeReach() * BurnoutGeometry.easeOutCubic(progress);
     }
 
     /**

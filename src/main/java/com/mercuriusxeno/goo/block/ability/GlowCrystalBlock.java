@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Permanent glow crystal left behind by glow chain marker detonation.
+ * Permanent glow crystal a glow ability block places as its program runs.
  * No collision, variable light level by size, breaks like a torch and
  * drops a glow goo. Attaches to any surface (floor, wall, ceiling).
  *
@@ -264,17 +264,6 @@ public class GlowCrystalBlock extends Block {
             this.lightLevel = lightLevel;
             this.min = min;
             this.max = max;
-        }
-
-        /**
-         * Returns the size matching a 1-based stack count (clamped).
-         *
-         * @param stacks the 1-based stack count
-         * @return the crystal size for that count
-         */
-        public static CrystalSize fromStacks(int stacks) {
-            int idx = Math.max(0, Math.min(stacks - 1, values().length - 1));
-            return values()[idx];
         }
 
         @Override

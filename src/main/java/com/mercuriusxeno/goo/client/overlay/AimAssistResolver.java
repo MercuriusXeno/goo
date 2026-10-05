@@ -1,16 +1,11 @@
 package com.mercuriusxeno.goo.client.overlay;
 
-import com.mercuriusxeno.goo.ability.StackKey;
-import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.SectionPos;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
@@ -24,9 +19,9 @@ import java.util.Optional;
  * Target resolution with two-pass aim assist (exact raytrace + cone scan)
  * and sticky retention to prevent flicker at cone edges.
  *
- * <p>Handles both living entities and placed {@link ChainMarkerBlockEntity}
- * blocks in a single unified pass: chain markers behave exactly like
- * entities for the purposes of targeting, including sticky retention.
+ * <p>Handles living entities; a standing ability block is never an aim
+ * target, so a throw at one lands beside it (decision
+ * splat-runs-the-program-no-fuse).
  */
 final class AimAssistResolver {
 
@@ -95,37 +90,31 @@ final class AimAssistResolver {
     }
 
     /**
-     * Finds the best aim hit (living entity or chain marker block) using a
+     * Finds the best aim hit (a living entity) using a
      * two-pass approach plus sticky retention on the previous hit.
      *
      * <ol>
      *   <li>Exact raytrace - if the reticle directly clips a candidate AABB,
-     *       pick the nearest by distance. Entity exact-hits win over marker
-     *       exact-hits when both are present at equal distance.</li>
+     *       pick the nearest by distance.</li>
      *   <li>Cone scan - pick the candidate with highest cosine to the
-     *       reticle (entities and markers compared against the same cosine).</li>
+     *       reticle.</li>
      *   <li>Sticky - if the previous hit is still within the wider sticky
      *       cone, keep it.</li>
      * </ol>
      * <p>
-     * All passes require line-of-sight (with a self-voxel exemption for
-     * chain markers whose own block would otherwise occlude their AABB).
+     * All passes require line-of-sight.
      *
      * @param player   the interacting player
      * @param from     the ray start (eye position)
      * @param to       the ray end (eye + look * range)
      * @param previous the previous frame's hit, or null
-     * @param abilityId the glove's selected ability id, the only marker key it locks
      * @return the best hit, or null if none in range/cone
      */
     static @Nullable AimHit findClosestAimHit(Player player, Vec3 from, Vec3 to,
-                                              @Nullable AimHit previous, @Nullable String abilityId) {
+                                              @Nullable AimHit previous) {
         Vec3 lookDir = to.subtract(from).normalize();
-        Level level = player.level();
         List<Entity> entities = gatherCandidates(player, from, to);
-        List<BlockPos> markers = gatherChainMarkers(level, from, to, abilityId);
-
-        List<AimHit> candidates = asHits(entities, markers);
+        List<AimHit> candidates = asHits(entities);
         AimHit exact = findExactHit(candidates, player, from, to);
         if (exact != null) {
             return exact;
@@ -152,73 +141,6 @@ final class AimAssistResolver {
     }
 
     /**
-     * Gathers placed chain marker block positions within the search box by
-     * iterating only the chunks that intersect it. Uses {@code getChunkNow}
-     * so we never force-load chunks client-side.
-     *
-     * @param level the current level
-     * @param from  ray start (eye position)
-     * @param to    ray end (eye + look * range)
-     * @param abilityId the glove's selected ability id
-     * @return list of chain marker block positions inside the search box
-     */
-    private static List<BlockPos> gatherChainMarkers(Level level, Vec3 from, Vec3 to, @Nullable String abilityId) {
-        // Reuse the same AABB as entity gathering so the cone shape is consistent.
-        double coneRadius = MAX_RANGE * Math.tan(Math.toRadians(AIM_ASSIST_DEGREES));
-        AABB box = new AABB(from, to).inflate(coneRadius + 1.0);
-        int minCX = SectionPos.blockToSectionCoord((int) Math.floor(box.minX));
-        int maxCX = SectionPos.blockToSectionCoord((int) Math.floor(box.maxX));
-        int minCZ = SectionPos.blockToSectionCoord((int) Math.floor(box.minZ));
-        int maxCZ = SectionPos.blockToSectionCoord((int) Math.floor(box.maxZ));
-        List<BlockPos> markers = new ArrayList<>();
-        for (int cx = minCX; cx <= maxCX; cx++) {
-            for (int cz = minCZ; cz <= maxCZ; cz++) {
-                collectMarkersInChunk(level, cx, cz, box, abilityId, markers);
-            }
-        }
-        return markers;
-    }
-
-    /**
-     * Whether the aim assist locks a standing marker for the glove's selection.
-     *
-     * @param markerAbilityId   the marker's ability id
-     * @param selectedAbilityId the glove's selected ability id, or null
-     * @return true only when the marker runs the selected ability
-     */
-    static boolean locksMarker(@Nullable String markerAbilityId, @Nullable String selectedAbilityId) {
-        return StackKey.matches(markerAbilityId, selectedAbilityId);
-    }
-
-    /**
-     * Pulls the selected ability's chain marker block entities out of a
-     * single chunk if it is currently loaded client-side.
-     *
-     * @param level     the current level
-     * @param cx        chunk X coordinate
-     * @param cz        chunk Z coordinate
-     * @param box       the search bounding box in world space
-     * @param abilityId the glove's selected ability id
-     * @param out       list to append matching positions to
-     */
-    private static void collectMarkersInChunk(Level level, int cx, int cz,
-                                              AABB box, @Nullable String abilityId, List<BlockPos> out) {
-        LevelChunk chunk = level.getChunkSource().getChunkNow(cx, cz);
-        if (chunk == null) {
-            return;
-        }
-        for (BlockEntity be : chunk.getBlockEntities().values()) {
-            if (!(be instanceof ChainMarkerBlockEntity marker && locksMarker(marker.getAbilityId(), abilityId))) {
-                continue;
-            }
-            BlockPos pos = be.getBlockPos();
-            if (box.contains(Vec3.atCenterOf(pos))) {
-                out.add(pos.immutable());
-            }
-        }
-    }
-
-    /**
      * Builds the shared search bounding box used for both entity and marker
      * candidate gathering.
      *
@@ -235,20 +157,15 @@ final class AimAssistResolver {
     }
 
     /**
-     * Every candidate as an aim hit, entities first so an entity wins a tie
-     * against a marker.
+     * Every candidate as an aim hit.
      *
      * @param entities entity candidates
-     * @param markers  chain marker candidates
-     * @return the candidates in tie-break order
+     * @return the candidates
      */
-    private static List<AimHit> asHits(List<Entity> entities, List<BlockPos> markers) {
-        List<AimHit> hits = new ArrayList<>(entities.size() + markers.size());
+    private static List<AimHit> asHits(List<Entity> entities) {
+        List<AimHit> hits = new ArrayList<>(entities.size());
         for (Entity entity : entities) {
             hits.add(new AimHit.EntityHit(entity));
-        }
-        for (BlockPos pos : markers) {
-            hits.add(new AimHit.ChainMarkerHit(pos));
         }
         return hits;
     }
@@ -360,7 +277,7 @@ final class AimAssistResolver {
     /**
      * Line-of-sight to an arbitrary AABB. If {@code selfBlock} is non-null,
      * rays that terminate inside that block position are treated as clear
-     * (prevents a chain marker's own voxel from occluding its own LOS).
+     * (prevents a ability block's own voxel from occluding its own LOS).
      *
      * @param level     the current level
      * @param player    the interacting player
@@ -433,7 +350,7 @@ final class AimAssistResolver {
 
     /**
      * Sealed aim-hit kind produced by the resolver. Packs either a living
-     * entity or a chain marker block position so the caller can dispatch
+     * entity or a ability block block position so the caller can dispatch
      * render and throw-payload paths differently.
      */
     sealed interface AimHit {
@@ -490,23 +407,6 @@ final class AimAssistResolver {
             @Override
             public boolean isAlive() {
                 return entity.isAlive();
-            }
-        }
-
-        /**
-         * A chain marker block hit, behaving like an entity for targeting.
-         *
-         * @param pos the marker's block
-         */
-        record ChainMarkerHit(BlockPos pos) implements AimHit {
-            @Override
-            public AABB box() {
-                return new AABB(pos);
-            }
-
-            @Override
-            public BlockPos selfBlock() {
-                return pos;
             }
         }
     }

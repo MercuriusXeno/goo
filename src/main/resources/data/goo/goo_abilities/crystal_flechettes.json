@@ -4,6 +4,7 @@
   "badge": "mob",
   "order": 10,
   "cost": 1000,
+  "requires": ["minecraft:amethyst_shard"],
   "delivery": { "kind": "arc" },
   "behaviors": [
     { "type": "damage", "amount": 4, "source": "magic" },

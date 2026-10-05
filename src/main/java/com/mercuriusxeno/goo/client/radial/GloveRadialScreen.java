@@ -1,8 +1,10 @@
 package com.mercuriusxeno.goo.client.radial;
 
 import com.mercuriusxeno.goo.ability.GloveSelection;
-import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
+import com.mercuriusxeno.goo.client.ClientKnownItems;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
+import com.mercuriusxeno.goo.client.network.ClientAbilities;
+import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.network.GloveSelectPayload;
@@ -44,7 +46,9 @@ public final class GloveRadialScreen extends Screen {
     private GloveRadialScreen(Map<ResourceKey<GooTypeDefinition>, Integer> available) {
         super(Component.empty());
         this.types = GooTypes.order();
-        this.abilities = types.stream().map(AbilitySyncHandler::getAbilitiesForType).toList();
+        ClientAbilities synced = ClientAbilities.current();
+        KnownItems known = ClientKnownItems.current();
+        this.abilities = types.stream().map(type -> synced.knownForType(type, known)).toList();
         this.available = available;
         this.wheel = new RadialWheel(types.size(), type -> abilities.get(type).size());
     }

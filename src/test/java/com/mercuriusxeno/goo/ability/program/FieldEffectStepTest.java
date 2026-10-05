@@ -14,7 +14,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.OptionalDouble;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -47,14 +46,13 @@ import static org.mockito.Mockito.when;
  * strike's aim is stubbed per host; the damage itself is proven by the
  * field-effect gametests (decision step-tick-holds-effect). On a Mockito
  * marker host whose scan hands over the entities in radius that the
- * filters keep:
- * a metal target whose roll falls below the spend chance costs one stack,
- * one whose roll falls at or above it costs none, and each is impaled on the strike tick, a
- * sneaking player and a dying mob cost none, and a spent budget tears down once and ends
- * the program; eight crystal shreds spend one stack, a sprinting player is
- * shredded twice as often, a standing entity not at all, every shred
- * bursts crit off the struck entity (decision razor-shred-bursts-crit), and the cloud
- * expands, then contracts once its last goo is spent.
+ * filters keep: a metal target spends one of the throw's two charges and
+ * is impaled on the strike tick, a sneaking player and a dying mob spend
+ * none, and spent charges tear down once and end the program; a crystal
+ * cloud's eight shreds spend its charges, a sprinting player is shredded
+ * twice as often, a standing entity not at all, every shred bursts crit
+ * off the struck entity (decision razor-shred-bursts-crit), and the cloud
+ * expands, then contracts once its last charge is spent.
  */
 class FieldEffectStepTest {
 
@@ -67,15 +65,14 @@ class FieldEffectStepTest {
     private static final int STRIKE_TICKS = 13;
     private static final int COOLDOWN = 10;
     private static final int IDLE_TICKS = 40;
-    private static final int CHARGES_PER_GOO = 8;
-    /** A walker is shredded every second tick, so a goo's eight charges last sixteen ticks. */
-    private static final int WALKING_TICKS_FOR_A_GOO = 16;
-    private static final int SPRINT_WINDOW = 6;
+    private static final int METAL_CHARGES = 2;
+    private static final int CRYSTAL_CHARGES = 8;
+    /** A walker is shredded every second tick, so a throw's eight charges last sixteen ticks. */
+    private static final int WALKING_TICKS_FOR_A_THROW = 16;
+    /** Ticks a sprinter and a walker share the cloud while its charges outlast them both. */
+    private static final int SPRINT_WINDOW = 4;
     private static final int CLOUD_ANIMATION_TICKS = 10;
     private static final float FRACTION_TOLERANCE = 1e-5f;
-    private static final double METAL_SPEND_CHANCE = 0.5;
-    private static final double ROLL_BELOW_METAL_CHANCE = 0.49;
-    private static final double ROLL_AT_METAL_CHANCE = 0.5;
     private static final Identifier PROBE_SOUND = Identifier.parse("goo:test.strike_landed");
     /** The sound each strike body plays at its target in place of its damage. */
     private static final Step PROBE_STEP = new SoundStep(PROBE_SOUND, FxAnchor.TARGET, SoundKind.HOSTILE,
@@ -89,8 +86,6 @@ class FieldEffectStepTest {
     /** The one filter each entity host fails, by host. */
     private final Map<StepHost, EntityFilter> rejectedByHost = new HashMap<>();
     private MockedStatic<FieldStrike> aims;
-    /** The fraction every marker host's roll answers; zero spends every charge. */
-    private double rolledFraction;
 
     @BeforeEach
     void stubTheAimOfEachStrike() {
@@ -111,8 +106,8 @@ class FieldEffectStepTest {
 
     private static List<Step> program(String resource) {
         String fileName = resource.substring(resource.lastIndexOf('/') + 1);
-        return AbilityJson.decode(fileName.substring(0, fileName.length() - ".json".length()))
-                .behaviors();
+        return LingerStep.bodyOf(AbilityJson.decode(fileName.substring(0, fileName.length() - ".json".length()))
+                .behaviors()).orElseThrow();
     }
 
     private static List<Step> metalProgram() throws IOException {
@@ -133,7 +128,7 @@ class FieldEffectStepTest {
     private static List<Step> withProbedStrikes(List<Step> steps) {
         return steps.stream().map(step -> step instanceof FieldEffectStep field
                 ? new FieldEffectStep(field.radius(), field.where(), field.cooldown(), field.interval(),
-                        field.perStack(), field.spendChance(), field.strikeTick(), field.strikeTicks(), field.timing(),
+                        field.charges(), field.strikeTick(), field.strikeTicks(), field.timing(),
                         probed(field.strike()), field.teardown())
                 : step).toList();
     }
@@ -175,23 +170,19 @@ class FieldEffectStepTest {
     }
 
     /**
-     * A marker host holding stacks, keeping a real field-effect state, and
-     * standing in a world whose scan hands the body each entity in radius
-     * that every filter keeps.
+     * A marker host keeping a real field-effect state and standing in a
+     * world whose scan hands the body each entity in radius that every
+     * filter keeps.
      *
-     * @param stacks   the live stack count, spent by decrementStack
      * @param inRadius the entities within the trap's radius
      * @return the marker host
      */
-    private MarkerHost marker(AtomicInteger stacks, List<EntityHost> inRadius) {
+    private MarkerHost marker(List<EntityHost> inRadius) {
         MarkerHost host = mock(MarkerHost.class);
         FieldEffectState state = new FieldEffectState();
         when(host.kind()).thenReturn(HostKind.MARKER);
         when(host.fieldEffect()).thenReturn(state);
         when(host.read(anyString())).thenReturn(OptionalDouble.empty());
-        when(host.stackCount()).thenAnswer(inv -> stacks.get());
-        when(host.rollFraction()).thenAnswer(inv -> rolledFraction);
-        doAnswer(inv -> stacks.decrementAndGet()).when(host).decrementStack();
         doAnswer(inv -> {
             Set<EntityFilter> filters = inv.getArgument(2);
             Consumer<TargetHost> body = inv.getArgument(3);
@@ -216,129 +207,87 @@ class FieldEffectStepTest {
         }
     }
 
-    @Test
-    void aTargetInRadiusCostsOneStackAndIsImpaledOnTheStrikeTick() throws IOException {
-        AtomicInteger stacks = new AtomicInteger(2);
-        EntityHost walker = walker(WALKER_ID);
-        MarkerHost host = marker(stacks, List.of(walker));
-        ProgramBehavior program = ProgramBehavior.forHost(metalProgram(), HostKind.MARKER);
-
-        program.tick(host);
-
-        assertEquals(1, stacks.get());
-        verify(walker, never()).playSound(PROBE_CUE);
-        tick(program, host, STRIKE_TICK);
-        verify(walker).playSound(PROBE_CUE);
-        verify(walker).spawnParticles(argThat(burst -> "crit".equals(burst.particle().getPath())));
-        assertEquals(1, stacks.get());
-        assertTrue(program.isActive());
-    }
-
-    @Test
-    void aMetalStrikeRolledBelowTheSpendChanceSpendsOneStack() throws IOException {
-        rolledFraction = ROLL_BELOW_METAL_CHANCE;
-        AtomicInteger stacks = new AtomicInteger(2);
-        EntityHost walker = walker(WALKER_ID);
-        MarkerHost host = marker(stacks, List.of(walker));
-        ProgramBehavior program = ProgramBehavior.forHost(metalProgram(), HostKind.MARKER);
-
-        tick(program, host, STRIKE_TICK + 1);
-
-        verify(walker).playSound(PROBE_CUE);
-        verify(host, times(1)).decrementStack();
-        assertEquals(1, stacks.get());
-    }
-
-    @Test
-    void aMetalStrikeRolledAtTheSpendChanceLandsAndCoolsDownButSparesTheStack() throws IOException {
-        rolledFraction = ROLL_AT_METAL_CHANCE;
-        AtomicInteger stacks = new AtomicInteger(2);
-        EntityHost walker = walker(WALKER_ID);
-        MarkerHost host = marker(stacks, List.of(walker));
-        FieldEffectState state = host.fieldEffect();
-        ProgramBehavior program = ProgramBehavior.forHost(metalProgram(), HostKind.MARKER);
-
-        program.tick(host);
-        assertEquals(COOLDOWN, state.cooldown());
-        tick(program, host, STRIKE_TICK);
-
-        verify(walker).playSound(PROBE_CUE);
-        verify(host, never()).decrementStack();
-        assertEquals(2, stacks.get());
-    }
-
-    @Test
-    void theMetalProgramSpendsAChargeHalfTheTime() {
-        FieldEffectStep field = fieldEffectOf(program(METAL_SPIKES));
-
-        assertEquals(METAL_SPEND_CHANCE, field.spendChance().evaluate(Variables.NONE));
-    }
-
-    @Test
-    void theCrystalProgramNamesNoSpendChanceSoEveryShredSpends() {
-        FieldEffectStep field = fieldEffectOf(program(CRYSTAL_CLOUD));
-
-        assertEquals(1, field.spendChance().evaluate(Variables.NONE));
-    }
-
     private static FieldEffectStep fieldEffectOf(List<Step> steps) {
         return steps.stream().filter(FieldEffectStep.class::isInstance).map(FieldEffectStep.class::cast)
                 .findFirst().orElseThrow();
     }
 
     @Test
-    void aSneakingPlayerCostsNoStackAndTakesNoHit() throws IOException {
-        AtomicInteger stacks = new AtomicInteger(2);
+    void aTargetInRadiusSpendsOneChargeAndIsImpaledOnTheStrikeTick() throws IOException {
+        EntityHost walker = walker(WALKER_ID);
+        MarkerHost host = marker(List.of(walker));
+        ProgramBehavior program = ProgramBehavior.forHost(metalProgram(), HostKind.MARKER);
+
+        program.tick(host);
+
+        assertEquals(1, host.fieldEffect().chargesSpent());
+        verify(walker, never()).playSound(PROBE_CUE);
+        tick(program, host, STRIKE_TICK);
+        verify(walker).playSound(PROBE_CUE);
+        verify(walker).spawnParticles(argThat(burst -> "crit".equals(burst.particle().getPath())));
+        assertEquals(1, host.fieldEffect().chargesSpent());
+        assertTrue(program.isActive());
+    }
+
+    // decision splat-runs-the-program-no-fuse
+    @Test
+    void theMetalProgramBuysTwoChargesAThrow() {
+        assertEquals(METAL_CHARGES, fieldEffectOf(program(METAL_SPIKES)).charges().evaluate(Variables.NONE));
+    }
+
+    // decision splat-runs-the-program-no-fuse
+    @Test
+    void theCrystalProgramBuysEightShredsAThrow() {
+        assertEquals(CRYSTAL_CHARGES, fieldEffectOf(program(CRYSTAL_CLOUD)).charges().evaluate(Variables.NONE));
+    }
+
+    @Test
+    void aSneakingPlayerSpendsNoChargeAndTakesNoHit() throws IOException {
         EntityHost sneaker = entityInRadius(SNEAKER_ID, EntityFilter.NOT_SNEAKING, false);
-        MarkerHost host = marker(stacks, List.of(sneaker));
+        MarkerHost host = marker(List.of(sneaker));
         ProgramBehavior program = ProgramBehavior.forHost(metalProgram(), HostKind.MARKER);
 
         tick(program, host, IDLE_TICKS);
 
-        assertEquals(2, stacks.get());
+        assertEquals(0, host.fieldEffect().chargesSpent());
         verify(sneaker, never()).playSound(PROBE_CUE);
-        verify(host, never()).decrementStack();
         assertTrue(program.isActive());
     }
 
     @Test
-    void aDyingMobInRadiusIsNotStruckAndCostsNoStack() throws IOException {
-        AtomicInteger stacks = new AtomicInteger(2);
+    void aDyingMobInRadiusIsNotStruckAndSpendsNoCharge() throws IOException {
         EntityHost dying = entityInRadius(WALKER_ID, EntityFilter.ALIVE, false);
-        MarkerHost host = marker(stacks, List.of(dying));
+        MarkerHost host = marker(List.of(dying));
         ProgramBehavior program = ProgramBehavior.forHost(metalProgram(), HostKind.MARKER);
 
         tick(program, host, STRIKE_TICKS);
 
         verify(dying, never()).playSound(PROBE_CUE);
-        verify(host, never()).decrementStack();
-        assertEquals(2, stacks.get());
+        assertEquals(0, host.fieldEffect().chargesSpent());
     }
 
     @Test
     void theCooldownHoldsTheNextStrikeTenTicks() throws IOException {
-        AtomicInteger stacks = new AtomicInteger(3);
         EntityHost first = walker(WALKER_ID);
         EntityHost second = walker(OTHER_WALKER_ID);
-        MarkerHost host = marker(stacks, List.of(first, second));
+        MarkerHost host = marker(List.of(first, second));
         ProgramBehavior program = ProgramBehavior.forHost(metalProgram(), HostKind.MARKER);
 
         tick(program, host, COOLDOWN);
-        assertEquals(2, stacks.get());
+        assertEquals(1, host.fieldEffect().chargesSpent());
 
         program.tick(host);
-        assertEquals(1, stacks.get());
+        assertEquals(2, host.fieldEffect().chargesSpent());
     }
 
     @Test
-    void aSpentBudgetTearsDownOnceWhenTheLastStrikeRetractsAndEndsTheProgram() throws IOException {
-        AtomicInteger stacks = new AtomicInteger(1);
+    void spentChargesTearDownOnceWhenTheLastStrikeRetractsAndEndTheProgram() throws IOException {
         EntityHost walker = walker(WALKER_ID);
-        MarkerHost host = marker(stacks, List.of(walker));
+        MarkerHost host = marker(List.of(walker));
         ProgramBehavior program = ProgramBehavior.forHost(metalProgram(), HostKind.MARKER);
 
-        tick(program, host, STRIKE_TICKS - 1);
-        assertEquals(0, stacks.get());
+        tick(program, host, COOLDOWN + STRIKE_TICKS - 1);
+        assertEquals(METAL_CHARGES, host.fieldEffect().chargesSpent());
         assertTrue(program.isActive());
         verify(host, never()).playSound(any());
 
@@ -350,28 +299,25 @@ class FieldEffectStepTest {
     }
 
     @Test
-    void eightShredsOnAMovingEntityDecrementTheStackOnce() throws IOException {
-        AtomicInteger stacks = new AtomicInteger(2);
+    void eightShredsOnAMovingEntitySpendTheThrowsCharges() throws IOException {
         EntityHost walker = walker(WALKER_ID);
-        MarkerHost host = marker(stacks, List.of(walker));
+        MarkerHost host = marker(List.of(walker));
         ProgramBehavior program = ProgramBehavior.forHost(crystalProgram(), HostKind.MARKER);
 
-        tick(program, host, WALKING_TICKS_FOR_A_GOO - 1);
-        assertEquals(2, stacks.get());
-        verify(walker, times(CHARGES_PER_GOO - 1)).playSound(PROBE_CUE);
+        tick(program, host, WALKING_TICKS_FOR_A_THROW - 1);
+        verify(walker, times(CRYSTAL_CHARGES - 1)).playSound(PROBE_CUE);
 
-        program.tick(host);
+        tick(program, host, IDLE_TICKS);
 
-        verify(walker, times(CHARGES_PER_GOO)).playSound(PROBE_CUE);
-        verify(host, times(1)).decrementStack();
-        assertEquals(1, stacks.get());
+        verify(walker, times(CRYSTAL_CHARGES)).playSound(PROBE_CUE);
+        assertEquals(CRYSTAL_CHARGES, host.fieldEffect().chargesSpent());
     }
 
     @Test
     void aSprintingPlayerIsShreddedEveryTickTwiceAsOftenAsAWalker() throws IOException {
         EntityHost walker = walker(WALKER_ID);
         EntityHost sprinter = entityInRadius(OTHER_WALKER_ID, null, true);
-        MarkerHost host = marker(new AtomicInteger(2), List.of(walker, sprinter));
+        MarkerHost host = marker(List.of(walker, sprinter));
         ProgramBehavior program = ProgramBehavior.forHost(crystalProgram(), HostKind.MARKER);
 
         tick(program, host, SPRINT_WINDOW);
@@ -383,19 +329,19 @@ class FieldEffectStepTest {
     @Test
     void everyShredOnAWalkerBurstsCritOffIt() throws IOException {
         EntityHost walker = walker(WALKER_ID);
-        MarkerHost host = marker(new AtomicInteger(2), List.of(walker));
+        MarkerHost host = marker(List.of(walker));
         ProgramBehavior program = ProgramBehavior.forHost(crystalProgram(), HostKind.MARKER);
 
-        tick(program, host, WALKING_TICKS_FOR_A_GOO);
+        tick(program, host, WALKING_TICKS_FOR_A_THROW);
 
-        verify(walker, times(CHARGES_PER_GOO)).spawnParticles(argThat(FieldEffectStepTest::isCritBurst));
+        verify(walker, times(CRYSTAL_CHARGES)).spawnParticles(argThat(FieldEffectStepTest::isCritBurst));
     }
 
     @Test
     void aSprintingPlayerTakesCritBurstsTwiceAsOftenAsAWalker() throws IOException {
         EntityHost walker = walker(WALKER_ID);
         EntityHost sprinter = entityInRadius(OTHER_WALKER_ID, null, true);
-        MarkerHost host = marker(new AtomicInteger(2), List.of(walker, sprinter));
+        MarkerHost host = marker(List.of(walker, sprinter));
         ProgramBehavior program = ProgramBehavior.forHost(crystalProgram(), HostKind.MARKER);
 
         tick(program, host, SPRINT_WINDOW);
@@ -410,29 +356,27 @@ class FieldEffectStepTest {
 
     @Test
     void aStandingEntityIsNotShredded() throws IOException {
-        AtomicInteger stacks = new AtomicInteger(1);
         EntityHost standing = entityInRadius(WALKER_ID, EntityFilter.MOVING, false);
-        MarkerHost host = marker(stacks, List.of(standing));
+        MarkerHost host = marker(List.of(standing));
         ProgramBehavior program = ProgramBehavior.forHost(crystalProgram(), HostKind.MARKER);
 
         tick(program, host, IDLE_TICKS);
 
         verify(standing, never()).playSound(PROBE_CUE);
-        assertEquals(1, stacks.get());
+        assertEquals(0, host.fieldEffect().chargesSpent());
         assertTrue(program.isActive());
     }
 
     @Test
-    void theCloudExpandsThenContractsOnceItsLastGooIsSpent() throws IOException {
-        AtomicInteger stacks = new AtomicInteger(1);
-        MarkerHost host = marker(stacks, List.of(walker(WALKER_ID)));
+    void theCloudExpandsThenContractsOnceItsLastChargeIsSpent() throws IOException {
+        MarkerHost host = marker(List.of(walker(WALKER_ID)));
         FieldEffectState state = host.fieldEffect();
         ProgramBehavior program = ProgramBehavior.forHost(crystalProgram(), HostKind.MARKER);
 
         tick(program, host, CLOUD_ANIMATION_TICKS / 2);
         assertEquals(0.5f, state.radiusFraction(CLOUD_ANIMATION_TICKS, CLOUD_ANIMATION_TICKS), FRACTION_TOLERANCE);
-        tick(program, host, WALKING_TICKS_FOR_A_GOO - CLOUD_ANIMATION_TICKS / 2);
-        assertEquals(0, stacks.get());
+        tick(program, host, WALKING_TICKS_FOR_A_THROW - CLOUD_ANIMATION_TICKS / 2);
+        assertEquals(CRYSTAL_CHARGES, state.chargesSpent());
         assertEquals(1f, state.radiusFraction(CLOUD_ANIMATION_TICKS, CLOUD_ANIMATION_TICKS), FRACTION_TOLERANCE);
         assertEquals(0f, state.density(), FRACTION_TOLERANCE);
 
@@ -447,14 +391,13 @@ class FieldEffectStepTest {
     }
 
     @Test
-    void theRunningFieldEffectAllowsTopOff() throws IOException {
-        AtomicInteger stacks = new AtomicInteger(1);
-        MarkerHost host = marker(stacks, List.of());
+    void theRunningFieldEffectStandsAgainstBreaking() throws IOException {
+        MarkerHost host = marker(List.of());
         ProgramBehavior program = ProgramBehavior.forHost(metalProgram(), HostKind.MARKER);
 
         program.tick(host);
 
-        assertTrue(program.allowsTopOff());
+        assertTrue(program.standsAgainstBreaking());
     }
 
     @Test
@@ -470,7 +413,7 @@ class FieldEffectStepTest {
     @Test
     void theIntervalIsReadOnTheSelectedEntitySoAMarkerVariableThereRefusesAtLoad() {
         List<Step> steps = List.of(new FieldEffectStep(Expr.literal(3), List.of(), Expr.literal(0),
-                Expr.parse("stacks").getOrThrow(), Expr.literal(1), Expr.literal(1), Expr.literal(0), Expr.literal(1),
+                Expr.parse("stacks").getOrThrow(), Expr.literal(1), Expr.literal(0), Expr.literal(1),
                 FieldTiming.INSTANT, List.of(new DamageStep(Expr.literal(1), DamageKind.CACTUS)), List.of()));
 
         ProgramLoadException refusal = assertThrows(ProgramLoadException.class,
@@ -483,7 +426,7 @@ class FieldEffectStepTest {
     @Test
     void aMarkerOnlyStepInTheStrikeBodyRefusesAtLoadSinceItRunsOnTheStruckEntity() {
         List<Step> steps = List.of(new FieldEffectStep(Expr.literal(3), List.of(), Expr.literal(0),
-                Expr.literal(1), Expr.literal(1), Expr.literal(1), Expr.literal(0), Expr.literal(1), FieldTiming.INSTANT,
+                Expr.literal(1), Expr.literal(1), Expr.literal(0), Expr.literal(1), FieldTiming.INSTANT,
                 List.of(new ExplodeStep(Expr.literal(2), ExplosionMode.NONE),
                         LeafSteps.WAIT.step(Expr.literal(2))),
                 List.of()));
@@ -497,7 +440,7 @@ class FieldEffectStepTest {
 
     @Test
     void theSavedStateHoldsTheSevenRunStateFieldsAndNoStepParam() throws IOException {
-        MarkerHost host = marker(new AtomicInteger(2), List.of(walker(WALKER_ID)));
+        MarkerHost host = marker(List.of(walker(WALKER_ID)));
         ProgramBehavior program = ProgramBehavior.forHost(metalProgram(), HostKind.MARKER);
         tick(program, host, STRIKE_TICK);
         ValueOutput output = mock(ValueOutput.class);

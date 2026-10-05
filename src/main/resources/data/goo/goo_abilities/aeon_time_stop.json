@@ -4,6 +4,7 @@
   "badge": "mob",
   "order": 0,
   "cost": 1000,
+  "requires": ["minecraft:clock"],
   "delivery": { "kind": "arc" },
   "behaviors": [
     {
