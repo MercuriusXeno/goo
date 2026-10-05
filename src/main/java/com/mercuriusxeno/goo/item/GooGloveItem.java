@@ -212,7 +212,7 @@ public class GooGloveItem extends Item {
     public void onUseTick(@NonNull Level level, @NonNull LivingEntity user, @NonNull ItemStack stack,
             int ticksRemaining) {
         if (selectionEats(stack, level) && EAT.shouldEmitParticlesAndSounds(ticksRemaining)) {
-            EAT.emitParticlesAndSounds(user.getRandom(), user, stack, EAT_TICK_CRUMBS);
+            EAT.emitParticlesAndSounds(user.getRandom(), user, eatenGoo(stack), EAT_TICK_CRUMBS);
         }
     }
 
@@ -232,11 +232,24 @@ public class GooGloveItem extends Item {
         if (!selectionEats(stack, level)) {
             return stack;
         }
-        EAT.emitParticlesAndSounds(user.getRandom(), user, stack, EAT_FINISH_CRUMBS);
+        EAT.emitParticlesAndSounds(user.getRandom(), user, eatenGoo(stack), EAT_FINISH_CRUMBS);
         if (user instanceof ServerPlayer player) {
             GooSelfHandler.finishEating(player, stack);
         }
         return stack;
+    }
+
+    /**
+     * The goo the eat's crumbs break from: one goo of the selected type, so
+     * the particles read the goo's texture rather than the glove's.
+     * decision self-brew-goos-eat-before-the-effect
+     *
+     * @param glove the glove stack
+     * @return one goo of the selected type, or empty where the glove holds no selection
+     */
+    private static ItemStack eatenGoo(ItemStack glove) {
+        ResourceKey<GooTypeDefinition> type = getSelectedType(glove);
+        return type == null ? ItemStack.EMPTY : GooStacks.createForOutput(type, GooStacks.THOUSAND);
     }
 
     /**
