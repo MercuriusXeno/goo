@@ -1,10 +1,17 @@
 package com.mercuriusxeno.goo.ability;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.program.AfterimageStep;
+import com.mercuriusxeno.goo.ability.program.AilmentKind;
+import com.mercuriusxeno.goo.ability.program.AilmentOverlayStep;
+import com.mercuriusxeno.goo.ability.program.GhostTrailStep;
 import com.mercuriusxeno.goo.ability.program.LingerStep;
 import com.mercuriusxeno.goo.ability.program.PlaceBlockStep;
+import com.mercuriusxeno.goo.ability.program.PotionStep;
 import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.ability.program.TeleportStep;
 import com.mercuriusxeno.goo.data.IdentifiedJsonScan;
+import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.serialization.JsonOps;
 import net.minecraft.resources.FileToIdConverter;
 import net.minecraft.resources.Identifier;
@@ -12,6 +19,8 @@ import net.minecraft.server.packs.PackResources;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
@@ -36,6 +45,7 @@ import static org.mockito.Mockito.when;
 class AbilityLoaderTest {
 
     private static final String DIRECTORY = "goo_abilities";
+    private static final Identifier GLOWING = Identifier.parse("minecraft:glowing");
     /** The abilities whose whole design was a per-stack shape. */
     /** The world abilities that stay after their blob lands. */
     private static final List<String> LINGERING_ABILITIES = List.of("crystal_cloud", "metal_spikes",
@@ -148,6 +158,67 @@ class AbilityLoaderTest {
                     .map(Identifier::withDefaultNamespace).toList();
             assertEquals(expected, scanned.get(fileId).requires(), fileId.toString());
         }
+    }
+
+    /**
+     * Hex charm and aeon's stasis show their ailment through the overlay
+     * step, and neither applies vanilla glowing any more
+     * (decision ailment-overlay-shader-per-ailment).
+     */
+    @ParameterizedTest
+    @CsvSource({"hex_charm, HEX", "aeon_time_stop, STASIS"})
+    void ailmentAbilitiesWearTheOverlayInPlaceOfGlowing(String name, AilmentKind kind) {
+        List<Step> steps = AbilityJson.decode(name).behaviors().stream()
+                .flatMap(AbilityLoaderTest::stepTree).toList();
+
+        assertEquals(List.of(kind), steps.stream().filter(AilmentOverlayStep.class::isInstance)
+                .map(step -> ((AilmentOverlayStep) step).kind()).toList(), name);
+        assertTrue(steps.stream().filter(PotionStep.class::isInstance)
+                .noneMatch(step -> GLOWING.equals(((PotionStep) step).effect())), name + " still applies glowing");
+    }
+
+    /**
+     * Ender blink leaves an ender afterimage where the player stood, before
+     * its teleport, and another where it lands, after it
+     * (decision afterimage-is-one-shared-effect).
+     */
+    @Test
+    void enderBlinkLeavesAnAfterimageAtSourceAndTarget() {
+        List<Step> steps = AbilityJson.decode("ender_blink").behaviors();
+        int teleport = steps.indexOf(steps.stream().filter(TeleportStep.class::isInstance).findFirst().orElseThrow());
+
+        assertEquals(List.of(GooTypes.ENDER), afterimageTypes(steps.subList(0, teleport)), "no ripple at the source");
+        assertEquals(List.of(GooTypes.ENDER), afterimageTypes(steps.subList(teleport + 1, steps.size())),
+                "no ripple at the target");
+    }
+
+    /**
+     * Ender blink lays an ender ghost trail after its teleport, beside the
+     * ripple at both ends, which it adds to and replaces nothing of
+     * (decision ghost-trail-spans-the-blink).
+     */
+    @Test
+    void enderBlinkLaysAGhostTrailAfterItsTeleportBesideTheRipple() {
+        List<Step> steps = AbilityJson.decode("ender_blink").behaviors();
+        int teleport = steps.indexOf(steps.stream().filter(TeleportStep.class::isInstance).findFirst().orElseThrow());
+        List<Step> after = steps.subList(teleport + 1, steps.size());
+
+        assertEquals(List.of(GooTypes.ENDER), after.stream().filter(GhostTrailStep.class::isInstance)
+                .map(step -> ((GhostTrailStep) step).goo()).toList(), "no ender ghost trail after the teleport");
+        assertTrue(steps.subList(0, teleport).stream().noneMatch(GhostTrailStep.class::isInstance),
+                "a ghost trail runs before the jump it traces");
+        assertEquals(1, afterimageTypes(steps.subList(0, teleport)).size(), "the source ripple is gone");
+        assertEquals(1, afterimageTypes(after).size(), "the destination ripple is gone");
+    }
+
+    private static List<Object> afterimageTypes(List<Step> steps) {
+        return steps.stream().filter(AfterimageStep.class::isInstance)
+                .map(step -> (Object) ((AfterimageStep) step).goo()).toList();
+    }
+
+    /** A step and every step it holds, depth first. */
+    private static Stream<Step> stepTree(Step step) {
+        return Stream.concat(Stream.of(step), step.children().flatMap(AbilityLoaderTest::stepTree));
     }
 
     /**

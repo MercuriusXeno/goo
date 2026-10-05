@@ -231,6 +231,27 @@ public final class GooFlightRenderer {
     }
 
     /**
+     * Draws a goo blob of a type, the core and shell a flight carries,
+     * scaled about its center; a model transformation draws its blob
+     * through this as it shrinks into the model it becomes
+     * (decision model-transformation-is-one-animation).
+     *
+     * @param poseStack the pose stack, at the blob's center
+     * @param buffers   the buffer source
+     * @param type      the goo type
+     * @param gameTime  the level game time in ticks
+     * @param scale     the blob's size against a flight's, 0 to 1
+     */
+    public static void renderBlob(PoseStack poseStack, MultiBufferSource buffers,
+                                  ResourceKey<GooTypeDefinition> type, float gameTime, float scale) {
+        poseStack.pushPose();
+        poseStack.scale(scale, scale, scale);
+        renderCore(poseStack, buffers, type, gameTime);
+        renderShell(poseStack, buffers, type);
+        poseStack.popPose();
+    }
+
+    /**
      * Core: opaque fluid cuboid with sin-pulsing width.
      * Draws solid on the block atlas for fully opaque rendering.
      *

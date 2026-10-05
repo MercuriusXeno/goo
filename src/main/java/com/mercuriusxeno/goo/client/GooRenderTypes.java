@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client;
 
+import com.mercuriusxeno.goo.client.ability.RippleTarget;
 import com.mojang.blaze3d.pipeline.BlendFunction;
 import com.mojang.blaze3d.pipeline.ColorTargetState;
 import com.mojang.blaze3d.pipeline.DepthStencilState;
@@ -7,12 +8,15 @@ import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.renderer.feature.ItemFeatureRenderer;
 import net.minecraft.client.renderer.rendertype.LayeringTransform;
 import net.minecraft.client.renderer.rendertype.OutputTarget;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.resources.Identifier;
 import net.neoforged.neoforge.client.event.RegisterRenderPipelinesEvent;
+import java.util.List;
+import java.util.Optional;
 
 /**
  * Custom render types for goo visuals. The additive glow line type uses
@@ -458,7 +462,131 @@ public final class GooRenderTypes {
         return GOO_MOB_COAT_FACTORY.apply(atlas);
     }
 
+    /**
+     * Status ailment overlay pipeline (decision ailment-overlay-shader-per-ailment):
+     * a mob's or player's model drawn again through {@code goo_ailment_overlay.vsh / .fsh},
+     * lifted a hair off the skin, the ailment's pattern laid over the skin coordinates
+     * under its color. The glint patterns read the vanilla enchantment glint texture
+     * from Sampler0. Translucent with depth write off, so the overlay never hides the
+     * model's own depth.
+     */
+    public static final RenderPipeline GOO_AILMENT_OVERLAY = RenderPipeline.builder(
+                    RenderPipelines.ENTITY_SNIPPET,
+                    RenderPipelines.GLOBALS_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_ailment_overlay"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_ailment_overlay"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_ailment_overlay"))
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withDepthStencilState(new DepthStencilState(DepthStencilState.DEFAULT.depthTest(), false))
+            .build();
+
+    /**
+     * Ghost trail pipeline (decision ghost-trail-spans-the-blink): an entity's
+     * body drawn again through {@code goo_ghost.vsh / .fsh} as a translucent
+     * echo in the goo type's color, its skin read for the cutout and the
+     * shading alone. Depth write off, so ghosts and the world behind show through.
+     */
+    public static final RenderPipeline GOO_GHOST = RenderPipeline.builder(RenderPipelines.ENTITY_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_ghost"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_ghost"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_ghost"))
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withDepthStencilState(new DepthStencilState(DepthStencilState.DEFAULT.depthTest(), false))
+            .build();
+
+    /** Per-skin memoized render types on the ghost pipeline. */
+    private static final java.util.function.Function<Identifier, RenderType> GOO_GHOST_FACTORY =
+            net.minecraft.util.Util.memoize(skin -> RenderType.create(
+                    "goo_ghost",
+                    RenderSetup.builder(GOO_GHOST)
+                            .withTexture("Sampler0", skin)
+                            .useLightmap()
+                            .sortOnUpload()
+                            .createRenderSetup()
+            ));
+
+    /**
+     * Returns the ghost render type over an entity's skin.
+     *
+     * @param skin the entity's texture
+     * @return memoized RenderType
+     */
+    public static RenderType gooGhost(Identifier skin) {
+        return GOO_GHOST_FACTORY.apply(skin);
+    }
+
+    /** The ripple mask shader pair's name, and the stem of each mask pipeline's. */
+    private static final String RIPPLE_MASK = "goo_ripple_mask";
+
+    /** The stem each mask pipeline's name takes its channel index after. */
+    private static final String RIPPLE_MASK_CHANNEL = RIPPLE_MASK + "_";
+
+    /**
+     * Afterimage ripple mask pipelines (decision afterimage-is-one-shared-effect),
+     * one per color channel of the ripple buffer: each fills its channel alone with
+     * the vertex alpha, the silhouette's fade, through {@code goo_ripple_mask.vsh / .fsh},
+     * no blending, so overlapping cubes of one silhouette merge and the other
+     * silhouettes' channels stay as they are. Depth tested against the world's copied
+     * depth, depth write off, both faces drawn.
+     */
+    public static final List<RenderPipeline> GOO_RIPPLE_MASKS = List.of(
+            rippleMaskPipeline(0, ColorTargetState.WRITE_RED),
+            rippleMaskPipeline(1, ColorTargetState.WRITE_GREEN),
+            rippleMaskPipeline(2, ColorTargetState.WRITE_BLUE),
+            rippleMaskPipeline(3, ColorTargetState.WRITE_ALPHA));
+
+    /** The render types filling the ripple buffer's channels, in channel order. */
+    public static final List<RenderType> GOO_RIPPLE_MASK_TYPES = GOO_RIPPLE_MASKS.stream()
+            .map(pipeline -> RenderType.create(pipeline.getLocation().getPath(),
+                    RenderSetup.builder(pipeline).setOutputTarget(RippleTarget.OUTPUT).createRenderSetup()))
+            .toList();
+
+    /**
+     * Afterimage ripple edge pipeline (decision afterimage-is-one-shared-effect): a
+     * fullscreen pass over the ripple buffer through {@code goo_ripple_edge.fsh},
+     * painting where any channel changes, the silhouettes' perimeters, in the goo
+     * type's color that ColorModulator carries, blended over the frame.
+     */
+    public static final RenderPipeline GOO_RIPPLE_EDGE = RenderPipeline.builder(RenderPipelines.MATRICES_PROJECTION_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_ripple_edge"))
+            .withVertexShader(Identifier.withDefaultNamespace("core/screenquad"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_ripple_edge"))
+            .withSampler("InSampler")
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withVertexFormat(DefaultVertexFormat.EMPTY, VertexFormat.Mode.TRIANGLES)
+            .build();
+
+    /** The one render type on the ailment overlay pipeline, its glint texture bound. */
+    public static final RenderType GOO_AILMENT_OVERLAY_TYPE = RenderType.create(
+            "goo_ailment_overlay",
+            RenderSetup.builder(GOO_AILMENT_OVERLAY)
+                    .withTexture("Sampler0", ItemFeatureRenderer.ENCHANTED_GLINT_ITEM)
+                    .useLightmap()
+                    .sortOnUpload()
+                    .createRenderSetup()
+    );
+
     private GooRenderTypes() {}
+
+    /**
+     * A ripple mask pipeline filling one channel of the ripple buffer
+     * (decision afterimage-is-one-shared-effect).
+     *
+     * @param channel   the channel's index, which names the pipeline
+     * @param writeMask the ColorTargetState write bit of that channel alone
+     * @return the pipeline
+     */
+    private static RenderPipeline rippleMaskPipeline(int channel, int writeMask) {
+        return RenderPipeline.builder(RenderPipelines.MATRICES_PROJECTION_SNIPPET)
+                .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + RIPPLE_MASK_CHANNEL + channel))
+                .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + RIPPLE_MASK))
+                .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + RIPPLE_MASK))
+                .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
+                .withColorTargetState(new ColorTargetState(Optional.empty(), writeMask))
+                .withDepthStencilState(new DepthStencilState(DepthStencilState.DEFAULT.depthTest(), false))
+                .withCull(false)
+                .build();
+    }
 
     /**
      * A burnout explosion pipeline (decision elemental-explosion-per-type):
@@ -524,6 +652,10 @@ public final class GooRenderTypes {
         event.registerPipeline(GOO_FLUID_SURFACE);
         event.registerPipeline(CRUCIBLE_DISSOLVE);
         event.registerPipeline(GOO_MOB_COAT);
+        event.registerPipeline(GOO_AILMENT_OVERLAY);
+        GOO_RIPPLE_MASKS.forEach(event::registerPipeline);
+        event.registerPipeline(GOO_RIPPLE_EDGE);
+        event.registerPipeline(GOO_GHOST);
     }
 
     /**

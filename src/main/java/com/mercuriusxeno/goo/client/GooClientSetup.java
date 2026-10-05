@@ -5,10 +5,17 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ISidedProxy;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
+import com.mercuriusxeno.goo.client.ability.Afterimages;
+import com.mercuriusxeno.goo.client.ability.AilmentOverlayLayer;
 import com.mercuriusxeno.goo.client.ability.ChainBurnouts;
+import com.mercuriusxeno.goo.client.ability.GhostTrails;
+import com.mercuriusxeno.goo.client.ability.MobAilments;
 import com.mercuriusxeno.goo.client.ability.MobCoatLayer;
 import com.mercuriusxeno.goo.client.ability.MobCoats;
 import com.mercuriusxeno.goo.client.ability.MobShells;
+import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
+import com.mercuriusxeno.goo.client.ability.Transformations;
+import com.mercuriusxeno.goo.client.ability.ViewportRipples;
 import com.mercuriusxeno.goo.client.ber.*;
 import com.mercuriusxeno.goo.client.model.*;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
@@ -245,11 +252,20 @@ public final class GooClientSetup {
                 new TypeToken<EntityRenderer<Entity, EntityRenderState>>() {
                 },
                 MobCoatLayer::stampCoat);
+        event.registerEntityModifier(
+                new TypeToken<EntityRenderer<Entity, EntityRenderState>>() {
+                },
+                AilmentOverlayLayer::stampAilments);
+        event.registerEntityModifier(
+                new TypeToken<EntityRenderer<Entity, EntityRenderState>>() {
+                },
+                TransformationRenderer::stampTransformation);
     }
 
     /**
-     * Adds the goo coat layer to every living entity renderer, both player
-     * skins and mannequins among them (decision shader-coat-on-every-mob-landing).
+     * Adds the goo coat layer and the ailment overlay layer to every living
+     * entity renderer, both player skins and mannequins among them
+     * (decisions shader-coat-on-every-mob-landing, ailment-overlay-shader-per-ailment).
      *
      * @param event the event instance
      */
@@ -259,11 +275,14 @@ public final class GooClientSetup {
             EntityRenderer<?, ?> renderer = event.getRenderer(type);
             if (renderer != null) {
                 MobCoatLayer.addTo(renderer, MobShells.of(type, event.getEntityModels()));
+                AilmentOverlayLayer.addTo(renderer);
             }
         }
         for (PlayerModelType skin : event.getSkins()) {
             MobCoatLayer.addTo(event.getPlayerRenderer(skin), MobShells.NONE);
             MobCoatLayer.addTo(event.getMannequinRenderer(skin), MobShells.NONE);
+            AilmentOverlayLayer.addTo(event.getPlayerRenderer(skin));
+            AilmentOverlayLayer.addTo(event.getMannequinRenderer(skin));
         }
     }
 
@@ -354,6 +373,11 @@ public final class GooClientSetup {
         GooFlightManager.clear();
         ChainBurnouts.CLIENT.clear();
         MobCoats.CLIENT.clear();
+        MobAilments.CLIENT.clear();
+        Afterimages.CLIENT.clear();
+        Transformations.CLIENT.clear();
+        GhostTrails.CLIENT.clear();
+        ViewportRipples.CLIENT.clear();
         ThrowFreezeState.clear();
     }
 

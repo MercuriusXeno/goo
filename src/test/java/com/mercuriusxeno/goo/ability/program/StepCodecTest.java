@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.ability.hearts.HeartKind;
+import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.datafixers.util.Unit;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
@@ -43,7 +44,8 @@ class StepCodecTest {
                     LeafSteps.FREEZE_TICKS.step(Expr.parse("140 * 25 / pow(health, 0.2) / 100").getOrThrow())),
             Map.entry("set_ai", LeafSteps.SET_AI.step(false)),
             Map.entry("set_invulnerable", LeafSteps.SET_INVULNERABLE.step(true)),
-            Map.entry("clone_entity", new CloneEntityStep(Expr.parse("100 / pow(max_health, 0.6)").getOrThrow())),
+            Map.entry("clone_entity", new CloneEntityStep(Expr.parse("100 / pow(max_health, 0.6)").getOrThrow(),
+                    GooTypes.VITAL)),
             Map.entry("drop_item", new DropItemStep(Identifier.parse("minecraft:cobblestone"),
                     Expr.parse("1 + random(3)").getOrThrow())),
             Map.entry("ignite", LeafSteps.IGNITE.step(Expr.literal(10))),
@@ -87,6 +89,10 @@ class StepCodecTest {
                     List.of(LeafSteps.SET_AI.step(false)))),
             Map.entry("discard", LeafSteps.DISCARD.step(Unit.INSTANCE)),
             Map.entry("set_baby", LeafSteps.SET_BABY.step(true)),
+            Map.entry("ailment_overlay", new AilmentOverlayStep(AilmentKind.HEX,
+                    Expr.parse("20 * 60 / pow(health, 0.4)").getOrThrow())),
+            Map.entry("afterimage", new AfterimageStep(GooTypes.HEX, Expr.literal(20))),
+            Map.entry("ghost_trail", new GhostTrailStep(GooTypes.ENDER, Expr.literal(30))),
             Map.entry("heart_overlay", new HeartOverlayStep(HeartKind.KINDLE, Expr.literal(1200)))
     );
 
@@ -215,6 +221,20 @@ class StepCodecTest {
     @Test
     void unknownTypeRefuses() {
         assertTrue(decode("{\"type\": \"teleport_everyone\"}").isError());
+    }
+
+    @Test
+    void ailmentOverlayRefusesAKindNoAilmentCarries() {
+        assertTrue(decode("{\"type\": \"ailment_overlay\", \"kind\": \"sunburn\", \"duration\": 60}").isError());
+    }
+
+    @Test
+    void afterimageSilhouettesLiveTwelveTicksUnlessTheJsonSaysOtherwise() {
+        AfterimageStep afterimage = assertInstanceOf(AfterimageStep.class,
+                decode("{\"type\": \"afterimage\", \"goo\": \"ender\"}").getOrThrow());
+
+        assertEquals(new AfterimageStep(GooTypes.ENDER, Expr.literal(12)), afterimage);
+        assertTrue(decode("{\"type\": \"afterimage\"}").isError(), "an afterimage names no goo type");
     }
 
     @Test
