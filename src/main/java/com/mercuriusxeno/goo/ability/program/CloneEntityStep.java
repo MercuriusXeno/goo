@@ -13,6 +13,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.LivingEntity;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 /**
@@ -66,8 +67,7 @@ public record CloneEntityStep(Expr chance, ResourceKey<GooTypeDefinition> goo) i
     /**
      * Spawns a fresh entity of the target's type a gaussian step away on
      * each horizontal axis, and tells the target's watchers to play the
-     * blob becoming it. The watchers hear it before the clone's own spawn
-     * reaches them, so the clone first draws at nothing.
+     * blob becoming it, before the clone's own spawn reaches them.
      *
      * @param target the entity cloned
      * @param level  the level the clone joins
@@ -79,9 +79,26 @@ public record CloneEntityStep(Expr chance, ResourceKey<GooTypeDefinition> goo) i
         }
         RandomSource random = level.getRandom();
         clone.setPos(target.getX() + random.nextGaussian(), target.getY(), target.getZ() + random.nextGaussian());
-        level.addFreshEntity(clone);
-        EntityVisuals.sendToWatchers(target, new TransformationPayload(goo, target.getBoundingBox().getCenter(),
-                clone.getBoundingBox().getCenter(), clone.getId(), TRANSFORMATION_TICKS));
+        TransformationPayload transformation = new TransformationPayload(goo, target.getBoundingBox().getCenter(),
+                clone.getBoundingBox().getCenter(), clone.getId(), TRANSFORMATION_TICKS);
+        spawnAnnounced(clone, () -> EntityVisuals.sendToWatchers(target, transformation), level::addFreshEntity);
+    }
+
+    /**
+     * Announces a clone's transformation, then adds the clone to the level.
+     * Adding it sends its spawn to the watchers at once, so the
+     * transformation goes first: the client keys it by the clone's id,
+     * which the clone holds from construction, and draws the clone at
+     * nothing from its first frame.
+     *
+     * @param clone    the clone, its id and position set
+     * @param announce sends the transformation to the watchers
+     * @param add      adds the clone to the level, which sends its spawn to the watchers at once
+     * @param <E>      the clone's type
+     */
+    static <E> void spawnAnnounced(E clone, Runnable announce, Consumer<E> add) {
+        announce.run();
+        add.accept(clone);
     }
 
     @Override
