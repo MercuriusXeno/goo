@@ -9,6 +9,7 @@ import com.mercuriusxeno.goo.network.GooFlightPayload;
 import com.mercuriusxeno.goo.network.GooValueSyncPayload;
 import com.mercuriusxeno.goo.network.MobHitPayload;
 import com.mercuriusxeno.goo.network.OpenNamingScreenPayload;
+import com.mercuriusxeno.goo.network.TransformationPayload;
 import com.mercuriusxeno.goo.network.TunerFeedbackPayload;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -42,5 +43,6 @@ public final class GooClientNetworking {
         event.register(MobHitPayload.TYPE, MobHitHandler::handle);
         event.register(AilmentPayload.TYPE, AilmentHandler::handle);
         event.register(AfterimagePayload.TYPE, AfterimageHandler::handle);
+        event.register(TransformationPayload.TYPE, TransformationHandler::handle);
     }
 }
