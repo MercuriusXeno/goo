@@ -332,7 +332,7 @@ public final class GooTestFunctions {
     private static final String SELF_TYPHOON_PROPEL = "self_typhoon_propel";
     private static final String SELF_KINDLE_SHIELDS = "self_kindle_shields_then_quenches";
     private static final String SELF_KINDLE_BURNS = "self_kindle_burns_the_attacker";
-    private static final String SELF_KINDLE_FIRE = "self_kindle_fire_reignites";
+    private static final String SELF_KINDLE_FIRE = "self_kindle_fire_relights_for_a_heart";
     private static final String STREAM_BLAZE_SPITFIRE = "stream_blaze_spitfire";
     private static final String MOB_CRYSTAL = "mob_crystal_flechettes";
     private static final String MOB_LEAF = "mob_leaf_entangle";
@@ -720,7 +720,7 @@ public final class GooTestFunctions {
         reg(r, SELF_TYPHOON_PROPEL, SelfDeliveryTests::typhoonPropel);
         reg(r, SELF_KINDLE_SHIELDS, HeartOverlayTests::kindleShieldsThenQuenches);
         reg(r, SELF_KINDLE_BURNS, HeartOverlayTests::kindleBurnsTheAttacker);
-        reg(r, SELF_KINDLE_FIRE, HeartOverlayTests::kindleFireReignites);
+        reg(r, SELF_KINDLE_FIRE, HeartOverlayTests::kindleFireRelightsForAHeart);
         reg(r, STREAM_BLAZE_SPITFIRE, StreamDeliveryTests::blazeSpitfire);
         reg(r, MOB_CRYSTAL, MobEffectTests::crystalFlechettes);
         reg(r, MOB_LEAF, MobEffectTests::leafEntangle);
