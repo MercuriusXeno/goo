@@ -36,10 +36,11 @@ public final class Afterimages<S> {
     /**
      * One silhouette of a ripple as a frame draws it.
      *
-     * @param growth blocks it stands out from the body
-     * @param alpha  its opacity as the vertex color's alpha byte
+     * @param growth   blocks it stands out from the body
+     * @param alpha    its opacity as the vertex color's alpha byte
+     * @param progress how far through its life it is, 0 to 1
      */
-    public record Pulse(float growth, int alpha) {
+    public record Pulse(float growth, int alpha, float progress) {
     }
 
     /**
@@ -69,7 +70,7 @@ public final class Afterimages<S> {
                 if (progress >= 0f && progress < 1f) {
                     float remaining = 1f - progress;
                     standing.add(new Pulse(GROWTH_BLOCKS * (1f - remaining * remaining),
-                            Math.round(remaining * FULL_ALPHA)));
+                            Math.round(remaining * FULL_ALPHA), progress));
                 }
             }
             return standing;
