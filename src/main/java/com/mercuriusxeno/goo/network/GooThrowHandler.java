@@ -5,8 +5,6 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
-import com.mercuriusxeno.goo.ability.StackKey;
-import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.registry.GooServerState;
@@ -20,7 +18,6 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
@@ -200,7 +197,6 @@ public final class GooThrowHandler {
     }
 
     /** Resolves the throw cost from the ability definition, falling back to THROW_COST.
-     * Uses the sequence-aware stack position (landed + in-flight at target).
      *
      * @param player  the throwing player
      * @param payload the throw payload
@@ -210,9 +206,7 @@ public final class GooThrowHandler {
     static int resolveThrowCost(ServerPlayer player, GooThrowPayload payload,
             ResourceKey<GooTypeDefinition> gooType) {
         AbilityDefinition def = thrownAbility(player.level(), payload.abilityId(), gooType);
-        if (def == null) { return THROW_COST; }
-        int stackPos = countExistingStacks(player.level(), payload.targetPos(), payload.abilityId());
-        return def.throwCost(stackPos);
+        return def == null ? THROW_COST : def.cost();
     }
 
     /**
@@ -246,18 +240,6 @@ public final class GooThrowHandler {
         return def == null ? Delivery.ARC : def.delivery();
     }
 
-    /** Counts the current stack count of the thrown ability's marker at a target position.
-     *
-     * @param level     the server level
-     * @param pos       the target block position
-     * @param abilityId the thrown ability id
-     * @return the current stack count, or 0 if no marker of that ability stands there
-     */
-    private static int countExistingStacks(ServerLevel level, BlockPos pos, String abilityId) {
-        ChainMarkerBlockEntity be = findChainMarker(level, pos, null, abilityId);
-        return be != null ? be.getStackCount() : 0;
-    }
-
     /** Depletes goo, broadcasts the flight, and schedules the delayed effect.
      *
      * @param player  the throwing player
@@ -273,7 +255,6 @@ public final class GooThrowHandler {
             Goo.LOGGER.warn(LOG_PARTIAL_DEPLETE, depleted, cost, GooTypes.id(gooType));
         }
 
-        stallChainMarkerFuse(player, payload);
         double distance = Math.sqrt(distSq);
         GooTypeDefinition definition = GooTypes.definition(player.level().registryAccess(), gooType);
         Delivery delivery = flightDelivery(player.level(), payload.abilityId(), gooType);
@@ -325,59 +306,6 @@ public final class GooThrowHandler {
                 payload.abilityId(),
                 delivery
         );
-    }
-
-    /**
-     * If the throw targets a chain marker of its own ability (directly or
-     * at the adjacent position), resets its fuse so it doesn't detonate
-     * while goo are in flight. The user's throw declaration is treated
-     * as intent to stack, keeping the fuse alive.
-     *
-     * @param player  the throwing player
-     * @param payload the throw payload data
-     */
-    private static void stallChainMarkerFuse(ServerPlayer player, GooThrowPayload payload) {
-        if (payload.targetEntityId() >= 0) { return; }
-        BlockPos pos = payload.targetPos();
-        Direction face = directionFromOrdinal(payload.targetFace());
-        ServerLevel level = player.level();
-        ChainMarkerBlockEntity be = findChainMarker(level, pos, face, payload.abilityId());
-        if (be != null && be.getBehavior() == null) {
-            be.stallFuse();
-        }
-    }
-
-    /**
-     * Finds the thrown ability's chain marker at the given pos or the adjacent block.
-     *
-     * @param level     the server level
-     * @param pos       the hit block position
-     * @param face      the hit face, or null
-     * @param abilityId the thrown ability id
-     * @return the chain marker BE, or null
-     */
-    private static @Nullable ChainMarkerBlockEntity findChainMarker(
-            ServerLevel level, BlockPos pos, @Nullable Direction face, String abilityId) {
-        ChainMarkerBlockEntity primary = asKeyedMarker(level.getBlockEntity(pos), abilityId);
-        if (primary != null) {
-            return primary;
-        }
-        if (face == null) {
-            return null;
-        }
-        return asKeyedMarker(level.getBlockEntity(pos.relative(face)), abilityId);
-    }
-
-    /**
-     * Casts the given BE to a {@link ChainMarkerBlockEntity} running the thrown ability, or returns null.
-     *
-     * @param entity    the block entity to test (may be null)
-     * @param abilityId the thrown ability id
-     * @return the marker BE, or null
-     */
-    private static @Nullable ChainMarkerBlockEntity asKeyedMarker(@Nullable BlockEntity entity, String abilityId) {
-        return entity instanceof ChainMarkerBlockEntity be && StackKey.matches(be.getAbilityId(), abilityId)
-                ? be : null;
     }
 
     /**

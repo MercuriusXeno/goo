@@ -1,18 +1,16 @@
 package com.mercuriusxeno.goo.ability;
 
 /**
- * Pure-function placement decision for chain-marker and frost-field world
+ * Pure-function placement decision for ability-block and frost-field world
  * effects. Given the state of the two candidate positions (the hit block and
  * the face-adjacent block) and how the effect block reacts to water, returns
  * the action to take.
  *
- * <p>Priority order:</p>
- * <ol>
- *   <li>Stack onto an existing same-type marker (hit first, then adjacent).</li>
- *   <li>For each candidate in order: water handling, lava skip, or
- *       displace into air / non-fluid replaceable. Anything liquid other
- *       than through explicit water handling is never displaced.</li>
- * </ol>
+ * <p>For each candidate in order, the hit block first: water handling,
+ * lava skip, or displace into air / non-fluid replaceable. Anything liquid
+ * other than through explicit water handling is never displaced, and a
+ * standing marker is never stacked onto, so a second throw lands beside it
+ * (decision splat-runs-the-program-no-fuse).</p>
  *
  * <p>This class is Minecraft-free so the decision matrix can be unit-tested
  * without bootstrapping a level. Translation between real
@@ -35,8 +33,6 @@ public final class ChainPlacementRules {
 
     /** Action the runtime should take for the decided candidate. */
     public enum Action {
-        /** Stack onto the existing same-type marker at the chosen candidate. */
-        STACK,
         /** Place a fresh marker, displacing whatever was there. */
         DISPLACE,
         /** Place a fresh marker with WATERLOGGED=true; preserves the water fluid. */
@@ -62,7 +58,6 @@ public final class ChainPlacementRules {
      * Treat these as independent flags - the caller supplies them without
      * relying on which combinations are actually possible in vanilla.</p>
      *
-     * @param sameMarker       true if this position already holds a same-type chain marker (for stacking)
      * @param isAir            true if the block is minecraft:air
      * @param isReplaceable    true if {@code BlockState.canBeReplaced()} returns true
      * @param hasWater         true if the block's fluid state is water
@@ -71,7 +66,6 @@ public final class ChainPlacementRules {
      *                         only consulted when {@link WaterHandling#FREEZE_AND_RISE} is in use
      */
     public record CandidateState(
-            boolean sameMarker,
             boolean isAir,
             boolean isReplaceable,
             boolean hasWater,
@@ -89,9 +83,6 @@ public final class ChainPlacementRules {
      * @return the decided action and chosen candidate index
      */
     public static Decision decide(CandidateState hit, CandidateState adjacent, WaterHandling handling) {
-        if (hit.sameMarker()) { return new Decision(Action.STACK, 0); }
-        if (adjacent.sameMarker()) { return new Decision(Action.STACK, 1); }
-
         Decision atHit = tryPlaceAt(hit, 0, handling);
         if (atHit.action() != Action.NONE) { return atHit; }
         return tryPlaceAt(adjacent, 1, handling);

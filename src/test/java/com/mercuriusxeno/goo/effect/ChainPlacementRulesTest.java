@@ -11,7 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * Pure-function tests for the chain/frost placement decision matrix.
- * Validates stacking priority, displacement rules, waterlogging, and the
+ * Validates that a standing marker is never stacked onto, displacement rules, waterlogging, and the
  * frost-specific freeze-and-rise behavior against non-liquid/water/lava
  * candidate states.
  */
@@ -21,71 +21,60 @@ class ChainPlacementRulesTest {
      * Convenience: builds a CandidateState for an air block.
      */
     private static CandidateState air() {
-        return new CandidateState(false, true, false, false, false, true);
+        return new CandidateState(true, false, false, false, true);
     }
 
     /**
      * Convenience: builds a CandidateState for a solid unstackable block.
      */
     private static CandidateState solid() {
-        return new CandidateState(false, false, false, false, false, false);
+        return new CandidateState(false, false, false, false, false);
     }
 
     /**
      * Convenience: builds a CandidateState for a non-fluid replaceable block (fire, tall grass).
      */
     private static CandidateState replaceableNonFluid() {
-        return new CandidateState(false, false, true, false, false, true);
+        return new CandidateState(false, true, false, false, true);
     }
 
     /**
      * Convenience: builds a CandidateState for water.
      */
     private static CandidateState water(boolean aboveIsPlaceable) {
-        return new CandidateState(false, false, true, true, false, aboveIsPlaceable);
+        return new CandidateState(false, true, true, false, aboveIsPlaceable);
     }
 
     /**
      * Convenience: builds a CandidateState for lava.
      */
     private static CandidateState lava() {
-        return new CandidateState(false, false, true, false, true, false);
+        return new CandidateState(false, true, false, true, false);
     }
 
     /**
-     * Convenience: builds a CandidateState that already has a same-type marker.
+     * Convenience: builds a CandidateState for a standing ability block, which
+     * is neither air nor replaceable.
      */
-    private static CandidateState sameMarker() {
-        return new CandidateState(true, false, false, false, false, false);
+    private static CandidateState standingMarker() {
+        return new CandidateState(false, false, false, false, false);
     }
 
-    // ── Stacking priority ──────────────────────────────────────────────
+    // ── A standing marker takes no second goo (decision splat-runs-the-program-no-fuse) ──
 
     @Nested
-    class Stacking {
+    class StandingMarker {
 
         @Test
-        void hitHasMarker_stacksAtHit() {
-            Decision d = ChainPlacementRules.decide(sameMarker(), air(), WaterHandling.WATERLOG);
-            assertEquals(new Decision(Action.STACK, 0), d);
+        void throwAtAStandingMarkerLandsBesideIt() {
+            Decision d = ChainPlacementRules.decide(standingMarker(), air(), WaterHandling.WATERLOG);
+            assertEquals(new Decision(Action.DISPLACE, 1), d);
         }
 
         @Test
-        void adjacentHasMarker_hitDoesNot_stacksAtAdjacent() {
-            Decision d = ChainPlacementRules.decide(solid(), sameMarker(), WaterHandling.WATERLOG);
-            assertEquals(new Decision(Action.STACK, 1), d);
-        }
-
-        @Test
-        void bothHaveMarker_hitWinsByPriority() {
-            Decision d = ChainPlacementRules.decide(sameMarker(), sameMarker(), WaterHandling.WATERLOG);
-            assertEquals(new Decision(Action.STACK, 0), d);
-        }
-
-        @Test
-        void hitMarker_adjacentLava_stillStacksAtHit() {
-            Decision d = ChainPlacementRules.decide(sameMarker(), lava(), WaterHandling.WATERLOG);
-            assertEquals(new Decision(Action.STACK, 0), d);
+        void throwBesideAStandingMarkerOnItsFaceLandsNothing() {
+            Decision d = ChainPlacementRules.decide(solid(), standingMarker(), WaterHandling.WATERLOG);
+            assertEquals(new Decision(Action.NONE, -1), d);
         }
     }
 
@@ -156,7 +145,7 @@ class ChainPlacementRulesTest {
         }
     }
 
-    // ── Water + WATERLOG handling (chain markers) ──────────────────────
+    // ── Water + WATERLOG handling (ability blocks) ──────────────────────
 
     @Nested
     class WaterWaterlog {
@@ -231,24 +220,6 @@ class ChainPlacementRulesTest {
         void bothWater_returnsNone() {
             Decision d = ChainPlacementRules.decide(water(false), water(false), WaterHandling.NONE);
             assertEquals(new Decision(Action.NONE, -1), d);
-        }
-    }
-
-    // ── Stacking trumps placement, even with fresh placements viable ───
-
-    @Nested
-    class StackingTrumpsPlacement {
-
-        @Test
-        void hitReplaceable_adjacentMarker_stacksAtAdjacent() {
-            Decision d = ChainPlacementRules.decide(replaceableNonFluid(), sameMarker(), WaterHandling.WATERLOG);
-            assertEquals(new Decision(Action.STACK, 1), d);
-        }
-
-        @Test
-        void hitWater_adjacentMarker_stacksAtAdjacent() {
-            Decision d = ChainPlacementRules.decide(water(false), sameMarker(), WaterHandling.WATERLOG);
-            assertEquals(new Decision(Action.STACK, 1), d);
         }
     }
 }

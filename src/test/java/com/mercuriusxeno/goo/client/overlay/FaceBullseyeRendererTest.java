@@ -82,11 +82,6 @@ class FaceBullseyeRendererTest {
         }
 
         @Test
-        void chainMarkerDrawsNoBullseye() {
-            assertNull(FaceBullseyeRenderer.bullseyeFace(new TargetResult.ChainMarkerTarget(POS)));
-        }
-
-        @Test
         void glowCrystalDrawsNoBullseye() {
             assertNull(FaceBullseyeRenderer.bullseyeFace(new TargetResult.GlowCrystalTarget(POS, Direction.UP)));
         }

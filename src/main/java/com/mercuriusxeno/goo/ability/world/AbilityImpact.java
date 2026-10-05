@@ -1,26 +1,34 @@
 package com.mercuriusxeno.goo.ability.world;
 
+import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
+import com.mercuriusxeno.goo.ability.program.HostKind;
+import com.mercuriusxeno.goo.ability.program.LandingHost;
+import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
+import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
+import com.mercuriusxeno.goo.network.ChainBurnoutPayload;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.SectionPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.Property;
-import java.util.List;
+import net.minecraft.server.level.ServerPlayer;
+import net.neoforged.neoforge.network.PacketDistributor;
+import java.util.Optional;
 
 /**
- * What an ability goo does when it lands on a block: a goo striking a
- * block its own ability places grows that block one size, and any other
- * strike places or stacks the ability's chain marker.
+ * What an ability goo does when it lands on a block: it lands in the cell
+ * {@link LandingSpot} decides, announces its burnout, and runs its program
+ * on that landing the tick it splats. The landing places no block of its
+ * own; a program ending that tick leaves only its effect, and one that
+ * lingers stands its own block through its linger step (decisions
+ * splat-runs-the-program-no-fuse, lingering-abilities-place-their-own-thing).
  */
 public final class AbilityImpact {
 
-    /** The block state property a placed block grows along. */
-    private static final String SIZE_PROPERTY = "size";
+    private static final String LOG_PROGRAM_REFUSED = "Ability {} program refused for the landing host: {}";
 
     private AbilityImpact() {
     }
@@ -36,49 +44,45 @@ public final class AbilityImpact {
      */
     public static void land(ServerLevel level, BlockPos pos, ResourceKey<GooTypeDefinition> type,
                             Direction face, AbilityDefinition ability) {
-        if (absorbIntoPlacedBlock(level, pos, ability)) {
+        Optional<LandingSpot> spot = LandingSpot.resolve(level, pos, face);
+        if (spot.isEmpty()) {
             return;
         }
-        EffectBlockPlacement.placeOrStackAbility(level, pos, type, face, ability);
+        LandingHost host = new LandingHost(level, spot.get().cell(), face, spot.get().waterlogged(), type,
+                ability.id().toString());
+        AbilitySplat.resolve(new Landing(host, ability));
     }
 
     /**
-     * Absorbs the goo into the struck block when the ability's place_block
-     * step names that block and the block grows by size, growing it one
-     * size unless it is already at its largest (decision
-     * place-block-ability-grows-block).
+     * A blob's world actions as it lands.
      *
-     * @param level   the server level
-     * @param pos     the struck block
-     * @param ability the ability the goo names
-     * @return true if the goo was absorbed and no marker should be placed
+     * @param host    the landing host
+     * @param ability the ability the blob names
      */
-    private static boolean absorbIntoPlacedBlock(ServerLevel level, BlockPos pos, AbilityDefinition ability) {
-        BlockState state = level.getBlockState(pos);
-        Block block = state.getBlock();
-        if (!ability.placedBlocks().contains(BuiltInRegistries.BLOCK.getKey(block))) {
-            return false;
-        }
-        Property<?> size = block.getStateDefinition().getProperty(SIZE_PROPERTY);
-        if (size == null) {
-            return false;
-        }
-        level.setBlock(pos, nextSize(state, size), Block.UPDATE_ALL);
-        return true;
-    }
+    private record Landing(LandingHost host, AbilityDefinition ability) implements AbilitySplat {
 
-    /**
-     * Answers the state one value further along the property, or the state
-     * unchanged at the last value.
-     *
-     * @param state    the current state
-     * @param property the property to advance
-     * @param <T>      the property's value type
-     * @return the advanced state
-     */
-    private static <T extends Comparable<T>> BlockState nextSize(BlockState state, Property<T> property) {
-        List<T> values = List.copyOf(property.getPossibleValues());
-        int next = values.indexOf(state.getValue(property)) + 1;
-        return next < values.size() ? state.setValue(property, values.get(next)) : state;
+        @Override
+        public void announceBurnout() {
+            BlockPos cell = host.cell();
+            ChainBurnoutPayload burnout = new ChainBurnoutPayload(cell, host.face().ordinal(),
+                    GooTypes.id(host.gooType()), host.abilityId());
+            int chunkX = SectionPos.blockToSectionCoord(cell.getX());
+            int chunkZ = SectionPos.blockToSectionCoord(cell.getZ());
+            // A listener that never negotiated the mod's channels, a gametest's mock player, gets no burnout.
+            for (ServerPlayer player : host.level().players()) {
+                if (player.getChunkTrackingView().contains(chunkX, chunkZ) && player.connection.hasChannel(burnout)) {
+                    PacketDistributor.sendToPlayer(player, burnout);
+                }
+            }
+        }
+
+        @Override
+        public void runProgram() {
+            try {
+                ProgramBehavior.forHost(ability.behaviors(), HostKind.LANDING).tick(host);
+            } catch (ProgramLoadException e) {
+                Goo.LOGGER.error(LOG_PROGRAM_REFUSED, ability.id(), e.getMessage());
+            }
+        }
     }
 }

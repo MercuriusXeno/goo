@@ -71,7 +71,7 @@ public final class SelfDeliveryTests {
         helper.getLevel().getServer().getPlayerList().remove(player);
         helper.assertTrue(Math.abs(moved - BLINK_RANGE) < MOVE_TOLERANCE,
                 String.format(SHOULD_BLINK_EAST, BLINK_RANGE, moved));
-        helper.assertTrue(drained == blink.throwCost(0), String.format(SHOULD_DRAIN_COST, blink.throwCost(0), drained));
+        helper.assertTrue(drained == blink.cost(), String.format(SHOULD_DRAIN_COST, blink.cost(), drained));
         helper.succeed();
     }
 

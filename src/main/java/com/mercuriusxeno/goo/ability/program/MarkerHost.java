@@ -1,9 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import com.mercuriusxeno.goo.ability.BlockEffectType;
-import com.mercuriusxeno.goo.ability.LayerAudioType;
-import com.mercuriusxeno.goo.ability.LayerVisualsType;
-import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
+import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooParticles;
 import net.minecraft.core.BlockPos;
@@ -25,8 +22,8 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 /**
- * The {@link StepHost} over a chain marker block entity: reads stack
- * count, placed face and goo shape from the block entity, and acts on
+ * The {@link StepHost} over a ability block block entity: reads the placed
+ * face and goo type from the block entity, and acts on
  * the server level at the marker position. Built fresh each tick from
  * what the {@link ProgramBehavior} marker callbacks
  * hand over, so it holds no state of its own.
@@ -35,9 +32,9 @@ import java.util.function.Consumer;
  * @param pos   the marker position
  * @param be    the marker block entity
  */
-public record MarkerHost(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity be)
-        implements StacksHost, PlacedFaceHost, TickingHost, ExplodeHost, EntityScanHost, PlaceBlockHost,
-        LayerWalkHost, FieldEffectHost, PhasedHost, ConsumedGooHost {
+public record MarkerHost(ServerLevel level, BlockPos pos, AbilityBlockEntity be)
+        implements PlacedFaceHost, TickingHost, ExplodeHost, EntityScanHost, PlaceBlockHost,
+        FieldEffectHost, PhasedHost, ConsumedGooHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
 
@@ -48,7 +45,7 @@ public record MarkerHost(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity
 
     @Override
     public OptionalDouble read(String name) {
-        return new MarkerVariables(be).read(name);
+        return OptionalDouble.empty();
     }
 
     @Override
@@ -59,16 +56,6 @@ public record MarkerHost(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity
     @Override
     public Direction placedFace() {
         return be.getPlacedFace();
-    }
-
-    @Override
-    public int stackCount() {
-        return be.getStackCount();
-    }
-
-    @Override
-    public void decrementStack() {
-        be.decrementStack();
     }
 
     /**
@@ -110,11 +97,6 @@ public record MarkerHost(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity
     }
 
     @Override
-    public double rollFraction() {
-        return level.getRandom().nextDouble();
-    }
-
-    @Override
     public PhasedState phased() {
         return be.getPhased();
     }
@@ -150,27 +132,5 @@ public record MarkerHost(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity
                 .orElseThrow(() -> new IllegalArgumentException(ERR_UNKNOWN_BLOCK + block));
         List<Property.Value<?>> values = StatePropertyWriter.resolve(found.getStateDefinition(), state, block);
         level.setBlock(pos, StatePropertyWriter.write(found.defaultBlockState(), values), Block.UPDATE_ALL);
-    }
-
-    @Override
-    public boolean applyBlockEffect(String effect, BlockPos cell) {
-        return BlockEffectType.byName(effect).apply(level, cell);
-    }
-
-    @Override
-    public void previewLayer(String visuals, int depth, float reach) {
-        LayerVisualsType.byName(visuals).preview(level, pos, be.getPlacedFace(), depth, be.getStackCount(), reach);
-    }
-
-    @Override
-    public void strikeLayerFx(String visuals, String audio, int layer, int depth, int destroyed) {
-        LayerVisualsType.byName(visuals).onLayerStruck(level, pos, be.getPlacedFace(), depth, destroyed);
-        LayerAudioType.byName(audio).onLayerStruck(level, pos, be.getPlacedFace(), layer, destroyed,
-                be.getStackCount());
-    }
-
-    @Override
-    public void reportMinedLayers(int layers) {
-        be.setMinedLayers(layers);
     }
 }

@@ -5,18 +5,14 @@
   "order": 0,
   "cost": 1000,
   "delivery": { "kind": "beam", "blocks_per_tick": 2.5 },
-  "chain": {
-    "fuseTicks": 30,
-    "maxStacks": 4
-  },
   "behaviors": [
     {
       "type": "place_block",
       "block": "goo:glow_crystal",
       "state": {
         "facing": "face",
-        "shape": { "by": "flat", "values": ["bump", "flat"] },
-        "size": { "by": "stacks - 1", "values": ["tiny", "small", "medium", "large"] }
+        "shape": "bump",
+        "size": "tiny"
       }
     }
   ],

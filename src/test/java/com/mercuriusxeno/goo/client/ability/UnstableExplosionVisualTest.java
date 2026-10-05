@@ -47,19 +47,6 @@ class UnstableExplosionVisualTest {
     }
 
     @Test
-    void rampMeetsTheFireballsFirstDrawnFrame() {
-        float firstTick = 1f / UnstableExplosionVisual.DURATION_TICKS;
-        DomeRampShape.assertRampMeetsFirstFrame(ramp -> UnstableExplosionVisual.rampSphereRadius(ramp, REACH),
-                UnstableExplosionVisual.sphereRadius(firstTick, REACH),
-                ramp -> ARGB.alpha(UnstableExplosionVisual.sphereColor(UnstableExplosionVisual.FIRST_DRAWN_PROGRESS,
-                        DomeRamp.alpha(ramp))));
-        DomeRampShape.assertRampMeetsFirstFrame(ramp -> UnstableExplosionVisual.rampRingRadius(ramp, REACH),
-                UnstableExplosionVisual.ringRadius(firstTick, REACH),
-                ramp -> ARGB.alpha(UnstableExplosionVisual.ringColor(UnstableExplosionVisual.FIRST_DRAWN_PROGRESS,
-                        true, DomeRamp.alpha(ramp))));
-    }
-
-    @Test
     void pipelineShadersResolveOnTheClasspath() {
         PipelineShaders.assertExist(GooRenderTypes.UNSTABLE_EXPLOSION);
     }
