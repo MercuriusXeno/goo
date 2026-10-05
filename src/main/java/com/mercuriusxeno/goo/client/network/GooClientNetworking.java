@@ -5,6 +5,8 @@ import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.network.ChainBurnoutPayload;
 import com.mercuriusxeno.goo.network.GooFlightPayload;
 import com.mercuriusxeno.goo.network.GooValueSyncPayload;
+import com.mercuriusxeno.goo.network.KnownItemLearnedPayload;
+import com.mercuriusxeno.goo.network.KnownItemsSyncPayload;
 import com.mercuriusxeno.goo.network.MobHitPayload;
 import com.mercuriusxeno.goo.network.OpenNamingScreenPayload;
 import com.mercuriusxeno.goo.network.TunerFeedbackPayload;
@@ -38,5 +40,7 @@ public final class GooClientNetworking {
         event.register(AbilitySyncPayload.TYPE, AbilitySyncHandler::handle);
         event.register(ChainBurnoutPayload.TYPE, ChainBurnoutHandler::handle);
         event.register(MobHitPayload.TYPE, MobHitHandler::handle);
+        event.register(KnownItemsSyncPayload.TYPE, KnownItemsHandler::handleSync);
+        event.register(KnownItemLearnedPayload.TYPE, KnownItemsHandler::handleLearned);
     }
 }

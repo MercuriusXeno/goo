@@ -66,6 +66,7 @@ public final class GooTestFunctions {
     private static final String EXORITE_ANVIL_REPAIR = "exorite_anvil_repair";
     private static final String SOUL_BOUND_TAG_HOLDS_EXORITE = "soul_bound_tag_holds_exorite";
     private static final String SOUL_BOUND_SURVIVES_DEATH = "soul_bound_survives_death";
+    private static final String KNOWN_ITEMS_SURVIVE_DEATH = "known_items_survive_death";
     private static final String EXO_GAUNTLET_SMITHING = "exo_gauntlet_smithing";
     private static final String EXO_GAUNTLET_KEEPS_BENEFITS = "exo_gauntlet_keeps_benefits";
     // --- Crystallizer ---
@@ -204,6 +205,8 @@ public final class GooTestFunctions {
     // --- Crucible ---
     private static final String CR_GOO_INSERT = "cr_goo_insert";
     private static final String CR_ITEM_ABSORB = "cr_item_absorb";
+    private static final String CR_THROWN_ITEM_TEACHES = "cr_thrown_item_teaches";
+    private static final String CR_UNTHROWN_ITEM_TEACHES_NOBODY = "cr_unthrown_item_teaches_nobody";
     private static final String CR_MELTS_CHRYSM = "cr_melts_chrysm";
     private static final String CR_CAP_EACH_TYPE = "cr_cap_each_type";
     private static final String CR_CAP_GOO_IN_HAND = "cr_cap_goo_in_hand";
@@ -502,6 +505,7 @@ public final class GooTestFunctions {
         reg(r, EXORITE_ANVIL_REPAIR, ExoriteDurabilityTests::anvilRepair);
         reg(r, SOUL_BOUND_TAG_HOLDS_EXORITE, SoulBoundTests::tagHoldsExorite);
         reg(r, SOUL_BOUND_SURVIVES_DEATH, SoulBoundTests::survivesDeath);
+        reg(r, KNOWN_ITEMS_SURVIVE_DEATH, SoulBoundTests::knownItemsSurviveDeath);
         reg(r, EXO_GAUNTLET_SMITHING, ExoriteTests::exoGauntletSmithing);
         reg(r, EXO_GAUNTLET_KEEPS_BENEFITS, GooItemTests::exoGauntletKeepsBenefits);
         reg(r, EXORITE_NOT_ENCHANTABLE, ExoriteEnchantingTests::notEnchantable);
@@ -621,6 +625,8 @@ public final class GooTestFunctions {
     private static void registerCrucibleTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
         reg(r, CR_GOO_INSERT, CrucibleTests::gooInsertViaInteraction);
         reg(r, CR_ITEM_ABSORB, CrucibleTests::itemEntityAbsorption);
+        reg(r, CR_THROWN_ITEM_TEACHES, CrucibleTests::thrownItemTeachesTheThrower);
+        reg(r, CR_UNTHROWN_ITEM_TEACHES_NOBODY, CrucibleTests::unthrownItemTeachesNobody);
         reg(r, CR_MELTS_CHRYSM, CrucibleTests::meltsChrysm);
         reg(r, CR_CAP_EACH_TYPE, CrucibleTests::reservoirCapsEachType);
         reg(r, CR_CAP_GOO_IN_HAND, CrucibleTests::gooInHandRefusedAtCap);
