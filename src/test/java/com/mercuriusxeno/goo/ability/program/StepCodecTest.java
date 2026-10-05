@@ -86,7 +86,9 @@ class StepCodecTest {
                     List.of(new DropItemStep(DropItemStep.SPAWN_EGG, Expr.literal(1)), LeafSteps.DISCARD.step(Unit.INSTANCE)),
                     List.of(LeafSteps.SET_AI.step(false)))),
             Map.entry("discard", LeafSteps.DISCARD.step(Unit.INSTANCE)),
-            Map.entry("set_baby", LeafSteps.SET_BABY.step(true))
+            Map.entry("set_baby", LeafSteps.SET_BABY.step(true)),
+            Map.entry("ailment_overlay", new AilmentOverlayStep(AilmentKind.HEX,
+                    Expr.parse("20 * 60 / pow(health, 0.4)").getOrThrow()))
     );
 
     private static Step roundTrip(Step step) {
@@ -225,6 +227,11 @@ class StepCodecTest {
     @Test
     void unknownTypeRefuses() {
         assertTrue(decode("{\"type\": \"teleport_everyone\"}").isError());
+    }
+
+    @Test
+    void ailmentOverlayRefusesAKindNoAilmentCarries() {
+        assertTrue(decode("{\"type\": \"ailment_overlay\", \"kind\": \"sunburn\", \"duration\": 60}").isError());
     }
 
     @Test

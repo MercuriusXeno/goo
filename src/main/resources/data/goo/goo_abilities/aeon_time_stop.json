@@ -35,7 +35,7 @@
           "otherwise": [
             { "type": "set_ai", "enabled": false },
             { "type": "set_invulnerable", "enabled": true },
-            { "type": "potion", "effect": "minecraft:glowing", "duration": 60, "amplifier": 0 }
+            { "type": "ailment_overlay", "kind": "stasis", "duration": 60 }
           ]
         }
       ]

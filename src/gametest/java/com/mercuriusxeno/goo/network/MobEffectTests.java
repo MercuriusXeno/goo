@@ -48,6 +48,7 @@ public final class MobEffectTests {
     private static final String SHOULD_HAVE_POISON = "Target should have poison";
     private static final String SHOULD_HAVE_WEAKNESS = "Target should have weakness";
     private static final String SHOULD_HAVE_GLOWING = "Target should have glowing";
+    private static final String SHOULD_NOT_GLOW = "Target should wear the ailment overlay, not vanilla glowing";
     private static final String SHOULD_HAVE_WITHER = "Target should have wither";
     private static final String SHOULD_TAKE_DAMAGE = "Target should have taken damage";
     private static final String SHOULD_BE_ON_FIRE = "Target should be on fire";
@@ -321,8 +322,10 @@ public final class MobEffectTests {
     }
 
     /**
-     * Hex charm is a program: a mob target selection wrapping weakness and
-     * glowing potion steps whose duration falls with the mob's health.
+     * Hex charm is a program: a mob target selection wrapping a weakness
+     * potion step and the hex ailment overlay, whose durations fall with the
+     * mob's health; the overlay replaces vanilla glowing
+     * (decision ailment-overlay-shader-per-ailment).
      *
      * @param helper the gametest helper
      */
@@ -331,7 +334,7 @@ public final class MobEffectTests {
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             strike(helper, mob, ABILITY_HEX_CHARM);
             helper.assertTrue(mob.hasEffect(MobEffects.WEAKNESS), SHOULD_HAVE_WEAKNESS);
-            helper.assertTrue(mob.hasEffect(MobEffects.GLOWING), SHOULD_HAVE_GLOWING);
+            helper.assertFalse(mob.hasEffect(MobEffects.GLOWING), SHOULD_NOT_GLOW);
             helper.succeed();
         });
     }
@@ -410,7 +413,8 @@ public final class MobEffectTests {
 
     /**
      * Aeon time stop is a program: a mob target selection wrapping set_ai
-     * off, set_invulnerable on and a glowing potion step.
+     * off, set_invulnerable on and the stasis ailment overlay in place of
+     * vanilla glowing (decision ailment-overlay-shader-per-ailment).
      *
      * @param helper the gametest helper
      */
@@ -420,7 +424,7 @@ public final class MobEffectTests {
             strike(helper, mob, ABILITY_AEON_TIME_STOP);
             helper.assertTrue(mob.isNoAi(), SHOULD_HAVE_NO_AI);
             helper.assertTrue(mob.isInvulnerable(), SHOULD_BE_INVULNERABLE);
-            helper.assertTrue(mob.hasEffect(MobEffects.GLOWING), SHOULD_HAVE_GLOWING);
+            helper.assertFalse(mob.hasEffect(MobEffects.GLOWING), SHOULD_NOT_GLOW);
             helper.runAfterDelay(SETTLE_TICKS, () -> {
                 helper.assertTrue(itemsNear(helper, mob.position()).isEmpty(), SHOULD_DROP_NOTHING);
                 helper.succeed();
