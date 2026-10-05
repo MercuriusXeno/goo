@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.gametest;
 
+import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.network.GooThrowHandler;
@@ -112,6 +113,9 @@ public final class GooItemTests {
         ItemStack metal = GooStacks.createForOutput(GooTypes.METAL, GooStacks.THOUSAND);
         player.getInventory().add(crystal);
         player.getInventory().add(metal);
+        AbilityRegistry abilities = AbilityRegistry.of(helper.getLevel());
+        KnownRecipes.teachRequires(player, abilities.getAbility(Identifier.parse(CRYSTAL_CLOUD)));
+        KnownRecipes.teachRequires(player, abilities.getAbility(Identifier.parse(METAL_SPIKES)));
 
         GooThrowHandler.execute(player, throwAt(helper, GooTypes.CRYSTAL, CRYSTAL_CLOUD, CRYSTAL_WALL));
         GooThrowHandler.execute(player, throwAt(helper, GooTypes.METAL, METAL_SPIKES, METAL_WALL));

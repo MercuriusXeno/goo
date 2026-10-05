@@ -10,6 +10,7 @@ import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.item.gasket.ChoralGasketItem;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.network.GooValueSync;
+import com.mercuriusxeno.goo.network.PlayerKnowledge;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
@@ -102,7 +103,7 @@ public final class GooEventWiring {
     }
 
     /**
-     * Sends goo values and ability definitions to players on login and datapack reload.
+     * Sends goo values, ability definitions and each player's known items to players on login and datapack reload.
      *
      * @param event the datapack sync event (player-specific on login, all players on /reload)
      */
@@ -116,6 +117,7 @@ public final class GooEventWiring {
                 .forEach(player -> {
                     GooValueSync.sendToPlayer(player);
                     PacketDistributor.sendToPlayer(player, abilityPayload);
+                    PlayerKnowledge.sendToPlayer(player);
                 });
     }
 

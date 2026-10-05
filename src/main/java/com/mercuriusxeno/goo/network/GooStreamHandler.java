@@ -70,7 +70,7 @@ public final class GooStreamHandler {
         if (gooType == null || !GooThrowHandler.validateGlove(player)) {
             return;
         }
-        AbilityDefinition ability = GooThrowHandler.thrownAbility(player.level(), payload.abilityId(), gooType);
+        AbilityDefinition ability = GooThrowHandler.usableAbility(player, payload.abilityId(), gooType);
         if (ability != null && ability.delivery().kind() == DeliveryKind.STREAM
                 && drainShare(player, gooType, ability)) {
             strikeCone(player, payload.origin(), ability);

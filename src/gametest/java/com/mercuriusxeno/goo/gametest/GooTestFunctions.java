@@ -40,6 +40,7 @@ public final class GooTestFunctions {
     // --- Goo value lifecycle ---
     private static final String VALUES_FRESH_AFTER_STOP = "values_fresh_after_stop";
     private static final String GLOVE_TYPE_ONLY_REFUSED = "glove_type_only_refused";
+    private static final String GLOVE_GATED_SELECTION_REFUSED = "glove_gated_selection_refused";
     private static final String GLOVE_SHIFT_RECOLLECTS_MARKER = "glove_shift_recollects_marker";
     private static final String GLOVE_CLICK_NO_USING_STATE = "glove_click_no_using_state";
     private static final String GLOVE_FIRST_SOURCE_DEPLETES_FIRST = "glove_first_source_depletes_first";
@@ -66,6 +67,7 @@ public final class GooTestFunctions {
     private static final String EXORITE_ANVIL_REPAIR = "exorite_anvil_repair";
     private static final String SOUL_BOUND_TAG_HOLDS_EXORITE = "soul_bound_tag_holds_exorite";
     private static final String SOUL_BOUND_SURVIVES_DEATH = "soul_bound_survives_death";
+    private static final String KNOWN_ITEMS_SURVIVE_DEATH = "known_items_survive_death";
     private static final String EXO_GAUNTLET_SMITHING = "exo_gauntlet_smithing";
     private static final String EXO_GAUNTLET_KEEPS_BENEFITS = "exo_gauntlet_keeps_benefits";
     // --- Crystallizer ---
@@ -205,6 +207,9 @@ public final class GooTestFunctions {
     // --- Crucible ---
     private static final String CR_GOO_INSERT = "cr_goo_insert";
     private static final String CR_ITEM_ABSORB = "cr_item_absorb";
+    private static final String CR_THROWN_ITEM_TEACHES = "cr_thrown_item_teaches";
+    private static final String CR_THROWN_CONTAINER_TEACHES = "cr_thrown_container_teaches";
+    private static final String CR_UNTHROWN_ITEM_TEACHES_NOBODY = "cr_unthrown_item_teaches_nobody";
     private static final String CR_MELTS_CHRYSM = "cr_melts_chrysm";
     private static final String CR_CAP_EACH_TYPE = "cr_cap_each_type";
     private static final String CR_CAP_GOO_IN_HAND = "cr_cap_goo_in_hand";
@@ -284,6 +289,7 @@ public final class GooTestFunctions {
     private static final String IX_HUB_PICKUP = "ix_hub_canister_pickup";
     private static final String IX_HUB_POUR_AIMED_ONLY = "ix_hub_pour_aimed_only";
     private static final String IX_PLEXER_TARGET = "ix_plexer_set_target";
+    private static final String IX_PLEXER_REFUSES_UNLEARNED = "ix_plexer_refuses_unlearned";
     private static final String IX_REACTOR_INSERT_PICKUP = "ix_reactor_insert_pickup";
     private static final String IX_CRUCIBLE_BLAZE_ROD_COLD = "ix_crucible_blaze_rod_click_leaves_cold";
     private static final String IX_CRUCIBLE_COLD_ABSORBS_NOTHING = "ix_crucible_cold_absorbs_nothing";
@@ -326,6 +332,7 @@ public final class GooTestFunctions {
     private static final String MOB_ATTACK_STAYS_VANILLA = "mob_attack_stays_vanilla";
     private static final String MOB_EXO_GAUNTLET_HIT = "mob_exo_gauntlet_hit";
     private static final String SELF_ENDER_BLINK = "self_ender_blink";
+    private static final String SELF_GATED_BLINK_REFUSED = "self_gated_blink_refused";
     private static final String SELF_TYPHOON_PROPEL = "self_typhoon_propel";
     private static final String STREAM_BLAZE_SPITFIRE = "stream_blaze_spitfire";
     private static final String MOB_CRYSTAL = "mob_crystal_flechettes";
@@ -470,6 +477,7 @@ public final class GooTestFunctions {
         reg(r, TYPES_DATAPACK_LISTED, GooTypeRegistryTests::datapackTypeListed);
         reg(r, TYPES_MARKER_RELOADS, GooTypeRegistryTests::abilityBlockReloadsType);
         reg(r, GLOVE_TYPE_ONLY_REFUSED, GloveSelectTests::typeOnlySelectionRefused);
+        reg(r, GLOVE_GATED_SELECTION_REFUSED, GloveSelectTests::gatedSelectionRefusedWithoutTheRecipe);
         reg(r, GLOVE_SHIFT_RECOLLECTS_MARKER, GloveRecollectTests::shiftClickRecollectsMarker);
         reg(r, GLOVE_CLICK_NO_USING_STATE, GloveUseTests::rightClickEntersNoUsingState);
         reg(r, GLOVE_FIRST_SOURCE_DEPLETES_FIRST, FirstSourceTests::firstSourceIsTheStackDepleteShrinks);
@@ -500,6 +508,7 @@ public final class GooTestFunctions {
         reg(r, EXORITE_ANVIL_REPAIR, ExoriteDurabilityTests::anvilRepair);
         reg(r, SOUL_BOUND_TAG_HOLDS_EXORITE, SoulBoundTests::tagHoldsExorite);
         reg(r, SOUL_BOUND_SURVIVES_DEATH, SoulBoundTests::survivesDeath);
+        reg(r, KNOWN_ITEMS_SURVIVE_DEATH, SoulBoundTests::knownItemsSurviveDeath);
         reg(r, EXO_GAUNTLET_SMITHING, ExoriteTests::exoGauntletSmithing);
         reg(r, EXO_GAUNTLET_KEEPS_BENEFITS, GooItemTests::exoGauntletKeepsBenefits);
         reg(r, EXORITE_NOT_ENCHANTABLE, ExoriteEnchantingTests::notEnchantable);
@@ -597,6 +606,7 @@ public final class GooTestFunctions {
         reg(r, IX_HUB_PICKUP, MachineInteractionTests::hubCanisterPickup);
         reg(r, IX_HUB_POUR_AIMED_ONLY, MachineInteractionTests::hubPourFillsOnlyTheAimedCanister);
         reg(r, IX_PLEXER_TARGET, MachineInteractionTests::plexerSetTarget);
+        reg(r, IX_PLEXER_REFUSES_UNLEARNED, MachineInteractionTests::plexerRefusesAnUnlearnedTarget);
         reg(r, IX_REACTOR_INSERT_PICKUP, MachineInteractionTests::reactorCanisterInsertThenSneakPickup);
         reg(r, IX_CRUCIBLE_BLAZE_ROD_COLD, MachineInteractionTests::crucibleBlazeRodClickLeavesItCold);
         reg(r, IX_CRUCIBLE_COLD_ABSORBS_NOTHING, MachineInteractionTests::coldCrucibleAbsorbsNothing);
@@ -620,6 +630,9 @@ public final class GooTestFunctions {
     private static void registerCrucibleTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
         reg(r, CR_GOO_INSERT, CrucibleTests::gooInsertViaInteraction);
         reg(r, CR_ITEM_ABSORB, CrucibleTests::itemEntityAbsorption);
+        reg(r, CR_THROWN_ITEM_TEACHES, CrucibleTests::thrownItemTeachesTheThrower);
+        reg(r, CR_THROWN_CONTAINER_TEACHES, CrucibleTests::thrownContainerTeachesItsContents);
+        reg(r, CR_UNTHROWN_ITEM_TEACHES_NOBODY, CrucibleTests::unthrownItemTeachesNobody);
         reg(r, CR_MELTS_CHRYSM, CrucibleTests::meltsChrysm);
         reg(r, CR_CAP_EACH_TYPE, CrucibleTests::reservoirCapsEachType);
         reg(r, CR_CAP_GOO_IN_HAND, CrucibleTests::gooInHandRefusedAtCap);
@@ -709,6 +722,7 @@ public final class GooTestFunctions {
         reg(r, MOB_ATTACK_STAYS_VANILLA, AttackTouchTests::attackStaysVanilla);
         reg(r, MOB_EXO_GAUNTLET_HIT, GloveDamageTests::exoGauntletHitsForSeven);
         reg(r, SELF_ENDER_BLINK, SelfDeliveryTests::enderBlink);
+        reg(r, SELF_GATED_BLINK_REFUSED, SelfDeliveryTests::gatedBlinkRefusedWithoutTheRecipe);
         reg(r, SELF_TYPHOON_PROPEL, SelfDeliveryTests::typhoonPropel);
         reg(r, STREAM_BLAZE_SPITFIRE, StreamDeliveryTests::blazeSpitfire);
         reg(r, MOB_CRYSTAL, MobEffectTests::crystalFlechettes);

@@ -67,7 +67,7 @@ class AbilityImpactTest {
         AbilityDefinition chime = new AbilityDefinition(Identifier.parse("goo:test_chime"), GooTypes.UNSTABLE,
                 "chime", "", 0, 0, Delivery.ARC,
                 List.of(new SoundStep(CHIME, FxAnchor.HOST, SoundKind.BLOCKS, Expr.literal(1), Expr.literal(1))),
-                List.of(), AbilityBadge.WORLD);
+                List.of(), AbilityBadge.WORLD, List.of());
 
         AbilityImpact.land(level, WALL, GooTypes.UNSTABLE, Direction.SOUTH, chime);
 

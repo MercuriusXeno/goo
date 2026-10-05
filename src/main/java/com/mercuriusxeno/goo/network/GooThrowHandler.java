@@ -47,6 +47,8 @@ public final class GooThrowHandler {
     private static final String LOG_OUT_OF_RANGE = "Throw rejected: target out of range ({} blocks)";
     /** Log: insufficient goo for throw. */
     private static final String LOG_NO_GOO = "Throw rejected: insufficient {} goo";
+    /** Log: a throw naming no ability the player may use, refused. */
+    private static final String LOG_UNUSABLE = "Throw rejected: ability '{}' unusable by {}";
     /** Log: partial depletion warning. */
     private static final String LOG_PARTIAL_DEPLETE = "Partial depletion ({}/{}) for {} throw - proceeding anyway";
     /** Log: throw executed successfully. */
@@ -72,9 +74,11 @@ public final class GooThrowHandler {
      * the goo in the player's inventory are checked, the goo is depleted,
      * the flight is broadcast and the effect scheduled for arrival. A mob
      * ability aimed at an entity within reach touches it at once instead,
-     * and a self ability runs on the player.
+     * and a self ability runs on the player. A throw naming no ability the
+     * player may use is refused whole, draining nothing.
      * decision mob-ability-touches-at-reach
      * decision self-delivery-runs-on-player
+     * decision ability-hidden-until-recipes-known
      *
      * @param player  the throwing player
      * @param payload the throw payload data
@@ -83,12 +87,14 @@ public final class GooThrowHandler {
         if (!validateGlove(player)) { return; }
         ResourceKey<GooTypeDefinition> gooType = validateGooType(payload);
         if (gooType == null) { return; }
-        AbilityDefinition ability = thrownAbility(player.level(), payload.abilityId(), gooType);
+        AbilityDefinition ability = usableAbility(player, payload.abilityId(), gooType);
         if (ability == null) {
-            throwFlight(player, payload, gooType);
-        } else {
-            deliver(player, payload, gooType, ability);
+            if (Goo.LOGGER.isDebugEnabled()) {
+                Goo.LOGGER.debug(LOG_UNUSABLE, payload.abilityId(), player.getName().getString());
+            }
+            return;
         }
+        deliver(player, payload, gooType, ability);
     }
 
     /**
@@ -223,6 +229,21 @@ public final class GooThrowHandler {
         if (id == null) { return null; }
         AbilityDefinition def = AbilityRegistry.of(level).getAbility(id);
         return def == null || def.gooType() != gooType ? null : def;
+    }
+
+    /**
+     * The ability a throw, stream or selection names, when the player knows
+     * every item it requires (decision ability-hidden-until-recipes-known).
+     *
+     * @param player    the player using the ability
+     * @param abilityId the ability id string, empty when the payload names none
+     * @param gooType   the goo type the payload names
+     * @return the ability, or null when it names none of the type or the player lacks a required item
+     */
+    static @Nullable AbilityDefinition usableAbility(ServerPlayer player, String abilityId,
+            ResourceKey<GooTypeDefinition> gooType) {
+        AbilityDefinition def = thrownAbility(player.level(), abilityId, gooType);
+        return def != null && def.isKnownTo(PlayerKnowledge.of(player)) ? def : null;
     }
 
     /**

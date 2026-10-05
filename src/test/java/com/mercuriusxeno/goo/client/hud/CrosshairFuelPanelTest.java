@@ -23,7 +23,7 @@ class CrosshairFuelPanelTest {
 
     private static ClientAbility costing(int cost) {
         return new ClientAbility(Identifier.fromNamespaceAndPath(Goo.MODID, "cost_" + cost), "ability.goo.cost", "",
-                0, List.of(), List.of(), cost, Delivery.ARC, AbilityBadge.WORLD);
+                0, List.of(), List.of(), cost, Delivery.ARC, AbilityBadge.WORLD, List.of());
     }
 
     @Test

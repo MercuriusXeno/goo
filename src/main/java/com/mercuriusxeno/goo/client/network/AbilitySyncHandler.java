@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.resources.Identifier;
@@ -82,10 +83,12 @@ public final class AbilitySyncHandler {
      * @param cost        the mB a throw costs, the same at every stack count
      * @param delivery    how the ability leaves the glove
      * @param badge       the target kind the radial marks on the icon
+     * @param requires    the items the player must know before the radial offers it
      */
     public record ClientAbility(Identifier id, String displayName, String icon,
                                 int order, List<String> tags,
-                                List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge) {
+                                List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge,
+                                List<Identifier> requires) {
 
         /**
          * Builds the client descriptor from a synced entry.
@@ -96,7 +99,18 @@ public final class AbilitySyncHandler {
         public static ClientAbility fromEntry(AbilitySyncPayload.Entry entry) {
             return new ClientAbility(Identifier.tryParse(entry.abilityId()), entry.displayName(), entry.icon(),
                     entry.order(), entry.tags(), entry.behaviors(),
-                    entry.cost(), entry.delivery(), entry.badge());
+                    entry.cost(), entry.delivery(), entry.badge(), entry.requires());
+        }
+
+        /**
+         * Whether the player knows every item this ability requires
+         * (decision ability-hidden-until-recipes-known).
+         *
+         * @param known the items the player knows
+         * @return true when no required item is unknown
+         */
+        public boolean isKnownTo(KnownItems known) {
+            return known.containsAll(requires);
         }
 
         /**

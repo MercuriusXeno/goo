@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.ability;
 
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.StepTypes;
+import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.serialization.Codec;
@@ -26,6 +27,7 @@ import java.util.List;
  * @param behaviors   the step trees the ability runs, in order
  * @param tags        categorical tags (explosive, instant, trap, field-effect, etc.)
  * @param badge       the target kind the radial marks on the icon
+ * @param requires    the items a player must know before the ability is theirs
  */
 public record AbilityDefinition(
         Identifier id,
@@ -37,7 +39,8 @@ public record AbilityDefinition(
         Delivery delivery,
         List<Step> behaviors,
         List<String> tags,
-        AbilityBadge badge
+        AbilityBadge badge,
+        List<Identifier> requires
 ) {
 
     private static final String FIELD_GOO_TYPE = "gooType";
@@ -50,6 +53,7 @@ public record AbilityDefinition(
     private static final String FIELD_BEHAVIORS = "behaviors";
     private static final String FIELD_TAGS = "tags";
     private static final String FIELD_BADGE = "badge";
+    private static final String FIELD_REQUIRES = "requires";
     private static final String NOT_A_FLAT_COST = "Ability cost must be one whole amount, not %s";
 
     /**
@@ -77,10 +81,13 @@ public record AbilityDefinition(
                 StepTypes.LIST_CODEC.fieldOf(FIELD_BEHAVIORS).forGetter(AbilityDefinition::behaviors),
                 Codec.STRING.listOf().optionalFieldOf(FIELD_TAGS, List.of()).forGetter(AbilityDefinition::tags),
                 // badge-marks-the-target-kind: required, so every ability declares its kind
-                AbilityBadge.CODEC.fieldOf(FIELD_BADGE).forGetter(AbilityDefinition::badge)
-        ).apply(inst, (gooType, displayName, icon, order, cost, delivery, behaviors, tags, badge) ->
+                AbilityBadge.CODEC.fieldOf(FIELD_BADGE).forGetter(AbilityDefinition::badge),
+                // ability-hidden-until-recipes-known
+                Identifier.CODEC.listOf().optionalFieldOf(FIELD_REQUIRES, List.of())
+                        .forGetter(AbilityDefinition::requires)
+        ).apply(inst, (gooType, displayName, icon, order, cost, delivery, behaviors, tags, badge, requires) ->
                 new AbilityDefinition(id, gooType, displayName, icon, order,
-                        cost, delivery, behaviors, tags, badge)));
+                        cost, delivery, behaviors, tags, badge, requires)));
     }
 
     /**
@@ -91,6 +98,17 @@ public record AbilityDefinition(
      */
     public boolean hasTag(String tag) {
         return tags.contains(tag);
+    }
+
+    /**
+     * Whether a player who knows these items may have this ability: they know
+     * every item it requires (decision ability-hidden-until-recipes-known).
+     *
+     * @param known the items the player knows
+     * @return true when no required item is unknown
+     */
+    public boolean isKnownTo(KnownItems known) {
+        return known.containsAll(requires);
     }
 
     /**

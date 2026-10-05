@@ -45,6 +45,7 @@ public final class FlatCostTests {
         helper.assertTrue(cloud != null, ABILITY_REQUIRED);
         placeMarker(helper, cloud);
         ServerPlayer player = StackKeyTests.makeThrower(helper, GooTypes.CRYSTAL);
+        KnownRecipes.teachRequires(player, cloud);
         int held = crystalHeld(player);
 
         for (int throwNumber = 1; throwNumber <= 2; throwNumber++) {
