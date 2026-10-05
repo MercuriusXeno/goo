@@ -1,11 +1,14 @@
 package com.mercuriusxeno.goo.ability;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.program.AfterimageStep;
 import com.mercuriusxeno.goo.ability.program.AilmentKind;
 import com.mercuriusxeno.goo.ability.program.AilmentOverlayStep;
 import com.mercuriusxeno.goo.ability.program.PotionStep;
 import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.ability.program.TeleportStep;
 import com.mercuriusxeno.goo.data.IdentifiedJsonScan;
+import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.serialization.JsonOps;
 import net.minecraft.resources.FileToIdConverter;
 import net.minecraft.resources.Identifier;
@@ -70,6 +73,26 @@ class AbilityLoaderTest {
                 .map(step -> ((AilmentOverlayStep) step).kind()).toList(), name);
         assertTrue(steps.stream().filter(PotionStep.class::isInstance)
                 .noneMatch(step -> GLOWING.equals(((PotionStep) step).effect())), name + " still applies glowing");
+    }
+
+    /**
+     * Ender blink leaves an ender afterimage where the player stood, before
+     * its teleport, and another where it lands, after it
+     * (decision afterimage-is-one-shared-effect).
+     */
+    @Test
+    void enderBlinkLeavesAnAfterimageAtSourceAndTarget() {
+        List<Step> steps = AbilityJson.decode("ender_blink").behaviors();
+        int teleport = steps.indexOf(steps.stream().filter(TeleportStep.class::isInstance).findFirst().orElseThrow());
+
+        assertEquals(List.of(GooTypes.ENDER), afterimageTypes(steps.subList(0, teleport)), "no ripple at the source");
+        assertEquals(List.of(GooTypes.ENDER), afterimageTypes(steps.subList(teleport + 1, steps.size())),
+                "no ripple at the target");
+    }
+
+    private static List<Object> afterimageTypes(List<Step> steps) {
+        return steps.stream().filter(AfterimageStep.class::isInstance)
+                .map(step -> (Object) ((AfterimageStep) step).goo()).toList();
     }
 
     /** A step and every step it holds, depth first. */

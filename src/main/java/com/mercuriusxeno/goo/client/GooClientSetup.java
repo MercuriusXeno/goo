@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ISidedProxy;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
+import com.mercuriusxeno.goo.client.ability.Afterimages;
 import com.mercuriusxeno.goo.client.ability.AilmentOverlayLayer;
 import com.mercuriusxeno.goo.client.ability.ChainBurnouts;
 import com.mercuriusxeno.goo.client.ability.MobAilments;
@@ -377,6 +378,7 @@ public final class GooClientSetup {
         ChainBurnouts.CLIENT.clear();
         MobCoats.CLIENT.clear();
         MobAilments.CLIENT.clear();
+        Afterimages.CLIENT.clear();
         ThrowFreezeState.clear();
     }
 

@@ -45,6 +45,7 @@ public final class GooNetworking {
         r.playToClient(ChainBurnoutPayload.TYPE, ChainBurnoutPayload.STREAM_CODEC);
         r.playToClient(MobHitPayload.TYPE, MobHitPayload.STREAM_CODEC);
         r.playToClient(AilmentPayload.TYPE, AilmentPayload.STREAM_CODEC);
+        r.playToClient(AfterimagePayload.TYPE, AfterimagePayload.STREAM_CODEC);
     }
 
     /** Registers server-bound payloads.
