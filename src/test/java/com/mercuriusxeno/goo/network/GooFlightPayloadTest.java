@@ -16,7 +16,7 @@ class GooFlightPayloadTest {
 
     @Test
     void deliveryRoundTripsThroughTheStreamCodec() {
-        Delivery delivery = new Delivery(DeliveryKind.STREAM, 3.5, 6, 30, 10, false, Delivery.DEFAULT_PARTICLE);
+        Delivery delivery = new Delivery(DeliveryKind.STREAM, 3.5, 6, 30, 10, false, Delivery.DEFAULT_PARTICLE, 0.15);
         GooFlightPayload sent = new GooFlightPayload(1, 2, 3, "goo:blaze", -1, new BlockPos(4, 5, 6), 1,
                 7, false, "goo:blaze_fixture", delivery);
         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
