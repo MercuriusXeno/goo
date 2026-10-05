@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.network;
 
+import com.mercuriusxeno.goo.ability.hearts.HeartKind;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
+import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -28,6 +30,10 @@ public final class HeartOverlayTests {
 
     private static final int NO_ENTITY = -1;
     private static final Identifier BLAZE_KINDLE = Identifier.parse("goo:blaze_kindle");
+    private static final Identifier LEAF_BARKSKIN = Identifier.parse("goo:leaf_barkskin");
+    /** Two thousand mB of the second goo, enough for one cast. */
+    private static final int SECOND_GOO = 2 * GooStacks.THOUSAND;
+    private static final String SHOULD_REPLACE = "%s should stand alone with a full shield: stood %s with %d halves";
     private static final BlockPos STAND_POS = new BlockPos(1, 1, 3);
     private static final BlockPos ATTACKER_POS = new BlockPos(2, 1, 3);
     private static final float FULL_HEALTH = 20f;
@@ -184,9 +190,39 @@ public final class HeartOverlayTests {
         player.setGameMode(GameType.SURVIVAL);
         // a player whose client has not reported loaded is invulnerable, and no mock client reports
         player.connection.markClientLoaded();
+        invoke(player, gooType, ability);
+        return player;
+    }
+
+    private static void invoke(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, Identifier ability) {
         GooThrowHandler.execute(player, new GooThrowPayload(GooTypes.id(gooType), NO_ENTITY,
                 player.blockPosition(), NO_ENTITY, false, ability.toString(), player.getEyePosition()));
-        return player;
+    }
+
+    /**
+     * Barkskin over Kindle leaves only full bark standing, and Kindle over
+     * Barkskin only full embers: each heart brew ends the other the moment it
+     * takes effect, whatever the old one had spent.
+     *
+     * @param helper the gametest helper
+     */
+    public static void heartBrewsReplaceEachOther(GameTestHelper helper) {
+        ServerPlayer player = kindled(helper);
+        player.getInventory().add(GooStacks.createForOutput(GooTypes.LEAF, SECOND_GOO));
+        hurt(helper, player, player.damageSources().generic(), ONE_POINT);
+
+        invoke(player, GooTypes.LEAF, LEAF_BARKSKIN);
+        HeartOverlay barked = player.getData(GooAttachments.HEART_OVERLAY);
+        hurt(helper, player, player.damageSources().generic(), ONE_POINT);
+        invoke(player, GooTypes.BLAZE, BLAZE_KINDLE);
+        HeartOverlay kindledAgain = player.getData(GooAttachments.HEART_OVERLAY);
+        helper.getLevel().getServer().getPlayerList().remove(player);
+
+        helper.assertTrue(barked.kind() == HeartKind.BARKSKIN && barked.shieldHalves() == FULL_HALVES,
+                String.format(SHOULD_REPLACE, HeartKind.BARKSKIN, barked.kind(), barked.shieldHalves()));
+        helper.assertTrue(kindledAgain.kind() == HeartKind.KINDLE && kindledAgain.shieldHalves() == FULL_HALVES,
+                String.format(SHOULD_REPLACE, HeartKind.KINDLE, kindledAgain.kind(), kindledAgain.shieldHalves()));
+        helper.succeed();
     }
 
     /**

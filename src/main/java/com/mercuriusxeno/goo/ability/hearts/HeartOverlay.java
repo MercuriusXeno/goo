@@ -139,8 +139,9 @@ public record HeartOverlay(HeartKind kind, List<Integer> shields, long expiresAt
 
     /**
      * Applies a heart brew. The same kind standing again adds the duration and
-     * keeps its hearts; otherwise every present heart takes a full shield and a
-     * missing heart stays missing.
+     * keeps its hearts; another kind ends the standing overlay and lays its own
+     * whole, a full shield over every present heart, a missing heart staying
+     * missing.
      *
      * @param brewKind the kind the brew lays
      * @param duration the brew's duration in ticks
@@ -153,6 +154,7 @@ public record HeartOverlay(HeartKind kind, List<Integer> shields, long expiresAt
             // kindle-ember-hearts-ash-and-retaliate: the self ability stacks in duration
             return new HeartOverlay(kind, shields, expiresAt + duration, regrowAt, fireReadyAt);
         }
+        // one-heart-overlay-at-a-time: a heart brew ends any other heart brew the moment it takes effect
         List<Integer> full = Collections.nCopies(filledSlots(health), FULL_SHIELD);
         return new HeartOverlay(brewKind, full, now + duration, now + brewKind.regrowInterval(sum(full)), now);
     }

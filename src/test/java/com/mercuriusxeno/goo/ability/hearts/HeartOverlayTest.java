@@ -67,6 +67,17 @@ class HeartOverlayTest {
             assertEquals(NOW + 2L * DURATION, stacked.expiresAt());
             assertEquals(broken.shields(), stacked.shields());
         }
+
+        @Test
+        void anotherKindReplacesTheStandingOverlayWhole() {
+            HeartOverlay spent = kindled(FULL_HEALTH).drain(5f, NOW).overlay()
+                    .burn(1f, FULL_HEALTH, NOW + 1).overlay();
+            HeartOverlay barked = spent.apply(HeartKind.BARKSKIN, DURATION, 18f, NOW + 2);
+            assertEquals(HeartKind.BARKSKIN, barked.kind());
+            assertEquals(Collections.nCopies(9, HeartOverlay.FULL_SHIELD), barked.shields());
+            assertEquals(NOW + 2 + DURATION, barked.expiresAt());
+            assertEquals(NOW + 2, barked.fireReadyAt());
+        }
     }
 
     @Nested
