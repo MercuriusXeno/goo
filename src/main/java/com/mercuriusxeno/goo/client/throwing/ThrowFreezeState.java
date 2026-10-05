@@ -104,18 +104,14 @@ public final class ThrowFreezeState {
 
     /**
      * Returns true if the freeze is active and its captured target is a
-     * block-like target whose position equals the given pos. Used by the
-     * chain marker BER to persist the highlighted visual during the freeze
-     * window even when the cone-based aim assist momentarily drifts.
+     * block target whose position equals the given pos. Used by the chain
+     * marker BER to persist the highlighted visual during the freeze window.
      *
-     * @param pos the chain marker block position
+     * @param pos the block position
      * @return true if the freeze is pinned on this block position
      */
-    public static boolean isFrozenOnChainMarker(BlockPos pos) {
+    public static boolean isFrozenOnBlock(BlockPos pos) {
         TargetResult target = getFrozenTarget();
-        if (target instanceof TargetResult.ChainMarkerTarget cmt) {
-            return cmt.pos().equals(pos);
-        }
         return target instanceof TargetResult.BlockTarget bt && bt.pos().equals(pos);
     }
 }

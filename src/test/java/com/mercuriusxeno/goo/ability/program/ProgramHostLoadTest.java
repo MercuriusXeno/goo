@@ -98,12 +98,12 @@ class ProgramHostLoadTest {
     }
 
     @Test
-    void markerVariableOnEntityHostRefusesAtLoadNamingVariableAndHost() {
+    void unboundVariableRefusesAtLoadNamingVariableAndHost() {
         ProgramLoadException refusal = assertThrows(ProgramLoadException.class,
                 () -> ProgramBehavior.forHost(
-                        List.of(new DamageStep(expr("4 + stacks"), DamageKind.MAGIC)), HostKind.ENTITY));
+                        List.of(new DamageStep(expr("4 + level"), DamageKind.MAGIC)), HostKind.ENTITY));
 
-        assertTrue(refusal.getMessage().contains("stacks"), refusal.getMessage());
+        assertTrue(refusal.getMessage().contains("level"), refusal.getMessage());
         assertTrue(refusal.getMessage().contains(ENTITY_LABEL), refusal.getMessage());
     }
 
@@ -161,7 +161,7 @@ class ProgramHostLoadTest {
     void unstableProgramsLoadForTheMarkerHost() {
         List<Step> mine = List.of(
                 new AwaitEntityStep(SelectionShape.SPHERE, Expr.literal(3), List.of(EntityFilter.LIVING)),
-                new ExplodeStep(expr("2.5 + 1.0 * (stacks - 1)"), ExplosionMode.TNT));
+                new ExplodeStep(expr("2.5"), ExplosionMode.TNT));
 
         assertDoesNotThrow(() -> ProgramBehavior.forHost(mine, HostKind.MARKER));
     }
@@ -170,7 +170,7 @@ class ProgramHostLoadTest {
     void glowCrystalProgramLoadsForTheMarkerHostAndRefusesTheEntityHost() {
         List<Step> glow = List.of(new PlaceBlockStep(Identifier.parse("goo:glow_crystal"), Map.of(
                 "facing", new StateValue.PlacedFace(),
-                "size", new StateValue.Pick(expr("stacks - 1"), List.of("tiny", "large")))));
+                "size", new StateValue.Pick(expr("0"), List.of("tiny", "large")))));
 
         assertDoesNotThrow(() -> ProgramBehavior.forHost(glow, HostKind.MARKER));
         ProgramLoadException refusal = assertThrows(ProgramLoadException.class,

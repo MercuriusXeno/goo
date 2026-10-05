@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.client.overlay;
 
 import com.mercuriusxeno.goo.client.TargetResult;
-import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
 import org.jspecify.annotations.Nullable;
 
@@ -81,16 +80,6 @@ public final class AimState {
         target = TargetResult.NONE;
         hit = null;
         outlineColor = 0;
-    }
-
-    /**
-     * Whether the aim assist is locked onto the chain marker at the given position.
-     *
-     * @param pos the chain marker block position
-     * @return true if this frame's hit is that marker
-     */
-    boolean isAimedAtMarker(BlockPos pos) {
-        return hit instanceof AimAssistResolver.AimHit.ChainMarkerHit cmh && cmh.pos().equals(pos);
     }
 
     /**

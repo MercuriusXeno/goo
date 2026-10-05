@@ -35,7 +35,7 @@ public final class FlatCostTests {
 
     /**
      * Two crystal_cloud throws at a standing crystal_cloud marker each cost
-     * crystal_cloud.json's cost, the second at a marker already stacked.
+     * crystal_cloud.json's cost.
      *
      * @param helper the gametest helper
      */

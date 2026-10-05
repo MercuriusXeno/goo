@@ -36,7 +36,7 @@ class ChainBurnoutsTest {
     @FieldSource("CHAIN_TYPES")
     void burnoutResolvesItsTypesVisualAndDropsAfterItsDuration(ResourceKey<GooTypeDefinition> gooType) {
         ChainBurnouts burnouts = new ChainBurnouts();
-        ChainBurnouts.Burnout burnout = burnouts.add(POS, Direction.UP, gooType, ABILITY, 2, START);
+        ChainBurnouts.Burnout burnout = burnouts.add(POS, Direction.UP, gooType, ABILITY, START);
 
         assertEquals(gooType, burnout.visual().gooType());
         assertEquals(START, burnout.startTick());
@@ -89,7 +89,7 @@ class ChainBurnoutsTest {
 
     @Test
     void glowBurnoutRendersWithNoBlockEntityAtItsPosition() {
-        ChainBurnouts.Burnout burnout = new ChainBurnouts().add(POS, Direction.UP, GooTypes.GLOW, ABILITY, 1, START);
+        ChainBurnouts.Burnout burnout = new ChainBurnouts().add(POS, Direction.UP, GooTypes.GLOW, ABILITY, START);
         RecordingVertexConsumer consumer = new RecordingVertexConsumer();
         MultiBufferSource.BufferSource buffers = mock(MultiBufferSource.BufferSource.class);
         when(buffers.getBuffer(any())).thenReturn(consumer);
@@ -102,7 +102,7 @@ class ChainBurnoutsTest {
     @Test
     void progressRunsFromStartToDuration() {
         ChainBurnouts.Burnout burnout = new ChainBurnouts().add(POS, Direction.UP, GooTypes.UNSTABLE,
-                ABILITY, 1, START);
+                ABILITY, START);
         int duration = burnout.visual().durationTicks();
         assertEquals(0f, burnout.progress(START), 0f);
         assertEquals(0.5f, burnout.progress(START + duration / 2f), 1e-4f);

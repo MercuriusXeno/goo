@@ -20,25 +20,17 @@ import net.minecraft.util.ARGB;
  * Slime-like glowing orb a chain marker draws while its program runs
  * (decision splat-runs-the-program-no-fuse). Two layers: inner core with
  * the goo fluid texture, outer translucent shell with goo-tinted color.
- * Both are emissive (fullbright). Size scales with stack count and pulses
- * on each stack add. GLOW orbs match the crystal
+ * Both are emissive (fullbright). GLOW orbs match the crystal
  * voxel shape from placement. Every layer is the outward half of its
  * box alone, from the face plane into the marker's own block, so nothing of
  * the orb reaches into the block it rests on (decision goo-sits-on-the-face).
  */
 public final class MarkerOrbVisual {
 
-    /** Base inner core half-size in block units (2 pixels) at 1 stack. */
+    /** Inner core half-size in block units (2 pixels). */
     static final float CORE_BASE = 2f / 16f;
     /** Shell extends 1 pixel beyond core in each direction. */
     static final float SHELL_MARGIN = 1f / 16f;
-    /** Core growth per additional stack (1/32 block = 0.5 pixel). */
-    static final float CORE_GROWTH = 1f / 32f;
-
-    /** Pulse amplitude: 10% size increase on stack add. */
-    static final float PULSE_AMPLITUDE = 0.10f;
-    /** Pulse duration in ticks. */
-    private static final int PULSE_TICKS = 4;
 
     /** Outer shell alpha (translucent). */
     private static final int SHELL_ALPHA = 0x60;
@@ -108,15 +100,13 @@ public final class MarkerOrbVisual {
     }
 
     /**
-     * The largest half-size a non-glow orb's shell reaches at the given
-     * stack count, its stack-add pulse at peak, for what sits beside the
-     * orb to clear it.
+     * The half-size a non-glow orb's shell reaches, for what sits beside
+     * the orb to clear it.
      *
-     * @param stackCount the marker's stack count
-     * @return the shell half-size in block units at peak pulse
+     * @return the shell half-size in block units
      */
-    public static float peakShellHalf(int stackCount) {
-        return (CORE_BASE + (stackCount - 1) * CORE_GROWTH + SHELL_MARGIN) * (1f + PULSE_AMPLITUDE);
+    public static float shellHalf() {
+        return CORE_BASE + SHELL_MARGIN;
     }
 
     /**
@@ -219,16 +209,15 @@ public final class MarkerOrbVisual {
     }
 
     /**
-     * Combines the stack pulse and each ability's own rhythm into one scale factor.
+     * Combines each ability's own rhythm into one scale factor.
      *
      * @param state the chain marker render state
      * @return the combined scale modifier
      */
     private static float computeOrbModifier(ChainMarkerRenderState state) {
-        float pulse = computePulseScale(state);
         float spikeShake = computeSpikeShake(state);
         float ebb = crystalEbb(state.crystalActive, state.gameTime);
-        return pulse * spikeShake * ebb;
+        return spikeShake * ebb;
     }
 
     /**
@@ -248,49 +237,28 @@ public final class MarkerOrbVisual {
     }
 
     /**
-     * Computes the core half-size based on stack count. For GLOW type,
-     * the crystal's lateral extent.
+     * Computes the core half-size. For GLOW type, the crystal's lateral
+     * extent.
      *
      * @param state the chain marker render state
      * @return the core half-size in block units
      */
     private static float computeCoreHalf(ChainMarkerRenderState state) {
         if (state.gooType == GooTypes.GLOW) {
-            return computeGlowCoreHalf(state.stackCount);
+            return computeGlowCoreHalf();
         }
-        return CORE_BASE + (state.stackCount - 1) * CORE_GROWTH;
+        return CORE_BASE;
     }
 
     /**
      * Returns the crystal's lateral half-extent so the glow orb matches
      * the crystal voxel shape from the moment it lands.
      *
-     * @param stackCount the marker's stack count
      * @return the crystal half-size in block units
      */
-    static float computeGlowCoreHalf(int stackCount) {
-        GlowCrystalBlock.CrystalSize cs =
-                GlowCrystalBlock.CrystalSize.fromStacks(stackCount);
+    static float computeGlowCoreHalf() {
+        GlowCrystalBlock.CrystalSize cs = GlowCrystalBlock.CrystalSize.TINY;
         return (float) ((cs.max - cs.min) / CRYSTAL_HALF_DIVISOR);
-    }
-
-    /**
-     * Brief pulse multiplier that spikes on stack add. Compares game
-     * time against the recorded stack tick for partial-tick smoothing.
-     *
-     * @param state the chain marker render state
-     * @return pulse scale factor (1.0 normally, up to 1+PULSE_AMPLITUDE)
-     */
-    private static float computePulseScale(ChainMarkerRenderState state) {
-        if (state.lastStackTick <= 0) {
-            return 1f;
-        }
-        float elapsed = state.gameTime - state.lastStackTick;
-        if (elapsed < 0 || elapsed >= PULSE_TICKS) {
-            return 1f;
-        }
-        float t = elapsed / PULSE_TICKS;
-        return 1f + PULSE_AMPLITUDE * (float) Math.sin(t * Math.PI);
     }
 
     /**

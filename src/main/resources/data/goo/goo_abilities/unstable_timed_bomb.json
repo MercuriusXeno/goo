@@ -5,11 +5,8 @@
   "order": 0,
   "cost": 1000,
   "delivery": { "kind": "arc" },
-  "chain": {
-    "maxStacks": 8
-  },
   "behaviors": [
-    { "type": "explode", "power": "2.0 + 1.0 * (stacks - 1)" }
+    { "type": "explode", "power": 2.0 }
   ],
   "tags": ["explosive", "delayed"]
 }

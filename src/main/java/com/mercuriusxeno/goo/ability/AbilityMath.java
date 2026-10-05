@@ -48,17 +48,6 @@ public final class AbilityMath {
     }
 
     /**
-     * Can a stack be added given current count and cap?
-     *
-     * @param currentStacks current stack level
-     * @param maxStacks     maximum allowed stacks
-     * @return true if stacking is permitted
-     */
-    public static boolean canStack(int currentStacks, int maxStacks) {
-        return currentStacks < maxStacks;
-    }
-
-    /**
      * Returns true if rock + crystal make up strictly more than half of
      * the block's total goo. This lets mixed-composition blocks
      * like bricks or polished stone qualify while keeping metal-heavy

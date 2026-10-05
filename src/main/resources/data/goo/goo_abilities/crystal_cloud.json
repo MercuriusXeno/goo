@@ -5,16 +5,13 @@
   "order": 0,
   "cost": 1000,
   "delivery": { "kind": "arc" },
-  "chain": {
-    "maxStacks": 8
-  },
   "behaviors": [
     {
       "type": "field_effect",
       "radius": 4.5,
       "where": ["living", "not_item", "not_sneaking", "moving"],
       "interval": "2 - sprinting",
-      "per_stack": 8,
+      "charges": 8,
       "expand_ticks": 10,
       "contract_ticks": 10,
       "strike": [

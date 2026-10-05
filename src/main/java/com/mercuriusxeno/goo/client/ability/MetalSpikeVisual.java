@@ -3,7 +3,7 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.ability.program.FieldEffectState;
 import com.mercuriusxeno.goo.ability.program.FieldEffectStep;
 import com.mercuriusxeno.goo.ability.program.FieldStrike;
-import com.mercuriusxeno.goo.ability.program.MarkerVariables;
+import com.mercuriusxeno.goo.ability.program.Variables;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
@@ -68,7 +68,7 @@ public final class MetalSpikeVisual {
         FieldEffectState field = be.getFieldEffect();
         Optional<FieldEffectStep> step = SyncedSteps.first(be, FieldEffectStep.class);
         boolean metal = GooTypes.METAL.equals(be.getGooType()) && be.getBehavior() != null && step.isPresent();
-        MarkerVariables variables = new MarkerVariables(be);
+        Variables variables = Variables.NONE;
         state.spikeAnims = metal ? field.strikes() : List.of();
         state.spikeStrikeTick = step.map(trap -> trap.strikeTick().evaluateInt(variables)).orElse(0);
         state.spikeLength = step.map(trap -> trap.strikeTicks().evaluateInt(variables)).orElse(0);

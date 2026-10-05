@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.data.IdentifiedJsonScan;
 import com.mojang.serialization.JsonOps;
 import net.minecraft.resources.FileToIdConverter;
@@ -14,6 +15,9 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.ArgumentMatchers.any;
@@ -61,6 +65,23 @@ class AbilityLoaderTest {
         for (String name : STACK_SHAPE_ABILITIES) {
             assertFalse(scanned.containsKey(Identifier.fromNamespaceAndPath(Goo.MODID, name)), name + " still loads");
         }
+    }
+
+    // decision splat-runs-the-program-no-fuse
+    @Test
+    void noShippedProgramReadsAStackCount() {
+        for (AbilityDefinition ability : scanShipped(AbilityJson.files()).values()) {
+            Set<String> read = ability.behaviors().stream()
+                    .flatMap(AbilityLoaderTest::withDescendants)
+                    .flatMap(Step::expressions)
+                    .flatMap(expr -> expr.variables().stream())
+                    .collect(Collectors.toSet());
+            assertFalse(read.contains("stacks") || read.contains("max_stacks"), ability.id() + " reads " + read);
+        }
+    }
+
+    private static Stream<Step> withDescendants(Step step) {
+        return Stream.concat(Stream.of(step), step.children().flatMap(AbilityLoaderTest::withDescendants));
     }
 
     /**

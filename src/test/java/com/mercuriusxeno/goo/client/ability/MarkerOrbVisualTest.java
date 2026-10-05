@@ -33,35 +33,29 @@ class MarkerOrbVisualTest {
     private static final GooRenderUtil.UvRect UV = new GooRenderUtil.UvRect(0f, 0f, 1f, 1f);
     private static final int WHITE = 0xFFFFFFFF;
 
-    /** Every scale the orb modifier takes at rest and at the pulse peak. */
+    /** Every scale the orb modifier takes at rest and at the crystal ebb's peak. */
     private static final float[] MODIFIERS = {
-        1f, 1f + MarkerOrbVisual.PULSE_AMPLITUDE,
+        1f, 1f + MarkerOrbVisual.CRYSTAL_EBB_AMPLITUDE,
     };
-    /** One stack and the highest stack ceiling a shipped ability sets. */
-    private static final int[] STACK_COUNTS = {1, 8};
 
     /**
      * One orb layer to emit.
      *
      * @param face       the placed face
      * @param shape      the orb shape
-     * @param stackCount the marker's stack count
      * @param modifier   the orb modifier
      * @param shell      true for the shell layer, false for the core
      */
-    record OrbCase(Direction face, MarkerOrbVisual.OrbShape shape, int stackCount,
-                   float modifier, boolean shell) {
+    record OrbCase(Direction face, MarkerOrbVisual.OrbShape shape, float modifier, boolean shell) {
     }
 
     static Stream<Arguments> everyOrbLayer() {
         List<Arguments> cases = new ArrayList<>();
         for (Direction face : Direction.values()) {
             for (MarkerOrbVisual.OrbShape shape : MarkerOrbVisual.OrbShape.values()) {
-                for (int stacks : STACK_COUNTS) {
-                    for (float modifier : MODIFIERS) {
-                        cases.add(Arguments.of(new OrbCase(face, shape, stacks, modifier, false)));
-                        cases.add(Arguments.of(new OrbCase(face, shape, stacks, modifier, true)));
-                    }
+                for (float modifier : MODIFIERS) {
+                    cases.add(Arguments.of(new OrbCase(face, shape, modifier, false)));
+                    cases.add(Arguments.of(new OrbCase(face, shape, modifier, true)));
                 }
             }
         }
@@ -75,10 +69,10 @@ class MarkerOrbVisualTest {
     /** The layer's lateral half-size by the resting arithmetic, before any pose scale. */
     private static float restingHalf(OrbCase orb) {
         if (isGlow(orb.shape())) {
-            GlowCrystalBlock.CrystalSize size = GlowCrystalBlock.CrystalSize.fromStacks(orb.stackCount());
+            GlowCrystalBlock.CrystalSize size = GlowCrystalBlock.CrystalSize.TINY;
             return (float) ((size.max - size.min) / 2);
         }
-        float core = MarkerOrbVisual.CORE_BASE + (orb.stackCount() - 1) * MarkerOrbVisual.CORE_GROWTH;
+        float core = MarkerOrbVisual.CORE_BASE;
         return orb.shell() ? core + MarkerOrbVisual.SHELL_MARGIN : core;
     }
 

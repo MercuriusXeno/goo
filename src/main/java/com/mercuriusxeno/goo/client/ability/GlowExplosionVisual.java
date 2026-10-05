@@ -55,22 +55,21 @@ public final class GlowExplosionVisual implements BurnoutVisual {
     @Override
     public void render(ChainBurnouts.Burnout burnout, BurnoutFrame frame) {
         float progress = burnout.progress(frame.gameTime());
-        float radius = domeRadius(progress, burnout.stackCount());
+        float radius = domeRadius(progress);
         int color = domeColor(progress, burnout.placedFace(), OPAQUE);
         BurnoutGeometry.drawAtMarker(frame, burnout.pos(), GooRenderTypes.GLOW_EXPLOSION_TYPE, (pose, c) ->
                 BurnoutGeometry.emitSphere(pose, c, burnout.placedFace(), DOME_LIFT, radius, color));
     }
 
     /**
-     * The dome's full reach for a stack count: the large crystal's reach
-     * scaled by that crystal size's lateral extent over the large one's.
-     * Decision glow-dome-scales-with-the-crystal.
+     * The dome's full reach: the large crystal's reach scaled by the one
+     * crystal size's lateral extent over the large one's. Decision
+     * glow-dome-scales-with-the-crystal.
      *
-     * @param stacks the marker's stack count
      * @return the dome's full reach in blocks
      */
-    static float domeReach(int stacks) {
-        return LARGE_DOME_REACH * lateralExtent(GlowCrystalBlock.CrystalSize.fromStacks(stacks))
+    static float domeReach() {
+        return LARGE_DOME_REACH * lateralExtent(GlowCrystalBlock.CrystalSize.TINY)
                 / lateralExtent(GlowCrystalBlock.CrystalSize.LARGE);
     }
 
@@ -94,14 +93,13 @@ public final class GlowExplosionVisual implements BurnoutVisual {
     }
 
     /**
-     * The aurora dome's radius: an ease-out growth to its stack count's reach.
+     * The aurora dome's radius: an ease-out growth to its reach.
      *
      * @param progress the explosion's progress in [0, 1]
-     * @param stacks   the marker's stack count
      * @return the dome's radius in blocks
      */
-    static float domeRadius(float progress, int stacks) {
-        return domeReach(stacks) * BurnoutGeometry.easeOutCubic(progress);
+    static float domeRadius(float progress) {
+        return domeReach() * BurnoutGeometry.easeOutCubic(progress);
     }
 
     /**

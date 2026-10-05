@@ -15,8 +15,8 @@ import net.minecraft.world.phys.Vec3;
  * Frost goo's burnout explosion, the design the operator settled (decision
  * elemental-explosion-per-type): a fog ring with snowflakes. Built like
  * rock's dust shock disc, a flat ring in the placed face's plane spreads out
- * from the marker to the freeze zone's reach over 20 ticks on an ease-out,
- * one block per stack. Its fragment shader
+ * from the marker to the freeze zone's reach over 20 ticks on an ease-out.
+ * Its fragment shader
  * ({@code frost_explosion.fsh}) draws it with frost's fog, white-blue
  * billows with a crisp frost-white leading edge, the fog thinning behind the
  * edge, fading over 10 more ticks, alpha blended. At burnout a burst of
@@ -31,6 +31,8 @@ public final class FrostExplosionVisual implements BurnoutVisual {
     /** The one instance the burnout registry holds. */
     public static final FrostExplosionVisual INSTANCE = new FrostExplosionVisual();
 
+    /** How far the zone a frost marker freezes reaches across its face, in blocks. */
+    static final float ZONE_REACH = 1f;
     /** Ticks the ring takes to spread to the zone's reach. */
     static final int SPREAD_TICKS = 20;
     /** Ticks the fog takes to fade once the ring has spread. */
@@ -64,7 +66,7 @@ public final class FrostExplosionVisual implements BurnoutVisual {
     @Override
     public void begin(ChainBurnouts.Burnout burnout, ClientLevel level) {
         Direction face = burnout.placedFace();
-        float reach = zoneReach(burnout.stackCount());
+        float reach = ZONE_REACH;
         BlockPos pos = burnout.pos();
         double x = pos.getX() + BurnoutGeometry.BLOCK_CENTER + face.getStepX() * RING_LIFT;
         double y = pos.getY() + BurnoutGeometry.BLOCK_CENTER + face.getStepY() * RING_LIFT;
@@ -79,7 +81,7 @@ public final class FrostExplosionVisual implements BurnoutVisual {
     @Override
     public void render(ChainBurnouts.Burnout burnout, BurnoutFrame frame) {
         float progress = burnout.progress(frame.gameTime());
-        float radius = zoneReach(burnout.stackCount()) * spread(progress);
+        float radius = ZONE_REACH * spread(progress);
         int progressByte = NetherDiscMesh.toByte(progress);
         int fog = NetherDiscMesh.toByte(fog(progress));
         int center = ARGB.color(fog, progressByte, NetherDiscMesh.toByte(SIGNED_TO_UNIT),
@@ -107,17 +109,6 @@ public final class FrostExplosionVisual implements BurnoutVisual {
      */
     static float fog(float progress) {
         return BurnoutGeometry.fadeAfter(progress, (float) SPREAD_TICKS / DURATION_TICKS);
-    }
-
-    /**
-     * How far the zone a frost marker freezes reaches across its face: one
-     * block per stack.
-     *
-     * @param stacks the marker's stack count
-     * @return the reach in blocks
-     */
-    static float zoneReach(int stacks) {
-        return stacks;
     }
 
     /**

@@ -3,7 +3,7 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.FieldEffectState;
 import com.mercuriusxeno.goo.ability.program.FieldEffectStep;
-import com.mercuriusxeno.goo.ability.program.MarkerVariables;
+import com.mercuriusxeno.goo.ability.program.Variables;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.client.FlatQuadContext;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
@@ -160,7 +160,7 @@ public final class CrystalCloudVisual {
             clear(state);
             return;
         }
-        MarkerVariables variables = new MarkerVariables(be);
+        Variables variables = Variables.NONE;
         int expandTicks = cloud.timing().expandTicks().evaluateInt(variables);
         int contractTicks = cloud.timing().contractTicks().evaluateInt(variables);
         FieldEffectState field = be.getFieldEffect();

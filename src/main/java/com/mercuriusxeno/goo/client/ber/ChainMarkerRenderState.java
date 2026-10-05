@@ -17,12 +17,6 @@ public class ChainMarkerRenderState extends BlockEntityRenderState {
     /** The goo type determining color and fluid texture. */
     public ResourceKey<GooTypeDefinition> gooType = GooTypes.ROCK;
 
-    /** Current stack count (1-based). */
-    public int stackCount = 1;
-
-    /** Stack ceiling the marker's ability sets. */
-    public int maxStacks = 1;
-
 
     /** The id of the ability the marker runs. */
     public String abilityId = "";
@@ -33,9 +27,6 @@ public class ChainMarkerRenderState extends BlockEntityRenderState {
 
     /** True when the player's crosshair is on this block. */
     public boolean targeted;
-
-    /** Game tick when the last stack was added (for pulse animation). */
-    public long lastStackTick;
 
     /** Current game time including partial tick, for pulse calculation. */
     public float gameTime;

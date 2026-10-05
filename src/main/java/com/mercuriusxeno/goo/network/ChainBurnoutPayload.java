@@ -18,10 +18,9 @@ import org.jspecify.annotations.NonNull;
  * @param placedFace the ordinal of the face the marker was placed on
  * @param gooTypeId  the goo type's short id
  * @param abilityId  the id of the ability the marker ran
- * @param stackCount the marker's stack count at burnout
  */
 public record ChainBurnoutPayload(BlockPos pos, int placedFace, String gooTypeId,
-                                  String abilityId, int stackCount) implements CustomPacketPayload {
+                                  String abilityId) implements CustomPacketPayload {
 
     /** Payload type ID for registration. */
     public static final Type<ChainBurnoutPayload> TYPE =
@@ -47,7 +46,6 @@ public record ChainBurnoutPayload(BlockPos pos, int placedFace, String gooTypeId
         buf.writeVarInt(payload.placedFace);
         buf.writeUtf(payload.gooTypeId);
         buf.writeUtf(payload.abilityId);
-        buf.writeVarInt(payload.stackCount);
     }
 
     /**
@@ -58,6 +56,6 @@ public record ChainBurnoutPayload(BlockPos pos, int placedFace, String gooTypeId
      */
     private static ChainBurnoutPayload decode(FriendlyByteBuf buf) {
         return new ChainBurnoutPayload(buf.readBlockPos(), buf.readVarInt(), buf.readUtf(),
-                buf.readUtf(), buf.readVarInt());
+                buf.readUtf());
     }
 }

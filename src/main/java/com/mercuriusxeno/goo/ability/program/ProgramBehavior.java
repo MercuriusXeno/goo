@@ -173,13 +173,13 @@ public final class ProgramBehavior {
     }
 
     /**
-     * Returns true if the marker accepts more goo while its program runs,
-     * which the running step decides.
+     * Returns true if the marker stands against a punch while its program
+     * runs, which the running step decides.
      *
-     * @return true if stacking onto the running program is allowed
+     * @return true when breaking the marker is refused
      */
-    public boolean allowsTopOff() {
-        return isActive() && steps.get(stepIndex).allowsTopOff();
+    public boolean standsAgainstBreaking() {
+        return isActive() && steps.get(stepIndex).standsAgainstBreaking();
     }
 
     /**
