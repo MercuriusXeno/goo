@@ -86,7 +86,8 @@ public final class HeartOverlayHud {
             if (player != null && mc.gameMode != null && mc.gameMode.canHurtPlayer()) {
                 HeartOverlay overlay = player.getData(GooAttachments.HEART_OVERLAY);
                 if (overlay.stands()) {
-                    paint(graphics, mc.gui, player, overlay, leftHeightBefore);
+                    paint(graphics, mc.gui, player, overlay, new BarFrame(leftHeightBefore,
+                            deltaTracker.getGameTimeDeltaPartialTick(false)));
                 }
             }
         };
@@ -161,8 +162,19 @@ public final class HeartOverlayHud {
         }
     }
 
+    /**
+     * What one frame of the bar reads beyond the player: where vanilla's health
+     * row began and how far into the tick the frame falls.
+     *
+     * @param leftHeightBefore the gui's left stack height before vanilla drew health
+     * @param partialTick      the fraction of the tick elapsed
+     */
+    private record BarFrame(int leftHeightBefore, float partialTick) {
+    }
+
     private static void paint(GuiGraphicsExtractor graphics, Gui gui, LocalPlayer player, HeartOverlay overlay,
-                              int leftHeightBefore) {
+                              BarFrame frame) {
+        int leftHeightBefore = frame.leftHeightBefore();
         int health = Mth.ceil(player.getHealth());
         float maxHealth = Math.max((float) player.getAttributeValue(Attributes.MAX_HEALTH), health);
         int absorption = Mth.ceil(player.getAbsorptionAmount());
@@ -180,6 +192,18 @@ public final class HeartOverlayHud {
             for (Identifier sprite : heartSprites(overlay.kind(), overlay.shieldAt(slot), realHalves)) {
                 graphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x, y, HEART_SIZE, HEART_SIZE);
             }
+            if (overlay.kind() == HeartKind.KINDLE) {
+                paintSparks(graphics, EmberSparks.sparks(slot, Math.min(overlay.shieldAt(slot), realHalves),
+                        gui.getGuiTicks(), frame.partialTick()), x, y);
+            }
+        }
+    }
+
+    private static void paintSparks(GuiGraphicsExtractor graphics, List<EmberSparks.Spark> sparks, int x, int y) {
+        for (EmberSparks.Spark spark : sparks) {
+            int left = x + Math.round(spark.x());
+            int top = y + Math.round(spark.y());
+            graphics.fill(left, top, left + 1, top + 1, spark.argb());
         }
     }
 
