@@ -77,8 +77,8 @@ public final class EffectExecutorTests {
     private static final int SNEAK_TICKS = 20;
     private static final String SPIKE_MISSED = "The metal trap left the walking pig unhurt";
     private static final String SPIKE_HIT_SNEAKER = "The metal trap hurt the sneaking player";
-    private static final String STACK_OVERSPENT = "The metal trap's one impale spent more than one stack";
-    private static final String STACK_SPENT_ON_SNEAKER = "The metal trap spent a stack on the sneaking player";
+    private static final String CHARGE_NOT_SPENT = "The metal trap's impale spent other than one charge";
+    private static final String CHARGE_SPENT_ON_SNEAKER = "The metal trap spent a charge on the sneaking player";
     private static final String ABILITY_CRYSTAL_CLOUD = "goo:crystal_cloud";
     /** Where the crystal test's standing pig stands: two blocks west, inside the cloud's radius. */
     private static final BlockPos STANDING_PIG_POS = MARKER_POS.west(2);
@@ -339,34 +339,23 @@ public final class EffectExecutorTests {
     }
 
     /**
-     * A glow_crystal goo landing on a tiny glow crystal grows it to small
-     * and places no marker (decision place-block-ability-grows-block).
+     * Two glow_crystal goo landing on a tiny glow crystal leave it tiny:
+     * a crystal lands at its one size and never grows on a later hit
+     * (decision place-block-ability-grows-block).
      *
      * @param helper the gametest helper
      */
-    public static void crystalGrowsUnderItsAbility(GameTestHelper helper) {
+    public static void crystalNeverGrowsOnALaterHit(GameTestHelper helper) {
         landOnCrystal(helper, GlowCrystalBlock.CrystalSize.TINY, GooTypes.GLOW, ABILITY_GLOW_CRYSTAL);
-        helper.assertBlockProperty(CRYSTAL_POS, GlowCrystalBlock.SIZE, GlowCrystalBlock.CrystalSize.SMALL);
-        helper.assertBlockNotPresent(GooBlocks.CHAIN_MARKER.get(), CRYSTAL_POS.above());
+        AbilityDefinition glow = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(ABILITY_GLOW_CRYSTAL));
+        AbilityImpact.land(helper.getLevel(), helper.absolutePos(CRYSTAL_POS), GooTypes.GLOW, Direction.UP, glow);
+        helper.assertBlockProperty(CRYSTAL_POS, GlowCrystalBlock.SIZE, GlowCrystalBlock.CrystalSize.TINY);
         helper.succeed();
     }
 
     /**
-     * A glow_crystal goo landing on a large glow crystal leaves it large
-     * and places no marker.
-     *
-     * @param helper the gametest helper
-     */
-    public static void largestCrystalStaysLarge(GameTestHelper helper) {
-        landOnCrystal(helper, GlowCrystalBlock.CrystalSize.LARGE, GooTypes.GLOW, ABILITY_GLOW_CRYSTAL);
-        helper.assertBlockProperty(CRYSTAL_POS, GlowCrystalBlock.SIZE, GlowCrystalBlock.CrystalSize.LARGE);
-        helper.assertBlockNotPresent(GooBlocks.CHAIN_MARKER.get(), CRYSTAL_POS.above());
-        helper.succeed();
-    }
-
-    /**
-     * A metal_spikes goo landing on a glow crystal grows nothing and
-     * places its own marker on the crystal's face.
+     * A metal_spikes goo landing on a glow crystal leaves it as it stood
+     * and places its own marker on the crystal's face.
      *
      * @param helper the gametest helper
      */
@@ -601,47 +590,40 @@ public final class EffectExecutorTests {
     }
 
     /**
-     * Places a metal spikes marker over stone at the mine target and
-     * stacks it to two goo.
+     * Places a metal spikes marker over stone at the mine target.
      *
      * @param helper the gametest helper
      * @return the marker's block entity
      */
-    private static ChainMarkerBlockEntity placeTwoStackMetalTrap(GameTestHelper helper) {
+    private static ChainMarkerBlockEntity placeMetalTrap(GameTestHelper helper) {
         discardLeftoverEntities(helper);
         helper.setBlock(MINE_TARGET_POS.below(), Blocks.STONE);
         placeMarkerWithAbility(helper, GooTypes.METAL, ABILITY_METAL_SPIKES);
-        ChainMarkerBlockEntity be = helper.getBlockEntity(MARKER_POS, ChainMarkerBlockEntity.class);
-        be.tryStack();
-        return be;
+        return helper.getBlockEntity(MARKER_POS, ChainMarkerBlockEntity.class);
     }
 
     /**
-     * Metal spikes as a field-effect program: a two-stack trap impales a
-     * pig walking into its radius, spending at most one stack since the
-     * charge is spent by chance (decision metal-spends-charge-by-chance),
-     * then spares a sneaking player standing in the same spot, spending none.
+     * Metal spikes as a field-effect program: one throw's trap impales a pig
+     * walking into its radius, spending one charge, then spares a sneaking
+     * player standing in the same spot, spending none.
      *
      * @param helper the gametest helper
      */
     public static void programMetalSpikes(GameTestHelper helper) {
-        ChainMarkerBlockEntity be = placeTwoStackMetalTrap(helper);
-        int stacked = be.getStackCount();
+        ChainMarkerBlockEntity be = placeMetalTrap(helper);
         int armed = SHORT_WAIT;
         Pig[] pig = new Pig[1];
         Player[] sneaker = new Player[1];
-        int[] afterImpale = new int[1];
         helper.runAfterDelay(armed, () -> pig[0] = helper.spawnWithNoFreeWill(EntityType.PIG, MINE_TARGET_POS));
         helper.runAfterDelay(armed + SPIKE_STRIKE_WINDOW, () -> {
             helper.assertTrue(pig[0].getHealth() < pig[0].getMaxHealth(), SPIKE_MISSED);
-            afterImpale[0] = be.getStackCount();
-            helper.assertTrue(afterImpale[0] >= stacked - 1, STACK_OVERSPENT);
+            helper.assertTrue(be.getFieldEffect().chargesSpent() == 1, CHARGE_NOT_SPENT);
             pig[0].discard();
             sneaker[0] = standSneakingPlayer(helper, MINE_TARGET_POS);
         });
         helper.runAfterDelay(armed + SPIKE_STRIKE_WINDOW + SNEAK_TICKS, () -> {
             helper.assertTrue(sneaker[0].getHealth() == sneaker[0].getMaxHealth(), SPIKE_HIT_SNEAKER);
-            helper.assertTrue(be.getStackCount() == afterImpale[0], STACK_SPENT_ON_SNEAKER);
+            helper.assertTrue(be.getFieldEffect().chargesSpent() == 1, CHARGE_SPENT_ON_SNEAKER);
             helper.assertBlockPresent(GooBlocks.CHAIN_MARKER.get(), MARKER_POS);
             sneaker[0].discard();
             helper.succeed();

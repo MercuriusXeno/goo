@@ -16,47 +16,34 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class GloveThrowSenderTest {
 
-    private static final int AIMED_STACKS = 2;
-
     private static ClientAbility clientAbility(String name) {
         AbilityDefinition definition = AbilityJson.decode(name);
         return new ClientAbility(definition.id(), definition.displayName(), definition.icon(),
-                definition.order(), definition.tags(),
-                definition.chain().maxStacks(), definition.behaviors(), definition.cost(), definition.delivery(),
+                definition.order(), definition.tags(), definition.behaviors(), definition.cost(), definition.delivery(),
                 definition.badge());
     }
 
-    private static boolean affordsWithHoldings(ClientAbility ability, int stacks, int holdings) {
-        return GloveThrowSender.affordsThrow(ability, stacks, amount -> holdings >= amount);
+    private static boolean affordsWithHoldings(ClientAbility ability, int holdings) {
+        return GloveThrowSender.affordsThrow(ability, amount -> holdings >= amount);
     }
 
     @Test
-    void holdingsOneShortOfTheAimedCostRefuseTheThrow() {
+    void holdingsOneShortOfTheCostRefuseTheThrow() {
         ClientAbility mine = clientAbility("unstable_proximity_mine");
-        int cost = mine.throwCost(AIMED_STACKS);
 
-        assertFalse(affordsWithHoldings(mine, AIMED_STACKS, cost - 1));
+        assertFalse(affordsWithHoldings(mine, mine.cost() - 1));
     }
 
     @Test
-    void holdingsCoveringTheAimedCostAllowTheThrow() {
-        ClientAbility mine = clientAbility("unstable_proximity_mine");
-        int cost = mine.throwCost(AIMED_STACKS);
-
-        assertTrue(affordsWithHoldings(mine, AIMED_STACKS, cost));
-    }
-
-    @Test
-    void holdingsCoveringTheFirstThrowCoverAThrowAtAStackedMarker() {
+    void holdingsCoveringTheCostAllowTheThrow() {
         ClientAbility mine = clientAbility("unstable_proximity_mine");
 
-        assertTrue(affordsWithHoldings(mine, 0, mine.throwCost(0)));
-        assertTrue(affordsWithHoldings(mine, AIMED_STACKS, mine.throwCost(0)));
+        assertTrue(affordsWithHoldings(mine, mine.cost()));
     }
 
     @Test
     void unsyncedAbilityPricesAtTheServerFallback() {
-        assertFalse(GloveThrowSender.affordsThrow(null, 0, amount -> GooThrowHandler.THROW_COST - 1 >= amount));
-        assertTrue(GloveThrowSender.affordsThrow(null, 0, amount -> GooThrowHandler.THROW_COST >= amount));
+        assertFalse(GloveThrowSender.affordsThrow(null, amount -> GooThrowHandler.THROW_COST - 1 >= amount));
+        assertTrue(GloveThrowSender.affordsThrow(null, amount -> GooThrowHandler.THROW_COST >= amount));
     }
 }

@@ -9,14 +9,13 @@ import java.util.Set;
  */
 public enum HostKind {
     /**
-     * The chain marker block: stacks, a placed face, a tick driver, the
+     * The chain marker block: a placed face, a tick driver, the
      * world around the block, the block position itself to write, the
      * field-effect state a trap keeps while its budget lasts, the phase
      * cursor of a phased step, and the goo a black hole consumes until it
      * pops.
      */
-    MARKER("marker block", MarkerHost.class,
-            Set.of(HostVariables.STACKS, HostVariables.MAX_STACKS)),
+    MARKER("marker block", MarkerHost.class, Set.of()),
     /**
      * The struck living entity: a target and its thrower, acted on in the
      * tick the goo lands, with no driver for later ticks.
@@ -27,7 +26,7 @@ public enum HostKind {
     /**
      * The block a tap's drip lands on: the world around its top face and the
      * block above it to write, acted on in the tick the drip lands, with no
-     * target, no stacks and no driver for later ticks
+     * target and no driver for later ticks
      * (decision tap-ability-tagged-program).
      */
     TAP("tap landing", TapHost.class, Set.of()),

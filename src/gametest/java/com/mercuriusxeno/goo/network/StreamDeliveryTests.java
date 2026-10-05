@@ -70,8 +70,8 @@ public final class StreamDeliveryTests {
         helper.runAfterDelay(HOLD_TICKS + 1, () -> {
             int drained = heldBefore - blazeHeld(player);
             helper.assertTrue(zombie.isOnFire(), SHOULD_BURN);
-            helper.assertTrue(drained == spitfire.throwCost(0),
-                    String.format(SHOULD_DRAIN_ONE_COST, spitfire.throwCost(0), drained));
+            helper.assertTrue(drained == spitfire.cost(),
+                    String.format(SHOULD_DRAIN_ONE_COST, spitfire.cost(), drained));
             int heldAtRelease = blazeHeld(player);
             helper.runAfterDelay(RELEASED_TICKS, () -> {
                 int drainedAfter = heldAtRelease - blazeHeld(player);

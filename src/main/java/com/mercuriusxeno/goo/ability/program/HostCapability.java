@@ -15,10 +15,6 @@ import java.util.Set;
  */
 public enum HostCapability {
     /**
-     * A stack count that can be read and spent, and the marker variables.
-     */
-    STACKS(StacksHost.class),
-    /**
      * A placed face on a block.
      */
     PLACED_FACE(PlacedFaceHost.class),
@@ -45,7 +41,7 @@ public enum HostCapability {
     /**
      * A field-effect state the host keeps across ticks and its renderer
      * reads: the strikes in flight, the strike cooldown and the charges
-     * spent on the current stack.
+     * spent.
      */
     FIELD_EFFECT(FieldEffectHost.class),
     /**

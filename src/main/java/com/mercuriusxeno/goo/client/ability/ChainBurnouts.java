@@ -1,14 +1,11 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.ability.program.HostVariables;
-import com.mercuriusxeno.goo.ability.program.Variables;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.OptionalDouble;
 
 /**
  * The burnout explosions playing on this client, each held from the game
@@ -26,11 +23,10 @@ public final class ChainBurnouts {
      * @param pos        the marker's block position
      * @param placedFace the face the marker was placed on
      * @param abilityId  the id of the ability the marker ran
-     * @param stackCount the marker's stack count at burnout
      * @param startTick  the game time the explosion began
      * @param visual     the explosion its goo type draws
      */
-    public record Burnout(BlockPos pos, Direction placedFace, String abilityId, int stackCount,
+    public record Burnout(BlockPos pos, Direction placedFace, String abilityId,
                           long startTick, BurnoutVisual visual) {
 
         /**
@@ -43,16 +39,6 @@ public final class ChainBurnouts {
                 return 1f;
             }
             return Math.min(1f, Math.max(0f, (gameTime - startTick) / duration));
-        }
-
-        /**
-         * The variables a step param reads for this burnout: its stack count.
-         *
-         * @return the burnout's variables
-         */
-        public Variables variables() {
-            return name -> HostVariables.STACKS.equals(name)
-                    ? OptionalDouble.of(stackCount) : OptionalDouble.empty();
         }
 
         /**
@@ -73,13 +59,12 @@ public final class ChainBurnouts {
      * @param placedFace the face the marker was placed on
      * @param gooType    the marker's goo type
      * @param abilityId  the id of the ability the marker ran
-     * @param stackCount the marker's stack count at burnout
      * @param now        the game time the burnout arrived
      * @return the burnout added
      */
     public Burnout add(BlockPos pos, Direction placedFace, ResourceKey<GooTypeDefinition> gooType,
-                       String abilityId, int stackCount, long now) {
-        Burnout burnout = new Burnout(pos, placedFace, abilityId, stackCount, now,
+                       String abilityId, long now) {
+        Burnout burnout = new Burnout(pos, placedFace, abilityId, now,
                 BurnoutVisuals.forType(gooType));
         live.add(burnout);
         return burnout;

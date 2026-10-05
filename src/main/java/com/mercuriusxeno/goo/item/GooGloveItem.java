@@ -92,7 +92,7 @@ public class GooGloveItem extends Item {
 
     /**
      * Shift+right-click on a chain marker recollects goo. Returns the
-     * stacked goo to the player's inventory and removes the marker.
+     * goo to the player's inventory and removes the marker.
      *
      * @param context the use-on-block context
      * @return SUCCESS if recollected, PASS otherwise
@@ -113,7 +113,7 @@ public class GooGloveItem extends Item {
     }
 
     /**
-     * Gives the marker's stacked goo back to the player and removes the block.
+     * Gives the marker's one goo back to the player and removes the block.
      * @param level the world the marker exists in
      * @param pos the marker block position
      * @param be the chain marker block entity holding goo data
@@ -122,11 +122,7 @@ public class GooGloveItem extends Item {
     private static void recollectGoo(Level level, BlockPos pos,
             ChainMarkerBlockEntity be, Player player) {
         ResourceKey<GooTypeDefinition> type = be.getGooType();
-        int stacks = be.getStackCount();
-        if (stacks > 0) {
-            ItemStack goo = GooStacks.createForOutput(type, stacks * GooStacks.THOUSAND);
-            PlayerUtils.addOrDrop(player, goo);
-        }
+        PlayerUtils.addOrDrop(player, GooStacks.createForOutput(type, GooStacks.THOUSAND));
         level.removeBlock(pos, false);
         level.playSound(null, pos, SoundEvents.ITEM_PICKUP, SoundSource.PLAYERS,
                 PICKUP_VOLUME, PICKUP_PITCH);

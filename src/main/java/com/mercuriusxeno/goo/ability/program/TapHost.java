@@ -20,7 +20,7 @@ import java.util.function.Consumer;
  * anchor at the struck face's center, and a placed block goes into the
  * block beyond that face. A tap has no will and no target, and a drip lands
  * in one tick with nothing ticking it afterwards, so this host implements
- * neither {@link TargetHost}, {@link StacksHost} nor {@link TickingHost}
+ * neither {@link TargetHost} nor {@link TickingHost}
  * (decision tap-ability-tagged-program).
  *
  * @param level   the server level

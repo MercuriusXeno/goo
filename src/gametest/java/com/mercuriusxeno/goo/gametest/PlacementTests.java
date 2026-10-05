@@ -33,26 +33,27 @@ public final class PlacementTests {
     private static final String NETHER_BLACK_HOLE = "goo:nether_black_hole";
     private static final String UNSTABLE_PROXIMITY_MINE = "goo:unstable_proximity_mine";
     private static final String ABILITIES_REQUIRED = "Ability registry must be loaded";
-    private static final String OTHER_ABILITY_STACKED = "A goo of another ability stacked onto the marker";
-    private static final String OTHER_ABILITY_REPLACED = "A goo of another ability replaced the marker";
-    /** The stack count after a second goo of the same ability. */
-    private static final int TWO_STACKS = 2;
-    private static final String SAME_ABILITY_NOT_STACKED = "A second goo of the same ability did not stack";
+    private static final String FIRST_MARKER_CHANGED = "A second throw changed the first marker";
+    private static final String NO_SECOND_MARKER = "A second throw at a standing marker landed no marker beside it";
 
     private PlacementTests() {}
 
     /**
-     * Hitting the same position twice with crystal_cloud stacks the existing marker
-     * instead of placing a second one. Exercises the STACK decision path.
+     * A second crystal_cloud goo aimed at a standing crystal_cloud marker
+     * lands as its own throw beside it and leaves the first marker running
+     * as it stood (decision splat-runs-the-program-no-fuse).
      *
      * @param helper the gametest helper
      */
-    public static void doubleHitStacks(GameTestHelper helper) {
+    public static void secondThrowLandsBesideTheFirst(GameTestHelper helper) {
         helper.setBlock(WALL_POS, Blocks.STONE);
         throwAbility(helper, WALL_POS, Direction.SOUTH, GooTypes.CRYSTAL, CRYSTAL_CLOUD);
-        helper.assertBlockPresent(GooBlocks.CHAIN_MARKER.get(), AIR_POS);
-        throwAbility(helper, WALL_POS, Direction.SOUTH, GooTypes.CRYSTAL, CRYSTAL_CLOUD);
-        helper.assertBlockPresent(GooBlocks.CHAIN_MARKER.get(), AIR_POS);
+        ChainMarkerBlockEntity first = helper.getBlockEntity(AIR_POS, ChainMarkerBlockEntity.class);
+        throwAbility(helper, AIR_POS, Direction.SOUTH, GooTypes.CRYSTAL, CRYSTAL_CLOUD);
+        helper.assertTrue(helper.getBlockEntity(AIR_POS, ChainMarkerBlockEntity.class) == first, FIRST_MARKER_CHANGED);
+        helper.assertTrue(first.getBehavior() != null && first.getBehavior().isActive(), FIRST_MARKER_CHANGED);
+        ChainMarkerBlockEntity second = helper.getBlockEntity(AIR_POS.south(), ChainMarkerBlockEntity.class);
+        helper.assertTrue(second != first && second.getBehavior() != null, NO_SECOND_MARKER);
         helper.succeed();
     }
 
@@ -90,7 +91,7 @@ public final class PlacementTests {
                                      ResourceKey<GooTypeDefinition> type, String abilityId) {
         AbilityDefinition ability = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(abilityId));
         helper.assertTrue(ability != null, ABILITIES_REQUIRED);
-        EffectBlockPlacement.placeOrStackAbility(helper.getLevel(), helper.absolutePos(hit), type, face, ability);
+        EffectBlockPlacement.placeAbility(helper.getLevel(), helper.absolutePos(hit), type, face, ability);
     }
 
     /**
@@ -137,20 +138,19 @@ public final class PlacementTests {
     }
 
     /**
-     * A second goo of the same ability stacks onto the first marker; a
-     * goo of another ability on the same face leaves it as it stood.
+     * A goo of another ability aimed at a standing marker lands beside it
+     * too, and leaves the first marker running its own ability.
      *
      * @param helper the gametest helper
      */
-    public static void abilityStacksOnlyOntoSameAbility(GameTestHelper helper) {
+    public static void otherAbilityLandsBesideAStandingMarker(GameTestHelper helper) {
         helper.setBlock(WALL_POS, Blocks.STONE);
         throwAbility(helper, WALL_POS, Direction.SOUTH, GooTypes.METAL, METAL_SPIKES);
-        throwAbility(helper, WALL_POS, Direction.SOUTH, GooTypes.CRYSTAL, CRYSTAL_CLOUD);
-        ChainMarkerBlockEntity marker = helper.getBlockEntity(AIR_POS, ChainMarkerBlockEntity.class);
-        helper.assertTrue(marker.getStackCount() == 1, OTHER_ABILITY_STACKED);
-        helper.assertTrue(METAL_SPIKES.equals(marker.getAbilityId()), OTHER_ABILITY_REPLACED);
-        throwAbility(helper, WALL_POS, Direction.SOUTH, GooTypes.METAL, METAL_SPIKES);
-        helper.assertTrue(marker.getStackCount() == TWO_STACKS, SAME_ABILITY_NOT_STACKED);
+        throwAbility(helper, AIR_POS, Direction.SOUTH, GooTypes.CRYSTAL, CRYSTAL_CLOUD);
+        ChainMarkerBlockEntity first = helper.getBlockEntity(AIR_POS, ChainMarkerBlockEntity.class);
+        helper.assertTrue(METAL_SPIKES.equals(first.getAbilityId()), FIRST_MARKER_CHANGED);
+        ChainMarkerBlockEntity second = helper.getBlockEntity(AIR_POS.south(), ChainMarkerBlockEntity.class);
+        helper.assertTrue(CRYSTAL_CLOUD.equals(second.getAbilityId()), NO_SECOND_MARKER);
         helper.succeed();
     }
 

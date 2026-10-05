@@ -16,7 +16,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class FrostExplosionVisualTest {
 
     private static final float TOLERANCE = 1e-5f;
-    private static final int MAX_FROST_STACKS = 4;
     private static final int ANGLES = 16;
     private static final float SPEED = 0.3f;
 
@@ -42,13 +41,6 @@ class FrostExplosionVisualTest {
         float midFade = FrostExplosionVisual.SPREAD_TICKS + FrostExplosionVisual.FADE_TICKS / 2f;
         assertEquals(0.5f, FrostExplosionVisual.fog(progressAt(midFade)), TOLERANCE);
         assertEquals(0f, FrostExplosionVisual.fog(1f), TOLERANCE);
-    }
-
-    @Test
-    void ringReachesOneBlockPerStack() {
-        for (int stacks = 1; stacks <= MAX_FROST_STACKS; stacks++) {
-            assertEquals(stacks, FrostExplosionVisual.zoneReach(stacks), 0f);
-        }
     }
 
     @ParameterizedTest

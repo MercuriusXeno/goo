@@ -69,17 +69,17 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
     public static final BooleanProperty WATERLOGGED = BlockStateProperties.WATERLOGGED;
     public static final MapCodec<ChainMarkerBlock> CODEC = simpleCodec(ChainMarkerBlock::new);
     /**
-     * Base ambient particle spread radius.
+     * Ambient particle spread radius.
      */
-    private static final double BASE_SPREAD = 0.25;
+    private static final double PARTICLE_SPREAD = 0.35;
     /**
-     * Additional spread per stack.
+     * Flame particles a blaze marker emits each animate tick.
      */
-    private static final double SPREAD_PER_STACK = 0.1;
+    private static final int BLAZE_PARTICLES = 3;
     /**
-     * Base particle count for blaze effects.
+     * Dust particles a rock marker emits each animate tick.
      */
-    private static final int BLAZE_BASE_PARTICLES = 2;
+    private static final int ROCK_PARTICLES = 2;
     /**
      * Upward particle velocity for flame particles.
      */
@@ -101,17 +101,13 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
      */
     private static final float SHAPE_SHELL_PX = 1f;
     /**
-     * Core growth per stack in pixels (matches BER CORE_GROWTH * 16).
-     */
-    private static final float SHAPE_GROWTH_PX = 0.5f;
-    /**
      * Center of a block in pixels (for shape positioning).
      */
     private static final float SHAPE_CENTER_PX = 8f;
     /**
-     * Base soul particle count for nether effects.
+     * Soul particles a nether marker emits each animate tick.
      */
-    private static final int NETHER_BASE_PARTICLES = 2;
+    private static final int NETHER_PARTICLES = 3;
     /**
      * Downward drift speed for soul particles.
      */
@@ -160,13 +156,11 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
     /**
      * Builds a voxel shape matching the BER orb at the face boundary.
      *
-     * @param stacks the current stack count
-     * @param face   the placed face direction
+     * @param face the placed face direction
      * @return the computed voxel shape
      */
-    private static VoxelShape computeOrbShape(int stacks, Direction face) {
-        float coreHalf = SHAPE_CORE_PX + (stacks - 1) * SHAPE_GROWTH_PX;
-        float shellHalf = coreHalf + SHAPE_SHELL_PX;
+    private static VoxelShape computeOrbShape(Direction face) {
+        float shellHalf = SHAPE_CORE_PX + SHAPE_SHELL_PX;
 
         float cx = SHAPE_CENTER_PX - face.getStepX() * SHAPE_CENTER_PX;
         float cy = SHAPE_CENTER_PX - face.getStepY() * SHAPE_CENTER_PX;
@@ -180,12 +174,11 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
      * Computes a voxel shape that exactly matches the glow crystal
      * that will replace this chain marker as its program runs.
      *
-     * @param stacks the current stack count
-     * @param face   the placed face direction
+     * @param face the placed face direction
      * @return the crystal-matched voxel shape
      */
-    private static VoxelShape computeGlowShape(int stacks, Direction face) {
-        GlowCrystalBlock.CrystalSize cs = GlowCrystalBlock.CrystalSize.fromStacks(stacks);
+    private static VoxelShape computeGlowShape(Direction face) {
+        GlowCrystalBlock.CrystalSize cs = GlowCrystalBlock.CrystalSize.TINY;
         return GlowCrystalBlock.shapeFor(face, cs.min, cs.max, GlowCrystalBlock.BUMP_DEPTH);
     }
 
@@ -244,14 +237,14 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
     }
 
     /**
-     * Returns true if this marker's running program takes a top-off (metal,
+     * Returns true if this marker's running program stands against breaking (metal,
      * crystal), which keeps it standing against a punch.
      *
      * @param be the chain marker block entity
      * @return true if breaking should be prevented
      */
     private static boolean isProtectedFromBreaking(ChainMarkerBlockEntity be) {
-        return be.getBehavior() != null && be.getBehavior().allowsTopOff();
+        return be.getBehavior() != null && be.getBehavior().standsAgainstBreaking();
     }
 
     /**
@@ -273,47 +266,43 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
     }
 
     /**
-     * Emits goo-type-specific ambient particles scaled by stack count.
+     * Emits goo-type-specific ambient particles.
      *
      * @param type   the goo type
-     * @param stacks the stack count
      * @param pos    the block position
      * @param level  the current level
      * @param random the random source
      */
-    private static void spawnAmbientParticles(ResourceKey<GooTypeDefinition> type, int stacks,
+    private static void spawnAmbientParticles(ResourceKey<GooTypeDefinition> type,
                                               BlockPos pos, Level level, RandomSource random) {
         double cx = pos.getX() + BLOCK_CENTER;
         double cy = pos.getY() + BLOCK_CENTER;
         double cz = pos.getZ() + BLOCK_CENTER;
-        dispatchParticles(type, stacks, cx, cy, cz, level, random);
+        dispatchParticles(type, cx, cy, cz, level, random);
     }
 
     /**
      * Dispatches to the type-specific particle emitter.
      *
      * @param type   the goo type determining which particles to spawn
-     * @param stacks the current stack count (scales particle density)
      * @param cx     block center X coordinate
      * @param cy     block center Y coordinate
      * @param cz     block center Z coordinate
      * @param level  the current level
      * @param random the random source for particle offsets
      */
-    private static void dispatchParticles(ResourceKey<GooTypeDefinition> type, int stacks,
+    private static void dispatchParticles(ResourceKey<GooTypeDefinition> type,
                                           double cx, double cy, double cz, Level level, RandomSource random) {
         ParticleEmitter emitter = PARTICLE_EMITTERS.get(type);
         if (emitter == null) {
             return;
         }
-        double spread = BASE_SPREAD + SPREAD_PER_STACK * stacks;
-        emitter.emit(stacks, cx, cy, cz, spread, level, random);
+        emitter.emit(cx, cy, cz, PARTICLE_SPREAD, level, random);
     }
 
     /**
      * Emits flame particles and occasional lava drips for blaze chain markers.
      *
-     * @param stacks the current stack count (scales particle count)
      * @param cx     block center X coordinate
      * @param cy     block center Y coordinate
      * @param cz     block center Z coordinate
@@ -321,9 +310,9 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
      * @param level  the current level
      * @param random the random source for particle offsets
      */
-    private static void spawnBlazeParticles(int stacks, double cx, double cy, double cz,
+    private static void spawnBlazeParticles(double cx, double cy, double cz,
                                             double spread, Level level, RandomSource random) {
-        for (int i = 0; i < BLAZE_BASE_PARTICLES + stacks; i++) {
+        for (int i = 0; i < BLAZE_PARTICLES; i++) {
             emitFlameParticle(cx, cy, cz, spread, level, random);
         }
         if (random.nextInt(LAVA_CHANCE) == 0) {
@@ -353,7 +342,6 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
     /**
      * Emits dust plume particles for rock chain markers.
      *
-     * @param stacks the current stack count (scales particle count)
      * @param cx     block center X coordinate
      * @param cy     block center Y coordinate
      * @param cz     block center Z coordinate
@@ -361,9 +349,9 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
      * @param level  the current level
      * @param random the random source for particle offsets
      */
-    private static void spawnRockParticles(int stacks, double cx, double cy, double cz,
+    private static void spawnRockParticles(double cx, double cy, double cz,
                                            double spread, Level level, RandomSource random) {
-        for (int i = 0; i < 1 + stacks; i++) {
+        for (int i = 0; i < ROCK_PARTICLES; i++) {
             double ox = (random.nextDouble() - BLOCK_CENTER) * spread * SPREAD_DIAMETER;
             double oy = (random.nextDouble() - BLOCK_CENTER) * spread * SPREAD_DIAMETER;
             double oz = (random.nextDouble() - BLOCK_CENTER) * spread * SPREAD_DIAMETER;
@@ -375,7 +363,6 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
     /**
      * Emits drifting soul particles and occasional smoke for nether chain markers.
      *
-     * @param stacks the current stack count (scales particle count)
      * @param cx     block center X coordinate
      * @param cy     block center Y coordinate
      * @param cz     block center Z coordinate
@@ -383,9 +370,9 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
      * @param level  the current level
      * @param random the random source for particle offsets
      */
-    private static void spawnNetherParticles(int stacks, double cx, double cy, double cz,
+    private static void spawnNetherParticles(double cx, double cy, double cz,
                                              double spread, Level level, RandomSource random) {
-        for (int i = 0; i < NETHER_BASE_PARTICLES + stacks; i++) {
+        for (int i = 0; i < NETHER_PARTICLES; i++) {
             double ox = (random.nextDouble() - BLOCK_CENTER) * spread * SPREAD_DIAMETER;
             double oy = (random.nextDouble() - BLOCK_CENTER) * spread * SPREAD_DIAMETER;
             double oz = (random.nextDouble() - BLOCK_CENTER) * spread * SPREAD_DIAMETER;
@@ -400,7 +387,6 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
     /**
      * Emits metallic crit particles for metal chain markers.
      *
-     * @param stacks the current stack count
      * @param cx     block center X coordinate
      * @param cy     block center Y coordinate
      * @param cz     block center Z coordinate
@@ -408,7 +394,7 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
      * @param level  the current level
      * @param random the random source for particle offsets
      */
-    private static void spawnMetalParticles(int stacks, double cx, double cy, double cz,
+    private static void spawnMetalParticles(double cx, double cy, double cz,
                                             double spread, Level level, RandomSource random) {
         if (random.nextInt(LAVA_CHANCE) == 0) {
             double ox = (random.nextDouble() - BLOCK_CENTER) * spread * SPREAD_DIAMETER;
@@ -481,13 +467,13 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
             return SELECTION_SHAPE;
         }
         if (be.getGooType() == GooTypes.GLOW) {
-            return computeGlowShape(be.getStackCount(), be.getPlacedFace());
+            return computeGlowShape(be.getPlacedFace());
         }
-        return computeOrbShape(be.getStackCount(), be.getPlacedFace());
+        return computeOrbShape(be.getPlacedFace());
     }
 
     /**
-     * Prevents breaking a chain marker whose program takes a top-off;
+     * Prevents breaking a chain marker whose program stands against breaking;
      * every other marker breaks normally.
      *
      * @param state  the block state
@@ -507,7 +493,7 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
     }
 
     /**
-     * Prevents block removal while the marker's program takes a top-off.
+     * Prevents block removal while the marker's program stands against breaking.
      * Covers creative mode, which bypasses getDestroyProgress entirely.
      *
      * @param level      the server level
@@ -643,8 +629,7 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
         if (!(level.getBlockEntity(pos) instanceof ChainMarkerBlockEntity be)) {
             return;
         }
-        spawnAmbientParticles(be.getGooType(), be.getStackCount(),
-                pos, level, random);
+        spawnAmbientParticles(be.getGooType(), pos, level, random);
     }
 
     /**
@@ -652,7 +637,7 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
      */
     @FunctionalInterface
     private interface ParticleEmitter {
-        void emit(int stacks, double cx, double cy, double cz,
+        void emit(double cx, double cy, double cz,
                   double spread, Level level, RandomSource random);
     }
 }

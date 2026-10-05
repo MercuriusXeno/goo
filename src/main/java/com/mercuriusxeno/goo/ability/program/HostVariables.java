@@ -7,14 +7,6 @@ package com.mercuriusxeno.goo.ability.program;
 public final class HostVariables {
 
     /**
-     * The live stack count on a marker.
-     */
-    public static final String STACKS = "stacks";
-    /**
-     * The marker's stack ceiling.
-     */
-    public static final String MAX_STACKS = "max_stacks";
-    /**
      * The struck entity's current health.
      */
     public static final String HEALTH = "health";

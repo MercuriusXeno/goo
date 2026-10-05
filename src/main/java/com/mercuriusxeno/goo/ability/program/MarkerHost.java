@@ -22,8 +22,8 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 /**
- * The {@link StepHost} over a chain marker block entity: reads stack
- * count, placed face and goo shape from the block entity, and acts on
+ * The {@link StepHost} over a chain marker block entity: reads the placed
+ * face and goo type from the block entity, and acts on
  * the server level at the marker position. Built fresh each tick from
  * what the {@link ProgramBehavior} marker callbacks
  * hand over, so it holds no state of its own.
@@ -33,7 +33,7 @@ import java.util.function.Consumer;
  * @param be    the marker block entity
  */
 public record MarkerHost(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity be)
-        implements StacksHost, PlacedFaceHost, TickingHost, ExplodeHost, EntityScanHost, PlaceBlockHost,
+        implements PlacedFaceHost, TickingHost, ExplodeHost, EntityScanHost, PlaceBlockHost,
         FieldEffectHost, PhasedHost, ConsumedGooHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
@@ -45,7 +45,7 @@ public record MarkerHost(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity
 
     @Override
     public OptionalDouble read(String name) {
-        return new MarkerVariables(be).read(name);
+        return OptionalDouble.empty();
     }
 
     @Override
@@ -56,16 +56,6 @@ public record MarkerHost(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity
     @Override
     public Direction placedFace() {
         return be.getPlacedFace();
-    }
-
-    @Override
-    public int stackCount() {
-        return be.getStackCount();
-    }
-
-    @Override
-    public void decrementStack() {
-        be.decrementStack();
     }
 
     /**
@@ -104,11 +94,6 @@ public record MarkerHost(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity
     @Override
     public FieldEffectState fieldEffect() {
         return be.getFieldEffect();
-    }
-
-    @Override
-    public double rollFraction() {
-        return level.getRandom().nextDouble();
     }
 
     @Override

@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.program.ExplodeStep;
+import com.mercuriusxeno.goo.ability.program.Variables;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -131,7 +132,7 @@ public final class UnstableExplosionVisual implements BurnoutVisual {
      */
     private static float blastReach(ChainBurnouts.Burnout burnout) {
         return SyncedSteps.first(burnout.abilityId(), ExplodeStep.class)
-                .map(step -> step.power().evaluateFloat(burnout.variables()))
+                .map(step -> step.power().evaluateFloat(Variables.NONE))
                 .orElse(FALLBACK_REACH);
     }
 }

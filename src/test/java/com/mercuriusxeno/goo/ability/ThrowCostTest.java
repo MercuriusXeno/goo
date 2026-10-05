@@ -27,7 +27,6 @@ class ThrowCostTest {
 
     private static final String ABILITIES = "data/goo/goo_abilities/";
     private static final String TIMED_BOMB = ABILITIES + "unstable_timed_bomb.json";
-    private static final int MAX_STACK_PROBED = 5;
 
     static List<Path> shippedAbilities() {
         return AbilityJson.files();
@@ -42,14 +41,12 @@ class ThrowCostTest {
 
     @ParameterizedTest
     @MethodSource("shippedAbilities")
-    void everyStackPricesAtTheJsonsCost(Path file) throws IOException {
+    void everyThrowPricesAtTheJsonsCost(Path file) throws IOException {
         String resource = ABILITIES + file.getFileName();
         int jsonCost = read(resource).getAsJsonObject().get("cost").getAsInt();
         AbilityDefinition definition = AbilityJson.decode(file);
 
-        for (int stacks = 0; stacks <= MAX_STACK_PROBED; stacks++) {
-            assertEquals(jsonCost, definition.throwCost(stacks), definition.id() + " at stack " + stacks);
-        }
+        assertEquals(jsonCost, definition.cost(), definition.id().toString());
     }
 
     @ParameterizedTest
@@ -76,6 +73,6 @@ class ThrowCostTest {
         AbilityDefinition definition = AbilityDefinition.codecFor(AbilityJson.idOfResource(TIMED_BOMB))
                 .parse(JsonOps.INSTANCE, json).getOrThrow();
 
-        assertEquals(750, definition.throwCost(3));
+        assertEquals(750, definition.cost());
     }
 }

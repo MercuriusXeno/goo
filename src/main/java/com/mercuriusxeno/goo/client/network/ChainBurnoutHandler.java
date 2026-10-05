@@ -34,7 +34,7 @@ public final class ChainBurnoutHandler {
             Direction[] faces = Direction.values();
             Direction face = faces[Math.floorMod(payload.placedFace(), faces.length)];
             ChainBurnouts.Burnout burnout = ChainBurnouts.CLIENT.add(payload.pos(), face, gooType,
-                    payload.abilityId(), payload.stackCount(), mc.level.getGameTime());
+                    payload.abilityId(), mc.level.getGameTime());
             burnout.visual().begin(burnout, mc.level);
         });
     }

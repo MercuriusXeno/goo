@@ -5,9 +5,6 @@
   "order": 0,
   "cost": 1000,
   "delivery": { "kind": "beam", "blocks_per_tick": 2.5 },
-  "chain": {
-    "maxStacks": 4
-  },
   "behaviors": [
     {
       "type": "place_block",
@@ -15,7 +12,7 @@
       "state": {
         "facing": "face",
         "shape": "bump",
-        "size": { "by": "stacks - 1", "values": ["tiny", "small", "medium", "large"] }
+        "size": "tiny"
       }
     }
   ],

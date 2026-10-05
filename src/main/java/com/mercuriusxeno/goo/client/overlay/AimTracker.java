@@ -8,7 +8,6 @@ import com.mercuriusxeno.goo.client.throwing.ThrowFreezeState;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
-import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.entity.Entity;
@@ -80,17 +79,5 @@ public final class AimTracker {
         if (color != 0) {
             state.outlineColor = color;
         }
-    }
-
-    /**
-     * Returns true if the chain-marker block at the given position is the
-     * current cone-assisted aim target, so its renderer keeps the targeted
-     * look across the freeze window and through the eager cone scan.
-     *
-     * @param pos the chain marker block position
-     * @return true if the aim assist is currently locked onto this marker
-     */
-    public static boolean isChainMarkerTargeted(BlockPos pos) {
-        return STATE.isAimedAtMarker(pos);
     }
 }

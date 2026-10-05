@@ -185,7 +185,6 @@ public final class GooTestFunctions {
     private static final String FX_NO_ABILITY_LANDS_NOTHING = "fx_no_ability_lands_nothing";
     private static final String FX_ABILITY_LANDS_MARKER = "fx_ability_lands_marker";
     private static final String FX_CRYSTAL_GROWS = "fx_crystal_grows";
-    private static final String FX_CRYSTAL_STAYS_LARGE = "fx_crystal_stays_large";
     private static final String FX_OTHER_ABILITY_MARKS_CRYSTAL = "fx_other_ability_marks_crystal";
     private static final String FX_PROGRAM_INSTANT = "fx_program_instant_detonation";
     private static final String FX_PROGRAM_TIMED = "fx_program_timed_bomb";
@@ -575,8 +574,7 @@ public final class GooTestFunctions {
 
     private static void registerAbilityLandingTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
         reg(r, FX_FALLEN_MARKER_KEEPS_ABILITY, EffectExecutorTests::fallenMarkerKeepsAbility);
-        reg(r, FX_CRYSTAL_GROWS, EffectExecutorTests::crystalGrowsUnderItsAbility);
-        reg(r, FX_CRYSTAL_STAYS_LARGE, EffectExecutorTests::largestCrystalStaysLarge);
+        reg(r, FX_CRYSTAL_GROWS, EffectExecutorTests::crystalNeverGrowsOnALaterHit);
         reg(r, FX_OTHER_ABILITY_MARKS_CRYSTAL, EffectExecutorTests::otherAbilityMarksCrystal);
         reg(r, FX_NO_ABILITY_LANDS_NOTHING, BlockLandingTests::noAbilityLandsNothing);
         reg(r, FX_ABILITY_LANDS_MARKER, BlockLandingTests::abilityLandsItsMarker);
@@ -646,14 +644,14 @@ public final class GooTestFunctions {
     }
 
     private static void registerPlacementTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
-        reg(r, PL_DOUBLE_STACK, PlacementTests::doubleHitStacks);
+        reg(r, PL_DOUBLE_STACK, PlacementTests::secondThrowLandsBesideTheFirst);
         reg(r, PL_SIDEWAYS_NEIGHBOR, PlacementTests::sidewaysMarkerSurvivesNeighborChange);
         reg(r, PL_OTHER_TYPES, PlacementTests::otherTypesPlaceMarker);
         reg(r, PL_ABILITY_HIT_BLOCK, PlacementTests::abilityTakesReplaceableHitBlock);
         reg(r, PL_ABILITY_WATERLOG, PlacementTests::abilityWaterlogsInWater);
         reg(r, PL_ABILITY_LAVA, PlacementTests::abilityRefusesLava);
-        reg(r, PL_ABILITY_SAME_STACK, PlacementTests::abilityStacksOnlyOntoSameAbility);
-        reg(r, PL_OTHER_ABILITY_THROW_LEAVES_MARKER, StackKeyTests::otherAbilityThrowLeavesMarker);
+        reg(r, PL_ABILITY_SAME_STACK, PlacementTests::otherAbilityLandsBesideAStandingMarker);
+        reg(r, PL_OTHER_ABILITY_THROW_LEAVES_MARKER, StackKeyTests::secondThrowLandsItsOwnMarker);
         reg(r, PL_SECOND_THROW_COSTS_THE_SAME, FlatCostTests::secondThrowCostsTheSameAsTheFirst);
     }
 

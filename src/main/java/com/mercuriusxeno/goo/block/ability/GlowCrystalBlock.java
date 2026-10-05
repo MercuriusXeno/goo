@@ -266,17 +266,6 @@ public class GlowCrystalBlock extends Block {
             this.max = max;
         }
 
-        /**
-         * Returns the size matching a 1-based stack count (clamped).
-         *
-         * @param stacks the 1-based stack count
-         * @return the crystal size for that count
-         */
-        public static CrystalSize fromStacks(int stacks) {
-            int idx = Math.max(0, Math.min(stacks - 1, values().length - 1));
-            return values()[idx];
-        }
-
         @Override
         public @NonNull String getSerializedName() {
             return name;

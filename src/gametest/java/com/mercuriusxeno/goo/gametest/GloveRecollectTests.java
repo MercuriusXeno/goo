@@ -32,7 +32,6 @@ public final class GloveRecollectTests {
     private static final BlockPos MARKER_POS = new BlockPos(1, 1, 1);
     private static final Identifier CRYSTAL_CLOUD = Identifier.fromNamespaceAndPath(Goo.MODID, "crystal_cloud");
     private static final String ABILITIES_REQUIRED = "Ability registry must be loaded";
-    private static final String NOT_STACKED = "The marker should hold more than one stack before recollect";
     private static final String NOT_SUCCESS = "Shift-click with the glove on a marker should succeed";
     private static final String GOO_MISSING = "Shift-click recollect should give the marker's stacked goo to the player";
 
@@ -40,8 +39,8 @@ public final class GloveRecollectTests {
     }
 
     /**
-     * A sneaking player using the glove on a marker holding stacks gets the
-     * stacked goo back and the marker is removed.
+     * A sneaking player using the glove on a running marker gets its one
+     * goo back and the marker is removed.
      *
      * @param helper the gametest helper
      */
@@ -53,10 +52,7 @@ public final class GloveRecollectTests {
         helper.assertTrue(crystalCloud != null, ABILITIES_REQUIRED);
         marker.initChainFromAbility(GooTypes.CRYSTAL, Direction.UP, crystalCloud);
         marker.splat();
-        marker.tryStack();
-        int stacks = marker.getStackCount();
-        helper.assertTrue(stacks > 1, NOT_STACKED);
-        ItemStack expected = GooStacks.createForOutput(GooTypes.CRYSTAL, stacks * GooStacks.THOUSAND);
+        ItemStack expected = GooStacks.createForOutput(GooTypes.CRYSTAL, GooStacks.THOUSAND);
 
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         ItemStack glove = new ItemStack(GooItems.GOO_GLOVE.get());

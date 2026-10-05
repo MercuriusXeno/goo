@@ -7,8 +7,8 @@ import java.util.List;
 
 /**
  * What a {@link FieldEffectStep} carries across ticks: the strikes in
- * flight, the ticks before the next strike may start, the charges spent on
- * the current stack, the ticks the field has run and the ticks its
+ * flight, the ticks before the next strike may start, the charges spent,
+ * the ticks the field has run and the ticks its
  * teardown has run, and the charges left. A step is an immutable
  * definition, so the host keeps this run state for it (capability
  * {@link HostCapability#FIELD_EFFECT}); the marker keeps it on its block
@@ -99,7 +99,7 @@ public final class FieldEffectState {
     }
 
     /**
-     * Returns the charges spent on the current stack.
+     * Returns the charges the throw has spent.
      *
      * @return the charges spent
      */
@@ -108,7 +108,7 @@ public final class FieldEffectState {
     }
 
     /**
-     * Sets the charges spent on the current stack.
+     * Sets the charges the throw has spent.
      *
      * @param charges the charges spent
      */
@@ -156,7 +156,7 @@ public final class FieldEffectState {
      * Records the charges left in the budget, raising the peak the density
      * is measured against.
      *
-     * @param charges the charges left over every stack
+     * @param charges the charges left
      */
     public void recordCharges(int charges) {
         this.chargesLeft = charges;

@@ -6,7 +6,6 @@ import com.mercuriusxeno.goo.client.ability.CrystalCloudVisual;
 import com.mercuriusxeno.goo.client.ability.MarkerOrbVisual;
 import com.mercuriusxeno.goo.client.ability.MetalSpikeVisual;
 import com.mercuriusxeno.goo.client.ber.style.NetherHoleStyles;
-import com.mercuriusxeno.goo.client.overlay.AimTracker;
 import com.mercuriusxeno.goo.client.throwing.ThrowFreezeState;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.SubmitNodeCollector;
@@ -49,7 +48,7 @@ public class ChainMarkerBlockEntityRenderer
     }
 
     /**
-     * Copies goo type, stacks and partial tick from the block entity.
+     * Copies goo type and partial tick from the block entity.
      *
      * @param be          the block entity
      * @param state       the render state to populate
@@ -58,10 +57,7 @@ public class ChainMarkerBlockEntityRenderer
     private static void extractCoreFields(ChainMarkerBlockEntity be,
                                           ChainMarkerRenderState state, float partialTick) {
         state.gooType = be.getGooType();
-        state.stackCount = be.getStackCount();
-        state.maxStacks = be.getMaxStacks();
         state.partialTick = partialTick;
-        state.lastStackTick = be.getLastStackTick();
         state.gameTime = be.getLevel() != null
                 ? be.getLevel().getGameTime() + partialTick : 0f;
     }
@@ -74,14 +70,10 @@ public class ChainMarkerBlockEntityRenderer
      */
     private static void extractTargetAndFace(ChainMarkerBlockEntity be,
                                              ChainMarkerRenderState state) {
-        // Highlight when ANY source of aim is on this marker: vanilla
-        // crosshair (no-glove case), the goo cone-based aim assist
-        // (glove held), or the post-throw freeze window (aim locked from
-        // the previous throw and the marker was just placed on the spot).
+        // Highlight when the vanilla crosshair or the post-throw freeze
+        // window (aim locked from the previous throw) is on this block.
         BlockPos pos = be.getBlockPos();
-        state.targeted = GooRenderUtil.isBlockTargeted(pos)
-                || AimTracker.isChainMarkerTargeted(pos)
-                || ThrowFreezeState.isFrozenOnChainMarker(pos);
+        state.targeted = GooRenderUtil.isBlockTargeted(pos) || ThrowFreezeState.isFrozenOnBlock(pos);
         state.placedFace = be.getPlacedFace();
         state.behaviorActive = be.getBehavior() != null;
     }

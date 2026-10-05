@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.block.ability;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.*;
-import com.mercuriusxeno.goo.ability.AbilityDefinition.ChainConfig;
 import com.mercuriusxeno.goo.ability.program.FieldEffectState;
 import com.mercuriusxeno.goo.ability.program.PhasedState;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
@@ -16,7 +15,6 @@ import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -32,15 +30,13 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Ticking block entity for chain effects. Owns only the shared state:
- * goo type, stack count and placed face. Its work is the marker's ability
+ * goo type and placed face. Its work is the marker's ability
  * program, a {@link ProgramBehavior} loaded for the marker host and run
  * from the tick its blob splats (decision splat-runs-the-program-no-fuse).
  */
 public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
 
     private static final String TAG_GOO_TYPE = "goo_type";
-    private static final String TAG_STACK_COUNT = "StackCount";
-    private static final String TAG_MAX_STACKS = "MaxStacks";
     private static final String TAG_PLACED_FACE = "PlacedFace";
     /**
      * Default goo type id when loading from NBT.
@@ -50,7 +46,6 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
      * Default face name when loading from NBT.
      */
     private static final String DEFAULT_FACE = "up";
-    private static final String TAG_LAST_STACK_TICK = "LastStackTick";
     private static final String TAG_ABILITY_ID = "AbilityId";
     private static final String TAG_CONSUMED_GOO = "ConsumedGoo";
 
@@ -61,12 +56,7 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
     private static MarkerStepSource clientSteps = MarkerStepSource.NONE;
 
     private ResourceKey<GooTypeDefinition> gooType = GooTypes.ROCK;
-    private final ChainMarkerStacks stacks = new ChainMarkerStacks();
     private Direction placedFace = Direction.UP;
-    /**
-     * Game tick when the last stack was added (for client pulse animation).
-     */
-    private long lastStackTick;
     /**
      * State a running field effect keeps through the marker host: strikes
      * in flight, cooldown and charges spent, read back by the spike visual.
@@ -138,10 +128,8 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
      * @param ability the ability definition
      */
     public void initChainFromAbility(ResourceKey<GooTypeDefinition> type, Direction face, AbilityDefinition ability) {
-        ChainConfig chain = ability.chain();
         this.gooType = type;
         this.placedFace = face;
-        stacks.arm(chain);
         this.abilityId = ability.id().toString();
         setChanged();
     }
@@ -154,45 +142,6 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
     public void splat() {
         if (level instanceof ServerLevel server) {
             ChainMarkerSplat.resolve(new SplattingMarker(server, worldPosition));
-        }
-    }
-
-    /**
-     * Attempts to increment the stack count under the ability's stack
-     * ceiling, while the running program takes a top-off; the program reads
-     * the new count through {@code stacks}.
-     *
-     * @return true if the stack count was incremented
-     */
-    public boolean tryStack() {
-        ChainConfig chain = abilityChain();
-        if (refusesTopOff() || chain == null || !stacks.addStack(chain)) {
-            return false;
-        }
-        lastStackTick = level != null ? level.getGameTime() : 0;
-        setChanged();
-        BlockEntitySync.markDirtyAndSync(this);
-        return true;
-    }
-
-    /**
-     * Returns true when a standing behavior takes no more goo.
-     *
-     * @return true if a behavior stands and refuses a top-off
-     */
-    private boolean refusesTopOff() {
-        return behavior != null && !behavior.allowsTopOff();
-    }
-
-    /**
-     * Decrements the stack count by one, for a program step that spends
-     * stacks as charges. Syncs to client.
-     */
-    public void decrementStack() {
-        if (stacks.stackCount() > 0) {
-            stacks.spendStack();
-            setChanged();
-            BlockEntitySync.markDirtyAndSync(this);
         }
     }
 
@@ -213,35 +162,6 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
         }
         setChanged();
         BlockEntitySync.markDirtyAndSync(this);
-    }
-
-    /**
-     * Reads the chain block of the ability this marker runs.
-     *
-     * @return the chain block, or null when the registry holds no such ability
-     */
-    private @Nullable ChainConfig abilityChain() {
-        AbilityDefinition def = ability();
-        return def != null ? def.chain() : null;
-    }
-
-    /**
-     * Resolves the ability this marker runs through the registry.
-     *
-     * @return the ability, or null when the id names none the registry holds
-     */
-    private @Nullable AbilityDefinition ability() {
-        Identifier id = Identifier.tryParse(abilityId);
-        return id != null && level != null ? AbilityRegistry.of(level).getAbility(id) : null;
-    }
-
-    /**
-     * Returns the game tick when the last goo was stacked.
-     *
-     * @return the game tick of the last stack event
-     */
-    public long getLastStackTick() {
-        return lastStackTick;
     }
 
     /**
@@ -367,8 +287,7 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
      * @return the burnout payload
      */
     private ChainBurnoutPayload burnoutPayload(BlockPos pos) {
-        return new ChainBurnoutPayload(pos, placedFace.ordinal(), GooTypes.id(gooType), abilityId,
-                stacks.stackCount());
+        return new ChainBurnoutPayload(pos, placedFace.ordinal(), GooTypes.id(gooType), abilityId);
     }
 
 
@@ -413,24 +332,6 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
     }
 
     /**
-     * Returns the current stack count (number of goo absorbed).
-     *
-     * @return the stack count
-     */
-    public int getStackCount() {
-        return stacks.stackCount();
-    }
-
-    /**
-     * Returns the stack ceiling the ability's chain block sets.
-     *
-     * @return the max stacks
-     */
-    public int getMaxStacks() {
-        return stacks.maxStacks();
-    }
-
-    /**
      * Returns the block face this marker was placed on.
      *
      * @return the placed face
@@ -464,15 +365,13 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
     }
 
     /**
-     * Restores goo type, stack count and max stacks from persistent data.
+     * Restores goo type, ability id and program state from persistent data.
      *
      * @param input the value input to read from
      */
     private void loadSharedFields(ValueInput input) {
         ResourceKey<GooTypeDefinition> loaded = GooTypes.byId(input.getStringOr(TAG_GOO_TYPE, DEFAULT_GOO_TYPE));
         gooType = loaded != null ? loaded : GooTypes.ROCK;
-        stacks.restore(input.getIntOr(TAG_STACK_COUNT, 1), input.getIntOr(TAG_MAX_STACKS, 1));
-        lastStackTick = input.getLongOr(TAG_LAST_STACK_TICK, 0);
         abilityId = input.getStringOr(TAG_ABILITY_ID, abilityId);
         fieldEffect.load(input);
         phased.load(input);
@@ -515,10 +414,7 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
     protected void saveAdditional(@NonNull ValueOutput output) {
         super.saveAdditional(output);
         output.putString(TAG_GOO_TYPE, GooTypes.id(gooType));
-        output.putInt(TAG_STACK_COUNT, stacks.stackCount());
-        output.putInt(TAG_MAX_STACKS, stacks.maxStacks());
         output.putString(TAG_PLACED_FACE, placedFace.getName());
-        output.putLong(TAG_LAST_STACK_TICK, lastStackTick);
         output.putString(TAG_ABILITY_ID, abilityId);
         fieldEffect.save(output);
         phased.save(output);

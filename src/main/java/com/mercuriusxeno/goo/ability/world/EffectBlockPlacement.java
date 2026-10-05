@@ -19,7 +19,6 @@ import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.Fluids;
 import org.jspecify.annotations.Nullable;
 import java.util.function.BiConsumer;
-import java.util.function.Predicate;
 
 /**
  * On-hit placement of an ability's chain marker. Builds a
@@ -27,8 +26,7 @@ import java.util.function.Predicate;
  * face-adjacent positions, applies the decision, and initializes the
  * resulting marker from the ability.
  *
- * <p>Placement rule: stack onto an existing marker of the same ability
- * first, then try the hit block, then the face-adjacent block. The hit
+ * <p>Placement rule: try the hit block, then the face-adjacent block. The hit
  * block is a first-class placement target (fire, tall grass, snow, water,
  * etc.), so non-solid targets do not always push the marker one block
  * off the face.</p>
@@ -54,15 +52,15 @@ public final class EffectBlockPlacement {
      * @param level    the current level
      * @param hitBlock the hit block position
      * @param face     the face that was hit, or null
-     * @param kind     which markers stack with this one, and how a fresh one initializes
+     * @param kind     how a fresh marker initializes
      */
     private static void placeChainMarker(Level level, BlockPos hitBlock,
                                          @Nullable Direction face, MarkerKind kind) {
         Direction resolvedFace = face == null ? DEFAULT_FACE : face;
         BlockPos adjacentPos = hitBlock.relative(resolvedFace);
 
-        CandidateState hitState = chainCandidateState(level, hitBlock, kind);
-        CandidateState adjacentState = chainCandidateState(level, adjacentPos, kind);
+        CandidateState hitState = chainCandidateState(level, hitBlock);
+        CandidateState adjacentState = chainCandidateState(level, adjacentPos);
         Decision decision = ChainPlacementRules.decide(hitState, adjacentState, WaterHandling.WATERLOG);
         applyChainDecision(level, decision, hitBlock, adjacentPos, kind, resolvedFace);
     }
@@ -73,35 +71,17 @@ public final class EffectBlockPlacement {
      *
      * @param level the current level
      * @param pos   the candidate position
-     * @param kind  the marker kind, for same-marker stack detection
      * @return the candidate state snapshot
      */
-    private static CandidateState chainCandidateState(Level level, BlockPos pos, MarkerKind kind) {
+    private static CandidateState chainCandidateState(Level level, BlockPos pos) {
         BlockState state = level.getBlockState(pos);
         FluidState fluid = state.getFluidState();
         return new CandidateState(
-                isExistingChainMarker(level, pos, state, kind),
                 state.isAir(),
                 state.canBeReplaced(),
                 fluid.is(Fluids.WATER),
                 fluid.is(Fluids.LAVA),
                 false);
-    }
-
-    /**
-     * Returns true if the block at {@code pos} is an existing chain marker
-     * this kind stacks onto.
-     *
-     * @param level the current level
-     * @param pos   the position to test
-     * @param state the block state at {@code pos}
-     * @param kind  the marker kind
-     * @return true if a matching chain marker is present
-     */
-    private static boolean isExistingChainMarker(Level level, BlockPos pos, BlockState state, MarkerKind kind) {
-        return state.is(GooBlocks.CHAIN_MARKER.get())
-                && level.getBlockEntity(pos) instanceof ChainMarkerBlockEntity be
-                && kind.stacksOnto().test(be);
     }
 
     /**
@@ -118,22 +98,9 @@ public final class EffectBlockPlacement {
                                            BlockPos hitPos, BlockPos adjPos, MarkerKind kind, Direction face) {
         BlockPos target = pickCandidate(decision, hitPos, adjPos);
         switch (decision.action()) {
-            case STACK -> stackChainMarker(level, target);
             case DISPLACE -> placeFreshChainMarker(level, target, kind, face, false);
             case WATERLOG -> placeFreshChainMarker(level, target, kind, face, true);
             case FREEZE_AND_RISE, NONE -> { /* no-op */ }
-        }
-    }
-
-    /**
-     * Bumps the stack count on an existing chain marker at {@code pos}.
-     *
-     * @param level the current level
-     * @param pos   the marker position
-     */
-    private static void stackChainMarker(Level level, BlockPos pos) {
-        if (level.getBlockEntity(pos) instanceof ChainMarkerBlockEntity be) {
-            be.tryStack();
         }
     }
 
@@ -171,11 +138,11 @@ public final class EffectBlockPlacement {
     }
 
     /**
-     * Places or stacks a chain marker for a data-driven ability, deciding
+     * Places a chain marker for a data-driven ability, deciding
      * through {@link ChainPlacementRules}: a replaceable hit block takes the
-     * marker in place, water waterlogs it, lava refuses it, and a goo stacks
-     * only onto a marker of the same ability (decision
-     * ability-path-uses-placement-rules).
+     * marker in place, water waterlogs it, lava refuses it, and a standing
+     * marker takes no second goo, so the second lands beside it (decisions
+     * ability-path-uses-placement-rules, splat-runs-the-program-no-fuse).
      *
      * @param level   the server level
      * @param pos     the target block position
@@ -183,35 +150,29 @@ public final class EffectBlockPlacement {
      * @param face    the target face
      * @param ability the ability definition
      */
-    public static void placeOrStackAbility(ServerLevel level, BlockPos pos,
+    public static void placeAbility(ServerLevel level, BlockPos pos,
                                            ResourceKey<GooTypeDefinition> type, Direction face,
                                            AbilityDefinition ability) {
         placeChainMarker(level, pos, face, MarkerKind.ofAbility(type, ability));
     }
 
     /**
-     * Which standing markers a goo stacks onto, and how a fresh marker it
-     * places initializes.
+     * How a fresh marker a goo places initializes.
      *
-     * @param stacksOnto true for a marker this goo stacks onto
-     * @param init       initializes a freshly placed marker with its placed face
+     * @param init initializes a freshly placed marker with its placed face
      */
-    private record MarkerKind(Predicate<ChainMarkerBlockEntity> stacksOnto,
-                              BiConsumer<ChainMarkerBlockEntity, Direction> init) {
+    private record MarkerKind(BiConsumer<ChainMarkerBlockEntity, Direction> init) {
 
         /**
-         * An ability marker, stacking onto a marker carrying the same ability id;
-         * a fresh one runs its program the tick it lands (decision
-         * splat-runs-the-program-no-fuse).
+         * An ability marker, which runs its program the tick it lands
+         * (decision splat-runs-the-program-no-fuse).
          *
          * @param type    the goo type
          * @param ability the ability
          * @return the kind
          */
         static MarkerKind ofAbility(ResourceKey<GooTypeDefinition> type, AbilityDefinition ability) {
-            String abilityId = ability.id().toString();
-            return new MarkerKind(be -> abilityId.equals(be.getAbilityId()),
-                    (be, face) -> {
+            return new MarkerKind((be, face) -> {
                         be.initChainFromAbility(type, face, ability);
                         be.splat();
                     });

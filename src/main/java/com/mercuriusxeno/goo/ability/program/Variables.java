@@ -4,7 +4,7 @@ import java.util.OptionalDouble;
 
 /**
  * The runtime values an {@link Expr} may name. A host binds the variables
- * it can answer (stack count, health, distance); the program runtime adds
+ * it can answer (health, distance); the program runtime adds
  * its own (elapsed ticks) in front of the host.
  */
 @FunctionalInterface
