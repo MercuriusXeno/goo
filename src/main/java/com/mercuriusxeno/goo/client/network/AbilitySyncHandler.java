@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.resources.Identifier;
@@ -78,16 +79,16 @@ public final class AbilitySyncHandler {
      * @param icon        the icon texture path override (empty for convention path)
      * @param order       the sort order
      * @param tags        categorical tags for targeting and display
-     * @param fuseTicks   the chain block's full fuse
-     * @param maxStacks   the chain block's stack ceiling
      * @param behaviors   the ability's step program, whose params the marker's renderers read
      * @param cost        the mB a throw costs, the same at every stack count
      * @param delivery    how the ability leaves the glove
      * @param badge       the target kind the radial marks on the icon
+     * @param requires    the items the player must know before the radial offers it
      */
     public record ClientAbility(Identifier id, String displayName, String icon,
-                                int order, List<String> tags, int fuseTicks, int maxStacks,
-                                List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge) {
+                                int order, List<String> tags,
+                                List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge,
+                                List<Identifier> requires) {
 
         /**
          * Builds the client descriptor from a synced entry.
@@ -97,19 +98,19 @@ public final class AbilitySyncHandler {
          */
         public static ClientAbility fromEntry(AbilitySyncPayload.Entry entry) {
             return new ClientAbility(Identifier.tryParse(entry.abilityId()), entry.displayName(), entry.icon(),
-                    entry.order(), entry.tags(), entry.fuseTicks(), entry.maxStacks(), entry.behaviors(),
-                    entry.cost(), entry.delivery(), entry.badge());
+                    entry.order(), entry.tags(), entry.behaviors(),
+                    entry.cost(), entry.delivery(), entry.badge(), entry.requires());
         }
 
         /**
-         * Prices a throw the way the server does: the synced flat cost,
-         * whatever the target already holds (decision flat-cost-per-throw).
+         * Whether the player knows every item this ability requires
+         * (decision ability-hidden-until-recipes-known).
          *
-         * @param existingStacks the stacks the target marker already holds
-         * @return the cost in mB
+         * @param known the items the player knows
+         * @return true when no required item is unknown
          */
-        public int throwCost(int existingStacks) {
-            return cost;
+        public boolean isKnownTo(KnownItems known) {
+            return known.containsAll(requires);
         }
 
         /**

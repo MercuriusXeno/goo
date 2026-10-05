@@ -1,9 +1,12 @@
 package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.item.SoulBoundStacks;
+import com.mercuriusxeno.goo.network.PlayerKnowledge;
 import com.mercuriusxeno.goo.registry.GooItems;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -80,6 +83,29 @@ public final class SoulBoundTests {
                 NOT_RESTORED);
 
         drops.forEach(ItemEntity::discard);
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        helper.getLevel().getServer().getPlayerList().remove(respawned);
+        helper.succeed();
+    }
+
+    /**
+     * A mock player who knows cobblestone dies, and after the respawn clone the
+     * new player still knows it (decision knowledge-capability-remembers-destroyed-items).
+     *
+     * @param helper the gametest helper
+     */
+    @SuppressWarnings(REMOVAL) // vanilla marks the mock server player helper for removal and names no replacement
+    public static void knownItemsSurviveDeath(GameTestHelper helper) {
+        Identifier cobblestone = BuiltInRegistries.ITEM.getKey(Items.COBBLESTONE);
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        PlayerKnowledge.learn(player, Items.COBBLESTONE);
+
+        player.die(helper.getLevel().damageSources().generic());
+        ServerPlayer respawned = helper.makeMockServerPlayerInLevel();
+        respawned.restoreFrom(player, false);
+        helper.assertTrue(PlayerKnowledge.of(respawned).contains(cobblestone),
+                "The respawned player should still know cobblestone");
+
         helper.getLevel().getServer().getPlayerList().remove(player);
         helper.getLevel().getServer().getPlayerList().remove(respawned);
         helper.succeed();

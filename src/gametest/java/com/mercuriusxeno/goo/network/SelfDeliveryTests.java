@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.network;
 
+import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
@@ -58,6 +59,7 @@ public final class SelfDeliveryTests {
         AbilityDefinition blink = AbilityRegistry.of(helper.getLevel()).getAbility(ENDER_BLINK);
         helper.assertTrue(blink != null, ABILITY_REQUIRED);
         ServerPlayer player = invoker(helper, GooTypes.ENDER);
+        KnownRecipes.teachRequires(player, blink);
         player.setYRot(FACING_EAST);
         player.setXRot(0);
         double xBefore = player.getX();
@@ -71,7 +73,7 @@ public final class SelfDeliveryTests {
         helper.getLevel().getServer().getPlayerList().remove(player);
         helper.assertTrue(Math.abs(moved - BLINK_RANGE) < MOVE_TOLERANCE,
                 String.format(SHOULD_BLINK_EAST, BLINK_RANGE, moved));
-        helper.assertTrue(drained == blink.throwCost(0), String.format(SHOULD_DRAIN_COST, blink.throwCost(0), drained));
+        helper.assertTrue(drained == blink.cost(), String.format(SHOULD_DRAIN_COST, blink.cost(), drained));
         helper.succeed();
     }
 
@@ -83,6 +85,7 @@ public final class SelfDeliveryTests {
      */
     public static void typhoonPropel(GameTestHelper helper) {
         ServerPlayer player = invoker(helper, GooTypes.TYPHOON);
+        KnownRecipes.teachRequires(player, AbilityRegistry.of(helper.getLevel()).getAbility(TYPHOON_PROPEL));
         player.setYRot(FACING_EAST);
         player.setXRot(LOOKING_UP);
         player.fallDistance = BUILT_UP_FALL;
@@ -96,6 +99,31 @@ public final class SelfDeliveryTests {
         helper.getLevel().getServer().getPlayerList().remove(player);
         helper.assertTrue(motion.distanceTo(expected) < MOVE_TOLERANCE, String.format(SHOULD_PROPEL, expected, motion));
         helper.assertTrue(fall == 0, String.format(SHOULD_CLEAR_FALL, fall));
+        helper.succeed();
+    }
+
+    /**
+     * A mock player who has never melted an ender pearl invokes ender blink:
+     * the throw is refused whole, so the player stays put and no goo drains
+     * (decision ability-hidden-until-recipes-known).
+     *
+     * @param helper the gametest helper
+     */
+    public static void gatedBlinkRefusedWithoutTheRecipe(GameTestHelper helper) {
+        ServerPlayer player = invoker(helper, GooTypes.ENDER);
+        player.setYRot(FACING_EAST);
+        player.setXRot(0);
+        double xBefore = player.getX();
+        int heldBefore = enderHeld(player);
+
+        GooThrowHandler.execute(player, new GooThrowPayload(GooTypes.id(GooTypes.ENDER), NO_ENTITY,
+                player.blockPosition(), NO_ENTITY, false, ENDER_BLINK.toString(), player.getEyePosition()));
+
+        double moved = player.getX() - xBefore;
+        int drained = heldBefore - enderHeld(player);
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        helper.assertTrue(moved == 0, "A refused blink should leave the player where it stood, moved " + moved);
+        helper.assertTrue(drained == 0, "A refused blink should drain nothing, drained " + drained);
         helper.succeed();
     }
 

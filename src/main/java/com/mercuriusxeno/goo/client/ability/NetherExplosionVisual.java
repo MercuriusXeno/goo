@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.program.PhasedStep;
+import com.mercuriusxeno.goo.ability.program.Variables;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -83,7 +84,7 @@ public final class NetherExplosionVisual implements BurnoutVisual {
      */
     private static float implodeReach(ChainBurnouts.Burnout burnout) {
         return SyncedSteps.first(burnout.abilityId(), PhasedStep.class)
-                .map(step -> step.radius().evaluateFloat(burnout.variables()))
+                .map(step -> step.radius().evaluateFloat(Variables.NONE))
                 .orElse(FALLBACK_REACH);
     }
 

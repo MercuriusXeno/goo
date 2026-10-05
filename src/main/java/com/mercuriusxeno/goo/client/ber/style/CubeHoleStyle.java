@@ -1,14 +1,14 @@
 package com.mercuriusxeno.goo.client.ber.style;
 
-import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
+import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.client.FlatQuadContext;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.ability.BlackHolePhases;
-import com.mercuriusxeno.goo.client.ability.DomeRamp;
 import com.mercuriusxeno.goo.client.ability.NetherDiscMesh;
 import com.mercuriusxeno.goo.client.ability.NetherLensEffect;
 import com.mercuriusxeno.goo.client.ability.NetherSphereVisual;
-import com.mercuriusxeno.goo.client.ber.ChainMarkerRenderState;
+import com.mercuriusxeno.goo.client.ability.StartupRamp;
+import com.mercuriusxeno.goo.client.ber.AbilityBlockRenderState;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.renderer.SubmitNodeCollector;
@@ -105,7 +105,7 @@ public final class CubeHoleStyle implements NetherHoleStyle {
     CubeHoleStyle() {}
 
     @Override
-    public void extract(ChainMarkerBlockEntity be, ChainMarkerRenderState state) {
+    public void extract(AbilityBlockEntity be, AbilityBlockRenderState state) {
         if (BlackHolePhases.populateRenderState(be, state)) {
             NetherLensEffect.markHoleActive(BlackHolePhases.holeCenter(be),
                     BlackHolePhases.visibleRadius(state), NetherLensEffect.LensShape.HEX);
@@ -113,7 +113,7 @@ public final class CubeHoleStyle implements NetherHoleStyle {
     }
 
     @Override
-    public void submit(ChainMarkerRenderState state, PoseStack poseStack,
+    public void submit(AbilityBlockRenderState state, PoseStack poseStack,
             SubmitNodeCollector nodeCollector) {
         float occluderHalf = BlackHolePhases.visibleRadius(state);
         float edgeHalf = occluderHalf * EDGE_SCALE;
@@ -121,7 +121,7 @@ public final class CubeHoleStyle implements NetherHoleStyle {
         float outerR = NetherDiscMesh.outerRadius(innerR, occluderHalf,
                 BlackHolePhases.fullRadius(state), state.diskExpansionScale);
         float animPhase = state.animationTime;
-        int alpha = DomeRamp.alpha(state.holeRamp);
+        int alpha = StartupRamp.alpha(state.holeRamp);
 
         // Pass 1: cube occluder. Reuses the sphere occluder pipeline -
         // its shader only reads Position so cube vertices produce a

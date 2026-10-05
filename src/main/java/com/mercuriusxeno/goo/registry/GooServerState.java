@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.registry;
 
-import com.mercuriusxeno.goo.block.ability.ChainMarkerFallScheduler;
+import com.mercuriusxeno.goo.block.ability.AbilityBlockFallScheduler;
 import com.mercuriusxeno.goo.block.tap.TapDripScheduler;
 import com.mercuriusxeno.goo.network.GooEffectScheduler;
 import com.mercuriusxeno.goo.network.StreamHolds;
@@ -18,7 +18,7 @@ public final class GooServerState {
 
     private final GooEffectScheduler gooEffects = new GooEffectScheduler();
     private final TapDripScheduler tapDrips = new TapDripScheduler();
-    private final ChainMarkerFallScheduler markerFalls = new ChainMarkerFallScheduler();
+    private final AbilityBlockFallScheduler markerFalls = new AbilityBlockFallScheduler();
     private final StreamHolds streamHolds = new StreamHolds();
 
     /**
@@ -57,9 +57,9 @@ public final class GooServerState {
     }
 
     /**
-     * @return the chain marker falls in flight
+     * @return the ability block falls in flight
      */
-    public ChainMarkerFallScheduler markerFalls() {
+    public AbilityBlockFallScheduler markerFalls() {
         return markerFalls;
     }
 

@@ -92,9 +92,8 @@ class TapHostTest {
     }
 
     @Test
-    void hostProvidesNoTargetStacksOrTicks() {
+    void hostProvidesNoTargetOrTicks() {
         assertFalse(HostKind.TAP.capabilities().contains(HostCapability.TARGET));
-        assertFalse(HostKind.TAP.capabilities().contains(HostCapability.STACKS));
         assertFalse(HostKind.TAP.capabilities().contains(HostCapability.TICKING));
         assertTrue(HostKind.TAP.capabilities().contains(HostCapability.PLACE_BLOCK));
     }

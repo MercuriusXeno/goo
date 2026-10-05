@@ -9,14 +9,13 @@ import java.util.Set;
  */
 public enum HostKind {
     /**
-     * The chain marker block: stacks, a placed face, a tick driver, the
-     * world around the block, the block position itself to write, and
-     * the blocks around it to strike layer by layer, the field-effect
-     * state a trap keeps while its budget lasts, the phase cursor of a
-     * phased step, and the goo a black hole consumes until it pops.
+     * The ability block block: a placed face, a tick driver, the
+     * world around the block, the block position itself to write, the
+     * field-effect state a trap keeps while its budget lasts, the phase
+     * cursor of a phased step, and the goo a black hole consumes until it
+     * pops.
      */
-    MARKER("marker block", MarkerHost.class,
-            Set.of(HostVariables.STACKS, HostVariables.MAX_STACKS, HostVariables.FLAT)),
+    MARKER("marker block", MarkerHost.class, Set.of()),
     /**
      * The struck living entity: a target and its thrower, acted on in the
      * tick the goo lands, with no driver for later ticks.
@@ -27,10 +26,17 @@ public enum HostKind {
     /**
      * The block a tap's drip lands on: the world around its top face and the
      * block above it to write, acted on in the tick the drip lands, with no
-     * target, no stacks and no driver for later ticks
+     * target and no driver for later ticks
      * (decision tap-ability-tagged-program).
      */
     TAP("tap landing", TapHost.class, Set.of()),
+    /**
+     * The cell a thrown world ability's blob lands in: the world around it,
+     * the cell itself to write, and the ability's own block to stand there,
+     * acted on in the landing tick with no driver for later ticks (decisions
+     * splat-runs-the-program-no-fuse, lingering-abilities-place-their-own-thing).
+     */
+    LANDING("blob landing", LandingHost.class, Set.of()),
     /**
      * The player invoking a self ability: target, thrower and anchor at
      * once, acted on in the tick the glove is used, with no driver for

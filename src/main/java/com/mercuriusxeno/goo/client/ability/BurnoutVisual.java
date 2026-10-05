@@ -1,13 +1,11 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
-import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.resources.ResourceKey;
 
 /**
- * The explosion one goo type draws as its chain marker burns out (decision
+ * The explosion one goo type draws as its ability block burns out (decision
  * elemental-explosion-per-type).
  */
 public interface BurnoutVisual {
@@ -41,20 +39,6 @@ public interface BurnoutVisual {
      * @param frame   the frame being drawn
      */
     void render(ChainBurnouts.Burnout burnout, BurnoutFrame frame);
-
-    /**
-     * Submits this explosion's dome at a point of the fuse-tail ramp, from the
-     * marker's renderer, block-local (decision dome-fades-in-before-its-start).
-     *
-     * @param burnout   the burnout about to fire, its start tick unread
-     * @param ramp      the ramp's share in [0, 1]
-     * @param poseStack the marker's pose stack, at the block's corner
-     * @param collector the render node collector
-     */
-    default void submitRamp(ChainBurnouts.Burnout burnout, float ramp, PoseStack poseStack,
-                            SubmitNodeCollector collector) {
-        // An explosion with no dome draws no ramp.
-    }
 
     /**
      * A goo type whose explosion is still to be designed: it holds no

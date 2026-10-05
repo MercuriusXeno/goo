@@ -1,9 +1,15 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import net.minecraft.SharedConstants;
+import net.minecraft.server.Bootstrap;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.fml.loading.FMLLoader;
+import net.neoforged.neoforge.attachment.AttachmentHolder;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Nested;
+import org.mockito.MockedStatic;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Set;
@@ -11,7 +17,9 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -28,6 +36,23 @@ class PlayerHostTest {
     private static final double X = 10;
     private static final double Y = 64;
     private static final double Z = -3;
+
+    /**
+     * Stands NeoForge's AttachmentHolder and the built-in registries before the
+     * first mock of a player: both class inits ask FML whether it runs in
+     * production, which a stubbed loader answers. Without it the class init
+     * fails and poisons every later mock of an entity or level in the JVM.
+     *
+     * @throws ClassNotFoundException never, the class is on the test classpath
+     */
+    @BeforeAll
+    static void standRegistries() throws ClassNotFoundException {
+        try (MockedStatic<FMLLoader> loader = mockStatic(FMLLoader.class, RETURNS_DEEP_STUBS)) {
+            Class.forName(AttachmentHolder.class.getName(), true, AttachmentHolder.class.getClassLoader());
+            SharedConstants.tryDetectVersion();
+            Bootstrap.bootStrap();
+        }
+    }
 
     private static ServerPlayer playerLooking(Vec3 look) {
         ServerPlayer player = mock(ServerPlayer.class);

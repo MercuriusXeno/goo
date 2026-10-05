@@ -40,6 +40,7 @@ public final class GooTestFunctions {
     // --- Goo value lifecycle ---
     private static final String VALUES_FRESH_AFTER_STOP = "values_fresh_after_stop";
     private static final String GLOVE_TYPE_ONLY_REFUSED = "glove_type_only_refused";
+    private static final String GLOVE_GATED_SELECTION_REFUSED = "glove_gated_selection_refused";
     private static final String GLOVE_SHIFT_RECOLLECTS_MARKER = "glove_shift_recollects_marker";
     private static final String GLOVE_CLICK_NO_USING_STATE = "glove_click_no_using_state";
     private static final String GLOVE_FIRST_SOURCE_DEPLETES_FIRST = "glove_first_source_depletes_first";
@@ -66,6 +67,7 @@ public final class GooTestFunctions {
     private static final String EXORITE_ANVIL_REPAIR = "exorite_anvil_repair";
     private static final String SOUL_BOUND_TAG_HOLDS_EXORITE = "soul_bound_tag_holds_exorite";
     private static final String SOUL_BOUND_SURVIVES_DEATH = "soul_bound_survives_death";
+    private static final String KNOWN_ITEMS_SURVIVE_DEATH = "known_items_survive_death";
     private static final String EXO_GAUNTLET_SMITHING = "exo_gauntlet_smithing";
     private static final String EXO_GAUNTLET_KEEPS_BENEFITS = "exo_gauntlet_keeps_benefits";
     // --- Crystallizer ---
@@ -175,9 +177,6 @@ public final class GooTestFunctions {
     private static final String SNEAK_POPS_CRUCIBLE_GASKET = "sneak_pops_crucible_gasket";
 
     // --- Effect executors ---
-    private static final String FX_BLAZE = "fx_blaze_mines";
-    private static final String FX_ROCK = "fx_rock_mines";
-    private static final String FX_FROST = "fx_frost_runs";
     private static final String FX_METAL = "fx_metal_runs";
     private static final String FX_CRYSTAL = "fx_crystal_runs";
     private static final String FX_NETHER = "fx_nether_implodes";
@@ -187,23 +186,30 @@ public final class GooTestFunctions {
     private static final String FX_FALLEN_MARKER_KEEPS_ABILITY = "fx_fallen_marker_keeps_ability";
     private static final String FX_NO_ABILITY_LANDS_NOTHING = "fx_no_ability_lands_nothing";
     private static final String FX_ABILITY_LANDS_MARKER = "fx_ability_lands_marker";
+    private static final String FX_BLAST_LANDS_NO_BLOCK = "fx_blast_lands_no_block";
+    private static final String FX_CLOUD_BLOCK_GOES = "fx_cloud_block_goes";
+    private static final String FX_TRAP_BLOCK_GOES = "fx_trap_block_goes";
     private static final String FX_CRYSTAL_GROWS = "fx_crystal_grows";
-    private static final String FX_CRYSTAL_STAYS_LARGE = "fx_crystal_stays_large";
     private static final String FX_OTHER_ABILITY_MARKS_CRYSTAL = "fx_other_ability_marks_crystal";
-    private static final String FX_ABILITY_BLAZE = "fx_ability_blaze_tunnel";
-    private static final String FX_ABILITY_ROCK = "fx_ability_rock_tunnel";
-    private static final String FX_ABILITY_FROST = "fx_ability_frost_sphere";
     private static final String FX_PROGRAM_INSTANT = "fx_program_instant_detonation";
     private static final String FX_PROGRAM_TIMED = "fx_program_timed_bomb";
     private static final String FX_PROGRAM_MINE = "fx_program_proximity_mine";
-    private static final String FUSE_MINE_KEEPS_JSON_FUSE = "fuse_mine_keeps_json_fuse";
     private static final String FX_PROGRAM_METAL_SPIKES = "fx_program_metal_spikes";
     private static final String FX_PROGRAM_CRYSTAL_CLOUD = "fx_program_crystal_cloud";
     private static final String FX_PROGRAM_NETHER_BLACK_HOLE = "fx_program_nether_black_hole";
+    private static final String FX_LANDED_CRYSTAL_CLOUD = "fx_landed_crystal_cloud_live";
+    private static final String FX_LANDED_METAL_SPIKES = "fx_landed_metal_spikes_live";
+    private static final String FX_LANDED_BLACK_HOLE = "fx_landed_black_hole_gathers";
+    private static final String FX_LANDED_BLAST = "fx_landed_blast_explodes";
+    private static final String FX_LANDED_MINE = "fx_landed_mine_awaits";
+    private static final String FX_LANDED_GLOW_CRYSTAL = "fx_landed_glow_crystal_stands";
 
     // --- Crucible ---
     private static final String CR_GOO_INSERT = "cr_goo_insert";
     private static final String CR_ITEM_ABSORB = "cr_item_absorb";
+    private static final String CR_THROWN_ITEM_TEACHES = "cr_thrown_item_teaches";
+    private static final String CR_THROWN_CONTAINER_TEACHES = "cr_thrown_container_teaches";
+    private static final String CR_UNTHROWN_ITEM_TEACHES_NOBODY = "cr_unthrown_item_teaches_nobody";
     private static final String CR_MELTS_CHRYSM = "cr_melts_chrysm";
     private static final String CR_CAP_EACH_TYPE = "cr_cap_each_type";
     private static final String CR_CAP_GOO_IN_HAND = "cr_cap_goo_in_hand";
@@ -233,9 +239,6 @@ public final class GooTestFunctions {
     private static final String CR_SPARK_LIGHTS_COLD = "cr_spark_lights_cold";
 
     // --- Placement ---
-    private static final String PL_BLAZE = "pl_blaze_places";
-    private static final String PL_ROCK = "pl_rock_places";
-    private static final String PL_FROST = "pl_frost_places";
     private static final String PL_DOUBLE_STACK = "pl_double_hit_stacks";
     private static final String PL_SIDEWAYS_NEIGHBOR = "pl_sideways_neighbor";
     private static final String PL_OTHER_TYPES = "pl_other_types_place";
@@ -286,6 +289,7 @@ public final class GooTestFunctions {
     private static final String IX_HUB_PICKUP = "ix_hub_canister_pickup";
     private static final String IX_HUB_POUR_AIMED_ONLY = "ix_hub_pour_aimed_only";
     private static final String IX_PLEXER_TARGET = "ix_plexer_set_target";
+    private static final String IX_PLEXER_REFUSES_UNLEARNED = "ix_plexer_refuses_unlearned";
     private static final String IX_REACTOR_INSERT_PICKUP = "ix_reactor_insert_pickup";
     private static final String IX_CRUCIBLE_BLAZE_ROD_COLD = "ix_crucible_blaze_rod_click_leaves_cold";
     private static final String IX_CRUCIBLE_COLD_ABSORBS_NOTHING = "ix_crucible_cold_absorbs_nothing";
@@ -328,6 +332,7 @@ public final class GooTestFunctions {
     private static final String MOB_ATTACK_STAYS_VANILLA = "mob_attack_stays_vanilla";
     private static final String MOB_EXO_GAUNTLET_HIT = "mob_exo_gauntlet_hit";
     private static final String SELF_ENDER_BLINK = "self_ender_blink";
+    private static final String SELF_GATED_BLINK_REFUSED = "self_gated_blink_refused";
     private static final String SELF_TYPHOON_PROPEL = "self_typhoon_propel";
     private static final String STREAM_BLAZE_SPITFIRE = "stream_blaze_spitfire";
     private static final String MOB_CRYSTAL = "mob_crystal_flechettes";
@@ -470,8 +475,9 @@ public final class GooTestFunctions {
     private static void registerGooTypeRegistryTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
         reg(r, TYPES_BUNDLED_RESOLVE, GooTypeRegistryTests::bundledTypesResolve);
         reg(r, TYPES_DATAPACK_LISTED, GooTypeRegistryTests::datapackTypeListed);
-        reg(r, TYPES_MARKER_RELOADS, GooTypeRegistryTests::chainMarkerReloadsType);
+        reg(r, TYPES_MARKER_RELOADS, GooTypeRegistryTests::abilityBlockReloadsType);
         reg(r, GLOVE_TYPE_ONLY_REFUSED, GloveSelectTests::typeOnlySelectionRefused);
+        reg(r, GLOVE_GATED_SELECTION_REFUSED, GloveSelectTests::gatedSelectionRefusedWithoutTheRecipe);
         reg(r, GLOVE_SHIFT_RECOLLECTS_MARKER, GloveRecollectTests::shiftClickRecollectsMarker);
         reg(r, GLOVE_CLICK_NO_USING_STATE, GloveUseTests::rightClickEntersNoUsingState);
         reg(r, GLOVE_FIRST_SOURCE_DEPLETES_FIRST, FirstSourceTests::firstSourceIsTheStackDepleteShrinks);
@@ -502,6 +508,7 @@ public final class GooTestFunctions {
         reg(r, EXORITE_ANVIL_REPAIR, ExoriteDurabilityTests::anvilRepair);
         reg(r, SOUL_BOUND_TAG_HOLDS_EXORITE, SoulBoundTests::tagHoldsExorite);
         reg(r, SOUL_BOUND_SURVIVES_DEATH, SoulBoundTests::survivesDeath);
+        reg(r, KNOWN_ITEMS_SURVIVE_DEATH, SoulBoundTests::knownItemsSurviveDeath);
         reg(r, EXO_GAUNTLET_SMITHING, ExoriteTests::exoGauntletSmithing);
         reg(r, EXO_GAUNTLET_KEEPS_BENEFITS, GooItemTests::exoGauntletKeepsBenefits);
         reg(r, EXORITE_NOT_ENCHANTABLE, ExoriteEnchantingTests::notEnchantable);
@@ -557,34 +564,35 @@ public final class GooTestFunctions {
     }
 
     private static void registerEffectExecutorTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
-        reg(r, FX_BLAZE, EffectExecutorTests::blazeMinesBlock);
-        reg(r, FX_ROCK, EffectExecutorTests::rockMinesBlock);
-        reg(r, FX_FROST, EffectExecutorTests::frostRuns);
         reg(r, FX_METAL, EffectExecutorTests::metalRuns);
         reg(r, FX_CRYSTAL, EffectExecutorTests::crystalRuns);
         reg(r, FX_NETHER, EffectExecutorTests::netherImplodes);
         reg(r, FX_UNSTABLE, EffectExecutorTests::unstableExplodes);
         reg(r, FX_PROGRAM_GLOW_WALL, EffectExecutorTests::programGlowWall);
         reg(r, FX_PROGRAM_GLOW_FLOOR, EffectExecutorTests::programGlowFloor);
-        reg(r, FX_ABILITY_BLAZE, EffectExecutorTests::abilityBlazeTunnel);
-        reg(r, FX_ABILITY_ROCK, EffectExecutorTests::abilityRockTunnel);
-        reg(r, FX_ABILITY_FROST, EffectExecutorTests::abilityFrostSphere);
         reg(r, FX_PROGRAM_INSTANT, EffectExecutorTests::programInstantDetonation);
         reg(r, FX_PROGRAM_TIMED, EffectExecutorTests::programTimedBomb);
         reg(r, FX_PROGRAM_MINE, EffectExecutorTests::programProximityMine);
-        reg(r, FUSE_MINE_KEEPS_JSON_FUSE, ChainFuseTests::mineKeepsJsonFuse);
         reg(r, FX_PROGRAM_METAL_SPIKES, EffectExecutorTests::programMetalSpikes);
         reg(r, FX_PROGRAM_CRYSTAL_CLOUD, EffectExecutorTests::programCrystalCloud);
         reg(r, FX_PROGRAM_NETHER_BLACK_HOLE, EffectExecutorTests::programNetherBlackHole);
+        reg(r, FX_LANDED_CRYSTAL_CLOUD, EffectExecutorTests::crystalCloudLiveAfterLanding);
+        reg(r, FX_LANDED_METAL_SPIKES, EffectExecutorTests::metalSpikesLiveAfterLanding);
+        reg(r, FX_LANDED_BLACK_HOLE, EffectExecutorTests::blackHoleGathersAfterLanding);
+        reg(r, FX_LANDED_BLAST, EffectExecutorTests::blastExplodesAfterLanding);
+        reg(r, FX_LANDED_MINE, EffectExecutorTests::mineAwaitsAfterLanding);
+        reg(r, FX_LANDED_GLOW_CRYSTAL, EffectExecutorTests::glowCrystalStandsAfterLanding);
     }
 
     private static void registerAbilityLandingTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
         reg(r, FX_FALLEN_MARKER_KEEPS_ABILITY, EffectExecutorTests::fallenMarkerKeepsAbility);
-        reg(r, FX_CRYSTAL_GROWS, EffectExecutorTests::crystalGrowsUnderItsAbility);
-        reg(r, FX_CRYSTAL_STAYS_LARGE, EffectExecutorTests::largestCrystalStaysLarge);
+        reg(r, FX_CRYSTAL_GROWS, EffectExecutorTests::crystalNeverGrowsOnALaterHit);
         reg(r, FX_OTHER_ABILITY_MARKS_CRYSTAL, EffectExecutorTests::otherAbilityMarksCrystal);
         reg(r, FX_NO_ABILITY_LANDS_NOTHING, BlockLandingTests::noAbilityLandsNothing);
         reg(r, FX_ABILITY_LANDS_MARKER, BlockLandingTests::abilityLandsItsMarker);
+        reg(r, FX_BLAST_LANDS_NO_BLOCK, BlockLandingTests::blastLandsNoBlock);
+        reg(r, FX_CLOUD_BLOCK_GOES, EffectExecutorTests::crystalCloudBlockGoesWithItsProgram);
+        reg(r, FX_TRAP_BLOCK_GOES, EffectExecutorTests::metalTrapBlockGoesWithItsProgram);
     }
 
     private static void registerMachineInteractionTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
@@ -598,6 +606,7 @@ public final class GooTestFunctions {
         reg(r, IX_HUB_PICKUP, MachineInteractionTests::hubCanisterPickup);
         reg(r, IX_HUB_POUR_AIMED_ONLY, MachineInteractionTests::hubPourFillsOnlyTheAimedCanister);
         reg(r, IX_PLEXER_TARGET, MachineInteractionTests::plexerSetTarget);
+        reg(r, IX_PLEXER_REFUSES_UNLEARNED, MachineInteractionTests::plexerRefusesAnUnlearnedTarget);
         reg(r, IX_REACTOR_INSERT_PICKUP, MachineInteractionTests::reactorCanisterInsertThenSneakPickup);
         reg(r, IX_CRUCIBLE_BLAZE_ROD_COLD, MachineInteractionTests::crucibleBlazeRodClickLeavesItCold);
         reg(r, IX_CRUCIBLE_COLD_ABSORBS_NOTHING, MachineInteractionTests::coldCrucibleAbsorbsNothing);
@@ -621,6 +630,9 @@ public final class GooTestFunctions {
     private static void registerCrucibleTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
         reg(r, CR_GOO_INSERT, CrucibleTests::gooInsertViaInteraction);
         reg(r, CR_ITEM_ABSORB, CrucibleTests::itemEntityAbsorption);
+        reg(r, CR_THROWN_ITEM_TEACHES, CrucibleTests::thrownItemTeachesTheThrower);
+        reg(r, CR_THROWN_CONTAINER_TEACHES, CrucibleTests::thrownContainerTeachesItsContents);
+        reg(r, CR_UNTHROWN_ITEM_TEACHES_NOBODY, CrucibleTests::unthrownItemTeachesNobody);
         reg(r, CR_MELTS_CHRYSM, CrucibleTests::meltsChrysm);
         reg(r, CR_CAP_EACH_TYPE, CrucibleTests::reservoirCapsEachType);
         reg(r, CR_CAP_GOO_IN_HAND, CrucibleTests::gooInHandRefusedAtCap);
@@ -651,17 +663,14 @@ public final class GooTestFunctions {
     }
 
     private static void registerPlacementTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
-        reg(r, PL_BLAZE, PlacementTests::blazePlacesMarker);
-        reg(r, PL_ROCK, PlacementTests::rockPlacesMarker);
-        reg(r, PL_FROST, PlacementTests::frostPlacesMarker);
-        reg(r, PL_DOUBLE_STACK, PlacementTests::doubleHitStacks);
+        reg(r, PL_DOUBLE_STACK, PlacementTests::secondThrowLandsBesideTheFirst);
         reg(r, PL_SIDEWAYS_NEIGHBOR, PlacementTests::sidewaysMarkerSurvivesNeighborChange);
         reg(r, PL_OTHER_TYPES, PlacementTests::otherTypesPlaceMarker);
         reg(r, PL_ABILITY_HIT_BLOCK, PlacementTests::abilityTakesReplaceableHitBlock);
         reg(r, PL_ABILITY_WATERLOG, PlacementTests::abilityWaterlogsInWater);
         reg(r, PL_ABILITY_LAVA, PlacementTests::abilityRefusesLava);
-        reg(r, PL_ABILITY_SAME_STACK, PlacementTests::abilityStacksOnlyOntoSameAbility);
-        reg(r, PL_OTHER_ABILITY_THROW_LEAVES_MARKER, StackKeyTests::otherAbilityThrowLeavesMarker);
+        reg(r, PL_ABILITY_SAME_STACK, PlacementTests::otherAbilityLandsBesideAStandingMarker);
+        reg(r, PL_OTHER_ABILITY_THROW_LEAVES_MARKER, StackKeyTests::secondThrowLandsItsOwnMarker);
         reg(r, PL_SECOND_THROW_COSTS_THE_SAME, FlatCostTests::secondThrowCostsTheSameAsTheFirst);
     }
 
@@ -713,6 +722,7 @@ public final class GooTestFunctions {
         reg(r, MOB_ATTACK_STAYS_VANILLA, AttackTouchTests::attackStaysVanilla);
         reg(r, MOB_EXO_GAUNTLET_HIT, GloveDamageTests::exoGauntletHitsForSeven);
         reg(r, SELF_ENDER_BLINK, SelfDeliveryTests::enderBlink);
+        reg(r, SELF_GATED_BLINK_REFUSED, SelfDeliveryTests::gatedBlinkRefusedWithoutTheRecipe);
         reg(r, SELF_TYPHOON_PROPEL, SelfDeliveryTests::typhoonPropel);
         reg(r, STREAM_BLAZE_SPITFIRE, StreamDeliveryTests::blazeSpitfire);
         reg(r, MOB_CRYSTAL, MobEffectTests::crystalFlechettes);

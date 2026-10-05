@@ -11,7 +11,7 @@ import java.util.List;
  *
  * <p>This stands beside {@code data.ExpressionTokenizer} rather than
  * reusing it: that tokenizer treats {@code -} and {@code /} as characters
- * of a namespaced id, which would swallow {@code stacks - 1} whole.
+ * of a namespaced id, which would swallow {@code health - 1} whole.
  */
 final class ExprTokenizer {
 
