@@ -46,4 +46,18 @@ public interface ISidedProxy {
      */
     default void pressGlove(InteractionHand hand) {
     }
+
+    /**
+     * Whether an ability the client holds synced takes the eat route, which
+     * the glove reads for its use animation where no level is at hand.
+     * Server: false, since the server reads the ability registry through
+     * its level.
+     * decision self-brew-goos-eat-before-the-effect
+     *
+     * @param abilityId the ability resource id string
+     * @return true for a synced ability wearing the brew badge on a self delivery
+     */
+    default boolean syncedAbilityEats(String abilityId) {
+        return false;
+    }
 }

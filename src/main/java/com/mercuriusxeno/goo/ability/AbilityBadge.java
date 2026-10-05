@@ -29,7 +29,13 @@ public enum AbilityBadge implements StringRepresentable {
     SELF("self"),
 
     /** Runs while the thrower holds it. */
-    CHANNELED("channeled");
+    CHANNELED("channeled"),
+
+    /**
+     * Acts on the thrower as a brew, eaten before it takes effect.
+     * decision self-brew-goos-eat-before-the-effect
+     */
+    BREW("brew");
 
     /** Datapack codec, reading the badge by its word. */
     public static final Codec<AbilityBadge> CODEC = StringRepresentable.fromEnum(AbilityBadge::values);
@@ -43,7 +49,7 @@ public enum AbilityBadge implements StringRepresentable {
      * declaration order so the network ordinal stays put.
      * fan-sorts-badge-then-order
      */
-    private static final List<AbilityBadge> FAN_RANK = List.of(CHANNELED, MOB, WORLD, SELF);
+    private static final List<AbilityBadge> FAN_RANK = List.of(CHANNELED, MOB, WORLD, SELF, BREW);
 
     private final String serializedName;
 

@@ -30,7 +30,6 @@ import net.minecraft.world.level.block.Blocks;
  */
 public final class HeartOverlayTests {
 
-    private static final int NO_ENTITY = -1;
     private static final Identifier BLAZE_KINDLE = Identifier.parse("goo:blaze_kindle");
     private static final Identifier LEAF_BARKSKIN = Identifier.parse("goo:leaf_barkskin");
     /** Two thousand mB of the second goo, enough for one cast. */
@@ -196,10 +195,19 @@ public final class HeartOverlayTests {
         return player;
     }
 
+    /**
+     * Invokes a heart brew the way the glove does and eats it through, so the
+     * hearts stand when the call returns (decision
+     * self-brew-goos-eat-before-the-effect).
+     *
+     * @param player  the invoking player
+     * @param gooType the brew's goo type
+     * @param ability the brew's id
+     */
     private static void invoke(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, Identifier ability) {
         KnownRecipes.teachRequires(player, AbilityRegistry.of(player.level()).getAbility(ability));
-        GooThrowHandler.execute(player, new GooThrowPayload(GooTypes.id(gooType), NO_ENTITY,
-                player.blockPosition(), NO_ENTITY, false, ability.toString(), player.getEyePosition()));
+        SelfDeliveryTests.invoke(player, gooType, ability);
+        SelfDeliveryTests.eatThrough(player);
     }
 
     /**
