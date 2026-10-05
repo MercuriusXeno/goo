@@ -21,7 +21,7 @@ class GloveThrowSenderTest {
     private static ClientAbility clientAbility(String name) {
         AbilityDefinition definition = AbilityJson.decode(name);
         return new ClientAbility(definition.id(), definition.displayName(), definition.icon(),
-                definition.order(), definition.tags(), definition.chain().fuseTicks(),
+                definition.order(), definition.tags(),
                 definition.chain().maxStacks(), definition.behaviors(), definition.cost(), definition.delivery(),
                 definition.badge());
     }

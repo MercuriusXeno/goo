@@ -52,6 +52,7 @@ public final class GloveRecollectTests {
         AbilityDefinition crystalCloud = AbilityRegistry.of(helper.getLevel()).getAbility(CRYSTAL_CLOUD);
         helper.assertTrue(crystalCloud != null, ABILITIES_REQUIRED);
         marker.initChainFromAbility(GooTypes.CRYSTAL, Direction.UP, crystalCloud);
+        marker.splat();
         marker.tryStack();
         int stacks = marker.getStackCount();
         helper.assertTrue(stacks > 1, NOT_STACKED);

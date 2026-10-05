@@ -4,7 +4,7 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * The key a thrown goo and a standing chain marker share when the marker
- * is its target, fuse stall and stack position: the ability id. A throw of
+ * is its target and stack position: the ability id. A throw of
  * another ability meets the marker as a solid block (decision
  * diagnose-then-fix-stack-key-match).
  */

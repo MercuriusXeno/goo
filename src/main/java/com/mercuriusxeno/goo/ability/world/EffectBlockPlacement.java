@@ -200,7 +200,9 @@ public final class EffectBlockPlacement {
                               BiConsumer<ChainMarkerBlockEntity, Direction> init) {
 
         /**
-         * An ability marker, stacking onto a marker carrying the same ability id.
+         * An ability marker, stacking onto a marker carrying the same ability id;
+         * a fresh one runs its program the tick it lands (decision
+         * splat-runs-the-program-no-fuse).
          *
          * @param type    the goo type
          * @param ability the ability
@@ -209,7 +211,10 @@ public final class EffectBlockPlacement {
         static MarkerKind ofAbility(ResourceKey<GooTypeDefinition> type, AbilityDefinition ability) {
             String abilityId = ability.id().toString();
             return new MarkerKind(be -> abilityId.equals(be.getAbilityId()),
-                    (be, face) -> be.initChainFromAbility(type, face, ability));
+                    (be, face) -> {
+                        be.initChainFromAbility(type, face, ability);
+                        be.splat();
+                    });
         }
     }
 }

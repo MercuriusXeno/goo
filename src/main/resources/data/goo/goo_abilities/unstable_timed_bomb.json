@@ -6,7 +6,6 @@
   "cost": 1000,
   "delivery": { "kind": "arc" },
   "chain": {
-    "fuseTicks": 60,
     "maxStacks": 8
   },
   "behaviors": [

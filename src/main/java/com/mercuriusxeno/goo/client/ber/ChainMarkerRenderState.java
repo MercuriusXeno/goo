@@ -8,7 +8,7 @@ import net.minecraft.resources.ResourceKey;
 
 /**
  * Render state snapshot for the chain marker BER. Captures goo type,
- * stack count, and fuse progress for the slime-like orb visual, plus
+ * stack count and program state for the slime-like orb visual, plus
  * a flag + sphere fields populated when a nether {@code ProgramBehavior}
  * is active so the BER can submit the black-hole shader sphere.
  */
@@ -23,14 +23,10 @@ public class ChainMarkerRenderState extends BlockEntityRenderState {
     /** Stack ceiling the marker's ability sets. */
     public int maxStacks = 1;
 
-    /** Fuse remaining in ticks (for pulsing/implosion animation). */
-    public int fuseRemaining;
 
     /** The id of the ability the marker runs. */
     public String abilityId = "";
 
-    /** How far the burnout dome's fuse-tail ramp has run, empty while the marker draws none. */
-    public java.util.OptionalDouble domeRamp = java.util.OptionalDouble.empty();
 
     /** Partial tick for smooth interpolation. */
     public float partialTick;
@@ -47,11 +43,8 @@ public class ChainMarkerRenderState extends BlockEntityRenderState {
     /** The face this marker was placed on (for directional rendering). */
     public Direction placedFace = Direction.UP;
 
-    /** True once the marker's fuse has burned out and its program runs. */
+    /** True while the marker's program runs. */
     public boolean behaviorActive;
-
-    /** Ticks since this client first drew the behavior, partial tick included; the orb eases back to size on it. */
-    public float behaviorAge;
 
     /** Metal spikes in flight, read from the marker's field-effect state. */
     public java.util.List<com.mercuriusxeno.goo.ability.program.FieldStrike> spikeAnims = java.util.List.of();

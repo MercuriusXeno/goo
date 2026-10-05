@@ -3,8 +3,6 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
-import com.mojang.blaze3d.vertex.PoseStack;
-import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
@@ -36,8 +34,6 @@ public final class BlazeExplosionVisual implements BurnoutVisual {
     /** How far the dome's center sits from the block center along the face's step: on the face plane. */
     private static final float DOME_LIFT = -0.5f;
     private static final int OPAQUE = 0xFF;
-    /** The progress the burnout's first drawn frame shows, which the fuse-tail ramp ends on. */
-    static final float FIRST_DRAWN_PROGRESS = DomeRamp.firstDrawnProgress(DURATION_TICKS);
 
     private BlazeExplosionVisual() {
     }
@@ -59,26 +55,6 @@ public final class BlazeExplosionVisual implements BurnoutVisual {
         int color = domeColor(progress, burnout.placedFace(), OPAQUE);
         BurnoutGeometry.drawAtMarker(frame, burnout.pos(), GooRenderTypes.BLAZE_EXPLOSION_TYPE, (pose, c) ->
                 BurnoutGeometry.emitSphere(pose, c, burnout.placedFace(), DOME_LIFT, radius, color));
-    }
-
-    @Override
-    public void submitRamp(ChainBurnouts.Burnout burnout, float ramp, PoseStack poseStack,
-                           SubmitNodeCollector collector) {
-        float radius = rampRadius(ramp);
-        int color = domeColor(FIRST_DRAWN_PROGRESS, burnout.placedFace(), DomeRamp.alpha(ramp));
-        collector.submitCustomGeometry(poseStack, GooRenderTypes.BLAZE_EXPLOSION_TYPE, (pose, c) ->
-                BurnoutGeometry.emitSphere(pose, c, burnout.placedFace(), DOME_LIFT, radius, color));
-    }
-
-    /**
-     * The dome's radius through the fuse-tail ramp, meeting the burnout's
-     * first drawn frame (decision dome-fades-in-before-its-start).
-     *
-     * @param ramp the ramp's share in [0, 1]
-     * @return the dome's radius in blocks
-     */
-    static float rampRadius(float ramp) {
-        return DomeRamp.radius(ramp, domeRadius(FIRST_DRAWN_PROGRESS));
     }
 
     /**

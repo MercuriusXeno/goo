@@ -12,8 +12,8 @@ import java.util.TreeSet;
 /**
  * The step runtime: runs a step list against a
  * {@link StepHost}, one step at a time, starting the next step the same
- * tick the prior finishes. The marker's fuse runs before the program body,
- * so {@link #onFuseExpired} is the body's first tick. Only the cursor and
+ * tick the prior finishes. A marker's program starts the tick its blob
+ * splats, so {@link #onSplat} is the body's first tick. Only the cursor and
  * two tick counters are state, and they are what persists.
  *
  * <p>{@link #tick(StepHost)} is the whole runtime and takes any host, so a
@@ -140,13 +140,14 @@ public final class ProgramBehavior {
     }
 
     /**
-     * The marker's fuse hit zero: the program's first tick.
+     * The marker's blob splatted: the program's first tick (decision
+     * splat-runs-the-program-no-fuse).
      *
      * @param level the server level
      * @param pos   the chain marker position
      * @param be    the owning marker
      */
-    public void onFuseExpired(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity be) {
+    public void onSplat(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity be) {
         tick(new MarkerHost(level, pos, be));
     }
 
@@ -172,10 +173,10 @@ public final class ProgramBehavior {
     }
 
     /**
-     * Returns true if the marker accepts more goo after its fuse expires,
+     * Returns true if the marker accepts more goo while its program runs,
      * which the running step decides.
      *
-     * @return true if post-fuse stacking is allowed
+     * @return true if stacking onto the running program is allowed
      */
     public boolean allowsTopOff() {
         return isActive() && steps.get(stepIndex).allowsTopOff();

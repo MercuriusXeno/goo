@@ -31,8 +31,7 @@ public final class PlacementTests {
     private static final String CRYSTAL_CLOUD = "goo:crystal_cloud";
     private static final String METAL_SPIKES = "goo:metal_spikes";
     private static final String NETHER_BLACK_HOLE = "goo:nether_black_hole";
-    private static final String UNSTABLE_TIMED_BOMB = "goo:unstable_timed_bomb";
-    private static final String GLOW_CRYSTAL = "goo:glow_crystal";
+    private static final String UNSTABLE_PROXIMITY_MINE = "goo:unstable_proximity_mine";
     private static final String ABILITIES_REQUIRED = "Ability registry must be loaded";
     private static final String OTHER_ABILITY_STACKED = "A goo of another ability stacked onto the marker";
     private static final String OTHER_ABILITY_REPLACED = "A goo of another ability replaced the marker";
@@ -58,8 +57,8 @@ public final class PlacementTests {
     }
 
     /**
-     * A sideways-placed marker must survive a neighbor change during
-     * its fuse phase. The pre-fix bug computed the support direction
+     * A sideways-placed marker must survive a neighbor change while its
+     * program runs. The pre-fix bug computed the support direction
      * as {@code placedFace} instead of {@code placedFace.getOpposite()},
      * so any neighbor update on a side-attached marker triggered a
      * false-positive "no support" detection that scheduled a fall and
@@ -156,16 +155,15 @@ public final class PlacementTests {
     }
 
     /**
-     * The crystal, metal, nether, unstable and glow abilities all place
-     * their markers through the same path.
+     * The crystal, metal, nether and unstable abilities that stand while
+     * their programs run all place their markers through the same path.
      *
      * @param helper the gametest helper
      */
     public static void otherTypesPlaceMarker(GameTestHelper helper) {
         Map<ResourceKey<GooTypeDefinition>, String> abilities = Map.of(
             GooTypes.CRYSTAL, CRYSTAL_CLOUD, GooTypes.METAL, METAL_SPIKES,
-            GooTypes.NETHER, NETHER_BLACK_HOLE, GooTypes.UNSTABLE, UNSTABLE_TIMED_BOMB,
-            GooTypes.GLOW, GLOW_CRYSTAL);
+            GooTypes.NETHER, NETHER_BLACK_HOLE, GooTypes.UNSTABLE, UNSTABLE_PROXIMITY_MINE);
         abilities.forEach((type, abilityId) -> {
             helper.setBlock(WALL_POS, Blocks.STONE);
             helper.setBlock(AIR_POS, Blocks.AIR);

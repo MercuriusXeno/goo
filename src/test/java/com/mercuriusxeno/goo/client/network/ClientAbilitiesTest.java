@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class ClientAbilitiesTest {
 
     private static AbilitySyncPayload.Entry entry(String name, int order, AbilityBadge badge) {
-        return new AbilitySyncPayload.Entry("goo:" + name, "goo:rock", name, "", order, List.of(), 0, 0,
+        return new AbilitySyncPayload.Entry("goo:" + name, "goo:rock", name, "", order, List.of(), 0,
                 List.of(), 0, Delivery.ARC, badge);
     }
 

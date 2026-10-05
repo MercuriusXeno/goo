@@ -1,23 +1,20 @@
 package com.mercuriusxeno.goo.block.ability;
 
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
-import net.minecraft.core.Direction;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceKey;
 
 /**
  * The state a chain marker carries through a fall, taken when its support
- * breaks and restored where it lands, ability id included so the landed
- * marker runs the same ability's program (decision no-throw-without-ability).
+ * breaks and restored where it lands: its whole saved state, so the landed
+ * marker runs on with the same ability's program from where it stood
+ * (decisions no-throw-without-ability, splat-runs-the-program-no-fuse).
  *
- * @param gooType    the marker's goo type
- * @param abilityId  the ability the marker runs at fuse expiry
- * @param stackCount the goo stacked on the marker
- * @param maxStacks  the stack ceiling
- * @param fuse       the fuse ticks remaining
- * @param face       the face the marker was placed on
+ * @param gooType   the marker's goo type, which its flight draws
+ * @param abilityId the ability the marker runs, which its flight draws
+ * @param saved     the marker's saved state, its running program included
  */
-public record ChainMarkerSnapshot(ResourceKey<GooTypeDefinition> gooType, String abilityId,
-                                  int stackCount, int maxStacks, int fuse, Direction face) {
+public record ChainMarkerSnapshot(ResourceKey<GooTypeDefinition> gooType, String abilityId, CompoundTag saved) {
 
     /**
      * Takes the snapshot of a standing marker.
@@ -26,7 +23,7 @@ public record ChainMarkerSnapshot(ResourceKey<GooTypeDefinition> gooType, String
      * @return the marker's state
      */
     public static ChainMarkerSnapshot of(ChainMarkerBlockEntity be) {
-        return new ChainMarkerSnapshot(be.getGooType(), be.getAbilityId(), be.getStackCount(),
-                be.getMaxStacks(), be.getFuseRemaining(), be.getPlacedFace());
+        CompoundTag saved = be.getLevel() != null ? be.saveCustomOnly(be.getLevel().registryAccess()) : new CompoundTag();
+        return new ChainMarkerSnapshot(be.getGooType(), be.getAbilityId(), saved);
     }
 }

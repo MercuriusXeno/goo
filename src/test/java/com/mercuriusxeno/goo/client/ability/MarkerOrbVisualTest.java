@@ -1,16 +1,15 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.RecordingVertexConsumer;
 import com.mercuriusxeno.goo.client.RenderContext;
+import com.mercuriusxeno.goo.client.ber.ChainMarkerRenderState;
 import com.mojang.blaze3d.vertex.PoseStack;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Stream;
+import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.core.Direction;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -20,20 +19,23 @@ import org.junit.jupiter.params.provider.MethodSource;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 /**
- * FuseOrbVisual's orb geometry, emitted through a recording consumer at the
- * pose the renderer places it with, and the scale its fuse expiry takes.
+ * MarkerOrbVisual's orb geometry, emitted through a recording consumer at the
+ * pose the renderer places it with, and the orb drawing only while the
+ * marker's program runs.
  */
-class FuseOrbVisualTest {
+class MarkerOrbVisualTest {
 
     private static final float TOLERANCE = 1e-5f;
     private static final GooRenderUtil.UvRect UV = new GooRenderUtil.UvRect(0f, 0f, 1f, 1f);
     private static final int WHITE = 0xFFFFFFFF;
 
-    /** Every scale the orb modifier takes at rest, at the shrink minimum and at the pulse peak. */
+    /** Every scale the orb modifier takes at rest and at the pulse peak. */
     private static final float[] MODIFIERS = {
-        1f, FuseOrbVisual.IMPLOSION_MIN, 1f + FuseOrbVisual.PULSE_AMPLITUDE,
+        1f, 1f + MarkerOrbVisual.PULSE_AMPLITUDE,
     };
     /** One stack and the highest stack ceiling a shipped ability sets. */
     private static final int[] STACK_COUNTS = {1, 8};
@@ -47,14 +49,14 @@ class FuseOrbVisualTest {
      * @param modifier   the orb modifier
      * @param shell      true for the shell layer, false for the core
      */
-    record OrbCase(Direction face, FuseOrbVisual.OrbShape shape, int stackCount,
+    record OrbCase(Direction face, MarkerOrbVisual.OrbShape shape, int stackCount,
                    float modifier, boolean shell) {
     }
 
     static Stream<Arguments> everyOrbLayer() {
         List<Arguments> cases = new ArrayList<>();
         for (Direction face : Direction.values()) {
-            for (FuseOrbVisual.OrbShape shape : FuseOrbVisual.OrbShape.values()) {
+            for (MarkerOrbVisual.OrbShape shape : MarkerOrbVisual.OrbShape.values()) {
                 for (int stacks : STACK_COUNTS) {
                     for (float modifier : MODIFIERS) {
                         cases.add(Arguments.of(new OrbCase(face, shape, stacks, modifier, false)));
@@ -66,8 +68,8 @@ class FuseOrbVisualTest {
         return cases.stream();
     }
 
-    private static boolean isGlow(FuseOrbVisual.OrbShape shape) {
-        return shape == FuseOrbVisual.OrbShape.GLOW_BUMP;
+    private static boolean isGlow(MarkerOrbVisual.OrbShape shape) {
+        return shape == MarkerOrbVisual.OrbShape.GLOW_BUMP;
     }
 
     /** The layer's lateral half-size by the resting arithmetic, before any pose scale. */
@@ -76,8 +78,8 @@ class FuseOrbVisualTest {
             GlowCrystalBlock.CrystalSize size = GlowCrystalBlock.CrystalSize.fromStacks(orb.stackCount());
             return (float) ((size.max - size.min) / 2);
         }
-        float core = FuseOrbVisual.CORE_BASE + (orb.stackCount() - 1) * FuseOrbVisual.CORE_GROWTH;
-        return orb.shell() ? core + FuseOrbVisual.SHELL_MARGIN : core;
+        float core = MarkerOrbVisual.CORE_BASE + (orb.stackCount() - 1) * MarkerOrbVisual.CORE_GROWTH;
+        return orb.shell() ? core + MarkerOrbVisual.SHELL_MARGIN : core;
     }
 
     /** The pose scale the renderer lays across the face, per shape. */
@@ -98,10 +100,10 @@ class FuseOrbVisualTest {
 
     private static List<RecordingVertexConsumer.Vertex> emit(OrbCase orb) {
         PoseStack poseStack = new PoseStack();
-        FuseOrbVisual.placeOrb(poseStack, orb.face(), orb.shape(), orb.modifier());
+        MarkerOrbVisual.placeOrb(poseStack, orb.face(), orb.shape(), orb.modifier());
         RecordingVertexConsumer consumer = new RecordingVertexConsumer();
         RenderContext ctx = new RenderContext(poseStack.last(), consumer, 0);
-        FuseOrbVisual.emitOrbLayer(ctx, WHITE, restingHalf(orb), orb.face(), orb.shape(), UV);
+        MarkerOrbVisual.emitOrbLayer(ctx, WHITE, restingHalf(orb), orb.face(), orb.shape(), UV);
         return consumer.vertices();
     }
 
@@ -125,7 +127,7 @@ class FuseOrbVisualTest {
     class OrbSitsOnTheFace {
 
         @ParameterizedTest
-        @MethodSource("com.mercuriusxeno.goo.client.ability.FuseOrbVisualTest#everyOrbLayer")
+        @MethodSource("com.mercuriusxeno.goo.client.ability.MarkerOrbVisualTest#everyOrbLayer")
         void noVertexCrossesTheFacePlane(OrbCase orb) {
             List<RecordingVertexConsumer.Vertex> vertices = emit(orb);
             Direction.Axis axis = orb.face().getAxis();
@@ -143,7 +145,7 @@ class FuseOrbVisualTest {
         }
 
         @ParameterizedTest
-        @MethodSource("com.mercuriusxeno.goo.client.ability.FuseOrbVisualTest#everyOrbLayer")
+        @MethodSource("com.mercuriusxeno.goo.client.ability.MarkerOrbVisualTest#everyOrbLayer")
         void lateralExtentsMatchTheRestingArithmetic(OrbCase orb) {
             List<RecordingVertexConsumer.Vertex> vertices = emit(orb);
             float expectedHalf = restingHalf(orb) * lateralScale(orb);
@@ -166,89 +168,16 @@ class FuseOrbVisualTest {
     /** A game time far from zero, as a live level's clock reads. */
     private static final float GAME_TIME = 48_213f;
 
-    /** The shrink's scale at each whole tick of its window, first tick to last. */
-    private static float[] shrinkAtEachTick() {
-        float[] scales = new float[FuseOrbVisual.SHRINK_TICKS + 1];
-        for (int tick = 0; tick <= FuseOrbVisual.SHRINK_TICKS; tick++) {
-            int remaining = FuseOrbVisual.FUSE_EXPIRY_TICKS - tick;
-            scales[tick] = FuseOrbVisual.computeImplosionScale(remaining, 0f, GAME_TIME + tick);
-        }
-        return scales;
-    }
+    // decision splat-runs-the-program-no-fuse
+    @Test
+    void orbDrawsNothingWhileNoProgramRuns() {
+        ChainMarkerRenderState state = new ChainMarkerRenderState();
+        state.behaviorActive = false;
+        SubmitNodeCollector collector = mock(SubmitNodeCollector.class);
 
-    private static float largestShrinkDelta() {
-        float[] scales = shrinkAtEachTick();
-        float largest = 0f;
-        for (int i = 1; i < scales.length; i++) {
-            largest = Math.max(largest, scales[i - 1] - scales[i]);
-        }
-        return largest;
-    }
+        MarkerOrbVisual.submit(state, new PoseStack(), collector);
 
-    @Nested
-    class ShrinkEasesThenJitters {
-
-        @Test
-        void shrinkFallsSlowFastSlowFromRestToTheMinimum() {
-            float[] scales = shrinkAtEachTick();
-            int last = scales.length - 1;
-
-            assertEquals(1f, scales[0], TOLERANCE);
-            assertEquals(FuseOrbVisual.IMPLOSION_MIN, scales[last], TOLERANCE);
-            for (int i = 1; i <= last; i++) {
-                assertFalse(scales[i] > scales[i - 1], "the shrink rises at tick " + i);
-            }
-            float firstDelta = scales[0] - scales[1];
-            float middleDelta = scales[last / 2 - 1] - scales[last / 2];
-            float lastDelta = scales[last - 1] - scales[last];
-            assertTrue(firstDelta < middleDelta,
-                    "first delta " + firstDelta + " not below middle " + middleDelta);
-            assertTrue(lastDelta < middleDelta,
-                    "last delta " + lastDelta + " not below middle " + middleDelta);
-        }
-
-        @Test
-        void orbJittersInItsBandAcrossTheLastFuseTick() {
-            Set<Float> distinct = new HashSet<>();
-            for (int step = 0; step < 10; step++) {
-                float partial = step / 10f;
-                float scale = FuseOrbVisual.computeImplosionScale(1, partial, GAME_TIME + partial);
-                assertTrue(scale > 0f, "scale " + scale + " at or below zero");
-                assertTrue(
-                        scale <= FuseOrbVisual.IMPLOSION_MIN + FuseOrbVisual.JITTER_AMPLITUDE + TOLERANCE,
-                        "scale " + scale + " above the band");
-                assertTrue(
-                        scale >= FuseOrbVisual.IMPLOSION_MIN - FuseOrbVisual.JITTER_AMPLITUDE - TOLERANCE,
-                        "scale " + scale + " below the band");
-                distinct.add(scale);
-            }
-            assertTrue(distinct.size() >= 2, "the orb holds still at its minimum");
-        }
-
-        @Test
-        void handoffStartsWithinTheJitterBandAndNeverJumps() {
-            float partial = 0.9f;
-            float lastFuseFrame = FuseOrbVisual.computeImplosionScale(1, partial, GAME_TIME + partial);
-            float firstActiveFrame = FuseOrbVisual.computeHandoffScale(0f);
-            assertEquals(lastFuseFrame, firstActiveFrame, FuseOrbVisual.JITTER_AMPLITUDE + TOLERANCE);
-
-            float bound = largestShrinkDelta() + TOLERANCE;
-            float previous = firstActiveFrame;
-            for (int tick = 1; tick <= FuseOrbVisual.SHRINK_TICKS + 2; tick++) {
-                float scale = FuseOrbVisual.computeHandoffScale(tick);
-                assertTrue(Math.abs(scale - previous) <= bound,
-                        "handoff jumps " + (scale - previous) + " at tick " + tick);
-                previous = scale;
-            }
-            assertEquals(1f, previous, TOLERANCE);
-        }
-
-        @Test
-        void syncThresholdCoversTheWholeShrinkWindow() {
-            assertTrue(
-                    ChainMarkerBlockEntity.IMPLOSION_SYNC_THRESHOLD
-                            >= FuseOrbVisual.FUSE_EXPIRY_TICKS);
-        }
+        verifyNoInteractions(collector);
     }
 
     @Nested
@@ -260,26 +189,26 @@ class FuseOrbVisualTest {
 
         @Test
         void ebbIsSlowFaintAndReturnsAfterOnePeriod() {
-            float period = FuseOrbVisual.CRYSTAL_EBB_PERIOD;
+            float period = MarkerOrbVisual.CRYSTAL_EBB_PERIOD;
             assertTrue(period >= SLOW_PERIOD_TICKS, "period " + period + " is under three seconds");
-            assertEquals(FuseOrbVisual.crystalEbb(true, GAME_TIME),
-                    FuseOrbVisual.crystalEbb(true, GAME_TIME + period), TOLERANCE);
+            assertEquals(MarkerOrbVisual.crystalEbb(true, GAME_TIME),
+                    MarkerOrbVisual.crystalEbb(true, GAME_TIME + period), TOLERANCE);
 
             float lowest = Float.MAX_VALUE;
             float highest = -Float.MAX_VALUE;
             for (int i = 0; i < SAMPLES; i++) {
-                float ebb = FuseOrbVisual.crystalEbb(true, GAME_TIME + i * period / SAMPLES);
+                float ebb = MarkerOrbVisual.crystalEbb(true, GAME_TIME + i * period / SAMPLES);
                 assertTrue(Math.abs(ebb - 1f) <= FAINT_AMPLITUDE, "ebb " + ebb + " is not faint");
                 lowest = Math.min(lowest, ebb);
                 highest = Math.max(highest, ebb);
             }
-            assertTrue(highest - lowest > FuseOrbVisual.CRYSTAL_EBB_AMPLITUDE, "the orb does not ebb");
+            assertTrue(highest - lowest > MarkerOrbVisual.CRYSTAL_EBB_AMPLITUDE, "the orb does not ebb");
         }
 
         @Test
         void orbRestsWithoutACloud() {
             for (int i = 0; i < SAMPLES; i++) {
-                assertEquals(1f, FuseOrbVisual.crystalEbb(false, GAME_TIME + i), 0f);
+                assertEquals(1f, MarkerOrbVisual.crystalEbb(false, GAME_TIME + i), 0f);
             }
         }
     }

@@ -6,10 +6,10 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * ChainMarkerDetonation announces the burnout before any removal, for a
- * program that finishes the tick it fires and for one that keeps running.
+ * ChainMarkerSplat announces the burnout before any removal, for a program
+ * that finishes the tick its blob splats and for one that keeps running.
  */
-class ChainMarkerDetonationTest {
+class ChainMarkerSplatTest {
 
     private static final String ANNOUNCE = "announce";
     private static final String LOAD = "load";
@@ -18,16 +18,16 @@ class ChainMarkerDetonationTest {
     private static final String SYNC = "sync";
 
     /**
-     * Records each world action in the order the detonation takes it.
+     * Records each world action in the order the splat takes it.
      *
      * @param hasProgram   whether the marker holds a program
      * @param keepsRunning whether the program runs past its first tick
      * @param calls        the actions taken, in order
      */
-    private record RecordingDetonation(boolean hasProgram, boolean keepsRunning, List<String> calls)
-            implements ChainMarkerDetonation {
+    private record RecordingSplat(boolean hasProgram, boolean keepsRunning, List<String> calls)
+            implements ChainMarkerSplat {
 
-        RecordingDetonation(boolean hasProgram, boolean keepsRunning) {
+        RecordingSplat(boolean hasProgram, boolean keepsRunning) {
             this(hasProgram, keepsRunning, new ArrayList<>());
         }
 
@@ -61,22 +61,22 @@ class ChainMarkerDetonationTest {
 
     @Test
     void oneTickProgramAnnouncesBeforeTheMarkerIsRemoved() {
-        RecordingDetonation detonation = new RecordingDetonation(true, false);
-        ChainMarkerDetonation.fire(detonation);
-        assertEquals(List.of(ANNOUNCE, LOAD, FIRST_TICK, REMOVE), detonation.calls());
+        RecordingSplat splat = new RecordingSplat(true, false);
+        ChainMarkerSplat.resolve(splat);
+        assertEquals(List.of(ANNOUNCE, LOAD, FIRST_TICK, REMOVE), splat.calls());
     }
 
     @Test
     void runningProgramAnnouncesAndStays() {
-        RecordingDetonation detonation = new RecordingDetonation(true, true);
-        ChainMarkerDetonation.fire(detonation);
-        assertEquals(List.of(ANNOUNCE, LOAD, FIRST_TICK, SYNC), detonation.calls());
+        RecordingSplat splat = new RecordingSplat(true, true);
+        ChainMarkerSplat.resolve(splat);
+        assertEquals(List.of(ANNOUNCE, LOAD, FIRST_TICK, SYNC), splat.calls());
     }
 
     @Test
     void markerWithoutAProgramAnnouncesBeforeItIsRemoved() {
-        RecordingDetonation detonation = new RecordingDetonation(false, false);
-        ChainMarkerDetonation.fire(detonation);
-        assertEquals(List.of(ANNOUNCE, LOAD, REMOVE), detonation.calls());
+        RecordingSplat splat = new RecordingSplat(false, false);
+        ChainMarkerSplat.resolve(splat);
+        assertEquals(List.of(ANNOUNCE, LOAD, REMOVE), splat.calls());
     }
 }

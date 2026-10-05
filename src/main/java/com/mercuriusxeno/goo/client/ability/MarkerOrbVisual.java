@@ -17,16 +17,16 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
 
 /**
- * Slime-like glowing orb shown during the chain marker's FUSE phase.
- * Two layers: inner core with the goo fluid texture, outer translucent
- * shell with goo-tinted color. Both are emissive (fullbright). Size
- * scales with stack count and pulses on each stack add. Implodes inward
- * in the final ticks before detonation. GLOW orbs match the crystal
+ * Slime-like glowing orb a chain marker draws while its program runs
+ * (decision splat-runs-the-program-no-fuse). Two layers: inner core with
+ * the goo fluid texture, outer translucent shell with goo-tinted color.
+ * Both are emissive (fullbright). Size scales with stack count and pulses
+ * on each stack add. GLOW orbs match the crystal
  * voxel shape from placement. Every layer is the outward half of its
  * box alone, from the face plane into the marker's own block, so nothing of
  * the orb reaches into the block it rests on (decision goo-sits-on-the-face).
  */
-public final class FuseOrbVisual {
+public final class MarkerOrbVisual {
 
     /** Base inner core half-size in block units (2 pixels) at 1 stack. */
     static final float CORE_BASE = 2f / 16f;
@@ -45,25 +45,11 @@ public final class FuseOrbVisual {
     /** Outer shell alpha when the player is aiming at the node. */
     private static final int SHELL_ALPHA_TARGETED = 0xC0;
 
-    /** Ticks the eased shrink takes, from resting size to the minimum. */
-    static final int SHRINK_TICKS = 12;
-    /** Ticks the orb jitters at its minimum before detonation. */
-    static final int JITTER_TICKS = 4;
-    /** Ticks before detonation where the shrink starts: the shrink, then the jitter. */
-    public static final int FUSE_EXPIRY_TICKS = SHRINK_TICKS + JITTER_TICKS;
-    /** Minimum scale during implosion (fraction of normal). */
-    static final float IMPLOSION_MIN = 0.3f;
-    /** How far the jitter swings the scale either side of the minimum. */
-    static final float JITTER_AMPLITUDE = IMPLOSION_MIN * 0.2f;
-    /** Jitter phase speed in radians per tick, a swing about every tick and a half. */
-    private static final float JITTER_RATE = 4.2f;
     /** Ticks per cycle of the crystal marker's ebb, four seconds. */
     static final float CRYSTAL_EBB_PERIOD = 80f;
     /** How far the crystal ebb swings the orb either side of resting size. */
     static final float CRYSTAL_EBB_AMPLITUDE = 0.03f;
     private static final double TWO_PI = 2 * Math.PI;
-    /** Maps 1 - cos, which spans [0, 2], onto [0, 1]. */
-    private static final float COSINE_TO_UNIT = 0.5f;
 
     /** Center offset in block units. */
     private static final float BLOCK_CENTER = 0.5f;
@@ -88,11 +74,12 @@ public final class FuseOrbVisual {
         }
     }
 
-    private FuseOrbVisual() {
+    private MarkerOrbVisual() {
     }
 
     /**
-     * Renders the orb: a textured core layer wrapped in a goo-tinted shell.
+     * Renders the orb while the marker's program runs: a textured core layer
+     * wrapped in a goo-tinted shell.
      *
      * @param state         the render state snapshot
      * @param poseStack     the pose stack for rendering
@@ -100,6 +87,9 @@ public final class FuseOrbVisual {
      */
     public static void submit(ChainMarkerRenderState state, PoseStack poseStack,
                               SubmitNodeCollector nodeCollector) {
+        if (!state.behaviorActive) {
+            return;
+        }
         float coreHalf = computeCoreHalf(state);
         float shellHalf = computeShellHalf(state, coreHalf);
         float modifier = computeOrbModifier(state);
@@ -229,19 +219,16 @@ public final class FuseOrbVisual {
     }
 
     /**
-     * Combines the implosion, the stack pulse and each ability's own rhythm into one scale factor.
+     * Combines the stack pulse and each ability's own rhythm into one scale factor.
      *
      * @param state the chain marker render state
      * @return the combined scale modifier
      */
     private static float computeOrbModifier(ChainMarkerRenderState state) {
-        float implosion = state.behaviorActive
-                ? computeHandoffScale(state.behaviorAge)
-                : computeImplosionScale(state.fuseRemaining, state.partialTick, state.gameTime);
         float pulse = computePulseScale(state);
         float spikeShake = computeSpikeShake(state);
         float ebb = crystalEbb(state.crystalActive, state.gameTime);
-        return implosion * pulse * spikeShake * ebb;
+        return pulse * spikeShake * ebb;
     }
 
     /**
@@ -262,8 +249,7 @@ public final class FuseOrbVisual {
 
     /**
      * Computes the core half-size based on stack count. For GLOW type,
-     * smoothly interpolates from the standard goo size down to the
-     * crystal's lateral extent over the fuse duration.
+     * the crystal's lateral extent.
      *
      * @param state the chain marker render state
      * @return the core half-size in block units
@@ -359,54 +345,5 @@ public final class FuseOrbVisual {
         float oy = face.getStepY() * BLOCK_CENTER;
         float oz = face.getStepZ() * BLOCK_CENTER;
         poseStack.translate(BLOCK_CENTER - ox, BLOCK_CENTER - oy, BLOCK_CENTER - oz);
-    }
-
-    /**
-     * Implosion scale (decision shrink-eases-then-jitters): 1.0 until the
-     * last FUSE_EXPIRY_TICKS, then an ease-in-out fall to IMPLOSION_MIN over
-     * SHRINK_TICKS, then a jitter about the minimum until detonation. A
-     * fuse waiting on a trigger holds at the minimum, still.
-     *
-     * @param fuseRemaining the fuse ticks remaining
-     * @param partialTick   the partial tick for interpolation
-     * @param gameTime      the game time including the partial tick, the jitter's clock
-     * @return the computed implosion scale
-     */
-    static float computeImplosionScale(int fuseRemaining, float partialTick, float gameTime) {
-        if (fuseRemaining < 0) {
-            return IMPLOSION_MIN;
-        }
-        float smoothFuse = Math.max(0f, fuseRemaining - partialTick);
-        if (smoothFuse >= FUSE_EXPIRY_TICKS) {
-            return 1f;
-        }
-        if (smoothFuse >= JITTER_TICKS) {
-            float t = (FUSE_EXPIRY_TICKS - smoothFuse) / SHRINK_TICKS;
-            return 1f - easeInOut(t) * (1f - IMPLOSION_MIN);
-        }
-        return IMPLOSION_MIN + JITTER_AMPLITUDE * (float) Math.sin(gameTime * JITTER_RATE);
-    }
-
-    /**
-     * The scale after the behavior becomes active: the shrink curve run
-     * backward, from the jitter's minimum to resting size over SHRINK_TICKS,
-     * so the orb never snaps back to size.
-     *
-     * @param behaviorAge ticks since the client first drew the behavior, partial tick included
-     * @return the handoff scale
-     */
-    static float computeHandoffScale(float behaviorAge) {
-        float t = Math.min(1f, Math.max(0f, behaviorAge / SHRINK_TICKS));
-        return IMPLOSION_MIN + easeInOut(t) * (1f - IMPLOSION_MIN);
-    }
-
-    /**
-     * Cosine ease-in-out: slow, then fast, then slow.
-     *
-     * @param t progress in [0, 1]
-     * @return eased progress in [0, 1]
-     */
-    private static float easeInOut(float t) {
-        return (1f - (float) Math.cos(t * Math.PI)) * COSINE_TO_UNIT;
     }
 }

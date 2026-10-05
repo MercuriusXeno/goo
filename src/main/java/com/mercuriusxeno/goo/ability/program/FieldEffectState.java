@@ -174,10 +174,10 @@ public final class FieldEffectState {
 
     /**
      * Returns the field's size as a fraction of its radius: rising over the
-     * expand ticks after the fuse, falling over the contract ticks once the
+     * expand ticks after the splat, falling over the contract ticks once the
      * budget is spent, whole between.
      *
-     * @param expandTicks   ticks the field takes to expand after the fuse
+     * @param expandTicks   ticks the field takes to expand after the splat
      * @param contractTicks ticks the field takes to contract once its budget is spent
      * @return the fraction in [0, 1]
      */
@@ -191,7 +191,7 @@ public final class FieldEffectState {
     /**
      * Answers whether the field is expanding or contracting.
      *
-     * @param expandTicks   ticks the field takes to expand after the fuse
+     * @param expandTicks   ticks the field takes to expand after the splat
      * @param contractTicks ticks the field takes to contract once its budget is spent
      * @return true while its size is below whole
      */

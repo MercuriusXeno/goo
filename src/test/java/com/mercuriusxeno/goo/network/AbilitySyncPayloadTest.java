@@ -24,7 +24,7 @@ class AbilitySyncPayloadTest {
 
     private static AbilityDefinition ability(String name, int order, String tag) {
         return new AbilityDefinition(Identifier.fromNamespaceAndPath("goo", name), GooTypes.ROCK,
-                name, "", order, 0, new AbilityDefinition.ChainConfig(30, 1),
+                name, "", order, 0, new AbilityDefinition.ChainConfig(1),
                 Delivery.ARC, List.of(), List.of(tag), AbilityBadge.WORLD);
     }
 
@@ -48,7 +48,7 @@ class AbilitySyncPayloadTest {
     @EnumSource(AbilityBadge.class)
     void badgeRoundTripsThroughTheSyncCodec(AbilityBadge badge) {
         AbilitySyncPayload sent = new AbilitySyncPayload(List.of(new AbilitySyncPayload.Entry("goo:rock_throw",
-                "rock", "rock_throw", "", 0, List.of(), 30, 1, List.of(), 0, Delivery.ARC, badge)));
+                "rock", "rock_throw", "", 0, List.of(), 1, List.of(), 0, Delivery.ARC, badge)));
         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
 
         AbilitySyncPayload.STREAM_CODEC.encode(buf, sent);
