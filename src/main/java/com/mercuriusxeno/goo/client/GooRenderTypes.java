@@ -7,6 +7,7 @@ import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.renderer.feature.ItemFeatureRenderer;
 import net.minecraft.client.renderer.rendertype.LayeringTransform;
 import net.minecraft.client.renderer.rendertype.OutputTarget;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
@@ -522,6 +523,34 @@ public final class GooRenderTypes {
         return GOO_MOB_COAT_FACTORY.apply(atlas);
     }
 
+    /**
+     * Status ailment overlay pipeline (decision ailment-overlay-shader-per-ailment):
+     * a mob's or player's model drawn again through {@code goo_ailment_overlay.vsh / .fsh},
+     * lifted a hair off the skin, the ailment's pattern laid over the skin coordinates
+     * under its color. The glint patterns read the vanilla enchantment glint texture
+     * from Sampler0. Translucent with depth write off, so the overlay never hides the
+     * model's own depth.
+     */
+    public static final RenderPipeline GOO_AILMENT_OVERLAY = RenderPipeline.builder(
+                    RenderPipelines.ENTITY_SNIPPET,
+                    RenderPipelines.GLOBALS_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_ailment_overlay"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_ailment_overlay"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_ailment_overlay"))
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withDepthStencilState(new DepthStencilState(DepthStencilState.DEFAULT.depthTest(), false))
+            .build();
+
+    /** The one render type on the ailment overlay pipeline, its glint texture bound. */
+    public static final RenderType GOO_AILMENT_OVERLAY_TYPE = RenderType.create(
+            "goo_ailment_overlay",
+            RenderSetup.builder(GOO_AILMENT_OVERLAY)
+                    .withTexture("Sampler0", ItemFeatureRenderer.ENCHANTED_GLINT_ITEM)
+                    .useLightmap()
+                    .sortOnUpload()
+                    .createRenderSetup()
+    );
+
     private GooRenderTypes() {}
 
     /**
@@ -591,6 +620,7 @@ public final class GooRenderTypes {
         event.registerPipeline(GOO_FLUID_SURFACE);
         event.registerPipeline(CRUCIBLE_DISSOLVE);
         event.registerPipeline(GOO_MOB_COAT);
+        event.registerPipeline(GOO_AILMENT_OVERLAY);
     }
 
     /**
