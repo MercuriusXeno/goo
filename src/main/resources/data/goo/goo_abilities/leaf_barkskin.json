@@ -1,7 +1,7 @@
 {
   "gooType": "leaf",
   "displayName": "goo.ability.leaf.barkskin",
-  "badge": "self",
+  "badge": "brew",
   "order": 10,
   "cost": 1000,
   "requires": ["minecraft:oak_log"],
