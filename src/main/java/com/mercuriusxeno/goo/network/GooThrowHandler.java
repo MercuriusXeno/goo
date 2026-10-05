@@ -74,10 +74,12 @@ public final class GooThrowHandler {
      * the goo in the player's inventory are checked, the goo is depleted,
      * the flight is broadcast and the effect scheduled for arrival. A mob
      * ability aimed at an entity within reach touches it at once instead,
-     * and a self ability runs on the player. A throw naming no ability the
-     * player may use is refused whole, draining nothing.
+     * and a self ability runs on the player: on command, or after the eat
+     * for a self + brew ability. A throw naming no ability the player may
+     * use is refused whole, draining nothing.
      * decision mob-ability-touches-at-reach
      * decision self-delivery-runs-on-player
+     * decision self-brew-goos-eat-before-the-effect
      * decision ability-hidden-until-recipes-known
      *
      * @param player  the throwing player
@@ -98,7 +100,7 @@ public final class GooThrowHandler {
     }
 
     /**
-     * Sends a named ability by its delivery: a self ability on the player, a
+     * Sends a named ability by its delivery: a self ability to the player, a
      * touch on an entity within reach, a flight otherwise.
      *
      * @param player  the throwing player
@@ -109,7 +111,7 @@ public final class GooThrowHandler {
     private static void deliver(ServerPlayer player, GooThrowPayload payload, ResourceKey<GooTypeDefinition> gooType,
             AbilityDefinition ability) {
         if (ability.delivery().kind() == DeliveryKind.SELF) {
-            GooSelfHandler.invoke(player, gooType, ability);
+            GooSelfHandler.deliver(player, gooType, ability);
         } else if (touchesTarget(player, payload, ability)) {
             GooTouchHandler.touch(player, payload, gooType);
         } else {
