@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.block.crucible;
 
+import com.mercuriusxeno.goo.block.ContainerEvaluator;
 import com.mercuriusxeno.goo.item.*;
 import com.mercuriusxeno.goo.network.PlayerKnowledge;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -190,12 +191,17 @@ final class CrucibleAbsorption {
      */
     private static void absorbContainer(ItemEntity entity, ItemStack stack,
                                         CrucibleBlockEntity crucible) {
-        List<ItemStack> ejects = CrucibleInsertion.insertContainer(crucible, stack);
-        if (ejects == null) {
+        ContainerEvaluator.ContainerEvaluation melted = CrucibleInsertion.insertContainer(crucible, stack);
+        if (melted == null) {
             return;
         }
+        teachThrower(entity, stack);
+        if (entity.getOwner() instanceof ServerPlayer thrower) {
+            // knowledge-capability-remembers-destroyed-items: the valued contents melt too, so they teach too
+            melted.valued().forEach(valued -> PlayerKnowledge.learn(thrower, valued.item()));
+        }
         entity.discard();
-        spawnEjectedItems(entity.level(), crucible.getBlockPos(), ejects);
+        spawnEjectedItems(entity.level(), crucible.getBlockPos(), melted.ejects());
         spawnMeltEffects(entity.level(), crucible);
     }
 

@@ -208,6 +208,7 @@ public final class GooTestFunctions {
     private static final String CR_GOO_INSERT = "cr_goo_insert";
     private static final String CR_ITEM_ABSORB = "cr_item_absorb";
     private static final String CR_THROWN_ITEM_TEACHES = "cr_thrown_item_teaches";
+    private static final String CR_THROWN_CONTAINER_TEACHES = "cr_thrown_container_teaches";
     private static final String CR_UNTHROWN_ITEM_TEACHES_NOBODY = "cr_unthrown_item_teaches_nobody";
     private static final String CR_MELTS_CHRYSM = "cr_melts_chrysm";
     private static final String CR_CAP_EACH_TYPE = "cr_cap_each_type";
@@ -630,6 +631,7 @@ public final class GooTestFunctions {
         reg(r, CR_GOO_INSERT, CrucibleTests::gooInsertViaInteraction);
         reg(r, CR_ITEM_ABSORB, CrucibleTests::itemEntityAbsorption);
         reg(r, CR_THROWN_ITEM_TEACHES, CrucibleTests::thrownItemTeachesTheThrower);
+        reg(r, CR_THROWN_CONTAINER_TEACHES, CrucibleTests::thrownContainerTeachesItsContents);
         reg(r, CR_UNTHROWN_ITEM_TEACHES_NOBODY, CrucibleTests::unthrownItemTeachesNobody);
         reg(r, CR_MELTS_CHRYSM, CrucibleTests::meltsChrysm);
         reg(r, CR_CAP_EACH_TYPE, CrucibleTests::reservoirCapsEachType);

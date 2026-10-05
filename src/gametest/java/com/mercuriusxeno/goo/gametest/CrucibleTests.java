@@ -273,6 +273,35 @@ public final class CrucibleTests {
     }
 
     /**
+     * A shulker box holding cobblestone, thrown into a lit crucible by a mock
+     * player, melts and teaches the thrower the box and the cobblestone melted
+     * out of it (decision knowledge-capability-remembers-destroyed-items).
+     *
+     * @param helper the gametest helper
+     */
+    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
+    public static void thrownContainerTeachesItsContents(GameTestHelper helper) {
+        helper.setBlock(BE_POS, GooBlocks.CRUCIBLE.get());
+        helper.getBlockEntity(BE_POS, CrucibleBlockEntity.class).addHeat(TEST_HEAT_TICKS);
+        ServerPlayer thrower = helper.makeMockServerPlayerInLevel();
+        ItemStack box = new ItemStack(Items.SHULKER_BOX);
+        box.set(DataComponents.CONTAINER, ItemContainerContents.fromItems(
+                List.of(new ItemStack(Items.COBBLESTONE, COBBLE_OFFERED))));
+        ItemEntity thrown = CrucibleSpawns.spawnInBasin(helper, box);
+        thrown.setThrower(thrower);
+
+        helper.runAfterDelay(ABSORB_DELAY, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(thrower);
+            helper.assertTrue(thrown.isRemoved(), SHOULD_ABSORB);
+            helper.assertTrue(PlayerKnowledge.of(thrower).contains(BuiltInRegistries.ITEM.getKey(Items.SHULKER_BOX)),
+                    "The thrower should know the shulker box once it melts");
+            helper.assertTrue(PlayerKnowledge.of(thrower).contains(COBBLESTONE_ID),
+                    "The thrower should know the cobblestone melted out of the box");
+            helper.succeed();
+        });
+    }
+
+    /**
      * A cobblestone with no thrower, as a hopper or dispenser drops it, melts
      * and teaches nobody: the player standing by learns nothing
      * (decision knowledge-capability-remembers-destroyed-items).
