@@ -22,6 +22,7 @@ import net.neoforged.neoforge.client.gui.GuiLayer;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Draws a standing heart overlay over the vanilla health bar: while Kindle
@@ -43,6 +44,10 @@ public final class HeartOverlayHud {
     private static final Identifier BARK_FULL = sprite("bark_full");
     private static final Identifier BARK_HALF = sprite("bark_half");
     private static final int HEART_SIZE = 9;
+    /** The smoldering crawl's mean opacity, the swing it pulses by and how fast. */
+    private static final float SMOLDER_ALPHA = 0.6f;
+    private static final float SMOLDER_PULSE = 0.25f;
+    private static final float SMOLDER_PULSE_RATE = 0.7f;
     /** A slot index no slot holds, for a bar with no regeneration bounce. */
     private static final int NO_BOUNCE = -1;
     private static final int SLOT_SPACING = 8;
@@ -174,31 +179,99 @@ public final class HeartOverlayHud {
 
     private static void paint(GuiGraphicsExtractor graphics, Gui gui, LocalPlayer player, HeartOverlay overlay,
                               BarFrame frame) {
-        int leftHeightBefore = frame.leftHeightBefore();
+        int health = Mth.ceil(player.getHealth());
+        BarLayout layout = layout(graphics, gui, player, frame.leftHeightBefore());
+        SlotPainter painter = new SlotPainter(graphics, overlay, gui.getGuiTicks(), frame.partialTick(),
+                RegrowCrawl.crawl(overlay, player.getHealth(), player.level().getGameTime() + frame.partialTick()));
+        for (int slot = 0; slot < HeartOverlay.filledSlots(health); slot++) {
+            painter.paint(slot, layout.x(slot), layout.y(slot), Math.min(HeartOverlay.FULL_SHIELD, health - slot * HALF));
+        }
+    }
+
+    /**
+     * Where vanilla laid this frame's heart slots, mirrored.
+     *
+     * @param xLeft      the bar's left edge
+     * @param yBase      the bottom row's top edge
+     * @param rowHeight  the row height
+     * @param jiggle     each slot's low-health jiggle
+     * @param bounceSlot the slot regeneration bounces, or none
+     */
+    private record BarLayout(int xLeft, int yBase, int rowHeight, int[] jiggle, int bounceSlot) {
+
+        int x(int slot) {
+            return slotX(slot, xLeft);
+        }
+
+        int y(int slot) {
+            return slotY(slot, yBase, rowHeight) + jiggle[slot] - (slot == bounceSlot ? REGEN_BOUNCE : 0);
+        }
+    }
+
+    private static BarLayout layout(GuiGraphicsExtractor graphics, Gui gui, LocalPlayer player, int leftHeightBefore) {
         int health = Mth.ceil(player.getHealth());
         float maxHealth = Math.max((float) player.getAttributeValue(Attributes.MAX_HEALTH), health);
         int absorption = Mth.ceil(player.getAbsorptionAmount());
-        int rowHeight = rowHeight(maxHealth, absorption);
-        int xLeft = graphics.guiWidth() / HALF - BAR_HALF_WIDTH;
-        int yBase = graphics.guiHeight() - leftHeightBefore;
         int[] jiggle = jiggle(gui.getGuiTicks(), Mth.ceil(maxHealth / POINTS_PER_HEART)
                 + Mth.ceil(absorption / POINTS_PER_HEART), health + absorption <= JIGGLE_HEALTH);
         int bounceSlot = player.hasEffect(MobEffects.REGENERATION)
                 ? gui.getGuiTicks() % Mth.ceil(maxHealth + REGEN_BOUNCE_PAD) : NO_BOUNCE;
-        for (int slot = 0; slot < HeartOverlay.filledSlots(health); slot++) {
-            int y = slotY(slot, yBase, rowHeight) + jiggle[slot] - (slot == bounceSlot ? REGEN_BOUNCE : 0);
-            int x = slotX(slot, xLeft);
-            int realHalves = Math.min(HeartOverlay.FULL_SHIELD, health - slot * HALF);
+        return new BarLayout(graphics.guiWidth() / HALF - BAR_HALF_WIDTH, graphics.guiHeight() - leftHeightBefore,
+                rowHeight(maxHealth, absorption), jiggle, bounceSlot);
+    }
+
+    /**
+     * Paints one frame's overlay hearts, slot by slot.
+     *
+     * @param graphics    the gui graphics
+     * @param overlay     the player's overlay
+     * @param guiTicks    the gui tick
+     * @param partialTick the fraction of the tick elapsed
+     * @param crawl       the half regrowing now, if any
+     */
+    private record SlotPainter(GuiGraphicsExtractor graphics, HeartOverlay overlay, int guiTicks, float partialTick,
+                               Optional<RegrowCrawl.Crawl> crawl) {
+
+        void paint(int slot, int x, int y, int realHalves) {
             for (Identifier sprite : heartSprites(overlay.kind(), overlay.shieldAt(slot), realHalves)) {
                 graphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x, y, HEART_SIZE, HEART_SIZE);
             }
+            crawl.filter(regrowing -> overlay.kind() == HeartKind.KINDLE && regrowing.slot() == slot
+                            && regrowing.fromHalf() < realHalves)
+                    .ifPresent(regrowing -> paintCrawl(graphics, overlay.kind(), regrowing, guiTicks, x, y));
             if (overlay.kind() == HeartKind.KINDLE) {
                 paintSparks(graphics, EmberSparks.sparks(slot, Math.min(overlay.shieldAt(slot), realHalves),
-                        gui.getGuiTicks(), frame.partialTick()), x, y);
+                        guiTicks, partialTick), x, y);
             }
         }
     }
 
+    /**
+     * Paints a regrowing half's crawl: the shield's sprite revealed row by row
+     * up to the front, a smoldering, pulsing ember over Kindle's ash.
+     *
+     * @param graphics the gui graphics
+     * @param kind     the overlay's kind
+     * @param crawl    the half regrowing
+     * @param guiTicks the gui tick
+     * @param x        the slot's left edge
+     * @param y        the slot's top edge
+     */
+    private static void paintCrawl(GuiGraphicsExtractor graphics, HeartKind kind, RegrowCrawl.Crawl crawl, int guiTicks,
+                                   int x, int y) {
+        boolean smolder = kind == HeartKind.KINDLE;
+        Identifier sprite = smolder ? EMBER_FULL : BARK_FULL;
+        float alpha = smolder ? SMOLDER_ALPHA + SMOLDER_PULSE * Mth.sin(guiTicks * SMOLDER_PULSE_RATE) : 1f;
+        int left = x + crawl.fromHalf() * (HEART_SIZE - RegrowCrawl.HALF_WIDTH);
+        for (int row = 0; row < HEART_SIZE; row++) {
+            int reach = RegrowCrawl.rowReach(row, crawl.progress(), guiTicks, smolder);
+            if (reach > 0) {
+                graphics.enableScissor(left, y + row, left + reach, y + row + 1);
+                graphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x, y, HEART_SIZE, HEART_SIZE, alpha);
+                graphics.disableScissor();
+            }
+        }
+    }
     private static void paintSparks(GuiGraphicsExtractor graphics, List<EmberSparks.Spark> sparks, int x, int y) {
         for (EmberSparks.Spark spark : sparks) {
             int left = x + Math.round(spark.x());

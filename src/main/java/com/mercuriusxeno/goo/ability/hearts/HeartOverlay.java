@@ -9,6 +9,7 @@ import net.minecraft.network.codec.StreamCodec;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.OptionalInt;
 
 /**
  * The heart overlay standing over a player's health bar: a shield layer over
@@ -282,6 +283,27 @@ public record HeartOverlay(HeartKind kind, List<Integer> shields, long expiresAt
             after.set(slot, FULL_SHIELD);
         }
         return withShields(after, regrowAt);
+    }
+
+    /**
+     * The heart slot that regrows its next half of shield, the leftmost real
+     * heart short of a full shield.
+     *
+     * @param health the player's real health
+     * @return the slot, or empty when every real heart wears a full shield or no overlay stands
+     */
+    public OptionalInt nextRegrowSlot(float health) {
+        int slot = leftmostShortSlot(filledSlots(health));
+        return !stands() || slot == NO_SLOT ? OptionalInt.empty() : OptionalInt.of(slot);
+    }
+
+    /**
+     * The ticks the half regrowing now takes in all, which the regrow time was set from.
+     *
+     * @return the interval in ticks
+     */
+    public long regrowInterval() {
+        return kind.regrowInterval(shieldHalves());
     }
 
     private HeartOverlay regrow(float health, long now) {
