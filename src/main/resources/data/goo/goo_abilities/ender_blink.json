@@ -6,7 +6,11 @@
   "cost": 1000,
   "delivery": { "kind": "self" },
   "behaviors": [
+    { "type": "afterimage", "goo": "ender" },
+    { "type": "particles", "id": "minecraft:portal", "at": "target", "count": 32, "spread": 0.5, "lift": 1, "speed": 0.5 },
     { "type": "teleport", "mode": "thrower_look", "range": 8 },
+    { "type": "afterimage", "goo": "ender" },
+    { "type": "particles", "id": "minecraft:portal", "at": "target", "count": 32, "spread": 0.5, "lift": 1, "speed": 0.5 },
     { "type": "sound", "id": "minecraft:entity.enderman.teleport", "at": "target", "source": "players", "volume": 1, "pitch": 1 }
   ],
   "tags": ["self"]

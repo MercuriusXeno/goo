@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client;
 
+import com.mercuriusxeno.goo.client.ability.RippleTarget;
 import com.mojang.blaze3d.pipeline.BlendFunction;
 import com.mojang.blaze3d.pipeline.ColorTargetState;
 import com.mojang.blaze3d.pipeline.DepthStencilState;
@@ -14,6 +15,8 @@ import net.minecraft.client.renderer.rendertype.RenderSetup;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.resources.Identifier;
 import net.neoforged.neoforge.client.event.RegisterRenderPipelinesEvent;
+import java.util.List;
+import java.util.Optional;
 
 /**
  * Custom render types for goo visuals. The additive glow line type uses
@@ -541,6 +544,47 @@ public final class GooRenderTypes {
             .withDepthStencilState(new DepthStencilState(DepthStencilState.DEFAULT.depthTest(), false))
             .build();
 
+    /** The ripple mask shader pair's name, and the stem of each mask pipeline's. */
+    private static final String RIPPLE_MASK = "goo_ripple_mask";
+
+    /** The stem each mask pipeline's name takes its channel index after. */
+    private static final String RIPPLE_MASK_CHANNEL = RIPPLE_MASK + "_";
+
+    /**
+     * Afterimage ripple mask pipelines (decision afterimage-is-one-shared-effect),
+     * one per color channel of the ripple buffer: each fills its channel alone with
+     * the vertex alpha, the silhouette's fade, through {@code goo_ripple_mask.vsh / .fsh},
+     * no blending, so overlapping cubes of one silhouette merge and the other
+     * silhouettes' channels stay as they are. Depth tested against the world's copied
+     * depth, depth write off, both faces drawn.
+     */
+    public static final List<RenderPipeline> GOO_RIPPLE_MASKS = List.of(
+            rippleMaskPipeline(0, ColorTargetState.WRITE_RED),
+            rippleMaskPipeline(1, ColorTargetState.WRITE_GREEN),
+            rippleMaskPipeline(2, ColorTargetState.WRITE_BLUE),
+            rippleMaskPipeline(3, ColorTargetState.WRITE_ALPHA));
+
+    /** The render types filling the ripple buffer's channels, in channel order. */
+    public static final List<RenderType> GOO_RIPPLE_MASK_TYPES = GOO_RIPPLE_MASKS.stream()
+            .map(pipeline -> RenderType.create(pipeline.getLocation().getPath(),
+                    RenderSetup.builder(pipeline).setOutputTarget(RippleTarget.OUTPUT).createRenderSetup()))
+            .toList();
+
+    /**
+     * Afterimage ripple edge pipeline (decision afterimage-is-one-shared-effect): a
+     * fullscreen pass over the ripple buffer through {@code goo_ripple_edge.fsh},
+     * painting where any channel changes, the silhouettes' perimeters, in the goo
+     * type's color that ColorModulator carries, blended over the frame.
+     */
+    public static final RenderPipeline GOO_RIPPLE_EDGE = RenderPipeline.builder(RenderPipelines.MATRICES_PROJECTION_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_ripple_edge"))
+            .withVertexShader(Identifier.withDefaultNamespace("core/screenquad"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_ripple_edge"))
+            .withSampler("InSampler")
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withVertexFormat(DefaultVertexFormat.EMPTY, VertexFormat.Mode.TRIANGLES)
+            .build();
+
     /** The one render type on the ailment overlay pipeline, its glint texture bound. */
     public static final RenderType GOO_AILMENT_OVERLAY_TYPE = RenderType.create(
             "goo_ailment_overlay",
@@ -552,6 +596,26 @@ public final class GooRenderTypes {
     );
 
     private GooRenderTypes() {}
+
+    /**
+     * A ripple mask pipeline filling one channel of the ripple buffer
+     * (decision afterimage-is-one-shared-effect).
+     *
+     * @param channel   the channel's index, which names the pipeline
+     * @param writeMask the ColorTargetState write bit of that channel alone
+     * @return the pipeline
+     */
+    private static RenderPipeline rippleMaskPipeline(int channel, int writeMask) {
+        return RenderPipeline.builder(RenderPipelines.MATRICES_PROJECTION_SNIPPET)
+                .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + RIPPLE_MASK_CHANNEL + channel))
+                .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + RIPPLE_MASK))
+                .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + RIPPLE_MASK))
+                .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
+                .withColorTargetState(new ColorTargetState(Optional.empty(), writeMask))
+                .withDepthStencilState(new DepthStencilState(DepthStencilState.DEFAULT.depthTest(), false))
+                .withCull(false)
+                .build();
+    }
 
     /**
      * A burnout explosion pipeline (decision elemental-explosion-per-type):
@@ -621,6 +685,8 @@ public final class GooRenderTypes {
         event.registerPipeline(CRUCIBLE_DISSOLVE);
         event.registerPipeline(GOO_MOB_COAT);
         event.registerPipeline(GOO_AILMENT_OVERLAY);
+        GOO_RIPPLE_MASKS.forEach(event::registerPipeline);
+        event.registerPipeline(GOO_RIPPLE_EDGE);
     }
 
     /**

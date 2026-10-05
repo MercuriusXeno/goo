@@ -63,6 +63,7 @@ public final class StepTypes {
         register(LeafSteps.DISCARD.type());
         register(LeafSteps.SET_BABY.type());
         register(AilmentOverlayStep.TYPE);
+        register(AfterimageStep.TYPE);
     }
 
     private StepTypes() {

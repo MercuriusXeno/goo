@@ -1,10 +1,10 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.network.AilmentPayload;
+import com.mercuriusxeno.goo.network.EntityVisuals;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.world.entity.LivingEntity;
-import net.neoforged.neoforge.network.PacketDistributor;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -45,7 +45,7 @@ public record AilmentOverlayStep(AilmentKind kind, Expr duration) implements Ste
     @Override
     public boolean tick(StepContext context) {
         LivingEntity target = context.hostAs(TargetHost.class).target();
-        PacketDistributor.sendToPlayersTrackingEntityAndSelf(target,
+        EntityVisuals.sendToWatchers(target,
                 new AilmentPayload(target.getId(), kind, duration.evaluateInt(context)));
         return true;
     }
