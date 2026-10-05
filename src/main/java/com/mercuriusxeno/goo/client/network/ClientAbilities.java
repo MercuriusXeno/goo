@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.network;
 
 import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
+import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -84,6 +85,18 @@ public record ClientAbilities(Map<ResourceKey<GooTypeDefinition>, List<ClientAbi
      */
     public List<ClientAbility> forType(ResourceKey<GooTypeDefinition> type) {
         return byType.getOrDefault(type, List.of());
+    }
+
+    /**
+     * The type's abilities a player who knows these items may have, the ones
+     * the radial offers (decision ability-hidden-until-recipes-known).
+     *
+     * @param type  the goo type
+     * @param known the items the player knows
+     * @return the type's known abilities, in fan order
+     */
+    public List<ClientAbility> knownForType(ResourceKey<GooTypeDefinition> type, KnownItems known) {
+        return forType(type).stream().filter(ability -> ability.isKnownTo(known)).toList();
     }
 
     /**

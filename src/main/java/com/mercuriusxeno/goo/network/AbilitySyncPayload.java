@@ -47,6 +47,9 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
     public static final StreamCodec<FriendlyByteBuf, AbilitySyncPayload> STREAM_CODEC =
             StreamCodec.of(AbilitySyncPayload::encode, AbilitySyncPayload::decode);
 
+    private static final StreamCodec<ByteBuf, List<Identifier>> REQUIRES_CODEC =
+            Identifier.STREAM_CODEC.apply(ByteBufCodecs.list());
+
     private static final StreamCodec<ByteBuf, List<Step>> STEPS_CODEC = ByteBufCodecs.fromCodec(StepTypes.LIST_CODEC);
 
     /**
@@ -78,7 +81,7 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
                 .map(def -> new Entry(def.id().toString(), GooTypes.id(type),
                         def.displayName(), def.icon(), def.order(), def.tags(),
                         def.chain().fuseTicks(), def.chain().maxStacks(), def.behaviors(), def.cost(),
-                        def.delivery(), def.badge()))
+                        def.delivery(), def.badge(), def.requires()))
                 .toList();
     }
 
@@ -97,6 +100,7 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
             buf.writeVarInt(e.cost);
             Delivery.STREAM_CODEC.encode(buf, e.delivery);
             AbilityBadge.STREAM_CODEC.encode(buf, e.badge);
+            REQUIRES_CODEC.encode(buf, e.requires);
         }
     }
 
@@ -114,7 +118,7 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
             entries.add(new Entry(buf.readUtf(), buf.readUtf(), buf.readUtf(),
                     buf.readUtf(), buf.readVarInt(), decodeTags(buf), buf.readVarInt(), buf.readVarInt(),
                     STEPS_CODEC.decode(buf), buf.readVarInt(), Delivery.STREAM_CODEC.decode(buf),
-                    AbilityBadge.STREAM_CODEC.decode(buf)));
+                    AbilityBadge.STREAM_CODEC.decode(buf), REQUIRES_CODEC.decode(buf)));
         }
         return new AbilitySyncPayload(entries);
     }
@@ -148,9 +152,11 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
      * @param cost        the mB a throw costs, the same at every stack count
      * @param delivery    how the ability leaves the glove
      * @param badge       the target kind the radial marks on the icon
+     * @param requires    the items a player must know before the radial offers it
      */
     public record Entry(String abilityId, String gooTypeId, String displayName,
                         String icon, int order, List<String> tags, int fuseTicks, int maxStacks,
-                        List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge) {
+                        List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge,
+                        List<Identifier> requires) {
     }
 }

@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.network;
 
+import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
@@ -60,6 +61,7 @@ public final class StreamDeliveryTests {
         Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ZOMBIE_POS);
         zombie.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
         ServerPlayer player = streamer(helper);
+        KnownRecipes.teachRequires(player, spitfire);
         int heldBefore = blazeHeld(player);
         helper.assertFalse(zombie.isOnFire(), SHOULD_START_UNBURNT);
         GooStreamPayload tick = new GooStreamPayload(GooTypes.id(GooTypes.BLAZE), BLAZE_SPITFIRE.toString(),

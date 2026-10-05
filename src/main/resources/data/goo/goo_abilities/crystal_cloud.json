@@ -4,6 +4,7 @@
   "badge": "world",
   "order": 0,
   "cost": 1000,
+  "requires": ["minecraft:glass", "minecraft:sand"],
   "delivery": { "kind": "arc" },
   "chain": {
     "fuseTicks": 30,

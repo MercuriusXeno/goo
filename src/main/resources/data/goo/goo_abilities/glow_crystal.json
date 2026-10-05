@@ -4,6 +4,7 @@
   "badge": "world",
   "order": 0,
   "cost": 1000,
+  "requires": ["minecraft:glowstone"],
   "delivery": { "kind": "beam", "blocks_per_tick": 2.5 },
   "chain": {
     "fuseTicks": 30,

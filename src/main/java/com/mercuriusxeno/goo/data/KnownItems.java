@@ -5,6 +5,7 @@ import io.netty.buffer.ByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.Identifier;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -55,6 +56,16 @@ public record KnownItems(Set<Identifier> items) {
      */
     public boolean contains(Identifier item) {
         return items.contains(item);
+    }
+
+    /**
+     * Answers whether every item named is known.
+     *
+     * @param required the item ids
+     * @return true when none of them is unknown
+     */
+    public boolean containsAll(Collection<Identifier> required) {
+        return items.containsAll(required);
     }
 
     /**

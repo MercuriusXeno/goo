@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.block.crucible.CrucibleCapacity;
 import com.mercuriusxeno.goo.block.crucible.CrucibleMath;
 import com.mercuriusxeno.goo.block.crucible.CrucibleShape;
 import com.mercuriusxeno.goo.data.GooValues;
+import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.item.ChrysmTier;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.GooStacks;
@@ -263,17 +264,17 @@ public final class CrucibleTests {
         thrown.setThrower(thrower);
 
         helper.runAfterDelay(ABSORB_DELAY, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(thrower);
             helper.assertTrue(thrown.isRemoved(), SHOULD_ABSORB);
             helper.assertTrue(PlayerKnowledge.of(thrower).contains(COBBLESTONE_ID),
                     "The thrower should know cobblestone once it melts");
-            helper.getLevel().getServer().getPlayerList().remove(thrower);
             helper.succeed();
         });
     }
 
     /**
      * A cobblestone with no thrower, as a hopper or dispenser drops it, melts
-     * and teaches nobody: a player standing by learns nothing
+     * and teaches nobody: the player standing by learns nothing
      * (decision knowledge-capability-remembers-destroyed-items).
      *
      * @param helper the gametest helper
@@ -286,11 +287,10 @@ public final class CrucibleTests {
         ItemEntity dropped = CrucibleSpawns.spawnInBasin(helper, new ItemStack(Items.COBBLESTONE));
 
         helper.runAfterDelay(ABSORB_DELAY, () -> {
-            helper.assertTrue(dropped.isRemoved(), SHOULD_ABSORB);
-            helper.assertTrue(helper.getLevel().getServer().getPlayerList().getPlayers().stream()
-                            .noneMatch(player -> PlayerKnowledge.of(player).contains(COBBLESTONE_ID)),
-                    "An item with no thrower should teach nobody");
             helper.getLevel().getServer().getPlayerList().remove(bystander);
+            helper.assertTrue(dropped.isRemoved(), SHOULD_ABSORB);
+            helper.assertTrue(PlayerKnowledge.of(bystander).equals(KnownItems.NONE),
+                    "An item with no thrower should teach nobody");
             helper.succeed();
         });
     }
