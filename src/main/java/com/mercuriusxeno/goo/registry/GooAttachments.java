@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.registry;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.ability.program.EntityCounters;
+import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.item.SoulBoundStacks;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.attachment.AttachmentType;
@@ -53,6 +54,20 @@ public final class GooAttachments {
                             .build());
 
     /**
+     * The items a player knows, saved with the player and kept through death
+     * (decision knowledge-capability-remembers-destroyed-items).
+     */
+    public static final Supplier<AttachmentType<KnownItems>> KNOWN_ITEMS =
+            ATTACHMENT_TYPES.register("known_items",
+                    () -> AttachmentType.builder(() -> KnownItems.NONE)
+                            .serialize(KnownItems.CODEC)
+                            .copyOnDeath()
+                            .build());
+
+    private GooAttachments() {
+    }
+
+    /**
      * Answers whether a player attachment syncs to a client: only to the
      * player holding it, and only over a connection that negotiated the
      * attachment sync channel, which a vanilla client and a gametest mock
@@ -64,8 +79,5 @@ public final class GooAttachments {
      */
     private static boolean syncsToOwner(IAttachmentHolder holder, ServerPlayer to) {
         return holder == to && to.connection.hasChannel(SyncAttachmentsPayload.TYPE);
-    }
-
-    private GooAttachments() {
     }
 }

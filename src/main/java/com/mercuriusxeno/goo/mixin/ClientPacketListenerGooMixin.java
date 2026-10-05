@@ -2,9 +2,11 @@ package com.mercuriusxeno.goo.mixin;
 
 import com.mercuriusxeno.goo.client.network.ClientAbilities;
 import com.mercuriusxeno.goo.client.network.ClientAbilityConnection;
+import com.mercuriusxeno.goo.client.network.KnownItemsConnection;
 import com.mercuriusxeno.goo.data.GooValueConnection;
 import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.data.IGooValueLookup;
+import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypeOrderSource;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -19,18 +21,21 @@ import java.util.List;
 
 /**
  * Gives the client connection what goo holds for its life: the goo values and
- * abilities its server synced, and the goo types its registries hold, so a
+ * abilities its server synced, the items its player knows, and the goo types its registries hold, so a
  * disconnect drops them with the connection (decision type-package-and-per-server-holders).
  */
 @Mixin(ClientPacketListener.class)
 public abstract class ClientPacketListenerGooMixin
-        implements GooValueConnection, ClientAbilityConnection, GooTypeOrderSource {
+        implements GooValueConnection, ClientAbilityConnection, KnownItemsConnection, GooTypeOrderSource {
 
     @Unique
     private volatile GooValueTable goo$valueTable = GooValueTable.EMPTY;
 
     @Unique
     private volatile ClientAbilities goo$abilities = ClientAbilities.EMPTY;
+
+    @Unique
+    private volatile KnownItems goo$knownItems = KnownItems.NONE;
 
     @Unique
     private volatile @Nullable List<ResourceKey<GooTypeDefinition>> goo$typeOrder;
@@ -73,6 +78,22 @@ public abstract class ClientPacketListenerGooMixin
     @Override
     public void receiveClientAbilities(ClientAbilities abilities) {
         goo$abilities = abilities;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public KnownItems knownItems() {
+        return goo$knownItems;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void receiveKnownItems(KnownItems known) {
+        goo$knownItems = known;
     }
 
     /**

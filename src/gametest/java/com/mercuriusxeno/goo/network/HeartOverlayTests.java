@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.network;
 
+import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.hearts.HeartKind;
+import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooAttachments;
@@ -195,6 +197,7 @@ public final class HeartOverlayTests {
     }
 
     private static void invoke(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, Identifier ability) {
+        KnownRecipes.teachRequires(player, AbilityRegistry.of(player.level()).getAbility(ability));
         GooThrowHandler.execute(player, new GooThrowPayload(GooTypes.id(gooType), NO_ENTITY,
                 player.blockPosition(), NO_ENTITY, false, ability.toString(), player.getEyePosition()));
     }

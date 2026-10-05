@@ -1,9 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.ability.program.AreaShape;
-import com.mercuriusxeno.goo.ability.program.ProgressiveAreaStep;
 import com.mercuriusxeno.goo.ability.program.Step;
-import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
+import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import java.util.Optional;
@@ -24,13 +22,13 @@ public final class SyncedSteps {
      * Finds the first step of a type in the marker's ability program,
      * searching container steps' children after the step itself.
      *
-     * @param be   the chain marker block entity
+     * @param be   the ability block block entity
      * @param type the step type
      * @param <S>  the step class
      * @return the step, or empty when no ability is synced under the
      *         marker's id or its program holds no such step
      */
-    public static <S extends Step> Optional<S> first(ChainMarkerBlockEntity be, Class<S> type) {
+    public static <S extends Step> Optional<S> first(AbilityBlockEntity be, Class<S> type) {
         return first(be.getAbilityId(), type);
     }
 
@@ -54,18 +52,6 @@ public final class SyncedSteps {
                 .filter(type::isInstance)
                 .map(type::cast)
                 .findFirst();
-    }
-
-    /**
-     * Answers whether an ability's marker mines a tunnel, read off its
-     * synced progressive-area step.
-     *
-     * @param abilityId the ability id
-     * @return true when the ability's program walks a tunnel
-     */
-    public static boolean minesTunnel(String abilityId) {
-        return first(abilityId, ProgressiveAreaStep.class)
-                .map(step -> step.shape() == AreaShape.TUNNEL).orElse(false);
     }
 
     /**

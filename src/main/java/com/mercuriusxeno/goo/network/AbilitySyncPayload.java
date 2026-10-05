@@ -25,7 +25,7 @@ import java.util.List;
  * Server-to-client payload: syncs the loaded ability definitions so the
  * client radial menu knows what abilities exist per goo type. Sends the
  * metadata needed for display (id, type, name, order), the chain block's
- * fuse and stack ceiling the client predicts from, the step program,
+ * step program,
  * whose params the marker's renderers read by the marker's ability id
  * (decision capability-interfaces-derive-host-kind), and the flat cost
  * the client prices a throw with (decision flat-cost-per-throw), and the
@@ -46,6 +46,9 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
      */
     public static final StreamCodec<FriendlyByteBuf, AbilitySyncPayload> STREAM_CODEC =
             StreamCodec.of(AbilitySyncPayload::encode, AbilitySyncPayload::decode);
+
+    private static final StreamCodec<ByteBuf, List<Identifier>> REQUIRES_CODEC =
+            Identifier.STREAM_CODEC.apply(ByteBufCodecs.list());
 
     private static final StreamCodec<ByteBuf, List<Step>> STEPS_CODEC = ByteBufCodecs.fromCodec(StepTypes.LIST_CODEC);
 
@@ -77,8 +80,8 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
                 .filter(def -> !def.hasTag(AbilityTags.TAP))
                 .map(def -> new Entry(def.id().toString(), GooTypes.id(type),
                         def.displayName(), def.icon(), def.order(), def.tags(),
-                        def.chain().fuseTicks(), def.chain().maxStacks(), def.behaviors(), def.cost(),
-                        def.delivery(), def.badge()))
+                        def.behaviors(), def.cost(),
+                        def.delivery(), def.badge(), def.requires()))
                 .toList();
     }
 
@@ -91,12 +94,11 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
             buf.writeUtf(e.icon);
             buf.writeVarInt(e.order);
             encodeTags(buf, e.tags);
-            buf.writeVarInt(e.fuseTicks);
-            buf.writeVarInt(e.maxStacks);
             STEPS_CODEC.encode(buf, e.behaviors);
             buf.writeVarInt(e.cost);
             Delivery.STREAM_CODEC.encode(buf, e.delivery);
             AbilityBadge.STREAM_CODEC.encode(buf, e.badge);
+            REQUIRES_CODEC.encode(buf, e.requires);
         }
     }
 
@@ -112,9 +114,9 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
         List<Entry> entries = new ArrayList<>(count);
         for (int i = 0; i < count; i++) {
             entries.add(new Entry(buf.readUtf(), buf.readUtf(), buf.readUtf(),
-                    buf.readUtf(), buf.readVarInt(), decodeTags(buf), buf.readVarInt(), buf.readVarInt(),
+                    buf.readUtf(), buf.readVarInt(), decodeTags(buf),
                     STEPS_CODEC.decode(buf), buf.readVarInt(), Delivery.STREAM_CODEC.decode(buf),
-                    AbilityBadge.STREAM_CODEC.decode(buf)));
+                    AbilityBadge.STREAM_CODEC.decode(buf), REQUIRES_CODEC.decode(buf)));
         }
         return new AbilitySyncPayload(entries);
     }
@@ -142,15 +144,15 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
      * @param icon        the icon texture path override (empty for convention path)
      * @param order       the sort order within the type
      * @param tags        categorical tags for targeting and display
-     * @param fuseTicks   the chain block's full fuse
-     * @param maxStacks   the chain block's stack ceiling
      * @param behaviors   the ability's step program
      * @param cost        the mB a throw costs, the same at every stack count
      * @param delivery    how the ability leaves the glove
      * @param badge       the target kind the radial marks on the icon
+     * @param requires    the items a player must know before the radial offers it
      */
     public record Entry(String abilityId, String gooTypeId, String displayName,
-                        String icon, int order, List<String> tags, int fuseTicks, int maxStacks,
-                        List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge) {
+                        String icon, int order, List<String> tags,
+                        List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge,
+                        List<Identifier> requires) {
     }
 }

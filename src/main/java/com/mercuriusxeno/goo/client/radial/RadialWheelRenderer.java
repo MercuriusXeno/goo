@@ -305,7 +305,7 @@ final class RadialWheelRenderer {
      * @return the wedge's labels
      */
     static FanSlot fanSlot(ClientAbility ability, int holdings) {
-        int firstThrow = ability.throwCost(0);
+        int firstThrow = ability.cost();
         return new FanSlot(GooFormat.formatAmount(firstThrow), firstThrow > holdings);
     }
 

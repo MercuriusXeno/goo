@@ -12,14 +12,14 @@ out vec3 viewPos;
 out vec3 centerView;
 out float mainRadiusSq;
 
-// Must match ChainMarkerBER.CORONA_SCALE exactly. The corona mesh is the
+// Must match AbilityBlockRenderer.CORONA_SCALE exactly. The corona mesh is the
 // unit sphere rendered at this scale relative to the main black-hole
 // sphere, so if this changes the BER constant must change with it.
 // Tightened from 1.15 to 1.08 so the halo reads as a thin rim hugging
 // the silhouette rather than a thick shell.
 const float CORONA_SCALE = 1.08;
 
-// Must match ChainMarkerBER.MAX_ENCODED_RADIUS exactly. The BER packs
+// Must match AbilityBlockRenderer.MAX_ENCODED_RADIUS exactly. The BER packs
 // {@code visibleRadius / MAX_ENCODED_RADIUS} into the vertex Color.b
 // byte; we decode by multiplying back. 16 is comfortably above the max
 // actual visible radius (~11 blocks for stack-4 nether).

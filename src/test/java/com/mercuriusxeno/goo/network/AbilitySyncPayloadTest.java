@@ -24,13 +24,12 @@ class AbilitySyncPayloadTest {
 
     private static AbilityDefinition ability(String name, int order, String tag) {
         return new AbilityDefinition(Identifier.fromNamespaceAndPath("goo", name), GooTypes.ROCK,
-                name, "", order, 0, new AbilityDefinition.ChainConfig(30, 1, "goo"),
-                Delivery.ARC, List.of(), List.of(tag), AbilityBadge.WORLD);
+                name, "", order, 0, Delivery.ARC, List.of(), List.of(tag), AbilityBadge.WORLD, List.of());
     }
 
     /** The sync codec carries each cost formula to the client whole (decision unaffordable-click-does-nothing). */
     @ParameterizedTest
-    @ValueSource(strings = {"frost_sphere", "rock_tunnel", "unstable_proximity_mine"})
+    @ValueSource(strings = {"crystal_cloud", "unstable_timed_bomb", "unstable_proximity_mine"})
     void costRoundTripsThroughTheSyncCodec(String name) {
         AbilityDefinition definition = AbilityJson.decode(name);
         AbilitySyncPayload sent = new AbilitySyncPayload(
@@ -48,12 +47,25 @@ class AbilitySyncPayloadTest {
     @EnumSource(AbilityBadge.class)
     void badgeRoundTripsThroughTheSyncCodec(AbilityBadge badge) {
         AbilitySyncPayload sent = new AbilitySyncPayload(List.of(new AbilitySyncPayload.Entry("goo:rock_throw",
-                "rock", "rock_throw", "", 0, List.of(), 30, 1, List.of(), 0, Delivery.ARC, badge)));
+                "rock", "rock_throw", "", 0, List.of(), List.of(), 0, Delivery.ARC, badge, List.of())));
         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
 
         AbilitySyncPayload.STREAM_CODEC.encode(buf, sent);
 
         assertEquals(badge, AbilitySyncPayload.STREAM_CODEC.decode(buf).entries().getFirst().badge());
+    }
+
+    /** The sync codec carries the items an ability requires to the client (decision ability-hidden-until-recipes-known). */
+    @Test
+    void requiresRoundTripsThroughTheSyncCodec() {
+        AbilityDefinition definition = AbilityJson.decode("hex_charm");
+        AbilitySyncPayload sent = new AbilitySyncPayload(
+                AbilitySyncPayload.gloveEntries(definition.gooType(), List.of(definition)));
+        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
+
+        AbilitySyncPayload.STREAM_CODEC.encode(buf, sent);
+
+        assertEquals(definition.requires(), AbilitySyncPayload.STREAM_CODEC.decode(buf).entries().getFirst().requires());
     }
 
     @Test

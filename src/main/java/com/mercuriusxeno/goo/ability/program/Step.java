@@ -83,12 +83,12 @@ public interface Step {
     }
 
     /**
-     * Answers whether the marker may take more goo while this step runs;
-     * a field effect tops its budget off this way.
+     * Answers whether the marker stands against a punch while this step
+     * runs, as a field effect's trap does.
      *
-     * @return true when stacking after the fuse is allowed
+     * @return true when breaking the marker is refused
      */
-    default boolean allowsTopOff() {
+    default boolean standsAgainstBreaking() {
         return false;
     }
 }

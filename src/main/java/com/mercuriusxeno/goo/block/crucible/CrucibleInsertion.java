@@ -220,9 +220,11 @@ final class CrucibleInsertion {
      *
      * @param be        the crucible block entity
      * @param container the container item stack
-     * @return list of items to eject, or null if the container had no content
+     * @return the evaluation the pool took, its ejects and the valued stacks it melted,
+     *         or null if the container had no content or its goo does not fit whole
      */
-    static @Nullable List<ItemStack> insertContainer(CrucibleBlockEntity be, ItemStack container) {
+    static ContainerEvaluator.@Nullable ContainerEvaluation insertContainer(CrucibleBlockEntity be,
+                                                                           ItemStack container) {
         Identifier containerId = BuiltInRegistries.ITEM.getKey(container.getItem());
         return insertContainer(be, containerId, container, valuesOf(be));
     }
@@ -234,10 +236,9 @@ final class CrucibleInsertion {
      * @param containerId the container registry ID
      * @param container   the container item stack
      * @param lookup      the goo value lookup
-     * @return the eject list, or null when the container had no content or its goo does not fit whole
+     * @return the evaluation the pool took, or null when the container had no content or its goo does not fit whole
      */
-    @SuppressWarnings("PMD.ReturnEmptyCollectionRatherThanNull") // null = nothing happened; empty = eject nothing
-    static @Nullable List<ItemStack> insertContainer(
+    static ContainerEvaluator.@Nullable ContainerEvaluation insertContainer(
             CrucibleBlockEntity be, Identifier containerId, ItemStack container, IGooValueLookup lookup) {
         ContainerEvaluator.ContainerEvaluation eval = be.containerEvaluator.evaluate(containerId, container, lookup);
         if (eval.goo().isEmpty() && eval.ejects().isEmpty()) {
@@ -247,6 +248,6 @@ final class CrucibleInsertion {
             return null;
         }
         be.syncToClients();
-        return eval.ejects();
+        return eval;
     }
 }

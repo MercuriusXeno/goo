@@ -93,24 +93,17 @@ class ThrowFreezeStateTest {
     }
 
     @Nested
-    class IsFrozenOnChainMarker {
+    class IsFrozenOnBlock {
         @Test
         void returnsFalseWhenUnarmed() {
-            assertFalse(ThrowFreezeState.isFrozenOnChainMarker(POS_A));
+            assertFalse(ThrowFreezeState.isFrozenOnBlock(POS_A));
         }
 
         @Test
         void matchesBlockTargetPos() {
             ThrowFreezeState.arm(BLOCK_A);
-            assertTrue(ThrowFreezeState.isFrozenOnChainMarker(POS_A));
-            assertFalse(ThrowFreezeState.isFrozenOnChainMarker(POS_B));
-        }
-
-        @Test
-        void matchesChainMarkerTargetPos() {
-            ThrowFreezeState.arm(new TargetResult.ChainMarkerTarget(POS_A));
-            assertTrue(ThrowFreezeState.isFrozenOnChainMarker(POS_A));
-            assertFalse(ThrowFreezeState.isFrozenOnChainMarker(POS_B));
+            assertTrue(ThrowFreezeState.isFrozenOnBlock(POS_A));
+            assertFalse(ThrowFreezeState.isFrozenOnBlock(POS_B));
         }
     }
 }

@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
 /**
- * A host that can detonate at its anchor (capability {@link HostCapability#EXPLODE}).
+ * A host that can explode at its anchor (capability {@link HostCapability#EXPLODE}).
  */
 public interface ExplodeHost extends StepHost {
 

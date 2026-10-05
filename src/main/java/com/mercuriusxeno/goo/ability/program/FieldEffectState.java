@@ -7,8 +7,8 @@ import java.util.List;
 
 /**
  * What a {@link FieldEffectStep} carries across ticks: the strikes in
- * flight, the ticks before the next strike may start, the charges spent on
- * the current stack, the ticks the field has run and the ticks its
+ * flight, the ticks before the next strike may start, the charges spent,
+ * the ticks the field has run and the ticks its
  * teardown has run, and the charges left. A step is an immutable
  * definition, so the host keeps this run state for it (capability
  * {@link HostCapability#FIELD_EFFECT}); the marker keeps it on its block
@@ -99,7 +99,7 @@ public final class FieldEffectState {
     }
 
     /**
-     * Returns the charges spent on the current stack.
+     * Returns the charges the throw has spent.
      *
      * @return the charges spent
      */
@@ -108,7 +108,7 @@ public final class FieldEffectState {
     }
 
     /**
-     * Sets the charges spent on the current stack.
+     * Sets the charges the throw has spent.
      *
      * @param charges the charges spent
      */
@@ -156,7 +156,7 @@ public final class FieldEffectState {
      * Records the charges left in the budget, raising the peak the density
      * is measured against.
      *
-     * @param charges the charges left over every stack
+     * @param charges the charges left
      */
     public void recordCharges(int charges) {
         this.chargesLeft = charges;
@@ -174,10 +174,10 @@ public final class FieldEffectState {
 
     /**
      * Returns the field's size as a fraction of its radius: rising over the
-     * expand ticks after the fuse, falling over the contract ticks once the
+     * expand ticks after the splat, falling over the contract ticks once the
      * budget is spent, whole between.
      *
-     * @param expandTicks   ticks the field takes to expand after the fuse
+     * @param expandTicks   ticks the field takes to expand after the splat
      * @param contractTicks ticks the field takes to contract once its budget is spent
      * @return the fraction in [0, 1]
      */
@@ -191,7 +191,7 @@ public final class FieldEffectState {
     /**
      * Answers whether the field is expanding or contracting.
      *
-     * @param expandTicks   ticks the field takes to expand after the fuse
+     * @param expandTicks   ticks the field takes to expand after the splat
      * @param contractTicks ticks the field takes to contract once its budget is spent
      * @return true while its size is below whole
      */

@@ -2,7 +2,7 @@ package com.mercuriusxeno.goo.item;
 
 import com.mercuriusxeno.goo.ISidedProxy;
 import com.mercuriusxeno.goo.ability.GloveSelection;
-import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
+import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.item.PlayerUtils;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -91,8 +91,8 @@ public class GooGloveItem extends Item {
     }
 
     /**
-     * Shift+right-click on a chain marker recollects goo. Returns the
-     * stacked goo to the player's inventory and removes the marker.
+     * Shift+right-click on a ability block recollects goo. Returns the
+     * goo to the player's inventory and removes the marker.
      *
      * @param context the use-on-block context
      * @return SUCCESS if recollected, PASS otherwise
@@ -103,7 +103,7 @@ public class GooGloveItem extends Item {
         if (player == null || !player.isShiftKeyDown()) { return InteractionResult.PASS; }
         Level level = context.getLevel();
         BlockPos pos = context.getClickedPos();
-        if (!(level.getBlockEntity(pos) instanceof ChainMarkerBlockEntity be)) {
+        if (!(level.getBlockEntity(pos) instanceof AbilityBlockEntity be)) {
             return InteractionResult.PASS;
         }
         if (!level.isClientSide()) {
@@ -113,20 +113,16 @@ public class GooGloveItem extends Item {
     }
 
     /**
-     * Gives the marker's stacked goo back to the player and removes the block.
+     * Gives the marker's one goo back to the player and removes the block.
      * @param level the world the marker exists in
      * @param pos the marker block position
-     * @param be the chain marker block entity holding goo data
+     * @param be the ability block block entity holding goo data
      * @param player the player receiving the recollected goo
      */
     private static void recollectGoo(Level level, BlockPos pos,
-            ChainMarkerBlockEntity be, Player player) {
+            AbilityBlockEntity be, Player player) {
         ResourceKey<GooTypeDefinition> type = be.getGooType();
-        int stacks = be.getStackCount();
-        if (stacks > 0) {
-            ItemStack goo = GooStacks.createForOutput(type, stacks * GooStacks.THOUSAND);
-            PlayerUtils.addOrDrop(player, goo);
-        }
+        PlayerUtils.addOrDrop(player, GooStacks.createForOutput(type, GooStacks.THOUSAND));
         level.removeBlock(pos, false);
         level.playSound(null, pos, SoundEvents.ITEM_PICKUP, SoundSource.PLAYERS,
                 PICKUP_VOLUME, PICKUP_PITCH);
