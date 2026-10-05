@@ -1,23 +1,33 @@
 package com.mercuriusxeno.goo.item;
 
 import com.mercuriusxeno.goo.ISidedProxy;
+import com.mercuriusxeno.goo.ability.AbilityDefinition;
+import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.GloveSelection;
+import com.mercuriusxeno.goo.ability.SelfEatRoute;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.item.PlayerUtils;
+import com.mercuriusxeno.goo.network.GooSelfHandler;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
+import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.EquipmentSlotGroup;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.ItemUseAnimation;
+import net.minecraft.world.item.component.Consumable;
 import net.minecraft.world.item.component.ItemAttributeModifiers;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
@@ -28,7 +38,11 @@ import org.jspecify.annotations.Nullable;
  * Goo glove held in main/offhand. The glove menu key, G by default, opens
  * the radial to change selection while held and selects on release.
  * Right-click throws the selected goo type on the press, resolved on the
- * client off the use key.
+ * client off the use key. With a self ability selected the glove is eaten:
+ * it reports the eat animation and vanilla's eat duration, plays the eat
+ * sounds and crumbs while used, and runs the ability when the eat finishes
+ * on the server.
+ * decision self-brew-goos-eat-before-the-effect
  */
 public class GooGloveItem extends Item {
 
@@ -36,6 +50,12 @@ public class GooGloveItem extends Item {
     private static final float PICKUP_VOLUME = 0.5f;
     /** Recollect pickup sound pitch. */
     private static final float PICKUP_PITCH = 1.2f;
+    /** Vanilla's eat: its duration, animation, sound and crumbs at their defaults. */
+    private static final Consumable EAT = Consumable.builder().build();
+    /** The crumbs vanilla spawns on each eat tick that sounds. */
+    private static final int EAT_TICK_CRUMBS = 5;
+    /** The crumbs vanilla spawns when an eat finishes. */
+    private static final int EAT_FINISH_CRUMBS = 16;
 
     /**
      * The glove tiers, each spelling the attack damage its main-hand melee
@@ -146,6 +166,97 @@ public class GooGloveItem extends Item {
             ISidedProxy.get().pressGlove(hand);
         }
         return InteractionResult.PASS;
+    }
+
+    /**
+     * The eat animation while a self ability is selected, none otherwise.
+     * No level reaches this read, so the delivery comes from the client's
+     * synced abilities; the server reports none and reads nothing from it.
+     * decision self-brew-goos-eat-before-the-effect
+     *
+     * @param stack the glove stack
+     * @return the use animation
+     */
+    @Override
+    public @NonNull ItemUseAnimation getUseAnimation(@NonNull ItemStack stack) {
+        GloveSelection selection = getSelection(stack);
+        return SelfEatRoute.animation(selection == null ? null : ISidedProxy.get().syncedDelivery(selection.abilityId()));
+    }
+
+    /**
+     * Vanilla's eat duration while a self ability is selected, zero
+     * otherwise.
+     * decision self-brew-goos-eat-before-the-effect
+     *
+     * @param stack the glove stack
+     * @param user  the player using the glove
+     * @return the use duration in ticks
+     */
+    @Override
+    public int getUseDuration(@NonNull ItemStack stack, @NonNull LivingEntity user) {
+        return SelfEatRoute.useDuration(selectedDelivery(stack, user.level()));
+    }
+
+    /**
+     * Plays the eat sounds and crumbs on vanilla's cadence while a self
+     * ability is eaten.
+     * decision self-brew-goos-eat-before-the-effect
+     *
+     * @param level          the world
+     * @param user           the player using the glove
+     * @param stack          the glove stack
+     * @param ticksRemaining the ticks of use left
+     */
+    @Override
+    public void onUseTick(@NonNull Level level, @NonNull LivingEntity user, @NonNull ItemStack stack,
+            int ticksRemaining) {
+        if (SelfEatRoute.eats(selectedDelivery(stack, level)) && EAT.shouldEmitParticlesAndSounds(ticksRemaining)) {
+            EAT.emitParticlesAndSounds(user.getRandom(), user, stack, EAT_TICK_CRUMBS);
+        }
+    }
+
+    /**
+     * Finishes the eat: the last crumbs and sound on both sides, and on the
+     * server the selected self ability drains and runs.
+     * decision self-brew-goos-eat-before-the-effect
+     *
+     * @param stack the glove stack
+     * @param level the world
+     * @param user  the player using the glove
+     * @return the glove, unchanged
+     */
+    @Override
+    public @NonNull ItemStack finishUsingItem(@NonNull ItemStack stack, @NonNull Level level,
+            @NonNull LivingEntity user) {
+        if (!SelfEatRoute.eats(selectedDelivery(stack, level))) {
+            return stack;
+        }
+        EAT.emitParticlesAndSounds(user.getRandom(), user, stack, EAT_FINISH_CRUMBS);
+        if (user instanceof ServerPlayer player) {
+            GooSelfHandler.finishEating(player, stack);
+        }
+        return stack;
+    }
+
+    /**
+     * The delivery of this glove's selected ability: the server reads its
+     * ability registry, the client its synced abilities.
+     *
+     * @param stack the glove stack
+     * @param level the world
+     * @return the delivery, or null where the glove holds no selection the side knows
+     */
+    private static @Nullable Delivery selectedDelivery(ItemStack stack, Level level) {
+        GloveSelection selection = getSelection(stack);
+        if (selection == null) {
+            return null;
+        }
+        if (level.isClientSide()) {
+            return ISidedProxy.get().syncedDelivery(selection.abilityId());
+        }
+        Identifier id = selection.getAbilityIdentifier();
+        AbilityDefinition ability = id == null ? null : AbilityRegistry.of(level).getAbility(id);
+        return ability == null ? null : ability.delivery();
     }
 
     /**
