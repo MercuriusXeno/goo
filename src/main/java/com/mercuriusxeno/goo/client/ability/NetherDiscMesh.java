@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
+import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.client.FlatQuadContext;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -133,10 +133,10 @@ public final class NetherDiscMesh {
      * Derives a deterministic [0, 1) animation phase from the marker's level
      * game time, so every style's swirl runs in the same phase.
      *
-     * @param be the chain marker block entity
+     * @param be the ability block block entity
      * @return the animation phase for the shaders
      */
-    public static float animationTime(ChainMarkerBlockEntity be) {
+    public static float animationTime(AbilityBlockEntity be) {
         Level level = be.getLevel();
         if (level == null) {
             return 0f;

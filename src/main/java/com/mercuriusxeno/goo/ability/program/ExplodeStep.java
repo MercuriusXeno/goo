@@ -6,9 +6,8 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * Detonates at the host's anchor and finishes. The power is an expression
- * over the host, so {@code "2 + 1 * (stacks - 1)"} scales with the goo
- * stacked on the marker.
+ * Explodes at the host's anchor and finishes. The power is an expression
+ * over the host, one value for a single throw.
  *
  * @param power the explosion power, evaluated when the step runs
  * @param mode  how blocks are treated

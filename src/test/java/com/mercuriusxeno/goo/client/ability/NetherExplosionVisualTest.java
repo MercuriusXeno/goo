@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.AbilityJson;
+import com.mercuriusxeno.goo.ability.program.LingerStep;
 import com.mercuriusxeno.goo.ability.program.PhasedStep;
 import com.mercuriusxeno.goo.ability.program.StepPhase;
 import com.mercuriusxeno.goo.ability.program.Variables;
@@ -22,7 +23,8 @@ class NetherExplosionVisualTest {
 
     @Test
     void rushSpansTheBlackHolesGather() {
-        PhasedStep program = (PhasedStep) AbilityJson.decode("nether_black_hole").behaviors().getFirst();
+        PhasedStep program = (PhasedStep) LingerStep.bodyOf(AbilityJson.decode("nether_black_hole").behaviors())
+                .orElseThrow().getFirst();
         StepPhase gather = program.phases().getFirst();
         assertEquals("gather", gather.name());
         assertEquals(NetherExplosionVisual.DURATION_TICKS, gather.ticks().evaluateInt(Variables.NONE));

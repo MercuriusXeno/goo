@@ -19,7 +19,7 @@ import net.minecraft.world.item.Items;
 public final class GloveSelectTests {
 
     private static final String BLAZE_ID = GooTypes.id(GooTypes.BLAZE);
-    private static final String BLAZE_TUNNEL = "goo:blaze_tunnel";
+    private static final String BLAZE_IGNITE = "goo:blaze_ignite";
     private static final String BLAZE_SPITFIRE = "goo:blaze_spitfire";
     private static final String REMOVAL = "removal";
     private static final String NO_ABILITY = "";
@@ -38,14 +38,15 @@ public final class GloveSelectTests {
     @SuppressWarnings(REMOVAL) // vanilla marks the mock server player helper for removal and names no replacement
     public static void typeOnlySelectionRefused(GameTestHelper helper) {
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        PlayerKnowledge.learn(player, Items.FLINT);
         ItemStack glove = new ItemStack(GooItems.GOO_GLOVE.get());
         GloveSelectHandler.resolveAndApply(player, glove, new GloveSelectPayload(BLAZE_ID, NO_ABILITY));
         helper.assertTrue(GooGloveItem.getSelection(glove) == null, TYPE_ONLY_TOOK);
 
-        GloveSelectHandler.resolveAndApply(player, glove, new GloveSelectPayload(BLAZE_ID, BLAZE_TUNNEL));
+        GloveSelectHandler.resolveAndApply(player, glove, new GloveSelectPayload(BLAZE_ID, BLAZE_IGNITE));
         GloveSelection held = GooGloveItem.getSelection(glove);
         helper.assertTrue(held != null && BLAZE_ID.equals(held.gooTypeId())
-                && BLAZE_TUNNEL.equals(held.abilityId()), ABILITY_NOT_HELD);
+                && BLAZE_IGNITE.equals(held.abilityId()), ABILITY_NOT_HELD);
 
         GloveSelectHandler.resolveAndApply(player, glove, new GloveSelectPayload(BLAZE_ID, NO_ABILITY));
         helper.assertTrue(held.equals(GooGloveItem.getSelection(glove)), TYPE_ONLY_TOOK);

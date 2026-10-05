@@ -5,7 +5,6 @@ import com.mercuriusxeno.goo.GooClientConfig;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.TargetResult;
-import com.mercuriusxeno.goo.client.hud.ChainMarkerBillboard;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.client.throwing.GloveThrowSender;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -25,7 +24,7 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Draws the glove's aim each frame from the frame's {@link AimTracker}: a
- * goo-colored highlight on the targeted block or chain marker at the opaque
+ * goo-colored highlight on the targeted block or ability block at the opaque
  * stage, and the throw arc after translucent blocks. The entity outline
  * rides the render state modifier AimTracker registers (decision
  * render-context-is-the-one-emitter).
@@ -74,7 +73,7 @@ public final class GooTargetHighlighter {
     }
 
     /**
-     * Renders the targeted block or chain marker highlight and leaves the
+     * Renders the targeted block or ability block highlight and leaves the
      * target for the arc stage.
      *
      * @param event the event instance
@@ -142,16 +141,6 @@ public final class GooTargetHighlighter {
             FaceBullseyeRenderer.render(ps, buf, camera, target, ClientGooTypes.highlight(selectedType),
                     realTimeSeconds());
         }
-
-        /**
-         * Draws the stack-count billboard above the chain marker at the given position.
-         *
-         * @param pos     the chain marker position
-         * @param gooType the goo type for the icon
-         */
-        void billboard(BlockPos pos, ResourceKey<GooTypeDefinition> gooType) {
-            ChainMarkerBillboard.render(ps, buf, camera, mc.level, mc.font, pos, gooType);
-        }
     }
 
     /**
@@ -163,28 +152,19 @@ public final class GooTargetHighlighter {
     private static void renderTargetHighlight(TargetResult target, HighlightFrame frame) {
         if (target instanceof TargetResult.BlockTarget bt) {
             renderBlockTargetHighlight(bt, frame);
-        } else if (target instanceof TargetResult.ChainMarkerTarget cmt) {
-            renderChainMarkerHighlight(cmt.pos(), frame);
         } else if (target instanceof TargetResult.GlowCrystalTarget gct) {
             frame.outlineShape(gct.pos());
         }
     }
 
     /**
-     * Renders highlight for a block target, detecting adjacent chain markers.
+     * Renders highlight for a block target.
      *
      * @param bt    the block target
      * @param frame what the frame draws with
      */
     private static void renderBlockTargetHighlight(TargetResult.BlockTarget bt, HighlightFrame frame) {
-        BlockPos markerPos = TargetBlockReads.adjacentMarker(frame.level(), bt.pos(), bt.face(),
-                GloveAim.selectedAbilityId(frame.mc().player));
-        if (markerPos != null) {
-            if (TargetBlockReads.canAcceptMoreGoo(frame.level(), markerPos)) {
-                frame.outlineShape(markerPos);
-            }
-            frame.billboard(markerPos, frame.selectedType());
-        } else if (TargetBlockReads.isWaterSource(frame.level(), bt.pos())) {
+        if (TargetBlockReads.isWaterSource(frame.level(), bt.pos())) {
             VoxelHighlightRenderer.renderFullCube(frame.ps(), frame.buf(), frame.camera(), bt.pos(),
                     frame.selectedType());
             frame.bullseye(bt);
@@ -192,20 +172,6 @@ public final class GooTargetHighlighter {
             frame.outlineShape(bt.pos());
             frame.bullseye(bt);
         }
-    }
-
-    /**
-     * Renders highlight for a directly targeted chain marker.
-     *
-     * @param pos   the chain marker position
-     * @param frame what the frame draws with
-     */
-    private static void renderChainMarkerHighlight(BlockPos pos, HighlightFrame frame) {
-        if (TargetBlockReads.canAcceptMoreGoo(frame.level(), pos)) {
-            frame.outlineShape(pos);
-        }
-        ResourceKey<GooTypeDefinition> gooType = TargetBlockReads.markerGooType(frame.level(), pos);
-        frame.billboard(pos, gooType != null ? gooType : frame.selectedType());
     }
 
     /**

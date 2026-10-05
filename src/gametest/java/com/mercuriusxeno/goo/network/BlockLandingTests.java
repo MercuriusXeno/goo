@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.network;
 
-import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
+import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -25,21 +25,23 @@ public final class BlockLandingTests {
     /** Marks a pending effect aimed at a block rather than an entity. */
     private static final int NO_ENTITY = -1;
     private static final String NO_ABILITY = "";
-    private static final String BLAZE_TUNNEL = "goo:blaze_tunnel";
+    private static final String CRYSTAL_CLOUD = "goo:crystal_cloud";
+    private static final String BLAST = "goo:unstable_instant_detonation";
+    private static final String BLAST_LEFT_A_BLOCK = "Blast left something standing at the face it landed on";
     private static final String MARKER_WRONG_ABILITY = "The landed marker does not carry the thrown ability";
 
     private BlockLandingTests() {
     }
 
     /**
-     * Lands one blaze goo on the stone wall's south face.
+     * Lands one crystal goo on the stone wall's south face.
      *
      * @param helper    the gametest helper
      * @param abilityId the ability the throw names
      */
     private static void landOnWall(GameTestHelper helper, String abilityId) {
         helper.setBlock(WALL_POS, Blocks.STONE);
-        GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), null, GooTypes.BLAZE,
+        GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), null, GooTypes.CRYSTAL,
                 NO_ENTITY, helper.absolutePos(WALL_POS), Direction.SOUTH, abilityId));
     }
 
@@ -50,7 +52,7 @@ public final class BlockLandingTests {
      */
     public static void noAbilityLandsNothing(GameTestHelper helper) {
         landOnWall(helper, NO_ABILITY);
-        helper.assertBlockNotPresent(GooBlocks.CHAIN_MARKER.get(), FACE_POS);
+        helper.assertBlockNotPresent(GooBlocks.ABILITY_BLOCK.get(), FACE_POS);
         helper.succeed();
     }
 
@@ -61,9 +63,22 @@ public final class BlockLandingTests {
      * @param helper the gametest helper
      */
     public static void abilityLandsItsMarker(GameTestHelper helper) {
-        landOnWall(helper, BLAZE_TUNNEL);
-        ChainMarkerBlockEntity marker = helper.getBlockEntity(FACE_POS, ChainMarkerBlockEntity.class);
-        helper.assertTrue(BLAZE_TUNNEL.equals(marker.getAbilityId()), MARKER_WRONG_ABILITY);
+        landOnWall(helper, CRYSTAL_CLOUD);
+        AbilityBlockEntity marker = helper.getBlockEntity(FACE_POS, AbilityBlockEntity.class);
+        helper.assertTrue(CRYSTAL_CLOUD.equals(marker.getAbilityId()), MARKER_WRONG_ABILITY);
+        helper.succeed();
+    }
+
+    /**
+     * A blast lands, explodes the tick it splats and leaves only air at the
+     * face it struck: a program that ends that tick places nothing of its
+     * own (decision lingering-abilities-place-their-own-thing).
+     *
+     * @param helper the gametest helper
+     */
+    public static void blastLandsNoBlock(GameTestHelper helper) {
+        landOnWall(helper, BLAST);
+        helper.assertTrue(helper.getBlockState(FACE_POS).isAir(), BLAST_LEFT_A_BLOCK);
         helper.succeed();
     }
 }

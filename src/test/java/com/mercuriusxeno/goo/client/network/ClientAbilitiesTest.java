@@ -27,7 +27,7 @@ class ClientAbilitiesTest {
 
     private static AbilitySyncPayload.Entry gatedEntry(String name, int order, AbilityBadge badge,
                                                        List<Identifier> requires) {
-        return new AbilitySyncPayload.Entry("goo:" + name, "goo:rock", name, "", order, List.of(), 0, 0,
+        return new AbilitySyncPayload.Entry("goo:" + name, "goo:rock", name, "", order, List.of(),
                 List.of(), 0, Delivery.ARC, badge, requires);
     }
 

@@ -10,7 +10,7 @@ import java.util.stream.Stream;
  * the anchor's center and finishes; the push goes through the entity's
  * knockback resistance. The nether black hole pulls from three times its
  * blast radius each tick it expands and holds:
- * {@code pull radius="3 * (2 + stacks)" speed=0.15}.
+ * {@code pull radius=9 speed=0.15}.
  *
  * @param radius the sphere radius in blocks, evaluated when the step runs
  * @param speed  the velocity added toward the center, in blocks per tick

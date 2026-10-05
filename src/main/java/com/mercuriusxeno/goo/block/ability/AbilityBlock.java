@@ -1,0 +1,643 @@
+package com.mercuriusxeno.goo.block.ability;
+
+import com.mercuriusxeno.goo.block.BlockEntityTicks;
+import com.mercuriusxeno.goo.item.GooStacks;
+import com.mercuriusxeno.goo.registry.GooBlockEntities;
+import com.mercuriusxeno.goo.registry.GooServerState;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypes;
+import com.mojang.serialization.MapCodec;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.RandomSource;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LevelReader;
+import net.minecraft.world.level.ScheduledTickAccess;
+import net.minecraft.world.level.block.BaseEntityBlock;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.SimpleWaterloggedBlock;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityTicker;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
+import net.minecraft.world.level.material.FluidState;
+import net.minecraft.world.level.material.Fluids;
+import net.minecraft.world.level.redstone.Orientation;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.VoxelShape;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * Short-lived block a world ability places where its blob splats. No
+ * collision, no selection shape, purely visual. The block entity runs the
+ * ability's program from the splat (decision splat-runs-the-program-no-fuse).
+ *
+ * <p>Implements {@link SimpleWaterloggedBlock} so ability blocks can occupy
+ * water blocks without displacing them. This is required for effects that
+ * operate underwater (notably leaf goo's chain effect) and is harmless for
+ * effects that do not interact with water.</p>
+ */
+public class AbilityBlock extends AbstractEffectBlock implements SimpleWaterloggedBlock {
+
+    /**
+     * Ticks between a neighbor change leaving the marker unsupported and the
+     * support check that falls it.
+     */
+    private static final int SUPPORT_CHECK_DELAY = 1;
+
+    /**
+     * The program ticks on the server alone.
+     */
+    private static final BlockEntityTicks<AbilityBlockEntity> TICKS =
+            BlockEntityTicks.onServer(GooBlockEntities.ABILITY_BLOCK, AbilityBlockEntity::serverTick);
+
+    /**
+     * Waterlogged state property: true when this marker co-occupies a water block.
+     */
+    public static final BooleanProperty WATERLOGGED = BlockStateProperties.WATERLOGGED;
+    public static final MapCodec<AbilityBlock> CODEC = simpleCodec(AbilityBlock::new);
+    /**
+     * Ambient particle spread radius.
+     */
+    private static final double PARTICLE_SPREAD = 0.35;
+    /**
+     * Flame particles a blaze marker emits each animate tick.
+     */
+    private static final int BLAZE_PARTICLES = 3;
+    /**
+     * Dust particles a rock marker emits each animate tick.
+     */
+    private static final int ROCK_PARTICLES = 2;
+    /**
+     * Upward particle velocity for flame particles.
+     */
+    private static final double FLAME_RISE_SPEED = 0.02;
+    /**
+     * Downward particle velocity for dust plume particles.
+     */
+    private static final double DUST_FALL_SPEED = -0.02;
+    /**
+     * Lava particle spawn chance denominator (1 in N).
+     */
+    private static final int LAVA_CHANCE = 3;
+    /**
+     * Base core half-size in pixels (matches BER CORE_BASE).
+     */
+    private static final float SHAPE_CORE_PX = 2f;
+    /**
+     * Shell margin in pixels (matches BER SHELL_MARGIN).
+     */
+    private static final float SHAPE_SHELL_PX = 1f;
+    /**
+     * Center of a block in pixels (for shape positioning).
+     */
+    private static final float SHAPE_CENTER_PX = 8f;
+    /**
+     * Soul particles a nether marker emits each animate tick.
+     */
+    private static final int NETHER_PARTICLES = 3;
+    /**
+     * Downward drift speed for soul particles.
+     */
+    private static final double SOUL_DRIFT_SPEED = -0.01;
+    /**
+     * Smoke particle spawn chance denominator (1 in N) for nether.
+     */
+    private static final int NETHER_SMOKE_CHANCE = 4;
+
+    /**
+     * Maps goo types to their particle emitter; types without particles are absent.
+     */
+    private static final Map<ResourceKey<GooTypeDefinition>, ParticleEmitter> PARTICLE_EMITTERS;
+
+    static {
+        Map<ResourceKey<GooTypeDefinition>, ParticleEmitter> m = new HashMap<>();
+        m.put(GooTypes.BLAZE, AbilityBlock::spawnBlazeParticles);
+        m.put(GooTypes.ROCK, AbilityBlock::spawnRockParticles);
+        m.put(GooTypes.NETHER, AbilityBlock::spawnNetherParticles);
+        m.put(GooTypes.METAL, AbilityBlock::spawnMetalParticles);
+        // Crystal uses shard cloud BER visual instead of ambient particles.
+        PARTICLE_EMITTERS = Map.copyOf(m);
+    }
+
+    /**
+     * Creates a ability block block with the given properties.
+     *
+     * @param properties the block properties
+     */
+    public AbilityBlock(Properties properties) {
+        super(properties);
+        registerDefaultState(stateDefinition.any().setValue(WATERLOGGED, false));
+    }
+
+    /**
+     * Checks whether the destroy action should fall through to default block removal.
+     *
+     * @param level the current level
+     * @param pos   the block position
+     * @return true if the block should be removed normally
+     */
+    private static boolean shouldDeferToSuper(Level level, BlockPos pos) {
+        return !(level.getBlockEntity(pos) instanceof AbilityBlockEntity be) || !isProtectedFromBreaking(be);
+    }
+
+    /**
+     * Builds a voxel shape matching the BER orb at the face boundary.
+     *
+     * @param face the placed face direction
+     * @return the computed voxel shape
+     */
+    private static VoxelShape computeOrbShape(Direction face) {
+        float shellHalf = SHAPE_CORE_PX + SHAPE_SHELL_PX;
+
+        float cx = SHAPE_CENTER_PX - face.getStepX() * SHAPE_CENTER_PX;
+        float cy = SHAPE_CENTER_PX - face.getStepY() * SHAPE_CENTER_PX;
+        float cz = SHAPE_CENTER_PX - face.getStepZ() * SHAPE_CENTER_PX;
+
+        return box(cx - shellHalf, cy - shellHalf, cz - shellHalf,
+                cx + shellHalf, cy + shellHalf, cz + shellHalf);
+    }
+
+    /**
+     * Computes a voxel shape that exactly matches the glow crystal
+     * that will replace this ability block as its program runs.
+     *
+     * @param face the placed face direction
+     * @return the crystal-matched voxel shape
+     */
+    private static VoxelShape computeGlowShape(Direction face) {
+        GlowCrystalBlock.CrystalSize cs = GlowCrystalBlock.CrystalSize.TINY;
+        return GlowCrystalBlock.shapeFor(face, cs.min, cs.max, GlowCrystalBlock.BUMP_DEPTH);
+    }
+
+    /**
+     * Returns true if a marker stands at pos and its support block is air.
+     *
+     * @param level the current level
+     * @param pos   the marker block position
+     * @return true if the marker has no support
+     */
+    private static boolean isMarkerWithNoSupport(Level level, BlockPos pos) {
+        if (!(level.getBlockEntity(pos) instanceof AbilityBlockEntity be)) {
+            return false;
+        }
+        BlockPos supportPos = pos.relative(be.getPlacedFace().getOpposite());
+        return level.getBlockState(supportPos).isAir();
+    }
+
+    /**
+     * Removes the marker and schedules a fall to the landing position.
+     *
+     * @param state the block state
+     * @param level the server level
+     * @param pos   the marker block position
+     */
+    private static void initiateFall(BlockState state, ServerLevel level, BlockPos pos) {
+        BlockPos landing = findLandingBelow(level, pos);
+        if (landing == null || landing.equals(pos)) {
+            return;
+        }
+        AbilityBlockSnapshot snapshot = AbilityBlockSnapshot.of((AbilityBlockEntity) level.getBlockEntity(pos));
+        level.removeBlock(pos, false);
+        GooServerState.of(level.getServer()).markerFalls().scheduleFall(level, pos, landing, state.getBlock(), snapshot);
+    }
+
+    /**
+     * Raycasts straight down from the marker to find the first solid
+     * surface. The landing position is the air block adjacent to that
+     * surface (where the marker will be re-placed).
+     *
+     * @param level the current level
+     * @param from  the starting position
+     * @return the landing block position, or null if no surface found
+     */
+    @Nullable
+    private static BlockPos findLandingBelow(Level level, BlockPos from) {
+        BlockPos.MutableBlockPos cursor = from.mutable();
+        int minY = level.getMinY();
+        while (cursor.getY() > minY) {
+            cursor.move(Direction.DOWN);
+            if (!level.getBlockState(cursor).isAir()) {
+                return cursor.above().immutable();
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Returns true if this marker's running program stands against breaking (metal,
+     * crystal), which keeps it standing against a punch.
+     *
+     * @param be the ability block block entity
+     * @return true if breaking should be prevented
+     */
+    private static boolean isProtectedFromBreaking(AbilityBlockEntity be) {
+        return be.getBehavior() != null && be.getBehavior().standsAgainstBreaking();
+    }
+
+    /**
+     * Drops the goo a mid-implosion ability block consumed at {@code pos}
+     * when it is broken. No-op on the client, for a marker that consumed
+     * nothing, or if the block entity is missing.
+     *
+     * @param level the current level
+     * @param pos   the marker position
+     */
+    private static void dropInterruptedAccumulator(Level level, BlockPos pos) {
+        if (!(level instanceof ServerLevel server)) {
+            return;
+        }
+        if (!(server.getBlockEntity(pos) instanceof AbilityBlockEntity be)) {
+            return;
+        }
+        GooStacks.dropAll(be.takeConsumedGoo(), server, pos);
+    }
+
+    /**
+     * Emits goo-type-specific ambient particles.
+     *
+     * @param type   the goo type
+     * @param pos    the block position
+     * @param level  the current level
+     * @param random the random source
+     */
+    private static void spawnAmbientParticles(ResourceKey<GooTypeDefinition> type,
+                                              BlockPos pos, Level level, RandomSource random) {
+        double cx = pos.getX() + BLOCK_CENTER;
+        double cy = pos.getY() + BLOCK_CENTER;
+        double cz = pos.getZ() + BLOCK_CENTER;
+        dispatchParticles(type, cx, cy, cz, level, random);
+    }
+
+    /**
+     * Dispatches to the type-specific particle emitter.
+     *
+     * @param type   the goo type determining which particles to spawn
+     * @param cx     block center X coordinate
+     * @param cy     block center Y coordinate
+     * @param cz     block center Z coordinate
+     * @param level  the current level
+     * @param random the random source for particle offsets
+     */
+    private static void dispatchParticles(ResourceKey<GooTypeDefinition> type,
+                                          double cx, double cy, double cz, Level level, RandomSource random) {
+        ParticleEmitter emitter = PARTICLE_EMITTERS.get(type);
+        if (emitter == null) {
+            return;
+        }
+        emitter.emit(cx, cy, cz, PARTICLE_SPREAD, level, random);
+    }
+
+    /**
+     * Emits flame particles and occasional lava drips for blaze ability blocks.
+     *
+     * @param cx     block center X coordinate
+     * @param cy     block center Y coordinate
+     * @param cz     block center Z coordinate
+     * @param spread the particle offset radius
+     * @param level  the current level
+     * @param random the random source for particle offsets
+     */
+    private static void spawnBlazeParticles(double cx, double cy, double cz,
+                                            double spread, Level level, RandomSource random) {
+        for (int i = 0; i < BLAZE_PARTICLES; i++) {
+            emitFlameParticle(cx, cy, cz, spread, level, random);
+        }
+        if (random.nextInt(LAVA_CHANCE) == 0) {
+            level.addParticle(ParticleTypes.LAVA, cx, cy, cz, 0, 0, 0);
+        }
+    }
+
+    /**
+     * Emits a single flame particle with random offset within the spread radius.
+     *
+     * @param cx     block center X coordinate
+     * @param cy     block center Y coordinate
+     * @param cz     block center Z coordinate
+     * @param spread the particle offset radius
+     * @param level  the current level
+     * @param random the random source for particle offsets
+     */
+    private static void emitFlameParticle(double cx, double cy, double cz,
+                                          double spread, Level level, RandomSource random) {
+        double ox = (random.nextDouble() - BLOCK_CENTER) * spread * SPREAD_DIAMETER;
+        double oy = (random.nextDouble() - BLOCK_CENTER) * spread * SPREAD_DIAMETER;
+        double oz = (random.nextDouble() - BLOCK_CENTER) * spread * SPREAD_DIAMETER;
+        level.addParticle(ParticleTypes.FLAME, cx + ox, cy + oy, cz + oz,
+                0, FLAME_RISE_SPEED, 0);
+    }
+
+    /**
+     * Emits dust plume particles for rock ability blocks.
+     *
+     * @param cx     block center X coordinate
+     * @param cy     block center Y coordinate
+     * @param cz     block center Z coordinate
+     * @param spread the particle offset radius
+     * @param level  the current level
+     * @param random the random source for particle offsets
+     */
+    private static void spawnRockParticles(double cx, double cy, double cz,
+                                           double spread, Level level, RandomSource random) {
+        for (int i = 0; i < ROCK_PARTICLES; i++) {
+            double ox = (random.nextDouble() - BLOCK_CENTER) * spread * SPREAD_DIAMETER;
+            double oy = (random.nextDouble() - BLOCK_CENTER) * spread * SPREAD_DIAMETER;
+            double oz = (random.nextDouble() - BLOCK_CENTER) * spread * SPREAD_DIAMETER;
+            level.addParticle(ParticleTypes.DUST_PLUME, cx + ox, cy + oy, cz + oz,
+                    0, DUST_FALL_SPEED, 0);
+        }
+    }
+
+    /**
+     * Emits drifting soul particles and occasional smoke for nether ability blocks.
+     *
+     * @param cx     block center X coordinate
+     * @param cy     block center Y coordinate
+     * @param cz     block center Z coordinate
+     * @param spread the particle offset radius
+     * @param level  the current level
+     * @param random the random source for particle offsets
+     */
+    private static void spawnNetherParticles(double cx, double cy, double cz,
+                                             double spread, Level level, RandomSource random) {
+        for (int i = 0; i < NETHER_PARTICLES; i++) {
+            double ox = (random.nextDouble() - BLOCK_CENTER) * spread * SPREAD_DIAMETER;
+            double oy = (random.nextDouble() - BLOCK_CENTER) * spread * SPREAD_DIAMETER;
+            double oz = (random.nextDouble() - BLOCK_CENTER) * spread * SPREAD_DIAMETER;
+            level.addParticle(ParticleTypes.SOUL, cx + ox, cy + oy, cz + oz,
+                    0, SOUL_DRIFT_SPEED, 0);
+        }
+        if (random.nextInt(NETHER_SMOKE_CHANCE) == 0) {
+            level.addParticle(ParticleTypes.SMOKE, cx, cy, cz, 0, 0, 0);
+        }
+    }
+
+    /**
+     * Emits metallic crit particles for metal ability blocks.
+     *
+     * @param cx     block center X coordinate
+     * @param cy     block center Y coordinate
+     * @param cz     block center Z coordinate
+     * @param spread the particle offset radius
+     * @param level  the current level
+     * @param random the random source for particle offsets
+     */
+    private static void spawnMetalParticles(double cx, double cy, double cz,
+                                            double spread, Level level, RandomSource random) {
+        if (random.nextInt(LAVA_CHANCE) == 0) {
+            double ox = (random.nextDouble() - BLOCK_CENTER) * spread * SPREAD_DIAMETER;
+            double oy = (random.nextDouble() - BLOCK_CENTER) * spread * SPREAD_DIAMETER;
+            double oz = (random.nextDouble() - BLOCK_CENTER) * spread * SPREAD_DIAMETER;
+            level.addParticle(ParticleTypes.CRIT, cx + ox, cy + oy, cz + oz, 0, 0, 0);
+        }
+    }
+
+    /**
+     * Registers the WATERLOGGED property in the state definition.
+     *
+     * @param builder the state definition builder
+     */
+    @Override
+    protected void createBlockStateDefinition(StateDefinition.@NonNull Builder<Block, BlockState> builder) {
+        builder.add(WATERLOGGED);
+    }
+
+    /**
+     * Returns a water fluid state when waterlogged, otherwise empty.
+     *
+     * @param state the current block state
+     * @return water source fluid state when waterlogged, empty otherwise
+     */
+    @Override
+    protected @NonNull FluidState getFluidState(BlockState state) {
+        return state.getValue(WATERLOGGED) ? Fluids.WATER.getSource(false) : super.getFluidState(state);
+    }
+
+    /**
+     * Schedules a water fluid tick when waterlogged so water flows correctly
+     * into and around the marker, matching the standard vanilla waterlogged idiom.
+     *
+     * @param state         the current block state
+     * @param level         the level reader
+     * @param ticks         scheduled tick access for fluid updates
+     * @param pos           the block position
+     * @param direction     the neighbor direction
+     * @param neighborPos   the neighbor position
+     * @param neighborState the neighbor state
+     * @param random        the random source
+     * @return the (possibly updated) block state
+     */
+    @Override
+    protected @NonNull BlockState updateShape(BlockState state, @NonNull LevelReader level,
+                                              @NonNull ScheduledTickAccess ticks, @NonNull BlockPos pos, @NonNull Direction direction,
+                                              @NonNull BlockPos neighborPos, @NonNull BlockState neighborState,
+                                              @NonNull RandomSource random) {
+        if (state.getValue(WATERLOGGED)) {
+            ticks.scheduleTick(pos, Fluids.WATER, Fluids.WATER.getTickDelay(level));
+        }
+        return super.updateShape(state, level, ticks, pos, direction, neighborPos, neighborState, random);
+    }
+
+    /**
+     * Returns a shape matching the BER orb, positioned at the
+     * placed face. Falls back to the parent selection shape if no BE.
+     *
+     * @param state   the block state
+     * @param level   the block getter
+     * @param pos     the block position
+     * @param context the collision context
+     * @return the orb's voxel shape
+     */
+    @Override
+    protected @NonNull VoxelShape getShape(@NonNull BlockState state, @NonNull BlockGetter level,
+                                           @NonNull BlockPos pos, @NonNull CollisionContext context) {
+        if (!(level.getBlockEntity(pos) instanceof AbilityBlockEntity be)) {
+            return SELECTION_SHAPE;
+        }
+        if (be.getGooType() == GooTypes.GLOW) {
+            return computeGlowShape(be.getPlacedFace());
+        }
+        return computeOrbShape(be.getPlacedFace());
+    }
+
+    /**
+     * Prevents breaking a ability block whose program stands against breaking;
+     * every other marker breaks normally.
+     *
+     * @param state  the block state
+     * @param player the player
+     * @param level  the block getter
+     * @param pos    the block position
+     * @return 0 while protected (unbreakable), normal otherwise
+     */
+    @Override
+    protected float getDestroyProgress(@NonNull BlockState state, @NonNull Player player,
+                                       @NonNull BlockGetter level, @NonNull BlockPos pos) {
+        if (level.getBlockEntity(pos) instanceof AbilityBlockEntity be
+                && isProtectedFromBreaking(be)) {
+            return 0.0f;
+        }
+        return super.getDestroyProgress(state, player, level, pos);
+    }
+
+    /**
+     * Prevents block removal while the marker's program stands against breaking.
+     * Covers creative mode, which bypasses getDestroyProgress entirely.
+     *
+     * @param level      the server level
+     * @param pos        the block position
+     * @param player     the player breaking the block
+     * @param toolStack  the tool used
+     * @param canHarvest whether the player can harvest drops
+     * @param fluidState the fluid state at the position
+     * @return false while protected (block stays), true otherwise
+     */
+    @Override
+    public boolean onDestroyedByPlayer(BlockState state, Level level, BlockPos pos,
+                                       Player player, ItemStack toolStack, boolean canHarvest, FluidState fluidState) {
+        if (shouldDeferToSuper(level, pos)) {
+            return super.onDestroyedByPlayer(state, level, pos, player, toolStack, canHarvest, fluidState);
+        }
+        return false;
+    }
+
+    /**
+     * Returns the codec for serialization.
+     *
+     * @return the codec
+     */
+    @Override
+    protected @NonNull MapCodec<? extends BaseEntityBlock> codec() {
+        return CODEC;
+    }
+
+    /**
+     * Creates the ability block block entity for this position.
+     *
+     * @param pos   the block position
+     * @param state the block state
+     * @return the new block entity
+     */
+    @Nullable
+    @Override
+    public BlockEntity newBlockEntity(@NonNull BlockPos pos, @NonNull BlockState state) {
+        return new AbilityBlockEntity(pos, state);
+    }
+
+    /**
+     * Registers the server-side program tick dispatcher.
+     *
+     * @param level the current level
+     * @param state the block state
+     * @param type  the goo type
+     * @return the ticker
+     */
+    @Nullable
+    @Override
+    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(
+            @NonNull Level level, @NonNull BlockState state,
+            @NonNull BlockEntityType<T> type) {
+        return TICKS.tickerFor(level, type);
+    }
+
+
+    /**
+     * Detects when the support block (along placedFace direction) is
+     * removed. When this happens, initiates a fall:
+     * removes the marker, broadcasts a flight animation, and schedules
+     * re-placement at the landing position.
+     *
+     * @param state         the current block state
+     * @param level         the current level
+     * @param pos           the block position
+     * @param neighborBlock the block that changed
+     * @param orientation   the redstone orientation, or null
+     * @param movedByPiston true if moved by piston
+     */
+    @Override
+    protected void neighborChanged(@NonNull BlockState state, @NonNull Level level,
+                                   @NonNull BlockPos pos, @NonNull Block neighborBlock,
+                                   @Nullable Orientation orientation,
+                                   boolean movedByPiston) {
+        if (level.isClientSide() || !isMarkerWithNoSupport(level, pos)) {
+            return;
+        }
+        level.scheduleTick(pos, this, SUPPORT_CHECK_DELAY);
+    }
+
+    /**
+     * Falls the marker when its support is still gone. The check waits for
+     * a block tick because a running program can remove the support itself,
+     * as a black hole consumes it, and a fall taken inside that program
+     * tick would snapshot the program before the tick finished and replay
+     * the rest of it where the marker lands.
+     *
+     * @param state  the block state
+     * @param level  the server level
+     * @param pos    the marker position
+     * @param random the random source
+     */
+    @Override
+    protected void tick(@NonNull BlockState state, @NonNull ServerLevel level, @NonNull BlockPos pos,
+                        @NonNull RandomSource random) {
+        if (isMarkerWithNoSupport(level, pos)) {
+            initiateFall(state, level, pos);
+        }
+    }
+
+    /**
+     * Drops the partial accumulator at the marker position if the player
+     * breaks the block mid-implosion or mid-popping. Non-nether phases and
+     * empty accumulators fall through to vanilla handling unchanged.
+     *
+     * @param level  the current level
+     * @param pos    the block position
+     * @param state  the block state being destroyed
+     * @param player the player breaking the block
+     * @return the (possibly updated) block state, forwarded to super
+     */
+    @Override
+    public @NonNull BlockState playerWillDestroy(@NonNull Level level, @NonNull BlockPos pos,
+                                                 @NonNull BlockState state, @NonNull Player player) {
+        dropInterruptedAccumulator(level, pos);
+        return super.playerWillDestroy(level, pos, state, player);
+    }
+
+    /**
+     * Spawns ambient particles based on the ability block's goo type.
+     *
+     * @param state  the block state
+     * @param level  the current level
+     * @param pos    the block position
+     * @param random the random source
+     */
+    @Override
+    public void animateTick(@NonNull BlockState state, @NonNull Level level,
+                            @NonNull BlockPos pos, @NonNull RandomSource random) {
+        if (!(level.getBlockEntity(pos) instanceof AbilityBlockEntity be)) {
+            return;
+        }
+        spawnAmbientParticles(be.getGooType(), pos, level, random);
+    }
+
+    /**
+     * Functional interface for type-specific particle emitters.
+     */
+    @FunctionalInterface
+    private interface ParticleEmitter {
+        void emit(double cx, double cy, double cz,
+                  double spread, Level level, RandomSource random);
+    }
+}

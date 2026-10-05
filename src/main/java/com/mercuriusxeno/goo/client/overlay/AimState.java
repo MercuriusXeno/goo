@@ -1,14 +1,13 @@
 package com.mercuriusxeno.goo.client.overlay;
 
 import com.mercuriusxeno.goo.client.TargetResult;
-import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
 import org.jspecify.annotations.Nullable;
 
 /**
  * The glove's aim as one frame resolved it, read by everything that needs
  * it until the next frame: the frame's highlight and arc, the throw, the
- * entity outline and the chain marker's targeted look. One resolve per frame
+ * entity outline and the ability block's targeted look. One resolve per frame
  * means one sticky seed, the hit that resolve found (decisions
  * render-context-is-the-one-emitter, aim-target-follows-client-aim).
  * {@link AimTracker} updates it.
@@ -81,16 +80,6 @@ public final class AimState {
         target = TargetResult.NONE;
         hit = null;
         outlineColor = 0;
-    }
-
-    /**
-     * Whether the aim assist is locked onto the chain marker at the given position.
-     *
-     * @param pos the chain marker block position
-     * @return true if this frame's hit is that marker
-     */
-    boolean isAimedAtMarker(BlockPos pos) {
-        return hit instanceof AimAssistResolver.AimHit.ChainMarkerHit cmh && cmh.pos().equals(pos);
     }
 
     /**
