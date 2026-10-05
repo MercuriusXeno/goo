@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.network.AfterimagePayload;
 import com.mercuriusxeno.goo.network.AilmentPayload;
 import com.mercuriusxeno.goo.network.ChainBurnoutPayload;
+import com.mercuriusxeno.goo.network.GhostTrailPayload;
 import com.mercuriusxeno.goo.network.GooFlightPayload;
 import com.mercuriusxeno.goo.network.GooValueSyncPayload;
 import com.mercuriusxeno.goo.network.KnownItemLearnedPayload;
@@ -46,6 +47,7 @@ public final class GooClientNetworking {
         event.register(AilmentPayload.TYPE, AilmentHandler::handle);
         event.register(AfterimagePayload.TYPE, AfterimageHandler::handle);
         event.register(TransformationPayload.TYPE, TransformationHandler::handle);
+        event.register(GhostTrailPayload.TYPE, GhostTrailHandler::handle);
         event.register(KnownItemsSyncPayload.TYPE, KnownItemsHandler::handleSync);
         event.register(KnownItemLearnedPayload.TYPE, KnownItemsHandler::handleLearned);
     }
