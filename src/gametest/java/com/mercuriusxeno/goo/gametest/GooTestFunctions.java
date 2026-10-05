@@ -190,10 +190,15 @@ public final class GooTestFunctions {
     private static final String FX_PROGRAM_INSTANT = "fx_program_instant_detonation";
     private static final String FX_PROGRAM_TIMED = "fx_program_timed_bomb";
     private static final String FX_PROGRAM_MINE = "fx_program_proximity_mine";
-    private static final String FUSE_MINE_KEEPS_JSON_FUSE = "fuse_mine_keeps_json_fuse";
     private static final String FX_PROGRAM_METAL_SPIKES = "fx_program_metal_spikes";
     private static final String FX_PROGRAM_CRYSTAL_CLOUD = "fx_program_crystal_cloud";
     private static final String FX_PROGRAM_NETHER_BLACK_HOLE = "fx_program_nether_black_hole";
+    private static final String FX_LANDED_CRYSTAL_CLOUD = "fx_landed_crystal_cloud_live";
+    private static final String FX_LANDED_METAL_SPIKES = "fx_landed_metal_spikes_live";
+    private static final String FX_LANDED_BLACK_HOLE = "fx_landed_black_hole_gathers";
+    private static final String FX_LANDED_BLAST = "fx_landed_blast_explodes";
+    private static final String FX_LANDED_MINE = "fx_landed_mine_awaits";
+    private static final String FX_LANDED_GLOW_CRYSTAL = "fx_landed_glow_crystal_stands";
 
     // --- Crucible ---
     private static final String CR_GOO_INSERT = "cr_goo_insert";
@@ -557,10 +562,15 @@ public final class GooTestFunctions {
         reg(r, FX_PROGRAM_INSTANT, EffectExecutorTests::programInstantDetonation);
         reg(r, FX_PROGRAM_TIMED, EffectExecutorTests::programTimedBomb);
         reg(r, FX_PROGRAM_MINE, EffectExecutorTests::programProximityMine);
-        reg(r, FUSE_MINE_KEEPS_JSON_FUSE, ChainFuseTests::mineKeepsJsonFuse);
         reg(r, FX_PROGRAM_METAL_SPIKES, EffectExecutorTests::programMetalSpikes);
         reg(r, FX_PROGRAM_CRYSTAL_CLOUD, EffectExecutorTests::programCrystalCloud);
         reg(r, FX_PROGRAM_NETHER_BLACK_HOLE, EffectExecutorTests::programNetherBlackHole);
+        reg(r, FX_LANDED_CRYSTAL_CLOUD, EffectExecutorTests::crystalCloudLiveAfterLanding);
+        reg(r, FX_LANDED_METAL_SPIKES, EffectExecutorTests::metalSpikesLiveAfterLanding);
+        reg(r, FX_LANDED_BLACK_HOLE, EffectExecutorTests::blackHoleGathersAfterLanding);
+        reg(r, FX_LANDED_BLAST, EffectExecutorTests::blastExplodesAfterLanding);
+        reg(r, FX_LANDED_MINE, EffectExecutorTests::mineAwaitsAfterLanding);
+        reg(r, FX_LANDED_GLOW_CRYSTAL, EffectExecutorTests::glowCrystalStandsAfterLanding);
     }
 
     private static void registerAbilityLandingTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {

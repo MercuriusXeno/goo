@@ -28,7 +28,7 @@ void main() {
     // crackle noise sits on the fireball's surface rather than swimming.
     surfaceDir = Normal;
     progress = Color.r;
-    // Alpha is the dome's opacity, faded in over the fuse tail (decision dome-fades-in-before-its-start).
+    // Alpha is the dome's opacity.
     opacity = Color.a;
     ringFlag = Color.g;
     ringRadial = Color.b;

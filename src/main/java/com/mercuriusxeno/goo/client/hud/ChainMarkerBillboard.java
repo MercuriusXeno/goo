@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.client.hud;
 
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
-import com.mercuriusxeno.goo.client.ability.FuseOrbVisual;
+import com.mercuriusxeno.goo.client.ability.MarkerOrbVisual;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
@@ -16,7 +16,7 @@ import net.minecraft.world.phys.Vec3;
 /**
  * The floating panel above an aimed-at chain marker showing its stack
  * count (e.g. "3 / 28") beside the goo type icon, clearing the orb by the
- * size FuseOrbVisual draws it at (decision render-context-is-the-one-emitter).
+ * size MarkerOrbVisual draws it at (decision render-context-is-the-one-emitter).
  */
 public final class ChainMarkerBillboard {
 
@@ -70,7 +70,7 @@ public final class ChainMarkerBillboard {
      * @param be     the chain marker block entity
      */
     private static void positionBillboard(PoseStack ps, Camera camera, BlockPos pos, ChainMarkerBlockEntity be) {
-        float orbRadius = FuseOrbVisual.peakShellHalf(be.getStackCount());
+        float orbRadius = MarkerOrbVisual.peakShellHalf(be.getStackCount());
         Direction face = be.getPlacedFace();
         Vec3 orbCenter = new Vec3(
                 pos.getX() + FACE_CENTER_OFFSET - face.getStepX() * FACE_CENTER_OFFSET,

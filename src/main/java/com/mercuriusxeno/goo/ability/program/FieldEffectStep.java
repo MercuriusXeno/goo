@@ -18,7 +18,7 @@ import java.util.stream.Stream;
  * tick count, spending one charge each by {@code spend_chance}, with
  * {@code per_stack} charges to a stack. When no stack remains and no strike is in flight it runs the
  * teardown once and finishes after {@code contract_ticks}. Stacking after
- * the fuse tops the budget off.
+ * the splat tops the budget off.
  *
  * <p>The strike body and {@code interval} run on a host bound to the
  * selected entity, so the body holds entity effect steps and the interval

@@ -47,7 +47,7 @@ public final class GooItemTests {
     private static final String REMOVAL = "removal";
     /**
      * Ticks past the arc from the player to either wall, four blocks at one
-     * and a half blocks a tick, and short of the marker's fuse.
+     * and a half blocks a tick.
      */
     private static final int ARRIVAL_TICKS = 10;
 

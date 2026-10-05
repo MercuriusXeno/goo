@@ -40,9 +40,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Short-lived fuse block placed by a world ability. No collision, no
- * selection shape, purely visual. The block entity ticks the fuse and
- * runs the ability's program on expiry.
+ * Short-lived block a world ability places where its blob splats. No
+ * collision, no selection shape, purely visual. The block entity runs the
+ * ability's program from the splat (decision splat-runs-the-program-no-fuse).
  *
  * <p>Implements {@link SimpleWaterloggedBlock} so chain markers can occupy
  * water blocks without displacing them. This is required for effects that
@@ -52,7 +52,13 @@ import java.util.Map;
 public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWaterloggedBlock {
 
     /**
-     * The fuse ticks on the server alone.
+     * Ticks between a neighbor change leaving the marker unsupported and the
+     * support check that falls it.
+     */
+    private static final int SUPPORT_CHECK_DELAY = 1;
+
+    /**
+     * The program ticks on the server alone.
      */
     private static final BlockEntityTicks<ChainMarkerBlockEntity> TICKS =
             BlockEntityTicks.onServer(GooBlockEntities.CHAIN_MARKER, ChainMarkerBlockEntity::serverTick);
@@ -148,8 +154,7 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
      * @return true if the block should be removed normally
      */
     private static boolean shouldDeferToSuper(Level level, BlockPos pos) {
-        return !(level.getBlockEntity(pos) instanceof ChainMarkerBlockEntity be)
-                || (be.getBehavior() != null && !be.getBehavior().allowsTopOff());
+        return !(level.getBlockEntity(pos) instanceof ChainMarkerBlockEntity be) || !isProtectedFromBreaking(be);
     }
 
     /**
@@ -173,7 +178,7 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
 
     /**
      * Computes a voxel shape that exactly matches the glow crystal
-     * that will replace this chain marker on fuse expiry.
+     * that will replace this chain marker as its program runs.
      *
      * @param stacks the current stack count
      * @param face   the placed face direction
@@ -185,17 +190,14 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
     }
 
     /**
-     * Returns true if the marker at pos is in fuse phase and its support block is air.
+     * Returns true if a marker stands at pos and its support block is air.
      *
      * @param level the current level
      * @param pos   the marker block position
-     * @return true if the marker is fusing and has no support
+     * @return true if the marker has no support
      */
-    private static boolean isFusingMarkerWithNoSupport(Level level, BlockPos pos) {
+    private static boolean isMarkerWithNoSupport(Level level, BlockPos pos) {
         if (!(level.getBlockEntity(pos) instanceof ChainMarkerBlockEntity be)) {
-            return false;
-        }
-        if (be.getBehavior() != null) {
             return false;
         }
         BlockPos supportPos = pos.relative(be.getPlacedFace().getOpposite());
@@ -211,7 +213,7 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
      */
     private static void initiateFall(BlockState state, ServerLevel level, BlockPos pos) {
         BlockPos landing = findLandingBelow(level, pos);
-        if (landing == null) {
+        if (landing == null || landing.equals(pos)) {
             return;
         }
         ChainMarkerSnapshot snapshot = ChainMarkerSnapshot.of((ChainMarkerBlockEntity) level.getBlockEntity(pos));
@@ -242,14 +244,14 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
     }
 
     /**
-     * Returns true if this marker should be unbreakable during fuse phase
-     * or if its behavior supports top-off (metal, crystal).
+     * Returns true if this marker's running program takes a top-off (metal,
+     * crystal), which keeps it standing against a punch.
      *
      * @param be the chain marker block entity
      * @return true if breaking should be prevented
      */
     private static boolean isProtectedFromBreaking(ChainMarkerBlockEntity be) {
-        return be.getBehavior() == null || be.getBehavior().allowsTopOff();
+        return be.getBehavior() != null && be.getBehavior().allowsTopOff();
     }
 
     /**
@@ -485,14 +487,14 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
     }
 
     /**
-     * Prevents breaking chain markers during fuse phase so punches
-     * only toggle flat mode. Post-fuse markers break normally.
+     * Prevents breaking a chain marker whose program takes a top-off;
+     * every other marker breaks normally.
      *
      * @param state  the block state
      * @param player the player
      * @param level  the block getter
      * @param pos    the block position
-     * @return 0 during fuse (unbreakable), normal otherwise
+     * @return 0 while protected (unbreakable), normal otherwise
      */
     @Override
     protected float getDestroyProgress(@NonNull BlockState state, @NonNull Player player,
@@ -505,8 +507,8 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
     }
 
     /**
-     * Prevents block removal during fuse phase. Covers creative mode
-     * which bypasses getDestroyProgress entirely.
+     * Prevents block removal while the marker's program takes a top-off.
+     * Covers creative mode, which bypasses getDestroyProgress entirely.
      *
      * @param level      the server level
      * @param pos        the block position
@@ -514,17 +516,13 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
      * @param toolStack  the tool used
      * @param canHarvest whether the player can harvest drops
      * @param fluidState the fluid state at the position
-     * @return false during fuse (block stays), true otherwise
+     * @return false while protected (block stays), true otherwise
      */
     @Override
     public boolean onDestroyedByPlayer(BlockState state, Level level, BlockPos pos,
                                        Player player, ItemStack toolStack, boolean canHarvest, FluidState fluidState) {
         if (shouldDeferToSuper(level, pos)) {
             return super.onDestroyedByPlayer(state, level, pos, player, toolStack, canHarvest, fluidState);
-        }
-        ChainMarkerBlockEntity be = (ChainMarkerBlockEntity) level.getBlockEntity(pos);
-        if (be.getGooType() == GooTypes.UNSTABLE && !level.isClientSide()) {
-            be.instantDetonate();
         }
         return false;
     }
@@ -553,7 +551,7 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
     }
 
     /**
-     * Registers the server-side fuse tick dispatcher.
+     * Registers the server-side program tick dispatcher.
      *
      * @param level the current level
      * @param state the block state
@@ -571,7 +569,7 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
 
     /**
      * Detects when the support block (along placedFace direction) is
-     * removed. When this happens during fuse phase, initiates a fall:
+     * removed. When this happens, initiates a fall:
      * removes the marker, broadcasts a flight animation, and schedules
      * re-placement at the landing position.
      *
@@ -587,13 +585,30 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
                                    @NonNull BlockPos pos, @NonNull Block neighborBlock,
                                    @Nullable Orientation orientation,
                                    boolean movedByPiston) {
-        if (level.isClientSide()) {
+        if (level.isClientSide() || !isMarkerWithNoSupport(level, pos)) {
             return;
         }
-        if (!isFusingMarkerWithNoSupport(level, pos)) {
-            return;
+        level.scheduleTick(pos, this, SUPPORT_CHECK_DELAY);
+    }
+
+    /**
+     * Falls the marker when its support is still gone. The check waits for
+     * a block tick because a running program can remove the support itself,
+     * as a black hole consumes it, and a fall taken inside that program
+     * tick would snapshot the program before the tick finished and replay
+     * the rest of it where the marker lands.
+     *
+     * @param state  the block state
+     * @param level  the server level
+     * @param pos    the marker position
+     * @param random the random source
+     */
+    @Override
+    protected void tick(@NonNull BlockState state, @NonNull ServerLevel level, @NonNull BlockPos pos,
+                        @NonNull RandomSource random) {
+        if (isMarkerWithNoSupport(level, pos)) {
+            initiateFall(state, level, pos);
         }
-        initiateFall(state, (ServerLevel) level, pos);
     }
 
     /**

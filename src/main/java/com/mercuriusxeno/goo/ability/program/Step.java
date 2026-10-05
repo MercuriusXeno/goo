@@ -86,7 +86,7 @@ public interface Step {
      * Answers whether the marker may take more goo while this step runs;
      * a field effect tops its budget off this way.
      *
-     * @return true when stacking after the fuse is allowed
+     * @return true when stacking onto the running program is allowed
      */
     default boolean allowsTopOff() {
         return false;

@@ -83,7 +83,7 @@ final class TargetBlockReads {
 
     /**
      * Returns true if the chain marker at the given position can still
-     * accept more goo (not at max stacks, no active fuse or behavior).
+     * accept more goo (not at max stacks, its program taking a top-off).
      *
      * @param level the client level
      * @param pos   the chain marker position
@@ -93,6 +93,7 @@ final class TargetBlockReads {
         if (!(level.getBlockEntity(pos) instanceof ChainMarkerBlockEntity be)) {
             return false;
         }
-        return be.getBehavior() == null && be.getStackCount() < be.getMaxStacks();
+        return be.getBehavior() != null && be.getBehavior().allowsTopOff()
+                && be.getStackCount() < be.getMaxStacks();
     }
 }

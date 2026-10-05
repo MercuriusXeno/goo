@@ -273,7 +273,6 @@ public final class GooThrowHandler {
             Goo.LOGGER.warn(LOG_PARTIAL_DEPLETE, depleted, cost, GooTypes.id(gooType));
         }
 
-        stallChainMarkerFuse(player, payload);
         double distance = Math.sqrt(distSq);
         GooTypeDefinition definition = GooTypes.definition(player.level().registryAccess(), gooType);
         Delivery delivery = flightDelivery(player.level(), payload.abilityId(), gooType);
@@ -325,26 +324,6 @@ public final class GooThrowHandler {
                 payload.abilityId(),
                 delivery
         );
-    }
-
-    /**
-     * If the throw targets a chain marker of its own ability (directly or
-     * at the adjacent position), resets its fuse so it doesn't detonate
-     * while goo are in flight. The user's throw declaration is treated
-     * as intent to stack, keeping the fuse alive.
-     *
-     * @param player  the throwing player
-     * @param payload the throw payload data
-     */
-    private static void stallChainMarkerFuse(ServerPlayer player, GooThrowPayload payload) {
-        if (payload.targetEntityId() >= 0) { return; }
-        BlockPos pos = payload.targetPos();
-        Direction face = directionFromOrdinal(payload.targetFace());
-        ServerLevel level = player.level();
-        ChainMarkerBlockEntity be = findChainMarker(level, pos, face, payload.abilityId());
-        if (be != null && be.getBehavior() == null) {
-            be.stallFuse();
-        }
     }
 
     /**

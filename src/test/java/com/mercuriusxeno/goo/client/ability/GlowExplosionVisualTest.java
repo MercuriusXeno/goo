@@ -23,8 +23,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * GlowExplosionVisual's timing, its reach per stack count on screen and in
- * the fuse-tail ramp, and the shader pair its pipeline names.
+ * GlowExplosionVisual's timing, its reach per stack count on screen, and
+ * the shader pair its pipeline names.
  */
 class GlowExplosionVisualTest {
 
@@ -73,15 +73,6 @@ class GlowExplosionVisualTest {
     }
 
     @ParameterizedTest
-    @ValueSource(ints = {1, 2, 3, 4})
-    void rampMeetsTheDomesFirstDrawnFrameAtEachStackCount(int stacks) {
-        DomeRampShape.assertRampMeetsFirstFrame(ramp -> GlowExplosionVisual.rampRadius(ramp, stacks),
-                GlowExplosionVisual.domeRadius(1f / GlowExplosionVisual.DURATION_TICKS, stacks),
-                ramp -> ARGB.alpha(GlowExplosionVisual.domeColor(GlowExplosionVisual.FIRST_DRAWN_PROGRESS,
-                        FACE, DomeRamp.alpha(ramp))));
-    }
-
-    @ParameterizedTest
     @ValueSource(ints = {1, 4})
     void renderedDomeDrawsAtTheBurnoutsStackCount(int stacks) {
         RecordingVertexConsumer consumer = new RecordingVertexConsumer();
@@ -93,22 +84,6 @@ class GlowExplosionVisualTest {
                 new BurnoutFrame(new PoseStack(), buffers, Vec3.ZERO, gameTime));
 
         assertEquals(GlowExplosionVisual.domeReach(stacks), farthestFromDomeCenter(consumer.vertices()), TOLERANCE);
-    }
-
-    @ParameterizedTest
-    @ValueSource(ints = {1, 4})
-    void rampedDomeDrawsAtTheBurnoutsStackCount(int stacks) {
-        SubmitNodeCollector collector = mock(SubmitNodeCollector.class);
-
-        GlowExplosionVisual.INSTANCE.submitRamp(burnout(stacks), 1f, new PoseStack(), collector);
-
-        ArgumentCaptor<SubmitNodeCollector.CustomGeometryRenderer> geometry =
-                ArgumentCaptor.forClass(SubmitNodeCollector.CustomGeometryRenderer.class);
-        verify(collector).submitCustomGeometry(any(PoseStack.class), any(), geometry.capture());
-        RecordingVertexConsumer consumer = new RecordingVertexConsumer();
-        geometry.getValue().render(new PoseStack().last(), consumer);
-        float firstFrame = GlowExplosionVisual.domeRadius(GlowExplosionVisual.FIRST_DRAWN_PROGRESS, stacks);
-        assertEquals(firstFrame, farthestFromDomeCenter(consumer.vertices()), TOLERANCE);
     }
 
     @Test

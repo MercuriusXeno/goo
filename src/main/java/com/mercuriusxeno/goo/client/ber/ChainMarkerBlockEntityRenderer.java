@@ -2,12 +2,8 @@ package com.mercuriusxeno.goo.client.ber;
 
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
-import com.mercuriusxeno.goo.client.ability.BurnoutVisual;
-import com.mercuriusxeno.goo.client.ability.BurnoutVisuals;
-import com.mercuriusxeno.goo.client.ability.ChainBurnouts;
 import com.mercuriusxeno.goo.client.ability.CrystalCloudVisual;
-import com.mercuriusxeno.goo.client.ability.DomeRamp;
-import com.mercuriusxeno.goo.client.ability.FuseOrbVisual;
+import com.mercuriusxeno.goo.client.ability.MarkerOrbVisual;
 import com.mercuriusxeno.goo.client.ability.MetalSpikeVisual;
 import com.mercuriusxeno.goo.client.ber.style.NetherHoleStyles;
 import com.mercuriusxeno.goo.client.overlay.AimTracker;
@@ -34,9 +30,9 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>Active visualizers:
  * <ul>
- *   <li>{@link FuseOrbVisual} - the slime-like orb during the fuse phase</li>
+ *   <li>{@link MarkerOrbVisual} - the slime-like orb while the program runs</li>
  *   <li>{@link MetalSpikeVisual} - cone spikes from the marker to tracked entities</li>
- *   <li>{@link CrystalCloudVisual} - shard-cloud cloud after a crystal detonation</li>
+ *   <li>{@link CrystalCloudVisual} - the shard cloud a crystal marker stands</li>
  *   <li>{@link NetherHoleStyles#active()} - the swappable nether black-hole style</li>
  * </ul>
  */
@@ -53,7 +49,7 @@ public class ChainMarkerBlockEntityRenderer
     }
 
     /**
-     * Copies goo type, stacks, fuse, and partial tick from the block entity.
+     * Copies goo type, stacks and partial tick from the block entity.
      *
      * @param be          the block entity
      * @param state       the render state to populate
@@ -64,7 +60,6 @@ public class ChainMarkerBlockEntityRenderer
         state.gooType = be.getGooType();
         state.stackCount = be.getStackCount();
         state.maxStacks = be.getMaxStacks();
-        state.fuseRemaining = be.getFuseRemaining();
         state.partialTick = partialTick;
         state.lastStackTick = be.getLastStackTick();
         state.gameTime = be.getLevel() != null
@@ -89,27 +84,6 @@ public class ChainMarkerBlockEntityRenderer
                 || ThrowFreezeState.isFrozenOnChainMarker(pos);
         state.placedFace = be.getPlacedFace();
         state.behaviorActive = be.getBehavior() != null;
-        state.behaviorAge = be.drawBehaviorAge(state.gameTime);
-    }
-
-    /**
-     * Submits the burnout dome's startup frames over the fuse's last ticks,
-     * so the burnout meets a dome already drawn (decision
-     * dome-fades-in-before-its-start).
-     *
-     * @param state         the render state
-     * @param poseStack     the pose stack, at the block's corner
-     * @param nodeCollector the render node collector
-     */
-    private static void submitDomeRamp(ChainMarkerRenderState state, PoseStack poseStack,
-                                       SubmitNodeCollector nodeCollector) {
-        if (state.domeRamp.isEmpty() || state.domeRamp.getAsDouble() <= 0) {
-            return;
-        }
-        BurnoutVisual visual = BurnoutVisuals.forType(state.gooType);
-        ChainBurnouts.Burnout burnout = new ChainBurnouts.Burnout(state.blockPos, state.placedFace,
-                state.abilityId, state.stackCount, 0L, visual);
-        visual.submitRamp(burnout, (float) state.domeRamp.getAsDouble(), poseStack, nodeCollector);
     }
 
     @Override
@@ -144,7 +118,6 @@ public class ChainMarkerBlockEntityRenderer
         extractCoreFields(be, state, partialTick);
         extractTargetAndFace(be, state);
         state.abilityId = be.getAbilityId();
-        state.domeRamp = DomeRamp.rampAt(state.fuseRemaining, partialTick, state.behaviorActive);
         MetalSpikeVisual.extract(be, state);
         CrystalCloudVisual.extract(be, state);
         NetherHoleStyles.active().extract(be, state);
@@ -157,8 +130,7 @@ public class ChainMarkerBlockEntityRenderer
             NetherHoleStyles.active().submit(state, poseStack, nodeCollector);
             return;
         }
-        FuseOrbVisual.submit(state, poseStack, nodeCollector);
-        submitDomeRamp(state, poseStack, nodeCollector);
+        MarkerOrbVisual.submit(state, poseStack, nodeCollector);
         if (state.crystalActive) {
             CrystalCloudVisual.submit(state, poseStack, nodeCollector);
         }

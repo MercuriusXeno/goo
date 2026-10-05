@@ -59,16 +59,6 @@ public final class AbilityMath {
     }
 
     /**
-     * Returns true if the fuse has not yet expired.
-     *
-     * @param remaining ticks left on the fuse
-     * @return true if live
-     */
-    public static boolean isFuseLive(int remaining) {
-        return remaining > 0;
-    }
-
-    /**
      * Returns true if rock + crystal make up strictly more than half of
      * the block's total goo. This lets mixed-composition blocks
      * like bricks or polished stone qualify while keeping metal-heavy

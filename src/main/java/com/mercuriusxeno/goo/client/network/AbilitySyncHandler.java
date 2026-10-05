@@ -78,7 +78,6 @@ public final class AbilitySyncHandler {
      * @param icon        the icon texture path override (empty for convention path)
      * @param order       the sort order
      * @param tags        categorical tags for targeting and display
-     * @param fuseTicks   the chain block's full fuse
      * @param maxStacks   the chain block's stack ceiling
      * @param behaviors   the ability's step program, whose params the marker's renderers read
      * @param cost        the mB a throw costs, the same at every stack count
@@ -86,7 +85,7 @@ public final class AbilitySyncHandler {
      * @param badge       the target kind the radial marks on the icon
      */
     public record ClientAbility(Identifier id, String displayName, String icon,
-                                int order, List<String> tags, int fuseTicks, int maxStacks,
+                                int order, List<String> tags, int maxStacks,
                                 List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge) {
 
         /**
@@ -97,7 +96,7 @@ public final class AbilitySyncHandler {
          */
         public static ClientAbility fromEntry(AbilitySyncPayload.Entry entry) {
             return new ClientAbility(Identifier.tryParse(entry.abilityId()), entry.displayName(), entry.icon(),
-                    entry.order(), entry.tags(), entry.fuseTicks(), entry.maxStacks(), entry.behaviors(),
+                    entry.order(), entry.tags(), entry.maxStacks(), entry.behaviors(),
                     entry.cost(), entry.delivery(), entry.badge());
         }
 

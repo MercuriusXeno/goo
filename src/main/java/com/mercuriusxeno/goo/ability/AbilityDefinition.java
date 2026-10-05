@@ -152,20 +152,17 @@ public record AbilityDefinition(
     /**
      * Chain marker parameters for abilities that use the chain system.
      *
-     * @param fuseTicks    fuse countdown (-1 for trigger-based)
      * @param maxStacks    maximum goo stacks
      */
     public record ChainConfig(
-            int fuseTicks,
             int maxStacks
     ) {
         /**
          * Default chain config for abilities that don't specify one.
          */
-        static final ChainConfig DEFAULT = new ChainConfig(30, 1);
+        static final ChainConfig DEFAULT = new ChainConfig(1);
 
         static final Codec<ChainConfig> CODEC = RecordCodecBuilder.create(inst -> inst.group(
-                Codec.INT.optionalFieldOf("fuseTicks", 30).forGetter(ChainConfig::fuseTicks),
                 Codec.INT.optionalFieldOf("maxStacks", 1).forGetter(ChainConfig::maxStacks)
         ).apply(inst, ChainConfig::new));
     }

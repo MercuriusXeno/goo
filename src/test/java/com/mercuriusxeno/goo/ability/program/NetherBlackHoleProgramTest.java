@@ -57,7 +57,7 @@ class NetherBlackHoleProgramTest {
     private static final Identifier BLACK_HOLE_SOUND = Identifier.parse("goo:effects.black_hole");
     private static final float PROGRESS_TOLERANCE = 1e-6f;
 
-    /** The ticks, counted from one on the fuse tick, on which each host act ran. */
+    /** The ticks, counted from one on the splat tick, on which each host act ran. */
     private final Map<String, List<Integer>> actTicks = new LinkedHashMap<>();
     /** The phase the cursor names after each tick, index zero after the first. */
     private final List<String> phaseAfterTick = new ArrayList<>();
@@ -130,7 +130,7 @@ class NetherBlackHoleProgramTest {
     }
 
     /**
-     * Ticks the program once, the first call standing for the fuse tick.
+     * Ticks the program once, the first call standing for the splat tick.
      */
     private void tickOnce() {
         tick++;

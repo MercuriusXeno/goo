@@ -132,7 +132,7 @@ public final class NetherSphereVisual {
                               SubmitNodeCollector nodeCollector) {
         float fullRadius = BlackHolePhases.fullRadius(state);
         float visibleRadius = BlackHolePhases.visibleRadius(state);
-        int alpha = DomeRamp.alpha(state.holeRamp);
+        int alpha = StartupRamp.alpha(state.holeRamp);
         int color = packBlackholeColor(state.visibleScale, state.animationTime, visibleRadius, alpha);
         float coronaRadius = visibleRadius * CORONA_SCALE;
         float innerR = visibleRadius * DISK_INNER_SPHERE_MULT;

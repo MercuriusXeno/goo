@@ -35,7 +35,7 @@ public class GooBlocks {
     private static final float EXORITE_BARS_BLAST_RESISTANCE = 1200.0F;
 
     /**
-     * Chain marker: short-lived fuse block for chain world effects.
+     * Chain marker: short-lived block a world ability runs its program from.
      */
     public static final DeferredBlock<ChainMarkerBlock> CHAIN_MARKER = BLOCKS.registerBlock(
             "chain_marker", ChainMarkerBlock::new,
@@ -59,7 +59,7 @@ public class GooBlocks {
 
     // --- Machine blocks ---
     /**
-     * Glow crystal: permanent light source left by glow chain detonation.
+     * Glow crystal: permanent light source a glow chain marker places.
      */
     public static final DeferredBlock<GlowCrystalBlock> GLOW_CRYSTAL = BLOCKS.registerBlock(
             "glow_crystal", GlowCrystalBlock::new,

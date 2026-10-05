@@ -133,10 +133,10 @@ public final class BlackHolePhases {
             return OptionalDouble.empty();
         }
         float remaining = Math.max(0f, phase.duration() - phase.ticks() - partialTick);
-        if (remaining >= DomeRamp.RAMP_TICKS) {
+        if (remaining >= StartupRamp.RAMP_TICKS) {
             return OptionalDouble.empty();
         }
-        return OptionalDouble.of(1f - remaining / DomeRamp.RAMP_TICKS);
+        return OptionalDouble.of(1f - remaining / StartupRamp.RAMP_TICKS);
     }
 
     /**
@@ -173,7 +173,7 @@ public final class BlackHolePhases {
      * @return the visible radius in world blocks
      */
     static float rampedBodyRadius(float fullRadius, float visibleScale, float gameTime, float ramp) {
-        return DomeRamp.radius(ramp, bodyRadius(fullRadius, visibleScale, gameTime));
+        return StartupRamp.radius(ramp, bodyRadius(fullRadius, visibleScale, gameTime));
     }
 
     /**
