@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.client.tooltip.GooValueTooltipComponent;
 import com.mercuriusxeno.goo.client.tooltip.VanillaFluidTooltipComponent;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.data.IGooValueLookup;
+import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.fluid.GooBucketItem;
 import com.mercuriusxeno.goo.item.*;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
@@ -116,35 +117,58 @@ public final class GooTooltipHandler {
     }
 
     /**
-     * Returns true if the item has any goo-relevant data worth showing.
+     * Returns true if the item has any goo-relevant data worth showing: goo
+     * it carries, or a value the player has learned.
      *
      * @param stack the item stack
      * @return true if goo tooltip would be non-empty
      */
     private static boolean hasGooData(ItemStack stack) {
-        if (stack.getItem() instanceof GooItem || chrysmValue(stack) != null) {
+        if (carriesGoo(stack)) {
             return true;
         }
-        return getGooContentType(stack) != null || hasStoredGooData(stack);
+        GooValue value = knownValue(stack);
+        return value != null && !value.isEmpty();
     }
 
     /**
-     * Returns true if the stack carries goo contents, canister fluid, or a base goo value.
+     * Returns true if the stack holds goo of its own: a goo, a chrysm, goo
+     * fluid, goo contents or canister fluid.
      *
      * @param stack the item stack to inspect
-     * @return true if any goo data component is present
+     * @return true if the stack carries goo
      */
-    private static boolean hasStoredGooData(ItemStack stack) {
-        GooContents contents = stack.get(GooDataComponents.GOO_CONTENTS.get());
-        if (isEmptyContents(contents)) {
+    private static boolean carriesGoo(ItemStack stack) {
+        if (stack.getItem() instanceof GooItem || chrysmValue(stack) != null || getGooContentType(stack) != null) {
             return true;
         }
-        CanisterFluidContent canister = stack.get(GooDataComponents.CANISTER_FLUID_CONTENT.get());
-        if (isEmptyCanister(canister)) {
-            return true;
-        }
-        GooValue value = lookupValue(stack);
-        return value != null && !value.isEmpty();
+        return isEmptyContents(stack.get(GooDataComponents.GOO_CONTENTS.get()))
+                || isEmptyCanister(stack.get(GooDataComponents.CANISTER_FLUID_CONTENT.get()));
+    }
+
+    /**
+     * Whether the tooltip shows an item's goo lines: the goo a stack carries
+     * always shows, and an item's own value shows only once the player has
+     * learned the item (decision goo-tooltip-shows-only-known-values).
+     *
+     * @param carriesGoo whether the lines read goo the stack holds rather than the item's value
+     * @param item       the item id
+     * @param known      the items the player knows
+     * @return true when the lines show
+     */
+    static boolean revealsGooLines(boolean carriesGoo, Identifier item, KnownItems known) {
+        return carriesGoo || known.contains(item);
+    }
+
+    /**
+     * The item's own goo value, when the player has learned the item.
+     *
+     * @param stack the item stack
+     * @return the value, or null when unknown to the player or valueless
+     */
+    private static @org.jspecify.annotations.Nullable GooValue knownValue(ItemStack stack) {
+        Identifier itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
+        return revealsGooLines(false, itemId, ClientKnownItems.current()) ? lookupValue(stack) : null;
     }
 
     private static boolean isEmptyCanister(CanisterFluidContent canister) {
@@ -255,14 +279,15 @@ public final class GooTooltipHandler {
      * @param stack the item stack
      * @return the container's decomposition value, or null
      */
-    private static GooValue lookupContainerValue(ItemStack stack) {
+    private static @org.jspecify.annotations.Nullable GooValue lookupContainerValue(ItemStack stack) {
         Identifier itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
         IGooValueLookup values = ClientGooValues.current();
         GooValue value = values.lookup(itemId);
         if ((value == null || value.isEmpty()) && stack.getItem() instanceof BucketItem) {
-            return values.lookup(BuiltInRegistries.ITEM.getKey(Items.BUCKET));
+            itemId = BuiltInRegistries.ITEM.getKey(Items.BUCKET);
+            value = values.lookup(itemId);
         }
-        return value;
+        return revealsGooLines(false, itemId, ClientKnownItems.current()) ? value : null;
     }
 
     /**
@@ -309,7 +334,7 @@ public final class GooTooltipHandler {
      */
     private static void appendBaseValueTooltip(
             List<Either<FormattedText, TooltipComponent>> elements, ItemStack stack) {
-        GooValue value = lookupValue(stack);
+        GooValue value = knownValue(stack);
         if (value != null && !value.isEmpty()) {
             appendGooComponents(elements, value);
         }

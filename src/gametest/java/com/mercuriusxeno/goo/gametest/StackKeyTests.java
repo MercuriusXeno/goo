@@ -61,6 +61,7 @@ public final class StackKeyTests {
         helper.assertTrue(cloud != null, ABILITY_REQUIRED);
         AbilityBlockEntity first = placeMarker(helper, cloud);
         ServerPlayer player = makeThrower(helper, GooTypes.CRYSTAL);
+        KnownRecipes.teachRequires(player, cloud);
 
         GooThrowHandler.execute(player, new GooThrowPayload(GooTypes.id(GooTypes.CRYSTAL), NO_TARGET_ENTITY,
                 helper.absolutePos(MARKER_POS), Direction.UP.ordinal(), false, CRYSTAL_CLOUD.toString(),

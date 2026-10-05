@@ -20,7 +20,7 @@ class GloveThrowSenderTest {
         AbilityDefinition definition = AbilityJson.decode(name);
         return new ClientAbility(definition.id(), definition.displayName(), definition.icon(),
                 definition.order(), definition.tags(), definition.behaviors(), definition.cost(), definition.delivery(),
-                definition.badge());
+                definition.badge(), definition.requires());
     }
 
     private static boolean affordsWithHoldings(ClientAbility ability, int holdings) {

@@ -1,10 +1,13 @@
 package com.mercuriusxeno.goo.block.crucible;
 
+import com.mercuriusxeno.goo.block.ContainerEvaluator;
 import com.mercuriusxeno.goo.item.*;
+import com.mercuriusxeno.goo.network.PlayerKnowledge;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -140,8 +143,23 @@ final class CrucibleAbsorption {
                                        CrucibleBlockEntity crucible) {
         int melted = CrucibleInsertion.insertItem(crucible, stack, stack.getCount());
         if (melted > 0) {
+            teachThrower(entity, stack);
             takeUnits(entity, stack, melted);
             spawnMeltEffects(entity.level(), crucible);
+        }
+    }
+
+    /**
+     * Teaches the melted item to the player who threw it in; an item with no
+     * player thrower (a hopper's, a dispenser's, a mob's) teaches nobody.
+     * Decision knowledge-capability-remembers-destroyed-items.
+     *
+     * @param entity the item entity melting
+     * @param stack  the stack it carried
+     */
+    private static void teachThrower(ItemEntity entity, ItemStack stack) {
+        if (entity.getOwner() instanceof ServerPlayer thrower) {
+            PlayerKnowledge.learn(thrower, stack.getItem());
         }
     }
 
@@ -173,12 +191,17 @@ final class CrucibleAbsorption {
      */
     private static void absorbContainer(ItemEntity entity, ItemStack stack,
                                         CrucibleBlockEntity crucible) {
-        List<ItemStack> ejects = CrucibleInsertion.insertContainer(crucible, stack);
-        if (ejects == null) {
+        ContainerEvaluator.ContainerEvaluation melted = CrucibleInsertion.insertContainer(crucible, stack);
+        if (melted == null) {
             return;
         }
+        teachThrower(entity, stack);
+        if (entity.getOwner() instanceof ServerPlayer thrower) {
+            // knowledge-capability-remembers-destroyed-items: the valued contents melt too, so they teach too
+            melted.valued().forEach(valued -> PlayerKnowledge.learn(thrower, valued.item()));
+        }
         entity.discard();
-        spawnEjectedItems(entity.level(), crucible.getBlockPos(), ejects);
+        spawnEjectedItems(entity.level(), crucible.getBlockPos(), melted.ejects());
         spawnMeltEffects(entity.level(), crucible);
     }
 

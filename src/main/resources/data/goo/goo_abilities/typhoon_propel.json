@@ -4,6 +4,7 @@
   "badge": "self",
   "order": 10,
   "cost": 1000,
+  "requires": ["minecraft:phantom_membrane"],
   "delivery": { "kind": "self" },
   "behaviors": [
     { "type": "push", "strength": 1.5, "direction": "thrower_look" }

@@ -22,6 +22,11 @@ public final class GloveSelectHandler {
      */
     private static final String LOG_NO_ABILITY = "Glove selection of goo type {} names no ability; glove left unchanged";
 
+    /**
+     * Log: a selection naming an ability the player may not use, refused.
+     */
+    private static final String LOG_UNUSABLE = "Glove selection of ability {} refused for {}; glove left unchanged";
+
     private GloveSelectHandler() {}
 
     /**
@@ -43,17 +48,20 @@ public final class GloveSelectHandler {
         if (!(context.player() instanceof ServerPlayer player)) { return; }
         ItemStack glove = findGlove(player);
         if (glove == null) { return; }
-        resolveAndApply(glove, payload);
+        resolveAndApply(player, glove, payload);
     }
 
     /** Resolves the selection and applies it to the glove: an empty type
-     * clears the glove, and a type naming no ability is refused and logged
-     * (decision no-throw-without-ability).
+     * clears the glove, and a type naming no ability, or an ability the
+     * player may not use, is refused and logged.
+     * decision no-throw-without-ability
+     * decision ability-hidden-until-recipes-known
      *
+     * @param player  the selecting player
      * @param glove   the glove item stack
      * @param payload the selection payload
      */
-    static void resolveAndApply(ItemStack glove, GloveSelectPayload payload) {
+    static void resolveAndApply(ServerPlayer player, ItemStack glove, GloveSelectPayload payload) {
         if (payload.gooTypeId().isEmpty()) {
             GooGloveItem.setSelection(glove, GloveSelection.EMPTY);
             return;
@@ -62,6 +70,10 @@ public final class GloveSelectHandler {
         if (type == null) { return; }
         if (payload.abilityId().isEmpty()) {
             Goo.LOGGER.warn(LOG_NO_ABILITY, payload.gooTypeId());
+            return;
+        }
+        if (GooThrowHandler.usableAbility(player, payload.abilityId(), type) == null) {
+            Goo.LOGGER.warn(LOG_UNUSABLE, payload.abilityId(), player.getName().getString());
             return;
         }
         GooGloveItem.setSelection(glove, new GloveSelection(payload.gooTypeId(), payload.abilityId()));

@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.EntityCounters;
+import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.item.SoulBoundStacks;
 import net.neoforged.neoforge.attachment.AttachmentType;
 import net.neoforged.neoforge.registries.DeferredHolder;
@@ -34,6 +35,17 @@ public final class GooAttachments {
             ATTACHMENT_TYPES.register("entity_counters",
                     () -> AttachmentType.builder(() -> EntityCounters.EMPTY)
                             .serialize(EntityCounters.CODEC)
+                            .build());
+
+    /**
+     * The items a player knows, saved with the player and kept through death
+     * (decision knowledge-capability-remembers-destroyed-items).
+     */
+    public static final Supplier<AttachmentType<KnownItems>> KNOWN_ITEMS =
+            ATTACHMENT_TYPES.register("known_items",
+                    () -> AttachmentType.builder(() -> KnownItems.NONE)
+                            .serialize(KnownItems.CODEC)
+                            .copyOnDeath()
                             .build());
 
     private GooAttachments() {
