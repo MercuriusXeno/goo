@@ -11,6 +11,7 @@ import net.minecraft.world.entity.Mob;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
+import net.neoforged.neoforge.event.entity.living.LivingHealEvent;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 
@@ -43,8 +44,9 @@ public final class HeartOverlayEvents {
             return;
         }
         HeartOverlay overlay = player.getData(GooAttachments.HEART_OVERLAY);
-        if (overlay.stands() && event.getSource().is(DamageTypeTags.IS_FIRE)) {
-            igniteInstead(event, player, overlay);
+        if (fireSparesTheBar(event.getSource(), player, overlay)) {
+            event.setCanceled(true);
+            player.clearFire();
             return;
         }
         int embers = overlay.emberCount();
@@ -57,21 +59,17 @@ public final class HeartOverlayEvents {
     }
 
     /**
-     * Cancels a fire hit on an overlay, puts the player's own burning out so
-     * its ticks cannot keep relighting the bar, and reignites the overlay's
-     * ash when fire's cooldown allows.
+     * Answers whether a hit is fire landing on a bar that is all ember, which
+     * fire cannot hurt.
      *
-     * @param event   the incoming fire damage
+     * @param source  the damage source
      * @param player  the struck player
-     * @param overlay the player's standing overlay
+     * @param overlay the player's overlay
+     * @return true when the hit is fire on an all-ember bar
      */
-    private static void igniteInstead(LivingIncomingDamageEvent event, ServerPlayer player, HeartOverlay overlay) {
-        event.setCanceled(true);
-        player.clearFire();
-        HeartOverlay ignited = overlay.ignite(player.getHealth(), player.level().getGameTime());
-        if (ignited != overlay) {
-            player.setData(GooAttachments.HEART_OVERLAY, ignited);
-        }
+    private static boolean fireSparesTheBar(DamageSource source, ServerPlayer player, HeartOverlay overlay) {
+        // kindle-ember-hearts-ash-and-retaliate: fire hurts only a bar that is not all ember
+        return overlay.stands() && source.is(DamageTypeTags.IS_FIRE) && overlay.allEmber(player.getHealth());
     }
 
     /**
@@ -102,11 +100,38 @@ public final class HeartOverlayEvents {
             return;
         }
         HeartOverlay overlay = player.getData(GooAttachments.HEART_OVERLAY);
-        HeartOverlay.Drained drained = overlay.drain(event.getNewDamage(), player.level().getGameTime());
+        long now = player.level().getGameTime();
+        HeartOverlay.Drained drained = event.getSource().is(DamageTypeTags.IS_FIRE)
+                ? overlay.burn(event.getNewDamage(), player.getHealth(), now)
+                : overlay.drain(event.getNewDamage(), now);
+        if (drained.overlay().igniteReadyAt() != overlay.igniteReadyAt()) {
+            // the fire that paid for a relight goes out, so its ticks cannot pay again
+            player.clearFire();
+        }
         if (drained.overlay() != overlay) {
             player.setData(GooAttachments.HEART_OVERLAY, drained.overlay());
         }
         event.setNewDamage(drained.remainder());
+    }
+
+    /**
+     * Brings health a burning player regains back as ember hearts.
+     *
+     * @param event the heal event, before the heal lands
+     */
+    @SubscribeEvent
+    public static void onHeal(LivingHealEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer player) || !player.hasData(GooAttachments.HEART_OVERLAY)
+                || !(player.isOnFire() || player.isInLava())) {
+            return;
+        }
+        HeartOverlay overlay = player.getData(GooAttachments.HEART_OVERLAY);
+        float health = player.getHealth();
+        // kindle-ember-hearts-ash-and-retaliate: hearts regained in fire come back ignited
+        HeartOverlay lit = overlay.healInFire(health, Math.min(player.getMaxHealth(), health + event.getAmount()));
+        if (lit != overlay) {
+            player.setData(GooAttachments.HEART_OVERLAY, lit);
+        }
     }
 
     /**

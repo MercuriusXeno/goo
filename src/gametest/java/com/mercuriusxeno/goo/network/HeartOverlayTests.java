@@ -40,11 +40,16 @@ public final class HeartOverlayTests {
     private static final String SHOULD_COST_DOUBLE = "A point on bare ash should cost %.1f, cost %.1f";
     private static final int BROKEN_EMBERS = 3;
     private static final int BURN_SECONDS = 5;
+    private static final float HEART = 2f;
+    private static final String SHOULD_SPARE_EMBER_BAR =
+            "Fire should not touch an all-ember bar and should go out: health %.1f, %d embers, fire ticks %d";
     private static final String SHOULD_RELIGHT =
-            "Fire should cost nothing, relight every heart and go out: %d broken, health %.1f, %d relit, fire ticks %d";
+            "Fire should cost one heart, relight the rest and go out: health %.1f, %d embers, fire ticks %d";
     private static final String SHOULD_COOL_DOWN =
-            "Fire inside its cooldown should relight nothing and cost nothing: %d embers, health %.1f";
-    private static final String SHOULD_BURN ="The zombie should take %d fire and burn: health %.1f of %.1f, fire ticks %d";
+            "Fire inside its cooldown should break an ember like any hit: health %.1f, %d embers";
+    private static final String SHOULD_HEAL_LIT =
+            "A heart healed while burning should return ember: health %.1f, %d embers";
+    private static final String SHOULD_BURN = "The zombie should take %d fire and burn: health %.1f of %.1f, fire ticks %d";
 
     private HeartOverlayTests() {
     }
@@ -104,34 +109,58 @@ public final class HeartOverlayTests {
     }
 
     /**
-     * Fire on a kindled player with broken embers deals nothing and lights
-     * every heart ember again.
+     * Fire leaves an all-ember bar alone and goes out; with ash standing it
+     * relights every heart left at the price of one heart and goes out; inside
+     * its cooldown it breaks an ember like any hit; and a heart healed while
+     * burning returns as ember.
      *
      * @param helper the gametest helper
      */
-    public static void kindleFireReignites(GameTestHelper helper) {
+    public static void kindleFireRelightsForAHeart(GameTestHelper helper) {
         ServerPlayer player = kindled(helper);
+        player.igniteForSeconds(BURN_SECONDS);
+        hurt(helper, player, player.damageSources().inFire(), ONE_POINT);
+        Reading spared = Reading.of(player);
+
         for (int hit = 0; hit < BROKEN_EMBERS; hit++) {
             hurt(helper, player, player.damageSources().generic(), ONE_POINT);
         }
-        int broken = embers(player);
         player.igniteForSeconds(BURN_SECONDS);
-
         hurt(helper, player, player.damageSources().inFire(), ONE_POINT);
+        Reading relit = Reading.of(player);
 
-        float health = player.getHealth();
-        int relit = embers(player);
-        int fireTicks = player.getRemainingFireTicks();
         hurt(helper, player, player.damageSources().generic(), ONE_POINT);
         hurt(helper, player, player.damageSources().inFire(), ONE_POINT);
-        int cooling = embers(player);
-        float healthCooling = player.getHealth();
+        Reading cooling = Reading.of(player);
+
+        player.igniteForSeconds(BURN_SECONDS);
+        player.heal(HEART);
+        Reading healed = Reading.of(player);
         helper.getLevel().getServer().getPlayerList().remove(player);
-        helper.assertTrue(broken == FULL_EMBERS - BROKEN_EMBERS && health == FULL_HEALTH && relit == FULL_EMBERS
-                        && fireTicks <= 0, String.format(SHOULD_RELIGHT, broken, health, relit, fireTicks));
-        helper.assertTrue(cooling == FULL_EMBERS - 1 && healthCooling == FULL_HEALTH,
-                String.format(SHOULD_COOL_DOWN, cooling, healthCooling));
+
+        helper.assertTrue(spared.health() == FULL_HEALTH && spared.embers() == FULL_EMBERS && spared.fireTicks() <= 0,
+                String.format(SHOULD_SPARE_EMBER_BAR, spared.health(), spared.embers(), spared.fireTicks()));
+        helper.assertTrue(relit.health() == FULL_HEALTH - HEART && relit.embers() == FULL_EMBERS - 1
+                        && relit.fireTicks() <= 0,
+                String.format(SHOULD_RELIGHT, relit.health(), relit.embers(), relit.fireTicks()));
+        helper.assertTrue(cooling.health() == FULL_HEALTH - HEART && cooling.embers() == FULL_EMBERS - 3,
+                String.format(SHOULD_COOL_DOWN, cooling.health(), cooling.embers()));
+        helper.assertTrue(healed.health() == FULL_HEALTH && healed.embers() == FULL_EMBERS - 2,
+                String.format(SHOULD_HEAL_LIT, healed.health(), healed.embers()));
         helper.succeed();
+    }
+
+    /**
+     * What a step of a gametest reads off the player.
+     *
+     * @param health    the player's health
+     * @param embers    the embers standing
+     * @param fireTicks the player's remaining fire ticks
+     */
+    private record Reading(float health, int embers, int fireTicks) {
+        static Reading of(ServerPlayer player) {
+            return new Reading(player.getHealth(), HeartOverlayTests.embers(player), player.getRemainingFireTicks());
+        }
     }
 
     private static ServerPlayer kindled(GameTestHelper helper) {

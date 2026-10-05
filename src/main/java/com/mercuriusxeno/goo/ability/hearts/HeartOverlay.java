@@ -230,30 +230,60 @@ public record HeartOverlay(HeartKind kind, List<Boolean> embers, long expiresAt,
     }
 
     /**
-     * Reignites every real heart under a fire hit, which the overlay takes
-     * whole in place of damage, at most once per cooldown.
+     * Answers whether every real heart wears an ember, which a fire hit cannot hurt.
      *
      * @param health the player's real health
-     * @param now    the game time
-     * @return the overlay with an ember over every real heart, the same instance when none was ash or fire is cooling down
+     * @return true when no real heart is bare ash
      */
-    public HeartOverlay ignite(float health, long now) {
-        int slots = filledSlots(health);
-        if (!stands() || now < igniteReadyAt || leftmostAshSlot(slots) == NO_SLOT) {
-            return this;
-        }
-        // kindle-ember-hearts-ash-and-retaliate: fire damage deals nothing and reignites every ash heart
-        List<Boolean> after = new ArrayList<>(embers);
-        while (after.size() < slots) {
-            after.add(Boolean.FALSE);
-        }
-        for (int slot = 0; slot < slots; slot++) {
-            after.set(slot, Boolean.TRUE);
-        }
-        return new HeartOverlay(kind, after, expiresAt, now + reigniteInterval(countTrue(after)),
-                now + FIRE_REIGNITE_COOLDOWN);
+    public boolean allEmber(float health) {
+        return leftmostAshSlot(filledSlots(health)) == NO_SLOT;
     }
 
+    /**
+     * Runs a fire hit through the overlay. With ash standing and fire's cooldown
+     * passed, the fire relights the bar at the price of one heart: real health
+     * loses a heart in place of the hit and every heart left relights. Inside
+     * the cooldown the fire is an ordinary hit.
+     *
+     * @param damage the fire hit's damage
+     * @param health the player's real health
+     * @param now    the game time
+     * @return the overlay after the fire and the damage real health takes
+     */
+    public Drained burn(float damage, float health, long now) {
+        if (!stands() || now < igniteReadyAt || allEmber(health)) {
+            return drain(damage, now);
+        }
+        // kindle-ember-hearts-ash-and-retaliate: relighting costs an ash heart, so lava never makes the player invincible
+        int left = Math.max(0, filledSlots(health - HEART_POINTS));
+        HeartOverlay relit = new HeartOverlay(kind, Collections.nCopies(left, Boolean.TRUE), expiresAt,
+                now + reigniteInterval(left), now + FIRE_REIGNITE_COOLDOWN);
+        return new Drained(relit, HEART_POINTS);
+    }
+
+    /**
+     * Lights the hearts a heal brings back while the player burns, so health
+     * regained in fire returns as ember rather than ash.
+     *
+     * @param health       the real health before the heal
+     * @param healedHealth the real health after it
+     * @return the overlay with every regained heart ember, the same instance when no heart came back
+     */
+    public HeartOverlay healInFire(float health, float healedHealth) {
+        int from = filledSlots(health);
+        int to = filledSlots(healedHealth);
+        if (!stands() || to <= from) {
+            return this;
+        }
+        List<Boolean> after = new ArrayList<>(embers);
+        while (after.size() < to) {
+            after.add(Boolean.FALSE);
+        }
+        for (int slot = from; slot < to; slot++) {
+            after.set(slot, Boolean.TRUE);
+        }
+        return withEmbers(after, reigniteAt);
+    }
     private HeartOverlay extinguish(long now) {
         if (emberCount() == 0) {
             return this;

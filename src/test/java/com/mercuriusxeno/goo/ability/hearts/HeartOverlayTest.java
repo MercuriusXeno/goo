@@ -149,40 +149,57 @@ class HeartOverlayTest {
     }
 
     @Nested
-    class Ignite {
+    class Burn {
 
         @Test
-        void fireReignitesEveryRealHeart() {
-            HeartOverlay ignited = withEmbers(2, 10, NOW).ignite(FULL_HEALTH, NOW);
-            assertEquals(10, ignited.emberCount());
-            assertEquals(NOW + HeartOverlay.reigniteInterval(10), ignited.reigniteAt());
+        void fireRelightsEveryHeartLeftForOneHeart() {
+            HeartOverlay.Drained burned = withEmbers(2, 10, NOW).burn(1f, FULL_HEALTH, NOW);
+            assertEquals(2f, burned.remainder(), DELTA);
+            assertEquals(9, burned.overlay().emberCount());
+            assertFalse(burned.overlay().emberAt(9));
+            assertEquals(NOW + HeartOverlay.FIRE_REIGNITE_COOLDOWN, burned.overlay().igniteReadyAt());
         }
 
         @Test
-        void fireLightsNoMissingHeart() {
-            HeartOverlay ignited = withEmbers(0, 10, NOW).ignite(5f, NOW);
-            assertEquals(3, ignited.emberCount());
-            assertFalse(ignited.emberAt(3));
-        }
-
-        @Test
-        void fireOnAFullBarChangesNothing() {
-            HeartOverlay full = kindled(FULL_HEALTH);
-            assertSame(full, full.ignite(FULL_HEALTH, NOW));
-        }
-
-        @Test
-        void fireWithinItsCooldownRelightsNothing() {
-            HeartOverlay relit = withEmbers(2, 10, NOW).ignite(FULL_HEALTH, NOW);
-            assertEquals(NOW + HeartOverlay.FIRE_REIGNITE_COOLDOWN, relit.igniteReadyAt());
+        void fireInsideItsCooldownIsAnOrdinaryHit() {
+            HeartOverlay relit = withEmbers(2, 10, NOW).burn(1f, FULL_HEALTH, NOW).overlay();
             HeartOverlay broken = relit.drain(1f, NOW).overlay();
-            assertSame(broken, broken.ignite(FULL_HEALTH, NOW + HeartOverlay.FIRE_REIGNITE_COOLDOWN - 1));
-            assertEquals(10, broken.ignite(FULL_HEALTH, NOW + HeartOverlay.FIRE_REIGNITE_COOLDOWN).emberCount());
+            HeartOverlay.Drained cooling = broken.burn(1f, 18f, NOW + HeartOverlay.FIRE_REIGNITE_COOLDOWN - 1);
+            assertEquals(0f, cooling.remainder(), DELTA);
+            assertEquals(7, cooling.overlay().emberCount());
+            HeartOverlay.Drained ready = broken.burn(1f, 18f, NOW + HeartOverlay.FIRE_REIGNITE_COOLDOWN);
+            assertEquals(8, ready.overlay().emberCount());
         }
 
         @Test
-        void fireWithNoOverlayChangesNothing() {
-            assertSame(HeartOverlay.NONE, HeartOverlay.NONE.ignite(FULL_HEALTH, NOW));
+        void fireOnAnAllEmberBarIsAnOrdinaryHit() {
+            HeartOverlay.Drained burned = kindled(FULL_HEALTH).burn(1f, FULL_HEALTH, NOW);
+            assertEquals(9, burned.overlay().emberCount());
+            assertEquals(NOW, burned.overlay().igniteReadyAt());
+        }
+
+        @Test
+        void allEmberMeansNoRealHeartIsAsh() {
+            assertTrue(withEmbers(3, 10, NOW).allEmber(6f));
+            assertFalse(withEmbers(3, 10, NOW).allEmber(7f));
+        }
+    }
+
+    @Nested
+    class HealInFire {
+
+        @Test
+        void regainedHeartsComeBackEmber() {
+            HeartOverlay lit = withEmbers(2, 5, NOW).healInFire(10f, 14f);
+            assertTrue(lit.emberAt(5));
+            assertTrue(lit.emberAt(6));
+            assertFalse(lit.emberAt(4));
+        }
+
+        @Test
+        void healWithinAHeartLightsNothing() {
+            HeartOverlay overlay = withEmbers(2, 5, NOW);
+            assertSame(overlay, overlay.healInFire(9f, 10f));
         }
     }
 
