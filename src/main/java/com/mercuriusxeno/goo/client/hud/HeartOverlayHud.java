@@ -44,6 +44,13 @@ public final class HeartOverlayHud {
     private static final Identifier BARK_FULL = sprite("bark_full");
     private static final Identifier BARK_HALF = sprite("bark_half");
     private static final int HEART_SIZE = 9;
+    /** The burns playing, read from the overlay's bark between frames. */
+    private static final BarkBurns BURNS = new BarkBurns();
+    private static final int OPAQUE_WHITE = 0xFFFFFFFF;
+    private static final int OPAQUE_ALPHA = 0xFF;
+    private static final int ALPHA_SHIFT = 24;
+    /** The tint charred bark takes behind the flame front. */
+    private static final int CHAR_RGB = 0x2A1C12;
     /** The smoldering crawl's mean opacity, the swing it pulses by and how fast. */
     private static final float SMOLDER_ALPHA = 0.6f;
     private static final float SMOLDER_PULSE = 0.25f;
@@ -90,9 +97,10 @@ public final class HeartOverlayHud {
             LocalPlayer player = mc.player;
             if (player != null && mc.gameMode != null && mc.gameMode.canHurtPlayer()) {
                 HeartOverlay overlay = player.getData(GooAttachments.HEART_OVERLAY);
-                if (overlay.stands()) {
-                    paint(graphics, mc.gui, player, overlay, new BarFrame(leftHeightBefore,
-                            deltaTracker.getGameTimeDeltaPartialTick(false)));
+                float partialTick = deltaTracker.getGameTimeDeltaPartialTick(false);
+                List<BarkBurns.Burn> burns = BURNS.update(overlay, player.isOnFire(), mc.gui.getGuiTicks() + partialTick);
+                if (overlay.stands() || !burns.isEmpty()) {
+                    paint(graphics, mc.gui, player, overlay, new BarFrame(leftHeightBefore, partialTick, burns));
                 }
             }
         };
@@ -173,8 +181,9 @@ public final class HeartOverlayHud {
      *
      * @param leftHeightBefore the gui's left stack height before vanilla drew health
      * @param partialTick      the fraction of the tick elapsed
+     * @param burns            the bark halves burning away
      */
-    private record BarFrame(int leftHeightBefore, float partialTick) {
+    private record BarFrame(int leftHeightBefore, float partialTick, List<BarkBurns.Burn> burns) {
     }
 
     private static void paint(GuiGraphicsExtractor graphics, Gui gui, LocalPlayer player, HeartOverlay overlay,
@@ -183,8 +192,47 @@ public final class HeartOverlayHud {
         BarLayout layout = layout(graphics, gui, player, frame.leftHeightBefore());
         SlotPainter painter = new SlotPainter(graphics, overlay, gui.getGuiTicks(), frame.partialTick(),
                 RegrowCrawl.crawl(overlay, player.getHealth(), player.level().getGameTime() + frame.partialTick()));
-        for (int slot = 0; slot < HeartOverlay.filledSlots(health); slot++) {
+        int slots = overlay.stands() ? HeartOverlay.filledSlots(health) : 0;
+        for (int slot = 0; slot < slots; slot++) {
             painter.paint(slot, layout.x(slot), layout.y(slot), Math.min(HeartOverlay.FULL_SHIELD, health - slot * HALF));
+        }
+        float now = gui.getGuiTicks() + frame.partialTick();
+        for (BarkBurns.Burn burn : frame.burns()) {
+            paintBurn(graphics, burn, now, layout.x(burn.slot()), layout.y(burn.slot()));
+        }
+    }
+
+    /**
+     * Paints a bark half burning away: the bark still standing left of the
+     * flame front, the front a flickering column of flame, and the bark behind
+     * it charred and fading out.
+     *
+     * @param graphics the gui graphics
+     * @param burn     the half burning
+     * @param now      the GUI time
+     * @param x        the slot's left edge
+     * @param y        the slot's top edge
+     */
+    private static void paintBurn(GuiGraphicsExtractor graphics, BarkBurns.Burn burn, float now, int x, int y) {
+        int left = x + burn.half() * (HEART_SIZE - RegrowCrawl.HALF_WIDTH);
+        int right = left + RegrowCrawl.HALF_WIDTH;
+        int front = right - burn.burnedFromRight(now);
+        float progress = burn.progress(now);
+        blitColumns(graphics, BARK_FULL, x, y, left, front, OPAQUE_WHITE);
+        // bark-hearts-burn-away-right-to-left: the bark catches and chars behind the front
+        int charAlpha = Math.round((1f - progress) * OPAQUE_ALPHA);
+        blitColumns(graphics, BARK_FULL, x, y, front, right, charAlpha << ALPHA_SHIFT | CHAR_RGB);
+        if (progress > 0f && progress < 1f) {
+            blitColumns(graphics, EMBER_FULL, x, y, Math.max(left, front - 1), front + 1, OPAQUE_WHITE);
+        }
+    }
+
+    private static void blitColumns(GuiGraphicsExtractor graphics, Identifier sprite, int x, int y, int from, int to,
+                                    int color) {
+        if (to > from) {
+            graphics.enableScissor(from, y, to, y + HEART_SIZE);
+            graphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x, y, HEART_SIZE, HEART_SIZE, color);
+            graphics.disableScissor();
         }
     }
 
@@ -204,7 +252,8 @@ public final class HeartOverlayHud {
         }
 
         int y(int slot) {
-            return slotY(slot, yBase, rowHeight) + jiggle[slot] - (slot == bounceSlot ? REGEN_BOUNCE : 0);
+            int shake = slot < jiggle.length ? jiggle[slot] : 0;
+            return slotY(slot, yBase, rowHeight) + shake - (slot == bounceSlot ? REGEN_BOUNCE : 0);
         }
     }
 
