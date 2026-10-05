@@ -96,6 +96,7 @@
 
   "goo.ability.aeon.time_stop": "Stasis",
   "goo.ability.blaze.ignite": "Scorch",
+  "goo.ability.blaze.kindle": "Kindle",
   "goo.ability.blaze.spitfire": "Spitfire",
   "goo.ability.crystal.cloud": "Razor",
   "goo.ability.crystal.flechettes": "Shards",
@@ -105,6 +106,7 @@
   "goo.ability.glow.crystal": "Bulb",
   "goo.ability.glow.laser": "Beam",
   "goo.ability.hex.charm": "Charm",
+  "goo.ability.leaf.barkskin": "Barkskin",
   "goo.ability.leaf.entangle": "Vines",
   "goo.ability.metal.javelin": "Dart",
   "goo.ability.metal.spikes": "Urchin",
