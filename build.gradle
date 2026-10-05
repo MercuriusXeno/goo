@@ -57,6 +57,13 @@ runs {
     client {
         // 4GB heap + ZGC for low-latency recording sessions
         jvmArguments.addAll '-Xmx4G', '-Xms4G', '-XX:+UseZGC', '-XX:+AlwaysPreTouch'
+        // The window title ends in this worktree's branch, so each running client names its own (decision dev-window-title-carries-the-branch)
+        var devBranch = providers.exec {
+            commandLine 'git', 'rev-parse', '--abbrev-ref', 'HEAD'
+            workingDir = project.projectDir
+            ignoreExitValue = true
+        }.standardOutput.asText.get().trim()
+        systemProperty 'goo.devBranch', devBranch
     }
     gameTestServer {
         modSource project.sourceSets.gametest
