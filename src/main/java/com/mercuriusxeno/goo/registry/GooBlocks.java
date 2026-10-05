@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.block.ability.ChainMarkerBlock;
+import com.mercuriusxeno.goo.block.ability.AbilityBlock;
 import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
 import com.mercuriusxeno.goo.block.ability.MagickedIceBlock;
 import com.mercuriusxeno.goo.block.canister.CanisterBlock;
@@ -35,10 +35,10 @@ public class GooBlocks {
     private static final float EXORITE_BARS_BLAST_RESISTANCE = 1200.0F;
 
     /**
-     * Chain marker: short-lived fuse block for chain world effects.
+     * Ability block: short-lived block a world ability runs its program from.
      */
-    public static final DeferredBlock<ChainMarkerBlock> CHAIN_MARKER = BLOCKS.registerBlock(
-            "chain_marker", ChainMarkerBlock::new,
+    public static final DeferredBlock<AbilityBlock> ABILITY_BLOCK = BLOCKS.registerBlock(
+            "ability_block", AbilityBlock::new,
             () -> BlockBehaviour.Properties.of()
                     .noCollision()
                     .instabreak()
@@ -59,7 +59,7 @@ public class GooBlocks {
 
     // --- Machine blocks ---
     /**
-     * Glow crystal: permanent light source left by glow chain detonation.
+     * Glow crystal: permanent light source a glow ability block places.
      */
     public static final DeferredBlock<GlowCrystalBlock> GLOW_CRYSTAL = BLOCKS.registerBlock(
             "glow_crystal", GlowCrystalBlock::new,

@@ -4,6 +4,7 @@
   "badge": "mob",
   "order": 0,
   "cost": 1000,
+  "requires": ["minecraft:vine"],
   "delivery": { "kind": "arc" },
   "behaviors": [
     { "type": "potion", "effect": "minecraft:slowness", "duration": 100, "amplifier": 2 },

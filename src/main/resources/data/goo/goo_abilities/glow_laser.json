@@ -4,6 +4,7 @@
   "badge": "mob",
   "order": 10,
   "cost": 1000,
+  "requires": ["minecraft:spectral_arrow"],
   "delivery": { "kind": "beam", "blocks_per_tick": 2.5 },
   "behaviors": [
     { "type": "damage", "amount": "4 + 4 * undead", "source": "magic" },

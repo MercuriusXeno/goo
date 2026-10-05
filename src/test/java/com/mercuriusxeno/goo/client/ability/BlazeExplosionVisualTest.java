@@ -40,14 +40,6 @@ class BlazeExplosionVisualTest {
     }
 
     @Test
-    void rampMeetsTheDomesFirstDrawnFrame() {
-        DomeRampShape.assertRampMeetsFirstFrame(BlazeExplosionVisual::rampRadius,
-                BlazeExplosionVisual.domeRadius(1f / BlazeExplosionVisual.DURATION_TICKS),
-                ramp -> ARGB.alpha(BlazeExplosionVisual.domeColor(BlazeExplosionVisual.FIRST_DRAWN_PROGRESS,
-                        Direction.NORTH, DomeRamp.alpha(ramp))));
-    }
-
-    @Test
     void pipelineShadersResolveOnTheClasspath() {
         PipelineShaders.assertExist(GooRenderTypes.BLAZE_EXPLOSION);
     }

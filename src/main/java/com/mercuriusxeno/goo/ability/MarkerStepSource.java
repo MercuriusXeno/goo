@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability;
 
 import com.mercuriusxeno.goo.ability.program.HostKind;
+import com.mercuriusxeno.goo.ability.program.LingerStep;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.Step;
 import net.minecraft.resources.Identifier;
@@ -8,7 +9,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
- * Answers the step program of the ability a chain marker runs, from the
+ * Answers the step program of the ability a standing block runs, from the
  * abilities its side holds: the server's registry, or the abilities the
  * client was synced (decision diagnose-then-fix-marker-server-gate).
  */
@@ -57,13 +58,18 @@ public interface MarkerStepSource {
     @Nullable List<Step> steps(String abilityId);
 
     /**
-     * Loads the ability's program for the marker host.
+     * Loads the body of the ability's linger step for the block host, the
+     * steps its standing block runs (decision
+     * lingering-abilities-place-their-own-thing).
      *
      * @param abilityId the ability resource id string
-     * @return the program, or null when this side holds no such ability
+     * @return the program, or null when this side holds no such ability or it never lingers
      */
     default @Nullable ProgramBehavior program(String abilityId) {
         List<Step> steps = steps(abilityId);
-        return steps != null ? ProgramBehavior.forHost(steps, HostKind.MARKER) : null;
+        if (steps == null) {
+            return null;
+        }
+        return LingerStep.bodyOf(steps).map(body -> ProgramBehavior.forHost(body, HostKind.MARKER)).orElse(null);
     }
 }

@@ -10,7 +10,7 @@ import net.minecraft.resources.ResourceKey;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 /**
- * Client-side handler for chain marker burnouts: adds each to the live
+ * Client-side handler for ability block burnouts: adds each to the live
  * explosion list, stamped with the game time it began (decision
  * elemental-explosion-per-type).
  */
@@ -34,10 +34,8 @@ public final class ChainBurnoutHandler {
             Direction[] faces = Direction.values();
             Direction face = faces[Math.floorMod(payload.placedFace(), faces.length)];
             ChainBurnouts.Burnout burnout = ChainBurnouts.CLIENT.add(payload.pos(), face, gooType,
-                    payload.abilityId(), payload.stackCount(), mc.level.getGameTime());
-            if (burnout != null) {
-                burnout.visual().begin(burnout, mc.level);
-            }
+                    payload.abilityId(), mc.level.getGameTime());
+            burnout.visual().begin(burnout, mc.level);
         });
     }
 }

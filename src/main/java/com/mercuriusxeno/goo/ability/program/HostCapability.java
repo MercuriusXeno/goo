@@ -15,10 +15,6 @@ import java.util.Set;
  */
 public enum HostCapability {
     /**
-     * A stack count that can be read and spent, and the marker variables.
-     */
-    STACKS(StacksHost.class),
-    /**
      * A placed face on a block.
      */
     PLACED_FACE(PlacedFaceHost.class),
@@ -43,14 +39,9 @@ public enum HostCapability {
      */
     PLACE_BLOCK(PlaceBlockHost.class),
     /**
-     * Blocks around the anchor the host strikes layer by layer, with the
-     * layer fx and the mined-layer count its renderer reads.
-     */
-    LAYER_WALK(LayerWalkHost.class),
-    /**
      * A field-effect state the host keeps across ticks and its renderer
      * reads: the strikes in flight, the strike cooldown and the charges
-     * spent on the current stack.
+     * spent.
      */
     FIELD_EFFECT(FieldEffectHost.class),
     /**
@@ -62,7 +53,12 @@ public enum HostCapability {
      * A goo total the host fills by consuming the valued blocks around its
      * anchor and drops as goo.
      */
-    CONSUMED_GOO(ConsumedGooHost.class);
+    CONSUMED_GOO(ConsumedGooHost.class),
+    /**
+     * A landing where the ability can stand its own block, which runs the
+     * steps handed to it (decision lingering-abilities-place-their-own-thing).
+     */
+    LINGER(LingerHost.class);
 
     private final Class<? extends StepHost> hostType;
 

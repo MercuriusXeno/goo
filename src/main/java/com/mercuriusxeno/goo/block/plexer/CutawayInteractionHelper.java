@@ -2,12 +2,15 @@ package com.mercuriusxeno.goo.block.plexer;
 
 import com.mercuriusxeno.goo.block.plexer.PlexerBlock;
 import com.mercuriusxeno.goo.block.plexer.PlexerBlockEntity;
+import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.CanisterMetadata;
+import com.mercuriusxeno.goo.network.PlayerKnowledge;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -24,6 +27,8 @@ public final class CutawayInteractionHelper {
 
     /** Overlay prefix for target-set feedback. */
     private static final String TARGET_PREFIX = "Target: ";
+    /** Overlay message when the player has not learned the clicked item. */
+    static final String UNKNOWN_ITEM = "You don't know what it's made of";
     /** Overlay message when target is cleared. */
     private static final String TARGET_CLEARED = "Target cleared";
 
@@ -67,10 +72,26 @@ public final class CutawayInteractionHelper {
      */
     public static InteractionResult applyTargetItem(PlexerBlockEntity plexer, Player player, ItemStack stack) {
         if (!plexer.isValidTarget(stack)) { return InteractionResult.PASS; }
+        if (refusesTarget(PlayerKnowledge.idOf(stack.getItem()), PlayerKnowledge.of(player))) {
+            player.sendOverlayMessage(Component.literal(UNKNOWN_ITEM));
+            return InteractionResult.SUCCESS;
+        }
         plexer.setTargetItem(cleanCopy(stack));
         player.sendOverlayMessage(
             Component.literal(TARGET_PREFIX + stack.getHoverName().getString()));
         return InteractionResult.SUCCESS;
+    }
+
+    /**
+     * Whether the plexer refuses an item as its target: the player has not
+     * learned what it is made of (decision plexer-refuses-an-unlearned-item).
+     *
+     * @param item  the clicked item's id
+     * @param known the items the player knows
+     * @return true when the item is unknown to the player
+     */
+    static boolean refusesTarget(Identifier item, KnownItems known) {
+        return !known.contains(item);
     }
 
     /**

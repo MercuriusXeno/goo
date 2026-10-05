@@ -37,7 +37,7 @@ import java.util.function.Consumer;
  * makes the lightmap multiply a no-op without a shader or pipeline change.
  * The vat and crucible fluid alone submit on the undulating surface type.
  * Every other goo draw under client, the gasket caps, the thrown goo, the
- * fuse orb and the metal spikes, takes its render type, light and sprite
+ * marker orb and the metal spikes, takes its render type, light and sprite
  * UVs here too (decision submitter-owns-every-render-choice).
  */
 public final class GooSubmitter {

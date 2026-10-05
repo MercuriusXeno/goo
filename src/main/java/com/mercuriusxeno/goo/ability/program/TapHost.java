@@ -12,15 +12,13 @@ import net.minecraft.world.phys.Vec3;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalDouble;
-import java.util.Set;
-import java.util.function.Consumer;
 
 /**
  * The {@link StepHost} over the block a tap's drip lands on: world actions
  * anchor at the struck face's center, and a placed block goes into the
  * block beyond that face. A tap has no will and no target, and a drip lands
  * in one tick with nothing ticking it afterwards, so this host implements
- * neither {@link TargetHost}, {@link StacksHost} nor {@link TickingHost}
+ * neither {@link TargetHost} nor {@link TickingHost}
  * (decision tap-ability-tagged-program).
  *
  * @param level   the server level
@@ -28,7 +26,7 @@ import java.util.function.Consumer;
  * @param face    the landing block's face the drip struck
  */
 public record TapHost(ServerLevel level, BlockPos landing, Direction face)
-        implements ExplodeHost, EntityScanHost, PlaceBlockHost {
+        implements ExplodeHost, AnchoredWorldHost, PlaceBlockHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "Place step names block which no registry holds: ";
     private static final double HALF = 0.5;
@@ -44,8 +42,14 @@ public record TapHost(ServerLevel level, BlockPos landing, Direction face)
         return Vec3.atCenterOf(landing).add(face.getStepX() * HALF, face.getStepY() * HALF, face.getStepZ() * HALF);
     }
 
-    private Vec3 anchor() {
+    @Override
+    public Vec3 anchor() {
         return faceCenter(landing, face);
+    }
+
+    @Override
+    public Direction.Axis burstAxis() {
+        return face.getAxis();
     }
 
     @Override
@@ -63,7 +67,6 @@ public record TapHost(ServerLevel level, BlockPos landing, Direction face)
         return landing;
     }
 
-
     @Override
     public void explode(float power, ExplosionMode mode) {
         Vec3 at = anchor();
@@ -71,41 +74,6 @@ public record TapHost(ServerLevel level, BlockPos landing, Direction face)
                 ? Level.ExplosionInteraction.TNT
                 : Level.ExplosionInteraction.NONE;
         level.explode(null, at.x(), at.y(), at.z(), power, interaction);
-    }
-
-    @Override
-    public boolean anyEntityWithin(SelectionShape shape, double radius, Set<EntityFilter> filters) {
-        return EntityScan.anyEntityWithin(level, anchor(), shape, radius, filters, null);
-    }
-
-    @Override
-    public void forEachEntityWithin(SelectionShape shape, double radius, Set<EntityFilter> filters,
-                                    Consumer<TargetHost> body) {
-        BlockAnchoredActions.forEachEntityWithin(level, anchor(), shape, radius, filters, body);
-    }
-
-    @Override
-    public void forEntity(int entityId, Consumer<TargetHost> body) {
-        BlockAnchoredActions.forEntity(level, entityId, body);
-    }
-
-
-    @Override
-    public void pullEntitiesWithin(double radius, double speed) {
-        EntityPull.pullWithin(level, anchor(), radius, speed, null);
-    }
-
-
-    @Override
-    public void spawnParticles(ParticleBurst burst) {
-
-        BlockAnchoredActions.sendBurst(level, anchor(), face.getAxis(), burst);
-    }
-
-    @Override
-    public void playSound(SoundCue cue) {
-
-        SoundPlays.play(level, anchor(), cue);
     }
 
     /**

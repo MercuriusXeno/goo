@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
+import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.storage.ValueInput;
@@ -12,8 +12,8 @@ import java.util.TreeSet;
 /**
  * The step runtime: runs a step list against a
  * {@link StepHost}, one step at a time, starting the next step the same
- * tick the prior finishes. The marker's fuse runs before the program body,
- * so {@link #onFuseExpired} is the body's first tick. Only the cursor and
+ * tick the prior finishes. A marker's program starts the tick its blob
+ * splats, so {@link #onSplat} is the body's first tick. Only the cursor and
  * two tick counters are state, and they are what persists.
  *
  * <p>{@link #tick(StepHost)} is the whole runtime and takes any host, so a
@@ -140,13 +140,14 @@ public final class ProgramBehavior {
     }
 
     /**
-     * The marker's fuse hit zero: the program's first tick.
+     * The marker's blob splatted: the program's first tick (decision
+     * splat-runs-the-program-no-fuse).
      *
      * @param level the server level
-     * @param pos   the chain marker position
+     * @param pos   the ability block position
      * @param be    the owning marker
      */
-    public void onFuseExpired(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity be) {
+    public void onSplat(ServerLevel level, BlockPos pos, AbilityBlockEntity be) {
         tick(new MarkerHost(level, pos, be));
     }
 
@@ -154,10 +155,10 @@ public final class ProgramBehavior {
      * One marker tick while {@link #isActive()} is true.
      *
      * @param level the server level
-     * @param pos   the chain marker position
+     * @param pos   the ability block position
      * @param be    the owning marker
      */
-    public void serverTick(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity be) {
+    public void serverTick(ServerLevel level, BlockPos pos, AbilityBlockEntity be) {
         tick(new MarkerHost(level, pos, be));
     }
 
@@ -172,13 +173,13 @@ public final class ProgramBehavior {
     }
 
     /**
-     * Returns true if the marker accepts more goo after its fuse expires,
-     * which the running step decides.
+     * Returns true if the marker stands against a punch while its program
+     * runs, which the running step decides.
      *
-     * @return true if post-fuse stacking is allowed
+     * @return true when breaking the marker is refused
      */
-    public boolean allowsTopOff() {
-        return isActive() && steps.get(stepIndex).allowsTopOff();
+    public boolean standsAgainstBreaking() {
+        return isActive() && steps.get(stepIndex).standsAgainstBreaking();
     }
 
     /**

@@ -1,8 +1,5 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.ability.ChainFootprint;
-import com.mercuriusxeno.goo.ability.program.AreaShape;
-import com.mercuriusxeno.goo.ability.program.ProgressiveAreaStep;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -12,17 +9,14 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
-import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import java.util.Optional;
 
 /**
  * Frost goo's burnout explosion, the design the operator settled (decision
  * elemental-explosion-per-type): a fog ring with snowflakes. Built like
  * rock's dust shock disc, a flat ring in the placed face's plane spreads out
- * from the marker to the freeze zone's reach over 20 ticks on an ease-out:
- * for a sphere, the ball's radius; for a tunnel or flat circle, the
- * footprint's widest reach across the face. Its fragment shader
+ * from the marker to the freeze zone's reach over 20 ticks on an ease-out.
+ * Its fragment shader
  * ({@code frost_explosion.fsh}) draws it with frost's fog, white-blue
  * billows with a crisp frost-white leading edge, the fog thinning behind the
  * edge, fading over 10 more ticks, alpha blended. At burnout a burst of
@@ -30,14 +24,15 @@ import java.util.Optional;
  * riding out with the edge and drifting down. The vertex color carries
  * progress in red, the disc-local position in green and blue, and the fog's
  * remaining opacity in alpha, since a core pipeline takes no per-draw
- * uniforms. A frost_tunnel marker
- * plays no burnout explosion: its per-layer rime carries the moment.
+ * uniforms.
  */
 public final class FrostExplosionVisual implements BurnoutVisual {
 
     /** The one instance the burnout registry holds. */
     public static final FrostExplosionVisual INSTANCE = new FrostExplosionVisual();
 
+    /** How far the zone a frost marker freezes reaches across its face, in blocks. */
+    static final float ZONE_REACH = 1f;
     /** Ticks the ring takes to spread to the zone's reach. */
     static final int SPREAD_TICKS = 20;
     /** Ticks the fog takes to fade once the ring has spread. */
@@ -71,7 +66,7 @@ public final class FrostExplosionVisual implements BurnoutVisual {
     @Override
     public void begin(ChainBurnouts.Burnout burnout, ClientLevel level) {
         Direction face = burnout.placedFace();
-        float reach = zoneReach(areaStep(burnout), burnout.stackCount(), face);
+        float reach = ZONE_REACH;
         BlockPos pos = burnout.pos();
         double x = pos.getX() + BurnoutGeometry.BLOCK_CENTER + face.getStepX() * RING_LIFT;
         double y = pos.getY() + BurnoutGeometry.BLOCK_CENTER + face.getStepY() * RING_LIFT;
@@ -86,7 +81,7 @@ public final class FrostExplosionVisual implements BurnoutVisual {
     @Override
     public void render(ChainBurnouts.Burnout burnout, BurnoutFrame frame) {
         float progress = burnout.progress(frame.gameTime());
-        float radius = zoneReach(areaStep(burnout), burnout.stackCount(), burnout.placedFace()) * spread(progress);
+        float radius = ZONE_REACH * spread(progress);
         int progressByte = NetherDiscMesh.toByte(progress);
         int fog = NetherDiscMesh.toByte(fog(progress));
         int center = ARGB.color(fog, progressByte, NetherDiscMesh.toByte(SIGNED_TO_UNIT),
@@ -117,32 +112,6 @@ public final class FrostExplosionVisual implements BurnoutVisual {
     }
 
     /**
-     * How far the zone a frost marker freezes reaches across its face: the
-     * step's radius for a sphere, the footprint's widest reach from the
-     * marker's center across the face for a tunnel or flat circle.
-     *
-     * @param step   the progressive-area step, empty when the ability cannot be read
-     * @param stacks the marker's stack count
-     * @param face   the placed face
-     * @return the reach in blocks
-     */
-    static float zoneReach(Optional<ProgressiveAreaStep> step, int stacks, Direction face) {
-        AreaShape shape = step.map(ProgressiveAreaStep::shape).orElse(AreaShape.SPHERE);
-        if (shape == AreaShape.SPHERE) {
-            return step.map(area -> area.radius(stacks)).orElse(0);
-        }
-        AABB box = ChainFootprint.computeBounds(stacks, shape == AreaShape.FLAT_CIRCLE, face);
-        double center = BurnoutGeometry.BLOCK_CENTER;
-        double reach = 0;
-        for (Direction.Axis axis : Direction.Axis.values()) {
-            if (axis != face.getAxis()) {
-                reach = Math.max(reach, Math.max(center - box.min(axis), box.max(axis) - center));
-            }
-        }
-        return (float) reach;
-    }
-
-    /**
      * A snowflake's launch velocity: outward across the ring's plane at the given angle.
      *
      * @param face  the placed face
@@ -158,17 +127,6 @@ public final class FrostExplosionVisual implements BurnoutVisual {
             case Y -> new Vec3(u, 0, v);
             case Z -> new Vec3(u, v, 0);
         };
-    }
-
-    /**
-     * The burnout's ability's synced progressive-area step, which names the
-     * zone's shape and radius.
-     *
-     * @param burnout the burnout
-     * @return the step, empty when it cannot be read
-     */
-    private static Optional<ProgressiveAreaStep> areaStep(ChainBurnouts.Burnout burnout) {
-        return SyncedSteps.first(burnout.abilityId(), ProgressiveAreaStep.class);
     }
 
     /**

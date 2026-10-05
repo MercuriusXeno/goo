@@ -24,7 +24,7 @@ public class GooParticles {
         PARTICLE_TYPES.register("goo_spark", () -> new SimpleParticleType(false));
 
     /**
-     * The particle a chain marker's explosion names in place of vanilla's
+     * The particle a ability block's explosion names in place of vanilla's
      * explosion particles; its client provider spawns nothing, so the goo
      * type's own burnout explosion is the one seen (decision
      * elemental-explosion-per-type).
@@ -58,20 +58,6 @@ public class GooParticles {
     /** Square splat when a tap-drip hits the ground. */
     public static final DeferredHolder<ParticleType<?>, ParticleType<GooDripParticleOptions>> TAP_DRIP_LAND =
         PARTICLE_TYPES.register("tap_drip_land", GooParticles::gooDripParticleType);
-
-    /** Goo's swirling ring, drawn in front of a layer about to break (decision goo-swirl-ring-particle). */
-    public static final DeferredHolder<ParticleType<?>, ParticleType<GooRingParticleOptions>> GOO_RING =
-        PARTICLE_TYPES.register("goo_ring", () -> new ParticleType<>(false) {
-            @Override
-            public MapCodec<GooRingParticleOptions> codec() {
-                return GooRingParticleOptions.CODEC;
-            }
-
-            @Override
-            public StreamCodec<? super RegistryFriendlyByteBuf, GooRingParticleOptions> streamCodec() {
-                return GooRingParticleOptions.STREAM_CODEC;
-            }
-        });
 
     /** Radial gradient fog puff for goo flight trails. */
     public static final DeferredHolder<ParticleType<?>, ParticleType<ColorParticleOption>> GOO_FOG =

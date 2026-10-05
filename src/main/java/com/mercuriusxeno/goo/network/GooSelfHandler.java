@@ -32,7 +32,7 @@ public final class GooSelfHandler {
      * @param ability the self ability
      */
     static void invoke(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, AbilityDefinition ability) {
-        int cost = ability.throwCost(0);
+        int cost = ability.cost();
         if (!GooSourceScanner.hasEnough(player, gooType, cost)) {
             if (Goo.LOGGER.isDebugEnabled()) {
                 Goo.LOGGER.debug(LOG_NO_GOO, ability.id());

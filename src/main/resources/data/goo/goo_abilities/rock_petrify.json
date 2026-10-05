@@ -4,6 +4,7 @@
   "badge": "mob",
   "order": 10,
   "cost": 1000,
+  "requires": ["minecraft:pointed_dripstone"],
   "delivery": { "kind": "arc" },
   "behaviors": [
     { "type": "potion", "effect": "minecraft:slowness", "duration": 100, "amplifier": 127 },
