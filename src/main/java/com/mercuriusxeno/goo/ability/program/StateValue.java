@@ -14,8 +14,8 @@ import java.util.stream.Stream;
  * name ({@code "bump"}), or the keyword {@code face} for the host's placed
  * face; written as an object it is a pick, an expression whose integer
  * result indexes a list of value names, clamped to the list. The pick is
- * how a state reads the host: {@code {"by": "flat", "values": ["bump",
- * "flat"]}} sets the shape by the flat predicate (decision
+ * how a state reads the host: {@code {"by": "stacks - 1", "values":
+ * ["tiny", "small"]}} sets the size by the stack count (decision
  * ability-params-in-datapack).
  */
 public sealed interface StateValue permits StateValue.Named, StateValue.PlacedFace, StateValue.Pick {

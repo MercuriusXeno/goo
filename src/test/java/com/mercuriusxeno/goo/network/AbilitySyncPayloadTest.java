@@ -24,13 +24,13 @@ class AbilitySyncPayloadTest {
 
     private static AbilityDefinition ability(String name, int order, String tag) {
         return new AbilityDefinition(Identifier.fromNamespaceAndPath("goo", name), GooTypes.ROCK,
-                name, "", order, 0, new AbilityDefinition.ChainConfig(30, 1, "goo"),
+                name, "", order, 0, new AbilityDefinition.ChainConfig(30, 1),
                 Delivery.ARC, List.of(), List.of(tag), AbilityBadge.WORLD);
     }
 
     /** The sync codec carries each cost formula to the client whole (decision unaffordable-click-does-nothing). */
     @ParameterizedTest
-    @ValueSource(strings = {"frost_sphere", "rock_tunnel", "unstable_proximity_mine"})
+    @ValueSource(strings = {"crystal_cloud", "unstable_timed_bomb", "unstable_proximity_mine"})
     void costRoundTripsThroughTheSyncCodec(String name) {
         AbilityDefinition definition = AbilityJson.decode(name);
         AbilitySyncPayload sent = new AbilitySyncPayload(

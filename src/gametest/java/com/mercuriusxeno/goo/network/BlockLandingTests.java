@@ -25,21 +25,21 @@ public final class BlockLandingTests {
     /** Marks a pending effect aimed at a block rather than an entity. */
     private static final int NO_ENTITY = -1;
     private static final String NO_ABILITY = "";
-    private static final String BLAZE_TUNNEL = "goo:blaze_tunnel";
+    private static final String CRYSTAL_CLOUD = "goo:crystal_cloud";
     private static final String MARKER_WRONG_ABILITY = "The landed marker does not carry the thrown ability";
 
     private BlockLandingTests() {
     }
 
     /**
-     * Lands one blaze goo on the stone wall's south face.
+     * Lands one crystal goo on the stone wall's south face.
      *
      * @param helper    the gametest helper
      * @param abilityId the ability the throw names
      */
     private static void landOnWall(GameTestHelper helper, String abilityId) {
         helper.setBlock(WALL_POS, Blocks.STONE);
-        GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), null, GooTypes.BLAZE,
+        GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), null, GooTypes.CRYSTAL,
                 NO_ENTITY, helper.absolutePos(WALL_POS), Direction.SOUTH, abilityId));
     }
 
@@ -61,9 +61,9 @@ public final class BlockLandingTests {
      * @param helper the gametest helper
      */
     public static void abilityLandsItsMarker(GameTestHelper helper) {
-        landOnWall(helper, BLAZE_TUNNEL);
+        landOnWall(helper, CRYSTAL_CLOUD);
         ChainMarkerBlockEntity marker = helper.getBlockEntity(FACE_POS, ChainMarkerBlockEntity.class);
-        helper.assertTrue(BLAZE_TUNNEL.equals(marker.getAbilityId()), MARKER_WRONG_ABILITY);
+        helper.assertTrue(CRYSTAL_CLOUD.equals(marker.getAbilityId()), MARKER_WRONG_ABILITY);
         helper.succeed();
     }
 }

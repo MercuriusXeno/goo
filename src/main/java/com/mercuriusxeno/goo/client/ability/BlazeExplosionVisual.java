@@ -20,8 +20,7 @@ import net.minecraft.util.ARGB;
  * so it lights what it covers, fading out over the last half. The vertex
  * color carries progress in red, the placed face's ordinal in green and
  * the flame's remaining strength in blue, since a core pipeline takes no
- * per-draw uniforms. A blaze_tunnel marker
- * plays no burnout explosion: its per-layer flame carries the moment.
+ * per-draw uniforms.
  */
 public final class BlazeExplosionVisual implements BurnoutVisual {
 

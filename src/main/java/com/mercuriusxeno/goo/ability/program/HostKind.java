@@ -10,13 +10,13 @@ import java.util.Set;
 public enum HostKind {
     /**
      * The chain marker block: stacks, a placed face, a tick driver, the
-     * world around the block, the block position itself to write, and
-     * the blocks around it to strike layer by layer, the field-effect
-     * state a trap keeps while its budget lasts, the phase cursor of a
-     * phased step, and the goo a black hole consumes until it pops.
+     * world around the block, the block position itself to write, the
+     * field-effect state a trap keeps while its budget lasts, the phase
+     * cursor of a phased step, and the goo a black hole consumes until it
+     * pops.
      */
     MARKER("marker block", MarkerHost.class,
-            Set.of(HostVariables.STACKS, HostVariables.MAX_STACKS, HostVariables.FLAT)),
+            Set.of(HostVariables.STACKS, HostVariables.MAX_STACKS)),
     /**
      * The struck living entity: a target and its thrower, acted on in the
      * tick the goo lands, with no driver for later ticks.

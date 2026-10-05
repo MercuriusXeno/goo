@@ -18,7 +18,6 @@ public record MarkerVariables(ChainMarkerBlockEntity be) implements Variables {
         return switch (name) {
             case HostVariables.STACKS -> OptionalDouble.of(be.getStackCount());
             case HostVariables.MAX_STACKS -> OptionalDouble.of(be.getMaxStacks());
-            case HostVariables.FLAT -> OptionalDouble.of(be.isFlatGoo() ? 1 : 0);
             default -> OptionalDouble.empty();
         };
     }

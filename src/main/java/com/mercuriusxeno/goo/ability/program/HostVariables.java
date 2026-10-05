@@ -15,10 +15,6 @@ public final class HostVariables {
      */
     public static final String MAX_STACKS = "max_stacks";
     /**
-     * One for a flat goo, zero otherwise.
-     */
-    public static final String FLAT = "flat";
-    /**
      * The struck entity's current health.
      */
     public static final String HEALTH = "health";

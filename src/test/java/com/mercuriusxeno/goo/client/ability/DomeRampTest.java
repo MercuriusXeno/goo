@@ -14,16 +14,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class DomeRampTest {
 
     private static final float TOLERANCE = 1e-5f;
-    private static final String TUNNEL_ABILITY = "goo:rock_tunnel";
-    private static final String DOME_ABILITY = "goo:blaze_burst";
 
     @Nested
     class WhenTheMarkerDrawsTheRamp {
 
         @Test
         void rampWaitsUntilItsTicksBeforeDetonation() {
-            assertTrue(DomeRamp.rampAt(DomeRamp.RAMP_TICKS + 1, 0.5f, true, false).isEmpty());
-            assertTrue(DomeRamp.rampAt(DomeRamp.RAMP_TICKS, 0f, true, false).isEmpty());
+            assertTrue(DomeRamp.rampAt(DomeRamp.RAMP_TICKS + 1, 0.5f, false).isEmpty());
+            assertTrue(DomeRamp.rampAt(DomeRamp.RAMP_TICKS, 0f, false).isEmpty());
         }
 
         @Test
@@ -33,32 +31,25 @@ class DomeRampTest {
 
         @Test
         void rampRunsFromItsStartToDetonation() {
-            assertEquals(0.0, DomeRamp.rampAt(DomeRamp.RAMP_TICKS, TOLERANCE, true, false).orElseThrow(),
+            assertEquals(0.0, DomeRamp.rampAt(DomeRamp.RAMP_TICKS, TOLERANCE, false).orElseThrow(),
                     1e-4);
-            assertEquals(1f / DomeRamp.RAMP_TICKS, DomeRamp.rampAt(DomeRamp.RAMP_TICKS - 1, 0f, true, false)
+            assertEquals(1f / DomeRamp.RAMP_TICKS, DomeRamp.rampAt(DomeRamp.RAMP_TICKS - 1, 0f, false)
                     .orElseThrow(), TOLERANCE);
-            assertEquals(1.0, DomeRamp.rampAt(1, 1f, true, false).orElseThrow(), TOLERANCE);
-            assertEquals(1.0, DomeRamp.rampAt(0, 0f, true, false).orElseThrow(), TOLERANCE);
+            assertEquals(1.0, DomeRamp.rampAt(1, 1f, false).orElseThrow(), TOLERANCE);
+            assertEquals(1.0, DomeRamp.rampAt(0, 0f, false).orElseThrow(), TOLERANCE);
         }
 
         @Test
         void fuseHeldOnATriggerHoldsTheRampAtItsStart() {
-            OptionalDouble held = DomeRamp.rampAt(-1, 0.7f, true, false);
+            OptionalDouble held = DomeRamp.rampAt(-1, 0.7f, false);
             assertEquals(0.0, held.orElseThrow(), 0.0);
             assertEquals(0f, DomeRamp.radius((float) held.orElseThrow(), 2f), 0f);
             assertEquals(0, DomeRamp.alpha((float) held.orElseThrow()));
         }
 
         @Test
-        void tunnelMarkerDrawsNoRamp() {
-            ChainBurnouts burnouts = new ChainBurnouts(TUNNEL_ABILITY::equals);
-            assertTrue(DomeRamp.rampAt(0, 0.5f, burnouts.playsBurnout(TUNNEL_ABILITY), false).isEmpty());
-            assertTrue(DomeRamp.rampAt(0, 0.5f, burnouts.playsBurnout(DOME_ABILITY), false).isPresent());
-        }
-
-        @Test
         void runningProgramDrawsNoRamp() {
-            assertTrue(DomeRamp.rampAt(0, 0.5f, true, true).isEmpty());
+            assertTrue(DomeRamp.rampAt(0, 0.5f, true).isEmpty());
         }
     }
 

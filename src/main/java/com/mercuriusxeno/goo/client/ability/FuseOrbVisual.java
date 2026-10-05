@@ -22,15 +22,11 @@ import net.minecraft.util.ARGB;
  * shell with goo-tinted color. Both are emissive (fullbright). Size
  * scales with stack count and pulses on each stack add. Implodes inward
  * in the final ticks before detonation. GLOW orbs match the crystal
- * voxel shape from placement; FLAT-shape goo splat against the placed
- * face with axis-asymmetric scaling. Every layer is the outward half of its
+ * voxel shape from placement. Every layer is the outward half of its
  * box alone, from the face plane into the marker's own block, so nothing of
  * the orb reaches into the block it rests on (decision goo-sits-on-the-face).
  */
 public final class FuseOrbVisual {
-
-    /** Goo shape constant for flat visual. */
-    private static final String SHAPE_FLAT = "flat";
 
     /** Base inner core half-size in block units (2 pixels) at 1 stack. */
     static final float CORE_BASE = 2f / 16f;
@@ -38,11 +34,6 @@ public final class FuseOrbVisual {
     static final float SHELL_MARGIN = 1f / 16f;
     /** Core growth per additional stack (1/32 block = 0.5 pixel). */
     static final float CORE_GROWTH = 1f / 32f;
-
-    /** Splat squish factor along placed face axis (half height). */
-    static final float SPLAT_HEIGHT = 0.5f;
-    /** Splat widen factor perpendicular to placed face (sqrt 2). */
-    static final float SPLAT_WIDTH = 1.414f;
 
     /** Pulse amplitude: 10% size increase on stack add. */
     static final float PULSE_AMPLITUDE = 0.10f;
@@ -70,10 +61,6 @@ public final class FuseOrbVisual {
     static final float CRYSTAL_EBB_PERIOD = 80f;
     /** How far the crystal ebb swings the orb either side of resting size. */
     static final float CRYSTAL_EBB_AMPLITUDE = 0.03f;
-    /** Ticks per mining beat, rapid beside the nether pulse. */
-    static final float MINING_BEAT_PERIOD = 6f;
-    /** How far a mining beat swells the orb past resting size, at its peak. */
-    static final float MINING_BEAT_AMPLITUDE = 0.12f;
     private static final double TWO_PI = 2 * Math.PI;
     /** Maps 1 - cos, which spans [0, 2], onto [0, 1]. */
     private static final float COSINE_TO_UNIT = 0.5f;
@@ -87,25 +74,17 @@ public final class FuseOrbVisual {
     enum OrbShape {
         /** A cube scaled evenly by the orb modifier. */
         GOO,
-        /** A cube squished along the face axis and widened across it. */
-        SPLAT,
         /** A glow crystal's bump, its depth the crystal model's. */
-        GLOW_BUMP,
-        /** A glow crystal's flat, its depth the crystal model's. */
-        GLOW_FLAT;
+        GLOW_BUMP;
 
         /**
-         * Picks the shape a marker's goo type and goo shape draw.
+         * Picks the shape a marker's goo type draws.
          *
          * @param state the chain marker render state
          * @return the orb shape
          */
         static OrbShape of(ChainMarkerRenderState state) {
-            boolean flat = SHAPE_FLAT.equals(state.markerShape);
-            if (state.gooType == GooTypes.GLOW) {
-                return flat ? GLOW_FLAT : GLOW_BUMP;
-            }
-            return flat ? SPLAT : GOO;
+            return state.gooType == GooTypes.GLOW ? GLOW_BUMP : GOO;
         }
     }
 
@@ -162,9 +141,7 @@ public final class FuseOrbVisual {
      */
     static void placeOrb(PoseStack poseStack, Direction face, OrbShape shape, float modifier) {
         translateToFace(poseStack, face);
-        if (shape == OrbShape.SPLAT) {
-            applySplatScale(poseStack, face, modifier);
-        } else if (shape == OrbShape.GOO) {
+        if (shape == OrbShape.GOO) {
             poseStack.scale(modifier, modifier, modifier);
         }
     }
@@ -236,8 +213,7 @@ public final class FuseOrbVisual {
     private static float orbDepth(OrbShape shape, float half) {
         return switch (shape) {
             case GLOW_BUMP -> (float) GlowCrystalBlock.BUMP_DEPTH;
-            case GLOW_FLAT -> (float) GlowCrystalBlock.FLAT_DEPTH;
-            case GOO, SPLAT -> half;
+            case GOO -> half;
         };
     }
 
@@ -265,38 +241,7 @@ public final class FuseOrbVisual {
         float pulse = computePulseScale(state);
         float spikeShake = computeSpikeShake(state);
         float ebb = crystalEbb(state.crystalActive, state.gameTime);
-        float beat = miningBeat(state.miningActive, state.gameTime, state.lastLayerTick);
-        return implosion * pulse * spikeShake * ebb * beat;
-    }
-
-    /**
-     * The rock, blaze and frost marker's rapid beat while its program breaks
-     * blocks, each beat swelling from resting size and back (decision
-     * orchestration-animation-per-ability).
-     *
-     * @param miningActive  true while a progressive-area program runs
-     * @param gameTime      the game time including the partial tick
-     * @param lastLayerTick the game time the mined layer count last changed
-     * @return the beat factor, exactly 1 while no program runs
-     */
-    static float miningBeat(boolean miningActive, float gameTime, long lastLayerTick) {
-        if (!miningActive) {
-            return 1f;
-        }
-        float swell = 1f - (float) Math.cos(TWO_PI * miningBeatPhase(gameTime, lastLayerTick));
-        return 1f + MINING_BEAT_AMPLITUDE * swell * COSINE_TO_UNIT;
-    }
-
-    /**
-     * Where the mining beat stands in its cycle, restarting on each layer strike.
-     *
-     * @param gameTime      the game time including the partial tick
-     * @param lastLayerTick the game time the mined layer count last changed
-     * @return the beat's phase in [0, 1), 0 on the strike
-     */
-    static float miningBeatPhase(float gameTime, long lastLayerTick) {
-        float elapsed = Math.max(0f, gameTime - lastLayerTick);
-        return (elapsed % MINING_BEAT_PERIOD) / MINING_BEAT_PERIOD;
+        return implosion * pulse * spikeShake * ebb;
     }
 
     /**
@@ -414,23 +359,6 @@ public final class FuseOrbVisual {
         float oy = face.getStepY() * BLOCK_CENTER;
         float oz = face.getStepZ() * BLOCK_CENTER;
         poseStack.translate(BLOCK_CENTER - ox, BLOCK_CENTER - oy, BLOCK_CENTER - oz);
-    }
-
-    /**
-     * Splat deformation: squish along the placed face axis, widen
-     * perpendicular. Also applies the combined modifier.
-     *
-     * @param poseStack the pose stack to scale
-     * @param face      the placed face direction
-     * @param modifier  the combined orb scale modifier
-     */
-    private static void applySplatScale(PoseStack poseStack, Direction face, float modifier) {
-        float wide = SPLAT_WIDTH * modifier;
-        float thin = SPLAT_HEIGHT * modifier;
-        float sx = face.getAxis() == Direction.Axis.X ? thin : wide;
-        float sy = face.getAxis() == Direction.Axis.Y ? thin : wide;
-        float sz = face.getAxis() == Direction.Axis.Z ? thin : wide;
-        poseStack.scale(sx, sy, sz);
     }
 
     /**

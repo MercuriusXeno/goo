@@ -42,7 +42,7 @@ public final class AttackTouchTests {
     /** An attack speed whose cooldown passes within the half tick vanilla's attack adds, for a full-strength first swing. */
     private static final double INSTANT_ATTACK_SPEED = 1024;
     private static final Identifier METAL_JAVELIN = Identifier.parse("goo:metal_javelin");
-    private static final Identifier FROST_TUNNEL = Identifier.parse("goo:frost_tunnel");
+    private static final Identifier METAL_SPIKES = Identifier.parse("goo:metal_spikes");
     private static final Identifier ENDER_BLINK = Identifier.parse("goo:ender_blink");
     private static final Identifier BLAZE_SPITFIRE = Identifier.parse("goo:blaze_spitfire");
     /** The damage metal_javelin.json's damage step names. */
@@ -116,7 +116,7 @@ public final class AttackTouchTests {
         Vec3 beyond = villager.position().add(-BEYOND_REACH, 0, 0);
         assertVanilla(helper, press(gloved, javelin, villager, beyond), "on a mob beyond reach");
         assertVanilla(helper, press(gloved, javelin, null, within), "on a block");
-        assertVanilla(helper, press(gloved, ability(helper, FROST_TUNNEL), villager, within), "with a world ability");
+        assertVanilla(helper, press(gloved, ability(helper, METAL_SPIKES), villager, within), "with a world ability");
         assertVanilla(helper, press(gloved, ability(helper, ENDER_BLINK), villager, within), "with a self ability");
         assertVanilla(helper, press(gloved, ability(helper, BLAZE_SPITFIRE), villager, within),
                 "with a channeled ability");

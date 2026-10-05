@@ -40,21 +40,16 @@ public final class EffectExecutorTests {
     private static final BlockPos MARKER_POS = new BlockPos(3, 1, 3);
     /** Fuse is 30 ticks; behaviors run 10-70 more depending on type. */
     private static final int FUSE_TICKS = 30;
-    /** Extra ticks after fuse for mining behaviors (1 stack). */
-    private static final int MINING_POST_FUSE = 15;
     /** Extra ticks for Nether's multi-phase behavior. */
     private static final int NETHER_POST_FUSE = 100;
     /** Extra ticks for simpler instant/short behaviors. */
     private static final int SHORT_POST_FUSE = 5;
-    private static final String VALUES_REQUIRED = "Goo values must be loaded for rock mining to work";
+    private static final String VALUES_REQUIRED = "Goo values must be loaded for the black hole to consume stone";
     private static final int WALL_X_MIN = 0;
     private static final int WALL_X_MAX = 5;
     private static final int WALL_Y_MAX = 3;
     private static final int WALL_Z_MAX = 2;
     private static final String ABILITIES_REQUIRED = "Ability registry must be loaded";
-    private static final String ABILITY_BLAZE_TUNNEL = "goo:blaze_tunnel";
-    private static final String ABILITY_ROCK_TUNNEL = "goo:rock_tunnel";
-    private static final String ABILITY_FROST_SPHERE = "goo:frost_sphere";
     private static final String ABILITY_INSTANT_DETONATION = "goo:unstable_instant_detonation";
     private static final String ABILITY_TIMED_BOMB = "goo:unstable_timed_bomb";
     private static final String ABILITY_PROXIMITY_MINE = "goo:unstable_proximity_mine";
@@ -124,12 +119,6 @@ public final class EffectExecutorTests {
     /** Ticks after the support breaks by which a two-block fall has landed, well inside the fuse. */
     private static final int FALL_LANDED_TICKS = 10;
     private static final String FALL_ABILITY_LOST = "The fallen marker lost its ability id";
-    /** Blocks above the struck block where the frost test's poppy stands, inside the one-stack sphere. */
-    private static final int FROST_POCKET_HEIGHT = 2;
-    /** frost_sphere.json's start_radius: the one-stack ball's radius. */
-    private static final int FROST_START_RADIUS = 3;
-    /** Top layer of the frost ball's pool, above the ball's reach inside the test bay. */
-    private static final int FROST_POOL_Y_MAX = 5;
     /** Where the growth tests stand their glow crystal, on stone below it. */
     private static final BlockPos CRYSTAL_POS = new BlockPos(3, 2, 3);
 
@@ -148,55 +137,6 @@ public final class EffectExecutorTests {
                                             String abilityId) {
         fillWall(helper, Blocks.STONE);
         placeMarkerWithAbility(helper, type, abilityId);
-    }
-
-    /**
-     * Blaze: places marker facing stone wall, verifies the block is mined
-     * and the marker removes itself after fuse + mining completes.
-     *
-     * @param helper the gametest helper
-     */
-    public static void blazeMinesBlock(GameTestHelper helper) {
-        placeMarkerWithWall(helper, GooTypes.BLAZE, ABILITY_BLAZE_TUNNEL);
-        BlockPos target = MARKER_POS.north();
-        helper.runAfterDelay(FUSE_TICKS + MINING_POST_FUSE, () -> {
-            helper.assertBlockNotPresent(Blocks.STONE, target);
-            helper.succeed();
-        });
-    }
-
-    /**
-     * Rock: places marker facing stone wall, verifies the block is mined.
-     * Requires goo values to be loaded so stone is recognized as rock-compatible.
-     *
-     * @param helper the gametest helper
-     */
-    public static void rockMinesBlock(GameTestHelper helper) {
-        helper.assertTrue(GooValues.of(helper.getLevel()).size() > 0, VALUES_REQUIRED);
-        placeMarkerWithWall(helper, GooTypes.ROCK, ABILITY_ROCK_TUNNEL);
-        BlockPos target = MARKER_POS.north();
-        helper.runAfterDelay(FUSE_TICKS + MINING_POST_FUSE, () -> {
-            helper.assertBlockNotPresent(Blocks.STONE, target);
-            helper.succeed();
-        });
-    }
-
-    /**
-     * Frost: a sphere thrown into a stone wall leaves the stone and clears
-     * the poppy standing in a pocket of the wall inside its radius, since
-     * frost turns plants to air.
-     *
-     * @param helper the gametest helper
-     */
-    public static void frostRuns(GameTestHelper helper) {
-        BlockPos poppy = MARKER_POS.north().above(FROST_POCKET_HEIGHT);
-        placeMarkerWithWall(helper, GooTypes.FROST, ABILITY_FROST_SPHERE);
-        helper.setBlock(poppy, Blocks.POPPY);
-        helper.runAfterDelay(FUSE_TICKS + MINING_POST_FUSE, () -> {
-            helper.assertBlockNotPresent(Blocks.POPPY, poppy);
-            helper.assertBlockPresent(Blocks.STONE, MARKER_POS.north());
-            helper.succeed();
-        });
     }
 
     /**
@@ -435,19 +375,8 @@ public final class EffectExecutorTests {
      * @param block  the block to fill with
      */
     private static void fillWall(GameTestHelper helper, Block block) {
-        fillWall(helper, block, WALL_Y_MAX);
-    }
-
-    /**
-     * Fills the wall's footprint with a block up to a height.
-     *
-     * @param helper the gametest helper
-     * @param block  the block to fill with
-     * @param yMax   the fill's top layer
-     */
-    private static void fillWall(GameTestHelper helper, Block block, int yMax) {
         for (int x = WALL_X_MIN; x <= WALL_X_MAX; x++) {
-            for (int y = 1; y <= yMax; y++) {
+            for (int y = 1; y <= WALL_Y_MAX; y++) {
                 for (int z = 0; z <= WALL_Z_MAX; z++) {
                     helper.setBlock(new BlockPos(x, y, z), block);
                 }
@@ -471,68 +400,6 @@ public final class EffectExecutorTests {
         AbilityDefinition ability = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(abilityId));
         helper.assertTrue(ability != null, ABILITIES_REQUIRED);
         be.initChainFromAbility(type, Direction.SOUTH, ability);
-    }
-
-    /**
-     * Blaze tunnel via the data-driven ability path: the progressive_area
-     * program with the fortune-smelt effect mines the struck block.
-     *
-     * @param helper the gametest helper
-     */
-    public static void abilityBlazeTunnel(GameTestHelper helper) {
-        fillWall(helper, Blocks.STONE);
-        placeMarkerWithAbility(helper, GooTypes.BLAZE, ABILITY_BLAZE_TUNNEL);
-        BlockPos target = MARKER_POS.north();
-        helper.runAfterDelay(FUSE_TICKS + MINING_POST_FUSE, () -> {
-            helper.assertBlockNotPresent(Blocks.STONE, target);
-            helper.succeed();
-        });
-    }
-
-    /**
-     * Rock tunnel via the data-driven ability path: one stack mines the
-     * one-block footprint at layer 0, the struck block itself, and leaves
-     * the block behind it and the blocks beside it standing.
-     *
-     * @param helper the gametest helper
-     */
-    public static void abilityRockTunnel(GameTestHelper helper) {
-        helper.assertTrue(GooValues.of(helper.getLevel()).size() > 0, VALUES_REQUIRED);
-        fillWall(helper, Blocks.STONE);
-        placeMarkerWithAbility(helper, GooTypes.ROCK, ABILITY_ROCK_TUNNEL);
-        BlockPos struck = MARKER_POS.north();
-        helper.runAfterDelay(FUSE_TICKS + MINING_POST_FUSE, () -> {
-            helper.assertBlockNotPresent(Blocks.STONE, struck);
-            helper.assertBlockPresent(Blocks.STONE, struck.north());
-            helper.assertBlockPresent(Blocks.STONE, struck.east());
-            helper.assertBlockPresent(Blocks.STONE, struck.west());
-            helper.assertBlockPresent(Blocks.STONE, struck.above());
-            helper.succeed();
-        });
-    }
-
-    /**
-     * Frost sphere via the data-driven ability path, thrown at water: the
-     * one-stack ball of frost_sphere.json's start radius, centered one block
-     * into the water, turns every cell centered under r + 0.5 to magicked ice,
-     * and the first cell past that stays water (decision sphere-is-frost-alone).
-     *
-     * @param helper the gametest helper
-     */
-    public static void abilityFrostSphere(GameTestHelper helper) {
-        fillWall(helper, Blocks.WATER, FROST_POOL_Y_MAX);
-        placeMarkerWithAbility(helper, GooTypes.FROST, ABILITY_FROST_SPHERE);
-        BlockPos center = MARKER_POS.north();
-        int reach = FROST_START_RADIUS;
-        helper.runAfterDelay(FUSE_TICKS + MINING_POST_FUSE, () -> {
-            Block ice = GooBlocks.MAGICKED_ICE.get();
-            helper.assertBlockPresent(ice, center);
-            helper.assertBlockPresent(ice, center.west(reach));
-            helper.assertBlockPresent(ice, center.above(reach));
-            helper.assertBlockPresent(ice, center.west(reach).above(1));
-            helper.assertBlockPresent(Blocks.WATER, center.west(reach).above(2));
-            helper.succeed();
-        });
     }
 
     // --- Step programs (decision ability-params-in-datapack) ---

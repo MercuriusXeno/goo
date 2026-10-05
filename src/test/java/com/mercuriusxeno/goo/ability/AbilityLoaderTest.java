@@ -29,20 +29,37 @@ import static org.mockito.Mockito.when;
 class AbilityLoaderTest {
 
     private static final String DIRECTORY = "goo_abilities";
+    /** The abilities whose whole design was a per-stack shape. */
+    private static final List<String> STACK_SHAPE_ABILITIES = List.of("blaze_flat", "blaze_tunnel",
+            "frost_flat", "frost_tunnel", "frost_sphere", "rock_flat", "rock_tunnel");
+
+    private static Map<Identifier, AbilityDefinition> scanShipped(List<Path> files) {
+        return IdentifiedJsonScan.scan(managerListing(files), FileToIdConverter.json(DIRECTORY), JsonOps.INSTANCE,
+                AbilityDefinition::codecFor);
+    }
 
     @Test
     void everyScannedAbilityCarriesItsFileId() {
         List<Path> files = AbilityJson.files();
         assertFalse(files.isEmpty(), "No ability JSON found under " + AbilityJson.ABILITIES_DIR);
 
-        Map<Identifier, AbilityDefinition> scanned = IdentifiedJsonScan.scan(
-                managerListing(files), FileToIdConverter.json(DIRECTORY), JsonOps.INSTANCE,
-                AbilityDefinition::codecFor);
+        Map<Identifier, AbilityDefinition> scanned = scanShipped(files);
 
         assertEquals(files.size(), scanned.size(), "every ability file decodes");
         for (Path file : files) {
             Identifier fileId = AbilityJson.idOf(file.getFileName().toString());
             assertEquals(fileId, scanned.get(fileId).id(), file.getFileName().toString());
+        }
+    }
+
+    // decision splat-runs-the-program-no-fuse
+    @Test
+    void stackShapeAbilitiesLeaveTheRegistry() {
+        Map<Identifier, AbilityDefinition> scanned = scanShipped(AbilityJson.files());
+
+        assertFalse(scanned.isEmpty(), "No ability scanned");
+        for (String name : STACK_SHAPE_ABILITIES) {
+            assertFalse(scanned.containsKey(Identifier.fromNamespaceAndPath(Goo.MODID, name)), name + " still loads");
         }
     }
 

@@ -43,11 +43,6 @@ public enum HostCapability {
      */
     PLACE_BLOCK(PlaceBlockHost.class),
     /**
-     * Blocks around the anchor the host strikes layer by layer, with the
-     * layer fx and the mined-layer count its renderer reads.
-     */
-    LAYER_WALK(LayerWalkHost.class),
-    /**
      * A field-effect state the host keeps across ticks and its renderer
      * reads: the strikes in flight, the strike cooldown and the charges
      * spent on the current stack.

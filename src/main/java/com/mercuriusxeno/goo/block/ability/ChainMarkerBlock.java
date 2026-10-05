@@ -99,14 +99,6 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
      */
     private static final float SHAPE_GROWTH_PX = 0.5f;
     /**
-     * Splat width multiplier (sqrt 2).
-     */
-    private static final float SHAPE_SPLAT_WIDE = 1.414f;
-    /**
-     * Splat height multiplier (half).
-     */
-    private static final float SHAPE_SPLAT_THIN = 0.5f;
-    /**
      * Center of a block in pixels (for shape positioning).
      */
     private static final float SHAPE_CENTER_PX = 8f;
@@ -162,51 +154,34 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
 
     /**
      * Builds a voxel shape matching the BER orb at the face boundary.
-     * Splatted (squished) only when in flat mode.
      *
-     * @param stacks   the current stack count
-     * @param face     the placed face direction
-     * @param flatMode true to apply splat deformation
+     * @param stacks the current stack count
+     * @param face   the placed face direction
      * @return the computed voxel shape
      */
-    private static VoxelShape computeOrbShape(int stacks, Direction face, boolean flatMode) {
+    private static VoxelShape computeOrbShape(int stacks, Direction face) {
         float coreHalf = SHAPE_CORE_PX + (stacks - 1) * SHAPE_GROWTH_PX;
         float shellHalf = coreHalf + SHAPE_SHELL_PX;
-
-        float hPerp;
-        float hFace;
-        if (flatMode) {
-            hPerp = shellHalf * SHAPE_SPLAT_WIDE;
-            hFace = shellHalf * SHAPE_SPLAT_THIN;
-        } else {
-            hPerp = shellHalf;
-            hFace = shellHalf;
-        }
 
         float cx = SHAPE_CENTER_PX - face.getStepX() * SHAPE_CENTER_PX;
         float cy = SHAPE_CENTER_PX - face.getStepY() * SHAPE_CENTER_PX;
         float cz = SHAPE_CENTER_PX - face.getStepZ() * SHAPE_CENTER_PX;
 
-        float hx = face.getAxis() == Direction.Axis.X ? hFace : hPerp;
-        float hy = face.getAxis() == Direction.Axis.Y ? hFace : hPerp;
-        float hz = face.getAxis() == Direction.Axis.Z ? hFace : hPerp;
-
-        return box(cx - hx, cy - hy, cz - hz, cx + hx, cy + hy, cz + hz);
+        return box(cx - shellHalf, cy - shellHalf, cz - shellHalf,
+                cx + shellHalf, cy + shellHalf, cz + shellHalf);
     }
 
     /**
      * Computes a voxel shape that exactly matches the glow crystal
      * that will replace this chain marker on fuse expiry.
      *
-     * @param stacks   the current stack count
-     * @param face     the placed face direction
-     * @param flatMode true for flat, false for bump
+     * @param stacks the current stack count
+     * @param face   the placed face direction
      * @return the crystal-matched voxel shape
      */
-    private static VoxelShape computeGlowShape(int stacks, Direction face, boolean flatMode) {
+    private static VoxelShape computeGlowShape(int stacks, Direction face) {
         GlowCrystalBlock.CrystalSize cs = GlowCrystalBlock.CrystalSize.fromStacks(stacks);
-        double depth = flatMode ? GlowCrystalBlock.FLAT_DEPTH : GlowCrystalBlock.BUMP_DEPTH;
-        return GlowCrystalBlock.shapeFor(face, cs.min, cs.max, depth);
+        return GlowCrystalBlock.shapeFor(face, cs.min, cs.max, GlowCrystalBlock.BUMP_DEPTH);
     }
 
     /**
@@ -488,14 +463,14 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
     }
 
     /**
-     * Returns a splatted shape matching the BER orb, positioned at the
+     * Returns a shape matching the BER orb, positioned at the
      * placed face. Falls back to the parent selection shape if no BE.
      *
      * @param state   the block state
      * @param level   the block getter
      * @param pos     the block position
      * @param context the collision context
-     * @return the splatted voxel shape
+     * @return the orb's voxel shape
      */
     @Override
     protected @NonNull VoxelShape getShape(@NonNull BlockState state, @NonNull BlockGetter level,
@@ -504,9 +479,9 @@ public class ChainMarkerBlock extends AbstractEffectBlock implements SimpleWater
             return SELECTION_SHAPE;
         }
         if (be.getGooType() == GooTypes.GLOW) {
-            return computeGlowShape(be.getStackCount(), be.getPlacedFace(), be.isFlatGoo());
+            return computeGlowShape(be.getStackCount(), be.getPlacedFace());
         }
-        return computeOrbShape(be.getStackCount(), be.getPlacedFace(), be.isFlatGoo());
+        return computeOrbShape(be.getStackCount(), be.getPlacedFace());
     }
 
     /**

@@ -1,7 +1,5 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.ability.program.AreaShape;
-import com.mercuriusxeno.goo.ability.program.ProgressiveAreaStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
@@ -54,18 +52,6 @@ public final class SyncedSteps {
                 .filter(type::isInstance)
                 .map(type::cast)
                 .findFirst();
-    }
-
-    /**
-     * Answers whether an ability's marker mines a tunnel, read off its
-     * synced progressive-area step.
-     *
-     * @param abilityId the ability id
-     * @return true when the ability's program walks a tunnel
-     */
-    public static boolean minesTunnel(String abilityId) {
-        return first(abilityId, ProgressiveAreaStep.class)
-                .map(step -> step.shape() == AreaShape.TUNNEL).orElse(false);
     }
 
     /**

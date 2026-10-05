@@ -27,14 +27,12 @@ public final class DomeRamp {
      *
      * @param fuseRemaining  the fuse ticks remaining, below zero for a fuse held on a trigger
      * @param partialTick    the partial tick
-     * @param playsBurnout   true when the marker's ability plays a burnout explosion
      * @param behaviorActive true once the marker's program runs, the fuse spent
      * @return the ramp's share in [0, 1], 0 at its start and 1 at detonation, or
      *         empty when the marker draws no ramp
      */
-    public static OptionalDouble rampAt(int fuseRemaining, float partialTick, boolean playsBurnout,
-                                        boolean behaviorActive) {
-        if (!playsBurnout || behaviorActive) {
+    public static OptionalDouble rampAt(int fuseRemaining, float partialTick, boolean behaviorActive) {
+        if (behaviorActive) {
             return OptionalDouble.empty();
         }
         if (fuseRemaining < 0) {

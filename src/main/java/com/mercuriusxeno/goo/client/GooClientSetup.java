@@ -223,20 +223,8 @@ public final class GooClientSetup {
         event.registerSpriteSet(GooParticles.TAP_DRIP.get(), TapDripParticle.Provider::new);
         event.registerSpriteSet(GooParticles.TAP_DRIP_LAND.get(), TapDripParticle.LandProvider::new);
         event.registerSpriteSet(GooParticles.GOO_FOG.get(), GooFogParticle.Provider::new);
-        event.registerSpecial(GooParticles.GOO_RING.get(), new GooRingParticle.Provider());
         event.registerSpecial(GooParticles.SILENT_BLAST.get(),
                 (options, level, x, y, z, dx, dy, dz, random) -> null);
-    }
-
-    /**
-     * Registers the particle group that draws goo's ring particle through its
-     * own pipeline (decision goo-swirl-ring-particle).
-     *
-     * @param event the event instance
-     */
-    @SubscribeEvent
-    public static void registerParticleGroups(RegisterParticleGroupsEvent event) {
-        event.register(GooRingParticle.GROUP, GooRingParticleGroup::new);
     }
 
     /**

@@ -51,7 +51,7 @@ public final class GooTypeRegistryTests {
     private static final String MARKER_TYPE_LOST = "Chain marker should reload with the type it saved";
     private static final String SELECTION_TYPE_LOST = "Glove selection should reload with the datapack type it saved";
     private static final BlockPos MARKER_POS = new BlockPos(1, 1, 1);
-    private static final Identifier FROST_SPHERE = Identifier.fromNamespaceAndPath(Goo.MODID, "frost_sphere");
+    private static final Identifier CRYSTAL_CLOUD = Identifier.fromNamespaceAndPath(Goo.MODID, "crystal_cloud");
     private static final String ABILITIES_REQUIRED = "Ability registry must be loaded";
     /** The ability the test datapack gives the seventeenth type. */
     private static final Identifier SEVENTEENTH_PROBE =
@@ -89,9 +89,9 @@ public final class GooTypeRegistryTests {
     public static void chainMarkerReloadsType(GameTestHelper helper) {
         helper.setBlock(MARKER_POS, GooBlocks.CHAIN_MARKER.get());
         ChainMarkerBlockEntity marker = helper.getBlockEntity(MARKER_POS, ChainMarkerBlockEntity.class);
-        AbilityDefinition frostSphere = AbilityRegistry.of(helper.getLevel()).getAbility(FROST_SPHERE);
-        helper.assertTrue(frostSphere != null, ABILITIES_REQUIRED);
-        marker.initChainFromAbility(GooTypes.FROST, Direction.UP, frostSphere);
+        AbilityDefinition crystalCloud = AbilityRegistry.of(helper.getLevel()).getAbility(CRYSTAL_CLOUD);
+        helper.assertTrue(crystalCloud != null, ABILITIES_REQUIRED);
+        marker.initChainFromAbility(GooTypes.CRYSTAL, Direction.UP, crystalCloud);
         CompoundTag saved = marker.getUpdateTag(helper.getLevel().registryAccess());
 
         helper.destroyBlock(MARKER_POS);
@@ -100,7 +100,7 @@ public final class GooTypeRegistryTests {
         try (var reporter = new ProblemReporter.ScopedCollector(restored.problemPath(), Goo.LOGGER)) {
             restored.loadCustomOnly(TagValueInput.create(reporter, helper.getLevel().registryAccess(), saved));
         }
-        helper.assertTrue(GooTypes.FROST.equals(restored.getGooType()), MARKER_TYPE_LOST);
+        helper.assertTrue(GooTypes.CRYSTAL.equals(restored.getGooType()), MARKER_TYPE_LOST);
         helper.succeed();
     }
 

@@ -30,7 +30,7 @@ public final class GloveRecollectTests {
 
     private static final String REMOVAL = "removal";
     private static final BlockPos MARKER_POS = new BlockPos(1, 1, 1);
-    private static final Identifier FROST_SPHERE = Identifier.fromNamespaceAndPath(Goo.MODID, "frost_sphere");
+    private static final Identifier CRYSTAL_CLOUD = Identifier.fromNamespaceAndPath(Goo.MODID, "crystal_cloud");
     private static final String ABILITIES_REQUIRED = "Ability registry must be loaded";
     private static final String NOT_STACKED = "The marker should hold more than one stack before recollect";
     private static final String NOT_SUCCESS = "Shift-click with the glove on a marker should succeed";
@@ -49,13 +49,13 @@ public final class GloveRecollectTests {
     public static void shiftClickRecollectsMarker(GameTestHelper helper) {
         helper.setBlock(MARKER_POS, GooBlocks.CHAIN_MARKER.get());
         ChainMarkerBlockEntity marker = helper.getBlockEntity(MARKER_POS, ChainMarkerBlockEntity.class);
-        AbilityDefinition frostSphere = AbilityRegistry.of(helper.getLevel()).getAbility(FROST_SPHERE);
-        helper.assertTrue(frostSphere != null, ABILITIES_REQUIRED);
-        marker.initChainFromAbility(GooTypes.FROST, Direction.UP, frostSphere);
+        AbilityDefinition crystalCloud = AbilityRegistry.of(helper.getLevel()).getAbility(CRYSTAL_CLOUD);
+        helper.assertTrue(crystalCloud != null, ABILITIES_REQUIRED);
+        marker.initChainFromAbility(GooTypes.CRYSTAL, Direction.UP, crystalCloud);
         marker.tryStack();
         int stacks = marker.getStackCount();
         helper.assertTrue(stacks > 1, NOT_STACKED);
-        ItemStack expected = GooStacks.createForOutput(GooTypes.FROST, stacks * GooStacks.THOUSAND);
+        ItemStack expected = GooStacks.createForOutput(GooTypes.CRYSTAL, stacks * GooStacks.THOUSAND);
 
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         ItemStack glove = new ItemStack(GooItems.GOO_GLOVE.get());

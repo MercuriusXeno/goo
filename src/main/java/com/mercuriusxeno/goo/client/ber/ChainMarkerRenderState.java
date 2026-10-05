@@ -38,15 +38,6 @@ public class ChainMarkerRenderState extends BlockEntityRenderState {
     /** True when the player's crosshair is on this block. */
     public boolean targeted;
 
-    /** Cosmetic goo shape: "goo" or "flat". */
-    public String markerShape = "round";
-
-    /** Delivery area mode: "tunnel", "flat_circle", or "sphere". */
-    public String areaMode = "tunnel";
-
-    /** The progressive-area step's radius at one stack, zero when the ability names none. */
-    public int areaStartRadius;
-
     /** Game tick when the last stack was added (for pulse animation). */
     public long lastStackTick;
 
@@ -56,21 +47,11 @@ public class ChainMarkerRenderState extends BlockEntityRenderState {
     /** The face this marker was placed on (for directional rendering). */
     public Direction placedFace = Direction.UP;
 
-    /** True when a non-nether chain behavior (rock/blaze) is actively
-     * mining. The ghost outline persists through the mining phase. */
+    /** True once the marker's fuse has burned out and its program runs. */
     public boolean behaviorActive;
 
     /** Ticks since this client first drew the behavior, partial tick included; the orb eases back to size on it. */
     public float behaviorAge;
-
-    /** Number of depth layers already mined by the active behavior. */
-    public int minedLayers;
-
-    /** True while a rock, blaze or frost progressive-area program breaks blocks. */
-    public boolean miningActive;
-
-    /** Game time the mined layer count last changed; the mining beat restarts on it. */
-    public long lastLayerTick;
 
     /** Metal spikes in flight, read from the marker's field-effect state. */
     public java.util.List<com.mercuriusxeno.goo.ability.program.FieldStrike> spikeAnims = java.util.List.of();
