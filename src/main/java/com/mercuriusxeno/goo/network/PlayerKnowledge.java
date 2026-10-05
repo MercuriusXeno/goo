@@ -29,6 +29,16 @@ public final class PlayerKnowledge {
     }
 
     /**
+     * Answers the id the known-items set records an item under.
+     *
+     * @param item the item
+     * @return the item's registry id
+     */
+    public static Identifier idOf(Item item) {
+        return BuiltInRegistries.ITEM.getKey(item);
+    }
+
+    /**
      * Records the item as known to the player, telling their client the
      * first time they learn it.
      *
@@ -36,7 +46,7 @@ public final class PlayerKnowledge {
      * @param learned the item learned
      */
     public static void learn(ServerPlayer player, Item learned) {
-        Identifier item = BuiltInRegistries.ITEM.getKey(learned);
+        Identifier item = idOf(learned);
         KnownItems known = of(player);
         if (known.contains(item)) {
             return;

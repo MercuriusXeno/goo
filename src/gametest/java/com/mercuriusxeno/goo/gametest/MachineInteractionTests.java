@@ -10,10 +10,13 @@ import com.mercuriusxeno.goo.block.reactor.ReactorBlock;
 import com.mercuriusxeno.goo.block.reactor.ReactorBlockEntity;
 import com.mercuriusxeno.goo.block.tap.TapBlockEntity;
 import com.mercuriusxeno.goo.block.vat.VatBlock;
+import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.ContainerCapacity;
 import com.mercuriusxeno.goo.item.GooStacks;
+import com.mercuriusxeno.goo.network.PlayerKnowledge;
+import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooFluids;
 import com.mercuriusxeno.goo.registry.GooItems;
@@ -342,10 +345,33 @@ public final class MachineInteractionTests {
         helper.setBlock(BE_POS, GooBlocks.PLEXER.get());
         PlexerBlockEntity plexer = helper.getBlockEntity(BE_POS, PlexerBlockEntity.class);
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        player.setData(GooAttachments.KNOWN_ITEMS, KnownItems.NONE.with(PlayerKnowledge.idOf(Items.STONE)));
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.STONE));
 
         helper.useBlock(BE_POS, player, cutawayHit(helper));
 
+        helper.assertTrue(plexer.getTargetItem().is(Items.STONE), PLEXER_SHOULD_SET);
+        helper.succeed();
+    }
+
+    /**
+     * Plexer: a player who has never melted stone clicks stone into the
+     * cutaway and the plexer takes no target; once the player knows stone,
+     * the same click sets it (decision plexer-refuses-an-unlearned-item).
+     *
+     * @param helper the gametest helper
+     */
+    public static void plexerRefusesAnUnlearnedTarget(GameTestHelper helper) {
+        helper.setBlock(BE_POS, GooBlocks.PLEXER.get());
+        PlexerBlockEntity plexer = helper.getBlockEntity(BE_POS, PlexerBlockEntity.class);
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.STONE));
+
+        helper.useBlock(BE_POS, player, cutawayHit(helper));
+        helper.assertTrue(plexer.getTargetItem().isEmpty(), "Plexer should refuse a target the player has not learned");
+
+        player.setData(GooAttachments.KNOWN_ITEMS, KnownItems.NONE.with(PlayerKnowledge.idOf(Items.STONE)));
+        helper.useBlock(BE_POS, player, cutawayHit(helper));
         helper.assertTrue(plexer.getTargetItem().is(Items.STONE), PLEXER_SHOULD_SET);
         helper.succeed();
     }
