@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.ability;
 
 /**
- * Pure-function placement decision for chain-marker and frost-field world
+ * Pure-function placement decision for ability-block and frost-field world
  * effects. Given the state of the two candidate positions (the hit block and
  * the face-adjacent block) and how the effect block reacts to water, returns
  * the action to take.

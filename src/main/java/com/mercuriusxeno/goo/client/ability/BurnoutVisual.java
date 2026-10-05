@@ -5,7 +5,7 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.resources.ResourceKey;
 
 /**
- * The explosion one goo type draws as its chain marker burns out (decision
+ * The explosion one goo type draws as its ability block burns out (decision
  * elemental-explosion-per-type).
  */
 public interface BurnoutVisual {

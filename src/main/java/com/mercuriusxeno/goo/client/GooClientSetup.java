@@ -4,7 +4,7 @@ import com.google.common.reflect.TypeToken;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ISidedProxy;
 import com.mercuriusxeno.goo.ability.program.Step;
-import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
+import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.client.ability.ChainBurnouts;
 import com.mercuriusxeno.goo.client.ability.MobCoatLayer;
 import com.mercuriusxeno.goo.client.ability.MobCoats;
@@ -78,7 +78,7 @@ public final class GooClientSetup {
 
     static {
         ISidedProxy.INSTANCE[0] = new ClientProxy();
-        ChainMarkerBlockEntity.installClientSteps(GooClientSetup::syncedSteps);
+        AbilityBlockEntity.installClientSteps(GooClientSetup::syncedSteps);
         GooTypes.readConnectionOrderFrom(GooClientSetup::connectionTypeOrder);
     }
 
@@ -156,8 +156,8 @@ public final class GooClientSetup {
      * @param event the renderer registration event
      */
     private static void registerEffectRenderers(EntityRenderersEvent.RegisterRenderers event) {
-        event.registerBlockEntityRenderer(GooBlockEntities.CHAIN_MARKER.get(),
-                ChainMarkerBlockEntityRenderer::new);
+        event.registerBlockEntityRenderer(GooBlockEntities.ABILITY_BLOCK.get(),
+                AbilityBlockRenderer::new);
     }
 
     /**

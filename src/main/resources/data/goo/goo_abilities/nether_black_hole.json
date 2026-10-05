@@ -7,58 +7,63 @@
   "delivery": { "kind": "arc" },
   "behaviors": [
     {
-      "type": "phased",
-      "radius": 3,
-      "phases": [
+      "type": "linger",
+      "steps": [
         {
-          "name": "gather",
-          "ticks": 20
-        },
-        {
-          "name": "expand",
-          "ticks": 15,
-          "enter": [
-            { "type": "entities", "radius": 3, "steps": [
-              { "type": "potion", "effect": "minecraft:blindness", "duration": 70, "visible": false }
-            ] },
-            { "type": "entities", "radius": 9, "steps": [
-              { "type": "potion", "effect": "minecraft:darkness", "duration": 70, "amplifier": 1, "visible": false }
-            ] },
-            { "type": "entities", "radius": 3, "steps": [
-              { "type": "potion", "effect": "minecraft:darkness", "duration": 70, "amplifier": 2, "visible": false }
-            ] },
-            { "type": "sound", "id": "goo:effects.black_hole", "source": "blocks", "volume": 6, "pitch": 1 }
-          ],
-          "tick": [
-            { "type": "particles", "id": "minecraft:soul", "count": 2, "spread": 1.8, "speed": 0.02 },
-            { "type": "pull", "radius": 9, "speed": 0.15 }
-          ],
-          "leave": [
-            { "type": "consume_blocks", "radius": 3 },
-            { "type": "entities", "radius": 3, "steps": [
-              { "type": "damage", "amount": "health * 0.5", "source": "magic" }
-            ] }
-          ]
-        },
-        {
-          "name": "hold",
-          "ticks": 15,
-          "tick": [
-            { "type": "particles", "id": "minecraft:soul", "count": 2, "spread": 1.8, "speed": 0.02 },
-            { "type": "pull", "radius": 9, "speed": 0.15 }
-          ]
-        },
-        {
-          "name": "contract",
-          "ticks": 30,
-          "tick": [
-            { "type": "particles", "id": "minecraft:soul", "count": 2, "spread": 1.8, "speed": 0.02 }
-          ]
-        },
-        {
-          "name": "popping",
-          "enter": [
-            { "type": "drop_consumed" }
+          "type": "phased",
+          "radius": 3,
+          "phases": [
+            {
+              "name": "gather",
+              "ticks": 20
+            },
+            {
+              "name": "expand",
+              "ticks": 15,
+              "enter": [
+                { "type": "entities", "radius": 3, "steps": [
+                  { "type": "potion", "effect": "minecraft:blindness", "duration": 70, "visible": false }
+                ] },
+                { "type": "entities", "radius": 9, "steps": [
+                  { "type": "potion", "effect": "minecraft:darkness", "duration": 70, "amplifier": 1, "visible": false }
+                ] },
+                { "type": "entities", "radius": 3, "steps": [
+                  { "type": "potion", "effect": "minecraft:darkness", "duration": 70, "amplifier": 2, "visible": false }
+                ] },
+                { "type": "sound", "id": "goo:effects.black_hole", "source": "blocks", "volume": 6, "pitch": 1 }
+              ],
+              "tick": [
+                { "type": "particles", "id": "minecraft:soul", "count": 2, "spread": 1.8, "speed": 0.02 },
+                { "type": "pull", "radius": 9, "speed": 0.15 }
+              ],
+              "leave": [
+                { "type": "consume_blocks", "radius": 3 },
+                { "type": "entities", "radius": 3, "steps": [
+                  { "type": "damage", "amount": "health * 0.5", "source": "magic" }
+                ] }
+              ]
+            },
+            {
+              "name": "hold",
+              "ticks": 15,
+              "tick": [
+                { "type": "particles", "id": "minecraft:soul", "count": 2, "spread": 1.8, "speed": 0.02 },
+                { "type": "pull", "radius": 9, "speed": 0.15 }
+              ]
+            },
+            {
+              "name": "contract",
+              "ticks": 30,
+              "tick": [
+                { "type": "particles", "id": "minecraft:soul", "count": 2, "spread": 1.8, "speed": 0.02 }
+              ]
+            },
+            {
+              "name": "popping",
+              "enter": [
+                { "type": "drop_consumed" }
+              ]
+            }
           ]
         }
       ]

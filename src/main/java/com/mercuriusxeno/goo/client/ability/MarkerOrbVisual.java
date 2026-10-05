@@ -7,7 +7,7 @@ import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.RenderContext;
-import com.mercuriusxeno.goo.client.ber.ChainMarkerRenderState;
+import com.mercuriusxeno.goo.client.ber.AbilityBlockRenderState;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -17,7 +17,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
 
 /**
- * Slime-like glowing orb a chain marker draws while its program runs
+ * Slime-like glowing orb a ability block draws while its program runs
  * (decision splat-runs-the-program-no-fuse). Two layers: inner core with
  * the goo fluid texture, outer translucent shell with goo-tinted color.
  * Both are emissive (fullbright). GLOW orbs match the crystal
@@ -58,10 +58,10 @@ public final class MarkerOrbVisual {
         /**
          * Picks the shape a marker's goo type draws.
          *
-         * @param state the chain marker render state
+         * @param state the ability block render state
          * @return the orb shape
          */
-        static OrbShape of(ChainMarkerRenderState state) {
+        static OrbShape of(AbilityBlockRenderState state) {
             return state.gooType == GooTypes.GLOW ? GLOW_BUMP : GOO;
         }
     }
@@ -77,7 +77,7 @@ public final class MarkerOrbVisual {
      * @param poseStack     the pose stack for rendering
      * @param nodeCollector the render node collector
      */
-    public static void submit(ChainMarkerRenderState state, PoseStack poseStack,
+    public static void submit(AbilityBlockRenderState state, PoseStack poseStack,
                               SubmitNodeCollector nodeCollector) {
         if (!state.behaviorActive) {
             return;
@@ -200,21 +200,21 @@ public final class MarkerOrbVisual {
     /**
      * Glow orbs have no shell margin; all others add one.
      *
-     * @param state    the chain marker render state
+     * @param state    the ability block render state
      * @param coreHalf the inner core half-size in block units
      * @return the shell half-size in block units
      */
-    private static float computeShellHalf(ChainMarkerRenderState state, float coreHalf) {
+    private static float computeShellHalf(AbilityBlockRenderState state, float coreHalf) {
         return state.gooType == GooTypes.GLOW ? coreHalf : coreHalf + SHELL_MARGIN;
     }
 
     /**
      * Combines each ability's own rhythm into one scale factor.
      *
-     * @param state the chain marker render state
+     * @param state the ability block render state
      * @return the combined scale modifier
      */
-    private static float computeOrbModifier(ChainMarkerRenderState state) {
+    private static float computeOrbModifier(AbilityBlockRenderState state) {
         float spikeShake = computeSpikeShake(state);
         float ebb = crystalEbb(state.crystalActive, state.gameTime);
         return spikeShake * ebb;
@@ -240,10 +240,10 @@ public final class MarkerOrbVisual {
      * Computes the core half-size. For GLOW type, the crystal's lateral
      * extent.
      *
-     * @param state the chain marker render state
+     * @param state the ability block render state
      * @return the core half-size in block units
      */
-    private static float computeCoreHalf(ChainMarkerRenderState state) {
+    private static float computeCoreHalf(AbilityBlockRenderState state) {
         if (state.gooType == GooTypes.GLOW) {
             return computeGlowCoreHalf();
         }
@@ -264,10 +264,10 @@ public final class MarkerOrbVisual {
     /**
      * Packs shell alpha and goo tint into an ARGB color.
      *
-     * @param state the chain marker render state
+     * @param state the ability block render state
      * @return the packed ARGB shell color
      */
-    private static int computeShellColor(ChainMarkerRenderState state) {
+    private static int computeShellColor(AbilityBlockRenderState state) {
         int baseShellAlpha = state.targeted ? SHELL_ALPHA_TARGETED : SHELL_ALPHA;
         int rgb = state.gooType == GooTypes.GLOW
                 ? GooRenderUtil.OPAQUE_WHITE : ClientGooTypes.color(state.gooType);
@@ -278,10 +278,10 @@ public final class MarkerOrbVisual {
      * The strongest windup shake across the spikes in flight, so the orb
      * shakes each time it is about to stab.
      *
-     * @param state the chain marker render state
+     * @param state the ability block render state
      * @return the shake scale, 1 while no spike winds up
      */
-    private static float computeSpikeShake(ChainMarkerRenderState state) {
+    private static float computeSpikeShake(AbilityBlockRenderState state) {
         float strongest = 1f;
         for (FieldStrike spike : state.spikeAnims) {
             float s = MetalSpikeVisual.gooShake(spike.age(), state.partialTick, state.spikeStrikeTick);

@@ -158,21 +158,24 @@ class ProgramHostLoadTest {
     }
 
     @Test
-    void unstableProgramsLoadForTheMarkerHost() {
-        List<Step> mine = List.of(
+    void aLingeringMineLoadsForTheLandingAndItsWaitRefusesTheLandingOutsideTheLinger() {
+        List<Step> body = List.of(
                 new AwaitEntityStep(SelectionShape.SPHERE, Expr.literal(3), List.of(EntityFilter.LIVING)),
                 new ExplodeStep(expr("2.5"), ExplosionMode.TNT));
 
-        assertDoesNotThrow(() -> ProgramBehavior.forHost(mine, HostKind.MARKER));
+        assertDoesNotThrow(() -> ProgramBehavior.forHost(List.of(new LingerStep(body)), HostKind.LANDING));
+        ProgramLoadException refusal = assertThrows(ProgramLoadException.class,
+                () -> ProgramBehavior.forHost(body, HostKind.LANDING));
+        assertTrue(refusal.getMessage().contains("await_entity"), refusal.getMessage());
     }
 
     @Test
-    void glowCrystalProgramLoadsForTheMarkerHostAndRefusesTheEntityHost() {
+    void glowCrystalProgramLoadsForTheLandingAndRefusesTheEntityHost() {
         List<Step> glow = List.of(new PlaceBlockStep(Identifier.parse("goo:glow_crystal"), Map.of(
                 "facing", new StateValue.PlacedFace(),
                 "size", new StateValue.Pick(expr("0"), List.of("tiny", "large")))));
 
-        assertDoesNotThrow(() -> ProgramBehavior.forHost(glow, HostKind.MARKER));
+        assertDoesNotThrow(() -> ProgramBehavior.forHost(glow, HostKind.LANDING));
         ProgramLoadException refusal = assertThrows(ProgramLoadException.class,
                 () -> ProgramBehavior.forHost(glow, HostKind.ENTITY));
 
@@ -188,7 +191,7 @@ class ProgramHostLoadTest {
 
     private static final Map<HostKind, Class<? extends StepHost>> HOST_TYPES = Map.of(
             HostKind.MARKER, MarkerHost.class, HostKind.ENTITY, EntityHost.class, HostKind.TAP, TapHost.class,
-            HostKind.PLAYER, PlayerHost.class);
+            HostKind.LANDING, LandingHost.class, HostKind.PLAYER, PlayerHost.class);
 
     /**
      * A step needing exactly one capability, standing in for whichever
@@ -206,7 +209,10 @@ class ProgramHostLoadTest {
 
     @Test
     void eachKindProvidesTheCapabilityInterfacesItsHostImplements() {
-        assertEquals(EnumSet.complementOf(EnumSet.of(HostCapability.TARGET)), HostKind.MARKER.capabilities());
+        assertEquals(EnumSet.complementOf(EnumSet.of(HostCapability.TARGET, HostCapability.LINGER)),
+                HostKind.MARKER.capabilities());
+        assertEquals(Set.of(HostCapability.PLACED_FACE, HostCapability.EXPLODE, HostCapability.ENTITY_SCAN,
+                HostCapability.PLACE_BLOCK, HostCapability.LINGER), HostKind.LANDING.capabilities());
         assertEquals(Set.of(HostCapability.TARGET, HostCapability.EXPLODE, HostCapability.ENTITY_SCAN),
                 HostKind.ENTITY.capabilities());
         assertEquals(Set.of(HostCapability.EXPLODE, HostCapability.ENTITY_SCAN, HostCapability.PLACE_BLOCK),

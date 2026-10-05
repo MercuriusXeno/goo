@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
+import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooParticles;
 import net.minecraft.core.BlockPos;
@@ -22,7 +22,7 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 /**
- * The {@link StepHost} over a chain marker block entity: reads the placed
+ * The {@link StepHost} over a ability block block entity: reads the placed
  * face and goo type from the block entity, and acts on
  * the server level at the marker position. Built fresh each tick from
  * what the {@link ProgramBehavior} marker callbacks
@@ -32,7 +32,7 @@ import java.util.function.Consumer;
  * @param pos   the marker position
  * @param be    the marker block entity
  */
-public record MarkerHost(ServerLevel level, BlockPos pos, ChainMarkerBlockEntity be)
+public record MarkerHost(ServerLevel level, BlockPos pos, AbilityBlockEntity be)
         implements PlacedFaceHost, TickingHost, ExplodeHost, EntityScanHost, PlaceBlockHost,
         FieldEffectHost, PhasedHost, ConsumedGooHost {
 

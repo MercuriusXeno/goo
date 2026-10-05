@@ -70,7 +70,7 @@ class NetherBlackHoleProgramTest {
     private MarkerHost host;
 
     private static List<Step> program() {
-        return AbilityJson.decode("nether_black_hole").behaviors();
+        return LingerStep.bodyOf(AbilityJson.decode("nether_black_hole").behaviors()).orElseThrow();
     }
 
     private void record(String act) {

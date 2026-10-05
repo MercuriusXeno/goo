@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.ability;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.program.LingerStep;
+import com.mercuriusxeno.goo.ability.program.PlaceBlockStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.data.IdentifiedJsonScan;
 import com.mojang.serialization.JsonOps;
@@ -20,6 +22,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -34,6 +37,11 @@ class AbilityLoaderTest {
 
     private static final String DIRECTORY = "goo_abilities";
     /** The abilities whose whole design was a per-stack shape. */
+    /** The world abilities that stay after their blob lands. */
+    private static final List<String> LINGERING_ABILITIES = List.of("crystal_cloud", "metal_spikes",
+            "nether_black_hole", "unstable_proximity_mine", "glow_crystal");
+    /** The world ability whose program ends the tick it lands. */
+    private static final String BLAST = "unstable_instant_detonation";
     private static final List<String> STACK_SHAPE_ABILITIES = List.of("blaze_flat", "blaze_tunnel",
             "frost_flat", "frost_tunnel", "frost_sphere", "rock_flat", "rock_tunnel");
 
@@ -78,6 +86,23 @@ class AbilityLoaderTest {
                     .collect(Collectors.toSet());
             assertFalse(read.contains("stacks") || read.contains("max_stacks"), ability.id() + " reads " + read);
         }
+    }
+
+    // decision lingering-abilities-place-their-own-thing
+    @Test
+    void eachLingeringAbilityPlacesItsOwnThingAndBlastPlacesNothing() {
+        Map<Identifier, AbilityDefinition> scanned = scanShipped(AbilityJson.files());
+        for (String name : LINGERING_ABILITIES) {
+            AbilityDefinition ability = scanned.get(Identifier.fromNamespaceAndPath(Goo.MODID, name));
+            assertTrue(placesItsOwnThing(ability), name + " names no step placing its own thing");
+        }
+        AbilityDefinition blast = scanned.get(Identifier.fromNamespaceAndPath(Goo.MODID, BLAST));
+        assertFalse(placesItsOwnThing(blast), BLAST + " places a thing of its own");
+    }
+
+    private static boolean placesItsOwnThing(AbilityDefinition ability) {
+        return ability.behaviors().stream().flatMap(AbilityLoaderTest::withDescendants)
+                .anyMatch(step -> step instanceof LingerStep || step instanceof PlaceBlockStep);
     }
 
     private static Stream<Step> withDescendants(Step step) {

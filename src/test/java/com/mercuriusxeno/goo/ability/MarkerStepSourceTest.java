@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability;
 
+import com.mercuriusxeno.goo.ability.program.LingerStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.Identifier;
@@ -13,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.mock;
 
 /**
- * A chain marker loads its program from the abilities its side holds: the
+ * A ability block loads its program from the abilities its side holds: the
  * client from the abilities it was synced, the server from the registry
  * (decision diagnose-then-fix-marker-server-gate).
  */
@@ -23,8 +24,9 @@ class MarkerStepSourceTest {
     private static final boolean CLIENT = true;
     private static final boolean SERVER = false;
 
+    /** A lingering ability's program: the block runs its linger body. */
     private static List<Step> program() {
-        return List.of(mock(Step.class));
+        return List.of(new LingerStep(List.of(mock(Step.class))));
     }
 
     @Nested

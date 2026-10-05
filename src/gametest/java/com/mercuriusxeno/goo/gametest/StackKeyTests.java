@@ -3,7 +3,8 @@ package com.mercuriusxeno.goo.gametest;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
-import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
+import com.mercuriusxeno.goo.ability.world.AbilityImpact;
+import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.network.GooThrowHandler;
@@ -58,7 +59,7 @@ public final class StackKeyTests {
     public static void secondThrowLandsItsOwnMarker(GameTestHelper helper) {
         AbilityDefinition cloud = AbilityRegistry.of(helper.getLevel()).getAbility(CRYSTAL_CLOUD);
         helper.assertTrue(cloud != null, ABILITY_REQUIRED);
-        ChainMarkerBlockEntity first = placeMarker(helper, cloud);
+        AbilityBlockEntity first = placeMarker(helper, cloud);
         ServerPlayer player = makeThrower(helper, GooTypes.CRYSTAL);
 
         GooThrowHandler.execute(player, new GooThrowPayload(GooTypes.id(GooTypes.CRYSTAL), NO_TARGET_ENTITY,
@@ -69,20 +70,18 @@ public final class StackKeyTests {
         helper.assertTrue(spent == cloud.cost(), String.format(PRICED, cloud.cost(), spent));
         helper.runAfterDelay(ARRIVAL_TICKS, () -> {
             helper.getLevel().getServer().getPlayerList().remove(player);
-            helper.assertTrue(helper.getBlockEntity(MARKER_POS, ChainMarkerBlockEntity.class) == first, FIRST_CHANGED);
-            ChainMarkerBlockEntity second = helper.getBlockEntity(MARKER_POS.above(), ChainMarkerBlockEntity.class);
+            helper.assertTrue(helper.getBlockEntity(MARKER_POS, AbilityBlockEntity.class) == first, FIRST_CHANGED);
+            AbilityBlockEntity second = helper.getBlockEntity(MARKER_POS.above(), AbilityBlockEntity.class);
             helper.assertTrue(second != first && second.getBehavior() != null, NOT_BESIDE);
             helper.succeed();
         });
     }
 
-    private static ChainMarkerBlockEntity placeMarker(GameTestHelper helper, AbilityDefinition ability) {
+    private static AbilityBlockEntity placeMarker(GameTestHelper helper, AbilityDefinition ability) {
         helper.setBlock(MARKER_POS.below(), Blocks.STONE);
-        helper.setBlock(MARKER_POS, GooBlocks.CHAIN_MARKER.get());
-        ChainMarkerBlockEntity marker = helper.getBlockEntity(MARKER_POS, ChainMarkerBlockEntity.class);
-        marker.initChainFromAbility(GooTypes.CRYSTAL, Direction.UP, ability);
-        marker.splat();
-        return marker;
+        AbilityImpact.land(helper.getLevel(), helper.absolutePos(MARKER_POS.below()), GooTypes.CRYSTAL, Direction.UP,
+                ability);
+        return helper.getBlockEntity(MARKER_POS, AbilityBlockEntity.class);
     }
 
     @SuppressWarnings(REMOVAL) // vanilla marks the mock server player helper for removal and names no replacement

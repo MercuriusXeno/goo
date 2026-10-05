@@ -109,7 +109,7 @@ class ConventionTest {
                 .or(simpleName("CrucibleDrops"))
                 .or(simpleName("TapInteractionHandler"))
                 .or(simpleName("VatGasketOps"))
-                .or(simpleName("ChainMarkerBlockEntity"))
+                .or(simpleName("AbilityBlockEntity"))
                 .or(simpleName("ICanisterHolder"))
                 .or(simpleName("SlottedCanisterData"))
                 .or(simpleName("CanisterSlot"))

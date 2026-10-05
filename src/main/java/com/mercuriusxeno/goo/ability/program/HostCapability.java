@@ -53,7 +53,12 @@ public enum HostCapability {
      * A goo total the host fills by consuming the valued blocks around its
      * anchor and drops as goo.
      */
-    CONSUMED_GOO(ConsumedGooHost.class);
+    CONSUMED_GOO(ConsumedGooHost.class),
+    /**
+     * A landing where the ability can stand its own block, which runs the
+     * steps handed to it (decision lingering-abilities-place-their-own-thing).
+     */
+    LINGER(LingerHost.class);
 
     private final Class<? extends StepHost> hostType;
 

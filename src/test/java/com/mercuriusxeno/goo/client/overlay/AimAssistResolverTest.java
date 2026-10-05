@@ -5,7 +5,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * Covers the aim assist answering entities alone: a standing chain marker
+ * Covers the aim assist answering entities alone: a standing ability block
  * is never an aim target, so a throw at one lands beside it (decision
  * splat-runs-the-program-no-fuse).
  */

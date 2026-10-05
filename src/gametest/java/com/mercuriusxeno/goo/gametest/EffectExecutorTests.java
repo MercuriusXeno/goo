@@ -3,12 +3,12 @@ package com.mercuriusxeno.goo.gametest;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.world.AbilityImpact;
-import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
+import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
 import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.item.GooStacks;
-import com.mercuriusxeno.goo.network.GooEffectScheduler;
 import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
+import com.mercuriusxeno.goo.network.GooEffectScheduler;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -29,13 +29,13 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import java.util.List;
-import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 /**
- * Gametests for chain markers. Each test stands a marker initialized
+ * Gametests for ability blocks. Each test stands a marker initialized
  * through an ability, which runs the ability's program from the tick its
  * blob splats (decision splat-runs-the-program-no-fuse). Covers the
- * ChainMarkerBlockEntity tick lifecycle, the programs the abilities
+ * AbilityBlockEntity tick lifecycle, the programs the abilities
  * declare, the fall and the goo landing on a block.
  */
 public final class EffectExecutorTests {
@@ -50,6 +50,11 @@ public final class EffectExecutorTests {
     private static final int TICK_AFTER_LANDING = 1;
     private static final int NO_ENTITY = -1;
     private static final String NOT_RUNNING = "The marker's program is not running the tick after its blob landed";
+    private static final String BLOCK_OUTLIVED_PROGRAM = "The lingering block stood on after its program ended";
+    /** Ticks a shuffling pig takes to draw the cloud's eight shreds and the cloud to contract. */
+    private static final int CLOUD_LIFE_TICKS = 40;
+    /** Ticks a pig takes to draw the trap's two strikes and the strikes to retract. */
+    private static final int TRAP_LIFE_TICKS = 40;
     private static final String FIELD_NOT_LIVE = "The field effect is not live the tick after its blob landed";
     private static final String HOLE_NOT_GATHERING = "The black hole is not gathering the tick after its blob landed";
     private static final String VALUES_REQUIRED = "Goo values must be loaded for the black hole to consume stone";
@@ -137,7 +142,7 @@ public final class EffectExecutorTests {
      * into the wall.
      *
      * @param helper    the gametest helper
-     * @param type      the goo type for the chain marker
+     * @param type      the goo type for the ability block
      * @param abilityId the ability the marker runs
      */
     private static void placeMarkerWithWall(GameTestHelper helper, ResourceKey<GooTypeDefinition> type,
@@ -190,7 +195,7 @@ public final class EffectExecutorTests {
         placeMarkerWithWall(helper, GooTypes.NETHER, ABILITY_NETHER_BLACK_HOLE);
         helper.runAfterDelay(NETHER_PROGRAM_TICKS, () -> {
             helper.assertTrue(helper.getBlockState(MARKER_POS.north()).isAir(), HOLE_LEFT_STONE);
-            helper.assertBlockNotPresent(GooBlocks.CHAIN_MARKER.get(), MARKER_POS);
+            helper.assertBlockNotPresent(GooBlocks.ABILITY_BLOCK.get(), MARKER_POS);
             helper.succeed();
         });
     }
@@ -212,19 +217,14 @@ public final class EffectExecutorTests {
     // --- Glow crystal program (task glow-crystal-program) ---
 
     /**
-     * Stands a glow marker at the marker position on a stone support:
-     * against a wall when the placed face is horizontal, on a floor when
-     * it is up. The support sits behind the placed face, where the crystal
-     * will need it.
+     * Stands a stone support behind the marker position: a wall when the
+     * placed face is horizontal, a floor when it is up.
      *
      * @param helper     the gametest helper
-     * @param placedFace the face the marker was placed on
-     * @return the marker's block entity, ready for either init path
+     * @param placedFace the face the blob lands on
      */
-    private static ChainMarkerBlockEntity standGlowMarker(GameTestHelper helper, Direction placedFace) {
+    private static void standGlowSupport(GameTestHelper helper, Direction placedFace) {
         helper.setBlock(MARKER_POS.relative(placedFace.getOpposite()), Blocks.STONE);
-        helper.setBlock(MARKER_POS, GooBlocks.CHAIN_MARKER.get());
-        return helper.getBlockEntity(MARKER_POS, ChainMarkerBlockEntity.class);
     }
 
     /**
@@ -242,17 +242,17 @@ public final class EffectExecutorTests {
     }
 
     /**
-     * Runs one glow crystal case: the marker stands with the given placed
-     * face, is initialized by the given path, and the tick after its splat
-     * the crystal stands in its place.
+     * Runs one glow crystal case: a blob lands on a support with the given
+     * face, and the tick after its splat the crystal stands in the cell.
      *
      * @param helper     the gametest helper
      * @param placedFace the face the marker was placed on
      * @param init       the init through the ability
      */
     private static void glowCrystalCase(GameTestHelper helper, Direction placedFace,
-                                        BiConsumer<ChainMarkerBlockEntity, Direction> init) {
-        init.accept(standGlowMarker(helper, placedFace), placedFace);
+                                        Consumer<Direction> init) {
+        standGlowSupport(helper, placedFace);
+        init.accept(placedFace);
         helper.runAfterDelay(TICK_AFTER_LANDING, () -> {
             assertGlowCrystal(helper, placedFace);
             helper.succeed();
@@ -260,18 +260,16 @@ public final class EffectExecutorTests {
     }
 
     /**
-     * Initializes a marker through the ability path with glow_crystal.
+     * Lands a glow_crystal blob on the support behind the marker position.
      *
      * @param helper the gametest helper, which fails when the registry lacks the ability
      * @return the init
      */
-    private static BiConsumer<ChainMarkerBlockEntity, Direction> initGlowAbility(GameTestHelper helper) {
+    private static Consumer<Direction> initGlowAbility(GameTestHelper helper) {
         AbilityDefinition ability = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(ABILITY_GLOW_CRYSTAL));
         helper.assertTrue(ability != null, ABILITIES_REQUIRED);
-        return (be, placedFace) -> {
-            be.initChainFromAbility(GooTypes.GLOW, placedFace, ability);
-            be.splat();
-        };
+        return placedFace -> AbilityImpact.land(helper.getLevel(),
+                helper.absolutePos(MARKER_POS.relative(placedFace.getOpposite())), GooTypes.GLOW, placedFace, ability);
     }
 
     /**
@@ -303,15 +301,13 @@ public final class EffectExecutorTests {
     public static void fallenMarkerKeepsAbility(GameTestHelper helper) {
         helper.setBlock(FALL_FLOOR_POS, Blocks.STONE);
         helper.setBlock(FALL_SUPPORT_POS, Blocks.STONE);
-        helper.setBlock(FALL_START_POS, GooBlocks.CHAIN_MARKER.get());
-        ChainMarkerBlockEntity marker = helper.getBlockEntity(FALL_START_POS, ChainMarkerBlockEntity.class);
         AbilityDefinition spikes = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(ABILITY_METAL_SPIKES));
         helper.assertTrue(spikes != null, ABILITIES_REQUIRED);
-        marker.initChainFromAbility(GooTypes.METAL, Direction.UP, spikes);
-        marker.splat();
+        AbilityImpact.land(helper.getLevel(), helper.absolutePos(FALL_SUPPORT_POS), GooTypes.METAL, Direction.UP, spikes);
+        helper.assertBlockPresent(GooBlocks.ABILITY_BLOCK.get(), FALL_START_POS);
         helper.setBlock(FALL_SUPPORT_POS, Blocks.AIR);
         helper.runAfterDelay(FALL_LANDED_TICKS, () -> {
-            ChainMarkerBlockEntity landed = helper.getBlockEntity(FALL_LANDING_POS, ChainMarkerBlockEntity.class);
+            AbilityBlockEntity landed = helper.getBlockEntity(FALL_LANDING_POS, AbilityBlockEntity.class);
             helper.assertTrue(ABILITY_METAL_SPIKES.equals(landed.getAbilityId()), FALL_ABILITY_LOST);
             helper.assertTrue(landed.getBehavior() != null && landed.getBehavior().isActive(), FALL_PROGRAM_LOST);
             helper.succeed();
@@ -362,7 +358,7 @@ public final class EffectExecutorTests {
     public static void otherAbilityMarksCrystal(GameTestHelper helper) {
         landOnCrystal(helper, GlowCrystalBlock.CrystalSize.TINY, GooTypes.METAL, ABILITY_METAL_SPIKES);
         helper.assertBlockProperty(CRYSTAL_POS, GlowCrystalBlock.SIZE, GlowCrystalBlock.CrystalSize.TINY);
-        helper.assertBlockPresent(GooBlocks.CHAIN_MARKER.get(), CRYSTAL_POS.above());
+        helper.assertBlockPresent(GooBlocks.ABILITY_BLOCK.get(), CRYSTAL_POS.above());
         helper.succeed();
     }
 
@@ -385,7 +381,7 @@ public final class EffectExecutorTests {
     }
 
     /**
-     * Places a chain marker initialized through an ability, facing north
+     * Places a ability block initialized through an ability, facing north
      * into whatever fills the wall region, and splats it, so it runs the
      * program the ability declares from that tick.
      *
@@ -394,12 +390,10 @@ public final class EffectExecutorTests {
      * @param abilityId the ability identifier string
      */
     private static void placeMarkerWithAbility(GameTestHelper helper, ResourceKey<GooTypeDefinition> type, String abilityId) {
-        helper.setBlock(MARKER_POS, GooBlocks.CHAIN_MARKER.get());
-        ChainMarkerBlockEntity be = helper.getBlockEntity(MARKER_POS, ChainMarkerBlockEntity.class);
+        helper.setBlock(MARKER_POS.north(), Blocks.STONE);
         AbilityDefinition ability = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(abilityId));
         helper.assertTrue(ability != null, ABILITIES_REQUIRED);
-        be.initChainFromAbility(type, Direction.SOUTH, ability);
-        be.splat();
+        AbilityImpact.land(helper.getLevel(), helper.absolutePos(MARKER_POS.north()), type, Direction.SOUTH, ability);
     }
 
     // --- Step programs (decision ability-params-in-datapack) ---
@@ -411,7 +405,7 @@ public final class EffectExecutorTests {
      * @param helper the gametest helper
      */
     private static void assertExploded(GameTestHelper helper) {
-        helper.assertBlockNotPresent(GooBlocks.CHAIN_MARKER.get(), MARKER_POS);
+        helper.assertBlockNotPresent(GooBlocks.ABILITY_BLOCK.get(), MARKER_POS);
         helper.assertBlockNotPresent(Blocks.STONE, MARKER_POS.north());
     }
 
@@ -453,7 +447,7 @@ public final class EffectExecutorTests {
     public static void programProximityMine(GameTestHelper helper) {
         placeMarkerWithAbility(helper, GooTypes.UNSTABLE, ABILITY_PROXIMITY_MINE);
         helper.runAfterDelay(MINE_IDLE_TICKS, () -> {
-            helper.assertBlockPresent(GooBlocks.CHAIN_MARKER.get(), MARKER_POS);
+            helper.assertBlockPresent(GooBlocks.ABILITY_BLOCK.get(), MARKER_POS);
             helper.spawnWithNoFreeWill(EntityType.PIG, MINE_TARGET_POS);
         });
         helper.runAfterDelay(MINE_IDLE_TICKS + SHORT_WAIT, () -> {
@@ -525,7 +519,7 @@ public final class EffectExecutorTests {
             helper.assertTrue(itemsAroundMarker(helper).isEmpty(), HOLE_DROPPED_EARLY);
         });
         helper.runAfterDelay(SHORT_WAIT + BLACK_HOLE_LIFE_TICKS + SHORT_WAIT, () -> {
-            helper.assertBlockNotPresent(GooBlocks.CHAIN_MARKER.get(), MARKER_POS);
+            helper.assertBlockNotPresent(GooBlocks.ABILITY_BLOCK.get(), MARKER_POS);
             helper.assertTrue(itemsAroundMarker(helper).stream()
                     .anyMatch(item -> GooTypes.ROCK.equals(GooStacks.keyOf(item.getItem()))), HOLE_DROPPED_NO_ROCK);
             helper.succeed();
@@ -595,11 +589,11 @@ public final class EffectExecutorTests {
      * @param helper the gametest helper
      * @return the marker's block entity
      */
-    private static ChainMarkerBlockEntity placeMetalTrap(GameTestHelper helper) {
+    private static AbilityBlockEntity placeMetalTrap(GameTestHelper helper) {
         discardLeftoverEntities(helper);
         helper.setBlock(MINE_TARGET_POS.below(), Blocks.STONE);
         placeMarkerWithAbility(helper, GooTypes.METAL, ABILITY_METAL_SPIKES);
-        return helper.getBlockEntity(MARKER_POS, ChainMarkerBlockEntity.class);
+        return helper.getBlockEntity(MARKER_POS, AbilityBlockEntity.class);
     }
 
     /**
@@ -610,7 +604,7 @@ public final class EffectExecutorTests {
      * @param helper the gametest helper
      */
     public static void programMetalSpikes(GameTestHelper helper) {
-        ChainMarkerBlockEntity be = placeMetalTrap(helper);
+        AbilityBlockEntity be = placeMetalTrap(helper);
         int armed = SHORT_WAIT;
         Pig[] pig = new Pig[1];
         Player[] sneaker = new Player[1];
@@ -624,7 +618,7 @@ public final class EffectExecutorTests {
         helper.runAfterDelay(armed + SPIKE_STRIKE_WINDOW + SNEAK_TICKS, () -> {
             helper.assertTrue(sneaker[0].getHealth() == sneaker[0].getMaxHealth(), SPIKE_HIT_SNEAKER);
             helper.assertTrue(be.getFieldEffect().chargesSpent() == 1, CHARGE_SPENT_ON_SNEAKER);
-            helper.assertBlockPresent(GooBlocks.CHAIN_MARKER.get(), MARKER_POS);
+            helper.assertBlockPresent(GooBlocks.ABILITY_BLOCK.get(), MARKER_POS);
             sneaker[0].discard();
             helper.succeed();
         });
@@ -657,8 +651,8 @@ public final class EffectExecutorTests {
      * @param helper the gametest helper
      * @return the marker's block entity
      */
-    private static ChainMarkerBlockEntity landedMarker(GameTestHelper helper) {
-        ChainMarkerBlockEntity be = helper.getBlockEntity(MARKER_POS, ChainMarkerBlockEntity.class);
+    private static AbilityBlockEntity landedMarker(GameTestHelper helper) {
+        AbilityBlockEntity be = helper.getBlockEntity(MARKER_POS, AbilityBlockEntity.class);
         helper.assertTrue(be.getBehavior() != null && be.getBehavior().isActive(), NOT_RUNNING);
         return be;
     }
@@ -709,7 +703,7 @@ public final class EffectExecutorTests {
     public static void blackHoleGathersAfterLanding(GameTestHelper helper) {
         landBlob(helper, GooTypes.NETHER, ABILITY_NETHER_BLACK_HOLE);
         helper.runAfterDelay(TICK_AFTER_LANDING, () -> {
-            ChainMarkerBlockEntity be = landedMarker(helper);
+            AbilityBlockEntity be = landedMarker(helper);
             helper.assertTrue(be.getPhased().isRunning() && BLACK_HOLE_GATHER.equals(be.getPhased().name()),
                     HOLE_NOT_GATHERING);
             removeMarkerAndSucceed(helper);
@@ -753,6 +747,41 @@ public final class EffectExecutorTests {
         landBlob(helper, GooTypes.GLOW, ABILITY_GLOW_CRYSTAL);
         helper.runAfterDelay(TICK_AFTER_LANDING, () -> {
             assertGlowCrystal(helper, Direction.SOUTH);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A crystal cloud stands its block while a moving pig draws its eight
+     * shreds, and the block is gone once the cloud has contracted
+     * (decision lingering-abilities-place-their-own-thing).
+     *
+     * @param helper the gametest helper
+     */
+    public static void crystalCloudBlockGoesWithItsProgram(GameTestHelper helper) {
+        discardLeftoverEntities(helper);
+        placeMarkerWithAbility(helper, GooTypes.CRYSTAL, ABILITY_CRYSTAL_CLOUD);
+        helper.assertBlockPresent(GooBlocks.ABILITY_BLOCK.get(), MARKER_POS);
+        spawnShufflingPig(helper, MINE_TARGET_POS);
+        helper.runAfterDelay(CLOUD_LIFE_TICKS, () -> {
+            helper.assertTrue(helper.getBlockState(MARKER_POS).isAir(), BLOCK_OUTLIVED_PROGRAM);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A metal trap stands its block until a pig has drawn its two strikes,
+     * and the block is gone once the strikes retract (decision
+     * lingering-abilities-place-their-own-thing).
+     *
+     * @param helper the gametest helper
+     */
+    public static void metalTrapBlockGoesWithItsProgram(GameTestHelper helper) {
+        placeMetalTrap(helper);
+        helper.assertBlockPresent(GooBlocks.ABILITY_BLOCK.get(), MARKER_POS);
+        helper.spawnWithNoFreeWill(EntityType.PIG, MINE_TARGET_POS);
+        helper.runAfterDelay(TRAP_LIFE_TICKS, () -> {
+            helper.assertTrue(helper.getBlockState(MARKER_POS).isAir(), BLOCK_OUTLIVED_PROGRAM);
             helper.succeed();
         });
     }

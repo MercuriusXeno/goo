@@ -3,8 +3,8 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.ability.program.PhasedState;
 import com.mercuriusxeno.goo.ability.program.PhasedStep;
 import com.mercuriusxeno.goo.ability.program.Variables;
-import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
-import com.mercuriusxeno.goo.client.ber.ChainMarkerRenderState;
+import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
+import com.mercuriusxeno.goo.client.ber.AbilityBlockRenderState;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.world.phys.Vec3;
 import java.util.OptionalDouble;
@@ -49,10 +49,10 @@ public final class BlackHolePhases {
     /**
      * Answers whether the marker is a nether marker running a phased program.
      *
-     * @param be the chain marker block entity
+     * @param be the ability block block entity
      * @return true while the black hole should draw
      */
-    public static boolean isRunning(ChainMarkerBlockEntity be) {
+    public static boolean isRunning(AbilityBlockEntity be) {
         return GooTypes.NETHER.equals(be.getGooType()) && be.getPhased().isRunning();
     }
 
@@ -93,11 +93,11 @@ public final class BlackHolePhases {
      * one-disc-mesh-config-lens), or clears {@code netherActive} when no
      * black hole runs or its gather has not reached the ramp.
      *
-     * @param be    the chain marker block entity
+     * @param be    the ability block block entity
      * @param state the render state to populate
      * @return true when a black hole with a visible body should mark the lens
      */
-    public static boolean populateRenderState(ChainMarkerBlockEntity be, ChainMarkerRenderState state) {
+    public static boolean populateRenderState(AbilityBlockEntity be, AbilityBlockRenderState state) {
         OptionalDouble ramp = isRunning(be) ? holeRamp(be.getPhased(), state.partialTick) : OptionalDouble.empty();
         if (ramp.isEmpty()) {
             state.netherActive = false;
@@ -146,7 +146,7 @@ public final class BlackHolePhases {
      * @param state the populated render state
      * @return the full radius in world blocks
      */
-    public static float fullRadius(ChainMarkerRenderState state) {
+    public static float fullRadius(AbilityBlockRenderState state) {
         return state.implodeRadius + OCCLUSION_MARGIN;
     }
 
@@ -157,7 +157,7 @@ public final class BlackHolePhases {
      * @param state the populated render state
      * @return the visible radius in world blocks
      */
-    public static float visibleRadius(ChainMarkerRenderState state) {
+    public static float visibleRadius(AbilityBlockRenderState state) {
         return rampedBodyRadius(fullRadius(state), state.visibleScale, state.gameTime, state.holeRamp);
     }
 
@@ -204,10 +204,10 @@ public final class BlackHolePhases {
     /**
      * Answers the world-space center of the marker's block.
      *
-     * @param be the chain marker block entity
+     * @param be the ability block block entity
      * @return the block center
      */
-    public static Vec3 holeCenter(ChainMarkerBlockEntity be) {
+    public static Vec3 holeCenter(AbilityBlockEntity be) {
         return Vec3.atCenterOf(be.getBlockPos());
     }
 

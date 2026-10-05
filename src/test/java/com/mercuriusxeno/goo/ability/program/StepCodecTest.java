@@ -60,6 +60,7 @@ class StepCodecTest {
                     "facing", new StateValue.PlacedFace(),
                     "shape", new StateValue.Named("bump"),
                     "size", new StateValue.Pick(Expr.parse("stacks - 1").getOrThrow(), List.of("tiny", "large"))))),
+            Map.entry("linger", new LingerStep(List.of(new ExplodeStep(Expr.literal(2.5), ExplosionMode.TNT)))),
             Map.entry("field_effect", new FieldEffectStep(Expr.literal(3.75),
                     List.of(EntityFilter.LIVING, EntityFilter.NOT_ITEM, EntityFilter.NOT_SNEAKING),
                     Expr.literal(10), Expr.parse("2 - sprinting").getOrThrow(), Expr.literal(2),

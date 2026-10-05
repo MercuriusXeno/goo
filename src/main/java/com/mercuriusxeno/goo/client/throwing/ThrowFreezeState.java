@@ -40,7 +40,7 @@ public final class ThrowFreezeState {
 
     /**
      * Arms the throw-block: prevents new throws for {@link #FREEZE_TICKS}
-     * ticks. Called when a chain marker reaches max stacks.
+     * ticks. Called when a ability block reaches max stacks.
      */
     public static void armThrowBlock() {
         throwBlockRemaining = FREEZE_TICKS;

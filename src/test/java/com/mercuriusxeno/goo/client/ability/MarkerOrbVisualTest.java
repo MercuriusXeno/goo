@@ -4,7 +4,7 @@ import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.RecordingVertexConsumer;
 import com.mercuriusxeno.goo.client.RenderContext;
-import com.mercuriusxeno.goo.client.ber.ChainMarkerRenderState;
+import com.mercuriusxeno.goo.client.ber.AbilityBlockRenderState;
 import com.mojang.blaze3d.vertex.PoseStack;
 import java.util.ArrayList;
 import java.util.List;
@@ -165,7 +165,7 @@ class MarkerOrbVisualTest {
     // decision splat-runs-the-program-no-fuse
     @Test
     void orbDrawsNothingWhileNoProgramRuns() {
-        ChainMarkerRenderState state = new ChainMarkerRenderState();
+        AbilityBlockRenderState state = new AbilityBlockRenderState();
         state.behaviorActive = false;
         SubmitNodeCollector collector = mock(SubmitNodeCollector.class);
 

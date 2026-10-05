@@ -4,12 +4,12 @@ import com.mercuriusxeno.goo.ability.program.FieldEffectState;
 import com.mercuriusxeno.goo.ability.program.FieldEffectStep;
 import com.mercuriusxeno.goo.ability.program.FieldStrike;
 import com.mercuriusxeno.goo.ability.program.Variables;
-import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
+import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.RenderContext;
-import com.mercuriusxeno.goo.client.ber.ChainMarkerRenderState;
+import com.mercuriusxeno.goo.client.ber.AbilityBlockRenderState;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -22,7 +22,7 @@ import java.util.Optional;
 
 /**
  * Metal spike trap visual: extends goo-textured cone spikes from the
- * chain marker orb out to each struck entity. The spikes are the strikes
+ * ability block orb out to each struck entity. The spikes are the strikes
  * in flight of the metal_spikes field effect, read from the marker's
  * {@link FieldEffectState}; each animates independently through windup,
  * extension, and retract phases around the tick it lands.
@@ -61,10 +61,10 @@ public final class MetalSpikeVisual {
      * field-effect step of the marker's synced ability; a marker of another
      * type draws no spikes.
      *
-     * @param be    the chain marker block entity
+     * @param be    the ability block block entity
      * @param state the render state to populate
      */
-    public static void extract(ChainMarkerBlockEntity be, ChainMarkerRenderState state) {
+    public static void extract(AbilityBlockEntity be, AbilityBlockRenderState state) {
         FieldEffectState field = be.getFieldEffect();
         Optional<FieldEffectStep> step = SyncedSteps.first(be, FieldEffectStep.class);
         boolean metal = GooTypes.METAL.equals(be.getGooType()) && be.getBehavior() != null && step.isPresent();
@@ -135,7 +135,7 @@ public final class MetalSpikeVisual {
      * @param poseStack     the pose stack
      * @param nodeCollector the node collector
      */
-    public static void submit(ChainMarkerRenderState state,
+    public static void submit(AbilityBlockRenderState state,
                               PoseStack poseStack, SubmitNodeCollector nodeCollector) {
         int color = ARGB.color(SPIKE_ALPHA, ClientGooTypes.highlight(state.gooType));
         GooRenderUtil.UvRect uv = lookupSpriteUv(state.gooType);
@@ -166,7 +166,7 @@ public final class MetalSpikeVisual {
      *
      * @param ctx   the render context
      * @param spike the spike in flight, aimed at the point it captured
-     * @param state the chain marker render state
+     * @param state the ability block render state
      * @param cx    orb center X
      * @param cy    orb center Y
      * @param cz    orb center Z
@@ -174,7 +174,7 @@ public final class MetalSpikeVisual {
      * @param uv    fluid sprite UV rectangle
      */
     private static void emitSingleSpike(RenderContext ctx, FieldStrike spike,
-                                        ChainMarkerRenderState state, float cx, float cy, float cz,
+                                        AbilityBlockRenderState state, float cx, float cy, float cz,
                                         int color, GooRenderUtil.UvRect uv) {
         float dx = spike.x() - state.blockPos.getX() - cx;
         float dy = spike.y() - state.blockPos.getY() - cy;
