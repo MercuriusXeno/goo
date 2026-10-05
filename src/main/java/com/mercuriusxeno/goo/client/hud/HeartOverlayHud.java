@@ -236,8 +236,8 @@ public final class HeartOverlayHud {
             for (Identifier sprite : heartSprites(overlay.kind(), overlay.shieldAt(slot), realHalves)) {
                 graphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x, y, HEART_SIZE, HEART_SIZE);
             }
-            crawl.filter(regrowing -> overlay.kind() == HeartKind.KINDLE && regrowing.slot() == slot
-                            && regrowing.fromHalf() < realHalves)
+            // wood-crawls-across-regrowing-heart: the same crawl, bark creeping evenly over a bare half
+            crawl.filter(regrowing -> regrowing.slot() == slot && regrowing.fromHalf() < realHalves)
                     .ifPresent(regrowing -> paintCrawl(graphics, overlay.kind(), regrowing, guiTicks, x, y));
             if (overlay.kind() == HeartKind.KINDLE) {
                 paintSparks(graphics, EmberSparks.sparks(slot, Math.min(overlay.shieldAt(slot), realHalves),
@@ -248,7 +248,8 @@ public final class HeartOverlayHud {
 
     /**
      * Paints a regrowing half's crawl: the shield's sprite revealed row by row
-     * up to the front, a smoldering, pulsing ember over Kindle's ash.
+     * up to the front: a smoldering, pulsing ember over Kindle's ash, and oak
+     * bark creeping evenly over Barkskin's bare heart.
      *
      * @param graphics the gui graphics
      * @param kind     the overlay's kind

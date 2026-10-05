@@ -48,6 +48,25 @@ class RegrowCrawlTest {
     }
 
     @Test
+    void barkCrawlsOverTheHalfBarkskinRegrowsNextAndCoversItAtTheRegrowTime() {
+        HeartOverlay barked = HeartOverlay.NONE.apply(HeartKind.BARKSKIN, 1_200, FULL_HEALTH, NOW)
+                .drain(3f, NOW).overlay();
+        long regrowAt = barked.regrowAt();
+        RegrowCrawl.Crawl start = RegrowCrawl.crawl(barked, FULL_HEALTH, NOW).orElseThrow();
+        assertEquals(8, start.slot());
+        assertEquals(1, start.fromHalf());
+        assertEquals(0f, start.progress(), DELTA);
+        assertEquals(1f, RegrowCrawl.crawl(barked, FULL_HEALTH, regrowAt).orElseThrow().progress(), DELTA);
+        assertEquals(2, barked.tick(FULL_HEALTH, false, regrowAt).shieldAt(start.slot()));
+    }
+
+    @Test
+    void noBarkStandingMeansNoCrawl() {
+        HeartOverlay gone = HeartOverlay.NONE.apply(HeartKind.BARKSKIN, 1_200, 4f, NOW).drain(4f, NOW).overlay();
+        assertTrue(RegrowCrawl.crawl(gone, 4f, NOW).isEmpty());
+    }
+
+    @Test
     void aFullBarAndNoOverlayCrawlNowhere() {
         assertTrue(RegrowCrawl.crawl(kindle(List.of(2, 2), NOW), 4f, NOW).isEmpty());
         assertTrue(RegrowCrawl.crawl(HeartOverlay.NONE, FULL_HEALTH, NOW).isEmpty());
