@@ -11,14 +11,22 @@ import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
+import com.mojang.authlib.GameProfile;
+import io.netty.channel.embedded.EmbeddedChannel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.network.Connection;
+import net.minecraft.network.protocol.PacketFlow;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.network.CommonListenerCookie;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.phys.Vec3;
+import java.util.UUID;
 
 /**
  * Gametests for the self delivery through the real throw path. A self
@@ -58,6 +66,8 @@ public final class SelfDeliveryTests {
     private static final int AFTER_EAT = SelfEatRoute.EAT_TICKS + 1;
     /** The tick a letting-go player releases the use at. */
     private static final int RELEASE_AT = 5;
+    private static final String SURVIVAL_PLAYER_NAME = "test-survival-player";
+    private static final String SHOULD_BE_SURVIVAL = "The eating player should read survival, not creative";
     private static final String ABILITY_REQUIRED = "Ability registry must hold %s";
     private static final String SHOULD_RUN_ON_COMMAND = "A self-badged ability should run on command, not eat";
     private static final String SHOULD_BLINK_EAST = "The player should move %.1f east the tick it blinks, moved %.3f";
@@ -144,7 +154,7 @@ public final class SelfDeliveryTests {
      */
     public static void kindleEatsBeforeTheEmbers(GameTestHelper helper) {
         AbilityDefinition kindle = requireAbility(helper, BLAZE_KINDLE);
-        ServerPlayer player = invoker(helper, GooTypes.BLAZE, BLAZE_KINDLE);
+        ServerPlayer player = survivalInvoker(helper, GooTypes.BLAZE, BLAZE_KINDLE);
         KnownRecipes.teachRequires(player, kindle);
         int heldBefore = held(player, GooTypes.BLAZE);
 
@@ -176,7 +186,7 @@ public final class SelfDeliveryTests {
      */
     public static void kindleLetGoMidEatRunsNothing(GameTestHelper helper) {
         AbilityDefinition kindle = requireAbility(helper, BLAZE_KINDLE);
-        ServerPlayer player = invoker(helper, GooTypes.BLAZE, BLAZE_KINDLE);
+        ServerPlayer player = survivalInvoker(helper, GooTypes.BLAZE, BLAZE_KINDLE);
         KnownRecipes.teachRequires(player, kindle);
         int heldBefore = held(player, GooTypes.BLAZE);
 
@@ -271,6 +281,39 @@ public final class SelfDeliveryTests {
 
     private static int held(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType) {
         return GooSourceScanner.aggregateAvailable(player).getOrDefault(gooType, 0);
+    }
+
+    /**
+     * A survival mock server player standing in the bay, holding a glove
+     * whose selection names the ability, with two costs of the type in its
+     * inventory. The mock player helper's player answers creative from an
+     * override setGameMode cannot reach, so this player is joined the way
+     * the helper joins one, without the override, and set to survival.
+     *
+     * @param helper  the gametest helper
+     * @param gooType the ability's goo type
+     * @param ability the ability the glove selects
+     * @return the player, reading survival
+     */
+    private static ServerPlayer survivalInvoker(GameTestHelper helper, ResourceKey<GooTypeDefinition> gooType,
+            Identifier ability) {
+        MinecraftServer server = helper.getLevel().getServer();
+        CommonListenerCookie cookie = CommonListenerCookie.createInitial(
+                new GameProfile(UUID.randomUUID(), SURVIVAL_PLAYER_NAME), false);
+        ServerPlayer player = new ServerPlayer(server, helper.getLevel(), cookie.gameProfile(),
+                cookie.clientInformation());
+        Connection connection = new Connection(PacketFlow.SERVERBOUND);
+        new EmbeddedChannel(connection);
+        server.getPlayerList().placeNewPlayer(connection, player, cookie);
+        player.setGameMode(GameType.SURVIVAL);
+        helper.assertTrue(player.gameMode() == GameType.SURVIVAL && !player.isCreative(), SHOULD_BE_SURVIVAL);
+        Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(STAND_POS));
+        player.setPos(stand.x, stand.y, stand.z);
+        ItemStack glove = new ItemStack(GooItems.GOO_GLOVE.get());
+        GooGloveItem.setSelection(glove, GloveSelection.ofAbility(gooType, ability));
+        player.setItemInHand(InteractionHand.MAIN_HAND, glove);
+        player.getInventory().add(GooStacks.createForOutput(gooType, HELD_GOO * GooStacks.THOUSAND));
+        return player;
     }
 
     /**
