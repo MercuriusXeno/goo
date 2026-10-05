@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.client.ber;
 
-import com.mercuriusxeno.goo.ability.program.ProgressiveAreaStep;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.ability.BurnoutVisual;
@@ -9,9 +8,7 @@ import com.mercuriusxeno.goo.client.ability.ChainBurnouts;
 import com.mercuriusxeno.goo.client.ability.CrystalCloudVisual;
 import com.mercuriusxeno.goo.client.ability.DomeRamp;
 import com.mercuriusxeno.goo.client.ability.FuseOrbVisual;
-import com.mercuriusxeno.goo.client.ability.GhostMineVisual;
 import com.mercuriusxeno.goo.client.ability.MetalSpikeVisual;
-import com.mercuriusxeno.goo.client.ability.SyncedSteps;
 import com.mercuriusxeno.goo.client.ber.style.NetherHoleStyles;
 import com.mercuriusxeno.goo.client.overlay.AimTracker;
 import com.mercuriusxeno.goo.client.throwing.ThrowFreezeState;
@@ -40,7 +37,6 @@ import org.jspecify.annotations.Nullable;
  *   <li>{@link FuseOrbVisual} - the slime-like orb during the fuse phase</li>
  *   <li>{@link MetalSpikeVisual} - cone spikes from the marker to tracked entities</li>
  *   <li>{@link CrystalCloudVisual} - shard-cloud cloud after a crystal detonation</li>
- *   <li>{@link GhostMineVisual} - destruction-footprint outline (rock/blaze/frost)</li>
  *   <li>{@link NetherHoleStyles#active()} - the swappable nether black-hole style</li>
  * </ul>
  */
@@ -70,10 +66,6 @@ public class ChainMarkerBlockEntityRenderer
         state.maxStacks = be.getMaxStacks();
         state.fuseRemaining = be.getFuseRemaining();
         state.partialTick = partialTick;
-        state.markerShape = be.getMarkerShape();
-        state.areaMode = be.getAreaMode();
-        state.areaStartRadius = SyncedSteps.first(be, ProgressiveAreaStep.class)
-                .map(ProgressiveAreaStep::startRadius).orElse(0);
         state.lastStackTick = be.getLastStackTick();
         state.gameTime = be.getLevel() != null
                 ? be.getLevel().getGameTime() + partialTick : 0f;
@@ -98,10 +90,6 @@ public class ChainMarkerBlockEntityRenderer
         state.placedFace = be.getPlacedFace();
         state.behaviorActive = be.getBehavior() != null;
         state.behaviorAge = be.drawBehaviorAge(state.gameTime);
-        state.minedLayers = be.getMinedLayers();
-        state.miningActive = state.behaviorActive
-                && SyncedSteps.first(be, ProgressiveAreaStep.class).isPresent();
-        state.lastLayerTick = be.getMinedLayersChangedAt();
     }
 
     /**
@@ -156,8 +144,7 @@ public class ChainMarkerBlockEntityRenderer
         extractCoreFields(be, state, partialTick);
         extractTargetAndFace(be, state);
         state.abilityId = be.getAbilityId();
-        state.domeRamp = DomeRamp.rampAt(state.fuseRemaining, partialTick,
-                ChainBurnouts.CLIENT.playsBurnout(state.abilityId), state.behaviorActive);
+        state.domeRamp = DomeRamp.rampAt(state.fuseRemaining, partialTick, state.behaviorActive);
         MetalSpikeVisual.extract(be, state);
         CrystalCloudVisual.extract(be, state);
         NetherHoleStyles.active().extract(be, state);
@@ -175,7 +162,6 @@ public class ChainMarkerBlockEntityRenderer
         if (state.crystalActive) {
             CrystalCloudVisual.submit(state, poseStack, nodeCollector);
         }
-        GhostMineVisual.submit(state, poseStack, nodeCollector);
         if (!state.spikeAnims.isEmpty()) {
             MetalSpikeVisual.submit(state, poseStack, nodeCollector);
         }

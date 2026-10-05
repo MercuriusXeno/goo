@@ -8,22 +8,22 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /** Covers the aim assist locking a standing marker only for the glove's selected ability (decision diagnose-then-fix-stack-key-match). */
 class AimAssistResolverTest {
 
-    private static final String FROST_SPHERE = "goo:frost_sphere";
-    private static final String FROST_TUNNEL = "goo:frost_tunnel";
+    private static final String CRYSTAL_CLOUD = "goo:crystal_cloud";
+    private static final String METAL_SPIKES = "goo:metal_spikes";
 
     @Test
     void refusesMarkerOfAnotherAbility() {
-        assertFalse(AimAssistResolver.locksMarker(FROST_SPHERE, FROST_TUNNEL));
+        assertFalse(AimAssistResolver.locksMarker(CRYSTAL_CLOUD, METAL_SPIKES));
     }
 
     @Test
     void locksMarkerOfTheSelectedAbility() {
-        assertTrue(AimAssistResolver.locksMarker(FROST_SPHERE, FROST_SPHERE));
+        assertTrue(AimAssistResolver.locksMarker(CRYSTAL_CLOUD, CRYSTAL_CLOUD));
     }
 
     @Test
     void refusesEveryMarkerWithNoSelection() {
-        assertFalse(AimAssistResolver.locksMarker(FROST_SPHERE, null));
+        assertFalse(AimAssistResolver.locksMarker(CRYSTAL_CLOUD, null));
     }
 
     @Test

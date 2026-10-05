@@ -15,12 +15,9 @@ import net.minecraft.resources.ResourceKey;
  * @param maxStacks  the stack ceiling
  * @param fuse       the fuse ticks remaining
  * @param face       the face the marker was placed on
- * @param markerShape  the cosmetic goo shape
- * @param areaMode   the delivery area mode the ghost outline draws
  */
 public record ChainMarkerSnapshot(ResourceKey<GooTypeDefinition> gooType, String abilityId,
-                                  int stackCount, int maxStacks, int fuse, Direction face,
-                                  String markerShape, String areaMode) {
+                                  int stackCount, int maxStacks, int fuse, Direction face) {
 
     /**
      * Takes the snapshot of a standing marker.
@@ -30,7 +27,6 @@ public record ChainMarkerSnapshot(ResourceKey<GooTypeDefinition> gooType, String
      */
     public static ChainMarkerSnapshot of(ChainMarkerBlockEntity be) {
         return new ChainMarkerSnapshot(be.getGooType(), be.getAbilityId(), be.getStackCount(),
-                be.getMaxStacks(), be.getFuseRemaining(), be.getPlacedFace(),
-                be.getMarkerShape(), be.getAreaMode());
+                be.getMaxStacks(), be.getFuseRemaining(), be.getPlacedFace());
     }
 }

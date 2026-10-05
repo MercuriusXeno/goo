@@ -28,9 +28,6 @@ public final class PlacementTests {
     private static final BlockPos GRASS_SOIL_POS = new BlockPos(3, 1, 3);
     /** The grass an ability goo strikes from above. */
     private static final BlockPos GRASS_POS = GRASS_SOIL_POS.above();
-    private static final String BLAZE_TUNNEL = "goo:blaze_tunnel";
-    private static final String ROCK_TUNNEL = "goo:rock_tunnel";
-    private static final String FROST_SPHERE = "goo:frost_sphere";
     private static final String CRYSTAL_CLOUD = "goo:crystal_cloud";
     private static final String METAL_SPIKES = "goo:metal_spikes";
     private static final String NETHER_BLACK_HOLE = "goo:nether_black_hole";
@@ -46,53 +43,16 @@ public final class PlacementTests {
     private PlacementTests() {}
 
     /**
-     * Hitting a stone block with a blaze_tunnel goo places a chain marker in the
-     * adjacent air block. Exercises the full placement dispatch path.
-     *
-     * @param helper the gametest helper
-     */
-    public static void blazePlacesMarker(GameTestHelper helper) {
-        helper.setBlock(WALL_POS, Blocks.STONE);
-        throwAbility(helper, WALL_POS, Direction.SOUTH, GooTypes.BLAZE, BLAZE_TUNNEL);
-        helper.assertBlockPresent(GooBlocks.CHAIN_MARKER.get(), AIR_POS);
-        helper.succeed();
-    }
-
-    /**
-     * Hitting a stone block with a rock_tunnel goo places a chain marker.
-     *
-     * @param helper the gametest helper
-     */
-    public static void rockPlacesMarker(GameTestHelper helper) {
-        helper.setBlock(WALL_POS, Blocks.STONE);
-        throwAbility(helper, WALL_POS, Direction.SOUTH, GooTypes.ROCK, ROCK_TUNNEL);
-        helper.assertBlockPresent(GooBlocks.CHAIN_MARKER.get(), AIR_POS);
-        helper.succeed();
-    }
-
-    /**
-     * Hitting a stone block with a frost_sphere goo places a chain marker.
-     *
-     * @param helper the gametest helper
-     */
-    public static void frostPlacesMarker(GameTestHelper helper) {
-        helper.setBlock(WALL_POS, Blocks.STONE);
-        throwAbility(helper, WALL_POS, Direction.SOUTH, GooTypes.FROST, FROST_SPHERE);
-        helper.assertBlockPresent(GooBlocks.CHAIN_MARKER.get(), AIR_POS);
-        helper.succeed();
-    }
-
-    /**
-     * Hitting the same position twice with blaze_tunnel stacks the existing marker
+     * Hitting the same position twice with crystal_cloud stacks the existing marker
      * instead of placing a second one. Exercises the STACK decision path.
      *
      * @param helper the gametest helper
      */
     public static void doubleHitStacks(GameTestHelper helper) {
         helper.setBlock(WALL_POS, Blocks.STONE);
-        throwAbility(helper, WALL_POS, Direction.SOUTH, GooTypes.BLAZE, BLAZE_TUNNEL);
+        throwAbility(helper, WALL_POS, Direction.SOUTH, GooTypes.CRYSTAL, CRYSTAL_CLOUD);
         helper.assertBlockPresent(GooBlocks.CHAIN_MARKER.get(), AIR_POS);
-        throwAbility(helper, WALL_POS, Direction.SOUTH, GooTypes.BLAZE, BLAZE_TUNNEL);
+        throwAbility(helper, WALL_POS, Direction.SOUTH, GooTypes.CRYSTAL, CRYSTAL_CLOUD);
         helper.assertBlockPresent(GooBlocks.CHAIN_MARKER.get(), AIR_POS);
         helper.succeed();
     }
@@ -109,7 +69,7 @@ public final class PlacementTests {
      */
     public static void sidewaysMarkerSurvivesNeighborChange(GameTestHelper helper) {
         helper.setBlock(WALL_POS, Blocks.STONE);
-        throwAbility(helper, WALL_POS, Direction.SOUTH, GooTypes.ROCK, ROCK_TUNNEL);
+        throwAbility(helper, WALL_POS, Direction.SOUTH, GooTypes.METAL, METAL_SPIKES);
         helper.assertBlockPresent(GooBlocks.CHAIN_MARKER.get(), AIR_POS);
         BlockPos neighbor = AIR_POS.south();
         helper.setBlock(neighbor, Blocks.STONE);
@@ -143,7 +103,7 @@ public final class PlacementTests {
     public static void abilityTakesReplaceableHitBlock(GameTestHelper helper) {
         helper.setBlock(GRASS_SOIL_POS, Blocks.GRASS_BLOCK);
         helper.setBlock(GRASS_POS, Blocks.SHORT_GRASS);
-        throwAbility(helper, GRASS_POS, Direction.UP, GooTypes.BLAZE, BLAZE_TUNNEL);
+        throwAbility(helper, GRASS_POS, Direction.UP, GooTypes.CRYSTAL, CRYSTAL_CLOUD);
         helper.assertBlockPresent(GooBlocks.CHAIN_MARKER.get(), GRASS_POS);
         helper.assertBlockPresent(Blocks.AIR, GRASS_POS.above());
         helper.succeed();
@@ -158,7 +118,7 @@ public final class PlacementTests {
     public static void abilityWaterlogsInWater(GameTestHelper helper) {
         helper.setBlock(WALL_POS, Blocks.STONE);
         helper.setBlock(AIR_POS, Blocks.WATER);
-        throwAbility(helper, WALL_POS, Direction.SOUTH, GooTypes.BLAZE, BLAZE_TUNNEL);
+        throwAbility(helper, WALL_POS, Direction.SOUTH, GooTypes.CRYSTAL, CRYSTAL_CLOUD);
         helper.assertBlockPresent(GooBlocks.CHAIN_MARKER.get(), AIR_POS);
         helper.assertBlockProperty(AIR_POS, ChainMarkerBlock.WATERLOGGED, true);
         helper.succeed();
@@ -172,7 +132,7 @@ public final class PlacementTests {
     public static void abilityRefusesLava(GameTestHelper helper) {
         helper.setBlock(WALL_POS, Blocks.STONE);
         helper.setBlock(AIR_POS, Blocks.LAVA);
-        throwAbility(helper, WALL_POS, Direction.SOUTH, GooTypes.BLAZE, BLAZE_TUNNEL);
+        throwAbility(helper, WALL_POS, Direction.SOUTH, GooTypes.CRYSTAL, CRYSTAL_CLOUD);
         helper.assertBlockPresent(Blocks.LAVA, AIR_POS);
         helper.succeed();
     }
@@ -185,12 +145,12 @@ public final class PlacementTests {
      */
     public static void abilityStacksOnlyOntoSameAbility(GameTestHelper helper) {
         helper.setBlock(WALL_POS, Blocks.STONE);
-        throwAbility(helper, WALL_POS, Direction.SOUTH, GooTypes.ROCK, ROCK_TUNNEL);
-        throwAbility(helper, WALL_POS, Direction.SOUTH, GooTypes.BLAZE, BLAZE_TUNNEL);
+        throwAbility(helper, WALL_POS, Direction.SOUTH, GooTypes.METAL, METAL_SPIKES);
+        throwAbility(helper, WALL_POS, Direction.SOUTH, GooTypes.CRYSTAL, CRYSTAL_CLOUD);
         ChainMarkerBlockEntity marker = helper.getBlockEntity(AIR_POS, ChainMarkerBlockEntity.class);
         helper.assertTrue(marker.getStackCount() == 1, OTHER_ABILITY_STACKED);
-        helper.assertTrue(ROCK_TUNNEL.equals(marker.getAbilityId()), OTHER_ABILITY_REPLACED);
-        throwAbility(helper, WALL_POS, Direction.SOUTH, GooTypes.ROCK, ROCK_TUNNEL);
+        helper.assertTrue(METAL_SPIKES.equals(marker.getAbilityId()), OTHER_ABILITY_REPLACED);
+        throwAbility(helper, WALL_POS, Direction.SOUTH, GooTypes.METAL, METAL_SPIKES);
         helper.assertTrue(marker.getStackCount() == TWO_STACKS, SAME_ABILITY_NOT_STACKED);
         helper.succeed();
     }

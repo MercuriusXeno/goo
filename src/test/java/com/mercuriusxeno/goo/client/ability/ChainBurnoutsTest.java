@@ -14,8 +14,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.FieldSource;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -33,14 +31,11 @@ class ChainBurnoutsTest {
     private static final String ABILITY = "goo:test_ability";
 
     static final java.util.List<ResourceKey<GooTypeDefinition>> CHAIN_TYPES = BurnoutVisuals.CHAIN_TYPES;
-    private static final String TUNNEL_ABILITY = "goo:rock_tunnel";
-    /** Plays every ability's burnout. */
-    private static final java.util.function.Predicate<String> NO_TUNNELS = id -> false;
 
     @ParameterizedTest
     @FieldSource("CHAIN_TYPES")
     void burnoutResolvesItsTypesVisualAndDropsAfterItsDuration(ResourceKey<GooTypeDefinition> gooType) {
-        ChainBurnouts burnouts = new ChainBurnouts(NO_TUNNELS);
+        ChainBurnouts burnouts = new ChainBurnouts();
         ChainBurnouts.Burnout burnout = burnouts.add(POS, Direction.UP, gooType, ABILITY, 2, START);
 
         assertEquals(gooType, burnout.visual().gooType());
@@ -50,15 +45,6 @@ class ChainBurnoutsTest {
             assertTrue(burnouts.live(START + duration - 1).contains(burnout), gooType + " dropped early");
         }
         assertFalse(burnouts.live(START + duration).contains(burnout), gooType + " outlives its duration");
-    }
-
-    @Test
-    void tunnelMarkerAddsNoBurnout() {
-        ChainBurnouts burnouts = new ChainBurnouts(TUNNEL_ABILITY::equals);
-
-        assertNull(burnouts.add(POS, Direction.UP, GooTypes.ROCK, TUNNEL_ABILITY, 3, START));
-        assertTrue(burnouts.live(START).isEmpty());
-        assertNotNull(burnouts.add(POS, Direction.UP, GooTypes.ROCK, ABILITY, 3, START));
     }
 
     @Test
@@ -103,7 +89,7 @@ class ChainBurnoutsTest {
 
     @Test
     void glowBurnoutRendersWithNoBlockEntityAtItsPosition() {
-        ChainBurnouts.Burnout burnout = new ChainBurnouts(NO_TUNNELS).add(POS, Direction.UP, GooTypes.GLOW, ABILITY, 1, START);
+        ChainBurnouts.Burnout burnout = new ChainBurnouts().add(POS, Direction.UP, GooTypes.GLOW, ABILITY, 1, START);
         RecordingVertexConsumer consumer = new RecordingVertexConsumer();
         MultiBufferSource.BufferSource buffers = mock(MultiBufferSource.BufferSource.class);
         when(buffers.getBuffer(any())).thenReturn(consumer);
@@ -115,7 +101,7 @@ class ChainBurnoutsTest {
 
     @Test
     void progressRunsFromStartToDuration() {
-        ChainBurnouts.Burnout burnout = new ChainBurnouts(NO_TUNNELS).add(POS, Direction.UP, GooTypes.UNSTABLE,
+        ChainBurnouts.Burnout burnout = new ChainBurnouts().add(POS, Direction.UP, GooTypes.UNSTABLE,
                 ABILITY, 1, START);
         int duration = burnout.visual().durationTicks();
         assertEquals(0f, burnout.progress(START), 0f);

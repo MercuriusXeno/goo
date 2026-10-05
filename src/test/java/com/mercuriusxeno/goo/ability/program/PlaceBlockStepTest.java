@@ -17,8 +17,8 @@ import static org.mockito.Mockito.when;
 
 /**
  * The glow crystal program resolves its state from the host: facing from
- * the placed face, shape from the flat predicate, size from the stack
- * count clamped to the size list; the host receives value names alone.
+ * the placed face, shape as named, size from the stack count clamped to
+ * the size list; the host receives value names alone.
  */
 class PlaceBlockStepTest {
 
@@ -31,7 +31,7 @@ class PlaceBlockStepTest {
     private static PlaceBlockStep glowCrystal() {
         return new PlaceBlockStep(GLOW_CRYSTAL, Map.of(
                 FACING, new StateValue.PlacedFace(),
-                SHAPE, new StateValue.Pick(expr("flat"), List.of("bump", "flat")),
+                SHAPE, new StateValue.Named("bump"),
                 SIZE, new StateValue.Pick(expr("stacks - 1"), SIZES)));
     }
 
@@ -39,34 +39,33 @@ class PlaceBlockStepTest {
         return Expr.parse(source).getOrThrow();
     }
 
-    private static MarkerHost host(Direction placedFace, int stacks, boolean flat) {
+    private static MarkerHost host(Direction placedFace, int stacks) {
         MarkerHost host = mock(MarkerHost.class);
         when(host.placedFace()).thenReturn(placedFace);
         when(host.read(HostVariables.STACKS)).thenReturn(OptionalDouble.of(stacks));
-        when(host.read(HostVariables.FLAT)).thenReturn(OptionalDouble.of(flat ? 1 : 0));
         return host;
     }
 
     @ParameterizedTest
     @CsvSource({
-            "NORTH, 1, false, bump, tiny",
-            "UP, 2, true, flat, small",
-            "EAST, 4, false, bump, large",
-            "DOWN, 9, true, flat, large",
-            "WEST, 0, false, bump, tiny"})
-    void stateResolvesFromTheHost(Direction face, int stacks, boolean flat, String shape, String size) {
-        MarkerHost host = host(face, stacks, flat);
+            "NORTH, 1, tiny",
+            "UP, 2, small",
+            "EAST, 4, large",
+            "DOWN, 9, large",
+            "WEST, 0, tiny"})
+    void stateResolvesFromTheHost(Direction face, int stacks, String size) {
+        MarkerHost host = host(face, stacks);
         ProgramBehavior program = new ProgramBehavior(List.of(glowCrystal()));
 
         program.tick(host);
 
-        verify(host).placeBlock(GLOW_CRYSTAL, Map.of(FACING, face.getName(), SHAPE, shape, SIZE, size));
+        verify(host).placeBlock(GLOW_CRYSTAL, Map.of(FACING, face.getName(), SHAPE, "bump", SIZE, size));
         assertFalse(program.isActive());
     }
 
     @Test
     void namedValuePassesThrough() {
-        MarkerHost host = host(Direction.SOUTH, 1, false);
+        MarkerHost host = host(Direction.SOUTH, 1);
         PlaceBlockStep step = new PlaceBlockStep(GLOW_CRYSTAL, Map.of(SHAPE, new StateValue.Named("flat")));
 
         new ProgramBehavior(List.of(step)).tick(host);

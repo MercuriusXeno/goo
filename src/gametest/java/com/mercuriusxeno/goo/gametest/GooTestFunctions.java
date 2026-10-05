@@ -175,9 +175,6 @@ public final class GooTestFunctions {
     private static final String SNEAK_POPS_CRUCIBLE_GASKET = "sneak_pops_crucible_gasket";
 
     // --- Effect executors ---
-    private static final String FX_BLAZE = "fx_blaze_mines";
-    private static final String FX_ROCK = "fx_rock_mines";
-    private static final String FX_FROST = "fx_frost_runs";
     private static final String FX_METAL = "fx_metal_runs";
     private static final String FX_CRYSTAL = "fx_crystal_runs";
     private static final String FX_NETHER = "fx_nether_implodes";
@@ -190,9 +187,6 @@ public final class GooTestFunctions {
     private static final String FX_CRYSTAL_GROWS = "fx_crystal_grows";
     private static final String FX_CRYSTAL_STAYS_LARGE = "fx_crystal_stays_large";
     private static final String FX_OTHER_ABILITY_MARKS_CRYSTAL = "fx_other_ability_marks_crystal";
-    private static final String FX_ABILITY_BLAZE = "fx_ability_blaze_tunnel";
-    private static final String FX_ABILITY_ROCK = "fx_ability_rock_tunnel";
-    private static final String FX_ABILITY_FROST = "fx_ability_frost_sphere";
     private static final String FX_PROGRAM_INSTANT = "fx_program_instant_detonation";
     private static final String FX_PROGRAM_TIMED = "fx_program_timed_bomb";
     private static final String FX_PROGRAM_MINE = "fx_program_proximity_mine";
@@ -233,9 +227,6 @@ public final class GooTestFunctions {
     private static final String CR_SPARK_LIGHTS_COLD = "cr_spark_lights_cold";
 
     // --- Placement ---
-    private static final String PL_BLAZE = "pl_blaze_places";
-    private static final String PL_ROCK = "pl_rock_places";
-    private static final String PL_FROST = "pl_frost_places";
     private static final String PL_DOUBLE_STACK = "pl_double_hit_stacks";
     private static final String PL_SIDEWAYS_NEIGHBOR = "pl_sideways_neighbor";
     private static final String PL_OTHER_TYPES = "pl_other_types_place";
@@ -557,18 +548,12 @@ public final class GooTestFunctions {
     }
 
     private static void registerEffectExecutorTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
-        reg(r, FX_BLAZE, EffectExecutorTests::blazeMinesBlock);
-        reg(r, FX_ROCK, EffectExecutorTests::rockMinesBlock);
-        reg(r, FX_FROST, EffectExecutorTests::frostRuns);
         reg(r, FX_METAL, EffectExecutorTests::metalRuns);
         reg(r, FX_CRYSTAL, EffectExecutorTests::crystalRuns);
         reg(r, FX_NETHER, EffectExecutorTests::netherImplodes);
         reg(r, FX_UNSTABLE, EffectExecutorTests::unstableExplodes);
         reg(r, FX_PROGRAM_GLOW_WALL, EffectExecutorTests::programGlowWall);
         reg(r, FX_PROGRAM_GLOW_FLOOR, EffectExecutorTests::programGlowFloor);
-        reg(r, FX_ABILITY_BLAZE, EffectExecutorTests::abilityBlazeTunnel);
-        reg(r, FX_ABILITY_ROCK, EffectExecutorTests::abilityRockTunnel);
-        reg(r, FX_ABILITY_FROST, EffectExecutorTests::abilityFrostSphere);
         reg(r, FX_PROGRAM_INSTANT, EffectExecutorTests::programInstantDetonation);
         reg(r, FX_PROGRAM_TIMED, EffectExecutorTests::programTimedBomb);
         reg(r, FX_PROGRAM_MINE, EffectExecutorTests::programProximityMine);
@@ -651,9 +636,6 @@ public final class GooTestFunctions {
     }
 
     private static void registerPlacementTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
-        reg(r, PL_BLAZE, PlacementTests::blazePlacesMarker);
-        reg(r, PL_ROCK, PlacementTests::rockPlacesMarker);
-        reg(r, PL_FROST, PlacementTests::frostPlacesMarker);
         reg(r, PL_DOUBLE_STACK, PlacementTests::doubleHitStacks);
         reg(r, PL_SIDEWAYS_NEIGHBOR, PlacementTests::sidewaysMarkerSurvivesNeighborChange);
         reg(r, PL_OTHER_TYPES, PlacementTests::otherTypesPlaceMarker);

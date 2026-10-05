@@ -144,17 +144,14 @@ class RadialWheelRendererTest {
 
         private static final String LANG_RESOURCE = "assets/goo/lang/en_us.json";
         private static final Map<String, String> NAME_BY_ABILITY = Map.ofEntries(
-                Map.entry("aeon_time_stop", "Stasis"), Map.entry("blaze_tunnel", "Bore"),
-                Map.entry("blaze_flat", "Disc"), Map.entry("blaze_ignite", "Scorch"),
+                Map.entry("aeon_time_stop", "Stasis"), Map.entry("blaze_ignite", "Scorch"),
                 Map.entry("crystal_cloud", "Razor"), Map.entry("crystal_flechettes", "Shards"),
-                Map.entry("ender_teleport", "Warp"), Map.entry("frost_sphere", "Orb"),
-                Map.entry("frost_tunnel", "Wave"), Map.entry("frost_flat", "Nova"),
+                Map.entry("ender_teleport", "Warp"),
                 Map.entry("frost_snap", "Snap"), Map.entry("glow_crystal", "Bulb"),
                 Map.entry("glow_laser", "Beam"), Map.entry("hex_charm", "Charm"),
                 Map.entry("leaf_entangle", "Vines"), Map.entry("metal_spikes", "Urchin"),
                 Map.entry("metal_javelin", "Dart"), Map.entry("nether_black_hole", "Anti"),
                 Map.entry("nether_wither", "Wither"), Map.entry("pulse_short_circuit", "Zap"),
-                Map.entry("rock_tunnel", "Bore"), Map.entry("rock_flat", "Disc"),
                 Map.entry("rock_petrify", "Petrify"), Map.entry("shroom_debuff", "Spore"),
                 Map.entry("typhoon_levitate", "Float"), Map.entry("unstable_timed_bomb", "Countdown"),
                 Map.entry("unstable_instant_detonation", "Blast"),

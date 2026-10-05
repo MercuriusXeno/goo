@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.ability.ChainFootprint;
 import com.mercuriusxeno.goo.block.ability.ChainMarkerBlockEntity;
 import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
@@ -36,7 +35,8 @@ class FuseOrbVisualTest {
     private static final float[] MODIFIERS = {
         1f, FuseOrbVisual.IMPLOSION_MIN, 1f + FuseOrbVisual.PULSE_AMPLITUDE,
     };
-    private static final int[] STACK_COUNTS = {1, ChainFootprint.MAX_STACKS};
+    /** One stack and the highest stack ceiling a shipped ability sets. */
+    private static final int[] STACK_COUNTS = {1, 8};
 
     /**
      * One orb layer to emit.
@@ -67,7 +67,7 @@ class FuseOrbVisualTest {
     }
 
     private static boolean isGlow(FuseOrbVisual.OrbShape shape) {
-        return shape == FuseOrbVisual.OrbShape.GLOW_BUMP || shape == FuseOrbVisual.OrbShape.GLOW_FLAT;
+        return shape == FuseOrbVisual.OrbShape.GLOW_BUMP;
     }
 
     /** The layer's lateral half-size by the resting arithmetic, before any pose scale. */
@@ -84,8 +84,7 @@ class FuseOrbVisualTest {
     private static float lateralScale(OrbCase orb) {
         return switch (orb.shape()) {
             case GOO -> orb.modifier();
-            case SPLAT -> FuseOrbVisual.SPLAT_WIDTH * orb.modifier();
-            case GLOW_BUMP, GLOW_FLAT -> 1f;
+            case GLOW_BUMP -> 1f;
         };
     }
 
@@ -93,9 +92,7 @@ class FuseOrbVisualTest {
     private static float outwardDepth(OrbCase orb) {
         return switch (orb.shape()) {
             case GOO -> restingHalf(orb) * orb.modifier();
-            case SPLAT -> restingHalf(orb) * FuseOrbVisual.SPLAT_HEIGHT * orb.modifier();
             case GLOW_BUMP -> (float) GlowCrystalBlock.BUMP_DEPTH;
-            case GLOW_FLAT -> (float) GlowCrystalBlock.FLAT_DEPTH;
         };
     }
 
@@ -283,35 +280,6 @@ class FuseOrbVisualTest {
         void orbRestsWithoutACloud() {
             for (int i = 0; i < SAMPLES; i++) {
                 assertEquals(1f, FuseOrbVisual.crystalEbb(false, GAME_TIME + i), 0f);
-            }
-        }
-    }
-
-    @Nested
-    class MiningMarkerBeats {
-
-        private static final long LAST_LAYER_TICK = 48_200L;
-
-        @Test
-        void miningBeatsFasterThanTheNetherPulse() {
-            assertTrue(FuseOrbVisual.MINING_BEAT_PERIOD < BlackHolePhases.HOLE_PULSE_PERIOD);
-        }
-
-        @Test
-        void layerStrikeRestartsTheBeat() {
-            assertEquals(0f, FuseOrbVisual.miningBeatPhase(LAST_LAYER_TICK, LAST_LAYER_TICK), 0f);
-            assertEquals(1f, FuseOrbVisual.miningBeat(true, LAST_LAYER_TICK, LAST_LAYER_TICK), 0f);
-            float midBeat = LAST_LAYER_TICK + FuseOrbVisual.MINING_BEAT_PERIOD / 2;
-            assertEquals(1f + FuseOrbVisual.MINING_BEAT_AMPLITUDE,
-                    FuseOrbVisual.miningBeat(true, midBeat, LAST_LAYER_TICK), TOLERANCE);
-            float nextBeat = LAST_LAYER_TICK + FuseOrbVisual.MINING_BEAT_PERIOD;
-            assertEquals(0f, FuseOrbVisual.miningBeatPhase(nextBeat, LAST_LAYER_TICK), TOLERANCE);
-        }
-
-        @Test
-        void orbRestsWhileNoProgramRuns() {
-            for (int i = 0; i < FuseOrbVisual.MINING_BEAT_PERIOD * 2; i++) {
-                assertEquals(1f, FuseOrbVisual.miningBeat(false, LAST_LAYER_TICK + i + 0.5f, LAST_LAYER_TICK), 0f);
             }
         }
     }

@@ -154,31 +154,19 @@ public record AbilityDefinition(
      *
      * @param fuseTicks    fuse countdown (-1 for trigger-based)
      * @param maxStacks    maximum goo stacks
-     * @param markerShape    cosmetic goo shape: "round" (default) or "flat" (squished)
      */
     public record ChainConfig(
             int fuseTicks,
-            int maxStacks,
-            String markerShape
+            int maxStacks
     ) {
-        /**
-         * Default goo shape.
-         */
-        public static final String SHAPE_ROUND = "round";
-        /**
-         * Squished goo shape.
-         */
-        public static final String SHAPE_FLAT = "flat";
-
         /**
          * Default chain config for abilities that don't specify one.
          */
-        static final ChainConfig DEFAULT = new ChainConfig(30, 1, SHAPE_ROUND);
+        static final ChainConfig DEFAULT = new ChainConfig(30, 1);
 
         static final Codec<ChainConfig> CODEC = RecordCodecBuilder.create(inst -> inst.group(
                 Codec.INT.optionalFieldOf("fuseTicks", 30).forGetter(ChainConfig::fuseTicks),
-                Codec.INT.optionalFieldOf("maxStacks", 1).forGetter(ChainConfig::maxStacks),
-                Codec.STRING.optionalFieldOf("markerShape", SHAPE_ROUND).forGetter(ChainConfig::markerShape)
+                Codec.INT.optionalFieldOf("maxStacks", 1).forGetter(ChainConfig::maxStacks)
         ).apply(inst, ChainConfig::new));
     }
 }

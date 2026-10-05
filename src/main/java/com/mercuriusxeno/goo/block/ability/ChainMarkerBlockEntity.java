@@ -5,7 +5,6 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition.ChainConfig;
 import com.mercuriusxeno.goo.ability.program.FieldEffectState;
 import com.mercuriusxeno.goo.ability.program.PhasedState;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
-import com.mercuriusxeno.goo.ability.program.ProgressiveAreaStep;
 import com.mercuriusxeno.goo.block.BlockEntitySync;
 import com.mercuriusxeno.goo.block.GooSyncedBlockEntity;
 import com.mercuriusxeno.goo.item.GooContents;
@@ -31,9 +30,7 @@ import org.jspecify.annotations.Nullable;
  * Ticking block entity for chain effects. Owns only the shared state:
  * goo type, stack count, fuse countdown, placed face. The post-fuse
  * work is the marker's ability program, a {@link ProgramBehavior} loaded for
- * the marker host at fuse expiry. A layer walk
- * reports its struck layers here through the marker host, and the ghost
- * outline reads them back.
+ * the marker host at fuse expiry.
  */
 public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
 
@@ -50,16 +47,9 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
      * Default face name when loading from NBT.
      */
     private static final String DEFAULT_FACE = "up";
-    private static final String TAG_MARKER_SHAPE = "MarkerShape";
-    private static final String TAG_AREA_MODE = "AreaMode";
     private static final String TAG_LAST_STACK_TICK = "LastStackTick";
     private static final String TAG_ABILITY_ID = "AbilityId";
-    private static final String TAG_MINED_LAYERS = "MinedLayers";
     private static final String TAG_CONSUMED_GOO = "ConsumedGoo";
-    /**
-     * Default area mode when an ability walks no area.
-     */
-    private static final String DEFAULT_AREA_MODE = "tunnel";
 
     /**
      * How often to sync fuse to client (every N ticks).
@@ -82,27 +72,9 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
     private final ChainMarkerFuse fuse = new ChainMarkerFuse();
     private Direction placedFace = Direction.UP;
     /**
-     * Cosmetic marker shape: "round" or "flat". Affects BER mesh only.
-     */
-    private String markerShape = AbilityDefinition.ChainConfig.SHAPE_ROUND;
-    /**
-     * Delivery area mode: "tunnel", "flat_circle", or "sphere". Drives footprint.
-     */
-    private String areaMode = DEFAULT_AREA_MODE;
-    /**
      * Game tick when the last stack was added (for client pulse animation).
      */
     private long lastStackTick;
-    /**
-     * Layers a running layer walk has struck, reported by its program and
-     * read by the ghost outline renderer.
-     */
-    private int minedLayers;
-    /**
-     * Game time the struck layer count last changed as this side saw it;
-     * the mining marker's beat restarts on it.
-     */
-    private long minedLayersChangedAt;
     /**
      * State a running field effect keeps through the marker host: strikes
      * in flight, cooldown and charges spent, read back by the spike visual.
@@ -147,21 +119,6 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
     }
 
     /**
-     * Reads the area mode the ghost outline draws from the first
-     * progressive_area step of the ability's programs.
-     *
-     * @param ability the ability definition
-     * @return the step's shape key, or "tunnel" when no program walks an area
-     */
-    private static String extractAreaMode(AbilityDefinition ability) {
-        return ability.behaviors().stream()
-                .filter(ProgressiveAreaStep.class::isInstance)
-                .map(step -> ((ProgressiveAreaStep) step).shape().key())
-                .findFirst()
-                .orElse(DEFAULT_AREA_MODE);
-    }
-
-    /**
      * Server tick: either a post-fuse behavior is active (delegate) or
      * the fuse is still counting down.
      *
@@ -199,8 +156,6 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
         this.placedFace = face;
         fuse.arm(chain);
         this.abilityId = ability.id().toString();
-        this.markerShape = chain.markerShape();
-        this.areaMode = extractAreaMode(ability);
         setChanged();
         BlockEntitySync.markDirtyAndSync(this);
     }
@@ -259,8 +214,6 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
         this.abilityId = snapshot.abilityId();
         this.placedFace = snapshot.face();
         fuse.restore(snapshot.stackCount(), snapshot.maxStacks(), snapshot.fuse());
-        this.markerShape = snapshot.markerShape();
-        this.areaMode = snapshot.areaMode();
         setChanged();
         BlockEntitySync.markDirtyAndSync(this);
     }
@@ -309,81 +262,12 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
     }
 
     /**
-     * Returns the cosmetic marker shape ("round" or "flat").
-     *
-     * @return the goo shape string
-     */
-    public String getMarkerShape() {
-        return markerShape;
-    }
-
-    /**
-     * Returns the delivery area mode ("tunnel", "flat_circle", or "sphere").
-     *
-     * @return the area mode string
-     */
-    public String getAreaMode() {
-        return areaMode;
-    }
-
-    /**
-     * Returns true if the goo should render as squished (flat shape).
-     *
-     * @return true for flat goo visual
-     */
-    public boolean isFlatGoo() {
-        return AbilityDefinition.ChainConfig.SHAPE_FLAT.equals(markerShape);
-    }
-
-    /**
      * Returns the game tick when the last goo was stacked.
      *
      * @return the game tick of the last stack event
      */
     public long getLastStackTick() {
         return lastStackTick;
-    }
-
-    /**
-     * Records how many layers the running layer walk has struck, so the
-     * ghost outline shrinks past them. The active behavior's tick marks
-     * and syncs the entity after the program runs.
-     *
-     * @param layers the struck layer count
-     */
-    public void setMinedLayers(int layers) {
-        recordMinedLayers(layers);
-    }
-
-    /**
-     * Stores the struck layer count, stamping the game time it changed.
-     *
-     * @param layers the struck layer count
-     */
-    private void recordMinedLayers(int layers) {
-        if (layers != minedLayers && level != null) {
-            minedLayersChangedAt = level.getGameTime();
-        }
-        minedLayers = layers;
-    }
-
-    /**
-     * Returns the game time the struck layer count last changed.
-     *
-     * @return the game time of the last layer strike this side saw
-     */
-    public long getMinedLayersChangedAt() {
-        return minedLayersChangedAt;
-    }
-
-    /**
-     * Returns how many layers the running layer walk has struck; zero
-     * while no walk runs.
-     *
-     * @return the struck layer count
-     */
-    public int getMinedLayers() {
-        return minedLayers;
     }
 
     /**
@@ -678,11 +562,8 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
         gooType = loaded != null ? loaded : GooTypes.ROCK;
         fuse.restore(input.getIntOr(TAG_STACK_COUNT, 1), input.getIntOr(TAG_MAX_STACKS, 1),
                 input.getIntOr(TAG_FUSE_REMAINING, 0));
-        markerShape = input.getStringOr(TAG_MARKER_SHAPE, AbilityDefinition.ChainConfig.SHAPE_ROUND);
-        areaMode = input.getStringOr(TAG_AREA_MODE, DEFAULT_AREA_MODE);
         lastStackTick = input.getLongOr(TAG_LAST_STACK_TICK, 0);
         abilityId = input.getStringOr(TAG_ABILITY_ID, abilityId);
-        recordMinedLayers(input.getIntOr(TAG_MINED_LAYERS, 0));
         fieldEffect.load(input);
         phased.load(input);
         consumedGoo = input.read(TAG_CONSUMED_GOO, GooContents.CODEC).orElse(GooContents.EMPTY);
@@ -731,11 +612,8 @@ public class ChainMarkerBlockEntity extends GooSyncedBlockEntity {
         output.putInt(TAG_MAX_STACKS, fuse.maxStacks());
         output.putInt(TAG_FUSE_REMAINING, fuse.fuseRemaining());
         output.putString(TAG_PLACED_FACE, placedFace.getName());
-        output.putString(TAG_MARKER_SHAPE, markerShape);
-        output.putString(TAG_AREA_MODE, areaMode);
         output.putLong(TAG_LAST_STACK_TICK, lastStackTick);
         output.putString(TAG_ABILITY_ID, abilityId);
-        output.putInt(TAG_MINED_LAYERS, minedLayers);
         fieldEffect.save(output);
         phased.save(output);
         if (!consumedGoo.isEmpty()) {

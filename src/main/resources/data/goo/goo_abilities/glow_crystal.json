@@ -15,7 +15,7 @@
       "block": "goo:glow_crystal",
       "state": {
         "facing": "face",
-        "shape": { "by": "flat", "values": ["bump", "flat"] },
+        "shape": "bump",
         "size": { "by": "stacks - 1", "values": ["tiny", "small", "medium", "large"] }
       }
     }
