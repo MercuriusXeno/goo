@@ -480,6 +480,41 @@ public final class GooRenderTypes {
             .withDepthStencilState(new DepthStencilState(DepthStencilState.DEFAULT.depthTest(), false))
             .build();
 
+    /**
+     * Ghost trail pipeline (decision ghost-trail-spans-the-blink): an entity's
+     * body drawn again through {@code goo_ghost.vsh / .fsh} as a translucent
+     * echo in the goo type's color, its skin read for the cutout and the
+     * shading alone. Depth write off, so ghosts and the world behind show through.
+     */
+    public static final RenderPipeline GOO_GHOST = RenderPipeline.builder(RenderPipelines.ENTITY_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_ghost"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_ghost"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_ghost"))
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withDepthStencilState(new DepthStencilState(DepthStencilState.DEFAULT.depthTest(), false))
+            .build();
+
+    /** Per-skin memoized render types on the ghost pipeline. */
+    private static final java.util.function.Function<Identifier, RenderType> GOO_GHOST_FACTORY =
+            net.minecraft.util.Util.memoize(skin -> RenderType.create(
+                    "goo_ghost",
+                    RenderSetup.builder(GOO_GHOST)
+                            .withTexture("Sampler0", skin)
+                            .useLightmap()
+                            .sortOnUpload()
+                            .createRenderSetup()
+            ));
+
+    /**
+     * Returns the ghost render type over an entity's skin.
+     *
+     * @param skin the entity's texture
+     * @return memoized RenderType
+     */
+    public static RenderType gooGhost(Identifier skin) {
+        return GOO_GHOST_FACTORY.apply(skin);
+    }
+
     /** The ripple mask shader pair's name, and the stem of each mask pipeline's. */
     private static final String RIPPLE_MASK = "goo_ripple_mask";
 
@@ -620,6 +655,7 @@ public final class GooRenderTypes {
         event.registerPipeline(GOO_AILMENT_OVERLAY);
         GOO_RIPPLE_MASKS.forEach(event::registerPipeline);
         event.registerPipeline(GOO_RIPPLE_EDGE);
+        event.registerPipeline(GOO_GHOST);
     }
 
     /**

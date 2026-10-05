@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.AfterimageStep;
 import com.mercuriusxeno.goo.ability.program.AilmentKind;
 import com.mercuriusxeno.goo.ability.program.AilmentOverlayStep;
+import com.mercuriusxeno.goo.ability.program.GhostTrailStep;
 import com.mercuriusxeno.goo.ability.program.LingerStep;
 import com.mercuriusxeno.goo.ability.program.PlaceBlockStep;
 import com.mercuriusxeno.goo.ability.program.PotionStep;
@@ -187,6 +188,25 @@ class AbilityLoaderTest {
         assertEquals(List.of(GooTypes.ENDER), afterimageTypes(steps.subList(0, teleport)), "no ripple at the source");
         assertEquals(List.of(GooTypes.ENDER), afterimageTypes(steps.subList(teleport + 1, steps.size())),
                 "no ripple at the target");
+    }
+
+    /**
+     * Ender blink lays an ender ghost trail after its teleport, beside the
+     * ripple at both ends, which it adds to and replaces nothing of
+     * (decision ghost-trail-spans-the-blink).
+     */
+    @Test
+    void enderBlinkLaysAGhostTrailAfterItsTeleportBesideTheRipple() {
+        List<Step> steps = AbilityJson.decode("ender_blink").behaviors();
+        int teleport = steps.indexOf(steps.stream().filter(TeleportStep.class::isInstance).findFirst().orElseThrow());
+        List<Step> after = steps.subList(teleport + 1, steps.size());
+
+        assertEquals(List.of(GooTypes.ENDER), after.stream().filter(GhostTrailStep.class::isInstance)
+                .map(step -> ((GhostTrailStep) step).goo()).toList(), "no ender ghost trail after the teleport");
+        assertTrue(steps.subList(0, teleport).stream().noneMatch(GhostTrailStep.class::isInstance),
+                "a ghost trail runs before the jump it traces");
+        assertEquals(1, afterimageTypes(steps.subList(0, teleport)).size(), "the source ripple is gone");
+        assertEquals(1, afterimageTypes(after).size(), "the destination ripple is gone");
     }
 
     private static List<Object> afterimageTypes(List<Step> steps) {

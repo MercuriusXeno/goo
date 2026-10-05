@@ -90,7 +90,8 @@ class StepCodecTest {
             Map.entry("set_baby", LeafSteps.SET_BABY.step(true)),
             Map.entry("ailment_overlay", new AilmentOverlayStep(AilmentKind.HEX,
                     Expr.parse("20 * 60 / pow(health, 0.4)").getOrThrow())),
-            Map.entry("afterimage", new AfterimageStep(GooTypes.HEX, Expr.literal(20)))
+            Map.entry("afterimage", new AfterimageStep(GooTypes.HEX, Expr.literal(20))),
+            Map.entry("ghost_trail", new GhostTrailStep(GooTypes.ENDER, Expr.literal(30)))
     );
 
     private static Step roundTrip(Step step) {

@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.client.ability.Afterimages;
 import com.mercuriusxeno.goo.client.ability.AilmentOverlayLayer;
 import com.mercuriusxeno.goo.client.ability.ChainBurnouts;
+import com.mercuriusxeno.goo.client.ability.GhostTrails;
 import com.mercuriusxeno.goo.client.ability.MobAilments;
 import com.mercuriusxeno.goo.client.ability.MobCoatLayer;
 import com.mercuriusxeno.goo.client.ability.MobCoats;
@@ -374,6 +375,7 @@ public final class GooClientSetup {
         MobAilments.CLIENT.clear();
         Afterimages.CLIENT.clear();
         Transformations.CLIENT.clear();
+        GhostTrails.CLIENT.clear();
         ThrowFreezeState.clear();
     }
 

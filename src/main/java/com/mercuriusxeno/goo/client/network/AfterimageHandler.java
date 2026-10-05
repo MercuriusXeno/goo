@@ -5,8 +5,6 @@ import com.mercuriusxeno.goo.network.AfterimagePayload;
 import com.mercuriusxeno.goo.type.GooColors;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.LivingEntity;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 /**
@@ -31,12 +29,10 @@ public final class AfterimageHandler {
             if (mc.level == null) {
                 return;
             }
-            Entity entity = mc.level.getEntity(payload.entityId());
-            if (!(entity instanceof LivingEntity)) {
+            EntityRenderState snapshot = EntitySnapshots.of(mc, payload.entityId());
+            if (snapshot == null) {
                 return;
             }
-            float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-            EntityRenderState snapshot = mc.getEntityRenderDispatcher().extractEntity(entity, partialTick);
             int rgb = GooColors.get(mc.level.registryAccess(), payload.gooType());
             Afterimages.CLIENT.add(snapshot, payload.position(), rgb, mc.level.getGameTime(), payload.lifeTicks());
         });

@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.EntityCounters;
 import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.item.SoulBoundStacks;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.attachment.AttachmentType;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
@@ -47,6 +48,14 @@ public final class GooAttachments {
                             .serialize(KnownItems.CODEC)
                             .copyOnDeath()
                             .build());
+
+    /**
+     * Where an entity stood before its latest goo teleport, kept for the
+     * steps after the teleport in the same program, a ghost trail among
+     * them, and never saved (decision ghost-trail-spans-the-blink).
+     */
+    public static final Supplier<AttachmentType<Vec3>> JUMP_SOURCE =
+            ATTACHMENT_TYPES.register("jump_source", () -> AttachmentType.builder(() -> Vec3.ZERO).build());
 
     private GooAttachments() {
     }
