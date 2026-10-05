@@ -1,7 +1,7 @@
 {
   "gooType": "blaze",
   "displayName": "goo.ability.blaze.kindle",
-  "badge": "self",
+  "badge": "brew",
   "order": 40,
   "cost": 1000,
   "requires": ["minecraft:magma_cream"],
