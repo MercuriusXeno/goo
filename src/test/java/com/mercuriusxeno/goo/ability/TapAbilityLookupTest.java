@@ -16,7 +16,7 @@ class TapAbilityLookupTest {
     static AbilityDefinition ability(String name, int order, String... tags) {
         return new AbilityDefinition(Identifier.fromNamespaceAndPath("goo", name), GooTypes.ROCK,
                 name, "", order, 0, AbilityDefinition.ChainConfig.DEFAULT, Delivery.ARC, List.of(), List.of(tags),
-                AbilityBadge.WORLD);
+                AbilityBadge.WORLD, List.of());
     }
 
     @Test

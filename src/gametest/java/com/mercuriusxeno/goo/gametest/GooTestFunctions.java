@@ -40,6 +40,7 @@ public final class GooTestFunctions {
     // --- Goo value lifecycle ---
     private static final String VALUES_FRESH_AFTER_STOP = "values_fresh_after_stop";
     private static final String GLOVE_TYPE_ONLY_REFUSED = "glove_type_only_refused";
+    private static final String GLOVE_GATED_SELECTION_REFUSED = "glove_gated_selection_refused";
     private static final String GLOVE_SHIFT_RECOLLECTS_MARKER = "glove_shift_recollects_marker";
     private static final String GLOVE_CLICK_NO_USING_STATE = "glove_click_no_using_state";
     private static final String GLOVE_FIRST_SOURCE_DEPLETES_FIRST = "glove_first_source_depletes_first";
@@ -331,6 +332,7 @@ public final class GooTestFunctions {
     private static final String MOB_ATTACK_STAYS_VANILLA = "mob_attack_stays_vanilla";
     private static final String MOB_EXO_GAUNTLET_HIT = "mob_exo_gauntlet_hit";
     private static final String SELF_ENDER_BLINK = "self_ender_blink";
+    private static final String SELF_GATED_BLINK_REFUSED = "self_gated_blink_refused";
     private static final String SELF_TYPHOON_PROPEL = "self_typhoon_propel";
     private static final String STREAM_BLAZE_SPITFIRE = "stream_blaze_spitfire";
     private static final String MOB_CRYSTAL = "mob_crystal_flechettes";
@@ -475,6 +477,7 @@ public final class GooTestFunctions {
         reg(r, TYPES_DATAPACK_LISTED, GooTypeRegistryTests::datapackTypeListed);
         reg(r, TYPES_MARKER_RELOADS, GooTypeRegistryTests::chainMarkerReloadsType);
         reg(r, GLOVE_TYPE_ONLY_REFUSED, GloveSelectTests::typeOnlySelectionRefused);
+        reg(r, GLOVE_GATED_SELECTION_REFUSED, GloveSelectTests::gatedSelectionRefusedWithoutTheRecipe);
         reg(r, GLOVE_SHIFT_RECOLLECTS_MARKER, GloveRecollectTests::shiftClickRecollectsMarker);
         reg(r, GLOVE_CLICK_NO_USING_STATE, GloveUseTests::rightClickEntersNoUsingState);
         reg(r, GLOVE_FIRST_SOURCE_DEPLETES_FIRST, FirstSourceTests::firstSourceIsTheStackDepleteShrinks);
@@ -719,6 +722,7 @@ public final class GooTestFunctions {
         reg(r, MOB_ATTACK_STAYS_VANILLA, AttackTouchTests::attackStaysVanilla);
         reg(r, MOB_EXO_GAUNTLET_HIT, GloveDamageTests::exoGauntletHitsForSeven);
         reg(r, SELF_ENDER_BLINK, SelfDeliveryTests::enderBlink);
+        reg(r, SELF_GATED_BLINK_REFUSED, SelfDeliveryTests::gatedBlinkRefusedWithoutTheRecipe);
         reg(r, SELF_TYPHOON_PROPEL, SelfDeliveryTests::typhoonPropel);
         reg(r, STREAM_BLAZE_SPITFIRE, StreamDeliveryTests::blazeSpitfire);
         reg(r, MOB_CRYSTAL, MobEffectTests::crystalFlechettes);

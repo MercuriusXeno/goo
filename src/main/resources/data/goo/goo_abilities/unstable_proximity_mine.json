@@ -4,6 +4,7 @@
   "badge": "world",
   "order": 2,
   "cost": 1000,
+  "requires": ["minecraft:tnt"],
   "delivery": { "kind": "arc" },
   "chain": {
     "fuseTicks": -1,

@@ -63,7 +63,7 @@ class RadialWheelRendererTest {
         return new ClientAbility(definition.id(), definition.displayName(), definition.icon(),
                 definition.order(), definition.tags(),
                 definition.chain().fuseTicks(), definition.chain().maxStacks(), definition.behaviors(),
-                definition.cost(), definition.delivery(), definition.badge());
+                definition.cost(), definition.delivery(), definition.badge(), definition.requires());
     }
 
     private static List<ClientAbility> shippedAbilities() {
@@ -74,7 +74,7 @@ class RadialWheelRendererTest {
 
     private static ClientAbility abilityWithIcon(String icon) {
         return new ClientAbility(Identifier.fromNamespaceAndPath(Goo.MODID, "unstable_timed_bomb"),
-                "ability.goo.unstable_timed_bomb", icon, 0, List.of(), 0, 0, List.of(), 0, Delivery.ARC, AbilityBadge.WORLD);
+                "ability.goo.unstable_timed_bomb", icon, 0, List.of(), 0, 0, List.of(), 0, Delivery.ARC, AbilityBadge.WORLD, List.of());
     }
 
     /** The badge, not the label, marks the target kind (decision badge-marks-the-target-kind). */
@@ -84,7 +84,7 @@ class RadialWheelRendererTest {
         @Test
         void entityAbilityLabelReadsTheBareName() {
             ClientAbility entity = new ClientAbility(Identifier.fromNamespaceAndPath(Goo.MODID, "hex_charm"),
-                    "goo.ability.hex.charm", "", 0, List.of(AbilityTags.ENTITY), 0, 1, List.of(), 0, Delivery.ARC, AbilityBadge.MOB);
+                    "goo.ability.hex.charm", "", 0, List.of(AbilityTags.ENTITY), 0, 1, List.of(), 0, Delivery.ARC, AbilityBadge.MOB, List.of());
 
             assertEquals(Component.translatable("goo.ability.hex.charm"), RadialWheelRenderer.buildLabel(entity));
         }
@@ -205,7 +205,7 @@ class RadialWheelRendererTest {
 
         private static ClientAbility costing(int firstThrow) {
             return new ClientAbility(Identifier.fromNamespaceAndPath(Goo.MODID, "cost_" + firstThrow),
-                    "ability.goo.cost", "", 0, List.of(), 0, 1, List.of(), firstThrow, Delivery.ARC, AbilityBadge.WORLD);
+                    "ability.goo.cost", "", 0, List.of(), 0, 1, List.of(), firstThrow, Delivery.ARC, AbilityBadge.WORLD, List.of());
         }
 
         @Test
@@ -311,7 +311,7 @@ class RadialWheelRendererTest {
             List<List<ClientAbility>> abilities = IntStream.range(0, TYPES)
                     .mapToObj(type -> IntStream.range(0, ABILITIES).mapToObj(ability -> new ClientAbility(
                             Identifier.fromNamespaceAndPath("gootest", "ability_" + type + "_" + ability),
-                            "ability.gootest.word", "", 0, List.of(), 0, 1, List.of(), 0, Delivery.ARC, AbilityBadge.WORLD))
+                            "ability.gootest.word", "", 0, List.of(), 0, 1, List.of(), 0, Delivery.ARC, AbilityBadge.WORLD, List.of()))
                             .toList())
                     .toList();
             GuiGraphicsExtractor graphics = mock(GuiGraphicsExtractor.class);
