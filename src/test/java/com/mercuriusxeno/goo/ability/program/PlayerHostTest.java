@@ -107,11 +107,11 @@ class PlayerHostTest {
         }
 
         @Test
-        void pushAlongThrowerLookSendsThePlayerAlongItsOwnLook() {
+        void pushSendsThePlayerAlongItsOwnLook() {
             Vec3 look = new Vec3(0.6, 0.8, 0);
             ServerPlayer player = playerLooking(look);
 
-            run(List.of(new PushStep(Expr.literal(STRENGTH), PushDirection.THROWER_LOOK)), player);
+            run(List.of(new PushStep(Expr.literal(STRENGTH))), player);
 
             verify(player).setDeltaMovement(look.scale(STRENGTH));
         }
