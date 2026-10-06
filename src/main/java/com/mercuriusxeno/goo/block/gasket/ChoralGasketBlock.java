@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.block.gasket;
 
 import com.mercuriusxeno.goo.block.BlockEntityTicks;
 import com.mercuriusxeno.goo.block.GooMachineBlock;
+import com.mercuriusxeno.goo.block.Waterlogging;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
@@ -91,8 +92,7 @@ public class ChoralGasketBlock extends GooMachineBlock implements SimpleWaterlog
 
     @Override
     protected FluidState getFluidState(BlockState state) {
-        return state.getValue(WATERLOGGED)
-                ? Fluids.WATER.getSource(false) : super.getFluidState(state);
+        return Waterlogging.fluidState(state, super.getFluidState(state));
     }
 
     @Override
@@ -100,9 +100,7 @@ public class ChoralGasketBlock extends GooMachineBlock implements SimpleWaterlog
                                               @NonNull ScheduledTickAccess ticks, @NonNull BlockPos pos,
                                               @NonNull Direction direction, @NonNull BlockPos neighborPos,
                                               @NonNull BlockState neighborState, @NonNull RandomSource random) {
-        if (state.getValue(WATERLOGGED)) {
-            ticks.scheduleTick(pos, Fluids.WATER, Fluids.WATER.getTickDelay(level));
-        }
+        Waterlogging.scheduleWaterTick(state, ticks, pos, level);
         if (direction == Direction.DOWN && !canSurvive(state, level, pos)) {
             return Blocks.AIR.defaultBlockState();
         }
