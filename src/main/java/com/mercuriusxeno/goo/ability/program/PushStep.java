@@ -7,25 +7,23 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * Sets the host's target moving and finishes. Typhoon propulsion is
- * {@code push strength=1.5 direction=thrower_look} on the player host: the
- * player launched along its own look (decision self-delivery-runs-on-player).
+ * Sets the host's target moving along the thrower's look and finishes. Typhoon
+ * propulsion is {@code push strength=1.5} on the player host: the player is its
+ * own thrower, so it is launched along its own look
+ * (decision self-delivery-runs-on-player).
  *
- * @param strength  the speed the push sets, in blocks per tick, evaluated when the step runs
- * @param direction which way the push sends the target
+ * @param strength the speed the push sets, in blocks per tick, evaluated when the step runs
  */
-public record PushStep(Expr strength, PushDirection direction) implements Step {
+public record PushStep(Expr strength) implements Step {
 
     private static final String NAME = "push";
     private static final String FIELD_STRENGTH = "strength";
-    private static final String FIELD_DIRECTION = "direction";
 
     /**
      * Codec for the step's params.
      */
     public static final MapCodec<PushStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
-            Expr.CODEC.fieldOf(FIELD_STRENGTH).forGetter(PushStep::strength),
-            PushDirection.CODEC.fieldOf(FIELD_DIRECTION).forGetter(PushStep::direction)
+            Expr.CODEC.fieldOf(FIELD_STRENGTH).forGetter(PushStep::strength)
     ).apply(inst, PushStep::new));
 
     /**

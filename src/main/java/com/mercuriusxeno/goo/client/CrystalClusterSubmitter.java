@@ -208,18 +208,7 @@ public final class CrystalClusterSubmitter {
      * @return the pieces, each a convex polygon with texels in [0, 16]
      */
     static List<List<TexelPoint>> tilePieces(Vec3[] corners, Vec3 normal) {
-        List<TexelPoint> face = new ArrayList<>();
-        for (Vec3 corner : corners) {
-            double[] texel = project(corner, normal);
-            TexelPoint point = new TexelPoint(corner, texel[0], texel[1]);
-            if (face.isEmpty() || !face.getLast().pos().equals(corner)) {
-                face.add(point);
-            }
-        }
-        if (face.size() > 1 && face.getFirst().pos().equals(face.getLast().pos())) {
-            face.removeLast();
-        }
-        List<List<TexelPoint>> pieces = List.of(face);
+        List<List<TexelPoint>> pieces = List.of(distinctCorners(corners, normal));
         pieces = cutAlong(pieces, true);
         pieces = cutAlong(pieces, false);
         List<List<TexelPoint>> local = new ArrayList<>();
@@ -229,6 +218,30 @@ public final class CrystalClusterSubmitter {
             }
         }
         return local;
+    }
+
+    /**
+     * Projects a face's corners to texels, dropping each corner that repeats the one
+     * before it and a closing corner that repeats the first, so a collapsed edge
+     * yields no zero-length side.
+     *
+     * @param corners the face's corners in winding order, in model pixels
+     * @param normal  the face's normal
+     * @return the face's distinct corners with their texels
+     */
+    // decision tile-pieces-dedupe-extracted
+    private static List<TexelPoint> distinctCorners(Vec3[] corners, Vec3 normal) {
+        List<TexelPoint> face = new ArrayList<>();
+        for (Vec3 corner : corners) {
+            if (face.isEmpty() || !face.getLast().pos().equals(corner)) {
+                double[] texel = project(corner, normal);
+                face.add(new TexelPoint(corner, texel[0], texel[1]));
+            }
+        }
+        if (face.size() > 1 && face.getFirst().pos().equals(face.getLast().pos())) {
+            face.removeLast();
+        }
+        return face;
     }
 
     /**

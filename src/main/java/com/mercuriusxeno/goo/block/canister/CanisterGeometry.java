@@ -25,17 +25,6 @@ public record CanisterGeometry(float gasketBottom, float bodyBottom, float bodyT
      */
     public static final float FLUID_FLOOR = 0.1f / 16f;
 
-    /**
-     * @param fill       the fill fraction in [0, 1]
-     * @param bodyBottom the body's bottom edge
-     * @param bodyTop    the body's top edge
-     * @return the goo surface's height, clear of the bottom cap at any fill
-     */
-    public static float fluidSurface(float fill, float bodyBottom, float bodyTop) {
-        float floor = bodyBottom + FLUID_FLOOR;
-        return floor + fill * (bodyTop - floor);
-    }
-
     /** Each gasket cap is one pixel thick. */
     private static final float CAP_THICKNESS = 1f / 16f;
 
@@ -54,12 +43,15 @@ public record CanisterGeometry(float gasketBottom, float bodyBottom, float bodyT
     }
 
     /**
-     * The fluid surface's height at a fill fraction.
+     * The fluid surface's height at a fill fraction, rising from {@link #FLUID_FLOOR}
+     * above the body bottom to the body top.
      *
      * @param fill the fill fraction in [0, 1]
-     * @return the surface Y, in block units
+     * @return the surface Y, in block units, clear of the bottom cap at any fill
      */
+    // decision one-fluid-surface-clears-the-cap
     public float fluidSurface(float fill) {
-        return bodyBottom + fill * (bodyTop - bodyBottom);
+        float floor = bodyBottom + FLUID_FLOOR;
+        return floor + fill * (bodyTop - floor);
     }
 }
