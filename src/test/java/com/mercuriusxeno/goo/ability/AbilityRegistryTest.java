@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Map;
@@ -13,6 +14,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -41,6 +43,53 @@ class AbilityRegistryTest {
 
         assertEquals(List.of("mob_ten", "world_zero", "world_one", "world_two"),
                 registry.getAbilitiesForType(GooTypes.ROCK).stream().map(def -> def.id().getPath()).toList());
+    }
+
+    private static AbilityDefinition selfAbility(String name, int order, AbilityBadge badge) {
+        return new AbilityDefinition(Identifier.fromNamespaceAndPath("goo", name), GooTypes.ROCK,
+                name, "", order, 0, Delivery.of(DeliveryKind.SELF), List.of(), List.of(),
+                badge, List.of());
+    }
+
+    /**
+     * A drunk brew runs the type's self ability wearing the brew badge, and a
+     * type wearing none runs nothing (decision brew-grants-the-self-ability-for-an-hour).
+     */
+    @Nested
+    class BrewAbility {
+
+        @Test
+        void brewBadgedSelfAbilityIsTheTypesBrew() {
+            AbilityRegistry registry = registryOf(Stream.of(
+                    selfAbility("rock_self", 0, AbilityBadge.SELF),
+                    ability("rock_arc_brew", 1, AbilityBadge.BREW),
+                    selfAbility("rock_brew", 2, AbilityBadge.BREW)));
+
+            AbilityDefinition brew = registry.brewAbilityFor(GooTypes.ROCK);
+
+            assertEquals("rock_brew", brew == null ? null : brew.id().getPath());
+        }
+
+        @Test
+        void typeWithoutABrewBadgedSelfAbilityHasNoBrew() {
+            AbilityRegistry registry = registryOf(Stream.of(
+                    selfAbility("rock_self", 0, AbilityBadge.SELF),
+                    ability("rock_arc_brew", 1, AbilityBadge.BREW)));
+
+            assertNull(registry.brewAbilityFor(GooTypes.ROCK));
+        }
+
+        @Test
+        void shippedBlazeAndLeafBrewKindleAndBarkskin() {
+            AbilityRegistry registry = registryOf(AbilityJson.files().stream().map(AbilityJson::decode));
+
+            assertEquals(AbilityJson.idOf("blaze_kindle.json"), idOf(registry.brewAbilityFor(GooTypes.BLAZE)));
+            assertEquals(AbilityJson.idOf("leaf_barkskin.json"), idOf(registry.brewAbilityFor(GooTypes.LEAF)));
+        }
+
+        private static Identifier idOf(AbilityDefinition definition) {
+            return definition == null ? null : definition.id();
+        }
     }
 
     @Test

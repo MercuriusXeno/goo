@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:brew_without_an_ability_runs_nothing",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 40,
+  "setup_ticks": 0,
+  "required": true
+}
