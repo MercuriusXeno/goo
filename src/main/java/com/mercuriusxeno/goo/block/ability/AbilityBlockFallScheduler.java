@@ -12,6 +12,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.material.Fluids;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.PacketDistributor;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -133,7 +134,8 @@ public final class AbilityBlockFallScheduler {
                 travelTicks,
                 false,
                 snapshot.abilityId(),
-                GooThrowHandler.flightDelivery(level, snapshot.abilityId(), snapshot.gooType()));
+                GooThrowHandler.flightDelivery(level, snapshot.abilityId(), snapshot.gooType()),
+                Vec3.atCenterOf(landingPos).add(0, BLOCK_CENTER, 0));
         PacketDistributor.sendToPlayersTrackingChunk(
                 level, level.getChunkAt(oldPos).getPos(), flight);
     }

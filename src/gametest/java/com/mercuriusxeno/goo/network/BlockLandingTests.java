@@ -26,7 +26,7 @@ public final class BlockLandingTests {
     private static final int NO_ENTITY = -1;
     private static final String NO_ABILITY = "";
     private static final String CRYSTAL_CLOUD = "goo:crystal_cloud";
-    private static final String BLAST = "goo:unstable_instant_detonation";
+    private static final String BLAST = "goo:unstable_explode";
     private static final String BLAST_LEFT_A_BLOCK = "Blast left something standing at the face it landed on";
     private static final String MARKER_WRONG_ABILITY = "The landed marker does not carry the thrown ability";
 

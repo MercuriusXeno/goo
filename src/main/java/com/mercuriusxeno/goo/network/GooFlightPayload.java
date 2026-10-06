@@ -7,6 +7,7 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.NonNull;
 
 /**
@@ -25,12 +26,13 @@ import org.jspecify.annotations.NonNull;
  * @param abilityId      the ability id string the goo carries
  * @param delivery       the ability's delivery, so the client renders the flight without a registry
  *                       (decision delivery-block-in-ability-json)
+ * @param targetPoint    the exact point a block flight lands at (decision aim-point-follows-the-cursor)
  */
 public record GooFlightPayload(double startX, double startY, double startZ,
                                 String gooTypeId, int targetEntityId,
                                 BlockPos targetPos, int targetFace,
                                 int travelTicks, boolean grannyArc,
-                                String abilityId, Delivery delivery)
+                                String abilityId, Delivery delivery, Vec3 targetPoint)
         implements CustomPacketPayload {
 
     /** Payload type ID for registration. */
@@ -82,6 +84,9 @@ public record GooFlightPayload(double startX, double startY, double startZ,
         buf.writeBoolean(payload.grannyArc);
         buf.writeUtf(payload.abilityId);
         Delivery.STREAM_CODEC.encode(buf, payload.delivery);
+        buf.writeDouble(payload.targetPoint.x);
+        buf.writeDouble(payload.targetPoint.y);
+        buf.writeDouble(payload.targetPoint.z);
     }
 
     /**
@@ -95,6 +100,7 @@ public record GooFlightPayload(double startX, double startY, double startZ,
                 buf.readDouble(), buf.readDouble(), buf.readDouble(),
                 buf.readUtf(), buf.readVarInt(), buf.readBlockPos(),
                 buf.readVarInt(), buf.readVarInt(), buf.readBoolean(),
-                buf.readUtf(), Delivery.STREAM_CODEC.decode(buf));
+                buf.readUtf(), Delivery.STREAM_CODEC.decode(buf),
+                new Vec3(buf.readDouble(), buf.readDouble(), buf.readDouble()));
     }
 }

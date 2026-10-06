@@ -21,7 +21,7 @@ class ThrowFreezeStateTest {
     private static final BlockPos POS_A = new BlockPos(10, 64, 20);
     private static final BlockPos POS_B = new BlockPos(11, 64, 20);
     private static final TargetResult BLOCK_A =
-            new TargetResult.BlockTarget(POS_A, Direction.UP, false);
+            TargetResult.block(POS_A, Direction.UP);
 
     @BeforeEach
     void reset() {

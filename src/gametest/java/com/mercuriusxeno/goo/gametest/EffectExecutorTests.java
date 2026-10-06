@@ -63,7 +63,7 @@ public final class EffectExecutorTests {
     private static final int WALL_Y_MAX = 3;
     private static final int WALL_Z_MAX = 2;
     private static final String ABILITIES_REQUIRED = "Ability registry must be loaded";
-    private static final String ABILITY_INSTANT_DETONATION = "goo:unstable_instant_detonation";
+    private static final String ABILITY_BLAST = "goo:unstable_explode";
     private static final String ABILITY_TIMED_BOMB = "goo:unstable_timed_bomb";
     private static final String ABILITY_PROXIMITY_MINE = "goo:unstable_proximity_mine";
     private static final String ABILITY_GLOW_CRYSTAL = "goo:glow_crystal";
@@ -201,13 +201,13 @@ public final class EffectExecutorTests {
     }
 
     /**
-     * Unstable: an instant detonation facing a stone wall breaks the stone
+     * Unstable: a blast facing a stone wall breaks the stone
      * and removes its marker.
      *
      * @param helper the gametest helper
      */
     public static void unstableExplodes(GameTestHelper helper) {
-        placeMarkerWithWall(helper, GooTypes.UNSTABLE, ABILITY_INSTANT_DETONATION);
+        placeMarkerWithWall(helper, GooTypes.UNSTABLE, ABILITY_BLAST);
         helper.runAfterDelay(SHORT_WAIT, () -> {
             assertExploded(helper);
             helper.succeed();
@@ -410,13 +410,13 @@ public final class EffectExecutorTests {
     }
 
     /**
-     * Instant detonation as a program: an explode step whose power is an
+     * Blast as a program: an explode step whose power is an
      * expression over the stack count, fired at the splat.
      *
      * @param helper the gametest helper
      */
     public static void programInstantDetonation(GameTestHelper helper) {
-        placeMarkerWithAbility(helper, GooTypes.UNSTABLE, ABILITY_INSTANT_DETONATION);
+        placeMarkerWithAbility(helper, GooTypes.UNSTABLE, ABILITY_BLAST);
         helper.runAfterDelay(SHORT_WAIT, () -> {
             assertExploded(helper);
             helper.succeed();
@@ -711,12 +711,12 @@ public final class EffectExecutorTests {
     }
 
     /**
-     * An unstable_instant_detonation blob has exploded the tick after it lands.
+     * A blast blob has exploded the tick after it lands.
      *
      * @param helper the gametest helper
      */
     public static void blastExplodesAfterLanding(GameTestHelper helper) {
-        landBlob(helper, GooTypes.UNSTABLE, ABILITY_INSTANT_DETONATION);
+        landBlob(helper, GooTypes.UNSTABLE, ABILITY_BLAST);
         helper.runAfterDelay(TICK_AFTER_LANDING, () -> {
             assertExploded(helper);
             helper.succeed();

@@ -32,7 +32,7 @@ class FaceBullseyeRendererTest {
         @ParameterizedTest
         @EnumSource(Direction.class)
         void ringLiesInTheFacePlaneJustOutsideTheBlock(Direction face) {
-            Vec3 faceCenter = new TargetResult.BlockTarget(POS, face, false).resolveEndpoint();
+            Vec3 faceCenter = TargetResult.block(POS, face).resolveEndpoint();
             Direction.Axis normal = face.getAxis();
             double facePlane = along(faceCenter, normal);
             double outward = face.getAxisDirection().getStep();
@@ -46,7 +46,7 @@ class FaceBullseyeRendererTest {
         @ParameterizedTest
         @EnumSource(Direction.class)
         void ringIsCenteredOnTheFaceCenter(Direction face) {
-            Vec3 faceCenter = new TargetResult.BlockTarget(POS, face, false).resolveEndpoint();
+            Vec3 faceCenter = TargetResult.block(POS, face).resolveEndpoint();
             int segments = 16;
             Vec3[] points = FaceBullseyeRenderer.ringPoints(faceCenter, face, RADIUS, segments);
             Vec3 sum = Vec3.ZERO;
@@ -78,7 +78,7 @@ class FaceBullseyeRendererTest {
         @ParameterizedTest
         @EnumSource(Direction.class)
         void blockTargetMarksItsStruckFace(Direction face) {
-            assertEquals(face, FaceBullseyeRenderer.bullseyeFace(new TargetResult.BlockTarget(POS, face, false)));
+            assertEquals(face, FaceBullseyeRenderer.bullseyeFace(TargetResult.block(POS, face)));
         }
 
         @Test
@@ -88,7 +88,7 @@ class FaceBullseyeRendererTest {
 
         @Test
         void entityDrawsNoBullseye() {
-            assertNull(FaceBullseyeRenderer.bullseyeFace(new TargetResult.EntityTarget(null)));
+            assertNull(FaceBullseyeRenderer.bullseyeFace(new TargetResult.EntityTarget(null, Vec3.ZERO)));
         }
     }
 }

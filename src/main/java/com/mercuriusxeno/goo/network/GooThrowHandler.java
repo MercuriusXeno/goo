@@ -114,9 +114,45 @@ public final class GooThrowHandler {
             GooSelfHandler.deliver(player, gooType, ability);
         } else if (touchesTarget(player, payload, ability)) {
             GooTouchHandler.touch(player, payload, gooType);
+        } else if (ability.badge().aimsAPoint()) {
+            throwAtPoint(player, payload, gooType);
         } else {
             throwFlight(player, payload, gooType);
         }
+    }
+
+    /**
+     * Throws an ability aiming a point at that point, capped onto the throw
+     * range along the throw's line rather than refused, so aiming at the sky
+     * throws to the range's end.
+     * aim-point-follows-the-cursor
+     *
+     * @param player  the throwing player
+     * @param payload the throw payload data
+     * @param gooType the validated goo type
+     */
+    private static void throwAtPoint(ServerPlayer player, GooThrowPayload payload,
+            ResourceKey<GooTypeDefinition> gooType) {
+        Vec3 eye = player.getEyePosition();
+        Vec3 capped = capToRange(eye, payload.targetPoint(), MAX_RANGE);
+        GooThrowPayload aimed = capped.equals(payload.targetPoint()) ? payload : payload.aimedAt(capped);
+        int cost = resolveThrowCost(player, aimed, gooType);
+        if (!validateSupply(player, gooType, cost)) { return; }
+        depleteAndThrow(player, aimed, gooType, eye.distanceToSqr(capped), cost);
+    }
+
+    /**
+     * Caps a point onto the range around the eye, along the line from the eye.
+     *
+     * @param eye   the thrower's eye
+     * @param point the aimed point
+     * @param range the throw range in blocks
+     * @return the point, or the point at the range's end along its line
+     */
+    static Vec3 capToRange(Vec3 eye, Vec3 point, double range) {
+        Vec3 line = point.subtract(eye);
+        double length = line.length();
+        return length <= range ? point : eye.add(line.scale(range / length));
     }
 
     /**
@@ -327,7 +363,8 @@ public final class GooThrowHandler {
                 travelTicks,
                 payload.grannyArc(),
                 payload.abilityId(),
-                delivery
+                delivery,
+                payload.targetPoint()
         );
     }
 

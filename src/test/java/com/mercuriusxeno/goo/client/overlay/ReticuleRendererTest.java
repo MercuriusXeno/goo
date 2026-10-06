@@ -50,6 +50,26 @@ class ReticuleRendererTest {
     }
 
     @Test
+    void theReticuleStandsOffTheFaceTowardTheCamera() {
+        Vec3 point = new Vec3(4, 64, 9);
+        Vec3 camera = new Vec3(4, 64, -1);
+        double radius = 0.25;
+
+        Vec3 drawn = ReticuleRenderer.standOffPoint(point, camera, radius);
+
+        assertEquals(new Vec3(4, 64, 9 - radius * ReticuleRenderer.STAND_OFF_SHARE), drawn);
+    }
+
+    @Test
+    void aPointBesideTheCameraStandsOffNoFurtherThanHalfway() {
+        Vec3 camera = new Vec3(0, 64, 0);
+
+        Vec3 drawn = ReticuleRenderer.standOffPoint(new Vec3(0.4, 64, 0), camera, 1.0);
+
+        assertEquals(0.2, drawn.x, TOLERANCE);
+    }
+
+    @Test
     void theRadiusGrowsWithDistanceAboveAFloor() {
         assertEquals(ReticuleRenderer.MIN_RADIUS, ReticuleRenderer.radiusAt(0.5), TOLERANCE);
         assertEquals(40 * ReticuleRenderer.RADIUS_PER_BLOCK, ReticuleRenderer.radiusAt(40), TOLERANCE);

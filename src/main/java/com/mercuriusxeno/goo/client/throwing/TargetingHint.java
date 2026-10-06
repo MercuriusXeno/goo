@@ -34,11 +34,13 @@ public enum TargetingHint {
      * @return the aim mode
      */
     public static TargetingHint of(AbilityBadge badge) {
+        if (badge.aimsAPoint()) {
+            return POINT;
+        }
         return switch (badge) {
             case MOB -> ENTITY;
             case WORLD -> BLOCK;
-            case SELF, BREW -> NONE;
-            case FREE, CHANNELED, PRISM, TAP -> POINT;
+            default -> NONE;
         };
     }
 }
