@@ -1,7 +1,7 @@
 {
   "gooType": "unstable",
   "displayName": "goo.ability.unstable.explode",
-  "badge": "mob",
+  "badge": "free",
   "order": 10,
   "cost": 1000,
   "requires": ["minecraft:gunpowder"],
