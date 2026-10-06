@@ -14,10 +14,11 @@ import java.util.stream.Stream;
  * finishes; a target that is not a player has no health bar to lay it on and
  * is left alone. Blaze Kindle is
  * {@code heart_overlay kind=kindle duration=1200} (decision
- * overlay-hearts-are-an-elemental-overshield).
+ * overlay-hearts-are-an-elemental-overshield). A drunk brew's duration
+ * stands in for the step's own.
  *
  * @param kind     the overlay's kind
- * @param duration the overlay's duration in ticks, evaluated when the step runs
+ * @param duration the overlay's duration in ticks, evaluated when the step runs outside a brew
  */
 public record HeartOverlayStep(HeartKind kind, Expr duration) implements Step {
 
@@ -45,9 +46,12 @@ public record HeartOverlayStep(HeartKind kind, Expr duration) implements Step {
 
     @Override
     public boolean tick(StepContext context) {
-        if (context.hostAs(TargetHost.class).target() instanceof Player player) {
+        TargetHost host = context.hostAs(TargetHost.class);
+        if (host.target() instanceof Player player) {
+            // decision brew-grants-the-self-ability-for-an-hour
+            int ticks = host.brewDuration().orElseGet(() -> duration.evaluateInt(context));
             HeartOverlay standing = player.getData(GooAttachments.HEART_OVERLAY);
-            player.setData(GooAttachments.HEART_OVERLAY, standing.apply(kind, duration.evaluateInt(context),
+            player.setData(GooAttachments.HEART_OVERLAY, standing.apply(kind, ticks,
                     player.getHealth(), player.level().getGameTime()));
         }
         return true;
