@@ -75,6 +75,19 @@
         <Package name="~com\.mercuriusxeno\.goo\.mixin.*"/>
     </Match>
 
+    <!-- holder-casts-suppressed-by-mixin-merge
+         MinecraftServerGooStateMixin merges GooServerValueHolder and GooServerStateHolder
+         into MinecraftServer, and ClientPacketListenerGooMixin merges GooValueSource into
+         ClientPacketListener, at runtime; the casts to those holders always succeed. -->
+    <Match>
+        <Bug pattern="BC_UNCONFIRMED_CAST"/>
+        <Or>
+            <Class name="com.mercuriusxeno.goo.data.GooValues"/>
+            <Class name="com.mercuriusxeno.goo.registry.GooServerState"/>
+            <Class name="com.mercuriusxeno.goo.mixin.ClientLevelGooValuesMixin"/>
+        </Or>
+    </Match>
+
     <!-- BlockEntityTicker.tick contract takes (Level, BlockPos, BlockState, T)
          abstractly; the cast to ServerLevel is server-side-only by convention. -->
     <Match>
