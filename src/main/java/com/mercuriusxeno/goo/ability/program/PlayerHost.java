@@ -7,6 +7,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.Vec3;
 import java.util.OptionalDouble;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.function.Consumer;
 
@@ -17,11 +18,25 @@ import java.util.function.Consumer;
  * Every read and world action runs as the struck entity host would run it
  * on the player, and like that host it has no driver for later ticks.
  *
- * @param level  the server level
- * @param player the invoking player
+ * A drunk brew runs its ability on this host too, carrying the brew's
+ * duration (decision brew-grants-the-self-ability-for-an-hour).
+ *
+ * @param level         the server level
+ * @param player        the invoking player
+ * @param brewDuration  the drunk brew's duration in ticks, empty for a glove invocation
  */
-public record PlayerHost(ServerLevel level, ServerPlayer player)
+public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt brewDuration)
         implements TargetHost, ExplodeHost, EntityScanHost {
+
+    /**
+     * The host of a glove invocation, which carries no brew duration.
+     *
+     * @param level  the server level
+     * @param player the invoking player
+     */
+    public PlayerHost(ServerLevel level, ServerPlayer player) {
+        this(level, player, OptionalInt.empty());
+    }
 
     @Override
     public HostKind kind() {

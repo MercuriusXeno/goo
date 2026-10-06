@@ -4,6 +4,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
+import java.util.OptionalInt;
 
 /**
  * A host bound to a living entity the effect steps act on (capability
@@ -26,6 +27,17 @@ public interface TargetHost extends StepHost {
      * @return the thrower, or null when unknown
      */
     @Nullable Entity thrower();
+
+    /**
+     * The duration a drunk brew holds its ability for, which a duration-bearing
+     * step takes over its own; empty for every program the brew did not start.
+     * decision brew-grants-the-self-ability-for-an-hour
+     *
+     * @return the brew's duration in ticks, or empty
+     */
+    default OptionalInt brewDuration() {
+        return OptionalInt.empty();
+    }
 
     /**
      * Sets the target moving and marks the motion for the target's client.
