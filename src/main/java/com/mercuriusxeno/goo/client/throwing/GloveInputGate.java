@@ -2,20 +2,20 @@ package com.mercuriusxeno.goo.client.throwing;
 
 /**
  * The glove's right-click input as a press the client resolves off the use
- * key, with no using state: the press throws on the tick it arms, and a use
- * key held after it throws nothing more, leaving the hold readable through
- * the use key for a stream delivery. The arm swings only for a throw that
- * sent a payload.
- * decision right-click-throws-on-press
+ * key. A press arms the throw and previews the ability's area for as long as
+ * the key is held; release throws once and swings. A stream runs from the
+ * press instead, streaming on every held tick. The arm swings only for a
+ * throw that sent a payload.
+ * decision right-click-held-previews-release-throws
  * decision use-animation-only-when-goo-throws
  */
 public final class GloveInputGate {
 
-    /** What the gate does for a press: the client's throw and swing. */
+    /** What the gate does for a press: the client's throw, swing and stream. */
     public interface PressActions {
 
         /**
-         * Sends a throw payload for the glove's selection.
+         * Sends a throw payload for the glove's selection, or a stream's first tick.
          *
          * @return true when a payload was sent
          */
@@ -24,18 +24,28 @@ public final class GloveInputGate {
         /** Swings the arm holding the glove. */
         void swing();
 
-        /** Carries the hold one tick further, which a stream delivery streams on. */
+        /** Carries a stream one tick further. */
         void hold();
+
+        /**
+         * Whether the selected ability runs from the press while held, a stream,
+         * rather than previewing and throwing on release.
+         *
+         * @return true for a stream
+         */
+        boolean runsWhileHeld();
     }
 
     private boolean armed;
-    private boolean thrown;
+    private boolean streaming;
+    private boolean previewing;
 
     /** Starts a press when the glove's use reaches the client; a live press ignores the repeat. */
     public void arm() {
         if (!armed) {
             armed = true;
-            thrown = false;
+            streaming = false;
+            previewing = false;
         }
     }
 
@@ -48,26 +58,49 @@ public final class GloveInputGate {
         return armed;
     }
 
+    /**
+     * Whether the held press shows the ability's area: from the first held tick
+     * of a press that throws on release until its release.
+     *
+     * @return true while the area preview draws
+     */
+    public boolean isPreviewing() {
+        return previewing;
+    }
+
     /** Drops the live press. */
     public void cancel() {
         armed = false;
-        thrown = false;
+        streaming = false;
+        previewing = false;
     }
 
     /**
-     * Advances a live press by one client tick: throws on its first tick,
-     * holds on every later tick the use key stays down (decision
-     * stream-delivery-held-cone), and ends once the use key is up.
+     * Advances a live press by one client tick: a stream sends on its first
+     * tick and holds on every later held tick (decision
+     * stream-delivery-held-cone); any other press previews while held and
+     * throws once the use key is up.
      *
      * @param useKeyDown whether the use key is held this tick
-     * @param actions    the throw and swing the press resolves to
+     * @param actions    the throw, swing and stream the press resolves to
      */
     public void tick(boolean useKeyDown, PressActions actions) {
         if (!armed) {
             return;
         }
-        if (!thrown) {
-            thrown = true;
+        if (streaming || (!previewing && actions.runsWhileHeld())) {
+            tickStream(useKeyDown, actions);
+        } else if (useKeyDown) {
+            previewing = true;
+        } else {
+            throwAndSwing(actions);
+            cancel();
+        }
+    }
+
+    private void tickStream(boolean useKeyDown, PressActions actions) {
+        if (!streaming) {
+            streaming = true;
             throwAndSwing(actions);
         } else if (useKeyDown) {
             actions.hold();

@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.client.throwing;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.DeliveryKind;
+import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -18,8 +20,10 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Client-side tracker for the glove press: resolves the use key through
- * {@link GloveInputGate}, throwing on the press and ending the press when
- * the key comes up. Auto-registered via EventBusSubscriber.
+ * {@link GloveInputGate}, previewing the ability's area while the key is
+ * held and throwing when it comes up, or streaming from the press for a
+ * stream. Auto-registered via EventBusSubscriber.
+ * decision right-click-held-previews-release-throws
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class GloveUseTracker {
@@ -117,7 +121,17 @@ public final class GloveUseTracker {
             PRESS.cancel();
             return;
         }
-        PRESS.tick(mc.options.keyUse.isDown(), new GloveInputGate.PressActions() {
+        PRESS.tick(mc.options.keyUse.isDown(), pressActions(player));
+    }
+
+    /**
+     * What a glove press resolves to for the local player.
+     *
+     * @param player the local player
+     * @return the throw, swing, stream and stream check the press runs
+     */
+    private static GloveInputGate.PressActions pressActions(LocalPlayer player) {
+        return new GloveInputGate.PressActions() {
             @Override
             public boolean sendThrow() {
                 return GloveThrowSender.sendThrow(player);
@@ -132,7 +146,24 @@ public final class GloveUseTracker {
             public void hold() {
                 GloveThrowSender.sendHold(player);
             }
-        });
+
+            @Override
+            public boolean runsWhileHeld() {
+                GloveSelection selection = GloveThrowSender.heldSelection(player);
+                return selection != null
+                        && GloveThrowSender.selectedDelivery(selection.abilityId()).kind() == DeliveryKind.STREAM;
+            }
+        };
+    }
+
+    /**
+     * Whether the held glove shows its ability's area: while a press previews
+     * its throw, or while a stream runs.
+     *
+     * @return true while right click holds a live press
+     */
+    public static boolean showsArea() {
+        return PRESS.isArmed();
     }
 
     /**

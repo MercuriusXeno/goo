@@ -6,6 +6,7 @@
   "cost": 1000,
   "requires": ["minecraft:torchflower"],
   "delivery": { "kind": "stream", "range": 6, "cone": 20, "ticks_per_charge": 20, "particle": "minecraft:flame" },
+  "area": { "shape": "cone", "size": 6.0, "angle": 20.0 },
   "behaviors": [
     { "type": "ignite", "seconds": 5 }
   ],

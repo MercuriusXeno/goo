@@ -17,6 +17,7 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.Nullable;
+import java.util.function.Supplier;
 
 /**
  * Resolves what the player aims at within throw range, filtered by the hint
@@ -129,7 +130,8 @@ final class AimTargets {
     /**
      * Resolves the aim the hint asks for: an entity favors the aim assist and
      * falls back to the block so the aim never reads NONE, a block favors the
-     * block face, a point aims the ray's point, and NONE aims nothing.
+     * block face, a point locks onto a mob near the ray and aims the ray's
+     * point where none is near, and NONE aims nothing.
      * target-kind-configured-per-ability
      *
      * @param hint    the aim mode from the selected ability's badge
@@ -140,14 +142,28 @@ final class AimTargets {
         return switch (hint) {
             case NONE -> AimState.Resolution.NOTHING;
             case BLOCK -> new AimState.Resolution(sources.blockTarget(), null);
-            case POINT -> new AimState.Resolution(sources.pointTarget(), null);
-            case ENTITY -> {
-                AimAssistResolver.AimHit hit = sources.entityHit();
-                yield hit instanceof AimAssistResolver.AimHit.EntityHit eh
-                        ? new AimState.Resolution(TargetResult.entity(eh.entity(), sources.entityPoint(eh.entity())), hit)
-                        : new AimState.Resolution(sources.blockTarget(), null);
-            }
+            case POINT -> lockOnOr(sources, sources::pointTarget);
+            case ENTITY -> lockOnOr(sources, sources::blockTarget);
         };
+    }
+
+    /**
+     * Locks onto the mob the aim assist finds near the ray, aimed at the point
+     * the ray meets it, or falls back where no mob is near: a mob ability to
+     * the block, a free aim to the ray's point, so free aim keeps its mob lock-on.
+     * target-kind-configured-per-ability
+     * aim-point-follows-the-cursor
+     *
+     * @param sources  where the aim comes from
+     * @param fallback the target where no mob is near
+     * @return the target and the aim-assist hit behind it
+     */
+    private static AimState.Resolution lockOnOr(AimSources sources, Supplier<TargetResult> fallback) {
+        AimAssistResolver.AimHit hit = sources.entityHit();
+        if (hit instanceof AimAssistResolver.AimHit.EntityHit eh) {
+            return new AimState.Resolution(TargetResult.entity(eh.entity(), sources.entityPoint(eh.entity())), hit);
+        }
+        return new AimState.Resolution(fallback.get(), null);
     }
 
     /**

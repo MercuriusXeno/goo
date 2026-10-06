@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.client.throwing.GloveThrowSender;
+import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
@@ -119,6 +120,25 @@ public final class GooTargetHighlighter {
         HighlightFrame frame = new HighlightFrame(event.getPoseStack(), mc.renderBuffers().bufferSource(),
                 mc.gameRenderer.getMainCamera(), mc, selectedType);
         renderIndicator(target, AimIndicator.of(GloveThrowSender.selectedBadge(abilityId)), frame);
+        renderHeldArea(target, abilityId, frame);
+    }
+
+    /**
+     * Draws the selected ability's area at the aim point while right click
+     * holds a live press.
+     * right-click-held-previews-release-throws
+     *
+     * @param target    the aim target
+     * @param abilityId the selected ability id
+     * @param frame     what the frame draws with
+     */
+    private static void renderHeldArea(TargetResult target, @Nullable String abilityId, HighlightFrame frame) {
+        Vec3 point = target.point();
+        if (!GloveUseTracker.showsArea() || point == null) {
+            return;
+        }
+        AreaOverlayRenderer.render(frame.ps(), frame.buf(), frame.camera(), GloveThrowSender.selectedArea(abilityId),
+                GloveAim.handPosition(frame.camera()), point, ClientGooTypes.highlight(frame.selectedType()));
     }
 
     /**
