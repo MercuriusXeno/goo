@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.io.StringReader;
 import java.io.UncheckedIOException;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -105,6 +106,35 @@ public final class AbilityJson {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    /**
+     * The text of one shipped ability file.
+     *
+     * @param name the ability's filename without its suffix
+     * @return the file's JSON text
+     */
+    public static String read(String name) {
+        String resource = ABILITIES_DIR + "/" + name + JSON_SUFFIX;
+        try (InputStream stream = AbilityJson.class.getClassLoader().getResourceAsStream(resource)) {
+            if (stream == null) {
+                throw new IllegalStateException("Classpath holds no " + resource);
+            }
+            return new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    /**
+     * Decodes ability JSON text under a name, as the loader decodes a file.
+     *
+     * @param name the ability's filename without its suffix
+     * @param json the ability's JSON text
+     * @return the decoded definition
+     */
+    public static AbilityDefinition decodeText(String name, String json) {
+        return decode(name + JSON_SUFFIX, new StringReader(json));
     }
 
     private static AbilityDefinition decode(String fileName, Reader reader) {

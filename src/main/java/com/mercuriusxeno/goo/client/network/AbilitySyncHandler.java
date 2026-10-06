@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityArea;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.Delivery;
+import com.mercuriusxeno.goo.ability.IndicatorShowing;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
@@ -86,11 +87,12 @@ public final class AbilitySyncHandler {
      * @param badge       the target kind the radial marks on the icon
      * @param requires    the items the player must know before the radial offers it
      * @param area        the area the glove draws while right click is held
+     * @param indicator   when the ability's indicator shows
      */
     public record ClientAbility(Identifier id, String displayName, String icon,
                                 int order, List<String> tags,
                                 List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge,
-                                List<Identifier> requires, AbilityArea area) {
+                                List<Identifier> requires, AbilityArea area, IndicatorShowing indicator) {
 
         /**
          * A client ability declaring no area.
@@ -113,6 +115,28 @@ public final class AbilitySyncHandler {
         }
 
         /**
+         * A client ability whose indicator shows while right click is held.
+         *
+         * @param id          the ability resource identifier
+         * @param displayName the translation key
+         * @param icon        the icon texture path override
+         * @param order       the sort order
+         * @param tags        categorical tags
+         * @param behaviors   the ability's step program
+         * @param cost        the mB a throw costs
+         * @param delivery    how the ability leaves the glove
+         * @param badge       the target kind the radial marks on the icon
+         * @param requires    the items the player must know before the radial offers it
+         * @param area        the area the glove draws while right click is held
+         */
+        public ClientAbility(Identifier id, String displayName, String icon, int order, List<String> tags,
+                             List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge,
+                             List<Identifier> requires, AbilityArea area) {
+            this(id, displayName, icon, order, tags, behaviors, cost, delivery, badge, requires, area,
+                    IndicatorShowing.HELD);
+        }
+
+        /**
          * Builds the client descriptor from a synced entry.
          *
          * @param entry the synced entry
@@ -121,7 +145,8 @@ public final class AbilitySyncHandler {
         public static ClientAbility fromEntry(AbilitySyncPayload.Entry entry) {
             return new ClientAbility(Identifier.tryParse(entry.abilityId()), entry.displayName(), entry.icon(),
                     entry.order(), entry.tags(), entry.behaviors(),
-                    entry.cost(), entry.delivery(), entry.badge(), entry.requires(), entry.area());
+                    entry.cost(), entry.delivery(), entry.badge(), entry.requires(), entry.area(),
+                    entry.indicator());
         }
 
         /**

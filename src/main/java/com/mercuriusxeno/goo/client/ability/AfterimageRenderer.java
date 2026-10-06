@@ -79,8 +79,22 @@ public final class AfterimageRenderer {
         if (mc.level == null) {
             return;
         }
-        List<Afterimages.Afterimage<EntityRenderState>> afterimages = Afterimages.CLIENT.live(mc.level.getGameTime());
-        if (afterimages.isEmpty()) {
+        drawRipples(event, Afterimages.CLIENT.live(mc.level.getGameTime()));
+    }
+
+    /**
+     * Draws afterimages over the level as their ripples stand this frame.
+     * The live list draws through here, and so does the blink cursor's
+     * afterimage, standing at the destination
+     * (decision ripple-outline-is-the-blink-cursor).
+     *
+     * @param event       the level render stage event
+     * @param afterimages the afterimages to draw
+     */
+    public static void drawRipples(RenderLevelStageEvent.AfterLevel event,
+            List<Afterimages.Afterimage<EntityRenderState>> afterimages) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null || afterimages.isEmpty()) {
             return;
         }
         float gameTime = mc.level.getGameTime() + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
