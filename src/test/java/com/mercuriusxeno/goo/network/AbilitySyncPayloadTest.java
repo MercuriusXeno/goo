@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.network;
 
+import com.mercuriusxeno.goo.ability.AbilityArea;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
@@ -11,6 +12,7 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import java.util.List;
@@ -66,6 +68,26 @@ class AbilitySyncPayloadTest {
         AbilitySyncPayload.STREAM_CODEC.encode(buf, sent);
 
         assertEquals(definition.requires(), AbilitySyncPayload.STREAM_CODEC.decode(buf).entries().getFirst().requires());
+    }
+
+    /**
+     * The sync codec carries each shipped area to the client, the shape the glove
+     * draws while right click is held (decision right-click-held-previews-release-throws).
+     */
+    @ParameterizedTest
+    @CsvSource({"unstable_explode, SPHERE, 3.0, 0.0", "unstable_proximity_mine, SPHERE, 3.0, 0.0",
+            "glow_laser, LINE, 0.0, 0.0", "blaze_spitfire, CONE, 6.0, 20.0", "ender_blink, NONE, 0.0, 0.0"})
+    void eachShippedAreaRoundTripsThroughTheSyncCodec(String name, AbilityArea.Shape shape, double size,
+                                                       double angle) {
+        AbilityDefinition definition = AbilityJson.decode(name);
+        AbilitySyncPayload sent = new AbilitySyncPayload(
+                AbilitySyncPayload.gloveEntries(definition.gooType(), List.of(definition)));
+        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
+
+        AbilitySyncPayload.STREAM_CODEC.encode(buf, sent);
+
+        assertEquals(new AbilityArea(shape, size, angle),
+                AbilitySyncPayload.STREAM_CODEC.decode(buf).entries().getFirst().area());
     }
 
     @Test

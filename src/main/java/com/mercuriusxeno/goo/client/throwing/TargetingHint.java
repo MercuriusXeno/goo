@@ -22,7 +22,8 @@ public enum TargetingHint {
      */
     BLOCK,
     /**
-     * Aims the ray's point and favors no entity or block.
+     * Locks onto a mob near the ray through the aim assist, and aims the ray's
+     * point where no mob is near, favoring no block.
      */
     POINT;
 

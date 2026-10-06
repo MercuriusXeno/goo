@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.throwing;
 
+import com.mercuriusxeno.goo.ability.AbilityArea;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
@@ -219,6 +220,18 @@ public final class GloveThrowSender {
     public static Delivery selectedDelivery(@Nullable String abilityId) {
         ClientAbility ability = abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
         return ability == null ? Delivery.ARC : ability.delivery();
+    }
+
+    /**
+     * The area of the selected ability, the shape the glove draws while right
+     * click is held (decision right-click-held-previews-release-throws).
+     *
+     * @param abilityId the selected ability id string
+     * @return the area, NONE where the client holds no synced copy
+     */
+    public static AbilityArea selectedArea(@Nullable String abilityId) {
+        ClientAbility ability = abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
+        return ability == null ? AbilityArea.NONE : ability.area();
     }
 
     /**

@@ -94,8 +94,20 @@ class AimTargetsTest {
 
         @ParameterizedTest
         @EnumSource(value = AbilityBadge.class, names = {"FREE", "CHANNELED", "PRISM", "TAP"})
-        void freeAndChanneledAimTheRaysPoint(AbilityBadge badge) {
-            assertEquals(POINT_TARGET, resolve(badge, new AimAssistResolver.AimHit.EntityHit(mock(Entity.class))).target());
+        void freeAndChanneledAimTheRaysPointWhereNoMobIsNear(AbilityBadge badge) {
+            assertEquals(POINT_TARGET, resolve(badge, null).target());
+        }
+
+        @ParameterizedTest
+        @EnumSource(value = AbilityBadge.class, names = {"FREE", "CHANNELED", "PRISM", "TAP"})
+        void freeAimLocksOntoAMobNearTheRay(AbilityBadge badge) {
+            Entity zombie = mock(Entity.class);
+
+            AimState.Resolution resolution = resolve(badge, new AimAssistResolver.AimHit.EntityHit(zombie));
+
+            TargetResult.EntityTarget target = assertInstanceOf(TargetResult.EntityTarget.class, resolution.target());
+            assertSame(zombie, target.entity());
+            assertEquals(ENTITY_POINT, target.point());
         }
     }
 
