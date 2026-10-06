@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.LandingHost;
+import com.mercuriusxeno.goo.ability.program.LingerStep;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
 import com.mercuriusxeno.goo.network.ChainBurnoutPayload;
@@ -11,12 +12,9 @@ import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.SectionPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.network.PacketDistributor;
 import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 
@@ -75,6 +73,18 @@ public final class AbilityImpact {
     }
 
     /**
+     * Whether an ability's program stands its own block to run on after the
+     * splat, so its burnout plays when that block explodes rather than as the
+     * blob lands (decision elemental-explosion-per-type).
+     *
+     * @param ability the landing ability
+     * @return true when a top-level step lingers
+     */
+    static boolean lingers(AbilityDefinition ability) {
+        return ability.behaviors().stream().anyMatch(LingerStep.class::isInstance);
+    }
+
+    /**
      * A blob's world actions as it lands.
      *
      * @param host    the landing host
@@ -84,17 +94,13 @@ public final class AbilityImpact {
 
         @Override
         public void announceBurnout() {
-            BlockPos cell = host.cell();
-            ChainBurnoutPayload burnout = new ChainBurnoutPayload(cell, host.face().ordinal(),
-                    GooTypes.id(host.gooType()), host.abilityId());
-            int chunkX = SectionPos.blockToSectionCoord(cell.getX());
-            int chunkZ = SectionPos.blockToSectionCoord(cell.getZ());
-            // A listener that never negotiated the mod's channels, a gametest's mock player, gets no burnout.
-            for (ServerPlayer player : host.level().players()) {
-                if (player.getChunkTrackingView().contains(chunkX, chunkZ) && player.connection.hasChannel(burnout)) {
-                    PacketDistributor.sendToPlayer(player, burnout);
-                }
-            }
+            new ChainBurnoutPayload(host.cell(), host.face().ordinal(), GooTypes.id(host.gooType()),
+                    host.abilityId()).sendToTracking(host.level());
+        }
+
+        @Override
+        public boolean lingers() {
+            return AbilityImpact.lingers(ability);
         }
 
         @Override
