@@ -58,7 +58,7 @@ class StepCodecTest {
             Map.entry("sound", new SoundStep(Identifier.parse("minecraft:entity.enderman.teleport"), FxAnchor.TARGET,
                     SoundKind.HOSTILE, Expr.parse("0.55 + 0.08 * stacks").getOrThrow(), Expr.literal(1))),
             Map.entry("teleport", new TeleportStep(TeleportMode.RANDOM_OFFSET, Expr.literal(32))),
-            Map.entry("push", new PushStep(Expr.literal(1.5), PushDirection.THROWER_LOOK)),
+            Map.entry("push", new PushStep(Expr.literal(1.5))),
             Map.entry("place_block", new PlaceBlockStep(Identifier.parse("goo:glow_crystal"), Map.of(
                     "facing", new StateValue.PlacedFace(),
                     "shape", new StateValue.Named("bump"),
@@ -169,6 +169,12 @@ class StepCodecTest {
         assertEquals(2, steps.size());
         assertInstanceOf(AwaitEntityStep.class, steps.get(0));
         assertInstanceOf(ExplodeStep.class, steps.get(1));
+    }
+
+    // decision push-direction-enum-deleted
+    @Test
+    void pushDecodesFromStrengthAlone() {
+        assertEquals(new PushStep(Expr.literal(1.5)), decode("{\"type\": \"push\", \"strength\": 1.5}").getOrThrow());
     }
 
     @Test
