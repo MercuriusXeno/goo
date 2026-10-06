@@ -8,16 +8,20 @@ import com.mercuriusxeno.goo.ability.program.GhostTrailStep;
 import com.mercuriusxeno.goo.ability.program.LingerStep;
 import com.mercuriusxeno.goo.ability.program.PlaceBlockStep;
 import com.mercuriusxeno.goo.ability.program.PotionStep;
+import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.TeleportStep;
 import com.mercuriusxeno.goo.data.IdentifiedJsonScan;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.serialization.JsonOps;
 import net.minecraft.resources.FileToIdConverter;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.packs.PackResources;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -31,6 +35,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -209,6 +214,59 @@ class AbilityLoaderTest {
                 "a ghost trail runs before the jump it traces");
         assertEquals(1, afterimageTypes(steps.subList(0, teleport)).size(), "the source ripple is gone");
         assertEquals(1, afterimageTypes(after).size(), "the destination ripple is gone");
+    }
+
+    /**
+     * Each goo type carries at most one self + brew ability: a second fails
+     * the load naming both, and a type carrying none is answered for the load's
+     * warning (decision every-type-ships-one-brew-ability).
+     */
+    @Nested
+    class OneBrewPerType {
+
+        private static AbilityDefinition brew(String name) {
+            return new AbilityDefinition(Identifier.fromNamespaceAndPath(Goo.MODID, name), GooTypes.ROCK,
+                    name, "", 0, 0, Delivery.of(DeliveryKind.SELF), List.of(), List.of(),
+                    AbilityBadge.BREW, List.of());
+        }
+
+        private static Map<Identifier, AbilityDefinition> byId(AbilityDefinition... definitions) {
+            return Stream.of(definitions).collect(Collectors.toMap(AbilityDefinition::id, def -> def));
+        }
+
+        @Test
+        void secondBrewOfATypeFailsTheLoadNamingBoth() {
+            Map<Identifier, AbilityDefinition> abilities = byId(brew("rock_stoneskin"), brew("rock_pebbleskin"));
+
+            ProgramLoadException refusal = assertThrows(ProgramLoadException.class,
+                    () -> AbilityLoader.typesLackingABrew(abilities, List.of(GooTypes.ROCK)));
+
+            assertTrue(refusal.getMessage().contains("goo:rock_stoneskin")
+                    && refusal.getMessage().contains("goo:rock_pebbleskin"), refusal.getMessage());
+        }
+
+        @Test
+        void typeCarryingNoBrewIsNamedAndOneCarryingABrewIsNot() {
+            Map<Identifier, AbilityDefinition> abilities = byId(brew("rock_stoneskin"));
+
+            assertEquals(List.of(GooTypes.FROST),
+                    AbilityLoader.typesLackingABrew(abilities, List.of(GooTypes.ROCK, GooTypes.FROST)));
+        }
+
+        @Test
+        void shippedBlazeAndLeafEachCarryExactlyOneBrew() {
+            Map<Identifier, AbilityDefinition> shipped = scanShipped(AbilityJson.files());
+
+            List<ResourceKey<GooTypeDefinition>> lacking = AbilityLoader.typesLackingABrew(shipped, GooTypes.BUNDLED);
+
+            assertFalse(lacking.contains(GooTypes.BLAZE) || lacking.contains(GooTypes.LEAF), lacking.toString());
+            for (ResourceKey<GooTypeDefinition> type : List.of(GooTypes.BLAZE, GooTypes.LEAF)) {
+                long brews = shipped.values().stream()
+                        .filter(def -> def.gooType() == type && SelfEatRoute.eats(def.delivery(), def.badge()))
+                        .count();
+                assertEquals(1, brews, type.identifier().toString());
+            }
+        }
     }
 
     private static List<Object> afterimageTypes(List<Step> steps) {

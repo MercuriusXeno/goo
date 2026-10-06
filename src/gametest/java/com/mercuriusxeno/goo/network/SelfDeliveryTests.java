@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.ability.SelfEatRoute;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.GooStacks;
+import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -60,6 +61,8 @@ public final class SelfDeliveryTests {
     private static final Identifier BLAZE_KINDLE = Identifier.parse("goo:blaze_kindle");
     /** Ten hearts of ember halves, the full bar Kindle lays over full health. */
     private static final int FULL_EMBERS = 20;
+    /** Kindle's own duration in its JSON, which the glove keeps where a drunk brew holds an hour. */
+    private static final long GLOVE_KINDLE_TICKS = 1200L;
     /** Halfway through the eat, when nothing has landed yet. */
     private static final int MID_EAT = SelfEatRoute.EAT_TICKS / 2;
     /** The tick after the eat's last tick, when the finish has run. */
@@ -78,6 +81,8 @@ public final class SelfDeliveryTests {
     private static final String SHOULD_LAY_NOTHING_MID_EAT = "Mid-eat no ember should stand, %d halves stand";
     private static final String SHOULD_DRAIN_NOTHING_MID_EAT = "Mid-eat no goo should drain, drained %d";
     private static final String SHOULD_LAY_EMBERS = "The finished eat should lay %d ember halves, laid %d";
+    private static final String SHOULD_KEEP_SHORT_DURATION =
+            "The glove's Kindle should end within %d ticks of now %d, ends at %d";
     private static final String SHOULD_STOP_EATING = "A released eat should leave the player out of the using state";
     private static final String SHOULD_LAY_NOTHING = "A released eat should lay no ember, %d halves stand";
     private static final String SHOULD_DRAIN_NOTHING = "A released eat should drain nothing, drained %d";
@@ -171,8 +176,12 @@ public final class SelfDeliveryTests {
         helper.runAfterDelay(AFTER_EAT, () -> {
             int embers = HeartOverlayTests.halves(player);
             int drained = heldBefore - held(player, GooTypes.BLAZE);
+            long now = player.level().getGameTime();
+            long endsAt = player.getData(GooAttachments.HEART_OVERLAY).expiresAt();
             helper.getLevel().getServer().getPlayerList().remove(player);
             helper.assertTrue(embers == FULL_EMBERS, String.format(SHOULD_LAY_EMBERS, FULL_EMBERS, embers));
+            helper.assertTrue(endsAt > now && endsAt <= now + GLOVE_KINDLE_TICKS,
+                    String.format(SHOULD_KEEP_SHORT_DURATION, GLOVE_KINDLE_TICKS, now, endsAt));
             helper.assertTrue(drained == kindle.cost(), String.format(SHOULD_DRAIN_COST, kindle.cost(), drained));
             helper.succeed();
         });

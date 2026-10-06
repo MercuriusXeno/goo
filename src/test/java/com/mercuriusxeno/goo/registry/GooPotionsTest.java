@@ -8,12 +8,12 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Tests that goo potions register over exactly the bundled type keys, each
- * with a themed factory, so a datapack type gets no potion and every bundled
- * type keeps its own under its former name.
+ * Tests that goo potions register over exactly the bundled type keys, so a
+ * datapack type gets no potion and every bundled type keeps its own under its
+ * former name. What each potion carries needs the registries, so
+ * BrewEffectTests proves it in a gametest.
  */
 class GooPotionsTest {
 
@@ -27,18 +27,6 @@ class GooPotionsTest {
     void potionTypesAreExactlyTheBundledKeys() {
         assertEquals(List.copyOf(GooTypes.BUNDLED), List.copyOf(GooPotions.POTION_TYPES));
         assertFalse(GooPotions.POTION_TYPES.contains(DATAPACK_TYPE));
-    }
-
-    /**
-     * Every potion type has a factory, so registration cannot land on a
-     * missing one, and the datapack type has none.
-     */
-    @Test
-    void everyPotionTypeHasAFactory() {
-        for (ResourceKey<GooTypeDefinition> key : GooPotions.POTION_TYPES) {
-            assertTrue(GooPotions.hasPotionFactory(key), "No potion factory for " + key.identifier());
-        }
-        assertFalse(GooPotions.hasPotionFactory(DATAPACK_TYPE));
     }
 
     /**

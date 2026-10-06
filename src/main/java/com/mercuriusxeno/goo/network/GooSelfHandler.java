@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
+import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.SelfEatRoute;
 import com.mercuriusxeno.goo.ability.program.HostKind;
@@ -15,6 +16,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
+import java.util.OptionalInt;
 
 /**
  * Server side of a self delivery: nothing leaves the hand. A self ability
@@ -102,12 +104,39 @@ public final class GooSelfHandler {
             return false;
         }
         GooSourceScanner.deplete(player, gooType, ability.cost());
+        runOn(new PlayerHost(player.level(), player), ability);
+        return true;
+    }
+
+    /**
+     * Runs a drunk brew: the type's brew ability runs on the player for the
+     * brew's duration, the same program the glove runs, with no goo drained.
+     * A type with no brew ability yet runs nothing.
+     * decision brew-grants-the-self-ability-for-an-hour
+     *
+     * @param player   the drinking player
+     * @param gooType  the brew's goo type
+     * @param duration the brew's duration in ticks
+     */
+    public static void drinkBrew(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, int duration) {
+        AbilityDefinition ability = AbilityRegistry.of(player.level()).brewAbilityFor(gooType);
+        if (ability != null) {
+            runOn(new PlayerHost(player.level(), player, OptionalInt.of(duration)), ability);
+        }
+    }
+
+    /**
+     * Runs an ability's programs on a player host, logging a program the host refuses.
+     *
+     * @param host    the player host
+     * @param ability the ability run
+     */
+    private static void runOn(PlayerHost host, AbilityDefinition ability) {
         try {
-            ProgramBehavior.forHost(ability.behaviors(), HostKind.PLAYER).tick(new PlayerHost(player.level(), player));
+            ProgramBehavior.forHost(ability.behaviors(), HostKind.PLAYER).tick(host);
         } catch (ProgramLoadException e) {
             Goo.LOGGER.error(LOG_PROGRAM_REFUSED, ability.id(), e.getMessage());
         }
-        return true;
     }
 
     /**
