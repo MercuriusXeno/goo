@@ -98,7 +98,30 @@ public final class GooTargetHighlighter {
         cachedArcPartialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         HighlightFrame frame = new HighlightFrame(event.getPoseStack(), mc.renderBuffers().bufferSource(),
                 mc.gameRenderer.getMainCamera(), mc, selectedType);
-        renderTargetHighlight(target, frame);
+        renderIndicator(target, AimIndicator.of(GloveThrowSender.selectedBadge(abilityId)), frame);
+    }
+
+    /**
+     * Draws the mark the selected ability's badge chooses: a reticule at the
+     * aimed point, the outline of the block or crystal aimed at, or nothing.
+     * target-kind-configured-per-ability
+     *
+     * @param target    the aim target
+     * @param indicator the mark the badge chooses
+     * @param frame     what the frame draws with
+     */
+    private static void renderIndicator(TargetResult target, AimIndicator indicator, HighlightFrame frame) {
+        switch (indicator) {
+            case NONE -> { }
+            case RETICULE -> {
+                Vec3 point = target.resolveEndpoint();
+                if (point != null) {
+                    ReticuleRenderer.render(frame.ps(), frame.buf(), frame.camera(), point,
+                            ClientGooTypes.highlight(frame.selectedType()));
+                }
+            }
+            case ENTITY_OUTLINE, BLOCK_OUTLINE -> renderTargetHighlight(target, frame);
+        }
     }
 
     /**

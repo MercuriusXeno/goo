@@ -10,7 +10,8 @@ import net.minecraft.world.phys.Vec3;
 
 /**
  * Result of resolving the player's aim target for goo throwing.
- * Sealed hierarchy: entity hit, block face hit, or nothing in range.
+ * Sealed hierarchy: entity hit, block face hit, glow crystal, aimed point,
+ * or nothing in range.
  */
 public sealed interface TargetResult {
 
@@ -64,6 +65,18 @@ public sealed interface TargetResult {
      */
     static TargetResult glowCrystal(BlockPos pos, Direction face) {
         return new GlowCrystalTarget(pos, face);
+    }
+
+    /**
+     * Factory for a point target.
+     *
+     * @param point the aimed point
+     * @param pos   the block the point lands at
+     * @param face  the face the ray met, UP for open air
+     * @return the result
+     */
+    static TargetResult point(Vec3 point, BlockPos pos, Direction face) {
+        return new PointTarget(point, pos, face);
     }
 
     /**
@@ -130,6 +143,22 @@ public sealed interface TargetResult {
                 }
             }
             return Vec3.atCenterOf(pos);
+        }
+    }
+
+    /**
+     * The player aims a point in space, favoring no entity or block: where the
+     * ray meets a block, or the ray's end at range.
+     * target-kind-configured-per-ability
+     *
+     * @param point the aimed point
+     * @param pos   the block the point lands at, the one the throw names
+     * @param face  the face the ray met, UP for a point in open air
+     */
+    record PointTarget(Vec3 point, BlockPos pos, Direction face) implements TargetResult {
+        @Override
+        public Vec3 resolveEndpoint() {
+            return point;
         }
     }
 
