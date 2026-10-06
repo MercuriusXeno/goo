@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.ability.Delivery;
+import com.mercuriusxeno.goo.ability.IndicatorShowing;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.StepTypes;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -82,7 +83,7 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
                 .map(def -> new Entry(def.id().toString(), GooTypes.id(type),
                         def.displayName(), def.icon(), def.order(), def.tags(),
                         def.behaviors(), def.cost(),
-                        def.delivery(), def.badge(), def.requires(), def.area()))
+                        def.delivery(), def.badge(), def.requires(), def.area(), def.indicator()))
                 .toList();
     }
 
@@ -101,6 +102,7 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
             AbilityBadge.STREAM_CODEC.encode(buf, e.badge);
             REQUIRES_CODEC.encode(buf, e.requires);
             AbilityArea.STREAM_CODEC.encode(buf, e.area);
+            IndicatorShowing.STREAM_CODEC.encode(buf, e.indicator);
         }
     }
 
@@ -119,7 +121,7 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
                     buf.readUtf(), buf.readVarInt(), decodeTags(buf),
                     STEPS_CODEC.decode(buf), buf.readVarInt(), Delivery.STREAM_CODEC.decode(buf),
                     AbilityBadge.STREAM_CODEC.decode(buf), REQUIRES_CODEC.decode(buf),
-                    AbilityArea.STREAM_CODEC.decode(buf)));
+                    AbilityArea.STREAM_CODEC.decode(buf), IndicatorShowing.STREAM_CODEC.decode(buf)));
         }
         return new AbilitySyncPayload(entries);
     }
@@ -153,11 +155,12 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
      * @param badge       the target kind the radial marks on the icon
      * @param requires    the items a player must know before the radial offers it
      * @param area        the area the glove draws while right click is held
+     * @param indicator   when the ability's indicator shows
      */
     public record Entry(String abilityId, String gooTypeId, String displayName,
                         String icon, int order, List<String> tags,
                         List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge,
-                        List<Identifier> requires, AbilityArea area) {
+                        List<Identifier> requires, AbilityArea area, IndicatorShowing indicator) {
 
         /**
          * An entry declaring no area.
@@ -179,6 +182,29 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
                      List<Identifier> requires) {
             this(abilityId, gooTypeId, displayName, icon, order, tags, behaviors, cost, delivery, badge, requires,
                     AbilityArea.NONE);
+        }
+
+        /**
+         * An entry whose indicator shows while right click is held.
+         *
+         * @param abilityId   the ability resource id string
+         * @param gooTypeId   the goo type id string
+         * @param displayName the translation key
+         * @param icon        the icon texture path override
+         * @param order       the sort order within the type
+         * @param tags        categorical tags
+         * @param behaviors   the ability's step program
+         * @param cost        the mB a throw costs
+         * @param delivery    how the ability leaves the glove
+         * @param badge       the target kind the radial marks on the icon
+         * @param requires    the items a player must know before the radial offers it
+         * @param area        the area the glove draws while right click is held
+         */
+        public Entry(String abilityId, String gooTypeId, String displayName, String icon, int order,
+                     List<String> tags, List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge,
+                     List<Identifier> requires, AbilityArea area) {
+            this(abilityId, gooTypeId, displayName, icon, order, tags, behaviors, cost, delivery, badge, requires,
+                    area, IndicatorShowing.HELD);
         }
     }
 }
