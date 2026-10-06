@@ -6,6 +6,7 @@
   "cost": 1000,
   "requires": ["minecraft:spectral_arrow"],
   "delivery": { "kind": "beam", "blocks_per_tick": 2.5 },
+  "area": { "shape": "line" },
   "behaviors": [
     { "type": "damage", "amount": "4 + 4 * undead", "source": "magic" },
     { "type": "particles", "id": "minecraft:crit", "at": "target", "count": 10, "spread": 0.5, "speed": 0.1 },

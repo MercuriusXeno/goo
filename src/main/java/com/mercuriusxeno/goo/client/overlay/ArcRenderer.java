@@ -142,9 +142,9 @@ public final class ArcRenderer {
     }
 
     /**
-     * Blends the plain and lob peak heights by weight, so the height
-     * eases with the endpoint between the two kinds of target (decision
-     * aim-line-lerps-toward-target).
+     * Blends the plain and lob peak heights by weight, the target's own 0 or 1
+     * now that the line draws on the target the same frame it changes
+     * (decision aim-line-snaps-with-the-tile-highlight).
      *
      * @param start        arc origin (hand position)
      * @param end          arc destination

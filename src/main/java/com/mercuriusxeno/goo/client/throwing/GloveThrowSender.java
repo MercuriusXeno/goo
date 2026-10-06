@@ -1,5 +1,7 @@
 package com.mercuriusxeno.goo.client.throwing;
 
+import com.mercuriusxeno.goo.ability.AbilityArea;
+import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.GloveSelection;
@@ -113,7 +115,7 @@ public final class GloveThrowSender {
             return false;
         }
         sendPayload(new GooThrowPayload(GooTypes.id(gooType), NO_ENTITY, player.blockPosition(), NO_ENTITY,
-                false, abilityId, lineOrigin()));
+                false, abilityId, lineOrigin(), player.position()));
         return true;
     }
 
@@ -221,6 +223,30 @@ public final class GloveThrowSender {
     }
 
     /**
+     * The area of the selected ability, the shape the glove draws while right
+     * click is held (decision right-click-held-previews-release-throws).
+     *
+     * @param abilityId the selected ability id string
+     * @return the area, NONE where the client holds no synced copy
+     */
+    public static AbilityArea selectedArea(@Nullable String abilityId) {
+        ClientAbility ability = abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
+        return ability == null ? AbilityArea.NONE : ability.area();
+    }
+
+    /**
+     * The badge of the selected ability, the one source of its target kind
+     * (decision target-kind-configured-per-ability).
+     *
+     * @param abilityId the selected ability id string
+     * @return the badge, or null where the client holds no synced copy
+     */
+    public static @Nullable AbilityBadge selectedBadge(@Nullable String abilityId) {
+        ClientAbility ability = abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
+        return ability == null ? null : ability.badge();
+    }
+
+    /**
      * The point the aim line starts at, the glove goo the player sees, so
      * the flight leaves from where the line was drawn (decision
      * diagnose-then-fix-goo-off-the-line).
@@ -265,14 +291,14 @@ public final class GloveThrowSender {
     }
 
     /**
-     * Builds the payload for non-None targets. Kept separate so the None early-exit
+     * Builds the payload for non-None targets, kept apart from the None early
+     * exit so the switch stays within the complexity threshold.
      *
      * @param target    the resolved non-None aim target
      * @param typeId    the goo type registry id
      * @param abilityId the selected ability id string
      * @param origin    the aim line start, where the flight leaves from
      * @return the constructed throw payload
-     * reduces the switch to 4 arms and keeps CC within threshold.
      */
     private static GooThrowPayload buildPayload(TargetResult target, String typeId, String abilityId,
             Vec3 origin) {
@@ -280,7 +306,9 @@ public final class GloveThrowSender {
             case TargetResult.EntityTarget et -> entityPayload(typeId, et, abilityId, origin);
             case TargetResult.BlockTarget bt -> blockPayload(typeId, bt, abilityId, origin);
             case TargetResult.GlowCrystalTarget gct -> new GooThrowPayload(typeId, NO_ENTITY,
-                    gct.pos(), gct.face().ordinal(), false, abilityId, origin);
+                    gct.pos(), gct.face().ordinal(), false, abilityId, origin, gct.point());
+            case TargetResult.PointTarget pt -> new GooThrowPayload(typeId, NO_ENTITY,
+                    pt.pos(), pt.face().ordinal(), false, abilityId, origin, pt.point());
             default -> throw new IllegalArgumentException(target.toString());
         };
     }
@@ -297,7 +325,7 @@ public final class GloveThrowSender {
     private static GooThrowPayload entityPayload(String typeId,
             TargetResult.EntityTarget et, String abilityId, Vec3 origin) {
         return new GooThrowPayload(typeId, et.entity().getId(), BlockPos.ZERO, NO_ENTITY,
-                false, abilityId, origin);
+                false, abilityId, origin, et.point());
     }
 
     /**
@@ -312,7 +340,7 @@ public final class GloveThrowSender {
     private static GooThrowPayload blockPayload(String typeId,
             TargetResult.BlockTarget bt, String abilityId, Vec3 origin) {
         return new GooThrowPayload(typeId, NO_ENTITY, bt.pos(), bt.face().ordinal(),
-                bt.grannyArc(), abilityId, origin);
+                bt.grannyArc(), abilityId, origin, bt.point());
     }
 
     /**

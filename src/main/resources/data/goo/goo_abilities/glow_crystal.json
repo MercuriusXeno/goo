@@ -6,6 +6,7 @@
   "cost": 1000,
   "requires": ["minecraft:glowstone"],
   "delivery": { "kind": "beam", "blocks_per_tick": 2.5 },
+  "area": { "shape": "line" },
   "behaviors": [
     {
       "type": "place_block",

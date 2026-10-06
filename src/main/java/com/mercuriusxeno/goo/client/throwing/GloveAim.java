@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.client.throwing;
 
-import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.client.model.GloveSpecialRenderer;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
@@ -73,19 +72,30 @@ public final class GloveAim {
     }
 
     /**
-     * The hint the selected ability's tags name.
+     * The hint the selected ability's badge names.
      *
      * @param type the selected goo type
      * @param sel  the glove selection
-     * @return ENTITY for an entity-tagged ability, BLOCK for any other, NONE when unsynced
+     * @return the badge's hint, NONE when unsynced
      */
     private static TargetingHint hintFromAbility(ResourceKey<GooTypeDefinition> type, GloveSelection sel) {
         for (ClientAbility ca : AbilitySyncHandler.getAbilitiesForType(type)) {
             if (ca.id() != null && ca.id().toString().equals(sel.abilityId())) {
-                return ca.hasTag(AbilityTags.ENTITY) ? TargetingHint.ENTITY : TargetingHint.BLOCK;
+                return hintOf(ca);
             }
         }
         return TargetingHint.NONE;
+    }
+
+    /**
+     * The hint an ability's badge names, its tags aside.
+     * target-kind-configured-per-ability
+     *
+     * @param ability the synced ability
+     * @return the badge's hint
+     */
+    static TargetingHint hintOf(ClientAbility ability) {
+        return TargetingHint.of(ability.badge());
     }
 
     /**

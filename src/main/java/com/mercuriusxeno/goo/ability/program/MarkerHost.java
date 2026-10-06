@@ -2,7 +2,9 @@ package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.item.GooStacks;
+import com.mercuriusxeno.goo.network.ChainBurnoutPayload;
 import com.mercuriusxeno.goo.registry.GooParticles;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.particles.SimpleParticleType;
@@ -62,10 +64,12 @@ public record MarkerHost(ServerLevel level, BlockPos pos, AbilityBlockEntity be)
      * Explodes at the marker with vanilla's damage, block breaking and boom,
      * its explosion and block particles swapped for none, since the marker's
      * burnout explosion is drawn by its goo type (decision
-     * elemental-explosion-per-type).
+     * elemental-explosion-per-type), sent here as it explodes rather than
+     * when the blob landed.
      */
     @Override
     public void explode(float power, ExplosionMode mode) {
+        burnout().sendToTracking(level);
         Vec3 center = Vec3.atCenterOf(pos);
         Level.ExplosionInteraction interaction = mode == ExplosionMode.TNT
                 ? Level.ExplosionInteraction.TNT
@@ -73,6 +77,16 @@ public record MarkerHost(ServerLevel level, BlockPos pos, AbilityBlockEntity be)
         SimpleParticleType silent = GooParticles.SILENT_BLAST.get();
         level.explode(null, null, null, center.x(), center.y(), center.z(), power, false, interaction,
                 silent, silent, WeightedList.of(), SoundEvents.GENERIC_EXPLODE);
+    }
+
+    /**
+     * The burnout this marker plays when it explodes, drawn by its goo type.
+     *
+     * @return the burnout at the marker
+     */
+    ChainBurnoutPayload burnout() {
+        return new ChainBurnoutPayload(pos, be.getPlacedFace().ordinal(), GooTypes.id(be.getGooType()),
+                be.getAbilityId());
     }
 
     @Override

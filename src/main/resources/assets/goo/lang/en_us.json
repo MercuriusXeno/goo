@@ -134,8 +134,7 @@
   "goo.ability.shroom.debuff": "Spore",
   "goo.ability.typhoon.levitate": "Float",
   "goo.ability.typhoon.propel": "Propel",
-  "goo.ability.unstable.explode": "Burst",
-  "goo.ability.unstable.instant_detonation": "Blast",
+  "goo.ability.unstable.explode": "Blast",
   "goo.ability.unstable.proximity_mine": "Claymore",
   "goo.ability.unstable.timed_bomb": "Countdown",
   "goo.ability.vital.clone": "Clone"

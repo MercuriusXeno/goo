@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.throwing.TargetingHint;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
@@ -16,11 +17,13 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.Nullable;
+import java.util.function.Supplier;
 
 /**
- * Resolves what the player aims at within throw range, filtered by the
- * selected ability's hint: an entity-tagged ability aims through the aim
- * assist, a block-tagged one at the block face the reticle meets. It runs
+ * Resolves what the player aims at within throw range, filtered by the hint
+ * the selected ability's badge names: a mob ability aims through the aim
+ * assist, a world one at the block face the reticle meets, a free or
+ * channeled one at the ray's point. It runs
  * once per client tick for {@link AimState} (decision
  * render-context-is-the-one-emitter).
  */
@@ -53,24 +56,142 @@ final class AimTargets {
         }
         Vec3 eyePos = player.getEyePosition(partialTick);
         Vec3 reach = eyePos.add(player.getViewVector(partialTick).scale(AimState.MAX_RANGE));
-        if (hint == TargetingHint.ENTITY) {
-            AimAssistResolver.AimHit hit = AimAssistResolver.findClosestAimHit(player, eyePos, reach, seed);
-            return new AimState.Resolution(targetOf(hit), hit);
-        }
-        return new AimState.Resolution(resolveBlockTarget(player, eyePos, reach), null);
+        return resolveFor(hint, new AimSources() {
+            @Override
+            public AimAssistResolver.@Nullable AimHit entityHit() {
+                return AimAssistResolver.findClosestAimHit(player, eyePos, reach, seed);
+            }
+
+            @Override
+            public TargetResult blockTarget() {
+                return resolveBlockTarget(player, eyePos, reach);
+            }
+
+            @Override
+            public TargetResult pointTarget() {
+                return pointOf(clipBlocks(player, eyePos, reach), reach);
+            }
+
+            @Override
+            public Vec3 entityPoint(Entity entity) {
+                return pointOnEntity(entity.getBoundingBox(), eyePos, reach);
+            }
+        });
     }
 
     /**
-     * The target an aim-assist hit names.
+     * The point the ray meets an entity's box at, or the box's center where
+     * the aim assist chose an entity the ray passes beside.
+     * aim-point-follows-the-cursor
      *
-     * @param hit the aim-assist hit, or null
-     * @return an entity target, or NONE
+     * @param box   the entity's bounding box
+     * @param from  the ray's start, the eye
+     * @param reach the ray's end at range
+     * @return the aimed point on the entity
      */
-    private static TargetResult targetOf(AimAssistResolver.@Nullable AimHit hit) {
+    static Vec3 pointOnEntity(AABB box, Vec3 from, Vec3 reach) {
+        return box.clip(from, reach).orElse(box.getCenter());
+    }
+
+    /**
+     * Where one frame's aim can come from, each read only when the hint asks for it.
+     */
+    interface AimSources {
+        /**
+         * The aim assist's entity hit.
+         *
+         * @return the hit, or null when no entity is near the ray
+         */
+        AimAssistResolver.@Nullable AimHit entityHit();
+
+        /**
+         * The block face the ray meets, projected to the ground on a miss.
+         *
+         * @return the block target, or NONE
+         */
+        TargetResult blockTarget();
+
+        /**
+         * The ray's point.
+         *
+         * @return the point target
+         */
+        TargetResult pointTarget();
+
+        /**
+         * The point the ray meets an entity at.
+         *
+         * @param entity the entity the aim assist chose
+         * @return the aimed point on it
+         */
+        Vec3 entityPoint(Entity entity);
+    }
+
+    /**
+     * Resolves the aim the hint asks for: an entity favors the aim assist and
+     * falls back to the block so the aim never reads NONE, a block favors the
+     * block face, a point locks onto a mob near the ray and aims the ray's
+     * point where none is near, and NONE aims nothing.
+     * target-kind-configured-per-ability
+     *
+     * @param hint    the aim mode from the selected ability's badge
+     * @param sources where the aim comes from
+     * @return the target and the aim-assist hit behind it
+     */
+    static AimState.Resolution resolveFor(TargetingHint hint, AimSources sources) {
+        return switch (hint) {
+            case NONE -> AimState.Resolution.NOTHING;
+            case BLOCK -> new AimState.Resolution(sources.blockTarget(), null);
+            case POINT -> lockOnOr(sources, sources::pointTarget);
+            case ENTITY -> lockOnOr(sources, sources::blockTarget);
+        };
+    }
+
+    /**
+     * Locks onto the mob the aim assist finds near the ray, aimed at the point
+     * the ray meets it, or falls back where no mob is near: a mob ability to
+     * the block, a free aim to the ray's point, so free aim keeps its mob lock-on.
+     * target-kind-configured-per-ability
+     * aim-point-follows-the-cursor
+     *
+     * @param sources  where the aim comes from
+     * @param fallback the target where no mob is near
+     * @return the target and the aim-assist hit behind it
+     */
+    private static AimState.Resolution lockOnOr(AimSources sources, Supplier<TargetResult> fallback) {
+        AimAssistResolver.AimHit hit = sources.entityHit();
         if (hit instanceof AimAssistResolver.AimHit.EntityHit eh) {
-            return TargetResult.entity(eh.entity());
+            return new AimState.Resolution(TargetResult.entity(eh.entity(), sources.entityPoint(eh.entity())), hit);
         }
-        return TargetResult.NONE;
+        return new AimState.Resolution(fallback.get(), null);
+    }
+
+    /**
+     * The point a ray aims: where it meets a block, on the face it met, or its
+     * end at range in open air.
+     *
+     * @param hit   the ray's block clip
+     * @param reach the ray's end at range
+     * @return the point target
+     */
+    static TargetResult pointOf(BlockHitResult hit, Vec3 reach) {
+        if (hit.getType() == HitResult.Type.BLOCK) {
+            return TargetResult.pointOnBlock(hit.getLocation(), hit.getBlockPos(), hit.getDirection());
+        }
+        return TargetResult.pointInAir(reach);
+    }
+
+    /**
+     * Clips the ray against block outlines and fluid sources.
+     *
+     * @param player the local player
+     * @param eyePos the eye position
+     * @param reach  the ray's end at range
+     * @return the clip result
+     */
+    private static BlockHitResult clipBlocks(Player player, Vec3 eyePos, Vec3 reach) {
+        return player.level().clip(new ClipContext(
+                eyePos, reach, ClipContext.Block.OUTLINE, ClipContext.Fluid.SOURCE_ONLY, player));
     }
 
     /**
@@ -84,8 +205,7 @@ final class AimTargets {
      * @return the resolved block target, or max-range projection on miss
      */
     private static TargetResult resolveBlockTarget(Player player, Vec3 eyePos, Vec3 reach) {
-        BlockHitResult hit = player.level().clip(new ClipContext(
-                eyePos, reach, ClipContext.Block.OUTLINE, ClipContext.Fluid.SOURCE_ONLY, player));
+        BlockHitResult hit = clipBlocks(player, eyePos, reach);
         if (hit.getType() != HitResult.Type.BLOCK) {
             return projectToGround(player.level(), reach);
         }
@@ -111,7 +231,7 @@ final class AimTargets {
         if (ground.getType() != HitResult.Type.BLOCK) {
             return TargetResult.NONE;
         }
-        return TargetResult.block(ground.getBlockPos(), Direction.UP);
+        return TargetResult.block(ground.getBlockPos(), Direction.UP, ground.getLocation());
     }
 
     /**
@@ -137,7 +257,7 @@ final class AimTargets {
         if (isGrannyArcCandidate(level, hit, pos, face)) {
             return TargetResult.grannyArc(pos);
         }
-        return TargetResult.block(pos, face);
+        return TargetResult.block(pos, face, hit.getLocation());
     }
 
     /**

@@ -55,8 +55,8 @@ class AbilityLoaderTest {
     /** The world abilities that stay after their blob lands. */
     private static final List<String> LINGERING_ABILITIES = List.of("crystal_cloud", "metal_spikes",
             "nether_black_hole", "unstable_proximity_mine", "glow_crystal");
-    /** The world ability whose program ends the tick it lands. */
-    private static final String BLAST = "unstable_instant_detonation";
+    /** The ability whose program ends the tick it lands. */
+    private static final String BLAST = "unstable_explode";
     private static final List<String> STACK_SHAPE_ABILITIES = List.of("blaze_flat", "blaze_tunnel",
             "frost_flat", "frost_tunnel", "frost_sphere", "rock_flat", "rock_tunnel");
 

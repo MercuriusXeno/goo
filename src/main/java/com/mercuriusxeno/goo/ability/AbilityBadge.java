@@ -35,7 +35,26 @@ public enum AbilityBadge implements StringRepresentable {
      * Acts on the thrower as a brew, eaten before it takes effect.
      * decision self-brew-goos-eat-before-the-effect
      */
-    BREW("brew");
+    BREW("brew"),
+
+    /**
+     * Lands wherever the crosshair points, favoring no mob or block.
+     * badge-vocabulary-gains-free-prism-tap-brew
+     * free-badge-is-a-crosshair
+     */
+    FREE("free"),
+
+    /**
+     * Refracts through a prism.
+     * badge-vocabulary-gains-free-prism-tap-brew
+     */
+    PRISM("prism"),
+
+    /**
+     * Lands with a tap.
+     * badge-vocabulary-gains-free-prism-tap-brew
+     */
+    TAP("tap");
 
     /** Datapack codec, reading the badge by its word. */
     public static final Codec<AbilityBadge> CODEC = StringRepresentable.fromEnum(AbilityBadge::values);
@@ -49,7 +68,7 @@ public enum AbilityBadge implements StringRepresentable {
      * declaration order so the network ordinal stays put.
      * fan-sorts-badge-then-order
      */
-    private static final List<AbilityBadge> FAN_RANK = List.of(CHANNELED, MOB, WORLD, SELF, BREW);
+    private static final List<AbilityBadge> FAN_RANK = List.of(CHANNELED, MOB, WORLD, FREE, PRISM, TAP, SELF, BREW);
 
     private final String serializedName;
 
@@ -65,6 +84,17 @@ public enum AbilityBadge implements StringRepresentable {
     @Override
     public @NonNull String getSerializedName() {
         return serializedName;
+    }
+
+    /**
+     * Whether this badge's abilities aim a point in space rather than favor a
+     * mob or a block: they land and resolve at the aimed point itself.
+     * aim-point-follows-the-cursor
+     *
+     * @return true for free, channeled, prism and tap
+     */
+    public boolean aimsAPoint() {
+        return this == FREE || this == CHANNELED || this == PRISM || this == TAP;
     }
 
     /**

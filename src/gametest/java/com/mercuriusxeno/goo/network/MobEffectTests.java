@@ -87,7 +87,7 @@ public final class MobEffectTests {
     /** Wide enough that a gaussian step from the target cannot leave it. */
     private static final double CLONE_SEARCH_RADIUS = 8.0;
     private static final int CHICKENS_AFTER_CLONE = 2;
-    /** Beside the cow, inside unstable_explode.json's blast of power 2. */
+    /** Beside the cow, inside unstable_explode.json's blast of power 3. */
     private static final BlockPos BLAST_DIRT_POS = SPAWN_POS.south();
     /** The damage crystal_flechettes.json's first damage step names. */
     private static final float FLECHETTE_DAMAGE = 4.0f;

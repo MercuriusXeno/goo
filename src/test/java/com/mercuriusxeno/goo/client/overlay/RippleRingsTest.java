@@ -80,7 +80,7 @@ class RippleRingsTest {
     @ParameterizedTest
     @EnumSource(Direction.class)
     void noRingPointLeavesTheFaceSquare(Direction face) {
-        Vec3 faceCenter = new TargetResult.BlockTarget(POS, face, false).resolveEndpoint();
+        Vec3 faceCenter = TargetResult.block(POS, face).resolveEndpoint();
         for (int s = 0; s <= SAMPLES; s++) {
             double now = RippleRings.PERIOD_SECONDS * s / SAMPLES;
             for (double phase : RippleRings.ringPhases(now)) {

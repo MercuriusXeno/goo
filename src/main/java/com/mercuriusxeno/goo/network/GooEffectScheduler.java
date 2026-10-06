@@ -183,7 +183,23 @@ public final class GooEffectScheduler {
         enqueue(new PendingEffect(
                 arrivalTick, level, player, gooType,
                 payload.targetEntityId(), payload.targetPos(), face,
-                payload.abilityId(), crosshairAim(player)));
+                payload.abilityId(), crosshairAim(player), resolvePoint(level, payload, gooType)));
+    }
+
+    /**
+     * The point a throw resolves at: the aimed point for an ability aiming a
+     * point, none for one favoring a mob or a block.
+     * aim-point-follows-the-cursor
+     *
+     * @param level   the server level
+     * @param payload the throw payload data
+     * @param gooType the goo type thrown
+     * @return the point, or null to resolve at the landing cell
+     */
+    private static @Nullable Vec3 resolvePoint(ServerLevel level, GooThrowPayload payload,
+                                               ResourceKey<GooTypeDefinition> gooType) {
+        AbilityDefinition ability = GooThrowHandler.thrownAbility(level, payload.abilityId(), gooType);
+        return ability != null && ability.badge().aimsAPoint() ? payload.targetPoint() : null;
     }
 
     /**
@@ -433,7 +449,7 @@ public final class GooEffectScheduler {
         if (def == null) {
             return;
         }
-        AbilityImpact.land(pe.level, pe.targetPos, pe.gooType, pe.targetFace, def);
+        AbilityImpact.land(pe.level, pe.targetPos, pe.gooType, pe.targetFace, def, pe.point);
     }
 
     /**
@@ -462,11 +478,31 @@ public final class GooEffectScheduler {
      * @param targetFace     the struck face
      * @param abilityId      the ability the throw names, or empty
      * @param aim            the aim captured as the goo left the hand, or null to read the striker's on landing
+     * @param point          the point an ability aiming a point resolves at, or null to resolve at the landing cell
      */
     public record PendingEffect(int arrivalTick, ServerLevel level,
                          ServerPlayer thrower, ResourceKey<GooTypeDefinition> gooType,
                          int targetEntityId, BlockPos targetPos,
-                         Direction targetFace, String abilityId, @Nullable Aim aim) {
+                         Direction targetFace, String abilityId, @Nullable Aim aim, @Nullable Vec3 point) {
+
+        /**
+         * A pending effect resolving at its landing cell.
+         *
+         * @param arrivalTick    the server tick the goo lands on
+         * @param level          the level it lands in
+         * @param thrower        the throwing player
+         * @param gooType        the goo type thrown
+         * @param targetEntityId the struck entity's id, or -1 for a block
+         * @param targetPos      the struck block
+         * @param targetFace     the struck face
+         * @param abilityId      the ability the throw names, or empty
+         * @param aim            the aim captured as the goo left the hand, or null
+         */
+        public PendingEffect(int arrivalTick, ServerLevel level, ServerPlayer thrower,
+                             ResourceKey<GooTypeDefinition> gooType, int targetEntityId, BlockPos targetPos,
+                             Direction targetFace, String abilityId, @Nullable Aim aim) {
+            this(arrivalTick, level, thrower, gooType, targetEntityId, targetPos, targetFace, abilityId, aim, null);
+        }
 
         /**
          * A pending effect carrying no captured aim: one landing at once reads
@@ -484,7 +520,7 @@ public final class GooEffectScheduler {
         public PendingEffect(int arrivalTick, ServerLevel level, ServerPlayer thrower,
                              ResourceKey<GooTypeDefinition> gooType, int targetEntityId, BlockPos targetPos,
                              Direction targetFace, String abilityId) {
-            this(arrivalTick, level, thrower, gooType, targetEntityId, targetPos, targetFace, abilityId, null);
+            this(arrivalTick, level, thrower, gooType, targetEntityId, targetPos, targetFace, abilityId, null, null);
         }
     }
 
