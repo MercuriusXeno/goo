@@ -87,6 +87,22 @@ class PlayerHostTest {
 
             verify(player).teleportTo(X, Y + 0.6 * BLINK, Z + 0.8 * BLINK);
         }
+
+        /**
+         * The server's teleport lands on the point the client's blink cursor
+         * resolves for the same look and range, through the one shared function
+         * (decision ripple-outline-is-the-blink-cursor).
+         */
+        @Test
+        void teleportLandsWhereTheBlinkCursorResolves() {
+            Vec3 look = new Vec3(0.36, -0.48, 0.8);
+            ServerPlayer player = playerLooking(look);
+
+            run(List.of(new TeleportStep(TeleportMode.THROWER_LOOK, Expr.literal(BLINK))), player);
+
+            Vec3 cursor = TeleportStep.lookDestination(new Vec3(X, Y, Z), look, BLINK);
+            verify(player).teleportTo(cursor.x(), cursor.y(), cursor.z());
+        }
     }
 
     @Nested
