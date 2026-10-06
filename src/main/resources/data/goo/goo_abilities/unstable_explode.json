@@ -1,13 +1,14 @@
 {
   "gooType": "unstable",
   "displayName": "goo.ability.unstable.explode",
-  "badge": "mob",
+  "badge": "free",
   "order": 10,
   "cost": 1000,
   "requires": ["minecraft:gunpowder"],
   "delivery": { "kind": "arc" },
+  "area": { "shape": "sphere", "size": 3.0 },
   "behaviors": [
-    { "type": "explode", "power": 2.0, "interaction": "tnt" }
+    { "type": "explode", "power": 3.0, "interaction": "tnt" }
   ],
   "tags": ["entity"]
 }

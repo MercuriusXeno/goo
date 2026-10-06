@@ -190,6 +190,8 @@ public final class GooTestFunctions {
     private static final String FX_NO_ABILITY_LANDS_NOTHING = "fx_no_ability_lands_nothing";
     private static final String FX_ABILITY_LANDS_MARKER = "fx_ability_lands_marker";
     private static final String FX_BLAST_LANDS_NO_BLOCK = "fx_blast_lands_no_block";
+    private static final String FREE_BLAST_AT_AIR_POINT = "free_blast_at_air_point";
+    private static final String FREE_BLAST_AT_SKY = "free_blast_at_sky";
     private static final String FX_CLOUD_BLOCK_GOES = "fx_cloud_block_goes";
     private static final String FX_TRAP_BLOCK_GOES = "fx_trap_block_goes";
     private static final String FX_CRYSTAL_GROWS = "fx_crystal_grows";
@@ -606,6 +608,8 @@ public final class GooTestFunctions {
         reg(r, FX_NO_ABILITY_LANDS_NOTHING, BlockLandingTests::noAbilityLandsNothing);
         reg(r, FX_ABILITY_LANDS_MARKER, BlockLandingTests::abilityLandsItsMarker);
         reg(r, FX_BLAST_LANDS_NO_BLOCK, BlockLandingTests::blastLandsNoBlock);
+        reg(r, FREE_BLAST_AT_AIR_POINT, FreeAimTests::blastExplodesAtThePointInOpenAir);
+        reg(r, FREE_BLAST_AT_SKY, FreeAimTests::blastAimedAtTheSkyThrowsToTheRangesEnd);
         reg(r, FX_CLOUD_BLOCK_GOES, EffectExecutorTests::crystalCloudBlockGoesWithItsProgram);
         reg(r, FX_TRAP_BLOCK_GOES, EffectExecutorTests::metalTrapBlockGoesWithItsProgram);
     }

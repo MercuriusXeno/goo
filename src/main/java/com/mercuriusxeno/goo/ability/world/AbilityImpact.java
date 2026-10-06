@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.LandingHost;
+import com.mercuriusxeno.goo.ability.program.LingerStep;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
 import com.mercuriusxeno.goo.network.ChainBurnoutPayload;
@@ -11,11 +12,10 @@ import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.SectionPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.minecraft.world.phys.Vec3;
+import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 
 /**
@@ -44,13 +44,44 @@ public final class AbilityImpact {
      */
     public static void land(ServerLevel level, BlockPos pos, ResourceKey<GooTypeDefinition> type,
                             Direction face, AbilityDefinition ability) {
+        land(level, pos, type, face, ability, null);
+    }
+
+    /**
+     * Lands an ability goo on a block, its world actions anchored at the
+     * aimed point where it names one, and at the landing cell's center
+     * otherwise, so a free ability resolves where it was aimed.
+     * aim-point-follows-the-cursor
+     *
+     * @param level   the server level
+     * @param pos     the struck block
+     * @param type    the goo type thrown
+     * @param face    the struck face
+     * @param ability the ability the goo names
+     * @param point   the aimed point the ability resolves at, or null for the cell's center
+     */
+    public static void land(ServerLevel level, BlockPos pos, ResourceKey<GooTypeDefinition> type,
+                            Direction face, AbilityDefinition ability, @Nullable Vec3 point) {
         Optional<LandingSpot> spot = LandingSpot.resolve(level, pos, face);
         if (spot.isEmpty()) {
             return;
         }
-        LandingHost host = new LandingHost(level, spot.get().cell(), face, spot.get().waterlogged(), type,
-                ability.id().toString());
+        BlockPos cell = spot.get().cell();
+        LandingHost host = new LandingHost(level, cell, face, spot.get().waterlogged(), type,
+                ability.id().toString(), point == null ? Vec3.atCenterOf(cell) : point);
         AbilitySplat.resolve(new Landing(host, ability));
+    }
+
+    /**
+     * Whether an ability's program stands its own block to run on after the
+     * splat, so its burnout plays when that block explodes rather than as the
+     * blob lands (decision elemental-explosion-per-type).
+     *
+     * @param ability the landing ability
+     * @return true when a top-level step lingers
+     */
+    static boolean lingers(AbilityDefinition ability) {
+        return ability.behaviors().stream().anyMatch(LingerStep.class::isInstance);
     }
 
     /**
@@ -63,17 +94,13 @@ public final class AbilityImpact {
 
         @Override
         public void announceBurnout() {
-            BlockPos cell = host.cell();
-            ChainBurnoutPayload burnout = new ChainBurnoutPayload(cell, host.face().ordinal(),
-                    GooTypes.id(host.gooType()), host.abilityId());
-            int chunkX = SectionPos.blockToSectionCoord(cell.getX());
-            int chunkZ = SectionPos.blockToSectionCoord(cell.getZ());
-            // A listener that never negotiated the mod's channels, a gametest's mock player, gets no burnout.
-            for (ServerPlayer player : host.level().players()) {
-                if (player.getChunkTrackingView().contains(chunkX, chunkZ) && player.connection.hasChannel(burnout)) {
-                    PacketDistributor.sendToPlayer(player, burnout);
-                }
-            }
+            new ChainBurnoutPayload(host.cell(), host.face().ordinal(), GooTypes.id(host.gooType()),
+                    host.abilityId()).sendToTracking(host.level());
+        }
+
+        @Override
+        public boolean lingers() {
+            return AbilityImpact.lingers(ability);
         }
 
         @Override

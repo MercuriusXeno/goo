@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.ability.world;
 
 import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
+import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.program.Expr;
 import com.mercuriusxeno.goo.ability.program.FxAnchor;
@@ -15,12 +16,16 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.Bootstrap;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.fml.loading.FMLLoader;
 import net.neoforged.neoforge.attachment.AttachmentHolder;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
+import java.util.Arrays;
 import java.util.List;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -58,16 +63,75 @@ class AbilityImpactTest {
         }
     }
 
-    @Test
-    void aOneTickProgramLandsNoBlock() {
+    private static ServerLevel wallLevel() {
         ServerLevel level = mock(ServerLevel.class);
         when(level.getBlockState(WALL)).thenReturn(Blocks.STONE.defaultBlockState());
         when(level.getBlockState(WALL.south())).thenReturn(Blocks.AIR.defaultBlockState());
         when(level.players()).thenReturn(List.of());
-        AbilityDefinition chime = new AbilityDefinition(Identifier.parse("goo:test_chime"), GooTypes.UNSTABLE,
+        return level;
+    }
+
+    private static AbilityDefinition chime(AbilityBadge badge) {
+        return new AbilityDefinition(Identifier.parse("goo:test_chime"), GooTypes.UNSTABLE,
                 "chime", "", 0, 0, Delivery.ARC,
                 List.of(new SoundStep(CHIME, FxAnchor.HOST, SoundKind.BLOCKS, Expr.literal(1), Expr.literal(1))),
-                List.of(), AbilityBadge.WORLD, List.of());
+                List.of(), badge, List.of());
+    }
+
+    /** The coordinates the landing's chime played at. */
+    private static Vec3 chimedAt(ServerLevel level) {
+        Object[] args = mockingDetails(level).getInvocations().stream()
+                .filter(call -> "playSound".equals(call.getMethod().getName()))
+                .findFirst().orElseThrow().getArguments();
+        List<Double> coordinates = Arrays.stream(args).filter(Double.class::isInstance)
+                .map(Double.class::cast).limit(3).toList();
+        return new Vec3(coordinates.get(0), coordinates.get(1), coordinates.get(2));
+    }
+
+    /** A free ability's program anchors at the aimed point, not the cell's center (decision aim-point-follows-the-cursor). */
+    @Test
+    void anAimedPointAnchorsTheProgramThere() {
+        ServerLevel level = wallLevel();
+        Vec3 point = new Vec3(3.2, 64.9, -0.9);
+
+        AbilityImpact.land(level, WALL, GooTypes.UNSTABLE, Direction.SOUTH, chime(AbilityBadge.FREE), point);
+
+        assertEquals(point, chimedAt(level));
+    }
+
+    @Test
+    void noAimedPointAnchorsTheProgramAtTheCellsCenter() {
+        ServerLevel level = wallLevel();
+
+        AbilityImpact.land(level, WALL, GooTypes.UNSTABLE, Direction.SOUTH, chime(AbilityBadge.WORLD));
+
+        assertEquals(Vec3.atCenterOf(WALL.south()), chimedAt(level));
+    }
+
+    /**
+     * The proximity mine lingers, so its burnout waits for its standing block to
+     * explode; Blast resolves at the splat and plays it there (decision
+     * elemental-explosion-per-type).
+     */
+    @Test
+    void theMineLingersAndBlastDoesNot() {
+        assertTrue(AbilityImpact.lingers(AbilityJson.decode("unstable_proximity_mine")));
+        assertFalse(AbilityImpact.lingers(AbilityJson.decode("unstable_explode")));
+    }
+
+    @Test
+    void aOneTickLandingSendsItsBurnoutToTheTrackingPlayers() {
+        ServerLevel level = wallLevel();
+
+        AbilityImpact.land(level, WALL, GooTypes.UNSTABLE, Direction.SOUTH, chime(AbilityBadge.WORLD));
+
+        verify(level).players();
+    }
+
+    @Test
+    void aOneTickProgramLandsNoBlock() {
+        ServerLevel level = wallLevel();
+        AbilityDefinition chime = chime(AbilityBadge.WORLD);
 
         AbilityImpact.land(level, WALL, GooTypes.UNSTABLE, Direction.SOUTH, chime);
 

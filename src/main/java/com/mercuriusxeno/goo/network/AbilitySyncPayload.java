@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.AbilityArea;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
@@ -81,7 +82,7 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
                 .map(def -> new Entry(def.id().toString(), GooTypes.id(type),
                         def.displayName(), def.icon(), def.order(), def.tags(),
                         def.behaviors(), def.cost(),
-                        def.delivery(), def.badge(), def.requires()))
+                        def.delivery(), def.badge(), def.requires(), def.area()))
                 .toList();
     }
 
@@ -99,6 +100,7 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
             Delivery.STREAM_CODEC.encode(buf, e.delivery);
             AbilityBadge.STREAM_CODEC.encode(buf, e.badge);
             REQUIRES_CODEC.encode(buf, e.requires);
+            AbilityArea.STREAM_CODEC.encode(buf, e.area);
         }
     }
 
@@ -116,7 +118,8 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
             entries.add(new Entry(buf.readUtf(), buf.readUtf(), buf.readUtf(),
                     buf.readUtf(), buf.readVarInt(), decodeTags(buf),
                     STEPS_CODEC.decode(buf), buf.readVarInt(), Delivery.STREAM_CODEC.decode(buf),
-                    AbilityBadge.STREAM_CODEC.decode(buf), REQUIRES_CODEC.decode(buf)));
+                    AbilityBadge.STREAM_CODEC.decode(buf), REQUIRES_CODEC.decode(buf),
+                    AbilityArea.STREAM_CODEC.decode(buf)));
         }
         return new AbilitySyncPayload(entries);
     }
@@ -149,10 +152,33 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
      * @param delivery    how the ability leaves the glove
      * @param badge       the target kind the radial marks on the icon
      * @param requires    the items a player must know before the radial offers it
+     * @param area        the area the glove draws while right click is held
      */
     public record Entry(String abilityId, String gooTypeId, String displayName,
                         String icon, int order, List<String> tags,
                         List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge,
-                        List<Identifier> requires) {
+                        List<Identifier> requires, AbilityArea area) {
+
+        /**
+         * An entry declaring no area.
+         *
+         * @param abilityId   the ability resource id string
+         * @param gooTypeId   the goo type id string
+         * @param displayName the translation key
+         * @param icon        the icon texture path override
+         * @param order       the sort order within the type
+         * @param tags        categorical tags
+         * @param behaviors   the ability's step program
+         * @param cost        the mB a throw costs
+         * @param delivery    how the ability leaves the glove
+         * @param badge       the target kind the radial marks on the icon
+         * @param requires    the items a player must know before the radial offers it
+         */
+        public Entry(String abilityId, String gooTypeId, String displayName, String icon, int order,
+                     List<String> tags, List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge,
+                     List<Identifier> requires) {
+            this(abilityId, gooTypeId, displayName, icon, order, tags, behaviors, cost, delivery, badge, requires,
+                    AbilityArea.NONE);
+        }
     }
 }
