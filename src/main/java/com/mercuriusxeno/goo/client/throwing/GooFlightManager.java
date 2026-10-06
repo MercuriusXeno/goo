@@ -1,15 +1,12 @@
 package com.mercuriusxeno.goo.client.throwing;
 
 import com.mercuriusxeno.goo.ability.Delivery;
-import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
-import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.network.GooFlightPayload;
 import com.mercuriusxeno.goo.throwing.ThrowArc;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
@@ -57,7 +54,7 @@ public final class GooFlightManager {
         Vec3 start = new Vec3(payload.startX(), payload.startY(), payload.startZ());
         int targetEntityId = payload.targetEntityId();
         Vec3 throwEnd = targetEntityId < 0
-                ? resolveBlockTargetPos(payload) : resolveEntityEndAtThrow(targetEntityId, start);
+                ? payload.targetPoint() : resolveEntityEndAtThrow(targetEntityId, start);
         int travelTicks = payload.travelTicks();
 
         boolean grannyArc = payload.grannyArc();
@@ -129,35 +126,6 @@ public final class GooFlightManager {
     }
 
     /**
-     * Resolves block face center from the payload via the shared
-     * {@link TargetResult#resolveEndpoint()} method.
-     *
-     * @param payload the network payload
-     * @return the resolved endpoint position
-     */
-    private static Vec3 resolveBlockTargetPos(GooFlightPayload payload) {
-        BlockPos pos = payload.targetPos();
-        Direction face = decodeFace(payload.targetFace());
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.level != null
-                && mc.level.getBlockState(pos).getBlock() instanceof GlowCrystalBlock) {
-            return TargetResult.glowCrystal(pos, face).resolveEndpoint();
-        }
-        return TargetResult.block(pos, face).resolveEndpoint();
-    }
-
-    /**
-     * Decodes a face ordinal from the payload into a Direction, defaulting to UP.
-     *
-     * @param faceOrdinal the ordinal index from the network payload
-     * @return the decoded direction, or UP if out of range
-     */
-    private static Direction decodeFace(int faceOrdinal) {
-        return (faceOrdinal >= 0 && faceOrdinal < Direction.values().length)
-                ? Direction.values()[faceOrdinal] : Direction.UP;
-    }
-
-    /**
      * Resolves an entity's bounding-box center, the endpoint the aim line
      * reads, or null if gone.
      *
@@ -173,7 +141,7 @@ public final class GooFlightManager {
         if (e == null) {
             return null;
         }
-        return new TargetResult.EntityTarget(e).resolveEndpoint();
+        return e.getBoundingBox().getCenter();
     }
 
     /**

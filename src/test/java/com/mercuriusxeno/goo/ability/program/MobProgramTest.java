@@ -26,7 +26,7 @@ import static org.mockito.Mockito.when;
  */
 class MobProgramTest {
 
-    private static final float MOB_BLAST_POWER = 2;
+    private static final float MOB_BLAST_POWER = 3;
     private static final double FLECHETTE_SPLASH_RADIUS = 3;
     private static final double IGNITE_SPLASH_RADIUS = 2.5;
 

@@ -7,7 +7,7 @@
   "requires": ["minecraft:gunpowder"],
   "delivery": { "kind": "arc" },
   "behaviors": [
-    { "type": "explode", "power": 2.0, "interaction": "tnt" }
+    { "type": "explode", "power": 3.0, "interaction": "tnt" }
   ],
   "tags": ["entity"]
 }

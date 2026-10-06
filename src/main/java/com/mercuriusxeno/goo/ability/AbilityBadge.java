@@ -87,6 +87,17 @@ public enum AbilityBadge implements StringRepresentable {
     }
 
     /**
+     * Whether this badge's abilities aim a point in space rather than favor a
+     * mob or a block: they land and resolve at the aimed point itself.
+     * aim-point-follows-the-cursor
+     *
+     * @return true for free, channeled, prism and tap
+     */
+    public boolean aimsAPoint() {
+        return this == FREE || this == CHANNELED || this == PRISM || this == TAP;
+    }
+
+    /**
      * Where this badge's abilities stand in the fan, lowest first.
      *
      * @return the badge's fan rank

@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.client.throwing.TargetingHint;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
@@ -28,7 +29,8 @@ class AimTargetsTest {
 
     private static final BlockPos BLOCK = new BlockPos(3, 64, -7);
     private static final TargetResult BLOCK_TARGET = TargetResult.block(BLOCK, Direction.NORTH);
-    private static final TargetResult POINT_TARGET = TargetResult.point(new Vec3(1.5, 65.2, 2.25), BLOCK, Direction.UP);
+    private static final TargetResult POINT_TARGET = TargetResult.pointOnBlock(new Vec3(1.5, 65.2, 2.25), BLOCK, Direction.UP);
+    private static final Vec3 ENTITY_POINT = new Vec3(8.3, 65.1, 4.4);
 
     /** Answers fixed sources: the entity hit given, a block target and a point target. */
     private record FixedSources(AimAssistResolver.@Nullable AimHit entityHit) implements AimTargets.AimSources {
@@ -40,6 +42,11 @@ class AimTargetsTest {
         @Override
         public TargetResult pointTarget() {
             return POINT_TARGET;
+        }
+
+        @Override
+        public Vec3 entityPoint(Entity entity) {
+            return ENTITY_POINT;
         }
     }
 
@@ -57,7 +64,9 @@ class AimTargetsTest {
 
             AimState.Resolution resolution = resolve(AbilityBadge.MOB, hit);
 
-            assertSame(cow, assertInstanceOf(TargetResult.EntityTarget.class, resolution.target()).entity());
+            TargetResult.EntityTarget target = assertInstanceOf(TargetResult.EntityTarget.class, resolution.target());
+            assertSame(cow, target.entity());
+            assertEquals(ENTITY_POINT, target.point());
             assertSame(hit, resolution.hit());
         }
 
@@ -100,7 +109,7 @@ class AimTargetsTest {
             TargetResult target = AimTargets.pointOf(new BlockHitResult(met, Direction.NORTH, BLOCK, false),
                     new Vec3(30, 70, -60));
 
-            assertEquals(TargetResult.point(met, BLOCK, Direction.NORTH), target);
+            assertEquals(TargetResult.pointOnBlock(met, BLOCK, Direction.NORTH), target);
             assertEquals(met, target.resolveEndpoint());
         }
 
@@ -111,7 +120,25 @@ class AimTargetsTest {
             TargetResult target = AimTargets.pointOf(BlockHitResult.miss(reach, Direction.UP, BlockPos.containing(reach)),
                     reach);
 
-            assertEquals(TargetResult.point(reach, new BlockPos(10, 120, -41), Direction.UP), target);
+            assertEquals(new TargetResult.PointTarget(reach, new BlockPos(10, 120, -41), Direction.UP, false), target);
+        }
+
+        @Test
+        void aRayThroughAnEntityAimsWhereItMetTheBox() {
+            AABB box = new AABB(4, 64, -1, 5, 66, 1);
+
+            Vec3 point = AimTargets.pointOnEntity(box, new Vec3(0, 65, 0), new Vec3(64, 65, 0));
+
+            assertEquals(new Vec3(4, 65, 0), point);
+        }
+
+        @Test
+        void anEntityTheAimAssistChoseBesideTheRayAimsItsCenter() {
+            AABB box = new AABB(4, 64, 3, 5, 66, 4);
+
+            Vec3 point = AimTargets.pointOnEntity(box, new Vec3(0, 65, 0), new Vec3(64, 65, 0));
+
+            assertEquals(box.getCenter(), point);
         }
     }
 }

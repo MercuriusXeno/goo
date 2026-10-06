@@ -114,7 +114,7 @@ public final class GloveThrowSender {
             return false;
         }
         sendPayload(new GooThrowPayload(GooTypes.id(gooType), NO_ENTITY, player.blockPosition(), NO_ENTITY,
-                false, abilityId, lineOrigin()));
+                false, abilityId, lineOrigin(), player.position()));
         return true;
     }
 
@@ -293,9 +293,9 @@ public final class GloveThrowSender {
             case TargetResult.EntityTarget et -> entityPayload(typeId, et, abilityId, origin);
             case TargetResult.BlockTarget bt -> blockPayload(typeId, bt, abilityId, origin);
             case TargetResult.GlowCrystalTarget gct -> new GooThrowPayload(typeId, NO_ENTITY,
-                    gct.pos(), gct.face().ordinal(), false, abilityId, origin);
+                    gct.pos(), gct.face().ordinal(), false, abilityId, origin, gct.point());
             case TargetResult.PointTarget pt -> new GooThrowPayload(typeId, NO_ENTITY,
-                    pt.pos(), pt.face().ordinal(), false, abilityId, origin);
+                    pt.pos(), pt.face().ordinal(), false, abilityId, origin, pt.point());
             default -> throw new IllegalArgumentException(target.toString());
         };
     }
@@ -312,7 +312,7 @@ public final class GloveThrowSender {
     private static GooThrowPayload entityPayload(String typeId,
             TargetResult.EntityTarget et, String abilityId, Vec3 origin) {
         return new GooThrowPayload(typeId, et.entity().getId(), BlockPos.ZERO, NO_ENTITY,
-                false, abilityId, origin);
+                false, abilityId, origin, et.point());
     }
 
     /**
@@ -327,7 +327,7 @@ public final class GloveThrowSender {
     private static GooThrowPayload blockPayload(String typeId,
             TargetResult.BlockTarget bt, String abilityId, Vec3 origin) {
         return new GooThrowPayload(typeId, NO_ENTITY, bt.pos(), bt.face().ordinal(),
-                bt.grannyArc(), abilityId, origin);
+                bt.grannyArc(), abilityId, origin, bt.point());
     }
 
     /**

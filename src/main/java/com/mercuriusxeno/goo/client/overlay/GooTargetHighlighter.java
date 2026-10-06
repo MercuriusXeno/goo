@@ -19,7 +19,9 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.event.RenderGuiLayerEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -69,7 +71,24 @@ public final class GooTargetHighlighter {
     /** The granny weight drawn last frame. */
     private static double drawnGrannyWeight;
 
+    /** Whether this frame drew the reticule, which then stands in for the vanilla crosshair. */
+    private static boolean reticuleDrawn;
+
     private GooTargetHighlighter() {
+    }
+
+    /**
+     * Hides the vanilla crosshair while the reticule marks the aim, so one
+     * crosshair shows rather than two.
+     * target-kind-configured-per-ability
+     *
+     * @param event the gui layer event
+     */
+    @SubscribeEvent
+    public static void onRenderGuiLayer(RenderGuiLayerEvent.Pre event) {
+        if (reticuleDrawn && VanillaGuiLayers.CROSSHAIR.equals(event.getName())) {
+            event.setCanceled(true);
+        }
     }
 
     /**
@@ -81,6 +100,7 @@ public final class GooTargetHighlighter {
     @SubscribeEvent
     public static void onAfterOpaqueFeatures(RenderLevelStageEvent.AfterOpaqueFeatures event) {
         clearCachedArc();
+        reticuleDrawn = false;
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null || !mc.options.getCameraType().isFirstPerson()) {
             return;
@@ -113,14 +133,27 @@ public final class GooTargetHighlighter {
     private static void renderIndicator(TargetResult target, AimIndicator indicator, HighlightFrame frame) {
         switch (indicator) {
             case NONE -> { }
-            case RETICULE -> {
-                Vec3 point = target.resolveEndpoint();
-                if (point != null) {
-                    ReticuleRenderer.render(frame.ps(), frame.buf(), frame.camera(), point,
-                            ClientGooTypes.highlight(frame.selectedType()));
-                }
-            }
+            case RETICULE -> renderReticule(target, frame);
             case ENTITY_OUTLINE, BLOCK_OUTLINE -> renderTargetHighlight(target, frame);
+        }
+    }
+
+    /**
+     * Draws the reticule at the aimed point, standing in for the vanilla
+     * crosshair, and the tile's outline and bullseye where the point sits on a block.
+     *
+     * @param target the aim target
+     * @param frame  what the frame draws with
+     */
+    private static void renderReticule(TargetResult target, HighlightFrame frame) {
+        Vec3 point = target.point();
+        if (point != null) {
+            ReticuleRenderer.render(frame.ps(), frame.buf(), frame.camera(), point,
+                    ClientGooTypes.highlight(frame.selectedType()));
+            reticuleDrawn = true;
+        }
+        if (target instanceof TargetResult.PointTarget pt && pt.onBlock()) {
+            renderBlockTargetHighlight(pt.tile(), frame);
         }
     }
 
@@ -235,7 +268,7 @@ public final class GooTargetHighlighter {
      */
     private static void renderAimLine(RenderLevelStageEvent.AfterTranslucentBlocks event, TargetResult target,
                                       ResourceKey<GooTypeDefinition> type, Delivery delivery, float partialTick) {
-        Vec3 end = target.resolveEndpoint();
+        Vec3 end = ArcEndpointEase.lineEnd(target);
         if (end == null) {
             clearEasedArc();
             return;
@@ -288,12 +321,12 @@ public final class GooTargetHighlighter {
      * @return the endpoint to draw this frame
      */
     private static Vec3 easeArcToward(TargetResult target, Vec3 end, double grannyWeight, double nowSeconds) {
-        if (!target.equals(easedTarget)) {
-            easedTarget = target;
+        if (ArcEndpointEase.restartsEase(easedTarget, target)) {
             easeFromEndpoint = drawnEndpoint;
             easeFromGrannyWeight = drawnEndpoint == null ? grannyWeight : drawnGrannyWeight;
             easeStartSeconds = nowSeconds;
         }
+        easedTarget = target;
         double elapsed = nowSeconds - easeStartSeconds;
         // decision aim-arc-snap-option
         double easeSeconds = GooClientConfig.SNAP_AIM_ARC.get() ? 0 : ArcEndpointEase.EASE_SECONDS;

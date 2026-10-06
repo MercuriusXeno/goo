@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.throwing.TargetingHint;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
@@ -69,7 +70,26 @@ final class AimTargets {
             public TargetResult pointTarget() {
                 return pointOf(clipBlocks(player, eyePos, reach), reach);
             }
+
+            @Override
+            public Vec3 entityPoint(Entity entity) {
+                return pointOnEntity(entity.getBoundingBox(), eyePos, reach);
+            }
         });
+    }
+
+    /**
+     * The point the ray meets an entity's box at, or the box's center where
+     * the aim assist chose an entity the ray passes beside.
+     * aim-point-follows-the-cursor
+     *
+     * @param box   the entity's bounding box
+     * @param from  the ray's start, the eye
+     * @param reach the ray's end at range
+     * @return the aimed point on the entity
+     */
+    static Vec3 pointOnEntity(AABB box, Vec3 from, Vec3 reach) {
+        return box.clip(from, reach).orElse(box.getCenter());
     }
 
     /**
@@ -96,6 +116,14 @@ final class AimTargets {
          * @return the point target
          */
         TargetResult pointTarget();
+
+        /**
+         * The point the ray meets an entity at.
+         *
+         * @param entity the entity the aim assist chose
+         * @return the aimed point on it
+         */
+        Vec3 entityPoint(Entity entity);
     }
 
     /**
@@ -116,7 +144,7 @@ final class AimTargets {
             case ENTITY -> {
                 AimAssistResolver.AimHit hit = sources.entityHit();
                 yield hit instanceof AimAssistResolver.AimHit.EntityHit eh
-                        ? new AimState.Resolution(TargetResult.entity(eh.entity()), hit)
+                        ? new AimState.Resolution(TargetResult.entity(eh.entity(), sources.entityPoint(eh.entity())), hit)
                         : new AimState.Resolution(sources.blockTarget(), null);
             }
         };
@@ -132,9 +160,9 @@ final class AimTargets {
      */
     static TargetResult pointOf(BlockHitResult hit, Vec3 reach) {
         if (hit.getType() == HitResult.Type.BLOCK) {
-            return TargetResult.point(hit.getLocation(), hit.getBlockPos(), hit.getDirection());
+            return TargetResult.pointOnBlock(hit.getLocation(), hit.getBlockPos(), hit.getDirection());
         }
-        return TargetResult.point(reach, BlockPos.containing(reach), Direction.UP);
+        return TargetResult.pointInAir(reach);
     }
 
     /**
@@ -187,7 +215,7 @@ final class AimTargets {
         if (ground.getType() != HitResult.Type.BLOCK) {
             return TargetResult.NONE;
         }
-        return TargetResult.block(ground.getBlockPos(), Direction.UP);
+        return TargetResult.block(ground.getBlockPos(), Direction.UP, ground.getLocation());
     }
 
     /**
@@ -213,7 +241,7 @@ final class AimTargets {
         if (isGrannyArcCandidate(level, hit, pos, face)) {
             return TargetResult.grannyArc(pos);
         }
-        return TargetResult.block(pos, face);
+        return TargetResult.block(pos, face, hit.getLocation());
     }
 
     /**
