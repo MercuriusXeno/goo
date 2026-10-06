@@ -84,6 +84,23 @@
   "item.minecraft.potion.effect.unstable_goo": "Potion of Instability",
   "item.minecraft.potion.effect.vital_goo": "Potion of Nourishment",
 
+  "effect.goo.aeon_brew": "Aeon Brew",
+  "effect.goo.blaze_brew": "Blaze Brew",
+  "effect.goo.crystal_brew": "Crystal Brew",
+  "effect.goo.ender_brew": "Ender Brew",
+  "effect.goo.frost_brew": "Frost Brew",
+  "effect.goo.glow_brew": "Glow Brew",
+  "effect.goo.hex_brew": "Hex Brew",
+  "effect.goo.leaf_brew": "Leaf Brew",
+  "effect.goo.metal_brew": "Metal Brew",
+  "effect.goo.nether_brew": "Nether Brew",
+  "effect.goo.pulse_brew": "Pulse Brew",
+  "effect.goo.rock_brew": "Rock Brew",
+  "effect.goo.shroom_brew": "Shroom Brew",
+  "effect.goo.typhoon_brew": "Typhoon Brew",
+  "effect.goo.unstable_brew": "Unstable Brew",
+  "effect.goo.vital_brew": "Vital Brew",
+
   "item.goo.partially_melted_item": "Partially Melted Item",
 
   "item.goo.choral_tuner": "Choral Tuner",
