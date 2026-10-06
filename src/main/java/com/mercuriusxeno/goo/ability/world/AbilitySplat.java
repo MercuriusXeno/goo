@@ -5,7 +5,9 @@ package com.mercuriusxeno.goo.ability.world;
  * the order holds under test: the burnout reaches the tracking players
  * first, then the ability's program runs its first tick on the landing,
  * with no fuse between (decisions elemental-explosion-per-type,
- * splat-runs-the-program-no-fuse).
+ * splat-runs-the-program-no-fuse). A program that lingers fires no burnout
+ * at the splat: its standing block plays it when it explodes, so the
+ * explosion's visual lands with the explosion.
  */
 interface AbilitySplat {
 
@@ -16,12 +18,22 @@ interface AbilitySplat {
     void runProgram();
 
     /**
-     * Resolves a landing: announces the burnout, then runs the program.
+     * Whether the program stands its own block to run on after the splat.
+     *
+     * @return true for a program that lingers
+     */
+    boolean lingers();
+
+    /**
+     * Resolves a landing: announces the burnout unless the program lingers,
+     * then runs the program.
      *
      * @param splat the landing's world actions
      */
     static void resolve(AbilitySplat splat) {
-        splat.announceBurnout();
+        if (!splat.lingers()) {
+            splat.announceBurnout();
+        }
         splat.runProgram();
     }
 }

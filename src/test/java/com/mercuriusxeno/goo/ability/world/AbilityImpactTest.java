@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.ability.world;
 
 import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
+import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.program.Expr;
 import com.mercuriusxeno.goo.ability.program.FxAnchor;
@@ -24,6 +25,7 @@ import org.mockito.MockedStatic;
 import java.util.Arrays;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -104,6 +106,26 @@ class AbilityImpactTest {
         AbilityImpact.land(level, WALL, GooTypes.UNSTABLE, Direction.SOUTH, chime(AbilityBadge.WORLD));
 
         assertEquals(Vec3.atCenterOf(WALL.south()), chimedAt(level));
+    }
+
+    /**
+     * The proximity mine lingers, so its burnout waits for its standing block to
+     * explode; Blast resolves at the splat and plays it there (decision
+     * elemental-explosion-per-type).
+     */
+    @Test
+    void theMineLingersAndBlastDoesNot() {
+        assertTrue(AbilityImpact.lingers(AbilityJson.decode("unstable_proximity_mine")));
+        assertFalse(AbilityImpact.lingers(AbilityJson.decode("unstable_explode")));
+    }
+
+    @Test
+    void aOneTickLandingSendsItsBurnoutToTheTrackingPlayers() {
+        ServerLevel level = wallLevel();
+
+        AbilityImpact.land(level, WALL, GooTypes.UNSTABLE, Direction.SOUTH, chime(AbilityBadge.WORLD));
+
+        verify(level).players();
     }
 
     @Test

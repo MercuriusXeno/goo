@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.client.overlay;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.GooClientConfig;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.TargetResult;
@@ -59,18 +58,6 @@ public final class GooTargetHighlighter {
      * Partial tick captured at the opaque stage.
      */
     private static float cachedArcPartialTick;
-    /** The target the drawn arc eases toward, or null when no arc is drawn. */
-    private static @Nullable TargetResult easedTarget;
-    /** The endpoint drawn when the target last changed, or null when none was drawn. */
-    private static @Nullable Vec3 easeFromEndpoint;
-    /** The granny weight drawn when the target last changed. */
-    private static double easeFromGrannyWeight;
-    /** Real-time seconds when the target last changed. */
-    private static double easeStartSeconds;
-    /** The endpoint drawn last frame, or null when none was drawn. */
-    private static @Nullable Vec3 drawnEndpoint;
-    /** The granny weight drawn last frame. */
-    private static double drawnGrannyWeight;
 
     /** Whether this frame drew the reticule, which then stands in for the vanilla crosshair. */
     private static boolean reticuleDrawn;
@@ -267,7 +254,6 @@ public final class GooTargetHighlighter {
         boolean touchesAtReach = cachedArcTouchesAtReach;
         clearCachedArc();
         if (target == null || type == null || delivery == null || !delivery.aimsALine()) {
-            clearEasedArc();
             return;
         }
         if (touchesAtReach) {
@@ -277,8 +263,10 @@ public final class GooTargetHighlighter {
     }
 
     /**
-     * Draws the eased aim line toward the target, or clears the ease when the
-     * target resolves no endpoint.
+     * Draws the aim line to the exact point aimed at, the same frame the tile
+     * highlight draws, with nothing carried from the last frame.
+     * aim-line-snaps-with-the-tile-highlight
+     * aim-point-follows-the-cursor
      *
      * @param event       the render stage event
      * @param target      the target this frame aims at
@@ -288,16 +276,14 @@ public final class GooTargetHighlighter {
      */
     private static void renderAimLine(RenderLevelStageEvent.AfterTranslucentBlocks event, TargetResult target,
                                       ResourceKey<GooTypeDefinition> type, Delivery delivery, float partialTick) {
-        Vec3 end = ArcEndpointEase.lineEnd(target);
+        Vec3 end = target.point();
         if (end == null) {
-            clearEasedArc();
             return;
         }
-        Vec3 drawn = easeArcToward(target, end, grannyWeight(target, delivery), realTimeSeconds());
         Minecraft mc = Minecraft.getInstance();
         ArcRenderer.renderTargetArc(event.getPoseStack(), mc.renderBuffers().bufferSource(),
-                mc.gameRenderer.getMainCamera(), drawn, ClientGooTypes.highlight(type),
-                partialTick, drawnGrannyWeight, delivery.fliesStraight());
+                mc.gameRenderer.getMainCamera(), end, ClientGooTypes.highlight(type),
+                partialTick, grannyWeight(target, delivery), delivery.fliesStraight());
     }
 
     /**
@@ -330,55 +316,13 @@ public final class GooTargetHighlighter {
     }
 
     /**
-     * Advances the drawn arc toward the target, restarting the ease from what
-     * was drawn last frame whenever the target changes (decision
-     * aim-line-lerps-toward-target).
-     *
-     * @param target       the target this frame aims at
-     * @param end          the target's endpoint
-     * @param grannyWeight the target's peak weight, 1 for a granny arc
-     * @param nowSeconds   the real-time clock
-     * @return the endpoint to draw this frame
-     */
-    private static Vec3 easeArcToward(TargetResult target, Vec3 end, double grannyWeight, double nowSeconds) {
-        if (ArcEndpointEase.restartsEase(easedTarget, target)) {
-            easeFromEndpoint = drawnEndpoint;
-            easeFromGrannyWeight = drawnEndpoint == null ? grannyWeight : drawnGrannyWeight;
-            easeStartSeconds = nowSeconds;
-        }
-        easedTarget = target;
-        double elapsed = nowSeconds - easeStartSeconds;
-        // decision aim-arc-snap-option
-        double easeSeconds = GooClientConfig.SNAP_AIM_ARC.get() ? 0 : ArcEndpointEase.EASE_SECONDS;
-        Vec3 drawn = ArcEndpointEase.easeEndpoint(easeFromEndpoint, end, elapsed, easeSeconds);
-        drawnEndpoint = drawn;
-        drawnGrannyWeight = ArcEndpointEase.easeGrannyWeight(easeFromGrannyWeight, grannyWeight, elapsed,
-                easeSeconds);
-        return drawn;
-    }
-
-    /**
-     * The real-time clock the slide and the ripple run on, so a slow or paused
-     * tick leaves their timing unchanged (decisions aim-arc-slides-in-real-time,
-     * ripple-rings-fade-to-face-edge).
+     * The real-time clock the ripple runs on, so a slow or paused tick leaves
+     * its timing unchanged (decision ripple-rings-fade-to-face-edge).
      *
      * @return seconds on the monotonic clock
      */
     private static double realTimeSeconds() {
         return System.nanoTime() / NANOS_PER_SECOND;
-    }
-
-    /**
-     * Forgets the drawn arc, so the next target draws at its own endpoint
-     * rather than sliding in from a stale one.
-     */
-    private static void clearEasedArc() {
-        easedTarget = null;
-        easeFromEndpoint = null;
-        easeFromGrannyWeight = 0;
-        easeStartSeconds = 0;
-        drawnEndpoint = null;
-        drawnGrannyWeight = 0;
     }
 
     /**
