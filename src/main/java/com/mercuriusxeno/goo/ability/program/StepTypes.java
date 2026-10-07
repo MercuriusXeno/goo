@@ -68,6 +68,7 @@ public final class StepTypes {
         register(HeartOverlayStep.TYPE);
         register(LeafSteps.HEAL.type());
         register(LeafSteps.COURT.type());
+        register(NourishStep.TYPE);
     }
 
     private StepTypes() {

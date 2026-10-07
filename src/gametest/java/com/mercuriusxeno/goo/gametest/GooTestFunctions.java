@@ -9,6 +9,7 @@ import com.mercuriusxeno.goo.network.BrewEffectTests;
 import com.mercuriusxeno.goo.network.GloveSelectTests;
 import com.mercuriusxeno.goo.network.HeartOverlayTests;
 import com.mercuriusxeno.goo.network.MobEffectTests;
+import com.mercuriusxeno.goo.network.NourishTests;
 import com.mercuriusxeno.goo.network.SelfDeliveryTests;
 import com.mercuriusxeno.goo.network.StreamDeliveryTests;
 import com.mercuriusxeno.goo.network.TouchDeliveryTests;
@@ -365,6 +366,8 @@ public final class GooTestFunctions {
     private static final String BREW_EVERY_POTION_CARRIES = "brew_every_potion_carries_its_effect";
     private static final String BREW_BLAZE_KINDLES = "brew_blaze_kindles_for_an_hour";
     private static final String BREW_LEAF_BARKS = "brew_leaf_barks_for_an_hour";
+    private static final String BREW_VITAL_NOURISHES = "brew_vital_nourishes_for_an_hour";
+    private static final String NOURISH_REFILLS_HUNGER = "nourish_refills_hunger";
     private static final String BREW_WITHOUT_ABILITY = "brew_without_an_ability_runs_nothing";
     private static final String STREAM_BLAZE_SPITFIRE = "stream_blaze_spitfire";
     private static final String VITALITY_HEALS = "vitality_heals_cow_and_caster";
@@ -781,6 +784,8 @@ public final class GooTestFunctions {
         reg(r, BREW_EVERY_POTION_CARRIES, BrewEffectTests::everyPotionCarriesItsBrewEffect);
         reg(r, BREW_BLAZE_KINDLES, BrewEffectTests::blazeBrewKindlesForAnHour);
         reg(r, BREW_LEAF_BARKS, BrewEffectTests::leafBrewBarksForAnHour);
+        reg(r, BREW_VITAL_NOURISHES, BrewEffectTests::vitalBrewNourishesForAnHour);
+        reg(r, NOURISH_REFILLS_HUNGER, NourishTests::nourishRefillsHunger);
         reg(r, BREW_WITHOUT_ABILITY, BrewEffectTests::brewWithoutAnAbilityRunsNothing);
         reg(r, STREAM_BLAZE_SPITFIRE, StreamDeliveryTests::blazeSpitfire);
         reg(r, VITALITY_HEALS, StreamDeliveryTests::vitalityHealsCowAndCaster);

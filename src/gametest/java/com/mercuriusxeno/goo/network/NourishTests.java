@@ -1,0 +1,60 @@
+package com.mercuriusxeno.goo.network;
+
+import com.mercuriusxeno.goo.registry.GooAttachments;
+import com.mercuriusxeno.goo.type.GooTypes;
+import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.resources.Identifier;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.GameType;
+
+/**
+ * Gametest for Nourish through the glove: a hungry player eats the vital
+ * self + brew ability and gains a food point every interval for its duration,
+ * then no more (decision nourish-restores-hunger-over-time).
+ */
+public final class NourishTests {
+
+    private static final Identifier VITAL_NOURISH = Identifier.parse("goo:vital_nourish");
+    /** Low enough that the gained points never reach a full bar. */
+    private static final int HUNGRY_FOOD = 4;
+    /** vital_nourish.json's interval and duration: a point every 80 ticks for 400 ticks. */
+    private static final int INTERVAL = 80;
+    private static final int DURATION = 400;
+    private static final int EXPECTED_POINTS = DURATION / INTERVAL;
+    /** Ticks past the expiry the test keeps watching, to see no further point land. */
+    private static final int AFTER_EXPIRY = INTERVAL + 2;
+    private static final String SHOULD_FEED = "Nourish should add %d food points over its duration, added %d";
+    private static final String SHOULD_END = "Nourish should end at its expiry, still stands";
+
+    private NourishTests() {
+    }
+
+    /**
+     * A hungry mock player invokes Nourish and ticks through its duration
+     * and an interval past it: food rises by one point per interval and the
+     * nourishment ends.
+     *
+     * @param helper the gametest helper
+     */
+    public static void nourishRefillsHunger(GameTestHelper helper) {
+        ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.VITAL);
+        player.setGameMode(GameType.SURVIVAL);
+        player.getFoodData().setFoodLevel(HUNGRY_FOOD);
+        player.getFoodData().setSaturation(0);
+        SelfDeliveryTests.invoke(player, GooTypes.VITAL, VITAL_NOURISH);
+        SelfDeliveryTests.eatThrough(player);
+        int fedBefore = player.getFoodData().getFoodLevel();
+        int watched = DURATION + AFTER_EXPIRY;
+        for (int tick = 1; tick <= watched; tick++) {
+            helper.runAfterDelay(tick, player::doTick);
+        }
+        helper.runAfterDelay(watched + 1, () -> {
+            int added = player.getFoodData().getFoodLevel() - fedBefore;
+            boolean stands = player.getData(GooAttachments.NOURISH).stands();
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.assertTrue(added == EXPECTED_POINTS, String.format(SHOULD_FEED, EXPECTED_POINTS, added));
+            helper.assertFalse(stands, SHOULD_END);
+            helper.succeed();
+        });
+    }
+}
