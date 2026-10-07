@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.client.ClientKnownItems;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.network.ClientAbilities;
+import com.mercuriusxeno.goo.client.network.OfferedAbility;
 import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
@@ -28,18 +29,20 @@ import java.util.Map;
  * The glove's one radial wheel, open while the glove menu key is held:
  * hovering or scrolling to a type replaces its petal with its abilities,
  * releasing the key over an ability writes it to the glove and closes, and
- * releasing it over nothing, while the petals still move, or pressing
- * Escape, closes with the glove unchanged. A mouse click does nothing here.
+ * releasing it over nothing, over a locked ability, while the petals still
+ * move, or pressing Escape, closes with the glove unchanged. A mouse click
+ * does nothing here.
  * decision abilities-replace-the-hovered-type
  * decision radial-selects-on-g-release
  * decision mid-animation-input-does-nothing
+ * decision locked-petal-stays-on-the-wheel
  */
 public final class GloveRadialScreen extends Screen {
 
     private static final int HALF = 2;
 
     private final List<ResourceKey<GooTypeDefinition>> types;
-    private final List<List<ClientAbility>> abilities;
+    private final List<List<OfferedAbility>> abilities;
     private final Map<ResourceKey<GooTypeDefinition>, Integer> available;
     private final RadialWheel wheel;
 
@@ -48,7 +51,7 @@ public final class GloveRadialScreen extends Screen {
         this.types = GooTypes.order();
         ClientAbilities synced = ClientAbilities.current();
         KnownItems known = ClientKnownItems.current();
-        this.abilities = types.stream().map(type -> synced.knownForType(type, known)).toList();
+        this.abilities = types.stream().map(type -> synced.offeredForType(type, known)).toList();
         this.available = available;
         this.wheel = new RadialWheel(types.size(), type -> abilities.get(type).size());
     }
@@ -125,8 +128,13 @@ public final class GloveRadialScreen extends Screen {
         RadialWheel.Outcome pick = GloveRadialKeyGate.settledPick(wheel.isAnimating(), wheel.click());
         GloveRadialKeyGate.release(pick, new GloveRadialKeyGate.ReleaseActions() {
             @Override
+            public boolean isLocked(RadialWheel.Outcome hovered) {
+                return abilities.get(hovered.type()).get(hovered.ability()).locked();
+            }
+
+            @Override
             public void selectHovered(RadialWheel.Outcome hovered) {
-                selectAbility(types.get(hovered.type()), abilities.get(hovered.type()).get(hovered.ability()));
+                selectAbility(types.get(hovered.type()), abilities.get(hovered.type()).get(hovered.ability()).ability());
             }
 
             @Override

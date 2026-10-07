@@ -88,15 +88,16 @@ public record ClientAbilities(Map<ResourceKey<GooTypeDefinition>, List<ClientAbi
     }
 
     /**
-     * The type's abilities a player who knows these items may have, the ones
-     * the radial offers (decision ability-hidden-until-recipes-known).
+     * Every ability of the type as the radial offers it, each one the player
+     * lacks a required item for flagged locked rather than left out.
+     * decision locked-petal-stays-on-the-wheel
      *
      * @param type  the goo type
      * @param known the items the player knows
-     * @return the type's known abilities, in fan order
+     * @return the type's abilities with their locked flags, in fan order
      */
-    public List<ClientAbility> knownForType(ResourceKey<GooTypeDefinition> type, KnownItems known) {
-        return forType(type).stream().filter(ability -> ability.isKnownTo(known)).toList();
+    public List<OfferedAbility> offeredForType(ResourceKey<GooTypeDefinition> type, KnownItems known) {
+        return forType(type).stream().map(ability -> new OfferedAbility(ability, !ability.isKnownTo(known))).toList();
     }
 
     /**

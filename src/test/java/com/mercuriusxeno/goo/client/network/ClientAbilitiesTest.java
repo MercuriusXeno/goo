@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 /**
  * The client lists a synced type's abilities in the fan order the server
  * registry does, badge rank then order (decision fan-sorts-badge-then-order),
- * and offers the radial only those whose required items the player knows.
+ * and offers the radial every one, locking those whose required items the player does not all know.
  */
 class ClientAbilitiesTest {
 
@@ -31,28 +31,29 @@ class ClientAbilitiesTest {
                 List.of(), 0, Delivery.ARC, badge, requires);
     }
 
-    private static List<String> knownNames(KnownItems known) {
+    /** Each offered ability's path and locked flag, as "path:locked" or "path:open", in fan order. */
+    private static List<String> offeredPetals(KnownItems known) {
         AbilitySyncPayload payload = new AbilitySyncPayload(List.of(
-                entry("open", 0, AbilityBadge.WORLD),
+                entry("free", 0, AbilityBadge.WORLD),
                 gatedEntry("gated", 1, AbilityBadge.WORLD, List.of(GLASS, SAND))));
-        return ClientAbilities.fromPayload(payload).knownForType(GooTypes.ROCK, known).stream()
-                .map(ability -> ability.id().getPath()).toList();
+        return ClientAbilities.fromPayload(payload).offeredForType(GooTypes.ROCK, known).stream()
+                .map(offered -> offered.ability().id().getPath() + (offered.locked() ? ":locked" : ":open")).toList();
     }
 
-    /** A gated ability stays off the radial until every item it requires is known (decision ability-hidden-until-recipes-known). */
+    /** A gated ability stays on the radial, locked until every item it requires is known (decision locked-petal-stays-on-the-wheel). */
     @Test
-    void gatedAbilityHiddenForAPlayerWhoKnowsNothing() {
-        assertEquals(List.of("open"), knownNames(KnownItems.NONE));
-    }
-
-    @Test
-    void gatedAbilityHiddenWhileOneRequiredItemIsUnknown() {
-        assertEquals(List.of("open"), knownNames(KnownItems.NONE.with(GLASS)));
+    void gatedAbilityOfferedLockedToAPlayerWhoKnowsNothing() {
+        assertEquals(List.of("free:open", "gated:locked"), offeredPetals(KnownItems.NONE));
     }
 
     @Test
-    void gatedAbilityShownOnceEveryRequiredItemIsKnown() {
-        assertEquals(List.of("open", "gated"), knownNames(KnownItems.NONE.with(GLASS).with(SAND)));
+    void gatedAbilityStaysLockedWhileOneRequiredItemIsUnknown() {
+        assertEquals(List.of("free:open", "gated:locked"), offeredPetals(KnownItems.NONE.with(GLASS)));
+    }
+
+    @Test
+    void gatedAbilityUnlocksOnceEveryRequiredItemIsKnown() {
+        assertEquals(List.of("free:open", "gated:open"), offeredPetals(KnownItems.NONE.with(GLASS).with(SAND)));
     }
 
     @Test
