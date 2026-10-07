@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.client.tooltip.GooValueTooltipComponent;
+import com.mercuriusxeno.goo.client.tooltip.GooValuesKey;
 import com.mercuriusxeno.goo.client.tooltip.VanillaFluidTooltipComponent;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.data.IGooValueLookup;
@@ -12,7 +13,6 @@ import com.mercuriusxeno.goo.registry.GooDataComponents;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.datafixers.util.Either;
 import net.minecraft.ChatFormatting;
-import net.minecraft.client.Minecraft;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.FormattedText;
@@ -26,7 +26,6 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderTooltipEvent;
-import org.lwjgl.glfw.GLFW;
 import java.util.List;
 import java.util.Map;
 
@@ -42,11 +41,11 @@ public final class GooTooltipHandler {
      */
     private static final int BUCKET_VOLUME = 1000;
 
-    /**
-     * Hint shown when shift is not held and the item has goo data.
-     */
-    private static final Component SHIFT_HINT =
-            Component.literal("Hold [Shift] for goo values").withStyle(ChatFormatting.DARK_GRAY);
+    /** The hint's text before the bound key's name. */
+    private static final String HINT_LEAD = "Hold [";
+
+    /** The hint's text after the bound key's name. */
+    private static final String HINT_TAIL = "] for goo values";
 
     /**
      * "+" separator between contents and container value rows.
@@ -69,9 +68,10 @@ public final class GooTooltipHandler {
         if (stack.isEmpty()) {
             return;
         }
-        if (!isShiftHeld()) {
+        if (!GooValuesKey.isHeld()) {
             if (hasGooData(stack)) {
-                event.getTooltipElements().add(Either.left(SHIFT_HINT));
+                event.getTooltipElements().add(Either.left(
+                        revealHint(GooValuesKey.MAPPING.getTranslatedKeyMessage())));
             }
             return;
         }
@@ -106,14 +106,16 @@ public final class GooTooltipHandler {
     }
 
     /**
-     * Returns true if either shift key is currently held.
+     * The hint under an item with goo data while the Goo values key is up,
+     * naming the key bound to it.
+     * decision tooltip-key-is-its-own-g-binding
      *
-     * @return true if left or right shift is pressed
+     * @param keyName the bound key's display name
+     * @return the hint line
      */
-    private static boolean isShiftHeld() {
-        long window = Minecraft.getInstance().getWindow().handle();
-        return GLFW.glfwGetKey(window, GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS
-                || GLFW.glfwGetKey(window, GLFW.GLFW_KEY_RIGHT_SHIFT) == GLFW.GLFW_PRESS;
+    static Component revealHint(Component keyName) {
+        return Component.literal(HINT_LEAD).append(keyName).append(HINT_TAIL)
+                .withStyle(ChatFormatting.DARK_GRAY);
     }
 
     /**
