@@ -9,6 +9,7 @@ import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.PlayerHost;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
+import com.mercuriusxeno.goo.ability.program.StepContext;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.ReagentScanner;
@@ -101,13 +102,28 @@ public final class GooSelfHandler {
      */
     private static boolean invoke(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
             AbilityDefinition ability) {
-        if (!affords(player, gooType, ability)) {
+        PlayerHost host = new PlayerHost(player.level(), player);
+        if (!affords(player, gooType, ability) || !admits(host, ability)) {
             return false;
         }
         GooSourceScanner.deplete(player, gooType, ability.cost());
         ReagentScanner.consumeOneOfEach(player, ability.consumes());
-        runOn(new PlayerHost(player.level(), player), ability);
+        runOn(host, ability);
         return true;
+    }
+
+    /**
+     * Whether every step of the ability can act on the player now; Fungal
+     * Shift aimed at no fungus cannot, and so neither runs nor drains
+     * (decision fungal-shift-blinks-to-the-aimed-fungus).
+     *
+     * @param host    the player host
+     * @param ability the self ability
+     * @return true when every step admits
+     */
+    private static boolean admits(PlayerHost host, AbilityDefinition ability) {
+        StepContext context = new StepContext(host, 0, 0);
+        return ability.behaviors().stream().allMatch(step -> step.admits(context));
     }
 
     /**

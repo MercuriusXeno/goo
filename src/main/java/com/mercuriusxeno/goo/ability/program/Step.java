@@ -91,4 +91,16 @@ public interface Step {
     default boolean standsAgainstBreaking() {
         return false;
     }
+
+    /**
+     * Answers whether the step can act on its host now; a self ability runs
+     * and drains only when every step admits, so Fungal Shift aimed at no
+     * fungus costs nothing (decision fungal-shift-blinks-to-the-aimed-fungus).
+     *
+     * @param context the host and variable scope the step would run in
+     * @return true when the step can act
+     */
+    default boolean admits(StepContext context) {
+        return true;
+    }
 }

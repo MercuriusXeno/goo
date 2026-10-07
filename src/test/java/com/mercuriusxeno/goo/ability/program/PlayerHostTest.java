@@ -94,7 +94,7 @@ class PlayerHostTest {
          * (decision ripple-outline-is-the-blink-cursor).
          */
         @Test
-        void teleportLandsWhereTheBlinkCursorResolves() {
+        void teleportLandsWhereTheShiftCursorResolves() {
             Vec3 look = new Vec3(0.36, -0.48, 0.8);
             ServerPlayer player = playerLooking(look);
 
