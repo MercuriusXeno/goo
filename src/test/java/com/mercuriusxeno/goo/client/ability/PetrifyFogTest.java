@@ -18,12 +18,13 @@ class PetrifyFogTest {
 
     @Test
     void sectionsSpreadEvenlyInsideTheReach() {
-        double first = PetrifyFog.sectionDistance(0, RANGE);
-        double last = PetrifyFog.sectionDistance(PetrifyFog.SECTIONS - 1, RANGE);
-        assertTrue(first > PetrifyFog.NEAR);
+        int sections = PetrifyFog.SECTIONS;
+        double first = ConeSections.sectionDistance(0, RANGE, sections);
+        double last = ConeSections.sectionDistance(sections - 1, RANGE, sections);
+        assertTrue(first > ConeSections.NEAR);
         assertTrue(last < RANGE);
-        double step = PetrifyFog.sectionDistance(1, RANGE) - first;
-        assertEquals(step, last - PetrifyFog.sectionDistance(PetrifyFog.SECTIONS - 2, RANGE), DELTA);
+        double step = ConeSections.sectionDistance(1, RANGE, sections) - first;
+        assertEquals(step, last - ConeSections.sectionDistance(sections - 2, RANGE, sections), DELTA);
     }
 
     @Test
@@ -31,5 +32,6 @@ class PetrifyFogTest {
         PipelineShaders.assertExist(GooRenderTypes.PETRIFY_FOG);
         PipelineShaders.assertExist(GooRenderTypes.PETRIFY_STONE);
         PipelineShaders.assertExist(GooRenderTypes.BLOCK_MINGLE);
+        PipelineShaders.assertExist(GooRenderTypes.BORE_VORTEX);
     }
 }

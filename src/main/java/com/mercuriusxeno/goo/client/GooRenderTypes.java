@@ -552,6 +552,16 @@ public final class GooRenderTypes {
     public static final RenderType PETRIFY_FOG_TYPE = burnoutType(PETRIFY_FOG);
 
     /**
+     * Bore's vortex pipeline (decision bore-vortex-with-a-worldspace-shake):
+     * sections down the tunnel drawn through {@code bore_vortex.vsh / .fsh},
+     * spiralling dust arms turning about the look.
+     */
+    public static final RenderPipeline BORE_VORTEX = burnoutPipeline("bore_vortex", BlendFunction.TRANSLUCENT);
+
+    /** The bore vortex render type. */
+    public static final RenderType BORE_VORTEX_TYPE = burnoutType(BORE_VORTEX);
+
+    /**
      * Ghost trail pipeline (decision ghost-trail-spans-the-blink): an entity's
      * body drawn again through {@code goo_ghost.vsh / .fsh} as a translucent
      * echo in the goo type's color, its skin read for the cutout and the
@@ -726,6 +736,7 @@ public final class GooRenderTypes {
         event.registerPipeline(BLOCK_MINGLE);
         event.registerPipeline(PETRIFY_STONE);
         event.registerPipeline(PETRIFY_FOG);
+        event.registerPipeline(BORE_VORTEX);
         event.registerPipeline(GOO_AILMENT_OVERLAY);
         GOO_RIPPLE_MASKS.forEach(event::registerPipeline);
         event.registerPipeline(GOO_RIPPLE_EDGE);
