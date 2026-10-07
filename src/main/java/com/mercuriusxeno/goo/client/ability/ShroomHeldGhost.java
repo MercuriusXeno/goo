@@ -14,11 +14,13 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
 import java.util.List;
+import java.util.SplittableRandom;
 
 /**
- * Shroom's held ghost: a shell of drifting mauve spore motes at Colonize's
- * reach, turning slowly and bobbing as a cloud does, with rings born at the
- * aim point travelling outward to the same reach.
+ * Shroom's held ghost: a ragged cloud of mauve spore motes about Spore's
+ * reach, clumped into soft puffs scattered at fixed random places, each puff
+ * bobbing on its own and the whole turning slowly, with rings born at the aim
+ * point travelling outward to the same reach.
  * held-visual-ghosts-the-landing-in-two-passes
  * colonize-blob-grows-the-network
  */
@@ -27,8 +29,22 @@ public final class ShroomHeldGhost implements HeldGhostVisual {
     /** The one instance the held dome renderer holds. */
     public static final ShroomHeldGhost INSTANCE = new ShroomHeldGhost();
 
-    /** Motes on the shell, spread evenly by the golden angle. */
+    /** Motes in the cloud. */
     static final int MOTES = 480;
+    /** Puffs the motes clump into. */
+    static final int PUFFS = 12;
+    /** How far a mote strays from its puff's heading, before it is set back on the shell. */
+    private static final double PUFF_SPREAD = 0.45;
+    /** How ragged the cloud's edge runs, as a share of the radius either way. */
+    static final double RAGGED_SHARE = 0.15;
+    /** The seed every client scatters the cloud with, so it holds its shape. */
+    private static final long SCATTER_SEED = 0x5B0BEL;
+    /** Each mote's unit heading, x, y and z, fixed at load. */
+    private static final double[][] HEADINGS = new double[MOTES][];
+    /** Each mote's share of the radius, fixed at load. */
+    private static final double[] REACHES = new double[MOTES];
+    /** Each mote's puff, fixed at load. */
+    private static final int[] PUFF_OF = new int[MOTES];
     /** A mote's half width, in blocks. */
     private static final float MOTE_HALF = 0.035f;
     /** The shell's mauve. */
@@ -40,8 +56,6 @@ public final class ShroomHeldGhost implements HeldGhostVisual {
     /** How far a mote bobs off the shell, as a share of the radius. */
     private static final double BOB_SHARE = 0.04;
     private static final double BOB_PER_SECOND = 1.3;
-    private static final double GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
-    private static final double HALF = 0.5;
     /** A unit shell spans two from its top to its bottom. */
     private static final double TOP_TO_BOTTOM = 2;
     private static final int X = 0;
@@ -49,7 +63,45 @@ public final class ShroomHeldGhost implements HeldGhostVisual {
     private static final int Z = 2;
     private static final int OPAQUE = 255;
 
+    static {
+        scatter(new SplittableRandom(SCATTER_SEED));
+    }
+
     private ShroomHeldGhost() {
+    }
+
+    /**
+     * Scatters the cloud: a dozen puff headings at random over the sphere,
+     * each mote leaning off its puff's heading at random, at a reach ragged
+     * either way of the shell.
+     *
+     * @param random the seeded source
+     */
+    private static void scatter(SplittableRandom random) {
+        double[][] puffs = new double[PUFFS][];
+        for (int p = 0; p < PUFFS; p++) {
+            puffs[p] = randomUnit(random);
+        }
+        for (int i = 0; i < MOTES; i++) {
+            int puff = i % PUFFS;
+            double[] lean = randomUnit(random);
+            HEADINGS[i] = normalized(puffs[puff][X] + lean[X] * PUFF_SPREAD, puffs[puff][Y] + lean[Y] * PUFF_SPREAD,
+                    puffs[puff][Z] + lean[Z] * PUFF_SPREAD);
+            REACHES[i] = 1 + (random.nextDouble() * TOP_TO_BOTTOM - 1) * RAGGED_SHARE;
+            PUFF_OF[i] = puff;
+        }
+    }
+
+    private static double[] randomUnit(SplittableRandom random) {
+        double y = random.nextDouble() * TOP_TO_BOTTOM - 1;
+        double ring = Math.sqrt(Math.max(0, 1 - y * y));
+        double around = random.nextDouble() * Math.PI * TOP_TO_BOTTOM;
+        return new double[] {Math.cos(around) * ring, y, Math.sin(around) * ring};
+    }
+
+    private static double[] normalized(double x, double y, double z) {
+        double length = Math.sqrt(x * x + y * y + z * z);
+        return new double[] {x / length, y / length, z / length};
     }
 
     @Override
@@ -80,18 +132,20 @@ public final class ShroomHeldGhost implements HeldGhostVisual {
     }
 
     /**
-     * Where a mote sits on a unit shell: an even spiral down the sphere,
-     * turned about the vertical by the clock.
+     * Where a mote sits about the cloud's center at unit radius: its fixed
+     * heading at its ragged reach, turned about the vertical by the clock.
      *
      * @param index the mote's index
-     * @param turn  the shell's turn about the vertical, in radians
-     * @return the mote's unit offset: x, y and z
+     * @param turn  the cloud's turn about the vertical, in radians
+     * @return the mote's offset: x, y and z
      */
-    static double[] moteOnUnitShell(int index, double turn) {
-        double y = 1 - TOP_TO_BOTTOM * (index + HALF) / MOTES;
-        double ring = Math.sqrt(Math.max(0, 1 - y * y));
-        double around = index * GOLDEN_ANGLE + turn;
-        return new double[] {Math.cos(around) * ring, y, Math.sin(around) * ring};
+    static double[] moteAt(int index, double turn) {
+        double[] heading = HEADINGS[index];
+        double cos = Math.cos(turn);
+        double sin = Math.sin(turn);
+        double reach = REACHES[index];
+        return new double[] {(heading[X] * cos - heading[Z] * sin) * reach, heading[Y] * reach,
+                (heading[X] * sin + heading[Z] * cos) * reach};
     }
 
     private static void emitMotes(PoseStack.Pose pose, VertexConsumer c, HeldGhost ghost, Direction face,
@@ -99,8 +153,8 @@ public final class ShroomHeldGhost implements HeldGhostVisual {
         int color = ARGB.color(Math.round(Mth.clamp(MOTE_ALPHA * opacity, 0f, 1f) * OPAQUE), MOTE_RGB);
         double turn = nowSeconds * TURN_PER_SECOND;
         for (int i = 0; i < MOTES; i++) {
-            double[] unit = moteOnUnitShell(i, turn);
-            double radius = ghost.domeRadius() * (1 + BOB_SHARE * Math.sin(nowSeconds * BOB_PER_SECOND + i));
+            double[] unit = moteAt(i, turn);
+            double radius = ghost.domeRadius() * (1 + BOB_SHARE * Math.sin(nowSeconds * BOB_PER_SECOND + PUFF_OF[i]));
             emitMote(pose, c, (float) (unit[X] * radius), (float) (unit[Y] * radius), (float) (unit[Z] * radius),
                     color);
         }
