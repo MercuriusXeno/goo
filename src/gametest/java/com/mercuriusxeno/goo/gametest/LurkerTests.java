@@ -22,8 +22,9 @@ import net.minecraft.world.phys.Vec3;
 import java.util.List;
 
 /**
- * Gametest that a lurker pulses ever nearer as a zombie walks up to it and
- * explodes once the zombie enters its trigger radius.
+ * Gametests that a lurker pulses ever nearer as a zombie walks up to it and
+ * explodes once the zombie enters its trigger radius, and that a player sets
+ * it off as a mob does.
  * decision lurker-blob-brightens-then-detonates
  */
 public final class LurkerTests {
@@ -48,6 +49,7 @@ public final class LurkerTests {
     private static final String TOO_FEW_PULSES = "The lurker should pulse each tick the zombie approaches, pulses: ";
     private static final String PULSE_GREW = "Each pulse should carry a distance no greater than the last, pulses: ";
     private static final String NOT_EXPLODED = "The lurker should explode once the zombie enters its trigger radius";
+    private static final String PLAYER_IGNORED = "A player standing inside the trigger radius should set the lurker off";
     private static final String LAST_PULSE_OUTSIDE = "The last pulse should carry the zombie inside the trigger radius, pulses: ";
 
     private LurkerTests() {
@@ -89,6 +91,27 @@ public final class LurkerTests {
             helper.assertBlockNotPresent(Blocks.STONE, WALL_POS);
             zombie.discard();
             helper.getLevel().getServer().getPlayerList().remove(viewer);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Stands a player two blocks from a lurker and asserts it explodes: anything
+     * living sets it off, players included.
+     *
+     * @param helper the gametest helper
+     */
+    @SuppressWarnings(REMOVAL) // vanilla marks the mock server player helper for removal and names no replacement
+    public static void lurkerAnswersAPlayer(GameTestHelper helper) {
+        discardLeftoverEntities(helper);
+        standLurker(helper);
+        ServerPlayer walker = helper.makeMockServerPlayerInLevel();
+        walker.setGameMode(GameType.CREATIVE);
+        Vec3 center = Vec3.atCenterOf(helper.absolutePos(MARKER_POS));
+        walker.teleportTo(center.x(), center.y() - 0.5, center.z() + END_OFFSET);
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(walker);
+            helper.assertTrue(helper.getBlockState(MARKER_POS).isAir(), PLAYER_IGNORED);
             helper.succeed();
         });
     }
