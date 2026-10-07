@@ -30,6 +30,7 @@ import java.util.List;
  * @param requires    the items a player must know before the ability is theirs
  * @param area        the area the glove draws while right click is held
  * @param indicator   when the ability's indicator shows, while held or whenever selected
+ * @param consumes    the items a throw takes from the thrower's inventory, one of each, beside its goo cost
  */
 public record AbilityDefinition(
         Identifier id,
@@ -44,8 +45,34 @@ public record AbilityDefinition(
         AbilityBadge badge,
         List<Identifier> requires,
         AbilityArea area,
-        IndicatorShowing indicator
+        IndicatorShowing indicator,
+        List<Identifier> consumes
 ) {
+
+    /**
+     * An ability consuming no item beside its goo cost.
+     *
+     * @param id          the datapack resource identifier
+     * @param gooType     the goo type this ability belongs to
+     * @param displayName the translation key for the ability name
+     * @param icon        the texture path for the radial menu icon
+     * @param order       sort order within the type's ability list
+     * @param cost        the mB a throw costs
+     * @param delivery    how the ability leaves the glove
+     * @param behaviors   the step trees the ability runs
+     * @param tags        categorical tags
+     * @param badge       the target kind the radial marks on the icon
+     * @param requires    the items a player must know before the ability is theirs
+     * @param area        the area the glove draws while right click is held
+     * @param indicator   when the ability's indicator shows
+     */
+    public AbilityDefinition(Identifier id, ResourceKey<GooTypeDefinition> gooType, String displayName, String icon,
+                             int order, int cost, Delivery delivery, List<Step> behaviors, List<String> tags,
+                             AbilityBadge badge, List<Identifier> requires, AbilityArea area,
+                             IndicatorShowing indicator) {
+        this(id, gooType, displayName, icon, order, cost, delivery, behaviors, tags, badge, requires, area,
+                indicator, List.of());
+    }
 
     /**
      * An ability declaring no area.
@@ -105,6 +132,7 @@ public record AbilityDefinition(
     private static final String FIELD_REQUIRES = "requires";
     private static final String FIELD_AREA = "area";
     private static final String FIELD_INDICATOR = "indicator";
+    private static final String FIELD_CONSUMES = "consumes";
     private static final String NOT_A_FLAT_COST = "Ability cost must be one whole amount, not %s";
 
     /**
@@ -140,10 +168,13 @@ public record AbilityDefinition(
                 AbilityArea.CODEC.optionalFieldOf(FIELD_AREA, AbilityArea.NONE).forGetter(AbilityDefinition::area),
                 // ripple-outline-is-the-blink-cursor
                 IndicatorShowing.CODEC.optionalFieldOf(FIELD_INDICATOR, IndicatorShowing.HELD)
-                        .forGetter(AbilityDefinition::indicator)
+                        .forGetter(AbilityDefinition::indicator),
+                // ability-json-names-its-reagent
+                Identifier.CODEC.listOf().optionalFieldOf(FIELD_CONSUMES, List.of())
+                        .forGetter(AbilityDefinition::consumes)
         ).apply(inst, (gooType, displayName, icon, order, cost, delivery, behaviors, tags, badge, requires, area,
-                       indicator) -> new AbilityDefinition(id, gooType, displayName, icon, order,
-                        cost, delivery, behaviors, tags, badge, requires, area, indicator)));
+                       indicator, consumes) -> new AbilityDefinition(id, gooType, displayName, icon, order,
+                        cost, delivery, behaviors, tags, badge, requires, area, indicator, consumes)));
     }
 
     /**

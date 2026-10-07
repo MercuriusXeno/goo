@@ -253,6 +253,8 @@ public final class GooTestFunctions {
     private static final String PL_ABILITY_SAME_STACK = "pl_ability_same_stack";
     private static final String PL_OTHER_ABILITY_THROW_LEAVES_MARKER = "pl_other_ability_throw_leaves_marker";
     private static final String PL_SECOND_THROW_COSTS_THE_SAME = "pl_second_throw_costs_the_same";
+    private static final String PRISM_GROWS_ON_THE_FACE = "prism_grows_on_the_face";
+    private static final String PRISM_REFUSED_WITHOUT_QUARTZ = "prism_refused_without_quartz";
 
     // --- Canister interactions ---
     private static final String IX_CANISTER_PLAIN_INSERT = "ix_canister_plain_insert";
@@ -606,6 +608,8 @@ public final class GooTestFunctions {
         reg(r, FX_CRYSTAL_GROWS, EffectExecutorTests::crystalNeverGrowsOnALaterHit);
         reg(r, FX_OTHER_ABILITY_MARKS_CRYSTAL, EffectExecutorTests::otherAbilityMarksCrystal);
         reg(r, FX_NO_ABILITY_LANDS_NOTHING, BlockLandingTests::noAbilityLandsNothing);
+        reg(r, PRISM_GROWS_ON_THE_FACE, PrismTests::prismGrowsOnTheFace);
+        reg(r, PRISM_REFUSED_WITHOUT_QUARTZ, PrismTests::prismRefusedWithoutQuartz);
         reg(r, FX_ABILITY_LANDS_MARKER, BlockLandingTests::abilityLandsItsMarker);
         reg(r, FX_BLAST_LANDS_NO_BLOCK, BlockLandingTests::blastLandsNoBlock);
         reg(r, FREE_BLAST_AT_AIR_POINT, FreeAimTests::blastExplodesAtThePointInOpenAir);

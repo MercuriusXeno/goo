@@ -163,6 +163,7 @@ public final class GooTouchHandler {
         @Override
         public void deplete(int cost) {
             GooSourceScanner.deplete(player, gooType, cost);
+            GooThrowHandler.consumeReagents(player, payload.abilityId(), gooType);
         }
 
         @Override

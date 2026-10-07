@@ -145,6 +145,7 @@ class RadialWheelRendererTest {
         private static final Map<String, String> NAME_BY_ABILITY = Map.ofEntries(
                 Map.entry("aeon_time_stop", "Stasis"), Map.entry("blaze_ignite", "Scorch"),
                 Map.entry("crystal_cloud", "Razor"), Map.entry("crystal_flechettes", "Shards"),
+                Map.entry("crystal_prism", "Prism"),
                 Map.entry("ender_teleport", "Warp"),
                 Map.entry("frost_snap", "Snap"), Map.entry("glow_crystal", "Bulb"),
                 Map.entry("glow_laser", "Beam"), Map.entry("hex_charm", "Charm"),
