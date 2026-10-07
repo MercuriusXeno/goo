@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
+import com.mercuriusxeno.goo.ability.HealReport;
 import com.mercuriusxeno.goo.ability.program.EntityHost;
 import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.PlayerHost;
@@ -44,6 +45,9 @@ public final class GooStreamHandler {
     private static final double PARTICLE_SPREAD = 0.15;
     /** Speed of each particle, in blocks per tick. */
     private static final double PARTICLE_SPEED = 0.05;
+    /** Reads which living things a tick's program healed. */
+    private static final HealReport<LivingEntity> HEALS =
+            new HealReport<>(LivingEntity::getHealth, LivingEntity::getId);
 
     private GooStreamHandler() {
     }
@@ -119,32 +123,18 @@ public final class GooStreamHandler {
             // reserve-hearts-sit-behind-the-bar: a stream reaching nothing runs only on its caster
             sprayParticles(level, apex, axis, delivery);
             for (LivingEntity living : livingInCone(level, player, apex, axis, delivery)) {
-                runHealing(living, healed, () -> runProgram(ability, HostKind.ENTITY,
+                HEALS.runNoting(living, healed, () -> runProgram(ability, HostKind.ENTITY,
                         new EntityHost(level, living, player)));
             }
         }
         if (ability.hasTag(AbilityTags.SELF)) {
             // vitality-waves-regenerate-and-court
-            runHealing(player, healed, () -> runProgram(ability, HostKind.PLAYER, new PlayerHost(level, player)));
+            HEALS.runNoting(player, healed,
+                    () -> runProgram(ability, HostKind.PLAYER, new PlayerHost(level, player)));
         }
         if (!healed.isEmpty()) {
             // vitality-waves-regenerate-and-court: the client homes goo to each healed thing and stars it
             EntityVisuals.sendToWatchers(player, new StreamHealedPayload(player.getId(), apex, healed));
-        }
-    }
-
-    /**
-     * Runs a program on a living thing, noting it as healed when its health rose.
-     *
-     * @param living  the thing the program runs on
-     * @param healed  the ids of the things this tick healed
-     * @param program the program run
-     */
-    static void runHealing(LivingEntity living, List<Integer> healed, Runnable program) {
-        float before = living.getHealth();
-        program.run();
-        if (living.getHealth() > before) {
-            healed.add(living.getId());
         }
     }
 
