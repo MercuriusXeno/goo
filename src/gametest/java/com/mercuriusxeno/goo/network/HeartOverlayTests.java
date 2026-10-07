@@ -4,6 +4,8 @@ import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.hearts.HeartKind;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
+import com.mercuriusxeno.goo.ability.held.HeldEffects;
+import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -35,6 +37,11 @@ public final class HeartOverlayTests {
     /** Two thousand mB of the second goo, enough for one cast. */
     private static final int SECOND_GOO = 2 * GooStacks.THOUSAND;
     private static final String SHOULD_REPLACE = "%s should stand alone with a full shield: stood %s with %d halves";
+    private static final String SHOULD_HOLD_BARKSKIN_ALONE = "Barkskin alone should be held, held reads %s";
+    private static final String SHOULD_STOP_KINDLE_UPKEEP =
+            "Kindle's upkeep should stop, drained %d blaze; Barkskin's should drain %d leaf, drained %d";
+    /** The ticks the replaced upkeep is watched over. */
+    private static final int WATCHED_TICKS = 5;
     private static final BlockPos STAND_POS = new BlockPos(1, 1, 3);
     private static final BlockPos ATTACKER_POS = new BlockPos(2, 1, 3);
     private static final float FULL_HEALTH = 20f;
@@ -211,9 +218,11 @@ public final class HeartOverlayTests {
     }
 
     /**
-     * Barkskin over Kindle leaves only full bark standing, and Kindle over
-     * Barkskin only full embers: each heart brew ends the other the moment it
-     * takes effect, whatever the old one had spent.
+     * Barkskin over Kindle leaves only full bark standing and only Barkskin
+     * held: Kindle ends the moment Barkskin takes effect, whatever it had
+     * spent, and its upkeep stops with it while Barkskin's is paid.
+     * one-heart-overlay-at-a-time
+     * self-effects-trickle-until-ended
      *
      * @param helper the gametest helper
      */
@@ -224,16 +233,26 @@ public final class HeartOverlayTests {
 
         invoke(player, GooTypes.LEAF, LEAF_BARKSKIN);
         HeartOverlay barked = player.getData(GooAttachments.HEART_OVERLAY);
-        hurt(helper, player, player.damageSources().generic(), ONE_POINT);
-        invoke(player, GooTypes.BLAZE, BLAZE_KINDLE);
-        HeartOverlay kindledAgain = player.getData(GooAttachments.HEART_OVERLAY);
-        helper.getLevel().getServer().getPlayerList().remove(player);
-
+        HeldEffects held = player.getData(GooAttachments.HELD_EFFECTS);
+        int blazeBefore = goo(player, GooTypes.BLAZE);
+        int leafBefore = goo(player, GooTypes.LEAF);
         helper.assertTrue(barked.kind() == HeartKind.BARKSKIN && barked.shieldHalves() == FULL_HALVES,
                 String.format(SHOULD_REPLACE, HeartKind.BARKSKIN, barked.kind(), barked.shieldHalves()));
-        helper.assertTrue(kindledAgain.kind() == HeartKind.KINDLE && kindledAgain.shieldHalves() == FULL_HALVES,
-                String.format(SHOULD_REPLACE, HeartKind.KINDLE, kindledAgain.kind(), kindledAgain.shieldHalves()));
-        helper.succeed();
+        helper.assertTrue(held.held().size() == 1 && held.holds(LEAF_BARKSKIN),
+                String.format(SHOULD_HOLD_BARKSKIN_ALONE, held));
+        SelfDeliveryTests.tickFor(helper, player, WATCHED_TICKS);
+        helper.runAfterDelay(WATCHED_TICKS + 1, () -> {
+            int blazeDrained = blazeBefore - goo(player, GooTypes.BLAZE);
+            int leafDrained = leafBefore - goo(player, GooTypes.LEAF);
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.assertTrue(blazeDrained == 0 && leafDrained == WATCHED_TICKS,
+                    String.format(SHOULD_STOP_KINDLE_UPKEEP, blazeDrained, WATCHED_TICKS, leafDrained));
+            helper.succeed();
+        });
+    }
+
+    private static int goo(ServerPlayer player, ResourceKey<GooTypeDefinition> type) {
+        return GooSourceScanner.aggregateAvailable(player).getOrDefault(type, 0);
     }
 
     /**

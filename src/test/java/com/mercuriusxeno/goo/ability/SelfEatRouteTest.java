@@ -86,6 +86,27 @@ class SelfEatRouteTest {
         }
     }
 
+    /** An invoke of a held self + brew ability ends it rather than eating (decision self-effects-trickle-until-ended). */
+    @Nested
+    class EndHeld {
+
+        @Test
+        void aHeldBrewTakesTheEndRoute() {
+            assertTrue(SelfEatRoute.endsHeld(SELF, AbilityBadge.BREW, true));
+        }
+
+        @Test
+        void aBrewNotHeldEats() {
+            assertFalse(SelfEatRoute.endsHeld(SELF, AbilityBadge.BREW, false));
+        }
+
+        @Test
+        void aSelfBadgedAbilityNeverTakesTheEndRoute() {
+            assertFalse(SelfEatRoute.endsHeld(SELF, AbilityBadge.SELF, true));
+            assertFalse(SelfEatRoute.endsHeld(null, null, true));
+        }
+    }
+
     @Nested
     class AnimationAndDuration {
 

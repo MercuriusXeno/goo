@@ -185,6 +185,25 @@ class AbilityLoaderTest {
     }
 
     /**
+     * Every shipped self + brew ability names an upkeep in place of a one-shot
+     * cost, and every other ability names no upkeep
+     * (decision self-effects-trickle-until-ended).
+     */
+    @Test
+    void selfBrewAbilitiesNameAnUpkeepInPlaceOfACost() {
+        Map<Identifier, AbilityDefinition> scanned = scanShipped(AbilityJson.files());
+
+        for (AbilityDefinition ability : scanned.values()) {
+            if (SelfEatRoute.eats(ability.delivery(), ability.badge())) {
+                assertEquals(0, ability.cost(), ability.id().toString());
+                assertEquals(1, ability.upkeep(), ability.id().toString());
+            } else {
+                assertEquals(AbilityDefinition.NO_UPKEEP, ability.upkeep(), ability.id().toString());
+            }
+        }
+    }
+
+    /**
      * Hex charm and aeon's stasis show their ailment through the overlay
      * step, and neither applies vanilla glowing any more
      * (decision ailment-overlay-shader-per-ailment).

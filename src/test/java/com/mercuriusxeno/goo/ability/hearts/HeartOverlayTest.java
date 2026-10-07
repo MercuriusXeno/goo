@@ -171,11 +171,27 @@ class HeartOverlayTest {
         }
 
         @Test
-        void sameKindAgainAddsDurationAndKeepsHearts() {
+        void sameKindAgainAddsNoDuration() {
             HeartOverlay broken = kindled(FULL_HEALTH).drain(1f, NOW).overlay();
-            HeartOverlay stacked = broken.apply(HeartKind.KINDLE, DURATION, FULL_HEALTH, NOW);
-            assertEquals(NOW + 2L * DURATION, stacked.expiresAt());
-            assertEquals(broken.shields(), stacked.shields());
+            assertSame(broken, broken.apply(HeartKind.KINDLE, DURATION, FULL_HEALTH, NOW));
+        }
+
+        @Test
+        void heldStartNeverExpires() {
+            // self-effects-trickle-until-ended
+            HeartOverlay held = HeartOverlay.NONE.hold(HeartKind.KINDLE, FULL_HEALTH, FULL_HEALTH,
+                    HeartOverlay.WHOLE_HIT, NOW);
+            assertEquals(HeartOverlay.NEVER_EXPIRES, held.expiresAt());
+            assertEquals(FULL_HALVES, held.shieldHalves());
+            assertSame(held, held.tick(FULL_HEALTH, false, NOW + 100L * DURATION));
+        }
+
+        @Test
+        void sameKindHeldAgainLeavesItUnchanged() {
+            HeartOverlay held = HeartOverlay.NONE.hold(HeartKind.KINDLE, FULL_HEALTH, FULL_HEALTH,
+                    HeartOverlay.WHOLE_HIT, NOW).drain(1f, NOW).overlay();
+            assertSame(held, held.hold(HeartKind.KINDLE, FULL_HEALTH, FULL_HEALTH, HeartOverlay.WHOLE_HIT, NOW + 1));
+            assertSame(held, held.apply(HeartKind.KINDLE, DURATION, FULL_HEALTH, NOW + 1));
         }
 
         @Test
@@ -464,11 +480,9 @@ class HeartOverlayTest {
         }
 
         @Test
-        void drinkingAgainStacksTheDuration() {
-            HeartOverlay twice = stoned().apply(HeartKind.STONESKIN, DURATION, HALF_HEALTH, FULL_HEALTH,
-                    DAMAGE_TAKEN, NOW);
-            assertEquals(NOW + 2L * DURATION, twice.expiresAt());
-            assertEquals(MISSING_HALVES, twice.shieldHalves());
+        void drinkingAgainAddsNoDuration() {
+            HeartOverlay stone = stoned();
+            assertSame(stone, stone.apply(HeartKind.STONESKIN, DURATION, HALF_HEALTH, FULL_HEALTH, DAMAGE_TAKEN, NOW));
         }
     }
 }

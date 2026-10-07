@@ -3,11 +3,11 @@
   "displayName": "goo.ability.rock.stoneskin",
   "badge": "brew",
   "order": 50,
-  "cost": 1000,
+  "upkeep": 1,
   "requires": ["minecraft:deepslate"],
   "delivery": { "kind": "self" },
   "behaviors": [
-    { "type": "heart_overlay", "kind": "stoneskin", "duration": 600, "damage_taken": 0.5 },
+    { "type": "heart_overlay", "kind": "stoneskin", "damage_taken": 0.5 },
     { "type": "sound", "id": "minecraft:block.deepslate.place", "at": "target", "source": "players", "volume": 1, "pitch": 1 }
   ],
   "tags": ["self"]

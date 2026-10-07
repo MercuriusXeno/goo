@@ -3,11 +3,11 @@
   "displayName": "goo.ability.leaf.barkskin",
   "badge": "brew",
   "order": 10,
-  "cost": 1000,
+  "upkeep": 1,
   "requires": ["minecraft:oak_log"],
   "delivery": { "kind": "self" },
   "behaviors": [
-    { "type": "heart_overlay", "kind": "barkskin", "duration": 1200 },
+    { "type": "heart_overlay", "kind": "barkskin" },
     { "type": "sound", "id": "minecraft:block.wood.place", "at": "target", "source": "players", "volume": 1, "pitch": 1 }
   ],
   "tags": ["self"]

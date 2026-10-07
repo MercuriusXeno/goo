@@ -171,10 +171,9 @@ public record HeartOverlay(HeartKind kind, List<Integer> shields, long expiresAt
     }
 
     /**
-     * Applies a heart brew. The same kind standing again adds the duration and
-     * keeps its hearts; another kind ends the standing overlay and lays its own
-     * whole, a full shield over every present heart, a missing heart staying
-     * missing.
+     * Applies a heart brew. The same kind standing again changes nothing;
+     * another kind ends the standing overlay and lays its own whole, a full
+     * shield over every present heart, a missing heart staying missing.
      *
      * @param brewKind the kind the brew lays
      * @param duration the brew's duration in ticks
@@ -187,10 +186,10 @@ public record HeartOverlay(HeartKind kind, List<Integer> shields, long expiresAt
     }
 
     /**
-     * Applies a heart brew. The same kind standing again adds the duration and
-     * keeps its hearts; another kind ends the standing overlay and lays its own
-     * whole: a full shield over every present heart, or, for a kind filling
-     * the missing hearts, over every heart slot the player is missing.
+     * Applies a heart brew. The same kind standing again changes nothing;
+     * another kind ends the standing overlay and lays its own whole: a full
+     * shield over every present heart, or, for a kind filling the missing
+     * hearts, over every heart slot the player is missing.
      *
      * @param brewKind    the kind the brew lays
      * @param duration    the brew's duration in ticks
@@ -202,14 +201,35 @@ public record HeartOverlay(HeartKind kind, List<Integer> shields, long expiresAt
      */
     public HeartOverlay apply(HeartKind brewKind, int duration, float health, float maxHealth, float damageTaken,
                               long now) {
-        if (stands() && kind == brewKind) {
-            // kindle-ember-hearts-ash-and-retaliate: the self ability stacks in duration
-            return new HeartOverlay(kind, shields, expiresAt + duration, regrowAt, fireReadyAt, damageTaken, drainCarry);
+        return lay(brewKind, now + duration, health, maxHealth, damageTaken, now);
+    }
+
+    /**
+     * Lays a heart overlay the glove holds: the same as a brew, with no
+     * expiry, standing until the held effect ends.
+     * self-effects-trickle-until-ended
+     *
+     * @param heldKind    the kind the held effect lays
+     * @param health      the player's real health
+     * @param maxHealth   the player's maximum health
+     * @param damageTaken the share of a physical hit a half of shield takes
+     * @param now         the game time
+     * @return the overlay after the start
+     */
+    public HeartOverlay hold(HeartKind heldKind, float health, float maxHealth, float damageTaken, long now) {
+        return lay(heldKind, NEVER_EXPIRES, health, maxHealth, damageTaken, now);
+    }
+
+    private HeartOverlay lay(HeartKind laidKind, long laidExpiresAt, float health, float maxHealth,
+                             float damageTaken, long now) {
+        if (stands() && kind == laidKind) {
+            // self-effects-trickle-until-ended: the same kind standing adds no duration
+            return this;
         }
         // one-heart-overlay-at-a-time: a heart brew ends any other heart brew the moment it takes effect
-        List<Integer> laid = brewKind.fillsMissing() ? missingFilled(health, maxHealth)
+        List<Integer> laid = laidKind.fillsMissing() ? missingFilled(health, maxHealth)
                 : Collections.nCopies(filledSlots(health), FULL_SHIELD);
-        return new HeartOverlay(brewKind, laid, now + duration, now + brewKind.regrowInterval(sum(laid)), now,
+        return new HeartOverlay(laidKind, laid, laidExpiresAt, now + laidKind.regrowInterval(sum(laid)), now,
                 damageTaken, 0f);
     }
 
