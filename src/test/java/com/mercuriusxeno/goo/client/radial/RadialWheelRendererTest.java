@@ -294,10 +294,18 @@ class RadialWheelRendererTest {
         /** Where a blit's ARGB color sits among its arguments. */
         private static final int ICON_COLOR_ARGUMENT = 10;
 
+        private final TextureSetup atlas = TextureSetup.singleTexture(mock(GpuTextureView.class),
+                mock(GpuSampler.class));
+        /** Each whole-file sprite the frame bound, by its texture, so a submission names the sprite it draws. */
+        private final Map<Identifier, TextureSetup> sprites = new java.util.HashMap<>();
+
         /** An atlas, a sprite box and colors with no client behind them, so the frame renders off the game. */
         private final PetalLook fakeLook = new PetalLook() {
-            private final TextureSetup atlas = TextureSetup.singleTexture(mock(GpuTextureView.class),
-                    mock(GpuSampler.class));
+            @Override
+            public TextureSetup sprite(Identifier texture) {
+                return sprites.computeIfAbsent(texture, unused -> TextureSetup.singleTexture(
+                        mock(GpuTextureView.class), mock(GpuSampler.class)));
+            }
 
             @Override
             public FluidFace fluidFace(ResourceKey<GooTypeDefinition> type) {
@@ -470,7 +478,7 @@ class RadialWheelRendererTest {
         void petalFillSamplesTheAtlasSpriteAndBlitsNoBakedPetal() {
             GuiGraphicsExtractor graphics = renderFrame(openWheel());
             List<PetalRenderState> fills = submittedArguments(graphics, "submitGuiElementRenderState",
-                    PetalRenderState.class).stream().filter(PetalRenderState::isTextured).toList();
+                    PetalRenderState.class).stream().filter(this::isFill).toList();
             List<PetalRenderState.ScreenVertex> corners = fills.stream()
                     .flatMap(fill -> fill.vertices().stream()).toList();
 
@@ -515,26 +523,26 @@ class RadialWheelRendererTest {
             List<DrawnText> texts = renderTexts(wheel);
             int half = RadialWheelRenderer.ABILITY_ICON_SIZE / 2;
 
+            List<PetalRenderState> submitted = submittedArguments(graphics, "submitGuiElementRenderState",
+                    PetalRenderState.class);
+            TextureSetup badge = sprites.get(RadialWheelRenderer.badgeIcon(AbilityBadge.WORLD));
+
             assertAll(wheel.displayedLayout(0.0f).stream().filter(RadialWheel.PetalArc::isAbility)
                     .map(petal -> (Executable) () -> {
                         PetalMask.Point tip = petal.shape().tipCenter();
-                        String icon = "ability_" + petal.type() + "_" + petal.ability() + ".png";
-                        var iconBlit = mockingDetails(graphics).getInvocations().stream()
-                                .filter(call -> call.getMethod().getName().equals("blit")
-                                        && call.getArgument(1).toString().endsWith(icon))
-                                .findFirst().orElseThrow();
-                        int iconX = (int) iconBlit.getArgument(2) + half;
-                        int iconY = (int) iconBlit.getArgument(3) + half;
+                        PetalRenderState iconState = spriteOf(submitted, iconOf(petal));
+                        float[] iconBox = boxOf(iconState);
+                        int iconX = Math.round(iconBox[0]) + half;
+                        int iconY = Math.round(iconBox[1]) + half;
                         assertTrue(Math.hypot(iconX - (CENTER_X + tip.x() * RADIUS),
                                 iconY - (CENTER_Y + tip.y() * RADIUS)) <= TIP_TOLERANCE,
                                 petal + " icon at " + iconX + "," + iconY);
-                        assertEquals(0xFFFFFFFF, (int) iconBlit.getArgument(ICON_COLOR_ARGUMENT), petal + " tint");
-                        List<org.mockito.invocation.Invocation> calls = List.copyOf(
-                                mockingDetails(graphics).getInvocations());
-                        var badgeBlit = calls.get(calls.indexOf(iconBlit) + 1);
-                        assertTrue(badgeBlit.getArgument(1).toString().contains("/badge/"), petal + " badge follows");
-                        assertEquals(iconX + half, (int) badgeBlit.getArgument(2), petal + " badge's left edge");
-                        assertEquals(iconY - half, (int) badgeBlit.getArgument(3), petal + " badge's row");
+                        assertEquals(0xFFFFFFFF, iconState.color(), petal + " tint");
+                        PetalRenderState badgeState = submitted.get(submitted.indexOf(iconState) + 1);
+                        assertTrue(badgeState.textureSetup() == badge, petal + " badge follows");
+                        float[] badgeBox = boxOf(badgeState);
+                        assertEquals(iconX + half, Math.round(badgeBox[0]), petal + " badge's left edge");
+                        assertEquals(iconY - half, Math.round(badgeBox[1]), petal + " badge's row");
                         List<DrawnText> words = texts.stream().filter(text -> text.x() == iconX
                                 && Math.abs(text.y() - iconY) <= half + 2 * LINE_HEIGHT).toList();
                         assertEquals(LINES_PER_ABILITY, words.size(), petal + " lines");
@@ -555,7 +563,7 @@ class RadialWheelRendererTest {
             int disabledTint = RadialWheelRenderer.computeOverlayTint(false, true);
             List<RadialWheel.PetalArc> petals = wheel.displayedLayout(0.0f);
             List<PetalRenderState> fills = submittedArguments(graphics, "submitGuiElementRenderState",
-                    PetalRenderState.class).stream().filter(PetalRenderState::isTextured).toList();
+                    PetalRenderState.class).stream().filter(this::isFill).toList();
 
             assertAll(petals.stream().filter(RadialWheel.PetalArc::isAbility).map(petal -> (Executable) () ->
                     assertEquals(petal.ability() == LOCKED_ABILITY, fills.get(petals.indexOf(petal)).color()
@@ -632,6 +640,65 @@ class RadialWheelRendererTest {
                     }));
         }
 
+
+        private boolean isFill(PetalRenderState state) {
+            return state.textureSetup() == atlas;
+        }
+
+        private static Identifier iconOf(RadialWheel.PetalArc petal) {
+            return Identifier.fromNamespaceAndPath(Goo.MODID,
+                    "textures/goo/ability/ability_" + petal.type() + "_" + petal.ability() + ".png");
+        }
+
+        /** The one submission drawing a sprite's texture. */
+        private PetalRenderState spriteOf(List<PetalRenderState> submitted, Identifier texture) {
+            TextureSetup bound = sprites.get(texture);
+            List<PetalRenderState> drawing = submitted.stream().filter(state -> state.textureSetup() == bound)
+                    .toList();
+            assertEquals(1, drawing.size(), texture + " submissions");
+            return drawing.getFirst();
+        }
+
+        /** A submission's least x and y on screen, the top-left of an uncut sprite. */
+        private static float[] boxOf(PetalRenderState state) {
+            return new float[]{
+                    state.vertices().stream().map(PetalRenderState.ScreenVertex::x).min(Float::compare).orElseThrow(),
+                    state.vertices().stream().map(PetalRenderState.ScreenVertex::y).min(Float::compare).orElseThrow()};
+        }
+
+        /**
+         * An unlocked ability petal's icon reaches the GUI as quads cut to its
+         * petal, carrying the icon's own texture, after the petal's edge; a
+         * type petal's icon still blits whole.
+         * decision icons-slide-in-from-behind-the-tip
+         */
+        @Test
+        void abilityIconSubmitsCutToItsPetalAfterTheEdgeAndTypeIconsBlitWhole() {
+            RadialWheel wheel = openWheel();
+            GuiGraphicsExtractor graphics = renderFrame(wheel);
+            List<PetalRenderState> submitted = submittedArguments(graphics, "submitGuiElementRenderState",
+                    PetalRenderState.class);
+
+            assertAll(wheel.displayedLayout(0.0f).stream().filter(RadialWheel.PetalArc::isAbility)
+                    .map(petal -> (Executable) () -> {
+                        PetalRenderState icon = spriteOf(submitted, iconOf(petal));
+                        int index = submitted.indexOf(icon);
+                        PetalRenderState edge = submitted.get(index - 1);
+                        assertFalse(edge.isTextured(), petal + " icon follows its edge");
+                        assertAll(icon.vertices().stream().map(corner -> (Executable) () -> assertTrue(
+                                PetalMeshTest.insideWithSlack(petal.shape(), (corner.x() - CENTER_X) / RADIUS,
+                                        (corner.y() - CENTER_Y) / RADIUS), petal + " corner " + corner)));
+                        assertTrue(icon.vertices().stream().allMatch(corner -> corner.u() >= 0 && corner.u() <= 1
+                                && corner.v() >= 0 && corner.v() <= 1), petal + " samples off its icon");
+                    }));
+            assertTrue(mockingDetails(graphics).getInvocations().stream()
+                    .noneMatch(call -> call.getMethod().getName().equals("blit")
+                            && call.getArgument(1).toString().contains("/ability/")), "an ability icon blitted whole");
+            assertEquals(wheel.displayedLayout(0.0f).stream().filter(petal -> !petal.isAbility()).count(),
+                    mockingDetails(graphics).getInvocations().stream()
+                            .filter(call -> call.getMethod().getName().equals("blit")
+                                    && call.getArgument(1).toString().contains("/type/")).count());
+        }
 
         private static org.mockito.invocation.Invocation iconBlit(GuiGraphicsExtractor graphics, String icon) {
             return mockingDetails(graphics).getInvocations().stream()

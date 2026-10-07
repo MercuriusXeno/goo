@@ -141,6 +141,102 @@ final class PetalMesh {
         return columns;
     }
 
+    /**
+     * The part of an axis-aligned square lying under a petal's face, as
+     * quads whose corners carry where they sit within the square, so a
+     * sprite drawn across them shows only inside the petal, cut at its
+     * border. The square is intersected with each of the fill's convex
+     * columns, so the cut follows exactly the face the fill draws.
+     * decision icons-slide-in-from-behind-the-tip
+     *
+     * @param petal    the petal
+     * @param centerX  the square's center x, normalized
+     * @param centerY  the square's center y, normalized
+     * @param halfSize half the square's side, normalized
+     * @return the quads, u 0 to 1 left to right and v 0 to 1 top to bottom across the square; none when
+     *         the square lies wholly outside the petal
+     */
+    static List<Quad> clipSquare(PetalMask.Petal petal, double centerX, double centerY, double halfSize) {
+        double left = centerX - halfSize;
+        double top = centerY - halfSize;
+        double side = halfSize + halfSize;
+        List<PetalMask.Point> square = List.of(new PetalMask.Point(left, top),
+                new PetalMask.Point(left + side, top), new PetalMask.Point(left + side, top + side),
+                new PetalMask.Point(left, top + side));
+        List<Quad> quads = new ArrayList<>();
+        for (List<PetalMask.Point> column : columns(petal)) {
+            List<PetalMask.Point> piece = intersectConvex(square, column);
+            for (int i = 1; i + 1 < piece.size(); i++) {
+                Vertex next = inSquare(piece.get(i + 1), left, top, side);
+                quads.add(new Quad(inSquare(piece.getFirst(), left, top, side), inSquare(piece.get(i), left, top,
+                        side), next, next).wound());
+            }
+        }
+        return quads;
+    }
+
+    /**
+     * The intersection of two convex polygons: the subject cut by the
+     * half-plane inside each of the clip's edges in turn.
+     *
+     * @param subject the polygon kept, its corners in order
+     * @param clip    the convex polygon it is cut to, its corners in order
+     * @return the intersection's corners in order, fewer than three when the two do not overlap
+     */
+    private static List<PetalMask.Point> intersectConvex(List<PetalMask.Point> subject, List<PetalMask.Point> clip) {
+        double winding = Math.signum(signedArea(clip));
+        if (winding == 0) {
+            return List.of();
+        }
+        List<PetalMask.Point> kept = subject;
+        for (int i = 0; i < clip.size() && kept.size() >= TRIANGLE; i++) {
+            PetalMask.Point from = clip.get(i);
+            PetalMask.Point to = clip.get((i + 1) % clip.size());
+            if (isSamePoint(from, to)) {
+                continue;
+            }
+            kept = keepInside(kept, from, to, winding);
+        }
+        return kept.size() >= TRIANGLE ? kept : List.of();
+    }
+
+    /**
+     * The part of a convex polygon on the inner side of the line through an
+     * edge of a polygon winding the given way.
+     *
+     * @param polygon the polygon's corners in order
+     * @param from    the edge's start
+     * @param to      the edge's end
+     * @param winding the sign of the clipping polygon's shoelace sum
+     * @return the kept part's corners in order
+     */
+    private static List<PetalMask.Point> keepInside(List<PetalMask.Point> polygon, PetalMask.Point from,
+                                                    PetalMask.Point to, double winding) {
+        List<PetalMask.Point> kept = new ArrayList<>();
+        for (int i = 0; i < polygon.size(); i++) {
+            PetalMask.Point here = polygon.get(i);
+            PetalMask.Point next = polygon.get((i + 1) % polygon.size());
+            double hereSide = winding * sideOf(from, to, here);
+            double nextSide = winding * sideOf(from, to, next);
+            if (hereSide >= 0) {
+                kept.add(here);
+            }
+            if (hereSide * nextSide < 0) {
+                kept.add(along(here, next, hereSide / (hereSide - nextSide)));
+            }
+        }
+        return kept;
+    }
+
+    private static double sideOf(PetalMask.Point from, PetalMask.Point to, PetalMask.Point point) {
+        return (to.x() - from.x()) * (point.y() - from.y()) - (to.y() - from.y()) * (point.x() - from.x());
+    }
+
+    private static Vertex inSquare(PetalMask.Point point, double left, double top, double side) {
+        return new Vertex(point.x(), point.y(), clampUnit((point.x() - left) / side),
+                clampUnit((point.y() - top) / side));
+    }
+
     private static PetalMask.Point innerPoint(PetalMask.Petal petal, double angle) {
         return PetalMask.Point.polar(angle, petal.innerReach(angle));
     }

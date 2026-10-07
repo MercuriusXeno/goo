@@ -20,6 +20,9 @@ import java.util.List;
 final class PetalPainter {
 
     private static final int CORNERS_PER_QUAD = 4;
+    private static final double HALF = 0.5;
+    /** A sprite that fills its whole texture, 0 to 1 both ways. */
+    private static final PetalLook.SpriteBox WHOLE_TEXTURE = new PetalLook.SpriteBox(0f, 1f, 0f, 1f);
 
     private PetalPainter() {
     }
@@ -45,6 +48,34 @@ final class PetalPainter {
                 PetalMesh.edge(shape, PetalMesh.EDGE_THICKNESS, !petal.isAbility()), face.sprite());
         graphics.submitGuiElementRenderState(new PetalRenderState(RenderPipelines.GUI, TextureSetup.noTexture(), pose,
                 edge, face.edgeColor(), scissor, bounds(edge, pose, scissor)));
+    }
+
+    /**
+     * Submits a square sprite cut at a petal's border, so only the part of
+     * it lying under the petal's face shows; nothing when none of it does.
+     * decision icons-slide-in-from-behind-the-tip
+     *
+     * @param graphics the GUI graphics extractor
+     * @param frame    what the frame draws from
+     * @param petal    the petal whose face the sprite shows under
+     * @param texture  the sprite's whole texture
+     * @param center   the sprite's center on screen
+     * @param size     the sprite's side in pixels
+     * @param color    the ARGB tint the sprite draws under
+     */
+    static void paintSprite(GuiGraphicsExtractor graphics, RadialWheelRenderer.Frame frame, PetalMask.Petal petal,
+                            TextureSetup texture, int[] center, int size, int color) {
+        double radius = frame.radius();
+        List<PetalMesh.Quad> quads = PetalMesh.clipSquare(petal, (center[0] - frame.centerX()) / radius,
+                (center[1] - frame.centerY()) / radius, size * HALF / radius);
+        if (quads.isEmpty()) {
+            return;
+        }
+        Matrix3x2f pose = new Matrix3x2f(graphics.pose());
+        ScreenRectangle scissor = graphics.peekScissorStack();
+        List<PetalRenderState.ScreenVertex> vertices = toScreen(frame, quads, WHOLE_TEXTURE);
+        graphics.submitGuiElementRenderState(new PetalRenderState(RenderPipelines.GUI_TEXTURED, texture, pose,
+                vertices, color, scissor, bounds(vertices, pose, scissor)));
     }
 
     private static List<PetalRenderState.ScreenVertex> toScreen(RadialWheelRenderer.Frame frame,

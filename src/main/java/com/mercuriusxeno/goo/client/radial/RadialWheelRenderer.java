@@ -192,8 +192,7 @@ final class RadialWheelRenderer {
             return new Words(List.of(), null, restingTip, DISABLED_TEXT_COLOR, requiredIcons(frame, petal, offered));
         }
         // icons-slide-in-from-behind-the-tip: the icon rides in while the words stay on the resting tip
-        blitAbilityIcon(graphics, ability, contentCenter(frame, petal),
-                dimmed ? computeOverlayTint(false, true) : COLOR_WHITE);
+        blitAbilityIcon(graphics, frame, petal, ability, dimmed ? computeOverlayTint(false, true) : COLOR_WHITE);
         int textColor = dimmed ? DISABLED_TEXT_COLOR : hovered ? HOVER_TEXT_COLOR : COLOR_WHITE;
         return new Words(splitNameLines(buildLabel(ability).getString()), Component.literal(slotLabels.costLabel()),
                 restingTip, textColor, List.of());
@@ -363,17 +362,25 @@ final class RadialWheelRenderer {
 
     /**
      * Draws the ability's icon, then its badge untinted directly to the icon's
-     * right, where the words never clip it and it never covers the icon.
+     * right, where the words never clip it and it never covers the icon, each
+     * cut at the petal's border so only the part under its face shows.
      * badge-marks-the-target-kind
+     * decision icons-slide-in-from-behind-the-tip
      *
      * @param graphics the GUI graphics extractor
+     * @param frame    what the frame draws from
+     * @param petal    the ability's petal
      * @param ability  the synced ability
-     * @param slot     the icon's center
      * @param color    the wedge's tint for the icon
      */
-    private static void blitAbilityIcon(GuiGraphicsExtractor graphics, ClientAbility ability, int[] slot, int color) {
-        blitIcon(graphics, new Icon(resolveAbilityIcon(ability), ABILITY_ICON_SIZE), slot, color);
-        blitIcon(graphics, new Icon(badgeIcon(ability.badge()), ABILITY_ICON_SIZE), badgeBeside(slot), COLOR_WHITE);
+    private static void blitAbilityIcon(GuiGraphicsExtractor graphics, Frame frame, RadialWheel.PetalArc petal,
+                                        ClientAbility ability, int color) {
+        int[] slot = contentCenter(frame, petal);
+        PetalMask.Petal shape = petal.shape();
+        PetalPainter.paintSprite(graphics, frame, shape, frame.look().sprite(resolveAbilityIcon(ability)), slot,
+                ABILITY_ICON_SIZE, color);
+        PetalPainter.paintSprite(graphics, frame, shape, frame.look().sprite(badgeIcon(ability.badge())),
+                badgeBeside(slot), ABILITY_ICON_SIZE, COLOR_WHITE);
     }
 
     /**
