@@ -50,7 +50,8 @@ public final class HeldDomeRenderer {
     /** The ghost each goo type holds; a type with none draws no dome. */
     private static final Map<ResourceKey<GooTypeDefinition>, HeldGhostVisual> GHOSTS = Map.of(
             GooTypes.CRYSTAL, CrystalExplosionVisual.INSTANCE,
-            GooTypes.METAL, MetalExplosionVisual.INSTANCE);
+            GooTypes.METAL, MetalExplosionVisual.INSTANCE,
+            GooTypes.NETHER, NetherHeldGhost.INSTANCE);
 
     /**
      * Where a ghost draws: its dome about the center of the cell the throw lands
@@ -143,9 +144,13 @@ public final class HeldDomeRenderer {
         poseStack.pushPose();
         Vec3 corner = anchor.domeCorner().subtract(camera);
         poseStack.translate(corner.x, corner.y, corner.z);
-        HeldPass pass = new HeldPass(visual, ghost, anchor.face(), nowSeconds);
-        pass.draw(poseStack, buffers, visual.heldThroughBlocksType(), THROUGH_BLOCKS_OPACITY);
-        pass.draw(poseStack, buffers, visual.heldType(), HELD_OPACITY);
+        HeldPass pass = new HeldPass(ghost, anchor.face(), nowSeconds);
+        for (HeldLayer layer : visual.heldLayers()) {
+            pass.draw(poseStack, buffers, layer, layer.throughBlocks(), THROUGH_BLOCKS_OPACITY);
+        }
+        for (HeldLayer layer : visual.heldLayers()) {
+            pass.draw(poseStack, buffers, layer, layer.overBlocks(), HELD_OPACITY);
+        }
         poseStack.popPose();
         drawRings(poseStack, buffers, camera, anchor, ghost, ringRgb, nowSeconds);
     }
@@ -153,22 +158,23 @@ public final class HeldDomeRenderer {
     /**
      * One frame's ghost, drawn once per pass.
      *
-     * @param visual     the goo type's ghost visual
      * @param ghost      the ghost
      * @param face       the face the throw strikes
      * @param nowSeconds seconds on the real-time clock
      */
-    private record HeldPass(HeldGhostVisual visual, HeldGhost ghost, Direction face, double nowSeconds) {
+    private record HeldPass(HeldGhost ghost, Direction face, double nowSeconds) {
         /**
-         * Draws the dome through one render type at a share of the landing's opacity.
+         * Draws one layer through one render type at a share of the landing's opacity.
          *
          * @param poseStack the pose stack, at the dome's block corner
          * @param buffers   the buffer source
-         * @param type      the pass's render type
+         * @param layer     the layer
+         * @param type      the pass's render type for the layer
          * @param opacity   the share of the landing's opacity
          */
-        void draw(PoseStack poseStack, MultiBufferSource.BufferSource buffers, RenderType type, float opacity) {
-            visual.emitHeld(poseStack.last(), buffers.getBuffer(type), ghost, face, opacity, nowSeconds);
+        void draw(PoseStack poseStack, MultiBufferSource.BufferSource buffers, HeldLayer layer, RenderType type,
+                  float opacity) {
+            layer.emitter().emit(poseStack.last(), buffers.getBuffer(type), ghost, face, opacity, nowSeconds);
             buffers.endBatch(type);
         }
     }
@@ -191,11 +197,11 @@ public final class HeldDomeRenderer {
         int segments = Math.max(MIN_RING_SEGMENTS, (int) Math.ceil(ghost.ringRadius() * RING_SEGMENTS_PER_BLOCK));
         LineContext ctx = new LineContext(poseStack.last(), buffers.getBuffer(GooRenderTypes.LINES_GLOW));
         for (double phase : RippleRings.ringPhases(nowSeconds)) {
-            int alpha = (int) (RING_PEAK_ALPHA * RippleRings.ringOpacity(phase));
+            int alpha = (int) (RING_PEAK_ALPHA * ghost.rings().opacity(phase));
             if (RippleRings.isAlive(phase) && alpha > 0) {
                 int color = ARGB.color(alpha, ARGB.red(ringRgb), ARGB.green(ringRgb), ARGB.blue(ringRgb));
                 Vec3[] ring = FaceBullseyeRenderer.ringPoints(anchor.ringCenter(), anchor.face(),
-                        RippleRings.ringRadius(phase, ghost.ringRadius()), segments);
+                        ghost.rings().radius(phase, ghost.ringRadius()), segments);
                 ctx.emitPolyline(camera, ring, color, width);
             }
         }

@@ -66,6 +66,31 @@ public final class RippleRings {
     }
 
     /**
+     * An inward ring's radius at a phase: born at the edge radius and closing on
+     * the center, the outward ring's phase run backward.
+     * black-hole-rings-pulse-inward-to-the-pull-radius
+     *
+     * @param phase      the ring's phase
+     * @param edgeRadius the radius the ring is born at, in blocks
+     * @return the radius in blocks, zero at the end of its life
+     */
+    public static double inwardRingRadius(double phase, double edgeRadius) {
+        return ringRadius(1 - Mth.clamp(phase, 0, 1), edgeRadius);
+    }
+
+    /**
+     * An inward ring's opacity at a phase: nothing at birth on the edge,
+     * gaining as it closes on the center, the outward ring's phase run backward.
+     * black-hole-rings-pulse-inward-to-the-pull-radius
+     *
+     * @param phase the ring's phase
+     * @return the opacity in [0, 1]
+     */
+    public static double inwardRingOpacity(double phase) {
+        return ringOpacity(1 - Mth.clamp(phase, 0, 1));
+    }
+
+    /**
      * A ring's opacity at a phase, full at birth and falling to zero as the
      * ring meets the edge.
      *

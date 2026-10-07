@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.type.GooTypes;
+import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.platform.CompareOp;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -13,6 +14,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -82,6 +84,20 @@ class HeldDomeRendererTest {
     @Test
     void razorsGhostIsTheCrystalLanding() {
         assertSame(CrystalExplosionVisual.INSTANCE, HeldDomeRenderer.ghostOf(GooTypes.CRYSTAL));
+    }
+
+    @Test
+    void blackHolesGhostDrawsItsBodyAndCoronaThroughBlocks() {
+        for (RenderPipeline pipeline : List.of(GooRenderTypes.NETHER_BLACKHOLE_HELD,
+                GooRenderTypes.NETHER_BLACKHOLE_THROUGH_BLOCKS, GooRenderTypes.NETHER_CORONA_THROUGH_BLOCKS)) {
+            PipelineShaders.assertExist(pipeline);
+            assertFalse(pipeline.getDepthStencilState().writeDepth(), pipeline.getLocation() + " writes depth");
+        }
+        assertEquals(CompareOp.ALWAYS_PASS,
+                GooRenderTypes.NETHER_BLACKHOLE_THROUGH_BLOCKS.getDepthStencilState().depthTest());
+        assertEquals(CompareOp.ALWAYS_PASS,
+                GooRenderTypes.NETHER_CORONA_THROUGH_BLOCKS.getDepthStencilState().depthTest());
+        assertSame(NetherHeldGhost.INSTANCE, HeldDomeRenderer.ghostOf(GooTypes.NETHER));
     }
 
     @Test

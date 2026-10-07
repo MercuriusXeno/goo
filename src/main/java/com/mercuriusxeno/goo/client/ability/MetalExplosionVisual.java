@@ -6,7 +6,6 @@ import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
@@ -89,13 +88,9 @@ public final class MetalExplosionVisual implements BurnoutVisual, HeldGhostVisua
     }
 
     @Override
-    public RenderType heldType() {
-        return GooRenderTypes.METAL_EXPLOSION_TYPE;
-    }
-
-    @Override
-    public RenderType heldThroughBlocksType() {
-        return GooRenderTypes.METAL_EXPLOSION_THROUGH_BLOCKS_TYPE;
+    public List<HeldLayer> heldLayers() {
+        return List.of(new HeldLayer(GooRenderTypes.METAL_EXPLOSION_TYPE,
+                GooRenderTypes.METAL_EXPLOSION_THROUGH_BLOCKS_TYPE, this::emitHeld));
     }
 
     /**
@@ -103,9 +98,15 @@ public final class MetalExplosionVisual implements BurnoutVisual, HeldGhostVisua
      * radius and as thick for its length as a landing's, the specular band
      * still sweeping on the real-time clock.
      * held-visual-ghosts-the-landing-in-two-passes
+     *
+     * @param pose       the pose entry
+     * @param c          the vertex consumer
+     * @param ghost      the ghost
+     * @param face       the face the throw strikes
+     * @param opacity    the share of the landing's opacity
+     * @param nowSeconds seconds on the real-time clock
      */
-    @Override
-    public void emitHeld(PoseStack.Pose pose, VertexConsumer c, HeldGhost ghost, Direction face, float opacity,
+    private void emitHeld(PoseStack.Pose pose, VertexConsumer c, HeldGhost ghost, Direction face, float opacity,
                          double nowSeconds) {
         heldUrchin(ghost, face, opacity, nowSeconds).emit(pose, c);
     }

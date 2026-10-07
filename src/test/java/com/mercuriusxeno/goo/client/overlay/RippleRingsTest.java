@@ -76,6 +76,39 @@ class RippleRingsTest {
         }
     }
 
+    /** The black hole's ring closes inward from its pull radius (decision black-hole-rings-pulse-inward-to-the-pull-radius). */
+    @Nested
+    class Inward {
+        private static final double PULL_RADIUS = 9;
+
+        @Test
+        void bornAtItsRadiusUnseen() {
+            assertEquals(PULL_RADIUS, RippleRings.inwardRingRadius(0, PULL_RADIUS), EPSILON);
+            assertEquals(0, RippleRings.inwardRingOpacity(0), EPSILON);
+        }
+
+        @Test
+        void isHalfwayInAtHalfItsLife() {
+            assertEquals(PULL_RADIUS / 2, RippleRings.inwardRingRadius(0.5, PULL_RADIUS), EPSILON);
+            assertEquals(RippleRings.ringOpacity(0.5), RippleRings.inwardRingOpacity(0.5), EPSILON);
+        }
+
+        @Test
+        void closesOnTheCenterAtTheEndOfItsLife() {
+            assertEquals(0, RippleRings.inwardRingRadius(1, PULL_RADIUS), EPSILON);
+            assertEquals(1, RippleRings.inwardRingOpacity(1), EPSILON);
+        }
+
+        @Test
+        void gainsOpacityAsItCloses() {
+            for (int i = 1; i <= SAMPLES; i++) {
+                double before = RippleRings.inwardRingOpacity((i - 1.0) / SAMPLES);
+                double after = RippleRings.inwardRingOpacity((double) i / SAMPLES);
+                assertTrue(after > before, "opacity at sample " + i);
+            }
+        }
+    }
+
     @Nested
     class Opacity {
         @Test

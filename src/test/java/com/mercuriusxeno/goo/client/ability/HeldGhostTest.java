@@ -36,4 +36,12 @@ class HeldGhostTest {
         assertEquals(HeldGhost.RingDirection.OUTWARD, ghost.rings());
         assertEquals(3.75f, ghost.ringRadius(), TOLERANCE);
     }
+
+    @Test
+    void blackHoleRingsInwardFromItsPullToItsPhasedDome() {
+        HeldGhost ghost = ghostOf(NetherHeldGhost.INSTANCE, "nether_black_hole");
+        assertEquals(3f, ghost.domeRadius(), TOLERANCE);
+        assertEquals(HeldGhost.RingDirection.INWARD, ghost.rings());
+        assertEquals(9f, ghost.ringRadius(), TOLERANCE);
+    }
 }

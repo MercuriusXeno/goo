@@ -3,10 +3,6 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.ability.AbilityArea;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
-import net.minecraft.client.renderer.rendertype.RenderType;
-import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 import java.util.List;
 
@@ -36,26 +32,7 @@ public interface HeldGhostVisual {
     }
 
     /**
-     * @return the render type the dome draws through over blocks, depth tested
+     * @return the layers the ghost draws, in order, each in both passes
      */
-    RenderType heldType();
-
-    /**
-     * @return the render type the dome draws through behind blocks, depth ignored
-     */
-    RenderType heldThroughBlocksType();
-
-    /**
-     * Emits the dome at resting size about the block center, in block-local
-     * coordinates as a burnout draws, at a share of the landing's opacity.
-     *
-     * @param pose       the pose entry
-     * @param c          the vertex consumer
-     * @param ghost      the ghost being drawn
-     * @param face       the face the throw strikes, the landing's placed face
-     * @param opacity    the share of the landing's opacity, in [0, 1]
-     * @param nowSeconds seconds on the real-time clock, for a shader that animates while held
-     */
-    void emitHeld(PoseStack.Pose pose, VertexConsumer c, HeldGhost ghost, Direction face, float opacity,
-                  double nowSeconds);
+    List<HeldLayer> heldLayers();
 }
