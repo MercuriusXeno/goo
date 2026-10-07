@@ -4,8 +4,12 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.TargetResult;
+import com.mercuriusxeno.goo.client.ability.HeldDomeRenderer;
+import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
+import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.client.throwing.GloveThrowSender;
+import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
@@ -106,6 +110,26 @@ public final class GooTargetHighlighter {
         HighlightFrame frame = new HighlightFrame(event.getPoseStack(), mc.renderBuffers().bufferSource(),
                 mc.gameRenderer.getMainCamera(), mc, selectedType);
         renderIndicator(target, AimIndicator.of(GloveThrowSender.selectedBadge(abilityId)), frame);
+        renderHeldDome(target, abilityId, frame);
+    }
+
+    /**
+     * Draws the selected ability's held ghost at the aim point while right
+     * click holds an armed press.
+     * held-visual-ghosts-the-landing-in-two-passes
+     *
+     * @param target    the aim target
+     * @param abilityId the selected ability id
+     * @param frame     what the frame draws with
+     */
+    private static void renderHeldDome(TargetResult target, @Nullable String abilityId, HighlightFrame frame) {
+        ClientAbility ability = abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
+        if (ability == null || !HeldDomeRenderer.showsDome(ability.delivery(), ability.badge(), ability.area(),
+                GloveUseTracker.showsArea())) {
+            return;
+        }
+        HeldDomeRenderer.render(frame.ps(), frame.buf(), frame.camera().position(), target, ability,
+                frame.selectedType(), ClientGooTypes.highlight(frame.selectedType()), realTimeSeconds());
     }
 
     /**

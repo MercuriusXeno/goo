@@ -39,6 +39,14 @@ class CrystalExplosionVisualTest {
         assertEquals(1f, CrystalExplosionVisual.shattered(1f), TOLERANCE);
     }
 
+    /** Razor's held ghost rests whole at the cloud's radius (decision held-visual-ghosts-the-landing-in-two-passes). */
+    @Test
+    void heldShellRestsWholeAtTheCloudRadius() {
+        float resting = CrystalExplosionVisual.RESTING_PROGRESS;
+        assertEquals(REACH, CrystalExplosionVisual.shellRadius(resting, REACH), TOLERANCE);
+        assertEquals(0f, CrystalExplosionVisual.shattered(resting), 0f);
+    }
+
     @Test
     void pipelineShadersResolveOnTheClasspath() {
         PipelineShaders.assertExist(GooRenderTypes.CRYSTAL_EXPLOSION);

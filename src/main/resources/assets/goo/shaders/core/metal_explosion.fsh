@@ -4,12 +4,13 @@
 // urchin of chrome spikes. Each cone shades from C0C0C0 to E8E8E8 by how
 // squarely it faces the eye, a specular band sweeps down the spikes as the
 // show runs, and each tip carries a white glint. TRANSLUCENT blend, the
-// spikes drawn solid.
+// spikes drawn solid at the vertex alpha's opacity, whole for a landing.
 
 in vec3 viewPos;
 in vec3 viewNormal;
 in float progress;
 in float along;
+in float opacity;
 
 out vec4 fragColor;
 
@@ -31,5 +32,5 @@ void main() {
     float tipGlint = smoothstep(TIP_GLINT_START, 1.0, along);
     color = mix(color, GLINT_COLOR, clamp(band * 0.8 + tipGlint, 0.0, 1.0));
 
-    fragColor = vec4(color, 1.0);
+    fragColor = vec4(color, opacity);
 }
