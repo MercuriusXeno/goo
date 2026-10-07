@@ -24,6 +24,13 @@ public class GooParticles {
         PARTICLE_TYPES.register("goo_spark", () -> new SimpleParticleType(false));
 
     /**
+     * A drifting mote of spores, the particle Mycosis sprays along its cone
+     * and bursts from a spored corpse (decision mycosis-spore-stream-buds-and-poisons).
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> SPORE =
+        PARTICLE_TYPES.register("spore", () -> new SimpleParticleType(false));
+
+    /**
      * The particle a ability block's explosion names in place of vanilla's
      * explosion particles; its client provider spawns nothing, so the goo
      * type's own burnout explosion is the one seen (decision

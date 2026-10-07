@@ -86,7 +86,8 @@ class AbilityLoaderTest {
             Map.entry("typhoon_levitate", List.of("shulker_shell")),
             Map.entry("typhoon_propel", List.of("phantom_membrane")),
             Map.entry("rock_petrify", List.of("pointed_dripstone")),
-            Map.entry("pulse_short_circuit", List.of("redstone")));
+            Map.entry("pulse_short_circuit", List.of("redstone")),
+            Map.entry("shroom_mycosis", List.of("nether_wart")));
 
     @Test
     void everyScannedAbilityCarriesItsFileId() {

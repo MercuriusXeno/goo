@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.registry;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.ability.program.EntityCounters;
+import com.mercuriusxeno.goo.ability.spray.Spored;
 import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.item.SoulBoundStacks;
 import net.minecraft.server.level.ServerPlayer;
@@ -72,6 +73,15 @@ public final class GooAttachments {
      */
     public static final Supplier<AttachmentType<Vec3>> JUMP_SOURCE =
             ATTACHMENT_TYPES.register("jump_source", () -> AttachmentType.builder(() -> Vec3.ZERO).build());
+
+    /**
+     * The spores a mob carries, bursting another spray from its corpse when
+     * it dies before they fade, saved with the mob (decision
+     * mycosis-spore-stream-buds-and-poisons).
+     */
+    public static final Supplier<AttachmentType<Spored>> SPORED =
+            ATTACHMENT_TYPES.register("spored",
+                    () -> AttachmentType.builder(() -> Spored.NONE).serialize(Spored.CODEC).build());
 
     private GooAttachments() {
     }

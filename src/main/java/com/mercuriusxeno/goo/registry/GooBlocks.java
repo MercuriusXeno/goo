@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.block.ability.AbilityBlock;
+import com.mercuriusxeno.goo.block.ability.FungalBudBlock;
 import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
 import com.mercuriusxeno.goo.block.ability.MagickedIceBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
@@ -75,6 +76,21 @@ public class GooBlocks {
                     .sound(SoundType.GLASS)
                     .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY)
                     .lightLevel(GlowCrystalBlock::lightLevel));
+    /**
+     * Fungal bud: the colony bud Mycosis leaves on a sprayed floor, ripening
+     * on random ticks into a mushroom (decision mycosis-spore-stream-buds-and-poisons).
+     */
+    public static final DeferredBlock<FungalBudBlock> FUNGAL_BUD = BLOCKS.registerBlock(
+            "fungal_bud", FungalBudBlock::new,
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_BROWN)
+                    .noCollision()
+                    .instabreak()
+                    .randomTicks()
+                    .noLootTable()
+                    .noOcclusion()
+                    .sound(SoundType.FUNGUS)
+                    .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY));
     /**
      * Prism: the milky quartz crystal Crystal's Prism grows, the host every
      * prism combo grows on (decision prism-blob-becomes-a-milky-quartz-crystal).
