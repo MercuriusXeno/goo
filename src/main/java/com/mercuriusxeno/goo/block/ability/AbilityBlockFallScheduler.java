@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.block.ability;
 
+import com.mercuriusxeno.goo.network.ChunkWatchers;
 import com.mercuriusxeno.goo.network.GooFlightPayload;
 import com.mercuriusxeno.goo.network.GooThrowHandler;
 import com.mercuriusxeno.goo.throwing.ThrowArc;
@@ -13,7 +14,6 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.network.PacketDistributor;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -136,8 +136,9 @@ public final class AbilityBlockFallScheduler {
                 snapshot.abilityId(),
                 GooThrowHandler.flightDelivery(level, snapshot.abilityId(), snapshot.gooType()),
                 Vec3.atCenterOf(landingPos).add(0, BLOCK_CENTER, 0));
-        PacketDistributor.sendToPlayersTrackingChunk(
-                level, level.getChunkAt(oldPos).getPos(), flight);
+        // A watcher whose client never negotiated goo's channels, a gametest's mock player, gets no flight
+        // rather than crashing the server tick.
+        ChunkWatchers.send(level, oldPos, flight);
     }
 
     /**

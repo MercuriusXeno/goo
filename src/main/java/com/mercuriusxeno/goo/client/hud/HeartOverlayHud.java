@@ -30,7 +30,9 @@ import java.util.Optional;
  * stands, each real heart reads ash and each shielded one reads ember, and
  * while Barkskin stands each shielded heart reads bark (decisions
  * overlay-hearts-are-an-elemental-overshield, kindle-ember-hearts-ash-and-retaliate
- * and barkskin-bark-hearts-thorn-and-burn). While Reserve stands, its banked
+ * and barkskin-bark-hearts-thorn-and-burn), and while Stoneskin stands each
+ * missing heart it fills reads stone (decision
+ * stoneskin-stone-hearts-block-regeneration). While Reserve stands, its banked
  * hearts draw in their own vital sprite as a row behind vanilla's, before
  * vanilla draws, and each half heart the drain takes travels from the bar to
  * that row (decision reserve-hearts-sit-behind-the-bar). The layer wraps vanilla's health
@@ -47,6 +49,8 @@ public final class HeartOverlayHud {
     private static final Identifier ASH_HALF = sprite("ash_half");
     private static final Identifier BARK_FULL = sprite("bark_full");
     private static final Identifier BARK_HALF = sprite("bark_half");
+    private static final Identifier STONE_FULL = sprite("stone_full");
+    private static final Identifier STONE_HALF = sprite("stone_half");
     private static final Identifier RESERVE_FULL = sprite("reserve_full");
     private static final Identifier RESERVE_HALF = sprite("reserve_half");
     /** Vanilla's red half heart, the health a travelling half leaves the bar as. */
@@ -221,7 +225,8 @@ public final class HeartOverlayHud {
      * many halves as it holds, never more than the real heart under it:
      * Kindle lays ash over the whole real heart and ember over its shielded
      * halves, Barkskin lays bark over its shielded halves and leaves the rest
-     * to vanilla's red heart.
+     * to vanilla's red heart, and Stoneskin lays stone over the missing heart
+     * it fills, whatever real health stands there.
      *
      * @param kind         the overlay's kind
      * @param shieldHalves the half hearts of shield over the slot
@@ -231,6 +236,11 @@ public final class HeartOverlayHud {
     static List<Identifier> heartSprites(HeartKind kind, int shieldHalves, int realHalves) {
         int shown = Math.min(shieldHalves, realHalves);
         List<Identifier> sprites = new ArrayList<>();
+        if (kind == HeartKind.STONESKIN) {
+            // stoneskin-stone-hearts-block-regeneration: stone hearts stand in the missing hearts' containers
+            addHalves(sprites, shieldHalves, STONE_HALF, STONE_FULL);
+            return sprites;
+        }
         if (kind == HeartKind.RESERVE) {
             // reserve-hearts-sit-behind-the-bar: nothing lies over the bar, the reserve row sits behind it
             return sprites;
@@ -308,14 +318,31 @@ public final class HeartOverlayHud {
         BarLayout layout = layout(graphics, gui, player, frame.leftHeightBefore());
         SlotPainter painter = new SlotPainter(graphics, overlay, gui.getGuiTicks(), frame.partialTick(),
                 RegrowCrawl.crawl(overlay, player.getHealth(), player.level().getGameTime() + frame.partialTick()));
-        int slots = overlay.stands() ? HeartOverlay.filledSlots(health) : 0;
+        int slots = paintedSlots(overlay, health);
         for (int slot = 0; slot < slots; slot++) {
-            painter.paint(slot, layout.x(slot), layout.y(slot), Math.min(HeartOverlay.FULL_SHIELD, health - slot * HALF));
+            painter.paint(slot, layout.x(slot), layout.y(slot),
+                    Math.clamp(health - slot * HALF, 0, HeartOverlay.FULL_SHIELD));
         }
         float now = gui.getGuiTicks() + frame.partialTick();
         for (BarkBurns.Burn burn : frame.burns()) {
             paintBurn(graphics, burn, now, layout.x(burn.slot()), layout.y(burn.slot()));
         }
+    }
+
+    /**
+     * The heart slots the overlay paints: those real health fills, and for
+     * Stoneskin the missing slots its stone fills besides.
+     *
+     * @param overlay the player's overlay
+     * @param health  the player's real health, rounded up
+     * @return the slot count, zero when no overlay stands
+     */
+    static int paintedSlots(HeartOverlay overlay, int health) {
+        if (!overlay.stands()) {
+            return 0;
+        }
+        int filled = HeartOverlay.filledSlots(health);
+        return overlay.kind() == HeartKind.STONESKIN ? Math.max(filled, overlay.shields().size()) : filled;
     }
 
     /**

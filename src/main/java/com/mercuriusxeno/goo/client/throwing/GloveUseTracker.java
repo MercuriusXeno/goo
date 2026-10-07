@@ -2,6 +2,8 @@ package com.mercuriusxeno.goo.client.throwing;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.GloveSelection;
+import com.mercuriusxeno.goo.ability.SelfEatRoute;
+import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -10,6 +12,8 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -28,6 +32,12 @@ import org.jspecify.annotations.Nullable;
 public final class GloveUseTracker {
     private static final GloveInputGate PRESS = new GloveInputGate();
     private static InteractionHand pressHand = InteractionHand.MAIN_HAND;
+    /**
+     * The face the cursor rested on when the live press began, which a
+     * channel holds to for the press, or null where it rested on none
+     * (decision flatten-disc-cursor-breaks-above-the-plane).
+     */
+    private static ChannelAim.@Nullable FacePlane pressPlane;
 
     /** How often (in ticks) to re-check whether the selected goo type is in inventory. */
     private static final int AVAILABILITY_CHECK_INTERVAL = 10;
@@ -89,8 +99,20 @@ public final class GloveUseTracker {
     public static void pressGlove(InteractionHand hand) {
         if (!PRESS.isArmed()) {
             pressHand = hand;
+            Minecraft mc = Minecraft.getInstance();
+            pressPlane = mc.hitResult instanceof BlockHitResult hit && hit.getType() == HitResult.Type.BLOCK
+                    ? new ChannelAim.FacePlane(hit.getBlockPos(), hit.getDirection()) : null;
         }
         PRESS.arm();
+    }
+
+    /**
+     * The face the cursor rested on when the live press began.
+     *
+     * @return the face a channel holds to, or null where it rested on none
+     */
+    public static ChannelAim.@Nullable FacePlane pressPlane() {
+        return pressPlane;
     }
 
     /**
@@ -147,13 +169,40 @@ public final class GloveUseTracker {
             }
 
             @Override
+            public boolean eatsOnPress() {
+                return selectedEats(player);
+            }
+
+            @Override
             public boolean runsWhileHeld() {
-                GloveSelection selection = GloveThrowSender.heldSelection(player);
-                return selection != null
-                        && GloveInputGate.runsFromPress(GloveThrowSender.selectedDelivery(selection.abilityId()),
-                                GloveThrowSender.selectedBadge(selection.abilityId()));
+                return selectedRunsWhileHeld(player);
             }
         };
+    }
+
+    /**
+     * Whether the held glove's selection is eaten, sending on the press
+     * (decision self-brew-goos-eat-before-the-effect).
+     *
+     * @param player the local player
+     * @return true for a self + brew selection
+     */
+    private static boolean selectedEats(LocalPlayer player) {
+        GloveSelection selection = GloveThrowSender.heldSelection(player);
+        return selection != null && SelfEatRoute.eats(GloveThrowSender.selectedDelivery(selection.abilityId()),
+                GloveThrowSender.selectedBadge(selection.abilityId()));
+    }
+
+    /**
+     * Whether the held glove's selection runs on every held tick, a stream or a channel.
+     *
+     * @param player the local player
+     * @return true for a held selection
+     */
+    private static boolean selectedRunsWhileHeld(LocalPlayer player) {
+        GloveSelection selection = GloveThrowSender.heldSelection(player);
+        return selection != null && GloveInputGate.runsFromPress(GloveThrowSender.selectedDelivery(selection.abilityId()),
+                GloveThrowSender.selectedBadge(selection.abilityId()));
     }
 
     /**

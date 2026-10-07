@@ -60,7 +60,13 @@ public enum EntityFilter {
     /**
      * Keeps anything that is not a baby.
      */
-    NOT_BABY;
+    NOT_BABY,
+    /**
+     * Keeps a living entity its last hit no longer holds immune; a step run
+     * every tick spaces its hits by the immunity each hit leaves, as Bore's
+     * tunnel strike does (decision bore-vortex-with-a-worldspace-shake).
+     */
+    VULNERABLE;
 
     private static final String WHAT = "entity filter";
 

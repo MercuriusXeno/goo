@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:stoneskin_routes_hits_by_source",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 100,
+  "setup_ticks": 0,
+  "required": true
+}

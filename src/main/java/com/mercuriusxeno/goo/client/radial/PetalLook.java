@@ -7,9 +7,11 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.render.TextureSetup;
 import net.minecraft.client.renderer.texture.AbstractTexture;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
+import net.minecraft.world.item.ItemStack;
 
 /**
  * Where a petal's fluid, its edge and its type's color come from: the
@@ -35,6 +37,11 @@ interface PetalLook {
         public Identifier hubMask() {
             return RadialTextures.getHubTexture(RadialWheel.HUB_FRACTION - HUB_GAP);
         }
+
+        @Override
+        public ItemStack itemStack(Identifier item) {
+            return BuiltInRegistries.ITEM.getValue(item).getDefaultInstance();
+        }
     };
 
     /**
@@ -54,6 +61,16 @@ interface PetalLook {
      * @return the mask texture
      */
     Identifier hubMask();
+
+    /**
+     * The stack a locked petal draws for one item it still needs, and whose
+     * hover name names it.
+     * decision locked-petal-lists-the-unlearned-items
+     *
+     * @param item the item's id
+     * @return the item's default stack
+     */
+    ItemStack itemStack(Identifier item);
 
     /**
      * A sprite's rectangle on its atlas, in UV units.

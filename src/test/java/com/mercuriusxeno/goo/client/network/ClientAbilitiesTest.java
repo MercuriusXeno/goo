@@ -10,16 +10,19 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * The client lists a synced type's abilities in the fan order the server
  * registry does, badge rank then order (decision fan-sorts-badge-then-order),
- * and offers the radial only those whose required items the player knows.
+ * and offers the radial every one, locking those whose required items the player does not all know.
  */
 class ClientAbilitiesTest {
 
     private static final Identifier GLASS = Identifier.withDefaultNamespace("glass");
     private static final Identifier SAND = Identifier.withDefaultNamespace("sand");
+    private static final Identifier CLAY = Identifier.withDefaultNamespace("clay");
 
     private static AbilitySyncPayload.Entry entry(String name, int order, AbilityBadge badge) {
         return gatedEntry(name, order, badge, List.of());
@@ -31,28 +34,54 @@ class ClientAbilitiesTest {
                 List.of(), 0, Delivery.ARC, badge, requires);
     }
 
-    private static List<String> knownNames(KnownItems known) {
+    /** Each offered ability's path and locked flag, as "path:locked" or "path:open", in fan order. */
+    private static List<String> offeredPetals(KnownItems known) {
         AbilitySyncPayload payload = new AbilitySyncPayload(List.of(
-                entry("open", 0, AbilityBadge.WORLD),
+                entry("free", 0, AbilityBadge.WORLD),
                 gatedEntry("gated", 1, AbilityBadge.WORLD, List.of(GLASS, SAND))));
-        return ClientAbilities.fromPayload(payload).knownForType(GooTypes.ROCK, known).stream()
-                .map(ability -> ability.id().getPath()).toList();
+        return ClientAbilities.fromPayload(payload).offeredForType(GooTypes.ROCK, known).stream()
+                .map(offered -> offered.ability().id().getPath() + (offered.locked() ? ":locked" : ":open")).toList();
     }
 
-    /** A gated ability stays off the radial until every item it requires is known (decision ability-hidden-until-recipes-known). */
+    /** A gated ability stays on the radial, locked until every item it requires is known (decision locked-petal-stays-on-the-wheel). */
     @Test
-    void gatedAbilityHiddenForAPlayerWhoKnowsNothing() {
-        assertEquals(List.of("open"), knownNames(KnownItems.NONE));
-    }
-
-    @Test
-    void gatedAbilityHiddenWhileOneRequiredItemIsUnknown() {
-        assertEquals(List.of("open"), knownNames(KnownItems.NONE.with(GLASS)));
+    void gatedAbilityOfferedLockedToAPlayerWhoKnowsNothing() {
+        assertEquals(List.of("free:open", "gated:locked"), offeredPetals(KnownItems.NONE));
     }
 
     @Test
-    void gatedAbilityShownOnceEveryRequiredItemIsKnown() {
-        assertEquals(List.of("open", "gated"), knownNames(KnownItems.NONE.with(GLASS).with(SAND)));
+    void gatedAbilityStaysLockedWhileOneRequiredItemIsUnknown() {
+        assertEquals(List.of("free:open", "gated:locked"), offeredPetals(KnownItems.NONE.with(GLASS)));
+    }
+
+    @Test
+    void gatedAbilityUnlocksOnceEveryRequiredItemIsKnown() {
+        assertEquals(List.of("free:open", "gated:open"), offeredPetals(KnownItems.NONE.with(GLASS).with(SAND)));
+    }
+
+    private static OfferedAbility offeredGlassSandClay(KnownItems known) {
+        AbilitySyncPayload payload = new AbilitySyncPayload(List.of(
+                gatedEntry("gated", 0, AbilityBadge.WORLD, List.of(GLASS, SAND, CLAY))));
+        return ClientAbilities.fromPayload(payload).offeredForType(GooTypes.ROCK, known).getFirst();
+    }
+
+    /** A locked petal lists every required item, each flagged learned or not (decision locked-petal-lists-the-unlearned-items). */
+    @Test
+    void offeredAbilityListsEveryRequiredItemWithWhetherItIsLearned() {
+        OfferedAbility offered = offeredGlassSandClay(KnownItems.NONE.with(SAND));
+
+        assertEquals(List.of(new OfferedAbility.RequiredItem(GLASS, false), new OfferedAbility.RequiredItem(SAND, true),
+                new OfferedAbility.RequiredItem(CLAY, false)), offered.required());
+        assertTrue(offered.locked());
+    }
+
+    /** Once every listed item is melted the petal unlocks (decision locked-petal-lists-the-unlearned-items). */
+    @Test
+    void meltingEveryRequiredItemMarksEachLearnedAndUnlocks() {
+        OfferedAbility offered = offeredGlassSandClay(KnownItems.NONE.with(GLASS).with(SAND).with(CLAY));
+
+        assertTrue(offered.required().stream().allMatch(OfferedAbility.RequiredItem::learned));
+        assertFalse(offered.locked());
     }
 
     @Test

@@ -3,6 +3,8 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
 
@@ -17,6 +19,10 @@ import net.minecraft.util.ARGB;
  * disc once over the first half. The
  * vertex color carries progress in red and the disc-local position in green
  * and blue, since a core pipeline takes no per-draw uniforms.
+ *
+ * The same disc is Flatten's cursor while its hold runs, looping the dust's
+ * early drift so it never thins out
+ * (decision flatten-disc-cursor-breaks-above-the-plane).
  */
 public final class RockExplosionVisual implements BurnoutVisual {
 
@@ -36,6 +42,10 @@ public final class RockExplosionVisual implements BurnoutVisual {
     private static final float DISC_LIFT = -0.47f;
     private static final int OPAQUE = 0xFF;
     private static final int DISC_SEGMENTS = 48;
+    /** The cursor disc's radius in blocks, a circle over Flatten's 3x3 area. */
+    static final float CURSOR_RADIUS = 1.5f;
+    /** The share of the explosion the cursor loops over, short of where the dust starts thinning. */
+    static final float CURSOR_SPAN = 0.4f;
     /** Maps a disc-local coordinate in [-1, 1] onto [0, 1] for a color byte. */
     private static final float SIGNED_TO_UNIT = 0.5f;
 
@@ -55,13 +65,50 @@ public final class RockExplosionVisual implements BurnoutVisual {
     @Override
     public void render(ChainBurnouts.Burnout burnout, BurnoutFrame frame) {
         float progress = burnout.progress(frame.gameTime());
-        float radius = discRadius(progress);
+        drawDisc(frame, burnout.pos(), burnout.placedFace(), progress, discRadius(progress), 0f);
+    }
+
+    /**
+     * Draws the dust disc as Flatten's cursor on the face the cursor rests on.
+     *
+     * @param frame the frame being drawn
+     * @param cell  the cell in front of the aimed face
+     * @param face  the aimed face
+     */
+    public void renderCursor(BurnoutFrame frame, BlockPos cell, Direction face) {
+        drawDisc(frame, cell, face, cursorProgress(frame.gameTime()), CURSOR_RADIUS, 0f);
+    }
+
+
+
+    /**
+     * The progress the cursor disc shows: the explosion's opening share, looped.
+     *
+     * @param gameTime the level's game time including the partial tick
+     * @return the progress in [0, CURSOR_SPAN)
+     */
+    static float cursorProgress(float gameTime) {
+        return gameTime % DURATION_TICKS / DURATION_TICKS * CURSOR_SPAN;
+    }
+
+    /**
+     * Draws the dust disc in front of a face.
+     *
+     * @param frame    the frame being drawn
+     * @param cell     the cell the disc is drawn about
+     * @param face     the face the disc lies flat against
+     * @param progress the disc's progress in [0, 1]
+     * @param radius   the disc's radius in blocks
+     * @param spin     how far the dust is turned about the center, in radians
+     */
+    private static void drawDisc(BurnoutFrame frame, BlockPos cell, Direction face, float progress, float radius,
+                                 float spin) {
         int progressByte = NetherDiscMesh.toByte(progress);
         int center = ARGB.color(OPAQUE, progressByte, NetherDiscMesh.toByte(SIGNED_TO_UNIT),
                 NetherDiscMesh.toByte(SIGNED_TO_UNIT));
-        BurnoutGeometry.drawAtMarker(frame, burnout.pos(), GooRenderTypes.ROCK_EXPLOSION_TYPE, (pose, c) ->
-                BurnoutGeometry.emitAnnulus(pose, c, burnout.placedFace(), DISC_LIFT, 0f, radius, DISC_SEGMENTS,
-                        (angle, outer) -> outer ? edgeColor(progressByte, angle) : center));
+        BurnoutGeometry.drawAtMarker(frame, cell, GooRenderTypes.ROCK_EXPLOSION_TYPE, (pose, c) ->
+                BurnoutGeometry.emitAnnulus(pose, c, face, DISC_LIFT, 0f, radius, DISC_SEGMENTS,
+                        (angle, outer) -> outer ? edgeColor(progressByte, angle + spin) : center));
     }
 
     /**

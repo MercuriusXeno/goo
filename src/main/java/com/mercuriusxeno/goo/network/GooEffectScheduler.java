@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.program.EntityHost;
 import com.mercuriusxeno.goo.ability.program.HostKind;
@@ -322,9 +323,22 @@ public final class GooEffectScheduler {
         }
         playImpactSound(pe.level, living.getX(), living.getY(), living.getZ());
         Aim aim = aimOf(pe);
-        landing.announceHit(living, new MobHitPayload(living.getId(), GooTypes.id(pe.gooType),
-                aimedHitPoint(living.getBoundingBox(), aim), aim == null ? Vec3.ZERO : aim.direction()));
+        if (splats(resolveAbility(pe.level, pe.abilityId))) {
+            landing.announceHit(living, new MobHitPayload(living.getId(), GooTypes.id(pe.gooType),
+                    aimedHitPoint(living.getBoundingBox(), aim), aim == null ? Vec3.ZERO : aim.direction()));
+        }
         landing.runProgram(pe, living);
+    }
+
+    /**
+     * Whether a blob of the ability splats goo on the mob it strikes; one
+     * tagged no_splat draws its own hit (decision crush-blob-breaks-along-its-strike).
+     *
+     * @param ability the ability the effect names, or null for none
+     * @return true unless the ability is tagged no_splat
+     */
+    static boolean splats(@Nullable AbilityDefinition ability) {
+        return ability == null || !ability.hasTag(AbilityTags.NO_SPLAT);
     }
 
     /**
