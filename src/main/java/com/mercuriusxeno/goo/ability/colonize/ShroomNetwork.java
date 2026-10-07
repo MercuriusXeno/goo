@@ -10,6 +10,7 @@ import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import java.util.Optional;
 import java.util.function.Predicate;
 
 /**
@@ -17,7 +18,8 @@ import java.util.function.Predicate;
  * under {@code goo:shroom_network} holds, the ground block it spreads as,
  * and the ground it can take over. Crimson and warped nylium take
  * netherrack, sculk takes what vanilla sculk spreads over, and mycelium
- * takes dirt and grass (decision colonize-blob-grows-the-network).
+ * takes dirt and grass. A block on no network grows none
+ * (decision colonize-blob-grows-the-network).
  */
 public enum ShroomNetwork {
     /** Crimson nylium, its fungi and its trees. */
@@ -44,19 +46,18 @@ public enum ShroomNetwork {
     }
 
     /**
-     * The network a block belongs to, or mycelium for a block of none, where
-     * Colonize starts a new mycelium network.
+     * The network a block belongs to.
      *
      * @param landed the block the blob landed on
-     * @return the network that spreads from it
+     * @return the network that spreads from it, or empty for a block of none
      */
-    public static ShroomNetwork spreadingFrom(BlockState landed) {
+    public static Optional<ShroomNetwork> of(BlockState landed) {
         for (ShroomNetwork network : values()) {
             if (landed.is(network.members)) {
-                return network;
+                return Optional.of(network);
             }
         }
-        return MYCELIUM;
+        return Optional.empty();
     }
 
     /**

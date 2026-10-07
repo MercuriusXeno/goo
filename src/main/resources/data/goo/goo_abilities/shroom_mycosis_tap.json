@@ -6,7 +6,7 @@
   "cost": 1000,
   "delivery": { "kind": "arc" },
   "behaviors": [
-    { "type": "particles", "id": "goo:spore", "at": "host", "count": 12, "spread": 0.5, "lift": 0.3, "speed": 0.02 },
+    { "type": "particles", "id": "goo:spore", "at": "host", "count": 48, "spread": 0.8, "lift": 0.3, "speed": 0.02 },
     {
       "type": "entities",
       "radius": 1.5,

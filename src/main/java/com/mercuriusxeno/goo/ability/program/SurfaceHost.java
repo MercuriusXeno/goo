@@ -16,10 +16,16 @@ import java.util.OptionalDouble;
  * target and nothing ticks it afterwards
  * (decision mycosis-spore-stream-buds-and-poisons).
  *
- * @param level the server level
- * @param floor the floor block reached
+ * <p>{@code distance} reads how far the floor's open cell sits from the
+ * spray's source, so a burst can treat the floor it landed on apart from
+ * the rest (decision colonize-blob-grows-the-network).
+ *
+ * @param level    the server level
+ * @param floor    the floor block reached
+ * @param distance how far the floor's open cell sits from the spray's source, in blocks
  */
-public record SurfaceHost(ServerLevel level, BlockPos floor) implements AnchoredWorldHost, PlaceBlockHost {
+public record SurfaceHost(ServerLevel level, BlockPos floor, double distance)
+        implements AnchoredWorldHost, PlaceBlockHost {
 
     @Override
     public Vec3 anchor() {
@@ -38,7 +44,7 @@ public record SurfaceHost(ServerLevel level, BlockPos floor) implements Anchored
 
     @Override
     public OptionalDouble read(String name) {
-        return OptionalDouble.empty();
+        return HostVariables.DISTANCE.equals(name) ? OptionalDouble.of(distance) : OptionalDouble.empty();
     }
 
     @Override

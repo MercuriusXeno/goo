@@ -18,8 +18,9 @@ public final class SporeParticle extends SingleQuadParticle {
 
     private static final float DRIFT_GRAVITY = 0.02f;
     private static final float DRIFT_FRICTION = 0.9f;
-    private static final int BASE_LIFETIME = 30;
-    private static final int LIFETIME_VARIANCE = 20;
+    /** A mote lives three to five seconds, so a cloud hangs before it thins. */
+    private static final int BASE_LIFETIME = 60;
+    private static final int LIFETIME_VARIANCE = 40;
     private static final float BASE_QUAD_SIZE = 0.05f;
     private static final float QUAD_SIZE_VARIANCE = 0.04f;
     private static final float START_ALPHA = 0.85f;

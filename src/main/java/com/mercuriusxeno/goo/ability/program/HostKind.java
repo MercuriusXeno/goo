@@ -43,7 +43,7 @@ public enum HostKind {
      * reaches it, with no target and no driver for later ticks
      * (decision mycosis-spore-stream-buds-and-poisons).
      */
-    SURFACE("sprayed floor", SurfaceHost.class, Set.of()),
+    SURFACE("sprayed floor", SurfaceHost.class, Set.of(HostVariables.DISTANCE)),
     /**
      * The player invoking a self ability: target, thrower and anchor at
      * once, acted on in the tick the glove is used, with no driver for

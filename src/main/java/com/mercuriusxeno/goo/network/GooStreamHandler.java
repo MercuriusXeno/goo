@@ -119,7 +119,7 @@ public final class GooStreamHandler {
         }
         if (!ability.onBlocks().isEmpty()) {
             SprayPrograms.runOnFloors(level, FloorReach.struckInCone(level, player, apex, axis, delivery.range(),
-                    delivery.coneDegrees(), FLOOR_RAYS_PER_TICK, level.getRandom()), ability);
+                    delivery.coneDegrees(), FLOOR_RAYS_PER_TICK, level.getRandom()), apex, ability);
         }
     }
 
