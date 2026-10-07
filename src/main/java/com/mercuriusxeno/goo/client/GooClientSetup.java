@@ -24,6 +24,7 @@ import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.overlay.AimTracker;
 import com.mercuriusxeno.goo.client.particle.*;
+import com.mercuriusxeno.goo.client.radial.CutItemRenderer;
 import com.mercuriusxeno.goo.client.throwing.GooFlightManager;
 import com.mercuriusxeno.goo.client.throwing.GooSizeProperty;
 import com.mercuriusxeno.goo.client.throwing.GooVolumeDecorator;
@@ -308,6 +309,17 @@ public final class GooClientSetup {
     @SubscribeEvent
     public static void registerRenderPipelines(RegisterRenderPipelinesEvent event) {
         GooRenderTypes.registerPipelines(event);
+    }
+
+    /**
+     * Registers the picture-in-picture renderers the GUI draws custom pictures with.
+     * decision icons-slide-in-from-behind-the-tip
+     *
+     * @param event the event instance
+     */
+    @SubscribeEvent
+    public static void registerPictureInPictureRenderers(RegisterPictureInPictureRenderersEvent event) {
+        CutItemRenderer.register(event);
     }
 
     /**
