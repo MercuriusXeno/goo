@@ -615,6 +615,16 @@ public final class GooRenderTypes {
     public static final RenderType PETRIFY_FOG_TYPE = burnoutType(PETRIFY_FOG);
 
     /**
+     * Unmake's waves pipeline (decision unmake-waves-dissolve-by-crucible-cost):
+     * cross-sections of the cone drawn through {@code unmake_waves.vsh / .fsh},
+     * goo colored bands sweeping down them from the glove.
+     */
+    public static final RenderPipeline UNMAKE_WAVES = burnoutPipeline("unmake_waves", BlendFunction.TRANSLUCENT);
+
+    /** The unmake waves render type. */
+    public static final RenderType UNMAKE_WAVES_TYPE = burnoutType(UNMAKE_WAVES);
+
+    /**
      * Bore's vortex pipeline (decision bore-vortex-with-a-worldspace-shake):
      * sections down the tunnel drawn through {@code bore_vortex.vsh / .fsh},
      * spiralling dust arms turning about the look.
@@ -857,5 +867,6 @@ public final class GooRenderTypes {
         event.registerPipeline(CRYSTAL_EXPLOSION);
         event.registerPipeline(CRYSTAL_EXPLOSION_THROUGH_BLOCKS);
         event.registerPipeline(GLOW_EXPLOSION);
+        event.registerPipeline(UNMAKE_WAVES);
     }
 }

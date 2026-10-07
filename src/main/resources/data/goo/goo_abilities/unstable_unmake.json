@@ -5,7 +5,7 @@
   "order": 30,
   "cost": 1000,
   "requires": ["minecraft:dragon_breath"],
-  "delivery": { "kind": "stream", "range": 6, "cone": 40, "ticks_per_charge": 20, "particle": "minecraft:reverse_portal" },
+  "delivery": { "kind": "stream", "range": 6, "cone": 40, "ticks_per_charge": 20 },
   "area": { "shape": "cone", "size": 6.0, "angle": 40.0 },
   "behaviors": [
     { "type": "damage", "amount": "charged_efficacy", "source": "magic" },

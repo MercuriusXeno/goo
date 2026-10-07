@@ -11,10 +11,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
@@ -183,27 +180,14 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
 
     /**
      * The blocks a stream's channel holds: every standing block whose center
-     * lies in the cone and which the eye sees, so a wall's face is held and
-     * what stands behind it is not; none outside a held channel
-     * (decision unmake-waves-dissolve-by-crucible-cost).
+     * lies in the cone, those behind the nearest as much as the nearest; none
+     * outside a held channel (decision unmake-waves-dissolve-by-crucible-cost).
      */
     @Override
     public List<BlockPos> unmadeBlocks() {
         return channelAim().map(aim -> CalcifyStep.blocksInCone(eye(), aim.aimPoint(), aim.coneDegrees()).stream()
-                .filter(pos -> !level.getBlockState(pos).isAir() && eyeSees(pos))
+                .filter(pos -> !level.getBlockState(pos).isAir())
                 .toList()).orElse(List.of());
-    }
-
-    /**
-     * Whether the sight line from the eye to a block's center first meets that block.
-     *
-     * @param pos the block
-     * @return true when nothing stands between the eye and the block
-     */
-    private boolean eyeSees(BlockPos pos) {
-        BlockHitResult hit = level.clip(new ClipContext(eye(), Vec3.atCenterOf(pos), ClipContext.Block.OUTLINE,
-                ClipContext.Fluid.NONE, player));
-        return hit.getType() == HitResult.Type.MISS || hit.getBlockPos().equals(pos);
     }
 
     @Override
