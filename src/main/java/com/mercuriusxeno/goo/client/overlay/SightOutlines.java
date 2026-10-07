@@ -40,12 +40,14 @@ public final class SightOutlines {
     private static final String FUNGAL_SHIFT = "goo:shroom_fungal_shift";
     /** Fungal Shift's range when the player holds no synced copy of it. */
     private static final double FALLBACK_RANGE = 64;
-    private static final int RESCAN_TICKS = 20;
+    static final int RESCAN_TICKS = 20;
     private static final int MOST_OUTLINES = 512;
     private static final int SECTION_SIZE = LevelChunkSection.SECTION_WIDTH;
 
     private static final List<BlockPos> outlined = new ArrayList<>();
-    private static long scannedAt = Long.MIN_VALUE;
+    /** Marks that no scan has run. */
+    static final long UNSCANNED = Long.MIN_VALUE;
+    private static long scannedAt = UNSCANNED;
 
     private SightOutlines() {
     }
@@ -78,10 +80,22 @@ public final class SightOutlines {
     }
 
     private static void rescanEverySecond(Level level, LocalPlayer player, long now) {
-        if (now - scannedAt >= RESCAN_TICKS || now < scannedAt) {
+        if (isDue(scannedAt, now)) {
             rescan(level, player.getEyePosition(), ShiftStep.reachOf(player, shiftRange()));
             scannedAt = now;
         }
+    }
+
+    /**
+     * Whether a scan is due: none has run yet, a second has passed since the
+     * last, or the clock ran back past it.
+     *
+     * @param lastScan the game time of the last scan, or {@link #UNSCANNED}
+     * @param now      the game time
+     * @return true when the fungus should be scanned again
+     */
+    static boolean isDue(long lastScan, long now) {
+        return lastScan == UNSCANNED || now < lastScan || now - lastScan >= RESCAN_TICKS;
     }
 
     private static double shiftRange() {
