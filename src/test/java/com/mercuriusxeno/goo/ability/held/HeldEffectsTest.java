@@ -136,6 +136,31 @@ class HeldEffectsTest {
         }
     }
 
+    /** The effect list shows each glove effect's time left: its type's goo over the upkeep drawn a tick (decision brew-runs-the-crawl-prepaid-on-a-shown-clock). */
+    @Nested
+    class TimeLeft {
+
+        @Test
+        void aGloveEffectsTimeIsItsGooOverItsUpkeep() {
+            HeldEffects held = holding(hearts(KINDLE, GooTypes.BLAZE));
+            assertEquals(Map.of(GooTypes.BLAZE, 2000), held.ticksLeft(type -> 2000));
+        }
+
+        @Test
+        void effectsSharingATypeSplitItsGoo() {
+            HeldEffects.Held first = new HeldEffects.Held(KINDLE, GooTypes.BLAZE, UPKEEP, Set.of(), STARTED);
+            HeldEffects.Held second = new HeldEffects.Held(NOURISH, GooTypes.BLAZE, UPKEEP, Set.of(), STARTED);
+            assertEquals(Map.of(GooTypes.BLAZE, 1000), holding(first, second).ticksLeft(type -> 2000));
+        }
+
+        @Test
+        void aPrepaidBrewCountsNoUpkeep() {
+            HeldEffects.Held brewed = new HeldEffects.Held(KINDLE, GooTypes.BLAZE, UPKEEP,
+                    Set.of(LaidState.HEART_OVERLAY), STARTED, STARTED + 100);
+            assertEquals(Map.of(), holding(brewed).ticksLeft(type -> 2000));
+        }
+    }
+
     /** Every end plays the ended effect's down cue once (decision held-effects-sound-up-and-down). */
     @Nested
     class DownSound {

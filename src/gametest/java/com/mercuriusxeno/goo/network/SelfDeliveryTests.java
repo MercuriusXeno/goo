@@ -12,6 +12,7 @@ import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooItems;
+import com.mercuriusxeno.goo.registry.GooMobEffects;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.authlib.GameProfile;
@@ -26,6 +27,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.CommonListenerCookie;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.phys.Vec3;
@@ -91,6 +93,8 @@ public final class SelfDeliveryTests {
     private static final String SHOULD_DRAIN_NOTHING_AT_EAT = "The finished eat should drain no one-shot cost, drained %d";
     private static final String SHOULD_PAY_UPKEEP = "%d ticks held should drain %d mB of upkeep, drained %d";
     private static final String SHOULD_BE_HELD = "Kindle should be held after the eat";
+    private static final String SHOULD_SHOW_TIME_LEFT =
+            "The effect list should show held Kindle with %d ticks left and no particles, held as a glove effect: %s";
     private static final String SHOULD_END_HELD = "Invoking held Kindle again should end it, held reads %s";
     private static final String SHOULD_CLEAR_OVERLAY = "An ended Kindle should clear its embers, %d halves stand";
     private static final String SHOULD_NOT_EAT_AGAIN = "Invoking held Kindle again should start no eat";
@@ -212,6 +216,13 @@ public final class SelfDeliveryTests {
         int drainedAtEat = HELD_GOO * GooStacks.THOUSAND - heldAtEat;
         helper.assertTrue(drainedAtEat == 0, String.format(SHOULD_DRAIN_NOTHING_AT_EAT, drainedAtEat));
         helper.assertTrue(player.getData(GooAttachments.HELD_EFFECTS).holds(BLAZE_KINDLE), SHOULD_BE_HELD);
+        // brew-runs-the-crawl-prepaid-on-a-shown-clock: the effect list shows the glove effect's time left
+        MobEffectInstance shown = player.getEffect(GooMobEffects.BREW_EFFECTS.get(GooTypes.BLAZE));
+        int expectedTicks = heldAtEat / kindle.upkeep();
+        boolean stillGlove = player.getData(GooAttachments.HELD_EFFECTS).held().stream()
+                .noneMatch(HeldEffects.Held::prepaid);
+        helper.assertTrue(shown != null && Math.abs(shown.getDuration() - expectedTicks) <= 1 && !shown.isVisible()
+                && stillGlove, String.format(SHOULD_SHOW_TIME_LEFT, expectedTicks, shown));
         tickFor(helper, player, UPKEEP_TICKS);
         helper.runAfterDelay(UPKEEP_TICKS + 1, () -> {
             int drained = heldAtEat - held(player, GooTypes.BLAZE);
