@@ -31,6 +31,12 @@ public enum HostKind {
      */
     TAP("tap landing", TapHost.class, Set.of()),
     /**
+     * A block a stream holds: the world around it and the block itself to
+     * unmake, acted on each tick of the hold by the stream's block pass
+     * (decision unmake-waves-dissolve-by-crucible-cost).
+     */
+    STREAMED_BLOCK("streamed block", StreamedBlockHost.class, Set.of()),
+    /**
      * The cell a thrown world ability's blob lands in: the world around it,
      * the cell itself to write, and the ability's own block to stand there,
      * acted on in the landing tick with no driver for later ticks (decisions

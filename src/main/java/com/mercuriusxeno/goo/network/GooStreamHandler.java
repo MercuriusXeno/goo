@@ -4,17 +4,22 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
+import com.mercuriusxeno.goo.ability.program.BlocksStep;
 import com.mercuriusxeno.goo.ability.program.EntityHost;
 import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
 import com.mercuriusxeno.goo.ability.program.SimpleParticles;
+import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.ability.program.StreamedBlockHost;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.throwing.StreamCone;
 import com.mercuriusxeno.goo.throwing.ThrowArc;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
+import net.minecraft.core.BlockPos;
+import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -111,8 +116,40 @@ public final class GooStreamHandler {
         Vec3 apex = ThrowArc.clampToReach(player.getEyePosition(), origin, ThrowArc.HAND_REACH * player.getScale());
         Vec3 axis = player.getLookAngle();
         sprayParticles(level, apex, axis, delivery);
+        List<Step> entityProgram = BlocksStep.withoutPass(ability.behaviors());
         for (LivingEntity living : livingInCone(level, player, apex, axis, delivery)) {
-            runProgram(level, player, living, ability);
+            runProgram(level, player, living, ability.id(), entityProgram);
+        }
+        List<Step> blockPass = BlocksStep.passOf(ability.behaviors());
+        if (!blockPass.isEmpty()) {
+            List<BlockPos> heldBlocks = StreamedBlocks.held(level, player, apex, axis, delivery);
+            runBlockPass(level, player, heldBlocks, ability.id(), blockPass);
+        }
+    }
+
+    /**
+     * Runs the block pass on every block the cone holds, each counting its
+     * own hold so a block the stream leaves starts over
+     * (decision unmake-waves-dissolve-by-crucible-cost).
+     *
+     * @param level      the server level
+     * @param player     the streaming player
+     * @param heldBlocks the blocks the cone holds this tick
+     * @param abilityId  the stream ability's id, for a refusal's log
+     * @param blockPass  the steps run on each held block
+     */
+    private static void runBlockPass(ServerLevel level, ServerPlayer player, List<BlockPos> heldBlocks,
+                                     Identifier abilityId, List<Step> blockPass) {
+        StreamHolds holds = GooServerState.of(level.getServer()).streamHolds();
+        int tick = level.getServer().getTickCount();
+        for (BlockPos pos : heldBlocks) {
+            int held = holds.advanceBlock(player.getUUID(), pos, tick);
+            try {
+                ProgramBehavior.forHost(blockPass, HostKind.STREAMED_BLOCK).tick(new StreamedBlockHost(level, pos, held));
+            } catch (ProgramLoadException e) {
+                Goo.LOGGER.error(LOG_PROGRAM_REFUSED, abilityId, e.getMessage());
+                return;
+            }
         }
     }
 
@@ -138,17 +175,18 @@ public final class GooStreamHandler {
      * Runs the ability's programs on one streamed entity, logging a program
      * the entity host refuses.
      *
-     * @param level   the server level
-     * @param player  the streaming player
-     * @param living  the streamed entity
-     * @param ability the stream ability
+     * @param level     the server level
+     * @param player    the streaming player
+     * @param living    the streamed entity
+     * @param abilityId the stream ability's id, for a refusal's log
+     * @param program   the steps run on the entity
      */
     private static void runProgram(ServerLevel level, ServerPlayer player, LivingEntity living,
-                                   AbilityDefinition ability) {
+                                   Identifier abilityId, List<Step> program) {
         try {
-            ProgramBehavior.forHost(ability.behaviors(), HostKind.ENTITY).tick(new EntityHost(level, living, player));
+            ProgramBehavior.forHost(program, HostKind.ENTITY).tick(new EntityHost(level, living, player));
         } catch (ProgramLoadException e) {
-            Goo.LOGGER.error(LOG_PROGRAM_REFUSED, ability.id(), e.getMessage());
+            Goo.LOGGER.error(LOG_PROGRAM_REFUSED, abilityId, e.getMessage());
         }
     }
 

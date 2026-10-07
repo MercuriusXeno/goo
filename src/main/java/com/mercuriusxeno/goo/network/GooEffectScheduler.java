@@ -25,7 +25,6 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.network.PacketDistributor;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -97,7 +96,7 @@ public final class GooEffectScheduler {
     interface MobLanding {
 
         /**
-         * Tells the players tracking the struck mob of the hit.
+         * Tells the players viewing the struck mob's chunk of the hit.
          *
          * @param struck the struck mob
          * @param hit    the hit payload
@@ -115,12 +114,14 @@ public final class GooEffectScheduler {
 
     /**
      * A mob landing on the live server: the hit goes to every player
-     * tracking the mob, and the ability runs on it.
+     * viewing the mob's chunk, and the ability runs on it.
      */
     private static final MobLanding LIVE_LANDING = new MobLanding() {
         @Override
         public void announceHit(LivingEntity struck, MobHitPayload hit) {
-            PacketDistributor.sendToPlayersTrackingEntity(struck, hit);
+            if (struck.level() instanceof ServerLevel level) {
+                ChunkViewerSends.send(level, struck.blockPosition(), hit, null);
+            }
         }
 
         @Override

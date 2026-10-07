@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.network;
 
+import net.minecraft.core.BlockPos;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.UUID;
@@ -51,6 +52,49 @@ class StreamHoldsTest {
             holds.advance(PLAYER, 100);
             holds.clear();
             assertEquals(1, holds.advance(PLAYER, 101));
+        }
+    }
+
+    /** Each block a stream holds counts its own hold (decision unmake-waves-dissolve-by-crucible-cost). */
+    @Nested
+    class AdvanceBlock {
+
+        private static final BlockPos NEAR = new BlockPos(1, 2, 3);
+        private static final BlockPos FAR = new BlockPos(4, 5, 6);
+
+        @Test
+        void aBlockHeldEachTickCountsOn() {
+            StreamHolds holds = new StreamHolds();
+            holds.advanceBlock(PLAYER, NEAR, 100);
+            holds.advanceBlock(PLAYER, NEAR, 101);
+            assertEquals(3, holds.advanceBlock(PLAYER, NEAR, 102));
+        }
+
+        @Test
+        void aBlockTheStreamLeftStartsOver() {
+            StreamHolds holds = new StreamHolds();
+            holds.advanceBlock(PLAYER, NEAR, 100);
+            holds.advanceBlock(PLAYER, NEAR, 101);
+            holds.advanceBlock(PLAYER, FAR, 102);
+            holds.advanceBlock(PLAYER, FAR, 103);
+            assertEquals(1, holds.advanceBlock(PLAYER, NEAR, 104));
+        }
+
+        @Test
+        void eachBlockAndPlayerHoldsOnItsOwn() {
+            StreamHolds holds = new StreamHolds();
+            holds.advanceBlock(PLAYER, NEAR, 100);
+            holds.advanceBlock(PLAYER, NEAR, 101);
+            assertEquals(1, holds.advanceBlock(PLAYER, FAR, 101));
+            assertEquals(1, holds.advanceBlock(OTHER, NEAR, 101));
+        }
+
+        @Test
+        void clearDropsEveryBlockHold() {
+            StreamHolds holds = new StreamHolds();
+            holds.advanceBlock(PLAYER, NEAR, 100);
+            holds.clear();
+            assertEquals(1, holds.advanceBlock(PLAYER, NEAR, 101));
         }
     }
 
