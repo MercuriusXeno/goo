@@ -6,11 +6,13 @@ import net.minecraft.world.phys.Vec3;
 /**
  * Where a channeled ability's hold points this tick: the point the client's
  * cursor stands on, and the plane fixed at the height the player stood at
- * when the hold began.
+ * when the hold began. A stream's block pass aims at the end of its reach
+ * along the look and holds no plane.
  * decision flatten-disc-cursor-breaks-above-the-plane
+ * decision bore-vortex-with-a-worldspace-shake
  *
- * @param aimPoint the world point under the client's cursor
- * @param planeY   the player's feet height when the hold began
+ * @param aimPoint the world point under the client's cursor, or a stream's reach along the look
+ * @param planeY   the player's feet height when the hold began, negative infinity for a stream
  */
 public record ChannelAim(Vec3 aimPoint, double planeY) {
 

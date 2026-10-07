@@ -47,6 +47,15 @@ class RockExplosionVisualTest {
     }
 
     @Test
+    void vortexTurnsAtItsSpinAndWrapsAtAFullTurn() {
+        assertEquals(0f, RockExplosionVisual.vortexSpin(0f), 0f);
+        assertEquals(RockExplosionVisual.VORTEX_SPIN, RockExplosionVisual.vortexSpin(1f), TOLERANCE);
+        float fullTurnTicks = (float) (2 * Math.PI / RockExplosionVisual.VORTEX_SPIN);
+        assertEquals(RockExplosionVisual.VORTEX_SPIN,
+                RockExplosionVisual.vortexSpin(fullTurnTicks + 1f), 1e-3f);
+    }
+
+    @Test
     void pipelineShadersResolveOnTheClasspath() {
         PipelineShaders.assertExist(GooRenderTypes.ROCK_EXPLOSION);
     }

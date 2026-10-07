@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.ability.program.EntityHost;
+import com.mercuriusxeno.goo.ability.program.HostCapability;
 import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.PlayerHost;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
@@ -35,7 +36,10 @@ import java.util.List;
  * goo runs out (decision stream-delivery-held-cone). A channel, a self
  * ability wearing the channeled badge, drains the same share and runs its
  * programs on the player, carrying the tick's aim
- * (decision flatten-disc-cursor-breaks-above-the-plane).
+ * (decision flatten-disc-cursor-breaks-above-the-plane). A stream whose
+ * program needs the channel runs a block pass instead of striking entities:
+ * its programs run on the player, aimed at the end of its reach along the
+ * look (decision bore-vortex-with-a-worldspace-shake).
  */
 public final class GooStreamHandler {
 
@@ -154,9 +158,24 @@ public final class GooStreamHandler {
         Vec3 apex = ThrowArc.clampToReach(player.getEyePosition(), origin, ThrowArc.HAND_REACH * player.getScale());
         Vec3 axis = player.getLookAngle();
         sprayParticles(level, apex, axis, delivery);
+        if (passesBlocks(ability)) {
+            channelOnPlayer(player, new ChannelAim(player.getEyePosition().add(axis.scale(delivery.range())),
+                    Double.NEGATIVE_INFINITY), ability);
+            return;
+        }
         for (LivingEntity living : livingInCone(level, player, apex, axis, delivery)) {
             runProgram(level, player, living, ability);
         }
+    }
+
+    /**
+     * Whether a stream runs a block pass: a top-level step of its program needs the channel.
+     *
+     * @param ability the stream ability
+     * @return true for a stream boring blocks rather than striking entities
+     */
+    static boolean passesBlocks(AbilityDefinition ability) {
+        return ability.behaviors().stream().anyMatch(step -> step.requires().contains(HostCapability.CHANNEL));
     }
 
     /**

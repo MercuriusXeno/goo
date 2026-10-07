@@ -10,6 +10,7 @@ import java.util.Optional;
  * A host a held channel runs on: it carries the hold's aim for this tick
  * and breaks blocks as the channeling player would.
  * decision flatten-disc-cursor-breaks-above-the-plane
+ * decision bore-vortex-with-a-worldspace-shake
  */
 public interface ChannelHost extends StepHost {
 
@@ -37,6 +38,14 @@ public interface ChannelHost extends StepHost {
     boolean blockIn(BlockPos pos, TagKey<Block> tag);
 
     /**
+     * Whether a position holds air.
+     *
+     * @param pos the position
+     * @return true where no block stands
+     */
+    boolean airAt(BlockPos pos);
+
+    /**
      * Whether the channeling player can reach a block to break it.
      *
      * @param pos the block
@@ -45,8 +54,8 @@ public interface ChannelHost extends StepHost {
     boolean reaches(BlockPos pos);
 
     /**
-     * Breaks a block as the channeling player, dropping its loot and playing
-     * its break particles.
+     * Breaks a block as the channeling player, dropping its loot as a pickaxe
+     * harvests it and playing its break particles.
      *
      * @param pos the block
      */
