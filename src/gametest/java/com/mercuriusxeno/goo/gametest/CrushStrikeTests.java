@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.world.AbilityImpact;
+import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -16,10 +17,10 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Gametest for rock crush: a blob landing on the top of a dirt bed blasts a
- * radius 2 crater, every block within it breaking and dropping, the blocks
- * past it standing; the zombie it lands on is hurt and the zombie at the
- * crater's edge is not (decision crush-blob-breaks-along-its-strike).
+ * Gametests for rock crush: a blob landing on the ground blasts a radius 2
+ * crater, every block within it breaking and dropping and a statue in it
+ * crushed, the blocks past it standing and no mob hurt
+ * (decision crush-blob-breaks-along-its-strike).
  */
 public final class CrushStrikeTests {
 
@@ -28,44 +29,52 @@ public final class CrushStrikeTests {
     private static final BlockPos STRUCK = new BlockPos(2, 1, 2);
     /** Two blocks east of the struck one, its center just past the crater's radius. */
     private static final BlockPos PAST_THE_RIM = STRUCK.east(2);
+    /** A statue beside the struck block, inside the crater. */
+    private static final BlockPos STATUE = STRUCK.west();
     private static final double ITEM_SEARCH_RADIUS = 3;
     private static final String ABILITY_REQUIRED = "Ability registry must hold rock_crush";
-    private static final String STRUCK_UNHURT = "The zombie the blob landed on took no damage";
-    private static final String EDGE_HURT = "The zombie at the crater's edge was hurt, which only the struck mob is";
+    private static final String LANDING_HURT = "A landing hurt the zombie standing on it; only a direct strike hurts";
 
     private CrushStrikeTests() {
     }
 
     /**
      * Crush lands on the dirt bed's top: the struck block, the one under it
-     * and the one beside it break, the blocks two away stand, dirt drops,
-     * and only the zombie standing on the struck block is hurt.
+     * and the one beside it break, the statue beside it is crushed, the
+     * blocks two away stand, dirt and cobblestone drop, and the zombie
+     * standing on the struck block is not hurt.
      *
      * @param helper the gametest helper
      */
     public static void crushBlastsACrater(GameTestHelper helper) {
-        AbilityDefinition crush = AbilityRegistry.of(helper.getLevel()).getAbility(CRUSH);
-        helper.assertTrue(crush != null, ABILITY_REQUIRED);
+        AbilityDefinition crush = crush(helper);
         for (int x = 0; x <= 4; x++) {
             for (int z = 0; z <= 4; z++) {
                 helper.setBlock(new BlockPos(x, 0, z), Blocks.DIRT);
                 helper.setBlock(new BlockPos(x, 1, z), Blocks.DIRT);
             }
         }
-        Mob struck = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, STRUCK.above());
-        Mob atTheEdge = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, PAST_THE_RIM.above());
+        helper.setBlock(STATUE, GooBlocks.STATUE.get());
+        Mob onIt = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, STRUCK.above());
         Vec3 aim = Vec3.atCenterOf(helper.absolutePos(STRUCK)).add(0, 0.5, 0);
         helper.runAfterDelay(1, () -> {
             AbilityImpact.land(helper.getLevel(), helper.absolutePos(STRUCK), GooTypes.ROCK, Direction.UP, crush, aim);
             helper.assertBlockPresent(Blocks.AIR, STRUCK);
             helper.assertBlockPresent(Blocks.AIR, STRUCK.below());
             helper.assertBlockPresent(Blocks.AIR, STRUCK.east());
+            helper.assertBlockPresent(Blocks.AIR, STATUE);
             helper.assertBlockPresent(Blocks.DIRT, PAST_THE_RIM);
             helper.assertBlockPresent(Blocks.DIRT, STRUCK.south(2));
             helper.assertItemEntityPresent(Items.DIRT, STRUCK, ITEM_SEARCH_RADIUS);
-            helper.assertTrue(struck.getHealth() < struck.getMaxHealth(), STRUCK_UNHURT);
-            helper.assertTrue(atTheEdge.getHealth() == atTheEdge.getMaxHealth(), EDGE_HURT);
+            helper.assertItemEntityPresent(Items.COBBLESTONE, STATUE, ITEM_SEARCH_RADIUS);
+            helper.assertTrue(onIt.getHealth() == onIt.getMaxHealth(), LANDING_HURT);
             helper.succeed();
         });
+    }
+
+    private static AbilityDefinition crush(GameTestHelper helper) {
+        AbilityDefinition crush = AbilityRegistry.of(helper.getLevel()).getAbility(CRUSH);
+        helper.assertTrue(crush != null, ABILITY_REQUIRED);
+        return crush;
     }
 }

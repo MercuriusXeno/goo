@@ -7,7 +7,7 @@
   "requires": ["minecraft:gravel", "minecraft:sand"],
   "delivery": { "kind": "arc" },
   "behaviors": [
-    { "type": "crush", "breaks": "goo:bore_breakable", "radius": 2, "damage": 6 }
+    { "type": "crush", "breaks": "goo:crush_breakable", "radius": 2, "damage": 6 }
   ],
   "tags": ["entity"]
 }
