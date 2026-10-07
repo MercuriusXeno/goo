@@ -53,21 +53,15 @@ class ChannelAimTest {
         }
 
         @Test
-        void aTopFaceSpreadsTheAreaLevel() {
-            ChannelAim aim = new ChannelAim(new Vec3(10.5, 64, 0.5), GROUND);
-            List<BlockPos> area = aim.areaAround(new BlockPos(10, 63, 0));
-            assertEquals(9, area.size());
-            assertTrue(area.contains(new BlockPos(9, 63, -1)));
-            assertTrue(area.contains(new BlockPos(11, 63, 1)));
-        }
-
-        @Test
-        void aSideFaceSpreadsTheAreaUpright() {
-            ChannelAim aim = new ChannelAim(new Vec3(10, 64.5, 0.5), GROUND);
-            List<BlockPos> area = aim.areaAround(new BlockPos(10, 64, 0));
-            assertEquals(9, area.size());
-            assertTrue(area.contains(new BlockPos(10, 65, 1)));
-            assertTrue(area.contains(new BlockPos(10, 63, -1)));
+        void theSwathRunsThreeHighAboveThePlaneTopDown() {
+            ChannelAim aim = new ChannelAim(Vec3.ZERO, GROUND);
+            List<BlockPos> swath = aim.swathTopDown(new BlockPos(10, 70, 0));
+            assertEquals(27, swath.size());
+            assertEquals(66, swath.getFirst().getY());
+            assertEquals(64, swath.getLast().getY());
+            assertTrue(swath.contains(new BlockPos(9, 64, -1)));
+            assertTrue(swath.contains(new BlockPos(11, 66, 1)));
+            assertTrue(swath.stream().noneMatch(pos -> pos.getY() < 64 || pos.getY() > 66));
         }
     }
 

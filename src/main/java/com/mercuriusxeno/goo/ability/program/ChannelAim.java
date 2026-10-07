@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.List;
@@ -34,6 +33,8 @@ public record ChannelAim(Vec3 aimPoint, double planeY, double coneDegrees) {
     private static final double INTO_THE_FACE = 0.01;
     /** How far the cursor's area reaches from the aimed block each way: one, for a 3x3. */
     private static final int AREA_REACH = 1;
+    /** How many blocks above the plane the swath reaches. */
+    private static final int SWATH_HEIGHT = 3;
     /** Slack under the plane so a player standing on a block's top reads that height exactly. */
     private static final double PLANE_SLACK = 1.0e-6;
 
@@ -63,46 +64,24 @@ public record ChannelAim(Vec3 aimPoint, double planeY, double coneDegrees) {
     }
 
     /**
-     * The 3x3 area where the cursor is: the aimed block and its eight
-     * neighbors in the plane of the face the cursor rests on
-     * (decision flatten-disc-cursor-breaks-above-the-plane).
+     * Flatten's swath where the cursor is, in breaking order: the 3x3 of
+     * columns about the aimed block, from the plane up to 3 blocks high, the
+     * top layer first (decision flatten-disc-cursor-breaks-above-the-plane).
      *
      * @param aimed the aimed block
-     * @return the nine blocks
+     * @return the 27 blocks, top down
      */
-    public List<BlockPos> areaAround(BlockPos aimed) {
-        Direction.Axis normal = faceAxis();
-        List<BlockPos> area = new ArrayList<>();
-        for (int first = -AREA_REACH; first <= AREA_REACH; first++) {
-            for (int second = -AREA_REACH; second <= AREA_REACH; second++) {
-                area.add(switch (normal) {
-                    case X -> aimed.offset(0, first, second);
-                    case Y -> aimed.offset(first, 0, second);
-                    case Z -> aimed.offset(first, second, 0);
-                });
+    public List<BlockPos> swathTopDown(BlockPos aimed) {
+        int bottom = (int) Math.ceil(planeY - PLANE_SLACK);
+        List<BlockPos> swath = new ArrayList<>();
+        for (int y = bottom + SWATH_HEIGHT - 1; y >= bottom; y--) {
+            for (int dx = -AREA_REACH; dx <= AREA_REACH; dx++) {
+                for (int dz = -AREA_REACH; dz <= AREA_REACH; dz++) {
+                    swath.add(new BlockPos(aimed.getX() + dx, y, aimed.getZ() + dz));
+                }
             }
         }
-        return area;
-    }
-
-    /**
-     * The axis square to the face the cursor rests on: the aim point lies on
-     * a block face, so the coordinate nearest a whole number names it.
-     *
-     * @return the face's normal axis
-     */
-    Direction.Axis faceAxis() {
-        double offX = offWhole(aimPoint.x);
-        double offY = offWhole(aimPoint.y);
-        double offZ = offWhole(aimPoint.z);
-        if (offY <= offX && offY <= offZ) {
-            return Direction.Axis.Y;
-        }
-        return offX <= offZ ? Direction.Axis.X : Direction.Axis.Z;
-    }
-
-    private static double offWhole(double coordinate) {
-        return Math.abs(coordinate - Math.rint(coordinate));
+        return swath;
     }
 
     /**
