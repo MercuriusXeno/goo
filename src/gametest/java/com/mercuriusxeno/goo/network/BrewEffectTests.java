@@ -27,6 +27,10 @@ import java.util.List;
 public final class BrewEffectTests {
 
     private static final int FULL_HALVES = 20;
+    /** Half of a twenty-point bar: five hearts held, five missing. */
+    private static final float HALF_HEALTH = 10f;
+    /** The halves of stone over the five missing hearts. */
+    private static final int MISSING_HALVES = 10;
     private static final String SHOULD_CARRY = "The %s potion should carry its brew effect alone for %d ticks, carries %s";
     private static final String SHOULD_LAY = "The %s brew should lay %d %s halves expiring at %d, laid %s %d expiring at %d";
     private static final String SHOULD_HOLD_EFFECT = "The %s brew effect should stand for %d ticks, stands %s";
@@ -71,18 +75,41 @@ public final class BrewEffectTests {
     }
 
     /**
-     * Drinking the rock brew, a type with no brew ability yet, holds the
+     * Drinking the rock brew while missing five hearts lays stone over those
+     * five for an hour (decision stoneskin-stone-hearts-block-regeneration).
+     *
+     * @param helper the gametest helper
+     */
+    public static void rockBrewStoneskinsForAnHour(GameTestHelper helper) {
+        ServerPlayer player = drinker(helper, GooTypes.ROCK);
+        player.setHealth(HALF_HEALTH);
+        long now = player.level().getGameTime();
+
+        drink(player, GooTypes.ROCK);
+
+        HeartOverlay overlay = player.getData(GooAttachments.HEART_OVERLAY);
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        long expected = now + GooPotions.BREW_DURATION;
+        helper.assertTrue(overlay.kind() == HeartKind.STONESKIN && overlay.shieldHalves() == MISSING_HALVES
+                        && overlay.shieldAt(0) == 0 && overlay.expiresAt() == expected,
+                String.format(SHOULD_LAY, GooTypes.ROCK.identifier(), MISSING_HALVES, HeartKind.STONESKIN,
+                        expected, overlay.kind(), overlay.shieldHalves(), overlay.expiresAt()));
+        helper.succeed();
+    }
+
+    /**
+     * Drinking the frost brew, a type with no brew ability yet, holds the
      * effect and lays no hearts.
      *
      * @param helper the gametest helper
      */
     public static void brewWithoutAnAbilityRunsNothing(GameTestHelper helper) {
-        ServerPlayer player = drinker(helper, GooTypes.ROCK);
-        drink(player, GooTypes.ROCK);
+        ServerPlayer player = drinker(helper, GooTypes.FROST);
+        drink(player, GooTypes.FROST);
         HeartOverlay overlay = player.getData(GooAttachments.HEART_OVERLAY);
-        MobEffectInstance standing = player.getEffect(GooMobEffects.BREW_EFFECTS.get(GooTypes.ROCK));
+        MobEffectInstance standing = player.getEffect(GooMobEffects.BREW_EFFECTS.get(GooTypes.FROST));
         helper.getLevel().getServer().getPlayerList().remove(player);
-        helper.assertTrue(standing != null, String.format(SHOULD_HOLD_EFFECT, GooTypes.ROCK.identifier(),
+        helper.assertTrue(standing != null, String.format(SHOULD_HOLD_EFFECT, GooTypes.FROST.identifier(),
                 GooPotions.BREW_DURATION, standing));
         helper.assertFalse(overlay.stands(), String.format(SHOULD_RUN_NOTHING, overlay));
         helper.succeed();

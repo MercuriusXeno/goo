@@ -27,14 +27,19 @@ import java.util.OptionalInt;
  * @param expiresAt   the game time the overlay ends at; zero when none stands
  * @param regrowAt    the game time the next half of shield regrows at
  * @param fireReadyAt the game time fire can next relight Kindle at
+ * @param damageTaken the share of a physical hit a half of shield takes, Stoneskin's reduction
+ *                    (decision stoneskin-stone-hearts-block-regeneration)
  */
 public record HeartOverlay(HeartKind kind, List<Integer> shields, long expiresAt, long regrowAt,
-                           long fireReadyAt) {
+                           long fireReadyAt, float damageTaken) {
 
     /**
      * The overlay a player without a heart brew holds.
      */
     public static final HeartOverlay NONE = new HeartOverlay(HeartKind.KINDLE, List.of(), 0L, 0L, 0L);
+
+    /** The share of a hit a shield takes when nothing reduces it. */
+    public static final float WHOLE_HIT = 1f;
 
     /** Half hearts in a full shield, and in a heart slot. */
     public static final int FULL_SHIELD = 2;
@@ -52,6 +57,7 @@ public record HeartOverlay(HeartKind kind, List<Integer> shields, long expiresAt
     private static final String FIELD_EXPIRES_AT = "expires_at";
     private static final String FIELD_REGROW_AT = "regrow_at";
     private static final String FIELD_FIRE_READY_AT = "fire_ready_at";
+    private static final String FIELD_DAMAGE_TAKEN = "damage_taken";
 
     /**
      * Codec for the saved overlay.
@@ -61,7 +67,8 @@ public record HeartOverlay(HeartKind kind, List<Integer> shields, long expiresAt
             Codec.INT.listOf().fieldOf(FIELD_SHIELDS).forGetter(HeartOverlay::shields),
             Codec.LONG.fieldOf(FIELD_EXPIRES_AT).forGetter(HeartOverlay::expiresAt),
             Codec.LONG.fieldOf(FIELD_REGROW_AT).forGetter(HeartOverlay::regrowAt),
-            Codec.LONG.fieldOf(FIELD_FIRE_READY_AT).forGetter(HeartOverlay::fireReadyAt)
+            Codec.LONG.fieldOf(FIELD_FIRE_READY_AT).forGetter(HeartOverlay::fireReadyAt),
+            Codec.FLOAT.optionalFieldOf(FIELD_DAMAGE_TAKEN, WHOLE_HIT).forGetter(HeartOverlay::damageTaken)
     ).apply(inst, HeartOverlay::new));
 
     /**
@@ -73,6 +80,7 @@ public record HeartOverlay(HeartKind kind, List<Integer> shields, long expiresAt
             ByteBufCodecs.VAR_LONG, HeartOverlay::expiresAt,
             ByteBufCodecs.VAR_LONG, HeartOverlay::regrowAt,
             ByteBufCodecs.VAR_LONG, HeartOverlay::fireReadyAt,
+            ByteBufCodecs.FLOAT, HeartOverlay::damageTaken,
             HeartOverlay::new);
 
     /**
@@ -80,6 +88,19 @@ public record HeartOverlay(HeartKind kind, List<Integer> shields, long expiresAt
      */
     public HeartOverlay {
         shields = List.copyOf(shields);
+    }
+
+    /**
+     * An overlay whose shields take every hit whole.
+     *
+     * @param kind        the overlay's kind
+     * @param shields     per heart slot, from the left, the half hearts of shield over it
+     * @param expiresAt   the game time the overlay ends at; zero when none stands
+     * @param regrowAt    the game time the next half of shield regrows at
+     * @param fireReadyAt the game time fire can next relight Kindle at
+     */
+    public HeartOverlay(HeartKind kind, List<Integer> shields, long expiresAt, long regrowAt, long fireReadyAt) {
+        this(kind, shields, expiresAt, regrowAt, fireReadyAt, WHOLE_HIT);
     }
 
     /**
@@ -151,13 +172,50 @@ public record HeartOverlay(HeartKind kind, List<Integer> shields, long expiresAt
      * @return the overlay after the brew
      */
     public HeartOverlay apply(HeartKind brewKind, int duration, float health, long now) {
+        return apply(brewKind, duration, health, health, WHOLE_HIT, now);
+    }
+
+    /**
+     * Applies a heart brew. The same kind standing again adds the duration and
+     * keeps its hearts; another kind ends the standing overlay and lays its own
+     * whole: a full shield over every present heart, or, for a kind filling
+     * the missing hearts, over every heart slot the player is missing.
+     *
+     * @param brewKind    the kind the brew lays
+     * @param duration    the brew's duration in ticks
+     * @param health      the player's real health
+     * @param maxHealth   the player's maximum health
+     * @param damageTaken the share of a physical hit a half of shield takes
+     * @param now         the game time
+     * @return the overlay after the brew
+     */
+    public HeartOverlay apply(HeartKind brewKind, int duration, float health, float maxHealth, float damageTaken,
+                              long now) {
         if (stands() && kind == brewKind) {
             // kindle-ember-hearts-ash-and-retaliate: the self ability stacks in duration
-            return new HeartOverlay(kind, shields, expiresAt + duration, regrowAt, fireReadyAt);
+            return new HeartOverlay(kind, shields, expiresAt + duration, regrowAt, fireReadyAt, damageTaken);
         }
         // one-heart-overlay-at-a-time: a heart brew ends any other heart brew the moment it takes effect
-        List<Integer> full = Collections.nCopies(filledSlots(health), FULL_SHIELD);
-        return new HeartOverlay(brewKind, full, now + duration, now + brewKind.regrowInterval(sum(full)), now);
+        List<Integer> laid = brewKind.fillsMissing() ? missingFilled(health, maxHealth)
+                : Collections.nCopies(filledSlots(health), FULL_SHIELD);
+        return new HeartOverlay(brewKind, laid, now + duration, now + brewKind.regrowInterval(sum(laid)), now,
+                damageTaken);
+    }
+
+    /**
+     * Shields over every heart slot the player is missing and none over the
+     * slots real health fills (decision stoneskin-stone-hearts-block-regeneration).
+     *
+     * @param health    the player's real health
+     * @param maxHealth the player's maximum health
+     * @return per heart slot, the half hearts of shield over it
+     */
+    private static List<Integer> missingFilled(float health, float maxHealth) {
+        List<Integer> laid = new ArrayList<>(Collections.nCopies(filledSlots(health), 0));
+        while (laid.size() < filledSlots(maxHealth)) {
+            laid.add(FULL_SHIELD);
+        }
+        return laid;
     }
 
     /**
@@ -170,11 +228,27 @@ public record HeartOverlay(HeartKind kind, List<Integer> shields, long expiresAt
      * @return the overlay after the hit and the damage real health takes
      */
     public Drained drain(float damage, long now) {
+        return drainScaled(damage, WHOLE_HIT, now);
+    }
+
+    /**
+     * Runs a hit through the overlay with the shields taking a share of it:
+     * the shields see the hit times the share, and what passes every shield
+     * reaches real health back at its own scale, at the kind's bare cost. A
+     * share under one is a shield shrugging the hit off; over one, a shield
+     * worth less than its half (decision stoneskin-stone-hearts-block-regeneration).
+     *
+     * @param damage the hit's damage
+     * @param share  the share of the hit the shields take
+     * @param now    the game time
+     * @return the overlay after the hit and the damage real health takes
+     */
+    public Drained drainScaled(float damage, float share, long now) {
         if (!stands()) {
             return new Drained(this, damage);
         }
         List<Integer> after = new ArrayList<>(shields);
-        float remaining = damage;
+        float remaining = damage * share;
         int slot = rightmostShielded(after);
         while (remaining > 0f && slot != NO_SLOT) {
             after.set(slot, after.get(slot) - 1);
@@ -182,7 +256,7 @@ public record HeartOverlay(HeartKind kind, List<Integer> shields, long expiresAt
             slot = rightmostShielded(after);
         }
         // overlay-hearts-are-an-elemental-overshield: the bar beneath takes only what passes the overlay
-        return new Drained(settle(after, now), remaining * kind.bareCostMultiplier());
+        return new Drained(settle(after, now), remaining / share * kind.bareCostMultiplier());
     }
 
     /**
@@ -233,6 +307,17 @@ public record HeartOverlay(HeartKind kind, List<Integer> shields, long expiresAt
     }
 
     /**
+     * Answers whether the overlay holds real health from regenerating: stone
+     * standing over the missing hearts
+     * (decision stoneskin-stone-hearts-block-regeneration).
+     *
+     * @return true while a Stoneskin shield stands
+     */
+    public boolean blocksHealing() {
+        return stands() && kind == HeartKind.STONESKIN && shieldHalves() > 0;
+    }
+
+    /**
      * Answers whether every real heart wears a full shield, which Kindle's fire cannot hurt.
      *
      * @param health the player's real health
@@ -260,7 +345,7 @@ public record HeartOverlay(HeartKind kind, List<Integer> shields, long expiresAt
         // kindle-ember-hearts-ash-and-retaliate: relighting costs an ash heart, so lava never makes the player invincible
         List<Integer> relit = Collections.nCopies(Math.max(0, filledSlots(health - HEART_POINTS)), FULL_SHIELD);
         HeartOverlay after = new HeartOverlay(kind, relit, expiresAt, now + kind.regrowInterval(sum(relit)),
-                now + FIRE_RELIGHT_COOLDOWN);
+                now + FIRE_RELIGHT_COOLDOWN, damageTaken);
         return new Drained(after, HEART_POINTS);
     }
 
@@ -294,7 +379,7 @@ public record HeartOverlay(HeartKind kind, List<Integer> shields, long expiresAt
      */
     public OptionalInt nextRegrowSlot(float health) {
         int slot = leftmostShortSlot(filledSlots(health));
-        return !stands() || slot == NO_SLOT ? OptionalInt.empty() : OptionalInt.of(slot);
+        return !stands() || !kind.regrows() || slot == NO_SLOT ? OptionalInt.empty() : OptionalInt.of(slot);
     }
 
     /**
@@ -307,6 +392,10 @@ public record HeartOverlay(HeartKind kind, List<Integer> shields, long expiresAt
     }
 
     private HeartOverlay regrow(float health, long now) {
+        if (!kind.regrows()) {
+            // stoneskin-stone-hearts-block-regeneration: stone that breaks stays broken
+            return this;
+        }
         int shortSlot = leftmostShortSlot(filledSlots(health));
         if (now < regrowAt || shortSlot == NO_SLOT) {
             return this;
@@ -348,7 +437,7 @@ public record HeartOverlay(HeartKind kind, List<Integer> shields, long expiresAt
     }
 
     private HeartOverlay withShields(List<Integer> after, long nextRegrowAt) {
-        return new HeartOverlay(kind, after, expiresAt, nextRegrowAt, fireReadyAt);
+        return new HeartOverlay(kind, after, expiresAt, nextRegrowAt, fireReadyAt, damageTaken);
     }
 
     private int leftmostShortSlot(int filledSlots) {

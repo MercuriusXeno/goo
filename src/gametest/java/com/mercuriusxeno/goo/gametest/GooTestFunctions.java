@@ -360,6 +360,7 @@ public final class GooTestFunctions {
     private static final String BREW_BLAZE_KINDLES = "brew_blaze_kindles_for_an_hour";
     private static final String BREW_LEAF_BARKS = "brew_leaf_barks_for_an_hour";
     private static final String BREW_WITHOUT_ABILITY = "brew_without_an_ability_runs_nothing";
+    private static final String BREW_ROCK_STONESKINS = "brew_rock_stoneskins_for_an_hour";
     private static final String STREAM_BLAZE_SPITFIRE = "stream_blaze_spitfire";
     private static final String FLATTEN_BREAKS_ABOVE_THE_PLANE = "flatten_breaks_above_the_plane";
     private static final String BORE_CUTS_A_TUNNEL = "bore_cuts_a_tunnel";
@@ -770,6 +771,7 @@ public final class GooTestFunctions {
         reg(r, BREW_BLAZE_KINDLES, BrewEffectTests::blazeBrewKindlesForAnHour);
         reg(r, BREW_LEAF_BARKS, BrewEffectTests::leafBrewBarksForAnHour);
         reg(r, BREW_WITHOUT_ABILITY, BrewEffectTests::brewWithoutAnAbilityRunsNothing);
+        reg(r, BREW_ROCK_STONESKINS, BrewEffectTests::rockBrewStoneskinsForAnHour);
         reg(r, STREAM_BLAZE_SPITFIRE, StreamDeliveryTests::blazeSpitfire);
         reg(r, FLATTEN_BREAKS_ABOVE_THE_PLANE, FlattenChannelTests::flattenBreaksAboveThePlane);
         reg(r, BORE_CUTS_A_TUNNEL, BoreStreamTests::boreCutsATunnel);
