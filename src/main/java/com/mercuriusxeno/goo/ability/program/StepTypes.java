@@ -68,6 +68,7 @@ public final class StepTypes {
         register(HeartOverlayStep.TYPE);
         register(FlattenStep.TYPE);
         register(BoreStep.TYPE);
+        register(CrushStep.TYPE);
     }
 
     private StepTypes() {

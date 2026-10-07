@@ -99,7 +99,9 @@ class StepCodecTest {
             Map.entry("flatten", new FlattenStep(TagKey.create(Registries.BLOCK,
                     Identifier.fromNamespaceAndPath("goo", "flatten_breakable")))),
             Map.entry("bore", new BoreStep(TagKey.create(Registries.BLOCK,
-                    Identifier.fromNamespaceAndPath("goo", "bore_breakable")), 1))
+                    Identifier.fromNamespaceAndPath("goo", "bore_breakable")), 1)),
+            Map.entry("crush", new CrushStep(TagKey.create(Registries.BLOCK,
+                    Identifier.fromNamespaceAndPath("goo", "bore_breakable")), 3, 1.5, 0.8))
     );
 
     private static Step roundTrip(Step step) {

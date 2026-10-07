@@ -1,0 +1,22 @@
+{
+  "gooType": "rock",
+  "displayName": "goo.ability.rock.crush",
+  "badge": "free",
+  "order": 40,
+  "cost": 1000,
+  "requires": ["minecraft:gravel", "minecraft:sand"],
+  "delivery": { "kind": "arc" },
+  "behaviors": [
+    {
+      "type": "entities",
+      "shape": "sphere",
+      "radius": 1.5,
+      "where": ["living"],
+      "steps": [
+        { "type": "damage", "amount": 6, "source": "force" }
+      ]
+    },
+    { "type": "crush", "breaks": "goo:bore_breakable", "depth": 3, "radius": 1.5, "push": 0.8 }
+  ],
+  "tags": ["entity"]
+}

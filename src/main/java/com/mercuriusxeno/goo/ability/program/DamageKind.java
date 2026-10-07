@@ -22,7 +22,11 @@ public enum DamageKind {
     /**
      * Cactus damage, the sliver cloud's source.
      */
-    CACTUS;
+    CACTUS,
+    /**
+     * Blunt force, rock crush's source (decision crush-blob-breaks-along-its-strike).
+     */
+    FORCE;
 
     private static final String WHAT = "damage source";
 

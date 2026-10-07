@@ -363,6 +363,7 @@ public final class GooTestFunctions {
     private static final String STREAM_BLAZE_SPITFIRE = "stream_blaze_spitfire";
     private static final String FLATTEN_BREAKS_ABOVE_THE_PLANE = "flatten_breaks_above_the_plane";
     private static final String BORE_CUTS_A_TUNNEL = "bore_cuts_a_tunnel";
+    private static final String CRUSH_BREAKS_ALONG_THE_STRIKE = "crush_breaks_along_the_strike";
     private static final String MOB_CRYSTAL = "mob_crystal_flechettes";
     private static final String MOB_LEAF = "mob_leaf_entangle";
     private static final String MOB_VITAL = "mob_vital_clone";
@@ -772,6 +773,7 @@ public final class GooTestFunctions {
         reg(r, STREAM_BLAZE_SPITFIRE, StreamDeliveryTests::blazeSpitfire);
         reg(r, FLATTEN_BREAKS_ABOVE_THE_PLANE, FlattenChannelTests::flattenBreaksAboveThePlane);
         reg(r, BORE_CUTS_A_TUNNEL, BoreStreamTests::boreCutsATunnel);
+        reg(r, CRUSH_BREAKS_ALONG_THE_STRIKE, CrushStrikeTests::crushBreaksAlongTheStrike);
         reg(r, MOB_CRYSTAL, MobEffectTests::crystalFlechettes);
         reg(r, MOB_LEAF, MobEffectTests::leafEntangle);
         reg(r, MOB_VITAL, MobEffectTests::vitalClone);

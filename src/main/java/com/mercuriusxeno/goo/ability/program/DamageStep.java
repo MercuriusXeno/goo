@@ -97,6 +97,7 @@ public record DamageStep(Expr amount, DamageKind source, boolean knockback,
             case FREEZE -> sources.freeze();
             case STALAGMITE -> sources.stalagmite();
             case CACTUS -> sources.cactus();
+            case FORCE -> sources.generic();
         };
     }
 
