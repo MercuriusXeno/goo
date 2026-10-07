@@ -25,6 +25,7 @@ class AbilityBadgeTest {
     private static final int SHIPPED_BREW_BADGES = 2;
     private static final int SHIPPED_CHANNELED_BADGES = 2;
     private static final int SHIPPED_FREE_BADGES = 1;
+    private static final int SHIPPED_TAP_BADGES = 1;
     /** The self + brew abilities, which wear brew on their self delivery (decision self-brew-goos-eat-before-the-effect). */
     private static final List<String> SHIPPED_BREWS = List.of("blaze_kindle", "leaf_barkskin");
     /** Blast, the shipped free ability (decision badge-vocabulary-gains-free-prism-tap-brew). */
@@ -71,8 +72,8 @@ class AbilityBadgeTest {
     /**
      * The badge a shipped ability wears: its delivery's own badge for a self
      * or a stream (decision one-proving-ability-per-kind), brew for a self +
-     * brew ability, free for Blast, and for any other thrown ability, mob
-     * where it targets entities and world elsewhere.
+     * brew ability, free for Blast, tap for a tap's drip ability, and for any
+     * other thrown ability, mob where it targets entities and world elsewhere.
      *
      * @param definition the shipped ability
      * @return the badge it should wear
@@ -80,6 +81,9 @@ class AbilityBadgeTest {
     private static AbilityBadge expectedBadge(AbilityDefinition definition) {
         if (definition.id().getPath().equals(SHIPPED_FREE)) {
             return AbilityBadge.FREE;
+        }
+        if (definition.hasTag(AbilityTags.TAP)) {
+            return AbilityBadge.TAP;
         }
         return switch (definition.delivery().kind()) {
             case SELF -> SHIPPED_BREWS.contains(definition.id().getPath()) ? AbilityBadge.BREW : AbilityBadge.SELF;
@@ -98,7 +102,8 @@ class AbilityBadgeTest {
                 expectedBadge(definition), definition.badge(), definition.id().toString()));
         assertEquals(Map.of(AbilityBadge.MOB, (long) SHIPPED_MOB_BADGES, AbilityBadge.WORLD, (long) SHIPPED_WORLD_BADGES,
                         AbilityBadge.SELF, (long) SHIPPED_SELF_BADGES, AbilityBadge.BREW, (long) SHIPPED_BREW_BADGES,
-                        AbilityBadge.CHANNELED, (long) SHIPPED_CHANNELED_BADGES, AbilityBadge.FREE, (long) SHIPPED_FREE_BADGES),
+                        AbilityBadge.CHANNELED, (long) SHIPPED_CHANNELED_BADGES, AbilityBadge.FREE, (long) SHIPPED_FREE_BADGES,
+                        AbilityBadge.TAP, (long) SHIPPED_TAP_BADGES),
                 shipped.values().stream().collect(Collectors.groupingBy(AbilityDefinition::badge, Collectors.counting())));
     }
 }

@@ -368,6 +368,7 @@ public final class GooTestFunctions {
     private static final String STREAM_BLAZE_SPITFIRE = "stream_blaze_spitfire";
     private static final String MYCOSIS_SPREADS_ON_DEATH = "mycosis_spreads_on_death";
     private static final String MYCOSIS_PLACES_BUDS = "mycosis_places_buds";
+    private static final String MYCOSIS_TAP_POISONS_BELOW = "mycosis_tap_poisons_below";
     private static final String MOB_CRYSTAL = "mob_crystal_flechettes";
     private static final String MOB_LEAF = "mob_leaf_entangle";
     private static final String MOB_VITAL = "mob_vital_clone";
@@ -783,6 +784,7 @@ public final class GooTestFunctions {
         reg(r, STREAM_BLAZE_SPITFIRE, StreamDeliveryTests::blazeSpitfire);
         reg(r, MYCOSIS_SPREADS_ON_DEATH, MycosisTests::mycosisSpreadsOnDeath);
         reg(r, MYCOSIS_PLACES_BUDS, MycosisTests::mycosisPlacesBuds);
+        reg(r, MYCOSIS_TAP_POISONS_BELOW, MycosisTests::mycosisTapPoisonsBelow);
         reg(r, MOB_CRYSTAL, MobEffectTests::crystalFlechettes);
         reg(r, MOB_LEAF, MobEffectTests::leafEntangle);
         reg(r, MOB_VITAL, MobEffectTests::vitalClone);
