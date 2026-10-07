@@ -49,16 +49,18 @@ public enum HeartKind {
         }
     },
     /**
-     * Rock Stoneskin: stone over the hearts the player was missing, never
-     * regrowing, gone with its last stone, and holding the player's health
-     * from regenerating while any stands; appended after Reserve, so the
-     * synced ordinals of the kinds before it stand
-     * (decision stoneskin-stone-hearts-block-regeneration).
+     * Rock Stoneskin: stone over the hearts the player is missing, crawling
+     * into each further missing heart a stone every five seconds, gone with
+     * its last stone, and holding the player's health from regenerating while
+     * it stands; appended after Reserve, so the synced ordinals of the kinds
+     * before it stand (decisions stoneskin-stone-hearts-block-regeneration
+     * and heart-effects-crawl-while-held).
      */
-    STONESKIN(1.0f, true, false, false) {
+    STONESKIN(1.0f, true, false, true) {
         @Override
         long regrowInterval(int shieldHalves) {
-            return 0L;
+            // heart-effects-crawl-while-held: stone crawls at bark's pace, a stone heart every 5 seconds
+            return (long) BARK_REGROW_SECONDS * TICKS_PER_SECOND / HALVES_PER_HEART;
         }
 
         @Override

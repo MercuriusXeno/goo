@@ -22,6 +22,8 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * Gametests for the heart overlay through Blaze Kindle invoked on a survival
@@ -36,7 +38,7 @@ public final class HeartOverlayTests {
     private static final Identifier LEAF_BARKSKIN = Identifier.parse("goo:leaf_barkskin");
     /** Two thousand mB of the second goo, enough for one cast. */
     private static final int SECOND_GOO = 2 * GooStacks.THOUSAND;
-    private static final String SHOULD_REPLACE = "%s should stand alone with a full shield: stood %s with %d halves";
+    private static final String SHOULD_REPLACE = "%s should stand alone, primed with one heart: stood %s with %d halves";
     private static final String SHOULD_HOLD_BARKSKIN_ALONE = "Barkskin alone should be held, held reads %s";
     private static final String SHOULD_STOP_KINDLE_UPKEEP =
             "Kindle's upkeep should stop, drained %d blaze; Barkskin's should drain %d leaf, drained %d";
@@ -180,7 +182,24 @@ public final class HeartOverlayTests {
     }
 
     private static ServerPlayer kindled(GameTestHelper helper) {
-        return selfInvoked(helper, GooTypes.BLAZE, BLAZE_KINDLE);
+        return crawledWhole(selfInvoked(helper, GooTypes.BLAZE, BLAZE_KINDLE));
+    }
+
+    /**
+     * Carries a primed heart overlay to the whole bar its crawl reaches, a
+     * full shield over every present heart, so a test of hits and fire reads
+     * a full bar without ticking through the crawl
+     * (decision heart-effects-crawl-while-held).
+     *
+     * @param player the player whose overlay primed
+     * @return the player
+     */
+    static ServerPlayer crawledWhole(ServerPlayer player) {
+        HeartOverlay primed = player.getData(GooAttachments.HEART_OVERLAY);
+        List<Integer> whole = Collections.nCopies(HeartOverlay.filledSlots(player.getHealth()), HeartOverlay.FULL_SHIELD);
+        player.setData(GooAttachments.HEART_OVERLAY, new HeartOverlay(primed.kind(), whole, primed.expiresAt(),
+                primed.regrowAt(), primed.fireReadyAt(), primed.damageTaken(), primed.drainCarry()));
+        return player;
     }
 
     /**
@@ -192,7 +211,8 @@ public final class HeartOverlayTests {
      * @param ability the self ability's id
      * @return the player
      */
-    static ServerPlayer selfInvoked(GameTestHelper helper, ResourceKey<GooTypeDefinition> gooType, Identifier ability) {
+    public static ServerPlayer selfInvoked(GameTestHelper helper, ResourceKey<GooTypeDefinition> gooType,
+                                           Identifier ability) {
         ServerPlayer player = SelfDeliveryTests.invoker(helper, gooType);
         // the mock player helper makes a creative player, whom no hit lands on
         player.setGameMode(GameType.SURVIVAL);
@@ -218,9 +238,10 @@ public final class HeartOverlayTests {
     }
 
     /**
-     * Barkskin over Kindle leaves only full bark standing and only Barkskin
-     * held: Kindle ends the moment Barkskin takes effect, whatever it had
-     * spent, and its upkeep stops with it while Barkskin's is paid.
+     * Barkskin over a whole Kindle bar leaves only Barkskin standing, primed
+     * with one bark heart, and only Barkskin held: Kindle ends the moment
+     * Barkskin takes effect, and its upkeep stops with it while Barkskin's is
+     * paid.
      * one-heart-overlay-at-a-time
      * self-effects-trickle-until-ended
      *
@@ -236,7 +257,8 @@ public final class HeartOverlayTests {
         HeldEffects held = player.getData(GooAttachments.HELD_EFFECTS);
         int blazeBefore = goo(player, GooTypes.BLAZE);
         int leafBefore = goo(player, GooTypes.LEAF);
-        helper.assertTrue(barked.kind() == HeartKind.BARKSKIN && barked.shieldHalves() == FULL_HALVES,
+        helper.assertTrue(barked.kind() == HeartKind.BARKSKIN && barked.shieldHalves() == HeartOverlay.FULL_SHIELD
+                        && barked.shieldAt(0) == HeartOverlay.FULL_SHIELD,
                 String.format(SHOULD_REPLACE, HeartKind.BARKSKIN, barked.kind(), barked.shieldHalves()));
         helper.assertTrue(held.held().size() == 1 && held.holds(LEAF_BARKSKIN),
                 String.format(SHOULD_HOLD_BARKSKIN_ALONE, held));

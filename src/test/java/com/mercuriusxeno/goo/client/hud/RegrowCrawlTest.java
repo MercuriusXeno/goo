@@ -5,11 +5,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.mercuriusxeno.goo.ability.hearts.HeartKind;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
 
-/** The regrow crawl picks the half the overlay regrows next and follows its interval to the regrow time (decisions ash-heart-smolders-while-reigniting, wood-crawls-across-regrowing-heart). */
+/** The regrow crawl picks the half the overlay regrows next and follows its interval to the regrow time, stone crawling into a missing heart the same way (decisions ash-heart-smolders-while-reigniting, wood-crawls-across-regrowing-heart, heart-effects-crawl-while-held). */
 class RegrowCrawlTest {
 
     private static final long NOW = 1_000L;
@@ -49,7 +50,7 @@ class RegrowCrawlTest {
 
     @Test
     void barkCrawlsOverTheHalfBarkskinRegrowsNextAndCoversItAtTheRegrowTime() {
-        HeartOverlay barked = HeartOverlay.NONE.apply(HeartKind.BARKSKIN, 1_200, FULL_HEALTH, NOW)
+        HeartOverlay barked = new HeartOverlay(HeartKind.BARKSKIN, Collections.nCopies(10, 2), EXPIRES, NOW, NOW)
                 .drain(3f, NOW).overlay();
         long regrowAt = barked.regrowAt();
         RegrowCrawl.Crawl start = RegrowCrawl.crawl(barked, FULL_HEALTH, NOW).orElseThrow();
@@ -62,8 +63,19 @@ class RegrowCrawlTest {
 
     @Test
     void noBarkStandingMeansNoCrawl() {
-        HeartOverlay gone = HeartOverlay.NONE.apply(HeartKind.BARKSKIN, 1_200, 4f, NOW).drain(4f, NOW).overlay();
+        HeartOverlay gone = new HeartOverlay(HeartKind.BARKSKIN, List.of(2, 2), EXPIRES, NOW, NOW).drain(4f, NOW).overlay();
         assertTrue(RegrowCrawl.crawl(gone, 4f, NOW).isEmpty());
+    }
+
+    @Test
+    void stoneCrawlsIntoTheNextMissingHeart() {
+        long interval = 50L;
+        HeartOverlay stone = new HeartOverlay(HeartKind.STONESKIN, List.of(0, 0, 0, 2, 0, 0, 0, 0, 0, 0), EXPIRES,
+                NOW + interval, NOW, 0.5f, 0f);
+        RegrowCrawl.Crawl crawl = RegrowCrawl.crawl(stone, 6f, NOW + interval / 2f).orElseThrow();
+        assertEquals(4, crawl.slot());
+        assertEquals(0, crawl.fromHalf());
+        assertTrue(crawl.progress() > 0f && crawl.progress() < 1f);
     }
 
     @Test

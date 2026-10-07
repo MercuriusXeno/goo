@@ -63,8 +63,8 @@ public final class SelfDeliveryTests {
     private static final float LOOKING_UP = -45f;
     private static final float BUILT_UP_FALL = 10f;
     private static final Identifier BLAZE_KINDLE = Identifier.parse("goo:blaze_kindle");
-    /** Ten hearts of ember halves, the full bar Kindle lays over full health. */
-    private static final int FULL_EMBERS = 20;
+    /** One ember heart, which Kindle primes before its crawl embers the rest. */
+    private static final int PRIMED_EMBERS = HeartOverlay.FULL_SHIELD;
     /** The ticks a held Kindle is watched paying its upkeep. */
     private static final int UPKEEP_TICKS = 20;
     /** The ticks of upkeep the dry player holds goo for. */
@@ -165,8 +165,8 @@ public final class SelfDeliveryTests {
 
     /**
      * A mock player invokes blaze kindle: it starts eating, holds no ember
-     * and its goo whole mid-eat, and wears a full ember bar with no expiry
-     * and no one-shot cost drained when the eat finishes.
+     * and its goo whole mid-eat, and wears one ember heart over ash with no
+     * expiry and no one-shot cost drained when the eat finishes.
      *
      * @param helper the gametest helper
      */
@@ -191,7 +191,7 @@ public final class SelfDeliveryTests {
             int drained = heldBefore - held(player, GooTypes.BLAZE);
             long endsAt = player.getData(GooAttachments.HEART_OVERLAY).expiresAt();
             helper.getLevel().getServer().getPlayerList().remove(player);
-            helper.assertTrue(embers == FULL_EMBERS, String.format(SHOULD_LAY_EMBERS, FULL_EMBERS, embers));
+            helper.assertTrue(embers == PRIMED_EMBERS, String.format(SHOULD_LAY_EMBERS, PRIMED_EMBERS, embers));
             helper.assertTrue(endsAt == HeartOverlay.NEVER_EXPIRES, String.format(SHOULD_HOLD_WITHOUT_EXPIRY, endsAt));
             helper.assertTrue(drained == 0, String.format(SHOULD_DRAIN_NOTHING_AT_EAT, drained));
             helper.succeed();
@@ -354,7 +354,7 @@ public final class SelfDeliveryTests {
      * @param gooType the ability's goo type
      * @param ability the ability's id
      */
-    static void invoke(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, Identifier ability) {
+    public static void invoke(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, Identifier ability) {
         GooGloveItem.setSelection(player.getMainHandItem(), GloveSelection.ofAbility(gooType, ability));
         GooThrowHandler.execute(player, new GooThrowPayload(GooTypes.id(gooType), NO_ENTITY,
                 player.blockPosition(), NO_ENTITY, false, ability.toString(), player.getEyePosition()));
@@ -367,7 +367,7 @@ public final class SelfDeliveryTests {
      *
      * @param player the player
      */
-    static void eatThrough(ServerPlayer player) {
+    public static void eatThrough(ServerPlayer player) {
         for (int tick = 0; tick <= SelfEatRoute.EAT_TICKS && player.isUsingItem(); tick++) {
             player.doTick();
         }
@@ -454,7 +454,7 @@ public final class SelfDeliveryTests {
      * @return the player
      */
     @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
-    static ServerPlayer invoker(GameTestHelper helper, ResourceKey<GooTypeDefinition> gooType) {
+    public static ServerPlayer invoker(GameTestHelper helper, ResourceKey<GooTypeDefinition> gooType) {
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(STAND_POS));
         player.setPos(stand.x, stand.y, stand.z);
