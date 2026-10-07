@@ -49,7 +49,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 public final class TapDripTests {
 
     private static final BlockPos TAP_POS = new BlockPos(1, 1, 1);
-    private static final ResourceKey<GooTypeDefinition> TYPE = GooTypes.ROCK;
+    /** The test pack's seventeenth type, which carries no tap ability while every bundled type gains one. */
+    private static final ResourceKey<GooTypeDefinition> TYPE = ResourceKey.create(GooTypes.REGISTRY,
+            Identifier.fromNamespaceAndPath("gootest", "seventeenth"));
     private static final int START_VOLUME = 1000;
     private static final int DRIPS = 3;
     /**
