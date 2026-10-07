@@ -1,5 +1,8 @@
 package com.mercuriusxeno.goo.client.throwing;
 
+import com.mercuriusxeno.goo.ability.AbilityBadge;
+import com.mercuriusxeno.goo.ability.Delivery;
+import com.mercuriusxeno.goo.ability.DeliveryKind;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
@@ -190,6 +193,35 @@ class GloveInputGateTest {
             assertEquals(1, actions.throwsSent);
             assertEquals(0, actions.holds);
             assertFalse(gate.isArmed());
+        }
+    }
+
+    /**
+     * A brew eats from the press while the use key is down, since vanilla
+     * releases any item use the tick the use key is up, and an eat started
+     * on release would end the tick it began (decision self-brew-goos-eat-before-the-effect).
+     */
+    @Nested
+    class WhatRunsFromThePress {
+
+        @Test
+        void aBrewOnASelfDeliveryRunsFromThePress() {
+            assertTrue(GloveInputGate.runsFromPress(Delivery.of(DeliveryKind.SELF), AbilityBadge.BREW));
+        }
+
+        @Test
+        void aStreamRunsFromThePress() {
+            assertTrue(GloveInputGate.runsFromPress(Delivery.of(DeliveryKind.STREAM), AbilityBadge.CHANNELED));
+        }
+
+        @Test
+        void aSelfAbilityOnCommandThrowsOnRelease() {
+            assertFalse(GloveInputGate.runsFromPress(Delivery.of(DeliveryKind.SELF), AbilityBadge.SELF));
+        }
+
+        @Test
+        void anArcThrowsOnRelease() {
+            assertFalse(GloveInputGate.runsFromPress(Delivery.ARC, AbilityBadge.MOB));
         }
     }
 

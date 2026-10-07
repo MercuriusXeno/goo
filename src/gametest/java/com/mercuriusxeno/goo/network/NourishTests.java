@@ -25,6 +25,7 @@ public final class NourishTests {
     private static final int AFTER_EXPIRY = INTERVAL + 2;
     private static final String SHOULD_FEED = "Nourish should add %d food points over its duration, added %d";
     private static final String SHOULD_END = "Nourish should end at its expiry, still stands";
+    private static final String SHOULD_EAT = "Invoking Nourish should start the player eating the glove";
 
     private NourishTests() {
     }
@@ -42,6 +43,8 @@ public final class NourishTests {
         player.getFoodData().setFoodLevel(HUNGRY_FOOD);
         player.getFoodData().setSaturation(0);
         SelfDeliveryTests.invoke(player, GooTypes.VITAL, VITAL_NOURISH);
+        // self-brew-goos-eat-before-the-effect: Nourish starts the eat the client plays
+        helper.assertTrue(player.isUsingItem(), SHOULD_EAT);
         SelfDeliveryTests.eatThrough(player);
         int fedBefore = player.getFoodData().getFoodLevel();
         int watched = DURATION + AFTER_EXPIRY;
