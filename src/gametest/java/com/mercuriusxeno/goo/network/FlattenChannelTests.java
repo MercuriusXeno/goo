@@ -16,48 +16,55 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Gametest for rock flatten: holding the channel at a dirt mound breaks the
- * cursor's 3x3 above the plane remembered from the cursor's block as the hold
- * began, dropping them, and leaves that block's level and a block outside the
- * flatten tag standing
- * (decision flatten-disc-cursor-breaks-above-the-plane).
+ * cursor's 3x3 from the level remembered from the cursor's block as the hold
+ * began up three blocks, one block a tick, top down, dropping them, and leaves
+ * that level, the mound above the swath and a block outside the flatten tag
+ * standing (decision flatten-disc-cursor-breaks-above-the-plane).
  */
 public final class FlattenChannelTests {
 
     private static final BlockPos STAND_POS = new BlockPos(1, 1, 3);
-    /** The ground block the cursor rests on as the hold begins: the plane is its top. */
+    /** The ground block the cursor rests on as the hold begins: the swath starts above it. */
     private static final BlockPos GROUND = new BlockPos(3, 0, 3);
     /** The block the cursor aims at while held, on the mound above the ground. */
     private static final BlockPos AIMED = GROUND.above();
-    /** Obsidian in the cursor's 3x3, above the plane but outside the flatten tag. */
-    private static final BlockPos OUTSIDE_TAG = AIMED.above().north();
-    private static final int HELD_GOO = 2;
+    /** Obsidian in the swath's top layer, outside the flatten tag. */
+    private static final BlockPos OUTSIDE_TAG = GROUND.above(3).north();
+    /** The swath's height above the ground, and a layer past it. */
+    private static final int SWATH_HEIGHT = 3;
+    private static final int MOUND_HEIGHT = SWATH_HEIGHT + 1;
+    /** The 3x3 by 3 is 27 blocks, one a tick, the obsidian passed: thirty ticks clear it. */
+    private static final int HOLD_TICKS = 30;
+    private static final int HELD_GOO = 3;
     private static final double FACE_CENTER = 0.5;
-    private static final double ITEM_SEARCH_RADIUS = 3;
-    private static final int ASSERT_TICK = 3;
+    private static final double ITEM_SEARCH_RADIUS = 4;
     private static final Identifier ROCK_FLATTEN = Identifier.parse("goo:rock_flatten");
     private static final String ABILITY_REQUIRED = "Ability registry must hold rock_flatten";
+    private static final String SHOULD_BREAK_ONE_FROM_THE_TOP = "One tick should break one top-layer block, broke %s";
 
     private FlattenChannelTests() {
     }
 
     /**
      * A mock player begins the hold with the cursor on a ground block, then
-     * holds flatten aimed at the west face of the dirt mound standing on it:
-     * the six dirt blocks of the cursor's upright 3x3 above the ground's top
-     * break and drop dirt, the obsidian among them stays, and the ground row
-     * of the 3x3 stays.
+     * holds flatten at the dirt mound over it: the first tick breaks one block
+     * of the swath's top layer, and the hold clears the 3x3 from the ground's
+     * top up three blocks, dirt dropping, leaving the ground, the layer above
+     * the swath and the obsidian in it.
      *
      * @param helper the gametest helper
      */
     public static void flattenBreaksAboveThePlane(GameTestHelper helper) {
         AbilityDefinition flatten = AbilityRegistry.of(helper.getLevel()).getAbility(ROCK_FLATTEN);
         helper.assertTrue(flatten != null, ABILITY_REQUIRED);
-        for (int z = -1; z <= 1; z++) {
-            for (int y = 0; y <= 2; y++) {
-                helper.setBlock(GROUND.offset(0, y, z), Blocks.DIRT);
+        for (BlockPos column : columns()) {
+            for (int y = 0; y <= MOUND_HEIGHT; y++) {
+                helper.setBlock(column.above(y), Blocks.DIRT);
             }
         }
         helper.setBlock(OUTSIDE_TAG, Blocks.OBSIDIAN);
@@ -66,15 +73,23 @@ public final class FlattenChannelTests {
         double plane = ChannelAim.planeAbove(helper.absolutePos(GROUND).getY());
         GooStreamPayload tick = new GooStreamPayload(GooTypes.id(GooTypes.ROCK), ROCK_FLATTEN.toString(),
                 player.getEyePosition(), westFace(helper, AIMED), plane);
-        helper.runAfterDelay(1, () -> GooStreamHandler.streamTick(player, tick));
-        helper.runAfterDelay(ASSERT_TICK, () -> {
+        helper.runAfterDelay(1, () -> {
+            GooStreamHandler.streamTick(player, tick);
+            long broken = columns().stream().map(column -> column.above(SWATH_HEIGHT))
+                    .filter(pos -> helper.getBlockState(pos).isAir()).count();
+            helper.assertTrue(broken == 1, String.format(SHOULD_BREAK_ONE_FROM_THE_TOP, broken));
+        });
+        for (int held = 2; held <= HOLD_TICKS; held++) {
+            helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, tick));
+        }
+        helper.runAfterDelay(HOLD_TICKS + 1, () -> {
             helper.getLevel().getServer().getPlayerList().remove(player);
-            for (int z = -1; z <= 1; z++) {
-                helper.assertBlockPresent(Blocks.DIRT, GROUND.offset(0, 0, z));
-                for (int y = 1; y <= 2; y++) {
-                    BlockPos above = GROUND.offset(0, y, z);
-                    if (!above.equals(OUTSIDE_TAG)) {
-                        helper.assertBlockPresent(Blocks.AIR, above);
+            for (BlockPos column : columns()) {
+                helper.assertBlockPresent(Blocks.DIRT, column);
+                helper.assertBlockPresent(Blocks.DIRT, column.above(MOUND_HEIGHT));
+                for (int y = 1; y <= SWATH_HEIGHT; y++) {
+                    if (!column.above(y).equals(OUTSIDE_TAG)) {
+                        helper.assertBlockPresent(Blocks.AIR, column.above(y));
                     }
                 }
             }
@@ -82,6 +97,21 @@ public final class FlattenChannelTests {
             helper.assertItemEntityPresent(Items.DIRT, AIMED, ITEM_SEARCH_RADIUS);
             helper.succeed();
         });
+    }
+
+    /**
+     * The swath's nine columns at the ground's height.
+     *
+     * @return the ground blocks of the 3x3
+     */
+    private static List<BlockPos> columns() {
+        List<BlockPos> columns = new ArrayList<>();
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                columns.add(GROUND.offset(dx, 0, dz));
+            }
+        }
+        return columns;
     }
 
     private static Vec3 westFace(GameTestHelper helper, BlockPos relative) {
