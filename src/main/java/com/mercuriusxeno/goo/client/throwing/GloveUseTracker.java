@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.ability.SelfEatRoute;
+import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -12,6 +13,8 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -31,8 +34,9 @@ public final class GloveUseTracker {
     private static final GloveInputGate PRESS = new GloveInputGate();
     private static InteractionHand pressHand = InteractionHand.MAIN_HAND;
     /**
-     * The player's feet height when the live press began, the plane a channel
-     * holds to (decision flatten-disc-cursor-breaks-above-the-plane).
+     * The plane a channel holds to, remembered from the block the cursor
+     * rested on when the live press began
+     * (decision flatten-disc-cursor-breaks-above-the-plane).
      */
     private static double pressPlaneY;
 
@@ -96,16 +100,18 @@ public final class GloveUseTracker {
     public static void pressGlove(InteractionHand hand) {
         if (!PRESS.isArmed()) {
             pressHand = hand;
-            LocalPlayer player = Minecraft.getInstance().player;
-            if (player != null) {
-                pressPlaneY = player.getY();
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.hitResult instanceof BlockHitResult hit && hit.getType() == HitResult.Type.BLOCK) {
+                pressPlaneY = ChannelAim.planeAbove(hit.getBlockPos().getY());
+            } else if (mc.player != null) {
+                pressPlaneY = GloveThrowSender.cursorPoint(mc.player).y;
             }
         }
         PRESS.arm();
     }
 
     /**
-     * The player's feet height when the live press began.
+     * The plane remembered from the cursor when the live press began.
      *
      * @return the plane a channel holds to
      */
@@ -168,20 +174,39 @@ public final class GloveUseTracker {
 
             @Override
             public boolean eatsOnPress() {
-                GloveSelection selection = GloveThrowSender.heldSelection(player);
-                return selection != null && SelfEatRoute.eats(
-                        GloveThrowSender.selectedDelivery(selection.abilityId()),
-                        GloveThrowSender.selectedBadge(selection.abilityId()));
+                return selectedEats(player);
             }
 
             @Override
             public boolean runsWhileHeld() {
-                GloveSelection selection = GloveThrowSender.heldSelection(player);
-                return selection != null && HeldRoute.runsWhileHeld(
-                        GloveThrowSender.selectedDelivery(selection.abilityId()),
-                        GloveThrowSender.selectedBadge(selection.abilityId()));
+                return selectedRunsWhileHeld(player);
             }
         };
+    }
+
+    /**
+     * Whether the held glove's selection is eaten, sending on the press
+     * (decision self-brew-goos-eat-before-the-effect).
+     *
+     * @param player the local player
+     * @return true for a self + brew selection
+     */
+    private static boolean selectedEats(LocalPlayer player) {
+        GloveSelection selection = GloveThrowSender.heldSelection(player);
+        return selection != null && SelfEatRoute.eats(GloveThrowSender.selectedDelivery(selection.abilityId()),
+                GloveThrowSender.selectedBadge(selection.abilityId()));
+    }
+
+    /**
+     * Whether the held glove's selection runs on every held tick, a stream or a channel.
+     *
+     * @param player the local player
+     * @return true for a held selection
+     */
+    private static boolean selectedRunsWhileHeld(LocalPlayer player) {
+        GloveSelection selection = GloveThrowSender.heldSelection(player);
+        return selection != null && HeldRoute.runsWhileHeld(GloveThrowSender.selectedDelivery(selection.abilityId()),
+                GloveThrowSender.selectedBadge(selection.abilityId()));
     }
 
     /**

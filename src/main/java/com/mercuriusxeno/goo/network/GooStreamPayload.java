@@ -18,7 +18,7 @@ import org.jspecify.annotations.NonNull;
  * @param abilityId the selected ability id string
  * @param origin    the glove hand, where the stream's cone opens from
  * @param aimPoint  the world point under the client's cursor
- * @param planeY    the player's feet height when the hold began
+ * @param planeY    the plane remembered from the cursor when the hold began
  */
 public record GooStreamPayload(String gooTypeId, String abilityId, Vec3 origin, Vec3 aimPoint, double planeY)
         implements CustomPacketPayload {

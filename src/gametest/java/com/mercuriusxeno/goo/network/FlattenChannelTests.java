@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooItems;
@@ -17,25 +18,25 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Gametest for rock flatten: holding the channel over a dirt mound breaks the
- * mound's blocks above the plane the hold began at, dropping them, and leaves
- * the dirt below the plane and a block outside the flatten tag standing
+ * Gametest for rock flatten: holding the channel at a dirt mound breaks the
+ * cursor's 3x3 above the plane remembered from the cursor's block as the hold
+ * began, dropping them, and leaves that block's level and a block outside the
+ * flatten tag standing
  * (decision flatten-disc-cursor-breaks-above-the-plane).
  */
 public final class FlattenChannelTests {
 
     private static final BlockPos STAND_POS = new BlockPos(1, 1, 3);
-    /** The mound's column, two blocks east of the player. */
-    private static final BlockPos MOUND_LOW = STAND_POS.east(2);
-    private static final BlockPos MOUND_HIGH = MOUND_LOW.above();
-    /** Dirt under the mound, the block the player's plane rests on. */
-    private static final BlockPos UNDER_PLANE = MOUND_LOW.below();
-    /** Obsidian beside the mound, above the plane but outside the flatten tag. */
-    private static final BlockPos OUTSIDE_TAG = MOUND_LOW.north();
+    /** The ground block the cursor rests on as the hold begins: the plane is its top. */
+    private static final BlockPos GROUND = new BlockPos(3, 0, 3);
+    /** The block the cursor aims at while held, on the mound above the ground. */
+    private static final BlockPos AIMED = GROUND.above();
+    /** Obsidian in the cursor's 3x3, above the plane but outside the flatten tag. */
+    private static final BlockPos OUTSIDE_TAG = AIMED.above().north();
     private static final int HELD_GOO = 2;
     private static final double FACE_CENTER = 0.5;
     private static final double ITEM_SEARCH_RADIUS = 3;
-    private static final int ASSERT_TICK = 6;
+    private static final int ASSERT_TICK = 3;
     private static final Identifier ROCK_FLATTEN = Identifier.parse("goo:rock_flatten");
     private static final String ABILITY_REQUIRED = "Ability registry must hold rock_flatten";
 
@@ -43,36 +44,42 @@ public final class FlattenChannelTests {
     }
 
     /**
-     * A mock player holds flatten for four ticks, aiming in turn at the
-     * mound's upper block, its lower block, the top of the dirt under it and
-     * the obsidian beside it: the two mound blocks break and drop dirt, the
-     * dirt under the plane and the obsidian stay.
+     * A mock player begins the hold with the cursor on a ground block, then
+     * holds flatten aimed at the west face of the dirt mound standing on it:
+     * the six dirt blocks of the cursor's upright 3x3 above the ground's top
+     * break and drop dirt, the obsidian among them stays, and the ground row
+     * of the 3x3 stays.
      *
      * @param helper the gametest helper
      */
     public static void flattenBreaksAboveThePlane(GameTestHelper helper) {
         AbilityDefinition flatten = AbilityRegistry.of(helper.getLevel()).getAbility(ROCK_FLATTEN);
         helper.assertTrue(flatten != null, ABILITY_REQUIRED);
-        helper.setBlock(UNDER_PLANE, Blocks.DIRT);
-        helper.setBlock(MOUND_LOW, Blocks.DIRT);
-        helper.setBlock(MOUND_HIGH, Blocks.DIRT);
+        for (int z = -1; z <= 1; z++) {
+            for (int y = 0; y <= 2; y++) {
+                helper.setBlock(GROUND.offset(0, y, z), Blocks.DIRT);
+            }
+        }
         helper.setBlock(OUTSIDE_TAG, Blocks.OBSIDIAN);
         ServerPlayer player = flattener(helper);
         KnownRecipes.teachRequires(player, flatten);
-        Vec3[] aims = {westFace(helper, MOUND_HIGH), westFace(helper, MOUND_LOW), topFace(helper, UNDER_PLANE),
-                westFace(helper, OUTSIDE_TAG)};
-        for (int held = 0; held < aims.length; held++) {
-            GooStreamPayload tick = new GooStreamPayload(GooTypes.id(GooTypes.ROCK), ROCK_FLATTEN.toString(),
-                    player.getEyePosition(), aims[held], player.getY());
-            helper.runAfterDelay(held + 1, () -> GooStreamHandler.streamTick(player, tick));
-        }
+        double plane = ChannelAim.planeAbove(helper.absolutePos(GROUND).getY());
+        GooStreamPayload tick = new GooStreamPayload(GooTypes.id(GooTypes.ROCK), ROCK_FLATTEN.toString(),
+                player.getEyePosition(), westFace(helper, AIMED), plane);
+        helper.runAfterDelay(1, () -> GooStreamHandler.streamTick(player, tick));
         helper.runAfterDelay(ASSERT_TICK, () -> {
             helper.getLevel().getServer().getPlayerList().remove(player);
-            helper.assertBlockPresent(Blocks.AIR, MOUND_HIGH);
-            helper.assertBlockPresent(Blocks.AIR, MOUND_LOW);
-            helper.assertBlockPresent(Blocks.DIRT, UNDER_PLANE);
+            for (int z = -1; z <= 1; z++) {
+                helper.assertBlockPresent(Blocks.DIRT, GROUND.offset(0, 0, z));
+                for (int y = 1; y <= 2; y++) {
+                    BlockPos above = GROUND.offset(0, y, z);
+                    if (!above.equals(OUTSIDE_TAG)) {
+                        helper.assertBlockPresent(Blocks.AIR, above);
+                    }
+                }
+            }
             helper.assertBlockPresent(Blocks.OBSIDIAN, OUTSIDE_TAG);
-            helper.assertItemEntityPresent(Items.DIRT, MOUND_LOW, ITEM_SEARCH_RADIUS);
+            helper.assertItemEntityPresent(Items.DIRT, AIMED, ITEM_SEARCH_RADIUS);
             helper.succeed();
         });
     }
@@ -80,10 +87,6 @@ public final class FlattenChannelTests {
     private static Vec3 westFace(GameTestHelper helper, BlockPos relative) {
         BlockPos pos = helper.absolutePos(relative);
         return new Vec3(pos.getX(), pos.getY() + FACE_CENTER, pos.getZ() + FACE_CENTER);
-    }
-
-    private static Vec3 topFace(GameTestHelper helper, BlockPos relative) {
-        return Vec3.atCenterOf(helper.absolutePos(relative)).add(0, FACE_CENTER, 0);
     }
 
     @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
