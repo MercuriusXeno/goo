@@ -9,6 +9,7 @@ import com.mercuriusxeno.goo.ability.program.EntityHost;
 import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
+import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.world.AbilityImpact;
 import com.mercuriusxeno.goo.registry.GooSounds;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -399,9 +400,28 @@ public final class GooEffectScheduler {
      */
     private static void runAbilityOn(PendingEffect pe, LivingEntity living) {
         AbilityDefinition def = resolveAbility(pe.level, pe.abilityId);
-        if (def != null) {
+        if (def == null) {
+            return;
+        }
+        if (landsAtTheFeet(def.behaviors())) {
+            // colonize-blob-grows-the-network: a program only the world serves lands under the struck mob
+            AbilityImpact.land(pe.level, living.blockPosition().below(), pe.gooType, Direction.UP, def,
+                    living.position());
+        } else {
             runEntityProgram(pe, def, living);
         }
+    }
+
+    /**
+     * Whether a program struck onto a mob lands at the mob's feet instead: the
+     * struck entity cannot serve it and a blob's landing can, as Spore's
+     * colonize step, which grows the ground, needs.
+     *
+     * @param behaviors the ability's program
+     * @return true for a program a landing serves and the struck entity does not
+     */
+    static boolean landsAtTheFeet(List<Step> behaviors) {
+        return !ProgramBehavior.serves(behaviors, HostKind.ENTITY) && ProgramBehavior.serves(behaviors, HostKind.LANDING);
     }
 
     private static AbilityDefinition resolveAbility(ServerLevel level, String abilityId) {

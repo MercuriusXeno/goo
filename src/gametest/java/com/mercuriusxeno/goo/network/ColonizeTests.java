@@ -8,14 +8,17 @@ import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.block.Blocks;
 
 /**
  * Gametests for Colonize: a blob landing on a shroom network spreads that
- * network over the ground beside it, and one landing off any network buds
- * the ground and spores the mobs there, growing no network
+ * network over the ground beside it, one landing off any network buds the
+ * ground, every landing spores the mobs beside it, and one thrown at a mob
+ * lands at its feet, growing no network where there is none
  * (decision colonize-blob-grows-the-network).
  */
 public final class ColonizeTests {
@@ -28,6 +31,9 @@ public final class ColonizeTests {
     private static final BlockPos TWO_OFF = LANDED_ON.south(2);
     private static final String LANDING_BUDDED = "Colonize landing on no network should bud the landing";
     private static final String NO_MYCELIUM = "Colonize landing on no network should grow no mycelium";
+    private static final int SPORE_LEVEL_II = 1;
+    private static final int SETTLE_TICKS = 2;
+    private static final String NO_VANILLA = "Spore should carry no vanilla slowness, weakness or poison";
     private static final String PIG_SPORED = "A pig beside the landing should carry the spore poison and spores";
 
     private ColonizeTests() {
@@ -66,6 +72,27 @@ public final class ColonizeTests {
                 && helper.getBlockState(BESIDE).is(Blocks.DIRT), NO_MYCELIUM);
         helper.assertTrue(pig.hasEffect(GooMobEffects.MYCOSIS) && pig.hasData(GooAttachments.SPORED), PIG_SPORED);
         helper.succeed();
+    }
+
+    /**
+     * Spore thrown at a pig lands at its feet: the pig carries the spore
+     * effect at level II and spores, and no vanilla effect stands beside it.
+     *
+     * @param helper the gametest helper
+     */
+    public static void sporeStruckOnAMob(GameTestHelper helper) {
+        helper.setBlock(LANDED_ON, Blocks.GRASS_BLOCK);
+        Mob pig = helper.spawnWithNoFreeWill(EntityType.PIG, LANDED_ON.above());
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), null, GooTypes.SHROOM,
+                    pig.getId(), pig.blockPosition(), Direction.UP, COLONIZE));
+            MobEffectInstance spores = pig.getEffect(GooMobEffects.MYCOSIS);
+            helper.assertTrue(spores != null && spores.getAmplifier() == SPORE_LEVEL_II && pig.hasData(
+                    GooAttachments.SPORED), PIG_SPORED);
+            helper.assertFalse(pig.hasEffect(MobEffects.SLOWNESS) || pig.hasEffect(MobEffects.WEAKNESS)
+                    || pig.hasEffect(MobEffects.POISON), NO_VANILLA);
+            helper.succeed();
+        });
     }
 
     private static void landOn(GameTestHelper helper, BlockPos block) {

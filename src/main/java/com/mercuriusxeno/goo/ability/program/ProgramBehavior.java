@@ -59,6 +59,23 @@ public final class ProgramBehavior {
     }
 
     /**
+     * Whether a host kind serves every step of a program, the check
+     * {@link #forHost} refuses on, answered rather than thrown.
+     *
+     * @param steps the program body
+     * @param kind  the host kind
+     * @return true when the program loads on the host
+     */
+    public static boolean serves(List<Step> steps, HostKind kind) {
+        try {
+            steps.forEach(step -> refuseUnservedStep(step, kind));
+            return true;
+        } catch (ProgramLoadException e) {
+            return false;
+        }
+    }
+
+    /**
      * Refuses a step, or any step beneath it, whose needs the host kind
      * does not meet.
      *

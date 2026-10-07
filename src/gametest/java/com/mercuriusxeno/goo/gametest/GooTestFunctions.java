@@ -392,6 +392,7 @@ public final class GooTestFunctions {
     private static final String MYCOSIS_TAP_POISONS_BELOW = "mycosis_tap_poisons_below";
     private static final String COLONIZE_SPREADS_NYLIUM = "colonize_spreads_nylium";
     private static final String COLONIZE_BUDS_OFF_THE_NETWORK = "colonize_buds_off_the_network";
+    private static final String SPORE_STRUCK_ON_A_MOB = "spore_struck_on_a_mob";
     private static final String FUNGAL_SHIFT_TO_A_MUSHROOM = "fungal_shift_to_a_mushroom";
     private static final String FUNGAL_SHIFT_REFUSES_STONE = "fungal_shift_refuses_stone";
     private static final String SIGHT_EXTENDS_THE_SHIFT = "sight_extends_the_shift";
@@ -418,7 +419,6 @@ public final class GooTestFunctions {
     private static final String MOB_CRYSTAL = "mob_crystal_flechettes";
     private static final String MOB_LEAF = "mob_leaf_entangle";
     private static final String MOB_VITAL = "mob_vital_clone";
-    private static final String MOB_SHROOM = "mob_shroom_debuff";
     private static final String MOB_BLAZE = "mob_blaze_ignite";
     private static final String MOB_FROST = "mob_frost_snap";
     private static final String MOB_TYPHOON = "mob_typhoon_levitate";
@@ -842,6 +842,7 @@ public final class GooTestFunctions {
         reg(r, MYCOSIS_TAP_POISONS_BELOW, MycosisTests::mycosisTapPoisonsBelow);
         reg(r, COLONIZE_SPREADS_NYLIUM, ColonizeTests::colonizeSpreadsNylium);
         reg(r, COLONIZE_BUDS_OFF_THE_NETWORK, ColonizeTests::colonizeBudsOffTheNetwork);
+        reg(r, SPORE_STRUCK_ON_A_MOB, ColonizeTests::sporeStruckOnAMob);
         reg(r, FUNGAL_SHIFT_TO_A_MUSHROOM, FungalShiftTests::fungalShiftToAMushroom);
         reg(r, FUNGAL_SHIFT_REFUSES_STONE, FungalShiftTests::fungalShiftRefusesStone);
         reg(r, SIGHT_EXTENDS_THE_SHIFT, FungalShiftTests::sightExtendsTheShift);
@@ -868,7 +869,6 @@ public final class GooTestFunctions {
         reg(r, MOB_CRYSTAL, MobEffectTests::crystalFlechettes);
         reg(r, MOB_LEAF, MobEffectTests::leafEntangle);
         reg(r, MOB_VITAL, MobEffectTests::vitalClone);
-        reg(r, MOB_SHROOM, MobEffectTests::shroomDebuff);
         reg(r, MOB_BLAZE, MobEffectTests::blazeIgnite);
         reg(r, MOB_FROST, MobEffectTests::frostSnap);
         reg(r, MOB_TYPHOON, MobEffectTests::typhoonLevitate);

@@ -1,9 +1,9 @@
 {
   "type": "minecraft:function",
-  "function": "goo:mob_shroom_debuff",
+  "function": "goo:spore_struck_on_a_mob",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
-  "max_ticks": 5,
+  "max_ticks": 20,
   "setup_ticks": 0,
   "required": true
 }
