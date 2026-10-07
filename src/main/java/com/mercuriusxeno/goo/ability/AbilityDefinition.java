@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability;
 
 import com.mercuriusxeno.goo.ability.program.AwaitEntityStep;
+import com.mercuriusxeno.goo.ability.program.CrushStep;
 import com.mercuriusxeno.goo.ability.program.EntitiesStep;
 import com.mercuriusxeno.goo.ability.program.ExplodeStep;
 import com.mercuriusxeno.goo.ability.program.ExplosionMarch;
@@ -197,6 +198,7 @@ public record AbilityDefinition(
             radiusOf(EntitiesStep.class, EntitiesStep::radius),
             radiusOf(PullStep.class, PullStep::radius),
             radiusOf(AwaitEntityStep.class, AwaitEntityStep::radius),
+            radiusOf(CrushStep.class, crush -> Expr.literal(crush.radius())),
             AbilityDefinition::consumedBlocksRadius);
 
     /**
