@@ -151,6 +151,22 @@ public final class EntityScan {
      */
     private static Map<EntityFilter, BiPredicate<Entity, @Nullable Entity>> meanings() {
         Map<EntityFilter, BiPredicate<Entity, @Nullable Entity>> table = new EnumMap<>(EntityFilter.class);
+        putKindMeanings(table);
+        putStateMeanings(table);
+        for (EntityFilter filter : EntityFilter.values()) {
+            if (!table.containsKey(filter)) {
+                throw new IllegalStateException(ERR_UNMEANT_FILTER + filter);
+            }
+        }
+        return table;
+    }
+
+    /**
+     * Puts the meanings of the filters that read what an entity is.
+     *
+     * @param table the table to fill
+     */
+    private static void putKindMeanings(Map<EntityFilter, BiPredicate<Entity, @Nullable Entity>> table) {
         table.put(EntityFilter.LIVING, (entity, self) -> entity instanceof LivingEntity);
         table.put(EntityFilter.NOT_ITEM, (entity, self) -> !(entity instanceof ItemEntity));
         table.put(EntityFilter.NOT_BOSS, (entity, self) -> !isBoss(entity));
@@ -158,6 +174,14 @@ public final class EntityScan {
         table.put(EntityFilter.NOT_FIRE_IMMUNE, (entity, self) -> !entity.fireImmune());
         table.put(EntityFilter.UNDEAD,
                 (entity, self) -> entity instanceof LivingEntity living && living.isInvertedHealAndHarm());
+    }
+
+    /**
+     * Puts the meanings of the filters that read the state an entity is in.
+     *
+     * @param table the table to fill
+     */
+    private static void putStateMeanings(Map<EntityFilter, BiPredicate<Entity, @Nullable Entity>> table) {
         table.put(EntityFilter.ALIVE, (entity, self) -> entity.isAlive());
         table.put(EntityFilter.NOT_TARGET, (entity, self) -> entity != self);
         table.put(EntityFilter.NOT_SNEAKING,
@@ -168,12 +192,6 @@ public final class EntityScan {
                 (entity, self) -> !(entity instanceof LivingEntity living && living.isBaby()));
         table.put(EntityFilter.VULNERABLE,
                 (entity, self) -> entity instanceof LivingEntity living && living.invulnerableTime == 0);
-        for (EntityFilter filter : EntityFilter.values()) {
-            if (!table.containsKey(filter)) {
-                throw new IllegalStateException(ERR_UNMEANT_FILTER + filter);
-            }
-        }
-        return table;
     }
 
     /**

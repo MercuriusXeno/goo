@@ -100,13 +100,22 @@ public record DamageStep(Expr amount, DamageKind source, boolean knockback,
      */
     private DamageSource damageSource(LivingEntity target, @Nullable Entity thrower) {
         DamageSources sources = target.damageSources();
+        return source == DamageKind.ATTACK ? attackBy(sources, thrower) : sourceOfItsOwn(sources);
+    }
+
+    /**
+     * The source of a kind that names its own, owing nothing to the thrower.
+     *
+     * @param sources the level's damage sources
+     * @return the damage source
+     */
+    private DamageSource sourceOfItsOwn(DamageSources sources) {
         return switch (source) {
             case MAGIC -> sources.magic();
             case FREEZE -> sources.freeze();
             case STALAGMITE -> sources.stalagmite();
             case CACTUS -> sources.cactus();
-            case FORCE -> sources.generic();
-            case ATTACK -> attackBy(sources, thrower);
+            case FORCE, ATTACK -> sources.generic();
         };
     }
 
