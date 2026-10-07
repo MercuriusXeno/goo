@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.client.network;
 
-import com.mercuriusxeno.goo.client.ability.DissolvingBlocks;
+import com.mercuriusxeno.goo.client.ability.MeltingBlocks;
 import com.mercuriusxeno.goo.network.UnmakePayload;
 import net.minecraft.client.Minecraft;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
@@ -26,7 +26,7 @@ public final class UnmakeHandler {
             if (mc.level == null) {
                 return;
             }
-            DissolvingBlocks.CLIENT.record(payload.pos(), payload.fraction(), mc.level.getGameTime());
+            MeltingBlocks.CLIENT.record(payload.pos(), payload.fraction(), mc.level.getGameTime());
         });
     }
 }

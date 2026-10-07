@@ -27,10 +27,11 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Gametest for Unmake: a stream held at a cobblestone and a diamond block
- * dissolves the cobblestone on the very tick its crucible value's work is
- * done, drops the share of its goo the ability yields, and leaves the dearer
- * diamond block standing.
+ * Gametest for Unmake: a stream held at two cobblestones in a line and a
+ * diamond block melts both cobblestones on the very tick their crucible
+ * value's work is done, the one behind as well as the nearest, drops the
+ * share of their goo the ability yields, and leaves the dearer diamond block
+ * standing.
  * decision unmake-waves-dissolve-by-crucible-cost
  */
 public final class UnmakeTests {
@@ -39,6 +40,8 @@ public final class UnmakeTests {
     private static final BlockPos STAND_POS = new BlockPos(1, 1, 3);
     /** Three blocks east at eye height, on the look's axis. */
     private static final BlockPos CHEAP_POS = new BlockPos(4, 2, 3);
+    /** Right behind the first cobblestone along the look, which the cone reaches as well. */
+    private static final BlockPos BEHIND_POS = CHEAP_POS.east();
     /** Four blocks east and one south at eye height, inside the cone beside the cobblestone. */
     private static final BlockPos DEAR_POS = new BlockPos(5, 2, 4);
     /** The yaw a player faces east, toward +x, at. */
@@ -55,6 +58,7 @@ public final class UnmakeTests {
     private static final String NOT_DEAR = "The diamond block should take longer to unmake than the hold, needs %d";
     private static final String GONE_EARLY = "The cobblestone should stand one tick short of its work, %d ticks";
     private static final String NOT_GONE = "The cobblestone should be gone once its work of %d ticks is done";
+    private static final String BEHIND_STANDS = "The cobblestone behind the first should melt with it after %d ticks";
     private static final String DEAR_GONE = "The diamond block should still stand after %d ticks";
     private static final String WRONG_YIELD = "The cobblestone should leave %s, left %s";
 
@@ -72,6 +76,7 @@ public final class UnmakeTests {
         AbilityDefinition unmake = AbilityRegistry.of(helper.getLevel()).getAbility(UNMAKE);
         helper.assertTrue(unmake != null, ABILITY_REQUIRED);
         helper.setBlock(CHEAP_POS, Blocks.COBBLESTONE);
+        helper.setBlock(BEHIND_POS, Blocks.COBBLESTONE);
         helper.setBlock(DEAR_POS, Blocks.DIAMOND_BLOCK);
         IGooValueLookup values = GooValues.of(helper.getLevel());
         GooValue cheap = values.lookup(new ItemStack(Blocks.COBBLESTONE));
@@ -89,15 +94,18 @@ public final class UnmakeTests {
                 GooStreamHandler.streamTick(player, tick);
                 if (thisTick == cheapWork - 1) {
                     helper.assertBlockPresent(Blocks.COBBLESTONE, CHEAP_POS);
+                    helper.assertBlockPresent(Blocks.COBBLESTONE, BEHIND_POS);
                 } else if (thisTick == cheapWork) {
                     helper.assertTrue(helper.getBlockState(CHEAP_POS).isAir(), String.format(NOT_GONE, cheapWork));
+                    helper.assertTrue(helper.getBlockState(BEHIND_POS).isAir(), String.format(BEHIND_STANDS, cheapWork));
                 }
             });
         }
         helper.runAfterDelay(HOLD_TICKS + 1, () -> {
             helper.getLevel().getServer().getPlayerList().remove(player);
             helper.assertBlockPresent(Blocks.DIAMOND_BLOCK, DEAR_POS);
-            GooContents expected = UnmakeRule.yieldOf(cheap, YIELD);
+            GooContents one = UnmakeRule.yieldOf(cheap, YIELD);
+            GooContents expected = one.mergeWith(one);
             Map<ResourceKey<GooTypeDefinition>, Integer> dropped = droppedGoo(helper);
             helper.assertTrue(expected.getAll().equals(dropped), String.format(WRONG_YIELD, expected.getAll(), dropped));
             helper.succeed();
