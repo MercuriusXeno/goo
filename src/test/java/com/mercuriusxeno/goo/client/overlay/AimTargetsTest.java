@@ -71,10 +71,10 @@ class AimTargetsTest {
         }
 
         @Test
-        void mobFallsBackToTheBlockWhereNoEntityIsNear() {
+        void mobAimsNothingWhereNoEntityIsNear() {
             AimState.Resolution resolution = resolve(AbilityBadge.MOB, null);
 
-            assertEquals(BLOCK_TARGET, resolution.target());
+            assertEquals(TargetResult.NONE, resolution.target());
             assertNull(resolution.hit());
         }
 
