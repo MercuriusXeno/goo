@@ -23,8 +23,6 @@ public record ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, double coneDe
 
     /** How far past the aim point, along the line from the eye, the aimed block is read. */
     private static final double INTO_THE_FACE = 0.01;
-    /** How far the cursor's area reaches from the aimed block each way: one, for a 3x3. */
-    private static final int AREA_REACH = 1;
     /** How many blocks out from the face the swath reaches. */
     private static final int SWATH_DEPTH = 3;
 
@@ -104,18 +102,8 @@ public record ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, double coneDe
         if (plane == null) {
             return swath;
         }
-        Direction.Axis normal = plane.face().getAxis();
         for (int out = SWATH_DEPTH; out >= 1; out--) {
-            BlockPos middle = plane.layer(aimed, out);
-            for (int first = -AREA_REACH; first <= AREA_REACH; first++) {
-                for (int second = -AREA_REACH; second <= AREA_REACH; second++) {
-                    swath.add(switch (normal) {
-                        case X -> middle.offset(0, first, second);
-                        case Y -> middle.offset(first, 0, second);
-                        case Z -> middle.offset(first, second, 0);
-                    });
-                }
-            }
+            swath.addAll(BoreStep.sliceRingIn(plane.layer(aimed, out), plane.face().getAxis()));
         }
         return swath;
     }
