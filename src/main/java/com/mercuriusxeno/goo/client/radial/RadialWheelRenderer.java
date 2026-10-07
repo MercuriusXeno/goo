@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.radial;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
+import com.mercuriusxeno.goo.client.network.OfferedAbility;
 import com.mercuriusxeno.goo.item.GooFormat;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypeNames;
@@ -38,7 +39,8 @@ final class RadialWheelRenderer {
     private static final int HUB_COLOR = 0x44FFFFFF;
     private static final int COLOR_WHITE = 0xFFFFFFFF;
     private static final int HOVER_TEXT_COLOR = 0xFFFFFF00;
-    private static final int DISABLED_TEXT_COLOR = 0xFF888888;
+    /** The color a disabled petal's words draw in. */
+    static final int DISABLED_TEXT_COLOR = 0xFF888888;
     /** The near-black border every word draws inside. */
     static final int OUTLINE_COLOR = 0xFF101010;
     /** How many pixels the border reaches past each side of a word. */
@@ -66,7 +68,7 @@ final class RadialWheelRenderer {
      *
      * @param wheel     the wheel's state
      * @param types     the types, one per petal at rest
-     * @param abilities the abilities each type opens to, by type index
+     * @param abilities the abilities each type opens to, by type index, each with its locked flag
      * @param available the amount the player holds per type, snapshot on open
      * @param centerX   the wheel's center x
      * @param centerY   the wheel's center y
@@ -75,7 +77,7 @@ final class RadialWheelRenderer {
      * @param partialTick the fraction of a tick since the last one, for the petals' ease
      */
     record Frame(RadialWheel wheel, List<ResourceKey<GooTypeDefinition>> types,
-                 List<List<ClientAbility>> abilities, Map<ResourceKey<GooTypeDefinition>, Integer> available,
+                 List<List<OfferedAbility>> abilities, Map<ResourceKey<GooTypeDefinition>, Integer> available,
                  int centerX, int centerY, int radius, PetalLook look, float partialTick) {
     }
 
@@ -148,15 +150,18 @@ final class RadialWheelRenderer {
      */
     private static Words renderAbility(GuiGraphicsExtractor graphics, Frame frame, RadialWheel.PetalArc petal) {
         ResourceKey<GooTypeDefinition> key = frame.types().get(petal.type());
-        ClientAbility ability = frame.abilities().get(petal.type()).get(petal.ability());
+        OfferedAbility offered = frame.abilities().get(petal.type()).get(petal.ability());
+        ClientAbility ability = offered.ability();
         boolean hovered = petal.ability() == frame.wheel().hoveredAbility();
         FanSlot slotLabels = fanSlot(ability, frame.available().getOrDefault(key, 0));
+        // locked-petal-stays-on-the-wheel: a locked petal takes the unaffordable petal's dimmed look
+        boolean dimmed = offered.locked() || slotLabels.dimmed();
         PetalPainter.paint(graphics, frame, frame.look().fluidFace(key), petal,
-                computeOverlayTint(hovered, slotLabels.dimmed()));
+                computeOverlayTint(hovered, dimmed));
         int[] slot = tipCenter(frame, petal);
         blitAbilityIcon(graphics, ability, slot,
-                slotLabels.dimmed() ? computeOverlayTint(false, true) : COLOR_WHITE);
-        int textColor = slotLabels.dimmed() ? DISABLED_TEXT_COLOR : hovered ? HOVER_TEXT_COLOR : COLOR_WHITE;
+                dimmed ? computeOverlayTint(false, true) : COLOR_WHITE);
+        int textColor = dimmed ? DISABLED_TEXT_COLOR : hovered ? HOVER_TEXT_COLOR : COLOR_WHITE;
         return new Words(splitNameLines(buildLabel(ability).getString()), Component.literal(slotLabels.costLabel()),
                 slot, textColor);
     }

@@ -85,7 +85,7 @@ public final class AbilitySyncHandler {
      * @param cost        the mB a throw costs, the same at every stack count
      * @param delivery    how the ability leaves the glove
      * @param badge       the target kind the radial marks on the icon
-     * @param requires    the items the player must know before the radial offers it
+     * @param requires    the items the player must know before its radial petal unlocks
      * @param area        the area the glove draws while right click is held
      * @param indicator   when the ability's indicator shows
      * @param consumes    the items a throw takes, one of each, beside its goo cost
@@ -108,7 +108,7 @@ public final class AbilitySyncHandler {
          * @param cost        the mB a throw costs
          * @param delivery    how the ability leaves the glove
          * @param badge       the target kind the radial marks on the icon
-         * @param requires    the items the player must know before the radial offers it
+         * @param requires    the items the player must know before its radial petal unlocks
          * @param area        the area the glove draws while right click is held
          * @param indicator   when the ability's indicator shows
          */
@@ -131,7 +131,7 @@ public final class AbilitySyncHandler {
          * @param cost        the mB a throw costs
          * @param delivery    how the ability leaves the glove
          * @param badge       the target kind the radial marks on the icon
-         * @param requires    the items the player must know before the radial offers it
+         * @param requires    the items the player must know before its radial petal unlocks
          */
         public ClientAbility(Identifier id, String displayName, String icon, int order, List<String> tags,
                              List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge,
@@ -151,7 +151,7 @@ public final class AbilitySyncHandler {
          * @param cost        the mB a throw costs
          * @param delivery    how the ability leaves the glove
          * @param badge       the target kind the radial marks on the icon
-         * @param requires    the items the player must know before the radial offers it
+         * @param requires    the items the player must know before its radial petal unlocks
          * @param area        the area the glove draws while right click is held
          */
         public ClientAbility(Identifier id, String displayName, String icon, int order, List<String> tags,
@@ -175,8 +175,8 @@ public final class AbilitySyncHandler {
         }
 
         /**
-         * Whether the player knows every item this ability requires
-         * (decision ability-hidden-until-recipes-known).
+         * Whether the player knows every item this ability requires, which
+         * unlocks its radial petal (decision locked-petal-stays-on-the-wheel).
          *
          * @param known the items the player knows
          * @return true when no required item is unknown

@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
+import com.mercuriusxeno.goo.client.network.OfferedAbility;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypeNames;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -256,6 +257,12 @@ class RadialWheelRendererTest {
         private static final int CENTER_Y = 1100;
         private static final int RADIUS = 1000;
         private static final int LINES_PER_ABILITY = 2;
+        /** An ability index no petal holds, so a frame rendered with it locks nothing. */
+        private static final int NO_ABILITY = -1;
+        /** The open type's ability a locked frame locks. */
+        private static final int LOCKED_ABILITY = 1;
+        /** The name every test ability resolves to with no language loaded. */
+        private static final Component ABILITY_NAME = Component.literal("ability.gootest.word");
 
         private static final PetalLook.SpriteBox SPRITE = new PetalLook.SpriteBox(0.25f, 0.5f, 0.125f, 0.25f);
         private static final int EDGE_COLOR = 0xFF123456;
@@ -313,10 +320,23 @@ class RadialWheelRendererTest {
         }
 
         private GuiGraphicsExtractor renderFrame(RadialWheel wheel) {
-            List<List<ClientAbility>> abilities = IntStream.range(0, TYPES)
-                    .mapToObj(type -> IntStream.range(0, ABILITIES).mapToObj(ability -> new ClientAbility(
+            return renderFrame(wheel, NO_ABILITY);
+        }
+
+        /**
+         * Renders the frame with one ability of the open type locked.
+         *
+         * @param wheel         the wheel's state
+         * @param lockedAbility the open type's ability index to lock, or {@link #NO_ABILITY}
+         * @return the mocked graphics the frame drew to
+         */
+        private GuiGraphicsExtractor renderFrame(RadialWheel wheel, int lockedAbility) {
+            List<List<OfferedAbility>> abilities = IntStream.range(0, TYPES)
+                    .mapToObj(type -> IntStream.range(0, ABILITIES).mapToObj(ability -> new OfferedAbility(
+                            new ClientAbility(
                             Identifier.fromNamespaceAndPath("gootest", "ability_" + type + "_" + ability),
-                            "ability.gootest.word", "", 0, List.of(), List.of(), 0, Delivery.ARC, AbilityBadge.WORLD, List.of()))
+                            "ability.gootest.word", "", 0, List.of(), List.of(), 0, Delivery.ARC, AbilityBadge.WORLD, List.of()),
+                            type == OPEN_TYPE && ability == lockedAbility))
                             .toList())
                     .toList();
             GuiGraphicsExtractor graphics = mock(GuiGraphicsExtractor.class);
@@ -481,6 +501,52 @@ class RadialWheelRendererTest {
                         assertTrue(words.getFirst().y() + LINE_HEIGHT <= iconY - half, petal + " name above");
                         assertTrue(words.getLast().y() >= iconY + half, petal + " cost below");
                     }));
+        }
+
+        /**
+         * A locked petal draws as an unaffordable one does, its fill, icon and
+         * words dimmed, its name still drawn; its unlocked siblings stay bright.
+         * decision locked-petal-stays-on-the-wheel
+         */
+        @Test
+        void lockedPetalDrawsDimmedWithItsNameLegible() {
+            RadialWheel wheel = openWheel();
+            GuiGraphicsExtractor graphics = renderFrame(wheel, LOCKED_ABILITY);
+            int disabledTint = RadialWheelRenderer.computeOverlayTint(false, true);
+            List<RadialWheel.PetalArc> petals = wheel.displayedLayout(0.0f);
+            List<PetalRenderState> fills = submittedArguments(graphics, "submitGuiElementRenderState",
+                    PetalRenderState.class).stream().filter(PetalRenderState::isTextured).toList();
+
+            assertAll(petals.stream().filter(RadialWheel.PetalArc::isAbility).map(petal -> (Executable) () -> {
+                boolean locked = petal.ability() == LOCKED_ABILITY;
+                int fillTint = fills.get(petals.indexOf(petal)).color();
+                var icon = iconBlit(graphics, "ability_" + petal.type() + "_" + petal.ability() + ".png");
+                int iconTint = icon.getArgument(ICON_COLOR_ARGUMENT);
+                int half = RadialWheelRenderer.ABILITY_ICON_SIZE / 2;
+                int iconX = (int) icon.getArgument(2) + half;
+                int iconY = (int) icon.getArgument(3) + half;
+                List<org.mockito.invocation.Invocation> words = mockingDetails(graphics).getInvocations().stream()
+                        .filter(call -> call.getMethod().getName().equals("text")
+                                && (int) call.getArgument(TEXT_COLOR_ARGUMENT) != RadialWheelRenderer.OUTLINE_COLOR
+                                && (int) call.getArgument(2) + WORD_WIDTH / 2 == iconX
+                                && Math.abs((int) call.getArgument(3) - iconY) <= half + 2 * LINE_HEIGHT)
+                        .toList();
+                assertEquals(locked, fillTint == disabledTint, petal + " fill tint");
+                assertEquals(locked, iconTint == disabledTint, petal + " icon tint");
+                assertEquals(LINES_PER_ABILITY, words.size(), petal + " lines");
+                assertTrue(words.stream().anyMatch(call -> ABILITY_NAME.equals(call.getArgument(1))),
+                        petal + " name drawn");
+                assertTrue(words.stream().allMatch(call -> locked
+                        == ((int) call.getArgument(TEXT_COLOR_ARGUMENT) == RadialWheelRenderer.DISABLED_TEXT_COLOR)),
+                        petal + " word color");
+            }));
+        }
+
+        private static org.mockito.invocation.Invocation iconBlit(GuiGraphicsExtractor graphics, String icon) {
+            return mockingDetails(graphics).getInvocations().stream()
+                    .filter(call -> call.getMethod().getName().equals("blit")
+                            && call.getArgument(1).toString().endsWith(icon))
+                    .findFirst().orElseThrow();
         }
 
         /** decision abilities-replace-the-hovered-type */
