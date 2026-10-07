@@ -187,7 +187,7 @@ public class PlexerBlock extends FacingRedstoneMachineBlock {
             return InteractionResult.PASS;
         }
         if (!plexer.getTargetItem().isEmpty()) {
-            return CutawayInteractionHelper.clearTargetItem(plexer, player);
+            return CutawayInteractionHelper.clearTargetItem(plexer);
         }
         return InteractionResult.PASS;
     }
