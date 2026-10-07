@@ -213,7 +213,6 @@ public final class GooTooltipHandler {
             return false;
         }
 
-        elements.add(Either.left(Component.empty()));
         elements.add(Either.right(new GooValueTooltipComponent(contentType, contentAmount)));
         appendContainerValue(elements, stack);
         return true;
@@ -365,20 +364,18 @@ public final class GooTooltipHandler {
         if (volume <= 0 || type == null) {
             return;
         }
-        elements.add(Either.left(Component.empty()));
         elements.add(Either.right(
                 new GooValueTooltipComponent(type, volume)));
     }
 
     /**
-     * Inserts a blank separator line and one GooValueTooltipComponent per goo type.
+     * Inserts one GooValueTooltipComponent per goo type.
      *
      * @param elements the tooltip element list
      * @param value    the goo value mapping
      */
     private static void appendGooComponents(
             List<Either<FormattedText, TooltipComponent>> elements, GooValue value) {
-        elements.add(Either.left(Component.empty()));
         for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> entry : value.getAll().entrySet()) {
             elements.add(Either.right(
                     new GooValueTooltipComponent(entry.getKey(), entry.getValue())));
@@ -393,7 +390,6 @@ public final class GooTooltipHandler {
      */
     private static void appendGooContentsComponents(
             List<Either<FormattedText, TooltipComponent>> elements, GooContents contents) {
-        elements.add(Either.left(Component.empty()));
         for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> entry : contents.getAll().entrySet()) {
             elements.add(Either.right(
                     new GooValueTooltipComponent(entry.getKey(), entry.getValue())));
@@ -411,7 +407,6 @@ public final class GooTooltipHandler {
             List<Either<FormattedText, TooltipComponent>> elements, CanisterFluidContent content) {
         ResourceKey<GooTypeDefinition> gooType = content.getGooType();
         if (gooType != null) {
-            elements.add(Either.left(Component.empty()));
             elements.add(Either.right(
                     new GooValueTooltipComponent(gooType, content.amount())));
         } else {
@@ -427,7 +422,6 @@ public final class GooTooltipHandler {
      */
     private static void appendVanillaFluidTooltip(
             List<Either<FormattedText, TooltipComponent>> elements, CanisterFluidContent content) {
-        elements.add(Either.left(Component.empty()));
         elements.add(Either.right(
                 new VanillaFluidTooltipComponent(content.fluid(), content.amount())));
     }
