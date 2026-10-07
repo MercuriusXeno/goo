@@ -1,18 +1,13 @@
 package com.mercuriusxeno.goo.network;
 
-import net.minecraft.core.BlockPos;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 
 /**
  * How long each player has held a stream, counted in server ticks: a
  * stream tick arriving the tick after the last one continues the hold, and
- * any gap starts a new one (decision stream-delivery-held-cone). Each hold
- * keeps the blocks it has touched, so a calcify steps a block once per hold
- * (decision petrify-stone-encasement-and-calcify-map).
+ * any gap starts a new one (decision stream-delivery-held-cone).
  */
 public final class StreamHolds {
 
@@ -27,22 +22,9 @@ public final class StreamHolds {
      */
     public int advance(UUID player, int tick) {
         Hold last = holds.get(player);
-        boolean continues = last != null && last.tick() == tick - 1;
-        int held = continues ? last.held() + 1 : 1;
-        holds.put(player, new Hold(tick, held, continues ? last.touched() : new HashSet<>()));
+        int held = last != null && last.tick() == tick - 1 ? last.held() + 1 : 1;
+        holds.put(player, new Hold(tick, held));
         return held;
-    }
-
-    /**
-     * Marks a block touched by the player's current hold.
-     *
-     * @param player the streaming player
-     * @param pos    the block
-     * @return true the first time the hold touches the block, false after, and false with no hold standing
-     */
-    public boolean touchOnce(UUID player, BlockPos pos) {
-        Hold hold = holds.get(player);
-        return hold != null && hold.touched().add(pos.immutable());
     }
 
     /** Drops every hold, as a server stop does. */
@@ -65,6 +47,6 @@ public final class StreamHolds {
         return (int) (total - before);
     }
 
-    private record Hold(int tick, int held, Set<BlockPos> touched) {
+    private record Hold(int tick, int held) {
     }
 }

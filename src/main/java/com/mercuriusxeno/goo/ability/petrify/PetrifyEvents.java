@@ -1,48 +1,34 @@
 package com.mercuriusxeno.goo.ability.petrify;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.ability.program.AilmentKind;
-import com.mercuriusxeno.goo.network.AilmentPayload;
-import com.mercuriusxeno.goo.network.EntityVisuals;
 import com.mercuriusxeno.goo.registry.GooAttachments;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
 
 /**
- * Keeps a petrified mob a statue: the tick it fills its gauge its AI stops
- * and its motion zeroes, and every tick after its motion stays zero and its
- * watchers keep drawing it encased in stone, a client that starts watching
- * later picking the encasement up within one refresh
+ * Runs a petrifying mob's gauge against time: each tick the fog no longer
+ * fills it, the gauge drains back slowly, and the mob's speed follows the
+ * gauge, slowing as it fills and recovering as it drains
  * (decision petrify-stone-encasement-and-calcify-map).
  */
 @EventBusSubscriber(modid = Goo.MODID)
 public final class PetrifyEvents {
 
-    /** Ticks between one encasement send and the next. */
-    static final int ENCASEMENT_REFRESH_TICKS = 20;
-    /** Each encasement send lasts past the next, so the stone never fades between them. */
-    static final int ENCASEMENT_TICKS = ENCASEMENT_REFRESH_TICKS * 2;
+    /** The movement modifier a petrifying mob wears, scaled by its gauge. */
+    static final Identifier SLOW_ID = Identifier.fromNamespaceAndPath(Goo.MODID, "petrify_slow");
 
     private PetrifyEvents() {
     }
 
     /**
-     * Turns a mob into a statue: no AI, no motion, encased in stone.
-     *
-     * @param mob the mob whose gauge filled
-     */
-    public static void becomeStatue(Mob mob) {
-        mob.setNoAi(true);
-        mob.setDeltaMovement(Vec3.ZERO);
-        encase(mob);
-    }
-
-    /**
-     * Holds each statue still and refreshes its encasement on its watchers.
+     * Drains each petrifying mob's gauge and keeps its slow in step.
      *
      * @param event the entity tick event
      */
@@ -50,26 +36,33 @@ public final class PetrifyEvents {
     public static void onEntityTick(EntityTickEvent.Post event) {
         Entity entity = event.getEntity();
         if (entity.level().isClientSide() || !(entity instanceof Mob mob)
-                || !mob.hasData(GooAttachments.PETRIFICATION) || !mob.getData(GooAttachments.PETRIFICATION).statue()) {
+                || !mob.hasData(GooAttachments.PETRIFICATION)) {
             return;
         }
-        mob.setDeltaMovement(Vec3.ZERO);
-        if (refreshesOn(mob.tickCount)) {
-            encase(mob);
+        Petrification before = mob.getData(GooAttachments.PETRIFICATION);
+        Petrification after = before.drained(mob.level().getGameTime());
+        if (after != before) {
+            mob.setData(GooAttachments.PETRIFICATION, after);
+            slowBy(mob, after);
         }
     }
 
     /**
-     * Whether a statue's encasement resends on a tick.
+     * Slows a mob by its gauge's share: no slow at an empty gauge, a dead
+     * stop at a full one.
      *
-     * @param tickCount the statue's tick count
-     * @return true once every refresh period
+     * @param mob          the petrifying mob
+     * @param petrification its gauge
      */
-    static boolean refreshesOn(int tickCount) {
-        return tickCount % ENCASEMENT_REFRESH_TICKS == 0;
-    }
-
-    private static void encase(Mob mob) {
-        EntityVisuals.sendToWatchers(mob, new AilmentPayload(mob.getId(), AilmentKind.PETRIFY, ENCASEMENT_TICKS));
+    public static void slowBy(Mob mob, Petrification petrification) {
+        AttributeInstance speed = mob.getAttribute(Attributes.MOVEMENT_SPEED);
+        if (speed == null) {
+            return;
+        }
+        speed.removeModifier(SLOW_ID);
+        if (petrification.started()) {
+            speed.addTransientModifier(new AttributeModifier(SLOW_ID, -petrification.share(),
+                    AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
+        }
     }
 }

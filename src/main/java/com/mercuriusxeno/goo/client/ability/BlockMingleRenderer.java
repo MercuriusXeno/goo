@@ -13,9 +13,11 @@ import net.minecraft.client.renderer.block.dispatch.BlockStateModel;
 import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.resources.model.geometry.BakedQuad;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.data.AtlasIds;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -28,7 +30,9 @@ import java.util.List;
  * Draws each playing block transform: the old block's model, a hair larger
  * than the block so it covers the new one on every face, through the mingle
  * pipeline, which lets the new block show through more of it as the
- * transform runs (decision petrify-stone-encasement-and-calcify-map).
+ * transform runs; and each block part way to its next calcify rung, the
+ * next block's model mingled in over it by the share built
+ * (decision petrify-stone-encasement-and-calcify-map).
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class BlockMingleRenderer {
@@ -57,44 +61,74 @@ public final class BlockMingleRenderer {
             return;
         }
         List<BlockTransforms.Transform> live = BlockTransforms.CLIENT.live(level.getGameTime());
-        if (live.isEmpty()) {
+        List<BlockTransforms.Exposure> exposing = BlockTransforms.CLIENT.exposing(level.getGameTime());
+        if (live.isEmpty() && exposing.isEmpty()) {
             return;
         }
         float gameTime = level.getGameTime() + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+        drawAll(event.getPoseStack(), live, exposing, gameTime);
+    }
+
+    /**
+     * Draws the playing transforms and the partial exposures into one mingle batch.
+     *
+     * @param poseStack the level's pose stack, camera relative
+     * @param live      the transforms playing
+     * @param exposing  the blocks part way to their next rung
+     * @param gameTime  the game time including the partial tick
+     */
+    private static void drawAll(PoseStack poseStack, List<BlockTransforms.Transform> live,
+                                List<BlockTransforms.Exposure> exposing, float gameTime) {
+        Minecraft mc = Minecraft.getInstance();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         RenderType mingle = GooRenderTypes.blockMingle(mc.getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS).location());
         VertexConsumer consumer = buffers.getBuffer(mingle);
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
         for (BlockTransforms.Transform transform : live) {
-            drawTransform(event.getPoseStack(), consumer, camera, transform, gameTime);
+            drawMingle(poseStack, consumer, camera,
+                    new Mingle(transform.pos(), transform.from(), transform.progress(gameTime)));
+        }
+        // petrify-stone-encasement-and-calcify-map: the next rung mingles in by the share built so far
+        for (BlockTransforms.Exposure exposure : exposing) {
+            drawMingle(poseStack, consumer, camera,
+                    new Mingle(exposure.pos(), exposure.toward(), 1f - exposure.share()));
         }
         buffers.endBatch(mingle);
     }
 
     /**
-     * Draws one transform's old block, swelled about its center, its progress on every quad.
+     * One block state drawn over a block through the mingle, with the share
+     * of it already dissolved.
+     *
+     * @param pos      the block
+     * @param state    the state drawn over it
+     * @param progress the share of the drawn state dissolved, 0 whole to 1 gone
+     */
+    private record Mingle(BlockPos pos, BlockState state, float progress) {
+    }
+
+    /**
+     * Draws a state over a block, swelled about its center, its progress on every quad.
      *
      * @param poseStack the level's pose stack, camera relative
      * @param consumer  the mingle buffer
      * @param camera    the camera's world position
-     * @param transform the transform playing
-     * @param gameTime  the game time including the partial tick
+     * @param mingle    the state, the block and the progress
      */
-    private static void drawTransform(PoseStack poseStack, VertexConsumer consumer, Vec3 camera,
-                                      BlockTransforms.Transform transform, float gameTime) {
+    private static void drawMingle(PoseStack poseStack, VertexConsumer consumer, Vec3 camera, Mingle mingle) {
         Minecraft mc = Minecraft.getInstance();
         ClientLevel level = mc.level;
         poseStack.pushPose();
-        poseStack.translate(transform.pos().getX() - camera.x + BLOCK_CENTER,
-                transform.pos().getY() - camera.y + BLOCK_CENTER, transform.pos().getZ() - camera.z + BLOCK_CENTER);
+        poseStack.translate(mingle.pos().getX() - camera.x + BLOCK_CENTER,
+                mingle.pos().getY() - camera.y + BLOCK_CENTER, mingle.pos().getZ() - camera.z + BLOCK_CENTER);
         poseStack.scale(SWELL, SWELL, SWELL);
         poseStack.translate(-BLOCK_CENTER, -BLOCK_CENTER, -BLOCK_CENTER);
         QuadInstance instance = new QuadInstance();
         instance.setColor(OPAQUE_WHITE);
-        instance.setLightCoords(LevelRenderer.getLightCoords(level, transform.pos()));
-        instance.setOverlayCoords(progressCoords(transform.progress(gameTime)));
-        BlockStateModel model = mc.getModelManager().getBlockStateModelSet().get(transform.from());
-        for (BakedQuad quad : quadsOf(model, level, transform)) {
+        instance.setLightCoords(LevelRenderer.getLightCoords(level, mingle.pos()));
+        instance.setOverlayCoords(progressCoords(mingle.progress()));
+        BlockStateModel model = mc.getModelManager().getBlockStateModelSet().get(mingle.state());
+        for (BakedQuad quad : quadsOf(model, level, mingle)) {
             consumer.putBakedQuad(poseStack.last(), quad, instance);
         }
         poseStack.popPose();
@@ -111,17 +145,16 @@ public final class BlockMingleRenderer {
     }
 
     /**
-     * Every quad of the old block's model, on every face and the faceless ones.
+     * Every quad of a drawn state's model, on every face and the faceless ones.
      *
-     * @param model     the old block's model
-     * @param level     the client level
-     * @param transform the transform playing
+     * @param model  the drawn state's model
+     * @param level  the client level
+     * @param mingle the state and the block it is drawn over
      * @return the quads
      */
-    private static List<BakedQuad> quadsOf(BlockStateModel model, ClientLevel level,
-                                           BlockTransforms.Transform transform) {
+    private static List<BakedQuad> quadsOf(BlockStateModel model, ClientLevel level, Mingle mingle) {
         List<BlockStateModelPart> parts = new ArrayList<>();
-        model.collectParts(level, transform.pos(), transform.from(), RandomSource.create(MODEL_SEED), parts);
+        model.collectParts(level, mingle.pos(), mingle.state(), RandomSource.create(MODEL_SEED), parts);
         List<BakedQuad> quads = new ArrayList<>();
         for (BlockStateModelPart part : parts) {
             for (Direction side : Direction.values()) {

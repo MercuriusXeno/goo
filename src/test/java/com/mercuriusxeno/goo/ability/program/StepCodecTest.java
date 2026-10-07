@@ -103,7 +103,7 @@ class StepCodecTest {
             Map.entry("crush", new CrushStep(TagKey.create(Registries.BLOCK,
                     Identifier.fromNamespaceAndPath("goo", "bore_breakable")), 3, 1.5, 0.8)),
             Map.entry("petrify", new PetrifyStep(Expr.literal(2))),
-            Map.entry("calcify", new CalcifyStep(Identifier.fromNamespaceAndPath("goo", "calcify"))),
+            Map.entry("calcify", new CalcifyStep(Identifier.fromNamespaceAndPath("goo", "calcify"), 30)),
             Map.entry("petrify_drip", new PetrifyDripStep(Identifier.fromNamespaceAndPath("goo", "calcify"), 8,
                     TagKey.create(Registries.BLOCK, Identifier.fromNamespaceAndPath("goo", "grows_dripstone"))))
     );

@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import com.mercuriusxeno.goo.registry.GooServerState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -159,11 +158,6 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
     }
 
 
-
-    @Override
-    public boolean touchOnce(BlockPos pos) {
-        return GooServerState.of(level.getServer()).streamHolds().touchOnce(player.getUUID(), pos);
-    }
 
     @Override
     public boolean reaches(BlockPos pos) {

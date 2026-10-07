@@ -5,11 +5,10 @@
   "order": 10,
   "cost": 1000,
   "requires": ["minecraft:pointed_dripstone"],
-  "delivery": { "kind": "stream", "range": 6, "cone": 30, "ticks_per_charge": 20, "particle": "minecraft:white_ash" },
-  "area": { "shape": "cone", "size": 6.0, "angle": 30.0 },
+  "delivery": { "kind": "stream", "range": 6, "cone": 30, "ticks_per_charge": 20, "particle": "goo:none" },
   "behaviors": [
     { "type": "petrify", "fill": "7.5 / pow(max_health, 0.5)" },
-    { "type": "calcify", "map": "goo:calcify" }
+    { "type": "calcify", "map": "goo:calcify", "ticks": 30 }
   ],
   "tags": ["stream"]
 }

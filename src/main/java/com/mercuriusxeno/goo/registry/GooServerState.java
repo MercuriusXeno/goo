@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.registry;
 
+import com.mercuriusxeno.goo.ability.petrify.BlockExposures;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockFallScheduler;
 import com.mercuriusxeno.goo.block.tap.TapDripCounts;
 import com.mercuriusxeno.goo.block.tap.TapDripScheduler;
@@ -20,6 +21,7 @@ public final class GooServerState {
     private final GooEffectScheduler gooEffects = new GooEffectScheduler();
     private final TapDripScheduler tapDrips = new TapDripScheduler();
     private final TapDripCounts tapDripCounts = new TapDripCounts();
+    private final BlockExposures blockExposures = new BlockExposures();
     private final AbilityBlockFallScheduler markerFalls = new AbilityBlockFallScheduler();
     private final StreamHolds streamHolds = new StreamHolds();
 
@@ -76,6 +78,16 @@ public final class GooServerState {
     }
 
     /**
+     * How far each block has gone toward its next calcify rung
+     * (decision petrify-stone-encasement-and-calcify-map).
+     *
+     * @return the block exposures
+     */
+    public BlockExposures blockExposures() {
+        return blockExposures;
+    }
+
+    /**
      * @return how long each player has held a stream
      */
     public StreamHolds streamHolds() {
@@ -96,6 +108,7 @@ public final class GooServerState {
             markerFalls.drainArrivedFalls(currentTick);
         }
         tapDrips.drainArrived(server);
+        blockExposures.decay(server);
     }
 
     /**
@@ -105,6 +118,7 @@ public final class GooServerState {
         gooEffects.clear();
         tapDrips.clear();
         tapDripCounts.clear();
+        blockExposures.clear();
         markerFalls.clear();
         streamHolds.clear();
     }
