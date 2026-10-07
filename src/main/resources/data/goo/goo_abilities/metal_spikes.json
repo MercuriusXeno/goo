@@ -9,8 +9,8 @@
     {
       "type": "linger",
       "steps": [
-        { "type": "sound", "id": "minecraft:item.trident.return", "source": "blocks", "volume": 0.8, "pitch": 1.5, "frame": 0 },
-        { "type": "sound", "id": "minecraft:item.trident.return", "source": "blocks", "volume": 0.8, "pitch": 1.0, "frame": 11 },
+        { "type": "sound", "id": "minecraft:item.axe.scrape", "source": "blocks", "volume": 0.8, "pitch": 1.5, "frame": 0 },
+        { "type": "sound", "id": "minecraft:item.axe.scrape", "source": "blocks", "volume": 0.8, "pitch": 1.0, "frame": 11 },
         {
           "type": "field_effect",
           "radius": 3.75,
