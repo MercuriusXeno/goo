@@ -5,6 +5,7 @@ import com.mojang.blaze3d.pipeline.BlendFunction;
 import com.mojang.blaze3d.pipeline.ColorTargetState;
 import com.mojang.blaze3d.pipeline.DepthStencilState;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
+import com.mojang.blaze3d.platform.CompareOp;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.renderer.RenderPipelines;
@@ -33,6 +34,8 @@ public final class GooRenderTypes {
     private static final String CORE_SHADER_PATH = "core/";
     /** Name prefix of a goo render type. */
     private static final String TYPE_NAME_PREFIX = "goo_";
+    /** Name suffix of a burnout pipeline's twin that draws through blocks. */
+    private static final String THROUGH_BLOCKS_SUFFIX = "_through_blocks";
 
     /**
      * Lines pipeline with LIGHTNING blend (SRC_ALPHA, ONE) and no depth write.
@@ -179,6 +182,17 @@ public final class GooRenderTypes {
 
     /** RenderType that draws crystal goo's burnout explosion. */
     public static final RenderType CRYSTAL_EXPLOSION_TYPE = burnoutType(CRYSTAL_EXPLOSION);
+
+    /**
+     * Crystal's held ghost through blocks: the crystal explosion shader with no
+     * depth test, so the part of the dome inside blocks shows through them.
+     * held-visual-ghosts-the-landing-in-two-passes
+     */
+    public static final RenderPipeline CRYSTAL_EXPLOSION_THROUGH_BLOCKS = throughBlocksPipeline("crystal_explosion",
+            BlendFunction.TRANSLUCENT);
+
+    /** RenderType for crystal's held ghost through blocks. */
+    public static final RenderType CRYSTAL_EXPLOSION_THROUGH_BLOCKS_TYPE = burnoutType(CRYSTAL_EXPLOSION_THROUGH_BLOCKS);
 
     /**
      * Glow goo's burnout explosion pipeline: the aurora bloom, additive,
@@ -611,13 +625,43 @@ public final class GooRenderTypes {
      * @return the pipeline
      */
     private static RenderPipeline burnoutPipeline(String name, BlendFunction blend, VertexFormat format) {
+        return shaderPairPipeline(name, name, blend, format, DepthStencilState.DEFAULT.depthTest());
+    }
+
+    /**
+     * A burnout pipeline's twin that ignores depth: the same shader pair and
+     * blend with depth test and depth write off, so what it draws shows through blocks.
+     * held-visual-ghosts-the-landing-in-two-passes
+     *
+     * @param name  the burnout's shader pair's name
+     * @param blend how the pipeline blends over the world
+     * @return the pipeline, located at the burnout's name with a through-blocks suffix
+     */
+    private static RenderPipeline throughBlocksPipeline(String name, BlendFunction blend) {
+        return shaderPairPipeline(name + THROUGH_BLOCKS_SUFFIX, name, blend, DefaultVertexFormat.POSITION_COLOR_NORMAL,
+                CompareOp.ALWAYS_PASS);
+    }
+
+    /**
+     * A quad pipeline over a shader pair under {@code core/<shader>}, depth write
+     * off, both faces drawn.
+     *
+     * @param location  the pipeline's name
+     * @param shader    the shader pair's name
+     * @param blend     how the pipeline blends over the world
+     * @param format    the vertex format its quads carry
+     * @param depthTest the depth comparison its fragments pass
+     * @return the pipeline
+     */
+    private static RenderPipeline shaderPairPipeline(String location, String shader, BlendFunction blend,
+                                                     VertexFormat format, CompareOp depthTest) {
         return RenderPipeline.builder(RenderPipelines.MATRICES_PROJECTION_SNIPPET, RenderPipelines.GLOBALS_SNIPPET)
-                .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + name))
-                .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + name))
-                .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + name))
+                .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + location))
+                .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + shader))
+                .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + shader))
                 .withVertexFormat(format, VertexFormat.Mode.QUADS)
                 .withColorTargetState(new ColorTargetState(blend))
-                .withDepthStencilState(new DepthStencilState(DepthStencilState.DEFAULT.depthTest(), false))
+                .withDepthStencilState(new DepthStencilState(depthTest, false))
                 .withCull(false)
                 .build();
     }
@@ -672,6 +716,7 @@ public final class GooRenderTypes {
         event.registerPipeline(NETHER_EXPLOSION);
         event.registerPipeline(METAL_EXPLOSION);
         event.registerPipeline(CRYSTAL_EXPLOSION);
+        event.registerPipeline(CRYSTAL_EXPLOSION_THROUGH_BLOCKS);
         event.registerPipeline(GLOW_EXPLOSION);
     }
 }
