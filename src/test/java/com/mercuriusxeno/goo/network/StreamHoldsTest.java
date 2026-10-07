@@ -1,13 +1,10 @@
 package com.mercuriusxeno.goo.network;
 
-import net.minecraft.core.BlockPos;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.UUID;
 import java.util.stream.IntStream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * A stream hold counts consecutive server ticks per player, and its ticks
@@ -77,45 +74,6 @@ class StreamHoldsTest {
         @Test
         void eachTickDrainsItsShare() {
             assertEquals(COST / TICKS_PER_CHARGE, StreamHolds.shareAt(COST, TICKS_PER_CHARGE, 1));
-        }
-    }
-
-    /** A hold touches each block once (decision petrify-stone-encasement-and-calcify-map). */
-    @Nested
-    class TouchOnce {
-
-        private final BlockPos gravel = new BlockPos(3, 64, 2);
-
-        @Test
-        void aHoldTouchesABlockOnce() {
-            StreamHolds holds = new StreamHolds();
-            holds.advance(PLAYER, 100);
-            assertTrue(holds.touchOnce(PLAYER, gravel));
-            holds.advance(PLAYER, 101);
-            assertFalse(holds.touchOnce(PLAYER, gravel));
-        }
-
-        @Test
-        void aNewHoldTouchesItAgain() {
-            StreamHolds holds = new StreamHolds();
-            holds.advance(PLAYER, 100);
-            holds.touchOnce(PLAYER, gravel);
-            holds.advance(PLAYER, 102);
-            assertTrue(holds.touchOnce(PLAYER, gravel));
-        }
-
-        @Test
-        void eachPlayersHoldTouchesForItself() {
-            StreamHolds holds = new StreamHolds();
-            holds.advance(PLAYER, 100);
-            holds.advance(OTHER, 100);
-            holds.touchOnce(PLAYER, gravel);
-            assertTrue(holds.touchOnce(OTHER, gravel));
-        }
-
-        @Test
-        void noHoldTouchesNothing() {
-            assertFalse(new StreamHolds().touchOnce(PLAYER, gravel));
         }
     }
 }

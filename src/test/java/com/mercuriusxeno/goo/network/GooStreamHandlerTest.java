@@ -18,7 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class GooStreamHandlerTest {
 
     private static final Step PETRIFY = new PetrifyStep(Expr.literal(2));
-    private static final Step CALCIFY = new CalcifyStep(Identifier.fromNamespaceAndPath("goo", "calcify"));
+    private static final Step CALCIFY = new CalcifyStep(Identifier.fromNamespaceAndPath("goo", "calcify"), 30);
 
     @Test
     void channelStepsRunInTheBlockPassAndTheRestInTheEntityPass() {

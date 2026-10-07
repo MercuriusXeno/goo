@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:petrify_slows_then_statues",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 160,
+  "setup_ticks": 0,
+  "required": true
+}

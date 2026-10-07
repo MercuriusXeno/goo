@@ -36,6 +36,11 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
     /** A stream's particle where the JSON names none. */
     public static final Identifier DEFAULT_PARTICLE = Identifier.withDefaultNamespace("flame");
     /**
+     * The particle a stream names to spray nothing, where its own visual
+     * draws the stream (decision petrify-stone-encasement-and-calcify-map).
+     */
+    public static final Identifier NO_PARTICLE = Identifier.fromNamespaceAndPath("goo", "none");
+    /**
      * The share of the flight by which a blob has taken its traveling form
      * where the JSON names none (decision traveling-form-transforms-in-flight).
      */

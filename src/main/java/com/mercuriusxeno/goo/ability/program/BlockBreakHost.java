@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.network.BlockTransformPayload;
+import com.mercuriusxeno.goo.registry.GooServerState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.TagKey;
@@ -76,6 +77,19 @@ public interface BlockBreakHost extends StepHost {
      */
     default void transformBlock(BlockPos pos, BlockState to) {
         transform(level(), pos, to);
+    }
+
+    /**
+     * Builds a block's exposure toward the state it calcifies into
+     * (decision petrify-stone-encasement-and-calcify-map).
+     *
+     * @param pos    the block
+     * @param toward the state it becomes at a full share
+     * @param amount the share this exposure adds
+     * @return the share after it, 1 the tick the block is due to step its rung
+     */
+    default float exposeBlock(BlockPos pos, BlockState toward, float amount) {
+        return GooServerState.of(level().getServer()).blockExposures().expose(level(), pos, toward, amount);
     }
 
     /**

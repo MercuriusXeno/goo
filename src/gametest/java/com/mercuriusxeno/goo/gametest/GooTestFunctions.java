@@ -372,8 +372,10 @@ public final class GooTestFunctions {
     private static final String FLATTEN_BREAKS_ABOVE_THE_PLANE = "flatten_breaks_above_the_plane";
     private static final String BORE_CUTS_A_TUNNEL = "bore_cuts_a_tunnel";
     private static final String CRUSH_BREAKS_ALONG_THE_STRIKE = "crush_breaks_along_the_strike";
-    private static final String PETRIFY_ENCASES_A_ZOMBIE = "petrify_encases_a_zombie";
-    private static final String PETRIFY_CALCIFIES_GRAVEL = "petrify_calcifies_gravel";
+    private static final String PETRIFY_SLOWS_THEN_STATUES = "petrify_slows_then_statues";
+    private static final String PETRIFY_GAUGE_DRAINS = "petrify_gauge_drains";
+    private static final String PETRIFY_CALCIFIES_GRADUALLY = "petrify_calcifies_gradually";
+    private static final String STATUE_MINES = "statue_mines_for_cobblestone_and_experience";
     private static final String PETRIFY_TAP_CALCIFIES = "petrify_tap_calcifies";
     private static final String PETRIFY_TAP_GROWS_DRIPSTONE = "petrify_tap_grows_dripstone";
     private static final String MOB_CRYSTAL = "mob_crystal_flechettes";
@@ -792,8 +794,10 @@ public final class GooTestFunctions {
         reg(r, FLATTEN_BREAKS_ABOVE_THE_PLANE, FlattenChannelTests::flattenBreaksAboveThePlane);
         reg(r, BORE_CUTS_A_TUNNEL, BoreStreamTests::boreCutsATunnel);
         reg(r, CRUSH_BREAKS_ALONG_THE_STRIKE, CrushStrikeTests::crushBreaksAlongTheStrike);
-        reg(r, PETRIFY_ENCASES_A_ZOMBIE, PetrifyStreamTests::petrifyEncasesAZombie);
-        reg(r, PETRIFY_CALCIFIES_GRAVEL, PetrifyStreamTests::petrifyCalcifiesGravel);
+        reg(r, PETRIFY_SLOWS_THEN_STATUES, PetrifyStreamTests::petrifySlowsThenStatues);
+        reg(r, PETRIFY_GAUGE_DRAINS, PetrifyStreamTests::petrifyGaugeDrains);
+        reg(r, PETRIFY_CALCIFIES_GRADUALLY, PetrifyStreamTests::petrifyCalcifiesGradually);
+        reg(r, STATUE_MINES, PetrifyStreamTests::statueMinesForCobblestoneAndExperience);
         reg(r, PETRIFY_TAP_CALCIFIES, PetrifyTapTests::petrifyTapCalcifies);
         reg(r, PETRIFY_TAP_GROWS_DRIPSTONE, PetrifyTapTests::petrifyTapGrowsDripstone);
         reg(r, MOB_CRYSTAL, MobEffectTests::crystalFlechettes);

@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.ability.program;
 import com.mercuriusxeno.goo.ability.blockmap.BlockMap;
 import com.mercuriusxeno.goo.ability.blockmap.BlockMaps;
 import com.mercuriusxeno.goo.throwing.StreamCone;
+import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.BlockPos;
@@ -18,22 +19,27 @@ import java.util.stream.Stream;
 
 /**
  * Rock petrify's block step, run each held tick of the stream: every block
- * the cone reaches that faces open air steps one rung along the block map
- * the JSON names, once per hold, each change drawn as the old block mingling
- * into the new (decision petrify-stone-encasement-and-calcify-map).
+ * the fog reaches that faces open air builds exposure toward the next rung of
+ * the block map the JSON names, and steps that rung once it has stood in the
+ * fog the JSON's ticks, the next block mingling in as it builds; a block the
+ * fog leaves decays back to its last rung
+ * (decision petrify-stone-encasement-and-calcify-map).
  *
- * @param map the id of the block map the blocks step along
+ * @param map   the id of the block map the blocks step along
+ * @param ticks the ticks of fog a block takes to step one rung
  */
-public record CalcifyStep(Identifier map) implements Step {
+public record CalcifyStep(Identifier map, int ticks) implements Step {
 
     private static final String NAME = "calcify";
     private static final String FIELD_MAP = "map";
+    private static final String FIELD_TICKS = "ticks";
 
     /**
      * Codec for the step's params.
      */
     public static final MapCodec<CalcifyStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
-            Identifier.CODEC.fieldOf(FIELD_MAP).forGetter(CalcifyStep::map)
+            Identifier.CODEC.fieldOf(FIELD_MAP).forGetter(CalcifyStep::map),
+            Codec.INT.fieldOf(FIELD_TICKS).forGetter(CalcifyStep::ticks)
     ).apply(inst, CalcifyStep::new));
 
     /**
@@ -50,21 +56,24 @@ public record CalcifyStep(Identifier map) implements Step {
     public boolean tick(StepContext context) {
         ChannelHost host = context.hostAs(ChannelHost.class);
         Optional<BlockMap> steps = BlockMaps.get(map);
-        host.channelAim().ifPresent(aim -> steps.ifPresent(found -> calcifyCone(host, aim, found)));
+        host.channelAim().ifPresent(aim -> steps.ifPresent(found -> calcifyCone(host, aim, found, 1f / ticks)));
         return true;
     }
 
     /**
-     * Steps each exposed block in the cone one rung, once per hold.
+     * Builds each fogged block's exposure toward its next rung, stepping the
+     * rung once the share is full.
      *
      * @param host  the channel host
      * @param aim   the stream's aim, its reach along the look
      * @param steps the block map
+     * @param rate  the share one tick of fog builds
      */
-    private static void calcifyCone(ChannelHost host, ChannelAim aim, BlockMap steps) {
+    private static void calcifyCone(ChannelHost host, ChannelAim aim, BlockMap steps, float rate) {
         for (BlockPos pos : blocksInCone(host.eye(), aim.aimPoint(), aim.coneDegrees())) {
             Optional<Block> next = host.airAt(pos) ? Optional.empty() : steps.next(host.blockAt(pos));
-            if (next.isPresent() && facesAir(host, pos) && host.touchOnce(pos)) {
+            if (next.isPresent() && facesAir(host, pos)
+                    && host.exposeBlock(pos, next.get().defaultBlockState(), rate) >= 1f) {
                 host.transformBlock(pos, next.get().defaultBlockState());
             }
         }

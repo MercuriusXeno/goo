@@ -516,6 +516,42 @@ public final class GooRenderTypes {
             .build();
 
     /**
+     * Petrify's stone pipeline (decision petrify-stone-encasement-and-calcify-map):
+     * a mob's model drawn again through the ailment overlay's lifted vertex
+     * shader and {@code petrify_stone.fsh}, a stone texture laid over the
+     * skin coordinates in noise patches covering the share of the model the
+     * vertex alpha carries, whole at a statue.
+     */
+    public static final RenderPipeline PETRIFY_STONE = RenderPipeline.builder(
+                    RenderPipelines.ENTITY_SNIPPET,
+                    RenderPipelines.GLOBALS_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "petrify_stone"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_ailment_overlay"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "petrify_stone"))
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withDepthStencilState(new DepthStencilState(DepthStencilState.DEFAULT.depthTest(), false))
+            .build();
+
+    /** The petrify stone render type, sampling vanilla's stone texture. */
+    public static final RenderType PETRIFY_STONE_TYPE = RenderType.create(
+            "goo_petrify_stone",
+            RenderSetup.builder(PETRIFY_STONE)
+                    .withTexture("Sampler0", Identifier.withDefaultNamespace("textures/block/stone.png"))
+                    .useLightmap()
+                    .sortOnUpload()
+                    .createRenderSetup());
+
+    /**
+     * Petrify's fog pipeline (decision petrify-stone-encasement-and-calcify-map):
+     * cross-sections of the cone drawn through {@code petrify_fog.vsh / .fsh},
+     * undulating dust-fog waves washing forward through them.
+     */
+    public static final RenderPipeline PETRIFY_FOG = burnoutPipeline("petrify_fog", BlendFunction.TRANSLUCENT);
+
+    /** The petrify fog render type. */
+    public static final RenderType PETRIFY_FOG_TYPE = burnoutType(PETRIFY_FOG);
+
+    /**
      * Ghost trail pipeline (decision ghost-trail-spans-the-blink): an entity's
      * body drawn again through {@code goo_ghost.vsh / .fsh} as a translucent
      * echo in the goo type's color, its skin read for the cutout and the
@@ -688,6 +724,8 @@ public final class GooRenderTypes {
         event.registerPipeline(CRUCIBLE_DISSOLVE);
         event.registerPipeline(GOO_MOB_COAT);
         event.registerPipeline(BLOCK_MINGLE);
+        event.registerPipeline(PETRIFY_STONE);
+        event.registerPipeline(PETRIFY_FOG);
         event.registerPipeline(GOO_AILMENT_OVERLAY);
         GOO_RIPPLE_MASKS.forEach(event::registerPipeline);
         event.registerPipeline(GOO_RIPPLE_EDGE);

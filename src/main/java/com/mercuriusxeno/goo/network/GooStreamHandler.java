@@ -230,6 +230,9 @@ public final class GooStreamHandler {
      * @param delivery the stream delivery
      */
     private static void sprayParticles(ServerLevel level, Vec3 apex, Vec3 axis, Delivery delivery) {
+        if (Delivery.NO_PARTICLE.equals(delivery.particle())) {
+            return;
+        }
         SimpleParticles.resolve(delivery.particle()).ifPresent(particle -> {
             for (int i = 1; i <= PARTICLES_PER_TICK; i++) {
                 Vec3 at = apex.add(axis.scale(delivery.range() * i / PARTICLES_PER_TICK));
