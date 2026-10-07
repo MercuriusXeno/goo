@@ -8,7 +8,6 @@ import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.network.OfferedAbility;
-import com.mercuriusxeno.goo.item.GooFormat;
 import net.minecraft.world.item.ItemStack;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypeNames;
@@ -264,11 +263,13 @@ class RadialWheelRendererTest {
         private static final int NO_ABILITY = -1;
         /** The open type's ability a locked frame locks. */
         private static final int LOCKED_ABILITY = 1;
-        /** The items the locked ability still needs. */
-        private static final List<Identifier> UNLEARNED = List.of(Identifier.withDefaultNamespace("glass"),
-                Identifier.withDefaultNamespace("sand"));
-        /** The name every test ability resolves to with no language loaded. */
-        private static final Component ABILITY_NAME = Component.literal("ability.gootest.word");
+        /** The items the locked ability requires: glass learned, sand and clay not. */
+        private static final List<OfferedAbility.RequiredItem> REQUIRED = List.of(
+                new OfferedAbility.RequiredItem(Identifier.withDefaultNamespace("glass"), true),
+                new OfferedAbility.RequiredItem(Identifier.withDefaultNamespace("sand"), false),
+                new OfferedAbility.RequiredItem(Identifier.withDefaultNamespace("clay"), false));
+        /** How far, in pixels, an item's center may stray from the petal's center line or its stride. */
+        private static final double COLUMN_TOLERANCE = 1.5;
 
         private static final PetalLook.SpriteBox SPRITE = new PetalLook.SpriteBox(0.25f, 0.5f, 0.125f, 0.25f);
         private static final int EDGE_COLOR = 0xFF123456;
@@ -347,16 +348,41 @@ class RadialWheelRendererTest {
                             new ClientAbility(
                             Identifier.fromNamespaceAndPath("gootest", "ability_" + type + "_" + ability),
                             "ability.gootest.word", "", 0, List.of(), List.of(), 0, Delivery.ARC, AbilityBadge.WORLD, List.of()),
-                            type == OPEN_TYPE && ability == lockedAbility ? UNLEARNED : List.of()))
+                            type == OPEN_TYPE && ability == lockedAbility ? REQUIRED : List.of()))
                             .toList())
                     .toList();
             GuiGraphicsExtractor graphics = mock(GuiGraphicsExtractor.class);
             when(graphics.pose()).thenReturn(new Matrix3x2fStack(1));
             Font font = mock(Font.class);
             when(font.width(any(FormattedText.class))).thenReturn(WORD_WIDTH);
-            RadialWheelRenderer.render(graphics, font, new RadialWheelRenderer.Frame(wheel, types, abilities,
-                    Map.of(types.get(OPEN_TYPE), HOLDINGS), CENTER_X, CENTER_Y, RADIUS, fakeLook, 0.0f));
+            RadialWheelRenderer.render(graphics, font, frameOf(wheel, abilities));
             return graphics;
+        }
+
+        private RadialWheelRenderer.Frame frameOf(RadialWheel wheel, List<List<OfferedAbility>> abilities) {
+            return new RadialWheelRenderer.Frame(wheel, types, abilities,
+                    Map.of(types.get(OPEN_TYPE), HOLDINGS), CENTER_X, CENTER_Y, RADIUS, fakeLook, 0.0f);
+        }
+
+        /** Whether a screen point lies within a petal's angular span and between its inner and outer radius. */
+        private static boolean insidePetal(RadialWheel.PetalArc petal, double x, double y) {
+            double distance = Math.hypot(x - CENTER_X, y - CENTER_Y) / RADIUS;
+            double offset = RadialWheel.angleOf(x - CENTER_X, y - CENTER_Y) - petal.start();
+            double wrapped = (offset % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
+            return wrapped < petal.arc() && distance > petal.shape().inner() && distance < petal.shape().outer();
+        }
+
+        /** Whether all four corners of an item's square lie inside a petal. */
+        private static boolean squareInsidePetal(RadialWheel.PetalArc petal, RadialWheelRenderer.ItemRect rect) {
+            int size = RadialWheelRenderer.ITEM_ICON_SIZE;
+            return insidePetal(petal, rect.left(), rect.top()) && insidePetal(petal, rect.left() + size, rect.top())
+                    && insidePetal(petal, rect.left(), rect.top() + size)
+                    && insidePetal(petal, rect.left() + size, rect.top() + size);
+        }
+
+        private static double[] centerOf(RadialWheelRenderer.ItemRect rect) {
+            return new double[]{rect.left() + RadialWheelRenderer.ITEM_ICON_SIZE / 2.0,
+                    rect.top() + RadialWheelRenderer.ITEM_ICON_SIZE / 2.0};
         }
 
         private List<DrawnText> renderTexts(RadialWheel wheel) {
@@ -515,12 +541,12 @@ class RadialWheelRendererTest {
         }
 
         /**
-         * A locked petal draws as an unaffordable one does, its fill, icon and
-         * words dimmed, its name still drawn; its unlocked siblings stay bright.
+         * A locked petal's fill draws under the disabled tint an unaffordable
+         * petal takes; its unlocked siblings stay bright.
          * decision locked-petal-stays-on-the-wheel
          */
         @Test
-        void lockedPetalDrawsDimmedWithItsNameLegible() {
+        void lockedPetalFillDrawsUnderTheDisabledTint() {
             RadialWheel wheel = openWheel();
             GuiGraphicsExtractor graphics = renderFrame(wheel, LOCKED_ABILITY);
             int disabledTint = RadialWheelRenderer.computeOverlayTint(false, true);
@@ -528,64 +554,81 @@ class RadialWheelRendererTest {
             List<PetalRenderState> fills = submittedArguments(graphics, "submitGuiElementRenderState",
                     PetalRenderState.class).stream().filter(PetalRenderState::isTextured).toList();
 
-            assertAll(petals.stream().filter(RadialWheel.PetalArc::isAbility).map(petal -> (Executable) () -> {
-                boolean locked = petal.ability() == LOCKED_ABILITY;
-                int fillTint = fills.get(petals.indexOf(petal)).color();
-                var icon = iconBlit(graphics, "ability_" + petal.type() + "_" + petal.ability() + ".png");
-                int iconTint = icon.getArgument(ICON_COLOR_ARGUMENT);
-                int half = RadialWheelRenderer.ABILITY_ICON_SIZE / 2;
-                int iconX = (int) icon.getArgument(2) + half;
-                int iconY = (int) icon.getArgument(3) + half;
-                List<org.mockito.invocation.Invocation> words = mockingDetails(graphics).getInvocations().stream()
-                        .filter(call -> call.getMethod().getName().equals("text")
-                                && (int) call.getArgument(TEXT_COLOR_ARGUMENT) != RadialWheelRenderer.OUTLINE_COLOR
-                                && (int) call.getArgument(2) + WORD_WIDTH / 2 == iconX
-                                && Math.abs((int) call.getArgument(3) - iconY) <= half + 2 * LINE_HEIGHT)
-                        .toList();
-                assertEquals(locked, fillTint == disabledTint, petal + " fill tint");
-                assertEquals(locked, iconTint == disabledTint, petal + " icon tint");
-                assertTrue(words.stream().anyMatch(call -> ABILITY_NAME.equals(call.getArgument(1))),
-                        petal + " name drawn");
-                assertTrue(words.stream().allMatch(call -> locked
-                        == ((int) call.getArgument(TEXT_COLOR_ARGUMENT) == RadialWheelRenderer.DISABLED_TEXT_COLOR)),
-                        petal + " word color");
-            }));
+            assertAll(petals.stream().filter(RadialWheel.PetalArc::isAbility).map(petal -> (Executable) () ->
+                    assertEquals(petal.ability() == LOCKED_ABILITY, fills.get(petals.indexOf(petal)).color()
+                            == disabledTint, petal + " fill tint")));
         }
 
         /**
-         * A locked petal reads its name alone in text and draws one item per
-         * unlearned requirement where the cost would read; an unlocked petal
-         * reads its cost and draws no item.
+         * A locked petal draws no words and no ability icon, only one item per
+         * required item inside the petal, with one red slash over each
+         * learned item and none over the rest.
          * decision locked-petal-lists-the-unlearned-items
          */
         @Test
-        void lockedPetalDrawsItsUnlearnedItemsInTheCostsPlace() {
+        void lockedPetalDrawsOnlyItsRequiredItemsWithTheLearnedSlashed() {
             RadialWheel wheel = openWheel();
             GuiGraphicsExtractor graphics = renderFrame(wheel, LOCKED_ABILITY);
-            List<DrawnText> texts = wordsDrawn(graphics, color -> color != RadialWheelRenderer.OUTLINE_COLOR);
-            List<int[]> itemCorners = mockingDetails(graphics).getInvocations().stream()
+            RadialWheel.PetalArc locked = wheel.layout().stream()
+                    .filter(petal -> petal.isAbility() && petal.ability() == LOCKED_ABILITY).findFirst().orElseThrow();
+            List<RadialWheelRenderer.ItemRect> items = mockingDetails(graphics).getInvocations().stream()
                     .filter(call -> call.getMethod().getName().equals("item"))
-                    .map(call -> new int[]{call.getArgument(1), call.getArgument(2)})
+                    .map(call -> new RadialWheelRenderer.ItemRect(call.getArgument(1), call.getArgument(2)))
                     .toList();
-            int half = RadialWheelRenderer.ABILITY_ICON_SIZE / 2;
+            List<int[]> slashCells = mockingDetails(graphics).getInvocations().stream()
+                    .filter(call -> call.getMethod().getName().equals("fill")
+                            && (int) call.getArgument(4) == RadialWheelRenderer.SLASH_COLOR)
+                    .map(call -> new int[]{call.getArgument(0), call.getArgument(1)})
+                    .toList();
+            String lockedIcon = "ability_" + locked.type() + "_" + locked.ability() + ".png";
+
+            int[] lockedTip = RadialWheelRenderer.tipCenter(frameOf(wheel, List.of()), locked);
+            assertTrue(wordsDrawn(graphics, color -> color != RadialWheelRenderer.OUTLINE_COLOR).stream()
+                    .filter(text -> !isInHub(text))
+                    .noneMatch(text -> petalUnder(wheel, text).equals(locked) || text.x() == lockedTip[0]),
+                    "a word drew on the locked petal");
+            assertTrue(mockingDetails(graphics).getInvocations().stream()
+                    .noneMatch(call -> call.getMethod().getName().equals("blit")
+                            && call.getArgument(1).toString().endsWith(lockedIcon)), "the locked ability's icon drew");
+            assertEquals(REQUIRED.size(), items.size());
+            assertAll(IntStream.range(0, items.size()).mapToObj(index -> (Executable) () -> {
+                RadialWheelRenderer.ItemRect rect = items.get(index);
+                long slashed = slashCells.stream().filter(cell -> rect.contains(cell[0], cell[1])).count();
+                assertTrue(squareInsidePetal(locked, rect), rect + " leaves the petal");
+                assertEquals(REQUIRED.get(index).learned(), slashed > 0, rect + " slash");
+            }));
+            assertTrue(slashCells.stream().allMatch(cell -> items.stream()
+                    .anyMatch(rect -> rect.contains(cell[0], cell[1]))), "a slash drew off its item");
+        }
+
+        /**
+         * The item column runs along the petal's center line, strides evenly
+         * from the hub outward and centers halfway along the petal.
+         * decision locked-petal-lists-the-unlearned-items
+         */
+        @Test
+        void itemColumnRunsAlongThePetalsCenterLineCenteredOnItsLength() {
+            RadialWheel wheel = openWheel();
+            RadialWheelRenderer.Frame frame = frameOf(wheel, List.of());
 
             assertAll(wheel.displayedLayout(0.0f).stream().filter(RadialWheel.PetalArc::isAbility)
                     .map(petal -> (Executable) () -> {
-                        var icon = iconBlit(graphics, "ability_" + petal.type() + "_" + petal.ability() + ".png");
-                        int[] iconCenter = {(int) icon.getArgument(2) + half, (int) icon.getArgument(3) + half};
-                        List<DrawnText> words = texts.stream().filter(text -> text.x() == iconCenter[0]
-                                && Math.abs(text.y() - iconCenter[1]) <= half + 2 * LINE_HEIGHT).toList();
-                        List<RadialWheelRenderer.ItemRect> row = RadialWheelRenderer.itemRow(iconCenter,
-                                UNLEARNED.size());
-                        long itemsInRow = itemCorners.stream().filter(corner -> row.stream()
-                                .anyMatch(rect -> rect.left() == corner[0] && rect.top() == corner[1])).count();
-                        boolean locked = petal.ability() == LOCKED_ABILITY;
-                        assertEquals(locked ? List.of(ABILITY_NAME) : List.of(ABILITY_NAME,
-                                Component.literal(GooFormat.formatAmount(0))), words.stream().map(DrawnText::text).toList(), petal + " words");
-                        assertEquals(locked ? UNLEARNED.size() : 0, itemsInRow, petal + " items");
+                        List<double[]> centers = RadialWheelRenderer.itemColumn(frame, petal, REQUIRED.size())
+                                .stream().map(OpenTypeFrame::centerOf).toList();
+                        double sinAngle = Math.sin(petal.center());
+                        double cosAngle = Math.cos(petal.center());
+                        double middle = (petal.shape().inner() + petal.shape().outer()) / 2 * RADIUS;
+                        List<Double> along = centers.stream()
+                                .map(c -> (c[0] - CENTER_X) * sinAngle - (c[1] - CENTER_Y) * cosAngle).toList();
+                        assertAll(centers.stream().map(c -> (Executable) () -> assertTrue(Math.abs(
+                                (c[0] - CENTER_X) * cosAngle + (c[1] - CENTER_Y) * sinAngle) <= COLUMN_TOLERANCE,
+                                petal + " item off the center line")));
+                        assertEquals(RadialWheelRenderer.ITEM_STRIDE, along.get(1) - along.get(0), COLUMN_TOLERANCE);
+                        assertEquals(RadialWheelRenderer.ITEM_STRIDE, along.get(2) - along.get(1), COLUMN_TOLERANCE);
+                        assertEquals(middle, along.get(1), COLUMN_TOLERANCE, petal + " column center");
                     }));
-            assertEquals(UNLEARNED.size(), itemCorners.size());
         }
+
 
         private static org.mockito.invocation.Invocation iconBlit(GuiGraphicsExtractor graphics, String icon) {
             return mockingDetails(graphics).getInvocations().stream()
@@ -642,68 +685,34 @@ class RadialWheelRendererTest {
         }
     }
 
-    /**
-     * A locked petal's item row centers on the cost line, strides evenly, and
-     * names the item under the cursor (decision locked-petal-lists-the-unlearned-items).
-     */
+    /** The cursor names the item icon it rests on (decision locked-petal-lists-the-unlearned-items). */
     @Nested
-    class ItemRow {
+    class ItemHover {
 
-        private static final int[] ICON_CENTER = {200, 100};
-        /** Where the cost line's top reads under an icon centered at ICON_CENTER. */
-        private static final int COST_TOP = ICON_CENTER[1] + RadialWheelRenderer.ABILITY_ICON_SIZE / 2 + 1;
         private static final Identifier GLASS = Identifier.withDefaultNamespace("glass");
         private static final Identifier SAND = Identifier.withDefaultNamespace("sand");
+        private static final RadialWheelRenderer.ItemRect GLASS_RECT = new RadialWheelRenderer.ItemRect(200, 100);
+        private static final RadialWheelRenderer.ItemRect SAND_RECT = new RadialWheelRenderer.ItemRect(209, 117);
 
-        @Test
-        void rowCentersOnTheIconAtTheCostLineAndStridesEvenly() {
-            List<RadialWheelRenderer.ItemRect> row = RadialWheelRenderer.itemRow(ICON_CENTER, 3);
-            int rowLeft = row.getFirst().left();
-            int rowRight = row.getLast().left() + RadialWheelRenderer.ITEM_ICON_SIZE;
-
-            assertEquals(3, row.size());
-            assertTrue(row.stream().allMatch(rect -> rect.top() == COST_TOP), "every rect on the cost line");
-            assertEquals(ICON_CENTER[0], (rowLeft + rowRight) / 2, "row centered on the icon");
-            assertEquals(List.of(RadialWheelRenderer.ITEM_STRIDE, RadialWheelRenderer.ITEM_STRIDE),
-                    List.of(row.get(1).left() - row.get(0).left(), row.get(2).left() - row.get(1).left()));
-        }
-
-        @Test
-        void oneItemCentersUnderTheIcon() {
-            RadialWheelRenderer.ItemRect only = RadialWheelRenderer.itemRow(ICON_CENTER, 1).getFirst();
-
-            assertEquals(ICON_CENTER[0] - RadialWheelRenderer.ITEM_ICON_SIZE / 2, only.left());
-        }
-
-        private List<RadialWheelRenderer.ItemIcon> icons() {
-            List<RadialWheelRenderer.ItemRect> row = RadialWheelRenderer.itemRow(ICON_CENTER, 2);
-            return List.of(new RadialWheelRenderer.ItemIcon(GLASS, mock(ItemStack.class), row.get(0)),
-                    new RadialWheelRenderer.ItemIcon(SAND, mock(ItemStack.class), row.get(1)));
-        }
+        private final List<RadialWheelRenderer.ItemIcon> icons = List.of(
+                new RadialWheelRenderer.ItemIcon(GLASS, mock(ItemStack.class), GLASS_RECT, true),
+                new RadialWheelRenderer.ItemIcon(SAND, mock(ItemStack.class), SAND_RECT, false));
 
         @Test
         void cursorInsideAnIconAnswersThatItem() {
-            List<RadialWheelRenderer.ItemIcon> icons = icons();
-            RadialWheelRenderer.ItemRect sand = icons.get(1).rect();
-
-            assertEquals(SAND, RadialWheelRenderer.itemUnder(icons, sand.left() + 1, sand.top() + 1).item());
-            assertEquals(GLASS, RadialWheelRenderer.itemUnder(icons, icons.get(0).rect().left(),
-                    icons.get(0).rect().top()).item());
+            assertEquals(SAND, RadialWheelRenderer.itemUnder(icons, SAND_RECT.left() + 1, SAND_RECT.top() + 1).item());
+            assertEquals(GLASS, RadialWheelRenderer.itemUnder(icons, GLASS_RECT.left(), GLASS_RECT.top()).item());
         }
 
         @Test
         void cursorOutsideEveryIconAnswersNone() {
-            List<RadialWheelRenderer.ItemIcon> icons = icons();
-            RadialWheelRenderer.ItemRect glass = icons.get(0).rect();
-            RadialWheelRenderer.ItemRect sand = icons.get(1).rect();
-
+            int size = RadialWheelRenderer.ITEM_ICON_SIZE;
             assertAll(
-                    () -> assertNull(RadialWheelRenderer.itemUnder(icons, glass.left() - 1, glass.top())),
-                    () -> assertNull(RadialWheelRenderer.itemUnder(icons,
-                            glass.left() + RadialWheelRenderer.ITEM_ICON_SIZE, glass.top()), "the gap between icons"),
-                    () -> assertNull(RadialWheelRenderer.itemUnder(icons, sand.left(),
-                            sand.top() + RadialWheelRenderer.ITEM_ICON_SIZE)),
-                    () -> assertNull(RadialWheelRenderer.itemUnder(icons, sand.left(), sand.top() - 1)));
+                    () -> assertNull(RadialWheelRenderer.itemUnder(icons, GLASS_RECT.left() - 1, GLASS_RECT.top())),
+                    () -> assertNull(RadialWheelRenderer.itemUnder(icons, GLASS_RECT.left() + size,
+                            GLASS_RECT.top()), "right of the first icon, above the second"),
+                    () -> assertNull(RadialWheelRenderer.itemUnder(icons, SAND_RECT.left(), SAND_RECT.top() + size)),
+                    () -> assertNull(RadialWheelRenderer.itemUnder(icons, SAND_RECT.left() + size, SAND_RECT.top())));
         }
     }
 

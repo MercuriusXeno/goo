@@ -5,25 +5,35 @@ import net.minecraft.resources.Identifier;
 import java.util.List;
 
 /**
- * An ability as the radial offers it: the synced ability, and the required
- * items the player has not yet learned. While any remain, the ability stays
- * on the wheel as a locked petal the key release refuses, listing them.
+ * An ability as the radial offers it: the synced ability, and every item it
+ * requires with whether the player has learned it. While any is unlearned,
+ * the ability stays on the wheel as a locked petal the key release refuses,
+ * listing every required item and crossing off the learned ones.
  * decision locked-petal-stays-on-the-wheel
  * decision locked-petal-lists-the-unlearned-items
  *
- * @param ability   the synced ability
- * @param unlearned the required items the player does not know yet
+ * @param ability  the synced ability
+ * @param required every item the ability requires, in the order it names them
  */
-public record OfferedAbility(ClientAbility ability, List<Identifier> unlearned) {
+public record OfferedAbility(ClientAbility ability, List<RequiredItem> required) {
 
     /**
-     * Freezes the unlearned items.
+     * One item an ability requires, and whether the player has learned it.
      *
-     * @param ability   the synced ability
-     * @param unlearned the required items the player does not know yet
+     * @param item    the item's id
+     * @param learned true once the player knows the item
+     */
+    public record RequiredItem(Identifier item, boolean learned) {
+    }
+
+    /**
+     * Freezes the required items.
+     *
+     * @param ability  the synced ability
+     * @param required every item the ability requires
      */
     public OfferedAbility {
-        unlearned = List.copyOf(unlearned);
+        required = List.copyOf(required);
     }
 
     /**
@@ -32,6 +42,6 @@ public record OfferedAbility(ClientAbility ability, List<Identifier> unlearned) 
      * @return true while any required item is unlearned
      */
     public boolean locked() {
-        return !unlearned.isEmpty();
+        return required.stream().anyMatch(item -> !item.learned());
     }
 }
