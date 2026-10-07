@@ -10,7 +10,9 @@ import com.mercuriusxeno.goo.ability.program.PlaceBlockStep;
 import com.mercuriusxeno.goo.ability.program.PotionStep;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
 import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.ability.program.SoundStep;
 import com.mercuriusxeno.goo.ability.program.TeleportStep;
+import com.mercuriusxeno.goo.ability.program.Variables;
 import com.mercuriusxeno.goo.data.IdentifiedJsonScan;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -35,6 +37,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -201,6 +204,25 @@ class AbilityLoaderTest {
                 assertEquals(AbilityDefinition.NO_UPKEEP, ability.upkeep(), ability.id().toString());
             }
         }
+    }
+
+    /**
+     * Stoneskin's up sound is the petrify sound Statues plays, at another
+     * pitch, and Nourish's is a healing cue of its own
+     * (decision held-effects-sound-up-and-down).
+     */
+    @Test
+    void heldEffectsSoundTheirOwnUpCue() {
+        SoundStep stoneskinUp = firstSound("rock_stoneskin");
+        assertEquals(Identifier.withDefaultNamespace("block.deepslate.place"), stoneskinUp.sound());
+        assertNotEquals(1.0, stoneskinUp.pitch().evaluate(Variables.NONE), 1e-6);
+        assertNotEquals(0.8, stoneskinUp.pitch().evaluate(Variables.NONE), 1e-6);
+        assertTrue(AbilityJson.decode("vital_nourish").behaviors().stream().anyMatch(SoundStep.class::isInstance));
+    }
+
+    private static SoundStep firstSound(String name) {
+        return AbilityJson.decode(name).behaviors().stream().filter(SoundStep.class::isInstance)
+                .map(SoundStep.class::cast).findFirst().orElseThrow();
     }
 
     /**

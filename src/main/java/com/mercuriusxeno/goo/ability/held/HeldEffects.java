@@ -1,5 +1,7 @@
 package com.mercuriusxeno.goo.ability.held;
 
+import com.mercuriusxeno.goo.ability.program.SoundCue;
+import com.mercuriusxeno.goo.registry.GooSoundIds;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.serialization.Codec;
@@ -19,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.function.ToIntFunction;
 
 /**
@@ -69,9 +72,16 @@ public record HeldEffects(List<Held> held) {
      * @param lays          the player state its program laid, which ending it clears
      * @param startedAt     the game time it started at, a tick it pays nothing on
      * @param expiresAt     the game time a prepaid brew ends at, NEVER_EXPIRES for a glove effect
+     * @param downSound     the cue the effect plays when it ends (decision held-effects-sound-up-and-down)
      */
     public record Held(Identifier ability, ResourceKey<GooTypeDefinition> gooType, int upkeep,
-                       Set<LaidState> lays, long startedAt, long expiresAt) {
+                       Set<LaidState> lays, long startedAt, long expiresAt, SoundCue downSound) {
+
+        /**
+         * The cue an effect whose ability names no down sound plays when it ends.
+         * held-effects-sound-up-and-down
+         */
+        public static final SoundCue SHARED_DOWN_SOUND = SoundCue.of(GooSoundIds.ABILITY_DOWN);
 
         private static final String FIELD_ABILITY = "ability";
         private static final String FIELD_GOO_TYPE = "goo_type";
@@ -79,6 +89,7 @@ public record HeldEffects(List<Held> held) {
         private static final String FIELD_LAYS = "lays";
         private static final String FIELD_STARTED_AT = "started_at";
         private static final String FIELD_EXPIRES_AT = "expires_at";
+        private static final String FIELD_DOWN_SOUND = "down_sound";
 
         static final Codec<Held> CODEC = RecordCodecBuilder.create(inst -> inst.group(
                 Identifier.CODEC.fieldOf(FIELD_ABILITY).forGetter(Held::ability),
@@ -87,7 +98,8 @@ public record HeldEffects(List<Held> held) {
                 LaidState.CODEC.listOf().xmap(Held::laidSet, List::copyOf).fieldOf(FIELD_LAYS)
                         .forGetter(Held::lays),
                 Codec.LONG.fieldOf(FIELD_STARTED_AT).forGetter(Held::startedAt),
-                Codec.LONG.optionalFieldOf(FIELD_EXPIRES_AT, NEVER_EXPIRES).forGetter(Held::expiresAt)
+                Codec.LONG.optionalFieldOf(FIELD_EXPIRES_AT, NEVER_EXPIRES).forGetter(Held::expiresAt),
+                SoundCue.CODEC.optionalFieldOf(FIELD_DOWN_SOUND, SHARED_DOWN_SOUND).forGetter(Held::downSound)
         ).apply(inst, Held::new));
 
         static final StreamCodec<ByteBuf, Held> STREAM_CODEC = StreamCodec.composite(
@@ -97,6 +109,7 @@ public record HeldEffects(List<Held> held) {
                 LaidState.STREAM_CODEC.apply(ByteBufCodecs.list()).map(Held::laidSet, List::copyOf), Held::lays,
                 ByteBufCodecs.VAR_LONG, Held::startedAt,
                 ByteBufCodecs.LONG, Held::expiresAt,
+                SoundCue.STREAM_CODEC, Held::downSound,
                 Held::new);
 
         /**
@@ -117,7 +130,22 @@ public record HeldEffects(List<Held> held) {
          */
         public Held(Identifier ability, ResourceKey<GooTypeDefinition> gooType, int upkeep, Set<LaidState> lays,
                     long startedAt) {
-            this(ability, gooType, upkeep, lays, startedAt, NEVER_EXPIRES);
+            this(ability, gooType, upkeep, lays, startedAt, NEVER_EXPIRES, SHARED_DOWN_SOUND);
+        }
+
+        /**
+         * An effect playing the shared ability-down cue when it ends.
+         *
+         * @param ability   the ability held
+         * @param gooType   the goo type its upkeep draws
+         * @param upkeep    the mB it pays each tick
+         * @param lays      the player state its program laid
+         * @param startedAt the game time it started at
+         * @param expiresAt the game time a prepaid brew ends at, NEVER_EXPIRES for a glove effect
+         */
+        public Held(Identifier ability, ResourceKey<GooTypeDefinition> gooType, int upkeep, Set<LaidState> lays,
+                    long startedAt, long expiresAt) {
+            this(ability, gooType, upkeep, lays, startedAt, expiresAt, SHARED_DOWN_SOUND);
         }
 
         /**
@@ -289,6 +317,21 @@ public record HeldEffects(List<Held> held) {
         }
         return new Changed(new HeldEffects(held.stream().filter(standing -> !standing.changesHearts()).toList()),
                 ended);
+    }
+
+    /**
+     * Plays each ended effect's down cue once, however it ended: by the
+     * player's press, by running dry, by a heart effect replacing it or by a
+     * brew's expiry.
+     * held-effects-sound-up-and-down
+     *
+     * @param ended the effects a change ended
+     * @param sink  where a cue plays, the player's host in the game
+     */
+    public static void soundEnds(List<Held> ended, Consumer<SoundCue> sink) {
+        for (Held effect : ended) {
+            sink.accept(effect.downSound());
+        }
     }
 
     private Optional<Held> find(Identifier ability) {
