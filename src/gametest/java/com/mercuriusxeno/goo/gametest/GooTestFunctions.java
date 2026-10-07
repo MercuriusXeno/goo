@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.network.AttackTouchTests;
 import com.mercuriusxeno.goo.network.BarkskinTests;
 import com.mercuriusxeno.goo.network.BlockLandingTests;
 import com.mercuriusxeno.goo.network.BrewEffectTests;
+import com.mercuriusxeno.goo.network.ColonizeTests;
 import com.mercuriusxeno.goo.network.GloveSelectTests;
 import com.mercuriusxeno.goo.network.HeartOverlayTests;
 import com.mercuriusxeno.goo.network.MobEffectTests;
@@ -369,6 +370,8 @@ public final class GooTestFunctions {
     private static final String MYCOSIS_SPREADS_ON_DEATH = "mycosis_spreads_on_death";
     private static final String MYCOSIS_PLACES_BUDS = "mycosis_places_buds";
     private static final String MYCOSIS_TAP_POISONS_BELOW = "mycosis_tap_poisons_below";
+    private static final String COLONIZE_SPREADS_NYLIUM = "colonize_spreads_nylium";
+    private static final String COLONIZE_STARTS_MYCELIUM = "colonize_starts_mycelium";
     private static final String MOB_CRYSTAL = "mob_crystal_flechettes";
     private static final String MOB_LEAF = "mob_leaf_entangle";
     private static final String MOB_VITAL = "mob_vital_clone";
@@ -785,6 +788,8 @@ public final class GooTestFunctions {
         reg(r, MYCOSIS_SPREADS_ON_DEATH, MycosisTests::mycosisSpreadsOnDeath);
         reg(r, MYCOSIS_PLACES_BUDS, MycosisTests::mycosisPlacesBuds);
         reg(r, MYCOSIS_TAP_POISONS_BELOW, MycosisTests::mycosisTapPoisonsBelow);
+        reg(r, COLONIZE_SPREADS_NYLIUM, ColonizeTests::colonizeSpreadsNylium);
+        reg(r, COLONIZE_STARTS_MYCELIUM, ColonizeTests::colonizeStartsMycelium);
         reg(r, MOB_CRYSTAL, MobEffectTests::crystalFlechettes);
         reg(r, MOB_LEAF, MobEffectTests::leafEntangle);
         reg(r, MOB_VITAL, MobEffectTests::vitalClone);

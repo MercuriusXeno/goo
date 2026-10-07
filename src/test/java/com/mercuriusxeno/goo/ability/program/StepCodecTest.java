@@ -95,7 +95,8 @@ class StepCodecTest {
             Map.entry("ghost_trail", new GhostTrailStep(GooTypes.ENDER, Expr.literal(30))),
             Map.entry("heart_overlay", new HeartOverlayStep(HeartKind.KINDLE, Expr.literal(1200))),
             Map.entry("spore_host", new SporeHostStep(Identifier.parse("goo:shroom_mycosis"), Expr.literal(3),
-                    Expr.literal(600)))
+                    Expr.literal(600))),
+            Map.entry("colonize", LeafSteps.COLONIZE.step(Expr.literal(3)))
     );
 
     private static Step roundTrip(Step step) {

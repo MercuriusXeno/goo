@@ -1,0 +1,16 @@
+{
+  "gooType": "shroom",
+  "displayName": "goo.ability.shroom.colonize",
+  "badge": "free",
+  "order": 10,
+  "cost": 1000,
+  "requires": ["minecraft:brown_mushroom", "minecraft:red_mushroom"],
+  "delivery": { "kind": "arc" },
+  "area": { "shape": "sphere", "size": 3.0 },
+  "behaviors": [
+    { "type": "colonize", "radius": 3 },
+    { "type": "particles", "id": "goo:spore", "at": "host", "count": 24, "spread": 1.5, "lift": 0.5, "speed": 0.02 },
+    { "type": "sound", "id": "minecraft:block.fungus.place", "at": "host", "source": "players", "volume": 1, "pitch": 0.8 }
+  ],
+  "tags": []
+}

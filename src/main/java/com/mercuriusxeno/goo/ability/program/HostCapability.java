@@ -58,7 +58,12 @@ public enum HostCapability {
      * A landing where the ability can stand its own block, which runs the
      * steps handed to it (decision lingering-abilities-place-their-own-thing).
      */
-    LINGER(LingerHost.class);
+    LINGER(LingerHost.class),
+    /**
+     * A landing where a blob can grow a shroom network
+     * (decision colonize-blob-grows-the-network).
+     */
+    COLONIZE(ColonizeHost.class);
 
     private final Class<? extends StepHost> hostType;
 
