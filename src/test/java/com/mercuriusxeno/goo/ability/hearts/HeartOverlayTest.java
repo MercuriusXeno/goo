@@ -20,8 +20,20 @@ class HeartOverlayTest {
     private static final int FULL_HALVES = 20;
     private static final float DELTA = 1e-6f;
 
+    /** A whole bar of the kind, every present heart fully shielded, as the crawl leaves it. */
     private static HeartOverlay laid(HeartKind kind, float health) {
-        return HeartOverlay.NONE.apply(kind, DURATION, health, NOW);
+        int filled = HeartOverlay.filledSlots(health);
+        return new HeartOverlay(kind, Collections.nCopies(filled, HeartOverlay.FULL_SHIELD), NOW + DURATION,
+                NOW + kind.regrowInterval(filled * HeartOverlay.FULL_SHIELD), NOW);
+    }
+
+    /** Ticks an overlay once a game tick from now through the last tick, at a steady health. */
+    private static HeartOverlay tickedThrough(HeartOverlay start, float health, long last) {
+        HeartOverlay overlay = start;
+        for (long tick = NOW; tick <= last; tick++) {
+            overlay = overlay.tick(health, false, tick);
+        }
+        return overlay;
     }
 
     private static HeartOverlay kindled(float health) {
@@ -157,16 +169,29 @@ class HeartOverlayTest {
     class Apply {
 
         @Test
-        void everyPresentHeartTakesAFullShield() {
-            HeartOverlay overlay = kindled(FULL_HEALTH);
-            assertEquals(FULL_HALVES, overlay.shieldHalves());
+        void kindleAshesEveryHeartAndEmbersOne() {
+            // heart-effects-crawl-while-held
+            HeartOverlay overlay = HeartOverlay.NONE.apply(HeartKind.KINDLE, DURATION, FULL_HEALTH, NOW);
+            List<Integer> ashBehindOne = new ArrayList<>(Collections.nCopies(10, 0));
+            ashBehindOne.set(0, HeartOverlay.FULL_SHIELD);
+            assertEquals(ashBehindOne, overlay.shields());
             assertEquals(NOW + DURATION, overlay.expiresAt());
         }
 
         @Test
+        void kindleReignitesTheNextHeartPastItsIntervalUntilAllAreEmber() {
+            HeartOverlay overlay = HeartOverlay.NONE.apply(HeartKind.KINDLE, DURATION, FULL_HEALTH, NOW);
+            HeartOverlay oneHalfOn = tickedThrough(overlay, FULL_HEALTH, overlay.regrowAt());
+            assertEquals(1, oneHalfOn.shieldAt(1));
+            assertEquals(0, oneHalfOn.shieldAt(2));
+            assertEquals(FULL_HALVES, tickedThrough(overlay, FULL_HEALTH, NOW + DURATION - 1).shieldHalves());
+        }
+
+        @Test
         void missingHeartStaysMissing() {
-            HeartOverlay overlay = kindled(13f);
-            assertEquals(14, overlay.shieldHalves());
+            HeartOverlay overlay = HeartOverlay.NONE.apply(HeartKind.KINDLE, DURATION, 13f, NOW);
+            assertEquals(7, overlay.shields().size());
+            assertEquals(14, tickedThrough(overlay, 13f, NOW + DURATION - 1).shieldHalves());
             assertEquals(0, overlay.shieldAt(7));
         }
 
@@ -182,8 +207,8 @@ class HeartOverlayTest {
             HeartOverlay held = HeartOverlay.NONE.hold(HeartKind.KINDLE, FULL_HEALTH, FULL_HEALTH,
                     HeartOverlay.WHOLE_HIT, NOW);
             assertEquals(HeartOverlay.NEVER_EXPIRES, held.expiresAt());
-            assertEquals(FULL_HALVES, held.shieldHalves());
-            assertSame(held, held.tick(FULL_HEALTH, false, NOW + 100L * DURATION));
+            assertEquals(HeartOverlay.FULL_SHIELD, held.shieldHalves());
+            assertEquals(FULL_HALVES, tickedThrough(held, FULL_HEALTH, NOW + 100L * DURATION).shieldHalves());
         }
 
         @Test
@@ -195,12 +220,14 @@ class HeartOverlayTest {
         }
 
         @Test
-        void anotherKindReplacesTheStandingOverlayWhole() {
+        void anotherKindReplacesTheStandingOverlayFromOneHeart() {
             HeartOverlay spent = kindled(FULL_HEALTH).drain(5f, NOW).overlay()
                     .burn(1f, FULL_HEALTH, NOW + 1).overlay();
             HeartOverlay barked = spent.apply(HeartKind.BARKSKIN, DURATION, 18f, NOW + 2);
             assertEquals(HeartKind.BARKSKIN, barked.kind());
-            assertEquals(Collections.nCopies(9, HeartOverlay.FULL_SHIELD), barked.shields());
+            List<Integer> oneBark = new ArrayList<>(Collections.nCopies(9, 0));
+            oneBark.set(0, HeartOverlay.FULL_SHIELD);
+            assertEquals(oneBark, barked.shields());
             assertEquals(NOW + 2 + DURATION, barked.expiresAt());
             assertEquals(NOW + 2, barked.fireReadyAt());
         }
@@ -391,6 +418,19 @@ class HeartOverlayTest {
         }
 
         @Test
+        void barkskinStartsWithOneBarkHeartAndBarksEachFurtherHeart() {
+            // heart-effects-crawl-while-held
+            HeartOverlay overlay = HeartOverlay.NONE.apply(HeartKind.BARKSKIN, DURATION, FULL_HEALTH, NOW);
+            assertEquals(HeartOverlay.FULL_SHIELD, overlay.shieldAt(0));
+            assertEquals(HeartOverlay.FULL_SHIELD, overlay.shieldHalves());
+            long interval = HeartKind.BARKSKIN.regrowInterval(0);
+            assertEquals(HeartOverlay.FULL_SHIELD, tickedThrough(overlay, FULL_HEALTH, NOW + interval - 1).shieldHalves());
+            assertEquals(1, tickedThrough(overlay, FULL_HEALTH, NOW + interval).shieldAt(1));
+            assertEquals(2, tickedThrough(overlay, FULL_HEALTH, NOW + 2 * interval).shieldAt(1));
+            assertEquals(FULL_HALVES, tickedThrough(overlay, FULL_HEALTH, NOW + 18 * interval).shieldHalves());
+        }
+
+        @Test
         void waterLeavesBarkStanding() {
             HeartOverlay stripped = barked(FULL_HEALTH).drain(1f, NOW).overlay();
             assertSame(stripped, stripped.tick(FULL_HEALTH, true, NOW + 1L));
@@ -430,18 +470,67 @@ class HeartOverlayTest {
         private static final float DAMAGE_TAKEN = 0.5f;
         private static final int MISSING_HALVES = 10;
 
+        private static final float SIX_HEALTH = 6f;
+        /** The first slot six health leaves missing. */
+        private static final int FIRST_MISSING_AT_SIX = 3;
+
+        /** Stone over every missing heart, as the crawl leaves it. */
         private HeartOverlay stoned() {
-            return HeartOverlay.NONE.apply(HeartKind.STONESKIN, DURATION, HALF_HEALTH, FULL_HEALTH, DAMAGE_TAKEN,
-                    NOW);
+            List<Integer> stone = new ArrayList<>(Collections.nCopies(5, 0));
+            stone.addAll(Collections.nCopies(5, HeartOverlay.FULL_SHIELD));
+            return new HeartOverlay(HeartKind.STONESKIN, stone, NOW + DURATION,
+                    NOW + HeartKind.STONESKIN.regrowInterval(MISSING_HALVES), NOW, DAMAGE_TAKEN, 0f);
+        }
+
+        private HeartOverlay freshAtSix() {
+            return HeartOverlay.NONE.apply(HeartKind.STONESKIN, DURATION, SIX_HEALTH, FULL_HEALTH, DAMAGE_TAKEN, NOW);
+        }
+
+        @Test
+        void stoneStartsOnTheLeftmostMissingHeart() {
+            // heart-effects-crawl-while-held
+            HeartOverlay overlay = freshAtSix();
+            assertEquals(10, overlay.shields().size());
+            assertEquals(HeartOverlay.FULL_SHIELD, overlay.shieldHalves());
+            assertEquals(HeartOverlay.FULL_SHIELD, overlay.shieldAt(FIRST_MISSING_AT_SIX));
+            assertTrue(overlay.blocksHealing());
+        }
+
+        @Test
+        void stoneCrawlsIntoEachFurtherMissingHeart() {
+            HeartOverlay overlay = freshAtSix();
+            long interval = HeartKind.STONESKIN.regrowInterval(0);
+            HeartOverlay crept = tickedThrough(overlay, SIX_HEALTH, NOW + interval);
+            assertEquals(1, crept.shieldAt(FIRST_MISSING_AT_SIX + 1));
+            assertTrue(crept.blocksHealing());
+            HeartOverlay whole = tickedThrough(overlay, SIX_HEALTH, NOW + 14 * interval);
+            assertEquals(14, whole.shieldHalves());
+            assertEquals(0, whole.shieldAt(FIRST_MISSING_AT_SIX - 1));
+            assertTrue(whole.blocksHealing());
+        }
+
+        @Test
+        void aWoundOpenedLaterIsStonedToo() {
+            long interval = HeartKind.STONESKIN.regrowInterval(0);
+            HeartOverlay whole = tickedThrough(freshAtSix(), SIX_HEALTH, NOW + 14 * interval);
+            float wounded = 4f;
+            HeartOverlay overlay = whole;
+            for (long tick = NOW + 14 * interval + 1; tick <= NOW + 16 * interval; tick++) {
+                overlay = overlay.tick(wounded, false, tick);
+                assertTrue(overlay.blocksHealing());
+            }
+            assertEquals(HeartOverlay.FULL_SHIELD, overlay.shieldAt(FIRST_MISSING_AT_SIX - 1));
+            assertEquals(16, overlay.shieldHalves());
         }
 
         @Test
         void stoneFillsOnlyTheMissingHearts() {
-            HeartOverlay overlay = stoned();
-            assertEquals(MISSING_HALVES, overlay.shieldHalves());
-            assertEquals(0, overlay.shieldAt(4));
-            assertEquals(HeartOverlay.FULL_SHIELD, overlay.shieldAt(5));
-            assertEquals(HeartOverlay.FULL_SHIELD, overlay.shieldAt(9));
+            HeartOverlay whole = tickedThrough(HeartOverlay.NONE.apply(HeartKind.STONESKIN, DURATION, HALF_HEALTH,
+                    FULL_HEALTH, DAMAGE_TAKEN, NOW), HALF_HEALTH, NOW + DURATION - 1);
+            assertEquals(MISSING_HALVES, whole.shieldHalves());
+            assertEquals(0, whole.shieldAt(4));
+            assertEquals(HeartOverlay.FULL_SHIELD, whole.shieldAt(5));
+            assertEquals(HeartOverlay.FULL_SHIELD, whole.shieldAt(9));
         }
 
         @Test
@@ -466,10 +555,10 @@ class HeartOverlayTest {
         }
 
         @Test
-        void stoneNeverRegrows() {
+        void brokenStoneCrawlsBack() {
             HeartOverlay chipped = stoned().drainScaled(4f, DAMAGE_TAKEN, NOW).overlay();
-            assertSame(chipped, chipped.tick(HALF_HEALTH, false, NOW + DURATION - 1));
-            assertTrue(chipped.nextRegrowSlot(HALF_HEALTH).isEmpty());
+            assertEquals(9, chipped.nextRegrowSlot(HALF_HEALTH).orElseThrow());
+            assertEquals(MISSING_HALVES, tickedThrough(chipped, HALF_HEALTH, NOW + DURATION - 1).shieldHalves());
         }
 
         @Test

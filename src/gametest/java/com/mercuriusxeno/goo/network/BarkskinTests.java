@@ -109,6 +109,6 @@ public final class BarkskinTests {
     }
 
     private static ServerPlayer barked(GameTestHelper helper) {
-        return HeartOverlayTests.selfInvoked(helper, GooTypes.LEAF, LEAF_BARKSKIN);
+        return HeartOverlayTests.crawledWhole(HeartOverlayTests.selfInvoked(helper, GooTypes.LEAF, LEAF_BARKSKIN));
     }
 }

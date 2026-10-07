@@ -429,7 +429,9 @@ public final class HeartOverlayHud {
                 graphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x, y, HEART_SIZE, HEART_SIZE);
             }
             // wood-crawls-across-regrowing-heart: the same crawl, bark creeping evenly over a bare half
-            crawl.filter(regrowing -> regrowing.slot() == slot && regrowing.fromHalf() < realHalves)
+            // heart-effects-crawl-while-held: stone crawls into a missing heart, where no real half stands
+            crawl.filter(regrowing -> regrowing.slot() == slot
+                            && (overlay.kind() == HeartKind.STONESKIN || regrowing.fromHalf() < realHalves))
                     .ifPresent(regrowing -> paintCrawl(graphics, overlay.kind(), regrowing, guiTicks, x, y));
             if (overlay.kind() == HeartKind.KINDLE) {
                 paintSparks(graphics, EmberSparks.sparks(slot, Math.min(overlay.shieldAt(slot), realHalves),
@@ -440,8 +442,9 @@ public final class HeartOverlayHud {
 
     /**
      * Paints a regrowing half's crawl: the shield's sprite revealed row by row
-     * up to the front: a smoldering, pulsing ember over Kindle's ash, and oak
-     * bark creeping evenly over Barkskin's bare heart.
+     * up to the front: a smoldering, pulsing ember over Kindle's ash, oak
+     * bark creeping evenly over Barkskin's bare heart, and stone creeping
+     * evenly into Stoneskin's missing heart.
      *
      * @param graphics the gui graphics
      * @param kind     the overlay's kind
@@ -453,7 +456,7 @@ public final class HeartOverlayHud {
     private static void paintCrawl(GuiGraphicsExtractor graphics, HeartKind kind, RegrowCrawl.Crawl crawl, int guiTicks,
                                    int x, int y) {
         boolean smolder = kind == HeartKind.KINDLE;
-        Identifier sprite = smolder ? EMBER_FULL : BARK_FULL;
+        Identifier sprite = smolder ? EMBER_FULL : kind == HeartKind.STONESKIN ? STONE_FULL : BARK_FULL;
         float alpha = smolder ? SMOLDER_ALPHA + SMOLDER_PULSE * Mth.sin(guiTicks * SMOLDER_PULSE_RATE) : 1f;
         int left = x + crawl.fromHalf() * (HEART_SIZE - RegrowCrawl.HALF_WIDTH);
         for (int row = 0; row < HEART_SIZE; row++) {
