@@ -358,6 +358,7 @@ public final class GooTestFunctions {
     private static final String SELF_KINDLE_SHIELDS = "self_kindle_shields_then_quenches";
     private static final String SELF_KINDLE_BURNS = "self_kindle_burns_the_attacker";
     private static final String SELF_HEART_BREWS_REPLACE = "self_heart_brews_replace_each_other";
+    private static final String RESERVE_DRAINS_FIRST = "reserve_drains_first";
     private static final String SELF_BARKSKIN_FIRE = "self_barkskin_fire_burns_through_arrow_breaks_bark";
     private static final String SELF_BARKSKIN_THORNS = "self_barkskin_thorns_and_the_axe";
     private static final String SELF_KINDLE_FIRE = "self_kindle_fire_relights_for_a_heart";
@@ -773,6 +774,7 @@ public final class GooTestFunctions {
         reg(r, SELF_KINDLE_SHIELDS, HeartOverlayTests::kindleShieldsThenQuenches);
         reg(r, SELF_KINDLE_BURNS, HeartOverlayTests::kindleBurnsTheAttacker);
         reg(r, SELF_HEART_BREWS_REPLACE, HeartOverlayTests::heartBrewsReplaceEachOther);
+        reg(r, RESERVE_DRAINS_FIRST, HeartOverlayTests::reserveDrainsFirst);
         reg(r, SELF_BARKSKIN_FIRE, BarkskinTests::fireBurnsThroughArrowBreaksBark);
         reg(r, SELF_BARKSKIN_THORNS, BarkskinTests::thornsAndTheAxe);
         reg(r, SELF_KINDLE_FIRE, HeartOverlayTests::kindleFireRelightsForAHeart);

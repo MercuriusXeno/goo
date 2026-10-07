@@ -15,7 +15,7 @@ public enum HeartKind {
      * costing double, one ember back every n / 2 + 2 seconds, quenched by water
      * (decision kindle-ember-hearts-ash-and-retaliate).
      */
-    KINDLE(2.0f, false, true) {
+    KINDLE(2.0f, false, true, true) {
         @Override
         long regrowInterval(int shieldHalves) {
             // kindle-ember-hearts-ash-and-retaliate: n / 2 + 2 seconds a heart, n the embers, so a high bar
@@ -28,11 +28,24 @@ public enum HeartKind {
      * Leaf Barkskin: bark shields over normal hearts, one bark back every five
      * seconds, gone with its last bark (decision barkskin-bark-hearts-thorn-and-burn).
      */
-    BARKSKIN(1.0f, true, false) {
+    BARKSKIN(1.0f, true, false, true) {
         @Override
         long regrowInterval(int shieldHalves) {
             // barkskin-bark-hearts-thorn-and-burn: a bark heart every 5 seconds, a half every 2.5
             return (long) BARK_REGROW_SECONDS * TICKS_PER_SECOND / HALVES_PER_HEART;
+        }
+    },
+    /**
+     * Vital Reserve: a copy of the hearts the player had, banked behind the
+     * bar at a reduced value, spent before real health and gone with its last
+     * half; it has no weakness, retaliates at nothing and never regrows.
+     * Appended last, so the synced ordinals of the kinds before it stand.
+     * reserve-hearts-sit-behind-the-bar
+     */
+    RESERVE(1.0f, true, false, false) {
+        @Override
+        long regrowInterval(int shieldHalves) {
+            return 0L;
         }
     };
 
@@ -51,11 +64,22 @@ public enum HeartKind {
     private final float bareCostMultiplier;
     private final boolean endsWhenBare;
     private final boolean quenchedByWater;
+    private final boolean regrows;
 
-    HeartKind(float bareCostMultiplier, boolean endsWhenBare, boolean quenchedByWater) {
+    HeartKind(float bareCostMultiplier, boolean endsWhenBare, boolean quenchedByWater, boolean regrows) {
         this.bareCostMultiplier = bareCostMultiplier;
         this.endsWhenBare = endsWhenBare;
         this.quenchedByWater = quenchedByWater;
+        this.regrows = regrows;
+    }
+
+    /**
+     * Answers whether a bare heart regrows its shield over time.
+     *
+     * @return true when shields regrow
+     */
+    boolean regrows() {
+        return regrows;
     }
 
     /**

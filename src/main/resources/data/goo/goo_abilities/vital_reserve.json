@@ -1,0 +1,13 @@
+{
+  "gooType": "vital",
+  "displayName": "goo.ability.vital.reserve",
+  "badge": "channeled",
+  "order": 20,
+  "cost": 1000,
+  "delivery": { "kind": "self" },
+  "behaviors": [
+    { "type": "heart_overlay", "kind": "reserve", "mode": "from_current", "value": 0.5, "duration": 600 },
+    { "type": "particles", "id": "goo:restore_mote", "at": "target", "count": 12, "spread": 0.4, "lift": 1, "speed": 0.02 }
+  ],
+  "tags": ["self"]
+}

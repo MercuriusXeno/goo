@@ -32,6 +32,15 @@ public final class HeartOverlayTests {
 
     private static final Identifier BLAZE_KINDLE = Identifier.parse("goo:blaze_kindle");
     private static final Identifier LEAF_BARKSKIN = Identifier.parse("goo:leaf_barkskin");
+    private static final Identifier VITAL_RESERVE = Identifier.parse("goo:vital_reserve");
+    /** vital_reserve.json banks half of a full bar: ten halves. */
+    private static final int RESERVE_HALVES = 10;
+    private static final float RESERVE_FIRST_HIT = 3f;
+    private static final float RESERVE_LAST_HIT = 8f;
+    private static final String SHOULD_BANK = "Reserve should bank %d halves: stood %s with %d halves";
+    private static final String SHOULD_SPEND_RESERVE = "A hit should spend reserve, not health: health %.1f with %d halves";
+    private static final String SHOULD_SPEND_PAST =
+            "A hit past the reserve should leave health %.1f and no reserve: health %.1f, reserve stands %b";
     /** Two thousand mB of the second goo, enough for one cast. */
     private static final int SECOND_GOO = 2 * GooStacks.THOUSAND;
     private static final String SHOULD_REPLACE = "%s should stand alone with a full shield: stood %s with %d halves";
@@ -208,6 +217,36 @@ public final class HeartOverlayTests {
         KnownRecipes.teachRequires(player, AbilityRegistry.of(player.level()).getAbility(ability));
         SelfDeliveryTests.invoke(player, gooType, ability);
         SelfDeliveryTests.eatThrough(player);
+    }
+
+    /**
+     * A full-health player invoking Reserve banks half its hearts behind the
+     * bar; hits spend the reserve before health, and a hit past the last
+     * reserve half spends the reserve away and takes only the rest from
+     * health (decision reserve-hearts-sit-behind-the-bar).
+     *
+     * @param helper the gametest helper
+     */
+    public static void reserveDrainsFirst(GameTestHelper helper) {
+        ServerPlayer player = selfInvoked(helper, GooTypes.VITAL, VITAL_RESERVE);
+        HeartOverlay banked = player.getData(GooAttachments.HEART_OVERLAY);
+
+        hurt(helper, player, player.damageSources().generic(), RESERVE_FIRST_HIT);
+        Reading spending = Reading.of(player);
+        hurt(helper, player, player.damageSources().generic(), RESERVE_LAST_HIT);
+        Reading spent = Reading.of(player);
+        HeartOverlay after = player.getData(GooAttachments.HEART_OVERLAY);
+        helper.getLevel().getServer().getPlayerList().remove(player);
+
+        helper.assertTrue(banked.kind() == HeartKind.RESERVE && banked.shieldHalves() == RESERVE_HALVES,
+                String.format(SHOULD_BANK, RESERVE_HALVES, banked.kind(), banked.shieldHalves()));
+        helper.assertTrue(spending.health() == FULL_HEALTH
+                        && spending.embers() == RESERVE_HALVES - (int) RESERVE_FIRST_HIT,
+                String.format(SHOULD_SPEND_RESERVE, spending.health(), spending.embers()));
+        float overflow = RESERVE_FIRST_HIT + RESERVE_LAST_HIT - RESERVE_HALVES;
+        helper.assertTrue(spent.health() == FULL_HEALTH - overflow && !after.stands(),
+                String.format(SHOULD_SPEND_PAST, FULL_HEALTH - overflow, spent.health(), after.stands()));
+        helper.succeed();
     }
 
     /**
