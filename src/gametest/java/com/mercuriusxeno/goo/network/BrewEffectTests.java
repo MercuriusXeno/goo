@@ -31,6 +31,7 @@ public final class BrewEffectTests {
     private static final String SHOULD_LAY = "The %s brew should lay %d %s halves expiring at %d, laid %s %d expiring at %d";
     private static final String SHOULD_HOLD_EFFECT = "The %s brew effect should stand for %d ticks, stands %s";
     private static final String SHOULD_DRAIN_NOTHING = "A brew should drain no goo, drained %d";
+    private static final String SHOULD_CHARGE = "The unstable brew should charge until %d, charges until %d";
     private static final String SHOULD_RUN_NOTHING = "A brew of a type with no brew ability should lay nothing, laid %s";
 
     private BrewEffectTests() {
@@ -68,6 +69,25 @@ public final class BrewEffectTests {
      */
     public static void leafBrewBarksForAnHour(GameTestHelper helper) {
         brewLaysForAnHour(helper, GooTypes.LEAF, HeartKind.BARKSKIN);
+    }
+
+    /**
+     * Drinking the unstable brew charges the player for an hour
+     * (decision charged-scales-channel-params-by-json).
+     *
+     * @param helper the gametest helper
+     */
+    public static void unstableBrewChargesForAnHour(GameTestHelper helper) {
+        ServerPlayer player = drinker(helper, GooTypes.UNSTABLE);
+        long now = player.level().getGameTime();
+
+        drink(player, GooTypes.UNSTABLE);
+
+        long chargedUntil = player.getData(GooAttachments.CHARGED);
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        long expected = now + GooPotions.BREW_DURATION;
+        helper.assertTrue(chargedUntil == expected, String.format(SHOULD_CHARGE, expected, chargedUntil));
+        helper.succeed();
     }
 
     /**

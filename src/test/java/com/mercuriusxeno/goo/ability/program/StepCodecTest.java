@@ -35,6 +35,7 @@ class StepCodecTest {
             Map.entry("watch", new WatchStep(Expr.literal(10), Expr.literal(3),
                     List.of(EntityFilter.LIVING, EntityFilter.MOB))),
             Map.entry("unmake", new UnmakeStep(Expr.literal(0.025), Expr.literal(0.5))),
+            Map.entry("charged", new ChargedStep(Expr.literal(400))),
             Map.entry("blocks", new BlocksStep(List.of(new UnmakeStep(Expr.literal(0.025), Expr.literal(0.5))))),
             Map.entry("explode", new ExplodeStep(Expr.parse("2.5 + 1.0 * (stacks - 1)").getOrThrow(),
                     ExplosionMode.NONE)),

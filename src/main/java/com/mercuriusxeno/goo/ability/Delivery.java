@@ -140,4 +140,17 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
         }
         return grannyArc && grannyAllowed ? ThrowArc.lobPeak(start, end) : ThrowArc.basePeak(start.distanceTo(end));
     }
+
+    /**
+     * This delivery with a stream's cone reshaped, every other param kept
+     * (decision charged-scales-channel-params-by-json).
+     *
+     * @param newRange       the stream's reach in blocks
+     * @param newConeDegrees the stream's cone, apex to rim, in degrees
+     * @return the reshaped delivery
+     */
+    public Delivery withCone(double newRange, double newConeDegrees) {
+        return new Delivery(kind, blocksPerTick, newRange, newConeDegrees, ticksPerCharge, grannyAllowed, particle,
+                transformAt);
+    }
 }

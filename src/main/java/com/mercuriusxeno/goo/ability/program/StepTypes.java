@@ -38,6 +38,7 @@ public final class StepTypes {
         register(WatchStep.TYPE);
         register(BlocksStep.TYPE);
         register(UnmakeStep.TYPE);
+        register(ChargedStep.TYPE);
         register(ExplodeStep.TYPE);
         register(DamageStep.TYPE);
         register(PotionStep.TYPE);
