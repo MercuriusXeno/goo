@@ -79,11 +79,10 @@ final class FaceBullseyeRenderer {
      */
     static void render(PoseStack poseStack, MultiBufferSource.BufferSource bufferSource,
             Camera camera, TargetResult target, int rgb, double nowSeconds) {
-        Direction face = bullseyeFace(target);
-        if (face == null) {
+        if (!(target instanceof TargetResult.BlockTarget block)) {
             return;
         }
-        TargetResult.BlockTarget block = (TargetResult.BlockTarget) target;
+        Direction face = block.face();
         ShapeFace shapeFace = ShapeFace.at(Minecraft.getInstance().level, block.pos(), face);
         Vec3 faceCenter = shapeFace.center();
         Vec3 cam = camera.position();
