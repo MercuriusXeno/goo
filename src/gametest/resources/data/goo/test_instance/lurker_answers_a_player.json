@@ -1,0 +1,10 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:lurker_answers_a_player",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 30,
+  "setup_ticks": 0,
+  "required": true,
+  "padding": 32
+}

@@ -144,7 +144,14 @@ public final class MarkerOrbVisual {
      */
     static void emitOrbLayer(RenderContext ctx, int color, float half, Direction face,
                              OrbShape shape, GooRenderUtil.UvRect uv) {
-        ctx.emitBox(color, outwardHalfBounds(half, face, orbDepth(shape, half)), uv);
+        CuboidBounds bounds = outwardHalfBounds(half, face, orbDepth(shape, half));
+        Direction intoTheBlock = face.getOpposite();
+        for (Direction side : Direction.values()) {
+            // The side pressed to the block lies on the block's own face, where it would z-fight and is never seen.
+            if (side != intoTheBlock) {
+                ctx.emitFace(color, bounds, uv, side);
+            }
+        }
     }
 
     /**

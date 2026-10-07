@@ -11,7 +11,7 @@
     {
       "type": "linger",
       "steps": [
-        { "type": "watch", "radius": 10.0, "until": 3.0, "where": ["living", "mob"] },
+        { "type": "watch", "radius": 10.0, "until": 3.0, "where": ["living"] },
         { "type": "await_entity", "shape": "sphere", "radius": 3.0, "where": ["living"] },
         { "type": "explode", "power": 2.5 }
       ]

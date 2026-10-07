@@ -147,6 +147,7 @@ public final class GooTestFunctions {
     private static final String LAB_KIT_UNTOUCHED_PLAYER_KNOWS_NOTHING = "lab_kit_untouched_player_knows_nothing";
     private static final String BLAST_HIDDEN_UNTIL_GUNPOWDER = "blast_hidden_until_gunpowder";
     private static final String LURKER_PULSES_THEN_EXPLODES = "lurker_pulses_then_explodes";
+    private static final String LURKER_ANSWERS_A_PLAYER = "lurker_answers_a_player";
     private static final String UNMAKE_CHEAP_BEFORE_DEAR = "unmake_cheap_before_dear";
     private static final String UNMAKE_TAP_DISSOLVES_BELOW = "unmake_tap_dissolves_below";
     private static final String CHARGED_LENGTHENS_THE_STREAM = "charged_lengthens_the_stream";
@@ -889,6 +890,7 @@ public final class GooTestFunctions {
         reg(r, LAB_KIT_UNTOUCHED_PLAYER_KNOWS_NOTHING, LabKitKnowledgeTests::untouchedPlayerKnowsNothing);
         reg(r, BLAST_HIDDEN_UNTIL_GUNPOWDER, BlastGateTests::blastHiddenUntilGunpowder);
         reg(r, LURKER_PULSES_THEN_EXPLODES, LurkerTests::lurkerPulsesThenExplodes);
+        reg(r, LURKER_ANSWERS_A_PLAYER, LurkerTests::lurkerAnswersAPlayer);
         reg(r, UNMAKE_CHEAP_BEFORE_DEAR, UnmakeTests::unmakeCheapBeforeDear);
         reg(r, UNMAKE_TAP_DISSOLVES_BELOW, UnmakeTapTests::unmakeTapDissolvesBelow);
         reg(r, CHARGED_LENGTHENS_THE_STREAM, ChargedTests::chargedLengthensTheStream);

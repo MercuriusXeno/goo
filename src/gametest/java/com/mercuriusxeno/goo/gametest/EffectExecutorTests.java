@@ -462,7 +462,7 @@ public final class EffectExecutorTests {
 
     /**
      * Lurker as a program: armed at the splat, the marker idles on its
-     * watch step until a mob enters the trigger radius, then its await and
+     * watch step until something living enters the trigger radius, then its await and
      * explode steps fire.
      *
      * @param helper the gametest helper
