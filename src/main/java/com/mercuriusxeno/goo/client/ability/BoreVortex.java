@@ -55,7 +55,8 @@ public final class BoreVortex {
         FlatQuadContext quads = new FlatQuadContext(event.getPoseStack().last(),
                 buffers.getBuffer(GooRenderTypes.BORE_VORTEX_TYPE));
         ConeSections.emit(quads, new ConeSections.Volume(player.getEyePosition(partialTick).subtract(camera),
-                player.getViewVector(partialTick), bore.delivery().range(), SECTIONS, distance -> TUNNEL_RADIUS));
+                player.getViewVector(partialTick), ConeSections.NEAR, bore.delivery().range(), SECTIONS,
+                distance -> TUNNEL_RADIUS));
         buffers.endBatch(GooRenderTypes.BORE_VORTEX_TYPE);
     }
 

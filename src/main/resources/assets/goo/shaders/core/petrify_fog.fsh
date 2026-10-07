@@ -3,10 +3,11 @@
 #moj_import <minecraft:globals.glsl>
 
 // Petrify's fog (decision petrify-stone-encasement-and-calcify-map): a medusa's
-// gaze miasma. Each cross-section of the cone holds billowing grey-green dust
-// that churns as it drifts, and bright bands of it wash forward along the cone
-// in undulating waves, thinning at the cone's rim, near the glove and at its
-// reach. TRANSLUCENT blend, the sections stacking into a volume.
+// gaze miasma the player emits. Each cross-section of the cone, from the glove
+// out, holds billowing grey-green dust that churns as it drifts, and bright
+// bands of it wash forward from the glove in undulating waves, thinning at the
+// cone's rim and at its reach. TRANSLUCENT blend, the sections stacking into a
+// volume.
 
 in float along;
 in vec2 discPos;
@@ -62,7 +63,8 @@ void main() {
 
     float wave = 0.5 + 0.5 * sin((along * WAVE_COUNT - ticks * WAVE_SPEED) * TAU);
     float rimFade = 1.0 - smoothstep(0.55, 1.0, radial);
-    float nearFade = smoothstep(0.0, 0.18, along);
+    // The fog pours from the glove: it thickens over the first sliver of the cone rather than starting at range.
+    float nearFade = smoothstep(0.0, 0.04, along);
     float farFade = 1.0 - smoothstep(0.8, 1.0, along);
     float alpha = dust * (0.3 + 0.7 * wave) * rimFade * nearFade * farFade * SECTION_OPACITY;
     vec3 color = mix(MIASMA_COLOR, DUST_COLOR, smoothstep(0.3, 0.8, dust) * (0.5 + 0.5 * wave));

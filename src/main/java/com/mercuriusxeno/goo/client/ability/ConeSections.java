@@ -15,7 +15,7 @@ import java.util.function.DoubleUnaryOperator;
  */
 final class ConeSections {
 
-    /** Where the first section stands, in blocks past the eye, clear of the view. */
+    /** Where the first section stands by default, in blocks past the apex, clear of the view. */
     static final double NEAR = 0.6;
     private static final int SEGMENTS = 32;
     private static final int OPAQUE = 0xFF;
@@ -31,13 +31,14 @@ final class ConeSections {
     /**
      * The volume the sections fill.
      *
-     * @param apex     the eye, camera relative
+     * @param apex     where the volume starts, camera relative
      * @param axis     the look's unit vector
-     * @param range    how far the volume reaches past the eye
+     * @param near     where the first section stands past the apex
+     * @param range    how far the volume reaches past the apex
      * @param sections how many sections stack along it
-     * @param radiusAt each section's radius by its distance past the eye
+     * @param radiusAt each section's radius by its distance past the apex
      */
-    record Volume(Vec3 apex, Vec3 axis, double range, int sections, DoubleUnaryOperator radiusAt) {
+    record Volume(Vec3 apex, Vec3 axis, double near, double range, int sections, DoubleUnaryOperator radiusAt) {
     }
 
     /**
@@ -48,23 +49,24 @@ final class ConeSections {
      */
     static void emit(FlatQuadContext quads, Volume volume) {
         for (int section = 0; section < volume.sections(); section++) {
-            double distance = sectionDistance(section, volume.range(), volume.sections());
+            double distance = sectionDistance(section, volume.near(), volume.range(), volume.sections());
             emitSection(quads, volume.apex().add(volume.axis().scale(distance)), volume.axis(),
                     volume.radiusAt().applyAsDouble(distance), (float) (distance / volume.range()));
         }
     }
 
     /**
-     * How far past the eye a section stands: the sections spread evenly from
-     * just clear of the view to the reach.
+     * How far past the apex a section stands: the sections spread evenly
+     * from the nearest to the reach.
      *
      * @param section  the section's index
+     * @param near     where the first section stands
      * @param range    the reach
      * @param sections how many sections stack along it
      * @return the section's distance in blocks
      */
-    static double sectionDistance(int section, double range, int sections) {
-        return NEAR + (range - NEAR) * (section + HALF) / sections;
+    static double sectionDistance(int section, double near, double range, int sections) {
+        return near + (range - near) * (section + HALF) / sections;
     }
 
     /**
