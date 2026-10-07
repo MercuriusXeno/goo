@@ -67,6 +67,10 @@ public final class EffectExecutorTests {
     private static final String ABILITIES_REQUIRED = "Ability registry must be loaded";
     private static final String ABILITY_BLAST = "goo:unstable_explode";
     private static final String ABILITY_TIMED_BOMB = "goo:unstable_timed_bomb";
+    /** Countdown's fuse, five seconds (decision countdown-fuses-five-seconds). */
+    private static final int COUNTDOWN_FUSE_TICKS = 100;
+    /** Ticks either side of the fuse the test checks the marker at. */
+    private static final int FUSE_MARGIN_TICKS = 5;
     private static final String ABILITY_LURKER = "goo:unstable_lurker";
     private static final String ABILITY_GLOW_CRYSTAL = "goo:glow_crystal";
     /** Ticks an armed mine idles before the test spawns a target. */
@@ -447,14 +451,16 @@ public final class EffectExecutorTests {
     }
 
     /**
-     * Timed bomb as a program: it explodes at the splat like blast, until
-     * unstable-abilities decides its fate.
+     * Countdown as a program: its blob stands through a five-second fuse,
+     * then explodes (decision countdown-fuses-five-seconds).
      *
      * @param helper the gametest helper
      */
     public static void programTimedBomb(GameTestHelper helper) {
         placeMarkerWithAbility(helper, GooTypes.UNSTABLE, ABILITY_TIMED_BOMB);
-        helper.runAfterDelay(TICK_AFTER_LANDING, () -> {
+        helper.runAfterDelay(COUNTDOWN_FUSE_TICKS - FUSE_MARGIN_TICKS,
+                () -> helper.assertBlockPresent(GooBlocks.ABILITY_BLOCK.get(), MARKER_POS));
+        helper.runAfterDelay(COUNTDOWN_FUSE_TICKS + FUSE_MARGIN_TICKS, () -> {
             assertExploded(helper);
             helper.succeed();
         });
