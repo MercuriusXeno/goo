@@ -214,6 +214,7 @@ public final class GooTestFunctions {
     private static final String FX_PROGRAM_CRYSTAL_CLOUD = "fx_program_crystal_cloud";
     private static final String FX_PROGRAM_NETHER_BLACK_HOLE = "fx_program_nether_black_hole";
     private static final String FX_LANDED_CRYSTAL_CLOUD = "fx_landed_crystal_cloud_live";
+    private static final String FX_CRYSTAL_CLOUD_SHREDS_PLAYER = "fx_crystal_cloud_shreds_walking_player";
     private static final String FX_LANDED_METAL_SPIKES = "fx_landed_metal_spikes_live";
     private static final String FX_LANDED_BLACK_HOLE = "fx_landed_black_hole_gathers";
     private static final String FX_LANDED_BLAST = "fx_landed_blast_explodes";
@@ -619,6 +620,7 @@ public final class GooTestFunctions {
         reg(r, FX_PROGRAM_CRYSTAL_CLOUD, EffectExecutorTests::programCrystalCloud);
         reg(r, FX_PROGRAM_NETHER_BLACK_HOLE, EffectExecutorTests::programNetherBlackHole);
         reg(r, FX_LANDED_CRYSTAL_CLOUD, EffectExecutorTests::crystalCloudLiveAfterLanding);
+        reg(r, FX_CRYSTAL_CLOUD_SHREDS_PLAYER, EffectExecutorTests::crystalCloudShredsAWalkingPlayer);
         reg(r, FX_LANDED_METAL_SPIKES, EffectExecutorTests::metalSpikesLiveAfterLanding);
         reg(r, FX_LANDED_BLACK_HOLE, EffectExecutorTests::blackHoleGathersAfterLanding);
         reg(r, FX_LANDED_BLAST, EffectExecutorTests::blastExplodesAfterLanding);
