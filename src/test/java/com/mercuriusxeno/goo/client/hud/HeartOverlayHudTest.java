@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.mercuriusxeno.goo.ability.hearts.HeartKind;
+import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -30,6 +31,22 @@ class HeartOverlayHudTest {
         assertEquals(124, HeartOverlayHud.slotX(13, 100));
         assertEquals(191, HeartOverlayHud.slotY(13, 200, 9));
         assertEquals(200, HeartOverlayHud.slotY(9, 200, 9));
+    }
+
+    /** Stoneskin's stone shows in a missing heart's empty container (decision stoneskin-stone-hearts-block-regeneration). */
+    @Test
+    void stoneskinLaysStoneOverAMissingHeart() {
+        assertEquals(List.of("goo:hud/heart/stone_full"), sprites(HeartKind.STONESKIN, 2, 0));
+        assertEquals(List.of("goo:hud/heart/stone_half"), sprites(HeartKind.STONESKIN, 1, 0));
+    }
+
+    @Test
+    void stoneskinPaintsTheMissingSlotsItFillsAndOtherKindsOnlyRealHealth() {
+        HeartOverlay stoned = HeartOverlay.NONE.apply(HeartKind.STONESKIN, 1_200, 10f, 20f, 0.5f, 0L);
+        HeartOverlay barked = HeartOverlay.NONE.apply(HeartKind.BARKSKIN, 1_200, 10f, 0L);
+        assertEquals(10, HeartOverlayHud.paintedSlots(stoned, 10));
+        assertEquals(5, HeartOverlayHud.paintedSlots(barked, 10));
+        assertEquals(0, HeartOverlayHud.paintedSlots(HeartOverlay.NONE, 10));
     }
 
     @Test

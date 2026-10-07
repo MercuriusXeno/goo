@@ -425,6 +425,41 @@ public final class GooRenderTypes {
     }
 
     /**
+     * Block transform pipeline (decision petrify-stone-encasement-and-calcify-map):
+     * an old block's quads drawn over the new block it became, on
+     * {@code block_mingle.vsh / .fsh}, discarded where the mingle noise over
+     * world position falls below the share of the transform run, which the
+     * overlay coordinates carry, so the old block mingles into the new.
+     */
+    public static final RenderPipeline BLOCK_MINGLE = RenderPipeline.builder(
+                    RenderPipelines.ENTITY_SNIPPET,
+                    RenderPipelines.GLOBALS_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "block_mingle"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "block_mingle"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "block_mingle"))
+            .build();
+
+    /** Per-atlas memoized render types on the block transform pipeline. */
+    private static final java.util.function.Function<Identifier, RenderType> BLOCK_MINGLE_FACTORY =
+            net.minecraft.util.Util.memoize(atlas -> RenderType.create(
+                    "goo_block_mingle",
+                    RenderSetup.builder(BLOCK_MINGLE)
+                            .withTexture("Sampler0", atlas)
+                            .useLightmap()
+                            .createRenderSetup()
+            ));
+
+    /**
+     * Returns the block transform render type for the atlas the block's sprites sit on.
+     *
+     * @param atlas the texture atlas identifier
+     * @return memoized RenderType
+     */
+    public static RenderType blockMingle(Identifier atlas) {
+        return BLOCK_MINGLE_FACTORY.apply(atlas);
+    }
+
+    /**
      * Goo splat pipeline (decision shader-coat-on-every-mob-landing): a struck
      * mob's model drawn again through {@code goo_mob_coat.vsh / .fsh}, lifted
      * off the skin along its normals, painting the goo type's fluid sprite
@@ -479,6 +514,52 @@ public final class GooRenderTypes {
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(new DepthStencilState(DepthStencilState.DEFAULT.depthTest(), false))
             .build();
+
+    /**
+     * Petrify's stone pipeline (decision petrify-stone-encasement-and-calcify-map):
+     * a mob's model and the shell it wears drawn again through
+     * {@code petrify_stone.vsh / .fsh}, flush at the model's own depth, a stone
+     * texture laid over the skin coordinates in noise patches covering the
+     * share of the model the vertex alpha carries, whole at a statue.
+     */
+    public static final RenderPipeline PETRIFY_STONE = RenderPipeline.builder(
+                    RenderPipelines.ENTITY_SNIPPET,
+                    RenderPipelines.GLOBALS_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "petrify_stone"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "petrify_stone"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "petrify_stone"))
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withDepthStencilState(new DepthStencilState(DepthStencilState.DEFAULT.depthTest(), false))
+            .build();
+
+    /** The petrify stone render type, sampling vanilla's stone texture. */
+    public static final RenderType PETRIFY_STONE_TYPE = RenderType.create(
+            "goo_petrify_stone",
+            RenderSetup.builder(PETRIFY_STONE)
+                    .withTexture("Sampler0", Identifier.withDefaultNamespace("textures/block/stone.png"))
+                    .useLightmap()
+                    .sortOnUpload()
+                    .createRenderSetup());
+
+    /**
+     * Petrify's fog pipeline (decision petrify-stone-encasement-and-calcify-map):
+     * cross-sections of the cone drawn through {@code petrify_fog.vsh / .fsh},
+     * undulating dust-fog waves washing forward through them.
+     */
+    public static final RenderPipeline PETRIFY_FOG = burnoutPipeline("petrify_fog", BlendFunction.TRANSLUCENT);
+
+    /** The petrify fog render type. */
+    public static final RenderType PETRIFY_FOG_TYPE = burnoutType(PETRIFY_FOG);
+
+    /**
+     * Bore's vortex pipeline (decision bore-vortex-with-a-worldspace-shake):
+     * sections down the tunnel drawn through {@code bore_vortex.vsh / .fsh},
+     * spiralling dust arms turning about the look.
+     */
+    public static final RenderPipeline BORE_VORTEX = burnoutPipeline("bore_vortex", BlendFunction.TRANSLUCENT);
+
+    /** The bore vortex render type. */
+    public static final RenderType BORE_VORTEX_TYPE = burnoutType(BORE_VORTEX);
 
     /**
      * Ghost trail pipeline (decision ghost-trail-spans-the-blink): an entity's
@@ -652,6 +733,10 @@ public final class GooRenderTypes {
         event.registerPipeline(GOO_FLUID_SURFACE);
         event.registerPipeline(CRUCIBLE_DISSOLVE);
         event.registerPipeline(GOO_MOB_COAT);
+        event.registerPipeline(BLOCK_MINGLE);
+        event.registerPipeline(PETRIFY_STONE);
+        event.registerPipeline(PETRIFY_FOG);
+        event.registerPipeline(BORE_VORTEX);
         event.registerPipeline(GOO_AILMENT_OVERLAY);
         GOO_RIPPLE_MASKS.forEach(event::registerPipeline);
         event.registerPipeline(GOO_RIPPLE_EDGE);

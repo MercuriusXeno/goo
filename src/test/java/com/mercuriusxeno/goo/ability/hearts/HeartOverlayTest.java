@@ -400,4 +400,75 @@ class HeartOverlayTest {
             assertEquals(50L, HeartKind.BARKSKIN.regrowInterval(7));
         }
     }
+
+    /**
+     * Stoneskin: stone over the missing hearts, a physical hit reduced by the
+     * brew's multiplier, a stone heart worth half a heart against explosions
+     * and pickaxes, no regrowth, and healing held while stone stands
+     * (decision stoneskin-stone-hearts-block-regeneration).
+     */
+    @Nested
+    class Stoneskin {
+
+        private static final float HALF_HEALTH = 10f;
+        private static final float DAMAGE_TAKEN = 0.5f;
+        private static final int MISSING_HALVES = 10;
+
+        private HeartOverlay stoned() {
+            return HeartOverlay.NONE.apply(HeartKind.STONESKIN, DURATION, HALF_HEALTH, FULL_HEALTH, DAMAGE_TAKEN,
+                    NOW);
+        }
+
+        @Test
+        void stoneFillsOnlyTheMissingHearts() {
+            HeartOverlay overlay = stoned();
+            assertEquals(MISSING_HALVES, overlay.shieldHalves());
+            assertEquals(0, overlay.shieldAt(4));
+            assertEquals(HeartOverlay.FULL_SHIELD, overlay.shieldAt(5));
+            assertEquals(HeartOverlay.FULL_SHIELD, overlay.shieldAt(9));
+        }
+
+        @Test
+        void physicalHitStripsTheReducedShare() {
+            HeartOverlay.Drained drained = stoned().drainScaled(4f, DAMAGE_TAKEN, NOW);
+            assertEquals(MISSING_HALVES - 2, drained.overlay().shieldHalves());
+            assertEquals(0f, drained.remainder(), DELTA);
+        }
+
+        @Test
+        void physicalHitPastTheStoneReachesHealthAtItsOwnScale() {
+            HeartOverlay.Drained drained = stoned().drainScaled(30f, DAMAGE_TAKEN, NOW);
+            assertFalse(drained.overlay().stands());
+            assertEquals(10f, drained.remainder(), DELTA);
+        }
+
+        @Test
+        void explosionFindsAStoneHeartWorthHalfAHeart() {
+            HeartOverlay.Drained drained = stoned().drainScaled(2f, HeartOverlayEvents.STONE_BRITTLE_SHARE, NOW);
+            assertEquals(MISSING_HALVES - 4, drained.overlay().shieldHalves());
+            assertEquals(0f, drained.remainder(), DELTA);
+        }
+
+        @Test
+        void stoneNeverRegrows() {
+            HeartOverlay chipped = stoned().drainScaled(4f, DAMAGE_TAKEN, NOW).overlay();
+            assertSame(chipped, chipped.tick(HALF_HEALTH, false, NOW + DURATION - 1));
+            assertTrue(chipped.nextRegrowSlot(HALF_HEALTH).isEmpty());
+        }
+
+        @Test
+        void healingIsHeldWhileStoneStandsAndFreedWhenItBreaks() {
+            assertTrue(stoned().blocksHealing());
+            assertFalse(stoned().drainScaled(30f, DAMAGE_TAKEN, NOW).overlay().blocksHealing());
+            assertFalse(barked(FULL_HEALTH).blocksHealing());
+        }
+
+        @Test
+        void drinkingAgainStacksTheDuration() {
+            HeartOverlay twice = stoned().apply(HeartKind.STONESKIN, DURATION, HALF_HEALTH, FULL_HEALTH,
+                    DAMAGE_TAKEN, NOW);
+            assertEquals(NOW + 2L * DURATION, twice.expiresAt());
+            assertEquals(MISSING_HALVES, twice.shieldHalves());
+        }
+    }
 }

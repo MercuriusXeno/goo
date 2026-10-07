@@ -68,7 +68,6 @@ public final class MobEffectTests {
     private static final String ABILITY_UNSTABLE_EXPLODE = "goo:unstable_explode";
     private static final String ABILITY_HEX_CHARM = "goo:hex_charm";
     private static final String ABILITY_VITAL_CLONE = "goo:vital_clone";
-    private static final String ABILITY_ROCK_PETRIFY = "goo:rock_petrify";
     private static final String ABILITY_BLAZE_IGNITE = "goo:blaze_ignite";
     private static final String ABILITY_GLOW_LASER = "goo:glow_laser";
     private static final String ABILITY_CRYSTAL_FLECHETTES = "goo:crystal_flechettes";
@@ -93,8 +92,6 @@ public final class MobEffectTests {
     private static final float FLECHETTE_DAMAGE = 4.0f;
     private static final String LIVING_SHOULD_NOT_BURN = "A cow is not undead and should not burn";
     private static final String UNDEAD_SHOULD_BURN = "A zombie is undead and should burn";
-    private static final String SHOULD_BE_CRUSHED = "Target should be dead or dying";
-    private static final String SHOULD_DROP_COBBLESTONE = "Cobblestone should lie where the crushed mob stood";
     private static final String SHOULD_BE_FROZEN = "Target should hold frost_snap.json's full freeze";
     /** The frozen ticks frost_snap.json's freeze_ticks step adds. */
     private static final int FULL_FREEZE_TICKS = 140;
@@ -229,26 +226,6 @@ public final class MobEffectTests {
             helper.assertTrue(mob.hasEffect(MobEffects.WEAKNESS), SHOULD_HAVE_WEAKNESS);
             helper.assertTrue(mob.hasEffect(MobEffects.POISON), SHOULD_HAVE_POISON);
             helper.succeed();
-        });
-    }
-
-    /**
-     * Rock petrify is a program: max slowness, magic damage of the mob's
-     * max health and a cobblestone drop, so the cow is crushed and
-     * cobblestone lies where it stood. The read retries each tick, as the
-     * dropped item can reach the level's entity scan a tick after it spawns.
-     *
-     * @param helper the gametest helper
-     */
-    public static void rockPetrify(GameTestHelper helper) {
-        Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
-        Vec3 stood = mob.position();
-        helper.runAfterDelay(SETTLE_TICKS, () -> {
-            strike(helper, mob, ABILITY_ROCK_PETRIFY);
-            helper.assertTrue(mob.hasEffect(MobEffects.SLOWNESS), SHOULD_HAVE_SLOWNESS);
-            helper.assertTrue(mob.isDeadOrDying(), SHOULD_BE_CRUSHED);
-            helper.succeedWhen(() -> helper.assertTrue(itemsNear(helper, stood).stream()
-                    .anyMatch(item -> item.getItem().is(Items.COBBLESTONE)), SHOULD_DROP_COBBLESTONE));
         });
     }
 

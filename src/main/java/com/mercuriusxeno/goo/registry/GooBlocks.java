@@ -12,6 +12,7 @@ import com.mercuriusxeno.goo.block.gasket.ChoralGasketBlock;
 import com.mercuriusxeno.goo.block.hub.HubBlock;
 import com.mercuriusxeno.goo.block.plexer.PlexerBlock;
 import com.mercuriusxeno.goo.block.reactor.ReactorBlock;
+import com.mercuriusxeno.goo.block.statue.StatueBlock;
 import com.mercuriusxeno.goo.block.tap.TapBlock;
 import com.mercuriusxeno.goo.block.vat.VatBlock;
 import com.mercuriusxeno.goo.fluid.GooFluidBlock;
@@ -36,6 +37,9 @@ public class GooBlocks {
     private static final float EXORITE_BARS_BLAST_RESISTANCE = 1200.0F;
     /** An amethyst cluster's hardness. */
     private static final float PRISM_HARDNESS = 1.5F;
+    /** Cobblestone's hardness and blast resistance, which a statue mines like. */
+    private static final float COBBLESTONE_HARDNESS = 2.0F;
+    private static final float COBBLESTONE_RESISTANCE = 6.0F;
 
     /**
      * Ability block: short-lived block a world ability runs its program from.
@@ -79,6 +83,18 @@ public class GooBlocks {
      * Prism: the milky quartz crystal Crystal's Prism grows, the host every
      * prism combo grows on (decision prism-blob-becomes-a-milky-quartz-crystal).
      */
+    /**
+     * Statue: a petrified mob, mined like cobblestone for cobblestone and the
+     * mob's experience (decision petrify-stone-encasement-and-calcify-map).
+     */
+    public static final DeferredBlock<StatueBlock> STATUE = BLOCKS.registerBlock(
+            "statue", StatueBlock::new,
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.STONE)
+                    .requiresCorrectToolForDrops()
+                    .strength(COBBLESTONE_HARDNESS, COBBLESTONE_RESISTANCE)
+                    .noOcclusion()
+                    .sound(SoundType.STONE));
     public static final DeferredBlock<PrismBlock> PRISM = BLOCKS.registerBlock(
             "prism", PrismBlock::new,
             () -> BlockBehaviour.Properties.of()

@@ -19,17 +19,20 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class AbilityBadgeTest {
 
-    private static final int SHIPPED_MOB_BADGES = 15;
+    private static final int SHIPPED_MOB_BADGES = 14;
     private static final int SHIPPED_WORLD_BADGES = 7;
     private static final int SHIPPED_SELF_BADGES = 2;
-    private static final int SHIPPED_BREW_BADGES = 3;
-    private static final int SHIPPED_CHANNELED_BADGES = 3;
-    private static final int SHIPPED_FREE_BADGES = 1;
-    private static final int SHIPPED_TAP_BADGES = 1;
+    private static final int SHIPPED_BREW_BADGES = 4;
+    private static final int SHIPPED_CHANNELED_BADGES = 6;
+    private static final int SHIPPED_FREE_BADGES = 2;
+    private static final int SHIPPED_TAP_BADGES = 2;
     /** The self + brew abilities, which wear brew on their self delivery (decision self-brew-goos-eat-before-the-effect). */
-    private static final List<String> SHIPPED_BREWS = List.of("blaze_kindle", "leaf_barkskin", "vital_nourish");
+    private static final List<String> SHIPPED_BREWS = List.of("blaze_kindle", "leaf_barkskin", "rock_stoneskin",
+            "vital_nourish");
     /** Blast, the shipped free ability (decision badge-vocabulary-gains-free-prism-tap-brew). */
-    private static final String SHIPPED_FREE = "unstable_explode";
+    private static final List<String> SHIPPED_FREE = List.of("unstable_explode", "rock_crush");
+    /** Self deliveries run each held tick on the player (decision flatten-disc-cursor-breaks-above-the-plane). */
+    private static final List<String> SHIPPED_SELF_CHANNELS = List.of("rock_flatten");
 
     @ParameterizedTest
     @CsvSource({"world, WORLD", "mob, MOB", "self, SELF", "channeled, CHANNELED", "brew, BREW",
@@ -79,17 +82,24 @@ class AbilityBadgeTest {
      * @return the badge it should wear
      */
     private static AbilityBadge expectedBadge(AbilityDefinition definition) {
-        if (definition.id().getPath().equals(SHIPPED_FREE)) {
+        if (SHIPPED_FREE.contains(definition.id().getPath())) {
             return AbilityBadge.FREE;
         }
         if (definition.hasTag(AbilityTags.TAP)) {
             return AbilityBadge.TAP;
         }
         return switch (definition.delivery().kind()) {
-            case SELF -> SHIPPED_BREWS.contains(definition.id().getPath()) ? AbilityBadge.BREW : AbilityBadge.SELF;
+            case SELF -> selfBadge(definition.id().getPath());
             case STREAM -> AbilityBadge.CHANNELED;
             default -> definition.hasTag(AbilityTags.ENTITY) ? AbilityBadge.MOB : AbilityBadge.WORLD;
         };
+    }
+
+    private static AbilityBadge selfBadge(String path) {
+        if (SHIPPED_SELF_CHANNELS.contains(path)) {
+            return AbilityBadge.CHANNELED;
+        }
+        return SHIPPED_BREWS.contains(path) ? AbilityBadge.BREW : AbilityBadge.SELF;
     }
 
     @Test

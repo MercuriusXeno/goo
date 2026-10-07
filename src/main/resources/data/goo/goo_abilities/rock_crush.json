@@ -1,0 +1,13 @@
+{
+  "gooType": "rock",
+  "displayName": "goo.ability.rock.crush",
+  "badge": "free",
+  "order": 40,
+  "cost": 1000,
+  "requires": ["minecraft:gravel", "minecraft:sand"],
+  "delivery": { "kind": "arc" },
+  "behaviors": [
+    { "type": "crush", "breaks": "goo:crush_breakable", "radius": 2, "damage": 6 }
+  ],
+  "tags": ["entity", "no_splat"]
+}

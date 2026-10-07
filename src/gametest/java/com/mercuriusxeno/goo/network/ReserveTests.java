@@ -134,8 +134,8 @@ public final class ReserveTests {
      * Streams Reserve one tick at a time for the hold, as the glove does while right click stays down.
      */
     private static void hold(GameTestHelper helper, ServerPlayer player, int ticks) {
-        GooStreamPayload tick = new GooStreamPayload(GooTypes.id(GooTypes.VITAL), VITAL_RESERVE.toString(),
-                player.getEyePosition());
+        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.VITAL), VITAL_RESERVE.toString(),
+                player.getEyePosition(), player.getEyePosition());
         for (int held = 1; held <= ticks; held++) {
             helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, tick));
         }
