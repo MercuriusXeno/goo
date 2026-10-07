@@ -41,6 +41,7 @@ public final class BrewEffectTests {
     private static final String SHOULD_LAY = "The %s brew should lay %d %s halves expiring at %d, laid %s %d expiring at %d";
     private static final String SHOULD_HOLD_EFFECT = "The %s brew effect should stand for %d ticks, stands %s";
     private static final String SHOULD_DRAIN_NOTHING = "A brew should drain no goo, drained %d";
+    private static final String SHOULD_SHOW_NO_PARTICLES = "A brew should show its icon and no particles, stands %s";
     private static final String SHOULD_NOURISH = "The vital brew should nourish until %d, nourishes until %d";
     private static final String SHOULD_RUN_NOTHING = "A brew of a type with no brew ability should lay nothing, laid %s";
     private static final String SHOULD_HOLD_PREPAID = "The blaze brew should hold Kindle prepaid until %d, held %s";
@@ -176,6 +177,8 @@ public final class BrewEffectTests {
         helper.assertTrue(standing != null && standing.getDuration() == GooPotions.BREW_DURATION,
                 String.format(SHOULD_HOLD_EFFECT, gooType.identifier(), GooPotions.BREW_DURATION, standing));
         helper.assertTrue(drained == 0, String.format(SHOULD_DRAIN_NOTHING, drained));
+        // brew-runs-the-crawl-prepaid-on-a-shown-clock: the icon and its time show, particles never
+        helper.assertTrue(standing.showIcon() && !standing.isVisible(), String.format(SHOULD_SHOW_NO_PARTICLES, standing));
         helper.succeed();
     }
 

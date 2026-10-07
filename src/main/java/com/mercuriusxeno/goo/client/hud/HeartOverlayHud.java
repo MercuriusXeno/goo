@@ -460,7 +460,7 @@ public final class HeartOverlayHud {
         void paint(int slot, int x, int y, int realHalves) {
             if (stoneBesideHalfHeart(overlay.kind(), overlay.shieldAt(slot), realHalves)) {
                 // heart-effects-crawl-while-held: stone fills the empty half beside a half heart
-                blitColumns(graphics, STONE_FULL, x, y, x + RIGHT_HALF_SHIFT, x + HEART_SIZE,
+                blitColumns(graphics, STONE_FULL, x, y, x + halfStart(1), x + halfEnd(1),
                         Math.round(alpha * OPAQUE_ALPHA) << ALPHA_SHIFT | WHITE_RGB);
             } else {
                 for (Identifier sprite : heartSprites(overlay.kind(), overlay.shieldAt(slot), realHalves)) {
@@ -497,16 +497,40 @@ public final class HeartOverlayHud {
         boolean smolder = kind == HeartKind.KINDLE;
         Identifier sprite = smolder ? EMBER_FULL : kind == HeartKind.STONESKIN ? STONE_FULL : BARK_FULL;
         float alpha = smolder ? SMOLDER_ALPHA + SMOLDER_PULSE * Mth.sin(guiTicks * SMOLDER_PULSE_RATE) : 1f;
-        int left = x + crawl.fromHalf() * (HEART_SIZE - RegrowCrawl.HALF_WIDTH);
+        int left = x + halfStart(crawl.fromHalf());
+        int right = x + halfEnd(crawl.fromHalf());
         for (int row = 0; row < HEART_SIZE; row++) {
             int reach = RegrowCrawl.rowReach(row, crawl.progress(), guiTicks, smolder);
             if (reach > 0) {
-                graphics.enableScissor(left, y + row, left + reach, y + row + 1);
+                graphics.enableScissor(left, y + row, Math.min(left + reach, right), y + row + 1);
                 graphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x, y, HEART_SIZE, HEART_SIZE, alpha);
                 graphics.disableScissor();
             }
         }
     }
+    /**
+     * The first sprite column of a heart's half, split where vanilla's half
+     * heart ends: the left half takes columns 0 to 4, its tip in the center
+     * column, and the right half columns 5 to 8.
+     * heart-effects-crawl-while-held
+     *
+     * @param half zero for the left half, one for the right
+     * @return the column the half starts at
+     */
+    static int halfStart(int half) {
+        return half == 0 ? 0 : RegrowCrawl.HALF_WIDTH;
+    }
+
+    /**
+     * The column past a heart's half, where the half ends.
+     *
+     * @param half zero for the left half, one for the right
+     * @return the column after the half's last
+     */
+    static int halfEnd(int half) {
+        return half == 0 ? RegrowCrawl.HALF_WIDTH : HEART_SIZE;
+    }
+
     private static void paintSparks(GuiGraphicsExtractor graphics, List<EmberSparks.Spark> sparks, int x, int y) {
         for (EmberSparks.Spark spark : sparks) {
             int left = x + Math.round(spark.x());
