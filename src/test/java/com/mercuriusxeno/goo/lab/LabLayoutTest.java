@@ -106,7 +106,7 @@ class LabLayoutTest {
     }
 
     @Test
-    void everyPenRingIsFencedAndRoofed() {
+    void everyPenRingIsFencedAndRoofedUnlessOpen() {
         for (LabPen pen : plan.pens()) {
             LabBox bounds = pen.bounds();
             for (int x = bounds.min().x(); x <= bounds.max().x(); x++) {
@@ -116,7 +116,8 @@ class LabLayoutTest {
                         String expected = ring ? LabPens.FENCE_BLOCK : null;
                         assertEquals(expected, stateAt(new LabOffset(x, y, z)), pen.displayName());
                     }
-                    assertEquals(LabPens.ROOF_BLOCK, stateAt(new LabOffset(x, bounds.max().y(), z)));
+                    String roof = pen.roofed() ? LabPens.ROOF_BLOCK : null;
+                    assertEquals(roof, stateAt(new LabOffset(x, bounds.max().y(), z)), pen.displayName());
                 }
             }
         }
@@ -132,8 +133,22 @@ class LabLayoutTest {
                     .map(LabSpawn::entityId).toList();
             assertEquals(pen.mobs(), inside);
         }
-        assertEquals(Set.of("Passive", "Hostile", "Undead", "Blaze"),
+        assertEquals(Set.of("Passive", "Hostile", "Undead", "Zombie", "Blaze"),
                 Set.copyOf(plan.pens().stream().map(LabPen::displayName).toList()));
+    }
+
+    @Test
+    void onlyThePassivePenStandsOpen() {
+        List<String> open = plan.pens().stream().filter(pen -> !pen.roofed()).map(LabPen::displayName).toList();
+        assertEquals(List.of("Passive"), open);
+    }
+
+    @Test
+    void zombiePenHoldsZombiesAlone() {
+        LabPen zombies = plan.pens().stream().filter(pen -> "Zombie".equals(pen.displayName())).findFirst().orElseThrow();
+        assertFalse(zombies.mobs().isEmpty());
+        assertEquals(Set.of("minecraft:zombie"), Set.copyOf(zombies.mobs()));
+        assertTrue(LabLayout.floorBox(plan).contains(zombies.bounds().max().shifted(0, -LabPens.ROOF_HEIGHT, 0)));
     }
 
     @Test
