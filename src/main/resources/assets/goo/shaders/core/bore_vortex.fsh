@@ -26,7 +26,8 @@ const float TWIST = 6.0;
 // How tightly each arm winds outward from the middle.
 const float WIND = 4.0;
 const float GRAIN_SCALE = 3.5;
-const float SECTION_OPACITY = 0.38;
+// Each section's own opacity: thin enough that the stacked vortex shows the tunnel through it.
+const float SECTION_OPACITY = 0.1;
 
 float hash(vec2 p) {
     p = fract(p * vec2(123.34, 456.21));
@@ -52,13 +53,13 @@ void main() {
     float turn = ticks * SPIN_PER_TICK + along * TWIST;
     float arm = 0.5 + 0.5 * cos(ARMS * angle - radial * WIND - turn);
     arm = smoothstep(0.35, 1.0, arm);
-    vec2 swirled = vec2(radial * GRAIN_SCALE, angle * ARMS - turn) ;
+    vec2 swirled = vec2(radial * GRAIN_SCALE, angle * ARMS - turn);
     float grain = noise(swirled * vec2(1.0, 1.3)) * 0.6 + noise(swirled * 2.7) * 0.4;
 
     float body = smoothstep(0.08, 0.3, radial) * (1.0 - smoothstep(0.7, 1.0, radial));
     float nearFade = smoothstep(0.0, 0.15, along);
     float farFade = 1.0 - smoothstep(0.85, 1.0, along);
-    float alpha = arm * grain * body * nearFade * farFade * SECTION_OPACITY * 2.0;
+    float alpha = arm * grain * body * nearFade * farFade * SECTION_OPACITY;
     vec3 color = mix(DUST_COLOR, HIGHLIGHT_COLOR, grain * arm);
 
     fragColor = vec4(color, clamp(alpha, 0.0, 1.0));
