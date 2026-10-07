@@ -1,0 +1,10 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:passive_pen_has_no_roof",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 20,
+  "setup_ticks": 0,
+  "required": true,
+  "padding": 32
+}
