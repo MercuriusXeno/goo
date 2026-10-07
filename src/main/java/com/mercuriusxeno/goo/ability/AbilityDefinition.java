@@ -239,7 +239,6 @@ public record AbilityDefinition(
             radiusOf(EntitiesStep.class, EntitiesStep::radius),
             radiusOf(PullStep.class, PullStep::radius),
             radiusOf(AwaitEntityStep.class, AwaitEntityStep::radius),
-            // every-instant-aoe-shows-its-indicator-while-held: Crush shatters within its radius
             radiusOf(CrushStep.class, crush -> Expr.literal(crush.radius())),
             AbilityDefinition::consumedBlocksRadius);
 

@@ -66,6 +66,14 @@ final class RadialWheelRenderer {
     /** How many pixels tall each column of a slash stands. */
     private static final int SLASH_THICKNESS = 2;
     private static final int HALF = 2;
+    /**
+     * How far past the petal's outer radius a closed petal's icon centers:
+     * the reach from the icon's center to the badge's far corner, one icon
+     * right and half an icon up, plus a pixel, so no pixel of either lies
+     * inside the petal.
+     * decision icons-slide-in-from-behind-the-tip
+     */
+    static final double ENTRY_REACH = Math.hypot(ABILITY_ICON_SIZE + ABILITY_ICON_OFFSET, ABILITY_ICON_OFFSET) + 1;
 
     private static final String TYPE_ICON_PREFIX = "textures/goo/type/";
     private static final String ABILITY_ICON_PREFIX = "textures/goo/ability/";
@@ -139,10 +147,10 @@ final class RadialWheelRenderer {
         // abilities-replace-the-hovered-type: words draw last, on a layer nothing draws over
         List<ItemIcon> required = new ArrayList<>();
         for (Words ability : words) {
-            drawWords(graphics, font, ability);
+            drawWords(graphics, font, frame, ability);
             required.addAll(ability.required());
         }
-        slashLearnedItems(graphics, required);
+        slashLearnedItems(graphics, frame, required);
         renderCenterLabel(graphics, font, frame);
         return required;
     }
@@ -221,15 +229,15 @@ final class RadialWheelRenderer {
         // wheel-pulses-the-active-effect: a held effect's petal pulses
         PetalPainter.paint(graphics, frame, frame.look().fluidFace(key), petal,
                 tint(hovered, dimmed, frame.active().contains(ability.id()), frame.gameTime()));
-        int[] slot = tipCenter(frame, petal);
+        int[] restingTip = tipCenter(frame, petal);
         if (offered.locked()) {
-            return new Words(List.of(), null, slot, DISABLED_TEXT_COLOR, requiredIcons(frame, petal, offered));
+            return new Words(List.of(), null, restingTip, DISABLED_TEXT_COLOR, requiredIcons(frame, petal, offered));
         }
-        blitAbilityIcon(graphics, ability, slot,
-                dimmed ? computeOverlayTint(false, true) : COLOR_WHITE);
+        // icons-slide-in-from-behind-the-tip: the icon rides in while the words stay on the resting tip
+        blitAbilityIcon(graphics, frame, petal, ability, dimmed ? computeOverlayTint(false, true) : COLOR_WHITE);
         int textColor = dimmed ? DISABLED_TEXT_COLOR : hovered ? HOVER_TEXT_COLOR : COLOR_WHITE;
         return new Words(splitNameLines(buildLabel(ability).getString()), Component.literal(slotLabels.costLabel()),
-                slot, textColor, List.of());
+                restingTip, textColor, List.of());
     }
 
     /**
@@ -249,7 +257,7 @@ final class RadialWheelRenderer {
                 .mapToObj(index -> {
                     OfferedAbility.RequiredItem item = required.get(index);
                     return new ItemIcon(item.item(), frame.look().itemStack(item.item()), rects.get(index),
-                            item.learned());
+                            item.learned(), petal.shape());
                 })
                 .toList();
     }
@@ -260,11 +268,11 @@ final class RadialWheelRenderer {
      *
      * @param name       the name's lines, none on a locked petal
      * @param cost       the first-throw cost, null on a locked petal
-     * @param iconCenter the icon's center on screen
+     * @param restingTip the point the icon rests on once the petal is fanned, which the words gather around
      * @param color      the words' color
      * @param required   the required items' icons, empty on an unlocked petal
      */
-    private record Words(List<Component> name, @Nullable Component cost, int[] iconCenter, int color,
+    private record Words(List<Component> name, @Nullable Component cost, int[] restingTip, int color,
                          List<ItemIcon> required) {
     }
 
@@ -297,8 +305,9 @@ final class RadialWheelRenderer {
      * @param stack   the item's stack, which draws and names it
      * @param rect    where it draws
      * @param learned true when the player knows the item
+     * @param face    the locked petal, whose face the item and its slash show under
      */
-    record ItemIcon(Identifier item, ItemStack stack, ItemRect rect, boolean learned) {
+    record ItemIcon(Identifier item, ItemStack stack, ItemRect rect, boolean learned, PetalMask.Petal face) {
     }
 
     /**
@@ -318,8 +327,10 @@ final class RadialWheelRenderer {
         double middle = (shape.inner() + shape.outer()) / HALF * frame.radius();
         double firstOffset = (count - 1) * ITEM_STRIDE / (double) HALF;
         PetalMask.Point along = PetalMask.Point.polar(petal.center(), 1.0);
+        // icons-slide-in-from-behind-the-tip: the column rides in by the icon's offset
+        double slide = slideDistance(frame, petal);
         return IntStream.range(0, count).mapToObj(index -> {
-            double distance = middle - firstOffset + index * ITEM_STRIDE;
+            double distance = middle - firstOffset + index * ITEM_STRIDE + slide;
             int x = frame.centerX() + (int) Math.round(along.x() * distance);
             int y = frame.centerY() + (int) Math.round(along.y() * distance);
             return new ItemRect(x - ITEM_ICON_SIZE / HALF, y - ITEM_ICON_SIZE / HALF);
@@ -355,18 +366,64 @@ final class RadialWheelRenderer {
     }
 
     /**
+     * The screen point an ability petal's icon centers on as its type fans
+     * out: past the petal's outer radius while the type is closed, far enough
+     * that the icon and the badge beside it lie wholly outside the petal,
+     * sliding inward along the center line to the tip's center once the type
+     * is fully open, and back out along the same line as it closes.
+     * decision icons-slide-in-from-behind-the-tip
+     *
+     * @param frame what the frame draws from
+     * @param petal the ability petal
+     * @return the point's x and y
+     */
+    static int[] contentCenter(Frame frame, RadialWheel.PetalArc petal) {
+        PetalMask.Point tip = petal.shape().tipCenter();
+        PetalMask.Point outward = PetalMask.Point.polar(petal.center(), slideDistance(frame, petal));
+        return new int[]{frame.centerX() + (int) Math.round(tip.x() * frame.radius() + outward.x()),
+                frame.centerY() + (int) Math.round(tip.y() * frame.radius() + outward.y())};
+    }
+
+    /**
+     * How many pixels outward along its center line an ability petal's
+     * content sits from where it rests: none at full openness, at none the
+     * distance that puts the icon's center {@link #ENTRY_REACH} past the
+     * petal's outer radius.
+     * decision icons-slide-in-from-behind-the-tip
+     *
+     * @param frame what the frame draws from
+     * @param petal the ability petal
+     * @return the distance in pixels
+     */
+    static double slideDistance(Frame frame, RadialWheel.PetalArc petal) {
+        PetalMask.Petal shape = petal.shape();
+        PetalMask.Point tip = shape.tipCenter();
+        double fullSlide = shape.outer() * frame.radius() + ENTRY_REACH
+                - Math.hypot(tip.x(), tip.y()) * frame.radius();
+        return (1.0 - petal.openness()) * fullSlide;
+    }
+
+    /**
      * Draws the ability's icon, then its badge untinted directly to the icon's
-     * right, where the words never clip it and it never covers the icon.
+     * right, where the words never clip it and it never covers the icon, each
+     * cut at the petal's border so only the part under its face shows.
      * badge-marks-the-target-kind
+     * decision icons-slide-in-from-behind-the-tip
      *
      * @param graphics the GUI graphics extractor
+     * @param frame    what the frame draws from
+     * @param petal    the ability's petal
      * @param ability  the synced ability
-     * @param slot     the icon's center
      * @param color    the wedge's tint for the icon
      */
-    private static void blitAbilityIcon(GuiGraphicsExtractor graphics, ClientAbility ability, int[] slot, int color) {
-        blitIcon(graphics, new Icon(resolveAbilityIcon(ability), ABILITY_ICON_SIZE), slot, color);
-        blitIcon(graphics, new Icon(badgeIcon(ability.badge()), ABILITY_ICON_SIZE), badgeBeside(slot), COLOR_WHITE);
+    private static void blitAbilityIcon(GuiGraphicsExtractor graphics, Frame frame, RadialWheel.PetalArc petal,
+                                        ClientAbility ability, int color) {
+        int[] slot = contentCenter(frame, petal);
+        PetalMask.Petal shape = petal.shape();
+        PetalPainter.paintSprite(graphics, frame, shape, frame.look().sprite(resolveAbilityIcon(ability)), slot,
+                ABILITY_ICON_SIZE, color);
+        PetalPainter.paintSprite(graphics, frame, shape, frame.look().sprite(badgeIcon(ability.badge())),
+                badgeBeside(slot), ABILITY_ICON_SIZE, COLOR_WHITE);
     }
 
     /**
@@ -440,49 +497,65 @@ final class RadialWheelRenderer {
      *
      * @param graphics the GUI graphics extractor
      * @param font     the font
+     * @param frame    what the frame draws from
      * @param words    the ability's words and their icon
      */
-    private static void drawWords(GuiGraphicsExtractor graphics, Font font, Words words) {
-        int x = words.iconCenter()[0];
-        int nameY = words.iconCenter()[1] - ABILITY_ICON_OFFSET - LABEL_GAP - words.name().size() * font.lineHeight;
+    private static void drawWords(GuiGraphicsExtractor graphics, Font font, Frame frame, Words words) {
+        int x = words.restingTip()[0];
+        int nameY = words.restingTip()[1] - ABILITY_ICON_OFFSET - LABEL_GAP - words.name().size() * font.lineHeight;
         for (Component line : words.name()) {
             outlinedText(graphics, font, line, x, nameY, words.color());
             nameY += font.lineHeight;
         }
         if (words.cost() != null) {
-            outlinedText(graphics, font, words.cost(), x, words.iconCenter()[1] + ABILITY_ICON_OFFSET + LABEL_GAP,
+            outlinedText(graphics, font, words.cost(), x, words.restingTip()[1] + ABILITY_ICON_OFFSET + LABEL_GAP,
                     words.color());
         }
+        // icons-slide-in-from-behind-the-tip: each item shows only under its petal's face
         for (ItemIcon icon : words.required()) {
-            graphics.item(icon.stack(), icon.rect().left(), icon.rect().top());
+            PetalPainter.paintItem(graphics, frame, icon);
         }
     }
 
     /**
      * Crosses off each learned item with a red slash from its square's
      * lower left to its upper right, on a stratum above the item renders so
-     * the slash reads over the item.
+     * the slash reads over the item, cut at the petal's border as the item is.
      * decision locked-petal-lists-the-unlearned-items
+     * decision icons-slide-in-from-behind-the-tip
      *
      * @param graphics the GUI graphics extractor
+     * @param frame    what the frame draws from
      * @param icons    every required item icon the frame drew
      */
-    private static void slashLearnedItems(GuiGraphicsExtractor graphics, List<ItemIcon> icons) {
+    private static void slashLearnedItems(GuiGraphicsExtractor graphics, Frame frame, List<ItemIcon> icons) {
         if (icons.stream().noneMatch(ItemIcon::learned)) {
             return;
         }
         graphics.nextStratum();
         for (ItemIcon icon : icons) {
-            if (!icon.learned()) {
-                continue;
-            }
-            int bottom = icon.rect().top() + ITEM_ICON_SIZE;
-            for (int step = 0; step < ITEM_ICON_SIZE; step++) {
-                int x = icon.rect().left() + step;
-                int y = bottom - step;
-                graphics.fill(x, Math.max(icon.rect().top(), y - SLASH_THICKNESS), x + 1, y, SLASH_COLOR);
+            if (icon.learned()) {
+                PetalPainter.paintShape(graphics, frame, icon.face(), slashCorners(icon.rect()), SLASH_COLOR);
             }
         }
+    }
+
+    /**
+     * The slash's corners across an item's square: a band
+     * {@link #SLASH_THICKNESS} tall rising from the lower left corner to the
+     * upper right, its top cut off at the square's top edge.
+     * decision locked-petal-lists-the-unlearned-items
+     *
+     * @param rect the item's square
+     * @return the band's corners on screen, in order
+     */
+    static List<double[]> slashCorners(ItemRect rect) {
+        double left = rect.left();
+        double top = rect.top();
+        double bottom = top + ITEM_ICON_SIZE;
+        return List.of(new double[]{left, bottom}, new double[]{left, bottom - SLASH_THICKNESS},
+                new double[]{left + ITEM_ICON_SIZE - SLASH_THICKNESS, top},
+                new double[]{left + ITEM_ICON_SIZE, top});
     }
 
     /**

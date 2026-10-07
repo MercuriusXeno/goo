@@ -15,8 +15,9 @@ import java.util.stream.Stream;
  * strikes in flight, landing each on its entity at {@code strike_tick};
  * then, off cooldown, it selects the living entities in the radius that
  * every filter keeps and starts a strike on each one not already struck
- * whose {@code interval} divides the field's tick count, spending one charge
- * each. When no charge remains and no strike is in flight it runs the
+ * whose {@code interval} divides the field's tick count, each strike
+ * spending one charge when its {@code spend_chance} roll passes (decision
+ * metal-spends-charge-by-chance). When no charge remains and no strike is in flight it runs the
  * teardown once and finishes after {@code contract_ticks}.
  *
  * <p>The strike body and {@code interval} run on a host bound to the
@@ -27,7 +28,8 @@ import java.util.stream.Stream;
  * beside this step's params from the synced ability definition.
  *
  * <p>The metal trap strikes one entity per ten-tick cooldown, landing a
- * stalagmite impale six ticks after choosing it, two to a throw; the crystal
+ * stalagmite impale six ticks after choosing it, four charges to a throw each
+ * spent on a 25% roll, so around sixteen impales; the crystal
  * cloud shreds every moving entity each second tick, each tick for a
  * sprinting player, eight shreds to a throw, each bursting crit particles off the struck
  * entity, expanding and contracting over ten ticks.
@@ -37,7 +39,8 @@ import java.util.stream.Stream;
  * @param where       the filters an entity must pass to be struck
  * @param cooldown    ticks after a strike starts before the next may start
  * @param interval    the tick period on which a selected entity may be struck, read on the entity
- * @param charges     the strikes the throw buys, one spent each
+ * @param charges     the charges the throw buys
+ * @param spendChance the chance in [0, 1] that a strike spends a charge, 1 to spend one on every strike
  * @param strikeTick  the strike age at which the strike body lands, zero to land at once
  * @param strikeTicks how many ticks a strike stays in flight
  * @param timing      how long the field takes to expand and to contract
@@ -45,7 +48,7 @@ import java.util.stream.Stream;
  * @param teardown    the steps run on the marker once the budget is spent
  */
 public record FieldEffectStep(Expr radius, List<EntityFilter> where, Expr cooldown, Expr interval,
-                              Expr charges, Expr strikeTick, Expr strikeTicks,
+                              Expr charges, Expr spendChance, Expr strikeTick, Expr strikeTicks,
                               FieldTiming timing, List<Step> strike, List<Step> teardown) implements Step {
 
     private static final String NAME = "field_effect";
@@ -54,6 +57,7 @@ public record FieldEffectStep(Expr radius, List<EntityFilter> where, Expr cooldo
     private static final String FIELD_COOLDOWN = "cooldown";
     private static final String FIELD_INTERVAL = "interval";
     private static final String FIELD_CHARGES = "charges";
+    private static final String FIELD_SPEND_CHANCE = "spend_chance";
     private static final String FIELD_STRIKE_TICK = "strike_tick";
     private static final String FIELD_STRIKE_TICKS = "strike_ticks";
     private static final String FIELD_STRIKE = "strike";
@@ -69,6 +73,7 @@ public record FieldEffectStep(Expr radius, List<EntityFilter> where, Expr cooldo
             Expr.CODEC.optionalFieldOf(FIELD_COOLDOWN, Expr.literal(0)).forGetter(FieldEffectStep::cooldown),
             Expr.CODEC.optionalFieldOf(FIELD_INTERVAL, Expr.literal(1)).forGetter(FieldEffectStep::interval),
             Expr.CODEC.optionalFieldOf(FIELD_CHARGES, Expr.literal(1)).forGetter(FieldEffectStep::charges),
+            Expr.CODEC.optionalFieldOf(FIELD_SPEND_CHANCE, Expr.literal(1)).forGetter(FieldEffectStep::spendChance),
             Expr.CODEC.optionalFieldOf(FIELD_STRIKE_TICK, Expr.literal(0)).forGetter(FieldEffectStep::strikeTick),
             Expr.CODEC.optionalFieldOf(FIELD_STRIKE_TICKS, Expr.literal(1)).forGetter(FieldEffectStep::strikeTicks),
             FieldTiming.CODEC.forGetter(FieldEffectStep::timing),
@@ -76,6 +81,27 @@ public record FieldEffectStep(Expr radius, List<EntityFilter> where, Expr cooldo
             Codec.lazyInitialized(() -> StepTypes.LIST_CODEC).optionalFieldOf(FIELD_TEARDOWN, List.of())
                     .forGetter(FieldEffectStep::teardown)
     ).apply(inst, FieldEffectStep::new));
+
+    /**
+     * A field effect spending a charge on every strike.
+     *
+     * @param radius      the selection radius in blocks
+     * @param where       the filters an entity must pass to be struck
+     * @param cooldown    ticks after a strike starts before the next may start
+     * @param interval    the tick period on which a selected entity may be struck
+     * @param charges     the charges the throw buys
+     * @param strikeTick  the strike age at which the strike body lands
+     * @param strikeTicks how many ticks a strike stays in flight
+     * @param timing      how long the field takes to expand and to contract
+     * @param strike      the steps run on the struck entity when a strike lands
+     * @param teardown    the steps run on the marker once the budget is spent
+     */
+    public FieldEffectStep(Expr radius, List<EntityFilter> where, Expr cooldown, Expr interval, Expr charges,
+                           Expr strikeTick, Expr strikeTicks, FieldTiming timing, List<Step> strike,
+                           List<Step> teardown) {
+        this(radius, where, cooldown, interval, charges, Expr.literal(1), strikeTick, strikeTicks, timing, strike,
+                teardown);
+    }
 
     /**
      * The registered type.
@@ -131,7 +157,7 @@ public record FieldEffectStep(Expr radius, List<EntityFilter> where, Expr cooldo
         for (FieldStrike strikeInFlight : state.strikes()) {
             FieldStrike aged = strikeInFlight.aged();
             if (aged.age() == landingAge) {
-                scan.forEntity(aged.entityId(), this::land);
+                scan.forEntity(aged.entityId(), target -> land(context, target));
             }
             if (aged.age() < length) {
                 kept.add(aged);
@@ -143,7 +169,8 @@ public record FieldEffectStep(Expr radius, List<EntityFilter> where, Expr cooldo
     /**
      * Starts a strike on the selected entity unless the field is cooling
      * down, the entity is already struck, the entity's interval skips this
-     * tick or the charges are spent. Each strike spends one charge.
+     * tick or the charges are spent. A strike spends one charge when its
+     * roll passes the spend chance, and lands either way.
      *
      * @param context the marker's tick context
      * @param state   the field-effect state
@@ -159,11 +186,24 @@ public record FieldEffectStep(Expr radius, List<EntityFilter> where, Expr cooldo
         if (state.fieldTicks() % period != 0) {
             return;
         }
-        state.setChargesSpent(state.chargesSpent() + 1);
+        spendChargeByChance(context, state);
         state.addStrike(aimed);
         state.setCooldown(cooldown.evaluateInt(context));
         if (strikeTick.evaluateInt(context) == 0) {
-            land(target);
+            land(context, target);
+        }
+    }
+
+    /**
+     * Spends one charge when the host's roll falls below the spend chance.
+     * metal-spends-charge-by-chance
+     *
+     * @param context the marker's tick context
+     * @param state   the field-effect state
+     */
+    private void spendChargeByChance(StepContext context, FieldEffectState state) {
+        if (context.hostAs(FieldEffectHost.class).rollFraction() < spendChance.evaluate(context)) {
+            state.setChargesSpent(state.chargesSpent() + 1);
         }
     }
 
@@ -188,12 +228,16 @@ public record FieldEffectStep(Expr radius, List<EntityFilter> where, Expr cooldo
     }
 
     /**
-     * Runs the strike body on the struck entity.
+     * Runs the strike body on the struck entity, its framed sounds held by
+     * the trap's program so they play at the entity on their frame.
+     * urchin-spikes-shink-out-and-shink-back
      *
-     * @param target the host bound to the struck entity
+     * @param context the marker's tick context
+     * @param target  the host bound to the struck entity
      */
-    private void land(TargetHost target) {
-        new ProgramBehavior(strike).tick(target);
+    private void land(StepContext context, TargetHost target) {
+        HeldCues cues = context.heldCues();
+        (cues == null ? new ProgramBehavior(strike) : new ProgramBehavior(strike, cues)).tick(target);
     }
 
     @Override
@@ -208,7 +252,7 @@ public record FieldEffectStep(Expr radius, List<EntityFilter> where, Expr cooldo
      * @return the marker-side expressions
      */
     private Stream<Expr> markerExpressions() {
-        return Stream.of(radius, cooldown, charges, strikeTick, strikeTicks,
+        return Stream.of(radius, cooldown, charges, spendChance, strikeTick, strikeTicks,
                 timing.expandTicks(), timing.contractTicks());
     }
 
