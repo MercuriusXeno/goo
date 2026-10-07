@@ -41,6 +41,17 @@ public final class StreamCone {
     }
 
     /**
+     * A unit vector square to the axis, to build a cone's cross-section on.
+     *
+     * @param axis the axis, any length
+     * @return a unit vector square to it
+     */
+    public static Vec3 side(Vec3 axis) {
+        Vec3 forward = axis.normalize();
+        return forward.cross(Math.abs(forward.y) > NEARLY_VERTICAL ? EAST : UP).normalize();
+    }
+
+    /**
      * A direction leaving the apex inside the cone: tilted off the axis by a
      * share of the cone's half angle and turned about the axis by a share of
      * a full turn, so even shares fill the cone's mouth.
@@ -54,7 +65,7 @@ public final class StreamCone {
      */
     public static Vec3 launchDirection(Vec3 axis, double coneDegrees, double tiltShare, double turnShare) {
         Vec3 forward = axis.normalize();
-        Vec3 side = forward.cross(Math.abs(forward.y) > NEARLY_VERTICAL ? EAST : UP).normalize();
+        Vec3 side = side(forward);
         Vec3 lift = side.cross(forward);
         double tilt = Math.toRadians(coneDegrees * HALF) * tiltShare;
         double turn = FULL_TURN * turnShare;

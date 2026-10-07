@@ -10,7 +10,7 @@
   "behaviors": [
     { "type": "afterimage", "goo": "shroom" },
     { "type": "particles", "id": "goo:spore", "at": "target", "count": 24, "spread": 0.5, "lift": 1, "speed": 0.03 },
-    { "type": "shift", "range": 16 },
+    { "type": "shift", "range": 64 },
     { "type": "ghost_trail", "goo": "shroom" },
     { "type": "afterimage", "goo": "shroom" },
     { "type": "particles", "id": "goo:spore", "at": "target", "count": 24, "spread": 0.5, "lift": 1, "speed": 0.03 },

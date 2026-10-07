@@ -11,12 +11,9 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import java.util.List;
@@ -29,7 +26,7 @@ import java.util.stream.Stream;
  * Moves the host's target onto the fungus block it aims at within a range,
  * and finishes; a target aiming at no fungus within the range, or at any
  * other block, is not admitted, so the ability neither runs nor drains.
- * Fungal Shift is {@code shift range=16}
+ * Fungal Shift is {@code shift range=64}
  * (decision fungal-shift-blinks-to-the-aimed-fungus).
  *
  * @param range the reach of the aim in blocks, evaluated when the step runs
@@ -91,10 +88,9 @@ public record ShiftStep(Expr range) implements Step {
     }
 
     /**
-     * Where an entity stands after shifting onto the fungus block its look
-     * meets within the reach: on top of the block's collision, or in its cell
-     * for a fungus with none, such as a mushroom. A look meeting any other
-     * block first, or nothing within the reach, finds none.
+     * Where an entity stands after shifting onto the fungus block it aims at
+     * within the reach, as {@link FungusAim} names it: on top of the block's
+     * collision, or in its cell for a fungus with none, such as a mushroom.
      *
      * @param level  the level
      * @param entity the aiming entity
@@ -102,20 +98,14 @@ public record ShiftStep(Expr range) implements Step {
      * @return the standing point, or empty when no fungus is aimed at
      */
     public static Optional<Vec3> aimedFungus(Level level, Entity entity, double reach) {
-        Vec3 eye = entity.getEyePosition();
-        BlockHitResult hit = level.clip(new ClipContext(eye, eye.add(entity.getLookAngle().scale(reach)),
-                ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, entity));
-        if (hit.getType() != HitResult.Type.BLOCK) {
-            return Optional.empty();
-        }
-        BlockPos pos = hit.getBlockPos();
+        return FungusAim.aimedFungus(level, entity, reach).map(pos -> standingOn(level, pos));
+    }
+
+    private static Vec3 standingOn(Level level, BlockPos pos) {
         BlockState state = level.getBlockState(pos);
-        if (!state.is(FUNGUS)) {
-            return Optional.empty();
-        }
         VoxelShape collision = state.getCollisionShape(level, pos);
         double top = collision.isEmpty() ? pos.getY() : pos.getY() + collision.max(Direction.Axis.Y);
-        return Optional.of(new Vec3(pos.getX() + HALF, top, pos.getZ() + HALF));
+        return new Vec3(pos.getX() + HALF, top, pos.getZ() + HALF);
     }
 
     /**
