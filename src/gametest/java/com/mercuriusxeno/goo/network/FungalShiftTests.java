@@ -30,6 +30,9 @@ public final class FungalShiftTests {
     /** Fifteen blocks east of the player, within the shift's range of sixteen. */
     private static final BlockPos AIMED_POS = STAND_POS.east(15);
     private static final double MOVE_TOLERANCE = 1e-6;
+    /** A stone wall halfway between the player and the aimed mushroom, taller than the player's eye. */
+    private static final BlockPos WALL_POS = STAND_POS.east(7);
+    private static final int WALL_HEIGHT = 4;
     /** Blocks above the bay floor searched for the framework's barrier roof. */
     private static final int CEILING_SEARCH = 8;
     /** The light bay's corner, on its floor. */
@@ -157,6 +160,33 @@ public final class FungalShiftTests {
                 helper.getLevel().setBlock(cursor, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
             }
         }
+    }
+
+    /**
+     * A red mushroom stands behind a stone wall: aimed at without sight the
+     * player stays put, and under the shroom brew's sight the aim passes
+     * through the wall and the player shifts onto it.
+     *
+     * @param helper the gametest helper
+     */
+    public static void sightShiftsThroughAWall(GameTestHelper helper) {
+        AbilityDefinition shift = fungalShift(helper);
+        ServerPlayer player = shifterAimedAt(helper, Blocks.RED_MUSHROOM, shift);
+        for (int y = 0; y < WALL_HEIGHT; y++) {
+            helper.setBlock(WALL_POS.above(y), Blocks.STONE);
+        }
+        Vec3 before = player.position();
+
+        SelfDeliveryTests.invoke(player, GooTypes.SHROOM, FUNGAL_SHIFT);
+        double movedWithoutSight = player.position().distanceTo(before);
+        BrewEffectTests.drinkBrew(player, GooTypes.SHROOM);
+        SelfDeliveryTests.invoke(player, GooTypes.SHROOM, FUNGAL_SHIFT);
+
+        BlockPos standing = player.blockPosition();
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        helper.assertTrue(movedWithoutSight < MOVE_TOLERANCE, String.format(SHOULD_STAY, movedWithoutSight));
+        helper.assertTrue(standing.equals(helper.absolutePos(AIMED_POS)), String.format(SHOULD_STAND_ON, standing));
+        helper.succeed();
     }
 
     private static AbilityDefinition fungalShift(GameTestHelper helper) {
