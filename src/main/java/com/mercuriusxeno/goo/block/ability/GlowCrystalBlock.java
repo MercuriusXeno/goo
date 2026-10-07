@@ -4,7 +4,6 @@ import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -195,9 +194,7 @@ public class GlowCrystalBlock extends Block {
     @Override
     protected boolean canSurvive(@NonNull BlockState state, @NonNull LevelReader level,
                                  @NonNull BlockPos pos) {
-        Direction face = state.getValue(FACING);
-        BlockPos support = pos.relative(face.getOpposite());
-        return level.getBlockState(support).isFaceSturdy(level, support, face);
+        return FaceSupport.supports(level, pos, state.getValue(FACING));
     }
 
     /**
@@ -206,9 +203,7 @@ public class GlowCrystalBlock extends Block {
     @Override
     public void onNeighborChange(@NonNull BlockState state, @NonNull LevelReader level,
                                  @NonNull BlockPos pos, @NonNull BlockPos neighbor) {
-        if (!canSurvive(state, level, pos) && level instanceof ServerLevel sl) {
-            sl.destroyBlock(pos, true);
-        }
+        FaceSupport.breakUnsupported(canSurvive(state, level, pos), level, pos, true);
     }
 
     @Override

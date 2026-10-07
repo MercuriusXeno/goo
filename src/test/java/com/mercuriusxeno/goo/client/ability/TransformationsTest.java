@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.type.GooTypes;
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -100,6 +101,29 @@ class TransformationsTest {
             assertEquals(0f, transformations.modelScaleOf(CLONE, START), EPSILON);
             assertEquals(1f, transformations.modelScaleOf(CLONE + 1, START), EPSILON);
             assertEquals(1f, transformations.modelScaleOf(CLONE, START + TICKS), EPSILON);
+        }
+
+        // decision prism-blob-becomes-a-milky-quartz-crystal
+        @Test
+        void aBlockDrawsAtTheTransformationsScaleWhileItPlaysAndNoEntityDoes() {
+            Transformations transformations = new Transformations();
+            BlockPos prism = new BlockPos(3, 64, -2);
+            transformations.add(GooTypes.CRYSTAL, STRUCK, CLONE_AT, -1, prism, START, TICKS);
+            float midMorph = HOP_SHARE + (1f - HOP_SHARE) / 2f;
+
+            assertEquals(0f, transformations.modelScaleAt(prism, START), EPSILON);
+            assertEquals(0.5f, transformations.modelScaleAt(prism, at(midMorph)), EPSILON);
+            assertEquals(1f, transformations.modelScaleAt(prism.above(), START), EPSILON);
+            assertEquals(1f, transformations.modelScaleAt(prism, START + TICKS), EPSILON);
+            assertEquals(1f, transformations.modelScaleOf(-1, START), EPSILON);
+        }
+
+        @Test
+        void anEntityTransformationLeavesEveryBlockFull() {
+            Transformations transformations = new Transformations();
+            transformations.add(GooTypes.VITAL, STRUCK, CLONE_AT, CLONE, START, TICKS);
+
+            assertEquals(1f, transformations.modelScaleAt(BlockPos.ZERO, START), EPSILON);
         }
 
         @Test

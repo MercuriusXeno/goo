@@ -35,7 +35,7 @@ import java.util.List;
  * ability's linger step, a {@link ProgramBehavior} run on the block's host
  * from the tick the blob splats until it ends, when the block goes.
  */
-public class AbilityBlockEntity extends GooSyncedBlockEntity {
+public class AbilityBlockEntity extends GooSyncedBlockEntity implements MarkerAnchor {
 
     private static final String TAG_GOO_TYPE = "goo_type";
     private static final String TAG_PLACED_FACE = "PlacedFace";
@@ -48,7 +48,6 @@ public class AbilityBlockEntity extends GooSyncedBlockEntity {
      */
     private static final String DEFAULT_FACE = "up";
     private static final String TAG_ABILITY_ID = "AbilityId";
-    private static final String TAG_CONSUMED_GOO = "ConsumedGoo";
 
     /**
      * Where a client-side marker reads its ability's steps; client setup
@@ -59,20 +58,12 @@ public class AbilityBlockEntity extends GooSyncedBlockEntity {
     private ResourceKey<GooTypeDefinition> gooType = GooTypes.ROCK;
     private Direction placedFace = Direction.UP;
     /**
-     * State a running field effect keeps through the marker host: strikes
-     * in flight, cooldown and charges spent, read back by the spike visual.
+     * State the running program keeps through the marker host: the field
+     * effect read back by the spike visual, the phase cursor read back by the
+     * black-hole visual, and the goo a black hole consumed, dropped when it
+     * pops or when the marker is broken first.
      */
-    private final FieldEffectState fieldEffect = new FieldEffectState();
-    /**
-     * Phase cursor a running phased step keeps through the marker host,
-     * read back by the black-hole visual.
-     */
-    private final PhasedState phased = new PhasedState();
-    /**
-     * Goo a running black hole consumed from the blocks around it, dropped
-     * as goo when it pops or when the marker is broken first.
-     */
-    private GooContents consumedGoo = GooContents.EMPTY;
+    private final MarkerProgramState programState = new MarkerProgramState();
     /**
      * The running body of the ability's linger step; null when this side
      * holds no such ability. Nulled out implicitly when the BE removes
@@ -175,7 +166,7 @@ public class AbilityBlockEntity extends GooSyncedBlockEntity {
      * @return the live field-effect state
      */
     public FieldEffectState getFieldEffect() {
-        return fieldEffect;
+        return programState.fieldEffect();
     }
 
     /**
@@ -186,7 +177,7 @@ public class AbilityBlockEntity extends GooSyncedBlockEntity {
      * @return the live phased state
      */
     public PhasedState getPhased() {
-        return phased;
+        return programState.phased();
     }
 
     /**
@@ -196,7 +187,7 @@ public class AbilityBlockEntity extends GooSyncedBlockEntity {
      * @return the consumed goo
      */
     public GooContents getConsumedGoo() {
-        return consumedGoo;
+        return programState.consumedGoo();
     }
 
     /**
@@ -205,7 +196,7 @@ public class AbilityBlockEntity extends GooSyncedBlockEntity {
      * @param consumed the goo just consumed
      */
     public void addConsumedGoo(GooContents consumed) {
-        consumedGoo = consumedGoo.mergeWith(consumed);
+        programState.addConsumedGoo(consumed);
     }
 
     /**
@@ -214,9 +205,12 @@ public class AbilityBlockEntity extends GooSyncedBlockEntity {
      * @return the goo consumed so far
      */
     public GooContents takeConsumedGoo() {
-        GooContents taken = consumedGoo;
-        consumedGoo = GooContents.EMPTY;
-        return taken;
+        return programState.takeConsumedGoo();
+    }
+
+    @Override
+    public MarkerProgramState programState() {
+        return programState;
     }
 
     /**
@@ -259,6 +253,7 @@ public class AbilityBlockEntity extends GooSyncedBlockEntity {
      *
      * @return the goo type
      */
+    @Override
     public ResourceKey<GooTypeDefinition> getGooType() {
         return gooType;
     }
@@ -268,6 +263,7 @@ public class AbilityBlockEntity extends GooSyncedBlockEntity {
      *
      * @return the ability id
      */
+    @Override
     public String getAbilityId() {
         return abilityId;
     }
@@ -277,6 +273,7 @@ public class AbilityBlockEntity extends GooSyncedBlockEntity {
      *
      * @return the placed face
      */
+    @Override
     public Direction getPlacedFace() {
         return placedFace;
     }
@@ -314,9 +311,7 @@ public class AbilityBlockEntity extends GooSyncedBlockEntity {
         ResourceKey<GooTypeDefinition> loaded = GooTypes.byId(input.getStringOr(TAG_GOO_TYPE, DEFAULT_GOO_TYPE));
         gooType = loaded != null ? loaded : GooTypes.ROCK;
         abilityId = input.getStringOr(TAG_ABILITY_ID, abilityId);
-        fieldEffect.load(input);
-        phased.load(input);
-        consumedGoo = input.read(TAG_CONSUMED_GOO, GooContents.CODEC).orElse(GooContents.EMPTY);
+        programState.load(input);
     }
 
     /**
@@ -357,11 +352,7 @@ public class AbilityBlockEntity extends GooSyncedBlockEntity {
         output.putString(TAG_GOO_TYPE, GooTypes.id(gooType));
         output.putString(TAG_PLACED_FACE, placedFace.getName());
         output.putString(TAG_ABILITY_ID, abilityId);
-        fieldEffect.save(output);
-        phased.save(output);
-        if (!consumedGoo.isEmpty()) {
-            output.store(TAG_CONSUMED_GOO, GooContents.CODEC, consumedGoo);
-        }
+        programState.save(output);
         if (behavior != null) {
             behavior.saveAdditional(output);
         }

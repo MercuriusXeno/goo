@@ -1,0 +1,9 @@
+{
+  "gooType": "gootest:seventeenth",
+  "displayName": "goo.ability.gootest.seventeenth_late_prism_probe",
+  "badge": "prism",
+  "order": 50,
+  "cost": 1000,
+  "delivery": { "kind": "arc" },
+  "behaviors": [ { "type": "wait", "ticks": 1 } ]
+}

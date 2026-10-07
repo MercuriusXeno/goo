@@ -12,6 +12,7 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.ItemStack;
@@ -28,7 +29,8 @@ import java.util.OptionalInt;
  * selection is held (decision fuel-panel-sits-at-bottom-right): the icon of
  * the stack the throw deducts from first, the goo type and the goo it
  * holds, and "- N", the throw's cost at the aimed target (decision
- * crosshair-panel-shows-source-and-cost).
+ * crosshair-panel-shows-source-and-cost), followed by the icon of each item
+ * the throw consumes (decision ability-json-names-its-reagent).
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class CrosshairFuelPanel {
@@ -102,7 +104,10 @@ public final class CrosshairFuelPanel {
         }
         ItemStack source = GooSourceScanner.firstSource(player, type);
         FuelRow row = fuelRow(source, type, GooSourceScanner.volumeIn(source, type), cost.getAsInt());
-        paint(graphics, font, row, graphics.guiWidth(), graphics.guiHeight());
+        List<ItemStack> reagents = GloveThrowSender.aimedReagents(player).stream()
+                .map(reagent -> BuiltInRegistries.ITEM.getValue(reagent).getDefaultInstance())
+                .toList();
+        paint(graphics, font, row, reagents, graphics.guiWidth(), graphics.guiHeight());
     }
 
     /**
@@ -142,11 +147,41 @@ public final class CrosshairFuelPanel {
                 BACKGROUND_TEXTURE_SIZE, BACKGROUND_TEXTURE_SIZE);
     }
 
-    private static void paint(GuiGraphicsExtractor graphics, Font font, FuelRow row, int guiWidth, int guiHeight) {
+    /**
+     * Draws the icon of each item the throw consumes, left to right after the cost.
+     * decision ability-json-names-its-reagent
+     *
+     * @param graphics the gui graphics
+     * @param reagents the consumed items
+     * @param left     the x the first icon's gap starts at
+     * @param top      the row's top
+     */
+    private static void paintReagents(GuiGraphicsExtractor graphics, List<ItemStack> reagents, int left, int top) {
+        int x = left;
+        for (ItemStack reagent : reagents) {
+            x += ICON_GAP;
+            graphics.item(reagent, x, top);
+            x += ITEM_SIZE;
+        }
+    }
+
+    /**
+     * The panel's width: the source icon, the type icon, the text and an icon per reagent, inside the border.
+     *
+     * @param textWidth    the width of the held and cost text
+     * @param reagentCount how many items the throw consumes
+     * @return the width in gui pixels
+     */
+    private static int panelWidth(int textWidth, int reagentCount) {
+        return BORDER + ITEM_SIZE + ICON_GAP + TYPE_ICON_SIZE + ICON_GAP + textWidth
+                + reagentCount * (ICON_GAP + ITEM_SIZE) + BORDER;
+    }
+
+    private static void paint(GuiGraphicsExtractor graphics, Font font, FuelRow row, List<ItemStack> reagents,
+            int guiWidth, int guiHeight) {
         int textWidth = font.width(row.heldText() + GAP + row.costText());
-        int width = BORDER + ITEM_SIZE + ICON_GAP + TYPE_ICON_SIZE + ICON_GAP + textWidth + BORDER;
-        int height = BORDER + ITEM_SIZE + BORDER;
-        PanelRectangle rect = bottomRightAnchor(guiWidth, guiHeight, width, height);
+        PanelRectangle rect = bottomRightAnchor(guiWidth, guiHeight, panelWidth(textWidth, reagents.size()),
+                BORDER + ITEM_SIZE + BORDER);
         int left = Math.round(rect.x());
         int top = Math.round(rect.y());
         for (NineSlice.Slice slice : backgroundSlices(rect)) {
@@ -165,5 +200,6 @@ public final class CrosshairFuelPanel {
         int textTop = rowTop + (ITEM_SIZE - font.lineHeight) / HALF + 1;
         graphics.text(font, row.heldText(), x, textTop, PanelPainter.TEXT_COLOR);
         graphics.text(font, row.costText(), x + font.width(row.heldText() + GAP), textTop, COST_COLOR);
+        paintReagents(graphics, reagents, x + textWidth, rowTop);
     }
 }

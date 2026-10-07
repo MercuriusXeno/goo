@@ -24,7 +24,7 @@ class GloveThrowSenderTest {
     }
 
     private static boolean affordsWithHoldings(ClientAbility ability, int holdings) {
-        return GloveThrowSender.affordsThrow(ability, amount -> holdings >= amount);
+        return GloveThrowSender.affordsThrow(ability, amount -> holdings >= amount, item -> true);
     }
 
     @Test
@@ -41,9 +41,22 @@ class GloveThrowSenderTest {
         assertTrue(affordsWithHoldings(mine, mine.cost()));
     }
 
+    // decision ability-json-names-its-reagent
+    @Test
+    void aMissingReagentRefusesTheThrowTheGooCovers() {
+        AbilityDefinition definition = AbilityJson.decode("crystal_prism");
+        ClientAbility prism = new ClientAbility(definition.id(), definition.displayName(), definition.icon(),
+                definition.order(), definition.tags(), definition.behaviors(), definition.cost(),
+                definition.delivery(), definition.badge(), definition.requires(), definition.area(),
+                definition.indicator(), definition.consumes());
+
+        assertFalse(GloveThrowSender.affordsThrow(prism, amount -> true, item -> false));
+        assertTrue(GloveThrowSender.affordsThrow(prism, amount -> true, definition.consumes()::contains));
+    }
+
     @Test
     void unsyncedAbilityPricesAtTheServerFallback() {
-        assertFalse(GloveThrowSender.affordsThrow(null, amount -> GooThrowHandler.THROW_COST - 1 >= amount));
-        assertTrue(GloveThrowSender.affordsThrow(null, amount -> GooThrowHandler.THROW_COST >= amount));
+        assertFalse(GloveThrowSender.affordsThrow(null, amount -> GooThrowHandler.THROW_COST - 1 >= amount, item -> true));
+        assertTrue(GloveThrowSender.affordsThrow(null, amount -> GooThrowHandler.THROW_COST >= amount, item -> true));
     }
 }

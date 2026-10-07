@@ -1,17 +1,21 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.phys.Vec3;
+import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * The model transformations playing on this client: a goo blob hops from
- * its origin to an entity over the first HOP_SHARE of the transformation,
- * then shrinks to nothing as the entity's model grows from nothing to full
- * size on a smoothstep, so the entity is never whole while the blob stands.
+ * its origin to an entity or a block over the first HOP_SHARE of the
+ * transformation, then shrinks to nothing as the target's model grows from
+ * nothing to full size on a smoothstep, so the target is never whole while
+ * the blob stands.
  * Decision model-transformation-is-one-animation.
+ * Decision prism-blob-becomes-a-milky-quartz-crystal.
  */
 public final class Transformations {
 
@@ -48,13 +52,29 @@ public final class Transformations {
      *
      * @param gooType        the goo type of the blob
      * @param from           the world point the blob leaves from
-     * @param to             the world point the entity stands at
-     * @param targetEntityId the entity the blob becomes
+     * @param to             the world point the target stands at
+     * @param targetEntityId the entity the blob becomes, negative for a block target
+     * @param targetBlock    the block the blob becomes, null for an entity target
      * @param startTick      the game time it began
      * @param ticks          the game ticks it takes
      */
     public record Transformation(ResourceKey<GooTypeDefinition> gooType, Vec3 from, Vec3 to, int targetEntityId,
-            long startTick, int ticks) {
+            @Nullable BlockPos targetBlock, long startTick, int ticks) {
+
+        /**
+         * A transformation into an entity.
+         *
+         * @param gooType        the goo type of the blob
+         * @param from           the world point the blob leaves from
+         * @param to             the world point the entity stands at
+         * @param targetEntityId the entity the blob becomes
+         * @param startTick      the game time it began
+         * @param ticks          the game ticks it takes
+         */
+        public Transformation(ResourceKey<GooTypeDefinition> gooType, Vec3 from, Vec3 to, int targetEntityId,
+                long startTick, int ticks) {
+            this(gooType, from, to, targetEntityId, null, startTick, ticks);
+        }
 
         /**
          * @param gameTime the game time including the partial tick
@@ -125,7 +145,23 @@ public final class Transformations {
      */
     public void add(ResourceKey<GooTypeDefinition> gooType, Vec3 from, Vec3 to, int targetEntityId, long now,
             int ticks) {
-        live.add(new Transformation(gooType, from, to, targetEntityId, now, Math.max(1, ticks)));
+        add(gooType, from, to, targetEntityId, null, now, ticks);
+    }
+
+    /**
+     * Starts a transformation into an entity or a block.
+     *
+     * @param gooType        the goo type of the blob
+     * @param from           the world point the blob leaves from
+     * @param to             the world point the target stands at
+     * @param targetEntityId the entity the blob becomes, negative for a block target
+     * @param targetBlock    the block the blob becomes, null for an entity target
+     * @param now            the game time it begins
+     * @param ticks          the game ticks it takes
+     */
+    public void add(ResourceKey<GooTypeDefinition> gooType, Vec3 from, Vec3 to, int targetEntityId,
+            @Nullable BlockPos targetBlock, long now, int ticks) {
+        live.add(new Transformation(gooType, from, to, targetEntityId, targetBlock, now, Math.max(1, ticks)));
     }
 
     /**
@@ -150,7 +186,26 @@ public final class Transformations {
     public float modelScaleOf(int entityId, float gameTime) {
         float scale = FULL;
         for (Transformation transformation : live) {
-            if (transformation.targetEntityId() == entityId && !transformation.isOver((long) Math.floor(gameTime))) {
+            if (transformation.targetBlock() == null && transformation.targetEntityId() == entityId
+                    && !transformation.isOver((long) Math.floor(gameTime))) {
+                scale = Math.min(scale, transformation.modelScale(gameTime));
+            }
+        }
+        return scale;
+    }
+
+    /**
+     * The size a block's model draws at: the smallest a transformation into
+     * it gives, or full where none plays.
+     *
+     * @param pos      the block's position
+     * @param gameTime the game time including the partial tick
+     * @return 0 to 1
+     */
+    public float modelScaleAt(BlockPos pos, float gameTime) {
+        float scale = FULL;
+        for (Transformation transformation : live) {
+            if (pos.equals(transformation.targetBlock()) && !transformation.isOver((long) Math.floor(gameTime))) {
                 scale = Math.min(scale, transformation.modelScale(gameTime));
             }
         }
