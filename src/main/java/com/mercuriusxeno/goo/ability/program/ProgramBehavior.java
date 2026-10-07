@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
+import com.mercuriusxeno.goo.block.ability.MarkerAnchor;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.storage.ValueInput;
@@ -147,7 +147,7 @@ public final class ProgramBehavior {
      * @param pos   the ability block position
      * @param be    the owning marker
      */
-    public void onSplat(ServerLevel level, BlockPos pos, AbilityBlockEntity be) {
+    public void onSplat(ServerLevel level, BlockPos pos, MarkerAnchor be) {
         tick(new MarkerHost(level, pos, be));
     }
 
@@ -158,7 +158,7 @@ public final class ProgramBehavior {
      * @param pos   the ability block position
      * @param be    the owning marker
      */
-    public void serverTick(ServerLevel level, BlockPos pos, AbilityBlockEntity be) {
+    public void serverTick(ServerLevel level, BlockPos pos, MarkerAnchor be) {
         tick(new MarkerHost(level, pos, be));
     }
 

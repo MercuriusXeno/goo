@@ -6,7 +6,7 @@ import net.minecraft.core.Direction;
 
 /**
  * Render state snapshot for the prism: its baked crystal model, the face it
- * grew from and the size the growing transformation gives it.
+ * grew from, the size the growing transformation gives it and the combo it holds.
  */
 public class PrismRenderState extends BlockEntityRenderState {
 
@@ -18,4 +18,7 @@ public class PrismRenderState extends BlockEntityRenderState {
 
     /** The prism's size, 0 as its blob lands and 1 once grown. */
     public float scale = 1f;
+
+    /** The id of the ability whose program is the prism's combo, empty for a plain prism. */
+    public String combo = "";
 }

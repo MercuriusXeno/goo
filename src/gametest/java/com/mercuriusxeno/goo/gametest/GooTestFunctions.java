@@ -255,6 +255,10 @@ public final class GooTestFunctions {
     private static final String PL_SECOND_THROW_COSTS_THE_SAME = "pl_second_throw_costs_the_same";
     private static final String PRISM_GROWS_ON_THE_FACE = "prism_grows_on_the_face";
     private static final String PRISM_REFUSED_WITHOUT_QUARTZ = "prism_refused_without_quartz";
+    private static final String PRISM_COMBO_RUNS_THE_TYPE_PRISM_ABILITY = "prism_combo_runs_the_type_prism_ability";
+    private static final String PRISM_COMBO_RUNS_ON_PRISM_BEHAVIORS = "prism_combo_runs_on_prism_behaviors";
+    private static final String PRISM_WITHOUT_COMBO_STAYS = "prism_without_combo_stays";
+    private static final String COMBINED_PRISM_REFUSES_SECOND = "combined_prism_refuses_second";
 
     // --- Canister interactions ---
     private static final String IX_CANISTER_PLAIN_INSERT = "ix_canister_plain_insert";
@@ -610,6 +614,10 @@ public final class GooTestFunctions {
         reg(r, FX_NO_ABILITY_LANDS_NOTHING, BlockLandingTests::noAbilityLandsNothing);
         reg(r, PRISM_GROWS_ON_THE_FACE, PrismTests::prismGrowsOnTheFace);
         reg(r, PRISM_REFUSED_WITHOUT_QUARTZ, PrismTests::prismRefusedWithoutQuartz);
+        reg(r, PRISM_COMBO_RUNS_THE_TYPE_PRISM_ABILITY, PrismComboTests::comboRunsTheTypePrismAbility);
+        reg(r, PRISM_COMBO_RUNS_ON_PRISM_BEHAVIORS, PrismComboTests::comboRunsOnPrismBehaviors);
+        reg(r, PRISM_WITHOUT_COMBO_STAYS, PrismComboTests::prismWithoutComboStays);
+        reg(r, COMBINED_PRISM_REFUSES_SECOND, PrismComboTests::combinedPrismRefusesSecond);
         reg(r, FX_ABILITY_LANDS_MARKER, BlockLandingTests::abilityLandsItsMarker);
         reg(r, FX_BLAST_LANDS_NO_BLOCK, BlockLandingTests::blastLandsNoBlock);
         reg(r, FREE_BLAST_AT_AIR_POINT, FreeAimTests::blastExplodesAtThePointInOpenAir);
