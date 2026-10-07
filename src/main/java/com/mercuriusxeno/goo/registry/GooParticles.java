@@ -64,6 +64,14 @@ public class GooParticles {
         PARTICLE_TYPES.register("goo_fog", GooParticles::colorParticleType);
 
     /**
+     * The restore mote: a soft glow drifting upward, sprayed along a
+     * vitality stream and its restoration wave rings.
+     * vitality-waves-regenerate-and-court
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> RESTORE_MOTE =
+        PARTICLE_TYPES.register("restore_mote", () -> new SimpleParticleType(false));
+
+    /**
      * Creates a non-syncing ParticleType that carries RGB color data.
      *
      * @return the configured color particle type

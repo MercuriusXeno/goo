@@ -93,7 +93,9 @@ class StepCodecTest {
                     Expr.parse("20 * 60 / pow(health, 0.4)").getOrThrow())),
             Map.entry("afterimage", new AfterimageStep(GooTypes.HEX, Expr.literal(20))),
             Map.entry("ghost_trail", new GhostTrailStep(GooTypes.ENDER, Expr.literal(30))),
-            Map.entry("heart_overlay", new HeartOverlayStep(HeartKind.KINDLE, Expr.literal(1200)))
+            Map.entry("heart_overlay", new HeartOverlayStep(HeartKind.KINDLE, Expr.literal(1200))),
+            Map.entry("heal", LeafSteps.HEAL.step(Expr.literal(0.1))),
+            Map.entry("court", LeafSteps.COURT.step(Expr.literal(0.25)))
     );
 
     private static Step roundTrip(Step step) {

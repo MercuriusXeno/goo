@@ -365,6 +365,7 @@ public final class GooTestFunctions {
     private static final String BREW_LEAF_BARKS = "brew_leaf_barks_for_an_hour";
     private static final String BREW_WITHOUT_ABILITY = "brew_without_an_ability_runs_nothing";
     private static final String STREAM_BLAZE_SPITFIRE = "stream_blaze_spitfire";
+    private static final String VITALITY_HEALS = "vitality_heals_cow_and_caster";
     private static final String MOB_CRYSTAL = "mob_crystal_flechettes";
     private static final String MOB_LEAF = "mob_leaf_entangle";
     private static final String MOB_VITAL = "mob_vital_clone";
@@ -778,6 +779,7 @@ public final class GooTestFunctions {
         reg(r, BREW_LEAF_BARKS, BrewEffectTests::leafBrewBarksForAnHour);
         reg(r, BREW_WITHOUT_ABILITY, BrewEffectTests::brewWithoutAnAbilityRunsNothing);
         reg(r, STREAM_BLAZE_SPITFIRE, StreamDeliveryTests::blazeSpitfire);
+        reg(r, VITALITY_HEALS, StreamDeliveryTests::vitalityHealsCowAndCaster);
         reg(r, MOB_CRYSTAL, MobEffectTests::crystalFlechettes);
         reg(r, MOB_LEAF, MobEffectTests::leafEntangle);
         reg(r, MOB_VITAL, MobEffectTests::vitalClone);

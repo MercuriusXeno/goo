@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.client.TargetResult;
+import com.mercuriusxeno.goo.client.ability.RestorationVisual;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.overlay.AimTracker;
@@ -97,10 +98,12 @@ public final class GloveThrowSender {
             return false;
         }
         var connection = Minecraft.getInstance().getConnection();
+        Vec3 origin = lineOrigin();
         if (connection != null) {
             connection.send(new ServerboundCustomPayloadPacket(
-                    new GooStreamPayload(GooTypes.id(gooType), abilityId, lineOrigin())));
+                    new GooStreamPayload(GooTypes.id(gooType), abilityId, origin)));
         }
+        RestorationVisual.drawWaves(player, abilityId, selectedDelivery(abilityId), origin);
         return true;
     }
 

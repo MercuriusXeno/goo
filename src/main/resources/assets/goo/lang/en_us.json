@@ -139,5 +139,6 @@
   "goo.ability.unstable.explode": "Blast",
   "goo.ability.unstable.proximity_mine": "Claymore",
   "goo.ability.unstable.timed_bomb": "Countdown",
-  "goo.ability.vital.clone": "Clone"
+  "goo.ability.vital.clone": "Clone",
+  "goo.ability.vital.vitality": "Vitality"
 }
