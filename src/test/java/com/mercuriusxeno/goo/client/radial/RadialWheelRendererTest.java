@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.ability.Delivery;
+import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.network.OfferedAbility;
 import net.minecraft.world.item.ItemStack;
@@ -36,6 +37,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -738,6 +740,38 @@ class RadialWheelRendererTest {
         void emptyIconFallsBackToTheConventionPath() {
             assertEquals(Identifier.fromNamespaceAndPath(Goo.MODID, TEXTURE_PATH),
                     RadialWheelRenderer.resolveAbilityIcon(abilityWithIcon("")));
+        }
+    }
+
+    /** A type petal holding a held ability pulses while the type is not expanded (decision wheel-pulses-the-active-effect). */
+    @Nested
+    class TypePetalPulse {
+
+        private static final Identifier BLAZE_KINDLE = Identifier.fromNamespaceAndPath(Goo.MODID, "blaze_kindle");
+        private static final int BLAZE = 0;
+        private static final float QUARTER_PERIOD = PetalPulse.PERIOD_TICKS / 4f;
+
+        private RadialWheelRenderer.Frame frame(Set<Identifier> active) {
+            List<ResourceKey<GooTypeDefinition>> types = List.of(GooTypes.BLAZE, GooTypes.LEAF);
+            List<List<OfferedAbility>> abilities = List.of(
+                    List.of(new OfferedAbility(new ClientAbility(BLAZE_KINDLE, "ability.goo.kindle", "", 0, List.of(),
+                            List.of(), 0, Delivery.of(DeliveryKind.SELF), AbilityBadge.BREW, List.of()), List.of())),
+                    List.of());
+            return new RadialWheelRenderer.Frame(new RadialWheel(types.size(), type -> 1), types, abilities,
+                    Map.of(GooTypes.BLAZE, 1000, GooTypes.LEAF, 1000), 0, 0, 100, null, 0f, active, QUARTER_PERIOD);
+        }
+
+        @Test
+        void anUnexpandedTypeHoldingAnActiveAbilityPulses() {
+            int pulsing = RadialWheelRenderer.typePetalTint(frame(Set.of(BLAZE_KINDLE)), BLAZE);
+            assertEquals(RadialWheelRenderer.HOVER_ALPHA, ARGB.alpha(pulsing));
+            assertTrue(ARGB.red(pulsing) > ARGB.red(RadialWheelRenderer.computeOverlayTint(false, false)));
+        }
+
+        @Test
+        void aTypeHoldingNothingRests() {
+            assertEquals(RadialWheelRenderer.computeOverlayTint(false, false),
+                    RadialWheelRenderer.typePetalTint(frame(Set.of()), BLAZE));
         }
     }
 
