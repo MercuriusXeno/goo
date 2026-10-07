@@ -52,7 +52,7 @@ public final class LabBayTests {
     private static final String NOT_PAIRED = "Registry should pair the source gasket to the receiver gasket";
     private static final String NO_PARTNER = "Receiver should name the source as its top partner";
     private static final String RING_OPEN = "Pen fence ring should be closed at ";
-    private static final String MOB_MISSING = "Pen should hold one ";
+    private static final String MOB_MISSING = "Pen should hold each planned ";
     private static final String TARGET_MISSING = "Range target missing at ";
     private static final String LINE_MISSING = "Firing line should stand in the floor at ";
 
@@ -184,7 +184,7 @@ public final class LabBayTests {
     }
 
     /**
-     * Asserts one entity of each of a pen's planned mob types stands inside its interior.
+     * Asserts as many entities of each of a pen's planned mob types stand inside its interior as the pen plans.
      *
      * @param helper the gametest helper
      * @param origin the world position of the plan's zero offset
@@ -198,8 +198,9 @@ public final class LabBayTests {
         List<LabSpawn> penSpawns = plan.spawns().stream().filter(s -> pen.interior().contains(s.offset())).toList();
         for (LabSpawn spawn : penSpawns) {
             EntityType<?> type = EntityType.byString(spawn.entityId()).orElseThrow();
+            long planned = penSpawns.stream().filter(s -> s.entityId().equals(spawn.entityId())).count();
             List<Entity> found = helper.getLevel().getEntities((Entity) null, inside, e -> e.getType() == type);
-            helper.assertTrue(found.size() == 1, MOB_MISSING + BuiltInRegistries.ENTITY_TYPE.getKey(type));
+            helper.assertTrue(found.size() == planned, MOB_MISSING + BuiltInRegistries.ENTITY_TYPE.getKey(type));
         }
     }
 

@@ -4,9 +4,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The mob pens: a row of fenced pens along +x, each roofed with tinted glass
- * so undead keep out of the sun and fliers stay in, holding a spread of mobs
- * to throw goo at (decision lab-holds-bays-supply-pens-kit).
+ * The mob pens: a row of fenced pens along +x holding a spread of mobs to
+ * throw goo at (decision lab-holds-bays-supply-pens-kit). Every pen but the
+ * passive one is roofed with tinted glass so undead keep out of the sun and
+ * fliers stay in; the passive pen stands open so its mobs are reached over the
+ * fence, and a pen of zombies alone serves as an easy damage source.
+ * decision lab-zombie-pen-and-open-passive-pens
  */
 public final class LabPens {
 
@@ -47,6 +50,7 @@ public final class LabPens {
     private static final String PASSIVE = "Passive";
     private static final String HOSTILE = "Hostile";
     private static final String UNDEAD = "Undead";
+    private static final String ZOMBIE = "Zombie";
     private static final String BLAZE = "Blaze";
     private static final List<String> PASSIVE_MOBS =
             List.of("minecraft:cow", "minecraft:sheep", "minecraft:pig", "minecraft:chicken");
@@ -54,6 +58,8 @@ public final class LabPens {
             List.of("minecraft:spider", "minecraft:creeper", "minecraft:witch");
     private static final List<String> UNDEAD_MOBS =
             List.of("minecraft:zombie", "minecraft:skeleton", "minecraft:husk");
+    private static final List<String> ZOMBIE_MOBS =
+            List.of("minecraft:zombie", "minecraft:zombie", "minecraft:zombie");
     private static final List<String> BLAZE_MOBS = List.of("minecraft:blaze");
 
     private LabPens() {
@@ -66,20 +72,21 @@ public final class LabPens {
      * @return the pens in row order
      */
     static List<LabPen> pens(LabOffset corner) {
-        List<String> names = List.of(PASSIVE, HOSTILE, UNDEAD, BLAZE);
-        List<List<String>> mobs = List.of(PASSIVE_MOBS, HOSTILE_MOBS, UNDEAD_MOBS, BLAZE_MOBS);
+        List<String> names = List.of(PASSIVE, HOSTILE, UNDEAD, ZOMBIE, BLAZE);
+        List<List<String>> mobs = List.of(PASSIVE_MOBS, HOSTILE_MOBS, UNDEAD_MOBS, ZOMBIE_MOBS, BLAZE_MOBS);
         List<LabPen> pens = new ArrayList<>();
         for (int index = 0; index < names.size(); index++) {
             LabOffset min = corner.shifted(index * (OUTER_SIZE + PEN_GAP), 0, 0);
             LabBox bounds = new LabBox(min, min.shifted(OUTER_SIZE - 1, ROOF_HEIGHT, OUTER_SIZE - 1));
             LabBox interior = new LabBox(min.shifted(1, 1, 1), min.shifted(INTERIOR_SIZE, ROOF_HEIGHT - 1, INTERIOR_SIZE));
-            pens.add(new LabPen(names.get(index), bounds, interior, mobs.get(index)));
+            String name = names.get(index);
+            pens.add(new LabPen(name, bounds, interior, mobs.get(index), !PASSIVE.equals(name)));
         }
         return pens;
     }
 
     /**
-     * Answers a pen's fence ring, its roof and the sign naming it outside its north fence.
+     * Answers a pen's fence ring, its roof when it is roofed and the sign naming it outside its north fence.
      *
      * @param pen  the pen
      * @param sign the sign block state
@@ -90,7 +97,7 @@ public final class LabPens {
         LabOffset min = pen.bounds().min();
         for (int dx = 0; dx < OUTER_SIZE; dx++) {
             for (int dz = 0; dz < OUTER_SIZE; dz++) {
-                placements.addAll(columnBlocks(min.shifted(dx, 0, dz), isRing(dx, dz)));
+                placements.addAll(columnBlocks(min.shifted(dx, 0, dz), isRing(dx, dz), pen.roofed()));
             }
         }
         LabOffset signAt = min.shifted(OUTER_SIZE / HALF, 1, NORTH);
@@ -99,20 +106,23 @@ public final class LabPens {
     }
 
     /**
-     * Answers one pen column: fence on the ring below the roof, then the roof.
+     * Answers one pen column: fence on the ring below roof height, then the roof when the pen is roofed.
      *
-     * @param base the column's floor offset
-     * @param ring whether the column lies on the fence ring
+     * @param base   the column's floor offset
+     * @param ring   whether the column lies on the fence ring
+     * @param roofed whether the pen is roofed
      * @return the column's placements
      */
-    private static List<LabPlacement> columnBlocks(LabOffset base, boolean ring) {
+    private static List<LabPlacement> columnBlocks(LabOffset base, boolean ring, boolean roofed) {
         List<LabPlacement> column = new ArrayList<>();
         if (ring) {
             for (int dy = 1; dy < ROOF_HEIGHT; dy++) {
                 column.add(LabPlacement.block(base.shifted(0, dy, 0), FENCE_BLOCK));
             }
         }
-        column.add(LabPlacement.block(base.shifted(0, ROOF_HEIGHT, 0), ROOF_BLOCK));
+        if (roofed) {
+            column.add(LabPlacement.block(base.shifted(0, ROOF_HEIGHT, 0), ROOF_BLOCK));
+        }
         return column;
     }
 

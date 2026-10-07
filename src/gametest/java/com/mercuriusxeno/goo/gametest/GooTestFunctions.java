@@ -130,6 +130,10 @@ public final class GooTestFunctions {
     private static final String LAB_SUPPLY_ROW = "lab_supply_row";
     private static final String LAB_KIT = "lab_kit";
     private static final String LAB_REBUILD = "lab_rebuild";
+    private static final String ZOMBIE_PEN_HOLDS_ONLY_ZOMBIES = "zombie_pen_holds_only_zombies";
+    private static final String PASSIVE_PEN_HAS_NO_ROOF = "passive_pen_has_no_roof";
+    private static final String LAB_KIT_TEACHES_EVERY_ABILITY = "lab_kit_teaches_every_ability";
+    private static final String LAB_KIT_UNTOUCHED_PLAYER_KNOWS_NOTHING = "lab_kit_untouched_player_knows_nothing";
 
     // --- GasketPusher ---
     private static final String PUSHER_EMPTY_RESERVOIR = "pusher_empty_reservoir";
@@ -800,6 +804,10 @@ public final class GooTestFunctions {
         reg(r, LAB_SUPPLY_ROW, LabSupplyTests::supplyRow);
         reg(r, LAB_KIT, LabSupplyTests::kit);
         reg(r, LAB_REBUILD, LabRebuildTests::rebuild);
+        reg(r, ZOMBIE_PEN_HOLDS_ONLY_ZOMBIES, LabTests::zombiePenHoldsOnlyZombies);
+        reg(r, PASSIVE_PEN_HAS_NO_ROOF, LabTests::passivePenHasNoRoof);
+        reg(r, LAB_KIT_TEACHES_EVERY_ABILITY, LabKitKnowledgeTests::kitTeachesEveryAbility);
+        reg(r, LAB_KIT_UNTOUCHED_PLAYER_KNOWS_NOTHING, LabKitKnowledgeTests::untouchedPlayerKnowsNothing);
     }
 
     /**
