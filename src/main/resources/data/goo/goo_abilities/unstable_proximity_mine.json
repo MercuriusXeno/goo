@@ -6,7 +6,7 @@
   "cost": 1000,
   "requires": ["minecraft:tnt"],
   "delivery": { "kind": "arc" },
-  "area": { "shape": "sphere", "size": 3.0 },
+  "area": { "shape": "sphere" },
   "behaviors": [
     {
       "type": "linger",

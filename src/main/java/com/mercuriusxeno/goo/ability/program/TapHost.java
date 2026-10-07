@@ -5,7 +5,6 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.phys.Vec3;
@@ -69,11 +68,7 @@ public record TapHost(ServerLevel level, BlockPos landing, Direction face)
 
     @Override
     public void explode(float power, ExplosionMode mode) {
-        Vec3 at = anchor();
-        Level.ExplosionInteraction interaction = mode == ExplosionMode.TNT
-                ? Level.ExplosionInteraction.TNT
-                : Level.ExplosionInteraction.NONE;
-        level.explode(null, at.x(), at.y(), at.z(), power, interaction);
+        GooExplosion.detonate(level, anchor(), power, mode, GooExplosion.Look.vanilla());
     }
 
     /**
