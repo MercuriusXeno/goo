@@ -7,13 +7,9 @@ import com.mercuriusxeno.goo.registry.GooParticles;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.util.random.WeightedList;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.phys.Vec3;
@@ -62,22 +58,16 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
     }
 
     /**
-     * Explodes at the marker with vanilla's damage, block breaking and boom,
-     * its explosion and block particles swapped for none, since the marker's
-     * burnout explosion is drawn by its goo type (decision
-     * elemental-explosion-per-type), sent here as it explodes rather than
-     * when the blob landed.
+     * Explodes at the marker with Goo's explosion and vanilla's boom, its
+     * particles swapped for none, since the marker's burnout explosion is
+     * drawn by its goo type (decision elemental-explosion-per-type), sent
+     * here as it explodes rather than when the blob landed.
      */
     @Override
     public void explode(float power, ExplosionMode mode) {
         burnout().sendToTracking(level);
-        Vec3 center = Vec3.atCenterOf(pos);
-        Level.ExplosionInteraction interaction = mode == ExplosionMode.TNT
-                ? Level.ExplosionInteraction.TNT
-                : Level.ExplosionInteraction.NONE;
-        SimpleParticleType silent = GooParticles.SILENT_BLAST.get();
-        level.explode(null, null, null, center.x(), center.y(), center.z(), power, false, interaction,
-                silent, silent, WeightedList.of(), SoundEvents.GENERIC_EXPLODE);
+        GooExplosion.detonate(level, Vec3.atCenterOf(pos), power, mode,
+                GooExplosion.Look.silent(GooParticles.SILENT_BLAST.get()));
     }
 
     /**

@@ -6,7 +6,7 @@
   "cost": 1000,
   "requires": ["minecraft:gunpowder"],
   "delivery": { "kind": "arc" },
-  "area": { "shape": "sphere", "size": 3.0 },
+  "area": { "shape": "sphere" },
   "behaviors": [
     { "type": "explode", "power": 3.0, "interaction": "tnt" }
   ],

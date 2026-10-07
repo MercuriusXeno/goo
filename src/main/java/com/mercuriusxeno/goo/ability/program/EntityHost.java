@@ -7,7 +7,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 import java.util.OptionalDouble;
@@ -120,10 +119,7 @@ public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entit
 
     @Override
     public void explode(float power, ExplosionMode mode) {
-        Level.ExplosionInteraction interaction = mode == ExplosionMode.TNT
-                ? Level.ExplosionInteraction.TNT
-                : Level.ExplosionInteraction.NONE;
-        level.explode(null, target.getX(), target.getY(), target.getZ(), power, interaction);
+        GooExplosion.detonate(level, target.position(), power, mode, GooExplosion.Look.vanilla());
     }
 
     @Override
