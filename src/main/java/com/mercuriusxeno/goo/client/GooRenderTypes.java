@@ -605,6 +605,32 @@ public final class GooRenderTypes {
                     .createRenderSetup());
 
     /**
+     * Vines' tangle pipeline: a rooted mob's model drawn again through
+     * {@code vine_tangle.vsh / .fsh}, flush at the model's own depth, the vine
+     * texture laid over the skin coordinates in noise patches covering the
+     * share of the model the vertex alpha carries.
+     * vines-unpack-root-and-thorn
+     */
+    public static final RenderPipeline VINE_TANGLE = RenderPipeline.builder(
+                    RenderPipelines.ENTITY_SNIPPET,
+                    RenderPipelines.GLOBALS_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "vine_tangle"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "vine_tangle"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "vine_tangle"))
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withDepthStencilState(new DepthStencilState(DepthStencilState.DEFAULT.depthTest(), false))
+            .build();
+
+    /** The vine tangle render type, sampling vanilla's vine texture. */
+    public static final RenderType VINE_TANGLE_TYPE = RenderType.create(
+            "goo_vine_tangle",
+            RenderSetup.builder(VINE_TANGLE)
+                    .withTexture("Sampler0", Identifier.withDefaultNamespace("textures/block/vine.png"))
+                    .useLightmap()
+                    .sortOnUpload()
+                    .createRenderSetup());
+
+    /**
      * Petrify's fog pipeline (decision petrify-stone-encasement-and-calcify-map):
      * cross-sections of the cone drawn through {@code petrify_fog.vsh / .fsh},
      * undulating dust-fog waves washing forward through them.
@@ -815,6 +841,7 @@ public final class GooRenderTypes {
      */
     public static void registerPipelines(RegisterRenderPipelinesEvent event) {
         registerBurnoutPipelines(event);
+        registerMobLayerPipelines(event);
         event.registerPipeline(LINES_ADDITIVE_GLOW);
         event.registerPipeline(NETHER_BLACKHOLE);
         event.registerPipeline(NETHER_CORONA);
@@ -828,15 +855,25 @@ public final class GooRenderTypes {
         event.registerPipeline(GOO_FLUID);
         event.registerPipeline(GOO_FLUID_SURFACE);
         event.registerPipeline(CRUCIBLE_DISSOLVE);
-        event.registerPipeline(GOO_MOB_COAT);
         event.registerPipeline(BLOCK_MINGLE);
-        event.registerPipeline(PETRIFY_STONE);
         event.registerPipeline(PETRIFY_FOG);
         event.registerPipeline(BORE_VORTEX);
-        event.registerPipeline(GOO_AILMENT_OVERLAY);
         GOO_RIPPLE_MASKS.forEach(event::registerPipeline);
         event.registerPipeline(GOO_RIPPLE_EDGE);
         event.registerPipeline(GOO_GHOST);
+    }
+
+    /**
+     * Registers the pipelines that draw a mob's model again over itself: the
+     * goo coat, Petrify's stone, Vines' tangle and the ailment overlays.
+     *
+     * @param event the event instance
+     */
+    private static void registerMobLayerPipelines(RegisterRenderPipelinesEvent event) {
+        event.registerPipeline(GOO_MOB_COAT);
+        event.registerPipeline(PETRIFY_STONE);
+        event.registerPipeline(VINE_TANGLE);
+        event.registerPipeline(GOO_AILMENT_OVERLAY);
     }
 
     /**

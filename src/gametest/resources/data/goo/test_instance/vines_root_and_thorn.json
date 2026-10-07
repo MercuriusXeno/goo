@@ -1,9 +1,9 @@
 {
   "type": "minecraft:function",
-  "function": "goo:mob_leaf_entangle",
+  "function": "goo:vines_root_and_thorn",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
-  "max_ticks": 5,
+  "max_ticks": 100,
   "setup_ticks": 0,
   "required": true
 }

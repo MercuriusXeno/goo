@@ -82,7 +82,7 @@ class AbilityLoaderTest {
             Map.entry("blaze_kindle", List.of("magma_cream")),
             Map.entry("leaf_barkskin", List.of("oak_log")),
             Map.entry("aeon_time_stop", List.of("clock")),
-            Map.entry("leaf_entangle", List.of("vine")),
+            Map.entry("leaf_vines", List.of("vine")),
             Map.entry("typhoon_levitate", List.of("shulker_shell")),
             Map.entry("typhoon_propel", List.of("phantom_membrane")),
             Map.entry("rock_bore", List.of("stone", "cobblestone")),
