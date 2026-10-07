@@ -4,6 +4,8 @@ import com.mojang.datafixers.util.Unit;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.animal.Animal;
+import net.minecraft.world.entity.player.Player;
 import java.util.Set;
 
 /**
@@ -18,6 +20,7 @@ public final class LeafSteps {
     private static final MapCodec<Unit> NO_PARAMS = MapCodec.unit(Unit.INSTANCE);
     private static final Set<HostCapability> TARGET = Set.of(HostCapability.TARGET);
     private static final Set<HostCapability> CONSUMED_GOO = Set.of(HostCapability.CONSUMED_GOO);
+    private static final float PERCENT = 100;
 
     /**
      * Idles for a number of ticks, then finishes. {@code wait ticks=2} lets
@@ -116,6 +119,42 @@ public final class LeafSteps {
     public static final LeafStepType<Expr> FREEZE_TICKS = TargetEffectStep.of("freeze_ticks", "add",
             (target, add, context) -> target.setTicksFrozen(target.getTicksFrozen() + add.evaluateInt(context)));
 
+    /**
+     * Heals the host's target by an amount of health points; vitality
+     * streams {@code heal amount=0.5} over each living thing in its cone
+     * and its caster every tick it is held.
+     * vitality-waves-regenerate-and-court
+     */
+    public static final LeafStepType<Expr> HEAL = TargetEffectStep.of("heal", "amount",
+            (target, amount, context) -> target.heal(amount.evaluateFloat(context)));
+
+    /**
+     * Puts the host's target in love on a percent roll when it is an animal
+     * an empty-handed feed could breed now: grown, off its breeding
+     * cooldown and out of love. Vitality rolls {@code court chance=1} on
+     * every animal its waves wash over each tick.
+     * vitality-waves-regenerate-and-court
+     */
+    public static final LeafStepType<Expr> COURT = StepType.of("court", "chance", TARGET, (chance, context) -> {
+        TargetHost host = context.hostAs(TargetHost.class);
+        if (host.target() instanceof Animal animal && animal.getAge() == 0 && animal.canFallInLove()
+                && courts(chance.evaluateFloat(context), animal.getRandom().nextFloat())) {
+            animal.setInLove(host.thrower() instanceof Player player ? player : null);
+        }
+        return true;
+    });
+
     private LeafSteps() {
+    }
+
+    /**
+     * Whether a court roll lands: a roll in [0, 1) lands under a percent chance.
+     *
+     * @param chancePercent the percent chance the step names
+     * @param roll          the uniform roll in [0, 1)
+     * @return true when the roll lands
+     */
+    static boolean courts(float chancePercent, float roll) {
+        return roll * PERCENT < chancePercent;
     }
 }

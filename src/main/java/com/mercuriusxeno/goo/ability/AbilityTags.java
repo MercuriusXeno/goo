@@ -17,6 +17,14 @@ public final class AbilityTags {
      */
     public static final String TAP = "tap";
 
+    /**
+     * An ability that acts on its caster; a stream tagged so runs its
+     * program on the caster each tick it is held, beside every living
+     * thing in its cone.
+     * vitality-waves-regenerate-and-court
+     */
+    public static final String SELF = "self";
+
     private AbilityTags() {
     }
 }
