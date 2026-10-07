@@ -72,6 +72,7 @@ class AbilityLoaderTest {
             Map.entry("hex_charm", List.of("honey_bottle", "cake", "cookie")),
             Map.entry("unstable_explode", List.of("gunpowder")),
             Map.entry("unstable_lurker", List.of("tnt")),
+            Map.entry("unstable_unmake", List.of("dragon_breath")),
             Map.entry("glow_laser", List.of("spectral_arrow")),
             Map.entry("glow_crystal", List.of("glowstone")),
             Map.entry("crystal_cloud", List.of("glass", "sand")),

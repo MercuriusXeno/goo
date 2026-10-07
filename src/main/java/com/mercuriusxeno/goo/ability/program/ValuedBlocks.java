@@ -12,6 +12,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.state.BlockState;
+import org.jspecify.annotations.Nullable;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -53,17 +54,29 @@ public final class ValuedBlocks {
      */
     private static void consumeIfValued(ServerLevel level, BlockPos target,
                                         Map<ResourceKey<GooTypeDefinition>, Integer> totals) {
-        BlockState state = level.getBlockState(target);
-        Item item = state.getBlock().asItem();
-        if (state.isAir() || item == Items.AIR) {
-            return;
-        }
-        GooValue value = GooValues.of(level).lookup(BuiltInRegistries.ITEM.getKey(item));
+        GooValue value = valueAt(level, target);
         if (value == null || value.isEmpty()) {
             return;
         }
         mergeValue(totals, value);
         level.removeBlock(target, false);
+    }
+
+    /**
+     * The goo the block at a position holds: its item's goo value, what the
+     * crucible would melt it into.
+     *
+     * @param level  the level
+     * @param target the block position
+     * @return the block's goo value, or null for air, an itemless block or an unvalued one
+     */
+    public static @Nullable GooValue valueAt(ServerLevel level, BlockPos target) {
+        BlockState state = level.getBlockState(target);
+        Item item = state.getBlock().asItem();
+        if (state.isAir() || item == Items.AIR) {
+            return null;
+        }
+        return GooValues.of(level).lookup(BuiltInRegistries.ITEM.getKey(item));
     }
 
     /**

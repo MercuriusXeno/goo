@@ -139,5 +139,6 @@
   "goo.ability.unstable.explode": "Blast",
   "goo.ability.unstable.lurker": "Lurker",
   "goo.ability.unstable.timed_bomb": "Countdown",
+  "goo.ability.unstable.unmake": "Unmake",
   "goo.ability.vital.clone": "Clone"
 }

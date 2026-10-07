@@ -63,7 +63,12 @@ public enum HostCapability {
      * A standing block that watches the entities around it and pulses to
      * its viewers (decision lurker-blob-brightens-then-detonates).
      */
-    WATCH(WatchHost.class);
+    WATCH(WatchHost.class),
+    /**
+     * A host holding one block an unmake works on
+     * (decision unmake-waves-dissolve-by-crucible-cost).
+     */
+    UNMAKE(UnmakeHost.class);
 
     private final Class<? extends StepHost> hostType;
 

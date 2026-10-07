@@ -36,6 +36,8 @@ public final class StepTypes {
         register(LeafSteps.WAIT.type());
         register(AwaitEntityStep.TYPE);
         register(WatchStep.TYPE);
+        register(BlocksStep.TYPE);
+        register(UnmakeStep.TYPE);
         register(ExplodeStep.TYPE);
         register(DamageStep.TYPE);
         register(PotionStep.TYPE);

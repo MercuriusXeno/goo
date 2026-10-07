@@ -12,6 +12,7 @@ import com.mercuriusxeno.goo.network.MobEffectTests;
 import com.mercuriusxeno.goo.network.SelfDeliveryTests;
 import com.mercuriusxeno.goo.network.StreamDeliveryTests;
 import com.mercuriusxeno.goo.network.TouchDeliveryTests;
+import com.mercuriusxeno.goo.network.UnmakeTests;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
@@ -136,6 +137,7 @@ public final class GooTestFunctions {
     private static final String LAB_KIT_UNTOUCHED_PLAYER_KNOWS_NOTHING = "lab_kit_untouched_player_knows_nothing";
     private static final String BLAST_HIDDEN_UNTIL_GUNPOWDER = "blast_hidden_until_gunpowder";
     private static final String LURKER_PULSES_THEN_EXPLODES = "lurker_pulses_then_explodes";
+    private static final String UNMAKE_CHEAP_BEFORE_DEAR = "unmake_cheap_before_dear";
 
     // --- GasketPusher ---
     private static final String PUSHER_EMPTY_RESERVOIR = "pusher_empty_reservoir";
@@ -824,6 +826,7 @@ public final class GooTestFunctions {
         reg(r, LAB_KIT_UNTOUCHED_PLAYER_KNOWS_NOTHING, LabKitKnowledgeTests::untouchedPlayerKnowsNothing);
         reg(r, BLAST_HIDDEN_UNTIL_GUNPOWDER, BlastGateTests::blastHiddenUntilGunpowder);
         reg(r, LURKER_PULSES_THEN_EXPLODES, LurkerTests::lurkerPulsesThenExplodes);
+        reg(r, UNMAKE_CHEAP_BEFORE_DEAR, UnmakeTests::unmakeCheapBeforeDear);
     }
 
     /**
