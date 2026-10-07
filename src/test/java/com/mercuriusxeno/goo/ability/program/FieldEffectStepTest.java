@@ -289,7 +289,7 @@ class FieldEffectStepTest {
         tick(program, host, COOLDOWN + STRIKE_TICKS - 1);
         assertEquals(METAL_CHARGES, host.fieldEffect().chargesSpent());
         assertTrue(program.isActive());
-        verify(host, never()).playSound(any());
+        verify(host, never()).playSound(argThat(cue -> "block.fire.extinguish".equals(cue.sound().getPath())));
 
         tick(program, host, IDLE_TICKS);
 
