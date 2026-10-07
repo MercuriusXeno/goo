@@ -109,7 +109,8 @@ public record BoreStep(TagKey<Block> breaks, int count) implements Step {
 
     /**
      * A 3x3 slice square to an axis, ring in: the eight around the middle in
-     * turn, then the middle.
+     * turn, then the middle. Flatten lays its layers with the same slice
+     * (decision flatten-disc-cursor-breaks-above-the-plane).
      *
      * @param middle the slice's middle
      * @param main   the axis the slice stands square to
