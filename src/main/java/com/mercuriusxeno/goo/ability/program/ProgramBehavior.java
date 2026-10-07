@@ -30,7 +30,9 @@ public final class ProgramBehavior {
 
     private final List<Step> steps;
     /** The sounds a framed sound step holds until their tick. ability-json-names-its-choreography */
-    private final HeldCues heldCues = new HeldCues();
+    private final HeldCues heldCues;
+    /** Whether this program counts its held sounds down, false for a body whose enclosing program does. */
+    private final boolean countsHeldCues;
     private int stepIndex;
     private int stepTicks;
     private int programTicks;
@@ -43,6 +45,23 @@ public final class ProgramBehavior {
      */
     public ProgramBehavior(List<Step> steps) {
         this.steps = List.copyOf(steps);
+        this.heldCues = new HeldCues();
+        this.countsHeldCues = true;
+    }
+
+    /**
+     * Creates the runtime over a step list whose framed sounds an enclosing
+     * program holds, as a trap's strike body does, so a sound framed after
+     * this body's one tick still plays.
+     * urchin-spikes-shink-out-and-shink-back
+     *
+     * @param steps    the program body in order
+     * @param heldCues the enclosing program's held sounds
+     */
+    public ProgramBehavior(List<Step> steps, HeldCues heldCues) {
+        this.steps = List.copyOf(steps);
+        this.heldCues = heldCues;
+        this.countsHeldCues = false;
     }
 
     /**
@@ -118,7 +137,9 @@ public final class ProgramBehavior {
      * @param host the host seam for this tick
      */
     public void tick(StepHost host) {
-        heldCues.playDue(host, programTicks);
+        if (countsHeldCues) {
+            heldCues.playDue();
+        }
         while (isActive()) {
             Step current = steps.get(stepIndex);
             boolean finished = current.tick(new StepContext(host, stepTicks, programTicks, heldCues));

@@ -45,7 +45,7 @@ public record StepContext(StepHost host, int stepTicks, int programTicks, @Nulla
         if (frame <= 0 || heldCues == null) {
             host.playSound(cue);
         } else {
-            heldCues.hold(cue, programTicks + frame);
+            heldCues.hold(cue, frame, host);
         }
     }
 

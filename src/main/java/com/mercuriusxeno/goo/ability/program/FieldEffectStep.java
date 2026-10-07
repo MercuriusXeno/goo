@@ -131,7 +131,7 @@ public record FieldEffectStep(Expr radius, List<EntityFilter> where, Expr cooldo
         for (FieldStrike strikeInFlight : state.strikes()) {
             FieldStrike aged = strikeInFlight.aged();
             if (aged.age() == landingAge) {
-                scan.forEntity(aged.entityId(), this::land);
+                scan.forEntity(aged.entityId(), target -> land(context, target));
             }
             if (aged.age() < length) {
                 kept.add(aged);
@@ -163,7 +163,7 @@ public record FieldEffectStep(Expr radius, List<EntityFilter> where, Expr cooldo
         state.addStrike(aimed);
         state.setCooldown(cooldown.evaluateInt(context));
         if (strikeTick.evaluateInt(context) == 0) {
-            land(target);
+            land(context, target);
         }
     }
 
@@ -188,12 +188,16 @@ public record FieldEffectStep(Expr radius, List<EntityFilter> where, Expr cooldo
     }
 
     /**
-     * Runs the strike body on the struck entity.
+     * Runs the strike body on the struck entity, its framed sounds held by
+     * the trap's program so they play at the entity on their frame.
+     * urchin-spikes-shink-out-and-shink-back
      *
-     * @param target the host bound to the struck entity
+     * @param context the marker's tick context
+     * @param target  the host bound to the struck entity
      */
-    private void land(TargetHost target) {
-        new ProgramBehavior(strike).tick(target);
+    private void land(StepContext context, TargetHost target) {
+        HeldCues cues = context.heldCues();
+        (cues == null ? new ProgramBehavior(strike) : new ProgramBehavior(strike, cues)).tick(target);
     }
 
     @Override
