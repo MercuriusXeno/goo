@@ -109,6 +109,21 @@ public final class AbilityRegistry {
     }
 
     /**
+     * The ability a goo of this type runs when it lands on a prism: the type's
+     * prism-badged ability, lowest by order.
+     * decision prism-hosts-the-combos
+     *
+     * @param type the goo type
+     * @return the prism ability, or null when the type has no prism combo
+     */
+    public @Nullable AbilityDefinition prismAbilityFor(ResourceKey<GooTypeDefinition> type) {
+        return getAbilitiesForType(type).stream()
+                .filter(def -> def.badge() == AbilityBadge.PRISM)
+                .min(Comparator.comparingInt(AbilityDefinition::order))
+                .orElse(null);
+    }
+
+    /**
      * Picks the definition carrying a tag with the lowest order.
      *
      * @param definitions the definitions to pick among

@@ -1,0 +1,12 @@
+{
+  "gooType": "gootest:seventeenth",
+  "displayName": "goo.ability.gootest.seventeenth_prism_probe",
+  "badge": "prism",
+  "order": 5,
+  "cost": 1000,
+  "delivery": { "kind": "arc" },
+  "behaviors": [
+    { "type": "entities", "shape": "sphere", "radius": 3, "where": ["living"],
+      "steps": [ { "type": "damage", "amount": 2, "source": "magic" } ] }
+  ]
+}

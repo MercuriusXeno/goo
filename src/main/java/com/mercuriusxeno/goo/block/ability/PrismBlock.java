@@ -1,15 +1,20 @@
 package com.mercuriusxeno.goo.block.ability;
 
+import com.mercuriusxeno.goo.block.BlockEntityTicks;
+import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityTicker;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
@@ -43,6 +48,10 @@ public class PrismBlock extends BaseEntityBlock {
     private static final double HEIGHT = 15.0 / 16;
 
     private static final Map<Direction, VoxelShape> SHAPES = buildShapes();
+
+    /** A combo's program ticks on the server alone. */
+    private static final BlockEntityTicks<PrismBlockEntity> TICKS =
+            BlockEntityTicks.onServer(GooBlockEntities.PRISM, PrismBlockEntity::serverTick);
 
     /**
      * Creates the prism block.
@@ -120,6 +129,12 @@ public class PrismBlock extends BaseEntityBlock {
     public void onNeighborChange(@NonNull BlockState state, @NonNull LevelReader level,
                                  @NonNull BlockPos pos, @NonNull BlockPos neighbor) {
         FaceSupport.breakUnsupported(canSurvive(state, level, pos), level, pos, false);
+    }
+
+    @Override
+    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(@NonNull Level level, @NonNull BlockState state,
+                                                                  @NonNull BlockEntityType<T> type) {
+        return TICKS.tickerFor(level, type);
     }
 
     @Override

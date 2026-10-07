@@ -3,6 +3,8 @@ package com.mercuriusxeno.goo.client.ber;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
+import com.mercuriusxeno.goo.client.ber.style.PrismComboStyle;
+import com.mercuriusxeno.goo.client.ber.style.PrismComboStyles;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.block.BlockModelResolver;
@@ -20,8 +22,10 @@ import org.jspecify.annotations.Nullable;
 /**
  * Draws the prism's milky quartz crystal from its baked model, scaled about
  * the center of the face it grew from by the transformation that grows it
- * out of the landing blob.
+ * out of the landing blob. A prism holding a combo draws by the style its
+ * combo registered in {@link PrismComboStyles}.
  * decision prism-blob-becomes-a-milky-quartz-crystal
+ * decision prism-hosts-the-combos
  */
 public class PrismRenderer implements BlockEntityRenderer<PrismBlockEntity, PrismRenderState> {
 
@@ -53,6 +57,7 @@ public class PrismRenderer implements BlockEntityRenderer<PrismBlockEntity, Pris
         blockModels.update(state.crystal, prism.getBlockState(), DISPLAY_CONTEXT);
         state.facing = prism.getBlockState().getValue(PrismBlock.FACING);
         state.scale = TransformationRenderer.blockModelScale(prism.getBlockPos());
+        state.combo = prism.getCombo();
     }
 
     @Override
@@ -63,7 +68,13 @@ public class PrismRenderer implements BlockEntityRenderer<PrismBlockEntity, Pris
         }
         poseStack.pushPose();
         scaleAboutBase(poseStack, state.facing, state.scale);
-        state.crystal.submit(poseStack, nodeCollector, state.lightCoords, OverlayTexture.NO_OVERLAY, NO_OUTLINE);
+        // prism-hosts-the-combos: a combined prism draws by its combo's style, a plain one as the crystal
+        PrismComboStyle style = PrismComboStyles.forCombo(state.combo);
+        if (style == null) {
+            state.crystal.submit(poseStack, nodeCollector, state.lightCoords, OverlayTexture.NO_OVERLAY, NO_OUTLINE);
+        } else {
+            style.submit(state, poseStack, nodeCollector);
+        }
         poseStack.popPose();
     }
 
