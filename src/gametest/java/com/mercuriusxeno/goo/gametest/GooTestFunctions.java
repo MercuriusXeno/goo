@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.hearts.StoneskinRoutingTests;
 import com.mercuriusxeno.goo.item.ChrysmTier;
 import com.mercuriusxeno.goo.network.AttackTouchTests;
 import com.mercuriusxeno.goo.network.BarkskinTests;
@@ -384,6 +385,7 @@ public final class GooTestFunctions {
     private static final String FLATTEN_BREAKS_ABOVE_THE_PLANE = "flatten_breaks_above_the_plane";
     private static final String FLATTEN_SHAVES_A_WALL = "flatten_shaves_a_wall";
     private static final String BORE_CUTS_A_TUNNEL = "bore_cuts_a_tunnel";
+    private static final String STONESKIN_ROUTES_HITS = "stoneskin_routes_hits_by_source";
     private static final String BORE_STRIKES_A_MOB = "bore_strikes_a_mob_in_the_tunnel";
     private static final String BORE_SPARES_A_WALLED_MOB = "bore_spares_a_mob_behind_a_wall";
     private static final String CRUSH_BLASTS_A_CRATER = "crush_blasts_a_crater";
@@ -819,6 +821,7 @@ public final class GooTestFunctions {
         reg(r, FLATTEN_BREAKS_ABOVE_THE_PLANE, FlattenChannelTests::flattenBreaksAboveThePlane);
         reg(r, FLATTEN_SHAVES_A_WALL, FlattenChannelTests::flattenShavesAWall);
         reg(r, BORE_CUTS_A_TUNNEL, BoreStreamTests::boreCutsATunnel);
+        reg(r, STONESKIN_ROUTES_HITS, StoneskinRoutingTests::stoneskinRoutesHitsBySource);
         reg(r, BORE_STRIKES_A_MOB, BoreStreamTests::boreStrikesAMobInTheTunnel);
         reg(r, BORE_SPARES_A_WALLED_MOB, BoreStreamTests::boreSparesAMobBehindAWall);
         reg(r, CRUSH_BLASTS_A_CRATER, CrushStrikeTests::crushBlastsACrater);
