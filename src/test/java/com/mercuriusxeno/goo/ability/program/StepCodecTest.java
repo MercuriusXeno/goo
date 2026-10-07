@@ -93,7 +93,9 @@ class StepCodecTest {
                     Expr.parse("20 * 60 / pow(health, 0.4)").getOrThrow())),
             Map.entry("afterimage", new AfterimageStep(GooTypes.HEX, Expr.literal(20))),
             Map.entry("ghost_trail", new GhostTrailStep(GooTypes.ENDER, Expr.literal(30))),
-            Map.entry("heart_overlay", new HeartOverlayStep(HeartKind.KINDLE, Expr.literal(1200)))
+            Map.entry("heart_overlay", new HeartOverlayStep(HeartKind.KINDLE, Expr.literal(1200))),
+            Map.entry("spore_host", new SporeHostStep(Identifier.parse("goo:shroom_mycosis"), Expr.literal(3),
+                    Expr.literal(600)))
     );
 
     private static Step roundTrip(Step step) {

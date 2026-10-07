@@ -1,14 +1,11 @@
 package com.mercuriusxeno.goo.network;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
-import com.mercuriusxeno.goo.ability.program.EntityHost;
-import com.mercuriusxeno.goo.ability.program.HostKind;
-import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
-import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
+import com.mercuriusxeno.goo.ability.program.FloorReach;
 import com.mercuriusxeno.goo.ability.program.SimpleParticles;
+import com.mercuriusxeno.goo.ability.spray.SprayPrograms;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.throwing.StreamCone;
@@ -27,13 +24,13 @@ import java.util.List;
 
 /**
  * Server side of a stream delivery: each tick the glove's use stays down,
- * one share of the ability's cost drains and its programs run on every
- * living entity inside the cone; a hold stops when the use releases or the
- * goo runs out (decision stream-delivery-held-cone).
+ * one share of the ability's cost drains, its programs run on every
+ * living entity inside the cone and its {@code on_blocks} steps on every
+ * floor the cone holds; a hold stops when the use releases or the goo runs
+ * out (decisions stream-delivery-held-cone and mycosis-spore-stream-buds-and-poisons).
  */
 public final class GooStreamHandler {
 
-    private static final String LOG_PROGRAM_REFUSED = "Ability {} refused on the streamed entity: {}";
     /** Particles sprayed along the cone each tick. */
     private static final int PARTICLES_PER_TICK = 6;
     /** Spread of each particle around its point on the axis, in blocks. */
@@ -99,7 +96,7 @@ public final class GooStreamHandler {
 
     /**
      * Sprays the cone from the glove hand along the player's look and runs the
-     * ability on every living entity inside it.
+     * ability on every living entity and every floor inside it.
      *
      * @param player  the streaming player
      * @param origin  the glove hand the client sent
@@ -112,7 +109,11 @@ public final class GooStreamHandler {
         Vec3 axis = player.getLookAngle();
         sprayParticles(level, apex, axis, delivery);
         for (LivingEntity living : livingInCone(level, player, apex, axis, delivery)) {
-            runProgram(level, player, living, ability);
+            SprayPrograms.runOnLiving(level, living, player, ability);
+        }
+        if (!ability.onBlocks().isEmpty()) {
+            SprayPrograms.runOnFloors(level, FloorReach.inCone(apex, axis, delivery.range(), delivery.coneDegrees(),
+                    cell -> FloorReach.isOpenFloor(level, cell)), ability);
         }
     }
 
@@ -132,24 +133,6 @@ public final class GooStreamHandler {
         return level.getEntitiesOfClass(LivingEntity.class, reach, living -> living != player && living.isAlive()
                 && StreamCone.contains(apex, axis, delivery.range(), delivery.coneDegrees(),
                         living.getBoundingBox().getCenter()));
-    }
-
-    /**
-     * Runs the ability's programs on one streamed entity, logging a program
-     * the entity host refuses.
-     *
-     * @param level   the server level
-     * @param player  the streaming player
-     * @param living  the streamed entity
-     * @param ability the stream ability
-     */
-    private static void runProgram(ServerLevel level, ServerPlayer player, LivingEntity living,
-                                   AbilityDefinition ability) {
-        try {
-            ProgramBehavior.forHost(ability.behaviors(), HostKind.ENTITY).tick(new EntityHost(level, living, player));
-        } catch (ProgramLoadException e) {
-            Goo.LOGGER.error(LOG_PROGRAM_REFUSED, ability.id(), e.getMessage());
-        }
     }
 
     /**
