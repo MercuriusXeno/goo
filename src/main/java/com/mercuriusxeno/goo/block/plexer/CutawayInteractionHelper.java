@@ -25,8 +25,6 @@ import net.minecraft.world.phys.BlockHitResult;
  */
 public final class CutawayInteractionHelper {
 
-    /** Overlay prefix for target-set feedback. */
-    private static final String TARGET_PREFIX = "Target: ";
     /** Overlay message when the player has not learned the clicked item. */
     static final String UNKNOWN_ITEM = "You don't know what it's made of";
     /** Overlay message when target is cleared. */
@@ -63,7 +61,7 @@ public final class CutawayInteractionHelper {
         return !isCutawayClick(state, pos, hitResult);
     }
 
-    /** Sets the plexer's target item and sends an overlay message to the player.
+    /** Sets the plexer's target item; the plexer panel names it, so no message goes to the player.
      *
      * @param plexer the plexer block entity
      * @param player the interacting player
@@ -77,8 +75,6 @@ public final class CutawayInteractionHelper {
             return InteractionResult.SUCCESS;
         }
         plexer.setTargetItem(cleanCopy(stack));
-        player.sendOverlayMessage(
-            Component.literal(TARGET_PREFIX + stack.getHoverName().getString()));
         return InteractionResult.SUCCESS;
     }
 
