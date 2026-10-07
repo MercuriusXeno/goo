@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.program.ExplodeStep;
+import com.mercuriusxeno.goo.ability.program.ExplosionMarch;
 import com.mercuriusxeno.goo.ability.program.Variables;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -124,15 +125,16 @@ public final class UnstableExplosionVisual implements BurnoutVisual {
     }
 
     /**
-     * The blast radius: the power of the ability's explode step at the
-     * marker's stack count, read off the synced ability.
+     * The blast radius: the max reach of the ability's explode step's power,
+     * read off the synced ability, so the burnout fills the sphere the
+     * explosion cuts at most (decision preview-sphere-is-max-reach).
      *
      * @param burnout the burnout
      * @return the blast radius in blocks
      */
     private static float blastReach(ChainBurnouts.Burnout burnout) {
         return SyncedSteps.first(burnout.abilityId(), ExplodeStep.class)
-                .map(step -> step.power().evaluateFloat(Variables.NONE))
+                .map(step -> (float) ExplosionMarch.maxReach(step.power().evaluateFloat(Variables.NONE)))
                 .orElse(FALLBACK_REACH);
     }
 }
