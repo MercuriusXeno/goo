@@ -55,8 +55,12 @@ public record StreamedBlockHost(ServerLevel level, BlockPos pos, int heldTicks)
         return ValuedBlocks.valueAt(level, pos);
     }
 
+    /**
+     * The stream counted this tick's hold on the block before building the
+     * host, so the work is the hold.
+     */
     @Override
-    public int unmakeProgress() {
+    public int countUnmakeWork() {
         return heldTicks;
     }
 

@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.registry;
 
+import com.mercuriusxeno.goo.ability.program.TapUnmakeDrips;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockFallScheduler;
 import com.mercuriusxeno.goo.block.tap.TapDripScheduler;
 import com.mercuriusxeno.goo.network.GooEffectScheduler;
@@ -20,6 +21,7 @@ public final class GooServerState {
     private final TapDripScheduler tapDrips = new TapDripScheduler();
     private final AbilityBlockFallScheduler markerFalls = new AbilityBlockFallScheduler();
     private final StreamHolds streamHolds = new StreamHolds();
+    private final TapUnmakeDrips tapUnmakeDrips = new TapUnmakeDrips();
 
     /**
      * Answers the state the server holds.
@@ -71,6 +73,13 @@ public final class GooServerState {
     }
 
     /**
+     * @return the drips each unmaking tap has landed on each block
+     */
+    public TapUnmakeDrips tapUnmakeDrips() {
+        return tapUnmakeDrips;
+    }
+
+    /**
      * Lands every effect, drip and fall whose arrival tick has come.
      *
      * @param server the ticking server
@@ -94,5 +103,6 @@ public final class GooServerState {
         tapDrips.clear();
         markerFalls.clear();
         streamHolds.clear();
+        tapUnmakeDrips.clear();
     }
 }

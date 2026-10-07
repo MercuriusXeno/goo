@@ -216,8 +216,8 @@ class ProgramHostLoadTest {
                 HostCapability.PLACE_BLOCK, HostCapability.LINGER), HostKind.LANDING.capabilities());
         assertEquals(Set.of(HostCapability.TARGET, HostCapability.EXPLODE, HostCapability.ENTITY_SCAN),
                 HostKind.ENTITY.capabilities());
-        assertEquals(Set.of(HostCapability.EXPLODE, HostCapability.ENTITY_SCAN, HostCapability.PLACE_BLOCK),
-                HostKind.TAP.capabilities());
+        assertEquals(Set.of(HostCapability.EXPLODE, HostCapability.ENTITY_SCAN, HostCapability.PLACE_BLOCK,
+                HostCapability.UNMAKE), HostKind.TAP.capabilities());
         assertEquals(Set.of(HostCapability.ENTITY_SCAN, HostCapability.UNMAKE), HostKind.STREAMED_BLOCK.capabilities());
     }
 

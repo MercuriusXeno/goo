@@ -60,7 +60,7 @@ class UnmakeStepTest {
         private UnmakeHost holding(GooValue value, int progress) {
             UnmakeHost host = mock(UnmakeHost.class);
             when(host.unmadeValue()).thenReturn(value);
-            when(host.unmakeProgress()).thenReturn(progress);
+            when(host.countUnmakeWork()).thenReturn(progress);
             return host;
         }
 

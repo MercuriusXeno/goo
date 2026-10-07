@@ -21,12 +21,12 @@ public interface UnmakeHost extends StepHost {
     @Nullable GooValue unmadeValue();
 
     /**
-     * How long the unmake has worked the held block without a break: held
-     * ticks for a stream, drips for a tap.
+     * Counts this run's work on the held block, a tick of a stream's hold or
+     * a tap's drip, and answers the work done on it without a break.
      *
      * @return the work done, 1 on the first
      */
-    int unmakeProgress();
+    int countUnmakeWork();
 
     /**
      * Shows the held block dissolving to its viewers.

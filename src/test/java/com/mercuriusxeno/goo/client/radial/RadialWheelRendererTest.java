@@ -31,7 +31,6 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -65,9 +64,17 @@ class RadialWheelRendererTest {
                 definition.cost(), definition.delivery(), definition.badge(), definition.requires());
     }
 
+    /**
+     * The shipped abilities the radial lists: every one but a tap's drip
+     * ability, which the ability sync never sends the glove.
+     *
+     * @return the radial's shipped abilities
+     */
     private static List<ClientAbility> shippedAbilities() {
         return AbilityJson.files().stream()
-                .map((Path file) -> clientAbilityOf(AbilityJson.decode(file)))
+                .map(AbilityJson::decode)
+                .filter(definition -> !definition.hasTag(AbilityTags.TAP))
+                .map(RadialWheelRendererTest::clientAbilityOf)
                 .toList();
     }
 
