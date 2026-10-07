@@ -29,14 +29,14 @@ class GloveThrowSenderTest {
 
     @Test
     void holdingsOneShortOfTheCostRefuseTheThrow() {
-        ClientAbility mine = clientAbility("unstable_proximity_mine");
+        ClientAbility mine = clientAbility("unstable_lurker");
 
         assertFalse(affordsWithHoldings(mine, mine.cost() - 1));
     }
 
     @Test
     void holdingsCoveringTheCostAllowTheThrow() {
-        ClientAbility mine = clientAbility("unstable_proximity_mine");
+        ClientAbility mine = clientAbility("unstable_lurker");
 
         assertTrue(affordsWithHoldings(mine, mine.cost()));
     }

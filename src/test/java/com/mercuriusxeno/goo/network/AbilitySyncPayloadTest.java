@@ -31,7 +31,7 @@ class AbilitySyncPayloadTest {
 
     /** The sync codec carries each cost formula to the client whole (decision unaffordable-click-does-nothing). */
     @ParameterizedTest
-    @ValueSource(strings = {"crystal_cloud", "unstable_timed_bomb", "unstable_proximity_mine"})
+    @ValueSource(strings = {"crystal_cloud", "unstable_timed_bomb", "unstable_lurker"})
     void costRoundTripsThroughTheSyncCodec(String name) {
         AbilityDefinition definition = AbilityJson.decode(name);
         AbilitySyncPayload sent = new AbilitySyncPayload(
@@ -75,7 +75,7 @@ class AbilitySyncPayloadTest {
      * draws while right click is held (decision right-click-held-previews-release-throws).
      */
     @ParameterizedTest
-    @CsvSource({"unstable_explode, SPHERE, 4.0, 0.0", "unstable_proximity_mine, SPHERE, 3.3333333333333335, 0.0",
+    @CsvSource({"unstable_explode, SPHERE, 4.0, 0.0", "unstable_lurker, SPHERE, 3.3333333333333335, 0.0",
             "glow_laser, LINE, 0.0, 0.0", "blaze_spitfire, CONE, 6.0, 20.0", "ender_blink, NONE, 0.0, 0.0"})
     void eachShippedAreaRoundTripsThroughTheSyncCodec(String name, AbilityArea.Shape shape, double size,
                                                        double angle) {

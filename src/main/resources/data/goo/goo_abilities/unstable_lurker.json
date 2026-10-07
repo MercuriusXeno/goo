@@ -1,6 +1,6 @@
 {
   "gooType": "unstable",
-  "displayName": "goo.ability.unstable.proximity_mine",
+  "displayName": "goo.ability.unstable.lurker",
   "badge": "world",
   "order": 2,
   "cost": 1000,
@@ -11,6 +11,7 @@
     {
       "type": "linger",
       "steps": [
+        { "type": "watch", "radius": 10.0, "until": 3.0, "where": ["living", "mob"] },
         { "type": "await_entity", "shape": "sphere", "radius": 3.0, "where": ["living"] },
         { "type": "explode", "power": 2.5 }
       ]

@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
@@ -63,6 +64,23 @@ public final class EntityScan {
     static boolean anyEntityWithin(ServerLevel level, Vec3 center, SelectionShape shape,
                                    double radius, Set<EntityFilter> filters, @Nullable Entity self) {
         return !select(level, center, shape, radius, filters, self).isEmpty();
+    }
+
+    /**
+     * Measures the nearest entity every filter keeps within a sphere around a center.
+     *
+     * @param level   the level to scan
+     * @param center  the sphere center
+     * @param radius  the sphere radius in blocks
+     * @param filters the filters an entity must pass
+     * @param self    the entity the scan centers on, null on a block
+     * @return the nearest kept entity's distance, empty when none is in the sphere
+     */
+    static OptionalDouble nearestDistanceWithin(ServerLevel level, Vec3 center, double radius,
+                                                Set<EntityFilter> filters, @Nullable Entity self) {
+        return select(level, center, SelectionShape.SPHERE, radius, filters, self).stream()
+                .mapToDouble(entity -> entity.position().distanceTo(center))
+                .min();
     }
 
     /**

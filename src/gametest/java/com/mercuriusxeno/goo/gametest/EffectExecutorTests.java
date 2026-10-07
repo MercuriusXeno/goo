@@ -65,7 +65,7 @@ public final class EffectExecutorTests {
     private static final String ABILITIES_REQUIRED = "Ability registry must be loaded";
     private static final String ABILITY_BLAST = "goo:unstable_explode";
     private static final String ABILITY_TIMED_BOMB = "goo:unstable_timed_bomb";
-    private static final String ABILITY_PROXIMITY_MINE = "goo:unstable_proximity_mine";
+    private static final String ABILITY_LURKER = "goo:unstable_lurker";
     private static final String ABILITY_GLOW_CRYSTAL = "goo:glow_crystal";
     /** Ticks an armed mine idles before the test spawns a target. */
     private static final int MINE_IDLE_TICKS = 5;
@@ -438,14 +438,14 @@ public final class EffectExecutorTests {
     }
 
     /**
-     * Proximity mine as a program: armed at the splat, the marker idles on
-     * its await_entity step until a living entity enters the radius, then
-     * the explode step fires.
+     * Lurker as a program: armed at the splat, the marker idles on its
+     * watch step until a mob enters the trigger radius, then its await and
+     * explode steps fire.
      *
      * @param helper the gametest helper
      */
     public static void programProximityMine(GameTestHelper helper) {
-        placeMarkerWithAbility(helper, GooTypes.UNSTABLE, ABILITY_PROXIMITY_MINE);
+        placeMarkerWithAbility(helper, GooTypes.UNSTABLE, ABILITY_LURKER);
         helper.runAfterDelay(MINE_IDLE_TICKS, () -> {
             helper.assertBlockPresent(GooBlocks.ABILITY_BLOCK.get(), MARKER_POS);
             helper.spawnWithNoFreeWill(EntityType.PIG, MINE_TARGET_POS);
@@ -724,14 +724,14 @@ public final class EffectExecutorTests {
     }
 
     /**
-     * An unstable_proximity_mine blob is awaiting an entity the tick after
+     * An unstable_lurker blob is awaiting an entity the tick after
      * it lands.
      *
      * @param helper the gametest helper
      */
     public static void mineAwaitsAfterLanding(GameTestHelper helper) {
         discardLeftoverEntities(helper);
-        landBlob(helper, GooTypes.UNSTABLE, ABILITY_PROXIMITY_MINE);
+        landBlob(helper, GooTypes.UNSTABLE, ABILITY_LURKER);
         helper.runAfterDelay(TICK_AFTER_LANDING, () -> {
             helper.assertTrue(landedMarker(helper).getBehavior().stepIndex() == 0, NOT_RUNNING);
             removeMarkerAndSucceed(helper);

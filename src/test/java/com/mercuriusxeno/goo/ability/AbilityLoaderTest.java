@@ -54,7 +54,7 @@ class AbilityLoaderTest {
     /** The abilities whose whole design was a per-stack shape. */
     /** The world abilities that stay after their blob lands. */
     private static final List<String> LINGERING_ABILITIES = List.of("crystal_cloud", "metal_spikes",
-            "nether_black_hole", "unstable_proximity_mine", "glow_crystal", "crystal_prism");
+            "nether_black_hole", "unstable_lurker", "glow_crystal", "crystal_prism");
     /** The ability whose program ends the tick it lands. */
     private static final String BLAST = "unstable_explode";
     private static final List<String> STACK_SHAPE_ABILITIES = List.of("blaze_flat", "blaze_tunnel",
@@ -71,7 +71,7 @@ class AbilityLoaderTest {
             Map.entry("ender_teleport", List.of("popped_chorus_fruit")),
             Map.entry("hex_charm", List.of("honey_bottle", "cake", "cookie")),
             Map.entry("unstable_explode", List.of("gunpowder")),
-            Map.entry("unstable_proximity_mine", List.of("tnt")),
+            Map.entry("unstable_lurker", List.of("tnt")),
             Map.entry("glow_laser", List.of("spectral_arrow")),
             Map.entry("glow_crystal", List.of("glowstone")),
             Map.entry("crystal_cloud", List.of("glass", "sand")),

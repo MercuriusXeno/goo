@@ -32,6 +32,8 @@ class StepCodecTest {
             Map.entry("wait", LeafSteps.WAIT.step(Expr.parse("4 + stacks").getOrThrow())),
             Map.entry("await_entity", new AwaitEntityStep(SelectionShape.CUBE, Expr.literal(3),
                     List.of(EntityFilter.LIVING, EntityFilter.NOT_ITEM))),
+            Map.entry("watch", new WatchStep(Expr.literal(10), Expr.literal(3),
+                    List.of(EntityFilter.LIVING, EntityFilter.MOB))),
             Map.entry("explode", new ExplodeStep(Expr.parse("2.5 + 1.0 * (stacks - 1)").getOrThrow(),
                     ExplosionMode.NONE)),
             Map.entry("damage", new DamageStep(Expr.parse("health / 2").getOrThrow(), DamageKind.CACTUS)),

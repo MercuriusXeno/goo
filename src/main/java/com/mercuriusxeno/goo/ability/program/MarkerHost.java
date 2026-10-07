@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.ability.program;
 import com.mercuriusxeno.goo.block.ability.MarkerAnchor;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.network.ChainBurnoutPayload;
+import com.mercuriusxeno.goo.network.LurkerPulsePayload;
 import com.mercuriusxeno.goo.registry.GooParticles;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
@@ -33,7 +34,7 @@ import java.util.function.Consumer;
  */
 public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
         implements PlacedFaceHost, TickingHost, ExplodeHost, EntityScanHost, PlaceBlockHost,
-        FieldEffectHost, PhasedHost, ConsumedGooHost {
+        FieldEffectHost, PhasedHost, ConsumedGooHost, WatchHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
 
@@ -89,6 +90,16 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
     public void forEachEntityWithin(SelectionShape shape, double radius, Set<EntityFilter> filters,
                                     Consumer<TargetHost> body) {
         BlockAnchoredActions.forEachEntityWithin(level, Vec3.atCenterOf(pos), shape, radius, filters, body);
+    }
+
+    @Override
+    public OptionalDouble nearestEntityDistance(double radius, Set<EntityFilter> filters) {
+        return EntityScan.nearestDistanceWithin(level, Vec3.atCenterOf(pos), radius, filters, null);
+    }
+
+    @Override
+    public void pulse(double distance, double radius) {
+        new LurkerPulsePayload(pos, (float) distance, (float) radius).sendToTracking(level);
     }
 
     @Override
