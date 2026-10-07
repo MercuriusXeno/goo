@@ -3,9 +3,11 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.Delivery;
-import com.mercuriusxeno.goo.ability.DeliveryKind;
+import com.mercuriusxeno.goo.ability.HeldRoute;
+import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.ability.program.EntityHost;
 import com.mercuriusxeno.goo.ability.program.HostKind;
+import com.mercuriusxeno.goo.ability.program.PlayerHost;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
 import com.mercuriusxeno.goo.ability.program.SimpleParticles;
@@ -23,17 +25,22 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
+import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
  * Server side of a stream delivery: each tick the glove's use stays down,
  * one share of the ability's cost drains and its programs run on every
  * living entity inside the cone; a hold stops when the use releases or the
- * goo runs out (decision stream-delivery-held-cone).
+ * goo runs out (decision stream-delivery-held-cone). A channel, a self
+ * ability wearing the channeled badge, drains the same share and runs its
+ * programs on the player, carrying the tick's aim
+ * (decision flatten-disc-cursor-breaks-above-the-plane).
  */
 public final class GooStreamHandler {
 
     private static final String LOG_PROGRAM_REFUSED = "Ability {} refused on the streamed entity: {}";
+    private static final String LOG_CHANNEL_REFUSED = "Ability {} refused on the channeling player: {}";
     /** Particles sprayed along the cone each tick. */
     private static final int PARTICLES_PER_TICK = 6;
     /** Spread of each particle around its point on the axis, in blocks. */
@@ -59,8 +66,9 @@ public final class GooStreamHandler {
     }
 
     /**
-     * Runs one tick of a held stream: a stream ability of the type, held in a
-     * glove, drains its share for this tick of the hold and strikes its cone.
+     * Runs one tick of a held ability: a stream or channel of the type, held
+     * in a glove, drains its share for this tick of the hold, then a stream
+     * strikes its cone and a channel runs on the player.
      *
      * @param player  the streaming player
      * @param payload the stream tick
@@ -70,10 +78,45 @@ public final class GooStreamHandler {
         if (gooType == null || !GooThrowHandler.validateGlove(player)) {
             return;
         }
-        AbilityDefinition ability = GooThrowHandler.usableAbility(player, payload.abilityId(), gooType);
-        if (ability != null && ability.delivery().kind() == DeliveryKind.STREAM
-                && drainShare(player, gooType, ability)) {
+        AbilityDefinition ability = heldAbility(player, payload, gooType);
+        if (ability == null || !drainShare(player, gooType, ability)) {
+            return;
+        }
+        if (HeldRoute.channelsOnSelf(ability.delivery(), ability.badge())) {
+            channelOnPlayer(player, new ChannelAim(payload.aimPoint(), payload.planeY()), ability);
+        } else {
             strikeCone(player, payload.origin(), ability);
+        }
+    }
+
+    /**
+     * The ability the payload names, where the player may use it and it runs while held.
+     *
+     * @param player  the holding player
+     * @param payload the held tick
+     * @param gooType the ability's goo type
+     * @return the ability, or null for one the player cannot use or one that does not run while held
+     */
+    private static @Nullable AbilityDefinition heldAbility(ServerPlayer player, GooStreamPayload payload,
+                                                            ResourceKey<GooTypeDefinition> gooType) {
+        AbilityDefinition ability = GooThrowHandler.usableAbility(player, payload.abilityId(), gooType);
+        return ability != null && HeldRoute.runsWhileHeld(ability.delivery(), ability.badge()) ? ability : null;
+    }
+
+    /**
+     * Runs a channel's programs on the player for this tick of the hold,
+     * logging a program the player host refuses.
+     *
+     * @param player  the channeling player
+     * @param aim     the hold's aim this tick
+     * @param ability the channel ability
+     */
+    private static void channelOnPlayer(ServerPlayer player, ChannelAim aim, AbilityDefinition ability) {
+        try {
+            ProgramBehavior.forHost(ability.behaviors(), HostKind.PLAYER)
+                    .tick(PlayerHost.channeling(player.level(), player, aim));
+        } catch (ProgramLoadException e) {
+            Goo.LOGGER.error(LOG_CHANNEL_REFUSED, ability.id(), e.getMessage());
         }
     }
 

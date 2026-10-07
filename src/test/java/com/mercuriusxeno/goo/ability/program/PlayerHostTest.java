@@ -154,8 +154,9 @@ class PlayerHostTest {
         }
 
         @Test
-        void playerHostProvidesTargetExplodeAndEntityScan() {
-            assertEquals(Set.of(HostCapability.TARGET, HostCapability.EXPLODE, HostCapability.ENTITY_SCAN),
+        void playerHostProvidesTargetExplodeEntityScanAndChannel() {
+            assertEquals(Set.of(HostCapability.TARGET, HostCapability.EXPLODE, HostCapability.ENTITY_SCAN,
+                            HostCapability.CHANNEL),
                     HostKind.PLAYER.capabilities());
         }
     }

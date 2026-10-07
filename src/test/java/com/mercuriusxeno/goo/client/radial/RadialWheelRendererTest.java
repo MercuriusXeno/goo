@@ -151,7 +151,7 @@ class RadialWheelRendererTest {
                 Map.entry("leaf_entangle", "Vines"), Map.entry("leaf_barkskin", "Barkskin"), Map.entry("metal_spikes", "Urchin"),
                 Map.entry("metal_javelin", "Dart"), Map.entry("nether_black_hole", "Anti"),
                 Map.entry("nether_wither", "Wither"), Map.entry("pulse_short_circuit", "Zap"),
-                Map.entry("rock_petrify", "Petrify"), Map.entry("shroom_debuff", "Spore"),
+                Map.entry("rock_flatten", "Flatten"), Map.entry("rock_petrify", "Petrify"), Map.entry("shroom_debuff", "Spore"),
                 Map.entry("typhoon_levitate", "Float"), Map.entry("unstable_timed_bomb", "Countdown"),
                 Map.entry("unstable_proximity_mine", "Claymore"),
                 Map.entry("blaze_spitfire", "Spitfire"), Map.entry("blaze_kindle", "Kindle"),

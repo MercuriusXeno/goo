@@ -209,7 +209,7 @@ class ProgramHostLoadTest {
 
     @Test
     void eachKindProvidesTheCapabilityInterfacesItsHostImplements() {
-        assertEquals(EnumSet.complementOf(EnumSet.of(HostCapability.TARGET, HostCapability.LINGER)),
+        assertEquals(EnumSet.complementOf(EnumSet.of(HostCapability.TARGET, HostCapability.LINGER, HostCapability.CHANNEL)),
                 HostKind.MARKER.capabilities());
         assertEquals(Set.of(HostCapability.PLACED_FACE, HostCapability.EXPLODE, HostCapability.ENTITY_SCAN,
                 HostCapability.PLACE_BLOCK, HostCapability.LINGER), HostKind.LANDING.capabilities());
