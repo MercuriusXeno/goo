@@ -34,6 +34,28 @@ public enum HeartKind {
             // barkskin-bark-hearts-thorn-and-burn: a bark heart every 5 seconds, a half every 2.5
             return (long) BARK_REGROW_SECONDS * TICKS_PER_SECOND / HALVES_PER_HEART;
         }
+    },
+    /**
+     * Rock Stoneskin: stone over the hearts the player was missing, never
+     * regrowing, gone with its last stone, and holding the player's health
+     * from regenerating while any stands
+     * (decision stoneskin-stone-hearts-block-regeneration).
+     */
+    STONESKIN(1.0f, true, false) {
+        @Override
+        long regrowInterval(int shieldHalves) {
+            return 0L;
+        }
+
+        @Override
+        boolean regrows() {
+            return false;
+        }
+
+        @Override
+        boolean fillsMissing() {
+            return true;
+        }
     };
 
     /**
@@ -65,6 +87,25 @@ public enum HeartKind {
      * @return the interval in ticks
      */
     abstract long regrowInterval(int shieldHalves);
+
+    /**
+     * Answers whether bare hearts regrow their shield over time.
+     *
+     * @return true for a kind whose shields come back
+     */
+    boolean regrows() {
+        return true;
+    }
+
+    /**
+     * Answers whether the kind lays its shields over the hearts the player is
+     * missing rather than the hearts the player holds.
+     *
+     * @return true for a kind filling the missing hearts
+     */
+    boolean fillsMissing() {
+        return false;
+    }
 
     /**
      * What a point of damage costs a bare real heart while the overlay stands.
