@@ -12,6 +12,8 @@ import com.mercuriusxeno.goo.ability.program.PlayerHost;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
 import com.mercuriusxeno.goo.ability.program.SimpleParticles;
+import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.ability.program.StepHost;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.throwing.StreamCone;
@@ -43,8 +45,7 @@ import java.util.List;
  */
 public final class GooStreamHandler {
 
-    private static final String LOG_PROGRAM_REFUSED = "Ability {} refused on the streamed entity: {}";
-    private static final String LOG_CHANNEL_REFUSED = "Ability {} refused on the channeling player: {}";
+    private static final String LOG_PROGRAM_REFUSED = "Ability {} refused on its held pass's host: {}";
     /** Particles sprayed along the cone each tick. */
     private static final int PARTICLES_PER_TICK = 6;
     /** Spread of each particle around its point on the axis, in blocks. */
@@ -116,12 +117,7 @@ public final class GooStreamHandler {
      * @param ability the channel ability
      */
     private static void channelOnPlayer(ServerPlayer player, ChannelAim aim, AbilityDefinition ability) {
-        try {
-            ProgramBehavior.forHost(ability.behaviors(), HostKind.PLAYER)
-                    .tick(PlayerHost.channeling(player.level(), player, aim));
-        } catch (ProgramLoadException e) {
-            Goo.LOGGER.error(LOG_CHANNEL_REFUSED, ability.id(), e.getMessage());
-        }
+        runSteps(PlayerHost.channeling(player.level(), player, aim), HostKind.PLAYER, ability.behaviors(), ability);
     }
 
     /**
@@ -145,8 +141,9 @@ public final class GooStreamHandler {
     }
 
     /**
-     * Sprays the cone from the glove hand along the player's look and runs the
-     * ability on every living entity inside it.
+     * Sprays the cone from the glove hand along the player's look, runs the
+     * block pass on the player and the entity pass on every living entity
+     * inside the cone.
      *
      * @param player  the streaming player
      * @param origin  the glove hand the client sent
@@ -158,24 +155,52 @@ public final class GooStreamHandler {
         Vec3 apex = ThrowArc.clampToReach(player.getEyePosition(), origin, ThrowArc.HAND_REACH * player.getScale());
         Vec3 axis = player.getLookAngle();
         sprayParticles(level, apex, axis, delivery);
-        if (passesBlocks(ability)) {
-            channelOnPlayer(player, new ChannelAim(player.getEyePosition().add(axis.scale(delivery.range())),
-                    Double.NEGATIVE_INFINITY), ability);
+        List<Step> blockSteps = channelSteps(ability.behaviors(), true);
+        if (!blockSteps.isEmpty()) {
+            ChannelAim aim = new ChannelAim(player.getEyePosition().add(axis.scale(delivery.range())),
+                    Double.NEGATIVE_INFINITY, delivery.coneDegrees());
+            runSteps(PlayerHost.channeling(level, player, aim), HostKind.PLAYER, blockSteps, ability);
+        }
+        List<Step> entitySteps = channelSteps(ability.behaviors(), false);
+        if (entitySteps.isEmpty()) {
             return;
         }
         for (LivingEntity living : livingInCone(level, player, apex, axis, delivery)) {
-            runProgram(level, player, living, ability);
+            runSteps(new EntityHost(level, living, player), HostKind.ENTITY, entitySteps, ability);
         }
     }
 
     /**
-     * Whether a stream runs a block pass: a top-level step of its program needs the channel.
+     * A stream program's top-level steps split by the pass they run in: those
+     * needing the channel run once a tick on the player over the cone's blocks
+     * (decisions bore-vortex-with-a-worldspace-shake,
+     * petrify-stone-encasement-and-calcify-map), and the rest run on every
+     * entity in the cone.
      *
-     * @param ability the stream ability
-     * @return true for a stream boring blocks rather than striking entities
+     * @param behaviors the stream's top-level steps
+     * @param channel   true for the block pass's steps, false for the entity pass's
+     * @return the steps of that pass, in program order
      */
-    static boolean passesBlocks(AbilityDefinition ability) {
-        return ability.behaviors().stream().anyMatch(step -> step.requires().contains(HostCapability.CHANNEL));
+    static List<Step> channelSteps(List<Step> behaviors, boolean channel) {
+        return behaviors.stream()
+                .filter(step -> step.requires().contains(HostCapability.CHANNEL) == channel)
+                .toList();
+    }
+
+    /**
+     * Runs a pass's steps on its host, logging a program the host refuses.
+     *
+     * @param host    the pass's host
+     * @param kind    the host's kind
+     * @param steps   the pass's steps
+     * @param ability the stream ability
+     */
+    private static void runSteps(StepHost host, HostKind kind, List<Step> steps, AbilityDefinition ability) {
+        try {
+            ProgramBehavior.forHost(steps, kind).tick(host);
+        } catch (ProgramLoadException e) {
+            Goo.LOGGER.error(LOG_PROGRAM_REFUSED, ability.id(), e.getMessage());
+        }
     }
 
     /**
@@ -194,24 +219,6 @@ public final class GooStreamHandler {
         return level.getEntitiesOfClass(LivingEntity.class, reach, living -> living != player && living.isAlive()
                 && StreamCone.contains(apex, axis, delivery.range(), delivery.coneDegrees(),
                         living.getBoundingBox().getCenter()));
-    }
-
-    /**
-     * Runs the ability's programs on one streamed entity, logging a program
-     * the entity host refuses.
-     *
-     * @param level   the server level
-     * @param player  the streaming player
-     * @param living  the streamed entity
-     * @param ability the stream ability
-     */
-    private static void runProgram(ServerLevel level, ServerPlayer player, LivingEntity living,
-                                   AbilityDefinition ability) {
-        try {
-            ProgramBehavior.forHost(ability.behaviors(), HostKind.ENTITY).tick(new EntityHost(level, living, player));
-        } catch (ProgramLoadException e) {
-            Goo.LOGGER.error(LOG_PROGRAM_REFUSED, ability.id(), e.getMessage());
-        }
     }
 
     /**

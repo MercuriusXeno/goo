@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.network.BlockTransformPayload;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.TagKey;
@@ -7,6 +8,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -18,13 +20,31 @@ import org.jspecify.annotations.Nullable;
 public interface BlockBreakHost extends StepHost {
 
     /**
+     * The level the host's blocks stand in.
+     *
+     * @return the server level
+     */
+    ServerLevel level();
+
+    /**
+     * The entity breaking the blocks, which their loot and break event credit.
+     *
+     * @return the breaker, or null for a blob's landing
+     */
+    default @Nullable Entity breaker() {
+        return null;
+    }
+
+    /**
      * Whether the block at a position belongs to a block tag.
      *
      * @param pos the position
      * @param tag the block tag
      * @return true where the block standing there is in the tag
      */
-    boolean blockIn(BlockPos pos, TagKey<Block> tag);
+    default boolean blockIn(BlockPos pos, TagKey<Block> tag) {
+        return level().getBlockState(pos).is(tag);
+    }
 
     /**
      * Whether a position holds air.
@@ -32,7 +52,31 @@ public interface BlockBreakHost extends StepHost {
      * @param pos the position
      * @return true where no block stands
      */
-    boolean airAt(BlockPos pos);
+    default boolean airAt(BlockPos pos) {
+        return level().getBlockState(pos).isAir();
+    }
+
+    /**
+     * The block standing at a position.
+     *
+     * @param pos the position
+     * @return the block there
+     */
+    default Block blockAt(BlockPos pos) {
+        return level().getBlockState(pos).getBlock();
+    }
+
+    /**
+     * Transforms the block at a position into another, which every watching
+     * client draws as the old block mingling into the new
+     * (decision petrify-stone-encasement-and-calcify-map).
+     *
+     * @param pos the position
+     * @param to  the state it becomes
+     */
+    default void transformBlock(BlockPos pos, BlockState to) {
+        transform(level(), pos, to);
+    }
 
     /**
      * Breaks a block, dropping its loot as a pickaxe harvests it and playing
@@ -40,7 +84,9 @@ public interface BlockBreakHost extends StepHost {
      *
      * @param pos the block
      */
-    void breakBlock(BlockPos pos);
+    default void breakBlock(BlockPos pos) {
+        harvest(level(), pos, breaker());
+    }
 
     /**
      * Breaks a block in a level and drops its loot as a pickaxe would harvest
@@ -55,5 +101,20 @@ public interface BlockBreakHost extends StepHost {
         ItemStack harvestTool = new ItemStack(Items.IRON_PICKAXE);
         Block.dropResources(level.getBlockState(pos), level, pos, level.getBlockEntity(pos), breaker, harvestTool);
         level.destroyBlock(pos, false, breaker);
+    }
+
+    /**
+     * Transforms a block in a level and tells the watching clients to draw the
+     * old block mingling into the new.
+     *
+     * @param level the server level
+     * @param pos   the block
+     * @param to    the state it becomes
+     */
+    static void transform(ServerLevel level, BlockPos pos, BlockState to) {
+        BlockState from = level.getBlockState(pos);
+        level.setBlock(pos, to, Block.UPDATE_ALL);
+        new BlockTransformPayload(pos, Block.getId(from), Block.getId(to))
+                .sendToTracking(level);
     }
 }

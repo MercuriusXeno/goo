@@ -7,7 +7,9 @@ import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.client.ability.Afterimages;
 import com.mercuriusxeno.goo.client.ability.AilmentOverlayLayer;
+import com.mercuriusxeno.goo.client.ability.BlockTransforms;
 import com.mercuriusxeno.goo.client.ability.ChainBurnouts;
+import com.mercuriusxeno.goo.client.ability.FrozenPoses;
 import com.mercuriusxeno.goo.client.ability.GhostTrails;
 import com.mercuriusxeno.goo.client.ability.MobAilments;
 import com.mercuriusxeno.goo.client.ability.MobCoatLayer;
@@ -259,6 +261,10 @@ public final class GooClientSetup {
         event.registerEntityModifier(
                 new TypeToken<EntityRenderer<Entity, EntityRenderState>>() {
                 },
+                FrozenPoses::freezeStatue);
+        event.registerEntityModifier(
+                new TypeToken<EntityRenderer<Entity, EntityRenderState>>() {
+                },
                 TransformationRenderer::stampTransformation);
     }
 
@@ -374,6 +380,8 @@ public final class GooClientSetup {
         ChainBurnouts.CLIENT.clear();
         MobCoats.CLIENT.clear();
         MobAilments.CLIENT.clear();
+        BlockTransforms.CLIENT.clear();
+        FrozenPoses.CLIENT.clear();
         Afterimages.CLIENT.clear();
         Transformations.CLIENT.clear();
         GhostTrails.CLIENT.clear();

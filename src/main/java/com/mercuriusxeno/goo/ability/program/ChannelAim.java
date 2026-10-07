@@ -13,8 +13,19 @@ import net.minecraft.world.phys.Vec3;
  *
  * @param aimPoint the world point under the client's cursor, or a stream's reach along the look
  * @param planeY   the player's feet height when the hold began, negative infinity for a stream
+ * @param coneDegrees a stream's cone, apex to rim, in degrees; zero for a channel aiming one point
  */
-public record ChannelAim(Vec3 aimPoint, double planeY) {
+public record ChannelAim(Vec3 aimPoint, double planeY, double coneDegrees) {
+
+    /**
+     * The aim of a channel pointing at one point, with no cone.
+     *
+     * @param aimPoint the world point under the client's cursor
+     * @param planeY   the player's feet height when the hold began
+     */
+    public ChannelAim(Vec3 aimPoint, double planeY) {
+        this(aimPoint, planeY, 0);
+    }
 
     /** How far past the aim point, along the line from the eye, the aimed block is read. */
     private static final double INTO_THE_FACE = 0.01;

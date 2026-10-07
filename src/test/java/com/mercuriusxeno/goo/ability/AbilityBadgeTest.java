@@ -19,11 +19,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class AbilityBadgeTest {
 
-    private static final int SHIPPED_MOB_BADGES = 15;
+    private static final int SHIPPED_MOB_BADGES = 14;
     private static final int SHIPPED_WORLD_BADGES = 6;
     private static final int SHIPPED_SELF_BADGES = 2;
     private static final int SHIPPED_BREW_BADGES = 3;
-    private static final int SHIPPED_CHANNELED_BADGES = 3;
+    private static final int SHIPPED_CHANNELED_BADGES = 4;
     private static final int SHIPPED_FREE_BADGES = 2;
     /** The self + brew abilities, which wear brew on their self delivery (decision self-brew-goos-eat-before-the-effect). */
     private static final List<String> SHIPPED_BREWS = List.of("blaze_kindle", "leaf_barkskin", "rock_stoneskin");

@@ -11,7 +11,6 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.phys.Vec3;
@@ -87,20 +86,6 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
         level.setBlock(cell, StatePropertyWriter.write(found.defaultBlockState(), values), Block.UPDATE_ALL);
     }
 
-    @Override
-    public boolean blockIn(BlockPos pos, TagKey<Block> tag) {
-        return level.getBlockState(pos).is(tag);
-    }
-
-    @Override
-    public boolean airAt(BlockPos pos) {
-        return level.getBlockState(pos).isAir();
-    }
-
-    @Override
-    public void breakBlock(BlockPos pos) {
-        BlockBreakHost.harvest(level, pos, null);
-    }
 
     @Override
     public void linger(List<Step> steps) {

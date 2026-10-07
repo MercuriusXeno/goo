@@ -1,12 +1,11 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.registry.GooServerState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.phys.Vec3;
 import java.util.Optional;
 import java.util.OptionalDouble;
@@ -159,14 +158,11 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
         return player.getEyePosition();
     }
 
-    @Override
-    public boolean blockIn(BlockPos pos, TagKey<Block> tag) {
-        return level.getBlockState(pos).is(tag);
-    }
+
 
     @Override
-    public boolean airAt(BlockPos pos) {
-        return level.getBlockState(pos).isAir();
+    public boolean touchOnce(BlockPos pos) {
+        return GooServerState.of(level.getServer()).streamHolds().touchOnce(player.getUUID(), pos);
     }
 
     @Override
@@ -175,7 +171,7 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
     }
 
     @Override
-    public void breakBlock(BlockPos pos) {
-        BlockBreakHost.harvest(level, pos, player);
+    public Entity breaker() {
+        return player;
     }
 }
