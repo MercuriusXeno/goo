@@ -51,7 +51,8 @@ public final class HeldDomeRenderer {
     private static final Map<ResourceKey<GooTypeDefinition>, HeldGhostVisual> GHOSTS = Map.of(
             GooTypes.CRYSTAL, CrystalExplosionVisual.INSTANCE,
             GooTypes.METAL, MetalExplosionVisual.INSTANCE,
-            GooTypes.NETHER, NetherHeldGhost.INSTANCE);
+            GooTypes.NETHER, NetherHeldGhost.INSTANCE,
+            GooTypes.UNSTABLE, UnstableExplosionVisual.INSTANCE);
 
     /**
      * Where a ghost draws: its dome about the center of the cell the throw lands

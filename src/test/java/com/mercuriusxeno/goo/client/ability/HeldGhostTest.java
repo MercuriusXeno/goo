@@ -2,7 +2,10 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
+import com.mercuriusxeno.goo.ability.program.ExplosionMarch;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
@@ -43,5 +46,15 @@ class HeldGhostTest {
         assertEquals(3f, ghost.domeRadius(), TOLERANCE);
         assertEquals(HeldGhost.RingDirection.INWARD, ghost.rings());
         assertEquals(9f, ghost.ringRadius(), TOLERANCE);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"unstable_timed_bomb, 2.0", "unstable_explode, 3.0", "unstable_proximity_mine, 2.5"})
+    void fireballRingsOutwardToItsBlastReach(String name, float power) {
+        HeldGhost ghost = ghostOf(UnstableExplosionVisual.INSTANCE, name);
+        float reach = (float) ExplosionMarch.maxReach(power);
+        assertEquals(reach, ghost.domeRadius(), TOLERANCE);
+        assertEquals(HeldGhost.RingDirection.OUTWARD, ghost.rings());
+        assertEquals(reach, ghost.ringRadius(), TOLERANCE);
     }
 }

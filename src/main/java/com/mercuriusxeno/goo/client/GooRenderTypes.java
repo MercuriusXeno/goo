@@ -154,6 +154,18 @@ public final class GooRenderTypes {
     public static final RenderType UNSTABLE_EXPLOSION_TYPE = burnoutType(UNSTABLE_EXPLOSION);
 
     /**
+     * Unstable's held ghost through blocks: the unstable explosion shader with
+     * no depth test, so the crater the blast would cut shows through blocks.
+     * held-visual-ghosts-the-landing-in-two-passes
+     */
+    public static final RenderPipeline UNSTABLE_EXPLOSION_THROUGH_BLOCKS = throughBlocksPipeline("unstable_explosion",
+            BlendFunction.LIGHTNING);
+
+    /** RenderType for unstable's held ghost through blocks. */
+    public static final RenderType UNSTABLE_EXPLOSION_THROUGH_BLOCKS_TYPE =
+            burnoutType(UNSTABLE_EXPLOSION_THROUGH_BLOCKS);
+
+    /**
      * Rock goo's burnout explosion pipeline: the dust shock disc, alpha
      * blended so the dust hides what is behind it, through
      * {@code rock_explosion.vsh / .fsh}.
@@ -750,6 +762,7 @@ public final class GooRenderTypes {
      */
     private static void registerBurnoutPipelines(RegisterRenderPipelinesEvent event) {
         event.registerPipeline(UNSTABLE_EXPLOSION);
+        event.registerPipeline(UNSTABLE_EXPLOSION_THROUGH_BLOCKS);
         event.registerPipeline(ROCK_EXPLOSION);
         event.registerPipeline(BLAZE_EXPLOSION);
         event.registerPipeline(FROST_EXPLOSION);
