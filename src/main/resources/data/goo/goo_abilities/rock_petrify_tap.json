@@ -1,0 +1,12 @@
+{
+  "gooType": "rock",
+  "displayName": "goo.ability.rock.petrify_tap",
+  "badge": "tap",
+  "order": 60,
+  "cost": 1000,
+  "delivery": { "kind": "arc" },
+  "behaviors": [
+    { "type": "petrify_drip", "map": "goo:calcify", "drips": 8, "grows": "goo:grows_dripstone" }
+  ],
+  "tags": ["tap"]
+}

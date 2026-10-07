@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.throwing;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
+import com.mercuriusxeno.goo.ability.SelfEatRoute;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
@@ -14,7 +15,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Covers the glove press resolved off the use key: the press sends nothing and
  * previews the area while held, release throws once and swings only on a sent
  * payload (decision right-click-held-previews-release-throws), and a stream
- * runs from the press for as long as the key is held (decision stream-delivery-held-cone).
+ * runs from the press for as long as the key is held (decision stream-delivery-held-cone),
+ * and a self + brew eat sends on the press while the key is still down
+ * (decision self-brew-goos-eat-before-the-effect).
  */
 class GloveInputGateTest {
 
@@ -24,13 +27,19 @@ class GloveInputGateTest {
     private static final class RecordingActions implements GloveInputGate.PressActions {
         private final boolean payloadSent;
         private final boolean stream;
+        private final boolean eats;
         private int throwsSent;
         private int swings;
         private int holds;
 
         RecordingActions(boolean payloadSent, boolean stream) {
+            this(payloadSent, stream, false);
+        }
+
+        RecordingActions(boolean payloadSent, boolean stream, boolean eats) {
             this.payloadSent = payloadSent;
             this.stream = stream;
+            this.eats = eats;
         }
 
         @Override
@@ -52,6 +61,11 @@ class GloveInputGateTest {
         @Override
         public boolean runsWhileHeld() {
             return stream;
+        }
+
+        @Override
+        public boolean eatsOnPress() {
+            return eats;
         }
     }
 
@@ -193,6 +207,61 @@ class GloveInputGateTest {
             assertEquals(1, actions.throwsSent);
             assertEquals(0, actions.holds);
             assertFalse(gate.isArmed());
+        }
+    }
+
+    /**
+     * A self + brew press starts the eat while the use key is still down, since
+     * vanilla releases a used item the tick the key comes up, which would cancel
+     * an eat started on release (decision self-brew-goos-eat-before-the-effect).
+     */
+    @Nested
+    class AnEat {
+
+        private RecordingActions eaten() {
+            return new RecordingActions(true, false, SelfEatRoute.eats(Delivery.of(DeliveryKind.SELF), AbilityBadge.BREW));
+        }
+
+        @Test
+        void thePressSendsWhileTheKeyIsStillDown() {
+            GloveInputGate gate = new GloveInputGate();
+            RecordingActions actions = eaten();
+
+            gate.arm();
+            gate.tick(true, actions);
+
+            assertEquals(1, actions.throwsSent);
+        }
+
+        @Test
+        void holdingTheKeySendsOnceSwingsNothingAndPreviewsNothing() {
+            GloveInputGate gate = new GloveInputGate();
+            RecordingActions actions = eaten();
+
+            gate.arm();
+            for (int tick = 0; tick < LONG_HOLD_TICKS; tick++) {
+                gate.tick(true, actions);
+            }
+
+            assertEquals(1, actions.throwsSent);
+            assertEquals(0, actions.swings);
+            assertEquals(0, actions.holds);
+            assertFalse(gate.isPreviewing());
+            assertTrue(gate.isArmed());
+        }
+
+        @Test
+        void releaseEndsThePressAndTheNextPressSendsAgain() {
+            GloveInputGate gate = new GloveInputGate();
+            RecordingActions actions = eaten();
+
+            gate.arm();
+            gate.tick(true, actions);
+            gate.tick(false, actions);
+            gate.arm();
+            gate.tick(true, actions);
+
+            assertEquals(2, actions.throwsSent);
         }
     }
 
