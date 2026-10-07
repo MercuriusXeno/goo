@@ -27,8 +27,10 @@ import java.util.List;
 public final class SprayPrograms {
 
     private static final String LOG_PROGRAM_REFUSED = "Ability {} refused on the {}: {}";
-    private static final int BURST_PARTICLES = 48;
-    private static final double BURST_SPREAD_SHARE = 0.5;
+    /** Motes in a corpse's burst, a big cloud filling its sphere. */
+    private static final int BURST_PARTICLES = 192;
+    /** How far up the cloud spreads, in blocks. */
+    private static final double BURST_RISE = 1.5;
     private static final double BURST_LIFT = 0.5;
     private static final double BURST_SPEED = 0.03;
 
@@ -58,15 +60,18 @@ public final class SprayPrograms {
      *
      * @param level   the server level
      * @param floors  the floors reached
+     * @param source  where the spray came from, which each floor's distance is read from
      * @param ability the sprayed ability
      */
-    public static void runOnFloors(ServerLevel level, List<BlockPos> floors, AbilityDefinition ability) {
+    public static void runOnFloors(ServerLevel level, List<BlockPos> floors, Vec3 source,
+                                   AbilityDefinition ability) {
         if (ability.onBlocks().isEmpty()) {
             return;
         }
         try {
             for (BlockPos floor : floors) {
-                ProgramBehavior.forHost(ability.onBlocks(), HostKind.SURFACE).tick(new SurfaceHost(level, floor));
+                ProgramBehavior.forHost(ability.onBlocks(), HostKind.SURFACE).tick(new SurfaceHost(level, floor,
+                        Vec3.atCenterOf(floor.above()).distanceTo(source)));
             }
         } catch (ProgramLoadException e) {
             Goo.LOGGER.error(LOG_PROGRAM_REFUSED, ability.id(), HostKind.SURFACE.label(), e.getMessage());
@@ -84,13 +89,14 @@ public final class SprayPrograms {
      */
     public static void burst(ServerLevel level, Vec3 center, double radius, AbilityDefinition ability) {
         SimpleParticles.resolve(ability.delivery().particle()).ifPresent(particle -> level.sendParticles(particle,
-                center.x, center.y + BURST_LIFT, center.z, BURST_PARTICLES, radius * BURST_SPREAD_SHARE,
-                BURST_LIFT, radius * BURST_SPREAD_SHARE, BURST_SPEED));
+                center.x, center.y + BURST_LIFT, center.z, BURST_PARTICLES, radius, BURST_RISE, radius,
+                BURST_SPEED));
         AABB reach = new AABB(center, center).inflate(radius);
         for (LivingEntity living : level.getEntitiesOfClass(LivingEntity.class, reach,
                 living -> living.isAlive() && living.position().distanceTo(center) <= radius)) {
             runOnLiving(level, living, null, ability);
         }
-        runOnFloors(level, FloorReach.inSphere(center, radius, cell -> FloorReach.isOpenFloor(level, cell)), ability);
+        runOnFloors(level, FloorReach.inSphere(center, radius, cell -> FloorReach.isOpenFloor(level, cell)), center,
+                ability);
     }
 }

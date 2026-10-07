@@ -1,16 +1,22 @@
 package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
+import com.mercuriusxeno.goo.registry.GooAttachments;
+import com.mercuriusxeno.goo.registry.GooBlocks;
+import com.mercuriusxeno.goo.registry.GooMobEffects;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.block.Blocks;
 
 /**
  * Gametests for Colonize: a blob landing on a shroom network spreads that
- * network over the ground beside it, and one landing off any network starts
- * a mycelium network (decision colonize-blob-grows-the-network).
+ * network over the ground beside it, and one landing off any network buds
+ * the ground and spores the mobs there, growing no network
+ * (decision colonize-blob-grows-the-network).
  */
 public final class ColonizeTests {
 
@@ -20,8 +26,9 @@ public final class ColonizeTests {
     private static final BlockPos LANDED_ON = new BlockPos(2, 0, 2);
     private static final BlockPos BESIDE = LANDED_ON.east();
     private static final BlockPos TWO_OFF = LANDED_ON.south(2);
-    private static final String MYCELIUM_STARTED = "The landed-on grass should turn mycelium";
-    private static final String MYCELIUM_SPREAD = "Dirt beside the landing should turn mycelium";
+    private static final String LANDING_BUDDED = "Colonize landing on no network should bud the landing";
+    private static final String NO_MYCELIUM = "Colonize landing on no network should grow no mycelium";
+    private static final String PIG_SPORED = "A pig beside the landing should carry the spore poison and spores";
 
     private ColonizeTests() {
     }
@@ -43,17 +50,21 @@ public final class ColonizeTests {
     }
 
     /**
-     * Colonize lands on grass with dirt beside it: the grass and the dirt
-     * turn mycelium.
+     * Colonize lands on grass, on no network, with dirt beside it and a pig a
+     * block off: the landing takes a bud, the grass and the dirt stay as they
+     * are, and the pig carries the spore poison and spores.
      *
      * @param helper the gametest helper
      */
-    public static void colonizeStartsMycelium(GameTestHelper helper) {
+    public static void colonizeBudsOffTheNetwork(GameTestHelper helper) {
         helper.setBlock(LANDED_ON, Blocks.GRASS_BLOCK);
         helper.setBlock(BESIDE, Blocks.DIRT);
+        Mob pig = helper.spawnWithNoFreeWill(EntityType.PIG, LANDED_ON.above().south());
         landOn(helper, LANDED_ON);
-        helper.assertTrue(helper.getBlockState(LANDED_ON).is(Blocks.MYCELIUM), MYCELIUM_STARTED);
-        helper.assertTrue(helper.getBlockState(BESIDE).is(Blocks.MYCELIUM), MYCELIUM_SPREAD);
+        helper.assertTrue(helper.getBlockState(LANDED_ON.above()).is(GooBlocks.FUNGAL_BUD.get()), LANDING_BUDDED);
+        helper.assertTrue(helper.getBlockState(LANDED_ON).is(Blocks.GRASS_BLOCK)
+                && helper.getBlockState(BESIDE).is(Blocks.DIRT), NO_MYCELIUM);
+        helper.assertTrue(pig.hasEffect(GooMobEffects.MYCOSIS) && pig.hasData(GooAttachments.SPORED), PIG_SPORED);
         helper.succeed();
     }
 

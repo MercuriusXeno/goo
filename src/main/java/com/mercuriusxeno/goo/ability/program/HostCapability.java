@@ -63,7 +63,12 @@ public enum HostCapability {
      * A landing where a blob can grow a shroom network
      * (decision colonize-blob-grows-the-network).
      */
-    COLONIZE(ColonizeHost.class);
+    COLONIZE(ColonizeHost.class),
+    /**
+     * A one-tick host anchored at a point, which can run steps on each open
+     * floor around it (decision colonize-blob-grows-the-network).
+     */
+    FLOOR_SCAN(FloorScanHost.class);
 
     private final Class<? extends StepHost> hostType;
 

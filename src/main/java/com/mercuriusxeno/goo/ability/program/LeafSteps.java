@@ -116,17 +116,6 @@ public final class LeafSteps {
     public static final LeafStepType<Expr> FREEZE_TICKS = TargetEffectStep.of("freeze_ticks", "add",
             (target, add, context) -> target.setTicksFrozen(target.getTicksFrozen() + add.evaluateInt(context)));
 
-    /**
-     * Grows the shroom network the host's blob landed on, or starts a
-     * mycelium network where it landed on none; Colonize is
-     * {@code colonize radius=3} (decision colonize-blob-grows-the-network).
-     */
-    public static final LeafStepType<Expr> COLONIZE = StepType.of("colonize", "radius",
-            Set.of(HostCapability.COLONIZE), (radius, context) -> {
-                context.hostAs(ColonizeHost.class).colonize(radius.evaluateInt(context));
-                return true;
-            });
-
     private LeafSteps() {
     }
 }

@@ -376,7 +376,7 @@ public final class GooTestFunctions {
     private static final String MYCOSIS_BUDS_AT_THE_FEET = "mycosis_buds_at_the_feet";
     private static final String MYCOSIS_TAP_POISONS_BELOW = "mycosis_tap_poisons_below";
     private static final String COLONIZE_SPREADS_NYLIUM = "colonize_spreads_nylium";
-    private static final String COLONIZE_STARTS_MYCELIUM = "colonize_starts_mycelium";
+    private static final String COLONIZE_BUDS_OFF_THE_NETWORK = "colonize_buds_off_the_network";
     private static final String FUNGAL_SHIFT_TO_A_MUSHROOM = "fungal_shift_to_a_mushroom";
     private static final String FUNGAL_SHIFT_REFUSES_STONE = "fungal_shift_refuses_stone";
     private static final String SIGHT_EXTENDS_THE_SHIFT = "sight_extends_the_shift";
@@ -801,7 +801,7 @@ public final class GooTestFunctions {
         reg(r, MYCOSIS_BUDS_AT_THE_FEET, MycosisTests::mycosisBudsAtTheFeet);
         reg(r, MYCOSIS_TAP_POISONS_BELOW, MycosisTests::mycosisTapPoisonsBelow);
         reg(r, COLONIZE_SPREADS_NYLIUM, ColonizeTests::colonizeSpreadsNylium);
-        reg(r, COLONIZE_STARTS_MYCELIUM, ColonizeTests::colonizeStartsMycelium);
+        reg(r, COLONIZE_BUDS_OFF_THE_NETWORK, ColonizeTests::colonizeBudsOffTheNetwork);
         reg(r, FUNGAL_SHIFT_TO_A_MUSHROOM, FungalShiftTests::fungalShiftToAMushroom);
         reg(r, FUNGAL_SHIFT_REFUSES_STONE, FungalShiftTests::fungalShiftRefusesStone);
         reg(r, SIGHT_EXTENDS_THE_SHIFT, FungalShiftTests::sightExtendsTheShift);
