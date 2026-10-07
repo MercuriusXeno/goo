@@ -425,6 +425,41 @@ public final class GooRenderTypes {
     }
 
     /**
+     * Block transform pipeline (decision petrify-stone-encasement-and-calcify-map):
+     * an old block's quads drawn over the new block it became, on
+     * {@code block_mingle.vsh / .fsh}, discarded where the mingle noise over
+     * world position falls below the share of the transform run, which the
+     * overlay coordinates carry, so the old block mingles into the new.
+     */
+    public static final RenderPipeline BLOCK_MINGLE = RenderPipeline.builder(
+                    RenderPipelines.ENTITY_SNIPPET,
+                    RenderPipelines.GLOBALS_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "block_mingle"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "block_mingle"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "block_mingle"))
+            .build();
+
+    /** Per-atlas memoized render types on the block transform pipeline. */
+    private static final java.util.function.Function<Identifier, RenderType> BLOCK_MINGLE_FACTORY =
+            net.minecraft.util.Util.memoize(atlas -> RenderType.create(
+                    "goo_block_mingle",
+                    RenderSetup.builder(BLOCK_MINGLE)
+                            .withTexture("Sampler0", atlas)
+                            .useLightmap()
+                            .createRenderSetup()
+            ));
+
+    /**
+     * Returns the block transform render type for the atlas the block's sprites sit on.
+     *
+     * @param atlas the texture atlas identifier
+     * @return memoized RenderType
+     */
+    public static RenderType blockMingle(Identifier atlas) {
+        return BLOCK_MINGLE_FACTORY.apply(atlas);
+    }
+
+    /**
      * Goo splat pipeline (decision shader-coat-on-every-mob-landing): a struck
      * mob's model drawn again through {@code goo_mob_coat.vsh / .fsh}, lifted
      * off the skin along its normals, painting the goo type's fluid sprite
@@ -652,6 +687,7 @@ public final class GooRenderTypes {
         event.registerPipeline(GOO_FLUID_SURFACE);
         event.registerPipeline(CRUCIBLE_DISSOLVE);
         event.registerPipeline(GOO_MOB_COAT);
+        event.registerPipeline(BLOCK_MINGLE);
         event.registerPipeline(GOO_AILMENT_OVERLAY);
         GOO_RIPPLE_MASKS.forEach(event::registerPipeline);
         event.registerPipeline(GOO_RIPPLE_EDGE);

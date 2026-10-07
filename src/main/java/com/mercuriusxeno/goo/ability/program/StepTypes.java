@@ -69,6 +69,8 @@ public final class StepTypes {
         register(FlattenStep.TYPE);
         register(BoreStep.TYPE);
         register(CrushStep.TYPE);
+        register(PetrifyStep.TYPE);
+        register(CalcifyStep.TYPE);
     }
 
     private StepTypes() {

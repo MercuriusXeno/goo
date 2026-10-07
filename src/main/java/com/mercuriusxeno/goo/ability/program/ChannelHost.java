@@ -27,6 +27,14 @@ public interface ChannelHost extends BlockBreakHost {
     Vec3 eye();
 
     /**
+     * Marks a block touched by the current hold.
+     *
+     * @param pos the block
+     * @return true the first time this hold touches the block
+     */
+    boolean touchOnce(BlockPos pos);
+
+    /**
      * Whether the channeling player can reach a block to break it.
      *
      * @param pos the block
