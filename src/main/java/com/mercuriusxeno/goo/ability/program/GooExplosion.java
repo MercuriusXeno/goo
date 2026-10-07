@@ -16,6 +16,7 @@ import net.minecraft.util.random.WeightedList;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.item.PrimedTnt;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.Projectile;
@@ -24,7 +25,6 @@ import net.minecraft.world.level.ServerExplosion;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.gameevent.GameEvent;
-import net.minecraft.world.level.gamerules.GameRules;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.event.EventHooks;
@@ -37,7 +37,8 @@ import java.util.Optional;
  * vanilla's, standing on {@link ServerExplosion} so blocks' explosion hooks,
  * the explosion damage source and NeoForge's explosion events still see an
  * explosion. Entities within the max reach take vanilla's damage and
- * knockback.
+ * knockback, item entities aside, and every broken block drops whole at its
+ * own position.
  * goo-ray-diminishes-block-resistance
  * preview-sphere-is-max-reach
  */
@@ -102,7 +103,7 @@ public final class GooExplosion extends ServerExplosion {
      * @param look   how the explosion shows and sounds
      */
     public static void detonate(ServerLevel level, Vec3 center, float power, ExplosionMode mode, Look look) {
-        GooExplosion explosion = new GooExplosion(level, center, power, blockInteraction(level, mode));
+        GooExplosion explosion = new GooExplosion(level, center, power, blockInteraction(mode));
         if (EventHooks.onExplosionStart(level, explosion)) {
             return;
         }
@@ -117,13 +118,16 @@ public final class GooExplosion extends ServerExplosion {
         }
     }
 
-    private static BlockInteraction blockInteraction(ServerLevel level, ExplosionMode mode) {
-        if (mode != ExplosionMode.TNT) {
-            return BlockInteraction.KEEP;
-        }
-        return level.getGameRules().get(GameRules.TNT_EXPLOSION_DROP_DECAY)
-                ? BlockInteraction.DESTROY_WITH_DECAY
-                : BlockInteraction.DESTROY;
+    /**
+     * Breaks blocks without vanilla's drop decay, so no loot table rolls its
+     * survives_explosion condition and every block drops whole.
+     * explosion-drops-whole-and-spares-items
+     *
+     * @param mode how the explode step treats blocks
+     * @return destroy for a block-breaking explosion, keep otherwise
+     */
+    private static BlockInteraction blockInteraction(ExplosionMode mode) {
+        return mode == ExplosionMode.TNT ? BlockInteraction.DESTROY : BlockInteraction.KEEP;
     }
 
     @Override
@@ -170,7 +174,8 @@ public final class GooExplosion extends ServerExplosion {
             return;
         }
         AABB bounds = new AABB(center, center).inflate(reach + 1.0);
-        List<Entity> entities = level.getEntities((Entity) null, bounds);
+        // explosion-drops-whole-and-spares-items
+        List<Entity> entities = level.getEntities((Entity) null, bounds, entity -> !(entity instanceof ItemEntity));
         EventHooks.onExplosionDetonate(level, this, entities, marked);
         for (Entity entity : entities) {
             double distance = Math.sqrt(entity.distanceToSqr(center)) / reach;
