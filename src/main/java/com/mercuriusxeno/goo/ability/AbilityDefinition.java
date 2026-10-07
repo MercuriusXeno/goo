@@ -1,12 +1,14 @@
 package com.mercuriusxeno.goo.ability;
 
 import com.mercuriusxeno.goo.ability.program.AwaitEntityStep;
+import com.mercuriusxeno.goo.ability.program.ColonizeStep;
 import com.mercuriusxeno.goo.ability.program.CrushStep;
 import com.mercuriusxeno.goo.ability.program.EntitiesStep;
 import com.mercuriusxeno.goo.ability.program.ExplodeStep;
 import com.mercuriusxeno.goo.ability.program.ExplosionMarch;
 import com.mercuriusxeno.goo.ability.program.Expr;
 import com.mercuriusxeno.goo.ability.program.FieldEffectStep;
+import com.mercuriusxeno.goo.ability.program.FloorsStep;
 import com.mercuriusxeno.goo.ability.program.LeafStep;
 import com.mercuriusxeno.goo.ability.program.LeafSteps;
 import com.mercuriusxeno.goo.ability.program.PhasedStep;
@@ -229,6 +231,9 @@ public record AbilityDefinition(
             radiusOf(PullStep.class, PullStep::radius),
             radiusOf(AwaitEntityStep.class, AwaitEntityStep::radius),
             radiusOf(CrushStep.class, crush -> Expr.literal(crush.radius())),
+            // colonize-blob-grows-the-network
+            radiusOf(ColonizeStep.class, ColonizeStep::radius),
+            radiusOf(FloorsStep.class, FloorsStep::radius),
             AbilityDefinition::consumedBlocksRadius);
 
     /**
