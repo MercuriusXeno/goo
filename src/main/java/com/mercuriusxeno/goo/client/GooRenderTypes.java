@@ -35,6 +35,8 @@ public final class GooRenderTypes {
     /** Name prefix of a goo render type. */
     private static final String TYPE_NAME_PREFIX = "goo_";
     /** Name suffix of a burnout pipeline's twin that draws through blocks. */
+    /** Fragments fainter than this are cut, as vanilla's translucent entity cuts them. */
+    private static final float ALPHA_CUTOUT = 0.1f;
     private static final String THROUGH_BLOCKS_SUFFIX = "_through_blocks";
 
     /**
@@ -60,25 +62,31 @@ public final class GooRenderTypes {
     );
 
     /**
-     * Lines pipeline that passes every depth test and writes no depth, so its
-     * lines show through the world; Sight outlines fungus through walls with
-     * it (decision sight-lengthens-shift-and-outlines-fungus).
+     * Sight's fungus x-ray (decision sight-lengthens-shift-and-outlines-fungus):
+     * a block's own baked quads through vanilla's translucent entity shader,
+     * passing every depth test and writing no depth, so fungus shows through walls.
      */
-    public static final RenderPipeline LINES_THROUGH_WALLS_PIPELINE = RenderPipeline.builder(
-                    RenderPipelines.LINES_SNIPPET)
-            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, "pipeline/lines_through_walls"))
+    public static final RenderPipeline FUNGUS_XRAY = RenderPipeline.builder(RenderPipelines.ENTITY_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "fungus_xray"))
+            .withShaderDefine("ALPHA_CUTOUT", ALPHA_CUTOUT)
+            .withShaderDefine("PER_FACE_LIGHTING")
+            .withSampler("Sampler1")
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
+            .withCull(false)
             .build();
 
-    /** RenderType that draws lines seen through the world. */
-    public static final RenderType LINES_THROUGH_WALLS = RenderType.create(
-            "goo_lines_through_walls",
-            RenderSetup.builder(LINES_THROUGH_WALLS_PIPELINE)
-                    .setLayeringTransform(LayeringTransform.VIEW_OFFSET_Z_LAYERING)
-                    .setOutputTarget(OutputTarget.MAIN_TARGET)
-                    .createRenderSetup()
-    );
+    /** Per-atlas memoized render types on the fungus x-ray pipeline. */
+    private static final java.util.function.Function<Identifier, RenderType> FUNGUS_XRAY_FACTORY =
+            net.minecraft.util.Util.memoize(atlas -> RenderType.create(
+                    "goo_fungus_xray",
+                    RenderSetup.builder(FUNGUS_XRAY)
+                            .withTexture("Sampler0", atlas)
+                            .useLightmap()
+                            .useOverlay()
+                            .sortOnUpload()
+                            .createRenderSetup()
+            ));
 
     /**
      * Shroom's held spore shell (decision held-visual-ghosts-the-landing-in-two-passes):
@@ -553,6 +561,16 @@ public final class GooRenderTypes {
             ));
 
     /**
+     * Returns Sight's fungus x-ray render type for the atlas the block's sprites sit on.
+     *
+     * @param atlas the texture atlas identifier
+     * @return memoized RenderType
+     */
+    public static RenderType fungusXray(Identifier atlas) {
+        return FUNGUS_XRAY_FACTORY.apply(atlas);
+    }
+
+    /**
      * Returns the block transform render type for the atlas the block's sprites sit on.
      *
      * @param atlas the texture atlas identifier
@@ -867,14 +885,14 @@ public final class GooRenderTypes {
     }
 
     /**
-     * Registers the plain pipelines: the additive glow and through-walls lines,
-     * and shroom's spore shell in both passes.
+     * Registers the plain pipelines: the additive glow lines, Sight's fungus
+     * x-ray, and shroom's spore shell in both passes.
      *
      * @param event the pipeline registration event
      */
     private static void registerLinePipelines(RegisterRenderPipelinesEvent event) {
         event.registerPipeline(LINES_ADDITIVE_GLOW);
-        event.registerPipeline(LINES_THROUGH_WALLS_PIPELINE);
+        event.registerPipeline(FUNGUS_XRAY);
         event.registerPipeline(SPORE_SHELL);
         event.registerPipeline(SPORE_SHELL_THROUGH_BLOCKS);
     }

@@ -10,23 +10,23 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * unscanned mark overflowed the elapsed time
  * (decision sight-lengthens-shift-and-outlines-fungus).
  */
-class SightOutlinesTest {
+class FungusXrayTest {
 
     private static final long NOW = 120_000L;
 
     @Test
     void theFirstScanIsDueAtOnce() {
-        assertTrue(SightOutlines.isDue(SightOutlines.UNSCANNED, NOW));
+        assertTrue(FungusXray.isDue(FungusXray.UNSCANNED, NOW));
     }
 
     @Test
     void aScanIsDueOnceASecondHasPassed() {
-        assertFalse(SightOutlines.isDue(NOW, NOW + SightOutlines.RESCAN_TICKS - 1));
-        assertTrue(SightOutlines.isDue(NOW, NOW + SightOutlines.RESCAN_TICKS));
+        assertFalse(FungusXray.isDue(NOW, NOW + FungusXray.RESCAN_TICKS - 1));
+        assertTrue(FungusXray.isDue(NOW, NOW + FungusXray.RESCAN_TICKS));
     }
 
     @Test
     void aScanIsDueWhenTheClockRunsBack() {
-        assertTrue(SightOutlines.isDue(NOW, NOW - 1));
+        assertTrue(FungusXray.isDue(NOW, NOW - 1));
     }
 }
