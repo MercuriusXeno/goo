@@ -20,6 +20,7 @@ import com.mercuriusxeno.goo.network.OpenNamingScreenPayload;
 import com.mercuriusxeno.goo.network.StreamHealedPayload;
 import com.mercuriusxeno.goo.network.TransformationPayload;
 import com.mercuriusxeno.goo.network.TunerFeedbackPayload;
+import com.mercuriusxeno.goo.network.UnmakeMobPayload;
 import com.mercuriusxeno.goo.network.UnmakePayload;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -52,6 +53,7 @@ public final class GooClientNetworking {
         event.register(ChainBurnoutPayload.TYPE, ChainBurnoutHandler::handle);
         event.register(LurkerPulsePayload.TYPE, LurkerPulseHandler::handle);
         event.register(UnmakePayload.TYPE, UnmakeHandler::handle);
+        event.register(UnmakeMobPayload.TYPE, UnmakeHandler::handleMob);
         event.register(MobHitPayload.TYPE, MobHitHandler::handle);
         event.register(AilmentPayload.TYPE, AilmentHandler::handle);
         event.register(BlockTransformPayload.TYPE, BlockTransformHandler::handle);

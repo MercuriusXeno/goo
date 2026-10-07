@@ -1,9 +1,13 @@
 package com.mercuriusxeno.goo.network;
 
+import com.mercuriusxeno.goo.data.GooValue;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -95,6 +99,50 @@ class StreamHoldsTest {
             holds.advanceBlock(PLAYER, NEAR, 100);
             holds.clear();
             assertEquals(1, holds.advanceBlock(PLAYER, NEAR, 101));
+        }
+    }
+
+    /** A held mob counts its own hold and keeps the loot it rolled (decision unmake-waves-dissolve-by-crucible-cost). */
+    @Nested
+    class AdvanceMob {
+
+        private static final UUID CHICKEN = new UUID(5, 6);
+        private final GooValue loot = new GooValue(Map.of(GooTypes.VITAL, 100));
+
+        @Test
+        void aMobHeldEachTickCountsOn() {
+            StreamHolds holds = new StreamHolds();
+            holds.advanceMob(PLAYER, CHICKEN, 100);
+            assertEquals(2, holds.advanceMob(PLAYER, CHICKEN, 101));
+        }
+
+        @Test
+        void theLootRollsOnceForTheHold() {
+            StreamHolds holds = new StreamHolds();
+            AtomicInteger rolls = new AtomicInteger();
+            holds.lootOf(PLAYER, CHICKEN, () -> roll(rolls));
+            holds.advanceMob(PLAYER, CHICKEN, 100);
+
+            assertEquals(loot, holds.lootOf(PLAYER, CHICKEN, () -> roll(rolls)));
+            assertEquals(1, rolls.get());
+        }
+
+        @Test
+        void aMobTheStreamLeftRollsItsLootAnew() {
+            StreamHolds holds = new StreamHolds();
+            AtomicInteger rolls = new AtomicInteger();
+            holds.lootOf(PLAYER, CHICKEN, () -> roll(rolls));
+            holds.advanceMob(PLAYER, CHICKEN, 100);
+            holds.advanceMob(PLAYER, new UUID(7, 8), 103);
+
+            holds.lootOf(PLAYER, CHICKEN, () -> roll(rolls));
+
+            assertEquals(2, rolls.get());
+        }
+
+        private GooValue roll(AtomicInteger rolls) {
+            rolls.incrementAndGet();
+            return loot;
         }
     }
 

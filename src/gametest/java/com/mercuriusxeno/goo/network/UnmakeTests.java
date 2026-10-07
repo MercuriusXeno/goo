@@ -18,6 +18,8 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Blocks;
@@ -25,6 +27,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Gametest for Unmake: a stream held at two cobblestones in a line and a
@@ -52,13 +55,18 @@ public final class UnmakeTests {
     private static final double WORK_PER_GOO = 0.025;
     private static final double YIELD = 0.5;
     private static final int HOLD_TICKS = 40;
-    private static final int HELD_GOO = 3;
+    private static final int HELD_GOO = 25;
     private static final double DROP_REACH = 2;
     private static final String ABILITY_REQUIRED = "Ability registry must hold unstable_unmake";
     private static final String NOT_DEAR = "The diamond block should take longer to unmake than the hold, needs %d";
     private static final String GONE_EARLY = "The cobblestone should stand one tick short of its work, %d ticks";
     private static final String NOT_GONE = "The cobblestone should be gone once its work of %d ticks is done";
     private static final String BEHIND_STANDS = "The cobblestone behind the first should melt with it after %d ticks";
+    /** The longest the chicken test holds, past a chicken's loot work at Unmake's rate. */
+    private static final int MOB_HOLD_TICKS = 400;
+    private static final String MOB_STANDS = "The chicken should melt within the hold";
+    private static final String MOB_DROPPED_ITEMS = "A melted chicken should drop none of its items";
+    private static final String MOB_LEFT_NO_GOO = "A melted chicken should leave goo of its loot";
     private static final String DEAR_GONE = "The diamond block should still stand after %d ticks";
     private static final String WRONG_YIELD = "The cobblestone should leave %s, left %s";
 
@@ -110,6 +118,52 @@ public final class UnmakeTests {
             helper.assertTrue(expected.getAll().equals(dropped), String.format(WRONG_YIELD, expected.getAll(), dropped));
             helper.succeed();
         });
+    }
+
+    /**
+     * A mock player holds Unmake at a chicken: the chicken melts away within
+     * the hold, leaving goo of its loot and none of its items.
+     *
+     * @param helper the gametest helper
+     */
+    public static void unmakeMeltsAMob(GameTestHelper helper) {
+        AbilityDefinition unmake = AbilityRegistry.of(helper.getLevel()).getAbility(UNMAKE);
+        helper.assertTrue(unmake != null, ABILITY_REQUIRED);
+        Mob chicken = helper.spawnWithNoFreeWill(EntityType.CHICKEN, CHEAP_POS);
+        chicken.setNoGravity(true);
+        ServerPlayer player = streamer(helper);
+        KnownRecipes.teachRequires(player, unmake);
+        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.UNSTABLE), UNMAKE.toString(),
+                player.getEyePosition(), player.getEyePosition());
+        AtomicBoolean melted = new AtomicBoolean();
+        for (int held = 1; held <= MOB_HOLD_TICKS; held++) {
+            helper.runAfterDelay(held, () -> {
+                if (melted.get()) {
+                    return;
+                }
+                GooStreamHandler.streamTick(player, tick);
+                if (chicken.isRemoved()) {
+                    melted.set(true);
+                    helper.getLevel().getServer().getPlayerList().remove(player);
+                    assertMeltedIntoGoo(helper);
+                    helper.succeed();
+                }
+            });
+        }
+        helper.runAfterDelay(MOB_HOLD_TICKS + 1L, () -> helper.assertTrue(melted.get(), MOB_STANDS));
+    }
+
+    /**
+     * Asserts the chicken left goo and none of its items.
+     *
+     * @param helper the gametest helper
+     */
+    private static void assertMeltedIntoGoo(GameTestHelper helper) {
+        AABB reach = new AABB(helper.absolutePos(CHEAP_POS)).inflate(DROP_REACH);
+        boolean itemsLeft = helper.getLevel().getEntitiesOfClass(ItemEntity.class, reach).stream()
+                .anyMatch(item -> GooStacks.keyOf(item.getItem()) == null);
+        helper.assertFalse(itemsLeft, MOB_DROPPED_ITEMS);
+        helper.assertFalse(droppedGoo(helper).isEmpty(), MOB_LEFT_NO_GOO);
     }
 
     /**

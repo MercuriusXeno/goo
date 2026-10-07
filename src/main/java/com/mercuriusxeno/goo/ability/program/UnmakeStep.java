@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.data.GooValue;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.entity.LivingEntity;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -12,7 +13,9 @@ import java.util.stream.Stream;
  * a block reaches what the crucible would charge to melt it, times
  * {@code work_per_goo}, the block goes and leaves {@code yield} of its goo;
  * until then its dissolve shows its progress. A block with no goo value
- * stands. On a stream it runs in the channel's block pass.
+ * stands. A held mob is worked the same way against the goo value of the
+ * loot it would drop, and leaves that goo in place of the items. On a stream
+ * it runs in the channel's block pass.
  * decision unmake-waves-dissolve-by-crucible-cost
  *
  * @param workPerGoo the work one mB of the block's value costs, evaluated each run
@@ -48,7 +51,31 @@ public record UnmakeStep(Expr workPerGoo, Expr yield) implements Step {
         for (BlockPos pos : host.unmadeBlocks()) {
             workBlock(host, pos, context);
         }
+        for (LivingEntity mob : host.unmadeMobs()) {
+            workMob(host, mob, context);
+        }
         return true;
+    }
+
+    /**
+     * Works one held mob as a block is worked, against its loot's value.
+     *
+     * @param host    the unmake host
+     * @param mob     the held mob
+     * @param context the step's context, which the params evaluate against
+     */
+    private void workMob(UnmakeHost host, LivingEntity mob, StepContext context) {
+        GooValue value = host.unmadeValue(mob);
+        if (value == null || value.isEmpty()) {
+            return;
+        }
+        int needed = UnmakeRule.workToUnmake(value.totalGoo(), workPerGoo.evaluate(context));
+        int done = host.countUnmakeWork(mob);
+        if (done >= needed) {
+            host.unmake(mob, UnmakeRule.yieldOf(value, yield.evaluate(context)));
+        } else {
+            host.showUnmaking(mob, (float) done / needed);
+        }
     }
 
     /**

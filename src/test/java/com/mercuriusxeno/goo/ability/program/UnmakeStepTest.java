@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.entity.LivingEntity;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.List;
@@ -81,7 +82,7 @@ class UnmakeStepTest {
             tick(host);
 
             verify(host).showUnmaking(CHEAP, 10f / 29);
-            verify(host, never()).unmake(any(), any());
+            verify(host, never()).unmake(any(BlockPos.class), any());
         }
 
         @Test
@@ -102,8 +103,8 @@ class UnmakeStepTest {
 
             tick(host);
 
-            verify(host).unmake(eq(CHEAP), any());
-            verify(host, never()).unmake(eq(DEAR), any());
+            verify(host).unmake(eq(CHEAP), any(GooContents.class));
+            verify(host, never()).unmake(eq(DEAR), any(GooContents.class));
             verify(host).showUnmaking(eq(DEAR), anyFloat());
         }
 
@@ -113,8 +114,52 @@ class UnmakeStepTest {
 
             tick(host);
 
-            verify(host, never()).unmake(any(), any());
-            verify(host, never()).showUnmaking(any(), anyFloat());
+            verify(host, never()).unmake(any(BlockPos.class), any());
+            verify(host, never()).showUnmaking(any(BlockPos.class), anyFloat());
+        }
+    }
+
+    @Nested
+    class Mobs {
+
+        private final LivingEntity chicken = mock(LivingEntity.class);
+
+        private UnmakeHost holdingMob(GooValue loot, int progress) {
+            UnmakeHost host = mock(UnmakeHost.class);
+            when(host.unmadeBlocks()).thenReturn(List.of());
+            when(host.unmadeMobs()).thenReturn(List.of(chicken));
+            when(host.unmadeValue(chicken)).thenReturn(loot);
+            when(host.countUnmakeWork(chicken)).thenReturn(progress);
+            return host;
+        }
+
+        @Test
+        void aMobMeltsOnceItsLootsWorkIsDoneAndLeavesThatGoo() {
+            UnmakeHost host = holdingMob(COBBLESTONE, 29);
+
+            assertTrue(UNMAKE.tick(new StepContext(host, 0, 0)));
+
+            verify(host).unmake(chicken, new GooContents(Map.of(GooTypes.ROCK, 576)));
+        }
+
+        @Test
+        void shortOfTheWorkTheMobShowsItsShare() {
+            UnmakeHost host = holdingMob(COBBLESTONE, 10);
+
+            assertTrue(UNMAKE.tick(new StepContext(host, 0, 0)));
+
+            verify(host).showUnmaking(chicken, 10f / 29);
+            verify(host, never()).unmake(any(LivingEntity.class), any());
+        }
+
+        @Test
+        void aMobWhoseLootIsWorthNothingStands() {
+            UnmakeHost host = holdingMob(null, 1000);
+
+            assertTrue(UNMAKE.tick(new StepContext(host, 0, 0)));
+
+            verify(host, never()).unmake(any(LivingEntity.class), any());
+            verify(host, never()).showUnmaking(any(LivingEntity.class), anyFloat());
         }
     }
 
