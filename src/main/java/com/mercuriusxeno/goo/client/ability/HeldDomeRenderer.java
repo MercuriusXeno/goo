@@ -49,7 +49,8 @@ public final class HeldDomeRenderer {
 
     /** The ghost each goo type holds; a type with none draws no dome. */
     private static final Map<ResourceKey<GooTypeDefinition>, HeldGhostVisual> GHOSTS = Map.of(
-            GooTypes.CRYSTAL, CrystalExplosionVisual.INSTANCE);
+            GooTypes.CRYSTAL, CrystalExplosionVisual.INSTANCE,
+            GooTypes.METAL, MetalExplosionVisual.INSTANCE);
 
     /**
      * Where a ghost draws: its dome about the center of the cell the throw lands
@@ -142,16 +143,34 @@ public final class HeldDomeRenderer {
         poseStack.pushPose();
         Vec3 corner = anchor.domeCorner().subtract(camera);
         poseStack.translate(corner.x, corner.y, corner.z);
-        drawDome(poseStack, buffers, visual.heldThroughBlocksType(), visual, ghost, THROUGH_BLOCKS_OPACITY);
-        drawDome(poseStack, buffers, visual.heldType(), visual, ghost, HELD_OPACITY);
+        HeldPass pass = new HeldPass(visual, ghost, anchor.face(), nowSeconds);
+        pass.draw(poseStack, buffers, visual.heldThroughBlocksType(), THROUGH_BLOCKS_OPACITY);
+        pass.draw(poseStack, buffers, visual.heldType(), HELD_OPACITY);
         poseStack.popPose();
         drawRings(poseStack, buffers, camera, anchor, ghost, ringRgb, nowSeconds);
     }
 
-    private static void drawDome(PoseStack poseStack, MultiBufferSource.BufferSource buffers, RenderType type,
-                                 HeldGhostVisual visual, HeldGhost ghost, float opacity) {
-        visual.emitHeld(poseStack.last(), buffers.getBuffer(type), ghost, opacity);
-        buffers.endBatch(type);
+    /**
+     * One frame's ghost, drawn once per pass.
+     *
+     * @param visual     the goo type's ghost visual
+     * @param ghost      the ghost
+     * @param face       the face the throw strikes
+     * @param nowSeconds seconds on the real-time clock
+     */
+    private record HeldPass(HeldGhostVisual visual, HeldGhost ghost, Direction face, double nowSeconds) {
+        /**
+         * Draws the dome through one render type at a share of the landing's opacity.
+         *
+         * @param poseStack the pose stack, at the dome's block corner
+         * @param buffers   the buffer source
+         * @param type      the pass's render type
+         * @param opacity   the share of the landing's opacity
+         */
+        void draw(PoseStack poseStack, MultiBufferSource.BufferSource buffers, RenderType type, float opacity) {
+            visual.emitHeld(poseStack.last(), buffers.getBuffer(type), ghost, face, opacity, nowSeconds);
+            buffers.endBatch(type);
+        }
     }
 
     /**

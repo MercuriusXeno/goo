@@ -6,9 +6,11 @@ import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
+import net.minecraft.util.Mth;
 import org.joml.Vector3f;
 import java.util.ArrayList;
 import java.util.List;
@@ -26,7 +28,7 @@ import java.util.List;
  * place along its spike in green, since a core pipeline takes no per-draw
  * uniforms.
  */
-public final class MetalExplosionVisual implements BurnoutVisual {
+public final class MetalExplosionVisual implements BurnoutVisual, HeldGhostVisual {
 
     /** The one instance the burnout registry holds. */
     public static final MetalExplosionVisual INSTANCE = new MetalExplosionVisual();
@@ -45,6 +47,9 @@ public final class MetalExplosionVisual implements BurnoutVisual {
     static final int CANDIDATE_DIRECTIONS = 48;
     /** A spike must point at least this far out of the wall, as the cosine to the face's step. */
     static final float OUTWARD_MIN = 0.1f;
+
+    /** Real-time seconds the held ghost's specular band takes over one show's sweeps. */
+    static final double HELD_SWEEP_SECONDS = 2.0;
 
     private static final float SPIKE_BASE_RADIUS = 0.06f;
     private static final int SPIKE_SIDES = 4;
@@ -78,13 +83,71 @@ public final class MetalExplosionVisual implements BurnoutVisual {
         if (length <= 0f) {
             return;
         }
-        int progressByte = NetherDiscMesh.toByte(progress);
-        Direction face = burnout.placedFace();
-        BurnoutGeometry.drawAtMarker(frame, burnout.pos(), GooRenderTypes.METAL_EXPLOSION_TYPE, (pose, c) -> {
+        Urchin urchin = new Urchin(burnout.placedFace(), length, SPIKE_BASE_RADIUS, NetherDiscMesh.toByte(progress),
+                OPAQUE);
+        BurnoutGeometry.drawAtMarker(frame, burnout.pos(), GooRenderTypes.METAL_EXPLOSION_TYPE, urchin::emit);
+    }
+
+    @Override
+    public RenderType heldType() {
+        return GooRenderTypes.METAL_EXPLOSION_TYPE;
+    }
+
+    @Override
+    public RenderType heldThroughBlocksType() {
+        return GooRenderTypes.METAL_EXPLOSION_THROUGH_BLOCKS_TYPE;
+    }
+
+    /**
+     * Metal's ghost: the urchin at its hold, every spike out to the dome's
+     * radius and as thick for its length as a landing's, the specular band
+     * still sweeping on the real-time clock.
+     * held-visual-ghosts-the-landing-in-two-passes
+     */
+    @Override
+    public void emitHeld(PoseStack.Pose pose, VertexConsumer c, HeldGhost ghost, Direction face, float opacity,
+                         double nowSeconds) {
+        heldUrchin(ghost, face, opacity, nowSeconds).emit(pose, c);
+    }
+
+    /**
+     * The urchin a held ghost draws: spikes the dome's radius long, their
+     * base scaled with them, the band's place on the real-time clock.
+     *
+     * @param ghost      the ghost
+     * @param face       the face the throw strikes
+     * @param opacity    the share of the landing's opacity
+     * @param nowSeconds seconds on the real-time clock
+     * @return the urchin
+     */
+    static Urchin heldUrchin(HeldGhost ghost, Direction face, float opacity, double nowSeconds) {
+        float length = ghost.domeRadius();
+        float sweep = (float) Mth.frac(nowSeconds / HELD_SWEEP_SECONDS);
+        return new Urchin(face, length, SPIKE_BASE_RADIUS * length / SPIKE_REACH, NetherDiscMesh.toByte(sweep),
+                NetherDiscMesh.toByte(opacity));
+    }
+
+    /**
+     * One urchin's spikes over a placed face.
+     *
+     * @param face         the placed face
+     * @param length       each spike's length in blocks
+     * @param baseRadius   each spike's base radius in blocks
+     * @param progressByte the show's progress as a byte, where the specular band sits
+     * @param alpha        the spikes' opacity as a byte
+     */
+    record Urchin(Direction face, float length, float baseRadius, int progressByte, int alpha) {
+        /**
+         * Emits every spike pointing out of the wall.
+         *
+         * @param pose the pose entry
+         * @param c    the vertex consumer
+         */
+        void emit(PoseStack.Pose pose, VertexConsumer c) {
             for (Vector3f dir : spikeDirections(face)) {
-                emitSpike(pose, c, face, dir, length, progressByte);
+                emitSpike(pose, c, this, dir);
             }
-        });
+        }
     }
 
     /**
@@ -128,22 +191,21 @@ public final class MetalExplosionVisual implements BurnoutVisual {
      * Emits one spike: the trap's cone from the common base along dir,
      * each vertex's green its place along the spike.
      *
-     * @param pose         the pose entry
-     * @param c            the vertex consumer
-     * @param face         the placed face
-     * @param dir          the spike's unit direction
-     * @param length       the spike's length in blocks
-     * @param progressByte the explosion's progress as a byte
+     * @param pose   the pose entry
+     * @param c      the vertex consumer
+     * @param urchin the urchin the spike belongs to
+     * @param dir    the spike's unit direction
      */
-    private static void emitSpike(PoseStack.Pose pose, VertexConsumer c, Direction face, Vector3f dir,
-                                  float length, int progressByte) {
+    private static void emitSpike(PoseStack.Pose pose, VertexConsumer c, Urchin urchin, Vector3f dir) {
         float center = BurnoutGeometry.BLOCK_CENTER;
+        Direction face = urchin.face();
         ConeGeometry.Cone cone = new ConeGeometry.Cone(
                 center + face.getStepX() * BASE_LIFT, center + face.getStepY() * BASE_LIFT,
-                center + face.getStepZ() * BASE_LIFT, dir.x(), dir.y(), dir.z(), length, SPIKE_BASE_RADIUS);
+                center + face.getStepZ() * BASE_LIFT, dir.x(), dir.y(), dir.z(), urchin.length(),
+                urchin.baseRadius());
         float[] basis = ConeGeometry.computeBasis(dir.x(), dir.y(), dir.z());
-        int base = ARGB.color(OPAQUE, progressByte, 0, 0);
-        int tip = ARGB.color(OPAQUE, progressByte, OPAQUE, 0);
+        int base = ARGB.color(urchin.alpha(), urchin.progressByte(), 0, 0);
+        int tip = ARGB.color(urchin.alpha(), urchin.progressByte(), OPAQUE, 0);
         FlatQuadContext quads = new FlatQuadContext(pose, c);
         for (int side = 0; side < SPIKE_SIDES; side++) {
             emitSpikeSide(quads, cone, basis, side, base, tip);
