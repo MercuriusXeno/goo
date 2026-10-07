@@ -174,6 +174,17 @@ public final class GooRenderTypes {
     public static final RenderType METAL_EXPLOSION_TYPE = burnoutType(METAL_EXPLOSION);
 
     /**
+     * Metal's held ghost through blocks: the metal explosion shader with no
+     * depth test, so the spikes inside blocks show through them.
+     * held-visual-ghosts-the-landing-in-two-passes
+     */
+    public static final RenderPipeline METAL_EXPLOSION_THROUGH_BLOCKS = throughBlocksPipeline("metal_explosion",
+            BlendFunction.TRANSLUCENT);
+
+    /** RenderType for metal's held ghost through blocks. */
+    public static final RenderType METAL_EXPLOSION_THROUGH_BLOCKS_TYPE = burnoutType(METAL_EXPLOSION_THROUGH_BLOCKS);
+
+    /**
      * Crystal goo's burnout explosion pipeline: the prism burst, alpha
      * blended, through {@code crystal_explosion.vsh / .fsh}.
      */
@@ -715,6 +726,7 @@ public final class GooRenderTypes {
         event.registerPipeline(FROST_EXPLOSION);
         event.registerPipeline(NETHER_EXPLOSION);
         event.registerPipeline(METAL_EXPLOSION);
+        event.registerPipeline(METAL_EXPLOSION_THROUGH_BLOCKS);
         event.registerPipeline(CRYSTAL_EXPLOSION);
         event.registerPipeline(CRYSTAL_EXPLOSION_THROUGH_BLOCKS);
         event.registerPipeline(GLOW_EXPLOSION);

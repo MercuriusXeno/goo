@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
 
@@ -80,7 +81,8 @@ public final class CrystalExplosionVisual implements BurnoutVisual, HeldGhostVis
      * held-visual-ghosts-the-landing-in-two-passes
      */
     @Override
-    public void emitHeld(PoseStack.Pose pose, VertexConsumer c, HeldGhost ghost, float opacity) {
+    public void emitHeld(PoseStack.Pose pose, VertexConsumer c, HeldGhost ghost, Direction face, float opacity,
+                         double nowSeconds) {
         BurnoutGeometry.emitSphere(pose, c, shellRadius(RESTING_PROGRESS, ghost.domeRadius()),
                 shellColor(RESTING_PROGRESS, NetherDiscMesh.toByte(opacity)));
     }
