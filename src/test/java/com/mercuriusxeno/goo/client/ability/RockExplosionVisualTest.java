@@ -37,6 +37,16 @@ class RockExplosionVisualTest {
     }
 
     @Test
+    void cursorLoopsTheOpeningShareOfTheExplosion() {
+        float half = RockExplosionVisual.DURATION_TICKS / 2f;
+        assertEquals(0f, RockExplosionVisual.cursorProgress(0f), 0f);
+        assertEquals(RockExplosionVisual.CURSOR_SPAN / 2, RockExplosionVisual.cursorProgress(half), TOLERANCE);
+        assertEquals(0f, RockExplosionVisual.cursorProgress(RockExplosionVisual.DURATION_TICKS), TOLERANCE);
+        assertEquals(RockExplosionVisual.cursorProgress(half),
+                RockExplosionVisual.cursorProgress(RockExplosionVisual.DURATION_TICKS + half), TOLERANCE);
+    }
+
+    @Test
     void pipelineShadersResolveOnTheClasspath() {
         PipelineShaders.assertExist(GooRenderTypes.ROCK_EXPLOSION);
     }

@@ -9,14 +9,19 @@ import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.NonNull;
 
 /**
- * Client-to-server payload: one tick of a held stream ability, sent every
- * tick the glove's use stays down (decision stream-delivery-held-cone).
+ * Client-to-server payload: one tick of a held ability, sent every tick the
+ * glove's use stays down (decision stream-delivery-held-cone). A channel
+ * reads the aim point and the plane its hold began at
+ * (decision flatten-disc-cursor-breaks-above-the-plane).
  *
  * @param gooTypeId the goo type string identifier
  * @param abilityId the selected ability id string
  * @param origin    the glove hand, where the stream's cone opens from
+ * @param aimPoint  the world point under the client's cursor
+ * @param planeY    the player's feet height when the hold began
  */
-public record GooStreamPayload(String gooTypeId, String abilityId, Vec3 origin) implements CustomPacketPayload {
+public record GooStreamPayload(String gooTypeId, String abilityId, Vec3 origin, Vec3 aimPoint, double planeY)
+        implements CustomPacketPayload {
 
     /** Payload type ID for registration. */
     public static final Type<GooStreamPayload> TYPE =
@@ -34,13 +39,22 @@ public record GooStreamPayload(String gooTypeId, String abilityId, Vec3 origin) 
     private static void encode(FriendlyByteBuf buf, GooStreamPayload payload) {
         buf.writeUtf(payload.gooTypeId);
         buf.writeUtf(payload.abilityId);
-        buf.writeDouble(payload.origin.x);
-        buf.writeDouble(payload.origin.y);
-        buf.writeDouble(payload.origin.z);
+        writePoint(buf, payload.origin);
+        writePoint(buf, payload.aimPoint);
+        buf.writeDouble(payload.planeY);
     }
 
     private static GooStreamPayload decode(FriendlyByteBuf buf) {
-        return new GooStreamPayload(buf.readUtf(), buf.readUtf(),
-                new Vec3(buf.readDouble(), buf.readDouble(), buf.readDouble()));
+        return new GooStreamPayload(buf.readUtf(), buf.readUtf(), readPoint(buf), readPoint(buf), buf.readDouble());
+    }
+
+    private static void writePoint(FriendlyByteBuf buf, Vec3 point) {
+        buf.writeDouble(point.x);
+        buf.writeDouble(point.y);
+        buf.writeDouble(point.z);
+    }
+
+    private static Vec3 readPoint(FriendlyByteBuf buf) {
+        return new Vec3(buf.readDouble(), buf.readDouble(), buf.readDouble());
     }
 }

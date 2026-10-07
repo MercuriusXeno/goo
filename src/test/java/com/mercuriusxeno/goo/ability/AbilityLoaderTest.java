@@ -84,6 +84,7 @@ class AbilityLoaderTest {
             Map.entry("leaf_entangle", List.of("vine")),
             Map.entry("typhoon_levitate", List.of("shulker_shell")),
             Map.entry("typhoon_propel", List.of("phantom_membrane")),
+            Map.entry("rock_flatten", List.of("dirt")),
             Map.entry("rock_petrify", List.of("pointed_dripstone")),
             Map.entry("pulse_short_circuit", List.of("redstone")));
 

@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.GloveSelection;
+import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
@@ -23,6 +24,8 @@ import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 import java.util.OptionalInt;
@@ -55,33 +58,50 @@ public final class GloveThrowSender {
         if (gooType == null || ThrowFreezeState.isThrowBlocked()) {
             return false;
         }
-        Delivery delivery = selectedDelivery(selection.abilityId());
-        return switch (delivery.kind()) {
-            case SELF -> sendSelf(player, gooType, selection.abilityId());
-            case STREAM -> sendStreamTick(player, gooType, selection.abilityId());
-            default -> sendAimed(player, gooType, selection.abilityId());
-        };
+        return sendFor(player, gooType, selection.abilityId());
     }
 
     /**
-     * Carries a held glove one tick further: a stream ability streams one
+     * Sends the press's payload by the ability's route: a held ability's
+     * first tick, a self ability's invocation, or an aimed throw.
+     *
+     * @param player    the local player
+     * @param gooType   the selected goo type
+     * @param abilityId the selected ability id string
+     * @return true when a payload was sent
+     */
+    private static boolean sendFor(Player player, ResourceKey<GooTypeDefinition> gooType, String abilityId) {
+        Delivery delivery = selectedDelivery(abilityId);
+        if (HeldRoute.runsWhileHeld(delivery, selectedBadge(abilityId))) {
+            return sendStreamTick(player, gooType, abilityId);
+        }
+        return delivery.kind() == DeliveryKind.SELF
+                ? sendSelf(player, gooType, abilityId)
+                : sendAimed(player, gooType, abilityId);
+    }
+
+    /**
+     * Carries a held glove one tick further: a stream or channel runs one
      * more tick, and every other delivery does nothing past its press
-     * (decision stream-delivery-held-cone).
+     * (decisions stream-delivery-held-cone,
+     * flatten-disc-cursor-breaks-above-the-plane).
      *
      * @param player the local player
      */
     public static void sendHold(Player player) {
         GloveSelection selection = heldSelection(player);
         ResourceKey<GooTypeDefinition> gooType = selection == null ? null : selection.getGooType();
-        if (gooType != null && selectedDelivery(selection.abilityId()).kind() == DeliveryKind.STREAM) {
+        if (gooType != null && HeldRoute.runsWhileHeld(selectedDelivery(selection.abilityId()),
+                selectedBadge(selection.abilityId()))) {
             sendStreamTick(player, gooType, selection.abilityId());
         }
     }
 
     /**
-     * Sends one tick of a stream from the glove hand while the player holds
-     * any goo of the type; the server prices the tick and stops the stream
-     * when the goo runs out.
+     * Sends one tick of a held ability from the glove hand, with the point
+     * under the cursor and the plane the press began at, while the player
+     * holds any goo of the type; the server prices the tick and stops the
+     * hold when the goo runs out.
      *
      * @param player    the local player
      * @param gooType   the selected goo type
@@ -95,9 +115,25 @@ public final class GloveThrowSender {
         var connection = Minecraft.getInstance().getConnection();
         if (connection != null) {
             connection.send(new ServerboundCustomPayloadPacket(
-                    new GooStreamPayload(GooTypes.id(gooType), abilityId, lineOrigin())));
+                    new GooStreamPayload(GooTypes.id(gooType), abilityId, lineOrigin(), cursorPoint(player),
+                            GloveUseTracker.pressPlaneY())));
         }
         return true;
+    }
+
+    /**
+     * The world point under the cursor: the block face the crosshair rests
+     * on, or the end of the player's block reach where it rests on none
+     * (decision flatten-disc-cursor-breaks-above-the-plane).
+     *
+     * @param player the local player
+     * @return the cursor's world point
+     */
+    static Vec3 cursorPoint(Player player) {
+        if (Minecraft.getInstance().hitResult instanceof BlockHitResult hit && hit.getType() == HitResult.Type.BLOCK) {
+            return hit.getLocation();
+        }
+        return player.getEyePosition().add(player.getViewVector(1f).scale(player.blockInteractionRange()));
     }
 
     /**

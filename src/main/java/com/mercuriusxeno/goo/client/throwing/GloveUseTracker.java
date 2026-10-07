@@ -1,8 +1,8 @@
 package com.mercuriusxeno.goo.client.throwing;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.GloveSelection;
+import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -29,6 +29,11 @@ import org.jspecify.annotations.Nullable;
 public final class GloveUseTracker {
     private static final GloveInputGate PRESS = new GloveInputGate();
     private static InteractionHand pressHand = InteractionHand.MAIN_HAND;
+    /**
+     * The player's feet height when the live press began, the plane a channel
+     * holds to (decision flatten-disc-cursor-breaks-above-the-plane).
+     */
+    private static double pressPlaneY;
 
     /** How often (in ticks) to re-check whether the selected goo type is in inventory. */
     private static final int AVAILABILITY_CHECK_INTERVAL = 10;
@@ -90,8 +95,21 @@ public final class GloveUseTracker {
     public static void pressGlove(InteractionHand hand) {
         if (!PRESS.isArmed()) {
             pressHand = hand;
+            LocalPlayer player = Minecraft.getInstance().player;
+            if (player != null) {
+                pressPlaneY = player.getY();
+            }
         }
         PRESS.arm();
+    }
+
+    /**
+     * The player's feet height when the live press began.
+     *
+     * @return the plane a channel holds to
+     */
+    public static double pressPlaneY() {
+        return pressPlaneY;
     }
 
     /**
@@ -150,8 +168,9 @@ public final class GloveUseTracker {
             @Override
             public boolean runsWhileHeld() {
                 GloveSelection selection = GloveThrowSender.heldSelection(player);
-                return selection != null
-                        && GloveThrowSender.selectedDelivery(selection.abilityId()).kind() == DeliveryKind.STREAM;
+                return selection != null && HeldRoute.runsWhileHeld(
+                        GloveThrowSender.selectedDelivery(selection.abilityId()),
+                        GloveThrowSender.selectedBadge(selection.abilityId()));
             }
         };
     }

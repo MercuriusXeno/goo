@@ -7,7 +7,9 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.JsonOps;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
+import net.minecraft.tags.TagKey;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Map;
@@ -93,7 +95,9 @@ class StepCodecTest {
                     Expr.parse("20 * 60 / pow(health, 0.4)").getOrThrow())),
             Map.entry("afterimage", new AfterimageStep(GooTypes.HEX, Expr.literal(20))),
             Map.entry("ghost_trail", new GhostTrailStep(GooTypes.ENDER, Expr.literal(30))),
-            Map.entry("heart_overlay", new HeartOverlayStep(HeartKind.KINDLE, Expr.literal(1200)))
+            Map.entry("heart_overlay", new HeartOverlayStep(HeartKind.KINDLE, Expr.literal(1200))),
+            Map.entry("flatten", new FlattenStep(TagKey.create(Registries.BLOCK,
+                    Identifier.fromNamespaceAndPath("goo", "flatten_breakable"))))
     );
 
     private static Step roundTrip(Step step) {

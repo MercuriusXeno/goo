@@ -58,7 +58,12 @@ public enum HostCapability {
      * A landing where the ability can stand its own block, which runs the
      * steps handed to it (decision lingering-abilities-place-their-own-thing).
      */
-    LINGER(LingerHost.class);
+    LINGER(LingerHost.class),
+    /**
+     * A held channel's aim this tick and the player's hand to break blocks
+     * with (decision flatten-disc-cursor-breaks-above-the-plane).
+     */
+    CHANNEL(ChannelHost.class);
 
     private final Class<? extends StepHost> hostType;
 
