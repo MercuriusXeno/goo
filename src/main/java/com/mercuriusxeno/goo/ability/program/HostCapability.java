@@ -63,7 +63,12 @@ public enum HostCapability {
      * A held channel's aim this tick and the player's hand to break blocks
      * with (decision flatten-disc-cursor-breaks-above-the-plane).
      */
-    CHANNEL(ChannelHost.class);
+    CHANNEL(ChannelHost.class),
+    /**
+     * The blocks around the host to read and break (decision
+     * crush-blob-breaks-along-its-strike).
+     */
+    BREAK_BLOCKS(BlockBreakHost.class);
 
     private final Class<? extends StepHost> hostType;
 

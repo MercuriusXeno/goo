@@ -1,8 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.tags.TagKey;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.phys.Vec3;
 import java.util.Optional;
 
@@ -12,7 +10,7 @@ import java.util.Optional;
  * decision flatten-disc-cursor-breaks-above-the-plane
  * decision bore-vortex-with-a-worldspace-shake
  */
-public interface ChannelHost extends StepHost {
+public interface ChannelHost extends BlockBreakHost {
 
     /**
      * The hold's aim this tick.
@@ -29,35 +27,10 @@ public interface ChannelHost extends StepHost {
     Vec3 eye();
 
     /**
-     * Whether the block at a position belongs to a block tag.
-     *
-     * @param pos the position
-     * @param tag the block tag
-     * @return true where the block standing there is in the tag
-     */
-    boolean blockIn(BlockPos pos, TagKey<Block> tag);
-
-    /**
-     * Whether a position holds air.
-     *
-     * @param pos the position
-     * @return true where no block stands
-     */
-    boolean airAt(BlockPos pos);
-
-    /**
      * Whether the channeling player can reach a block to break it.
      *
      * @param pos the block
      * @return true within the player's block interaction range
      */
     boolean reaches(BlockPos pos);
-
-    /**
-     * Breaks a block as the channeling player, dropping its loot as a pickaxe
-     * harvests it and playing its break particles.
-     *
-     * @param pos the block
-     */
-    void breakBlock(BlockPos pos);
 }

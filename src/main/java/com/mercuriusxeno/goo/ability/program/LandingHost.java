@@ -11,6 +11,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.phys.Vec3;
@@ -39,7 +40,7 @@ import java.util.OptionalDouble;
  */
 public record LandingHost(ServerLevel level, BlockPos cell, Direction face, boolean waterlogged,
                           ResourceKey<GooTypeDefinition> gooType, String abilityId, Vec3 anchor)
-        implements PlacedFaceHost, ExplodeHost, AnchoredWorldHost, PlaceBlockHost, LingerHost {
+        implements PlacedFaceHost, ExplodeHost, AnchoredWorldHost, PlaceBlockHost, LingerHost, BlockBreakHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
 
@@ -84,6 +85,21 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
                 .orElseThrow(() -> new IllegalArgumentException(ERR_UNKNOWN_BLOCK + block));
         List<Property.Value<?>> values = StatePropertyWriter.resolve(found.getStateDefinition(), state, block);
         level.setBlock(cell, StatePropertyWriter.write(found.defaultBlockState(), values), Block.UPDATE_ALL);
+    }
+
+    @Override
+    public boolean blockIn(BlockPos pos, TagKey<Block> tag) {
+        return level.getBlockState(pos).is(tag);
+    }
+
+    @Override
+    public boolean airAt(BlockPos pos) {
+        return level.getBlockState(pos).isAir();
+    }
+
+    @Override
+    public void breakBlock(BlockPos pos) {
+        BlockBreakHost.harvest(level, pos, null);
     }
 
     @Override
