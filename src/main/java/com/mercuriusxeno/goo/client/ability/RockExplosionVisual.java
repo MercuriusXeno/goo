@@ -22,9 +22,7 @@ import net.minecraft.util.ARGB;
  *
  * The same disc is Flatten's cursor while its hold runs, looping the dust's
  * early drift so it never thins out
- * (decision flatten-disc-cursor-breaks-above-the-plane), and Bore's vortex
- * at the bore face, the same loop with its dust spinning about the center
- * (decision bore-vortex-with-a-worldspace-shake).
+ * (decision flatten-disc-cursor-breaks-above-the-plane).
  */
 public final class RockExplosionVisual implements BurnoutVisual {
 
@@ -48,11 +46,6 @@ public final class RockExplosionVisual implements BurnoutVisual {
     static final float CURSOR_RADIUS = 1.5f;
     /** The share of the explosion the cursor loops over, short of where the dust starts thinning. */
     static final float CURSOR_SPAN = 0.4f;
-    /** The vortex disc's radius in blocks, a little wider than the one-block bore. */
-    static final float VORTEX_RADIUS = 0.9f;
-    /** How fast the vortex's dust spins, in radians per tick. */
-    static final float VORTEX_SPIN = 0.6f;
-    private static final double FULL_TURN = 2 * Math.PI;
     /** Maps a disc-local coordinate in [-1, 1] onto [0, 1] for a color byte. */
     private static final float SIGNED_TO_UNIT = 0.5f;
 
@@ -86,27 +79,7 @@ public final class RockExplosionVisual implements BurnoutVisual {
         drawDisc(frame, cell, face, cursorProgress(frame.gameTime()), CURSOR_RADIUS, 0f);
     }
 
-    /**
-     * Draws the dust disc as Bore's vortex on the face the bore cuts into,
-     * its dust spinning about the center.
-     *
-     * @param frame the frame being drawn
-     * @param cell  the cell in front of the bore face
-     * @param face  the bore face
-     */
-    public void renderVortex(BurnoutFrame frame, BlockPos cell, Direction face) {
-        drawDisc(frame, cell, face, cursorProgress(frame.gameTime()), VORTEX_RADIUS, vortexSpin(frame.gameTime()));
-    }
 
-    /**
-     * How far the vortex's dust has turned about its center.
-     *
-     * @param gameTime the level's game time including the partial tick
-     * @return the turn in radians, in [0, 2 pi)
-     */
-    static float vortexSpin(float gameTime) {
-        return (float) (gameTime * VORTEX_SPIN % FULL_TURN);
-    }
 
     /**
      * The progress the cursor disc shows: the explosion's opening share, looped.

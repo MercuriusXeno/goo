@@ -2,14 +2,16 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.BoreStep;
+import com.mercuriusxeno.goo.client.FlatQuadContext;
+import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.HitResult;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -17,13 +19,18 @@ import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Bore's vortex: while right click holds a bore stream, rock's dust disc
- * spins on the face the bore cuts into, the first block along the look
- * within the stream's reach.
+ * Bore's vortex: while right click holds a bore stream, a spiralling dust
+ * vortex runs down the tunnel from the glove to the bore's reach, stacked
+ * sections the width of the 3x3 bore filled by {@code bore_vortex.fsh}.
  * decision bore-vortex-with-a-worldspace-shake
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class BoreVortex {
+
+    /** Sections stacked down the tunnel. */
+    static final int SECTIONS = 10;
+    /** The vortex's radius in blocks, out to the corners of the 3x3 bore. */
+    static final double TUNNEL_RADIUS = 1.5;
 
     private BoreVortex() {
     }
@@ -43,13 +50,13 @@ public final class BoreVortex {
             return;
         }
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        if (player.pick(bore.delivery().range(), partialTick, false) instanceof BlockHitResult hit
-                && hit.getType() == HitResult.Type.BLOCK) {
-            BurnoutFrame frame = new BurnoutFrame(event.getPoseStack(), mc.renderBuffers().bufferSource(),
-                    mc.gameRenderer.getMainCamera().position(), mc.level.getGameTime() + partialTick);
-            RockExplosionVisual.INSTANCE.renderVortex(frame, hit.getBlockPos().relative(hit.getDirection()),
-                    hit.getDirection());
-        }
+        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        FlatQuadContext quads = new FlatQuadContext(event.getPoseStack().last(),
+                buffers.getBuffer(GooRenderTypes.BORE_VORTEX_TYPE));
+        ConeSections.emit(quads, new ConeSections.Volume(player.getEyePosition(partialTick).subtract(camera),
+                player.getViewVector(partialTick), bore.delivery().range(), SECTIONS, distance -> TUNNEL_RADIUS));
+        buffers.endBatch(GooRenderTypes.BORE_VORTEX_TYPE);
     }
 
     /**
