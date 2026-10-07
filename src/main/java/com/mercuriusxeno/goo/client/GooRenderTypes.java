@@ -117,6 +117,32 @@ public final class GooRenderTypes {
     );
 
     /**
+     * The black hole's held ghost body: its dark core shader, translucent with
+     * depth tested and depth write off, so the ghost hides nothing behind it.
+     * held-visual-ghosts-the-landing-in-two-passes
+     */
+    public static final RenderPipeline NETHER_BLACKHOLE_HELD = shaderPairPipeline("nether_blackhole_held",
+            "nether_blackhole", BlendFunction.TRANSLUCENT, DefaultVertexFormat.POSITION_COLOR_NORMAL,
+            DepthStencilState.DEFAULT.depthTest());
+
+    /** RenderType for the black hole's held ghost body. */
+    public static final RenderType NETHER_BLACKHOLE_HELD_TYPE = burnoutType(NETHER_BLACKHOLE_HELD);
+
+    /** The black hole's held ghost body through blocks, depth ignored. */
+    public static final RenderPipeline NETHER_BLACKHOLE_THROUGH_BLOCKS = throughBlocksPipeline("nether_blackhole",
+            BlendFunction.TRANSLUCENT);
+
+    /** RenderType for the black hole's held ghost body through blocks. */
+    public static final RenderType NETHER_BLACKHOLE_THROUGH_BLOCKS_TYPE = burnoutType(NETHER_BLACKHOLE_THROUGH_BLOCKS);
+
+    /** The black hole's corona through blocks, depth ignored, for its held ghost. */
+    public static final RenderPipeline NETHER_CORONA_THROUGH_BLOCKS = throughBlocksPipeline("nether_corona",
+            BlendFunction.LIGHTNING);
+
+    /** RenderType for the black hole's corona through blocks. */
+    public static final RenderType NETHER_CORONA_THROUGH_BLOCKS_TYPE = burnoutType(NETHER_CORONA_THROUGH_BLOCKS);
+
+    /**
      * Unstable goo's burnout explosion pipeline (decision
      * elemental-explosion-per-type): the fireball sphere and its shockwave
      * ring, additive with depth write off and both faces drawn, through
@@ -699,6 +725,9 @@ public final class GooRenderTypes {
         event.registerPipeline(LINES_ADDITIVE_GLOW);
         event.registerPipeline(NETHER_BLACKHOLE);
         event.registerPipeline(NETHER_CORONA);
+        event.registerPipeline(NETHER_BLACKHOLE_HELD);
+        event.registerPipeline(NETHER_BLACKHOLE_THROUGH_BLOCKS);
+        event.registerPipeline(NETHER_CORONA_THROUGH_BLOCKS);
         event.registerPipeline(NETHER_DISK);
         event.registerPipeline(NETHER_CUBE_EDGE);
         event.registerPipeline(VORONOI_FISSURE);

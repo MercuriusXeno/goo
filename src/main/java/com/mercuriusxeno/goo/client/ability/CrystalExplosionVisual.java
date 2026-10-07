@@ -7,10 +7,10 @@ import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
+import java.util.List;
 
 /**
  * Crystal goo's burnout explosion, the design the operator settled
@@ -65,13 +65,9 @@ public final class CrystalExplosionVisual implements BurnoutVisual, HeldGhostVis
     }
 
     @Override
-    public RenderType heldType() {
-        return GooRenderTypes.CRYSTAL_EXPLOSION_TYPE;
-    }
-
-    @Override
-    public RenderType heldThroughBlocksType() {
-        return GooRenderTypes.CRYSTAL_EXPLOSION_THROUGH_BLOCKS_TYPE;
+    public List<HeldLayer> heldLayers() {
+        return List.of(new HeldLayer(GooRenderTypes.CRYSTAL_EXPLOSION_TYPE,
+                GooRenderTypes.CRYSTAL_EXPLOSION_THROUGH_BLOCKS_TYPE, this::emitHeld));
     }
 
     /**
@@ -79,9 +75,15 @@ public final class CrystalExplosionVisual implements BurnoutVisual, HeldGhostVis
      * reading the held opacity from the vertex color so facets stay near
      * invisible and the rainbow edges faint.
      * held-visual-ghosts-the-landing-in-two-passes
+     *
+     * @param pose       the pose entry
+     * @param c          the vertex consumer
+     * @param ghost      the ghost
+     * @param face       the face the throw strikes
+     * @param opacity    the share of the landing's opacity
+     * @param nowSeconds seconds on the real-time clock
      */
-    @Override
-    public void emitHeld(PoseStack.Pose pose, VertexConsumer c, HeldGhost ghost, Direction face, float opacity,
+    private void emitHeld(PoseStack.Pose pose, VertexConsumer c, HeldGhost ghost, Direction face, float opacity,
                          double nowSeconds) {
         BurnoutGeometry.emitSphere(pose, c, shellRadius(RESTING_PROGRESS, ghost.domeRadius()),
                 shellColor(RESTING_PROGRESS, NetherDiscMesh.toByte(opacity)));
