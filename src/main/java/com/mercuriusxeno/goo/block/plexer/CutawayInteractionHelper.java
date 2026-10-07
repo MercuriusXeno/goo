@@ -59,7 +59,8 @@ public final class CutawayInteractionHelper {
     }
 
     /** Sets the plexer's target item; the plexer panel names it, so no message goes to the player.
-     * A refused item puffs smoke and fizzles instead (decision plexer-messages-go-and-refusal-fizzles).
+     * Any item the plexer cannot take, one with no goo value or one the player has not
+     * learned, puffs smoke and fizzles instead (decision plexer-messages-go-and-refusal-fizzles).
      *
      * @param plexer the plexer block entity
      * @param player the interacting player
@@ -67,8 +68,8 @@ public final class CutawayInteractionHelper {
      * @return SUCCESS interaction result
      */
     public static InteractionResult applyTargetItem(PlexerBlockEntity plexer, Player player, ItemStack stack) {
-        if (!plexer.isValidTarget(stack)) { return InteractionResult.PASS; }
-        if (refusesTarget(PlayerKnowledge.idOf(stack.getItem()), PlayerKnowledge.of(player))) {
+        if (!plexer.isValidTarget(stack)
+                || refusesTarget(PlayerKnowledge.idOf(stack.getItem()), PlayerKnowledge.of(player))) {
             if (plexer.getLevel() instanceof ServerLevel level) {
                 BlockPos pos = plexer.getBlockPos();
                 PlexerRefusalCue.playAt(level, pos,

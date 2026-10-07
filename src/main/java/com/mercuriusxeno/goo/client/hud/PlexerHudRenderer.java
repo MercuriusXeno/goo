@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.hud;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.block.plexer.PlexerBlock;
 import com.mercuriusxeno.goo.block.plexer.PlexerBlockEntity;
 import com.mercuriusxeno.goo.network.PlayerKnowledge;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
@@ -8,6 +9,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.BlockHitResult;
@@ -19,8 +21,8 @@ import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Renders an in-world HUD panel naming the plexer's target while the crosshair rests
- * anywhere on the plexer (decision plexer-target-shows-in-a-hud-element).
+ * Renders an in-world HUD panel on the plexer's front naming its target while the
+ * crosshair rests anywhere on the plexer (decision plexer-target-shows-in-a-hud-element).
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class PlexerHudRenderer {
@@ -48,7 +50,8 @@ public final class PlexerHudRenderer {
             return;
         }
         Camera camera = Minecraft.getInstance().gameRenderer.getMainCamera();
-        paintPanel(event.getPoseStack(), camera, pos, plexer.getTargetItem());
+        paintPanel(event.getPoseStack(), camera, pos, plexer.getBlockState().getValue(PlexerBlock.FACING),
+                plexer.getTargetItem());
     }
 
     /**
@@ -84,16 +87,19 @@ public final class PlexerHudRenderer {
     }
 
     /**
-     * Paints the target's panel above the plexer's top center.
+     * Paints the target's panel flat on the plexer's front, under the cutaway.
      *
      * @param poseStack the pose stack for rendering
      * @param camera    the render camera
      * @param pos       the plexer's position
+     * @param facing    the plexer's FACING
      * @param target    the plexer's target item
      */
-    private static void paintPanel(PoseStack poseStack, Camera camera, BlockPos pos, ItemStack target) {
+    private static void paintPanel(PoseStack poseStack, Camera camera, BlockPos pos, Direction facing,
+                                   ItemStack target) {
         PanelPainter.paint(poseStack, camera,
-                PanelPlacement.onRim(PlexerPanelTarget.anchor(pos), ANIMATOR.pitch(), ANIMATOR.opacity()),
+                PanelPlacement.onFace(PlexerPanelTarget.anchor(pos, facing), PlexerPanelTarget.front(facing), false,
+                        ANIMATOR.pitch(), ANIMATOR.opacity()),
                 PlexerPanelRows.rows(target.getHoverName().getString(),
                         ItemParticleIcons.of(PlayerKnowledge.idOf(target.getItem()))));
     }
