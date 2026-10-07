@@ -17,6 +17,7 @@ import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.ContainerCapacity;
 import com.mercuriusxeno.goo.item.GooStacks;
+import com.mercuriusxeno.goo.lab.LabKit;
 import com.mercuriusxeno.goo.network.PlayerKnowledge;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooBlocks;
@@ -429,6 +430,43 @@ public final class MachineInteractionTests {
             player.setData(GooAttachments.KNOWN_ITEMS, KnownItems.NONE.with(PlayerKnowledge.idOf(Items.STONE)));
             helper.useBlock(BE_POS, player, cutawayHit(helper));
             helper.assertTrue(plexer.getTargetItem().is(Items.STONE), PLEXER_SHOULD_SET);
+        } finally {
+            helper.getLevel().getServer().getPlayerList().remove(player);
+        }
+        helper.succeed();
+    }
+
+    /**
+     * Plexer: a player who takes the lab kit still knows nothing, so the plexer fizzles
+     * on stone; after the learn route the same click sets the target, and after the
+     * forget route it fizzles again (decision lab-kit-teaches-every-recipe).
+     *
+     * @param helper the gametest helper
+     */
+    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
+    public static void plexerFizzlesOnAKitPlayerUntilLabLearn(GameTestHelper helper) {
+        helper.setBlock(BE_POS, GooBlocks.PLEXER.get());
+        PlexerBlockEntity plexer = helper.getBlockEntity(BE_POS, PlexerBlockEntity.class);
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        player.setPos(Vec3.atCenterOf(helper.absolutePos(BE_POS.above())));
+        LabKit.give(player, helper.getLevel());
+        PacketRecorder recorder = PacketRecorder.attachTo(player);
+
+        try {
+            player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.STONE));
+            helper.useBlock(BE_POS, player, cutawayHit(helper));
+            helper.assertTrue(plexer.getTargetItem().isEmpty(), "A kit player should not know stone yet");
+            assertRefusalCue(helper, plexer, recorder, 1);
+
+            LabKit.learn(player, helper.getLevel());
+            helper.useBlock(BE_POS, player, cutawayHit(helper));
+            helper.assertTrue(plexer.getTargetItem().is(Items.STONE), "After learn the plexer should take stone");
+
+            plexer.setTargetItem(ItemStack.EMPTY);
+            LabKit.forget(player);
+            helper.useBlock(BE_POS, player, cutawayHit(helper));
+            helper.assertTrue(plexer.getTargetItem().isEmpty(), "After forget the plexer should refuse stone again");
+            assertRefusalCue(helper, plexer, recorder, 2);
         } finally {
             helper.getLevel().getServer().getPlayerList().remove(player);
         }

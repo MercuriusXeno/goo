@@ -17,9 +17,10 @@ import net.minecraft.server.level.ServerPlayer;
  * {@link LabLayout} at the lab origin and hands its invoker the kit
  * (decision lab-built-from-code); {@code rebuild} clears the lab footprint and
  * builds it again in place (decision lab-save-is-disposable); {@code kit} hands
- * the kit alone (decision lab-holds-bays-supply-pens-kit). Every path that
- * hands the kit teaches every item recipe through {@link LabKit#give}
- * (decision lab-kit-teaches-every-recipe). {@link GooCommand} gates the tree to operators.
+ * the kit alone (decision lab-holds-bays-supply-pens-kit). The kit teaches nothing:
+ * {@code learn} teaches every item recipe and {@code forget} returns the invoker to
+ * knowing nothing, each run on request (decision lab-kit-teaches-every-recipe).
+ * {@link GooCommand} gates the tree to operators.
  */
 public final class LabCommand {
 
@@ -55,6 +56,26 @@ public final class LabCommand {
      * Suffix of the kit report.
      */
     private static final String MSG_STACKS = " stacks";
+    /**
+     * Subcommand name for teaching every item recipe.
+     */
+    private static final String CMD_LEARN = "learn";
+    /**
+     * Subcommand name for forgetting every item.
+     */
+    private static final String CMD_FORGET = "forget";
+    /**
+     * Prefix of the learn report, followed by the item count.
+     */
+    private static final String MSG_LEARNED = "Goo Lab learned: ";
+    /**
+     * Suffix of the learn report.
+     */
+    private static final String MSG_ITEMS = " items";
+    /**
+     * The forget report.
+     */
+    private static final String MSG_FORGOT = "Goo Lab forgot every item";
 
     private LabCommand() {
     }
@@ -68,7 +89,37 @@ public final class LabCommand {
     static ArgumentBuilder<CommandSourceStack, ?> children(ArgumentBuilder<CommandSourceStack, ?> lab) {
         return lab.then(Commands.literal(CMD_BUILD).executes(LabCommand::build))
                 .then(Commands.literal(CMD_REBUILD).executes(LabCommand::rebuild))
-                .then(Commands.literal(CMD_KIT).executes(LabCommand::kit));
+                .then(Commands.literal(CMD_KIT).executes(LabCommand::kit))
+                .then(Commands.literal(CMD_LEARN).executes(LabCommand::learn))
+                .then(Commands.literal(CMD_FORGET).executes(LabCommand::forget));
+    }
+
+    /**
+     * Teaches the invoking player every item recipe.
+     *
+     * @param ctx the command context
+     * @return the number of item ids taught
+     * @throws CommandSyntaxException when the source is not a player
+     */
+    private static int learn(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        CommandSourceStack source = ctx.getSource();
+        int items = LabKit.learn(source.getPlayerOrException(), source.getLevel());
+        source.sendSuccess(() -> Component.literal(MSG_LEARNED + items + MSG_ITEMS), false);
+        return items;
+    }
+
+    /**
+     * Returns the invoking player to knowing no item.
+     *
+     * @param ctx the command context
+     * @return 1, the command's success
+     * @throws CommandSyntaxException when the source is not a player
+     */
+    private static int forget(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        CommandSourceStack source = ctx.getSource();
+        LabKit.forget(source.getPlayerOrException());
+        source.sendSuccess(() -> Component.literal(MSG_FORGOT), false);
+        return 1;
     }
 
     /**
