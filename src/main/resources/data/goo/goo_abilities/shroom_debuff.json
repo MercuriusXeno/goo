@@ -10,9 +10,8 @@
       "type": "target",
       "where": ["not_boss"],
       "steps": [
-        { "type": "potion", "effect": "minecraft:slowness", "duration": 200, "amplifier": 1 },
-        { "type": "potion", "effect": "minecraft:weakness", "duration": 200, "amplifier": 1 },
-        { "type": "potion", "effect": "minecraft:poison", "duration": 200, "amplifier": 0 }
+        { "type": "potion", "effect": "goo:mycosis", "duration": 200, "amplifier": 1 },
+        { "type": "spore_host", "burst": "goo:shroom_mycosis", "radius": 3, "duration": 600 }
       ]
     }
   ],

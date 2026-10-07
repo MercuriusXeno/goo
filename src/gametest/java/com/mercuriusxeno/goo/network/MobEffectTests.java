@@ -6,10 +6,12 @@ import com.mercuriusxeno.goo.ability.program.EntityFilter;
 import com.mercuriusxeno.goo.ability.program.EntityHost;
 import com.mercuriusxeno.goo.ability.program.EntityScan;
 import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
+import com.mercuriusxeno.goo.registry.GooMobEffects;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
@@ -46,6 +48,10 @@ public final class MobEffectTests {
     private static final int SETTLE_TICKS = 1;
     private static final String SHOULD_HAVE_SLOWNESS = "Target should have slowness";
     private static final String SHOULD_HAVE_POISON = "Target should have poison";
+    private static final int SPORE_LEVEL_II = 1;
+    private static final String SPORE_CARRIES_NO_VANILLA = "Spore should carry no vanilla slowness, weakness or poison";
+    private static final String SPORE_BYSTANDER_CLEAN = "A pig two blocks off should start without spore poison";
+    private static final String SPORE_BURSTS_ON_DEATH = "The spored pig's death should burst spores onto the pig beside it";
     private static final String SHOULD_HAVE_WEAKNESS = "Target should have weakness";
     private static final String SHOULD_HAVE_GLOWING = "Target should have glowing";
     private static final String SHOULD_NOT_GLOW = "Target should wear the ailment overlay, not vanilla glowing";
@@ -214,17 +220,27 @@ public final class MobEffectTests {
 
     /**
      * Shroom debuff is a program: a not_boss target selection wrapping
-     * slowness, weakness and poison potion steps.
+     * Goo's spore effect at level II, which slows and weakens as well as
+ * poisons, and spores, so the struck
+     * pig's death bursts spores onto the pig beside it
+     * (decision mycosis-spore-stream-buds-and-poisons).
      *
      * @param helper the gametest helper
      */
     public static void shroomDebuff(GameTestHelper helper) {
-        Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
+        Mob mob = helper.spawnWithNoFreeWill(EntityType.PIG, SPAWN_POS);
+        Mob bystander = helper.spawnWithNoFreeWill(EntityType.PIG, SPAWN_POS.east(2));
         helper.runAfterDelay(SETTLE_TICKS, () -> {
+            double speedBefore = mob.getAttributeValue(Attributes.MOVEMENT_SPEED);
             strike(helper, mob, ABILITY_SHROOM_DEBUFF);
-            helper.assertTrue(mob.hasEffect(MobEffects.SLOWNESS), SHOULD_HAVE_SLOWNESS);
-            helper.assertTrue(mob.hasEffect(MobEffects.WEAKNESS), SHOULD_HAVE_WEAKNESS);
-            helper.assertTrue(mob.hasEffect(MobEffects.POISON), SHOULD_HAVE_POISON);
+            MobEffectInstance spores = mob.getEffect(GooMobEffects.MYCOSIS);
+            helper.assertTrue(spores != null && spores.getAmplifier() == SPORE_LEVEL_II, SHOULD_HAVE_POISON);
+            helper.assertFalse(mob.hasEffect(MobEffects.SLOWNESS) || mob.hasEffect(MobEffects.WEAKNESS)
+                    || mob.hasEffect(MobEffects.POISON), SPORE_CARRIES_NO_VANILLA);
+            helper.assertTrue(mob.getAttributeValue(Attributes.MOVEMENT_SPEED) < speedBefore, SHOULD_HAVE_SLOWNESS);
+            helper.assertFalse(bystander.hasEffect(GooMobEffects.MYCOSIS), SPORE_BYSTANDER_CLEAN);
+            mob.kill(helper.getLevel());
+            helper.assertTrue(bystander.hasEffect(GooMobEffects.MYCOSIS), SPORE_BURSTS_ON_DEATH);
             helper.succeed();
         });
     }

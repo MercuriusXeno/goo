@@ -1,14 +1,20 @@
 package com.mercuriusxeno.goo.ability.spray;
 
+import com.mercuriusxeno.goo.Goo;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectCategory;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 
 /**
  * Goo's own spore poison: it eats at a mob as poison does, a point of
- * health on poison's beat and never the last, but it is no vanilla poison,
- * so the undead that shrug poison off take it too.
+ * health on poison's beat and never the last, and slows and weakens it by
+ * Slowness's and Weakness's measure per level, but it is no vanilla effect,
+ * so the undead that shrug poison off take it too and no vanilla effects
+ * stack beside it.
  * mycosis-spore-stream-buds-and-poisons
  */
 public final class MycosisEffect extends MobEffect {
@@ -18,10 +24,20 @@ public final class MycosisEffect extends MobEffect {
     /** Poison's beat at amplifier zero, in ticks, halved per amplifier. */
     private static final int BASE_INTERVAL = 25;
     private static final float DAMAGE_PER_BEAT = 1.0f;
+    /** Slowness's measure: a share of movement speed lost per level. */
+    private static final double SLOWING_PER_LEVEL = -0.15;
+    /** Weakness's measure: attack damage lost per level. */
+    private static final double WEAKENING_PER_LEVEL = -4.0;
 
     /** The spore poison. */
     public MycosisEffect() {
         super(MobEffectCategory.HARMFUL, SPORE_COLOR);
+        addAttributeModifier(Attributes.MOVEMENT_SPEED,
+                Identifier.fromNamespaceAndPath(Goo.MODID, "mycosis_slowing"), SLOWING_PER_LEVEL,
+                AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
+        addAttributeModifier(Attributes.ATTACK_DAMAGE,
+                Identifier.fromNamespaceAndPath(Goo.MODID, "mycosis_weakening"), WEAKENING_PER_LEVEL,
+                AttributeModifier.Operation.ADD_VALUE);
     }
 
     /**
