@@ -26,6 +26,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -113,16 +114,37 @@ public final class GooStreamHandler {
         Delivery delivery = ability.delivery();
         Vec3 apex = ThrowArc.clampToReach(player.getEyePosition(), origin, ThrowArc.HAND_REACH * player.getScale());
         Vec3 axis = player.getLookAngle();
+        List<Integer> healed = new ArrayList<>();
         if (delivery.range() > 0) {
             // reserve-hearts-sit-behind-the-bar: a stream reaching nothing runs only on its caster
             sprayParticles(level, apex, axis, delivery);
             for (LivingEntity living : livingInCone(level, player, apex, axis, delivery)) {
-                runProgram(ability, HostKind.ENTITY, new EntityHost(level, living, player));
+                runHealing(living, healed, () -> runProgram(ability, HostKind.ENTITY,
+                        new EntityHost(level, living, player)));
             }
         }
         if (ability.hasTag(AbilityTags.SELF)) {
             // vitality-waves-regenerate-and-court
-            runProgram(ability, HostKind.PLAYER, new PlayerHost(level, player));
+            runHealing(player, healed, () -> runProgram(ability, HostKind.PLAYER, new PlayerHost(level, player)));
+        }
+        if (!healed.isEmpty()) {
+            // vitality-waves-regenerate-and-court: the client homes goo to each healed thing and stars it
+            EntityVisuals.sendToWatchers(player, new StreamHealedPayload(player.getId(), apex, healed));
+        }
+    }
+
+    /**
+     * Runs a program on a living thing, noting it as healed when its health rose.
+     *
+     * @param living  the thing the program runs on
+     * @param healed  the ids of the things this tick healed
+     * @param program the program run
+     */
+    static void runHealing(LivingEntity living, List<Integer> healed, Runnable program) {
+        float before = living.getHealth();
+        program.run();
+        if (living.getHealth() > before) {
+            healed.add(living.getId());
         }
     }
 
@@ -169,7 +191,7 @@ public final class GooStreamHandler {
      * @param delivery the stream delivery
      */
     private static void sprayParticles(ServerLevel level, Vec3 apex, Vec3 axis, Delivery delivery) {
-        SimpleParticles.resolve(delivery.particle()).ifPresent(particle -> {
+        delivery.particle().flatMap(SimpleParticles::resolve).ifPresent(particle -> {
             for (int i = 1; i <= PARTICLES_PER_TICK; i++) {
                 Vec3 at = apex.add(axis.scale(delivery.range() * i / PARTICLES_PER_TICK));
                 level.sendParticles(particle, at.x, at.y, at.z, 1, PARTICLE_SPREAD, PARTICLE_SPREAD,

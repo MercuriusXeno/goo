@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.network;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.client.ability.VitalityVisual;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.network.AfterimagePayload;
 import com.mercuriusxeno.goo.network.AilmentPayload;
@@ -12,6 +13,7 @@ import com.mercuriusxeno.goo.network.KnownItemLearnedPayload;
 import com.mercuriusxeno.goo.network.KnownItemsSyncPayload;
 import com.mercuriusxeno.goo.network.MobHitPayload;
 import com.mercuriusxeno.goo.network.OpenNamingScreenPayload;
+import com.mercuriusxeno.goo.network.StreamHealedPayload;
 import com.mercuriusxeno.goo.network.TransformationPayload;
 import com.mercuriusxeno.goo.network.TunerFeedbackPayload;
 import net.neoforged.api.distmarker.Dist;
@@ -50,5 +52,6 @@ public final class GooClientNetworking {
         event.register(GhostTrailPayload.TYPE, GhostTrailHandler::handle);
         event.register(KnownItemsSyncPayload.TYPE, KnownItemsHandler::handleSync);
         event.register(KnownItemLearnedPayload.TYPE, KnownItemsHandler::handleLearned);
+        event.register(StreamHealedPayload.TYPE, VitalityVisual::handleHealed);
     }
 }

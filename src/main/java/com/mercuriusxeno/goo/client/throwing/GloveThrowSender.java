@@ -7,7 +7,7 @@ import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.ability.ReserveVisual;
-import com.mercuriusxeno.goo.client.ability.RestorationVisual;
+import com.mercuriusxeno.goo.client.ability.VitalityVisual;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.overlay.AimTracker;
@@ -104,7 +104,7 @@ public final class GloveThrowSender {
             connection.send(new ServerboundCustomPayloadPacket(
                     new GooStreamPayload(GooTypes.id(gooType), abilityId, origin)));
         }
-        RestorationVisual.drawWaves(player, abilityId, selectedDelivery(abilityId), origin);
+        VitalityVisual.drawFog(player, abilityId, selectedArea(abilityId), origin);
         ReserveVisual.drawDrain(player, abilityId);
         return true;
     }
