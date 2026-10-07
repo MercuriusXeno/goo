@@ -54,6 +54,28 @@ class RippleRingsTest {
         }
     }
 
+    /** A held ghost's ring scales to its own radius (decision held-visual-ghosts-the-landing-in-two-passes). */
+    @Nested
+    class ScaledRadius {
+        private static final double GHOST_RADIUS = 4.5;
+
+        @Test
+        void reachesItsRadiusAtTheEndOfItsLife() {
+            assertEquals(GHOST_RADIUS, RippleRings.ringRadius(1, GHOST_RADIUS), EPSILON);
+        }
+
+        @Test
+        void isHalfwayOutAtHalfItsLife() {
+            assertEquals(GHOST_RADIUS / 2, RippleRings.ringRadius(0.5, GHOST_RADIUS), EPSILON);
+        }
+
+        @Test
+        void fadesToZeroWhereItReachesItsRadius() {
+            assertEquals(GHOST_RADIUS, RippleRings.ringRadius(1, GHOST_RADIUS), EPSILON);
+            assertEquals(0, RippleRings.ringOpacity(1), EPSILON);
+        }
+    }
+
     @Nested
     class Opacity {
         @Test

@@ -3,17 +3,18 @@ package com.mercuriusxeno.goo.client.overlay;
 import net.minecraft.util.Mth;
 
 /**
- * Times the bullseye's ripple: each ring is born at the face center, grows to
- * the face's edge and fades as it grows, gone the moment it meets the edge,
- * with the rings staggered so several show at once (decision
- * ripple-rings-fade-to-face-edge).
+ * Times a ripple: each ring is born at the center, grows to its edge radius
+ * and fades as it grows, gone the moment it meets the edge, with the rings
+ * staggered so several show at once (decision ripple-rings-fade-to-face-edge).
+ * The bullseye's edge is half a block; a held ghost names its own
+ * (decision held-visual-ghosts-the-landing-in-two-passes).
  */
-final class RippleRings {
+public final class RippleRings {
     /** Rings alive at once, evenly staggered through the period. */
     static final int RING_COUNT = 3;
-    /** Real-time seconds one ring takes from the face center to the face's edge. */
+    /** Real-time seconds one ring takes from the center to its edge. */
     static final double PERIOD_SECONDS = 1.2;
-    /** Radius at which a ring meets the face's edge: half a block from the face center. */
+    /** Radius at which a bullseye ring meets the face's edge: half a block from the face center. */
     static final double EDGE_RADIUS = 0.5;
 
     private RippleRings() {}
@@ -24,7 +25,7 @@ final class RippleRings {
      * @param nowSeconds seconds on the real-time clock
      * @return one phase per ring, staggered by an equal share of the period
      */
-    static double[] ringPhases(double nowSeconds) {
+    public static double[] ringPhases(double nowSeconds) {
         double[] phases = new double[RING_COUNT];
         double base = nowSeconds / PERIOD_SECONDS;
         for (int i = 0; i < RING_COUNT; i++) {
@@ -39,18 +40,29 @@ final class RippleRings {
      * @param phase the ring's phase
      * @return true while the phase lies in [0, 1)
      */
-    static boolean isAlive(double phase) {
+    public static boolean isAlive(double phase) {
         return phase >= 0 && phase < 1;
     }
 
     /**
-     * A ring's radius at a phase, growing from zero to the edge radius.
+     * A bullseye ring's radius at a phase, growing from zero to the face's edge.
      *
      * @param phase the ring's phase
      * @return the radius in blocks, never past the edge radius
      */
     static double ringRadius(double phase) {
-        return EDGE_RADIUS * Mth.clamp(phase, 0, 1);
+        return ringRadius(phase, EDGE_RADIUS);
+    }
+
+    /**
+     * A ring's radius at a phase, growing from zero to the edge radius it is scaled to.
+     *
+     * @param phase      the ring's phase
+     * @param edgeRadius the radius the ring meets its edge at, in blocks
+     * @return the radius in blocks, never past the edge radius
+     */
+    public static double ringRadius(double phase, double edgeRadius) {
+        return edgeRadius * Mth.clamp(phase, 0, 1);
     }
 
     /**
@@ -60,7 +72,7 @@ final class RippleRings {
      * @param phase the ring's phase
      * @return the opacity in [0, 1]
      */
-    static double ringOpacity(double phase) {
+    public static double ringOpacity(double phase) {
         double remaining = 1 - Mth.clamp(phase, 0, 1);
         return remaining * remaining;
     }
