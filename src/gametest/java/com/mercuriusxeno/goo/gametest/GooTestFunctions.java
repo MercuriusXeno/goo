@@ -196,6 +196,9 @@ public final class GooTestFunctions {
     private static final String FX_BLAST_LANDS_NO_BLOCK = "fx_blast_lands_no_block";
     private static final String FREE_BLAST_AT_AIR_POINT = "free_blast_at_air_point";
     private static final String FREE_BLAST_AT_SKY = "free_blast_at_sky";
+    private static final String BLAST_CRATER_INSIDE_SPHERE = "blast_crater_inside_sphere";
+    private static final String BLAST_DROPS_EVERY_DIRT = "blast_drops_every_dirt";
+    private static final String BLAST_SPARES_ITEMS = "blast_spares_items";
     private static final String FX_CLOUD_BLOCK_GOES = "fx_cloud_block_goes";
     private static final String FX_TRAP_BLOCK_GOES = "fx_trap_block_goes";
     private static final String FX_CRYSTAL_GROWS = "fx_crystal_grows";
@@ -614,6 +617,9 @@ public final class GooTestFunctions {
         reg(r, FX_BLAST_LANDS_NO_BLOCK, BlockLandingTests::blastLandsNoBlock);
         reg(r, FREE_BLAST_AT_AIR_POINT, FreeAimTests::blastExplodesAtThePointInOpenAir);
         reg(r, FREE_BLAST_AT_SKY, FreeAimTests::blastAimedAtTheSkyThrowsToTheRangesEnd);
+        reg(r, BLAST_CRATER_INSIDE_SPHERE, GooExplosionTests::blastCraterStaysInsideItsSphere);
+        reg(r, BLAST_DROPS_EVERY_DIRT, GooExplosionTests::blastDropsEveryDirtItBreaks);
+        reg(r, BLAST_SPARES_ITEMS, GooExplosionTests::blastSparesItemsInItsSphere);
         reg(r, FX_CLOUD_BLOCK_GOES, EffectExecutorTests::crystalCloudBlockGoesWithItsProgram);
         reg(r, FX_TRAP_BLOCK_GOES, EffectExecutorTests::metalTrapBlockGoesWithItsProgram);
     }

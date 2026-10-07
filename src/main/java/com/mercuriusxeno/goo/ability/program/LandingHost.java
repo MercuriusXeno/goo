@@ -7,14 +7,10 @@ import com.mercuriusxeno.goo.registry.GooParticles;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.util.random.WeightedList;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.phys.Vec3;
@@ -73,20 +69,13 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
     }
 
     /**
-     * Explodes at the cell with vanilla's damage, block breaking and boom,
-     * its explosion and block particles swapped for none, since the landing's
-     * burnout explosion is drawn by its goo type (decision
-     * elemental-explosion-per-type).
+     * Explodes at the anchor with Goo's explosion and vanilla's boom, its
+     * particles swapped for none, since the landing's burnout explosion is
+     * drawn by its goo type (decision elemental-explosion-per-type).
      */
     @Override
     public void explode(float power, ExplosionMode mode) {
-        Vec3 center = anchor();
-        Level.ExplosionInteraction interaction = mode == ExplosionMode.TNT
-                ? Level.ExplosionInteraction.TNT
-                : Level.ExplosionInteraction.NONE;
-        SimpleParticleType silent = GooParticles.SILENT_BLAST.get();
-        level.explode(null, null, null, center.x(), center.y(), center.z(), power, false, interaction,
-                silent, silent, WeightedList.of(), SoundEvents.GENERIC_EXPLODE);
+        GooExplosion.detonate(level, anchor(), power, mode, GooExplosion.Look.silent(GooParticles.SILENT_BLAST.get()));
     }
 
     @Override
