@@ -380,6 +380,7 @@ public final class GooTestFunctions {
     private static final String FUNGAL_SHIFT_TO_A_MUSHROOM = "fungal_shift_to_a_mushroom";
     private static final String FUNGAL_SHIFT_REFUSES_STONE = "fungal_shift_refuses_stone";
     private static final String SIGHT_EXTENDS_THE_SHIFT = "sight_extends_the_shift";
+    private static final String SELF_SIGHT_EATS = "self_sight_eats_before_the_sight";
     private static final String FUNGAL_SHIFT_SNAPS_TO_A_NEAR_MISS = "fungal_shift_snaps_to_a_near_miss";
     private static final String BREW_SHROOM_SIGHTS = "brew_shroom_sights_for_an_hour";
     private static final String MOB_CRYSTAL = "mob_crystal_flechettes";
@@ -805,6 +806,7 @@ public final class GooTestFunctions {
         reg(r, FUNGAL_SHIFT_TO_A_MUSHROOM, FungalShiftTests::fungalShiftToAMushroom);
         reg(r, FUNGAL_SHIFT_REFUSES_STONE, FungalShiftTests::fungalShiftRefusesStone);
         reg(r, SIGHT_EXTENDS_THE_SHIFT, FungalShiftTests::sightExtendsTheShift);
+        reg(r, SELF_SIGHT_EATS, SelfDeliveryTests::sightEatsBeforeTheSight);
         reg(r, FUNGAL_SHIFT_SNAPS_TO_A_NEAR_MISS, FungalShiftTests::fungalShiftSnapsToANearMiss);
         reg(r, BREW_SHROOM_SIGHTS, BrewEffectTests::shroomBrewSightForAnHour);
         reg(r, MOB_CRYSTAL, MobEffectTests::crystalFlechettes);

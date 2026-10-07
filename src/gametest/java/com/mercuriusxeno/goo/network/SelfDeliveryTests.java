@@ -59,6 +59,8 @@ public final class SelfDeliveryTests {
     private static final float LOOKING_UP = -45f;
     private static final float BUILT_UP_FALL = 10f;
     private static final Identifier BLAZE_KINDLE = Identifier.parse("goo:blaze_kindle");
+    private static final Identifier SHROOM_SIGHT = Identifier.parse("goo:shroom_sight");
+    private static final String SHOULD_SEE = "Once the eat finishes the player should hold fungal sight";
     /** Ten hearts of ember halves, the full bar Kindle lays over full health. */
     private static final int FULL_EMBERS = 20;
     /** Kindle's own duration in its JSON, which the glove keeps where a drunk brew holds an hour. */
@@ -183,6 +185,33 @@ public final class SelfDeliveryTests {
             helper.assertTrue(endsAt > now && endsAt <= now + GLOVE_KINDLE_TICKS,
                     String.format(SHOULD_KEEP_SHORT_DURATION, GLOVE_KINDLE_TICKS, now, endsAt));
             helper.assertTrue(drained == kindle.cost(), String.format(SHOULD_DRAIN_COST, kindle.cost(), drained));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A survival player invokes Sight from the glove: the player starts
+     * eating it, and once the eat finishes the sight stands and its cost drains
+     * (decisions self-brew-goos-eat-before-the-effect and sight-lengthens-shift-and-outlines-fungus).
+     *
+     * @param helper the gametest helper
+     */
+    public static void sightEatsBeforeTheSight(GameTestHelper helper) {
+        AbilityDefinition sight = requireAbility(helper, SHROOM_SIGHT);
+        ServerPlayer player = survivalInvoker(helper, GooTypes.SHROOM, SHROOM_SIGHT);
+        KnownRecipes.teachRequires(player, sight);
+        int heldBefore = held(player, GooTypes.SHROOM);
+
+        invoke(player, GooTypes.SHROOM, SHROOM_SIGHT);
+
+        helper.assertTrue(player.isUsingItem(), SHOULD_START_EATING);
+        tickThrough(helper, player);
+        helper.runAfterDelay(AFTER_EAT, () -> {
+            boolean sees = player.getData(GooAttachments.SIGHT).standsAt(player.level().getGameTime());
+            int drained = heldBefore - held(player, GooTypes.SHROOM);
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.assertTrue(sees, SHOULD_SEE);
+            helper.assertTrue(drained == sight.cost(), String.format(SHOULD_DRAIN_COST, sight.cost(), drained));
             helper.succeed();
         });
     }
