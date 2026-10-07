@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.ability.colonize.ShroomNetwork;
 import com.mercuriusxeno.goo.block.ability.AbilityBlock;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
@@ -42,7 +43,7 @@ import java.util.OptionalDouble;
  */
 public record LandingHost(ServerLevel level, BlockPos cell, Direction face, boolean waterlogged,
                           ResourceKey<GooTypeDefinition> gooType, String abilityId, Vec3 anchor)
-        implements PlacedFaceHost, ExplodeHost, AnchoredWorldHost, PlaceBlockHost, LingerHost {
+        implements PlacedFaceHost, ExplodeHost, AnchoredWorldHost, PlaceBlockHost, LingerHost, ColonizeHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
 
@@ -102,5 +103,17 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
         if (level.getBlockEntity(cell) instanceof AbilityBlockEntity be) {
             be.stand(gooType, face, abilityId, steps);
         }
+    }
+
+    /**
+     * Grows from the block the blob struck: the struck block's network
+     * spreads, or a mycelium network starts where it belongs to none
+     * (decision colonize-blob-grows-the-network).
+     */
+    @Override
+    public void colonize(int radius) {
+        BlockPos struck = cell.relative(face.getOpposite());
+        BlockPos landedOn = level.getBlockState(cell).isAir() ? struck : cell;
+        ShroomNetwork.spreadingFrom(level.getBlockState(landedOn)).spread(level, struck, radius);
     }
 }
