@@ -9,5 +9,5 @@
   "behaviors": [
     { "type": "crush", "breaks": "goo:crush_breakable", "radius": 2, "damage": 6 }
   ],
-  "tags": ["entity"]
+  "tags": ["entity", "no_splat"]
 }
