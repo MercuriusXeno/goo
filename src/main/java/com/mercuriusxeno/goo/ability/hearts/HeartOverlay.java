@@ -265,11 +265,40 @@ public record HeartOverlay(HeartKind kind, List<Integer> shields, long expiresAt
      */
     private static List<Integer> firstMissingFilled(float health, float maxHealth) {
         List<Integer> laid = new ArrayList<>(Collections.nCopies(filledSlots(maxHealth), 0));
-        int firstMissing = filledSlots(health);
-        if (firstMissing < laid.size()) {
-            laid.set(firstMissing, FULL_SHIELD);
+        for (int slot = 0; slot < laid.size(); slot++) {
+            int missing = missingHalvesAt(slot, health);
+            if (missing > 0) {
+                // a half heart's empty half takes half a stone
+                laid.set(slot, missing);
+                break;
+            }
         }
         return laid;
+    }
+
+    /**
+     * The half hearts of real health in a heart slot, a part of a half
+     * counting as a half, as the health bar draws it.
+     *
+     * @param slot   the heart slot, from the left
+     * @param health the player's real health
+     * @return zero to two halves
+     */
+    public static int realHalvesAt(int slot, float health) {
+        return Math.clamp((int) Math.ceil(health) - slot * FULL_SHIELD, 0, FULL_SHIELD);
+    }
+
+    /**
+     * The half hearts a heart slot is missing, which stone may fill: both of
+     * an empty slot, the empty half of a half heart, none of a whole one.
+     * heart-effects-crawl-while-held
+     *
+     * @param slot   the heart slot, from the left
+     * @param health the player's real health
+     * @return zero to two halves
+     */
+    static int missingHalvesAt(int slot, float health) {
+        return FULL_SHIELD - realHalvesAt(slot, health);
     }
 
     /**
@@ -546,17 +575,29 @@ public record HeartOverlay(HeartKind kind, List<Integer> shields, long expiresAt
      * heart-effects-crawl-while-held
      */
     private int crawlSlot(float health) {
-        int filled = filledSlots(health);
-        return kind.fillsMissing() ? leftmostMissingShortSlot(filled) : leftmostShortSlot(filled);
+        return kind.fillsMissing() ? leftmostMissingShortSlot(health) : leftmostShortSlot(filledSlots(health));
     }
 
-    private int leftmostMissingShortSlot(int filledSlots) {
-        for (int slot = filledSlots; slot < shields.size(); slot++) {
-            if (shieldAt(slot) < FULL_SHIELD) {
+    private int leftmostMissingShortSlot(float health) {
+        for (int slot = 0; slot < shields.size(); slot++) {
+            if (shieldAt(slot) < missingHalvesAt(slot, health)) {
                 return slot;
             }
         }
         return NO_SLOT;
+    }
+
+    /**
+     * The half of a heart slot the crawl fills next: the half past the
+     * shield standing, and for stone past the real health in the slot too.
+     *
+     * @param slot   the heart slot the crawl reaches
+     * @param health the player's real health
+     * @return zero for the left half, one for the right
+     */
+    public int crawlHalf(int slot, float health) {
+        int beneath = kind.fillsMissing() ? realHalvesAt(slot, health) : 0;
+        return Math.min(FULL_SHIELD - 1, beneath + shieldAt(slot));
     }
 
     private int leftmostShortSlot(int filledSlots) {

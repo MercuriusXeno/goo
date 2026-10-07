@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.hud;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.mercuriusxeno.goo.ability.hearts.HeartKind;
@@ -38,6 +39,14 @@ class HeartOverlayHudTest {
     void stoneskinLaysStoneOverAMissingHeart() {
         assertEquals(List.of("goo:hud/heart/stone_full"), sprites(HeartKind.STONESKIN, 2, 0));
         assertEquals(List.of("goo:hud/heart/stone_half"), sprites(HeartKind.STONESKIN, 1, 0));
+    }
+
+    @Test
+    void stoneBesideAHalfHeartDrawsInTheRightHalf() {
+        assertTrue(HeartOverlayHud.stoneBesideHalfHeart(HeartKind.STONESKIN, 1, 1));
+        assertFalse(HeartOverlayHud.stoneBesideHalfHeart(HeartKind.STONESKIN, 0, 1));
+        assertFalse(HeartOverlayHud.stoneBesideHalfHeart(HeartKind.STONESKIN, 2, 0));
+        assertFalse(HeartOverlayHud.stoneBesideHalfHeart(HeartKind.BARKSKIN, 1, 1));
     }
 
     @Test
