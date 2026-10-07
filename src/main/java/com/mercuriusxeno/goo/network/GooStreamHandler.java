@@ -3,8 +3,12 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
+import com.mercuriusxeno.goo.ability.StreamSound;
 import com.mercuriusxeno.goo.ability.program.FloorReach;
 import com.mercuriusxeno.goo.ability.program.SimpleParticles;
+import com.mercuriusxeno.goo.ability.program.SoundCue;
+import com.mercuriusxeno.goo.ability.program.SoundKind;
+import com.mercuriusxeno.goo.ability.program.SoundPlays;
 import com.mercuriusxeno.goo.ability.spray.SprayPrograms;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.registry.GooServerState;
@@ -74,10 +78,27 @@ public final class GooStreamHandler {
             return;
         }
         AbilityDefinition ability = GooThrowHandler.usableAbility(player, payload.abilityId(), gooType);
-        if (ability != null && ability.delivery().kind() == DeliveryKind.STREAM
-                && drainShare(player, gooType, ability)) {
-            strikeCone(player, payload.origin(), ability);
+        if (ability == null || ability.delivery().kind() != DeliveryKind.STREAM) {
+            return;
         }
+        int held = drainShare(player, gooType, ability);
+        if (held > 0) {
+            strikeCone(player, payload.origin(), ability);
+            ability.delivery().sound().filter(sound -> sound.playsOn(held))
+                    .ifPresent(sound -> playStreamSound(player, sound));
+        }
+    }
+
+    /**
+     * Plays one beat of the stream's sound at the player, its pitch strayed a little.
+     *
+     * @param player the streaming player
+     * @param sound  the stream's sound
+     */
+    private static void playStreamSound(ServerPlayer player, StreamSound sound) {
+        float pitch = sound.pitchFor(player.getRandom().nextFloat());
+        SoundPlays.play(player.level(), player.getEyePosition(),
+                new SoundCue(sound.sound(), SoundKind.PLAYERS, sound.volume(), pitch));
     }
 
     /**
@@ -86,18 +107,18 @@ public final class GooStreamHandler {
      * @param player  the streaming player
      * @param gooType the ability's goo type
      * @param ability the stream ability
-     * @return false when the player cannot pay the share, which stops the stream
+     * @return the hold's tick count, or zero when the player cannot pay the share, which stops the stream
      */
-    private static boolean drainShare(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
+    private static int drainShare(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
                                       AbilityDefinition ability) {
         MinecraftServer server = player.level().getServer();
         int held = GooServerState.of(server).streamHolds().advance(player.getUUID(), server.getTickCount());
         int share = StreamHolds.shareAt(ability.cost(), ability.delivery().ticksPerCharge(), held);
         if (!GooSourceScanner.hasEnough(player, gooType, share)) {
-            return false;
+            return 0;
         }
         GooSourceScanner.deplete(player, gooType, share);
-        return true;
+        return held;
     }
 
     /**

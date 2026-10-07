@@ -8,6 +8,7 @@ import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.Vec3;
+import java.util.Optional;
 
 /**
  * How an ability leaves the glove: its kind and that kind's params, read
@@ -23,9 +24,30 @@ import net.minecraft.world.phys.Vec3;
  * @param grannyAllowed  whether an arc may lob onto a top face
  * @param particle       the particle a stream sprays along its cone
  * @param transformAt    the share of the flight by which the blob has taken its traveling form
+ * @param sound          the sound a stream makes while held, empty for none; the server plays it, so the
+ *                       network copy carries none
  */
 public record Delivery(DeliveryKind kind, double blocksPerTick, double range, double coneDegrees,
-                       int ticksPerCharge, boolean grannyAllowed, Identifier particle, double transformAt) {
+                       int ticksPerCharge, boolean grannyAllowed, Identifier particle, double transformAt,
+                       Optional<StreamSound> sound) {
+
+    /**
+     * A delivery making no stream sound.
+     *
+     * @param kind           the delivery kind
+     * @param blocksPerTick  a beam's speed in blocks per tick
+     * @param range          a stream's reach in blocks
+     * @param coneDegrees    a stream's cone, apex to rim, in degrees
+     * @param ticksPerCharge a stream's ticks of hold one cost pays for
+     * @param grannyAllowed  whether an arc may lob onto a top face
+     * @param particle       the particle a stream sprays along its cone
+     * @param transformAt    the share of the flight by which the blob has taken its traveling form
+     */
+    public Delivery(DeliveryKind kind, double blocksPerTick, double range, double coneDegrees, int ticksPerCharge,
+                    boolean grannyAllowed, Identifier particle, double transformAt) {
+        this(kind, blocksPerTick, range, coneDegrees, ticksPerCharge, grannyAllowed, particle, transformAt,
+                Optional.empty());
+    }
 
     /** A beam's speed where the JSON names none. */
     public static final double DEFAULT_BLOCKS_PER_TICK = 2.5;
@@ -59,7 +81,9 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
                     .forGetter(Delivery::ticksPerCharge),
             Codec.BOOL.optionalFieldOf("granny", true).forGetter(Delivery::grannyAllowed),
             Identifier.CODEC.optionalFieldOf("particle", DEFAULT_PARTICLE).forGetter(Delivery::particle),
-            Codec.DOUBLE.optionalFieldOf("transform_at", DEFAULT_TRANSFORM_AT).forGetter(Delivery::transformAt)
+            Codec.DOUBLE.optionalFieldOf("transform_at", DEFAULT_TRANSFORM_AT).forGetter(Delivery::transformAt),
+            // mycosis-spore-stream-buds-and-poisons
+            StreamSound.CODEC.codec().optionalFieldOf("sound").forGetter(Delivery::sound)
     ).apply(inst, Delivery::new));
 
     /**
