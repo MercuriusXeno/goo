@@ -72,7 +72,8 @@ public final class AbilityImpact {
             landOnPrism(level, prism, type, ability);
             return;
         }
-        Optional<LandingSpot> spot = LandingSpot.resolve(level, pos, face);
+        Optional<LandingSpot> spot = point == null ? LandingSpot.resolve(level, pos, face)
+                : LandingSpot.resolve(level, pos, face, point);
         if (spot.isEmpty()) {
             return;
         }
