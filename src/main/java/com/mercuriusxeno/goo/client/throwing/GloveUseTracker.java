@@ -34,11 +34,11 @@ public final class GloveUseTracker {
     private static final GloveInputGate PRESS = new GloveInputGate();
     private static InteractionHand pressHand = InteractionHand.MAIN_HAND;
     /**
-     * The plane a channel holds to, remembered from the block the cursor
-     * rested on when the live press began
+     * The face the cursor rested on when the live press began, which a
+     * channel holds to for the press, or null where it rested on none
      * (decision flatten-disc-cursor-breaks-above-the-plane).
      */
-    private static double pressPlaneY;
+    private static ChannelAim.@Nullable FacePlane pressPlane;
 
     /** How often (in ticks) to re-check whether the selected goo type is in inventory. */
     private static final int AVAILABILITY_CHECK_INTERVAL = 10;
@@ -101,22 +101,19 @@ public final class GloveUseTracker {
         if (!PRESS.isArmed()) {
             pressHand = hand;
             Minecraft mc = Minecraft.getInstance();
-            if (mc.hitResult instanceof BlockHitResult hit && hit.getType() == HitResult.Type.BLOCK) {
-                pressPlaneY = ChannelAim.planeAbove(hit.getBlockPos().getY());
-            } else if (mc.player != null) {
-                pressPlaneY = GloveThrowSender.cursorPoint(mc.player).y;
-            }
+            pressPlane = mc.hitResult instanceof BlockHitResult hit && hit.getType() == HitResult.Type.BLOCK
+                    ? new ChannelAim.FacePlane(hit.getBlockPos(), hit.getDirection()) : null;
         }
         PRESS.arm();
     }
 
     /**
-     * The plane remembered from the cursor when the live press began.
+     * The face the cursor rested on when the live press began.
      *
-     * @return the plane a channel holds to
+     * @return the face a channel holds to, or null where it rested on none
      */
-    public static double pressPlaneY() {
-        return pressPlaneY;
+    public static ChannelAim.@Nullable FacePlane pressPlane() {
+        return pressPlane;
     }
 
     /**

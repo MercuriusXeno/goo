@@ -44,7 +44,7 @@ class BoreStepTest {
     private static ChannelHost hostWith(Predicate<BlockPos> breakable, Set<BlockPos> solid) {
         ChannelHost host = mock(ChannelHost.class);
         when(host.kind()).thenReturn(HostKind.PLAYER);
-        when(host.channelAim()).thenReturn(Optional.of(new ChannelAim(REACH_END, Double.NEGATIVE_INFINITY)));
+        when(host.channelAim()).thenReturn(Optional.of(new ChannelAim(REACH_END, null)));
         when(host.eye()).thenReturn(EYE);
         when(host.blockIn(any(), any())).thenAnswer(call -> breakable.test(call.getArgument(0)));
         when(host.airAt(any())).thenAnswer(call -> {

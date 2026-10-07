@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.HeldRoute;
+import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
@@ -119,10 +120,25 @@ public final class GloveThrowSender {
         var connection = Minecraft.getInstance().getConnection();
         if (connection != null) {
             connection.send(new ServerboundCustomPayloadPacket(
-                    new GooStreamPayload(GooTypes.id(gooType), abilityId, lineOrigin(), cursorPoint(player),
-                            GloveUseTracker.pressPlaneY())));
+                    held(GooTypes.id(gooType), abilityId, lineOrigin(), cursorPoint(player))));
         }
         return true;
+    }
+
+    /**
+     * One tick of a held ability, carrying the face the press began on.
+     *
+     * @param gooTypeId the goo type string identifier
+     * @param abilityId the selected ability id string
+     * @param origin    the glove hand
+     * @param aimPoint  the world point under the cursor
+     * @return the payload
+     */
+    private static GooStreamPayload held(String gooTypeId, String abilityId, Vec3 origin, Vec3 aimPoint) {
+        ChannelAim.FacePlane plane = GloveUseTracker.pressPlane();
+        return plane == null ? GooStreamPayload.unplaned(gooTypeId, abilityId, origin, aimPoint)
+                : new GooStreamPayload(gooTypeId, abilityId, origin, aimPoint, plane.block(),
+                        plane.face().get3DDataValue());
     }
 
     /**
@@ -133,7 +149,7 @@ public final class GloveThrowSender {
      * @param player the local player
      * @return the cursor's world point
      */
-    static Vec3 cursorPoint(Player player) {
+    public static Vec3 cursorPoint(Player player) {
         if (Minecraft.getInstance().hitResult instanceof BlockHitResult hit && hit.getType() == HitResult.Type.BLOCK) {
             return hit.getLocation();
         }

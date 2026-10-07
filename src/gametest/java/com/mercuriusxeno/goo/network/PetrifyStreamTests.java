@@ -198,8 +198,8 @@ public final class PetrifyStreamTests {
      * @param ticks  how many ticks it lasts
      */
     private static void hold(GameTestHelper helper, ServerPlayer player, int from, int ticks) {
-        GooStreamPayload tick = new GooStreamPayload(GooTypes.id(GooTypes.ROCK), ROCK_PETRIFY.toString(),
-                player.getEyePosition(), player.getEyePosition(), player.getY());
+        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.ROCK), ROCK_PETRIFY.toString(),
+                player.getEyePosition(), player.getEyePosition());
         for (int held = 0; held < ticks; held++) {
             helper.runAfterDelay(from + held, () -> GooStreamHandler.streamTick(player, tick));
         }

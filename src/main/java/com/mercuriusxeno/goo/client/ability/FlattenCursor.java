@@ -1,15 +1,16 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.ability.program.FlattenStep;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
+import com.mercuriusxeno.goo.client.throwing.GloveThrowSender;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.HitResult;
+import net.minecraft.core.BlockPos;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -18,8 +19,9 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Flatten's cursor: while right click holds a flatten channel, rock's dust
- * disc lies on the block face the crosshair rests on, the block the next
- * held tick breaks.
+ * disc lies flat on the plane of the face the hold began on, in line with
+ * the block the crosshair rests on, never turning with the face the
+ * crosshair later rests on.
  * decision flatten-disc-cursor-breaks-above-the-plane
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
@@ -30,7 +32,7 @@ public final class FlattenCursor {
 
     /**
      * Draws the disc after the translucent blocks while a flatten hold runs
-     * and the crosshair rests on a block.
+     * on a face.
      *
      * @param event the level render stage event
      */
@@ -38,28 +40,17 @@ public final class FlattenCursor {
     public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
-        if (player == null || mc.level == null || !showsCursor(selectedAbility(player), GloveUseTracker.showsArea())) {
-            return;
-        }
-        BlockHitResult hit = aimedFace(mc);
-        if (hit == null) {
+        ChannelAim.FacePlane plane = GloveUseTracker.pressPlane();
+        if (player == null || mc.level == null || plane == null
+                || !showsCursor(selectedAbility(player), GloveUseTracker.showsArea())) {
             return;
         }
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+        BlockPos aimed = new ChannelAim(GloveThrowSender.cursorPoint(player), plane)
+                .aimedBlock(player.getEyePosition(partialTick));
         BurnoutFrame frame = new BurnoutFrame(event.getPoseStack(), mc.renderBuffers().bufferSource(),
                 mc.gameRenderer.getMainCamera().position(), mc.level.getGameTime() + partialTick);
-        RockExplosionVisual.INSTANCE.renderCursor(frame, hit.getBlockPos().relative(hit.getDirection()),
-                hit.getDirection());
-    }
-
-    /**
-     * The block face the crosshair rests on.
-     *
-     * @param mc the client
-     * @return the hit, or null where the crosshair rests on no block
-     */
-    private static @Nullable BlockHitResult aimedFace(Minecraft mc) {
-        return mc.hitResult instanceof BlockHitResult hit && hit.getType() == HitResult.Type.BLOCK ? hit : null;
+        RockExplosionVisual.INSTANCE.renderCursor(frame, plane.cellOutFrom(aimed), plane.face());
     }
 
     /**
