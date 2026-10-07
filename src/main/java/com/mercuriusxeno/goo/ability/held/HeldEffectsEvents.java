@@ -4,6 +4,8 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.ability.nourish.Nourish;
+import com.mercuriusxeno.goo.ability.program.PlayerHost;
+import com.mercuriusxeno.goo.ability.program.SoundCue;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooMobEffects;
@@ -45,7 +47,8 @@ public final class HeldEffectsEvents {
      */
     public static void start(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, AbilityDefinition ability) {
         HeldEffects.Held started = new HeldEffects.Held(ability.id(), gooType, ability.upkeep(),
-                LaidState.laidBy(ability.behaviors()), player.level().getGameTime());
+                LaidState.laidBy(ability.behaviors()), player.level().getGameTime(), HeldEffects.NEVER_EXPIRES,
+                downSoundOf(ability));
         apply(player, player.getData(GooAttachments.HELD_EFFECTS).start(started));
     }
 
@@ -64,7 +67,7 @@ public final class HeldEffectsEvents {
                                     AbilityDefinition ability, int duration) {
         long now = player.level().getGameTime();
         HeldEffects.Held started = new HeldEffects.Held(ability.id(), gooType, ability.upkeep(),
-                LaidState.laidBy(ability.behaviors()), now, now + duration);
+                LaidState.laidBy(ability.behaviors()), now, now + duration, downSoundOf(ability));
         apply(player, player.getData(GooAttachments.HELD_EFFECTS).start(started));
     }
 
@@ -128,7 +131,20 @@ public final class HeldEffectsEvents {
             player.setData(GooAttachments.HELD_EFFECTS, changed.after());
         }
         clearLaid(player, changed.ended());
+        HeldEffects.soundEnds(changed.ended(), new PlayerHost(player.level(), player)::playSound);
         return changed.after();
+    }
+
+    /**
+     * The cue an ability's held effect plays when it ends: its own where its
+     * JSON names one, the shared ability-down cue otherwise.
+     * held-effects-sound-up-and-down
+     *
+     * @param ability the held ability
+     * @return the cue its end plays
+     */
+    private static SoundCue downSoundOf(AbilityDefinition ability) {
+        return ability.downSound().orElse(HeldEffects.Held.SHARED_DOWN_SOUND);
     }
 
     private static void clearLaid(ServerPlayer player, List<HeldEffects.Held> ended) {

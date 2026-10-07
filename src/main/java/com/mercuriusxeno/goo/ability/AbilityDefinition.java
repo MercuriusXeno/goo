@@ -11,6 +11,7 @@ import com.mercuriusxeno.goo.ability.program.LeafStep;
 import com.mercuriusxeno.goo.ability.program.LeafSteps;
 import com.mercuriusxeno.goo.ability.program.PhasedStep;
 import com.mercuriusxeno.goo.ability.program.PullStep;
+import com.mercuriusxeno.goo.ability.program.SoundCue;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.StepTypes;
 import com.mercuriusxeno.goo.ability.program.Variables;
@@ -19,6 +20,7 @@ import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
+import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
@@ -51,6 +53,8 @@ import java.util.stream.Stream;
  * @param onPrism     the steps a landing on a prism runs in place of the type's prism ability, empty for none
  * @param upkeep      the mB a held self + brew effect pays each tick it stands, zero for every other ability
  *                    (decision self-effects-trickle-until-ended)
+ * @param downSound   the cue a held effect plays when it ends, empty for the shared ability-down cue
+ *                    (decision held-effects-sound-up-and-down)
  */
 public record AbilityDefinition(
         Identifier id,
@@ -68,7 +72,8 @@ public record AbilityDefinition(
         IndicatorShowing indicator,
         List<Identifier> consumes,
         List<Step> onPrism,
-        int upkeep
+        int upkeep,
+        Optional<SoundCue> downSound
 ) {
 
     /**
@@ -105,7 +110,7 @@ public record AbilityDefinition(
                              AbilityBadge badge, List<Identifier> requires, AbilityArea area,
                              IndicatorShowing indicator, List<Identifier> consumes, List<Step> onPrism) {
         this(id, gooType, displayName, icon, order, cost, delivery, behaviors, tags, badge, requires, area,
-                indicator, consumes, onPrism, NO_UPKEEP);
+                indicator, consumes, onPrism, NO_UPKEEP, Optional.empty());
     }
 
     /**
@@ -220,6 +225,7 @@ public record AbilityDefinition(
     private static final String FIELD_CONSUMES = "consumes";
     private static final String FIELD_ON_PRISM = "on_prism";
     private static final String FIELD_UPKEEP = "upkeep";
+    private static final String FIELD_DOWN_SOUND = "down_sound";
     /** The upkeep of an ability that holds nothing. */
     public static final int NO_UPKEEP = 0;
     /** The cost of a held self + brew effect, which starts free and pays its upkeep after. */
@@ -242,6 +248,22 @@ public record AbilityDefinition(
      */
     private static final Codec<Integer> FLAT_COST_CODEC =
             Codec.DOUBLE.comapFlatMap(AbilityDefinition::flatCost, Integer::doubleValue);
+
+    /**
+     * What a held self + brew effect's JSON names beside its program: its
+     * upkeep and its down sound, read as one slot so the ability's codec
+     * stays within its sixteen-field group.
+     *
+     * @param upkeep    the mB the effect pays each tick
+     * @param downSound the cue it plays when it ends, empty for the shared one
+     */
+    private record HeldTraits(int upkeep, Optional<SoundCue> downSound) {
+    }
+
+    private static final MapCodec<HeldTraits> HELD_TRAITS_CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
+            FLAT_COST_CODEC.optionalFieldOf(FIELD_UPKEEP, NO_UPKEEP).forGetter(HeldTraits::upkeep),
+            SoundCue.CODEC.optionalFieldOf(FIELD_DOWN_SOUND).forGetter(HeldTraits::downSound)
+    ).apply(inst, HeldTraits::new));
 
     /**
      * Builds the codec for one ability file. The id comes from the filename, not the
@@ -277,12 +299,12 @@ public record AbilityDefinition(
                         .forGetter(AbilityDefinition::consumes),
                 // prism-hosts-the-combos
                 StepTypes.LIST_CODEC.optionalFieldOf(FIELD_ON_PRISM, List.of()).forGetter(AbilityDefinition::onPrism),
-                // self-effects-trickle-until-ended
-                FLAT_COST_CODEC.optionalFieldOf(FIELD_UPKEEP, NO_UPKEEP).forGetter(AbilityDefinition::upkeep)
+                // self-effects-trickle-until-ended, held-effects-sound-up-and-down
+                HELD_TRAITS_CODEC.forGetter(def -> new HeldTraits(def.upkeep(), def.downSound()))
         ).apply(inst, (gooType, displayName, icon, order, cost, delivery, behaviors, tags, badge, requires, area,
-                       indicator, consumes, onPrism, upkeep) -> new AbilityDefinition(id, gooType, displayName, icon,
+                       indicator, consumes, onPrism, held) -> new AbilityDefinition(id, gooType, displayName, icon,
                         order, cost, delivery, behaviors, tags, badge, requires, area, indicator, consumes, onPrism,
-                        upkeep)));
+                        held.upkeep(), held.downSound())));
     }
 
     /**

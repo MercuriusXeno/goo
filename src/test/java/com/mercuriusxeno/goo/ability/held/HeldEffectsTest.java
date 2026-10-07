@@ -4,12 +4,15 @@ import com.mercuriusxeno.goo.ability.hearts.HeartKind;
 import com.mercuriusxeno.goo.ability.program.Expr;
 import com.mercuriusxeno.goo.ability.program.HeartOverlayStep;
 import com.mercuriusxeno.goo.ability.program.NourishStep;
+import com.mercuriusxeno.goo.ability.program.SoundCue;
+import com.mercuriusxeno.goo.registry.GooSoundIds;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -137,6 +140,46 @@ class HeldEffectsTest {
             HeldEffects.Changed changed = holding(hearts(KINDLE, GooTypes.BLAZE), nourish()).endHeartChanging();
             assertEquals(List.of(KINDLE), changed.ended().stream().map(HeldEffects.Held::ability).toList());
             assertTrue(changed.after().holds(NOURISH));
+        }
+    }
+
+    /** Every end plays the ended effect's down cue once (decision held-effects-sound-up-and-down). */
+    @Nested
+    class DownSound {
+
+        private final List<SoundCue> played = new ArrayList<>();
+
+        private List<Identifier> playedIds(List<HeldEffects.Held> ended) {
+            HeldEffects.soundEnds(ended, played::add);
+            return played.stream().map(SoundCue::sound).toList();
+        }
+
+        @Test
+        void endingByPressPlaysTheSharedCueOnce() {
+            List<HeldEffects.Held> ended = holding(hearts(KINDLE, GooTypes.BLAZE)).end(KINDLE).ended();
+            assertEquals(List.of(GooSoundIds.ABILITY_DOWN), playedIds(ended));
+        }
+
+        @Test
+        void runningDryPlaysTheCueOnce() {
+            List<HeldEffects.Held> ended = holding(hearts(KINDLE, GooTypes.BLAZE)).tick(type -> 0, STARTED + 1).ended();
+            assertEquals(List.of(GooSoundIds.ABILITY_DOWN), playedIds(ended));
+        }
+
+        @Test
+        void aReplacingHeartEffectPlaysTheReplacedCueOnce() {
+            List<HeldEffects.Held> ended = holding(hearts(KINDLE, GooTypes.BLAZE))
+                    .start(hearts(BARKSKIN, GooTypes.LEAF)).ended();
+            assertEquals(List.of(GooSoundIds.ABILITY_DOWN), playedIds(ended));
+        }
+
+        @Test
+        void aPrepaidExpiryPlaysTheAbilitysOwnCueOnce() {
+            SoundCue own = SoundCue.of(Identifier.withDefaultNamespace("block.fire.extinguish"));
+            HeldEffects.Held brewed = new HeldEffects.Held(KINDLE, GooTypes.BLAZE, UPKEEP,
+                    Set.of(LaidState.HEART_OVERLAY), STARTED, STARTED + 10, own);
+            List<HeldEffects.Held> ended = holding(brewed).tick(type -> 0, STARTED + 10).ended();
+            assertEquals(List.of(own.sound()), playedIds(ended));
         }
     }
 
