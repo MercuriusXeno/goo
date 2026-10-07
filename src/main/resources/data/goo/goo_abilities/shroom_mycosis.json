@@ -6,7 +6,6 @@
   "cost": 1000,
   "requires": ["minecraft:nether_wart"],
   "delivery": { "kind": "stream", "range": 6, "cone": 30, "ticks_per_charge": 20, "particle": "goo:spore" },
-  "area": { "shape": "cone", "size": 6.0, "angle": 30.0 },
   "behaviors": [
     { "type": "potion", "effect": "goo:mycosis", "duration": 100, "amplifier": 0 },
     { "type": "spore_host", "burst": "goo:shroom_mycosis", "radius": 3, "duration": 600 }
