@@ -1,5 +1,9 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.google.gson.JsonParser;
+import com.mojang.serialization.JsonOps;
+import net.minecraft.resources.Identifier;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.OptionalDouble;
@@ -111,5 +115,51 @@ class ProgramBehaviorTest {
     @Test
     void emptyProgramIsInactiveAtOnce() {
         assertFalse(new ProgramBehavior(List.of()).isActive());
+    }
+
+    /** A framed sound plays on its frame while the program runs on (decision ability-json-names-its-choreography). */
+    @Nested
+    class SoundFrame {
+        private static final Identifier SHINK = Identifier.parse("minecraft:item.trident.return");
+        private static final SoundCue CUE = new SoundCue(SHINK, SoundKind.BLOCKS, 1f, 1f);
+        private static final int FRAME = 3;
+
+        private SoundStep shink(Expr frame) {
+            return new SoundStep(SHINK, FxAnchor.HOST, SoundKind.BLOCKS, Expr.literal(1), Expr.literal(1), frame);
+        }
+
+        @Test
+        void framedSoundPlaysOnItsFrameWhileTheNextStepRunsFromTheFirstTick() {
+            MarkerHost host = hostWithStacks(1);
+            ProgramBehavior program = new ProgramBehavior(
+                    List.of(shink(Expr.literal(FRAME)), LeafSteps.WAIT.step(Expr.literal(10))));
+
+            program.tick(host);
+            assertEquals(1, program.stepIndex(), "the step after the sound waited on it");
+            for (int tick = 1; tick < FRAME; tick++) {
+                program.tick(host);
+            }
+            verify(host, never()).playSound(any());
+
+            program.tick(host);
+            verify(host, times(1)).playSound(CUE);
+            program.tick(host);
+            verify(host, times(1)).playSound(CUE);
+        }
+
+        @Test
+        void soundNamingNoFramePlaysTheTickItIsReached() {
+            MarkerHost host = hostWithStacks(1);
+            SoundStep unframed = (SoundStep) StepTypes.LIST_CODEC.parse(JsonOps.INSTANCE,
+                    JsonParser.parseString(
+                            "[{\"type\": \"sound\", \"id\": \"minecraft:item.trident.return\"}]"))
+                    .getOrThrow().getFirst();
+            ProgramBehavior program = new ProgramBehavior(List.of(unframed, LeafSteps.WAIT.step(Expr.literal(10))));
+
+            program.tick(host);
+
+            verify(host, times(1)).playSound(CUE);
+            assertEquals(1, program.stepIndex());
+        }
     }
 }
