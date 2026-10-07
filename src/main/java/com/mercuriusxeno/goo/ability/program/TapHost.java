@@ -11,6 +11,8 @@ import net.minecraft.world.phys.Vec3;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalDouble;
+import java.util.Set;
+import java.util.function.Consumer;
 
 /**
  * The {@link StepHost} over the block a tap's drip lands on: world actions
@@ -18,14 +20,16 @@ import java.util.OptionalDouble;
  * block beyond that face. A tap has no will and no target, and a drip lands
  * in one tick with nothing ticking it afterwards, so this host implements
  * neither {@link TargetHost} nor {@link TickingHost}
- * (decision tap-ability-tagged-program).
+ * (decision tap-ability-tagged-program). It scans the entities around the
+ * struck face, so a drip acts on what stands where it lands.
+ * vitality-drip-heals-below
  *
- * @param level   the server level
+ * @param level  the server level
  * @param landing the block the drip landed on
  * @param face    the landing block's face the drip struck
  */
 public record TapHost(ServerLevel level, BlockPos landing, Direction face)
-        implements ExplodeHost, AnchoredWorldHost, PlaceBlockHost {
+        implements ExplodeHost, AnchoredWorldHost, PlaceBlockHost, EntityScanHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "Place step names block which no registry holds: ";
     private static final double HALF = 0.5;
@@ -69,6 +73,27 @@ public record TapHost(ServerLevel level, BlockPos landing, Direction face)
     @Override
     public void explode(float power, ExplosionMode mode) {
         GooExplosion.detonate(level, anchor(), power, mode, GooExplosion.Look.vanilla());
+    }
+
+    @Override
+    public boolean anyEntityWithin(SelectionShape shape, double radius, Set<EntityFilter> filters) {
+        return EntityScan.anyEntityWithin(level, anchor(), shape, radius, filters, null);
+    }
+
+    @Override
+    public void forEachEntityWithin(SelectionShape shape, double radius, Set<EntityFilter> filters,
+                                    Consumer<TargetHost> body) {
+        BlockAnchoredActions.forEachEntityWithin(level, anchor(), shape, radius, filters, body);
+    }
+
+    @Override
+    public void forEntity(int entityId, Consumer<TargetHost> body) {
+        BlockAnchoredActions.forEntity(level, entityId, body);
+    }
+
+    @Override
+    public void pullEntitiesWithin(double radius, double speed) {
+        EntityPull.pullWithin(level, anchor(), radius, speed, null);
     }
 
     /**
