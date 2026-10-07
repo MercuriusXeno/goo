@@ -45,7 +45,7 @@ public final class MetalSpikeVisual {
     /** Ticks before the strike lands that the spike starts to emerge. */
     private static final int EMERGE_LEAD = 2;
     /** Ticks the spike holds at full extension after it lands. */
-    private static final int HOLD_TICKS = 3;
+    static final int HOLD_TICKS = 3;
     /** How far the windup shake swings the orb either side of resting size, at its peak. */
     static final float SHAKE_AMPLITUDE = 0.15f;
     /** Ticks per cycle of the windup shake. */

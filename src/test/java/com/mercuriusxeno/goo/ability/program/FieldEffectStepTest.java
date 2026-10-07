@@ -63,6 +63,8 @@ class FieldEffectStepTest {
     private static final int OTHER_WALKER_ID = 9;
     private static final int STRIKE_TICK = 6;
     private static final int STRIKE_TICKS = 13;
+    /** The ticks after a strike lands that its spike retracts and its second shink plays. */
+    private static final int RETRACT_FRAME = 3;
     private static final int COOLDOWN = 10;
     private static final int IDLE_TICKS = 40;
     private static final int METAL_CHARGES = 2;
@@ -227,6 +229,31 @@ class FieldEffectStepTest {
         verify(walker).spawnParticles(argThat(burst -> "crit".equals(burst.particle().getPath())));
         assertEquals(1, host.fieldEffect().chargesSpent());
         assertTrue(program.isActive());
+    }
+
+    /**
+     * A strike's framed sound plays at the struck mob on its frame, held by the
+     * trap's program past the strike body's one tick
+     * (decision urchin-spikes-shink-out-and-shink-back).
+     */
+    @Test
+    void aStrikesFramedShinkPlaysAtTheStruckMobOnItsFrame() throws IOException {
+        EntityHost walker = walker(WALKER_ID);
+        MarkerHost host = marker(List.of(walker));
+        ProgramBehavior program = ProgramBehavior.forHost(metalProgram(), HostKind.MARKER);
+        SoundCue out = new SoundCue(Identifier.parse("minecraft:item.axe.scrape"), SoundKind.BLOCKS, 0.8f, 1.5f);
+        SoundCue back = new SoundCue(Identifier.parse("minecraft:item.axe.scrape"), SoundKind.BLOCKS, 0.8f, 1.0f);
+
+        program.tick(host);
+        tick(program, host, STRIKE_TICK);
+        verify(walker, times(1)).playSound(out);
+        verify(walker, never()).playSound(back);
+
+        tick(program, host, RETRACT_FRAME - 1);
+        verify(walker, never()).playSound(back);
+
+        program.tick(host);
+        verify(walker, times(1)).playSound(back);
     }
 
     // decision splat-runs-the-program-no-fuse

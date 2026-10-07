@@ -21,7 +21,9 @@
           "strike_ticks": 13,
           "strike": [
             { "type": "damage", "amount": 6, "source": "stalagmite", "knockback": false },
-            { "type": "particles", "id": "minecraft:crit", "at": "target", "count": 8, "spread": 0.4, "speed": 0.15 }
+            { "type": "particles", "id": "minecraft:crit", "at": "target", "count": 8, "spread": 0.4, "speed": 0.15 },
+            { "type": "sound", "id": "minecraft:item.axe.scrape", "at": "target", "source": "blocks", "volume": 0.8, "pitch": 1.5, "frame": 0 },
+            { "type": "sound", "id": "minecraft:item.axe.scrape", "at": "target", "source": "blocks", "volume": 0.8, "pitch": 1.0, "frame": 3 }
           ],
           "teardown": [
             { "type": "particles", "id": "minecraft:poof", "count": 12, "spread": 0.3, "speed": 0.05 },
