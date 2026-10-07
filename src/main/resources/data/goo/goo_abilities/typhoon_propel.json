@@ -7,7 +7,7 @@
   "requires": ["minecraft:phantom_membrane"],
   "delivery": { "kind": "self" },
   "behaviors": [
-    { "type": "push", "strength": 1.5, "direction": "thrower_look" }
+    { "type": "push", "strength": 1.5 }
   ],
   "tags": ["self"]
 }

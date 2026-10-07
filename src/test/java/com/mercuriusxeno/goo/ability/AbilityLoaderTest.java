@@ -217,6 +217,40 @@ class AbilityLoaderTest {
     }
 
     /**
+     * Ender blink's indicator shows while right click is held, an ability
+     * naming no indicator shows while held too, and the client's preview reads
+     * the range the server's teleport jumps (decision ripple-outline-is-the-blink-cursor).
+     */
+    @Nested
+    class Indicator {
+
+        @Test
+        void enderBlinkNamesItsIndicatorHeld() {
+            assertTrue(AbilityJson.read("ender_blink").contains("\"indicator\": \"held\""),
+                    "ender_blink names no held indicator");
+            assertEquals(IndicatorShowing.HELD, AbilityJson.decode("ender_blink").indicator());
+        }
+
+        @Test
+        void anAbilityNamingNoIndicatorShowsWhileHeld() {
+            assertFalse(AbilityJson.read(BLAST).contains("\"indicator\""), "Blast names an indicator");
+            assertEquals(IndicatorShowing.HELD, AbilityJson.decode(BLAST).indicator());
+        }
+
+        @Test
+        void anAbilityNamingSelectedReadsSelected() {
+            String json = AbilityJson.read("ender_blink").replace("\"held\"", "\"selected\"");
+            assertEquals(IndicatorShowing.SELECTED, AbilityJson.decodeText("ender_blink", json).indicator());
+        }
+
+        @Test
+        void enderBlinkPreviewReadsTheRangeItsTeleportJumps() {
+            List<Step> steps = AbilityJson.decode("ender_blink").behaviors();
+            assertEquals(8.0, TeleportStep.lookRange(steps).orElseThrow());
+        }
+    }
+
+    /**
      * Each goo type carries at most one self + brew ability: a second fails
      * the load naming both, and a type carrying none is answered for the load's
      * warning (decision every-type-ships-one-brew-ability).

@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.block.ability;
 
 import com.mercuriusxeno.goo.block.BlockEntityTicks;
+import com.mercuriusxeno.goo.block.Waterlogging;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mercuriusxeno.goo.registry.GooServerState;
@@ -30,7 +31,6 @@ import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.material.FluidState;
-import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.level.redstone.Orientation;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -422,7 +422,7 @@ public class AbilityBlock extends AbstractEffectBlock implements SimpleWaterlogg
      */
     @Override
     protected @NonNull FluidState getFluidState(BlockState state) {
-        return state.getValue(WATERLOGGED) ? Fluids.WATER.getSource(false) : super.getFluidState(state);
+        return Waterlogging.fluidState(state, super.getFluidState(state));
     }
 
     /**
@@ -444,9 +444,7 @@ public class AbilityBlock extends AbstractEffectBlock implements SimpleWaterlogg
                                               @NonNull ScheduledTickAccess ticks, @NonNull BlockPos pos, @NonNull Direction direction,
                                               @NonNull BlockPos neighborPos, @NonNull BlockState neighborState,
                                               @NonNull RandomSource random) {
-        if (state.getValue(WATERLOGGED)) {
-            ticks.scheduleTick(pos, Fluids.WATER, Fluids.WATER.getTickDelay(level));
-        }
+        Waterlogging.scheduleWaterTick(state, ticks, pos, level);
         return super.updateShape(state, level, ticks, pos, direction, neighborPos, neighborState, random);
     }
 
