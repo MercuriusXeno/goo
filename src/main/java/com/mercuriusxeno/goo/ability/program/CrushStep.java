@@ -4,11 +4,14 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.BlockParticleOption;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.List;
@@ -20,8 +23,9 @@ import java.util.stream.Stream;
  * block of the set the JSON names whose center stands within the crater's
  * radius of the landing point breaks with its drops, throwing its debris up
  * and out, statues crushed among them, and no mob is hurt. Striking a mob
- * directly, the mob takes the JSON's force damage and no crater is blasted,
- * so mob attack never mixes with block crush. The step serves whichever host
+ * directly, the blob shatters into stone rubble and dust, drawing no goo
+ * splat (its ability is tagged no_splat), the mob takes the JSON's force
+ * damage and no crater is blasted, so mob attack never mixes with block crush. The step serves whichever host
  * the blob strikes, so it names no capability and reads the host it runs on
  * (decision crush-blob-breaks-along-its-strike).
  *
@@ -35,6 +39,11 @@ public record CrushStep(TagKey<Block> breaks, double radius, Expr damage) implem
     private static final String FIELD_BREAKS = "breaks";
     private static final String FIELD_RADIUS = "radius";
     private static final String FIELD_DAMAGE = "damage";
+    /** The stone chunks and gravel dust a blob shatters into against a mob, and how they fly. */
+    private static final int RUBBLE_CHUNKS = 24;
+    private static final int DUST_PUFFS = 16;
+    private static final double RUBBLE_SPREAD = 0.3;
+    private static final double RUBBLE_SPEED = 0.25;
 
     /**
      * Codec for the step's params.
@@ -81,8 +90,20 @@ public record CrushStep(TagKey<Block> breaks, double radius, Expr damage) implem
         }
     }
 
+    /**
+     * Strikes a mob: the blob shatters into stone rubble and dust against it
+     * and the mob takes the force damage.
+     *
+     * @param mob    the struck mob
+     * @param amount the force damage
+     */
     private static void strike(LivingEntity mob, float amount) {
         if (mob.level() instanceof ServerLevel level) {
+            Vec3 hit = mob.getBoundingBox().getCenter();
+            level.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, Blocks.COBBLESTONE.defaultBlockState()),
+                    hit.x, hit.y, hit.z, RUBBLE_CHUNKS, RUBBLE_SPREAD, RUBBLE_SPREAD, RUBBLE_SPREAD, RUBBLE_SPEED);
+            level.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, Blocks.GRAVEL.defaultBlockState()),
+                    hit.x, hit.y, hit.z, DUST_PUFFS, RUBBLE_SPREAD, RUBBLE_SPREAD, RUBBLE_SPREAD, RUBBLE_SPEED);
             mob.hurtServer(level, mob.damageSources().generic(), amount);
         }
     }
