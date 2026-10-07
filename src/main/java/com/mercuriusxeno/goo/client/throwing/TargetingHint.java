@@ -13,8 +13,8 @@ public enum TargetingHint {
      */
     NONE,
     /**
-     * Favors the entity under the ray through the aim assist, falling back to
-     * the block where no entity is near.
+     * Takes the entity under the ray through the aim assist, and aims nothing
+     * where no entity is near: a mob ability is never thrown at the world.
      */
     ENTITY,
     /**
