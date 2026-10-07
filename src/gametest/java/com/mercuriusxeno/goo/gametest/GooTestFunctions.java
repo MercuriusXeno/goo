@@ -134,7 +134,9 @@ public final class GooTestFunctions {
     private static final String LAB_REBUILD = "lab_rebuild";
     private static final String ZOMBIE_PEN_HOLDS_ONLY_ZOMBIES = "zombie_pen_holds_only_zombies";
     private static final String PASSIVE_PEN_HAS_NO_ROOF = "passive_pen_has_no_roof";
-    private static final String LAB_KIT_TEACHES_EVERY_ABILITY = "lab_kit_teaches_every_ability";
+    private static final String LAB_LEARN_TEACHES_EVERY_ABILITY = "lab_learn_teaches_every_ability";
+    private static final String LAB_FORGET_RETURNS_TO_NOTHING = "lab_forget_returns_to_nothing";
+    private static final String LAB_KIT_TEACHES_NOTHING = "lab_kit_teaches_nothing";
     private static final String LAB_KIT_UNTOUCHED_PLAYER_KNOWS_NOTHING = "lab_kit_untouched_player_knows_nothing";
 
     // --- GasketPusher ---
@@ -311,6 +313,7 @@ public final class GooTestFunctions {
     private static final String IX_HUB_POUR_AIMED_ONLY = "ix_hub_pour_aimed_only";
     private static final String IX_PLEXER_TARGET = "ix_plexer_set_target";
     private static final String IX_PLEXER_REFUSES_UNLEARNED = "ix_plexer_refuses_unlearned";
+    private static final String IX_PLEXER_FIZZLES_UNTIL_LAB_LEARN = "ix_plexer_fizzles_until_lab_learn";
     private static final String IX_REACTOR_INSERT_PICKUP = "ix_reactor_insert_pickup";
     private static final String IX_CRUCIBLE_BLAZE_ROD_COLD = "ix_crucible_blaze_rod_click_leaves_cold";
     private static final String IX_CRUCIBLE_COLD_ABSORBS_NOTHING = "ix_crucible_cold_absorbs_nothing";
@@ -657,6 +660,7 @@ public final class GooTestFunctions {
         reg(r, IX_HUB_POUR_AIMED_ONLY, MachineInteractionTests::hubPourFillsOnlyTheAimedCanister);
         reg(r, IX_PLEXER_TARGET, MachineInteractionTests::plexerSetTarget);
         reg(r, IX_PLEXER_REFUSES_UNLEARNED, MachineInteractionTests::plexerRefusesAnUnlearnedTarget);
+        reg(r, IX_PLEXER_FIZZLES_UNTIL_LAB_LEARN, MachineInteractionTests::plexerFizzlesOnAKitPlayerUntilLabLearn);
         reg(r, IX_REACTOR_INSERT_PICKUP, MachineInteractionTests::reactorCanisterInsertThenSneakPickup);
         reg(r, IX_CRUCIBLE_BLAZE_ROD_COLD, MachineInteractionTests::crucibleBlazeRodClickLeavesItCold);
         reg(r, IX_CRUCIBLE_COLD_ABSORBS_NOTHING, MachineInteractionTests::coldCrucibleAbsorbsNothing);
@@ -832,7 +836,9 @@ public final class GooTestFunctions {
         reg(r, LAB_REBUILD, LabRebuildTests::rebuild);
         reg(r, ZOMBIE_PEN_HOLDS_ONLY_ZOMBIES, LabTests::zombiePenHoldsOnlyZombies);
         reg(r, PASSIVE_PEN_HAS_NO_ROOF, LabTests::passivePenHasNoRoof);
-        reg(r, LAB_KIT_TEACHES_EVERY_ABILITY, LabKitKnowledgeTests::kitTeachesEveryAbility);
+        reg(r, LAB_LEARN_TEACHES_EVERY_ABILITY, LabKitKnowledgeTests::learnTeachesEveryAbility);
+        reg(r, LAB_FORGET_RETURNS_TO_NOTHING, LabKitKnowledgeTests::forgetReturnsToKnowingNothing);
+        reg(r, LAB_KIT_TEACHES_NOTHING, LabKitKnowledgeTests::kitTeachesNothing);
         reg(r, LAB_KIT_UNTOUCHED_PLAYER_KNOWS_NOTHING, LabKitKnowledgeTests::untouchedPlayerKnowsNothing);
     }
 

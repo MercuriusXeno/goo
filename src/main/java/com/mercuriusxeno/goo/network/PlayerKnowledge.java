@@ -91,6 +91,19 @@ public final class PlayerKnowledge {
     }
 
     /**
+     * Returns the player to knowing no item, then sends their client the empty set.
+     *
+     * @param player the player who forgets
+     */
+    public static void forgetAll(ServerPlayer player) {
+        player.setData(GooAttachments.KNOWN_ITEMS, KnownItems.NONE);
+        // A listener that never negotiated the mod's channels, a gametest's mock player, gets no sync.
+        if (player.connection.hasChannel(KnownItemsSyncPayload.TYPE)) {
+            sendToPlayer(player);
+        }
+    }
+
+    /**
      * Sends the player's whole known set to their client.
      *
      * @param player the player
