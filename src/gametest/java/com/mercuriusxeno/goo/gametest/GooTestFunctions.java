@@ -371,7 +371,7 @@ public final class GooTestFunctions {
     private static final String STREAM_BLAZE_SPITFIRE = "stream_blaze_spitfire";
     private static final String FLATTEN_BREAKS_ABOVE_THE_PLANE = "flatten_breaks_above_the_plane";
     private static final String BORE_CUTS_A_TUNNEL = "bore_cuts_a_tunnel";
-    private static final String CRUSH_BREAKS_ALONG_THE_STRIKE = "crush_breaks_along_the_strike";
+    private static final String CRUSH_BLASTS_A_CRATER = "crush_blasts_a_crater";
     private static final String PETRIFY_SLOWS_THEN_STATUES = "petrify_slows_then_statues";
     private static final String PETRIFY_GAUGE_DRAINS = "petrify_gauge_drains";
     private static final String PETRIFY_CALCIFIES_GRADUALLY = "petrify_calcifies_gradually";
@@ -793,7 +793,7 @@ public final class GooTestFunctions {
         reg(r, STREAM_BLAZE_SPITFIRE, StreamDeliveryTests::blazeSpitfire);
         reg(r, FLATTEN_BREAKS_ABOVE_THE_PLANE, FlattenChannelTests::flattenBreaksAboveThePlane);
         reg(r, BORE_CUTS_A_TUNNEL, BoreStreamTests::boreCutsATunnel);
-        reg(r, CRUSH_BREAKS_ALONG_THE_STRIKE, CrushStrikeTests::crushBreaksAlongTheStrike);
+        reg(r, CRUSH_BLASTS_A_CRATER, CrushStrikeTests::crushBlastsACrater);
         reg(r, PETRIFY_SLOWS_THEN_STATUES, PetrifyStreamTests::petrifySlowsThenStatues);
         reg(r, PETRIFY_GAUGE_DRAINS, PetrifyStreamTests::petrifyGaugeDrains);
         reg(r, PETRIFY_CALCIFIES_GRADUALLY, PetrifyStreamTests::petrifyCalcifiesGradually);

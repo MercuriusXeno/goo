@@ -11,59 +11,60 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Gametest for rock crush: a blob striking the west face of a dirt bank
- * breaks the bank three blocks deep along the strike, leaves the bank past
- * that depth and above the strike standing, and hurts the zombie standing at
- * the landing and shoves it along the strike
- * (decision crush-blob-breaks-along-its-strike).
+ * Gametest for rock crush: a blob landing on the top of a dirt bed blasts a
+ * radius 2 crater, every block within it breaking and dropping, the blocks
+ * past it standing; the zombie it lands on is hurt and the zombie at the
+ * crater's edge is not (decision crush-blob-breaks-along-its-strike).
  */
 public final class CrushStrikeTests {
 
     private static final Identifier CRUSH = Identifier.fromNamespaceAndPath(Goo.MODID, "rock_crush");
-    /** The bank's first block, struck on its west face. */
+    /** The block the blob strikes, on top of the dirt bed. */
     private static final BlockPos STRUCK = new BlockPos(2, 1, 2);
-    /** rock_crush.json's depth. */
-    private static final int DEPTH = 3;
-    /** The cell in front of the struck face, where the blob lands and the zombie stands. */
-    private static final BlockPos LANDING = STRUCK.west();
+    /** Two blocks east of the struck one, its center just past the crater's radius. */
+    private static final BlockPos PAST_THE_RIM = STRUCK.east(2);
+    private static final double ITEM_SEARCH_RADIUS = 3;
     private static final String ABILITY_REQUIRED = "Ability registry must hold rock_crush";
-    private static final String ZOMBIE_UNHURT = "The zombie at the landing took no damage";
-    private static final String ZOMBIE_NOT_SHOVED = "The zombie at the landing moved %s, not east along the strike";
+    private static final String STRUCK_UNHURT = "The zombie the blob landed on took no damage";
+    private static final String EDGE_HURT = "The zombie at the crater's edge was hurt, which only the struck mob is";
 
     private CrushStrikeTests() {
     }
 
     /**
-     * Crush lands on the bank's west face: the three blocks east of the
-     * landing are cut, the fourth and the block above the struck one stand,
-     * and the zombie at the landing is hurt and moving east.
+     * Crush lands on the dirt bed's top: the struck block, the one under it
+     * and the one beside it break, the blocks two away stand, dirt drops,
+     * and only the zombie standing on the struck block is hurt.
      *
      * @param helper the gametest helper
      */
-    public static void crushBreaksAlongTheStrike(GameTestHelper helper) {
+    public static void crushBlastsACrater(GameTestHelper helper) {
         AbilityDefinition crush = AbilityRegistry.of(helper.getLevel()).getAbility(CRUSH);
         helper.assertTrue(crush != null, ABILITY_REQUIRED);
-        for (int deep = 0; deep <= DEPTH; deep++) {
-            helper.setBlock(STRUCK.east(deep), Blocks.DIRT);
-            helper.setBlock(STRUCK.east(deep).above(), Blocks.DIRT);
-        }
-        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, LANDING);
-        Vec3 aim = Vec3.atCenterOf(helper.absolutePos(STRUCK)).add(-0.5, 0, 0);
-        helper.runAfterDelay(1, () -> {
-            AbilityImpact.land(helper.getLevel(), helper.absolutePos(STRUCK), GooTypes.ROCK, Direction.WEST, crush,
-                    aim);
-            Vec3 motion = zombie.getDeltaMovement();
-            helper.assertTrue(zombie.getHealth() < zombie.getMaxHealth(), ZOMBIE_UNHURT);
-            helper.assertTrue(motion.x > 0, String.format(ZOMBIE_NOT_SHOVED, motion));
-            for (int deep = 0; deep < DEPTH; deep++) {
-                helper.assertBlockPresent(Blocks.AIR, STRUCK.east(deep));
+        for (int x = 0; x <= 4; x++) {
+            for (int z = 0; z <= 4; z++) {
+                helper.setBlock(new BlockPos(x, 0, z), Blocks.DIRT);
+                helper.setBlock(new BlockPos(x, 1, z), Blocks.DIRT);
             }
-            helper.assertBlockPresent(Blocks.DIRT, STRUCK.east(DEPTH));
-            helper.assertBlockPresent(Blocks.DIRT, STRUCK.above());
+        }
+        Mob struck = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, STRUCK.above());
+        Mob atTheEdge = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, PAST_THE_RIM.above());
+        Vec3 aim = Vec3.atCenterOf(helper.absolutePos(STRUCK)).add(0, 0.5, 0);
+        helper.runAfterDelay(1, () -> {
+            AbilityImpact.land(helper.getLevel(), helper.absolutePos(STRUCK), GooTypes.ROCK, Direction.UP, crush, aim);
+            helper.assertBlockPresent(Blocks.AIR, STRUCK);
+            helper.assertBlockPresent(Blocks.AIR, STRUCK.below());
+            helper.assertBlockPresent(Blocks.AIR, STRUCK.east());
+            helper.assertBlockPresent(Blocks.DIRT, PAST_THE_RIM);
+            helper.assertBlockPresent(Blocks.DIRT, STRUCK.south(2));
+            helper.assertItemEntityPresent(Items.DIRT, STRUCK, ITEM_SEARCH_RADIUS);
+            helper.assertTrue(struck.getHealth() < struck.getMaxHealth(), STRUCK_UNHURT);
+            helper.assertTrue(atTheEdge.getHealth() == atTheEdge.getMaxHealth(), EDGE_HURT);
             helper.succeed();
         });
     }
