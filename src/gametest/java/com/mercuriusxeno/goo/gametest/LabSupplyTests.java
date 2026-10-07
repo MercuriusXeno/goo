@@ -11,6 +11,7 @@ import com.mercuriusxeno.goo.lab.LabKit;
 import com.mercuriusxeno.goo.lab.LabPlan;
 import com.mercuriusxeno.goo.lab.LabStock;
 import com.mercuriusxeno.goo.lab.LabSupply;
+import com.mercuriusxeno.goo.network.PlayerKnowledge;
 import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -106,6 +107,8 @@ public final class LabSupplyTests {
             helper.fail(BUILD_FAILED + e.getMessage());
         }
         helper.assertTrue(player.getInventory().contains(new ItemStack(GooItems.GOO_GLOVE.get())), BUILD_NO_KIT);
+        // decision lab-kit-teaches-every-recipe: building the lab hands the kit and teaches nothing
+        helper.assertTrue(PlayerKnowledge.of(player).items().isEmpty(), "Building the lab should teach no item");
         helper.getLevel().getServer().getPlayerList().remove(player);
         helper.succeed();
     }
