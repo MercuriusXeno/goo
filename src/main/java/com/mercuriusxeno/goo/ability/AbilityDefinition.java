@@ -1,7 +1,10 @@
 package com.mercuriusxeno.goo.ability;
 
+import com.mercuriusxeno.goo.ability.program.ExplodeStep;
+import com.mercuriusxeno.goo.ability.program.ExplosionMarch;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.StepTypes;
+import com.mercuriusxeno.goo.ability.program.Variables;
 import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -11,6 +14,8 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import java.util.List;
+import java.util.Optional;
+import java.util.stream.Stream;
 
 /**
  * A single ability within a goo type's repertoire. Loaded from datapack
@@ -28,7 +33,8 @@ import java.util.List;
  * @param tags        categorical tags (explosive, instant, trap, field-effect, etc.)
  * @param badge       the target kind the radial marks on the icon
  * @param requires    the items a player must know before the ability is theirs
- * @param area        the area the glove draws while right click is held
+ * @param area        the area the glove draws while right click is held; a sphere around an
+ *                    explosion is drawn at the explosion's max reach, whatever size the JSON wrote
  */
 public record AbilityDefinition(
         Identifier id,
@@ -44,6 +50,14 @@ public record AbilityDefinition(
         List<Identifier> requires,
         AbilityArea area
 ) {
+
+    /**
+     * Draws an explosive ability's sphere at the reach its explosion cuts at most.
+     * preview-sphere-is-max-reach
+     */
+    public AbilityDefinition {
+        area = previewAtMaxReach(area, behaviors);
+    }
 
     /**
      * An ability declaring no area.
@@ -136,6 +150,34 @@ public record AbilityDefinition(
      */
     public boolean isKnownTo(KnownItems known) {
         return known.containsAll(requires);
+    }
+
+    /**
+     * Sizes a sphere area to the max reach of the first explode step in the
+     * program, its power read with no variables bound; any other area, or a
+     * sphere over a program that never explodes, stands as written.
+     *
+     * @param area      the area the JSON wrote
+     * @param behaviors the ability's program
+     * @return the area the glove draws
+     */
+    static AbilityArea previewAtMaxReach(AbilityArea area, List<Step> behaviors) {
+        if (area.shape() != AbilityArea.Shape.SPHERE) {
+            return area;
+        }
+        return firstExplosion(behaviors)
+                .map(step -> new AbilityArea(area.shape(),
+                        ExplosionMarch.maxReach(step.power().evaluateFloat(Variables.NONE)), area.angle()))
+                .orElse(area);
+    }
+
+    private static Optional<ExplodeStep> firstExplosion(List<Step> behaviors) {
+        return behaviors.stream().flatMap(AbilityDefinition::withDescendants)
+                .filter(ExplodeStep.class::isInstance).map(ExplodeStep.class::cast).findFirst();
+    }
+
+    private static Stream<Step> withDescendants(Step step) {
+        return Stream.concat(Stream.of(step), step.children().flatMap(AbilityDefinition::withDescendants));
     }
 
     /**
