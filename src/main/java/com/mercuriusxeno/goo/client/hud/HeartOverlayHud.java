@@ -317,7 +317,8 @@ public final class HeartOverlayHud {
         int health = Mth.ceil(player.getHealth());
         BarLayout layout = layout(graphics, gui, player, frame.leftHeightBefore());
         SlotPainter painter = new SlotPainter(graphics, overlay, gui.getGuiTicks(), frame.partialTick(),
-                RegrowCrawl.crawl(overlay, player.getHealth(), player.level().getGameTime() + frame.partialTick()));
+                RegrowCrawl.crawl(overlay, player.getHealth(), player.level().getGameTime() + frame.partialTick()),
+                warningAlpha(player, gui.getGuiTicks() + frame.partialTick()));
         int slots = paintedSlots(overlay, health);
         for (int slot = 0; slot < slots; slot++) {
             painter.paint(slot, layout.x(slot), layout.y(slot),
@@ -327,6 +328,22 @@ public final class HeartOverlayHud {
         for (BarkBurns.Burn burn : frame.burns()) {
             paintBurn(graphics, burn, now, layout.x(burn.slot()), layout.y(burn.slot()));
         }
+    }
+
+    /**
+     * The opacity the overlay's sprites pulse at while a prepaid heart brew
+     * is inside its last thirty seconds, whole otherwise.
+     * brew-runs-the-crawl-prepaid-on-a-shown-clock
+     *
+     * @param player  the local player
+     * @param guiTime the gui time, fraction included
+     * @return the opacity, zero to one
+     */
+    private static float warningAlpha(LocalPlayer player, float guiTime) {
+        long now = player.level().getGameTime();
+        boolean warning = player.getData(GooAttachments.HELD_EFFECTS).held().stream()
+                .anyMatch(effect -> effect.changesHearts() && BrewClock.warns(effect.expiresAt(), now));
+        return BrewClock.pulseAlpha(warning, guiTime);
     }
 
     /**
@@ -420,13 +437,14 @@ public final class HeartOverlayHud {
      * @param guiTicks    the gui tick
      * @param partialTick the fraction of the tick elapsed
      * @param crawl       the half regrowing now, if any
+     * @param alpha       the opacity the sprites draw at, pulsing as a prepaid brew nears its end
      */
     private record SlotPainter(GuiGraphicsExtractor graphics, HeartOverlay overlay, int guiTicks, float partialTick,
-                               Optional<RegrowCrawl.Crawl> crawl) {
+                               Optional<RegrowCrawl.Crawl> crawl, float alpha) {
 
         void paint(int slot, int x, int y, int realHalves) {
             for (Identifier sprite : heartSprites(overlay.kind(), overlay.shieldAt(slot), realHalves)) {
-                graphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x, y, HEART_SIZE, HEART_SIZE);
+                graphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x, y, HEART_SIZE, HEART_SIZE, alpha);
             }
             // wood-crawls-across-regrowing-heart: the same crawl, bark creeping evenly over a bare half
             // heart-effects-crawl-while-held: stone crawls into a missing heart, where no real half stands
