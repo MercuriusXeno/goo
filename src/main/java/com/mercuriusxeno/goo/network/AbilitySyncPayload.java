@@ -31,7 +31,9 @@ import java.util.List;
  * whose params the marker's renderers read by the marker's ability id
  * (decision capability-interfaces-derive-host-kind), and the flat cost
  * the client prices a throw with (decision flat-cost-per-throw), and the
- * delivery the glove aims and throws by (decision delivery-block-in-ability-json).
+ * delivery the glove aims and throws by (decision delivery-block-in-ability-json),
+ * and the items a throw consumes, so the client refuses a throw it cannot pay
+ * (decision ability-json-names-its-reagent).
  *
  * @param entries the list of ability descriptors
  */
@@ -49,7 +51,7 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
     public static final StreamCodec<FriendlyByteBuf, AbilitySyncPayload> STREAM_CODEC =
             StreamCodec.of(AbilitySyncPayload::encode, AbilitySyncPayload::decode);
 
-    private static final StreamCodec<ByteBuf, List<Identifier>> REQUIRES_CODEC =
+    private static final StreamCodec<ByteBuf, List<Identifier>> ITEMS_CODEC =
             Identifier.STREAM_CODEC.apply(ByteBufCodecs.list());
 
     private static final StreamCodec<ByteBuf, List<Step>> STEPS_CODEC = ByteBufCodecs.fromCodec(StepTypes.LIST_CODEC);
@@ -83,7 +85,8 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
                 .map(def -> new Entry(def.id().toString(), GooTypes.id(type),
                         def.displayName(), def.icon(), def.order(), def.tags(),
                         def.behaviors(), def.cost(),
-                        def.delivery(), def.badge(), def.requires(), def.area(), def.indicator()))
+                        def.delivery(), def.badge(), def.requires(), def.area(), def.indicator(),
+                        def.consumes()))
                 .toList();
     }
 
@@ -100,9 +103,10 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
             buf.writeVarInt(e.cost);
             Delivery.STREAM_CODEC.encode(buf, e.delivery);
             AbilityBadge.STREAM_CODEC.encode(buf, e.badge);
-            REQUIRES_CODEC.encode(buf, e.requires);
+            ITEMS_CODEC.encode(buf, e.requires);
             AbilityArea.STREAM_CODEC.encode(buf, e.area);
             IndicatorShowing.STREAM_CODEC.encode(buf, e.indicator);
+            ITEMS_CODEC.encode(buf, e.consumes);
         }
     }
 
@@ -120,8 +124,9 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
             entries.add(new Entry(buf.readUtf(), buf.readUtf(), buf.readUtf(),
                     buf.readUtf(), buf.readVarInt(), decodeTags(buf),
                     STEPS_CODEC.decode(buf), buf.readVarInt(), Delivery.STREAM_CODEC.decode(buf),
-                    AbilityBadge.STREAM_CODEC.decode(buf), REQUIRES_CODEC.decode(buf),
-                    AbilityArea.STREAM_CODEC.decode(buf), IndicatorShowing.STREAM_CODEC.decode(buf)));
+                    AbilityBadge.STREAM_CODEC.decode(buf), ITEMS_CODEC.decode(buf),
+                    AbilityArea.STREAM_CODEC.decode(buf), IndicatorShowing.STREAM_CODEC.decode(buf),
+                    ITEMS_CODEC.decode(buf)));
         }
         return new AbilitySyncPayload(entries);
     }
@@ -156,11 +161,37 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
      * @param requires    the items a player must know before the radial offers it
      * @param area        the area the glove draws while right click is held
      * @param indicator   when the ability's indicator shows
+     * @param consumes    the items a throw takes, one of each, beside its goo cost
      */
     public record Entry(String abilityId, String gooTypeId, String displayName,
                         String icon, int order, List<String> tags,
                         List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge,
-                        List<Identifier> requires, AbilityArea area, IndicatorShowing indicator) {
+                        List<Identifier> requires, AbilityArea area, IndicatorShowing indicator,
+                        List<Identifier> consumes) {
+
+        /**
+         * An entry consuming no item beside its goo cost.
+         *
+         * @param abilityId   the ability resource id string
+         * @param gooTypeId   the goo type id string
+         * @param displayName the translation key
+         * @param icon        the icon texture path override
+         * @param order       the sort order within the type
+         * @param tags        categorical tags
+         * @param behaviors   the ability's step program
+         * @param cost        the mB a throw costs
+         * @param delivery    how the ability leaves the glove
+         * @param badge       the target kind the radial marks on the icon
+         * @param requires    the items a player must know before the radial offers it
+         * @param area        the area the glove draws while right click is held
+         * @param indicator   when the ability's indicator shows
+         */
+        public Entry(String abilityId, String gooTypeId, String displayName, String icon, int order,
+                     List<String> tags, List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge,
+                     List<Identifier> requires, AbilityArea area, IndicatorShowing indicator) {
+            this(abilityId, gooTypeId, displayName, icon, order, tags, behaviors, cost, delivery, badge, requires,
+                    area, indicator, List.of());
+        }
 
         /**
          * An entry declaring no area.

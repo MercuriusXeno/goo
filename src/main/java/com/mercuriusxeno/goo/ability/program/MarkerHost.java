@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
+import com.mercuriusxeno.goo.block.ability.MarkerAnchor;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.network.ChainBurnoutPayload;
 import com.mercuriusxeno.goo.registry.GooParticles;
@@ -20,7 +20,8 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 /**
- * The {@link StepHost} over a ability block block entity: reads the placed
+ * The {@link StepHost} over a marker anchor, the ability block a lingering
+ * ability stands or the prism a combo runs on: reads the placed
  * face and goo type from the block entity, and acts on
  * the server level at the marker position. Built fresh each tick from
  * what the {@link ProgramBehavior} marker callbacks
@@ -28,9 +29,9 @@ import java.util.function.Consumer;
  *
  * @param level the server level
  * @param pos   the marker position
- * @param be    the marker block entity
+ * @param be    the anchor block entity
  */
-public record MarkerHost(ServerLevel level, BlockPos pos, AbilityBlockEntity be)
+public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
         implements PlacedFaceHost, TickingHost, ExplodeHost, EntityScanHost, PlaceBlockHost,
         FieldEffectHost, PhasedHost, ConsumedGooHost {
 
@@ -97,12 +98,12 @@ public record MarkerHost(ServerLevel level, BlockPos pos, AbilityBlockEntity be)
 
     @Override
     public FieldEffectState fieldEffect() {
-        return be.getFieldEffect();
+        return be.programState().fieldEffect();
     }
 
     @Override
     public PhasedState phased() {
-        return be.getPhased();
+        return be.programState().phased();
     }
 
     @Override
@@ -112,12 +113,12 @@ public record MarkerHost(ServerLevel level, BlockPos pos, AbilityBlockEntity be)
 
     @Override
     public void consumeValuedBlocks(int radius) {
-        be.addConsumedGoo(ValuedBlocks.consumeSphere(level, pos, radius));
+        be.programState().addConsumedGoo(ValuedBlocks.consumeSphere(level, pos, radius));
     }
 
     @Override
     public void dropConsumedGoo() {
-        GooStacks.dropAll(be.takeConsumedGoo(), level, pos);
+        GooStacks.dropAll(be.programState().takeConsumedGoo(), level, pos);
     }
 
     @Override

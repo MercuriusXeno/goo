@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:prism_without_combo_stays",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 100,
+  "setup_ticks": 0,
+  "required": true
+}

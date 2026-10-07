@@ -11,6 +11,7 @@ import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
+import com.mercuriusxeno.goo.item.ReagentScanner;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
@@ -104,6 +105,7 @@ public final class GooSelfHandler {
             return false;
         }
         GooSourceScanner.deplete(player, gooType, ability.cost());
+        ReagentScanner.consumeOneOfEach(player, ability.consumes());
         runOn(new PlayerHost(player.level(), player), ability);
         return true;
     }
@@ -149,7 +151,9 @@ public final class GooSelfHandler {
      */
     private static boolean affords(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
             AbilityDefinition ability) {
-        if (GooSourceScanner.hasEnough(player, gooType, ability.cost())) {
+        // ability-json-names-its-reagent
+        if (GooSourceScanner.hasEnough(player, gooType, ability.cost())
+                && ReagentScanner.holdsEvery(player, ability.consumes())) {
             return true;
         }
         if (Goo.LOGGER.isDebugEnabled()) {
