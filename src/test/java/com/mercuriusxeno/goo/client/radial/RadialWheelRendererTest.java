@@ -688,6 +688,119 @@ class RadialWheelRendererTest {
         }
     }
 
+    /**
+     * An ability petal's content slides in along the petal's center line from
+     * past its outer radius to the tip's center as the type opens (decision
+     * icons-slide-in-from-behind-the-tip).
+     */
+    @Nested
+    class ContentSlide {
+
+        private static final int TYPES = 16;
+        private static final int OPEN_TYPE = 5;
+        private static final int ABILITIES = 3;
+        private static final int CENTER_X = 400;
+        private static final int CENTER_Y = 300;
+        private static final int RADIUS = 200;
+        private static final int REQUIRED_ITEMS = 3;
+        /** How far, in pixels, a point may stray from the center line or an expected spot: integer pixel rounding. */
+        private static final double ROUNDING = 1.0;
+
+        private final RadialWheel wheel = openWheel();
+        private final RadialWheelRenderer.Frame frame = new RadialWheelRenderer.Frame(wheel, List.of(), List.of(),
+                Map.of(), CENTER_X, CENTER_Y, RADIUS, null, 0.0f);
+        private final RadialWheel.PetalArc fanned = wheel.displayedLayout(0.0f).stream()
+                .filter(RadialWheel.PetalArc::isAbility).findFirst().orElseThrow();
+
+        private static RadialWheel openWheel() {
+            RadialWheel opened = new RadialWheel(TYPES, type -> ABILITIES);
+            double angle = (OPEN_TYPE + 0.5) * opened.typeArc();
+            opened.moveCursor(Math.sin(angle) * RADIUS * 0.6, -Math.cos(angle) * RADIUS * 0.6, RADIUS);
+            for (int tick = 0; tick < RingEase.DURATION_TICKS; tick++) {
+                opened.tick();
+            }
+            return opened;
+        }
+
+        private RadialWheel.PetalArc at(double openness) {
+            return new RadialWheel.PetalArc(fanned.type(), fanned.ability(), fanned.start(), fanned.arc(),
+                    fanned.length(), fanned.root(), openness);
+        }
+
+        /** How far a screen point lies along the petal's center line from the wheel's center. */
+        private double along(double x, double y) {
+            return (x - CENTER_X) * Math.sin(fanned.center()) - (y - CENTER_Y) * Math.cos(fanned.center());
+        }
+
+        /** How far a screen point lies off the petal's center line. */
+        private double across(double x, double y) {
+            return (x - CENTER_X) * Math.cos(fanned.center()) + (y - CENTER_Y) * Math.sin(fanned.center());
+        }
+
+        private boolean insidePetal(double x, double y) {
+            return fanned.shape().contains((x - CENTER_X) / RADIUS, (y - CENTER_Y) / RADIUS);
+        }
+
+        @Test
+        void fullyOpenRestsOnTheTipCenter() {
+            assertEquals(1.0, fanned.openness());
+            assertEquals(List.of(RadialWheelRenderer.tipCenter(frame, fanned)[0],
+                            RadialWheelRenderer.tipCenter(frame, fanned)[1]),
+                    Arrays.stream(RadialWheelRenderer.contentCenter(frame, at(1.0))).boxed().toList());
+        }
+
+        @Test
+        void closedLiesOnTheCenterLineWithTheIconAndBadgeOutsideThePetal() {
+            int[] center = RadialWheelRenderer.contentCenter(frame, at(0.0));
+            int half = RadialWheelRenderer.ABILITY_ICON_SIZE / 2;
+            int size = RadialWheelRenderer.ABILITY_ICON_SIZE;
+
+            assertEquals(0.0, across(center[0], center[1]), ROUNDING);
+            assertTrue(along(center[0], center[1]) > fanned.shape().outer() * RADIUS, "short of the outer radius");
+            assertAll(IntStream.range(0, 4).mapToObj(corner -> (Executable) () -> {
+                int dx = corner % 2 == 0 ? -half : half;
+                int dy = corner / 2 == 0 ? -half : half;
+                assertFalse(insidePetal(center[0] + dx, center[1] + dy), "icon corner " + corner);
+                assertFalse(insidePetal(center[0] + dx + size, center[1] + dy), "badge corner " + corner);
+            }));
+        }
+
+        @Test
+        void halfOpenLiesBetweenOnTheCenterLine() {
+            int[] closed = RadialWheelRenderer.contentCenter(frame, at(0.0));
+            int[] half = RadialWheelRenderer.contentCenter(frame, at(0.5));
+            int[] open = RadialWheelRenderer.contentCenter(frame, at(1.0));
+
+            assertEquals(0.0, across(half[0], half[1]), ROUNDING);
+            assertTrue(along(half[0], half[1]) < along(closed[0], closed[1]), "past the closed point");
+            assertTrue(along(half[0], half[1]) > along(open[0], open[1]), "short of the resting point");
+        }
+
+        @Test
+        void itemColumnRestsInPlaceFullyOpenAndRidesOutByTheIconsOffsetClosed() {
+            List<RadialWheelRenderer.ItemRect> resting = RadialWheelRenderer.itemColumn(frame, at(1.0),
+                    REQUIRED_ITEMS);
+            List<RadialWheelRenderer.ItemRect> closed = RadialWheelRenderer.itemColumn(frame, at(0.0),
+                    REQUIRED_ITEMS);
+            int[] iconClosed = RadialWheelRenderer.contentCenter(frame, at(0.0));
+            int[] iconOpen = RadialWheelRenderer.contentCenter(frame, at(1.0));
+            double iconOffset = along(iconClosed[0], iconClosed[1]) - along(iconOpen[0], iconOpen[1]);
+            double middle = (fanned.shape().inner() + fanned.shape().outer()) / 2 * RADIUS;
+            int half = RadialWheelRenderer.ITEM_ICON_SIZE / 2;
+
+            RadialWheelRenderer.ItemRect centerItem = resting.get(1);
+            assertEquals(middle, along(centerItem.left() + half, centerItem.top() + half), ROUNDING);
+            assertAll(IntStream.range(0, REQUIRED_ITEMS).mapToObj(index -> (Executable) () -> {
+                RadialWheelRenderer.ItemRect from = resting.get(index);
+                RadialWheelRenderer.ItemRect to = closed.get(index);
+                assertEquals(iconOffset, along(to.left(), to.top()) - along(from.left(), from.top()), 2 * ROUNDING,
+                        "item " + index + " offset");
+                assertEquals(0.0, across(to.left(), to.top()) - across(from.left(), from.top()), 2 * ROUNDING,
+                        "item " + index + " off the center line");
+            }));
+        }
+    }
+
     /** The cursor names the item icon it rests on (decision locked-petal-lists-the-unlearned-items). */
     @Nested
     class ItemHover {

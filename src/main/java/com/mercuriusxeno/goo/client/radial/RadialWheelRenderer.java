@@ -64,6 +64,14 @@ final class RadialWheelRenderer {
     /** How many pixels tall each column of a slash stands. */
     private static final int SLASH_THICKNESS = 2;
     private static final int HALF = 2;
+    /**
+     * How far past the petal's outer radius a closed petal's icon centers:
+     * the reach from the icon's center to the badge's far corner, one icon
+     * right and half an icon up, plus a pixel, so no pixel of either lies
+     * inside the petal.
+     * decision icons-slide-in-from-behind-the-tip
+     */
+    static final double ENTRY_REACH = Math.hypot(ABILITY_ICON_SIZE + ABILITY_ICON_OFFSET, ABILITY_ICON_OFFSET) + 1;
 
     private static final String TYPE_ICON_PREFIX = "textures/goo/type/";
     private static final String ABILITY_ICON_PREFIX = "textures/goo/ability/";
@@ -179,15 +187,16 @@ final class RadialWheelRenderer {
         boolean dimmed = offered.locked() || slotLabels.dimmed();
         PetalPainter.paint(graphics, frame, frame.look().fluidFace(key), petal,
                 computeOverlayTint(hovered, dimmed));
-        int[] slot = tipCenter(frame, petal);
+        int[] restingTip = tipCenter(frame, petal);
         if (offered.locked()) {
-            return new Words(List.of(), null, slot, DISABLED_TEXT_COLOR, requiredIcons(frame, petal, offered));
+            return new Words(List.of(), null, restingTip, DISABLED_TEXT_COLOR, requiredIcons(frame, petal, offered));
         }
-        blitAbilityIcon(graphics, ability, slot,
+        // icons-slide-in-from-behind-the-tip: the icon rides in while the words stay on the resting tip
+        blitAbilityIcon(graphics, ability, contentCenter(frame, petal),
                 dimmed ? computeOverlayTint(false, true) : COLOR_WHITE);
         int textColor = dimmed ? DISABLED_TEXT_COLOR : hovered ? HOVER_TEXT_COLOR : COLOR_WHITE;
         return new Words(splitNameLines(buildLabel(ability).getString()), Component.literal(slotLabels.costLabel()),
-                slot, textColor, List.of());
+                restingTip, textColor, List.of());
     }
 
     /**
@@ -218,11 +227,11 @@ final class RadialWheelRenderer {
      *
      * @param name       the name's lines, none on a locked petal
      * @param cost       the first-throw cost, null on a locked petal
-     * @param iconCenter the icon's center on screen
+     * @param restingTip the point the icon rests on once the petal is fanned, which the words gather around
      * @param color      the words' color
      * @param required   the required items' icons, empty on an unlocked petal
      */
-    private record Words(List<Component> name, @Nullable Component cost, int[] iconCenter, int color,
+    private record Words(List<Component> name, @Nullable Component cost, int[] restingTip, int color,
                          List<ItemIcon> required) {
     }
 
@@ -276,8 +285,10 @@ final class RadialWheelRenderer {
         double middle = (shape.inner() + shape.outer()) / HALF * frame.radius();
         double firstOffset = (count - 1) * ITEM_STRIDE / (double) HALF;
         PetalMask.Point along = PetalMask.Point.polar(petal.center(), 1.0);
+        // icons-slide-in-from-behind-the-tip: the column rides in by the icon's offset
+        double slide = slideDistance(frame, petal);
         return IntStream.range(0, count).mapToObj(index -> {
-            double distance = middle - firstOffset + index * ITEM_STRIDE;
+            double distance = middle - firstOffset + index * ITEM_STRIDE + slide;
             int x = frame.centerX() + (int) Math.round(along.x() * distance);
             int y = frame.centerY() + (int) Math.round(along.y() * distance);
             return new ItemRect(x - ITEM_ICON_SIZE / HALF, y - ITEM_ICON_SIZE / HALF);
@@ -310,6 +321,44 @@ final class RadialWheelRenderer {
         PetalMask.Point tip = petal.shape().tipCenter();
         return new int[]{frame.centerX() + (int) Math.round(tip.x() * frame.radius()),
                 frame.centerY() + (int) Math.round(tip.y() * frame.radius())};
+    }
+
+    /**
+     * The screen point an ability petal's icon centers on as its type fans
+     * out: past the petal's outer radius while the type is closed, far enough
+     * that the icon and the badge beside it lie wholly outside the petal,
+     * sliding inward along the center line to the tip's center once the type
+     * is fully open, and back out along the same line as it closes.
+     * decision icons-slide-in-from-behind-the-tip
+     *
+     * @param frame what the frame draws from
+     * @param petal the ability petal
+     * @return the point's x and y
+     */
+    static int[] contentCenter(Frame frame, RadialWheel.PetalArc petal) {
+        PetalMask.Point tip = petal.shape().tipCenter();
+        PetalMask.Point outward = PetalMask.Point.polar(petal.center(), slideDistance(frame, petal));
+        return new int[]{frame.centerX() + (int) Math.round(tip.x() * frame.radius() + outward.x()),
+                frame.centerY() + (int) Math.round(tip.y() * frame.radius() + outward.y())};
+    }
+
+    /**
+     * How many pixels outward along its center line an ability petal's
+     * content sits from where it rests: none at full openness, at none the
+     * distance that puts the icon's center {@link #ENTRY_REACH} past the
+     * petal's outer radius.
+     * decision icons-slide-in-from-behind-the-tip
+     *
+     * @param frame what the frame draws from
+     * @param petal the ability petal
+     * @return the distance in pixels
+     */
+    static double slideDistance(Frame frame, RadialWheel.PetalArc petal) {
+        PetalMask.Petal shape = petal.shape();
+        PetalMask.Point tip = shape.tipCenter();
+        double fullSlide = shape.outer() * frame.radius() + ENTRY_REACH
+                - Math.hypot(tip.x(), tip.y()) * frame.radius();
+        return (1.0 - petal.openness()) * fullSlide;
     }
 
     /**
@@ -401,14 +450,14 @@ final class RadialWheelRenderer {
      * @param words    the ability's words and their icon
      */
     private static void drawWords(GuiGraphicsExtractor graphics, Font font, Words words) {
-        int x = words.iconCenter()[0];
-        int nameY = words.iconCenter()[1] - ABILITY_ICON_OFFSET - LABEL_GAP - words.name().size() * font.lineHeight;
+        int x = words.restingTip()[0];
+        int nameY = words.restingTip()[1] - ABILITY_ICON_OFFSET - LABEL_GAP - words.name().size() * font.lineHeight;
         for (Component line : words.name()) {
             outlinedText(graphics, font, line, x, nameY, words.color());
             nameY += font.lineHeight;
         }
         if (words.cost() != null) {
-            outlinedText(graphics, font, words.cost(), x, words.iconCenter()[1] + ABILITY_ICON_OFFSET + LABEL_GAP,
+            outlinedText(graphics, font, words.cost(), x, words.restingTip()[1] + ABILITY_ICON_OFFSET + LABEL_GAP,
                     words.color());
         }
         for (ItemIcon icon : words.required()) {
