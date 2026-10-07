@@ -46,6 +46,11 @@ public final class MycosisTests {
     private static final float LOOKING_AT_FLOOR = 45f;
     private static final Identifier MYCOSIS = Identifier.parse("goo:shroom_mycosis");
     private static final int SPRAY_TICKS = 5;
+    /** Straight down at the floor under the player. */
+    private static final float LOOKING_AT_FEET = 90f;
+    /** How far from the player's own cell a bud sprayed at its feet may stand. */
+    private static final int AT_FEET_REACH = 1;
+    private static final String NO_BUD_AT_FEET = "Mycosis sprayed straight down should bud the floor at the player's feet";
     /** Ticks of hold the bud test sprays for at most, enough that a bud is all but certain. */
     private static final int BUD_SPRAY_TICKS = 400;
     private static final int HELD_GOO = 22;
@@ -130,6 +135,27 @@ public final class MycosisTests {
         tap.insertGoo(GooTypes.SHROOM, TAP_VOLUME);
         tap.setDripGrade(TapDripGrade.ONE_PER_16_TICKS);
         helper.succeedWhen(() -> helper.assertTrue(zombie.hasEffect(GooMobEffects.MYCOSIS), TAPPED_POISONED));
+    }
+
+    /**
+     * A mock player sprays Mycosis straight down at its own feet: a fungal
+     * bud stands within a block of where it stands, the spray landing where
+     * it is aimed rather than at a distance.
+     *
+     * @param helper the gametest helper
+     */
+    public static void mycosisBudsAtTheFeet(GameTestHelper helper) {
+        AbilityDefinition mycosis = mycosis(helper);
+        ServerPlayer player = sprayer(helper, LOOKING_AT_FEET);
+        KnownRecipes.teachRequires(player, mycosis);
+        spray(helper, player, BUD_SPRAY_TICKS);
+        helper.succeedWhen(() -> {
+            boolean budded = BlockPos.betweenClosedStream(STAND_POS.offset(-AT_FEET_REACH, -1, -AT_FEET_REACH),
+                    STAND_POS.offset(AT_FEET_REACH, 0, AT_FEET_REACH))
+                    .anyMatch(cell -> helper.getBlockState(cell).is(GooBlocks.FUNGAL_BUD.get()));
+            helper.assertTrue(budded, NO_BUD_AT_FEET);
+            helper.getLevel().getServer().getPlayerList().remove(player);
+        });
     }
 
     private static AbilityDefinition mycosis(GameTestHelper helper) {

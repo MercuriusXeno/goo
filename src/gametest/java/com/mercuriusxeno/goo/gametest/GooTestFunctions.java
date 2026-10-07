@@ -370,6 +370,7 @@ public final class GooTestFunctions {
     private static final String STREAM_BLAZE_SPITFIRE = "stream_blaze_spitfire";
     private static final String MYCOSIS_SPREADS_ON_DEATH = "mycosis_spreads_on_death";
     private static final String MYCOSIS_PLACES_BUDS = "mycosis_places_buds";
+    private static final String MYCOSIS_BUDS_AT_THE_FEET = "mycosis_buds_at_the_feet";
     private static final String MYCOSIS_TAP_POISONS_BELOW = "mycosis_tap_poisons_below";
     private static final String COLONIZE_SPREADS_NYLIUM = "colonize_spreads_nylium";
     private static final String COLONIZE_STARTS_MYCELIUM = "colonize_starts_mycelium";
@@ -792,6 +793,7 @@ public final class GooTestFunctions {
         reg(r, STREAM_BLAZE_SPITFIRE, StreamDeliveryTests::blazeSpitfire);
         reg(r, MYCOSIS_SPREADS_ON_DEATH, MycosisTests::mycosisSpreadsOnDeath);
         reg(r, MYCOSIS_PLACES_BUDS, MycosisTests::mycosisPlacesBuds);
+        reg(r, MYCOSIS_BUDS_AT_THE_FEET, MycosisTests::mycosisBudsAtTheFeet);
         reg(r, MYCOSIS_TAP_POISONS_BELOW, MycosisTests::mycosisTapPoisonsBelow);
         reg(r, COLONIZE_SPREADS_NYLIUM, ColonizeTests::colonizeSpreadsNylium);
         reg(r, COLONIZE_STARTS_MYCELIUM, ColonizeTests::colonizeStartsMycelium);

@@ -10,6 +10,11 @@ import net.minecraft.world.phys.Vec3;
 public final class StreamCone {
 
     private static final double HALF = 0.5;
+    /** An up vector to cross the axis with, swapped for east when the axis runs straight up or down. */
+    private static final Vec3 UP = new Vec3(0, 1, 0);
+    private static final Vec3 EAST = new Vec3(1, 0, 0);
+    private static final double NEARLY_VERTICAL = 0.99;
+    private static final double FULL_TURN = 2 * Math.PI;
 
     private StreamCone() {
     }
@@ -33,5 +38,27 @@ public final class StreamCone {
         }
         double along = offset.dot(axis.normalize());
         return along > 0 && along >= distance * Math.cos(Math.toRadians(coneDegrees * HALF));
+    }
+
+    /**
+     * A direction leaving the apex inside the cone: tilted off the axis by a
+     * share of the cone's half angle and turned about the axis by a share of
+     * a full turn, so even shares fill the cone's mouth.
+     * mycosis-spore-stream-buds-and-poisons
+     *
+     * @param axis        the cone's axis, any length
+     * @param coneDegrees the cone's apex angle in degrees
+     * @param tiltShare   how far off the axis, zero on it and one at the rim
+     * @param turnShare   how far about the axis, zero to one for a full turn
+     * @return the unit direction
+     */
+    public static Vec3 launchDirection(Vec3 axis, double coneDegrees, double tiltShare, double turnShare) {
+        Vec3 forward = axis.normalize();
+        Vec3 side = forward.cross(Math.abs(forward.y) > NEARLY_VERTICAL ? EAST : UP).normalize();
+        Vec3 lift = side.cross(forward);
+        double tilt = Math.toRadians(coneDegrees * HALF) * tiltShare;
+        double turn = FULL_TURN * turnShare;
+        Vec3 off = side.scale(Math.cos(turn)).add(lift.scale(Math.sin(turn)));
+        return forward.scale(Math.cos(tilt)).add(off.scale(Math.sin(tilt))).normalize();
     }
 }

@@ -57,4 +57,29 @@ class StreamConeTest {
     void axisLengthDoesNotMatter() {
         assertTrue(StreamCone.contains(APEX, AXIS.scale(5), RANGE, CONE, new Vec3(4, 0.5, 0)));
     }
+
+    @Test
+    void aLaunchOnTheAxisFliesAlongIt() {
+        Vec3 heading = StreamCone.launchDirection(AXIS, CONE, 0, 0.3);
+        assertTrue(heading.subtract(AXIS).length() < 1e-9, heading.toString());
+    }
+
+    @Test
+    void everyLaunchStaysInsideTheConeAndTheRimReachesItsEdge() {
+        for (double turn = 0; turn < 1; turn += 0.125) {
+            for (Vec3 axis : new Vec3[] {AXIS, new Vec3(0, -1, 0), new Vec3(1, 2, -3)}) {
+                Vec3 rim = StreamCone.launchDirection(axis, CONE, 1, turn);
+                double degreesOff = Math.toDegrees(Math.acos(rim.dot(axis.normalize())));
+                assertTrue(Math.abs(degreesOff - CONE / 2) < 1e-6, axis + " " + turn + " " + degreesOff);
+                assertTrue(StreamCone.contains(APEX, axis, RANGE, CONE + 1e-6, rim.scale(RANGE / 2)));
+            }
+        }
+    }
+
+    @Test
+    void launchesAroundTheAxisFanOutInDifferentDirections() {
+        Vec3 east = StreamCone.launchDirection(AXIS, CONE, 1, 0);
+        Vec3 opposite = StreamCone.launchDirection(AXIS, CONE, 1, 0.5);
+        assertFalse(east.subtract(opposite).length() < 0.1, east + " " + opposite);
+    }
 }

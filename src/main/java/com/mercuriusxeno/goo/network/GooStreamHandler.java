@@ -16,6 +16,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -33,10 +34,15 @@ public final class GooStreamHandler {
 
     /** Particles sprayed along the cone each tick. */
     private static final int PARTICLES_PER_TICK = 6;
-    /** Spread of each particle around its point on the axis, in blocks. */
-    private static final double PARTICLE_SPREAD = 0.15;
-    /** Speed of each particle, in blocks per tick. */
-    private static final double PARTICLE_SPEED = 0.05;
+    /**
+     * Launch speed per block of the stream's range: a mote slowing by a tenth
+     * each tick carries ten times its launch speed, so it reaches the cone's end.
+     */
+    private static final double LAUNCH_SPEED_PER_BLOCK = 0.1;
+    /** Rays the spray casts each tick to find the floors it lands on. */
+    private static final int FLOOR_RAYS_PER_TICK = 12;
+    /** A particle sent with a count of zero flies along the vector it is handed. */
+    private static final int ALONG_THE_VECTOR = 0;
 
     private GooStreamHandler() {
     }
@@ -112,8 +118,8 @@ public final class GooStreamHandler {
             SprayPrograms.runOnLiving(level, living, player, ability);
         }
         if (!ability.onBlocks().isEmpty()) {
-            SprayPrograms.runOnFloors(level, FloorReach.inCone(apex, axis, delivery.range(), delivery.coneDegrees(),
-                    cell -> FloorReach.isOpenFloor(level, cell)), ability);
+            SprayPrograms.runOnFloors(level, FloorReach.struckInCone(level, player, apex, axis, delivery.range(),
+                    delivery.coneDegrees(), FLOOR_RAYS_PER_TICK, level.getRandom()), ability);
         }
     }
 
@@ -136,7 +142,8 @@ public final class GooStreamHandler {
     }
 
     /**
-     * Sprays the delivery's particle at even steps along the cone's axis.
+     * Launches the delivery's particle from the glove, each mote flying out
+     * along its own heading inside the cone (decision mycosis-spore-stream-buds-and-poisons).
      *
      * @param level    the server level
      * @param apex     the cone's apex
@@ -144,11 +151,14 @@ public final class GooStreamHandler {
      * @param delivery the stream delivery
      */
     private static void sprayParticles(ServerLevel level, Vec3 apex, Vec3 axis, Delivery delivery) {
+        RandomSource random = level.getRandom();
+        double speed = delivery.range() * LAUNCH_SPEED_PER_BLOCK;
         SimpleParticles.resolve(delivery.particle()).ifPresent(particle -> {
-            for (int i = 1; i <= PARTICLES_PER_TICK; i++) {
-                Vec3 at = apex.add(axis.scale(delivery.range() * i / PARTICLES_PER_TICK));
-                level.sendParticles(particle, at.x, at.y, at.z, 1, PARTICLE_SPREAD, PARTICLE_SPREAD,
-                        PARTICLE_SPREAD, PARTICLE_SPEED);
+            for (int i = 0; i < PARTICLES_PER_TICK; i++) {
+                Vec3 heading = StreamCone.launchDirection(axis, delivery.coneDegrees(), random.nextDouble(),
+                        random.nextDouble());
+                level.sendParticles(particle, apex.x, apex.y, apex.z, ALONG_THE_VECTOR, heading.x, heading.y,
+                        heading.z, speed);
             }
         });
     }

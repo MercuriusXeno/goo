@@ -3,16 +3,24 @@ package com.mercuriusxeno.goo.ability.program;
 import com.mercuriusxeno.goo.throwing.StreamCone;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.util.RandomSource;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelReader;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Predicate;
 
 /**
- * The floors a spray reaches: each open cell whose center a stream's cone or
- * a burst's sphere holds and which stands on a sturdy floor, answered as the
- * floor block beneath it (decision mycosis-spore-stream-buds-and-poisons).
+ * The floors a spray reaches: the floors a stream's rays land on, or each
+ * open cell a burst's sphere holds that stands on a sturdy floor, answered
+ * as the floor block beneath it (decision mycosis-spore-stream-buds-and-poisons).
  */
 public final class FloorReach {
 
@@ -20,19 +28,36 @@ public final class FloorReach {
     }
 
     /**
-     * The floors under the open cells a stream's cone holds.
+     * The floors a stream's spray lands on: rays leave the apex at random
+     * headings inside the cone, each stopping at the first block it strikes
+     * within the range, and a ray landing on a block's top face beneath an
+     * open cell sprays that floor. Nothing behind a block is reached, and a
+     * spray aimed at the ground at the thrower's feet lands there.
      *
+     * @param level       the level
+     * @param shooter     the spraying entity, which the rays pass through
      * @param apex        the cone's apex
      * @param axis        the cone's axis
      * @param range       the cone's reach in blocks
      * @param coneDegrees the cone's apex angle in degrees
-     * @param openFloor   whether a cell is open and stands on a floor
-     * @return the floor blocks, one below each such cell
+     * @param rays        how many rays the spray casts
+     * @param random      the random source turning each ray
+     * @return the distinct floors struck
      */
-    public static List<BlockPos> inCone(Vec3 apex, Vec3 axis, double range, double coneDegrees,
-                                        Predicate<BlockPos> openFloor) {
-        return within(apex, range, cell -> StreamCone.contains(apex, axis, range, coneDegrees,
-                Vec3.atCenterOf(cell)) && openFloor.test(cell));
+    public static List<BlockPos> struckInCone(Level level, Entity shooter, Vec3 apex, Vec3 axis, double range,
+                                              double coneDegrees, int rays, RandomSource random) {
+        Set<BlockPos> floors = new LinkedHashSet<>();
+        for (int i = 0; i < rays; i++) {
+            Vec3 heading = StreamCone.launchDirection(axis, coneDegrees, Math.sqrt(random.nextDouble()),
+                    random.nextDouble());
+            BlockHitResult hit = level.clip(new ClipContext(apex, apex.add(heading.scale(range)),
+                    ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, shooter));
+            if (hit.getType() == HitResult.Type.BLOCK && hit.getDirection() == Direction.UP
+                    && isOpenFloor(level, hit.getBlockPos().above())) {
+                floors.add(hit.getBlockPos());
+            }
+        }
+        return new ArrayList<>(floors);
     }
 
     /**
