@@ -68,6 +68,7 @@ public final class StepTypes {
         register(HeartOverlayStep.TYPE);
         register(SporeHostStep.TYPE);
         register(LeafSteps.COLONIZE.type());
+        register(ShiftStep.TYPE);
     }
 
     private StepTypes() {

@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.overlay;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.program.ShiftStep;
 import com.mercuriusxeno.goo.ability.program.TeleportStep;
 import com.mercuriusxeno.goo.client.ability.AfterimageRenderer;
 import com.mercuriusxeno.goo.client.ability.Afterimages;
@@ -22,20 +23,23 @@ import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.OptionalDouble;
 
 /**
- * The blink cursor: the player's silhouette ripple standing where blink
- * would land them. Each frame it resolves the destination from the local
- * player's look and the ability's range through the function the server's
- * teleport calls, captures the player's pose, and draws a ripple there that
+ * The shift cursor: the player's silhouette ripple standing where a blink
+ * or a fungal shift would land them. Each frame it resolves the destination
+ * through the function the server's step calls, by the ability's own rule:
+ * a blink lands along the look at its range, a fungal shift on the fungus
+ * block the look meets within its range and nowhere when the look meets
+ * none. It captures the player's pose and draws a ripple there that
  * restarts every pulse period, so the silhouettes keep leaving while the
  * cursor shows. The ability's JSON names when it shows: while right click
  * is held, or whenever the ability is selected.
- * Decision ripple-outline-is-the-blink-cursor.
+ * Decisions ripple-outline-is-the-blink-cursor and fungal-shift-blinks-to-the-aimed-fungus.
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
-public final class BlinkCursor {
+public final class ShiftCursor {
 
     /** Game ticks between one ripple of the cursor starting and the next. */
     static final int PULSE_PERIOD_TICKS = Afterimages.PULSES * Afterimages.PULSE_GAP_TICKS;
@@ -43,7 +47,7 @@ public final class BlinkCursor {
     /** Game ticks each cursor silhouette grows and fades over, the blink's own ripple life. */
     static final int LIFE_TICKS = 12;
 
-    private BlinkCursor() {
+    private ShiftCursor() {
     }
 
     /**
@@ -61,7 +65,9 @@ public final class BlinkCursor {
         ClientAbility ability = selectedAbility(player);
         ResourceKey<GooTypeDefinition> type = GloveAim.selectedGooType(player);
         if (type != null && ability != null && showsCursor(ability, GloveUseTracker.showsArea())) {
-            AfterimageRenderer.drawRipples(event, ripplesAtDestination(mc, player, ability, type));
+            float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+            destination(player, ability, partialTick).ifPresent(destination -> AfterimageRenderer.drawRipples(event,
+                    ripplesAt(mc, player, destination, type, partialTick)));
         }
     }
 
@@ -77,21 +83,37 @@ public final class BlinkCursor {
     }
 
     /**
-     * The cursor's ripples this frame: the player's pose standing where blink
-     * would land them, one ripple per start still standing.
+     * Where the selected ability would land the player: along the look for a
+     * blink, on the aimed fungus for a fungal shift.
      *
-     * @param mc      the client, its level loaded
-     * @param player  the local player
-     * @param ability the selected ability, blinking along the look
-     * @param type    the selected goo type, whose color the ripple wears
+     * @param player      the local player
+     * @param ability     the selected ability, which shows the cursor
+     * @param partialTick the frame's partial tick
+     * @return the destination, or empty for a shift aimed at no fungus
+     */
+    private static Optional<Vec3> destination(LocalPlayer player, ClientAbility ability, float partialTick) {
+        OptionalDouble blinkRange = TeleportStep.lookRange(ability.behaviors());
+        if (blinkRange.isPresent()) {
+            return Optional.of(TeleportStep.lookDestination(player.getPosition(partialTick),
+                    player.getViewVector(partialTick), blinkRange.getAsDouble()));
+        }
+        return ShiftStep.aimedFungus(player.level(), player,
+                ShiftStep.fungusRange(ability.behaviors()).orElseThrow());
+    }
+
+    /**
+     * The cursor's ripples this frame: the player's pose standing at the
+     * destination, one ripple per start still standing.
+     *
+     * @param mc          the client, its level loaded
+     * @param player      the local player
+     * @param destination where the ability would land the player
+     * @param type        the selected goo type, whose color the ripple wears
+     * @param partialTick the frame's partial tick
      * @return the ripples to draw
      */
-    private static List<Afterimages.Afterimage<EntityRenderState>> ripplesAtDestination(Minecraft mc,
-            LocalPlayer player, ClientAbility ability, ResourceKey<GooTypeDefinition> type) {
-        double range = TeleportStep.lookRange(ability.behaviors()).orElseThrow();
-        float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        Vec3 destination = TeleportStep.lookDestination(player.getPosition(partialTick),
-                player.getViewVector(partialTick), range);
+    private static List<Afterimages.Afterimage<EntityRenderState>> ripplesAt(Minecraft mc, LocalPlayer player,
+            Vec3 destination, ResourceKey<GooTypeDefinition> type, float partialTick) {
         EntityRenderState pose = mc.getEntityRenderDispatcher().extractEntity(player, partialTick);
         int rgb = GooColors.get(player.level().registryAccess(), type);
         List<Afterimages.Afterimage<EntityRenderState>> ripples = new ArrayList<>();
@@ -103,7 +125,7 @@ public final class BlinkCursor {
 
     /**
      * Whether the cursor shows for the selected ability: it blinks along the
-     * look, and its indicator's rule holds for the press.
+     * look or shifts to a fungus, and its indicator's rule holds for the press.
      *
      * @param ability the selected ability's synced copy, or null when none
      * @param useHeld whether right click holds a live press
@@ -113,8 +135,9 @@ public final class BlinkCursor {
         if (ability == null) {
             return false;
         }
-        OptionalDouble range = TeleportStep.lookRange(ability.behaviors());
-        return range.isPresent() && ability.indicator().shows(useHeld);
+        boolean landsThePlayer = TeleportStep.lookRange(ability.behaviors()).isPresent()
+                || ShiftStep.fungusRange(ability.behaviors()).isPresent();
+        return landsThePlayer && ability.indicator().shows(useHeld);
     }
 
     /**

@@ -23,12 +23,14 @@ class AbilityBadgeTest {
     private static final int SHIPPED_WORLD_BADGES = 7;
     private static final int SHIPPED_SELF_BADGES = 2;
     private static final int SHIPPED_BREW_BADGES = 2;
-    private static final int SHIPPED_CHANNELED_BADGES = 2;
+    private static final int SHIPPED_CHANNELED_BADGES = 3;
     private static final int SHIPPED_FREE_BADGES = 2;
     private static final int SHIPPED_TAP_BADGES = 1;
     /** The self + brew abilities, which wear brew on their self delivery (decision self-brew-goos-eat-before-the-effect). */
     private static final List<String> SHIPPED_BREWS = List.of("blaze_kindle", "leaf_barkskin");
     /** Blast and Colonize, the shipped free abilities (decision badge-vocabulary-gains-free-prism-tap-brew). */
+    /** Fungal Shift, the self delivery held as a channel (decision fungal-shift-blinks-to-the-aimed-fungus). */
+    private static final String SHIPPED_CHANNELED_SELF = "shroom_fungal_shift";
     private static final List<String> SHIPPED_FREE = List.of("unstable_explode", "shroom_colonize");
 
     @ParameterizedTest
@@ -81,6 +83,9 @@ class AbilityBadgeTest {
     private static AbilityBadge expectedBadge(AbilityDefinition definition) {
         if (SHIPPED_FREE.contains(definition.id().getPath())) {
             return AbilityBadge.FREE;
+        }
+        if (definition.id().getPath().equals(SHIPPED_CHANNELED_SELF)) {
+            return AbilityBadge.CHANNELED;
         }
         if (definition.hasTag(AbilityTags.TAP)) {
             return AbilityBadge.TAP;
