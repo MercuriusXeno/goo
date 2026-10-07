@@ -18,6 +18,7 @@ import com.mercuriusxeno.goo.client.ability.PetrifyStoneLayer;
 import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
 import com.mercuriusxeno.goo.client.ability.Transformations;
 import com.mercuriusxeno.goo.client.ability.ViewportRipples;
+import com.mercuriusxeno.goo.client.ability.VineTangleLayer;
 import com.mercuriusxeno.goo.client.ber.*;
 import com.mercuriusxeno.goo.client.model.*;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
@@ -54,6 +55,7 @@ import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsE
 import net.neoforged.neoforge.client.renderstate.RegisterRenderStateModifiersEvent;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
+import java.util.function.BiConsumer;
 
 /**
  * Client-side setup: entity renderers and network event handling.
@@ -253,26 +255,13 @@ public final class GooClientSetup {
     @SubscribeEvent
     public static void registerRenderStateModifiers(
             RegisterRenderStateModifiersEvent event) {
-        event.registerEntityModifier(
-                new TypeToken<EntityRenderer<Entity, EntityRenderState>>() {
-                },
-                AimTracker::modifyEntityRenderState);
-        event.registerEntityModifier(
-                new TypeToken<EntityRenderer<Entity, EntityRenderState>>() {
-                },
-                MobCoatLayer::stampCoat);
-        event.registerEntityModifier(
-                new TypeToken<EntityRenderer<Entity, EntityRenderState>>() {
-                },
-                AilmentOverlayLayer::stampAilments);
-        event.registerEntityModifier(
-                new TypeToken<EntityRenderer<Entity, EntityRenderState>>() {
-                },
-                PetrifyStoneLayer::stampPetrify);
-        event.registerEntityModifier(
-                new TypeToken<EntityRenderer<Entity, EntityRenderState>>() {
-                },
-                TransformationRenderer::stampTransformation);
+        List<BiConsumer<Entity, EntityRenderState>> stamps = List.of(AimTracker::modifyEntityRenderState,
+                MobCoatLayer::stampCoat, AilmentOverlayLayer::stampAilments, PetrifyStoneLayer::stampPetrify,
+                VineTangleLayer::stampTangle, TransformationRenderer::stampTransformation);
+        for (BiConsumer<Entity, EntityRenderState> stamp : stamps) {
+            event.registerEntityModifier(new TypeToken<EntityRenderer<Entity, EntityRenderState>>() {
+            }, stamp);
+        }
     }
 
     /**
@@ -290,6 +279,7 @@ public final class GooClientSetup {
                 MobCoatLayer.addTo(renderer, MobShells.of(type, event.getEntityModels()));
                 AilmentOverlayLayer.addTo(renderer);
                 PetrifyStoneLayer.addTo(renderer, MobShells.of(type, event.getEntityModels()));
+                VineTangleLayer.addTo(renderer, MobShells.of(type, event.getEntityModels()));
             }
         }
         for (PlayerModelType skin : event.getSkins()) {
@@ -298,6 +288,7 @@ public final class GooClientSetup {
             AilmentOverlayLayer.addTo(event.getPlayerRenderer(skin));
             AilmentOverlayLayer.addTo(event.getMannequinRenderer(skin));
             PetrifyStoneLayer.addTo(event.getPlayerRenderer(skin), MobShells.NONE);
+            VineTangleLayer.addTo(event.getPlayerRenderer(skin), MobShells.NONE);
         }
     }
 
