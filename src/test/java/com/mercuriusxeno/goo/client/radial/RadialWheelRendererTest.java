@@ -2,6 +2,8 @@ package com.mercuriusxeno.goo.client.radial;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
+import com.mercuriusxeno.goo.ability.IndicatorShowing;
+import com.mercuriusxeno.goo.ability.AbilityArea;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.AbilityTags;
@@ -245,6 +247,17 @@ class RadialWheelRendererTest {
         @Test
         void wedgeCostingExactlyTheHoldingsReadsBright() {
             assertFalse(RadialWheelRenderer.fanSlot(costing(HOLDINGS), HOLDINGS).dimmed());
+        }
+
+        /** A held effect reads its upkeep a second, dimmed short of a second's worth (decision self-effects-trickle-until-ended). */
+        @Test
+        void heldWedgeReadsItsUpkeepPerSecond() {
+            ClientAbility held = new ClientAbility(Identifier.fromNamespaceAndPath(Goo.MODID, "held"), "ability.goo.held",
+                    "", 0, List.of(), List.of(), 0, Delivery.of(DeliveryKind.SELF), AbilityBadge.BREW, List.of(),
+                    AbilityArea.NONE, IndicatorShowing.HELD, List.of(), 1);
+            assertEquals("20/s", RadialWheelRenderer.fanSlot(held, HOLDINGS).costLabel());
+            assertFalse(RadialWheelRenderer.fanSlot(held, 20).dimmed());
+            assertTrue(RadialWheelRenderer.fanSlot(held, 19).dimmed());
         }
     }
 

@@ -134,13 +134,6 @@ class HeldEffectsTest {
             assertSame(held, changed.after());
             assertTrue(changed.ended().isEmpty());
         }
-
-        @Test
-        void endingHeartChangingEffectsLeavesTheRest() {
-            HeldEffects.Changed changed = holding(hearts(KINDLE, GooTypes.BLAZE), nourish()).endHeartChanging();
-            assertEquals(List.of(KINDLE), changed.ended().stream().map(HeldEffects.Held::ability).toList());
-            assertTrue(changed.after().holds(NOURISH));
-        }
     }
 
     /** Every end plays the ended effect's down cue once (decision held-effects-sound-up-and-down). */

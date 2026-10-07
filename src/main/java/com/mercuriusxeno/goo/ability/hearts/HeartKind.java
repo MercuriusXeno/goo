@@ -26,9 +26,10 @@ public enum HeartKind {
     },
     /**
      * Leaf Barkskin: bark shields over normal hearts, one bark back every five
-     * seconds, gone with its last bark (decision barkskin-bark-hearts-thorn-and-burn).
+     * seconds, standing with no bark left and regrowing it until ended
+     * (decisions barkskin-bark-hearts-thorn-and-burn and heart-effects-crawl-while-held).
      */
-    BARKSKIN(1.0f, true, false, true) {
+    BARKSKIN(1.0f, false, false, true) {
         @Override
         long regrowInterval(int shieldHalves) {
             // barkskin-bark-hearts-thorn-and-burn: a bark heart every 5 seconds, a half every 2.5
@@ -50,13 +51,13 @@ public enum HeartKind {
     },
     /**
      * Rock Stoneskin: stone over the hearts the player is missing, crawling
-     * into each further missing heart a stone every five seconds, gone with
-     * its last stone, and holding the player's health from regenerating while
-     * it stands; appended after Reserve, so the synced ordinals of the kinds
+     * into each further missing heart a stone every five seconds, standing
+     * with no stone left and crawling it back until ended, and holding the
+     * player's health from regenerating while it stands; appended after Reserve, so the synced ordinals of the kinds
      * before it stand (decisions stoneskin-stone-hearts-block-regeneration
      * and heart-effects-crawl-while-held).
      */
-    STONESKIN(1.0f, true, false, true) {
+    STONESKIN(1.0f, false, false, true) {
         @Override
         long regrowInterval(int shieldHalves) {
             // heart-effects-crawl-while-held: stone crawls at bark's pace, a stone heart every 5 seconds

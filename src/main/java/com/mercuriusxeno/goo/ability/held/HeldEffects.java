@@ -305,21 +305,6 @@ public record HeldEffects(List<Held> held) {
     }
 
     /**
-     * Ends every heart-changing effect, as when the overlay they laid no
-     * longer stands and nothing is left for their upkeep to hold.
-     *
-     * @return the effects after, and the heart-changing effects ended
-     */
-    public Changed endHeartChanging() {
-        List<Held> ended = held.stream().filter(Held::changesHearts).toList();
-        if (ended.isEmpty()) {
-            return new Changed(this, List.of());
-        }
-        return new Changed(new HeldEffects(held.stream().filter(standing -> !standing.changesHearts()).toList()),
-                ended);
-    }
-
-    /**
      * Plays each ended effect's down cue once, however it ended: by the
      * player's press, by running dry, by a heart effect replacing it or by a
      * brew's expiry.

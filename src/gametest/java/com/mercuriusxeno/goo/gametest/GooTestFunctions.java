@@ -378,6 +378,7 @@ public final class GooTestFunctions {
     private static final String RESERVE_DRAINS_FIRST = "reserve_drains_first";
     private static final String RESERVE_DRAINS_WHILE_HELD = "reserve_drains_while_held";
     private static final String SELF_BARKSKIN_FIRE = "self_barkskin_fire_burns_through_arrow_breaks_bark";
+    private static final String SELF_BARKSKIN_BARE_STAYS_HELD = "self_barkskin_bare_stays_held_and_regrows";
     private static final String SELF_BARKSKIN_THORNS = "self_barkskin_thorns_and_the_axe";
     private static final String SELF_KINDLE_FIRE = "self_kindle_fire_relights_for_a_heart";
     private static final String BREW_EVERY_POTION_CARRIES = "brew_every_potion_carries_its_effect";
@@ -823,6 +824,7 @@ public final class GooTestFunctions {
         reg(r, RESERVE_DRAINS_FIRST, ReserveTests::reserveDrainsFirst);
         reg(r, RESERVE_DRAINS_WHILE_HELD, ReserveTests::reserveDrainsWhileHeld);
         reg(r, SELF_BARKSKIN_FIRE, BarkskinTests::fireBurnsThroughArrowBreaksBark);
+        reg(r, SELF_BARKSKIN_BARE_STAYS_HELD, BarkskinTests::bareBarkskinStaysHeldAndRegrows);
         reg(r, SELF_BARKSKIN_THORNS, BarkskinTests::thornsAndTheAxe);
         reg(r, SELF_KINDLE_FIRE, HeartOverlayTests::kindleFireRelightsForAHeart);
         reg(r, BREW_EVERY_POTION_CARRIES, BrewEffectTests::everyPotionCarriesItsBrewEffect);

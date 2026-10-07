@@ -62,9 +62,9 @@ class RegrowCrawlTest {
     }
 
     @Test
-    void noBarkStandingMeansNoCrawl() {
-        HeartOverlay gone = new HeartOverlay(HeartKind.BARKSKIN, List.of(2, 2), EXPIRES, NOW, NOW).drain(4f, NOW).overlay();
-        assertTrue(RegrowCrawl.crawl(gone, 4f, NOW).isEmpty());
+    void bareBarkskinCrawlsItsBarkBack() {
+        HeartOverlay bare = new HeartOverlay(HeartKind.BARKSKIN, List.of(2, 2), EXPIRES, NOW, NOW).drain(4f, NOW).overlay();
+        assertEquals(0, RegrowCrawl.crawl(bare, 4f, NOW).orElseThrow().slot());
     }
 
     @Test

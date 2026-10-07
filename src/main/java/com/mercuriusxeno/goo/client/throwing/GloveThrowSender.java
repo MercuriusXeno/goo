@@ -13,6 +13,7 @@ import com.mercuriusxeno.goo.client.ability.VitalityVisual;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.overlay.AimTracker;
+import com.mercuriusxeno.goo.item.GooFormat;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.ReagentScanner;
@@ -34,7 +35,7 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
-import java.util.OptionalInt;
+import java.util.Optional;
 import java.util.function.IntPredicate;
 import java.util.function.Predicate;
 
@@ -263,19 +264,20 @@ public final class GloveThrowSender {
     }
 
     /**
-     * The cost of the held glove's throw, priced as {@link #sendThrow}
-     * prices it (decision crosshair-panel-shows-source-and-cost).
+     * The cost of the held glove's throw as the crosshair panel reads it: a
+     * held effect's upkeep a second, as "20/s", any other its one-shot cost.
+     * self-effects-trickle-until-ended
      *
      * @param player the local player
-     * @return the cost in mB, or empty when the glove holds no selection
+     * @return the formatted cost, or empty when the glove holds no selection
      */
-    public static OptionalInt aimedThrowCost(Player player) {
+    public static Optional<String> aimedCostLabel(Player player) {
         GloveSelection selection = heldSelection(player);
-        ResourceKey<GooTypeDefinition> gooType = selection == null ? null : selection.getGooType();
-        if (gooType == null) {
-            return OptionalInt.empty();
+        if (selection == null || selection.getGooType() == null) {
+            return Optional.empty();
         }
-        return OptionalInt.of(throwCostOf(AbilitySyncHandler.findAbility(selection.abilityId())));
+        ClientAbility ability = AbilitySyncHandler.findAbility(selection.abilityId());
+        return Optional.of(ability == null ? GooFormat.formatAmount(throwCostOf(null)) : ability.costLabel());
     }
 
     /**

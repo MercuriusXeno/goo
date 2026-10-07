@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.IndicatorShowing;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.data.KnownItems;
+import com.mercuriusxeno.goo.item.GooFormat;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.resources.Identifier;
@@ -98,6 +99,9 @@ public final class AbilitySyncHandler {
                                 List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge,
                                 List<Identifier> requires, AbilityArea area, IndicatorShowing indicator,
                                 List<Identifier> consumes, int upkeep) {
+
+        private static final int TICKS_PER_SECOND = 20;
+        private static final String PER_SECOND = "/s";
 
         /**
          * A client ability paying no upkeep.
@@ -211,6 +215,33 @@ public final class AbilitySyncHandler {
          */
         public boolean isKnownTo(KnownItems known) {
             return known.containsAll(requires);
+        }
+
+        /**
+         * What the ability costs as the wheel and the crosshair panel read it:
+         * a held effect's upkeep a second, as "20/s", and every other
+         * ability's one-shot cost.
+         * self-effects-trickle-until-ended
+         *
+         * @return the cost, formatted
+         */
+        public String costLabel() {
+            return upkeep > 0 ? GooFormat.formatAmount(upkeepPerSecond()) + PER_SECOND
+                    : GooFormat.formatAmount(cost);
+        }
+
+        /**
+         * The holdings the ability needs to read affordable: a second of a
+         * held effect's upkeep, or another ability's one-shot cost.
+         *
+         * @return the amount in mB
+         */
+        public int price() {
+            return upkeep > 0 ? upkeepPerSecond() : cost;
+        }
+
+        private int upkeepPerSecond() {
+            return upkeep * TICKS_PER_SECOND;
         }
         /**
          * Returns true if this ability has the given tag.
