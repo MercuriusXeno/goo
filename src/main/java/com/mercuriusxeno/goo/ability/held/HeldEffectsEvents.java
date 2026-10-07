@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.ability.nourish.Nourish;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.registry.GooAttachments;
+import com.mercuriusxeno.goo.registry.GooMobEffects;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
@@ -18,11 +19,13 @@ import java.util.Map;
 
 /**
  * Holds a player's self + brew effects on the server: starts one when the
- * glove's eat finishes, ends one when the player invokes it again, and each
- * tick draws every held effect's upkeep from the inventory, ending one the
- * inventory can no longer pay. Ending an effect clears the state its
- * program laid.
+ * glove's eat finishes or a brew is drunk, ends one when the player invokes
+ * it again, and each tick draws every glove effect's upkeep from the
+ * inventory, ending one the inventory can no longer pay and a brew's at its
+ * expiry. Ending an effect clears the state its program laid, and a brew's
+ * effect instance with it.
  * self-effects-trickle-until-ended
+ * brew-runs-the-crawl-prepaid-on-a-shown-clock
  */
 @EventBusSubscriber(modid = Goo.MODID)
 public final class HeldEffectsEvents {
@@ -43,6 +46,25 @@ public final class HeldEffectsEvents {
     public static void start(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, AbilityDefinition ability) {
         HeldEffects.Held started = new HeldEffects.Held(ability.id(), gooType, ability.upkeep(),
                 LaidState.laidBy(ability.behaviors()), player.level().getGameTime());
+        apply(player, player.getData(GooAttachments.HELD_EFFECTS).start(started));
+    }
+
+    /**
+     * Starts a drunk brew's effect prepaid: the same held effect the glove
+     * starts, paying no upkeep and ending at the brew's expiry. The caller
+     * runs the program after, as for the glove.
+     * brew-runs-the-crawl-prepaid-on-a-shown-clock
+     *
+     * @param player   the drinking player
+     * @param gooType  the brew's goo type
+     * @param ability  the type's brew ability
+     * @param duration the brew's duration in ticks
+     */
+    public static void startPrepaid(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
+                                    AbilityDefinition ability, int duration) {
+        long now = player.level().getGameTime();
+        HeldEffects.Held started = new HeldEffects.Held(ability.id(), gooType, ability.upkeep(),
+                LaidState.laidBy(ability.behaviors()), now, now + duration);
         apply(player, player.getData(GooAttachments.HELD_EFFECTS).start(started));
     }
 
@@ -116,6 +138,10 @@ public final class HeldEffectsEvents {
             }
             if (effect.lays().contains(LaidState.NOURISH)) {
                 player.setData(GooAttachments.NOURISH, Nourish.NONE);
+            }
+            if (effect.prepaid()) {
+                // brew-runs-the-crawl-prepaid-on-a-shown-clock: the brew's effect icon ends with its effect
+                player.removeEffect(GooMobEffects.BREW_EFFECTS.get(effect.gooType()));
             }
         }
     }

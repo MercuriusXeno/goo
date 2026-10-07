@@ -385,6 +385,8 @@ public final class GooTestFunctions {
     private static final String NOURISH_REFILLS_HUNGER = "nourish_refills_hunger";
     private static final String BREW_WITHOUT_ABILITY = "brew_without_an_ability_runs_nothing";
     private static final String BREW_ROCK_STONESKINS = "brew_rock_stoneskins_for_an_hour";
+    private static final String BREW_BLAZE_HOLDS_PREPAID = "brew_blaze_holds_kindle_prepaid";
+    private static final String BREW_REPLACED_ENDS_EFFECT = "brew_replaced_ends_its_effect";
     private static final String STREAM_BLAZE_SPITFIRE = "stream_blaze_spitfire";
     private static final String FLATTEN_BREAKS_ABOVE_THE_PLANE = "flatten_breaks_above_the_plane";
     private static final String FLATTEN_SHAVES_A_WALL = "flatten_shaves_a_wall";
@@ -826,6 +828,8 @@ public final class GooTestFunctions {
         reg(r, NOURISH_REFILLS_HUNGER, NourishTests::nourishRefillsHunger);
         reg(r, BREW_WITHOUT_ABILITY, BrewEffectTests::brewWithoutAnAbilityRunsNothing);
         reg(r, BREW_ROCK_STONESKINS, BrewEffectTests::rockBrewStoneskinsForAnHour);
+        reg(r, BREW_BLAZE_HOLDS_PREPAID, BrewEffectTests::blazeBrewHoldsKindlePrepaid);
+        reg(r, BREW_REPLACED_ENDS_EFFECT, BrewEffectTests::replacedBrewEndsItsEffect);
         reg(r, STREAM_BLAZE_SPITFIRE, StreamDeliveryTests::blazeSpitfire);
         reg(r, FLATTEN_BREAKS_ABOVE_THE_PLANE, FlattenChannelTests::flattenBreaksAboveThePlane);
         reg(r, FLATTEN_SHAVES_A_WALL, FlattenChannelTests::flattenShavesAWall);

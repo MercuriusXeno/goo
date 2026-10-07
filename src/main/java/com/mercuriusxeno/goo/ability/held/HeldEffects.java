@@ -22,13 +22,15 @@ import java.util.Set;
 import java.util.function.ToIntFunction;
 
 /**
- * The self + brew effects a player holds on the glove. Each stands from the
+ * The self + brew effects a player holds. A glove effect stands from the
  * eat that started it until the player invokes it again or the inventory can
- * no longer pay its upkeep, with no timer. A heart-changing effect starting
+ * no longer pay its upkeep, with no timer; a drunk brew's effect is prepaid,
+ * paying nothing until its expiry ends it. A heart-changing effect starting
  * ends every other heart-changing effect, its upkeep stopping with it. Times
  * are absolute game times; the record reads no level, so a unit test drives
  * it whole and the server tick subscriber applies what it answers.
  * self-effects-trickle-until-ended
+ * brew-runs-the-crawl-prepaid-on-a-shown-clock
  *
  * @param held the effects standing, in the order they started
  */
@@ -36,6 +38,8 @@ public record HeldEffects(List<Held> held) {
 
     /** A player holding no effect. */
     public static final HeldEffects NONE = new HeldEffects(List.of());
+    /** The expiry of a glove effect, which only its upkeep or the player ends. */
+    public static final long NEVER_EXPIRES = Long.MAX_VALUE;
 
     private static final String FIELD_HELD = "held";
 
@@ -57,22 +61,24 @@ public record HeldEffects(List<Held> held) {
     }
 
     /**
-     * One effect standing on the glove.
+     * One effect standing on the player.
      *
      * @param ability       the ability held
      * @param gooType       the goo type its upkeep draws
      * @param upkeep        the mB it pays each tick
      * @param lays          the player state its program laid, which ending it clears
      * @param startedAt     the game time it started at, a tick it pays nothing on
+     * @param expiresAt     the game time a prepaid brew ends at, NEVER_EXPIRES for a glove effect
      */
     public record Held(Identifier ability, ResourceKey<GooTypeDefinition> gooType, int upkeep,
-                       Set<LaidState> lays, long startedAt) {
+                       Set<LaidState> lays, long startedAt, long expiresAt) {
 
         private static final String FIELD_ABILITY = "ability";
         private static final String FIELD_GOO_TYPE = "goo_type";
         private static final String FIELD_UPKEEP = "upkeep";
         private static final String FIELD_LAYS = "lays";
         private static final String FIELD_STARTED_AT = "started_at";
+        private static final String FIELD_EXPIRES_AT = "expires_at";
 
         static final Codec<Held> CODEC = RecordCodecBuilder.create(inst -> inst.group(
                 Identifier.CODEC.fieldOf(FIELD_ABILITY).forGetter(Held::ability),
@@ -80,7 +86,8 @@ public record HeldEffects(List<Held> held) {
                 Codec.INT.fieldOf(FIELD_UPKEEP).forGetter(Held::upkeep),
                 LaidState.CODEC.listOf().xmap(Held::laidSet, List::copyOf).fieldOf(FIELD_LAYS)
                         .forGetter(Held::lays),
-                Codec.LONG.fieldOf(FIELD_STARTED_AT).forGetter(Held::startedAt)
+                Codec.LONG.fieldOf(FIELD_STARTED_AT).forGetter(Held::startedAt),
+                Codec.LONG.optionalFieldOf(FIELD_EXPIRES_AT, NEVER_EXPIRES).forGetter(Held::expiresAt)
         ).apply(inst, Held::new));
 
         static final StreamCodec<ByteBuf, Held> STREAM_CODEC = StreamCodec.composite(
@@ -89,6 +96,7 @@ public record HeldEffects(List<Held> held) {
                 ByteBufCodecs.VAR_INT, Held::upkeep,
                 LaidState.STREAM_CODEC.apply(ByteBufCodecs.list()).map(Held::laidSet, List::copyOf), Held::lays,
                 ByteBufCodecs.VAR_LONG, Held::startedAt,
+                ByteBufCodecs.LONG, Held::expiresAt,
                 Held::new);
 
         /**
@@ -96,6 +104,30 @@ public record HeldEffects(List<Held> held) {
          */
         public Held {
             lays = laidSet(lays);
+        }
+
+        /**
+         * A glove effect, paying its upkeep with no expiry.
+         *
+         * @param ability   the ability held
+         * @param gooType   the goo type its upkeep draws
+         * @param upkeep    the mB it pays each tick
+         * @param lays      the player state its program laid
+         * @param startedAt the game time it started at
+         */
+        public Held(Identifier ability, ResourceKey<GooTypeDefinition> gooType, int upkeep, Set<LaidState> lays,
+                    long startedAt) {
+            this(ability, gooType, upkeep, lays, startedAt, NEVER_EXPIRES);
+        }
+
+        /**
+         * Answers whether the effect is a drunk brew's, prepaid until its expiry.
+         * brew-runs-the-crawl-prepaid-on-a-shown-clock
+         *
+         * @return true for a prepaid effect
+         */
+        public boolean prepaid() {
+            return expiresAt != NEVER_EXPIRES;
         }
 
         /**
@@ -194,9 +226,10 @@ public record HeldEffects(List<Held> held) {
     }
 
     /**
-     * Advances the effects one tick: each effect started before now pays its
-     * upkeep from what its goo type holds, effects sharing a type drawing in
-     * the order they started, and an effect the inventory cannot pay ends.
+     * Advances the effects one tick: a prepaid effect pays nothing and ends
+     * at its expiry; each glove effect started before now pays its upkeep
+     * from what its goo type holds, effects sharing a type drawing in the
+     * order they started, and an effect the inventory cannot pay ends.
      *
      * @param available the mB the inventory holds of a goo type
      * @param now       the game time
@@ -210,20 +243,37 @@ public record HeldEffects(List<Held> held) {
         List<Held> kept = new ArrayList<>();
         List<Held> ended = new ArrayList<>();
         for (Held standing : held) {
-            if (standing.startedAt() >= now) {
-                kept.add(standing);
-                continue;
-            }
-            int alreadyDrawn = drawn.getOrDefault(standing.gooType(), 0);
-            if (available.applyAsInt(standing.gooType()) - alreadyDrawn < standing.upkeep()) {
-                ended.add(standing);
-            } else {
-                drawn.merge(standing.gooType(), standing.upkeep(), Integer::sum);
-                kept.add(standing);
-            }
+            (stands(standing, available, drawn, now) ? kept : ended).add(standing);
         }
         HeldEffects after = ended.isEmpty() ? this : new HeldEffects(kept);
         return new Ticked(after, List.copyOf(ended), Map.copyOf(drawn));
+    }
+
+    /**
+     * Answers whether one effect stands through a tick, drawing its upkeep
+     * into the tick's draws when it pays.
+     *
+     * @param standing  the effect
+     * @param available the mB the inventory holds of a goo type
+     * @param drawn     per goo type, the upkeep the tick has drawn so far
+     * @param now       the game time
+     * @return true when the effect stands after the tick
+     */
+    private static boolean stands(Held standing, ToIntFunction<ResourceKey<GooTypeDefinition>> available,
+                                  Map<ResourceKey<GooTypeDefinition>, Integer> drawn, long now) {
+        if (standing.prepaid()) {
+            // brew-runs-the-crawl-prepaid-on-a-shown-clock: the brew paid up front and runs out on its clock
+            return now < standing.expiresAt();
+        }
+        if (standing.startedAt() >= now) {
+            return true;
+        }
+        int alreadyDrawn = drawn.getOrDefault(standing.gooType(), 0);
+        if (available.applyAsInt(standing.gooType()) - alreadyDrawn < standing.upkeep()) {
+            return false;
+        }
+        drawn.merge(standing.gooType(), standing.upkeep(), Integer::sum);
+        return true;
     }
 
     /**

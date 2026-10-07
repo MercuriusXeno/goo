@@ -225,8 +225,10 @@ public record HeartOverlay(HeartKind kind, List<Integer> shields, long expiresAt
     private HeartOverlay lay(HeartKind laidKind, long laidExpiresAt, float health, float maxHealth,
                              float damageTaken, long now) {
         if (stands() && kind == laidKind) {
-            // self-effects-trickle-until-ended: the same kind standing adds no duration
-            return this;
+            // self-effects-trickle-until-ended: the same kind standing adds no duration, running to the later end
+            long laterEnd = Math.max(expiresAt, laidExpiresAt);
+            return laterEnd == expiresAt ? this
+                    : new HeartOverlay(kind, shields, laterEnd, regrowAt, fireReadyAt, this.damageTaken, drainCarry);
         }
         // one-heart-overlay-at-a-time: a heart brew ends any other heart brew the moment it takes effect
         List<Integer> laid = laidKind.fillsMissing() ? firstMissingFilled(health, maxHealth)

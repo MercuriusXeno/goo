@@ -144,10 +144,11 @@ public final class GooSelfHandler {
     }
 
     /**
-     * Runs a drunk brew: the type's brew ability runs on the player for the
-     * brew's duration, the same program the glove runs, with no goo drained.
-     * A type with no brew ability yet runs nothing.
+     * Runs a drunk brew: the type's brew ability starts prepaid, the same
+     * held effect and program the glove runs, for the brew's duration with no
+     * goo drained. A type with no brew ability yet runs nothing.
      * decision brew-grants-the-self-ability-for-an-hour
+     * decision brew-runs-the-crawl-prepaid-on-a-shown-clock
      *
      * @param player   the drinking player
      * @param gooType  the brew's goo type
@@ -156,6 +157,7 @@ public final class GooSelfHandler {
     public static void drinkBrew(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, int duration) {
         AbilityDefinition ability = AbilityRegistry.of(player.level()).brewAbilityFor(gooType);
         if (ability != null) {
+            HeldEffectsEvents.startPrepaid(player, gooType, ability, duration);
             runOn(new PlayerHost(player.level(), player, OptionalInt.of(duration)), ability);
         }
     }

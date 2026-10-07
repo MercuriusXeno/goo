@@ -71,6 +71,22 @@ class HeldEffectsTest {
         }
 
         @Test
+        void aPrepaidEffectPaysNothingAndEndsAtItsExpiry() {
+            // brew-runs-the-crawl-prepaid-on-a-shown-clock
+            long expiresAt = STARTED + 100;
+            HeldEffects.Held brewed = new HeldEffects.Held(KINDLE, GooTypes.BLAZE, UPKEEP,
+                    Set.of(LaidState.HEART_OVERLAY), STARTED, expiresAt);
+            HeldEffects held = holding(brewed);
+            HeldEffects.Ticked before = held.tick(type -> 0, expiresAt - 1);
+            assertEquals(Map.of(), before.drawn());
+            assertSame(held, before.after());
+            HeldEffects.Ticked atEnd = held.tick(type -> 0, expiresAt);
+            assertEquals(List.of(brewed), atEnd.ended());
+            assertTrue(brewed.prepaid());
+            assertFalse(hearts(KINDLE, GooTypes.BLAZE).prepaid());
+        }
+
+        @Test
         void effectsSharingATypeDrawInTurnAndTheLastUnpaidEnds() {
             HeldEffects.Held first = new HeldEffects.Held(KINDLE, GooTypes.BLAZE, UPKEEP, Set.of(), STARTED);
             HeldEffects.Held second = new HeldEffects.Held(NOURISH, GooTypes.BLAZE, UPKEEP, Set.of(), STARTED);
