@@ -164,8 +164,7 @@ final class PetalMesh {
                 new PetalMask.Point(left + side, top), new PetalMask.Point(left + side, top + side),
                 new PetalMask.Point(left, top + side));
         List<Quad> quads = new ArrayList<>();
-        for (List<PetalMask.Point> column : columns(petal)) {
-            List<PetalMask.Point> piece = intersectConvex(square, column);
+        for (List<PetalMask.Point> piece : cutToPetal(petal, square)) {
             for (int i = 1; i + 1 < piece.size(); i++) {
                 Vertex next = inSquare(piece.get(i + 1), left, top, side);
                 quads.add(new Quad(inSquare(piece.getFirst(), left, top, side), inSquare(piece.get(i), left, top,
@@ -173,6 +172,45 @@ final class PetalMesh {
             }
         }
         return quads;
+    }
+
+    /**
+     * The part of a convex polygon lying under a petal's face, as untextured
+     * quads, for a shape drawn in one color, such as a learned item's slash.
+     * decision icons-slide-in-from-behind-the-tip
+     *
+     * @param petal   the petal
+     * @param polygon the convex polygon's corners in order, normalized
+     * @return the quads; none when the polygon lies wholly outside the petal
+     */
+    static List<Quad> clipConvex(PetalMask.Petal petal, List<PetalMask.Point> polygon) {
+        List<Quad> quads = new ArrayList<>();
+        for (List<PetalMask.Point> piece : cutToPetal(petal, polygon)) {
+            for (int i = 1; i + 1 < piece.size(); i++) {
+                Vertex next = vertexAt(piece.get(i + 1));
+                quads.add(new Quad(vertexAt(piece.getFirst()), vertexAt(piece.get(i)), next, next).wound());
+            }
+        }
+        return quads;
+    }
+
+    /**
+     * A convex polygon cut to each of the fill's convex columns, so the
+     * pieces cover exactly its part under the face the fill draws.
+     *
+     * @param petal   the petal
+     * @param polygon the convex polygon's corners in order
+     * @return each overlapping piece's corners in order
+     */
+    private static List<List<PetalMask.Point>> cutToPetal(PetalMask.Petal petal, List<PetalMask.Point> polygon) {
+        List<List<PetalMask.Point>> pieces = new ArrayList<>();
+        for (List<PetalMask.Point> column : columns(petal)) {
+            List<PetalMask.Point> piece = intersectConvex(polygon, column);
+            if (!piece.isEmpty()) {
+                pieces.add(piece);
+            }
+        }
+        return pieces;
     }
 
     /**
