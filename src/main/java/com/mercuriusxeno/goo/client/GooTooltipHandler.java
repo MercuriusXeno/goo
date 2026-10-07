@@ -22,6 +22,7 @@ import net.minecraft.world.inventory.tooltip.TooltipComponent;
 import net.minecraft.world.item.BucketItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.material.Fluid;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -84,7 +85,7 @@ public final class GooTooltipHandler {
         }
         GooContents chrysmValue = chrysmValue(stack);
         if (chrysmValue != null) {
-            appendGooContentsComponents(event.getTooltipElements(), chrysmValue);
+            appendGooRows(event.getTooltipElements(), chrysmValue.getAll());
             return;
         }
         if (handleContainerTooltip(event.getTooltipElements(), stack)) {
@@ -213,27 +214,41 @@ public final class GooTooltipHandler {
             return false;
         }
 
-        elements.add(Either.right(new GooValueTooltipComponent(contentType, contentAmount)));
-        appendContainerValue(elements, stack);
+        appendContainerRows(elements, contentType, contentAmount, lookupContainerValue(stack));
         return true;
     }
 
     /**
-     * Appends the "+" separator and base-item goo value rows if the container has one.
+     * Appends a container's contents row, then, when the container has a goo
+     * value of its own, the "+" separator and the container's rows.
      *
-     * @param elements the tooltip element list
-     * @param stack    the container item stack
+     * @param elements       the tooltip element list
+     * @param contentType    the contents' goo type
+     * @param contentAmount  the contents' amount
+     * @param containerValue the container's own value, or null
      */
-    private static void appendContainerValue(
-            List<Either<FormattedText, TooltipComponent>> elements, ItemStack stack) {
-        GooValue containerValue = lookupContainerValue(stack);
+    static void appendContainerRows(List<Either<FormattedText, TooltipComponent>> elements,
+            ResourceKey<GooTypeDefinition> contentType, int contentAmount,
+            @org.jspecify.annotations.Nullable GooValue containerValue) {
+        appendGooRows(elements, Map.of(contentType, contentAmount));
         if (containerValue == null || containerValue.isEmpty()) {
             return;
         }
         elements.add(Either.left(PLUS_SEPARATOR));
-        for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> e : containerValue.getAll().entrySet()) {
-            elements.add(Either.right(
-                    new GooValueTooltipComponent(e.getKey(), e.getValue())));
+        appendGooRows(elements, containerValue.getAll());
+    }
+
+    /**
+     * Appends one goo row per type, directly under the line above them.
+     * decision tooltip-key-is-its-own-g-binding
+     *
+     * @param elements the tooltip element list
+     * @param rows     each goo type's amount
+     */
+    static void appendGooRows(List<Either<FormattedText, TooltipComponent>> elements,
+            Map<ResourceKey<GooTypeDefinition>, Integer> rows) {
+        for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> row : rows.entrySet()) {
+            elements.add(Either.right(new GooValueTooltipComponent(row.getKey(), row.getValue())));
         }
     }
 
@@ -316,7 +331,7 @@ public final class GooTooltipHandler {
             List<Either<FormattedText, TooltipComponent>> elements, ItemStack stack) {
         GooContents gooContents = stack.get(GooDataComponents.GOO_CONTENTS.get());
         if (isEmptyContents(gooContents)) {
-            appendGooContentsComponents(elements, gooContents);
+            appendGooRows(elements, gooContents.getAll());
             return true;
         }
         CanisterFluidContent canisterContent = stack.get(GooDataComponents.CANISTER_FLUID_CONTENT.get());
@@ -337,7 +352,7 @@ public final class GooTooltipHandler {
             List<Either<FormattedText, TooltipComponent>> elements, ItemStack stack) {
         GooValue value = knownValue(stack);
         if (value != null && !value.isEmpty()) {
-            appendGooComponents(elements, value);
+            appendGooRows(elements, value.getAll());
         }
     }
 
@@ -352,7 +367,7 @@ public final class GooTooltipHandler {
     }
 
     /**
-     * Appends a single tooltip line showing the goo/goo's volume and type.
+     * Appends a goo's row, or nothing when it holds no typed volume.
      *
      * @param elements the tooltip element list
      * @param type     the goo type
@@ -364,36 +379,7 @@ public final class GooTooltipHandler {
         if (volume <= 0 || type == null) {
             return;
         }
-        elements.add(Either.right(
-                new GooValueTooltipComponent(type, volume)));
-    }
-
-    /**
-     * Inserts one GooValueTooltipComponent per goo type.
-     *
-     * @param elements the tooltip element list
-     * @param value    the goo value mapping
-     */
-    private static void appendGooComponents(
-            List<Either<FormattedText, TooltipComponent>> elements, GooValue value) {
-        for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> entry : value.getAll().entrySet()) {
-            elements.add(Either.right(
-                    new GooValueTooltipComponent(entry.getKey(), entry.getValue())));
-        }
-    }
-
-    /**
-     * Inserts icon tooltip lines for each goo type in GooContents (PMI, canister).
-     *
-     * @param elements the tooltip element list
-     * @param contents the goo contents to measure
-     */
-    private static void appendGooContentsComponents(
-            List<Either<FormattedText, TooltipComponent>> elements, GooContents contents) {
-        for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> entry : contents.getAll().entrySet()) {
-            elements.add(Either.right(
-                    new GooValueTooltipComponent(entry.getKey(), entry.getValue())));
-        }
+        appendGooRows(elements, Map.of(type, volume));
     }
 
     /**
@@ -407,10 +393,9 @@ public final class GooTooltipHandler {
             List<Either<FormattedText, TooltipComponent>> elements, CanisterFluidContent content) {
         ResourceKey<GooTypeDefinition> gooType = content.getGooType();
         if (gooType != null) {
-            elements.add(Either.right(
-                    new GooValueTooltipComponent(gooType, content.amount())));
+            appendGooRows(elements, Map.of(gooType, content.amount()));
         } else {
-            appendVanillaFluidTooltip(elements, content);
+            appendVanillaFluidRow(elements, content.fluid(), content.amount());
         }
     }
 
@@ -418,12 +403,12 @@ public final class GooTooltipHandler {
      * Appends a bucket icon + mB amount tooltip for vanilla fluids.
      *
      * @param elements the tooltip element list
-     * @param content  the canister fluid content holding a vanilla fluid
+     * @param fluid    the vanilla fluid
+     * @param amount   the amount in millibuckets
      */
-    private static void appendVanillaFluidTooltip(
-            List<Either<FormattedText, TooltipComponent>> elements, CanisterFluidContent content) {
-        elements.add(Either.right(
-                new VanillaFluidTooltipComponent(content.fluid(), content.amount())));
+    static void appendVanillaFluidRow(
+            List<Either<FormattedText, TooltipComponent>> elements, Fluid fluid, int amount) {
+        elements.add(Either.right(new VanillaFluidTooltipComponent(fluid, amount)));
     }
 
     /**
