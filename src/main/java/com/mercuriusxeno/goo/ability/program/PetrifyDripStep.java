@@ -14,14 +14,15 @@ import java.util.stream.Stream;
 
 /**
  * Rock petrify's tap step, run as each drip lands on the block below the
- * tap: once the drips the JSON names have accumulated, a block in the
- * dripstone-capable tag grows pointed dripstone downward, and any other
- * block steps one rung along the block map, drawn as the old block mingling
- * into the new; the count then starts over
- * (decision petrify-drip-calcifies-and-grows-dripstone).
+ * tap, calcifying like the fog: each drip builds the block's exposure toward
+ * the next rung of the block map by one drip's share, the next block
+ * mingling in a little, and the drips the JSON names step the rung; once
+ * the drips stop, unfinished progress recedes. A block in the
+ * dripstone-capable tag grows pointed dripstone downward instead, once the
+ * JSON's drips have accumulated (decision petrify-drip-calcifies-and-grows-dripstone).
  *
  * @param map   the id of the block map the block steps along
- * @param drips the drips that accumulate before the step acts
+ * @param drips the drips that step one rung, or grow one tip
  * @param grows the block tag naming the blocks that grow dripstone instead
  */
 public record PetrifyDripStep(Identifier map, int drips, TagKey<Block> grows) implements Step {
@@ -53,17 +54,18 @@ public record PetrifyDripStep(Identifier map, int drips, TagKey<Block> grows) im
     @Override
     public boolean tick(StepContext context) {
         DripHost host = context.hostAs(DripHost.class);
-        if (host.countDrip() < drips) {
-            return true;
-        }
-        host.resetDrips();
         BlockPos below = host.position();
         if (host.blockIn(below, grows)) {
-            host.growStalactite();
-        } else {
-            BlockMaps.get(map).flatMap(steps -> steps.next(host.blockAt(below)))
-                    .ifPresent(next -> host.transformBlock(below, next.defaultBlockState()));
+            if (host.countDrip() >= drips) {
+                host.resetDrips();
+                host.growStalactite();
+            }
+            return true;
         }
+        BlockMaps.get(map).flatMap(steps -> steps.next(host.blockAt(below)))
+                .map(Block::defaultBlockState)
+                .filter(next -> host.exposeBlock(below, next, 1f / drips) >= 1f)
+                .ifPresent(next -> host.transformBlock(below, next));
         return true;
     }
 
