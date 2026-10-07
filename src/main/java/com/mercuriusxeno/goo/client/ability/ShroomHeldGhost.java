@@ -155,29 +155,9 @@ public final class ShroomHeldGhost implements HeldGhostVisual {
         for (int i = 0; i < MOTES; i++) {
             double[] unit = moteAt(i, turn);
             double radius = ghost.domeRadius() * (1 + BOB_SHARE * Math.sin(nowSeconds * BOB_PER_SECOND + PUFF_OF[i]));
-            emitMote(pose, c, (float) (unit[X] * radius), (float) (unit[Y] * radius), (float) (unit[Z] * radius),
-                    color);
+            SporeMotes.emit(pose, c, (float) (unit[X] * radius), (float) (unit[Y] * radius),
+                    (float) (unit[Z] * radius), MOTE_HALF, color);
         }
     }
 
-    /**
-     * A mote as two crossed quads, so it reads from any side.
-     *
-     * @param pose  the pose entry
-     * @param c     the vertex consumer
-     * @param x     the mote's x about the dome's center
-     * @param y     the mote's y about the dome's center
-     * @param z     the mote's z about the dome's center
-     * @param color the mote's color
-     */
-    private static void emitMote(PoseStack.Pose pose, VertexConsumer c, float x, float y, float z, int color) {
-        c.addVertex(pose, x - MOTE_HALF, y - MOTE_HALF, z).setColor(color);
-        c.addVertex(pose, x + MOTE_HALF, y - MOTE_HALF, z).setColor(color);
-        c.addVertex(pose, x + MOTE_HALF, y + MOTE_HALF, z).setColor(color);
-        c.addVertex(pose, x - MOTE_HALF, y + MOTE_HALF, z).setColor(color);
-        c.addVertex(pose, x, y - MOTE_HALF, z - MOTE_HALF).setColor(color);
-        c.addVertex(pose, x, y - MOTE_HALF, z + MOTE_HALF).setColor(color);
-        c.addVertex(pose, x, y + MOTE_HALF, z + MOTE_HALF).setColor(color);
-        c.addVertex(pose, x, y + MOTE_HALF, z - MOTE_HALF).setColor(color);
-    }
 }
