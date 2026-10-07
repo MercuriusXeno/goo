@@ -52,6 +52,7 @@ public record PetrifyStep(Expr fill) implements Step {
                     .fill((float) fill.evaluate(context), level.getGameTime());
             mob.setData(GooAttachments.PETRIFICATION, after);
             PetrifyEvents.slowBy(mob, after);
+            PetrifyEvents.crackle(level, mob, after);
             if (after.full()) {
                 Statues.encase(level, mob, host.thrower());
             }

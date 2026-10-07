@@ -19,8 +19,9 @@ import net.minecraft.util.context.ContextKey;
 import net.minecraft.world.entity.Entity;
 
 /**
- * Draws a petrifying mob turning to stone: its model again in a stone
- * texture, laid in noise patches that spread and grow together as its petrify
+ * Draws a petrifying mob turning to stone: its model, and the shell it wears
+ * over it such as a sheep's wool, again in a stone texture flush on every
+ * face, laid in noise patches that spread and grow together as its petrify
  * gauge fills, covering it whole at a statue
  * (decision petrify-stone-encasement-and-calcify-map).
  *
@@ -42,11 +43,16 @@ public final class PetrifyStoneLayer<S extends LivingEntityRenderState, M extend
     private static final int NO_OUTLINE = 0;
     private static final int STONE_GREY = 0xFFFFFF;
 
+    /** The outer shell the mob shows over its body, which the stone covers too while it shows. */
+    private final MobShells.Shell shell;
+
     /**
      * @param parent the living entity renderer the layer draws over
+     * @param shell  the outer shell the mob wears, or MobShells.NONE
      */
-    public PetrifyStoneLayer(RenderLayerParent<S, M> parent) {
+    public PetrifyStoneLayer(RenderLayerParent<S, M> parent, MobShells.Shell shell) {
         super(parent);
+        this.shell = shell;
     }
 
     /**
@@ -54,11 +60,12 @@ public final class PetrifyStoneLayer<S extends LivingEntityRenderState, M extend
      * renderer is left as it is.
      *
      * @param renderer the renderer
+     * @param shell    the outer shell its mob wears, or MobShells.NONE
      */
     @SuppressWarnings({"unchecked", "rawtypes"})
-    public static void addTo(EntityRenderer<?, ?> renderer) {
+    public static void addTo(EntityRenderer<?, ?> renderer, MobShells.Shell shell) {
         if (renderer instanceof LivingEntityRenderer living) {
-            living.addLayer(new PetrifyStoneLayer<>(living));
+            living.addLayer(new PetrifyStoneLayer<>(living, shell));
         }
     }
 
@@ -91,8 +98,22 @@ public final class PetrifyStoneLayer<S extends LivingEntityRenderState, M extend
         if (state.isInvisible || share <= 0f) {
             return;
         }
-        submitNodeCollector.order(STONE_ORDER).submitModel(getParentModel(), state, poseStack,
-                GooRenderTypes.PETRIFY_STONE_TYPE, lightCoords, OverlayTexture.NO_OVERLAY, shareColor(share), null,
-                NO_OUTLINE, null);
+        submitStone(submitNodeCollector, getParentModel(), state, poseStack, lightCoords, share);
+        EntityModel<?> shown = shell.shown(state);
+        if (shown != null) {
+            submitShellStone(submitNodeCollector, shown, state, poseStack, lightCoords, share);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void submitShellStone(SubmitNodeCollector collector, EntityModel<?> shown, S state, PoseStack poseStack,
+                                  int lightCoords, float share) {
+        submitStone(collector, (EntityModel<? super S>) shown, state, poseStack, lightCoords, share);
+    }
+
+    private void submitStone(SubmitNodeCollector collector, EntityModel<? super S> model, S state,
+                             PoseStack poseStack, int lightCoords, float share) {
+        collector.order(STONE_ORDER).submitModel(model, state, poseStack, GooRenderTypes.PETRIFY_STONE_TYPE,
+                lightCoords, OverlayTexture.NO_OVERLAY, shareColor(share), null, NO_OUTLINE, null);
     }
 }

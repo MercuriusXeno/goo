@@ -517,16 +517,16 @@ public final class GooRenderTypes {
 
     /**
      * Petrify's stone pipeline (decision petrify-stone-encasement-and-calcify-map):
-     * a mob's model drawn again through the ailment overlay's lifted vertex
-     * shader and {@code petrify_stone.fsh}, a stone texture laid over the
-     * skin coordinates in noise patches covering the share of the model the
-     * vertex alpha carries, whole at a statue.
+     * a mob's model and the shell it wears drawn again through
+     * {@code petrify_stone.vsh / .fsh}, flush at the model's own depth, a stone
+     * texture laid over the skin coordinates in noise patches covering the
+     * share of the model the vertex alpha carries, whole at a statue.
      */
     public static final RenderPipeline PETRIFY_STONE = RenderPipeline.builder(
                     RenderPipelines.ENTITY_SNIPPET,
                     RenderPipelines.GLOBALS_SNIPPET)
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "petrify_stone"))
-            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_ailment_overlay"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "petrify_stone"))
             .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "petrify_stone"))
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(new DepthStencilState(DepthStencilState.DEFAULT.depthTest(), false))

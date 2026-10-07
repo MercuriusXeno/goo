@@ -5,6 +5,8 @@ import com.mercuriusxeno.goo.registry.GooBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.block.Block;
@@ -16,6 +18,10 @@ import org.jspecify.annotations.Nullable;
  * (decision petrify-stone-encasement-and-calcify-map).
  */
 public final class Statues {
+
+    /** The stone settling as the statue forms. */
+    private static final float SETTLE_VOLUME = 1f;
+    private static final float SETTLE_PITCH = 0.8f;
 
     private Statues() {
     }
@@ -38,6 +44,7 @@ public final class Statues {
         if (level.getBlockEntity(pos) instanceof StatueBlockEntity statue) {
             statue.hold(mob, BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()), experience);
         }
+        level.playSound(null, pos, SoundEvents.DEEPSLATE_PLACE, SoundSource.BLOCKS, SETTLE_VOLUME, SETTLE_PITCH);
         mob.discard();
     }
 }
