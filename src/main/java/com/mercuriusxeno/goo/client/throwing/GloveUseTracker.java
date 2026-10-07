@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.throwing;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.HeldRoute;
+import com.mercuriusxeno.goo.ability.SelfEatRoute;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -163,6 +164,14 @@ public final class GloveUseTracker {
             @Override
             public void hold() {
                 GloveThrowSender.sendHold(player);
+            }
+
+            @Override
+            public boolean eatsOnPress() {
+                GloveSelection selection = GloveThrowSender.heldSelection(player);
+                return selection != null && SelfEatRoute.eats(
+                        GloveThrowSender.selectedDelivery(selection.abilityId()),
+                        GloveThrowSender.selectedBadge(selection.abilityId()));
             }
 
             @Override

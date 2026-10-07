@@ -4,9 +4,14 @@ package com.mercuriusxeno.goo.client.throwing;
  * The glove's right-click input as a press the client resolves off the use
  * key. A press arms the throw and previews the ability's area for as long as
  * the key is held; release throws once and swings. A stream runs from the
- * press instead, streaming on every held tick. The arm swings only for a
- * throw that sent a payload.
+ * press instead, streaming on every held tick. A self + brew press sends on
+ * the press too, while the use key is still down, and then only waits for
+ * release: vanilla releases a used item the tick the key comes up, so an eat
+ * started on release would be cancelled the tick it began, and letting go
+ * mid-eat is what cancels it. The arm swings only for a throw that sent a
+ * payload, never for an eat.
  * decision right-click-held-previews-release-throws
+ * decision self-brew-goos-eat-before-the-effect
  * decision use-animation-only-when-goo-throws
  */
 public final class GloveInputGate {
@@ -34,11 +39,20 @@ public final class GloveInputGate {
          * @return true for a stream
          */
         boolean runsWhileHeld();
+
+        /**
+         * Whether the selected ability is eaten: it sends on the press and the
+         * player eats while the key stays down.
+         *
+         * @return true for a self + brew ability
+         */
+        boolean eatsOnPress();
     }
 
     private boolean armed;
     private boolean streaming;
     private boolean previewing;
+    private boolean eating;
 
     /** Starts a press when the glove's use reaches the client; a live press ignores the repeat. */
     public void arm() {
@@ -46,6 +60,7 @@ public final class GloveInputGate {
             armed = true;
             streaming = false;
             previewing = false;
+            eating = false;
         }
     }
 
@@ -73,6 +88,7 @@ public final class GloveInputGate {
         armed = false;
         streaming = false;
         previewing = false;
+        eating = false;
     }
 
     /**
@@ -88,12 +104,24 @@ public final class GloveInputGate {
         if (!armed) {
             return;
         }
-        if (streaming || (!previewing && actions.runsWhileHeld())) {
+        if (eating || (!previewing && !streaming && actions.eatsOnPress())) {
+            tickEat(useKeyDown, actions);
+        } else if (streaming || (!previewing && actions.runsWhileHeld())) {
             tickStream(useKeyDown, actions);
         } else if (useKeyDown) {
             previewing = true;
         } else {
             throwAndSwing(actions);
+            cancel();
+        }
+    }
+
+    private void tickEat(boolean useKeyDown, PressActions actions) {
+        if (!eating) {
+            eating = true;
+            actions.sendThrow();
+        }
+        if (!useKeyDown) {
             cancel();
         }
     }
