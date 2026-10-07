@@ -54,7 +54,7 @@ class AbilityLoaderTest {
     /** The abilities whose whole design was a per-stack shape. */
     /** The world abilities that stay after their blob lands. */
     private static final List<String> LINGERING_ABILITIES = List.of("crystal_cloud", "metal_spikes",
-            "nether_black_hole", "unstable_proximity_mine", "glow_crystal");
+            "nether_black_hole", "unstable_proximity_mine", "glow_crystal", "crystal_prism");
     /** The ability whose program ends the tick it lands. */
     private static final String BLAST = "unstable_explode";
     private static final List<String> STACK_SHAPE_ABILITIES = List.of("blaze_flat", "blaze_tunnel",
@@ -76,6 +76,7 @@ class AbilityLoaderTest {
             Map.entry("glow_crystal", List.of("glowstone")),
             Map.entry("crystal_cloud", List.of("glass", "sand")),
             Map.entry("crystal_flechettes", List.of("amethyst_shard")),
+            Map.entry("crystal_prism", List.of("quartz")),
             Map.entry("blaze_spitfire", List.of("torchflower")),
             Map.entry("blaze_ignite", List.of("flint")),
             Map.entry("blaze_kindle", List.of("magma_cream")),
@@ -163,6 +164,20 @@ class AbilityLoaderTest {
                     .map(Identifier::withDefaultNamespace).toList();
             assertEquals(expected, scanned.get(fileId).requires(), fileId.toString());
         }
+    }
+
+    /**
+     * Crystal's Prism names the nether quartz it consumes beside its goo
+     * cost, and an ability naming no reagent consumes nothing
+     * (decision ability-json-names-its-reagent).
+     */
+    @Test
+    void prismConsumesANetherQuartzAndAnUnnamedReagentIsNone() {
+        Map<Identifier, AbilityDefinition> scanned = scanShipped(AbilityJson.files());
+
+        assertEquals(List.of(Identifier.withDefaultNamespace("quartz")),
+                scanned.get(Identifier.fromNamespaceAndPath(Goo.MODID, "crystal_prism")).consumes());
+        assertEquals(List.of(), scanned.get(Identifier.fromNamespaceAndPath(Goo.MODID, "crystal_cloud")).consumes());
     }
 
     /**

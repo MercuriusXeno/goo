@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
+import com.mercuriusxeno.goo.item.ReagentScanner;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.throwing.ThrowArc;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -49,6 +50,8 @@ public final class GooThrowHandler {
     private static final String LOG_NO_GOO = "Throw rejected: insufficient {} goo";
     /** Log: a throw naming no ability the player may use, refused. */
     private static final String LOG_UNUSABLE = "Throw rejected: ability '{}' unusable by {}";
+    /** Log: a throw whose ability consumes an item the player lacks, refused. */
+    private static final String LOG_NO_REAGENT = "Throw rejected: {} lacks a reagent ability '{}' consumes";
     /** Log: partial depletion warning. */
     private static final String LOG_PARTIAL_DEPLETE = "Partial depletion ({}/{}) for {} throw - proceeding anyway";
     /** Log: throw executed successfully. */
@@ -76,11 +79,12 @@ public final class GooThrowHandler {
      * ability aimed at an entity within reach touches it at once instead,
      * and a self ability runs on the player: on command, or after the eat
      * for a self + brew ability. A throw naming no ability the player may
-     * use is refused whole, draining nothing.
+     * use, or consuming an item the player lacks, is refused whole, draining nothing.
      * decision mob-ability-touches-at-reach
      * decision self-delivery-runs-on-player
      * decision self-brew-goos-eat-before-the-effect
      * decision ability-hidden-until-recipes-known
+     * decision ability-json-names-its-reagent
      *
      * @param player  the throwing player
      * @param payload the throw payload data
@@ -96,7 +100,27 @@ public final class GooThrowHandler {
             }
             return;
         }
-        deliver(player, payload, gooType, ability);
+        if (holdsReagents(player, ability)) {
+            deliver(player, payload, gooType, ability);
+        }
+    }
+
+    /**
+     * Whether the player holds one of every item the ability consumes,
+     * logging the refusal (decision ability-json-names-its-reagent).
+     *
+     * @param player  the throwing player
+     * @param ability the thrown ability
+     * @return true when no reagent is missing
+     */
+    private static boolean holdsReagents(ServerPlayer player, AbilityDefinition ability) {
+        if (ReagentScanner.holdsEvery(player, ability.consumes())) {
+            return true;
+        }
+        if (Goo.LOGGER.isDebugEnabled()) {
+            Goo.LOGGER.debug(LOG_NO_REAGENT, player.getName().getString(), ability.id());
+        }
+        return false;
     }
 
     /**
@@ -299,7 +323,7 @@ public final class GooThrowHandler {
         return def == null ? Delivery.ARC : def.delivery();
     }
 
-    /** Depletes goo, broadcasts the flight, and schedules the delayed effect.
+    /** Depletes goo and the ability's reagents, broadcasts the flight, and schedules the delayed effect.
      *
      * @param player  the throwing player
      * @param payload the throw payload data
@@ -313,6 +337,7 @@ public final class GooThrowHandler {
         if (depleted < cost && Goo.LOGGER.isWarnEnabled()) {
             Goo.LOGGER.warn(LOG_PARTIAL_DEPLETE, depleted, cost, GooTypes.id(gooType));
         }
+        consumeReagents(player, payload.abilityId(), gooType);
 
         double distance = Math.sqrt(distSq);
         GooTypeDefinition definition = GooTypes.definition(player.level().registryAccess(), gooType);
@@ -323,6 +348,21 @@ public final class GooThrowHandler {
                 .scheduleEffect(player, payload, gooType, delivery, travelTicks);
 
         if (Goo.LOGGER.isDebugEnabled()) { Goo.LOGGER.debug(LOG_THROW_OK, GooTypes.id(gooType), player.getName().getString(), travelTicks); }
+    }
+
+    /**
+     * Takes one of each item the thrown ability consumes from the player.
+     * decision ability-json-names-its-reagent
+     *
+     * @param player    the paying player
+     * @param abilityId the thrown ability id string
+     * @param gooType   the thrown goo type
+     */
+    static void consumeReagents(ServerPlayer player, String abilityId, ResourceKey<GooTypeDefinition> gooType) {
+        AbilityDefinition def = thrownAbility(player.level(), abilityId, gooType);
+        if (def != null) {
+            ReagentScanner.consumeOneOfEach(player, def.consumes());
+        }
     }
 
     /** Builds and broadcasts the flight payload to tracking players and the thrower.

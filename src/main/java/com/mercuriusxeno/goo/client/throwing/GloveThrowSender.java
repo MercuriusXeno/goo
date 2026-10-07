@@ -11,6 +11,7 @@ import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.overlay.AimTracker;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
+import com.mercuriusxeno.goo.item.ReagentScanner;
 import com.mercuriusxeno.goo.network.GooStreamPayload;
 import com.mercuriusxeno.goo.network.GooThrowHandler;
 import com.mercuriusxeno.goo.network.GooThrowPayload;
@@ -20,13 +21,16 @@ import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
+import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
+import java.util.List;
 import java.util.OptionalInt;
 import java.util.function.IntPredicate;
+import java.util.function.Predicate;
 
 /**
  * Client-only helper that resolves the player's aim target and sends
@@ -111,7 +115,8 @@ public final class GloveThrowSender {
      */
     private static boolean sendSelf(Player player, ResourceKey<GooTypeDefinition> gooType, String abilityId) {
         if (!affordsThrow(AbilitySyncHandler.findAbility(abilityId),
-                amount -> GooSourceScanner.hasEnough(player, gooType, amount))) {
+                amount -> GooSourceScanner.hasEnough(player, gooType, amount),
+                reagent -> ReagentScanner.holds(player, reagent))) {
             return false;
         }
         sendPayload(new GooThrowPayload(GooTypes.id(gooType), NO_ENTITY, player.blockPosition(), NO_ENTITY,
@@ -164,7 +169,8 @@ public final class GloveThrowSender {
             ResourceKey<GooTypeDefinition> gooType, String abilityId) {
         GooThrowPayload payload = targetToPayload(target, gooType, abilityId, lineOrigin());
         if (payload == null || !affordsThrow(AbilitySyncHandler.findAbility(abilityId),
-                amount -> GooSourceScanner.hasEnough(player, gooType, amount))) {
+                amount -> GooSourceScanner.hasEnough(player, gooType, amount),
+                reagent -> ReagentScanner.holds(player, reagent))) {
             return null;
         }
         return payload;
@@ -172,15 +178,20 @@ public final class GloveThrowSender {
 
     /**
      * Whether the player can afford a throw priced the way the server
-     * prices it, checked before any swing, packet or sound
-     * (decision unaffordable-click-does-nothing).
+     * prices it, and holds one of every item the ability consumes, checked
+     * before any swing, packet or sound.
+     * decision unaffordable-click-does-nothing
+     * decision ability-json-names-its-reagent
      *
      * @param ability      the selected ability's synced copy, or null when none synced
      * @param holdsAtLeast whether the player holds at least an mB amount of the type
-     * @return true when the holdings cover the cost
+     * @param holdsItem    whether the player holds one of an item
+     * @return true when the holdings cover the cost and every reagent
      */
-    static boolean affordsThrow(@Nullable ClientAbility ability, IntPredicate holdsAtLeast) {
-        return holdsAtLeast.test(throwCostOf(ability));
+    static boolean affordsThrow(@Nullable ClientAbility ability, IntPredicate holdsAtLeast,
+            Predicate<Identifier> holdsItem) {
+        return holdsAtLeast.test(throwCostOf(ability))
+                && (ability == null || ReagentScanner.holdsEvery(ability.consumes(), holdsItem));
     }
 
     /**
@@ -208,6 +219,19 @@ public final class GloveThrowSender {
             return OptionalInt.empty();
         }
         return OptionalInt.of(throwCostOf(AbilitySyncHandler.findAbility(selection.abilityId())));
+    }
+
+    /**
+     * The items the held glove's throw consumes beside its goo cost
+     * (decision ability-json-names-its-reagent).
+     *
+     * @param player the local player
+     * @return the consumed item ids, empty when the glove holds no selection or the ability consumes none
+     */
+    public static List<Identifier> aimedReagents(Player player) {
+        GloveSelection selection = heldSelection(player);
+        ClientAbility ability = selection == null ? null : AbilitySyncHandler.findAbility(selection.abilityId());
+        return ability == null ? List.of() : ability.consumes();
     }
 
     /**

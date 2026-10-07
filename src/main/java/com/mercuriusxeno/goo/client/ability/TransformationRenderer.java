@@ -7,6 +7,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
@@ -18,8 +19,8 @@ import java.util.List;
 /**
  * Plays each live model transformation: draws its goo blob hopping and
  * shrinking, and scales the entity it becomes through the render-state
- * modifier, from nothing to full size, so the entity is hidden at scale
- * zero yet never culled.
+ * modifier, or the block it becomes through that block's renderer, from
+ * nothing to full size, so the target is hidden at scale zero yet never culled.
  * Decision model-transformation-is-one-animation.
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
@@ -42,6 +43,19 @@ public final class TransformationRenderer {
         float scale = Transformations.CLIENT.modelScaleOf(entity.getId(), gameTime(Minecraft.getInstance()));
         living.scale *= scale;
         living.shadowRadius *= scale;
+    }
+
+    /**
+     * The size a block's renderer draws its model at while a blob transforms
+     * into it: nothing as the blob lands, full once the blob is gone, and
+     * full where no transformation names the block.
+     * decision prism-blob-becomes-a-milky-quartz-crystal
+     *
+     * @param pos the block's position
+     * @return 0 to 1
+     */
+    public static float blockModelScale(BlockPos pos) {
+        return Transformations.CLIENT.modelScaleAt(pos, gameTime(Minecraft.getInstance()));
     }
 
     /**
