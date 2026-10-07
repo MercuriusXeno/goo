@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.ability.program.EntityCounters;
 import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.item.SoulBoundStacks;
+import com.mojang.serialization.Codec;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.attachment.AttachmentType;
@@ -72,6 +73,15 @@ public final class GooAttachments {
      */
     public static final Supplier<AttachmentType<Vec3>> JUMP_SOURCE =
             ATTACHMENT_TYPES.register("jump_source", () -> AttachmentType.builder(() -> Vec3.ZERO).build());
+
+    /**
+     * The game time a living entity's Charged runs until, saved with it; at or
+     * before the current time it stands uncharged
+     * (decision charged-scales-channel-params-by-json).
+     */
+    public static final Supplier<AttachmentType<Long>> CHARGED =
+            ATTACHMENT_TYPES.register("charged",
+                    () -> AttachmentType.builder(() -> 0L).serialize(Codec.LONG.fieldOf("until")).build());
 
     private GooAttachments() {
     }

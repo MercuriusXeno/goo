@@ -4,14 +4,28 @@ import java.util.OptionalDouble;
 
 /**
  * What a step sees on one tick: the host, how many ticks the step has run
- * and how many the program has, and the variable scope that layers the
- * program's counters in front of the host's reads.
+ * and how many the program has, the Charged multipliers its cast carries,
+ * and the variable scope that layers the program's counters and those
+ * multipliers in front of the host's reads.
  *
  * @param host         the host seam
  * @param stepTicks    ticks the current step has already run, zero on its first tick
  * @param programTicks ticks since the program body started
+ * @param charged      the Charged multipliers of the cast, all 1 for an uncharged one
  */
-public record StepContext(StepHost host, int stepTicks, int programTicks) implements Variables {
+public record StepContext(StepHost host, int stepTicks, int programTicks, ChargedMultipliers charged)
+        implements Variables {
+
+    /**
+     * The context of an uncharged cast.
+     *
+     * @param host         the host seam
+     * @param stepTicks    ticks the current step has already run, zero on its first tick
+     * @param programTicks ticks since the program body started
+     */
+    public StepContext(StepHost host, int stepTicks, int programTicks) {
+        this(host, stepTicks, programTicks, ChargedMultipliers.NONE);
+    }
 
     /**
      * The variable naming ticks since the program started.
@@ -37,6 +51,8 @@ public record StepContext(StepHost host, int stepTicks, int programTicks) implem
         if (VAR_TICK.equals(name)) {
             return OptionalDouble.of(programTicks);
         }
-        return host.read(name);
+        // decision charged-scales-channel-params-by-json
+        OptionalDouble multiplier = charged.read(name);
+        return multiplier.isPresent() ? multiplier : host.read(name);
     }
 }

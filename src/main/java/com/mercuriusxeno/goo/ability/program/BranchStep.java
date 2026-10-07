@@ -53,7 +53,7 @@ public record BranchStep(Expr when, List<Step> then, List<Step> otherwise) imple
     @Override
     public boolean tick(StepContext context) {
         List<Step> chosen = when.evaluate(context) != 0 ? then : otherwise;
-        new ProgramBehavior(chosen).tick(context.host());
+        new ProgramBehavior(chosen).tick(context.host(), context.charged());
         return true;
     }
 

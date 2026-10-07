@@ -1,0 +1,14 @@
+{
+  "gooType": "unstable",
+  "displayName": "goo.ability.unstable.charged",
+  "badge": "brew",
+  "order": 40,
+  "cost": 1000,
+  "requires": ["minecraft:fire_charge"],
+  "delivery": { "kind": "self" },
+  "behaviors": [
+    { "type": "charged", "duration": 400 },
+    { "type": "sound", "id": "minecraft:item.firecharge.use", "at": "target", "source": "players", "volume": 1, "pitch": 1.5 }
+  ],
+  "tags": ["self"]
+}

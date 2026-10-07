@@ -59,7 +59,7 @@ public record EntitiesStep(SelectionShape shape, Expr radius, List<EntityFilter>
     @Override
     public boolean tick(StepContext context) {
         context.hostAs(EntityScanHost.class).forEachEntityWithin(shape, radius.evaluate(context), Set.copyOf(where),
-                selected -> new ProgramBehavior(steps).tick(selected));
+                selected -> new ProgramBehavior(steps).tick(selected, context.charged()));
         return true;
     }
 

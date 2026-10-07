@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.network.AttackTouchTests;
 import com.mercuriusxeno.goo.network.BarkskinTests;
 import com.mercuriusxeno.goo.network.BlockLandingTests;
 import com.mercuriusxeno.goo.network.BrewEffectTests;
+import com.mercuriusxeno.goo.network.ChargedTests;
 import com.mercuriusxeno.goo.network.GloveSelectTests;
 import com.mercuriusxeno.goo.network.HeartOverlayTests;
 import com.mercuriusxeno.goo.network.MobEffectTests;
@@ -139,6 +140,8 @@ public final class GooTestFunctions {
     private static final String LURKER_PULSES_THEN_EXPLODES = "lurker_pulses_then_explodes";
     private static final String UNMAKE_CHEAP_BEFORE_DEAR = "unmake_cheap_before_dear";
     private static final String UNMAKE_TAP_DISSOLVES_BELOW = "unmake_tap_dissolves_below";
+    private static final String CHARGED_LENGTHENS_THE_STREAM = "charged_lengthens_the_stream";
+    private static final String UNSTABLE_BREW_CHARGES_FOR_AN_HOUR = "unstable_brew_charges_for_an_hour";
 
     // --- GasketPusher ---
     private static final String PUSHER_EMPTY_RESERVOIR = "pusher_empty_reservoir";
@@ -829,6 +832,8 @@ public final class GooTestFunctions {
         reg(r, LURKER_PULSES_THEN_EXPLODES, LurkerTests::lurkerPulsesThenExplodes);
         reg(r, UNMAKE_CHEAP_BEFORE_DEAR, UnmakeTests::unmakeCheapBeforeDear);
         reg(r, UNMAKE_TAP_DISSOLVES_BELOW, UnmakeTapTests::unmakeTapDissolvesBelow);
+        reg(r, CHARGED_LENGTHENS_THE_STREAM, ChargedTests::chargedLengthensTheStream);
+        reg(r, UNSTABLE_BREW_CHARGES_FOR_AN_HOUR, BrewEffectTests::unstableBrewChargesForAnHour);
     }
 
     /**

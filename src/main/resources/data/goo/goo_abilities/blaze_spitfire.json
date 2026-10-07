@@ -8,7 +8,8 @@
   "delivery": { "kind": "stream", "range": 6, "cone": 20, "ticks_per_charge": 20, "particle": "minecraft:flame" },
   "area": { "shape": "cone", "size": 6.0, "angle": 20.0 },
   "behaviors": [
-    { "type": "ignite", "seconds": 5 }
+    { "type": "ignite", "seconds": "5 * charged_duration" }
   ],
+  "charged": { "area": 1.5, "duration": 2.0 },
   "tags": ["stream"]
 }
