@@ -19,8 +19,8 @@ import java.util.List;
  * elemental-explosion-per-type): an urchin, a quick show of force that
  * shows the trap is primed. About 24 short cone spikes, the cone shape the
  * trap stabs with, spread evenly over the outward half of the marker (none
- * into the wall), snap out to 1 block in 3 ticks, hold bristling for 5
- * ticks, then retract over 6, 14 ticks in all. The fragment shader
+ * into the wall), extend to 1 block over 6 ticks, hold bristling for 5
+ * ticks, then retract over 10, 21 ticks in all. The fragment shader
  * ({@code metal_explosion.fsh}) shades each cone chrome, C0C0C0 to
  * E8E8E8, with a specular band sweeping down the spikes and a white glint
  * at each tip. The vertex color carries progress in red and the vertex's
@@ -33,11 +33,11 @@ public final class MetalExplosionVisual implements BurnoutVisual, HeldGhostVisua
     public static final MetalExplosionVisual INSTANCE = new MetalExplosionVisual();
 
     /** Ticks the spikes take to snap out. */
-    static final int ARM_TICKS = 3;
+    static final int ARM_TICKS = 6;
     /** Ticks the spikes hold bristling. */
     static final int HOLD_TICKS = 5;
     /** Ticks the spikes take to retract. */
-    static final int RETRACT_TICKS = 6;
+    static final int RETRACT_TICKS = 10;
     /** Ticks the explosion plays. */
     static final int DURATION_TICKS = ARM_TICKS + HOLD_TICKS + RETRACT_TICKS;
     /** A spike's full length in blocks. */

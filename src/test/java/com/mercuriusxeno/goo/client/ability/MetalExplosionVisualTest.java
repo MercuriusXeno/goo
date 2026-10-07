@@ -25,10 +25,21 @@ class MetalExplosionVisualTest {
         return MetalExplosionVisual.spikeLength(tick / MetalExplosionVisual.DURATION_TICKS);
     }
 
+    /** The spikes extend over six ticks, slow enough to see, and retract over ten. */
     @Test
-    void spikesSnapOutFastThenHoldAtFullReach() {
+    void spikesExtendOverSixTicksAndRetractOverTen() {
+        assertTrue(atTick(5f) < MetalExplosionVisual.SPIKE_REACH - TOLERANCE, "the spikes are out before tick 6");
+        assertEquals(MetalExplosionVisual.SPIKE_REACH, atTick(6f), TOLERANCE);
+        assertTrue(atTick(6 + 5 + 9) > 0f, "the spikes are gone before tick 21");
+        assertEquals(0f, atTick(6 + 5 + 10), TOLERANCE);
+    }
+
+    @Test
+    void spikesExtendFastThenSlowThenHoldAtFullReach() {
         assertEquals(0f, atTick(0f), 0f);
-        assertTrue(atTick(1f) > MetalExplosionVisual.SPIKE_REACH / 2, "the spikes arm slowly");
+        float early = atTick(1f);
+        float late = atTick(MetalExplosionVisual.ARM_TICKS) - atTick(MetalExplosionVisual.ARM_TICKS - 1f);
+        assertTrue(early > late, "the spikes do not ease out");
         int armed = MetalExplosionVisual.ARM_TICKS;
         for (int tick = armed; tick <= armed + MetalExplosionVisual.HOLD_TICKS; tick++) {
             assertEquals(MetalExplosionVisual.SPIKE_REACH, atTick(tick), TOLERANCE, "tick " + tick);
