@@ -7,7 +7,7 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 /**
  * Client-side handler for a model transformation: starts the blob's hop
- * and morph into the entity the payload names.
+ * and morph into the entity or block the payload names.
  * Decision model-transformation-is-one-animation.
  */
 public final class TransformationHandler {
@@ -27,7 +27,7 @@ public final class TransformationHandler {
                 return;
             }
             Transformations.CLIENT.add(payload.gooType(), payload.from(), payload.to(), payload.targetEntityId(),
-                    mc.level.getGameTime(), payload.ticks());
+                    payload.targetBlock(), mc.level.getGameTime(), payload.ticks());
         });
     }
 }

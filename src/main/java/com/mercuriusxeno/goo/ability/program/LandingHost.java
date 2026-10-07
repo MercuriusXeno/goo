@@ -2,6 +2,9 @@ package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.block.ability.AbilityBlock;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
+import com.mercuriusxeno.goo.block.ability.PrismBlock;
+import com.mercuriusxeno.goo.network.BlockVisuals;
+import com.mercuriusxeno.goo.network.TransformationPayload;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooParticles;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -83,6 +86,12 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
         Block found = BuiltInRegistries.BLOCK.getOptional(block)
                 .orElseThrow(() -> new IllegalArgumentException(ERR_UNKNOWN_BLOCK + block));
         List<Property.Value<?>> values = StatePropertyWriter.resolve(found.getStateDefinition(), state, block);
+        if (found instanceof PrismBlock) {
+            // prism-blob-becomes-a-milky-quartz-crystal: announced before the block, so the client
+            // holds the transformation when the prism's renderer first draws it
+            BlockVisuals.sendToWatchers(level, cell, TransformationPayload.intoBlock(gooType, anchor,
+                    Vec3.atCenterOf(cell), cell, CloneEntityStep.TRANSFORMATION_TICKS));
+        }
         level.setBlock(cell, StatePropertyWriter.write(found.defaultBlockState(), values), Block.UPDATE_ALL);
     }
 

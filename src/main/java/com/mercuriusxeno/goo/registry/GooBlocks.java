@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.block.ability.AbilityBlock;
 import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
 import com.mercuriusxeno.goo.block.ability.MagickedIceBlock;
+import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.block.canister.CanisterBlock;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlock;
 import com.mercuriusxeno.goo.block.crystallizer.CrystallizerBlock;
@@ -33,6 +34,8 @@ public class GooBlocks {
     private static final float EXORITE_BARS_HARDNESS = 50.0F;
     /** Obsidian's blast resistance. */
     private static final float EXORITE_BARS_BLAST_RESISTANCE = 1200.0F;
+    /** An amethyst cluster's hardness. */
+    private static final float PRISM_HARDNESS = 1.5F;
 
     /**
      * Ability block: short-lived block a world ability runs its program from.
@@ -72,6 +75,20 @@ public class GooBlocks {
                     .sound(SoundType.GLASS)
                     .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY)
                     .lightLevel(GlowCrystalBlock::lightLevel));
+    /**
+     * Prism: the milky quartz crystal Crystal's Prism grows, the host every
+     * prism combo grows on (decision prism-blob-becomes-a-milky-quartz-crystal).
+     */
+    public static final DeferredBlock<PrismBlock> PRISM = BLOCKS.registerBlock(
+            "prism", PrismBlock::new,
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.QUARTZ)
+                    .noCollision()
+                    .strength(PRISM_HARDNESS)
+                    .noLootTable()
+                    .noOcclusion()
+                    .sound(SoundType.AMETHYST_CLUSTER)
+                    .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY));
     /**
      * Magicked ice: a non-melting mod variant of vanilla ice, placed
      * permanently by the frost cold snap. Visually, audibly, and
