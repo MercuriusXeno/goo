@@ -2,17 +2,28 @@ package com.mercuriusxeno.goo.client.overlay;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.ShiftStep;
-import com.mercuriusxeno.goo.client.ClientGooTypes;
+import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.registry.GooAttachments;
-import com.mercuriusxeno.goo.type.GooTypes;
-import net.minecraft.client.Camera;
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.QuadInstance;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.block.dispatch.BlockStateModel;
+import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
+import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.SectionPos;
+import net.minecraft.data.AtlasIds;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
@@ -26,40 +37,42 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * Outlines every fungus block within Fungal Shift's reach through walls,
- * in shroom's color, while the local player holds fungal sight. The lines
- * draw on the main target at the opaque-features stage, as the held dome's
- * through-blocks pass does, so the world never hides them. The blocks are
+ * Shows every fungus block within Fungal Shift's reach through walls while
+ * the local player holds fungal sight: each block's own model and texture,
+ * ghosted and tinted toward shroom's mauve, full bright, drawn after the
+ * translucent world through a pipeline that ignores depth. The blocks are
  * scanned again once a second, chunk section by chunk section, skipping any
  * section whose palette holds no fungus, and the nearest are drawn up to a cap.
  * sight-lengthens-shift-and-outlines-fungus
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
-public final class SightOutlines {
+public final class FungusXray {
 
     private static final String FUNGAL_SHIFT = "goo:shroom_fungal_shift";
     /** Fungal Shift's range when the player holds no synced copy of it. */
     private static final double FALLBACK_RANGE = 64;
     static final int RESCAN_TICKS = 20;
-    private static final int MOST_OUTLINES = 512;
+    private static final int MOST_SEEN = 512;
+    /** The ghost's tint: a little translucent, leaning toward shroom's mauve. */
+    private static final int GHOST_TINT = 0xB8E0B0F0;
     private static final int SECTION_SIZE = LevelChunkSection.SECTION_WIDTH;
 
-    private static final List<BlockPos> outlined = new ArrayList<>();
+    private static final List<BlockPos> seen = new ArrayList<>();
     /** Marks that no scan has run. */
     static final long UNSCANNED = Long.MIN_VALUE;
     private static long scannedAt = UNSCANNED;
 
-    private SightOutlines() {
+    private FungusXray() {
     }
 
     /**
-     * Draws the outlines once the opaque world has drawn, while the local
+     * Draws the fungus through walls once the world has drawn, while the local
      * player's sight stands.
      *
      * @param event the level render stage event
      */
     @SubscribeEvent
-    public static void onAfterOpaqueFeatures(RenderLevelStageEvent.AfterOpaqueFeatures event) {
+    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         if (player == null || mc.level == null) {
@@ -67,16 +80,45 @@ public final class SightOutlines {
         }
         long now = mc.level.getGameTime();
         if (!player.getData(GooAttachments.SIGHT).standsAt(now)) {
-            outlined.clear();
+            seen.clear();
             return;
         }
         rescanEverySecond(mc.level, player, now);
-        Camera camera = mc.gameRenderer.getMainCamera();
-        int rgb = ClientGooTypes.edge(GooTypes.SHROOM);
-        for (BlockPos pos : outlined) {
-            VoxelHighlightRenderer.renderOutlineThroughWalls(event.getPoseStack(), mc.renderBuffers().bufferSource(),
-                    camera, pos, rgb);
+        if (!seen.isEmpty()) {
+            drawAll(mc, event.getPoseStack());
         }
+    }
+
+    private static void drawAll(Minecraft mc, PoseStack poseStack) {
+        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        RenderType xray = GooRenderTypes.fungusXray(mc.getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS).location());
+        VertexConsumer consumer = buffers.getBuffer(xray);
+        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        QuadInstance instance = new QuadInstance();
+        instance.setColor(GHOST_TINT);
+        instance.setLightCoords(GooSubmitter.fullbrightLight());
+        instance.setOverlayCoords(OverlayTexture.NO_OVERLAY);
+        for (BlockPos pos : seen) {
+            drawBlock(mc, poseStack, consumer, camera, pos, instance);
+        }
+        buffers.endBatch(xray);
+    }
+
+    private static void drawBlock(Minecraft mc, PoseStack poseStack, VertexConsumer consumer, Vec3 camera,
+                                  BlockPos pos, QuadInstance instance) {
+        BlockState state = mc.level.getBlockState(pos);
+        BlockStateModel model = mc.getModelManager().getBlockStateModelSet().get(state);
+        List<BlockStateModelPart> parts = new ArrayList<>();
+        model.collectParts(mc.level, pos, state, RandomSource.create(pos.asLong()), parts);
+        poseStack.pushPose();
+        poseStack.translate(pos.getX() - camera.x, pos.getY() - camera.y, pos.getZ() - camera.z);
+        for (BlockStateModelPart part : parts) {
+            for (Direction side : Direction.values()) {
+                part.getQuads(side).forEach(quad -> consumer.putBakedQuad(poseStack.last(), quad, instance));
+            }
+            part.getQuads(null).forEach(quad -> consumer.putBakedQuad(poseStack.last(), quad, instance));
+        }
+        poseStack.popPose();
     }
 
     private static void rescanEverySecond(Level level, LocalPlayer player, long now) {
@@ -112,7 +154,7 @@ public final class SightOutlines {
      * @param reach the reach in blocks
      */
     private static void rescan(Level level, Vec3 eye, double reach) {
-        outlined.clear();
+        seen.clear();
         SectionPos low = SectionPos.of(BlockPos.containing(eye.subtract(reach, reach, reach)));
         SectionPos high = SectionPos.of(BlockPos.containing(eye.add(reach, reach, reach)));
         for (int sx = low.x(); sx <= high.x(); sx++) {
@@ -123,9 +165,9 @@ public final class SightOutlines {
                 }
             }
         }
-        outlined.sort(Comparator.comparingDouble(pos -> Vec3.atCenterOf(pos).distanceToSqr(eye)));
-        if (outlined.size() > MOST_OUTLINES) {
-            outlined.subList(MOST_OUTLINES, outlined.size()).clear();
+        seen.sort(Comparator.comparingDouble(pos -> Vec3.atCenterOf(pos).distanceToSqr(eye)));
+        if (seen.size() > MOST_SEEN) {
+            seen.subList(MOST_SEEN, seen.size()).clear();
         }
     }
 
@@ -149,7 +191,7 @@ public final class SightOutlines {
                     if (section.getBlockState(x, y, z).is(ShiftStep.FUNGUS)) {
                         BlockPos pos = base.offset(x, y, z);
                         if (Vec3.atCenterOf(pos).distanceTo(eye) <= reach) {
-                            outlined.add(pos);
+                            seen.add(pos);
                         }
                     }
                 }

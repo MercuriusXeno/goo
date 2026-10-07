@@ -3,7 +3,6 @@ package com.mercuriusxeno.goo.client.overlay;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.FlatQuadContext;
-import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.LineContext;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -58,27 +57,6 @@ final class VoxelHighlightRenderer {
         int edgeRgb = ClientGooTypes.edge(type);
         emitFillBoxes(poseStack, bufferSource, shape, offset.x, offset.y, offset.z, highlightRgb);
         emitWireframeEdges(poseStack, bufferSource, mc, shape, offset, edgeRgb, RenderTypes.lines());
-    }
-
-    /**
-     * Traces the edges of a block's voxel shape through the world, seen
-     * behind whatever stands in front of it.
-     * sight-lengthens-shift-and-outlines-fungus
-     *
-     * @param poseStack    the pose stack for rendering
-     * @param bufferSource the buffer source for rendering
-     * @param camera       the render camera
-     * @param pos          the block position
-     * @param rgb          the edge color
-     */
-    static void renderOutlineThroughWalls(
-            PoseStack poseStack, MultiBufferSource.BufferSource bufferSource,
-            Camera camera, BlockPos pos, int rgb) {
-        Minecraft mc = Minecraft.getInstance();
-        VoxelShape shape = mc.level.getBlockState(pos).getShape(mc.level, pos);
-        if (shape.isEmpty()) { return; }
-        Vec3 offset = cameraOffset(pos, camera);
-        emitWireframeEdges(poseStack, bufferSource, mc, shape, offset, rgb, GooRenderTypes.LINES_THROUGH_WALLS);
     }
 
     /**
