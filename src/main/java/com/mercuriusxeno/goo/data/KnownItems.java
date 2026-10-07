@@ -82,4 +82,19 @@ public record KnownItems(Set<Identifier> items) {
         next.add(item);
         return new KnownItems(next);
     }
+
+    /**
+     * Answers this knowledge with every named item learned.
+     *
+     * @param learned the item ids learned
+     * @return the knowledge after the learning, this one when every item was already known
+     */
+    public KnownItems withAll(Collection<Identifier> learned) {
+        if (containsAll(learned)) {
+            return this;
+        }
+        Set<Identifier> next = new HashSet<>(items);
+        next.addAll(learned);
+        return new KnownItems(next);
+    }
 }

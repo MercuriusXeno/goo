@@ -17,7 +17,9 @@ import net.minecraft.server.level.ServerPlayer;
  * {@link LabLayout} at the lab origin and hands its invoker the kit
  * (decision lab-built-from-code); {@code rebuild} clears the lab footprint and
  * builds it again in place (decision lab-save-is-disposable); {@code kit} hands
- * the kit alone (decision lab-holds-bays-supply-pens-kit). {@link GooCommand} gates the tree to operators.
+ * the kit alone (decision lab-holds-bays-supply-pens-kit). Every path that
+ * hands the kit teaches every item recipe through {@link LabKit#give}
+ * (decision lab-kit-teaches-every-recipe). {@link GooCommand} gates the tree to operators.
  */
 public final class LabCommand {
 

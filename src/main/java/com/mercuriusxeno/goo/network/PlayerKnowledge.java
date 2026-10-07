@@ -8,6 +8,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.neoforged.neoforge.network.PacketDistributor;
+import java.util.Collection;
 
 /**
  * Reads and writes the items a player knows on the server, and keeps their
@@ -65,6 +66,27 @@ public final class PlayerKnowledge {
         // A listener that never negotiated the mod's channels, a gametest's mock player, gets no sync.
         if (player.connection.hasChannel(KnownItemLearnedPayload.TYPE)) {
             PacketDistributor.sendToPlayer(player, new KnownItemLearnedPayload(item));
+        }
+    }
+
+    /**
+     * Records every item the ids name as known to the player in one write,
+     * then sends their client the whole known set once, rather than one
+     * packet per item learned.
+     *
+     * @param player the player who learned the items
+     * @param items  the ids of the items learned
+     */
+    public static void learnAll(ServerPlayer player, Collection<Identifier> items) {
+        KnownItems known = of(player);
+        KnownItems next = known.withAll(items);
+        if (next == known) {
+            return;
+        }
+        player.setData(GooAttachments.KNOWN_ITEMS, next);
+        // A listener that never negotiated the mod's channels, a gametest's mock player, gets no sync.
+        if (player.connection.hasChannel(KnownItemsSyncPayload.TYPE)) {
+            sendToPlayer(player);
         }
     }
 

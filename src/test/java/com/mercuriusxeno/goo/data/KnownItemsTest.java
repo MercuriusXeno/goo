@@ -21,6 +21,7 @@ class KnownItemsTest {
 
     private static final Identifier COBBLESTONE = Identifier.withDefaultNamespace("cobblestone");
     private static final Identifier DIRT = Identifier.withDefaultNamespace("dirt");
+    private static final Identifier STONE = Identifier.withDefaultNamespace("stone");
 
     @Nested
     class Learning {
@@ -43,6 +44,20 @@ class KnownItemsTest {
             KnownItems known = KnownItems.NONE.with(COBBLESTONE);
 
             assertSame(known, known.with(COBBLESTONE));
+        }
+
+        @Test
+        void learningManyAddsEveryItemToWhatWasKnown() {
+            KnownItems known = KnownItems.NONE.with(COBBLESTONE).withAll(Set.of(DIRT, STONE));
+
+            assertEquals(Set.of(COBBLESTONE, DIRT, STONE), known.items());
+        }
+
+        @Test
+        void learningManyAlreadyKnownAnswersTheSameKnowledge() {
+            KnownItems known = KnownItems.NONE.withAll(Set.of(COBBLESTONE, DIRT));
+
+            assertSame(known, known.withAll(Set.of(DIRT)));
         }
     }
 
