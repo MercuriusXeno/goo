@@ -21,7 +21,11 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.SectionPos;
 import net.minecraft.data.AtlasIds;
+import net.minecraft.resources.Identifier;
+import net.minecraft.util.ARGB;
+import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
+import net.minecraft.util.Util;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
@@ -39,8 +43,9 @@ import java.util.List;
 /**
  * Shows every fungus block within Fungal Shift's reach through walls while
  * the local player holds fungal sight: each block's own model and texture,
- * ghosted and tinted toward shroom's mauve, full bright, drawn after the
- * translucent world through a pipeline that ignores depth. The blocks are
+ * ghosted and tinted toward shroom's mauve, full bright, with an additive
+ * magenta halo of its own shape swollen past it and breathing slowly, both
+ * drawn after the translucent world through pipelines that ignore depth. The blocks are
  * scanned again once a second, chunk section by chunk section, skipping any
  * section whose palette holds no fungus, and the nearest are drawn up to a cap.
  * sight-lengthens-shift-and-outlines-fungus
@@ -55,6 +60,17 @@ public final class FungusXray {
     private static final int MOST_SEEN = 512;
     /** The ghost's tint: a little translucent, leaning toward shroom's mauve. */
     private static final int GHOST_TINT = 0xB8E0B0F0;
+    /** The halo's magenta. */
+    private static final int GLOW_RGB = 0xFF40C0;
+    /** The halo's alpha at full pulse. */
+    private static final float HALO_ALPHA = 0.55f;
+    /** How far the halo swells past the block. */
+    private static final float HALO_SWELL = 1.12f;
+    /** The halo's slow breath, radians per second. */
+    private static final float HALO_PULSE_PER_SECOND = 2.2f;
+    private static final float MILLIS_PER_SECOND = 1000f;
+    private static final float HALF = 0.5f;
+    private static final int OPAQUE = 255;
     private static final int SECTION_SIZE = LevelChunkSection.SECTION_WIDTH;
 
     private static final List<BlockPos> seen = new ArrayList<>();
@@ -91,27 +107,82 @@ public final class FungusXray {
 
     private static void drawAll(Minecraft mc, PoseStack poseStack) {
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        RenderType xray = GooRenderTypes.fungusXray(mc.getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS).location());
-        VertexConsumer consumer = buffers.getBuffer(xray);
+        Identifier atlas = mc.getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS).location();
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
-        QuadInstance instance = new QuadInstance();
-        instance.setColor(GHOST_TINT);
-        instance.setLightCoords(GooSubmitter.fullbrightLight());
-        instance.setOverlayCoords(OverlayTexture.NO_OVERLAY);
+        RenderType xray = GooRenderTypes.fungusXray(atlas);
+        VertexConsumer ghost = buffers.getBuffer(xray);
+        QuadInstance ghostLook = instance(GHOST_TINT);
         for (BlockPos pos : seen) {
-            drawBlock(mc, poseStack, consumer, camera, pos, instance);
+            drawBlock(mc, poseStack, ghost, camera, pos, ghostLook, 1f);
         }
         buffers.endBatch(xray);
+        RenderType glow = GooRenderTypes.fungusGlow(atlas);
+        VertexConsumer halo = buffers.getBuffer(glow);
+        float seconds = Util.getMillis() / MILLIS_PER_SECOND;
+        QuadInstance haloLook = instance(glowColor(pulse(seconds, HALO_PULSE_PER_SECOND), HALO_ALPHA));
+        for (BlockPos pos : seen) {
+            drawBlock(mc, poseStack, halo, camera, pos, haloLook, HALO_SWELL);
+        }
+        buffers.endBatch(glow);
     }
 
-    private static void drawBlock(Minecraft mc, PoseStack poseStack, VertexConsumer consumer, Vec3 camera,
-                                  BlockPos pos, QuadInstance instance) {
+    /**
+     * A quad instance drawing at full bright with no overlay, in a color.
+     *
+     * @param color the ARGB color the quads take
+     * @return the instance
+     */
+    static QuadInstance instance(int color) {
+        QuadInstance instance = new QuadInstance();
+        instance.setColor(color);
+        instance.setLightCoords(GooSubmitter.fullbrightLight());
+        instance.setOverlayCoords(OverlayTexture.NO_OVERLAY);
+        return instance;
+    }
+
+    /**
+     * A slow breath between half and full strength.
+     *
+     * @param seconds        seconds on the real-time clock
+     * @param pulsePerSecond breaths per second, in radians
+     * @return the strength, half to one
+     */
+    static float pulse(float seconds, float pulsePerSecond) {
+        return HALF + HALF * (HALF + HALF * Mth.sin(seconds * pulsePerSecond));
+    }
+
+    /**
+     * The glow's magenta at a strength and a peak alpha.
+     *
+     * @param strength the pulse's strength, zero to one
+     * @param alpha    the alpha at full strength, zero to one
+     * @return the ARGB color
+     */
+    static int glowColor(float strength, float alpha) {
+        return ARGB.color(Math.round(Mth.clamp(strength * alpha, 0f, 1f) * OPAQUE), GLOW_RGB);
+    }
+
+    /**
+     * Draws a block's own baked quads, swollen about its center.
+     *
+     * @param mc        the client
+     * @param poseStack the pose stack
+     * @param consumer  the vertex consumer
+     * @param camera    the camera's position
+     * @param pos       the block
+     * @param instance  the color, light and overlay the quads take
+     * @param swell     the scale about the block's center, one for its own size
+     */
+    static void drawBlock(Minecraft mc, PoseStack poseStack, VertexConsumer consumer, Vec3 camera,
+                          BlockPos pos, QuadInstance instance, float swell) {
         BlockState state = mc.level.getBlockState(pos);
         BlockStateModel model = mc.getModelManager().getBlockStateModelSet().get(state);
         List<BlockStateModelPart> parts = new ArrayList<>();
         model.collectParts(mc.level, pos, state, RandomSource.create(pos.asLong()), parts);
         poseStack.pushPose();
-        poseStack.translate(pos.getX() - camera.x, pos.getY() - camera.y, pos.getZ() - camera.z);
+        poseStack.translate(pos.getX() - camera.x + HALF, pos.getY() - camera.y + HALF, pos.getZ() - camera.z + HALF);
+        poseStack.scale(swell, swell, swell);
+        poseStack.translate(-HALF, -HALF, -HALF);
         for (BlockStateModelPart part : parts) {
             for (Direction side : Direction.values()) {
                 part.getQuads(side).forEach(quad -> consumer.putBakedQuad(poseStack.last(), quad, instance));

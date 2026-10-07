@@ -101,7 +101,15 @@ public record ShiftStep(Expr range) implements Step {
         return FungusAim.aimedFungus(level, entity, reach).map(pos -> standingOn(level, pos));
     }
 
-    private static Vec3 standingOn(Level level, BlockPos pos) {
+    /**
+     * Where an entity stands on a fungus block: on top of its collision, or
+     * in its cell for a fungus with none, such as a mushroom.
+     *
+     * @param level the level
+     * @param pos   the fungus block
+     * @return the standing point
+     */
+    public static Vec3 standingOn(Level level, BlockPos pos) {
         BlockState state = level.getBlockState(pos);
         VoxelShape collision = state.getCollisionShape(level, pos);
         double top = collision.isEmpty() ? pos.getY() : pos.getY() + collision.max(Direction.Axis.Y);

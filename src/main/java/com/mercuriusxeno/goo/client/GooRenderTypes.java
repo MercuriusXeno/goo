@@ -76,6 +76,31 @@ public final class GooRenderTypes {
             .withCull(false)
             .build();
 
+    /**
+     * Sight's fungus glow (decision sight-lengthens-shift-and-outlines-fungus):
+     * the x-ray's quads blended additively, so a swollen copy of each fungus
+     * glows like a lamp behind the wall.
+     */
+    public static final RenderPipeline FUNGUS_GLOW = RenderPipeline.builder(RenderPipelines.ENTITY_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "fungus_glow"))
+            .withShaderDefine("ALPHA_CUTOUT", ALPHA_CUTOUT)
+            .withSampler("Sampler1")
+            .withColorTargetState(new ColorTargetState(BlendFunction.LIGHTNING))
+            .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
+            .withCull(false)
+            .build();
+
+    /** Per-atlas memoized render types on the fungus glow pipeline. */
+    private static final java.util.function.Function<Identifier, RenderType> FUNGUS_GLOW_FACTORY =
+            net.minecraft.util.Util.memoize(atlas -> RenderType.create(
+                    "goo_fungus_glow",
+                    RenderSetup.builder(FUNGUS_GLOW)
+                            .withTexture("Sampler0", atlas)
+                            .useLightmap()
+                            .useOverlay()
+                            .createRenderSetup()
+            ));
+
     /** Per-atlas memoized render types on the fungus x-ray pipeline. */
     private static final java.util.function.Function<Identifier, RenderType> FUNGUS_XRAY_FACTORY =
             net.minecraft.util.Util.memoize(atlas -> RenderType.create(
@@ -561,6 +586,16 @@ public final class GooRenderTypes {
             ));
 
     /**
+     * Returns Sight's fungus glow render type for the atlas the block's sprites sit on.
+     *
+     * @param atlas the texture atlas identifier
+     * @return memoized RenderType
+     */
+    public static RenderType fungusGlow(Identifier atlas) {
+        return FUNGUS_GLOW_FACTORY.apply(atlas);
+    }
+
+    /**
      * Returns Sight's fungus x-ray render type for the atlas the block's sprites sit on.
      *
      * @param atlas the texture atlas identifier
@@ -893,6 +928,7 @@ public final class GooRenderTypes {
     private static void registerLinePipelines(RegisterRenderPipelinesEvent event) {
         event.registerPipeline(LINES_ADDITIVE_GLOW);
         event.registerPipeline(FUNGUS_XRAY);
+        event.registerPipeline(FUNGUS_GLOW);
         event.registerPipeline(SPORE_SHELL);
         event.registerPipeline(SPORE_SHELL_THROUGH_BLOCKS);
     }
