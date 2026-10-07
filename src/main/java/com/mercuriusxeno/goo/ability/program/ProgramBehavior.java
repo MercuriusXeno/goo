@@ -29,6 +29,8 @@ public final class ProgramBehavior {
     private static final String ERR_VARIABLE = "Step '%s' reads '%s', which the %s host does not bind";
 
     private final List<Step> steps;
+    /** The sounds a framed sound step holds until their tick. ability-json-names-its-choreography */
+    private final HeldCues heldCues = new HeldCues();
     private int stepIndex;
     private int stepTicks;
     private int programTicks;
@@ -109,16 +111,17 @@ public final class ProgramBehavior {
     }
 
     /**
-     * Runs one tick: the current step ticks, and each step that finishes
-     * hands the same tick to the next until a step stays running or the
-     * body ends.
+     * Runs one tick: the sounds held until this tick play, then the current
+     * step ticks, and each step that finishes hands the same tick to the
+     * next until a step stays running or the body ends.
      *
      * @param host the host seam for this tick
      */
     public void tick(StepHost host) {
+        heldCues.playDue(host, programTicks);
         while (isActive()) {
             Step current = steps.get(stepIndex);
-            boolean finished = current.tick(new StepContext(host, stepTicks, programTicks));
+            boolean finished = current.tick(new StepContext(host, stepTicks, programTicks, heldCues));
             if (!finished) {
                 stepTicks++;
                 break;
