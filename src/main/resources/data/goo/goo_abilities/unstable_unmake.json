@@ -9,12 +9,7 @@
   "area": { "shape": "cone", "size": 6.0, "angle": 40.0 },
   "behaviors": [
     { "type": "damage", "amount": "charged_efficacy", "source": "magic" },
-    {
-      "type": "blocks",
-      "steps": [
-        { "type": "unmake", "work_per_goo": "0.025 / charged_speed", "yield": 0.5 }
-      ]
-    }
+    { "type": "unmake", "work_per_goo": "0.025 / charged_speed", "yield": 0.5 }
   ],
   "charged": { "area": 1.25, "speed": 2.0, "efficacy": 2.0 },
   "tags": ["stream"]

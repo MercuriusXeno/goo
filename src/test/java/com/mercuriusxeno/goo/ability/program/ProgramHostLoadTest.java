@@ -191,8 +191,7 @@ class ProgramHostLoadTest {
 
     private static final Map<HostKind, Class<? extends StepHost>> HOST_TYPES = Map.of(
             HostKind.MARKER, MarkerHost.class, HostKind.ENTITY, EntityHost.class, HostKind.TAP, TapHost.class,
-            HostKind.LANDING, LandingHost.class, HostKind.PLAYER, PlayerHost.class,
-            HostKind.STREAMED_BLOCK, StreamedBlockHost.class);
+            HostKind.LANDING, LandingHost.class, HostKind.PLAYER, PlayerHost.class);
 
     /**
      * A step needing exactly one capability, standing in for whichever
@@ -210,15 +209,16 @@ class ProgramHostLoadTest {
 
     @Test
     void eachKindProvidesTheCapabilityInterfacesItsHostImplements() {
-        assertEquals(EnumSet.complementOf(EnumSet.of(HostCapability.TARGET, HostCapability.LINGER,
-                HostCapability.UNMAKE)), HostKind.MARKER.capabilities());
+        assertEquals(EnumSet.complementOf(EnumSet.of(HostCapability.TARGET, HostCapability.LINGER, HostCapability.CHANNEL,
+                        HostCapability.BREAK_BLOCKS, HostCapability.DRIP, HostCapability.UNMAKE)),
+                HostKind.MARKER.capabilities());
         assertEquals(Set.of(HostCapability.PLACED_FACE, HostCapability.EXPLODE, HostCapability.ENTITY_SCAN,
-                HostCapability.PLACE_BLOCK, HostCapability.LINGER), HostKind.LANDING.capabilities());
+                HostCapability.PLACE_BLOCK, HostCapability.LINGER, HostCapability.BREAK_BLOCKS),
+                HostKind.LANDING.capabilities());
         assertEquals(Set.of(HostCapability.TARGET, HostCapability.EXPLODE, HostCapability.ENTITY_SCAN),
                 HostKind.ENTITY.capabilities());
         assertEquals(Set.of(HostCapability.EXPLODE, HostCapability.ENTITY_SCAN, HostCapability.PLACE_BLOCK,
-                HostCapability.UNMAKE), HostKind.TAP.capabilities());
-        assertEquals(Set.of(HostCapability.ENTITY_SCAN, HostCapability.UNMAKE), HostKind.STREAMED_BLOCK.capabilities());
+                HostCapability.BREAK_BLOCKS, HostCapability.DRIP, HostCapability.UNMAKE), HostKind.TAP.capabilities());
     }
 
     @ParameterizedTest

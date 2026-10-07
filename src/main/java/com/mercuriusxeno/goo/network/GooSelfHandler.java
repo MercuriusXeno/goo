@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.GloveSelection;
+import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.ability.SelfEatRoute;
 import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.PlayerHost;
@@ -39,14 +40,19 @@ public final class GooSelfHandler {
     }
 
     /**
-     * Delivers a self ability: a self + brew ability starts the eat, every
-     * other runs on command with the throw sound.
+     * Delivers a self ability: a self + brew ability starts the eat, a
+     * channel runs only through its held ticks and so nothing here
+     * (decision flatten-disc-cursor-breaks-above-the-plane), every other
+     * runs on command with the throw sound.
      *
      * @param player  the invoking player
      * @param gooType the ability's goo type
      * @param ability the self ability
      */
     static void deliver(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, AbilityDefinition ability) {
+        if (HeldRoute.channelsOnSelf(ability.delivery(), ability.badge())) {
+            return;
+        }
         if (SelfEatRoute.eats(ability.delivery(), ability.badge())) {
             beginEating(player, gooType, ability);
         } else if (invoke(player, gooType, ability)) {

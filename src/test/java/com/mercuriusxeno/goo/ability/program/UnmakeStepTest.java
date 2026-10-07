@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.ability.program;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.type.GooTypes;
+import net.minecraft.core.BlockPos;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.List;
@@ -13,15 +14,16 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyFloat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * An unmake dissolves a block after work proportional to its crucible value
- * and leaves a share of that value; the stream's block pass carries it apart
- * from the entity program (decision unmake-waves-dissolve-by-crucible-cost).
+ * An unmake works every block its host holds, dissolving each after work
+ * proportional to its crucible value and leaving a share of that value
+ * (decisions unmake-waves-dissolve-by-crucible-cost, unmake-drip-dissolves-the-block-below).
  */
 class UnmakeStepTest {
 
@@ -57,10 +59,14 @@ class UnmakeStepTest {
     @Nested
     class Dissolve {
 
-        private UnmakeHost holding(GooValue value, int progress) {
+        private static final BlockPos CHEAP = new BlockPos(1, 2, 3);
+        private static final BlockPos DEAR = new BlockPos(1, 2, 4);
+
+        private UnmakeHost holding(BlockPos pos, GooValue value, int progress) {
             UnmakeHost host = mock(UnmakeHost.class);
-            when(host.unmadeValue()).thenReturn(value);
-            when(host.countUnmakeWork()).thenReturn(progress);
+            when(host.unmadeBlocks()).thenReturn(List.of(pos));
+            when(host.unmadeValue(pos)).thenReturn(value);
+            when(host.countUnmakeWork(pos)).thenReturn(progress);
             return host;
         }
 
@@ -70,61 +76,58 @@ class UnmakeStepTest {
 
         @Test
         void shortOfTheWorkTheDissolveShowsItsShare() {
-            UnmakeHost host = holding(COBBLESTONE, 10);
+            UnmakeHost host = holding(CHEAP, COBBLESTONE, 10);
 
             tick(host);
 
-            verify(host).showUnmaking(10f / 29);
-            verify(host, never()).unmake(any());
+            verify(host).showUnmaking(CHEAP, 10f / 29);
+            verify(host, never()).unmake(any(), any());
         }
 
         @Test
         void atTheWorkTheBlockGoesAndLeavesItsYield() {
-            UnmakeHost host = holding(COBBLESTONE, 29);
+            UnmakeHost host = holding(CHEAP, COBBLESTONE, 29);
 
             tick(host);
 
-            verify(host).unmake(new GooContents(Map.of(GooTypes.ROCK, 576)));
+            verify(host).unmake(CHEAP, new GooContents(Map.of(GooTypes.ROCK, 576)));
         }
 
         @Test
-        void theDearerBlockStandsWhereTheCheaperGoes() {
-            UnmakeHost dear = holding(DIAMONDISH, 29);
+        void eachHeldBlockIsWorkedOnItsOwn() {
+            UnmakeHost host = holding(CHEAP, COBBLESTONE, 29);
+            when(host.unmadeBlocks()).thenReturn(List.of(CHEAP, DEAR));
+            when(host.unmadeValue(DEAR)).thenReturn(DIAMONDISH);
+            when(host.countUnmakeWork(DEAR)).thenReturn(29);
 
-            tick(dear);
+            tick(host);
 
-            verify(dear, never()).unmake(any());
+            verify(host).unmake(eq(CHEAP), any());
+            verify(host, never()).unmake(eq(DEAR), any());
+            verify(host).showUnmaking(eq(DEAR), anyFloat());
         }
 
         @Test
         void anUnvaluedBlockStands() {
-            UnmakeHost host = holding(null, 1000);
+            UnmakeHost host = holding(CHEAP, null, 1000);
 
             tick(host);
 
-            verify(host, never()).unmake(any());
-            verify(host, never()).showUnmaking(anyFloat());
+            verify(host, never()).unmake(any(), any());
+            verify(host, never()).showUnmaking(any(), anyFloat());
         }
     }
 
     @Nested
-    class BlockPass {
-
-        private final DamageStep damage = new DamageStep(Expr.literal(1), DamageKind.MAGIC);
-        private final List<Step> program =
-                List.of(damage, new BlocksStep(List.of(UNMAKE)));
+    class Hosts {
 
         @Test
-        void thePassHoldsTheBlockStepsAndTheEntityProgramTheRest() {
-            assertEquals(List.of(UNMAKE), BlocksStep.passOf(program));
-            assertEquals(List.of(damage), BlocksStep.withoutPass(program));
-        }
+        void theStreamingPlayerAndTheTapHostAnUnmakeAndTheStruckEntityDoesNot() {
+            List<Step> unmake = List.of(UNMAKE);
 
-        @Test
-        void theStreamedBlockHostsAnUnmakeAndTheEntityHostDoesNot() {
-            assertDoesNotThrow(() -> ProgramBehavior.forHost(List.of(UNMAKE), HostKind.STREAMED_BLOCK));
-            assertThrows(ProgramLoadException.class, () -> ProgramBehavior.forHost(List.of(UNMAKE), HostKind.ENTITY));
-            assertDoesNotThrow(() -> ProgramBehavior.forHost(program, HostKind.ENTITY));
+            assertDoesNotThrow(() -> ProgramBehavior.forHost(unmake, HostKind.PLAYER));
+            assertDoesNotThrow(() -> ProgramBehavior.forHost(unmake, HostKind.TAP));
+            assertThrows(ProgramLoadException.class, () -> ProgramBehavior.forHost(unmake, HostKind.ENTITY));
         }
     }
 }

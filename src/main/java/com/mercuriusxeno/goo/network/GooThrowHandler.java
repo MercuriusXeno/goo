@@ -20,7 +20,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jspecify.annotations.Nullable;
 
@@ -378,10 +377,7 @@ public final class GooThrowHandler {
                 ThrowArc.HAND_REACH * player.getScale());
         GooFlightPayload flight = buildFlightPayload(hand, payload, delivery, travelTicks);
         // A listener that never negotiated the mod's channels, a gametest's mock player, gets no flight.
-        ChunkViewerSends.send(player.level(), player.blockPosition(), flight, player);
-        if (player.connection.hasChannel(flight)) {
-            PacketDistributor.sendToPlayer(player, flight);
-        }
+        EntityVisuals.sendToWatchers(player, flight);
     }
 
     /** Builds the flight payload from the throw origin, throw data, and travel time.

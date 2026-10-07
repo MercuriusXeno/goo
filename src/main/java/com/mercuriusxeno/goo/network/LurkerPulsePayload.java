@@ -52,7 +52,7 @@ public record LurkerPulsePayload(BlockPos pos, float distance, float radius) imp
      * @param level the server level the marker stands in
      */
     public void sendToTracking(ServerLevel level) {
-        ChunkViewerSends.send(level, pos, this, null);
+        ChunkWatchers.send(level, pos, this);
     }
 
     /**

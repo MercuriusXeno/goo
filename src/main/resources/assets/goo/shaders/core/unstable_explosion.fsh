@@ -4,7 +4,9 @@
 // a neon fireball whose white-green core fades to a 39FF14 rim, its surface
 // crackling and flickering with animated noise, and a shockwave ring
 // running out ahead of it. Both fade to nothing as progress reaches 1.
-// LIGHTNING blend (SRC_ALPHA, ONE), so alpha scales what is added.
+// LIGHTNING blend (SRC_ALPHA, ONE), so alpha scales what is added. A held
+// ghost's fireball holds unfaded with no flash, crackling on the game clock
+// (decision held-visual-ghosts-the-landing-in-two-passes).
 
 in vec3 viewPos;
 in vec3 viewNormal;
@@ -13,6 +15,8 @@ in float progress;
 in float opacity;
 in float ringFlag;
 in float ringRadial;
+in float held;
+in float clock;
 
 out vec4 fragColor;
 
@@ -45,7 +49,7 @@ float noise(vec3 x) {
 }
 
 void main() {
-    float fade = (1.0 - progress) * (1.0 - progress);
+    float fade = held > 0.5 ? 1.0 : (1.0 - progress) * (1.0 - progress);
 
     if (ringFlag > 0.5) {
         float band = sin(ringRadial * PI);
@@ -55,9 +59,9 @@ void main() {
 
     float facing = abs(dot(normalize(viewNormal), normalize(-viewPos)));
     float rim = 1.0 - facing;
-    float crackle = noise(surfaceDir * CRACKLE_SCALE + vec3(progress * CRACKLE_SPEED));
-    float flicker = 0.6 + 0.4 * noise(vec3(progress * FLICKER_SPEED, 0.5, 0.5));
-    float flash = (1.0 - smoothstep(0.0, FLASH_END, progress)) * facing;
+    float crackle = noise(surfaceDir * CRACKLE_SCALE + vec3(clock * CRACKLE_SPEED));
+    float flicker = 0.6 + 0.4 * noise(vec3(clock * FLICKER_SPEED, 0.5, 0.5));
+    float flash = (1.0 - held) * (1.0 - smoothstep(0.0, FLASH_END, progress)) * facing;
 
     vec3 color = mix(CORE_COLOR, RIM_COLOR, smoothstep(0.1, 0.9, rim + (1.0 - fade) * 0.5));
     color += flash * vec3(0.3);

@@ -43,7 +43,7 @@ public record ChainBurnoutPayload(BlockPos pos, int placedFace, String gooTypeId
      * @param level the server level the burnout plays in
      */
     public void sendToTracking(ServerLevel level) {
-        ChunkViewerSends.send(level, pos, this, null);
+        ChunkWatchers.send(level, pos, this);
     }
 
     /**

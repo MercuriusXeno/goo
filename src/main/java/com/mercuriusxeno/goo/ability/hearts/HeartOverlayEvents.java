@@ -30,6 +30,8 @@ public final class HeartOverlayEvents {
     /** The reach, in blocks, a strike counts as melee within. */
     private static final double MELEE_REACH = 4.0;
     private static final int RETALIATION_BURN_SECONDS = 3;
+    /** A stone heart is worth half a heart against an explosion or a pickaxe: each hit counts double. */
+    static final float STONE_BRITTLE_SHARE = 2f;
 
     private HeartOverlayEvents() {
     }
@@ -64,7 +66,7 @@ public final class HeartOverlayEvents {
             // kindle-ember-hearts-ash-and-retaliate: retaliatory fire by the number of ember hearts
             attacker.hurtServer(player.level(), player.damageSources().inFire(), shields);
             attacker.igniteForSeconds(RETALIATION_BURN_SECONDS);
-        } else {
+        } else if (kind == HeartKind.BARKSKIN) {
             // barkskin-bark-hearts-thorn-and-burn: thorns equal to the bark heart count
             attacker.hurtServer(player.level(), player.damageSources().thorns(player), shields);
         }
@@ -133,7 +135,28 @@ public final class HeartOverlayEvents {
         if (overlay.kind() == HeartKind.BARKSKIN && burnsBark(source)) {
             return overlay.aggravate(damage, now);
         }
+        if (overlay.kind() == HeartKind.STONESKIN) {
+            return overlay.drainScaled(damage, stoneShare(source, overlay.damageTaken()), now);
+        }
         return overlay.drain(damage, now);
+    }
+
+    /**
+     * The share of a hit stone hearts take: an explosion or a pickaxe finds a
+     * stone heart worth only half a heart, a physical hit, one armor checks,
+     * is reduced by the brew's multiplier, and any other hit lands whole.
+     *
+     * @param source      the damage source
+     * @param damageTaken the brew's physical multiplier
+     * @return the share of the hit the stone takes
+     */
+    static float stoneShare(DamageSource source, float damageTaken) {
+        ItemStack weapon = source.getWeaponItem();
+        // stoneskin-stone-hearts-block-regeneration: half a heart against explosions and pickaxes
+        if (source.is(DamageTypeTags.IS_EXPLOSION) || weapon != null && weapon.is(ItemTags.PICKAXES)) {
+            return STONE_BRITTLE_SHARE;
+        }
+        return source.is(DamageTypeTags.BYPASSES_ARMOR) ? HeartOverlay.WHOLE_HIT : damageTaken;
     }
 
     /**
@@ -150,13 +173,23 @@ public final class HeartOverlayEvents {
     }
 
     /**
-     * Brings health a burning kindled player regains back as ember hearts.
+     * Holds a stoneskinned player's health from regenerating while stone
+     * stands, and brings health a burning kindled player regains back as
+     * ember hearts.
      *
      * @param event the heal event, before the heal lands
      */
     @SubscribeEvent
     public static void onHeal(LivingHealEvent event) {
-        if (!(event.getEntity() instanceof ServerPlayer player) || !burningWithKindle(player)) {
+        if (!(event.getEntity() instanceof ServerPlayer player) || !player.hasData(GooAttachments.HEART_OVERLAY)) {
+            return;
+        }
+        if (player.getData(GooAttachments.HEART_OVERLAY).blocksHealing()) {
+            // stoneskin-stone-hearts-block-regeneration: no regeneration while stone fills the missing hearts
+            event.setCanceled(true);
+            return;
+        }
+        if (!burningWithKindle(player)) {
             return;
         }
         HeartOverlay overlay = player.getData(GooAttachments.HEART_OVERLAY);

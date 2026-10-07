@@ -47,11 +47,15 @@ public final class GooNetworking {
         r.playToClient(UnmakePayload.TYPE, UnmakePayload.STREAM_CODEC);
         r.playToClient(MobHitPayload.TYPE, MobHitPayload.STREAM_CODEC);
         r.playToClient(AilmentPayload.TYPE, AilmentPayload.STREAM_CODEC);
+        r.playToClient(BlockTransformPayload.TYPE, BlockTransformPayload.STREAM_CODEC);
+        r.playToClient(BlockExposurePayload.TYPE, BlockExposurePayload.STREAM_CODEC);
         r.playToClient(AfterimagePayload.TYPE, AfterimagePayload.STREAM_CODEC);
         r.playToClient(TransformationPayload.TYPE, TransformationPayload.STREAM_CODEC);
         r.playToClient(GhostTrailPayload.TYPE, GhostTrailPayload.STREAM_CODEC);
         r.playToClient(KnownItemsSyncPayload.TYPE, KnownItemsSyncPayload.STREAM_CODEC);
         r.playToClient(KnownItemLearnedPayload.TYPE, KnownItemLearnedPayload.STREAM_CODEC);
+        r.playToClient(StreamHealedPayload.TYPE, StreamHealedPayload.STREAM_CODEC);
+        r.playToClient(DripHealedPayload.TYPE, DripHealedPayload.STREAM_CODEC);
     }
 
     /** Registers server-bound payloads.

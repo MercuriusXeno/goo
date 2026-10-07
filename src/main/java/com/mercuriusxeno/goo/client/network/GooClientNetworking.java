@@ -1,10 +1,14 @@
 package com.mercuriusxeno.goo.client.network;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.client.ability.VitalityVisual;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.network.AfterimagePayload;
 import com.mercuriusxeno.goo.network.AilmentPayload;
+import com.mercuriusxeno.goo.network.BlockExposurePayload;
+import com.mercuriusxeno.goo.network.BlockTransformPayload;
 import com.mercuriusxeno.goo.network.ChainBurnoutPayload;
+import com.mercuriusxeno.goo.network.DripHealedPayload;
 import com.mercuriusxeno.goo.network.GhostTrailPayload;
 import com.mercuriusxeno.goo.network.GooFlightPayload;
 import com.mercuriusxeno.goo.network.GooValueSyncPayload;
@@ -13,6 +17,7 @@ import com.mercuriusxeno.goo.network.KnownItemsSyncPayload;
 import com.mercuriusxeno.goo.network.LurkerPulsePayload;
 import com.mercuriusxeno.goo.network.MobHitPayload;
 import com.mercuriusxeno.goo.network.OpenNamingScreenPayload;
+import com.mercuriusxeno.goo.network.StreamHealedPayload;
 import com.mercuriusxeno.goo.network.TransformationPayload;
 import com.mercuriusxeno.goo.network.TunerFeedbackPayload;
 import com.mercuriusxeno.goo.network.UnmakePayload;
@@ -49,10 +54,14 @@ public final class GooClientNetworking {
         event.register(UnmakePayload.TYPE, UnmakeHandler::handle);
         event.register(MobHitPayload.TYPE, MobHitHandler::handle);
         event.register(AilmentPayload.TYPE, AilmentHandler::handle);
+        event.register(BlockTransformPayload.TYPE, BlockTransformHandler::handle);
+        event.register(BlockExposurePayload.TYPE, BlockTransformHandler::handleExposure);
         event.register(AfterimagePayload.TYPE, AfterimageHandler::handle);
         event.register(TransformationPayload.TYPE, TransformationHandler::handle);
         event.register(GhostTrailPayload.TYPE, GhostTrailHandler::handle);
         event.register(KnownItemsSyncPayload.TYPE, KnownItemsHandler::handleSync);
         event.register(KnownItemLearnedPayload.TYPE, KnownItemsHandler::handleLearned);
+        event.register(StreamHealedPayload.TYPE, VitalityVisual::handleHealed);
+        event.register(DripHealedPayload.TYPE, VitalityVisual::handleDripHealed);
     }
 }
