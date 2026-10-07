@@ -12,4 +12,12 @@ public interface FieldEffectHost extends StepHost {
      * @return the live state, mutated in place by the step
      */
     FieldEffectState fieldEffect();
+
+    /**
+     * Rolls a fraction in [0, 1) the field effect weighs against its spend chance.
+     * metal-spends-charge-by-chance
+     *
+     * @return the roll
+     */
+    double rollFraction();
 }

@@ -84,7 +84,9 @@ public final class EffectExecutorTests {
     private static final int SNEAK_TICKS = 20;
     private static final String SPIKE_MISSED = "The metal trap left the walking pig unhurt";
     private static final String SPIKE_HIT_SNEAKER = "The metal trap hurt the sneaking player";
-    private static final String CHARGE_NOT_SPENT = "The metal trap's impale spent other than one charge";
+    private static final String CHARGE_NOT_SPENT = "The metal trap's impale spent more than one charge";
+    /** The charges metal_spikes.json buys a throw. */
+    private static final int METAL_TRAP_CHARGES = 4;
     private static final String CHARGE_SPENT_ON_SNEAKER = "The metal trap spent a charge on the sneaking player";
     private static final String ABILITY_CRYSTAL_CLOUD = "goo:crystal_cloud";
     /** Where the crystal test's standing pig stands: two blocks west, inside the cloud's radius. */
@@ -621,8 +623,9 @@ public final class EffectExecutorTests {
 
     /**
      * Metal spikes as a field-effect program: one throw's trap impales a pig
-     * walking into its radius, spending one charge, then spares a sneaking
-     * player standing in the same spot, spending none.
+     * walking into its radius, spending at most one charge on its roll
+     * (decision metal-spends-charge-by-chance), then spares a sneaking player
+     * standing in the same spot, spending none.
      *
      * @param helper the gametest helper
      */
@@ -631,16 +634,18 @@ public final class EffectExecutorTests {
         int armed = SHORT_WAIT;
         Pig[] pig = new Pig[1];
         Player[] sneaker = new Player[1];
+        int[] spentOnPig = new int[1];
         helper.runAfterDelay(armed, () -> pig[0] = helper.spawnWithNoFreeWill(EntityType.PIG, MINE_TARGET_POS));
         helper.runAfterDelay(armed + SPIKE_STRIKE_WINDOW, () -> {
             helper.assertTrue(pig[0].getHealth() < pig[0].getMaxHealth(), SPIKE_MISSED);
-            helper.assertTrue(be.getFieldEffect().chargesSpent() == 1, CHARGE_NOT_SPENT);
+            spentOnPig[0] = be.getFieldEffect().chargesSpent();
+            helper.assertTrue(spentOnPig[0] <= 1, CHARGE_NOT_SPENT);
             pig[0].discard();
             sneaker[0] = standSneakingPlayer(helper, MINE_TARGET_POS);
         });
         helper.runAfterDelay(armed + SPIKE_STRIKE_WINDOW + SNEAK_TICKS, () -> {
             helper.assertTrue(sneaker[0].getHealth() == sneaker[0].getMaxHealth(), SPIKE_HIT_SNEAKER);
-            helper.assertTrue(be.getFieldEffect().chargesSpent() == 1, CHARGE_SPENT_ON_SNEAKER);
+            helper.assertTrue(be.getFieldEffect().chargesSpent() == spentOnPig[0], CHARGE_SPENT_ON_SNEAKER);
             helper.assertBlockPresent(GooBlocks.ABILITY_BLOCK.get(), MARKER_POS);
             sneaker[0].discard();
             helper.succeed();
@@ -841,16 +846,18 @@ public final class EffectExecutorTests {
     }
 
     /**
-     * A metal trap stands its block until a pig has drawn its two strikes,
-     * and the block is gone once the strikes retract (decision
-     * lingering-abilities-place-their-own-thing).
+     * A metal trap stands its block until its charges are spent, and the
+     * block is gone once the field has contracted (decision
+     * lingering-abilities-place-their-own-thing). Its charges spend on a roll
+     * (decision metal-spends-charge-by-chance), so the test spends them
+     * outright rather than waiting on a pig's luck.
      *
      * @param helper the gametest helper
      */
     public static void metalTrapBlockGoesWithItsProgram(GameTestHelper helper) {
-        placeMetalTrap(helper);
+        AbilityBlockEntity be = placeMetalTrap(helper);
         helper.assertBlockPresent(GooBlocks.ABILITY_BLOCK.get(), MARKER_POS);
-        helper.spawnWithNoFreeWill(EntityType.PIG, MINE_TARGET_POS);
+        be.getFieldEffect().setChargesSpent(METAL_TRAP_CHARGES);
         helper.runAfterDelay(TRAP_LIFE_TICKS, () -> {
             helper.assertTrue(helper.getBlockState(MARKER_POS).isAir(), BLOCK_OUTLIVED_PROGRAM);
             helper.succeed();
