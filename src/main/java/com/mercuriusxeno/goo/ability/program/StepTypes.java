@@ -69,6 +69,7 @@ public final class StepTypes {
         register(LeafSteps.HEAL.type());
         register(LeafSteps.COURT.type());
         register(NourishStep.TYPE);
+        register(ReserveDrainStep.TYPE);
     }
 
     private StepTypes() {

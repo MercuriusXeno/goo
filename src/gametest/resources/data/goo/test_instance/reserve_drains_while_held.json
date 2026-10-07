@@ -1,9 +1,9 @@
 {
   "type": "minecraft:function",
-  "function": "goo:reserve_drains_first",
+  "function": "goo:reserve_drains_while_held",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
-  "max_ticks": 140,
+  "max_ticks": 100,
   "setup_ticks": 0,
   "required": true
 }

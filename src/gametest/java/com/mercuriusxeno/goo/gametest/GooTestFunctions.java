@@ -10,6 +10,7 @@ import com.mercuriusxeno.goo.network.GloveSelectTests;
 import com.mercuriusxeno.goo.network.HeartOverlayTests;
 import com.mercuriusxeno.goo.network.MobEffectTests;
 import com.mercuriusxeno.goo.network.NourishTests;
+import com.mercuriusxeno.goo.network.ReserveTests;
 import com.mercuriusxeno.goo.network.SelfDeliveryTests;
 import com.mercuriusxeno.goo.network.StreamDeliveryTests;
 import com.mercuriusxeno.goo.network.TouchDeliveryTests;
@@ -360,6 +361,7 @@ public final class GooTestFunctions {
     private static final String SELF_KINDLE_BURNS = "self_kindle_burns_the_attacker";
     private static final String SELF_HEART_BREWS_REPLACE = "self_heart_brews_replace_each_other";
     private static final String RESERVE_DRAINS_FIRST = "reserve_drains_first";
+    private static final String RESERVE_DRAINS_WHILE_HELD = "reserve_drains_while_held";
     private static final String SELF_BARKSKIN_FIRE = "self_barkskin_fire_burns_through_arrow_breaks_bark";
     private static final String SELF_BARKSKIN_THORNS = "self_barkskin_thorns_and_the_axe";
     private static final String SELF_KINDLE_FIRE = "self_kindle_fire_relights_for_a_heart";
@@ -777,7 +779,8 @@ public final class GooTestFunctions {
         reg(r, SELF_KINDLE_SHIELDS, HeartOverlayTests::kindleShieldsThenQuenches);
         reg(r, SELF_KINDLE_BURNS, HeartOverlayTests::kindleBurnsTheAttacker);
         reg(r, SELF_HEART_BREWS_REPLACE, HeartOverlayTests::heartBrewsReplaceEachOther);
-        reg(r, RESERVE_DRAINS_FIRST, HeartOverlayTests::reserveDrainsFirst);
+        reg(r, RESERVE_DRAINS_FIRST, ReserveTests::reserveDrainsFirst);
+        reg(r, RESERVE_DRAINS_WHILE_HELD, ReserveTests::reserveDrainsWhileHeld);
         reg(r, SELF_BARKSKIN_FIRE, BarkskinTests::fireBurnsThroughArrowBreaksBark);
         reg(r, SELF_BARKSKIN_THORNS, BarkskinTests::thornsAndTheAxe);
         reg(r, SELF_KINDLE_FIRE, HeartOverlayTests::kindleFireRelightsForAHeart);
