@@ -2,13 +2,17 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
+import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
+import com.mercuriusxeno.goo.ability.HealReport;
 import com.mercuriusxeno.goo.ability.program.EntityHost;
 import com.mercuriusxeno.goo.ability.program.HostKind;
+import com.mercuriusxeno.goo.ability.program.PlayerHost;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
 import com.mercuriusxeno.goo.ability.program.SimpleParticles;
+import com.mercuriusxeno.goo.ability.program.StepHost;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.throwing.StreamCone;
@@ -23,6 +27,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -40,6 +45,9 @@ public final class GooStreamHandler {
     private static final double PARTICLE_SPREAD = 0.15;
     /** Speed of each particle, in blocks per tick. */
     private static final double PARTICLE_SPEED = 0.05;
+    /** Reads which living things a tick's program healed. */
+    private static final HealReport<LivingEntity> HEALS =
+            new HealReport<>(LivingEntity::getHealth, LivingEntity::getId);
 
     private GooStreamHandler() {
     }
@@ -110,9 +118,23 @@ public final class GooStreamHandler {
         Delivery delivery = ability.delivery();
         Vec3 apex = ThrowArc.clampToReach(player.getEyePosition(), origin, ThrowArc.HAND_REACH * player.getScale());
         Vec3 axis = player.getLookAngle();
-        sprayParticles(level, apex, axis, delivery);
-        for (LivingEntity living : livingInCone(level, player, apex, axis, delivery)) {
-            runProgram(level, player, living, ability);
+        List<Integer> healed = new ArrayList<>();
+        if (delivery.range() > 0) {
+            // reserve-hearts-sit-behind-the-bar: a stream reaching nothing runs only on its caster
+            sprayParticles(level, apex, axis, delivery);
+            for (LivingEntity living : livingInCone(level, player, apex, axis, delivery)) {
+                HEALS.runNoting(living, healed, () -> runProgram(ability, HostKind.ENTITY,
+                        new EntityHost(level, living, player)));
+            }
+        }
+        if (ability.hasTag(AbilityTags.SELF)) {
+            // vitality-waves-regenerate-and-court
+            HEALS.runNoting(player, healed,
+                    () -> runProgram(ability, HostKind.PLAYER, new PlayerHost(level, player)));
+        }
+        if (!healed.isEmpty()) {
+            // vitality-waves-regenerate-and-court: the client homes goo to each healed thing and stars it
+            EntityVisuals.sendToWatchers(player, new StreamHealedPayload(player.getId(), apex, healed));
         }
     }
 
@@ -135,18 +157,16 @@ public final class GooStreamHandler {
     }
 
     /**
-     * Runs the ability's programs on one streamed entity, logging a program
-     * the entity host refuses.
+     * Runs the ability's programs on one streamed host, logging a program
+     * the host refuses.
      *
-     * @param level   the server level
-     * @param player  the streaming player
-     * @param living  the streamed entity
      * @param ability the stream ability
+     * @param kind   the host's kind
+     * @param host    a streamed entity, or the caster of a stream tagged self
      */
-    private static void runProgram(ServerLevel level, ServerPlayer player, LivingEntity living,
-                                   AbilityDefinition ability) {
+    private static void runProgram(AbilityDefinition ability, HostKind kind, StepHost host) {
         try {
-            ProgramBehavior.forHost(ability.behaviors(), HostKind.ENTITY).tick(new EntityHost(level, living, player));
+            ProgramBehavior.forHost(ability.behaviors(), kind).tick(host);
         } catch (ProgramLoadException e) {
             Goo.LOGGER.error(LOG_PROGRAM_REFUSED, ability.id(), e.getMessage());
         }
@@ -161,7 +181,7 @@ public final class GooStreamHandler {
      * @param delivery the stream delivery
      */
     private static void sprayParticles(ServerLevel level, Vec3 apex, Vec3 axis, Delivery delivery) {
-        SimpleParticles.resolve(delivery.particle()).ifPresent(particle -> {
+        delivery.particle().flatMap(SimpleParticles::resolve).ifPresent(particle -> {
             for (int i = 1; i <= PARTICLES_PER_TICK; i++) {
                 Vec3 at = apex.add(axis.scale(delivery.range() * i / PARTICLES_PER_TICK));
                 level.sendParticles(particle, at.x, at.y, at.z, 1, PARTICLE_SPREAD, PARTICLE_SPREAD,

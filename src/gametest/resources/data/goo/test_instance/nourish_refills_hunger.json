@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:nourish_refills_hunger",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 600,
+  "setup_ticks": 0,
+  "required": true
+}

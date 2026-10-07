@@ -20,6 +20,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.neoforged.neoforge.client.gui.GuiLayer;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
+import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -29,7 +30,10 @@ import java.util.Optional;
  * stands, each real heart reads ash and each shielded one reads ember, and
  * while Barkskin stands each shielded heart reads bark (decisions
  * overlay-hearts-are-an-elemental-overshield, kindle-ember-hearts-ash-and-retaliate
- * and barkskin-bark-hearts-thorn-and-burn). The layer wraps vanilla's health
+ * and barkskin-bark-hearts-thorn-and-burn). While Reserve stands, its banked
+ * hearts draw in their own vital sprite as a row behind vanilla's, before
+ * vanilla draws, and each half heart the drain takes travels from the bar to
+ * that row (decision reserve-hearts-sit-behind-the-bar). The layer wraps vanilla's health
  * layer and lays its sprites on the slots vanilla drew, mirroring vanilla's
  * slot layout, low-health jiggle and regeneration bounce.
  */
@@ -43,7 +47,18 @@ public final class HeartOverlayHud {
     private static final Identifier ASH_HALF = sprite("ash_half");
     private static final Identifier BARK_FULL = sprite("bark_full");
     private static final Identifier BARK_HALF = sprite("bark_half");
+    private static final Identifier RESERVE_FULL = sprite("reserve_full");
+    private static final Identifier RESERVE_HALF = sprite("reserve_half");
+    /** Vanilla's red half heart, the health a travelling half leaves the bar as. */
+    private static final Identifier HEALTH_HALF = Identifier.withDefaultNamespace("hud/heart/half");
+    /** Pixels a reserve heart sits above, and right of, the health heart in front of it. */
+    private static final int RESERVE_RISE = 2;
+    private static final int RESERVE_SHIFT = 1;
+    /** Pixels the right half of a heart sits from the heart's left edge. */
+    private static final int RIGHT_HALF_SHIFT = 4;
     private static final int HEART_SIZE = 9;
+    /** The half hearts travelling to the reserve row, read from the bar between frames. */
+    private static final ReserveTravels TRAVELS = new ReserveTravels();
     /** The burns playing, read from the overlay's bark between frames. */
     private static final BarkBurns BURNS = new BarkBurns();
     private static final int OPAQUE_WHITE = 0xFFFFFFFF;
@@ -93,17 +108,76 @@ public final class HeartOverlayHud {
         return (graphics, deltaTracker) -> {
             Minecraft mc = Minecraft.getInstance();
             int leftHeightBefore = mc.gui.leftHeight;
+            LocalPlayer player = hurtablePlayer(mc);
+            if (player != null) {
+                // reserve-hearts-sit-behind-the-bar: the reserve row goes down first, so vanilla's hearts cover it
+                paintReserve(graphics, mc.gui, player, player.getData(GooAttachments.HEART_OVERLAY), leftHeightBefore);
+            }
             vanilla.render(graphics, deltaTracker);
-            LocalPlayer player = mc.player;
-            if (player != null && mc.gameMode != null && mc.gameMode.canHurtPlayer()) {
-                HeartOverlay overlay = player.getData(GooAttachments.HEART_OVERLAY);
+            if (player != null) {
                 float partialTick = deltaTracker.getGameTimeDeltaPartialTick(false);
-                List<BarkBurns.Burn> burns = BURNS.update(overlay, player.isOnFire(), mc.gui.getGuiTicks() + partialTick);
-                if (overlay.stands() || !burns.isEmpty()) {
-                    paint(graphics, mc.gui, player, overlay, new BarFrame(leftHeightBefore, partialTick, burns));
-                }
+                paintOver(graphics, mc.gui, player, leftHeightBefore, partialTick);
+                paintTravels(graphics, mc.gui, player, leftHeightBefore, partialTick);
             }
         };
+    }
+
+    /**
+     * Paints the half hearts leaving the bar for the reserve row, over
+     * everything vanilla drew: each fades from vanilla's red half into the
+     * reserve's vital half as it arcs to its reserve slot.
+     * reserve-hearts-sit-behind-the-bar
+     *
+     * @param graphics         the gui graphics
+     * @param gui              the gui
+     * @param player           the local player
+     * @param leftHeightBefore the gui's left stack height before vanilla drew health
+     * @param partialTick      the fraction of the tick elapsed
+     */
+    private static void paintTravels(GuiGraphicsExtractor graphics, Gui gui, LocalPlayer player, int leftHeightBefore,
+                                     float partialTick) {
+        HeartOverlay overlay = player.getData(GooAttachments.HEART_OVERLAY);
+        float now = gui.getGuiTicks() + partialTick;
+        boolean draining = overlay.reserves() && player.hurtTime == 0;
+        List<ReserveTravels.Travel> travels = TRAVELS.update(Mth.ceil(player.getHealth()), draining,
+                overlay.shieldHalves(), now);
+        if (travels.isEmpty()) {
+            return;
+        }
+        BarLayout layout = layout(graphics, gui, player, leftHeightBefore);
+        for (ReserveTravels.Travel travel : travels) {
+            ReserveTravels.Point from = new ReserveTravels.Point(
+                    layout.x(travel.fromSlot()) + travel.fromHalf() * RIGHT_HALF_SHIFT, layout.y(travel.fromSlot()));
+            ReserveTravels.Point to = new ReserveTravels.Point(layout.x(travel.toSlot()) + RESERVE_SHIFT,
+                    reserveY(layout.y(travel.toSlot())));
+            float progress = travel.progress(now);
+            ReserveTravels.Point at = ReserveTravels.along(from, to, progress);
+            int x = Math.round(at.x());
+            int y = Math.round(at.y());
+            graphics.blitSprite(RenderPipelines.GUI_TEXTURED, HEALTH_HALF, x, y, HEART_SIZE, HEART_SIZE, 1f - progress);
+            graphics.blitSprite(RenderPipelines.GUI_TEXTURED, RESERVE_HALF, x, y, HEART_SIZE, HEART_SIZE, progress);
+        }
+    }
+
+    /**
+     * The local player whose health bar the overlay draws on: one the game
+     * mode lets take hits.
+     *
+     * @param mc the client
+     * @return the player, or null when no bar of hearts shows
+     */
+    private static @Nullable LocalPlayer hurtablePlayer(Minecraft mc) {
+        LocalPlayer player = mc.player;
+        return player != null && mc.gameMode != null && mc.gameMode.canHurtPlayer() ? player : null;
+    }
+
+    private static void paintOver(GuiGraphicsExtractor graphics, Gui gui, LocalPlayer player, int leftHeightBefore,
+                                  float partialTick) {
+        HeartOverlay overlay = player.getData(GooAttachments.HEART_OVERLAY);
+        List<BarkBurns.Burn> burns = BURNS.update(overlay, player.isOnFire(), gui.getGuiTicks() + partialTick);
+        if (overlay.stands() || !burns.isEmpty()) {
+            paint(graphics, gui, player, overlay, new BarFrame(leftHeightBefore, partialTick, burns));
+        }
     }
 
     /**
@@ -157,6 +231,10 @@ public final class HeartOverlayHud {
     static List<Identifier> heartSprites(HeartKind kind, int shieldHalves, int realHalves) {
         int shown = Math.min(shieldHalves, realHalves);
         List<Identifier> sprites = new ArrayList<>();
+        if (kind == HeartKind.RESERVE) {
+            // reserve-hearts-sit-behind-the-bar: nothing lies over the bar, the reserve row sits behind it
+            return sprites;
+        }
         if (kind == HeartKind.BARKSKIN) {
             // barkskin-bark-hearts-thorn-and-burn: bark hearts wear oak bark over normal hearts
             addHalves(sprites, shown, BARK_HALF, BARK_FULL);
@@ -165,6 +243,44 @@ public final class HeartOverlayHud {
         addHalves(sprites, realHalves, ASH_HALF, ASH_FULL);
         addHalves(sprites, shown, EMBER_HALF, EMBER_FULL);
         return sprites;
+    }
+
+    /**
+     * The sprite a reserve slot draws behind the bar: the reserve's own vital
+     * heart, whole or half by the halves banked there.
+     *
+     * @param reserveHalves the half hearts banked in the slot
+     * @return the sprite, or empty for a slot banking none
+     */
+    static Optional<Identifier> reserveSprite(int reserveHalves) {
+        List<Identifier> sprites = new ArrayList<>();
+        addHalves(sprites, reserveHalves, RESERVE_HALF, RESERVE_FULL);
+        return sprites.stream().findFirst();
+    }
+
+    /**
+     * The top edge a reserve slot draws at: raised above its health slot so
+     * the banked heart peeks out from behind the one in front of it.
+     *
+     * @param slotY the health slot's top edge
+     * @return the reserve slot's top edge
+     */
+    static int reserveY(int slotY) {
+        return slotY - RESERVE_RISE;
+    }
+
+    private static void paintReserve(GuiGraphicsExtractor graphics, Gui gui, LocalPlayer player, HeartOverlay overlay,
+                                     int leftHeightBefore) {
+        if (!overlay.reserves()) {
+            return;
+        }
+        BarLayout layout = layout(graphics, gui, player, leftHeightBefore);
+        for (int slot = 0; slot < overlay.shields().size(); slot++) {
+            int x = layout.x(slot) + RESERVE_SHIFT;
+            int y = reserveY(layout.y(slot));
+            reserveSprite(overlay.shieldAt(slot)).ifPresent(sprite -> graphics.blitSprite(
+                    RenderPipelines.GUI_TEXTURED, sprite, x, y, HEART_SIZE, HEART_SIZE));
+        }
     }
 
     private static void addHalves(List<Identifier> sprites, int halves, Identifier half, Identifier full) {
