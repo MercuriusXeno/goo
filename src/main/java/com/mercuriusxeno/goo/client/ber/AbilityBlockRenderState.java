@@ -46,6 +46,9 @@ public class AbilityBlockRenderState extends BlockEntityRenderState {
     /** How many ticks a spike stays in flight, windup to retracted. */
     public int spikeLength;
 
+    /** How brightly a watching marker glows as its enemy closes, 0 at rest. */
+    public float lurkerGlow;
+
     /** True when a crystal shard cloud behavior is active. */
     public boolean crystalActive;
 

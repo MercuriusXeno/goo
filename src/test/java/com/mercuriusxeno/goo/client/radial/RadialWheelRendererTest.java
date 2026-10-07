@@ -154,7 +154,7 @@ class RadialWheelRendererTest {
                 Map.entry("nether_wither", "Wither"), Map.entry("pulse_short_circuit", "Zap"),
                 Map.entry("rock_petrify", "Petrify"), Map.entry("shroom_debuff", "Spore"),
                 Map.entry("typhoon_levitate", "Float"), Map.entry("unstable_timed_bomb", "Countdown"),
-                Map.entry("unstable_proximity_mine", "Claymore"),
+                Map.entry("unstable_lurker", "Lurker"),
                 Map.entry("blaze_spitfire", "Spitfire"), Map.entry("blaze_kindle", "Kindle"),
                 Map.entry("ender_blink", "Blink"), Map.entry("typhoon_propel", "Propel"),
                 Map.entry("unstable_explode", "Blast"), Map.entry("vital_clone", "Clone"));

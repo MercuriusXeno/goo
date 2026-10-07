@@ -23,7 +23,7 @@ class AbilityDefinitionTest {
     private static final double EXPLOSION_POWER = 3;
 
     @ParameterizedTest
-    @CsvSource({"unstable_explode, 3.0", "unstable_proximity_mine, 2.5"})
+    @CsvSource({"unstable_explode, 3.0", "unstable_lurker, 2.5"})
     void explosiveSphereIsDrawnAtTheExplosionsMaxReach(String name, float power) {
         assertEquals(ExplosionMarch.maxReach(power), AbilityJson.decode(name).area().size(), TOLERANCE);
     }

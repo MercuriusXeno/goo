@@ -8,7 +8,7 @@ import java.util.stream.Stream;
 
 /**
  * The per-tick trigger: finishes the first tick an entity passing every
- * filter stands within the volume around the host. The proximity mine is
+ * filter stands within the volume around the host. The lurker ends on
  * {@code await_entity radius=3 where=[living]} followed by {@code explode}.
  *
  * @param shape  the volume shape

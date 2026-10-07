@@ -2,14 +2,11 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.Goo;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.SectionPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
-import net.neoforged.neoforge.network.PacketDistributor;
 import org.jspecify.annotations.NonNull;
 
 /**
@@ -46,13 +43,7 @@ public record ChainBurnoutPayload(BlockPos pos, int placedFace, String gooTypeId
      * @param level the server level the burnout plays in
      */
     public void sendToTracking(ServerLevel level) {
-        int chunkX = SectionPos.blockToSectionCoord(pos.getX());
-        int chunkZ = SectionPos.blockToSectionCoord(pos.getZ());
-        for (ServerPlayer player : level.players()) {
-            if (player.getChunkTrackingView().contains(chunkX, chunkZ) && player.connection.hasChannel(this)) {
-                PacketDistributor.sendToPlayer(player, this);
-            }
-        }
+        ChunkViewerSends.send(level, pos, this, null);
     }
 
     /**

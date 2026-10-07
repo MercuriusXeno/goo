@@ -109,13 +109,13 @@ class AbilityImpactTest {
     }
 
     /**
-     * The proximity mine lingers, so its burnout waits for its standing block to
+     * The lurker lingers, so its burnout waits for its standing block to
      * explode; Blast resolves at the splat and plays it there (decision
      * elemental-explosion-per-type).
      */
     @Test
     void theMineLingersAndBlastDoesNot() {
-        assertTrue(AbilityImpact.lingers(AbilityJson.decode("unstable_proximity_mine")));
+        assertTrue(AbilityImpact.lingers(AbilityJson.decode("unstable_lurker")));
         assertFalse(AbilityImpact.lingers(AbilityJson.decode("unstable_explode")));
     }
 

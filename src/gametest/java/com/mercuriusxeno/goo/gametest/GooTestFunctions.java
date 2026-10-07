@@ -135,6 +135,7 @@ public final class GooTestFunctions {
     private static final String LAB_KIT_TEACHES_EVERY_ABILITY = "lab_kit_teaches_every_ability";
     private static final String LAB_KIT_UNTOUCHED_PLAYER_KNOWS_NOTHING = "lab_kit_untouched_player_knows_nothing";
     private static final String BLAST_HIDDEN_UNTIL_GUNPOWDER = "blast_hidden_until_gunpowder";
+    private static final String LURKER_PULSES_THEN_EXPLODES = "lurker_pulses_then_explodes";
 
     // --- GasketPusher ---
     private static final String PUSHER_EMPTY_RESERVOIR = "pusher_empty_reservoir";
@@ -822,6 +823,7 @@ public final class GooTestFunctions {
         reg(r, LAB_KIT_TEACHES_EVERY_ABILITY, LabKitKnowledgeTests::kitTeachesEveryAbility);
         reg(r, LAB_KIT_UNTOUCHED_PLAYER_KNOWS_NOTHING, LabKitKnowledgeTests::untouchedPlayerKnowsNothing);
         reg(r, BLAST_HIDDEN_UNTIL_GUNPOWDER, BlastGateTests::blastHiddenUntilGunpowder);
+        reg(r, LURKER_PULSES_THEN_EXPLODES, LurkerTests::lurkerPulsesThenExplodes);
     }
 
     /**

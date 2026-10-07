@@ -31,7 +31,7 @@ public final class PlacementTests {
     private static final String CRYSTAL_CLOUD = "goo:crystal_cloud";
     private static final String METAL_SPIKES = "goo:metal_spikes";
     private static final String NETHER_BLACK_HOLE = "goo:nether_black_hole";
-    private static final String UNSTABLE_PROXIMITY_MINE = "goo:unstable_proximity_mine";
+    private static final String UNSTABLE_PROXIMITY_MINE = "goo:unstable_lurker";
     private static final String ABILITIES_REQUIRED = "Ability registry must be loaded";
     private static final String FIRST_MARKER_CHANGED = "A second throw changed the first marker";
     private static final String NO_SECOND_MARKER = "A second throw at a standing marker landed no marker beside it";

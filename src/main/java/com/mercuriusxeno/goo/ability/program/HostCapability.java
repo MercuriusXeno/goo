@@ -58,7 +58,12 @@ public enum HostCapability {
      * A landing where the ability can stand its own block, which runs the
      * steps handed to it (decision lingering-abilities-place-their-own-thing).
      */
-    LINGER(LingerHost.class);
+    LINGER(LingerHost.class),
+    /**
+     * A standing block that watches the entities around it and pulses to
+     * its viewers (decision lurker-blob-brightens-then-detonates).
+     */
+    WATCH(WatchHost.class);
 
     private final Class<? extends StepHost> hostType;
 
