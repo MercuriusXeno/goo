@@ -11,6 +11,7 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
+import java.util.List;
 
 /**
  * Unstable goo's burnout explosion, the design the operator settled
@@ -25,7 +26,7 @@ import net.minecraft.util.ARGB;
  * core pipeline takes no per-draw uniforms: red carries progress, green
  * marks the ring and blue carries the ring's radial position.
  */
-public final class UnstableExplosionVisual implements BurnoutVisual {
+public final class UnstableExplosionVisual implements BurnoutVisual, HeldGhostVisual {
 
     /** The one instance the burnout registry holds. */
     public static final UnstableExplosionVisual INSTANCE = new UnstableExplosionVisual();
@@ -63,6 +64,37 @@ public final class UnstableExplosionVisual implements BurnoutVisual {
         float ring = ringRadius(progress, reach);
         BurnoutGeometry.drawAtMarker(frame, burnout.pos(), GooRenderTypes.UNSTABLE_EXPLOSION_TYPE, (pose, c) ->
                 emitFireball(pose, c, burnout.placedFace(), progress, sphere, ring, OPAQUE));
+    }
+
+    @Override
+    public List<HeldLayer> heldLayers() {
+        return List.of(new HeldLayer(GooRenderTypes.UNSTABLE_EXPLOSION_TYPE,
+                GooRenderTypes.UNSTABLE_EXPLOSION_THROUGH_BLOCKS_TYPE, UnstableExplosionVisual::emitHeld));
+    }
+
+    /**
+     * Unstable's ghost: the fireball at its full reach, crackling unfaded on
+     * the game clock, its shockwave ring left out while held.
+     * held-visual-ghosts-the-landing-in-two-passes
+     *
+     * @param pose       the pose entry
+     * @param c          the vertex consumer
+     * @param ghost      the ghost
+     * @param face       the face the throw strikes
+     * @param opacity    the share of the landing's opacity
+     * @param nowSeconds seconds on the real-time clock
+     */
+    private static void emitHeld(PoseStack.Pose pose, VertexConsumer c, HeldGhost ghost, Direction face,
+                                 float opacity, double nowSeconds) {
+        BurnoutGeometry.emitSphere(pose, c, ghost.domeRadius(), heldSphereColor(NetherDiscMesh.toByte(opacity)));
+    }
+
+    /**
+     * @param alpha the opacity as a byte
+     * @return a held ghost's sphere color: blue set on a sphere vertex marks it held for the shader
+     */
+    static int heldSphereColor(int alpha) {
+        return ARGB.color(alpha, 0, 0, OPAQUE);
     }
 
     /**

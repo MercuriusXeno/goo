@@ -6,10 +6,12 @@ import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooItems;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.EntityType;
@@ -23,7 +25,8 @@ import net.minecraft.world.phys.Vec3;
  * Gametest for the stream delivery: holding blaze spitfire at a zombie runs
  * the ability on it each tick of the hold, drains one cost per
  * ticks_per_charge of hold, and drains nothing once released
- * (decision stream-delivery-held-cone).
+ * (decision stream-delivery-held-cone); holding vitality at a hurt cow heals
+ * the cow and the caster both (decision vitality-waves-regenerate-and-court).
  */
 public final class StreamDeliveryTests {
 
@@ -44,6 +47,16 @@ public final class StreamDeliveryTests {
     private static final String SHOULD_BURN = "The streamed zombie should be on fire";
     private static final String SHOULD_DRAIN_ONE_COST = "Twenty ticks of hold should drain %d mB, drained %d";
     private static final String SHOULD_STOP_DRAINING = "A released stream should drain nothing, drained %d";
+    private static final Identifier VITAL_VITALITY = Identifier.parse("goo:vital_vitality");
+    /** A cow stands at ten health, so four leaves it hurt with room to heal. */
+    private static final float HURT_COW_HEALTH = 4;
+    /** A player stands at twenty health, so ten leaves the caster hurt with room to heal. */
+    private static final float HURT_PLAYER_HEALTH = 10;
+    /** One short of the eighteen food natural regeneration needs, so only vitality heals the caster. */
+    private static final int FOOD_BELOW_REGEN = 17;
+    private static final String VITALITY_REQUIRED = "Ability registry must hold vital_vitality";
+    private static final String SHOULD_HEAL_COW = "The streamed cow should heal past %.1f, stands at %.2f";
+    private static final String SHOULD_HEAL_CASTER = "The caster should heal past %.1f, stands at %.2f";
 
     private StreamDeliveryTests() {
     }
@@ -60,12 +73,12 @@ public final class StreamDeliveryTests {
         helper.assertTrue(spitfire != null, ABILITY_REQUIRED);
         Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ZOMBIE_POS);
         zombie.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
-        ServerPlayer player = streamer(helper);
+        ServerPlayer player = streamer(helper, GooTypes.BLAZE);
         KnownRecipes.teachRequires(player, spitfire);
         int heldBefore = blazeHeld(player);
         helper.assertFalse(zombie.isOnFire(), SHOULD_START_UNBURNT);
-        GooStreamPayload tick = new GooStreamPayload(GooTypes.id(GooTypes.BLAZE), BLAZE_SPITFIRE.toString(),
-                player.getEyePosition());
+        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.BLAZE), BLAZE_SPITFIRE.toString(),
+                player.getEyePosition(), player.getEyePosition());
         for (int held = 1; held <= HOLD_TICKS; held++) {
             helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, tick));
         }
@@ -84,19 +97,52 @@ public final class StreamDeliveryTests {
         });
     }
 
+    /**
+     * A hungry, hurt mock player holds vitality at a hurt cow four blocks
+     * ahead for twenty ticks: the cow and the caster both stand healthier
+     * than they started. The caster's food sits below natural regeneration,
+     * so only the stream heals it.
+     *
+     * @param helper the gametest helper
+     */
+    public static void vitalityHealsCowAndCaster(GameTestHelper helper) {
+        AbilityDefinition vitality = AbilityRegistry.of(helper.getLevel()).getAbility(VITAL_VITALITY);
+        helper.assertTrue(vitality != null, VITALITY_REQUIRED);
+        Mob cow = helper.spawnWithNoFreeWill(EntityType.COW, ZOMBIE_POS);
+        cow.setHealth(HURT_COW_HEALTH);
+        ServerPlayer player = streamer(helper, GooTypes.VITAL);
+        KnownRecipes.teachRequires(player, vitality);
+        player.setHealth(HURT_PLAYER_HEALTH);
+        player.getFoodData().setFoodLevel(FOOD_BELOW_REGEN);
+        player.getFoodData().setSaturation(0);
+        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.VITAL), VITAL_VITALITY.toString(),
+                player.getEyePosition(), player.getEyePosition());
+        for (int held = 1; held <= HOLD_TICKS; held++) {
+            helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, tick));
+        }
+        helper.runAfterDelay(HOLD_TICKS + 1, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.assertTrue(cow.getHealth() > HURT_COW_HEALTH,
+                    String.format(SHOULD_HEAL_COW, HURT_COW_HEALTH, cow.getHealth()));
+            helper.assertTrue(player.getHealth() > HURT_PLAYER_HEALTH,
+                    String.format(SHOULD_HEAL_CASTER, HURT_PLAYER_HEALTH, player.getHealth()));
+            helper.succeed();
+        });
+    }
+
     private static int blazeHeld(ServerPlayer player) {
         return GooSourceScanner.aggregateAvailable(player).getOrDefault(GooTypes.BLAZE, 0);
     }
 
     @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
-    private static ServerPlayer streamer(GameTestHelper helper) {
+    private static ServerPlayer streamer(GameTestHelper helper, ResourceKey<GooTypeDefinition> gooType) {
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(STAND_POS));
         player.setPos(stand.x, stand.y, stand.z);
         player.setYRot(FACING_EAST);
         player.setXRot(LOOKING_AT_ZOMBIE);
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.GOO_GLOVE.get()));
-        player.getInventory().add(GooStacks.createForOutput(GooTypes.BLAZE, HELD_GOO * GooStacks.THOUSAND));
+        player.getInventory().add(GooStacks.createForOutput(gooType, HELD_GOO * GooStacks.THOUSAND));
         return player;
     }
 }

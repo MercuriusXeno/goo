@@ -10,6 +10,7 @@ import com.mercuriusxeno.goo.block.gasket.ChoralGasketBlockEntity;
 import com.mercuriusxeno.goo.block.hub.HubBlockEntity;
 import com.mercuriusxeno.goo.block.plexer.PlexerBlockEntity;
 import com.mercuriusxeno.goo.block.reactor.ReactorBlockEntity;
+import com.mercuriusxeno.goo.block.statue.StatueBlockEntity;
 import com.mercuriusxeno.goo.block.tap.TapBlockEntity;
 import com.mercuriusxeno.goo.block.vat.VatBlockEntity;
 import com.mercuriusxeno.goo.fluid.GooFluidBlockEntity;
@@ -64,6 +65,10 @@ public class GooBlockEntities {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<AbilityBlockEntity>> ABILITY_BLOCK =
             BLOCK_ENTITIES.register("ability_block",
                     () -> new BlockEntityType<>(AbilityBlockEntity::new, GooBlocks.ABILITY_BLOCK.get()));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<StatueBlockEntity>> STATUE =
+            BLOCK_ENTITIES.register("statue",
+                    () -> new BlockEntityType<>(StatueBlockEntity::new, GooBlocks.STATUE.get()));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<PrismBlockEntity>> PRISM =
             BLOCK_ENTITIES.register("prism",

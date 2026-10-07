@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.mercuriusxeno.goo.ability.hearts.HeartKind;
+import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -32,6 +33,22 @@ class HeartOverlayHudTest {
         assertEquals(200, HeartOverlayHud.slotY(9, 200, 9));
     }
 
+    /** Stoneskin's stone shows in a missing heart's empty container (decision stoneskin-stone-hearts-block-regeneration). */
+    @Test
+    void stoneskinLaysStoneOverAMissingHeart() {
+        assertEquals(List.of("goo:hud/heart/stone_full"), sprites(HeartKind.STONESKIN, 2, 0));
+        assertEquals(List.of("goo:hud/heart/stone_half"), sprites(HeartKind.STONESKIN, 1, 0));
+    }
+
+    @Test
+    void stoneskinPaintsTheMissingSlotsItFillsAndOtherKindsOnlyRealHealth() {
+        HeartOverlay stoned = HeartOverlay.NONE.apply(HeartKind.STONESKIN, 1_200, 10f, 20f, 0.5f, 0L);
+        HeartOverlay barked = HeartOverlay.NONE.apply(HeartKind.BARKSKIN, 1_200, 10f, 0L);
+        assertEquals(10, HeartOverlayHud.paintedSlots(stoned, 10));
+        assertEquals(5, HeartOverlayHud.paintedSlots(barked, 10));
+        assertEquals(0, HeartOverlayHud.paintedSlots(HeartOverlay.NONE, 10));
+    }
+
     @Test
     void kindleLaysAshUnderAndEmberOverItsHalves() {
         assertEquals(List.of("goo:hud/heart/ash_full", "goo:hud/heart/ember_full"), sprites(HeartKind.KINDLE, 2, 2));
@@ -50,6 +67,23 @@ class HeartOverlayHudTest {
         assertEquals(List.of("goo:hud/heart/bark_full"), sprites(HeartKind.BARKSKIN, 2, 2));
         assertEquals(List.of("goo:hud/heart/bark_half"), sprites(HeartKind.BARKSKIN, 1, 2));
         assertTrue(sprites(HeartKind.BARKSKIN, 0, 2).isEmpty());
+    }
+
+    @Test
+    void reserveLaysNothingOverTheBar() {
+        assertTrue(sprites(HeartKind.RESERVE, 2, 2).isEmpty());
+    }
+
+    @Test
+    void reserveDrawsItsOwnVitalHeartBehindByTheHalvesBanked() {
+        assertEquals("goo:hud/heart/reserve_full", HeartOverlayHud.reserveSprite(2).orElseThrow().toString());
+        assertEquals("goo:hud/heart/reserve_half", HeartOverlayHud.reserveSprite(1).orElseThrow().toString());
+        assertTrue(HeartOverlayHud.reserveSprite(0).isEmpty());
+    }
+
+    @Test
+    void aReserveHeartSitsRaisedAboveTheHeartInFront() {
+        assertEquals(198, HeartOverlayHud.reserveY(200));
     }
 
     private static List<String> sprites(HeartKind kind, int shieldHalves, int realHalves) {

@@ -88,7 +88,7 @@ public final class SprayPrograms {
      * @param ability the sprayed ability
      */
     public static void burst(ServerLevel level, Vec3 center, double radius, AbilityDefinition ability) {
-        SimpleParticles.resolve(ability.delivery().particle()).ifPresent(particle -> level.sendParticles(particle,
+        ability.delivery().particle().flatMap(SimpleParticles::resolve).ifPresent(particle -> level.sendParticles(particle,
                 center.x, center.y + BURST_LIFT, center.z, BURST_PARTICLES, radius, BURST_RISE, radius,
                 BURST_SPEED));
         AABB reach = new AABB(center, center).inflate(radius);

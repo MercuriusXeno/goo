@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
+import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 
@@ -47,7 +48,20 @@ public final class SyncedSteps {
         if (ability == null) {
             return Optional.empty();
         }
-        return ability.behaviors().stream()
+        return first(ability.behaviors(), type);
+    }
+
+    /**
+     * Finds the first step of a type in a synced program, searching container
+     * steps' children after the step itself.
+     *
+     * @param behaviors the ability's synced program
+     * @param type      the step type
+     * @param <S>       the step class
+     * @return the step, or empty when the program holds no such step
+     */
+    public static <S extends Step> Optional<S> first(List<Step> behaviors, Class<S> type) {
+        return behaviors.stream()
                 .flatMap(SyncedSteps::withDescendants)
                 .filter(type::isInstance)
                 .map(type::cast)

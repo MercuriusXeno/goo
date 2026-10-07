@@ -171,8 +171,8 @@ public final class MycosisTests {
     }
 
     private static void spray(GameTestHelper helper, ServerPlayer player, int ticks) {
-        GooStreamPayload tick = new GooStreamPayload(GooTypes.id(GooTypes.SHROOM), MYCOSIS.toString(),
-                player.getEyePosition());
+        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.SHROOM), MYCOSIS.toString(),
+                player.getEyePosition(), player.getEyePosition());
         for (int held = 1; held <= ticks; held++) {
             helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, tick));
         }

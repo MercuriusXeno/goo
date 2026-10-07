@@ -19,7 +19,7 @@ import org.jspecify.annotations.Nullable;
  * block: on the struck face of the block's own shape, scaled down to a
  * smaller face (decision aim-arc-ends-in-face-bullseye).
  */
-final class FaceBullseyeRenderer {
+public final class FaceBullseyeRenderer {
     /** How far the rings sit off the face along its normal, clear of the outline's fill. */
     static final double FACE_NUDGE = 0.01;
     /** Line segments each ring is drawn with. */
@@ -51,7 +51,7 @@ final class FaceBullseyeRenderer {
      * @param segments   line segments around the ring
      * @return {@code segments + 1} points, the last closing the loop on the first
      */
-    static Vec3[] ringPoints(Vec3 faceCenter, Direction face, double radius, int segments) {
+    public static Vec3[] ringPoints(Vec3 faceCenter, Direction face, double radius, int segments) {
         Vec3 center = faceCenter.add(face.getUnitVec3().scale(FACE_NUDGE));
         Direction.Axis normal = face.getAxis();
         Vec3 across = normal == Direction.Axis.X ? new Vec3(0, 1, 0) : new Vec3(1, 0, 0);

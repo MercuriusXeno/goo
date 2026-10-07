@@ -183,6 +183,16 @@ public final class ProgramBehavior {
     }
 
     /**
+     * Returns true if the marker stays in its cell while its program runs,
+     * though its support is gone, which the running step decides.
+     *
+     * @return true when the marker never falls
+     */
+    public boolean holdsItsPlace() {
+        return isActive() && steps.get(stepIndex).holdsItsPlace();
+    }
+
+    /**
      * Writes the cursor and tick counters onto the marker's value stream.
      *
      * @param output the value output to write to

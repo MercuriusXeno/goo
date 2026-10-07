@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.client.ClientKnownItems;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.network.ClientAbilities;
+import com.mercuriusxeno.goo.client.network.OfferedAbility;
 import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
@@ -28,18 +29,20 @@ import java.util.Map;
  * The glove's one radial wheel, open while the glove menu key is held:
  * hovering or scrolling to a type replaces its petal with its abilities,
  * releasing the key over an ability writes it to the glove and closes, and
- * releasing it over nothing, while the petals still move, or pressing
- * Escape, closes with the glove unchanged. A mouse click does nothing here.
+ * releasing it over nothing, over a locked ability, while the petals still
+ * move, or pressing Escape, closes with the glove unchanged. A mouse click
+ * does nothing here.
  * decision abilities-replace-the-hovered-type
  * decision radial-selects-on-g-release
  * decision mid-animation-input-does-nothing
+ * decision locked-petal-stays-on-the-wheel
  */
 public final class GloveRadialScreen extends Screen {
 
     private static final int HALF = 2;
 
     private final List<ResourceKey<GooTypeDefinition>> types;
-    private final List<List<ClientAbility>> abilities;
+    private final List<List<OfferedAbility>> abilities;
     private final Map<ResourceKey<GooTypeDefinition>, Integer> available;
     private final RadialWheel wheel;
 
@@ -48,7 +51,7 @@ public final class GloveRadialScreen extends Screen {
         this.types = GooTypes.order();
         ClientAbilities synced = ClientAbilities.current();
         KnownItems known = ClientKnownItems.current();
-        this.abilities = types.stream().map(type -> synced.knownForType(type, known)).toList();
+        this.abilities = types.stream().map(type -> synced.offeredForType(type, known)).toList();
         this.available = available;
         this.wheel = new RadialWheel(types.size(), type -> abilities.get(type).size());
     }
@@ -98,15 +101,22 @@ public final class GloveRadialScreen extends Screen {
     /**
      * Draws the wheel at the frame's true partial tick: the float a screen's
      * render receives is the frame's delta in ticks, not how far into the
-     * tick the frame falls, and easing on it steps once a tick.
+     * tick the frame falls, and easing on it steps once a tick. A cursor on
+     * a locked petal's item icon names that item beside it.
      * decision petal-moves-animate
+     * decision locked-petal-lists-the-unlearned-items
      */
     @Override
     public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float frameDelta) {
         super.extractBackground(graphics, mouseX, mouseY, frameDelta);
         float partialTick = minecraft.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        RadialWheelRenderer.render(graphics, font, new RadialWheelRenderer.Frame(wheel, types, abilities, available,
-                width / HALF, height / HALF, radius(), PetalLook.LIVE, partialTick));
+        List<RadialWheelRenderer.ItemIcon> sacrifice = RadialWheelRenderer.render(graphics, font,
+                new RadialWheelRenderer.Frame(wheel, types, abilities, available,
+                        width / HALF, height / HALF, radius(), PetalLook.LIVE, partialTick));
+        RadialWheelRenderer.ItemIcon hovered = RadialWheelRenderer.itemUnder(sacrifice, mouseX, mouseY);
+        if (hovered != null) {
+            graphics.setTooltipForNextFrame(font, hovered.stack().getHoverName(), mouseX, mouseY);
+        }
     }
 
     /**
@@ -125,8 +135,13 @@ public final class GloveRadialScreen extends Screen {
         RadialWheel.Outcome pick = GloveRadialKeyGate.settledPick(wheel.isAnimating(), wheel.click());
         GloveRadialKeyGate.release(pick, new GloveRadialKeyGate.ReleaseActions() {
             @Override
+            public boolean isLocked(RadialWheel.Outcome hovered) {
+                return abilities.get(hovered.type()).get(hovered.ability()).locked();
+            }
+
+            @Override
             public void selectHovered(RadialWheel.Outcome hovered) {
-                selectAbility(types.get(hovered.type()), abilities.get(hovered.type()).get(hovered.ability()));
+                selectAbility(types.get(hovered.type()), abilities.get(hovered.type()).get(hovered.ability()).ability());
             }
 
             @Override

@@ -19,19 +19,20 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class AbilityBadgeTest {
 
-    private static final int SHIPPED_MOB_BADGES = 15;
+    private static final int SHIPPED_MOB_BADGES = 14;
     private static final int SHIPPED_WORLD_BADGES = 7;
-    private static final int SHIPPED_SELF_BADGES = 2;
-    private static final int SHIPPED_BREW_BADGES = 3;
-    private static final int SHIPPED_CHANNELED_BADGES = 3;
-    private static final int SHIPPED_FREE_BADGES = 2;
-    private static final int SHIPPED_TAP_BADGES = 1;
+    private static final int SHIPPED_SELF_BADGES = 3;
+    private static final int SHIPPED_BREW_BADGES = 5;
+    private static final int SHIPPED_CHANNELED_BADGES = 7;
+    private static final int SHIPPED_FREE_BADGES = 3;
+    private static final int SHIPPED_TAP_BADGES = 3;
     /** The self + brew abilities, which wear brew on their self delivery (decision self-brew-goos-eat-before-the-effect). */
-    private static final List<String> SHIPPED_BREWS = List.of("blaze_kindle", "leaf_barkskin", "shroom_sight");
-    /** Blast and Colonize, the shipped free abilities (decision badge-vocabulary-gains-free-prism-tap-brew). */
-    /** Fungal Shift, the self delivery held as a channel (decision fungal-shift-blinks-to-the-aimed-fungus). */
-    private static final String SHIPPED_CHANNELED_SELF = "shroom_fungal_shift";
-    private static final List<String> SHIPPED_FREE = List.of("unstable_explode", "shroom_colonize");
+    private static final List<String> SHIPPED_BREWS = List.of("blaze_kindle", "leaf_barkskin", "rock_stoneskin",
+            "vital_nourish", "shroom_sight");
+    /** Blast, Crush and Colonize, the shipped free abilities (decision badge-vocabulary-gains-free-prism-tap-brew). */
+    private static final List<String> SHIPPED_FREE = List.of("unstable_explode", "rock_crush", "shroom_colonize");
+    /** Self deliveries wearing the channeled badge (decision flatten-disc-cursor-breaks-above-the-plane). */
+    private static final List<String> SHIPPED_SELF_CHANNELS = List.of("rock_flatten");
 
     @ParameterizedTest
     @CsvSource({"world, WORLD", "mob, MOB", "self, SELF", "channeled, CHANNELED", "brew, BREW",
@@ -84,17 +85,21 @@ class AbilityBadgeTest {
         if (SHIPPED_FREE.contains(definition.id().getPath())) {
             return AbilityBadge.FREE;
         }
-        if (definition.id().getPath().equals(SHIPPED_CHANNELED_SELF)) {
-            return AbilityBadge.CHANNELED;
-        }
         if (definition.hasTag(AbilityTags.TAP)) {
             return AbilityBadge.TAP;
         }
         return switch (definition.delivery().kind()) {
-            case SELF -> SHIPPED_BREWS.contains(definition.id().getPath()) ? AbilityBadge.BREW : AbilityBadge.SELF;
+            case SELF -> selfBadge(definition.id().getPath());
             case STREAM -> AbilityBadge.CHANNELED;
             default -> definition.hasTag(AbilityTags.ENTITY) ? AbilityBadge.MOB : AbilityBadge.WORLD;
         };
+    }
+
+    private static AbilityBadge selfBadge(String path) {
+        if (SHIPPED_SELF_CHANNELS.contains(path)) {
+            return AbilityBadge.CHANNELED;
+        }
+        return SHIPPED_BREWS.contains(path) ? AbilityBadge.BREW : AbilityBadge.SELF;
     }
 
     @Test

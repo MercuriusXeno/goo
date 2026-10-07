@@ -103,4 +103,15 @@ public interface Step {
     default boolean admits(StepContext context) {
         return true;
     }
+
+    /**
+     * Answers whether the marker stays in the cell it landed in while this
+     * step runs, though the block holding it up is gone, as a black hole
+     * that consumes its own support does.
+     *
+     * @return true when the marker never falls while this step runs
+     */
+    default boolean holdsItsPlace() {
+        return false;
+    }
 }

@@ -5,11 +5,12 @@ import org.lwjgl.glfw.GLFW;
 /**
  * The glove menu key as pure decisions: a press with a glove held and no
  * screen open opens the radial, and a release selects the hovered ability
- * and closes, or closes with the glove unchanged over nothing or while the
- * petals still move.
+ * and closes, or closes with the glove unchanged over nothing, over a locked
+ * ability or while the petals still move.
  * decision g-opens-radial-while-glove-held
  * decision radial-selects-on-g-release
  * decision mid-animation-input-does-nothing
+ * decision locked-petal-stays-on-the-wheel
  */
 public final class GloveRadialKeyGate {
 
@@ -22,6 +23,16 @@ public final class GloveRadialKeyGate {
 
     /** What a release of the key does to the open radial. */
     public interface ReleaseActions {
+
+        /**
+         * Whether the hovered ability is locked, its required items not all
+         * known.
+         * decision locked-petal-stays-on-the-wheel
+         *
+         * @param hovered the wheel's outcome naming the type and ability
+         * @return true when the release must not select it
+         */
+        boolean isLocked(RadialWheel.Outcome hovered);
 
         /**
          * Writes the hovered ability to the glove.
@@ -63,13 +74,15 @@ public final class GloveRadialKeyGate {
     }
 
     /**
-     * Resolves a release of the glove menu key while the radial is open.
+     * Resolves a release of the glove menu key while the radial is open: a
+     * locked ability closes the radial with the glove unchanged, as nothing does.
+     * decision locked-petal-stays-on-the-wheel
      *
      * @param hovered the wheel's outcome at the release, from {@link RadialWheel#click()}
      * @param actions the selection and close the release resolves to
      */
     public static void release(RadialWheel.Outcome hovered, ReleaseActions actions) {
-        if (hovered.selects()) {
+        if (hovered.selects() && !actions.isLocked(hovered)) {
             actions.selectHovered(hovered);
         }
         actions.close();

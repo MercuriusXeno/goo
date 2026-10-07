@@ -151,21 +151,8 @@ public final class EntityScan {
      */
     private static Map<EntityFilter, BiPredicate<Entity, @Nullable Entity>> meanings() {
         Map<EntityFilter, BiPredicate<Entity, @Nullable Entity>> table = new EnumMap<>(EntityFilter.class);
-        table.put(EntityFilter.LIVING, (entity, self) -> entity instanceof LivingEntity);
-        table.put(EntityFilter.NOT_ITEM, (entity, self) -> !(entity instanceof ItemEntity));
-        table.put(EntityFilter.NOT_BOSS, (entity, self) -> !isBoss(entity));
-        table.put(EntityFilter.MOB, (entity, self) -> entity instanceof Mob);
-        table.put(EntityFilter.NOT_FIRE_IMMUNE, (entity, self) -> !entity.fireImmune());
-        table.put(EntityFilter.UNDEAD,
-                (entity, self) -> entity instanceof LivingEntity living && living.isInvertedHealAndHarm());
-        table.put(EntityFilter.ALIVE, (entity, self) -> entity.isAlive());
-        table.put(EntityFilter.NOT_TARGET, (entity, self) -> entity != self);
-        table.put(EntityFilter.NOT_SNEAKING,
-                (entity, self) -> !(entity instanceof Player player && player.isShiftKeyDown()));
-        table.put(EntityFilter.MOVING, (entity, self) -> isMovingHorizontally(entity));
-        table.put(EntityFilter.HAS_BABY_FORM, (entity, self) -> hasBabyForm(entity));
-        table.put(EntityFilter.NOT_BABY,
-                (entity, self) -> !(entity instanceof LivingEntity living && living.isBaby()));
+        putKindMeanings(table);
+        putStateMeanings(table);
         for (EntityFilter filter : EntityFilter.values()) {
             if (!table.containsKey(filter)) {
                 throw new IllegalStateException(ERR_UNMEANT_FILTER + filter);
@@ -175,14 +162,51 @@ public final class EntityScan {
     }
 
     /**
+     * Puts the meanings of the filters that read what an entity is.
+     *
+     * @param table the table to fill
+     */
+    private static void putKindMeanings(Map<EntityFilter, BiPredicate<Entity, @Nullable Entity>> table) {
+        table.put(EntityFilter.LIVING, (entity, self) -> entity instanceof LivingEntity);
+        table.put(EntityFilter.NOT_ITEM, (entity, self) -> !(entity instanceof ItemEntity));
+        table.put(EntityFilter.NOT_BOSS, (entity, self) -> !isBoss(entity));
+        table.put(EntityFilter.MOB, (entity, self) -> entity instanceof Mob);
+        table.put(EntityFilter.NOT_FIRE_IMMUNE, (entity, self) -> !entity.fireImmune());
+        table.put(EntityFilter.UNDEAD,
+                (entity, self) -> entity instanceof LivingEntity living && living.isInvertedHealAndHarm());
+    }
+
+    /**
+     * Puts the meanings of the filters that read the state an entity is in.
+     *
+     * @param table the table to fill
+     */
+    private static void putStateMeanings(Map<EntityFilter, BiPredicate<Entity, @Nullable Entity>> table) {
+        table.put(EntityFilter.ALIVE, (entity, self) -> entity.isAlive());
+        table.put(EntityFilter.NOT_TARGET, (entity, self) -> entity != self);
+        table.put(EntityFilter.NOT_SNEAKING,
+                (entity, self) -> !(entity instanceof Player player && player.isShiftKeyDown()));
+        table.put(EntityFilter.MOVING, (entity, self) -> isMovingHorizontally(entity));
+        table.put(EntityFilter.HAS_BABY_FORM, (entity, self) -> hasBabyForm(entity));
+        table.put(EntityFilter.NOT_BABY,
+                (entity, self) -> !(entity instanceof LivingEntity living && living.isBaby()));
+        table.put(EntityFilter.VULNERABLE,
+                (entity, self) -> entity instanceof LivingEntity living && living.invulnerableTime == 0);
+    }
+
+    /**
      * Tests whether the entity moves horizontally above rest; the vertical
      * axis is left out since gravity gives a standing entity a vertical delta.
+     * The known movement is read, since the server moves a player by its
+     * client's packets and leaves the player's delta movement at rest; for
+     * any other entity the known movement is its delta movement.
+     * decision diagnose-then-restore-razor-harm
      *
      * @param entity the candidate
      * @return true when the horizontal speed squared passes the rest threshold
      */
     private static boolean isMovingHorizontally(Entity entity) {
-        Vec3 delta = entity.getDeltaMovement();
+        Vec3 delta = entity.getKnownMovement();
         return delta.x() * delta.x() + delta.z() * delta.z() > REST_SPEED_SQUARED;
     }
 

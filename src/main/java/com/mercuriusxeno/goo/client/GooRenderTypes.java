@@ -34,6 +34,8 @@ public final class GooRenderTypes {
     private static final String CORE_SHADER_PATH = "core/";
     /** Name prefix of a goo render type. */
     private static final String TYPE_NAME_PREFIX = "goo_";
+    /** Name suffix of a burnout pipeline's twin that draws through blocks. */
+    private static final String THROUGH_BLOCKS_SUFFIX = "_through_blocks";
 
     /**
      * Lines pipeline with LIGHTNING blend (SRC_ALPHA, ONE) and no depth write.
@@ -136,6 +138,32 @@ public final class GooRenderTypes {
     );
 
     /**
+     * The black hole's held ghost body: its dark core shader, translucent with
+     * depth tested and depth write off, so the ghost hides nothing behind it.
+     * held-visual-ghosts-the-landing-in-two-passes
+     */
+    public static final RenderPipeline NETHER_BLACKHOLE_HELD = shaderPairPipeline("nether_blackhole_held",
+            "nether_blackhole", BlendFunction.TRANSLUCENT, DefaultVertexFormat.POSITION_COLOR_NORMAL,
+            DepthStencilState.DEFAULT.depthTest());
+
+    /** RenderType for the black hole's held ghost body. */
+    public static final RenderType NETHER_BLACKHOLE_HELD_TYPE = burnoutType(NETHER_BLACKHOLE_HELD);
+
+    /** The black hole's held ghost body through blocks, depth ignored. */
+    public static final RenderPipeline NETHER_BLACKHOLE_THROUGH_BLOCKS = throughBlocksPipeline("nether_blackhole",
+            BlendFunction.TRANSLUCENT);
+
+    /** RenderType for the black hole's held ghost body through blocks. */
+    public static final RenderType NETHER_BLACKHOLE_THROUGH_BLOCKS_TYPE = burnoutType(NETHER_BLACKHOLE_THROUGH_BLOCKS);
+
+    /** The black hole's corona through blocks, depth ignored, for its held ghost. */
+    public static final RenderPipeline NETHER_CORONA_THROUGH_BLOCKS = throughBlocksPipeline("nether_corona",
+            BlendFunction.LIGHTNING);
+
+    /** RenderType for the black hole's corona through blocks. */
+    public static final RenderType NETHER_CORONA_THROUGH_BLOCKS_TYPE = burnoutType(NETHER_CORONA_THROUGH_BLOCKS);
+
+    /**
      * Unstable goo's burnout explosion pipeline (decision
      * elemental-explosion-per-type): the fireball sphere and its shockwave
      * ring, additive with depth write off and both faces drawn, through
@@ -145,6 +173,18 @@ public final class GooRenderTypes {
 
     /** RenderType that draws unstable goo's burnout explosion. */
     public static final RenderType UNSTABLE_EXPLOSION_TYPE = burnoutType(UNSTABLE_EXPLOSION);
+
+    /**
+     * Unstable's held ghost through blocks: the unstable explosion shader with
+     * no depth test, so the crater the blast would cut shows through blocks.
+     * held-visual-ghosts-the-landing-in-two-passes
+     */
+    public static final RenderPipeline UNSTABLE_EXPLOSION_THROUGH_BLOCKS = throughBlocksPipeline("unstable_explosion",
+            BlendFunction.LIGHTNING);
+
+    /** RenderType for unstable's held ghost through blocks. */
+    public static final RenderType UNSTABLE_EXPLOSION_THROUGH_BLOCKS_TYPE =
+            burnoutType(UNSTABLE_EXPLOSION_THROUGH_BLOCKS);
 
     /**
      * Rock goo's burnout explosion pipeline: the dust shock disc, alpha
@@ -193,6 +233,17 @@ public final class GooRenderTypes {
     public static final RenderType METAL_EXPLOSION_TYPE = burnoutType(METAL_EXPLOSION);
 
     /**
+     * Metal's held ghost through blocks: the metal explosion shader with no
+     * depth test, so the spikes inside blocks show through them.
+     * held-visual-ghosts-the-landing-in-two-passes
+     */
+    public static final RenderPipeline METAL_EXPLOSION_THROUGH_BLOCKS = throughBlocksPipeline("metal_explosion",
+            BlendFunction.TRANSLUCENT);
+
+    /** RenderType for metal's held ghost through blocks. */
+    public static final RenderType METAL_EXPLOSION_THROUGH_BLOCKS_TYPE = burnoutType(METAL_EXPLOSION_THROUGH_BLOCKS);
+
+    /**
      * Crystal goo's burnout explosion pipeline: the prism burst, alpha
      * blended, through {@code crystal_explosion.vsh / .fsh}.
      */
@@ -201,6 +252,17 @@ public final class GooRenderTypes {
 
     /** RenderType that draws crystal goo's burnout explosion. */
     public static final RenderType CRYSTAL_EXPLOSION_TYPE = burnoutType(CRYSTAL_EXPLOSION);
+
+    /**
+     * Crystal's held ghost through blocks: the crystal explosion shader with no
+     * depth test, so the part of the dome inside blocks shows through them.
+     * held-visual-ghosts-the-landing-in-two-passes
+     */
+    public static final RenderPipeline CRYSTAL_EXPLOSION_THROUGH_BLOCKS = throughBlocksPipeline("crystal_explosion",
+            BlendFunction.TRANSLUCENT);
+
+    /** RenderType for crystal's held ghost through blocks. */
+    public static final RenderType CRYSTAL_EXPLOSION_THROUGH_BLOCKS_TYPE = burnoutType(CRYSTAL_EXPLOSION_THROUGH_BLOCKS);
 
     /**
      * Glow goo's burnout explosion pipeline: the aurora bloom, additive,
@@ -447,6 +509,41 @@ public final class GooRenderTypes {
     }
 
     /**
+     * Block transform pipeline (decision petrify-stone-encasement-and-calcify-map):
+     * an old block's quads drawn over the new block it became, on
+     * {@code block_mingle.vsh / .fsh}, discarded where the mingle noise over
+     * world position falls below the share of the transform run, which the
+     * overlay coordinates carry, so the old block mingles into the new.
+     */
+    public static final RenderPipeline BLOCK_MINGLE = RenderPipeline.builder(
+                    RenderPipelines.ENTITY_SNIPPET,
+                    RenderPipelines.GLOBALS_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "block_mingle"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "block_mingle"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "block_mingle"))
+            .build();
+
+    /** Per-atlas memoized render types on the block transform pipeline. */
+    private static final java.util.function.Function<Identifier, RenderType> BLOCK_MINGLE_FACTORY =
+            net.minecraft.util.Util.memoize(atlas -> RenderType.create(
+                    "goo_block_mingle",
+                    RenderSetup.builder(BLOCK_MINGLE)
+                            .withTexture("Sampler0", atlas)
+                            .useLightmap()
+                            .createRenderSetup()
+            ));
+
+    /**
+     * Returns the block transform render type for the atlas the block's sprites sit on.
+     *
+     * @param atlas the texture atlas identifier
+     * @return memoized RenderType
+     */
+    public static RenderType blockMingle(Identifier atlas) {
+        return BLOCK_MINGLE_FACTORY.apply(atlas);
+    }
+
+    /**
      * Goo splat pipeline (decision shader-coat-on-every-mob-landing): a struck
      * mob's model drawn again through {@code goo_mob_coat.vsh / .fsh}, lifted
      * off the skin along its normals, painting the goo type's fluid sprite
@@ -501,6 +598,52 @@ public final class GooRenderTypes {
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(new DepthStencilState(DepthStencilState.DEFAULT.depthTest(), false))
             .build();
+
+    /**
+     * Petrify's stone pipeline (decision petrify-stone-encasement-and-calcify-map):
+     * a mob's model and the shell it wears drawn again through
+     * {@code petrify_stone.vsh / .fsh}, flush at the model's own depth, a stone
+     * texture laid over the skin coordinates in noise patches covering the
+     * share of the model the vertex alpha carries, whole at a statue.
+     */
+    public static final RenderPipeline PETRIFY_STONE = RenderPipeline.builder(
+                    RenderPipelines.ENTITY_SNIPPET,
+                    RenderPipelines.GLOBALS_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "petrify_stone"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "petrify_stone"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "petrify_stone"))
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withDepthStencilState(new DepthStencilState(DepthStencilState.DEFAULT.depthTest(), false))
+            .build();
+
+    /** The petrify stone render type, sampling vanilla's stone texture. */
+    public static final RenderType PETRIFY_STONE_TYPE = RenderType.create(
+            "goo_petrify_stone",
+            RenderSetup.builder(PETRIFY_STONE)
+                    .withTexture("Sampler0", Identifier.withDefaultNamespace("textures/block/stone.png"))
+                    .useLightmap()
+                    .sortOnUpload()
+                    .createRenderSetup());
+
+    /**
+     * Petrify's fog pipeline (decision petrify-stone-encasement-and-calcify-map):
+     * cross-sections of the cone drawn through {@code petrify_fog.vsh / .fsh},
+     * undulating dust-fog waves washing forward through them.
+     */
+    public static final RenderPipeline PETRIFY_FOG = burnoutPipeline("petrify_fog", BlendFunction.TRANSLUCENT);
+
+    /** The petrify fog render type. */
+    public static final RenderType PETRIFY_FOG_TYPE = burnoutType(PETRIFY_FOG);
+
+    /**
+     * Bore's vortex pipeline (decision bore-vortex-with-a-worldspace-shake):
+     * sections down the tunnel drawn through {@code bore_vortex.vsh / .fsh},
+     * spiralling dust arms turning about the look.
+     */
+    public static final RenderPipeline BORE_VORTEX = burnoutPipeline("bore_vortex", BlendFunction.TRANSLUCENT);
+
+    /** The bore vortex render type. */
+    public static final RenderType BORE_VORTEX_TYPE = burnoutType(BORE_VORTEX);
 
     /**
      * Ghost trail pipeline (decision ghost-trail-spans-the-blink): an entity's
@@ -633,13 +776,43 @@ public final class GooRenderTypes {
      * @return the pipeline
      */
     private static RenderPipeline burnoutPipeline(String name, BlendFunction blend, VertexFormat format) {
+        return shaderPairPipeline(name, name, blend, format, DepthStencilState.DEFAULT.depthTest());
+    }
+
+    /**
+     * A burnout pipeline's twin that ignores depth: the same shader pair and
+     * blend with depth test and depth write off, so what it draws shows through blocks.
+     * held-visual-ghosts-the-landing-in-two-passes
+     *
+     * @param name  the burnout's shader pair's name
+     * @param blend how the pipeline blends over the world
+     * @return the pipeline, located at the burnout's name with a through-blocks suffix
+     */
+    private static RenderPipeline throughBlocksPipeline(String name, BlendFunction blend) {
+        return shaderPairPipeline(name + THROUGH_BLOCKS_SUFFIX, name, blend, DefaultVertexFormat.POSITION_COLOR_NORMAL,
+                CompareOp.ALWAYS_PASS);
+    }
+
+    /**
+     * A quad pipeline over a shader pair under {@code core/<shader>}, depth write
+     * off, both faces drawn.
+     *
+     * @param location  the pipeline's name
+     * @param shader    the shader pair's name
+     * @param blend     how the pipeline blends over the world
+     * @param format    the vertex format its quads carry
+     * @param depthTest the depth comparison its fragments pass
+     * @return the pipeline
+     */
+    private static RenderPipeline shaderPairPipeline(String location, String shader, BlendFunction blend,
+                                                     VertexFormat format, CompareOp depthTest) {
         return RenderPipeline.builder(RenderPipelines.MATRICES_PROJECTION_SNIPPET, RenderPipelines.GLOBALS_SNIPPET)
-                .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + name))
-                .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + name))
-                .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + name))
+                .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + location))
+                .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + shader))
+                .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + shader))
                 .withVertexFormat(format, VertexFormat.Mode.QUADS)
                 .withColorTargetState(new ColorTargetState(blend))
-                .withDepthStencilState(new DepthStencilState(DepthStencilState.DEFAULT.depthTest(), false))
+                .withDepthStencilState(new DepthStencilState(depthTest, false))
                 .withCull(false)
                 .build();
     }
@@ -657,16 +830,28 @@ public final class GooRenderTypes {
     }
 
     /**
+     * Registers the line pipelines: the additive glow and the through-walls lines.
+     *
+     * @param event the pipeline registration event
+     */
+    private static void registerLinePipelines(RegisterRenderPipelinesEvent event) {
+        event.registerPipeline(LINES_ADDITIVE_GLOW);
+        event.registerPipeline(LINES_THROUGH_WALLS_PIPELINE);
+    }
+
+    /**
      * Registers custom pipelines with the NeoForge pipeline registry.
      *
      * @param event the event instance
      */
     public static void registerPipelines(RegisterRenderPipelinesEvent event) {
         registerBurnoutPipelines(event);
-        event.registerPipeline(LINES_ADDITIVE_GLOW);
-        event.registerPipeline(LINES_THROUGH_WALLS_PIPELINE);
+        registerLinePipelines(event);
         event.registerPipeline(NETHER_BLACKHOLE);
         event.registerPipeline(NETHER_CORONA);
+        event.registerPipeline(NETHER_BLACKHOLE_HELD);
+        event.registerPipeline(NETHER_BLACKHOLE_THROUGH_BLOCKS);
+        event.registerPipeline(NETHER_CORONA_THROUGH_BLOCKS);
         event.registerPipeline(NETHER_DISK);
         event.registerPipeline(NETHER_CUBE_EDGE);
         event.registerPipeline(VORONOI_FISSURE);
@@ -675,6 +860,10 @@ public final class GooRenderTypes {
         event.registerPipeline(GOO_FLUID_SURFACE);
         event.registerPipeline(CRUCIBLE_DISSOLVE);
         event.registerPipeline(GOO_MOB_COAT);
+        event.registerPipeline(BLOCK_MINGLE);
+        event.registerPipeline(PETRIFY_STONE);
+        event.registerPipeline(PETRIFY_FOG);
+        event.registerPipeline(BORE_VORTEX);
         event.registerPipeline(GOO_AILMENT_OVERLAY);
         GOO_RIPPLE_MASKS.forEach(event::registerPipeline);
         event.registerPipeline(GOO_RIPPLE_EDGE);
@@ -689,12 +878,15 @@ public final class GooRenderTypes {
      */
     private static void registerBurnoutPipelines(RegisterRenderPipelinesEvent event) {
         event.registerPipeline(UNSTABLE_EXPLOSION);
+        event.registerPipeline(UNSTABLE_EXPLOSION_THROUGH_BLOCKS);
         event.registerPipeline(ROCK_EXPLOSION);
         event.registerPipeline(BLAZE_EXPLOSION);
         event.registerPipeline(FROST_EXPLOSION);
         event.registerPipeline(NETHER_EXPLOSION);
         event.registerPipeline(METAL_EXPLOSION);
+        event.registerPipeline(METAL_EXPLOSION_THROUGH_BLOCKS);
         event.registerPipeline(CRYSTAL_EXPLOSION);
+        event.registerPipeline(CRYSTAL_EXPLOSION_THROUGH_BLOCKS);
         event.registerPipeline(GLOW_EXPLOSION);
     }
 }

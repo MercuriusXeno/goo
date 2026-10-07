@@ -7,12 +7,14 @@ import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.client.ability.Afterimages;
 import com.mercuriusxeno.goo.client.ability.AilmentOverlayLayer;
+import com.mercuriusxeno.goo.client.ability.BlockTransforms;
 import com.mercuriusxeno.goo.client.ability.ChainBurnouts;
 import com.mercuriusxeno.goo.client.ability.GhostTrails;
 import com.mercuriusxeno.goo.client.ability.MobAilments;
 import com.mercuriusxeno.goo.client.ability.MobCoatLayer;
 import com.mercuriusxeno.goo.client.ability.MobCoats;
 import com.mercuriusxeno.goo.client.ability.MobShells;
+import com.mercuriusxeno.goo.client.ability.PetrifyStoneLayer;
 import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
 import com.mercuriusxeno.goo.client.ability.Transformations;
 import com.mercuriusxeno.goo.client.ability.ViewportRipples;
@@ -22,6 +24,7 @@ import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.overlay.AimTracker;
 import com.mercuriusxeno.goo.client.particle.*;
+import com.mercuriusxeno.goo.client.radial.CutItemRenderer;
 import com.mercuriusxeno.goo.client.throwing.GooFlightManager;
 import com.mercuriusxeno.goo.client.throwing.GooSizeProperty;
 import com.mercuriusxeno.goo.client.throwing.GooVolumeDecorator;
@@ -166,6 +169,7 @@ public final class GooClientSetup {
         event.registerBlockEntityRenderer(GooBlockEntities.ABILITY_BLOCK.get(),
                 AbilityBlockRenderer::new);
         event.registerBlockEntityRenderer(GooBlockEntities.PRISM.get(), PrismRenderer::new);
+        event.registerBlockEntityRenderer(GooBlockEntities.STATUE.get(), StatueRenderer::new);
     }
 
     /**
@@ -232,6 +236,10 @@ public final class GooClientSetup {
         event.registerSpriteSet(GooParticles.TAP_DRIP_LAND.get(), TapDripParticle.LandProvider::new);
         event.registerSpriteSet(GooParticles.GOO_FOG.get(), GooFogParticle.Provider::new);
         event.registerSpriteSet(GooParticles.SPORE.get(), SporeParticle.Provider::new);
+        event.registerSpriteSet(GooParticles.RESTORE_MOTE.get(), RestoreMoteParticle.Provider::new);
+        event.registerSpriteSet(GooParticles.VITAL_MOTE.get(), VitalMoteParticle.Provider::new);
+        event.registerSpriteSet(GooParticles.VITAL_FOG.get(), VitalFogParticle.Provider::new);
+        event.registerSpriteSet(GooParticles.VITAL_STAR.get(), VitalStarParticle.Provider::new);
         event.registerSpecial(GooParticles.SILENT_BLAST.get(),
                 (options, level, x, y, z, dx, dy, dz, random) -> null);
     }
@@ -261,6 +269,10 @@ public final class GooClientSetup {
         event.registerEntityModifier(
                 new TypeToken<EntityRenderer<Entity, EntityRenderState>>() {
                 },
+                PetrifyStoneLayer::stampPetrify);
+        event.registerEntityModifier(
+                new TypeToken<EntityRenderer<Entity, EntityRenderState>>() {
+                },
                 TransformationRenderer::stampTransformation);
     }
 
@@ -278,6 +290,7 @@ public final class GooClientSetup {
             if (renderer != null) {
                 MobCoatLayer.addTo(renderer, MobShells.of(type, event.getEntityModels()));
                 AilmentOverlayLayer.addTo(renderer);
+                PetrifyStoneLayer.addTo(renderer, MobShells.of(type, event.getEntityModels()));
             }
         }
         for (PlayerModelType skin : event.getSkins()) {
@@ -285,6 +298,7 @@ public final class GooClientSetup {
             MobCoatLayer.addTo(event.getMannequinRenderer(skin), MobShells.NONE);
             AilmentOverlayLayer.addTo(event.getPlayerRenderer(skin));
             AilmentOverlayLayer.addTo(event.getMannequinRenderer(skin));
+            PetrifyStoneLayer.addTo(event.getPlayerRenderer(skin), MobShells.NONE);
         }
     }
 
@@ -296,6 +310,17 @@ public final class GooClientSetup {
     @SubscribeEvent
     public static void registerRenderPipelines(RegisterRenderPipelinesEvent event) {
         GooRenderTypes.registerPipelines(event);
+    }
+
+    /**
+     * Registers the picture-in-picture renderers the GUI draws custom pictures with.
+     * decision icons-slide-in-from-behind-the-tip
+     *
+     * @param event the event instance
+     */
+    @SubscribeEvent
+    public static void registerPictureInPictureRenderers(RegisterPictureInPictureRenderersEvent event) {
+        CutItemRenderer.register(event);
     }
 
     /**
@@ -376,6 +401,7 @@ public final class GooClientSetup {
         ChainBurnouts.CLIENT.clear();
         MobCoats.CLIENT.clear();
         MobAilments.CLIENT.clear();
+        BlockTransforms.CLIENT.clear();
         Afterimages.CLIENT.clear();
         Transformations.CLIENT.clear();
         GhostTrails.CLIENT.clear();

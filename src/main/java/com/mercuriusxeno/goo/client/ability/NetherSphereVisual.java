@@ -151,6 +151,35 @@ public final class NetherSphereVisual {
     }
 
     /**
+     * Emits the black hole's dark body at a radius for its held ghost, at an
+     * opacity, whole and still.
+     * held-visual-ghosts-the-landing-in-two-passes
+     *
+     * @param pose    the pose entry
+     * @param c       the vertex consumer
+     * @param radius  the body's radius in blocks
+     * @param opacity the body's opacity in [0, 1]
+     */
+    static void emitHeldBody(PoseStack.Pose pose, VertexConsumer c, float radius, float opacity) {
+        emitSphereMesh(pose, c, radius, packBlackholeColor(1f, 0f, radius, NetherDiscMesh.toByte(opacity)));
+    }
+
+    /**
+     * Emits the black hole's corona about a body of a radius for its held
+     * ghost, at an opacity: the same halo the landing draws.
+     * held-visual-ghosts-the-landing-in-two-passes
+     *
+     * @param pose    the pose entry
+     * @param c       the vertex consumer
+     * @param radius  the body's radius in blocks
+     * @param opacity the corona's opacity in [0, 1]
+     */
+    static void emitHeldCorona(PoseStack.Pose pose, VertexConsumer c, float radius, float opacity) {
+        emitSphereMesh(pose, c, radius * CORONA_SCALE,
+                packBlackholeColor(1f, 0f, radius, NetherDiscMesh.toByte(opacity)));
+    }
+
+    /**
      * Emits the pre-generated unit sphere mesh with each vertex scaled to
      * {@code radius} and translated to the block center.
      *

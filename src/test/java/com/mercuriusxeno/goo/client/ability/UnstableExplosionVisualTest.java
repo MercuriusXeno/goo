@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mojang.blaze3d.platform.CompareOp;
 import net.minecraft.util.ARGB;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -49,5 +50,24 @@ class UnstableExplosionVisualTest {
     @Test
     void pipelineShadersResolveOnTheClasspath() {
         PipelineShaders.assertExist(GooRenderTypes.UNSTABLE_EXPLOSION);
+    }
+
+    /**
+     * A held ghost's sphere sets blue, which a landing's sphere leaves clear, so the
+     * shader holds it unfaded (decision held-visual-ghosts-the-landing-in-two-passes).
+     */
+    @Test
+    void heldSphereIsMarkedApartFromALandingSphere() {
+        assertEquals(0xFF, ARGB.blue(UnstableExplosionVisual.heldSphereColor(0x66)));
+        assertEquals(0, ARGB.green(UnstableExplosionVisual.heldSphereColor(0x66)));
+        assertEquals(0x66, ARGB.alpha(UnstableExplosionVisual.heldSphereColor(0x66)));
+        assertEquals(0, ARGB.blue(UnstableExplosionVisual.sphereColor(0.5f, 0xFF)));
+    }
+
+    @Test
+    void throughBlocksPipelineIgnoresDepthOverTheUnstableShader() {
+        PipelineShaders.assertExist(GooRenderTypes.UNSTABLE_EXPLOSION_THROUGH_BLOCKS);
+        assertEquals(CompareOp.ALWAYS_PASS,
+                GooRenderTypes.UNSTABLE_EXPLOSION_THROUGH_BLOCKS.getDepthStencilState().depthTest());
     }
 }

@@ -58,8 +58,11 @@ public class AbilityBlockRenderState extends BlockEntityRenderState {
     /** The level's game time at full precision, the clock crystal reflections ease on. */
     public double crystalReflectionClock;
 
-    /** Cloud radius fraction [0-1] for expand/contract animation. */
+    /** Cloud contract fraction [0-1]: 1 until the cloud contracts, falling to 0 as it does. */
     public float crystalRadiusFraction;
+
+    /** Ticks the cloud's field has run since its blob landed, the clock the prism dome grows on. */
+    public int crystalFieldTicks;
 
     /** Full cloud radius in blocks, read from the field effect. */
     public float crystalRadius;
