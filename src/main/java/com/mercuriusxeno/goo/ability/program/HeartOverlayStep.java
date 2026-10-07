@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.ability.program;
 import com.mercuriusxeno.goo.ability.hearts.HeartKind;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.registry.GooAttachments;
+import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.world.entity.player.Player;
@@ -17,22 +18,39 @@ import java.util.stream.Stream;
  * overlay-hearts-are-an-elemental-overshield). A drunk brew's duration
  * stands in for the step's own.
  *
- * @param kind     the overlay's kind
- * @param duration the overlay's duration in ticks, evaluated when the step runs outside a brew
+ * Rock Stoneskin names {@code damage_taken}, the share of a physical hit its
+ * stone takes (decision stoneskin-stone-hearts-block-regeneration).
+ *
+ * @param kind        the overlay's kind
+ * @param duration    the overlay's duration in ticks, evaluated when the step runs outside a brew
+ * @param damageTaken the share of a physical hit a half of shield takes
  */
-public record HeartOverlayStep(HeartKind kind, Expr duration) implements Step {
+public record HeartOverlayStep(HeartKind kind, Expr duration, float damageTaken) implements Step {
 
     private static final String NAME = "heart_overlay";
     private static final String FIELD_KIND = "kind";
     private static final String FIELD_DURATION = "duration";
+    private static final String FIELD_DAMAGE_TAKEN = "damage_taken";
 
     /**
      * Codec for the step's params.
      */
     public static final MapCodec<HeartOverlayStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
             HeartKind.CODEC.fieldOf(FIELD_KIND).forGetter(HeartOverlayStep::kind),
-            Expr.CODEC.fieldOf(FIELD_DURATION).forGetter(HeartOverlayStep::duration)
+            Expr.CODEC.fieldOf(FIELD_DURATION).forGetter(HeartOverlayStep::duration),
+            Codec.FLOAT.optionalFieldOf(FIELD_DAMAGE_TAKEN, HeartOverlay.WHOLE_HIT)
+                    .forGetter(HeartOverlayStep::damageTaken)
     ).apply(inst, HeartOverlayStep::new));
+
+    /**
+     * A step whose shields take every hit whole.
+     *
+     * @param kind     the overlay's kind
+     * @param duration the overlay's duration in ticks
+     */
+    public HeartOverlayStep(HeartKind kind, Expr duration) {
+        this(kind, duration, HeartOverlay.WHOLE_HIT);
+    }
 
     /**
      * The registered type.
@@ -52,7 +70,7 @@ public record HeartOverlayStep(HeartKind kind, Expr duration) implements Step {
             int ticks = host.brewDuration().orElseGet(() -> duration.evaluateInt(context));
             HeartOverlay standing = player.getData(GooAttachments.HEART_OVERLAY);
             player.setData(GooAttachments.HEART_OVERLAY, standing.apply(kind, ticks,
-                    player.getHealth(), player.level().getGameTime()));
+                    player.getHealth(), player.getMaxHealth(), damageTaken, player.level().getGameTime()));
         }
         return true;
     }

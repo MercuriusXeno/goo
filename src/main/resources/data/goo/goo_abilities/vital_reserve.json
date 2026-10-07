@@ -1,0 +1,12 @@
+{
+  "gooType": "vital",
+  "displayName": "goo.ability.vital.reserve",
+  "badge": "channeled",
+  "order": 20,
+  "cost": 1000,
+  "delivery": { "kind": "stream", "ticks_per_charge": 60 },
+  "behaviors": [
+    { "type": "reserve_drain", "drain": 0.05, "ratio": 0.5, "cap": 10, "floor": 0.5 }
+  ],
+  "tags": ["stream", "self"]
+}

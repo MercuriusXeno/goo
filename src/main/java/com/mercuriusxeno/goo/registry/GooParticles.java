@@ -71,6 +71,38 @@ public class GooParticles {
         PARTICLE_TYPES.register("goo_fog", GooParticles::colorParticleType);
 
     /**
+     * The restore mote: a soft glow drifting upward, sprayed along a
+     * vitality stream and its restoration wave rings.
+     * vitality-waves-regenerate-and-court
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> RESTORE_MOTE =
+        PARTICLE_TYPES.register("restore_mote", () -> new SimpleParticleType(false));
+
+    /**
+     * The vital mote: a mote of vital goo homing on a target the client
+     * reads each tick: Reserve's life drawn into the glove, and Vitality's
+     * goo homing from the glove onto each thing it heals.
+     * reserve-hearts-sit-behind-the-bar
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> VITAL_MOTE =
+        PARTICLE_TYPES.register("vital_mote", () -> new SimpleParticleType(false));
+
+    /**
+     * The vital fog: a faint pink puff, many of which fill Vitality's cone
+     * while held.
+     * vitality-waves-regenerate-and-court
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> VITAL_FOG =
+        PARTICLE_TYPES.register("vital_fog", () -> new SimpleParticleType(false));
+
+    /**
+     * The vital star: bonemeal's star in vital pink, played where Vitality heals.
+     * vitality-waves-regenerate-and-court
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> VITAL_STAR =
+        PARTICLE_TYPES.register("vital_star", () -> new SimpleParticleType(false));
+
+    /**
      * Creates a non-syncing ParticleType that carries RGB color data.
      *
      * @return the configured color particle type

@@ -22,13 +22,13 @@ import java.util.Optional;
  * @param coneDegrees    a stream's cone, apex to rim, in degrees
  * @param ticksPerCharge a stream's ticks of hold one cost pays for
  * @param grannyAllowed  whether an arc may lob onto a top face
- * @param particle       the particle a stream sprays along its cone
+ * @param particle       the particle a stream sprays along its cone, empty for none
  * @param transformAt    the share of the flight by which the blob has taken its traveling form
  * @param sound          the sound a stream makes while held, empty for none; the server plays it, so the
  *                       network copy carries none
  */
 public record Delivery(DeliveryKind kind, double blocksPerTick, double range, double coneDegrees,
-                       int ticksPerCharge, boolean grannyAllowed, Identifier particle, double transformAt,
+                       int ticksPerCharge, boolean grannyAllowed, Optional<Identifier> particle, double transformAt,
                        Optional<StreamSound> sound) {
 
     /**
@@ -40,11 +40,11 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
      * @param coneDegrees    a stream's cone, apex to rim, in degrees
      * @param ticksPerCharge a stream's ticks of hold one cost pays for
      * @param grannyAllowed  whether an arc may lob onto a top face
-     * @param particle       the particle a stream sprays along its cone
+     * @param particle       the particle a stream sprays along its cone, empty for none
      * @param transformAt    the share of the flight by which the blob has taken its traveling form
      */
     public Delivery(DeliveryKind kind, double blocksPerTick, double range, double coneDegrees, int ticksPerCharge,
-                    boolean grannyAllowed, Identifier particle, double transformAt) {
+                    boolean grannyAllowed, Optional<Identifier> particle, double transformAt) {
         this(kind, blocksPerTick, range, coneDegrees, ticksPerCharge, grannyAllowed, particle, transformAt,
                 Optional.empty());
     }
@@ -55,8 +55,6 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
     public static final double DEFAULT_CONE_DEGREES = 20;
     /** A stream's ticks per cost where the JSON names none. */
     public static final int DEFAULT_TICKS_PER_CHARGE = 20;
-    /** A stream's particle where the JSON names none. */
-    public static final Identifier DEFAULT_PARTICLE = Identifier.withDefaultNamespace("flame");
     /**
      * The share of the flight by which a blob has taken its traveling form
      * where the JSON names none (decision traveling-form-transforms-in-flight).
@@ -80,7 +78,7 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
             Codec.INT.optionalFieldOf("ticks_per_charge", DEFAULT_TICKS_PER_CHARGE)
                     .forGetter(Delivery::ticksPerCharge),
             Codec.BOOL.optionalFieldOf("granny", true).forGetter(Delivery::grannyAllowed),
-            Identifier.CODEC.optionalFieldOf("particle", DEFAULT_PARTICLE).forGetter(Delivery::particle),
+            Identifier.CODEC.optionalFieldOf("particle").forGetter(Delivery::particle),
             Codec.DOUBLE.optionalFieldOf("transform_at", DEFAULT_TRANSFORM_AT).forGetter(Delivery::transformAt),
             // mycosis-spore-stream-buds-and-poisons
             StreamSound.CODEC.codec().optionalFieldOf("sound").forGetter(Delivery::sound)
@@ -98,7 +96,7 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
             ByteBufCodecs.DOUBLE, Delivery::coneDegrees,
             ByteBufCodecs.VAR_INT, Delivery::ticksPerCharge,
             ByteBufCodecs.BOOL, Delivery::grannyAllowed,
-            Identifier.STREAM_CODEC, Delivery::particle,
+            ByteBufCodecs.optional(Identifier.STREAM_CODEC), Delivery::particle,
             ByteBufCodecs.DOUBLE, Delivery::transformAt,
             Delivery::new);
 
@@ -110,7 +108,7 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
      */
     public static Delivery of(DeliveryKind kind) {
         return new Delivery(kind, DEFAULT_BLOCKS_PER_TICK, 0, DEFAULT_CONE_DEGREES, DEFAULT_TICKS_PER_CHARGE, true,
-                DEFAULT_PARTICLE, DEFAULT_TRANSFORM_AT);
+                Optional.empty(), DEFAULT_TRANSFORM_AT);
     }
 
     /**

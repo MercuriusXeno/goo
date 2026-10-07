@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.registry;
 
+import com.mercuriusxeno.goo.ability.petrify.BlockExposures;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockFallScheduler;
+import com.mercuriusxeno.goo.block.tap.TapDripCounts;
 import com.mercuriusxeno.goo.block.tap.TapDripScheduler;
 import com.mercuriusxeno.goo.network.GooEffectScheduler;
 import com.mercuriusxeno.goo.network.StreamHolds;
@@ -18,6 +20,8 @@ public final class GooServerState {
 
     private final GooEffectScheduler gooEffects = new GooEffectScheduler();
     private final TapDripScheduler tapDrips = new TapDripScheduler();
+    private final TapDripCounts tapDripCounts = new TapDripCounts();
+    private final BlockExposures blockExposures = new BlockExposures();
     private final AbilityBlockFallScheduler markerFalls = new AbilityBlockFallScheduler();
     private final StreamHolds streamHolds = new StreamHolds();
 
@@ -57,10 +61,30 @@ public final class GooServerState {
     }
 
     /**
+     * The drips each block has taken since its tap ability last acted
+     * (decision petrify-drip-calcifies-and-grows-dripstone).
+     *
+     * @return the drip counts
+     */
+    public TapDripCounts tapDripCounts() {
+        return tapDripCounts;
+    }
+
+    /**
      * @return the ability block falls in flight
      */
     public AbilityBlockFallScheduler markerFalls() {
         return markerFalls;
+    }
+
+    /**
+     * How far each block has gone toward its next calcify rung
+     * (decision petrify-stone-encasement-and-calcify-map).
+     *
+     * @return the block exposures
+     */
+    public BlockExposures blockExposures() {
+        return blockExposures;
     }
 
     /**
@@ -84,6 +108,7 @@ public final class GooServerState {
             markerFalls.drainArrivedFalls(currentTick);
         }
         tapDrips.drainArrived(server);
+        blockExposures.decay(server);
     }
 
     /**
@@ -92,6 +117,8 @@ public final class GooServerState {
     public void clear() {
         gooEffects.clear();
         tapDrips.clear();
+        tapDripCounts.clear();
+        blockExposures.clear();
         markerFalls.clear();
         streamHolds.clear();
     }

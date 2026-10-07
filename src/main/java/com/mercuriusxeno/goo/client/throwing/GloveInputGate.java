@@ -1,12 +1,23 @@
 package com.mercuriusxeno.goo.client.throwing;
 
+import com.mercuriusxeno.goo.ability.AbilityBadge;
+import com.mercuriusxeno.goo.ability.Delivery;
+import com.mercuriusxeno.goo.ability.HeldRoute;
+import com.mercuriusxeno.goo.ability.SelfEatRoute;
+import org.jspecify.annotations.Nullable;
+
 /**
  * The glove's right-click input as a press the client resolves off the use
  * key. A press arms the throw and previews the ability's area for as long as
  * the key is held; release throws once and swings. A stream runs from the
- * press instead, streaming on every held tick. The arm swings only for a
- * throw that sent a payload.
+ * press instead, streaming on every held tick. A self + brew press sends on
+ * the press too, while the use key is still down, and then only waits for
+ * release: vanilla releases a used item the tick the key comes up, so an eat
+ * started on release would be cancelled the tick it began, and letting go
+ * mid-eat is what cancels it. The arm swings only for a throw that sent a
+ * payload, never for an eat.
  * decision right-click-held-previews-release-throws
+ * decision self-brew-goos-eat-before-the-effect
  * decision use-animation-only-when-goo-throws
  */
 public final class GloveInputGate {
@@ -34,11 +45,37 @@ public final class GloveInputGate {
          * @return true for a stream
          */
         boolean runsWhileHeld();
+
+        /**
+         * Whether the selected ability is eaten: it sends on the press and the
+         * player eats while the key stays down.
+         *
+         * @return true for a self + brew ability
+         */
+        boolean eatsOnPress();
+    }
+
+    /**
+     * Whether an ability runs from the press while the use key is held,
+     * rather than previewing and throwing on release: a held ability, a
+     * stream or a channel (decisions stream-delivery-held-cone,
+     * flatten-disc-cursor-breaks-above-the-plane), and a brew, whose eat
+     * vanilla releases the tick the use key is up, so an eat begun on release
+     * would end the tick it started; the gate eats a brew before it streams.
+     * decision self-brew-goos-eat-before-the-effect
+     *
+     * @param delivery the selected ability's delivery
+     * @param badge    the selected ability's badge, or null where the client holds no synced copy
+     * @return true for a stream, a channel or a brew
+     */
+    public static boolean runsFromPress(Delivery delivery, @Nullable AbilityBadge badge) {
+        return HeldRoute.runsWhileHeld(delivery, badge) || SelfEatRoute.eats(delivery, badge);
     }
 
     private boolean armed;
     private boolean streaming;
     private boolean previewing;
+    private boolean eating;
 
     /** Starts a press when the glove's use reaches the client; a live press ignores the repeat. */
     public void arm() {
@@ -46,6 +83,7 @@ public final class GloveInputGate {
             armed = true;
             streaming = false;
             previewing = false;
+            eating = false;
         }
     }
 
@@ -73,6 +111,7 @@ public final class GloveInputGate {
         armed = false;
         streaming = false;
         previewing = false;
+        eating = false;
     }
 
     /**
@@ -88,12 +127,38 @@ public final class GloveInputGate {
         if (!armed) {
             return;
         }
-        if (streaming || (!previewing && actions.runsWhileHeld())) {
+        if (eats(actions)) {
+            tickEat(useKeyDown, actions);
+        } else if (streams(actions)) {
             tickStream(useKeyDown, actions);
-        } else if (useKeyDown) {
+        } else {
+            tickThrow(useKeyDown, actions);
+        }
+    }
+
+    private boolean eats(PressActions actions) {
+        return eating || (!previewing && !streaming && actions.eatsOnPress());
+    }
+
+    private boolean streams(PressActions actions) {
+        return streaming || (!previewing && actions.runsWhileHeld());
+    }
+
+    private void tickThrow(boolean useKeyDown, PressActions actions) {
+        if (useKeyDown) {
             previewing = true;
         } else {
             throwAndSwing(actions);
+            cancel();
+        }
+    }
+
+    private void tickEat(boolean useKeyDown, PressActions actions) {
+        if (!eating) {
+            eating = true;
+            actions.sendThrow();
+        }
+        if (!useKeyDown) {
             cancel();
         }
     }

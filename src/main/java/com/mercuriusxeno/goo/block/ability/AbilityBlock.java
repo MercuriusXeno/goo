@@ -183,14 +183,16 @@ public class AbilityBlock extends AbstractEffectBlock implements SimpleWaterlogg
     }
 
     /**
-     * Returns true if a marker stands at pos and its support block is air.
+     * Returns true if a marker stands at pos, its support block is air, and
+     * its running program does not hold it in place.
      *
      * @param level the current level
      * @param pos   the marker block position
-     * @return true if the marker has no support
+     * @return true if the marker has no support and falls
      */
     private static boolean isMarkerWithNoSupport(Level level, BlockPos pos) {
-        if (!(level.getBlockEntity(pos) instanceof AbilityBlockEntity be)) {
+        if (!(level.getBlockEntity(pos) instanceof AbilityBlockEntity be)
+                || be.getBehavior() != null && be.getBehavior().holdsItsPlace()) {
             return false;
         }
         BlockPos supportPos = pos.relative(be.getPlacedFace().getOpposite());
@@ -577,10 +579,10 @@ public class AbilityBlock extends AbstractEffectBlock implements SimpleWaterlogg
 
     /**
      * Falls the marker when its support is still gone. The check waits for
-     * a block tick because a running program can remove the support itself,
-     * as a black hole consumes it, and a fall taken inside that program
-     * tick would snapshot the program before the tick finished and replay
-     * the rest of it where the marker lands.
+     * a block tick, since a fall taken inside a program tick would snapshot
+     * the program before the tick finished and replay the rest of it where
+     * the marker lands. A black hole that consumed its own support holds its
+     * place and never falls.
      *
      * @param state  the block state
      * @param level  the server level

@@ -110,4 +110,13 @@ public record PhasedStep(Expr radius, List<StepPhase> phases) implements Step {
     public Stream<Step> children() {
         return phases.stream().flatMap(StepPhase::steps);
     }
+
+    /**
+     * A black hole stays where it landed until its phases end, though it
+     * consumes the block holding it up.
+     */
+    @Override
+    public boolean holdsItsPlace() {
+        return true;
+    }
 }
