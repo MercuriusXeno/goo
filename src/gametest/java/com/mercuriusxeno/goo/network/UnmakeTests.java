@@ -81,8 +81,8 @@ public final class UnmakeTests {
         helper.assertTrue(dearWork > HOLD_TICKS, String.format(NOT_DEAR, dearWork));
         ServerPlayer player = streamer(helper);
         KnownRecipes.teachRequires(player, unmake);
-        GooStreamPayload tick = new GooStreamPayload(GooTypes.id(GooTypes.UNSTABLE), UNMAKE.toString(),
-                player.getEyePosition());
+        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.UNSTABLE), UNMAKE.toString(),
+                player.getEyePosition(), player.getEyePosition());
         for (int held = 1; held <= HOLD_TICKS; held++) {
             int thisTick = held;
             helper.runAfterDelay(held, () -> {

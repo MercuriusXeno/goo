@@ -36,7 +36,6 @@ public final class StepTypes {
         register(LeafSteps.WAIT.type());
         register(AwaitEntityStep.TYPE);
         register(WatchStep.TYPE);
-        register(BlocksStep.TYPE);
         register(UnmakeStep.TYPE);
         register(ChargedStep.TYPE);
         register(ExplodeStep.TYPE);
@@ -70,6 +69,16 @@ public final class StepTypes {
         register(AfterimageStep.TYPE);
         register(GhostTrailStep.TYPE);
         register(HeartOverlayStep.TYPE);
+        register(FlattenStep.TYPE);
+        register(BoreStep.TYPE);
+        register(CrushStep.TYPE);
+        register(PetrifyStep.TYPE);
+        register(CalcifyStep.TYPE);
+        register(PetrifyDripStep.TYPE);
+        register(LeafSteps.HEAL.type());
+        register(LeafSteps.COURT.type());
+        register(NourishStep.TYPE);
+        register(ReserveDrainStep.TYPE);
     }
 
     private StepTypes() {

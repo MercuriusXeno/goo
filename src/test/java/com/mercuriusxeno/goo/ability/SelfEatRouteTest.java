@@ -52,7 +52,7 @@ class SelfEatRouteTest {
 
         @Test
         void theShippedBrewsEatAndTheShippedSelfAbilitiesRunOnCommand() {
-            for (String brew : List.of("blaze_kindle", "leaf_barkskin")) {
+            for (String brew : List.of("blaze_kindle", "leaf_barkskin", "vital_nourish")) {
                 AbilityDefinition ability = AbilityJson.decode(brew);
                 assertTrue(SelfEatRoute.eats(ability.delivery(), ability.badge()), brew);
             }

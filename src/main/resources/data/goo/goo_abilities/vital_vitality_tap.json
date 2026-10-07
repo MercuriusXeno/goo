@@ -1,0 +1,19 @@
+{
+  "gooType": "vital",
+  "displayName": "goo.ability.vital.vitality_tap",
+  "badge": "tap",
+  "order": 20,
+  "cost": 1000,
+  "delivery": { "kind": "arc" },
+  "behaviors": [
+    {
+      "type": "entities",
+      "shape": "cube",
+      "radius": 0.5,
+      "steps": [
+        { "type": "heal", "amount": 1 }
+      ]
+    }
+  ],
+  "tags": ["tap"]
+}

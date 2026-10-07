@@ -7,7 +7,9 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.JsonOps;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
+import net.minecraft.tags.TagKey;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Map;
@@ -36,7 +38,6 @@ class StepCodecTest {
                     List.of(EntityFilter.LIVING, EntityFilter.MOB))),
             Map.entry("unmake", new UnmakeStep(Expr.literal(0.025), Expr.literal(0.5))),
             Map.entry("charged", new ChargedStep(Expr.literal(400))),
-            Map.entry("blocks", new BlocksStep(List.of(new UnmakeStep(Expr.literal(0.025), Expr.literal(0.5))))),
             Map.entry("explode", new ExplodeStep(Expr.parse("2.5 + 1.0 * (stacks - 1)").getOrThrow(),
                     ExplosionMode.NONE)),
             Map.entry("damage", new DamageStep(Expr.parse("health / 2").getOrThrow(), DamageKind.CACTUS)),
@@ -98,7 +99,22 @@ class StepCodecTest {
                     Expr.parse("20 * 60 / pow(health, 0.4)").getOrThrow())),
             Map.entry("afterimage", new AfterimageStep(GooTypes.HEX, Expr.literal(20))),
             Map.entry("ghost_trail", new GhostTrailStep(GooTypes.ENDER, Expr.literal(30))),
-            Map.entry("heart_overlay", new HeartOverlayStep(HeartKind.KINDLE, Expr.literal(1200)))
+            Map.entry("heart_overlay", new HeartOverlayStep(HeartKind.KINDLE, Expr.literal(1200))),
+            Map.entry("flatten", new FlattenStep(TagKey.create(Registries.BLOCK,
+                    Identifier.fromNamespaceAndPath("goo", "flatten_breakable")))),
+            Map.entry("bore", new BoreStep(TagKey.create(Registries.BLOCK,
+                    Identifier.fromNamespaceAndPath("goo", "bore_breakable")), 1)),
+            Map.entry("crush", new CrushStep(TagKey.create(Registries.BLOCK,
+                    Identifier.fromNamespaceAndPath("goo", "bore_breakable")), 2.0, Expr.literal(6))),
+            Map.entry("petrify", new PetrifyStep(Expr.literal(2))),
+            Map.entry("calcify", new CalcifyStep(Identifier.fromNamespaceAndPath("goo", "calcify"), 30)),
+            Map.entry("petrify_drip", new PetrifyDripStep(Identifier.fromNamespaceAndPath("goo", "calcify"), 8,
+                    TagKey.create(Registries.BLOCK, Identifier.fromNamespaceAndPath("goo", "grows_dripstone")))),
+            Map.entry("heal", LeafSteps.HEAL.step(Expr.literal(0.1))),
+            Map.entry("court", LeafSteps.COURT.step(Expr.literal(0.25))),
+            Map.entry("nourish", new NourishStep(Expr.literal(80), Expr.literal(400))),
+            Map.entry("reserve_drain", new ReserveDrainStep(Expr.literal(0.05), Expr.literal(0.5), Expr.literal(10),
+                    Expr.literal(0.5)))
     );
 
     private static Step roundTrip(Step step) {

@@ -3,14 +3,16 @@ package com.mercuriusxeno.goo.ability.program;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.core.BlockPos;
 import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * Works the held block toward its dissolve: once the work done reaches what
- * the crucible would charge to melt it, times {@code work_per_goo}, the
- * block goes and leaves {@code yield} of its goo; until then the dissolve
- * shows its progress. A block with no goo value stands.
+ * Works each block the host holds toward its dissolve: once the work done on
+ * a block reaches what the crucible would charge to melt it, times
+ * {@code work_per_goo}, the block goes and leaves {@code yield} of its goo;
+ * until then its dissolve shows its progress. A block with no goo value
+ * stands. On a stream it runs in the channel's block pass.
  * decision unmake-waves-dissolve-by-crucible-cost
  *
  * @param workPerGoo the work one mB of the block's value costs, evaluated each run
@@ -43,18 +45,31 @@ public record UnmakeStep(Expr workPerGoo, Expr yield) implements Step {
     @Override
     public boolean tick(StepContext context) {
         UnmakeHost host = context.hostAs(UnmakeHost.class);
-        GooValue value = host.unmadeValue();
-        if (value == null || value.isEmpty()) {
-            return true;
-        }
-        int needed = UnmakeRule.workToUnmake(value.totalGoo(), workPerGoo.evaluate(context));
-        int done = host.countUnmakeWork();
-        if (done >= needed) {
-            host.unmake(UnmakeRule.yieldOf(value, yield.evaluate(context)));
-        } else {
-            host.showUnmaking((float) done / needed);
+        for (BlockPos pos : host.unmadeBlocks()) {
+            workBlock(host, pos, context);
         }
         return true;
+    }
+
+    /**
+     * Works one held block: dissolves it once its work is done, else shows its share.
+     *
+     * @param host    the unmake host
+     * @param pos     the held block
+     * @param context the step's context, which the params evaluate against
+     */
+    private void workBlock(UnmakeHost host, BlockPos pos, StepContext context) {
+        GooValue value = host.unmadeValue(pos);
+        if (value == null || value.isEmpty()) {
+            return;
+        }
+        int needed = UnmakeRule.workToUnmake(value.totalGoo(), workPerGoo.evaluate(context));
+        int done = host.countUnmakeWork(pos);
+        if (done >= needed) {
+            host.unmake(pos, UnmakeRule.yieldOf(value, yield.evaluate(context)));
+        } else {
+            host.showUnmaking(pos, (float) done / needed);
+        }
     }
 
     @Override

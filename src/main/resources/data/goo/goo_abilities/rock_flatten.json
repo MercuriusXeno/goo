@@ -1,0 +1,13 @@
+{
+  "gooType": "rock",
+  "displayName": "goo.ability.rock.flatten",
+  "badge": "channeled",
+  "order": 20,
+  "cost": 1000,
+  "requires": ["minecraft:dirt"],
+  "delivery": { "kind": "self", "ticks_per_charge": 20 },
+  "behaviors": [
+    { "type": "flatten", "breaks": "goo:flatten_breakable" }
+  ],
+  "tags": ["self"]
+}

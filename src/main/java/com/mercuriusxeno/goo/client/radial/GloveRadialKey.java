@@ -13,7 +13,6 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
-import org.lwjgl.glfw.GLFW;
 
 /**
  * The glove menu key, G by default, bound only while a glove is held: its
@@ -23,7 +22,8 @@ import org.lwjgl.glfw.GLFW;
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class GloveRadialKey {
 
-    private static final KeyMapping.Category CATEGORY = new KeyMapping.Category(
+    /** The goo key category, holding the glove menu and Goo values keys. */
+    public static final KeyMapping.Category CATEGORY = new KeyMapping.Category(
             Identifier.fromNamespaceAndPath(Goo.MODID, GloveRadialKeyGate.CATEGORY_PATH));
 
     private static final GloveHeldConflictContext GLOVE_HELD =
@@ -31,7 +31,7 @@ public final class GloveRadialKey {
 
     /** The glove menu mapping. */
     public static final KeyMapping MAPPING = new KeyMapping(GloveRadialKeyGate.NAME_KEY, GLOVE_HELD,
-            InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_G, CATEGORY);
+            InputConstants.Type.KEYSYM, GloveRadialKeyGate.DEFAULT_KEY, CATEGORY);
 
     private GloveRadialKey() {}
 

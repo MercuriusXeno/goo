@@ -4,11 +4,13 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.PrismCombos;
+import com.mercuriusxeno.goo.ability.program.ExplodeStep;
 import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.LandingHost;
 import com.mercuriusxeno.goo.ability.program.LingerStep;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
+import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.network.ChainBurnoutPayload;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -20,6 +22,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 /**
  * What an ability goo does when it lands on a block: it lands in the cell
@@ -72,7 +75,8 @@ public final class AbilityImpact {
             landOnPrism(level, prism, type, ability);
             return;
         }
-        Optional<LandingSpot> spot = LandingSpot.resolve(level, pos, face);
+        Optional<LandingSpot> spot = point == null ? LandingSpot.resolve(level, pos, face)
+                : LandingSpot.resolve(level, pos, face, point);
         if (spot.isEmpty()) {
             return;
         }
@@ -108,15 +112,24 @@ public final class AbilityImpact {
     }
 
     /**
-     * Whether an ability's program stands its own block to run on after the
-     * splat, so its burnout plays when that block explodes rather than as the
-     * blob lands (decision elemental-explosion-per-type).
+     * Whether an ability's program stands its own block that explodes after
+     * the splat, so its burnout plays when that block explodes rather than as
+     * the blob lands. A lingering program that never explodes, Razor's cloud,
+     * plays its burnout at the landing.
+     * decision elemental-explosion-per-type
+     * decision diagnose-then-restore-the-razor-dome
      *
      * @param ability the landing ability
-     * @return true when a top-level step lingers
+     * @return true when a top-level linger step's body explodes
      */
-    static boolean lingers(AbilityDefinition ability) {
-        return ability.behaviors().stream().anyMatch(LingerStep.class::isInstance);
+    static boolean explodesLater(AbilityDefinition ability) {
+        return ability.behaviors().stream().filter(LingerStep.class::isInstance)
+                .flatMap(AbilityImpact::withDescendants)
+                .anyMatch(ExplodeStep.class::isInstance);
+    }
+
+    private static Stream<Step> withDescendants(Step step) {
+        return Stream.concat(Stream.of(step), step.children().flatMap(AbilityImpact::withDescendants));
     }
 
     /**
@@ -134,8 +147,8 @@ public final class AbilityImpact {
         }
 
         @Override
-        public boolean lingers() {
-            return AbilityImpact.lingers(ability);
+        public boolean explodesLater() {
+            return AbilityImpact.explodesLater(ability);
         }
 
         @Override

@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.registry;
 import com.mercuriusxeno.goo.ability.AbilityLoader;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.AbilityRegistrySource;
+import com.mercuriusxeno.goo.ability.blockmap.BlockMaps;
 import com.mercuriusxeno.goo.command.GooCommand;
 import com.mercuriusxeno.goo.data.GooReactionLoader;
 import com.mercuriusxeno.goo.data.GooReactionSource;
@@ -66,6 +67,8 @@ public final class GooEventWiring {
                 new GooReactionLoader((GooReactionSource) event.getServerResources()));
         event.addListener(AbilityLoader.LISTENER_ID,
                 new AbilityLoader((AbilityRegistrySource) event.getServerResources()));
+        // petrify-stone-encasement-and-calcify-map: the block maps an ability steps blocks by
+        event.addListener(BlockMaps.LISTENER_ID, new BlockMaps());
     }
 
     /**
@@ -90,6 +93,7 @@ public final class GooEventWiring {
     public static void onServerStopped(ServerStoppedEvent event) {
         GooValues.detach(event.getServer());
         GooServerState.of(event.getServer()).clear();
+        BlockMaps.clear();
     }
 
     /**

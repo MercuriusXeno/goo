@@ -109,14 +109,24 @@ class AbilityImpactTest {
     }
 
     /**
-     * The lurker lingers, so its burnout waits for its standing block to
-     * explode; Blast resolves at the splat and plays it there (decision
-     * elemental-explosion-per-type).
+     * The proximity mine's standing block explodes, so its burnout waits for
+     * that explosion; Blast resolves at the splat and plays it there.
+     * decision elemental-explosion-per-type
      */
     @Test
-    void theMineLingersAndBlastDoesNot() {
-        assertTrue(AbilityImpact.lingers(AbilityJson.decode("unstable_lurker")));
-        assertFalse(AbilityImpact.lingers(AbilityJson.decode("unstable_explode")));
+    void theMineExplodesLaterAndBlastDoesNot() {
+        assertTrue(AbilityImpact.explodesLater(AbilityJson.decode("unstable_lurker")));
+        assertFalse(AbilityImpact.explodesLater(AbilityJson.decode("unstable_explode")));
+    }
+
+    /**
+     * Razor's cloud lingers through a field effect and never explodes, so its
+     * prism dome plays at the landing.
+     * decision diagnose-then-restore-the-razor-dome
+     */
+    @Test
+    void theRazorCloudLingersWithoutExplodingLater() {
+        assertFalse(AbilityImpact.explodesLater(AbilityJson.decode("crystal_cloud")));
     }
 
     @Test

@@ -1,8 +1,17 @@
 package com.mercuriusxeno.goo.ability;
 
+import com.mercuriusxeno.goo.ability.program.AwaitEntityStep;
 import com.mercuriusxeno.goo.ability.program.ChargedMultipliers;
+import com.mercuriusxeno.goo.ability.program.CrushStep;
+import com.mercuriusxeno.goo.ability.program.EntitiesStep;
 import com.mercuriusxeno.goo.ability.program.ExplodeStep;
 import com.mercuriusxeno.goo.ability.program.ExplosionMarch;
+import com.mercuriusxeno.goo.ability.program.Expr;
+import com.mercuriusxeno.goo.ability.program.FieldEffectStep;
+import com.mercuriusxeno.goo.ability.program.LeafStep;
+import com.mercuriusxeno.goo.ability.program.LeafSteps;
+import com.mercuriusxeno.goo.ability.program.PhasedStep;
+import com.mercuriusxeno.goo.ability.program.PullStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.StepTypes;
 import com.mercuriusxeno.goo.ability.program.Variables;
@@ -17,6 +26,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 /**
@@ -36,7 +46,8 @@ import java.util.stream.Stream;
  * @param badge       the target kind the radial marks on the icon
  * @param requires    the items a player must know before the ability is theirs
  * @param area        the area the glove draws while right click is held; a sphere around an
- *                    explosion is drawn at the explosion's max reach, whatever size the JSON wrote
+ *                    explosion is drawn at the explosion's max reach, whatever size the JSON wrote,
+ *                    and an arc throw at the world or the crosshair writing none draws its program's reach
  * @param indicator   when the ability's indicator shows, while held or whenever selected
  * @param consumes    the items a throw takes from the thrower's inventory, one of each, beside its goo cost
  * @param onPrism     the steps a landing on a prism runs in place of the type's prism ability, empty for none
@@ -63,11 +74,13 @@ public record AbilityDefinition(
 ) {
 
     /**
-     * Draws an explosive ability's sphere at the reach its explosion cuts at most.
+     * Draws an explosive ability's sphere at the reach its explosion cuts at most, and
+     * gives an instant area throw that wrote no area the sphere its program reaches.
      * preview-sphere-is-max-reach
+     * every-instant-aoe-shows-its-indicator-while-held
      */
     public AbilityDefinition {
-        area = previewAtMaxReach(area, behaviors);
+        area = heldArea(area, delivery, badge, behaviors);
     }
 
     /**
@@ -214,6 +227,16 @@ public record AbilityDefinition(
             ChargedMultipliers.CODEC.optionalFieldOf(FIELD_CHARGED, ChargedMultipliers.NONE);
     private static final String NOT_A_FLAT_COST = "Ability cost must be one whole amount, not %s";
 
+    /** Reads the radius a radius-bearing step reaches, each reader answering empty for any other step. */
+    private static final List<Function<Step, Optional<Expr>>> RADIUS_READERS = List.of(
+            radiusOf(FieldEffectStep.class, FieldEffectStep::radius),
+            radiusOf(PhasedStep.class, PhasedStep::radius),
+            radiusOf(EntitiesStep.class, EntitiesStep::radius),
+            radiusOf(PullStep.class, PullStep::radius),
+            radiusOf(AwaitEntityStep.class, AwaitEntityStep::radius),
+            radiusOf(CrushStep.class, crush -> Expr.literal(crush.radius())),
+            AbilityDefinition::consumedBlocksRadius);
+
     /**
      * Codec for the cost: one whole number of mB per throw (decision flat-cost-per-throw).
      */
@@ -279,6 +302,53 @@ public record AbilityDefinition(
      */
     public boolean isKnownTo(KnownItems known) {
         return known.containsAll(requires);
+    }
+
+    /**
+     * The area the glove draws while right click is held. A written area stands, a
+     * sphere sized to its explosion; an arc throw at the world or the crosshair that
+     * wrote none draws a sphere at the reach its program covers, and every other
+     * ability keeps the area it wrote.
+     * every-instant-aoe-shows-its-indicator-while-held
+     *
+     * @param area      the area the JSON wrote
+     * @param delivery  how the ability leaves the glove
+     * @param badge     the target kind the ability declares
+     * @param behaviors the ability's program
+     * @return the area the glove draws
+     */
+    static AbilityArea heldArea(AbilityArea area, Delivery delivery, AbilityBadge badge, List<Step> behaviors) {
+        if (area.shape() != AbilityArea.Shape.NONE || !isInstantAreaThrow(delivery, badge)) {
+            return previewAtMaxReach(area, behaviors);
+        }
+        double reach = firstExplosion(behaviors)
+                .map(step -> (double) ExplosionMarch.maxReach(step.power().evaluateFloat(Variables.NONE)))
+                .orElseGet(() -> widestRadius(behaviors));
+        return reach > 0 ? new AbilityArea(AbilityArea.Shape.SPHERE, reach, 0) : area;
+    }
+
+    private static boolean isInstantAreaThrow(Delivery delivery, AbilityBadge badge) {
+        return delivery.kind() == DeliveryKind.ARC && (badge == AbilityBadge.WORLD || badge == AbilityBadge.FREE);
+    }
+
+    private static double widestRadius(List<Step> behaviors) {
+        return behaviors.stream().flatMap(AbilityDefinition::withDescendants)
+                .map(AbilityDefinition::radiusOf).flatMap(Optional::stream)
+                .filter(radius -> radius.variables().isEmpty())
+                .mapToDouble(radius -> radius.evaluate(Variables.NONE)).max().orElse(0);
+    }
+
+    private static Optional<Expr> radiusOf(Step step) {
+        return RADIUS_READERS.stream().map(reader -> reader.apply(step)).flatMap(Optional::stream).findFirst();
+    }
+
+    private static <S extends Step> Function<Step, Optional<Expr>> radiusOf(Class<S> type, Function<S, Expr> radius) {
+        return step -> type.isInstance(step) ? Optional.of(radius.apply(type.cast(step))) : Optional.empty();
+    }
+
+    private static Optional<Expr> consumedBlocksRadius(Step step) {
+        return step instanceof LeafStep<?> leaf && leaf.leaf() == LeafSteps.CONSUME_BLOCKS
+                && leaf.params() instanceof Expr radius ? Optional.of(radius) : Optional.empty();
     }
 
     /**

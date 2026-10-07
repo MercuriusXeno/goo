@@ -1,0 +1,9 @@
+{
+  "steps": {
+    "minecraft:sand": "minecraft:dirt",
+    "minecraft:dirt": "minecraft:coarse_dirt",
+    "minecraft:coarse_dirt": "minecraft:gravel",
+    "minecraft:gravel": "minecraft:cobblestone",
+    "minecraft:cobblestone": "minecraft:stone"
+  }
+}

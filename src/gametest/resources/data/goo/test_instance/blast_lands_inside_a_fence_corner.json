@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:blast_lands_inside_a_fence_corner",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 60,
+  "setup_ticks": 0,
+  "required": true
+}

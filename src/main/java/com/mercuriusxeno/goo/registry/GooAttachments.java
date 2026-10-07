@@ -2,6 +2,8 @@ package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
+import com.mercuriusxeno.goo.ability.nourish.Nourish;
+import com.mercuriusxeno.goo.ability.petrify.Petrification;
 import com.mercuriusxeno.goo.ability.program.EntityCounters;
 import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.item.SoulBoundStacks;
@@ -56,6 +58,17 @@ public final class GooAttachments {
                             .build());
 
     /**
+     * The nourishment Nourish leaves on a player, a food point every interval
+     * until it expires, saved with the player while it stands.
+     * nourish-restores-hunger-over-time
+     */
+    public static final Supplier<AttachmentType<Nourish>> NOURISH =
+            ATTACHMENT_TYPES.register("nourish",
+                    () -> AttachmentType.builder(() -> Nourish.NONE)
+                            .serialize(Nourish.CODEC, Nourish::stands)
+                            .build());
+
+    /**
      * The items a player knows, saved with the player and kept through death
      * (decision knowledge-capability-remembers-destroyed-items).
      */
@@ -83,7 +96,32 @@ public final class GooAttachments {
             ATTACHMENT_TYPES.register("charged",
                     () -> AttachmentType.builder(() -> 0L).serialize(Codec.LONG.fieldOf("until")).build());
 
+    /**
+     * A mob's petrify gauge and whether it stands a statue, saved with the mob
+     * and synced to every client drawing it, which freezes a statue's pose
+     * (decision petrify-stone-encasement-and-calcify-map).
+     */
+    public static final Supplier<AttachmentType<Petrification>> PETRIFICATION =
+            ATTACHMENT_TYPES.register("petrification",
+                    () -> AttachmentType.builder(() -> Petrification.NONE)
+                            .serialize(Petrification.CODEC, Petrification::started)
+                            .sync(GooAttachments::syncsToWatcher, Petrification.STREAM_CODEC)
+                            .build());
+
     private GooAttachments() {
+    }
+
+    /**
+     * Answers whether an entity attachment syncs to a watching client: only
+     * over a connection that negotiated the attachment sync channel, which a
+     * vanilla client and a gametest mock player lack.
+     *
+     * @param holder the holder of the attachment
+     * @param to     the player the sync would reach
+     * @return true when the sync goes out
+     */
+    private static boolean syncsToWatcher(IAttachmentHolder holder, ServerPlayer to) {
+        return to.connection.hasChannel(SyncAttachmentsPayload.TYPE);
     }
 
     /**
