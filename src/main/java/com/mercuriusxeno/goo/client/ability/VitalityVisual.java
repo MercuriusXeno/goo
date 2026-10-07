@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.particle.VitalMoteParticle;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
+import com.mercuriusxeno.goo.network.DripHealedPayload;
 import com.mercuriusxeno.goo.network.StreamHealedPayload;
 import com.mercuriusxeno.goo.registry.GooParticles;
 import net.minecraft.client.Minecraft;
@@ -134,6 +135,24 @@ public final class VitalityVisual {
         context.enqueueWork(() -> playHealed(payload));
     }
 
+    /**
+     * Plays a vital tap's healed drip on the client: pink stars rise on the
+     * healed thing, as on what the channel heals; a tap has no glove for goo
+     * to home from.
+     * vitality-drip-heals-below
+     *
+     * @param payload the healed drip
+     * @param context the network context
+     */
+    public static void handleDripHealed(DripHealedPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            ClientLevel level = Minecraft.getInstance().level;
+            if (level != null && level.getEntity(payload.healedId()) instanceof LivingEntity healed) {
+                raiseStars(level, healed);
+            }
+        });
+    }
+
     private static void playHealed(StreamHealedPayload payload) {
         Minecraft mc = Minecraft.getInstance();
         ClientLevel level = mc.level;
@@ -141,15 +160,18 @@ public final class VitalityVisual {
             return;
         }
         Supplier<Vec3> glove = gloveOf(mc, payload);
-        RandomSource random = level.getRandom();
         for (int id : payload.healedIds()) {
             if (level.getEntity(id) instanceof LivingEntity healed) {
-                homeMotes(mc, glove, healed, random);
-                for (int star = 0; star < STARS_PER_HEAL; star++) {
-                    Vec3 at = pointIn(healed.getBoundingBox(), random);
-                    level.addParticle(GooParticles.VITAL_STAR.get(), at.x, at.y, at.z, 0, 0, 0);
-                }
+                homeMotes(mc, glove, healed, level.getRandom());
+                raiseStars(level, healed);
             }
+        }
+    }
+
+    private static void raiseStars(ClientLevel level, LivingEntity healed) {
+        for (int star = 0; star < STARS_PER_HEAL; star++) {
+            Vec3 at = pointIn(healed.getBoundingBox(), level.getRandom());
+            level.addParticle(GooParticles.VITAL_STAR.get(), at.x, at.y, at.z, 0, 0, 0);
         }
     }
 
