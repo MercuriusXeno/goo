@@ -104,11 +104,25 @@ public final class GloveInputGate {
         if (!armed) {
             return;
         }
-        if (eating || (!previewing && !streaming && actions.eatsOnPress())) {
+        if (eats(actions)) {
             tickEat(useKeyDown, actions);
-        } else if (streaming || (!previewing && actions.runsWhileHeld())) {
+        } else if (streams(actions)) {
             tickStream(useKeyDown, actions);
-        } else if (useKeyDown) {
+        } else {
+            tickThrow(useKeyDown, actions);
+        }
+    }
+
+    private boolean eats(PressActions actions) {
+        return eating || (!previewing && !streaming && actions.eatsOnPress());
+    }
+
+    private boolean streams(PressActions actions) {
+        return streaming || (!previewing && actions.runsWhileHeld());
+    }
+
+    private void tickThrow(boolean useKeyDown, PressActions actions) {
+        if (useKeyDown) {
             previewing = true;
         } else {
             throwAndSwing(actions);

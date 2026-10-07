@@ -16,7 +16,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Flatten's step breaks the block under the cursor only when it stands above
+ * Flatten's step breaks the 3x3 where the cursor is, each block only when it stands above
  * the hold's plane, belongs to the tag the ability's JSON names and lies in
  * the player's reach; a host outside a held channel breaks nothing
  * (decision flatten-disc-cursor-breaks-above-the-plane).
@@ -48,12 +48,16 @@ class FlattenStepTest {
     }
 
     @Test
-    void aimedBlockAbovePlaneInTagAndReachBreaks() {
+    void theCursorsThreeByThreeAbovePlaneBreaksAndItsLowestRowStays() {
         ChannelHost host = hostAiming(ABOVE_PLANE_FACE, true, true);
 
         run(host);
 
         verify(host).breakBlock(ABOVE_PLANE_BLOCK);
+        verify(host).breakBlock(new BlockPos(10, 65, 1));
+        verify(host).breakBlock(new BlockPos(10, 64, -1));
+        verify(host, never()).breakBlock(new BlockPos(10, 63, 0));
+        verify(host, org.mockito.Mockito.times(6)).breakBlock(any());
     }
 
     @Test

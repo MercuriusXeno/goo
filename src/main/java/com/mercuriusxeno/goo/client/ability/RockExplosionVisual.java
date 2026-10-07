@@ -44,8 +44,8 @@ public final class RockExplosionVisual implements BurnoutVisual {
     private static final float DISC_LIFT = -0.47f;
     private static final int OPAQUE = 0xFF;
     private static final int DISC_SEGMENTS = 48;
-    /** The cursor disc's radius in blocks, about one block face. */
-    static final float CURSOR_RADIUS = 0.75f;
+    /** The cursor disc's radius in blocks, a circle over Flatten's 3x3 area. */
+    static final float CURSOR_RADIUS = 1.5f;
     /** The share of the explosion the cursor loops over, short of where the dust starts thinning. */
     static final float CURSOR_SPAN = 0.4f;
     /** The vortex disc's radius in blocks, a little wider than the one-block bore. */
