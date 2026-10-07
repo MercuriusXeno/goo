@@ -500,6 +500,32 @@ class HeartOverlayTest {
         }
 
         @Test
+        void stoneFillsTheEmptyHalfOfAHalfHeartFirst() {
+            // heart-effects-crawl-while-held: five health leaves heart three half full
+            HeartOverlay overlay = HeartOverlay.NONE.apply(HeartKind.STONESKIN, DURATION, 5f, FULL_HEALTH,
+                    DAMAGE_TAKEN, NOW);
+            assertEquals(1, overlay.shieldAt(2));
+            assertEquals(1, overlay.shieldHalves());
+            long interval = HeartKind.STONESKIN.regrowInterval(0);
+            HeartOverlay crept = tickedThrough(overlay, 5f, NOW + interval);
+            assertEquals(1, crept.shieldAt(3));
+            assertEquals(15, tickedThrough(overlay, 5f, NOW + 16 * interval).shieldHalves());
+        }
+
+        @Test
+        void aHalfHeartWoundIsStonedByHalf() {
+            long interval = HeartKind.STONESKIN.regrowInterval(0);
+            HeartOverlay whole = tickedThrough(freshAtSix(), SIX_HEALTH, NOW + 14 * interval);
+            HeartOverlay overlay = whole;
+            for (long tick = NOW + 14 * interval + 1; tick <= NOW + 15 * interval; tick++) {
+                overlay = overlay.tick(5f, false, tick);
+            }
+            assertEquals(1, overlay.shieldAt(FIRST_MISSING_AT_SIX - 1));
+            assertEquals(1, overlay.crawlHalf(FIRST_MISSING_AT_SIX - 1, 5f));
+            assertEquals(15, overlay.shieldHalves());
+        }
+
+        @Test
         void stoneCrawlsIntoEachFurtherMissingHeart() {
             HeartOverlay overlay = freshAtSix();
             long interval = HeartKind.STONESKIN.regrowInterval(0);

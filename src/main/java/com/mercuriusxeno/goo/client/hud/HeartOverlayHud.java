@@ -67,6 +67,7 @@ public final class HeartOverlayHud {
     private static final BarkBurns BURNS = new BarkBurns();
     private static final int OPAQUE_WHITE = 0xFFFFFFFF;
     private static final int OPAQUE_ALPHA = 0xFF;
+    private static final int WHITE_RGB = 0xFFFFFF;
     private static final int ALPHA_SHIFT = 24;
     /** The tint charred bark takes behind the flame front. */
     private static final int CHAR_RGB = 0x2A1C12;
@@ -253,6 +254,20 @@ public final class HeartOverlayHud {
         addHalves(sprites, realHalves, ASH_HALF, ASH_FULL);
         addHalves(sprites, shown, EMBER_HALF, EMBER_FULL);
         return sprites;
+    }
+
+    /**
+     * Answers whether a slot shows stone in the right half beside a half
+     * heart of real health, which draws as the stone sprite's right columns.
+     * heart-effects-crawl-while-held
+     *
+     * @param kind         the overlay's kind
+     * @param shieldHalves the half hearts of shield over the slot
+     * @param realHalves   the half hearts of real health in the slot
+     * @return true for stone beside a half heart
+     */
+    static boolean stoneBesideHalfHeart(HeartKind kind, int shieldHalves, int realHalves) {
+        return kind == HeartKind.STONESKIN && realHalves == 1 && shieldHalves > 0;
     }
 
     /**
@@ -443,8 +458,14 @@ public final class HeartOverlayHud {
                                Optional<RegrowCrawl.Crawl> crawl, float alpha) {
 
         void paint(int slot, int x, int y, int realHalves) {
-            for (Identifier sprite : heartSprites(overlay.kind(), overlay.shieldAt(slot), realHalves)) {
-                graphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x, y, HEART_SIZE, HEART_SIZE, alpha);
+            if (stoneBesideHalfHeart(overlay.kind(), overlay.shieldAt(slot), realHalves)) {
+                // heart-effects-crawl-while-held: stone fills the empty half beside a half heart
+                blitColumns(graphics, STONE_FULL, x, y, x + RIGHT_HALF_SHIFT, x + HEART_SIZE,
+                        Math.round(alpha * OPAQUE_ALPHA) << ALPHA_SHIFT | WHITE_RGB);
+            } else {
+                for (Identifier sprite : heartSprites(overlay.kind(), overlay.shieldAt(slot), realHalves)) {
+                    graphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x, y, HEART_SIZE, HEART_SIZE, alpha);
+                }
             }
             // wood-crawls-across-regrowing-heart: the same crawl, bark creeping evenly over a bare half
             // heart-effects-crawl-while-held: stone crawls into a missing heart, where no real half stands

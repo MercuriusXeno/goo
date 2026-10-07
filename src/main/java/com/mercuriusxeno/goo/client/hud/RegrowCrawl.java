@@ -52,7 +52,7 @@ final class RegrowCrawl {
         if (slot.isEmpty()) {
             return Optional.empty();
         }
-        return Optional.of(new Crawl(slot.getAsInt(), overlay.shieldAt(slot.getAsInt()),
+        return Optional.of(new Crawl(slot.getAsInt(), overlay.crawlHalf(slot.getAsInt(), health),
                 progress(now, overlay.regrowAt(), overlay.regrowInterval())));
     }
 
