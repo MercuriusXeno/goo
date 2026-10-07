@@ -24,9 +24,10 @@ import java.util.function.Supplier;
  * set, the choral tuner and gasket for rigging runs, and one filled canister
  * per registered goo type, read from the registry at kit time (decision
  * lab-iterates-the-registries). The kit replaces the inventory it fills, since
- * the lab save is scratch, and teaches the player every item recipe so every
- * ability stands unlocked without melting anything; only the kit teaches, so
- * the knowledge gate still rules play outside the lab.
+ * the lab save is scratch, and teaches nothing: {@code /goo lab learn} teaches
+ * every item recipe and {@code /goo lab forget} returns the player to knowing
+ * nothing, each run on request, so the lab keeps unlearned items and the
+ * knowledge gate still rules play outside the lab.
  * decision lab-kit-teaches-every-recipe
  */
 public final class LabKit {
@@ -83,8 +84,8 @@ public final class LabKit {
     }
 
     /**
-     * Replaces a player's inventory with the kit and teaches them every item
-     * recipe; stacks the inventory cannot hold drop at the player's feet.
+     * Replaces a player's inventory with the kit, teaching nothing; stacks the
+     * inventory cannot hold drop at the player's feet.
      *
      * @param player the player
      * @param level  the level whose registries to read
@@ -99,7 +100,29 @@ public final class LabKit {
             }
         }
         player.containerMenu.broadcastChanges();
-        PlayerKnowledge.learnAll(player, recipeIds(level));
         return stacks.size();
+    }
+
+    /**
+     * Teaches a player every item recipe, so every loaded ability stands unlocked;
+     * {@code /goo lab learn} runs it.
+     *
+     * @param player the player
+     * @param level  the level whose goo values and abilities to read
+     * @return the number of item ids taught
+     */
+    public static int learn(ServerPlayer player, ServerLevel level) {
+        Set<Identifier> ids = recipeIds(level);
+        PlayerKnowledge.learnAll(player, ids);
+        return ids.size();
+    }
+
+    /**
+     * Returns a player to knowing no item; {@code /goo lab forget} runs it.
+     *
+     * @param player the player
+     */
+    public static void forget(ServerPlayer player) {
+        PlayerKnowledge.forgetAll(player);
     }
 }
