@@ -151,13 +151,33 @@ public record HeartOverlay(HeartKind kind, List<Integer> shields, long expiresAt
      * @return the overlay after the brew
      */
     public HeartOverlay apply(HeartKind brewKind, int duration, float health, long now) {
+        return apply(brewKind, HeartFill.WHOLE, 1f, duration, health, now);
+    }
+
+    /**
+     * Applies a heart brew laying its shields by a fill. The same kind
+     * standing again adds the duration and keeps its hearts; another kind
+     * ends the standing overlay and lays its own by the fill: a whole shield
+     * over every present heart, or a copy of the current health halves times
+     * the factor.
+     *
+     * @param brewKind the kind the brew lays
+     * @param fill     how the brew lays its shields
+     * @param factor   the share of the current health a copying fill keeps
+     * @param duration the brew's duration in ticks
+     * @param health   the player's real health
+     * @param now      the game time
+     * @return the overlay after the brew
+     */
+    public HeartOverlay apply(HeartKind brewKind, HeartFill fill, float factor, int duration, float health,
+                              long now) {
         if (stands() && kind == brewKind) {
             // kindle-ember-hearts-ash-and-retaliate: the self ability stacks in duration
             return new HeartOverlay(kind, shields, expiresAt + duration, regrowAt, fireReadyAt);
         }
         // one-heart-overlay-at-a-time: a heart brew ends any other heart brew the moment it takes effect
-        List<Integer> full = Collections.nCopies(filledSlots(health), FULL_SHIELD);
-        return new HeartOverlay(brewKind, full, now + duration, now + brewKind.regrowInterval(sum(full)), now);
+        List<Integer> laid = fill.shields(health, factor);
+        return new HeartOverlay(brewKind, laid, now + duration, now + brewKind.regrowInterval(sum(laid)), now);
     }
 
     /**
@@ -294,7 +314,7 @@ public record HeartOverlay(HeartKind kind, List<Integer> shields, long expiresAt
      */
     public OptionalInt nextRegrowSlot(float health) {
         int slot = leftmostShortSlot(filledSlots(health));
-        return !stands() || slot == NO_SLOT ? OptionalInt.empty() : OptionalInt.of(slot);
+        return !stands() || !kind.regrows() || slot == NO_SLOT ? OptionalInt.empty() : OptionalInt.of(slot);
     }
 
     /**
@@ -308,7 +328,8 @@ public record HeartOverlay(HeartKind kind, List<Integer> shields, long expiresAt
 
     private HeartOverlay regrow(float health, long now) {
         int shortSlot = leftmostShortSlot(filledSlots(health));
-        if (now < regrowAt || shortSlot == NO_SLOT) {
+        // reserve-hearts-sit-behind-the-bar: a banked reserve only spends
+        if (!kind.regrows() || now < regrowAt || shortSlot == NO_SLOT) {
             return this;
         }
         List<Integer> after = padded(shortSlot + 1);

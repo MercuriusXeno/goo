@@ -23,11 +23,13 @@ class AbilityBadgeTest {
     private static final int SHIPPED_WORLD_BADGES = 7;
     private static final int SHIPPED_SELF_BADGES = 2;
     private static final int SHIPPED_BREW_BADGES = 2;
-    private static final int SHIPPED_CHANNELED_BADGES = 2;
+    private static final int SHIPPED_CHANNELED_BADGES = 3;
     private static final int SHIPPED_FREE_BADGES = 1;
     private static final int SHIPPED_TAP_BADGES = 1;
     /** The self + brew abilities, which wear brew on their self delivery (decision self-brew-goos-eat-before-the-effect). */
     private static final List<String> SHIPPED_BREWS = List.of("blaze_kindle", "leaf_barkskin");
+    /** Reserve, the self delivery held as a channel (decision reserve-hearts-sit-behind-the-bar). */
+    private static final String SHIPPED_CHANNELED_SELF = "vital_reserve";
     /** Blast, the shipped free ability (decision badge-vocabulary-gains-free-prism-tap-brew). */
     private static final String SHIPPED_FREE = "unstable_explode";
 
@@ -72,7 +74,7 @@ class AbilityBadgeTest {
     /**
      * The badge a shipped ability wears: its delivery's own badge for a self
      * or a stream (decision one-proving-ability-per-kind), brew for a self +
-     * brew ability, free for Blast, tap for a tap's drip ability, and for any
+     * brew ability, channeled for Reserve, free for Blast, tap for a tap's drip ability, and for any
      * other thrown ability, mob where it targets entities and world elsewhere.
      *
      * @param definition the shipped ability
@@ -81,6 +83,9 @@ class AbilityBadgeTest {
     private static AbilityBadge expectedBadge(AbilityDefinition definition) {
         if (definition.id().getPath().equals(SHIPPED_FREE)) {
             return AbilityBadge.FREE;
+        }
+        if (definition.id().getPath().equals(SHIPPED_CHANNELED_SELF)) {
+            return AbilityBadge.CHANNELED;
         }
         if (definition.hasTag(AbilityTags.TAP)) {
             return AbilityBadge.TAP;

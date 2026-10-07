@@ -43,6 +43,62 @@ class HeartOverlayTest {
         return new HeartOverlay(HeartKind.KINDLE, shields, NOW + DURATION, regrowAt, NOW);
     }
 
+    /** Reserve copies the current health halves times its factor into shields that only spend (decision reserve-hearts-sit-behind-the-bar). */
+    @Nested
+    class FromCurrent {
+
+        private static final float HALF_VALUE = 0.5f;
+
+        private HeartOverlay reserved(float health) {
+            return HeartOverlay.NONE.apply(HeartKind.RESERVE, HeartFill.FROM_CURRENT, HALF_VALUE, DURATION, health, NOW);
+        }
+
+        @Test
+        void fullHealthBanksHalfItsHalvesInFullShields() {
+            HeartOverlay overlay = reserved(FULL_HEALTH);
+            assertEquals(Collections.nCopies(5, HeartOverlay.FULL_SHIELD), overlay.shields());
+            assertEquals(NOW + DURATION, overlay.expiresAt());
+        }
+
+        @Test
+        void halfHealthBanksHalfItsHalvesWithTheOddHalfLast() {
+            HeartOverlay overlay = reserved(10f);
+            assertEquals(List.of(2, 2, 1), overlay.shields());
+        }
+
+        @Test
+        void aFractionOfAHalfIsNotBanked() {
+            assertEquals(List.of(2, 2, 1), reserved(11.5f).shields());
+        }
+
+        @Test
+        void hitsSpendTheReserveBeforeHealth() {
+            HeartOverlay.Drained drained = reserved(FULL_HEALTH).drain(3f, NOW);
+            assertEquals(0f, drained.remainder(), DELTA);
+            assertEquals(7, drained.overlay().shieldHalves());
+        }
+
+        @Test
+        void aHitPastTheReserveEndsItAndTheRestReachesHealth() {
+            HeartOverlay.Drained drained = reserved(FULL_HEALTH).drain(12f, NOW);
+            assertEquals(2f, drained.remainder(), DELTA);
+            assertFalse(drained.overlay().stands());
+        }
+
+        @Test
+        void aSpentReserveNeverRegrows() {
+            HeartOverlay spent = reserved(FULL_HEALTH).drain(3f, NOW).overlay();
+            assertSame(spent, spent.tick(FULL_HEALTH, false, NOW + DURATION - 1));
+            assertTrue(spent.nextRegrowSlot(FULL_HEALTH).isEmpty());
+        }
+
+        @Test
+        void waterLeavesTheReserveStanding() {
+            HeartOverlay overlay = reserved(FULL_HEALTH);
+            assertSame(overlay, overlay.tick(FULL_HEALTH, true, NOW + 1));
+        }
+    }
+
     @Nested
     class Apply {
 
