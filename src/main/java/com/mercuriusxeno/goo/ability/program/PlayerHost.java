@@ -4,13 +4,17 @@ import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.network.ChunkWatchers;
+import com.mercuriusxeno.goo.network.EntityVisuals;
+import com.mercuriusxeno.goo.network.UnmakeMobPayload;
 import com.mercuriusxeno.goo.network.UnmakePayload;
 import com.mercuriusxeno.goo.registry.GooServerState;
+import com.mercuriusxeno.goo.throwing.StreamCone;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
@@ -188,6 +192,49 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
         return channelAim().map(aim -> CalcifyStep.blocksInCone(eye(), aim.aimPoint(), aim.coneDegrees()).stream()
                 .filter(pos -> !level.getBlockState(pos).isAir())
                 .toList()).orElse(List.of());
+    }
+
+    /**
+     * The mobs a stream's channel holds: every living mob whose middle lies
+     * in the cone; none outside a held channel
+     * (decision unmake-waves-dissolve-by-crucible-cost).
+     */
+    @Override
+    public List<LivingEntity> unmadeMobs() {
+        return channelAim().map(aim -> {
+            Vec3 reach = aim.aimPoint().subtract(eye());
+            double range = reach.length();
+            return level.getEntitiesOfClass(LivingEntity.class, new AABB(eye(), eye()).inflate(range),
+                    living -> living instanceof Mob && living.isAlive() && StreamCone.contains(eye(), reach, range,
+                            aim.coneDegrees(), living.getBoundingBox().getCenter()));
+        }).orElse(List.of());
+    }
+
+    @Override
+    public @Nullable GooValue unmadeValue(LivingEntity mob) {
+        return GooServerState.of(level.getServer()).streamHolds()
+                .lootOf(player.getUUID(), mob.getUUID(), () -> UnmakeLoot.valueOf(level, mob));
+    }
+
+    @Override
+    public int countUnmakeWork(LivingEntity mob) {
+        return GooServerState.of(level.getServer()).streamHolds()
+                .advanceMob(player.getUUID(), mob.getUUID(), level.getServer().getTickCount());
+    }
+
+    @Override
+    public void showUnmaking(LivingEntity mob, float fraction) {
+        EntityVisuals.sendToWatchers(mob, new UnmakeMobPayload(mob.getId(), fraction));
+    }
+
+    /**
+     * Unmakes a held mob: it leaves the level with no loot and no death, its
+     * goo dropping where it stood.
+     */
+    @Override
+    public void unmake(LivingEntity mob, GooContents yield) {
+        GooStacks.dropAll(yield, level, mob.blockPosition());
+        mob.discard();
     }
 
     @Override

@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.ability.program;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.item.GooContents;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.entity.LivingEntity;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
 
@@ -10,8 +11,8 @@ import java.util.List;
  * A host whose blocks an unmake works (capability {@link HostCapability#UNMAKE}):
  * the blocks it holds this run, what the crucible would make of each, how
  * long the unmake has worked each, and the acts of showing and finishing a
- * block's dissolve. A stream's channel holds every block its cone sees, a
- * tap's drip the block it lands on.
+ * block's dissolve, and the same for the mobs it holds. A stream's channel
+ * holds every block and mob in its cone, a tap's drip the block it lands on.
  * decision unmake-waves-dissolve-by-crucible-cost
  * decision unmake-drip-dissolves-the-block-below
  */
@@ -56,4 +57,52 @@ public interface UnmakeHost extends StepHost {
      * @param yield the goo the block leaves behind
      */
     void unmake(BlockPos pos, GooContents yield);
+
+    /**
+     * The mobs the unmake works this run; a host holding only blocks holds none.
+     *
+     * @return the held mobs
+     */
+    default List<LivingEntity> unmadeMobs() {
+        return List.of();
+    }
+
+    /**
+     * The goo the crucible would melt a held mob's loot into.
+     *
+     * @param mob the held mob
+     * @return the loot's goo value, or null when it drops nothing of value
+     */
+    default @Nullable GooValue unmadeValue(LivingEntity mob) {
+        return null;
+    }
+
+    /**
+     * Counts this run's work on a held mob and answers the work done on it
+     * without a break.
+     *
+     * @param mob the held mob
+     * @return the work done, 1 on the first
+     */
+    default int countUnmakeWork(LivingEntity mob) {
+        return 0;
+    }
+
+    /**
+     * Shows a held mob dissolving to its viewers.
+     *
+     * @param mob      the held mob
+     * @param fraction the share dissolved, from 0 whole to 1 gone
+     */
+    default void showUnmaking(LivingEntity mob, float fraction) {
+    }
+
+    /**
+     * Removes a held mob, its loot never dropping, and drops the goo it yields.
+     *
+     * @param mob   the held mob
+     * @param yield the goo the mob leaves behind
+     */
+    default void unmake(LivingEntity mob, GooContents yield) {
+    }
 }

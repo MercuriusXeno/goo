@@ -1,9 +1,13 @@
 package com.mercuriusxeno.goo.network;
 
+import com.mercuriusxeno.goo.data.GooValue;
 import net.minecraft.core.BlockPos;
+import org.jspecify.annotations.Nullable;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 /**
  * How long each player has held a stream, counted in server ticks: a
@@ -14,6 +18,8 @@ public final class StreamHolds {
 
     private final Map<UUID, Hold> holds = new HashMap<>();
     private final Map<UUID, Map<BlockPos, Hold>> blockHolds = new HashMap<>();
+    private final Map<UUID, Map<UUID, Hold>> mobHolds = new HashMap<>();
+    private final Map<UUID, Map<UUID, Optional<GooValue>>> mobLoot = new HashMap<>();
 
     /**
      * Counts one stream tick for the player.
@@ -41,11 +47,55 @@ public final class StreamHolds {
      * @return the block's hold tick count, 1 on the hold's first tick
      */
     public int advanceBlock(UUID player, BlockPos pos, int tick) {
-        Map<BlockPos, Hold> held = blockHolds.computeIfAbsent(player, ignored -> new HashMap<>());
+        return advanceIn(blockHolds.computeIfAbsent(player, ignored -> new HashMap<>()), pos.immutable(), tick);
+    }
+
+    /**
+     * Counts one stream tick on a mob the player's stream holds, as a block's
+     * hold counts; a mob the stream left forgets its rolled loot with its hold
+     * (decision unmake-waves-dissolve-by-crucible-cost).
+     *
+     * @param player the streaming player
+     * @param mob    the held mob's id
+     * @param tick   the server tick the stream tick arrived on
+     * @return the mob's hold tick count, 1 on the hold's first tick
+     */
+    public int advanceMob(UUID player, UUID mob, int tick) {
+        Map<UUID, Hold> held = mobHolds.computeIfAbsent(player, ignored -> new HashMap<>());
+        int count = advanceIn(held, mob, tick);
+        mobLoot.computeIfAbsent(player, ignored -> new HashMap<>()).keySet().retainAll(held.keySet());
+        return count;
+    }
+
+    /**
+     * The goo value of a held mob's loot, rolled the first time the hold asks
+     * and kept for the rest of the hold, so the work it takes holds still.
+     *
+     * @param player the streaming player
+     * @param mob    the held mob's id
+     * @param roll   rolls the mob's loot value, null when it drops nothing of value
+     * @return the loot's goo value, or null when it drops nothing of value
+     */
+    public @Nullable GooValue lootOf(UUID player, UUID mob, Supplier<@Nullable GooValue> roll) {
+        return mobLoot.computeIfAbsent(player, ignored -> new HashMap<>())
+                .computeIfAbsent(mob, ignored -> Optional.ofNullable(roll.get())).orElse(null);
+    }
+
+    /**
+     * Counts one tick on a held thing: one held the tick before continues its
+     * hold, any other starts anew, and one left before the last tick is forgotten.
+     *
+     * @param held the holds of one player's stream
+     * @param key  the held thing
+     * @param tick the server tick
+     * @param <K>  what the holds are keyed by
+     * @return the thing's hold tick count, 1 on the hold's first tick
+     */
+    private static <K> int advanceIn(Map<K, Hold> held, K key, int tick) {
         held.values().removeIf(hold -> hold.tick() < tick - 1);
-        Hold last = held.get(pos);
+        Hold last = held.get(key);
         int count = last == null ? 1 : last.tick() == tick ? last.held() : last.held() + 1;
-        held.put(pos.immutable(), new Hold(tick, count));
+        held.put(key, new Hold(tick, count));
         return count;
     }
 
@@ -53,6 +103,8 @@ public final class StreamHolds {
     public void clear() {
         holds.clear();
         blockHolds.clear();
+        mobHolds.clear();
+        mobLoot.clear();
     }
 
     /**

@@ -8,8 +8,7 @@
   "delivery": { "kind": "stream", "range": 6, "cone": 40, "ticks_per_charge": 20 },
   "area": { "shape": "cone", "size": 6.0, "angle": 40.0 },
   "behaviors": [
-    { "type": "damage", "amount": "charged_efficacy", "source": "magic" },
-    { "type": "unmake", "work_per_goo": "0.025 / charged_speed", "yield": 0.5 }
+    { "type": "unmake", "work_per_goo": "0.025 / (charged_speed * charged_efficacy)", "yield": 0.5 }
   ],
   "charged": { "area": 1.25, "speed": 2.0, "efficacy": 2.0 },
   "tags": ["stream"]
