@@ -6,8 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Petrify's fog spreads its cross-sections evenly from just clear of the
- * view to the cone's reach, and its pipelines, the fog, the stone patches
+ * Petrify's fog spreads its cross-sections evenly from right at the glove,
+ * nearer than Bore's start, to the cone's reach, and its pipelines, the fog, the stone patches
  * and the block mingle, name shaders the classpath holds
  * (decision petrify-stone-encasement-and-calcify-map).
  */
@@ -19,12 +19,14 @@ class PetrifyFogTest {
     @Test
     void sectionsSpreadEvenlyInsideTheReach() {
         int sections = PetrifyFog.SECTIONS;
-        double first = ConeSections.sectionDistance(0, RANGE, sections);
-        double last = ConeSections.sectionDistance(sections - 1, RANGE, sections);
-        assertTrue(first > ConeSections.NEAR);
+        double near = PetrifyFog.FROM_THE_GLOVE;
+        double first = ConeSections.sectionDistance(0, near, RANGE, sections);
+        double last = ConeSections.sectionDistance(sections - 1, near, RANGE, sections);
+        assertTrue(first > near);
+        assertTrue(first < ConeSections.NEAR);
         assertTrue(last < RANGE);
-        double step = ConeSections.sectionDistance(1, RANGE, sections) - first;
-        assertEquals(step, last - ConeSections.sectionDistance(sections - 2, RANGE, sections), DELTA);
+        double step = ConeSections.sectionDistance(1, near, RANGE, sections) - first;
+        assertEquals(step, last - ConeSections.sectionDistance(sections - 2, near, RANGE, sections), DELTA);
     }
 
     @Test

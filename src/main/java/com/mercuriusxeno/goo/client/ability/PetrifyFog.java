@@ -20,16 +20,19 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Petrify's fog: while right click holds Petrify, undulating waves of dust
- * fog wash forward over everything in its cone, a medusa's gaze miasma. The
- * cone is drawn as stacked cross-sections square to the look, each filled by
+ * fog pour forward from the glove over everything in its cone, a medusa's
+ * gaze miasma the player emits. The cone is drawn from the glove as stacked
+ * cross-sections square to the look, each filled by
  * {@code petrify_fog.fsh}; the cone itself, the area of effect, is never
  * outlined (decision petrify-stone-encasement-and-calcify-map).
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class PetrifyFog {
 
-    /** Cross-sections stacked along the cone. */
-    static final int SECTIONS = 12;
+    /** Cross-sections stacked along the cone, more than Bore's, as the fog starts right at the glove. */
+    static final int SECTIONS = 16;
+    /** The first section stands right at the glove, so the fog pours from it. */
+    static final double FROM_THE_GLOVE = 0.05;
     private static final double HALF = 0.5;
 
     private PetrifyFog() {
@@ -50,7 +53,7 @@ public final class PetrifyFog {
         }
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
-        Vec3 apex = player.getEyePosition(partialTick).subtract(camera);
+        Vec3 apex = GloveAim.handPosition(mc.gameRenderer.getMainCamera()).subtract(camera);
         Vec3 axis = player.getViewVector(partialTick);
         double range = petrify.delivery().range();
         double halfAngle = Math.toRadians(petrify.delivery().coneDegrees() * HALF);
@@ -58,7 +61,8 @@ public final class PetrifyFog {
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         FlatQuadContext quads = new FlatQuadContext(event.getPoseStack().last(),
                 buffers.getBuffer(GooRenderTypes.PETRIFY_FOG_TYPE));
-        ConeSections.emit(quads, new ConeSections.Volume(apex, axis, range, SECTIONS, distance -> distance * tan));
+        ConeSections.emit(quads, new ConeSections.Volume(apex, axis, FROM_THE_GLOVE, range, SECTIONS,
+                distance -> distance * tan));
         buffers.endBatch(GooRenderTypes.PETRIFY_FOG_TYPE);
     }
 
