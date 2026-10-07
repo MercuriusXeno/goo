@@ -64,18 +64,30 @@ public record ShiftStep(Expr range) implements Step {
     @Override
     public boolean admits(StepContext context) {
         LivingEntity target = context.hostAs(TargetHost.class).target();
-        return aimedFungus(target.level(), target, range.evaluate(context)).isPresent();
+        return aimedFungus(target.level(), target, reachOf(target, range.evaluate(context))).isPresent();
     }
 
     @Override
     public boolean tick(StepContext context) {
         LivingEntity target = context.hostAs(TargetHost.class).target();
-        aimedFungus(target.level(), target, range.evaluate(context)).ifPresent(stand -> {
+        aimedFungus(target.level(), target, reachOf(target, range.evaluate(context))).ifPresent(stand -> {
             // ghost-trail-spans-the-blink: a step after the jump reads where the target left from
             target.setData(GooAttachments.JUMP_SOURCE, target.position());
             target.teleportTo(stand.x, stand.y, stand.z);
         });
         return true;
+    }
+
+    /**
+     * How far an entity's shift reaches: the range, times the factor of the
+     * fungal sight it holds (decision sight-lengthens-shift-and-outlines-fungus).
+     *
+     * @param entity the shifting entity
+     * @param range  the step's range
+     * @return the reach in blocks
+     */
+    public static double reachOf(Entity entity, double range) {
+        return range * entity.getData(GooAttachments.SIGHT).factorAt(entity.level().getGameTime());
     }
 
     /**

@@ -69,6 +69,7 @@ public final class StepTypes {
         register(SporeHostStep.TYPE);
         register(LeafSteps.COLONIZE.type());
         register(ShiftStep.TYPE);
+        register(SightStep.TYPE);
     }
 
     private StepTypes() {

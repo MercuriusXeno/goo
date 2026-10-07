@@ -89,7 +89,8 @@ class AbilityLoaderTest {
             Map.entry("pulse_short_circuit", List.of("redstone")),
             Map.entry("shroom_mycosis", List.of("nether_wart")),
             Map.entry("shroom_colonize", List.of("brown_mushroom", "red_mushroom")),
-            Map.entry("shroom_fungal_shift", List.of("sculk")));
+            Map.entry("shroom_fungal_shift", List.of("sculk")),
+            Map.entry("shroom_sight", List.of("sculk_sensor")));
 
     @Test
     void everyScannedAbilityCarriesItsFileId() {

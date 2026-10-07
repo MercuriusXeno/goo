@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.registry;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.ability.program.EntityCounters;
+import com.mercuriusxeno.goo.ability.program.Sight;
 import com.mercuriusxeno.goo.ability.spray.Spored;
 import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.item.SoulBoundStacks;
@@ -82,6 +83,18 @@ public final class GooAttachments {
     public static final Supplier<AttachmentType<Spored>> SPORED =
             ATTACHMENT_TYPES.register("spored",
                     () -> AttachmentType.builder(() -> Spored.NONE).serialize(Spored.CODEC).build());
+
+    /**
+     * The fungal sight a player holds, lengthening Fungal Shift and synced to
+     * the owning client, which outlines fungus through walls while it stands
+     * (decision sight-lengthens-shift-and-outlines-fungus).
+     */
+    public static final Supplier<AttachmentType<Sight>> SIGHT =
+            ATTACHMENT_TYPES.register("sight",
+                    () -> AttachmentType.builder(() -> Sight.NONE)
+                            .serialize(Sight.CODEC)
+                            .sync(GooAttachments::syncsToOwner, Sight.STREAM_CODEC)
+                            .build());
 
     private GooAttachments() {
     }
