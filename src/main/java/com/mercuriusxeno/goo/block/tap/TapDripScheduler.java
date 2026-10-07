@@ -3,17 +3,22 @@ package com.mercuriusxeno.goo.block.tap;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.HealReport;
 import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
 import com.mercuriusxeno.goo.ability.program.TapHost;
 import com.mercuriusxeno.goo.block.IGooReceptacle;
+import com.mercuriusxeno.goo.network.DripHealedPayload;
+import com.mercuriusxeno.goo.network.EntityVisuals;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.phys.AABB;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
@@ -36,6 +41,15 @@ public final class TapDripScheduler {
      * Log: a tap ability's program the tap host refused at load.
      */
     private static final String LOG_PROGRAM_REFUSED = "Tap ability {} refused on the tap landing: {}";
+
+    /**
+     * Blocks around the landing a drip's heal is watched over, wider than any
+     * tap ability's own reach so nothing it heals goes unreported.
+     */
+    private static final double HEAL_WATCH_BLOCKS = 2.0;
+    /** Reads which living things a drip's program healed. */
+    private static final HealReport<LivingEntity> HEALS =
+            new HealReport<>(LivingEntity::getHealth, LivingEntity::getId);
 
     /**
      * Log: a drip landed, with the running count to check the visual against.
@@ -157,7 +171,16 @@ public final class TapDripScheduler {
         if (ability == null) {
             return 0;
         }
-        runProgram(ability, new TapHost(drip.level(), drip.landingPos(), drip.face()));
+        // vitality-drip-heals-below: what the drip healed shows the channel's healing stars
+        List<LivingEntity> reachable = drip.level().getEntitiesOfClass(LivingEntity.class,
+                new AABB(drip.landingPos()).inflate(HEAL_WATCH_BLOCKS), LivingEntity::isAlive);
+        List<Integer> healed = HEALS.healedAmong(reachable,
+                () -> runProgram(ability, new TapHost(drip.level(), drip.landingPos(), drip.face())));
+        for (LivingEntity living : reachable) {
+            if (healed.contains(living.getId())) {
+                EntityVisuals.sendToWatchers(living, new DripHealedPayload(living.getId()));
+            }
+        }
         return 1;
     }
 

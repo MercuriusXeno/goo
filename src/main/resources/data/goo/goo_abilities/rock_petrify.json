@@ -5,7 +5,7 @@
   "order": 10,
   "cost": 1000,
   "requires": ["minecraft:pointed_dripstone"],
-  "delivery": { "kind": "stream", "range": 6, "cone": 30, "ticks_per_charge": 20, "particle": "goo:none" },
+  "delivery": { "kind": "stream", "range": 6, "cone": 30, "ticks_per_charge": 20 },
   "behaviors": [
     { "type": "petrify", "fill": "7.5 / pow(max_health, 0.5)" },
     { "type": "calcify", "map": "goo:calcify", "ticks": 30 }

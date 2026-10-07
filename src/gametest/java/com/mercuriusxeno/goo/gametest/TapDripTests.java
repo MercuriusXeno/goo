@@ -26,6 +26,8 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -114,6 +116,12 @@ public final class TapDripTests {
     private static final String SENT_COUNT = "particles one tap drip sends";
     private static final String SENT_TYPE = "particle type one tap drip sends";
     private static final String SENT_GOO_TYPE = "goo type one tap drip's particle carries";
+    /** A cow stands at ten health, so four leaves it hurt with room for every drip to heal. */
+    private static final float HURT_COW_HEALTH = 4;
+    /** vital_vitality_tap.json's heal amount. */
+    private static final float HEAL_PER_DRIP = 1;
+    private static final String VITAL_DRIPS_LANDED = "a vital drip landed on the cow below the tap";
+    private static final String HEALED_COW = "cow health after every vital drip landed";
 
     private TapDripTests() {
     }
@@ -280,6 +288,30 @@ public final class TapDripTests {
             before.forEach((pos, state) -> helper.assertValueEqual(helper.getBlockState(pos), state, NEIGHBOR_STATE));
             helper.assertValueEqual(helper.getLevel().getEntities((Entity) null, around, entity -> true).size(), 0,
                     NO_ABILITY_ENTITIES);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A vital tap two air blocks above stone drips on a hurt cow standing on
+     * the stone: the cow stands healthier by the heal amount
+     * vital_vitality_tap.json names for every drip that landed
+     * (decision vitality-drip-heals-below).
+     *
+     * @param helper the gametest helper
+     */
+    public static void vitalityTapHealsBelow(GameTestHelper helper) {
+        TapBlockEntity tap = filledTap(helper, HIGH_TAP_POS, true, AIR_GAP, GooTypes.VITAL);
+        Mob cow = helper.spawnWithNoFreeWill(EntityType.COW, HIGH_TAP_POS.below(AIR_GAP));
+        cow.setHealth(HURT_COW_HEALTH);
+        BlockPos tapAbs = helper.absolutePos(HIGH_TAP_POS);
+
+        helper.runAfterDelay(DRIPS * DRIP_INTERVAL + SETTLE_TICKS, () -> {
+            long inFlight = GooServerState.of(helper.getLevel().getServer()).tapDrips().pending().stream()
+                    .filter(drip -> drip.tapPos().equals(tapAbs)).count();
+            long landed = START_VOLUME - tap.getFluidContent().amount() - inFlight;
+            helper.assertTrue(landed > 0, VITAL_DRIPS_LANDED);
+            helper.assertValueEqual(cow.getHealth(), HURT_COW_HEALTH + landed * HEAL_PER_DRIP, HEALED_COW);
             helper.succeed();
         });
     }
@@ -527,6 +559,22 @@ public final class TapDripTests {
      * @return the tap
      */
     private static TapBlockEntity filledTap(GameTestHelper helper, BlockPos tapPos, boolean open, int airGap) {
+        return filledTap(helper, tapPos, open, airGap, TYPE);
+    }
+
+    /**
+     * Places a tap over stone with an air gap between, and fills its canister
+     * with a goo type.
+     *
+     * @param helper the gametest helper
+     * @param tapPos where the tap stands
+     * @param open   whether the valve starts open
+     * @param airGap air blocks between the tap and the stone
+     * @param type   the goo type the canister holds
+     * @return the tap
+     */
+    private static TapBlockEntity filledTap(GameTestHelper helper, BlockPos tapPos, boolean open, int airGap,
+                                            ResourceKey<GooTypeDefinition> type) {
         for (int gap = 1; gap <= airGap; gap++) {
             helper.setBlock(tapPos.below(gap), Blocks.AIR);
         }
@@ -534,7 +582,7 @@ public final class TapDripTests {
         helper.setBlock(tapPos, GooBlocks.TAP.get().defaultBlockState().setValue(TapBlock.OPEN, open));
         TapBlockEntity tap = helper.getBlockEntity(tapPos, TapBlockEntity.class);
         tap.insertCanister(new ItemStack(GooItems.CANISTER.get()));
-        tap.insertGoo(TYPE, START_VOLUME);
+        tap.insertGoo(type, START_VOLUME);
         tap.setDripGrade(TEST_GRADE);
         return tap;
     }

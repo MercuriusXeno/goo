@@ -2,7 +2,9 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
+import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.ability.Delivery;
+import com.mercuriusxeno.goo.ability.HealReport;
 import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.ability.program.EntityHost;
@@ -29,6 +31,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jspecify.annotations.Nullable;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -52,6 +55,9 @@ public final class GooStreamHandler {
     private static final double PARTICLE_SPREAD = 0.15;
     /** Speed of each particle, in blocks per tick. */
     private static final double PARTICLE_SPEED = 0.05;
+    /** Reads which living things a tick's program healed. */
+    private static final HealReport<LivingEntity> HEALS =
+            new HealReport<>(LivingEntity::getHealth, LivingEntity::getId);
 
     private GooStreamHandler() {
     }
@@ -154,20 +160,47 @@ public final class GooStreamHandler {
         Delivery delivery = ability.delivery();
         Vec3 apex = ThrowArc.clampToReach(player.getEyePosition(), origin, ThrowArc.HAND_REACH * player.getScale());
         Vec3 axis = player.getLookAngle();
-        sprayParticles(level, apex, axis, delivery);
-        List<Step> blockSteps = channelSteps(ability.behaviors(), true);
-        if (!blockSteps.isEmpty()) {
-            ChannelAim aim = new ChannelAim(player.getEyePosition().add(axis.scale(delivery.range())), null,
-                    delivery.coneDegrees());
-            runSteps(PlayerHost.channeling(level, player, aim), HostKind.PLAYER, blockSteps, ability);
-        }
         List<Step> entitySteps = channelSteps(ability.behaviors(), false);
-        if (entitySteps.isEmpty()) {
+        List<Integer> healed = new ArrayList<>();
+        if (delivery.range() > 0) {
+            // reserve-hearts-sit-behind-the-bar: a stream reaching nothing runs only on its caster
+            sprayParticles(level, apex, axis, delivery);
+            runBlockPass(player, axis, ability);
+            for (LivingEntity living : livingInCone(level, player, apex, axis, delivery)) {
+                HEALS.runNoting(living, healed, () -> runSteps(new EntityHost(level, living, player), HostKind.ENTITY,
+                        entitySteps, ability));
+            }
+        }
+        if (ability.hasTag(AbilityTags.SELF)) {
+            // vitality-waves-regenerate-and-court
+            HEALS.runNoting(player, healed,
+                    () -> runSteps(new PlayerHost(level, player), HostKind.PLAYER, entitySteps, ability));
+        }
+        if (!healed.isEmpty()) {
+            // vitality-waves-regenerate-and-court: the client homes goo to each healed thing and stars it
+            EntityVisuals.sendToWatchers(player, new StreamHealedPayload(player.getId(), apex, healed));
+        }
+    }
+
+    /**
+     * Runs a stream's block pass once this tick on the player, aimed at the
+     * end of the reach along the look, where the stream's program holds steps
+     * needing the channel
+     * (decisions bore-vortex-with-a-worldspace-shake, petrify-stone-encasement-and-calcify-map).
+     *
+     * @param player  the streaming player
+     * @param axis    the look
+     * @param ability the stream ability
+     */
+    private static void runBlockPass(ServerPlayer player, Vec3 axis, AbilityDefinition ability) {
+        List<Step> blockSteps = channelSteps(ability.behaviors(), true);
+        if (blockSteps.isEmpty()) {
             return;
         }
-        for (LivingEntity living : livingInCone(level, player, apex, axis, delivery)) {
-            runSteps(new EntityHost(level, living, player), HostKind.ENTITY, entitySteps, ability);
-        }
+        Delivery delivery = ability.delivery();
+        ChannelAim aim = new ChannelAim(player.getEyePosition().add(axis.scale(delivery.range())), null,
+                delivery.coneDegrees());
+        runSteps(PlayerHost.channeling(player.level(), player, aim), HostKind.PLAYER, blockSteps, ability);
     }
 
     /**
@@ -175,7 +208,7 @@ public final class GooStreamHandler {
      * needing the channel run once a tick on the player over the cone's blocks
      * (decisions bore-vortex-with-a-worldspace-shake,
      * petrify-stone-encasement-and-calcify-map), and the rest run on every
-     * entity in the cone.
+     * entity in the cone, and on the caster of a stream tagged self.
      *
      * @param behaviors the stream's top-level steps
      * @param channel   true for the block pass's steps, false for the entity pass's
@@ -230,10 +263,7 @@ public final class GooStreamHandler {
      * @param delivery the stream delivery
      */
     private static void sprayParticles(ServerLevel level, Vec3 apex, Vec3 axis, Delivery delivery) {
-        if (Delivery.NO_PARTICLE.equals(delivery.particle())) {
-            return;
-        }
-        SimpleParticles.resolve(delivery.particle()).ifPresent(particle -> {
+        delivery.particle().flatMap(SimpleParticles::resolve).ifPresent(particle -> {
             for (int i = 1; i <= PARTICLES_PER_TICK; i++) {
                 Vec3 at = apex.add(axis.scale(delivery.range() * i / PARTICLES_PER_TICK));
                 level.sendParticles(particle, at.x, at.y, at.z, 1, PARTICLE_SPREAD, PARTICLE_SPREAD,

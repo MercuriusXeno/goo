@@ -9,6 +9,8 @@ import com.mercuriusxeno.goo.network.BrewEffectTests;
 import com.mercuriusxeno.goo.network.GloveSelectTests;
 import com.mercuriusxeno.goo.network.HeartOverlayTests;
 import com.mercuriusxeno.goo.network.MobEffectTests;
+import com.mercuriusxeno.goo.network.NourishTests;
+import com.mercuriusxeno.goo.network.ReserveTests;
 import com.mercuriusxeno.goo.network.SelfDeliveryTests;
 import com.mercuriusxeno.goo.network.BoreStreamTests;
 import com.mercuriusxeno.goo.network.CrushMobTests;
@@ -136,7 +138,9 @@ public final class GooTestFunctions {
     private static final String LAB_REBUILD = "lab_rebuild";
     private static final String ZOMBIE_PEN_HOLDS_ONLY_ZOMBIES = "zombie_pen_holds_only_zombies";
     private static final String PASSIVE_PEN_HAS_NO_ROOF = "passive_pen_has_no_roof";
-    private static final String LAB_KIT_TEACHES_EVERY_ABILITY = "lab_kit_teaches_every_ability";
+    private static final String LAB_LEARN_TEACHES_EVERY_ABILITY = "lab_learn_teaches_every_ability";
+    private static final String LAB_FORGET_RETURNS_TO_NOTHING = "lab_forget_returns_to_nothing";
+    private static final String LAB_KIT_TEACHES_NOTHING = "lab_kit_teaches_nothing";
     private static final String LAB_KIT_UNTOUCHED_PLAYER_KNOWS_NOTHING = "lab_kit_untouched_player_knows_nothing";
 
     // --- GasketPusher ---
@@ -214,6 +218,7 @@ public final class GooTestFunctions {
     private static final String FX_PROGRAM_CRYSTAL_CLOUD = "fx_program_crystal_cloud";
     private static final String FX_PROGRAM_NETHER_BLACK_HOLE = "fx_program_nether_black_hole";
     private static final String FX_LANDED_CRYSTAL_CLOUD = "fx_landed_crystal_cloud_live";
+    private static final String FX_CRYSTAL_CLOUD_SHREDS_PLAYER = "fx_crystal_cloud_shreds_walking_player";
     private static final String FX_LANDED_METAL_SPIKES = "fx_landed_metal_spikes_live";
     private static final String FX_LANDED_BLACK_HOLE = "fx_landed_black_hole_gathers";
     private static final String FX_LANDED_BLAST = "fx_landed_blast_explodes";
@@ -299,6 +304,7 @@ public final class GooTestFunctions {
     private static final String TAP_DRIP_BOTTOMLESS = "tap_drip_bottomless";
     private static final String TAP_HOST_PLACES_ABOVE_LANDING = "tap_host_places_above_landing";
     private static final String TAP_DRIP_NO_ABILITY = "tap_drip_no_ability";
+    private static final String VITALITY_TAP_HEALS = "vitality_tap_heals_below";
     private static final String TAP_DRIP_SENDS_TAP_DRIP = "tap_drip_sends_tap_drip";
     private static final String TAP_VALVE_STEPS_FIVE_GRADES = "tap_valve_steps_five_grades";
     private static final String TAP_SNEAK_CLICK_STEPS_VALVE_BACK = "tap_sneak_click_steps_valve_back";
@@ -312,6 +318,7 @@ public final class GooTestFunctions {
     private static final String IX_HUB_POUR_AIMED_ONLY = "ix_hub_pour_aimed_only";
     private static final String IX_PLEXER_TARGET = "ix_plexer_set_target";
     private static final String IX_PLEXER_REFUSES_UNLEARNED = "ix_plexer_refuses_unlearned";
+    private static final String IX_PLEXER_FIZZLES_UNTIL_LAB_LEARN = "ix_plexer_fizzles_until_lab_learn";
     private static final String IX_REACTOR_INSERT_PICKUP = "ix_reactor_insert_pickup";
     private static final String IX_CRUCIBLE_BLAZE_ROD_COLD = "ix_crucible_blaze_rod_click_leaves_cold";
     private static final String IX_CRUCIBLE_COLD_ABSORBS_NOTHING = "ix_crucible_cold_absorbs_nothing";
@@ -361,12 +368,16 @@ public final class GooTestFunctions {
     private static final String SELF_KINDLE_SHIELDS = "self_kindle_shields_then_quenches";
     private static final String SELF_KINDLE_BURNS = "self_kindle_burns_the_attacker";
     private static final String SELF_HEART_BREWS_REPLACE = "self_heart_brews_replace_each_other";
+    private static final String RESERVE_DRAINS_FIRST = "reserve_drains_first";
+    private static final String RESERVE_DRAINS_WHILE_HELD = "reserve_drains_while_held";
     private static final String SELF_BARKSKIN_FIRE = "self_barkskin_fire_burns_through_arrow_breaks_bark";
     private static final String SELF_BARKSKIN_THORNS = "self_barkskin_thorns_and_the_axe";
     private static final String SELF_KINDLE_FIRE = "self_kindle_fire_relights_for_a_heart";
     private static final String BREW_EVERY_POTION_CARRIES = "brew_every_potion_carries_its_effect";
     private static final String BREW_BLAZE_KINDLES = "brew_blaze_kindles_for_an_hour";
     private static final String BREW_LEAF_BARKS = "brew_leaf_barks_for_an_hour";
+    private static final String BREW_VITAL_NOURISHES = "brew_vital_nourishes_for_an_hour";
+    private static final String NOURISH_REFILLS_HUNGER = "nourish_refills_hunger";
     private static final String BREW_WITHOUT_ABILITY = "brew_without_an_ability_runs_nothing";
     private static final String BREW_ROCK_STONESKINS = "brew_rock_stoneskins_for_an_hour";
     private static final String STREAM_BLAZE_SPITFIRE = "stream_blaze_spitfire";
@@ -382,6 +393,7 @@ public final class GooTestFunctions {
     private static final String STATUE_MINES = "statue_mines_for_cobblestone_and_experience";
     private static final String PETRIFY_TAP_CALCIFIES = "petrify_tap_calcifies";
     private static final String PETRIFY_TAP_GROWS_DRIPSTONE = "petrify_tap_grows_dripstone";
+    private static final String VITALITY_HEALS = "vitality_heals_cow_and_caster";
     private static final String MOB_CRYSTAL = "mob_crystal_flechettes";
     private static final String MOB_LEAF = "mob_leaf_entangle";
     private static final String MOB_VITAL = "mob_vital_clone";
@@ -501,6 +513,7 @@ public final class GooTestFunctions {
         reg(r, TAP_DRIP_BOTTOMLESS, TapDripTests::tapDripBottomless);
         reg(r, TAP_HOST_PLACES_ABOVE_LANDING, TapDripTests::tapHostPlacesAboveLanding);
         reg(r, TAP_DRIP_NO_ABILITY, TapDripTests::tapDripNoAbility);
+        reg(r, VITALITY_TAP_HEALS, TapDripTests::vitalityTapHealsBelow);
         reg(r, TAP_DRIP_SENDS_TAP_DRIP, TapDripTests::tapDripSendsTapDrip);
         reg(r, TAP_VALVE_STEPS_FIVE_GRADES, TapDripTests::tapValveStepsFiveGrades);
         reg(r, TAP_SNEAK_CLICK_STEPS_VALVE_BACK, TapDripTests::tapSneakClickStepsValveBack);
@@ -623,6 +636,7 @@ public final class GooTestFunctions {
         reg(r, FX_PROGRAM_CRYSTAL_CLOUD, EffectExecutorTests::programCrystalCloud);
         reg(r, FX_PROGRAM_NETHER_BLACK_HOLE, EffectExecutorTests::programNetherBlackHole);
         reg(r, FX_LANDED_CRYSTAL_CLOUD, EffectExecutorTests::crystalCloudLiveAfterLanding);
+        reg(r, FX_CRYSTAL_CLOUD_SHREDS_PLAYER, EffectExecutorTests::crystalCloudShredsAWalkingPlayer);
         reg(r, FX_LANDED_METAL_SPIKES, EffectExecutorTests::metalSpikesLiveAfterLanding);
         reg(r, FX_LANDED_BLACK_HOLE, EffectExecutorTests::blackHoleGathersAfterLanding);
         reg(r, FX_LANDED_BLAST, EffectExecutorTests::blastExplodesAfterLanding);
@@ -664,6 +678,7 @@ public final class GooTestFunctions {
         reg(r, IX_HUB_POUR_AIMED_ONLY, MachineInteractionTests::hubPourFillsOnlyTheAimedCanister);
         reg(r, IX_PLEXER_TARGET, MachineInteractionTests::plexerSetTarget);
         reg(r, IX_PLEXER_REFUSES_UNLEARNED, MachineInteractionTests::plexerRefusesAnUnlearnedTarget);
+        reg(r, IX_PLEXER_FIZZLES_UNTIL_LAB_LEARN, MachineInteractionTests::plexerFizzlesOnAKitPlayerUntilLabLearn);
         reg(r, IX_REACTOR_INSERT_PICKUP, MachineInteractionTests::reactorCanisterInsertThenSneakPickup);
         reg(r, IX_CRUCIBLE_BLAZE_ROD_COLD, MachineInteractionTests::crucibleBlazeRodClickLeavesItCold);
         reg(r, IX_CRUCIBLE_COLD_ABSORBS_NOTHING, MachineInteractionTests::coldCrucibleAbsorbsNothing);
@@ -786,12 +801,16 @@ public final class GooTestFunctions {
         reg(r, SELF_KINDLE_SHIELDS, HeartOverlayTests::kindleShieldsThenQuenches);
         reg(r, SELF_KINDLE_BURNS, HeartOverlayTests::kindleBurnsTheAttacker);
         reg(r, SELF_HEART_BREWS_REPLACE, HeartOverlayTests::heartBrewsReplaceEachOther);
+        reg(r, RESERVE_DRAINS_FIRST, ReserveTests::reserveDrainsFirst);
+        reg(r, RESERVE_DRAINS_WHILE_HELD, ReserveTests::reserveDrainsWhileHeld);
         reg(r, SELF_BARKSKIN_FIRE, BarkskinTests::fireBurnsThroughArrowBreaksBark);
         reg(r, SELF_BARKSKIN_THORNS, BarkskinTests::thornsAndTheAxe);
         reg(r, SELF_KINDLE_FIRE, HeartOverlayTests::kindleFireRelightsForAHeart);
         reg(r, BREW_EVERY_POTION_CARRIES, BrewEffectTests::everyPotionCarriesItsBrewEffect);
         reg(r, BREW_BLAZE_KINDLES, BrewEffectTests::blazeBrewKindlesForAnHour);
         reg(r, BREW_LEAF_BARKS, BrewEffectTests::leafBrewBarksForAnHour);
+        reg(r, BREW_VITAL_NOURISHES, BrewEffectTests::vitalBrewNourishesForAnHour);
+        reg(r, NOURISH_REFILLS_HUNGER, NourishTests::nourishRefillsHunger);
         reg(r, BREW_WITHOUT_ABILITY, BrewEffectTests::brewWithoutAnAbilityRunsNothing);
         reg(r, BREW_ROCK_STONESKINS, BrewEffectTests::rockBrewStoneskinsForAnHour);
         reg(r, STREAM_BLAZE_SPITFIRE, StreamDeliveryTests::blazeSpitfire);
@@ -807,6 +826,7 @@ public final class GooTestFunctions {
         reg(r, STATUE_MINES, PetrifyStreamTests::statueMinesForCobblestoneAndExperience);
         reg(r, PETRIFY_TAP_CALCIFIES, PetrifyTapTests::petrifyTapCalcifies);
         reg(r, PETRIFY_TAP_GROWS_DRIPSTONE, PetrifyTapTests::petrifyTapGrowsDripstone);
+        reg(r, VITALITY_HEALS, StreamDeliveryTests::vitalityHealsCowAndCaster);
         reg(r, MOB_CRYSTAL, MobEffectTests::crystalFlechettes);
         reg(r, MOB_LEAF, MobEffectTests::leafEntangle);
         reg(r, MOB_VITAL, MobEffectTests::vitalClone);
@@ -846,7 +866,9 @@ public final class GooTestFunctions {
         reg(r, LAB_REBUILD, LabRebuildTests::rebuild);
         reg(r, ZOMBIE_PEN_HOLDS_ONLY_ZOMBIES, LabTests::zombiePenHoldsOnlyZombies);
         reg(r, PASSIVE_PEN_HAS_NO_ROOF, LabTests::passivePenHasNoRoof);
-        reg(r, LAB_KIT_TEACHES_EVERY_ABILITY, LabKitKnowledgeTests::kitTeachesEveryAbility);
+        reg(r, LAB_LEARN_TEACHES_EVERY_ABILITY, LabKitKnowledgeTests::learnTeachesEveryAbility);
+        reg(r, LAB_FORGET_RETURNS_TO_NOTHING, LabKitKnowledgeTests::forgetReturnsToKnowingNothing);
+        reg(r, LAB_KIT_TEACHES_NOTHING, LabKitKnowledgeTests::kitTeachesNothing);
         reg(r, LAB_KIT_UNTOUCHED_PLAYER_KNOWS_NOTHING, LabKitKnowledgeTests::untouchedPlayerKnowsNothing);
     }
 

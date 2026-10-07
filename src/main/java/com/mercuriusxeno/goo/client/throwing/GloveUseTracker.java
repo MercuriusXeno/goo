@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.client.throwing;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.GloveSelection;
-import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.ability.SelfEatRoute;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.item.GooGloveItem;
@@ -202,7 +201,7 @@ public final class GloveUseTracker {
      */
     private static boolean selectedRunsWhileHeld(LocalPlayer player) {
         GloveSelection selection = GloveThrowSender.heldSelection(player);
-        return selection != null && HeldRoute.runsWhileHeld(GloveThrowSender.selectedDelivery(selection.abilityId()),
+        return selection != null && GloveInputGate.runsFromPress(GloveThrowSender.selectedDelivery(selection.abilityId()),
                 GloveThrowSender.selectedBadge(selection.abilityId()));
     }
 

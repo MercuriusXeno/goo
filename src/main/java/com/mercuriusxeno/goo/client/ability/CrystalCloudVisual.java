@@ -34,7 +34,10 @@ import java.util.Map;
  * in air within the cloud volume. Each sliver is a thin elongated pyramid,
  * a sixth to a half of a block long and as wide as a tenth of its length,
  * at a position and orientation drawn from its cloud's seed. Some tumble
- * slowly, most are still. The cloud's radius, its expand and contract fraction and its charge
+ * slowly, most are still. Each shard rests where its cloud's seed puts
+ * it from the first frame, and appears as the prism dome grows past it,
+ * fading in and drifting to rest ({@link ShardLayering}). The cloud's
+ * radius, its contract fraction, its ticks since the landing and its charge
  * density come from the crystal_cloud field effect's
  * {@link FieldEffectState} on the marker. Each cloud's shards come from
  * its own layout in {@link CloudShardTables}.
@@ -111,9 +114,10 @@ public final class CrystalCloudVisual {
      * What one frame of one cloud draws.
      *
      * @param visibleCount how many slivers show
-     * @param alpha        the vertex alpha [0-255]
+     * @param alpha        the vertex alpha [0-255] of a shard at rest
      * @param time         the game time the spin reads
-     * @param radius       the current cloud radius
+     * @param radius       the radius the shards rest within, the cloud's radius scaled by its contract
+     * @param domeRadius   the prism dome's current radius, which the shards appear ahead of
      * @param shards       the cloud's shard layout
      * @param origin       the marker block's world corner
      * @param camPos       the camera eye position
@@ -121,7 +125,7 @@ public final class CrystalCloudVisual {
      * @param clock        the client tick with its partial tick, the clock reflections ease on
      * @param easing       the shown reflection color of every face of this cloud
      */
-    record CloudDraw(int visibleCount, int alpha, float time, float radius, ShardTable shards,
+    record CloudDraw(int visibleCount, int alpha, float time, float radius, float domeRadius, ShardTable shards,
                      Vec3 origin, Vec3 camPos, BlockColorProbe probe,
                      double clock, ReflectionEasing easing) {
     }
@@ -145,8 +149,9 @@ public final class CrystalCloudVisual {
     }
 
     /**
-     * Populates {@code state} with crystal-cloud fields: the density and
-     * the expand and contract progress from the marker's field-effect state,
+     * Populates {@code state} with crystal-cloud fields: the density, the
+     * ticks since the landing and the contract progress from the marker's
+     * field-effect state,
      * the radius and animation lengths off the field-effect step of the
      * marker's synced ability.
      *
@@ -171,7 +176,8 @@ public final class CrystalCloudVisual {
         }
         state.crystalActive = true;
         state.crystalDensity = field.density();
-        state.crystalRadiusFraction = field.radiusFraction(expandTicks, contractTicks);
+        state.crystalRadiusFraction = field.teardownTicks() > 0 ? field.radiusFraction(expandTicks, contractTicks) : 1f;
+        state.crystalFieldTicks = field.fieldTicks();
         state.crystalRadius = cloud.radius().evaluateFloat(variables);
         long gameTime = be.getLevel() != null ? be.getLevel().getGameTime() : 0L;
         state.crystalAnimationTime = gameTime;
@@ -201,6 +207,7 @@ public final class CrystalCloudVisual {
         state.crystalActive = false;
         state.crystalDensity = 0f;
         state.crystalRadiusFraction = 0f;
+        state.crystalFieldTicks = 0;
         state.crystalRadius = 0f;
         state.crystalAnimationTime = 0f;
         state.crystalReflectionClock = 0;
@@ -267,14 +274,15 @@ public final class CrystalCloudVisual {
      * @return the frame's draw
      */
     private static CloudDraw drawOf(AbilityBlockRenderState state, Level level, Vec3 camPos) {
-        float radiusFrac = state.crystalRadiusFraction;
+        float contractFrac = state.crystalRadiusFraction;
         float density = state.crystalDensity;
         double clock = state.crystalReflectionClock + state.partialTick;
         return new CloudDraw(
-                Math.max(1, (int) (ShardTable.MAX_SLIVERS * Math.max(density, radiusFrac))),
-                (int) (BASE_ALPHA * Math.max(density, MIN_DENSITY_FLOOR) * radiusFrac * BYTE_SCALE),
+                Math.max(1, (int) (ShardTable.MAX_SLIVERS * Math.max(density, contractFrac))),
+                (int) (BASE_ALPHA * Math.max(density, MIN_DENSITY_FLOOR) * contractFrac * BYTE_SCALE),
                 state.crystalAnimationTime,
-                state.crystalRadius * radiusFrac,
+                state.crystalRadius * contractFrac,
+                ShardLayering.domeRadius(state.crystalFieldTicks + state.partialTick, state.crystalRadius),
                 TABLES.tableAt(state.blockPos),
                 Vec3.atLowerCornerOf(state.blockPos),
                 camPos,
@@ -318,25 +326,64 @@ public final class CrystalCloudVisual {
      * @param draw  what this frame draws
      */
     private static void emitSliver(FlatQuadContext face, int index, CloudDraw draw) {
-        ShardFrame frame = frameOf(index, draw);
+        ShardLayering.ShardReveal reveal = revealOf(draw.shards(), index, draw.radius(), draw.domeRadius());
+        if (!reveal.drawn()) {
+            return;
+        }
+        ShardFrame frame = frameOf(index, draw, reveal);
         Vec3 worldCenter = draw.origin().add(frame.center().x(), frame.center().y(), frame.center().z());
         Vector3f apex = frame.apex(draw.shards().depthRatio(index) * frame.halfLength());
         emitPyramid(face, baseRing(draw.shards().shape(index), frame), apex, draw,
-                new ShardPlace(worldCenter, index * MAX_FACES_PER_SLIVER));
+                new ShardPlace(worldCenter, index * MAX_FACES_PER_SLIVER, (int) (draw.alpha() * reveal.alpha())));
     }
 
     /**
-     * The sliver's frame this frame: its center scaled by the cloud radius,
+     * Reveals one shard against the dome: its resting distance is its seeded
+     * center scaled by the radius the shards rest within.
+     *
+     * @param shards     the cloud's shard layout
+     * @param index      the sliver index
+     * @param radius     the radius the shards rest within
+     * @param domeRadius the dome's current radius
+     * @return what the shard draws this frame
+     */
+    static ShardLayering.ShardReveal revealOf(ShardTable shards, int index, float radius, float domeRadius) {
+        return ShardLayering.reveal(domeRadius, shards.center(index).length() * radius);
+    }
+
+    /**
+     * Where a shard's center draws, relative to the marker block's corner:
+     * along its seeded direction at its revealed distance, so its resting
+     * position is its seeded center scaled by the radius the shards rest
+     * within, whatever the field's expand.
+     *
+     * @param shards the cloud's shard layout
+     * @param index  the sliver index
+     * @param reveal what the shard draws this frame
+     * @return the shard's center
+     */
+    static Vector3f shardCenter(ShardTable shards, int index, ShardLayering.ShardReveal reveal) {
+        Vector3f center = shards.center(index);
+        float seededLength = center.length();
+        if (seededLength > NORMALIZE_EPSILON) {
+            center.mul(reveal.distance() / seededLength);
+        }
+        return center.add(BLOCK_CENTER, BLOCK_CENTER, BLOCK_CENTER);
+    }
+
+    /**
+     * The sliver's frame this frame: its center at its revealed distance,
      * its axes turned by its spin.
      *
-     * @param index the sliver index
-     * @param draw  what this frame draws
+     * @param index  the sliver index
+     * @param draw   what this frame draws
+     * @param reveal what the shard draws this frame
      * @return the sliver's frame
      */
-    private static ShardFrame frameOf(int index, CloudDraw draw) {
+    private static ShardFrame frameOf(int index, CloudDraw draw, ShardLayering.ShardReveal reveal) {
         ShardTable shards = draw.shards();
         float halfLen = shards.halfLength(index);
-        Vector3f center = shards.center(index).mul(draw.radius()).add(BLOCK_CENTER, BLOCK_CENTER, BLOCK_CENTER);
+        Vector3f center = shardCenter(shards, index, reveal);
         Vector3f axis = shards.axis(index);
         Vector3f perp = shards.perp(index);
         float spinSpeed = shards.spinSpeed(index);
@@ -402,26 +449,27 @@ public final class CrystalCloudVisual {
      *
      * @param worldCenter the shard's world position
      * @param firstFace   the cloud-wide index of the shard's first face
+     * @param alpha       the shard's vertex alpha [0-255], faded by its reveal
      */
-    private record ShardPlace(Vec3 worldCenter, int firstFace) {
+    private record ShardPlace(Vec3 worldCenter, int firstFace, int alpha) {
     }
 
     /**
      * The color a face reflects: the camera's view of the shard bounced off
      * the face's normal and cast into the world, eased from the face's last
-     * shown color, brightened, at the draw's alpha.
+     * shown color, brightened, at the shard's alpha.
      *
      * @param draw   what this frame draws, carrying the camera, the probe and the easing
      * @param place  where the shard stands and where its faces start
      * @param side   the face's index within its shard
      * @param normal the face normal (unnormalized)
-     * @return packed ARGB with the reflected block color and the draw's alpha
+     * @return packed ARGB with the reflected block color and the shard's alpha
      */
     private static int reflectColor(CloudDraw draw, ShardPlace place, int side, Vector3f normal) {
         Vec3 worldCenter = place.worldCenter();
         float len = normal.length();
         if (len < NORMALIZE_EPSILON) {
-            return ARGB.color(draw.alpha(), SKY_COLOR);
+            return ARGB.color(place.alpha(), SKY_COLOR);
         }
         float invLen = 1f / len;
         float fnx = normal.x * invLen;
@@ -438,7 +486,7 @@ public final class CrystalCloudVisual {
         int r = Math.min((int) (ARGB.red(rgb) * REFLECT_BRIGHTNESS), FULL_ALPHA);
         int g = Math.min((int) (ARGB.green(rgb) * REFLECT_BRIGHTNESS), FULL_ALPHA);
         int b = Math.min((int) (ARGB.blue(rgb) * REFLECT_BRIGHTNESS), FULL_ALPHA);
-        return ARGB.color(Math.max(1, draw.alpha()), r, g, b);
+        return ARGB.color(Math.max(1, place.alpha()), r, g, b);
     }
 
     /**

@@ -376,6 +376,7 @@ public final class GooThrowHandler {
         Vec3 hand = ThrowArc.clampToReach(player.getEyePosition(), payload.origin(),
                 ThrowArc.HAND_REACH * player.getScale());
         GooFlightPayload flight = buildFlightPayload(hand, payload, delivery, travelTicks);
+        // A listener that never negotiated the mod's channels, a gametest's mock player, gets no flight.
         EntityVisuals.sendToWatchers(player, flight);
     }
 

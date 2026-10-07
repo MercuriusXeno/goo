@@ -31,7 +31,6 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -65,9 +64,17 @@ class RadialWheelRendererTest {
                 definition.cost(), definition.delivery(), definition.badge(), definition.requires());
     }
 
+    /**
+     * The shipped abilities the radial lists: every one but a tap's drip
+     * ability, which the ability sync never sends the glove.
+     *
+     * @return the radial's shipped abilities
+     */
     private static List<ClientAbility> shippedAbilities() {
         return AbilityJson.files().stream()
-                .map((Path file) -> clientAbilityOf(AbilityJson.decode(file)))
+                .map(AbilityJson::decode)
+                .filter(definition -> !definition.hasTag(AbilityTags.TAP))
+                .map(RadialWheelRendererTest::clientAbilityOf)
                 .toList();
     }
 
@@ -153,14 +160,16 @@ class RadialWheelRendererTest {
                 Map.entry("metal_javelin", "Dart"), Map.entry("nether_black_hole", "Anti"),
                 Map.entry("nether_wither", "Wither"), Map.entry("pulse_short_circuit", "Zap"),
                 Map.entry("rock_bore", "Bore"), Map.entry("rock_crush", "Crush"), Map.entry("rock_flatten", "Flatten"),
-                Map.entry("rock_petrify", "Petrify"), Map.entry("rock_petrify_tap", "Petrify"),
+                Map.entry("rock_petrify", "Petrify"),
                 Map.entry("rock_stoneskin", "Stoneskin"),
                 Map.entry("shroom_debuff", "Spore"),
                 Map.entry("typhoon_levitate", "Float"), Map.entry("unstable_timed_bomb", "Countdown"),
                 Map.entry("unstable_proximity_mine", "Claymore"),
                 Map.entry("blaze_spitfire", "Spitfire"), Map.entry("blaze_kindle", "Kindle"),
                 Map.entry("ender_blink", "Blink"), Map.entry("typhoon_propel", "Propel"),
-                Map.entry("unstable_explode", "Blast"), Map.entry("vital_clone", "Clone"));
+                Map.entry("unstable_explode", "Blast"), Map.entry("vital_clone", "Clone"),
+                Map.entry("vital_vitality", "Vitality"), Map.entry("vital_reserve", "Reserve"),
+                Map.entry("vital_nourish", "Nourish"));
 
         private static JsonObject englishLang() throws IOException {
             try (InputStream stream = RadialWheelRendererTest.class.getClassLoader().getResourceAsStream(LANG_RESOURCE)) {

@@ -69,6 +69,23 @@ class HeartOverlayHudTest {
         assertTrue(sprites(HeartKind.BARKSKIN, 0, 2).isEmpty());
     }
 
+    @Test
+    void reserveLaysNothingOverTheBar() {
+        assertTrue(sprites(HeartKind.RESERVE, 2, 2).isEmpty());
+    }
+
+    @Test
+    void reserveDrawsItsOwnVitalHeartBehindByTheHalvesBanked() {
+        assertEquals("goo:hud/heart/reserve_full", HeartOverlayHud.reserveSprite(2).orElseThrow().toString());
+        assertEquals("goo:hud/heart/reserve_half", HeartOverlayHud.reserveSprite(1).orElseThrow().toString());
+        assertTrue(HeartOverlayHud.reserveSprite(0).isEmpty());
+    }
+
+    @Test
+    void aReserveHeartSitsRaisedAboveTheHeartInFront() {
+        assertEquals(198, HeartOverlayHud.reserveY(200));
+    }
+
     private static List<String> sprites(HeartKind kind, int shieldHalves, int realHalves) {
         return HeartOverlayHud.heartSprites(kind, shieldHalves, realHalves).stream().map(Object::toString).toList();
     }

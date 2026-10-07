@@ -1,8 +1,9 @@
 {
   "itemGroup.goo": "Goo",
 
-  "key.category.goo.glove": "Goo Glove",
+  "key.category.goo.glove": "Goo",
   "key.goo.glove_menu": "Goo glove menu",
+  "key.goo.goo_values": "Goo values",
 
   "item.goo.goo": "%s Goo",
 
@@ -145,5 +146,9 @@
   "goo.ability.unstable.explode": "Blast",
   "goo.ability.unstable.proximity_mine": "Claymore",
   "goo.ability.unstable.timed_bomb": "Countdown",
-  "goo.ability.vital.clone": "Clone"
+  "goo.ability.vital.clone": "Clone",
+  "goo.ability.vital.vitality": "Vitality",
+  "goo.ability.vital.vitality_tap": "Vitality",
+  "goo.ability.vital.reserve": "Reserve",
+  "goo.ability.vital.nourish": "Nourish"
 }
