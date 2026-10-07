@@ -27,7 +27,21 @@ class GloveRadialKeyGateTest {
     /** Records what a release resolved to, in order. */
     private static final class RecordingRelease implements GloveRadialKeyGate.ReleaseActions {
         private final List<String> calls = new ArrayList<>();
+        private final boolean hoveredLocked;
         private RadialWheel.Outcome selected;
+
+        RecordingRelease() {
+            this(false);
+        }
+
+        RecordingRelease(boolean hoveredLocked) {
+            this.hoveredLocked = hoveredLocked;
+        }
+
+        @Override
+        public boolean isLocked(RadialWheel.Outcome hovered) {
+            return hoveredLocked;
+        }
 
         @Override
         public void selectHovered(RadialWheel.Outcome hovered) {
@@ -79,6 +93,16 @@ class GloveRadialKeyGateTest {
             RecordingRelease release = new RecordingRelease();
 
             GloveRadialKeyGate.release(RadialWheel.Outcome.CANCEL, release);
+
+            assertEquals(List.of("close"), release.calls);
+        }
+
+        /** decision locked-petal-stays-on-the-wheel */
+        @Test
+        void releaseOverLockedAbilityClosesWithoutSelecting() {
+            RecordingRelease release = new RecordingRelease(true);
+
+            GloveRadialKeyGate.release(new RadialWheel.Outcome(2, 1), release);
 
             assertEquals(List.of("close"), release.calls);
         }
