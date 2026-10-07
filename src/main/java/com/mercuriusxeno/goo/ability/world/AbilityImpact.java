@@ -2,11 +2,14 @@ package com.mercuriusxeno.goo.ability.world;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
+import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.PrismCombos;
 import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.LandingHost;
 import com.mercuriusxeno.goo.ability.program.LingerStep;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
+import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.network.ChainBurnoutPayload;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -25,10 +28,13 @@ import java.util.Optional;
  * own; a program ending that tick leaves only its effect, and one that
  * lingers stands its own block through its linger step (decisions
  * splat-runs-the-program-no-fuse, lingering-abilities-place-their-own-thing).
+ * A goo landing on a prism lands in the prism instead, running its combo
+ * (decision prism-hosts-the-combos).
  */
 public final class AbilityImpact {
 
     private static final String LOG_PROGRAM_REFUSED = "Ability {} program refused for the landing host: {}";
+    private static final String LOG_COMBO_REFUSED = "Prism combo {} program refused for the marker host: {}";
 
     private AbilityImpact() {
     }
@@ -62,6 +68,10 @@ public final class AbilityImpact {
      */
     public static void land(ServerLevel level, BlockPos pos, ResourceKey<GooTypeDefinition> type,
                             Direction face, AbilityDefinition ability, @Nullable Vec3 point) {
+        if (level.getBlockEntity(pos) instanceof PrismBlockEntity prism) {
+            landOnPrism(level, prism, type, ability);
+            return;
+        }
         Optional<LandingSpot> spot = LandingSpot.resolve(level, pos, face);
         if (spot.isEmpty()) {
             return;
@@ -70,6 +80,31 @@ public final class AbilityImpact {
         LandingHost host = new LandingHost(level, cell, face, spot.get().waterlogged(), type,
                 ability.id().toString(), point == null ? Vec3.atCenterOf(cell) : point);
         AbilitySplat.resolve(new Landing(host, ability));
+    }
+
+    /**
+     * Lands a goo in a prism: the landing ability's own prism reaction, or its
+     * type's prism ability, runs as the prism's combo on a marker host at the
+     * prism. A type with neither leaves the prism as it is, and a prism
+     * already holding a combo refuses a second.
+     * decision prism-hosts-the-combos
+     *
+     * @param level   the server level
+     * @param prism   the struck prism
+     * @param type    the goo type thrown
+     * @param ability the ability the goo names
+     */
+    private static void landOnPrism(ServerLevel level, PrismBlockEntity prism, ResourceKey<GooTypeDefinition> type,
+                                    AbilityDefinition ability) {
+        AbilityDefinition source = PrismCombos.comboSource(ability, AbilityRegistry.of(level).prismAbilityFor(type));
+        if (source == null || prism.hasCombo()) {
+            return;
+        }
+        try {
+            prism.runCombo(type, source.id().toString(), PrismCombos.comboSteps(source));
+        } catch (ProgramLoadException e) {
+            Goo.LOGGER.error(LOG_COMBO_REFUSED, source.id(), e.getMessage());
+        }
     }
 
     /**

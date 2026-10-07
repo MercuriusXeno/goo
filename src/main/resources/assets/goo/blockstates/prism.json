@@ -1,0 +1,30 @@
+{
+  "variants": {
+    "facing=up": {
+      "model": "goo:block/prism"
+    },
+    "facing=down": {
+      "model": "goo:block/prism",
+      "x": 180
+    },
+    "facing=north": {
+      "model": "goo:block/prism",
+      "x": 90
+    },
+    "facing=south": {
+      "model": "goo:block/prism",
+      "x": 90,
+      "y": 180
+    },
+    "facing=east": {
+      "model": "goo:block/prism",
+      "x": 90,
+      "y": 90
+    },
+    "facing=west": {
+      "model": "goo:block/prism",
+      "x": 90,
+      "y": 270
+    }
+  }
+}

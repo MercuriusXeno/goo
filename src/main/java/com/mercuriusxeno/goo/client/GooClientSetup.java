@@ -167,6 +167,7 @@ public final class GooClientSetup {
     private static void registerEffectRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerBlockEntityRenderer(GooBlockEntities.ABILITY_BLOCK.get(),
                 AbilityBlockRenderer::new);
+        event.registerBlockEntityRenderer(GooBlockEntities.PRISM.get(), PrismRenderer::new);
     }
 
     /**

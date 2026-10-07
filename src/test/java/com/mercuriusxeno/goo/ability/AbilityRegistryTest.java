@@ -52,6 +52,34 @@ class AbilityRegistryTest {
     }
 
     /**
+     * A goo landing on a prism runs its type's prism-badged ability lowest by
+     * order, and a type wearing none has no prism combo
+     * (decision prism-hosts-the-combos).
+     */
+    @Nested
+    class PrismAbility {
+
+        @Test
+        void lowestOrderPrismBadgedAbilityIsTheTypesPrismAbility() {
+            AbilityRegistry registry = registryOf(Stream.of(
+                    ability("rock_world", 0, AbilityBadge.WORLD),
+                    ability("rock_prism_late", 9, AbilityBadge.PRISM),
+                    ability("rock_prism_early", 3, AbilityBadge.PRISM)));
+
+            AbilityDefinition prism = registry.prismAbilityFor(GooTypes.ROCK);
+
+            assertEquals("rock_prism_early", prism == null ? null : prism.id().getPath());
+        }
+
+        @Test
+        void typeWithoutAPrismBadgedAbilityHasNoPrismAbility() {
+            AbilityRegistry registry = registryOf(Stream.of(ability("rock_world", 0, AbilityBadge.WORLD)));
+
+            assertNull(registry.prismAbilityFor(GooTypes.ROCK));
+        }
+    }
+
+    /**
      * A drunk brew runs the type's self ability wearing the brew badge, and a
      * type wearing none runs nothing (decision brew-grants-the-self-ability-for-an-hour).
      */
