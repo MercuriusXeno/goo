@@ -1,10 +1,17 @@
 package com.mercuriusxeno.goo.client.throwing;
 
+import com.mercuriusxeno.goo.ability.AbilityBadge;
+import com.mercuriusxeno.goo.ability.Delivery;
+import com.mercuriusxeno.goo.ability.DeliveryKind;
+import com.mercuriusxeno.goo.ability.SelfEatRoute;
+import org.jspecify.annotations.Nullable;
+
 /**
  * The glove's right-click input as a press the client resolves off the use
  * key. A press arms the throw and previews the ability's area for as long as
  * the key is held; release throws once and swings. A stream runs from the
- * press instead, streaming on every held tick. The arm swings only for a
+ * press instead, streaming on every held tick, and a brew sends from the
+ * press so its eat runs while the key is held. The arm swings only for a
  * throw that sent a payload.
  * decision right-click-held-previews-release-throws
  * decision use-animation-only-when-goo-throws
@@ -34,6 +41,21 @@ public final class GloveInputGate {
          * @return true for a stream
          */
         boolean runsWhileHeld();
+    }
+
+    /**
+     * Whether an ability runs from the press while the use key is held,
+     * rather than previewing and throwing on release: a stream, and a brew,
+     * whose eat vanilla releases the tick the use key is up, so an eat begun
+     * on release would end the tick it started.
+     * decision self-brew-goos-eat-before-the-effect
+     *
+     * @param delivery the selected ability's delivery
+     * @param badge    the selected ability's badge, or null where the client holds no synced copy
+     * @return true for a stream or a brew
+     */
+    public static boolean runsFromPress(Delivery delivery, @Nullable AbilityBadge badge) {
+        return delivery.kind() == DeliveryKind.STREAM || SelfEatRoute.eats(delivery, badge);
     }
 
     private boolean armed;

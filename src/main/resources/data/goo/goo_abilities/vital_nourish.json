@@ -6,8 +6,7 @@
   "cost": 1000,
   "delivery": { "kind": "self" },
   "behaviors": [
-    { "type": "nourish", "interval": 80, "duration": 400 },
-    { "type": "sound", "id": "minecraft:entity.generic.eat", "at": "target", "source": "players", "volume": 1, "pitch": 1 }
+    { "type": "nourish", "interval": 80, "duration": 400 }
   ],
   "tags": ["self"]
 }

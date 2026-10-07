@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.client.throwing;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
@@ -151,7 +150,8 @@ public final class GloveUseTracker {
             public boolean runsWhileHeld() {
                 GloveSelection selection = GloveThrowSender.heldSelection(player);
                 return selection != null
-                        && GloveThrowSender.selectedDelivery(selection.abilityId()).kind() == DeliveryKind.STREAM;
+                        && GloveInputGate.runsFromPress(GloveThrowSender.selectedDelivery(selection.abilityId()),
+                                GloveThrowSender.selectedBadge(selection.abilityId()));
             }
         };
     }
