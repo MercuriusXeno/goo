@@ -371,6 +371,7 @@ public final class GooTestFunctions {
     private static final String BREW_ROCK_STONESKINS = "brew_rock_stoneskins_for_an_hour";
     private static final String STREAM_BLAZE_SPITFIRE = "stream_blaze_spitfire";
     private static final String FLATTEN_BREAKS_ABOVE_THE_PLANE = "flatten_breaks_above_the_plane";
+    private static final String FLATTEN_SHAVES_A_WALL = "flatten_shaves_a_wall";
     private static final String BORE_CUTS_A_TUNNEL = "bore_cuts_a_tunnel";
     private static final String CRUSH_BLASTS_A_CRATER = "crush_blasts_a_crater";
     private static final String BLAST_INSIDE_A_FENCE_CORNER = "blast_lands_inside_a_fence_corner";
@@ -795,6 +796,7 @@ public final class GooTestFunctions {
         reg(r, BREW_ROCK_STONESKINS, BrewEffectTests::rockBrewStoneskinsForAnHour);
         reg(r, STREAM_BLAZE_SPITFIRE, StreamDeliveryTests::blazeSpitfire);
         reg(r, FLATTEN_BREAKS_ABOVE_THE_PLANE, FlattenChannelTests::flattenBreaksAboveThePlane);
+        reg(r, FLATTEN_SHAVES_A_WALL, FlattenChannelTests::flattenShavesAWall);
         reg(r, BORE_CUTS_A_TUNNEL, BoreStreamTests::boreCutsATunnel);
         reg(r, CRUSH_BLASTS_A_CRATER, CrushStrikeTests::crushBlastsACrater);
         reg(r, BLAST_INSIDE_A_FENCE_CORNER, FenceCornerLandingTests::blastLandsInsideAFenceCorner);

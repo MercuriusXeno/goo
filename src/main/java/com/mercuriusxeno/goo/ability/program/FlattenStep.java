@@ -11,9 +11,10 @@ import java.util.stream.Stream;
 
 /**
  * Rock flatten's step, run each held tick of the channel: one block a tick
- * breaks, with its drops, from the cursor's 3x3 above the plane the hold
- * remembered from the cursor, up to 3 blocks high, top down, the first that
- * belongs to the mundane set the ability's JSON names and stands in reach.
+ * breaks, with its drops, from the cursor's 3x3 out from the face the hold
+ * began on, up to 3 blocks out, the outermost first, never behind the face,
+ * the first that belongs to the set the ability's JSON names, the earth and
+ * its builds, and stands in reach.
  * decision flatten-disc-cursor-breaks-above-the-plane
  *
  * @param breaks the block tag naming the blocks flatten may break
@@ -48,13 +49,13 @@ public record FlattenStep(TagKey<Block> breaks) implements Step {
     }
 
     /**
-     * Breaks the swath's next block top down: the first in the tag and in reach.
+     * Breaks the swath's next block outermost first: the first in the tag and in reach.
      *
      * @param host the channel host
      * @param aim  the hold's aim this tick
      */
     private void breakUnderCursor(ChannelHost host, ChannelAim aim) {
-        for (BlockPos pos : aim.swathTopDown(aim.aimedBlock(host.eye()))) {
+        for (BlockPos pos : aim.swathOutermostFirst(aim.aimedBlock(host.eye()))) {
             if (host.blockIn(pos, breaks) && host.reaches(pos)) {
                 host.breakBlock(pos);
                 return;

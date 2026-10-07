@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.tags.TagKey;
@@ -18,8 +19,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Flatten's step breaks one block a tick from the cursor's 3x3 above the
- * plane, up to 3 blocks high, top down, passing blocks outside its tag or
+ * Flatten's step breaks one block a tick from the cursor's 3x3 out from the
+ * face the hold began on, up to 3 blocks out, outermost first, passing blocks outside its tag or
  * out of reach; a host outside a held channel breaks nothing
  * (decision flatten-disc-cursor-breaks-above-the-plane).
  */
@@ -27,8 +28,8 @@ class FlattenStepTest {
 
     private static final TagKey<Block> BREAKABLE =
             TagKey.create(Registries.BLOCK, Identifier.fromNamespaceAndPath("goo", "flatten_breakable"));
-    /** The plane remembered from the cursor resting on the block at y 63. */
-    private static final double PLANE = 64;
+    /** The hold began with the cursor on the top of the block at (10, 63, 0). */
+    private static final ChannelAim.FacePlane PLANE = new ChannelAim.FacePlane(new BlockPos(10, 63, 0), Direction.UP);
     private static final Vec3 EYE = new Vec3(8, 65.6, 0.5);
     /** The west face of the block at (10, 64, 0). */
     private static final Vec3 AIM = new Vec3(10, 64.5, 0.5);
@@ -52,7 +53,7 @@ class FlattenStepTest {
     }
 
     @Test
-    void oneTickBreaksOneBlockFromTheTopLayer() {
+    void oneTickBreaksOneBlockFromTheOutermostLayer() {
         ChannelHost host = hostWhere(pos -> true, aimed());
 
         run(host);
@@ -62,7 +63,7 @@ class FlattenStepTest {
     }
 
     @Test
-    void aTopLayerOutsideTheTagPassesToTheNextLayerDown() {
+    void anOutermostLayerOutsideTheTagPassesToTheNextLayerIn() {
         ChannelHost host = hostWhere(pos -> pos.getY() < 66, aimed());
 
         run(host);
@@ -71,7 +72,7 @@ class FlattenStepTest {
     }
 
     @Test
-    void theCursorsLevelAndBelowStay() {
+    void theFaceTheHoldBeganOnAndBehindItStay() {
         ChannelHost host = hostWhere(pos -> pos.getY() < 64, aimed());
 
         run(host);

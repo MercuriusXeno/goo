@@ -64,8 +64,8 @@ public final class BoreStreamTests {
         }
         ServerPlayer player = borer(helper);
         KnownRecipes.teachRequires(player, bore);
-        GooStreamPayload tick = new GooStreamPayload(GooTypes.id(GooTypes.ROCK), ROCK_BORE.toString(),
-                player.getEyePosition(), player.getEyePosition(), player.getY());
+        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.ROCK), ROCK_BORE.toString(),
+                player.getEyePosition(), player.getEyePosition());
         helper.runAfterDelay(1, () -> {
             GooStreamHandler.streamTick(player, tick);
             long cut = slice(EYE_ROW.east(1)).stream().filter(pos -> helper.getBlockState(pos).isAir()).count();

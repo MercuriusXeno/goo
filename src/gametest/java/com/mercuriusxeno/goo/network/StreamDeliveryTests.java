@@ -64,8 +64,8 @@ public final class StreamDeliveryTests {
         KnownRecipes.teachRequires(player, spitfire);
         int heldBefore = blazeHeld(player);
         helper.assertFalse(zombie.isOnFire(), SHOULD_START_UNBURNT);
-        GooStreamPayload tick = new GooStreamPayload(GooTypes.id(GooTypes.BLAZE), BLAZE_SPITFIRE.toString(),
-                player.getEyePosition(), player.getEyePosition(), player.getY());
+        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.BLAZE), BLAZE_SPITFIRE.toString(),
+                player.getEyePosition(), player.getEyePosition());
         for (int held = 1; held <= HOLD_TICKS; held++) {
             helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, tick));
         }

@@ -88,7 +88,7 @@ public final class GooStreamHandler {
             return;
         }
         if (HeldRoute.channelsOnSelf(ability.delivery(), ability.badge())) {
-            channelOnPlayer(player, new ChannelAim(payload.aimPoint(), payload.planeY()), ability);
+            channelOnPlayer(player, new ChannelAim(payload.aimPoint(), payload.plane()), ability);
         } else {
             strikeCone(player, payload.origin(), ability);
         }
@@ -157,8 +157,8 @@ public final class GooStreamHandler {
         sprayParticles(level, apex, axis, delivery);
         List<Step> blockSteps = channelSteps(ability.behaviors(), true);
         if (!blockSteps.isEmpty()) {
-            ChannelAim aim = new ChannelAim(player.getEyePosition().add(axis.scale(delivery.range())),
-                    Double.NEGATIVE_INFINITY, delivery.coneDegrees());
+            ChannelAim aim = new ChannelAim(player.getEyePosition().add(axis.scale(delivery.range())), null,
+                    delivery.coneDegrees());
             runSteps(PlayerHost.channeling(level, player, aim), HostKind.PLAYER, blockSteps, ability);
         }
         List<Step> entitySteps = channelSteps(ability.behaviors(), false);

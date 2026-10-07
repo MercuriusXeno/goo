@@ -2,12 +2,12 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
-import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
@@ -24,7 +24,9 @@ import java.util.List;
  * cursor's 3x3 from the level remembered from the cursor's block as the hold
  * began up three blocks, one block a tick, top down, dropping them, and leaves
  * that level, the mound above the swath and a block outside the flatten tag
- * standing (decision flatten-disc-cursor-breaks-above-the-plane).
+ * standing; begun on a wall's face, it shaves what stands out from the wall
+ * and leaves the wall and what is behind it
+ * (decision flatten-disc-cursor-breaks-above-the-plane).
  */
 public final class FlattenChannelTests {
 
@@ -33,6 +35,10 @@ public final class FlattenChannelTests {
     private static final BlockPos GROUND = new BlockPos(3, 0, 3);
     /** The block the cursor aims at while held, on the mound above the ground. */
     private static final BlockPos AIMED = GROUND.above();
+    /** A stone wall whose west face a hold begins on, with a dirt bump two deep standing out from it. */
+    private static final BlockPos WALL = new BlockPos(4, 2, 3);
+    /** Dirt behind the wall, on the side its face does not look out to. */
+    private static final BlockPos BEHIND_THE_WALL = WALL.east();
     /** Obsidian in the swath's top layer, outside the flatten tag. */
     private static final BlockPos OUTSIDE_TAG = GROUND.above(3).north();
     /** The swath's height above the ground, and a layer past it. */
@@ -70,9 +76,9 @@ public final class FlattenChannelTests {
         helper.setBlock(OUTSIDE_TAG, Blocks.OBSIDIAN);
         ServerPlayer player = flattener(helper);
         KnownRecipes.teachRequires(player, flatten);
-        double plane = ChannelAim.planeAbove(helper.absolutePos(GROUND).getY());
         GooStreamPayload tick = new GooStreamPayload(GooTypes.id(GooTypes.ROCK), ROCK_FLATTEN.toString(),
-                player.getEyePosition(), westFace(helper, AIMED), plane);
+                player.getEyePosition(), westFace(helper, AIMED), helper.absolutePos(GROUND),
+                Direction.UP.get3DDataValue());
         helper.runAfterDelay(1, () -> {
             GooStreamHandler.streamTick(player, tick);
             long broken = columns().stream().map(column -> column.above(SWATH_HEIGHT))
@@ -95,6 +101,39 @@ public final class FlattenChannelTests {
             }
             helper.assertBlockPresent(Blocks.OBSIDIAN, OUTSIDE_TAG);
             helper.assertItemEntityPresent(Items.DIRT, AIMED, ITEM_SEARCH_RADIUS);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A mock player facing east begins the hold on the west face of a stone
+     * wall and holds flatten at the dirt bump standing out from it: the bump
+     * is shaved back to the wall, and the wall and the block behind it stand.
+     *
+     * @param helper the gametest helper
+     */
+    public static void flattenShavesAWall(GameTestHelper helper) {
+        AbilityDefinition flatten = AbilityRegistry.of(helper.getLevel()).getAbility(ROCK_FLATTEN);
+        helper.assertTrue(flatten != null, ABILITY_REQUIRED);
+        helper.setBlock(WALL, Blocks.STONE);
+        helper.setBlock(BEHIND_THE_WALL, Blocks.DIRT);
+        for (int out = 1; out <= 2; out++) {
+            helper.setBlock(WALL.west(out), Blocks.DIRT);
+        }
+        ServerPlayer player = flattener(helper);
+        KnownRecipes.teachRequires(player, flatten);
+        GooStreamPayload tick = new GooStreamPayload(GooTypes.id(GooTypes.ROCK), ROCK_FLATTEN.toString(),
+                player.getEyePosition(), westFace(helper, WALL.west(2)), helper.absolutePos(WALL),
+                Direction.WEST.get3DDataValue());
+        for (int held = 1; held <= HOLD_TICKS; held++) {
+            helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, tick));
+        }
+        helper.runAfterDelay(HOLD_TICKS + 1, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.assertBlockPresent(Blocks.AIR, WALL.west());
+            helper.assertBlockPresent(Blocks.AIR, WALL.west(2));
+            helper.assertBlockPresent(Blocks.STONE, WALL);
+            helper.assertBlockPresent(Blocks.DIRT, BEHIND_THE_WALL);
             helper.succeed();
         });
     }
