@@ -16,7 +16,8 @@
           "radius": 3.75,
           "where": ["living", "alive", "not_item", "not_sneaking"],
           "cooldown": 10,
-          "charges": 2,
+          "charges": 4,
+          "spend_chance": 0.25,
           "strike_tick": 6,
           "strike_ticks": 13,
           "strike": [
