@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
+import com.mercuriusxeno.goo.ability.held.HeldEffects;
 import com.mercuriusxeno.goo.ability.nourish.Nourish;
 import com.mercuriusxeno.goo.ability.petrify.Petrification;
 import com.mercuriusxeno.goo.ability.program.EntityCounters;
@@ -65,6 +66,19 @@ public final class GooAttachments {
             ATTACHMENT_TYPES.register("nourish",
                     () -> AttachmentType.builder(() -> Nourish.NONE)
                             .serialize(Nourish.CODEC, Nourish::stands)
+                            .build());
+
+    /**
+     * The self + brew effects a player holds on the glove, each paying its
+     * upkeep every tick until ended, saved with the player while any stands
+     * and synced to the owning client.
+     * self-effects-trickle-until-ended
+     */
+    public static final Supplier<AttachmentType<HeldEffects>> HELD_EFFECTS =
+            ATTACHMENT_TYPES.register("held_effects",
+                    () -> AttachmentType.builder(() -> HeldEffects.NONE)
+                            .serialize(HeldEffects.CODEC, held -> !held.isEmpty())
+                            .sync(GooAttachments::syncsToOwner, HeldEffects.STREAM_CODEC)
                             .build());
 
     /**

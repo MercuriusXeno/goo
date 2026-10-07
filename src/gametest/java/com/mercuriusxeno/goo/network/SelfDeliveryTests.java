@@ -5,6 +5,8 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.SelfEatRoute;
+import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
+import com.mercuriusxeno.goo.ability.held.HeldEffects;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.GooStacks;
@@ -38,7 +40,9 @@ import java.util.UUID;
  * and runs when the eat finishes; an eat let go before then runs nothing
  * and drains nothing (decision self-brew-goos-eat-before-the-effect). The
  * mock server player has no connection ticking it, so the eat tests tick it
- * the way the connection would, through doTick.
+ * the way the connection would, through doTick. A finished eat holds the
+ * effect, paying its upkeep each tick after, until invoked again or dry
+ * (decision self-effects-trickle-until-ended).
  */
 public final class SelfDeliveryTests {
 
@@ -61,8 +65,10 @@ public final class SelfDeliveryTests {
     private static final Identifier BLAZE_KINDLE = Identifier.parse("goo:blaze_kindle");
     /** Ten hearts of ember halves, the full bar Kindle lays over full health. */
     private static final int FULL_EMBERS = 20;
-    /** Kindle's own duration in its JSON, which the glove keeps where a drunk brew holds an hour. */
-    private static final long GLOVE_KINDLE_TICKS = 1200L;
+    /** The ticks a held Kindle is watched paying its upkeep. */
+    private static final int UPKEEP_TICKS = 20;
+    /** The ticks of upkeep the dry player holds goo for. */
+    private static final int PAID_TICKS = 3;
     /** Halfway through the eat, when nothing has landed yet. */
     private static final int MID_EAT = SelfEatRoute.EAT_TICKS / 2;
     /** The tick after the eat's last tick, when the finish has run. */
@@ -81,8 +87,15 @@ public final class SelfDeliveryTests {
     private static final String SHOULD_LAY_NOTHING_MID_EAT = "Mid-eat no ember should stand, %d halves stand";
     private static final String SHOULD_DRAIN_NOTHING_MID_EAT = "Mid-eat no goo should drain, drained %d";
     private static final String SHOULD_LAY_EMBERS = "The finished eat should lay %d ember halves, laid %d";
-    private static final String SHOULD_KEEP_SHORT_DURATION =
-            "The glove's Kindle should end within %d ticks of now %d, ends at %d";
+    private static final String SHOULD_HOLD_WITHOUT_EXPIRY = "The glove's Kindle should never expire, ends at %d";
+    private static final String SHOULD_DRAIN_NOTHING_AT_EAT = "The finished eat should drain no one-shot cost, drained %d";
+    private static final String SHOULD_PAY_UPKEEP = "%d ticks held should drain %d mB of upkeep, drained %d";
+    private static final String SHOULD_BE_HELD = "Kindle should be held after the eat";
+    private static final String SHOULD_END_HELD = "Invoking held Kindle again should end it, held reads %s";
+    private static final String SHOULD_CLEAR_OVERLAY = "An ended Kindle should clear its embers, %d halves stand";
+    private static final String SHOULD_NOT_EAT_AGAIN = "Invoking held Kindle again should start no eat";
+    private static final String SHOULD_STAND_PAID = "Kindle should stand while its upkeep is paid, tick %d";
+    private static final String SHOULD_END_DRY = "Kindle should end on the tick the inventory cannot pay, held reads %s";
     private static final String SHOULD_STOP_EATING = "A released eat should leave the player out of the using state";
     private static final String SHOULD_LAY_NOTHING = "A released eat should lay no ember, %d halves stand";
     private static final String SHOULD_DRAIN_NOTHING = "A released eat should drain nothing, drained %d";
@@ -152,8 +165,8 @@ public final class SelfDeliveryTests {
 
     /**
      * A mock player invokes blaze kindle: it starts eating, holds no ember
-     * and its goo whole mid-eat, and wears a full ember bar with the cost
-     * drained when the eat finishes.
+     * and its goo whole mid-eat, and wears a full ember bar with no expiry
+     * and no one-shot cost drained when the eat finishes.
      *
      * @param helper the gametest helper
      */
@@ -176,15 +189,106 @@ public final class SelfDeliveryTests {
         helper.runAfterDelay(AFTER_EAT, () -> {
             int embers = HeartOverlayTests.halves(player);
             int drained = heldBefore - held(player, GooTypes.BLAZE);
-            long now = player.level().getGameTime();
             long endsAt = player.getData(GooAttachments.HEART_OVERLAY).expiresAt();
             helper.getLevel().getServer().getPlayerList().remove(player);
             helper.assertTrue(embers == FULL_EMBERS, String.format(SHOULD_LAY_EMBERS, FULL_EMBERS, embers));
-            helper.assertTrue(endsAt > now && endsAt <= now + GLOVE_KINDLE_TICKS,
-                    String.format(SHOULD_KEEP_SHORT_DURATION, GLOVE_KINDLE_TICKS, now, endsAt));
-            helper.assertTrue(drained == kindle.cost(), String.format(SHOULD_DRAIN_COST, kindle.cost(), drained));
+            helper.assertTrue(endsAt == HeartOverlay.NEVER_EXPIRES, String.format(SHOULD_HOLD_WITHOUT_EXPIRY, endsAt));
+            helper.assertTrue(drained == 0, String.format(SHOULD_DRAIN_NOTHING_AT_EAT, drained));
             helper.succeed();
         });
+    }
+
+    /**
+     * A player eats Kindle through: the inventory holds what it held the
+     * tick the eat finished, and twenty ticks later twenty upkeeps less.
+     * self-effects-trickle-until-ended
+     *
+     * @param helper the gametest helper
+     */
+    public static void kindleHeldPaysUpkeepEachTick(GameTestHelper helper) {
+        AbilityDefinition kindle = requireAbility(helper, BLAZE_KINDLE);
+        ServerPlayer player = HeartOverlayTests.selfInvoked(helper, GooTypes.BLAZE, BLAZE_KINDLE);
+        int heldAtEat = held(player, GooTypes.BLAZE);
+        int drainedAtEat = HELD_GOO * GooStacks.THOUSAND - heldAtEat;
+        helper.assertTrue(drainedAtEat == 0, String.format(SHOULD_DRAIN_NOTHING_AT_EAT, drainedAtEat));
+        helper.assertTrue(player.getData(GooAttachments.HELD_EFFECTS).holds(BLAZE_KINDLE), SHOULD_BE_HELD);
+        tickFor(helper, player, UPKEEP_TICKS);
+        helper.runAfterDelay(UPKEEP_TICKS + 1, () -> {
+            int drained = heldAtEat - held(player, GooTypes.BLAZE);
+            int expected = UPKEEP_TICKS * kindle.upkeep();
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.assertTrue(drained == expected, String.format(SHOULD_PAY_UPKEEP, UPKEEP_TICKS, expected, drained));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A player holding Kindle invokes it again: no eat starts, the effect
+     * ends and its embers clear.
+     * self-effects-trickle-until-ended
+     *
+     * @param helper the gametest helper
+     */
+    public static void kindleInvokedAgainEnds(GameTestHelper helper) {
+        ServerPlayer player = HeartOverlayTests.selfInvoked(helper, GooTypes.BLAZE, BLAZE_KINDLE);
+        helper.assertTrue(player.getData(GooAttachments.HELD_EFFECTS).holds(BLAZE_KINDLE), SHOULD_BE_HELD);
+
+        invoke(player, GooTypes.BLAZE, BLAZE_KINDLE);
+
+        boolean using = player.isUsingItem();
+        HeldEffects heldAfter = player.getData(GooAttachments.HELD_EFFECTS);
+        HeartOverlay overlay = player.getData(GooAttachments.HEART_OVERLAY);
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        helper.assertFalse(using, SHOULD_NOT_EAT_AGAIN);
+        helper.assertTrue(heldAfter.isEmpty(), String.format(SHOULD_END_HELD, heldAfter));
+        helper.assertTrue(overlay == HeartOverlay.NONE, String.format(SHOULD_CLEAR_OVERLAY, overlay.shieldHalves()));
+        helper.succeed();
+    }
+
+    /**
+     * A player holding goo for exactly three ticks of upkeep eats Kindle:
+     * it stands through the third tick, and on the fourth it ends and its
+     * embers clear.
+     * self-effects-trickle-until-ended
+     *
+     * @param helper the gametest helper
+     */
+    public static void kindleEndsWhenDry(GameTestHelper helper) {
+        AbilityDefinition kindle = requireAbility(helper, BLAZE_KINDLE);
+        ServerPlayer player = HeartOverlayTests.selfInvoked(helper, GooTypes.BLAZE, BLAZE_KINDLE);
+        int paid = PAID_TICKS * kindle.upkeep();
+        GooSourceScanner.deplete(player, GooTypes.BLAZE, held(player, GooTypes.BLAZE) - paid);
+        tickFor(helper, player, PAID_TICKS - 1);
+        // runnables sharing a delay run in no fixed order, so each checked tick ticks itself
+        helper.runAfterDelay(PAID_TICKS, () -> {
+            player.doTick();
+            helper.assertTrue(player.getData(GooAttachments.HELD_EFFECTS).holds(BLAZE_KINDLE),
+                    String.format(SHOULD_STAND_PAID, PAID_TICKS));
+        });
+        helper.runAfterDelay(PAID_TICKS + 1, () -> {
+            player.doTick();
+            HeldEffects heldAfter = player.getData(GooAttachments.HELD_EFFECTS);
+            HeartOverlay overlay = player.getData(GooAttachments.HEART_OVERLAY);
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.assertTrue(heldAfter.isEmpty(), String.format(SHOULD_END_DRY, heldAfter));
+            helper.assertTrue(overlay == HeartOverlay.NONE, String.format(SHOULD_CLEAR_OVERLAY, overlay.shieldHalves()));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Ticks a player once per game tick for the given ticks, the way its
+     * connection would; a check belongs at a later delay, since runnables
+     * sharing a delay run in no fixed order.
+     *
+     * @param helper the gametest helper
+     * @param player the player
+     * @param ticks  the ticks to run
+     */
+    static void tickFor(GameTestHelper helper, ServerPlayer player, int ticks) {
+        for (int tick = 1; tick <= ticks; tick++) {
+            helper.runAfterDelay(tick, player::doTick);
+        }
     }
 
     /**

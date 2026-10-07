@@ -3,10 +3,10 @@
   "displayName": "goo.ability.vital.nourish",
   "badge": "brew",
   "order": 30,
-  "cost": 1000,
+  "upkeep": 1,
   "delivery": { "kind": "self" },
   "behaviors": [
-    { "type": "nourish", "interval": 80, "duration": 400 }
+    { "type": "nourish", "interval": 80 }
   ],
   "tags": ["self"]
 }

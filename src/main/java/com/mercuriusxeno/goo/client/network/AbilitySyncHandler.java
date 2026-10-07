@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.network;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityArea;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
+import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.IndicatorShowing;
 import com.mercuriusxeno.goo.ability.program.Step;
@@ -89,12 +90,39 @@ public final class AbilitySyncHandler {
      * @param area        the area the glove draws while right click is held
      * @param indicator   when the ability's indicator shows
      * @param consumes    the items a throw takes, one of each, beside its goo cost
+     * @param upkeep      the mB a held self + brew effect pays each tick it stands
+     *                    (decision self-effects-trickle-until-ended)
      */
     public record ClientAbility(Identifier id, String displayName, String icon,
                                 int order, List<String> tags,
                                 List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge,
                                 List<Identifier> requires, AbilityArea area, IndicatorShowing indicator,
-                                List<Identifier> consumes) {
+                                List<Identifier> consumes, int upkeep) {
+
+        /**
+         * A client ability paying no upkeep.
+         *
+         * @param id          the ability resource identifier
+         * @param displayName the translation key
+         * @param icon        the icon texture path override
+         * @param order       the sort order
+         * @param tags        categorical tags
+         * @param behaviors   the ability's step program
+         * @param cost        the mB a throw costs
+         * @param delivery    how the ability leaves the glove
+         * @param badge       the target kind the radial marks on the icon
+         * @param requires    the items the player must know before its radial petal unlocks
+         * @param area        the area the glove draws while right click is held
+         * @param indicator   when the ability's indicator shows
+         * @param consumes    the items a throw takes, one of each
+         */
+        public ClientAbility(Identifier id, String displayName, String icon, int order, List<String> tags,
+                             List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge,
+                             List<Identifier> requires, AbilityArea area, IndicatorShowing indicator,
+                             List<Identifier> consumes) {
+            this(id, displayName, icon, order, tags, behaviors, cost, delivery, badge, requires, area, indicator,
+                    consumes, AbilityDefinition.NO_UPKEEP);
+        }
 
         /**
          * A client ability consuming no item beside its goo cost.
@@ -171,7 +199,7 @@ public final class AbilitySyncHandler {
             return new ClientAbility(Identifier.tryParse(entry.abilityId()), entry.displayName(), entry.icon(),
                     entry.order(), entry.tags(), entry.behaviors(),
                     entry.cost(), entry.delivery(), entry.badge(), entry.requires(), entry.area(),
-                    entry.indicator(), entry.consumes());
+                    entry.indicator(), entry.consumes(), entry.upkeep());
         }
 
         /**
