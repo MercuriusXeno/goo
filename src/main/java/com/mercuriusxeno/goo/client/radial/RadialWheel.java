@@ -258,7 +258,7 @@ public final class RadialWheel {
             PetalMask.Petal base = new PetalMask.Petal(start, width, HUB_FRACTION, length);
             addCards(petals, type, new Slot(start, openness, base), cardLength);
             if (width > 0) {
-                petals.add(new PetalArc(type, NONE, start, width, length, null));
+                petals.add(new PetalArc(type, NONE, start, width, length, null, openness));
             }
             start += width;
         }
@@ -273,7 +273,7 @@ public final class RadialWheel {
         double card = arcsWithOpenType(abilities).ability();
         for (int ability = abilities - 1; ability >= 0; ability--) {
             petals.add(new PetalArc(type, ability, slot.start() + ability * card * slot.openness(), card,
-                    cardLength.of(type, ability), slot.base()));
+                    cardLength.of(type, ability), slot.base(), slot.openness()));
         }
     }
 
@@ -640,9 +640,11 @@ public final class RadialWheel {
      * @param length  the petal's outer radius as a fraction of the wheel's, short of 1 while it recedes
      * @param root    the type petal an ability petal starts out from, or null for a type petal,
      *                which starts at the hub
+     * @param openness how far the petal's type is open, 0 closed to 1 fanned, which the
+     *                 ability petal's content slides in by
      */
     record PetalArc(int type, int ability, double start, double arc, double length,
-                    PetalMask.@Nullable Petal root) {
+                    PetalMask.@Nullable Petal root, double openness) {
 
         /**
          * The petal's shape: from the hub for a type petal, from exactly where
