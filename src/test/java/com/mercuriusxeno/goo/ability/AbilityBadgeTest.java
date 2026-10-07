@@ -25,12 +25,15 @@ class AbilityBadgeTest {
     private static final int SHIPPED_BREW_BADGES = 3;
     private static final int SHIPPED_CHANNELED_BADGES = 4;
     private static final int SHIPPED_FREE_BADGES = 2;
+    private static final int SHIPPED_TAP_BADGES = 1;
     /** The self + brew abilities, which wear brew on their self delivery (decision self-brew-goos-eat-before-the-effect). */
     private static final List<String> SHIPPED_BREWS = List.of("blaze_kindle", "leaf_barkskin", "rock_stoneskin");
     /** Blast, the shipped free ability (decision badge-vocabulary-gains-free-prism-tap-brew). */
     private static final List<String> SHIPPED_FREE = List.of("unstable_explode", "rock_crush");
     /** Self deliveries run each held tick on the player (decision flatten-disc-cursor-breaks-above-the-plane). */
     private static final List<String> SHIPPED_SELF_CHANNELS = List.of("rock_flatten");
+    /** Abilities a tap's drip runs (decision petrify-drip-calcifies-and-grows-dripstone). */
+    private static final List<String> SHIPPED_TAPS = List.of("rock_petrify_tap");
 
     @ParameterizedTest
     @CsvSource({"world, WORLD", "mob, MOB", "self, SELF", "channeled, CHANNELED", "brew, BREW",
@@ -83,6 +86,9 @@ class AbilityBadgeTest {
         if (SHIPPED_FREE.contains(definition.id().getPath())) {
             return AbilityBadge.FREE;
         }
+        if (SHIPPED_TAPS.contains(definition.id().getPath())) {
+            return AbilityBadge.TAP;
+        }
         return switch (definition.delivery().kind()) {
             case SELF -> selfBadge(definition.id().getPath());
             case STREAM -> AbilityBadge.CHANNELED;
@@ -107,7 +113,8 @@ class AbilityBadgeTest {
                 expectedBadge(definition), definition.badge(), definition.id().toString()));
         assertEquals(Map.of(AbilityBadge.MOB, (long) SHIPPED_MOB_BADGES, AbilityBadge.WORLD, (long) SHIPPED_WORLD_BADGES,
                         AbilityBadge.SELF, (long) SHIPPED_SELF_BADGES, AbilityBadge.BREW, (long) SHIPPED_BREW_BADGES,
-                        AbilityBadge.CHANNELED, (long) SHIPPED_CHANNELED_BADGES, AbilityBadge.FREE, (long) SHIPPED_FREE_BADGES),
+                        AbilityBadge.CHANNELED, (long) SHIPPED_CHANNELED_BADGES, AbilityBadge.FREE, (long) SHIPPED_FREE_BADGES,
+                        AbilityBadge.TAP, (long) SHIPPED_TAP_BADGES),
                 shipped.values().stream().collect(Collectors.groupingBy(AbilityDefinition::badge, Collectors.counting())));
     }
 }

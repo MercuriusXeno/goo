@@ -68,7 +68,12 @@ public enum HostCapability {
      * The blocks around the host to read and break (decision
      * crush-blob-breaks-along-its-strike).
      */
-    BREAK_BLOCKS(BlockBreakHost.class);
+    BREAK_BLOCKS(BlockBreakHost.class),
+    /**
+     * A tap drip's landing: the drips its block has taken, and dripstone to
+     * grow down from it (decision petrify-drip-calcifies-and-grows-dripstone).
+     */
+    DRIP(DripHost.class);
 
     private final Class<? extends StepHost> hostType;
 

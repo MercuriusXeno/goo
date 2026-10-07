@@ -368,6 +368,8 @@ public final class GooTestFunctions {
     private static final String CRUSH_BREAKS_ALONG_THE_STRIKE = "crush_breaks_along_the_strike";
     private static final String PETRIFY_ENCASES_A_ZOMBIE = "petrify_encases_a_zombie";
     private static final String PETRIFY_CALCIFIES_GRAVEL = "petrify_calcifies_gravel";
+    private static final String PETRIFY_TAP_CALCIFIES = "petrify_tap_calcifies";
+    private static final String PETRIFY_TAP_GROWS_DRIPSTONE = "petrify_tap_grows_dripstone";
     private static final String MOB_CRYSTAL = "mob_crystal_flechettes";
     private static final String MOB_LEAF = "mob_leaf_entangle";
     private static final String MOB_VITAL = "mob_vital_clone";
@@ -780,6 +782,8 @@ public final class GooTestFunctions {
         reg(r, CRUSH_BREAKS_ALONG_THE_STRIKE, CrushStrikeTests::crushBreaksAlongTheStrike);
         reg(r, PETRIFY_ENCASES_A_ZOMBIE, PetrifyStreamTests::petrifyEncasesAZombie);
         reg(r, PETRIFY_CALCIFIES_GRAVEL, PetrifyStreamTests::petrifyCalcifiesGravel);
+        reg(r, PETRIFY_TAP_CALCIFIES, PetrifyTapTests::petrifyTapCalcifies);
+        reg(r, PETRIFY_TAP_GROWS_DRIPSTONE, PetrifyTapTests::petrifyTapGrowsDripstone);
         reg(r, MOB_CRYSTAL, MobEffectTests::crystalFlechettes);
         reg(r, MOB_LEAF, MobEffectTests::leafEntangle);
         reg(r, MOB_VITAL, MobEffectTests::vitalClone);

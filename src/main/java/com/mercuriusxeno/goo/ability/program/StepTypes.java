@@ -71,6 +71,7 @@ public final class StepTypes {
         register(CrushStep.TYPE);
         register(PetrifyStep.TYPE);
         register(CalcifyStep.TYPE);
+        register(PetrifyDripStep.TYPE);
     }
 
     private StepTypes() {
