@@ -26,7 +26,13 @@ public enum DamageKind {
     /**
      * Blunt force, rock crush's source (decision crush-blob-breaks-along-its-strike).
      */
-    FORCE;
+    FORCE,
+    /**
+     * The thrower's own attack, a player's where a player threw it, so a
+     * kill drops its experience and loot as the thrower's kill; generic
+     * where no living thrower stands (decision bore-vortex-with-a-worldspace-shake).
+     */
+    ATTACK;
 
     private static final String WHAT = "damage source";
 
