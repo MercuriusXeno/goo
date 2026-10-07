@@ -122,6 +122,7 @@ public final class EffectExecutorTests {
     private static final String HOLE_LEFT_STONE = "The black hole left the stone it faced standing";
     private static final String HOLE_MISSED_PIG = "The black hole left the pig inside it at other than half health";
     private static final String HOLE_DROPPED_EARLY = "The black hole dropped items before it contracted";
+    private static final String HOLE_MOVED = "The black hole left the cell it landed in while it ran";
     private static final String HOLE_DROPPED_NO_ROCK = "The black hole popped no rock goo for the stone it consumed";
 
     /** The floor a falling marker lands on. */
@@ -201,6 +202,23 @@ public final class EffectExecutorTests {
         helper.runAfterDelay(NETHER_PROGRAM_TICKS, () -> {
             helper.assertTrue(helper.getBlockState(MARKER_POS.north()).isAir(), HOLE_LEFT_STONE);
             helper.assertBlockNotPresent(GooBlocks.ABILITY_BLOCK.get(), MARKER_POS);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Nether: a black hole that consumes the wall holding it up stays in the
+     * cell it landed in until its phases end, rather than falling mid-animation.
+     *
+     * @param helper the gametest helper
+     */
+    public static void blackHoleHoldsItsPlace(GameTestHelper helper) {
+        helper.assertTrue(GooValues.of(helper.getLevel()).size() > 0, VALUES_REQUIRED);
+        discardLeftoverEntities(helper);
+        placeMarkerWithWall(helper, GooTypes.NETHER, ABILITY_NETHER_BLACK_HOLE);
+        helper.runAfterDelay(BLACK_HOLE_GATHER_TICKS + BLACK_HOLE_EXPAND_TICKS + SHORT_WAIT, () -> {
+            helper.assertTrue(helper.getBlockState(MARKER_POS.north()).isAir(), HOLE_LEFT_STONE);
+            helper.assertTrue(helper.getBlockState(MARKER_POS).is(GooBlocks.ABILITY_BLOCK.get()), HOLE_MOVED);
             helper.succeed();
         });
     }

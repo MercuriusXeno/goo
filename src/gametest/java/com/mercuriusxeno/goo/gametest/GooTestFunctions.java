@@ -196,6 +196,7 @@ public final class GooTestFunctions {
     private static final String FX_METAL = "fx_metal_runs";
     private static final String FX_CRYSTAL = "fx_crystal_runs";
     private static final String FX_NETHER = "fx_nether_implodes";
+    private static final String FX_BLACK_HOLE_HOLDS_ITS_PLACE = "fx_black_hole_holds_its_place";
     private static final String FX_UNSTABLE = "fx_unstable_explodes";
     private static final String FX_PROGRAM_GLOW_WALL = "fx_program_glow_wall";
     private static final String FX_PROGRAM_GLOW_FLOOR = "fx_program_glow_floor";
@@ -630,6 +631,7 @@ public final class GooTestFunctions {
         reg(r, FX_METAL, EffectExecutorTests::metalRuns);
         reg(r, FX_CRYSTAL, EffectExecutorTests::crystalRuns);
         reg(r, FX_NETHER, EffectExecutorTests::netherImplodes);
+        reg(r, FX_BLACK_HOLE_HOLDS_ITS_PLACE, EffectExecutorTests::blackHoleHoldsItsPlace);
         reg(r, FX_UNSTABLE, EffectExecutorTests::unstableExplodes);
         reg(r, FX_PROGRAM_GLOW_WALL, EffectExecutorTests::programGlowWall);
         reg(r, FX_PROGRAM_GLOW_FLOOR, EffectExecutorTests::programGlowFloor);

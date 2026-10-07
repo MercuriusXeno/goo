@@ -5,8 +5,12 @@ import com.mercuriusxeno.goo.ability.program.Variables;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
+import java.util.List;
 
 /**
  * Crystal goo's burnout explosion, the design the operator settled
@@ -21,7 +25,7 @@ import net.minecraft.util.ARGB;
  * carries progress in red and how far the shell has shattered in blue,
  * since a core pipeline takes no per-draw uniforms.
  */
-public final class CrystalExplosionVisual implements BurnoutVisual {
+public final class CrystalExplosionVisual implements BurnoutVisual, HeldGhostVisual {
 
     /** The one instance the burnout registry holds. */
     public static final CrystalExplosionVisual INSTANCE = new CrystalExplosionVisual();
@@ -34,6 +38,8 @@ public final class CrystalExplosionVisual implements BurnoutVisual {
     static final int DURATION_TICKS = GROW_TICKS + SHATTER_TICKS;
     /** The cloud radius drawn when the ability's field-effect step cannot be read. */
     static final float FALLBACK_REACH = 4.5f;
+    /** The progress at which the shell rests at full radius, whole before it shatters. */
+    static final float RESTING_PROGRESS = (float) GROW_TICKS / DURATION_TICKS;
     private static final int OPAQUE = 0xFF;
 
     private CrystalExplosionVisual() {
@@ -56,6 +62,31 @@ public final class CrystalExplosionVisual implements BurnoutVisual {
         int color = shellColor(progress, OPAQUE);
         BurnoutGeometry.drawAtMarker(frame, burnout.pos(), GooRenderTypes.CRYSTAL_EXPLOSION_TYPE, (pose, c) ->
                 BurnoutGeometry.emitSphere(pose, c, radius, color));
+    }
+
+    @Override
+    public List<HeldLayer> heldLayers() {
+        return List.of(new HeldLayer(GooRenderTypes.CRYSTAL_EXPLOSION_TYPE,
+                GooRenderTypes.CRYSTAL_EXPLOSION_THROUGH_BLOCKS_TYPE, this::emitHeld));
+    }
+
+    /**
+     * Razor's ghost: the facet shell at its resting radius, whole, the shader
+     * reading the held opacity from the vertex color so facets stay near
+     * invisible and the rainbow edges faint.
+     * held-visual-ghosts-the-landing-in-two-passes
+     *
+     * @param pose       the pose entry
+     * @param c          the vertex consumer
+     * @param ghost      the ghost
+     * @param face       the face the throw strikes
+     * @param opacity    the share of the landing's opacity
+     * @param nowSeconds seconds on the real-time clock
+     */
+    private void emitHeld(PoseStack.Pose pose, VertexConsumer c, HeldGhost ghost, Direction face, float opacity,
+                         double nowSeconds) {
+        BurnoutGeometry.emitSphere(pose, c, shellRadius(RESTING_PROGRESS, ghost.domeRadius()),
+                shellColor(RESTING_PROGRESS, NetherDiscMesh.toByte(opacity)));
     }
 
     /**

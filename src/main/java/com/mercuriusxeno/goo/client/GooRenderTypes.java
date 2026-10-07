@@ -5,6 +5,7 @@ import com.mojang.blaze3d.pipeline.BlendFunction;
 import com.mojang.blaze3d.pipeline.ColorTargetState;
 import com.mojang.blaze3d.pipeline.DepthStencilState;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
+import com.mojang.blaze3d.platform.CompareOp;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.renderer.RenderPipelines;
@@ -33,6 +34,8 @@ public final class GooRenderTypes {
     private static final String CORE_SHADER_PATH = "core/";
     /** Name prefix of a goo render type. */
     private static final String TYPE_NAME_PREFIX = "goo_";
+    /** Name suffix of a burnout pipeline's twin that draws through blocks. */
+    private static final String THROUGH_BLOCKS_SUFFIX = "_through_blocks";
 
     /**
      * Lines pipeline with LIGHTNING blend (SRC_ALPHA, ONE) and no depth write.
@@ -114,6 +117,32 @@ public final class GooRenderTypes {
     );
 
     /**
+     * The black hole's held ghost body: its dark core shader, translucent with
+     * depth tested and depth write off, so the ghost hides nothing behind it.
+     * held-visual-ghosts-the-landing-in-two-passes
+     */
+    public static final RenderPipeline NETHER_BLACKHOLE_HELD = shaderPairPipeline("nether_blackhole_held",
+            "nether_blackhole", BlendFunction.TRANSLUCENT, DefaultVertexFormat.POSITION_COLOR_NORMAL,
+            DepthStencilState.DEFAULT.depthTest());
+
+    /** RenderType for the black hole's held ghost body. */
+    public static final RenderType NETHER_BLACKHOLE_HELD_TYPE = burnoutType(NETHER_BLACKHOLE_HELD);
+
+    /** The black hole's held ghost body through blocks, depth ignored. */
+    public static final RenderPipeline NETHER_BLACKHOLE_THROUGH_BLOCKS = throughBlocksPipeline("nether_blackhole",
+            BlendFunction.TRANSLUCENT);
+
+    /** RenderType for the black hole's held ghost body through blocks. */
+    public static final RenderType NETHER_BLACKHOLE_THROUGH_BLOCKS_TYPE = burnoutType(NETHER_BLACKHOLE_THROUGH_BLOCKS);
+
+    /** The black hole's corona through blocks, depth ignored, for its held ghost. */
+    public static final RenderPipeline NETHER_CORONA_THROUGH_BLOCKS = throughBlocksPipeline("nether_corona",
+            BlendFunction.LIGHTNING);
+
+    /** RenderType for the black hole's corona through blocks. */
+    public static final RenderType NETHER_CORONA_THROUGH_BLOCKS_TYPE = burnoutType(NETHER_CORONA_THROUGH_BLOCKS);
+
+    /**
      * Unstable goo's burnout explosion pipeline (decision
      * elemental-explosion-per-type): the fireball sphere and its shockwave
      * ring, additive with depth write off and both faces drawn, through
@@ -123,6 +152,18 @@ public final class GooRenderTypes {
 
     /** RenderType that draws unstable goo's burnout explosion. */
     public static final RenderType UNSTABLE_EXPLOSION_TYPE = burnoutType(UNSTABLE_EXPLOSION);
+
+    /**
+     * Unstable's held ghost through blocks: the unstable explosion shader with
+     * no depth test, so the crater the blast would cut shows through blocks.
+     * held-visual-ghosts-the-landing-in-two-passes
+     */
+    public static final RenderPipeline UNSTABLE_EXPLOSION_THROUGH_BLOCKS = throughBlocksPipeline("unstable_explosion",
+            BlendFunction.LIGHTNING);
+
+    /** RenderType for unstable's held ghost through blocks. */
+    public static final RenderType UNSTABLE_EXPLOSION_THROUGH_BLOCKS_TYPE =
+            burnoutType(UNSTABLE_EXPLOSION_THROUGH_BLOCKS);
 
     /**
      * Rock goo's burnout explosion pipeline: the dust shock disc, alpha
@@ -171,6 +212,17 @@ public final class GooRenderTypes {
     public static final RenderType METAL_EXPLOSION_TYPE = burnoutType(METAL_EXPLOSION);
 
     /**
+     * Metal's held ghost through blocks: the metal explosion shader with no
+     * depth test, so the spikes inside blocks show through them.
+     * held-visual-ghosts-the-landing-in-two-passes
+     */
+    public static final RenderPipeline METAL_EXPLOSION_THROUGH_BLOCKS = throughBlocksPipeline("metal_explosion",
+            BlendFunction.TRANSLUCENT);
+
+    /** RenderType for metal's held ghost through blocks. */
+    public static final RenderType METAL_EXPLOSION_THROUGH_BLOCKS_TYPE = burnoutType(METAL_EXPLOSION_THROUGH_BLOCKS);
+
+    /**
      * Crystal goo's burnout explosion pipeline: the prism burst, alpha
      * blended, through {@code crystal_explosion.vsh / .fsh}.
      */
@@ -179,6 +231,17 @@ public final class GooRenderTypes {
 
     /** RenderType that draws crystal goo's burnout explosion. */
     public static final RenderType CRYSTAL_EXPLOSION_TYPE = burnoutType(CRYSTAL_EXPLOSION);
+
+    /**
+     * Crystal's held ghost through blocks: the crystal explosion shader with no
+     * depth test, so the part of the dome inside blocks shows through them.
+     * held-visual-ghosts-the-landing-in-two-passes
+     */
+    public static final RenderPipeline CRYSTAL_EXPLOSION_THROUGH_BLOCKS = throughBlocksPipeline("crystal_explosion",
+            BlendFunction.TRANSLUCENT);
+
+    /** RenderType for crystal's held ghost through blocks. */
+    public static final RenderType CRYSTAL_EXPLOSION_THROUGH_BLOCKS_TYPE = burnoutType(CRYSTAL_EXPLOSION_THROUGH_BLOCKS);
 
     /**
      * Glow goo's burnout explosion pipeline: the aurora bloom, additive,
@@ -692,13 +755,43 @@ public final class GooRenderTypes {
      * @return the pipeline
      */
     private static RenderPipeline burnoutPipeline(String name, BlendFunction blend, VertexFormat format) {
+        return shaderPairPipeline(name, name, blend, format, DepthStencilState.DEFAULT.depthTest());
+    }
+
+    /**
+     * A burnout pipeline's twin that ignores depth: the same shader pair and
+     * blend with depth test and depth write off, so what it draws shows through blocks.
+     * held-visual-ghosts-the-landing-in-two-passes
+     *
+     * @param name  the burnout's shader pair's name
+     * @param blend how the pipeline blends over the world
+     * @return the pipeline, located at the burnout's name with a through-blocks suffix
+     */
+    private static RenderPipeline throughBlocksPipeline(String name, BlendFunction blend) {
+        return shaderPairPipeline(name + THROUGH_BLOCKS_SUFFIX, name, blend, DefaultVertexFormat.POSITION_COLOR_NORMAL,
+                CompareOp.ALWAYS_PASS);
+    }
+
+    /**
+     * A quad pipeline over a shader pair under {@code core/<shader>}, depth write
+     * off, both faces drawn.
+     *
+     * @param location  the pipeline's name
+     * @param shader    the shader pair's name
+     * @param blend     how the pipeline blends over the world
+     * @param format    the vertex format its quads carry
+     * @param depthTest the depth comparison its fragments pass
+     * @return the pipeline
+     */
+    private static RenderPipeline shaderPairPipeline(String location, String shader, BlendFunction blend,
+                                                     VertexFormat format, CompareOp depthTest) {
         return RenderPipeline.builder(RenderPipelines.MATRICES_PROJECTION_SNIPPET, RenderPipelines.GLOBALS_SNIPPET)
-                .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + name))
-                .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + name))
-                .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + name))
+                .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + location))
+                .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + shader))
+                .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + shader))
                 .withVertexFormat(format, VertexFormat.Mode.QUADS)
                 .withColorTargetState(new ColorTargetState(blend))
-                .withDepthStencilState(new DepthStencilState(DepthStencilState.DEFAULT.depthTest(), false))
+                .withDepthStencilState(new DepthStencilState(depthTest, false))
                 .withCull(false)
                 .build();
     }
@@ -725,6 +818,9 @@ public final class GooRenderTypes {
         event.registerPipeline(LINES_ADDITIVE_GLOW);
         event.registerPipeline(NETHER_BLACKHOLE);
         event.registerPipeline(NETHER_CORONA);
+        event.registerPipeline(NETHER_BLACKHOLE_HELD);
+        event.registerPipeline(NETHER_BLACKHOLE_THROUGH_BLOCKS);
+        event.registerPipeline(NETHER_CORONA_THROUGH_BLOCKS);
         event.registerPipeline(NETHER_DISK);
         event.registerPipeline(NETHER_CUBE_EDGE);
         event.registerPipeline(VORONOI_FISSURE);
@@ -751,12 +847,15 @@ public final class GooRenderTypes {
      */
     private static void registerBurnoutPipelines(RegisterRenderPipelinesEvent event) {
         event.registerPipeline(UNSTABLE_EXPLOSION);
+        event.registerPipeline(UNSTABLE_EXPLOSION_THROUGH_BLOCKS);
         event.registerPipeline(ROCK_EXPLOSION);
         event.registerPipeline(BLAZE_EXPLOSION);
         event.registerPipeline(FROST_EXPLOSION);
         event.registerPipeline(NETHER_EXPLOSION);
         event.registerPipeline(METAL_EXPLOSION);
+        event.registerPipeline(METAL_EXPLOSION_THROUGH_BLOCKS);
         event.registerPipeline(CRYSTAL_EXPLOSION);
+        event.registerPipeline(CRYSTAL_EXPLOSION_THROUGH_BLOCKS);
         event.registerPipeline(GLOW_EXPLOSION);
     }
 }
