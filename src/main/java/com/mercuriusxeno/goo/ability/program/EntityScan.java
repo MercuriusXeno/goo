@@ -166,6 +166,8 @@ public final class EntityScan {
         table.put(EntityFilter.HAS_BABY_FORM, (entity, self) -> hasBabyForm(entity));
         table.put(EntityFilter.NOT_BABY,
                 (entity, self) -> !(entity instanceof LivingEntity living && living.isBaby()));
+        table.put(EntityFilter.VULNERABLE,
+                (entity, self) -> entity instanceof LivingEntity living && living.invulnerableTime == 0);
         for (EntityFilter filter : EntityFilter.values()) {
             if (!table.containsKey(filter)) {
                 throw new IllegalStateException(ERR_UNMEANT_FILTER + filter);

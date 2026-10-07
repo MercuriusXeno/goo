@@ -7,7 +7,13 @@
   "requires": ["minecraft:stone", "minecraft:cobblestone"],
   "delivery": { "kind": "stream", "range": 4, "cone": 5, "ticks_per_charge": 20 },
   "behaviors": [
-    { "type": "bore", "breaks": "goo:bore_breakable", "count": 2 }
+    {
+      "type": "bore", "breaks": "goo:bore_breakable", "count": 2,
+      "where": ["vulnerable"],
+      "strike": [
+        { "type": "damage", "amount": 2, "source": "attack", "knockback": false, "invulnerable_ticks": 10 }
+      ]
+    }
   ],
   "tags": ["stream"]
 }

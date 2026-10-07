@@ -5,7 +5,9 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import java.util.List;
 import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.OptionalInt;
@@ -167,5 +169,19 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
     @Override
     public Entity breaker() {
         return player;
+    }
+
+    @Override
+    public void forEachLivingIn(List<BlockPos> cells, Set<EntityFilter> filters, Consumer<TargetHost> body) {
+        if (cells.isEmpty()) {
+            return;
+        }
+        List<AABB> boxes = cells.stream().map(AABB::new).toList();
+        AABB bounds = boxes.stream().reduce(AABB::minmax).orElseThrow();
+        for (LivingEntity living : level.getEntitiesOfClass(LivingEntity.class, bounds, living -> living != player
+                && living.isAlive() && boxes.stream().anyMatch(living.getBoundingBox()::intersects)
+                && EntityScan.passes(living, filters, player))) {
+            body.accept(new EntityHost(level, living, player));
+        }
     }
 }
