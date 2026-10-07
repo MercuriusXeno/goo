@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.held.HeldEffectsEvents;
 import com.mercuriusxeno.goo.network.GooSelfHandler;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -28,8 +29,9 @@ public final class GooBrewEffectEvents {
     @SubscribeEvent
     public static void onEffectAdded(MobEffectEvent.Added event) {
         MobEffectInstance instance = event.getEffectInstance();
+        // brew-runs-the-crawl-prepaid-on-a-shown-clock: a glove effect's time is no drink
         if (instance.getEffect().value() instanceof GooBrewEffect brew
-                && event.getEntity() instanceof ServerPlayer player) {
+                && event.getEntity() instanceof ServerPlayer player && !HeldEffectsEvents.mirroring()) {
             GooSelfHandler.drinkBrew(player, brew.gooType(), instance.getDuration());
         }
     }
