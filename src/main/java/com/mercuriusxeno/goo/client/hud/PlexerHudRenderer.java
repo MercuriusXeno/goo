@@ -12,7 +12,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
-import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -27,9 +26,6 @@ import org.jspecify.annotations.Nullable;
 public final class PlexerHudRenderer {
 
     private static final HudAnimator<BlockPos> ANIMATOR = new HudAnimator<>(BlockPos::equals);
-    private static final double BLOCK_CENTER = 0.5;
-    /** The block top plus a one-pixel gap under the panel's bottom edge, in blocks. */
-    private static final double ABOVE_BLOCK_TOP = 1.0 + 1.0 / 16.0;
 
     private PlexerHudRenderer() {
     }
@@ -41,7 +37,7 @@ public final class PlexerHudRenderer {
      */
     @SubscribeEvent
     public static void onAfterOpaqueFeatures(RenderLevelStageEvent.AfterOpaqueFeatures event) {
-        ANIMATOR.tick(targetPos());
+        ANIMATOR.tick(PlexerPanelTarget.trackedPos(hitPos(), PlexerHudRenderer::holdsTarget));
         BlockPos pos = ANIMATOR.tracked();
         if (pos == null) {
             return;
@@ -56,19 +52,23 @@ public final class PlexerHudRenderer {
     }
 
     /**
-     * @return the position of the plexer holding a target the crosshair rests on, or null
+     * @return the block the crosshair rests on, or null
      */
-    private static @Nullable BlockPos targetPos() {
+    private static @Nullable BlockPos hitPos() {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || mc.hitResult == null || mc.hitResult.getType() != HitResult.Type.BLOCK) {
             return null;
         }
-        BlockPos pos = ((BlockHitResult) mc.hitResult).getBlockPos();
+        return ((BlockHitResult) mc.hitResult).getBlockPos();
+    }
+
+    /**
+     * @param pos the block position
+     * @return whether a plexer stands there holding a target
+     */
+    private static boolean holdsTarget(BlockPos pos) {
         PlexerBlockEntity plexer = lookupPlexer(pos);
-        if (plexer == null || plexer.getTargetItem().isEmpty()) {
-            return null;
-        }
-        return pos;
+        return plexer != null && !plexer.getTargetItem().isEmpty();
     }
 
     /**
@@ -92,8 +92,8 @@ public final class PlexerHudRenderer {
      * @param target    the plexer's target item
      */
     private static void paintPanel(PoseStack poseStack, Camera camera, BlockPos pos, ItemStack target) {
-        Vec3 anchor = new Vec3(pos.getX() + BLOCK_CENTER, pos.getY() + ABOVE_BLOCK_TOP, pos.getZ() + BLOCK_CENTER);
-        PanelPainter.paint(poseStack, camera, PanelPlacement.onRim(anchor, ANIMATOR.pitch(), ANIMATOR.opacity()),
+        PanelPainter.paint(poseStack, camera,
+                PanelPlacement.onRim(PlexerPanelTarget.anchor(pos), ANIMATOR.pitch(), ANIMATOR.opacity()),
                 PlexerPanelRows.rows(target.getHoverName().getString(),
                         ItemParticleIcons.of(PlayerKnowledge.idOf(target.getItem()))));
     }

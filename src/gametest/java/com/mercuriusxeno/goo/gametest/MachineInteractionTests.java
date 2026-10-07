@@ -350,21 +350,48 @@ public final class MachineInteractionTests {
     }
 
     /**
-     * Plexer: an item clicked into the cutaway becomes the target through the dispatcher.
+     * Plexer: an item clicked into the cutaway becomes the target through the dispatcher,
+     * and an empty-hand click on the cutaway clears it; neither click sends the player a
+     * message (decisions plexer-target-shows-in-a-hud-element, plexer-messages-go-and-refusal-fizzles).
      *
      * @param helper the gametest helper
      */
+    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
     public static void plexerSetTarget(GameTestHelper helper) {
         helper.setBlock(BE_POS, GooBlocks.PLEXER.get());
         PlexerBlockEntity plexer = helper.getBlockEntity(BE_POS, PlexerBlockEntity.class);
-        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        player.setPos(Vec3.atCenterOf(helper.absolutePos(BE_POS.above())));
         player.setData(GooAttachments.KNOWN_ITEMS, KnownItems.NONE.with(PlayerKnowledge.idOf(Items.STONE)));
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.STONE));
+        PacketRecorder recorder = PacketRecorder.attachTo(player);
 
-        helper.useBlock(BE_POS, player, cutawayHit(helper));
+        try {
+            helper.useBlock(BE_POS, player, cutawayHit(helper));
+            helper.assertTrue(plexer.getTargetItem().is(Items.STONE), PLEXER_SHOULD_SET);
+            assertNoMessage(helper, recorder, "Setting the target");
 
-        helper.assertTrue(plexer.getTargetItem().is(Items.STONE), PLEXER_SHOULD_SET);
+            player.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
+            helper.useBlock(BE_POS, player, cutawayHit(helper));
+            helper.assertTrue(plexer.getTargetItem().isEmpty(), "An empty-hand cutaway click should clear the target");
+            assertNoMessage(helper, recorder, "Clearing the target");
+        } finally {
+            helper.getLevel().getServer().getPlayerList().remove(player);
+        }
         helper.succeed();
+    }
+
+    /**
+     * The player has been sent no chat or overlay message since the recorder attached.
+     *
+     * @param helper   the gametest helper
+     * @param recorder the recorder on the player's connection
+     * @param act      the act that should have sent none
+     */
+    private static void assertNoMessage(GameTestHelper helper, PacketRecorder recorder, String act) {
+        helper.assertTrue(recorder.sentOf(ClientboundSystemChatPacket.class).isEmpty()
+                && recorder.sentOf(ClientboundSetActionBarTextPacket.class).isEmpty(),
+                act + " should send the player no message");
     }
 
     /**
@@ -390,13 +417,13 @@ public final class MachineInteractionTests {
             helper.assertTrue(plexer.getTargetItem().isEmpty(),
                     "Plexer should refuse a target the player has not learned");
             assertRefusalCue(helper, plexer, recorder);
+
+            player.setData(GooAttachments.KNOWN_ITEMS, KnownItems.NONE.with(PlayerKnowledge.idOf(Items.STONE)));
+            helper.useBlock(BE_POS, player, cutawayHit(helper));
+            helper.assertTrue(plexer.getTargetItem().is(Items.STONE), PLEXER_SHOULD_SET);
         } finally {
             helper.getLevel().getServer().getPlayerList().remove(player);
         }
-
-        player.setData(GooAttachments.KNOWN_ITEMS, KnownItems.NONE.with(PlayerKnowledge.idOf(Items.STONE)));
-        helper.useBlock(BE_POS, player, cutawayHit(helper));
-        helper.assertTrue(plexer.getTargetItem().is(Items.STONE), PLEXER_SHOULD_SET);
         helper.succeed();
     }
 
@@ -421,9 +448,7 @@ public final class MachineInteractionTests {
         helper.assertTrue(sounds.size() == 1 && sounds.getFirst().getSound().value() == SoundEvents.FIRE_EXTINGUISH
                 && sounds.getFirst().getSource() == SoundSource.BLOCKS,
                 "The refusal should fizzle among block sounds, sent " + sounds);
-        helper.assertTrue(recorder.sentOf(ClientboundSystemChatPacket.class).isEmpty()
-                && recorder.sentOf(ClientboundSetActionBarTextPacket.class).isEmpty(),
-                "The refusal should send the player no message");
+        assertNoMessage(helper, recorder, "The refusal");
     }
 
     /**
