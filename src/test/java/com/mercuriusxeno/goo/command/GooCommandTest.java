@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.command;
 
+import com.mojang.brigadier.tree.CommandNode;
 import com.mojang.brigadier.tree.LiteralCommandNode;
 import net.minecraft.commands.CommandSourceStack;
 import org.junit.jupiter.api.Test;
@@ -36,5 +37,16 @@ class GooCommandTest {
         assertNotNull(root.getChild(LAB));
         assertNotNull(root.getChild(ORPHANS));
         assertNotNull(root.getChild(LOOKUP));
+    }
+
+    /**
+     * An open gate stands learn and forget under lab, so knowledge comes on request
+     * (decision lab-kit-teaches-every-recipe); a closed gate holds no lab to stand them under.
+     */
+    @Test
+    void openGateLabHoldsLearnAndForget() {
+        CommandNode<CommandSourceStack> lab = GooCommand.commandTree(true).build().getChild(LAB);
+        assertNotNull(lab.getChild("learn"));
+        assertNotNull(lab.getChild("forget"));
     }
 }
