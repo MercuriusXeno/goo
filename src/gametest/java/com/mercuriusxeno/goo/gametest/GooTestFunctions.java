@@ -295,6 +295,7 @@ public final class GooTestFunctions {
     private static final String TAP_DRIP_BOTTOMLESS = "tap_drip_bottomless";
     private static final String TAP_HOST_PLACES_ABOVE_LANDING = "tap_host_places_above_landing";
     private static final String TAP_DRIP_NO_ABILITY = "tap_drip_no_ability";
+    private static final String VITALITY_TAP_HEALS = "vitality_tap_heals_below";
     private static final String TAP_DRIP_SENDS_TAP_DRIP = "tap_drip_sends_tap_drip";
     private static final String TAP_VALVE_STEPS_FIVE_GRADES = "tap_valve_steps_five_grades";
     private static final String TAP_SNEAK_CLICK_STEPS_VALVE_BACK = "tap_sneak_click_steps_valve_back";
@@ -486,6 +487,7 @@ public final class GooTestFunctions {
         reg(r, TAP_DRIP_BOTTOMLESS, TapDripTests::tapDripBottomless);
         reg(r, TAP_HOST_PLACES_ABOVE_LANDING, TapDripTests::tapHostPlacesAboveLanding);
         reg(r, TAP_DRIP_NO_ABILITY, TapDripTests::tapDripNoAbility);
+        reg(r, VITALITY_TAP_HEALS, TapDripTests::vitalityTapHealsBelow);
         reg(r, TAP_DRIP_SENDS_TAP_DRIP, TapDripTests::tapDripSendsTapDrip);
         reg(r, TAP_VALVE_STEPS_FIVE_GRADES, TapDripTests::tapValveStepsFiveGrades);
         reg(r, TAP_SNEAK_CLICK_STEPS_VALVE_BACK, TapDripTests::tapSneakClickStepsValveBack);
