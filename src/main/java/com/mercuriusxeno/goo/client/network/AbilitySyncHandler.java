@@ -186,6 +186,18 @@ public final class AbilitySyncHandler {
         }
 
         /**
+         * The required items the player has not yet learned, in the order the
+         * ability names them: what its locked petal lists, emptying as each
+         * is melted (decision locked-petal-lists-the-unlearned-items).
+         *
+         * @param known the items the player knows
+         * @return the unlearned required items, empty once every one is known
+         */
+        public List<Identifier> unlearnedOf(KnownItems known) {
+            return requires.stream().filter(item -> !known.contains(item)).toList();
+        }
+
+        /**
          * Returns true if this ability has the given tag.
          *
          * @param tag the tag to check

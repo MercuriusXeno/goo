@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.network;
 
 import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.Delivery;
+import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -10,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 /**
  * The client lists a synced type's abilities in the fan order the server
@@ -20,6 +22,7 @@ class ClientAbilitiesTest {
 
     private static final Identifier GLASS = Identifier.withDefaultNamespace("glass");
     private static final Identifier SAND = Identifier.withDefaultNamespace("sand");
+    private static final Identifier CLAY = Identifier.withDefaultNamespace("clay");
 
     private static AbilitySyncPayload.Entry entry(String name, int order, AbilityBadge badge) {
         return gatedEntry(name, order, badge, List.of());
@@ -54,6 +57,27 @@ class ClientAbilitiesTest {
     @Test
     void gatedAbilityUnlocksOnceEveryRequiredItemIsKnown() {
         assertEquals(List.of("free:open", "gated:open"), offeredPetals(KnownItems.NONE.with(GLASS).with(SAND)));
+    }
+
+    /** A locked petal lists only the required items the player lacks (decision locked-petal-lists-the-unlearned-items). */
+    @Test
+    void unlearnedItemsAreTheRequiredOnesThePlayerLacks() {
+        ClientAbility ability = ClientAbility.fromEntry(gatedEntry("gated", 0, AbilityBadge.WORLD,
+                List.of(GLASS, SAND, CLAY)));
+
+        assertEquals(List.of(GLASS, CLAY), ability.unlearnedOf(KnownItems.NONE.with(SAND)));
+    }
+
+    /** Once every listed item is melted the petal unlocks (decision locked-petal-lists-the-unlearned-items). */
+    @Test
+    void meltingEveryRequiredItemEmptiesTheListAndUnlocks() {
+        AbilitySyncPayload payload = new AbilitySyncPayload(List.of(
+                gatedEntry("gated", 0, AbilityBadge.WORLD, List.of(GLASS, SAND))));
+        OfferedAbility offered = ClientAbilities.fromPayload(payload)
+                .offeredForType(GooTypes.ROCK, KnownItems.NONE.with(GLASS).with(SAND)).getFirst();
+
+        assertEquals(List.of(), offered.unlearned());
+        assertFalse(offered.locked());
     }
 
     @Test

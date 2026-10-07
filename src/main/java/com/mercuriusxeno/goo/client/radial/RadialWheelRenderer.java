@@ -15,17 +15,21 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
+import net.minecraft.world.item.ItemStack;
+import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.IntStream;
 
 /**
  * Draws the glove's radial wheel from a {@link RadialWheel}: one ring of
  * petals from the hub to the rim, type petals with their icon alone and the
- * open type's ability petals with icon, name and cost, the open type's name
- * and holdings in the hub.
+ * open type's ability petals with icon, name and cost, or on a locked one the
+ * items still to learn, the open type's name and holdings in the hub.
  * decision abilities-replace-the-hovered-type
+ * decision locked-petal-lists-the-unlearned-items
  */
 final class RadialWheelRenderer {
 
@@ -50,6 +54,10 @@ final class RadialWheelRenderer {
     static final int ABILITY_ICON_SIZE = 16;
     private static final int ABILITY_ICON_OFFSET = ABILITY_ICON_SIZE / 2;
     private static final int LABEL_GAP = 1;
+    /** The side of the square an item icon draws in. */
+    static final int ITEM_ICON_SIZE = 16;
+    /** How far apart, left edge to left edge, a locked petal's item icons stand. */
+    static final int ITEM_STRIDE = 18;
     private static final int HALF = 2;
 
     private static final String TYPE_ICON_PREFIX = "textures/goo/type/";
@@ -87,8 +95,9 @@ final class RadialWheelRenderer {
      * @param graphics the GUI graphics extractor
      * @param font     the font
      * @param frame    what the frame draws from
+     * @return every unlearned item icon the locked petals drew, for the cursor to name
      */
-    static void render(GuiGraphicsExtractor graphics, Font font, Frame frame) {
+    static List<ItemIcon> render(GuiGraphicsExtractor graphics, Font font, Frame frame) {
         blitMask(graphics, frame, frame.look().hubMask(), HUB_COLOR);
         List<Words> words = new ArrayList<>();
         for (RadialWheel.PetalArc petal : frame.wheel().displayedLayout(frame.partialTick())) {
@@ -99,10 +108,13 @@ final class RadialWheelRenderer {
             }
         }
         // abilities-replace-the-hovered-type: words draw last, on a layer nothing draws over
+        List<ItemIcon> sacrifice = new ArrayList<>();
         for (Words ability : words) {
             drawWords(graphics, font, ability);
+            sacrifice.addAll(ability.sacrifice());
         }
         renderCenterLabel(graphics, font, frame);
+        return sacrifice;
     }
 
     /**
@@ -162,20 +174,91 @@ final class RadialWheelRenderer {
         blitAbilityIcon(graphics, ability, slot,
                 dimmed ? computeOverlayTint(false, true) : COLOR_WHITE);
         int textColor = dimmed ? DISABLED_TEXT_COLOR : hovered ? HOVER_TEXT_COLOR : COLOR_WHITE;
+        List<ItemRect> rects = itemRow(slot, offered.unlearned().size());
+        List<ItemIcon> sacrifice = IntStream.range(0, rects.size())
+                .mapToObj(index -> {
+                    Identifier item = offered.unlearned().get(index);
+                    return new ItemIcon(item, frame.look().itemStack(item), rects.get(index));
+                })
+                .toList();
         return new Words(splitNameLines(buildLabel(ability).getString()), Component.literal(slotLabels.costLabel()),
-                slot, textColor);
+                slot, textColor, sacrifice);
     }
 
     /**
      * An ability's words: its name's lines, its cost, the icon center they
-     * gather around and their color.
+     * gather around and their color, and on a locked petal the items still
+     * to learn, which draw in the cost's place.
      *
      * @param name       the name's lines
      * @param cost       the first-throw cost
      * @param iconCenter the icon's center on screen
      * @param color      the words' color
+     * @param sacrifice  the unlearned items' icons, empty on an unlocked petal
      */
-    private record Words(List<Component> name, Component cost, int[] iconCenter, int color) {
+    private record Words(List<Component> name, Component cost, int[] iconCenter, int color,
+                         List<ItemIcon> sacrifice) {
+    }
+
+    /**
+     * A 16x16 screen square one item icon draws in.
+     *
+     * @param left the square's left edge
+     * @param top  the square's top edge
+     */
+    record ItemRect(int left, int top) {
+
+        /**
+         * Whether a screen point falls inside the square.
+         *
+         * @param x the point's x
+         * @param y the point's y
+         * @return true when the point is on the square
+         */
+        boolean contains(double x, double y) {
+            return x >= left && x < left + ITEM_ICON_SIZE && y >= top && y < top + ITEM_ICON_SIZE;
+        }
+    }
+
+    /**
+     * One unlearned item a locked petal draws: its id, its stack and where.
+     * decision locked-petal-lists-the-unlearned-items
+     *
+     * @param item  the item's id
+     * @param stack the item's stack, which draws and names it
+     * @param rect  where it draws
+     */
+    record ItemIcon(Identifier item, ItemStack stack, ItemRect rect) {
+    }
+
+    /**
+     * Lays out a locked petal's item row: one square per item at a fixed
+     * stride, the row centered on the ability icon's x with its top where the
+     * cost line's top reads on an unlocked petal.
+     * decision locked-petal-lists-the-unlearned-items
+     *
+     * @param iconCenter the ability icon's center
+     * @param count      how many items the row holds
+     * @return each item's square, left to right
+     */
+    static List<ItemRect> itemRow(int[] iconCenter, int count) {
+        int rowWidth = count * ITEM_STRIDE - (ITEM_STRIDE - ITEM_ICON_SIZE);
+        int left = iconCenter[0] - rowWidth / HALF;
+        int top = iconCenter[1] + ABILITY_ICON_OFFSET + LABEL_GAP;
+        return IntStream.range(0, count).mapToObj(index -> new ItemRect(left + index * ITEM_STRIDE, top)).toList();
+    }
+
+    /**
+     * The item whose icon lies under the cursor, so its name can show.
+     * decision locked-petal-lists-the-unlearned-items
+     *
+     * @param icons   every item icon the frame drew
+     * @param cursorX the cursor's x
+     * @param cursorY the cursor's y
+     * @return the icon under the cursor, or null over none
+     */
+    static @Nullable ItemIcon itemUnder(List<ItemIcon> icons, double cursorX, double cursorY) {
+        return icons.stream().filter(icon -> icon.rect().contains(cursorX, cursorY)).findFirst().orElse(null);
     }
 
     /**
@@ -288,8 +371,15 @@ final class RadialWheelRenderer {
             outlinedText(graphics, font, line, x, nameY, words.color());
             nameY += font.lineHeight;
         }
-        outlinedText(graphics, font, words.cost(), x, words.iconCenter()[1] + ABILITY_ICON_OFFSET + LABEL_GAP,
-                words.color());
+        if (words.sacrifice().isEmpty()) {
+            outlinedText(graphics, font, words.cost(), x, words.iconCenter()[1] + ABILITY_ICON_OFFSET + LABEL_GAP,
+                    words.color());
+            return;
+        }
+        // locked-petal-lists-the-unlearned-items: the items still to learn read where the cost would
+        for (ItemIcon icon : words.sacrifice()) {
+            graphics.item(icon.stack(), icon.rect().left(), icon.rect().top());
+        }
     }
 
     /**
