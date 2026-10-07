@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.network;
 
+import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -38,6 +39,12 @@ public final class BarkskinTests {
             "Fire should take %.1f health and burn bark to %d halves: health %.1f, %d halves";
     private static final String SHOULD_ONLY_BREAK_BARK = "An arrow should strip half a bark and spare health: health %.1f, %d halves";
     private static final String SHOULD_THORN = "The zombie should take %d thorns: health %.1f of %.1f";
+    /** Ten fire burns twenty halves, every bark on a full bar. */
+    private static final float FULL_FIRE = 10f;
+    /** Past one bark regrow interval, two and a half seconds. */
+    private static final int REGROW_WATCH = 55;
+    private static final String SHOULD_BURN_BARE = "Ten fire should burn every bark, %d halves stand";
+    private static final String SHOULD_STAY_AND_REGROW = "Bare Barkskin should stay held and regrow: held %s, %d halves";
     private static final String SHOULD_AXE_BURN =
             "An axe should take health and burn it twice in bark halves: lost %.1f, halves %d to %d";
 
@@ -99,6 +106,28 @@ public final class BarkskinTests {
         helper.assertTrue(lost > 0f && barkAfter == Math.max(0, barkBefore - burned),
                 String.format(SHOULD_AXE_BURN, lost, barkBefore, barkAfter));
         helper.succeed();
+    }
+
+    /**
+     * A held Barkskin whose every bark burns away stays held, and its crawl
+     * barks a heart again once the regrow interval passes.
+     * heart-effects-crawl-while-held
+     *
+     * @param helper the gametest helper
+     */
+    public static void bareBarkskinStaysHeldAndRegrows(GameTestHelper helper) {
+        ServerPlayer player = barked(helper);
+        HeartOverlayTests.hurt(helper, player, player.damageSources().inFire(), FULL_FIRE);
+        int bare = HeartOverlayTests.halves(player);
+        helper.assertTrue(bare == 0, String.format(SHOULD_BURN_BARE, bare));
+        SelfDeliveryTests.tickFor(helper, player, REGROW_WATCH);
+        helper.runAfterDelay(REGROW_WATCH + 1, () -> {
+            boolean held = player.getData(GooAttachments.HELD_EFFECTS).holds(LEAF_BARKSKIN);
+            int regrown = HeartOverlayTests.halves(player);
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.assertTrue(held && regrown > 0, String.format(SHOULD_STAY_AND_REGROW, held, regrown));
+            helper.succeed();
+        });
     }
 
     private static Zombie unarmored(GameTestHelper helper, BlockPos pos) {

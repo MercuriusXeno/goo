@@ -94,8 +94,8 @@ public final class HeldEffectsEvents {
 
     /**
      * Draws each held effect's upkeep on the server, ending one the
-     * inventory can no longer pay, and ending heart-changing effects whose
-     * overlay no longer stands.
+     * inventory can no longer pay. A heart effect whose shields are all
+     * broken stays held, its crawl regrowing them.
      *
      * @param event the player tick event
      */
@@ -107,9 +107,6 @@ public final class HeldEffectsEvents {
         HeldEffects held = player.getData(GooAttachments.HELD_EFFECTS);
         if (held.isEmpty()) {
             return;
-        }
-        if (!player.getData(GooAttachments.HEART_OVERLAY).stands()) {
-            held = apply(player, held.endHeartChanging());
         }
         HeldEffects.Ticked ticked = held.tick(type -> GooSourceScanner.aggregateAvailable(player)
                 .getOrDefault(type, 0), player.level().getGameTime());

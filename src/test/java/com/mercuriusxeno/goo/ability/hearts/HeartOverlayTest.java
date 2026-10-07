@@ -382,10 +382,12 @@ class HeartOverlayTest {
         }
 
         @Test
-        void hitPastEveryBarkCostsSingleAndEndsTheOverlay() {
+        void hitPastEveryBarkCostsSingleAndLeavesBarkskinStanding() {
+            // heart-effects-crawl-while-held: a held effect stays open with no bark, its crawl regrowing it
             HeartOverlay.Drained drained = barked(4f).drain(6f, NOW);
             assertEquals(2f, drained.remainder(), DELTA);
-            assertSame(HeartOverlay.NONE, drained.overlay());
+            assertTrue(drained.overlay().stands());
+            assertEquals(0, drained.overlay().shieldHalves());
         }
 
         @Test
@@ -403,10 +405,11 @@ class HeartOverlayTest {
         }
 
         @Test
-        void tenFireAtAFullBarLeavesNoBark() {
+        void tenFireAtAFullBarLeavesNoBarkAndBarkskinRegrowing() {
             HeartOverlay.Drained drained = barked(FULL_HEALTH).aggravate(10f, NOW);
             assertEquals(10f, drained.remainder(), DELTA);
-            assertSame(HeartOverlay.NONE, drained.overlay());
+            assertEquals(0, drained.overlay().shieldHalves());
+            assertEquals(0, drained.overlay().nextRegrowSlot(10f).orElseThrow());
         }
 
         @Test
@@ -541,9 +544,10 @@ class HeartOverlayTest {
         }
 
         @Test
-        void physicalHitPastTheStoneReachesHealthAtItsOwnScale() {
+        void physicalHitPastTheStoneReachesHealthAtItsOwnScaleAndStoneskinStands() {
             HeartOverlay.Drained drained = stoned().drainScaled(30f, DAMAGE_TAKEN, NOW);
-            assertFalse(drained.overlay().stands());
+            assertTrue(drained.overlay().stands());
+            assertEquals(0, drained.overlay().shieldHalves());
             assertEquals(10f, drained.remainder(), DELTA);
         }
 
@@ -562,9 +566,9 @@ class HeartOverlayTest {
         }
 
         @Test
-        void healingIsHeldWhileStoneStandsAndFreedWhenItBreaks() {
+        void healingIsHeldWhileStoneskinStandsEvenWithItsStoneBroken() {
             assertTrue(stoned().blocksHealing());
-            assertFalse(stoned().drainScaled(30f, DAMAGE_TAKEN, NOW).overlay().blocksHealing());
+            assertTrue(stoned().drainScaled(30f, DAMAGE_TAKEN, NOW).overlay().blocksHealing());
             assertFalse(barked(FULL_HEALTH).blocksHealing());
         }
 

@@ -576,8 +576,8 @@ final class RadialWheelRenderer {
      * @return the wedge's labels
      */
     static FanSlot fanSlot(ClientAbility ability, int holdings) {
-        int firstThrow = ability.cost();
-        return new FanSlot(GooFormat.formatAmount(firstThrow), firstThrow > holdings);
+        // self-effects-trickle-until-ended: a held effect reads its upkeep a second, dimmed short of a second's worth
+        return new FanSlot(ability.costLabel(), ability.price() > holdings);
     }
 
     /**
