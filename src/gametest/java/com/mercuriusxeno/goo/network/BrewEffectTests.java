@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.hearts.HeartKind;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
+import com.mercuriusxeno.goo.ability.nourish.Nourish;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooMobEffects;
@@ -35,6 +36,7 @@ public final class BrewEffectTests {
     private static final String SHOULD_LAY = "The %s brew should lay %d %s halves expiring at %d, laid %s %d expiring at %d";
     private static final String SHOULD_HOLD_EFFECT = "The %s brew effect should stand for %d ticks, stands %s";
     private static final String SHOULD_DRAIN_NOTHING = "A brew should drain no goo, drained %d";
+    private static final String SHOULD_NOURISH = "The vital brew should nourish until %d, nourishes until %d";
     private static final String SHOULD_RUN_NOTHING = "A brew of a type with no brew ability should lay nothing, laid %s";
 
     private BrewEffectTests() {
@@ -94,6 +96,32 @@ public final class BrewEffectTests {
                         && overlay.shieldAt(0) == 0 && overlay.expiresAt() == expected,
                 String.format(SHOULD_LAY, GooTypes.ROCK.identifier(), MISSING_HALVES, HeartKind.STONESKIN,
                         expected, overlay.kind(), overlay.shieldHalves(), overlay.expiresAt()));
+        helper.succeed();
+    }
+
+    /**
+     * Drinking the vital brew nourishes the player for an hour, draining no
+     * goo (decision nourish-restores-hunger-over-time).
+     *
+     * @param helper the gametest helper
+     */
+    public static void vitalBrewNourishesForAnHour(GameTestHelper helper) {
+        ServerPlayer player = drinker(helper, GooTypes.VITAL);
+        int heldBefore = held(player, GooTypes.VITAL);
+        long now = player.level().getGameTime();
+
+        drink(player, GooTypes.VITAL);
+
+        Nourish nourish = player.getData(GooAttachments.NOURISH);
+        MobEffectInstance standing = player.getEffect(GooMobEffects.BREW_EFFECTS.get(GooTypes.VITAL));
+        int drained = heldBefore - held(player, GooTypes.VITAL);
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        long expected = now + GooPotions.BREW_DURATION;
+        helper.assertTrue(nourish.expiresAt() == expected,
+                String.format(SHOULD_NOURISH, expected, nourish.expiresAt()));
+        helper.assertTrue(standing != null && standing.getDuration() == GooPotions.BREW_DURATION,
+                String.format(SHOULD_HOLD_EFFECT, GooTypes.VITAL.identifier(), GooPotions.BREW_DURATION, standing));
+        helper.assertTrue(drained == 0, String.format(SHOULD_DRAIN_NOTHING, drained));
         helper.succeed();
     }
 

@@ -5,7 +5,7 @@
   "order": 30,
   "cost": 1000,
   "requires": ["minecraft:stone", "minecraft:cobblestone"],
-  "delivery": { "kind": "stream", "range": 4, "cone": 5, "ticks_per_charge": 20, "particle": "goo:none" },
+  "delivery": { "kind": "stream", "range": 4, "cone": 5, "ticks_per_charge": 20 },
   "behaviors": [
     { "type": "bore", "breaks": "goo:bore_breakable", "count": 2 }
   ],

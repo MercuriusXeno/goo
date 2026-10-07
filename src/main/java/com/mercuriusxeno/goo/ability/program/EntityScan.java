@@ -177,12 +177,16 @@ public final class EntityScan {
     /**
      * Tests whether the entity moves horizontally above rest; the vertical
      * axis is left out since gravity gives a standing entity a vertical delta.
+     * The known movement is read, since the server moves a player by its
+     * client's packets and leaves the player's delta movement at rest; for
+     * any other entity the known movement is its delta movement.
+     * decision diagnose-then-restore-razor-harm
      *
      * @param entity the candidate
      * @return true when the horizontal speed squared passes the rest threshold
      */
     private static boolean isMovingHorizontally(Entity entity) {
-        Vec3 delta = entity.getDeltaMovement();
+        Vec3 delta = entity.getKnownMovement();
         return delta.x() * delta.x() + delta.z() * delta.z() > REST_SPEED_SQUARED;
     }
 

@@ -18,8 +18,10 @@ import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.animal.pig.Pig;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
@@ -94,6 +96,9 @@ public final class EffectExecutorTests {
     /** Ticks after the splat the cloud shreds for, several of its two-tick periods. */
     private static final int SHRED_WINDOW = 12;
     private static final String CLOUD_MISSED_MOVER = "The crystal cloud left the moving pig unhurt";
+    private static final String CLOUD_MISSED_WALKER = "The crystal cloud left the walking survival player unhurt";
+    /** Blocks a walking player covers in a tick, near vanilla's walking speed. */
+    private static final double WALK_STEP = 0.2;
     private static final String CLOUD_HIT_STANDING = "The crystal cloud hurt the standing pig";
     private static final String ABILITY_NETHER_BLACK_HOLE = "goo:nether_black_hole";
     /** Ticks the black hole expands before it consumes its sphere. */
@@ -679,6 +684,54 @@ public final class EffectExecutorTests {
             helper.assertTrue(landedMarker(helper).getFieldEffect().fieldTicks() > 0, FIELD_NOT_LIVE);
             removeMarkerAndSucceed(helper);
         });
+    }
+
+    /**
+     * A survival player walking inside a landed crystal cloud is shredded. The
+     * player walks the way the server moves a real one: each tick it moves by
+     * the client's step and records that step as its known movement, its
+     * delta movement left to the server, so the cloud judges it as it judges
+     * the operator.
+     * decision diagnose-then-restore-razor-harm
+     *
+     * @param helper the gametest helper
+     */
+    public static void crystalCloudShredsAWalkingPlayer(GameTestHelper helper) {
+        discardLeftoverEntities(helper);
+        helper.setBlock(MINE_TARGET_POS.below(), Blocks.STONE);
+        ServerPlayer walker = standWalkingPlayer(helper, MINE_TARGET_POS);
+        landBlob(helper, GooTypes.CRYSTAL, ABILITY_CRYSTAL_CLOUD);
+        helper.runAfterDelay(SHRED_WINDOW, () -> {
+            helper.assertTrue(walker.getHealth() < walker.getMaxHealth(),
+                    CLOUD_MISSED_WALKER + ": health " + walker.getHealth() + " of " + walker.getMaxHealth()
+                            + ", delta " + walker.getDeltaMovement() + ", known " + walker.getKnownMovement());
+            walker.discard();
+            removeMarkerAndSucceed(helper);
+        });
+    }
+
+    /**
+     * Stands a survival server player whose client has loaded, walking back
+     * and forth on the spot: each tick it moves by its step and the step is
+     * recorded as its known movement, the path the server takes for a
+     * client's move packet.
+     *
+     * @param helper the gametest helper
+     * @param pos    the relative block position to stand on
+     * @return the player
+     */
+    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
+    private static ServerPlayer standWalkingPlayer(GameTestHelper helper, BlockPos pos) {
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        player.setGameMode(GameType.SURVIVAL);
+        player.connection.markClientLoaded();
+        player.snapTo(helper.absoluteVec(Vec3.atBottomCenterOf(pos)));
+        helper.onEachTick(() -> {
+            Vec3 step = new Vec3(helper.getTick() % SHUFFLE_PERIOD == 0 ? WALK_STEP : -WALK_STEP, 0, 0);
+            player.move(MoverType.PLAYER, step);
+            player.setKnownMovement(step);
+        });
+        return player;
     }
 
     /**

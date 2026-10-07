@@ -29,6 +29,8 @@ class CrystalCloudVisualTest {
     /** The sky-blue a face too thin to carry a normal takes without casting a ray. */
     private static final int SKY_FALLBACK = ARGB.color(ALPHA, 0x87CEEB);
     private static final ShardTable SHARDS = ShardTable.fromSeed(7L);
+    /** A dome grown past the cloud's radius, so every shard draws at rest. */
+    private static final float GROWN_DOME = 2f;
 
     /** A probe that records every ray cast and answers a color keyed to its direction. */
     private static final class RecordingProbe implements CrystalCloudVisual.BlockColorProbe {
@@ -54,7 +56,7 @@ class CrystalCloudVisualTest {
 
     private static CrystalCloudVisual.CloudDraw draw(Vec3 camPos, CrystalCloudVisual.BlockColorProbe probe,
                                                      double clock, ReflectionEasing easing) {
-        return new CrystalCloudVisual.CloudDraw(VISIBLE, ALPHA, 100f, 2f, SHARDS,
+        return new CrystalCloudVisual.CloudDraw(VISIBLE, ALPHA, 100f, 2f, GROWN_DOME, SHARDS,
                 new Vec3(10, 64, 10), camPos, probe, clock, easing);
     }
 

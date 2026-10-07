@@ -72,6 +72,10 @@ public final class StepTypes {
         register(PetrifyStep.TYPE);
         register(CalcifyStep.TYPE);
         register(PetrifyDripStep.TYPE);
+        register(LeafSteps.HEAL.type());
+        register(LeafSteps.COURT.type());
+        register(NourishStep.TYPE);
+        register(ReserveDrainStep.TYPE);
     }
 
     private StepTypes() {

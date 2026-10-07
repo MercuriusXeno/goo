@@ -120,7 +120,7 @@ public final class GooEffectScheduler {
     private static final MobLanding LIVE_LANDING = new MobLanding() {
         @Override
         public void announceHit(LivingEntity struck, MobHitPayload hit) {
-            EntityVisuals.sendToWatchers(struck, hit);
+            EntityVisuals.sendToTrackers(struck, hit);
         }
 
         @Override

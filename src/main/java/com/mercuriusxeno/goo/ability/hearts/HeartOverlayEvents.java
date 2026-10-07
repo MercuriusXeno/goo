@@ -66,7 +66,7 @@ public final class HeartOverlayEvents {
             // kindle-ember-hearts-ash-and-retaliate: retaliatory fire by the number of ember hearts
             attacker.hurtServer(player.level(), player.damageSources().inFire(), shields);
             attacker.igniteForSeconds(RETALIATION_BURN_SECONDS);
-        } else {
+        } else if (kind == HeartKind.BARKSKIN) {
             // barkskin-bark-hearts-thorn-and-burn: thorns equal to the bark heart count
             attacker.hurtServer(player.level(), player.damageSources().thorns(player), shields);
         }

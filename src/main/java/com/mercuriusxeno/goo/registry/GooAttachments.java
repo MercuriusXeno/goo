@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
+import com.mercuriusxeno.goo.ability.nourish.Nourish;
 import com.mercuriusxeno.goo.ability.petrify.Petrification;
 import com.mercuriusxeno.goo.ability.program.EntityCounters;
 import com.mercuriusxeno.goo.data.KnownItems;
@@ -53,6 +54,17 @@ public final class GooAttachments {
                     () -> AttachmentType.builder(() -> HeartOverlay.NONE)
                             .serialize(HeartOverlay.CODEC, HeartOverlay::stands)
                             .sync(GooAttachments::syncsToOwner, HeartOverlay.STREAM_CODEC)
+                            .build());
+
+    /**
+     * The nourishment Nourish leaves on a player, a food point every interval
+     * until it expires, saved with the player while it stands.
+     * nourish-restores-hunger-over-time
+     */
+    public static final Supplier<AttachmentType<Nourish>> NOURISH =
+            ATTACHMENT_TYPES.register("nourish",
+                    () -> AttachmentType.builder(() -> Nourish.NONE)
+                            .serialize(Nourish.CODEC, Nourish::stands)
                             .build());
 
     /**
