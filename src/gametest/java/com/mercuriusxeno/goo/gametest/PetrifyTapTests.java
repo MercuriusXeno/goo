@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.block.tap.TapDripScheduler;
+import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -10,8 +11,9 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.PointedDripstoneBlock;
 
 /**
- * Gametests for rock petrify's tap: drips landing on gravel leave it gravel
- * until the JSON's drip count, then step it to cobblestone; drips landing on
+ * Gametests for rock petrify's tap: drips landing on gravel build progress
+ * toward cobblestone, step it at the JSON's drip count, and part progress
+ * recedes once the drips stop; drips landing on
  * a dripstone block grow a pointed dripstone tip under it
  * (decision petrify-drip-calcifies-and-grows-dripstone).
  */
@@ -23,13 +25,19 @@ public final class PetrifyTapTests {
     private static final BlockPos ON_THE_FLOOR = new BlockPos(2, 0, 2);
     /** A dripstone block two above the floor, an open cell under it. */
     private static final BlockPos HANGING = new BlockPos(2, 2, 2);
+    /** Ticks for a half share to recede to its floor once the drips stop, and then some. */
+    private static final int RECEDE_TICKS = 70;
+    private static final String SHOULD_BUILD = "Drips short of the count should build part way to the next rung";
+    private static final String SHOULD_RECEDE = "Part progress should recede once the drips stop, stands %s";
     private static final String SHOULD_GROW_A_TIP = "A pointed dripstone tip should hang under the dripstone, stands %s";
 
     private PetrifyTapTests() {
     }
 
     /**
-     * Seven drips on gravel leave it gravel; the eighth steps it to cobblestone.
+     * Seven drips on gravel leave it gravel part way to cobblestone; the
+     * eighth steps it. Four more drips build half way to stone, which
+     * recedes once the drips stop, leaving cobblestone.
      *
      * @param helper the gametest helper
      */
@@ -38,10 +46,22 @@ public final class PetrifyTapTests {
         helper.runAfterDelay(1, () -> {
             drip(helper, ON_THE_FLOOR, DRIPS - 1);
             helper.assertBlockPresent(Blocks.GRAVEL, ON_THE_FLOOR);
+            helper.assertTrue(share(helper) > 0f, SHOULD_BUILD);
             drip(helper, ON_THE_FLOOR, 1);
             helper.assertBlockPresent(Blocks.COBBLESTONE, ON_THE_FLOOR);
+            drip(helper, ON_THE_FLOOR, DRIPS / 2);
+            helper.assertTrue(share(helper) > 0f, SHOULD_BUILD);
+        });
+        helper.runAfterDelay(RECEDE_TICKS, () -> {
+            helper.assertBlockPresent(Blocks.COBBLESTONE, ON_THE_FLOOR);
+            helper.assertTrue(share(helper) == 0f, String.format(SHOULD_RECEDE, share(helper)));
             helper.succeed();
         });
+    }
+
+    private static float share(GameTestHelper helper) {
+        return GooServerState.of(helper.getLevel().getServer()).blockExposures()
+                .shareAt(helper.getLevel(), helper.absolutePos(ON_THE_FLOOR));
     }
 
     /**
