@@ -73,6 +73,15 @@ public final class AbilityRegistry {
     }
 
     /**
+     * Returns every loaded ability, of every goo type.
+     *
+     * @return the abilities, unordered
+     */
+    public Collection<AbilityDefinition> all() {
+        return byId.values();
+    }
+
+    /**
      * Returns all abilities for the given goo type, in fan order: badge rank, then order.
      *
      * @param type the goo type
