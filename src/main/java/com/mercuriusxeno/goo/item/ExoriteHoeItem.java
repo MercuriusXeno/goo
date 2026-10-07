@@ -17,6 +17,9 @@ import java.util.function.Consumer;
  */
 public class ExoriteHoeItem extends HoeItem implements ExoriteGear {
 
+    // decision exorite-forwards-marked-cpd-off
+    // CPD-OFF: each forward to ExoriteGear stays in its class because the vanilla superclass
+    // owns the method and a class method beats an interface default, so the forwards cannot fold.
     /**
      * Creates the piece.
      *
@@ -48,4 +51,5 @@ public class ExoriteHoeItem extends HoeItem implements ExoriteGear {
     public InteractionResult useOn(UseOnContext context) {
         return ExoriteGear.isBroken(context.getItemInHand()) ? InteractionResult.PASS : super.useOn(context);
     }
+    // CPD-ON
 }

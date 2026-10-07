@@ -43,7 +43,7 @@ final class SlotFluidGeometry {
         float x1 = cx + g.hw() - g.fluidInset();
         float z0 = cz - g.hw() + g.fluidInset();
         float z1 = cz + g.hw() - g.fluidInset();
-        float yTop = CanisterGeometry.fluidSurface(fill, g.bodyBot(), g.bodyTop());
+        float yTop = CanisterGeometry.at(g.bodyBot(), g.bodyTop()).fluidSurface(fill);
         return new CuboidBounds(x0, x1, z0, z1, g.bodyBot(), yTop);
     }
 
