@@ -50,6 +50,8 @@ public final class GooNetworking {
         r.playToClient(GhostTrailPayload.TYPE, GhostTrailPayload.STREAM_CODEC);
         r.playToClient(KnownItemsSyncPayload.TYPE, KnownItemsSyncPayload.STREAM_CODEC);
         r.playToClient(KnownItemLearnedPayload.TYPE, KnownItemLearnedPayload.STREAM_CODEC);
+        r.playToClient(StreamHealedPayload.TYPE, StreamHealedPayload.STREAM_CODEC);
+        r.playToClient(DripHealedPayload.TYPE, DripHealedPayload.STREAM_CODEC);
     }
 
     /** Registers server-bound payloads.

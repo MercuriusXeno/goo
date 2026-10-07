@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:vitality_heals_cow_and_caster",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 60,
+  "setup_ticks": 0,
+  "required": true
+}

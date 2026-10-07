@@ -24,10 +24,10 @@ public enum HostKind {
             Set.of(HostVariables.HEALTH, HostVariables.MAX_HEALTH, HostVariables.DISTANCE,
                     HostVariables.UNDEAD, HostVariables.SPRINTING)),
     /**
-     * The block a tap's drip lands on: the world around its top face and the
-     * block above it to write, acted on in the tick the drip lands, with no
-     * target and no driver for later ticks
-     * (decision tap-ability-tagged-program).
+     * The block a tap's drip lands on: the world around its top face, the
+     * entities standing there and the block above it to write, acted on in
+     * the tick the drip lands, with no target and no driver for later ticks
+     * (decisions tap-ability-tagged-program, vitality-drip-heals-below).
      */
     TAP("tap landing", TapHost.class, Set.of()),
     /**
