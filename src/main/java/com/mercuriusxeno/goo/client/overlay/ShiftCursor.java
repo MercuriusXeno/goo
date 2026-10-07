@@ -47,6 +47,12 @@ public final class ShiftCursor {
     /** Game ticks each cursor silhouette grows and fades over, the blink's own ripple life. */
     static final int LIFE_TICKS = 12;
 
+    /** The last fungal aim resolved, kept for the tick and look it was resolved at. */
+    private static Optional<Vec3> aimed = Optional.empty();
+    private static long aimedAt = Long.MIN_VALUE;
+    private static float aimedYaw;
+    private static float aimedPitch;
+
     private ShiftCursor() {
     }
 
@@ -97,8 +103,15 @@ public final class ShiftCursor {
             return Optional.of(TeleportStep.lookDestination(player.getPosition(partialTick),
                     player.getViewVector(partialTick), blinkRange.getAsDouble()));
         }
-        return ShiftStep.aimedFungus(player.level(), player,
-                ShiftStep.reachOf(player, ShiftStep.fungusRange(ability.behaviors()).orElseThrow()));
+        long tick = player.level().getGameTime();
+        if (tick != aimedAt || player.getYRot() != aimedYaw || player.getXRot() != aimedPitch) {
+            aimed = ShiftStep.aimedFungus(player.level(), player,
+                    ShiftStep.reachOf(player, ShiftStep.fungusRange(ability.behaviors()).orElseThrow()));
+            aimedAt = tick;
+            aimedYaw = player.getYRot();
+            aimedPitch = player.getXRot();
+        }
+        return aimed;
     }
 
     /**

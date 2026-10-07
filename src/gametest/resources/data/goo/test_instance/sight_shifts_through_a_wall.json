@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:sight_shifts_through_a_wall",
+  "environment": "minecraft:default",
+  "structure": "goo:light_bay",
+  "max_ticks": 20,
+  "setup_ticks": 0,
+  "required": true
+}

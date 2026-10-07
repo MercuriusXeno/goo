@@ -76,7 +76,7 @@ public final class GooRenderTypes {
             "goo_lines_through_walls",
             RenderSetup.builder(LINES_THROUGH_WALLS_PIPELINE)
                     .setLayeringTransform(LayeringTransform.VIEW_OFFSET_Z_LAYERING)
-                    .setOutputTarget(OutputTarget.ITEM_ENTITY_TARGET)
+                    .setOutputTarget(OutputTarget.MAIN_TARGET)
                     .createRenderSetup()
     );
 
