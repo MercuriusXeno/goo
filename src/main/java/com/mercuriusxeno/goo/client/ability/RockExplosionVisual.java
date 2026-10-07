@@ -29,7 +29,7 @@ import java.util.List;
  * (decision flatten-disc-cursor-breaks-above-the-plane).
  *
  * The same dust is Crush's held ghost, drawn on a dome at Crush's radius,
- * its drift looping as the cursor's does
+ * resting past the sonic ring and turning steadily, so it never loops back
  * (decision held-visual-ghosts-the-landing-in-two-passes).
  */
 public final class RockExplosionVisual implements BurnoutVisual, HeldGhostVisual {
@@ -61,8 +61,13 @@ public final class RockExplosionVisual implements BurnoutVisual, HeldGhostVisual
      * reaches, short of where the dust thins at the disc's edge.
      */
     static final float DOME_DUST_REACH = 0.55f;
-    /** Real-time seconds the held dust takes to loop its drift. */
-    static final double HELD_LOOP_SECONDS = 1.5;
+    /**
+     * The progress the held dust rests at: past the sonic ring's crossing, so
+     * no ring shows, and before the dust thins out.
+     */
+    static final float HELD_PROGRESS = SONIC_SPAN;
+    /** Radians a second the held dust turns about the face axis, a motion with no loop to cut at. */
+    static final double HELD_SPIN_PER_SECOND = 0.6;
 
     private RockExplosionVisual() {
     }
@@ -104,7 +109,8 @@ public final class RockExplosionVisual implements BurnoutVisual, HeldGhostVisual
 
     /**
      * Crush's ghost: the dust on a dome at the ghost's radius about the cell
-     * the throw lands in, its drift looping on the real-time clock.
+     * the throw lands in, resting at one progress and turning steadily about
+     * the face axis on the real-time clock, so it never jumps back.
      * held-visual-ghosts-the-landing-in-two-passes
      *
      * @param pose       the pose entry
@@ -116,37 +122,44 @@ public final class RockExplosionVisual implements BurnoutVisual, HeldGhostVisual
      */
     private static void emitHeld(PoseStack.Pose pose, VertexConsumer c, HeldGhost ghost, Direction face,
                                  float opacity, double nowSeconds) {
-        int progressByte = NetherDiscMesh.toByte(heldProgress(nowSeconds));
+        int progressByte = NetherDiscMesh.toByte(HELD_PROGRESS);
         int alphaByte = NetherDiscMesh.toByte(opacity);
+        double spin = heldSpin(nowSeconds);
         BurnoutGeometry.emitSphere(pose, c, ghost.domeRadius(),
-                direction -> domeColor(direction, face, progressByte, alphaByte), face, 0f);
+                direction -> domeColor(direction, face, spin, progressByte, alphaByte), face, 0f);
     }
 
     /**
-     * The progress the held dust shows: the explosion's opening share,
-     * looped on the real-time clock.
+     * How far the held dust has turned about the face axis: growing steadily
+     * with the real-time clock, never wrapping back.
      *
      * @param nowSeconds seconds on the real-time clock
-     * @return the progress in [0, CURSOR_SPAN)
+     * @return the turn in radians
      */
-    static float heldProgress(double nowSeconds) {
-        return (float) (nowSeconds % HELD_LOOP_SECONDS / HELD_LOOP_SECONDS) * CURSOR_SPAN;
+    static double heldSpin(double nowSeconds) {
+        return nowSeconds * HELD_SPIN_PER_SECOND;
     }
 
     /**
      * The color of a dome vertex: progress, and a dust coordinate read off its
-     * direction across the face's plane, kept inside the disc short of its edge.
+     * direction across the face's plane, turned by the spin and kept inside
+     * the disc short of its edge.
      *
      * @param direction    the vertex's unit direction from the dome's center
      * @param face         the face the throw strikes
+     * @param spin         how far the dust has turned about the face axis, in radians
      * @param progressByte the held progress as a byte
      * @param alphaByte    the share of the dust's opacity as a byte
      * @return the packed color
      */
-    static int domeColor(Vector3f direction, Direction face, int progressByte, int alphaByte) {
+    static int domeColor(Vector3f direction, Direction face, double spin, int progressByte, int alphaByte) {
         float[] across = acrossFace(direction, face);
-        int u = NetherDiscMesh.toByte((across[0] * DOME_DUST_REACH + 1f) * SIGNED_TO_UNIT);
-        int v = NetherDiscMesh.toByte((across[1] * DOME_DUST_REACH + 1f) * SIGNED_TO_UNIT);
+        float cos = (float) Math.cos(spin);
+        float sin = (float) Math.sin(spin);
+        float turnedU = across[0] * cos - across[1] * sin;
+        float turnedV = across[0] * sin + across[1] * cos;
+        int u = NetherDiscMesh.toByte((turnedU * DOME_DUST_REACH + 1f) * SIGNED_TO_UNIT);
+        int v = NetherDiscMesh.toByte((turnedV * DOME_DUST_REACH + 1f) * SIGNED_TO_UNIT);
         return ARGB.color(alphaByte, progressByte, u, v);
     }
 
