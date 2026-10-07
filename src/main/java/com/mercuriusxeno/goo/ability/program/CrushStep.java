@@ -11,24 +11,23 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
-import java.util.function.ToDoubleFunction;
 import java.util.stream.Stream;
 
 /**
- * Rock crush's step, run as the blob lands: every block of the mundane set
- * the JSON names whose center stands within the crater's radius of the
- * landing point breaks with its drops, throwing its debris up and out, and
- * the one mob nearest the landing point within a block of it takes the
- * JSON's force damage, no other
+ * Rock crush's step, run where the blob strikes. Landing on the ground, every
+ * block of the set the JSON names whose center stands within the crater's
+ * radius of the landing point breaks with its drops, throwing its debris up
+ * and out, statues crushed among them, and no mob is hurt. Striking a mob
+ * directly, the mob takes the JSON's force damage and no crater is blasted,
+ * so mob attack never mixes with block crush. The step serves whichever host
+ * the blob strikes, so it names no capability and reads the host it runs on
  * (decision crush-blob-breaks-along-its-strike).
  *
  * @param breaks the block tag naming the blocks crush may break
  * @param radius the crater's radius in blocks
- * @param damage the force damage the struck mob takes, evaluated when the step runs
+ * @param damage the force damage a struck mob takes, evaluated when the step runs
  */
 public record CrushStep(TagKey<Block> breaks, double radius, Expr damage) implements Step {
 
@@ -36,8 +35,6 @@ public record CrushStep(TagKey<Block> breaks, double radius, Expr damage) implem
     private static final String FIELD_BREAKS = "breaks";
     private static final String FIELD_RADIUS = "radius";
     private static final String FIELD_DAMAGE = "damage";
-    /** How near the landing point a mob stands to be the one the blob strikes, in blocks. */
-    static final double STRIKE_REACH = 1.0;
 
     /**
      * Codec for the step's params.
@@ -60,21 +57,28 @@ public record CrushStep(TagKey<Block> breaks, double radius, Expr damage) implem
 
     @Override
     public boolean tick(StepContext context) {
-        AnchoredWorldHost landing = context.hostAs(AnchoredWorldHost.class);
-        BlockBreakHost blocks = context.hostAs(BlockBreakHost.class);
-        Vec3 point = landing.anchor();
+        StepHost host = context.host();
+        if (host instanceof TargetHost struck) {
+            strike(struck.target(), (float) damage.evaluate(context));
+        } else if (host instanceof AnchoredWorldHost landing && host instanceof BlockBreakHost blocks) {
+            blast(blocks, landing.anchor());
+        }
+        return true;
+    }
+
+    /**
+     * Blasts the crater about the landing point, each crushed block throwing its debris.
+     *
+     * @param blocks the landing's block-breaking host
+     * @param point  the landing point
+     */
+    private void blast(BlockBreakHost blocks, Vec3 point) {
         for (BlockPos pos : craterCells(point, radius)) {
             if (blocks.blockIn(pos, breaks)) {
                 blocks.throwDebris(pos);
                 blocks.breakBlock(pos);
             }
         }
-        List<TargetHost> near = new ArrayList<>();
-        landing.forEachEntityWithin(SelectionShape.SPHERE, STRIKE_REACH, Set.of(EntityFilter.LIVING), near::add);
-        float amount = (float) damage.evaluate(context);
-        nearest(near, target -> target.target().position().distanceToSqr(point))
-                .ifPresent(struck -> strike(struck.target(), amount));
-        return true;
     }
 
     private static void strike(LivingEntity mob, float amount) {
@@ -102,18 +106,6 @@ public record CrushStep(TagKey<Block> breaks, double radius, Expr damage) implem
         return cells;
     }
 
-    /**
-     * The one candidate nearest a point, the one the blob strikes.
-     *
-     * @param candidates the candidates
-     * @param distance   each candidate's distance from the landing point
-     * @param <T>        the candidate type
-     * @return the nearest, empty with no candidate
-     */
-    static <T> Optional<T> nearest(List<T> candidates, ToDoubleFunction<T> distance) {
-        return candidates.stream().min(Comparator.comparingDouble(distance));
-    }
-
     @Override
     public Stream<Expr> expressions() {
         return Stream.of(damage);
@@ -121,6 +113,6 @@ public record CrushStep(TagKey<Block> breaks, double radius, Expr damage) implem
 
     @Override
     public Set<HostCapability> requires() {
-        return Set.of(HostCapability.BREAK_BLOCKS, HostCapability.ENTITY_SCAN);
+        return Set.of();
     }
 }
