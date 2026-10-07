@@ -25,7 +25,6 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.network.PacketDistributor;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -120,7 +119,7 @@ public final class GooEffectScheduler {
     private static final MobLanding LIVE_LANDING = new MobLanding() {
         @Override
         public void announceHit(LivingEntity struck, MobHitPayload hit) {
-            PacketDistributor.sendToPlayersTrackingEntity(struck, hit);
+            EntityVisuals.sendToWatchers(struck, hit);
         }
 
         @Override

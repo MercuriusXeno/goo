@@ -97,7 +97,8 @@ class StepCodecTest {
             Map.entry("spore_host", new SporeHostStep(Identifier.parse("goo:shroom_mycosis"), Expr.literal(3),
                     Expr.literal(600))),
             Map.entry("colonize", LeafSteps.COLONIZE.step(Expr.literal(3))),
-            Map.entry("shift", new ShiftStep(Expr.literal(16)))
+            Map.entry("shift", new ShiftStep(Expr.literal(16))),
+            Map.entry("sight", new SightStep(Expr.literal(3), Expr.literal(600)))
     );
 
     private static Step roundTrip(Step step) {

@@ -98,7 +98,7 @@ public final class ShiftCursor {
                     player.getViewVector(partialTick), blinkRange.getAsDouble()));
         }
         return ShiftStep.aimedFungus(player.level(), player,
-                ShiftStep.fungusRange(ability.behaviors()).orElseThrow());
+                ShiftStep.reachOf(player, ShiftStep.fungusRange(ability.behaviors()).orElseThrow()));
     }
 
     /**

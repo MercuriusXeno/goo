@@ -17,8 +17,9 @@ import net.minecraft.world.phys.Vec3;
 /**
  * Gametests for Fungal Shift through the real throw path: released aimed
  * at a red mushroom fifteen blocks off, the player stands on it and pays the
- * cost; aimed at stone, the player stays and pays nothing
- * (decision fungal-shift-blinks-to-the-aimed-fungus).
+ * cost; aimed at stone, the player stays and pays nothing; under fungal
+ * sight it reaches a mushroom beyond its base range (decisions
+ * fungal-shift-blinks-to-the-aimed-fungus and sight-lengthens-shift-and-outlines-fungus).
  */
 public final class FungalShiftTests {
 
@@ -28,6 +29,12 @@ public final class FungalShiftTests {
     /** Fifteen blocks east of the player, within the shift's range of sixteen. */
     private static final BlockPos AIMED_POS = STAND_POS.east(15);
     private static final double MOVE_TOLERANCE = 1e-6;
+    /** The light bay's corner, on its floor. */
+    private static final BlockPos CORNER_POS = new BlockPos(0, 0, 0);
+    /** Across the bay's diagonal, past the shift's base range of sixteen. */
+    private static final BlockPos FAR_POS = new BlockPos(15, 0, 15);
+    private static final double BASE_RANGE = 16;
+    private static final String FAR_BEYOND_BASE = "The far mushroom should stand beyond the base range";
     /** Low on the aimed block, inside a mushroom's outline, which stands six pixels tall. */
     private static final Vec3 AIM_IN_BLOCK = new Vec3(0.5, 0.2, 0.5);
     private static final String ABILITY_REQUIRED = "Ability registry must hold shroom_fungal_shift";
@@ -82,6 +89,27 @@ public final class FungalShiftTests {
         helper.succeed();
     }
 
+    /**
+     * A player under the shroom brew's sight shifts to a mushroom across the
+     * bay's diagonal, farther than the shift's base range.
+     *
+     * @param helper the gametest helper
+     */
+    public static void sightExtendsTheShift(GameTestHelper helper) {
+        AbilityDefinition shift = fungalShift(helper);
+        helper.assertTrue(Vec3.atCenterOf(CORNER_POS).distanceTo(Vec3.atCenterOf(FAR_POS)) > BASE_RANGE,
+                FAR_BEYOND_BASE);
+        ServerPlayer player = shifterAimedAt(helper, Blocks.RED_MUSHROOM, shift, CORNER_POS, FAR_POS);
+        BrewEffectTests.drinkBrew(player, GooTypes.SHROOM);
+
+        SelfDeliveryTests.invoke(player, GooTypes.SHROOM, FUNGAL_SHIFT);
+
+        BlockPos standing = player.blockPosition();
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        helper.assertTrue(standing.equals(helper.absolutePos(FAR_POS)), String.format(SHOULD_STAND_ON, standing));
+        helper.succeed();
+    }
+
     private static AbilityDefinition fungalShift(GameTestHelper helper) {
         AbilityDefinition shift = AbilityRegistry.of(helper.getLevel()).getAbility(FUNGAL_SHIFT);
         helper.assertTrue(shift != null, ABILITY_REQUIRED);
@@ -98,12 +126,28 @@ public final class FungalShiftTests {
      * @return the player
      */
     private static ServerPlayer shifterAimedAt(GameTestHelper helper, Block aimed, AbilityDefinition shift) {
-        helper.setBlock(AIMED_POS, aimed);
+        return shifterAimedAt(helper, aimed, shift, STAND_POS, AIMED_POS);
+    }
+
+    /**
+     * A shroom-holding player standing at one spot looking at the block stood
+     * at another.
+     *
+     * @param helper the gametest helper
+     * @param aimed  the block stood at the aimed spot
+     * @param shift  the fungal shift ability, whose requirements the player learns
+     * @param from   where the player stands
+     * @param at     where the aimed block stands
+     * @return the player
+     */
+    private static ServerPlayer shifterAimedAt(GameTestHelper helper, Block aimed, AbilityDefinition shift,
+                                               BlockPos from, BlockPos at) {
+        helper.setBlock(at, aimed);
         ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.SHROOM, FUNGAL_SHIFT);
         KnownRecipes.teachRequires(player, shift);
-        Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(STAND_POS));
+        Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(from));
         player.setPos(stand.x, stand.y, stand.z);
-        player.lookAt(EntityAnchorArgument.Anchor.EYES, Vec3.atLowerCornerOf(helper.absolutePos(AIMED_POS)).add(AIM_IN_BLOCK));
+        player.lookAt(EntityAnchorArgument.Anchor.EYES, Vec3.atLowerCornerOf(helper.absolutePos(at)).add(AIM_IN_BLOCK));
         return player;
     }
 

@@ -5,6 +5,7 @@ import com.mojang.blaze3d.pipeline.BlendFunction;
 import com.mojang.blaze3d.pipeline.ColorTargetState;
 import com.mojang.blaze3d.pipeline.DepthStencilState;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
+import com.mojang.blaze3d.platform.CompareOp;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.renderer.RenderPipelines;
@@ -51,6 +52,27 @@ public final class GooRenderTypes {
     public static final RenderType LINES_GLOW = RenderType.create(
             "goo_lines_additive_glow",
             RenderSetup.builder(LINES_ADDITIVE_GLOW)
+                    .setLayeringTransform(LayeringTransform.VIEW_OFFSET_Z_LAYERING)
+                    .setOutputTarget(OutputTarget.ITEM_ENTITY_TARGET)
+                    .createRenderSetup()
+    );
+
+    /**
+     * Lines pipeline that passes every depth test and writes no depth, so its
+     * lines show through the world; Sight outlines fungus through walls with
+     * it (decision sight-lengthens-shift-and-outlines-fungus).
+     */
+    public static final RenderPipeline LINES_THROUGH_WALLS_PIPELINE = RenderPipeline.builder(
+                    RenderPipelines.LINES_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, "pipeline/lines_through_walls"))
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
+            .build();
+
+    /** RenderType that draws lines seen through the world. */
+    public static final RenderType LINES_THROUGH_WALLS = RenderType.create(
+            "goo_lines_through_walls",
+            RenderSetup.builder(LINES_THROUGH_WALLS_PIPELINE)
                     .setLayeringTransform(LayeringTransform.VIEW_OFFSET_Z_LAYERING)
                     .setOutputTarget(OutputTarget.ITEM_ENTITY_TARGET)
                     .createRenderSetup()
@@ -642,6 +664,7 @@ public final class GooRenderTypes {
     public static void registerPipelines(RegisterRenderPipelinesEvent event) {
         registerBurnoutPipelines(event);
         event.registerPipeline(LINES_ADDITIVE_GLOW);
+        event.registerPipeline(LINES_THROUGH_WALLS_PIPELINE);
         event.registerPipeline(NETHER_BLACKHOLE);
         event.registerPipeline(NETHER_CORONA);
         event.registerPipeline(NETHER_DISK);
