@@ -42,7 +42,23 @@ interface PetalLook {
         public ItemStack itemStack(Identifier item) {
             return BuiltInRegistries.ITEM.getValue(item).getDefaultInstance();
         }
+
+        @Override
+        public TextureSetup sprite(Identifier texture) {
+            AbstractTexture loaded = Minecraft.getInstance().getTextureManager().getTexture(texture);
+            return TextureSetup.singleTexture(loaded.getTextureView(), loaded.getSampler());
+        }
     };
+
+    /**
+     * The texture a whole-file sprite, such as an ability icon or a badge,
+     * draws from when it is cut at a petal's border.
+     * decision icons-slide-in-from-behind-the-tip
+     *
+     * @param texture the sprite's texture file
+     * @return the texture bound for drawing
+     */
+    TextureSetup sprite(Identifier texture);
 
     /**
      * What a type's petal draws its fill and edge with: the still fluid
