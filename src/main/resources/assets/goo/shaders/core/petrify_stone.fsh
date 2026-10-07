@@ -15,11 +15,10 @@ uniform sampler2D Sampler0;
 
 in float sphericalVertexDistance;
 in float cylindricalVertexDistance;
-in vec4 ailmentColor;
+in vec4 stoneColor;
 in vec4 lightMapColor;
 in vec2 skinCoord;
 in vec3 skinNormal;
-flat in int pattern;
 
 out vec4 fragColor;
 
@@ -34,7 +33,7 @@ const float SEAM_SHADE = 0.45;
 const float WHOLE = 0.999;
 
 void main() {
-    float share = ailmentColor.a;
+    float share = stoneColor.a;
     float seam = 0.0;
     if (share < WHOLE) {
         float threshold = mingleThreshold(share);
