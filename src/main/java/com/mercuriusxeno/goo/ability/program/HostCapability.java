@@ -58,7 +58,22 @@ public enum HostCapability {
      * A landing where the ability can stand its own block, which runs the
      * steps handed to it (decision lingering-abilities-place-their-own-thing).
      */
-    LINGER(LingerHost.class);
+    LINGER(LingerHost.class),
+    /**
+     * A held channel's aim this tick and the player's hand to break blocks
+     * with (decision flatten-disc-cursor-breaks-above-the-plane).
+     */
+    CHANNEL(ChannelHost.class),
+    /**
+     * The blocks around the host to read and break (decision
+     * crush-blob-breaks-along-its-strike).
+     */
+    BREAK_BLOCKS(BlockBreakHost.class),
+    /**
+     * A tap drip's landing: the drips its block has taken, and dripstone to
+     * grow down from it (decision petrify-drip-calcifies-and-grows-dripstone).
+     */
+    DRIP(DripHost.class);
 
     private final Class<? extends StepHost> hostType;
 

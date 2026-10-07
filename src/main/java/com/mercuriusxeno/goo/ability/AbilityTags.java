@@ -18,6 +18,13 @@ public final class AbilityTags {
     public static final String TAP = "tap";
 
     /**
+     * An ability whose blob draws no goo splat on the mob it strikes, its own
+     * program drawing the hit instead, as Crush's rubble does
+     * (decision crush-blob-breaks-along-its-strike).
+     */
+    public static final String NO_SPLAT = "no_splat";
+
+    /**
      * An ability that acts on its caster; a stream tagged so runs its
      * program on the caster each tick it is held, beside every living
      * thing in its cone.

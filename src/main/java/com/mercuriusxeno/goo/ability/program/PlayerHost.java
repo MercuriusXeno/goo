@@ -5,7 +5,10 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import java.util.List;
+import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.OptionalInt;
 import java.util.Set;
@@ -21,12 +24,20 @@ import java.util.function.Consumer;
  * A drunk brew runs its ability on this host too, carrying the brew's
  * duration (decision brew-grants-the-self-ability-for-an-hour).
  *
+ * A held channel runs its ability on this host each tick of the hold,
+ * carrying that tick's aim (decision flatten-disc-cursor-breaks-above-the-plane).
+ *
  * @param level         the server level
  * @param player        the invoking player
  * @param brewDuration  the drunk brew's duration in ticks, empty for a glove invocation
+ * @param channelAim    the held channel's aim this tick, empty outside a channel
  */
-public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt brewDuration)
-        implements TargetHost, ExplodeHost, EntityScanHost {
+public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt brewDuration,
+                         Optional<ChannelAim> channelAim)
+        implements TargetHost, ExplodeHost, EntityScanHost, ChannelHost {
+
+    /** Blocks past the interaction range a channel still breaks at, vanilla's own slack for a block break. */
+    private static final double REACH_SLACK = 1.0;
 
     /**
      * The host of a glove invocation, which carries no brew duration.
@@ -35,7 +46,30 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
      * @param player the invoking player
      */
     public PlayerHost(ServerLevel level, ServerPlayer player) {
-        this(level, player, OptionalInt.empty());
+        this(level, player, OptionalInt.empty(), Optional.empty());
+    }
+
+    /**
+     * The host of a drunk brew, carrying its duration.
+     *
+     * @param level        the server level
+     * @param player       the drinking player
+     * @param brewDuration the brew's duration in ticks
+     */
+    public PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt brewDuration) {
+        this(level, player, brewDuration, Optional.empty());
+    }
+
+    /**
+     * The host of one tick of a held channel.
+     *
+     * @param level  the server level
+     * @param player the channeling player
+     * @param aim    the hold's aim this tick
+     * @return the host carrying the aim
+     */
+    public static PlayerHost channeling(ServerLevel level, ServerPlayer player, ChannelAim aim) {
+        return new PlayerHost(level, player, OptionalInt.empty(), Optional.of(aim));
     }
 
     @Override
@@ -118,5 +152,36 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
     @Override
     public void playSound(SoundCue cue) {
         asEntity().playSound(cue);
+    }
+
+    @Override
+    public Vec3 eye() {
+        return player.getEyePosition();
+    }
+
+
+
+    @Override
+    public boolean reaches(BlockPos pos) {
+        return player.isWithinBlockInteractionRange(pos, REACH_SLACK);
+    }
+
+    @Override
+    public Entity breaker() {
+        return player;
+    }
+
+    @Override
+    public void forEachLivingIn(List<BlockPos> cells, Set<EntityFilter> filters, Consumer<TargetHost> body) {
+        if (cells.isEmpty()) {
+            return;
+        }
+        List<AABB> boxes = cells.stream().map(AABB::new).toList();
+        AABB bounds = boxes.stream().reduce(AABB::minmax).orElseThrow();
+        for (LivingEntity living : level.getEntitiesOfClass(LivingEntity.class, bounds, living -> living != player
+                && living.isAlive() && boxes.stream().anyMatch(living.getBoundingBox()::intersects)
+                && EntityScan.passes(living, filters, player))) {
+            body.accept(new EntityHost(level, living, player));
+        }
     }
 }
