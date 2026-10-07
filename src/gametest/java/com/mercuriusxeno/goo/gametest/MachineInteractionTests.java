@@ -416,8 +416,16 @@ public final class MachineInteractionTests {
             helper.useBlock(BE_POS, player, cutawayHit(helper));
             helper.assertTrue(plexer.getTargetItem().isEmpty(),
                     "Plexer should refuse a target the player has not learned");
-            assertRefusalCue(helper, plexer, recorder);
+            assertRefusalCue(helper, plexer, recorder, 1);
 
+            // Bedrock holds no goo value, so the plexer cannot take it even from a player who knows it.
+            player.setData(GooAttachments.KNOWN_ITEMS, KnownItems.NONE.with(PlayerKnowledge.idOf(Items.BEDROCK)));
+            player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.BEDROCK));
+            helper.useBlock(BE_POS, player, cutawayHit(helper));
+            helper.assertTrue(plexer.getTargetItem().isEmpty(), "Plexer should refuse an item with no goo value");
+            assertRefusalCue(helper, plexer, recorder, 2);
+
+            player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.STONE));
             player.setData(GooAttachments.KNOWN_ITEMS, KnownItems.NONE.with(PlayerKnowledge.idOf(Items.STONE)));
             helper.useBlock(BE_POS, player, cutawayHit(helper));
             helper.assertTrue(plexer.getTargetItem().is(Items.STONE), PLEXER_SHOULD_SET);
@@ -428,26 +436,28 @@ public final class MachineInteractionTests {
     }
 
     /**
-     * The refusal cue reached the player: smoke at the cutaway's world center, the
-     * extinguish fizzle among block sounds, and no chat or overlay message.
+     * The refusal cue reached the player once per refusal so far: smoke at the cutaway's
+     * world center, the extinguish fizzle among block sounds, and no chat or overlay message.
      *
-     * @param helper   the gametest helper
-     * @param plexer   the refusing plexer
-     * @param recorder the recorder on the clicking player's connection
+     * @param helper    the gametest helper
+     * @param plexer    the refusing plexer
+     * @param recorder  the recorder on the clicking player's connection
+     * @param refusals  how many refusals the player has met since the recorder attached
      */
-    private static void assertRefusalCue(GameTestHelper helper, PlexerBlockEntity plexer, PacketRecorder recorder) {
+    private static void assertRefusalCue(GameTestHelper helper, PlexerBlockEntity plexer, PacketRecorder recorder,
+                                         int refusals) {
         Vec3 center = CutawayInteractionHelper.cutawayWorldCenter(plexer.getBlockPos(),
                 plexer.getBlockState().getValue(PlexerBlock.FACING));
         List<ClientboundLevelParticlesPacket> puffs = recorder.sentOf(ClientboundLevelParticlesPacket.class);
-        helper.assertTrue(puffs.size() == 1 && puffs.getFirst().getParticle() == ParticleTypes.SMOKE
-                && puffs.getFirst().getCount() == PlexerRefusalCue.SMOKE_COUNT
-                && new Vec3(puffs.getFirst().getX(), puffs.getFirst().getY(), puffs.getFirst().getZ())
-                        .distanceTo(center) < CUE_EPSILON,
-                "The refusal should puff smoke at the cutaway's center " + center + ", sent " + puffs);
+        ClientboundLevelParticlesPacket puff = puffs.isEmpty() ? null : puffs.getLast();
+        helper.assertTrue(puffs.size() == refusals && puff != null && puff.getParticle() == ParticleTypes.SMOKE
+                && puff.getCount() == PlexerRefusalCue.SMOKE_COUNT
+                && new Vec3(puff.getX(), puff.getY(), puff.getZ()).distanceTo(center) < CUE_EPSILON,
+                "Each refusal should puff smoke at the cutaway's center " + center + ", sent " + puffs);
         List<ClientboundSoundPacket> sounds = recorder.sentOf(ClientboundSoundPacket.class);
-        helper.assertTrue(sounds.size() == 1 && sounds.getFirst().getSound().value() == SoundEvents.FIRE_EXTINGUISH
-                && sounds.getFirst().getSource() == SoundSource.BLOCKS,
-                "The refusal should fizzle among block sounds, sent " + sounds);
+        helper.assertTrue(sounds.size() == refusals && sounds.getLast().getSound().value() == SoundEvents.FIRE_EXTINGUISH
+                && sounds.getLast().getSource() == SoundSource.BLOCKS,
+                "Each refusal should fizzle among block sounds, sent " + sounds);
         assertNoMessage(helper, recorder, "The refusal");
     }
 
