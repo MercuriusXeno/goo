@@ -9,7 +9,6 @@ import com.mercuriusxeno.goo.item.CanisterMetadata;
 import com.mercuriusxeno.goo.network.PlayerKnowledge;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionResult;
@@ -18,17 +17,13 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.Vec3;
 
 /**
  * Cutaway hit-testing, target-item management, and item ejection for the plexer.
  * All methods are stateless helpers called from PlexerBlock.
  */
 public final class CutawayInteractionHelper {
-
-    /** Overlay message when the player has not learned the clicked item. */
-    static final String UNKNOWN_ITEM = "You don't know what it's made of";
-    /** Overlay message when target is cleared. */
-    private static final String TARGET_CLEARED = "Target cleared";
 
     /** Eject Y - near the bottom of the block where the hatch is. */
     private static final double EJECT_Y = 2.0 / 16.0;
@@ -45,6 +40,8 @@ public final class CutawayInteractionHelper {
     private static final double CUTAWAY_MIN_Y = 8.0 / 16.0;
     private static final double CUTAWAY_MAX_Y = 13.0 / 16.0;
     private static final double CUTAWAY_MAX_Z = 4.0 / 16.0;
+    /** Halves a span to its midpoint; the cutaway's near face sits at model z 0. */
+    private static final double HALF = 0.5;
 
     private CutawayInteractionHelper() { }
 
@@ -62,6 +59,7 @@ public final class CutawayInteractionHelper {
     }
 
     /** Sets the plexer's target item; the plexer panel names it, so no message goes to the player.
+     * A refused item puffs smoke and fizzles instead (decision plexer-messages-go-and-refusal-fizzles).
      *
      * @param plexer the plexer block entity
      * @param player the interacting player
@@ -71,7 +69,11 @@ public final class CutawayInteractionHelper {
     public static InteractionResult applyTargetItem(PlexerBlockEntity plexer, Player player, ItemStack stack) {
         if (!plexer.isValidTarget(stack)) { return InteractionResult.PASS; }
         if (refusesTarget(PlayerKnowledge.idOf(stack.getItem()), PlayerKnowledge.of(player))) {
-            player.sendOverlayMessage(Component.literal(UNKNOWN_ITEM));
+            if (plexer.getLevel() instanceof ServerLevel level) {
+                BlockPos pos = plexer.getBlockPos();
+                PlexerRefusalCue.playAt(level, pos,
+                        cutawayWorldCenter(pos, plexer.getBlockState().getValue(PlexerBlock.FACING)));
+            }
             return InteractionResult.SUCCESS;
         }
         plexer.setTargetItem(cleanCopy(stack));
@@ -105,14 +107,13 @@ public final class CutawayInteractionHelper {
         return clean;
     }
 
-    /** Clears the plexer's target item and sends an overlay message to the player.
+    /** Clears the plexer's target item; the empty cutaway and the panel's absence show it
+     * (decision plexer-messages-go-and-refusal-fizzles).
      *
      * @param plexer the plexer block entity
-     * @param player the interacting player
      * @return SUCCESS interaction result
      */
-    public static InteractionResult clearTargetItem(PlexerBlockEntity plexer, Player player) {
-        player.sendOverlayMessage(Component.literal(TARGET_CLEARED));
+    public static InteractionResult clearTargetItem(PlexerBlockEntity plexer) {
         plexer.setTargetItem(ItemStack.EMPTY);
         return InteractionResult.SUCCESS;
     }
@@ -168,6 +169,54 @@ public final class CutawayInteractionHelper {
             case EAST  -> hitX;
             case WEST  -> 1.0 - hitX;
             default    -> hitZ;
+        };
+    }
+
+    /**
+     * Returns the center of the cutaway volume in world coordinates, the model's
+     * south-facing center turned to the block's facing.
+     *
+     * @param pos    the block position
+     * @param facing the facing direction
+     * @return the cutaway's center
+     */
+    public static Vec3 cutawayWorldCenter(BlockPos pos, Direction facing) {
+        double modelX = (CUTAWAY_MIN_X + CUTAWAY_MAX_X) * HALF;
+        double modelY = (CUTAWAY_MIN_Y + CUTAWAY_MAX_Y) * HALF;
+        double modelZ = CUTAWAY_MAX_Z * HALF;
+        return new Vec3(pos.getX() + toWorldX(facing, modelX, modelZ), pos.getY() + modelY,
+                pos.getZ() + toWorldZ(facing, modelX, modelZ));
+    }
+
+    /** Converts south-facing model XZ to world-local X, the inverse of {@link #toModelX} and {@link #toModelZ}.
+     *
+     * @param facing the facing direction
+     * @param modelX model-space X coordinate
+     * @param modelZ model-space Z coordinate
+     * @return block-local X
+     */
+    static double toWorldX(Direction facing, double modelX, double modelZ) {
+        return switch (facing) {
+            case NORTH -> 1.0 - modelX;
+            case EAST  -> modelZ;
+            case WEST  -> 1.0 - modelZ;
+            default    -> modelX;
+        };
+    }
+
+    /** Converts south-facing model XZ to world-local Z, the inverse of {@link #toModelX} and {@link #toModelZ}.
+     *
+     * @param facing the facing direction
+     * @param modelX model-space X coordinate
+     * @param modelZ model-space Z coordinate
+     * @return block-local Z
+     */
+    static double toWorldZ(Direction facing, double modelX, double modelZ) {
+        return switch (facing) {
+            case NORTH -> 1.0 - modelZ;
+            case EAST  -> 1.0 - modelX;
+            case WEST  -> modelX;
+            default    -> modelZ;
         };
     }
 

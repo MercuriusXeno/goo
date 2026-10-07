@@ -5,7 +5,9 @@ import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
 import com.mercuriusxeno.goo.block.hub.HubBlock;
 import com.mercuriusxeno.goo.block.hub.HubBlockEntity;
 import com.mercuriusxeno.goo.block.plexer.CutawayInteractionHelper;
+import com.mercuriusxeno.goo.block.plexer.PlexerBlock;
 import com.mercuriusxeno.goo.block.plexer.PlexerBlockEntity;
+import com.mercuriusxeno.goo.block.plexer.PlexerRefusalCue;
 import com.mercuriusxeno.goo.block.reactor.ReactorBlock;
 import com.mercuriusxeno.goo.block.reactor.ReactorBlockEntity;
 import com.mercuriusxeno.goo.block.tap.TapBlockEntity;
@@ -23,7 +25,15 @@ import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket;
+import net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket;
+import net.minecraft.network.protocol.game.ClientboundSoundPacket;
+import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -36,6 +46,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
+import java.util.List;
 
 /**
  * Gametests for machine block interactions via mock player.
@@ -67,6 +78,8 @@ public final class MachineInteractionTests {
     private static final int HUB_PICKUP_HAND_COUNT = 2;
     private static final double PIXELS_PER_BLOCK = 16.0;
     private static final String PLEXER_SHOULD_SET = "Plexer should have target item after interaction";
+    /** How far, in blocks, the packet's encoded position may sit from the cutaway center. */
+    private static final double CUE_EPSILON = 1e-3;
     private static final String BLAZE_ROD_STAYS_WHOLE = "A blaze rod click should leave the held stack whole";
     private static final String BLAZE_ROD_LEAVES_COLD = "A blaze rod click should leave the crucible cold";
     private static final String COLD_CRUCIBLE_REFUSES = "A cold crucible with no fuel goo should leave the item entity standing";
@@ -356,24 +369,61 @@ public final class MachineInteractionTests {
 
     /**
      * Plexer: a player who has never melted stone clicks stone into the
-     * cutaway and the plexer takes no target; once the player knows stone,
-     * the same click sets it (decision plexer-refuses-an-unlearned-item).
+     * cutaway and the plexer takes no target, puffing smoke at the cutaway and
+     * fizzling with no message; once the player knows stone, the same click sets it
+     * (decisions plexer-refuses-an-unlearned-item, plexer-messages-go-and-refusal-fizzles).
      *
      * @param helper the gametest helper
      */
+    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
     public static void plexerRefusesAnUnlearnedTarget(GameTestHelper helper) {
         helper.setBlock(BE_POS, GooBlocks.PLEXER.get());
         PlexerBlockEntity plexer = helper.getBlockEntity(BE_POS, PlexerBlockEntity.class);
-        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        // The server sends particles and sounds only to players near them, so the player stands beside the plexer.
+        player.setPos(Vec3.atCenterOf(helper.absolutePos(BE_POS.above())));
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.STONE));
+        PacketRecorder recorder = PacketRecorder.attachTo(player);
 
-        helper.useBlock(BE_POS, player, cutawayHit(helper));
-        helper.assertTrue(plexer.getTargetItem().isEmpty(), "Plexer should refuse a target the player has not learned");
+        try {
+            helper.useBlock(BE_POS, player, cutawayHit(helper));
+            helper.assertTrue(plexer.getTargetItem().isEmpty(),
+                    "Plexer should refuse a target the player has not learned");
+            assertRefusalCue(helper, plexer, recorder);
+        } finally {
+            helper.getLevel().getServer().getPlayerList().remove(player);
+        }
 
         player.setData(GooAttachments.KNOWN_ITEMS, KnownItems.NONE.with(PlayerKnowledge.idOf(Items.STONE)));
         helper.useBlock(BE_POS, player, cutawayHit(helper));
         helper.assertTrue(plexer.getTargetItem().is(Items.STONE), PLEXER_SHOULD_SET);
         helper.succeed();
+    }
+
+    /**
+     * The refusal cue reached the player: smoke at the cutaway's world center, the
+     * extinguish fizzle among block sounds, and no chat or overlay message.
+     *
+     * @param helper   the gametest helper
+     * @param plexer   the refusing plexer
+     * @param recorder the recorder on the clicking player's connection
+     */
+    private static void assertRefusalCue(GameTestHelper helper, PlexerBlockEntity plexer, PacketRecorder recorder) {
+        Vec3 center = CutawayInteractionHelper.cutawayWorldCenter(plexer.getBlockPos(),
+                plexer.getBlockState().getValue(PlexerBlock.FACING));
+        List<ClientboundLevelParticlesPacket> puffs = recorder.sentOf(ClientboundLevelParticlesPacket.class);
+        helper.assertTrue(puffs.size() == 1 && puffs.getFirst().getParticle() == ParticleTypes.SMOKE
+                && puffs.getFirst().getCount() == PlexerRefusalCue.SMOKE_COUNT
+                && new Vec3(puffs.getFirst().getX(), puffs.getFirst().getY(), puffs.getFirst().getZ())
+                        .distanceTo(center) < CUE_EPSILON,
+                "The refusal should puff smoke at the cutaway's center " + center + ", sent " + puffs);
+        List<ClientboundSoundPacket> sounds = recorder.sentOf(ClientboundSoundPacket.class);
+        helper.assertTrue(sounds.size() == 1 && sounds.getFirst().getSound().value() == SoundEvents.FIRE_EXTINGUISH
+                && sounds.getFirst().getSource() == SoundSource.BLOCKS,
+                "The refusal should fizzle among block sounds, sent " + sounds);
+        helper.assertTrue(recorder.sentOf(ClientboundSystemChatPacket.class).isEmpty()
+                && recorder.sentOf(ClientboundSetActionBarTextPacket.class).isEmpty(),
+                "The refusal should send the player no message");
     }
 
     /**
