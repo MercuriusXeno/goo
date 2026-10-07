@@ -81,6 +81,25 @@ public final class GooRenderTypes {
     );
 
     /**
+     * Shroom's held spore shell (decision held-visual-ghosts-the-landing-in-two-passes):
+     * plain colored quads through vanilla's position-color shader, translucent,
+     * depth tested with depth write off, both faces drawn; its twin passes every
+     * depth test so the shell shows through blocks.
+     */
+    public static final RenderPipeline SPORE_SHELL = sporeShellPipeline("spore_shell",
+            DepthStencilState.DEFAULT.depthTest());
+
+    /** The spore shell's twin that ignores depth. */
+    public static final RenderPipeline SPORE_SHELL_THROUGH_BLOCKS = sporeShellPipeline(
+            "spore_shell" + THROUGH_BLOCKS_SUFFIX, CompareOp.ALWAYS_PASS);
+
+    /** RenderType for shroom's held spore shell over blocks. */
+    public static final RenderType SPORE_SHELL_TYPE = burnoutType(SPORE_SHELL);
+
+    /** RenderType for shroom's held spore shell through blocks. */
+    public static final RenderType SPORE_SHELL_THROUGH_BLOCKS_TYPE = burnoutType(SPORE_SHELL_THROUGH_BLOCKS);
+
+    /**
      * Nether black-hole pipeline: POSITION_COLOR billboard quad with a custom
      * vertex + fragment shader pair (nether_blackhole.vsh / .fsh). Reads the
      * implosion progress from the vertex Color.r channel and animates swirl
@@ -794,6 +813,24 @@ public final class GooRenderTypes {
     }
 
     /**
+     * A plain colored quad pipeline through vanilla's position-color shader,
+     * translucent with depth write off, both faces drawn.
+     *
+     * @param location  the pipeline's name
+     * @param depthTest the depth comparison its fragments pass
+     * @return the pipeline
+     */
+    private static RenderPipeline sporeShellPipeline(String location, CompareOp depthTest) {
+        return RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
+                .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + location))
+                .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
+                .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+                .withDepthStencilState(new DepthStencilState(depthTest, false))
+                .withCull(false)
+                .build();
+    }
+
+    /**
      * A quad pipeline over a shader pair under {@code core/<shader>}, depth write
      * off, both faces drawn.
      *
@@ -830,13 +867,16 @@ public final class GooRenderTypes {
     }
 
     /**
-     * Registers the line pipelines: the additive glow and the through-walls lines.
+     * Registers the plain pipelines: the additive glow and through-walls lines,
+     * and shroom's spore shell in both passes.
      *
      * @param event the pipeline registration event
      */
     private static void registerLinePipelines(RegisterRenderPipelinesEvent event) {
         event.registerPipeline(LINES_ADDITIVE_GLOW);
         event.registerPipeline(LINES_THROUGH_WALLS_PIPELINE);
+        event.registerPipeline(SPORE_SHELL);
+        event.registerPipeline(SPORE_SHELL_THROUGH_BLOCKS);
     }
 
     /**
