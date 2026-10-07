@@ -97,7 +97,9 @@ class StepCodecTest {
             Map.entry("ghost_trail", new GhostTrailStep(GooTypes.ENDER, Expr.literal(30))),
             Map.entry("heart_overlay", new HeartOverlayStep(HeartKind.KINDLE, Expr.literal(1200))),
             Map.entry("flatten", new FlattenStep(TagKey.create(Registries.BLOCK,
-                    Identifier.fromNamespaceAndPath("goo", "flatten_breakable"))))
+                    Identifier.fromNamespaceAndPath("goo", "flatten_breakable")))),
+            Map.entry("bore", new BoreStep(TagKey.create(Registries.BLOCK,
+                    Identifier.fromNamespaceAndPath("goo", "bore_breakable")), 1))
     );
 
     private static Step roundTrip(Step step) {

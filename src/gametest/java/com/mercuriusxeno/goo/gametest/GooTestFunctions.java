@@ -10,6 +10,7 @@ import com.mercuriusxeno.goo.network.GloveSelectTests;
 import com.mercuriusxeno.goo.network.HeartOverlayTests;
 import com.mercuriusxeno.goo.network.MobEffectTests;
 import com.mercuriusxeno.goo.network.SelfDeliveryTests;
+import com.mercuriusxeno.goo.network.BoreStreamTests;
 import com.mercuriusxeno.goo.network.FlattenChannelTests;
 import com.mercuriusxeno.goo.network.StreamDeliveryTests;
 import com.mercuriusxeno.goo.network.TouchDeliveryTests;
@@ -361,6 +362,7 @@ public final class GooTestFunctions {
     private static final String BREW_WITHOUT_ABILITY = "brew_without_an_ability_runs_nothing";
     private static final String STREAM_BLAZE_SPITFIRE = "stream_blaze_spitfire";
     private static final String FLATTEN_BREAKS_ABOVE_THE_PLANE = "flatten_breaks_above_the_plane";
+    private static final String BORE_CUTS_A_TUNNEL = "bore_cuts_a_tunnel";
     private static final String MOB_CRYSTAL = "mob_crystal_flechettes";
     private static final String MOB_LEAF = "mob_leaf_entangle";
     private static final String MOB_VITAL = "mob_vital_clone";
@@ -769,6 +771,7 @@ public final class GooTestFunctions {
         reg(r, BREW_WITHOUT_ABILITY, BrewEffectTests::brewWithoutAnAbilityRunsNothing);
         reg(r, STREAM_BLAZE_SPITFIRE, StreamDeliveryTests::blazeSpitfire);
         reg(r, FLATTEN_BREAKS_ABOVE_THE_PLANE, FlattenChannelTests::flattenBreaksAboveThePlane);
+        reg(r, BORE_CUTS_A_TUNNEL, BoreStreamTests::boreCutsATunnel);
         reg(r, MOB_CRYSTAL, MobEffectTests::crystalFlechettes);
         reg(r, MOB_LEAF, MobEffectTests::leafEntangle);
         reg(r, MOB_VITAL, MobEffectTests::vitalClone);

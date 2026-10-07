@@ -6,6 +6,8 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.phys.Vec3;
 import java.util.Optional;
@@ -165,12 +167,26 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
     }
 
     @Override
+    public boolean airAt(BlockPos pos) {
+        return level.getBlockState(pos).isAir();
+    }
+
+    @Override
     public boolean reaches(BlockPos pos) {
         return player.isWithinBlockInteractionRange(pos, REACH_SLACK);
     }
 
+    /**
+     * Breaks a block as the channeling player and drops its loot as a
+     * pickaxe would harvest it, so stone yields cobblestone where the glove
+     * in hand would yield nothing.
+     *
+     * @param pos the block
+     */
     @Override
     public void breakBlock(BlockPos pos) {
-        level.destroyBlock(pos, true, player);
+        ItemStack harvestTool = new ItemStack(Items.IRON_PICKAXE);
+        Block.dropResources(level.getBlockState(pos), level, pos, level.getBlockEntity(pos), player, harvestTool);
+        level.destroyBlock(pos, false, player);
     }
 }
