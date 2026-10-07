@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.commands.arguments.EntityAnchorArgument;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
@@ -29,12 +30,17 @@ public final class FungalShiftTests {
     /** Fifteen blocks east of the player, within the shift's range of sixteen. */
     private static final BlockPos AIMED_POS = STAND_POS.east(15);
     private static final double MOVE_TOLERANCE = 1e-6;
+    /** Blocks above the bay floor searched for the framework's barrier roof. */
+    private static final int CEILING_SEARCH = 8;
     /** The light bay's corner, on its floor. */
     private static final BlockPos CORNER_POS = new BlockPos(0, 0, 0);
-    /** Across the bay's diagonal, past the shift's base range of sixteen. */
-    private static final BlockPos FAR_POS = new BlockPos(15, 0, 15);
-    private static final double BASE_RANGE = 16;
-    private static final String FAR_BEYOND_BASE = "The far mushroom should stand beyond the base range";
+    /** Straight above the corner, past the shift's base range of sixty-four. */
+    private static final BlockPos HIGH_ABOVE = CORNER_POS.above(70);
+    /** shroom_fungal_shift.json's range. */
+    private static final double BASE_RANGE = 64;
+    /** Sideways off the aimed mushroom, about two degrees at fifteen blocks, so the look ray misses it. */
+    private static final Vec3 NEAR_MISS = new Vec3(0.5, 0.2, 1.05);
+    private static final String FAR_BEYOND_BASE = "The high mushroom block should stand beyond the base range";
     /** Low on the aimed block, inside a mushroom's outline, which stands six pixels tall. */
     private static final Vec3 AIM_IN_BLOCK = new Vec3(0.5, 0.2, 0.5);
     private static final String ABILITY_REQUIRED = "Ability registry must hold shroom_fungal_shift";
@@ -90,24 +96,67 @@ public final class FungalShiftTests {
     }
 
     /**
-     * A player under the shroom brew's sight shifts to a mushroom across the
-     * bay's diagonal, farther than the shift's base range.
+     * Released aimed about two degrees beside a red mushroom fifteen blocks
+     * off, the look ray missing it, the player still stands on it: the aim
+     * snaps to fungus within three degrees.
      *
      * @param helper the gametest helper
      */
-    public static void sightExtendsTheShift(GameTestHelper helper) {
+    public static void fungalShiftSnapsToANearMiss(GameTestHelper helper) {
         AbilityDefinition shift = fungalShift(helper);
-        helper.assertTrue(Vec3.atCenterOf(CORNER_POS).distanceTo(Vec3.atCenterOf(FAR_POS)) > BASE_RANGE,
-                FAR_BEYOND_BASE);
-        ServerPlayer player = shifterAimedAt(helper, Blocks.RED_MUSHROOM, shift, CORNER_POS, FAR_POS);
-        BrewEffectTests.drinkBrew(player, GooTypes.SHROOM);
+        ServerPlayer player = shifterAimedAt(helper, Blocks.RED_MUSHROOM, shift);
+        player.lookAt(EntityAnchorArgument.Anchor.EYES, Vec3.atLowerCornerOf(helper.absolutePos(AIMED_POS)).add(NEAR_MISS));
 
         SelfDeliveryTests.invoke(player, GooTypes.SHROOM, FUNGAL_SHIFT);
 
         BlockPos standing = player.blockPosition();
         helper.getLevel().getServer().getPlayerList().remove(player);
-        helper.assertTrue(standing.equals(helper.absolutePos(FAR_POS)), String.format(SHOULD_STAND_ON, standing));
+        helper.assertTrue(standing.equals(helper.absolutePos(AIMED_POS)), String.format(SHOULD_STAND_ON, standing));
         helper.succeed();
+    }
+
+    /**
+     * A mushroom block seventy blocks straight up, past the shift's base
+     * range of sixty-four: aimed at without sight the player stays put, and
+     * under the shroom brew's sight the player shifts onto it.
+     *
+     * @param helper the gametest helper
+     */
+    public static void sightExtendsTheShift(GameTestHelper helper) {
+        AbilityDefinition shift = fungalShift(helper);
+        helper.assertTrue(HIGH_ABOVE.getY() - CORNER_POS.getY() > BASE_RANGE, FAR_BEYOND_BASE);
+        ServerPlayer player = shifterAimedAt(helper, Blocks.RED_MUSHROOM_BLOCK, shift, CORNER_POS, HIGH_ABOVE);
+        openTheCeilingAbove(helper, CORNER_POS);
+        Vec3 before = player.position();
+
+        SelfDeliveryTests.invoke(player, GooTypes.SHROOM, FUNGAL_SHIFT);
+        double movedWithoutSight = player.position().distanceTo(before);
+        BrewEffectTests.drinkBrew(player, GooTypes.SHROOM);
+        SelfDeliveryTests.invoke(player, GooTypes.SHROOM, FUNGAL_SHIFT);
+
+        BlockPos standing = player.blockPosition();
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        helper.assertTrue(movedWithoutSight < MOVE_TOLERANCE, String.format(SHOULD_STAY, movedWithoutSight));
+        helper.assertTrue(standing.equals(helper.absolutePos(HIGH_ABOVE.above())),
+                String.format(SHOULD_STAND_ON, standing));
+        helper.succeed();
+    }
+
+    /**
+     * Clears the barrier the gametest framework roofs the bay with, straight
+     * above a spot, so a look up from there reaches past the bay.
+     *
+     * @param helper the gametest helper
+     * @param below  the spot whose column opens
+     */
+    private static void openTheCeilingAbove(GameTestHelper helper, BlockPos below) {
+        BlockPos.MutableBlockPos cursor = helper.absolutePos(below).mutable();
+        for (int up = 0; up < CEILING_SEARCH; up++) {
+            cursor.move(Direction.UP);
+            if (helper.getLevel().getBlockState(cursor).is(Blocks.BARRIER)) {
+                helper.getLevel().setBlock(cursor, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
+            }
+        }
     }
 
     private static AbilityDefinition fungalShift(GameTestHelper helper) {
