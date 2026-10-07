@@ -113,9 +113,12 @@ public final class GooStreamHandler {
         Delivery delivery = ability.delivery();
         Vec3 apex = ThrowArc.clampToReach(player.getEyePosition(), origin, ThrowArc.HAND_REACH * player.getScale());
         Vec3 axis = player.getLookAngle();
-        sprayParticles(level, apex, axis, delivery);
-        for (LivingEntity living : livingInCone(level, player, apex, axis, delivery)) {
-            runProgram(ability, HostKind.ENTITY, new EntityHost(level, living, player));
+        if (delivery.range() > 0) {
+            // reserve-hearts-sit-behind-the-bar: a stream reaching nothing runs only on its caster
+            sprayParticles(level, apex, axis, delivery);
+            for (LivingEntity living : livingInCone(level, player, apex, axis, delivery)) {
+                runProgram(ability, HostKind.ENTITY, new EntityHost(level, living, player));
+            }
         }
         if (ability.hasTag(AbilityTags.SELF)) {
             // vitality-waves-regenerate-and-court

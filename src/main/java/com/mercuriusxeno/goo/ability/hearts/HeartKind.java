@@ -36,9 +36,9 @@ public enum HeartKind {
         }
     },
     /**
-     * Vital Reserve: a copy of the hearts the player had, banked behind the
-     * bar at a reduced value, spent before real health and gone with its last
-     * half; it has no weakness, retaliates at nothing and never regrows.
+     * Vital Reserve: health drained while right click is held, banked behind
+     * the bar at a lossy ratio, spent before real health and gone with its
+     * last half; it has no weakness, retaliates at nothing and never regrows.
      * Appended last, so the synced ordinals of the kinds before it stand.
      * reserve-hearts-sit-behind-the-bar
      */

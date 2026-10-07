@@ -58,9 +58,9 @@ class HeartOverlayHudTest {
     }
 
     @Test
-    void reserveDrawsVanillasRedHeartBehindByTheHalvesBanked() {
-        assertEquals("minecraft:hud/heart/full", HeartOverlayHud.reserveSprite(2).orElseThrow().toString());
-        assertEquals("minecraft:hud/heart/half", HeartOverlayHud.reserveSprite(1).orElseThrow().toString());
+    void reserveDrawsItsOwnVitalHeartBehindByTheHalvesBanked() {
+        assertEquals("goo:hud/heart/reserve_full", HeartOverlayHud.reserveSprite(2).orElseThrow().toString());
+        assertEquals("goo:hud/heart/reserve_half", HeartOverlayHud.reserveSprite(1).orElseThrow().toString());
         assertTrue(HeartOverlayHud.reserveSprite(0).isEmpty());
     }
 

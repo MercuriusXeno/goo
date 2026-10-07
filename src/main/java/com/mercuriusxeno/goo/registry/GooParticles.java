@@ -72,6 +72,14 @@ public class GooParticles {
         PARTICLE_TYPES.register("restore_mote", () -> new SimpleParticleType(false));
 
     /**
+     * The vital mote: a mote of vital goo homing on a target the client
+     * reads each tick, Reserve's life drawn into the glove.
+     * reserve-hearts-sit-behind-the-bar
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> VITAL_MOTE =
+        PARTICLE_TYPES.register("vital_mote", () -> new SimpleParticleType(false));
+
+    /**
      * Creates a non-syncing ParticleType that carries RGB color data.
      *
      * @return the configured color particle type

@@ -43,59 +43,113 @@ class HeartOverlayTest {
         return new HeartOverlay(HeartKind.KINDLE, shields, NOW + DURATION, regrowAt, NOW);
     }
 
-    /** Reserve copies the current health halves times its factor into shields that only spend (decision reserve-hearts-sit-behind-the-bar). */
+    /** Reserve drains health while held into reserve hearts behind the bar, by the JSON's ratio, cap and floor, and never expires (decision reserve-hearts-sit-behind-the-bar). */
     @Nested
-    class FromCurrent {
+    class Reserve {
 
-        private static final float HALF_VALUE = 0.5f;
+        /** vital_reserve.json: half a heart drained every ten ticks, two hearts banking one, ten hearts at most, never under half a heart. */
+        private static final ReserveDrain VITAL_RESERVE = new ReserveDrain(0.05f, 0.5f, 10f, 0.5f);
+        private static final float SUM_DELTA = 1e-4f;
+        private static final int CAP_HALVES = 20;
 
-        private HeartOverlay reserved(float health) {
-            return HeartOverlay.NONE.apply(HeartKind.RESERVE, HeartFill.FROM_CURRENT, HALF_VALUE, DURATION, health, NOW);
+        private ReserveDrain.Drawn held(HeartOverlay standing, float health, int ticks) {
+            ReserveDrain.Drawn drawn = new ReserveDrain.Drawn(health, standing);
+            for (int tick = 0; tick < ticks; tick++) {
+                drawn = VITAL_RESERVE.draw(drawn.overlay(), drawn.health());
+            }
+            return drawn;
+        }
+
+        private HeartOverlay reserveOf(Integer... halves) {
+            return new HeartOverlay(HeartKind.RESERVE, List.of(halves), HeartOverlay.NEVER_EXPIRES, 0L, 0L);
         }
 
         @Test
-        void fullHealthBanksHalfItsHalvesInFullShields() {
-            HeartOverlay overlay = reserved(FULL_HEALTH);
-            assertEquals(Collections.nCopies(5, HeartOverlay.FULL_SHIELD), overlay.shields());
-            assertEquals(NOW + DURATION, overlay.expiresAt());
+        void eachHeldTickDrainsTheJsonAmount() {
+            ReserveDrain.Drawn drawn = held(HeartOverlay.NONE, FULL_HEALTH, 1);
+            assertEquals(19.9f, drawn.health(), SUM_DELTA);
+            assertTrue(drawn.overlay().reserves());
+            assertEquals(0, drawn.overlay().shieldHalves());
         }
 
         @Test
-        void halfHealthBanksHalfItsHalvesWithTheOddHalfLast() {
-            HeartOverlay overlay = reserved(10f);
-            assertEquals(List.of(2, 2, 1), overlay.shields());
+        void twoHeartsDrainedBankOneReserveHeart() {
+            ReserveDrain.Drawn drawn = held(HeartOverlay.NONE, FULL_HEALTH, 40);
+            assertEquals(16f, drawn.health(), SUM_DELTA);
+            assertEquals(List.of(HeartOverlay.FULL_SHIELD), drawn.overlay().shields());
         }
 
         @Test
-        void aFractionOfAHalfIsNotBanked() {
-            assertEquals(List.of(2, 2, 1), reserved(11.5f).shields());
+        void oneHeartDrainedBanksHalfAHeart() {
+            assertEquals(List.of(1), held(HeartOverlay.NONE, FULL_HEALTH, 20).overlay().shields());
         }
 
         @Test
-        void hitsSpendTheReserveBeforeHealth() {
-            HeartOverlay.Drained drained = reserved(FULL_HEALTH).drain(3f, NOW);
+        void aBankedHalfFillsTheLeftmostShortSlot() {
+            HeartOverlay banked = reserveOf(2, 1, 0).bank(2f, 0.5f, CAP_HALVES);
+            assertEquals(List.of(2, 2, 0), banked.shields());
+        }
+
+        @Test
+        void theDrainStopsAtTheFloor() {
+            ReserveDrain.Drawn drawn = held(HeartOverlay.NONE, 1.05f, 5);
+            assertEquals(1f, drawn.health(), SUM_DELTA);
+            ReserveDrain.Drawn atFloor = VITAL_RESERVE.draw(drawn.overlay(), drawn.health());
+            assertSame(drawn.overlay(), atFloor.overlay());
+            assertEquals(1f, atFloor.health(), SUM_DELTA);
+        }
+
+        @Test
+        void aReserveAtTheCapTakesNoMoreHealth() {
+            HeartOverlay capped = reserveOf(Collections.nCopies(10, HeartOverlay.FULL_SHIELD).toArray(Integer[]::new));
+            ReserveDrain.Drawn drawn = VITAL_RESERVE.draw(capped, FULL_HEALTH);
+            assertSame(capped, drawn.overlay());
+            assertEquals(FULL_HEALTH, drawn.health(), DELTA);
+        }
+
+        @Test
+        void bankingStopsAtTheCapAndDropsTheCarry() {
+            HeartOverlay banked = reserveOf(2, 2, 2, 2, 2, 2, 2, 2, 2, 1).bank(10f, 0.5f, CAP_HALVES);
+            assertEquals(CAP_HALVES, banked.shieldHalves());
+            assertEquals(0f, banked.drainCarry(), DELTA);
+        }
+
+        @Test
+        void drainingEndsAnotherHeartBrew() {
+            assertEquals(HeartKind.RESERVE, held(kindled(FULL_HEALTH), FULL_HEALTH, 1).overlay().kind());
+        }
+
+        @Test
+        void theReserveNeverExpires() {
+            HeartOverlay reserve = reserveOf(2, 2);
+            assertSame(reserve, reserve.tick(FULL_HEALTH, false, Long.MAX_VALUE - 1));
+        }
+
+        @Test
+        void hitsSpendTheReserveAtAFullHeartEachBeforeHealth() {
+            HeartOverlay.Drained drained = reserveOf(2, 2).drain(3f, NOW);
             assertEquals(0f, drained.remainder(), DELTA);
-            assertEquals(7, drained.overlay().shieldHalves());
+            assertEquals(1, drained.overlay().shieldHalves());
         }
 
         @Test
         void aHitPastTheReserveEndsItAndTheRestReachesHealth() {
-            HeartOverlay.Drained drained = reserved(FULL_HEALTH).drain(12f, NOW);
+            HeartOverlay.Drained drained = reserveOf(2, 2).drain(6f, NOW);
             assertEquals(2f, drained.remainder(), DELTA);
             assertFalse(drained.overlay().stands());
         }
 
         @Test
         void aSpentReserveNeverRegrows() {
-            HeartOverlay spent = reserved(FULL_HEALTH).drain(3f, NOW).overlay();
-            assertSame(spent, spent.tick(FULL_HEALTH, false, NOW + DURATION - 1));
+            HeartOverlay spent = reserveOf(2, 2).drain(3f, NOW).overlay();
+            assertSame(spent, spent.tick(FULL_HEALTH, false, NOW + DURATION));
             assertTrue(spent.nextRegrowSlot(FULL_HEALTH).isEmpty());
         }
 
         @Test
         void waterLeavesTheReserveStanding() {
-            HeartOverlay overlay = reserved(FULL_HEALTH);
-            assertSame(overlay, overlay.tick(FULL_HEALTH, true, NOW + 1));
+            HeartOverlay reserve = reserveOf(2, 2);
+            assertSame(reserve, reserve.tick(FULL_HEALTH, true, NOW + 1));
         }
     }
 
