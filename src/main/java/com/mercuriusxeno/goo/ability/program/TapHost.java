@@ -1,5 +1,11 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.data.GooValue;
+import com.mercuriusxeno.goo.item.GooContents;
+import com.mercuriusxeno.goo.item.GooStacks;
+import com.mercuriusxeno.goo.network.ChunkViewerSends;
+import com.mercuriusxeno.goo.network.UnmakePayload;
+import com.mercuriusxeno.goo.registry.GooServerState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -8,6 +14,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.phys.Vec3;
+import org.jspecify.annotations.Nullable;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalDouble;
@@ -25,7 +32,7 @@ import java.util.OptionalDouble;
  * @param face    the landing block's face the drip struck
  */
 public record TapHost(ServerLevel level, BlockPos landing, Direction face)
-        implements ExplodeHost, AnchoredWorldHost, PlaceBlockHost {
+        implements ExplodeHost, AnchoredWorldHost, PlaceBlockHost, UnmakeHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "Place step names block which no registry holds: ";
     private static final double HALF = 0.5;
@@ -88,4 +95,30 @@ public record TapHost(ServerLevel level, BlockPos landing, Direction face)
         level.setBlock(cell, StatePropertyWriter.write(found.defaultBlockState(), values), Block.UPDATE_ALL);
     }
 
+    @Override
+    public @Nullable GooValue unmadeValue() {
+        return ValuedBlocks.valueAt(level, landing);
+    }
+
+    /**
+     * Counts this drip against the block it landed on
+     * (decision unmake-drip-dissolves-the-block-below).
+     */
+    @Override
+    public int countUnmakeWork() {
+        return GooServerState.of(level.getServer()).tapUnmakeDrips()
+                .count(level.dimension(), landing, level.getBlockState(landing));
+    }
+
+    @Override
+    public void showUnmaking(float fraction) {
+        ChunkViewerSends.send(level, landing, new UnmakePayload(landing, fraction), null);
+    }
+
+    @Override
+    public void unmake(GooContents yield) {
+        level.removeBlock(landing, false);
+        GooServerState.of(level.getServer()).tapUnmakeDrips().forget(level.dimension(), landing);
+        GooStacks.dropAll(yield, level, landing);
+    }
 }

@@ -48,7 +48,7 @@ public record UnmakeStep(Expr workPerGoo, Expr yield) implements Step {
             return true;
         }
         int needed = UnmakeRule.workToUnmake(value.totalGoo(), workPerGoo.evaluate(context));
-        int done = host.unmakeProgress();
+        int done = host.countUnmakeWork();
         if (done >= needed) {
             host.unmake(UnmakeRule.yieldOf(value, yield.evaluate(context)));
         } else {
