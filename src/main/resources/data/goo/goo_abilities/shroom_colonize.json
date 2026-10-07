@@ -6,7 +6,6 @@
   "cost": 1000,
   "requires": ["minecraft:brown_mushroom", "minecraft:red_mushroom"],
   "delivery": { "kind": "arc" },
-  "area": { "shape": "sphere", "size": 3.0 },
   "behaviors": [
     {
       "type": "colonize",
