@@ -12,6 +12,7 @@ import com.mercuriusxeno.goo.block.plexer.PlexerBlockEntity;
 import com.mercuriusxeno.goo.block.reactor.ReactorBlockEntity;
 import com.mercuriusxeno.goo.block.statue.StatueBlockEntity;
 import com.mercuriusxeno.goo.block.tap.TapBlockEntity;
+import com.mercuriusxeno.goo.block.unmake.MeltingBlockEntity;
 import com.mercuriusxeno.goo.block.vat.VatBlockEntity;
 import com.mercuriusxeno.goo.fluid.GooFluidBlockEntity;
 import net.minecraft.core.registries.Registries;
@@ -65,6 +66,10 @@ public class GooBlockEntities {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<AbilityBlockEntity>> ABILITY_BLOCK =
             BLOCK_ENTITIES.register("ability_block",
                     () -> new BlockEntityType<>(AbilityBlockEntity::new, GooBlocks.ABILITY_BLOCK.get()));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<MeltingBlockEntity>> MELTING_BLOCK =
+            BLOCK_ENTITIES.register("melting_block",
+                    () -> new BlockEntityType<>(MeltingBlockEntity::new, GooBlocks.MELTING_BLOCK.get()));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<StatueBlockEntity>> STATUE =
             BLOCK_ENTITIES.register("statue",

@@ -1,39 +1,37 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import net.minecraft.world.phys.AABB;
-import org.jspecify.annotations.Nullable;
-import java.util.ArrayList;
+import com.google.common.reflect.TypeToken;
+import com.mercuriusxeno.goo.Goo;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.entity.EntityRenderer;
+import net.minecraft.client.renderer.entity.state.EntityRenderState;
+import net.minecraft.resources.Identifier;
+import net.minecraft.util.context.ContextKey;
+import net.minecraft.world.entity.Entity;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.renderstate.RegisterRenderStateModifiersEvent;
 import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
-import java.util.function.IntFunction;
 
 /**
- * The mobs an unmake is melting on this client, as {@link MeltingBlocks}
- * holds blocks: a standing mob's body liquefies as its share rises, and once
- * it is gone its goo collapses where it last stood for
- * {@link MeltingBlocks#COLLAPSE_TICKS} and is forgotten.
+ * The share each mob an unmake is working has melted on this client, as
+ * {@link MeltingBlocks} holds blocks. A melting mob's render state is stamped
+ * so its own body is not drawn while its goo copy sags in its place.
  * decision unmake-waves-dissolve-by-crucible-cost
  */
+@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class MeltingMobs {
 
-    /** The store the client's unmake handler and the melt renderer share. */
+    /** The store the client's unmake handler and the melt renderers share. */
     public static final MeltingMobs CLIENT = new MeltingMobs();
 
-    private static final long STANDING = -1;
+    /** Render data marking a mob whose goo copy stands in for its body. */
+    public static final ContextKey<Boolean> MELTING =
+            new ContextKey<>(Identifier.fromNamespaceAndPath(Goo.MODID, "melting"));
 
-    /**
-     * One mob's melt as this frame draws it.
-     *
-     * @param box       the mob's body, or where it last stood once gone
-     * @param liquefied how much of its body has turned to goo, 0 to 1
-     * @param collapse  how far its goo has collapsed once it is gone, 0 while it stands, to 1
-     */
-    public record Melt(AABB box, float liquefied, float collapse) {
-    }
-
-    private record Heard(float liquefied, long tick, long goneAt, @Nullable AABB lastBox) {
+    private record Heard(float melted, long tick) {
     }
 
     private final Map<Integer, Heard> melting = new HashMap<>();
@@ -46,69 +44,56 @@ public final class MeltingMobs {
      * @param now      the game time the share arrived
      */
     public void record(int entityId, float fraction, long now) {
-        Heard last = melting.get(entityId);
-        melting.put(entityId, new Heard(fraction, now, STANDING, last == null ? null : last.lastBox()));
+        melting.put(entityId, new Heard(fraction, now));
     }
 
     /**
-     * The melts to draw now: each standing mob still being worked, and each
-     * gone mob's collapsing goo where it last stood.
+     * Every mob still being worked and its share, forgetting each gone quiet.
      *
-     * @param now   the game time including the partial tick
-     * @param boxOf a mob's body now, or null once it has gone from the level
-     * @return the melts
+     * @param now the game time including the partial tick
+     * @return each worked mob's id and share
      */
-    public List<Melt> melts(float now, IntFunction<@Nullable AABB> boxOf) {
-        List<Melt> melts = new ArrayList<>();
-        Iterator<Map.Entry<Integer, Heard>> entries = melting.entrySet().iterator();
-        while (entries.hasNext()) {
-            Map.Entry<Integer, Heard> entry = entries.next();
-            Heard heard = track(entry.getValue(), boxOf.apply(entry.getKey()), now);
-            entry.setValue(heard);
-            Melt melt = meltOf(heard, now);
-            if (melt == null) {
-                entries.remove();
-            } else {
-                melts.add(melt);
-            }
-        }
-        return melts;
+    public Map<Integer, Float> worked(float now) {
+        melting.values().removeIf(heard -> now - heard.tick() > MeltingBlocks.STALE_TICKS);
+        Map<Integer, Float> shares = new HashMap<>();
+        melting.forEach((id, heard) -> shares.put(id, heard.melted()));
+        return shares;
     }
 
     /**
-     * Follows a standing mob's body, or marks it gone once it has left.
+     * Whether a mob is being melted now.
      *
-     * @param heard what was last heard of the mob
-     * @param box   its body now, or null once gone
-     * @param now   the game time including the partial tick
-     * @return what is known of it now
+     * @param entityId the mob's entity id
+     * @param now      the game time
+     * @return true while the unmake works it
      */
-    private static Heard track(Heard heard, @Nullable AABB box, float now) {
-        if (heard.goneAt() != STANDING) {
-            return heard;
-        }
-        if (box != null) {
-            return new Heard(heard.liquefied(), heard.tick(), STANDING, box);
-        }
-        return new Heard(1f, heard.tick(), (long) now, heard.lastBox());
+    public boolean isMelting(int entityId, float now) {
+        Heard heard = melting.get(entityId);
+        return heard != null && now - heard.tick() <= MeltingBlocks.STALE_TICKS;
     }
 
     /**
-     * One mob's melt now.
+     * Registers the stamp marking a melting mob's render state.
      *
-     * @param heard what is known of the mob
-     * @param now   the game time including the partial tick
-     * @return the melt, or null once it has collapsed, gone quiet, or never been seen
+     * @param event the render state modifier registration event
      */
-    private static @Nullable Melt meltOf(Heard heard, float now) {
-        if (heard.lastBox() == null) {
-            return null;
+    @SubscribeEvent
+    public static void registerStamp(RegisterRenderStateModifiersEvent event) {
+        event.registerEntityModifier(new TypeToken<EntityRenderer<Entity, EntityRenderState>>() {
+        }, MeltingMobs::stampMelting);
+    }
+
+    /**
+     * Stamps a melting mob's render state so its body is not drawn.
+     *
+     * @param entity the entity
+     * @param state  its render state
+     */
+    public static void stampMelting(Entity entity, EntityRenderState state) {
+        float now = entity.level().getGameTime()
+                + Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false);
+        if (CLIENT.isMelting(entity.getId(), now)) {
+            state.setRenderData(MELTING, true);
         }
-        if (heard.goneAt() == STANDING) {
-            return now - heard.tick() > MeltingBlocks.STALE_TICKS ? null
-                    : new Melt(heard.lastBox(), heard.liquefied(), 0f);
-        }
-        float collapse = (now - heard.goneAt()) / MeltingBlocks.COLLAPSE_TICKS;
-        return collapse >= 1f ? null : new Melt(heard.lastBox(), 1f, Math.max(collapse, 0f));
     }
 }

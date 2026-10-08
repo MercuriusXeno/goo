@@ -71,7 +71,8 @@ public final class ValuedBlocks {
      * @return the block's goo value, or null for air, an itemless block or an unvalued one
      */
     public static @Nullable GooValue valueAt(ServerLevel level, BlockPos target) {
-        BlockState state = level.getBlockState(target);
+        // decision unmake-waves-dissolve-by-crucible-cost: a melting block is worth the block it stands in for
+        BlockState state = BlockMelts.originalAt(level, target);
         Item item = state.getBlock().asItem();
         if (state.isAir() || item == Items.AIR) {
             return null;

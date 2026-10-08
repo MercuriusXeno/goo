@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.ability.petrify.BlockExposures;
+import com.mercuriusxeno.goo.ability.program.UnmakeDrops;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockFallScheduler;
 import com.mercuriusxeno.goo.block.tap.TapDripCounts;
 import com.mercuriusxeno.goo.block.tap.TapDripScheduler;
@@ -21,6 +22,7 @@ public final class GooServerState {
     private final GooEffectScheduler gooEffects = new GooEffectScheduler();
     private final TapDripScheduler tapDrips = new TapDripScheduler();
     private final TapDripCounts tapDripCounts = new TapDripCounts();
+    private final UnmakeDrops unmakeDrops = new UnmakeDrops();
     private final BlockExposures blockExposures = new BlockExposures();
     private final AbilityBlockFallScheduler markerFalls = new AbilityBlockFallScheduler();
     private final StreamHolds streamHolds = new StreamHolds();
@@ -58,6 +60,16 @@ public final class GooServerState {
      */
     public TapDripScheduler tapDrips() {
         return tapDrips;
+    }
+
+    /**
+     * The goo unmade blocks and mobs leave, held back while their remains
+     * morph (decision unmake-waves-dissolve-by-crucible-cost).
+     *
+     * @return the held drops
+     */
+    public UnmakeDrops unmakeDrops() {
+        return unmakeDrops;
     }
 
     /**
@@ -108,6 +120,7 @@ public final class GooServerState {
             markerFalls.drainArrivedFalls(currentTick);
         }
         tapDrips.drainArrived(server);
+        unmakeDrops.dropArrived(currentTick);
         blockExposures.decay(server);
     }
 
@@ -121,5 +134,6 @@ public final class GooServerState {
         blockExposures.clear();
         markerFalls.clear();
         streamHolds.clear();
+        unmakeDrops.clear();
     }
 }

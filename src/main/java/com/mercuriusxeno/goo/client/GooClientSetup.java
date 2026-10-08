@@ -170,6 +170,7 @@ public final class GooClientSetup {
                 AbilityBlockRenderer::new);
         event.registerBlockEntityRenderer(GooBlockEntities.PRISM.get(), PrismRenderer::new);
         event.registerBlockEntityRenderer(GooBlockEntities.STATUE.get(), StatueRenderer::new);
+        event.registerBlockEntityRenderer(GooBlockEntities.MELTING_BLOCK.get(), MeltingBlockEntityRenderer::new);
     }
 
     /**

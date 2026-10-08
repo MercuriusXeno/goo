@@ -2,46 +2,34 @@ package com.mercuriusxeno.goo.client.ability;
 
 import net.minecraft.core.BlockPos;
 import org.junit.jupiter.api.Test;
-import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * A melting block liquefies while it stands, its goo collapses once it is
- * gone, and a block the unmake left is forgotten
- * (decision unmake-waves-dissolve-by-crucible-cost).
+ * A worked block reads the share it has melted until the unmake goes quiet on
+ * it (decision unmake-waves-dissolve-by-crucible-cost).
  */
 class MeltingBlocksTest {
 
     private static final BlockPos BLOCK = new BlockPos(1, 2, 3);
-    private static final float DELTA = 1e-5f;
 
     @Test
-    void aStandingBlockShowsTheShareLiquefied() {
+    void aWorkedBlockReadsItsShare() {
         MeltingBlocks melting = new MeltingBlocks();
         melting.record(BLOCK, 0.4f, 100);
 
-        assertEquals(List.of(new MeltingBlocks.Melt(BLOCK, 0.4f, 0f)), melting.melts(101f, pos -> false));
+        assertEquals(Optional.of(0.4f), melting.meltedAt(BLOCK, 101f));
+        assertEquals(Map.of(BLOCK, 0.4f), melting.worked(101f));
     }
 
     @Test
-    void aGoneBlocksGooCollapsesThenIsForgotten() {
-        MeltingBlocks melting = new MeltingBlocks();
-        melting.record(BLOCK, 0.9f, 100);
-
-        melting.melts(101f, pos -> true);
-        MeltingBlocks.Melt halfway = melting.melts(101f + MeltingBlocks.COLLAPSE_TICKS / 2f, pos -> true).getFirst();
-
-        assertEquals(1f, halfway.liquefied(), DELTA);
-        assertEquals(0.5f, halfway.collapse(), DELTA);
-        assertTrue(melting.melts(101f + MeltingBlocks.COLLAPSE_TICKS, pos -> true).isEmpty());
-    }
-
-    @Test
-    void aStandingBlockTheUnmakeLeftIsForgotten() {
+    void aBlockTheUnmakeLeftReadsUnworked() {
         MeltingBlocks melting = new MeltingBlocks();
         melting.record(BLOCK, 0.4f, 100);
 
-        assertTrue(melting.melts(101f + MeltingBlocks.STALE_TICKS, pos -> false).isEmpty());
+        assertTrue(melting.meltedAt(BLOCK, 101f + MeltingBlocks.STALE_TICKS).isEmpty());
+        assertTrue(melting.worked(101f + MeltingBlocks.STALE_TICKS).isEmpty());
     }
 }
