@@ -24,14 +24,16 @@ import java.util.stream.Stream;
 
 /**
  * Moves the host's target onto the fungus block it aims at within a range,
- * and finishes; a target aiming at no fungus within the range, or at any
- * other block, is not admitted, so the ability neither runs nor drains.
+ * from where it stands near another fungus, and finishes; a target standing
+ * near no fungus, or aiming at no fungus within the range, is not admitted,
+ * so the ability neither runs nor drains.
  * Fungal Shift is {@code shift range=64}
  * (decision fungal-shift-blinks-to-the-aimed-fungus).
  *
  * @param range the reach of the aim in blocks, evaluated when the step runs
+ * @param near  how near a fungus the target must stand to shift, evaluated when the step runs
  */
-public record ShiftStep(Expr range) implements Step {
+public record ShiftStep(Expr range, Expr near) implements Step {
 
     /** The blocks a shift lands on: mushrooms, fungi, nylium, mycelium, shroomlight, mushroom blocks. */
     public static final TagKey<Block> FUNGUS =
@@ -39,14 +41,27 @@ public record ShiftStep(Expr range) implements Step {
 
     private static final String NAME = "shift";
     private static final String FIELD_RANGE = "range";
+    private static final String FIELD_NEAR = "near";
+    /** How near a fungus the shifter must stand where the JSON names no reach. */
+    private static final double DEFAULT_NEAR = 3;
     private static final double HALF = 0.5;
 
     /**
      * Codec for the step's params.
      */
     public static final MapCodec<ShiftStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
-            Expr.CODEC.fieldOf(FIELD_RANGE).forGetter(ShiftStep::range)
+            Expr.CODEC.fieldOf(FIELD_RANGE).forGetter(ShiftStep::range),
+            Expr.CODEC.optionalFieldOf(FIELD_NEAR, Expr.literal(DEFAULT_NEAR)).forGetter(ShiftStep::near)
     ).apply(inst, ShiftStep::new));
+
+    /**
+     * A shift at a range, from within the default reach of a fungus.
+     *
+     * @param range the reach of the aim in blocks
+     */
+    public ShiftStep(Expr range) {
+        this(range, Expr.literal(DEFAULT_NEAR));
+    }
 
     /**
      * The registered type.
@@ -61,12 +76,16 @@ public record ShiftStep(Expr range) implements Step {
     @Override
     public boolean admits(StepContext context) {
         LivingEntity target = context.hostAs(TargetHost.class).target();
-        return aimedFungus(target.level(), target, reachOf(target, range.evaluate(context))).isPresent();
+        return FungusAim.standsNearFungus(target.level(), target, near.evaluate(context))
+                && aimedFungus(target.level(), target, reachOf(target, range.evaluate(context))).isPresent();
     }
 
     @Override
     public boolean tick(StepContext context) {
         LivingEntity target = context.hostAs(TargetHost.class).target();
+        if (!FungusAim.standsNearFungus(target.level(), target, near.evaluate(context))) {
+            return true;
+        }
         aimedFungus(target.level(), target, reachOf(target, range.evaluate(context))).ifPresent(stand -> {
             // ghost-trail-spans-the-blink: a step after the jump reads where the target left from
             target.setData(GooAttachments.JUMP_SOURCE, target.position());
@@ -117,8 +136,24 @@ public record ShiftStep(Expr range) implements Step {
     }
 
     /**
+     * How near a fungus the first shift step in a program needs its shifter,
+     * where that reach reads no variable, which the client's marker checks with.
+     *
+     * @param behaviors the program
+     * @return the reach, or empty when the program shifts from no fixed reach
+     */
+    public static OptionalDouble fungusNear(List<Step> behaviors) {
+        for (Step step : behaviors) {
+            if (step instanceof ShiftStep shift && shift.near().variables().isEmpty()) {
+                return OptionalDouble.of(shift.near().evaluate(Variables.NONE));
+            }
+        }
+        return OptionalDouble.empty();
+    }
+
+    /**
      * The range of the first shift step in a program whose range reads no
-     * variable, which the client's cursor aims with.
+     * variable, which the client's marker aims with.
      *
      * @param behaviors the program
      * @return the range, or empty when the program shifts at no fixed range
@@ -134,7 +169,7 @@ public record ShiftStep(Expr range) implements Step {
 
     @Override
     public Stream<Expr> expressions() {
-        return Stream.of(range);
+        return Stream.of(range, near);
     }
 
     @Override

@@ -30,8 +30,8 @@ import java.util.Optional;
 import java.util.SplittableRandom;
 
 /**
- * Fungal Shift's target marker: while the press is held, the fungus the
- * release would land on flares, its own shape swollen and quick-pulsing in
+ * Fungal Shift's target marker: while the press is held near a fungus, the
+ * fungus the release would land on flares, its own shape swollen and quick-pulsing in
  * magenta, and a slim column of spore motes rises from where the player
  * would stand, both drawn through walls so the mark reads behind them.
  * fungal-shift-blinks-to-the-aimed-fungus
@@ -135,8 +135,11 @@ public final class ShiftTargetMarker {
     private static Optional<BlockPos> aimedFungus(LocalPlayer player, ClientAbility ability) {
         long tick = player.level().getGameTime();
         if (tick != targetAt || player.getYRot() != targetYaw || player.getXRot() != targetPitch) {
-            target = FungusAim.aimedFungus(player.level(), player,
-                    ShiftStep.reachOf(player, ShiftStep.fungusRange(ability.behaviors()).orElseThrow()));
+            boolean near = FungusAim.standsNearFungus(player.level(), player,
+                    ShiftStep.fungusNear(ability.behaviors()).orElse(0));
+            target = near ? FungusAim.aimedFungus(player.level(), player,
+                    ShiftStep.reachOf(player, ShiftStep.fungusRange(ability.behaviors()).orElseThrow()))
+                    : Optional.empty();
             targetAt = tick;
             targetYaw = player.getYRot();
             targetPitch = player.getXRot();
