@@ -30,11 +30,11 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Gametest for Unmake: a stream held at two cobblestones in a line and a
- * diamond block melts both cobblestones on the very tick their crucible
- * value's work is done, the one behind as well as the nearest, drops the
- * share of their goo the ability yields, and leaves the dearer diamond block
- * standing.
+ * Gametests for Unmake: a stream held at two cobblestones in a line and a
+ * diamond block melts the nearer cobblestone on the very tick its crucible
+ * value's work is done, drops the share of its goo the ability yields, and
+ * leaves the cobblestone it hid and the dearer diamond block standing; a
+ * stream held at a chicken melts it into the goo of its loot.
  * decision unmake-waves-dissolve-by-crucible-cost
  */
 public final class UnmakeTests {
@@ -43,7 +43,7 @@ public final class UnmakeTests {
     private static final BlockPos STAND_POS = new BlockPos(1, 1, 3);
     /** Three blocks east at eye height, on the look's axis. */
     private static final BlockPos CHEAP_POS = new BlockPos(4, 2, 3);
-    /** Right behind the first cobblestone along the look, which the cone reaches as well. */
+    /** Right behind the first cobblestone along the look, hidden from the player by it. */
     private static final BlockPos BEHIND_POS = CHEAP_POS.east();
     /** Four blocks east and one south at eye height, inside the cone beside the cobblestone. */
     private static final BlockPos DEAR_POS = new BlockPos(5, 2, 4);
@@ -61,7 +61,8 @@ public final class UnmakeTests {
     private static final String NOT_DEAR = "The diamond block should take longer to unmake than the hold, needs %d";
     private static final String GONE_EARLY = "The cobblestone should stand one tick short of its work, %d ticks";
     private static final String NOT_GONE = "The cobblestone should be gone once its work of %d ticks is done";
-    private static final String BEHIND_STANDS = "The cobblestone behind the first should melt with it after %d ticks";
+    private static final String HOLD_TOO_LONG = "The hold should end before the hidden cobblestone, seen only once "
+            + "the first melts at %d ticks, could melt too";
     /** The longest the chicken test holds, past a chicken's loot work at Unmake's rate. */
     private static final int MOB_HOLD_TICKS = 400;
     private static final String MOB_STANDS = "The chicken should melt within the hold";
@@ -105,15 +106,16 @@ public final class UnmakeTests {
                     helper.assertBlockPresent(Blocks.COBBLESTONE, BEHIND_POS);
                 } else if (thisTick == cheapWork) {
                     helper.assertTrue(helper.getBlockState(CHEAP_POS).isAir(), String.format(NOT_GONE, cheapWork));
-                    helper.assertTrue(helper.getBlockState(BEHIND_POS).isAir(), String.format(BEHIND_STANDS, cheapWork));
+                    helper.assertBlockPresent(Blocks.COBBLESTONE, BEHIND_POS);
                 }
             });
         }
         helper.runAfterDelay(HOLD_TICKS + 1, () -> {
             helper.getLevel().getServer().getPlayerList().remove(player);
             helper.assertBlockPresent(Blocks.DIAMOND_BLOCK, DEAR_POS);
-            GooContents one = UnmakeRule.yieldOf(cheap, YIELD);
-            GooContents expected = one.mergeWith(one);
+            helper.assertTrue(cheapWork + cheapWork > HOLD_TICKS, String.format(HOLD_TOO_LONG, cheapWork));
+            helper.assertBlockPresent(Blocks.COBBLESTONE, BEHIND_POS);
+            GooContents expected = UnmakeRule.yieldOf(cheap, YIELD);
             Map<ResourceKey<GooTypeDefinition>, Integer> dropped = droppedGoo(helper);
             helper.assertTrue(expected.getAll().equals(dropped), String.format(WRONG_YIELD, expected.getAll(), dropped));
             helper.succeed();

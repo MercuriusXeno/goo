@@ -80,8 +80,15 @@ class StreamHoldsTest {
             holds.advanceBlock(PLAYER, NEAR, 100);
             holds.advanceBlock(PLAYER, NEAR, 101);
             holds.advanceBlock(PLAYER, FAR, 102);
-            holds.advanceBlock(PLAYER, FAR, 103);
-            assertEquals(1, holds.advanceBlock(PLAYER, NEAR, 104));
+            assertEquals(1, holds.advanceBlock(PLAYER, NEAR, 102 + StreamHolds.HOLD_GRACE_TICKS));
+        }
+
+        /** Two stream ticks landing in one server tick leave the next empty; the hold carries over it. */
+        @Test
+        void aServerTickTheStreamMissedKeepsTheHold() {
+            StreamHolds holds = new StreamHolds();
+            holds.advanceBlock(PLAYER, NEAR, 100);
+            assertEquals(2, holds.advanceBlock(PLAYER, NEAR, 102));
         }
 
         @Test
@@ -133,7 +140,7 @@ class StreamHoldsTest {
             AtomicInteger rolls = new AtomicInteger();
             holds.lootOf(PLAYER, CHICKEN, () -> roll(rolls));
             holds.advanceMob(PLAYER, CHICKEN, 100);
-            holds.advanceMob(PLAYER, new UUID(7, 8), 103);
+            holds.advanceMob(PLAYER, new UUID(7, 8), 101 + StreamHolds.HOLD_GRACE_TICKS);
 
             holds.lootOf(PLAYER, CHICKEN, () -> roll(rolls));
 

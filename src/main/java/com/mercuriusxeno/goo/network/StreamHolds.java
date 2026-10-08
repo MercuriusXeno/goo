@@ -16,6 +16,9 @@ import java.util.function.Supplier;
  */
 public final class StreamHolds {
 
+    /** Server ticks a held block or mob may go unworked before its hold starts over. */
+    static final int HOLD_GRACE_TICKS = 5;
+
     private final Map<UUID, Hold> holds = new HashMap<>();
     private final Map<UUID, Map<BlockPos, Hold>> blockHolds = new HashMap<>();
     private final Map<UUID, Map<UUID, Hold>> mobHolds = new HashMap<>();
@@ -82,8 +85,10 @@ public final class StreamHolds {
     }
 
     /**
-     * Counts one tick on a held thing: one held the tick before continues its
-     * hold, any other starts anew, and one left before the last tick is forgotten.
+     * Counts one tick on a held thing: one held within the last few ticks
+     * continues its hold, any other starts anew, and one left longer is
+     * forgotten. The grace carries a hold over the server ticks a batch of
+     * stream ticks leaves empty, two arriving in one tick and none the next.
      *
      * @param held the holds of one player's stream
      * @param key  the held thing
@@ -92,7 +97,7 @@ public final class StreamHolds {
      * @return the thing's hold tick count, 1 on the hold's first tick
      */
     private static <K> int advanceIn(Map<K, Hold> held, K key, int tick) {
-        held.values().removeIf(hold -> hold.tick() < tick - 1);
+        held.values().removeIf(hold -> hold.tick() < tick - HOLD_GRACE_TICKS);
         Hold last = held.get(key);
         int count = last == null ? 1 : last.tick() == tick ? last.held() : last.held() + 1;
         held.put(key, new Hold(tick, count));
