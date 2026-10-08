@@ -146,7 +146,7 @@ public final class Reaping {
      * @param ripe  the ripe plant
      * @param young the plant replanted
      */
-    private static void replant(ServerLevel level, BlockPos pos, BlockState ripe, BlockState young) {
+    public static void replant(ServerLevel level, BlockPos pos, BlockState ripe, BlockState young) {
         List<ItemStack> drops = Block.getDrops(ripe, level, pos, level.getBlockEntity(pos));
         settleSeeds(drops, ripe.getBlock().asItem(), SEEDS_REPLANTED);
         drops.forEach(stack -> Block.popResource(level, pos, stack));
