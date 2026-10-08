@@ -1,0 +1,18 @@
+{
+  "gooType": "shroom",
+  "displayName": "goo.ability.shroom.mycosis",
+  "badge": "channeled",
+  "order": 10,
+  "cost": 1000,
+  "requires": ["minecraft:nether_wart"],
+  "delivery": { "kind": "stream", "range": 6, "cone": 50, "ticks_per_charge": 20, "particle": "goo:spore",
+    "sound": { "id": "minecraft:block.bubble_column.bubble_pop", "every": 2, "volume": 0.4, "pitch_spread": 0.2 } },
+  "behaviors": [
+    { "type": "potion", "effect": "goo:mycosis", "duration": 100, "amplifier": 0 },
+    { "type": "spore_host", "burst": "goo:shroom_mycosis", "radius": 3, "duration": 600 }
+  ],
+  "on_blocks": [
+    { "type": "branch", "when": "chance(0.006)", "then": [{ "type": "place_block", "block": "goo:fungal_bud" }] }
+  ],
+  "tags": ["stream"]
+}

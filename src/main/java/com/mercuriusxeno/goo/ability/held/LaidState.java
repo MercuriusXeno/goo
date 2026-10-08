@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.ability.held;
 import com.mercuriusxeno.goo.ability.program.HeartOverlayStep;
 import com.mercuriusxeno.goo.ability.program.LowerCaseEnumCodec;
 import com.mercuriusxeno.goo.ability.program.NourishStep;
+import com.mercuriusxeno.goo.ability.program.SightStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mojang.serialization.Codec;
 import io.netty.buffer.ByteBuf;
@@ -21,7 +22,9 @@ public enum LaidState {
     /** A heart overlay over the health bar, laid by a heart_overlay step. */
     HEART_OVERLAY,
     /** Nourishment, laid by a nourish step. */
-    NOURISH;
+    NOURISH,
+    /** Fungal sight (decision sight-lengthens-shift-and-outlines-fungus). */
+    SIGHT;
 
     /** Codec for the saved state. */
     public static final Codec<LaidState> CODEC = LowerCaseEnumCodec.of(LaidState.class, "laid state");
@@ -43,6 +46,8 @@ public enum LaidState {
                 laid.add(HEART_OVERLAY);
             } else if (step instanceof NourishStep) {
                 laid.add(NOURISH);
+            } else if (step instanceof SightStep) {
+                laid.add(SIGHT);
             }
         });
         return laid;

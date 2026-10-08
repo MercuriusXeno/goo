@@ -35,6 +35,8 @@ public final class GooRenderTypes {
     /** Name prefix of a goo render type. */
     private static final String TYPE_NAME_PREFIX = "goo_";
     /** Name suffix of a burnout pipeline's twin that draws through blocks. */
+    /** Fragments fainter than this are cut, as vanilla's translucent entity cuts them. */
+    private static final float ALPHA_CUTOUT = 0.1f;
     private static final String THROUGH_BLOCKS_SUFFIX = "_through_blocks";
 
     /**
@@ -58,6 +60,77 @@ public final class GooRenderTypes {
                     .setOutputTarget(OutputTarget.ITEM_ENTITY_TARGET)
                     .createRenderSetup()
     );
+
+    /**
+     * Sight's fungus x-ray (decision sight-lengthens-shift-and-outlines-fungus):
+     * a block's own baked quads through vanilla's translucent entity shader,
+     * passing every depth test and writing no depth, so fungus shows through walls.
+     */
+    public static final RenderPipeline FUNGUS_XRAY = RenderPipeline.builder(RenderPipelines.ENTITY_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "fungus_xray"))
+            .withShaderDefine("ALPHA_CUTOUT", ALPHA_CUTOUT)
+            .withShaderDefine("PER_FACE_LIGHTING")
+            .withSampler("Sampler1")
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
+            .withCull(false)
+            .build();
+
+    /**
+     * Sight's fungus glow (decision sight-lengthens-shift-and-outlines-fungus):
+     * the x-ray's quads blended additively, so a swollen copy of each fungus
+     * glows like a lamp behind the wall.
+     */
+    public static final RenderPipeline FUNGUS_GLOW = RenderPipeline.builder(RenderPipelines.ENTITY_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "fungus_glow"))
+            .withShaderDefine("ALPHA_CUTOUT", ALPHA_CUTOUT)
+            .withSampler("Sampler1")
+            .withColorTargetState(new ColorTargetState(BlendFunction.LIGHTNING))
+            .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
+            .withCull(false)
+            .build();
+
+    /** Per-atlas memoized render types on the fungus glow pipeline. */
+    private static final java.util.function.Function<Identifier, RenderType> FUNGUS_GLOW_FACTORY =
+            net.minecraft.util.Util.memoize(atlas -> RenderType.create(
+                    "goo_fungus_glow",
+                    RenderSetup.builder(FUNGUS_GLOW)
+                            .withTexture("Sampler0", atlas)
+                            .useLightmap()
+                            .useOverlay()
+                            .createRenderSetup()
+            ));
+
+    /** Per-atlas memoized render types on the fungus x-ray pipeline. */
+    private static final java.util.function.Function<Identifier, RenderType> FUNGUS_XRAY_FACTORY =
+            net.minecraft.util.Util.memoize(atlas -> RenderType.create(
+                    "goo_fungus_xray",
+                    RenderSetup.builder(FUNGUS_XRAY)
+                            .withTexture("Sampler0", atlas)
+                            .useLightmap()
+                            .useOverlay()
+                            .sortOnUpload()
+                            .createRenderSetup()
+            ));
+
+    /**
+     * Shroom's held spore shell (decision held-visual-ghosts-the-landing-in-two-passes):
+     * plain colored quads through vanilla's position-color shader, translucent,
+     * depth tested with depth write off, both faces drawn; its twin passes every
+     * depth test so the shell shows through blocks.
+     */
+    public static final RenderPipeline SPORE_SHELL = sporeShellPipeline("spore_shell",
+            DepthStencilState.DEFAULT.depthTest());
+
+    /** The spore shell's twin that ignores depth. */
+    public static final RenderPipeline SPORE_SHELL_THROUGH_BLOCKS = sporeShellPipeline(
+            "spore_shell" + THROUGH_BLOCKS_SUFFIX, CompareOp.ALWAYS_PASS);
+
+    /** RenderType for shroom's held spore shell over blocks. */
+    public static final RenderType SPORE_SHELL_TYPE = burnoutType(SPORE_SHELL);
+
+    /** RenderType for shroom's held spore shell through blocks. */
+    public static final RenderType SPORE_SHELL_THROUGH_BLOCKS_TYPE = burnoutType(SPORE_SHELL_THROUGH_BLOCKS);
 
     /**
      * Nether black-hole pipeline: POSITION_COLOR billboard quad with a custom
@@ -524,6 +597,26 @@ public final class GooRenderTypes {
             ));
 
     /**
+     * Returns Sight's fungus glow render type for the atlas the block's sprites sit on.
+     *
+     * @param atlas the texture atlas identifier
+     * @return memoized RenderType
+     */
+    public static RenderType fungusGlow(Identifier atlas) {
+        return FUNGUS_GLOW_FACTORY.apply(atlas);
+    }
+
+    /**
+     * Returns Sight's fungus x-ray render type for the atlas the block's sprites sit on.
+     *
+     * @param atlas the texture atlas identifier
+     * @return memoized RenderType
+     */
+    public static RenderType fungusXray(Identifier atlas) {
+        return FUNGUS_XRAY_FACTORY.apply(atlas);
+    }
+
+    /**
      * Returns the block transform render type for the atlas the block's sprites sit on.
      *
      * @param atlas the texture atlas identifier
@@ -838,6 +931,24 @@ public final class GooRenderTypes {
     }
 
     /**
+     * A plain colored quad pipeline through vanilla's position-color shader,
+     * translucent with depth write off, both faces drawn.
+     *
+     * @param location  the pipeline's name
+     * @param depthTest the depth comparison its fragments pass
+     * @return the pipeline
+     */
+    private static RenderPipeline sporeShellPipeline(String location, CompareOp depthTest) {
+        return RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
+                .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + location))
+                .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
+                .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+                .withDepthStencilState(new DepthStencilState(depthTest, false))
+                .withCull(false)
+                .build();
+    }
+
+    /**
      * A quad pipeline over a shader pair under {@code core/<shader>}, depth write
      * off, both faces drawn.
      *
@@ -874,6 +985,20 @@ public final class GooRenderTypes {
     }
 
     /**
+     * Registers the plain pipelines: the additive glow lines, Sight's fungus
+     * x-ray, and shroom's spore shell in both passes.
+     *
+     * @param event the pipeline registration event
+     */
+    private static void registerLinePipelines(RegisterRenderPipelinesEvent event) {
+        event.registerPipeline(LINES_ADDITIVE_GLOW);
+        event.registerPipeline(FUNGUS_XRAY);
+        event.registerPipeline(FUNGUS_GLOW);
+        event.registerPipeline(SPORE_SHELL);
+        event.registerPipeline(SPORE_SHELL_THROUGH_BLOCKS);
+    }
+
+    /**
      * Registers custom pipelines with the NeoForge pipeline registry.
      *
      * @param event the event instance
@@ -882,7 +1007,7 @@ public final class GooRenderTypes {
         registerBurnoutPipelines(event);
         registerMobLayerPipelines(event);
         registerLeafPipelines(event);
-        event.registerPipeline(LINES_ADDITIVE_GLOW);
+        registerLinePipelines(event);
         event.registerPipeline(NETHER_BLACKHOLE);
         event.registerPipeline(NETHER_CORONA);
         event.registerPipeline(NETHER_BLACKHOLE_HELD);

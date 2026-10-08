@@ -1,0 +1,29 @@
+{
+  "parent": "minecraft:block/block",
+  "render_type": "minecraft:cutout",
+  "ambientocclusion": false,
+  "textures": {
+    "bud": "goo:block/fungal_bud",
+    "particle": "goo:block/fungal_bud"
+  },
+  "elements": [
+    {
+      "from": [5, 0, 8], "to": [11, 3, 8],
+      "rotation": { "origin": [8, 8, 8], "axis": "y", "angle": 45, "rescale": true },
+      "shade": false,
+      "faces": {
+        "north": { "uv": [5, 13, 11, 16], "texture": "#bud" },
+        "south": { "uv": [5, 13, 11, 16], "texture": "#bud" }
+      }
+    },
+    {
+      "from": [8, 0, 5], "to": [8, 3, 11],
+      "rotation": { "origin": [8, 8, 8], "axis": "y", "angle": 45, "rescale": true },
+      "shade": false,
+      "faces": {
+        "west": { "uv": [5, 13, 11, 16], "texture": "#bud" },
+        "east": { "uv": [5, 13, 11, 16], "texture": "#bud" }
+      }
+    }
+  ]
+}

@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.ability.nourish.Nourish;
 import com.mercuriusxeno.goo.ability.program.PlayerHost;
+import com.mercuriusxeno.goo.ability.program.Sight;
 import com.mercuriusxeno.goo.ability.program.SoundCue;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.registry.GooAttachments;
@@ -39,6 +40,8 @@ public final class HeldEffectsEvents {
 
     /** A glove effect's time resyncs only when it drifts past a second from the goo's, as goo is spent or gained. */
     static final int RESYNC_TICKS = 20;
+    /** The longest a glove effect shows its time for, 999 hours, before it shows as endless. */
+    static final int LONGEST_SHOWN_TICKS = 999 * 60 * 60 * 20;
     private static final int NO_AMPLIFIER = 0;
     private static final boolean NOT_AMBIENT = false;
     private static final boolean NO_PARTICLES = false;
@@ -159,18 +162,34 @@ public final class HeldEffectsEvents {
         left.forEach((type, ticks) -> {
             Holder<MobEffect> brew = GooMobEffects.BREW_EFFECTS.get(type);
             MobEffectInstance standing = player.getEffect(brew);
-            if (standing != null && Math.abs(standing.getDuration() - ticks) <= RESYNC_TICKS) {
+            int shown = shownDuration(ticks);
+            if (standing != null && (standing.getDuration() == shown
+                    || shown != MobEffectInstance.INFINITE_DURATION
+                    && Math.abs(standing.getDuration() - shown) <= RESYNC_TICKS)) {
                 return;
             }
             mirroring = true;
             try {
                 player.removeEffect(brew);
-                player.addEffect(new MobEffectInstance(brew, ticks, NO_AMPLIFIER, NOT_AMBIENT, NO_PARTICLES,
+                player.addEffect(new MobEffectInstance(brew, shown, NO_AMPLIFIER, NOT_AMBIENT, NO_PARTICLES,
                         SHOWS_ICON));
             } finally {
                 mirroring = false;
             }
         });
+    }
+
+    /**
+     * The duration a glove effect shows for the ticks its goo pays for:
+     * those ticks, or vanilla's infinite duration, shown as an infinity sign,
+     * once the goo would last past 999 hours, so a vast store reads as
+     * endless rather than an absurd figure. What drains is unchanged.
+     *
+     * @param ticks the ticks the player's goo pays for
+     * @return the duration the effect is laid with
+     */
+    static int shownDuration(int ticks) {
+        return ticks > LONGEST_SHOWN_TICKS ? MobEffectInstance.INFINITE_DURATION : ticks;
     }
 
     /**
@@ -208,6 +227,10 @@ public final class HeldEffectsEvents {
             }
             if (effect.lays().contains(LaidState.NOURISH)) {
                 player.setData(GooAttachments.NOURISH, Nourish.NONE);
+            }
+            if (effect.lays().contains(LaidState.SIGHT)) {
+                // sight-lengthens-shift-and-outlines-fungus: the sight ends with its held effect
+                player.setData(GooAttachments.SIGHT, Sight.NONE);
             }
             // brew-runs-the-crawl-prepaid-on-a-shown-clock: the effect list's entry ends with the effect
             player.removeEffect(GooMobEffects.BREW_EFFECTS.get(effect.gooType()));
