@@ -45,7 +45,7 @@ public final class GooNetworking {
         r.playToClient(ChainBurnoutPayload.TYPE, ChainBurnoutPayload.STREAM_CODEC);
         r.playToClient(LurkerPulsePayload.TYPE, LurkerPulsePayload.STREAM_CODEC);
         r.playToClient(UnmakePayload.TYPE, UnmakePayload.STREAM_CODEC);
-        r.playToClient(UnmakeMobPayload.TYPE, UnmakeMobPayload.STREAM_CODEC);
+        r.playToClient(SoupPayload.TYPE, SoupPayload.STREAM_CODEC);
         r.playToClient(UnmadePayload.TYPE, UnmadePayload.STREAM_CODEC);
         r.playToClient(MobHitPayload.TYPE, MobHitPayload.STREAM_CODEC);
         r.playToClient(AilmentPayload.TYPE, AilmentPayload.STREAM_CODEC);

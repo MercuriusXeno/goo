@@ -258,7 +258,7 @@ public final class GooStreamHandler {
      * A stream program's top-level steps split by the pass they run in: those
      * needing the channel or working the cone's blocks run once a tick on the
      * player over the cone's blocks (decisions bore-vortex-with-a-worldspace-shake,
-     * petrify-stone-encasement-and-calcify-map, unmake-waves-dissolve-by-crucible-cost),
+     * petrify-stone-encasement-and-calcify-map),
      * and the rest run on every entity in the cone, and on the caster of a
      * stream tagged self.
      *
@@ -280,7 +280,7 @@ public final class GooStreamHandler {
      * @return true for a block pass step
      */
     private static boolean worksTheCone(Step step) {
-        return step.requires().contains(HostCapability.CHANNEL) || step.requires().contains(HostCapability.UNMAKE);
+        return step.requires().contains(HostCapability.CHANNEL);
     }
 
     /**

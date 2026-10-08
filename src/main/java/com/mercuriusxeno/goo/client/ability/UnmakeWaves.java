@@ -1,7 +1,8 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.ability.program.UnmakeStep;
+import com.mercuriusxeno.goo.ability.program.SiphonStep;
+import com.mercuriusxeno.goo.ability.program.SoupBall;
 import com.mercuriusxeno.goo.client.FlatQuadContext;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
@@ -31,6 +32,8 @@ public final class UnmakeWaves {
 
     /** Rings in flight down the cone at once. */
     static final int RINGS = 4;
+    /** The rings' cone, out from the glove to the soup ball, in degrees. */
+    static final double CONE_DEGREES = 40;
     /** Cone lengths a ring travels each tick. */
     static final double RING_SPEED = 0.12;
     /** A ring's band width, in blocks. */
@@ -88,12 +91,24 @@ public final class UnmakeWaves {
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
         Vec3 apex = GloveAim.handPosition(mc.gameRenderer.getMainCamera()).subtract(camera);
         Vec3 axis = player.getViewVector(partialTick);
-        double tan = Math.tan(Math.toRadians(unmake.delivery().coneDegrees() * HALF));
-        double range = unmake.delivery().range();
         double ticks = player.level().getGameTime() + partialTick;
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        FlatQuadContext quads = new FlatQuadContext(event.getPoseStack().last(),
-                buffers.getBuffer(GooRenderTypes.UNMAKE_WAVES_TYPE));
+        emitRings(new FlatQuadContext(event.getPoseStack().last(), buffers.getBuffer(GooRenderTypes.UNMAKE_WAVES_TYPE)),
+                apex, axis, ticks);
+        buffers.endBatch(GooRenderTypes.UNMAKE_WAVES_TYPE);
+    }
+
+    /**
+     * Emits the rings, each travelling out from the glove to the soup ball.
+     *
+     * @param quads the quad emitter
+     * @param apex  the glove, camera relative
+     * @param axis  the look's unit vector
+     * @param ticks the game time including the partial tick
+     */
+    private static void emitRings(FlatQuadContext quads, Vec3 apex, Vec3 axis, double ticks) {
+        double tan = Math.tan(Math.toRadians(CONE_DEGREES * HALF));
+        double range = SoupBall.DISTANCE;
         for (int ring = 0; ring < RINGS; ring++) {
             double along = ringAlong(ring, ticks);
             double distance = FROM_THE_GLOVE + (range - FROM_THE_GLOVE) * along;
@@ -102,7 +117,6 @@ public final class UnmakeWaves {
             emitArcs(quads, center, axis, distance * tan, (float) along,
                     ring * SEED_PER_RING + (long) Math.floor(ticks * ARC_RATE));
         }
-        buffers.endBatch(GooRenderTypes.UNMAKE_WAVES_TYPE);
     }
 
     /**
@@ -257,7 +271,7 @@ public final class UnmakeWaves {
     static @Nullable ClientAbility heldUnmake(LocalPlayer player) {
         String abilityId = GloveAim.selectedAbilityId(player);
         ClientAbility ability = abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
-        boolean unmakes = ability != null && ability.behaviors().stream().anyMatch(UnmakeStep.class::isInstance);
+        boolean unmakes = ability != null && ability.behaviors().stream().anyMatch(SiphonStep.class::isInstance);
         return unmakes && GloveUseTracker.showsArea() ? ability : null;
     }
 }

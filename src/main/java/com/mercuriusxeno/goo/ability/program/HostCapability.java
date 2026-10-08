@@ -65,10 +65,15 @@ public enum HostCapability {
      */
     WATCH(WatchHost.class),
     /**
-     * A host holding one block an unmake works on
-     * (decision unmake-waves-dissolve-by-crucible-cost).
+     * A tap holding the block under it that an unmake works on
+     * (decision unmake-drip-dissolves-the-block-below).
      */
     UNMAKE(UnmakeHost.class),
+    /**
+     * A held channel that drinks the face under its cursor into a soup
+     * (decision unmake-waves-dissolve-by-crucible-cost).
+     */
+    SIPHON(SiphonHost.class),
     /**
      * A held channel's aim this tick and the player's hand to break blocks
      * with (decision flatten-disc-cursor-breaks-above-the-plane).

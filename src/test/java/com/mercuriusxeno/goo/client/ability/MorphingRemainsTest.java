@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.ability.program.UnmakeDrops;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.world.phys.Vec3;
+import com.mercuriusxeno.goo.item.GooContents;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -19,7 +20,7 @@ class MorphingRemainsTest {
     @Test
     void aMorphRunsItsLengthThenEnds() {
         MorphingRemains morphing = new MorphingRemains();
-        morphing.begin(Vec3.ZERO, MingledGoo.of(Map.of(GooTypes.ROCK, 100)), 1f, 100);
+        morphing.begin(Vec3.ZERO, new GooContents(Map.of(GooTypes.ROCK, 100)), 1f, 1f, 100);
 
         assertEquals(0.5f, morphing.morphs(100f + MorphingRemains.MORPH_TICKS / 2f).getFirst().progress(), DELTA);
         assertTrue(morphing.morphs(100f + MorphingRemains.MORPH_TICKS).isEmpty());

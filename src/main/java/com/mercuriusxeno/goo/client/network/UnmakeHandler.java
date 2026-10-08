@@ -1,11 +1,11 @@
 package com.mercuriusxeno.goo.client.network;
 
+import com.mercuriusxeno.goo.client.ability.ClientSoups;
 import com.mercuriusxeno.goo.client.ability.MeltingBlocks;
-import com.mercuriusxeno.goo.client.ability.MeltingMobs;
-import com.mercuriusxeno.goo.client.ability.MingledGoo;
 import com.mercuriusxeno.goo.client.ability.MorphingRemains;
+import com.mercuriusxeno.goo.item.GooContents;
+import com.mercuriusxeno.goo.network.SoupPayload;
 import com.mercuriusxeno.goo.network.UnmadePayload;
-import com.mercuriusxeno.goo.network.UnmakeMobPayload;
 import com.mercuriusxeno.goo.network.UnmakePayload;
 import net.minecraft.client.Minecraft;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
@@ -48,25 +48,24 @@ public final class UnmakeHandler {
             if (mc.level == null) {
                 return;
             }
-            MorphingRemains.CLIENT.begin(payload.at(), MingledGoo.of(payload.goo()), payload.size(),
-                    mc.level.getGameTime());
+            MorphingRemains.CLIENT.begin(payload.at(), new GooContents(payload.goo()), payload.size(),
+                    payload.squat(), mc.level.getGameTime());
         });
     }
 
     /**
-     * Handles the mob unmake payload on the client thread.
+     * Keeps a player's Unmake soup as the server shows it
+     * (decision unmake-waves-dissolve-by-crucible-cost).
      *
-     * @param payload the mob unmake payload
+     * @param payload the soup payload
      * @param context the network context
      */
-    public static void handleMob(UnmakeMobPayload payload, IPayloadContext context) {
+    public static void handleSoup(SoupPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> {
             Minecraft mc = Minecraft.getInstance();
-            if (mc.level == null) {
-                return;
+            if (mc.level != null) {
+                ClientSoups.CLIENT.show(payload, mc.level.getGameTime());
             }
-            MeltingMobs.CLIENT.record(payload.entityId(), payload.fraction(), MingledGoo.of(payload.goo()),
-                    mc.level.getGameTime());
         });
     }
 }

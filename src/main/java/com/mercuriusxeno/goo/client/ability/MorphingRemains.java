@@ -1,11 +1,12 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.item.GooContents;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The remains of unmade blocks and mobs morphing into the goo item on this
+ * The remains of unmade blocks and Unmake's soup morphing into the goo item on this
  * client, each held from the game time its morph began until it has run
  * {@link #MORPH_TICKS}, when the server drops the item in its place.
  * decision unmake-waves-dissolve-by-crucible-cost
@@ -24,12 +25,13 @@ public final class MorphingRemains {
      * @param at       where the remains stand on the ground and the item drops
      * @param goo      the goo the remains are
      * @param size     how big the remains started, in blocks
+     * @param squat    how squat they started: their height as a share of their width, 1 round
      * @param progress how far the morph has run, 0 to 1
      */
-    public record Morph(Vec3 at, MingledGoo goo, float size, float progress) {
+    public record Morph(Vec3 at, GooContents goo, float size, float squat, float progress) {
     }
 
-    private record Began(Vec3 at, MingledGoo goo, float size, long tick) {
+    private record Began(Vec3 at, GooContents goo, float size, float squat, long tick) {
     }
 
     private final List<Began> morphing = new ArrayList<>();
@@ -39,11 +41,12 @@ public final class MorphingRemains {
      *
      * @param at   where the remains stand on the ground
      * @param goo  the goo they are
-     * @param size how big they start, in blocks
-     * @param now  the game time the morph began
+     * @param size  how big they start, in blocks
+     * @param squat how squat they start: their height as a share of their width, 1 round
+     * @param now   the game time the morph began
      */
-    public void begin(Vec3 at, MingledGoo goo, float size, long now) {
-        morphing.add(new Began(at, goo, size, now));
+    public void begin(Vec3 at, GooContents goo, float size, float squat, long now) {
+        morphing.add(new Began(at, goo, size, squat, now));
     }
 
     /**
@@ -57,7 +60,7 @@ public final class MorphingRemains {
         List<Morph> morphs = new ArrayList<>();
         for (Began began : morphing) {
             float progress = Math.max(0f, (now - began.tick()) / MORPH_TICKS);
-            morphs.add(new Morph(began.at(), began.goo(), began.size(), progress));
+            morphs.add(new Morph(began.at(), began.goo(), began.size(), began.squat(), progress));
         }
         return morphs;
     }

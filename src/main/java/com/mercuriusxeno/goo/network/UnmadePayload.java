@@ -20,8 +20,9 @@ import java.util.Map;
  * @param at    where the remains stand on the ground and the item drops
  * @param goo   the goo the remains are, each type's amount
  * @param size  how big the remains start, in blocks
+ * @param squat how squat they start: their height as a share of their width, 1 round
  */
-public record UnmadePayload(Vec3 at, Map<ResourceKey<GooTypeDefinition>, Integer> goo, float size)
+public record UnmadePayload(Vec3 at, Map<ResourceKey<GooTypeDefinition>, Integer> goo, float size, float squat)
         implements CustomPacketPayload {
 
     /** Payload type ID for registration. */
@@ -43,10 +44,11 @@ public record UnmadePayload(Vec3 at, Map<ResourceKey<GooTypeDefinition>, Integer
         buf.writeDouble(payload.at.z);
         GooAmounts.write(buf, payload.goo);
         buf.writeFloat(payload.size);
+        buf.writeFloat(payload.squat);
     }
 
     private static UnmadePayload decode(FriendlyByteBuf buf) {
         Vec3 at = new Vec3(buf.readDouble(), buf.readDouble(), buf.readDouble());
-        return new UnmadePayload(at, GooAmounts.read(buf), buf.readFloat());
+        return new UnmadePayload(at, GooAmounts.read(buf), buf.readFloat(), buf.readFloat());
     }
 }

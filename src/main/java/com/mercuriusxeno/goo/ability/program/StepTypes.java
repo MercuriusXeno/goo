@@ -37,6 +37,7 @@ public final class StepTypes {
         register(AwaitEntityStep.TYPE);
         register(WatchStep.TYPE);
         register(UnmakeStep.TYPE);
+        register(SiphonStep.TYPE);
         register(ChargedStep.TYPE);
         register(ExplodeStep.TYPE);
         register(DamageStep.TYPE);
