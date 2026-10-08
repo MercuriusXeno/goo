@@ -18,7 +18,7 @@ import net.minecraft.world.phys.Vec3;
 /**
  * Gametests for Fungal Shift through the real throw path: released aimed
  * at a red mushroom fifteen blocks off, the player stands on it and pays the
- * cost; aimed at stone, the player stays and pays nothing; under fungal
+ * cost; aimed at stone, or standing near no fungus, the player stays and pays nothing; under fungal
  * sight it reaches a mushroom beyond its base range (decisions
  * fungal-shift-blinks-to-the-aimed-fungus and sight-lengthens-shift-and-outlines-fungus).
  */
@@ -189,6 +189,30 @@ public final class FungalShiftTests {
         helper.succeed();
     }
 
+    /**
+     * Aimed at a red mushroom fifteen blocks off with no fungus within three
+     * blocks of the player, the player stays put and pays nothing: a shift
+     * starts near a fungus.
+     *
+     * @param helper the gametest helper
+     */
+    public static void fungalShiftNeedsAFungusNear(GameTestHelper helper) {
+        AbilityDefinition shift = fungalShift(helper);
+        ServerPlayer player = shifterAimedAt(helper, Blocks.RED_MUSHROOM, shift);
+        helper.setBlock(STAND_POS.south(), Blocks.AIR);
+        Vec3 before = player.position();
+        int heldBefore = held(player);
+
+        SelfDeliveryTests.invoke(player, GooTypes.SHROOM, FUNGAL_SHIFT);
+
+        double moved = player.position().distanceTo(before);
+        int drained = heldBefore - held(player);
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        helper.assertTrue(moved < MOVE_TOLERANCE, String.format(SHOULD_STAY, moved));
+        helper.assertTrue(drained == 0, String.format(SHOULD_DRAIN_NOTHING, drained));
+        helper.succeed();
+    }
+
     private static AbilityDefinition fungalShift(GameTestHelper helper) {
         AbilityDefinition shift = AbilityRegistry.of(helper.getLevel()).getAbility(FUNGAL_SHIFT);
         helper.assertTrue(shift != null, ABILITY_REQUIRED);
@@ -222,6 +246,8 @@ public final class FungalShiftTests {
     private static ServerPlayer shifterAimedAt(GameTestHelper helper, Block aimed, AbilityDefinition shift,
                                                BlockPos from, BlockPos at) {
         helper.setBlock(at, aimed);
+        // a shift starts near a fungus: one stands beside the player, off the look
+        helper.setBlock(from.south(), Blocks.BROWN_MUSHROOM);
         ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.SHROOM, FUNGAL_SHIFT);
         KnownRecipes.teachRequires(player, shift);
         Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(from));

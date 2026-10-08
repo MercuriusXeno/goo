@@ -65,6 +65,28 @@ public final class FungusAim {
     }
 
     /**
+     * Whether a fungus block stands within a reach of an entity's feet, which
+     * Fungal Shift needs to start from (decision fungal-shift-blinks-to-the-aimed-fungus).
+     *
+     * @param level  the level
+     * @param entity the shifting entity
+     * @param near   the reach in blocks
+     * @return true when a fungus stands that near
+     */
+    public static boolean standsNearFungus(Level level, Entity entity, double near) {
+        Vec3 feet = entity.position();
+        int reach = (int) Math.ceil(near);
+        BlockPos center = entity.blockPosition();
+        for (BlockPos pos : BlockPos.betweenClosed(center.offset(-reach, -reach, -reach),
+                center.offset(reach, reach, reach))) {
+            if (Vec3.atCenterOf(pos).distanceTo(feet) <= near && level.getBlockState(pos).is(ShiftStep.FUNGUS)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Under fungal sight, the fungus nearest the crosshair within the snap
      * angle and the reach, whatever stands between it and the eye, where
      * there is room to stand on it: the fungus the sight outlines through walls

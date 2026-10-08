@@ -404,6 +404,7 @@ public final class GooTestFunctions {
     private static final String SPORE_BUDS_NONE_BESIDE = "spore_buds_none_beside_a_mushroom";
     private static final String FUNGAL_SHIFT_TO_A_MUSHROOM = "fungal_shift_to_a_mushroom";
     private static final String FUNGAL_SHIFT_REFUSES_STONE = "fungal_shift_refuses_stone";
+    private static final String FUNGAL_SHIFT_NEEDS_A_FUNGUS_NEAR = "fungal_shift_needs_a_fungus_near";
     private static final String SIGHT_EXTENDS_THE_SHIFT = "sight_extends_the_shift";
     private static final String SELF_SIGHT_EATS = "self_sight_eats_before_the_sight";
     private static final String SIGHT_SHIFTS_THROUGH_A_WALL = "sight_shifts_through_a_wall";
@@ -864,6 +865,7 @@ public final class GooTestFunctions {
         reg(r, SPORE_BUDS_NONE_BESIDE, ColonizeTests::sporeBudsNoneBesideAMushroom);
         reg(r, FUNGAL_SHIFT_TO_A_MUSHROOM, FungalShiftTests::fungalShiftToAMushroom);
         reg(r, FUNGAL_SHIFT_REFUSES_STONE, FungalShiftTests::fungalShiftRefusesStone);
+        reg(r, FUNGAL_SHIFT_NEEDS_A_FUNGUS_NEAR, FungalShiftTests::fungalShiftNeedsAFungusNear);
         reg(r, SIGHT_EXTENDS_THE_SHIFT, FungalShiftTests::sightExtendsTheShift);
         reg(r, SELF_SIGHT_EATS, SelfDeliveryTests::sightEatsBeforeTheSight);
         reg(r, SIGHT_SHIFTS_THROUGH_A_WALL, FungalShiftTests::sightShiftsThroughAWall);
