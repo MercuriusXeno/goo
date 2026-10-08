@@ -1,10 +1,12 @@
 package com.mercuriusxeno.goo.client.network;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.client.ability.ReapSwells;
 import com.mercuriusxeno.goo.client.ability.VitalityVisual;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.network.AfterimagePayload;
 import com.mercuriusxeno.goo.network.AilmentPayload;
+import com.mercuriusxeno.goo.network.BlockAfterimagePayload;
 import com.mercuriusxeno.goo.network.BlockExposurePayload;
 import com.mercuriusxeno.goo.network.BlockTransformPayload;
 import com.mercuriusxeno.goo.network.ChainBurnoutPayload;
@@ -16,6 +18,7 @@ import com.mercuriusxeno.goo.network.KnownItemLearnedPayload;
 import com.mercuriusxeno.goo.network.KnownItemsSyncPayload;
 import com.mercuriusxeno.goo.network.MobHitPayload;
 import com.mercuriusxeno.goo.network.OpenNamingScreenPayload;
+import com.mercuriusxeno.goo.network.ReapSwellPayload;
 import com.mercuriusxeno.goo.network.StreamHealedPayload;
 import com.mercuriusxeno.goo.network.TransformationPayload;
 import com.mercuriusxeno.goo.network.TunerFeedbackPayload;
@@ -59,5 +62,7 @@ public final class GooClientNetworking {
         event.register(KnownItemLearnedPayload.TYPE, KnownItemsHandler::handleLearned);
         event.register(StreamHealedPayload.TYPE, VitalityVisual::handleHealed);
         event.register(DripHealedPayload.TYPE, VitalityVisual::handleDripHealed);
+        event.register(BlockAfterimagePayload.TYPE, AfterimageHandler::handleBlock);
+        event.register(ReapSwellPayload.TYPE, ReapSwells::handle);
     }
 }

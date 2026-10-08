@@ -14,6 +14,7 @@ import com.mercuriusxeno.goo.ability.program.LeafStep;
 import com.mercuriusxeno.goo.ability.program.LeafSteps;
 import com.mercuriusxeno.goo.ability.program.PhasedStep;
 import com.mercuriusxeno.goo.ability.program.PullStep;
+import com.mercuriusxeno.goo.ability.program.ReapStep;
 import com.mercuriusxeno.goo.ability.program.SoundCue;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.StepTypes;
@@ -277,6 +278,7 @@ public record AbilityDefinition(
             radiusOf(AwaitEntityStep.class, AwaitEntityStep::radius),
             radiusOf(CrushStep.class, crush -> Expr.literal(crush.radius())),
             radiusOf(BloomStep.class, BloomStep::radius),
+            radiusOf(ReapStep.class, ReapStep::radius),
             // colonize-blob-grows-the-network
             radiusOf(ColonizeStep.class, ColonizeStep::radius),
             radiusOf(FloorsStep.class, FloorsStep::radius),

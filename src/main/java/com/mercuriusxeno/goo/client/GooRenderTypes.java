@@ -769,6 +769,16 @@ public final class GooRenderTypes {
     public static final RenderPipeline LEAF_GHOST_THROUGH_BLOCKS = throughBlocksPipeline("leaf_ghost",
             BlendFunction.LIGHTNING);
 
+    /**
+     * Reap's swell, a whole sphere of Growth's breeze swelling out to Reap's
+     * radius, drawn through {@code reap_swell.vsh / .fsh}.
+     * reap-breeze-harvests-and-replants
+     */
+    public static final RenderPipeline REAP_SWELL = burnoutPipeline("reap_swell", BlendFunction.LIGHTNING);
+
+    /** The reap swell render type. */
+    public static final RenderType REAP_SWELL_TYPE = burnoutType(REAP_SWELL);
+
     /** The leaf ghost's through-blocks render type. */
     public static final RenderType LEAF_GHOST_THROUGH_BLOCKS_TYPE = burnoutType(LEAF_GHOST_THROUGH_BLOCKS);
 
@@ -1042,7 +1052,7 @@ public final class GooRenderTypes {
     }
 
     /**
-     * Registers Leaf's pipelines: Growth's breeze and Bloom's haze ghost.
+     * Registers Leaf's pipelines: Growth's breeze, Bloom's haze ghost and Reap's swell.
      *
      * @param event the event instance
      */
@@ -1050,6 +1060,7 @@ public final class GooRenderTypes {
         event.registerPipeline(GROWTH_BREEZE);
         event.registerPipeline(LEAF_GHOST);
         event.registerPipeline(LEAF_GHOST_THROUGH_BLOCKS);
+        event.registerPipeline(REAP_SWELL);
     }
 
     /**
