@@ -78,6 +78,7 @@ public final class StepTypes {
         register(ReserveDrainStep.TYPE);
         register(RootStep.TYPE);
         register(HitOrMissStep.TYPE);
+        register(BloomStep.TYPE);
     }
 
     private StepTypes() {
