@@ -13,6 +13,7 @@ import com.mercuriusxeno.goo.ability.program.LeafStep;
 import com.mercuriusxeno.goo.ability.program.LeafSteps;
 import com.mercuriusxeno.goo.ability.program.PhasedStep;
 import com.mercuriusxeno.goo.ability.program.PullStep;
+import com.mercuriusxeno.goo.ability.program.SoundCue;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.StepTypes;
 import com.mercuriusxeno.goo.ability.program.Variables;
@@ -21,6 +22,7 @@ import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
+import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
@@ -52,6 +54,10 @@ import java.util.stream.Stream;
  * @param consumes    the items a throw takes from the thrower's inventory, one of each, beside its goo cost
  * @param onPrism     the steps a landing on a prism runs in place of the type's prism ability, empty for none
  * @param onBlocks    the steps a stream or a spore burst runs on each floor it reaches, empty for none
+ * @param upkeep      the mB a held self + brew effect pays each tick it stands, zero for every other ability
+ *                    (decision self-effects-trickle-until-ended)
+ * @param downSound   the cue a held effect plays when it ends, empty for the shared ability-down cue
+ *                    (decision held-effects-sound-up-and-down)
  */
 public record AbilityDefinition(
         Identifier id,
@@ -69,7 +75,9 @@ public record AbilityDefinition(
         IndicatorShowing indicator,
         List<Identifier> consumes,
         List<Step> onPrism,
-        List<Step> onBlocks
+        List<Step> onBlocks,
+        int upkeep,
+        Optional<SoundCue> downSound
 ) {
 
     /**
@@ -80,6 +88,33 @@ public record AbilityDefinition(
      */
     public AbilityDefinition {
         area = heldArea(area, delivery, badge, behaviors);
+    }
+
+    /**
+     * An ability paying no upkeep, every ability but a held self + brew effect.
+     *
+     * @param id          the datapack resource identifier
+     * @param gooType     the goo type this ability belongs to
+     * @param displayName the translation key for the ability name
+     * @param icon        the texture path for the radial menu icon
+     * @param order       sort order within the type's ability list
+     * @param cost        the mB a throw costs
+     * @param delivery    how the ability leaves the glove
+     * @param behaviors   the step trees the ability runs
+     * @param tags        categorical tags
+     * @param badge       the target kind the radial marks on the icon
+     * @param requires    the items a player must know before the ability is theirs
+     * @param area        the area the glove draws while right click is held
+     * @param indicator   when the ability's indicator shows
+     * @param consumes    the items a throw takes, one of each
+     * @param onPrism     the steps a landing on a prism runs, empty for none
+     */
+    public AbilityDefinition(Identifier id, ResourceKey<GooTypeDefinition> gooType, String displayName, String icon,
+                             int order, int cost, Delivery delivery, List<Step> behaviors, List<String> tags,
+                             AbilityBadge badge, List<Identifier> requires, AbilityArea area,
+                             IndicatorShowing indicator, List<Identifier> consumes, List<Step> onPrism) {
+        this(id, gooType, displayName, icon, order, cost, delivery, behaviors, tags, badge, requires, area,
+                indicator, consumes, onPrism, List.of(), NO_UPKEEP, Optional.empty());
     }
 
     /**
@@ -99,14 +134,17 @@ public record AbilityDefinition(
      * @param area        the area the glove draws while right click is held
      * @param indicator   when the ability's indicator shows
      * @param consumes    the items a throw takes, one of each
-     * @param onPrism     the steps a landing on a prism runs
+     * @param onPrism     the steps a landing on a prism runs, empty for none
+     * @param upkeep      the mB a held self + brew effect pays each tick it stands
+     * @param downSound   the cue a held effect plays when it ends, empty for the shared cue
      */
     public AbilityDefinition(Identifier id, ResourceKey<GooTypeDefinition> gooType, String displayName, String icon,
                              int order, int cost, Delivery delivery, List<Step> behaviors, List<String> tags,
                              AbilityBadge badge, List<Identifier> requires, AbilityArea area,
-                             IndicatorShowing indicator, List<Identifier> consumes, List<Step> onPrism) {
+                             IndicatorShowing indicator, List<Identifier> consumes, List<Step> onPrism, int upkeep,
+                             Optional<SoundCue> downSound) {
         this(id, gooType, displayName, icon, order, cost, delivery, behaviors, tags, badge, requires, area,
-                indicator, consumes, onPrism, List.of());
+                indicator, consumes, onPrism, List.of(), upkeep, downSound);
     }
 
     /**
@@ -221,6 +259,12 @@ public record AbilityDefinition(
     private static final String FIELD_CONSUMES = "consumes";
     private static final String FIELD_ON_PRISM = "on_prism";
     private static final String FIELD_ON_BLOCKS = "on_blocks";
+    private static final String FIELD_UPKEEP = "upkeep";
+    private static final String FIELD_DOWN_SOUND = "down_sound";
+    /** The upkeep of an ability that holds nothing. */
+    public static final int NO_UPKEEP = 0;
+    /** The cost of a held self + brew effect, which starts free and pays its upkeep after. */
+    private static final int NO_COST = 0;
     private static final String NOT_A_FLAT_COST = "Ability cost must be one whole amount, not %s";
 
     /** Reads the radius a radius-bearing step reaches, each reader answering empty for any other step. */
@@ -243,6 +287,37 @@ public record AbilityDefinition(
             Codec.DOUBLE.comapFlatMap(AbilityDefinition::flatCost, Integer::doubleValue);
 
     /**
+     * What a held self + brew effect's JSON names beside its program: its
+     * upkeep and its down sound, read as one slot so the ability's codec
+     * stays within its sixteen-field group.
+     *
+     * @param upkeep    the mB the effect pays each tick
+     * @param downSound the cue it plays when it ends, empty for the shared one
+     */
+    private record HeldTraits(int upkeep, Optional<SoundCue> downSound) {
+    }
+
+    /**
+     * The step lists an ability runs beside its program, read as one group so
+     * the definition codec stays within its field limit.
+     *
+     * @param onPrism  the steps a landing on a prism runs
+     * @param onBlocks the steps a stream or a spore burst runs on each floor it reaches
+     */
+    private record Reactions(List<Step> onPrism, List<Step> onBlocks) {
+    }
+
+    private static final MapCodec<Reactions> REACTIONS_CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
+            StepTypes.LIST_CODEC.optionalFieldOf(FIELD_ON_PRISM, List.of()).forGetter(Reactions::onPrism),
+            StepTypes.LIST_CODEC.optionalFieldOf(FIELD_ON_BLOCKS, List.of()).forGetter(Reactions::onBlocks)
+    ).apply(inst, Reactions::new));
+
+    private static final MapCodec<HeldTraits> HELD_TRAITS_CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
+            FLAT_COST_CODEC.optionalFieldOf(FIELD_UPKEEP, NO_UPKEEP).forGetter(HeldTraits::upkeep),
+            SoundCue.CODEC.optionalFieldOf(FIELD_DOWN_SOUND).forGetter(HeldTraits::downSound)
+    ).apply(inst, HeldTraits::new));
+
+    /**
      * Builds the codec for one ability file. The id comes from the filename, not the
      * JSON body, so the loader builds a codec per file and every definition carries
      * its id from construction (decision delete-dead-fold-mirrors).
@@ -256,7 +331,8 @@ public record AbilityDefinition(
                 Codec.STRING.fieldOf(FIELD_DISPLAY_NAME).forGetter(AbilityDefinition::displayName),
                 Codec.STRING.optionalFieldOf(FIELD_ICON, NO_ICON).forGetter(AbilityDefinition::icon),
                 Codec.INT.optionalFieldOf(FIELD_ORDER, 0).forGetter(AbilityDefinition::order),
-                FLAT_COST_CODEC.fieldOf(FIELD_COST).forGetter(AbilityDefinition::cost),
+                // self-effects-trickle-until-ended: a held effect names an upkeep in place of a cost
+                FLAT_COST_CODEC.optionalFieldOf(FIELD_COST, NO_COST).forGetter(AbilityDefinition::cost),
                 Delivery.CODEC.fieldOf(FIELD_DELIVERY).forGetter(AbilityDefinition::delivery),
                 StepTypes.LIST_CODEC.fieldOf(FIELD_BEHAVIORS).forGetter(AbilityDefinition::behaviors),
                 Codec.STRING.listOf().optionalFieldOf(FIELD_TAGS, List.of()).forGetter(AbilityDefinition::tags),
@@ -273,14 +349,14 @@ public record AbilityDefinition(
                 // ability-json-names-its-reagent
                 Identifier.CODEC.listOf().optionalFieldOf(FIELD_CONSUMES, List.of())
                         .forGetter(AbilityDefinition::consumes),
-                // prism-hosts-the-combos
-                StepTypes.LIST_CODEC.optionalFieldOf(FIELD_ON_PRISM, List.of()).forGetter(AbilityDefinition::onPrism),
-                // mycosis-spore-stream-buds-and-poisons
-                StepTypes.LIST_CODEC.optionalFieldOf(FIELD_ON_BLOCKS, List.of()).forGetter(AbilityDefinition::onBlocks)
+                // prism-hosts-the-combos, mycosis-spore-stream-buds-and-poisons
+                REACTIONS_CODEC.forGetter(def -> new Reactions(def.onPrism(), def.onBlocks())),
+                // self-effects-trickle-until-ended, held-effects-sound-up-and-down
+                HELD_TRAITS_CODEC.forGetter(def -> new HeldTraits(def.upkeep(), def.downSound()))
         ).apply(inst, (gooType, displayName, icon, order, cost, delivery, behaviors, tags, badge, requires, area,
-                       indicator, consumes, onPrism, onBlocks) -> new AbilityDefinition(id, gooType, displayName,
+                       indicator, consumes, reactions, held) -> new AbilityDefinition(id, gooType, displayName,
                         icon, order, cost, delivery, behaviors, tags, badge, requires, area, indicator, consumes,
-                        onPrism, onBlocks)));
+                        reactions.onPrism(), reactions.onBlocks(), held.upkeep(), held.downSound())));
     }
 
     /**

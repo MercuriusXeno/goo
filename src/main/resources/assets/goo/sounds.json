@@ -16,5 +16,14 @@
         "stream": false
       }
     ]
+  },
+  "effects.ability_down": {
+    "category": "players",
+    "sounds": [
+      {
+        "name": "goo:effects/ability_down",
+        "stream": false
+      }
+    ]
   }
 }

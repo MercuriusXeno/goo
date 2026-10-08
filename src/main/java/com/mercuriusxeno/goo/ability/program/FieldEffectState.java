@@ -164,6 +164,19 @@ public final class FieldEffectState {
     }
 
     /**
+     * What a pickup of the trap is worth: the whole worth of a throw times the
+     * charges left over the charges bought, rounded, nothing once none is
+     * left; a marker whose budget never stood is worth the whole throw.
+     * recollect-returns-charges-left
+     *
+     * @param whole the worth of a whole throw in mB
+     * @return the worth of the pickup in mB
+     */
+    public int worthLeft(int whole) {
+        return maxCharges > 0 ? Math.round((float) whole * chargesLeft / maxCharges) : whole;
+    }
+
+    /**
      * Returns the charges left as a fraction of the most the budget held.
      *
      * @return the density in [0, 1], zero before any budget stood

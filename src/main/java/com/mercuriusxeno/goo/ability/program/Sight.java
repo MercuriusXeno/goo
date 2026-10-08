@@ -19,6 +19,8 @@ public record Sight(float factor, long expiresAt) {
 
     /** No sight. */
     public static final Sight NONE = new Sight(1f, 0L);
+    /** The fade time of a sight held until its held effect ends. */
+    public static final long NEVER_EXPIRES = Long.MAX_VALUE;
 
     private static final String FIELD_FACTOR = "factor";
     private static final String FIELD_EXPIRES_AT = "expires_at";
@@ -57,15 +59,14 @@ public record Sight(float factor, long expiresAt) {
     }
 
     /**
-     * A cast from the glove: its duration stacks onto what still stands.
+     * A cast from the glove: the sight stands until its held effect ends,
+     * which clears it (decision self-effects-trickle-until-ended).
      *
      * @param castFactor the cast's range factor
-     * @param ticks      the cast's duration
-     * @param gameTime   the game time of the cast
      * @return the sight after the cast
      */
-    public Sight stack(float castFactor, int ticks, long gameTime) {
-        return new Sight(castFactor, Math.max(gameTime, expiresAt) + ticks);
+    public Sight hold(float castFactor) {
+        return new Sight(castFactor, NEVER_EXPIRES);
     }
 
     /**

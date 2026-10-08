@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:self_barkskin_bare_stays_held_and_regrows",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 100,
+  "setup_ticks": 0,
+  "required": true
+}

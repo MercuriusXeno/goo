@@ -3,10 +3,14 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
+import org.joml.Vector3f;
+import java.util.List;
 
 /**
  * Rock goo's burnout explosion, the design the operator settled (decision
@@ -23,8 +27,12 @@ import net.minecraft.util.ARGB;
  * The same disc is Flatten's cursor while its hold runs, looping the dust's
  * early drift so it never thins out
  * (decision flatten-disc-cursor-breaks-above-the-plane).
+ *
+ * The same dust is Crush's held ghost, drawn on a dome at Crush's radius,
+ * resting past the sonic ring and turning steadily, so it never loops back
+ * (decision held-visual-ghosts-the-landing-in-two-passes).
  */
-public final class RockExplosionVisual implements BurnoutVisual {
+public final class RockExplosionVisual implements BurnoutVisual, HeldGhostVisual {
 
     /** The one instance the burnout registry holds. */
     public static final RockExplosionVisual INSTANCE = new RockExplosionVisual();
@@ -48,6 +56,18 @@ public final class RockExplosionVisual implements BurnoutVisual {
     static final float CURSOR_SPAN = 0.4f;
     /** Maps a disc-local coordinate in [-1, 1] onto [0, 1] for a color byte. */
     private static final float SIGNED_TO_UNIT = 0.5f;
+    /**
+     * How far across the shader's disc a dome vertex's dust coordinate
+     * reaches, short of where the dust thins at the disc's edge.
+     */
+    static final float DOME_DUST_REACH = 0.55f;
+    /**
+     * The progress the held dust rests at: past the sonic ring's crossing, so
+     * no ring shows, and before the dust thins out.
+     */
+    static final float HELD_PROGRESS = SONIC_SPAN;
+    /** Radians a second the held dust turns about the face axis, a motion with no loop to cut at. */
+    static final double HELD_SPIN_PER_SECOND = 0.6;
 
     private RockExplosionVisual() {
     }
@@ -80,6 +100,76 @@ public final class RockExplosionVisual implements BurnoutVisual {
     }
 
 
+
+    @Override
+    public List<HeldLayer> heldLayers() {
+        return List.of(new HeldLayer(GooRenderTypes.ROCK_EXPLOSION_TYPE,
+                GooRenderTypes.ROCK_EXPLOSION_THROUGH_BLOCKS_TYPE, RockExplosionVisual::emitHeld));
+    }
+
+    /**
+     * Crush's ghost: the dust on a dome at the ghost's radius about the cell
+     * the throw lands in, resting at one progress and turning steadily about
+     * the face axis on the real-time clock, so it never jumps back.
+     * held-visual-ghosts-the-landing-in-two-passes
+     *
+     * @param pose       the pose entry
+     * @param c          the vertex consumer
+     * @param ghost      the ghost
+     * @param face       the face the throw strikes
+     * @param opacity    the share of the landing's opacity
+     * @param nowSeconds seconds on the real-time clock
+     */
+    private static void emitHeld(PoseStack.Pose pose, VertexConsumer c, HeldGhost ghost, Direction face,
+                                 float opacity, double nowSeconds) {
+        int progressByte = NetherDiscMesh.toByte(HELD_PROGRESS);
+        int alphaByte = NetherDiscMesh.toByte(opacity);
+        double spin = heldSpin(nowSeconds);
+        BurnoutGeometry.emitSphere(pose, c, ghost.domeRadius(),
+                direction -> domeColor(direction, face, spin, progressByte, alphaByte), face, 0f);
+    }
+
+    /**
+     * How far the held dust has turned about the face axis: growing steadily
+     * with the real-time clock, never wrapping back.
+     *
+     * @param nowSeconds seconds on the real-time clock
+     * @return the turn in radians
+     */
+    static double heldSpin(double nowSeconds) {
+        return nowSeconds * HELD_SPIN_PER_SECOND;
+    }
+
+    /**
+     * The color of a dome vertex: progress, and a dust coordinate read off its
+     * direction across the face's plane, turned by the spin and kept inside
+     * the disc short of its edge.
+     *
+     * @param direction    the vertex's unit direction from the dome's center
+     * @param face         the face the throw strikes
+     * @param spin         how far the dust has turned about the face axis, in radians
+     * @param progressByte the held progress as a byte
+     * @param alphaByte    the share of the dust's opacity as a byte
+     * @return the packed color
+     */
+    static int domeColor(Vector3f direction, Direction face, double spin, int progressByte, int alphaByte) {
+        float[] across = acrossFace(direction, face);
+        float cos = (float) Math.cos(spin);
+        float sin = (float) Math.sin(spin);
+        float turnedU = across[0] * cos - across[1] * sin;
+        float turnedV = across[0] * sin + across[1] * cos;
+        int u = NetherDiscMesh.toByte((turnedU * DOME_DUST_REACH + 1f) * SIGNED_TO_UNIT);
+        int v = NetherDiscMesh.toByte((turnedV * DOME_DUST_REACH + 1f) * SIGNED_TO_UNIT);
+        return ARGB.color(alphaByte, progressByte, u, v);
+    }
+
+    private static float[] acrossFace(Vector3f direction, Direction face) {
+        return switch (face.getAxis()) {
+            case X -> new float[]{direction.y(), direction.z()};
+            case Y -> new float[]{direction.x(), direction.z()};
+            case Z -> new float[]{direction.x(), direction.y()};
+        };
+    }
 
     /**
      * The progress the cursor disc shows: the explosion's opening share, looped.
