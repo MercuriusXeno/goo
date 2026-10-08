@@ -67,6 +67,7 @@ public final class HeartOverlayHud {
     private static final BarkBurns BURNS = new BarkBurns();
     private static final int OPAQUE_WHITE = 0xFFFFFFFF;
     private static final int OPAQUE_ALPHA = 0xFF;
+    private static final int WHITE_RGB = 0xFFFFFF;
     private static final int ALPHA_SHIFT = 24;
     /** The tint charred bark takes behind the flame front. */
     private static final int CHAR_RGB = 0x2A1C12;
@@ -256,6 +257,20 @@ public final class HeartOverlayHud {
     }
 
     /**
+     * Answers whether a slot shows stone in the right half beside a half
+     * heart of real health, which draws as the stone sprite's right columns.
+     * heart-effects-crawl-while-held
+     *
+     * @param kind         the overlay's kind
+     * @param shieldHalves the half hearts of shield over the slot
+     * @param realHalves   the half hearts of real health in the slot
+     * @return true for stone beside a half heart
+     */
+    static boolean stoneBesideHalfHeart(HeartKind kind, int shieldHalves, int realHalves) {
+        return kind == HeartKind.STONESKIN && realHalves == 1 && shieldHalves > 0;
+    }
+
+    /**
      * The sprite a reserve slot draws behind the bar: the reserve's own vital
      * heart, whole or half by the halves banked there.
      *
@@ -317,7 +332,8 @@ public final class HeartOverlayHud {
         int health = Mth.ceil(player.getHealth());
         BarLayout layout = layout(graphics, gui, player, frame.leftHeightBefore());
         SlotPainter painter = new SlotPainter(graphics, overlay, gui.getGuiTicks(), frame.partialTick(),
-                RegrowCrawl.crawl(overlay, player.getHealth(), player.level().getGameTime() + frame.partialTick()));
+                RegrowCrawl.crawl(overlay, player.getHealth(), player.level().getGameTime() + frame.partialTick()),
+                warningAlpha(player, gui.getGuiTicks() + frame.partialTick()));
         int slots = paintedSlots(overlay, health);
         for (int slot = 0; slot < slots; slot++) {
             painter.paint(slot, layout.x(slot), layout.y(slot),
@@ -327,6 +343,22 @@ public final class HeartOverlayHud {
         for (BarkBurns.Burn burn : frame.burns()) {
             paintBurn(graphics, burn, now, layout.x(burn.slot()), layout.y(burn.slot()));
         }
+    }
+
+    /**
+     * The opacity the overlay's sprites pulse at while a prepaid heart brew
+     * is inside its last thirty seconds, whole otherwise.
+     * brew-runs-the-crawl-prepaid-on-a-shown-clock
+     *
+     * @param player  the local player
+     * @param guiTime the gui time, fraction included
+     * @return the opacity, zero to one
+     */
+    private static float warningAlpha(LocalPlayer player, float guiTime) {
+        long now = player.level().getGameTime();
+        boolean warning = player.getData(GooAttachments.HELD_EFFECTS).held().stream()
+                .anyMatch(effect -> effect.changesHearts() && BrewClock.warns(effect.expiresAt(), now));
+        return BrewClock.pulseAlpha(warning, guiTime);
     }
 
     /**
@@ -420,16 +452,25 @@ public final class HeartOverlayHud {
      * @param guiTicks    the gui tick
      * @param partialTick the fraction of the tick elapsed
      * @param crawl       the half regrowing now, if any
+     * @param alpha       the opacity the sprites draw at, pulsing as a prepaid brew nears its end
      */
     private record SlotPainter(GuiGraphicsExtractor graphics, HeartOverlay overlay, int guiTicks, float partialTick,
-                               Optional<RegrowCrawl.Crawl> crawl) {
+                               Optional<RegrowCrawl.Crawl> crawl, float alpha) {
 
         void paint(int slot, int x, int y, int realHalves) {
-            for (Identifier sprite : heartSprites(overlay.kind(), overlay.shieldAt(slot), realHalves)) {
-                graphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x, y, HEART_SIZE, HEART_SIZE);
+            if (stoneBesideHalfHeart(overlay.kind(), overlay.shieldAt(slot), realHalves)) {
+                // heart-effects-crawl-while-held: stone fills the empty half beside a half heart
+                blitColumns(graphics, STONE_FULL, x, y, x + halfStart(1), x + halfEnd(1),
+                        Math.round(alpha * OPAQUE_ALPHA) << ALPHA_SHIFT | WHITE_RGB);
+            } else {
+                for (Identifier sprite : heartSprites(overlay.kind(), overlay.shieldAt(slot), realHalves)) {
+                    graphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x, y, HEART_SIZE, HEART_SIZE, alpha);
+                }
             }
             // wood-crawls-across-regrowing-heart: the same crawl, bark creeping evenly over a bare half
-            crawl.filter(regrowing -> regrowing.slot() == slot && regrowing.fromHalf() < realHalves)
+            // heart-effects-crawl-while-held: stone crawls into a missing heart, where no real half stands
+            crawl.filter(regrowing -> regrowing.slot() == slot
+                            && (overlay.kind() == HeartKind.STONESKIN || regrowing.fromHalf() < realHalves))
                     .ifPresent(regrowing -> paintCrawl(graphics, overlay.kind(), regrowing, guiTicks, x, y));
             if (overlay.kind() == HeartKind.KINDLE) {
                 paintSparks(graphics, EmberSparks.sparks(slot, Math.min(overlay.shieldAt(slot), realHalves),
@@ -440,8 +481,9 @@ public final class HeartOverlayHud {
 
     /**
      * Paints a regrowing half's crawl: the shield's sprite revealed row by row
-     * up to the front: a smoldering, pulsing ember over Kindle's ash, and oak
-     * bark creeping evenly over Barkskin's bare heart.
+     * up to the front: a smoldering, pulsing ember over Kindle's ash, oak
+     * bark creeping evenly over Barkskin's bare heart, and stone creeping
+     * evenly into Stoneskin's missing heart.
      *
      * @param graphics the gui graphics
      * @param kind     the overlay's kind
@@ -453,18 +495,42 @@ public final class HeartOverlayHud {
     private static void paintCrawl(GuiGraphicsExtractor graphics, HeartKind kind, RegrowCrawl.Crawl crawl, int guiTicks,
                                    int x, int y) {
         boolean smolder = kind == HeartKind.KINDLE;
-        Identifier sprite = smolder ? EMBER_FULL : BARK_FULL;
+        Identifier sprite = smolder ? EMBER_FULL : kind == HeartKind.STONESKIN ? STONE_FULL : BARK_FULL;
         float alpha = smolder ? SMOLDER_ALPHA + SMOLDER_PULSE * Mth.sin(guiTicks * SMOLDER_PULSE_RATE) : 1f;
-        int left = x + crawl.fromHalf() * (HEART_SIZE - RegrowCrawl.HALF_WIDTH);
+        int left = x + halfStart(crawl.fromHalf());
+        int right = x + halfEnd(crawl.fromHalf());
         for (int row = 0; row < HEART_SIZE; row++) {
             int reach = RegrowCrawl.rowReach(row, crawl.progress(), guiTicks, smolder);
             if (reach > 0) {
-                graphics.enableScissor(left, y + row, left + reach, y + row + 1);
+                graphics.enableScissor(left, y + row, Math.min(left + reach, right), y + row + 1);
                 graphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x, y, HEART_SIZE, HEART_SIZE, alpha);
                 graphics.disableScissor();
             }
         }
     }
+    /**
+     * The first sprite column of a heart's half, split where vanilla's half
+     * heart ends: the left half takes columns 0 to 4, its tip in the center
+     * column, and the right half columns 5 to 8.
+     * heart-effects-crawl-while-held
+     *
+     * @param half zero for the left half, one for the right
+     * @return the column the half starts at
+     */
+    static int halfStart(int half) {
+        return half == 0 ? 0 : RegrowCrawl.HALF_WIDTH;
+    }
+
+    /**
+     * The column past a heart's half, where the half ends.
+     *
+     * @param half zero for the left half, one for the right
+     * @return the column after the half's last
+     */
+    static int halfEnd(int half) {
+        return half == 0 ? RegrowCrawl.HALF_WIDTH : HEART_SIZE;
+    }
+
     private static void paintSparks(GuiGraphicsExtractor graphics, List<EmberSparks.Spark> sparks, int x, int y) {
         for (EmberSparks.Spark spark : sparks) {
             int left = x + Math.round(spark.x());

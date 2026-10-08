@@ -176,6 +176,17 @@ public final class GooRenderTypes {
     public static final RenderType ROCK_EXPLOSION_TYPE = burnoutType(ROCK_EXPLOSION);
 
     /**
+     * Rock's held ghost through blocks: the rock dust shader with no depth
+     * test, so the part of Crush's dome inside blocks shows through them.
+     * held-visual-ghosts-the-landing-in-two-passes
+     */
+    public static final RenderPipeline ROCK_EXPLOSION_THROUGH_BLOCKS = throughBlocksPipeline("rock_explosion",
+            BlendFunction.TRANSLUCENT);
+
+    /** RenderType for rock's held ghost through blocks. */
+    public static final RenderType ROCK_EXPLOSION_THROUGH_BLOCKS_TYPE = burnoutType(ROCK_EXPLOSION_THROUGH_BLOCKS);
+
+    /**
      * Blaze goo's burnout explosion pipeline: the flame bloom, additive so
      * it lights what it covers, through {@code blaze_explosion.vsh / .fsh}.
      */
@@ -849,6 +860,7 @@ public final class GooRenderTypes {
         event.registerPipeline(UNSTABLE_EXPLOSION);
         event.registerPipeline(UNSTABLE_EXPLOSION_THROUGH_BLOCKS);
         event.registerPipeline(ROCK_EXPLOSION);
+        event.registerPipeline(ROCK_EXPLOSION_THROUGH_BLOCKS);
         event.registerPipeline(BLAZE_EXPLOSION);
         event.registerPipeline(FROST_EXPLOSION);
         event.registerPipeline(NETHER_EXPLOSION);

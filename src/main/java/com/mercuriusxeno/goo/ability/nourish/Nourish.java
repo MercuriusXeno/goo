@@ -18,6 +18,11 @@ public record Nourish(int interval, long nextAt, long expiresAt) {
 
     /** The nourishment a player without Nourish holds. */
     public static final Nourish NONE = new Nourish(1, 0L, 0L);
+    /**
+     * The expiry of nourishment the glove holds, standing until the held effect ends.
+     * self-effects-trickle-until-ended
+     */
+    public static final long NEVER_EXPIRES = Long.MAX_VALUE;
 
     private static final String FIELD_INTERVAL = "interval";
     private static final String FIELD_NEXT_AT = "next_at";
@@ -51,9 +56,23 @@ public record Nourish(int interval, long nextAt, long expiresAt) {
      */
     public Nourish apply(int pointInterval, int duration, long now) {
         if (stands()) {
-            return new Nourish(interval, nextAt, expiresAt + duration);
+            return new Nourish(interval, nextAt, expiresAt == NEVER_EXPIRES ? NEVER_EXPIRES : expiresAt + duration);
         }
         return new Nourish(pointInterval, now + pointInterval, now + duration);
+    }
+
+    /**
+     * Starts nourishment the glove holds: no expiry, the first point an
+     * interval from now; standing nourishment keeps its clock and holds on.
+     * self-effects-trickle-until-ended
+     *
+     * @param pointInterval the ticks between food points
+     * @param now           the game time
+     * @return the nourishment after the start
+     */
+    public Nourish hold(int pointInterval, long now) {
+        return stands() ? new Nourish(interval, nextAt, NEVER_EXPIRES)
+                : new Nourish(pointInterval, now + pointInterval, NEVER_EXPIRES);
     }
 
     /**

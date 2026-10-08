@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability;
 
 import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.JsonOps;
@@ -43,7 +44,9 @@ class ThrowCostTest {
     @MethodSource("shippedAbilities")
     void everyThrowPricesAtTheJsonsCost(Path file) throws IOException {
         String resource = ABILITIES + file.getFileName();
-        int jsonCost = read(resource).getAsJsonObject().get("cost").getAsInt();
+        JsonObject json = read(resource).getAsJsonObject();
+        // self-effects-trickle-until-ended: a held effect names an upkeep and no cost
+        int jsonCost = json.has("cost") ? json.get("cost").getAsInt() : 0;
         AbilityDefinition definition = AbilityJson.decode(file);
 
         assertEquals(jsonCost, definition.cost(), definition.id().toString());

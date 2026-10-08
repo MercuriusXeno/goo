@@ -368,6 +368,9 @@ public final class GooTestFunctions {
     private static final String SELF_GATED_BLINK_REFUSED = "self_gated_blink_refused";
     private static final String SELF_KINDLE_EATS_FIRST = "self_kindle_eats_before_the_embers";
     private static final String SELF_KINDLE_RELEASED_RUNS_NOTHING = "self_kindle_released_runs_nothing";
+    private static final String SELF_KINDLE_HELD_PAYS_UPKEEP = "self_kindle_held_pays_upkeep_each_tick";
+    private static final String SELF_KINDLE_INVOKED_AGAIN_ENDS = "self_kindle_invoked_again_ends";
+    private static final String SELF_KINDLE_ENDS_WHEN_DRY = "self_kindle_ends_when_dry";
     private static final String SELF_TYPHOON_PROPEL = "self_typhoon_propel";
     private static final String SELF_KINDLE_SHIELDS = "self_kindle_shields_then_quenches";
     private static final String SELF_KINDLE_BURNS = "self_kindle_burns_the_attacker";
@@ -375,6 +378,7 @@ public final class GooTestFunctions {
     private static final String RESERVE_DRAINS_FIRST = "reserve_drains_first";
     private static final String RESERVE_DRAINS_WHILE_HELD = "reserve_drains_while_held";
     private static final String SELF_BARKSKIN_FIRE = "self_barkskin_fire_burns_through_arrow_breaks_bark";
+    private static final String SELF_BARKSKIN_BARE_STAYS_HELD = "self_barkskin_bare_stays_held_and_regrows";
     private static final String SELF_BARKSKIN_THORNS = "self_barkskin_thorns_and_the_axe";
     private static final String SELF_KINDLE_FIRE = "self_kindle_fire_relights_for_a_heart";
     private static final String BREW_EVERY_POTION_CARRIES = "brew_every_potion_carries_its_effect";
@@ -384,11 +388,14 @@ public final class GooTestFunctions {
     private static final String NOURISH_REFILLS_HUNGER = "nourish_refills_hunger";
     private static final String BREW_WITHOUT_ABILITY = "brew_without_an_ability_runs_nothing";
     private static final String BREW_ROCK_STONESKINS = "brew_rock_stoneskins_for_an_hour";
+    private static final String BREW_BLAZE_HOLDS_PREPAID = "brew_blaze_holds_kindle_prepaid";
+    private static final String BREW_REPLACED_ENDS_EFFECT = "brew_replaced_ends_its_effect";
     private static final String STREAM_BLAZE_SPITFIRE = "stream_blaze_spitfire";
     private static final String FLATTEN_BREAKS_ABOVE_THE_PLANE = "flatten_breaks_above_the_plane";
     private static final String FLATTEN_SHAVES_A_WALL = "flatten_shaves_a_wall";
     private static final String BORE_CUTS_A_TUNNEL = "bore_cuts_a_tunnel";
     private static final String STONESKIN_ROUTES_HITS = "stoneskin_routes_hits_by_source";
+    private static final String STONESKIN_ENDS_KEEPING_HEALTH = "stoneskin_ends_leaving_health_as_it_stood";
     private static final String BORE_STRIKES_A_MOB = "bore_strikes_a_mob_in_the_tunnel";
     private static final String BORE_SPARES_A_WALLED_MOB = "bore_spares_a_mob_behind_a_wall";
     private static final String CRUSH_BLASTS_A_CRATER = "crush_blasts_a_crater";
@@ -807,6 +814,9 @@ public final class GooTestFunctions {
         reg(r, SELF_GATED_BLINK_REFUSED, SelfDeliveryTests::gatedBlinkRefusedWithoutTheRecipe);
         reg(r, SELF_KINDLE_EATS_FIRST, SelfDeliveryTests::kindleEatsBeforeTheEmbers);
         reg(r, SELF_KINDLE_RELEASED_RUNS_NOTHING, SelfDeliveryTests::kindleLetGoMidEatRunsNothing);
+        reg(r, SELF_KINDLE_HELD_PAYS_UPKEEP, SelfDeliveryTests::kindleHeldPaysUpkeepEachTick);
+        reg(r, SELF_KINDLE_INVOKED_AGAIN_ENDS, SelfDeliveryTests::kindleInvokedAgainEnds);
+        reg(r, SELF_KINDLE_ENDS_WHEN_DRY, SelfDeliveryTests::kindleEndsWhenDry);
         reg(r, SELF_TYPHOON_PROPEL, SelfDeliveryTests::typhoonPropel);
         reg(r, SELF_KINDLE_SHIELDS, HeartOverlayTests::kindleShieldsThenQuenches);
         reg(r, SELF_KINDLE_BURNS, HeartOverlayTests::kindleBurnsTheAttacker);
@@ -814,6 +824,7 @@ public final class GooTestFunctions {
         reg(r, RESERVE_DRAINS_FIRST, ReserveTests::reserveDrainsFirst);
         reg(r, RESERVE_DRAINS_WHILE_HELD, ReserveTests::reserveDrainsWhileHeld);
         reg(r, SELF_BARKSKIN_FIRE, BarkskinTests::fireBurnsThroughArrowBreaksBark);
+        reg(r, SELF_BARKSKIN_BARE_STAYS_HELD, BarkskinTests::bareBarkskinStaysHeldAndRegrows);
         reg(r, SELF_BARKSKIN_THORNS, BarkskinTests::thornsAndTheAxe);
         reg(r, SELF_KINDLE_FIRE, HeartOverlayTests::kindleFireRelightsForAHeart);
         reg(r, BREW_EVERY_POTION_CARRIES, BrewEffectTests::everyPotionCarriesItsBrewEffect);
@@ -823,11 +834,14 @@ public final class GooTestFunctions {
         reg(r, NOURISH_REFILLS_HUNGER, NourishTests::nourishRefillsHunger);
         reg(r, BREW_WITHOUT_ABILITY, BrewEffectTests::brewWithoutAnAbilityRunsNothing);
         reg(r, BREW_ROCK_STONESKINS, BrewEffectTests::rockBrewStoneskinsForAnHour);
+        reg(r, BREW_BLAZE_HOLDS_PREPAID, BrewEffectTests::blazeBrewHoldsKindlePrepaid);
+        reg(r, BREW_REPLACED_ENDS_EFFECT, BrewEffectTests::replacedBrewEndsItsEffect);
         reg(r, STREAM_BLAZE_SPITFIRE, StreamDeliveryTests::blazeSpitfire);
         reg(r, FLATTEN_BREAKS_ABOVE_THE_PLANE, FlattenChannelTests::flattenBreaksAboveThePlane);
         reg(r, FLATTEN_SHAVES_A_WALL, FlattenChannelTests::flattenShavesAWall);
         reg(r, BORE_CUTS_A_TUNNEL, BoreStreamTests::boreCutsATunnel);
         reg(r, STONESKIN_ROUTES_HITS, StoneskinRoutingTests::stoneskinRoutesHitsBySource);
+        reg(r, STONESKIN_ENDS_KEEPING_HEALTH, StoneskinRoutingTests::stoneskinEndsLeavingHealthAsItStood);
         reg(r, BORE_STRIKES_A_MOB, BoreStreamTests::boreStrikesAMobInTheTunnel);
         reg(r, BORE_SPARES_A_WALLED_MOB, BoreStreamTests::boreSparesAMobBehindAWall);
         reg(r, CRUSH_BLASTS_A_CRATER, CrushStrikeTests::crushBlastsACrater);

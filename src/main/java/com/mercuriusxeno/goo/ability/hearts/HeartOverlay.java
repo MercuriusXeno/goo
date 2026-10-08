@@ -171,10 +171,10 @@ public record HeartOverlay(HeartKind kind, List<Integer> shields, long expiresAt
     }
 
     /**
-     * Applies a heart brew. The same kind standing again adds the duration and
-     * keeps its hearts; another kind ends the standing overlay and lays its own
-     * whole, a full shield over every present heart, a missing heart staying
-     * missing.
+     * Applies a heart brew. The same kind standing again changes nothing;
+     * another kind ends the standing overlay and primes its own from one
+     * heart, a full shield over the leftmost present heart and the crawl
+     * reaching the rest, a missing heart staying missing.
      *
      * @param brewKind the kind the brew lays
      * @param duration the brew's duration in ticks
@@ -187,10 +187,11 @@ public record HeartOverlay(HeartKind kind, List<Integer> shields, long expiresAt
     }
 
     /**
-     * Applies a heart brew. The same kind standing again adds the duration and
-     * keeps its hearts; another kind ends the standing overlay and lays its own
-     * whole: a full shield over every present heart, or, for a kind filling
-     * the missing hearts, over every heart slot the player is missing.
+     * Applies a heart brew. The same kind standing again changes nothing;
+     * another kind ends the standing overlay and primes its own from one
+     * heart: a full shield over the leftmost present heart, or, for a kind
+     * filling the missing hearts, over the leftmost heart the player is
+     * missing, the crawl reaching each further heart over time.
      *
      * @param brewKind    the kind the brew lays
      * @param duration    the brew's duration in ticks
@@ -202,31 +203,102 @@ public record HeartOverlay(HeartKind kind, List<Integer> shields, long expiresAt
      */
     public HeartOverlay apply(HeartKind brewKind, int duration, float health, float maxHealth, float damageTaken,
                               long now) {
-        if (stands() && kind == brewKind) {
-            // kindle-ember-hearts-ash-and-retaliate: the self ability stacks in duration
-            return new HeartOverlay(kind, shields, expiresAt + duration, regrowAt, fireReadyAt, damageTaken, drainCarry);
+        return lay(brewKind, now + duration, health, maxHealth, damageTaken, now);
+    }
+
+    /**
+     * Lays a heart overlay the glove holds: the same as a brew, with no
+     * expiry, standing until the held effect ends.
+     * self-effects-trickle-until-ended
+     *
+     * @param heldKind    the kind the held effect lays
+     * @param health      the player's real health
+     * @param maxHealth   the player's maximum health
+     * @param damageTaken the share of a physical hit a half of shield takes
+     * @param now         the game time
+     * @return the overlay after the start
+     */
+    public HeartOverlay hold(HeartKind heldKind, float health, float maxHealth, float damageTaken, long now) {
+        return lay(heldKind, NEVER_EXPIRES, health, maxHealth, damageTaken, now);
+    }
+
+    private HeartOverlay lay(HeartKind laidKind, long laidExpiresAt, float health, float maxHealth,
+                             float damageTaken, long now) {
+        if (stands() && kind == laidKind) {
+            // self-effects-trickle-until-ended: the same kind standing adds no duration, running to the later end
+            long laterEnd = Math.max(expiresAt, laidExpiresAt);
+            return laterEnd == expiresAt ? this
+                    : new HeartOverlay(kind, shields, laterEnd, regrowAt, fireReadyAt, this.damageTaken, drainCarry);
         }
         // one-heart-overlay-at-a-time: a heart brew ends any other heart brew the moment it takes effect
-        List<Integer> laid = brewKind.fillsMissing() ? missingFilled(health, maxHealth)
-                : Collections.nCopies(filledSlots(health), FULL_SHIELD);
-        return new HeartOverlay(brewKind, laid, now + duration, now + brewKind.regrowInterval(sum(laid)), now,
+        List<Integer> laid = laidKind.fillsMissing() ? firstMissingFilled(health, maxHealth)
+                : firstPresentFilled(health);
+        return new HeartOverlay(laidKind, laid, laidExpiresAt, now + laidKind.regrowInterval(sum(laid)), now,
                 damageTaken, 0f);
     }
 
     /**
-     * Shields over every heart slot the player is missing and none over the
-     * slots real health fills (decision stoneskin-stone-hearts-block-regeneration).
+     * A full shield over the leftmost present heart and none over the rest,
+     * which the crawl reaches over time; Kindle's bare hearts read ash.
+     * heart-effects-crawl-while-held
+     *
+     * @param health the player's real health
+     * @return per heart slot, the half hearts of shield over it
+     */
+    private static List<Integer> firstPresentFilled(float health) {
+        List<Integer> laid = new ArrayList<>(Collections.nCopies(filledSlots(health), 0));
+        if (!laid.isEmpty()) {
+            laid.set(0, FULL_SHIELD);
+        }
+        return laid;
+    }
+
+    /**
+     * A full shield over the leftmost heart slot the player is missing and
+     * none over the rest of the bar, which spans every slot maximum health
+     * holds, so the crawl reaches each further missing heart (decisions
+     * stoneskin-stone-hearts-block-regeneration and heart-effects-crawl-while-held).
      *
      * @param health    the player's real health
      * @param maxHealth the player's maximum health
      * @return per heart slot, the half hearts of shield over it
      */
-    private static List<Integer> missingFilled(float health, float maxHealth) {
-        List<Integer> laid = new ArrayList<>(Collections.nCopies(filledSlots(health), 0));
-        while (laid.size() < filledSlots(maxHealth)) {
-            laid.add(FULL_SHIELD);
+    private static List<Integer> firstMissingFilled(float health, float maxHealth) {
+        List<Integer> laid = new ArrayList<>(Collections.nCopies(filledSlots(maxHealth), 0));
+        for (int slot = 0; slot < laid.size(); slot++) {
+            int missing = missingHalvesAt(slot, health);
+            if (missing > 0) {
+                // a half heart's empty half takes half a stone
+                laid.set(slot, missing);
+                break;
+            }
         }
         return laid;
+    }
+
+    /**
+     * The half hearts of real health in a heart slot, a part of a half
+     * counting as a half, as the health bar draws it.
+     *
+     * @param slot   the heart slot, from the left
+     * @param health the player's real health
+     * @return zero to two halves
+     */
+    public static int realHalvesAt(int slot, float health) {
+        return Math.clamp((int) Math.ceil(health) - slot * FULL_SHIELD, 0, FULL_SHIELD);
+    }
+
+    /**
+     * The half hearts a heart slot is missing, which stone may fill: both of
+     * an empty slot, the empty half of a half heart, none of a whole one.
+     * heart-effects-crawl-while-held
+     *
+     * @param slot   the heart slot, from the left
+     * @param health the player's real health
+     * @return zero to two halves
+     */
+    static int missingHalvesAt(int slot, float health) {
+        return FULL_SHIELD - realHalvesAt(slot, health);
     }
 
     /**
@@ -366,14 +438,14 @@ public record HeartOverlay(HeartKind kind, List<Integer> shields, long expiresAt
     }
 
     /**
-     * Answers whether the overlay holds real health from regenerating: stone
-     * standing over the missing hearts
-     * (decision stoneskin-stone-hearts-block-regeneration).
+     * Answers whether the overlay holds real health from regenerating:
+     * Stoneskin standing, its stone crawling over the missing hearts, so stone
+     * is how the player recovers (decision stoneskin-stone-hearts-block-regeneration).
      *
-     * @return true while a Stoneskin shield stands
+     * @return true while Stoneskin stands
      */
     public boolean blocksHealing() {
-        return stands() && kind == HeartKind.STONESKIN && shieldHalves() > 0;
+        return stands() && kind == HeartKind.STONESKIN;
     }
 
     /**
@@ -437,7 +509,7 @@ public record HeartOverlay(HeartKind kind, List<Integer> shields, long expiresAt
      * @return the slot, or empty when every real heart wears a full shield or no overlay stands
      */
     public OptionalInt nextRegrowSlot(float health) {
-        int slot = leftmostShortSlot(filledSlots(health));
+        int slot = crawlSlot(health);
         return !stands() || !kind.regrows() || slot == NO_SLOT ? OptionalInt.empty() : OptionalInt.of(slot);
     }
 
@@ -451,11 +523,7 @@ public record HeartOverlay(HeartKind kind, List<Integer> shields, long expiresAt
     }
 
     private HeartOverlay regrow(float health, long now) {
-        if (!kind.regrows()) {
-            // stoneskin-stone-hearts-block-regeneration: stone that breaks stays broken
-            return this;
-        }
-        int shortSlot = leftmostShortSlot(filledSlots(health));
+        int shortSlot = crawlSlot(health);
         // reserve-hearts-sit-behind-the-bar: a banked reserve only spends
         if (!kind.regrows() || now < regrowAt || shortSlot == NO_SLOT) {
             return this;
@@ -498,6 +566,38 @@ public record HeartOverlay(HeartKind kind, List<Integer> shields, long expiresAt
 
     private HeartOverlay withShields(List<Integer> after, long nextRegrowAt) {
         return new HeartOverlay(kind, after, expiresAt, nextRegrowAt, fireReadyAt, damageTaken, drainCarry);
+    }
+
+    /**
+     * The slot the crawl reaches next: the leftmost real heart short of a full
+     * shield, or for a kind filling the missing hearts the leftmost missing
+     * slot short of full stone, a wound opened later among them.
+     * heart-effects-crawl-while-held
+     */
+    private int crawlSlot(float health) {
+        return kind.fillsMissing() ? leftmostMissingShortSlot(health) : leftmostShortSlot(filledSlots(health));
+    }
+
+    private int leftmostMissingShortSlot(float health) {
+        for (int slot = 0; slot < shields.size(); slot++) {
+            if (shieldAt(slot) < missingHalvesAt(slot, health)) {
+                return slot;
+            }
+        }
+        return NO_SLOT;
+    }
+
+    /**
+     * The half of a heart slot the crawl fills next: the half past the
+     * shield standing, and for stone past the real health in the slot too.
+     *
+     * @param slot   the heart slot the crawl reaches
+     * @param health the player's real health
+     * @return zero for the left half, one for the right
+     */
+    public int crawlHalf(int slot, float health) {
+        int beneath = kind.fillsMissing() ? realHalvesAt(slot, health) : 0;
+        return Math.min(FULL_SHIELD - 1, beneath + shieldAt(slot));
     }
 
     private int leftmostShortSlot(int filledSlots) {
