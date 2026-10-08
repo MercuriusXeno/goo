@@ -133,20 +133,30 @@ public final class MeltMesh {
         Vec3 normal = Vec3.atLowerCornerOf(quad.direction().getUnitVec3i());
         int tint = tintOf(melt, quad);
         if (melt.sags()) {
-            for (int i = 0; i < GRID; i++) {
-                for (int j = 0; j < GRID; j++) {
-                    emitBlockCell(ctx, melt, new Cell(corners, i, j), normal, tint);
-                }
+            for (int cell = 0; cell < GRID * GRID; cell++) {
+                emitBlockCell(ctx, melt, new Cell(corners, cell / GRID, cell % GRID), normal, tint);
             }
         }
         int layers = Math.min(melt.goo().types().size(), MAX_LAYERS);
         for (int layer = 0; layer < layers; layer++) {
-            GooLayer goo = new GooLayer(melt.goo().types().get(layer), layer, melt.goo().share(layer));
-            for (int i = 0; i < GRID; i++) {
-                for (int j = 0; j < GRID; j++) {
-                    emitGooCell(ctx, melt, new Cell(corners, i, j), normal, goo);
-                }
-            }
+            emitGooLayer(ctx, melt, corners, normal,
+                    new GooLayer(melt.goo().types().get(layer), layer, melt.goo().share(layer)));
+        }
+    }
+
+    /**
+     * Emits one goo layer over a quad, cell by cell.
+     *
+     * @param ctx     the render context
+     * @param melt    the melt
+     * @param corners the quad's corners
+     * @param normal  the face's normal
+     * @param goo     the layer
+     */
+    private static void emitGooLayer(RenderContext ctx, Melt melt, List<QuadRectClipper.ClipVertex> corners,
+                                     Vec3 normal, GooLayer goo) {
+        for (int cell = 0; cell < GRID * GRID; cell++) {
+            emitGooCell(ctx, melt, new Cell(corners, cell / GRID, cell % GRID), normal, goo);
         }
     }
 
