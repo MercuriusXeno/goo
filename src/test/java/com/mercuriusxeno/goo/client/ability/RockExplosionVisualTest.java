@@ -1,6 +1,9 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import net.minecraft.core.Direction;
+import net.minecraft.util.ARGB;
+import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -44,6 +47,23 @@ class RockExplosionVisualTest {
         assertEquals(0f, RockExplosionVisual.cursorProgress(RockExplosionVisual.DURATION_TICKS), TOLERANCE);
         assertEquals(RockExplosionVisual.cursorProgress(half),
                 RockExplosionVisual.cursorProgress(RockExplosionVisual.DURATION_TICKS + half), TOLERANCE);
+    }
+
+    /** Crush's held dust never jumps: a frame's step moves each dome vertex's dust coordinate by a hair (decision held-visual-ghosts-the-landing-in-two-passes). */
+    @Test
+    void heldDustTurnsWithNoCut() {
+        Vector3f side = new Vector3f(1f, 0f, 0f);
+        int progressByte = NetherDiscMesh.toByte(RockExplosionVisual.HELD_PROGRESS);
+        double frame = 1.0 / 60.0;
+        for (double seconds = 0.0; seconds < 10.0; seconds += frame) {
+            int before = RockExplosionVisual.domeColor(side, Direction.UP, RockExplosionVisual.heldSpin(seconds),
+                    progressByte, 0xFF);
+            int after = RockExplosionVisual.domeColor(side, Direction.UP,
+                    RockExplosionVisual.heldSpin(seconds + frame), progressByte, 0xFF);
+            assertTrue(Math.abs(ARGB.green(before) - ARGB.green(after)) <= 2
+                    && Math.abs(ARGB.blue(before) - ARGB.blue(after)) <= 2, "the dust jumps at " + seconds + "s");
+        }
+        assertEquals(1f, RockExplosionVisual.sonicRingRadial(RockExplosionVisual.HELD_PROGRESS), 0f);
     }
 
     @Test

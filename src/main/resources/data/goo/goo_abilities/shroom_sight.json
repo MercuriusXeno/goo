@@ -3,11 +3,11 @@
   "displayName": "goo.ability.shroom.sight",
   "badge": "brew",
   "order": 30,
-  "cost": 1000,
+  "upkeep": 1,
   "requires": ["minecraft:sculk_sensor"],
   "delivery": { "kind": "self" },
   "behaviors": [
-    { "type": "sight", "factor": 3, "duration": 600 },
+    { "type": "sight", "factor": 3 },
     { "type": "particles", "id": "goo:spore", "at": "target", "count": 16, "spread": 0.4, "lift": 1.5, "speed": 0.02 },
     { "type": "sound", "id": "minecraft:block.sculk_sensor.clicking", "at": "target", "source": "players", "volume": 1, "pitch": 1 }
   ],

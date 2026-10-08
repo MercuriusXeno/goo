@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.radial;
 
 import com.mercuriusxeno.goo.ability.GloveSelection;
+import com.mercuriusxeno.goo.ability.held.HeldEffects;
 import com.mercuriusxeno.goo.client.ClientKnownItems;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.network.ClientAbilities;
@@ -9,6 +10,7 @@ import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.network.GloveSelectPayload;
+import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.client.Minecraft;
@@ -17,6 +19,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
+import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
@@ -24,6 +27,8 @@ import net.minecraft.world.item.ItemStack;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * The glove's one radial wheel, open while the glove menu key is held:
@@ -77,6 +82,34 @@ public final class GloveRadialScreen extends Screen {
         return (int) RadialWheel.outerRadius(width, height);
     }
 
+    /**
+     * The abilities whose effect the local player holds, read from the
+     * synced held effects, which the wheel pulses.
+     * wheel-pulses-the-active-effect
+     *
+     * @return the held abilities' ids, empty with no player
+     */
+    private static Set<Identifier> activeAbilities() {
+        Player player = Minecraft.getInstance().player;
+        if (player == null) {
+            return Set.of();
+        }
+        return player.getData(GooAttachments.HELD_EFFECTS).held().stream()
+                .map(HeldEffects.Held::ability)
+                .collect(Collectors.toUnmodifiableSet());
+    }
+
+    /**
+     * The game time the wheel's pulse runs on.
+     *
+     * @param partialTick the fraction of a tick since the last one
+     * @return the game time, fraction included, zero with no level
+     */
+    private static float gameTime(float partialTick) {
+        Player player = Minecraft.getInstance().player;
+        return player == null ? 0f : player.level().getGameTime() + partialTick;
+    }
+
     @Override
     public void mouseMoved(double x, double y) {
         wheel.moveCursor(x - width / (double) HALF, y - height / (double) HALF, radius());
@@ -112,7 +145,8 @@ public final class GloveRadialScreen extends Screen {
         float partialTick = minecraft.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         List<RadialWheelRenderer.ItemIcon> sacrifice = RadialWheelRenderer.render(graphics, font,
                 new RadialWheelRenderer.Frame(wheel, types, abilities, available,
-                        width / HALF, height / HALF, radius(), PetalLook.LIVE, partialTick));
+                        width / HALF, height / HALF, radius(), PetalLook.LIVE, partialTick, activeAbilities(),
+                        gameTime(partialTick)));
         RadialWheelRenderer.ItemIcon hovered = RadialWheelRenderer.itemUnder(sacrifice, mouseX, mouseY);
         if (hovered != null) {
             graphics.setTooltipForNextFrame(font, hovered.stack().getHoverName(), mouseX, mouseY);
