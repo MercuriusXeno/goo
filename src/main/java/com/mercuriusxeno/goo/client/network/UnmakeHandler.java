@@ -2,14 +2,12 @@ package com.mercuriusxeno.goo.client.network;
 
 import com.mercuriusxeno.goo.client.ability.MeltingBlocks;
 import com.mercuriusxeno.goo.client.ability.MeltingMobs;
+import com.mercuriusxeno.goo.client.ability.MingledGoo;
 import com.mercuriusxeno.goo.client.ability.MorphingRemains;
 import com.mercuriusxeno.goo.network.UnmadePayload;
 import com.mercuriusxeno.goo.network.UnmakeMobPayload;
 import com.mercuriusxeno.goo.network.UnmakePayload;
-import com.mercuriusxeno.goo.type.GooTypeDefinition;
-import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.client.Minecraft;
-import net.minecraft.resources.ResourceKey;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 /**
@@ -47,11 +45,11 @@ public final class UnmakeHandler {
     public static void handleUnmade(UnmadePayload payload, IPayloadContext context) {
         context.enqueueWork(() -> {
             Minecraft mc = Minecraft.getInstance();
-            ResourceKey<GooTypeDefinition> type = GooTypes.byId(payload.gooTypeId());
-            if (mc.level == null || type == null) {
+            if (mc.level == null) {
                 return;
             }
-            MorphingRemains.CLIENT.begin(payload.at(), type, payload.size(), mc.level.getGameTime());
+            MorphingRemains.CLIENT.begin(payload.at(), MingledGoo.of(payload.goo()), payload.size(),
+                    mc.level.getGameTime());
         });
     }
 
@@ -67,7 +65,8 @@ public final class UnmakeHandler {
             if (mc.level == null) {
                 return;
             }
-            MeltingMobs.CLIENT.record(payload.entityId(), payload.fraction(), mc.level.getGameTime());
+            MeltingMobs.CLIENT.record(payload.entityId(), payload.fraction(), MingledGoo.of(payload.goo()),
+                    mc.level.getGameTime());
         });
     }
 }

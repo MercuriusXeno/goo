@@ -18,6 +18,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.OptionalInt;
@@ -229,7 +230,9 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
     public void showUnmaking(LivingEntity mob, float fraction) {
         UnmakePin.pin(mob);
         UnmakeSounds.bubble(level, mob.position(), mob.getId());
-        EntityVisuals.sendToWatchers(mob, new UnmakeMobPayload(mob.getId(), fraction));
+        UnmakeLoot.Loot loot = unmadeLoot(mob);
+        EntityVisuals.sendToWatchers(mob, new UnmakeMobPayload(mob.getId(), fraction,
+                loot == null ? Map.of() : loot.goo().getAll()));
     }
 
     /**

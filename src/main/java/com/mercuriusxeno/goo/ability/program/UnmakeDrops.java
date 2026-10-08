@@ -5,7 +5,6 @@ import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.network.ChunkWatchers;
 import com.mercuriusxeno.goo.network.UnmadePayload;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
-import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
@@ -13,7 +12,6 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -47,7 +45,7 @@ public final class UnmakeDrops {
         if (goo.isEmpty()) {
             return;
         }
-        ChunkWatchers.send(level, BlockPos.containing(at), new UnmadePayload(at, GooTypes.id(dominantType(goo)), size));
+        ChunkWatchers.send(level, BlockPos.containing(at), new UnmadePayload(at, goo.getAll(), size));
         pending.add(new Pending(level, at, goo, level.getServer().getTickCount() + MORPH_TICKS));
     }
 
@@ -88,12 +86,4 @@ public final class UnmakeDrops {
         }
     }
 
-    /**
-     * @param goo the goo
-     * @return the type it holds the most of, whose item the remains morph into
-     */
-    static ResourceKey<GooTypeDefinition> dominantType(GooContents goo) {
-        return goo.getAll().entrySet().stream().max(Comparator.comparingInt(Map.Entry::getValue))
-                .map(Map.Entry::getKey).orElseThrow();
-    }
 }

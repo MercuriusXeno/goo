@@ -12,6 +12,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import org.jspecify.annotations.Nullable;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Unmake's channel hum: a low, warbling destabilizing hum looping from the
@@ -34,13 +35,8 @@ public final class UnmakeHum extends AbstractTickableSoundInstance {
     private static final double TWO_PI = 2 * Math.PI;
     /** Stretches a 0 to 1 share across -1 to 1. */
     private static final float SIGNED_SPAN = 2f;
-    /** The hum now playing, held on the client thread alone. */
-    private static final Playing PLAYING = new Playing();
-
-    /** Holds the hum now playing, if any. */
-    private static final class Playing {
-        private @Nullable UnmakeHum hum;
-    }
+    /** The hum now playing, if any. */
+    private static final AtomicReference<@Nullable UnmakeHum> PLAYING = new AtomicReference<>();
 
     private final LocalPlayer player;
     private int age;
@@ -67,10 +63,10 @@ public final class UnmakeHum extends AbstractTickableSoundInstance {
         if (player == null || UnmakeWaves.heldUnmake(player) == null) {
             return;
         }
-        UnmakeHum hum = PLAYING.hum;
+        UnmakeHum hum = PLAYING.get();
         if (hum == null || hum.isStopped()) {
             UnmakeHum started = new UnmakeHum(player, player.getRandom());
-            PLAYING.hum = started;
+            PLAYING.set(started);
             mc.getSoundManager().play(started);
         }
     }
