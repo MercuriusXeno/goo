@@ -9,30 +9,27 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * Works each block the host holds toward its dissolve: once the work done on
- * a block reaches what the crucible would charge to melt it, times
- * {@code work_per_goo}, the block goes and leaves {@code yield} of its goo;
- * until then its dissolve shows its progress. A block with no goo value
- * stands. A held mob is worked the same way against the goo value of the
- * loot it would drop, and leaves that goo in place of the items. On a stream
- * it runs in the channel's block pass.
+ * Works each block the host holds toward its melt: once the work done on a
+ * block reaches the unstable crucible's melt time for it, divided by
+ * {@code speed}, the block goes and leaves the full goo the crucible would;
+ * until then its melt shows its progress. A block with no goo value stands.
+ * A held mob is worked the same way against the loot it would drop, each
+ * stack a unit and the slowest deciding, and leaves that goo in place of the
+ * items. On a stream it runs in the channel's block pass.
  * decision unmake-waves-dissolve-by-crucible-cost
  *
- * @param workPerGoo the work one mB of the block's value costs, evaluated each run
- * @param yield      the share of the block's value left behind, evaluated each run
+ * @param speed how much faster than the crucible the unmake works, evaluated each run; 1 at its pace
  */
-public record UnmakeStep(Expr workPerGoo, Expr yield) implements Step {
+public record UnmakeStep(Expr speed) implements Step {
 
     private static final String NAME = "unmake";
-    private static final String FIELD_WORK_PER_GOO = "work_per_goo";
-    private static final String FIELD_YIELD = "yield";
+    private static final String FIELD_SPEED = "speed";
 
     /**
-     * Codec for the step's params.
+     * Codec for the step's params; an unmake naming no speed works at the crucible's pace.
      */
     public static final MapCodec<UnmakeStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
-            Expr.CODEC.fieldOf(FIELD_WORK_PER_GOO).forGetter(UnmakeStep::workPerGoo),
-            Expr.CODEC.fieldOf(FIELD_YIELD).forGetter(UnmakeStep::yield)
+            Expr.CODEC.optionalFieldOf(FIELD_SPEED, Expr.literal(1)).forGetter(UnmakeStep::speed)
     ).apply(inst, UnmakeStep::new));
 
     /**
@@ -58,21 +55,21 @@ public record UnmakeStep(Expr workPerGoo, Expr yield) implements Step {
     }
 
     /**
-     * Works one held mob as a block is worked, against its loot's value.
+     * Works one held mob as a block is worked, against its loot.
      *
      * @param host    the unmake host
      * @param mob     the held mob
      * @param context the step's context, which the params evaluate against
      */
     private void workMob(UnmakeHost host, LivingEntity mob, StepContext context) {
-        GooValue value = host.unmadeValue(mob);
-        if (value == null || value.isEmpty()) {
+        UnmakeLoot.Loot loot = host.unmadeLoot(mob);
+        if (loot == null) {
             return;
         }
-        int needed = UnmakeRule.workToUnmake(value.totalGoo(), workPerGoo.evaluate(context));
+        int needed = UnmakeRule.workToUnmake(loot.slowestUnit(), host.meltExponent(), speed.evaluate(context));
         int done = host.countUnmakeWork(mob);
         if (done >= needed) {
-            host.unmake(mob, UnmakeRule.yieldOf(value, yield.evaluate(context)));
+            host.unmake(mob, loot.goo().toGooContents());
         } else {
             host.showUnmaking(mob, (float) done / needed);
         }
@@ -90,10 +87,10 @@ public record UnmakeStep(Expr workPerGoo, Expr yield) implements Step {
         if (value == null || value.isEmpty()) {
             return;
         }
-        int needed = UnmakeRule.workToUnmake(value.totalGoo(), workPerGoo.evaluate(context));
+        int needed = UnmakeRule.workToUnmake(value.totalGoo(), host.meltExponent(), speed.evaluate(context));
         int done = host.countUnmakeWork(pos);
         if (done >= needed) {
-            host.unmake(pos, UnmakeRule.yieldOf(value, yield.evaluate(context)));
+            host.unmake(pos, value.toGooContents());
         } else {
             host.showUnmaking(pos, (float) done / needed);
         }
@@ -101,7 +98,7 @@ public record UnmakeStep(Expr workPerGoo, Expr yield) implements Step {
 
     @Override
     public Stream<Expr> expressions() {
-        return Stream.of(workPerGoo, yield);
+        return Stream.of(speed);
     }
 
     @Override

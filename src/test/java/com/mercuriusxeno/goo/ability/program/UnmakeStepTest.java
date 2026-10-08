@@ -22,38 +22,39 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * An unmake works every block its host holds, dissolving each after work
- * proportional to its crucible value and leaving a share of that value
- * (decisions unmake-waves-dissolve-by-crucible-cost, unmake-drip-dissolves-the-block-below).
+ * An unmake melts what its host holds in the unstable crucible's own time for
+ * it, each item stack a unit and the slowest deciding, and gives back the
+ * full goo (decisions unmake-waves-dissolve-by-crucible-cost,
+ * unmake-drip-dissolves-the-block-below).
  */
 class UnmakeStepTest {
 
     /** Cobblestone's value: one mundane block of rock. */
     private static final GooValue COBBLESTONE = new GooValue(Map.of(GooTypes.ROCK, 1152));
     private static final GooValue DIAMONDISH = new GooValue(Map.of(GooTypes.CRYSTAL, 13824, GooTypes.AEON, 4608));
-    private static final double WORK_PER_GOO = 0.025;
-    private static final double YIELD = 0.5;
-    private static final UnmakeStep UNMAKE = new UnmakeStep(Expr.literal(WORK_PER_GOO), Expr.literal(YIELD));
+    /** The unstable fuel's melt exponent: an item melts in ceil(mB ^ 0.5) ticks. */
+    private static final double UNSTABLE_EXPONENT = 0.5;
+    /** The unstable crucible's ticks for cobblestone, ceil(sqrt(1152)). */
+    private static final int COBBLESTONE_TICKS = 34;
+    private static final UnmakeStep UNMAKE = new UnmakeStep(Expr.literal(1));
 
     @Nested
     class Rule {
 
         @Test
-        void workGrowsWithTheCrucibleValue() {
-            assertEquals(29, UnmakeRule.workToUnmake(1152, WORK_PER_GOO));
-            assertEquals(461, UnmakeRule.workToUnmake(18432, WORK_PER_GOO));
+        void anUnmakeTakesTheUnstableCruciblesTime() {
+            assertEquals(COBBLESTONE_TICKS, UnmakeRule.workToUnmake(1152, UNSTABLE_EXPONENT, 1));
+            assertEquals(136, UnmakeRule.workToUnmake(18432, UNSTABLE_EXPONENT, 1));
         }
 
         @Test
-        void aNearlyWorthlessBlockStillTakesOneTick() {
-            assertEquals(1, UnmakeRule.workToUnmake(1, WORK_PER_GOO));
+        void aFasterUnmakeTakesItsShareOfTheTime() {
+            assertEquals(17, UnmakeRule.workToUnmake(1152, UNSTABLE_EXPONENT, 2));
         }
 
         @Test
-        void theYieldKeepsItsShareOfEachTypeRoundedDown() {
-            GooContents kept = UnmakeRule.yieldOf(new GooValue(Map.of(GooTypes.ROCK, 1153, GooTypes.AEON, 1)), YIELD);
-
-            assertEquals(new GooContents(Map.of(GooTypes.ROCK, 576)), kept);
+        void nothingTakesLessThanOneTick() {
+            assertEquals(1, UnmakeRule.workToUnmake(1, UNSTABLE_EXPONENT, 100));
         }
     }
 
@@ -65,6 +66,7 @@ class UnmakeStepTest {
 
         private UnmakeHost holding(BlockPos pos, GooValue value, int progress) {
             UnmakeHost host = mock(UnmakeHost.class);
+            when(host.meltExponent()).thenReturn(UNSTABLE_EXPONENT);
             when(host.unmadeBlocks()).thenReturn(List.of(pos));
             when(host.unmadeValue(pos)).thenReturn(value);
             when(host.countUnmakeWork(pos)).thenReturn(progress);
@@ -76,30 +78,30 @@ class UnmakeStepTest {
         }
 
         @Test
-        void shortOfTheWorkTheDissolveShowsItsShare() {
+        void shortOfTheWorkTheMeltShowsItsShare() {
             UnmakeHost host = holding(CHEAP, COBBLESTONE, 10);
 
             tick(host);
 
-            verify(host).showUnmaking(CHEAP, 10f / 29);
+            verify(host).showUnmaking(CHEAP, 10f / COBBLESTONE_TICKS);
             verify(host, never()).unmake(any(BlockPos.class), any());
         }
 
         @Test
-        void atTheWorkTheBlockGoesAndLeavesItsYield() {
-            UnmakeHost host = holding(CHEAP, COBBLESTONE, 29);
+        void atTheWorkTheBlockGoesAndGivesBackItsFullGoo() {
+            UnmakeHost host = holding(CHEAP, COBBLESTONE, COBBLESTONE_TICKS);
 
             tick(host);
 
-            verify(host).unmake(CHEAP, new GooContents(Map.of(GooTypes.ROCK, 576)));
+            verify(host).unmake(CHEAP, new GooContents(Map.of(GooTypes.ROCK, 1152)));
         }
 
         @Test
         void eachHeldBlockIsWorkedOnItsOwn() {
-            UnmakeHost host = holding(CHEAP, COBBLESTONE, 29);
+            UnmakeHost host = holding(CHEAP, COBBLESTONE, COBBLESTONE_TICKS);
             when(host.unmadeBlocks()).thenReturn(List.of(CHEAP, DEAR));
             when(host.unmadeValue(DEAR)).thenReturn(DIAMONDISH);
-            when(host.countUnmakeWork(DEAR)).thenReturn(29);
+            when(host.countUnmakeWork(DEAR)).thenReturn(COBBLESTONE_TICKS);
 
             tick(host);
 
@@ -122,33 +124,37 @@ class UnmakeStepTest {
     @Nested
     class Mobs {
 
-        private final LivingEntity chicken = mock(LivingEntity.class);
+        private final LivingEntity cow = mock(LivingEntity.class);
+        /** Two beef as one 3648 mB stack and a 4608 mB leather: the leather melts slowest, in 68 ticks. */
+        private final UnmakeLoot.Loot loot = new UnmakeLoot.Loot(
+                new GooValue(Map.of(GooTypes.VITAL, 5256, GooTypes.NETHER, 3000)), 4608);
 
-        private UnmakeHost holdingMob(GooValue loot, int progress) {
+        private UnmakeHost holdingMob(UnmakeLoot.Loot held, int progress) {
             UnmakeHost host = mock(UnmakeHost.class);
+            when(host.meltExponent()).thenReturn(UNSTABLE_EXPONENT);
             when(host.unmadeBlocks()).thenReturn(List.of());
-            when(host.unmadeMobs()).thenReturn(List.of(chicken));
-            when(host.unmadeValue(chicken)).thenReturn(loot);
-            when(host.countUnmakeWork(chicken)).thenReturn(progress);
+            when(host.unmadeMobs()).thenReturn(List.of(cow));
+            when(host.unmadeLoot(cow)).thenReturn(held);
+            when(host.countUnmakeWork(cow)).thenReturn(progress);
             return host;
         }
 
         @Test
-        void aMobMeltsOnceItsLootsWorkIsDoneAndLeavesThatGoo() {
-            UnmakeHost host = holdingMob(COBBLESTONE, 29);
+        void theSlowestStackDecidesAndTheMobLeavesAllItsGoo() {
+            UnmakeHost host = holdingMob(loot, 68);
 
             assertTrue(UNMAKE.tick(new StepContext(host, 0, 0)));
 
-            verify(host).unmake(chicken, new GooContents(Map.of(GooTypes.ROCK, 576)));
+            verify(host).unmake(cow, loot.goo().toGooContents());
         }
 
         @Test
-        void shortOfTheWorkTheMobShowsItsShare() {
-            UnmakeHost host = holdingMob(COBBLESTONE, 10);
+        void shortOfTheSlowestStackTheMobShowsItsShare() {
+            UnmakeHost host = holdingMob(loot, 34);
 
             assertTrue(UNMAKE.tick(new StepContext(host, 0, 0)));
 
-            verify(host).showUnmaking(chicken, 10f / 29);
+            verify(host).showUnmaking(cow, 34f / 68);
             verify(host, never()).unmake(any(LivingEntity.class), any());
         }
 

@@ -184,6 +184,7 @@ public record TapHost(ServerLevel level, BlockPos landing, Direction face)
     public void unmake(BlockPos pos, GooContents yield) {
         level.removeBlock(pos, false);
         resetDrips();
-        GooServerState.of(level.getServer()).unmakeDrops().unmade(level, Vec3.atCenterOf(pos), 1f, yield);
+        UnmakeSounds.plop(level, Vec3.atCenterOf(pos));
+        GooServerState.of(level.getServer()).unmakeDrops().unmade(level, Vec3.atBottomCenterOf(pos), 1f, yield);
     }
 }

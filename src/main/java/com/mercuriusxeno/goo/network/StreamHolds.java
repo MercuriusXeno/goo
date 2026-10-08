@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.network;
 
-import com.mercuriusxeno.goo.data.GooValue;
+import com.mercuriusxeno.goo.ability.program.UnmakeLoot;
 import net.minecraft.core.BlockPos;
 import org.jspecify.annotations.Nullable;
 import java.util.HashMap;
@@ -22,7 +22,7 @@ public final class StreamHolds {
     private final Map<UUID, Hold> holds = new HashMap<>();
     private final Map<UUID, Map<BlockPos, Hold>> blockHolds = new HashMap<>();
     private final Map<UUID, Map<UUID, Hold>> mobHolds = new HashMap<>();
-    private final Map<UUID, Map<UUID, Optional<GooValue>>> mobLoot = new HashMap<>();
+    private final Map<UUID, Map<UUID, Optional<UnmakeLoot.Loot>>> mobLoot = new HashMap<>();
 
     /**
      * Counts one stream tick for the player.
@@ -71,15 +71,15 @@ public final class StreamHolds {
     }
 
     /**
-     * The goo value of a held mob's loot, rolled the first time the hold asks
-     * and kept for the rest of the hold, so the work it takes holds still.
+     * A held mob's loot, rolled the first time the hold asks and kept for the
+     * rest of the hold, so the work it takes holds still.
      *
      * @param player the streaming player
      * @param mob    the held mob's id
-     * @param roll   rolls the mob's loot value, null when it drops nothing of value
-     * @return the loot's goo value, or null when it drops nothing of value
+     * @param roll   rolls the mob's loot, null when it drops nothing of value
+     * @return the loot, or null when it drops nothing of value
      */
-    public @Nullable GooValue lootOf(UUID player, UUID mob, Supplier<@Nullable GooValue> roll) {
+    public UnmakeLoot.@Nullable Loot lootOf(UUID player, UUID mob, Supplier<UnmakeLoot.@Nullable Loot> roll) {
         return mobLoot.computeIfAbsent(player, ignored -> new HashMap<>())
                 .computeIfAbsent(mob, ignored -> Optional.ofNullable(roll.get())).orElse(null);
     }

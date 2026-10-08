@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.network;
 
+import com.mercuriusxeno.goo.GooConfig;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.program.UnmakeDrops;
@@ -22,6 +23,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -57,9 +59,7 @@ public final class UnmakeTests {
     /** A little above level, so the cone clears the floor. */
     private static final float LOOKING_UP = -5f;
     /** unstable_unmake.json's work_per_goo and yield. */
-    private static final double WORK_PER_GOO = 0.025;
-    private static final double YIELD = 0.5;
-    private static final int HOLD_TICKS = 40;
+    private static final int HOLD_TICKS = 50;
     private static final int HELD_GOO = 25;
     private static final double DROP_REACH = 2;
     private static final String ABILITY_REQUIRED = "Ability registry must hold unstable_unmake";
@@ -73,6 +73,10 @@ public final class UnmakeTests {
     private static final String MOB_STANDS = "The chicken should melt within the hold";
     private static final String MOB_DROPPED_ITEMS = "A melted chicken should drop none of its items";
     private static final String MOB_LEFT_NO_GOO = "A melted chicken should leave goo of its loot";
+    /** The shove a held cow is given each tick, which the pin must stop. */
+    private static final Vec3 SHOVE = new Vec3(0, 0, 0.3);
+    private static final String MOB_NOT_STOPPED = "A held mob should be stopped where it stands";
+    private static final String MOB_NOT_SLOWED = "A held mob should be too slowed to walk";
     /** A hold too short to melt a cobblestone, after which it is left. */
     private static final int BRIEF_HOLD_TICKS = 5;
     private static final String BEHIND_GONE = "The hidden cobblestone should not melt within the hold";
@@ -99,8 +103,9 @@ public final class UnmakeTests {
         IGooValueLookup values = GooValues.of(helper.getLevel());
         GooValue cheap = values.lookup(new ItemStack(Blocks.COBBLESTONE));
         GooValue dear = values.lookup(new ItemStack(Blocks.DIAMOND_BLOCK));
-        int cheapWork = UnmakeRule.workToUnmake(cheap.totalGoo(), WORK_PER_GOO);
-        int dearWork = UnmakeRule.workToUnmake(dear.totalGoo(), WORK_PER_GOO);
+        double exponent = GooConfig.UNSTABLE_MELT_EXPONENT.get();
+        int cheapWork = UnmakeRule.workToUnmake(cheap.totalGoo(), exponent, 1);
+        int dearWork = UnmakeRule.workToUnmake(dear.totalGoo(), exponent, 1);
         helper.assertTrue(dearWork > HOLD_TICKS, String.format(NOT_DEAR, dearWork));
         ServerPlayer player = streamer(helper);
         KnownRecipes.teachRequires(player, unmake);
@@ -124,7 +129,7 @@ public final class UnmakeTests {
             assertMeltingFor(helper, DEAR_POS, Blocks.DIAMOND_BLOCK);
             helper.assertTrue(cheapWork + cheapWork > HOLD_TICKS, String.format(HOLD_TOO_LONG, cheapWork));
             helper.assertFalse(helper.getBlockState(BEHIND_POS).isAir(), BEHIND_GONE);
-            GooContents expected = UnmakeRule.yieldOf(cheap, YIELD);
+            GooContents expected = cheap.toGooContents();
             Map<ResourceKey<GooTypeDefinition>, Integer> dropped = droppedGoo(helper);
             helper.assertTrue(expected.getAll().equals(dropped), String.format(WRONG_YIELD, expected.getAll(), dropped));
             helper.succeed();
@@ -164,6 +169,36 @@ public final class UnmakeTests {
             });
         }
         helper.runAfterDelay(MOB_HOLD_TICKS + 1L, () -> helper.assertTrue(melted.get(), MOB_STANDS));
+    }
+
+    /**
+     * A mock player holds Unmake at a cow shoved forward every tick: each tick
+     * the stream works it, it ends stopped and too slowed to walk.
+     *
+     * @param helper the gametest helper
+     */
+    public static void unmakePinsAMob(GameTestHelper helper) {
+        AbilityDefinition unmake = AbilityRegistry.of(helper.getLevel()).getAbility(UNMAKE);
+        helper.assertTrue(unmake != null, ABILITY_REQUIRED);
+        Mob cow = helper.spawnWithNoFreeWill(EntityType.COW, CHEAP_POS);
+        cow.setNoGravity(true);
+        ServerPlayer player = streamer(helper);
+        KnownRecipes.teachRequires(player, unmake);
+        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.UNSTABLE), UNMAKE.toString(),
+                player.getEyePosition(), player.getEyePosition());
+        for (int held = 1; held <= BRIEF_HOLD_TICKS; held++) {
+            helper.runAfterDelay(held, () -> {
+                cow.setDeltaMovement(SHOVE);
+                GooStreamHandler.streamTick(player, tick);
+                helper.assertTrue(cow.getDeltaMovement().equals(Vec3.ZERO), MOB_NOT_STOPPED);
+                helper.assertTrue(cow.hasEffect(MobEffects.SLOWNESS), MOB_NOT_SLOWED);
+            });
+        }
+        helper.runAfterDelay(BRIEF_HOLD_TICKS + 1L, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            cow.discard();
+            helper.succeed();
+        });
     }
 
     /**

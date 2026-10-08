@@ -211,9 +211,9 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
     }
 
     @Override
-    public @Nullable GooValue unmadeValue(LivingEntity mob) {
+    public UnmakeLoot.@Nullable Loot unmadeLoot(LivingEntity mob) {
         return GooServerState.of(level.getServer()).streamHolds()
-                .lootOf(player.getUUID(), mob.getUUID(), () -> UnmakeLoot.valueOf(level, mob));
+                .lootOf(player.getUUID(), mob.getUUID(), () -> UnmakeLoot.lootOf(level, mob));
     }
 
     @Override
@@ -222,8 +222,13 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
                 .advanceMob(player.getUUID(), mob.getUUID(), level.getServer().getTickCount());
     }
 
+    /**
+     * Pins the mob where it stands and bubbles it, then shows its share.
+     */
     @Override
     public void showUnmaking(LivingEntity mob, float fraction) {
+        UnmakePin.pin(mob);
+        UnmakeSounds.bubble(level, mob.position(), mob.getId());
         EntityVisuals.sendToWatchers(mob, new UnmakeMobPayload(mob.getId(), fraction));
     }
 
@@ -234,7 +239,8 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
     @Override
     public void unmake(LivingEntity mob, GooContents yield) {
         AABB body = mob.getBoundingBox();
-        GooServerState.of(level.getServer()).unmakeDrops().unmade(level, body.getCenter(),
+        UnmakeSounds.plop(level, body.getCenter());
+        GooServerState.of(level.getServer()).unmakeDrops().unmade(level, mob.position(),
                 (float) Math.max(body.getXsize(), body.getYsize()), yield);
         mob.discard();
     }
@@ -262,6 +268,7 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
     @Override
     public void showUnmaking(BlockPos pos, float fraction) {
         BlockMelts.work(level, pos);
+        UnmakeSounds.bubble(level, Vec3.atCenterOf(pos), pos.hashCode());
         ChunkWatchers.send(level, pos, new UnmakePayload(pos, fraction));
     }
 
@@ -271,7 +278,8 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
     @Override
     public void unmake(BlockPos pos, GooContents yield) {
         level.removeBlock(pos, false);
-        GooServerState.of(level.getServer()).unmakeDrops().unmade(level, Vec3.atCenterOf(pos), 1f, yield);
+        UnmakeSounds.plop(level, Vec3.atCenterOf(pos));
+        GooServerState.of(level.getServer()).unmakeDrops().unmade(level, Vec3.atBottomCenterOf(pos), 1f, yield);
     }
 
     @Override

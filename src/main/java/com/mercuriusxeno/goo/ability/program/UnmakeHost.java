@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.GooConfig;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.item.GooContents;
 import net.minecraft.core.BlockPos;
@@ -68,13 +69,23 @@ public interface UnmakeHost extends StepHost {
     }
 
     /**
-     * The goo the crucible would melt a held mob's loot into.
+     * The loot a held mob would drop, as the crucible would melt it.
      *
      * @param mob the held mob
-     * @return the loot's goo value, or null when it drops nothing of value
+     * @return the loot, or null when it drops nothing of value
      */
-    default @Nullable GooValue unmadeValue(LivingEntity mob) {
+    default UnmakeLoot.@Nullable Loot unmadeLoot(LivingEntity mob) {
         return null;
+    }
+
+    /**
+     * The unstable fuel's melt exponent, which an unmake's time follows as
+     * the unstable crucible's does.
+     *
+     * @return the exponent
+     */
+    default double meltExponent() {
+        return GooConfig.UNSTABLE_MELT_EXPONENT.get();
     }
 
     /**
