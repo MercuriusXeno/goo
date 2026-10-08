@@ -9,10 +9,12 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.neoforged.fml.loading.FMLLoader;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.MockedStatic;
 import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -22,9 +24,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
+import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -41,10 +45,16 @@ class GooSourceScannerTest {
     private static final ResourceKey<GooTypeDefinition> ROCK = GooTypes.ROCK;
     private static final int HELD = 100;
 
+    /**
+     * SharedConstants asks FML whether it runs in production, and no FML loader
+     * stands in a unit test, so the loader is stubbed while vanilla bootstraps.
+     */
     @BeforeAll
     static void bootstrapVanillaRegistries() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
+        try (MockedStatic<FMLLoader> loader = mockStatic(FMLLoader.class, RETURNS_DEEP_STUBS)) {
+            SharedConstants.tryDetectVersion();
+            Bootstrap.bootStrap();
+        }
     }
 
     @ParameterizedTest

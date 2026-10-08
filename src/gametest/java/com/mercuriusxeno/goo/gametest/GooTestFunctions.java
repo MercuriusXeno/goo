@@ -435,6 +435,8 @@ public final class GooTestFunctions {
     private static final String BLOOM_PLANTS = "bloom_plants_water_wall_and_ground";
     private static final String GROWTH_MATURES_WHEAT = "growth_matures_wheat";
     private static final String GROWTH_SPREADS_A_VINE = "growth_spreads_a_vine";
+    private static final String REAP_HARVESTS = "reap_harvests_and_replants";
+    private static final String REAP_SETTLES_SEEDS = "reap_settles_seeds_against_the_replant";
     private static final String VINES_BURN_AND_BREAK = "vines_burn_and_break";
     private static final String VINES_TRAP_ON_THE_GROUND = "vines_trap_on_the_ground";
     private static final String MOB_VITAL = "mob_vital_clone";
@@ -902,6 +904,8 @@ public final class GooTestFunctions {
         reg(r, BLOOM_PLANTS, BloomTests::bloomPlantsWaterWallAndGround);
         reg(r, GROWTH_MATURES_WHEAT, GrowthStreamTests::growthMaturesWheat);
         reg(r, GROWTH_SPREADS_A_VINE, GrowthStreamTests::growthSpreadsAVine);
+        reg(r, REAP_HARVESTS, ReapTests::reapHarvestsAndReplants);
+        reg(r, REAP_SETTLES_SEEDS, ReapTests::reapSettlesSeedsAgainstTheReplant);
         reg(r, VINES_BURN_AND_BREAK, VinesTests::vinesBurnAndBreak);
         reg(r, VINES_TRAP_ON_THE_GROUND, VinesTests::vinesTrapOnTheGround);
         reg(r, MOB_VITAL, MobEffectTests::vitalClone);
