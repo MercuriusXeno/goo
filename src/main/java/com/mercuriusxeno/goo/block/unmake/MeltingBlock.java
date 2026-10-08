@@ -1,5 +1,7 @@
 package com.mercuriusxeno.goo.block.unmake;
 
+import com.mercuriusxeno.goo.network.ChunkWatchers;
+import com.mercuriusxeno.goo.network.UnmakePayload;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -12,17 +14,18 @@ import net.minecraft.world.level.block.state.BlockState;
 import org.jspecify.annotations.NonNull;
 
 /**
- * A block an unmake is melting, standing in for the block it was while its
- * goo copy sags in place: it draws nothing itself, its renderer drawing the
- * sag, and turns back into the block it was once the unmake leaves it for
- * {@link #REVERT_TICKS} (decision unmake-waves-dissolve-by-crucible-cost).
+ * A block an unmake is melting, standing in for the block it was while it
+ * melts in place: it draws nothing itself, its renderer drawing the melt.
+ * Once the unmake leaves it for {@link #IDLE_TICKS}, it re-solidifies a step
+ * a tick, as smoothly as it melted, and turns back into the block it was once
+ * fully solid (decision unmake-waves-dissolve-by-crucible-cost).
  */
 public class MeltingBlock extends BaseEntityBlock {
 
     /** The codec. */
     public static final MapCodec<MeltingBlock> CODEC = simpleCodec(MeltingBlock::new);
-    /** Ticks a melting block stands unworked before it turns back into the block it was, a second. */
-    public static final int REVERT_TICKS = 20;
+    /** Ticks a melting block stands unworked before it starts to re-solidify, past the stream's batching. */
+    public static final int IDLE_TICKS = 3;
 
     /**
      * Creates the melting block.
@@ -49,8 +52,8 @@ public class MeltingBlock extends BaseEntityBlock {
     }
 
     /**
-     * Turns the block back into the one it stands in for once the unmake has
-     * left it long enough, or checks again later while it is still being worked.
+     * Re-solidifies a block the unmake has left, a step a tick, showing each
+     * step to its viewers, and turns it back into the block it was once solid.
      */
     @Override
     protected void tick(@NonNull BlockState state, @NonNull ServerLevel level, @NonNull BlockPos pos,
@@ -58,11 +61,14 @@ public class MeltingBlock extends BaseEntityBlock {
         if (!(level.getBlockEntity(pos) instanceof MeltingBlockEntity melting)) {
             return;
         }
-        long idle = level.getGameTime() - melting.lastWorked();
-        if (idle >= REVERT_TICKS) {
-            level.setBlock(pos, melting.original(), Block.UPDATE_ALL);
-        } else {
-            level.scheduleTick(pos, this, (int) (REVERT_TICKS - idle));
+        if (level.getGameTime() - melting.lastWorked() >= IDLE_TICKS) {
+            float melted = melting.resolidify();
+            ChunkWatchers.send(level, pos, new UnmakePayload(pos, melted));
+            if (melted <= 0f) {
+                level.setBlock(pos, melting.original(), Block.UPDATE_ALL);
+                return;
+            }
         }
+        level.scheduleTick(pos, this, 1);
     }
 }

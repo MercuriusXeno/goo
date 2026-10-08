@@ -15,44 +15,47 @@ import org.jspecify.annotations.Nullable;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * Unmake's channel hum: a low, warbling destabilizing hum looping from the
- * player for as long as right click holds Unmake, its pitch wavering and
- * jittering, and gone the moment the hold ends.
+ * Unmake's channel thrum: a low hum like a detuned microwave, its pitch
+ * sweeping steadily low to mid and back to low, looping from the player for
+ * as long as right click holds Unmake. Two layers a few percent apart in
+ * pitch beat against each other for the detuning.
  * decision unmake-waves-dissolve-by-crucible-cost
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class UnmakeHum extends AbstractTickableSoundInstance {
 
-    /** The hum's resting pitch, low. */
-    static final float BASE_PITCH = 0.55f;
-    /** How far the slow warble swings the pitch either side. */
-    static final float WARBLE = 0.12f;
-    /** Warble cycles a tick. */
-    static final float WARBLE_RATE = 0.07f;
-    /** How far the fast jitter swings the pitch either side. */
-    static final float JITTER = 0.04f;
-    private static final float VOLUME = 0.7f;
-    private static final double TWO_PI = 2 * Math.PI;
-    /** Stretches a 0 to 1 share across -1 to 1. */
-    private static final float SIGNED_SPAN = 2f;
-    /** The hum now playing, if any. */
-    private static final AtomicReference<@Nullable UnmakeHum> PLAYING = new AtomicReference<>();
+    /** The thrum's low pitch, where each sweep starts and ends. */
+    static final float LOW_PITCH = 0.5f;
+    /** The thrum's mid pitch, the top of each sweep. */
+    static final float MID_PITCH = 0.8f;
+    /** Ticks one sweep takes, low to mid and back to low, two seconds. */
+    static final int SWEEP_TICKS = 40;
+    /** How far the second layer's pitch sits above the first's. */
+    static final float DETUNE = 1.04f;
+    private static final float VOLUME = 0.6f;
+    private static final float HALF = 0.5f;
+
+    /** The two layers now playing, if any. */
+    private static final AtomicReference<@Nullable UnmakeHum[]> PLAYING = new AtomicReference<>();
 
     private final LocalPlayer player;
+    private final float detune;
     private int age;
 
-    private UnmakeHum(LocalPlayer player, RandomSource random) {
+    private UnmakeHum(LocalPlayer player, RandomSource random, float detune) {
         super(SoundEvents.BEACON_AMBIENT, SoundSource.PLAYERS, random);
         this.player = player;
+        this.detune = detune;
         this.looping = true;
         this.delay = 0;
         this.volume = VOLUME;
-        this.pitch = BASE_PITCH;
+        this.pitch = LOW_PITCH * detune;
         follow();
     }
 
     /**
-     * Starts the hum when Unmake's hold begins; the hum ends itself when it does.
+     * Starts the thrum's two layers when Unmake's hold begins; each ends
+     * itself when the hold does.
      *
      * @param event the client tick event
      */
@@ -63,11 +66,14 @@ public final class UnmakeHum extends AbstractTickableSoundInstance {
         if (player == null || UnmakeWaves.heldUnmake(player) == null) {
             return;
         }
-        UnmakeHum hum = PLAYING.get();
-        if (hum == null || hum.isStopped()) {
-            UnmakeHum started = new UnmakeHum(player, player.getRandom());
+        UnmakeHum[] layers = PLAYING.get();
+        if (layers == null || layers[0].isStopped()) {
+            UnmakeHum[] started = {new UnmakeHum(player, player.getRandom(), 1f),
+                new UnmakeHum(player, player.getRandom(), DETUNE)};
             PLAYING.set(started);
-            mc.getSoundManager().play(started);
+            for (UnmakeHum layer : started) {
+                mc.getSoundManager().play(layer);
+            }
         }
     }
 
@@ -78,20 +84,20 @@ public final class UnmakeHum extends AbstractTickableSoundInstance {
             return;
         }
         age++;
-        pitch = pitchAt(age, random.nextFloat());
+        pitch = pitchAt(age) * detune;
         follow();
     }
 
     /**
-     * The hum's pitch: its resting pitch, warbling slowly and jittering fast.
+     * The thrum's pitch: a steady sweep from low to mid and back to low.
      *
-     * @param age    ticks the hum has played
-     * @param jitter a fresh random share, 0 to 1
+     * @param age ticks the thrum has played
      * @return the pitch
      */
-    static float pitchAt(int age, float jitter) {
-        return BASE_PITCH + WARBLE * (float) Math.sin(age * WARBLE_RATE * TWO_PI)
-                + JITTER * (jitter * SIGNED_SPAN - 1);
+    static float pitchAt(int age) {
+        float phase = (float) (age % SWEEP_TICKS) / SWEEP_TICKS;
+        float rise = phase < HALF ? phase / HALF : (1f - phase) / HALF;
+        return LOW_PITCH + (MID_PITCH - LOW_PITCH) * rise;
     }
 
     private void follow() {

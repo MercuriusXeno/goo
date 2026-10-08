@@ -7,6 +7,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Swaps a block a stream's unmake works for a {@link MeltingBlock} standing in
@@ -21,17 +22,18 @@ public final class BlockMelts {
     }
 
     /**
-     * Marks the block worked this tick, swapping it for a melting block on
-     * the first tick of its melt.
+     * The melting block standing in for a worked block, swapping the block
+     * for one on the first tick of its melt and keeping it ticking.
      *
      * @param level the server level
      * @param pos   the worked block
+     * @return the melting block's entity, or null for a block that cannot sag
      */
-    public static void work(ServerLevel level, BlockPos pos) {
+    public static @Nullable MeltingBlockEntity work(ServerLevel level, BlockPos pos) {
         BlockState state = level.getBlockState(pos);
         if (!state.is(GooBlocks.MELTING_BLOCK.get())) {
             if (state.isAir() || state.hasBlockEntity()) {
-                return;
+                return null;
             }
             level.setBlock(pos, GooBlocks.MELTING_BLOCK.get().defaultBlockState(), Block.UPDATE_ALL);
             if (level.getBlockEntity(pos) instanceof MeltingBlockEntity melting) {
@@ -39,9 +41,10 @@ public final class BlockMelts {
             }
         }
         if (level.getBlockEntity(pos) instanceof MeltingBlockEntity melting) {
-            melting.work(level.getGameTime());
-            level.scheduleTick(pos, GooBlocks.MELTING_BLOCK.get(), MeltingBlock.REVERT_TICKS);
+            level.scheduleTick(pos, GooBlocks.MELTING_BLOCK.get(), 1);
+            return melting;
         }
+        return null;
     }
 
     /**

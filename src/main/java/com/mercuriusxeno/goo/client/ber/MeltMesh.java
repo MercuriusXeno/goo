@@ -57,8 +57,20 @@ public final class MeltMesh {
     private static final float RIPPLE_HEIGHT_FREQ = 7f;
     private static final float RIPPLE_AROUND_FREQ = 3f;
     private static final double TWO_PI = 2 * Math.PI;
-    private static final long CELL_SALT = 0x9E37_79B9L;
-    private static final long TYPE_SALT = 0x7F4A_7C15L;
+    /** The most goo types layered over one block; past three the patches read as noise. */
+    private static final int MAX_LAYERS = 3;
+    /** How fine the goo's patches are: field cells per block. */
+    private static final float PATCH_SCALE = 2.5f;
+    /** How far past its share a lesser type's patches cover, so a small share still shows. */
+    private static final float PATCH_COVERAGE = 1.6f;
+    /** How soft a patch's edge is, in field share either side of it. */
+    private static final float PATCH_SOFTNESS = 0.08f;
+    private static final long LAYER_SALT = 0x9E37_79B9L;
+    private static final long PATCH_SALT = 0x7F4A_7C15L;
+    /** The cubic smoothstep's constant term. */
+    private static final float SMOOTH_BASE = 3f;
+    /** The cubic smoothstep's slope term. */
+    private static final float SMOOTH_SLOPE = 2f;
     private static final long MODEL_SEED = 42L;
     /** How much further the goo stands off a block that does not sag, whose faces it lies flat on. */
     private static final float UNSAGGED_LIFT = 2f;
@@ -120,15 +132,68 @@ public final class MeltMesh {
         List<QuadRectClipper.ClipVertex> corners = QuadRectClipper.verticesOf(quad);
         Vec3 normal = Vec3.atLowerCornerOf(quad.direction().getUnitVec3i());
         int tint = tintOf(melt, quad);
-        for (int i = 0; i < GRID; i++) {
-            for (int j = 0; j < GRID; j++) {
-                Cell cell = new Cell(corners, i, j);
-                if (melt.sags()) {
-                    emitBlockCell(ctx, melt, cell, normal, tint);
+        if (melt.sags()) {
+            for (int i = 0; i < GRID; i++) {
+                for (int j = 0; j < GRID; j++) {
+                    emitBlockCell(ctx, melt, new Cell(corners, i, j), normal, tint);
                 }
-                emitGooCell(ctx, melt, cell, normal, ((long) quadIndex * GRID + i) * GRID + j);
             }
         }
+        int layers = Math.min(melt.goo().types().size(), MAX_LAYERS);
+        for (int layer = 0; layer < layers; layer++) {
+            GooLayer goo = new GooLayer(melt.goo().types().get(layer), layer, melt.goo().share(layer));
+            for (int i = 0; i < GRID; i++) {
+                for (int j = 0; j < GRID; j++) {
+                    emitGooCell(ctx, melt, new Cell(corners, i, j), normal, goo);
+                }
+            }
+        }
+    }
+
+    /**
+     * One goo type's layer over the block: the largest type the base, laid
+     * everywhere the melt has reached; each other type in soft patches over
+     * it, covering about its share.
+     *
+     * @param type  the goo type
+     * @param index its index, largest first
+     * @param share its share of the whole
+     */
+    private record GooLayer(ResourceKey<GooTypeDefinition> type, int index, float share) {
+
+        /**
+         * How opaque this layer is at a point of the block: formed once the
+         * melt reaches the point's own share of a smooth field, and, past the
+         * base, only inside its soft patches.
+         *
+         * @param x    the point's x, block-local
+         * @param y    the point's y, block-local
+         * @param z    the point's z, block-local
+         * @param melt how far the block has melted
+         * @return the layer's opacity there, 0 to 1
+         */
+        float opacityAt(float x, float y, float z, float melt) {
+            long seed = index * LAYER_SALT;
+            float formed = patchFormed(melt, MeltMeshNoise.smooth(x * PATCH_SCALE, y * PATCH_SCALE, z * PATCH_SCALE,
+                    seed));
+            if (index == 0) {
+                return formed;
+            }
+            double field = MeltMeshNoise.smooth(x * PATCH_SCALE, y * PATCH_SCALE, z * PATCH_SCALE, seed + PATCH_SALT);
+            float edge = 1f - share * PATCH_COVERAGE;
+            return formed * smoothRamp(edge - PATCH_SOFTNESS, edge + PATCH_SOFTNESS, (float) field);
+        }
+    }
+
+    /**
+     * @param edge0 where the ramp starts
+     * @param edge1 where it ends
+     * @param x     the input
+     * @return the smooth ramp from 0 at edge0 to 1 at edge1
+     */
+    static float smoothRamp(float edge0, float edge1, float x) {
+        float t = Math.clamp((x - edge0) / (edge1 - edge0), 0f, 1f);
+        return t * t * (SMOOTH_BASE - SMOOTH_SLOPE * t);
     }
 
     /**
@@ -175,33 +240,39 @@ public final class MeltMesh {
     }
 
     /**
-     * Emits one cell's goo patch, once the melt has reached its share: a
-     * patch of one of the block's goo types, its sprite laid once across the face.
+     * Emits one cell of a goo layer, each corner as opaque as the layer is
+     * there, so its patches fade in softly with no seams; its sprite is laid
+     * once across the face, continuous from cell to cell.
      *
      * @param ctx    the render context
      * @param melt   the melt
      * @param cell   the cell
      * @param normal the face's normal
-     * @param seed   the cell's seed
+     * @param goo    the layer
      */
-    private static void emitGooCell(RenderContext ctx, Melt melt, Cell cell, Vec3 normal, long seed) {
-        float formed = patchFormed(melt.melt(), noise(seed ^ CELL_SALT));
-        ResourceKey<GooTypeDefinition> type = melt.goo().pick(noise(seed ^ TYPE_SALT));
-        if (formed <= 0f || type == null) {
+    private static void emitGooCell(RenderContext ctx, Melt melt, Cell cell, Vec3 normal, GooLayer goo) {
+        float sagging = melt.sags() ? melt.melt() : 0f;
+        float lift = (melt.sags() ? GOO_LIFT : GOO_LIFT * UNSAGGED_LIFT) * (goo.index() + 1);
+        int[] alphas = new int[CELL_CORNERS.length];
+        boolean shows = false;
+        for (int corner = 0; corner < CELL_CORNERS.length; corner++) {
+            QuadRectClipper.ClipVertex point = cell.at(CELL_CORNERS[corner][0], CELL_CORNERS[corner][1]);
+            alphas[corner] = Math.round(GOO_ALPHA * goo.opacityAt(point.x(), point.y(), point.z(), melt.melt()));
+            shows |= alphas[corner] > 0;
+        }
+        if (!shows) {
             return;
         }
-        GooRenderUtil.UvRect sprite = GooSubmitter.spriteUv(GooRenderUtil.lookupFluidSprite(type));
-        int color = ARGB.color(Math.round(GOO_ALPHA * formed), GooRenderUtil.OPAQUE_WHITE);
-        float lift = melt.sags() ? GOO_LIFT : GOO_LIFT * UNSAGGED_LIFT;
-        for (int[] corner : CELL_CORNERS) {
-            QuadRectClipper.ClipVertex point = cell.at(corner[0], corner[1]);
-            float sagging = melt.sags() ? melt.melt() : 0f;
+        GooRenderUtil.UvRect sprite = GooSubmitter.spriteUv(GooRenderUtil.lookupFluidSprite(goo.type()));
+        for (int corner = 0; corner < CELL_CORNERS.length; corner++) {
+            QuadRectClipper.ClipVertex point = cell.at(CELL_CORNERS[corner][0], CELL_CORNERS[corner][1]);
             Vec3 warped = warp(point.x(), point.y(), point.z(), sagging, melt.ticks()).add(normal.scale(lift));
-            float s = (float) (cell.i() + corner[0]) / GRID;
-            float t = (float) (cell.j() + corner[1]) / GRID;
-            ctx.vertexColored(color, (float) warped.x, (float) warped.y, (float) warped.z,
-                    sprite.u0() + (sprite.u1() - sprite.u0()) * s, sprite.v0() + (sprite.v1() - sprite.v0()) * t,
-                    (float) normal.x, (float) normal.y, (float) normal.z);
+            float s = (float) (cell.i() + CELL_CORNERS[corner][0]) / GRID;
+            float t = (float) (cell.j() + CELL_CORNERS[corner][1]) / GRID;
+            ctx.vertexColored(ARGB.color(alphas[corner], GooRenderUtil.OPAQUE_WHITE), (float) warped.x,
+                    (float) warped.y, (float) warped.z, sprite.u0() + (sprite.u1() - sprite.u0()) * s,
+                    sprite.v0() + (sprite.v1() - sprite.v0()) * t, (float) normal.x, (float) normal.y,
+                    (float) normal.z);
         }
     }
 
@@ -260,13 +331,4 @@ public final class MeltMesh {
                 : ARGB.opaque(source.colorInWorld(melt.state(), melt.level(), melt.pos()));
     }
 
-    /**
-     * A repeatable random share for a seed.
-     *
-     * @param seed the seed
-     * @return a share from 0 to 1
-     */
-    static double noise(long seed) {
-        return MeltMeshNoise.share(seed);
-    }
 }

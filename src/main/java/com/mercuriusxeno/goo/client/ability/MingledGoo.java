@@ -64,6 +64,14 @@ public record MingledGoo(List<ResourceKey<GooTypeDefinition>> types, List<Float>
     }
 
     /**
+     * @param index a type's index, largest first
+     * @return that type's share of the whole, 0 to 1
+     */
+    public float share(int index) {
+        return cumulative.get(index) - (index == 0 ? 0f : cumulative.get(index - 1));
+    }
+
+    /**
      * @return the type it holds most of, or null for no goo at all
      */
     public @Nullable ResourceKey<GooTypeDefinition> largest() {

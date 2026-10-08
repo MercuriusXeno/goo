@@ -15,6 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyFloat;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -69,7 +70,7 @@ class UnmakeStepTest {
             when(host.meltExponent()).thenReturn(UNSTABLE_EXPONENT);
             when(host.unmadeBlocks()).thenReturn(List.of(pos));
             when(host.unmadeValue(pos)).thenReturn(value);
-            when(host.countUnmakeWork(pos)).thenReturn(progress);
+            when(host.countUnmakeWork(eq(pos), anyInt())).thenReturn(progress);
             return host;
         }
 
@@ -101,7 +102,7 @@ class UnmakeStepTest {
             UnmakeHost host = holding(CHEAP, COBBLESTONE, COBBLESTONE_TICKS);
             when(host.unmadeBlocks()).thenReturn(List.of(CHEAP, DEAR));
             when(host.unmadeValue(DEAR)).thenReturn(DIAMONDISH);
-            when(host.countUnmakeWork(DEAR)).thenReturn(COBBLESTONE_TICKS);
+            when(host.countUnmakeWork(eq(DEAR), anyInt())).thenReturn(COBBLESTONE_TICKS);
 
             tick(host);
 
