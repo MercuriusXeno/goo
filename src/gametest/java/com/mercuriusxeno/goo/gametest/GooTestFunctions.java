@@ -152,6 +152,7 @@ public final class GooTestFunctions {
     private static final String UNMAKE_TAP_DISSOLVES_BELOW = "unmake_tap_dissolves_below";
     private static final String UNMAKE_MELTS_A_MOB = "unmake_melts_a_mob";
     private static final String UNMAKE_LEFT_TURNS_BACK = "unmake_left_turns_back";
+    private static final String UNMAKE_PINS_A_MOB = "unmake_pins_a_mob";
     private static final String CHARGED_LENGTHENS_THE_STREAM = "charged_lengthens_the_stream";
     private static final String UNSTABLE_BREW_CHARGES_FOR_AN_HOUR = "unstable_brew_charges_for_an_hour";
 
@@ -897,6 +898,7 @@ public final class GooTestFunctions {
         reg(r, UNMAKE_TAP_DISSOLVES_BELOW, UnmakeTapTests::unmakeTapDissolvesBelow);
         reg(r, UNMAKE_MELTS_A_MOB, UnmakeTests::unmakeMeltsAMob);
         reg(r, UNMAKE_LEFT_TURNS_BACK, UnmakeTests::unmakeLeftTurnsBack);
+        reg(r, UNMAKE_PINS_A_MOB, UnmakeTests::unmakePinsAMob);
         reg(r, CHARGED_LENGTHENS_THE_STREAM, ChargedTests::chargedLengthensTheStream);
         reg(r, UNSTABLE_BREW_CHARGES_FOR_AN_HOUR, BrewEffectTests::unstableBrewChargesForAnHour);
     }

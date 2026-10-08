@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.gametest;
 
+import com.mercuriusxeno.goo.GooConfig;
 import com.mercuriusxeno.goo.ability.program.UnmakeRule;
 import com.mercuriusxeno.goo.block.tap.TapBlock;
 import com.mercuriusxeno.goo.block.tap.TapBlockEntity;
@@ -24,8 +25,8 @@ import java.util.Map;
 
 /**
  * Gametest for Unmake's tap: an unstable tap over cobblestone leaves it
- * standing one drip short of its crucible cost's work, and on that last
- * drip dissolves it into the share of its goo the ability yields.
+ * standing one drip short of the unstable crucible's melt time for it, and
+ * on that last drip melts it into the full goo the crucible would give.
  * decision unmake-drip-dissolves-the-block-below
  */
 public final class UnmakeTapTests {
@@ -33,8 +34,6 @@ public final class UnmakeTapTests {
     private static final BlockPos TAP_POS = new BlockPos(1, 2, 1);
     private static final BlockPos BELOW_POS = TAP_POS.below();
     /** unstable_unmake_tap.json's work_per_goo and yield. */
-    private static final double WORK_PER_GOO = 0.025;
-    private static final double YIELD = 0.5;
     /** Ticks for the drips of one fill to fall and land at one mB a tick, with slack. */
     private static final int LAND_TICKS = 40;
     private static final double DROP_REACH = 2;
@@ -55,7 +54,7 @@ public final class UnmakeTapTests {
     public static void unmakeTapDissolvesBelow(GameTestHelper helper) {
         helper.setBlock(BELOW_POS, Blocks.COBBLESTONE);
         GooValue cobblestone = GooValues.of(helper.getLevel()).lookup(new ItemStack(Blocks.COBBLESTONE));
-        int drips = UnmakeRule.workToUnmake(cobblestone.totalGoo(), WORK_PER_GOO);
+        int drips = UnmakeRule.workToUnmake(cobblestone.totalGoo(), GooConfig.UNSTABLE_MELT_EXPONENT.get(), 1);
         TapBlockEntity tap = unstableTap(helper);
         tap.insertGoo(GooTypes.UNSTABLE, drips - 1);
         helper.runAfterDelay(LAND_TICKS, () -> {
@@ -64,7 +63,7 @@ public final class UnmakeTapTests {
         });
         helper.runAfterDelay(2L * LAND_TICKS, () -> {
             helper.assertTrue(helper.getBlockState(BELOW_POS).isAir(), String.format(NOT_GONE, drips));
-            GooContents expected = UnmakeRule.yieldOf(cobblestone, YIELD);
+            GooContents expected = cobblestone.toGooContents();
             Map<ResourceKey<GooTypeDefinition>, Integer> dropped = droppedGoo(helper);
             helper.assertTrue(expected.getAll().equals(dropped), String.format(WRONG_YIELD, expected.getAll(), dropped));
             helper.succeed();

@@ -1,51 +1,34 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import com.mercuriusxeno.goo.data.GooValue;
-import com.mercuriusxeno.goo.item.GooContents;
-import com.mercuriusxeno.goo.type.GooTypeDefinition;
-import net.minecraft.resources.ResourceKey;
-import java.util.HashMap;
-import java.util.Map;
+import com.mercuriusxeno.goo.block.crucible.CrucibleMath;
 
 /**
- * How long an unmake takes and what it leaves: a block dissolves after work
- * proportional to what the crucible would charge to melt it, and yields a
- * share of the goo the crucible would.
+ * How long an unmake takes: the unstable crucible's own melt time for what it
+ * melts. Each item stack is one unit melting in ceil(mB ^ exponent) ticks on
+ * its whole value, and every unit melts at once as unstable fuel melts them,
+ * so the slowest unit decides. The goo it gives back is the full goo the
+ * crucible would; the goo the channel burns is its worse efficiency.
  * decision unmake-waves-dissolve-by-crucible-cost
  */
 public final class UnmakeRule {
+
+    /** The slowest an unmake may be sped down to, so no speed stops it. */
+    private static final double MIN_SPEED = 0.01;
 
     private UnmakeRule() {
     }
 
     /**
-     * The work a block takes to unmake: its whole goo value times the work
-     * each mB costs, never less than one.
+     * The work an unmake takes: the unstable crucible's melt time for the
+     * slowest unit, divided by the unmake's speed, never less than one.
      *
-     * @param totalGoo   the block's goo value summed over types, in mB
-     * @param workPerGoo the work one mB costs, the ability's efficiency divisor
+     * @param slowestUnit the goo value of the slowest unit, in mB: a block's item, or a loot stack whole
+     * @param exponent    the unstable fuel's melt exponent
+     * @param speed       how much faster than the crucible the unmake works, 1 at its pace
      * @return the work, in held ticks or drips
      */
-    public static int workToUnmake(int totalGoo, double workPerGoo) {
-        return Math.max(1, (int) Math.ceil(totalGoo * workPerGoo));
-    }
-
-    /**
-     * The goo an unmade block leaves: each type's amount times the yield,
-     * rounded down, a type left with none dropped.
-     *
-     * @param value      the block's goo value
-     * @param efficiency the share of the value the unmake keeps, 0 to 1
-     * @return the goo left behind
-     */
-    public static GooContents yieldOf(GooValue value, double efficiency) {
-        Map<ResourceKey<GooTypeDefinition>, Integer> kept = new HashMap<>();
-        for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> entry : value.getAll().entrySet()) {
-            int amount = (int) Math.floor(entry.getValue() * efficiency);
-            if (amount > 0) {
-                kept.put(entry.getKey(), amount);
-            }
-        }
-        return new GooContents(kept);
+    public static int workToUnmake(long slowestUnit, double exponent, double speed) {
+        long ticks = CrucibleMath.meltTicks(slowestUnit, exponent);
+        return (int) Math.max(1, Math.ceil(ticks / Math.max(speed, MIN_SPEED)));
     }
 }

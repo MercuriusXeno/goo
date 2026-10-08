@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.network;
 
+import com.mercuriusxeno.goo.ability.program.UnmakeLoot;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
@@ -114,7 +115,7 @@ class StreamHoldsTest {
     class AdvanceMob {
 
         private static final UUID CHICKEN = new UUID(5, 6);
-        private final GooValue loot = new GooValue(Map.of(GooTypes.VITAL, 100));
+        private final UnmakeLoot.Loot loot = new UnmakeLoot.Loot(new GooValue(Map.of(GooTypes.VITAL, 100)), 100);
 
         @Test
         void aMobHeldEachTickCountsOn() {
@@ -147,7 +148,7 @@ class StreamHoldsTest {
             assertEquals(2, rolls.get());
         }
 
-        private GooValue roll(AtomicInteger rolls) {
+        private UnmakeLoot.Loot roll(AtomicInteger rolls) {
             rolls.incrementAndGet();
             return loot;
         }
