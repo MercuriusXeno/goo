@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.IntStream;
 
 /**
@@ -34,8 +35,9 @@ import java.util.stream.IntStream;
  */
 final class RadialWheelRenderer {
 
-    private static final int NORMAL_ALPHA = 0xAA;
-    private static final int HOVER_ALPHA = 0xDD;
+    /** The opacity a resting petal draws at, and a hovered one. */
+    static final int NORMAL_ALPHA = 0xAA;
+    static final int HOVER_ALPHA = 0xDD;
     private static final int DISABLED_ALPHA = 0x55;
     private static final float DISABLED_DIM = 0.4f;
     /** Shade a resting wedge's fluid fill blits under, below the hovered wedge's full white. */
@@ -96,10 +98,32 @@ final class RadialWheelRenderer {
      * @param radius    the wheel's outer radius
      * @param look        the fluid, edge and colors a petal draws with
      * @param partialTick the fraction of a tick since the last one, for the petals' ease
+     * @param active      the abilities whose effect the player holds, which pulse
+     * @param gameTime    the game time, fraction included, which the pulse runs on
      */
     record Frame(RadialWheel wheel, List<ResourceKey<GooTypeDefinition>> types,
                  List<List<OfferedAbility>> abilities, Map<ResourceKey<GooTypeDefinition>, Integer> available,
-                 int centerX, int centerY, int radius, PetalLook look, float partialTick) {
+                 int centerX, int centerY, int radius, PetalLook look, float partialTick, Set<Identifier> active,
+                 float gameTime) {
+
+        /**
+         * A frame holding no active effect.
+         *
+         * @param wheel       the wheel's state
+         * @param types       the types, one per petal at rest
+         * @param abilities   the abilities each type opens to
+         * @param available   the amount the player holds per type
+         * @param centerX     the wheel's center x
+         * @param centerY     the wheel's center y
+         * @param radius      the wheel's outer radius
+         * @param look        the fluid, edge and colors a petal draws with
+         * @param partialTick the fraction of a tick since the last one
+         */
+        Frame(RadialWheel wheel, List<ResourceKey<GooTypeDefinition>> types, List<List<OfferedAbility>> abilities,
+              Map<ResourceKey<GooTypeDefinition>, Integer> available, int centerX, int centerY, int radius,
+              PetalLook look, float partialTick) {
+            this(wheel, types, abilities, available, centerX, centerY, radius, look, partialTick, Set.of(), 0f);
+        }
     }
 
     /**
@@ -141,11 +165,28 @@ final class RadialWheelRenderer {
      */
     private static void renderType(GuiGraphicsExtractor graphics, Frame frame, RadialWheel.PetalArc petal) {
         ResourceKey<GooTypeDefinition> key = frame.types().get(petal.type());
-        boolean selected = petal.type() == frame.wheel().selectedType();
-        PetalPainter.paint(graphics, frame, frame.look().fluidFace(key), petal,
-                computeOverlayTint(selected, frame.available().getOrDefault(key, 0) <= 0));
+        PetalPainter.paint(graphics, frame, frame.look().fluidFace(key), petal, typePetalTint(frame, petal.type()));
         blitIcon(graphics, new Icon(typeIcon(key), TYPE_ICON_SIZE), lengthCenter(frame, petal),
                 COLOR_WHITE);
+    }
+
+    /**
+     * The tint a type petal blits under: hovered while selected, dimmed while
+     * the player holds none of it, and pulsing while the type is not expanded
+     * and the player holds an effect of one of its abilities, so the effect
+     * shows under a type the player has not opened.
+     * wheel-pulses-the-active-effect
+     *
+     * @param frame what the frame draws from
+     * @param type  the type's index
+     * @return the packed ARGB tint
+     */
+    static int typePetalTint(Frame frame, int type) {
+        boolean selected = type == frame.wheel().selectedType();
+        boolean disabled = frame.available().getOrDefault(frame.types().get(type), 0) <= 0;
+        boolean holdsEffect = frame.abilities().get(type).stream()
+                .anyMatch(offered -> frame.active().contains(offered.ability().id()));
+        return tint(selected, disabled, !selected && holdsEffect, frame.gameTime());
     }
 
     /**
@@ -185,8 +226,9 @@ final class RadialWheelRenderer {
         FanSlot slotLabels = fanSlot(ability, frame.available().getOrDefault(key, 0));
         // locked-petal-stays-on-the-wheel: a locked petal takes the unaffordable petal's dimmed look
         boolean dimmed = offered.locked() || slotLabels.dimmed();
+        // wheel-pulses-the-active-effect: a held effect's petal pulses
         PetalPainter.paint(graphics, frame, frame.look().fluidFace(key), petal,
-                computeOverlayTint(hovered, dimmed));
+                tint(hovered, dimmed, frame.active().contains(ability.id()), frame.gameTime()));
         int[] restingTip = tipCenter(frame, petal);
         if (offered.locked()) {
             return new Words(List.of(), null, restingTip, DISABLED_TEXT_COLOR, requiredIcons(frame, petal, offered));
@@ -534,8 +576,8 @@ final class RadialWheelRenderer {
      * @return the wedge's labels
      */
     static FanSlot fanSlot(ClientAbility ability, int holdings) {
-        int firstThrow = ability.cost();
-        return new FanSlot(GooFormat.formatAmount(firstThrow), firstThrow > holdings);
+        // self-effects-trickle-until-ended: a held effect reads its upkeep a second, dimmed short of a second's worth
+        return new FanSlot(ability.costLabel(), ability.price() > holdings);
     }
 
     /**
@@ -606,6 +648,28 @@ final class RadialWheelRenderer {
             return ARGB.color(DISABLED_ALPHA, DISABLED_SHADE, DISABLED_SHADE, DISABLED_SHADE);
         }
         return hovered ? ARGB.color(HOVER_ALPHA, COLOR_WHITE) : ARGB.color(NORMAL_ALPHA, REST_SHADE, REST_SHADE, REST_SHADE);
+    }
+
+    /**
+     * The tint a petal blits under: hovered and disabled as
+     * {@link #computeOverlayTint} reads them, and an active resting petal
+     * brightening with its pulse from the resting shade toward full white.
+     * wheel-pulses-the-active-effect
+     *
+     * @param hovered  true for the hovered or selected wedge
+     * @param disabled true when the player holds none of it, or cannot afford it
+     * @param active   true when the player holds the petal's effect
+     * @param gameTime the game time, fraction included
+     * @return the packed ARGB tint
+     */
+    static int tint(boolean hovered, boolean disabled, boolean active, float gameTime) {
+        if (hovered || disabled || !active) {
+            return computeOverlayTint(hovered, disabled);
+        }
+        int alpha = PetalPulse.alpha(true, gameTime);
+        float lift = (alpha - NORMAL_ALPHA) / (float) (HOVER_ALPHA - NORMAL_ALPHA);
+        int shade = REST_SHADE + Math.round(lift * (ARGB.red(COLOR_WHITE) - REST_SHADE));
+        return ARGB.color(alpha, shade, shade, shade);
     }
 
     /**

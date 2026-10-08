@@ -17,6 +17,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -79,6 +80,25 @@ class HeldDomeRendererTest {
         void nothingAimedAtAnchorsNothing() {
             assertNull(HeldDomeRenderer.anchorOf(new TargetResult.None()));
         }
+    }
+
+    /** A dome the renderer would show with no ghost for its type draws nothing at all, as Rock Crush did. */
+    @Test
+    void everyShippedHeldDomeHasAGhostForItsType() {
+        for (var file : AbilityJson.files()) {
+            AbilityDefinition ability = AbilityJson.decode(file);
+            if (HeldDomeRenderer.showsDome(ability.delivery(), ability.badge(), ability.area(), true)) {
+                assertNotNull(HeldDomeRenderer.ghostOf(ability.gooType()), ability.id() + " shows a dome with no ghost");
+            }
+        }
+    }
+
+    @Test
+    void rockCrushsGhostIsTheRockDust() {
+        assertSame(RockExplosionVisual.INSTANCE, HeldDomeRenderer.ghostOf(GooTypes.ROCK));
+        PipelineShaders.assertExist(GooRenderTypes.ROCK_EXPLOSION_THROUGH_BLOCKS);
+        assertEquals(CompareOp.ALWAYS_PASS,
+                GooRenderTypes.ROCK_EXPLOSION_THROUGH_BLOCKS.getDepthStencilState().depthTest());
     }
 
     @Test

@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.ability.SelfEatRoute;
+import com.mercuriusxeno.goo.ability.held.HeldEffectsEvents;
 import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.PlayerHost;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
@@ -25,11 +26,13 @@ import java.util.OptionalInt;
  * wearing the self badge runs on command: its cost at stack zero drains and
  * its programs run on the invoking player the tick it is invoked. A self +
  * brew ability, one wearing the brew badge, starts the player eating the
- * glove instead, and drains and runs when the eat finishes; an eat let go or
- * interrupted before then runs nothing and drains nothing, and the eat
- * replaces the throw sound on that route.
+ * glove instead, and when the eat finishes its programs run and the effect is
+ * held, paying its upkeep each tick after; an eat let go or interrupted
+ * before then runs nothing and drains nothing, and the eat replaces the throw
+ * sound on that route. Invoking a held effect again ends it.
  * decision self-delivery-runs-on-player
  * decision self-brew-goos-eat-before-the-effect
+ * decision self-effects-trickle-until-ended
  */
 public final class GooSelfHandler {
 
@@ -53,7 +56,10 @@ public final class GooSelfHandler {
         if (HeldRoute.channelsOnSelf(ability.delivery(), ability.badge())) {
             return;
         }
-        if (SelfEatRoute.eats(ability.delivery(), ability.badge())) {
+        boolean held = HeldEffectsEvents.holds(player, ability.id());
+        if (SelfEatRoute.endsHeld(ability.delivery(), ability.badge(), held)) {
+            HeldEffectsEvents.end(player, ability.id());
+        } else if (SelfEatRoute.eats(ability.delivery(), ability.badge())) {
             beginEating(player, gooType, ability);
         } else if (invoke(player, gooType, ability)) {
             GooEffectScheduler.playThrowSound(player, ability.delivery());
@@ -62,7 +68,7 @@ public final class GooSelfHandler {
 
     /**
      * Starts the eat for a self + brew ability the player can afford, in the
-     * hand holding the glove; a player short of the cost starts no eat.
+     * hand holding the glove; a player short of a tick's upkeep starts no eat.
      *
      * @param player  the invoking player
      * @param gooType the ability's goo type
@@ -78,7 +84,7 @@ public final class GooSelfHandler {
     /**
      * Finishes an eat of the glove on the server: the glove's selection is
      * resolved again, and an ability the player may still use that takes the
-     * eat route drains and runs.
+     * eat route is held and runs.
      *
      * @param player the eating player
      * @param glove  the glove eaten
@@ -93,7 +99,28 @@ public final class GooSelfHandler {
         if (ability == null) {
             return;
         }
-        SelfEatRoute.finish(ability.delivery(), ability.badge(), () -> invoke(player, gooType, ability));
+        SelfEatRoute.finish(ability.delivery(), ability.badge(), () -> hold(player, gooType, ability));
+    }
+
+    /**
+     * Starts a held self + brew effect with no one-shot drain and runs its
+     * programs on the player, when the player holds a tick's upkeep. The
+     * effect is held before the programs run, so a heart-changing effect it
+     * replaces clears before its own hearts lay.
+     * self-effects-trickle-until-ended
+     *
+     * @param player  the eating player
+     * @param gooType the ability's goo type
+     * @param ability the self + brew ability
+     */
+    private static void hold(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
+            AbilityDefinition ability) {
+        if (!affords(player, gooType, ability)) {
+            return;
+        }
+        ReagentScanner.consumeOneOfEach(player, ability.consumes());
+        HeldEffectsEvents.start(player, gooType, ability);
+        runOn(new PlayerHost(player.level(), player), ability);
     }
 
     /**
@@ -117,10 +144,11 @@ public final class GooSelfHandler {
     }
 
     /**
-     * Runs a drunk brew: the type's brew ability runs on the player for the
-     * brew's duration, the same program the glove runs, with no goo drained.
-     * A type with no brew ability yet runs nothing.
+     * Runs a drunk brew: the type's brew ability starts prepaid, the same
+     * held effect and program the glove runs, for the brew's duration with no
+     * goo drained. A type with no brew ability yet runs nothing.
      * decision brew-grants-the-self-ability-for-an-hour
+     * decision brew-runs-the-crawl-prepaid-on-a-shown-clock
      *
      * @param player   the drinking player
      * @param gooType  the brew's goo type
@@ -129,6 +157,7 @@ public final class GooSelfHandler {
     public static void drinkBrew(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, int duration) {
         AbilityDefinition ability = AbilityRegistry.of(player.level()).brewAbilityFor(gooType);
         if (ability != null) {
+            HeldEffectsEvents.startPrepaid(player, gooType, ability, duration);
             runOn(new PlayerHost(player.level(), player, OptionalInt.of(duration)), ability);
         }
     }
@@ -148,7 +177,8 @@ public final class GooSelfHandler {
     }
 
     /**
-     * Whether the player holds the ability's cost, logging the refusal.
+     * Whether the player holds the ability's cost, or a tick's upkeep for a
+     * held effect, logging the refusal.
      *
      * @param player  the invoking player
      * @param gooType the ability's goo type
@@ -158,7 +188,7 @@ public final class GooSelfHandler {
     private static boolean affords(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
             AbilityDefinition ability) {
         // ability-json-names-its-reagent
-        if (GooSourceScanner.hasEnough(player, gooType, ability.cost())
+        if (GooSourceScanner.hasEnough(player, gooType, Math.max(ability.cost(), ability.upkeep()))
                 && ReagentScanner.holdsEvery(player, ability.consumes())) {
             return true;
         }
