@@ -401,6 +401,7 @@ public final class GooTestFunctions {
     private static final String COLONIZE_SPREADS_NYLIUM = "colonize_spreads_nylium";
     private static final String COLONIZE_BUDS_OFF_THE_NETWORK = "colonize_buds_off_the_network";
     private static final String SPORE_STRUCK_ON_A_MOB = "spore_struck_on_a_mob";
+    private static final String SPORE_BUDS_NONE_BESIDE = "spore_buds_none_beside_a_mushroom";
     private static final String FUNGAL_SHIFT_TO_A_MUSHROOM = "fungal_shift_to_a_mushroom";
     private static final String FUNGAL_SHIFT_REFUSES_STONE = "fungal_shift_refuses_stone";
     private static final String SIGHT_EXTENDS_THE_SHIFT = "sight_extends_the_shift";
@@ -860,6 +861,7 @@ public final class GooTestFunctions {
         reg(r, COLONIZE_SPREADS_NYLIUM, ColonizeTests::colonizeSpreadsNylium);
         reg(r, COLONIZE_BUDS_OFF_THE_NETWORK, ColonizeTests::colonizeBudsOffTheNetwork);
         reg(r, SPORE_STRUCK_ON_A_MOB, ColonizeTests::sporeStruckOnAMob);
+        reg(r, SPORE_BUDS_NONE_BESIDE, ColonizeTests::sporeBudsNoneBesideAMushroom);
         reg(r, FUNGAL_SHIFT_TO_A_MUSHROOM, FungalShiftTests::fungalShiftToAMushroom);
         reg(r, FUNGAL_SHIFT_REFUSES_STONE, FungalShiftTests::fungalShiftRefusesStone);
         reg(r, SIGHT_EXTENDS_THE_SHIFT, FungalShiftTests::sightExtendsTheShift);

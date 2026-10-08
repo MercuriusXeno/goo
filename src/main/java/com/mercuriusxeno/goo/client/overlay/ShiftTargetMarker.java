@@ -27,6 +27,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.jspecify.annotations.Nullable;
 import java.util.Optional;
+import java.util.SplittableRandom;
 
 /**
  * Fungal Shift's target marker: while the press is held, the fungus the
@@ -45,18 +46,33 @@ public final class ShiftTargetMarker {
     /** The flare's quick pulse, radians per second. */
     private static final float FLARE_PULSE_PER_SECOND = 9f;
     /** Motes in the column. */
-    private static final int COLUMN_MOTES = 24;
+    static final int COLUMN_MOTES = 14;
     /** The column's height, in blocks. */
     private static final double COLUMN_HEIGHT = 2.2;
     /** How fast a mote climbs the column, in column heights per second. */
     private static final double CLIMB_PER_SECOND = 0.45;
-    /** How far a mote wanders from the column's axis, in blocks. */
-    private static final double COLUMN_WANDER = 0.12;
+    /** How far a mote may ride from the column's axis, in blocks. */
+    private static final double COLUMN_WANDER = 0.22;
+    /** The slowest a mote climbs, as a share of the column's climb. */
+    private static final double MIN_SPEED = 0.6;
+    /** How much faster than the slowest a mote may climb. */
+    private static final double SPEED_SPAN = 0.8;
+    /** The fastest a mote turns about the column, radians per second, either way. */
+    private static final double MAX_DRIFT = 1.4;
+    private static final double FULL_TURN = Math.PI * 2;
+    private static final double HALF = 0.5;
+    private static final int ANGLE = 0;
+    private static final int RADIUS = 1;
+    private static final int SPEED = 2;
+    private static final int DRIFT = 3;
+    private static final int START = 4;
+    private static final long SCATTER_SEED = 0x5B1F7L;
+    /** Each mote's randomness, fixed at load so the column holds its look frame to frame. */
+    private static final double[][] MOTES = scatter(new SplittableRandom(SCATTER_SEED));
     private static final float MOTE_HALF = 0.04f;
     private static final int MOTE_RGB = 0xE070F0;
     private static final float MOTE_ALPHA = 0.85f;
     private static final float MILLIS_PER_SECOND = 1000f;
-    private static final double GOLDEN_TURN = 2.399963;
     private static final int OPAQUE = 255;
     private static final int X = 0;
     private static final int Y = 1;
@@ -152,9 +168,28 @@ public final class ShiftTargetMarker {
      * @return the mote's offset from the stand point: x, y and z
      */
     static double[] columnMote(int index, double seconds) {
-        double climb = (seconds * CLIMB_PER_SECOND + (double) index / COLUMN_MOTES) % 1.0;
-        double around = index * GOLDEN_TURN + seconds;
-        return new double[] {Math.cos(around) * COLUMN_WANDER, climb * COLUMN_HEIGHT, Math.sin(around) * COLUMN_WANDER};
+        double[] mote = MOTES[index];
+        double climb = (seconds * CLIMB_PER_SECOND * mote[SPEED] + mote[START]) % 1.0;
+        double around = mote[ANGLE] + seconds * mote[DRIFT];
+        double out = mote[RADIUS] * COLUMN_WANDER;
+        return new double[] {Math.cos(around) * out, climb * COLUMN_HEIGHT, Math.sin(around) * out};
+    }
+
+    /**
+     * Each column mote's own randomness, fixed at load: where around and how
+     * far out it rides, how fast it climbs and drifts, and where its climb starts.
+     *
+     * @param random the seeded source
+     * @return per mote: angle, radius, speed, drift and start
+     */
+    private static double[][] scatter(SplittableRandom random) {
+        double[][] motes = new double[COLUMN_MOTES][];
+        for (int i = 0; i < COLUMN_MOTES; i++) {
+            motes[i] = new double[] {random.nextDouble() * FULL_TURN, random.nextDouble(),
+                MIN_SPEED + random.nextDouble() * SPEED_SPAN, random.nextDouble() * MAX_DRIFT - MAX_DRIFT * HALF,
+                random.nextDouble()};
+        }
+        return motes;
     }
 
     private static void drawColumn(PoseStack.Pose pose, VertexConsumer c, Vec3 stand, double seconds) {

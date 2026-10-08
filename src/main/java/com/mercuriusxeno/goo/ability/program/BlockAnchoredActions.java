@@ -7,6 +7,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.phys.Vec3;
 import java.util.List;
@@ -29,7 +30,8 @@ final class BlockAnchoredActions {
 
     /**
      * Writes a block into the cell beyond a struck face when that cell can be
-     * replaced, so a drip or a spore never overwrites a standing block.
+     * replaced and the block can stand there, so a drip or a spore never
+     * overwrites a standing block nor leaves one that would break at once.
      *
      * @param level   the server level
      * @param struck  the block whose face was struck
@@ -46,7 +48,10 @@ final class BlockAnchoredActions {
         Block found = BuiltInRegistries.BLOCK.getOptional(block)
                 .orElseThrow(() -> new IllegalArgumentException(ERR_UNKNOWN_BLOCK + block));
         List<Property.Value<?>> values = StatePropertyWriter.resolve(found.getStateDefinition(), state, block);
-        level.setBlock(cell, StatePropertyWriter.write(found.defaultBlockState(), values), Block.UPDATE_ALL);
+        BlockState written = StatePropertyWriter.write(found.defaultBlockState(), values);
+        if (written.canSurvive(level, cell)) {
+            level.setBlock(cell, written, Block.UPDATE_ALL);
+        }
     }
 
     /**

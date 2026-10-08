@@ -46,7 +46,7 @@ class ShiftTargetMarkerTest {
 
     @Test
     void columnMotesClimbWithinTheColumn() {
-        for (int i = 0; i < 24; i++) {
+        for (int i = 0; i < ShiftTargetMarker.COLUMN_MOTES; i++) {
             double height = ShiftTargetMarker.columnMote(i, 3.7)[1];
             assertTrue(height >= 0 && height < 2.2, String.valueOf(height));
         }
