@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.Delivery;
@@ -139,9 +140,21 @@ public final class GooThrowHandler {
             GooTouchHandler.touch(player, payload, gooType);
         } else if (ability.badge().aimsAPoint()) {
             throwAtPoint(player, payload, gooType);
-        } else {
+        } else if (!aimsNoMob(ability.badge(), payload.targetEntityId() >= 0)) {
             throwFlight(player, payload, gooType);
         }
+    }
+
+    /**
+     * Whether a throw is a mob ability aimed at no entity, which is refused
+     * whole: a mob ability is never thrown at the world.
+     *
+     * @param badge        the ability's badge
+     * @param entityTarget whether the throw names an entity
+     * @return true for a mob ability naming no entity
+     */
+    static boolean aimsNoMob(AbilityBadge badge, boolean entityTarget) {
+        return badge == AbilityBadge.MOB && !entityTarget;
     }
 
     /**

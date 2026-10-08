@@ -19,19 +19,19 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class AbilityBadgeTest {
 
-    private static final int SHIPPED_MOB_BADGES = 14;
+    private static final int SHIPPED_MOB_BADGES = 13;
     private static final int SHIPPED_WORLD_BADGES = 7;
-    private static final int SHIPPED_SELF_BADGES = 2;
-    private static final int SHIPPED_BREW_BADGES = 4;
-    private static final int SHIPPED_CHANNELED_BADGES = 6;
-    private static final int SHIPPED_FREE_BADGES = 2;
-    private static final int SHIPPED_TAP_BADGES = 2;
+    private static final int SHIPPED_SELF_BADGES = 3;
+    private static final int SHIPPED_BREW_BADGES = 5;
+    private static final int SHIPPED_CHANNELED_BADGES = 7;
+    private static final int SHIPPED_FREE_BADGES = 3;
+    private static final int SHIPPED_TAP_BADGES = 3;
     /** The self + brew abilities, which wear brew on their self delivery (decision self-brew-goos-eat-before-the-effect). */
     private static final List<String> SHIPPED_BREWS = List.of("blaze_kindle", "leaf_barkskin", "rock_stoneskin",
-            "vital_nourish");
-    /** Blast, the shipped free ability (decision badge-vocabulary-gains-free-prism-tap-brew). */
-    private static final List<String> SHIPPED_FREE = List.of("unstable_explode", "rock_crush");
-    /** Self deliveries run each held tick on the player (decision flatten-disc-cursor-breaks-above-the-plane). */
+            "vital_nourish", "shroom_sight");
+    /** Blast, Crush and Colonize, the shipped free abilities (decision badge-vocabulary-gains-free-prism-tap-brew). */
+    private static final List<String> SHIPPED_FREE = List.of("unstable_explode", "rock_crush", "shroom_colonize");
+    /** Self deliveries wearing the channeled badge (decision flatten-disc-cursor-breaks-above-the-plane). */
     private static final List<String> SHIPPED_SELF_CHANNELS = List.of("rock_flatten");
 
     @ParameterizedTest

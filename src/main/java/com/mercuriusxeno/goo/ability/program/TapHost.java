@@ -3,15 +3,12 @@ package com.mercuriusxeno.goo.ability.program;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.PointedDripstoneBlock;
-import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.phys.Vec3;
-import java.util.List;
 import java.util.Map;
 import java.util.OptionalDouble;
 import java.util.Set;
@@ -34,7 +31,6 @@ import java.util.function.Consumer;
 public record TapHost(ServerLevel level, BlockPos landing, Direction face)
         implements ExplodeHost, AnchoredWorldHost, PlaceBlockHost, EntityScanHost, DripHost {
 
-    private static final String ERR_UNKNOWN_BLOCK = "Place step names block which no registry holds: ";
     private static final double HALF = 0.5;
 
     /**
@@ -133,14 +129,7 @@ public record TapHost(ServerLevel level, BlockPos landing, Direction face)
      */
     @Override
     public void placeBlock(Identifier block, Map<String, String> state) {
-        BlockPos cell = landing.relative(face);
-        if (!level.getBlockState(cell).canBeReplaced()) {
-            return;
-        }
-        Block found = BuiltInRegistries.BLOCK.getOptional(block)
-                .orElseThrow(() -> new IllegalArgumentException(ERR_UNKNOWN_BLOCK + block));
-        List<Property.Value<?>> values = StatePropertyWriter.resolve(found.getStateDefinition(), state, block);
-        level.setBlock(cell, StatePropertyWriter.write(found.defaultBlockState(), values), Block.UPDATE_ALL);
+        BlockAnchoredActions.placeBeyondFace(level, landing, face, block, state);
     }
 
 }

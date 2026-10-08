@@ -14,7 +14,7 @@ import java.util.Optional;
  * a sound: resolves the id and the category, and logs and skips an id
  * the registry lacks.
  */
-final class SoundPlays {
+public final class SoundPlays {
 
     private static final String LOG_UNKNOWN_SOUND = "Sound step names {}, which no registry holds";
 
@@ -28,7 +28,7 @@ final class SoundPlays {
      * @param at    the point the sound plays at
      * @param cue   the evaluated sound
      */
-    static void play(ServerLevel level, Vec3 at, SoundCue cue) {
+    public static void play(ServerLevel level, Vec3 at, SoundCue cue) {
         Optional<Holder.Reference<SoundEvent>> holder = BuiltInRegistries.SOUND_EVENT.get(cue.sound());
         if (holder.isEmpty()) {
             Goo.LOGGER.warn(LOG_UNKNOWN_SOUND, cue.sound());

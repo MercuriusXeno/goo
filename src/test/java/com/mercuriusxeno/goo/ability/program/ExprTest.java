@@ -142,6 +142,14 @@ class ExprTest {
         }
 
         @Test
+        void chanceOfOneAlwaysFiresAndOfZeroNever() {
+            for (int i = 0; i < ROLLS; i++) {
+                assertEquals(1, parse("chance(1)").evaluate(Variables.NONE), EPSILON);
+                assertEquals(0, parse("chance(0)").evaluate(Variables.NONE), EPSILON);
+            }
+        }
+
+        @Test
         void unboundVariableReadsZero() {
             assertEquals(3, parse("3 + nowhere").evaluate(Variables.NONE), EPSILON);
         }

@@ -1,0 +1,20 @@
+{
+  "gooType": "shroom",
+  "displayName": "goo.ability.shroom.fungal_shift",
+  "badge": "self",
+  "order": 20,
+  "cost": 1000,
+  "requires": ["minecraft:sculk"],
+  "delivery": { "kind": "self" },
+  "indicator": "held",
+  "behaviors": [
+    { "type": "afterimage", "goo": "shroom" },
+    { "type": "particles", "id": "goo:spore", "at": "target", "count": 96, "spread": 1, "lift": 1, "speed": 0.03 },
+    { "type": "shift", "range": 64, "near": 3 },
+    { "type": "ghost_trail", "goo": "shroom" },
+    { "type": "afterimage", "goo": "shroom" },
+    { "type": "particles", "id": "goo:spore", "at": "target", "count": 96, "spread": 1, "lift": 1, "speed": 0.03 },
+    { "type": "sound", "id": "minecraft:block.fungus.break", "at": "target", "source": "players", "volume": 1, "pitch": 0.8 }
+  ],
+  "tags": ["self"]
+}

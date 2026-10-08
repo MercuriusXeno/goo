@@ -1,9 +1,14 @@
 package com.mercuriusxeno.goo.client.model;
 
+import com.mercuriusxeno.goo.ability.GloveSelection;
+import com.mercuriusxeno.goo.ability.program.ShiftStep;
 import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.RenderContext;
+import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
+import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
+import com.mercuriusxeno.goo.client.overlay.FungusNearby;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.registry.GooItems;
@@ -242,7 +247,7 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
         if (type != null && !GloveUseTracker.isSelectedTypeAvailable()) {
             type = null;
         }
-        return new GloveData(stack.getItem(), type);
+        return new GloveData(stack.getItem(), type, type != null && glowsNearFungus(stack));
     }
 
     /**
@@ -266,7 +271,8 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
         submitGloveBody(poseStack, nodeCollector, packedLight, gloveItem);
 
         if (data != null && data.selectedType() != null) {
-            submitHeldGoo(poseStack, nodeCollector, packedLight, data.selectedType());
+            int light = data.glows() ? GooSubmitter.fullbrightLight() : packedLight;
+            submitHeldGoo(poseStack, nodeCollector, light, data.selectedType());
         }
 
         poseStack.popPose();
@@ -289,9 +295,25 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
      *
      * @param item         the glove item instance (determines tier/body model)
      * @param selectedType the selected goo type, or null if none selected
+     * @param glows        whether the held goo brightens, Fungal Shift selected near a fungus
      */
-    public record GloveData(Item item, @Nullable ResourceKey<GooTypeDefinition> selectedType) {
+    public record GloveData(Item item, @Nullable ResourceKey<GooTypeDefinition> selectedType, boolean glows) {
     }
+
+    /**
+     * Whether the glove's goo brightens: its selection shifts to fungus and
+     * the player stands near enough a fungus to start the shift
+     * (decision fungal-shift-blinks-to-the-aimed-fungus).
+     *
+     * @param stack the glove
+     * @return true while a Fungal Shift could start from here
+     */
+    private static boolean glowsNearFungus(ItemStack stack) {
+        GloveSelection selection = GooGloveItem.getSelection(stack);
+        ClientAbility ability = selection == null ? null : AbilitySyncHandler.findAbility(selection.abilityId());
+        return ability != null && ShiftStep.fungusNear(ability.behaviors()).isPresent() && FungusNearby.isNear();
+    }
+
 
     /**
      * Unbaked factory for the glove special renderer. Registered as

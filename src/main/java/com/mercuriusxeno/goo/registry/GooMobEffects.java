@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.GooBrewEffect;
+import com.mercuriusxeno.goo.ability.spray.MycosisEffect;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.registries.Registries;
@@ -32,6 +33,13 @@ public final class GooMobEffects {
     public static final Map<ResourceKey<GooTypeDefinition>, DeferredHolder<MobEffect, MobEffect>> BREW_EFFECTS =
             Collections.unmodifiableMap(REGISTERED);
     private static final String BREW_SUFFIX = "_brew";
+
+    /**
+     * Goo's spore poison, which the undead take as readily as the living
+     * (decision mycosis-spore-stream-buds-and-poisons).
+     */
+    public static final DeferredHolder<MobEffect, MobEffect> MYCOSIS =
+            MOB_EFFECTS.register("mycosis", MycosisEffect::new);
 
     private GooMobEffects() {
     }

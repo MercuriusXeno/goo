@@ -9,6 +9,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
@@ -55,7 +56,7 @@ final class VoxelHighlightRenderer {
         int highlightRgb = ClientGooTypes.highlight(type);
         int edgeRgb = ClientGooTypes.edge(type);
         emitFillBoxes(poseStack, bufferSource, shape, offset.x, offset.y, offset.z, highlightRgb);
-        emitWireframeEdges(poseStack, bufferSource, mc, shape, offset.x, offset.y, offset.z, edgeRgb);
+        emitWireframeEdges(poseStack, bufferSource, mc, shape, offset, edgeRgb, RenderTypes.lines());
     }
 
     /**
@@ -178,22 +179,20 @@ final class VoxelHighlightRenderer {
      * @param bufferSource the buffer source
      * @param mc           the Minecraft instance
      * @param shape        the block's voxel shape
-     * @param ox           camera-relative X offset
-     * @param oy           camera-relative Y offset
-     * @param oz           camera-relative Z offset
+     * @param offset       the block's camera-relative offset
      * @param rgb          the RGB color value
+     * @param lines        the lines render type, depth tested or seen through walls
      */
     private static void emitWireframeEdges(
             PoseStack poseStack, MultiBufferSource.BufferSource bufferSource,
-            Minecraft mc, VoxelShape shape,
-            double ox, double oy, double oz, int rgb) {
+            Minecraft mc, VoxelShape shape, Vec3 offset, int rgb, RenderType lines) {
         int wireColor = ARGB.color(WIRE_ALPHA, rgb);
         float lineWidth = mc.getWindow().getAppropriateLineWidth();
-        LineContext ctx = new LineContext(poseStack.last(), bufferSource.getBuffer(RenderTypes.lines()));
+        LineContext ctx = new LineContext(poseStack.last(), bufferSource.getBuffer(lines));
         shape.forAllEdges((x0, y0, z0, x1, y1, z1) ->
             ctx.emitEdge(
-                (float) (ox + x0), (float) (oy + y0), (float) (oz + z0),
-                (float) (ox + x1), (float) (oy + y1), (float) (oz + z1),
+                (float) (offset.x + x0), (float) (offset.y + y0), (float) (offset.z + z0),
+                (float) (offset.x + x1), (float) (offset.y + y1), (float) (offset.z + z1),
                 wireColor, lineWidth));
         bufferSource.endLastBatch();
     }

@@ -191,7 +191,8 @@ class ProgramHostLoadTest {
 
     private static final Map<HostKind, Class<? extends StepHost>> HOST_TYPES = Map.of(
             HostKind.MARKER, MarkerHost.class, HostKind.ENTITY, EntityHost.class, HostKind.TAP, TapHost.class,
-            HostKind.LANDING, LandingHost.class, HostKind.PLAYER, PlayerHost.class);
+            HostKind.LANDING, LandingHost.class, HostKind.PLAYER, PlayerHost.class,
+            HostKind.SURFACE, SurfaceHost.class);
 
     /**
      * A step needing exactly one capability, standing in for whichever
@@ -210,15 +211,18 @@ class ProgramHostLoadTest {
     @Test
     void eachKindProvidesTheCapabilityInterfacesItsHostImplements() {
         assertEquals(EnumSet.complementOf(EnumSet.of(HostCapability.TARGET, HostCapability.LINGER, HostCapability.CHANNEL,
-                        HostCapability.BREAK_BLOCKS, HostCapability.DRIP)),
+                        HostCapability.BREAK_BLOCKS, HostCapability.DRIP, HostCapability.COLONIZE,
+                        HostCapability.FLOOR_SCAN)),
                 HostKind.MARKER.capabilities());
         assertEquals(Set.of(HostCapability.PLACED_FACE, HostCapability.EXPLODE, HostCapability.ENTITY_SCAN,
-                HostCapability.PLACE_BLOCK, HostCapability.LINGER, HostCapability.BREAK_BLOCKS),
-                HostKind.LANDING.capabilities());
+                HostCapability.PLACE_BLOCK, HostCapability.LINGER, HostCapability.BREAK_BLOCKS, HostCapability.COLONIZE,
+                HostCapability.FLOOR_SCAN), HostKind.LANDING.capabilities());
         assertEquals(Set.of(HostCapability.TARGET, HostCapability.EXPLODE, HostCapability.ENTITY_SCAN),
                 HostKind.ENTITY.capabilities());
         assertEquals(Set.of(HostCapability.EXPLODE, HostCapability.ENTITY_SCAN, HostCapability.PLACE_BLOCK,
                 HostCapability.BREAK_BLOCKS, HostCapability.DRIP), HostKind.TAP.capabilities());
+        assertEquals(Set.of(HostCapability.ENTITY_SCAN, HostCapability.PLACE_BLOCK),
+                HostKind.SURFACE.capabilities());
     }
 
     @ParameterizedTest
