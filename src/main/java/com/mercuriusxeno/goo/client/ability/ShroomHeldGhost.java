@@ -17,10 +17,11 @@ import java.util.List;
 import java.util.SplittableRandom;
 
 /**
- * Shroom's held ghost: a ragged cloud of mauve spore motes about Spore's
- * reach, clumped into soft puffs scattered at fixed random places, each puff
- * bobbing on its own and the whole turning slowly, with rings born at the aim
- * point travelling outward to the same reach.
+ * Shroom's held ghost: a noisy cloud of mauve spore motes about Spore's
+ * reach, each mote its own: a random place over the whole sphere, its own
+ * depth in a fuzzy outer shell, its own slow wander and wobble, its own size
+ * and twinkle, with rings born at the aim point travelling outward to the
+ * same reach.
  * held-visual-ghosts-the-landing-in-two-passes
  * colonize-blob-grows-the-network
  */
@@ -30,78 +31,86 @@ public final class ShroomHeldGhost implements HeldGhostVisual {
     public static final ShroomHeldGhost INSTANCE = new ShroomHeldGhost();
 
     /** Motes in the cloud. */
-    static final int MOTES = 480;
-    /** Puffs the motes clump into. */
-    static final int PUFFS = 12;
-    /** How far a mote strays from its puff's heading, before it is set back on the shell. */
-    private static final double PUFF_SPREAD = 0.45;
-    /** How ragged the cloud's edge runs, as a share of the radius either way. */
-    static final double RAGGED_SHARE = 0.15;
+    static final int MOTES = 600;
+    /** The shallowest a mote sits, as a share of the reach. */
+    static final double INNER_SHARE = 0.80;
+    /** The deepest a mote sits, as a share of the reach. */
+    static final double OUTER_SHARE = 1.05;
+    /** How far a mote wobbles in and out, as a share of the reach. */
+    static final double WOBBLE_SHARE = 0.04;
+    /** The dimmest a mote twinkles to, as a share of its alpha. */
+    static final float DIMMEST = 0.35f;
+    /** The slowest and the span of a mote's wander about its own axis, radians per second. */
+    private static final double MIN_WANDER = 0.04;
+    private static final double WANDER_SPAN = 0.22;
+    /** The slowest and the span of a mote's wobble, radians per second. */
+    private static final double MIN_WOBBLE = 0.8;
+    private static final double WOBBLE_SPAN = 1.6;
+    /** The smallest and the span of a mote's size, as a share of the mote's half width. */
+    private static final double MIN_SIZE = 0.6;
+    private static final double SIZE_SPAN = 0.8;
+    /** The slowest and the span of a mote's twinkle, radians per second. */
+    private static final double MIN_TWINKLE = 1.5;
+    private static final double TWINKLE_SPAN = 3.5;
     /** The seed every client scatters the cloud with, so it holds its shape. */
     private static final long SCATTER_SEED = 0x5B0BEL;
-    /** Each mote's unit heading, x, y and z, fixed at load. */
-    private static final double[][] HEADINGS = new double[MOTES][];
-    /** Each mote's share of the radius, fixed at load. */
-    private static final double[] REACHES = new double[MOTES];
-    /** Each mote's puff, fixed at load. */
-    private static final int[] PUFF_OF = new int[MOTES];
     /** A mote's half width, in blocks. */
     private static final float MOTE_HALF = 0.035f;
-    /** The shell's mauve. */
+    /** The cloud's mauve. */
     private static final int MOTE_RGB = 0xB57FC0;
     /** A mote's alpha at full held opacity. */
-    private static final float MOTE_ALPHA = 0.7f;
-    /** How fast the shell turns, in radians per second. */
-    private static final double TURN_PER_SECOND = 0.25;
-    /** How far a mote bobs off the shell, as a share of the radius. */
-    private static final double BOB_SHARE = 0.04;
-    private static final double BOB_PER_SECOND = 1.3;
-    /** A unit shell spans two from its top to its bottom. */
+    private static final float MOTE_ALPHA = 0.75f;
+    private static final double FULL_TURN = Math.PI * 2;
+    /** A unit sphere spans two from its top to its bottom. */
     private static final double TOP_TO_BOTTOM = 2;
+    private static final double HALF = 0.5;
     private static final int X = 0;
     private static final int Y = 1;
     private static final int Z = 2;
+    private static final int AXES = 3;
     private static final int OPAQUE = 255;
 
-    static {
-        scatter(new SplittableRandom(SCATTER_SEED));
+    /** Each mote's own traits, fixed at load. */
+    private static final Mote[] CLOUD = scatter(new SplittableRandom(SCATTER_SEED));
+
+    /**
+     * One mote's own traits.
+     *
+     * @param heading      its place over the sphere at rest, unit length
+     * @param axis         the axis it wanders about, unit length
+     * @param wanderSpeed  how fast it wanders, radians per second
+     * @param depth        its share of the reach at rest
+     * @param wobbleSpeed  how fast it wobbles in and out, radians per second
+     * @param wobblePhase  where its wobble starts, in radians
+     * @param size         its size as a share of the mote's half width
+     * @param twinkleSpeed how fast it twinkles, radians per second
+     * @param twinklePhase where its twinkle starts, in radians
+     */
+    private record Mote(double[] heading, double[] axis, double wanderSpeed, double depth, double wobbleSpeed,
+                        double wobblePhase, double size, double twinkleSpeed, double twinklePhase) {
     }
 
     private ShroomHeldGhost() {
     }
 
-    /**
-     * Scatters the cloud: a dozen puff headings at random over the sphere,
-     * each mote leaning off its puff's heading at random, at a reach ragged
-     * either way of the shell.
-     *
-     * @param random the seeded source
-     */
-    private static void scatter(SplittableRandom random) {
-        double[][] puffs = new double[PUFFS][];
-        for (int p = 0; p < PUFFS; p++) {
-            puffs[p] = randomUnit(random);
-        }
+    private static Mote[] scatter(SplittableRandom random) {
+        Mote[] cloud = new Mote[MOTES];
         for (int i = 0; i < MOTES; i++) {
-            int puff = i % PUFFS;
-            double[] lean = randomUnit(random);
-            HEADINGS[i] = normalized(puffs[puff][X] + lean[X] * PUFF_SPREAD, puffs[puff][Y] + lean[Y] * PUFF_SPREAD,
-                    puffs[puff][Z] + lean[Z] * PUFF_SPREAD);
-            REACHES[i] = 1 + (random.nextDouble() * TOP_TO_BOTTOM - 1) * RAGGED_SHARE;
-            PUFF_OF[i] = puff;
+            cloud[i] = new Mote(randomUnit(random), randomUnit(random),
+                    MIN_WANDER + random.nextDouble() * WANDER_SPAN,
+                    INNER_SHARE + random.nextDouble() * (OUTER_SHARE - INNER_SHARE),
+                    MIN_WOBBLE + random.nextDouble() * WOBBLE_SPAN, random.nextDouble() * FULL_TURN,
+                    MIN_SIZE + random.nextDouble() * SIZE_SPAN,
+                    MIN_TWINKLE + random.nextDouble() * TWINKLE_SPAN, random.nextDouble() * FULL_TURN);
         }
+        return cloud;
     }
 
     private static double[] randomUnit(SplittableRandom random) {
         double y = random.nextDouble() * TOP_TO_BOTTOM - 1;
         double ring = Math.sqrt(Math.max(0, 1 - y * y));
-        double around = random.nextDouble() * Math.PI * TOP_TO_BOTTOM;
+        double around = random.nextDouble() * FULL_TURN;
         return new double[] {Math.cos(around) * ring, y, Math.sin(around) * ring};
-    }
-
-    private static double[] normalized(double x, double y, double z) {
-        double length = Math.sqrt(x * x + y * y + z * z);
-        return new double[] {x / length, y / length, z / length};
     }
 
     @Override
@@ -132,32 +141,62 @@ public final class ShroomHeldGhost implements HeldGhostVisual {
     }
 
     /**
-     * Where a mote sits about the cloud's center at unit radius: its fixed
-     * heading at its ragged reach, turned about the vertical by the clock.
+     * Where a mote sits about the cloud's center at unit reach at a moment: its
+     * heading turned about its own axis by its wander, at its depth swayed by its wobble.
      *
-     * @param index the mote's index
-     * @param turn  the cloud's turn about the vertical, in radians
+     * @param index   the mote's index
+     * @param seconds seconds on the real-time clock
      * @return the mote's offset: x, y and z
      */
-    static double[] moteAt(int index, double turn) {
-        double[] heading = HEADINGS[index];
-        double cos = Math.cos(turn);
-        double sin = Math.sin(turn);
-        double reach = REACHES[index];
-        return new double[] {(heading[X] * cos - heading[Z] * sin) * reach, heading[Y] * reach,
-                (heading[X] * sin + heading[Z] * cos) * reach};
+    static double[] moteAt(int index, double seconds) {
+        Mote mote = CLOUD[index];
+        double[] turned = rotated(mote.heading(), mote.axis(), seconds * mote.wanderSpeed());
+        double reach = mote.depth() + WOBBLE_SHARE * Math.sin(seconds * mote.wobbleSpeed() + mote.wobblePhase());
+        return new double[] {turned[X] * reach, turned[Y] * reach, turned[Z] * reach};
+    }
+
+    /**
+     * A mote's alpha share at a moment: its own twinkle between dim and full.
+     *
+     * @param index   the mote's index
+     * @param seconds seconds on the real-time clock
+     * @return the share of its alpha, from the dimmest to one
+     */
+    static float twinkleAt(int index, double seconds) {
+        Mote mote = CLOUD[index];
+        float wave = (float) (Math.sin(seconds * mote.twinkleSpeed() + mote.twinklePhase()) * HALF + HALF);
+        return DIMMEST + (1f - DIMMEST) * wave;
+    }
+
+    /**
+     * Turns a unit vector about a unit axis, by Rodrigues' formula.
+     *
+     * @param v     the vector
+     * @param k     the axis
+     * @param angle the turn in radians
+     * @return the turned vector
+     */
+    private static double[] rotated(double[] v, double[] k, double angle) {
+        double cos = Math.cos(angle);
+        double sin = Math.sin(angle);
+        double dot = k[X] * v[X] + k[Y] * v[Y] + k[Z] * v[Z];
+        double[] cross = {k[Y] * v[Z] - k[Z] * v[Y], k[Z] * v[X] - k[X] * v[Z], k[X] * v[Y] - k[Y] * v[X]};
+        double[] out = new double[AXES];
+        for (int a = X; a <= Z; a++) {
+            out[a] = v[a] * cos + cross[a] * sin + k[a] * dot * (1 - cos);
+        }
+        return out;
     }
 
     private static void emitMotes(PoseStack.Pose pose, VertexConsumer c, HeldGhost ghost, Direction face,
                                   float opacity, double nowSeconds) {
-        int color = ARGB.color(Math.round(Mth.clamp(MOTE_ALPHA * opacity, 0f, 1f) * OPAQUE), MOTE_RGB);
-        double turn = nowSeconds * TURN_PER_SECOND;
+        float radius = ghost.domeRadius();
         for (int i = 0; i < MOTES; i++) {
-            double[] unit = moteAt(i, turn);
-            double radius = ghost.domeRadius() * (1 + BOB_SHARE * Math.sin(nowSeconds * BOB_PER_SECOND + PUFF_OF[i]));
-            SporeMotes.emit(pose, c, (float) (unit[X] * radius), (float) (unit[Y] * radius),
-                    (float) (unit[Z] * radius), MOTE_HALF, color);
+            double[] at = moteAt(i, nowSeconds);
+            float alpha = MOTE_ALPHA * opacity * twinkleAt(i, nowSeconds);
+            int color = ARGB.color(Math.round(Mth.clamp(alpha, 0f, 1f) * OPAQUE), MOTE_RGB);
+            SporeMotes.emit(pose, c, (float) (at[X] * radius), (float) (at[Y] * radius), (float) (at[Z] * radius),
+                    (float) (MOTE_HALF * CLOUD[i].size()), color);
         }
     }
-
 }
