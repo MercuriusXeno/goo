@@ -4,7 +4,9 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
 import net.minecraft.core.HolderSet;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.BiomeTags;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.biome.Biome;
@@ -13,8 +15,8 @@ import net.minecraft.world.level.biome.Biomes;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.DoublePlantBlock;
-import net.minecraft.world.level.block.LevelEvent;
 import net.minecraft.world.level.block.MultifaceBlock;
+import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.VineBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.GenerationStep;
@@ -50,15 +52,17 @@ public final class BloomPlants {
             new BiomeSapling(biome -> biome.is(BiomeTags.IS_JUNGLE), Blocks.JUNGLE_SAPLING),
             new BiomeSapling(biome -> biome.is(BiomeTags.IS_TAIGA), Blocks.SPRUCE_SAPLING),
             new BiomeSapling(biome -> biome.is(BiomeTags.IS_SAVANNA), Blocks.ACACIA_SAPLING));
-    /** The particles vanilla's bone-meal sparkle throws. */
+    /** The green sparkles thrown over each plant, and how far round it they scatter. */
     private static final int SPARKLE_PARTICLES = 15;
+    private static final double SPARKLE_SPREAD = 0.4;
+    private static final double PLANT_MIDDLE = 0.5;
 
     private BloomPlants() {
     }
 
     /**
      * Spawns a random plant of the flora that survives in the cell, thrown
-     * up with vanilla's bone-meal growth sparkle and sound.
+     * up with bone meal's green sparkles and the plant's own placing sound.
      *
      * @param level  the server level
      * @param pos    the cell
@@ -78,8 +82,25 @@ public final class BloomPlants {
         } else {
             level.setBlock(pos, grown, Block.UPDATE_ALL);
         }
-        level.levelEvent(LevelEvent.PARTICLES_AND_SOUND_PLANT_GROWTH, pos, SPARKLE_PARTICLES);
+        sparkle(level, pos, grown);
         return true;
+    }
+
+    /**
+     * Throws bone meal's green sparkles over a spawned plant, with the sound
+     * the plant makes as it is placed. Sent directly, since the bone-meal
+     * level event draws its sparkles only over a block bone meal grows, which
+     * a lily pad, a vine or a flower is not.
+     *
+     * @param level the server level
+     * @param pos   the plant's cell
+     * @param plant the plant spawned
+     */
+    private static void sparkle(ServerLevel level, BlockPos pos, BlockState plant) {
+        level.sendParticles(ParticleTypes.HAPPY_VILLAGER, pos.getX() + PLANT_MIDDLE, pos.getY() + PLANT_MIDDLE,
+                pos.getZ() + PLANT_MIDDLE, SPARKLE_PARTICLES, SPARKLE_SPREAD, SPARKLE_SPREAD, SPARKLE_SPREAD, 0);
+        SoundType sound = plant.getSoundType(level, pos, null);
+        level.playSound(null, pos, sound.getPlaceSound(), SoundSource.BLOCKS, sound.getVolume(), sound.getPitch());
     }
 
     private static boolean survives(ServerLevel level, BlockPos pos, BlockState state) {

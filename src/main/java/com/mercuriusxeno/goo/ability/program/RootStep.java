@@ -12,7 +12,7 @@ import java.util.stream.Stream;
  * hold it for the duration or the hits, thorn it for straining past the
  * leash and multiply fire damage, and a throw landing on vines still
  * holding stacks its hits and thorns onto them. Leaf Vines is
- * {@code root duration=60 hits=4 thorns=1 fire_factor=1.5}.
+ * {@code root duration=300 hits=4 thorns=1 fire_factor=1.5}, fifteen seconds.
  * vines-unpack-root-and-thorn
  *
  * @param duration   the ticks the vines hold the target

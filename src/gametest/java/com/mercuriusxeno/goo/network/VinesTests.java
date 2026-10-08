@@ -40,7 +40,7 @@ public final class VinesTests {
     /** The floor the bay's mobs stand on and the trap lands on. */
     private static final int FLOOR_SPAN = 6;
     private static final int SETTLE_TICKS = 1;
-    /** Ticks the zombie is shoved east, inside leaf_vines.json's hold of 60. */
+    /** Ticks the zombie is shoved east, inside leaf_vines.json's hold of 300. */
     private static final int SHOVE_TICKS = 50;
     /** A shove far past the leash in one tick. */
     private static final Vec3 SHOVE = new Vec3(0.6, 0, 0);

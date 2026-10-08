@@ -652,6 +652,34 @@ public final class GooRenderTypes {
     public static final RenderType PETRIFY_FOG_TYPE = burnoutType(PETRIFY_FOG);
 
     /**
+     * Growth's breeze pipeline: cross-sections of the cone drawn through
+     * {@code growth_breeze.vsh / .fsh}, glowing green wisps drifting outward
+     * with pulses running out from the glove.
+     * growth-breeze-ticks-plants
+     */
+    public static final RenderPipeline GROWTH_BREEZE = burnoutPipeline("growth_breeze", BlendFunction.LIGHTNING);
+
+    /** The growth breeze render type. */
+    public static final RenderType GROWTH_BREEZE_TYPE = burnoutType(GROWTH_BREEZE);
+
+    /**
+     * Leaf's held ghost, Bloom's pollen haze dome, drawn through
+     * {@code leaf_ghost.vsh / .fsh}.
+     * bloom-places-buds-by-biome-and-surface
+     */
+    public static final RenderPipeline LEAF_GHOST = burnoutPipeline("leaf_ghost", BlendFunction.LIGHTNING);
+
+    /** The leaf ghost render type. */
+    public static final RenderType LEAF_GHOST_TYPE = burnoutType(LEAF_GHOST);
+
+    /** Leaf's held ghost through blocks, so the haze shows where blocks stand between. */
+    public static final RenderPipeline LEAF_GHOST_THROUGH_BLOCKS = throughBlocksPipeline("leaf_ghost",
+            BlendFunction.LIGHTNING);
+
+    /** The leaf ghost's through-blocks render type. */
+    public static final RenderType LEAF_GHOST_THROUGH_BLOCKS_TYPE = burnoutType(LEAF_GHOST_THROUGH_BLOCKS);
+
+    /**
      * Bore's vortex pipeline (decision bore-vortex-with-a-worldspace-shake):
      * sections down the tunnel drawn through {@code bore_vortex.vsh / .fsh},
      * spiralling dust arms turning about the look.
@@ -853,6 +881,7 @@ public final class GooRenderTypes {
     public static void registerPipelines(RegisterRenderPipelinesEvent event) {
         registerBurnoutPipelines(event);
         registerMobLayerPipelines(event);
+        registerLeafPipelines(event);
         event.registerPipeline(LINES_ADDITIVE_GLOW);
         event.registerPipeline(NETHER_BLACKHOLE);
         event.registerPipeline(NETHER_CORONA);
@@ -885,6 +914,17 @@ public final class GooRenderTypes {
         event.registerPipeline(PETRIFY_STONE);
         event.registerPipeline(VINE_TANGLE);
         event.registerPipeline(GOO_AILMENT_OVERLAY);
+    }
+
+    /**
+     * Registers Leaf's pipelines: Growth's breeze and Bloom's haze ghost.
+     *
+     * @param event the event instance
+     */
+    private static void registerLeafPipelines(RegisterRenderPipelinesEvent event) {
+        event.registerPipeline(GROWTH_BREEZE);
+        event.registerPipeline(LEAF_GHOST);
+        event.registerPipeline(LEAF_GHOST_THROUGH_BLOCKS);
     }
 
     /**

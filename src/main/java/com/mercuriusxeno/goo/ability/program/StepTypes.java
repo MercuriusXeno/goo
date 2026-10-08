@@ -79,6 +79,8 @@ public final class StepTypes {
         register(RootStep.TYPE);
         register(HitOrMissStep.TYPE);
         register(BloomStep.TYPE);
+        register(TickPlantsStep.TYPE);
+        register(HastenRegrowStep.TYPE);
     }
 
     private StepTypes() {

@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.ability.program.PetrifyStep;
+import com.mercuriusxeno.goo.ability.program.TickPlantsStep;
 import com.mercuriusxeno.goo.client.FlatQuadContext;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
@@ -19,27 +19,27 @@ import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Petrify's fog: while right click holds Petrify, undulating waves of dust
- * fog pour forward from the glove over everything in its cone, a medusa's
- * gaze miasma the player emits. The cone is drawn from the glove as stacked
- * cross-sections square to the look, each filled by
- * {@code petrify_fog.fsh}; the cone itself, the area of effect, is never
- * outlined (decision petrify-stone-encasement-and-calcify-map).
+ * Growth's breeze: while right click holds Growth, soft wisps of glowing
+ * leaf green streak out from the glove along the look and drift outward
+ * through its cone, brighter bands pulsing out about twice a second. The cone
+ * is drawn from the glove as stacked cross-sections square to the look, each
+ * filled by {@code growth_breeze.fsh}, as Petrify's fog is.
+ * growth-breeze-ticks-plants
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
-public final class PetrifyFog {
+public final class GrowthBreeze {
 
-    /** Cross-sections stacked along the cone, more than Bore's, as the fog starts right at the glove. */
+    /** Cross-sections stacked along the cone; as many as Petrify's, as the breeze starts at the glove too. */
     static final int SECTIONS = 16;
-    /** The first section stands right at the glove, so the fog pours from it. */
+    /** The first section stands right at the glove, so the breeze pours from it. */
     static final double FROM_THE_GLOVE = 0.05;
     private static final double HALF = 0.5;
 
-    private PetrifyFog() {
+    private GrowthBreeze() {
     }
 
     /**
-     * Draws the fog after the translucent blocks while Petrify is held.
+     * Draws the breeze after the translucent blocks while Growth is held.
      *
      * @param event the level render stage event
      */
@@ -47,36 +47,35 @@ public final class PetrifyFog {
     public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
-        ClientAbility petrify = player == null ? null : heldPetrify(player);
-        if (petrify == null) {
+        ClientAbility growth = player == null ? null : heldGrowth(player);
+        if (growth == null) {
             return;
         }
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
         Vec3 apex = GloveAim.handPosition(mc.gameRenderer.getMainCamera()).subtract(camera);
         Vec3 axis = player.getViewVector(partialTick);
-        double range = petrify.delivery().range();
-        double halfAngle = Math.toRadians(petrify.delivery().coneDegrees() * HALF);
-        double tan = Math.tan(halfAngle);
+        double range = growth.delivery().range();
+        double tan = Math.tan(Math.toRadians(growth.delivery().coneDegrees() * HALF));
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         FlatQuadContext quads = new FlatQuadContext(event.getPoseStack().last(),
-                buffers.getBuffer(GooRenderTypes.PETRIFY_FOG_TYPE));
+                buffers.getBuffer(GooRenderTypes.GROWTH_BREEZE_TYPE));
         ConeSections.emit(quads, new ConeSections.Volume(apex, axis, player.getViewYRot(partialTick), FROM_THE_GLOVE,
                 range, SECTIONS,
                 distance -> distance * tan));
-        buffers.endBatch(GooRenderTypes.PETRIFY_FOG_TYPE);
+        buffers.endBatch(GooRenderTypes.GROWTH_BREEZE_TYPE);
     }
 
     /**
-     * The Petrify the local player's glove holds while right click holds it.
+     * The Growth the local player's glove holds while right click holds it.
      *
      * @param player the local player
-     * @return the ability, or null while no Petrify is held
+     * @return the ability, or null while no Growth is held
      */
-    private static @Nullable ClientAbility heldPetrify(LocalPlayer player) {
+    private static @Nullable ClientAbility heldGrowth(LocalPlayer player) {
         String abilityId = GloveAim.selectedAbilityId(player);
         ClientAbility ability = abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
-        boolean petrifies = ability != null && ability.behaviors().stream().anyMatch(PetrifyStep.class::isInstance);
-        return petrifies && GloveUseTracker.runsHeld(player) ? ability : null;
+        boolean grows = ability != null && ability.behaviors().stream().anyMatch(TickPlantsStep.class::isInstance);
+        return grows && GloveUseTracker.runsHeld(player) ? ability : null;
     }
 }

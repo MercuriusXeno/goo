@@ -112,6 +112,8 @@ class StepCodecTest {
             Map.entry("reserve_drain", new ReserveDrainStep(Expr.literal(0.05), Expr.literal(0.5), Expr.literal(10),
                     Expr.literal(0.5))),
             Map.entry("bloom", new BloomStep(Expr.literal(4), Expr.literal(8), Expr.literal(64))),
+            Map.entry("tick_plants", new TickPlantsStep()),
+            Map.entry("hasten_regrow", new HastenRegrowStep(Expr.literal(2))),
             Map.entry("root", new RootStep(Expr.literal(60), Expr.literal(4), Expr.literal(1), Expr.literal(1.5))),
             Map.entry("hit_or_miss", new HitOrMissStep(
                     List.of(new RootStep(Expr.literal(60), Expr.literal(4), Expr.literal(1), Expr.literal(1.5))),
