@@ -44,6 +44,10 @@ public final class GooPotions {
      * How long a drunk brew holds its ability: an hour at 20 tps.
      */
     public static final int BREW_DURATION = 72000;
+    private static final int NO_AMPLIFIER = 0;
+    private static final boolean NOT_AMBIENT = false;
+    private static final boolean NO_PARTICLES = false;
+    private static final boolean SHOWS_ICON = true;
     /**
      * Suffix appended to goo type id for potion names.
      */
@@ -85,6 +89,8 @@ public final class GooPotions {
      * @return the configured potion
      */
     private static Potion createPotion(ResourceKey<GooTypeDefinition> key, String name) {
-        return new Potion(name, new MobEffectInstance(GooMobEffects.BREW_EFFECTS.get(key), BREW_DURATION));
+        // brew-runs-the-crawl-prepaid-on-a-shown-clock: the brew shows its icon and time, never particles
+        return new Potion(name, new MobEffectInstance(GooMobEffects.BREW_EFFECTS.get(key), BREW_DURATION, NO_AMPLIFIER,
+                NOT_AMBIENT, NO_PARTICLES, SHOWS_ICON));
     }
 }

@@ -5,32 +5,31 @@ import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.world.entity.player.Player;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * Nourishes the host's target player: a food point every interval for the
- * duration, standing nourishment stacking the duration onto its expiry, and
- * finishes; a target that is not a player has no hunger to fill. Vital
- * Nourish is {@code nourish interval=80 duration=400}, and a drunk brew's
- * duration stands in for the step's own.
+ * Nourishes the host's target player: a food point every interval while it
+ * stands, and finishes; a target that is not a player has no hunger to fill.
+ * Vital Nourish is {@code nourish interval=80}. A drunk brew nourishes for
+ * the brew's duration; the glove nourishes with no expiry, held until the
+ * player ends it or runs dry.
  * nourish-restores-hunger-over-time
+ * self-effects-trickle-until-ended
  *
  * @param interval the ticks between food points
- * @param duration the nourishment's duration in ticks, evaluated when the step runs outside a brew
  */
-public record NourishStep(Expr interval, Expr duration) implements Step {
+public record NourishStep(Expr interval) implements Step {
 
     private static final String NAME = "nourish";
     private static final String FIELD_INTERVAL = "interval";
-    private static final String FIELD_DURATION = "duration";
 
     /**
      * Codec for the step's params.
      */
     public static final MapCodec<NourishStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
-            Expr.CODEC.fieldOf(FIELD_INTERVAL).forGetter(NourishStep::interval),
-            Expr.CODEC.fieldOf(FIELD_DURATION).forGetter(NourishStep::duration)
+            Expr.CODEC.fieldOf(FIELD_INTERVAL).forGetter(NourishStep::interval)
     ).apply(inst, NourishStep::new));
 
     /**
@@ -47,18 +46,22 @@ public record NourishStep(Expr interval, Expr duration) implements Step {
     public boolean tick(StepContext context) {
         TargetHost host = context.hostAs(TargetHost.class);
         if (host.target() instanceof Player player) {
-            // brew-grants-the-self-ability-for-an-hour: the brew's duration replaces the step's own
-            int ticks = host.brewDuration().orElseGet(() -> duration.evaluateInt(context));
             Nourish standing = player.getData(GooAttachments.NOURISH);
-            player.setData(GooAttachments.NOURISH, standing.apply(interval.evaluateInt(context), ticks,
-                    player.level().getGameTime()));
+            int pointInterval = interval.evaluateInt(context);
+            long now = player.level().getGameTime();
+            OptionalInt brewDuration = host.brewDuration();
+            // brew-grants-the-self-ability-for-an-hour: the brew alone names a duration
+            Nourish laid = brewDuration.isPresent()
+                    ? standing.apply(pointInterval, brewDuration.getAsInt(), now)
+                    : standing.hold(pointInterval, now);
+            player.setData(GooAttachments.NOURISH, laid);
         }
         return true;
     }
 
     @Override
     public Stream<Expr> expressions() {
-        return Stream.of(interval, duration);
+        return Stream.of(interval);
     }
 
     @Override

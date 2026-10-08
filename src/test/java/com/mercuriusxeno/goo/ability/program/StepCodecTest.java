@@ -95,7 +95,7 @@ class StepCodecTest {
                     Expr.parse("20 * 60 / pow(health, 0.4)").getOrThrow())),
             Map.entry("afterimage", new AfterimageStep(GooTypes.HEX, Expr.literal(20))),
             Map.entry("ghost_trail", new GhostTrailStep(GooTypes.ENDER, Expr.literal(30))),
-            Map.entry("heart_overlay", new HeartOverlayStep(HeartKind.KINDLE, Expr.literal(1200))),
+            Map.entry("heart_overlay", new HeartOverlayStep(HeartKind.KINDLE)),
             Map.entry("flatten", new FlattenStep(TagKey.create(Registries.BLOCK,
                     Identifier.fromNamespaceAndPath("goo", "flatten_breakable")))),
             Map.entry("bore", new BoreStep(TagKey.create(Registries.BLOCK,
@@ -108,7 +108,7 @@ class StepCodecTest {
                     TagKey.create(Registries.BLOCK, Identifier.fromNamespaceAndPath("goo", "grows_dripstone")))),
             Map.entry("heal", LeafSteps.HEAL.step(Expr.literal(0.1))),
             Map.entry("court", LeafSteps.COURT.step(Expr.literal(0.25))),
-            Map.entry("nourish", new NourishStep(Expr.literal(80), Expr.literal(400))),
+            Map.entry("nourish", new NourishStep(Expr.literal(80))),
             Map.entry("reserve_drain", new ReserveDrainStep(Expr.literal(0.05), Expr.literal(0.5), Expr.literal(10),
                     Expr.literal(0.5)))
     );
@@ -168,6 +168,15 @@ class StepCodecTest {
         assertEquals(SoundKind.BLOCKS, sound.source());
         assertEquals(1, sound.volume().evaluate(Variables.NONE));
         assertEquals(1, sound.pitch().evaluate(Variables.NONE));
+    }
+
+    @Test
+    void heldEffectStepsDecodeWithNoDuration() {
+        // self-effects-trickle-until-ended: the brew alone names a duration
+        assertEquals(new HeartOverlayStep(HeartKind.KINDLE),
+                decode("{\"type\": \"heart_overlay\", \"kind\": \"kindle\"}").getOrThrow());
+        assertEquals(new NourishStep(Expr.literal(80)),
+                decode("{\"type\": \"nourish\", \"interval\": 80}").getOrThrow());
     }
 
     @Test
