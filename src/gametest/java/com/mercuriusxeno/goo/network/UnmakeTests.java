@@ -2,13 +2,17 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.program.UnmakeDrops;
 import com.mercuriusxeno.goo.ability.program.UnmakeRule;
+import com.mercuriusxeno.goo.block.unmake.MeltingBlock;
+import com.mercuriusxeno.goo.block.unmake.MeltingBlockEntity;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.data.IGooValueLookup;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.GooStacks;
+import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -22,6 +26,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -68,6 +73,10 @@ public final class UnmakeTests {
     private static final String MOB_STANDS = "The chicken should melt within the hold";
     private static final String MOB_DROPPED_ITEMS = "A melted chicken should drop none of its items";
     private static final String MOB_LEFT_NO_GOO = "A melted chicken should leave goo of its loot";
+    /** A hold too short to melt a cobblestone, after which it is left. */
+    private static final int BRIEF_HOLD_TICKS = 5;
+    private static final String BEHIND_GONE = "The hidden cobblestone should not melt within the hold";
+    private static final String NOT_STANDING_IN = "The melting block should stand in for %s, stands in for %s";
     private static final String DEAR_GONE = "The diamond block should still stand after %d ticks";
     private static final String WRONG_YIELD = "The cobblestone should leave %s, left %s";
 
@@ -102,7 +111,7 @@ public final class UnmakeTests {
             helper.runAfterDelay(held, () -> {
                 GooStreamHandler.streamTick(player, tick);
                 if (thisTick == cheapWork - 1) {
-                    helper.assertBlockPresent(Blocks.COBBLESTONE, CHEAP_POS);
+                    assertMeltingFor(helper, CHEAP_POS, Blocks.COBBLESTONE);
                     helper.assertBlockPresent(Blocks.COBBLESTONE, BEHIND_POS);
                 } else if (thisTick == cheapWork) {
                     helper.assertTrue(helper.getBlockState(CHEAP_POS).isAir(), String.format(NOT_GONE, cheapWork));
@@ -112,9 +121,9 @@ public final class UnmakeTests {
         }
         helper.runAfterDelay(HOLD_TICKS + 1, () -> {
             helper.getLevel().getServer().getPlayerList().remove(player);
-            helper.assertBlockPresent(Blocks.DIAMOND_BLOCK, DEAR_POS);
+            assertMeltingFor(helper, DEAR_POS, Blocks.DIAMOND_BLOCK);
             helper.assertTrue(cheapWork + cheapWork > HOLD_TICKS, String.format(HOLD_TOO_LONG, cheapWork));
-            helper.assertBlockPresent(Blocks.COBBLESTONE, BEHIND_POS);
+            helper.assertFalse(helper.getBlockState(BEHIND_POS).isAir(), BEHIND_GONE);
             GooContents expected = UnmakeRule.yieldOf(cheap, YIELD);
             Map<ResourceKey<GooTypeDefinition>, Integer> dropped = droppedGoo(helper);
             helper.assertTrue(expected.getAll().equals(dropped), String.format(WRONG_YIELD, expected.getAll(), dropped));
@@ -147,12 +156,53 @@ public final class UnmakeTests {
                 if (chicken.isRemoved()) {
                     melted.set(true);
                     helper.getLevel().getServer().getPlayerList().remove(player);
-                    assertMeltedIntoGoo(helper);
-                    helper.succeed();
+                    helper.runAfterDelay(UnmakeDrops.MORPH_TICKS + 2L, () -> {
+                        assertMeltedIntoGoo(helper);
+                        helper.succeed();
+                    });
                 }
             });
         }
         helper.runAfterDelay(MOB_HOLD_TICKS + 1L, () -> helper.assertTrue(melted.get(), MOB_STANDS));
+    }
+
+    /**
+     * A mock player holds Unmake at a cobblestone for a few ticks and lets
+     * go: the cobblestone stands in as a melting block while worked and turns
+     * back into cobblestone once left long enough.
+     *
+     * @param helper the gametest helper
+     */
+    public static void unmakeLeftTurnsBack(GameTestHelper helper) {
+        AbilityDefinition unmake = AbilityRegistry.of(helper.getLevel()).getAbility(UNMAKE);
+        helper.assertTrue(unmake != null, ABILITY_REQUIRED);
+        helper.setBlock(CHEAP_POS, Blocks.COBBLESTONE);
+        ServerPlayer player = streamer(helper);
+        KnownRecipes.teachRequires(player, unmake);
+        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.UNSTABLE), UNMAKE.toString(),
+                player.getEyePosition(), player.getEyePosition());
+        for (int held = 1; held <= BRIEF_HOLD_TICKS; held++) {
+            helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, tick));
+        }
+        helper.runAfterDelay(BRIEF_HOLD_TICKS + 1L, () -> assertMeltingFor(helper, CHEAP_POS, Blocks.COBBLESTONE));
+        helper.runAfterDelay(BRIEF_HOLD_TICKS + MeltingBlock.REVERT_TICKS + 2L, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.assertBlockPresent(Blocks.COBBLESTONE, CHEAP_POS);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Asserts a block stands in as a melting block for the block it was.
+     *
+     * @param helper the gametest helper
+     * @param pos    the block, relative
+     * @param was    the block it should stand in for
+     */
+    private static void assertMeltingFor(GameTestHelper helper, BlockPos pos, Block was) {
+        helper.assertBlockPresent(GooBlocks.MELTING_BLOCK.get(), pos);
+        MeltingBlockEntity melting = helper.getBlockEntity(pos, MeltingBlockEntity.class);
+        helper.assertTrue(melting.original().is(was), String.format(NOT_STANDING_IN, was, melting.original()));
     }
 
     /**

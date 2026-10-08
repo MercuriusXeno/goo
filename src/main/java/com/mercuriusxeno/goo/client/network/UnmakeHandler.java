@@ -2,9 +2,14 @@ package com.mercuriusxeno.goo.client.network;
 
 import com.mercuriusxeno.goo.client.ability.MeltingBlocks;
 import com.mercuriusxeno.goo.client.ability.MeltingMobs;
+import com.mercuriusxeno.goo.client.ability.MorphingRemains;
+import com.mercuriusxeno.goo.network.UnmadePayload;
 import com.mercuriusxeno.goo.network.UnmakeMobPayload;
 import com.mercuriusxeno.goo.network.UnmakePayload;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.client.Minecraft;
+import net.minecraft.resources.ResourceKey;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 /**
@@ -29,6 +34,24 @@ public final class UnmakeHandler {
                 return;
             }
             MeltingBlocks.CLIENT.record(payload.pos(), payload.fraction(), mc.level.getGameTime());
+        });
+    }
+
+    /**
+     * Handles the unmade payload on the client thread: the remains begin
+     * morphing into the goo item.
+     *
+     * @param payload the unmade payload
+     * @param context the network context
+     */
+    public static void handleUnmade(UnmadePayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            Minecraft mc = Minecraft.getInstance();
+            ResourceKey<GooTypeDefinition> type = GooTypes.byId(payload.gooTypeId());
+            if (mc.level == null || type == null) {
+                return;
+            }
+            MorphingRemains.CLIENT.begin(payload.at(), type, payload.size(), mc.level.getGameTime());
         });
     }
 

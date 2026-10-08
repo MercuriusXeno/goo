@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.item.GooContents;
-import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.network.ChunkWatchers;
 import com.mercuriusxeno.goo.network.UnmakePayload;
 import com.mercuriusxeno.goo.registry.GooServerState;
@@ -178,10 +177,13 @@ public record TapHost(ServerLevel level, BlockPos landing, Direction face)
         ChunkWatchers.send(level, pos, new UnmakePayload(pos, fraction));
     }
 
+    /**
+     * Removes the block; its remains morph into the goo item, which drops once the morph ends.
+     */
     @Override
     public void unmake(BlockPos pos, GooContents yield) {
         level.removeBlock(pos, false);
         resetDrips();
-        GooStacks.dropAll(yield, level, pos);
+        GooServerState.of(level.getServer()).unmakeDrops().unmade(level, Vec3.atCenterOf(pos), 1f, yield);
     }
 }

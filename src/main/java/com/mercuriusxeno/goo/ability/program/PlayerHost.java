@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.item.GooContents;
-import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.network.ChunkWatchers;
 import com.mercuriusxeno.goo.network.EntityVisuals;
 import com.mercuriusxeno.goo.network.UnmakeMobPayload;
@@ -229,12 +228,14 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
     }
 
     /**
-     * Unmakes a held mob: it leaves the level with no loot and no death, its
-     * goo dropping where it stood.
+     * Unmakes a held mob: it leaves the level with no loot and no death, and
+     * its remains morph into the goo item where it stood.
      */
     @Override
     public void unmake(LivingEntity mob, GooContents yield) {
-        GooStacks.dropAll(yield, level, mob.blockPosition());
+        AABB body = mob.getBoundingBox();
+        GooServerState.of(level.getServer()).unmakeDrops().unmade(level, body.getCenter(),
+                (float) Math.max(body.getXsize(), body.getYsize()), yield);
         mob.discard();
     }
 
@@ -253,15 +254,24 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
                 .advanceBlock(player.getUUID(), pos, level.getServer().getTickCount());
     }
 
+    /**
+     * Swaps the block for its sagging goo copy on the first tick of its melt
+     * and keeps it from turning back while worked, then shows its share
+     * (decision unmake-waves-dissolve-by-crucible-cost).
+     */
     @Override
     public void showUnmaking(BlockPos pos, float fraction) {
+        BlockMelts.work(level, pos);
         ChunkWatchers.send(level, pos, new UnmakePayload(pos, fraction));
     }
 
+    /**
+     * Removes the block; its remains morph into the goo item, which drops once the morph ends.
+     */
     @Override
     public void unmake(BlockPos pos, GooContents yield) {
         level.removeBlock(pos, false);
-        GooStacks.dropAll(yield, level, pos);
+        GooServerState.of(level.getServer()).unmakeDrops().unmade(level, Vec3.atCenterOf(pos), 1f, yield);
     }
 
     @Override
