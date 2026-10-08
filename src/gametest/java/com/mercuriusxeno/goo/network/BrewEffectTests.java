@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.hearts.HeartKind;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
+import com.mercuriusxeno.goo.ability.program.Sight;
 import com.mercuriusxeno.goo.ability.held.HeldEffects;
 import com.mercuriusxeno.goo.ability.nourish.Nourish;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
@@ -41,6 +42,9 @@ public final class BrewEffectTests {
     private static final String SHOULD_LAY = "The %s brew should lay %d %s halves expiring at %d, laid %s %d expiring at %d";
     private static final String SHOULD_HOLD_EFFECT = "The %s brew effect should stand for %d ticks, stands %s";
     private static final String SHOULD_DRAIN_NOTHING = "A brew should drain no goo, drained %d";
+    /** shroom_sight.json's factor. */
+    private static final float SIGHT_FACTOR = 3f;
+    private static final String SHOULD_SEE = "The shroom brew should grant sight at %.1f until %d, granted %.1f until %d";
     private static final String SHOULD_SHOW_NO_PARTICLES = "A brew should show its icon and no particles, stands %s";
     private static final String SHOULD_NOURISH = "The vital brew should nourish until %d, nourishes until %d";
     private static final String SHOULD_RUN_NOTHING = "A brew of a type with no brew ability should lay nothing, laid %s";
@@ -137,6 +141,39 @@ public final class BrewEffectTests {
                 String.format(SHOULD_HOLD_EFFECT, GooTypes.VITAL.identifier(), GooPotions.BREW_DURATION, standing));
         helper.assertTrue(drained == 0, String.format(SHOULD_DRAIN_NOTHING, drained));
         helper.succeed();
+    }
+
+    /**
+     * Drinking the shroom brew grants fungal sight at Sight's factor for an
+     * hour, draining no goo (decision sight-lengthens-shift-and-outlines-fungus).
+     *
+     * @param helper the gametest helper
+     */
+    public static void shroomBrewSightForAnHour(GameTestHelper helper) {
+        ServerPlayer player = drinker(helper, GooTypes.SHROOM);
+        int heldBefore = held(player, GooTypes.SHROOM);
+        long now = player.level().getGameTime();
+
+        drink(player, GooTypes.SHROOM);
+
+        Sight sight = player.getData(GooAttachments.SIGHT);
+        int drained = heldBefore - held(player, GooTypes.SHROOM);
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        long expected = now + GooPotions.BREW_DURATION;
+        helper.assertTrue(sight.factor() == SIGHT_FACTOR && sight.expiresAt() == expected,
+                String.format(SHOULD_SEE, SIGHT_FACTOR, expected, sight.factor(), sight.expiresAt()));
+        helper.assertTrue(drained == 0, String.format(SHOULD_DRAIN_NOTHING, drained));
+        helper.succeed();
+    }
+
+    /**
+     * Drinks the type's potion, as a test player outside this class does.
+     *
+     * @param player  the drinking player
+     * @param gooType the potion's type
+     */
+    static void drinkBrew(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType) {
+        drink(player, gooType);
     }
 
     /**

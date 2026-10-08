@@ -1,0 +1,35 @@
+{
+  "gooType": "shroom",
+  "displayName": "goo.ability.shroom.colonize",
+  "badge": "free",
+  "order": 10,
+  "cost": 1000,
+  "requires": ["minecraft:brown_mushroom", "minecraft:red_mushroom"],
+  "delivery": { "kind": "arc" },
+  "behaviors": [
+    {
+      "type": "colonize",
+      "radius": 3,
+      "otherwise": [
+        {
+          "type": "floors",
+          "radius": 3,
+          "steps": [
+            { "type": "branch", "when": "at_least(1, distance) + chance(0.25)", "then": [{ "type": "place_block", "block": "goo:fungal_bud" }] }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "entities",
+      "radius": 2,
+      "steps": [
+        { "type": "potion", "effect": "goo:mycosis", "duration": 200, "amplifier": 1 },
+        { "type": "spore_host", "burst": "goo:shroom_mycosis", "radius": 3, "duration": 600 }
+      ]
+    },
+    { "type": "particles", "id": "goo:spore", "at": "host", "count": 48, "spread": 1.2, "lift": 0.4, "speed": 0.02 },
+    { "type": "sound", "id": "minecraft:block.fungus.place", "at": "host", "source": "players", "volume": 1, "pitch": 0.8 }
+  ],
+  "tags": []
+}

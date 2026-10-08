@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.ability.colonize.ShroomNetwork;
 import com.mercuriusxeno.goo.block.ability.AbilityBlock;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
@@ -19,6 +20,7 @@ import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.phys.Vec3;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.OptionalDouble;
 
 /**
@@ -42,7 +44,8 @@ import java.util.OptionalDouble;
  */
 public record LandingHost(ServerLevel level, BlockPos cell, Direction face, boolean waterlogged,
                           ResourceKey<GooTypeDefinition> gooType, String abilityId, Vec3 anchor)
-        implements PlacedFaceHost, ExplodeHost, AnchoredWorldHost, PlaceBlockHost, LingerHost, BlockBreakHost {
+        implements PlacedFaceHost, ExplodeHost, AnchoredWorldHost, PlaceBlockHost, LingerHost, BlockBreakHost,
+        ColonizeHost, FloorScanHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
 
@@ -103,5 +106,19 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
         if (level.getBlockEntity(cell) instanceof AbilityBlockEntity be) {
             be.stand(gooType, face, abilityId, steps);
         }
+    }
+
+    /**
+     * Grows from the block the blob struck: the struck block's network
+     * spreads, and a block on no network grows nothing
+     * (decision colonize-blob-grows-the-network).
+     */
+    @Override
+    public boolean colonize(int radius) {
+        BlockPos struck = cell.relative(face.getOpposite());
+        BlockPos landedOn = level.getBlockState(cell).isAir() ? struck : cell;
+        Optional<ShroomNetwork> network = ShroomNetwork.of(level.getBlockState(landedOn));
+        network.ifPresent(grows -> grows.spread(level, struck, radius));
+        return network.isPresent();
     }
 }

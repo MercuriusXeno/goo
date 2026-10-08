@@ -1,9 +1,12 @@
 package com.mercuriusxeno.goo.network;
 
+import com.mercuriusxeno.goo.ability.AbilityBadge;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * A point an ability aims beyond the throw range is capped onto the range
@@ -38,5 +41,12 @@ class GooThrowHandlerTest {
         Vec3 edge = EYE.add(0, 0, GooThrowHandler.MAX_RANGE);
 
         assertSame(edge, GooThrowHandler.capToRange(EYE, edge, GooThrowHandler.MAX_RANGE));
+    }
+
+    @Test
+    void aMobAbilityNamingNoEntityIsRefusedAndOneNamingAnEntityIsNot() {
+        assertTrue(GooThrowHandler.aimsNoMob(AbilityBadge.MOB, false));
+        assertFalse(GooThrowHandler.aimsNoMob(AbilityBadge.MOB, true));
+        assertFalse(GooThrowHandler.aimsNoMob(AbilityBadge.WORLD, false));
     }
 }

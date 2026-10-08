@@ -1,9 +1,17 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.phys.Vec3;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 
@@ -15,7 +23,35 @@ import java.util.function.Consumer;
  */
 final class BlockAnchoredActions {
 
+    private static final String ERR_UNKNOWN_BLOCK = "Place step names block which no registry holds: ";
+
     private BlockAnchoredActions() {
+    }
+
+    /**
+     * Writes a block into the cell beyond a struck face when that cell can be
+     * replaced and the block can stand there, so a drip or a spore never
+     * overwrites a standing block nor leaves one that would break at once.
+     *
+     * @param level   the server level
+     * @param struck  the block whose face was struck
+     * @param face    the struck face
+     * @param block   the block's registry id
+     * @param state   each state property, by name, to its value
+     */
+    static void placeBeyondFace(ServerLevel level, BlockPos struck, Direction face, Identifier block,
+                                Map<String, String> state) {
+        BlockPos cell = struck.relative(face);
+        if (!level.getBlockState(cell).canBeReplaced()) {
+            return;
+        }
+        Block found = BuiltInRegistries.BLOCK.getOptional(block)
+                .orElseThrow(() -> new IllegalArgumentException(ERR_UNKNOWN_BLOCK + block));
+        List<Property.Value<?>> values = StatePropertyWriter.resolve(found.getStateDefinition(), state, block);
+        BlockState written = StatePropertyWriter.write(found.defaultBlockState(), values);
+        if (written.canSurvive(level, cell)) {
+            level.setBlock(cell, written, Block.UPDATE_ALL);
+        }
     }
 
     /**
