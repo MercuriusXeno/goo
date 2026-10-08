@@ -1,25 +1,22 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import com.mercuriusxeno.goo.block.unmake.MeltingBlockEntity;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.item.GooContents;
-import com.mercuriusxeno.goo.network.ChunkWatchers;
-import com.mercuriusxeno.goo.network.EntityVisuals;
-import com.mercuriusxeno.goo.network.UnmakeMobPayload;
-import com.mercuriusxeno.goo.network.UnmakePayload;
+import com.mercuriusxeno.goo.item.GooSourceScanner;
+import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooServerState;
-import com.mercuriusxeno.goo.throwing.StreamCone;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.Mob;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.OptionalInt;
@@ -46,7 +43,7 @@ import java.util.function.Consumer;
  */
 public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt brewDuration,
                          Optional<ChannelAim> channelAim)
-        implements TargetHost, ExplodeHost, EntityScanHost, ChannelHost, UnmakeHost {
+        implements TargetHost, ExplodeHost, EntityScanHost, ChannelHost, SiphonHost {
 
     /** Blocks past the interaction range a channel still breaks at, vanilla's own slack for a block break. */
     private static final double REACH_SLACK = 1.0;
@@ -183,103 +180,75 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
         return player;
     }
 
-    /**
-     * The blocks a stream's channel holds: every standing block whose center
-     * lies in the cone and any part of which the player can see; none outside
-     * a held channel (decision unmake-waves-dissolve-by-crucible-cost).
-     */
     @Override
-    public List<BlockPos> unmadeBlocks() {
-        return channelAim().map(aim -> CalcifyStep.blocksInCone(eye(), aim.aimPoint(), aim.coneDegrees()).stream()
-                .filter(pos -> !level.getBlockState(pos).isAir() && SightLines.seesBlock(level, eye(), pos, player))
-                .toList()).orElse(List.of());
+    public void holdSoup() {
+        soups().hold(player);
+    }
+
+    @Override
+    public boolean readyToSiphon() {
+        Soups.Soup soup = soups().of(player);
+        return soup != null && soup.ready(level.getGameTime());
     }
 
     /**
-     * The mobs a stream's channel holds: every living mob whose middle lies
-     * in the cone and in the player's sight; none outside a held channel
+     * The square on the face under the cursor, its standing blocks in the
+     * player's reach; none outside a held channel or off a face
      * (decision unmake-waves-dissolve-by-crucible-cost).
      */
     @Override
-    public List<LivingEntity> unmadeMobs() {
+    public List<BlockPos> siphonFace(int radius) {
         return channelAim().map(aim -> {
-            Vec3 reach = aim.aimPoint().subtract(eye());
-            double range = reach.length();
-            return level.getEntitiesOfClass(LivingEntity.class, new AABB(eye(), eye()).inflate(range),
-                    living -> living instanceof Mob && living.isAlive() && StreamCone.contains(eye(), reach, range,
-                            aim.coneDegrees(), living.getBoundingBox().getCenter())
-                            && SightLines.seesBody(level, eye(), living.getBoundingBox(), player));
+            BlockPos aimed = aim.aimedBlock(eye());
+            if (level.getBlockState(aimed).isAir()) {
+                return List.<BlockPos>of();
+            }
+            Direction face = SiphonFace.faceOf(aim.aimPoint(), aimed);
+            double reach = player.blockInteractionRange() + REACH_SLACK;
+            return SiphonFace.square(aimed, face.getAxis(), radius).stream()
+                    .filter(pos -> !level.getBlockState(pos).isAir()
+                            && Vec3.atCenterOf(pos).distanceToSqr(eye()) <= reach * reach)
+                    .toList();
         }).orElse(List.of());
     }
 
-    @Override
-    public UnmakeLoot.@Nullable Loot unmadeLoot(LivingEntity mob) {
-        return GooServerState.of(level.getServer()).streamHolds()
-                .lootOf(player.getUUID(), mob.getUUID(), () -> UnmakeLoot.lootOf(level, mob));
-    }
-
-    @Override
-    public int countUnmakeWork(LivingEntity mob) {
-        return GooServerState.of(level.getServer()).streamHolds()
-                .advanceMob(player.getUUID(), mob.getUUID(), level.getServer().getTickCount());
-    }
-
     /**
-     * Pins the mob where it stands, then shows its share.
+     * The goo a block holds, for one the soup can drink: not one already
+     * streaming in, and not one no hand can break.
      */
     @Override
-    public void showUnmaking(LivingEntity mob, float fraction) {
-        UnmakePin.pin(mob);
-        UnmakeLoot.Loot loot = unmadeLoot(mob);
-        EntityVisuals.sendToWatchers(mob, new UnmakeMobPayload(mob.getId(), fraction,
-                loot == null ? Map.of() : loot.goo().getAll()));
-    }
-
-    /**
-     * Unmakes a held mob: it leaves the level with no loot and no death, and
-     * its remains morph into the goo item where it stood.
-     */
-    @Override
-    public void unmake(LivingEntity mob, GooContents yield) {
-        AABB body = mob.getBoundingBox();
-        GooServerState.of(level.getServer()).unmakeDrops().unmade(level, mob.position(),
-                (float) Math.max(body.getXsize(), body.getYsize()), yield);
-        mob.discard();
-    }
-
-    @Override
-    public @Nullable GooValue unmadeValue(BlockPos pos) {
+    public @Nullable GooValue siphonValue(BlockPos pos) {
+        BlockState state = level.getBlockState(pos);
+        Soups.Soup soup = soups().of(player);
+        if (state.is(GooBlocks.MELTING_BLOCK.get()) || state.getDestroySpeed(level, pos) < 0
+                || soup != null && soup.siphoning(pos)) {
+            return null;
+        }
         return ValuedBlocks.valueAt(level, pos);
     }
 
-    /**
-     * Counts this tick's work on the block: a block that can sag is swapped
-     * for a melting block on its first tick and keeps its own progress, which
-     * runs back down once left; one holding contents counts the stream's
-     * hold, starting over once left (decision unmake-waves-dissolve-by-crucible-cost).
-     */
     @Override
-    public int countUnmakeWork(BlockPos pos, int needed) {
-        MeltingBlockEntity melting = BlockMelts.work(level, pos);
-        if (melting != null) {
-            return melting.addWork(needed, level.getGameTime());
+    public boolean burnUnstable(int amount) {
+        if (!GooSourceScanner.hasEnough(player, GooTypes.UNSTABLE, amount)) {
+            return false;
         }
-        return GooServerState.of(level.getServer()).streamHolds()
-                .advanceBlock(player.getUUID(), pos, level.getServer().getTickCount());
+        GooSourceScanner.deplete(player, GooTypes.UNSTABLE, amount);
+        return true;
     }
 
     @Override
-    public void showUnmaking(BlockPos pos, float fraction) {
-        ChunkWatchers.send(level, pos, new UnmakePayload(pos, fraction));
+    public void siphon(BlockPos pos, GooContents goo, int ticks, int nextStart) {
+        Soups.Soup soup = soups().of(player);
+        if (soup == null) {
+            return;
+        }
+        long now = level.getGameTime();
+        BlockMelts.siphon(level, pos, now + ticks);
+        soup.start(pos, new Soups.Siphon(goo, now, now + ticks), now + nextStart);
     }
 
-    /**
-     * Removes the block; its remains morph into the goo item, which drops once the morph ends.
-     */
-    @Override
-    public void unmake(BlockPos pos, GooContents yield) {
-        level.removeBlock(pos, false);
-        GooServerState.of(level.getServer()).unmakeDrops().unmade(level, Vec3.atBottomCenterOf(pos), 1f, yield);
+    private Soups soups() {
+        return GooServerState.of(level.getServer()).soups();
     }
 
     @Override

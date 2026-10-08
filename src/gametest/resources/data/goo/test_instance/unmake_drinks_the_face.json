@@ -1,9 +1,9 @@
 {
   "type": "minecraft:function",
-  "function": "goo:unmake_pins_a_mob",
+  "function": "goo:unmake_drinks_the_face",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
-  "max_ticks": 60,
+  "max_ticks": 80,
   "setup_ticks": 0,
   "required": true
 }

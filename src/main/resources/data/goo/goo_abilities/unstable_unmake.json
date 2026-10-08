@@ -3,13 +3,12 @@
   "displayName": "goo.ability.unstable.unmake",
   "badge": "channeled",
   "order": 30,
-  "cost": 1000,
+  "cost": 0,
   "requires": ["minecraft:dragon_breath"],
-  "delivery": { "kind": "stream", "range": 6, "cone": 40, "ticks_per_charge": 20 },
-  "area": { "shape": "cone", "size": 6.0, "angle": 40.0 },
+  "delivery": { "kind": "self", "ticks_per_charge": 20 },
   "behaviors": [
-    { "type": "unmake", "speed": "charged_speed * charged_efficacy" }
+    { "type": "siphon", "radius": "charged_area * 4 - 3", "speed": "charged_speed" }
   ],
-  "charged": { "area": 1.25, "speed": 2.0, "efficacy": 2.0 },
-  "tags": ["stream"]
+  "charged": { "area": 1.25, "speed": 2.0 },
+  "tags": ["self"]
 }

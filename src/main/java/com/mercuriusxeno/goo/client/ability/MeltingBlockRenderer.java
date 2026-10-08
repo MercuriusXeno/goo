@@ -1,9 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.GooSubmitter;
-import com.mercuriusxeno.goo.client.RenderContext;
 import com.mercuriusxeno.goo.client.ber.MeltMesh;
 import com.mercuriusxeno.goo.client.ber.MeltMeshGoo;
 import com.mercuriusxeno.goo.item.GooStacks;
@@ -18,7 +16,6 @@ import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.util.ARGB;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
@@ -26,15 +23,14 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.SubmitCustomGeometryEvent;
-import org.joml.Vector3f;
-import java.util.List;
 
 /**
  * Draws what Unmake leaves on screen outside the melting block's own
  * renderer: the goo spreading over a block that melts without the sag, a
  * block holding contents or one under a tap; and the remains of anything
- * unmade, a squat blob of the goo it melted into, its types mingled,
- * shrinking and rounding into the goo item where the item then drops.
+ * unmade and of a released soup, a blob of the goo they hold, drawn as the
+ * crucible draws its goo, shrinking and rounding into the goo item where the
+ * item then drops.
  * decision unmake-waves-dissolve-by-crucible-cost
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
@@ -46,8 +42,6 @@ public final class MeltingBlockRenderer {
     static final float ITEM_SIZE = 0.25f;
     /** Where in the morph the goo item starts to show through the remains. */
     static final float ITEM_SHOWS = 0.4f;
-    /** How squat the remains start: their height as a share of their width. */
-    static final float SQUAT = 0.35f;
     /** How far the item entity lifts its model off its feet at rest. */
     private static final float ITEM_LIFT = 0.1f;
     /** The goo an item stack shows the morph holds, the amount only picking its model. */
@@ -58,18 +52,6 @@ public final class MeltingBlockRenderer {
     private static final float SMOOTH_BASE = 3f;
     /** The cubic smoothstep's slope term. */
     private static final float SMOOTH_SLOPE = 2f;
-    /** The most goo types layered over the blob. */
-    private static final int MAX_LAYERS = 3;
-    /** How fine the blob's patches are: field cells across it. */
-    private static final float PATCH_SCALE = 1.6f;
-    /** How far past its share a lesser type's patches cover, so a small share still shows. */
-    private static final float PATCH_COVERAGE = 1.6f;
-    /** How soft a patch's edge is, in field share either side of it. */
-    private static final float PATCH_SOFTNESS = 0.08f;
-    /** How far each further layer stands off the one under it, as a share of the blob's size. */
-    private static final float LAYER_LIFT = 0.01f;
-    private static final long LAYER_SALT = 0x9E37_79B9L;
-
     private MeltingBlockRenderer() {
     }
 
@@ -119,8 +101,8 @@ public final class MeltingBlockRenderer {
     }
 
     /**
-     * Submits one morph: the remains, a squat blob of mingled goo sitting on
-     * the ground, shrink and round toward the goo item's size and fade as the
+     * Submits one morph: the remains, a blob of goo standing on the ground or
+     * hanging where the soup hung, shrink and round toward the goo item's size and fade as the
      * goo item grows in where the item entity will stand.
      *
      * @param event the custom geometry submit event
@@ -130,66 +112,19 @@ public final class MeltingBlockRenderer {
     private static void submitMorph(SubmitCustomGeometryEvent event, ClientLevel level, MorphingRemains.Morph morph) {
         float progress = morph.progress();
         float width = morph.size() + (ITEM_SIZE - morph.size()) * progress;
-        float height = width * (SQUAT + (WHOLE - SQUAT) * progress);
+        float height = width * (morph.squat() + (WHOLE - morph.squat()) * progress);
         int alpha = Math.round(GOO_ALPHA * (WHOLE - smoothstep(ITEM_SHOWS, WHOLE, progress)));
-        int light = LevelRenderer.getLightCoords(level, BlockPos.containing(morph.at()));
         Vec3 center = morph.at().add(0, height * HALF, 0).subtract(event.getLevelRenderState().cameraRenderState.pos);
         PoseStack poseStack = event.getPoseStack();
         poseStack.pushPose();
         poseStack.translate(center.x, center.y, center.z);
         poseStack.scale(width * HALF, height * HALF, width * HALF);
-        GooSubmitter.submitBody(poseStack, event.getSubmitNodeCollector(), light,
-                ctx -> emitBlob(ctx, morph.goo(), alpha));
+        GooBall.submit(poseStack, event.getSubmitNodeCollector(), morph.goo(), alpha);
         poseStack.popPose();
         float itemScale = smoothstep(ITEM_SHOWS, WHOLE, progress);
-        ResourceKey<GooTypeDefinition> itemType = morph.goo().largest();
-        if (itemScale > 0f && itemType != null) {
+        if (itemScale > 0f && !morph.goo().isEmpty()) {
+            ResourceKey<GooTypeDefinition> itemType = morph.goo().largestType();
             submitMorphItem(event, level, morph, itemType, itemScale);
-        }
-    }
-
-    /**
-     * Emits a unit blob of mingled goo: a sphere of its largest type, the
-     * others laid over it in soft patches by their shares, each type's sprite
-     * wrapped about it mirrored across its back so the wrap leaves no seam.
-     *
-     * @param ctx   the render context, its pose scaled to the blob
-     * @param goo   the goo
-     * @param alpha the blob's alpha
-     */
-    private static void emitBlob(RenderContext ctx, MingledGoo goo, int alpha) {
-        int layers = Math.min(goo.types().size(), MAX_LAYERS);
-        for (int layer = 0; layer < layers; layer++) {
-            emitBlobLayer(ctx, goo.types().get(layer), layer, goo.share(layer), alpha);
-        }
-    }
-
-    /**
-     * Emits one goo type's layer of the blob, each vertex as opaque as the
-     * layer is there: the base everywhere, a lesser type only in its patches.
-     *
-     * @param ctx   the render context, its pose scaled to the blob
-     * @param type  the goo type
-     * @param index its index, largest first
-     * @param share its share of the whole
-     * @param alpha the blob's alpha
-     */
-    private static void emitBlobLayer(RenderContext ctx, ResourceKey<GooTypeDefinition> type, int index, float share,
-                                      int alpha) {
-        List<Vector3f> mesh = NetherSphereVisual.unitSphereMesh();
-        GooRenderUtil.UvRect sprite = GooSubmitter.spriteUv(GooRenderUtil.lookupFluidSprite(type));
-        float scale = WHOLE + LAYER_LIFT * index;
-        float edge = WHOLE - share * PATCH_COVERAGE;
-        for (Vector3f point : mesh) {
-            float cover = index == 0 ? WHOLE : smoothstep(edge - PATCH_SOFTNESS, edge + PATCH_SOFTNESS,
-                    (float) MeltMeshNoise.smooth(point.x() * PATCH_SCALE, point.y() * PATCH_SCALE,
-                            point.z() * PATCH_SCALE, index * LAYER_SALT));
-            float u = (float) (Math.abs(Math.atan2(point.z(), point.x())) / Math.PI);
-            float v = point.y() * HALF + HALF;
-            ctx.vertexColored(ARGB.color(Math.round(alpha * cover), GooRenderUtil.OPAQUE_WHITE),
-                    point.x() * scale, point.y() * scale, point.z() * scale,
-                    sprite.u0() + (sprite.u1() - sprite.u0()) * u, sprite.v0() + (sprite.v1() - sprite.v0()) * v,
-                    point.x(), point.y(), point.z());
         }
     }
 

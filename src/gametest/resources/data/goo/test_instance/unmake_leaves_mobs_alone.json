@@ -1,9 +1,9 @@
 {
   "type": "minecraft:function",
-  "function": "goo:unmake_left_turns_back",
+  "function": "goo:unmake_leaves_mobs_alone",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
-  "max_ticks": 60,
+  "max_ticks": 80,
   "setup_ticks": 0,
   "required": true
 }

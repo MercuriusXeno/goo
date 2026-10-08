@@ -26,6 +26,8 @@ public final class UnmakeDrops {
 
     /** Ticks the remains take to morph into the goo item before it drops, half a second. */
     public static final int MORPH_TICKS = 10;
+    /** How squat a melted block's remains start on the ground: their height as a share of their width. */
+    public static final float GROUND_SQUAT = 0.35f;
 
     private record Pending(ServerLevel level, Vec3 at, GooContents goo, int dueTick) {
     }
@@ -39,13 +41,14 @@ public final class UnmakeDrops {
      * @param level the server level
      * @param at    where the remains stand and the goo drops
      * @param size  how big the remains start, in blocks
+     * @param squat how squat they start: their height as a share of their width, 1 round
      * @param goo   the goo the unmade thing leaves
      */
-    public void unmade(ServerLevel level, Vec3 at, float size, GooContents goo) {
+    public void unmade(ServerLevel level, Vec3 at, float size, float squat, GooContents goo) {
         if (goo.isEmpty()) {
             return;
         }
-        ChunkWatchers.send(level, BlockPos.containing(at), new UnmadePayload(at, goo.getAll(), size));
+        ChunkWatchers.send(level, BlockPos.containing(at), new UnmadePayload(at, goo.getAll(), size, squat));
         pending.add(new Pending(level, at, goo, level.getServer().getTickCount() + MORPH_TICKS));
     }
 

@@ -148,11 +148,10 @@ public final class GooTestFunctions {
     private static final String BLAST_HIDDEN_UNTIL_GUNPOWDER = "blast_hidden_until_gunpowder";
     private static final String LURKER_PULSES_THEN_EXPLODES = "lurker_pulses_then_explodes";
     private static final String LURKER_ANSWERS_A_PLAYER = "lurker_answers_a_player";
-    private static final String UNMAKE_CHEAP_BEFORE_DEAR = "unmake_cheap_before_dear";
+    private static final String UNMAKE_DRINKS_THE_FACE = "unmake_drinks_the_face";
+    private static final String UNMAKE_FINISHES_WHAT_IT_STARTS = "unmake_finishes_what_it_starts";
+    private static final String UNMAKE_LEAVES_MOBS_ALONE = "unmake_leaves_mobs_alone";
     private static final String UNMAKE_TAP_DISSOLVES_BELOW = "unmake_tap_dissolves_below";
-    private static final String UNMAKE_MELTS_A_MOB = "unmake_melts_a_mob";
-    private static final String UNMAKE_LEFT_TURNS_BACK = "unmake_left_turns_back";
-    private static final String UNMAKE_PINS_A_MOB = "unmake_pins_a_mob";
     private static final String CHARGED_LENGTHENS_THE_STREAM = "charged_lengthens_the_stream";
     private static final String UNSTABLE_BREW_CHARGES_FOR_AN_HOUR = "unstable_brew_charges_for_an_hour";
 
@@ -894,11 +893,10 @@ public final class GooTestFunctions {
         reg(r, BLAST_HIDDEN_UNTIL_GUNPOWDER, BlastGateTests::blastHiddenUntilGunpowder);
         reg(r, LURKER_PULSES_THEN_EXPLODES, LurkerTests::lurkerPulsesThenExplodes);
         reg(r, LURKER_ANSWERS_A_PLAYER, LurkerTests::lurkerAnswersAPlayer);
-        reg(r, UNMAKE_CHEAP_BEFORE_DEAR, UnmakeTests::unmakeCheapBeforeDear);
+        reg(r, UNMAKE_DRINKS_THE_FACE, UnmakeTests::unmakeDrinksTheFace);
+        reg(r, UNMAKE_FINISHES_WHAT_IT_STARTS, UnmakeTests::unmakeFinishesWhatItStarts);
+        reg(r, UNMAKE_LEAVES_MOBS_ALONE, UnmakeTests::unmakeLeavesMobsAlone);
         reg(r, UNMAKE_TAP_DISSOLVES_BELOW, UnmakeTapTests::unmakeTapDissolvesBelow);
-        reg(r, UNMAKE_MELTS_A_MOB, UnmakeTests::unmakeMeltsAMob);
-        reg(r, UNMAKE_LEFT_TURNS_BACK, UnmakeTests::unmakeLeftTurnsBack);
-        reg(r, UNMAKE_PINS_A_MOB, UnmakeTests::unmakePinsAMob);
         reg(r, CHARGED_LENGTHENS_THE_STREAM, ChargedTests::chargedLengthensTheStream);
         reg(r, UNSTABLE_BREW_CHARGES_FOR_AN_HOUR, BrewEffectTests::unstableBrewChargesForAnHour);
     }

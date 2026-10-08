@@ -31,8 +31,11 @@ class AbilityBadgeTest {
             "vital_nourish", "unstable_charged");
     /** Blast, the shipped free ability (decision badge-vocabulary-gains-free-prism-tap-brew). */
     private static final List<String> SHIPPED_FREE = List.of("unstable_explode", "rock_crush");
-    /** Self deliveries run each held tick on the player (decision flatten-disc-cursor-breaks-above-the-plane). */
-    private static final List<String> SHIPPED_SELF_CHANNELS = List.of("rock_flatten");
+    /**
+     * Self deliveries run each held tick on the player (decisions flatten-disc-cursor-breaks-above-the-plane,
+     * unmake-waves-dissolve-by-crucible-cost).
+     */
+    private static final List<String> SHIPPED_SELF_CHANNELS = List.of("rock_flatten", "unstable_unmake");
 
     @ParameterizedTest
     @CsvSource({"world, WORLD", "mob, MOB", "self, SELF", "channeled, CHANNELED", "brew, BREW",

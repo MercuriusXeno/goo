@@ -3,266 +3,176 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.GooConfig;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.program.SiphonFace;
+import com.mercuriusxeno.goo.ability.program.SiphonRule;
+import com.mercuriusxeno.goo.ability.program.Soups;
 import com.mercuriusxeno.goo.ability.program.UnmakeDrops;
-import com.mercuriusxeno.goo.ability.program.UnmakeRule;
-import com.mercuriusxeno.goo.block.unmake.MeltingBlock;
-import com.mercuriusxeno.goo.block.unmake.MeltingBlockEntity;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.data.GooValues;
-import com.mercuriusxeno.goo.data.IGooValueLookup;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooContents;
+import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.GooStacks;
-import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Gametests for Unmake: a stream held at two cobblestones in a line and a
- * diamond block melts the nearer cobblestone on the very tick its crucible
- * value's work is done, drops the share of its goo the ability yields, and
- * leaves the cobblestone it hid and the dearer diamond block standing; a
- * stream held at a chicken melts it into the goo of its loot.
+ * Gametests for Unmake's soup: a hold at a cobblestone wall drinks the 3x3 on
+ * the aimed face, burning twice the unstable crucible's fuel for each block,
+ * and once released the soup turns into goo items holding the nine blocks'
+ * full goo; a block that started siphoning goes until it is done though the
+ * cursor leaves it; and a mob at the cursor is left alone.
  * decision unmake-waves-dissolve-by-crucible-cost
  */
 public final class UnmakeTests {
 
     private static final Identifier UNMAKE = Identifier.parse("goo:unstable_unmake");
     private static final BlockPos STAND_POS = new BlockPos(1, 1, 3);
-    /** Three blocks east at eye height, on the look's axis. */
-    private static final BlockPos CHEAP_POS = new BlockPos(4, 2, 3);
-    /** Right behind the first cobblestone along the look, hidden from the player by it. */
-    private static final BlockPos BEHIND_POS = CHEAP_POS.east();
-    /** Four blocks east and one south at eye height, inside the cone beside the cobblestone. */
-    private static final BlockPos DEAR_POS = new BlockPos(5, 2, 4);
+    /** Three blocks east at eye height, the middle of the wall. */
+    private static final BlockPos AIMED_POS = new BlockPos(4, 2, 3);
     /** The yaw a player faces east, toward +x, at. */
     private static final float FACING_EAST = -90f;
-    /** A little above level, so the cone clears the floor. */
-    private static final float LOOKING_UP = -5f;
-    /** unstable_unmake.json's work_per_goo and yield. */
-    private static final int HOLD_TICKS = 50;
-    private static final int HELD_GOO = 25;
-    private static final double DROP_REACH = 2;
+    private static final double FACE_MIDDLE = 0.5;
+    /** The blocks a 3x3 face holds. */
+    private static final int FACE_BLOCKS = 9;
+    /** A hold long enough to drink the whole face: every start, then the last block's siphon, with slack. */
+    private static final int DRINK_TICKS = FACE_BLOCKS * SiphonRule.START_INTERVAL_TICKS + SiphonRule.SIPHON_TICKS + 2;
+    /** Ticks past a hold's end until the soup's items have dropped. */
+    private static final int RELEASE_TICKS = Soups.HOLD_GRACE_TICKS + UnmakeDrops.MORPH_TICKS + 4;
+    private static final double DROP_REACH = 4;
     private static final String ABILITY_REQUIRED = "Ability registry must hold unstable_unmake";
-    private static final String NOT_DEAR = "The diamond block should take longer to unmake than the hold, needs %d";
-    private static final String GONE_EARLY = "The cobblestone should stand one tick short of its work, %d ticks";
-    private static final String NOT_GONE = "The cobblestone should be gone once its work of %d ticks is done";
-    private static final String HOLD_TOO_LONG = "The hold should end before the hidden cobblestone, seen only once "
-            + "the first melts at %d ticks, could melt too";
-    /** The longest the chicken test holds, past a chicken's loot work at Unmake's rate. */
-    private static final int MOB_HOLD_TICKS = 400;
-    private static final String MOB_STANDS = "The chicken should melt within the hold";
-    private static final String MOB_DROPPED_ITEMS = "A melted chicken should drop none of its items";
-    private static final String MOB_LEFT_NO_GOO = "A melted chicken should leave goo of its loot";
-    /** The shove a held cow is given each tick, which the pin must stop. */
-    private static final Vec3 SHOVE = new Vec3(0, 0, 0.3);
-    private static final String MOB_NOT_STOPPED = "A held mob should be stopped where it stands";
-    private static final String MOB_NOT_SLOWED = "A held mob should be too slowed to walk";
-    /** A hold too short to melt a cobblestone, after which it is left. */
-    private static final int BRIEF_HOLD_TICKS = 5;
-    private static final String BEHIND_GONE = "The hidden cobblestone should not melt within the hold";
-    private static final String NOT_STANDING_IN = "The melting block should stand in for %s, stands in for %s";
-    private static final String DEAR_GONE = "The diamond block should still stand after %d ticks";
-    private static final String WRONG_YIELD = "The cobblestone should leave %s, left %s";
+    private static final String STANDS = "The face's block at %s should be drunk within %d ticks";
+    private static final String UNPAID = "The hold should burn exactly twice the unstable crucible's fuel per block";
+    private static final String WRONG_YIELD = "The soup should turn into %s, turned into %s";
+    private static final String UNFINISHED = "A block that started siphoning should go though the cursor leaves it";
+    private static final String NEIGHBOR_GONE = "A block the cursor left before its turn should stand";
+    private static final String MOB_GONE = "A mob at the cursor should be left alone";
 
     private UnmakeTests() {
     }
 
     /**
-     * A mock player holds Unmake at a cobblestone and a diamond block for
-     * forty ticks: the cobblestone stands one tick short of its work and is
-     * gone on that tick, leaving half its goo, while the diamond block stands.
+     * A mock player holding exactly the nine blocks' fuel holds Unmake at the
+     * middle of a cobblestone wall: the 3x3 is drunk, the fuel is spent, and
+     * once released the soup drops goo items holding the nine blocks' full goo.
      *
      * @param helper the gametest helper
      */
-    public static void unmakeCheapBeforeDear(GameTestHelper helper) {
+    public static void unmakeDrinksTheFace(GameTestHelper helper) {
         AbilityDefinition unmake = AbilityRegistry.of(helper.getLevel()).getAbility(UNMAKE);
         helper.assertTrue(unmake != null, ABILITY_REQUIRED);
-        helper.setBlock(CHEAP_POS, Blocks.COBBLESTONE);
-        helper.setBlock(BEHIND_POS, Blocks.COBBLESTONE);
-        helper.setBlock(DEAR_POS, Blocks.DIAMOND_BLOCK);
-        IGooValueLookup values = GooValues.of(helper.getLevel());
-        GooValue cheap = values.lookup(new ItemStack(Blocks.COBBLESTONE));
-        GooValue dear = values.lookup(new ItemStack(Blocks.DIAMOND_BLOCK));
-        double exponent = GooConfig.UNSTABLE_MELT_EXPONENT.get();
-        int cheapWork = UnmakeRule.workToUnmake(cheap.totalGoo(), exponent, 1);
-        int dearWork = UnmakeRule.workToUnmake(dear.totalGoo(), exponent, 1);
-        helper.assertTrue(dearWork > HOLD_TICKS, String.format(NOT_DEAR, dearWork));
-        ServerPlayer player = streamer(helper);
+        List<BlockPos> face = SiphonFace.square(AIMED_POS, Direction.Axis.X, 1);
+        face.forEach(pos -> helper.setBlock(pos, Blocks.COBBLESTONE));
+        GooValue cobblestone = GooValues.of(helper.getLevel()).lookup(new ItemStack(Blocks.COBBLESTONE));
+        int fuel = SiphonRule.fuelFor(cobblestone.totalGoo(), GooConfig.UNSTABLE_MELT_EXPONENT.get(),
+                GooConfig.UNSTABLE_TICKS_PER_MB.get());
+        ServerPlayer player = channeler(helper, FACE_BLOCKS * fuel);
         KnownRecipes.teachRequires(player, unmake);
-        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.UNSTABLE), UNMAKE.toString(),
-                player.getEyePosition(), player.getEyePosition());
-        for (int held = 1; held <= HOLD_TICKS; held++) {
-            int thisTick = held;
-            helper.runAfterDelay(held, () -> {
-                GooStreamHandler.streamTick(player, tick);
-                if (thisTick == cheapWork - 1) {
-                    assertMeltingFor(helper, CHEAP_POS, Blocks.COBBLESTONE);
-                    helper.assertBlockPresent(Blocks.COBBLESTONE, BEHIND_POS);
-                } else if (thisTick == cheapWork) {
-                    helper.assertTrue(helper.getBlockState(CHEAP_POS).isAir(), String.format(NOT_GONE, cheapWork));
-                    helper.assertBlockPresent(Blocks.COBBLESTONE, BEHIND_POS);
-                }
-            });
-        }
-        helper.runAfterDelay(HOLD_TICKS + 1, () -> {
-            helper.getLevel().getServer().getPlayerList().remove(player);
-            assertMeltingFor(helper, DEAR_POS, Blocks.DIAMOND_BLOCK);
-            helper.assertTrue(cheapWork + cheapWork > HOLD_TICKS, String.format(HOLD_TOO_LONG, cheapWork));
-            helper.assertFalse(helper.getBlockState(BEHIND_POS).isAir(), BEHIND_GONE);
-            GooContents expected = cheap.toGooContents();
-            Map<ResourceKey<GooTypeDefinition>, Integer> dropped = droppedGoo(helper);
-            helper.assertTrue(expected.getAll().equals(dropped), String.format(WRONG_YIELD, expected.getAll(), dropped));
-            helper.succeed();
-        });
-    }
-
-    /**
-     * A mock player holds Unmake at a chicken: the chicken melts away within
-     * the hold, leaving goo of its loot and none of its items.
-     *
-     * @param helper the gametest helper
-     */
-    public static void unmakeMeltsAMob(GameTestHelper helper) {
-        AbilityDefinition unmake = AbilityRegistry.of(helper.getLevel()).getAbility(UNMAKE);
-        helper.assertTrue(unmake != null, ABILITY_REQUIRED);
-        Mob chicken = helper.spawnWithNoFreeWill(EntityType.CHICKEN, CHEAP_POS);
-        chicken.setNoGravity(true);
-        ServerPlayer player = streamer(helper);
-        KnownRecipes.teachRequires(player, unmake);
-        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.UNSTABLE), UNMAKE.toString(),
-                player.getEyePosition(), player.getEyePosition());
-        AtomicBoolean melted = new AtomicBoolean();
-        for (int held = 1; held <= MOB_HOLD_TICKS; held++) {
-            helper.runAfterDelay(held, () -> {
-                if (melted.get()) {
-                    return;
-                }
-                GooStreamHandler.streamTick(player, tick);
-                if (chicken.isRemoved()) {
-                    melted.set(true);
-                    helper.getLevel().getServer().getPlayerList().remove(player);
-                    helper.runAfterDelay(UnmakeDrops.MORPH_TICKS + 2L, () -> {
-                        assertMeltedIntoGoo(helper);
-                        helper.succeed();
-                    });
-                }
-            });
-        }
-        helper.runAfterDelay(MOB_HOLD_TICKS + 1L, () -> helper.assertTrue(melted.get(), MOB_STANDS));
-    }
-
-    /**
-     * A mock player holds Unmake at a cow shoved forward every tick: each tick
-     * the stream works it, it ends stopped and too slowed to walk.
-     *
-     * @param helper the gametest helper
-     */
-    public static void unmakePinsAMob(GameTestHelper helper) {
-        AbilityDefinition unmake = AbilityRegistry.of(helper.getLevel()).getAbility(UNMAKE);
-        helper.assertTrue(unmake != null, ABILITY_REQUIRED);
-        Mob cow = helper.spawnWithNoFreeWill(EntityType.COW, CHEAP_POS);
-        cow.setNoGravity(true);
-        ServerPlayer player = streamer(helper);
-        KnownRecipes.teachRequires(player, unmake);
-        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.UNSTABLE), UNMAKE.toString(),
-                player.getEyePosition(), player.getEyePosition());
-        for (int held = 1; held <= BRIEF_HOLD_TICKS; held++) {
-            helper.runAfterDelay(held, () -> {
-                cow.setDeltaMovement(SHOVE);
-                GooStreamHandler.streamTick(player, tick);
-                helper.assertTrue(cow.getDeltaMovement().equals(Vec3.ZERO), MOB_NOT_STOPPED);
-                helper.assertTrue(cow.hasEffect(MobEffects.SLOWNESS), MOB_NOT_SLOWED);
-            });
-        }
-        helper.runAfterDelay(BRIEF_HOLD_TICKS + 1L, () -> {
-            helper.getLevel().getServer().getPlayerList().remove(player);
-            cow.discard();
-            helper.succeed();
-        });
-    }
-
-    /**
-     * A mock player holds Unmake at a cobblestone for a few ticks and lets
-     * go: the cobblestone stands in as a melting block while worked and turns
-     * back into cobblestone once left long enough.
-     *
-     * @param helper the gametest helper
-     */
-    public static void unmakeLeftTurnsBack(GameTestHelper helper) {
-        AbilityDefinition unmake = AbilityRegistry.of(helper.getLevel()).getAbility(UNMAKE);
-        helper.assertTrue(unmake != null, ABILITY_REQUIRED);
-        helper.setBlock(CHEAP_POS, Blocks.COBBLESTONE);
-        ServerPlayer player = streamer(helper);
-        KnownRecipes.teachRequires(player, unmake);
-        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.UNSTABLE), UNMAKE.toString(),
-                player.getEyePosition(), player.getEyePosition());
-        for (int held = 1; held <= BRIEF_HOLD_TICKS; held++) {
+        GooStreamPayload tick = aimedAt(player, westFace(helper, AIMED_POS));
+        for (int held = 1; held <= DRINK_TICKS; held++) {
             helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, tick));
         }
-        helper.runAfterDelay(BRIEF_HOLD_TICKS + 1L, () -> assertMeltingFor(helper, CHEAP_POS, Blocks.COBBLESTONE));
-        helper.runAfterDelay(BRIEF_HOLD_TICKS + 1L + MeltingBlock.IDLE_TICKS, () ->
-                assertMeltingFor(helper, CHEAP_POS, Blocks.COBBLESTONE));
-        helper.runAfterDelay(2L * BRIEF_HOLD_TICKS + MeltingBlock.IDLE_TICKS + 2L, () -> {
+        helper.runAfterDelay(DRINK_TICKS + 1L, () -> {
+            for (BlockPos pos : face) {
+                helper.assertTrue(helper.getBlockState(pos).isAir(), String.format(STANDS, pos, DRINK_TICKS));
+            }
+            helper.assertFalse(GooSourceScanner.hasEnough(player, GooTypes.UNSTABLE, 1), UNPAID);
+        });
+        helper.runAfterDelay(DRINK_TICKS + RELEASE_TICKS, () -> {
             helper.getLevel().getServer().getPlayerList().remove(player);
-            helper.assertBlockPresent(Blocks.COBBLESTONE, CHEAP_POS);
+            Map<ResourceKey<GooTypeDefinition>, Integer> expected = new HashMap<>();
+            cobblestone.getAll().forEach((type, amount) -> expected.put(type, amount * FACE_BLOCKS));
+            Map<ResourceKey<GooTypeDefinition>, Integer> dropped = droppedGoo(helper);
+            helper.assertTrue(new GooContents(expected).getAll().equals(dropped),
+                    String.format(WRONG_YIELD, expected, dropped));
             helper.succeed();
         });
     }
 
     /**
-     * Asserts a block stands in as a melting block for the block it was.
+     * A mock player holds Unmake at a cobblestone with another above it for
+     * one tick, then looks away into the air: the one above, on the square's
+     * ring, started first and is drunk anyway, and the aimed one, whose turn
+     * never came, stands.
      *
      * @param helper the gametest helper
-     * @param pos    the block, relative
-     * @param was    the block it should stand in for
      */
-    private static void assertMeltingFor(GameTestHelper helper, BlockPos pos, Block was) {
-        helper.assertBlockPresent(GooBlocks.MELTING_BLOCK.get(), pos);
-        MeltingBlockEntity melting = helper.getBlockEntity(pos, MeltingBlockEntity.class);
-        helper.assertTrue(melting.original().is(was), String.format(NOT_STANDING_IN, was, melting.original()));
+    public static void unmakeFinishesWhatItStarts(GameTestHelper helper) {
+        AbilityDefinition unmake = AbilityRegistry.of(helper.getLevel()).getAbility(UNMAKE);
+        helper.assertTrue(unmake != null, ABILITY_REQUIRED);
+        BlockPos beside = AIMED_POS.above();
+        helper.setBlock(AIMED_POS, Blocks.COBBLESTONE);
+        helper.setBlock(beside, Blocks.COBBLESTONE);
+        ServerPlayer player = channeler(helper, GooStacks.THOUSAND);
+        KnownRecipes.teachRequires(player, unmake);
+        GooStreamPayload aimed = aimedAt(player, westFace(helper, AIMED_POS));
+        GooStreamPayload away = aimedAt(player, player.getEyePosition().add(0, 3, 0));
+        helper.runAfterDelay(1, () -> GooStreamHandler.streamTick(player, aimed));
+        for (int held = 2; held <= SiphonRule.SIPHON_TICKS + 2; held++) {
+            helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, away));
+        }
+        helper.runAfterDelay(SiphonRule.SIPHON_TICKS + 3L, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.assertTrue(helper.getBlockState(beside).isAir(), UNFINISHED);
+            helper.assertTrue(helper.getBlockState(AIMED_POS).is(Blocks.COBBLESTONE), NEIGHBOR_GONE);
+            helper.succeed();
+        });
     }
 
     /**
-     * Asserts the chicken left goo and none of its items.
+     * A mock player holds Unmake at a chicken: the soup drinks blocks only,
+     * and the chicken stands.
      *
      * @param helper the gametest helper
      */
-    private static void assertMeltedIntoGoo(GameTestHelper helper) {
-        AABB reach = new AABB(helper.absolutePos(CHEAP_POS)).inflate(DROP_REACH);
-        boolean itemsLeft = helper.getLevel().getEntitiesOfClass(ItemEntity.class, reach).stream()
-                .anyMatch(item -> GooStacks.keyOf(item.getItem()) == null);
-        helper.assertFalse(itemsLeft, MOB_DROPPED_ITEMS);
-        helper.assertFalse(droppedGoo(helper).isEmpty(), MOB_LEFT_NO_GOO);
+    public static void unmakeLeavesMobsAlone(GameTestHelper helper) {
+        AbilityDefinition unmake = AbilityRegistry.of(helper.getLevel()).getAbility(UNMAKE);
+        helper.assertTrue(unmake != null, ABILITY_REQUIRED);
+        Mob chicken = helper.spawnWithNoFreeWill(EntityType.CHICKEN, AIMED_POS);
+        chicken.setNoGravity(true);
+        ServerPlayer player = channeler(helper, GooStacks.THOUSAND);
+        KnownRecipes.teachRequires(player, unmake);
+        GooStreamPayload tick = aimedAt(player, chicken.getBoundingBox().getCenter());
+        for (int held = 1; held <= DRINK_TICKS; held++) {
+            helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, tick));
+        }
+        helper.runAfterDelay(DRINK_TICKS + 1L, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.assertTrue(chicken.isAlive() && !chicken.isRemoved(), MOB_GONE);
+            helper.succeed();
+        });
     }
 
-    /**
-     * Sums the goo dropped near the cobblestone, by type.
-     *
-     * @param helper the gametest helper
-     * @return the dropped goo per type
-     */
+    private static GooStreamPayload aimedAt(ServerPlayer player, Vec3 aimPoint) {
+        return GooStreamPayload.unplaned(GooTypes.id(GooTypes.UNSTABLE), UNMAKE.toString(), player.getEyePosition(),
+                aimPoint);
+    }
+
+    private static Vec3 westFace(GameTestHelper helper, BlockPos relative) {
+        BlockPos pos = helper.absolutePos(relative);
+        return new Vec3(pos.getX(), pos.getY() + FACE_MIDDLE, pos.getZ() + FACE_MIDDLE);
+    }
+
     private static Map<ResourceKey<GooTypeDefinition>, Integer> droppedGoo(GameTestHelper helper) {
-        AABB reach = new AABB(helper.absolutePos(CHEAP_POS)).inflate(DROP_REACH);
+        AABB reach = new AABB(helper.absolutePos(AIMED_POS)).inflate(DROP_REACH);
         Map<ResourceKey<GooTypeDefinition>, Integer> dropped = new HashMap<>();
         for (ItemEntity item : helper.getLevel().getEntitiesOfClass(ItemEntity.class, reach)) {
             ResourceKey<GooTypeDefinition> type = GooStacks.keyOf(item.getItem());
@@ -274,14 +184,13 @@ public final class UnmakeTests {
     }
 
     @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
-    private static ServerPlayer streamer(GameTestHelper helper) {
+    private static ServerPlayer channeler(GameTestHelper helper, int unstable) {
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(STAND_POS));
         player.setPos(stand.x, stand.y, stand.z);
         player.setYRot(FACING_EAST);
-        player.setXRot(LOOKING_UP);
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.GOO_GLOVE.get()));
-        player.getInventory().add(GooStacks.createForOutput(GooTypes.UNSTABLE, HELD_GOO * GooStacks.THOUSAND));
+        player.getInventory().add(GooStacks.createForOutput(GooTypes.UNSTABLE, unstable));
         return player;
     }
 }

@@ -1,14 +1,8 @@
 package com.mercuriusxeno.goo.network;
 
-import com.mercuriusxeno.goo.ability.program.UnmakeLoot;
-import com.mercuriusxeno.goo.data.GooValue;
-import com.mercuriusxeno.goo.type.GooTypes;
-import net.minecraft.core.BlockPos;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -61,99 +55,6 @@ class StreamHoldsTest {
     }
 
     /** Each block a stream holds counts its own hold (decision unmake-waves-dissolve-by-crucible-cost). */
-    @Nested
-    class AdvanceBlock {
-
-        private static final BlockPos NEAR = new BlockPos(1, 2, 3);
-        private static final BlockPos FAR = new BlockPos(4, 5, 6);
-
-        @Test
-        void aBlockHeldEachTickCountsOn() {
-            StreamHolds holds = new StreamHolds();
-            holds.advanceBlock(PLAYER, NEAR, 100);
-            holds.advanceBlock(PLAYER, NEAR, 101);
-            assertEquals(3, holds.advanceBlock(PLAYER, NEAR, 102));
-        }
-
-        @Test
-        void aBlockTheStreamLeftStartsOver() {
-            StreamHolds holds = new StreamHolds();
-            holds.advanceBlock(PLAYER, NEAR, 100);
-            holds.advanceBlock(PLAYER, NEAR, 101);
-            holds.advanceBlock(PLAYER, FAR, 102);
-            assertEquals(1, holds.advanceBlock(PLAYER, NEAR, 102 + StreamHolds.HOLD_GRACE_TICKS));
-        }
-
-        /** Two stream ticks landing in one server tick leave the next empty; the hold carries over it. */
-        @Test
-        void aServerTickTheStreamMissedKeepsTheHold() {
-            StreamHolds holds = new StreamHolds();
-            holds.advanceBlock(PLAYER, NEAR, 100);
-            assertEquals(2, holds.advanceBlock(PLAYER, NEAR, 102));
-        }
-
-        @Test
-        void eachBlockAndPlayerHoldsOnItsOwn() {
-            StreamHolds holds = new StreamHolds();
-            holds.advanceBlock(PLAYER, NEAR, 100);
-            holds.advanceBlock(PLAYER, NEAR, 101);
-            assertEquals(1, holds.advanceBlock(PLAYER, FAR, 101));
-            assertEquals(1, holds.advanceBlock(OTHER, NEAR, 101));
-        }
-
-        @Test
-        void clearDropsEveryBlockHold() {
-            StreamHolds holds = new StreamHolds();
-            holds.advanceBlock(PLAYER, NEAR, 100);
-            holds.clear();
-            assertEquals(1, holds.advanceBlock(PLAYER, NEAR, 101));
-        }
-    }
-
-    /** A held mob counts its own hold and keeps the loot it rolled (decision unmake-waves-dissolve-by-crucible-cost). */
-    @Nested
-    class AdvanceMob {
-
-        private static final UUID CHICKEN = new UUID(5, 6);
-        private final UnmakeLoot.Loot loot = new UnmakeLoot.Loot(new GooValue(Map.of(GooTypes.VITAL, 100)), 100);
-
-        @Test
-        void aMobHeldEachTickCountsOn() {
-            StreamHolds holds = new StreamHolds();
-            holds.advanceMob(PLAYER, CHICKEN, 100);
-            assertEquals(2, holds.advanceMob(PLAYER, CHICKEN, 101));
-        }
-
-        @Test
-        void theLootRollsOnceForTheHold() {
-            StreamHolds holds = new StreamHolds();
-            AtomicInteger rolls = new AtomicInteger();
-            holds.lootOf(PLAYER, CHICKEN, () -> roll(rolls));
-            holds.advanceMob(PLAYER, CHICKEN, 100);
-
-            assertEquals(loot, holds.lootOf(PLAYER, CHICKEN, () -> roll(rolls)));
-            assertEquals(1, rolls.get());
-        }
-
-        @Test
-        void aMobTheStreamLeftRollsItsLootAnew() {
-            StreamHolds holds = new StreamHolds();
-            AtomicInteger rolls = new AtomicInteger();
-            holds.lootOf(PLAYER, CHICKEN, () -> roll(rolls));
-            holds.advanceMob(PLAYER, CHICKEN, 100);
-            holds.advanceMob(PLAYER, new UUID(7, 8), 101 + StreamHolds.HOLD_GRACE_TICKS);
-
-            holds.lootOf(PLAYER, CHICKEN, () -> roll(rolls));
-
-            assertEquals(2, rolls.get());
-        }
-
-        private UnmakeLoot.Loot roll(AtomicInteger rolls) {
-            rolls.incrementAndGet();
-            return loot;
-        }
-    }
-
     @Nested
     class ShareAt {
 

@@ -4,7 +4,6 @@ import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.entity.LivingEntity;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.List;
@@ -23,10 +22,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * An unmake melts what its host holds in the unstable crucible's own time for
- * it, each item stack a unit and the slowest deciding, and gives back the
- * full goo (decisions unmake-waves-dissolve-by-crucible-cost,
- * unmake-drip-dissolves-the-block-below).
+ * The tap's unmake melts the block under it in the unstable crucible's own
+ * time for it and gives back the full goo
+ * (decision unmake-drip-dissolves-the-block-below).
  */
 class UnmakeStepTest {
 
@@ -123,62 +121,14 @@ class UnmakeStepTest {
     }
 
     @Nested
-    class Mobs {
-
-        private final LivingEntity cow = mock(LivingEntity.class);
-        /** Two beef as one 3648 mB stack and a 4608 mB leather: the leather melts slowest, in 68 ticks. */
-        private final UnmakeLoot.Loot loot = new UnmakeLoot.Loot(
-                new GooValue(Map.of(GooTypes.VITAL, 5256, GooTypes.NETHER, 3000)), 4608);
-
-        private UnmakeHost holdingMob(UnmakeLoot.Loot held, int progress) {
-            UnmakeHost host = mock(UnmakeHost.class);
-            when(host.meltExponent()).thenReturn(UNSTABLE_EXPONENT);
-            when(host.unmadeBlocks()).thenReturn(List.of());
-            when(host.unmadeMobs()).thenReturn(List.of(cow));
-            when(host.unmadeLoot(cow)).thenReturn(held);
-            when(host.countUnmakeWork(cow)).thenReturn(progress);
-            return host;
-        }
-
-        @Test
-        void theSlowestStackDecidesAndTheMobLeavesAllItsGoo() {
-            UnmakeHost host = holdingMob(loot, 68);
-
-            assertTrue(UNMAKE.tick(new StepContext(host, 0, 0)));
-
-            verify(host).unmake(cow, loot.goo().toGooContents());
-        }
-
-        @Test
-        void shortOfTheSlowestStackTheMobShowsItsShare() {
-            UnmakeHost host = holdingMob(loot, 34);
-
-            assertTrue(UNMAKE.tick(new StepContext(host, 0, 0)));
-
-            verify(host).showUnmaking(cow, 34f / 68);
-            verify(host, never()).unmake(any(LivingEntity.class), any());
-        }
-
-        @Test
-        void aMobWhoseLootIsWorthNothingStands() {
-            UnmakeHost host = holdingMob(null, 1000);
-
-            assertTrue(UNMAKE.tick(new StepContext(host, 0, 0)));
-
-            verify(host, never()).unmake(any(LivingEntity.class), any());
-            verify(host, never()).showUnmaking(any(LivingEntity.class), anyFloat());
-        }
-    }
-
-    @Nested
     class Hosts {
 
         @Test
-        void theStreamingPlayerAndTheTapHostAnUnmakeAndTheStruckEntityDoesNot() {
+        void onlyTheTapHostsAnUnmake() {
             List<Step> unmake = List.of(UNMAKE);
 
-            assertDoesNotThrow(() -> ProgramBehavior.forHost(unmake, HostKind.PLAYER));
             assertDoesNotThrow(() -> ProgramBehavior.forHost(unmake, HostKind.TAP));
+            assertThrows(ProgramLoadException.class, () -> ProgramBehavior.forHost(unmake, HostKind.PLAYER));
             assertThrows(ProgramLoadException.class, () -> ProgramBehavior.forHost(unmake, HostKind.ENTITY));
         }
     }
