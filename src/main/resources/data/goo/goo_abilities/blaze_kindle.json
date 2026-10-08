@@ -3,11 +3,11 @@
   "displayName": "goo.ability.blaze.kindle",
   "badge": "brew",
   "order": 40,
-  "cost": 1000,
+  "upkeep": 1,
   "requires": ["minecraft:magma_cream"],
   "delivery": { "kind": "self" },
   "behaviors": [
-    { "type": "heart_overlay", "kind": "kindle", "duration": 1200 },
+    { "type": "heart_overlay", "kind": "kindle" },
     { "type": "sound", "id": "minecraft:item.firecharge.use", "at": "target", "source": "players", "volume": 1, "pitch": 1 }
   ],
   "tags": ["self"]

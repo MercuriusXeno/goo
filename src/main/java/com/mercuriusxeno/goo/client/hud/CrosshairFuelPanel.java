@@ -22,7 +22,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 import java.util.List;
-import java.util.OptionalInt;
+import java.util.Optional;
 
 /**
  * A nine-slice panel at the bottom right of the screen while a glove with a
@@ -72,9 +72,22 @@ public final class CrosshairFuelPanel {
      * @return the row
      */
     public static FuelRow fuelRow(ItemStack source, ResourceKey<GooTypeDefinition> type, int held, int cost) {
+        return fuelRow(source, type, held, GooFormat.formatAmount(cost));
+    }
+
+    /**
+     * Builds the panel's row from the first source and the aimed cost as
+     * already formatted, a held effect's reading "20/s".
+     *
+     * @param source    the stack the throw deducts from first, or empty
+     * @param type      the selected goo type
+     * @param held      the amount the source holds of the type
+     * @param costLabel the throw's cost at the aimed target, formatted
+     * @return the row
+     */
+    public static FuelRow fuelRow(ItemStack source, ResourceKey<GooTypeDefinition> type, int held, String costLabel) {
         // hud-amounts-read-through-goo-format: the machine panels' goo convention
-        return new FuelRow(source, type, GooFormat.formatAmount(held),
-                COST_PREFIX + GooFormat.formatAmount(cost));
+        return new FuelRow(source, type, GooFormat.formatAmount(held), COST_PREFIX + costLabel);
     }
 
     /**
@@ -98,12 +111,12 @@ public final class CrosshairFuelPanel {
     private static void renderFor(GuiGraphicsExtractor graphics, Font font, LocalPlayer player) {
         GloveSelection selection = GloveThrowSender.heldSelection(player);
         ResourceKey<GooTypeDefinition> type = selection == null ? null : selection.getGooType();
-        OptionalInt cost = GloveThrowSender.aimedThrowCost(player);
+        Optional<String> cost = GloveThrowSender.aimedCostLabel(player);
         if (type == null || cost.isEmpty()) {
             return;
         }
         ItemStack source = GooSourceScanner.firstSource(player, type);
-        FuelRow row = fuelRow(source, type, GooSourceScanner.volumeIn(source, type), cost.getAsInt());
+        FuelRow row = fuelRow(source, type, GooSourceScanner.volumeIn(source, type), cost.get());
         List<ItemStack> reagents = GloveThrowSender.aimedReagents(player).stream()
                 .map(reagent -> BuiltInRegistries.ITEM.getValue(reagent).getDefaultInstance())
                 .toList();

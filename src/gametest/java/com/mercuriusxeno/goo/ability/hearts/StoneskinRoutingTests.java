@@ -1,7 +1,14 @@
 package com.mercuriusxeno.goo.ability.hearts;
 
+import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.gametest.KnownRecipes;
+import com.mercuriusxeno.goo.network.SelfDeliveryTests;
+import com.mercuriusxeno.goo.registry.GooAttachments;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.resources.Identifier;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageSources;
@@ -9,6 +16,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.GameType;
 
 /**
  * Gametest for the share of a hit Stoneskin's stone hearts take, routed by
@@ -29,6 +37,12 @@ public final class StoneskinRoutingTests {
     private static final String PICKAXE = "pickaxe";
     private static final String PLAIN = "plain physical";
     private static final String MAGIC = "magic";
+    private static final Identifier ROCK_STONESKIN = Identifier.parse("goo:rock_stoneskin");
+    private static final float SIX_HEALTH = 6f;
+    /** Under natural regeneration's threshold, so only stone could restore health. */
+    private static final int HUNGRY_FOOD = 10;
+    private static final String SHOULD_STONE_FIRST_MISSING = "Stoneskin should prime stone at slot %d, read %s";
+    private static final String SHOULD_KEEP_HEALTH = "Ending Stoneskin should leave health at %.1f, read %.1f";
 
     private StoneskinRoutingTests() {
     }
@@ -49,6 +63,36 @@ public final class StoneskinRoutingTests {
         assertShare(helper, PICKAXE, sources.mobAttack(withPickaxe), HeartOverlayEvents.STONE_BRITTLE_SHARE);
         assertShare(helper, PLAIN, sources.mobAttack(bare), BREW_MULTIPLIER);
         assertShare(helper, MAGIC, sources.magic(), HeartOverlay.WHOLE_HIT);
+        helper.succeed();
+    }
+
+    /**
+     * A player at six health eats Stoneskin: stone primes over the first
+     * missing heart, and ending it leaves real health at six.
+     * heart-effects-crawl-while-held
+     *
+     * @param helper the gametest helper
+     */
+    public static void stoneskinEndsLeavingHealthAsItStood(GameTestHelper helper) {
+        ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.ROCK);
+        player.setGameMode(GameType.SURVIVAL);
+        player.getFoodData().setFoodLevel(HUNGRY_FOOD);
+        player.getFoodData().setSaturation(0);
+        player.setHealth(SIX_HEALTH);
+        KnownRecipes.teachRequires(player, AbilityRegistry.of(player.level()).getAbility(ROCK_STONESKIN));
+        SelfDeliveryTests.invoke(player, GooTypes.ROCK, ROCK_STONESKIN);
+        SelfDeliveryTests.eatThrough(player);
+        HeartOverlay stoned = player.getData(GooAttachments.HEART_OVERLAY);
+        int firstMissing = HeartOverlay.filledSlots(SIX_HEALTH);
+
+        SelfDeliveryTests.invoke(player, GooTypes.ROCK, ROCK_STONESKIN);
+
+        float health = player.getHealth();
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        helper.assertTrue(stoned.shieldAt(firstMissing) == HeartOverlay.FULL_SHIELD
+                        && stoned.shieldHalves() == HeartOverlay.FULL_SHIELD,
+                String.format(SHOULD_STONE_FIRST_MISSING, firstMissing, stoned.shields()));
+        helper.assertTrue(health == SIX_HEALTH, String.format(SHOULD_KEEP_HEALTH, SIX_HEALTH, health));
         helper.succeed();
     }
 

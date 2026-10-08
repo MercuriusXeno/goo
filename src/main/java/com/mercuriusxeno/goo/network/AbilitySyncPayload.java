@@ -33,7 +33,8 @@ import java.util.List;
  * the client prices a throw with (decision flat-cost-per-throw), and the
  * delivery the glove aims and throws by (decision delivery-block-in-ability-json),
  * and the items a throw consumes, so the client refuses a throw it cannot pay
- * (decision ability-json-names-its-reagent).
+ * (decision ability-json-names-its-reagent), and the upkeep a held self +
+ * brew effect pays each tick (decision self-effects-trickle-until-ended).
  *
  * @param entries the list of ability descriptors
  */
@@ -86,7 +87,7 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
                         def.displayName(), def.icon(), def.order(), def.tags(),
                         def.behaviors(), def.cost(),
                         def.delivery(), def.badge(), def.requires(), def.area(), def.indicator(),
-                        def.consumes()))
+                        def.consumes(), def.upkeep()))
                 .toList();
     }
 
@@ -107,6 +108,7 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
             AbilityArea.STREAM_CODEC.encode(buf, e.area);
             IndicatorShowing.STREAM_CODEC.encode(buf, e.indicator);
             ITEMS_CODEC.encode(buf, e.consumes);
+            buf.writeVarInt(e.upkeep);
         }
     }
 
@@ -126,7 +128,7 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
                     STEPS_CODEC.decode(buf), buf.readVarInt(), Delivery.STREAM_CODEC.decode(buf),
                     AbilityBadge.STREAM_CODEC.decode(buf), ITEMS_CODEC.decode(buf),
                     AbilityArea.STREAM_CODEC.decode(buf), IndicatorShowing.STREAM_CODEC.decode(buf),
-                    ITEMS_CODEC.decode(buf)));
+                    ITEMS_CODEC.decode(buf), buf.readVarInt()));
         }
         return new AbilitySyncPayload(entries);
     }
@@ -162,12 +164,39 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
      * @param area        the area the glove draws while right click is held
      * @param indicator   when the ability's indicator shows
      * @param consumes    the items a throw takes, one of each, beside its goo cost
+     * @param upkeep      the mB a held self + brew effect pays each tick it stands
      */
     public record Entry(String abilityId, String gooTypeId, String displayName,
                         String icon, int order, List<String> tags,
                         List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge,
                         List<Identifier> requires, AbilityArea area, IndicatorShowing indicator,
-                        List<Identifier> consumes) {
+                        List<Identifier> consumes, int upkeep) {
+
+        /**
+         * An entry paying no upkeep.
+         *
+         * @param abilityId   the ability resource id string
+         * @param gooTypeId   the goo type id string
+         * @param displayName the translation key
+         * @param icon        the icon texture path override
+         * @param order       the sort order within the type
+         * @param tags        categorical tags
+         * @param behaviors   the ability's step program
+         * @param cost        the mB a throw costs
+         * @param delivery    how the ability leaves the glove
+         * @param badge       the target kind the radial marks on the icon
+         * @param requires    the items a player must know before the radial offers it
+         * @param area        the area the glove draws while right click is held
+         * @param indicator   when the ability's indicator shows
+         * @param consumes    the items a throw takes, one of each
+         */
+        public Entry(String abilityId, String gooTypeId, String displayName, String icon, int order,
+                     List<String> tags, List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge,
+                     List<Identifier> requires, AbilityArea area, IndicatorShowing indicator,
+                     List<Identifier> consumes) {
+            this(abilityId, gooTypeId, displayName, icon, order, tags, behaviors, cost, delivery, badge, requires,
+                    area, indicator, consumes, AbilityDefinition.NO_UPKEEP);
+        }
 
         /**
          * An entry consuming no item beside its goo cost.
