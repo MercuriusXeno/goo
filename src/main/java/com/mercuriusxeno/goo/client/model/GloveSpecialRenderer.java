@@ -1,9 +1,15 @@
 package com.mercuriusxeno.goo.client.model;
 
+import com.mercuriusxeno.goo.ability.GloveSelection;
+import com.mercuriusxeno.goo.ability.program.ShiftStep;
 import com.mercuriusxeno.goo.client.CuboidBounds;
+import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.RenderContext;
+import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
+import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
+import com.mercuriusxeno.goo.client.overlay.FungusNearby;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.registry.GooItems;
@@ -18,6 +24,9 @@ import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.client.resources.model.geometry.QuadCollection;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.util.ARGB;
+import net.minecraft.util.Mth;
+import net.minecraft.util.Util;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
@@ -91,6 +100,24 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
      * Camera-relative position of the held goo's center, captured during
      * item rendering. The arc renderer adds camera.position() to get world space.
      */
+    /** How far the glow's shell swells past the held goo. */
+    private static final float GLOW_SWELL = 1.35f;
+    /** The glow's magenta. */
+    private static final int GLOW_RGB = 0xFF40C0;
+    /** The glow's alpha at full pulse. */
+    private static final float GLOW_ALPHA = 0.55f;
+    /** The glow's pulse, radians per second. */
+    private static final float GLOW_PULSE = 3f;
+    private static final float MILLIS_PER_SECOND = 1000f;
+    private static final float HALF = 0.5f;
+    private static final int OPAQUE = 255;
+    private static final int X = 0;
+    private static final int Y = 1;
+    private static final int Z = 2;
+    /** The shell's six faces, each four of the box's corners. */
+    private static final int[][] SHELL_FACES = {
+        {0, 1, 2, 3}, {5, 4, 7, 6}, {4, 0, 3, 7}, {1, 5, 6, 2}, {3, 2, 6, 7}, {4, 5, 1, 0}
+    };
     private static volatile Vec3 gooCenterCamRel;
     /**
      * Smoothed goo center for arc origin - filters out swing jitter.
@@ -242,7 +269,7 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
         if (type != null && !GloveUseTracker.isSelectedTypeAvailable()) {
             type = null;
         }
-        return new GloveData(stack.getItem(), type);
+        return new GloveData(stack.getItem(), type, type != null && glowsNearFungus(stack));
     }
 
     /**
@@ -266,7 +293,11 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
         submitGloveBody(poseStack, nodeCollector, packedLight, gloveItem);
 
         if (data != null && data.selectedType() != null) {
-            submitHeldGoo(poseStack, nodeCollector, packedLight, data.selectedType());
+            int light = data.glows() ? GooSubmitter.fullbrightLight() : packedLight;
+            submitHeldGoo(poseStack, nodeCollector, light, data.selectedType());
+            if (data.glows()) {
+                submitGlow(poseStack, nodeCollector);
+            }
         }
 
         poseStack.popPose();
@@ -289,8 +320,54 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
      *
      * @param item         the glove item instance (determines tier/body model)
      * @param selectedType the selected goo type, or null if none selected
+     * @param glows        whether the held goo glows, Fungal Shift selected near a fungus
      */
-    public record GloveData(Item item, @Nullable ResourceKey<GooTypeDefinition> selectedType) {
+    public record GloveData(Item item, @Nullable ResourceKey<GooTypeDefinition> selectedType, boolean glows) {
+    }
+
+    /**
+     * Whether the glove's goo glows: its selection shifts to fungus and the
+     * player stands near enough a fungus to start the shift
+     * (decision fungal-shift-blinks-to-the-aimed-fungus).
+     *
+     * @param stack the glove
+     * @return true while a Fungal Shift could start from here
+     */
+    private static boolean glowsNearFungus(ItemStack stack) {
+        GloveSelection selection = GooGloveItem.getSelection(stack);
+        ClientAbility ability = selection == null ? null : AbilitySyncHandler.findAbility(selection.abilityId());
+        return ability != null && ShiftStep.fungusNear(ability.behaviors()).isPresent() && FungusNearby.isNear();
+    }
+
+    /**
+     * A shell of pulsing magenta about the held goo while it glows.
+     *
+     * @param poseStack     the pose stack
+     * @param nodeCollector the submit collector
+     */
+    private static void submitGlow(PoseStack poseStack, SubmitNodeCollector nodeCollector) {
+        float hw = GOO_HW_PX * GLOW_SWELL / BLOCK_PIXELS;
+        float cx = GOO_CX_PX / BLOCK_PIXELS;
+        float cy = GOO_CY_PX / BLOCK_PIXELS;
+        float cz = GOO_CZ_PX / BLOCK_PIXELS;
+        float strength = HALF + HALF * (HALF + HALF * Mth.sin(Util.getMillis() / MILLIS_PER_SECOND * GLOW_PULSE));
+        int color = ARGB.color(Math.round(strength * GLOW_ALPHA * OPAQUE), GLOW_RGB);
+        nodeCollector.submitCustomGeometry(poseStack, GooRenderTypes.SPORE_SHELL_TYPE,
+                (pose, c) -> emitShell(pose, c, new CuboidBounds(cx - hw, cx + hw, cz - hw, cz + hw, cy - hw, cy + hw),
+                        color));
+    }
+
+    private static void emitShell(PoseStack.Pose pose, VertexConsumer c, CuboidBounds b, int color) {
+        float[][] corners = {
+            {b.x0(), b.yBot(), b.z0()}, {b.x1(), b.yBot(), b.z0()}, {b.x1(), b.yTop(), b.z0()}, {b.x0(), b.yTop(), b.z0()},
+            {b.x0(), b.yBot(), b.z1()}, {b.x1(), b.yBot(), b.z1()}, {b.x1(), b.yTop(), b.z1()}, {b.x0(), b.yTop(), b.z1()}
+        };
+        for (int[] face : SHELL_FACES) {
+            for (int corner : face) {
+                float[] at = corners[corner];
+                c.addVertex(pose, at[X], at[Y], at[Z]).setColor(color);
+            }
+        }
     }
 
     /**
