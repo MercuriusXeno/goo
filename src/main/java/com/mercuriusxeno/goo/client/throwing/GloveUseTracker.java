@@ -216,6 +216,29 @@ public final class GloveUseTracker {
     }
 
     /**
+     * Whether a held ability's visual runs: right click holds it and the
+     * selected goo is still on hand, as the stream tick it plays beside is
+     * sent only then, so the fog, breeze, vortex and cursor stop with the goo.
+     *
+     * @param player the local player
+     * @return true while the held ability runs
+     */
+    public static boolean runsHeld(LocalPlayer player) {
+        return heldVisualRuns(showsArea(), checkSelectedTypeAvailable(player));
+    }
+
+    /**
+     * Whether a held ability's visual runs, read from the press and the goo on hand.
+     *
+     * @param armed   whether right click holds a live press
+     * @param gooLeft whether any of the selected goo is on hand
+     * @return true only while both hold
+     */
+    static boolean heldVisualRuns(boolean armed, boolean gooLeft) {
+        return armed && gooLeft;
+    }
+
+    /**
      * Periodically re-checks whether the selected goo type is in inventory.
      * @param player the local player whose inventory is checked for goo availability
      */

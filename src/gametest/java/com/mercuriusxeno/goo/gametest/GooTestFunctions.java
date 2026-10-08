@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.network.BarkskinTests;
 import com.mercuriusxeno.goo.network.BlockLandingTests;
 import com.mercuriusxeno.goo.network.BrewEffectTests;
 import com.mercuriusxeno.goo.network.GloveSelectTests;
+import com.mercuriusxeno.goo.network.GrowthStreamTests;
 import com.mercuriusxeno.goo.network.HeartOverlayTests;
 import com.mercuriusxeno.goo.network.MobEffectTests;
 import com.mercuriusxeno.goo.network.VinesTests;
@@ -412,6 +413,8 @@ public final class GooTestFunctions {
     private static final String MOB_CRYSTAL = "mob_crystal_flechettes";
     private static final String VINES_ROOT_AND_THORN = "vines_root_and_thorn";
     private static final String BLOOM_PLANTS = "bloom_plants_water_wall_and_ground";
+    private static final String GROWTH_MATURES_WHEAT = "growth_matures_wheat";
+    private static final String GROWTH_SPREADS_A_VINE = "growth_spreads_a_vine";
     private static final String VINES_BURN_AND_BREAK = "vines_burn_and_break";
     private static final String VINES_TRAP_ON_THE_GROUND = "vines_trap_on_the_ground";
     private static final String MOB_VITAL = "mob_vital_clone";
@@ -861,6 +864,8 @@ public final class GooTestFunctions {
         reg(r, MOB_CRYSTAL, MobEffectTests::crystalFlechettes);
         reg(r, VINES_ROOT_AND_THORN, VinesTests::vinesRootAndThorn);
         reg(r, BLOOM_PLANTS, BloomTests::bloomPlantsWaterWallAndGround);
+        reg(r, GROWTH_MATURES_WHEAT, GrowthStreamTests::growthMaturesWheat);
+        reg(r, GROWTH_SPREADS_A_VINE, GrowthStreamTests::growthSpreadsAVine);
         reg(r, VINES_BURN_AND_BREAK, VinesTests::vinesBurnAndBreak);
         reg(r, VINES_TRAP_ON_THE_GROUND, VinesTests::vinesTrapOnTheGround);
         reg(r, MOB_VITAL, MobEffectTests::vitalClone);

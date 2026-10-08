@@ -10,7 +10,7 @@
     {
       "type": "hit_or_miss",
       "hit": [
-        { "type": "root", "duration": 60, "hits": 4, "thorns": 1.0, "fire_factor": 1.5 }
+        { "type": "root", "duration": 300, "hits": 4, "thorns": 1.0, "fire_factor": 1.5 }
       ],
       "miss": [
         {
@@ -23,7 +23,7 @@
               "radius": 1.0,
               "where": ["mob", "alive"],
               "steps": [
-                { "type": "root", "duration": 60, "hits": 4, "thorns": 1.0, "fire_factor": 1.5 }
+                { "type": "root", "duration": 300, "hits": 4, "thorns": 1.0, "fire_factor": 1.5 }
               ]
             }
           ]
