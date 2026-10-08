@@ -33,6 +33,8 @@ public final class ColonizeTests {
     private static final String NO_MYCELIUM = "Colonize landing on no network should grow no mycelium";
     private static final int SPORE_LEVEL_II = 1;
     private static final int SETTLE_TICKS = 2;
+    private static final String BUD_BESIDE = "No bud should grow beside a standing mushroom";
+    private static final String MUSHROOM_KEPT = "The mushroom beside the landing should stand";
     private static final String NO_VANILLA = "Spore should carry no vanilla slowness, weakness or poison";
     private static final String PIG_SPORED = "A pig beside the landing should carry the spore poison and spores";
 
@@ -93,6 +95,23 @@ public final class ColonizeTests {
                     || pig.hasEffect(MobEffects.POISON), NO_VANILLA);
             helper.succeed();
         });
+    }
+
+    /**
+     * Spore lands on grass, on no network, with a red mushroom standing beside
+     * the landing cell: no bud grows touching the mushroom, so neither knocks
+     * the other off.
+     *
+     * @param helper the gametest helper
+     */
+    public static void sporeBudsNoneBesideAMushroom(GameTestHelper helper) {
+        helper.setBlock(LANDED_ON, Blocks.GRASS_BLOCK);
+        helper.setBlock(BESIDE, Blocks.GRASS_BLOCK);
+        helper.setBlock(BESIDE.above(), Blocks.RED_MUSHROOM);
+        landOn(helper, LANDED_ON);
+        helper.assertFalse(helper.getBlockState(LANDED_ON.above()).is(GooBlocks.FUNGAL_BUD.get()), BUD_BESIDE);
+        helper.assertTrue(helper.getBlockState(BESIDE.above()).is(Blocks.RED_MUSHROOM), MUSHROOM_KEPT);
+        helper.succeed();
     }
 
     private static void landOn(GameTestHelper helper, BlockPos block) {

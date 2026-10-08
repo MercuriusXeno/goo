@@ -37,6 +37,9 @@ public class FungalBudBlock extends Block {
     private static final VoxelShape SHAPE =
             Shapes.box(BUD_WIDTH_MIN, 0, BUD_WIDTH_MIN, BUD_WIDTH_MAX, BUD_HEIGHT, BUD_WIDTH_MAX);
     private static final List<Block> MUSHROOMS = List.of(Blocks.BROWN_MUSHROOM, Blocks.RED_MUSHROOM);
+    /** What a bud may grow into, none of which a new bud stands beside. */
+    private static final List<Block> GROWTHS = List.of(Blocks.BROWN_MUSHROOM, Blocks.RED_MUSHROOM,
+            Blocks.CRIMSON_FUNGUS, Blocks.WARPED_FUNGUS);
 
     /**
      * Creates the bud block.
@@ -89,9 +92,31 @@ public class FungalBudBlock extends Block {
         return Shapes.empty();
     }
 
+    /**
+     * Stands on a sturdy floor, with no bud, mushroom or fungus beside it on
+     * any of its four sides, so the mushrooms buds grow into never stand
+     * touching and knock one another off.
+     */
     @Override
     protected boolean canSurvive(@NonNull BlockState state, @NonNull LevelReader level, @NonNull BlockPos pos) {
-        return standsOnAFloor(level, pos);
+        return standsOnAFloor(level, pos) && hasRoomBeside(level, pos);
+    }
+
+    /**
+     * Whether no bud, mushroom or fungus stands beside a cell on any of its four sides.
+     *
+     * @param level the level
+     * @param pos   the cell
+     * @return true where a bud has room to grow
+     */
+    static boolean hasRoomBeside(LevelReader level, BlockPos pos) {
+        for (Direction side : Direction.Plane.HORIZONTAL) {
+            BlockState beside = level.getBlockState(pos.relative(side));
+            if (beside.getBlock() instanceof FungalBudBlock || GROWTHS.stream().anyMatch(beside::is)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     @Override
