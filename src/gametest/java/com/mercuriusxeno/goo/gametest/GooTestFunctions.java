@@ -407,6 +407,7 @@ public final class GooTestFunctions {
     private static final String FUNGAL_SHIFT_NEEDS_A_FUNGUS_NEAR = "fungal_shift_needs_a_fungus_near";
     private static final String SIGHT_EXTENDS_THE_SHIFT = "sight_extends_the_shift";
     private static final String SELF_SIGHT_EATS = "self_sight_eats_before_the_sight";
+    private static final String SIGHT_ENDS_WHEN_DRY = "sight_ends_when_shroom_runs_dry";
     private static final String SIGHT_SHIFTS_THROUGH_A_WALL = "sight_shifts_through_a_wall";
     private static final String FUNGAL_SHIFT_SNAPS_TO_A_NEAR_MISS = "fungal_shift_snaps_to_a_near_miss";
     private static final String BREW_SHROOM_SIGHTS = "brew_shroom_sights_for_an_hour";
@@ -868,6 +869,7 @@ public final class GooTestFunctions {
         reg(r, FUNGAL_SHIFT_NEEDS_A_FUNGUS_NEAR, FungalShiftTests::fungalShiftNeedsAFungusNear);
         reg(r, SIGHT_EXTENDS_THE_SHIFT, FungalShiftTests::sightExtendsTheShift);
         reg(r, SELF_SIGHT_EATS, SelfDeliveryTests::sightEatsBeforeTheSight);
+        reg(r, SIGHT_ENDS_WHEN_DRY, SelfDeliveryTests::sightEndsWhenShroomRunsDry);
         reg(r, SIGHT_SHIFTS_THROUGH_A_WALL, FungalShiftTests::sightShiftsThroughAWall);
         reg(r, FUNGAL_SHIFT_SNAPS_TO_A_NEAR_MISS, FungalShiftTests::fungalShiftSnapsToANearMiss);
         reg(r, BREW_SHROOM_SIGHTS, BrewEffectTests::shroomBrewSightForAnHour);

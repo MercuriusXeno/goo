@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
+import com.mercuriusxeno.goo.ability.program.ShiftStep;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.SelfEatRoute;
@@ -67,6 +68,11 @@ public final class SelfDeliveryTests {
     private static final Identifier BLAZE_KINDLE = Identifier.parse("goo:blaze_kindle");
     private static final Identifier SHROOM_SIGHT = Identifier.parse("goo:shroom_sight");
     private static final String SHOULD_SEE = "Once the eat finishes the player should hold fungal sight";
+    private static final String SHOULD_SEE_PAID = "Sight should stand through tick %d, which the shroom pays for";
+    private static final String SHOULD_END_SIGHT_DRY = "Sight should end and clear once shroom runs dry";
+    private static final String SHOULD_FALL_BACK = "The shift's reach should fall back to %.1f, reads %.1f";
+    /** shroom_fungal_shift.json's range, the reach a shift falls back to without sight. */
+    private static final double BASE_SHIFT_RANGE = 64;
     /** One ember heart, which Kindle primes before its crawl embers the rest. */
     private static final int PRIMED_EMBERS = HeartOverlay.FULL_SHIELD;
     /** The ticks a held Kindle is watched paying its upkeep. */
@@ -491,5 +497,36 @@ public final class SelfDeliveryTests {
         helper.assertTrue(held, SHOULD_BE_HELD);
         helper.assertTrue(sees, SHOULD_SEE);
         helper.succeed();
+    }
+
+    /**
+     * A player eats Sight holding shroom for exactly three ticks of upkeep: the
+     * sight stands through the third tick, and on the fourth the held effect
+     * ends, the sight clears and the shift's reach falls back to its base
+     * (decisions self-effects-trickle-until-ended and sight-lengthens-shift-and-outlines-fungus).
+     *
+     * @param helper the gametest helper
+     */
+    public static void sightEndsWhenShroomRunsDry(GameTestHelper helper) {
+        AbilityDefinition sight = requireAbility(helper, SHROOM_SIGHT);
+        ServerPlayer player = HeartOverlayTests.selfInvoked(helper, GooTypes.SHROOM, SHROOM_SIGHT);
+        int paid = PAID_TICKS * sight.upkeep();
+        GooSourceScanner.deplete(player, GooTypes.SHROOM, held(player, GooTypes.SHROOM) - paid);
+        tickFor(helper, player, PAID_TICKS - 1);
+        helper.runAfterDelay(PAID_TICKS, () -> {
+            player.doTick();
+            helper.assertTrue(player.getData(GooAttachments.SIGHT).standsAt(player.level().getGameTime()),
+                    String.format(SHOULD_SEE_PAID, PAID_TICKS));
+        });
+        helper.runAfterDelay(PAID_TICKS + 1, () -> {
+            player.doTick();
+            boolean held = player.getData(GooAttachments.HELD_EFFECTS).holds(SHROOM_SIGHT);
+            boolean sees = player.getData(GooAttachments.SIGHT).standsAt(player.level().getGameTime());
+            double reach = ShiftStep.reachOf(player, BASE_SHIFT_RANGE);
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.assertFalse(held || sees, SHOULD_END_SIGHT_DRY);
+            helper.assertTrue(reach == BASE_SHIFT_RANGE, String.format(SHOULD_FALL_BACK, BASE_SHIFT_RANGE, reach));
+            helper.succeed();
+        });
     }
 }
