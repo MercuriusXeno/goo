@@ -60,6 +60,16 @@ public enum HostCapability {
      */
     LINGER(LingerHost.class),
     /**
+     * A landing where a blob can grow a shroom network
+     * (decision colonize-blob-grows-the-network).
+     */
+    COLONIZE(ColonizeHost.class),
+    /**
+     * A one-tick host anchored at a point, which can run steps on each open
+     * floor around it (decision colonize-blob-grows-the-network).
+     */
+    FLOOR_SCAN(FloorScanHost.class),
+    /**
      * A held channel's aim this tick and the player's hand to break blocks
      * with (decision flatten-disc-cursor-breaks-above-the-plane).
      */

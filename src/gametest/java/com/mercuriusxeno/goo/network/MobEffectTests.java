@@ -60,7 +60,6 @@ public final class MobEffectTests {
     private static final String ABILITY_METAL_JAVELIN = "goo:metal_javelin";
     private static final String ABILITY_LEAF_ENTANGLE = "goo:leaf_entangle";
     private static final String ABILITY_TYPHOON_LEVITATE = "goo:typhoon_levitate";
-    private static final String ABILITY_SHROOM_DEBUFF = "goo:shroom_debuff";
     private static final String ABILITY_NETHER_WITHER = "goo:nether_wither";
     private static final String ABILITY_FROST_SNAP = "goo:frost_snap";
     private static final String ABILITY_PULSE_SHORT_CIRCUIT = "goo:pulse_short_circuit";
@@ -209,23 +208,6 @@ public final class MobEffectTests {
                 helper.assertTrue(chickens == CHICKENS_AFTER_CLONE, SHOULD_HAVE_A_CLONE);
                 helper.succeed();
             });
-        });
-    }
-
-    /**
-     * Shroom debuff is a program: a not_boss target selection wrapping
-     * slowness, weakness and poison potion steps.
-     *
-     * @param helper the gametest helper
-     */
-    public static void shroomDebuff(GameTestHelper helper) {
-        Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
-        helper.runAfterDelay(SETTLE_TICKS, () -> {
-            strike(helper, mob, ABILITY_SHROOM_DEBUFF);
-            helper.assertTrue(mob.hasEffect(MobEffects.SLOWNESS), SHOULD_HAVE_SLOWNESS);
-            helper.assertTrue(mob.hasEffect(MobEffects.WEAKNESS), SHOULD_HAVE_WEAKNESS);
-            helper.assertTrue(mob.hasEffect(MobEffects.POISON), SHOULD_HAVE_POISON);
-            helper.succeed();
         });
     }
 

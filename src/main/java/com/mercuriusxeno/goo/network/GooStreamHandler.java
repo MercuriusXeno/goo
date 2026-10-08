@@ -6,16 +6,22 @@ import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.HealReport;
 import com.mercuriusxeno.goo.ability.HeldRoute;
+import com.mercuriusxeno.goo.ability.StreamSound;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.ability.program.EntityHost;
+import com.mercuriusxeno.goo.ability.program.FloorReach;
 import com.mercuriusxeno.goo.ability.program.HostCapability;
 import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.PlayerHost;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
 import com.mercuriusxeno.goo.ability.program.SimpleParticles;
+import com.mercuriusxeno.goo.ability.program.SoundCue;
+import com.mercuriusxeno.goo.ability.program.SoundKind;
+import com.mercuriusxeno.goo.ability.program.SoundPlays;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.StepHost;
+import com.mercuriusxeno.goo.ability.spray.SprayPrograms;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.throwing.StreamCone;
@@ -26,6 +32,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -51,10 +58,15 @@ public final class GooStreamHandler {
     private static final String LOG_PROGRAM_REFUSED = "Ability {} refused on its held pass's host: {}";
     /** Particles sprayed along the cone each tick. */
     private static final int PARTICLES_PER_TICK = 6;
-    /** Spread of each particle around its point on the axis, in blocks. */
-    private static final double PARTICLE_SPREAD = 0.15;
-    /** Speed of each particle, in blocks per tick. */
-    private static final double PARTICLE_SPEED = 0.05;
+    /**
+     * Launch speed per block of the stream's range: a mote slowing by a tenth
+     * each tick carries ten times its launch speed, so it reaches the cone's end.
+     */
+    private static final double LAUNCH_SPEED_PER_BLOCK = 0.1;
+    /** Rays the spray casts each tick to find the floors it lands on. */
+    private static final int FLOOR_RAYS_PER_TICK = 12;
+    /** A particle sent with a count of zero flies along the vector it is handed. */
+    private static final int ALONG_THE_VECTOR = 0;
     /** Reads which living things a tick's program healed. */
     private static final HealReport<LivingEntity> HEALS =
             new HealReport<>(LivingEntity::getHealth, LivingEntity::getId);
@@ -90,7 +102,8 @@ public final class GooStreamHandler {
             return;
         }
         AbilityDefinition ability = heldAbility(player, payload, gooType);
-        if (ability == null || !drainShare(player, gooType, ability)) {
+        int held = ability == null ? 0 : drainShare(player, gooType, ability);
+        if (held == 0) {
             return;
         }
         if (HeldRoute.channelsOnSelf(ability.delivery(), ability.badge())) {
@@ -98,6 +111,21 @@ public final class GooStreamHandler {
         } else {
             strikeCone(player, payload.origin(), ability);
         }
+        // mycosis-spore-stream-buds-and-poisons
+        ability.delivery().sound().filter(sound -> sound.playsOn(held))
+                .ifPresent(sound -> playStreamSound(player, sound));
+    }
+
+    /**
+     * Plays one beat of the held ability's sound at the player, its pitch strayed a little.
+     *
+     * @param player the streaming player
+     * @param sound  the stream's sound
+     */
+    private static void playStreamSound(ServerPlayer player, StreamSound sound) {
+        float pitch = sound.pitchFor(player.getRandom().nextFloat());
+        SoundPlays.play(player.level(), player.getEyePosition(),
+                new SoundCue(sound.sound(), SoundKind.PLAYERS, sound.volume(), pitch));
     }
 
     /**
@@ -134,16 +162,16 @@ public final class GooStreamHandler {
      * @param ability the stream ability
      * @return false when the player cannot pay the share, which stops the stream
      */
-    private static boolean drainShare(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
+    private static int drainShare(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
                                       AbilityDefinition ability) {
         MinecraftServer server = player.level().getServer();
         int held = GooServerState.of(server).streamHolds().advance(player.getUUID(), server.getTickCount());
         int share = StreamHolds.shareAt(ability.cost(), ability.delivery().ticksPerCharge(), held);
         if (!GooSourceScanner.hasEnough(player, gooType, share)) {
-            return false;
+            return 0;
         }
         GooSourceScanner.deplete(player, gooType, share);
-        return true;
+        return held;
     }
 
     /**
@@ -170,6 +198,7 @@ public final class GooStreamHandler {
                 HEALS.runNoting(living, healed, () -> runSteps(new EntityHost(level, living, player), HostKind.ENTITY,
                         entitySteps, ability));
             }
+            sprayFloors(player, apex, axis, ability);
         }
         if (ability.hasTag(AbilityTags.SELF)) {
             // vitality-waves-regenerate-and-court
@@ -180,6 +209,25 @@ public final class GooStreamHandler {
             // vitality-waves-regenerate-and-court: the client homes goo to each healed thing and stars it
             EntityVisuals.sendToWatchers(player, new StreamHealedPayload(player.getId(), apex, healed));
         }
+    }
+
+    /**
+     * Runs the stream's {@code on_blocks} steps on the floors its rays land on
+     * (decision mycosis-spore-stream-buds-and-poisons).
+     *
+     * @param player  the streaming player
+     * @param apex    the cone's apex
+     * @param axis    the cone's axis
+     * @param ability the stream ability
+     */
+    private static void sprayFloors(ServerPlayer player, Vec3 apex, Vec3 axis, AbilityDefinition ability) {
+        if (ability.onBlocks().isEmpty()) {
+            return;
+        }
+        ServerLevel level = player.level();
+        Delivery delivery = ability.delivery();
+        SprayPrograms.runOnFloors(level, FloorReach.struckInCone(level, player, apex, axis, delivery.range(),
+                delivery.coneDegrees(), FLOOR_RAYS_PER_TICK, level.getRandom()), apex, ability);
     }
 
     /**
@@ -255,7 +303,8 @@ public final class GooStreamHandler {
     }
 
     /**
-     * Sprays the delivery's particle at even steps along the cone's axis.
+     * Launches the delivery's particle from the glove, each mote flying out
+     * along its own heading inside the cone (decision mycosis-spore-stream-buds-and-poisons).
      *
      * @param level    the server level
      * @param apex     the cone's apex
@@ -263,11 +312,14 @@ public final class GooStreamHandler {
      * @param delivery the stream delivery
      */
     private static void sprayParticles(ServerLevel level, Vec3 apex, Vec3 axis, Delivery delivery) {
+        RandomSource random = level.getRandom();
+        double speed = delivery.range() * LAUNCH_SPEED_PER_BLOCK;
         delivery.particle().flatMap(SimpleParticles::resolve).ifPresent(particle -> {
-            for (int i = 1; i <= PARTICLES_PER_TICK; i++) {
-                Vec3 at = apex.add(axis.scale(delivery.range() * i / PARTICLES_PER_TICK));
-                level.sendParticles(particle, at.x, at.y, at.z, 1, PARTICLE_SPREAD, PARTICLE_SPREAD,
-                        PARTICLE_SPREAD, PARTICLE_SPEED);
+            for (int i = 0; i < PARTICLES_PER_TICK; i++) {
+                Vec3 heading = StreamCone.launchDirection(axis, delivery.coneDegrees(), random.nextDouble(),
+                        random.nextDouble());
+                level.sendParticles(particle, apex.x, apex.y, apex.z, ALONG_THE_VECTOR, heading.x, heading.y,
+                        heading.z, speed);
             }
         });
     }

@@ -38,6 +38,13 @@ public enum HostKind {
      */
     LANDING("blob landing", LandingHost.class, Set.of()),
     /**
+     * A floor a stream's cone or a spore burst reaches: the world around its
+     * top face and the cell above it to write, acted on in the tick the spray
+     * reaches it, with no target and no driver for later ticks
+     * (decision mycosis-spore-stream-buds-and-poisons).
+     */
+    SURFACE("sprayed floor", SurfaceHost.class, Set.of(HostVariables.DISTANCE)),
+    /**
      * The player invoking a self ability: target, thrower and anchor at
      * once, acted on in the tick the glove is used, with no driver for
      * later ticks (decision self-delivery-runs-on-player).

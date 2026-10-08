@@ -93,6 +93,18 @@ public interface Step {
     }
 
     /**
+     * Answers whether the step can act on its host now; a self ability runs
+     * and drains only when every step admits, so Fungal Shift aimed at no
+     * fungus costs nothing (decision fungal-shift-blinks-to-the-aimed-fungus).
+     *
+     * @param context the host and variable scope the step would run in
+     * @return true when the step can act
+     */
+    default boolean admits(StepContext context) {
+        return true;
+    }
+
+    /**
      * Answers whether the marker stays in the cell it landed in while this
      * step runs, though the block holding it up is gone, as a black hole
      * that consumes its own support does.
