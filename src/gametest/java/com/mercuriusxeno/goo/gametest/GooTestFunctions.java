@@ -404,6 +404,7 @@ public final class GooTestFunctions {
     private static final String VITALITY_HEALS = "vitality_heals_cow_and_caster";
     private static final String MOB_CRYSTAL = "mob_crystal_flechettes";
     private static final String VINES_ROOT_AND_THORN = "vines_root_and_thorn";
+    private static final String BLOOM_PLANTS = "bloom_plants_water_wall_and_ground";
     private static final String VINES_BURN_AND_BREAK = "vines_burn_and_break";
     private static final String VINES_TRAP_ON_THE_GROUND = "vines_trap_on_the_ground";
     private static final String MOB_VITAL = "mob_vital_clone";
@@ -845,6 +846,7 @@ public final class GooTestFunctions {
         reg(r, VITALITY_HEALS, StreamDeliveryTests::vitalityHealsCowAndCaster);
         reg(r, MOB_CRYSTAL, MobEffectTests::crystalFlechettes);
         reg(r, VINES_ROOT_AND_THORN, VinesTests::vinesRootAndThorn);
+        reg(r, BLOOM_PLANTS, BloomTests::bloomPlantsWaterWallAndGround);
         reg(r, VINES_BURN_AND_BREAK, VinesTests::vinesBurnAndBreak);
         reg(r, VINES_TRAP_ON_THE_GROUND, VinesTests::vinesTrapOnTheGround);
         reg(r, MOB_VITAL, MobEffectTests::vitalClone);
