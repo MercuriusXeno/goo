@@ -184,19 +184,19 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
 
     /**
      * The blocks a stream's channel holds: every standing block whose center
-     * lies in the cone, those behind the nearest as much as the nearest; none
-     * outside a held channel (decision unmake-waves-dissolve-by-crucible-cost).
+     * lies in the cone and any part of which the player can see; none outside
+     * a held channel (decision unmake-waves-dissolve-by-crucible-cost).
      */
     @Override
     public List<BlockPos> unmadeBlocks() {
         return channelAim().map(aim -> CalcifyStep.blocksInCone(eye(), aim.aimPoint(), aim.coneDegrees()).stream()
-                .filter(pos -> !level.getBlockState(pos).isAir())
+                .filter(pos -> !level.getBlockState(pos).isAir() && SightLines.seesBlock(level, eye(), pos, player))
                 .toList()).orElse(List.of());
     }
 
     /**
      * The mobs a stream's channel holds: every living mob whose middle lies
-     * in the cone; none outside a held channel
+     * in the cone and in the player's sight; none outside a held channel
      * (decision unmake-waves-dissolve-by-crucible-cost).
      */
     @Override
@@ -206,7 +206,8 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
             double range = reach.length();
             return level.getEntitiesOfClass(LivingEntity.class, new AABB(eye(), eye()).inflate(range),
                     living -> living instanceof Mob && living.isAlive() && StreamCone.contains(eye(), reach, range,
-                            aim.coneDegrees(), living.getBoundingBox().getCenter()));
+                            aim.coneDegrees(), living.getBoundingBox().getCenter())
+                            && SightLines.seesBody(level, eye(), living.getBoundingBox(), player));
         }).orElse(List.of());
     }
 
