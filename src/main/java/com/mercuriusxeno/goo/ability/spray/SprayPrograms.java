@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.ability.spray;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
+import com.mercuriusxeno.goo.ability.program.ChannelHost;
 import com.mercuriusxeno.goo.ability.program.EntityHost;
 import com.mercuriusxeno.goo.ability.program.FloorReach;
 import com.mercuriusxeno.goo.ability.program.HostKind;
@@ -48,7 +49,9 @@ public final class SprayPrograms {
     public static void runOnLiving(ServerLevel level, LivingEntity living, @Nullable Entity thrower,
                                    AbilityDefinition ability) {
         try {
-            ProgramBehavior.forHost(ability.behaviors(), HostKind.ENTITY).tick(new EntityHost(level, living, thrower));
+            // mycosis-grows-and-reaps-nether-wart: the steps tending the cone's blocks run in the stream's block pass alone
+            ProgramBehavior.forHost(ChannelHost.passSteps(ability.behaviors(), false), HostKind.ENTITY)
+                    .tick(new EntityHost(level, living, thrower));
         } catch (ProgramLoadException e) {
             Goo.LOGGER.error(LOG_PROGRAM_REFUSED, ability.id(), HostKind.ENTITY.label(), e.getMessage());
         }

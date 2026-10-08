@@ -9,7 +9,8 @@
     "sound": { "id": "minecraft:block.bubble_column.bubble_pop", "every": 2, "volume": 0.4, "pitch_spread": 0.2 } },
   "behaviors": [
     { "type": "potion", "effect": "goo:mycosis", "duration": 100, "amplifier": 0 },
-    { "type": "spore_host", "burst": "goo:shroom_mycosis", "radius": 3, "duration": 600 }
+    { "type": "spore_host", "burst": "goo:shroom_mycosis", "radius": 3, "duration": 600 },
+    { "type": "tend_fungi" }
   ],
   "on_blocks": [
     { "type": "branch", "when": "chance(0.006)", "then": [{ "type": "place_block", "block": "goo:fungal_bud" }] }
