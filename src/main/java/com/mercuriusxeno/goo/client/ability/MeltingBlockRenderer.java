@@ -54,12 +54,21 @@ public final class MeltingBlockRenderer {
     private static final int SHOWN_GOO = 1000;
     private static final float HALF = 0.5f;
     private static final float WHOLE = 1f;
-    private static final double TWO_PI = 2 * Math.PI;
     /** The cubic smoothstep's constant term. */
     private static final float SMOOTH_BASE = 3f;
     /** The cubic smoothstep's slope term. */
     private static final float SMOOTH_SLOPE = 2f;
-    private static final int VERTICES_PER_QUAD = 4;
+    /** The most goo types layered over the blob. */
+    private static final int MAX_LAYERS = 3;
+    /** How fine the blob's patches are: field cells across it. */
+    private static final float PATCH_SCALE = 1.6f;
+    /** How far past its share a lesser type's patches cover, so a small share still shows. */
+    private static final float PATCH_COVERAGE = 1.6f;
+    /** How soft a patch's edge is, in field share either side of it. */
+    private static final float PATCH_SOFTNESS = 0.08f;
+    /** How far each further layer stands off the one under it, as a share of the blob's size. */
+    private static final float LAYER_LIFT = 0.01f;
+    private static final long LAYER_SALT = 0x9E37_79B9L;
 
     private MeltingBlockRenderer() {
     }
@@ -140,30 +149,47 @@ public final class MeltingBlockRenderer {
     }
 
     /**
-     * Emits a unit blob of mingled goo: a sphere, each patch one of the
-     * goo's types laid by its share, the type's sprite wrapped about it.
+     * Emits a unit blob of mingled goo: a sphere of its largest type, the
+     * others laid over it in soft patches by their shares, each type's sprite
+     * wrapped about it mirrored across its back so the wrap leaves no seam.
      *
      * @param ctx   the render context, its pose scaled to the blob
      * @param goo   the goo
      * @param alpha the blob's alpha
      */
     private static void emitBlob(RenderContext ctx, MingledGoo goo, int alpha) {
+        int layers = Math.min(goo.types().size(), MAX_LAYERS);
+        for (int layer = 0; layer < layers; layer++) {
+            emitBlobLayer(ctx, goo.types().get(layer), layer, goo.share(layer), alpha);
+        }
+    }
+
+    /**
+     * Emits one goo type's layer of the blob, each vertex as opaque as the
+     * layer is there: the base everywhere, a lesser type only in its patches.
+     *
+     * @param ctx   the render context, its pose scaled to the blob
+     * @param type  the goo type
+     * @param index its index, largest first
+     * @param share its share of the whole
+     * @param alpha the blob's alpha
+     */
+    private static void emitBlobLayer(RenderContext ctx, ResourceKey<GooTypeDefinition> type, int index, float share,
+                                      int alpha) {
         List<Vector3f> mesh = NetherSphereVisual.unitSphereMesh();
-        int color = ARGB.color(alpha, GooRenderUtil.OPAQUE_WHITE);
-        for (int quad = 0; quad + VERTICES_PER_QUAD <= mesh.size(); quad += VERTICES_PER_QUAD) {
-            ResourceKey<GooTypeDefinition> type = goo.pick(MeltMeshNoise.share(quad));
-            if (type == null) {
-                return;
-            }
-            GooRenderUtil.UvRect sprite = GooSubmitter.spriteUv(GooRenderUtil.lookupFluidSprite(type));
-            for (int corner = 0; corner < VERTICES_PER_QUAD; corner++) {
-                Vector3f point = mesh.get(quad + corner);
-                float u = (float) ((Math.atan2(point.z(), point.x()) + Math.PI) / TWO_PI);
-                float v = point.y() * HALF + HALF;
-                ctx.vertexColored(color, point.x(), point.y(), point.z(),
-                        sprite.u0() + (sprite.u1() - sprite.u0()) * u, sprite.v0() + (sprite.v1() - sprite.v0()) * v,
-                        point.x(), point.y(), point.z());
-            }
+        GooRenderUtil.UvRect sprite = GooSubmitter.spriteUv(GooRenderUtil.lookupFluidSprite(type));
+        float scale = WHOLE + LAYER_LIFT * index;
+        float edge = WHOLE - share * PATCH_COVERAGE;
+        for (Vector3f point : mesh) {
+            float cover = index == 0 ? WHOLE : smoothstep(edge - PATCH_SOFTNESS, edge + PATCH_SOFTNESS,
+                    (float) MeltMeshNoise.smooth(point.x() * PATCH_SCALE, point.y() * PATCH_SCALE,
+                            point.z() * PATCH_SCALE, index * LAYER_SALT));
+            float u = (float) (Math.abs(Math.atan2(point.z(), point.x())) / Math.PI);
+            float v = point.y() * HALF + HALF;
+            ctx.vertexColored(ARGB.color(Math.round(alpha * cover), GooRenderUtil.OPAQUE_WHITE),
+                    point.x() * scale, point.y() * scale, point.z() * scale,
+                    sprite.u0() + (sprite.u1() - sprite.u0()) * u, sprite.v0() + (sprite.v1() - sprite.v0()) * v,
+                    point.x(), point.y(), point.z());
         }
     }
 

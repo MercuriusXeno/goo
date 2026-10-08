@@ -220,7 +220,9 @@ public final class UnmakeTests {
             helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, tick));
         }
         helper.runAfterDelay(BRIEF_HOLD_TICKS + 1L, () -> assertMeltingFor(helper, CHEAP_POS, Blocks.COBBLESTONE));
-        helper.runAfterDelay(BRIEF_HOLD_TICKS + MeltingBlock.REVERT_TICKS + 2L, () -> {
+        helper.runAfterDelay(BRIEF_HOLD_TICKS + 1L + MeltingBlock.IDLE_TICKS, () ->
+                assertMeltingFor(helper, CHEAP_POS, Blocks.COBBLESTONE));
+        helper.runAfterDelay(2L * BRIEF_HOLD_TICKS + MeltingBlock.IDLE_TICKS + 2L, () -> {
             helper.getLevel().getServer().getPlayerList().remove(player);
             helper.assertBlockPresent(Blocks.COBBLESTONE, CHEAP_POS);
             helper.succeed();

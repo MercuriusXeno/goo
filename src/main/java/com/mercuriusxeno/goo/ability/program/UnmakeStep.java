@@ -88,7 +88,7 @@ public record UnmakeStep(Expr speed) implements Step {
             return;
         }
         int needed = UnmakeRule.workToUnmake(value.totalGoo(), host.meltExponent(), speed.evaluate(context));
-        int done = host.countUnmakeWork(pos);
+        int done = host.countUnmakeWork(pos, needed);
         if (done >= needed) {
             host.unmake(pos, value.toGooContents());
         } else {

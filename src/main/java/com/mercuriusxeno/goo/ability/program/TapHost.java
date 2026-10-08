@@ -168,7 +168,7 @@ public record TapHost(ServerLevel level, BlockPos landing, Direction face)
      * petrifying drip counts on (decision unmake-drip-dissolves-the-block-below).
      */
     @Override
-    public int countUnmakeWork(BlockPos pos) {
+    public int countUnmakeWork(BlockPos pos, int needed) {
         return countDrip();
     }
 
@@ -184,7 +184,6 @@ public record TapHost(ServerLevel level, BlockPos landing, Direction face)
     public void unmake(BlockPos pos, GooContents yield) {
         level.removeBlock(pos, false);
         resetDrips();
-        UnmakeSounds.plop(level, Vec3.atCenterOf(pos));
         GooServerState.of(level.getServer()).unmakeDrops().unmade(level, Vec3.atBottomCenterOf(pos), 1f, yield);
     }
 }

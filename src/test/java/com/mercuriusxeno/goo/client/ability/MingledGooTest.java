@@ -27,6 +27,23 @@ class MingledGooTest {
     }
 
     @Test
+    void eachTypeKeepsItsShare() {
+        assertEquals(1500f / 1824f, beef.share(0), 1e-5f);
+        assertEquals(324f / 1824f, beef.share(1), 1e-5f);
+    }
+
+    @Test
+    void theSmoothFieldDriftsGentlyAndStaysInRange() {
+        double here = MeltMeshNoise.smooth(1.3, 0.2, 0.7, 5);
+        double nearby = MeltMeshNoise.smooth(1.31, 0.2, 0.7, 5);
+        assertEquals(here, nearby, 0.05);
+        for (int step = 0; step < 50; step++) {
+            double share = MeltMeshNoise.smooth(step * 0.37, step * 0.11, step * 0.53, 9);
+            org.junit.jupiter.api.Assertions.assertTrue(share >= 0 && share <= 1, "step " + step);
+        }
+    }
+
+    @Test
     void noGooPicksNothing() {
         assertNull(MingledGoo.NONE.pick(0.5));
         assertNull(MingledGoo.of(Map.of()).largest());

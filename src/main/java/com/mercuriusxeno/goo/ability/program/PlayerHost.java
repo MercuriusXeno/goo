@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.block.unmake.MeltingBlockEntity;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.network.ChunkWatchers;
@@ -224,12 +225,11 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
     }
 
     /**
-     * Pins the mob where it stands and bubbles it, then shows its share.
+     * Pins the mob where it stands, then shows its share.
      */
     @Override
     public void showUnmaking(LivingEntity mob, float fraction) {
         UnmakePin.pin(mob);
-        UnmakeSounds.bubble(level, mob.position(), mob.getId());
         UnmakeLoot.Loot loot = unmadeLoot(mob);
         EntityVisuals.sendToWatchers(mob, new UnmakeMobPayload(mob.getId(), fraction,
                 loot == null ? Map.of() : loot.goo().getAll()));
@@ -242,7 +242,6 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
     @Override
     public void unmake(LivingEntity mob, GooContents yield) {
         AABB body = mob.getBoundingBox();
-        UnmakeSounds.plop(level, body.getCenter());
         GooServerState.of(level.getServer()).unmakeDrops().unmade(level, mob.position(),
                 (float) Math.max(body.getXsize(), body.getYsize()), yield);
         mob.discard();
@@ -254,24 +253,23 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
     }
 
     /**
-     * Counts this tick of the stream's hold on the block, a block the stream
-     * left starting over (decision unmake-waves-dissolve-by-crucible-cost).
+     * Counts this tick's work on the block: a block that can sag is swapped
+     * for a melting block on its first tick and keeps its own progress, which
+     * runs back down once left; one holding contents counts the stream's
+     * hold, starting over once left (decision unmake-waves-dissolve-by-crucible-cost).
      */
     @Override
-    public int countUnmakeWork(BlockPos pos) {
+    public int countUnmakeWork(BlockPos pos, int needed) {
+        MeltingBlockEntity melting = BlockMelts.work(level, pos);
+        if (melting != null) {
+            return melting.addWork(needed, level.getGameTime());
+        }
         return GooServerState.of(level.getServer()).streamHolds()
                 .advanceBlock(player.getUUID(), pos, level.getServer().getTickCount());
     }
 
-    /**
-     * Swaps the block for its sagging goo copy on the first tick of its melt
-     * and keeps it from turning back while worked, then shows its share
-     * (decision unmake-waves-dissolve-by-crucible-cost).
-     */
     @Override
     public void showUnmaking(BlockPos pos, float fraction) {
-        BlockMelts.work(level, pos);
-        UnmakeSounds.bubble(level, Vec3.atCenterOf(pos), pos.hashCode());
         ChunkWatchers.send(level, pos, new UnmakePayload(pos, fraction));
     }
 
@@ -281,7 +279,6 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
     @Override
     public void unmake(BlockPos pos, GooContents yield) {
         level.removeBlock(pos, false);
-        UnmakeSounds.plop(level, Vec3.atCenterOf(pos));
         GooServerState.of(level.getServer()).unmakeDrops().unmade(level, Vec3.atBottomCenterOf(pos), 1f, yield);
     }
 

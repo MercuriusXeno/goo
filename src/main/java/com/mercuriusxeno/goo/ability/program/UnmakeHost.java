@@ -35,13 +35,14 @@ public interface UnmakeHost extends StepHost {
     @Nullable GooValue unmadeValue(BlockPos pos);
 
     /**
-     * Counts this run's work on a held block, a tick of a stream's hold or a
-     * tap's drip, and answers the work done on it without a break.
+     * Counts this run's work on a held block, a tick of a stream's hold or
+     * a tap's drip, and answers the work done on it so far.
      *
-     * @param pos the held block
-     * @return the work done, 1 on the first
+     * @param pos    the held block
+     * @param needed the work the block takes to melt
+     * @return the work done, at least 1
      */
-    int countUnmakeWork(BlockPos pos);
+    int countUnmakeWork(BlockPos pos, int needed);
 
     /**
      * Shows a held block dissolving to its viewers.
