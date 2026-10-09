@@ -192,10 +192,22 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
      * @return travel ticks, always at least 1
      */
     public int travelTicks(double distance, float levity, int baseFlightTime) {
-        if (fliesStraight()) {
+        if (fliesStraight() || flySlow()) {
             return (int) Math.max(1, Math.ceil(distance / blocksPerTick));
         }
         return (int) ThrowArc.travelTicks(distance, levity, baseFlightTime);
+    }
+
+    /**
+     * Whether an arc flies at its own slow speed rather than the thrown
+     * type's flight time: an arc naming a speed below a beam's default lobs
+     * slowly, the way Frost's Orb rolls through the air
+     * (decision orb-carries-a-swirling-nova).
+     *
+     * @return true for an arc slower than the default speed
+     */
+    public boolean flySlow() {
+        return kind == DeliveryKind.ARC && blocksPerTick < DEFAULT_BLOCKS_PER_TICK;
     }
 
     /**

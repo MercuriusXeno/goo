@@ -3,6 +3,8 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -10,6 +12,7 @@ import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.phys.Vec3;
+import java.util.List;
 
 /**
  * Frost goo's burnout explosion, the design the operator settled (decision
@@ -26,7 +29,7 @@ import net.minecraft.world.phys.Vec3;
  * remaining opacity in alpha, since a core pipeline takes no per-draw
  * uniforms.
  */
-public final class FrostExplosionVisual implements BurnoutVisual {
+public final class FrostExplosionVisual implements BurnoutVisual, HeldGhostVisual {
 
     /** The one instance the burnout registry holds. */
     public static final FrostExplosionVisual INSTANCE = new FrostExplosionVisual();
@@ -43,6 +46,8 @@ public final class FrostExplosionVisual implements BurnoutVisual {
     static final int SNOWFLAKES = 48;
     /** Snowflake speed as a share of the ring's reach per tick, so the burst rides out with the edge. */
     static final float SNOWFLAKE_SPEED = 0.08f;
+    /** The progress the held ghost rests at: the ring fully spread, its fog whole. */
+    private static final float HELD_PROGRESS = (float) SPREAD_TICKS / DURATION_TICKS;
     /** How far the ring sits from the block center along the face's step: just off the face plane. */
     private static final float RING_LIFT = -0.47f;
     private static final int RING_SEGMENTS = 48;
@@ -56,6 +61,30 @@ public final class FrostExplosionVisual implements BurnoutVisual {
     @Override
     public ResourceKey<GooTypeDefinition> gooType() {
         return GooTypes.FROST;
+    }
+
+    /**
+     * The Orb's held ghost: frost's fog ring lying whole on the face the
+     * throw strikes, out to the reach of its landing freeze, so the player
+     * sees what the ball freezes outright where it lands
+     * (decisions orb-carries-a-swirling-nova, held-visual-ghosts-the-landing-in-two-passes).
+     *
+     * @return the ghost's one layer
+     */
+    @Override
+    public List<HeldLayer> heldLayers() {
+        return List.of(new HeldLayer(GooRenderTypes.FROST_EXPLOSION_TYPE,
+                GooRenderTypes.FROST_EXPLOSION_THROUGH_BLOCKS_TYPE, FrostExplosionVisual::emitHeld));
+    }
+
+    private static void emitHeld(PoseStack.Pose pose, VertexConsumer c, HeldGhost ghost, Direction face,
+                                 float opacity, double nowSeconds) {
+        int progressByte = NetherDiscMesh.toByte(HELD_PROGRESS);
+        int fog = NetherDiscMesh.toByte(opacity);
+        int center = ARGB.color(fog, progressByte, NetherDiscMesh.toByte(SIGNED_TO_UNIT),
+                NetherDiscMesh.toByte(SIGNED_TO_UNIT));
+        BurnoutGeometry.emitAnnulus(pose, c, face, RING_LIFT, 0f, ghost.domeRadius(), RING_SEGMENTS,
+                (angle, outer) -> outer ? edgeColor(fog, progressByte, angle) : center);
     }
 
     @Override

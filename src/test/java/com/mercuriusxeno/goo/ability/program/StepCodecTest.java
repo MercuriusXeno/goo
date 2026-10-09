@@ -50,6 +50,7 @@ class StepCodecTest {
             Map.entry("freeze_blocks", new FreezeBlocksStep(Expr.literal(2))),
             Map.entry("drips", new DripsStep(6, List.of(new FreezeBlocksStep(Expr.literal(2))))),
             Map.entry("wind", new WindStep(true)),
+            Map.entry("traveling", new TravelingStep(3f, List.of(new FreezeBlocksStep(Expr.literal(2.5), false)))),
             Map.entry("break_blocks", new BreakBlocksStep(TagKey.create(Registries.BLOCK,
                     Identifier.fromNamespaceAndPath("goo", "foliage")))),
             Map.entry("set_ai", LeafSteps.SET_AI.step(false)),
