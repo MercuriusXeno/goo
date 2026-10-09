@@ -126,8 +126,20 @@ public final class DrinkBody {
         double width = funnelAt(distance, progress, stream);
         double wobble = TWO * MeltMeshNoise.smooth(distance * WOBBLE_SCALE, now * WOBBLE_RATE, 0, seed + WOBBLE_SALT)
                 - 1;
-        double blobby = 1 - ease(Math.clamp((distance - CENTER) / FUNNEL, 0, 1));
-        return width * (1 + WOBBLE * liquidityAt(progress) * blobby * wobble);
+        return width * (1 + WOBBLE * liquidityAt(progress) * (1 - carryAt(distance)) * wobble);
+    }
+
+    /**
+     * How much of the stream's shape at a distance along its path rides the
+     * liquid: none through the block's own matter, where the box and the
+     * funnel's mouth stand where the block stood, rising along the funnel to
+     * all of it where the stream's own bulbs flow.
+     *
+     * @param distance blocks from the block's far side
+     * @return the share riding the liquid, 0 to 1
+     */
+    public static double carryAt(double distance) {
+        return ease(Math.clamp((distance - CENTER) / FUNNEL, 0, 1));
     }
 
     private static double ease(double t) {

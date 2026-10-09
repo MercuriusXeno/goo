@@ -11,11 +11,11 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * A stream flows languidly along its path, its head and tail at the flow's
- * pace; between the ends it snakes off the straight line and wanders, its
- * width a slow profile of bulbs and waists with gentle grades between,
- * scaled by its block, its texture riding the flow, tapering to a point at
- * both ends (decision unmake-waves-dissolve-by-crucible-cost).
+ * A stream flows languidly along its path, kept the longest route's travel
+ * at the base pace past its drain; between the ends it snakes off the
+ * straight line and wanders, its width a slow profile of bulbs and waists
+ * with gentle grades between, scaled by its block, its texture riding the
+ * flow, tapering to a point at both ends (decision unmake-waves-dissolve-by-crucible-cost).
  */
 class DrinkStreamTest {
 
@@ -30,7 +30,6 @@ class DrinkStreamTest {
     private static final double LATER = 100;
     private static final double LENGTH = 3;
     private static final double MIDDLE = 1.5;
-    private static final double TICKS_LATER = 25;
     private static final int TICKS_A_SECOND = 20;
     private static final double FOUR_BLOCKS = 4;
     private static final double OFF_THE_LINE = 0.02;
@@ -48,18 +47,6 @@ class DrinkStreamTest {
 
     @Nested
     class Timing {
-
-        @Test
-        void theHeadStartsATipOutOfTheBlockAndTheTailLeavesItsFaceAtTheFlowsPace() {
-            double face = DrinkStream.BLOCK_SPAN;
-            double tip = face + DrinkStream.TIP;
-
-            assertEquals(tip, DrinkStream.headAt(START, START), DELTA);
-            assertEquals(tip + TICKS_LATER * DrinkStream.FLOW, DrinkStream.headAt(START, START + TICKS_LATER), DELTA);
-            assertTrue(DrinkStream.tailAt(END, START) < face, "the block still feeds the stream");
-            assertEquals(face, DrinkStream.tailAt(END, END), DELTA);
-            assertEquals(face + TICKS_LATER * DrinkStream.FLOW, DrinkStream.tailAt(END, END + TICKS_LATER), DELTA);
-        }
 
         @Test
         void aStreamIsKeptTheLongestRoutesTravelPastItsDrain() {
@@ -102,15 +89,6 @@ class DrinkStreamTest {
             assertEquals(0.5, PATH.nearestShare(FROM.lerp(TO, 0.5).add(beside)), DELTA);
             assertEquals(0, PATH.nearestShare(FROM.add(1, 0, 0)), DELTA);
             assertEquals(1, PATH.nearestShare(TO.subtract(1, 0, 0)), DELTA);
-        }
-
-        @Test
-        void theLiquidFlowsTowardTheGlove() {
-            double before = DrinkStream.materialAt(MIDDLE, START);
-            double after = DrinkStream.materialAt(MIDDLE, START + 1);
-
-            assertEquals(-DrinkStream.FLOW, after - before, DELTA);
-            assertEquals(LENGTH, DrinkStream.materialAt(LENGTH, 0) - DrinkStream.materialAt(0, 0), DELTA);
         }
 
         @Test
@@ -185,14 +163,16 @@ class DrinkStreamTest {
         }
 
         @Test
-        void aRingFlowsAlongThePathWithItsRadius() {
-            DrinkStream.Ring ring = DrinkStream.ring(PATH, 0.5, START, RADIUS, 0, 0.5);
+        void aRingFlowsAlongThePathWithItsRadiusAtItsPace() {
+            DrinkStream.Ring ring = DrinkStream.ring(PATH, 0.5, START, RADIUS, 0, 0.5, 2 * DrinkStream.FLOW, 0.5);
             Vec3 flow = DrinkStream.pointAt(PATH, 0.5 + NUDGE, START).subtract(DrinkStream.pointAt(PATH, 0.5 - NUDGE,
                     START));
 
             assertEquals(0, ring.flow().distanceTo(flow.normalize()), 1e-3);
             assertEquals(1, ring.flow().length(), 1e-6);
             assertEquals(RADIUS, ring.radius(), DELTA);
+            assertEquals(2 * DrinkStream.FLOW, ring.speed(), DELTA);
+            assertEquals(0.5, ring.carry(), DELTA);
             assertEquals(0, ring.center().distanceTo(DrinkStream.pointAt(PATH, 0.5, START)), DELTA);
         }
 
