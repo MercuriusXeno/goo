@@ -157,6 +157,17 @@ public final class LeafSteps {
             });
 
     /**
+     * Toggles the redstone device where the host acts, as a hand would:
+     * Pulser's drip toggles the device below the tap with {@code toggle_device}.
+     * pulser-drip-toggles-the-block-below
+     */
+    public static final LeafStepType<Unit> TOGGLE_DEVICE = StepType.of("toggle_device", NO_PARAMS,
+            Set.of(HostCapability.TOGGLE_DEVICE), (none, context) -> {
+                context.hostAs(DeviceToggleHost.class).toggleDevice();
+                return true;
+            });
+
+    /**
      * Stuns the host's target for a number of ticks: it drops its target and
      * what it was doing, and its AI stands off until the stun ends. Zap
      * stuns what stands at its landing with {@code stun ticks=60}.
