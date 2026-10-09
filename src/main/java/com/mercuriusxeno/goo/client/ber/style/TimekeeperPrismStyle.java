@@ -1,12 +1,13 @@
 package com.mercuriusxeno.goo.client.ber.style;
 
+import com.mercuriusxeno.goo.client.CrystalClusterSubmitter;
 import com.mercuriusxeno.goo.client.FlatQuadContext;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.PrismCrystal;
 import com.mercuriusxeno.goo.client.ber.PrismRenderState;
 import com.mercuriusxeno.goo.client.overlay.TickFaceOverlay;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.SubmitNodeCollector;
-import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.core.Direction;
 import net.minecraft.world.phys.Vec3;
 
@@ -26,11 +27,16 @@ public final class TimekeeperPrismStyle implements PrismComboStyle {
     private static final double HALF = 0.5;
     /** The pace the shell's squares march at, a slow standing tick. */
     private static final int STANDING_PACE = 0;
-    private static final int NO_OUTLINE = 0;
 
     @Override
     public void submit(PrismRenderState state, PoseStack poseStack, SubmitNodeCollector nodeCollector) {
-        state.crystal.submit(poseStack, nodeCollector, state.lightCoords, OverlayTexture.NO_OVERLAY, NO_OUTLINE);
+        CrystalClusterSubmitter.Look look = state.look;
+        if (look != null) {
+            poseStack.pushPose();
+            PrismCrystal.standOnLandingFace(poseStack, state.facing);
+            CrystalClusterSubmitter.submit(poseStack, nodeCollector, PrismCrystal.PRISMS, look, state.lightCoords);
+            poseStack.popPose();
+        }
         nodeCollector.submitCustomGeometry(poseStack, GooRenderTypes.TICK_FACE_TYPE, (pose, consumer) -> {
             FlatQuadContext quads = new FlatQuadContext(pose, consumer);
             Vec3 middle = new Vec3(HALF, HALF, HALF);
