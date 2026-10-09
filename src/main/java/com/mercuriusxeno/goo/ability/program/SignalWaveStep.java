@@ -50,7 +50,7 @@ public record SignalWaveStep(Expr speed) implements Step {
             double front = frontAt(aim.held(), speed.evaluateFloat(context), range);
             if (front > 0) {
                 Vec3 reach = eye.add(line.scale(front / range));
-                for (BlockPos pos : CalcifyStep.blocksInCone(eye, reach, aim.coneDegrees())) {
+                for (BlockPos pos : AimedCells.along(eye, reach, aim.coneDegrees())) {
                     host.toggleOnceThisHold(pos);
                 }
             }

@@ -1,9 +1,11 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.throwing.StreamCone;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -15,6 +17,9 @@ class SignalRingsTest {
 
     private static final double EPSILON = 1e-9;
     private static final Vec3 EAST = new Vec3(1, 0, 0);
+    /** pulse_signal.json's range and cone. */
+    private static final double RANGE = 8;
+    private static final double CONE = 40;
 
     @Nested
     class Flight {
@@ -41,13 +46,22 @@ class SignalRingsTest {
         @Test
         void aRingFadesAsItExpands() {
             assertTrue(SignalRings.opacity(0.7) < SignalRings.opacity(0.3));
-            assertTrue(SignalRings.radiusAt(0.7) > SignalRings.radiusAt(0.3));
+            assertTrue(SignalRings.radiusAt(0.7, RANGE, CONE) > SignalRings.radiusAt(0.3, RANGE, CONE));
         }
 
         @Test
-        void aRingExpandsFromTheHandRadiusToTheEndRadius() {
-            assertEquals(SignalRings.HAND_RADIUS, SignalRings.radiusAt(0), EPSILON);
-            assertEquals(SignalRings.END_RADIUS, SignalRings.radiusAt(1), EPSILON);
+        void aRingLeavesTheHandSmall() {
+            assertEquals(SignalRings.HAND_RADIUS, SignalRings.radiusAt(0, RANGE, CONE), EPSILON);
+        }
+
+        /** The rings trace the cone the wave toggles devices in: a ring's rim stands on the cone's rim. */
+        @Test
+        void aRingsRimStandsOnTheStreamConesRim() {
+            double distance = RANGE * 0.6;
+            double rim = SignalRings.radiusAt(0.6, RANGE, CONE) - SignalRings.HAND_RADIUS;
+            Vec3 onTheRim = new Vec3(distance, rim, 0);
+            assertTrue(StreamCone.contains(Vec3.ZERO, EAST, RANGE, CONE, onTheRim.scale(0.999)));
+            assertFalse(StreamCone.contains(Vec3.ZERO, EAST, RANGE, CONE, new Vec3(distance, rim * 1.01, 0)));
         }
     }
 

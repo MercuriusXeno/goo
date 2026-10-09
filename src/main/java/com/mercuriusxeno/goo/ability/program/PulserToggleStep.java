@@ -43,7 +43,7 @@ public record PulserToggleStep(Expr every) implements Step {
         host.channelAim()
                 .filter(aim -> togglesOn(aim.held(), Math.round(every.evaluateFloat(context))))
                 .ifPresent(aim -> host.toggleEachDevice(
-                        CalcifyStep.blocksInCone(host.eye(), aim.aimPoint(), aim.coneDegrees())));
+                        AimedCells.along(host.eye(), aim.aimPoint(), aim.coneDegrees())));
         return true;
     }
 
