@@ -56,9 +56,11 @@ public final class WindLines {
      */
     static final double LAUNCH_SURGE = 0.35;
     /** The stream's wind: its volume and pitch, and the held ticks it outlasts a let-go by. */
-    private static final float WIND_VOLUME = 0.7f;
+    static final float WIND_VOLUME = 0.7f;
     private static final float WIND_PITCH = 1.0f;
     private static final long WIND_LINGER_TICKS = 2;
+    /** Ticks the wind takes to fade to silence once the stream is let go. */
+    static final int WIND_FADE_TICKS = 15;
     /** Ticks a line lives, from leaving the glove to fading out. */
     static final int LIFE_TICKS = 50;
     /** The share of a line's life it rushes straight before it curls. */
@@ -258,7 +260,21 @@ public final class WindLines {
         }
     }
 
-    /** The stream's continuous wind, following the player until the stream is let go. */
+    /**
+     * The stream's wind volume a number of ticks after it was let go: whole
+     * while held, then falling evenly to nothing over WIND_FADE_TICKS.
+     *
+     * @param sinceLetGo ticks since the stream was let go, zero or less while it is held
+     * @return the volume
+     */
+    static float windVolume(long sinceLetGo) {
+        if (sinceLetGo <= 0) {
+            return WIND_VOLUME;
+        }
+        return WIND_VOLUME * Math.max(0f, 1f - (float) sinceLetGo / WIND_FADE_TICKS);
+    }
+
+    /** The stream's continuous wind, following the player and fading once the stream is let go. */
     private final class StreamWind extends AbstractTickableSoundInstance {
 
         private final Player player;
@@ -275,7 +291,13 @@ public final class WindLines {
 
         @Override
         public void tick() {
-            if (player.isRemoved() || player.level().getGameTime() - windHeldAt > WIND_LINGER_TICKS) {
+            if (player.isRemoved()) {
+                stop();
+                return;
+            }
+            long sinceLetGo = player.level().getGameTime() - windHeldAt - WIND_LINGER_TICKS;
+            this.volume = windVolume(sinceLetGo);
+            if (this.volume <= 0f) {
                 stop();
             } else {
                 follow();

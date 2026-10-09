@@ -155,4 +155,13 @@ class WindLinesTest {
             assertTrue(WindLines.CURL_TURNS * 2 * Math.PI / curlTicks <= LAST_TURN_PER_TICK, "no faster a spin");
         }
     }
+
+    // cold-wind-fades-on-release
+    @Test
+    void theWindFadesEvenlyToNothingOnceLetGo() {
+        assertEquals(WindLines.WIND_VOLUME, WindLines.windVolume(0), 1e-6);
+        assertEquals(WindLines.WIND_VOLUME * (1 - 5f / WindLines.WIND_FADE_TICKS), WindLines.windVolume(5), 1e-6);
+        assertTrue(WindLines.windVolume(1) < WindLines.WIND_VOLUME && WindLines.windVolume(1) > 0);
+        assertEquals(0, WindLines.windVolume(WindLines.WIND_FADE_TICKS), 1e-6);
+    }
 }
