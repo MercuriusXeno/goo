@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.ber.style;
 
+import com.mercuriusxeno.goo.ability.nether.HiveSwarm;
 import com.mercuriusxeno.goo.client.CrystalClusterSubmitter;
 import com.mercuriusxeno.goo.client.PrismCrystal;
 import com.mercuriusxeno.goo.client.ber.PrismRenderState;
@@ -9,14 +10,13 @@ import net.minecraft.util.ARGB;
 
 /**
  * Nether's hive combo: the prism's quartz column, tinted the maroon of the
- * decaying swarm that crystallized into it; the swarm itself shows only as
- * gnats bursting around what the hive eats
- * (decision hive-prism-pillar-eats-the-living).
+ * decaying swarm that crystallized into it; the swarm around it is
+ * {@link HiveSwarm}'s (decision hive-prism-pillar-eats-the-living).
  */
 public final class HivePrismStyle implements PrismComboStyle {
 
     /** The combo the style draws, nether's hive ability. */
-    public static final String COMBO = "goo:nether_hive";
+    public static final String COMBO = HiveSwarm.COMBO;
     /** The swarm's maroon, the column's tint. */
     private static final int MAROON = 0x7A1A2A;
 

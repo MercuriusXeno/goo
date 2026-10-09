@@ -17,7 +17,8 @@ import org.jspecify.annotations.Nullable;
  */
 public final class GnatParticle extends SingleQuadParticle {
 
-    private static final float SWARM_FRICTION = 0.85f;
+    /** The share of its speed a gnat keeps each tick; a hive's launch is sized by it. */
+    public static final float SWARM_FRICTION = 0.85f;
     /** The widest a gnat's velocity swerves each tick on each axis, half of it either way. */
     private static final double DART_SPAN = 0.08;
     private static final int BASE_LIFETIME = 30;
