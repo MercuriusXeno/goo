@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.ability.hearts.HeartKind;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.block.tap.TapDripScheduler;
+import com.mercuriusxeno.goo.entity.RollingGoo;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooAttachments;
@@ -23,6 +24,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -78,16 +80,26 @@ public final class FrostAbilityTests {
     /** Two still water blocks in the floor under the Orb's path. */
     private static final BlockPos POOL_NEAR = new BlockPos(2, 0, 2);
     private static final BlockPos POOL_FAR = new BlockPos(3, 0, 2);
-    /** A zombie two blocks off the Orb's path, inside its swirl. */
-    private static final BlockPos ORB_BYSTANDER_POS = new BlockPos(3, 1, 4);
-    /** Where the Orb lands, at the east end of the bay. */
-    private static final BlockPos ORB_LANDING = new BlockPos(5, 1, 2);
+    /** A zombie off the Orb's path near the bay's east wall, inside the end nova's reach. */
+    private static final BlockPos ORB_BYSTANDER_POS = new BlockPos(5, 1, 4);
+    /** A zombie standing in the Orb's path, which ends it. */
+    private static final BlockPos ORB_BLOCKER_POS = new BlockPos(3, 1, 2);
     /** Enough frost for the Orb's cost and some over. */
     private static final int ORB_GOO = 4;
-    /** frost_orb.json's slow arc covers the five blocks in seventeen ticks; this is past its landing. */
-    private static final int ORB_LANDED_TICKS = 30;
+    /** How far ahead along the look a test aims a free throw. */
+    private static final double SELF_FREE_AIM_REACH = 4;
+    /** Blocks about the bay a test searches for a stray entity. */
+    private static final double BAY_SEARCH = 64;
+    /** frost_orb.json rolls 0.3 blocks a tick; the bay's six blocks take twenty ticks, this is past its end. */
+    private static final int ORB_ENDED_TICKS = 40;
+    /** The end nova's freeze, 14 of a zombie's 20 health, less the thaw of the ticks since, well past the swirl's. */
+    private static final float END_NOVA_FLOOR = 0.4f;
+    /** The struck zombie's freeze, nine tenths of its health, short a tick of thaw. */
+    private static final float STRUCK_FLOOR = 0.85f;
     private static final String SHOULD_ICE_THE_POOL = "The Orb should freeze the pool under its path to ice";
-    private static final String SHOULD_FREEZE_BYSTANDER = "The Orb should freeze the zombie beside its path";
+    private static final String SHOULD_FREEZE_BYSTANDER = "The Orb's end nova should freeze the zombie by the wall hard, stands %s";
+    private static final String SHOULD_FREEZE_BLOCKER = "The zombie the Orb struck should be nearly frozen solid, stands %s";
+    private static final String SHOULD_END = "The Orb should be gone once it ends";
     /** A prism in the bay's corner, a zombie beside it and its twin in the far corner past Glacial's reach of 5. */
     private static final BlockPos GLACIAL_PRISM_POS = new BlockPos(0, 1, 0);
     private static final BlockPos GLACIAL_INSIDE_POS = new BlockPos(1, 1, 1);
@@ -243,27 +255,63 @@ public final class FrostAbilityTests {
     public static void orbFreezesPathAndPool(GameTestHelper helper) {
         helper.setBlock(POOL_NEAR, Blocks.WATER);
         helper.setBlock(POOL_FAR, Blocks.WATER);
+        helper.setBlock(ORB_BYSTANDER_POS.below(), Blocks.STONE);
         Mob bystander = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ORB_BYSTANDER_POS);
+        ServerPlayer thrower = orbThrower(helper);
+        helper.runAfterDelay(SETTLE_TICKS, () -> throwOrbEast(helper, thrower));
+        helper.runAfterDelay(ORB_ENDED_TICKS, () -> {
+            float gauge = bystander.getData(GooAttachments.FROZEN).gauge();
+            helper.getLevel().getServer().getPlayerList().remove(thrower);
+            helper.assertTrue(helper.getBlockState(POOL_NEAR).is(Blocks.ICE)
+                    && helper.getBlockState(POOL_FAR).is(Blocks.ICE), SHOULD_ICE_THE_POOL);
+            helper.assertTrue(gauge > END_NOVA_FLOOR, String.format(SHOULD_FREEZE_BYSTANDER, gauge));
+            helper.assertTrue(noRollingGoo(helper), SHOULD_END);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * The Orb rolled at a zombie in its path ends on it, freezing it nearly solid.
+     *
+     * @param helper the gametest helper
+     */
+    public static void orbEndsOnAMob(GameTestHelper helper) {
+        helper.setBlock(ORB_BLOCKER_POS.below(), Blocks.STONE);
+        Mob blocker = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ORB_BLOCKER_POS);
+        ServerPlayer thrower = orbThrower(helper);
+        helper.runAfterDelay(SETTLE_TICKS, () -> throwOrbEast(helper, thrower));
+        helper.runAfterDelay(ORB_ENDED_TICKS, () -> {
+            float gauge = blocker.getData(GooAttachments.FROZEN).gauge();
+            helper.getLevel().getServer().getPlayerList().remove(thrower);
+            helper.assertTrue(gauge > STRUCK_FLOOR, String.format(SHOULD_FREEZE_BLOCKER, gauge));
+            helper.assertTrue(noRollingGoo(helper), SHOULD_END);
+            helper.succeed();
+        });
+    }
+
+    private static ServerPlayer orbThrower(GameTestHelper helper) {
         ServerPlayer thrower = SelfDeliveryTests.invoker(helper, GooTypes.FROST);
         thrower.getInventory().add(GooStacks.createForOutput(GooTypes.FROST, ORB_GOO * GooStacks.THOUSAND));
         Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(STREAMER_POS));
         thrower.setPos(stand.x, stand.y, stand.z);
         thrower.setYRot(FACING_EAST);
+        thrower.setXRot(0f);
         AbilityDefinition orb = AbilityRegistry.of(helper.getLevel()).getAbility(FROST_ORB);
         helper.assertTrue(orb != null, ABILITY_REQUIRED);
         KnownRecipes.teachRequires(thrower, orb);
-        BlockPos landing = helper.absolutePos(ORB_LANDING);
-        helper.runAfterDelay(SETTLE_TICKS, () -> GooThrowHandler.execute(thrower, new GooThrowPayload(
-                GooTypes.id(GooTypes.FROST), -1, landing.below(), Direction.UP.ordinal(), false,
-                FROST_ORB.toString(), thrower.getEyePosition(), Vec3.atBottomCenterOf(landing))));
-        helper.runAfterDelay(ORB_LANDED_TICKS, () -> {
-            boolean frozenBy = bystander.getData(GooAttachments.FROZEN).started();
-            helper.getLevel().getServer().getPlayerList().remove(thrower);
-            helper.assertTrue(helper.getBlockState(POOL_NEAR).is(Blocks.ICE)
-                    && helper.getBlockState(POOL_FAR).is(Blocks.ICE), SHOULD_ICE_THE_POOL);
-            helper.assertTrue(frozenBy, SHOULD_FREEZE_BYSTANDER);
-            helper.succeed();
-        });
+        return thrower;
+    }
+
+    private static void throwOrbEast(GameTestHelper helper, ServerPlayer thrower) {
+        Vec3 ahead = thrower.getEyePosition().add(thrower.getLookAngle().scale(SELF_FREE_AIM_REACH));
+        GooThrowHandler.execute(thrower, new GooThrowPayload(GooTypes.id(GooTypes.FROST), -1,
+                BlockPos.containing(ahead), Direction.UP.ordinal(), false, FROST_ORB.toString(),
+                thrower.getEyePosition(), ahead));
+    }
+
+    private static boolean noRollingGoo(GameTestHelper helper) {
+        return helper.getLevel().getEntitiesOfClass(RollingGoo.class, new AABB(helper.absolutePos(BlockPos.ZERO))
+                .inflate(BAY_SEARCH)).isEmpty();
     }
 
     /**

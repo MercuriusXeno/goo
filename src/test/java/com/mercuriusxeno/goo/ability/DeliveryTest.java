@@ -130,22 +130,30 @@ class DeliveryTest {
 
     // orb-carries-a-swirling-nova
     @Nested
-    class SlowArc {
+    class Rolls {
 
         private static final double SLOW = 0.3;
+        private static final double RANGE = 40;
 
-        private final Delivery orb = new Delivery(DeliveryKind.ARC, SLOW, 0, Delivery.DEFAULT_CONE_DEGREES,
-                Delivery.DEFAULT_TICKS_PER_CHARGE, true, java.util.Optional.empty(), Delivery.DEFAULT_TRANSFORM_AT);
-
-        @Test
-        void anArcNamingASlowSpeedFliesAtIt() {
-            assertTrue(orb.flySlow());
-            assertEquals((int) Math.ceil(TEN_BLOCKS / SLOW), orb.travelTicks(TEN_BLOCKS, LEVITY, BASE_FLIGHT_TIME));
+        private Delivery arc(double blocksPerTick, double range) {
+            return new Delivery(DeliveryKind.ARC, blocksPerTick, range, Delivery.DEFAULT_CONE_DEGREES,
+                    Delivery.DEFAULT_TICKS_PER_CHARGE, true, java.util.Optional.empty(), Delivery.DEFAULT_TRANSFORM_AT);
         }
 
         @Test
-        void anArcAtTheDefaultSpeedKeepsTheTypesFlightTime() {
-            assertFalse(Delivery.ARC.flySlow());
+        void aSlowArcNamingARangeRolls() {
+            assertTrue(arc(SLOW, RANGE).rolls());
+        }
+
+        @Test
+        void aSlowArcNamingNoRangeDoesNotRoll() {
+            assertFalse(arc(SLOW, 0).rolls());
+        }
+
+        @Test
+        void anArcAtTheDefaultSpeedDoesNotRoll() {
+            assertFalse(arc(Delivery.DEFAULT_BLOCKS_PER_TICK, RANGE).rolls());
+            assertFalse(Delivery.ARC.rolls());
         }
     }
 

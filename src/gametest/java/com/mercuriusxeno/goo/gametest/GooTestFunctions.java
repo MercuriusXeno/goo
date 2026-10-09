@@ -440,6 +440,7 @@ public final class GooTestFunctions {
     private static final String NOVA_TAP_FREEZES_BELOW = "nova_tap_freezes_below";
     private static final String COLD_BREAKS_GRASS = "cold_breaks_grass_and_freezes_faster";
     private static final String ORB_FREEZES_PATH = "orb_freezes_path_and_pool";
+    private static final String ORB_ENDS_ON_A_MOB = "orb_ends_on_a_mob";
     private static final String GLACIAL_HOLDS_THE_GAUGE = "glacial_holds_the_gauge";
     private static final String ICEBORN_FREEZES_SURROUNDINGS = "iceborn_freezes_surroundings";
     private static final String ICEBORN_THAWS_ON_FIRE = "iceborn_thaws_on_fire";
@@ -912,6 +913,7 @@ public final class GooTestFunctions {
         reg(r, NOVA_TAP_FREEZES_BELOW, FrostAbilityTests::novaTapFreezesBelow);
         reg(r, COLD_BREAKS_GRASS, FrostAbilityTests::coldBreaksGrassAndFreezesFaster);
         reg(r, ORB_FREEZES_PATH, FrostAbilityTests::orbFreezesPathAndPool);
+        reg(r, ORB_ENDS_ON_A_MOB, FrostAbilityTests::orbEndsOnAMob);
         reg(r, GLACIAL_HOLDS_THE_GAUGE, FrostAbilityTests::glacialHoldsTheGauge);
         reg(r, ICEBORN_FREEZES_SURROUNDINGS, FrostAbilityTests::icebornFreezesSurroundings);
         reg(r, ICEBORN_THAWS_ON_FIRE, FrostAbilityTests::icebornThawsOnFire);
