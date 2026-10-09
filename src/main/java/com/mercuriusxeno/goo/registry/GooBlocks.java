@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.block.ability.AbilityBlock;
 import com.mercuriusxeno.goo.block.ability.FungalBudBlock;
 import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
+import com.mercuriusxeno.goo.block.ability.LightRailBlock;
 import com.mercuriusxeno.goo.block.ability.MagickedIceBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.block.ability.WispBlock;
@@ -86,6 +87,21 @@ public class GooBlocks {
                     .sound(SoundType.AMETHYST_CLUSTER)
                     .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY)
                     .lightLevel(WispBlock::lightLevel));
+    /**
+     * One cell of the light rail between linked reflector prisms: lit,
+     * replaceable, shapeless and without collision, burning the undead that
+     * cross it (decision reflector-rails-carry-the-brightest-light).
+     */
+    public static final DeferredBlock<LightRailBlock> LIGHT_RAIL = BLOCKS.registerBlock(
+            "light_rail", LightRailBlock::new,
+            () -> BlockBehaviour.Properties.of()
+                    .noCollision()
+                    .noOcclusion()
+                    .noLootTable()
+                    .replaceable()
+                    .instabreak()
+                    .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY)
+                    .lightLevel(LightRailBlock::lightLevel));
     public static final DeferredBlock<GlowCrystalBlock> GLOW_CRYSTAL = BLOCKS.registerBlock(
             "glow_crystal", GlowCrystalBlock::new,
             () -> BlockBehaviour.Properties.of()

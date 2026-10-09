@@ -20,6 +20,7 @@ import com.mercuriusxeno.goo.client.ability.Transformations;
 import com.mercuriusxeno.goo.client.ability.ViewportRipples;
 import com.mercuriusxeno.goo.client.ber.*;
 import com.mercuriusxeno.goo.client.ber.style.GlowBeaconStyle;
+import com.mercuriusxeno.goo.client.ber.style.GlowReflectorStyle;
 import com.mercuriusxeno.goo.client.ber.style.PrismComboStyles;
 import com.mercuriusxeno.goo.client.model.*;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
@@ -173,6 +174,7 @@ public final class GooClientSetup {
         event.registerBlockEntityRenderer(GooBlockEntities.PRISM.get(), PrismRenderer::new);
         event.registerBlockEntityRenderer(GooBlockEntities.WISP.get(), WispRenderer::new);
         PrismComboStyles.register(GlowBeaconStyle.COMBO, new GlowBeaconStyle());
+        PrismComboStyles.register(GlowReflectorStyle.COMBO, new GlowReflectorStyle());
         event.registerBlockEntityRenderer(GooBlockEntities.STATUE.get(), StatueRenderer::new);
     }
 

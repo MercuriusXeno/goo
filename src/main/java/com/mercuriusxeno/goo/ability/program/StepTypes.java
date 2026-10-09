@@ -74,6 +74,7 @@ public final class StepTypes {
         register(SightStep.TYPE);
         register(LuxStep.TYPE);
         register(WispsStep.TYPE);
+        register(ReflectorStep.TYPE);
         register(ScryStep.TYPE);
         register(RayStep.TYPE);
         register(FlattenStep.TYPE);

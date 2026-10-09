@@ -74,6 +74,9 @@ public class PrismRenderer implements BlockEntityRenderer<PrismBlockEntity, Pris
         long gameTime = prism.getLevel() == null ? 0L : prism.getLevel().getGameTime();
         state.animationTime = Math.floorMod(gameTime, BEAM_CYCLE_TICKS) + partialTick;
         state.beamRadiusScale = beamRadiusScale((float) cameraPos.subtract(state.blockPos.getCenter()).horizontalDistance());
+        state.links = prism.getLinks().stream().map(link -> Vec3.atLowerCornerOf(link.subtract(prism.getBlockPos())))
+                .toList();
+        state.linkLight = prism.getLinkLight();
     }
 
     /**
@@ -105,7 +108,12 @@ public class PrismRenderer implements BlockEntityRenderer<PrismBlockEntity, Pris
     public AABB getRenderBoundingBox(PrismBlockEntity prism) {
         PrismComboStyle style = PrismComboStyles.forCombo(prism.getCombo());
         int reach = style == null ? 0 : style.beamReach();
-        return drawnBounds(prism.getBlockPos(), prism.getBlockState().getValue(PrismBlock.FACING), reach);
+        AABB bounds = drawnBounds(prism.getBlockPos(), prism.getBlockState().getValue(PrismBlock.FACING), reach);
+        // reflector-rails-carry-the-brightest-light: the box reaches every linked reflector, so its beams draw
+        for (BlockPos link : prism.getLinks()) {
+            bounds = bounds.minmax(new AABB(link));
+        }
+        return bounds;
     }
 
     @Override

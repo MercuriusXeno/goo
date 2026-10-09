@@ -4,7 +4,9 @@ import com.mercuriusxeno.goo.client.CrystalClusterSubmitter;
 import com.mercuriusxeno.goo.client.PrismCrystal;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 import net.minecraft.core.Direction;
+import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
+import java.util.List;
 
 /**
  * Render state snapshot for the prism: the look of its crystal, the face it
@@ -34,4 +36,10 @@ public class PrismRenderState extends BlockEntityRenderState {
 
     /** How much a beam widens with the camera's horizontal distance, as vanilla's beacon widens. */
     public float beamRadiusScale = 1f;
+
+    /** Each linked reflector's offset from this prism's cell, for the rail beams (decision reflector-rails-carry-the-brightest-light). */
+    public List<Vec3> links = List.of();
+
+    /** The light the linked network's rails carry, 0 to 15. */
+    public int linkLight;
 }

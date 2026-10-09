@@ -34,7 +34,7 @@ import java.util.function.Consumer;
  */
 public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
         implements PlacedFaceHost, TickingHost, ExplodeHost, EntityScanHost, PlaceBlockHost,
-        FieldEffectHost, PhasedHost, ConsumedGooHost, StateWriteHost {
+        FieldEffectHost, PhasedHost, ConsumedGooHost, StateWriteHost, LevelHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
 
