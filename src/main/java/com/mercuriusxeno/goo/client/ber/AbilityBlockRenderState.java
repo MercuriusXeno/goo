@@ -46,6 +46,12 @@ public class AbilityBlockRenderState extends BlockEntityRenderState {
     /** How many ticks a spike stays in flight, windup to retracted. */
     public int spikeLength;
 
+    /**
+     * The ticks between a convoke blob's pulses, zero for a marker that
+     * convokes nothing (decision convoke-blob-throbs-until-a-mob-arrives).
+     */
+    public int convokePeriod;
+
     /** True when a crystal shard cloud behavior is active. */
     public boolean crystalActive;
 

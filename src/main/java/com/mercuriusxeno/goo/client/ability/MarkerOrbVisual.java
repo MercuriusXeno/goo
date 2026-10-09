@@ -96,7 +96,31 @@ public final class MarkerOrbVisual {
                 ctx -> emitOrbLayer(ctx, GooRenderUtil.OPAQUE_WHITE, coreHalf, face, shape, uv));
         GooSubmitter.submitFluid(poseStack, nodeCollector,
                 ctx -> emitOrbLayer(ctx, shellColor, shellHalf, face, shape, uv));
+        if (state.convokePeriod > 0) {
+            submitConvokeEcho(state, poseStack, nodeCollector, shellHalf, uv);
+        }
         poseStack.popPose();
+    }
+
+    /**
+     * Draws the convoke blob's echo: a copy of its shell growing outward and
+     * fading over each pulse.
+     * Decision convoke-blob-throbs-until-a-mob-arrives.
+     *
+     * @param state         the render state snapshot
+     * @param poseStack     the pose stack, placed on the orb
+     * @param nodeCollector the render node collector
+     * @param shellHalf     the shell's half-size
+     * @param uv            the fluid sprite's UV rectangle
+     */
+    private static void submitConvokeEcho(AbilityBlockRenderState state, PoseStack poseStack,
+                                          SubmitNodeCollector nodeCollector, float shellHalf,
+                                          GooRenderUtil.UvRect uv) {
+        float echoHalf = shellHalf * ConvokeThrob.echoGrowth(state.convokePeriod, state.gameTime);
+        int echoAlpha = Math.round(SHELL_ALPHA * ConvokeThrob.echoStrength(state.convokePeriod, state.gameTime));
+        int echoColor = ARGB.color(echoAlpha, ClientGooTypes.color(state.gooType));
+        GooSubmitter.submitFluid(poseStack, nodeCollector,
+                ctx -> emitOrbLayer(ctx, echoColor, echoHalf, state.placedFace, OrbShape.GOO, uv));
     }
 
     /**
@@ -217,7 +241,7 @@ public final class MarkerOrbVisual {
     private static float computeOrbModifier(AbilityBlockRenderState state) {
         float spikeShake = computeSpikeShake(state);
         float ebb = crystalEbb(state.crystalActive, state.gameTime);
-        return spikeShake * ebb;
+        return spikeShake * ebb * ConvokeThrob.throb(state.convokePeriod, state.gameTime);
     }
 
     /**
