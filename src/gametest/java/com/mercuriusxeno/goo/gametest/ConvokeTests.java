@@ -2,6 +2,10 @@ package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.program.BranchStep;
+import com.mercuriusxeno.goo.ability.program.Expr;
+import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
+import com.mercuriusxeno.goo.ability.program.TapHost;
 import com.mercuriusxeno.goo.ability.world.AbilityImpact;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -17,6 +21,7 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
+import java.util.List;
 
 /**
  * Gametests for the convoke blob: landed on a floor, it pulls a mob from its
@@ -32,6 +37,9 @@ public final class ConvokeTests {
     /** How far off its own bay each test lays its chunk, past every other test, and apart from each other. */
     private static final int PULL_FAR_OFF = 4096;
     private static final int LINGER_FAR_OFF = 8192;
+    private static final int TAP_FAR_OFF = 12288;
+    private static final Identifier ENDER_CONVOKE_TAP = Identifier.parse("goo:ender_convoke_tap");
+    private static final String SHOULD_SPAWN = "A cow should spawn";
     /** How far from the marker the cow stands, inside the marker's chunk. */
     private static final int COW_OFFSET = 3;
     private static final int CHUNK_MIDDLE = 8;
@@ -40,7 +48,7 @@ public final class ConvokeTests {
     private static final int PERIODS_WITHOUT_A_MOB = 3;
     private static final double ARRIVED_WITHIN = 0.1;
     private static final String ABILITY_REQUIRED = "goo:ender_convoke must be loaded";
-    private static final String SHOULD_ARRIVE = "The cow should stand at the marker's cell %s, stands at %s";
+    private static final String SHOULD_ARRIVE = "The cow should stand at the convoke spot %s, stands at %s";
     private static final String SHOULD_LEAVE = "The marker should go once a mob arrives";
     private static final String SHOULD_LINGER = "The marker should still stand after three pulses with no mob in its chunk";
 
@@ -57,11 +65,7 @@ public final class ConvokeTests {
         ServerLevel level = helper.getLevel();
         BlockPos floor = farFloor(helper, PULL_FAR_OFF);
         BlockPos marker = floor.above();
-        Mob cow = EntityType.COW.create(level, EntitySpawnReason.COMMAND);
-        helper.assertTrue(cow != null, "A cow should spawn");
-        cow.setNoAi(true);
-        cow.snapTo(Vec3.atBottomCenterOf(marker.east(COW_OFFSET)));
-        level.addFreshEntity(cow);
+        Mob cow = spawnCow(helper, marker.east(COW_OFFSET));
         landConvoke(helper, floor);
         Vec3 cell = Vec3.atBottomCenterOf(marker);
         helper.succeedWhen(() -> {
@@ -70,6 +74,49 @@ public final class ConvokeTests {
             helper.assertFalse(level.getBlockState(marker).is(GooBlocks.ABILITY_BLOCK.get()), SHOULD_LEAVE);
             release(helper, floor, cow);
         });
+    }
+
+    /**
+     * An ender tap's drip at full chance lands on a floor: ender_convoke_tap.json's
+     * program, its roll made certain, pulls a cow from the floor's chunk to
+     * stand on the floor under the tap (decision convoke-drip-rolls-a-small-chance).
+     *
+     * @param helper the gametest helper
+     */
+    public static void convokeTapAtFullChance(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos floor = farFloor(helper, TAP_FAR_OFF);
+        Mob cow = spawnCow(helper, floor.above().east(COW_OFFSET));
+        AbilityDefinition tap = AbilityRegistry.of(level).getAbility(ENDER_CONVOKE_TAP);
+        helper.assertTrue(tap != null, ABILITY_REQUIRED);
+        BranchStep roll = (BranchStep) tap.behaviors().getFirst();
+        BranchStep certain = new BranchStep(Expr.literal(1), roll.then(), roll.otherwise());
+        // The far chunk's entities reach the level's entity scan some ticks after it is forced loaded.
+        helper.runAfterDelay(PERIOD, () -> {
+            new ProgramBehavior(List.of(certain)).tick(new TapHost(level, floor, Direction.UP));
+            Vec3 underTap = Vec3.atBottomCenterOf(floor.above());
+            boolean arrived = cow.position().distanceTo(underTap) < ARRIVED_WITHIN;
+            Vec3 stands = cow.position();
+            release(helper, floor, cow);
+            helper.assertTrue(arrived, String.format(SHOULD_ARRIVE, underTap, stands));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Spawns a cow with no will at a spot.
+     *
+     * @param helper the gametest helper
+     * @param at     the cow's block, absolute
+     * @return the cow
+     */
+    private static Mob spawnCow(GameTestHelper helper, BlockPos at) {
+        Mob cow = EntityType.COW.create(helper.getLevel(), EntitySpawnReason.COMMAND);
+        helper.assertTrue(cow != null, SHOULD_SPAWN);
+        cow.setNoAi(true);
+        cow.snapTo(Vec3.atBottomCenterOf(at));
+        helper.getLevel().addFreshEntity(cow);
+        return cow;
     }
 
     /**
