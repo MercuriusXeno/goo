@@ -56,7 +56,7 @@ public final class StepTypes {
         register(PhasedStep.TYPE);
         register(PullStep.TYPE);
         register(LeafSteps.CONSUME_BLOCKS.type());
-        register(LeafSteps.DROP_CONSUMED.type());
+        register(LeafSteps.DROP_SPHERE.type());
         register(CounterStep.TYPE);
         register(BranchStep.TYPE);
         register(LeafSteps.DISCARD.type());

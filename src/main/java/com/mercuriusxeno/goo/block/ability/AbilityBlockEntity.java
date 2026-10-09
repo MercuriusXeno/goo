@@ -9,7 +9,6 @@ import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.block.BlockEntitySync;
 import com.mercuriusxeno.goo.block.GooSyncedBlockEntity;
-import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -178,34 +177,6 @@ public class AbilityBlockEntity extends GooSyncedBlockEntity implements MarkerAn
      */
     public PhasedState getPhased() {
         return programState.phased();
-    }
-
-    /**
-     * Returns the goo consumed from the blocks around this marker and not
-     * yet dropped.
-     *
-     * @return the consumed goo
-     */
-    public GooContents getConsumedGoo() {
-        return programState.consumedGoo();
-    }
-
-    /**
-     * Adds goo consumed from the blocks around this marker to its total.
-     *
-     * @param consumed the goo just consumed
-     */
-    public void addConsumedGoo(GooContents consumed) {
-        programState.addConsumedGoo(consumed);
-    }
-
-    /**
-     * Empties the consumed goo total, handing back what it held.
-     *
-     * @return the goo consumed so far
-     */
-    public GooContents takeConsumedGoo() {
-        return programState.takeConsumedGoo();
     }
 
     @Override
