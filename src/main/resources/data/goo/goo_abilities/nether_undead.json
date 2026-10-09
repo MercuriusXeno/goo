@@ -1,0 +1,14 @@
+{
+  "gooType": "nether",
+  "displayName": "goo.ability.nether.undead",
+  "badge": "brew",
+  "order": 50,
+  "upkeep": 1,
+  "requires": ["minecraft:rotten_flesh"],
+  "delivery": { "kind": "self" },
+  "behaviors": [
+    { "type": "heart_overlay", "kind": "undead" },
+    { "type": "undead", "sun_damage": 1 }
+  ],
+  "tags": ["self"]
+}

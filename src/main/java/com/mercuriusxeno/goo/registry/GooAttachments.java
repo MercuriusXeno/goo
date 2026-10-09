@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.registry;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.ability.held.HeldEffects;
+import com.mercuriusxeno.goo.ability.nether.Undead;
 import com.mercuriusxeno.goo.ability.nourish.Nourish;
 import com.mercuriusxeno.goo.ability.petrify.Petrification;
 import com.mercuriusxeno.goo.ability.program.EntityCounters;
@@ -110,6 +111,17 @@ public final class GooAttachments {
     public static final Supplier<AttachmentType<Spored>> SPORED =
             ATTACHMENT_TYPES.register("spored",
                     () -> AttachmentType.builder(() -> Spored.NONE).serialize(Spored.CODEC).build());
+
+    /**
+     * Whether a player counts as undead and what the sun deals it, laid by
+     * Undead and cleared when its held effect ends
+     * (decision undead-nether-hearts-burn-in-sunlight).
+     */
+    public static final Supplier<AttachmentType<Undead>> UNDEAD =
+            ATTACHMENT_TYPES.register("undead",
+                    () -> AttachmentType.builder(() -> Undead.NONE)
+                            .serialize(Undead.CODEC, Undead::stands)
+                            .build());
 
     /**
      * The fungal sight a player holds, lengthening Fungal Shift and synced to
