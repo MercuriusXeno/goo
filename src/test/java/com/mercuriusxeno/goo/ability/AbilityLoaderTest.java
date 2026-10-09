@@ -83,6 +83,7 @@ class AbilityLoaderTest {
             Map.entry("ender_blink", List.of("ender_pearl")),
             Map.entry("ender_teleport", List.of("popped_chorus_fruit")),
             Map.entry("hex_charm", List.of("honey_bottle", "cake", "cookie")),
+            Map.entry("hex_enchant", List.of("book", "lapis_lazuli")),
             Map.entry("unstable_explode", List.of("gunpowder")),
             Map.entry("unstable_proximity_mine", List.of("tnt")),
             Map.entry("glow_laser", List.of("spectral_arrow")),
@@ -267,6 +268,18 @@ class AbilityLoaderTest {
 
         assertTrue(steps.stream().anyMatch(CharmStep.class::isInstance), "no charm step");
         assertTrue(steps.stream().noneMatch(PotionStep.class::isInstance), "still applies a potion");
+    }
+
+    /**
+     * Hex enchant consumes one book and plays a hex afterimage on the player
+     * (decision enchant-book-with-a-purple-afterimage).
+     */
+    @Test
+    void hexEnchantTakesABookUnderAHexAfterimage() {
+        AbilityDefinition enchant = AbilityJson.decode("hex_enchant");
+
+        assertEquals(List.of(Identifier.withDefaultNamespace("book")), enchant.consumes());
+        assertEquals(List.of(GooTypes.HEX), afterimageTypes(enchant.behaviors()));
     }
 
     /**

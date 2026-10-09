@@ -11,6 +11,7 @@ import com.mercuriusxeno.goo.network.ColonizeTests;
 import com.mercuriusxeno.goo.network.FungalShiftTests;
 import com.mercuriusxeno.goo.network.GloveSelectTests;
 import com.mercuriusxeno.goo.network.HeartOverlayTests;
+import com.mercuriusxeno.goo.network.HexSelfTests;
 import com.mercuriusxeno.goo.network.MobEffectTests;
 import com.mercuriusxeno.goo.network.MycosisTests;
 import com.mercuriusxeno.goo.network.NourishTests;
@@ -436,6 +437,7 @@ public final class GooTestFunctions {
     private static final String MOB_TYPHOON = "mob_typhoon_levitate";
     private static final String MOB_GLOW = "mob_glow_laser";
     private static final String CHARM_TURNS_ZOMBIE = "charm_turns_zombie_on_skeleton";
+    private static final String ENCHANT_GIVES_BOOK = "enchant_gives_one_level_one_book";
     private static final String MOB_PULSE = "mob_pulse_stun";
     private static final String MOB_NETHER = "mob_nether_wither";
     private static final String MOB_ENDER = "mob_ender_teleport";
@@ -898,6 +900,7 @@ public final class GooTestFunctions {
         reg(r, MOB_TYPHOON, MobEffectTests::typhoonLevitate);
         reg(r, MOB_GLOW, MobEffectTests::glowLaser);
         reg(r, CHARM_TURNS_ZOMBIE, MobEffectTests::charmTurnsZombieOnSkeleton);
+        reg(r, ENCHANT_GIVES_BOOK, HexSelfTests::enchantGivesOneLevelOneBook);
         reg(r, MOB_PULSE, MobEffectTests::pulseStun);
         reg(r, MOB_NETHER, MobEffectTests::netherWither);
         reg(r, MOB_ENDER, MobEffectTests::enderTeleport);
