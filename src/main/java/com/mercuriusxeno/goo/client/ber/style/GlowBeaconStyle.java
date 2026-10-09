@@ -1,8 +1,6 @@
 package com.mercuriusxeno.goo.client.ber.style;
 
-import com.mercuriusxeno.goo.client.CrystalClusterSubmitter;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
-import com.mercuriusxeno.goo.client.PrismCrystal;
 import com.mercuriusxeno.goo.client.ability.GlowBeamMesh;
 import com.mercuriusxeno.goo.client.ber.PrismRenderState;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -12,7 +10,7 @@ import net.minecraft.client.renderer.blockentity.BeaconRenderer;
 import net.minecraft.util.Mth;
 
 /**
- * Bulb's beacon on a prism: the plain column with glow's beam of light
+ * Bulb's beacon on a prism: the glow column ({@link GlowColumn}) with glow's beam of light
  * ({@link GlowBeamMesh}) rising out of it along its facing, as far as a
  * vanilla beacon's beam reaches, so it reads from far away.
  * decision bulb-one-model-max-light-beacon-combo
@@ -29,13 +27,7 @@ public final class GlowBeaconStyle implements PrismComboStyle {
 
     @Override
     public void submit(PrismRenderState state, PoseStack poseStack, SubmitNodeCollector nodeCollector) {
-        CrystalClusterSubmitter.Look look = state.look;
-        if (look != null) {
-            poseStack.pushPose();
-            PrismCrystal.standOnLandingFace(poseStack, state.facing);
-            CrystalClusterSubmitter.submit(poseStack, nodeCollector, PrismCrystal.PRISMS, look, state.lightCoords);
-            poseStack.popPose();
-        }
+        GlowColumn.submit(state, poseStack, nodeCollector);
         poseStack.pushPose();
         poseStack.translate(HALF, HALF, HALF);
         poseStack.mulPose(state.facing.getRotation());
