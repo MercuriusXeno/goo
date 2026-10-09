@@ -20,7 +20,8 @@ import net.minecraft.world.phys.Vec3;
 /**
  * Gametests for the frost abilities: each lands a frost ability the way the
  * glove would and reads the frozen gauges and the world it leaves.
- * Decisions nova-ring-grows-with-the-hold, nova-drip-pulses-a-short-lasting-freeze.
+ * Decisions nova-ring-grows-with-the-hold, nova-drip-pulses-a-short-lasting-freeze,
+ * cold-streams-wind-lines-and-snowflakes.
  */
 public final class FrostAbilityTests {
 
@@ -50,6 +51,20 @@ public final class FrostAbilityTests {
     private static final int TAP_DRIPS = 6;
     /** Ticks past which a never-thawing ice would have melted were it vanilla ice under light. */
     private static final int ICE_STANDS_TICKS = 40;
+    private static final Identifier FROST_COLD = Identifier.parse("goo:frost_cold");
+    private static final BlockPos STREAMER_POS = new BlockPos(0, 1, 2);
+    /** Grass three blocks east of the streamer, inside Cold's cone below the look. */
+    private static final BlockPos GRASS_POS = new BlockPos(3, 1, 2);
+    /** A zombie four blocks east of the streamer, inside Cold's cone above the look. */
+    private static final BlockPos COLD_ZOMBIE_POS = new BlockPos(4, 1, 2);
+    private static final float FACING_EAST = -90f;
+    /** Pitched down between the grass and the zombie's middle, so both stand in the cone. */
+    private static final float BETWEEN_GRASS_AND_ZOMBIE = 14f;
+    private static final int COLD_HOLD_TICKS = 10;
+    /** A full Nova's freeze on a zombie, 16 of its 20 health, spread over the 60 ticks it took to charge. */
+    private static final float NOVA_PER_HELD_TICK = 0.8f / FULL_HOLD_TICKS;
+    private static final String SHOULD_KILL_GRASS = "Cold should break the grass in its cone";
+    private static final String SHOULD_OUTFREEZE_NOVA = "Ten ticks of Cold should freeze past %s, Nova's ten held ticks; stands %s";
     private static final String SHOULD_NOT_PULSE_YET = "Drips short of the count should freeze nothing, stands %s";
     private static final String SHOULD_FREEZE_ZOMBIE = "The tap's nova should raise the zombie's gauge";
     private static final String ABILITY_REQUIRED = "Ability registry must hold frost_nova";
@@ -127,6 +142,39 @@ public final class FrostAbilityTests {
         });
         helper.runAfterDelay(SETTLE_TICKS + ICE_STANDS_TICKS, () -> {
             helper.assertBlockPresent(GooBlocks.MAGICKED_ICE.get(), TAP_WATER);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Cold streamed along a line of grass at a zombie breaks the grass and
+     * freezes the zombie faster than Nova's hold charges.
+     *
+     * @param helper the gametest helper
+     */
+    public static void coldBreaksGrassAndFreezesFaster(GameTestHelper helper) {
+        helper.setBlock(GRASS_POS.below(), Blocks.GRASS_BLOCK);
+        helper.setBlock(GRASS_POS, Blocks.SHORT_GRASS);
+        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, COLD_ZOMBIE_POS);
+        ServerPlayer streamer = SelfDeliveryTests.invoker(helper, GooTypes.FROST);
+        Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(STREAMER_POS));
+        streamer.setPos(stand.x, stand.y, stand.z);
+        streamer.setYRot(FACING_EAST);
+        streamer.setXRot(BETWEEN_GRASS_AND_ZOMBIE);
+        AbilityDefinition cold = AbilityRegistry.of(helper.getLevel()).getAbility(FROST_COLD);
+        helper.assertTrue(cold != null, ABILITY_REQUIRED);
+        KnownRecipes.teachRequires(streamer, cold);
+        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.FROST), FROST_COLD.toString(),
+                streamer.getEyePosition(), streamer.getEyePosition());
+        for (int held = 1; held <= COLD_HOLD_TICKS; held++) {
+            helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(streamer, tick));
+        }
+        helper.runAfterDelay(COLD_HOLD_TICKS + 1, () -> {
+            float gauge = zombie.getData(GooAttachments.FROZEN).gauge();
+            helper.getLevel().getServer().getPlayerList().remove(streamer);
+            helper.assertBlockNotPresent(Blocks.SHORT_GRASS, GRASS_POS);
+            float novaFloor = NOVA_PER_HELD_TICK * COLD_HOLD_TICKS;
+            helper.assertTrue(gauge > novaFloor, String.format(SHOULD_OUTFREEZE_NOVA, novaFloor, gauge));
             helper.succeed();
         });
     }
