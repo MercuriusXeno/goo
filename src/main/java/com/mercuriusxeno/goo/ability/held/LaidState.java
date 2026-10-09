@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.held;
 
+import com.mercuriusxeno.goo.ability.program.ExtenderStep;
 import com.mercuriusxeno.goo.ability.program.HeartOverlayStep;
 import com.mercuriusxeno.goo.ability.program.LowerCaseEnumCodec;
 import com.mercuriusxeno.goo.ability.program.NourishStep;
@@ -24,7 +25,9 @@ public enum LaidState {
     /** Nourishment, laid by a nourish step. */
     NOURISH,
     /** Fungal sight (decision sight-lengthens-shift-and-outlines-fungus). */
-    SIGHT;
+    SIGHT,
+    /** The Extender's mark, laid by an extender step (decision extender-multiplies-the-next-self-duration). */
+    EXTENDER;
 
     /** Codec for the saved state. */
     public static final Codec<LaidState> CODEC = LowerCaseEnumCodec.of(LaidState.class, "laid state");
@@ -48,6 +51,8 @@ public enum LaidState {
                 laid.add(NOURISH);
             } else if (step instanceof SightStep) {
                 laid.add(SIGHT);
+            } else if (step instanceof ExtenderStep) {
+                laid.add(EXTENDER);
             }
         });
         return laid;

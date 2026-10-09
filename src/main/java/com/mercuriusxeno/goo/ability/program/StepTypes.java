@@ -84,6 +84,7 @@ public final class StepTypes {
         register(EmitPowerStep.TYPE);
         register(MetronomeStep.TYPE);
         register(RelayStep.TYPE);
+        register(ExtenderStep.TYPE);
         register(LeafSteps.STUN.type());
         register(SignalWaveStep.TYPE);
         register(PulserToggleStep.TYPE);

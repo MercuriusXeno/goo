@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.ability.pulse.ExtenderEvents;
 import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import net.minecraft.core.BlockPos;
@@ -36,7 +37,7 @@ import java.util.function.Consumer;
  */
 public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt brewDuration,
                          Optional<ChannelAim> channelAim)
-        implements TargetHost, ExplodeHost, EntityScanHost, ChannelHost {
+        implements TargetHost, ExplodeHost, EntityScanHost, ChannelHost, EffectExtendHost {
 
     /** Blocks past the interaction range a channel still breaks at, vanilla's own slack for a block break. */
     private static final double REACH_SLACK = 1.0;
@@ -183,6 +184,15 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
         ZapDevice.handDevice(level, pos)
                 .filter(device -> GooServerState.of(level.getServer()).streamHolds().touchOnce(player.getUUID(), device))
                 .ifPresent(device -> ZapDevice.toggleByHand(level, device));
+    }
+
+    /**
+     * Lengthens the player's timed effects by the drunk brew's duration; a
+     * glove invocation lengthens nothing (decision extender-multiplies-the-next-self-duration).
+     */
+    @Override
+    public void extendTimedEffects() {
+        brewDuration.ifPresent(duration -> ExtenderEvents.extendStanding(player, duration));
     }
 
     /**
