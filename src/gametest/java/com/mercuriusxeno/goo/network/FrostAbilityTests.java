@@ -22,7 +22,10 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -92,8 +95,10 @@ public final class FrostAbilityTests {
     private static final int ORB_GOO = 4;
     /** How far ahead along the look a test aims a free throw. */
     private static final double SELF_FREE_AIM_REACH = 4;
-    /** Blocks about the bay a test searches for a stray entity. */
-    private static final double BAY_SEARCH = 64;
+    /** The bay's far corner, six blocks out on each axis. */
+    private static final BlockPos BAY_FAR_CORNER = new BlockPos(6, 6, 6);
+    /** Blocks about its start the range test searches for its Orb: its whole roll, short of the bays below. */
+    private static final double SKY_SEARCH = 18;
     /** frost_orb.json rolls 0.3 blocks a tick; the bay's six blocks take twenty ticks, this is past its end. */
     private static final int ORB_ENDED_TICKS = 40;
     /** The end nova's freeze, 14 of a zombie's 20 health, less the thaw of the ticks since, well past the swirl's. */
@@ -104,6 +109,13 @@ public final class FrostAbilityTests {
     private static final String SHOULD_FREEZE_BYSTANDER = "The Orb's end nova should freeze the zombie by the wall hard, stands %s";
     private static final String SHOULD_FREEZE_BLOCKER = "The zombie the Orb struck should be nearly frozen solid, stands %s";
     private static final String SHOULD_END = "The Orb should be gone once it ends";
+    /** Blocks above the bay the range test rolls the Orb through, clear of every bay. */
+    private static final int OPEN_SKY = 24;
+    /** frost_orb.json rolls 16 blocks at 0.3 a tick: still rolling at 40 ticks, 12 blocks out, gone by 70. */
+    private static final int STILL_ROLLING_TICKS = 40;
+    private static final int RANGE_SPENT_TICKS = 70;
+    private static final String SHOULD_STILL_ROLL = "The Orb should still be rolling twelve blocks out";
+    private static final String SHOULD_END_AT_RANGE = "The Orb should end once it has rolled its sixteen blocks";
     /** A prism in the bay's corner, a zombie beside it and its twin in the far corner past Glacial's reach of 5. */
     private static final BlockPos GLACIAL_PRISM_POS = new BlockPos(0, 1, 0);
     private static final BlockPos GLACIAL_INSIDE_POS = new BlockPos(1, 1, 1);
@@ -302,6 +314,32 @@ public final class FrostAbilityTests {
         });
     }
 
+    /**
+     * The Orb rolled through open sky rolls its sixteen blocks and no further:
+     * still rolling twelve blocks out, gone by the time it would be twenty one out.
+     *
+     * @param helper the gametest helper
+     */
+    public static void orbEndsAtItsRange(GameTestHelper helper) {
+        ServerPlayer thrower = orbThrower(helper);
+        AbilityDefinition orb = AbilityRegistry.of(helper.getLevel()).getAbility(FROST_ORB);
+        Vec3 sky = Vec3.atCenterOf(helper.absolutePos(STREAMER_POS.above(OPEN_SKY)));
+        helper.runAfterDelay(SETTLE_TICKS, () -> RollingGoo.roll(helper.getLevel(), thrower, orb, sky,
+                new Vec3(1, 0, 0)));
+        helper.runAfterDelay(STILL_ROLLING_TICKS, () -> helper.assertFalse(noRollingGooNear(helper, sky),
+                SHOULD_STILL_ROLL));
+        helper.runAfterDelay(RANGE_SPENT_TICKS, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(thrower);
+            helper.assertTrue(noRollingGooNear(helper, sky), SHOULD_END_AT_RANGE);
+            helper.succeed();
+        });
+    }
+
+    private static boolean noRollingGooNear(GameTestHelper helper, Vec3 point) {
+        return helper.getLevel().getEntitiesOfClass(RollingGoo.class, new AABB(point, point).inflate(SKY_SEARCH))
+                .isEmpty();
+    }
+
     private static ServerPlayer orbThrower(GameTestHelper helper) {
         ServerPlayer thrower = SelfDeliveryTests.invoker(helper, GooTypes.FROST);
         thrower.getInventory().add(GooStacks.createForOutput(GooTypes.FROST, ORB_GOO * GooStacks.THOUSAND));
@@ -323,8 +361,9 @@ public final class FrostAbilityTests {
     }
 
     private static boolean noRollingGoo(GameTestHelper helper) {
-        return helper.getLevel().getEntitiesOfClass(RollingGoo.class, new AABB(helper.absolutePos(BlockPos.ZERO))
-                .inflate(BAY_SEARCH)).isEmpty();
+        AABB bay = new AABB(Vec3.atLowerCornerOf(helper.absolutePos(BlockPos.ZERO)),
+                Vec3.atLowerCornerOf(helper.absolutePos(BAY_FAR_CORNER)));
+        return helper.getLevel().getEntitiesOfClass(RollingGoo.class, bay.inflate(1)).isEmpty();
     }
 
     /**
@@ -375,6 +414,8 @@ public final class FrostAbilityTests {
         basin(helper, ICEBORN_LAVA_POS, Blocks.LAVA);
         basin(helper, ICEBORN_WATER_POS, Blocks.WATER);
         Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ICEBORN_ZOMBIE_POS);
+        // a helmet keeps daylight from relighting the zombie between the leech's passes
+        zombie.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
         zombie.igniteForSeconds(BURN_SECONDS);
         ServerPlayer player = iceborn(helper);
         for (int tick = 1; tick <= LEECH_TICKS; tick++) {
