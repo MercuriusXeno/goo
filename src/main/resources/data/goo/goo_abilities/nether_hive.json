@@ -1,0 +1,25 @@
+{
+  "gooType": "nether",
+  "displayName": "goo.ability.nether.hive",
+  "badge": "prism",
+  "order": 20,
+  "cost": 1000,
+  "delivery": { "kind": "arc" },
+  "behaviors": [
+    {
+      "type": "field_effect",
+      "radius": 5,
+      "where": ["living", "alive", "mob"],
+      "cooldown": 0,
+      "interval": 4,
+      "charges": 1,
+      "spend_chance": 0,
+      "strike_ticks": 1,
+      "strike": [
+        { "type": "damage", "amount": 2, "source": "magic", "knockback": false },
+        { "type": "particles", "id": "goo:gnat", "at": "target", "count": 12, "spread": 0.5, "speed": 0.05 }
+      ]
+    }
+  ],
+  "tags": ["field_effect"]
+}

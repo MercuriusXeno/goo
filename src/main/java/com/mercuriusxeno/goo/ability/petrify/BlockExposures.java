@@ -141,28 +141,37 @@ public final class BlockExposures {
         while (each.hasNext()) {
             Map.Entry<Exposed, Exposure> entry = each.next();
             ServerLevel level = server.getLevel(entry.getKey().dimension());
-            if (level == null) {
+            if (level == null || !tickShare(level, entry)) {
                 each.remove();
-                continue;
-            }
-            Exposure exposure = entry.getValue();
-            Exposure after = decayed(exposure, level.getGameTime());
-            if (after == exposure) {
-                continue;
-            }
-            BlockPos pos = entry.getKey().pos();
-            if (after != null && after.share() >= 1f) {
-                each.remove();
-                finish(level, pos, after.toward());
-                continue;
-            }
-            send(level, pos, exposure.toward(), after == null ? 0f : after.share());
-            if (after == null) {
-                each.remove();
-            } else {
-                entry.setValue(after);
             }
         }
+    }
+
+    /**
+     * Runs one tick of decay, or of growth for a share left to finish, on one
+     * block's share, stepping the block when a finishing share fills.
+     *
+     * @param level the block's level
+     * @param entry the block and its share, which a share still standing is written back to
+     * @return false once the share is gone, at its floor or stepped
+     */
+    private static boolean tickShare(ServerLevel level, Map.Entry<Exposed, Exposure> entry) {
+        Exposure exposure = entry.getValue();
+        Exposure after = decayed(exposure, level.getGameTime());
+        if (after == exposure) {
+            return true;
+        }
+        BlockPos pos = entry.getKey().pos();
+        if (after != null && after.share() >= 1f) {
+            finish(level, pos, after.toward());
+            return false;
+        }
+        send(level, pos, exposure.toward(), after == null ? 0f : after.share());
+        if (after == null) {
+            return false;
+        }
+        entry.setValue(after);
+        return true;
     }
 
     /**
