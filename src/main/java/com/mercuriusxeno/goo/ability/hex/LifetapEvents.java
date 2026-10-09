@@ -5,6 +5,8 @@ import com.mercuriusxeno.goo.network.EntityVisuals;
 import com.mercuriusxeno.goo.network.LeechPayload;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -13,13 +15,18 @@ import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 
 /**
  * Runs a held lifetap: every hit its player lands heals them by the
- * fraction of the damage dealt, the life flowing from the victim to them as
- * dark purple wisps. Its block on food regeneration lives in
+ * fraction of the damage dealt, the life splashing off the victim as hex
+ * wisps that curl home to them, with a soul's escape. Its block on food regeneration lives in
  * FoodDataLifetapMixin, which reads {@link #blocksFoodRegen}.
  * lifetap-trades-regen-for-leech
  */
 @EventBusSubscriber(modid = Goo.MODID)
 public final class LifetapEvents {
+
+    private static final double BODY_CENTER = 0.5;
+    private static final float LEECH_VOLUME = 0.9f;
+    private static final float LEECH_PITCH = 0.8f;
+    private static final float LEECH_PITCH_SPREAD = 0.4f;
 
     private LifetapEvents() {
     }
@@ -40,7 +47,10 @@ public final class LifetapEvents {
                 .leechFor(event.getNewDamage(), attacker.level().getGameTime());
         if (heal > 0f && victim != attacker) {
             attacker.heal(heal);
-            EntityVisuals.sendToWatchers(victim, new LeechPayload(victim.getId(), attacker.getId()));
+            EntityVisuals.sendToWatchers(victim, new LeechPayload(victim.getId(), attacker.getId(), heal, true));
+            victim.level().playSound(null, victim.getX(), victim.getY(BODY_CENTER), victim.getZ(),
+                    SoundEvents.SOUL_ESCAPE, SoundSource.PLAYERS, LEECH_VOLUME,
+                    LEECH_PITCH + victim.getRandom().nextFloat() * LEECH_PITCH_SPREAD);
         }
     }
 

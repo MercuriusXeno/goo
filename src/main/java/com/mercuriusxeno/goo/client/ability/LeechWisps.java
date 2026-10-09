@@ -1,69 +1,65 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.particle.HexWispParticle;
 import com.mercuriusxeno.goo.network.LeechPayload;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.mercuriusxeno.goo.registry.GooParticles;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.rendertype.RenderType;
-import net.minecraft.util.ARGB;
-import net.minecraft.util.Mth;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
- * Lifetap's look: each leech heal sends a short stream of dark purple wisps
- * from the victim's body to the healed one's chest, the wisps leaving one
- * after another and arching up as they travel, so the life reads as drawn
- * across. Drain's field plays the same wisps from every mob it drains.
+ * Lifetap's look, which Drain shares: life drawn from a victim to the one it
+ * heals as hex wisps. Lifetap splashes once per point of health healed, each
+ * splash a burst of wisps scattering off the victim before they curl home,
+ * the splashes a beat apart; Drain trickles a few wisps at a time, staggered
+ * so a held field keeps a steady stream.
  * lifetap-trades-regen-for-leech
+ * drain-field-heals-with-the-lifetap-visuals
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class LeechWisps {
 
-    /** Wisps in one leech's stream. */
-    static final int WISPS = 6;
-    /** Ticks one wisp takes to cross. */
-    static final float CROSSING_TICKS = 10f;
-    /** Ticks between one wisp's start and the next. */
-    static final float STAGGER_TICKS = 1.5f;
-    /** How high a wisp arches over the straight line at its midpoint, in blocks. */
-    private static final double ARCH = 0.35;
-    private static final float WISP_HALF = 0.06f;
-    private static final int WISP_RGB = 0x8A3FD0;
-    private static final float WISP_ALPHA = 0.9f;
+    /** Wisps in one splash. */
+    static final int WISPS_PER_SPLASH = 9;
+    /** Ticks between one splash and the next. */
+    static final int SPLASH_STAGGER = 3;
+    /** The most splashes one heal plays. */
+    static final int MOST_SPLASHES = 8;
+    /** Wisps in one trickle. */
+    static final int WISPS_PER_TRICKLE = 5;
+    /** Ticks over which a trickle's wisps set off, a strike's interval in a held field. */
+    static final int TRICKLE_SPREAD = 10;
+    private static final double SCATTER_SPEED = 0.16;
+    private static final double SCATTER_LIFT = 0.06;
+    private static final int SCATTER_TICKS = 5;
+    /** The slowest a wisp scatters, as a share of the scatter speed. */
+    private static final double SLOWEST_SCATTER = 0.5;
+    private static final int SCATTER_VARIANCE = 4;
+    private static final double TRICKLE_DRIFT = 0.04;
+    private static final int BASE_FLIGHT = 14;
+    private static final int FLIGHT_VARIANCE = 10;
     private static final double BODY_CENTER = 0.5;
     private static final double CHEST = 0.7;
-    private static final int OPAQUE = 255;
-
-    private static final List<Leech> LIVE = new ArrayList<>();
+    private static final double SPAWN_SPREAD = 0.3;
 
     private LeechWisps() {
     }
 
     /**
-     * One leech drawn this frame: its two entities, the game time it began
-     * and where the victim stood, held so the stream finishes if it dies.
+     * The splashes a heal plays: one per point of health healed, at least
+     * one, at most MOST_SPLASHES.
      *
-     * @param victimId the victim's id
-     * @param healedId the healed entity's id
-     * @param start    the game time it began
-     * @param from     the victim's body center when it began
+     * @param healed the health healed
+     * @return the splash count
      */
-    private record Leech(int victimId, int healedId, long start, Vec3 from) {
+    static int splashesFor(float healed) {
+        return Math.clamp(Math.round(healed), 1, MOST_SPLASHES);
     }
 
     /**
-     * Starts a leech's wisps on the client thread.
+     * Plays a leech's wisps on the client thread.
      *
      * @param payload the leech payload
      * @param context the network context
@@ -71,66 +67,46 @@ public final class LeechWisps {
     public static void handle(LeechPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> {
             Minecraft mc = Minecraft.getInstance();
-            if (mc.level == null || !(mc.level.getEntity(payload.victimId()) instanceof Entity victim)) {
+            ClientLevel level = mc.level;
+            if (level == null || !(level.getEntity(payload.victimId()) instanceof Entity victim)
+                    || !(level.getEntity(payload.healedId()) instanceof Entity healed)) {
                 return;
             }
-            LIVE.add(new Leech(payload.victimId(), payload.healedId(), mc.level.getGameTime(),
-                    victim.position().add(0, victim.getBbHeight() * BODY_CENTER, 0)));
+            Vec3 from = victim.position().add(0, victim.getBbHeight() * BODY_CENTER, 0);
+            if (payload.splash()) {
+                for (int splash = 0; splash < splashesFor(payload.healed()); splash++) {
+                    splash(mc, level.getRandom(), from, healed, splash * SPLASH_STAGGER);
+                }
+            } else {
+                trickle(mc, level.getRandom(), from, healed);
+            }
         });
     }
 
-    /**
-     * How far along its crossing a wisp is, some ticks into its leech.
-     *
-     * @param ticks the ticks since the leech began, the partial tick among them
-     * @param wisp  the wisp's index in the stream
-     * @return 0 to 1 while it crosses; below 0 before it leaves and above 1 once it arrived
-     */
-    static float crossing(float ticks, int wisp) {
-        return (ticks - wisp * STAGGER_TICKS) / CROSSING_TICKS;
+    private static void splash(Minecraft mc, RandomSource random, Vec3 from, Entity healed, int delay) {
+        for (int wisp = 0; wisp < WISPS_PER_SPLASH; wisp++) {
+            Vec3 scatter = new Vec3(random.nextGaussian(), random.nextGaussian(), random.nextGaussian())
+                    .normalize().scale(SCATTER_SPEED * (SLOWEST_SCATTER + random.nextDouble())).add(0, SCATTER_LIFT, 0);
+            launch(mc, random, from, healed, delay, scatter, SCATTER_TICKS + random.nextInt(SCATTER_VARIANCE));
+        }
     }
 
-    /**
-     * Draws every live leech's wisps after the translucent world, dropping
-     * each whose last wisp has arrived.
-     *
-     * @param event the level render stage event
-     */
-    @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null || LIVE.isEmpty()) {
-            return;
+    private static void trickle(Minecraft mc, RandomSource random, Vec3 from, Entity healed) {
+        for (int wisp = 0; wisp < WISPS_PER_TRICKLE; wisp++) {
+            Vec3 drift = new Vec3(random.nextGaussian(), random.nextDouble(), random.nextGaussian())
+                    .scale(TRICKLE_DRIFT);
+            launch(mc, random, from, healed, random.nextInt(TRICKLE_SPREAD), drift, random.nextInt(SCATTER_VARIANCE));
         }
-        float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        long now = mc.level.getGameTime();
-        LIVE.removeIf(leech -> crossing(now - leech.start(), WISPS - 1) > 1f);
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        RenderType type = GooRenderTypes.SPORE_SHELL_TYPE;
-        VertexConsumer consumer = buffers.getBuffer(type);
-        PoseStack.Pose pose = event.getPoseStack().last();
-        for (Leech leech : LIVE) {
-            Entity healed = mc.level.getEntity(leech.healedId());
-            if (healed != null) {
-                Vec3 to = healed.getPosition(partialTick).add(0, healed.getBbHeight() * CHEST, 0);
-                drawStream(pose, consumer, camera, leech.from(), to, now - leech.start() + partialTick);
-            }
-        }
-        buffers.endBatch(type);
     }
 
-    private static void drawStream(PoseStack.Pose pose, VertexConsumer consumer, Vec3 camera, Vec3 from, Vec3 to,
-                                   float ticks) {
-        for (int wisp = 0; wisp < WISPS; wisp++) {
-            float along = crossing(ticks, wisp);
-            if (along < 0f || along > 1f) {
-                continue;
-            }
-            Vec3 at = from.lerp(to, along).add(0, Math.sin(along * Math.PI) * ARCH, 0).subtract(camera);
-            float fade = Mth.sin((float) (along * Math.PI));
-            int color = ARGB.color(Math.round(Mth.clamp(WISP_ALPHA * fade, 0f, 1f) * OPAQUE), WISP_RGB);
-            SporeMotes.emit(pose, consumer, (float) at.x, (float) at.y, (float) at.z, WISP_HALF, color);
+    private static void launch(Minecraft mc, RandomSource random, Vec3 from, Entity healed, int delay,
+                               Vec3 scatter, int scatterFor) {
+        Vec3 at = from.add(random.nextGaussian() * SPAWN_SPREAD, random.nextGaussian() * SPAWN_SPREAD,
+                random.nextGaussian() * SPAWN_SPREAD);
+        if (mc.particleEngine.createParticle(GooParticles.HEX_WISP.get(), at.x, at.y, at.z, 0, 0, 0)
+                instanceof HexWispParticle wisp) {
+            wisp.launch(delay, scatter, scatterFor, BASE_FLIGHT + random.nextInt(FLIGHT_VARIANCE),
+                    () -> healed.position().add(0, healed.getBbHeight() * CHEST, 0));
         }
     }
 }

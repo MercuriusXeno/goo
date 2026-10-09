@@ -5,7 +5,8 @@
   "order": 20,
   "cost": 1000,
   "requires": ["minecraft:soul_sand"],
-  "delivery": { "kind": "stream", "range": 4, "cone": 70, "ticks_per_charge": 20 },
+  "delivery": { "kind": "stream", "range": 4, "cone": 70, "ticks_per_charge": 20,
+    "sound": { "id": "minecraft:particle.soul_escape", "every": 5, "volume": 0.7, "pitch_spread": 0.4 } },
   "area": { "shape": "cone", "size": 4.0, "angle": 70.0 },
   "behaviors": [
     {
