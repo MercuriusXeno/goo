@@ -30,4 +30,17 @@ class NovaChargeGhostTest {
     void aProgramWithNoNovaShowsNoGhost() {
         assertTrue(NovaChargeGhost.reachAt(List.of(new WindStep(true)), 1f).isEmpty());
     }
+
+    @Test
+    void theIndicatorPulsesFaintlyAndNeverSolid() {
+        float lowest = 1f;
+        float highest = 0f;
+        for (int tick = 0; tick < 40; tick++) {
+            float alpha = NovaChargeGhost.pulseAlpha(tick);
+            lowest = Math.min(lowest, alpha);
+            highest = Math.max(highest, alpha);
+        }
+        assertTrue(highest <= NovaChargeGhost.PULSE_CEILING + 1e-6f && lowest >= NovaChargeGhost.PULSE_FLOOR - 1e-6f);
+        assertTrue(highest - lowest > (NovaChargeGhost.PULSE_CEILING - NovaChargeGhost.PULSE_FLOOR) / 2, "it pulses");
+    }
 }

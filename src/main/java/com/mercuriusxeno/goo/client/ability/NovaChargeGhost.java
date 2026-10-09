@@ -10,9 +10,14 @@ import com.mercuriusxeno.goo.ability.program.Variables;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.throwing.GloveThrowSender;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.core.Direction;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.client.renderer.rendertype.RenderTypes;
+import net.minecraft.util.ARGB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -24,18 +29,25 @@ import java.util.stream.Stream;
 
 /**
  * The reach a charging Nova will pulse to, shown while right click holds it:
- * frost's fog ring lies whole about the player's middle, out to the radius
- * the hold's charge resolves, growing as the hold goes on
+ * a plain white disc, faint and pulsing so it reads as an indicator rather
+ * than frost, lies flat about the player's middle out to the radius the
+ * hold's charge resolves, growing as the hold goes on
  * (decision nova-ring-grows-with-the-hold).
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class NovaChargeGhost {
 
-    /** The progress at which frost's fog ring stands fully spread and whole. */
-    private static final float WHOLE_FOG = (float) FrostExplosionVisual.SPREAD_TICKS
-            / FrostExplosionVisual.DURATION_TICKS;
-    private static final double HALF_BLOCK = 0.5;
+    /** The disc's opacity at the low and the high of its pulse. */
+    static final float PULSE_FLOOR = 0.12f;
+    static final float PULSE_CEILING = 0.3f;
+    /** Radians the pulse turns each tick: a beat a little under a second. */
+    static final double PULSE_PER_TICK = 0.4;
+    private static final int DISC_SEGMENTS = 48;
+    private static final int WHITE = 0xFFFFFF;
+    private static final double TWO_PI = 2 * Math.PI;
     private static final double HALF_HEIGHT = 0.5;
+    private static final int MAX_CHANNEL = 255;
+    private static final double HALF = 0.5;
 
     private NovaChargeGhost() {
     }
@@ -74,10 +86,40 @@ public final class NovaChargeGhost {
         }
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         Vec3 middle = player.getPosition(partialTick).add(0, player.getBbHeight() * HALF_HEIGHT, 0);
-        BurnoutFrame frame = new BurnoutFrame(event.getPoseStack(), mc.renderBuffers().bufferSource(),
-                mc.gameRenderer.getMainCamera().position(), mc.level.getGameTime() + partialTick);
-        FrostExplosionVisual.drawRing(frame, middle.subtract(HALF_BLOCK, HALF_BLOCK, HALF_BLOCK), Direction.UP, 0f,
-                (float) reach.getAsDouble(), WHOLE_FOG);
+        drawDisc(event.getPoseStack(), mc.renderBuffers().bufferSource(), mc.gameRenderer.getMainCamera().position(),
+                middle, (float) reach.getAsDouble(), pulseAlpha(mc.level.getGameTime() + partialTick));
+    }
+
+    /**
+     * The disc's opacity at a moment: swelling and ebbing between its floor
+     * and its ceiling, never solid.
+     *
+     * @param gameTime the game time including the partial tick
+     * @return the opacity, 0 to 1
+     */
+    static float pulseAlpha(double gameTime) {
+        double swell = (Math.sin(gameTime * PULSE_PER_TICK) + 1) * HALF;
+        return (float) (PULSE_FLOOR + (PULSE_CEILING - PULSE_FLOOR) * swell);
+    }
+
+    private static void drawDisc(PoseStack poseStack, MultiBufferSource.BufferSource buffers, Vec3 camera, Vec3 middle,
+                                 float radius, float alpha) {
+        RenderType type = RenderTypes.debugQuads();
+        VertexConsumer c = buffers.getBuffer(type);
+        PoseStack.Pose pose = poseStack.last();
+        int color = ARGB.color(Math.round(alpha * MAX_CHANNEL), WHITE);
+        float cx = (float) (middle.x - camera.x);
+        float cy = (float) (middle.y - camera.y);
+        float cz = (float) (middle.z - camera.z);
+        for (int i = 0; i < DISC_SEGMENTS; i++) {
+            double a0 = TWO_PI * i / DISC_SEGMENTS;
+            double a1 = TWO_PI * (i + 1) / DISC_SEGMENTS;
+            c.addVertex(pose, cx, cy, cz).setColor(color);
+            c.addVertex(pose, cx, cy, cz).setColor(color);
+            c.addVertex(pose, cx + radius * (float) Math.cos(a1), cy, cz + radius * (float) Math.sin(a1)).setColor(color);
+            c.addVertex(pose, cx + radius * (float) Math.cos(a0), cy, cz + radius * (float) Math.sin(a0)).setColor(color);
+        }
+        buffers.endBatch(type);
     }
 
     /**
