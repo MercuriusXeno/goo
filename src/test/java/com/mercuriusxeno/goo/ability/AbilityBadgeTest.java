@@ -19,7 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class AbilityBadgeTest {
 
-    private static final int SHIPPED_MOB_BADGES = 13;
+    private static final int SHIPPED_MOB_BADGES = 14;
     private static final int SHIPPED_WORLD_BADGES = 8;
     private static final int SHIPPED_SELF_BADGES = 3;
     private static final int SHIPPED_BREW_BADGES = 5;

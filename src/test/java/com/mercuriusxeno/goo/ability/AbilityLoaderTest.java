@@ -88,6 +88,7 @@ class AbilityLoaderTest {
             Map.entry("leaf_vines", List.of("vine")),
             Map.entry("leaf_growth", List.of("bone_meal")),
             Map.entry("leaf_reap", List.of("wheat", "wheat_seeds")),
+            Map.entry("leaf_bio", List.of("poisonous_potato")),
             Map.entry("typhoon_levitate", List.of("shulker_shell")),
             Map.entry("typhoon_propel", List.of("phantom_membrane")),
             Map.entry("rock_bore", List.of("stone", "cobblestone")),
