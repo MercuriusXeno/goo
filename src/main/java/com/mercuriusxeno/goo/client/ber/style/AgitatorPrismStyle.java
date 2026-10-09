@@ -7,10 +7,12 @@ import com.mercuriusxeno.goo.client.PrismCrystal;
 import com.mercuriusxeno.goo.client.ber.PrismRenderState;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.util.ARGB;
 
 /**
- * Hex's agitator prism: the plain quartz column, swelling faintly about its
- * base and glowing with each spawn attempt, the beat fading between attempts, so the pulse
+ * Hex's agitator prism: the quartz column turned hex purple, a cloud of hex
+ * wisps circling it (AgitatorWisps), swelling faintly about its base and
+ * glowing with each spawn attempt, the beat fading between attempts, so the pulse
  * quickens as failed attempts shorten the interval and slows again once a
  * monster spawns.
  * agitator-prism-quickens-until-a-spawn
@@ -25,6 +27,8 @@ public final class AgitatorPrismStyle implements PrismComboStyle {
     /** The ticks a beat takes to fade to a third. */
     private static final float BEAT_FADE_TICKS = 5f;
     private static final float HALF = 0.5f;
+    /** The column's tint: hex's purple, lightened so the quartz still reads through it. */
+    private static final int HEX_PURPLE = 0x9A6AE0;
     private static final float PIXELS_PER_BLOCK = 16f;
     /** The column's base point in block units, the point it swells about. */
     private static final float BASE_X = (float) CrystalCluster.BASE_X / PIXELS_PER_BLOCK;
@@ -55,7 +59,9 @@ public final class AgitatorPrismStyle implements PrismComboStyle {
         poseStack.scale(swell, swell, swell);
         poseStack.translate(-BASE_X, -BASE_Y, -BASE_Z);
         int light = state.beat > HALF ? GooSubmitter.fullbrightLight() : state.lightCoords;
-        CrystalClusterSubmitter.submit(poseStack, nodeCollector, PrismCrystal.PRISMS, look, light);
+        CrystalClusterSubmitter.Look purple = new CrystalClusterSubmitter.Look(look.uv(),
+                ARGB.color(ARGB.alpha(look.color()), HEX_PURPLE));
+        CrystalClusterSubmitter.submit(poseStack, nodeCollector, PrismCrystal.PRISMS, purple, light);
         poseStack.popPose();
     }
 }
