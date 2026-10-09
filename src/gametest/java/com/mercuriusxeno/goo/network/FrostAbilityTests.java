@@ -4,6 +4,8 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.frost.FrostCurve;
 import com.mercuriusxeno.goo.ability.frost.FrozenEvents;
+import com.mercuriusxeno.goo.ability.hearts.HeartKind;
+import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.block.tap.TapDripScheduler;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
@@ -19,6 +21,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 
@@ -27,7 +30,7 @@ import net.minecraft.world.phys.Vec3;
  * glove would and reads the frozen gauges and the world it leaves.
  * Decisions nova-ring-grows-with-the-hold, nova-drip-pulses-a-short-lasting-freeze,
  * cold-streams-wind-lines-and-snowflakes, orb-carries-a-swirling-nova,
- * glacial-prism-holds-the-area-frozen.
+ * glacial-prism-holds-the-area-frozen, iceborn-frozen-hearts-thaw-on-fire.
  */
 public final class FrostAbilityTests {
 
@@ -101,6 +104,22 @@ public final class FrostAbilityTests {
     private static final String SHOULD_HOLD_INSIDE = "The zombie inside the glacial field should hold its gauge, stands %s";
     private static final String SHOULD_ICE_INSIDE = "Water inside the glacial field should stand as magicked ice";
     private static final String SHOULD_THAW_OUTSIDE = "The zombie past the glacial field should thaw, stands %s";
+    private static final BlockPos ICEBORN_POS = new BlockPos(1, 1, 1);
+    /** Still lava and water in the floor and a burning zombie, all within Iceborn's reach of 4. */
+    private static final BlockPos ICEBORN_LAVA_POS = new BlockPos(3, 0, 1);
+    private static final BlockPos ICEBORN_WATER_POS = new BlockPos(1, 0, 3);
+    private static final BlockPos ICEBORN_ZOMBIE_POS = new BlockPos(3, 1, 3);
+    private static final int BURN_SECONDS = 10;
+    /** frost_iceborn.json's leech passes every five ticks; ten ticks see two. */
+    private static final int LEECH_TICKS = 10;
+    /** Past two of the Iceborn ice's one-second checks after the player leaves. */
+    private static final int THAW_AFTER_LEAVING_TICKS = 45;
+    private static final float FIRE_DAMAGE = 1f;
+    private static final String SHOULD_OBSIDIAN = "Lava near an Iceborn player should freeze to obsidian";
+    private static final String SHOULD_RIME = "Water near an Iceborn player should freeze to Iceborn ice";
+    private static final String SHOULD_PUT_OUT = "A burning zombie near an Iceborn player should stop burning";
+    private static final String SHOULD_THAW_ICE = "Iceborn ice should thaw back to water once the player has gone";
+    private static final String SHOULD_THAW_HEARTS = "Fire should thaw every frozen heart and end Iceborn, stands %s";
     private static final String SHOULD_NOT_PULSE_YET = "Drips short of the count should freeze nothing, stands %s";
     private static final String SHOULD_FREEZE_ZOMBIE = "The tap's nova should raise the zombie's gauge";
     private static final String ABILITY_REQUIRED = "Ability registry must hold frost_nova";
@@ -281,6 +300,61 @@ public final class FrostAbilityTests {
             helper.assertTrue(helper.getBlockState(GLACIAL_WATER_POS).is(GooBlocks.MAGICKED_ICE.get()), SHOULD_ICE_INSIDE);
             helper.succeed();
         });
+    }
+
+    /**
+     * An Iceborn player leeches heat: still lava beside them freezes to
+     * obsidian, still water to Iceborn ice, a burning zombie stops burning,
+     * and once they have gone the ice thaws back to water.
+     *
+     * @param helper the gametest helper
+     */
+    public static void icebornFreezesSurroundings(GameTestHelper helper) {
+        helper.setBlock(ICEBORN_LAVA_POS, Blocks.LAVA);
+        helper.setBlock(ICEBORN_WATER_POS, Blocks.WATER);
+        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ICEBORN_ZOMBIE_POS);
+        zombie.igniteForSeconds(BURN_SECONDS);
+        ServerPlayer player = iceborn(helper);
+        for (int tick = 1; tick <= LEECH_TICKS; tick++) {
+            helper.runAfterDelay(tick, player::doTick);
+        }
+        helper.runAfterDelay(LEECH_TICKS + 1, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.assertTrue(helper.getBlockState(ICEBORN_LAVA_POS).is(Blocks.OBSIDIAN), SHOULD_OBSIDIAN);
+            helper.assertTrue(helper.getBlockState(ICEBORN_WATER_POS).is(GooBlocks.ICEBORN_ICE.get()), SHOULD_RIME);
+            helper.assertFalse(zombie.isOnFire(), SHOULD_PUT_OUT);
+        });
+        helper.runAfterDelay(LEECH_TICKS + 1 + THAW_AFTER_LEAVING_TICKS, () -> {
+            helper.assertTrue(helper.getBlockState(ICEBORN_WATER_POS).is(Blocks.WATER), SHOULD_THAW_ICE);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Fire reaching an Iceborn player thaws every frozen heart at once and ends Iceborn.
+     *
+     * @param helper the gametest helper
+     */
+    public static void icebornThawsOnFire(GameTestHelper helper) {
+        ServerPlayer player = iceborn(helper);
+        player.setGameMode(GameType.SURVIVAL);
+        player.connection.markClientLoaded();
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            HeartOverlayTests.hurt(helper, player, player.damageSources().onFire(), FIRE_DAMAGE);
+            HeartOverlay after = player.getData(GooAttachments.HEART_OVERLAY);
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.assertFalse(after.stands(), String.format(SHOULD_THAW_HEARTS, after));
+            helper.succeed();
+        });
+    }
+
+    private static ServerPlayer iceborn(GameTestHelper helper) {
+        ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.FROST);
+        Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(ICEBORN_POS));
+        player.setPos(stand.x, stand.y, stand.z);
+        player.setData(GooAttachments.HEART_OVERLAY, HeartOverlay.NONE.hold(HeartKind.ICEBORN, player.getHealth(),
+                player.getMaxHealth(), HeartOverlay.WHOLE_HIT, helper.getLevel().getGameTime()));
+        return player;
     }
 
     private static void drip(GameTestHelper helper, int drips) {

@@ -441,6 +441,9 @@ public final class GooTestFunctions {
     private static final String COLD_BREAKS_GRASS = "cold_breaks_grass_and_freezes_faster";
     private static final String ORB_FREEZES_PATH = "orb_freezes_path_and_pool";
     private static final String GLACIAL_HOLDS_THE_GAUGE = "glacial_holds_the_gauge";
+    private static final String ICEBORN_FREEZES_SURROUNDINGS = "iceborn_freezes_surroundings";
+    private static final String ICEBORN_THAWS_ON_FIRE = "iceborn_thaws_on_fire";
+    private static final String BREW_FROST_ICEBORN = "brew_frost_iceborn_for_an_hour";
     private static final String MOB_TYPHOON = "mob_typhoon_levitate";
     private static final String MOB_GLOW = "mob_glow_laser";
     private static final String MOB_HEX = "mob_hex_charm";
@@ -910,6 +913,9 @@ public final class GooTestFunctions {
         reg(r, COLD_BREAKS_GRASS, FrostAbilityTests::coldBreaksGrassAndFreezesFaster);
         reg(r, ORB_FREEZES_PATH, FrostAbilityTests::orbFreezesPathAndPool);
         reg(r, GLACIAL_HOLDS_THE_GAUGE, FrostAbilityTests::glacialHoldsTheGauge);
+        reg(r, ICEBORN_FREEZES_SURROUNDINGS, FrostAbilityTests::icebornFreezesSurroundings);
+        reg(r, ICEBORN_THAWS_ON_FIRE, FrostAbilityTests::icebornThawsOnFire);
+        reg(r, BREW_FROST_ICEBORN, BrewEffectTests::frostBrewIcebornForAnHour);
         reg(r, MOB_TYPHOON, MobEffectTests::typhoonLevitate);
         reg(r, MOB_GLOW, MobEffectTests::glowLaser);
         reg(r, MOB_HEX, MobEffectTests::hexCharm);
