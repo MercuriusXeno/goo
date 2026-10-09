@@ -88,7 +88,12 @@ public enum HostCapability {
      * A spot a mob from the host's chunk can be pulled to (decision
      * convoke-blob-throbs-until-a-mob-arrives).
      */
-    CONVOKE(ConvokeHost.class);
+    CONVOKE(ConvokeHost.class),
+    /**
+     * A struck surface a Dragon Gate can open over (decision
+     * dragon-gate-banishes-blocks-and-opens-a-portal).
+     */
+    DRAGON_GATE(GateHost.class);
 
     private final Class<? extends StepHost> hostType;
 
