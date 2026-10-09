@@ -84,6 +84,7 @@ public final class StepTypes {
         register(CharmStep.TYPE);
         register(LeafSteps.ENCHANT_BOOK.type());
         register(FuseBooksStep.TYPE);
+        register(SpawnRandomStep.TYPE);
     }
 
     private StepTypes() {

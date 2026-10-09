@@ -1,0 +1,22 @@
+{
+  "gooType": "hex",
+  "displayName": "goo.ability.hex.spawn",
+  "badge": "channeled",
+  "order": 10,
+  "cost": 3000,
+  "requires": ["minecraft:sculk"],
+  "consumes": ["minecraft:egg"],
+  "delivery": { "kind": "arc" },
+  "behaviors": [
+    {
+      "type": "spawn_random",
+      "goo": "hex",
+      "morph_ticks": 20,
+      "steps": [
+        { "type": "ailment_overlay", "kind": "hex", "duration": 60 },
+        { "type": "afterimage", "goo": "hex" }
+      ]
+    }
+  ],
+  "tags": []
+}
