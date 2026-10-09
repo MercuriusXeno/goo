@@ -2,6 +2,8 @@ package com.mercuriusxeno.goo.ability.nether;
 
 import com.mercuriusxeno.goo.registry.GooParticles;
 import net.minecraft.core.BlockPos;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
@@ -33,8 +35,14 @@ public final class HiveSwarm {
      * The share of its speed a gnat keeps each tick, the gnat particle's
      * friction; a launch reaching a distance carries that distance times one less this.
      */
-    static final double GNAT_FRICTION = 0.85;
+    static final double GNAT_FRICTION = 0.9;
     private static final double HALF = 0.5;
+    /** The swarm buzzes on one tick in this many, a second or so apart. */
+    private static final int BUZZ_ONE_IN = 20;
+    /** Decay's buzz: a bee's loop, quiet and pitched high (nether_decay.json's sound). */
+    private static final float BUZZ_VOLUME = 0.3f;
+    private static final float BUZZ_PITCH = 1.8f;
+    private static final float BUZZ_PITCH_SPREAD = 0.3f;
 
     private HiveSwarm() {
     }
@@ -48,6 +56,11 @@ public final class HiveSwarm {
     public static void tick(Level level, BlockPos pos) {
         Vec3 center = Vec3.atCenterOf(pos);
         RandomSource random = level.getRandom();
+        if (random.nextInt(BUZZ_ONE_IN) == 0) {
+            // the operator's ruling on Hive: the swarm buzzes as Decay's gnats do
+            level.playLocalSound(center.x, center.y, center.z, SoundEvents.BEE_LOOP, SoundSource.BLOCKS, BUZZ_VOLUME,
+                    BUZZ_PITCH + (random.nextFloat() - (float) HALF) * BUZZ_PITCH_SPREAD, false);
+        }
         List<Mob> eaten = level.getEntitiesOfClass(Mob.class, new AABB(pos).inflate(REACH),
                 mob -> mob.isAlive() && mob.position().distanceTo(center) <= REACH);
         if (eaten.isEmpty()) {
