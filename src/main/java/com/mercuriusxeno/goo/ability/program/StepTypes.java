@@ -88,6 +88,7 @@ public final class StepTypes {
         register(TendFungiStep.TYPE);
         register(PulsePlantsStep.TYPE);
         register(ToxinStep.TYPE);
+        register(VerdantStep.TYPE);
         register(HastenRegrowStep.TYPE);
         register(ReapStep.TYPE);
     }
