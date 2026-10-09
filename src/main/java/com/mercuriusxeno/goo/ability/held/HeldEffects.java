@@ -409,7 +409,10 @@ public record HeldEffects(List<Held> held) {
      * How long each goo type's holdings keep its glove effects paid: the mB
      * the inventory holds of the type over the upkeep its glove effects draw a
      * tick, which the effect list shows as the time left. A prepaid brew has
-     * a clock of its own and counts no upkeep here.
+     * a clock of its own and counts no upkeep here. While a glove extender
+     * stands, every other glove effect pays on alternate ticks alone, so its
+     * upkeep counts half and its time shows doubled
+     * (decision extender-multiplies-the-next-self-duration).
      * brew-runs-the-crawl-prepaid-on-a-shown-clock
      *
      * @param available the mB the inventory holds of a goo type
@@ -417,14 +420,17 @@ public record HeldEffects(List<Held> held) {
      */
     public Map<ResourceKey<GooTypeDefinition>, Integer> ticksLeft(
             ToIntFunction<ResourceKey<GooTypeDefinition>> available) {
-        Map<ResourceKey<GooTypeDefinition>, Integer> upkeep = new HashMap<>();
+        boolean extended = held.stream().anyMatch(Held::extendsOthers);
+        Map<ResourceKey<GooTypeDefinition>, Double> upkeep = new HashMap<>();
         for (Held standing : held) {
             if (!standing.prepaid() && standing.upkeep() > 0) {
-                upkeep.merge(standing.gooType(), standing.upkeep(), Integer::sum);
+                double paid = extended && !standing.extendsOthers()
+                        ? (double) standing.upkeep() / COVERED_EVERY : standing.upkeep();
+                upkeep.merge(standing.gooType(), paid, Double::sum);
             }
         }
         Map<ResourceKey<GooTypeDefinition>, Integer> left = new HashMap<>();
-        upkeep.forEach((type, perTick) -> left.put(type, available.applyAsInt(type) / perTick));
+        upkeep.forEach((type, perTick) -> left.put(type, (int) (available.applyAsInt(type) / perTick)));
         return Map.copyOf(left);
     }
 

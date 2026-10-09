@@ -9,12 +9,20 @@ import java.util.UUID;
 
 /**
  * How long each player has held a stream, counted in server ticks: a
- * stream tick arriving the tick after the last one continues the hold, and
- * any gap starts a new one (decision stream-delivery-held-cone). Each hold
+ * stream tick arriving within two ticks of the last continues the hold, a
+ * second one in the same server tick runs nothing, and a longer gap starts a
+ * new one (decision stream-delivery-held-cone). Each hold
  * also remembers the blocks it has touched, so a step acting once per
  * activation acts on each block once (decision signal-wave-toggles-each-device-once).
  */
 public final class StreamHolds {
+
+    /**
+     * The most server ticks a stream tick may land after the last and still
+     * continue the hold: a client's stream ticks jitter against the
+     * server's, so one lands a tick late now and then.
+     */
+    private static final int LATEST_CONTINUING_GAP = 2;
 
     private final Map<UUID, Hold> holds = new HashMap<>();
 
@@ -23,11 +31,15 @@ public final class StreamHolds {
      *
      * @param player the streaming player
      * @param tick   the server tick the stream tick arrived on
-     * @return the hold's tick count, 1 on the hold's first tick
+     * @return the hold's tick count, 1 on the hold's first tick, and 0 for a second
+     *         stream tick in one server tick, which runs nothing
      */
     public int advance(UUID player, int tick) {
         Hold last = holds.get(player);
-        boolean continues = last != null && last.tick() == tick - 1;
+        if (last != null && last.tick() == tick) {
+            return 0;
+        }
+        boolean continues = last != null && tick - last.tick() <= LATEST_CONTINUING_GAP;
         int held = continues ? last.held() + 1 : 1;
         holds.put(player, new Hold(tick, held, continues ? last.touched() : new HashSet<>()));
         return held;

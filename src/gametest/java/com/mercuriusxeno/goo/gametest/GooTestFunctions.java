@@ -412,6 +412,8 @@ public final class GooTestFunctions {
     private static final String ZAP_PULSES_DUST = "zap_pulses_dust";
     private static final String SIGNAL_TOGGLES_EACH_ONCE = "signal_toggles_each_once";
     private static final String PULSER_FLIPS_REPEATEDLY = "pulser_flips_repeatedly";
+    private static final String PULSER_FLIPS_UNDER_JITTER = "pulser_flips_under_jitter";
+    private static final String PULSER_FLIPS_A_FLOOR_LEVER = "pulser_flips_a_floor_lever";
     private static final String PULSER_TAP_FLIPS_PER_DRIP = "pulser_tap_flips_per_drip";
     private static final String THUMPER_PULSES_THEN_FADES = "thumper_pulses_then_fades";
     private static final String METRONOME_LEARNS_THE_INTERVAL = "metronome_learns_the_interval";
@@ -885,6 +887,8 @@ public final class GooTestFunctions {
         reg(r, ZAP_PULSES_DUST, ZapTests::zapPulsesDust);
         reg(r, SIGNAL_TOGGLES_EACH_ONCE, SignalTests::signalTogglesEachOnce);
         reg(r, PULSER_FLIPS_REPEATEDLY, PulserTests::pulserFlipsRepeatedly);
+        reg(r, PULSER_FLIPS_UNDER_JITTER, PulserTests::pulserFlipsUnderJitter);
+        reg(r, PULSER_FLIPS_A_FLOOR_LEVER, PulserTests::pulserFlipsAFloorLever);
         reg(r, PULSER_TAP_FLIPS_PER_DRIP, PulserTapTests::pulserTapFlipsPerDrip);
         reg(r, THUMPER_PULSES_THEN_FADES, ThumperTests::thumperPulsesThenFades);
         reg(r, METRONOME_LEARNS_THE_INTERVAL, MetronomeTests::metronomeLearnsTheInterval);

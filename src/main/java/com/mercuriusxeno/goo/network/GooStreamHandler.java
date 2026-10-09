@@ -56,6 +56,8 @@ import java.util.List;
 public final class GooStreamHandler {
 
     private static final String LOG_PROGRAM_REFUSED = "Ability {} refused on its held pass's host: {}";
+    /** Log: one held tick reached the server, so a hold that does nothing shows where it stops. */
+    private static final String LOG_HELD_TICK = "Held tick of {} for {}: hold tick {}";
     /** Particles sprayed along the cone each tick. */
     private static final int PARTICLES_PER_TICK = 6;
     /**
@@ -103,6 +105,7 @@ public final class GooStreamHandler {
         }
         AbilityDefinition ability = heldAbility(player, payload, gooType);
         int held = ability == null ? 0 : drainShare(player, gooType, ability);
+        Goo.LOGGER.debug(LOG_HELD_TICK, payload.abilityId(), player.getName().getString(), held);
         if (held == 0) {
             return;
         }
@@ -160,12 +163,16 @@ public final class GooStreamHandler {
      * @param player  the streaming player
      * @param gooType the ability's goo type
      * @param ability the stream ability
-     * @return false when the player cannot pay the share, which stops the stream
+     * @return the hold's tick count, or 0 when the tick runs nothing: a second stream tick in one
+     *         server tick, or a share the player cannot pay, which stops the stream
      */
     private static int drainShare(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
                                       AbilityDefinition ability) {
         MinecraftServer server = player.level().getServer();
         int held = GooServerState.of(server).streamHolds().advance(player.getUUID(), server.getTickCount());
+        if (held == 0) {
+            return 0;
+        }
         int share = StreamHolds.shareAt(ability.cost(), ability.delivery().ticksPerCharge(), held);
         if (!GooSourceScanner.hasEnough(player, gooType, share)) {
             return 0;

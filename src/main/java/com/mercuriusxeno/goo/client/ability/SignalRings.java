@@ -35,11 +35,13 @@ public final class SignalRings {
     /** Seconds a ring takes from the hand to the range. */
     static final double FLIGHT_SECONDS = 0.8;
     /** A ring's radius as it leaves the hand, in blocks. */
-    static final double HAND_RADIUS = 0.12;
+    static final double HAND_RADIUS = 0.04;
     /** A ring's radius as it reaches the range, in blocks. */
-    static final double END_RADIUS = 1.6;
+    static final double END_RADIUS = 3.0;
     /** The share of the flight a ring fades in over as it leaves the hand. */
     static final double FADE_IN_SHARE = 0.08;
+    /** How many times the window's line width a ring draws at, thick enough to read as a beam. */
+    static final float WIDTH_SCALE = 3f;
     private static final int SEGMENTS = 24;
     private static final int RING_RGB = 0xFF3A2A;
     private static final float PEAK_ALPHA = 230f;
@@ -67,7 +69,8 @@ public final class SignalRings {
                 signal.delivery().range());
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         LineContext lines = new LineContext(event.getPoseStack().last(), buffers.getBuffer(GooRenderTypes.LINES_GLOW));
-        drawRings(lines, ray, mc.gameRenderer.getMainCamera().position(), mc.getWindow().getAppropriateLineWidth(),
+        float width = mc.getWindow().getAppropriateLineWidth() * WIDTH_SCALE;
+        drawRings(lines, ray, mc.gameRenderer.getMainCamera().position(), width,
                 System.nanoTime() / NANOS_PER_SECOND);
         buffers.endBatch(GooRenderTypes.LINES_GLOW);
     }

@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.pulse.ExtenderEvents;
 import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
 import com.mercuriusxeno.goo.registry.GooServerState;
@@ -41,6 +42,8 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
 
     /** Blocks past the interaction range a channel still breaks at, vanilla's own slack for a block break. */
     private static final double REACH_SLACK = 1.0;
+    /** Log: how many devices a Pulser tick found to toggle among its cone's cells. */
+    private static final String LOG_TOGGLES = "Pulser toggles {} devices among {} cells";
 
     /**
      * The host of a glove invocation, which carries no brew duration.
@@ -201,8 +204,10 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
      */
     @Override
     public void toggleEachDevice(List<BlockPos> cells) {
-        cells.stream().map(pos -> ZapDevice.handDevice(level, pos)).flatMap(Optional::stream).distinct()
-                .forEach(device -> ZapDevice.toggleByHand(level, device));
+        List<BlockPos> devices = cells.stream().map(pos -> ZapDevice.handDevice(level, pos)).flatMap(Optional::stream)
+                .distinct().toList();
+        Goo.LOGGER.debug(LOG_TOGGLES, devices.size(), cells.size());
+        devices.forEach(device -> ZapDevice.toggleByHand(level, device));
     }
 
     @Override

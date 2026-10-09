@@ -127,7 +127,8 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
         RedstoneBeat after = beat.hear(powered, now);
         if (after != beat) {
             beat = after;
-            setChanged();
+            // metronome-prism-pulses-at-the-learned-rate: the client glows while a signal reaches the prism
+            BlockEntitySync.markDirtyAndSync(this);
         }
     }
 

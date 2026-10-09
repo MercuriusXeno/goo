@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.type.GooTypes;
+import net.minecraft.commands.arguments.EntityAnchorArgument;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
@@ -16,6 +17,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LeverBlock;
 import net.minecraft.world.level.block.state.properties.AttachFace;
 import net.minecraft.world.phys.Vec3;
+import java.util.function.IntUnaryOperator;
 
 /**
  * Gametest for Pulser: a hold aimed at a lever flips it again and again for
@@ -34,6 +36,15 @@ public final class PulserTests {
     private static final int HOLD_TICKS = 40;
     /** pulse_pulser.json toggles every 4 held ticks, ten times in the hold; several is the fact. */
     private static final int SEVERAL_FLIPS = 5;
+    /** Stream ticks landing in each server tick, cycling: two, none, one. */
+    private static final int[] JITTER = {2, 0, 1};
+    /** A lever on the floor four blocks ahead. */
+    private static final BlockPos FLOOR_LEVER = STAND_POS.east(4);
+    /** Where a player aims on a floor lever: its handle, low in the cell. */
+    private static final double LEVER_HANDLE_HEIGHT = 0.2;
+    /** Where the glove hand stands off the eye, as the client sends it: ahead and below. */
+    private static final double HAND_AHEAD = 0.4;
+    private static final double HAND_BELOW = 0.35;
     private static final String ABILITY_REQUIRED = "Ability registry must hold pulse_pulser";
     private static final String FLIPS_SEVERAL = "The lever should flip several times in the hold, flipped %d times";
 
@@ -47,20 +58,63 @@ public final class PulserTests {
      * @param helper the gametest helper
      */
     public static void pulserFlipsRepeatedly(GameTestHelper helper) {
+        holdAtTheLever(helper, held -> 1);
+    }
+
+    /**
+     * A mock player holds Pulser at a lever for forty ticks with its stream
+     * ticks jittering as a real client's do, two landing in one server tick
+     * and none in the next: the lever still flips several times.
+     *
+     * @param helper the gametest helper
+     */
+    public static void pulserFlipsUnderJitter(GameTestHelper helper) {
+        holdAtTheLever(helper, held -> JITTER[held % JITTER.length]);
+    }
+
+    /**
+     * A mock player looks down at a lever on the floor four blocks ahead and
+     * holds Pulser for forty ticks, its stream ticks carrying the glove hand
+     * and the aimed point as a client's do: the lever flips several times.
+     *
+     * @param helper the gametest helper
+     */
+    public static void pulserFlipsAFloorLever(GameTestHelper helper) {
+        ServerPlayer player = pulserAt(helper, FLOOR_LEVER);
+        Vec3 target = Vec3.atBottomCenterOf(helper.absolutePos(FLOOR_LEVER)).add(0, LEVER_HANDLE_HEIGHT, 0);
+        player.lookAt(EntityAnchorArgument.Anchor.EYES, target);
+        Vec3 hand = player.getEyePosition().add(player.getLookAngle().scale(HAND_AHEAD)).add(0, -HAND_BELOW, 0);
+        watchFlips(helper, player, GooStreamPayload.unplaned(GooTypes.id(GooTypes.PULSE), PULSER.toString(),
+                hand, target), FLOOR_LEVER, held -> 1);
+    }
+
+    private static void holdAtTheLever(GameTestHelper helper, IntUnaryOperator streamTicksAt) {
+        ServerPlayer player = pulserAt(helper, LEVER);
+        watchFlips(helper, player, GooStreamPayload.unplaned(GooTypes.id(GooTypes.PULSE), PULSER.toString(),
+                player.getEyePosition(), player.getEyePosition()), LEVER, streamTicksAt);
+    }
+
+    private static ServerPlayer pulserAt(GameTestHelper helper, BlockPos lever) {
         AbilityDefinition pulser = AbilityRegistry.of(helper.getLevel()).getAbility(PULSER);
         helper.assertTrue(pulser != null, ABILITY_REQUIRED);
-        helper.setBlock(LEVER.below(), Blocks.STONE);
-        helper.setBlock(LEVER, Blocks.LEVER.defaultBlockState().setValue(LeverBlock.FACE, AttachFace.FLOOR));
+        helper.setBlock(lever.below(), Blocks.STONE);
+        helper.setBlock(lever, Blocks.LEVER.defaultBlockState().setValue(LeverBlock.FACE, AttachFace.FLOOR));
         ServerPlayer player = pulser(helper);
         KnownRecipes.teachRequires(player, pulser);
-        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.PULSE), PULSER.toString(),
-                player.getEyePosition(), player.getEyePosition());
+        return player;
+    }
+
+    private static void watchFlips(GameTestHelper helper, ServerPlayer player, GooStreamPayload tick,
+                                   BlockPos lever, IntUnaryOperator streamTicksAt) {
         int[] flips = {0};
-        boolean[] last = {powered(helper)};
+        boolean[] last = {powered(helper, lever)};
         for (int held = 1; held <= HOLD_TICKS; held++) {
+            int at = held;
             helper.runAfterDelay(held, () -> {
-                GooStreamHandler.streamTick(player, tick);
-                boolean now = powered(helper);
+                for (int sent = 0; sent < streamTicksAt.applyAsInt(at); sent++) {
+                    GooStreamHandler.streamTick(player, tick);
+                }
+                boolean now = powered(helper, lever);
                 if (now != last[0]) {
                     flips[0]++;
                     last[0] = now;
@@ -74,8 +128,8 @@ public final class PulserTests {
         });
     }
 
-    private static boolean powered(GameTestHelper helper) {
-        return helper.getBlockState(LEVER).getValue(LeverBlock.POWERED);
+    private static boolean powered(GameTestHelper helper, BlockPos lever) {
+        return helper.getBlockState(lever).getValue(LeverBlock.POWERED);
     }
 
     @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
