@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.ability.pulse.RedstoneBeat;
 import com.mercuriusxeno.goo.block.ability.MarkerAnchor;
+import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.network.ChainBurnoutPayload;
 import com.mercuriusxeno.goo.registry.GooParticles;
@@ -35,7 +37,7 @@ import java.util.function.Consumer;
  */
 public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
         implements PlacedFaceHost, TickingHost, ExplodeHost, EntityScanHost, PlaceBlockHost,
-        FieldEffectHost, PhasedHost, ConsumedGooHost, PowerEmitHost {
+        FieldEffectHost, PhasedHost, ConsumedGooHost, PowerEmitHost, BeatHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
 
@@ -124,6 +126,20 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
         if (state.hasProperty(BlockStateProperties.POWERED) && state.getValue(BlockStateProperties.POWERED) != on) {
             level.setBlock(pos, state.setValue(BlockStateProperties.POWERED, on), Block.UPDATE_ALL);
         }
+    }
+
+    /**
+     * The beat a prism has heard; an ability block hears none
+     * (decision metronome-prism-pulses-at-the-learned-rate).
+     */
+    @Override
+    public RedstoneBeat beat() {
+        return be instanceof PrismBlockEntity prism ? prism.beat() : RedstoneBeat.SILENT;
+    }
+
+    @Override
+    public long gameTime() {
+        return level.getGameTime();
     }
 
     @Override

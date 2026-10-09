@@ -98,7 +98,12 @@ public enum HostCapability {
      * A host whose own block can give redstone power to its neighbors
      * (decision thumper-blob-pulses-periodically-then-fades).
      */
-    EMIT_POWER(PowerEmitHost.class);
+    EMIT_POWER(PowerEmitHost.class),
+    /**
+     * A host that hears the redstone signals reaching its block and keeps
+     * their beat (decision metronome-prism-pulses-at-the-learned-rate).
+     */
+    BEAT(BeatHost.class);
 
     private final Class<? extends StepHost> hostType;
 
