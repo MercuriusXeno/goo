@@ -26,6 +26,9 @@ class AbilityBadgeTest {
     private static final int SHIPPED_CHANNELED_BADGES = 9;
     private static final int SHIPPED_FREE_BADGES = 4;
     private static final int SHIPPED_TAP_BADGES = 4;
+    private static final int SHIPPED_PRISM_BADGES = 1;
+    /** Glacial, the shipped prism ability (decision glacial-prism-holds-the-area-frozen). */
+    private static final List<String> SHIPPED_PRISMS = List.of("frost_glacial");
     /** The self + brew abilities, which wear brew on their self delivery (decision self-brew-goos-eat-before-the-effect). */
     private static final List<String> SHIPPED_BREWS = List.of("blaze_kindle", "leaf_barkskin", "rock_stoneskin",
             "vital_nourish", "shroom_sight");
@@ -86,6 +89,9 @@ class AbilityBadgeTest {
         if (SHIPPED_FREE.contains(definition.id().getPath())) {
             return AbilityBadge.FREE;
         }
+        if (SHIPPED_PRISMS.contains(definition.id().getPath())) {
+            return AbilityBadge.PRISM;
+        }
         if (definition.hasTag(AbilityTags.TAP)) {
             return AbilityBadge.TAP;
         }
@@ -114,7 +120,7 @@ class AbilityBadgeTest {
         assertEquals(Map.of(AbilityBadge.MOB, (long) SHIPPED_MOB_BADGES, AbilityBadge.WORLD, (long) SHIPPED_WORLD_BADGES,
                         AbilityBadge.SELF, (long) SHIPPED_SELF_BADGES, AbilityBadge.BREW, (long) SHIPPED_BREW_BADGES,
                         AbilityBadge.CHANNELED, (long) SHIPPED_CHANNELED_BADGES, AbilityBadge.FREE, (long) SHIPPED_FREE_BADGES,
-                        AbilityBadge.TAP, (long) SHIPPED_TAP_BADGES),
+                        AbilityBadge.TAP, (long) SHIPPED_TAP_BADGES, AbilityBadge.PRISM, (long) SHIPPED_PRISM_BADGES),
                 shipped.values().stream().collect(Collectors.groupingBy(AbilityDefinition::badge, Collectors.counting())));
     }
 }
