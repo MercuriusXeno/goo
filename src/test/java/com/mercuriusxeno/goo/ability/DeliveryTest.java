@@ -150,6 +150,20 @@ class DeliveryTest {
             assertFalse(arc(SLOW, 0).rolls());
         }
 
+        // orb-aims-a-straight-line: a rolling goo previews a straight line with no peak
+        @Test
+        void aRollingDeliveryAimsStraightWithNoPeak() {
+            Delivery orb = arc(SLOW, RANGE);
+            assertTrue(orb.aimsStraight());
+            assertEquals(0.0, orb.peak(START, TEN_AWAY, false), TOLERANCE);
+            assertEquals(0.0, orb.peak(START, TEN_AWAY, true), TOLERANCE);
+        }
+
+        @Test
+        void aPlainArcStillAimsAnArc() {
+            assertFalse(Delivery.ARC.aimsStraight());
+        }
+
         @Test
         void anArcAtTheDefaultSpeedDoesNotRoll() {
             assertFalse(arc(Delivery.DEFAULT_BLOCKS_PER_TICK, RANGE).rolls());
