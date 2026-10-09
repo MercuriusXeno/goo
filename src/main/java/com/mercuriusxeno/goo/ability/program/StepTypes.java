@@ -82,6 +82,7 @@ public final class StepTypes {
         register(NourishStep.TYPE);
         register(ReserveDrainStep.TYPE);
         register(BanishStep.TYPE);
+        register(TeleportitisStep.TYPE);
     }
 
     private StepTypes() {

@@ -160,7 +160,7 @@ class RadialWheelRendererTest {
                 Map.entry("aeon_time_stop", "Stasis"), Map.entry("blaze_ignite", "Scorch"),
                 Map.entry("crystal_cloud", "Razor"), Map.entry("crystal_flechettes", "Shards"),
                 Map.entry("crystal_prism", "Prism"),
-                Map.entry("ender_banish", "Banish"),
+                Map.entry("ender_banish", "Banish"), Map.entry("ender_teleportitis", "Teleportitis"),
                 Map.entry("frost_snap", "Snap"), Map.entry("glow_crystal", "Bulb"),
                 Map.entry("glow_laser", "Beam"), Map.entry("hex_charm", "Charm"),
                 Map.entry("leaf_entangle", "Vines"), Map.entry("leaf_barkskin", "Barkskin"), Map.entry("metal_spikes", "Urchin"),
