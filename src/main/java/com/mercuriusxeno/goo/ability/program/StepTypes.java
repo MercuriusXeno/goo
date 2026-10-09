@@ -50,6 +50,7 @@ public final class StepTypes {
         register(DripsStep.TYPE);
         register(BankTicksStep.TYPE);
         register(WithdrawBankStep.TYPE);
+        register(SlowTimeStep.TYPE);
         register(CloneEntityStep.TYPE);
         register(DropItemStep.TYPE);
         register(LeafSteps.IGNITE.type());

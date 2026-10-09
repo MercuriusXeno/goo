@@ -1,0 +1,18 @@
+{
+  "gooType": "aeon",
+  "displayName": "goo.ability.aeon.chronosphere",
+  "badge": "world",
+  "order": 40,
+  "cost": 1000,
+  "delivery": { "kind": "arc" },
+  "area": { "shape": "sphere", "size": 5 },
+  "behaviors": [
+    {
+      "type": "linger",
+      "steps": [
+        { "type": "slow_time", "radius": 5, "expand_ticks": 10, "duration": 200, "slow": 0.1 }
+      ]
+    }
+  ],
+  "tags": ["zone"]
+}
