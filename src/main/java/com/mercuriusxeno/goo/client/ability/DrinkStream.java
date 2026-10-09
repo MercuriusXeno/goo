@@ -21,16 +21,16 @@ import org.jspecify.annotations.Nullable;
  */
 public final class DrinkStream {
 
-    /** Blocks the liquid flows a tick: two blocks a second, languid. */
-    public static final double FLOW = 0.1;
+    /** Blocks the liquid flows a tick: four blocks a second. */
+    public static final double FLOW = 0.2;
     /** Blocks of the way the block's own matter spans, from its far side through its middle to its near face. */
     public static final double BLOCK_SPAN = 1;
     /** Blocks past the cone's reach a route to the glove can run, the glove hanging off the eye and a tributary going round. */
     static final double GLOVE_SLACK = 4;
     /** The ticks the longest route's travel takes; a drink is kept this long past its last block's drain. */
     public static final int LONGEST_TRAVEL_TICKS = (int) Math.ceil((SiphonRule.RANGE + GLOVE_SLACK) / FLOW);
-    /** Rings along one block of stream; enough that the snake reads as one smooth body. */
-    public static final int RINGS_PER_BLOCK = 10;
+    /** Rings along one block of stream; enough that the snake and the block's blob read as one smooth body. */
+    public static final int RINGS_PER_BLOCK = 16;
     /** The fewest rings a path has, its two ends. */
     public static final int FEWEST_RINGS = 2;
     /** The radius at a waist of a stream of scale 1, in blocks. */
@@ -167,10 +167,11 @@ public final class DrinkStream {
     /**
      * @param start the game time a block started streaming
      * @param now   the game time, with the partial tick
-     * @return how far along its route its head has flowed, in blocks: it leaves the block's entry the first tick
+     * @return how far along its route its head has flowed, in blocks: a tip's length out of the block's near face
+     *         the first tick, so the block itself never tapers
      */
     public static double headAt(long start, double now) {
-        return BLOCK_SPAN + (now - start) * FLOW;
+        return BLOCK_SPAN + TIP + (now - start) * FLOW;
     }
 
     /**

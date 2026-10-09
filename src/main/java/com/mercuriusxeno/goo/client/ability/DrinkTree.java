@@ -50,6 +50,14 @@ public final class DrinkTree {
         public long seed() {
             return pos.asLong();
         }
+
+        /**
+         * @param now the game time, with the partial tick
+         * @return how far the block's drain has gone, 0 to 1
+         */
+        public double progressAt(double now) {
+            return Math.clamp((now - start) / Math.max(1, end - start), 0, 1);
+        }
     }
 
     /**
@@ -168,8 +176,9 @@ public final class DrinkTree {
     }
 
     /**
-     * The rings of a stream's own path from its block's entry to its end,
-     * each as wide as every stream flowing through it there makes it.
+     * The rings of a stream's own path from its block's far side to its end,
+     * the block's blob and its stream one skin, each ring as wide as every
+     * stream flowing through it there makes it.
      *
      * @param stream the stream
      * @param now    the game time, with the partial tick
@@ -177,11 +186,10 @@ public final class DrinkTree {
      */
     public static List<DrinkStream.Ring> rings(Stream stream, double now) {
         List<DrinkStream.Ring> rings = new ArrayList<>();
-        double lowest = Math.min(1, DrinkStream.BLOCK_SPAN / stream.path().length());
         int count = Math.max(DrinkStream.FEWEST_RINGS,
-                (int) Math.ceil(stream.path().length() * DrinkStream.RINGS_PER_BLOCK * (1 - lowest)) + 1);
+                (int) Math.ceil(stream.path().length() * DrinkStream.RINGS_PER_BLOCK) + 1);
         for (int index = 0; index < count; index++) {
-            rings.add(ring(stream, lowest + (1 - lowest) * index / (count - 1), now));
+            rings.add(ring(stream, (double) index / (count - 1), now));
         }
         return rings;
     }
@@ -202,7 +210,8 @@ public final class DrinkTree {
             powers += powersUnder(tributary, stream, share, now);
         }
         return DrinkStream.ring(stream.path(), share, now, Math.pow(powers, 1 / COMBINE),
-                DrinkBody.roundnessAt(distance), DrinkStream.materialAt(distance, now), distance / stream.routeLength());
+                DrinkBody.roundnessAt(distance, stream.block().progressAt(now)), DrinkStream.materialAt(distance, now),
+                distance / stream.routeLength());
     }
 
     private static double powersUnder(Stream branch, Stream through, double share, double now) {
@@ -254,8 +263,8 @@ public final class DrinkTree {
 
     /**
      * The radius one stream alone gives a point of a path it flows through:
-     * its matter's width there, the block's own at its entry narrowing down
-     * the funnel to the stream's, tapering at its ends; on a trunk it joins,
+     * its matter's width there, the block's blob where it stood narrowing
+     * down the funnel to the stream's, tapering at its ends; on a trunk it joins,
      * swelling in symmetrically about the join over {@link #MERGE} each way,
      * so the two meet like metaballs touching.
      *
@@ -271,8 +280,8 @@ public final class DrinkTree {
             return 0;
         }
         Block block = stream.block();
-        double width = DrinkBody.widthAt(entry.distance(), block.scale()
-                * DrinkStream.widthAt(DrinkStream.materialAt(entry.distance(), now), block.seed()));
+        double width = DrinkBody.widthAt(entry.distance(), block.progressAt(now), block.scale()
+                * DrinkStream.widthAt(DrinkStream.materialAt(entry.distance(), now), block.seed()), block.seed(), now);
         double radius = width * DrinkStream.taperAt(entry.distance(), DrinkStream.tailAt(block.end(), now),
                 DrinkStream.headAt(block.start(), now));
         return stream == through ? radius : radius * mergeRamp(entry.pastJoin());

@@ -132,40 +132,6 @@ public final class MeltMesh {
         return quads;
     }
 
-    /**
-     * One point of a block's face, with the texture and the baked colour its quad gives it there.
-     *
-     * @param x     the point's x, block-local
-     * @param y     the point's y, block-local
-     * @param z     the point's z, block-local
-     * @param u     its texture u on the atlas
-     * @param v     its texture v on the atlas
-     * @param color its baked ARGB colour
-     */
-    public record FacePoint(float x, float y, float z, float u, float v, int color) {
-    }
-
-    /**
-     * A quad split into its fine grid: the four corners of every cell, in
-     * the quad's winding, so a mesh bending the block keeps its textures.
-     *
-     * @param quad the quad
-     * @return each cell's corners
-     */
-    public static List<FacePoint[]> cellsOf(BakedQuad quad) {
-        List<QuadRectClipper.ClipVertex> corners = QuadRectClipper.verticesOf(quad);
-        List<FacePoint[]> cells = new ArrayList<>(GRID * GRID);
-        for (int index = 0; index < GRID * GRID; index++) {
-            Cell cell = new Cell(corners, index / GRID, index % GRID);
-            FacePoint[] points = new FacePoint[CELL_CORNERS.length];
-            for (int corner = 0; corner < CELL_CORNERS.length; corner++) {
-                QuadRectClipper.ClipVertex point = cell.at(CELL_CORNERS[corner][0], CELL_CORNERS[corner][1]);
-                points[corner] = new FacePoint(point.x(), point.y(), point.z(), point.u(), point.v(), point.color());
-            }
-            cells.add(points);
-        }
-        return cells;
-    }
 
     /**
      * Emits one quad of the block, split into its grid, then its goo.

@@ -21,6 +21,7 @@ import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.data.AtlasIds;
+import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
@@ -35,8 +36,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Draws every Unmake drink: each block's lump flowing into its stream, and
- * the drink's streams flowing languidly down their fixed tree into the
+ * Draws every Unmake drink: each block's blob where it stood and its stream
+ * as one skin, the drink's streams flowing down their fixed tree into the
  * drinker's glove, each path skinned solid in its block's own texture laid
  * at its own size and riding the flow, with the block's goo types roiling
  * over it through the vats' mingle shader in blotches that cover more of it
@@ -47,8 +48,10 @@ import java.util.Map;
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class DrinkRenderer {
 
-    /** Sides about one ring of the stream's skin. */
-    static final int SIDES = 10;
+    /** Sides about one ring of the stream's skin; a multiple of eight, so a square ring lands on the cube's corners. */
+    static final int SIDES = 16;
+    /** The shares of a path its light is read at: the block, just before it, the middle of the way and the hand. */
+    private static final double[] LIGHT_SHARES = {0.0, 0.25, 0.5, 1.0};
     /** How much further out each goo layer's skin stands than the one under it, so they never fight. */
     static final double LAYER_STEP = 0.008;
     /** The share of a stream's skin the goo covers by the hand, so the block's texture shows mingled the whole way. */
@@ -163,9 +166,8 @@ public final class DrinkRenderer {
     }
 
     /**
-     * Submits one stream: while its block drains, its lump flowing into the
-     * stream's entry, and the path from the entry on; once drained, the path
-     * alone, its tail following in.
+     * Submits one stream: one skin from the block's far side to its path's
+     * end, the block's blob where it stood and its stream in front of it.
      *
      * @param event  the custom geometry submit event
      * @param level  the client level
@@ -176,23 +178,30 @@ public final class DrinkRenderer {
     private static void submitStream(SubmitCustomGeometryEvent event, ClientLevel level, DrinkTree.Stream stream,
                                      BlockState state, Frame frame) {
         DrinkTree.Block block = stream.block();
-        MingledGoo goo = MeltMeshGoo.of(state);
-        int light = LevelRenderer.getLightCoords(level, BlockPos.containing(DrinkStream.pointAt(stream.path(),
-                (DrinkStream.BLOCK_SPAN + HALF) / stream.path().length(), frame.ticks())));
-        if (frame.ticks() < block.end()) {
-            DrinkBody.Lump lump = new DrinkBody.Lump(stream.path(), progressOf(block, frame.ticks()),
-                    DrinkStream.headAt(block.start(), frame.ticks()) - DrinkStream.BLOCK_SPAN);
-            DrinkBodyRenderer.submit(event, level, state, goo, new DrinkBodyRenderer.Flowing(stream, lump,
-                    frame.ticks(), frame.camera(), light));
-        }
         List<DrinkStream.Ring> rings = DrinkTree.rings(stream, frame.ticks());
         if (rings.stream().anyMatch(ring -> ring.radius() > 0)) {
-            submitSkins(event, new Skin(rings, light, frame, block.seed()), level, block.pos(), state, goo);
+            submitSkins(event, new Skin(rings, lightAlong(level, stream, frame.ticks()), frame, block.seed()), level,
+                    block.pos(), state, MeltMeshGoo.of(state));
         }
     }
 
-    private static double progressOf(DrinkTree.Block block, double ticks) {
-        return Math.clamp((ticks - block.start()) / Math.max(1, block.end() - block.start()), 0, 1);
+    /**
+     * The light a stream is drawn in: the brightest along its path, so a block
+     * deep in a wall is lit as the air its stream runs through, not as the
+     * dark inside the wall.
+     *
+     * @param level  the client level
+     * @param stream the stream
+     * @param now    the game time, with the partial tick
+     * @return the packed light
+     */
+    private static int lightAlong(ClientLevel level, DrinkTree.Stream stream, double now) {
+        int brightest = 0;
+        for (double share : LIGHT_SHARES) {
+            brightest = LightCoordsUtil.max(brightest, LevelRenderer.getLightCoords(level,
+                    BlockPos.containing(DrinkStream.pointAt(stream.path(), share, now))));
+        }
+        return brightest;
     }
 
     /**
