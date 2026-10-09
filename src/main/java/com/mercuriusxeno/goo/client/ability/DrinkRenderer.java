@@ -29,15 +29,18 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.SubmitCustomGeometryEvent;
 import org.jspecify.annotations.Nullable;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Draws every Unmake drink: each block's own cube turning into its stream
- * where it stands, and the stream flowing languidly from there into the
- * drinker's glove, skinned in the block's own texture riding the flow and
- * warped molten, tinting toward its goo's colour and growing patches of its
- * goo types by the mingle noise along its length, mingled by their shares,
- * until it is all goo as it enters.
+ * where it stands, and the drink's streams flowing languidly down their tree
+ * into the drinker's glove, each path skinned in its block's own texture
+ * riding the flow and warped molten, tinting toward its goo's colour and
+ * growing patches of its goo types by the mingle noise along the block's
+ * whole route, mingled by their shares, until it is all goo as it enters.
  * decision unmake-waves-dissolve-by-crucible-cost
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
@@ -83,12 +86,8 @@ public final class DrinkRenderer {
         Vec3 camera = event.getLevelRenderState().cameraRenderState.pos;
         for (ClientDrinks.Drink drink : ClientDrinks.CLIENT.live(ticks)) {
             Entity drinker = level.getEntity(drink.playerId());
-            if (drinker == null) {
-                continue;
-            }
-            Frame frame = new Frame(gloveOf(mc, drinker, partialTick), camera, ticks);
-            for (DrinkPayload.Streaming block : drink.streaming()) {
-                submitBlock(event, level, block, frame);
+            if (drinker != null) {
+                submitDrink(event, level, drink, new Frame(gloveOf(mc, drinker, partialTick), camera, ticks));
             }
         }
     }
@@ -104,9 +103,9 @@ public final class DrinkRenderer {
     }
 
     /**
-     * One stream's skin to emit.
+     * One path's skin to emit.
      *
-     * @param rings the stream's rings, tail to head
+     * @param rings the path's rings, start to end
      * @param light the light where the block stands
      * @param frame the frame
      * @param seed  the block's seed
@@ -149,45 +148,67 @@ public final class DrinkRenderer {
     }
 
     /**
-     * Submits one block of a drink: while it drains, its cube turning into
-     * the stream over its own span of the way, and the stream from there on;
-     * once drained, the stream alone, its tail following in.
+     * Submits one drink: its blocks' tree of streams, each stream's block
+     * turning while it drains and its own path skinned.
      *
      * @param event the custom geometry submit event
      * @param level the client level
-     * @param block the block
+     * @param drink the drink
      * @param frame the frame
      */
-    private static void submitBlock(SubmitCustomGeometryEvent event, ClientLevel level, DrinkPayload.Streaming block,
+    private static void submitDrink(SubmitCustomGeometryEvent event, ClientLevel level, ClientDrinks.Drink drink,
                                     Frame frame) {
-        BlockState seen = level.getBlockEntity(block.pos()) instanceof MeltingBlockEntity melting
-                ? melting.original() : null;
-        BlockState state = ClientDrinks.CLIENT.blockOf(block.pos(), seen);
-        if (state == null) {
-            return;
+        Map<BlockPos, BlockState> states = new HashMap<>();
+        List<DrinkTree.Block> blocks = new ArrayList<>();
+        for (DrinkPayload.Streaming streaming : drink.streaming()) {
+            BlockState seen = level.getBlockEntity(streaming.pos()) instanceof MeltingBlockEntity melting
+                    ? melting.original() : null;
+            BlockState state = ClientDrinks.CLIENT.blockOf(streaming.pos(), seen);
+            if (state != null) {
+                states.put(streaming.pos(), state);
+                blocks.add(new DrinkTree.Block(streaming.pos(), Vec3.atCenterOf(streaming.pos()),
+                        DrinkTree.scaleOf(MeltMeshGoo.volumeOf(state)), streaming.start(), streaming.end()));
+            }
         }
-        MingledGoo goo = MeltMeshGoo.of(state);
-        DrinkStream.Path path = DrinkMorph.pathOf(Vec3.atCenterOf(block.pos()), frame.glove(), block.pos().asLong());
-        DrinkStream.Span span = DrinkStream.span(block, frame.ticks(), path.length());
-        boolean turning = frame.ticks() < block.end();
-        if (turning) {
-            DrinkMorphRenderer.submit(event, level, state, goo, new DrinkMorphRenderer.Turning(block.pos(), path, span,
-                    progressOf(block, frame.ticks()), frame.ticks(), frame.camera()));
-        }
-        List<DrinkStream.Ring> rings = DrinkStream.rings(path, span,
-                turning ? DrinkStream.BLOCK_SPAN / path.length() : 0, frame.ticks());
-        if (rings.size() >= DrinkStream.FEWEST_RINGS) {
-            submitSkins(event, new Skin(rings, LevelRenderer.getLightCoords(level, block.pos()), frame,
-                    block.pos().asLong()), level, block.pos(), state, goo);
+        for (DrinkTree.Stream stream : DrinkTree.build(blocks, frame.glove(), frame.ticks())) {
+            submitStream(event, level, stream, states.get(stream.block().pos()), frame);
         }
     }
 
-    private static double progressOf(DrinkPayload.Streaming block, double ticks) {
+    /**
+     * Submits one stream: while its block drains, the cube turning into the
+     * stream over its own span of the path, and the path from there on; once
+     * drained, the path alone, its tail following in.
+     *
+     * @param event  the custom geometry submit event
+     * @param level  the client level
+     * @param stream the stream
+     * @param state  the block it is
+     * @param frame  the frame
+     */
+    private static void submitStream(SubmitCustomGeometryEvent event, ClientLevel level, DrinkTree.Stream stream,
+                                     BlockState state, Frame frame) {
+        DrinkTree.Block block = stream.block();
+        MingledGoo goo = MeltMeshGoo.of(state);
+        boolean turning = frame.ticks() < block.end();
+        if (turning) {
+            DrinkMorphRenderer.submit(event, level, state, goo, new DrinkMorphRenderer.Turning(stream,
+                    progressOf(block, frame.ticks()), frame.ticks(), frame.camera()));
+        }
+        List<DrinkStream.Ring> rings = DrinkTree.rings(stream,
+                turning ? DrinkStream.BLOCK_SPAN / stream.path().length() : 0, frame.ticks());
+        if (rings.stream().anyMatch(ring -> ring.radius() > 0)) {
+            submitSkins(event, new Skin(rings, LevelRenderer.getLightCoords(level, block.pos()), frame,
+                    block.seed()), level, block.pos(), state, goo);
+        }
+    }
+
+    private static double progressOf(DrinkTree.Block block, double ticks) {
         return Math.clamp((ticks - block.start()) / Math.max(1, block.end() - block.start()), 0, 1);
     }
 
     /**
-     * Submits a stream's skins: the block's own, then each goo type's over it.
+     * Submits a path's skins: the block's own, then each goo type's over it.
      *
      * @param event the custom geometry submit event
      * @param skin  the skin
@@ -205,7 +226,7 @@ public final class DrinkRenderer {
     }
 
     /**
-     * Submits the stream's own skin: the block's texture riding the flow,
+     * Submits the path's own skin: the block's texture riding the flow,
      * warped molten, tinting toward the goo's colour where the mingle has formed.
      *
      * @param event the custom geometry submit event
@@ -232,8 +253,8 @@ public final class DrinkRenderer {
     }
 
     /**
-     * Submits one goo type's skin over the stream: its sprite on the goo
-     * surface shader, in patches that form as the liquid nears the glove.
+     * Submits one goo type's skin over the path: its sprite on the goo
+     * surface shader, in patches that form along the route.
      *
      * @param event the custom geometry submit event
      * @param skin  the skin
@@ -252,7 +273,8 @@ public final class DrinkRenderer {
 
     /**
      * How formed a goo layer is at a point of the stream: its patches form by
-     * the share of the way the point stands at, in a field that rides the flow.
+     * the share of the block's route the point stands at, in a field that
+     * rides the flow.
      *
      * @param layer the goo layer
      * @param ring  the ring the point is on
@@ -266,7 +288,7 @@ public final class DrinkRenderer {
     }
 
     /**
-     * Emits a skin over the stream's rings: a quad between each pair of rings
+     * Emits a skin over the path's rings: a quad between each pair of rings
      * for each side, wound to face outward, its texture riding the flow.
      *
      * @param ctx      the render context
@@ -281,6 +303,9 @@ public final class DrinkRenderer {
         for (int index = 0; index + 1 < rings.size(); index++) {
             DrinkStream.Ring near = rings.get(index);
             DrinkStream.Ring far = rings.get(index + 1);
+            if (near.radius() <= 0 && far.radius() <= 0) {
+                continue;
+            }
             for (int side = 0; side < SIDES; side++) {
                 double angle0 = TWO_PI * side / SIDES;
                 double angle1 = TWO_PI * (side + 1) / SIDES;
@@ -295,7 +320,8 @@ public final class DrinkRenderer {
     private static void emitPoint(RenderContext ctx, Skin skin, DrinkStream.Ring ring, double angle,
                                   GooRenderUtil.UvRect sprite, double lift, Coloring coloring) {
         Vec3 out = ring.outAt(angle);
-        Vec3 point = ring.center().add(out.scale(ring.radius() + lift)).subtract(skin.frame().camera());
+        double radius = ring.radius() > 0 ? ring.radius() + lift : 0;
+        Vec3 point = ring.center().add(out.scale(radius)).subtract(skin.frame().camera());
         float u = DrinkStream.moltenU(ring.material(), angle, skin.frame().ticks(), skin.seed());
         float v = DrinkStream.moltenV(ring.material(), angle, skin.frame().ticks(), skin.seed());
         ctx.vertexColored(coloring.colorAt(ring, angle), (float) point.x, (float) point.y, (float) point.z,
