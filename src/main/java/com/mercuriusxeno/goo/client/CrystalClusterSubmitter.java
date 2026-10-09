@@ -20,7 +20,7 @@ import java.util.List;
 public final class CrystalClusterSubmitter {
 
     /** The crystal's alpha: a little see-through, as quartz is. */
-    private static final int CRYSTAL_ALPHA = 0xE0;
+    static final int CRYSTAL_ALPHA = 0xE0;
     private static final int SIDES = 6;
     private static final double SIDE_ANGLE = Math.PI * 2 / SIDES;
     private static final double PIXEL = 1.0 / 16.0;
@@ -94,6 +94,26 @@ public final class CrystalClusterSubmitter {
             RenderContext ctx = new RenderContext(pose, c, light);
             for (CrystalCluster.Prism prism : prisms) {
                 emitPrism(ctx, prism, look.color(), look.uv());
+            }
+        });
+    }
+
+    /**
+     * Submits faces in model pixels, each four corners in winding order, in one draw
+     * on the block atlas, tiled as a prism's faces are.
+     *
+     * @param poseStack     the pose stack, placed so model pixels map onto the block
+     * @param nodeCollector the node collector
+     * @param faces         the faces to draw
+     * @param look          the sprite and tint
+     * @param light         the packed light
+     */
+    public static void submitFaces(PoseStack poseStack, SubmitNodeCollector nodeCollector, List<Vec3[]> faces,
+                                   Look look, int light) {
+        nodeCollector.submitCustomGeometry(poseStack, GooSubmitter.renderType(), (pose, c) -> {
+            RenderContext ctx = new RenderContext(pose, c, light);
+            for (Vec3[] face : faces) {
+                emitQuad(ctx, look.color(), look.uv(), face);
             }
         });
     }

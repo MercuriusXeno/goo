@@ -129,7 +129,6 @@ public class GooBlocks {
             "prism", PrismBlock::new,
             () -> BlockBehaviour.Properties.of()
                     .mapColor(MapColor.QUARTZ)
-                    .noCollision()
                     .strength(PRISM_HARDNESS)
                     .noLootTable()
                     .noOcclusion()
