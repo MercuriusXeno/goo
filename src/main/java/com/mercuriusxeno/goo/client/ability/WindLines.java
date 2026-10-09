@@ -42,27 +42,27 @@ public final class WindLines {
     /** The client's wind. */
     public static final WindLines CLIENT = new WindLines();
 
-    /** Lines a held tick blows. */
-    static final int LINES_PER_TICK = 2;
+    /** Held ticks between one wind line and the next: a few lines at a time, not a blizzard. */
+    static final int BLOW_EVERY_TICKS = 3;
     /** Ticks a line lives, from leaving the glove to fading out. */
-    static final int LIFE_TICKS = 30;
+    static final int LIFE_TICKS = 50;
     /** The share of a line's life it rushes straight before it curls. */
-    static final double CURL_STARTS = 0.6;
+    static final double CURL_STARTS = 0.5;
     /** The ticks a line rushes straight before it curls. */
     static final double STRAIGHT_TICKS = LIFE_TICKS * CURL_STARTS;
     /** The share of the cone's length a line rushes straight before it curls. */
     static final double STRAIGHT_SHARE = 0.6;
     /** The curl's starting radius in blocks, which it winds inward from to nothing. */
-    static final double CURL_RADIUS = 0.35;
+    static final double CURL_RADIUS = 0.25;
     /** Turns the curl winds through before it reaches its center. */
-    static final double CURL_TURNS = 1.0;
+    static final double CURL_TURNS = 2.0;
     /** Ticks of the path the trailing line spans behind its head while it rushes straight. */
-    static final double TAIL_TICKS = 8;
+    static final double TAIL_TICKS = 10;
     /** Points the line draws through, enough that its curve reads smooth. */
     private static final int TAIL_SAMPLES = 32;
     private static final float LINE_WIDTH = 3.5f;
     /** Snowflakes a line drops along itself each tick it lives. */
-    private static final float SNOWFLAKES_PER_LINE_TICK = 0.35f;
+    private static final float SNOWFLAKES_PER_LINE_TICK = 0.15f;
     private static final int MAX_ALPHA = 200;
     private static final int WHITE = 0xF4F8FF;
     private static final int PALE_GRAY = 0xD6DDE8;
@@ -222,17 +222,18 @@ public final class WindLines {
 
     private void add(RandomSource random, Vec3 apex, Vec3 look, double range, double coneDegrees, boolean snowflakes,
                      long now) {
-        double spread = Math.toRadians(coneDegrees * HALF);
-        for (int i = 0; i < LINES_PER_TICK; i++) {
-            double about = random.nextDouble() * TWO_PI;
-            Vec3 axis = tilt(look, spread * Math.sqrt(random.nextDouble()), about);
-            Vec3 outward = radial(look, about);
-            Vec3 across = look.cross(outward).normalize();
-            double straight = range * STRAIGHT_SHARE * (HALF + random.nextDouble());
-            double winding = random.nextBoolean() ? CLOCKWISE : COUNTERCLOCKWISE;
-            live.add(new Line(apex, axis, outward, across, straight, sway(random, axis), winding, random.nextFloat(),
-                    snowflakes, now));
+        if (!blowsOn(now)) {
+            return;
         }
+        double spread = Math.toRadians(coneDegrees * HALF);
+        double about = random.nextDouble() * TWO_PI;
+        Vec3 axis = tilt(look, spread * Math.sqrt(random.nextDouble()), about);
+        Vec3 outward = radial(look, about);
+        Vec3 across = look.cross(outward).normalize();
+        double straight = range * STRAIGHT_SHARE * (HALF + random.nextDouble());
+        double winding = random.nextBoolean() ? CLOCKWISE : COUNTERCLOCKWISE;
+        live.add(new Line(apex, axis, outward, across, straight, sway(random, axis), winding, random.nextFloat(),
+                snowflakes, now));
     }
 
     /**
@@ -261,6 +262,16 @@ public final class WindLines {
         Vec3 side = sideOf(axis);
         Vec3 up = axis.cross(side).normalize();
         return side.scale(Math.cos(about)).add(up.scale(Math.sin(about)));
+    }
+
+    /**
+     * Whether a held tick blows a wind line: one every BLOW_EVERY_TICKS.
+     *
+     * @param gameTime the game time
+     * @return true on a blowing tick
+     */
+    static boolean blowsOn(long gameTime) {
+        return gameTime % BLOW_EVERY_TICKS == 0;
     }
 
     /**
