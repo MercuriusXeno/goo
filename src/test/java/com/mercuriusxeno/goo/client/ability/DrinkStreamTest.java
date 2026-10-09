@@ -41,9 +41,8 @@ class DrinkStreamTest {
     private static final double GENTLE = 0.3;
     /** The fewest times the width crosses its middle over the read, so the stream undulates. */
     private static final int UNDULATIONS = 20;
-    private static final double LEAST_RATIO = 3;
+    private static final double LEAST_RATIO = 2;
     private static final double MOST_RATIO = 4;
-    private static final double TWO_PI = 2 * Math.PI;
     private static final double RADIUS = 0.1;
     private static final double NUDGE = 0.01;
 
@@ -123,32 +122,12 @@ class DrinkStreamTest {
         }
 
         @Test
-        void theMoltenTextureIsPulledAboutButStaysOnTheSpriteAndWrapsWithNoSeam() {
-            double material = 1.3;
-            double angle = 0.7;
-            float u = DrinkStream.moltenU(material, angle, START, SEED);
-            float v = DrinkStream.moltenV(material, angle, RADIUS, START, SEED);
-
-            assertTrue(u >= 0 && u <= 1 && v >= 0 && v <= 1);
-            assertTrue(Math.abs(u - DrinkStream.textureU(material)) <= DrinkStream.TEXTURE_WARP + DELTA);
-            assertTrue(u != DrinkStream.textureU(material), "the warp moves the texture");
-            assertEquals(DrinkStream.moltenV(material, 0, RADIUS, START, SEED), DrinkStream.moltenV(material, TWO_PI,
-                    RADIUS, START, SEED), 1e-6);
-        }
-
-        @Test
-        void theTextureIsLaidAroundTheStreamAtItsOwnSizeNotStretched() {
-            double wide = 0.5;
-            double quarter = Math.PI / 2;
-            float atTheBack = DrinkStream.moltenV(0, Math.PI, wide, 0, SEED);
-            float aQuarterRound = DrinkStream.moltenV(0, Math.PI + quarter, wide, 0, SEED);
-            float narrowQuarterRound = DrinkStream.moltenV(0, Math.PI + quarter, RADIUS, 0, SEED);
-
-            double arc = quarter * wide;
-            assertTrue(Math.abs(Math.abs(aQuarterRound - atTheBack) - arc) <= 2 * DrinkStream.TEXTURE_WARP + DELTA,
-                    "a quarter round a wide stream covers its arc of texture");
-            assertTrue(Math.abs(narrowQuarterRound - atTheBack) < Math.abs(aQuarterRound - atTheBack),
-                    "a narrow stream shows less texture around");
+        void theTextureIsLaidOverTheWorldAtItsOwnSizeMirroredWithNoSeam() {
+            assertEquals(0, DrinkStream.textureAt(0), DELTA);
+            assertEquals(1, DrinkStream.textureAt(1), DELTA);
+            assertEquals(0, DrinkStream.textureAt(2), DELTA);
+            assertEquals(DrinkStream.textureAt(3.999), DrinkStream.textureAt(4.001), 1e-2);
+            assertEquals(DrinkStream.textureAt(0.25), DrinkStream.textureAt(-0.25), DELTA);
         }
     }
 
@@ -206,39 +185,28 @@ class DrinkStreamTest {
         }
 
         @Test
-        void aRingsFrameIsRightHandedAboutTheFlow() {
-            DrinkStream.Ring ring = DrinkStream.ring(PATH, 0.5, START, RADIUS, 1, 0, 0.5);
+        void aRingFlowsAlongThePathWithItsRadius() {
+            DrinkStream.Ring ring = DrinkStream.ring(PATH, 0.5, START, RADIUS, 0, 0.5);
             Vec3 flow = DrinkStream.pointAt(PATH, 0.5 + NUDGE, START).subtract(DrinkStream.pointAt(PATH, 0.5 - NUDGE,
                     START));
 
-            assertTrue(ring.side().cross(ring.across()).dot(flow) > 0);
-            assertEquals(0, ring.side().dot(ring.across()), 1e-6);
-            assertEquals(1, ring.outAt(0).length(), 1e-6);
+            assertEquals(0, ring.flow().distanceTo(flow.normalize()), 1e-3);
+            assertEquals(1, ring.flow().length(), 1e-6);
             assertEquals(RADIUS, ring.radius(), DELTA);
-            assertEquals(0, DrinkStream.flowAt(PATH, 0.5, START).distanceTo(flow.normalize()), 1e-3);
+            assertEquals(0, ring.center().distanceTo(DrinkStream.pointAt(PATH, 0.5, START)), DELTA);
         }
 
         @Test
-        void aSquareRingReachesItsCornersAndARoundOneDoesNot() {
-            DrinkStream.Ring square = DrinkStream.ring(PATH, 0.5, START, RADIUS, 0, 0, 0.5);
-            DrinkStream.Ring round = DrinkStream.ring(PATH, 0.5, START, RADIUS, 1, 0, 0.5);
-
-            assertEquals(1, square.reachAt(0), DELTA);
-            assertEquals(Math.sqrt(2), square.reachAt(Math.PI / 4), DELTA);
-            assertEquals(1, round.reachAt(Math.PI / 4), DELTA);
-            assertEquals((1 + Math.sqrt(2)) / 2, DrinkStream.ring(PATH, 0.5, START, RADIUS, 0.5, 0, 0.5)
-                    .reachAt(Math.PI / 4), DELTA);
-        }
-
-        @Test
-        void aPathWithAnArrivalLandsAlongIt() {
+        void aPathWithAnArrivalLeavesStraightAndLandsAlongIt() {
             Vec3 arrival = new Vec3(0, 0, -1);
             DrinkStream.Path curved = new DrinkStream.Path(FROM, TO, SEED, arrival);
             Vec3 landing = curved.spineAt(1).subtract(curved.spineAt(1 - NUDGE)).normalize();
+            Vec3 leaving = curved.spineAt(NUDGE).subtract(curved.spineAt(0)).normalize();
 
             assertEquals(FROM, curved.spineAt(0));
             assertEquals(TO, curved.spineAt(1));
             assertTrue(landing.dot(arrival) > 0.99, "lands along the arrival, dot " + landing.dot(arrival));
+            assertTrue(leaving.dot(TO.subtract(FROM).normalize()) > 0.99, "leaves straight for the end");
             assertEquals(0, DrinkStream.pointAt(curved, 1, START).distanceTo(TO), DELTA);
         }
     }

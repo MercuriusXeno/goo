@@ -63,6 +63,23 @@ class DrinkLayoutTest {
     }
 
     @Test
+    void thePullFollowsTheLookWithALagAndSettlesAgainstIt() {
+        DrinkLayout layout = new DrinkLayout();
+        Vec3 east = new Vec3(1, 0, 0);
+        Vec3 north = new Vec3(0, 0, -1);
+
+        Vec3 first = layout.pullToward(east, 0);
+        Vec3 soon = layout.pullToward(north, 1);
+        Vec3 settled = layout.pullToward(north, 1 + 20 * DrinkLayout.PULL_LAG);
+
+        assertEquals(0, first.distanceTo(east.scale(-1)), DELTA);
+        assertTrue(soon.dot(east.scale(-1)) > 0.5, "a tick later the pull still mostly faces the old look");
+        assertTrue(soon.dot(north.scale(-1)) > 0, "and has begun to turn");
+        assertEquals(0, settled.distanceTo(north.scale(-1)), 1e-6);
+        assertEquals(1, soon.length(), 1e-9);
+    }
+
+    @Test
     void aBlockAppearingLaterJoinsTheStandingLayout() {
         DrinkLayout layout = new DrinkLayout();
         layout.place(List.of(NEAR), GLOVE);

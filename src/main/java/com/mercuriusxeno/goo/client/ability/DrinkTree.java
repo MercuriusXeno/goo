@@ -11,8 +11,9 @@ import java.util.Map;
 /**
  * The tree an Unmake drink's streams union on this frame, built on the
  * drink's fixed layout: each block's path runs from its far side to its join
- * on its trunk, or to the glove, the ends following the hand and a tributary
- * curving in to land along its trunk's flow. About a join the trunk carries
+ * on its trunk, or to the glove, the ends following the hand, a tributary
+ * curving in to land along its trunk's flow and the trunk landing along the
+ * pull of the look. About a join the trunk carries
  * every stream whose liquid is there, combined by the fourth root of the sum
  * of fourth powers so a trunk of many streams is fatter but dampened,
  * swelling into each over a short length either side of the join so the two
@@ -145,10 +146,11 @@ public final class DrinkTree {
      * @param blocks the blocks streaming
      * @param layout the drink's layout, every block laid
      * @param glove  the glove
+     * @param pull   the unit direction the trunk flows as it enters the hand
      * @param now    the game time, with the partial tick
      * @return every stream, the one entering the glove first and each after the stream it joins
      */
-    public static List<Stream> build(List<Block> blocks, DrinkLayout layout, Vec3 glove, double now) {
+    public static List<Stream> build(List<Block> blocks, DrinkLayout layout, Vec3 glove, Vec3 pull, double now) {
         Map<BlockPos, Block> byPos = new HashMap<>();
         blocks.forEach(block -> byPos.put(block.pos(), block));
         Map<BlockPos, Stream> built = new HashMap<>();
@@ -160,7 +162,7 @@ public final class DrinkTree {
                 continue;
             }
             Stream stream = trunk == null
-                    ? new Stream(block, new DrinkStream.Path(node.farSide(), glove, block.seed()), null, 0)
+                    ? new Stream(block, new DrinkStream.Path(node.farSide(), glove, block.seed(), pull), null, 0)
                     : joining(block, node, trunk, now);
             built.put(block.pos(), stream);
             streams.add(stream);
@@ -177,8 +179,8 @@ public final class DrinkTree {
 
     /**
      * The rings of a stream's own path from its block's far side to its end,
-     * the block's blob and its stream one skin, each ring as wide as every
-     * stream flowing through it there makes it.
+     * its skeleton in the drink's field, each ring as wide as every stream
+     * flowing through it there makes it.
      *
      * @param stream the stream
      * @param now    the game time, with the partial tick
@@ -210,8 +212,21 @@ public final class DrinkTree {
             powers += powersUnder(tributary, stream, share, now);
         }
         return DrinkStream.ring(stream.path(), share, now, Math.pow(powers, 1 / COMBINE),
-                DrinkBody.roundnessAt(distance, stream.block().progressAt(now)), DrinkStream.materialAt(distance, now),
-                distance / stream.routeLength());
+                DrinkStream.materialAt(distance, now), distance / stream.routeLength());
+    }
+
+    /**
+     * A stream's part of the drink's field: its skeleton, and its block's box while the block stands.
+     *
+     * @param stream the stream
+     * @param now    the game time, with the partial tick
+     * @return the skeleton
+     */
+    public static DrinkField.Skeleton skeleton(Stream stream, double now) {
+        Block block = stream.block();
+        double progress = block.progressAt(now);
+        DrinkBody.Box box = progress < 1 ? DrinkBody.boxAt(block.center(), progress) : null;
+        return new DrinkField.Skeleton(stream, rings(stream, now), box);
     }
 
     private static double powersUnder(Stream branch, Stream through, double share, double now) {
