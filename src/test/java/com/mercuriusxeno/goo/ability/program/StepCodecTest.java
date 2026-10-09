@@ -121,6 +121,8 @@ class StepCodecTest {
             Map.entry("tick_plants", new TickPlantsStep()),
             Map.entry("tend_fungi", new TendFungiStep()),
             Map.entry("pulse_plants", new PulsePlantsStep(4, 1, 1.5f, 6)),
+            Map.entry("toxin", new ToxinStep(Identifier.parse("goo:bio_toxin"), Expr.literal(0.06),
+                    Expr.literal(100), 2)),
             Map.entry("reap", new ReapStep(Expr.literal(4), Expr.literal(10))),
             Map.entry("hasten_regrow", new HastenRegrowStep(Expr.literal(2))),
             Map.entry("root", new RootStep(Expr.literal(60), Expr.literal(4), Expr.literal(1), Expr.literal(1.5))),
