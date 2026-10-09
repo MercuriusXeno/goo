@@ -118,7 +118,9 @@ class StepCodecTest {
             Map.entry("reserve_drain", new ReserveDrainStep(Expr.literal(0.05), Expr.literal(0.5), Expr.literal(10),
                     Expr.literal(0.5))),
             Map.entry("charm", new CharmStep(Expr.literal(6000))),
-            Map.entry("enchant_book", LeafSteps.ENCHANT_BOOK.step(Unit.INSTANCE))
+            Map.entry("enchant_book", LeafSteps.ENCHANT_BOOK.step(Unit.INSTANCE)),
+            Map.entry("fuse_books", new FuseBooksStep(Optional.of(new SoundCue(
+                    Identifier.withDefaultNamespace("block.fire.extinguish"), SoundKind.PLAYERS, 0.4f, 1.6f))))
     );
 
     private static Step roundTrip(Step step) {
