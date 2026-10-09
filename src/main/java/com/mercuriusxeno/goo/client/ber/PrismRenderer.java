@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.CrystalClusterSubmitter;
 import com.mercuriusxeno.goo.client.PrismCrystal;
+import com.mercuriusxeno.goo.client.ability.AgitatorWisps;
 import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
 import com.mercuriusxeno.goo.client.ability.Transformations;
 import com.mercuriusxeno.goo.client.ber.style.AgitatorPrismStyle;
@@ -67,6 +68,9 @@ public class PrismRenderer implements BlockEntityRenderer<PrismBlockEntity, Pris
         state.beat = agitation.interval() > 0
                 ? AgitatorPrismStyle.beat(agitation.interval() - agitation.countdown() + partialTick)
                 : 0f;
+        if (AgitatorPrismStyle.COMBO.equals(state.combo)) {
+            AgitatorWisps.report(prism.getBlockPos(), agitation.countdown());
+        }
     }
 
     @Override

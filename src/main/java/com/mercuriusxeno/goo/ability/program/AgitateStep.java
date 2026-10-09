@@ -4,6 +4,9 @@ import com.mercuriusxeno.goo.ability.hex.MonsterStirring;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.core.BlockPos;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -28,6 +31,9 @@ public record AgitateStep(int radius, int startInterval, double shrink, int minI
     private static final String FIELD_START_INTERVAL = "start_interval";
     private static final String FIELD_SHRINK = "shrink";
     private static final String FIELD_MIN_INTERVAL = "min_interval";
+    private static final float THRUM_VOLUME = 1.2f;
+    private static final float LOWEST_PITCH = 0.7f;
+    private static final float PITCH_RISE = 0.7f;
 
     /**
      * Codec for the step's params.
@@ -56,9 +62,36 @@ public record AgitateStep(int radius, int startInterval, double shrink, int minI
         state.startIfIdle(startInterval);
         if (state.tickDown()) {
             boolean spawned = MonsterStirring.attempt(host.level(), host.position(), radius);
+            thrum(host, state.interval());
             state.restart(AgitationState.nextInterval(state.interval(), spawned, startInterval, shrink, minInterval));
         }
         return false;
+    }
+
+    /**
+     * Thrums like a heartbeat at the attempt, higher the shorter the interval
+     * has grown.
+     *
+     * @param host     the host
+     * @param interval the interval the attempt closed
+     */
+    private void thrum(AgitateHost host, int interval) {
+        BlockPos at = host.position();
+        host.level().playSound(null, at, SoundEvents.WARDEN_HEARTBEAT, SoundSource.BLOCKS, THRUM_VOLUME,
+                thrumPitch(interval, startInterval, minInterval));
+    }
+
+    /**
+     * The thrum's pitch: low at the start interval, rising to its highest at the floor.
+     *
+     * @param interval the interval the attempt closed
+     * @param start    the start interval
+     * @param floor    the shortest interval
+     * @return the pitch
+     */
+    static float thrumPitch(int interval, int start, int floor) {
+        float quickened = start <= floor ? 1f : Math.clamp((float) (start - interval) / (start - floor), 0f, 1f);
+        return LOWEST_PITCH + quickened * PITCH_RISE;
     }
 
     @Override
