@@ -36,8 +36,6 @@ public final class SignalRings {
     static final double FLIGHT_SECONDS = 0.8;
     /** A ring's radius as it leaves the hand, in blocks. */
     static final double HAND_RADIUS = 0.04;
-    /** A ring's radius as it reaches the range, in blocks. */
-    static final double END_RADIUS = 3.0;
     /** The share of the flight a ring fades in over as it leaves the hand. */
     static final double FADE_IN_SHARE = 0.08;
     /** How many times the window's line width a ring draws at, thick enough to read as a beam. */
@@ -45,6 +43,8 @@ public final class SignalRings {
     private static final int SEGMENTS = 24;
     private static final int RING_RGB = 0xFF3A2A;
     private static final float PEAK_ALPHA = 230f;
+    /** A cone's half angle against its apex angle. */
+    private static final double HALF = 0.5;
     private static final double FULL_TURN = Math.PI * 2;
     private static final double NANOS_PER_SECOND = 1_000_000_000.0;
 
@@ -66,7 +66,7 @@ public final class SignalRings {
         }
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         Ray ray = new Ray(GloveAim.handPosition(mc.gameRenderer.getMainCamera()), player.getViewVector(partialTick),
-                signal.delivery().range());
+                signal.delivery().range(), signal.delivery().coneDegrees());
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         LineContext lines = new LineContext(event.getPoseStack().last(), buffers.getBuffer(GooRenderTypes.LINES_GLOW));
         float width = mc.getWindow().getAppropriateLineWidth() * WIDTH_SCALE;
@@ -80,9 +80,10 @@ public final class SignalRings {
      *
      * @param hand      where the rings leave, the glove hand
      * @param axis      the aim, unit length
-     * @param range     the stream's range in blocks
+     * @param range       the stream's range in blocks
+     * @param coneDegrees the stream's cone, apex to rim, which the rings trace
      */
-    private record Ray(Vec3 hand, Vec3 axis, double range) {
+    private record Ray(Vec3 hand, Vec3 axis, double range, double coneDegrees) {
     }
 
     private static void drawRings(LineContext lines, Ray ray, Vec3 camera, float width, double seconds) {
@@ -92,7 +93,8 @@ public final class SignalRings {
             if (alpha > 0) {
                 double distance = share * ray.range();
                 Vec3 center = ray.hand().add(ray.axis().scale(distance));
-                lines.emitPolyline(camera, ringPoints(center, ray.axis(), radiusAt(share), SEGMENTS),
+                double radius = radiusAt(share, ray.range(), ray.coneDegrees());
+                lines.emitPolyline(camera, ringPoints(center, ray.axis(), radius, SEGMENTS),
                         ARGB.color(alpha, RING_RGB), width);
             }
         }
@@ -123,14 +125,17 @@ public final class SignalRings {
     }
 
     /**
-     * A ring's radius along its flight: small at the hand, expanding out to
-     * the end radius at the range.
+     * A ring's radius along its flight: small at the hand, then the stream
+     * cone's own width at the ring's distance, so the rings trace the cone the
+     * wave toggles devices in.
      *
-     * @param share the share of the flight
+     * @param share       the share of the flight
+     * @param range       the stream's range in blocks
+     * @param coneDegrees the stream's cone, apex to rim, in degrees
      * @return the radius in blocks
      */
-    static double radiusAt(double share) {
-        return HAND_RADIUS + (END_RADIUS - HAND_RADIUS) * share;
+    static double radiusAt(double share, double range, double coneDegrees) {
+        return HAND_RADIUS + share * range * Math.tan(Math.toRadians(coneDegrees * HALF));
     }
 
     /**

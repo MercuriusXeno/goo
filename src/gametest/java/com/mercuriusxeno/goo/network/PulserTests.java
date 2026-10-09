@@ -40,6 +40,8 @@ public final class PulserTests {
     private static final int[] JITTER = {2, 0, 1};
     /** A lever on the floor four blocks ahead. */
     private static final BlockPos FLOOR_LEVER = STAND_POS.east(4);
+    /** A lever on the floor seven blocks ahead, in the wide light bay. */
+    private static final BlockPos FAR_FLOOR_LEVER = STAND_POS.east(7);
     /** Where a player aims on a floor lever: its handle, low in the cell. */
     private static final double LEVER_HANDLE_HEIGHT = 0.2;
     /** Where the glove hand stands off the eye, as the client sends it: ahead and below. */
@@ -80,12 +82,27 @@ public final class PulserTests {
      * @param helper the gametest helper
      */
     public static void pulserFlipsAFloorLever(GameTestHelper helper) {
-        ServerPlayer player = pulserAt(helper, FLOOR_LEVER);
-        Vec3 target = Vec3.atBottomCenterOf(helper.absolutePos(FLOOR_LEVER)).add(0, LEVER_HANDLE_HEIGHT, 0);
+        aimAtAFloorLever(helper, FLOOR_LEVER);
+    }
+
+    /**
+     * A mock player looks down at the handle of a lever on the floor seven
+     * blocks ahead, far out of hand reach, and holds Pulser for forty ticks:
+     * the lever flips several times though the cone is narrow that far out.
+     *
+     * @param helper the gametest helper
+     */
+    public static void pulserFlipsAFarFloorLever(GameTestHelper helper) {
+        aimAtAFloorLever(helper, FAR_FLOOR_LEVER);
+    }
+
+    private static void aimAtAFloorLever(GameTestHelper helper, BlockPos lever) {
+        ServerPlayer player = pulserAt(helper, lever);
+        Vec3 target = Vec3.atBottomCenterOf(helper.absolutePos(lever)).add(0, LEVER_HANDLE_HEIGHT, 0);
         player.lookAt(EntityAnchorArgument.Anchor.EYES, target);
         Vec3 hand = player.getEyePosition().add(player.getLookAngle().scale(HAND_AHEAD)).add(0, -HAND_BELOW, 0);
         watchFlips(helper, player, GooStreamPayload.unplaned(GooTypes.id(GooTypes.PULSE), PULSER.toString(),
-                hand, target), FLOOR_LEVER, held -> 1);
+                hand, target), lever, held -> 1);
     }
 
     private static void holdAtTheLever(GameTestHelper helper, IntUnaryOperator streamTicksAt) {
