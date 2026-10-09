@@ -29,7 +29,9 @@ public final class DrinkMesher {
     /** How far a point is moved toward the mean of its neighbours before it is set back onto the surface. */
     static final double RELAX = 0.5;
     /** The fastest the skin is read moving along its normal, in blocks a tick, so a flat field cannot fling it. */
-    static final double FASTEST = 0.3;
+    static final double FASTEST = 0.1;
+    /** The share of a lone surface's steepness under which the field is too flat to read the skin's pace from. */
+    static final double TOO_FLAT = 0.5;
     /** The step either side of a point the gradient is read over, as a share of the cell. */
     private static final double GRADIENT_STEP = 0.5;
     private static final double HALF = 0.5;
@@ -166,8 +168,39 @@ public final class DrinkMesher {
                 faceAbout(grid, key, axis, faces);
             }
         });
-        Long2ObjectOpenHashMap<Vertex> vertices = settle(grid, faces);
+        Long2ObjectOpenHashMap<Vertex> vertices = smoothed(faces, settle(grid, faces));
         return quadsOf(faces, vertices);
+    }
+
+    /**
+     * Averages each vertex's pace with its neighbours' round every face it is
+     * on, so one vertex's misread pace cannot raise a spine on its own.
+     *
+     * @param faces    the faces
+     * @param vertices each cell's vertex
+     * @return each cell's vertex with its pace smoothed
+     */
+    private static Long2ObjectOpenHashMap<Vertex> smoothed(List<Face> faces, Long2ObjectOpenHashMap<Vertex> vertices) {
+        Long2DoubleOpenHashMap sums = new Long2DoubleOpenHashMap();
+        Long2IntOpenHashMap counts = new Long2IntOpenHashMap();
+        for (Face face : faces) {
+            for (int corner = 0; corner < QUAD; corner++) {
+                Vertex next = vertices.get(face.cells()[(corner + 1) % QUAD]);
+                if (next != null) {
+                    sums.addTo(face.cells()[corner], next.velocity());
+                    counts.addTo(face.cells()[corner], 1);
+                }
+            }
+        }
+        Long2ObjectOpenHashMap<Vertex> smoothed = new Long2ObjectOpenHashMap<>();
+        vertices.long2ObjectEntrySet().fastForEach(entry -> {
+            Vertex vertex = entry.getValue();
+            int count = counts.get(entry.getLongKey());
+            double about = count == 0 ? vertex.velocity() : sums.get(entry.getLongKey()) / count;
+            smoothed.put(entry.getLongKey(), new Vertex(vertex.point(), vertex.normal(), vertex.skeleton(),
+                    vertex.ring(), (vertex.velocity() + about) * HALF));
+        });
+        return smoothed;
     }
 
     /**
@@ -412,7 +445,9 @@ public final class DrinkMesher {
     /**
      * How fast the skin at a point is moving along its normal: the field's
      * rise there over the next tick divided by how steeply the field falls
-     * off outward, since the surface stays where the field is the iso.
+     * off outward, since the surface stays where the field is the iso; read
+     * as still where the field is too flat to divide by, as in the saddle
+     * between two bodies.
      *
      * @param grid       the grid
      * @param candidates the bodies that reach the point's cell
@@ -421,7 +456,7 @@ public final class DrinkMesher {
      * @return blocks a tick the skin moves outward there, inward below zero, within {@link #FASTEST}
      */
     private static double velocityAt(Grid grid, int[] candidates, Vec3 point, double steepness) {
-        if (steepness == 0) {
+        if (steepness < DrinkField.SLOPE * TOO_FLAT) {
             return 0;
         }
         double now = grid.valueAt(candidates, point.x, point.y, point.z);

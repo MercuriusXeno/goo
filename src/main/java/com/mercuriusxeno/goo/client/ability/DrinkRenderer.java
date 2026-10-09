@@ -42,9 +42,9 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * Draws every Unmake drink as one surface: the field of its blocks' boxes
- * and its streams' skeletons meshed once a tick off the render thread on a
- * grid that coarsens while meshing overruns, the skin carried on at the pace
- * it was moving between meshes and after the drink ends, so blocks, streams and their
+ * and its streams' skeletons meshed once a tick off the render thread, the
+ * skin carried on at the pace it was moving between meshes and the drink
+ * drawn until its skin meshes empty, so blocks, streams and their
  * joins are one skin with no seam, blending like metaballs where they meet,
  * moving every frame and never standing or vanishing mid-air.
  * Each piece of the skin wears its block's own texture, laid along the liquid
@@ -72,26 +72,17 @@ public final class DrinkRenderer {
     private static final double GLOVE_RIGHT = 0.35;
     /** How far below another player's eyes their glove hangs, in blocks. */
     private static final double GLOVE_BELOW = 0.45;
-    /** Milliseconds a mesh may take, well under a tick so the skin keeps pace. */
-    static final double MESH_BUDGET_MS = 35;
-    /** The share of the budget a mesh is aimed to take, so the next has room to grow. */
-    static final double HEADROOM = 0.7;
-    /** The coarsest the grid's cell goes, as a multiple of the finest. */
-    static final double COARSEST = 2.5;
-    /** The least a mesh's time must miss its aim, as a share of the cell, before the cell changes. */
-    static final double HOLD = 0.1;
     /** The most ticks a skin is carried on past its mesh at the pace it was moving, before it holds still. */
     static final double EXTRAPOLATE = 2;
     private static final Vec3 UP = new Vec3(0, 1, 0);
     private static final double MILLIS_PER_NANO = 1e-6;
-    private static final double THIRD = 1.0 / 3;
     private static final String MESHED = "Unmake drink meshed in {} ms: cell 1/{}, {} quads, {} streams";
     /** Each drink's surface as last meshed, by its drinker. */
     private static final Map<Integer, Surface> SURFACES = new HashMap<>();
     /** Each drink's mesh in flight on a background thread, by its drinker. */
     private static final Map<Integer, CompletableFuture<Surface>> MESHING = new HashMap<>();
-    /** Each drink's grid cell, by its drinker, coarsened while its meshes overrun. */
-    private static final Map<Integer, Double> CELLS = new HashMap<>();
+    /** Each drink's streams as last built, by its drinker then block, which say where liquid still flows. */
+    private static final Map<Integer, Map<BlockPos, DrinkTree.Stream>> LAST = new HashMap<>();
 
     private DrinkRenderer() {
     }
@@ -116,7 +107,7 @@ public final class DrinkRenderer {
         Set<Integer> drinkers = new HashSet<>();
         drinks.forEach(drink -> drinkers.add(drink.playerId()));
         MESHING.keySet().retainAll(drinkers);
-        CELLS.keySet().retainAll(drinkers);
+        LAST.keySet().retainAll(drinkers);
         SURFACES.keySet().retainAll(drinkers);
         for (ClientDrinks.Drink drink : drinks) {
             Entity drinker = level.getEntity(drink.playerId());
@@ -202,9 +193,7 @@ public final class DrinkRenderer {
         Map<BlockPos, BlockState> states = new HashMap<>();
         List<DrinkTree.Block> blocks = new ArrayList<>();
         for (DrinkPayload.Streaming streaming : drink.streaming()) {
-            BlockState seen = level.getBlockEntity(streaming.pos()) instanceof MeltingBlockEntity melting
-                    ? melting.original() : null;
-            BlockState state = ClientDrinks.CLIENT.blockOf(streaming.pos(), seen);
+            BlockState state = ClientDrinks.CLIENT.blockOf(streaming.pos(), seenAt(level, streaming.pos()));
             if (state != null) {
                 states.put(streaming.pos(), state);
                 blocks.add(new DrinkTree.Block(streaming.pos(), Vec3.atCenterOf(streaming.pos()),
@@ -212,11 +201,30 @@ public final class DrinkRenderer {
                         streaming.end()));
             }
         }
-        drink.layout().place(states.keySet(), frame.glove());
+        Map<BlockPos, DrinkTree.Stream> last = LAST.getOrDefault(drink.playerId(), Map.of());
+        drink.layout().place(states.keySet(), frame.glove(), frame.ticks(),
+                (pos, distance) -> last.containsKey(pos) && last.get(pos).flowingAt(distance));
         Surface surface = surfaceOf(level, drink, blocks, states, frame);
         if (surface != null) {
             submitSurface(event, surface, frame);
         }
+    }
+
+    /**
+     * The block a streaming block is seen as this frame: the one its melting
+     * stand-in holds, the block itself while it still stands as itself with
+     * the zoop on its way, or nothing once it is gone.
+     *
+     * @param level the client level
+     * @param pos   the block
+     * @return the block, or null
+     */
+    private static @Nullable BlockState seenAt(ClientLevel level, BlockPos pos) {
+        if (level.getBlockEntity(pos) instanceof MeltingBlockEntity melting) {
+            return melting.original();
+        }
+        BlockState state = level.getBlockState(pos);
+        return state.isAir() ? null : state;
     }
 
     /**
@@ -272,53 +280,70 @@ public final class DrinkRenderer {
         MESHING.remove(id);
         if (!meshing.isCompletedExceptionally()) {
             Surface surface = meshing.join();
-            double cell = CELLS.getOrDefault(id, DrinkMesher.CELL);
             SURFACES.put(id, surface);
-            CELLS.put(id, cellAfter(cell, surface.millis()));
-            Goo.LOGGER.debug(MESHED, Math.round(surface.millis()), Math.round(1 / cell), surface.quads().size(),
-                    surface.coats().size());
+            Goo.LOGGER.debug(MESHED, Math.round(surface.millis()), Math.round(1 / DrinkMesher.CELL),
+                    surface.quads().size(), surface.coats().size());
         }
     }
 
     /**
-     * The grid cell a drink meshes with next, after a mesh took its time: in
-     * one step to the cell that would have taken {@link #HEADROOM} of the
-     * budget, since a mesh's time goes as the cube of the cell's fineness,
-     * held where the step would be under {@link #HOLD} of the cell.
+     * Starts a drink's mesh on a background thread: its tree built for this
+     * frame and for a tick ahead, every stream with liquid still to show
+     * skeletoned, streams with nothing left to show left out.
      *
-     * @param cell   the cell the mesh used
-     * @param millis how long it took
-     * @return the cell for the next mesh, between the finest and {@link #COARSEST} of it
+     * @param level  the client level
+     * @param drink  the drink
+     * @param blocks its blocks
+     * @param states each block's state
+     * @param frame  the frame
+     * @return the mesh in flight
      */
-    static double cellAfter(double cell, double millis) {
-        double aimed = Math.clamp(cell * Math.pow(millis / (MESH_BUDGET_MS * HEADROOM), THIRD), DrinkMesher.CELL,
-                DrinkMesher.CELL * COARSEST);
-        return Math.abs(aimed - cell) < HOLD * cell ? cell : aimed;
-    }
-
     private static CompletableFuture<Surface> meshAsync(ClientLevel level, ClientDrinks.Drink drink,
                                                         List<DrinkTree.Block> blocks, Map<BlockPos, BlockState> states,
                                                         Frame frame) {
         List<DrinkField.Skeleton> skeletons = new ArrayList<>();
         Map<DrinkTree.Stream, Coat> coats = new HashMap<>();
+        Map<BlockPos, DrinkTree.Stream> built = new HashMap<>();
         for (DrinkTree.Stream stream : DrinkTree.build(blocks, drink.layout(), frame.glove(), frame.pull(),
                 frame.ticks())) {
-            skeletons.add(DrinkTree.skeleton(stream));
-            coats.put(stream, coatOf(level, stream, states.get(stream.block().pos()), frame.ticks()));
+            built.put(stream.block().pos(), stream);
+            if (!stream.spent()) {
+                skeletons.add(DrinkTree.skeleton(stream));
+                coats.put(stream, coatOf(level, stream, states.get(stream.block().pos()), frame.ticks()));
+            }
         }
-        List<DrinkField.Skeleton> ahead = new ArrayList<>();
-        for (DrinkTree.Stream stream : DrinkTree.build(blocks, drink.layout(), frame.glove(), frame.pull(),
-                frame.ticks() + 1)) {
-            ahead.add(DrinkTree.skeleton(stream));
-        }
+        LAST.put(drink.playerId(), built);
+        List<DrinkField.Skeleton> ahead = aheadOf(drink, blocks, frame, coats.keySet());
         long tick = level.getGameTime();
-        double cell = CELLS.getOrDefault(drink.playerId(), DrinkMesher.CELL);
         return CompletableFuture.supplyAsync(() -> {
             long began = System.nanoTime();
-            List<DrinkMesher.Quad> quads = DrinkMesher.mesh(skeletons, ahead, cell);
+            List<DrinkMesher.Quad> quads = DrinkMesher.mesh(skeletons, ahead, DrinkMesher.CELL);
             return new Surface(tick, frame.ticks(), frame.glove(), quads, coats,
                     (System.nanoTime() - began) * MILLIS_PER_NANO);
         }, Util.backgroundExecutor());
+    }
+
+    /**
+     * The drink's skeletons a tick ahead, for the streams skeletoned now, in the same order.
+     *
+     * @param drink  the drink
+     * @param blocks its blocks
+     * @param frame  the frame
+     * @param shown  the streams skeletoned now
+     * @return the skeletons a tick ahead
+     */
+    private static List<DrinkField.Skeleton> aheadOf(ClientDrinks.Drink drink, List<DrinkTree.Block> blocks,
+                                                     Frame frame, Set<DrinkTree.Stream> shown) {
+        Set<BlockPos> kept = new HashSet<>();
+        shown.forEach(stream -> kept.add(stream.block().pos()));
+        List<DrinkField.Skeleton> ahead = new ArrayList<>();
+        for (DrinkTree.Stream stream : DrinkTree.build(blocks, drink.layout(), frame.glove(), frame.pull(),
+                frame.ticks() + 1)) {
+            if (kept.contains(stream.block().pos())) {
+                ahead.add(DrinkTree.skeleton(stream));
+            }
+        }
+        return ahead;
     }
 
     /**

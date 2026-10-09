@@ -10,8 +10,9 @@ import java.util.Map;
 
 /**
  * The tree an Unmake drink's streams union on this frame, built on the
- * drink's fixed layout: each block's path runs from its far side to its join
- * on its trunk, or to the glove, the ends following the hand, a tributary
+ * drink's layout: each block's path runs from its far side to its join on its
+ * trunk, or to the glove, the ends following the hand and gliding onto a new
+ * course when the stream re-roots, a tributary
  * curving in to land along its trunk's flow and the trunk landing along the
  * pull of the look. About a join the trunk carries every stream whose liquid
  * is there, combined so its area is the sum of theirs, swelling into each
@@ -283,6 +284,26 @@ public final class DrinkTree {
         }
 
         /**
+         * @param distance blocks along the stream's own path from its far side
+         * @return whether its liquid is still flowing there: its zoop on its way, or its tail not yet past
+         */
+        public boolean flowingAt(double distance) {
+            return zooping() || tailAt() < distance;
+        }
+
+        /**
+         * @return whether nothing of the stream or of any stream feeding it is left to draw: the block drained,
+         *         every tail past the route's end and no zoop on its way
+         */
+        public boolean spent() {
+            boolean own = !zooping() && block.progressAt(now) >= 1 && tailAt() >= routeLength() + DrinkStream.TIP;
+            for (Stream tributary : tributaries) {
+                own &= tributary.spent();
+            }
+            return own;
+        }
+
+        /**
          * Where the zoop's head stands along the route: at the hand as it
          * leaves, a zoop's length inside the block's near face as the zoop is
          * wholly in, flying toward the block.
@@ -389,7 +410,8 @@ public final class DrinkTree {
                 continue;
             }
             Stream stream = trunk == null
-                    ? new Stream(block, new DrinkStream.Path(node.farSide(), glove, block.seed(), pull), null, 0, now)
+                    ? new Stream(block, new DrinkStream.Path(node.farSide(), node.endToward(glove, now), block.seed(),
+                            pull), null, 0, now)
                     : joining(block, node, trunk, now);
             built.put(block.pos(), stream);
             streams.add(stream);
@@ -399,7 +421,7 @@ public final class DrinkTree {
 
     private static Stream joining(Block block, DrinkLayout.Node node, Stream trunk, double now) {
         double join = Math.min(1, node.joinAt() / trunk.path().length());
-        Vec3 at = DrinkStream.pointAt(trunk.path(), join, now);
+        Vec3 at = node.endToward(DrinkStream.pointAt(trunk.path(), join, now), now);
         Vec3 arrival = DrinkStream.flowAt(trunk.path(), join, now);
         return new Stream(block, new DrinkStream.Path(node.farSide(), at, block.seed(), arrival), trunk, join, now);
     }

@@ -9,10 +9,12 @@ import java.util.List;
  * The field an Unmake drink's surface is the level set of: every stream a
  * soft capsule chain along its skeleton with its liquid's radius, every
  * block still standing a soft rounded box, each body's field whole a little
- * inside its own surface and reaching {@link #REACH} outside it, and all of
- * them summed, so two bodies whose surfaces come within about a reach swell
- * into one another like metaballs touching, while a lone body's surface sits
- * exactly where its own does, and the whole drink is one skin with no seam.
+ * inside its own surface and reaching {@link #REACH} outside it, that reach
+ * shrinking in proportion for a body thinner than a waist so a body of no
+ * radius radiates nothing, and all of them summed, so two bodies whose
+ * surfaces come within about a reach swell into one another like metaballs
+ * touching, while a lone body's surface sits exactly where its own does, an
+ * empty skeleton leaves no trace, and the whole drink is one skin with no seam.
  * decision unmake-waves-dissolve-by-crucible-cost
  */
 public final class DrinkField {
@@ -23,8 +25,13 @@ public final class DrinkField {
     public static final double REACH = 0.24;
     /** The field's level the surface sits at: a lone body's field at its own surface. */
     public static final double ISO = falloff(0);
+    /** The radius at and over which a body's field reaches its whole reach; a thinner body reaches less in proportion. */
+    public static final double FULL_RADIUS = DrinkStream.WAIST;
     private static final double TWO = 2;
     private static final double THREE = 3;
+    private static final double SIX = 6;
+    /** How steeply a lone body's field falls off at its own surface, per block. */
+    public static final double SLOPE = SIX * (DEPTH / (DEPTH + REACH)) * (REACH / (DEPTH + REACH)) / (DEPTH + REACH);
     private static final int NONE = -1;
 
     private DrinkField() {
@@ -83,13 +90,14 @@ public final class DrinkField {
          * @param x    a point's x
          * @param y    its y
          * @param z    its z
-         * @return the signed distance from the point to that body's surface, below zero inside
+         * @return the signed distance from the point to that body's surface, below zero inside, stretched for a
+         *         body thinner than a waist so its field reaches less
          */
         double distanceTo(int body, double x, double y, double z) {
             if (body < rings.size() - 1) {
                 return segmentDistance(rings.get(body), rings.get(body + 1), x, y, z);
             }
-            return box == null ? REACH : box.signedDistance(new Vec3(x, y, z));
+            return box == null ? REACH : scaled(box.signedDistance(new Vec3(x, y, z)), box.half());
         }
     }
 
@@ -130,12 +138,24 @@ public final class DrinkField {
     }
 
     /**
+     * @param signed the signed distance to a body's own surface
+     * @param radius the body's radius there
+     * @return the distance stretched by how much thinner than {@link #FULL_RADIUS} the body is, so its field
+     *         reaches in proportion; a body of no radius reaches nothing
+     */
+    static double scaled(double signed, double radius) {
+        double scale = Math.min(1, radius / FULL_RADIUS);
+        return scale > 0 ? signed / scale : REACH;
+    }
+
+    /**
      * @param from the segment's first ring
      * @param to   its second
      * @param x    a point's x
      * @param y    its y
      * @param z    its z
-     * @return the signed distance from the point to the capsule between the rings, their radii blended along it
+     * @return the signed distance from the point to the capsule between the rings, their radii blended along it,
+     *         stretched where the capsule is thinner than a waist
      */
     static double segmentDistance(DrinkStream.Ring from, DrinkStream.Ring to, double x, double y, double z) {
         double ax = to.center().x - from.center().x;
@@ -150,7 +170,7 @@ public final class DrinkField {
         double dy = py - ay * t;
         double dz = pz - az * t;
         double radius = from.radius() + (to.radius() - from.radius()) * t;
-        return Math.sqrt(dx * dx + dy * dy + dz * dz) - radius;
+        return scaled(Math.sqrt(dx * dx + dy * dy + dz * dz) - radius, radius);
     }
 
     /**
