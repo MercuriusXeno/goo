@@ -96,6 +96,8 @@ class NetherBlackHoleProgramTest {
         when(host.kind()).thenReturn(HostKind.MARKER);
         when(host.phased()).thenReturn(state);
         when(host.read(anyString())).thenReturn(OptionalDouble.empty());
+        // black-hole-leaves-a-compression-sphere: the hole is cast at the radius its JSON cost buys
+        when(host.read(HostVariables.SIZE)).thenReturn(OptionalDouble.of(RADIUS));
         doAnswer(inv -> {
             record("scan within " + inv.getArgument(1));
             return null;

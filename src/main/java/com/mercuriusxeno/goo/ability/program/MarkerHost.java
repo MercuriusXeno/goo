@@ -44,7 +44,9 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
 
     @Override
     public OptionalDouble read(String name) {
-        return OptionalDouble.empty();
+        // black-hole-leaves-a-compression-sphere: a sized cast's program reads the size it was dragged to
+        return HostVariables.SIZE.equals(name) ? OptionalDouble.of(be.programState().castSize())
+                : OptionalDouble.empty();
     }
 
     @Override

@@ -14,10 +14,29 @@ import net.minecraft.world.level.storage.ValueOutput;
 public final class MarkerProgramState {
 
     private static final String TAG_HOARD = "Hoard";
+    private static final String TAG_CAST_SIZE = "CastSize";
 
     private final FieldEffectState fieldEffect = new FieldEffectState();
     private final PhasedState phased = new PhasedState();
     private CompressedHoard hoard = new CompressedHoard();
+    private double castSize;
+
+    /**
+     * @return the size the cast that stood the marker was dragged to, zero for one that named none
+     */
+    public double castSize() {
+        return castSize;
+    }
+
+    /**
+     * Sets the size the cast that stood the marker was dragged to
+     * (decision black-hole-leaves-a-compression-sphere).
+     *
+     * @param size the cast's size in blocks
+     */
+    public void setCastSize(double size) {
+        castSize = size;
+    }
 
     /**
      * @return the live field-effect state a field-effect step mutates
@@ -49,6 +68,7 @@ public final class MarkerProgramState {
         fieldEffect.load(input);
         phased.load(input);
         hoard = input.read(TAG_HOARD, CompressedHoard.CODEC).orElseGet(CompressedHoard::new);
+        castSize = input.getDoubleOr(TAG_CAST_SIZE, 0);
     }
 
     /**
@@ -61,6 +81,9 @@ public final class MarkerProgramState {
         phased.save(output);
         if (!hoard.isEmpty()) {
             output.store(TAG_HOARD, CompressedHoard.CODEC, hoard);
+        }
+        if (castSize > 0) {
+            output.putDouble(TAG_CAST_SIZE, castSize);
         }
     }
 }

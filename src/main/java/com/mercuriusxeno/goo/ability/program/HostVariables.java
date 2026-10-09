@@ -1,5 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import java.util.OptionalDouble;
+
 /**
  * The names a host binds for expressions, spelled once so the hosts that
  * answer them and the {@link HostKind} that promises them agree.
@@ -27,6 +29,12 @@ public final class HostVariables {
      * One when the target is a sprinting player, zero otherwise.
      */
     public static final String SPRINTING = "sprinting";
+    /**
+     * The size a cast was dragged to, in blocks, which a world ability sized
+     * at will reads for its radius; zero for a cast that names none
+     * (decision black-hole-leaves-a-compression-sphere).
+     */
+    public static final String SIZE = "size";
 
     /**
      * The separator of a namespaced id, which marks a variable name as a
@@ -47,5 +55,16 @@ public final class HostVariables {
      */
     public static boolean isCounter(String name) {
         return name.indexOf(COUNTER_SEPARATOR) >= 0;
+    }
+
+    /**
+     * The variables a sized cast binds: its size, and nothing else, which a
+     * client visual evaluates a marker's radius with.
+     *
+     * @param size the cast's size in blocks
+     * @return the variables
+     */
+    public static Variables sized(double size) {
+        return name -> SIZE.equals(name) ? OptionalDouble.of(size) : OptionalDouble.empty();
     }
 }

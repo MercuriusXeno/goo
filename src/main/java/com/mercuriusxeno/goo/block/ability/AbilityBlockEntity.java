@@ -120,11 +120,15 @@ public class AbilityBlockEntity extends GooSyncedBlockEntity implements MarkerAn
      * @param face      the placed face
      * @param ability   the id of the ability that lingers
      * @param steps     the body of the ability's linger step
+     * @param size      the size the cast was dragged to, which the program reads,
+     *                  zero for one naming none (decision black-hole-leaves-a-compression-sphere)
      */
-    public void stand(ResourceKey<GooTypeDefinition> type, Direction face, String ability, List<Step> steps) {
+    public void stand(ResourceKey<GooTypeDefinition> type, Direction face, String ability, List<Step> steps,
+                      double size) {
         this.gooType = type;
         this.placedFace = face;
         this.abilityId = ability;
+        programState.setCastSize(size);
         if (!(level instanceof ServerLevel server)) {
             return;
         }
