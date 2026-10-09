@@ -2,11 +2,15 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.frost.FrostCurve;
+import com.mercuriusxeno.goo.ability.frost.FrozenEvents;
+import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.block.tap.TapDripScheduler;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooBlocks;
+import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -22,7 +26,8 @@ import net.minecraft.world.phys.Vec3;
  * Gametests for the frost abilities: each lands a frost ability the way the
  * glove would and reads the frozen gauges and the world it leaves.
  * Decisions nova-ring-grows-with-the-hold, nova-drip-pulses-a-short-lasting-freeze,
- * cold-streams-wind-lines-and-snowflakes, orb-carries-a-swirling-nova.
+ * cold-streams-wind-lines-and-snowflakes, orb-carries-a-swirling-nova,
+ * glacial-prism-holds-the-area-frozen.
  */
 public final class FrostAbilityTests {
 
@@ -80,6 +85,22 @@ public final class FrostAbilityTests {
     private static final int ORB_LANDED_TICKS = 30;
     private static final String SHOULD_ICE_THE_POOL = "The Orb should freeze the pool under its path to ice";
     private static final String SHOULD_FREEZE_BYSTANDER = "The Orb should freeze the zombie beside its path";
+    /** A prism in the bay's corner, a zombie beside it and its twin in the far corner past Glacial's reach of 5. */
+    private static final BlockPos GLACIAL_PRISM_POS = new BlockPos(0, 1, 0);
+    private static final BlockPos GLACIAL_INSIDE_POS = new BlockPos(1, 1, 1);
+    private static final BlockPos GLACIAL_OUTSIDE_POS = new BlockPos(5, 1, 5);
+    /** Still water in the floor two blocks from the prism, inside Glacial's reach. */
+    private static final BlockPos GLACIAL_WATER_POS = new BlockPos(2, 0, 0);
+    private static final String GLACIAL_COMBO = "goo:frost_glacial";
+    private static final String FROST_SNAP_ID = "goo:frost_snap";
+    /** Half a zombie's gauge, thawing a hundredth a tick with no hold, gone in fifty ticks outside the field. */
+    private static final float HALF_A_ZOMBIE = 10f;
+    private static final FrostCurve FAST_THAW = new FrostCurve(0, 0.01f, 0.5f);
+    private static final int GLACIAL_HOLD_TICKS = 200;
+    private static final String SHOULD_BE_GLACIAL = "Frost landing on the prism should make it glacial, stands %s";
+    private static final String SHOULD_HOLD_INSIDE = "The zombie inside the glacial field should hold its gauge, stands %s";
+    private static final String SHOULD_ICE_INSIDE = "Water inside the glacial field should stand as magicked ice";
+    private static final String SHOULD_THAW_OUTSIDE = "The zombie past the glacial field should thaw, stands %s";
     private static final String SHOULD_NOT_PULSE_YET = "Drips short of the count should freeze nothing, stands %s";
     private static final String SHOULD_FREEZE_ZOMBIE = "The tap's nova should raise the zombie's gauge";
     private static final String ABILITY_REQUIRED = "Ability registry must hold frost_nova";
@@ -222,6 +243,42 @@ public final class FrostAbilityTests {
             helper.assertTrue(helper.getBlockState(POOL_NEAR).is(Blocks.ICE)
                     && helper.getBlockState(POOL_FAR).is(Blocks.ICE), SHOULD_ICE_THE_POOL);
             helper.assertTrue(frozenBy, SHOULD_FREEZE_BYSTANDER);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Frost landing on a prism makes it glacial: over 200 ticks a half frozen
+     * zombie beside it holds its gauge and the water beside it stands as
+     * magicked ice, while its twin past the field thaws out.
+     *
+     * @param helper the gametest helper
+     */
+    public static void glacialHoldsTheGauge(GameTestHelper helper) {
+        helper.setBlock(GLACIAL_PRISM_POS.below(), Blocks.STONE);
+        helper.setBlock(GLACIAL_PRISM_POS, GooBlocks.PRISM.get());
+        helper.setBlock(GLACIAL_WATER_POS, Blocks.WATER);
+        Mob inside = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, GLACIAL_INSIDE_POS);
+        Mob outside = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, GLACIAL_OUTSIDE_POS);
+        float[] held = new float[1];
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            GooEffectScheduler arrivals = GooServerState.of(helper.getLevel().getServer()).gooEffects();
+            int now = helper.getLevel().getServer().getTickCount();
+            arrivals.enqueue(new GooEffectScheduler.PendingEffect(now, helper.getLevel(), null, GooTypes.FROST, -1,
+                    helper.absolutePos(GLACIAL_PRISM_POS), Direction.UP, FROST_SNAP_ID));
+            arrivals.drainArrivedEffects(now);
+            String combo = helper.getBlockEntity(GLACIAL_PRISM_POS, PrismBlockEntity.class).getCombo();
+            helper.assertTrue(GLACIAL_COMBO.equals(combo), String.format(SHOULD_BE_GLACIAL, combo));
+            FrozenEvents.freeze(inside, HALF_A_ZOMBIE, FAST_THAW);
+            FrozenEvents.freeze(outside, HALF_A_ZOMBIE, FAST_THAW);
+            held[0] = inside.getData(GooAttachments.FROZEN).gauge();
+        });
+        helper.runAfterDelay(SETTLE_TICKS + GLACIAL_HOLD_TICKS, () -> {
+            float insideGauge = inside.getData(GooAttachments.FROZEN).gauge();
+            float outsideGauge = outside.getData(GooAttachments.FROZEN).gauge();
+            helper.assertTrue(insideGauge == held[0], String.format(SHOULD_HOLD_INSIDE, insideGauge));
+            helper.assertTrue(outsideGauge == 0f, String.format(SHOULD_THAW_OUTSIDE, outsideGauge));
+            helper.assertTrue(helper.getBlockState(GLACIAL_WATER_POS).is(GooBlocks.MAGICKED_ICE.get()), SHOULD_ICE_INSIDE);
             helper.succeed();
         });
     }

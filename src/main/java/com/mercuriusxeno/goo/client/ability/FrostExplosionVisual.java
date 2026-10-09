@@ -79,11 +79,29 @@ public final class FrostExplosionVisual implements BurnoutVisual, HeldGhostVisua
 
     private static void emitHeld(PoseStack.Pose pose, VertexConsumer c, HeldGhost ghost, Direction face,
                                  float opacity, double nowSeconds) {
+        emitWholeFog(pose, c, face, RING_LIFT, ghost.domeRadius(), opacity);
+    }
+
+    /**
+     * Emits frost's fog disc fully spread and whole, square to a face: the
+     * Orb's held ghost lies this way on the struck face, and a glacial prism
+     * wears it as a collar about its base (decisions orb-carries-a-swirling-nova,
+     * glacial-prism-holds-the-area-frozen).
+     *
+     * @param pose    the pose entry
+     * @param c       the vertex consumer
+     * @param face    the face the disc lies square to
+     * @param lift    the shift from the block center along the face's step
+     * @param reach   the disc's radius in blocks
+     * @param opacity the share of the fog's opacity
+     */
+    public static void emitWholeFog(PoseStack.Pose pose, VertexConsumer c, Direction face, float lift, float reach,
+                                    float opacity) {
         int progressByte = NetherDiscMesh.toByte(HELD_PROGRESS);
         int fog = NetherDiscMesh.toByte(opacity);
         int center = ARGB.color(fog, progressByte, NetherDiscMesh.toByte(SIGNED_TO_UNIT),
                 NetherDiscMesh.toByte(SIGNED_TO_UNIT));
-        BurnoutGeometry.emitAnnulus(pose, c, face, RING_LIFT, 0f, ghost.domeRadius(), RING_SEGMENTS,
+        BurnoutGeometry.emitAnnulus(pose, c, face, lift, 0f, reach, RING_SEGMENTS,
                 (angle, outer) -> outer ? edgeColor(fog, progressByte, angle) : center);
     }
 
