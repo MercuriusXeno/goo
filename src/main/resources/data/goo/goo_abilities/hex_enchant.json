@@ -9,6 +9,7 @@
   "delivery": { "kind": "self" },
   "behaviors": [
     { "type": "enchant_book" },
+    { "type": "tome", "kind": "enchant" },
     { "type": "afterimage", "goo": "hex" }
   ],
   "tags": ["self"]

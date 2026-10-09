@@ -88,6 +88,7 @@ public final class StepTypes {
         register(AgitateStep.TYPE);
         register(LifetapStep.TYPE);
         register(LeechStep.TYPE);
+        register(TomeStep.TYPE);
     }
 
     private StepTypes() {

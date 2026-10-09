@@ -125,6 +125,7 @@ class StepCodecTest {
                     List.of(new AilmentOverlayStep(AilmentKind.HEX, Expr.literal(60))), Expr.literal(5))),
             Map.entry("agitate", new AgitateStep(8, 400, 0.75, 40)),
             Map.entry("lifetap", new LifetapStep(Expr.literal(0.3))),
+            Map.entry("tome", new TomeStep(TomeKind.FUSE)),
             Map.entry("leech", new LeechStep(Expr.literal(0.5),
                     List.of(new DamageStep(Expr.literal(2), DamageKind.ATTACK))))
     );
