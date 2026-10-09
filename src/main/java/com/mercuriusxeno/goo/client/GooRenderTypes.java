@@ -709,6 +709,19 @@ public final class GooRenderTypes {
                     .createRenderSetup());
 
     /**
+     * Frost's ice over a frozen mob (decision frozen-gauge-per-mob-encases-when-full):
+     * Petrify's stone pipeline sampling vanilla's packed ice, so frost spreads
+     * over the mob the way stone does, whole at a full gauge.
+     */
+    public static final RenderType FROST_ICE_TYPE = RenderType.create(
+            "goo_frost_ice",
+            RenderSetup.builder(PETRIFY_STONE)
+                    .withTexture("Sampler0", Identifier.withDefaultNamespace("textures/block/packed_ice.png"))
+                    .useLightmap()
+                    .sortOnUpload()
+                    .createRenderSetup());
+
+    /**
      * Petrify's fog pipeline (decision petrify-stone-encasement-and-calcify-map):
      * cross-sections of the cone drawn through {@code petrify_fog.vsh / .fsh},
      * undulating dust-fog waves washing forward through them.

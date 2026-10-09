@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:snap_encases_then_thaws",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 340,
+  "setup_ticks": 0,
+  "required": true
+}

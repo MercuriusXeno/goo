@@ -9,12 +9,13 @@ import com.mercuriusxeno.goo.client.ability.Afterimages;
 import com.mercuriusxeno.goo.client.ability.AilmentOverlayLayer;
 import com.mercuriusxeno.goo.client.ability.BlockTransforms;
 import com.mercuriusxeno.goo.client.ability.ChainBurnouts;
+import com.mercuriusxeno.goo.client.ability.EncasementLayer;
+import com.mercuriusxeno.goo.client.ability.FrozenPoses;
 import com.mercuriusxeno.goo.client.ability.GhostTrails;
 import com.mercuriusxeno.goo.client.ability.MobAilments;
 import com.mercuriusxeno.goo.client.ability.MobCoatLayer;
 import com.mercuriusxeno.goo.client.ability.MobCoats;
 import com.mercuriusxeno.goo.client.ability.MobShells;
-import com.mercuriusxeno.goo.client.ability.PetrifyStoneLayer;
 import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
 import com.mercuriusxeno.goo.client.ability.Transformations;
 import com.mercuriusxeno.goo.client.ability.ViewportRipples;
@@ -269,7 +270,15 @@ public final class GooClientSetup {
         event.registerEntityModifier(
                 new TypeToken<EntityRenderer<Entity, EntityRenderState>>() {
                 },
-                PetrifyStoneLayer::stampPetrify);
+                EncasementLayer::stampPetrify);
+        event.registerEntityModifier(
+                new TypeToken<EntityRenderer<Entity, EntityRenderState>>() {
+                },
+                EncasementLayer::stampFrozen);
+        event.registerEntityModifier(
+                new TypeToken<EntityRenderer<Entity, EntityRenderState>>() {
+                },
+                FrozenPoses::stampFrozenPose);
         event.registerEntityModifier(
                 new TypeToken<EntityRenderer<Entity, EntityRenderState>>() {
                 },
@@ -290,7 +299,7 @@ public final class GooClientSetup {
             if (renderer != null) {
                 MobCoatLayer.addTo(renderer, MobShells.of(type, event.getEntityModels()));
                 AilmentOverlayLayer.addTo(renderer);
-                PetrifyStoneLayer.addTo(renderer, MobShells.of(type, event.getEntityModels()));
+                EncasementLayer.addTo(renderer, MobShells.of(type, event.getEntityModels()));
             }
         }
         for (PlayerModelType skin : event.getSkins()) {
@@ -298,7 +307,7 @@ public final class GooClientSetup {
             MobCoatLayer.addTo(event.getMannequinRenderer(skin), MobShells.NONE);
             AilmentOverlayLayer.addTo(event.getPlayerRenderer(skin));
             AilmentOverlayLayer.addTo(event.getMannequinRenderer(skin));
-            PetrifyStoneLayer.addTo(event.getPlayerRenderer(skin), MobShells.NONE);
+            EncasementLayer.addTo(event.getPlayerRenderer(skin), MobShells.NONE);
         }
     }
 
@@ -401,6 +410,7 @@ public final class GooClientSetup {
         ChainBurnouts.CLIENT.clear();
         MobCoats.CLIENT.clear();
         MobAilments.CLIENT.clear();
+        FrozenPoses.CLIENT.clear();
         BlockTransforms.CLIENT.clear();
         Afterimages.CLIENT.clear();
         Transformations.CLIENT.clear();

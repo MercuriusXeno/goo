@@ -40,7 +40,7 @@ public final class StepTypes {
         register(PotionStep.TYPE);
         register(TargetStep.TYPE);
         register(LeafSteps.SET_HEALTH.type());
-        register(LeafSteps.FREEZE_TICKS.type());
+        register(FreezeStep.TYPE);
         register(LeafSteps.SET_AI.type());
         register(LeafSteps.SET_INVULNERABLE.type());
         register(CloneEntityStep.TYPE);
