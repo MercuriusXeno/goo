@@ -115,6 +115,7 @@ class StepCodecTest {
             Map.entry("heal", LeafSteps.HEAL.step(Expr.literal(0.1))),
             Map.entry("court", LeafSteps.COURT.step(Expr.literal(0.25))),
             Map.entry("power_pulse", LeafSteps.POWER_PULSE.step(Unit.INSTANCE)),
+            Map.entry("toggle_device", LeafSteps.TOGGLE_DEVICE.step(Unit.INSTANCE)),
             Map.entry("stun", LeafSteps.STUN.step(Expr.literal(60))),
             Map.entry("signal_wave", new SignalWaveStep(Expr.literal(0.5))),
             Map.entry("pulser_toggle", new PulserToggleStep(Expr.literal(4))),

@@ -80,6 +80,7 @@ public final class StepTypes {
         register(LeafSteps.HEAL.type());
         register(LeafSteps.COURT.type());
         register(LeafSteps.POWER_PULSE.type());
+        register(LeafSteps.TOGGLE_DEVICE.type());
         register(LeafSteps.STUN.type());
         register(SignalWaveStep.TYPE);
         register(PulserToggleStep.TYPE);

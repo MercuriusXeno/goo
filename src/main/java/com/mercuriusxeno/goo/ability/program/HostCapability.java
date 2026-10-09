@@ -88,7 +88,12 @@ public enum HostCapability {
      * A landing that can tick the redstone device it landed on (decision
      * zap-ticks-the-device-and-stuns).
      */
-    POWER_PULSE(PowerPulseHost.class);
+    POWER_PULSE(PowerPulseHost.class),
+    /**
+     * A host that can toggle the redstone device where it acts, as a hand
+     * would (decision pulser-drip-toggles-the-block-below).
+     */
+    TOGGLE_DEVICE(DeviceToggleHost.class);
 
     private final Class<? extends StepHost> hostType;
 
