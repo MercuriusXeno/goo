@@ -116,4 +116,31 @@ class WindLinesTest {
         assertEquals(Math.cos(off), tilted.dot(EAST), EPSILON);
         assertEquals(1, tilted.length(), EPSILON);
     }
+
+    // cold-wind-slows-down: the head travels and its curl turns under the earlier pace
+    @Nested
+    class Pace {
+
+        /** The earlier pace: an 18-tick life rushing for six tenths of it, then a turn and a half of curl. */
+        private static final double EARLIER_STRAIGHT_TICKS = 18 * 0.6;
+        private static final double EARLIER_TURN_PER_TICK = 1.5 * 2 * Math.PI / (18 * 0.4);
+
+        @Test
+        void aLineLivesThirtyTicks() {
+            assertEquals(30, WindLines.LIFE_TICKS);
+        }
+
+        @Test
+        void theHeadRushesSlowerThanBefore() {
+            WindLines.Line line = line(WindLines.Sway.NONE);
+            double perTick = WindLines.pathPoint(line, 2).distanceTo(WindLines.pathPoint(line, 1));
+            assertTrue(perTick < STRAIGHT / EARLIER_STRAIGHT_TICKS * 0.7, "the head travels well under the old pace");
+        }
+
+        @Test
+        void theCurlTurnsSlowerThanBefore() {
+            double turnPerTick = WindLines.CURL_TURNS * 2 * Math.PI / (WindLines.LIFE_TICKS - WindLines.STRAIGHT_TICKS);
+            assertTrue(turnPerTick < EARLIER_TURN_PER_TICK / 2, "the curl winds at under half the old spin");
+        }
+    }
 }
