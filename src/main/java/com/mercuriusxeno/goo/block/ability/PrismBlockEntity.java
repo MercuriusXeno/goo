@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.ability.PrismCombos;
 import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.ability.pulse.RedstoneBeat;
 import com.mercuriusxeno.goo.block.BlockEntitySync;
 import com.mercuriusxeno.goo.block.GooSyncedBlockEntity;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
@@ -38,12 +39,17 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
     private static final String TAG_COMBO = "Combo";
     private static final String TAG_GOO_TYPE = "goo_type";
     private static final String TAG_RUNNING = "ComboRunning";
+    private static final String TAG_PREVIOUS_EDGE = "BeatPreviousEdge";
+    private static final String TAG_LAST_EDGE = "BeatLastEdge";
+    private static final String TAG_HEARD = "BeatHeard";
 
     private final MarkerProgramState programState = new MarkerProgramState();
     private ResourceKey<GooTypeDefinition> gooType = GooTypes.CRYSTAL;
     private String combo = NO_COMBO;
     /** The combo's program while it runs; null once it ends or before any combo. */
     private @Nullable ProgramBehavior behavior;
+    /** The redstone beat the prism has heard (decision metronome-prism-pulses-at-the-learned-rate). */
+    private RedstoneBeat beat = RedstoneBeat.SILENT;
 
     /**
      * Creates the prism's block entity.
@@ -106,6 +112,28 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
     }
 
     /**
+     * Reads the prism's redstone input as a neighbor changes, moving its beat
+     * on when a signal starts.
+     *
+     * @param powered whether a signal reaches the prism now
+     * @param now     the game time
+     */
+    public void hearSignal(boolean powered, long now) {
+        RedstoneBeat after = beat.hear(powered, now);
+        if (after != beat) {
+            beat = after;
+            setChanged();
+        }
+    }
+
+    /**
+     * @return the redstone beat the prism has heard
+     */
+    public RedstoneBeat beat() {
+        return beat;
+    }
+
+    /**
      * @return true when the prism holds a combo
      */
     public boolean hasCombo() {
@@ -153,6 +181,8 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
         gooType = loaded != null ? loaded : GooTypes.CRYSTAL;
         combo = input.getStringOr(TAG_COMBO, NO_COMBO);
         programState.load(input);
+        beat = new RedstoneBeat(input.getLongOr(TAG_PREVIOUS_EDGE, RedstoneBeat.NEVER),
+                input.getLongOr(TAG_LAST_EDGE, RedstoneBeat.NEVER), input.getBooleanOr(TAG_HEARD, false));
         behavior = input.getBooleanOr(TAG_RUNNING, false) ? comboProgram() : null;
         if (behavior != null) {
             behavior.loadAdditional(input);
@@ -180,6 +210,9 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
         output.putString(TAG_GOO_TYPE, GooTypes.id(gooType));
         output.putString(TAG_COMBO, combo);
         programState.save(output);
+        output.putLong(TAG_PREVIOUS_EDGE, beat.previousEdge());
+        output.putLong(TAG_LAST_EDGE, beat.lastEdge());
+        output.putBoolean(TAG_HEARD, beat.heard());
         output.putBoolean(TAG_RUNNING, behavior != null);
         if (behavior != null) {
             behavior.saveAdditional(output);

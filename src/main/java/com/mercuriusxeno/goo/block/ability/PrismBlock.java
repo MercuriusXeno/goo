@@ -17,7 +17,10 @@ import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
+import net.minecraft.world.level.redstone.Orientation;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.NonNull;
@@ -41,6 +44,14 @@ public class PrismBlock extends BaseEntityBlock {
     /** The face the prism grew from, its base against the block behind it. */
     public static final EnumProperty<Direction> FACING = EnumProperty.create("facing", Direction.class);
 
+    /**
+     * True for the tick a metronome prism pulses, when it gives full redstone
+     * power to the blocks beside it (decision metronome-prism-pulses-at-the-learned-rate).
+     */
+    public static final BooleanProperty POWERED = BlockStateProperties.POWERED;
+    /** The redstone power a powered prism gives. */
+    private static final int FULL_POWER = 15;
+
     /** The prism's width on the face, in block fractions: half a block, centered. */
     private static final double WIDTH_MIN = 4.0 / 16;
     private static final double WIDTH_MAX = 12.0 / 16;
@@ -60,7 +71,7 @@ public class PrismBlock extends BaseEntityBlock {
      */
     public PrismBlock(Properties properties) {
         super(properties);
-        registerDefaultState(stateDefinition.any().setValue(FACING, Direction.UP));
+        registerDefaultState(stateDefinition.any().setValue(FACING, Direction.UP).setValue(POWERED, false));
     }
 
     private static Map<Direction, VoxelShape> buildShapes() {
@@ -78,7 +89,7 @@ public class PrismBlock extends BaseEntityBlock {
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(FACING);
+        builder.add(FACING, POWERED);
     }
 
     /**
@@ -129,6 +140,53 @@ public class PrismBlock extends BaseEntityBlock {
     public void onNeighborChange(@NonNull BlockState state, @NonNull LevelReader level,
                                  @NonNull BlockPos pos, @NonNull BlockPos neighbor) {
         FaceSupport.breakUnsupported(canSurvive(state, level, pos), level, pos, false);
+    }
+
+    /**
+     * Records the game time of each redstone signal the prism starts
+     * receiving, so a metronome prism learns its beat from the last two
+     * (decision metronome-prism-pulses-at-the-learned-rate).
+     *
+     * @param state          the block state
+     * @param level          the level
+     * @param pos            the prism's position
+     * @param neighborBlock  the neighbor's block
+     * @param orientation    the update's orientation, when known
+     * @param movedByPiston  whether a piston moved the neighbor
+     */
+    @Override
+    protected void neighborChanged(@NonNull BlockState state, @NonNull Level level, @NonNull BlockPos pos,
+                                   @NonNull Block neighborBlock, @Nullable Orientation orientation,
+                                   boolean movedByPiston) {
+        if (!level.isClientSide() && level.getBlockEntity(pos) instanceof PrismBlockEntity prism) {
+            prism.hearSignal(level.hasNeighborSignal(pos), level.getGameTime());
+        }
+    }
+
+    /**
+     * A prism gives redstone power, though only a pulsing metronome's does.
+     *
+     * @param state the block state
+     * @return true
+     */
+    @Override
+    protected boolean isSignalSource(@NonNull BlockState state) {
+        return true;
+    }
+
+    /**
+     * Full power to every side while powered, none otherwise.
+     *
+     * @param state     the block state
+     * @param level     the level
+     * @param pos       the prism's position
+     * @param direction the side asked
+     * @return 15 while powered, else 0
+     */
+    @Override
+    protected int getSignal(@NonNull BlockState state, @NonNull BlockGetter level, @NonNull BlockPos pos,
+                            @NonNull Direction direction) {
+        return state.getValue(POWERED) ? FULL_POWER : 0;
     }
 
     @Override
